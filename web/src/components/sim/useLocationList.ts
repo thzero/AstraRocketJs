@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { useLatest } from '../common/useLatest';
 import { getLaunchLocationStore, type LaunchLocation } from '../../services/storage/launchLocationStore';
 
 /**
@@ -23,26 +24,25 @@ import { getLaunchLocationStore, type LaunchLocation } from '../../services/stor
 export function useLocationList(): { locations: LaunchLocation[] | null; refresh: () => Promise<void> } {
   const [locations, setPads] = useState<LaunchLocation[] | null>(null);
 
-  // Re-armed in the effect body, not only cleared in cleanup: the app mounts
-  // under StrictMode, whose development double-invoke runs the cleanup once and
-  // then the effect again (see MaterialPicker for the same guard).
-  const mounted = useRef(true);
-  /** Which read is the current one; an older answer is dropped, not applied. */
-  const latest = useRef(0);
+  /** Which read is the current one; an older answer, or one after unmount, is dropped. */
+  const { claim } = useLatest();
 
   const refresh = useCallback(async () => {
-    const seq = ++latest.current;
+    const mine = claim();
     const list = await getLaunchLocationStore().list();
-    if (mounted.current && seq === latest.current) setPads(list);
-  }, []);
+    if (mine()) setPads(list);
+  }, [claim]);
 
+  // The first read, with an empty list as its fallback. A caller's `refresh`
+  // rejects to that caller instead.
   useEffect(() => {
-    mounted.current = true;
-    void refresh().catch(() => mounted.current && setPads([]));
-    return () => {
-      mounted.current = false;
-    };
-  }, [refresh]);
+    const mine = claim();
+    // Async, so a store that throws synchronously still lands in the fallback.
+    void (async () => getLaunchLocationStore().list())().then(
+      (list) => mine() && setPads(list),
+      () => mine() && setPads([]),
+    );
+  }, [claim]);
 
   return { locations, refresh };
 }

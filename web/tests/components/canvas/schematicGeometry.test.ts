@@ -12,6 +12,8 @@ import {
   hoverTagFor,
   unionBox,
   zoomAbout,
+  zoomStep,
+  MAX_ZOOM,
   marginText,
 } from '../../../src/components/canvas/schematicGeometry';
 import i18n from '../../../src/i18n';
@@ -223,6 +225,18 @@ describe('zoomAbout', () => {
   it('returns the same object when the scale does not change', () => {
     const z = { k: 2, x: 10, y: 20 };
     expect(zoomAbout(z, 5, 5, 2)).toBe(z);
+  });
+});
+
+describe('zoomStep', () => {
+  it('multiplies the scale by the factor', () => {
+    expect(zoomStep({ k: 2, x: 0, y: 0 }, 0, 0, 1.5, MAX_ZOOM).k).toBe(3);
+  });
+  it('holds the scale at the ceiling', () => {
+    expect(zoomStep({ k: 10, x: 0, y: 0 }, 0, 0, 1.5, MAX_ZOOM).k).toBe(MAX_ZOOM);
+  });
+  it('never zooms out past the fitted view', () => {
+    expect(zoomStep({ k: 1.2, x: 4, y: 4 }, 0, 0, 0.5, MAX_ZOOM)).toEqual({ k: 1, x: 0, y: 0 });
   });
 });
 

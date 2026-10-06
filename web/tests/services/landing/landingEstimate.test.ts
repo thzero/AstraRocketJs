@@ -1,11 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { parseForecast, resetWeatherState, ymdInZone } from '../../../src/services/weather/openMeteo';
-import {
-  estimateLanding,
-  HOUR_OFFSETS,
-  runLandingEstimate,
-  windAt,
-} from '../../../src/services/landing/landingEstimate';
+import { HOUR_OFFSETS, parseForecast, resetWeatherState, ymdInZone } from '../../../src/services/weather/openMeteo';
+import { estimateLanding, runLandingEstimate, windAt } from '../../../src/services/landing/landingEstimate';
 import { answer } from '../../testing/openMeteoFixture';
 
 beforeEach(() => resetWeatherState());

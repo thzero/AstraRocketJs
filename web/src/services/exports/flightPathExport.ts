@@ -2,18 +2,26 @@ import Mustache from 'mustache';
 import type { FlightResult, FlightEvent, FlightSeries } from '../../engine/openRocketEngine';
 import type { LaunchConditions } from '../design/orkTree';
 import { componentName, isDefaultComponentName } from '../app/warningText';
+import { hexOf, parseHexColor } from '../design/colorHex';
+import { neutralizeFormula } from './csvCell';
+import { siToUi } from '../../prefs/units';
+import { CSV_MIME } from './csvExport';
+import { escapeXml } from '../files/xmlUtil';
+import { offsetToLatLon } from '../map/geodesy';
+import { flightBranches } from '../flight/flightColumns';
+import { bearingFromPad, distanceFromPad } from '../flight/groundTrack';
 
 /**
  * Templated flight-path export — a TypeScript port of OpenRocket's
  * `info.openrocket.core.file.flightpath` subsystem (KML / GPX / waypoint CSV).
  *
- * The desktop version reads latitude/longitude straight from the simulated
- * flight (OpenRocket derives them from the launch position during the run). Our
- * engine ships only the lateral drift (`Px` east, `Py` north, meters from the
- * pad) in the default flight series — the same trajectory the 3D path view
- * draws — so we project those onto geographic coordinates here, about the
- * configured launch site, using a spherical Earth (OpenRocket's default
- * geodetic model). MSL altitude is the AGL altitude plus the launch altitude.
+ * Positions are the kernel's own latitude and longitude (`φ`, `λ`), which it
+ * records at every step with the Earth model the simulation chose, as the
+ * desktop version reads them. A result saved without them is projected from its
+ * drift (`Px` east, `Py` north, meters from the pad) about the launch site with
+ * the kernel's default spherical model (services/map/geodesy.ts), so the export
+ * and the in-app landing agree. MSL altitude is the AGL altitude plus the
+ * launch altitude.
  *
  * A {@link FlightPathModel} is built once, then rendered by the chosen format.
  * The three built-in renderers reproduce the reference Mustache templates.
@@ -392,7 +400,7 @@ export function defaultPinColor(index: number): number {
 
 /** A branch color as the `RRGGBB` a color input wants. */
 export function rgbToHex(rgb: number): string {
-  return `#${(rgb & 0xffffff).toString(16).padStart(6, '0')}`;
+  return hexOf(rgb);
 }
 
 /** `#RRGGBB` back to a number; anything unparseable reads as black. */
@@ -404,13 +412,12 @@ export function rgbToHex(rgb: number): string {
  * a swap at the call site, but the names gave no hint which was which.
  */
 export function hexToRgbInt(hex: string): number {
-  const v = Number.parseInt(hex.replace('#', ''), 16);
-  return Number.isFinite(v) ? v & 0xffffff : 0;
+  return parseHexColor(hex) ?? 0;
 }
 const hex2 = (v: number): string => (v & 0xff).toString(16).padStart(2, '0');
 
 /** A packed 0xRRGGBB as the plain `rrggbb` a web color notation wants. */
-const rgbHex = (rgb: number): string => (rgb & 0xffffff).toString(16).padStart(6, '0');
+const rgbHex = (rgb: number): string => hexOf(rgb, false);
 
 /** RGB → the aabbggrr literal KML wants (alpha first, then B, G, R). */
 function kmlColor(rgb: number, alpha: number): string {
@@ -678,14 +685,13 @@ export interface FlightPathMeta {
 
 const UNIT_SYMBOL: Record<DistanceUnit, string> = { m: 'm', ft: 'ft', km: 'km', mi: 'mi' };
 /** Meters → unit multiplier. */
-const UNIT_FACTOR: Record<DistanceUnit, number> = { m: 1, ft: 3.280839895, km: 0.001, mi: 0.000621371192 };
 /** Decimals shown per unit (larger units get more). */
 const UNIT_DECIMALS: Record<DistanceUnit, number> = { m: 1, ft: 1, km: 3, mi: 3 };
 
 /** Render a meters value in the given unit, without the unit symbol. */
 function fmtLength(meters: number, unit: DistanceUnit): string {
   if (!Number.isFinite(meters)) return '';
-  return (meters * UNIT_FACTOR[unit]).toFixed(UNIT_DECIMALS[unit]);
+  return siToUi('distance', unit, meters).toFixed(UNIT_DECIMALS[unit]);
 }
 
 // ---------------------------------------------------------------------------
@@ -719,20 +725,6 @@ function launchPositionUnset(launch: LaunchConditions): boolean {
   return (launch.latitudeDeg ?? 0) === 0 && (launch.longitudeDeg ?? 0) === 0;
 }
 
-/**
- * WGS84 degree lengths at a latitude, good to a few centimeters per kilometer
- * — the same series desktop OpenRocket projects with, so a track exported from
- * either app lands on the same spot. A spherical Earth would put a 10 km drift
- * tens of meters off.
- */
-function metersPerDegree(latitudeDeg: number): { lat: number; lon: number } {
-  const phi = (latitudeDeg * Math.PI) / 180;
-  return {
-    lat: 111132.92 - 559.82 * Math.cos(2 * phi) + 1.175 * Math.cos(4 * phi),
-    lon: 111412.84 * Math.cos(phi) - 93.5 * Math.cos(3 * phi),
-  };
-}
-
 // ---------------------------------------------------------------------------
 // Model builder (mirrors FlightPathModelBuilder)
 // ---------------------------------------------------------------------------
@@ -749,8 +741,7 @@ function rawBranchesOf(
   result: FlightResult,
   meta: FlightPathMeta,
 ): { name: string; events: FlightEvent[]; series: FlightSeries }[] {
-  if (result.branches && result.branches.length) return result.branches;
-  return [{ name: meta.rocketName || meta.simName || 'Flight', events: result.events, series: result.series }];
+  return flightBranches(result, meta.rocketName || meta.simName || 'Flight');
 }
 
 /**
@@ -797,14 +788,7 @@ export function buildFlightPathModel(
   const lon0 = unset ? EXPORT_FALLBACK_LONGITUDE : (launch.longitudeDeg ?? 0);
   const launchAlt = launch.launchAltitudeM ?? 0;
 
-  const perDegree = metersPerDegree(lat0);
-  // Guard the poles, where a degree of longitude is zero meters wide and every
-  // east offset would divide to infinity. Unreachable for the KSC fallback and
-  // for any launch site anyone uses, but a NaN in a coordinate is a broken file.
-  const lonPerDegree = Math.abs(perDegree.lon) < 1e-9 ? Infinity : perDegree.lon;
-
-  const toLat = (north: number): number => lat0 + north / perDegree.lat;
-  const toLon = (east: number): number => lon0 + east / lonPerDegree;
+  const project = (east: number, north: number) => offsetToLatLon(lat0, lon0, { east, north });
 
   // `automatic` only means something once there is a launch altitude to judge,
   // so it is resolved here and the model carries the answer, not the question.
@@ -875,8 +859,10 @@ export function buildFlightPathModel(
 
   for (const [i, raw] of rawBranches.entries()) {
     const branch = buildBranch(raw, options, t, {
-      toLat,
-      toLon,
+      project,
+      // The kernel flew an unset site from (0, 0); its coordinates describe
+      // that, not the substitute site the file is written about.
+      kernelPosition: !unset,
       launchAlt,
       altUnit: options.altitudeUnit,
       distUnit: options.distanceUnit,
@@ -933,8 +919,10 @@ export function buildFlightPathModel(
 }
 
 interface BranchCtx {
-  toLat: (north: number) => number;
-  toLon: (east: number) => number;
+  /** A drift offset as a position about the export's launch site. */
+  project: (east: number, north: number) => { lat: number; lon: number };
+  /** Whether the kernel's recorded latitude and longitude describe this export's site. */
+  kernelPosition: boolean;
   launchAlt: number;
   altUnit: DistanceUnit;
   distUnit: DistanceUnit;
@@ -1002,11 +990,19 @@ function buildBranch(
 
   const eastAt = (i: number) => finiteOr0(east?.[i]);
   const northAt = (i: number) => finiteOr0(north?.[i]);
-  const distanceAt = (i: number) => Math.hypot(eastAt(i), northAt(i));
-  const bearingAt = (i: number) => {
-    const deg = (Math.atan2(eastAt(i), northAt(i)) * 180) / Math.PI;
-    return (deg + 360) % 360;
+  const phi = ctx.kernelPosition ? series(raw.series, 'φ') : undefined;
+  const lam = ctx.kernelPosition ? series(raw.series, 'λ') : undefined;
+  /** The kernel's position at a sample, or the drift projected when it has none. */
+  const positionAt = (i: number): { lat: number; lon: number } => {
+    const la = phi?.[i];
+    const lo = lam?.[i];
+    if (typeof la === 'number' && Number.isFinite(la) && typeof lo === 'number' && Number.isFinite(lo)) {
+      return { lat: la, lon: lo };
+    }
+    return ctx.project(eastAt(i), northAt(i));
   };
+  const distanceAt = (i: number) => distanceFromPad({ east: eastAt(i), north: northAt(i) });
+  const bearingAt = (i: number) => bearingFromPad({ east: eastAt(i), north: northAt(i) });
 
   /** "223.6 m at 27°", in the export language. */
   const distanceBearing = (i: number): string =>
@@ -1018,8 +1014,7 @@ function buildBranch(
 
   const mkWaypoint = (i: number, type: WaypointKind, label: string, device: string | null): FlightPathWaypoint => {
     const altAgl = finiteOr0(alt[i]);
-    const latitude = ctx.toLat(northAt(i));
-    const longitude = ctx.toLon(eastAt(i));
+    const { lat: latitude, lon: longitude } = positionAt(i);
     const mslMeters = altAgl + ctx.launchAlt;
     const t = finiteOr0(time[i]);
     return {
@@ -1093,8 +1088,9 @@ function buildBranch(
     branch.landingDistance = fmtLength(distanceAt(i), ctx.distUnit);
     branch.landingBearing = bearingAt(i).toFixed(0);
     branch.landingTime = seconds(groundHit.time);
-    branch.landingLatitudeStr = ctx.toLat(northAt(i)).toFixed(6);
-    branch.landingLongitudeStr = ctx.toLon(eastAt(i)).toFixed(6);
+    const landing = positionAt(i);
+    branch.landingLatitudeStr = landing.lat.toFixed(6);
+    branch.landingLongitudeStr = landing.lon.toFixed(6);
     branch.landingText = distanceBearing(i);
   }
 
@@ -1182,9 +1178,10 @@ function buildBranch(
       if (![time[i], alt[i], north?.[i], east?.[i]].every((v) => typeof v === 'number' && Number.isFinite(v))) return;
       const altAgl = finiteOr0(alt[i]);
       const t = finiteOr0(time[i]);
+      const at = positionAt(i);
       branch.path.push({
-        latitude: ctx.toLat(northAt(i)),
-        longitude: ctx.toLon(eastAt(i)),
+        latitude: at.lat,
+        longitude: at.lon,
         altitudeMslMeters: altAgl + ctx.launchAlt,
         altitudeAglMeters: altAgl,
         altitudeKmlMeters: ctx.kmlAltitude(altAgl),
@@ -1452,7 +1449,7 @@ export const EXPORT_FORMATS: ExportFormat[] = [
   {
     id: 'waypoints-csv',
     extension: 'csv',
-    mime: 'text/csv;charset=utf-8',
+    mime: CSV_MIME,
     render: renderWaypointCsv,
     source: WAYPOINTS_CSV_TEMPLATE_SOURCE,
     templateFilename: 'waypoints.csv.mustache',
@@ -1478,13 +1475,7 @@ function escaperFor(extension: string): (raw: string) => string {
     case 'kml':
     case 'gpx':
     case 'xml':
-      return (raw) =>
-        raw
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;')
-          .replace(/"/g, '&quot;')
-          .replace(/'/g, '&apos;');
+      return (raw) => escapeXml(raw).replace(/'/g, '&apos;');
     case 'csv':
       // Neutralize spreadsheet formula injection: a file-sourced value (e.g. a
       // rocket named `=HYPERLINK(...)`) must not execute when the CSV is opened
@@ -1495,7 +1486,7 @@ function escaperFor(extension: string): (raw: string) => string {
       // pre-formatted numeric fields (longitude, altitude, distance) go through
       // this same escaper, and quoting `-80.600000` turned every
       // western-hemisphere longitude and every below-pad altitude into text.
-      return (raw) => (/^[=+@\t\r]|^-(?![\d.])/.test(raw) ? `'${raw}` : raw).replace(/"/g, '""');
+      return (raw) => neutralizeFormula(raw, { keepNumericMinus: true }).replace(/"/g, '""');
     case 'json':
       // JSON's own string escaping, via the one function guaranteed to agree
       // with every parser. `JSON.stringify` quotes what it returns, so the
@@ -1527,7 +1518,7 @@ export function mimeForExtension(extension: string): string {
     case 'gpx':
       return 'application/gpx+xml';
     case 'csv':
-      return 'text/csv;charset=utf-8';
+      return CSV_MIME;
     case 'xml':
       return 'application/xml;charset=utf-8';
     case 'json':

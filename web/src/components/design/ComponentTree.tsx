@@ -6,6 +6,7 @@ import { allowedChildren, findNode } from '../../services/design/treeEdit';
 import { ComponentExportButton } from './ComponentExportButton';
 import { useUnits, type Units } from '../../prefs/useUnits';
 import { partLabel } from '../../i18n/format';
+import { isFinSet } from '../../tree/tubefins';
 
 // Parts offered in the "Add part" menu, grouped like OpenRocket's palette.
 // Labels come from the `part.*` / `tree.*` i18n keys at render time.
@@ -132,7 +133,7 @@ function detail(n: ComponentNode, t: TFunction, u: Units): string {
   const ty = n.type;
   if (ty === 'nosecone')
     return [typeof n.shape === 'string' ? n.shape : null, len(u, n.length)].filter(Boolean).join(' · ');
-  if (ty.endsWith('finset')) {
+  if (isFinSet(ty)) {
     const c = (n.finCount ?? n.count) as unknown;
     return typeof c === 'number' ? t('tree.fins', { count: c }) : '';
   }

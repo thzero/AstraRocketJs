@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react';
 import type { AeroSweep, ComponentMass } from '../../engine/openRocketEngine';
+import { polylinePath } from '../common/svgPath';
 
 /**
  * The pure half of AeroAnalysis: the cell-shading formulas, the per-table row
@@ -54,34 +55,20 @@ export function niceName(raw: string): string {
   return base.replace(/([a-z0-9])([A-Z])/g, '$1 $2');
 }
 
-/**
- * SVG `d` for one series, skipping non-finite samples.
- *
- * Tracks whether a command has actually been EMITTED rather than taking the
- * letter from the array index. With `${i ? 'L' : 'M'}` a non-finite sample at
- * index 0 produced a `d` starting with `L...` - invalid path data, so the browser
- * silently drops the whole <path> and the curve renders blank with no error.
- * A gap mid-series starts a fresh `M` too, so a hole reads as a break instead
- * of a straight line bridging across it.
- */
+/** SVG `d` for one series against Mach, skipping non-finite samples (see {@link polylinePath}). */
 export function buildLinePath(
   machs: readonly number[],
   vals: readonly number[],
   X: (m: number) => number,
   Y: (v: number) => number,
 ): string {
-  const out: string[] = [];
-  let open = false;
-  machs.forEach((m, i) => {
-    const v = vals[i] ?? NaN;
-    if (!Number.isFinite(m) || !Number.isFinite(v)) {
-      open = false;
-      return;
-    }
-    out.push(`${open ? 'L' : 'M'}${X(m).toFixed(1)},${Y(v).toFixed(1)}`);
-    open = true;
-  });
-  return out.join(' ');
+  return polylinePath(
+    machs.map((m, i) => {
+      const v = vals[i] ?? NaN;
+      return Number.isFinite(m) && Number.isFinite(v) ? [X(m), Y(v)] : [NaN, NaN];
+    }),
+    'comma',
+  );
 }
 
 /**

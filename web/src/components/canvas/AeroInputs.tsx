@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { parseEntry } from '../../prefs/entryValue';
+import { NumberInput } from '../common/NumberInput';
 
 /**
  * The small controls on the AeroAnalysis header: the flight-condition number
@@ -38,68 +37,21 @@ export function Num({
   // sweeps back to back, and the panel visibly stalled on a multi-stage
   // design. The draft keeps the box responsive while you type; the same
   // commit-on-blur shape `NumberInput.onCommit` uses elsewhere.
-  const [draft, setDraft] = useState<string | null>(null);
-  const commit = () => {
-    if (draft === null) return;
-    setDraft(null);
-    // The app's one entry rule (prefs/entryValue) rather than a second copy of
-    // it: a refused value commits nothing and the box falls back to what it had.
-    const v = parseEntry(draft, min, max);
-    if (v !== null) onChange(v);
-  };
   return (
     <label className="flex items-center gap-1.5">
       <span className="text-[10px] text-slate-500">{label}</span>
-      <input
-        type="number"
-        value={draft ?? value}
+      <NumberInput
+        commitOnBlur
+        value={value}
         min={min}
         max={max}
         step={step}
-        aria-label={label}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') commit();
-        }}
+        ariaLabel={label}
+        // An emptied box commits nothing: the box falls back to what it had.
+        onChange={(v) => v !== null && onChange(v)}
         className="w-16 rounded-md bg-slate-800 px-1.5 py-0.5 text-right text-[11px] tabular-nums text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
       />
       <span className="text-[10px] text-slate-600">{unit}</span>
     </label>
-  );
-}
-
-export function Seg<T extends string | number | boolean>({
-  options,
-  value,
-  onChange,
-  fmt,
-  disabled,
-}: {
-  options: readonly T[];
-  value: T;
-  onChange: (v: T) => void;
-  fmt: (v: T) => string;
-  disabled?: boolean;
-}) {
-  return (
-    <div
-      className={`inline-flex overflow-hidden rounded-md ring-1 ring-white/10 ${disabled ? 'pointer-events-none opacity-40' : ''}`}
-    >
-      {options.map((o) => (
-        <button
-          key={String(o)}
-          // `pointer-events-none` on the wrapper stops the mouse and nothing
-          // else: without this the buttons stayed tabbable and Enter still
-          // fired, so a "disabled" toggle could be flipped from the keyboard.
-          disabled={disabled}
-          aria-pressed={value === o}
-          onClick={() => onChange(o)}
-          className={`px-2 py-0.5 text-[11px] font-medium ${value === o ? 'bg-sky-600 text-white' : 'bg-slate-800 text-slate-300'}`}
-        >
-          {fmt(o)}
-        </button>
-      ))}
-    </div>
   );
 }

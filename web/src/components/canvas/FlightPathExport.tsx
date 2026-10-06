@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { clampEntry } from '../../prefs/entryValue';
 import { useWorkspaceStore, selectActive, selectConfig, selectDesignName } from '../../state/store';
 import { primaryMotor } from '../../services/flight/flightConfigs';
 import { download as saveDownload, exportFilename } from '../../services/files/saveFile';
@@ -18,12 +17,15 @@ import {
 } from '../../services/exports/flightPathExport';
 import { Dialog } from '../common/Dialog';
 import { LANGUAGES } from '../../i18n';
-import { AltitudeRefSelect, Check, Section, UnitRow } from './PathExportControls';
+import { AltitudeRefSelect, Section, UnitRow } from './PathExportControls';
 import { ExportFormatPicker } from './ExportFormatPicker';
 import { StageColorDialog } from './StageColorDialog';
 import { EXPORT_PRESETS, matchingPreset } from './pathExportPresets';
 import { useExportOptions } from './useExportOptions';
 import { useExportTemplates } from './useExportTemplates';
+import { Check } from '../common/Check';
+import { DialogButton } from '../common/DialogButton';
+import { NumberInput } from '../common/NumberInput';
 
 /**
  * "Export flight path" - a port of OpenRocket's 3D-path export dialog. Renders a
@@ -251,15 +253,14 @@ export function ExportDialog({
               />
               <label className="mt-1 flex items-center justify-between gap-3">
                 <span className="text-xs text-slate-400">{t('pathExport.stride')}</span>
-                <input
-                  type="number"
+                <NumberInput
                   min={1}
                   step={1}
                   value={opts.pathStride}
-                  // `Math.floor(Infinity)` is Infinity and so is `Math.max(1, Infinity)`,
-                  // so the old `Number(x) || 1` saved an infinite stride in the export
-                  // options. Whole samples, at least one, and a real number.
-                  onChange={(e) => change({ pathStride: clampEntry(Math.floor(parseFloat(e.target.value)), 1) ?? 1 })}
+                  ariaLabel={t('pathExport.stride')}
+                  // Whole samples, at least one. NumberInput refuses a non-finite
+                  // entry, and an emptied box keeps the stride it had.
+                  onChange={(v) => v !== null && change({ pathStride: Math.max(1, Math.floor(v)) })}
                   className="w-20 rounded-md bg-slate-800 px-2 py-1 text-right text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
                 />
               </label>
@@ -410,18 +411,12 @@ export function ExportDialog({
         </div>
 
         <div className="mt-5 flex justify-end gap-2">
-          <button
-            onClick={onClose}
-            className="rounded-lg bg-slate-800 px-4 py-2 text-sm text-slate-300 ring-1 ring-white/10 hover:bg-slate-700"
-          >
+          <DialogButton onClick={onClose} variant="secondary">
             {t('pathExport.cancel')}
-          </button>
-          <button
-            onClick={download}
-            className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-500"
-          >
+          </DialogButton>
+          <DialogButton onClick={download} variant="primary">
             {t('pathExport.download')}
-          </button>
+          </DialogButton>
         </div>
       </Dialog>
 

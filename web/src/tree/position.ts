@@ -106,6 +106,26 @@ export function axialLength(n: ComponentNode): number {
 }
 
 /**
+ * The rocket's top-level components with every stage flattened into its
+ * children, in nose-to-tail order (sustainer first, boosters after). A
+ * top-level node that is not a stage (a legacy flat tree) passes through.
+ */
+export function axialChain(tree: RocketTree): ComponentNode[] {
+  return tree.components.flatMap((n) => (n.type === 'stage' ? (n.children ?? []) : [n]));
+}
+
+/**
+ * Where a motor's forward end sits (m, same frame as `mountStart`): flush
+ * with the mount's aft end, pushed aft by the mount's `motorOverhang`. The
+ * kernel's `getMotorPosition` in InnerTube and BodyTube returns
+ * `getLength() - motor.getLength() + getMotorOverhang()` relative to the
+ * mount's front; this adds the mount's own start.
+ */
+export function motorSeatStart(mount: ComponentNode, mountStart: number, mountLen: number, motorLen: number): number {
+  return mountStart + mountLen - motorLen + num(mount, 'motorOverhang', 0);
+}
+
+/**
  * A child's leading edge in the ROCKET frame: the parent's start plus the
  * child's parent-relative start. The one reader the report geometry and the
  * schematic share, so the PDF cannot place a part where the drawing does not.

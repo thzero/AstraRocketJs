@@ -1,4 +1,5 @@
 import { useWorkspaceStore } from './store';
+import { errorMessage } from '../services/app/errorMessage';
 
 /**
  * Fire an async store action from an event handler, and report a rejection it
@@ -21,6 +22,6 @@ import { useWorkspaceStore } from './store';
 export function fireAction(result: Promise<unknown> | void): void {
   if (!result) return;
   result.catch((e: unknown) => {
-    useWorkspaceStore.getState().setErr(e instanceof Error ? e.message : String(e));
+    useWorkspaceStore.getState().setErr(errorMessage(e));
   });
 }

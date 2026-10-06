@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 
 import { DESIGN_VIEWS, RESULT_VIEWS, isResultView, type ViewMode } from '../../state/tabs';
+import { Segmented } from '../common/Segmented';
 // Declared in state/tabs.ts (the store keeps view and tab in step); re-exported
 // here so this component's importers are unchanged.
 export { isResultView, type ViewMode };
@@ -23,23 +24,5 @@ export function ViewToggle({
 }) {
   const { t } = useTranslation();
   const views = family === 'result' ? RESULT_VIEWS : DESIGN_VIEWS;
-  return (
-    <div className="inline-flex overflow-hidden rounded-lg ring-1 ring-white/10">
-      {views.map((v) => (
-        <button
-          key={v}
-          onClick={() => onChange(v)}
-          // Which view is open was conveyed by `bg-sky-600` and nothing else:
-          // a screen reader could not tell, and neither could anyone who
-          // cannot separate the two greys. Every sibling toggle in the app
-          // already does this (AeroAnalysis, CenterToolbar, TabBar,
-          // SettingsDialog); this was the one that was missed.
-          aria-pressed={view === v}
-          className={`px-3 py-1 text-xs font-semibold ${view === v ? 'bg-sky-600 text-white' : 'bg-slate-800 text-slate-300'}`}
-        >
-          {t(`view.${v}`)}
-        </button>
-      ))}
-    </div>
-  );
+  return <Segmented size="sm" options={views} value={view} onChange={onChange} fmt={(v) => t(`view.${v}`)} />;
 }

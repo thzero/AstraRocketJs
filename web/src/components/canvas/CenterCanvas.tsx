@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore, selectConfig, selectMotorDims } from '../../state/store';
 import type { ResultFlight } from '../../services/flight/simulations';
@@ -11,14 +11,16 @@ import { EnvironmentView } from './EnvironmentView';
 import { FlightPathExport } from './FlightPathExport';
 import { InfoOverlay } from './InfoOverlay';
 import { AeroAnalysis } from './AeroAnalysis';
-import { ErrorBoundary } from '../common/ErrorBoundary';
+import { LazyBoundary, lazyNamed } from '../common/ErrorBoundary';
 import { useExportData } from './useExportData';
 import { useViewPrefs } from './useViewPrefs';
+import { degToRad, radToDeg } from '../../prefs/units';
+import { useUnits } from '../../prefs/useUnits';
 
 // three.js is heavy, so the 3D views are code-split — their chunks load only when
 // the user actually switches to a 3D view, keeping the default (2D) path light.
-const Rocket3D = lazy(() => import('./Rocket3D').then((m) => ({ default: m.Rocket3D })));
-const FlightPath3D = lazy(() => import('./FlightPath3D').then((m) => ({ default: m.FlightPath3D })));
+const Rocket3D = lazyNamed(() => import('./Rocket3D'), 'Rocket3D');
+const FlightPath3D = lazyNamed(() => import('./FlightPath3D'), 'FlightPath3D');
 
 // The roll slider overlays the far-left strip; reserve a gutter that width so
 // the 2D drawing (and its left ruler) starts clear of it instead of underneath.
@@ -121,23 +123,17 @@ export function CenterCanvas({
           )}
         </div>
       ) : view === '3d' ? (
-        // Outside the Suspense: it is the chunk FETCH that fails on a
-        // stale deploy, and Suspense re-throws that rejection rather than
-        // holding it. Without something above to catch it the throw takes
-        // the whole app down, not just this canvas.
-        <ErrorBoundary>
-          <Suspense fallback={loading}>
-            <Rocket3D
-              tree={tree}
-              info={info}
-              motors={motors}
-              selectedId={selectedId}
-              onSelect={onSelect}
-              showMarkers={showMarkers}
-              exportData={exportData}
-            />
-          </Suspense>
-        </ErrorBoundary>
+        <LazyBoundary fallback={loading}>
+          <Rocket3D
+            tree={tree}
+            info={info}
+            motors={motors}
+            selectedId={selectedId}
+            onSelect={onSelect}
+            showMarkers={showMarkers}
+            exportData={exportData}
+          />
+        </LazyBoundary>
       ) : view === 'flight' ? (
         // Keyed on the simulation: a different flight gets a fresh chart
         // (trace selection and zoom start over), while a re-run of the
@@ -149,20 +145,18 @@ export function CenterCanvas({
         <div className="relative h-full p-2">
           {pathResult ? (
             <>
-              <ErrorBoundary>
-                <Suspense fallback={loading}>
-                  {/* One rocket is animated, so this follows the picker's
+              <LazyBoundary fallback={loading}>
+                {/* One rocket is animated, so this follows the picker's
                       FIRST choice rather than overlaying like the charts and
                       the ground track do. */}
-                  <FlightPath3D
-                    result={pathResult}
-                    tree={tree}
-                    motors={motors}
-                    latitudeDeg={flight?.launch.latitudeDeg}
-                    longitudeDeg={flight?.launch.longitudeDeg}
-                  />
-                </Suspense>
-              </ErrorBoundary>
+                <FlightPath3D
+                  result={pathResult}
+                  tree={tree}
+                  motors={motors}
+                  latitudeDeg={flight?.launch.latitudeDeg}
+                  longitudeDeg={flight?.launch.longitudeDeg}
+                />
+              </LazyBoundary>
               <div className="pointer-events-none absolute inset-x-0 top-5 z-10 flex justify-center">
                 <div className="pointer-events-auto">
                   <FlightPathExport variant="overlay" />
@@ -203,29 +197,34 @@ function RollSlider() {
   const { t } = useTranslation();
   const roll = useWorkspaceStore((s) => s.roll);
   const onRollValue = useWorkspaceStore((s) => s.setRoll);
-  const deg = Math.round((roll * 180) / Math.PI);
+  const u = useUnits();
+  // The slider runs in degrees; its labels read in the user's angle unit.
+  const deg = Math.round(radToDeg(roll));
+  // Whole degrees, as the slider steps; a radian needs two decimals to move.
+  const digits = u.sym('angle') === '°' ? 0 : 2;
+  const shown = u.fmtSym('angle', degToRad(deg), digits);
   return (
     <div
       className="absolute inset-y-2 left-1 z-10 flex w-8 flex-col items-center text-[11px] font-semibold leading-none text-slate-300"
       title={t('view.rollHint')}
     >
-      <span className="pb-1">0°</span>
+      <span className="pb-1">{u.fmtSym('angle', 0, digits)}</span>
       <input
         type="range"
         min={0}
         max={360}
         step={5}
         value={deg}
-        onChange={(e) => onRollValue((parseFloat(e.target.value) * Math.PI) / 180)}
-        title={t('view.roll', { deg })}
+        onChange={(e) => onRollValue(degToRad(parseFloat(e.target.value)))}
+        title={t('view.roll', { deg: shown })}
         aria-label={t('view.rollAria')}
         className="accent-sky-500"
         style={{ writingMode: 'vertical-lr', width: '100%', flex: '1 1 0%', minHeight: 0 }}
       />
-      <span className="pt-1">360°</span>
+      <span className="pt-1">{u.fmtSym('angle', 2 * Math.PI, digits)}</span>
       {/* Live roll readout, centered on the slider. */}
       <span className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded bg-slate-800/95 px-0.5 py-0.5 text-[9px] text-sky-300 ring-1 ring-white/10">
-        {deg}°
+        {shown}
       </span>
     </div>
   );

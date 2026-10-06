@@ -1,6 +1,7 @@
 import type { MotorSpec } from '../../engine/openRocketEngine';
 import type { CatalogMotor } from './motorDb';
 import { hasUsableCurve } from './motorCurve';
+import { cumulativeImpulse } from './motorMath';
 import { getMotorStore, isThrustSampleArray, type CustomMotor } from './motorStore';
 import { declaredLength, readStreamWithProgress } from '../app/fetchProgress';
 import { nsKey } from '../storage/storageKeys';
@@ -169,17 +170,10 @@ export function samplesToMotorSpec(
   const totalMass = motor.totalWeightG / 1000;
   const propMass = motor.propWeightG / 1000;
 
-  // Cumulative impulse via trapezoid rule.
-  const cumImpulse: number[] = [0];
-  for (let i = 1; i < pts.length; i++) {
-    const dt = pts[i]!.time - pts[i - 1]!.time;
-    const area = (dt * (pts[i]!.thrust + pts[i - 1]!.thrust)) / 2;
-    cumImpulse.push(cumImpulse[i - 1]! + area);
-  }
-  const totImpulse = cumImpulse[cumImpulse.length - 1]!;
-
   const times = pts.map((p) => p.time);
   const thrusts = pts.map((p) => p.thrust);
+  const cumImpulse = cumulativeImpulse(times, thrusts);
+  const totImpulse = cumImpulse[cumImpulse.length - 1]!;
   // The file's own mass curve when it has one, else the reconstruction: mass
   // falls from loaded to burnout in proportion to cumulative impulse. That is
   // what OpenRocket does for a RASP file and, via `AbstractMotorLoader

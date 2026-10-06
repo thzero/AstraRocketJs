@@ -6,10 +6,11 @@ import { useUnits } from '../../prefs/useUnits';
 import {
   fetchWeather,
   hourInZone,
+  nextHourMs,
   sampleAt,
-  WeatherError,
-  ymdInZone,
+  todayYmd,
   type WeatherAnswer,
+  ymdInZone,
 } from '../../services/weather/openMeteo';
 import {
   hasGroup,
@@ -21,6 +22,13 @@ import {
 import { readWeatherKey } from '../../services/weather/weatherKey';
 import { sourceFor } from '../../services/weather/weatherSource';
 import { formatLat, formatLon } from '../../services/map/slippyMap';
+import { weatherErrorText } from '../../services/weather/weatherErrorText';
+import { fmtSiteTime } from '../../i18n/format';
+import { LAUNCH_SI } from '../../prefs/launchUnits';
+import { OpenMeteoCredit } from '../common/OpenMeteoCredit';
+import { Check } from '../common/Check';
+import { useLatest } from '../common/useLatest';
+import { WhenFields } from './WhenFields';
 
 /**
  * Launch conditions from an Open-Meteo forecast for a date and hour at the
@@ -39,12 +47,8 @@ import { formatLat, formatLon } from '../../services/map/slippyMap';
 
 const btn =
   'rounded-md bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-300 ring-1 ring-white/10 hover:bg-slate-700 disabled:opacity-50';
-const input =
-  'rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500';
 
 /** The next whole hour starts within this one; the dialog opens on it. */
-const nextHour = () => Date.now() + 3_600_000;
-const today = () => ymdInZone(Date.now(), undefined);
 
 type State =
   | { kind: 'idle' }
@@ -69,38 +73,24 @@ export function WeatherDialog({
   const { t, i18n } = useTranslation();
   const u = useUnits();
   const prior = refresh ? launch.weatherSource : undefined;
-  const [date, setDate] = useState(() => prior?.date ?? ymdInZone(nextHour(), undefined));
-  const [hour, setHour] = useState(() => prior?.hour ?? hourInZone(nextHour(), undefined));
+  const [date, setDate] = useState(() => prior?.date ?? ymdInZone(nextHourMs(), undefined));
+  const [hour, setHour] = useState(() => prior?.hour ?? hourInZone(nextHourMs(), undefined));
   const [state, setState] = useState<State>({ kind: 'idle' });
   const [useTerrain, setUseTerrain] = useState(prior?.elevationApplied ?? false);
   const [ticked, setTicked] = useState<Set<ProposalGroup>>(() => new Set(prior?.groups ?? PROPOSAL_GROUPS));
-  const request = useRef<AbortController | null>(null);
-  useEffect(() => () => request.current?.abort(), []);
+  const request = useLatest();
 
   const lat = launch.latitudeDeg;
   const lon = launch.longitudeDeg;
   const siteM = launch.launchAltitudeM ?? 0;
   const hasSite = lat != null && lon != null;
 
-  const errorText = (err: unknown): string => {
-    if (err instanceof WeatherError) {
-      if (
-        err.kind === 'refused' &&
-        (err.detail === 'tooFarAhead' || err.detail === 'tooEarly' || err.detail === 'badDate')
-      ) {
-        return t(`weather.dateRefusal.${err.detail}`);
-      }
-      return t(`weather.error.${err.kind}`, { detail: err.detail ?? '' });
-    }
-    return t('weather.error.offline');
-  };
+  const errorText = (err: unknown): string => weatherErrorText(err, t);
 
   /** `force` asks Open-Meteo even when an answer under 30 minutes old is held. */
   const fetchNow = async (force = false) => {
     if (!hasSite) return;
-    request.current?.abort();
-    const ctl = new AbortController();
-    request.current = ctl;
+    const signal = request.claimSignal();
     setState({ kind: 'loading' });
     try {
       const answer = await fetchWeather(
@@ -109,15 +99,15 @@ export function WeatherDialog({
           longitudeDeg: lon,
           siteM,
           date,
-          today: today(),
+          today: todayYmd(),
           apiKey: readWeatherKey(),
         },
-        { signal: ctl.signal, force },
+        { signal, force },
       );
-      if (ctl.signal.aborted) return;
+      if (signal.aborted) return;
       setState({ kind: 'ready', answer });
     } catch (err) {
-      if (ctl.signal.aborted) return;
+      if (signal.aborted) return;
       setState({ kind: 'error', message: errorText(err) });
     }
   };
@@ -176,8 +166,8 @@ export function WeatherDialog({
     setTicked(next);
   };
 
-  const temp = (c: number) => `${u.fmtSym('temperature', c + 273.15, 1)}`;
-  const pres = (hPa: number) => `${u.fmtSym('pressure', hPa * 100, 1)}`;
+  const temp = (c: number) => `${u.fmtSym('temperature', LAUNCH_SI.degC.toSi(c), 1)}`;
+  const pres = (hPa: number) => `${u.fmtSym('pressure', LAUNCH_SI.hPa.toSi(hPa), 1)}`;
   const wind = (ms: number) => `${u.fmtSym('windspeed', ms, 1)}`;
   const alt = (m: number) => `${u.fmtSym('distance', m, 0)}`;
 
@@ -207,19 +197,7 @@ export function WeatherDialog({
     }
   };
 
-  const validTime =
-    sample && answer
-      ? new Intl.DateTimeFormat(i18n.language, {
-          timeZone: answer.timezone,
-          // Explicit fields: dateStyle and timeStyle refuse a timeZoneName beside them.
-          year: 'numeric',
-          month: 'short',
-          day: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-          timeZoneName: 'short',
-        }).format(new Date(sample.unix * 1000))
-      : null;
+  const validTime = sample && answer ? fmtSiteTime(sample.unix * 1000, answer.timezone) : null;
 
   return (
     <Dialog
@@ -249,29 +227,17 @@ export function WeatherDialog({
         ) : (
           <>
             <div className="flex flex-wrap items-end gap-3">
-              <label className="flex flex-col gap-1">
-                <span className="text-xs text-slate-400">{t('weather.dateLabel')}</span>
-                <input
-                  type="date"
-                  className={input}
-                  value={date}
-                  onChange={(e) => {
-                    setDate(e.target.value);
-                    // A new date is a new request; the old answer covers only its own days.
-                    if (state.kind !== 'loading') setState({ kind: 'idle' });
-                  }}
-                />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-xs text-slate-400">{t('weather.hourLabel')}</span>
-                <select className={input} value={hour} onChange={(e) => setHour(Number(e.target.value))}>
-                  {Array.from({ length: 24 }, (_, h) => (
-                    <option key={h} value={h}>
-                      {String(h).padStart(2, '0')}:00
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <WhenFields
+                layout="inline"
+                date={date}
+                hour={hour}
+                onDate={(d) => {
+                  setDate(d);
+                  // A new date is a new request; the old answer covers only its own days.
+                  if (state.kind !== 'loading') setState({ kind: 'idle' });
+                }}
+                onHour={setHour}
+              />
               <button className={btn} disabled={state.kind === 'loading'} onClick={() => void fetchNow()}>
                 {state.kind === 'loading' ? t('weather.fetching') : t('weather.fetch')}
               </button>
@@ -310,56 +276,31 @@ export function WeatherDialog({
               </button>
             </div>
             {answer.variants.length > 1 && answer.terrainM !== null && (
-              <label className="flex items-start gap-2">
-                <input
-                  type="checkbox"
-                  className="mt-0.5 accent-sky-500"
-                  checked={useTerrain}
-                  onChange={(e) => setUseTerrain(e.target.checked)}
-                />
-                <span className="text-xs text-slate-300">
-                  {t('weather.useTerrain', { terrain: alt(answer.terrainM), site: alt(siteM) })}
-                </span>
-              </label>
+              <Check
+                align="start"
+                className="text-xs text-slate-300"
+                checked={useTerrain}
+                onChange={setUseTerrain}
+                label={t('weather.useTerrain', { terrain: alt(answer.terrainM), site: alt(siteM) })}
+              />
             )}
             <ul className="space-y-1">
               {offered.map((g) => (
                 <li key={g} className="flex items-center justify-between gap-3">
                   {/* The value sits outside the label, so the checkbox is named
                       by its group alone and the value is read after it. */}
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      className="accent-sky-500"
-                      checked={ticked.has(g)}
-                      onChange={() => toggle(g)}
-                    />
-                    <span className="text-xs text-slate-300">{t(`weather.group.${g}`)}</span>
-                  </label>
+                  <Check
+                    className="text-xs text-slate-300"
+                    checked={ticked.has(g)}
+                    onChange={() => toggle(g)}
+                    label={t(`weather.group.${g}`)}
+                  />
                   <span className="text-right text-xs tabular-nums text-slate-100">{describe(g)}</span>
                 </li>
               ))}
             </ul>
             <p className="text-xs text-slate-500">{t('weather.forecastNote')}</p>
-            <p className="text-xs text-slate-500">
-              <a
-                className="text-sky-400 hover:underline"
-                href="https://open-meteo.com/"
-                target="_blank"
-                rel="noreferrer"
-              >
-                {t('weather.credit')}
-              </a>
-              {' · '}
-              <a
-                className="text-sky-400 hover:underline"
-                href="https://creativecommons.org/licenses/by/4.0/"
-                target="_blank"
-                rel="noreferrer"
-              >
-                CC BY 4.0
-              </a>
-            </p>
+            <OpenMeteoCredit className="text-xs text-slate-500" />
           </div>
         )}
       </div>

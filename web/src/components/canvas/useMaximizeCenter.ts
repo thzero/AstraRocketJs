@@ -14,11 +14,12 @@ export function useMaximizeCenter() {
   // Escape gets out, because a mode that hides two panels needs a way back that
   // does not depend on finding one small button. Ignored while any modal surface
   // is open, alerts included: they take Escape for themselves, and this would
-  // close both at once.
+  // close both at once. An Escape already spent (an open menu closing) is
+  // ignored for the same reason.
   useEffect(() => {
     if (!maxed) return;
     const esc = (e: globalThis.KeyboardEvent) => {
-      if (e.key !== 'Escape' || hasOpenSurface()) return;
+      if (e.key !== 'Escape' || e.defaultPrevented || hasOpenSurface()) return;
       update({ maximizeCenter: false });
     };
     window.addEventListener('keydown', esc);

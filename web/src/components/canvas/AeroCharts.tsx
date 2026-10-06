@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { memo, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { fmtNum } from '../../i18n/format';
 import { lerpAt } from '../../services/flight/interpolate';
@@ -10,6 +10,7 @@ import {
   stackedBands,
   type ChartSeries as Series,
 } from './aeroTables';
+import { useElementResize } from '../common/useElementResize';
 
 /**
  * The AeroAnalysis chart cards: one `ChartCard` per curve set (title, legend
@@ -87,13 +88,7 @@ export function ChartCard({
   const { t } = useTranslation();
   const hostRef = useRef<HTMLDivElement>(null);
   const [w, setW] = useState(520);
-  useEffect(() => {
-    const el = hostRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver((e) => setW(Math.max(240, e[0]!.contentRect.width)));
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
+  useElementResize(hostRef, (r) => setW(Math.max(240, r.width)));
 
   /**
    * Arrow-key crosshair over the Mach GRID.

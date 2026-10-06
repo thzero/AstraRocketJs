@@ -9,7 +9,9 @@ import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
 import { numOpt } from '../../tree/nodeProps';
 import { tubeWall } from '../design/discGeometry';
 import { findNode, findParent } from '../design/treeEdit';
+import { walkNodes } from '../../tree/treeWalk';
 import type { FitContext } from './componentFilter';
+import { roundTo } from '../app/numbers';
 
 /** Outer diameter of a body component, or undefined if it is not one. */
 function outerDiameter(n: ComponentNode): number | undefined {
@@ -43,18 +45,14 @@ function innerDiameter(n: ComponentNode): number | undefined {
 /** Every distinct airframe outer diameter in the design, largest first. */
 function airframeDiameters(tree: RocketTree): number[] {
   const seen = new Set<number>();
-  const walk = (nodes: ComponentNode[]) => {
-    for (const n of nodes) {
-      // Only what a body tube would have to line up with: the airframe itself,
-      // not the inner tubes threaded through it.
-      if (n.type === 'bodytube' || n.type === 'nosecone' || n.type === 'transition') {
-        const d = outerDiameter(n);
-        if (d != null && d > 0) seen.add(Math.round(d * 1e6) / 1e6);
-      }
-      if (n.children) walk(n.children);
+  for (const n of walkNodes(tree.components)) {
+    // Only what a body tube would have to line up with: the airframe itself,
+    // not the inner tubes threaded through it.
+    if (n.type === 'bodytube' || n.type === 'nosecone' || n.type === 'transition') {
+      const d = outerDiameter(n);
+      if (d != null && d > 0) seen.add(roundTo(d, 6));
     }
-  };
-  walk(tree.components);
+  }
   return [...seen].sort((a, b) => b - a);
 }
 

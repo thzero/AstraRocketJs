@@ -1,12 +1,13 @@
 import type { RocketTree } from '../../engine/openRocketEngine';
 import { simulateInWorker } from '../../engine/simClient';
 import type { WeatherSource } from '../design/orkTree';
-import { fetchWeather, ymdInZone, type FetchOpts } from '../weather/openMeteo';
+import { fetchWeather, HOUR_OFFSETS, sampleAtUnix, ymdInZone, type FetchOpts } from '../weather/openMeteo';
 import { proposalFor, proposalPatch } from '../weather/weatherProposal';
 import type { FlightConfig } from './flightConfigs';
 import { landingPoint, type GroundPoint } from './groundTrack';
 import type { CompleteLaunch } from './requiredLaunch';
 import { freshSeed, simConditions, type SimPrefs } from './simulations';
+import { flightBranches } from './flightColumns';
 
 /**
  * How a designed rocket's landing moves over the hours around the forecast its
@@ -14,9 +15,6 @@ import { freshSeed, simConditions, type SimPrefs } from './simulations';
  * forecast, with everything else as the simulation has it. The Environment
  * view's landing section asks for it; nothing runs until it does.
  */
-
-/** The hours flown, relative to the forecast hour the simulation used. */
-export const HOUR_OFFSETS = [-2, -1, 0, 1, 2] as const;
 
 export interface HourLanding {
   /** Hours from the forecast hour the simulation used. */
@@ -63,7 +61,7 @@ export async function flyForecastHours(
   const seed = q.prefs.randomSeed ?? freshSeed();
 
   const hours = HOUR_OFFSETS.flatMap((offset) => {
-    const sample = variant.samples.find((s) => s.unix === validUnix + offset * 3600);
+    const sample = sampleAtUnix(variant, validUnix + offset * 3600);
     return sample ? [{ offset, sample }] : [];
   });
   let done = 0;
@@ -84,7 +82,7 @@ export async function flyForecastHours(
         },
         { signal: o.signal },
       );
-      const branches = result.branches?.length ? result.branches : [{ series: result.series }];
+      const branches = flightBranches(result);
       q.onProgress?.(++done, hours.length);
       return { offset, validMs: sample.unix * 1000, landings: branches.map((b) => landingPoint(b.series)) };
     }),

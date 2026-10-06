@@ -416,7 +416,7 @@
     "aft": "Aft",
     "cutaway": "Cutaway",
     "cutawayTitle": "Open the airframe along the centerline to show what is inside",
-    "roll": "Roll {{deg}}°",
+    "roll": "Roll {{deg}}",
     "rollHint": "Roll — spin the fins about the axis (or drag the drawing)",
     "rollAria": "Roll angle (degrees)",
     "loading3d": "Loading 3D…",

@@ -7,7 +7,10 @@ import {
   newModelPose,
   type PhaseColors,
 } from '../../../src/components/canvas/flightScene';
-import type { FlightResult } from '../../../src/engine/openRocketEngine';
+import type { FlightResult, RocketTree } from '../../../src/engine/openRocketEngine';
+import { findRecovery } from '../../../src/components/canvas/flightScene';
+import { mergePalette } from '../../../src/services/design/partColors';
+import { KERNEL_DEFAULTS } from '../../../src/tree/kernelDefaults';
 
 // Three distinct primaries, so a point's phase is readable straight off its
 // vertex color.
@@ -255,5 +258,31 @@ describe('modelPoseAt', () => {
 
   it('survives an empty path', () => {
     expect(() => modelPoseAt([], 0, false, 2, newModelPose())).not.toThrow();
+  });
+});
+
+/**
+ * The recovery device the 3D flight shows is the first one in tree order, at
+ * the size the kernel flies: a streamer with no length is the kernel's 0.5 m
+ * (ComponentFactory, case "streamer"), which the view drew at 0.4 m.
+ */
+describe('findRecovery', () => {
+  const tree = (kids: object[]) =>
+    ({ components: [{ type: 'stage', id: 's', children: kids }] }) as unknown as RocketTree;
+
+  it('sizes a keyless streamer at the kernel default', () => {
+    const r = findRecovery(tree([{ type: 'streamer', id: 'st' }]), mergePalette({}));
+    expect(r).toMatchObject({ kind: 'streamer', length: KERNEL_DEFAULTS.streamer.stripLength });
+  });
+
+  it('finds the first device in tree order, nested or not', () => {
+    const r = findRecovery(
+      tree([
+        { type: 'bodytube', id: 'b', children: [{ type: 'parachute', id: 'p', diameter: 0.6 }] },
+        { type: 'streamer', id: 'st' },
+      ]),
+      mergePalette({}),
+    );
+    expect(r).toMatchObject({ kind: 'parachute', diameter: 0.6 });
   });
 });

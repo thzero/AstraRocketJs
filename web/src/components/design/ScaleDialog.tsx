@@ -9,6 +9,7 @@ import { onSi } from '../../prefs/entryValue';
 import { unitScope } from '../../prefs/units';
 import { maxBodyDiameter, rocketLength } from '../../tree/scaleRocket';
 import { fmtNum } from '../../i18n/format';
+import { DialogButton } from '../common/DialogButton';
 
 /**
  * Scale the whole rocket by one factor: every length, diameter, wall, fin
@@ -118,19 +119,12 @@ export function ScaleDialog({ onClose }: { onClose: () => void }) {
           </p>
 
           <div className="mt-5 flex justify-end gap-2">
-            <button
-              onClick={onClose}
-              className="rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
-            >
+            <DialogButton onClick={onClose} variant="secondary">
               {t('common.cancel')}
-            </button>
-            <button
-              onClick={apply}
-              disabled={!usable}
-              className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-500 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-500"
-            >
+            </DialogButton>
+            <DialogButton onClick={apply} disabled={!usable} variant="primary">
               {t('scale.apply', { pct })}
-            </button>
+            </DialogButton>
           </div>
         </>
       )}

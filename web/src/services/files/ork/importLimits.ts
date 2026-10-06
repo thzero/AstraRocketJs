@@ -45,5 +45,26 @@ export const MAX_FIN_POINTS = 10_000;
 // the import is O(components x configs) of synchronous DOM work on the main
 // thread -- a hung tab rather than the clear error these limits promise.
 // The largest real designs are a few hundred parts.
-export const MAX_COMPONENTS = 10_000;
+const MAX_COMPONENTS = 10_000;
 export const MAX_LINE_COUNT = 100;
+
+/** The file extension an over-limit error names. */
+type ImportFormat = '.ork' | '.rkt';
+
+/**
+ * Count one more component against MAX_COMPONENTS. `ctx.nodeCount` is one
+ * running total because the readers recurse, so a per-level count would not
+ * bound the file.
+ */
+export function countComponent(ctx: { nodeCount: number }, format: ImportFormat): void {
+  if (++ctx.nodeCount > MAX_COMPONENTS) {
+    throw new Error(`This ${format} declares too many components to open (possibly malformed).`);
+  }
+}
+
+/** Refuse a walk deeper than MAX_NESTING_DEPTH before it recurses again. */
+export function checkDepth(depth: number, format: ImportFormat): void {
+  if (depth > MAX_NESTING_DEPTH) {
+    throw new Error(`This ${format} is nested too deeply to open (possibly malformed).`);
+  }
+}

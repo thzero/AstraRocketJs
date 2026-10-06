@@ -1,5 +1,6 @@
 import type { ComponentNode } from '../../../engine/openRocketEngine';
 import type { OrkFlightConfig } from '../orkTypes';
+import { walkNodes } from '../../../tree/treeWalk';
 
 /**
  * The honesty notes an import surfaces: what the reader PRESERVED but the
@@ -14,14 +15,7 @@ import type { OrkFlightConfig } from '../orkTypes';
  */
 export function modelingNotes(components: ComponentNode[]): string[] {
   const notes: string[] = [];
-  const allNodes: ComponentNode[] = [];
-  const collect = (ns: ComponentNode[]) => {
-    for (const nd of ns) {
-      allNodes.push(nd);
-      collect(nd.children ?? []);
-    }
-  };
-  collect(components);
+  const allNodes = [...walkNodes(components)];
   const instanced = allNodes.filter(
     (nd) =>
       typeof nd['instanceCount'] === 'number' &&
@@ -38,6 +32,11 @@ export function modelingNotes(components: ComponentNode[]): string[] {
     );
   }
   return notes;
+}
+
+/** The one note naming the component tags a reader skipped, if it skipped any. */
+export function ignoredNotes(ignored: Set<string>): string[] {
+  return ignored.size ? [`Ignored unsupported components: ${[...ignored].join(', ')}.`] : [];
 }
 
 /**

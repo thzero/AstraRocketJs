@@ -45,7 +45,26 @@ export interface MeshIssue {
 }
 
 /** Undirected key for an edge between two vertex indices. */
-const undirectedKey = (a: number, b: number): string => (a < b ? `${a}_${b}` : `${b}_${a}`);
+export const edgeKey = (a: number, b: number): string => (a < b ? `${a}_${b}` : `${b}_${a}`);
+
+/** How many triangles of an indexed triangle list use each undirected edge. */
+export function undirectedEdgeCounts(idx: THREE.BufferAttribute): Map<string, number> {
+  const count = new Map<string, number>();
+  for (let i = 0; i < idx.count; i += 3) {
+    const a = idx.getX(i),
+      b = idx.getX(i + 1),
+      c = idx.getX(i + 2);
+    for (const [u, v] of [
+      [a, b],
+      [b, c],
+      [c, a],
+    ] as const) {
+      const k = edgeKey(u, v);
+      count.set(k, (count.get(k) ?? 0) + 1);
+    }
+  }
+  return count;
+}
 
 /**
  * Every way `geo` fails to be a closed, consistently oriented, non-degenerate solid.
@@ -127,7 +146,7 @@ export function validateSolid(geo: THREE.BufferGeometry, areaTol = 0): MeshIssue
       [ic, ia],
     ] as const) {
       directed.set(`${u}>${v}`, (directed.get(`${u}>${v}`) ?? 0) + 1);
-      const k = undirectedKey(u, v);
+      const k = edgeKey(u, v);
       undirected.set(k, (undirected.get(k) ?? 0) + 1);
     }
   }

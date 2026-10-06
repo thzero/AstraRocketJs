@@ -1,5 +1,5 @@
 import { fetchElevations, type FetchOpts } from '../weather/openMeteo';
-import { offsetToLatLon } from './descentDrift';
+import { offsetToLatLon } from '../map/geodesy';
 
 /**
  * The ground around a launch site, so a descent can end where it meets the

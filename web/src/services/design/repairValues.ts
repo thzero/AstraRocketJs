@@ -1,7 +1,8 @@
 import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
-import { SI_LIMITS } from '../../prefs/entryValue';
+import { clampEntry, SI_LIMITS } from '../../prefs/entryValue';
 import type { Quantity } from '../../prefs/units';
 import { partLabel } from '../../i18n/format';
+import { mapTreePreserving } from '../../tree/treeWalk';
 
 /** One value a loaded design carried that no value of its quantity can be. */
 export interface RepairedValue {
@@ -54,7 +55,7 @@ export function repairValues(tree: RocketTree): { tree: RocketTree; repaired: Re
       const limit = SI_LIMITS[quantity];
       const v = (node as unknown as Record<string, unknown>)[key];
       if (!limit || typeof v !== 'number' || !Number.isFinite(v)) continue;
-      const now = Math.min(limit.max ?? Infinity, Math.max(limit.min ?? -Infinity, v));
+      const now = clampEntry(v, limit.min, limit.max)!;
       if (now === v) continue;
       repaired.push({ type: node.type, name: typeof node.name === 'string' ? node.name : '', field: key, was: v, now });
       out = { ...out, [key]: now } as ComponentNode;
@@ -62,23 +63,6 @@ export function repairValues(tree: RocketTree): { tree: RocketTree; repaired: Re
     return out;
   };
 
-  const walk = (nodes: ComponentNode[]): ComponentNode[] => {
-    let changed = false;
-    const out = nodes.map((n) => {
-      let node = fixNode(n);
-      if (node !== n) changed = true;
-      if (node.children) {
-        const kids = walk(node.children);
-        if (kids !== node.children) {
-          node = { ...node, children: kids };
-          changed = true;
-        }
-      }
-      return node;
-    });
-    return changed ? out : nodes;
-  };
-
-  const components = walk(tree.components);
+  const components = mapTreePreserving(tree.components, fixNode, 'pre');
   return { tree: components === tree.components ? tree : { ...tree, components }, repaired };
 }

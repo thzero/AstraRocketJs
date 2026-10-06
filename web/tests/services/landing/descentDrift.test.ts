@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { airVelocity, descentDrift, offsetToLatLon, type WindLayer } from '../../../src/services/landing/descentDrift';
+import { airVelocity, descentDrift, type WindLayer } from '../../../src/services/landing/descentDrift';
+import { offsetToLatLon } from '../../../src/services/map/geodesy';
 import { groundAt, terrainBounds, terrainPoints, TERRAIN_POINTS } from '../../../src/services/landing/terrain';
 
 const SITE = { latitudeDeg: 40, longitudeDeg: -105, padElevationM: 1500 };

@@ -219,11 +219,8 @@ const writeInnertube: NodeWriter = (w, node, d) => {
   position(w, d, node, 'bottom');
   material(w, d, node);
   w.emit(d, `<length>${num(node, 'length', 0.07)}</length>`);
-  // Preserve the off-axis / split-cluster offset (see the innertube reader):
-  // <radialposition> meters, <radialdirection> DEGREES. Defaults to 0 so a
-  // centered tube is byte-identical to before.
-  w.emit(d, `<radialposition>${num(node, 'radialPosition', 0)}</radialposition>`);
-  w.emit(d, `<radialdirection>${(num(node, 'radialDirection', 0) * 180) / Math.PI}</radialdirection>`);
+  // Preserve the off-axis / split-cluster offset (see the innertube reader).
+  radialXml(w, d, node);
   w.emit(d, `<outerradius>${num(node, 'outerRadius', 0.0095)}</outerradius>`);
   w.emit(d, `<thickness>${num(node, 'thickness', COMPONENT_DEFAULTS.innertube.thickness)}</thickness>`);
   // Desktop stores cluster rotation in DEGREES; we keep radians inside.
@@ -367,10 +364,8 @@ const writeMasscomponent: NodeWriter = (w, node, d) => {
   position(w, d, node, 'top');
   w.emit(d, `<packedlength>${num(node, 'length', 0.02)}</packedlength>`);
   w.emit(d, packedRadiusXml(node, COMPONENT_DEFAULTS.masscomponent.radius));
-  // Off-axis placement (meters + degrees). Was hard-wired to 0, so a mass
-  // off the centerline collapsed onto the axis on save/reload.
-  w.emit(d, `<radialposition>${num(node, 'radialPosition', 0)}</radialposition>`);
-  w.emit(d, `<radialdirection>${(num(node, 'radialDirection', 0) * 180) / Math.PI}</radialdirection>`);
+  // Off-axis placement, so a mass off the centerline keeps its place on save.
+  radialXml(w, d, node);
   w.emit(d, `<mass>${num(node, 'mass', 0.01)}</mass>`);
   // Legal values = MassComponent.MassComponentType lowercased:
   // masscomponent, altimeter, flightcomputer, deploymentcharge,

@@ -2,6 +2,11 @@ import { nsKey } from '../../../src/services/storage/storageKeys';
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest';
 import { loadSettings, saveSettings, DEFAULT_SETTINGS } from '../../../src/services/storage/settings';
+import {
+  MATERIAL_SLOTS,
+  defaultMaterialKey,
+  parseDefaultMaterialKey,
+} from '../../../src/services/design/materialSlots';
 
 const KEY = nsKey('settings:v1');
 
@@ -264,5 +269,27 @@ describe('loadSettings validates what reaches styles, jsPDF and the CSV writer',
     }
     localStorage.setItem(KEY, '{"simulation":{"railExitVelocityMin":12}}');
     expect(loadSettings().simulation.railExitVelocityMin).toBe(12);
+  });
+});
+
+/**
+ * The saved per-part default materials survive a reload for every slot the
+ * Settings dialog offers. The key format was written in materialSlots and
+ * restated as a regex here; a new material type or a key change on one side
+ * would make loadSettings drop the user's saved defaults without a word.
+ */
+describe('default materials across a reload', () => {
+  it('keeps one for every material slot', () => {
+    const stored = Object.fromEntries(
+      MATERIAL_SLOTS.map((s) => [defaultMaterialKey(s.part, s.material), { name: 'Custom', density: 500 }]),
+    );
+    localStorage.setItem(KEY, JSON.stringify({ defaultMaterials: stored }));
+    expect(Object.keys(loadSettings().defaultMaterials).sort()).toEqual(Object.keys(stored).sort());
+  });
+
+  it('reads a key back into its part and material type, and refuses anything else', () => {
+    expect(parseDefaultMaterialKey('parachute:surface')).toEqual({ part: 'parachute', material: 'surface' });
+    expect(parseDefaultMaterialKey('parachute:plastic')).toBeNull();
+    expect(parseDefaultMaterialKey('surface')).toBeNull();
   });
 });

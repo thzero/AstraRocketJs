@@ -1,4 +1,5 @@
 import { PLUGGED_DELAY, type MotorSpec } from '../../engine/openRocketEngine';
+import { roundTo } from '../app/numbers';
 
 /**
  * A delay as a motor is labeled: `P` for plugged, else the number.
@@ -13,7 +14,7 @@ import { PLUGGED_DELAY, type MotorSpec } from '../../engine/openRocketEngine';
  */
 export function delayString(delay: number): string {
   if (delay >= PLUGGED_DELAY) return 'P';
-  return String(Math.round(delay * 10) / 10);
+  return String(roundTo(delay, 1));
 }
 
 /**

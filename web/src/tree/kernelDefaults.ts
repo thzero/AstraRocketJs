@@ -175,3 +175,14 @@ export const FIN_DEFAULTS = {
   // "ellipticalfinset" and "freeformfinset").
   thickness: KERNEL_DEFAULTS.trapezoidfinset.thickness,
 } as const;
+
+/**
+ * What the kernel flies for a recovery device that does not set a value: the
+ * field initializers of OpenRocket's `DeploymentConfiguration`. The bridge
+ * (`ComponentFactory.applyDeployment`) sets only the keys a node carries, so an
+ * absent key is this, not anything the app picks.
+ */
+export const KERNEL_DEPLOYMENT = { deployEvent: 'ejection', deployAltitude: 200, deployDelay: 0 } as const;
+
+/** The same for a stage's separation: OpenRocket's `StageSeparationConfiguration`. */
+export const KERNEL_SEPARATION = { separationEvent: 'ejection', separationAltitude: 200, separationDelay: 0 } as const;

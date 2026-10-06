@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import {
+  designDeployment,
+  designSeparation,
+  effectiveDeployment,
+  effectiveSeparation,
   configuredTree,
   deployOverride,
   sepOverride,
@@ -10,6 +14,7 @@ import {
   loadoutSignature,
   motorSpecs,
   newFlightConfig,
+  type FlightConfig,
   primaryMotor,
   reconcileConfig,
   reconcileConfigs,
@@ -305,5 +310,45 @@ describe('stage activeness', () => {
   it('drops a grounded stage that was deleted, on the next reconcile', () => {
     const cfg = { ...newFlightConfig(), grounded: ['booster', 'gone'] };
     expect(reconcileConfig(staged, cfg).grounded).toEqual(['booster']);
+  });
+});
+
+describe('deployment and separation as flown', () => {
+  const bare = { type: 'parachute', id: 'chute' } as ComponentNode;
+  const stage = { type: 'stage', id: 'booster' } as ComponentNode;
+
+  it("fills what a device leaves out with the kernel's own deployment", () => {
+    // DeploymentConfiguration: EJECTION, 200 m, 0 s. The bridge sets only the
+    // keys a node carries, so a device without an event opens on the charge.
+    expect(designDeployment(bare)).toEqual({ deployEvent: 'ejection', deployAltitude: 200, deployDelay: 0 });
+  });
+
+  it("fills what a stage leaves out with the kernel's own separation", () => {
+    expect(designSeparation(stage)).toEqual({
+      separationEvent: 'ejection',
+      separationAltitude: 200,
+      separationDelay: 0,
+    });
+  });
+
+  it('keeps what the design states', () => {
+    const set = { ...bare, deployEvent: 'altitude', deployAltitude: 150, deployDelay: 1 } as ComponentNode;
+    expect(designDeployment(set)).toEqual({ deployEvent: 'altitude', deployAltitude: 150, deployDelay: 1 });
+  });
+
+  it("lays a configuration's override over the design, field by field", () => {
+    const config = {
+      id: 'c',
+      name: null,
+      motors: {},
+      deployments: { chute: { deployAltitude: 90 } },
+      separations: { booster: { separationEvent: 'burnout' } },
+    } as FlightConfig;
+    expect(effectiveDeployment(config, bare)).toEqual({ deployEvent: 'ejection', deployAltitude: 90, deployDelay: 0 });
+    expect(effectiveSeparation(config, stage)).toEqual({
+      separationEvent: 'burnout',
+      separationAltitude: 200,
+      separationDelay: 0,
+    });
   });
 });

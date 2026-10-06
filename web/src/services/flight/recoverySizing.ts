@@ -1,3 +1,6 @@
+import { LAUNCH_SI } from '../../prefs/launchUnits';
+import { uiToSi } from '../../prefs/units';
+import { G0 } from '../motors/motorMath';
 /**
  * RECOVERY SIZING — the descent half of the recovery story.
  *
@@ -21,10 +24,9 @@
  */
 
 /** Standard gravity, m/s^2 (CODATA / the kernel's own g0). */
-const G0 = 9.80665;
 
 /** Feet per second in m/s — the bands are quoted in ft/s, the code is SI. */
-const FT_S = 0.3048;
+const FT_S = uiToSi('velocity', 'ft/s', 1);
 
 /** Specific gas constant of dry air, J/(kg.K) — the kernel's own value. */
 const R_AIR = 287.053;
@@ -87,8 +89,8 @@ export function airDensity(launch?: SizingLaunch | null): number {
   const pIsa = P0 * Math.pow(tIsa / T0, G0 / (R_AIR * LAPSE));
   // T0 / P0 are the kernel's own ExtendedISAModel.STANDARD_TEMPERATURE and
   // STANDARD_PRESSURE; a blank in the custom branch is filled with those.
-  const t = launch.temperatureC != null ? launch.temperatureC + 273.15 : custom ? T0 : tIsa;
-  const p = launch.pressureHPa != null ? launch.pressureHPa * 100 : custom ? P0 : pIsa;
+  const t = launch.temperatureC != null ? LAUNCH_SI.degC.toSi(launch.temperatureC) : custom ? T0 : tIsa;
+  const p = launch.pressureHPa != null ? LAUNCH_SI.hPa.toSi(launch.pressureHPa) : custom ? P0 : pIsa;
   if (!(t > 0) || !(p > 0)) return RHO0;
   return p / (R_AIR * t);
 }

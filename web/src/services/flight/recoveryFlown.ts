@@ -1,5 +1,6 @@
-import type { FlightBranch, FlightResult, FlightSeries } from '../../engine/openRocketEngine';
-import { lerpAt } from './interpolate';
+import type { FlightResult } from '../../engine/openRocketEngine';
+import { seriesAt } from './flightEvents';
+import { flightBranches } from './flightColumns';
 
 /**
  * What a RUN reported about one recovery device, as opposed to what
@@ -48,22 +49,6 @@ export interface DeviceDescent {
   rate: number | null;
 }
 
-/** Every branch a result carries, including the sustainer, as one list. */
-function branchesOf(result: FlightResult): FlightBranch[] {
-  // `branches` is omitted entirely for a single-branch flight, and when present
-  // its [0] IS the sustainer - the same data the top-level events and series
-  // carry. So one or the other, never both.
-  if (result.branches?.length) return result.branches;
-  return [{ name: '', events: result.events, series: result.series }];
-}
-
-/** A series value at a time, or null when the run did not record that series. */
-function at(series: FlightSeries, key: 'mass' | 'velocity', t: number): number | null {
-  const ys = series[key];
-  if (!Array.isArray(ys) || !Array.isArray(series.time)) return null;
-  return lerpAt(series.time, ys, t);
-}
-
 /**
  * What the run reported for the recovery device named `deviceName`, or null when
  * no branch of it deployed that device.
@@ -75,19 +60,19 @@ function at(series: FlightSeries, key: 'mass' | 'velocity', t: number): number |
  */
 export function deviceDescent(result: FlightResult | null | undefined, deviceName: string): DeviceDescent | null {
   if (!result || !deviceName) return null;
-  for (const branch of branchesOf(result)) {
+  for (const branch of flightBranches(result)) {
     const events = branch.events ?? [];
     const i = events.findIndex((e) => e.type === DEPLOYMENT && e.source === deviceName);
     if (i < 0) continue;
     const opened = events[i]!;
-    const mass = at(branch.series, 'mass', opened.time);
+    const mass = seriesAt(branch.series, 'mass', opened.time);
     if (mass == null || !(mass > 0)) return null;
     // The phase ends at the next chute or the ground; failing both, at the last
     // sample the run recorded.
     const next = events.slice(i + 1).find((e) => PHASE_END.has(e.type));
     const times = branch.series.time ?? [];
     const endsAt = next?.time ?? times[times.length - 1];
-    const rate = endsAt == null ? null : at(branch.series, 'velocity', endsAt);
+    const rate = endsAt == null ? null : seriesAt(branch.series, 'velocity', endsAt);
     return {
       branch: branch.name,
       time: opened.time,
@@ -110,10 +95,10 @@ export function deviceDescent(result: FlightResult | null | undefined, deviceNam
  */
 export function sustainerDescentMass(result: FlightResult | null | undefined): number | null {
   if (!result) return null;
-  const branch = branchesOf(result)[0];
+  const branch = flightBranches(result)[0];
   if (!branch) return null;
   const opened = (branch.events ?? []).find((e) => e.type === DEPLOYMENT);
   if (!opened) return null;
-  const mass = at(branch.series, 'mass', opened.time);
+  const mass = seriesAt(branch.series, 'mass', opened.time);
   return mass != null && mass > 0 ? mass : null;
 }

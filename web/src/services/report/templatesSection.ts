@@ -5,7 +5,7 @@ import { num } from '../../tree/nodeProps';
 import { KERNEL_DEFAULTS } from '../../tree/kernelDefaults';
 import { fmtNum } from '../../i18n/format';
 import { pageFrame, templateFits } from './layout';
-import { ensure, fillPolygon, heading, sectionBreak, sub, writeRuler, type PdfPage } from './pdfPage';
+import { ensure, fillPolygon, heading, paragraph, sectionBreak, sub, writeRuler, type PdfPage } from './pdfPage';
 
 /**
  * The 1:1 templates: the hint and the printed scale bar, then a cutting
@@ -20,13 +20,10 @@ export function writeTemplatesSection(
   noses: ComponentNode[],
   transitions: ComponentNode[],
 ): void {
-  const { doc, t, M, CW } = p;
+  const { t } = p;
   sectionBreak(p);
   heading(p, t('report.templates'));
-  doc.setFont('helvetica', 'normal').setFontSize(8).setTextColor(90);
-  const hint = doc.splitTextToSize(t('report.templatesHint'), CW) as string[];
-  doc.text(hint, M, p.y + 3);
-  p.y += 4 + hint.length * 3.5;
+  paragraph(p, t('report.templatesHint'));
 
   writeRuler(p);
   writeFinTemplates(p, tree, finSets);

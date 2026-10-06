@@ -3,6 +3,9 @@ import { escapeXml } from '../xmlUtil';
 import { isWeatherSource, sourceStatus } from '../../weather/weatherSource';
 import { turbulenceIntensity } from '../../flight/windTurbulence';
 import type { OrkWriter } from './exportWriter';
+import { degToRad } from '../../../prefs/units';
+import { DEFAULT_HEADING_DEG } from '../../flight/simulations';
+import { G0 } from '../../motors/motorMath';
 
 /**
  * The <simulations> block: one <simulation> carrying the launch panel's
@@ -44,7 +47,7 @@ function conditionsXml(w: OrkWriter, depth: number, launch: LaunchConditions): v
   // was never set.
   emit(depth, `<launchintowind>${launch.launchIntoWind === true}</launchintowind>`);
   emit(depth, `<launchrodangle>${launch.launchRodAngleDeg ?? 0}</launchrodangle>`);
-  emit(depth, `<launchroddirection>${launch.launchRodDirectionDeg ?? 90}</launchroddirection>`);
+  emit(depth, `<launchroddirection>${launch.launchRodDirectionDeg ?? DEFAULT_HEADING_DEG}</launchroddirection>`);
   windXml(w, depth, launch);
   emit(depth, `<launchaltitude>${launch.launchAltitudeM ?? 0}</launchaltitude>`);
   emit(depth, `<launchlatitude>${launch.latitudeDeg ?? 0}</launchlatitude>`);
@@ -55,7 +58,7 @@ function conditionsXml(w: OrkWriter, depth: number, launch: LaunchConditions): v
   // touched it round-trips unchanged.
   if (launch.gravityModel === 'constant') {
     emit(depth, '<gravitymodel>Constant</gravitymodel>');
-    emit(depth, `<constantgravity>${launch.constantGravity ?? 9.80665}</constantgravity>`);
+    emit(depth, `<constantgravity>${launch.constantGravity ?? G0}</constantgravity>`);
   }
   atmosphereXml(w, depth, launch);
   weatherSourceXml(w, depth, launch);
@@ -66,7 +69,7 @@ function conditionsXml(w: OrkWriter, depth: number, launch: LaunchConditions): v
 
 function windXml(w: OrkWriter, depth: number, launch: LaunchConditions): void {
   const { emit } = w;
-  const windDirRad = ((launch.windDirectionDeg ?? 90) * Math.PI) / 180;
+  const windDirRad = degToRad(launch.windDirectionDeg ?? DEFAULT_HEADING_DEG);
   // ≤23.09 legacy trio the desktop still writes: turbulence here is the
   // INTENSITY ratio stddev/average, which is why it goes through the same
   // helper the panel reads from (zero wind maps to 0 or 1, as the kernel's
@@ -100,7 +103,7 @@ function windXml(w: OrkWriter, depth: number, launch: LaunchConditions): void {
       // average block's <direction>.
       emit(
         depth + 1,
-        `<windlevel altitude="${l.altitudeM}" speed="${l.speed}" direction="${(l.directionDeg * Math.PI) / 180}" standarddeviation="${l.stddev}"/>`,
+        `<windlevel altitude="${l.altitudeM}" speed="${l.speed}" direction="${degToRad(l.directionDeg)}" standarddeviation="${l.stddev}"/>`,
       );
     }
     emit(depth, '</wind>');

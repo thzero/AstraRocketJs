@@ -2,17 +2,18 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
-import { countOf, num } from '../../tree/nodeProps';
+import { anyOuterRadius, countOf, num } from '../../tree/nodeProps';
 import { FIN_DEFAULTS, KERNEL_DEFAULTS, KERNEL_RAILBUTTON_OUTER_DIAMETER } from '../../tree/kernelDefaults.js';
 import { finSpan } from '../../tree/finPlanform.js';
 import { clusterOffsets } from '../../tree/cluster.js';
-import { tubeFinRadius } from '../../tree/tubefins.js';
+import { isPlanarFinSet, tubeFinRadius } from '../../tree/tubefins.js';
 import { isAssembly, resolveAssemblyRadius, ringInstanceOffsets } from '../../tree/assembly.js';
-import { colorOf, innerTubeExtent, ZOOM_IDENTITY, zoomAbout, type MotorDims } from './schematicGeometry';
+import { colorOf, innerTubeExtent, MAX_ZOOM, ZOOM_IDENTITY, zoomStep, type MotorDims } from './schematicGeometry';
 import { useWheelZoom } from './useWheelZoom';
 import { discDims, tubeRadii } from '../../services/design/discGeometry';
 import { DISC_TYPES } from '../../services/files/componentFormats';
 import { partLabel } from '../../i18n/format';
+import { radToDeg } from '../../prefs/units';
 
 /**
  * Aft end view — the rocket seen from behind (down the +X axis). This is the
@@ -26,7 +27,7 @@ import { partLabel } from '../../i18n/format';
  */
 
 /** Wheel step and zoom ceiling; hoisted so the hook's options keep one identity. */
-const WHEEL_ZOOM = { factor: 1.15, max: 12 };
+const WHEEL_ZOOM = { factor: 1.15, max: MAX_ZOOM };
 
 type Shape =
   | {
@@ -101,7 +102,7 @@ function buildAftScene(
         walkChain(n.children ?? [], cy, cz);
         continue;
       }
-      const r = Math.max(num(n, 'outerRadius', 0), num(n, 'aftRadius', 0), num(n, 'foreRadius', 0));
+      const r = anyOuterRadius(n);
       if (r <= 0) continue;
       hulls.push({
         kind: 'circle',
@@ -135,14 +136,14 @@ function buildAftScene(
         for (const off of ringInstanceOffsets(count, podRadius, Math.PI / 2 + num(child, 'angleOffset', 0))) {
           walkChain(child.children ?? [], cy + off.y, cz + off.z);
         }
-      } else if (type === 'trapezoidfinset' || type === 'ellipticalfinset' || type === 'freeformfinset') {
+      } else if (isPlanarFinSet(type)) {
         const count = countOf(child, 'finCount', 3);
         const span = finSpan(child);
         const thick = num(child, 'thickness', FIN_DEFAULTS.thickness);
-        for (let i = 0; i < count; i++) {
-          // First fin straight up (desktop rear-view convention) plus the
-          // set's own rotation about the body axis.
-          const angle = Math.PI / 2 + num(child, 'rotation', 0) + (2 * Math.PI * i) / count;
+        // First fin straight up (desktop rear-view convention) plus the set's
+        // own rotation about the body axis.
+        const ring = ringInstanceOffsets(count, 0, Math.PI / 2 + num(child, 'rotation', 0));
+        for (const [i, { angle }] of ring.entries()) {
           outer.push({
             kind: 'fin',
             key: keyOf(child, i),
@@ -161,14 +162,13 @@ function buildAftScene(
       } else if (type === 'tubefinset') {
         const count = countOf(child, 'finCount', 6);
         const rt = tubeFinRadius(child, pRadius);
-        for (let i = 0; i < count; i++) {
-          const angle = Math.PI / 2 + num(child, 'rotation', 0) + (2 * Math.PI * i) / count;
-          const d = pRadius + rt;
+        const ring = ringInstanceOffsets(count, pRadius + rt, Math.PI / 2 + num(child, 'rotation', 0));
+        for (const [i, off] of ring.entries()) {
           outer.push({
             kind: 'circle',
             key: keyOf(child, i),
-            y: cy + d * Math.cos(angle),
-            z: cz + d * Math.sin(angle),
+            y: cy + off.y,
+            z: cz + off.z,
             r: rt,
             fill: 'none',
             stroke: '#7a786f',
@@ -300,7 +300,7 @@ export function AftView({
   const rollDrag = useRef<number | null>(null); // last clientX while drag-rolling
   const zoomBy = (f: number) =>
     // About the viewBox origin — the rocket axis is always at (0,0) here.
-    setZoom((z) => zoomAbout(z, 0, 0, Math.min(WHEEL_ZOOM.max, Math.max(1, z.k * f))));
+    setZoom((z) => zoomStep(z, 0, 0, f, WHEEL_ZOOM.max));
   /**
    * The whole aft scene, rebuilt only when the DESIGN (or the language) changes.
    *
@@ -448,7 +448,7 @@ export function AftView({
           rollDrag.current = null;
         }}
       >
-        <g transform={`translate(${zoom.x} ${zoom.y}) scale(${zoom.k}) rotate(${(roll * 180) / Math.PI})`}>
+        <g transform={`translate(${zoom.x} ${zoom.y}) scale(${zoom.k}) rotate(${radToDeg(roll)})`}>
           {hulls.map(drawShape)}
           {inner.map(drawShape)}
           {outer.map(drawShape)}

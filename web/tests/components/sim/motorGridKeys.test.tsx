@@ -95,3 +95,36 @@ describe('MotorGrid arrow keys', () => {
     expect(onSelect).not.toHaveBeenCalled();
   });
 });
+
+/** The sorted column says so to assistive technology, not only with its arrow. */
+describe('MotorGrid sort header', () => {
+  beforeAll(() => {
+    Element.prototype.scrollIntoView = () => {};
+  });
+
+  it('marks the sorted column with aria-sort', () => {
+    function Sorted() {
+      const { cols } = useVisibleColumns();
+      const id = cols.find((c) => c.sortVal)!.id;
+      return (
+        <MotorGrid
+          active
+          shown={rows}
+          cols={cols}
+          sort={{ id, dir: -1 }}
+          onSort={() => {}}
+          selected={null}
+          onSelect={() => {}}
+          checked={new Map()}
+          onToggleCheck={() => {}}
+          catalogLoading={false}
+          catalogError={null}
+          onRetry={() => {}}
+        />
+      );
+    }
+    renderWithProviders(<Sorted />);
+    const sorts = screen.getAllByRole('columnheader').map((h) => h.getAttribute('aria-sort'));
+    expect(sorts).toContain('descending');
+  });
+});

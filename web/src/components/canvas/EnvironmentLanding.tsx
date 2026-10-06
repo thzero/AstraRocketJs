@@ -1,19 +1,31 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { fmtGroundDistance, useUnits } from '../../prefs/useUnits';
 import { configOf, useWorkspaceStore } from '../../state/store';
 import { useSettings } from '../../state/SettingsProvider';
 import type { ResultFlight } from '../../services/flight/simulations';
-import { landingPoint, trackPoints, type GroundPoint } from '../../services/flight/groundTrack';
+import {
+  type GroundPoint,
+  bearingFromPad,
+  distanceFromPad,
+  landingLatLon,
+  landingPoint,
+  trackPoints,
+} from '../../services/flight/groundTrack';
 import { driftEllipse } from '../../services/flight/driftEllipse';
 import { isComplete } from '../../services/flight/requiredLaunch';
 import { flyForecastHours, type HourLanding } from '../../services/flight/forecastHours';
-import { offsetToLatLon } from '../../services/landing/descentDrift';
-import { WeatherError } from '../../services/weather/openMeteo';
+import { offsetToLatLon } from '../../services/map/geodesy';
 import { readWeatherKey } from '../../services/weather/weatherKey';
 import { LandingMap } from '../tools/LandingMap';
 import { formatCoord } from '../../services/map/slippyMap';
 import { unitScope } from '../../prefs/units';
+import { weatherErrorText } from '../../services/weather/weatherErrorText';
+import { fmtSiteTime } from '../../i18n/format';
+import { type FlightSeries } from '../../engine/openRocketEngine';
+import { useLatest } from '../common/useLatest';
+import { TermRow } from '../common/TermRow';
+import { flightBranches } from '../../services/flight/flightColumns';
 
 /**
  * Where the flight came down, and, when its conditions came from a forecast,
@@ -32,7 +44,7 @@ const btn =
   'rounded-md bg-slate-800 px-3 py-1.5 text-xs font-medium text-sky-300 ring-1 ring-white/10 hover:bg-slate-700 disabled:opacity-50';
 
 export function EnvironmentLanding({ flight }: { flight: ResultFlight }) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const u = useUnits();
   // The flight's distance unit, as Ground Track reads this same landing.
   const dist = u.at(unitScope('sim', 'apogee'), 'distance');
@@ -45,10 +57,9 @@ export function EnvironmentLanding({ flight }: { flight: ResultFlight }) {
   const [held, setHeld] = useState<{ for: unknown; run: Run }>({ for: null, run: { kind: 'idle' } });
   const run: Run = held.for === flight.result ? held.run : { kind: 'idle' };
   const setRun = (r: Run, forResult: unknown = flight.result) => setHeld({ for: forResult, run: r });
-  const abort = useRef<AbortController | null>(null);
-  useEffect(() => () => abort.current?.abort(), []);
+  const request = useLatest();
 
-  const branches = flight.result.branches?.length ? flight.result.branches : [{ series: flight.result.series }];
+  const branches = flightBranches(flight.result);
   const main = branches[0]!.series;
   const path = trackPoints(main);
   const landing = landingPoint(main);
@@ -57,18 +68,17 @@ export function EnvironmentLanding({ flight }: { flight: ResultFlight }) {
   if (!landing || lat == null || lon == null) return null;
 
   const fmtM = (m: number) => fmtGroundDistance(dist, m);
-  const bearing = (p: GroundPoint) =>
-    `${Math.round(((((Math.atan2(p.east, p.north) * 180) / Math.PI) % 360) + 360) % 360)}°`;
-  const where = (p: GroundPoint) => {
-    const ll = offsetToLatLon(lat, lon, p);
+  const bearing = (p: GroundPoint) => `${Math.round(bearingFromPad(p))}°`;
+  // The kernel's own landing coordinate when the result carries it; a result
+  // saved before it was kept falls back to projecting the offset.
+  const where = (series: FlightSeries | undefined, p: GroundPoint) => {
+    const ll = landingLatLon(series) ?? offsetToLatLon(lat, lon, p);
     return formatCoord(ll.lat, ll.lon, 5);
   };
 
   const fly = async () => {
     if (!source || !sim || !isComplete(sim.launch)) return;
-    abort.current?.abort();
-    const ctl = new AbortController();
-    abort.current = ctl;
+    const signal = request.claimSignal();
     const forResult = flight.result;
     setRun({ kind: 'running', done: 0, total: 0 }, forResult);
     try {
@@ -81,21 +91,20 @@ export function EnvironmentLanding({ flight }: { flight: ResultFlight }) {
           prefs: { ...settings.simulation, ...sim.prefs },
           apiKey: readWeatherKey(),
           onProgress: (done, total) => {
-            if (!ctl.signal.aborted) setRun({ kind: 'running', done, total }, forResult);
+            if (!signal.aborted) setRun({ kind: 'running', done, total }, forResult);
           },
         },
-        { signal: ctl.signal },
+        { signal },
       );
-      if (!ctl.signal.aborted) setRun({ kind: 'done', hours }, forResult);
+      if (!signal.aborted) setRun({ kind: 'done', hours }, forResult);
     } catch (err) {
-      if (ctl.signal.aborted) return;
+      if (signal.aborted) return;
       setRun(
         {
           kind: 'error',
-          message:
-            err instanceof WeatherError
-              ? t(`weather.error.${err.kind}`, { detail: err.detail ?? '' })
-              : t('env.landing.failed'),
+          // Its own fallback: this run flies the simulations too, and any
+          // failure that is not the weather is one of those.
+          message: weatherErrorText(err, t, 'env.landing.failed'),
         },
         forResult,
       );
@@ -104,12 +113,7 @@ export function EnvironmentLanding({ flight }: { flight: ResultFlight }) {
 
   const hourLandings = run.kind === 'done' ? run.hours.flatMap((h) => (h.landings[0] ? [h.landings[0]] : [])) : [];
   const spread = hourLandings.length >= 3 ? driftEllipse(hourLandings) : null;
-  const hourLabel = (ms: number) =>
-    new Intl.DateTimeFormat(i18n.language, {
-      timeZone: source?.timezone,
-      hour: '2-digit',
-      minute: '2-digit',
-    }).format(new Date(ms));
+  const hourLabel = (ms: number) => fmtSiteTime(ms, source?.timezone, { timeOnly: true });
 
   return (
     <section className="space-y-3 rounded-xl bg-slate-900 p-3 ring-1 ring-white/10">
@@ -119,13 +123,13 @@ export function EnvironmentLanding({ flight }: { flight: ResultFlight }) {
           const p = landingPoint(b.series);
           if (!p) return null;
           return (
-            <div key={i}>
-              <dt className="text-slate-400">
-                {branches.length > 1 ? t('env.landing.stage', { stage: i + 1 }) : t('landing.lands')}
-              </dt>
-              <dd className="tabular-nums text-slate-100">{where(p)}</dd>
-              <dd className="tabular-nums text-slate-300">{`${fmtM(Math.hypot(p.east, p.north))}, ${bearing(p)}`}</dd>
-            </div>
+            <TermRow
+              key={i}
+              label={branches.length > 1 ? t('env.landing.stage', { stage: i + 1 }) : t('landing.lands')}
+              detail={`${fmtM(distanceFromPad(p))}, ${bearing(p)}`}
+            >
+              {where(b.series, p)}
+            </TermRow>
           );
         })}
       </dl>
@@ -168,7 +172,7 @@ export function EnvironmentLanding({ flight }: { flight: ResultFlight }) {
                     return (
                       <tr key={h.offset} className={h.offset === 0 ? 'text-sky-300' : ''}>
                         <td>{hourLabel(h.validMs)}</td>
-                        <td>{p ? fmtM(Math.hypot(p.east, p.north)) : '—'}</td>
+                        <td>{p ? fmtM(distanceFromPad(p)) : '—'}</td>
                         <td>{p ? bearing(p) : '—'}</td>
                       </tr>
                     );

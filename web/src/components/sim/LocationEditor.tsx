@@ -9,6 +9,7 @@ import { LAUNCH_SI } from '../../prefs/launchUnits';
 import { uuid } from '../../services/app/uuid';
 import { SiteMap } from './SiteMap';
 import { LAUNCH_SITE_LIMITS as LIMITS, type LaunchLocation } from '../../services/storage/launchLocationStore';
+import { EditorFooter } from '../common/MasterDetail';
 
 /**
  * The detail half of the saved locations dialog: one location in full — name,
@@ -236,18 +237,14 @@ export function LocationEditor({
         />
       </div>
 
-      {/* Pinned under the scrolling form. Delete sits apart from Save, at the
-          other end of the row, because they are not two grades of the same
-          action. */}
-      <div className="flex shrink-0 items-center gap-2 border-t border-white/10 p-2">
-        {onDelete && (
-          <button
-            onClick={onDelete}
-            className="rounded-lg px-3 py-1.5 text-sm font-medium text-red-400 hover:bg-red-500/10"
-          >
-            {t('common.delete')}
-          </button>
-        )}
+      <EditorFooter
+        onDelete={onDelete}
+        dirty={dirty}
+        onRevert={revert}
+        onSave={submit}
+        saveDisabled={!valid}
+        saveTitle={valid ? undefined : t('location.needsSite')}
+      >
         {onApply && (
           <button
             onClick={onApply}
@@ -262,22 +259,7 @@ export function LocationEditor({
             {t('location.use')}
           </button>
         )}
-        <button
-          onClick={revert}
-          disabled={!dirty}
-          className="ml-auto rounded-lg bg-slate-800 px-3 py-1.5 text-sm font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700 disabled:opacity-40"
-        >
-          {t('common.discard')}
-        </button>
-        <button
-          onClick={submit}
-          disabled={!valid || !dirty}
-          title={valid ? undefined : t('location.needsSite')}
-          className="shrink-0 rounded-lg bg-sky-600 px-5 py-1.5 text-sm font-medium text-white hover:bg-sky-500 disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500"
-        >
-          {t('common.save')}
-        </button>
-      </div>
+      </EditorFooter>
     </>
   );
 }

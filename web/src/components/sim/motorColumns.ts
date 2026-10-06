@@ -6,6 +6,7 @@ import { fmtNum } from '../../i18n/format';
 import type { Units } from '../../prefs/useUnits';
 import type { Quantity } from '../../prefs/units';
 import { nsKey } from '../../services/storage/storageKeys';
+import { readLocalJson, writeLocalJson } from '../../services/storage/localPref';
 
 /**
  * The motor dashboard's column table: every column the grid can show, how each
@@ -151,21 +152,10 @@ export const ALIGN = { left: 'text-left', center: 'text-center', right: 'text-ri
 
 // The chosen columns persist across sessions.
 const COLS_KEY = nsKey('motorDash:cols');
-const loadCols = (): string[] => {
-  try {
-    const r = JSON.parse(localStorage.getItem(COLS_KEY) ?? 'null');
-    return Array.isArray(r) && r.length ? (r as string[]) : DEFAULT_COLS;
-  } catch {
-    return DEFAULT_COLS;
-  }
-};
-const saveCols = (ids: string[]) => {
-  try {
-    localStorage.setItem(COLS_KEY, JSON.stringify(ids));
-  } catch {
-    /* storage off */
-  }
-};
+const isColumnList = (v: unknown): v is string[] =>
+  Array.isArray(v) && v.length > 0 && v.every((x) => typeof x === 'string');
+const loadCols = (): string[] => readLocalJson(COLS_KEY, isColumnList, DEFAULT_COLS);
+const saveCols = (ids: string[]): void => void writeLocalJson(COLS_KEY, ids);
 
 /** The user's column choice (persisted) and the columns to render from it. */
 export function useVisibleColumns() {

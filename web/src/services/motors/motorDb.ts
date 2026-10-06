@@ -306,10 +306,7 @@ export function matchCatalogMotor(
   const byMfr = (cands: CatalogMotor[]): CatalogMotor[] => {
     if (!manufacturer || cands.length <= 1) return cands;
     const mf = manufacturer.trim().toLowerCase();
-    const hit = cands.filter((m) => {
-      const mm = m.manufacturer.toLowerCase();
-      return mm === mf || mm.includes(mf) || mf.includes(mm);
-    });
+    const hit = cands.filter((m) => sameMaker(m.manufacturer, mf));
     return hit.length ? hit : cands;
   };
 
@@ -359,6 +356,15 @@ export function matchCatalogMotor(
   return undefined;
 }
 
+/**
+ * Whether a catalog maker answers to the one a file asked for (`asked` already
+ * trimmed and lowercased): equal, or either name containing the other.
+ */
+function sameMaker(catalogMaker: string, asked: string): boolean {
+  const got = catalogMaker.toLowerCase();
+  return got === asked || got.includes(asked) || asked.includes(got);
+}
+
 /** Which doubt to report, most surprising first. */
 function doubtAbout(
   motor: CatalogMotor,
@@ -367,11 +373,8 @@ function doubtAbout(
   manufacturer?: string,
 ): { doubt: MotorMatchDoubt } | undefined {
   const asked = manufacturer?.trim().toLowerCase();
-  if (asked) {
-    const got = motor.manufacturer.toLowerCase();
-    // The same test `byMfr` prefers by, so "no doubt" means it got its way.
-    if (!(got === asked || got.includes(asked) || asked.includes(got))) return { doubt: 'maker' };
-  }
+  // The same test `byMfr` prefers by, so "no doubt" means it got its way.
+  if (asked && !sameMaker(motor.manufacturer, asked)) return { doubt: 'maker' };
   if (shortened) return { doubt: 'shortened' };
   if (candidates > 1) return { doubt: 'several' };
   return undefined;

@@ -3,17 +3,11 @@ import { useCallback, useEffect, useRef } from 'react';
 /**
  * The generation guard for a callback that resolves after an await.
  *
- * Five surfaces did the same thing without one: `LaunchPanel`'s geolocation
- * callbacks, `WindProfileDialog.importCsv`, `MotorDialog`'s import and delete,
- * and `useExportTemplates.onImport`. Each awaits a file read, a browser permission
- * prompt or an IndexedDB round trip and then calls an `onChange` that writes to
- * whatever rows are the current edit targets, which may not be the ones that were
- * on screen when the work started. A geolocation prompt can sit unanswered for
- * minutes.
- *
- * `MotorDialog.pick` already implemented exactly this with a local ref and a
- * cleanup effect (`pickGen`). This is that, named, so the fifth copy is a call
- * rather than four lines someone has to remember to write.
+ * A caller awaits a file read, a network fetch, a browser permission prompt or
+ * an IndexedDB round trip and then writes to whatever rows are the current edit
+ * targets, which may not be the ones that were on screen when the work started.
+ * A geolocation prompt can sit unanswered for minutes. Every such continuation
+ * asks this hook whether it is still current rather than keeping its own counter.
  *
  * Unmounting bumps the generation, so a token taken before unmount is stale
  * afterwards: a result landing on a closed dialog is discarded along with one
@@ -42,16 +36,24 @@ export interface Latest {
    * attempt, only notice that it is gone.
    */
   observe: () => () => boolean;
+  /**
+   * Start a new request and get its signal. The request before it is aborted,
+   * and so is the last one when the component unmounts: a fetch a closed
+   * dialog or tab started is canceled, not left to land on nothing.
+   */
+  claimSignal: () => AbortSignal;
 }
 
 export function useLatest(): Latest {
   const gen = useRef(0);
+  const request = useRef<AbortController | null>(null);
   // The unmount bump is why this needs a ref and an effect rather than a plain
   // boolean: the cleanup runs after the last render, so nothing a later
   // continuation reads can be a state value.
   useEffect(
     () => () => {
       gen.current++;
+      request.current?.abort();
     },
     [],
   );
@@ -63,5 +65,11 @@ export function useLatest(): Latest {
     const mine = gen.current;
     return () => mine === gen.current;
   }, []);
-  return { claim, observe };
+  const claimSignal = useCallback(() => {
+    request.current?.abort();
+    const ctl = new AbortController();
+    request.current = ctl;
+    return ctl.signal;
+  }, []);
+  return { claim, observe, claimSignal };
 }

@@ -8,6 +8,7 @@ import { onSi } from '../../prefs/entryValue';
 import { unitScope } from '../../prefs/units';
 import { num } from '../../tree/nodeProps';
 import { PANEL_SCOPE_KEYS } from '../../services/design/componentFields';
+import { PropSection } from './PropSection';
 
 /**
  * The property panel's override section: the mass / CG / CD overrides
@@ -109,12 +110,7 @@ export function OverridesSection({
   const overrideCgUnit = u.at(cgOverrideScope, 'length');
 
   return (
-    <div className="space-y-3 border-t border-white/5 pt-3">
-      {/* Same markup as every other section heading (FieldSection,
-          PlacementSection, the panel's Part block) — this one was a div two
-          sizes and one shade apart, which only showed once the sections
-          around it had headings of their own. */}
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t('override.title')}</h3>
+    <PropSection title={t('override.title')}>
       <OverrideRow
         label={t('override.mass')}
         unit={<UnitChip quantity="mass" scope={massOverrideScope} />}
@@ -169,6 +165,6 @@ export function OverridesSection({
         onSub={(on) => onChange({ overrideSubcomponentsCD: on || undefined })}
       />
       <p className="text-[11px] leading-snug text-slate-500">{t('override.cpNote')}</p>
-    </div>
+    </PropSection>
   );
 }

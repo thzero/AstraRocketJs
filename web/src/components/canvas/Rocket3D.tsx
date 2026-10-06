@@ -10,7 +10,8 @@ import { useSettings } from '../../state/SettingsProvider';
 import { ImageExportMenu } from './ImageExportMenu.js';
 import { useUnits } from '../../prefs/useUnits';
 import type { MotorDims } from './schematicGeometry';
-import { buildPieces, markerRadius } from './rocketPieces';
+import { markerRadius } from './rocketPieces';
+import { usePieces } from './usePieces';
 import { AxisCallout, markerTexture } from './rocketCallouts';
 import { StabilityCallout } from './StabilityCallout';
 import { RocketModel } from './RocketModel';
@@ -70,21 +71,12 @@ export function Rocket3D({
   const u = useUnits();
   const { settings } = useSettings();
   const palette = useMemo(() => mergePalette(settings.partColors), [settings.partColors]);
-  const { pieces, totalLen, maxR } = useMemo(() => buildPieces(tree, motors, palette), [tree, motors, palette]);
+  const { pieces, totalLen, maxR } = usePieces(tree, motors, palette);
   const r3f = useRef<R3fHandles | null>(null);
 
   // Hi-res snapshot (issue 2026-08-11b): the same scene rendered offscreen at
   // the export width, with the on-screen path as the fallback.
   const snapshot = useRocketExport(r3f, pieces, maxR, exportData);
-  // Mesh keys are stable across rebuilds, so R3F never unmounts/auto-disposes
-  // the swapped-out geometries — release them ourselves or every edit leaks
-  // a full set of GPU buffers.
-  useEffect(
-    () => () => {
-      for (const p of pieces) p.geometry.dispose();
-    },
-    [pieces],
-  );
   const center = totalLen / 2;
   const camDist = Math.max(totalLen * 1.1, maxR * 6, 0.25);
   const markerR = markerRadius(totalLen, maxR);

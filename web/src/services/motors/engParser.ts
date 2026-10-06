@@ -14,16 +14,15 @@ import type { CustomMotor } from './motorStore';
 // N-s MicroMaxx an "A", while the shared one called the same motor "below A".
 // Same motor, two different classes depending on which screen you were on.
 import { impulseClass } from './motorCombine';
+import { trapezoidImpulse } from './motorMath';
 import { delayList } from './motorPicker';
 
 /** Total impulse (Ns) of a thrust curve by the trapezoid rule. */
 export function totalImpulse(samples: { time: number; thrust: number }[]): number {
-  let s = 0;
-  for (let i = 1; i < samples.length; i++) {
-    const dt = samples[i]!.time - samples[i - 1]!.time;
-    s += (dt * (samples[i]!.thrust + samples[i - 1]!.thrust)) / 2;
-  }
-  return s;
+  return trapezoidImpulse(
+    samples.map((s) => s.time),
+    samples.map((s) => s.thrust),
+  );
 }
 
 export function parseEng(text: string): CustomMotor {

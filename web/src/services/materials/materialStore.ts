@@ -6,6 +6,7 @@
 import type { Material, MaterialType } from './materialTypes';
 import type { KeyValueStore } from '../storage/keyValueStore';
 import { IndexedDbKeyValueStore } from '../storage/idbKeyValueStore';
+import { JsonListStore } from '../storage/jsonListStore';
 import { nsKey } from '../storage/storageKeys';
 
 export interface MaterialStore {
@@ -42,6 +43,9 @@ function isMaterial(v: unknown): v is Material {
   );
 }
 
+/** A material's identity in the list: its name and type together. */
+const materialId = (name: string, type: MaterialType): string => JSON.stringify([type, name]);
+
 /**
  * Default MaterialStore: serializes the custom-material list to a single
  * key-value entry through a KeyValueStore (IndexedDB by default). Pass a
@@ -49,56 +53,35 @@ function isMaterial(v: unknown): v is Material {
  * whole MaterialStore via setMaterialStore for a bespoke backend.
  */
 export class KeyValueMaterialStore implements MaterialStore {
-  constructor(
-    private readonly key: string = CUSTOM_KEY,
-    private readonly kv: KeyValueStore = new IndexedDbKeyValueStore(),
-  ) {}
-
-  /** The stored list, tolerating an absent, corrupt or partly invalid blob. */
-  private static parse(raw: string | null): Material[] {
-    if (!raw) return [];
-    try {
-      const parsed = JSON.parse(raw) as unknown;
-      if (!Array.isArray(parsed)) return [];
-      return parsed.filter(isMaterial).map((m) => ({ ...m, custom: true }));
-    } catch {
-      return []; // corrupt entry
-    }
-  }
+  private readonly items: JsonListStore<Material>;
 
   /**
-   * Read, transform and write in ONE store transaction, and propagate a
-   * refused write the way `motorStore.addCustomMotor` does.
-   *
-   * `kv.update` reports failure by RETURNING false rather than throwing, so
-   * discarding it meant the dialog awaited the save, got a clean resolve, and
-   * re-rendered a list that simply did not contain the thing the user had just
-   * added - with no error anywhere. "Best-effort (re-addable)" was the excuse,
-   * but re-adding is only possible if you are told it did not stick.
-   *
-   * `update`, not read-then-set: this is an installable PWA whose IndexedDB is
-   * shared across tabs, and a get/set with an await between them let two tabs
-   * each drop the other's material (the race `DesignLibrary.mutateIndex`
-   * closes for the design index).
+   * Newest save first, one entry per name+type (a "Balsa" bulk and a "Balsa"
+   * surface are two materials). Every entry read back is marked `custom`.
    */
-  private async mutate(fn: (list: Material[]) => Material[]): Promise<void> {
-    const ok = await this.kv.update(this.key, (raw) => JSON.stringify(fn(KeyValueMaterialStore.parse(raw))));
-    if (!ok) throw new Error('storage-full');
+  constructor(key: string = CUSTOM_KEY, kv: KeyValueStore = new IndexedDbKeyValueStore()) {
+    this.items = new JsonListStore(
+      key,
+      isMaterial,
+      (m) => materialId(m.name, m.type),
+      kv,
+      (m) => ({
+        ...m,
+        custom: true,
+      }),
+    );
   }
 
-  async list(): Promise<Material[]> {
-    return KeyValueMaterialStore.parse(await this.kv.get(this.key));
+  list(): Promise<Material[]> {
+    return this.items.list();
   }
 
-  async add(material: Material): Promise<void> {
-    await this.mutate((list) => [
-      { ...material, custom: true },
-      ...list.filter((m) => !(m.name === material.name && m.type === material.type)),
-    ]);
+  add(material: Material): Promise<void> {
+    return this.items.upsert([{ ...material, custom: true }]);
   }
 
-  async remove(name: string, type: MaterialType): Promise<void> {
-    await this.mutate((list) => list.filter((m) => !(m.name === name && m.type === type)));
+  remove(name: string, type: MaterialType): Promise<void> {
+    return this.items.remove(materialId(name, type));
   }
 }
 

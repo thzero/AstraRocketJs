@@ -10,6 +10,7 @@ import { useUnits } from '../../prefs/useUnits';
 import { unitScope } from '../../prefs/units';
 import { ToolBtn } from '../common/ToolBtn';
 import type { ConfigsTab } from '../../state/tabs';
+import { ToggleButton } from '../common/ToggleButton';
 
 /**
  * The Configurations tab: a toolbar, a sub-tab per part of a configuration, the
@@ -120,16 +121,14 @@ function SubTab({
   onClick: (v: ConfigsTab) => void;
   children: React.ReactNode;
 }) {
-  const active = current === value;
   return (
-    <button
+    <ToggleButton
+      current
+      active={current === value}
       onClick={() => onClick(value)}
-      aria-current={active ? 'true' : undefined}
-      className={`rounded-lg px-3 py-1.5 text-xs font-medium ${
-        active ? 'bg-sky-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-      }`}
+      className="rounded-lg px-3 py-1.5 text-xs font-medium"
     >
       {children}
-    </button>
+    </ToggleButton>
   );
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { fmtSig, fmtUpTo, ladderDigits, partLabel, stageLabel, withUnit } from '../../src/i18n/format';
+import { fmtSig, fmtSiteTime, fmtUpTo, ladderDigits, partLabel, stageLabel, withUnit } from '../../src/i18n/format';
 import i18n from '../../src/i18n';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -132,5 +132,48 @@ describe('fmtSig', () => {
     expect(fmtSig(0.0012345, 4)).toBe('0.001235');
     expect(fmtSig(0, 4)).toBe('0');
     expect(fmtSig(Number.NaN, 4)).toBe('—');
+  });
+});
+
+/**
+ * An instant on the launch site's clock, with its zone named. One copy, with the
+ * fallback: the zone comes from Open-Meteo and from a saved weather source, and
+ * four of the six copies had no catch, so a zone the browser does not know threw
+ * a RangeError in the middle of rendering.
+ */
+describe('fmtSiteTime', () => {
+  const at = Date.UTC(2026, 6, 4, 18, 30);
+
+  it('formats on the site clock and names the zone', () => {
+    const s = fmtSiteTime(at, 'America/Denver');
+    expect(s).toMatch(/2026/);
+    expect(s).toMatch(/12:30/);
+    expect(s).toMatch(/MDT|GMT-6/);
+  });
+
+  it('falls back to the viewer clock for a zone the browser rejects', () => {
+    expect(() => fmtSiteTime(at, 'Not/AZone')).not.toThrow();
+    expect(fmtSiteTime(at, 'Not/AZone')).toMatch(/2026/);
+  });
+
+  it('leaves out the year or the date when asked', () => {
+    expect(fmtSiteTime(at, 'UTC', { year: false })).not.toMatch(/2026/);
+    expect(fmtSiteTime(at, 'UTC', { timeOnly: true })).toMatch(/^18:30$|^06:30 PM$/);
+  });
+
+  it('is how the components format a site time', () => {
+    const dir = resolve(__dirname, '../../src/components');
+    const offenders: string[] = [];
+    const walk = (d: string) => {
+      for (const entry of readdirSync(d)) {
+        const path = join(d, entry);
+        if (statSync(path).isDirectory()) walk(path);
+        else if (/\.tsx?$/.test(entry) && /DateTimeFormat\([^)]*\{[^}]*timeZone/s.test(readFileSync(path, 'utf8'))) {
+          offenders.push(path.slice(dir.length + 1));
+        }
+      }
+    };
+    walk(dir);
+    expect(offenders).toEqual([]);
   });
 });

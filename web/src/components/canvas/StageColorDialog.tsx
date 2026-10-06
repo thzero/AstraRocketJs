@@ -9,6 +9,7 @@ import {
 } from '../../services/exports/flightPathExport';
 import { Dialog } from '../common/Dialog';
 import { stageLabel } from '../../i18n/format';
+import { DialogButton } from '../common/DialogButton';
 
 /** The three independently colorable things the exporter draws per stage. */
 const COLOR_ROLES = ['path', 'ground', 'pin'] as const;
@@ -128,18 +129,12 @@ export function StageColorDialog({
           >
             {t('pathExport.resetColors')}
           </button>
-          <button
-            onClick={onCancel}
-            className="rounded-lg bg-slate-800 px-4 py-2 text-sm text-slate-300 ring-1 ring-white/10 hover:bg-slate-700"
-          >
+          <DialogButton onClick={onCancel} variant="secondary">
             {t('pathExport.cancel')}
-          </button>
-          <button
-            onClick={() => onApply(drafts.path, drafts.ground, drafts.pin)}
-            className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-500"
-          >
+          </DialogButton>
+          <DialogButton onClick={() => onApply(drafts.path, drafts.ground, drafts.pin)} variant="primary">
             {t('pathExport.apply')}
-          </button>
+          </DialogButton>
         </div>
       </>
     </Dialog>

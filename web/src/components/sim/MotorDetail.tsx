@@ -1,11 +1,10 @@
-import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { fmtNum } from '../../i18n/format';
 import { useUnits } from '../../prefs/useUnits';
 import type { CatalogMotor } from '../../services/motors/motorDb';
 import { initialThrust } from '../../services/motors/motorPicker';
 import { avgThrustOf, ispOf, massFracOf } from '../../services/motors/motorMath';
-import { ChartAxes, CHART_HEADROOM, chartScales, linePath, baselineArea } from './chartAxes';
+import { ChartAxes, CHART_HEADROOM, chartScales, linePath, baselineArea, LegendSwatch, peakOf } from './chartAxes';
 import { inUserUnit, withFixedUnit } from './motorFormat';
 
 const TYPE_KEY: Record<string, string> = { SU: 'typeSU', reload: 'typeReload', hybrid: 'typeHybrid' };
@@ -150,7 +149,7 @@ export function ThrustChart({ samples, avg, burn }: { samples: [number, number][
   const { X, Y } = chartScales(dims, tMax, fMax);
   const line = linePath(samples, X, Y);
   const area = baselineArea(samples, X, Y, tMax);
-  const peak = samples.reduce((a, b) => (b[1] > a[1] ? b : a));
+  const peak = peakOf(samples);
 
   return (
     <div className="mt-2">
@@ -178,25 +177,16 @@ export function ThrustChart({ samples, avg, burn }: { samples: [number, number][
         </text>
       </svg>
       <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-slate-400">
-        <Legend color="#f97316">{t('motorDlg.chartThrust')}</Legend>
-        <Legend color="#2dd4bf" dash>
+        <LegendSwatch color="#f97316" width={14}>
+          {t('motorDlg.chartThrust')}
+        </LegendSwatch>
+        <LegendSwatch color="#2dd4bf" width={14} dash>
           {t('motorDlg.chartAvg')}
-        </Legend>
-        <Legend color="#eab308" dash>
+        </LegendSwatch>
+        <LegendSwatch color="#eab308" width={14} dash>
           {t('motorDlg.chartBurn')}
-        </Legend>
+        </LegendSwatch>
       </div>
     </div>
-  );
-}
-
-function Legend({ color, dash, children }: { color: string; dash?: boolean; children: ReactNode }) {
-  return (
-    <span className="inline-flex items-center gap-1">
-      <svg width="14" height="4" aria-hidden>
-        <line x1="0" y1="2" x2="14" y2="2" stroke={color} strokeWidth="2" strokeDasharray={dash ? '3 2' : undefined} />
-      </svg>
-      {children}
-    </span>
   );
 }

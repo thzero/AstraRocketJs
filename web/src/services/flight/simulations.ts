@@ -8,6 +8,9 @@ import type { LaunchConditions } from '../design/orkTree';
 import type { CompleteLaunch } from './requiredLaunch';
 import { surfaceLevel } from './safetyLimits';
 import { uuid } from '../app/uuid';
+import { degToRad } from '../../prefs/units';
+import { LAUNCH_SI } from '../../prefs/launchUnits';
+import { stableJson } from '../app/stableJson';
 
 /**
  * The default compass heading (degrees) for the launch rod and the wind: due
@@ -99,25 +102,6 @@ export function sameSimInputs(a: SimInputs, b: SimInputs): boolean {
  */
 export function effectivePrefs(globals: SimPrefs, own: Partial<SimPrefs> | undefined): SimPrefs {
   return { ...globals, ...own };
-}
-
-/**
- * JSON with object keys sorted, so equal values give equal strings whatever
- * order their keys were written in. `sanitizeSims` rebuilds a launch block as
- * `{ ...defaults, ...stored }` on every load, which reorders it. Keys named in
- * `skip` are left out at every depth.
- */
-function stableJson(value: unknown, skip?: ReadonlySet<string>): string {
-  return JSON.stringify(value, (key, v: unknown) => {
-    if (skip?.has(key)) return undefined;
-    if (v === null || typeof v !== 'object' || Array.isArray(v)) return v;
-    const o = v as Record<string, unknown>;
-    return Object.fromEntries(
-      Object.keys(o)
-        .sort()
-        .map((k) => [k, o[k]]),
-    );
-  });
 }
 
 const PART_NAME = new Set(['name']);
@@ -243,6 +227,13 @@ export function simStatus(
   return outdated ? 'outdated' : 'upToDate';
 }
 
+/**
+ * The simulations with their flight results dropped. A result is tens of
+ * thousands of samples, so the undo history and the persisted design hold the
+ * inputs only.
+ */
+export const withoutResults = (sims: readonly Simulation[]): Simulation[] => sims.map((s) => ({ ...s, result: null }));
+
 /** Globally-unique id for a new simulation — a UUID (like OpenRocket's own ids),
  *  so ids minted after a reload can't collide with persisted ones. */
 function newSimId(): string {
@@ -252,8 +243,6 @@ function newSimId(): string {
 export function newSimulation(name: string, configId: string, launch: LaunchConditions): Simulation {
   return { id: newSimId(), name, configId, launch, result: null };
 }
-
-const rad = (deg: number) => (deg * Math.PI) / 180;
 
 /** Global simulation preferences applied to every run (see services/storage/settings.ts). */
 export interface SimPrefs {
@@ -362,15 +351,15 @@ export function simConditions(launch: CompleteLaunch, prefs?: SimPrefs) {
   const rodDirDeg = launch.launchIntoWind ? windDirDeg : (launch.launchRodDirectionDeg ?? DEFAULT_HEADING_DEG);
   return {
     launchRodLength: launch.launchRodLengthM,
-    launchRodAngle: rad(launch.launchRodAngleDeg),
-    launchRodDirection: rad(rodDirDeg),
+    launchRodAngle: degToRad(launch.launchRodAngleDeg),
+    launchRodDirection: degToRad(rodDirDeg),
     windAverage: launch.windAverage,
     windStdDeviation: launch.windStdDev,
-    windDirection: rad(launch.windDirectionDeg ?? DEFAULT_HEADING_DEG),
+    windDirection: degToRad(launch.windDirectionDeg ?? DEFAULT_HEADING_DEG),
     windLevels: launch.windLevels?.map((l) => ({
       altitude: l.altitudeM,
       speed: l.speed,
-      direction: rad(l.directionDeg),
+      direction: degToRad(l.directionDeg),
       stddev: l.stddev,
     })),
     windAltitudeReference: launch.windAltitudeReference,
@@ -381,16 +370,16 @@ export function simConditions(launch: CompleteLaunch, prefs?: SimPrefs) {
     launchAltitude: launch.launchAltitudeM,
     launchLatitude: launch.latitudeDeg,
     launchLongitude: launch.longitudeDeg,
-    temperature: launch.temperatureC != null ? launch.temperatureC + 273.15 : undefined,
-    pressure: launch.pressureHPa != null ? launch.pressureHPa * 100 : undefined,
+    temperature: launch.temperatureC != null ? LAUNCH_SI.degC.toSi(launch.temperatureC) : undefined,
+    pressure: launch.pressureHPa != null ? LAUNCH_SI.hPa.toSi(launch.pressureHPa) : undefined,
     // Omitted rather than sent as standard when null: the bridge reads an absent
     // key as NaN and only leaves ISA when one of the three is actually given.
     relativeHumidity: launch.relativeHumidity ?? undefined,
     atmosphereLevels: launch.atmosphereLevels?.length
       ? launch.atmosphereLevels.map((l) => ({
           altitude: l.altitudeM,
-          temperature: l.temperatureC + 273.15,
-          pressure: l.pressureHPa * 100,
+          temperature: LAUNCH_SI.degC.toSi(l.temperatureC),
+          pressure: LAUNCH_SI.hPa.toSi(l.pressureHPa),
           relativeHumidity: l.relativeHumidity,
         }))
       : undefined,

@@ -417,7 +417,7 @@
     "aft": "Trasera",
     "cutaway": "Sección",
     "cutawayTitle": "Abrir el fuselaje por el eje central para ver el interior",
-    "roll": "Giro {{deg}}°",
+    "roll": "Giro {{deg}}",
     "rollHint": "Giro — gira las aletas sobre el eje (o arrastra el dibujo)",
     "rollAria": "Ángulo de giro (grados)",
     "loading3d": "Cargando 3D…",

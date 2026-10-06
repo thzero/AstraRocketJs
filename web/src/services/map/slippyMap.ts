@@ -11,6 +11,7 @@
  * numbers rather than by looking at whether the picture came out right.
  */
 import { fmtNum } from '../../i18n/format';
+import { degToRad } from '../../prefs/units';
 
 /** Every source below serves 256px tiles. */
 export const TILE_SIZE = 256;
@@ -111,7 +112,7 @@ export function wrapTileX(x: number, zoom: number): number {
 /** Ground resolution, for the scale bar. Shrinks with the cosine of latitude. */
 export function metersPerPixel(latDeg: number, zoom: number): number {
   const EARTH_CIRCUMFERENCE_M = 40075016.686;
-  return (EARTH_CIRCUMFERENCE_M * Math.cos((latDeg * Math.PI) / 180)) / (TILE_SIZE * 2 ** zoom);
+  return (EARTH_CIRCUMFERENCE_M * Math.cos(degToRad(latDeg))) / (TILE_SIZE * 2 ** zoom);
 }
 
 /** Longitude folded into [-180, 180), so panning across the date line reads right. */

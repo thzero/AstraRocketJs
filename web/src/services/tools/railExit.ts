@@ -1,4 +1,7 @@
-import { G0 } from '../motors/motorMath';
+import { G0, trapezoidImpulse } from '../motors/motorMath';
+import { degToRad } from '../../prefs/units';
+import { thrustAt, type Sample } from '../motors/motorCombine';
+import { lerpAt } from '../flight/interpolate';
 
 /**
  * Off the rail, for a rocket that has not been designed here: a motor's thrust
@@ -57,29 +60,14 @@ export interface RailExit {
 /** Why the rocket never leaves the rail. */
 export type RailFailure = 'noLiftoff' | 'stalls';
 
-/** Linear interpolation of `ys` over `xs` at `x`; zero past either end. */
-function at(xs: number[], ys: number[], x: number, outside = 0): number {
-  if (xs.length === 0 || x < xs[0]! || x > xs[xs.length - 1]!) return outside;
-  let i = 1;
-  while (i < xs.length - 1 && xs[i]! < x) i++;
-  const x0 = xs[i - 1]!;
-  const x1 = xs[i]!;
-  if (x1 <= x0) return ys[i]!;
-  return ys[i - 1]! + ((ys[i]! - ys[i - 1]!) * (x - x0)) / (x1 - x0);
-}
-
+/** Motor mass at a time, held at the first and last samples outside the burn. */
 function motorMassAt(m: RailMotor, t: number): number {
-  if (m.masses.length === 0) return 0;
-  if (t >= m.times[m.times.length - 1]!) return m.masses[m.masses.length - 1]!;
-  return at(m.times, m.masses, Math.max(t, m.times[0]!), m.masses[0]!);
+  return m.masses.length === 0 ? 0 : (lerpAt(m.times, m.masses, t) ?? 0);
 }
 
 /** Mean thrust over the burn, N. */
 function averageThrust(m: RailMotor): number {
-  let impulse = 0;
-  for (let i = 1; i < m.times.length; i++) {
-    impulse += ((m.times[i]! - m.times[i - 1]!) * (m.thrusts[i]! + m.thrusts[i - 1]!)) / 2;
-  }
+  const impulse = trapezoidImpulse(m.times, m.thrusts);
   const burn = m.times[m.times.length - 1]! - m.times[0]!;
   return burn > 0 ? impulse / burn : 0;
 }
@@ -88,12 +76,15 @@ export function railExit(input: RailInput): RailExit | RailFailure {
   const { motor, dryMassKg, railLengthM } = input;
   const liftoffMassKg = dryMassKg + (motor.masses[0] ?? 0);
   const weight = liftoffMassKg * G0;
+  // Through the catalog's reader: zero outside the burn, and at a step (two
+  // samples at one time) the value going forward from it.
+  const curve = motor.times.map((ti, i): Sample => [ti, motor.thrusts[i] ?? 0]);
   let t = motor.times[0] ?? 0;
   let s = 0;
   let v = 0;
   let liftoffS: number | null = null;
   while (t < MAX_RAIL_TIME_S) {
-    const thrust = at(motor.times, motor.thrusts, t);
+    const thrust = thrustAt(curve, t);
     const mass = dryMassKg + motorMassAt(motor, t);
     // Before liftoff the rail holds it up, so the net force cannot be negative.
     const a = thrust / mass - G0;
@@ -114,7 +105,7 @@ export function railExit(input: RailInput): RailExit | RailFailure {
         liftoffMassKg,
         thrustToWeightAverage: averageThrust(motor) / weight,
         thrustToWeightPeak: Math.max(...motor.thrusts) / weight,
-        thrustToWeightAtExit: at(motor.times, motor.thrusts, t) / ((dryMassKg + motorMassAt(motor, t)) * G0),
+        thrustToWeightAtExit: thrustAt(curve, t) / ((dryMassKg + motorMassAt(motor, t)) * G0),
         liftoffS,
         exitS: t,
         exitSpeedMs: v,
@@ -131,7 +122,7 @@ export function weathercockDeg(windMs: number, exitSpeedMs: number): number {
 
 /** The strongest wind that keeps the weathercock angle at or under the limit, m/s. */
 export function maxWindMs(exitSpeedMs: number, limitDeg = WEATHERCOCK_LIMIT_DEG): number {
-  return exitSpeedMs * Math.tan((limitDeg * Math.PI) / 180);
+  return exitSpeedMs * Math.tan(degToRad(limitDeg));
 }
 
 /**

@@ -5,7 +5,7 @@ import { KERNEL_DEFAULTS, KERNEL_RAILBUTTON_OUTER_DIAMETER } from '../../tree/ke
 import { clusterOffsets } from '../../tree/cluster.js';
 import { tubeFinRadius } from '../../tree/tubefins.js';
 import { DISPLAY_NAME } from '../../tree/schema.js';
-import { partLength } from '../../tree/position.js';
+import { motorSeatStart, partLength } from '../../tree/position.js';
 import { DISC_TYPES } from '../../services/files/componentFormats.js';
 import { discDims, tubeRadii } from '../../services/design/discGeometry.js';
 import { assemblyChainLength, isAssembly, resolveAssemblyRadius, ringInstanceOffsets } from '../../tree/assembly.js';
@@ -158,12 +158,10 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
    */
   const finFactors = (n: ComponentNode, dfltCount = 3): FinInstance[] => {
     const count = countOf(n, 'finCount', dfltCount);
-    const base = num(n, 'rotation', 0) + roll;
-    const out: FinInstance[] = [];
-    for (let i = 0; i < count; i++) {
-      const a = base + (2 * Math.PI * i) / count;
-      out.push({ p: Math.cos(a), near: Math.sin(a) >= 0 });
-    }
+    const out: FinInstance[] = ringInstanceOffsets(count, 1, num(n, 'rotation', 0) + roll).map(({ y, z }) => ({
+      p: y,
+      near: z >= 0,
+    }));
     return out.sort((x, y) => Math.abs(x.p) - Math.abs(y.p));
   };
 
@@ -722,11 +720,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
           }
           if (motor) {
             overlay.push(
-              ...motorShapes(
-                motor,
-                start + len - motor.length + num(child, 'motorOverhang', 0),
-                baseY + off.y * ctx.scale,
-              ),
+              ...motorShapes(motor, motorSeatStart(child, start, len, motor.length), baseY + off.y * ctx.scale),
             );
           }
         }
@@ -820,7 +814,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
         // real case size, seated flush against the tube's aft end.
         const tubeMotor = n.id ? motors?.[n.id] : undefined;
         if (tubeMotor) {
-          shapes.push(...motorShapes(tubeMotor, cx + len - tubeMotor.length + num(n, 'motorOverhang', 0), baseY));
+          shapes.push(...motorShapes(tubeMotor, motorSeatStart(n, cx, len, tubeMotor.length), baseY));
         }
         renderChildren(n, cx, len, r, baseY);
         cx += len;

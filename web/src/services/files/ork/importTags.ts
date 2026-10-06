@@ -5,6 +5,10 @@ import { COMPONENT_DEFAULTS } from '../../design/componentDefaults';
 import { clampCount, finiteNum } from './numbers';
 import { MAX_ASSEMBLY_INSTANCES, MAX_FIN_COUNT } from './importLimits';
 import { EXTRA_KEY, readPassthrough } from './passthrough';
+import type { OrkDeployOverride, OrkSepOverride } from '../orkTypes';
+import { hexOf } from '../../design/colorHex';
+import { degToRad } from '../../../prefs/units';
+import { KERNEL_DEPLOYMENT, KERNEL_SEPARATION } from '../../../tree/kernelDefaults';
 
 /**
  * Readers for the individual .ork elements more than one component carries:
@@ -179,7 +183,7 @@ export function readInstances(el: Element, node: ComponentNode): void {
 export function readAngleAroundBody(el: Element): number {
   const a = numTag(el, 'angleoffset', NaN);
   const deg = Number.isFinite(a) ? a : numTag(el, 'radialdirection', 180);
-  return (deg * Math.PI) / 180;
+  return degToRad(deg);
 }
 
 /**
@@ -226,7 +230,7 @@ function readFillet(el: Element, node: ComponentNode): void {
 /** Fin-set rotation about the body axis (.ork stores DEGREES; we keep rad). */
 export function readFinRotation(el: Element, node: ComponentNode): void {
   const deg = numTag(el, 'rotation', 0);
-  if (deg !== 0) node['rotation'] = (deg * Math.PI) / 180;
+  if (deg !== 0) node['rotation'] = degToRad(deg);
 }
 
 /**
@@ -258,16 +262,40 @@ export function readFinTabs(el: Element, node: ComponentNode): void {
  * the fields the block carries.
  */
 export function readDeployment(el: Element, node: ComponentNode, configEl: Element | null = null): void {
-  for (const src of configEl ? [el, configEl] : [el]) {
-    const event = text(src, ':scope > deployevent');
-    if (event) node['deployEvent'] = event;
-    if (text(src, ':scope > deployaltitude') !== null) {
-      node['deployAltitude'] = nonNegTag(src, 'deployaltitude', 200);
-    }
-    if (text(src, ':scope > deploydelay') !== null) {
-      node['deployDelay'] = nonNegTag(src, 'deploydelay', 0);
-    }
-  }
+  for (const src of configEl ? [el, configEl] : [el]) Object.assign(node, readDeploymentTags(src));
+}
+
+/**
+ * The deployment tags one element states, and only those, the same way for the
+ * design and for each configuration's override. Altitude and delay are floored:
+ * a negative deploy altitude never fires the kernel's altitude trigger, and the
+ * input field holds the same minimum.
+ */
+export function readDeploymentTags(src: Element): OrkDeployOverride {
+  const o: OrkDeployOverride = {};
+  const event = text(src, ':scope > deployevent');
+  if (event) o.deployEvent = event;
+  if (text(src, ':scope > deployaltitude') !== null)
+    o.deployAltitude = nonNegTag(src, 'deployaltitude', KERNEL_DEPLOYMENT.deployAltitude);
+  if (text(src, ':scope > deploydelay') !== null)
+    o.deployDelay = nonNegTag(src, 'deploydelay', KERNEL_DEPLOYMENT.deployDelay);
+  return o;
+}
+
+/**
+ * The separation tags one element states, and only those, floored the way
+ * {@link readDeploymentTags} floors deployment, for the design and for each
+ * configuration's override alike.
+ */
+export function readSeparationTags(src: Element): OrkSepOverride {
+  const o: OrkSepOverride = {};
+  const event = text(src, ':scope > separationevent');
+  if (event) o.separationEvent = event;
+  if (text(src, ':scope > separationdelay') !== null)
+    o.separationDelay = nonNegTag(src, 'separationdelay', KERNEL_SEPARATION.separationDelay);
+  if (text(src, ':scope > separationaltitude') !== null)
+    o.separationAltitude = nonNegTag(src, 'separationaltitude', KERNEL_SEPARATION.separationAltitude);
+  return o;
 }
 
 /**
@@ -277,12 +305,13 @@ export function readDeployment(el: Element, node: ComponentNode, configEl: Eleme
  * from the desktop defaults are kept, so an untouched stage stays clean.
  */
 export function readSeparation(sepEl: Element, node: ComponentNode): void {
-  const ev = text(sepEl, ':scope > separationevent');
-  if (ev && ev !== 'ejection') node['separationEvent'] = ev;
-  const delay = nonNegTag(sepEl, 'separationdelay', 0);
-  if (delay !== 0) node['separationDelay'] = delay;
-  const alt = numTag(sepEl, 'separationaltitude', NaN);
-  if (alt >= 0 && alt !== 200) node['separationAltitude'] = alt;
+  const o = readSeparationTags(sepEl);
+  if (o.separationEvent && o.separationEvent !== KERNEL_SEPARATION.separationEvent)
+    node['separationEvent'] = o.separationEvent;
+  if (o.separationDelay !== undefined && o.separationDelay !== KERNEL_SEPARATION.separationDelay)
+    node['separationDelay'] = o.separationDelay;
+  if (o.separationAltitude !== undefined && o.separationAltitude !== KERNEL_SEPARATION.separationAltitude)
+    node['separationAltitude'] = o.separationAltitude;
 }
 
 function readPosition(el: Element): ComponentPosition | undefined {
@@ -353,7 +382,7 @@ export function readCommon(el: Element, node: ComponentNode, withPosition: boole
     };
     const [r, g, b] = [ch('red'), ch('green'), ch('blue')];
     if (r !== null && g !== null && b !== null) {
-      node['color'] = `#${[r, g, b].map((x) => x.toString(16).padStart(2, '0')).join('')}`;
+      node['color'] = hexOf((r << 16) | (g << 8) | b);
     }
   }
   readOverrides(el, node);

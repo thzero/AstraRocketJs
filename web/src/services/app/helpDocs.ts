@@ -95,6 +95,11 @@ export function headingLabel(h: Element): string {
     .trim();
 }
 
+/** A built page's article heading, or undefined when it has none. */
+export function pageTitle(doc: Document): string | undefined {
+  return doc.querySelector('article h1')?.textContent?.trim();
+}
+
 /** A page that is in this build, read before the frame is pointed at it. */
 export interface HelpPage {
   /** The article's own heading, which titles the dialog. */
@@ -119,7 +124,7 @@ export async function loadHelpPage(target: HelpTarget): Promise<HelpPage | null>
   const doc = await fetchHelpDocument(target.fileUrl);
   if (!doc) return null;
   return {
-    title: doc.querySelector('article h1')?.textContent?.trim() ?? '',
+    title: pageTitle(doc) ?? '',
     contents: readContents(doc),
   };
 }

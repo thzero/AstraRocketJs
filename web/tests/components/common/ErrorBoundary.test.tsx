@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import { screen } from '@testing-library/react';
-import { ErrorBoundary, isChunkLoadError } from '../../../src/components/common/ErrorBoundary';
+import { ErrorBoundary, isChunkLoadError, LazyBoundary, lazyNamed } from '../../../src/components/common/ErrorBoundary';
 import { renderWithProviders } from '../../testing/renderWithProviders';
 
 /**
@@ -73,5 +73,36 @@ describe('isChunkLoadError', () => {
   it('does not claim an ordinary render bug is one', () => {
     expect(isChunkLoadError(new TypeError('tree.children is not iterable'))).toBe(false);
     expect(isChunkLoadError('not an error at all')).toBe(false);
+  });
+});
+
+/**
+ * A lazy view behind LazyBoundary: the boundary sits OUTSIDE the Suspense,
+ * because it is the chunk fetch that fails on a stale deploy and Suspense
+ * re-throws that rejection. A failed chunk is the fallback, not a dead app.
+ */
+describe('LazyBoundary and lazyNamed', () => {
+  it('shows the fallback when the chunk will not load', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const Broken = lazyNamed<'X', () => null>(
+      () => Promise.reject(new Error('Failed to fetch dynamically imported module')),
+      'X',
+    );
+    renderWithProviders(
+      <LazyBoundary fallback={<p>loading</p>}>
+        <Broken />
+      </LazyBoundary>,
+    );
+    expect(await screen.findByRole('alert')).toBeTruthy();
+  });
+
+  it('renders a named export once it loads', async () => {
+    const Named = lazyNamed(() => Promise.resolve({ Hello: () => <p>hello</p> }), 'Hello');
+    renderWithProviders(
+      <LazyBoundary fallback={<p>loading</p>}>
+        <Named />
+      </LazyBoundary>,
+    );
+    expect(await screen.findByText('hello')).toBeTruthy();
   });
 });

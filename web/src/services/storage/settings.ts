@@ -2,7 +2,7 @@ import { nsKey } from './storageKeys';
 import type { PartKey } from '../design/partColors';
 import type { CompleteLaunch } from '../flight/requiredLaunch';
 import { DEFAULT_HEADING_DEG } from '../flight/simulations';
-import { DEFAULT_CSV_COLUMNS } from '../flight/flightColumns';
+import { defaultCsvFormat } from '../flight/flightColumns';
 import { usableWindLevels } from '../flight/windLevels';
 import { usableAtmosphereLevels } from '../flight/atmosphereLevels';
 import {
@@ -14,6 +14,8 @@ import {
   type UnitOverrides,
   type UnitSelection,
 } from '../../prefs/units';
+import { hexOf, parseHexColor } from '../design/colorHex';
+import { parseDefaultMaterialKey } from '../design/materialSlots';
 
 /**
  * Bounds for the component-tree column (see `Settings.treePaneWidth`).
@@ -400,7 +402,7 @@ const DEFAULT_PATH_EXPORT: PathExportSettings = {
 export function encodeStageColors(colors: Map<number, number>): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [index, rgb] of colors) {
-    out[String(index)] = (rgb & 0xffffff).toString(16).padStart(6, '0');
+    out[String(index)] = hexOf(rgb, false);
   }
   return out;
 }
@@ -419,8 +421,9 @@ export function decodeStageColors(value: unknown): Map<number, number> {
   for (const [key, raw] of Object.entries(value as Record<string, unknown>)) {
     const index = Number.parseInt(key, 10);
     if (!Number.isInteger(index) || index < 0) continue;
+    // Six bare digits, as encodeStageColors writes them.
     if (typeof raw !== 'string' || !/^[0-9a-fA-F]{6}$/.test(raw)) continue;
-    out.set(index, Number.parseInt(raw, 16) & 0xffffff);
+    out.set(index, parseHexColor(raw)!);
   }
   return out;
 }
@@ -494,18 +497,9 @@ export const DEFAULT_SETTINGS: Settings = {
   pathExport: DEFAULT_PATH_EXPORT,
   // The three a flight is usually read by; the rest are one chip away.
   flightSeries: ['altitude', 'velocity', 'acceleration'],
-  flightCsv: {
-    // The named series, which is what a reader expects to find in the file.
-    // Everything else the run records is one tick away in the dialog.
-    columns: [...DEFAULT_CSV_COLUMNS],
-    separator: ',',
-    decimals: 3,
-    exponential: false,
-    simDescription: true,
-    fieldDescriptions: true,
-    flightEvents: true,
-    commentChar: '#',
-  },
+  // The named series, which is what a reader expects to find in the file.
+  // Everything else the run records is one tick away in the dialog.
+  flightCsv: defaultCsvFormat(),
   wipAcknowledged: false,
 };
 
@@ -605,7 +599,7 @@ export function loadSettings(): Settings {
       // negative would reach the kernel as the mass of somebody's airframe.
       defaultMaterials: Object.fromEntries(
         Object.entries((s.defaultMaterials ?? {}) as Record<string, unknown>).filter(([key, v]) => {
-          if (!/^[a-z]+:(bulk|surface|line)$/.test(key)) return false;
+          if (!parseDefaultMaterialKey(key)) return false;
           const m = v as { name?: unknown; density?: unknown } | null;
           return (
             !!m &&

@@ -1,4 +1,4 @@
-import { type HelpEntry, fetchHelpDocument, headingLabel, helpTarget } from './helpDocs';
+import { type HelpEntry, fetchHelpDocument, headingLabel, helpTarget, pageTitle } from './helpDocs';
 
 /**
  * Search across the docs that ship INSIDE the app, for the Help dialog.
@@ -163,7 +163,7 @@ async function buildIndex(pages: HelpEntry[], language: string): Promise<HelpDoc
       if (!doc) return null;
       const sections = readSections(doc);
       if (!sections.length) return null;
-      return { slug, label, title: doc.querySelector('article h1')?.textContent?.trim() ?? label, sections };
+      return { slug, label, title: pageTitle(doc) ?? label, sections };
     }),
   );
   return docs.filter((doc): doc is HelpDoc => doc !== null);

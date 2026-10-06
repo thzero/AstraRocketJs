@@ -1,17 +1,24 @@
-import { Fragment, lazy, Suspense } from 'react';
+import { Fragment } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ComponentNode } from '../../engine/openRocketEngine';
-import { isAxial, hasCatalog, hasMaterial, catalogPatch, presetRef } from '../../services/design/treeEdit';
+import {
+  isAxial,
+  hasCatalog,
+  hasMaterial,
+  catalogPatch,
+  presetRef,
+  isRecoveryDevice,
+} from '../../services/design/treeEdit';
 import type { PickerType } from '../../services/parts/componentDb';
 import type { FitContext } from '../../services/parts/componentFilter';
 // Lazily loaded: it pulls in the ~740 kB component catalog (services/parts/componentDb),
 // so it splits into its own chunk fetched only when a catalog part is selected.
-const ComponentPicker = lazy(() => import('./ComponentPicker').then((m) => ({ default: m.ComponentPicker })));
+const ComponentPicker = lazyNamed(() => import('./ComponentPicker'), 'ComponentPicker');
 // Lazy for the same reason and behind the same Suspense boundary: it is the
 // other half of the picker, and nothing needs either until a catalog part is
 // selected.
-const SavePartButton = lazy(() => import('./SavePartButton').then((m) => ({ default: m.SavePartButton })));
-import { ErrorBoundary } from '../common/ErrorBoundary';
+const SavePartButton = lazyNamed(() => import('./SavePartButton'), 'SavePartButton');
+import { LazyBoundary, lazyNamed } from '../common/ErrorBoundary';
 import { AppearanceSection } from './AppearanceSection';
 import { FreeformFinEditor } from './FreeformFinEditor';
 import { RecoverySizingReadout } from './RecoverySizingReadout';
@@ -29,6 +36,7 @@ import { MaterialPicker } from './MaterialPicker';
 import { OverridesSection } from './OverridesSection';
 import { ShapeDescription } from './ShapeDescription';
 import { PlacementSection } from './PlacementSection';
+import { PropSection } from './PropSection';
 
 /**
  * The property panel shell: the header (move / delete), the name row, the
@@ -163,8 +171,7 @@ export function PropertyPanel({
       {/* What this part IS: what it is called, and which catalog part it came
           from. Color used to be here too and is its own section now, below:
           these two say what the part is, and that one says how it is drawn. */}
-      <div className="space-y-3 border-t border-white/5 pt-3">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t('prop.part')}</h3>
+      <PropSection title={t('prop.part')}>
         <label className="flex items-center justify-between gap-3">
           <span className="text-xs text-slate-400">{t('prop.name')}</span>
           <input
@@ -199,30 +206,25 @@ export function PropertyPanel({
         )}
 
         {hasCatalog(node.type) && (
-          // Outside the Suspense, because it is the chunk FETCH that fails on
-          // a stale deploy and Suspense re-throws that rejection. Uncaught it
-          // took the whole app down over a picker; caught here, the dimensions
-          // below it stay editable.
-          <ErrorBoundary>
-            <Suspense fallback={<div className="text-xs text-slate-500">{t('common.loading')}</div>}>
-              <div className="space-y-2">
-                <ComponentPicker
-                  type={node.type as PickerType}
-                  fit={fit}
-                  current={catalogPart?.partNo}
-                  // The link goes in with the dimensions: the desktop shows which
-                  // catalog part a component is, and drops the link as soon as a
-                  // dimension moves (see treeEdit.breaksPreset).
-                  onApply={(p) => commitChange({ ...catalogPatch(p, node), ...presetRef(p) })}
-                />
-                {/* The other direction: take the part you just built and put it
+          // A picker that fails to load leaves the dimensions below it editable.
+          <LazyBoundary fallback={<div className="text-xs text-slate-500">{t('common.loading')}</div>}>
+            <div className="space-y-2">
+              <ComponentPicker
+                type={node.type as PickerType}
+                fit={fit}
+                current={catalogPart?.partNo}
+                // The link goes in with the dimensions: the desktop shows which
+                // catalog part a component is, and drops the link as soon as a
+                // dimension moves (see treeEdit.breaksPreset).
+                onApply={(p) => commitChange({ ...catalogPatch(p, node), ...presetRef(p) })}
+              />
+              {/* The other direction: take the part you just built and put it
                     in the picker above, on this design and every other one. */}
-                <SavePartButton node={node} type={node.type as PickerType} />
-              </div>
-            </Suspense>
-          </ErrorBoundary>
+              <SavePartButton node={node} type={node.type as PickerType} />
+            </div>
+          </LazyBoundary>
         )}
-      </div>
+      </PropSection>
 
       {/* What the chosen shape IS, in OpenRocket's own words, directly under
           the controls it describes: the shape and, where the shape uses one,
@@ -365,7 +367,7 @@ export function PropertyPanel({
         </div>
       )}
 
-      {(node.type === 'parachute' || node.type === 'streamer') && (
+      {isRecoveryDevice(node.type) && (
         <>
           {/* The deployment fields above are the DESIGN's; a flight
               configuration may open this device at another moment. */}

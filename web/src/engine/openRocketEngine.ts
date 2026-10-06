@@ -13,6 +13,7 @@
 import './kernelLogSink.js';
 import { declaredLength, readStreamWithProgress } from '../services/app/fetchProgress';
 import { nsKey } from '../services/storage/storageKeys';
+import { errorMessage } from '../services/app/errorMessage';
 
 // The WASM-GC engine + its loader live in web/public/engine/ (served verbatim by
 // Vite — a .js in src/ would be run through import-analysis, which warns on the
@@ -94,7 +95,7 @@ export class EngineCallError extends Error {
     readonly operation: string,
     engineCause: unknown,
   ) {
-    const detail = engineCause instanceof Error ? engineCause.message : String(engineCause);
+    const detail = errorMessage(engineCause);
     super(`engine ${operation} failed: ${detail || '(no message)'}`);
     this.name = 'EngineCallError';
     this.engineCause = engineCause;

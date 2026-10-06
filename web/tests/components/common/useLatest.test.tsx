@@ -61,4 +61,20 @@ describe('useLatest', () => {
     rerender();
     expect(result.current.claim).toBe(before);
   });
+
+  it('aborts the previous request when a new signal is claimed', () => {
+    const { result } = renderHook(() => useLatest());
+    const first = result.current.claimSignal();
+    const second = result.current.claimSignal();
+    expect(first.aborted).toBe(true);
+    expect(second.aborted).toBe(false);
+  });
+
+  it('aborts the outstanding request on unmount', () => {
+    // A forecast fetch started by a tab that has since closed is canceled.
+    const { result, unmount } = renderHook(() => useLatest());
+    const signal = result.current.claimSignal();
+    unmount();
+    expect(signal.aborted).toBe(true);
+  });
 });

@@ -12,6 +12,10 @@ import { withRequiredFrom } from '../../services/flight/requiredLaunch';
 import { IMPERIAL_UNITS, METRIC_UNITS, QUANTITIES, UNITS, unitScope } from '../../prefs/units';
 import { useUnits } from '../../prefs/useUnits';
 import { onSi } from '../../prefs/entryValue';
+import { Check } from '../common/Check';
+import { ColorInput } from '../common/ColorInput';
+import { DialogButton } from '../common/DialogButton';
+import { SPEED_WARNINGS } from '../sim/speedWarnings';
 
 const SPEEDS = [0.25, 0.5, 1, 2, 4];
 const speedLabel = (s: number) => (s === 0.25 ? '¼×' : s === 0.5 ? '½×' : `${s}×`);
@@ -112,12 +116,9 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
               {t('settings.resetAll')}
             </button>
           </div>
-          <button
-            onClick={onClose}
-            className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-500"
-          >
+          <DialogButton onClick={onClose} variant="primary">
             {t('settings.close')}
-          </button>
+          </DialogButton>
         </div>
       }
     >
@@ -191,7 +192,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
         {tab === 'general' && (
           <>
             <p className="text-[11px] leading-snug text-slate-500">{t('settings.generalNote')}</p>
-            <CheckRow
+            <Check
               label={t('settings.saveDesignInfo')}
               checked={settings.saveDesignInfo}
               onChange={(v) => update({ saveDesignInfo: v })}
@@ -274,7 +275,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
         {tab === 'sketch' && (
           <>
             <p className="text-[11px] leading-snug text-slate-500">{t('settings.sketchNote')}</p>
-            <CheckRow
+            <Check
               label={t('settings.sketchMarkers')}
               checked={settings.showMarkers}
               onChange={(v) => update({ showMarkers: v })}
@@ -283,7 +284,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
               {t('settings.sketchRulers')}
             </div>
             {RULER_SIDES.map((side) => (
-              <CheckRow
+              <Check
                 key={side}
                 label={t(`view.ruler_${side}`)}
                 checked={settings.rulers[side]}
@@ -295,12 +296,12 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
 
         {tab === 'sim' && (
           <>
-            <CheckRow
+            <Check
               label={t('settings.confirmDelete')}
               checked={settings.simulation.confirmDelete}
               onChange={(v) => setSim({ confirmDelete: v })}
             />
-            <CheckRow
+            <Check
               label={t('settings.autoRunOutdated')}
               checked={settings.simulation.autoRunOutdated}
               onChange={(v) => setSim({ autoRunOutdated: v })}
@@ -362,67 +363,34 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
                 setSim({ railExitVelocityMin: si ?? DEFAULT_SETTINGS.simulation.railExitVelocityMin }),
               )}
             />
-            {/* The three deployment thresholds. Which one a flight uses depends
-                  on the stage's recovery layout: no drogue is single-deployment
-                  and uses the first alone; a drogue makes it dual-deployment, and
-                  the main is then judged against the next two while the drogue is
-                  judged against the last. All of them reach the kernel, not just
-                  the tiles (which is all `deploySpeedWarn` used to be). The last
-                  three need a device marked as a drogue to apply at all. */}
-            <NumRow
-              label={t('settings.deploySpeedWarn')}
-              hint={t('settings.deploySpeedWarnHint')}
-              unit={u.sym('velocity')}
-              step={u.step('velocity', 1)}
-              min={0}
-              value={u.toUi('velocity', settings.simulation.deploymentSpeedWarn)}
-              onChange={onSi(u.plain('velocity'), (si) =>
-                setSim({ deploymentSpeedWarn: si ?? DEFAULT_SETTINGS.simulation.deploymentSpeedWarn }),
-              )}
-            />
-            <NumRow
-              label={t('settings.mainHighSpeedWarn')}
-              hint={t('settings.mainHighSpeedWarnHint')}
-              unit={u.sym('velocity')}
-              step={u.step('velocity', 1)}
-              min={0}
-              value={u.toUi('velocity', settings.simulation.mainHighSpeedWarn)}
-              onChange={onSi(u.plain('velocity'), (si) =>
-                setSim({ mainHighSpeedWarn: si ?? DEFAULT_SETTINGS.simulation.mainHighSpeedWarn }),
-              )}
-            />
-            <NumRow
-              label={t('settings.mainLowSpeedWarn')}
-              hint={t('settings.mainLowSpeedWarnHint')}
-              unit={u.sym('velocity')}
-              step={u.step('velocity', 1)}
-              min={0}
-              value={u.toUi('velocity', settings.simulation.mainLowSpeedWarn)}
-              onChange={onSi(u.plain('velocity'), (si) =>
-                setSim({ mainLowSpeedWarn: si ?? DEFAULT_SETTINGS.simulation.mainLowSpeedWarn }),
-              )}
-            />
-            {/* The drogue side of the same pair, live since the fork enables the
-                  check upstream leaves commented out. Like the two above it only
-                  applies to a stage carrying a device marked as a drogue. */}
-            <NumRow
-              label={t('settings.drogueLowSpeedWarn')}
-              hint={t('settings.drogueLowSpeedWarnHint')}
-              unit={u.sym('velocity')}
-              step={u.step('velocity', 1)}
-              min={0}
-              value={u.toUi('velocity', settings.simulation.drogueLowSpeedWarn)}
-              onChange={onSi(u.plain('velocity'), (si) =>
-                setSim({ drogueLowSpeedWarn: si ?? DEFAULT_SETTINGS.simulation.drogueLowSpeedWarn }),
-              )}
-            />
+            {/* The deployment thresholds. Which one a flight uses depends on the
+                  stage's recovery layout: no drogue is single-deployment and uses
+                  the first alone; a drogue makes it dual-deployment, and the main
+                  is then judged against the next two while the drogue is judged
+                  against the last. All of them reach the kernel, not just the
+                  tiles. The last three apply only to a stage carrying a device
+                  marked as a drogue. */}
+            {SPEED_WARNINGS.map((w) => (
+              <NumRow
+                key={w.key}
+                label={t(w.label)}
+                hint={t(w.hint)}
+                unit={u.sym('velocity')}
+                step={u.step('velocity', 1)}
+                min={0}
+                value={u.toUi('velocity', settings.simulation[w.key])}
+                onChange={onSi(u.plain('velocity'), (si) =>
+                  setSim({ [w.key]: si ?? DEFAULT_SETTINGS.simulation[w.key] }),
+                )}
+              />
+            ))}
             {/* Everything above this heading decides when a flight WARNS. What
                   follows changes what the flight does, so it is separated and
                   its hint says which way the number moves. */}
             <div className="pt-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
               {t('settings.simModel')}
             </div>
-            <CheckRow
+            <Check
               label={t('settings.guideAwareRodClearance')}
               hint={t('settings.guideAwareRodClearanceHint')}
               checked={settings.simulation.guideAwareRodClearance}
@@ -455,39 +423,6 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
         )}
       </div>
     </Dialog>
-  );
-}
-
-function CheckRow({
-  label,
-  checked,
-  onChange,
-  hint,
-}: {
-  label: string;
-  checked: boolean;
-  onChange: (v: boolean) => void;
-  /** Rendered under the row, like NumRow's. A setting that changes what the
-   *  flight DOES rather than what it warns about has to say so. */
-  hint?: string;
-}) {
-  const row = (
-    <label className="flex items-center gap-2">
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-        className="accent-sky-500"
-      />
-      <span className="text-sm text-slate-300">{label}</span>
-    </label>
-  );
-  if (!hint) return row;
-  return (
-    <div>
-      {row}
-      <p className="mt-0.5 text-[11px] leading-snug text-slate-500">{hint}</p>
-    </div>
   );
 }
 
@@ -533,19 +468,15 @@ function NumRow(props: NumRowProps) {
  * "0.01" to retype it refills the box under the cursor.
  */
 function NumField({ label, unit, value, step, min, max, placeholder, onChange }: NumRowProps) {
-  // undefined: not editing, show the stored value. Otherwise the draft.
-  const [draft, setDraft] = useState<number | null | undefined>(undefined);
   return (
     <label className="flex items-center justify-between gap-3">
       <span className="text-sm text-slate-300">{label}</span>
       <span className="flex items-center gap-1">
         <NumberInput
-          value={draft === undefined ? value : draft}
-          onChange={setDraft}
-          onCommit={() => {
-            if (draft !== undefined) onChange(draft);
-            setDraft(undefined);
-          }}
+          value={value}
+          onChange={onChange}
+          // Written once, on blur: a settings write hits storage.
+          commitOnBlur
           step={step}
           min={min}
           max={max}
@@ -583,11 +514,10 @@ function ColorRow({
         {label}
       </label>
       <span className="flex items-center gap-2">
-        <input
+        <ColorInput
           id={id}
-          type="color"
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onCommit={onChange}
           className="h-7 w-10 cursor-pointer rounded-md border border-white/10 bg-slate-800 p-0.5"
         />
         {overridden && onReset && (

@@ -2,6 +2,7 @@ import { useId, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useFocusTrap } from './useFocusTrap';
 import { layerClass, widthClass, type DialogLayer, type DialogSize } from './dialogSize';
+import { DialogButton } from './DialogButton';
 
 /**
  * The one short-prompt shell: a heading, a sentence, and a button or two.
@@ -109,22 +110,13 @@ export function AlertDialog({
               focusable child after React had honored `autoFocus`, so the focus
               ring sat on Cancel while Enter ran the destructive action. */}
           {onCancel && (
-            <button
-              onClick={onCancel}
-              className="rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
-            >
+            <DialogButton onClick={onCancel} variant="secondary">
               {cancelLabel ?? t('common.cancel')}
-            </button>
+            </DialogButton>
           )}
-          <button
-            autoFocus
-            onClick={onConfirm}
-            className={`rounded-lg px-4 py-2 text-sm font-medium text-white ${
-              danger ? 'bg-red-600 hover:bg-red-500' : 'bg-sky-600 hover:bg-sky-500'
-            }`}
-          >
+          <DialogButton autoFocus onClick={onConfirm} variant={danger ? 'danger' : 'primary'}>
             {confirmLabel}
-          </button>
+          </DialogButton>
         </div>
       </div>
     </div>

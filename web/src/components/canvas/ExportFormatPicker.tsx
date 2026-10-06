@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { EXPORT_FORMATS } from '../../services/exports/flightPathExport';
 import type { UserTemplate } from '../../services/exports/templateStore';
 import { USER_PREFIX } from './useExportTemplates';
+import { useFilePick } from '../common/useFilePick';
 
 /**
  * The flight-path export dialog's format block: the format select (built-ins,
@@ -21,11 +22,12 @@ export function ExportFormatPicker({
   templates: UserTemplate[];
   canDelete: boolean;
   onSelect: (value: string) => void;
-  onImport: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onImport: (file: File) => void;
   onDownloadTemplate: () => void;
   onDelete: () => void;
 }) {
   const { t } = useTranslation();
+  const templateFile = useFilePick({ accept: '.mustache', onFile: onImport, label: t('pathExport.import') });
   return (
     <div className="space-y-2">
       <label className="flex items-center justify-between gap-3">
@@ -55,10 +57,13 @@ export function ExportFormatPicker({
       </label>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap gap-2">
-          <label className="cursor-pointer rounded-md bg-slate-800 px-2 py-1 text-[11px] font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700">
+          <button
+            onClick={templateFile.pick}
+            className="rounded-md bg-slate-800 px-2 py-1 text-[11px] font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
+          >
             {t('pathExport.import')}
-            <input type="file" accept=".mustache" className="hidden" onChange={onImport} />
-          </label>
+          </button>
+          {templateFile.input}
           <button
             onClick={onDownloadTemplate}
             title={t('pathExport.downloadTemplateTitle')}

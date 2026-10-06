@@ -1,8 +1,6 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { LaunchConditions } from '../../services/design/orkTree';
-import { NumberInput } from '../common/NumberInput';
-import { FieldLabel, markRing } from '../common/FieldMark';
 import { isFilled, missingRequired, type RequiredLaunchKey } from '../../services/flight/requiredLaunch';
 import { UnitChip } from '../common/UnitChip';
 import { useUnits, type Units } from '../../prefs/useUnits';
@@ -14,6 +12,7 @@ import { MAX_ROD_ANGLE_RAD, MAX_TURBULENCE_PERCENT, MAX_WIND_SPEED_MS } from '..
 import { G0 } from '../../services/motors/motorMath';
 import {
   hasIntensity,
+  retuneStdDev,
   stdDevForIntensity,
   turbulenceIntensity,
   turbulenceLevel,
@@ -26,6 +25,10 @@ import { LocationPicker } from './LocationPicker';
 import { LAUNCH_SITE_LIMITS } from '../../services/storage/launchLocationStore';
 import { SiteMapDialog } from './SiteMapDialog';
 import { useLatest } from '../common/useLatest';
+import { DEFAULT_HEADING_DEG } from '../../services/flight/simulations';
+import { NumberRow } from '../common/NumberRow';
+import { CardGroup } from '../common/CardGroup';
+import { LatLonRows } from './LatLonRows';
 
 /**
  * Launch & atmosphere conditions for the flight simulation: wind (single average
@@ -33,93 +36,6 @@ import { useLatest } from '../common/useLatest';
  * atmosphere, and the Earth (geodetic) model. Emits a shallow patch on change;
  * App feeds these straight into simulate(). Populated from an imported .ork.
  */
-
-export function Num({
-  label,
-  unit,
-  value,
-  step = 1,
-  min,
-  max,
-  placeholder,
-  hint,
-  mixed,
-  required,
-  missing,
-  onChange,
-}: {
-  label: string;
-  unit?: ReactNode;
-  value: number | null;
-  step?: number;
-  min?: number;
-  /** NumberInput clamps against this; without it a field is unbounded above. */
-  max?: number;
-  placeholder?: string;
-  /** Why the field stops where it does. Rendered under the row. */
-  hint?: string;
-  /**
-   * The simulations being edited together do not agree on this field. The box
-   * shows the ACTIVE one's value, so without the marker a bulk edit would
-   * flatten the others' values with nothing on screen to say so.
-   */
-  mixed?: boolean;
-  /** A launch field a flight cannot be computed without. Marked always. */
-  required?: boolean;
-  /** ...and it is currently empty, which blocks the run. */
-  missing?: boolean;
-  onChange: (v: number | null) => void;
-}) {
-  if (hint) {
-    return (
-      <div>
-        <Num
-          label={label}
-          unit={unit}
-          value={value}
-          step={step}
-          min={min}
-          max={max}
-          placeholder={placeholder}
-          mixed={mixed}
-          required={required}
-          missing={missing}
-          onChange={onChange}
-        />
-        <p className="mt-0.5 pr-24 text-[11px] leading-snug text-slate-500">{hint}</p>
-      </div>
-    );
-  }
-  return (
-    <label className="flex items-center justify-between gap-3">
-      <FieldLabel text={label} required={required} missing={missing} mixed={mixed} />
-      <span className="flex items-center gap-1">
-        <NumberInput
-          ariaLabel={label}
-          value={value}
-          /* An empty REQUIRED box writes nothing, so the field simply keeps what
-             it had. Not a focus trap -- tabbing away still works, which a trap
-             would forbid (WCAG 2.1.2) and which would fight anyone clearing a
-             field to retype it. NumberInput holds its own draft string while
-             focused, so the box still LOOKS empty as you type; only the commit
-             is withheld. An imported .ork that omits the field still arrives
-             blank, which is what the marker and the run gate are for. */
-          onChange={(v) => (v === null && required ? undefined : onChange(v))}
-          step={step}
-          min={min}
-          max={max}
-          placeholder={placeholder}
-          className={markRing(
-            'w-24 rounded-md bg-slate-800 px-2 py-1 text-right text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500',
-            missing,
-            mixed,
-          )}
-        />
-        {unit && <span className="min-w-10 text-xs text-slate-500">{unit}</span>}
-      </span>
-    </label>
-  );
-}
 
 /**
  * A launch-condition field in the user's chosen unit. `value`/`onChange` speak
@@ -174,7 +90,7 @@ export function QNum({
   const scope = unitScope('launch', field);
   const fu = u.at(scope, c.q);
   return (
-    <Num
+    <NumberRow
       label={label}
       // The field's own label, not just the quantity: this panel shows three
       // ANGLE chips (rod angle, rod direction, wind direction) and two WIND
@@ -195,15 +111,6 @@ export function QNum({
       // stored convention reaches the launch conditions.
       onChange={onSi(fu, onChange, c.fromSi)}
     />
-  );
-}
-
-function Group({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="rounded-xl bg-slate-900 p-3 ring-1 ring-white/10">
-      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">{title}</h3>
-      <div className="space-y-2">{children}</div>
-    </section>
   );
 }
 
@@ -297,7 +204,7 @@ export function LaunchPanel({
         {
           altitudeM: 0,
           speed: launch.windAverage || 0,
-          directionDeg: launch.windDirectionDeg ?? 90,
+          directionDeg: launch.windDirectionDeg ?? DEFAULT_HEADING_DEG,
           stddev: launch.windStdDev || 0,
         },
       ],
@@ -312,7 +219,7 @@ export function LaunchPanel({
     // cards relative to their siblings. The gap matches the sim editor's, so one
     // column of cards reads as one rhythm.
     <div className="space-y-4" onBlur={onCommit}>
-      <Group title={t('launch.launchRod')}>
+      <CardGroup title={t('launch.launchRod')}>
         <QNum
           label={t('launch.length')}
           chipLabel={t('launch.rodLengthName')}
@@ -361,16 +268,16 @@ export function LaunchPanel({
             u={u}
             stepSi={(5 * Math.PI) / 180}
             mixed={mixed('launchRodDirectionDeg')}
-            value={launch.launchRodDirectionDeg ?? 90}
+            value={launch.launchRodDirectionDeg ?? DEFAULT_HEADING_DEG}
             // Cleared is CLEARED: the box shows 90
             // when unset, so writing 0 for an emptied field silently turned
             // the default east into north.
             onChange={(v) => onChange({ launchRodDirectionDeg: v ?? undefined })}
           />
         )}
-      </Group>
+      </CardGroup>
 
-      <Group title={t('launch.site')}>
+      <CardGroup title={t('launch.site')}>
         {/* Above the three fields it fills, because picking a saved location is the
             alternative to typing them rather than something you do after. */}
         <LocationPicker launch={launch} onChange={onChange} onCommit={onCommit} />
@@ -387,27 +294,11 @@ export function LaunchPanel({
           value={launch.launchAltitudeM}
           onChange={(v) => onChange({ launchAltitudeM: v })}
         />
-        <Num
-          label={t('launch.latitude')}
-          unit="°"
-          step={1}
-          min={LAUNCH_SITE_LIMITS.latitudeDeg.min}
-          max={LAUNCH_SITE_LIMITS.latitudeDeg.max}
-          mixed={mixed('latitudeDeg')}
-          {...req('latitudeDeg')}
-          value={launch.latitudeDeg}
-          onChange={(v) => onChange({ latitudeDeg: v })}
-        />
-        <Num
-          label={t('launch.longitude')}
-          unit="°"
-          step={1}
-          min={LAUNCH_SITE_LIMITS.longitudeDeg.min}
-          max={LAUNCH_SITE_LIMITS.longitudeDeg.max}
-          mixed={mixed('longitudeDeg')}
-          {...req('longitudeDeg')}
-          value={launch.longitudeDeg}
-          onChange={(v) => onChange({ longitudeDeg: v })}
+        <LatLonRows
+          latitudeDeg={launch.latitudeDeg}
+          longitudeDeg={launch.longitudeDeg}
+          marks={(k) => ({ mixed: mixed(k), ...req(k) })}
+          onChange={onChange}
         />
         {'geolocation' in navigator && (
           <button
@@ -471,9 +362,9 @@ export function LaunchPanel({
             onClose={() => setMapOpen(false)}
           />
         )}
-      </Group>
+      </CardGroup>
 
-      <Group title={t('launch.atmosphere')}>
+      <CardGroup title={t('launch.atmosphere')}>
         {weather && (
           <button
             onClick={() => {
@@ -503,8 +394,8 @@ export function LaunchPanel({
           // -90 to 70 degrees C, below and above any recorded air temperature.
           // In KELVIN, because a QNum bound is SI: written as -90 and 70 they
           // capped every entry at 70 K, about -203 degrees C.
-          minSi={-90 + 273.15}
-          maxSi={70 + 273.15}
+          minSi={LAUNCH_SI.degC.toSi(LAUNCH_SITE_LIMITS.temperatureC.min)}
+          maxSi={LAUNCH_SI.degC.toSi(LAUNCH_SITE_LIMITS.temperatureC.max)}
           u={u}
           stepSi={1}
           placeholder={t('launch.isa')}
@@ -531,7 +422,7 @@ export function LaunchPanel({
             reads off a forecast. Blank is ISA, like the two fields above, and
             humidity alone is enough to leave standard: the bridge only keeps
             ISA when all three are absent. */}
-        <Num
+        <NumberRow
           label={t('launch.humidity')}
           unit="%"
           step={5}
@@ -564,9 +455,9 @@ export function LaunchPanel({
           </div>
         )}
         {weatherKey && <WeatherKeyField />}
-      </Group>
+      </CardGroup>
 
-      <Group title={t('launch.wind')}>
+      <CardGroup title={t('launch.wind')}>
         <fieldset className="pb-1">
           <legend className="sr-only">{t('launch.windModel')}</legend>
           <div className="flex items-center justify-between gap-3">
@@ -617,7 +508,7 @@ export function LaunchPanel({
                 // fraction and rescaling would snap the scatter to the whole
                 // wind speed.
                 if (!hasIntensity(windAvg)) return onChange({ windAverage: v });
-                onChange({ windAverage: v, windStdDev: stdDevForIntensity(v, intensity) });
+                onChange({ windAverage: v, windStdDev: retuneStdDev(windAvg, windSd, v) });
               }}
             />
             <QNum
@@ -639,7 +530,7 @@ export function LaunchPanel({
                 three fields are one value seen two ways, so typing 10% here
                 rewrites the deviation exactly as typing the deviation rewrites
                 this. Its descriptive name sits under it, as OpenRocket does. */}
-            <Num
+            <NumberRow
               label={t('launch.turbulenceIntensity')}
               unit="%"
               step={1}
@@ -660,7 +551,7 @@ export function LaunchPanel({
               u={u}
               stepSi={(5 * Math.PI) / 180}
               mixed={mixed('windDirectionDeg')}
-              value={launch.windDirectionDeg ?? 90}
+              value={launch.windDirectionDeg ?? DEFAULT_HEADING_DEG}
               // See the rod direction: an emptied box goes back to unset.
               onChange={(v) => onChange({ windDirectionDeg: v ?? undefined })}
             />
@@ -680,9 +571,9 @@ export function LaunchPanel({
             </button>
           </div>
         )}
-      </Group>
+      </CardGroup>
 
-      <Group title={t('launch.earthModel')}>
+      <CardGroup title={t('launch.earthModel')}>
         <label className="flex items-center justify-between gap-3">
           <span className="text-xs text-slate-400">{t('launch.geodetic')}</span>
           <select
@@ -726,7 +617,7 @@ export function LaunchPanel({
             onChange={(v) => onChange({ constantGravity: v ?? G0 })}
           />
         )}
-      </Group>
+      </CardGroup>
 
       {weatherOpen && (
         <WeatherDialog

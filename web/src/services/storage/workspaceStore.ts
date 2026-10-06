@@ -11,7 +11,7 @@
 // opening, renaming and deleting designs are the library's job.
 import { getDesignLibrary, type DesignLibrary, type DesignMeta, type StoredResults } from './designLibrary';
 import type { FlightResult, RocketTree } from '../../engine/openRocketEngine';
-import type { Simulation } from '../flight/simulations';
+import { withoutResults, type Simulation } from '../flight/simulations';
 import type { FlightConfig } from '../flight/flightConfigs';
 import { migrateWorkspace } from './workspaceMigrate';
 import type { OrkExportMotor } from '../files/orkFile';
@@ -97,7 +97,7 @@ interface Journal {
  * must never go near it; the async save that follows a run puts them in
  * IndexedDB within the debounce, so the journal loses nothing that matters.
  */
-const lean = (w: Workspace): Workspace => ({ ...w, sims: w.sims.map((s) => ({ ...s, result: null })) });
+const lean = (w: Workspace): Workspace => ({ ...w, sims: withoutResults(w.sims) });
 
 /** Re-attach stored flights to the simulations that produced them. */
 const withResults = (w: Workspace, results: StoredResults): Workspace => ({

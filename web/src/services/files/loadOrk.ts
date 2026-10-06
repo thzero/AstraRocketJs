@@ -20,6 +20,8 @@ import { motorFitsMount, mountFit } from '../motors/motorPicker';
 import { hasUsableCurve } from '../motors/motorCurve';
 import { uuid } from '../app/uuid';
 import { type DeployOverride, type MountMotor, type SepOverride } from '../flight/flightConfigs';
+import { errorMessage } from '../app/errorMessage';
+import { roundTo } from '../app/numbers';
 
 /** One of the file's flight configurations, with its motors resolved. */
 export interface LoadedConfig {
@@ -199,7 +201,7 @@ export function buildForImport(tree: RocketTree): { design: OpenRocketDesign; un
   try {
     return { design: OpenRocketDesign.buildTree(tree) };
   } catch (e) {
-    const reason = e instanceof Error ? e.message : String(e);
+    const reason = errorMessage(e);
     let repaired;
     try {
       repaired = OpenRocketDesign.buildTree(withoutFreeformOutlines(tree));
@@ -247,7 +249,7 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
   // configurations flying the same J350 are one catalog lookup and one fetch,
   // and one note when it cannot be found rather than three identical ones.
   /** Millimeters as a reader states them: no decimal unless there is one. */
-  const round1 = (mm: number): string => String(Math.round(mm * 10) / 10);
+  const round1 = (mm: number): string => String(roundTo(mm, 1));
 
   const resolved = new Map<string, MotorSpec>();
   const resolveMotor = async (ref: OrkMotorRef): Promise<MotorSpec> => {
@@ -320,7 +322,7 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
       // produce a runnable simulation flying a 10 N-s C6, with the only warning
       // buried in the import notes that settings.showImportNotes can hide.
       notes.push(
-        `Motor "${ref.designation}": ${e instanceof Error ? e.message : String(e)} - pick a motor for that mount (it won't fly a default).`,
+        `Motor "${ref.designation}": ${errorMessage(e)} - pick a motor for that mount (it won't fly a default).`,
       );
       return unresolvedMotor(ref);
     }

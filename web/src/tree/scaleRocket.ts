@@ -1,7 +1,9 @@
 import type { ComponentNode, ComponentType, RocketTree } from '../engine/openRocketEngine';
 import { isAssembly } from './assembly';
 import { isChainType } from './componentKinds';
-import { numOpt, positionOf } from './nodeProps';
+import { chainOuterRadius, numOpt, positionOf } from './nodeProps';
+import { walkNodes } from './treeWalk';
+import { roundTo } from '../services/app/numbers';
 
 /**
  * Scale a whole rocket by one factor — the "upscale/downscale a plan" workflow.
@@ -166,10 +168,8 @@ const MASS_EXPONENT: Record<ComponentType, number> = {
   fairing: 0,
 };
 
-const round = (x: number, places = 12): number => {
-  const p = 10 ** places;
-  return Math.round(x * p) / p;
-};
+/** Twelve places: past any real dimension, short of float noise. */
+const round = (x: number, places = 12): number => roundTo(x, places);
 
 /**
  * Scales one node's own fields. Children are handled by the caller.
@@ -262,16 +262,7 @@ export function scaleRocket(tree: RocketTree, factor: number): RocketTree {
 /** The rocket's greatest body diameter (m) — what a "scale to a tube" factor divides. */
 export function maxBodyDiameter(tree: RocketTree): number {
   let r = 0;
-  const walk = (nodes: ComponentNode[]) => {
-    for (const n of nodes) {
-      const t = n.type;
-      if (t === 'bodytube') r = Math.max(r, numOpt(n, 'outerRadius') ?? 0);
-      else if (t === 'nosecone') r = Math.max(r, numOpt(n, 'aftRadius') ?? 0);
-      else if (t === 'transition') r = Math.max(r, numOpt(n, 'foreRadius') ?? 0, numOpt(n, 'aftRadius') ?? 0);
-      walk(n.children ?? []);
-    }
-  };
-  walk(tree.components);
+  for (const n of walkNodes(tree.components)) r = Math.max(r, chainOuterRadius(n));
   return r * 2;
 }
 

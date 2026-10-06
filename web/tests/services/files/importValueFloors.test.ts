@@ -267,3 +267,21 @@ describe('the freeform point cap bounds what is BUILT, not just what is kept', (
     ]);
   });
 });
+
+/**
+ * A negative separation altitude reads the way a negative deployment altitude
+ * does: floored to 0, in the design and in every configuration's override. The
+ * design-level reader dropped it instead, so the stage fell back to 200 m while
+ * the configuration recorded 0 m: one file, two answers.
+ */
+describe('a .ork cannot state a negative separation altitude', () => {
+  it('floors it on the stage the way deployment is floored', () => {
+    const xml = `<?xml version="1.0"?><openrocket version="1.8"><rocket><name>T</name><subcomponents>
+      <stage><name>S</name><subcomponents><bodytube><name>B</name><length>0.3</length><radius>0.012</radius></bodytube></subcomponents></stage>
+      <stage><name>Booster</name><separationevent>altitude</separationevent><separationaltitude>-5</separationaltitude>
+        <subcomponents><bodytube><name>BB</name><length>0.3</length><radius>0.012</radius></bodytube></subcomponents></stage>
+    </subcomponents></rocket></openrocket>`;
+    const booster = importOrk(ork(xml)).tree.components[1]!;
+    expect(booster['separationAltitude']).toBe(0);
+  });
+});

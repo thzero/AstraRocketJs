@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
 import { countOf, num, numOpt } from '../../tree/nodeProps';
-import { partLength } from '../../tree/position';
+import { axialChain, motorSeatStart, partLength } from '../../tree/position';
 import { FIN_DEFAULTS, KERNEL_DEFAULTS } from '../../tree/kernelDefaults';
 import { FREEFORM_FALLBACK, finPlanformPoints, finRootChord, finSpan } from '../../tree/finPlanform';
 import {
@@ -12,7 +12,7 @@ import {
   ringInstanceOffsets,
 } from '../../tree/assembly.js';
 import { clusterOffsets } from '../../tree/cluster.js';
-import { tubeFinRadius } from '../../tree/tubefins.js';
+import { isPlanarFinSet, tubeFinRadius } from '../../tree/tubefins.js';
 import { nodeShape, outerProfile } from '../../tree/shapeProfile.js';
 import { colorForType, DEFAULT_PART_COLORS, type PartPalette } from '../../services/design/partColors';
 import { COMPONENT_DEFAULTS } from '../../services/design/componentDefaults';
@@ -222,8 +222,7 @@ export function buildPieces(
     const geo = new THREE.ExtrudeGeometry(shape, { depth: thickness, bevelEnabled: false });
     geo.translate(0, 0, -thickness / 2);
 
-    for (let i = 0; i < count; i++) {
-      const angle = num(child, 'rotation', 0) + (2 * Math.PI * i) / count;
+    for (const { angle } of ringInstanceOffsets(count, 0, num(child, 'rotation', 0))) {
       // Fin lies in the XY plane, root on the surface (+Y), then rotate about X.
       const g = geo.clone();
       g.translate(start, pRadius, 0);
@@ -237,7 +236,7 @@ export function buildPieces(
   const addChildren = (parent: ComponentNode, pStart: number, pLen: number, pRadius: number, xform?: THREE.Matrix4) => {
     for (const child of parent.children ?? []) {
       curId = child.id;
-      if (child.type === 'trapezoidfinset' || child.type === 'ellipticalfinset' || child.type === 'freeformfinset') {
+      if (isPlanarFinSet(child.type)) {
         addFins(child, pStart, pLen, pRadius, xform);
       } else if (child.type === 'tubefinset') {
         // Ring of open tubes around the body, each tangent to the surface.
@@ -247,8 +246,7 @@ export function buildPieces(
         const wall = Math.min(num(child, 'thickness', 0.0005), rt * 0.45);
         const start = axialStart(child, len, pStart, pLen);
         maxR = Math.max(maxR, pRadius + 2 * rt);
-        for (let i = 0; i < count; i++) {
-          const angle = num(child, 'rotation', 0) + (2 * Math.PI * i) / count;
+        for (const { angle } of ringInstanceOffsets(count, 0, num(child, 'rotation', 0))) {
           // Open tube: an annulus extruded along the body axis.
           const ring = new THREE.Shape();
           ring.absarc(0, 0, rt, 0, 2 * Math.PI, false);
@@ -321,7 +319,7 @@ export function buildPieces(
           );
           if (motor) {
             const mR = motor.diameter / 2;
-            const mStart = start + len - motor.length + num(child, 'motorOverhang', 0);
+            const mStart = motorSeatStart(child, start, len, motor.length);
             place(
               `motor${k++}`,
               new THREE.CylinderGeometry(mR, mR, motor.length, 32),
@@ -446,7 +444,7 @@ export function buildPieces(
         const tubeMotor = n.id ? motors?.[n.id] : undefined;
         if (tubeMotor) {
           const mR = tubeMotor.diameter / 2;
-          const mStart = x + len - tubeMotor.length + num(n, 'motorOverhang', 0);
+          const mStart = motorSeatStart(n, x, len, tubeMotor.length);
           place(
             `motor${k++}`,
             new THREE.CylinderGeometry(mR, mR, tubeMotor.length, 32),
@@ -494,7 +492,7 @@ export function buildPieces(
   };
 
   // Stages flatten into one nose-to-tail chain (sustainer first, boosters after).
-  const chain = tree.components.flatMap((n) => (n.type === 'stage' ? (n.children ?? []) : [n]));
+  const chain = axialChain(tree);
   const totalLen = addChain(chain);
 
   return { pieces, totalLen: Math.max(totalLen, 0.05), maxR };

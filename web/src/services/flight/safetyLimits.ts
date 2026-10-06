@@ -1,6 +1,6 @@
 import type { LaunchConditions, WindLevel } from '../design/orkTree';
 import { fmtUpTo, ladderDigits, withUnit } from '../../i18n/format';
-import { siToUi, type Quantity, type UnitSymbols } from '../../prefs/units';
+import { degToRad, type Quantity, siToUi, uiToSi, type UnitSymbols } from '../../prefs/units';
 
 /**
  * Flying limits from the NAR / Tripoli safety codes, in SI.
@@ -21,9 +21,9 @@ export const MAX_ROD_ANGLE_DEG = 20;
  *  SI, because nothing outside it now speaks the codes' own unit. */
 const MAX_WIND_SPEED_MPH = 20;
 
-const MPH_TO_MS = 0.44704;
+const MPH_TO_MS = uiToSi('windspeed', 'mph', 1);
 
-export const MAX_ROD_ANGLE_RAD = (MAX_ROD_ANGLE_DEG * Math.PI) / 180;
+export const MAX_ROD_ANGLE_RAD = degToRad(MAX_ROD_ANGLE_DEG);
 export const MAX_WIND_SPEED_MS = MAX_WIND_SPEED_MPH * MPH_TO_MS;
 
 /**
@@ -92,7 +92,7 @@ export function launchLimitViolations(launch: LaunchConditions): LimitViolation[
 
   const angle = Math.abs(launch.launchRodAngleDeg ?? 0);
   if (angle > MAX_ROD_ANGLE_DEG) {
-    out.push({ field: 'rodAngle', value: (angle * Math.PI) / 180, limit: MAX_ROD_ANGLE_RAD });
+    out.push({ field: 'rodAngle', value: degToRad(angle), limit: MAX_ROD_ANGLE_RAD });
   }
 
   const wind = surfaceWindMs(launch);

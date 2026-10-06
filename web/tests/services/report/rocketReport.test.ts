@@ -15,6 +15,15 @@ const motor = {
 } as unknown as MotorSpec;
 
 describe('motorStats', () => {
+  it('reads the peak of a curve too long to spread into Math.max', () => {
+    // Engines cap spread arguments well below a million.
+    const n = 1_000_000;
+    const times = Array.from({ length: n }, (_, i) => i / 1000);
+    const thrusts = times.map((_, i) => (i === 1234 ? 99 : 5));
+    const m = motorStats({ ...motor, times, thrusts } as unknown as MotorSpec);
+    expect(m.maxThrust).toBe(99);
+  });
+
   it('summarizes a thrust curve', () => {
     const m = motorStats(motor);
     expect(m.burnTime).toBe(2);

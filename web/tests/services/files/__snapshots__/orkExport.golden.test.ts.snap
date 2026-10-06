@@ -66,8 +66,8 @@ exports[`golden .ork export > falls back to the FIRST configuration as default w
                 <position type="top">0</position>
                 <packedlength>0.02</packedlength>
                 <packedradius>0.005</packedradius>
-                <radialposition>0</radialposition>
-                <radialdirection>0</radialdirection>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
                 <mass>0.02</mass>
                 <masscomponenttype>tracker</masscomponenttype>
               </masscomponent>
@@ -319,8 +319,8 @@ exports[`golden .ork export > falls back to the FIRST configuration as default w
                 <position type="bottom">0</position>
                 <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
                 <length>0.07</length>
-                <radialposition>0</radialposition>
-                <radialdirection>0</radialdirection>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
                 <outerradius>0.0095</outerradius>
                 <thickness>0.0005</thickness>
                 <clusterconfiguration>single</clusterconfiguration>
@@ -569,8 +569,8 @@ exports[`golden .ork export > falls back to the FIRST configuration as default w
                         <position type="bottom">0</position>
                         <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
                         <length>0.1</length>
-                        <radialposition>0</radialposition>
-                        <radialdirection>0</radialdirection>
+                        <radialposition>0.0</radialposition>
+                        <radialdirection>0.0</radialdirection>
                         <outerradius>0.0095</outerradius>
                         <thickness>0.0005</thickness>
                         <clusterconfiguration>single</clusterconfiguration>
@@ -628,8 +628,8 @@ exports[`golden .ork export > falls back to the FIRST configuration as default w
                 <position type="bottom">0</position>
                 <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
                 <length>0.1</length>
-                <radialposition>0</radialposition>
-                <radialdirection>0</radialdirection>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
                 <outerradius>0.0095</outerradius>
                 <thickness>0.0005</thickness>
                 <clusterconfiguration>single</clusterconfiguration>
@@ -760,8 +760,8 @@ exports[`golden .ork export > mints one configuration for a design that declares
                 <position type="top">0</position>
                 <packedlength>0.02</packedlength>
                 <packedradius>0.005</packedradius>
-                <radialposition>0</radialposition>
-                <radialdirection>0</radialdirection>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
                 <mass>0.02</mass>
                 <masscomponenttype>tracker</masscomponenttype>
               </masscomponent>
@@ -972,8 +972,8 @@ exports[`golden .ork export > mints one configuration for a design that declares
                 <position type="bottom">0</position>
                 <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
                 <length>0.07</length>
-                <radialposition>0</radialposition>
-                <radialdirection>0</radialdirection>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
                 <outerradius>0.0095</outerradius>
                 <thickness>0.0005</thickness>
                 <clusterconfiguration>single</clusterconfiguration>
@@ -1189,8 +1189,8 @@ exports[`golden .ork export > mints one configuration for a design that declares
                         <position type="bottom">0</position>
                         <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
                         <length>0.1</length>
-                        <radialposition>0</radialposition>
-                        <radialdirection>0</radialdirection>
+                        <radialposition>0.0</radialposition>
+                        <radialdirection>0.0</radialdirection>
                         <outerradius>0.0095</outerradius>
                         <thickness>0.0005</thickness>
                         <clusterconfiguration>single</clusterconfiguration>
@@ -1238,8 +1238,8 @@ exports[`golden .ork export > mints one configuration for a design that declares
                 <position type="bottom">0</position>
                 <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
                 <length>0.1</length>
-                <radialposition>0</radialposition>
-                <radialdirection>0</radialdirection>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
                 <outerradius>0.0095</outerradius>
                 <thickness>0.0005</thickness>
                 <clusterconfiguration>single</clusterconfiguration>
@@ -1312,8 +1312,8 @@ exports[`golden .ork export > writes a lone configuration, and no launch block 1
                 <position type="top">0</position>
                 <packedlength>0.02</packedlength>
                 <packedradius>0.005</packedradius>
-                <radialposition>0</radialposition>
-                <radialdirection>0</radialdirection>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
                 <mass>0.02</mass>
                 <masscomponenttype>tracker</masscomponenttype>
               </masscomponent>
@@ -1541,8 +1541,8 @@ exports[`golden .ork export > writes a lone configuration, and no launch block 1
                 <position type="bottom">0</position>
                 <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
                 <length>0.07</length>
-                <radialposition>0</radialposition>
-                <radialdirection>0</radialdirection>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
                 <outerradius>0.0095</outerradius>
                 <thickness>0.0005</thickness>
                 <clusterconfiguration>single</clusterconfiguration>
@@ -1758,8 +1758,8 @@ exports[`golden .ork export > writes a lone configuration, and no launch block 1
                         <position type="bottom">0</position>
                         <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
                         <length>0.1</length>
-                        <radialposition>0</radialposition>
-                        <radialdirection>0</radialdirection>
+                        <radialposition>0.0</radialposition>
+                        <radialdirection>0.0</radialdirection>
                         <outerradius>0.0095</outerradius>
                         <thickness>0.0005</thickness>
                         <clusterconfiguration>single</clusterconfiguration>
@@ -1807,8 +1807,8 @@ exports[`golden .ork export > writes a lone configuration, and no launch block 1
                 <position type="bottom">0</position>
                 <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
                 <length>0.1</length>
-                <radialposition>0</radialposition>
-                <radialdirection>0</radialdirection>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
                 <outerradius>0.0095</outerradius>
                 <thickness>0.0005</thickness>
                 <clusterconfiguration>single</clusterconfiguration>
@@ -1893,8 +1893,8 @@ exports[`golden .ork export > writes every configuration, block and component ty
                 <position type="top">0</position>
                 <packedlength>0.02</packedlength>
                 <packedradius>0.005</packedradius>
-                <radialposition>0</radialposition>
-                <radialdirection>0</radialdirection>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
                 <mass>0.02</mass>
                 <masscomponenttype>tracker</masscomponenttype>
               </masscomponent>
@@ -2146,8 +2146,8 @@ exports[`golden .ork export > writes every configuration, block and component ty
                 <position type="bottom">0</position>
                 <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
                 <length>0.07</length>
-                <radialposition>0</radialposition>
-                <radialdirection>0</radialdirection>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
                 <outerradius>0.0095</outerradius>
                 <thickness>0.0005</thickness>
                 <clusterconfiguration>single</clusterconfiguration>
@@ -2396,8 +2396,8 @@ exports[`golden .ork export > writes every configuration, block and component ty
                         <position type="bottom">0</position>
                         <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
                         <length>0.1</length>
-                        <radialposition>0</radialposition>
-                        <radialdirection>0</radialdirection>
+                        <radialposition>0.0</radialposition>
+                        <radialdirection>0.0</radialdirection>
                         <outerradius>0.0095</outerradius>
                         <thickness>0.0005</thickness>
                         <clusterconfiguration>single</clusterconfiguration>
@@ -2455,8 +2455,8 @@ exports[`golden .ork export > writes every configuration, block and component ty
                 <position type="bottom">0</position>
                 <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
                 <length>0.1</length>
-                <radialposition>0</radialposition>
-                <radialdirection>0</radialdirection>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
                 <outerradius>0.0095</outerradius>
                 <thickness>0.0005</thickness>
                 <clusterconfiguration>single</clusterconfiguration>

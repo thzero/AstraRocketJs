@@ -416,7 +416,7 @@
     "aft": "Heck",
     "cutaway": "Schnitt",
     "cutawayTitle": "Die Zelle entlang der Mittelachse öffnen und das Innere zeigen",
-    "roll": "Rollen {{deg}}°",
+    "roll": "Rollen {{deg}}",
     "rollHint": "Rollen – die Finnen um die Achse drehen (oder die Zeichnung ziehen)",
     "rollAria": "Rollwinkel (Grad)",
     "loading3d": "3D wird geladen…",

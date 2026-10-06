@@ -1,10 +1,12 @@
 import type { jsPDF } from 'jspdf';
 import type { StaticInfo } from '../../engine/openRocketEngine';
 import type { Pt } from './reportGeometry';
-import { fmtNum } from '../../i18n/format';
+import { fmtNum, fmtSig } from '../../i18n/format';
 import { siToUi, type Quantity, type UnitSelection } from '../../prefs/units';
 import { hexToRgbTuple, pageFrame } from './layout';
 import type { ReportOptions } from './options';
+import { staticInfoRows } from './designInfo';
+import { type StatKey } from './designInfo';
 
 /**
  * The page the report sections draw on: the jsPDF document, the frame it is
@@ -72,6 +74,15 @@ export function heading(p: PdfPage, text: string): void {
     .setLineWidth(0.4)
     .line(M, p.y + 7, M + CW, p.y + 7);
   p.y += 12;
+}
+
+/** Small gray body text, wrapped to the content width. */
+export function paragraph(p: PdfPage, text: string, style: 'normal' | 'italic' = 'normal', gray = 90): void {
+  const { doc, M, CW } = p;
+  doc.setFont('helvetica', style).setFontSize(8).setTextColor(gray);
+  const lines = doc.splitTextToSize(text, CW) as string[];
+  doc.text(lines, M, p.y + 3);
+  p.y += 4 + lines.length * 3.5;
 }
 
 export function sub(p: PdfPage, text: string, size = 10): void {
@@ -202,24 +213,46 @@ export const g = (p: PdfPage, kg: number): string => q(p, 'mass', kg, 0);
 /** The summary grid's rows for one static-info block (the rocket, or one stage). */
 export function summaryRows(p: PdfPage, info: StaticInfo): [string, string][] {
   const { t } = p;
-  // The engine's own figure, not ours: see StaticInfo.stabilityPercent. The
-  // margin is over the AERODYNAMIC length, which this module does not have;
-  // dividing by `length` reads a percentage the desktop does not show.
-  const pct = info.stabilityPercent;
-  return [
-    [t('report.length'), len(p, info.length)],
-    [t('report.maxDiameter'), len(p, info.refDiameter)],
-    [t('report.massEmpty'), g(p, info.massEmpty)],
-    [t('report.massLoaded'), g(p, info.mass)],
-    [t('report.fineness'), fmtNum(info.refDiameter > 0 ? info.length / info.refDiameter : 0, 2)],
-    [t('report.cgEmpty'), len(p, info.cgEmpty)],
-    [t('report.cgLoaded'), len(p, info.cg)],
-    [t('report.cp'), len(p, info.cp)],
-    [t('report.stabilityCal'), `${fmtNum(info.stabilityCalibers, 2)} cal`],
-    [t('report.stabilityPct'), `${fmtNum(pct, 1)} %`],
-    [t('report.cd'), info.cd != null ? fmtNum(info.cd, 3) : '—'],
-    [t('report.cna'), `${fmtNum(info.cna, 2)} /rad`],
-  ];
+  const label: Record<StatKey, string> = {
+    length: 'report.length',
+    maxDiameter: 'report.maxDiameter',
+    massEmpty: 'report.massEmpty',
+    massLoaded: 'report.massLoaded',
+    fineness: 'report.fineness',
+    cgEmpty: 'report.cgEmpty',
+    cgLoaded: 'report.cgLoaded',
+    cp: 'report.cp',
+    stabilityCal: 'report.stabilityCal',
+    stabilityPct: 'report.stabilityPct',
+    cd: 'report.cd',
+    cna: 'report.cna',
+    pitchInertia: 'stats.pitchInertia',
+    rollInertia: 'stats.rollInertia',
+  };
+  const shown = (key: StatKey, v: number): string => {
+    switch (key) {
+      case 'massEmpty':
+      case 'massLoaded':
+        return g(p, v);
+      case 'fineness':
+        return fmtNum(v, 2);
+      case 'stabilityCal':
+        return `${fmtNum(v, 2)} cal`;
+      case 'stabilityPct':
+        return `${fmtNum(v, 1)} %`;
+      case 'cd':
+        return fmtNum(v, 3);
+      case 'cna':
+        return `${fmtNum(v, 2)} /rad`;
+      case 'pitchInertia':
+      case 'rollInertia':
+        return `${fmtSig(v, 4)} kg·m²`;
+      default:
+        return len(p, v);
+    }
+  };
+  // Which rows exist is staticInfoRows' call, shared with the .ork and the CSV.
+  return staticInfoRows(info).map(({ key, value }) => [t(label[key]), shown(key, value)]);
 }
 
 /**

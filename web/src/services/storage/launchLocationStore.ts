@@ -1,5 +1,6 @@
 import type { KeyValueStore } from './keyValueStore';
 import { IndexedDbKeyValueStore } from './idbKeyValueStore';
+import { JsonListStore } from './jsonListStore';
 import { uuid } from '../app/uuid';
 import { nsKey } from './storageKeys';
 
@@ -63,6 +64,8 @@ export const LAUNCH_SITE_LIMITS = {
   latitudeDeg: { min: -90, max: 90 },
   longitudeDeg: { min: -180, max: 180 },
   launchAltitudeM: { min: -500, max: 10000 },
+  /** Air temperature at the site, °C: the launch panel's and the tools' bounds. */
+  temperatureC: { min: -90, max: 70 },
 } as const;
 
 /** A location whose numbers are inside {@link LAUNCH_SITE_LIMITS}. */
@@ -81,46 +84,30 @@ function isLocation(v: unknown): v is LaunchLocation {
   );
 }
 
-/** Default store: the location list as one key-value entry, through a KeyValueStore. */
+/**
+ * Default store: the location list as one JSON array under one key-value entry
+ * (see JsonListStore for the read and write rules), newest save first, one
+ * entry per id. A location outside {@link LAUNCH_SITE_LIMITS} is refused on
+ * save, not stored to be dropped on the next read.
+ */
 export class KeyValueLaunchLocationStore implements LaunchLocationStore {
-  constructor(
-    private readonly key: string = LOCATIONS_KEY,
-    private readonly kv: KeyValueStore = new IndexedDbKeyValueStore(),
-  ) {}
+  private readonly items: JsonListStore<LaunchLocation>;
 
-  /** The stored list, tolerating an absent, corrupt or partly invalid blob. */
-  private static parse(raw: string | null): LaunchLocation[] {
-    if (!raw) return [];
-    try {
-      const parsed = JSON.parse(raw) as unknown;
-      return Array.isArray(parsed) ? parsed.filter(isLocation) : [];
-    } catch {
-      return []; // corrupt entry
-    }
+  constructor(key: string = LOCATIONS_KEY, kv: KeyValueStore = new IndexedDbKeyValueStore()) {
+    this.items = new JsonListStore(key, isLocation, (p) => p.id, kv);
   }
 
-  /**
-   * Read, transform and write in ONE store transaction, and propagate a refused
-   * write rather than resolving cleanly over it — the same reasoning as
-   * `KeyValueMaterialStore.mutate`: this is an installable PWA with IndexedDB
-   * shared across tabs, and a caller told nothing cannot retry.
-   */
-  private async mutate(fn: (list: LaunchLocation[]) => LaunchLocation[]): Promise<void> {
-    const ok = await this.kv.update(this.key, (raw) => JSON.stringify(fn(KeyValueLaunchLocationStore.parse(raw))));
-    if (!ok) throw new Error('storage-full');
-  }
-
-  async list(): Promise<LaunchLocation[]> {
-    return KeyValueLaunchLocationStore.parse(await this.kv.get(this.key));
+  list(): Promise<LaunchLocation[]> {
+    return this.items.list();
   }
 
   async save(location: LaunchLocation): Promise<void> {
     if (!isLocation(location)) throw new Error('invalid-location');
-    await this.mutate((list) => [location, ...list.filter((p) => p.id !== location.id)]);
+    await this.items.upsert([location]);
   }
 
-  async remove(id: string): Promise<void> {
-    await this.mutate((list) => list.filter((p) => p.id !== id));
+  remove(id: string): Promise<void> {
+    return this.items.remove(id);
   }
 }
 

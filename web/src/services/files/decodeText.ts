@@ -26,3 +26,13 @@ function encodingOf(bytes: Uint8Array): string {
 export function decodeFileText(bytes: Uint8Array): string {
   return new TextDecoder(encodingOf(bytes)).decode(bytes);
 }
+
+/**
+ * A picked file as text, through {@link decodeFileText}. `File.text()` reads
+ * UTF-8 only, so a UTF-16 motor, wind or template file imported by hand was
+ * refused while the same bytes inside an `.ork` opened; every hand import reads
+ * through this instead.
+ */
+export async function readFileText(file: Blob): Promise<string> {
+  return decodeFileText(new Uint8Array(await file.arrayBuffer()));
+}

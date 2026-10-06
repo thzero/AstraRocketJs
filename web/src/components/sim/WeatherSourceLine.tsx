@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import type { LaunchConditions } from '../../services/design/orkTree';
 import { sourceStatus } from '../../services/weather/weatherSource';
 import { formatCoord } from '../../services/map/slippyMap';
+import { fmtSiteTime } from '../../i18n/format';
+import { OpenMeteoCredit } from '../common/OpenMeteoCredit';
 
 /** How often the "old forecast" check is looked at again. */
 const TICK_MS = 60_000;
@@ -28,7 +30,7 @@ export function WeatherSourceLine({
   /** Absent where the Weather dialog is not offered. */
   onRefresh?: () => void;
 }) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const [now, setNow] = useState(() => Date.now());
   const source = launch.weatherSource;
   useEffect(() => {
@@ -39,21 +41,6 @@ export function WeatherSourceLine({
   const status = sourceStatus(launch, now);
   if (!source || !status) return null;
 
-  const fmt = (iso: string, timeZone: string | undefined) => {
-    const opts: Intl.DateTimeFormatOptions = {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      timeZoneName: 'short',
-    };
-    try {
-      return new Intl.DateTimeFormat(i18n.language, { ...opts, timeZone }).format(new Date(iso));
-    } catch {
-      return new Intl.DateTimeFormat(i18n.language, opts).format(new Date(iso));
-    }
-  };
   const notes = [
     status.edited && t('weather.source.edited'),
     status.otherSite && t('weather.source.otherSite'),
@@ -65,9 +52,9 @@ export function WeatherSourceLine({
       {summary && (
         <p className="text-xs text-slate-300">
           {t(source.endpoint === 'archive' ? 'weather.source.record' : 'weather.source.forecast', {
-            when: fmt(source.validAt, source.timezone),
+            when: fmtSiteTime(source.validAt, source.timezone),
             where: formatCoord(source.latitudeDeg, source.longitudeDeg, 3),
-            fetched: fmt(source.fetchedAt, undefined),
+            fetched: fmtSiteTime(source.fetchedAt, undefined),
           })}
         </p>
       )}
@@ -86,20 +73,7 @@ export function WeatherSourceLine({
       )}
       {/* CC BY 4.0 asks for the credit wherever the data is shown, and this
           line goes wherever values from it are. */}
-      <p className="text-[11px] text-slate-500">
-        <a className="text-sky-400 hover:underline" href="https://open-meteo.com/" target="_blank" rel="noreferrer">
-          {t('weather.credit')}
-        </a>
-        {' · '}
-        <a
-          className="text-sky-400 hover:underline"
-          href="https://creativecommons.org/licenses/by/4.0/"
-          target="_blank"
-          rel="noreferrer"
-        >
-          CC BY 4.0
-        </a>
-      </p>
+      <OpenMeteoCredit />
     </div>
   );
 }

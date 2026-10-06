@@ -1,13 +1,15 @@
 import type { FlightResult, AeroSweep } from '../../engine/openRocketEngine';
 import {
   branchSeries,
-  DEFAULT_CSV_COLUMNS,
+  defaultCsvFormat,
   flightColumns,
   usableColumns,
   type FlightColumn,
 } from '../flight/flightColumns';
 import type { EventRow } from '../flight/flightEvents';
 import { siToUiDelta, type Quantity, type UnitSelection } from '../../prefs/units';
+import { plainDecimal } from '../files/numberText';
+import { neutralizeFormula } from './csvCell';
 
 /**
  * CSV exporters for the flight time-series and the drag sweep. Columns are
@@ -22,7 +24,7 @@ const EOL = '\r\n';
 
 const cell = (v: number | null | undefined, digits?: number): string => {
   if (v == null || !Number.isFinite(v)) return '';
-  return digits == null ? String(Math.round(v * 1e6) / 1e6) : v.toFixed(digits);
+  return digits == null ? plainDecimal(v, 6) : v.toFixed(digits);
 };
 const mul = (v: number | null | undefined, f: number): number | null =>
   v == null || !Number.isFinite(v) ? null : v * f;
@@ -74,14 +76,7 @@ export interface FlightCsvOptions {
 }
 
 const DEFAULT_CSV_OPTIONS: FlightCsvOptions = {
-  columns: [...DEFAULT_CSV_COLUMNS],
-  separator: ',',
-  decimals: 3,
-  exponential: false,
-  simDescription: true,
-  fieldDescriptions: true,
-  flightEvents: true,
-  commentChar: '#',
+  ...defaultCsvFormat(),
   branchIndex: 0,
   columnName: (c) => c.key,
 };
@@ -249,7 +244,7 @@ export function flightEventsCsv(
   const text = (v: string | undefined): string => {
     if (v == null || v === '') return '';
     const flat = v.replace(/[\r\n]+/g, ' ');
-    const safe = /^[=+\-@\t]/.test(flat) ? `'${flat}` : flat;
+    const safe = neutralizeFormula(flat);
     return `"${safe.replace(/"/g, '""')}"`;
   };
 

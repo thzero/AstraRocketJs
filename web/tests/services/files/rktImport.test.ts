@@ -303,6 +303,10 @@ describe('importRkt', () => {
   it('refuses a file that is not a RockSim design', () => {
     expect(() => importRkt('<openrocket><rocket/></openrocket>')).toThrow(/not a \.rkt/i);
   });
+
+  it('names its own format when the XML does not parse', () => {
+    expect(() => importRkt('<RockSimDocument><DesignInformation>')).toThrow(/not a valid \.rkt file/i);
+  });
 });
 
 describe('importRkt, multi-stage', () => {

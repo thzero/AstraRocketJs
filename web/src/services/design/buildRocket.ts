@@ -4,6 +4,7 @@ import { configuredTree, liveMotors, seatedMotorsKey, stageFlies, type FlightCon
 import { findStages } from './treeEdit';
 import { badDimensions, type BadDimension } from './requiredComponent';
 import { hasUsableCurve } from '../motors/motorCurve';
+import { errorMessage } from '../app/errorMessage';
 
 /**
  * A key over every CONFIGURATION input that can change the STATIC info.
@@ -108,6 +109,6 @@ export function computeStaticInfo(
     return { info, rocket };
   } catch (e) {
     const bad = badDimensions(tree);
-    return { error: e instanceof Error ? e.message : String(e), ...(bad.length ? { bad } : {}) };
+    return { error: errorMessage(e), ...(bad.length ? { bad } : {}) };
   }
 }

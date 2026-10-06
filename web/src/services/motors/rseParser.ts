@@ -32,6 +32,7 @@ import type { CustomMotor } from './motorStore';
 import { impulseClass } from './motorCombine';
 import { delayList } from './motorPicker';
 import { totalImpulse } from './engParser';
+import { parseXmlText } from '../files/xmlUtil';
 
 /** RockSim's `Type` attribute, mapped to the catalog's own vocabulary. */
 const TYPES: Record<string, NonNullable<CustomMotor['type']>> = {
@@ -236,12 +237,7 @@ const isFalse = (v: string | null) => v === '0' || v?.toLowerCase() === 'false';
  * header block that the format gives no way to name.
  */
 export function parseRse(text: string): CustomMotor[] {
-  let xml = text;
-  if (xml.charCodeAt(0) === 0xfeff) xml = xml.slice(1); // strip optional BOM
-  const doc = new DOMParser().parseFromString(xml, 'text/xml');
-  if (doc.querySelector('parsererror')) {
-    throw new Error('Not a valid .rse file (XML parse error).');
-  }
+  const doc = parseXmlText(text, 'Not a valid .rse file (XML parse error).');
   const engineEls = doc.querySelectorAll('engine');
   if (engineEls.length === 0) throw new Error('Not a valid .rse file (no <engine> found).');
   // Counted BEFORE the spread, so a crafted member does not materialize a

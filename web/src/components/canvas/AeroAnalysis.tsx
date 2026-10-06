@@ -13,7 +13,9 @@ import { cpDivisor, cpModesFor } from './aeroTables';
 import { useAeroSweep } from './useAeroSweep';
 import { ChartCard } from './AeroCharts';
 import { ComponentTable, RollTable, StabilityTable } from './AeroComponentTables';
-import { Num, Seg } from './AeroInputs';
+import { Num } from './AeroInputs';
+import { Segmented } from '../common/Segmented';
+import { CATEGORICAL } from '../common/chartPalette';
 
 // The pure helpers moved to aeroTables.ts (where they are tested); re-exported
 // so the existing test files and any other importer keep working.
@@ -39,9 +41,8 @@ export { buildLinePath, heat, hsv, niceName } from './aeroTables';
  * Colors use the dataviz skill's validated dark categorical order; every chart
  * ≥ 2 series carries a legend (identity is never color-alone).
  */
-const CAT = ['#3987e5', '#199e70', '#c98500', '#008300', '#9085e9', '#e66767', '#d55181', '#d95926'];
-const POWER_OFF = CAT[0]!;
-const POWER_ON = CAT[7]!;
+const POWER_OFF = CATEGORICAL[0]!;
+const POWER_ON = CATEGORICAL[7]!;
 
 type Series = ChartSeries;
 
@@ -156,9 +157,9 @@ export function AeroAnalysis() {
       // pressure / base / friction split beside them, which a stack of lines,
       // one per part, cannot show.
       breakdown: [
-        { name: t('aero.friction'), color: CAT[0]!, values: sweep.powerOff.friction },
-        { name: t('aero.pressure'), color: CAT[1]!, values: sweep.powerOff.pressure },
-        { name: t('aero.base'), color: CAT[2]!, values: sweep.powerOff.base },
+        { name: t('aero.friction'), color: CATEGORICAL[0]!, values: sweep.powerOff.friction },
+        { name: t('aero.pressure'), color: CATEGORICAL[1]!, values: sweep.powerOff.pressure },
+        { name: t('aero.base'), color: CATEGORICAL[2]!, values: sweep.powerOff.base },
       ],
       // As a percentage CP has no unit; as a position it takes the user's
       // length unit (a whole series is being scaled).
@@ -190,7 +191,7 @@ export function AeroAnalysis() {
           {/* The previous sweep stays up while the next one runs; say so. */}
           {pending && <span className="ml-2 normal-case tracking-normal text-slate-500">{t('aero.computing')}</span>}
         </h2>
-        <Seg
+        <Segmented
           options={['charts', 'components'] as const}
           value={pane}
           onChange={setPane}
@@ -202,7 +203,7 @@ export function AeroAnalysis() {
           </span>
         )}
         <span className="text-[10px] text-slate-500">{t('aero.maxMach')}</span>
-        <Seg options={[1, 2, 3, 5] as const} value={machMax} onChange={setMachMax} fmt={(v) => `M${v}`} />
+        <Segmented options={[1, 2, 3, 5] as const} value={machMax} onChange={setMachMax} fmt={(v) => `M${v}`} />
         <button
           onClick={() =>
             download(exportFilename([designName, 'aero-table'], 'csv'), aeroTableCsv(sweep, u.all), CSV_MIME)
@@ -319,7 +320,7 @@ export function AeroAnalysis() {
               setHoverM={setHover}
               note={t('aero.supersonicNote')}
               right={
-                <Seg
+                <Segmented
                   options={cpModes}
                   value={cpMode}
                   onChange={setCpMode}

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { ComponentNode } from '../../engine/openRocketEngine';
 import { colorForType, mergePalette } from '../../services/design/partColors';
 import { useSettings } from '../../state/SettingsProvider';
+import { PropSection } from './PropSection';
 
 /**
  * How the part is DRAWN, as against what it is.
@@ -38,8 +39,7 @@ export function AppearanceSection({
   const colorId = useId();
 
   return (
-    <div className="space-y-3 border-t border-white/5 pt-3">
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t('prop.appearance')}</h3>
+    <PropSection title={t('prop.appearance')}>
       {/* A row, not one big <label>: the reset button is a second control, and a
           label may only bind to one. */}
       <div className="flex items-center justify-between gap-3">
@@ -71,6 +71,6 @@ export function AppearanceSection({
           )}
         </span>
       </div>
-    </div>
+    </PropSection>
   );
 }

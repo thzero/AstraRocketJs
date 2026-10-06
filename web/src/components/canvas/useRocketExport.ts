@@ -1,4 +1,4 @@
-import { useEffect, useRef, type RefObject } from 'react';
+import type { RefObject } from 'react';
 import * as THREE from 'three';
 import {
   IMAGE_FORMAT_EXT,
@@ -6,12 +6,13 @@ import {
   type ExportData,
   type ImageFormat,
 } from '../../services/exports/schematicExport.js';
-import { download, safeFilename } from '../../services/files/saveFile';
+import { download, exportFilename } from '../../services/files/saveFile';
 import type { ImageExportOptions } from './ImageExportMenu.js';
 import { piecesBounds, type Piece } from './rocketPieces';
 import { exportCamera, isFittableBox } from './rocketExportCamera';
 import { captureSceneOffscreen } from './offscreenCapture';
 import { clampExportSize } from './offscreenRaster';
+import { useLatest } from '../common/useLatest';
 
 /**
  * Owns the 3D image export handler: the export camera choice, the offscreen
@@ -34,17 +35,10 @@ export function useRocketExport(
   maxR: number,
   exportData: Omit<ExportData, 'spanM'> | undefined,
 ): (format: ImageFormat, widthPx: number, opts?: ImageExportOptions) => Promise<void> {
-  // Live while the owning component is mounted; read by the fallback's
-  // restore step. Set in the effect body as well as cleared in its cleanup:
-  // under React.StrictMode's development double-invoke the cleanup runs once
-  // before the effect re-runs, and a cleanup-only guard stayed false for good.
-  const alive = useRef(true);
-  useEffect(() => {
-    alive.current = true;
-    return () => {
-      alive.current = false;
-    };
-  }, []);
+  // Whether the owning component is still mounted; read by the fallback's
+  // restore step. Observed, never claimed: a second export does not cancel
+  // the first one's restore.
+  const { observe } = useLatest();
 
   return async (format: ImageFormat, widthPx: number, opts?: ImageExportOptions) => {
     const st = r3f.current;
@@ -77,12 +71,12 @@ export function useRocketExport(
     const box = opts?.fit && src.isPerspectiveCamera ? piecesBounds(pieces) : null;
     const cam: THREE.Camera = box && isFittableBox(box) ? exportCamera(box, src, width / height) : st.camera;
     const data: ExportData = { ...exportData, spanM: 2 * maxR };
-    const filename = `${safeFilename(exportData.name)}-3d.${IMAGE_FORMAT_EXT[format]}`;
+    const filename = exportFilename([exportData.name, '3d'], IMAGE_FORMAT_EXT[format]);
 
     // Preferred path: an offscreen render target. The on-screen canvas is
     // never resized, so nothing flashes, the frame loop keeps running, and
     // there is nothing to restore if the encode throws or the view unmounts
-    // mid-export. It is synchronous, so the `alive` guard is not needed here.
+    // mid-export. It is synchronous, so the `live` guard is not needed here.
     let offscreen: HTMLCanvasElement | null = null;
     try {
       offscreen = captureSceneOffscreen(st.gl, st.scene, cam, width, height);
@@ -102,6 +96,7 @@ export function useRocketExport(
     // CSS size), grab the buffer, then restore — preserveDrawingBuffer on the
     // canvas makes the read reliable.
     const pr = st.gl.getPixelRatio();
+    const live = observe();
     try {
       // The LIVE renderer is resized for the encode, and an 8K encode takes
       // seconds. With the frame loop left running, R3F kept rendering the
@@ -121,7 +116,7 @@ export function useRocketExport(
       // unhandled rejection and lost the "export failed" signal entirely.
       // TreeSchematic routes its export errors to `onError`; this had no such
       // channel, so at minimum it must not make things worse.
-      if (alive.current && r3f.current === st) {
+      if (live() && r3f.current === st) {
         st.gl.setPixelRatio(pr);
         st.gl.setSize(cssW, cssH, false);
         st.gl.render(st.scene, st.camera);

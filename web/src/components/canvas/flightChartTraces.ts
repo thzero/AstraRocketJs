@@ -1,5 +1,6 @@
 import type { FlightResult, FlightSeries } from '../../engine/openRocketEngine';
 import type { Quantity } from '../../prefs/units';
+import { flightBranches } from '../../services/flight/flightColumns';
 
 /**
  * Owns what the flight chart draws: the series catalog (one panel per
@@ -124,13 +125,7 @@ export type Branch = {
  */
 export function buildTraces(flight: ChartFlight | null, stageLabel: (i: number) => string): Branch[] {
   if (!flight) return [];
-  // `branches` is only present once a staged rocket actually separates (branch 0
-  // mirrors the top-level series); otherwise wrap the single top-level
-  // trajectory so the rest of the chart is branch-agnostic.
-  const bs = flight.result.branches?.length
-    ? flight.result.branches
-    : [{ name: '', events: flight.result.events ?? [], series: flight.result.series }];
-  return bs.map((b, i) => ({
+  return flightBranches(flight.result).map((b, i) => ({
     key: `${flight.id}:${i}`,
     name: b.name || stageLabel(i),
     color: STAGE_COLORS[i % STAGE_COLORS.length]!,

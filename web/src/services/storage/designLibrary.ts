@@ -17,10 +17,12 @@
 // written only when a run actually produces one (see workspaceStore.save).
 import type { KeyValueStore } from './keyValueStore';
 import { IndexedDbKeyValueStore } from './idbKeyValueStore';
+import { parseJsonList } from './jsonListStore';
 import type { Workspace } from './workspaceStore';
 import type { FlightResult } from '../../engine/openRocketEngine';
 import { nsKey } from './storageKeys';
 import { defaultDesignName, designNameOf } from '../app/appInfo';
+import { isFiniteNumber } from '../app/numbers';
 
 /** A design's cached flights, by simulation id. */
 export type StoredResults = Record<string, FlightResult>;
@@ -44,7 +46,6 @@ const isMeta = (v: unknown): v is DesignMeta => {
   return !!m && typeof m.id === 'string' && typeof m.name === 'string' && typeof m.updatedAt === 'number';
 };
 
-const isFiniteNumber = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 /** A summary field the kernel may legitimately leave unset. */
 const isNullableNumber = (v: unknown): boolean => v === null || isFiniteNumber(v);
 
@@ -105,14 +106,8 @@ export class DesignLibrary {
   }
 
   private async readIndex(): Promise<DesignMeta[]> {
-    const raw = await this.kv.get(INDEX_KEY);
-    if (!raw) return [];
-    try {
-      const parsed = JSON.parse(raw) as unknown;
-      return Array.isArray(parsed) ? parsed.filter(isMeta) : [];
-    } catch {
-      return []; // corrupt index — the designs themselves are still addressable
-    }
+    // A corrupt index reads as empty; the designs themselves are still addressable.
+    return parseJsonList(await this.kv.get(INDEX_KEY), isMeta);
   }
 
   private async writeIndex(list: DesignMeta[]): Promise<boolean> {
@@ -130,18 +125,8 @@ export class DesignLibrary {
    * becomes unreachable and its bytes are orphaned.
    */
   private async mutateIndex(fn: (list: DesignMeta[]) => DesignMeta[]): Promise<boolean> {
-    return await this.kv.update(INDEX_KEY, (raw) => {
-      let list: DesignMeta[] = [];
-      if (raw) {
-        try {
-          const parsed = JSON.parse(raw) as unknown;
-          if (Array.isArray(parsed)) list = parsed.filter(isMeta);
-        } catch {
-          /* corrupt index: rebuild from this mutation alone */
-        }
-      }
-      return JSON.stringify(fn(list));
-    });
+    // A corrupt index is rebuilt from this mutation alone.
+    return await this.kv.update(INDEX_KEY, (raw) => JSON.stringify(fn(parseJsonList(raw, isMeta))));
   }
 
   // --- active design -----------------------------------------------------

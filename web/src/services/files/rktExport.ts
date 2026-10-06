@@ -3,6 +3,8 @@ import { clusterCount, clusterPoints } from '../../tree/cluster';
 import { numOpt } from '../../tree/nodeProps';
 import { asStageNodes } from '../design/orkTree';
 import { escapeXml } from './xmlUtil';
+import { plainDecimal } from './numberText';
+import { radToDeg } from '../../prefs/units';
 
 /**
  * RockSim (`.rkt`) EXPORT.
@@ -74,11 +76,7 @@ interface Writer {
 // --------------------------------------------------------------- helpers ---
 
 /** A number as RockSim writes them: plain decimal, no exponent, no long tail. */
-const fmt = (v: number): string => {
-  if (!Number.isFinite(v)) return '0';
-  const r = Math.round(v * 1e6) / 1e6;
-  return Object.is(r, -0) ? '0' : String(r);
-};
+const fmt = (v: number): string => plainDecimal(v, 6, '0');
 
 const el = (w: Writer, depth: number, name: string, value: string | number): void => {
   w.emit(depth, `<${name}>${typeof value === 'number' ? fmt(value) : escapeXml(value)}</${name}>`);
@@ -158,7 +156,6 @@ function writeShape(w: Writer, d: number, n: ComponentNode, fallback: string): v
 }
 
 /** An angle stored in radians, back out as RockSim's degrees. */
-const deg = (v: number): number => (v * 180) / Math.PI;
 
 // --------------------------------------------------------------- writers ---
 
@@ -187,6 +184,19 @@ const writeTransition: PartWriter = (w, d, n) => {
   put(w, d, 'RearShoulderLen', numOpt(n, 'aftShoulderLength'), mm);
 };
 
+/** `RadialAngle` in degrees from radians; a zero angle is left out. */
+function writeRadialAngle(w: Writer, d: number, angle: number | undefined): void {
+  if (angle) el(w, d, 'RadialAngle', radToDeg(angle));
+}
+
+/** A tube's outer radius and wall as `OD` and `ID`; `ID` needs both. */
+function writeTubeWall(w: Writer, d: number, n: ComponentNode): void {
+  const or = numOpt(n, 'outerRadius');
+  const th = numOpt(n, 'thickness');
+  put(w, d, 'OD', or, dia);
+  if (or !== undefined && th !== undefined) el(w, d, 'ID', dia(or - th));
+}
+
 /**
  * Off-axis placement, written where desktop's exporter writes it: an inner
  * tube and every ring part (BasePartDTO's RingComponent branch) and a mass
@@ -195,8 +205,7 @@ const writeTransition: PartWriter = (w, d, n) => {
  */
 function writeRadial(w: Writer, d: number, n: ComponentNode): void {
   put(w, d, 'RadialLoc', numOpt(n, 'radialPosition'), mm);
-  const dir = numOpt(n, 'radialDirection');
-  if (dir) el(w, d, 'RadialAngle', deg(dir));
+  writeRadialAngle(w, d, numOpt(n, 'radialDirection'));
 }
 
 /** Both our tube types are one RockSim element, told apart by `IsInsideTube`. */
@@ -205,10 +214,7 @@ const writeTube =
   (w, d, n) => {
     writeCommon(w, d, n, inner);
     put(w, d, 'Len', numOpt(n, 'length'), mm);
-    const or = numOpt(n, 'outerRadius');
-    const th = numOpt(n, 'thickness');
-    put(w, d, 'OD', or, dia);
-    if (or !== undefined && th !== undefined) el(w, d, 'ID', dia(or - th));
+    writeTubeWall(w, d, n);
     el(w, d, 'IsInsideTube', inner ? 1 : 0);
     el(w, d, 'IsMotorMount', n['motorMount'] === true ? 1 : 0);
     put(w, d, 'EngineOverhang', numOpt(n, 'motorOverhang'), mm);
@@ -237,12 +243,8 @@ const writeRing: PartWriter = (w, d, n) => {
 const writeLaunchLug: PartWriter = (w, d, n) => {
   writeCommon(w, d, n, true);
   put(w, d, 'Len', numOpt(n, 'length'), mm);
-  const or = numOpt(n, 'outerRadius');
-  const th = numOpt(n, 'thickness');
-  put(w, d, 'OD', or, dia);
-  if (or !== undefined && th !== undefined) el(w, d, 'ID', dia(or - th));
-  const angle = numOpt(n, 'angleOffset');
-  if (angle) el(w, d, 'RadialAngle', deg(angle));
+  writeTubeWall(w, d, n);
+  writeRadialAngle(w, d, numOpt(n, 'angleOffset'));
 };
 
 const FIN_SHAPE_CODES: Record<string, number> = { trapezoidfinset: 0, ellipticalfinset: 1, freeformfinset: 2 };
@@ -269,9 +271,8 @@ const writeFinSet: PartWriter = (w, d, n) => {
   }
 
   const cant = numOpt(n, 'cant');
-  if (cant) el(w, d, 'CantAngle', deg(cant));
-  const angle = numOpt(n, 'angleOffset');
-  if (angle) el(w, d, 'RadialAngle', deg(angle));
+  if (cant) el(w, d, 'CantAngle', radToDeg(cant));
+  writeRadialAngle(w, d, numOpt(n, 'angleOffset'));
   // The fin's cross section, which RockSim calls a tip shape
   // (`FinSetDTO` line 72). Omitting it exported every fin as square.
   el(w, d, 'TipShapeCode', TIP_SHAPE_CODES[strOf(n, 'crossSection') ?? 'square'] ?? 0);
@@ -288,12 +289,8 @@ const writeTubeFinSet: PartWriter = (w, d, n) => {
   writeCommon(w, d, n, true);
   el(w, d, 'TubeCount', numOpt(n, 'finCount') ?? 6);
   put(w, d, 'Len', numOpt(n, 'length'), mm);
-  const or = numOpt(n, 'outerRadius');
-  const th = numOpt(n, 'thickness');
-  put(w, d, 'OD', or, dia);
-  if (or !== undefined && th !== undefined) el(w, d, 'ID', dia(or - th));
-  const angle = numOpt(n, 'angleOffset');
-  if (angle) el(w, d, 'RadialAngle', deg(angle));
+  writeTubeWall(w, d, n);
+  writeRadialAngle(w, d, numOpt(n, 'angleOffset'));
 };
 
 const writeParachute: PartWriter = (w, d, n) => {
@@ -343,8 +340,7 @@ const writeMassObject =
 const writePod: PartWriter = (w, d, n) => {
   writeCommon(w, d, n, true);
   put(w, d, 'RadialLoc', numOpt(n, 'radiusOffset'), mm);
-  const angle = numOpt(n, 'angleOffset');
-  if (angle) el(w, d, 'RadialAngle', deg(angle));
+  writeRadialAngle(w, d, numOpt(n, 'angleOffset'));
   el(w, d, 'Detachable', 0);
   el(w, d, 'Removed', 0);
 };

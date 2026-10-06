@@ -1,9 +1,11 @@
 import { driftEllipse, type DriftEllipse } from '../flight/driftEllipse';
-import type { GroundPoint } from '../flight/groundTrack';
+import { distanceFromPad, type GroundPoint } from '../flight/groundTrack';
 import {
   fetchElevation,
   fetchWeather,
+  HOUR_OFFSETS,
   sampleAt,
+  sampleAtUnix,
   type FetchOpts,
   type ForecastVariant,
   type WeatherAnswer,
@@ -28,14 +30,13 @@ import { fetchTerrain, groundAt, type TerrainGrid } from './terrain';
  * code (services/flight/driftEllipse).
  */
 
-export const HOUR_OFFSETS = [-2, -1, 0, 1, 2] as const;
 const SPEED_FACTORS = [0.8, 1, 1.2] as const;
 const DIRECTION_OFFSETS_DEG = [-15, 0, 15] as const;
 const RATE_FACTORS = [0.9, 1, 1.1] as const;
 
 /** The wind profile for the hour starting at `unix`, from one forecast answer, or null. */
 export function windAt(variant: ForecastVariant, unix: number): WindLayer[] | null {
-  const sample = variant.samples.find((s) => s.unix === unix);
+  const sample = sampleAtUnix(variant, unix);
   if (!sample) return null;
   const levels = proposalFor(sample, variant.elevationM).wind?.levels;
   return levels?.length
@@ -153,7 +154,7 @@ export async function runLandingEstimate(q: LandingQuery, o: FetchOpts = {}): Pr
   const flat = estimateLanding(base);
   if (!flat) return 'noHour';
 
-  const reach = Math.max(...flat.samples.map((p) => Math.hypot(p.east, p.north)), flat.nominal.distanceM);
+  const reach = Math.max(...flat.samples.map(distanceFromPad), flat.nominal.distanceM);
   const halfWidth = Math.min(MAX_TERRAIN_HALF_WIDTH_M, Math.max(1000, reach * 1.5 + 500));
   let grid: TerrainGrid | null;
   try {

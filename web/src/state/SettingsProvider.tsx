@@ -1,6 +1,5 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
 import { DEFAULT_SETTINGS, loadSettings, saveSettings, type Settings } from '../services/storage/settings';
-import i18n from '../i18n';
 
 /**
  * Surface a refused settings write, out of the React updater it is detected in.
@@ -18,9 +17,7 @@ import i18n from '../i18n';
  */
 const reportRefused = () => {
   queueMicrotask(() => {
-    void import('./store').then(({ useWorkspaceStore }) =>
-      useWorkspaceStore.getState().setStorageWarning(i18n.t('storage.full'), 'full'),
-    );
+    void import('./store').then(({ useWorkspaceStore }) => useWorkspaceStore.getState().warnStorageFull());
   });
 };
 

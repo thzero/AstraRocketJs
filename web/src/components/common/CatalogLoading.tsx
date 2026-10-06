@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { subscribeCatalogProgress, type CatalogProgress } from '../../services/app/remoteData';
+import { type CatalogProgress, progressPercent, subscribeCatalogProgress } from '../../services/app/remoteData';
 import { fmtMb } from '../../i18n/format';
 
 /**
@@ -24,7 +24,7 @@ export function useCatalogProgress(name: string): CatalogProgress | null {
 export function CatalogLoading({ name, label }: { name: string; label: string }) {
   const { t } = useTranslation();
   const progress = useCatalogProgress(name);
-  const pct = progress?.total ? Math.min(100, Math.round((progress.loaded / progress.total) * 100)) : null;
+  const pct = progressPercent(progress);
   const bytes =
     !progress || progress.loaded === 0
       ? null

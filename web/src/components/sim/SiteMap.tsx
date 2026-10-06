@@ -20,6 +20,11 @@ import {
 import { rememberTileLayer, tileLayer } from '../../services/map/tileLayer';
 import { useUnits, type Units } from '../../prefs/useUnits';
 import { fmtNum, withUnit } from '../../i18n/format';
+import { siToUi } from '../../prefs/units';
+import { useElementResize } from '../common/useElementResize';
+import { useTileVerdict } from '../common/map/useTileVerdict';
+import { MapCredit, TileImg, TileLayerButtons } from '../common/map/MapParts';
+import { SOURCE_LAYERS } from '../common/map/mapStyle';
 
 /**
  * The launch site, seen from above.
@@ -43,17 +48,6 @@ import { fmtNum, withUnit } from '../../i18n/format';
  * no signal. Somewhere you have NEVER viewed cannot draw offline, and the map
  * says so rather than showing an empty gray box.
  */
-
-/**
- * The two layers, with their labels spelled out.
- *
- * Not `t(`map.${id}`)`: a key built from a variable is invisible to the
- * key-coverage test, which then reports both of these as dead strings.
- */
-const LAYERS = [
-  { id: 'satellite', labelKey: 'map.satellite' },
-  { id: 'street', labelKey: 'map.street' },
-] as const;
 
 /** Below this many pixels of pointer travel, a drag was really a click. */
 const CLICK_SLOP_PX = 4;
@@ -90,36 +84,22 @@ export function SiteMap({
     lon: longitudeDeg ?? 0,
     zoom: latitudeDeg === null || longitudeDeg === null ? 2 : SITE_ZOOM,
   });
-  /**
-   * Whether tiles are getting through, and for WHICH source.
-   *
-   * Carrying the source with the verdict is what makes switching layers reset
-   * it: the stale verdict is simply not the current source's, so it reads as
-   * unknown again without an effect reaching in to clear it.
-   */
-  const [reached, setReached] = useState<{ src: TileSourceId; state: 'ok' | 'unavailable' } | null>(null);
-  const errors = useRef(0);
-
+  const { imagery, onTileLoad, onTileError, retry } = useTileVerdict(source);
   const tiles = TILE_SOURCES[source];
-  const imagery = reached?.src === source ? reached.state : 'unknown';
 
-  /** Switching layers re-asks the network, so the failure count starts over. */
+  /**
+   * Switching layers re-asks the network, and pressing the layer already shown
+   * is a retry, so the buttons stay up while the map is offline.
+   */
   const pickSource = (id: TileSourceId) => {
     rememberTileLayer(id);
-    errors.current = 0;
+    retry();
     setSource(id);
   };
 
-  useEffect(() => {
-    const el = hostRef.current;
-    if (!el || typeof ResizeObserver === 'undefined') return;
-    const ro = new ResizeObserver((entries) => {
-      const r = entries[0]!.contentRect;
-      if (r.width > 0 && r.height > 0) setSize({ w: r.width, h: r.height });
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
+  useElementResize(hostRef, (r) => {
+    if (r.width > 0 && r.height > 0) setSize({ w: r.width, h: r.height });
+  });
 
   /**
    * Recenter when the coordinates change from OUTSIDE the map.
@@ -309,45 +289,13 @@ export function SiteMap({
           <Graticule latitudeDeg={latitudeDeg} longitudeDeg={longitudeDeg} width={size.w} height={size.h} />
         ) : (
           visibleTiles(view.lat, view.lon, view.zoom, size.w, size.h).map((tile) => (
-            <img
+            <TileImg
               key={`${source}:${tile.key}`}
-              src={tiles.url(tile.z, tile.x, tile.y)}
-              alt=""
-              draggable={false}
-              // CORS, to match the 3D ground map (FlightGroundMap.tsx), which loads
-              // these same tiles as WebGL textures and cannot use an opaque
-              // response. Without it the service worker caches this request's
-              // opaque copy and then hands it to the texture loader, which fails.
-              // Esri answers `Access-Control-Allow-Origin: *`.
-              crossOrigin="anonymous"
-              // No `referrerPolicy="no-referrer"`. Stripping the Referer hides
-              // WHO is asking, which is the one thing every tile provider's
-              // usage policy wants to be able to see - and the signature they
-              // block on. Identifying the app is the polite half of using
-              // someone else's tiles.
-              width={TILE_SIZE}
-              height={TILE_SIZE}
-              // `max-w-none` and an explicit CSS size: the reset's
-              // `img { max-width: 100% }` is relative to this box, so a map
-              // narrower than one tile would draw its tiles shrunk to the box
-              // while still spacing them a full tile apart. See the longer note
-              // in components/canvas/GroundTrack.tsx, where it actually bit.
-              className="pointer-events-none absolute max-w-none select-none"
-              style={{ left: tile.left, top: tile.top, width: TILE_SIZE, height: TILE_SIZE }}
-              onLoad={() => {
-                errors.current = 0;
-                setReached({ src: source, state: 'ok' });
-              }}
-              onError={() => {
-                // One 404 is a hole in the coverage at this zoom; a whole
-                // screenful failing is no network. Only the second is worth
-                // replacing the map over.
-                errors.current += 1;
-                if (errors.current < 3) return;
-                setReached((prev) =>
-                  prev?.src === source && prev.state === 'ok' ? prev : { src: source, state: 'unavailable' },
-                );
-              }}
+              source={source}
+              tile={tile}
+              className="pointer-events-none"
+              onLoad={onTileLoad}
+              onError={onTileError}
             />
           ))
         )}
@@ -363,6 +311,8 @@ export function SiteMap({
           </div>
         )}
 
+        {/* Up offline too: pressing a layer is the retry. */}
+        <TileLayerButtons layers={SOURCE_LAYERS} value={source} onPick={pickSource} />
         {imagery !== 'unavailable' && (
           <>
             <span id={keysId} className="sr-only">
@@ -378,20 +328,6 @@ export function SiteMap({
                 +
               </div>
             )}
-            <div className="absolute left-1 top-1 flex overflow-hidden rounded-md ring-1 ring-black/40">
-              {LAYERS.map((layer) => (
-                <button
-                  key={layer.id}
-                  onClick={() => pickSource(layer.id)}
-                  aria-pressed={source === layer.id}
-                  className={`px-2 py-1 text-[11px] font-medium ${
-                    source === layer.id ? 'bg-sky-600 text-white' : 'bg-slate-900/80 text-slate-300 hover:bg-slate-800'
-                  }`}
-                >
-                  {t(layer.labelKey)}
-                </button>
-              ))}
-            </div>
             <div className="absolute right-1 top-1 flex flex-col overflow-hidden rounded-md ring-1 ring-black/40">
               <button
                 onClick={() => setZoom(view.zoom + 1)}
@@ -418,9 +354,7 @@ export function SiteMap({
                 ◎ {t('map.recenter')}
               </button>
             )}
-            <p className="pointer-events-none absolute bottom-0 right-0 bg-slate-900/70 px-1 text-[9px] leading-tight text-slate-400">
-              {tiles.attribution}
-            </p>
+            <MapCredit>{tiles.attribution}</MapCredit>
           </>
         )}
       </div>
@@ -452,10 +386,8 @@ export function SiteMap({
  * two base units that have a large sibling in `UNITS.distance`. A user who
  * already picked `km`, `yd` or `mi` is shown that unit at every size.
  */
-const SCALE_PROMOTION: Record<string, { sym: string; perUnit: number }> = {
-  m: { sym: 'km', perUnit: 1000 },
-  ft: { sym: 'mi', perUnit: 5280 },
-};
+/** The larger unit a distance unit's scale label moves up to past one of it. */
+const SCALE_PROMOTION: Record<string, string> = { m: 'km', ft: 'mi' };
 
 /**
  * Roughly how much ground a hundred pixels covers, for a sense of scale, in the
@@ -464,12 +396,9 @@ const SCALE_PROMOTION: Record<string, { sym: string; perUnit: number }> = {
 function scaleLabel(u: Units, lat: number, zoom: number): string {
   const meters = metersPerPixel(lat, zoom) * 100;
   const sym = u.sym('distance');
-  const ui = u.toUi('distance', meters);
   const up = SCALE_PROMOTION[sym];
-  if (up && ui >= up.perUnit) {
-    const big = ui / up.perUnit;
-    return withUnit(fmtNum(big, big >= 10 ? 0 : 1), up.sym);
-  }
+  const big = up ? siToUi('distance', up, meters) : 0;
+  if (up && big >= 1) return withUnit(fmtNum(big, big >= 10 ? 0 : 1), up);
   return `${u.fmt('distance', meters, 0)} ${sym}`;
 }
 

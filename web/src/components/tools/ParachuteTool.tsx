@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'react';
+import { rememberedSlot, useRemembered } from './remembered';
 import { useTranslation } from 'react-i18next';
 import { useUnits } from '../../prefs/useUnits';
 import { airDensity } from '../../services/flight/recoverySizing';
 import { LAUNCH_SITE_LIMITS } from '../../services/storage/launchLocationStore';
-import { Num, QNum } from '../sim/LaunchPanel';
+import { QNum } from '../sim/LaunchPanel';
 import { SizingFigures } from './SizingFigures';
-import { ToolGroup } from './ToolGroup';
+import { CardGroup } from '../common/CardGroup';
+import { LAUNCH_SI } from '../../prefs/launchUnits';
+import { NumberRow } from '../common/NumberRow';
 
 /**
  * Parachute sizing with no design: a descent mass, a canopy's Cd and the site's
@@ -20,24 +22,21 @@ interface Remembered {
   siteM: number | null;
   temperatureC: number | null;
 }
-let remembered: Remembered | null = null;
+const remembered = rememberedSlot<Remembered>();
 
 /** Clears the remembered inputs, so each test starts from the defaults. */
 export function forgetParachuteTool(): void {
-  remembered = null;
+  remembered.forget();
 }
 
 export function ParachuteTool() {
   const { t } = useTranslation();
   const u = useUnits();
-  const [massKg, setMassKg] = useState<number | null>(() => (remembered ? remembered.massKg : 0.5));
-  const [cd, setCd] = useState<number | null>(() => (remembered ? remembered.cd : 0.8));
-  const [diameterM, setDiameterM] = useState<number | null>(() => (remembered ? remembered.diameterM : null));
-  const [siteM, setSiteM] = useState<number | null>(() => (remembered ? remembered.siteM : 0));
-  const [temperatureC, setTemperatureC] = useState<number | null>(() => (remembered ? remembered.temperatureC : null));
-  useEffect(() => {
-    remembered = { massKg, cd, diameterM, siteM, temperatureC };
-  }, [massKg, cd, diameterM, siteM, temperatureC]);
+  const [massKg, setMassKg] = useRemembered(remembered, 'massKg', 0.5);
+  const [cd, setCd] = useRemembered(remembered, 'cd', 0.8);
+  const [diameterM, setDiameterM] = useRemembered(remembered, 'diameterM', null);
+  const [siteM, setSiteM] = useRemembered(remembered, 'siteM', 0);
+  const [temperatureC, setTemperatureC] = useRemembered(remembered, 'temperatureC', null);
 
   const rho = airDensity({ launchAltitudeM: siteM, temperatureC });
   const ready = massKg != null && massKg > 0 && cd != null && cd > 0;
@@ -49,7 +48,7 @@ export function ParachuteTool() {
           <h2 className="text-sm font-semibold text-slate-200">{t('chuteTool.title')}</h2>
           <p className="mt-1 text-xs text-slate-400">{t('chuteTool.intro')}</p>
         </div>
-        <ToolGroup title={t('chuteTool.rocket')}>
+        <CardGroup title={t('chuteTool.rocket')}>
           <QNum
             label={t('chuteTool.mass')}
             hint={t('chuteTool.massHint')}
@@ -64,7 +63,7 @@ export function ParachuteTool() {
             value={massKg}
             onChange={setMassKg}
           />
-          <Num
+          <NumberRow
             label={t('chuteTool.cd')}
             step={0.05}
             min={0.05}
@@ -86,8 +85,8 @@ export function ParachuteTool() {
             value={diameterM}
             onChange={setDiameterM}
           />
-        </ToolGroup>
-        <ToolGroup title={t('chuteTool.air')}>
+        </CardGroup>
+        <CardGroup title={t('chuteTool.air')}>
           <QNum
             label={t('landing.siteElevation')}
             field="chuteSiteElevation"
@@ -105,13 +104,13 @@ export function ParachuteTool() {
             kind="degC"
             u={u}
             stepSi={1}
-            minSi={-90 + 273.15}
-            maxSi={70 + 273.15}
+            minSi={LAUNCH_SI.degC.toSi(LAUNCH_SITE_LIMITS.temperatureC.min)}
+            maxSi={LAUNCH_SI.degC.toSi(LAUNCH_SITE_LIMITS.temperatureC.max)}
             placeholder={t('chuteTool.standard')}
             value={temperatureC}
             onChange={setTemperatureC}
           />
-        </ToolGroup>
+        </CardGroup>
       </div>
       <section className="h-fit rounded-xl bg-slate-900 p-3 ring-1 ring-white/10" aria-label={t('chuteTool.result')}>
         {ready ? (

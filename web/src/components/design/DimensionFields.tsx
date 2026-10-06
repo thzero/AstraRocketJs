@@ -4,14 +4,15 @@ import type { ComponentNode } from '../../engine/openRocketEngine';
 import { NumberInput } from '../common/NumberInput';
 import { FieldLabel, markRing } from '../common/FieldMark';
 import { UnitChip } from '../common/UnitChip';
-import { useUnits } from '../../prefs/useUnits';
+import { useUnits, type FieldUnit } from '../../prefs/useUnits';
 import { clampEntry } from '../../prefs/entryValue';
-import { unitScope } from '../../prefs/units';
+import { unitScope, type Quantity } from '../../prefs/units';
 import { MAX_FIN_COUNT, MAX_INSTANCE_COUNT, num, str } from '../../tree/nodeProps';
 import { clusterCount } from '../../tree/cluster';
 import { shapeIsClippable, shapeParamMax, shapeUsesParameter } from '../../tree/shapeProfile';
 import { FIELDS, type Field, type PanelSection } from '../../services/design/componentFields';
 import { DERIVED } from '../../services/design/derivedFields';
+import { PropSection } from './PropSection';
 
 /**
  * The property panel's per-type shape and dimension fields: the numeric row
@@ -121,13 +122,12 @@ export function FieldSection({
 }) {
   if (!fields.length) return null;
   return (
-    <div className="space-y-3 border-t border-white/5 pt-3">
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">{title}</h3>
+    <PropSection title={title}>
       {fields.map((f) => (
         <FieldRow key={f.key} node={node} field={f} onChange={onChange} onCommit={onCommit} />
       ))}
       {children}
-    </div>
+    </PropSection>
   );
 }
 
@@ -302,10 +302,21 @@ export function FieldRow({
     auto?: { on: boolean; label: string; title: string; onToggle: (on: boolean) => void };
     onChange: (v: number) => void;
   }) => <NumberField label={label} required={f.required} onCommit={onCommit} {...props} />;
+  /** The field's own stored SI number, edited in its unit with a unit chip. */
+  const inUnit = (quantity: Quantity, stepSi: number, min?: (fu: FieldUnit) => number) => {
+    const fu = u.at(scope, quantity);
+    return numeric({
+      unit: <UnitChip quantity={quantity} scope={scope} />,
+      value: fu.toUi(num(node, f.key)),
+      step: fu.step(stepSi),
+      min: min?.(fu),
+      onChange: (v) => patchNumber({ [f.key]: fu.toSi(v) }),
+    });
+  };
 
   switch (f.kind) {
     case 'select': {
-      const cur = typeof node[f.key] === 'string' ? (node[f.key] as string) : f.options[0];
+      const cur = typeof node[f.key] === 'string' ? (node[f.key] as string) : (f.fallback ?? f.options[0]);
       return (
         <label className="flex items-center justify-between gap-3">
           <span className="text-xs text-slate-400">{label}</span>
@@ -362,24 +373,10 @@ export function FieldRow({
         onChange: (v) => patchNumber({ [f.key]: Math.min(max, Math.max(1, Math.round(v))) }),
       });
     }
-    case 'mass': {
-      const fu = u.at(scope, 'mass');
-      return numeric({
-        unit: <UnitChip quantity="mass" scope={scope} />,
-        value: fu.toUi(num(node, f.key)),
-        step: fu.step(0.0005),
-        onChange: (v) => patchNumber({ [f.key]: fu.toSi(v) }),
-      });
-    }
-    case 'distance': {
-      const fu = u.at(scope, 'distance');
-      return numeric({
-        unit: <UnitChip quantity="distance" scope={scope} />,
-        value: fu.toUi(num(node, f.key)),
-        step: fu.step(f.step ?? 10),
-        onChange: (v) => patchNumber({ [f.key]: fu.toSi(v) }),
-      });
-    }
+    case 'mass':
+      return inUnit('mass', 0.0005);
+    case 'distance':
+      return inUnit('distance', f.step ?? 10);
     case 'number': {
       // The shape parameter has a shape-dependent ceiling the kernel enforces
       // (Shape.maxParameter: haack tops out at LV-Haack, 1/3). `shapeParamMax`
@@ -394,19 +391,11 @@ export function FieldRow({
         onChange: (v) => patchNumber({ [f.key]: paramMax === undefined ? v : Math.min(paramMax, Math.max(0, v)) }),
       });
     }
-    case 'angle': {
+    case 'angle':
       // Stored in radians (kernel/.ork convention), edited in the user's unit.
-      const fu = u.at(scope, 'angle');
-      return numeric({
-        unit: <UnitChip quantity="angle" scope={scope} />,
-        // Half a turn either way, in whatever unit is selected: a fixed -180
-        // would clamp a radian entry to well inside its legal range.
-        min: -fu.toUi(Math.PI),
-        step: fu.step(((f.step ?? 5) * Math.PI) / 180),
-        value: fu.toUi(num(node, f.key)),
-        onChange: (v) => patchNumber({ [f.key]: fu.toSi(v) }),
-      });
-    }
+      // Half a turn either way, in whatever unit is selected: a fixed -180
+      // would clamp a radian entry to well inside its legal range.
+      return inUnit('angle', ((f.step ?? 5) * Math.PI) / 180, (fu) => -fu.toUi(Math.PI));
     case 'bore': {
       // A tube's inner diameter, which is not stored: the node and the `.ork`
       // carry the outer radius and the WALL, and the bore is the pair of them.

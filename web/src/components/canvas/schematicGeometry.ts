@@ -1,9 +1,11 @@
 import type { ComponentNode, RocketTree, StaticInfo } from '../../engine/openRocketEngine';
-import { num, numOpt } from '../../tree/nodeProps';
-import { axialLength, axialStart, partLength } from '../../tree/position.js';
+import { anyOuterRadius, num, numOpt } from '../../tree/nodeProps';
+import { axialChain, axialLength, axialStart, partLength } from '../../tree/position.js';
 import { finSpan } from '../../tree/finPlanform.js';
+import { walkNodes } from '../../tree/treeWalk.js';
 import { nodeShape, outerProfile } from '../../tree/shapeProfile.js';
-import { tubeFinRadius } from '../../tree/tubefins.js';
+import { isFinSet, tubeFinRadius } from '../../tree/tubefins.js';
+import { isChainType } from '../../tree/componentKinds.js';
 import { KERNEL_DEFAULTS, KERNEL_MASSCOMPONENT_RADIUS } from '../../tree/kernelDefaults.js';
 import { assemblyBoundingRadius, isAssembly, resolveAssemblyRadius } from '../../tree/assembly.js';
 import { stabilityState, type StabilityState } from '../../services/flight/simReport.js';
@@ -117,15 +119,7 @@ export function calloutLayout(
 export { axialStart };
 
 export function collect<T>(nodes: ComponentNode[], f: (n: ComponentNode) => T): T[] {
-  const out: T[] = [];
-  const walk = (ns: ComponentNode[]) => {
-    for (const n of ns) {
-      out.push(f(n));
-      walk(n.children ?? []);
-    }
-  };
-  walk(nodes);
-  return out;
+  return Array.from(walkNodes(nodes), (n) => f(n));
 }
 
 /**
@@ -202,20 +196,20 @@ export function computeSchematicLayout(
   const { chPx, cw, maxHeight, fillHeight } = dims;
   // Stages flatten into one nose-to-tail chain (sustainer first, boosters
   // after — the desktop's stacking order); legacy flat trees pass through.
-  const chain = tree.components.flatMap((n) => (n.type === 'stage' ? (n.children ?? []) : [n]));
+  const chain = axialChain(tree);
   let totalLen = 0;
   let maxR = 0.001;
   for (const n of chain) {
-    if (n.type === 'nosecone' || n.type === 'bodytube' || n.type === 'transition') {
+    if (isChainType(n.type)) {
       totalLen += partLength(n);
-      maxR = Math.max(maxR, num(n, 'aftRadius', 0), num(n, 'outerRadius', 0), num(n, 'foreRadius', 0));
+      maxR = Math.max(maxR, anyOuterRadius(n));
     }
   }
   // A fin set's vertical span: freeform fins carry no 'height' key — their
   // reach is the outline's y-max (the 0.03 default clipped tall freeform fins
   // out of the adaptive-height frame).
   const spanOf = (n: ComponentNode, bodyR: number): number => {
-    if (!n.type.endsWith('finset')) return 0;
+    if (!isFinSet(n.type)) return 0;
     // Tube fins reach one tube diameter above the body surface; every planar
     // fin defers to the shared span (tree/finPlanform.ts) so this view cannot
     // drift from the exports about how tall a fin is.
@@ -240,7 +234,7 @@ export function computeSchematicLayout(
       for (const n of ns) {
         out.push(spanOf(n, r));
         if (n.children?.length) {
-          const own = Math.max(num(n, 'aftRadius', 0), num(n, 'outerRadius', 0), num(n, 'foreRadius', 0));
+          const own = anyOuterRadius(n);
           walk(n.children, own > 0 ? own : r);
         }
       }
@@ -264,7 +258,7 @@ export function computeSchematicLayout(
         vHalf = Math.max(vHalf, resolveAssemblyRadius(n, parentR) + assemblyBoundingRadius(n) + podFin);
         scanRadial(n.children ?? [], assemblyBoundingRadius(n));
       } else {
-        const r = Math.max(num(n, 'aftRadius', 0), num(n, 'outerRadius', 0), num(n, 'foreRadius', 0)) || parentR;
+        const r = anyOuterRadius(n) || parentR;
         scanRadial(n.children ?? [], r);
       }
     }
@@ -278,7 +272,7 @@ export function computeSchematicLayout(
   {
     let cx = 0;
     for (const n of chain) {
-      if (n.type === 'nosecone' || n.type === 'bodytube' || n.type === 'transition') {
+      if (isChainType(n.type)) {
         const len = partLength(n);
         snapXs.push(cx, cx + len);
         for (const child of n.children ?? []) {
@@ -288,7 +282,7 @@ export function computeSchematicLayout(
             snapXs.push(cs, cs + clen);
           }
         }
-        const r = Math.max(num(n, 'aftRadius', 0), num(n, 'outerRadius', 0), num(n, 'foreRadius', 0));
+        const r = anyOuterRadius(n);
         if (r > 0) radialSet.add(r);
         cx += len;
       }
@@ -443,6 +437,14 @@ export function zoomAbout(z: ZoomState, px: number, py: number, k: number): Zoom
   const mx = (px - z.x) / z.k;
   const my = (py - z.y) / z.k;
   return { k, x: px - mx * k, y: py - my * k };
+}
+
+/** The deepest zoom the schematic views allow. */
+export const MAX_ZOOM = 12;
+
+/** Multiply a view's scale by `f` about (px, py), held within [1, max]. */
+export function zoomStep(z: ZoomState, px: number, py: number, f: number, max: number): ZoomState {
+  return zoomAbout(z, px, py, Math.min(max, Math.max(1, z.k * f)));
 }
 
 /** Drawn extent (layout px) of one component, unioned across its instances. */

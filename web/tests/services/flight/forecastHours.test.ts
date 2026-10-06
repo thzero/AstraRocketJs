@@ -11,8 +11,9 @@ vi.mock('../../../src/engine/simClient', () => ({
   }),
 }));
 
-const { flyForecastHours, HOUR_OFFSETS } = await import('../../../src/services/flight/forecastHours');
-const { resetWeatherState, setWeatherTransport } = await import('../../../src/services/weather/openMeteo');
+const { flyForecastHours } = await import('../../../src/services/flight/forecastHours');
+const { HOUR_OFFSETS, resetWeatherState, setWeatherTransport } =
+  await import('../../../src/services/weather/openMeteo');
 const { answer } = await import('../../testing/openMeteoFixture');
 
 const start = Date.UTC(2026, 9, 5, 0) / 1000;

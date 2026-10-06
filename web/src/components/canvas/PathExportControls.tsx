@@ -14,31 +14,6 @@ export function Section({ title, children }: { title: string; children: React.Re
   );
 }
 
-export function Check({
-  checked,
-  onChange,
-  label,
-  disabled,
-}: {
-  checked: boolean;
-  onChange: (v: boolean) => void;
-  label: string;
-  disabled?: boolean;
-}) {
-  return (
-    <label className={`flex items-center gap-2 text-sm ${disabled ? 'text-slate-600' : 'text-slate-300'}`}>
-      <input
-        type="checkbox"
-        checked={checked}
-        disabled={disabled}
-        onChange={(e) => onChange(e.target.checked)}
-        className="accent-sky-500 disabled:opacity-40"
-      />
-      {label}
-    </label>
-  );
-}
-
 /** One of the two altitude-reference dropdowns: the track's, and the pins'. */
 export function AltitudeRefSelect({
   label,

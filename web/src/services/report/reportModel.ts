@@ -3,11 +3,13 @@ import { useWorkspaceStore, selectConfig, configOf } from '../../state/store';
 import { buildConfiguredRocket } from '../design/buildRocket';
 import { motorSpecs } from '../flight/flightConfigs';
 import { motorStats, type MotorStats } from './rocketReport';
-import { num } from '../../tree/nodeProps';
+import { num, numOpt } from '../../tree/nodeProps';
 import { isFinSet } from '../../tree/tubefins';
 import { axialLength } from '../../tree/position';
+import { walkNodes } from '../../tree/treeWalk';
 import { designNameOf } from '../app/appInfo';
 import { stageFileName } from '../design/orkTree';
+import { errorMessage } from '../app/errorMessage';
 
 /** The full data model for the rocket report (SI). Pure data; the PDF formats it. */
 
@@ -87,9 +89,9 @@ export function stageParts(
         material: node.materialName as string | undefined,
         density: node.density as number | undefined,
         length: num(node, 'length', 0),
-        outerR: typeof node['outerRadius'] === 'number' ? (node['outerRadius'] as number) : undefined,
-        innerR: typeof node['innerRadius'] === 'number' ? (node['innerRadius'] as number) : undefined,
-        thickness: typeof node['thickness'] === 'number' ? (node['thickness'] as number) : undefined,
+        outerR: numOpt(node, 'outerRadius'),
+        innerR: numOpt(node, 'innerRadius'),
+        thickness: numOpt(node, 'thickness'),
         mass,
       });
     }
@@ -216,7 +218,7 @@ export function assembleReport(install?: (built: ReportBuild) => void): ReportMo
         // the rocket. The stats and the aero pane then show their "not built"
         // state, which is true, and the next design edit rebuilds.
         s.applyBuild(null, null);
-        s.setErr(e instanceof Error ? e.message : String(e));
+        s.setErr(errorMessage(e));
       },
     );
   } else {
@@ -242,27 +244,22 @@ export function finSetPositions(
   rocket: { componentInfo: (id: string) => { positionX: number } },
 ): FinSetPosition[] {
   const out: FinSetPosition[] = [];
-  const walk = (nodes: ComponentNode[]) => {
-    for (const n of nodes) {
-      if (isFinSet(String(n.type)) && typeof n.id === 'string') {
-        // axialLength, not a per-type ternary here: it already dispatches
-        // freeform → root chord, trapezoid/elliptical → rootChord, everything
-        // else → length. That "everything else" is what tube fins need — they
-        // are marked like any other fin set (OpenRocket's FinMarkingGuide
-        // collects TubeFinSet beside FinSet) but their axial span is the TUBE'S
-        // length, and reading through rootChord gave every one of them a 50 mm
-        // root it does not have.
-        const root = axialLength(n);
-        try {
-          const topX = rocket.componentInfo(n.id).positionX;
-          out.push({ name: (n.name as string) || 'Fin set', topX, bottomX: topX + root });
-        } catch {
-          /* skip a fin set the engine can't locate */
-        }
-      }
-      if (n.children) walk(n.children);
+  for (const n of walkNodes(stage.children ?? [])) {
+    if (!isFinSet(String(n.type)) || typeof n.id !== 'string') continue;
+    // axialLength, not a per-type ternary here: it already dispatches
+    // freeform → root chord, trapezoid/elliptical → rootChord, everything
+    // else → length. That "everything else" is what tube fins need: they
+    // are marked like any other fin set (OpenRocket's FinMarkingGuide
+    // collects TubeFinSet beside FinSet) but their axial span is the TUBE'S
+    // length, and reading through rootChord would give every one of them a
+    // 50 mm root it does not have.
+    const root = axialLength(n);
+    try {
+      const topX = rocket.componentInfo(n.id).positionX;
+      out.push({ name: (n.name as string) || 'Fin set', topX, bottomX: topX + root });
+    } catch {
+      /* skip a fin set the engine can't locate */
     }
-  };
-  walk(stage.children ?? []);
+  }
   return out;
 }

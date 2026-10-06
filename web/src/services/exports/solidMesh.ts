@@ -7,7 +7,7 @@ import { freeformPoints, partLength } from '../../tree/position';
 import { nodeShape, outerProfile } from '../../tree/shapeProfile';
 import { tubeFinRadius } from '../../tree/tubefins';
 import { FIN_DEFAULTS, KERNEL_DEFAULTS } from '../../tree/kernelDefaults';
-import { meshTolerances, validateSolid } from './meshValidate';
+import { edgeKey, meshTolerances, undirectedEdgeCounts, validateSolid } from './meshValidate';
 
 /**
  * Build the rocket's external airframe as watertight solids for 3D print / CAD.
@@ -29,31 +29,13 @@ import { meshTolerances, validateSolid } from './meshValidate';
 // triangle of a heavily scaled-down design and still reported success.
 const SEGMENTS = 96;
 
-function edgeKey(a: number, b: number): string {
-  return a < b ? `${a}_${b}` : `${b}_${a}`;
-}
-
 /** Number of boundary (open) edges — 0 means watertight. Used by tests. */
 export function countBoundaryEdges(geo: THREE.BufferGeometry): number {
   const g = geo.index ? geo : mergeVertices(geo);
   const idx = g.getIndex();
   if (!idx) return 0;
-  const count = new Map<string, number>();
-  for (let i = 0; i < idx.count; i += 3) {
-    const a = idx.getX(i),
-      b = idx.getX(i + 1),
-      c = idx.getX(i + 2);
-    for (const [u, v] of [
-      [a, b],
-      [b, c],
-      [c, a],
-    ] as const) {
-      const k = edgeKey(u, v);
-      count.set(k, (count.get(k) ?? 0) + 1);
-    }
-  }
   let boundary = 0;
-  for (const c of count.values()) if (c !== 2) boundary++;
+  for (const c of undirectedEdgeCounts(idx).values()) if (c !== 2) boundary++;
   return boundary;
 }
 
@@ -68,21 +50,13 @@ export function makeWatertight(geo: THREE.BufferGeometry): THREE.BufferGeometry 
 
   // Directed boundary edges (a→b): an undirected edge used by exactly one
   // triangle, keeping the direction it had there so the caps wind to match.
-  const undirected = new Map<string, number>();
+  const undirected = undirectedEdgeCounts(idx);
   const dirList: Array<[number, number]> = [];
   for (let i = 0; i < idx.count; i += 3) {
     const a = idx.getX(i),
       b = idx.getX(i + 1),
       c = idx.getX(i + 2);
-    for (const [u, v] of [
-      [a, b],
-      [b, c],
-      [c, a],
-    ] as const) {
-      const k = edgeKey(u, v);
-      undirected.set(k, (undirected.get(k) ?? 0) + 1);
-      dirList.push([u, v]);
-    }
+    dirList.push([a, b], [b, c], [c, a]);
   }
   // Successors keyed by START vertex, as a MULTIMAP. A vertex where two boundary
   // loops meet (a self-touching planform, a figure-8 seam) is the start of more
@@ -309,6 +283,20 @@ function dropDegenerate(geo: THREE.BufferGeometry, areaTol = 1e-12): THREE.Buffe
 }
 
 /**
+ * Weld a freshly built solid by position and drop the triangles welding
+ * collapsed. mergeVertices compares ALL attributes, and a lathe's revolution
+ * seam and its radius-0 poles carry different uv/normal at the same position,
+ * so they only weld once uv/normal are dropped, leaving a manifold solid
+ * welded by position.
+ */
+function weldSolid(geo: THREE.BufferGeometry): THREE.BufferGeometry {
+  geo.deleteAttribute('uv');
+  geo.deleteAttribute('normal');
+  const tol = meshTolerances(geo);
+  return dropDegenerate(mergeVertices(geo, tol.weld), tol.area);
+}
+
+/**
  * Revolve an axial profile into a closed solid, laid along +X and welded.
  * `surface` is [axial (0..len), radius]; radius-0 ends become poles, non-zero
  * ends are capped back to the axis so the body is solid and watertight.
@@ -320,14 +308,7 @@ function revolveSolidX(surface: [number, number][], axialOffset: number): THREE.
   if (surface[0]![1] > 1e-9) pts.push(new THREE.Vector2(0, surface[0]![0])); // fore cap to axis
   for (const [ax, r] of surface) pts.push(new THREE.Vector2(Math.max(0, r), ax));
   if (surface[n - 1]![1] > 1e-9) pts.push(new THREE.Vector2(0, surface[n - 1]![0])); // aft cap to axis
-  let geo: THREE.BufferGeometry = new THREE.LatheGeometry(pts, SEGMENTS);
-  // mergeVertices compares ALL attributes, and a lathe's revolution seam and its
-  // radius-0 poles carry different uv/normal at the same position — so they only
-  // weld once uv/normal are dropped, leaving a manifold solid welded by position.
-  geo.deleteAttribute('uv');
-  geo.deleteAttribute('normal');
-  const tol = meshTolerances(geo);
-  geo = dropDegenerate(mergeVertices(geo, tol.weld), tol.area);
+  const geo = weldSolid(new THREE.LatheGeometry(pts, SEGMENTS));
   geo.rotateZ(-Math.PI / 2); // lathe axial (Y) -> world X
   geo.translate(axialOffset, 0, 0);
   geo.computeVertexNormals();
@@ -368,11 +349,7 @@ export function discSolid(outerR: number, innerR: number, length: number): THREE
         new THREE.Vector2(outerR, len),
         new THREE.Vector2(0, len),
       ];
-  let geo: THREE.BufferGeometry = new THREE.LatheGeometry(pts, SEGMENTS);
-  geo.deleteAttribute('uv');
-  geo.deleteAttribute('normal');
-  const discTol = meshTolerances(geo);
-  geo = dropDegenerate(mergeVertices(geo, discTol.weld), discTol.area);
+  const geo = weldSolid(new THREE.LatheGeometry(pts, SEGMENTS));
   geo.rotateZ(-Math.PI / 2); // lathe axial (Y) -> world X
   geo.computeVertexNormals();
   return geo;
@@ -407,10 +384,7 @@ function oneFinSolid(child: ComponentNode, parentRadius: number | null): THREE.B
 
   const g = new THREE.ExtrudeGeometry(shape, { depth: thickness, bevelEnabled: false });
   g.translate(0, 0, -thickness / 2);
-  g.deleteAttribute('uv');
-  g.deleteAttribute('normal');
-  const finTol = meshTolerances(g);
-  const welded = dropDegenerate(mergeVertices(g, finTol.weld), finTol.area);
+  const welded = weldSolid(g);
   welded.computeVertexNormals();
   return welded;
 }

@@ -1,4 +1,3 @@
-import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { APP_VERSION, isPreRelease } from '../../services/app/appInfo';
 import { useWorkspaceStore } from '../../state/store';
@@ -12,6 +11,7 @@ import { UndoRedoButtons } from './UndoRedoButtons';
 import { FileMenuButton } from './FileMenu';
 import { useHeaderDialogs } from './HeaderDialogs';
 import { useUndoShortcuts } from './useUndoShortcuts';
+import { useFilePick } from '../common/useFilePick';
 
 /** Top bar: title + version, the desktop workbench tabs, the save status,
  *  language, and a collapsible menu holding the New / Open (library) / Save As /
@@ -27,12 +27,13 @@ export function AppHeader() {
   const refreshDesigns = useWorkspaceStore((s) => s.refreshDesigns);
   const onSaveRasaero = useWorkspaceStore((s) => s.saveRasaero);
   const onSaveRkt = useWorkspaceStore((s) => s.saveRkt);
-  const orkRef = useRef<HTMLInputElement>(null);
-  // A second input for the same handler, differing only in its `accept`. One
+  const openFile = (f: File) => fireAction(onOpenFile(f));
+  const ork = useFilePick({ accept: '.ork', onFile: openFile });
+  // A second picker for the same handler, differing only in its `accept`. One
   // input filtered to both would show `.ork` files to somebody who picked
   // RockSim from the menu; the reader sniffs the bytes either way
   // (services/files/designFile.ts), so a mislabeled file still opens.
-  const rktRef = useRef<HTMLInputElement>(null);
+  const rkt = useFilePick({ accept: '.rkt', onFile: openFile });
   const { open, dialogs } = useHeaderDialogs();
   const openHelp = useHelpStore((s) => s.openHelp);
 
@@ -97,8 +98,8 @@ export function AppHeader() {
               void refreshDesigns();
               open('saveAs');
             },
-            onImportOrk: () => orkRef.current?.click(),
-            onImportRkt: () => rktRef.current?.click(),
+            onImportOrk: ork.pick,
+            onImportRkt: rkt.pick,
             onImportExamples: () => open('examples'),
             onExportOrk: () => fireAction(onSave()),
             onExportRkt: () => fireAction(onSaveRkt()),
@@ -119,25 +120,8 @@ export function AppHeader() {
         />
       </div>
 
-      {(
-        [
-          [orkRef, '.ork'],
-          [rktRef, '.rkt'],
-        ] as const
-      ).map(([ref, accept]) => (
-        <input
-          key={accept}
-          ref={ref}
-          type="file"
-          accept={accept}
-          className="hidden"
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            e.target.value = '';
-            if (f) fireAction(onOpenFile(f));
-          }}
-        />
-      ))}
+      {ork.input}
+      {rkt.input}
       {dialogs}
     </header>
   );

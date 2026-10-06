@@ -7,6 +7,7 @@
 // units throughout (m, kg/m^3).
 import { fetchCatalog } from '../app/remoteData';
 import type { ComponentNode, NoseShape } from '../../engine/openRocketEngine';
+import { isFiniteNumber } from '../app/numbers';
 
 interface ComponentBase {
   mfr: string;
@@ -114,10 +115,9 @@ interface ComponentCatalog {
   components: Component[];
 }
 
-const isFiniteNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 const isStr = (v: unknown): v is string => typeof v === 'string';
 /** `innerDiameter` / `cd` are `number | null` in the sync's schema. */
-const isNullableFinite = (v: unknown): boolean => v === null || isFiniteNum(v);
+const isNullableFinite = (v: unknown): boolean => v === null || isFiniteNumber(v);
 
 /**
  * One catalog row this build can hand to the editor, checked PER TYPE.
@@ -136,28 +136,28 @@ export function isComponentRow(v: unknown): v is Component {
     case 'tubecoupler':
     case 'centeringring':
       return (
-        isFiniteNum(r.materialDensity) &&
-        isFiniteNum(r.outerDiameter) &&
+        isFiniteNumber(r.materialDensity) &&
+        isFiniteNumber(r.outerDiameter) &&
         isNullableFinite(r.innerDiameter) &&
-        isFiniteNum(r.length)
+        isFiniteNumber(r.length)
       );
     case 'nosecone':
       return (
-        isFiniteNum(r.materialDensity) &&
+        isFiniteNumber(r.materialDensity) &&
         isStr(r.shape) &&
         typeof r.filled === 'boolean' &&
-        isFiniteNum(r.outerDiameter) &&
-        isFiniteNum(r.length)
+        isFiniteNumber(r.outerDiameter) &&
+        isFiniteNumber(r.length)
       );
     case 'bulkhead':
       return (
-        isFiniteNum(r.materialDensity) &&
-        isFiniteNum(r.outerDiameter) &&
-        isFiniteNum(r.length) &&
+        isFiniteNumber(r.materialDensity) &&
+        isFiniteNumber(r.outerDiameter) &&
+        isFiniteNumber(r.length) &&
         typeof r.filled === 'boolean'
       );
     case 'parachute':
-      return isFiniteNum(r.diameter) && isNullableFinite(r.cd);
+      return isFiniteNumber(r.diameter) && isNullableFinite(r.cd);
     default:
       return false;
   }

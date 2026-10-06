@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { parseEntry } from '../../prefs/entryValue';
 
 /** Round for DISPLAY only — trims unit-conversion float noise (e.g. 0.1 + 0.2).
@@ -48,6 +48,7 @@ export function NumberInput({
   className,
   ariaLabel,
   invalid,
+  commitOnBlur = false,
 }: {
   value: number | null;
   onChange: (v: number | null) => void;
@@ -71,9 +72,29 @@ export function NumberInput({
    * ("Length mm"), and the name changes whenever the unit does.
    */
   ariaLabel?: string;
+  /**
+   * Report the typed value once, on blur or Enter, instead of on every
+   * keystroke: for a field whose every value costs something to apply (the
+   * aero sweep runs the kernel; a settings write hits storage). A visit that
+   * typed nothing reports nothing.
+   */
+  commitOnBlur?: boolean;
 }) {
   // null ⇒ not editing: mirror the prop. A string ⇒ the in-progress keystrokes.
   const [draft, setDraft] = useState<string | null>(null);
+  const edited = useRef(false);
+  const commit = () => {
+    if (commitOnBlur && edited.current && draft !== null) {
+      if (draft.trim() === '') onChange(null);
+      else {
+        const v = parseFieldValue(draft, min, max);
+        if (v !== null) onChange(v);
+      }
+    }
+    edited.current = false;
+    setDraft(null);
+    onCommit?.();
+  };
   const blank = value === null || value === undefined || Number.isNaN(value);
   return (
     <input
@@ -96,6 +117,10 @@ export function NumberInput({
       onChange={(e) => {
         const raw = e.target.value;
         setDraft(raw);
+        if (commitOnBlur) {
+          edited.current = true;
+          return;
+        }
         // A BLANK box is a real edit and is reported as such. Text that is not
         // a storable number - "abc", a lone "-" or ".", or a value finite only
         // as typed ("1e999") - commits NOTHING instead, because `null` used to
@@ -111,10 +136,8 @@ export function NumberInput({
         if (v === null) return;
         onChange(v);
       }}
-      onBlur={() => {
-        setDraft(null);
-        onCommit?.();
-      }}
+      onBlur={commit}
+      onKeyDown={commitOnBlur ? (e) => e.key === 'Enter' && commit() : undefined}
     />
   );
 }

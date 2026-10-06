@@ -1,10 +1,9 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import * as THREE from 'three';
-import { Line } from '@react-three/drei';
+import type * as THREE from 'three';
 import type { StaticInfo } from '../../engine/openRocketEngine';
 import { useUnits } from '../../prefs/useUnits';
-import { CalloutLabel } from './rocketCallouts';
+import { AxisCallout } from './rocketCallouts';
 import { marginText } from './schematicGeometry';
 import { CP_INK, MARGIN_COLOR } from './stabilityGadget';
 
@@ -48,44 +47,19 @@ export function StabilityCallout({
       color: MARGIN_COLOR[margin.state],
     };
   }, [info, cal, t, u]);
-  // The CP leader's endpoints, memoized: drei's Line rebuilds its geometry on
-  // every new `points` identity, and a literal here was a new array per render.
-  const cpX = info.cp;
-  const cpLeader = useMemo(
-    () =>
-      [
-        [cpX, 0, 0],
-        [cpX, -maxR * 1.7, 0],
-      ] as [number, number, number][],
-    [cpX, maxR],
-  );
-
   return (
-    <>
-      <sprite position={[info.cp, 0, 0]} scale={[markerR * 0.5, markerR * 0.5, 1]} renderOrder={12}>
-        <spriteMaterial map={tex} depthTest={false} transparent />
-      </sprite>
-      <Line
-        points={cpLeader}
-        color={CP_INK}
-        lineWidth={1.4}
-        dashed
-        dashSize={maxR * 0.15}
-        gapSize={maxR * 0.1}
-        depthTest={false}
-        transparent
-        renderOrder={12}
-      />
-      {cpCallout && (
-        <CalloutLabel
-          text={cpCallout.text}
-          color={cpCallout.color}
-          place="right"
-          position={[info.cp, -maxR * 1.7, 0]}
-          height={markerR * 0.52}
-          gap={markerR * 0.3}
-        />
-      )}
-    </>
+    <AxisCallout
+      x={info.cp}
+      dir={-1}
+      color={CP_INK}
+      tex={tex}
+      label={cpCallout?.text}
+      labelColor={cpCallout?.color}
+      place="right"
+      len={maxR * 1.7}
+      markerR={markerR}
+      dashSize={maxR * 0.15}
+      gapSize={maxR * 0.1}
+    />
   );
 }

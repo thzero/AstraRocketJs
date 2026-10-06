@@ -18,14 +18,14 @@ describe('the map scale reads in the user unit', () => {
     // `distance` offers ft, yd and mi, and this was the one length readout on the
     // panel that ignored the choice.
     expect(text()).toContain("u.sym('distance')");
-    expect(text()).toContain("u.toUi('distance'");
+    expect(text()).toContain("u.fmt('distance'");
   });
 
   it('states its promotion ladder rather than assuming metric', () => {
     // Promoting is still worth doing - "1.2 km" beats "1234 m" - so the ladder is
     // declared for the two base units that have a large sibling in UNITS.distance.
     expect(text()).toContain('SCALE_PROMOTION');
-    expect(text()).toMatch(/ft: \{ sym: 'mi'/);
+    expect(text()).toMatch(/ft: 'mi'/);
   });
 });
 

@@ -280,7 +280,8 @@ describe('ComponentPicker', () => {
       const { dialog } = await open('bodytube');
       fireEvent.click(head(dialog, 'Length'));
       const th = [...dialog.querySelectorAll('thead th')];
-      const sorted = th.filter((h) => h.getAttribute('aria-sort') !== 'none');
+      // Only a sortable column carries aria-sort at all; one sorted says which way.
+      const sorted = th.filter((h) => h.hasAttribute('aria-sort') && h.getAttribute('aria-sort') !== 'none');
       expect(sorted.length).toBe(1);
       expect(sorted[0]!.textContent).toContain('Length');
       expect(sorted[0]!.getAttribute('aria-sort')).toBe('ascending');

@@ -417,7 +417,7 @@
     "aft": "Traseira",
     "cutaway": "Corte",
     "cutawayTitle": "Abrir a fuselagem pelo eixo central para ver o interior",
-    "roll": "Rolamento {{deg}}°",
+    "roll": "Rolamento {{deg}}",
     "rollHint": "Rolamento: roda as aletas em torno do eixo (ou arraste o desenho)",
     "rollAria": "Ângulo de rolamento (graus)",
     "loading3d": "A carregar 3D…",

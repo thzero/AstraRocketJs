@@ -4,13 +4,7 @@ import { shapeParamDefault } from '../../../tree/shapeProfile';
 import { xmlText as text } from '../xmlUtil';
 import { COMPONENT_DEFAULTS } from '../../design/componentDefaults';
 import { clampCount, finiteNum } from './numbers';
-import {
-  MAX_ASSEMBLY_INSTANCES,
-  MAX_COMPONENTS,
-  MAX_FIN_POINTS,
-  MAX_LINE_COUNT,
-  MAX_NESTING_DEPTH,
-} from './importLimits';
+import { MAX_ASSEMBLY_INSTANCES, MAX_FIN_POINTS, MAX_LINE_COUNT, checkDepth, countComponent } from './importLimits';
 import {
   autoRadiusTag,
   finCountTag,
@@ -38,6 +32,7 @@ import {
   readMotor,
   type OrkImportContext,
 } from './importConfigs';
+import { degToRad } from '../../../prefs/units';
 
 /**
  * One reader per .ork element tag: the node the element becomes, before its
@@ -65,7 +60,7 @@ const readThicknessOrFilled = (el: Element, n: ComponentNode, fallback: number) 
 
 const readCant = (el: Element, n: ComponentNode) => {
   const cantDeg = numTag(el, 'cant', 0);
-  if (cantDeg !== 0) n['cant'] = (cantDeg * Math.PI) / 180;
+  if (cantDeg !== 0) n['cant'] = degToRad(cantDeg);
   const cs = text(el, ':scope > crosssection');
   if (cs && cs !== 'square') n['crossSection'] = cs;
 };
@@ -89,7 +84,7 @@ const readRadial = (el: Element, n: ComponentNode) => {
   const radPos = nonNegTag(el, 'radialposition', 0);
   if (radPos !== 0) n['radialPosition'] = radPos;
   const radDir = numTag(el, 'radialdirection', 0);
-  if (radDir !== 0) n['radialDirection'] = (radDir * Math.PI) / 180;
+  if (radDir !== 0) n['radialDirection'] = degToRad(radDir);
 };
 
 const readNosecone: NodeReader = (_ctx, el) => {
@@ -490,9 +485,7 @@ const NODE_READERS: Record<string, NodeReader> = {
 
 /** The nodes under `parentEl`'s <subcomponents>, recursively. */
 function convertChildren(ctx: OrkImportContext, parentEl: Element, depth = 0): ComponentNode[] {
-  if (depth > MAX_NESTING_DEPTH) {
-    throw new Error('This .ork is nested too deeply to open (possibly malformed).');
-  }
+  checkDepth(depth, '.ork');
   const out: ComponentNode[] = [];
   const wrap = parentEl.querySelector(':scope > subcomponents');
   if (!wrap) return out;
@@ -504,9 +497,7 @@ function convertChildren(ctx: OrkImportContext, parentEl: Element, depth = 0): C
     }
     // Counted here rather than in each reader: this is the one place every
     // child component enters the tree, whatever its type.
-    if (++ctx.nodeCount > MAX_COMPONENTS) {
-      throw new Error('This .ork declares too many components to open (possibly malformed).');
-    }
+    countComponent(ctx, '.ork');
     const node = read(ctx, el);
     const kids = convertChildren(ctx, el, depth + 1);
     if (kids.length > 0) node.children = kids;
@@ -521,9 +512,7 @@ function convertChildren(ctx: OrkImportContext, parentEl: Element, depth = 0): C
  */
 export function readStages(ctx: OrkImportContext, stages: Element[]): ComponentNode[] {
   return stages.map((stageEl, i) => {
-    if (++ctx.nodeCount > MAX_COMPONENTS) {
-      throw new Error('This .ork declares too many components to open (possibly malformed).');
-    }
+    countComponent(ctx, '.ork');
     const stage: ComponentNode = {
       type: 'stage',
       id: freshId(),

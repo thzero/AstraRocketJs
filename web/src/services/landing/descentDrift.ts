@@ -1,4 +1,7 @@
 import type { GroundPoint } from '../flight/groundTrack';
+import { offsetToLatLon } from '../map/geodesy';
+import { degToRad } from '../../prefs/units';
+import { bearingFromPad, distanceFromPad } from '../flight/groundTrack';
 
 /**
  * Where a rocket coming down under its recovery lands, estimated from typed
@@ -65,18 +68,6 @@ export interface DriftResult {
 /** Height of one integration step, meters. */
 const STEP_M = 10;
 
-/** Mean Earth radius (m), for the small-offset conversion between meters and degrees. */
-const EARTH_RADIUS_M = 6_371_008.8;
-const DEG = Math.PI / 180;
-
-/** A point `east`, `north` meters from a site, as latitude and longitude. */
-export function offsetToLatLon(latDeg: number, lonDeg: number, p: GroundPoint): { lat: number; lon: number } {
-  return {
-    lat: latDeg + p.north / (EARTH_RADIUS_M * DEG),
-    lon: lonDeg + p.east / (EARTH_RADIUS_M * DEG * Math.cos(latDeg * DEG)),
-  };
-}
-
 /**
  * The air's velocity at an altitude (m above sea level), east and north in m/s:
  * the direction it moves TOWARD, opposite to where the wind blows from.
@@ -87,7 +78,7 @@ export function offsetToLatLon(latDeg: number, lonDeg: number, p: GroundPoint): 
 export function airVelocity(wind: readonly WindLayer[], altitudeM: number, speedFactor = 1, turnDeg = 0) {
   if (wind.length === 0) return { east: 0, north: 0 };
   const comp = (l: WindLayer) => {
-    const to = (l.fromDeg + 180 + turnDeg) * DEG;
+    const to = degToRad(l.fromDeg + 180 + turnDeg);
     return { east: l.speed * speedFactor * Math.sin(to), north: l.speed * speedFactor * Math.cos(to) };
   };
   if (altitudeM <= wind[0]!.altitudeM) return comp(wind[0]!);
@@ -140,7 +131,7 @@ export function descentDrift(input: DriftInput): DriftResult {
     landingLonDeg: lon,
     groundElevationM: floor,
     timeS: t,
-    distanceM: Math.hypot(pos.east, pos.north),
-    bearingDeg: (((Math.atan2(pos.east, pos.north) / DEG) % 360) + 360) % 360,
+    distanceM: distanceFromPad(pos),
+    bearingDeg: bearingFromPad(pos),
   };
 }

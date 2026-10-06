@@ -14,6 +14,7 @@ import {
   stabilityRows,
   type HeatStyle,
 } from './aeroTables';
+import { ToggleButton } from '../common/ToggleButton';
 
 /**
  * The AeroAnalysis "Per component" pane: the three tables that report one
@@ -23,6 +24,17 @@ import {
  * the two would otherwise differ only by case, which a case-insensitive
  * filesystem resolves to whichever it finds first.
  */
+
+/** Five swatches of the shading ramp, from a fifth of `top` up to `top`. */
+function HeatRamp({ top, style }: { top: number; style: HeatStyle }) {
+  return (
+    <span className="flex overflow-hidden rounded-sm ring-1 ring-white/10">
+      {[0.2, 0.4, 0.6, 0.8, 1].map((f) => (
+        <span key={f} className="h-2.5 w-4" style={heat(f * top, top, style)} />
+      ))}
+    </span>
+  );
+}
 
 /** The ramp, shown once so the shading is readable rather than decorative. */
 function HeatLegend({ max, unit, style }: { max: number; unit: string; style: HeatStyle }) {
@@ -34,11 +46,7 @@ function HeatLegend({ max, unit, style }: { max: number; unit: string; style: He
   return (
     <div className="flex flex-wrap items-center gap-1.5 px-1 pt-1.5 text-[10px] text-slate-600">
       <span>{style === 'openrocket' ? t('aero.absolute') : t('aero.share')}</span>
-      <span className="flex overflow-hidden rounded-sm ring-1 ring-white/10">
-        {[0.2, 0.4, 0.6, 0.8, 1].map((f) => (
-          <span key={f} className="h-2.5 w-4" style={heat(f * top, top, style)} />
-        ))}
-      </span>
+      <HeatRamp top={top} style={style} />
       <span className="tabular-nums">
         0 &ndash; {fmtNum(top, 3)} {unit}
       </span>
@@ -47,17 +55,15 @@ function HeatLegend({ max, unit, style }: { max: number; unit: string; style: He
           writes the same preference, so the two stay in step and it sticks. */}
       <span className="ml-auto flex items-center gap-1">
         {(['sky', 'openrocket'] as const).map((v) => (
-          <button
+          <ToggleButton
             key={v}
+            active={style === v}
             onClick={() => update({ aeroHeat: v })}
-            aria-pressed={style === v}
             title={t('settings.aeroHeatNote')}
-            className={`rounded px-1.5 py-0.5 text-[10px] font-medium ring-1 ring-white/10 ${
-              style === v ? 'bg-sky-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-            }`}
+            className="rounded px-1.5 py-0.5 text-[10px] font-medium ring-1 ring-white/10"
           >
             {t(v === 'sky' ? 'settings.aeroHeatSky' : 'settings.aeroHeatOr')}
-          </button>
+          </ToggleButton>
         ))}
       </span>
     </div>
@@ -413,11 +419,7 @@ export function RollTable({ sweep, machs, mach }: { sweep: AeroSweep; machs: num
       {shaded && (
         <div className="flex items-center gap-1.5 px-1 pt-1.5 text-[10px] text-slate-600">
           <span>{t('aero.columnShare')}</span>
-          <span className="flex overflow-hidden rounded-sm ring-1 ring-white/10">
-            {[0.2, 0.4, 0.6, 0.8, 1].map((f) => (
-              <span key={f} className="h-2.5 w-4" style={heat(f, 1, 'sky')} />
-            ))}
-          </span>
+          <HeatRamp top={1} style="sky" />
         </div>
       )}
       <p className="px-1 pt-1.5 text-[10px] leading-snug text-slate-600">{t('aero.rollNote')}</p>

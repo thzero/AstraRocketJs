@@ -58,13 +58,14 @@ export interface MountFit {
  * would refuse a motor the rocket can actually fly.
  */
 export function mountFit(node: Record<string, unknown>): MountFit | null {
-  const or = typeof node['outerRadius'] === 'number' ? node['outerRadius'] : null;
+  const finite = (k: string): number | null => (Number.isFinite(node[k]) ? (node[k] as number) : null);
+  const or = finite('outerRadius');
   if (or == null) return null;
   // A missing or non-finite wall is the type's kernel default, never 0 (the
   // bore would be the whole outside) and never NaN (every fit would pass).
   const th = Number.isFinite(node['thickness']) ? (node['thickness'] as number) : tubeWall(node['type']);
-  const tubeLen = typeof node['length'] === 'number' ? node['length'] : null;
-  const overhang = typeof node['motorOverhang'] === 'number' ? node['motorOverhang'] : 0;
+  const tubeLen = finite('length');
+  const overhang = finite('motorOverhang') ?? 0;
   return {
     bore: (or - th) * 2 * 1000,
     ...(tubeLen != null ? { maxLength: (tubeLen + overhang) * 1000 } : {}),

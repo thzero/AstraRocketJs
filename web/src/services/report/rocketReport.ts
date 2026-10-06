@@ -1,5 +1,6 @@
 import type { MotorSpec } from '../../engine/openRocketEngine';
-import { impulse, impulseClass, type Sample } from '../motors/motorCombine';
+import { impulseClass } from '../motors/motorCombine';
+import { curveStats } from '../motors/motorMath';
 
 /**
  * Report computations — the numbers that back the print/export rocket report.
@@ -29,17 +30,17 @@ export interface MotorStats {
 
 /** Thrust-curve summary for one motor. */
 export function motorStats(spec: MotorSpec): MotorStats {
-  const samples: Sample[] = spec.times.map((t, i) => [t, spec.thrusts[i] ?? 0]);
-  const totalImpulse = impulse(samples);
-  const burnTime = spec.times.length ? spec.times[spec.times.length - 1]! : 0;
+  // A loop for the peak, not Math.max(...thrusts): spreading a very long curve
+  // into arguments overflows the stack.
+  const stats = curveStats(spec.times.map((t, i) => [t, spec.thrusts[i] ?? 0]));
   return {
     designation: spec.designation,
     manufacturer: spec.manufacturer,
-    avgThrust: burnTime > 0 ? totalImpulse / burnTime : 0,
-    maxThrust: spec.thrusts.length ? Math.max(...spec.thrusts) : 0,
-    burnTime,
-    totalImpulse,
-    impulseClass: impulseClass(totalImpulse),
+    avgThrust: stats.avg,
+    maxThrust: stats.max,
+    burnTime: stats.burn,
+    totalImpulse: stats.impulse,
+    impulseClass: impulseClass(stats.impulse),
     weight: spec.masses?.length ? spec.masses[0]! : 0,
     diameter: spec.diameter,
     length: spec.length,

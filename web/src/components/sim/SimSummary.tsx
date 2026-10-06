@@ -4,9 +4,8 @@ import { UnitChip } from '../common/UnitChip';
 import { useUnits } from '../../prefs/useUnits';
 import { unitScope } from '../../prefs/units';
 import type { FlightResult } from '../../engine/api';
-import { maxQ } from '../../services/flight/flightEvents';
+import { maxQ, seriesAt } from '../../services/flight/flightEvents';
 import { distanceFromPad, landingPoint } from '../../services/flight/groundTrack';
-import { lerpAt } from '../../services/flight/interpolate';
 import { stabilityTone } from '../../services/flight/simReport';
 import { useSettings } from '../../state/SettingsProvider';
 import { confirm } from '../../state/confirmStore';
@@ -190,8 +189,8 @@ export function SimSummary({ sim }: { sim: FlightResult | null }) {
   // "Stability" tile (Mach 0.3, fully loaded). OpenRocket records the same
   // series but buries it at the "# Event LAUNCHROD" line of a data export.
   const rodTime = sim?.events.find((e) => e.type === 'LAUNCHROD')?.time;
-  const railMargin = sim && rodTime != null ? lerpAt(sim.series.time, sim.series.stability, rodTime) : null;
-  const railCp = sim && rodTime != null ? lerpAt(sim.series.time, sim.series.cpLocation, rodTime) : null;
+  const railMargin = sim && rodTime != null ? seriesAt(sim.series, 'stability', rodTime) : null;
+  const railCp = sim && rodTime != null ? seriesAt(sim.series, 'cpLocation', rodTime) : null;
   // Downrange (lateral) landing distance: the last sample where both halves of
   // the drift are finite, the same point the ground track reports.
   const landing = sim ? landingPoint(sim.series) : null;

@@ -1,5 +1,6 @@
 import type { ComponentNode, RocketTree } from '../engine/openRocketEngine';
 import { num } from './nodeProps';
+import { findWithParent } from './treeWalk';
 import { freeformPoints, freeformRootChord } from './position';
 import { FIN_DEFAULTS, KERNEL_BODYTUBE_OUTER_RADIUS } from './kernelDefaults';
 
@@ -114,7 +115,7 @@ export function ellipticalFinPoints(rootChord: number, height: number): [number,
 }
 
 /** A trapezoid fin's four dimensions, with the one agreed set of fallbacks. */
-function trapezoidDims(node: ComponentNode): { root: number; tip: number; sweep: number; height: number } {
+export function trapezoidDims(node: ComponentNode): { root: number; tip: number; sweep: number; height: number } {
   return {
     root: num(node, 'rootChord', FIN_DEFAULTS.rootChord),
     tip: num(node, 'tipChord', FIN_DEFAULTS.tipChord),
@@ -131,6 +132,15 @@ function trapezoidDims(node: ComponentNode): { root: number; tip: number; sweep:
  */
 export function trapezoidFinPoints(node: ComponentNode): [number, number][] {
   const { root, tip, sweep, height } = trapezoidDims(node);
+  return trapezoidPoints(root, tip, sweep, height);
+}
+
+/**
+ * The `TrapezoidFinSet.getFinPoints()` outline from explicit dimensions (m),
+ * for a caller whose fallbacks differ from `FIN_DEFAULTS` (RockSim's are zero).
+ * Same collapse rule: a tip chord at or below 0.0001 m emits a triangle.
+ */
+export function trapezoidPoints(root: number, tip: number, sweep: number, height: number): [number, number][] {
   const pts: [number, number][] = [
     [0, 0],
     [sweep, height],
@@ -281,19 +291,12 @@ export function finCutContour(node: ComponentNode, parentRadius: number | null):
  * different tab depths.
  */
 export function parentRadiusOf(tree: RocketTree, nodeId: string): number | null {
-  let found: number | null = null;
-  const walk = (parent: ComponentNode): boolean => {
-    for (const child of parent.children ?? []) {
-      if (child.id === nodeId) {
-        found = symmetricRadius(parent);
-        return true;
-      }
-      if (walk(child)) return true;
-    }
-    return false;
-  };
-  for (const stage of tree.components) if (walk(stage)) break;
-  return found;
+  // Searched below each top-level node, which is never itself the fin.
+  for (const stage of tree.components) {
+    const hit = findWithParent(stage.children ?? [], nodeId, stage);
+    if (hit) return hit.parent ? symmetricRadius(hit.parent) : null;
+  }
+  return null;
 }
 
 /** The mounting radius of a symmetric body component, or `null` if it is not one. */

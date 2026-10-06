@@ -3,20 +3,30 @@ import { useTranslation } from 'react-i18next';
 import * as THREE from 'three';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Line, Html } from '@react-three/drei';
-import type { ComponentNode, FlightResult, RocketTree } from '../../engine/openRocketEngine';
-import { num } from '../../tree/nodeProps';
-import { buildPieces, type Piece } from './Rocket3D';
-import { colorForType, mergePalette, type PartPalette } from '../../services/design/partColors';
+import type { FlightResult, RocketTree } from '../../engine/openRocketEngine';
+import type { Piece } from './Rocket3D';
+import { usePieces } from './usePieces';
+import { mergePalette } from '../../services/design/partColors';
 import { useSettings } from '../../state/SettingsProvider';
 import { fmtNum } from '../../i18n/format';
 import { useUnits } from '../../prefs/useUnits';
 import { EVENT_LABEL } from '../../services/flight/simReport';
-import { buildFlightScene, indexForProgress, modelPoseAt, newModelPose, type FlightScene } from './flightScene';
-import { colorOf, type MotorDims } from './schematicGeometry';
+import {
+  buildFlightScene,
+  findRecovery,
+  indexForProgress,
+  modelPoseAt,
+  newModelPose,
+  type FlightScene,
+} from './flightScene';
+import type { MotorDims } from './schematicGeometry';
 import { FlightGroundMap } from './FlightGroundMap';
 import { TILE_SOURCES, type TileSourceId } from '../../services/map/slippyMap';
-import { groundImagery, rememberGroundImagery, rememberTileLayer, tileLayer } from '../../services/map/tileLayer';
+import { LAYERS } from '../common/map/mapStyle';
+import { MapCredit, TileLayerButtons } from '../common/map/MapParts';
+import { useGroundLayer } from '../common/map/useTileVerdict';
 import { MIN_EXTENT_M } from '../../services/flight/groundTrack';
+import { ColorInput } from '../common/ColorInput';
 
 /**
  * 3D flight path (adapted from Vector Celeste's Flight3D, one better). Draws the
@@ -43,42 +53,6 @@ const PLAY_SECONDS = 8; // wall-clock length of a full 1× playback (time-based,
 /** How often the frame loop hands React a progress sample for the HUD/slider. */
 const HUD_INTERVAL_MS = 100;
 const SPEEDS = [0.25, 0.5, 1, 2, 4];
-
-type Recovery =
-  | { kind: 'parachute'; diameter: number; color: string }
-  | { kind: 'streamer'; length: number; width: number; color: string }
-  | null;
-function findRecovery(tree: RocketTree, palette: PartPalette): Recovery {
-  let found: Recovery = null;
-  const recColor = (n: ComponentNode) => colorOf(n, colorForType(n.type, palette));
-  const walk = (nodes: ComponentNode[]) => {
-    for (const n of nodes) {
-      if (!found && n.type === 'parachute')
-        found = { kind: 'parachute', diameter: num(n, 'diameter', 0.3), color: recColor(n) };
-      else if (!found && n.type === 'streamer')
-        found = {
-          kind: 'streamer',
-          length: num(n, 'stripLength', 0.4),
-          width: num(n, 'stripWidth', 0.05),
-          color: recColor(n),
-        };
-      if (n.children) walk(n.children);
-    }
-  };
-  walk(tree.components);
-  return found;
-}
-
-/**
- * The three layer buttons, spelled out rather than built from a variable, which
- * is invisible to the i18n key-coverage test. Same set and same session memory
- * as the ground track's.
- */
-const LAYERS = [
-  { id: 'off', labelKey: 'map.none' },
-  { id: 'satellite', labelKey: 'map.satellite' },
-  { id: 'street', labelKey: 'map.street' },
-] as const satisfies readonly { id: 'off' | TileSourceId; labelKey: string }[];
 
 /**
  * How far past the flight's own reach the ground map extends.
@@ -120,22 +94,13 @@ export function FlightPath3D({
   const [countdown, setCountdown] = useState<number | null>(null);
   const [loop, setLoop] = useState(false);
   const progressRef = useRef(0);
+  const site = latitudeDeg != null && longitudeDeg != null ? { lat: latitudeDeg, lon: longitudeDeg } : null;
   /**
    * Which imagery lies on the ground, shared with the site map and the ground
    * track for the session (services/map/tileLayer.ts) so "satellite or street" is
    * one answer across the app.
    */
-  const [layer, setLayer] = useState<'off' | TileSourceId>(() => (groundImagery() ? tileLayer() : 'off'));
-  const [unreachable, setUnreachable] = useState(false);
-  const onUnavailable = useCallback(() => setUnreachable(true), []);
-  const pickLayer = (next: 'off' | TileSourceId) => {
-    rememberGroundImagery(next !== 'off');
-    if (next !== 'off') rememberTileLayer(next);
-    // A failed verdict is dropped, so pressing the layer you are already on is
-    // a retry rather than a button that does nothing.
-    setUnreachable(false);
-    setLayer(next);
-  };
+  const ground = useGroundLayer(site !== null);
   // Scene objects the frame loop mutates directly.
   const modelRef = useRef<THREE.Group>(null);
   const flameRef = useRef<THREE.Group>(null);
@@ -148,13 +113,7 @@ export function FlightPath3D({
     if (line) line.visible = false;
   }, []);
 
-  const { pieces, totalLen, maxR } = useMemo(() => buildPieces(tree, motors, palette), [tree, motors, palette]);
-  useEffect(
-    () => () => {
-      for (const p of pieces) p.geometry.dispose();
-    },
-    [pieces],
-  );
+  const { pieces, totalLen, maxR } = usePieces(tree, motors, palette);
   const modelScale = MODEL_LEN / Math.max(totalLen, 0.05);
   const recovery = useMemo(() => findRecovery(tree, palette), [tree, palette]);
 
@@ -250,8 +209,7 @@ export function FlightPath3D({
     return Math.max(MIN_EXTENT_M, (far / scene.unitsPerMeter) * GROUND_MARGIN);
   }, [scenePts, scene.unitsPerMeter]);
 
-  const site = latitudeDeg != null && longitudeDeg != null ? { lat: latitudeDeg, lon: longitudeDeg } : null;
-  const mapSource: TileSourceId | null = site && layer !== 'off' && !unreachable ? layer : null;
+  const mapSource: TileSourceId | null = ground.imagery === 'unavailable' ? null : ground.source;
 
   if (n < 2) {
     return <div className="grid h-full place-items-center text-sm text-slate-500">{t('sim.prompt')}</div>;
@@ -277,7 +235,8 @@ export function FlightPath3D({
             radiusM={groundRadiusM}
             unitsPerMeter={scene.unitsPerMeter}
             source={mapSource}
-            onUnavailable={onUnavailable}
+            onTileLoad={ground.onTileLoad}
+            onTileError={ground.onTileError}
           />
         )}
         <gridHelper args={[120, 60, '#33506a', '#18293a']} position={[0, 0.02, 0]} />
@@ -377,31 +336,19 @@ export function FlightPath3D({
       </div>
       {/* Offered only where there is a coordinate to center the ground on. */}
       {site && (
-        <div className="absolute left-3 top-16 flex overflow-hidden rounded-md ring-1 ring-black/40">
-          {LAYERS.map((l) => (
-            <button
-              key={l.id}
-              onClick={() => pickLayer(l.id)}
-              aria-pressed={layer === l.id}
-              className={`px-2 py-1 text-[11px] font-medium ${
-                layer === l.id ? 'bg-sky-600 text-white' : 'bg-slate-900/80 text-slate-300 hover:bg-slate-800'
-              }`}
-            >
-              {t(l.labelKey)}
-            </button>
-          ))}
-        </div>
+        <TileLayerButtons
+          layers={LAYERS}
+          value={ground.layer}
+          onPick={ground.pick}
+          className="absolute left-3 top-16"
+        />
       )}
       {/* A condition of using the tiles at all, so it goes wherever they do. */}
-      {mapSource && (
-        <p className="pointer-events-none absolute bottom-16 right-3 bg-slate-900/70 px-1 text-[9px] leading-tight text-slate-400">
-          {TILE_SOURCES[mapSource].attribution}
-        </p>
-      )}
-      {site && layer !== 'off' && unreachable && (
-        <p className="pointer-events-none absolute bottom-16 right-3 bg-slate-900/70 px-1 text-[9px] leading-tight text-amber-400">
+      {mapSource && <MapCredit className="absolute bottom-16 right-3">{TILE_SOURCES[mapSource].attribution}</MapCredit>}
+      {ground.source && ground.imagery === 'unavailable' && (
+        <MapCredit warn className="absolute bottom-16 right-3">
           {t('map.offline')}
-        </p>
+        </MapCredit>
       )}
 
       <div className="absolute inset-x-3 bottom-3 flex items-center gap-2 rounded-lg bg-slate-900/85 px-3 py-2 ring-1 ring-white/10">
@@ -775,37 +722,11 @@ function Hud({ label, value }: { label: string; value: string }) {
 
 /** Legend row that doubles as the phase-color editor — click the swatch to recolor. */
 function Legend({ color, label, onChange }: { color: string; label: string; onChange: (c: string) => void }) {
-  const ref = useRef<HTMLInputElement>(null);
-  // The NATIVE `change` event: a color input fires it once, when the OS picker
-  // closes with a new value, whereas React's `onChange` maps to `input` and
-  // fires on every drag tick. Closing the picker with its own OK does not always
-  // move focus, so blur alone leaves the swatch showing the previous color until
-  // something else takes focus. `onChange` is a stable useCallback from the
-  // parent, so this subscribes once per color rather than once per render.
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const commit = () => {
-      if (el.value !== color) onChange(el.value);
-    };
-    el.addEventListener('change', commit);
-    return () => el.removeEventListener('change', commit);
-  }, [color, onChange]);
   return (
     <label className="flex cursor-pointer items-center gap-1.5 text-slate-300" title={label}>
-      <input
-        ref={ref}
-        type="color"
-        // `defaultValue` + commit on blur or native change, not a controlled
-        // per-`input` write. `onChange` on a color input fires continuously
-        // while the OS picker is dragged, and each tick wrote the whole
-        // settings object through the provider to persistent storage - dozens
-        // of writes per gesture. PropertyPanel's color field defers the same way.
-        defaultValue={color}
-        key={color}
-        onBlur={(e) => {
-          if (e.target.value !== color) onChange(e.target.value);
-        }}
+      <ColorInput
+        value={color}
+        onCommit={onChange}
         className="h-3 w-3 cursor-pointer appearance-none rounded-sm border border-white/20 bg-transparent p-0"
         style={{ background: color }}
       />

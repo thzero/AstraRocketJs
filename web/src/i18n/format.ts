@@ -94,6 +94,38 @@ export function partLabel(
   return own || t(`part.${node.type}`, { defaultValue: node.type });
 }
 
+/**
+ * An instant on the launch site's clock, with the zone named so it cannot be
+ * read as the viewer's. `year: false` drops the year; `timeOnly` gives just the
+ * hour and minute (a table of hours on one known day). A zone the browser does
+ * not know (it comes from Open-Meteo and from a saved weather source) falls back
+ * to the viewer's clock rather than throwing in the middle of a render.
+ */
+export function fmtSiteTime(
+  at: string | number | Date,
+  timeZone: string | undefined,
+  opts: { year?: boolean; timeOnly?: boolean } = {},
+): string {
+  const lng = i18n.resolvedLanguage || 'en';
+  const fields: Intl.DateTimeFormatOptions = opts.timeOnly
+    ? { hour: '2-digit', minute: '2-digit' }
+    : {
+        ...(opts.year === false ? {} : { year: 'numeric' }),
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        // Explicit fields: dateStyle and timeStyle refuse a timeZoneName beside them.
+        timeZoneName: 'short',
+      };
+  const date = new Date(at);
+  try {
+    return new Intl.DateTimeFormat(lng, { ...fields, timeZone }).format(date);
+  } catch {
+    return new Intl.DateTimeFormat(lng, fields).format(date);
+  }
+}
+
 const MB = 1024 * 1024;
 
 /**

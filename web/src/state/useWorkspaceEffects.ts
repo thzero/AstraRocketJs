@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18nGlobal from '../i18n';
-import { useWorkspaceStore, selectConfig, saveFailure } from './store';
+import { useWorkspaceStore, selectConfig, saveFailure, workspaceSnapshot } from './store';
 
 import { useEngineStore } from './engineStore';
 import { getWorkspaceStore } from '../services/storage/workspaceStore';
@@ -138,7 +138,7 @@ export function useWorkspaceEffects() {
     }
     const id = setTimeout(() => {
       getWorkspaceStore()
-        .save({ version: 2, tree, sims, configs, activeId, loadedMeta })
+        .save(workspaceSnapshot({ tree, sims, configs, activeId, loadedMeta }))
         // There is now a design worth keeping, so ask the browser not to evict
         // this origin under disk pressure. Once per session, best-effort.
         // A successful save retires a "storage full" warning and nothing else:
@@ -181,17 +181,7 @@ export function useWorkspaceEffects() {
   // async save too: on mobile, hidden is often the last event before the tab is
   // discarded outright, and there it still has time to complete.
   useEffect(() => {
-    const snapshot = () => {
-      const s = useWorkspaceStore.getState();
-      return {
-        version: 2 as const,
-        tree: s.tree,
-        sims: s.sims,
-        configs: s.configs,
-        activeId: s.activeId,
-        loadedMeta: s.loadedMeta,
-      };
-    };
+    const snapshot = () => workspaceSnapshot(useWorkspaceStore.getState());
     const flush = () => {
       if (!hydrated.current) return;
       const store = getWorkspaceStore();

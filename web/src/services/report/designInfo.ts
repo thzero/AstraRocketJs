@@ -35,49 +35,97 @@ export function sig4(v: number): string {
   return str;
 }
 
-/** The statistic rows for one rocket/stage. Omits any value that can't be
- *  computed (non-finite), and CP/stability when there are no aero surfaces. */
-function statsFor(info: StaticInfo, cd: number | undefined): DesignStat[] {
-  const stats: DesignStat[] = [];
-  const push = (field: string, value: number, unit: string) => {
-    if (Number.isFinite(value)) stats.push({ field, value: sig4(value), unit });
-  };
-  push('Length', info.length, M);
-  push('Max Diameter', info.refDiameter, M);
-  push('Mass (Empty)', info.massEmpty, KG);
-  push('Mass (Loaded)', info.mass, KG);
-  if (info.refDiameter > 0) push('Fineness (L/D)', info.length / info.refDiameter, NONE);
-  push('CG (Empty)', info.cgEmpty, M);
-  push('CG (Loaded)', info.cg, M);
-  // CP / stability are only meaningful once there's a normal-force slope (fins);
-  // a finless design has no defined CP, so OpenRocket omits these.
+/** One whole-rocket or per-stage statistic, by a stable key. */
+export type StatKey =
+  | 'length'
+  | 'maxDiameter'
+  | 'massEmpty'
+  | 'massLoaded'
+  | 'fineness'
+  | 'cgEmpty'
+  | 'cgLoaded'
+  | 'cp'
+  | 'stabilityCal'
+  | 'stabilityPct'
+  | 'cd'
+  | 'cna'
+  | 'pitchInertia'
+  | 'rollInertia';
+
+/** A statistic row: its key, its English field name (the .ork and CSV label),
+ *  and its SI value. */
+export interface StatRow {
+  key: StatKey;
+  field: string;
+  value: number;
+}
+
+/**
+ * WHICH statistics a rocket or stage has, in order: the one list the .ork
+ * <designinfo> block, the design CSV and the PDF summary all write, each with
+ * its own formatting. A finless design has no defined CP, so OpenRocket omits CP,
+ * both stability rows and CNα; a design with no reference diameter has no
+ * fineness. A non-finite value is left in for the writer to show its own way.
+ */
+export function staticInfoRows(info: StaticInfo): StatRow[] {
+  const rows: StatRow[] = [];
+  const add = (key: StatKey, field: string, value: number) => rows.push({ key, field, value });
+  add('length', 'Length', info.length);
+  add('maxDiameter', 'Max Diameter', info.refDiameter);
+  add('massEmpty', 'Mass (Empty)', info.massEmpty);
+  add('massLoaded', 'Mass (Loaded)', info.mass);
+  if (info.refDiameter > 0) add('fineness', 'Fineness (L/D)', info.length / info.refDiameter);
+  add('cgEmpty', 'CG (Empty)', info.cgEmpty);
+  add('cgLoaded', 'CG (Loaded)', info.cg);
   const hasAero = Number.isFinite(info.cna) && Math.abs(info.cna) > 1e-9;
   if (hasAero && Number.isFinite(info.cp) && info.cp > 0) {
-    push('CP', info.cp, M);
-    push('Stability (on pad)', info.stabilityCalibers, CAL);
+    add('cp', 'CP', info.cp);
+    add('stabilityCal', 'Stability (on pad)', info.stabilityCalibers);
     // The engine's own figure, not ours: see StaticInfo.stabilityPercent. The
-    // margin is over the AERODYNAMIC length, which this module does not have;
-    // dividing by `length` reads a percentage the desktop does not show, and
-    // this one is written into a saved .ork, so it outlives the session.
-    push('Stability (%)', info.stabilityPercent, PCT);
+    // margin is over the AERODYNAMIC length, which this module does not have.
+    add('stabilityPct', 'Stability (%)', info.stabilityPercent);
   }
-  if (cd !== undefined) push(`Drag Coeff. (Ma ${CD_MACH})`, cd, NONE);
-  if (hasAero) push('Normal-Force Slope (CNα)', info.cna, PER_RAD);
-  push('Pitch Inertia (Loaded)', info.pitchInertia, INERTIA);
-  push('Roll Inertia (Loaded)', info.rollInertia, INERTIA);
-  return stats;
+  if (info.cd != null) add('cd', `Drag Coeff. (Ma ${CD_MACH})`, info.cd);
+  if (hasAero) add('cna', 'Normal-Force Slope (CNα)', info.cna);
+  add('pitchInertia', 'Pitch Inertia (Loaded)', info.pitchInertia);
+  add('rollInertia', 'Roll Inertia (Loaded)', info.rollInertia);
+  return rows;
+}
+
+const UNIT: Record<StatKey, string> = {
+  length: M,
+  maxDiameter: M,
+  massEmpty: KG,
+  massLoaded: KG,
+  fineness: NONE,
+  cgEmpty: M,
+  cgLoaded: M,
+  cp: M,
+  stabilityCal: CAL,
+  stabilityPct: PCT,
+  cd: NONE,
+  cna: PER_RAD,
+  pitchInertia: INERTIA,
+  rollInertia: INERTIA,
+};
+
+/** The <designinfo> statistics for one rocket/stage: every row with a finite value. */
+function statsFor(info: StaticInfo): DesignStat[] {
+  return staticInfoRows(info)
+    .filter((r) => Number.isFinite(r.value))
+    .map((r) => ({ field: r.field, value: sig4(r.value), unit: UNIT[r.key] }));
 }
 
 export function buildDesignInfo(report: ReportModel): DesignInfo {
   const groups: DesignStatGroup[] = [];
 
   // Whole rocket (all stages active). Only the live whole-rocket info carries cd.
-  groups.push({ scope: 'rocket', stats: statsFor(report.whole.info, report.whole.info.cd) });
+  groups.push({ scope: 'rocket', stats: statsFor(report.whole.info) });
 
   // Per-stage — multi-stage designs only (a single stage IS the whole rocket).
   if (report.stageSummaries.length > 1) {
     report.stageSummaries.forEach((s, i) => {
-      groups.push({ scope: 'stage', stageNumber: i, name: s.label, stats: statsFor(s.info, s.info.cd) });
+      groups.push({ scope: 'stage', stageNumber: i, name: s.label, stats: statsFor(s.info) });
     });
   }
 

@@ -1,4 +1,5 @@
 import type { LaunchConditions, WeatherSource } from '../design/orkTree';
+import { stableJson } from '../app/stableJson';
 
 /**
  * The record of where a simulation's weather came from, and what can be said
@@ -72,7 +73,7 @@ export interface SourceStatus {
   old: boolean;
 }
 
-const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+const same = (a: unknown, b: unknown) => stableJson(a ?? null) === stableJson(b ?? null);
 
 export function sourceStatus(launch: LaunchConditions, nowMs: number): SourceStatus | null {
   const s = launch.weatherSource;

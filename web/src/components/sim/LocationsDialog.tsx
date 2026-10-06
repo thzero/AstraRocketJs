@@ -1,7 +1,8 @@
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore } from '../../state/store';
 import { confirm } from '../../state/confirmStore';
+import { MasterDetail, MasterRow, MasterStatus, useGuardedSelection } from '../common/MasterDetail';
 import { Dialog } from '../common/Dialog';
 import { useUnits } from '../../prefs/useUnits';
 import { unitScope } from '../../prefs/units';
@@ -39,14 +40,13 @@ export function LocationsDialog({ onClose }: { onClose: () => void }) {
 
   const { locations, refresh } = useLocationList();
   // `null` = nothing selected. A string = that location. `'new'` = the draft.
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const {
+    selectedId,
+    select: guardedSelect,
+    settle,
+    onDirtyChange,
+  } = useGuardedSelection(t('location.discardConfirm'));
   const [err, setErr] = useState<string | null>(null);
-  // Reported by the editor, so the list can ask before a click throws away
-  // edits. The editor owns the draft; only IT can know whether one exists.
-  const [dirty, setDirty] = useState(false);
-  // Stable, because the editor passes it to an effect: a new function every
-  // render would re-run that effect on every keystroke.
-  const onDirtyChange = useCallback((d: boolean) => setDirty(d), []);
 
   const creating = selectedId === NEW;
   // Resolved from the LIST rather than held as its own copy, so a save (which
@@ -58,17 +58,7 @@ export function LocationsDialog({ onClose }: { onClose: () => void }) {
 
   /** Move the selection, asking first if it would throw away an edit. */
   const select = async (id: string | null) => {
-    if (dirty && id !== selectedId) {
-      const ok = await confirm({
-        message: t('location.discardConfirm'),
-        confirmLabel: t('common.discard'),
-        danger: true,
-      });
-      if (!ok) return;
-      setDirty(false);
-    }
-    setErr(null);
-    setSelectedId(id);
+    if (await guardedSelect(id)) setErr(null);
   };
 
   const store = async (fn: () => Promise<void>) => {
@@ -86,12 +76,9 @@ export function LocationsDialog({ onClose }: { onClose: () => void }) {
   const save = async (location: LaunchLocation) => {
     // Save replaces by id, so this is the one call for both editing an
     // existing location and adding a new one.
-    if (await store(() => getLaunchLocationStore().save(location))) {
-      setDirty(false);
-      // Stay on what was just written, so a new location becomes the selected
-      // one rather than dropping the user back to an empty pane.
-      setSelectedId(location.id);
-    }
+    // Stay on what was just written, so a new location becomes the selected
+    // one rather than dropping the user back to an empty pane.
+    if (await store(() => getLaunchLocationStore().save(location))) settle(location.id);
   };
 
   const remove = async (location: LaunchLocation) => {
@@ -102,10 +89,7 @@ export function LocationsDialog({ onClose }: { onClose: () => void }) {
       danger: true,
     });
     if (!ok) return;
-    if (await store(() => getLaunchLocationStore().remove(location.id))) {
-      setDirty(false);
-      setSelectedId(null);
-    }
+    if (await store(() => getLaunchLocationStore().remove(location.id))) settle(null);
   };
 
   const apply = (location: LaunchLocation) => {
@@ -140,26 +124,16 @@ export function LocationsDialog({ onClose }: { onClose: () => void }) {
           {t('location.new')}
         </button>
       }
-      footer={
-        err ? (
-          <p role="status" aria-live="polite" className="px-4 py-2 text-xs text-amber-400">
-            {err}
-          </p>
-        ) : undefined
-      }
+      footer={<MasterStatus err={err} />}
     >
       {locations === null ? (
         <p className="grid flex-1 place-items-center p-6 text-sm text-slate-400">{t('common.loading')}</p>
       ) : (
-        <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-          {/* LEFT: the library. On a phone the two panes share the width, so
-              only one shows at a time and the detail carries a back control. */}
-          <div
-            className={`min-h-0 flex-col overflow-y-auto md:flex md:w-[300px] md:shrink-0 md:border-r md:border-white/10 ${
-              showsDetail ? 'hidden md:flex' : 'flex'
-            }`}
-          >
-            {locations.length === 0 ? (
+        <MasterDetail
+          showsDetail={showsDetail}
+          hint={t('location.pickHint')}
+          list={
+            locations.length === 0 ? (
               // Reachable from the menu before anything is saved, so it has to
               // say what a location is and where they come from.
               <p className="p-6 text-center text-sm leading-snug text-slate-400">{t('location.empty')}</p>
@@ -167,48 +141,34 @@ export function LocationsDialog({ onClose }: { onClose: () => void }) {
               <ul className="divide-y divide-white/5">
                 {locations.map((p) => (
                   <li key={p.id}>
-                    <button
-                      onClick={() => void select(p.id)}
-                      aria-pressed={p.id === selectedId}
-                      className={`block w-full px-4 py-2.5 text-left ${
-                        p.id === selectedId ? 'bg-sky-600/25 ring-1 ring-inset ring-sky-500/50' : 'hover:bg-slate-800'
-                      }`}
-                    >
+                    <MasterRow selected={p.id === selectedId} onClick={() => void select(p.id)}>
                       <span className="block truncate text-sm text-slate-100">{p.name}</span>
                       {/* Plain coordinates: the row that lets you tell two
                           fields both called "the club field" apart. */}
                       <span className="block text-xs tabular-nums text-slate-500">
                         {formatCoord(p.latitudeDeg, p.longitudeDeg)} · {altUnit.fmt(p.launchAltitudeM, 0)} {altUnit.sym}
                       </span>
-                    </button>
+                    </MasterRow>
                   </li>
                 ))}
               </ul>
-            )}
-          </div>
-
-          {/* RIGHT: the selected location, or the one being created. */}
-          <div className={`min-h-0 min-w-0 flex-1 flex-col ${showsDetail ? 'flex' : 'hidden md:flex'}`}>
-            {showsDetail ? (
-              <LocationEditor
-                // Keyed on the selection, so choosing another location re-seeds
-                // every field by remounting rather than through an effect.
-                key={selectedId ?? NEW}
-                location={selected}
-                takenNames={(locations ?? []).filter((p) => p.id !== selected?.id).map((p) => p.name)}
-                onDirtyChange={onDirtyChange}
-                onSave={(location) => void save(location)}
-                onDelete={selected ? () => void remove(selected) : undefined}
-                onApply={selected ? () => apply(selected) : undefined}
-                onBack={() => void select(null)}
-              />
-            ) : (
-              <div className="grid flex-1 place-items-center p-6 text-center text-sm text-slate-500">
-                {t('location.pickHint')}
-              </div>
-            )}
-          </div>
-        </div>
+            )
+          }
+          detail={
+            <LocationEditor
+              // Keyed on the selection, so choosing another location re-seeds
+              // every field by remounting rather than through an effect.
+              key={selectedId ?? NEW}
+              location={selected}
+              takenNames={(locations ?? []).filter((p) => p.id !== selected?.id).map((p) => p.name)}
+              onDirtyChange={onDirtyChange}
+              onSave={(location) => void save(location)}
+              onDelete={selected ? () => void remove(selected) : undefined}
+              onApply={selected ? () => apply(selected) : undefined}
+              onBack={() => void select(null)}
+            />
+          }
+        />
       )}
     </Dialog>
   );

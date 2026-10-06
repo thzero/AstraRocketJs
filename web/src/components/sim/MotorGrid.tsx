@@ -6,6 +6,9 @@ import { CatalogLoading, CatalogError } from '../common/CatalogLoading';
 import { keyOf } from './motorKey';
 import { ALIGN, COLUMNS, heading, type Col } from './motorColumns';
 import type { MotorSort } from './useMotorSort';
+import { SortHeader } from '../common/SortHeader';
+import { CheckMenu } from '../common/CheckMenu';
+import { isTextEntry } from '../common/isTextEntry';
 
 /**
  * The motor dashboard's grid: the sortable header, one row per motor (check
@@ -17,27 +20,17 @@ import type { MotorSort } from './useMotorSort';
 export function ColumnChooser({ visCols, onToggle }: { visCols: string[]; onToggle: (id: string) => void }) {
   const { t } = useTranslation();
   return (
-    <details className="relative">
-      <summary className="cursor-pointer list-none rounded-lg bg-slate-950 px-3 py-1.5 text-sm text-slate-100 ring-1 ring-white/10">
-        {t('dash.columns')}
-      </summary>
-      <div className="absolute right-0 top-full z-20 mt-1 max-h-64 w-56 overflow-y-auto rounded-lg bg-slate-950 p-1 shadow-xl ring-1 ring-white/10">
-        {COLUMNS.filter((c) => !c.always).map((c) => (
-          <label
-            key={c.id}
-            className="flex items-center gap-2 rounded px-2 py-1 text-sm text-slate-200 hover:bg-slate-800"
-          >
-            <input
-              type="checkbox"
-              checked={visCols.includes(c.id)}
-              className="accent-sky-500"
-              onChange={() => onToggle(c.id)}
-            />
-            {t(`dash.${c.label}`)}
-          </label>
-        ))}
-      </div>
-    </details>
+    <CheckMenu
+      summary={t('dash.columns')}
+      items={COLUMNS.filter((c) => !c.always).map((c) => ({
+        key: c.id,
+        label: t(`dash.${c.label}`),
+        checked: visCols.includes(c.id),
+      }))}
+      onToggle={onToggle}
+      width="w-56"
+      align="right"
+    />
   );
 }
 
@@ -86,8 +79,7 @@ export function MotorGrid({
     if (!active) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
-      const tag = (e.target as HTMLElement).tagName;
-      if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || !shown.length) return;
+      if (isTextEntry(e.target as Element) || !shown.length) return;
       e.preventDefault();
       const i = selected ? shown.findIndex((m) => keyOf(m) === keyOf(selected)) : -1;
       onSelect(shown[e.key === 'ArrowDown' ? Math.min(shown.length - 1, i + 1) : Math.max(0, i - 1)] ?? null);
@@ -111,19 +103,15 @@ export function MotorGrid({
                 <span className="sr-only">{t('dash.compareTitle')}</span>
               </th>
               {cols.map((c) => (
-                <th key={c.id} scope="col" className={`px-2 py-1.5 font-semibold ${ALIGN[c.align]}`}>
-                  {c.sortVal ? (
-                    <button
-                      onClick={() => onSort(c.id)}
-                      className={`inline-flex items-center gap-0.5 hover:text-slate-300 ${sort?.id === c.id ? 'text-sky-400' : ''}`}
-                    >
-                      {heading(c, t, u)}
-                      {sort?.id === c.id && <span aria-hidden>{sort.dir === 1 ? '▲' : '▼'}</span>}
-                    </button>
-                  ) : (
-                    heading(c, t, u)
-                  )}
-                </th>
+                <SortHeader
+                  key={c.id}
+                  className={`px-2 py-1.5 font-semibold ${ALIGN[c.align]}`}
+                  active={sort?.id === c.id}
+                  dir={sort?.dir === -1 ? -1 : 1}
+                  onSort={c.sortVal ? () => onSort(c.id) : undefined}
+                >
+                  {heading(c, t, u)}
+                </SortHeader>
               ))}
             </tr>
           </thead>

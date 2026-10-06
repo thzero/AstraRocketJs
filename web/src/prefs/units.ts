@@ -1,6 +1,12 @@
 /** Meters to millimeters. The unit constant for every dimensional export. */
 export const M_TO_MM = 1000;
 
+/** Degrees to radians, in the order (d * π) / 180 every call site used, so results stay bit-identical. */
+export const degToRad = (d: number): number => (d * Math.PI) / 180;
+
+/** Radians to degrees, as (r * 180) / π. */
+export const radToDeg = (r: number): number => (r * 180) / Math.PI;
+
 /**
  * User-selectable units of measure, mirroring the desktop's UnitGroup
  * (info.openrocket.core.unit). Quantities are the desktop's unit groups; the

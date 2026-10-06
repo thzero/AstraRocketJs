@@ -417,7 +417,7 @@
     "aft": "Arrière",
     "cutaway": "Coupe",
     "cutawayTitle": "Ouvrir la cellule selon l'axe central pour voir l'intérieur",
-    "roll": "Roulis {{deg}}°",
+    "roll": "Roulis {{deg}}",
     "rollHint": "Roulis – faire tourner les ailerons autour de l'axe (ou faire glisser le dessin)",
     "rollAria": "Angle de roulis (degrés)",
     "loading3d": "Chargement de la 3D…",

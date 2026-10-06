@@ -5,6 +5,7 @@ import type { Quantity } from '../../prefs/units';
 import type { ResultFlight } from '../../services/flight/simulations';
 import { WeatherSourceLine } from '../sim/WeatherSourceLine';
 import { EnvironmentLanding } from './EnvironmentLanding';
+import { TermRow } from '../common/TermRow';
 import {
   environmentProfile,
   type EnvironmentQuantity,
@@ -12,6 +13,10 @@ import {
   type ProfilePoint,
 } from '../../services/flight/environmentProfile';
 import { formatLat, formatLon } from '../../services/map/slippyMap';
+import { fmtSiteTime } from '../../i18n/format';
+import { radToDeg } from '../../prefs/units';
+import { norm360 } from '../../services/flight/groundTrack';
+import { polylinePath } from '../common/svgPath';
 
 /**
  * The air the flight met, as the kernel recorded it: what it was at the pad,
@@ -45,12 +50,12 @@ function sig4(fu: FieldUnit, si: number): string {
 }
 
 export function EnvironmentView({ flight }: { flight: ResultFlight }) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const u = useUnits();
   const env = useMemo(() => environmentProfile(flight.result.series), [flight.result.series]);
   // A run has a date only when its weather came from a forecast for one.
   const source = flight.launch.weatherSource;
-  const validAt = source ? siteTime(source.validAt, source.timezone, i18n.language) : null;
+  const validAt = source ? fmtSiteTime(source.validAt, source.timezone) : null;
   if (!env) return <p className="p-4 text-sm text-slate-400">{t('env.noData')}</p>;
 
   const unit = (q: EnvironmentQuantity) => u.plain(QUANTITY[q]);
@@ -66,29 +71,14 @@ export function EnvironmentView({ flight }: { flight: ResultFlight }) {
       <section className="rounded-xl bg-slate-900 p-3 ring-1 ring-white/10">
         {/* As many columns as fit: one row on a wide screen, wrapped on a phone. */}
         <dl className="grid grid-cols-[repeat(auto-fill,minmax(7rem,1fr))] gap-x-4 gap-y-1 text-xs">
-          {validAt && (
-            <div>
-              <dt className="text-slate-400">{t('env.when')}</dt>
-              <dd className="tabular-nums text-slate-100">{validAt}</dd>
-            </div>
-          )}
-          <div>
-            <dt className="text-slate-400">{t('env.latitude')}</dt>
-            <dd className="tabular-nums text-slate-100">{latText(flight.launch.latitudeDeg)}</dd>
-          </div>
-          <div>
-            <dt className="text-slate-400">{t('env.longitude')}</dt>
-            <dd className="tabular-nums text-slate-100">{lonText(flight.launch.longitudeDeg)}</dd>
-          </div>
-          <div>
-            <dt className="text-slate-400">{t('env.elevation')}</dt>
-            <dd className="tabular-nums text-slate-100">{`${dist.fmtSym(flight.launch.launchAltitudeM ?? 0, 0)}`}</dd>
-          </div>
+          {validAt && <TermRow label={t('env.when')}>{validAt}</TermRow>}
+          <TermRow label={t('env.latitude')}>{latText(flight.launch.latitudeDeg)}</TermRow>
+          <TermRow label={t('env.longitude')}>{lonText(flight.launch.longitudeDeg)}</TermRow>
+          <TermRow label={t('env.elevation')}>{`${dist.fmtSym(flight.launch.launchAltitudeM ?? 0, 0)}`}</TermRow>
           {PAD.map((q) => (
-            <div key={q}>
-              <dt className="text-slate-400">{t(`env.q.${q}`)}</dt>
-              <dd className="tabular-nums text-slate-100">{show(q, env.pad[q])}</dd>
-            </div>
+            <TermRow key={q} label={t(`env.q.${q}`)}>
+              {show(q, env.pad[q])}
+            </TermRow>
           ))}
         </dl>
         {flight.launch.weatherSource && (
@@ -122,25 +112,8 @@ export function EnvironmentView({ flight }: { flight: ResultFlight }) {
 const latText = (v: number | null) => (v == null ? '—' : formatLat(v));
 const lonText = (v: number | null) => (v == null ? '—' : formatLon(v));
 
-/** An instant on the site's clock, with the zone named so it cannot be read as the viewer's. */
-function siteTime(iso: string, timeZone: string, language: string): string {
-  const opts: Intl.DateTimeFormatOptions = {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZoneName: 'short',
-  };
-  try {
-    return new Intl.DateTimeFormat(language, { ...opts, timeZone }).format(new Date(iso));
-  } catch {
-    return new Intl.DateTimeFormat(language, opts).format(new Date(iso));
-  }
-}
-
 /** Radians as compass degrees, 0 to 360. */
-const compass = (rad: number) => ((((rad * 180) / Math.PI) % 360) + 360) % 360;
+const compass = (rad: number) => norm360(radToDeg(rad));
 
 interface XAxis {
   /** SI to the coordinate the chart is laid out in. */
@@ -205,15 +178,13 @@ function ProfileChart({
   const py = (alt: number) => H - PAD_B - (alt / top) * (H - PAD_T - PAD_B);
 
   const path = (pts: ProfilePoint[]) => {
-    let d = '';
-    let prev: number | null = null;
-    for (const p of pts) {
-      const v = x.coord(p.value);
-      const jump = prev !== null && x.wrap !== undefined && Math.abs(v - prev) > x.wrap;
-      d += `${d === '' || jump ? 'M' : 'L'} ${px(v).toFixed(1)} ${py(p.altitude).toFixed(1)} `;
-      prev = v;
-    }
-    return d.trim();
+    const vs = pts.map((p) => x.coord(p.value));
+    const jump = (i: number) => i > 0 && x.wrap !== undefined && Math.abs(vs[i]! - vs[i - 1]!) > x.wrap;
+    return polylinePath(
+      pts.map((p, i) => [px(vs[i]!), py(p.altitude)]),
+      'space',
+      jump,
+    );
   };
 
   const loUi = x.label(lo);

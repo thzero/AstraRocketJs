@@ -1,5 +1,5 @@
 import { KERNEL_MATERIALS } from '../../tree/kernelDefaults';
-import type { MaterialType } from '../materials/materialTypes';
+import { isMaterialType, type MaterialType } from '../materials/materialTypes';
 
 /**
  * What a part is MADE OF by default: which material slots each type has, and
@@ -62,6 +62,14 @@ export const MATERIAL_SLOTS: readonly { part: string; material: MaterialType }[]
 /** The settings key for one part type's material of one kind. */
 export const defaultMaterialKey = (partType: string, materialType: MaterialType): string =>
   `${partType}:${materialType}`;
+
+/** A settings key back into its part type and material type, or null for a key
+ *  {@link defaultMaterialKey} would not write. */
+export function parseDefaultMaterialKey(key: string): { part: string; material: MaterialType } | null {
+  const [part, material, ...rest] = key.split(':');
+  if (rest.length || !part || !/^[a-z]+$/.test(part) || !isMaterialType(material)) return null;
+  return { part, material };
+}
 
 /**
  * What to stamp onto a NEWLY ADDED part of `partType`: the user's per-part-type

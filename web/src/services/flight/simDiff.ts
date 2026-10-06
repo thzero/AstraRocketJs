@@ -1,5 +1,6 @@
 import type { Simulation, SimPrefs } from './simulations';
 import type { LaunchConditions } from '../design/orkTree';
+import { stableJson } from '../app/stableJson';
 
 /**
  * Which fields the simulations being edited together DISAGREE on.
@@ -26,24 +27,32 @@ function same(a: unknown, b: unknown): boolean {
   if (a == null && b == null) return true;
   if (a == null || b == null) return false;
   if (typeof a !== 'object' || typeof b !== 'object') return false;
-  // The structured launch values are lists of levels (wind, atmosphere), and
-  // wind levels are not kept sorted, so order is meaningful and a plain deep
-  // compare is right.
-  return JSON.stringify(a) === JSON.stringify(b);
+  // The structured launch values are lists of levels (wind, atmosphere). Wind
+  // levels are not kept sorted, so list order counts; key order inside a level
+  // does not, since a reload rebuilds those objects.
+  return stableJson(a) === stableJson(b);
+}
+
+/**
+ * The keys whose values are not the same across `records`, over every key any
+ * of them sets. An absent record sets nothing.
+ */
+function diffKeys<T extends object>(records: (T | undefined)[]): Set<keyof T> {
+  const out = new Set<keyof T>();
+  if (records.length < 2) return out;
+  const [first, ...rest] = records;
+  const keys = new Set<string>();
+  for (const r of records) for (const k of Object.keys(r ?? {})) keys.add(k);
+  for (const k of keys) {
+    const key = k as keyof T;
+    if (rest.some((r) => !same(r?.[key], first?.[key]))) out.add(key);
+  }
+  return out;
 }
 
 /** The launch-condition keys whose values are not the same across `sims`. */
 export function launchDiffKeys(sims: Simulation[]): Set<keyof LaunchConditions> {
-  const out = new Set<keyof LaunchConditions>();
-  if (sims.length < 2) return out;
-  const [first, ...rest] = sims as [Simulation, ...Simulation[]];
-  const keys = new Set<string>();
-  for (const s of sims) for (const k of Object.keys(s.launch)) keys.add(k);
-  for (const k of keys) {
-    const key = k as keyof LaunchConditions;
-    if (rest.some((s) => !same(s.launch[key], first.launch[key]))) out.add(key);
-  }
-  return out;
+  return diffKeys(sims.map((s) => s.launch));
 }
 
 /**
@@ -54,14 +63,5 @@ export function launchDiffKeys(sims: Simulation[]): Set<keyof LaunchConditions> 
  * field later moves only one of them.
  */
 export function prefDiffKeys(sims: Simulation[]): Set<keyof SimPrefs> {
-  const out = new Set<keyof SimPrefs>();
-  if (sims.length < 2) return out;
-  const [first, ...rest] = sims as [Simulation, ...Simulation[]];
-  const keys = new Set<string>();
-  for (const s of sims) for (const k of Object.keys(s.prefs ?? {})) keys.add(k);
-  for (const k of keys) {
-    const key = k as keyof SimPrefs;
-    if (rest.some((s) => !same(s.prefs?.[key], first.prefs?.[key]))) out.add(key);
-  }
-  return out;
+  return diffKeys(sims.map((s) => s.prefs));
 }

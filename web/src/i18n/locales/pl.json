@@ -418,7 +418,7 @@
     "aft": "Z tyłu",
     "cutaway": "Przekrój",
     "cutawayTitle": "Otwórz kadłub wzdłuż osi, aby pokazać wnętrze",
-    "roll": "Przechylenie {{deg}}°",
+    "roll": "Przechylenie {{deg}}",
     "rollHint": "Przechylenie: obraca stateczniki wokół osi (albo przeciągnij rysunek)",
     "rollAria": "Kąt przechylenia (stopnie)",
     "loading3d": "Wczytywanie 3D…",

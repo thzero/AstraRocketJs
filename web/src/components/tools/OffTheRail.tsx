@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
+import { defaultToolSite, rememberedSlot, useRemembered } from './remembered';
 import { useTranslation } from 'react-i18next';
 import { useUnits } from '../../prefs/useUnits';
 import { useSettings } from '../../state/SettingsProvider';
 import type { MotorSpec } from '../../engine/openRocketEngine';
-import { fmtNum } from '../../i18n/format';
-import { hourInZone, WeatherError, ymdInZone } from '../../services/weather/openMeteo';
+import { fmtNum, fmtSiteTime } from '../../i18n/format';
+import { hourInZone, nextHourMs, todayYmd, ymdInZone } from '../../services/weather/openMeteo';
 import { readWeatherKey } from '../../services/weather/weatherKey';
 import {
   maxDryMassKg,
@@ -17,8 +18,13 @@ import {
 import { fetchSurfaceWind, type SurfaceWind } from '../../services/tools/surfaceWind';
 import { MotorDialog } from '../sim/MotorDialog';
 import { QNum } from '../sim/LaunchPanel';
-import { SiteFields, toolBtn, WhenFields, type ToolSite } from './SiteFields';
-import { OpenMeteoCredit, ToolGroup } from './ToolGroup';
+import { SiteFields, toolBtn, type ToolSite } from './SiteFields';
+import { WhenFields } from '../sim/WhenFields';
+import { CardGroup } from '../common/CardGroup';
+import { OpenMeteoCredit } from '../common/OpenMeteoCredit';
+import { weatherErrorText } from '../../services/weather/weatherErrorText';
+import { roundTo } from '../../services/app/numbers';
+import { useLatest } from '../common/useLatest';
 
 /**
  * Off the rail, for a rocket that has not been designed here: a motor from the
@@ -27,8 +33,6 @@ import { OpenMeteoCredit, ToolGroup } from './ToolGroup';
  * An estimate without drag or rail friction, and it says so; a designed rocket
  * gets these from the engine, on its rail departure event.
  */
-
-const nextHour = () => Date.now() + 3_600_000;
 
 type Fetch =
   { kind: 'idle' } | { kind: 'loading' } | { kind: 'error'; message: string } | { kind: 'ready'; wind: SurfaceWind };
@@ -43,51 +47,37 @@ interface Remembered {
   hour: number;
   fetched: Fetch;
 }
-let remembered: Remembered | null = null;
+const remembered = rememberedSlot<Remembered>();
 
 /** Clears the remembered inputs, so each test starts from the defaults. */
 export function forgetOffTheRail(): void {
-  remembered = null;
+  remembered.forget();
 }
 
 export function OffTheRail() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const u = useUnits();
   const { settings } = useSettings();
   const minExit = settings.simulation.railExitVelocityMin;
   const defaults = settings.launchDefaults;
-  const [motor, setMotor] = useState<MotorSpec | null>(() => remembered?.motor ?? null);
-  const [dryMassKg, setDryMassKg] = useState<number | null>(() => (remembered ? remembered.dryMassKg : 0.5));
-  const [railLengthM, setRailLengthM] = useState<number | null>(() =>
-    remembered ? remembered.railLengthM : (defaults.launchRodLengthM ?? 1),
-  );
-  const [windMs, setWindMs] = useState<number | null>(() => (remembered ? remembered.windMs : 4));
-  const [site, setSite] = useState<ToolSite>(
-    () =>
-      remembered?.site ?? {
-        latitudeDeg: defaults.latitudeDeg,
-        longitudeDeg: defaults.longitudeDeg,
-        launchAltitudeM: null,
-      },
-  );
-  const [date, setDate] = useState(() => remembered?.date ?? ymdInZone(nextHour(), undefined));
-  const [hour, setHour] = useState(() => remembered?.hour ?? hourInZone(nextHour(), undefined));
-  const [fetched, setFetched] = useState<Fetch>(() =>
-    remembered && remembered.fetched.kind !== 'loading' ? remembered.fetched : { kind: 'idle' },
+  const [motor, setMotor] = useRemembered(remembered, 'motor', null);
+  const [dryMassKg, setDryMassKg] = useRemembered(remembered, 'dryMassKg', 0.5);
+  const [railLengthM, setRailLengthM] = useRemembered(remembered, 'railLengthM', defaults.launchRodLengthM ?? 1);
+  const [windMs, setWindMs] = useRemembered(remembered, 'windMs', 4);
+  const [site, setSite] = useRemembered(remembered, 'site', defaultToolSite(defaults));
+  const [date, setDate] = useRemembered(remembered, 'date', ymdInZone(nextHourMs(), undefined));
+  const [hour, setHour] = useRemembered(remembered, 'hour', hourInZone(nextHourMs(), undefined));
+  // A request still out when the tab closed was aborted, so it comes back idle.
+  const [fetched, setFetched] = useRemembered(remembered, 'fetched', { kind: 'idle' }, (f): Fetch =>
+    f.kind === 'loading' ? { kind: 'idle' } : f,
   );
   const [motorOpen, setMotorOpen] = useState(false);
   const [motorError, setMotorError] = useState<string | null>(null);
-  useEffect(() => {
-    remembered = { motor, dryMassKg, railLengthM, windMs, site, date, hour, fetched };
-  }, [motor, dryMassKg, railLengthM, windMs, site, date, hour, fetched]);
-  const request = useRef<AbortController | null>(null);
-  useEffect(() => () => request.current?.abort(), []);
+  const request = useLatest();
 
   const getWind = async () => {
     if (site.latitudeDeg == null || site.longitudeDeg == null) return;
-    request.current?.abort();
-    const ctl = new AbortController();
-    request.current = ctl;
+    const signal = request.claimSignal();
     setFetched({ kind: 'loading' });
     try {
       const wind = await fetchSurfaceWind(
@@ -96,28 +86,21 @@ export function OffTheRail() {
           longitudeDeg: site.longitudeDeg,
           date,
           hour,
-          today: ymdInZone(Date.now(), undefined),
+          today: todayYmd(),
           apiKey: readWeatherKey(),
         },
-        { signal: ctl.signal },
+        { signal },
       );
-      if (ctl.signal.aborted) return;
+      if (signal.aborted) return;
       if (wind === 'noHour') {
         setFetched({ kind: 'error', message: t('weather.noHour') });
         return;
       }
       setFetched({ kind: 'ready', wind });
-      setWindMs(Math.round(wind.speedMs * 10) / 10);
+      setWindMs(roundTo(wind.speedMs, 1));
     } catch (err) {
-      if (ctl.signal.aborted) return;
-      const message =
-        err instanceof WeatherError
-          ? err.kind === 'refused' &&
-            (err.detail === 'tooFarAhead' || err.detail === 'tooEarly' || err.detail === 'badDate')
-            ? t(`weather.dateRefusal.${err.detail}`)
-            : t(`weather.error.${err.kind}`, { detail: err.detail ?? '' })
-          : t('weather.error.offline');
-      setFetched({ kind: 'error', message });
+      if (signal.aborted) return;
+      setFetched({ kind: 'error', message: weatherErrorText(err, t) });
     }
   };
 
@@ -142,14 +125,7 @@ export function OffTheRail() {
 
   const validTime =
     fetched.kind === 'ready'
-      ? new Intl.DateTimeFormat(i18n.language, {
-          timeZone: fetched.wind.answer.timezone,
-          month: 'short',
-          day: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-          timeZoneName: 'short',
-        }).format(new Date(fetched.wind.validUnix * 1000))
+      ? fmtSiteTime(fetched.wind.validUnix * 1000, fetched.wind.answer.timezone, { year: false })
       : '';
 
   return (
@@ -160,7 +136,7 @@ export function OffTheRail() {
           <p className="mt-1 text-xs text-slate-400">{t('rail.intro')}</p>
         </div>
 
-        <ToolGroup title={t('rail.motor')}>
+        <CardGroup title={t('rail.motor')}>
           <div className="flex items-center justify-between gap-3">
             <span className="min-w-0 truncate text-sm text-slate-200">
               {motor ? `${motor.manufacturer ? `${motor.manufacturer} ` : ''}${motor.designation}` : t('rail.noMotor')}
@@ -170,9 +146,9 @@ export function OffTheRail() {
             </button>
           </div>
           {motorError && <p className="text-xs text-rose-400">{motorError}</p>}
-        </ToolGroup>
+        </CardGroup>
 
-        <ToolGroup title={t('rail.rocket')}>
+        <CardGroup title={t('rail.rocket')}>
           <QNum
             label={t('rail.dryMass')}
             hint={t('rail.dryMassHint')}
@@ -200,9 +176,9 @@ export function OffTheRail() {
             value={railLengthM}
             onChange={setRailLengthM}
           />
-        </ToolGroup>
+        </CardGroup>
 
-        <ToolGroup title={t('launch.wind')}>
+        <CardGroup title={t('launch.wind')}>
           <QNum
             label={t('rail.wind')}
             field="railWind"
@@ -241,7 +217,7 @@ export function OffTheRail() {
               )}
             </div>
           </details>
-        </ToolGroup>
+        </CardGroup>
       </div>
 
       <section className="h-fit rounded-xl bg-slate-900 p-3 ring-1 ring-white/10" aria-label={t('rail.result')}>

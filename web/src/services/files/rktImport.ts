@@ -4,8 +4,14 @@ import { defaultStageName, freshId } from '../design/orkTree';
 import { xmlText as text } from './xmlUtil';
 import { parseOrkXml } from './ork/importUnpack';
 import { clampCount, finiteNum } from './ork/numbers';
-import { MAX_COMPONENTS, MAX_FIN_COUNT, MAX_FIN_POINTS, MAX_LINE_COUNT, MAX_NESTING_DEPTH } from './ork/importLimits';
+import { MAX_FIN_COUNT, MAX_FIN_POINTS, MAX_LINE_COUNT, checkDepth, countComponent } from './ork/importLimits';
+import { ignoredNotes } from './ork/importNotes';
 import type { OrkImportResult } from './orkTypes';
+import { numOpt } from '../../tree/nodeProps';
+import { trapezoidPoints } from '../../tree/finPlanform';
+import { isAssembly } from '../../tree/assembly';
+import { hexOf, parseHexColor } from '../design/colorHex';
+import { degToRad } from '../../prefs/units';
 
 /**
  * RockSim (`.rkt`) IMPORT.
@@ -157,14 +163,11 @@ const rktColor = (raw: string | null | undefined): string | undefined => {
   if (!t) return undefined;
   const named = BASIC_COLORS[t.toLowerCase()];
   if (named) return named;
-  const hex = /^#?([0-9a-f]{6})$/i.exec(t);
-  if (hex) return `#${hex[1]!.toLowerCase()}`;
-  const short = /^#?([0-9a-f])([0-9a-f])([0-9a-f])$/i.exec(t);
-  if (short)
-    return `#${short
-      .slice(1, 4)
-      .map((c) => c.toLowerCase().repeat(2))
-      .join('')}`;
+  // A hex spelling is six digits or the #rgb shorthand; an alpha byte is not one.
+  if (/^(#[0-9a-f]{3}|#?[0-9a-f]{6})$/i.test(t)) {
+    const rgb = parseHexColor(t);
+    if (rgb !== null) return hexOf(rgb);
+  }
   return undefined;
 };
 
@@ -192,6 +195,19 @@ const wallFrom = (od: number | undefined, id: number | undefined): number | unde
 /** Assign only a defined value, so an absent element leaves the app's default. */
 const put = (n: ComponentNode, key: string, v: number | string | undefined): void => {
   if (v !== undefined) n[key] = v;
+};
+
+/** A tube's `OD` and `ID` as an outer radius and a wall thickness. */
+const readTubeWall = (el: Element, n: ComponentNode): void => {
+  const od = dia(el, 'OD');
+  put(n, 'outerRadius', od);
+  put(n, 'thickness', wallFrom(od, dia(el, 'ID')));
+};
+
+/** `RadialAngle` (degrees) into `key` (radians); a zero angle leaves the default. */
+const readRadialAngle = (el: Element, n: ComponentNode, key: 'angleOffset' | 'radialDirection'): void => {
+  const angle = num(el, 'RadialAngle');
+  if (angle) n[key] = degToRad(angle);
 };
 
 /**
@@ -356,15 +372,11 @@ const readBodyTube = (el: Element): ComponentNode => {
   const inner = tag(el, 'IsInsideTube') === '1';
   const n = base(el, inner ? 'innertube' : 'bodytube', inner);
   put(n, 'length', mmPos(el, 'Len'));
-  const od = dia(el, 'OD');
-  const id = dia(el, 'ID');
-  put(n, 'outerRadius', od);
-  put(n, 'thickness', wallFrom(od, id));
+  readTubeWall(el, n);
   readMount(el, n);
   if (inner) {
     put(n, 'radialPosition', mmPos(el, 'RadialLoc'));
-    const angle = num(el, 'RadialAngle');
-    if (angle) n['radialDirection'] = (angle * Math.PI) / 180;
+    readRadialAngle(el, n, 'radialDirection');
   }
   return n;
 };
@@ -395,12 +407,8 @@ const readRing = (el: Element): ComponentNode => {
 const readLaunchLug = (el: Element): ComponentNode => {
   const n = base(el, 'launchlug', true);
   put(n, 'length', mmPos(el, 'Len'));
-  const od = dia(el, 'OD');
-  const id = dia(el, 'ID');
-  put(n, 'outerRadius', od);
-  put(n, 'thickness', wallFrom(od, id));
-  const angle = num(el, 'RadialAngle');
-  if (angle) n['angleOffset'] = (angle * Math.PI) / 180;
+  readTubeWall(el, n);
+  readRadialAngle(el, n, 'angleOffset');
   return n;
 };
 
@@ -429,17 +437,11 @@ const FREEFORM_ONLY_PARENTS = new Set(['nosecone', 'transition']);
  * function would otherwise do to the first and last point does not apply.
  */
 function trapezoidOutline(n: ComponentNode): [number, number][] {
-  const root = typeof n['rootChord'] === 'number' ? (n['rootChord'] as number) : 0;
-  const tip = typeof n['tipChord'] === 'number' ? (n['tipChord'] as number) : 0;
-  const span = typeof n['height'] === 'number' ? (n['height'] as number) : 0;
-  const sweep = typeof n['sweep'] === 'number' ? (n['sweep'] as number) : 0;
-  const pts: [number, number][] = [
-    [0, 0],
-    [sweep, span],
-  ];
-  if (tip > 0.0001) pts.push([sweep + tip, span]);
-  pts.push([Math.max(root, 0.0001), 0]);
-  return pts;
+  const root = numOpt(n, 'rootChord') ?? 0;
+  const tip = numOpt(n, 'tipChord') ?? 0;
+  const span = numOpt(n, 'height') ?? 0;
+  const sweep = numOpt(n, 'sweep') ?? 0;
+  return trapezoidPoints(root, tip, sweep, span);
 }
 
 /** `FinSetHandler`: `ShapeCode` 0 trapezoidal, 1 elliptical, 2 freeform. */
@@ -464,9 +466,8 @@ function readFinSet(ctx: RktContext, el: Element, parent?: ComponentNode): Compo
   }
 
   const cant = num(el, 'CantAngle');
-  if (cant) n['cant'] = (cant * Math.PI) / 180;
-  const angle = num(el, 'RadialAngle');
-  if (angle) n['angleOffset'] = (angle * Math.PI) / 180;
+  if (cant) n['cant'] = degToRad(cant);
+  readRadialAngle(el, n, 'angleOffset');
 
   // The fin's CROSS SECTION, which is what RockSim calls a tip shape. Dropping
   // it made every imported fin square, changing its drag and its mass.
@@ -548,12 +549,8 @@ const readTubeFinSet = (el: Element): ComponentNode => {
   const n = base(el, 'tubefinset', true);
   n['finCount'] = clampCount(num(el, 'TubeCount') ?? 6, 1, MAX_FIN_COUNT);
   put(n, 'length', mmPos(el, 'Len'));
-  const od = dia(el, 'OD');
-  const id = dia(el, 'ID');
-  put(n, 'outerRadius', od);
-  put(n, 'thickness', wallFrom(od, id));
-  const angle = num(el, 'RadialAngle');
-  if (angle) n['angleOffset'] = (angle * Math.PI) / 180;
+  readTubeWall(el, n);
+  readRadialAngle(el, n, 'angleOffset');
   return n;
 };
 
@@ -742,8 +739,7 @@ const readPod = (ctx: RktContext, el: Element): ComponentNode => {
   const n = base(el, separates ? 'parallelstage' : 'podset', true);
   put(n, 'radiusOffset', mmPos(el, 'RadialLoc'));
   n['radiusMethod'] = 'free';
-  const angle = num(el, 'RadialAngle');
-  if (angle) n['angleOffset'] = (angle * Math.PI) / 180;
+  readRadialAngle(el, n, 'angleOffset');
   n['instanceCount'] = 1;
   if (tag(el, 'Removed') === '1') {
     // Upstream marks the stage inactive in the selected configuration. A `.rkt`
@@ -811,9 +807,7 @@ const READERS: Record<string, Reader> = {
  * parent rather than dropped.
  */
 function readParts(ctx: RktContext, container: Element, depth = 0, parent?: ComponentNode): ComponentNode[] {
-  if (depth > MAX_NESTING_DEPTH) {
-    throw new Error('This .rkt is nested too deeply to open (possibly malformed).');
-  }
+  checkDepth(depth, '.rkt');
   const out: ComponentNode[] = [];
   for (const el of Array.from(container.children)) {
     if (el.tagName === 'AttachedParts') {
@@ -836,9 +830,7 @@ function readParts(ctx: RktContext, container: Element, depth = 0, parent?: Comp
     }
     // Counted here rather than in each reader: this is the one place every
     // part enters the tree, whatever its type.
-    if (++ctx.nodeCount > MAX_COMPONENTS) {
-      throw new Error('This .rkt declares too many components to open (possibly malformed).');
-    }
+    countComponent(ctx, '.rkt');
     const node = read(ctx, el, parent);
     if (parent !== undefined && FREEFORM_ONLY_PARENTS.has(parent.type)) {
       if (node.type === 'trapezoidfinset') {
@@ -858,8 +850,8 @@ function readParts(ctx: RktContext, container: Element, depth = 0, parent?: Comp
     const kids = readParts(ctx, el, depth + 1, node);
     if (kids.length > 0) node.children = kids;
     // An assembly's children carry ABSOLUTE roll angles in the file.
-    if ((node.type === 'podset' || node.type === 'parallelstage') && node.children) {
-      subtractAngleOffset(node.children, typeof node['angleOffset'] === 'number' ? (node['angleOffset'] as number) : 0);
+    if (isAssembly(node.type) && node.children) {
+      subtractAngleOffset(node.children, numOpt(node, 'angleOffset') ?? 0);
     }
     out.push(node);
   }
@@ -889,7 +881,7 @@ const STAGE_CG_ELEMENTS = ['Stage3CG', 'Stage2CGAlone', 'Stage1CGAlone'] as cons
  */
 export function importRkt(data: ArrayBuffer | string): OrkImportResult {
   const xml = typeof data === 'string' ? data : decodeFileText(new Uint8Array(data));
-  const doc = parseOrkXml(xml);
+  const doc = parseOrkXml(xml, '.rkt');
   const design = doc.querySelector('RockSimDocument > DesignInformation > RocketDesign');
   if (!design) throw new Error('Not a .rkt file (missing <RocketDesign>)');
 
@@ -908,9 +900,7 @@ export function importRkt(data: ArrayBuffer | string): OrkImportResult {
   const components: ComponentNode[] = [];
   present.forEach((elName, i) => {
     const stageEl = design.querySelector(`:scope > ${elName}`);
-    if (++ctx.nodeCount > MAX_COMPONENTS) {
-      throw new Error('This .rkt declares too many components to open (possibly malformed).');
-    }
+    countComponent(ctx, '.rkt');
     const stage: ComponentNode = {
       type: 'stage',
       id: freshId(),
@@ -945,7 +935,7 @@ export function importRkt(data: ArrayBuffer | string): OrkImportResult {
   }
 
   const notes = [...ctx.notes];
-  if (ctx.ignored.size) notes.push(`Ignored unsupported components: ${[...ctx.ignored].join(', ')}.`);
+  notes.push(...ignoredNotes(ctx.ignored));
   for (const d of ctx.dropped) notes.push(`This design contains ${d}.`);
   // Said on every import, because it is the difference a user will notice first
   // and it is not a fault in the file: RockSim keeps its motor selections and

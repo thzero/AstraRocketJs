@@ -1,16 +1,23 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef } from 'react';
+import { defaultToolSite, rememberedSlot, useRemembered } from './remembered';
 import { useTranslation } from 'react-i18next';
 import { fmtGroundDistance, useUnits } from '../../prefs/useUnits';
 import { useSettings } from '../../state/SettingsProvider';
-import { hourInZone, WeatherError, ymdInZone } from '../../services/weather/openMeteo';
+import { hourInZone, nextHourMs, todayYmd, ymdInZone } from '../../services/weather/openMeteo';
 import { readWeatherKey } from '../../services/weather/weatherKey';
 import { runLandingEstimate, type LandingRun } from '../../services/landing/landingEstimate';
 import type { DescentPlan } from '../../services/landing/descentDrift';
 import { QNum } from '../sim/LaunchPanel';
 import { LandingMap } from './LandingMap';
-import { SiteFields, WhenFields, type ToolSite } from './SiteFields';
-import { OpenMeteoCredit, ToolGroup } from './ToolGroup';
+import { SiteFields, type ToolSite } from './SiteFields';
+import { WhenFields } from '../sim/WhenFields';
+import { CardGroup } from '../common/CardGroup';
+import { TermRow } from '../common/TermRow';
+import { OpenMeteoCredit } from '../common/OpenMeteoCredit';
 import { formatCoord } from '../../services/map/slippyMap';
+import { weatherErrorText } from '../../services/weather/weatherErrorText';
+import { fmtSiteTime } from '../../i18n/format';
+import { useLatest } from '../common/useLatest';
 
 /**
  * Where a rocket will come down, for a flight that has not been designed here:
@@ -20,19 +27,10 @@ import { formatCoord } from '../../services/map/slippyMap';
  * engine, on its Results tab.
  */
 
-const nextHour = () => Date.now() + 3_600_000;
-const today = () => ymdInZone(Date.now(), undefined);
-
 type Recovery = 'single' | 'dual';
 type State =
   { kind: 'idle' } | { kind: 'loading' } | { kind: 'error'; message: string } | { kind: 'ready'; run: LandingRun };
 
-/**
- * The inputs and the last result, kept for the page's life. The estimator is
- * mounted only while the Tools tab is open (hidden, its fields would be a second
- * Latitude and Longitude in the document), so this is what lets a trip to
- * another tab come back to the estimate as it was left.
- */
 interface Remembered {
   site: ToolSite;
   date: string;
@@ -45,45 +43,34 @@ interface Remembered {
   mainAgl: number | null;
   state: State;
 }
-let remembered: Remembered | null = null;
+const remembered = rememberedSlot<Remembered>();
 
 /** Clears the remembered inputs and result, so each test starts from the defaults. */
 export function forgetLandingEstimator(): void {
-  remembered = null;
+  remembered.forget();
 }
 
 export function LandingEstimator() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const u = useUnits();
   const { settings } = useSettings();
   const defaults = settings.launchDefaults;
-  const [site, setSite] = useState<Remembered['site']>(
-    () =>
-      remembered?.site ?? {
-        latitudeDeg: defaults.latitudeDeg,
-        longitudeDeg: defaults.longitudeDeg,
-        launchAltitudeM: null,
-      },
-  );
-  const [date, setDate] = useState(() => remembered?.date ?? ymdInZone(nextHour(), undefined));
-  const [hour, setHour] = useState(() => remembered?.hour ?? hourInZone(nextHour(), undefined));
-  const [apogee, setApogee] = useState<number | null>(() => (remembered ? remembered.apogee : 300));
-  const [recovery, setRecovery] = useState<Recovery>(() => remembered?.recovery ?? 'single');
+  const [site, setSite] = useRemembered(remembered, 'site', defaultToolSite(defaults));
+  const [date, setDate] = useRemembered(remembered, 'date', ymdInZone(nextHourMs(), undefined));
+  const [hour, setHour] = useRemembered(remembered, 'hour', hourInZone(nextHourMs(), undefined));
+  const [apogee, setApogee] = useRemembered(remembered, 'apogee', 300);
+  const [recovery, setRecovery] = useRemembered(remembered, 'recovery', 'single');
   // A single chute and a drogue fall at very different rates, so each keeps
   // its own value: switching to dual must not hand the drogue a main's 6 m/s.
-  const [singleRate, setSingleRate] = useState<number | null>(() => (remembered ? remembered.singleRate : 6));
-  const [drogueRate, setDrogueRate] = useState<number | null>(() => (remembered ? remembered.drogueRate : 25));
-  const [mainRate, setMainRate] = useState<number | null>(() => (remembered ? remembered.mainRate : 6));
-  const [mainAgl, setMainAgl] = useState<number | null>(() => (remembered ? remembered.mainAgl : 150));
-  // A request still out when the tab closed is aborted, so it comes back idle.
-  const [state, setState] = useState<State>(() =>
-    remembered && remembered.state.kind !== 'loading' ? remembered.state : { kind: 'idle' },
+  const [singleRate, setSingleRate] = useRemembered(remembered, 'singleRate', 6);
+  const [drogueRate, setDrogueRate] = useRemembered(remembered, 'drogueRate', 25);
+  const [mainRate, setMainRate] = useRemembered(remembered, 'mainRate', 6);
+  const [mainAgl, setMainAgl] = useRemembered(remembered, 'mainAgl', 150);
+  // A request still out when the tab closed was aborted, so it comes back idle.
+  const [state, setState] = useRemembered(remembered, 'state', { kind: 'idle' }, (s): State =>
+    s.kind === 'loading' ? { kind: 'idle' } : s,
   );
-  useEffect(() => {
-    remembered = { site, date, hour, apogee, recovery, singleRate, drogueRate, mainRate, mainAgl, state };
-  }, [site, date, hour, apogee, recovery, singleRate, drogueRate, mainRate, mainAgl, state]);
-  const request = useRef<AbortController | null>(null);
-  useEffect(() => () => request.current?.abort(), []);
+  const request = useLatest();
 
   const dual = recovery === 'dual';
   const firstRate = dual ? drogueRate : singleRate;
@@ -100,24 +87,11 @@ export function LandingEstimator() {
   const hasSite = site.latitudeDeg != null && site.longitudeDeg != null;
   const ready = hasSite && plan !== null && /^\d{4}-\d{2}-\d{2}$/.test(date);
 
-  const errorText = (err: unknown): string => {
-    if (err instanceof WeatherError) {
-      if (
-        err.kind === 'refused' &&
-        (err.detail === 'tooFarAhead' || err.detail === 'tooEarly' || err.detail === 'badDate')
-      ) {
-        return t(`weather.dateRefusal.${err.detail}`);
-      }
-      return t(`weather.error.${err.kind}`, { detail: err.detail ?? '' });
-    }
-    return t('weather.error.offline');
-  };
+  const errorText = (err: unknown): string => weatherErrorText(err, t);
 
   const estimate = async () => {
     if (!ready || !plan) return;
-    request.current?.abort();
-    const ctl = new AbortController();
-    request.current = ctl;
+    const signal = request.claimSignal();
     setState({ kind: 'loading' });
     try {
       const run = await runLandingEstimate(
@@ -127,18 +101,18 @@ export function LandingEstimator() {
           padElevationM: site.launchAltitudeM,
           date,
           hour,
-          today: today(),
+          today: todayYmd(),
           plan,
           apiKey: readWeatherKey(),
         },
-        { signal: ctl.signal },
+        { signal },
       );
-      if (ctl.signal.aborted) return;
+      if (signal.aborted) return;
       setState(run === 'noHour' ? { kind: 'error', message: t('weather.noHour') } : { kind: 'ready', run });
       // On a phone the result is below the form, out of sight of the button.
       if (run !== 'noHour') requestAnimationFrame(() => resultRef.current?.scrollIntoView?.({ block: 'nearest' }));
     } catch (err) {
-      if (ctl.signal.aborted) return;
+      if (signal.aborted) return;
       setState({ kind: 'error', message: errorText(err) });
     }
   };
@@ -147,17 +121,7 @@ export function LandingEstimator() {
   const fmtM = (m: number) => fmtGroundDistance(dist, m);
   const run = state.kind === 'ready' ? state.run : null;
   const e = run?.estimate;
-  const validTime = run
-    ? new Intl.DateTimeFormat(i18n.language, {
-        timeZone: run.answer.timezone,
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        timeZoneName: 'short',
-      }).format(new Date(run.validUnix * 1000))
-    : '';
+  const validTime = run ? fmtSiteTime(run.validUnix * 1000, run.answer.timezone) : '';
   const minutes = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`;
 
   return (
@@ -168,15 +132,15 @@ export function LandingEstimator() {
           <p className="mt-1 text-xs text-slate-400">{t('landing.intro')}</p>
         </div>
 
-        <ToolGroup title={t('landing.site')}>
+        <CardGroup title={t('landing.site')}>
           <SiteFields site={site} onChange={setSite} elevation />
-        </ToolGroup>
+        </CardGroup>
 
-        <ToolGroup title={t('landing.when')}>
+        <CardGroup title={t('landing.when')}>
           <WhenFields date={date} hour={hour} onDate={setDate} onHour={setHour} />
-        </ToolGroup>
+        </CardGroup>
 
-        <ToolGroup title={t('landing.flight')}>
+        <CardGroup title={t('landing.flight')}>
           <QNum
             label={t('landing.apogee')}
             field="landingApogee"
@@ -254,7 +218,7 @@ export function LandingEstimator() {
               />
             </>
           )}
-        </ToolGroup>
+        </CardGroup>
 
         <button
           className="w-full rounded-md bg-sky-600 px-3 py-2 text-sm font-semibold text-white hover:bg-sky-500 disabled:opacity-50"
@@ -282,17 +246,19 @@ export function LandingEstimator() {
               distanceUnit={dist}
             />
             <dl className="grid grid-cols-[repeat(auto-fill,minmax(9rem,1fr))] gap-x-4 gap-y-2 rounded-xl bg-slate-900 p-3 text-xs ring-1 ring-white/10">
-              <Stat label={t('landing.lands')}>{formatCoord(e.nominal.landingLatDeg, e.nominal.landingLonDeg, 5)}</Stat>
-              <Stat label={t('landing.distance')}>{fmtM(e.nominal.distanceM)}</Stat>
-              <Stat label={t('landing.bearing')}>{`${Math.round(e.nominal.bearingDeg)}°`}</Stat>
-              <Stat label={t('landing.descentTime')}>{minutes(e.nominal.timeS)}</Stat>
-              <Stat label={t('landing.zone')}>
+              <TermRow label={t('landing.lands')}>
+                {formatCoord(e.nominal.landingLatDeg, e.nominal.landingLonDeg, 5)}
+              </TermRow>
+              <TermRow label={t('landing.distance')}>{fmtM(e.nominal.distanceM)}</TermRow>
+              <TermRow label={t('landing.bearing')}>{`${Math.round(e.nominal.bearingDeg)}°`}</TermRow>
+              <TermRow label={t('landing.descentTime')}>{minutes(e.nominal.timeS)}</TermRow>
+              <TermRow label={t('landing.zone')}>
                 {e.ellipse
                   ? `${fmtM(2 * e.ellipse.semiMajorM)} × ${fmtM(2 * e.ellipse.semiMinorM)}`
                   : t('landing.noZone')}
-              </Stat>
-              <Stat label={t('landing.groundAtLanding')}>{fmtM(e.nominal.groundElevationM)}</Stat>
-              <Stat label={t('env.when')}>{validTime}</Stat>
+              </TermRow>
+              <TermRow label={t('landing.groundAtLanding')}>{fmtM(e.nominal.groundElevationM)}</TermRow>
+              <TermRow label={t('env.when')}>{validTime}</TermRow>
             </dl>
             <p className="text-xs text-slate-400">
               {t('landing.estimateNote', { descents: e.samples.length, hours: e.hours })}
@@ -307,15 +273,6 @@ export function LandingEstimator() {
           <p className="p-4 text-sm text-slate-500">{t('landing.empty')}</p>
         )}
       </div>
-    </div>
-  );
-}
-
-function Stat({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <dt className="text-slate-400">{label}</dt>
-      <dd className="tabular-nums text-slate-100">{children}</dd>
     </div>
   );
 }

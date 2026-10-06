@@ -2,6 +2,7 @@ import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
 import { clusterCount, clusterPoints, isClusterPattern } from '../../tree/cluster';
 import { finPlanformPoints } from '../../tree/finPlanform';
 import { num } from '../../tree/nodeProps';
+import { findNode } from '../../tree/treeWalk';
 import { scaleNode } from '../../tree/scaleRocket';
 import { syncDerived } from './treeEdit';
 import { uuid } from '../app/uuid';
@@ -74,19 +75,6 @@ function replaceInPlace(tree: RocketTree, id: string, replacements: ComponentNod
   return done ? syncDerived({ ...tree, components }) : tree;
 }
 
-/** Local lookup, so this module does not depend on treeEdit for a read. */
-function findIn(tree: RocketTree, id: string): ComponentNode | null {
-  const rec = (nodes: ComponentNode[]): ComponentNode | null => {
-    for (const n of nodes) {
-      if (n.id === id) return n;
-      const hit = n.children ? rec(n.children) : null;
-      if (hit) return hit;
-    }
-    return null;
-  };
-  return rec(tree.components);
-}
-
 /** Whether this fin set has a planform a freeform outline can be built from. */
 export const canConvertToFreeform = (node: ComponentNode | null | undefined): boolean =>
   !!node && CONVERTIBLE.has(node.type);
@@ -107,7 +95,7 @@ export const canConvertToFreeform = (node: ComponentNode | null | undefined): bo
  * intent of upstream's rename-only-if-it-is-still-the-default rule.
  */
 export function convertToFreeform(tree: RocketTree, id: string): RocketTree {
-  const node = findIn(tree, id);
+  const node = findNode(tree.components, id);
   if (!node || !canConvertToFreeform(node)) return tree;
   const points = finPlanformPoints(node);
   if (!points || points.length < 3) return tree;
@@ -137,7 +125,7 @@ export const canSplit = (node: ComponentNode | null | undefined): boolean => spl
  * whole set.
  */
 export function splitInstances(tree: RocketTree, id: string, baseName: string): RocketTree {
-  const node = findIn(tree, id);
+  const node = findNode(tree.components, id);
   const spec = node ? SPLITTABLE[node.type] : undefined;
   if (!node || !spec) return tree;
   const count = splitCount(node);
@@ -173,7 +161,7 @@ export const canSplitCluster = (node: ComponentNode | null | undefined): boolean
  * becomes four tubes with four engine blocks.
  */
 export function splitCluster(tree: RocketTree, id: string, baseName: string): RocketTree {
-  const node = findIn(tree, id);
+  const node = findNode(tree.components, id);
   if (!node || !canSplitCluster(node)) return tree;
   // InnerTube.getClusterPoints, so a cluster that was already off-center splits
   // into tubes that stay where they were drawn.
@@ -207,7 +195,7 @@ export function splitCluster(tree: RocketTree, id: string, baseName: string): Ro
  * tooltip promises - the pattern itself is left alone.
  */
 export function resetCluster(tree: RocketTree, id: string): RocketTree {
-  const node = findIn(tree, id);
+  const node = findNode(tree.components, id);
   if (!node || node.type !== 'innertube' || !isClusterPattern(node['cluster'])) return tree;
   if (num(node, 'clusterScale', 1) === 1 && num(node, 'clusterRotation', 0) === 0) return tree;
   return replaceInPlace(tree, id, [{ ...node, clusterScale: 1, clusterRotation: 0 }]);
@@ -227,7 +215,7 @@ export function resetCluster(tree: RocketTree, id: string): RocketTree {
  */
 export function scaleComponent(tree: RocketTree, id: string, factor: number): RocketTree {
   if (!(factor > 0) || !Number.isFinite(factor) || factor === 1) return tree;
-  const node = findIn(tree, id);
+  const node = findNode(tree.components, id);
   if (!node) return tree;
   const scaled = scaleNode(node, factor);
   return replaceInPlace(tree, id, [node.children ? { ...scaled, children: node.children } : scaled]);

@@ -4,6 +4,7 @@ import { download as saveDownload, safeFilename } from '../../services/files/sav
 import { EXPORT_FORMATS } from '../../services/exports/flightPathExport';
 import { getTemplateStore, parseTemplateFilename, type UserTemplate } from '../../services/exports/templateStore';
 import { useLatest } from '../common/useLatest';
+import { readFileText } from '../../services/files/decodeText';
 
 /** Prefixes a user template's id in the format select, so it cannot collide with a built-in's. */
 export const USER_PREFIX = 'user:';
@@ -46,13 +47,10 @@ export function useExportTemplates() {
 
   const selectedUser = resolved.kind === 'user' ? resolved.template : null;
 
-  const onImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = ''; // let the same file be re-imported after edits
-    if (!file) return;
+  const onImport = async (file: File) => {
     const mine = storeWrite.claim();
     try {
-      const source = await file.text();
+      const source = await readFileText(file);
       if (!mine()) return;
       if (!source.trim()) {
         setError(t('pathExport.importEmpty'));

@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore, selectActive } from '../../state/store';
+import { resultFlight } from '../../services/flight/simulations';
+import { useMenuPopover } from '../common/useMenuPopover';
 
 /**
  * Which flight the Results tab is reading — and the pane's heading.
@@ -29,40 +30,26 @@ export function ResultPicker({ fallbackName }: { fallbackName: string }) {
   const chosen = useWorkspaceStore((s) => s.resultSimId);
   const lastRunIds = useWorkspaceStore((s) => s.lastRunIds);
   const setChosen = useWorkspaceStore((s) => s.setResultSimId);
-  const [open, setOpen] = useState(false);
-  const wrap = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const close = (e: PointerEvent) => {
-      if (wrap.current && !wrap.current.contains(e.target as Node)) setOpen(false);
-    };
-    const esc = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
-    window.addEventListener('pointerdown', close);
-    window.addEventListener('keydown', esc);
-    return () => {
-      window.removeEventListener('pointerdown', close);
-      window.removeEventListener('keydown', esc);
-    };
-  }, [open]);
+  const { open, toggle, close, wrapRef, triggerRef } = useMenuPopover();
 
   // The simulations the LAST run flew, which is what there is to choose between.
   const ran = lastRunIds
     .map((id) => sims.find((x) => x.id === id))
     .filter((x): x is NonNullable<typeof x> => !!x?.result);
   // What the views are ACTUALLY showing, which is what the heading has to name:
-  // the choice when it can be honored, else the active row (see `resultFlight`).
-  const shownId = sims.some((s) => s.id === chosen && s.result) ? chosen : activeId;
-  const name = sims.find((s) => s.id === shownId)?.name ?? fallbackName;
+  // the choice when it can be honored, else the active row.
+  const shown = resultFlight(sims, chosen, activeId);
+  const name = shown?.name ?? sims.find((s) => s.id === activeId)?.name ?? fallbackName;
 
   // A single-simulation run is not a choice, so the heading is just a heading.
   if (ran.length < 2) return <h2 className="text-sm font-semibold text-slate-100">{name}</h2>;
 
   return (
-    <div ref={wrap} className="relative inline-block">
+    <div ref={wrapRef} className="relative inline-block">
       <h2>
         <button
-          onClick={() => setOpen((v) => !v)}
+          ref={triggerRef}
+          onClick={toggle}
           aria-haspopup="menu"
           aria-expanded={open}
           // The visible text is the flight being shown, which alone does not say
@@ -84,7 +71,7 @@ export function ResultPicker({ fallbackName }: { fallbackName: string }) {
           className="absolute left-0 z-50 mt-1 min-w-48 rounded-lg bg-slate-900 p-1.5 shadow-xl ring-1 ring-white/15"
         >
           {ran.map((s) => {
-            const on = s.id === shownId;
+            const on = s.id === shown?.id;
             return (
               <button
                 key={s.id}
@@ -92,7 +79,7 @@ export function ResultPicker({ fallbackName }: { fallbackName: string }) {
                 aria-checked={on}
                 onClick={() => {
                   setChosen(s.id);
-                  setOpen(false);
+                  close();
                 }}
                 className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs hover:bg-slate-800 ${
                   on ? 'text-sky-200' : 'text-slate-200'

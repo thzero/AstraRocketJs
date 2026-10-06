@@ -5,7 +5,7 @@ import { FREEFORM_FALLBACK, finPlanformPoints, finRootChord, finSpan, finTabSpan
 import { nodeShape, outerProfile } from '../../tree/shapeProfile';
 // From the tree module: a service must not reach into a canvas component for
 // half its geometry. `schematicGeometry.axialStart` is the same formula.
-import { axialStart, partLength } from '../../tree/position';
+import { axialChain, axialStart, partLength } from '../../tree/position';
 import { assemblyChainLength, isAssembly, resolveAssemblyRadius, ringInstanceOffsets } from '../../tree/assembly';
 
 /**
@@ -73,7 +73,7 @@ export function profileMm(
  * it reads as a solid rocket rather than loose lines.
  */
 export function rocketSideView(tree: RocketTree): { w: number; h: number; body: Pt[]; fins: Pt[][]; pods: Pt[][] } {
-  const chain = tree.components.flatMap((n) => (n.type === 'stage' ? (n.children ?? []) : [n]));
+  const chain = axialChain(tree);
   const fins: Pt[][] = [];
   /** One closed silhouette per off-axis assembly INSTANCE, beside the airframe. */
   const pods: Pt[][] = [];

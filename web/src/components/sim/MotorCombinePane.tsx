@@ -5,9 +5,9 @@ import { combineCurves, impulseClass, type Sample } from '../../services/motors/
 import { useUnits } from '../../prefs/useUnits';
 import { SpecItem } from './MotorDetail';
 import { keyOf } from './motorKey';
-import { seriesColor } from './motorSeries';
+import { seriesColor } from '../common/chartPalette';
 import { inUserUnit, withFixedUnit } from './motorFormat';
-import { ChartAxes, CHART_HEADROOM, chartScales, linePath, baselineArea } from './chartAxes';
+import { ChartAxes, CHART_HEADROOM, chartScales, linePath, baselineArea, LegendSwatch, SeriesPath } from './chartAxes';
 
 /**
  * The motor dashboard's COMBINE tool: the checked motors summed into one
@@ -33,7 +33,6 @@ function CombineChart({
   const tMax = Math.max(1, combined[combined.length - 1]?.[0] ?? 0, ...usable.flatMap((s) => s.pts.map((p) => p[0])));
   const fMax = Math.max(1, ...combined.map((s) => s[1])) * CHART_HEADROOM; // the sum is the envelope (max)
   const { X, Y } = chartScales(dims, tMax, fMax);
-  const path = (pts: Sample[]) => linePath(pts, X, Y);
   const area = baselineArea(combined, X, Y, tMax);
   const labelDirect = usable.length <= 4;
 
@@ -48,42 +47,30 @@ function CombineChart({
         </defs>
         <ChartAxes dims={dims} tMax={tMax} fMax={fMax} X={X} Y={Y} fScale={u.factor('force')} />
         <path d={area} fill="url(#combFill)" />
-        {usable.map((s) => {
-          const peak = s.pts.reduce((a, b) => (b[1] > a[1] ? b : a));
-          return (
-            <g key={keyOf(s.m)}>
-              <path d={path(s.pts)} fill="none" stroke={s.color} strokeWidth="1.5" />
-              {labelDirect && (
-                <text
-                  x={X(peak[0])}
-                  y={Y(peak[1]) - 4}
-                  textAnchor="middle"
-                  className="text-[8px] font-semibold"
-                  fill={s.color}
-                >
-                  {s.m.designation}
-                </text>
-              )}
-            </g>
-          );
-        })}
+        {usable.map((s) => (
+          <SeriesPath
+            key={keyOf(s.m)}
+            pts={s.pts}
+            X={X}
+            Y={Y}
+            color={s.color}
+            strokeWidth={1.5}
+            label={labelDirect ? s.m.designation : undefined}
+            labelLift={4}
+            labelClass="text-[8px] font-semibold"
+          />
+        ))}
         {/* the summed total, drawn on top */}
-        <path d={path(combined)} fill="none" stroke="#f97316" strokeWidth="2.5" />
+        <path d={linePath(combined, X, Y)} fill="none" stroke="#f97316" strokeWidth="2.5" />
       </svg>
       <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-300">
-        <span className="inline-flex items-center gap-1">
-          <svg width="12" height="4" aria-hidden>
-            <line x1="0" y1="2" x2="12" y2="2" stroke="#f97316" strokeWidth="2.5" />
-          </svg>
+        <LegendSwatch color="#f97316" width={12} strokeWidth={2.5}>
           {t('dash.total')}
-        </span>
+        </LegendSwatch>
         {usable.map((s) => (
-          <span key={keyOf(s.m)} className="inline-flex items-center gap-1">
-            <svg width="12" height="4" aria-hidden>
-              <line x1="0" y1="2" x2="12" y2="2" stroke={s.color} strokeWidth="2" />
-            </svg>
+          <LegendSwatch key={keyOf(s.m)} color={s.color} width={12}>
             {s.m.designation}
-          </span>
+          </LegendSwatch>
         ))}
       </div>
     </div>

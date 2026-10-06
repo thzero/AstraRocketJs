@@ -68,6 +68,23 @@ describe('launchDiffKeys', () => {
   });
 });
 
+describe('launchDiffKeys key order', () => {
+  it('reads wind levels written in a different key order as the same', () => {
+    // A reload rebuilds these objects, so key order is not something the user set.
+    const a = sim({ launch: { ...launch, windLevels: [{ altitudeM: 100, speed: 5, directionDeg: 90, stddev: 0 }] } });
+    const b = sim({ launch: { ...launch, windLevels: [{ stddev: 0, directionDeg: 90, speed: 5, altitudeM: 100 }] } });
+    expect(launchDiffKeys([a, b]).has('windLevels' as keyof LaunchConditions)).toBe(false);
+  });
+
+  it('still reads the levels in a different order as different', () => {
+    const lo = { altitudeM: 100, speed: 5, directionDeg: 90, stddev: 0 };
+    const hi = { altitudeM: 500, speed: 9, directionDeg: 120, stddev: 0 };
+    const a = sim({ launch: { ...launch, windLevels: [lo, hi] } });
+    const b = sim({ launch: { ...launch, windLevels: [hi, lo] } });
+    expect(launchDiffKeys([a, b]).has('windLevels' as keyof LaunchConditions)).toBe(true);
+  });
+});
+
 describe('prefDiffKeys', () => {
   it('is empty when both fall through to the globals', () => {
     expect(prefDiffKeys([sim(), sim()]).size).toBe(0);

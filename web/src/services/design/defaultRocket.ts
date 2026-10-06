@@ -1,6 +1,7 @@
 import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
 import { defaultDesignName } from '../app/appInfo';
 import { defaultMaterialPatch } from './materialSlots';
+import { presetLink } from './treeEdit';
 
 /**
  * The design the app opens with: a classic Estes-class sport model, built out of
@@ -203,14 +204,7 @@ const LUG = { length: 0.0349, outerRadius: 0.002, thickness: 0.00025, aftOffset:
 /** The geometry, material and preset link a catalog row gives a node, exactly as
  *  `catalogPatch` + `presetRef` write them when the part is picked by hand. */
 function fromPreset(row: PresetRow): Record<string, unknown> {
-  const link = {
-    preset: {
-      type: row.type,
-      manufacturer: 'Estes',
-      partNo: row.partNo,
-      ...(row.digest ? { digest: row.digest } : {}),
-    },
-  };
+  const link = { preset: presetLink(row.type, 'Estes', row.partNo, row.digest) };
   const mat = row.materialDensity ? { density: row.materialDensity, materialName: row.material } : {};
   return { ...link, ...mat };
 }

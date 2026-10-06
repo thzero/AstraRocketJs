@@ -416,7 +416,7 @@
     "aft": "Achterkant",
     "cutaway": "Doorsnede",
     "cutawayTitle": "De romp langs de middenas openen om de binnenkant te tonen",
-    "roll": "Rol {{deg}}°",
+    "roll": "Rol {{deg}}",
     "rollHint": "Rol: draait de vinnen om de as (of sleep de tekening)",
     "rollAria": "Rolhoek (graden)",
     "loading3d": "3D laden…",

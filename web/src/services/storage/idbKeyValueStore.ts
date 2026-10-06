@@ -268,18 +268,7 @@ export class IndexedDbKeyValueStore implements KeyValueStore {
       // through the boolean below.
       if (!isQuotaError(e)) markDegraded();
       const ok = await this.fallback.set(key, value); // quota, or IndexedDB unavailable
-      if (ok) {
-        this.fellBack.add(key);
-        // Drop the now-stale IndexedDB entry so it cannot shadow the fallback
-        // in a LATER session, where `fellBack` no longer exists. A delete
-        // frees space, so it can succeed where the write that just failed did
-        // not; if it also fails, `fellBack` still covers this session.
-        try {
-          await tx('readwrite', (s) => s.delete(key));
-        } catch {
-          /* best-effort */
-        }
-      }
+      if (ok) await this.demote(key);
       return ok;
     }
   }
@@ -304,19 +293,26 @@ export class IndexedDbKeyValueStore implements KeyValueStore {
       // is the newer one: see `get`).
       const current = await this.readIdb(key);
       const ok = await this.fallback.update(key, (raw) => fn(raw ?? current));
-      if (ok) {
-        this.fellBack.add(key);
-        // Same as `set`: without this the stale IndexedDB entry shadows the
-        // fallback in the NEXT session, where `fellBack` no longer exists. The
-        // design library index is mutated only through `update`, so it is the
-        // key this matters most for.
-        try {
-          await tx('readwrite', (s) => s.delete(key));
-        } catch {
-          /* best-effort */
-        }
-      }
+      // The design library index is mutated only through `update`, so it is
+      // the key the demotion matters most for.
+      if (ok) await this.demote(key);
       return ok;
+    }
+  }
+
+  /**
+   * `key` now lives in the fallback. Mark it so for this session, and drop the
+   * stale IndexedDB entry so it cannot shadow the fallback in a LATER session,
+   * where `fellBack` no longer exists. A delete frees space, so it can succeed
+   * where the write that just failed did not; if it also fails, `fellBack`
+   * still covers this session.
+   */
+  private async demote(key: string): Promise<void> {
+    this.fellBack.add(key);
+    try {
+      await tx('readwrite', (s) => s.delete(key));
+    } catch {
+      /* best-effort */
     }
   }
 

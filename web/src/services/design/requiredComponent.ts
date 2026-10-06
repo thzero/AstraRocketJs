@@ -1,4 +1,5 @@
-import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
+import type { RocketTree } from '../../engine/openRocketEngine';
+import { walkNodes } from '../../tree/treeWalk';
 
 /**
  * Component dimensions a ZERO makes nonsense of.
@@ -94,15 +95,13 @@ export const isDimension = (v: unknown): v is number => typeof v === 'number' &&
  */
 export function badDimensions(tree: RocketTree): BadDimension[] {
   const out: BadDimension[] = [];
-  const visit = (n: ComponentNode) => {
+  for (const n of walkNodes(tree.components ?? [])) {
     for (const field of REQUIRED_COMPONENT_FIELDS[n.type] ?? []) {
       if (isAuto(n.type, field, n[field])) continue;
       if (!isDimension(n[field])) {
         out.push({ id: n.id, type: n.type, name: typeof n.name === 'string' ? n.name : '', field });
       }
     }
-    for (const c of n.children ?? []) visit(c);
-  };
-  for (const c of tree.components ?? []) visit(c);
+  }
   return out;
 }

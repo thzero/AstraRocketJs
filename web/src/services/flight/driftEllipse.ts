@@ -1,4 +1,5 @@
-import { distanceFromPad, type GroundPoint } from './groundTrack';
+import { bearingFromPad, distanceFromPad, type GroundPoint } from './groundTrack';
+import { degToRad } from '../../prefs/units';
 
 /**
  * The ground a rocket could come down on, from the landings a wind sweep flew.
@@ -157,7 +158,7 @@ export function driftEllipse(points: readonly GroundPoint[], sigma = DEFAULT_SIG
     center,
     semiMajorM: sigma * Math.sqrt(major),
     semiMinorM: sigma * Math.sqrt(minor),
-    bearingDeg: ((Math.atan2(ve, vn) * 180) / Math.PI + 360) % 360,
+    bearingDeg: bearingFromPad({ east: ve, north: vn }),
     sigma,
   };
 }
@@ -172,7 +173,7 @@ export function driftEllipse(points: readonly GroundPoint[], sigma = DEFAULT_SIG
  */
 export function ellipsePolygon(e: DriftEllipse, segments = 72): GroundPoint[] {
   // The major axis as a unit vector in east/north, from its compass bearing.
-  const rad = (e.bearingDeg * Math.PI) / 180;
+  const rad = degToRad(e.bearingDeg);
   const me = Math.sin(rad);
   const mn = Math.cos(rad);
   // The minor axis is the major turned a quarter turn; in east/north that is

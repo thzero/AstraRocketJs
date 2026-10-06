@@ -24,6 +24,7 @@
  */
 
 import { anonymousGet } from './anonymousFetch';
+import { isFiniteNumber, roundTo } from '../app/numbers';
 
 // --------------------------------------------------------------- endpoints
 
@@ -104,32 +105,40 @@ export function unitFor(variable: string): string {
 
 // ------------------------------------------------------------------- dates
 
+/**
+ * An instant's date parts in `timeZone`, or in the browser's own zone when
+ * `timeZone` is absent or one Intl does not know.
+ */
+function partsInZone(
+  ms: number,
+  timeZone: string | undefined,
+  options: Intl.DateTimeFormatOptions,
+): Intl.DateTimeFormatPart[] {
+  const fmt = (tz: string | undefined) =>
+    new Intl.DateTimeFormat('en-US', { ...options, timeZone: tz }).formatToParts(new Date(ms));
+  try {
+    return fmt(timeZone);
+  } catch {
+    return fmt(undefined);
+  }
+}
+
 /** "YYYY-MM-DD" of an instant on the calendar of `timeZone` (the browser's own when absent or unknown). */
 export function ymdInZone(ms: number, timeZone: string | undefined): string {
-  const fmt = (tz: string | undefined) =>
-    new Intl.DateTimeFormat('en-US', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(
-      new Date(ms),
-    );
-  let parts: Intl.DateTimeFormatPart[];
-  try {
-    parts = fmt(timeZone);
-  } catch {
-    parts = fmt(undefined);
-  }
+  const parts = partsInZone(ms, timeZone, { year: 'numeric', month: '2-digit', day: '2-digit' });
   const get = (t: string) => parts.find((p) => p.type === t)?.value ?? '';
   return `${get('year')}-${get('month')}-${get('day')}`;
 }
 
+/** Today on the browser's calendar, as "YYYY-MM-DD". */
+export const todayYmd = (): string => ymdInZone(Date.now(), undefined);
+
+/** An hour from now: the default forecast time, so the hour picked is not already past. */
+export const nextHourMs = (): number => Date.now() + 3_600_000;
+
 /** The hour (0 to 23) of an instant on the calendar of `timeZone`. */
 export function hourInZone(ms: number, timeZone: string | undefined): number {
-  const fmt = (tz: string | undefined) =>
-    new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(ms));
-  let parts: Intl.DateTimeFormatPart[];
-  try {
-    parts = fmt(timeZone);
-  } catch {
-    parts = fmt(undefined);
-  }
+  const parts = partsInZone(ms, timeZone, { hour: '2-digit', hourCycle: 'h23' });
   return Number(parts.find((p) => p.type === 'hour')?.value ?? 0);
 }
 
@@ -196,7 +205,7 @@ export function planDateWindow(date: string, today: string): DateWindow {
 /** Coordinates to 3 decimals (about 100 m), finer than any grid answering. */
 const dp3 = (x: number) => x.toFixed(3);
 /** An elevation to 0.1 m; the answer echoes it and is checked against it. */
-const elev = (m: number) => String(Math.round(m * 10) / 10);
+const elev = (m: number) => String(roundTo(m, 1));
 
 const keyParam = (apiKey: string | undefined) => (apiKey ? `&apikey=${encodeURIComponent(apiKey)}` : '');
 
@@ -290,7 +299,7 @@ export interface ForecastVariant {
 }
 
 const isObj = (x: unknown): x is Record<string, unknown> => typeof x === 'object' && x !== null && !Array.isArray(x);
-const finiteOrNull = (x: unknown): number | null => (typeof x === 'number' && Number.isFinite(x) ? x : null);
+const finiteOrNull = (x: unknown): number | null => (isFiniteNumber(x) ? x : null);
 
 /** Open-Meteo's own refusal, `{"error": true, "reason": "..."}`, or null. */
 function refusalReason(body: unknown): string | null {
@@ -631,4 +640,15 @@ export function sampleAt(variant: ForecastVariant, timezone: string, date: strin
       (s) => ymdInZone(s.unix * 1000, timezone) === date && hourInZone(s.unix * 1000, timezone) === hour,
     ) ?? null
   );
+}
+
+/**
+ * The hours a launch-window spread takes, relative to the chosen forecast hour:
+ * two either side of it, the chosen hour included.
+ */
+export const HOUR_OFFSETS = [-2, -1, 0, 1, 2] as const;
+
+/** The sample for the hour starting at `unix` (seconds), or null. */
+export function sampleAtUnix(variant: ForecastVariant, unix: number): HourSample | null {
+  return variant.samples.find((s) => s.unix === unix) ?? null;
 }

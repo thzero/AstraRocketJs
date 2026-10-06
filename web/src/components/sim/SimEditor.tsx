@@ -8,12 +8,12 @@ import { SIM_BOUNDS } from '../../services/storage/settings';
 import { RunButton } from './RunButton';
 import { useIsDesktop } from '../common/useMediaQuery';
 import { LaunchPanel } from './LaunchPanel';
-import { NumberInput } from '../common/NumberInput';
 import { useUnits } from '../../prefs/useUnits';
 import { onSi } from '../../prefs/entryValue';
 import { unitScope } from '../../prefs/units';
-import { FieldLabel, markRing } from '../common/FieldMark';
 import type { SimPrefs } from '../../services/flight/simulations';
+import { NumberRow } from '../common/NumberRow';
+import { SPEED_WARNINGS } from './speedWarnings';
 
 /**
  * Everything about the SELECTED simulation: its name, the flight configuration
@@ -215,7 +215,7 @@ function SimOptions({ diff }: { diff?: ReadonlySet<keyof SimPrefs> }) {
   // velocity unit both ways; the stored value stays SI. `fmt` for the
   // placeholder rather than the raw number, since the global is SI too.
   const speed = (si: number | undefined): number | null => (si == null ? null : u.toUi('velocity', si));
-  const onSpeed = (key: 'deploymentSpeedWarn' | 'mainHighSpeedWarn' | 'mainLowSpeedWarn' | 'drogueLowSpeedWarn') =>
+  const onSpeed = (key: (typeof SPEED_WARNINGS)[number]['key']) =>
     onSi(u.plain('velocity'), (si) => setSimPref(key, si));
   const vSym = u.sym('velocity');
   const vStep = u.step('velocity', 1);
@@ -240,7 +240,7 @@ function SimOptions({ diff }: { diff?: ReadonlySet<keyof SimPrefs> }) {
       </dl>
 
       <div className="space-y-2">
-        <Override
+        <NumberRow
           label={t('settings.timeStep')}
           unit="s"
           mixed={mixed('timeStep')}
@@ -252,7 +252,7 @@ function SimOptions({ diff }: { diff?: ReadonlySet<keyof SimPrefs> }) {
           onChange={(v) => setSimPref('timeStep', v)}
           onCommit={onCommit}
         />
-        <Override
+        <NumberRow
           label={t('settings.maxTime')}
           unit="s"
           mixed={mixed('maxTime')}
@@ -264,7 +264,7 @@ function SimOptions({ diff }: { diff?: ReadonlySet<keyof SimPrefs> }) {
           onChange={(v) => setSimPref('maxTime', v)}
           onCommit={onCommit}
         />
-        <Override
+        <NumberRow
           label={t('settings.maxAngleStep')}
           hint={t('settings.maxAngleStepHint')}
           unit={angle.sym}
@@ -294,7 +294,7 @@ function SimOptions({ diff }: { diff?: ReadonlySet<keyof SimPrefs> }) {
           onKeyUp={onCommit}
           className="w-full accent-sky-500"
         />
-        <Override
+        <NumberRow
           label={t('settings.randomSeed')}
           mixed={mixed('randomSeed')}
           value={prefs?.randomSeed ?? null}
@@ -347,128 +347,24 @@ function SimOptions({ diff }: { diff?: ReadonlySet<keyof SimPrefs> }) {
         {t('settings.warnings')}
       </div>
       <div className="mt-2 space-y-2">
-        <Override
-          label={t('settings.deploySpeedWarn')}
-          hint={t('settings.deploySpeedWarnHint')}
-          unit={vSym}
-          mixed={mixed('deploymentSpeedWarn')}
-          value={speed(prefs?.deploymentSpeedWarn)}
-          placeholder={u.fmt('velocity', g.deploymentSpeedWarn)}
-          step={vStep}
-          min={0}
-          onChange={onSpeed('deploymentSpeedWarn')}
-          onCommit={onCommit}
-        />
-        <Override
-          label={t('settings.mainHighSpeedWarn')}
-          hint={t('settings.mainHighSpeedWarnHint')}
-          unit={vSym}
-          mixed={mixed('mainHighSpeedWarn')}
-          value={speed(prefs?.mainHighSpeedWarn)}
-          placeholder={u.fmt('velocity', g.mainHighSpeedWarn)}
-          step={vStep}
-          min={0}
-          onChange={onSpeed('mainHighSpeedWarn')}
-          onCommit={onCommit}
-        />
-        <Override
-          label={t('settings.mainLowSpeedWarn')}
-          hint={t('settings.mainLowSpeedWarnHint')}
-          unit={vSym}
-          mixed={mixed('mainLowSpeedWarn')}
-          value={speed(prefs?.mainLowSpeedWarn)}
-          placeholder={u.fmt('velocity', g.mainLowSpeedWarn)}
-          step={vStep}
-          min={0}
-          onChange={onSpeed('mainLowSpeedWarn')}
-          onCommit={onCommit}
-        />
-        <Override
-          label={t('settings.drogueLowSpeedWarn')}
-          hint={t('settings.drogueLowSpeedWarnHint')}
-          unit={vSym}
-          mixed={mixed('drogueLowSpeedWarn')}
-          value={speed(prefs?.drogueLowSpeedWarn)}
-          placeholder={u.fmt('velocity', g.drogueLowSpeedWarn)}
-          step={vStep}
-          min={0}
-          onChange={onSpeed('drogueLowSpeedWarn')}
-          onCommit={onCommit}
-        />
+        {SPEED_WARNINGS.map((w) => (
+          <NumberRow
+            key={w.key}
+            label={t(w.label)}
+            hint={t(w.hint)}
+            unit={vSym}
+            mixed={mixed(w.key)}
+            value={speed(prefs?.[w.key])}
+            placeholder={u.fmt('velocity', g[w.key])}
+            step={vStep}
+            min={0}
+            onChange={onSpeed(w.key)}
+            onCommit={onCommit}
+          />
+        ))}
       </div>
 
       <p className="mt-2 text-[11px] text-slate-500">{t('sims.optionsHint')}</p>
     </section>
-  );
-}
-
-function Override({
-  label,
-  unit,
-  value,
-  placeholder,
-  step,
-  min,
-  max,
-  hint,
-  mixed,
-  onChange,
-  onCommit,
-}: {
-  label: string;
-  unit?: string;
-  value: number | null;
-  placeholder: string;
-  step: number;
-  min?: number;
-  max?: number;
-  /** What the number is FOR — same text the global setting carries. */
-  hint?: string;
-  /** The simulations being edited together disagree on this override. */
-  mixed?: boolean;
-  onChange: (v: number | null) => void;
-  onCommit: () => void;
-}) {
-  if (hint) {
-    return (
-      <div>
-        <Override
-          label={label}
-          unit={unit}
-          value={value}
-          placeholder={placeholder}
-          step={step}
-          min={min}
-          max={max}
-          mixed={mixed}
-          onChange={onChange}
-          onCommit={onCommit}
-        />
-        <p className="mt-0.5 pr-24 text-[11px] leading-snug text-slate-500">{hint}</p>
-      </div>
-    );
-  }
-  return (
-    <label className="flex items-center justify-between gap-3">
-      <FieldLabel text={label} mixed={mixed} />
-      <span className="flex items-center gap-1">
-        <NumberInput
-          ariaLabel={label}
-          value={value}
-          onChange={onChange}
-          onCommit={onCommit}
-          step={step}
-          min={min}
-          max={max}
-          placeholder={placeholder}
-          className={markRing(
-            'w-24 rounded-md bg-slate-800 px-2 py-1 text-right text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500',
-            false,
-            mixed,
-          )}
-        />
-        <span className="min-w-4 text-xs text-slate-500">{unit}</span>
-      </span>
-    </label>
   );
 }

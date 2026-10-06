@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSettings } from '../../state/SettingsProvider';
 import { useUnits } from '../../prefs/useUnits';
-import { clampEntry } from '../../prefs/entryValue';
 import { Dialog } from '../common/Dialog';
 import { flightColumns, type FlightColumn } from '../../services/flight/flightColumns';
 import { useWorkspaceStore, selectDesignName } from '../../state/store';
@@ -11,6 +10,8 @@ import { exportFilename } from '../../services/files/saveFile';
 import { download } from '../../services/files/saveFile';
 import type { FlightResult } from '../../engine/openRocketEngine';
 import { stageLabel } from '../../i18n/format';
+import { Check } from '../common/Check';
+import { NumberInput } from '../common/NumberInput';
 
 /**
  * What goes in the flight CSV, before it is written — OpenRocket's Export data
@@ -153,25 +154,23 @@ export function FlightCsvDialog({
               </div>
               <div className="flex items-center justify-between gap-2">
                 <span>{t('csv.decimals')}</span>
-                <input
-                  type="number"
+                <NumberInput
                   min={0}
                   max={12}
+                  step={1}
                   className={`${field} w-16 text-right`}
-                  aria-label={t('csv.decimals')}
+                  ariaLabel={t('csv.decimals')}
                   value={saved.decimals}
-                  onChange={(e) => patch({ decimals: clampEntry(Math.floor(parseFloat(e.target.value)), 0, 12) ?? 0 })}
+                  // Whole places; an emptied box keeps the count it had.
+                  onChange={(v) => v !== null && patch({ decimals: Math.floor(v) })}
                 />
               </div>
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={saved.exponential}
-                  onChange={(e) => patch({ exponential: e.target.checked })}
-                  className="accent-sky-500"
-                />
-                {t('csv.exponential')}
-              </label>
+              <Check
+                className=""
+                checked={saved.exponential}
+                onChange={(v) => patch({ exponential: v })}
+                label={t('csv.exponential')}
+              />
             </div>
           </div>
 
@@ -185,15 +184,13 @@ export function FlightCsvDialog({
                   ['flightEvents', 'csv.flightEvents'],
                 ] as const
               ).map(([key, labelKey]) => (
-                <label key={key} className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={saved[key]}
-                    onChange={(e) => patch({ [key]: e.target.checked })}
-                    className="accent-sky-500"
-                  />
-                  {t(labelKey)}
-                </label>
+                <Check
+                  key={key}
+                  className=""
+                  checked={saved[key]}
+                  onChange={(v) => patch({ [key]: v })}
+                  label={t(labelKey)}
+                />
               ))}
               <div className="flex items-center justify-between gap-2">
                 <span>{t('csv.commentChar')}</span>

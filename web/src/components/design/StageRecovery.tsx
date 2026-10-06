@@ -3,6 +3,7 @@ import type { ComponentNode } from '../../engine/openRocketEngine';
 import { recoveryDevices } from '../../services/design/treeEdit';
 import { useWorkspaceStore } from '../../state/store';
 import { partLabel } from '../../i18n/format';
+import { PropSection } from './PropSection';
 
 /**
  * A stage's recovery plan: single deployment, or dual with one of its devices
@@ -40,8 +41,7 @@ export function StageRecovery({ node }: { node: ComponentNode }) {
   const deviceName = (d: ComponentNode) => partLabel(t, d);
 
   return (
-    <div className="space-y-2 border-t border-white/5 pt-3">
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t('prop.recoveryType')}</h3>
+    <PropSection title={t('prop.recoveryType')}>
       <label className="flex items-center gap-2 text-xs text-slate-300">
         <input
           type="radio"
@@ -85,6 +85,6 @@ export function StageRecovery({ node }: { node: ComponentNode }) {
       ) : (
         <p className="pl-6 text-xs text-slate-500">{t('prop.noDevices')}</p>
       )}
-    </div>
+    </PropSection>
   );
 }

@@ -8,7 +8,7 @@ import { readFlightConfigs, readStageActiveness, type OrkImportContext } from '.
 import { readStages } from './ork/importReaders';
 import { KNOWN_DOCUMENT_TAGS, KNOWN_ROCKET_TAGS, readPassthrough } from './ork/passthrough';
 import { readLaunchConditions } from './ork/importLaunch';
-import { configNotes, modelingNotes } from './ork/importNotes';
+import { configNotes, ignoredNotes, modelingNotes } from './ork/importNotes';
 
 /**
  * .ork IMPORT: unpack and parse the file, pick the flight configuration to
@@ -77,9 +77,7 @@ export function importOrk(data: ArrayBuffer | string): OrkImportResult {
     findStages({ name, components } as RocketTree).map((n) => n.id as string),
   );
   const { notes, ignored } = ctx;
-  if (ignored.size) {
-    notes.push(`Ignored unsupported components: ${[...ignored].join(', ')}.`);
-  }
+  notes.push(...ignoredNotes(ignored));
   notes.push(...modelingNotes(components));
   notes.push(...configNotes(rocketEl, configs));
   notes.push(...archiveNotes(doc, archive.dropped));

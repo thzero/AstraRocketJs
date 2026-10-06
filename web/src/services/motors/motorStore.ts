@@ -9,6 +9,7 @@
 //   setMotorStore(new MyMotorStore())
 import type { KeyValueStore } from '../storage/keyValueStore';
 import { IndexedDbKeyValueStore } from '../storage/idbKeyValueStore';
+import { JsonListStore } from '../storage/jsonListStore';
 import { MIN_CURVE_SAMPLES } from './motorCurve';
 import { nsKey } from '../storage/storageKeys';
 
@@ -161,10 +162,15 @@ const isMassArray = (v: unknown, samples: number): boolean =>
  * the bytes elsewhere, or a different `ttlMs` to tune revalidation.
  */
 export class KeyValueMotorStore implements MotorStore {
+  /** The imported motors: newest import first, one entry per id. */
+  private readonly custom: JsonListStore<CustomMotor>;
+
   constructor(
     private readonly kv: KeyValueStore = new IndexedDbKeyValueStore(),
     private readonly ttlMs: number = DEFAULT_TTL_MS,
-  ) {}
+  ) {
+    this.custom = new JsonListStore(CUSTOM_MOTORS_KEY, isCustomMotor, (m) => m.id, kv);
+  }
 
   async readEntry<T>(key: string, valid: (v: unknown) => boolean): Promise<CachedEntry<T> | null> {
     try {
@@ -189,59 +195,26 @@ export class KeyValueMotorStore implements MotorStore {
     }
   }
 
-  /** The stored list, tolerating an absent, corrupt or partly invalid blob. */
-  private static parseCustom(raw: string | null): CustomMotor[] {
-    if (!raw) return [];
-    try {
-      const parsed = JSON.parse(raw) as unknown;
-      return Array.isArray(parsed) ? parsed.filter(isCustomMotor) : [];
-    } catch {
-      return [];
-    }
-  }
-
-  private async readCustom(): Promise<CustomMotor[]> {
-    try {
-      return KeyValueMotorStore.parseCustom(await this.kv.get(CUSTOM_MOTORS_KEY));
-    } catch {
-      return [];
-    }
-  }
-
-  async listCustomMotors(): Promise<CustomMotor[]> {
-    return this.readCustom();
-  }
-
   // add/remove propagate write failures (an import must be known to have saved),
-  // unlike the best-effort cache writes above. `kv.update` REPORTS failure by
-  // returning false rather than throwing, so the boolean has to be checked —
-  // discarding it meant MotorDialog awaited the import, got a clean resolve, and
-  // re-rendered a catalog that simply did not contain the motor, with no error.
-  //
-  // `kv.update`, not read-then-set: this is an installable PWA whose IndexedDB
-  // is shared across tabs, and a get/set with an await between them let two
-  // tabs importing at once each drop the other's motor (the same race
-  // DesignLibrary.mutateIndex closes for the design index).
-  async addCustomMotor(motor: CustomMotor): Promise<void> {
+  // unlike the best-effort cache writes above; see JsonListStore.
+  listCustomMotors(): Promise<CustomMotor[]> {
+    return this.custom.list();
+  }
+
+  addCustomMotor(motor: CustomMotor): Promise<void> {
     return this.addCustomMotors([motor]);
   }
 
   async addCustomMotors(motors: readonly CustomMotor[]): Promise<void> {
     if (motors.length === 0) return;
-    // Last-id-wins within the batch, matching what repeated single adds did.
+    // Last-id-wins within the batch, and the batch lands reversed, so the last
+    // motor of an import heads the list the way it would after single adds.
     const byId = new Map(motors.map((m) => [m.id, m]));
-    const incoming = [...byId.values()].reverse();
-    const ok = await this.kv.update(CUSTOM_MOTORS_KEY, (raw) =>
-      JSON.stringify([...incoming, ...KeyValueMotorStore.parseCustom(raw).filter((m) => !byId.has(m.id))]),
-    );
-    if (!ok) throw new Error('storage-full');
+    await this.custom.upsert([...byId.values()].reverse());
   }
 
-  async removeCustomMotor(id: string): Promise<void> {
-    const ok = await this.kv.update(CUSTOM_MOTORS_KEY, (raw) =>
-      JSON.stringify(KeyValueMotorStore.parseCustom(raw).filter((m) => m.id !== id)),
-    );
-    if (!ok) throw new Error('storage-full');
+  removeCustomMotor(id: string): Promise<void> {
+    return this.custom.remove(id);
   }
 }
 

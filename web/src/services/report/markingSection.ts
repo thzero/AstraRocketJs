@@ -1,7 +1,7 @@
 import type { jsPDF } from 'jspdf';
 import { fmtNum, partLabel } from '../../i18n/format';
 import { hexToRgbTuple } from './layout';
-import { ensure, heading, sectionBreak, writeRuler, type PdfPage } from './pdfPage';
+import { ensure, heading, paragraph, sectionBreak, writeRuler, type PdfPage } from './pdfPage';
 import { GUIDE_WIDTH_MM, cutPoints, type MarkingGuide, type MarkingGuideSet } from './markingGuide';
 
 /**
@@ -41,13 +41,10 @@ interface Panel {
 }
 
 export function writeMarkingGuideSection(p: PdfPage, set: MarkingGuideSet): void {
-  const { doc, t, M, CW } = p;
+  const { t, M, CW } = p;
   sectionBreak(p);
   heading(p, t('report.markingGuide'));
-  doc.setFont('helvetica', 'normal').setFontSize(8).setTextColor(90);
-  const hint = doc.splitTextToSize(t('report.markingGuideHint'), CW) as string[];
-  doc.text(hint, M, p.y + 3);
-  p.y += 4 + hint.length * 3.5;
+  paragraph(p, t('report.markingGuideHint'));
 
   writeRuler(p);
 
@@ -122,16 +119,13 @@ const OMIT_KEY = {
 } as const;
 
 function writeOmitted(p: PdfPage, set: MarkingGuideSet): void {
-  const { doc, t, M, CW } = p;
+  const { t } = p;
   for (const reason of ['noWrap', 'noFins'] as const) {
     const parts = set.omitted.filter((o) => o.reason === reason);
     if (!parts.length) continue;
     const names = parts.map((o) => partLabel(t, o)).join(', ');
     ensure(p, 10);
-    doc.setFont('helvetica', 'italic').setFontSize(8).setTextColor(120);
-    const lines = doc.splitTextToSize(t(OMIT_KEY[reason], { names }), CW) as string[];
-    doc.text(lines, M, p.y + 3);
-    p.y += 4 + lines.length * 3.5;
+    paragraph(p, t(OMIT_KEY[reason], { names }), 'italic', 120);
   }
 }
 

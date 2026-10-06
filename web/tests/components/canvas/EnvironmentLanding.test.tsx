@@ -28,3 +28,24 @@ describe('EnvironmentLanding', () => {
     expect(screen.getByText(/^1,640 ft, /)).toBeTruthy();
   });
 });
+
+/**
+ * The landing coordinate of a simulated flight is the kernel's own: it records
+ * latitude and longitude (φ, λ) at every step with the Earth model the
+ * simulation chose. The view re-projected the east/north offset with a formula
+ * of its own instead, which agreed with neither the kernel nor the export.
+ */
+describe('EnvironmentLanding coordinates', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('prints the latitude and longitude the kernel recorded at landing', () => {
+    const kernel = {
+      ...flight,
+      result: {
+        series: { time: [0, 1], Px: [0, 300], Py: [0, 400], φ: [39.7392, 39.75], λ: [-104.9903, -104.95] },
+      },
+    } as unknown as ResultFlight;
+    renderWithProviders(<EnvironmentLanding flight={kernel} />);
+    expect(screen.getByText('39.75000° N, 104.95000° W')).toBeTruthy();
+  });
+});

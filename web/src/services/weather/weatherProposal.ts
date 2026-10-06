@@ -2,6 +2,7 @@ import type { AtmosphereLevel, LaunchConditions, WindLevel } from '../design/ork
 import { usableAtmosphereLevels } from '../flight/atmosphereLevels';
 import { usableWindLevels } from '../flight/windLevels';
 import type { HourSample } from './openMeteo';
+import { roundTo } from '../app/numbers';
 
 /**
  * One forecast hour as launch conditions, split into the groups the Weather
@@ -67,6 +68,9 @@ export function hasGroup(p: WeatherProposal, group: ProposalGroup): boolean {
   }
 }
 
+/** A forecast humidity percent as the 0..1 fraction the launch conditions take. */
+const humidityFraction = (pct: number): number => Math.min(1, Math.max(0, pct / 100));
+
 /**
  * The proposal for one hour, answered for a pad at `elevationM` (meters above
  * sea level, the elevation the forecast was asked for).
@@ -75,7 +79,7 @@ export function proposalFor(s: HourSample, elevationM: number): WeatherProposal 
   const p: WeatherProposal = {};
   if (s.temperatureC !== null) p.temperatureC = s.temperatureC;
   if (s.pressureHPa !== null && s.pressureHPa > 0) p.pressureHPa = s.pressureHPa;
-  if (s.humidityPct !== null) p.relativeHumidity = Math.min(1, Math.max(0, s.humidityPct / 100));
+  if (s.humidityPct !== null) p.relativeHumidity = humidityFraction(s.humidityPct);
 
   if (s.windSpeed !== null && s.windFromDeg !== null) {
     const surfaceTi = turbulenceFromGust(s.windSpeed, s.windGust);
@@ -132,7 +136,7 @@ export function proposalFor(s: HourSample, elevationM: number): WeatherProposal 
         altitudeM: l.altitudeM,
         temperatureC: l.temperatureC,
         pressureHPa: l.pressureHPa,
-        relativeHumidity: l.humidityPct === null ? null : Math.min(1, Math.max(0, l.humidityPct / 100)),
+        relativeHumidity: l.humidityPct === null ? null : humidityFraction(l.humidityPct),
       })),
   );
   if (atmosphere.length) p.atmosphere = atmosphere;
@@ -150,13 +154,13 @@ export function proposalPatch(
   elevation?: { launchAltitudeM: number },
 ): Partial<LaunchConditions> {
   const out: Partial<LaunchConditions> = {};
-  if (ticked.has('temperature') && p.temperatureC !== undefined) out.temperatureC = round(p.temperatureC, 1);
-  if (ticked.has('pressure') && p.pressureHPa !== undefined) out.pressureHPa = round(p.pressureHPa, 1);
-  if (ticked.has('humidity') && p.relativeHumidity !== undefined) out.relativeHumidity = round(p.relativeHumidity, 2);
+  if (ticked.has('temperature') && p.temperatureC !== undefined) out.temperatureC = roundTo(p.temperatureC, 1);
+  if (ticked.has('pressure') && p.pressureHPa !== undefined) out.pressureHPa = roundTo(p.pressureHPa, 1);
+  if (ticked.has('humidity') && p.relativeHumidity !== undefined) out.relativeHumidity = roundTo(p.relativeHumidity, 2);
   if (ticked.has('wind') && p.wind) {
-    out.windAverage = round(p.wind.surfaceSpeed, 2);
-    out.windStdDev = round(p.wind.surfaceStdDev, 2);
-    out.windDirectionDeg = round(p.wind.surfaceFromDeg, 0);
+    out.windAverage = roundTo(p.wind.surfaceSpeed, 2);
+    out.windStdDev = roundTo(p.wind.surfaceStdDev, 2);
+    out.windDirectionDeg = roundTo(p.wind.surfaceFromDeg, 0);
     out.windLevels = p.wind.levels;
     out.windAltitudeReference = 'msl';
   }
@@ -164,5 +168,3 @@ export function proposalPatch(
   if (elevation) out.launchAltitudeM = elevation.launchAltitudeM;
   return out;
 }
-
-const round = (x: number, dp: number) => Math.round(x * 10 ** dp) / 10 ** dp;

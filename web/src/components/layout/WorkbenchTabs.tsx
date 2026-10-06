@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore } from '../../state/store';
 import { useShowResultsTab } from './useShowResultsTab';
+import { taskTabs } from './tabTable';
 
 /**
  * Desktop tab strip, rendered INSIDE the header (hidden below lg, where
@@ -30,15 +31,15 @@ export function WorkbenchTabs() {
   return (
     <nav aria-label={t('tabs.workbench')} className="-my-3 ml-3 hidden self-stretch items-stretch gap-1 lg:flex">
       <TabButton active={tab === 'design'} onClick={() => onTab('design')} label={t('tabs.design')} />
-      <TabButton active={tab === 'configs'} onClick={() => onTab('configs')} label={t('tabs.configs')} />
-      <TabButton active={tab === 'sim'} onClick={() => onTab('sim')} label={t('tabs.simulations')} />
-      {showResults && (
-        <TabButton active={tab === 'results'} onClick={() => onTab('results')} label={t('tabs.results')} />
-      )}
-      {/* The fifth tab gives way first: its word only on the widest screens,
-          its glyph below that, so the identity block and the other tabs keep
-          the row (see workbench-header.spec.ts). */}
-      <TabButton active={tab === 'tools'} onClick={() => onTab('tools')} label={t('tabs.tools')} glyph="🧰" />
+      {taskTabs(showResults).map((e) => (
+        <TabButton
+          key={e.id}
+          active={tab === e.id}
+          onClick={() => onTab(e.id)}
+          label={t(e.label)}
+          glyph={e.narrowGlyph ? e.icon : undefined}
+        />
+      ))}
     </nav>
   );
 }

@@ -6,6 +6,7 @@ import { usableAtmosphereLevels } from '../../flight/atmosphereLevels';
 import { isWeatherSource, restoredSource } from '../../weather/weatherSource';
 import { finiteNum } from './numbers';
 import { numTag } from './importTags';
+import { radToDeg } from '../../../prefs/units';
 
 /**
  * Launch conditions from the FIRST <simulation>'s <conditions> (the desktop
@@ -104,7 +105,7 @@ function readWind(condEl: Element, launch: Partial<LaunchConditions>): void {
   if (!Number.isNaN(sd)) launch.windStdDev = sd;
   let dirRad = avgEl ? numTag(avgEl, 'direction', NaN) : NaN;
   if (Number.isNaN(dirRad)) dirRad = numTag(condEl, 'winddirection', NaN);
-  if (!Number.isNaN(dirRad)) launch.windDirectionDeg = (dirRad * 180) / Math.PI;
+  if (!Number.isNaN(dirRad)) launch.windDirectionDeg = radToDeg(dirRad);
 
   // Multilevel wind (24.x): <wind model="multilevel"><windlevel altitude speed
   // direction standarddeviation/>…>. Honored when windmodeltype selects it.

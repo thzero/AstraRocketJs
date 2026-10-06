@@ -1,4 +1,5 @@
 import type { Quantity } from './units';
+import { degToRad, radToDeg } from './units';
 
 /**
  * The bridge between `LaunchConditions` and SI.
@@ -38,8 +39,8 @@ export const LAUNCH_SI = {
   /** Rod angle, rod direction, wind direction: stored in degrees. */
   deg: {
     q: 'angle',
-    toSi: (v: number) => (v * Math.PI) / 180,
-    fromSi: (v: number) => (v * 180) / Math.PI,
+    toSi: (v: number) => degToRad(v),
+    fromSi: (v: number) => radToDeg(v),
   },
   /** Air temperature: stored in Celsius, SI is kelvin. */
   degC: {

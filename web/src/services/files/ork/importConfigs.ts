@@ -1,7 +1,7 @@
 import { PLUGGED_DELAY, type ComponentNode } from '../../../engine/openRocketEngine';
 import { xmlText as text } from '../xmlUtil';
-import type { OrkMotorRef, OrkFlightConfig, OrkDeployOverride, OrkSepOverride } from '../orkTypes';
-import { nonNegTag, numTag } from './importTags';
+import type { OrkMotorRef, OrkFlightConfig } from '../orkTypes';
+import { nonNegTag, numTag, readDeploymentTags, readSeparationTags } from './importTags';
 import { MAX_MOTOR_CONFIGS } from './importLimits';
 import { finiteNum } from './numbers';
 
@@ -85,16 +85,8 @@ export function captureDeployments(ctx: OrkImportContext, el: Element, node: Com
     // the round-trip safe: on save the bare defaults are rewritten from the
     // configuration the user opened, so a config that silently inherited the
     // old defaults would otherwise inherit the NEW ones instead.
-    const src = block ?? el;
-    const o: OrkDeployOverride = {};
-    const event = text(src, ':scope > deployevent');
-    if (event) o.deployEvent = event;
-    // Floored for the same reason the input is (DeploymentSection passes
-    // `min={alt.toUi(0)}`): a negative deploy altitude never fires the kernel's
-    // altitude trigger, so the design flies ballistic under that one
-    // configuration. The file is the other door into the same field.
-    if (text(src, ':scope > deployaltitude') !== null) o.deployAltitude = nonNegTag(src, 'deployaltitude', 200);
-    if (text(src, ':scope > deploydelay') !== null) o.deployDelay = nonNegTag(src, 'deploydelay', 0);
+    // The same reader as the design's own, floors included.
+    const o = readDeploymentTags(block ?? el);
     if (Object.keys(o).length > 0 && node.id) c.deployments[node.id] = o;
   }
 }
@@ -140,13 +132,7 @@ export function captureSeparations(ctx: OrkImportContext, el: Element, node: Com
     const block = Array.from(el.children).find(
       (x) => x.tagName === 'separationconfiguration' && x.getAttribute('configid') === c.id,
     );
-    const src = block ?? el;
-    const o: OrkSepOverride = {};
-    const event = text(src, ':scope > separationevent');
-    if (event) o.separationEvent = event;
-    if (text(src, ':scope > separationdelay') !== null) o.separationDelay = nonNegTag(src, 'separationdelay', 0);
-    if (text(src, ':scope > separationaltitude') !== null)
-      o.separationAltitude = nonNegTag(src, 'separationaltitude', 200);
+    const o = readSeparationTags(block ?? el);
     if (Object.keys(o).length > 0 && node.id) c.separations[node.id] = o;
   }
 }

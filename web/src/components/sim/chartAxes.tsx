@@ -1,4 +1,6 @@
+import type { ReactNode } from 'react';
 import { fmtNum } from '../../i18n/format';
+import { polylinePath } from '../common/svgPath';
 
 // Shared scaffold for the thrust-vs-time charts (MotorDetail's ThrustChart plus
 // MotorDashboard's CombineChart and ComparePane): one set of linear scales, axis
@@ -31,9 +33,9 @@ export function chartScales(d: ChartDims, tMax: number, fMax: number) {
   return { X, Y };
 }
 
-/** SVG path `d` for a polyline through the [t, f] points. */
+/** SVG path `d` for a polyline through the [t, f] points, breaking at a non-finite one. */
 export const linePath = (pts: readonly XY[], X: (t: number) => number, Y: (f: number) => number): string =>
-  pts.map((p, i) => `${i ? 'L' : 'M'} ${X(p[0]).toFixed(1)} ${Y(p[1]).toFixed(1)}`).join(' ');
+  polylinePath(pts.map((p) => [X(p[0]), Y(p[1])]));
 
 /** SVG path `d` for the polyline closed down to the f=0 baseline across [0, tMax]
  *  (the filled area under a curve). Empty string for no points. */
@@ -97,5 +99,79 @@ export function ChartAxes({
         </text>
       ))}
     </>
+  );
+}
+
+/** The sample with the largest value (the first one on a tie). `pts` must not be empty. */
+export const peakOf = (pts: readonly XY[]): XY => pts.reduce((a, b) => (b[1] > a[1] ? b : a));
+
+/** One series curve, optionally named in its own color just above its peak
+ *  (the direct label that backs up the legend). Render it inside the chart's `<svg>`. */
+export function SeriesPath({
+  pts,
+  X,
+  Y,
+  color,
+  strokeWidth,
+  label,
+  labelLift,
+  labelClass,
+}: {
+  pts: readonly XY[];
+  X: (t: number) => number;
+  Y: (f: number) => number;
+  color: string;
+  strokeWidth: number;
+  /** The direct label; omitted draws the curve alone. */
+  label?: string;
+  /** Gap in px between the peak and the label's baseline. */
+  labelLift: number;
+  /** Tailwind size and weight classes for the label. */
+  labelClass: string;
+}) {
+  const peak = peakOf(pts);
+  return (
+    <g>
+      <path d={linePath(pts, X, Y)} fill="none" stroke={color} strokeWidth={String(strokeWidth)} />
+      {label !== undefined && (
+        <text x={X(peak[0])} y={Y(peak[1]) - labelLift} textAnchor="middle" className={labelClass} fill={color}>
+          {label}
+        </text>
+      )}
+    </g>
+  );
+}
+
+/** A legend entry: a short line swatch in the series color (dashed for a
+ *  reference line) followed by its name. */
+export function LegendSwatch({
+  color,
+  width,
+  strokeWidth = 2,
+  dash,
+  children,
+}: {
+  color: string;
+  /** Swatch length in px. */
+  width: number;
+  strokeWidth?: number;
+  dash?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <span className="inline-flex items-center gap-1">
+      <svg width={width} height="4" aria-hidden>
+        <line
+          x1="0"
+          y1="2"
+          x2={width}
+          y2="2"
+          stroke={color}
+          strokeWidth={String(strokeWidth)}
+          strokeDasharray={dash ? '3 2' : undefined}
+        />
+      </svg>
+      {children}
+    </span>
   );
 }

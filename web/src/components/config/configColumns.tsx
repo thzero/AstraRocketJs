@@ -1,8 +1,14 @@
 import type { TFunction } from 'i18next';
 import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
-import { deployOverride, sepOverride, stageFlies, type FlightConfig } from '../../services/flight/flightConfigs';
+import {
+  deployOverride,
+  effectiveDeployment,
+  effectiveSeparation,
+  type FlightConfig,
+  sepOverride,
+  stageFlies,
+} from '../../services/flight/flightConfigs';
 import { findMounts, findRecoveryDevices, findSeparators, findStages } from '../../services/design/treeEdit';
-import { num, str } from '../../tree/nodeProps';
 import type { FieldUnit } from '../../prefs/useUnits';
 import { partName, type ConfigColumn } from './ConfigsTable';
 import { motorDesignation } from '../../services/motors/motorName';
@@ -59,10 +65,8 @@ export function recoveryColumns(
     label: partName(device, i, t),
     cell: (c: FlightConfig) => {
       const over = deployOverride(c, device.id as string);
-      const event = over?.deployEvent ?? (str(device, 'deployEvent') || 'apogee');
+      const { deployEvent: event, deployAltitude: altitude, deployDelay: delay } = effectiveDeployment(c, device);
       const u = alt(device);
-      const altitude = over?.deployAltitude ?? num(device, 'deployAltitude');
-      const delay = over?.deployDelay ?? num(device, 'deployDelay');
       // The altitude is only read by the altitude trigger, so printing it beside
       // "apogee" would be printing a number the flight never uses.
       const text = `${t(`deployEvent.${event}`)}${event === 'altitude' ? ` ${u.fmtSym(altitude)}` : ''}${
@@ -92,10 +96,12 @@ export function separationColumns(
       if (!stageFlies(c, id)) return <Overridden>{t('configs.grounded')}</Overridden>;
       if (!separates.has(id)) return <span className="text-slate-600">–</span>;
       const over = sepOverride(c, id);
-      const event = over?.separationEvent ?? (str(stage, 'separationEvent') || 'ejection');
+      const {
+        separationEvent: event,
+        separationAltitude: altitude,
+        separationDelay: delay,
+      } = effectiveSeparation(c, stage);
       const u = alt(stage);
-      const altitude = over?.separationAltitude ?? num(stage, 'separationAltitude', 200);
-      const delay = over?.separationDelay ?? num(stage, 'separationDelay');
       // The altitude belongs to the two altitude triggers only, so printing it
       // beside "ejection" would be printing a number the flight never uses.
       const text = `${t(`separationEvent.${event}`)}${

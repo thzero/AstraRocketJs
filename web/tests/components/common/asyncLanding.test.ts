@@ -38,11 +38,12 @@ describe('the surfaces that resolve after an await carry a generation guard', ()
     }
   });
 
-  it('leaves MotorDialog its own pick guard, which is a separate attempt', () => {
+  it('gives MotorDialog a separate pick guard, which is a separate attempt', () => {
     // An import and a motor pick must not cancel each other, so the dialog has
     // two tokens on purpose.
     const text = src('components/sim/MotorDialog.tsx');
-    expect(text).toContain('pickGen');
-    expect(text).toContain('catalogWrite');
+    expect(text).toMatch(/const pickWrite = useLatest\(\)/);
+    expect(text).toMatch(/const catalogWrite = useLatest\(\)/);
+    expect(text).toContain('pickWrite.claim()');
   });
 });
