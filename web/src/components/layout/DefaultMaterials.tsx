@@ -50,6 +50,7 @@ export function DefaultMaterials({
             })}
             unsetLabel={t('settings.materialNoDefault')}
             value={defaults[key]?.name}
+            density={defaults[key]?.density}
             onChange={(name, density) => set(key, name, density)}
           />
         );

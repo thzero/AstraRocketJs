@@ -8,6 +8,7 @@ import { useUnits, type Units } from '../../prefs/useUnits';
 import { partLabel } from '../../i18n/format';
 import { isFinSet } from '../../tree/tubefins';
 import { token } from '../common/colorTokens';
+import type { TreeCommand } from './useTreeEdit';
 
 // Parts offered in the "Add part" menu, grouped like OpenRocket's palette.
 // Labels come from the `part.*` / `tree.*` i18n keys at render time.
@@ -279,6 +280,7 @@ export function ComponentTree({
   onAdd,
   onScale,
   onAddStage,
+  edit,
 }: {
   tree: RocketTree;
   selectedId?: string | null;
@@ -286,6 +288,8 @@ export function ComponentTree({
   onAdd?: (type: ComponentType) => void;
   onScale?: () => void; // open the whole-rocket scale dialog
   onAddStage?: () => void; // append a new (booster) stage at the bottom
+  /** Cut, Copy, Paste and Duplicate (useTreeEdit): buttons in the header, and their shortcuts on the rows. */
+  edit?: { cut: TreeCommand; copy: TreeCommand; paste: TreeCommand; duplicate: TreeCommand };
 }) {
   const { t } = useTranslation();
   // Ids of collapsed (folded) branches: ephemeral view state per node id.
@@ -326,6 +330,17 @@ export function ComponentTree({
   const onTreeKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     const rowEl = (e.target as HTMLElement).closest<HTMLElement>('[data-tree-row]');
     if (!rowEl || !listRef.current?.contains(rowEl)) return;
+    // Desktop's Edit shortcuts, on the selected part, while a row has focus.
+    // Scoped to the tree so text fields keep their own copy and paste, and
+    // Ctrl+D here duplicates rather than bookmarking the page.
+    if (edit && (e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey) {
+      const command = { x: edit.cut, c: edit.copy, v: edit.paste, d: edit.duplicate }[e.key.toLowerCase()];
+      if (command) {
+        e.preventDefault();
+        if (command.enabled) command.run();
+        return;
+      }
+    }
     const rows = Array.from(listRef.current.querySelectorAll<HTMLElement>('[data-tree-row]'));
     const idx = rows.indexOf(rowEl);
     if (idx < 0) return;
@@ -479,6 +494,30 @@ export function ComponentTree({
           >
             {allCollapsed ? '⊞' : '⊟'}
           </button>
+        )}
+        {edit && (
+          <div className="ml-auto flex shrink-0 items-center gap-0.5">
+            {(
+              [
+                // U+FE0E asks for the text glyph; without it the scissors draw as a color emoji.
+                ['cut', '✂︎', edit.cut],
+                ['copy', '⧉', edit.copy],
+                ['paste', '⎘', edit.paste],
+                ['duplicate', '❐', edit.duplicate],
+              ] as const
+            ).map(([key, glyph, command]) => (
+              <button
+                key={key}
+                onClick={command.run}
+                disabled={!command.enabled}
+                title={command.title}
+                aria-label={t(`tree.${key}`)}
+                className="rounded px-1.5 py-0.5 text-sm leading-none text-ink-soft hover:bg-raised hover:text-ink disabled:cursor-not-allowed disabled:text-ink-dim disabled:hover:bg-transparent"
+              >
+                {glyph}
+              </button>
+            ))}
+          </div>
         )}
       </div>
       {/* The rule is the tree's spine, so it keeps its 1px; the inset beside it

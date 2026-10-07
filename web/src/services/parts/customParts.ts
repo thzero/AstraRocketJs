@@ -76,6 +76,8 @@ function rowGeometry(node: Partial<ComponentNode>, type: string): Record<string,
   switch (type) {
     case 'bodytube':
     case 'tubecoupler':
+    case 'engineblock':
+    case 'launchlug':
       if (outerDiameter === null || length === null) return null;
       return {
         type,
@@ -116,6 +118,39 @@ function rowGeometry(node: Partial<ComponentNode>, type: string): Record<string,
       const diameter = n(node, 'diameter');
       if (diameter === null) return null;
       return { type, diameter, cd: n(node, 'cd') };
+    }
+    case 'transition': {
+      const fore = dia(node, 'foreRadius');
+      const aft = dia(node, 'aftRadius');
+      if (fore === null || aft === null || length === null || typeof node.shape !== 'string') return null;
+      return {
+        type,
+        material,
+        materialDensity,
+        shape: node.shape as NoseShape,
+        filled: node.filled === true,
+        thickness: node.filled === true ? null : wall,
+        length,
+        foreOuterDiameter: fore,
+        foreShoulderDiameter: dia(node, 'foreShoulderRadius'),
+        foreShoulderLength: n(node, 'foreShoulderLength'),
+        aftOuterDiameter: aft,
+        aftShoulderDiameter: dia(node, 'aftShoulderRadius'),
+        aftShoulderLength: n(node, 'aftShoulderLength'),
+      };
+    }
+    case 'streamer': {
+      const stripLength = n(node, 'stripLength');
+      const stripWidth = n(node, 'stripWidth');
+      if (stripLength === null || stripWidth === null) return null;
+      return {
+        type,
+        // A streamer's material is a surface one, under its own keys.
+        material: typeof node.surfaceMaterialName === 'string' ? node.surfaceMaterialName : undefined,
+        materialDensity: n(node, 'surfaceDensity') ?? 0,
+        stripLength,
+        stripWidth,
+      };
     }
     default:
       return null;

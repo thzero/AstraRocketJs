@@ -79,6 +79,7 @@ export function PropertyPanel({
   canMoveDown,
   canRemove = true,
   isFirstStage = false,
+  coveredBy,
   parentRadius = 0,
   fit,
   flush = false,
@@ -96,6 +97,8 @@ export function PropertyPanel({
   canRemove?: boolean;
   /** The selected node is the top stage — has nothing above it, so no separation. */
   isFirstStage?: boolean;
+  /** The ancestor whose override decides each value, by name (useSelectedComponent). */
+  coveredBy?: Partial<Record<'mass' | 'cg' | 'cd', string>>;
   /** Outer radius (m) of the body this part rings — tube fins only. */
   parentRadius?: number;
   /** Geometry around this part, so the catalog picker can rank what fits it. */
@@ -298,6 +301,7 @@ export function PropertyPanel({
           use="fillet"
           label={t('material.fillet')}
           value={typeof node['filletMaterialName'] === 'string' ? (node['filletMaterialName'] as string) : undefined}
+          density={typeof node['filletDensity'] === 'number' ? (node['filletDensity'] as number) : undefined}
           onChange={(name, d, group) =>
             commitChange({
               filletMaterialName: name,
@@ -412,7 +416,7 @@ export function PropertyPanel({
           those add up to, reached for rarely and after the part is described.
           Sitting in the middle, between the material and the placement, they
           pushed the placement rows below three rows nobody was looking for. */}
-      <OverridesSection node={node} onChange={onChange} onCommit={onCommit} />
+      <OverridesSection node={node} onChange={onChange} onCommit={onCommit} coveredBy={coveredBy} />
 
       {/* Notes on this part, which the desktop gives a tab of its own and we had
           been dropping on every save. Dead last, below even the overrides: it is

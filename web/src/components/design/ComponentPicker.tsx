@@ -6,6 +6,8 @@ import {
   type Component,
   type ComponentType,
   type PickerType,
+  lengthOf,
+  outerDiameterOf,
 } from '../../services/parts/componentDb';
 import {
   customRowsForType,
@@ -194,9 +196,9 @@ interface Col {
 function columnsFor(type: ComponentType, u: Units, t: (k: string) => string, ranked: boolean): Col[] {
   const len = (v: number | null | undefined) => (v == null ? '—' : u.fmt('length', v));
   const withUnit = (label: string) => `${label} (${u.sym('length')})`;
-  const od = (r: Ranked<Component>) => (r.part.type === 'parachute' ? r.part.diameter : r.part.outerDiameter);
+  const od = (r: Ranked<Component>) => outerDiameterOf(r.part);
   const inner = (r: Ranked<Component>) => ('innerDiameter' in r.part ? r.part.innerDiameter : null);
-  const length = (r: Ranked<Component>) => (r.part.type === 'parachute' ? null : r.part.length);
+  const length = (r: Ranked<Component>) => lengthOf(r.part);
 
   const fitCol: Col[] = ranked
     ? [
@@ -283,33 +285,62 @@ function columnsFor(type: ComponentType, u: Units, t: (k: string) => string, ran
   // beside a 54 mm diameter reads as a 6 mm-long tube.
   const thickCol: Col = { ...lenCol, head: withUnit(t('prop.thickness')) };
 
+  // Shape, translated: the catalog stores the kernel's lowercase enum, and
+  // rendered raw the column reads `ogive` / `haack` in every language,
+  // beside translated headings.
+  const shapeCol: Col = {
+    key: 'shape',
+    head: t('prop.shape'),
+    sort: 'shape',
+    w: 'w-28',
+    cell: (r) => ('shape' in r.part ? t(`noseShape.${r.part.shape}`) : '—'),
+  };
+
   switch (type) {
     case 'bodytube':
     case 'tubecoupler':
+    case 'engineblock':
+    case 'launchlug':
       return [...fitCol, ...ident, odCol, idCol, lenCol, material, notes];
+    case 'transition':
+      return [
+        ...ident,
+        shapeCol,
+        {
+          key: 'fore',
+          head: withUnit(t('prop.foreDiameter')),
+          sort: 'fore',
+          num: true,
+          w: 'w-28',
+          cell: (r) => len(r.part.type === 'transition' ? r.part.foreOuterDiameter : null),
+        },
+        // Sorted as the OD: the aft end is the one that meets the tube below.
+        { ...odCol, head: withUnit(t('prop.aftDiameter')), w: 'w-28' },
+        lenCol,
+        material,
+        notes,
+      ];
+    case 'streamer':
+      return [
+        ...ident,
+        lenCol,
+        {
+          key: 'width',
+          head: withUnit(t('prop.width')),
+          sort: 'width',
+          num: true,
+          w: 'w-24',
+          cell: (r) => len(r.part.type === 'streamer' ? r.part.stripWidth : null),
+        },
+        material,
+        notes,
+      ];
     case 'centeringring':
       return [...fitCol, ...ident, odCol, idCol, thickCol, material, notes];
     case 'bulkhead':
       return [...fitCol, ...ident, odCol, thickCol, material, notes];
     case 'nosecone':
-      return [
-        ...fitCol,
-        ...ident,
-        {
-          key: 'shape',
-          head: t('prop.shape'),
-          sort: 'shape',
-          w: 'w-28',
-          // The catalog stores the kernel's lowercase enum, so it is translated
-          // here: rendered raw the column reads `ogive` / `haack` in every
-          // language, beside translated headings.
-          cell: (r) => (r.part.type === 'nosecone' ? t(`noseShape.${r.part.shape}`) : '—'),
-        },
-        odCol,
-        lenCol,
-        material,
-        notes,
-      ];
+      return [...fitCol, ...ident, shapeCol, odCol, lenCol, material, notes];
     case 'parachute':
       return [
         ...ident,

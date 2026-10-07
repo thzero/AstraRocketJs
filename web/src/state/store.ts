@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import i18n from '../i18n';
 import { confirm } from './confirmStore';
 import { prompt } from './promptStore';
-import { scaleRocket } from '../tree/scaleRocket';
+import { scalePart, scaleRocket, type ScaleOptions, type ScaleScope } from '../tree/scaleRocket';
 import { syncAutoShoulders } from '../services/design/autoShoulder';
 import { defaultRocketTree } from '../services/design/defaultRocket';
 import { launcherKind, withLauncher } from '../services/design/launcher';
@@ -15,6 +15,7 @@ import type {
   IgnitionEvent,
 } from '../engine/openRocketEngine';
 import {
+  findNode,
   findStages,
   patchChangesNode,
   updateNode,
@@ -24,6 +25,7 @@ import {
   moveNode,
   setStageDrogue,
 } from '../services/design/treeEdit';
+import { canRemove, duplicateNode, pasteNode } from '../services/design/clipboard';
 import {
   configFor,
   liveMotors,
@@ -200,6 +202,12 @@ export interface WorkspaceState {
    * something else.
    */
   selectionSeq: number;
+  /**
+   * The part Cut or Copy put aside, with its subtree. Not part of the design or
+   * of undo, and kept across switching designs, so a part can be pasted into
+   * another design as desktop allows.
+   */
+  clipboard: ComponentNode | null;
   loadedMeta: LoadedMeta;
   rocket: Rocket | null; // live engine handle (set by the rebuild effect; used by runSim)
   // --- history (undo/redo of component edits) ---
@@ -355,7 +363,12 @@ export interface WorkspaceState {
     loadedMeta: LoadedMeta;
   }) => void;
 
-  scaleDesign: (factor: number) => void;
+  /**
+   * Scale the design, or with `scope` only the selected part (with or without
+   * what is inside it), as one undo step. `options` are the Scale dialog's
+   * mass and offset choices (tree/scaleRocket).
+   */
+  scaleDesign: (factor: number, scope?: ScaleScope, options?: ScaleOptions) => void;
   setSelectedId: (id: string | null) => void;
   patchSelected: (patch: Partial<ComponentNode>) => void;
   /**
@@ -370,6 +383,14 @@ export interface WorkspaceState {
    *  the rest of the stage in the same breath. */
   setStageDrogue: (stageId: string, deviceId: string | null) => void;
   removeSelected: () => void;
+  /** Put the selected part on the clipboard. */
+  copySelected: () => void;
+  /** Copy the selected part, then remove it (not the last stage). */
+  cutSelected: () => void;
+  /** Paste the clipboard at the selection (see services/design/clipboard), selecting the copy. */
+  pasteClipboard: () => void;
+  /** Copy the selected part to the end of its parent, selecting the copy. */
+  duplicateSelected: () => void;
   addPartToTree: (type: PartType) => void;
   addStageToTree: () => void;
   moveSelected: (dir: -1 | 1) => void;
@@ -1079,6 +1100,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     driftSweepRun: null,
     selectedId: null,
     selectionSeq: 0,
+    clipboard: null,
     loadedMeta: null,
     repairNotes: [],
     rocket: null,
@@ -1138,13 +1160,19 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
     // drift from the mounts. EVERY configuration, because the mounts belong to
     // the shared design even though the motors seated in them belong to the
     // configurations.
-    scaleDesign: (factor) => {
+    scaleDesign: (factor, scope = 'rocket', options = {}) => {
+      const { tree, selectedId } = get();
+      if (scope !== 'rocket') {
+        if (!selectedId) return;
+        commitTree(syncAutoShoulders(scalePart(tree, selectedId, factor, scope === 'subtree', options)));
+        return;
+      }
       // Scaling is the one tree change that does not go through `treeEdit`, so
       // it re-resolves the shoulders that follow a neighbor itself. It scales
       // every radius by the same factor, so the numbers already agree: this is
       // belt and braces against a rounding drift that would otherwise persist.
       // 1x, or a non-positive or non-finite factor, returns the tree unchanged.
-      commitTree(syncAutoShoulders(scaleRocket(get().tree, factor)), { selectedId: null });
+      commitTree(syncAutoShoulders(scaleRocket(tree, factor, options)), { selectedId: null });
     },
     setSelectedId: (selectedId) => set((s) => ({ selectedId, selectionSeq: s.selectionSeq + 1 })),
     patchSelected: (patch) => {
@@ -1180,6 +1208,28 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const { selectedId, tree } = get();
       if (!selectedId) return;
       commitTree(removeNode(tree, selectedId), { selectedId: null });
+    },
+    copySelected: () => {
+      const { selectedId, tree } = get();
+      const node = selectedId ? findNode(tree, selectedId) : null;
+      if (node) set({ clipboard: structuredClone(node) });
+    },
+    cutSelected: () => {
+      const { selectedId, tree } = get();
+      const node = selectedId ? findNode(tree, selectedId) : null;
+      if (!node || !selectedId || !canRemove(tree, selectedId)) return;
+      set({ clipboard: structuredClone(node) });
+      commitTree(removeNode(tree, selectedId), { selectedId: null });
+    },
+    pasteClipboard: () => {
+      const { clipboard, tree, selectedId, selectionSeq } = get();
+      const done = clipboard ? pasteNode(tree, clipboard, selectedId) : null;
+      if (done) commitTree(done.tree, { selectedId: done.id, selectionSeq: selectionSeq + 1 });
+    },
+    duplicateSelected: () => {
+      const { tree, selectedId, selectionSeq } = get();
+      const done = selectedId ? duplicateNode(tree, selectedId) : null;
+      if (done) commitTree(done.tree, { selectedId: done.id, selectionSeq: selectionSeq + 1 });
     },
     addPartToTree: (type) => {
       const { tree, selectedId, selectionSeq } = get();

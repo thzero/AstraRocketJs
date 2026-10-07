@@ -21,7 +21,7 @@ import { roundTo } from '../services/app/numbers';
  *
  * WHAT DOESN'T SCALE: a part sized by something OUTSIDE the rocket keeps its
  * size and only moves — a camera shroud (fairing), a rail button (preset
- * sizes), and a launch lug's BORE (the launch rod's diameter). Angles, counts,
+ * sizes). Angles, counts,
  * densities, drag coefficients, finish, motor choice, deployment/separation and
  * the pad conditions are all untouched.
  *
@@ -95,8 +95,8 @@ const LENGTH_KEYS: Record<ComponentType, readonly string[]> = {
   centeringring: ['length', 'outerRadius', 'innerRadius', 'instanceSeparation'],
   bulkhead: ['length', 'outerRadius', 'instanceSeparation'],
   engineblock: ['length', 'thickness', 'outerRadius'],
-  // A lug's BORE is the launch rod's diameter and does not scale; its length does.
-  launchlug: ['length', 'instanceSeparation'],
+  // Desktop's LaunchLug scalers: outer radius, wall and length together.
+  launchlug: ['length', 'outerRadius', 'thickness', 'instanceSeparation'],
   // A rail button is a catalog part; the SPACING between a pair is an airframe span.
   railbutton: ['instanceSeparation'],
   // `length` is the PACKED length (orkImport reads <packedlength> into it) and
@@ -117,8 +117,31 @@ const LENGTH_KEYS: Record<ComponentType, readonly string[]> = {
 /** Types whose own geometry is fixed hardware — they move, they do not grow. */
 const FIXED_SIZE: ReadonlySet<ComponentType> = new Set<ComponentType>(['fairing', 'railbutton']);
 
-/** Mass keys — scaled only on parts whose geometry actually scaled. */
-const MASS_KEYS = ['mass', 'overrideMass'] as const;
+/**
+ * The keys that place a part rather than size it: how far off the axis it sits,
+ * and the spacing between its instances. With the axial position and an
+ * override CG, these are what desktop's **Scale component offsets** governs.
+ */
+const OFFSET_KEYS: ReadonlySet<string> = new Set(['radialPosition', 'radiusOffset', 'instanceSeparation']);
+
+/**
+ * What a scale changes besides the sizes, as desktop's Scale dialog offers it.
+ *
+ * - `offsets`: positions too (axial and radial offsets, instance spacing, an
+ *   override CG). Off, a part keeps its station and only changes size.
+ * - `masses`: masses typed outright (a mass component's mass, a mass override).
+ *   Desktop scales an override mass in its offsets pass, so it changes only
+ *   with both on; a mass component's own mass needs `masses` alone.
+ *
+ * Both default to on, which is the whole-rocket scale.
+ */
+/** What a scale covers: the design, the selected part and everything inside it, or the part alone. */
+export type ScaleScope = 'rocket' | 'subtree' | 'part';
+
+export interface ScaleOptions {
+  offsets?: boolean;
+  masses?: boolean;
+}
 
 /**
  * The exponent a PINNED mass scales by, per type — matching how the same part's
@@ -156,12 +179,8 @@ const MASS_EXPONENT: Record<ComponentType, number> = {
   parachute: 2,
   streamer: 2,
   shockcord: 1,
-  // A lug only grows in ONE dimension: its bore is the launch rod's diameter
-  // and its wall goes with it, so LENGTH_KEYS.launchlug scales `length` alone.
-  // The k^3 default therefore made a pinned 1 g lug weigh 8 g after a 2x scale
-  // on a part that merely got twice as long, and that error lands straight in
-  // the scaled design's total mass and CG.
-  launchlug: 1,
+  // A lug's length, outer radius and wall all scale, so a volume.
+  launchlug: 3,
   // Fixed-size hardware (FIXED_SIZE): the same physical part after scaling,
   // so its mass is never touched. k^0 = 1 says so even if the guard is lost.
   railbutton: 0,
@@ -178,7 +197,9 @@ const round = (x: number, places = 12): number => roundTo(x, places);
  * component: the same key lists, so a scaled fin's tab, fillet and thickness
  * follow its outline exactly as they would in a whole-rocket scale.
  */
-export function scaleNode(n: ComponentNode, k: number): ComponentNode {
+export function scaleNode(n: ComponentNode, k: number, options: ScaleOptions = {}): ComponentNode {
+  const offsets = options.offsets ?? true;
+  const masses = options.masses ?? true;
   const type = n.type;
   const fixed = FIXED_SIZE.has(type);
   // Children are left OFF, rather than carried by the spread and overwritten by
@@ -193,6 +214,7 @@ export function scaleNode(n: ComponentNode, k: number): ComponentNode {
   // `?? []` survives for a persisted node whose `type` the union does not
   // know: the table is complete for the union, not for arbitrary input.
   for (const key of LENGTH_KEYS[type] ?? []) {
+    if (!offsets && OFFSET_KEYS.has(key)) continue;
     const v = numOpt(n, key);
     if (v !== undefined) out[key] = round(v * k);
   }
@@ -220,13 +242,13 @@ export function scaleNode(n: ComponentNode, k: number): ComponentNode {
     // Same `?? 3` reasoning as LENGTH_KEYS above: complete for the union, and
     // a solid is the safe reading of a type it has never seen.
     const exp = MASS_EXPONENT[type] ?? 3;
-    for (const key of MASS_KEYS) {
-      const v = numOpt(n, key);
-      if (v !== undefined) out[key] = round(v * k ** exp, 15);
-    }
+    const mass = numOpt(n, 'mass');
+    if (masses && mass !== undefined) out['mass'] = round(mass * k ** exp, 15);
+    const override = numOpt(n, 'overrideMass');
+    if (masses && offsets && override !== undefined) out['overrideMass'] = round(override * k ** exp, 15);
     // An override CG is a station from the component's own front — a length.
     const cg = numOpt(n, 'overrideCGX');
-    if (cg !== undefined) out['overrideCGX'] = round(cg * k);
+    if (offsets && cg !== undefined) out['overrideCGX'] = round(cg * k);
   }
 
   // Axial placement: startFromPosition is homogeneous of degree 1 in
@@ -236,7 +258,7 @@ export function scaleNode(n: ComponentNode, k: number): ComponentNode {
   // `positionOf` validates the method and the offset the way position.ts now
   // reads them, so a string offset scales to the kernel's 0 rather than being
   // carried through untouched to disagree with the layout.
-  if (n.position) {
+  if (n.position && offsets) {
     const pos = positionOf(n);
     out.position = { ...pos, offset: round(pos.offset * k) };
   }
@@ -249,14 +271,55 @@ export function scaleNode(n: ComponentNode, k: number): ComponentNode {
  * untouched). A non-positive, non-finite or 1× factor is a no-op — the same
  * tree object is returned, so callers can cheaply detect "nothing to do".
  */
-export function scaleRocket(tree: RocketTree, factor: number): RocketTree {
+export function scaleRocket(tree: RocketTree, factor: number, options: ScaleOptions = {}): RocketTree {
   if (!(factor > 0) || !Number.isFinite(factor) || factor === 1) return tree;
   const walk = (nodes: ComponentNode[]): ComponentNode[] =>
     nodes.map((n) => {
-      const scaled = scaleNode(n, factor);
+      const scaled = scaleNode(n, factor, options);
       return n.children ? ({ ...scaled, children: walk(n.children) } as ComponentNode) : scaled;
     });
   return { ...tree, components: walk(tree.components) };
+}
+
+/**
+ * Scale one part, and with `withChildren` everything inside it, leaving the
+ * rest of the design alone: desktop's "Selection and all subcomponents" and
+ * "Only selected component(s)". Returns the same tree when there is nothing to
+ * do or no such part.
+ */
+export function scalePart(
+  tree: RocketTree,
+  id: string,
+  factor: number,
+  withChildren: boolean,
+  options: ScaleOptions = {},
+): RocketTree {
+  if (!(factor > 0) || !Number.isFinite(factor) || factor === 1) return tree;
+  let found = false;
+  const all = (n: ComponentNode): ComponentNode => {
+    const scaled = scaleNode(n, factor, options);
+    return n.children ? ({ ...scaled, children: n.children.map(all) } as ComponentNode) : scaled;
+  };
+  const walk = (nodes: ComponentNode[]): ComponentNode[] =>
+    nodes.map((n) => {
+      if (n.id === id) {
+        found = true;
+        if (withChildren) return all(n);
+        const scaled = scaleNode(n, factor, options);
+        return n.children ? ({ ...scaled, children: n.children } as ComponentNode) : scaled;
+      }
+      return n.children ? ({ ...n, children: walk(n.children) } as ComponentNode) : n;
+    });
+  const components = walk(tree.components);
+  return found ? { ...tree, components } : tree;
+}
+
+/** Whether a design has a mass anything scales as a typed value: a mass component or a mass override. */
+export function hasExplicitMass(tree: RocketTree): boolean {
+  for (const n of walkNodes(tree.components)) {
+    if (n.type === 'masscomponent' || typeof n['overrideMass'] === 'number') return true;
+  }
+  return false;
 }
 
 /** The rocket's greatest body diameter (m) — what a "scale to a tube" factor divides. */

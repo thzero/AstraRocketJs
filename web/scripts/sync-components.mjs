@@ -4,8 +4,10 @@
 // (like sync-motors.mjs, but from local OpenRocket data instead of the
 // thrustcurve API; no network).
 //
-// Brings in the three types the current editor uses: body tubes, nose cones,
-// and parachutes (recovery). Run manually / in CI when refreshing the catalog:
+// Brings in every kind desktop's parts library offers that the database
+// carries: body tubes, nose cones, transitions, tube couplers, centering rings,
+// bulkheads, engine blocks, launch lugs, parachutes and streamers. (Desktop's
+// library also lists rail buttons, but this database has none.) Run manually / in CI when refreshing the catalog:
 //   node scripts/sync-components.mjs [--src <openrocket presets dir>]
 //
 // THEN RUN `npm run sync:preset-digests`. This script cannot produce the part
@@ -164,6 +166,59 @@ for (const f of files) {
       innerDiameter: lenM(b, 'InsideDiameter'),
       length,
     });
+  }
+
+  // Transition: both ends and both shoulders, as Transition.loadFromPreset
+  // reads them. A stated wall is kept; most rows state Filled instead.
+  for (const b of blocks(text, 'Transition')) {
+    const foreOuterDiameter = lenM(b, 'ForeOutsideDiameter');
+    const aftOuterDiameter = lenM(b, 'AftOutsideDiameter');
+    const length = lenM(b, 'Length');
+    if (!foreOuterDiameter || !aftOuterDiameter || !length) continue;
+    push({
+      type: 'transition',
+      ...common(b),
+      ...withMaterial(b),
+      shape: (str(b, 'Shape') || 'CONICAL').toLowerCase(),
+      filled: str(b, 'Filled') === 'true',
+      thickness: lenM(b, 'Thickness'),
+      length,
+      foreOuterDiameter,
+      foreShoulderDiameter: lenM(b, 'ForeShoulderDiameter'),
+      foreShoulderLength: lenM(b, 'ForeShoulderLength'),
+      aftOuterDiameter,
+      aftShoulderDiameter: lenM(b, 'AftShoulderDiameter'),
+      aftShoulderLength: lenM(b, 'AftShoulderLength'),
+    });
+  }
+
+  // Engine blocks and launch lugs share the tube schema (OD/ID/length).
+  for (const [tag, type] of [
+    ['EngineBlock', 'engineblock'],
+    ['LaunchLug', 'launchlug'],
+  ]) {
+    for (const b of blocks(text, tag)) {
+      const outerDiameter = lenM(b, 'OutsideDiameter');
+      const length = lenM(b, 'Length');
+      if (!outerDiameter || !length) continue;
+      push({
+        type,
+        ...common(b),
+        ...withMaterial(b),
+        outerDiameter,
+        innerDiameter: lenM(b, 'InsideDiameter'),
+        length,
+      });
+    }
+  }
+
+  // Streamer: the strip's length and width, and its SURFACE material, whose
+  // density is per square meter.
+  for (const b of blocks(text, 'Streamer')) {
+    const stripLength = lenM(b, 'Length');
+    const stripWidth = lenM(b, 'Width');
+    if (!stripLength || !stripWidth) continue;
+    push({ type: 'streamer', ...common(b), ...withMaterial(b), stripLength, stripWidth });
   }
 
   for (const b of blocks(text, 'BulkHead')) {

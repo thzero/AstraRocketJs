@@ -50,6 +50,7 @@ export type MaterialUse = 'structure' | 'fillet';
 
 export function MaterialPicker({
   value,
+  density: ownDensity,
   onChange,
   type = 'bulk',
   label,
@@ -57,6 +58,13 @@ export function MaterialPicker({
   unsetLabel,
 }: {
   value?: string;
+  /**
+   * The density the part carries with `value`, SI. Shown when the name is not
+   * in this list: a catalog part brings its maker's material ("Balsa, bulk,
+   * BMS typical") at its own density, which is what the part is weighed with,
+   * and almost none of those names are in the list.
+   */
+  density?: number;
   onChange: (name: string | undefined, density: number, group?: string) => void;
   type?: MaterialType;
   label?: string;
@@ -116,6 +124,9 @@ export function MaterialPicker({
   // already name a material this picker would not offer (a `.ork` with an
   // epoxy body tube), and the row has to keep showing what the part is made of.
   const current = mats.find((m) => m.name === value);
+  // A material the part names that this list does not hold. It is still the
+  // part's material, so it is shown as chosen rather than as "not specified".
+  const own = value && !current ? { name: value, density: ownDensity && ownDensity > 0 ? ownDensity : null } : null;
 
   /**
    * The list is the materials for THIS use, and nothing else.
@@ -202,11 +213,11 @@ export function MaterialPicker({
       <div className="mb-1 flex items-center justify-between text-sm">
         <span className="text-ink-soft">{label ?? t('material.title')}</span>
         <span className="tabular-nums text-xs text-ink-muted">
-          {current ? (
+          {current || own?.density ? (
             <>
-              {density(current.density)} <UnitChip quantity={quantity} scope={scope} />
+              {density(current ? current.density : own!.density!)} <UnitChip quantity={quantity} scope={scope} />
             </>
-          ) : (
+          ) : own ? null : (
             t('material.default')
           )}
           {current?.custom && (
@@ -221,16 +232,23 @@ export function MaterialPicker({
         </span>
       </div>
       <select
-        value={current ? current.name : loadErr && value ? value : '__default__'}
+        value={current ? current.name : own ? own.name : '__default__'}
         onChange={(e) => handleSelect(e.target.value)}
         className="w-full rounded-lg bg-canvas px-2 py-2 text-sm text-ink-strong ring-1 ring-line/10"
       >
         <option value="__default__">{unsetLabel ?? t('material.defaultOption')}</option>
-        {/* The part's own material, when the catalog did not arrive to confirm
-            it. Without this the select falls back to "no material", so the row
-            would describe a part that has one as a part that does not. Its
-            density is in the tree, not here, so the name is all this shows. */}
-        {loadErr && value && !current && <option value={value}>{value}</option>}
+        {/* The part's own material, when the list does not hold it: a catalog
+            part's maker's material, or any material while the list failed to
+            load. Without this the select falls back to "no material", so the
+            row would describe a part that has one as a part that does not. */}
+        {own && (
+          <optgroup label={t('material.thisPart')}>
+            <option value={own.name}>
+              {own.name}
+              {own.density ? ` · ${density(own.density)} ${fu.sym}` : ''}
+            </option>
+          </optgroup>
+        )}
         {groups.map(([g, list]) => (
           <optgroup key={g} label={g}>
             {list.map((m) => (
@@ -244,7 +262,7 @@ export function MaterialPicker({
         <option value="__add__">{t('material.addCustom')}</option>
       </select>
 
-      {!current && !loadErr && (
+      {!current && !own && !loadErr && (
         <p className="mt-1 text-[11px] leading-snug text-ink-faint">{t('material.defaultHint')}</p>
       )}
       {loadErr && <p className="mt-1 text-xs text-danger-400">{loadErr}</p>}

@@ -206,6 +206,10 @@ function describe(row: Component, u: Units, t: (k: string, o?: Record<string, un
       return `${t(`noseShape.${row.shape}`)} · ⌀ ${len(row.outerDiameter)} · ${len(row.length)} ${sym}`;
     case 'bulkhead':
       return `⌀ ${len(row.outerDiameter)} · ${len(row.length)} ${sym}`;
+    case 'transition':
+      return `${t(`noseShape.${row.shape}`)} · ⌀ ${len(row.foreOuterDiameter)} / ${len(row.aftOuterDiameter)} · ${len(row.length)} ${sym}`;
+    case 'streamer':
+      return `${len(row.stripLength)} × ${len(row.stripWidth)} ${sym}`;
     default:
       // Tube-shaped: the bore is what a coupler or ring IS, so it is named
       // even when the catalog would have left it null.

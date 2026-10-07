@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { RocketTree } from '../../src/engine/openRocketEngine';
-import { scaleRocket, maxBodyDiameter, rocketLength } from '../../src/tree/scaleRocket';
+import { scaleRocket, scalePart, hasExplicitMass, maxBodyDiameter, rocketLength } from '../../src/tree/scaleRocket';
 
 const tree = (): RocketTree => ({
   components: [
@@ -122,10 +122,9 @@ describe('scaleRocket', () => {
     expect(streamer['stripLength']).toBeCloseTo(0.8);
   });
 
-  it('scales a launch lug by the one dimension that actually grows', () => {
-    // A lug's bore is the launch rod's diameter, so only its LENGTH scales.
-    // Under the k^3 default a pinned 1 g lug came out at 8 g after a 2x scale,
-    // and that error goes straight into the scaled design's mass and CG.
+  it('scales a launch lug in every dimension, as desktop does', () => {
+    // Desktop's LaunchLug scalers take the outer radius, the wall and the
+    // length, so the bore grows with the lug and a pinned mass goes as k^3.
     const t: RocketTree = {
       name: 'lug',
       components: [
@@ -138,16 +137,26 @@ describe('scaleRocket', () => {
               id: 'b',
               length: 0.3,
               outerRadius: 0.012,
-              children: [{ type: 'launchlug', id: 'l', length: 0.04, outerRadius: 0.0022, overrideMass: 0.001 }],
+              children: [
+                {
+                  type: 'launchlug',
+                  id: 'l',
+                  length: 0.04,
+                  outerRadius: 0.0022,
+                  thickness: 0.0003,
+                  overrideMass: 0.001,
+                },
+              ],
             },
           ],
         },
       ],
     } as unknown as RocketTree;
     const lug = scaleRocket(t, 2).components[0]!.children![0]!.children![0]!;
-    expect(lug['length']).toBeCloseTo(0.08); // the one dimension that grows
-    expect(lug['outerRadius']).toBeCloseTo(0.0022); // bore is the rod, unchanged
-    expect(lug['overrideMass']).toBeCloseTo(0.002); // k^1, not k^3 (0.008)
+    expect(lug['length']).toBeCloseTo(0.08);
+    expect(lug['outerRadius']).toBeCloseTo(0.0044);
+    expect(lug['thickness']).toBeCloseTo(0.0006);
+    expect(lug['overrideMass']).toBeCloseTo(0.008);
   });
 
   it('is a no-op at 1× and for invalid factors (same tree object)', () => {
@@ -194,5 +203,74 @@ describe('scaleRocket reads positions through positionOf', () => {
     // Unknown method and string offset both fall back to the kernel's top / 0
     // (nodeProps.positionOf), so the scaled tree is one the layout can read.
     expect(k.position).toEqual({ method: 'top', offset: 0 });
+  });
+});
+
+/** Desktop's Scale dialog choices: what to scale, and whether masses and positions follow. */
+describe('scale options and scopes', () => {
+  const mass = (t: RocketTree) => t.components[0]!.children![1]!.children![2]!;
+
+  it('keeps positions and override CGs where they were with offsets off', () => {
+    const t = tree();
+    Object.assign(mass(t), { overrideCGX: 0.01, radialPosition: 0.004 });
+    const out = mass(scaleRocket(t, 2, { offsets: false }));
+    expect(out.position).toEqual({ method: 'top', offset: 0.05 });
+    expect(out['overrideCGX']).toBe(0.01);
+    expect(out['radialPosition']).toBe(0.004);
+    expect(out['length']).toBe(0.04); // the size still scales
+  });
+
+  it('leaves typed masses alone with masses off', () => {
+    const out = mass(scaleRocket(tree(), 2, { masses: false }));
+    expect(out['mass']).toBe(0.01);
+    expect(out['length']).toBe(0.04);
+  });
+
+  it('scales an override mass only with both masses and offsets on, as desktop does', () => {
+    const t = tree();
+    t.components[0]!.children![1]!['overrideMass'] = 0.1;
+    const tube = (x: RocketTree) => x.components[0]!.children![1]!;
+    expect(tube(scaleRocket(t, 2))['overrideMass']).toBeCloseTo(0.8, 12);
+    expect(tube(scaleRocket(t, 2, { offsets: false }))['overrideMass']).toBe(0.1);
+    expect(tube(scaleRocket(t, 2, { masses: false }))['overrideMass']).toBe(0.1);
+  });
+});
+
+describe('scalePart', () => {
+  const withIds = (): RocketTree => {
+    const t = tree();
+    t.components[0]!.children![1]!.id = 'tube';
+    t.components[0]!.children![0]!.id = 'nose';
+    return t;
+  };
+
+  it('scales the part and what is inside it, and nothing else', () => {
+    const out = scalePart(withIds(), 'tube', 2, true);
+    const [nose, tube] = out.components[0]!.children!;
+    expect(nose!['length']).toBe(0.1);
+    expect(tube!['length']).toBe(0.6);
+    expect(tube!.children![0]!['rootChord']).toBe(0.1);
+  });
+
+  it('scales the part alone, leaving its children as they were', () => {
+    const tube = scalePart(withIds(), 'tube', 2, false).components[0]!.children![1]!;
+    expect(tube['length']).toBe(0.6);
+    expect(tube.children![0]!['rootChord']).toBe(0.05);
+  });
+
+  it('returns the same tree for a missing part or a 1x factor', () => {
+    const t = withIds();
+    expect(scalePart(t, 'nope', 2, true)).toBe(t);
+    expect(scalePart(t, 'tube', 1, true)).toBe(t);
+  });
+});
+
+describe('hasExplicitMass', () => {
+  it('finds a mass component or a mass override', () => {
+    expect(hasExplicitMass(tree())).toBe(true);
+    const bare: RocketTree = { components: [{ type: 'stage', children: [{ type: 'bodytube', length: 0.3 }] }] };
+    expect(hasExplicitMass(bare)).toBe(false);
+    bare.components[0]!['overrideMass'] = 0.2;
+    expect(hasExplicitMass(bare)).toBe(true);
   });
 });
