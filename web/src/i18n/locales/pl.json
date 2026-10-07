@@ -1482,6 +1482,7 @@
     "available": "Dostępna jest nowa wersja.",
     "running": "Używasz wersji v{{version}}.",
     "reload": "Odśwież",
+    "reloading": "Przeładowywanie…",
     "later": "Później",
     "laterTitle": "Przypomnij ponownie za około {{hours}} godz.",
     "dismiss": "Ukryj"

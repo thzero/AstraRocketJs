@@ -7,8 +7,6 @@ interface TabEntry {
   /** The phone bar's label key: five buttons share a phone's width. */
   short: string;
   icon: string;
-  /** The desktop strip shows the icon in place of the word below 2xl. */
-  narrowGlyph?: true;
 }
 
 /**
@@ -21,10 +19,7 @@ const TASK_TABS: readonly TabEntry[] = [
   { id: 'configs', label: 'tabs.configs', short: 'tabs.configsShort', icon: '🔥' },
   { id: 'sim', label: 'tabs.simulations', short: 'tabs.simulate', icon: '📈' },
   { id: 'results', label: 'tabs.results', short: 'tabs.results', icon: '📊' },
-  // The fifth tab gives way first on the desktop strip: its word only on the
-  // widest screens, its glyph below that, so the identity block and the other
-  // tabs keep the row (see workbench-header.spec.ts).
-  { id: 'tools', label: 'tabs.tools', short: 'tabs.tools', icon: '🧰', narrowGlyph: true },
+  { id: 'tools', label: 'tabs.tools', short: 'tabs.tools', icon: '🧰' },
 ];
 
 /** The tabs after Design that are on show, given whether Results is. */

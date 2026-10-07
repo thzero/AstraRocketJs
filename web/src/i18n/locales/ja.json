@@ -1458,6 +1458,7 @@
     "available": "新しいバージョンがあります。",
     "running": "現在お使いのバージョンは v{{version}} です。",
     "reload": "再読み込み",
+    "reloading": "再読み込み中…",
     "later": "あとで",
     "laterTitle": "約 {{hours}} 時間後にもう一度知らせる",
     "dismiss": "閉じる"

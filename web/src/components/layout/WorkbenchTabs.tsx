@@ -29,62 +29,36 @@ export function WorkbenchTabs() {
   const showResults = useShowResultsTab();
 
   return (
-    <nav aria-label={t('tabs.workbench')} className="-my-3 ml-3 hidden self-stretch items-stretch gap-1 lg:flex">
+    <nav
+      aria-label={t('tabs.workbench')}
+      className="-my-3 ml-2 hidden self-stretch items-stretch gap-0.5 lg:flex 2xl:ml-3 2xl:gap-1"
+    >
       <TabButton active={tab === 'design'} onClick={() => onTab('design')} label={t('tabs.design')} />
       {taskTabs(showResults).map((e) => (
-        <TabButton
-          key={e.id}
-          active={tab === e.id}
-          onClick={() => onTab(e.id)}
-          label={t(e.label)}
-          glyph={e.narrowGlyph ? e.icon : undefined}
-        />
+        <TabButton key={e.id} active={tab === e.id} onClick={() => onTab(e.id)} label={t(e.label)} />
       ))}
     </nav>
   );
 }
 
-function TabButton({
-  active,
-  onClick,
-  label,
-  glyph,
-}: {
-  active: boolean;
-  onClick: () => void;
-  label: string;
-  /** Shown in place of the word below 2xl; the word stays the button's name. */
-  glyph?: string;
-}) {
+function TabButton({ active, onClick, label }: { active: boolean; onClick: () => void; label: string }) {
   return (
     <button
       onClick={onClick}
-      aria-label={glyph ? label : undefined}
-      title={glyph ? label : undefined}
       aria-current={active ? 'page' : undefined}
       // A bottom border rather than a fill: the tab sits directly above the
       // panes it labels, so the active one should read as continuous with them.
       // `-mb-px` pulls it over the header's border rather than stacking on it.
-      // Tighter below 2xl: with five tabs the header row has no slack left at
-      // 1024 in English or 1280 in Portuguese (workbench-header.spec.ts).
-      className={`-mb-px flex items-center border-b-2 px-2 text-sm font-semibold 2xl:px-3 ${
+      // Tighter below 2xl, padding and gaps both: with five tabs spelled out the
+      // header row has no slack left at 1024 in English or 1180 in Portuguese
+      // (workbench-header.spec.ts).
+      className={`-mb-px flex items-center border-b-2 px-1 text-sm font-semibold 2xl:px-3 ${
         active
           ? 'border-sky-500 text-sky-300'
           : 'border-transparent text-slate-400 hover:border-white/20 hover:text-slate-200'
       }`}
     >
-      {glyph ? (
-        <>
-          <span aria-hidden="true" className="2xl:hidden">
-            {glyph}
-          </span>
-          <span aria-hidden="true" className="hidden 2xl:inline">
-            {label}
-          </span>
-        </>
-      ) : (
-        label
-      )}
+      {label}
     </button>
   );
 }

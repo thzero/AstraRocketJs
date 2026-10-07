@@ -1474,6 +1474,7 @@
     "available": "Há uma nova versão disponível.",
     "running": "Você está na v{{version}}.",
     "reload": "Recarregar",
+    "reloading": "Recarregando…",
     "later": "Depois",
     "laterTitle": "Lembrar de novo em cerca de {{hours}} horas",
     "dismiss": "Dispensar"

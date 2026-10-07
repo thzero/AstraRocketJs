@@ -1466,6 +1466,7 @@
     "available": "Er is een nieuwe versie beschikbaar.",
     "running": "Je gebruikt v{{version}}.",
     "reload": "Herladen",
+    "reloading": "Opnieuw laden…",
     "later": "Later",
     "laterTitle": "Herinner me over ongeveer {{hours}} uur opnieuw",
     "dismiss": "Sluiten"

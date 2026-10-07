@@ -50,7 +50,7 @@ export function AppHeader() {
           read the same at every width: no breakpoint takes one of them away, so
           nobody has to learn that a narrower window means a different header.
           What gives when the row runs short is elsewhere - the save status' age
-          and the menu's word below xl - and below that the row wraps, which is
+          and the menu's word below 2xl - and below that the row wraps, which is
           what it has always done on a phone. */}
       <span className="text-xl">🚀</span>
       <h1 className="text-base font-semibold tracking-tight">{t('app.title')}</h1>
