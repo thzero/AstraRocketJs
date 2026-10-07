@@ -21,11 +21,12 @@ export const GLB_MIME = 'model/gltf-binary';
 // Imported, not redeclared: this is the unit constant for every dimensional
 // export, and it was written out in three separate files.
 import { M_TO_MM } from '../../prefs/units';
+import { UNKNOWN_PART_COLOR } from '../design/partColors';
 
 /** A watertight, millimeter-scaled mesh of one solid, ready for an exporter. */
 function meshGroup(geometry: THREE.BufferGeometry): THREE.Group {
   const group = new THREE.Group();
-  group.add(new THREE.Mesh(makeWatertight(geometry), new THREE.MeshStandardMaterial({ color: 0xcfcabf })));
+  group.add(new THREE.Mesh(makeWatertight(geometry), new THREE.MeshStandardMaterial({ color: UNKNOWN_PART_COLOR })));
   group.scale.setScalar(M_TO_MM);
   group.updateMatrixWorld(true); // exporters read matrixWorld
   return group;

@@ -4,6 +4,8 @@
  * aggregate performance of a cluster. No React/DOM — unit-tested directly.
  */
 
+import { trapezoidImpulse } from './motorMath';
+
 export type Sample = [number, number]; // [time s, thrust N]
 
 /**
@@ -45,11 +47,10 @@ export function thrustAt(samples: Sample[], t: number): number {
 
 /** Trapezoidal integral of a thrust curve → total impulse (N·s). */
 export function impulse(samples: Sample[]): number {
-  let a = 0;
-  for (let i = 1; i < samples.length; i++) {
-    a += ((samples[i]![0] - samples[i - 1]![0]) * (samples[i]![1] + samples[i - 1]![1])) / 2;
-  }
-  return a;
+  return trapezoidImpulse(
+    samples.map((s) => s[0]),
+    samples.map((s) => s[1]),
+  );
 }
 
 /** How long an abruptly-ending motor takes to stop, for the terminator point. */

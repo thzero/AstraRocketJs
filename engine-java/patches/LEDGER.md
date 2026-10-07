@@ -67,15 +67,15 @@ reconstructed.
 | `rocketcomponent/FlightConfigurationId.java` | `java.util.UUID` → `core.util.LongUUID` (TeaVM's UUID has no `(long, long)` constructor, `getMostSignificantBits` or `compareTo`). |
 | `rocketcomponent/InstanceMap.java` | `ConcurrentHashMap` → `LinkedHashMap`; also makes iteration order stable. |
 | `motor/MotorConfigurationId.java` | Same `LongUUID` swap, same TeaVM gap. |
-| `simulation/BasicEventSimulationEngine.java` | `"%g"` → `"%s"` — TeaVM's `Formatter` lacks `%g`. Plus `PATCH(drogue-low-speed)`: upstream's own drogue-low-speed check, uncommented (see below). |
-| `util/BoundingBox.java` | Dropped `java.awt.geom.Rectangle2D`. |
+| `simulation/BasicEventSimulationEngine.java` | `PATCH(teavm-format-g)`: `"%g"` → `"%s"` — TeaVM's `Formatter` lacks `%g`. Plus `PATCH(drogue-low-speed)`: upstream's own drogue-low-speed check, uncommented (see below). |
+| `util/BoundingBox.java` | Dropped `java.awt.geom.Rectangle2D`, and with it the public `update(Rectangle2D)` and `toRectangle()` (it does not use `Geo2D`). `PATCH(teavm-format-g)`: `toString()` built by concatenation, since TeaVM's `Formatter` has no `%g`. |
 | `aerodynamics/BarrowmanDragCalculator.java` | `Reflection.construct` → an `instanceof` chain (no reflection under TeaVM); `buildCalcMap` widened to `protected`; `effectiveBaseCD`/`turbulentCompressibility` seams for the RASAero shims. |
 | `aerodynamics/BarrowmanStabilityCalculator.java` | Same reflection replacement and `protected` widening, for the stability half. |
 | `simulation/SimulationOptions.java` | Dropped the `java.nio.file` lookup-table subsystem — absent from TeaVM's classlib. |
 | `unit/Unit.java` | Dropped `Locale.Category` — absent from TeaVM's classlib. |
 | `util/ArrayList.java` | `clone()` rewritten for WASM-GC (the `ClassCastException` documented at `build.gradle:81-82`). |
 | `masscalc/MassCalculation.java` | `PATCH(offaxis-roll-inertia)`: a motor in a single off-axis mount gets its parallel-axis roll inertia. See "Off-axis tubes and motors carry their roll inertia". |
-| `rocketcomponent/RingComponent.java` | `PATCH(offaxis-roll-inertia)`: an off-axis inner tube, alone or clustered, adds its instances' parallel-axis spread to its roll inertia. Same section. |
+| `rocketcomponent/RingComponent.java` | `PATCH(offaxis-roll-inertia)`: any off-axis ring (an inner tube alone or clustered, a coupler, an engine block) adds its instances' parallel-axis spread to its roll inertia. Same section. |
 
 Both `LongUUID` files now carry a `PATCH(teavm-uuid)` marker, so the reason no
 longer has to be reverse-engineered from a diff. Every patch in the table now
@@ -1111,6 +1111,15 @@ outlines are indistinguishable from having sent no outline.
 
 ---
 
+## `BoundingBox.toString()` without `%g` - 2026-10-04
+
+`PATCH(teavm-format-g)` in `util/BoundingBox.java` (`docs/AUDIT_ENGINE.md` P9).
+`toString()` used six `%g` conversions, which TeaVM's `Formatter` does not have,
+so the first log line or message that printed a bounding box would have thrown
+inside the kernel, an uncatchable trap on the WASM-GC target. Nothing calls it
+today. It is now built by concatenation, the same shape as upstream's with
+`Double.toString` for each number. `BoundingBox.java` 19 to 28 lines.
+
 ## Off-axis tubes and motors carry their roll inertia - 2026-09-27
 
 `PATCH(offaxis-roll-inertia)`, in `masscalc/MassCalculation.java` and
@@ -1179,6 +1188,35 @@ and do not move. CG, CP, margin and trajectory do not move: every existing
 golden value, including the three-tube `flight.cluster.ring3`, is unchanged, and
 both aero scorecards are unchanged (9/135 and 61/135).
 
+**Follow-up, 2026-10-04 (`docs/AUDIT_ENGINE.md` P4, P5, P6).**
+
+- **P4.** The motor loop sums `y*y + z*z` instead of `Math.pow(Math.hypot(y, z), 2)`.
+  JVM `hypot` (FDLIBM) and TeaVM's disagree by 1 ULP on about 12% of inputs (see
+  `Geo2D`), and with the guard removed the loop runs for every mount, so the JVM
+  reference and the shipped targets could report different roll inertia for one
+  off-axis motor. No golden value moved. `MassCalculation.java` 19 to 23 lines.
+- **P5.** The radial position now counts for every ring type. Only `InnerTube`'s
+  offsets carry it; every other ring reports offsets on its own axis while the
+  bridge sets a radial position on all of them, so a coupler, engine block or
+  sleeve bonded off the axis got no m * r^2. `instanceSpreadUnitInertia` adds the
+  shift to those offsets (not to `InnerTube`'s), with the reference point still
+  where `getComponentCG()` puts the mass. The couplers, engine blocks and sleeves
+  listed above as on-axis are on-axis only at radial position 0. Guard: two
+  `mass.offaxis.*` golden lines, a 15 mm off-axis tube drawn as a coupler and as
+  an inner tube, which agree to the last digit; with the previous code the
+  coupler's Ixx is 2.0607e-4 against 2.0646e-4. `RingComponent.java` 61 to 72
+  lines; `golden.txt` 354 to 356 (`uuid.first` moved too, as before).
+- **P6, decided: the lateral CG stays on the axis.** Upstream's own
+  `MassObject.getComponentCG()` does it the other way, returning
+  `(length/2, shiftY, shiftZ, mass)` so `rebase()` adds the roll, pitch and yaw
+  transport terms together. These patches deliberately add only the roll term
+  and leave every CG where upstream puts it: moving it would shift the CG of
+  every off-axis ring and add pitch and yaw terms, a far larger physics change
+  that moves nearly every flight line, for a lateral offset no flight here acts
+  on. The cost is that roll inertia and lateral CG disagree about where an
+  off-axis ring's mass is. That is the trade-off, not an oversight; P5 removed
+  the part of it that made one ring type disagree with another.
+
 **Known residual**, shared with upstream's own cluster motors: the term is
 taken about the ring's PARENT axis. A tube offset d inside a pod set offset D is
 charged m * (D^2 + d^2) and misses the 2 * m * D.d cross term. Recorded, not
@@ -1200,3 +1238,38 @@ modeled.
   taken as whole files. The two hunks were ported onto upstream's current files.
 - **Upstreamable,** and should be offered: the defect is in desktop OpenRocket
   too. Retire this patch when upstream fixes it.
+
+## Repinned to upstream `b4eb02a48` - 2026-10-04
+
+From `98f05af97` (2026-09-21) to `b4eb02a48` (2026-10-03), the head of canonical
+`unstable` on the day. 298 commits, most of them Crowdin translations. Seven
+extracted files moved:
+
+- **`simulation/AbstractRKSimulationStepper.java`**, with
+  `AbstractSimulationStepper.java` and `FlightDataType.java` (PR #3327). Thrust
+  now carries the pressure term of the rocket thrust equation:
+  `nozzleExitArea * (101325 Pa - ambient pressure)`, added only while a motor
+  is thrusting and has a nozzle exit area. The term is stored as the new
+  `TYPE_THRUST_CORRECTION`. Taken unpatched: we already ride upstream's
+  per-motor nozzle exit diameter.
+- **`simulation/SimulationOptions.java`** (patched). Upstream's `equals()` now
+  compares `useISA`, `launchIntoWind` and `geodeticComputation`, and those three
+  lines are carried into the patch. Its other two `equals()` lines and the
+  `copyConditionsFrom()` hunk are about the CSV lookup tables, which this patch
+  removes, so they are left out. Divergence 155 to 161, blessed: the six are
+  upstream's lookup lines this patch does not have.
+- **`util/Reflection.java`**, a class-lookup cache (`ConcurrentHashMap`,
+  `Optional`). Builds under TeaVM unchanged.
+- **`aerodynamics/FlightConditions.java`** (a comment) and
+  **`aerodynamics/barrowman/TubeFinSetCalc.java`** (two debug log lines removed).
+
+Shims re-reviewed and blessed in `SHIMS.txt`: upstream's `OpenRocketDocument`
+(undo event handling), `Simulation` (an interrupted run stays outdated) and
+`ApplicationPreferences` (a save-data preference) changed only in code our lean
+replacements do not have.
+
+- **Golden:** one value moved, `flight.mindia`, the only scenario with a nozzle
+  exit (14 mm on a C6): apogee 332.79 m to 337.86 m. Every other line is
+  bit-identical. Re-recorded.
+- **Parity:** JS and WASM agree with the JVM on all 356 lines.
+- **Validation:** classic 9/135 and supersonic 61/135, both at their floors.

@@ -1,7 +1,10 @@
 import type { MotorSpec } from '../../engine/openRocketEngine';
 import type { CatalogMotor } from './motorDb';
+import { hasUsableCurve } from './motorCurve';
+import { cumulativeImpulse } from './motorMath';
 import { getMotorStore, isThrustSampleArray, type CustomMotor } from './motorStore';
 import { declaredLength, readStreamWithProgress } from '../app/fetchProgress';
+import { nsKey } from '../storage/storageKeys';
 
 /**
  * thrustcurve.org API v1 client (CORS-enabled; verified reflective
@@ -49,7 +52,14 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   // Staged, the way remoteData.fetchJson does it. The first budget covers
   // time-to-first-byte; once headers are in, the host is alive and the body
   // gets its own. A single budget spanning both would cut off a slow download.
-  let timer = setTimeout(() => ctl.abort(), FETCH_TIMEOUT_MS);
+  // Set only by a budget running out, so the catch below can tell a timeout
+  // from the abort it does itself on any other failure.
+  let timedOut = false;
+  const expire = () => {
+    timedOut = true;
+    ctl.abort();
+  };
+  let timer = setTimeout(expire, FETCH_TIMEOUT_MS);
   try {
     const res = await fetch(`${API}/${path}`, {
       method: 'POST',
@@ -58,7 +68,7 @@ async function post<T>(path: string, body: unknown): Promise<T> {
       signal: ctl.signal,
     });
     clearTimeout(timer);
-    timer = setTimeout(() => ctl.abort(), BODY_TIMEOUT_MS);
+    timer = setTimeout(expire, BODY_TIMEOUT_MS);
     if (!res.ok) throw new Error(`thrustcurve.org ${path} → HTTP ${res.status}`);
     const len = Number(res.headers.get('content-length'));
     if (Number.isFinite(len) && len > MAX_RESPONSE_BYTES) throw new Error(`thrustcurve.org ${path} response too large`);
@@ -74,7 +84,7 @@ async function post<T>(path: string, body: unknown): Promise<T> {
     const bytes = await readStreamWithProgress(res.body, declaredLength(res), () => {}, MAX_RESPONSE_BYTES);
     return JSON.parse(new TextDecoder().decode(bytes)) as T;
   } catch (e) {
-    if (ctl.signal.aborted) {
+    if (timedOut) {
       // Keep the abort as the cause: without it the original DOMException is
       // gone and a bug report shows only the friendly text. Assigned after
       // construction because the ErrorOptions form is ES2022 and the tsconfig
@@ -83,6 +93,10 @@ async function post<T>(path: string, body: unknown): Promise<T> {
       (err as { cause?: unknown }).cause = e;
       throw err;
     }
+    // Abandon the body of a reply that failed for any other reason: an error
+    // page or an oversized response would otherwise keep streaming until the
+    // body timer fired.
+    ctl.abort();
     throw e;
   } finally {
     clearTimeout(timer);
@@ -156,17 +170,10 @@ export function samplesToMotorSpec(
   const totalMass = motor.totalWeightG / 1000;
   const propMass = motor.propWeightG / 1000;
 
-  // Cumulative impulse via trapezoid rule.
-  const cumImpulse: number[] = [0];
-  for (let i = 1; i < pts.length; i++) {
-    const dt = pts[i]!.time - pts[i - 1]!.time;
-    const area = (dt * (pts[i]!.thrust + pts[i - 1]!.thrust)) / 2;
-    cumImpulse.push(cumImpulse[i - 1]! + area);
-  }
-  const totImpulse = cumImpulse[cumImpulse.length - 1]!;
-
   const times = pts.map((p) => p.time);
   const thrusts = pts.map((p) => p.thrust);
+  const cumImpulse = cumulativeImpulse(times, thrusts);
+  const totImpulse = cumImpulse[cumImpulse.length - 1]!;
   // The file's own mass curve when it has one, else the reconstruction: mass
   // falls from loaded to burnout in proportion to cumulative impulse. That is
   // what OpenRocket does for a RASP file and, via `AbstractMotorLoader
@@ -247,9 +254,9 @@ async function resolveTcMotor(cat: CatalogMotor): Promise<TcMotor> {
 // math or shapes change), since it namespaces every key. Catalog updates are a
 // separate, build-time concern (see motorDb.ts / scripts/sync-motors.mjs).
 const CACHE_VERSION = 'v1';
-const SPEC_PREFIX = `astrarrocketjs:tc:${CACHE_VERSION}:motor:`;
-const SAMPLE_PREFIX = `astrarrocketjs:tc:${CACHE_VERSION}:samples:`;
-const META_PREFIX = `astrarrocketjs:tc:${CACHE_VERSION}:meta:`;
+const SPEC_PREFIX = nsKey(`tc:${CACHE_VERSION}:motor:`);
+const SAMPLE_PREFIX = nsKey(`tc:${CACHE_VERSION}:samples:`);
+const META_PREFIX = nsKey(`tc:${CACHE_VERSION}:meta:`);
 
 /** Stable localStorage key for a picked motor + delay. */
 function specKey(cat: CatalogMotor, ejectionDelay: number): string {
@@ -270,26 +277,15 @@ function metaKey(cat: CatalogMotor): string {
 // copy accepted NaN and Infinity, which `typeof === 'number'` lets through.
 const isSampleArray = isThrustSampleArray;
 
-// A cached spec is checked the way a cached curve is: every sample of all three
-// arrays finite, not just non-empty. Length alone let a spec whose arrays had
-// been serialized with nulls (a NaN mass, an Infinity time) straight back into
-// the kernel, the same BigInt crash the sample guard exists to stop.
-const isFiniteArray = (xs: unknown): xs is number[] =>
-  Array.isArray(xs) && xs.length > 0 && xs.every((x) => Number.isFinite(x));
-
-/** Exported for test: the cache-read validator for a stored MotorSpec. */
-export const isCachedMotorSpec = (v: unknown): boolean => {
-  const s = v as MotorSpec | null;
-  return (
-    !!s &&
-    typeof s === 'object' &&
-    isFiniteArray(s.times) &&
-    isFiniteArray(s.thrusts) &&
-    isFiniteArray(s.masses) &&
-    s.times.length === s.thrusts.length &&
-    s.times.length === s.masses.length
-  );
-};
+/**
+ * Exported for test: the cache-read validator for a stored MotorSpec. It is the
+ * flight gate's own predicate, so a spec the cache serves is one the builder
+ * accepts: every sample of all three arrays finite (a spec serialized with
+ * nulls would reach the kernel as the BigInt crash the sample guard stops), the
+ * arrays in lockstep, and at least MIN_CURVE_SAMPLES of them.
+ */
+export const isCachedMotorSpec = (v: unknown): boolean =>
+  !!v && typeof v === 'object' && hasUsableCurve(v as MotorSpec);
 const isSpec = isCachedMotorSpec;
 
 /**
@@ -358,6 +354,11 @@ async function fetchSamplesCached(motor: TcMotor, cat: CatalogMotor): Promise<Tc
  * offline and instant, while a stale curve refreshes on its next use.
  */
 export async function fetchMotorSpec(cat: CatalogMotor, ejectionDelay: number, curveIndex = 0): Promise<MotorSpec> {
+  const spec = await buildMotorSpec(cat, ejectionDelay, curveIndex);
+  return cat.code && cat.code !== cat.designation ? { ...spec, code: cat.code } : spec;
+}
+
+async function buildMotorSpec(cat: CatalogMotor, ejectionDelay: number, curveIndex: number): Promise<MotorSpec> {
   // Imported (.eng / .rse) motors carry their own curve — build the spec from
   // local data, no thrustcurve lookup.
   if (cat.custom && cat.id) {

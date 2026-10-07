@@ -42,6 +42,20 @@ describe('the popover is a real menu', () => {
     expect(screen.getAllByRole('menuitem')).toHaveLength(2 * IMAGE_WIDTHS.length);
   });
 
+  it('names each item with its format, so the two rows do not read the same', () => {
+    open();
+    const names = screen.getAllByRole('menuitem').map((el) => el.getAttribute('aria-label'));
+    expect(new Set(names).size).toBe(names.length);
+    expect(names.filter((n) => n?.startsWith('PNG '))).toHaveLength(IMAGE_WIDTHS.length);
+    expect(names.filter((n) => n?.startsWith('JPG '))).toHaveLength(IMAGE_WIDTHS.length);
+    expect(names[0]).toContain(`${IMAGE_WIDTHS[0]} px`);
+  });
+
+  it('offers the fit setting as a checked menu item, a valid child of the menu', () => {
+    open(vi.fn(), true);
+    expect(screen.getByRole('menuitemcheckbox').getAttribute('aria-checked')).toBe('true');
+  });
+
   it('still picks the format and width it was clicked for', () => {
     const { onPick } = open();
     const items = screen.getAllByRole('menuitem');

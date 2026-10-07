@@ -23,6 +23,8 @@ The motor catalog carries each motor's **thrust curve** with it, so simulating o
 
 **Map imagery is the exception.** It is fetched as you look at it rather than downloaded up front, and the tiles you have viewed are kept — so a field you checked at home still draws at the launch with no signal. Ground you have never viewed cannot be drawn offline: the launch-site map falls back to a coordinate grid, and the ground track and 3D path to their plain plots, which carry the measurements anyway.
 
+**Weather needs a connection.** [Weather from Open-Meteo](./running-a-simulation.md#weather) is fetched when you ask for it and is not stored offline. What you applied stays in the simulation.
+
 **Your designs were always local.** Your library of saved rockets, custom motors and materials, and your settings live in your browser's storage on your device — that hasn't changed and never depended on a connection.
 
 ## Installing it

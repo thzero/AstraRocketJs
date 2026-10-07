@@ -26,10 +26,11 @@ import info.openrocket.core.util.Quaternion;
  * {@code Double.toString} values — no rounding, no locale, so the text is byte-comparable.
  *
  * The point is not the numbers themselves but that they are IDENTICAL on two runtimes: this
- * same class is compiled to the JVM and to TeaVM-JS, and {@code test/parity/parity.mjs} runs both
- * and diffs the output line-by-line. A mismatch means the browser build diverged from the
- * reference JVM (a TeaVM miscompile or unported dependency). This is a test artifact only —
- * compiled solely under {@code -Pparity}, never shipped in the production engine.
+ * same class runs on the JVM and inside the SHIPPED engine (TeaVM-JS and WASM-GC, through
+ * {@code OpenRocketEngine.runParity()}), and {@code test/parity/parity.mjs} diffs the output
+ * line by line. A mismatch means the browser build diverged from the reference JVM (a TeaVM
+ * miscompile or unported dependency). It ships so that parity checks the very files the app
+ * loads; the app never calls it.
  */
 public final class ParityMain {
     public static void main(String[] args) {
@@ -59,6 +60,9 @@ public final class ParityMain {
         collatorScenarios();
         uuidScenarios();
         preferencesScenarios();
+        // Last, so the process-wide state it touches (the UUID counter, the
+        // flight order) leaves every earlier line where it was.
+        atmosphereProfileScenarios();
     }
 
     /**
@@ -145,15 +149,21 @@ public final class ParityMain {
      * the JDK indefinitely and no gate would notice.
      * <p>
      * {@code DesignationComparator} is the live consumer and it sorts at
-     * PRIMARY, where "H128W" and "H128-W" must compare EQUAL and "AeroTech"
-     * must sort before "A-P" - a raw case-sensitive tiebreak gets that second one
-     * backwards.
+     * PRIMARY, where "H128W" and "H128-W" must compare EQUAL, "H128W" and "H128.W"
+     * must NOT, and "AeroTech" must sort before "A-P" - a raw case-sensitive
+     * tiebreak gets that last one backwards.
      */
     private static void collatorScenarios() {
         String[] names = {
                 "H128W", "H128-W", "AeroTech", "A-P", "K550W", "k550w",
                 "A10-3T", "A10 3T", "Pro38", "Pro-38", "1/2A3", "-5",
                 "C11-3", "C11 3", "Estes", "Cesaroni", "Loki", "LOKI", "loki",
+                // The four marks en_US does NOT ignore, each where it was once
+                // ignored and made two motors one, and real names that carry them.
+                "H128.W", "H128'W", "H128_W", "H128/W", "A.T.", "1/4A3", "LOC/Precision",
+                // The same space and hyphen in different places: secondary order
+                // depends on where they fall, not only on which they are.
+                "A-10 3T", "A 10-3T",
         };
         int[] strengths = {
                 java.text.Collator.PRIMARY, java.text.Collator.SECONDARY,
@@ -352,6 +362,48 @@ public final class ParityMain {
         java.util.Map<String, Object> parsed = api.JsonLite.parseObject(result);
         java.util.Map<String, Object> summary = asMap(parsed.get("summary"));
         line("flight.mindia",
+                api.JsonLite.dbl(summary, "maxAltitude", Double.NaN),
+                api.JsonLite.dbl(summary, "maxVelocity", Double.NaN),
+                api.JsonLite.dbl(summary, "timeToApogee", Double.NaN));
+    }
+
+    /**
+     * A forecast atmosphere (api.AtmosphereProfile) in place of the standard
+     * one. The same rocket flies three ways: on its own levels, anchored at a
+     * site above sea level (which drops the levels below the pad), and with
+     * a top level low enough that the flight climbs past it onto the standard
+     * shape. The levels are colder and thinner than standard so a lost profile
+     * cannot hide behind ISA.
+     */
+    private static void atmosphereProfileScenarios() {
+        String json = "{\"name\":\"Atmo\",\"components\":[{\"type\":\"stage\",\"name\":\"S\",\"children\":["
+                + "{\"type\":\"nosecone\",\"length\":0.10,\"aftRadius\":0.012,\"thickness\":0.002},"
+                + "{\"type\":\"bodytube\",\"id\":\"body\",\"length\":0.45,\"outerRadius\":0.012,\"thickness\":0.0005,\"density\":950,\"motorMount\":true,\"children\":["
+                + "  {\"type\":\"trapezoidfinset\",\"finCount\":3,\"rootChord\":0.05,\"tipChord\":0.03,\"sweep\":0.02,\"height\":0.025,\"thickness\":0.003},"
+                + "  {\"type\":\"parachute\",\"diameter\":0.30}"
+                + "]}]}]}";
+        int r = api.OpenRocketEngine.buildRocket(json);
+        api.OpenRocketEngine.setMotorById(r, "body", "C6", 0.018, 0.070,
+                new double[] { 0, 0.1, 0.3, 0.5, 1.0, 1.5, 1.85, 2.0 },
+                new double[] { 0, 12.0, 6.0, 5.1, 4.9, 4.8, 4.5, 0 },
+                new double[] { 0.0240, 0.0231, 0.0215, 0.0202, 0.0174, 0.0147, 0.0133, 0.0132 },
+                0.035, 5.0);
+        String levels = "[{\"altitude\":0,\"temperature\":268.15,\"pressure\":99000,\"relativeHumidity\":0.8},"
+                + "{\"altitude\":150,\"temperature\":266.0,\"pressure\":97200,\"relativeHumidity\":0.7},"
+                + "{\"altitude\":400,\"temperature\":270.0,\"pressure\":94300,\"relativeHumidity\":0.5},"
+                + "{\"altitude\":1500,\"temperature\":262.0,\"pressure\":82500,\"relativeHumidity\":0.3}]";
+        atmosphereFlight("flight.atmo.levels", r, "{\"rodLength\":1.0,\"atmosphereLevels\":" + levels + "}");
+        atmosphereFlight("flight.atmo.anchored", r, "{\"rodLength\":1.0,\"launchAltitude\":100,"
+                + "\"temperature\":271.0,\"pressure\":97800,\"atmosphereLevels\":" + levels + "}");
+        atmosphereFlight("flight.atmo.pasttop", r, "{\"rodLength\":1.0,\"atmosphereLevels\":"
+                + "[{\"altitude\":0,\"temperature\":268.15,\"pressure\":99000,\"relativeHumidity\":0.8},"
+                + "{\"altitude\":120,\"temperature\":267.0,\"pressure\":97600,\"relativeHumidity\":0.8}]}");
+    }
+
+    private static void atmosphereFlight(String tag, int rocket, String options) {
+        java.util.Map<String, Object> summary =
+                asMap(api.JsonLite.parseObject(api.OpenRocketEngine.simulateJson(rocket, options)).get("summary"));
+        line(tag,
                 api.JsonLite.dbl(summary, "maxAltitude", Double.NaN),
                 api.JsonLite.dbl(summary, "maxVelocity", Double.NaN),
                 api.JsonLite.dbl(summary, "timeToApogee", Double.NaN));
@@ -752,6 +804,19 @@ public final class ParityMain {
                     launch.getCM().getX(), launch.getCM().getY(), launch.getCM().getZ(),
                     launch.getIxx(), launch.getIyy());
         }
+
+        // The same tube 15 mm off the axis, drawn as a coupler and as an inner
+        // tube. Only InnerTube's offsets carry its radial shift, so the coupler
+        // used to get no m * r^2 at all; the two Ixx must now agree.
+        String offAxisTube = "\"length\":0.05,\"outerRadius\":0.0095,\"thickness\":0.0005,\"density\":1200,"
+                + "\"radialPosition\":0.015,\"radialDirection\":0.7,\"position\":{\"method\":\"top\",\"offset\":0.1}}";
+        for (String type : new String[] { "tubecoupler", "innertube" }) {
+            int r = api.OpenRocketEngine.buildRocket(head + "  {\"type\":\"" + type + "\"," + offAxisTube + "," + tail);
+            RigidBody structure = MassCalculator.calculateStructure(
+                    ((info.openrocket.core.rocketcomponent.Rocket) getRocketFromInfo(r)).getSelectedConfiguration());
+            line("mass.offaxis." + type, structure.getMass(), structure.getCM().getX(), structure.getIxx(),
+                    structure.getIyy());
+        }
     }
 
     /**
@@ -837,7 +902,47 @@ public final class ParityMain {
         int r2 = api.OpenRocketEngine.buildRocket(freeform);
         lineStaticInfo("fins.freeform.info", api.OpenRocketEngine.getStaticInfo(r2));
 
+        // Tube fins and rail buttons: both ship to the app, and both have their
+        // own aero and mass code that no other line here exercises. Without
+        // these, a wrong tube-fin CNa or rail-button drag term passes all three
+        // targets agreeing on it, and no golden value pins it.
+        String tubeFins = "{\"components\":["
+                + "{\"type\":\"nosecone\",\"length\":0.07,\"aftRadius\":0.012,\"thickness\":0.002},"
+                + "{\"type\":\"bodytube\",\"length\":0.30,\"outerRadius\":0.012,\"thickness\":0.0003,\"density\":950,\"children\":["
+                + "  {\"type\":\"tubefinset\",\"finCount\":6,\"length\":0.06,\"outerRadius\":0.006,"
+                + "   \"position\":{\"method\":\"bottom\",\"offset\":0}}"
+                + "]}]}";
+        componentAeroLines("fins.tube", api.OpenRocketEngine.buildRocket(tubeFins));
+
+        String railButtons = "{\"components\":["
+                + "{\"type\":\"nosecone\",\"length\":0.07,\"aftRadius\":0.012,\"thickness\":0.002},"
+                + "{\"type\":\"bodytube\",\"length\":0.30,\"outerRadius\":0.012,\"thickness\":0.0003,\"density\":950,\"children\":["
+                + "  {\"type\":\"trapezoidfinset\",\"finCount\":3,\"rootChord\":0.05,\"tipChord\":0.03,\"sweep\":0.02,\"height\":0.03,\"thickness\":0.003},"
+                + "  {\"type\":\"railbutton\",\"outerDiameter\":0.0097,\"height\":0.0097,\"instanceCount\":2,\"instanceSeparation\":0.15,"
+                + "   \"position\":{\"method\":\"top\",\"offset\":0.08}}"
+                + "]}]}";
+        componentAeroLines("railbutton", api.OpenRocketEngine.buildRocket(railButtons));
+
         finTabScenarios();
+    }
+
+    /** Static info, then the drag breakdown, CNa and CP at a subsonic and a transonic Mach. */
+    private static void componentAeroLines(String tag, int handle) {
+        lineStaticInfo(tag + ".info", api.OpenRocketEngine.getStaticInfo(handle));
+        info.openrocket.core.rocketcomponent.FlightConfiguration config =
+                ((info.openrocket.core.rocketcomponent.Rocket) getRocketFromInfo(handle)).getSelectedConfiguration();
+        info.openrocket.core.aerodynamics.BarrowmanCalculator calc =
+                new info.openrocket.core.aerodynamics.BarrowmanCalculator();
+        for (double mach : new double[] { 0.3, 0.8 }) {
+            info.openrocket.core.aerodynamics.FlightConditions cond =
+                    new info.openrocket.core.aerodynamics.FlightConditions(config);
+            cond.setMach(mach);
+            cond.setAOA(0);
+            info.openrocket.core.aerodynamics.AerodynamicForces f =
+                    calc.getAerodynamicForces(config, cond, new info.openrocket.core.logging.WarningSet());
+            line(tag + ".aero." + mach, f.getCD(), f.getFrictionCD(), f.getPressureCD(), f.getBaseCD(),
+                    f.getCP().getWeight(), f.getCP().getX());
+        }
     }
 
     /**

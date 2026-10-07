@@ -1,4 +1,4 @@
-import type { ComponentNode } from '../../../engine/openRocketEngine';
+import { plainDecimal } from '../numberText';
 
 /**
  * RASAero's units and number formatting. Geometry in INCHES (× 39.37 from
@@ -12,15 +12,8 @@ export const LB = 2.20462262;
 export const MPH = 2.23694; // mph per m/s
 export const INHG = 33.8639; // hPa per in-Hg
 
-/** A node's numeric key, or `fb` when it carries none. */
-export const nnum = (node: ComponentNode, key: string, fb: number): number =>
-  typeof node[key] === 'number' ? (node[key] as number) : fb;
-
-/** Four decimals, trailing zeros trimmed, never "-0". */
-export const fmt = (v: number): string => {
-  const s = v.toFixed(4).replace(/0+$/, '').replace(/\.$/, '');
-  return s === '-0' ? '0' : s;
-};
+/** Four decimals, trailing zeros trimmed, never "-0"; a non-finite value is 0. */
+export const fmt = (v: number): string => plainDecimal(v, 4, '0');
 
 /** The line sink and the running absolute location (nose tip origin, meters). */
 export interface Cdx1Writer {

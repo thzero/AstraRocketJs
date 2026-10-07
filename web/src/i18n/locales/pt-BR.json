@@ -152,7 +152,8 @@
     "storage": "Seus projetos, simulações, preferências e quaisquer materiais ou motores personalizados ficam salvos no armazenamento local do navegador, no seu dispositivo, e nunca são enviados a nós nem a ninguém. Limpar os dados do navegador (ou usar Novo) os remove.",
     "network": "O aplicativo baixa os catálogos de motores e componentes de uma rede pública de distribuição de conteúdo e, quando você escolhe um motor, pode buscar a curva de empuxo dele em um banco de dados público de motores; ambos ficam em cache local e estão sujeitos aos termos desses provedores. Fora isso, o aplicativo não faz chamadas de rede com os seus dados.",
     "hosting": "Quem hospeda o aplicativo pode manter registros de acesso comuns de servidor web (como endereço IP e horário), como qualquer site faz. O aplicativo em si não coleta nada.",
-    "close": "Fechar"
+    "close": "Fechar",
+    "weather": "Quando você clica em Buscar na janela de clima, as coordenadas e a altitude do local de lançamento e a data escolhida vão para o Open-Meteo, que responde com a previsão. Nada é enviado de outra forma. As solicitações não identificam este app nem o site que o fornece."
   },
   "help": {
     "title": "Ajuda",
@@ -160,7 +161,12 @@
     "back": "Voltar",
     "openOnSite": "Abrir no site da documentação",
     "loading": "Carregando…",
-    "missing": "A documentação não faz parte desta cópia do {{name}}, ou não pôde ser lida. Você ainda pode abri-la online."
+    "missing": "A documentação não faz parte desta cópia do {{name}}, ou não pôde ser lida. Você ainda pode abri-la online.",
+    "search": "Pesquisar na ajuda",
+    "searchClear": "Limpar a pesquisa",
+    "searchNone": "Nada no guia corresponde a “{{query}}”.",
+    "searchBusy": "Pesquisando…",
+    "searchMatches": "Correspondências: {{n}}"
   },
   "override": {
     "title": "Substituições",
@@ -277,6 +283,7 @@
     "launchNote": "Condições de lançamento padrão para simulações recém-criadas. As condições de uma simulação existente são editadas no painel Lançamento dela.",
     "defaultSpeed": "Velocidade padrão",
     "confirmDelete": "Confirmar a exclusão de simulações",
+    "autoRunOutdated": "Executar automaticamente simulações desatualizadas",
     "warnings": "Avisos de segurança",
     "railExitMin": "Velocidade mín. ao sair do trilho",
     "deploySpeedWarn": "Avisar velocidade de abertura acima de",
@@ -317,6 +324,9 @@
     "mainLowSpeedWarn": "Velocidade de abertura do principal (mín.)",
     "drogueLowSpeedWarn": "Velocidade de abertura do drogue (mín.)",
     "railExitMinHint": "Abaixo disto as aletas têm pouco fluxo de ar para dirigir, então o foguete pode cata-ventar contra o vento ou ficar instável ao deixar a haste.",
+    "simModel": "Modelo de voo",
+    "guideAwareRodClearance": "Saída conforme as guias",
+    "guideAwareRodClearanceHint": "O OpenRocket mantém o foguete na guia por todo o comprimento dela, onde quer que estejam as argolas ou os botões de trilho. Ligado: uma argola guia até sua extremidade traseira deixar a guia, enquanto um trilho precisa de dois botões e guia apenas até o penúltimo sair, de modo que um único botão não guia nada. Em geral sai um pouco antes e com velocidade de saída um pouco menor. Desligado equivale ao OpenRocket.",
     "deploySpeedWarnHint": "Abertura única (sem drogue): acima desta velocidade, abrir o paraquedas arrisca rasgar a fuselagem no sentido do comprimento ou romper o velame.",
     "mainHighSpeedWarnHint": "Abertura dupla: acima disto o PRINCIPAL está saindo rápido demais, normalmente por um drogue pequeno demais para frear o foguete ou por um principal configurado para abrir alto demais.",
     "mainLowSpeedWarnHint": "Abertura dupla: abaixo disto o principal abre com o foguete mal descendo, o que em geral significa que ele abriu perto do apogeu, uma descida lenta e à deriva desde a altitude cheia.",
@@ -392,7 +402,8 @@
     "simulations": "Simulações",
     "workbench": "Bancada",
     "configs": "Configurações",
-    "configsShort": "Config."
+    "configsShort": "Config.",
+    "tools": "Ferramentas"
   },
   "view": {
     "2d": "2D",
@@ -406,7 +417,7 @@
     "aft": "Traseira",
     "cutaway": "Corte",
     "cutawayTitle": "Abrir a fuselagem pelo eixo central para ver o interior",
-    "roll": "Rolagem {{deg}}°",
+    "roll": "Rolagem {{deg}}",
     "rollHint": "Rolagem: gira as aletas em torno do eixo (ou arraste o desenho)",
     "rollAria": "Ângulo de rolagem (graus)",
     "loading3d": "Carregando 3D…",
@@ -426,7 +437,8 @@
     "ruler_top_abbr": "S",
     "ruler_bottom_abbr": "I",
     "ruler_left_abbr": "E",
-    "ruler_right_abbr": "D"
+    "ruler_right_abbr": "D",
+    "environment": "Ambiente"
   },
   "stability": {
     "onPad": "Estabilidade (na plataforma)",
@@ -449,7 +461,8 @@
     "needsMotor": "carregue um motor",
     "cd": "Coef. de arrasto",
     "rollInertia": "Inércia de rolagem (carregado)",
-    "pitchInertia": "Inércia de arfagem (carregado)"
+    "pitchInertia": "Inércia de arfagem (carregado)",
+    "recoveryWeightEstimated": "Massa (Recuperação, est.)"
   },
   "sim": {
     "run": "Rodar a simulação de voo",
@@ -593,7 +606,10 @@
       "longitudeDeg": "longitude"
     },
     "locationDenied": "Não foi possível obter a sua localização. Verifique a permissão do navegador e tente de novo.",
-    "locating": "Localizando…"
+    "locating": "Localizando…",
+    "getWeather": "Obter clima…",
+    "forecastProfile": "Atmosfera prevista até {{top}}",
+    "clearForecastProfile": "Remover"
   },
   "csv": {
     "title": "Exportar os dados de voo",
@@ -732,7 +748,7 @@
     "zoomOut": "Menos zoom",
     "zoomReset": "Redefinir o zoom",
     "stages": "Estágios",
-    "stage": "Estágio",
+    "stageN": "Estágio {{n}}",
     "crosshairHint": "Gráficos de voo. Foque e use as setas para mover a mira; Shift para um passo maior, Home e End para as pontas, Esc para limpar.",
     "events": "Eventos de voo",
     "event": "Evento",
@@ -802,7 +818,6 @@
     },
     "stageColors": "Cores dos estágios…",
     "stageColorsTitle": "Cores dos estágios",
-    "stageN": "Estágio {{n}}",
     "resetColors": "Voltar aos padrões",
     "showWaypointLabels": "Desenhar os nomes dos pontos de rota no mapa",
     "colorWaypointPins": "Colorir os marcadores dos pontos de rota por estágio",
@@ -899,6 +914,7 @@
     "pressure": "Pressão",
     "base": "Base",
     "pctBody": "% do corpo",
+    "pctLength": "% do comprimento",
     "supersonicNote": "Barrowman estendido: aproximado acima de ~Mach 1,5.",
     "unavailable": "Monte um foguete válido para ver o arrasto dele.",
     "crosshairHint": "Curvas de arrasto. Foque e use as setas para mover a mira; Shift para um passo maior, Home e End para as pontas, Esc para limpar.",
@@ -911,7 +927,8 @@
     "loaded": "Projeto carregado (.ork)",
     "close": "Fechar",
     "closeTitle": "Descartar esta importação e começar um projeto novo",
-    "closeConfirm": "Descartar este projeto carregado e começar um novo? As alterações não salvas serão perdidas."
+    "closeConfirm": "Descartar este projeto carregado e começar um novo? As alterações não salvas serão perdidas.",
+    "repaired": "{{part}}: um valor de {{field}} de {{was}} está fora do que o aplicativo permite, então foi reduzido para {{now}}."
   },
   "part": {
     "stage": "Estágio",
@@ -985,6 +1002,7 @@
   "prop": {
     "selectHint": "Selecione um componente na árvore ou no desenho para editar as propriedades dele.",
     "editTitle": "Editar componente",
+    "catalogPart": "Peça do catálogo",
     "name": "Nome",
     "delete": "Excluir",
     "lastStage": "Um foguete precisa de pelo menos um estágio",
@@ -1184,7 +1202,6 @@
     "fit": "Ajustar à vista",
     "aftAria": "Vista traseira: olhando o foguete por trás; arraste para girar, use a roda para dar zoom",
     "sideAria": "Vista lateral do foguete com os marcadores de CG e CP; roda para dar zoom, arraste o fundo para deslocar",
-    "sideAriaVertical": "Vista lateral do foguete, nariz para cima, com os marcadores de CG e CP",
     "caliperH": "Alça horizontal do paquímetro {{end}}",
     "caliperV": "Alça vertical do paquímetro {{end}}"
   },
@@ -1312,7 +1329,7 @@
   "recovery": {
     "title": "Dimensionamento da descida",
     "needsMotor": "Carregue um motor para dimensionar contra a massa de descida (massa carregada menos o propelente).",
-    "forMass": "Para uma massa de descida de {{mass}} g:",
+    "forMass": "Estimado para uma massa de descida de {{mass}}:",
     "thisChute": "Este velame",
     "mainTarget": "Principal ({{range}})",
     "drogueTarget": "Drogue ({{range}})",
@@ -1323,7 +1340,17 @@
       "between": "entre as faixas",
       "drogue": "faixa do drogue",
       "fast": "muito rápida"
-    }
+    },
+    "forMassRun": "Medido na última execução, com uma massa de descida de {{mass}}:",
+    "forMassRunBranch": "Medido na última execução em {{branch}}, com uma massa de descida de {{mass}}:",
+    "diametersEstimated": "Os diâmetros são estimativas para projetar, não resultados da simulação.",
+    "open": "Dimensionamento da descida…",
+    "use": "Usar",
+    "useMain": "Usar o diâmetro do principal",
+    "useDrogue": "Usar o diâmetro do drogue",
+    "useTarget": "Usar o diâmetro para a sua velocidade",
+    "targetRate": "Sua própria velocidade de descida",
+    "atTarget": "Na sua velocidade"
   },
   "sims": {
     "new": "＋ Nova",
@@ -1454,7 +1481,8 @@
   "storage": {
     "full": "Não foi possível salvar o seu trabalho: o armazenamento do navegador está cheio. Exporte o seu projeto para guardá-lo.",
     "degraded": "Seu navegador está bloqueando o banco de dados dele, então o aplicativo recorreu a uma área de armazenamento bem menor (cerca de 5 MB) e salvar pode falhar conforme o projeto cresce. Navegação privada é a causa comum. Exporte o que quiser guardar.",
-    "loadFailed": "Não foi possível ler o seu projeto salvo. Começando do zero; o trabalho novo continuará sendo salvo."
+    "loadFailed": "Não foi possível ler o seu projeto salvo. Começando do zero; o trabalho novo continuará sendo salvo.",
+    "conflict": "Este projeto foi alterado em outra aba, então suas edições aqui não estão sendo salvas. Exporte-as para mantê-las ou reabra o projeto em Meus foguetes para carregar a versão da outra aba."
   },
   "library": {
     "title": "Meus foguetes",
@@ -1580,6 +1608,8 @@
     "zoomOut": "Menos zoom",
     "recenter": "Centralizar no local",
     "pick": "Clique no mapa para mover o local.",
+    "keysPick": "As setas movem o mapa, mais e menos aplicam zoom, e Enter coloca o local no centro.",
+    "keysView": "As setas movem o mapa, e mais e menos aplicam zoom.",
     "noCoords": "Informe uma latitude e uma longitude para posicionar o local.",
     "tooClose": "Sem imagens a esta aproximação",
     "offline": "Sem imagens offline"
@@ -1620,5 +1650,177 @@
     "payload": "Carga útil",
     "recoveryhardware": "Ferragens de recuperação",
     "battery": "Bateria"
+  },
+  "weather": {
+    "title": "Clima do Open-Meteo",
+    "dateLabel": "Data",
+    "hourLabel": "Hora (horário do local)",
+    "fetch": "Buscar",
+    "fetching": "Buscando…",
+    "apply": "Aplicar",
+    "needSite": "Informe primeiro a latitude e a longitude do local de lançamento.",
+    "siteLine": "Local {{lat}}, {{lon}} a {{alt}}",
+    "noHour": "A resposta não tem dados para essa hora.",
+    "validForecast": "Previsão para {{time}}",
+    "validArchive": "Clima registrado para {{time}}",
+    "archiveNoAloft": "Para uma data tão antiga só há condições de superfície, sem ventos nem atmosfera em altitude.",
+    "useTerrain": "Usar a altitude do terreno, {{terrain}}, para o local (agora {{site}})",
+    "forecastNote": "Uma previsão é uma estimativa de um modelo, não uma medição.",
+    "credit": "Dados meteorológicos por Open-Meteo.com",
+    "windValue": "{{speed}} de {{from}}°, rajadas {{gust}}, perfil até {{top}}",
+    "atmosphereValue": "Perfil até {{top}}",
+    "group": {
+      "temperature": "Temperatura",
+      "pressure": "Pressão",
+      "humidity": "Umidade",
+      "wind": "Vento",
+      "atmosphere": "Atmosfera em altitude"
+    },
+    "dateRefusal": {
+      "tooFarAhead": "O Open-Meteo prevê até 15 dias à frente.",
+      "tooEarly": "Os registros do Open-Meteo começam em 1º de janeiro de 1940.",
+      "badDate": "Escolha uma data."
+    },
+    "error": {
+      "offline": "Não foi possível acessar o Open-Meteo. Suas condições de lançamento não foram alteradas.",
+      "timeout": "O Open-Meteo não respondeu a tempo. Suas condições de lançamento não foram alteradas.",
+      "aborted": "Cancelado. Suas condições de lançamento não foram alteradas.",
+      "refused": "O Open-Meteo recusou a solicitação: {{detail}}. Suas condições de lançamento não foram alteradas.",
+      "badKey": "O Open-Meteo não aceitou a chave de API em Configurações, Lançamento. Suas condições de lançamento não foram alteradas.",
+      "quota": "O limite gratuito do Open-Meteo acabou por enquanto. Tente mais tarde ou adicione uma chave de API em Configurações, Lançamento. Suas condições de lançamento não foram alteradas.",
+      "http": "O Open-Meteo respondeu com um erro ({{detail}}). Suas condições de lançamento não foram alteradas.",
+      "shape": "Não foi possível ler a resposta do Open-Meteo ({{detail}}). Suas condições de lançamento não foram alteradas.",
+      "units": "O Open-Meteo respondeu em unidades que o app não lê ({{detail}}). Suas condições de lançamento não foram alteradas.",
+      "noData": "O Open-Meteo não tem dados para essa data aqui. Suas condições de lançamento não foram alteradas."
+    },
+    "keyLabel": "Chave de API do Open-Meteo",
+    "keyPlaceholder": "Nenhuma (serviço gratuito)",
+    "keyNote": "Opcional. Sem chave, o clima vem do serviço gratuito do Open-Meteo, que é para uso não comercial. Uma chave de um plano pago do Open-Meteo remove os limites. A chave fica guardada apenas neste navegador.",
+    "keyNotSaved": "Não foi possível salvar a chave neste navegador.",
+    "source": {
+      "forecast": "Previsão do Open-Meteo para {{when}} em {{where}}, obtida {{fetched}}",
+      "record": "Registro do Open-Meteo para {{when}} em {{where}}, obtido {{fetched}}",
+      "edited": "Editado depois de aplicado.",
+      "otherSite": "O local de lançamento mudou desde a busca.",
+      "old": "Obtido há mais de 3 horas. Uma previsão mais recente pode ser diferente.",
+      "refresh": "Atualizar…"
+    },
+    "fetchedAt": "Obtido às {{time}}.",
+    "reused": "Reutilizado das {{time}}. O Open-Meteo é consultado de novo após 30 minutos.",
+    "fetchFresh": "Buscar de novo"
+  },
+  "env": {
+    "elevation": "Altitude do local",
+    "note": "O ar como o voo o encontrou, registrado na subida e na descida, do solo até o apogeu a {{apogee}}.",
+    "ascent": "Subida",
+    "descent": "Descida",
+    "noData": "Este resultado não tem dados da atmosfera. Execute a simulação novamente.",
+    "q": {
+      "windSpeed": "Velocidade do vento",
+      "windDirection": "Direção do vento",
+      "temperature": "Temperatura do ar",
+      "pressure": "Pressão do ar",
+      "density": "Densidade do ar",
+      "speedOfSound": "Velocidade do som"
+    },
+    "when": "Data / hora",
+    "latitude": "Latitude",
+    "longitude": "Longitude",
+    "landing": {
+      "title": "Pouso",
+      "stage": "O estágio {{stage}} pousa em",
+      "flyHours": "Voar as horas em torno desta previsão",
+      "flying": "Voando… {{done}} de {{total}}",
+      "flyHoursNote": "Voa este projeto com a previsão de cada hora, de duas antes a duas depois, como a previsão está agora.",
+      "hour": "Hora",
+      "noForecast": "Preencha as condições de lançamento com Obter clima… para ver como o pouso se move nas horas em torno da previsão.",
+      "failed": "Não foi possível concluir os voos."
+    }
+  },
+  "landing": {
+    "title": "Estimativa de pouso",
+    "intro": "Onde um foguete cai, a partir de um local, uma hora da previsão, seu apogeu e suas velocidades de descida. É uma estimativa: a subida não é modelada e as velocidades são as que você digita. Um foguete projetado aqui obtém seu pouso da simulação, na aba Resultados.",
+    "site": "Local de lançamento",
+    "siteElevation": "Altitude do local",
+    "terrain": "Terreno",
+    "siteElevationHint": "Deixe em branco para usar a altura do modelo de terreno no local.",
+    "when": "Quando",
+    "flight": "Voo",
+    "apogee": "Apogeu acima da plataforma",
+    "recovery": "Recuperação",
+    "recovery_single": "Simples",
+    "recovery_dual": "Dupla",
+    "descentRate": "Velocidade de descida",
+    "drogueRate": "Descida no drogue",
+    "mainRate": "Descida no principal",
+    "mainAltitude": "O principal abre acima da plataforma a",
+    "mainAboveApogee": "O principal precisa abrir abaixo do apogeu.",
+    "estimate": "Estimar pouso",
+    "estimating": "Estimando…",
+    "empty": "Informe o local, a hora e o voo e clique em Estimar pouso.",
+    "lands": "Pousa em",
+    "distance": "Distância",
+    "bearing": "Rumo a partir da plataforma",
+    "descentTime": "Tempo de descida",
+    "zone": "Zona de pouso (2σ)",
+    "noZone": "Dispersão pequena demais para desenhar",
+    "groundAtLanding": "Solo no pouso",
+    "estimateNote": "Uma estimativa a partir de velocidades de descida digitadas. A zona cobre {{descents}} descidas: {{hours}} horas da previsão, velocidade do vento 20% para mais e para menos, direção 15° para cada lado e velocidade de descida 10% para mais e para menos.",
+    "flatGround": "Não foi possível obter a forma do terreno, então o pouso é em solo plano na altura da plataforma.",
+    "surfaceWindOnly": "O registro do Open-Meteo para esta data tem só o vento perto do solo, então toda a descida deriva com ele.",
+    "mapLabel": "Estimativa de pouso vista de cima, pouso a {{distance}} da plataforma"
+  },
+  "tools": {
+    "label": "Ferramentas",
+    "tool_landing": "Estimativa de pouso",
+    "tool_rail": "Saída do trilho",
+    "tool_chute": "Dimensionamento do paraquedas"
+  },
+  "chuteTool": {
+    "title": "Dimensionamento do paraquedas",
+    "intro": "O velame que pousa um foguete na velocidade de descida escolhida, a partir do que desce, do coeficiente de arrasto do velame e do ar no local. Uma estimativa pela equação de descida. Um paraquedas de um foguete projetado aqui mostra os mesmos valores em Dimensionamento da descida, no seu editor.",
+    "rocket": "Foguete e velame",
+    "mass": "Massa na descida",
+    "massHint": "O que desce sob o velame: o foguete depois que o propelente queimou.",
+    "cd": "Cd do velame",
+    "diameter": "Diâmetro do velame",
+    "none": "Nenhum",
+    "air": "Ar no local",
+    "standard": "Padrão",
+    "result": "Resultado do dimensionamento do paraquedas",
+    "empty": "Informe a massa na descida e o Cd do velame."
+  },
+  "rail": {
+    "title": "Saída do trilho",
+    "intro": "Como um foguete sai do trilho com um motor dado: a relação empuxo-peso, a velocidade com que sai do trilho e quanto um vento lateral o gira. Um foguete projetado aqui obtém esses valores da simulação, no evento de saída do trilho.",
+    "motor": "Motor",
+    "noMotor": "Nenhum motor escolhido",
+    "chooseMotor": "Escolher…",
+    "rocket": "Foguete e trilho",
+    "dryMass": "Massa do foguete sem o motor",
+    "dryMassHint": "A massa carregada do motor vem do catálogo e é somada a esta.",
+    "wind": "Velocidade do vento",
+    "fromForecast": "Vento de uma previsão",
+    "fetchWind": "Obter o vento previsto",
+    "fetching": "Obtendo…",
+    "forecastWind": "Vento previsto de {{wind}} a 10 m, {{when}}.",
+    "forecastWindGust": "Vento previsto de {{wind}} a 10 m, com rajadas de {{gust}}, {{when}}.",
+    "result": "Resultado da saída do trilho",
+    "empty": "Escolha um motor e informe a massa do foguete e o comprimento do trilho.",
+    "noLiftoff": "O empuxo do motor nunca passa do peso do foguete, então ele não decola.",
+    "stalls": "O foguete desacelera até parar antes de chegar ao fim do trilho.",
+    "liftoffMass": "Massa na decolagem",
+    "twrAverage": "Empuxo-peso, médio",
+    "twrPeak": "Empuxo-peso, máximo",
+    "twrAtExit": "Empuxo-peso ao sair do trilho",
+    "exitSpeed": "Velocidade de saída do trilho",
+    "exitTime": "Tempo até sair do trilho",
+    "weathercock": "Ângulo de cata-vento",
+    "weathercockGust": "Ângulo de cata-vento nas rajadas",
+    "maxWind": "Vento mais forte abaixo de {{angle}}°",
+    "maxDryMass": "Foguete mais pesado sem o motor",
+    "none": "Nenhum",
+    "rules": "Em âmbar: uma relação empuxo-peso média abaixo de {{ratio}} : 1, uma saída do trilho abaixo de {{speed}} (o mínimo das Configurações) ou um ângulo de cata-vento acima de {{angle}}°. O foguete mais pesado atende aos dois primeiros.",
+    "estimateNote": "Uma estimativa: sem arrasto, sem atrito no trilho e com o trilho vertical, então a saída real é um pouco mais lenta."
   }
 }

@@ -122,7 +122,15 @@ export default defineConfig({
         // takes, so precaching ~1.9 MB of unused fallback on every install is a
         // bad trade — the runtimeCaching rule below stores it on first use, which
         // is when we learn the browser actually needs it.
-        globIgnores: ['**/openrocket-engine-*.js'],
+        //
+        // The docs site's own search index is the other one: 1.5 MB across the two
+        // locales, and the search box it feeds lives in the Docusaurus NAVBAR,
+        // which `website/src/css/custom.css` hides whenever a page is embedded in
+        // the Help dialog. So precaching it would cost every install 1.5 MB for a
+        // control nobody in the app can reach. It stays available to anyone reading
+        // the published site, which is who the plugin is for, and the Help dialog
+        // searches the same pages its own way.
+        globIgnores: ['**/openrocket-engine-*.js', '**/search-index*.json'],
         // The WASM kernel alone is ~2.5 MB, over Workbox's 2 MiB default.
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
         // `?v=<hash>` has to be ignored when matching the precache, or the

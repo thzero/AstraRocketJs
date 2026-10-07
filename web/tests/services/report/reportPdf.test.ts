@@ -121,10 +121,10 @@ describe('hexToRgbTuple — the template stroke and fill', () => {
     }
   });
 
-  it('does NOT take the three-digit shorthand', () => {
-    // `#f80` is valid CSS and is silently drawn near-black here. Pinned so the
-    // next reader knows it is the regex, not a color-space surprise.
-    expect(hexToRgbTuple('#f80')).toEqual([17, 24, 39]);
+  it('takes the three-digit shorthand, as every color reader does', () => {
+    // `#f80` is valid CSS; it was drawn near-black here while the 3MF writer
+    // expanded it.
+    expect(hexToRgbTuple('#f80')).toEqual([255, 136, 0]);
   });
 });
 

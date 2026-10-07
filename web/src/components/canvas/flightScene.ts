@@ -1,5 +1,10 @@
 import * as THREE from 'three';
-import type { FlightResult } from '../../engine/openRocketEngine';
+import type { FlightResult, RocketTree } from '../../engine/openRocketEngine';
+import { KERNEL_DEFAULTS } from '../../tree/kernelDefaults';
+import { findRecoveryDevices } from '../../services/design/treeEdit';
+import { num } from '../../tree/nodeProps';
+import { colorForType, type PartPalette } from '../../services/design/partColors';
+import { colorOf } from './schematicGeometry';
 
 /**
  * The trajectory geometry behind FlightPath3D — pulled out of the component's
@@ -200,4 +205,26 @@ export function modelPoseAt(
   out.position.y += Math.max(0, (modelLen / 2) * Math.abs(dir.y) - at.y);
   out.nose.copy(out.position).addScaledVector(dir, modelLen / 2);
   return out;
+}
+
+export type Recovery =
+  | { kind: 'parachute'; diameter: number; color: string }
+  | { kind: 'streamer'; length: number; width: number; color: string }
+  | null;
+/**
+ * The recovery device the 3D flight shows: the first parachute or streamer in
+ * tree order, sized as the kernel flies it when it states no size.
+ */
+export function findRecovery(tree: RocketTree, palette: PartPalette): Recovery {
+  const n = findRecoveryDevices(tree)[0];
+  if (!n) return null;
+  const color = colorOf(n, colorForType(n.type, palette));
+  return n.type === 'parachute'
+    ? { kind: 'parachute', diameter: num(n, 'diameter', KERNEL_DEFAULTS.parachute.diameter), color }
+    : {
+        kind: 'streamer',
+        length: num(n, 'stripLength', KERNEL_DEFAULTS.streamer.stripLength),
+        width: num(n, 'stripWidth', KERNEL_DEFAULTS.streamer.stripWidth),
+        color,
+      };
 }

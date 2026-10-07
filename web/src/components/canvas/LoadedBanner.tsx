@@ -47,7 +47,12 @@ export function LoadedBanner({
   const { settings, update } = useSettings();
   const open = settings.showImportNotes;
   const [configOpen, setConfigOpen] = useState(false);
-  const notes = loaded?.notes ?? [];
+  // The repairs ride with the file's own notes: both say what the app did to a
+  // design on the way in, and a reader has no reason to care which list they
+  // came from. A design that came from nowhere - a restored session - still
+  // gets the card when there is something to report.
+  const repaired = useWorkspaceStore((s) => s.repairNotes);
+  const notes = [...(loaded?.notes ?? []), ...repaired];
   const count = notes.length;
   // The tree's name is the live one: it is what the editor changes and what an
   // export writes. `loaded.name` is only the value the file arrived with.
@@ -57,7 +62,7 @@ export function LoadedBanner({
   // a Close. One that did not has only its name, so it gets a slim title row
   // rather than 64px of card chrome around a single line - the drawing below is
   // what the pane is for.
-  const shell = loaded ? 'm-3 rounded-xl bg-slate-900 p-3 ring-1 ring-white/10' : 'mx-3 mt-2';
+  const shell = loaded || repaired.length ? 'm-3 rounded-xl bg-slate-900 p-3 ring-1 ring-white/10' : 'mx-3 mt-2';
 
   return (
     <div className={shell}>

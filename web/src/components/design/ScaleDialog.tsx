@@ -5,8 +5,11 @@ import { useWorkspaceStore } from '../../state/store';
 import { NumberInput } from '../common/NumberInput';
 import { UnitChip } from '../common/UnitChip';
 import { useUnits } from '../../prefs/useUnits';
+import { onSi } from '../../prefs/entryValue';
 import { unitScope } from '../../prefs/units';
 import { maxBodyDiameter, rocketLength } from '../../tree/scaleRocket';
+import { fmtNum } from '../../i18n/format';
+import { DialogButton } from '../common/DialogButton';
 
 /**
  * Scale the whole rocket by one factor: every length, diameter, wall, fin
@@ -32,7 +35,7 @@ export function ScaleDialog({ onClose }: { onClose: () => void }) {
   const baseD = maxBodyDiameter(tree); // m
   const baseL = rocketLength(tree); // m
 
-  const pct = (factor * 100).toFixed(0);
+  const pct = fmtNum(factor * 100, 0);
   const usable = Number.isFinite(factor) && factor > 0 && factor !== 1 && baseD > 0;
   const apply = () => {
     if (!usable) return;
@@ -84,13 +87,20 @@ export function ScaleDialog({ onClose }: { onClose: () => void }) {
                     already formats. 1 mm of step and floor, converted. */}
               <NumberInput
                 value={fu.toUi(baseD * factor)}
-                onChange={(v) => v !== null && v > 0 && baseD > 0 && setFactor(fu.fromUi(v) / baseD)}
+                onChange={onSi(
+                  fu,
+                  (si) => si !== null && si > 0 && setFactor(si),
+                  // The box holds a diameter and the dialog holds the RATIO of
+                  // it to the design's own, so the division is part of the
+                  // conversion and is checked with it.
+                  (si) => (baseD > 0 ? si / baseD : NaN),
+                )}
                 step={fu.step(0.001)}
                 min={fu.toUi(0.001)}
                 className={input}
               />
               <span className="text-xs text-slate-500">
-                {t('scale.currentDiameter', { mm: `${fu.fmt(baseD)} ${fu.sym}` })}
+                {t('scale.currentDiameter', { mm: `${fu.fmtSym(baseD)}` })}
               </span>
             </div>
           </div>
@@ -105,23 +115,16 @@ export function ScaleDialog({ onClose }: { onClose: () => void }) {
             </span>
           </p>
           <p className="mt-2 text-xs leading-relaxed text-slate-500">
-            {t('scale.massNote', { cube: (factor ** 3).toFixed(2) })}
+            {t('scale.massNote', { cube: fmtNum(factor ** 3, 2) })}
           </p>
 
           <div className="mt-5 flex justify-end gap-2">
-            <button
-              onClick={onClose}
-              className="rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
-            >
+            <DialogButton onClick={onClose} variant="secondary">
               {t('common.cancel')}
-            </button>
-            <button
-              onClick={apply}
-              disabled={!usable}
-              className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-500 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-500"
-            >
+            </DialogButton>
+            <DialogButton onClick={apply} disabled={!usable} variant="primary">
               {t('scale.apply', { pct })}
-            </button>
+            </DialogButton>
           </div>
         </>
       )}

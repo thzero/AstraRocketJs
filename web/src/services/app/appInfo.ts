@@ -21,6 +21,9 @@ export const APP_VERSION: string = __APP_VERSION__;
  */
 export const HELP_URL: string = __HELP_URL__;
 
+/** `url` ending in exactly one slash, however many it had. */
+const withTrailingSlash = (url: string): string => url.replace(/\/*$/, '/');
+
 /**
  * The docs URL for a UI language. The docs site serves English at the root and
  * other locales under a sub-path (`/docs/es/`), and an untranslated page there
@@ -34,7 +37,7 @@ export const DOC_LOCALES = new Set(['es']);
 export function helpUrlFor(language: string): string {
   const lang = (language || '').split('-')[0]!.toLowerCase();
   if (!HELP_URL || !DOC_LOCALES.has(lang)) return HELP_URL;
-  return `${HELP_URL.replace(/\/*$/, '/')}${lang}/`;
+  return `${withTrailingSlash(HELP_URL)}${lang}/`;
 }
 
 /**
@@ -49,7 +52,7 @@ export function helpUrlFor(language: string): string {
  */
 export function docPageUrl(base: string, page: string): string {
   if (!base) return base;
-  return `${base.replace(/\/*$/, '/')}${page}`;
+  return `${withTrailingSlash(base)}${page}`;
 }
 
 /**
@@ -67,7 +70,7 @@ export function docPageUrl(base: string, page: string): string {
  * origin even when the build has no external docs URL.
  */
 export function localDocsUrlFor(language: string): string {
-  const base = `${import.meta.env.BASE_URL.replace(/\/*$/, '/')}docs/`;
+  const base = `${withTrailingSlash(import.meta.env.BASE_URL)}docs/`;
   const lang = (language || '').split('-')[0]!.toLowerCase();
   return DOC_LOCALES.has(lang) ? `${base}${lang}/` : base;
 }
@@ -87,7 +90,7 @@ export function localDocsUrlFor(language: string): string {
  */
 export function docPageFileUrl(base: string, page: string): string {
   const url = docPageUrl(base, page);
-  return url ? `${url.replace(/\/*$/, '/')}index.html` : url;
+  return url ? `${withTrailingSlash(url)}index.html` : url;
 }
 
 /**
@@ -127,3 +130,14 @@ export const appName = (): string => i18n.t('app.title');
 
 /** Default name for a new / exported design, e.g. "AstraRocketJs design" (translated). */
 export const defaultDesignName = (): string => i18n.t('app.designName', { name: appName() });
+
+/**
+ * What to CALL a design, everywhere it is named: its own name, else the name of
+ * the file it was imported from, else the app's default. The one copy of the
+ * chain, so every download, report and image header names a renamed rocket the
+ * same way.
+ */
+export function designNameOf(tree: { name?: unknown }, loadedMeta?: { name?: string } | null): string {
+  const own = typeof tree.name === 'string' ? tree.name.trim() : '';
+  return own || loadedMeta?.name?.trim() || defaultDesignName();
+}

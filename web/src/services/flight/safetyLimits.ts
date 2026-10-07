@@ -1,6 +1,6 @@
 import type { LaunchConditions, WindLevel } from '../design/orkTree';
 import { fmtUpTo, ladderDigits, withUnit } from '../../i18n/format';
-import { siToUi, type Quantity, type UnitSymbols } from '../../prefs/units';
+import { degToRad, type Quantity, siToUi, uiToSi, type UnitSymbols } from '../../prefs/units';
 
 /**
  * Flying limits from the NAR / Tripoli safety codes, in SI.
@@ -21,10 +21,27 @@ export const MAX_ROD_ANGLE_DEG = 20;
  *  SI, because nothing outside it now speaks the codes' own unit. */
 const MAX_WIND_SPEED_MPH = 20;
 
-const MPH_TO_MS = 0.44704;
+const MPH_TO_MS = uiToSi('windspeed', 'mph', 1);
 
-export const MAX_ROD_ANGLE_RAD = (MAX_ROD_ANGLE_DEG * Math.PI) / 180;
+export const MAX_ROD_ANGLE_RAD = degToRad(MAX_ROD_ANGLE_DEG);
 export const MAX_WIND_SPEED_MS = MAX_WIND_SPEED_MPH * MPH_TO_MS;
+
+/**
+ * Ceiling on turbulence intensity, as the percentage the fields show.
+ * Ceiling on turbulence intensity, as the percentage the fields show.
+ *
+ * `turbulenceLevel`'s top rung is "extreme" at 25%. 100% is a scatter equal to
+ * the mean wind - four times past that rung - and is where the percentage field
+ * stops, so the two readings of one value cannot be driven apart by typing into
+ * the one that had no bound.
+ *
+ * The wind's STANDARD DEVIATION is bounded by `MAX_WIND_SPEED_MS` itself, not by a
+ * constant of its own: the average had a cap and the scatter had none anywhere
+ * between the box and the solver, and a scatter larger than the largest wind the
+ * codes allow is not a wind condition. No code states a figure for it, so
+ * inventing a second number would be inventing a limit.
+ */
+export const MAX_TURBULENCE_PERCENT = 100;
 
 export interface LimitViolation {
   field: 'rodAngle' | 'windSpeed';
@@ -75,7 +92,7 @@ export function launchLimitViolations(launch: LaunchConditions): LimitViolation[
 
   const angle = Math.abs(launch.launchRodAngleDeg ?? 0);
   if (angle > MAX_ROD_ANGLE_DEG) {
-    out.push({ field: 'rodAngle', value: (angle * Math.PI) / 180, limit: MAX_ROD_ANGLE_RAD });
+    out.push({ field: 'rodAngle', value: degToRad(angle), limit: MAX_ROD_ANGLE_RAD });
   }
 
   const wind = surfaceWindMs(launch);

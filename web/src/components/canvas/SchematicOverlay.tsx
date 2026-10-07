@@ -1,9 +1,8 @@
 import { useTranslation } from 'react-i18next';
 import type { StaticInfo } from '../../engine/openRocketEngine';
-import { fmtNum } from '../../i18n/format';
 import { useUnits } from '../../prefs/useUnits';
-import { stabilityState, type StabilityState } from '../../services/flight/simReport.js';
-import { calloutLayout, hoverTagFor, MARKER_R, STABILITY_GLYPH, type Ctx, type HoverBox } from './schematicGeometry';
+import type { StabilityState } from '../../services/flight/simReport.js';
+import { calloutLayout, hoverTagFor, marginText, MARKER_R, type Ctx, type HoverBox } from './schematicGeometry';
 
 /**
  * The decoration drawn OVER the TreeSchematic's part outlines, inside the
@@ -14,9 +13,6 @@ import { calloutLayout, hoverTagFor, MARKER_R, STABILITY_GLYPH, type Ctx, type H
  * you click to select a nose cone or body tube, and an opaque disc with no
  * handler of its own silently ate the click.
  */
-
-/** Counter-rotation for a text label in the nose-up view (see TreeSchematic). */
-export type TextUp = (x: number, y: number) => { transform?: string };
 
 const STABILITY_VAR: Record<StabilityState, string> = {
   under: 'var(--status-serious)',
@@ -32,7 +28,6 @@ export function StabilityOverlay({
   vHalf,
   w,
   h,
-  textUp,
 }: {
   info: StaticInfo | null;
   showMarkers: boolean;
@@ -41,7 +36,6 @@ export function StabilityOverlay({
   vHalf: number;
   w: number;
   h: number;
-  textUp: TextUp;
 }) {
   const { t } = useTranslation();
   const u = useUnits();
@@ -49,20 +43,13 @@ export function StabilityOverlay({
   // on-axis symbols AND the leader-line callouts (all gated on cgX/cpX below).
   const cgX = info && showMarkers ? ctx.x0 + info.cg * scale : null;
   const cpX = info && showMarkers ? ctx.x0 + info.cp * scale : null;
-  const stab = info ? stabilityState(info.stabilityCalibers) : null;
-  // The engine's own figure, not ours: see StaticInfo.stabilityPercent.
-  const marginPct = info ? info.stabilityPercent : null;
-  const stabWord =
-    stab === 'under' ? t('schematic.underStable') : stab === 'over' ? t('schematic.overStable') : t('schematic.ok');
-  // A zero-length design has no margin percentage to print, so it gets no margin
-  // text either: asserted non-null, `marginPct` prints "NaN%".
-  const marginText =
-    info && stab && marginPct !== null
-      ? `${STABILITY_GLYPH[stab]} ${fmtNum(info.stabilityCalibers, 2)} ${t('stability.caliber')} · ${fmtNum(marginPct, 1)}% — ${stabWord}`
-      : null;
-  const cgLabel = info ? `${t('schematic.cg')} · ${u.fmt('length', info.cg)} ${u.sym('length')}` : t('schematic.cg');
-  const cpLabel = info ? `${t('schematic.cp')} · ${u.fmt('length', info.cp)} ${u.sym('length')}` : t('schematic.cp');
-  const callouts = calloutLayout(cgX, cpX, ctx.cy, vHalf * scale, w, h, marginText);
+  // The engine's own percentage, not ours: see StaticInfo.stabilityPercent. A
+  // zero-length design has none, so it gets no margin text either.
+  const margin = info ? marginText(info.stabilityCalibers, info.stabilityPercent, t) : null;
+  const stab = margin?.state ?? null;
+  const cgLabel = info ? `${t('schematic.cg')} · ${u.fmtSym('length', info.cg)}` : t('schematic.cg');
+  const cpLabel = info ? `${t('schematic.cp')} · ${u.fmtSym('length', info.cp)}` : t('schematic.cp');
+  const callouts = calloutLayout(cgX, cpX, ctx.cy, vHalf * scale, w, h, margin?.text ?? null);
 
   return (
     <>
@@ -113,7 +100,6 @@ export function StabilityOverlay({
                 fontSize="11"
                 fontWeight="bold"
                 fill="var(--text-primary)"
-                {...textUp(callouts.cg.x + 8, callouts.cg.leaderY2)}
               >
                 {cgLabel}
               </text>
@@ -138,7 +124,6 @@ export function StabilityOverlay({
                 fontSize="11"
                 fontWeight="bold"
                 fill="var(--status-serious)"
-                {...textUp(callouts.cp.x + 8, callouts.cp.leaderY2)}
               >
                 {cpLabel}
               </text>
@@ -153,9 +138,8 @@ export function StabilityOverlay({
               fontSize="11"
               fontWeight="bold"
               fill={STABILITY_VAR[stab]}
-              {...textUp(callouts.margin.x, callouts.margin.y)}
             >
-              {marginText}
+              {margin?.text}
             </text>
           )}
         </g>
@@ -169,19 +153,7 @@ export function StabilityOverlay({
  * plus a name tag, deliberately fainter than the solid width-2 selection
  * outline so the two stay distinguishable.
  */
-export function HoverOverlay({
-  box,
-  name,
-  w,
-  h,
-  textUp,
-}: {
-  box: HoverBox | null;
-  name: string;
-  w: number;
-  h: number;
-  textUp: TextUp;
-}) {
+export function HoverOverlay({ box, name, w, h }: { box: HoverBox | null; name: string; w: number; h: number }) {
   const tag = box ? hoverTagFor(box, name, w, h) : null;
   if (!box || !tag) return null;
   return (
@@ -198,7 +170,7 @@ export function HoverOverlay({
         strokeWidth="1"
         strokeOpacity="0.6"
       />
-      <g {...textUp(tag.x, tag.y)}>
+      <g>
         <rect
           x={tag.x - tag.tw / 2}
           y={tag.y - 9}

@@ -11,7 +11,13 @@
 // reproduce OpenRocket's mass/CG. Densities are SI: bulk kg/m^3, surface
 // kg/m^2, line kg/m.
 
-export type MaterialType = 'bulk' | 'surface' | 'line';
+/** Every material type, in one list: the type, the catalog check and the saved
+ *  default-material keys all read it. */
+export const MATERIAL_TYPES = ['bulk', 'surface', 'line'] as const;
+
+export type MaterialType = (typeof MATERIAL_TYPES)[number];
+
+export const isMaterialType = (v: unknown): v is MaterialType => (MATERIAL_TYPES as readonly unknown[]).includes(v);
 
 /**
  * The one group that is not a material a rocket is BUILT from.
@@ -52,15 +58,13 @@ export interface MaterialRow {
   kind: MaterialKind;
 }
 
-const TYPES: readonly string[] = ['bulk', 'surface', 'line'];
-
 const isRow = (v: unknown): v is MaterialRow => {
   const r = v as Partial<MaterialRow> | null;
   return (
     !!r &&
     typeof r.name === 'string' &&
     r.name.length > 0 &&
-    TYPES.includes(r.type as string) &&
+    isMaterialType(r.type) &&
     typeof r.density === 'number' &&
     Number.isFinite(r.density) &&
     r.density > 0 &&

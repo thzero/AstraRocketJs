@@ -1,6 +1,6 @@
 import type { ComponentNode } from '../engine/openRocketEngine';
 import { ASSEMBLY_TYPES, isChainType, type AssemblyType } from './componentKinds';
-import { num } from './nodeProps';
+import { chainOuterRadius, num } from './nodeProps';
 
 /**
  * Geometry helpers for off-axis assemblies (PodSet / ParallelStage) — shared
@@ -23,11 +23,7 @@ export function assemblyChainLength(pod: ComponentNode): number {
 /** Largest outer radius among the assembly's own body chain (m). */
 export function assemblyBoundingRadius(pod: ComponentNode): number {
   let r = 0;
-  for (const c of pod.children ?? []) {
-    if (c.type === 'nosecone') r = Math.max(r, num(c, 'aftRadius', 0));
-    else if (c.type === 'bodytube') r = Math.max(r, num(c, 'outerRadius', 0));
-    else if (c.type === 'transition') r = Math.max(r, num(c, 'foreRadius', 0), num(c, 'aftRadius', 0));
-  }
+  for (const c of pod.children ?? []) r = Math.max(r, chainOuterRadius(c));
   return r;
 }
 

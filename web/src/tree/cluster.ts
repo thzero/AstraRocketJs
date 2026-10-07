@@ -123,7 +123,9 @@ export function clusterCount(cluster: string | undefined): number {
  * Two things InnerTube.getClusterPoints (InnerTube.java:263-273) also does and
  * this does NOT: it rotates by `clusterRotation − radialDirection`, and it adds
  * the `radialPosition` offset. Neither is drawn app-side, so a cluster that is
- * also radially offset still draws on the axis.
+ * also radially offset still draws on the axis. Anything that places the tubes
+ * for real (splitting a cluster, writing one tube per motor) uses
+ * {@link clusterPoints}, which does both.
  */
 export function clusterOffsets(
   cluster: string | undefined,
@@ -147,4 +149,27 @@ export function clusterOffsets(
     });
   }
   return out;
+}
+
+/**
+ * Where each tube of a cluster sits, as InnerTube.getClusterPoints places it
+ * (InnerTube.java:263-273): the pattern turned by `clusterRotation −
+ * radialDirection`, then shifted by the mount's own radial offset. Returned as
+ * the distance and direction a single tube at that spot carries.
+ */
+export function clusterPoints(
+  cluster: string | undefined,
+  tubeOuterRadius: number,
+  clusterScale = 1,
+  clusterRotation = 0,
+  radialPosition = 0,
+  radialDirection = 0,
+): { radialPosition: number; radialDirection: number }[] {
+  const baseY = radialPosition * Math.cos(radialDirection);
+  const baseZ = radialPosition * Math.sin(radialDirection);
+  return clusterOffsets(cluster, tubeOuterRadius, clusterScale, clusterRotation - radialDirection).map((o) => {
+    const y = o.y + baseY;
+    const z = o.z + baseZ;
+    return { radialPosition: Math.hypot(y, z), radialDirection: Math.atan2(z, y) };
+  });
 }

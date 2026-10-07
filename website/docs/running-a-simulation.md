@@ -16,7 +16,7 @@ Each simulation has its own launch configuration, grouped into cards:
 
 - **Launch rod / rail** — length, angle from vertical, and direction (or "launch into the wind").
 - **Launch site** — altitude, latitude, and longitude, plus [saved locations](#saved-locations) and a [map](#the-map).
-- **Atmosphere** — ISA standard, or override temperature and pressure.
+- **Atmosphere** — ISA standard, or override temperature, pressure and humidity, or fill them and the wind from a [weather forecast](#weather).
 - **Wind** — average speed, gusts (standard deviation), and direction; or a **multi-level** wind profile that varies with altitude.
 - **Earth model** — flat, spherical, or WGS84 (affects long/high flights).
 
@@ -43,6 +43,34 @@ Four digits of latitude and four of longitude are not something you can check by
 Tiles you have already looked at are stored by the app, so a location you checked at home still draws at the field with no signal. Somewhere you have never viewed cannot be drawn offline: the map says so and falls back to a coordinate grid, which still places the point by hemisphere. Tiles come from Esri, and only the ones for what you are looking at are ever requested — see **[Offline & Installing](./offline-and-installing.md)**.
 
 A location holds **only the site**. The rod, the wind and the atmosphere are conditions on the day, and a location that restored last month's wind would be worse than one that restored nothing — it would look authoritative. Locations live in this browser on this device, like your custom motors and materials; nothing is uploaded.
+
+### Weather from Open-Meteo {#weather}
+
+**Get weather…** on the Atmosphere card fills the launch conditions from an [Open-Meteo](https://open-meteo.com/) forecast for the launch site. Set the site's latitude and longitude first, then pick a date and an hour in the site's own time and press **Fetch**.
+
+The dialog shows what it found, each with a checkbox, and changes nothing until you press **Apply**:
+
+- **Temperature**, **Pressure** and **Humidity** at the pad. The pressure is the pressure at the site's elevation, not the sea-level figure a weather report gives.
+- **Wind**: the 10 m wind at the pad, the winds at 80, 120 and 180 m above it, and the wind at each of Open-Meteo's pressure levels higher up, written as a multi-level wind profile measured from sea level. The turbulence at the pad is estimated from the gusts, and the levels above it get 10%. The average wind fields are filled from the pad wind as well.
+- **Atmosphere aloft**: temperature, pressure and humidity at each pressure level above the pad. With it applied, the flight uses this atmosphere instead of the ISA standard above the site. The Atmosphere card shows it as **Forecast atmosphere to** a height, with **Clear** to go back to the standard one.
+
+Dates from about three months back to 15 days ahead use the forecast. Earlier dates, back to 1940, use Open-Meteo's historical record, which has surface values only, so the wind profile and the atmosphere aloft are not offered. When the site altitude and Open-Meteo's terrain height differ by more than 30 m, the dialog offers the terrain height as the site altitude, and the values it shows follow that choice.
+
+The dialog says when the answer was fetched. An answer is reused for 30 minutes for the same place and dates, since the fastest forecast model publishes a new run once an hour; the dialog says when it was reused, and **Fetch fresh** asks Open-Meteo again anyway.
+
+A forecast is a model's estimate. Applying it is an ordinary edit that undoes like any other, and results flown under the old conditions show as outdated.
+
+The Atmosphere card then says where the values came from, such as *Open-Meteo forecast for Oct 5, 2026, 12:00 PM MDT at 39.739°, -104.990°, fetched Oct 4, 2026, 9:14 AM MDT*, with Open-Meteo's credit, and adds a note when one of these is true:
+
+- **Edited since it was applied**: a value the forecast filled has been changed.
+- **The launch site has moved**: the latitude or longitude is no longer the place the forecast was for.
+- **Fetched over 3 hours ago**: the forecast is for a time still ahead, and Open-Meteo has likely published a newer one.
+
+**Refresh…** opens the dialog on the same date and hour with the same boxes ticked and fetches at once; nothing changes until you press Apply. A refresh that brings back the same values leaves your results current. The record is saved with the simulation and in a `.ork`.
+
+**The service.** Requests go from your browser to Open-Meteo only when you press Fetch, and carry the site's coordinates and elevation and the chosen date. They do not name this app or the site it is served from. Without an API key the app uses Open-Meteo's free service, which is for non-commercial use and has daily limits. If you have a paid Open-Meteo plan, enter its key in [Settings](./settings.md#open-meteo-key), at the bottom of the Atmosphere card on the Launch tab. The key is kept only in this browser and is never saved into a design or a `.ork`. Weather data is by Open-Meteo.com under CC BY 4.0, and the dialog credits it.
+
+The forecast atmosphere is this app's addition. Desktop OpenRocket uses the ISA standard above the site, and a `.ork` saved here carries the levels as an extension that desktop OpenRocket skips.
 
 ## Run it
 

@@ -18,6 +18,7 @@ import { useMotorSort } from './useMotorSort';
 import { ColumnChooser, MotorGrid } from './MotorGrid';
 import { MotorComparePane } from './MotorComparePane';
 import { MotorCombinePane } from './MotorCombinePane';
+import { ToggleButton } from '../common/ToggleButton';
 
 /**
  * The motor dashboard shell: the dialog frame, the filter row, the checked set
@@ -152,6 +153,10 @@ export function MotorDashboard({ onClose }: { onClose: () => void }) {
           </div>
 
           <MotorGrid
+            // Hidden by a CSS class above, not unmounted, so the grid has to be
+            // told when it is not the surface on screen: its window-level
+            // arrow-key listener would otherwise still be live.
+            active={effMode === 'detail'}
             shown={shown}
             cols={cols}
             sort={sort}
@@ -178,12 +183,22 @@ export function MotorDashboard({ onClose }: { onClose: () => void }) {
               >
                 ← {t('dash.back')}
               </button>
-              <ToolBtn active={effMode === 'compare'} disabled={checked.size < 2} onClick={() => setMode('compare')}>
+              <ToggleButton
+                active={effMode === 'compare'}
+                disabled={checked.size < 2}
+                onClick={() => setMode('compare')}
+                className="w-24 rounded-lg px-3 py-1 text-center text-xs font-medium ring-1 ring-white/10"
+              >
                 {t('dash.compareN', { n: checked.size })}
-              </ToolBtn>
-              <ToolBtn active={effMode === 'combine'} disabled={checked.size < 2} onClick={() => setMode('combine')}>
+              </ToggleButton>
+              <ToggleButton
+                active={effMode === 'combine'}
+                disabled={checked.size < 2}
+                onClick={() => setMode('combine')}
+                className="w-24 rounded-lg px-3 py-1 text-center text-xs font-medium ring-1 ring-white/10"
+              >
                 {t('dash.combine', { n: checked.size })}
-              </ToolBtn>
+              </ToggleButton>
             </div>
           )}
           {effMode === 'compare' ? (
@@ -226,28 +241,5 @@ export function MotorDashboard({ onClose }: { onClose: () => void }) {
         </div>
       </div>
     </Dialog>
-  );
-}
-
-function ToolBtn({
-  active,
-  disabled,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  disabled?: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      aria-pressed={active}
-      className={`w-24 rounded-lg px-3 py-1 text-center text-xs font-medium ring-1 ring-white/10 disabled:cursor-not-allowed disabled:opacity-40 ${active ? 'bg-sky-600 text-white' : 'bg-slate-800 text-slate-200 hover:bg-slate-700'}`}
-    >
-      {children}
-    </button>
   );
 }

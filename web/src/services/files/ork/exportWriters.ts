@@ -1,5 +1,5 @@
 import type { ComponentNode, ComponentType } from '../../../engine/openRocketEngine';
-import { shapeIsClippable } from '../../../tree/shapeProfile';
+import { nodeShape, shapeIsClippable } from '../../../tree/shapeProfile';
 import { num } from '../../../tree/nodeProps';
 import { escapeXml } from '../xmlUtil';
 import { uuid } from '../../app/uuid';
@@ -24,6 +24,7 @@ import {
   shapeParamXml,
   thicknessXml,
 } from './exportParts';
+import { stageFileName } from '../../design/orkTree';
 
 /**
  * One writer per component type: the element body the desktop's saver for
@@ -62,10 +63,16 @@ const planarFinHead = (w: OrkWriter, node: ComponentNode, d: number, fallback: s
   filletXml(w, d, node);
 };
 
-/** Radial position/direction written as the literal zeros internal parts carry. */
-const radialZeros = (w: OrkWriter, d: number) => {
-  w.emit(d, '<radialposition>0.0</radialposition>');
-  w.emit(d, '<radialdirection>0.0</radialdirection>');
+/**
+ * Off-axis placement of an internal part: <radialposition> meters,
+ * <radialdirection> DEGREES, as RingComponentSaver and MassObjectSaver write
+ * them. A centered part keeps the literal 0.0 the desktop writes.
+ */
+const radialXml = (w: OrkWriter, d: number, node: ComponentNode) => {
+  const pos = num(node, 'radialPosition', 0);
+  const dir = (num(node, 'radialDirection', 0) * 180) / Math.PI;
+  w.emit(d, `<radialposition>${pos === 0 ? '0.0' : pos}</radialposition>`);
+  w.emit(d, `<radialdirection>${dir === 0 ? '0.0' : dir}</radialdirection>`);
 };
 
 /** The part of a recovery device (parachute, streamer) before its own geometry. */
@@ -73,7 +80,7 @@ const recoveryHead = (w: OrkWriter, node: ComponentNode, d: number, fallback: st
   header(w, d, node, fallback);
   position(w, d, node, 'top');
   packedXml(w, d, node);
-  radialZeros(w, d);
+  radialXml(w, d, node);
   w.emit(d, `<cd>${node['cdAuto'] === true || typeof node['cd'] !== 'number' ? 'auto' : node['cd']}</cd>`);
   material(w, d, node, 'surface');
   // Only when true, and in this position: RecoveryDeviceSaver emits it right
@@ -91,7 +98,7 @@ const ringLikeBody = (w: OrkWriter, node: ComponentNode, d: number, fallback: st
   position(w, d, node, 'bottom');
   material(w, d, node);
   w.emit(d, `<length>${num(node, 'length', length)}</length>`);
-  radialZeros(w, d);
+  radialXml(w, d, node);
   autoRadius(w, d, node, 'outerRadius', 'outerradius');
 };
 
@@ -101,7 +108,7 @@ const writeNosecone: NodeWriter = (w, node, d) => {
   material(w, d, node);
   w.emit(d, `<length>${num(node, 'length', COMPONENT_DEFAULTS.nosecone.length)}</length>`);
   thicknessXml(w, d, node, COMPONENT_DEFAULTS.nosecone.thickness);
-  w.emit(d, `<shape>${escapeXml(String(node['shape'] ?? 'ogive'))}</shape>`);
+  w.emit(d, `<shape>${escapeXml(nodeShape(node))}</shape>`);
   w.emit(d, '<shapeclipped>false</shapeclipped>');
   shapeParamXml(w, d, node);
   w.emit(
@@ -121,7 +128,7 @@ const writeTransition: NodeWriter = (w, node, d) => {
   material(w, d, node);
   w.emit(d, `<length>${num(node, 'length', COMPONENT_DEFAULTS.transition.length)}</length>`);
   thicknessXml(w, d, node, COMPONENT_DEFAULTS.transition.thickness);
-  w.emit(d, `<shape>${escapeXml(String(node['shape'] ?? 'conical'))}</shape>`);
+  w.emit(d, `<shape>${escapeXml(nodeShape(node))}</shape>`);
   // Write what actually simulated so the desktop reproduces our
   // aerodynamics: an explicit imported/edited 'clipped' wins; otherwise
   // the kernel's default clipped state, which setShapeType() sets to
@@ -130,7 +137,7 @@ const writeTransition: NodeWriter = (w, node, d) => {
   // shapes — a conical transition carries no tag, and emitting one
   // anyway would grow a 'clipped' field on re-import that the golden
   // file never had (breaking bit-stable round trips).
-  if (shapeIsClippable(String(node['shape'] ?? 'conical'))) {
+  if (shapeIsClippable(nodeShape(node))) {
     const clippedOut = typeof node['clipped'] === 'boolean' ? (node['clipped'] as boolean) : true;
     w.emit(d, `<shapeclipped>${clippedOut}</shapeclipped>`);
   }
@@ -156,7 +163,7 @@ const writeBodytube: NodeWriter = (w, node, d) => {
   finishXml(w, d, node);
   material(w, d, node);
   w.emit(d, `<length>${num(node, 'length', 0.3)}</length>`);
-  w.emit(d, `<thickness>${num(node, 'thickness', COMPONENT_DEFAULTS.bodytube.thickness)}</thickness>`);
+  thicknessXml(w, d, node, COMPONENT_DEFAULTS.bodytube.thickness);
   w.emit(d, `<radius>${node['outerRadiusAuto'] === true ? 'auto' : num(node, 'outerRadius', 0.012)}</radius>`);
   // Extension tag (desktop warns-and-ignores): sub-minimum flag.
   if (node['caseAirframe'] === true) {
@@ -212,11 +219,8 @@ const writeInnertube: NodeWriter = (w, node, d) => {
   position(w, d, node, 'bottom');
   material(w, d, node);
   w.emit(d, `<length>${num(node, 'length', 0.07)}</length>`);
-  // Preserve the off-axis / split-cluster offset (see the innertube reader):
-  // <radialposition> meters, <radialdirection> DEGREES. Defaults to 0 so a
-  // centered tube is byte-identical to before.
-  w.emit(d, `<radialposition>${num(node, 'radialPosition', 0)}</radialposition>`);
-  w.emit(d, `<radialdirection>${(num(node, 'radialDirection', 0) * 180) / Math.PI}</radialdirection>`);
+  // Preserve the off-axis / split-cluster offset (see the innertube reader).
+  radialXml(w, d, node);
   w.emit(d, `<outerradius>${num(node, 'outerRadius', 0.0095)}</outerradius>`);
   w.emit(d, `<thickness>${num(node, 'thickness', COMPONENT_DEFAULTS.innertube.thickness)}</thickness>`);
   // Desktop stores cluster rotation in DEGREES; we keep radians inside.
@@ -247,7 +251,7 @@ const writeCenteringring: NodeWriter = (w, node, d) => {
   position(w, d, node, 'bottom');
   material(w, d, node);
   w.emit(d, `<length>${num(node, 'length', COMPONENT_DEFAULTS.centeringring.length)}</length>`);
-  radialZeros(w, d);
+  radialXml(w, d, node);
   autoRadius(w, d, node, 'outerRadius', 'outerradius');
   autoRadius(w, d, node, 'innerRadius', 'innerradius');
 };
@@ -258,7 +262,7 @@ const writeBulkhead: NodeWriter = (w, node, d) => {
   position(w, d, node, 'bottom');
   material(w, d, node);
   w.emit(d, `<length>${num(node, 'length', COMPONENT_DEFAULTS.bulkhead.length)}</length>`);
-  radialZeros(w, d);
+  radialXml(w, d, node);
   autoRadius(w, d, node, 'outerRadius', 'outerradius');
   // No inner radius for a bulkhead, which is solid - upstream's saver does
   // the same (RadiusRingComponentSaver skips it for Bulkhead).
@@ -350,7 +354,7 @@ const writeShockcord: NodeWriter = (w, node, d) => {
   header(w, d, node, 'Shock Cord');
   position(w, d, node, 'top');
   packedXml(w, d, node);
-  radialZeros(w, d);
+  radialXml(w, d, node);
   w.emit(d, `<cordlength>${node['cordLengthAuto'] === true ? 'auto' : num(node, 'cordLength', 0.3)}</cordlength>`);
   material(w, d, node, 'line');
 };
@@ -360,10 +364,8 @@ const writeMasscomponent: NodeWriter = (w, node, d) => {
   position(w, d, node, 'top');
   w.emit(d, `<packedlength>${num(node, 'length', 0.02)}</packedlength>`);
   w.emit(d, packedRadiusXml(node, COMPONENT_DEFAULTS.masscomponent.radius));
-  // Off-axis placement (meters + degrees). Was hard-wired to 0, so a mass
-  // off the centerline collapsed onto the axis on save/reload.
-  w.emit(d, `<radialposition>${num(node, 'radialPosition', 0)}</radialposition>`);
-  w.emit(d, `<radialdirection>${(num(node, 'radialDirection', 0) * 180) / Math.PI}</radialdirection>`);
+  // Off-axis placement, so a mass off the centerline keeps its place on save.
+  radialXml(w, d, node);
   w.emit(d, `<mass>${num(node, 'mass', 0.01)}</mass>`);
   // Legal values = MassComponent.MassComponentType lowercased:
   // masscomponent, altimeter, flightcomputer, deploymentcharge,
@@ -452,7 +454,7 @@ function emitNode(w: OrkWriter, node: ComponentNode, depth: number): void {
 export function stageXml(w: OrkWriter, depth: number, st: ComponentNode, i: number): void {
   const { emit } = w;
   emit(depth, '<stage>');
-  emit(depth + 1, `<name>${escapeXml(st.name ?? (i === 0 ? 'Sustainer' : `Booster ${i}`))}</name>`);
+  emit(depth + 1, `<name>${escapeXml(stageFileName(st, i))}</name>`);
   emit(depth + 1, `<id>${uuid()}</id>`);
   // A stage can be overridden like any other component, and the kernel applies
   // it. This block writes its own name and id rather than going through

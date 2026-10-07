@@ -76,3 +76,43 @@ describe('NumberInput', () => {
     expect(type('99', { min: 0, max: 10 })).toHaveBeenCalledWith(10);
   });
 });
+
+/**
+ * commitOnBlur: for a field whose every value costs something to apply (the aero
+ * sweep runs the kernel; a settings write hits storage), the typed value goes
+ * out once, on blur or Enter, not per keystroke, and not at all if nothing was
+ * typed.
+ */
+describe('NumberInput commitOnBlur', () => {
+  it('reports once, on blur, and not per keystroke', () => {
+    const onChange = vi.fn();
+    renderWithProviders(<NumberInput value={1} onChange={onChange} commitOnBlur ariaLabel="Mach" />);
+    const el = screen.getByLabelText('Mach');
+    fireEvent.focus(el);
+    fireEvent.change(el, { target: { value: '1' } });
+    fireEvent.change(el, { target: { value: '12' } });
+    expect(onChange).not.toHaveBeenCalled();
+    fireEvent.blur(el);
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenCalledWith(12);
+  });
+
+  it('commits on Enter too', () => {
+    const onChange = vi.fn();
+    renderWithProviders(<NumberInput value={1} onChange={onChange} commitOnBlur ariaLabel="Mach" />);
+    const el = screen.getByLabelText('Mach');
+    fireEvent.focus(el);
+    fireEvent.change(el, { target: { value: '3' } });
+    fireEvent.keyDown(el, { key: 'Enter' });
+    expect(onChange).toHaveBeenCalledWith(3);
+  });
+
+  it('reports nothing for a visit that typed nothing', () => {
+    const onChange = vi.fn();
+    renderWithProviders(<NumberInput value={1} onChange={onChange} commitOnBlur ariaLabel="Mach" />);
+    const el = screen.getByLabelText('Mach');
+    fireEvent.focus(el);
+    fireEvent.blur(el);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+});

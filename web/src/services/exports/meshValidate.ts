@@ -28,7 +28,13 @@ import * as THREE from 'three';
  */
 
 export type MeshIssueKind =
-  'empty' | 'non-finite' | 'degenerate-triangle' | 'repeated-vertex' | 'non-manifold-edge' | 'inconsistent-winding';
+  | 'empty'
+  | 'non-finite'
+  | 'degenerate-triangle'
+  | 'repeated-vertex'
+  | 'non-manifold-edge'
+  | 'inconsistent-winding'
+  | 'inside-out';
 
 export interface MeshIssue {
   kind: MeshIssueKind;
@@ -39,7 +45,26 @@ export interface MeshIssue {
 }
 
 /** Undirected key for an edge between two vertex indices. */
-const undirectedKey = (a: number, b: number): string => (a < b ? `${a}_${b}` : `${b}_${a}`);
+export const edgeKey = (a: number, b: number): string => (a < b ? `${a}_${b}` : `${b}_${a}`);
+
+/** How many triangles of an indexed triangle list use each undirected edge. */
+export function undirectedEdgeCounts(idx: THREE.BufferAttribute): Map<string, number> {
+  const count = new Map<string, number>();
+  for (let i = 0; i < idx.count; i += 3) {
+    const a = idx.getX(i),
+      b = idx.getX(i + 1),
+      c = idx.getX(i + 2);
+    for (const [u, v] of [
+      [a, b],
+      [b, c],
+      [c, a],
+    ] as const) {
+      const k = edgeKey(u, v);
+      count.set(k, (count.get(k) ?? 0) + 1);
+    }
+  }
+  return count;
+}
 
 /**
  * Every way `geo` fails to be a closed, consistently oriented, non-degenerate solid.
@@ -82,6 +107,16 @@ export function validateSolid(geo: THREE.BufferGeometry, areaTol = 0): MeshIssue
 
   let degenerate = 0;
   let repeated = 0;
+  /**
+   * Six times the signed volume, by the divergence theorem.
+   *
+   * The directed-edge count below proves the winding is CONSISTENT; it cannot say
+   * which way the surface faces, because flipping every triangle in a closed mesh
+   * flips every directed edge too and the counts come out identical. So a solid
+   * wound entirely inside out passed every check here, and a slicer reading it
+   * fills the room and leaves the part hollow.
+   */
+  let volume6 = 0;
   /** Directed edge use count, to separate "shared" from "shared the same way". */
   const directed = new Map<string, number>();
   const undirected = new Map<string, number>();
@@ -101,6 +136,9 @@ export function validateSolid(geo: THREE.BufferGeometry, areaTol = 0): MeshIssue
     c.fromBufferAttribute(pos, ic);
     const area = ab.subVectors(b, a).cross(ac.subVectors(c, a)).length() * 0.5;
     if (!(area > areaTol)) degenerate++;
+    // a . (b x c), summed. `ab` is scratch reused from the area above, so the
+    // cross is recomputed into it only after the area has been taken.
+    volume6 += a.dot(ab.copy(b).cross(c));
 
     for (const [u, v] of [
       [ia, ib],
@@ -108,7 +146,7 @@ export function validateSolid(geo: THREE.BufferGeometry, areaTol = 0): MeshIssue
       [ic, ia],
     ] as const) {
       directed.set(`${u}>${v}`, (directed.get(`${u}>${v}`) ?? 0) + 1);
-      const k = undirectedKey(u, v);
+      const k = edgeKey(u, v);
       undirected.set(k, (undirected.get(k) ?? 0) + 1);
     }
   }
@@ -159,17 +197,17 @@ export function validateSolid(geo: THREE.BufferGeometry, areaTol = 0): MeshIssue
     });
   }
 
+  // Which way the surface FACES, and only once it is closed and consistent:
+  // signed volume is meaningless on an open shell, and reporting it on top of a
+  // hole would name a second fault for one defect.
+  if (!open && !overused && !flipped && !repeated && !nonFinite && idx.count >= 3 && volume6 < 0) {
+    issues.push({
+      kind: 'inside-out',
+      detail: `the surface is closed and consistently wound but faces INWARD (signed volume ${(volume6 / 6).toExponential(2)})`,
+    });
+  }
+
   return issues;
-}
-
-/** True when {@link validateSolid} finds nothing wrong. */
-export function isValidSolid(geo: THREE.BufferGeometry, areaTol = 0): boolean {
-  return validateSolid(geo, areaTol).length === 0;
-}
-
-/** One line naming everything wrong with a solid, for an export error message. */
-export function describeIssues(issues: MeshIssue[]): string {
-  return issues.map((i) => i.detail).join('; ');
 }
 
 /**

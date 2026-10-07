@@ -4,8 +4,9 @@ import type { Sample } from '../../services/motors/motorCombine';
 import { useUnits } from '../../prefs/useUnits';
 import { keyOf } from './motorKey';
 import { ALIGN, heading, type Col } from './motorColumns';
-import { seriesColor } from './motorSeries';
-import { ChartAxes, CHART_HEADROOM, chartScales, linePath } from './chartAxes';
+import { seriesColor } from '../common/chartPalette';
+import { ChartAxes, CHART_HEADROOM, chartScales, LegendSwatch, SeriesPath } from './chartAxes';
+import { hasCurve } from '../../services/motors/motorDb';
 
 /**
  * The motor dashboard's COMPARE tool: the checked motors' thrust curves
@@ -24,7 +25,7 @@ export function MotorComparePane({ motors, cols }: { motors: CatalogMotor[]; col
   const colorFor = new Map<string, string>();
   let ci = 0;
   for (const m of motors) {
-    if ((m.curves?.[0]?.samples?.length ?? 0) >= 2) colorFor.set(keyOf(m), seriesColor(ci++));
+    if (hasCurve(m)) colorFor.set(keyOf(m), seriesColor(ci++));
   }
   const series = motors
     .filter((m) => colorFor.has(keyOf(m)))
@@ -50,36 +51,26 @@ export function MotorComparePane({ motors, cols }: { motors: CatalogMotor[]; col
         <>
           <svg viewBox={`0 0 ${W} ${H}`} width="100%" className="mt-2 block max-w-xl">
             <ChartAxes dims={dims} tMax={tMax} fMax={fMax} X={X} Y={Y} fScale={u.factor('force')} />
-            {series.map((s) => {
-              const d = linePath(s.pts, X, Y);
-              const peak = s.pts.reduce((a, b) => (b[1] > a[1] ? b : a));
-              return (
-                <g key={keyOf(s.m)}>
-                  <path d={d} fill="none" stroke={s.color} strokeWidth="2" />
-                  {labelDirect && (
-                    <text
-                      x={X(peak[0])}
-                      y={Y(peak[1]) - 5}
-                      textAnchor="middle"
-                      className="text-[9px] font-semibold"
-                      fill={s.color}
-                    >
-                      {s.m.designation}
-                    </text>
-                  )}
-                </g>
-              );
-            })}
+            {series.map((s) => (
+              <SeriesPath
+                key={keyOf(s.m)}
+                pts={s.pts}
+                X={X}
+                Y={Y}
+                color={s.color}
+                strokeWidth={2}
+                label={labelDirect ? s.m.designation : undefined}
+                labelLift={5}
+                labelClass="text-[9px] font-semibold"
+              />
+            ))}
           </svg>
           {/* Legend — identity is never color-alone. */}
           <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-300">
             {series.map((s) => (
-              <span key={keyOf(s.m)} className="inline-flex items-center gap-1">
-                <svg width="12" height="4" aria-hidden>
-                  <line x1="0" y1="2" x2="12" y2="2" stroke={s.color} strokeWidth="2" />
-                </svg>
-                {s.m.designation}
-              </span>
+              <LegendSwatch key={keyOf(s.m)} color={s.color} width={12}>
+                {s.m.code || s.m.designation}
+              </LegendSwatch>
             ))}
           </div>
         </>
@@ -91,9 +82,11 @@ export function MotorComparePane({ motors, cols }: { motors: CatalogMotor[]; col
         <table className="w-full border-collapse whitespace-nowrap text-xs tabular-nums">
           <thead className="text-[10px] uppercase tracking-wide text-slate-500">
             <tr>
-              <th className="px-2 py-1 text-left font-semibold">{t('dash.colMotor')}</th>
+              <th scope="col" className="px-2 py-1 text-left font-semibold">
+                {t('dash.colMotor')}
+              </th>
               {specCols.map((c) => (
-                <th key={c.id} className={`px-2 py-1 font-semibold ${ALIGN[c.align]}`}>
+                <th key={c.id} scope="col" className={`px-2 py-1 font-semibold ${ALIGN[c.align]}`}>
                   {heading(c, t, u)}
                 </th>
               ))}
@@ -107,7 +100,7 @@ export function MotorComparePane({ motors, cols }: { motors: CatalogMotor[]; col
                     className="mr-1.5 inline-block h-2 w-2 rounded-full align-middle"
                     style={{ background: colorFor.get(keyOf(m)) ?? '#475569' }}
                   />
-                  {m.designation}
+                  {m.code || m.designation}
                   {!colorFor.has(keyOf(m)) && (
                     <span className="ml-1 text-[10px] font-normal text-slate-500">({t('dash.noCurve')})</span>
                   )}

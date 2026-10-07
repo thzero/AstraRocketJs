@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useWorkspaceStore, selectActive } from '../../src/state/store';
+import { asFlown, isStale } from '../testing/flown';
 
 const active = () => selectActive(useWorkspaceStore.getState());
 
@@ -23,8 +24,12 @@ describe('clearSimPrefs', () => {
   it('ages the cached result, because the next run can differ', () => {
     const s = useWorkspaceStore.getState();
     s.setSimPref('timeStep', 0.01);
+    useWorkspaceStore.setState((st) => ({
+      sims: st.sims.map((x) => asFlown(st, { ...x, result: { summary: {} } as never })),
+    }));
+    expect(isStale(active())).toBe(false);
     useWorkspaceStore.getState().clearSimPrefs();
-    expect(active().outdated).toBe(true);
+    expect(isStale(active())).toBe(true);
   });
 
   it('is a no-op when nothing was overridden', () => {

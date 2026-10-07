@@ -273,10 +273,14 @@ public class MassCalculation {
 		// count, so the term about that axis belongs to this body and rebase()
 		// cannot add it twice. A centerline mount has the one offset (0, 0, 0)
 		// and adds exactly 0.0. See patches/LEDGER.md.
+		// The squared distance is summed directly, not via Math.hypot and
+		// Math.pow: JVM hypot (FDLIBM) and TeaVM's disagree by 1 ULP on about
+		// 12% of inputs (see Geo2D), and this now runs for every mount, so the
+		// JVM reference and the shipped targets could report different roll
+		// inertia for one off-axis motor. y*y + z*z is identical on all three.
 		double clusterIr = clusterBaseIr; 
 		for( CoordinateIF coord : offsets ){
-			double distance = Math.hypot( coord.getY(), coord.getZ());
-			clusterIr += eachMass*Math.pow( distance, 2);
+			clusterIr += eachMass*(coord.getY()*coord.getY() + coord.getZ()*coord.getZ());
 		}
 		
 		final CoordinateIF clusterCM = transform.transform( clusterLocalCM  );

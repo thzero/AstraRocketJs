@@ -28,6 +28,10 @@ describe('sig4 (4 significant figures, plain decimal)', () => {
 const info = (o: Partial<StaticInfo>): StaticInfo =>
   ({
     length: 0.425,
+    // Deliberately shorter than `length`, so a percentage computed over the
+    // wrong denominator reads 29.6 rather than 31.5 and the assertion below
+    // tells the two apart.
+    lengthAerodynamic: 0.4,
     refDiameter: 0.025,
     mass: 0.0481,
     massEmpty: 0.0481,
@@ -36,6 +40,7 @@ const info = (o: Partial<StaticInfo>): StaticInfo =>
     cp: 0.331,
     cna: 14.88,
     stabilityCalibers: 5.02,
+    stabilityPercent: 31.5,
     rollInertia: 0.0000093,
     pitchInertia: 0.000748,
     warnings: 0,
@@ -66,7 +71,10 @@ describe('buildDesignInfo', () => {
     expect(f['Normal-Force Slope (CNα)']).toMatchObject({ unit: '1/rad' });
     expect(f['Roll Inertia (Loaded)']).toMatchObject({ unit: 'kg*m^2' });
     expect(f['CP']).toBeDefined();
-    expect(f['Stability (%)']).toBeDefined();
+    // The kernel's own figure, verbatim. (cp - cg) / length would be 29.65:
+    // right shape, wrong denominator. Pinning the value is what stops that
+    // formula coming back.
+    expect(f['Stability (%)']).toMatchObject({ value: '31.5', unit: '%' });
   });
 
   it('adds a group per stage for a multi-stage design', () => {

@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react';
 import type { AeroSweep, ComponentMass } from '../../engine/openRocketEngine';
+import { polylinePath } from '../common/svgPath';
 
 /**
  * The pure half of AeroAnalysis: the cell-shading formulas, the per-table row
@@ -54,34 +55,20 @@ export function niceName(raw: string): string {
   return base.replace(/([a-z0-9])([A-Z])/g, '$1 $2');
 }
 
-/**
- * SVG `d` for one series, skipping non-finite samples.
- *
- * Tracks whether a command has actually been EMITTED rather than taking the
- * letter from the array index. With `${i ? 'L' : 'M'}` a non-finite sample at
- * index 0 produced a `d` starting with `L...` - invalid path data, so the browser
- * silently drops the whole <path> and the curve renders blank with no error.
- * A gap mid-series starts a fresh `M` too, so a hole reads as a break instead
- * of a straight line bridging across it.
- */
+/** SVG `d` for one series against Mach, skipping non-finite samples (see {@link polylinePath}). */
 export function buildLinePath(
   machs: readonly number[],
   vals: readonly number[],
   X: (m: number) => number,
   Y: (v: number) => number,
 ): string {
-  const out: string[] = [];
-  let open = false;
-  machs.forEach((m, i) => {
-    const v = vals[i] ?? NaN;
-    if (!Number.isFinite(m) || !Number.isFinite(v)) {
-      open = false;
-      return;
-    }
-    out.push(`${open ? 'L' : 'M'}${X(m).toFixed(1)},${Y(v).toFixed(1)}`);
-    open = true;
-  });
-  return out.join(' ');
+  return polylinePath(
+    machs.map((m, i) => {
+      const v = vals[i] ?? NaN;
+      return Number.isFinite(m) && Number.isFinite(v) ? [X(m), Y(v)] : [NaN, NaN];
+    }),
+    'comma',
+  );
 }
 
 /**
@@ -263,6 +250,16 @@ export function chartDomain(
  * edge is the running sum through this series and whose bottom edge is the
  * running sum before it. Negative samples count as zero so a band never
  * inverts.
+ *
+ * Non-finite samples are handled the way {@link buildLinePath} handles them, and
+ * for the same reason: they demonstrably occur, since `sweep.nonFinite` is
+ * surfaced in the UI. Here one NaN was worse than a hole in a line. It
+ * accumulated into `cum`, so the literal string `NaN` went into the path data and
+ * EVERY band stacked above it was poisoned too; the browser then silently drops a
+ * path whose data it cannot parse, so the chart lost whole series with nothing
+ * said. A non-finite sample contributes zero to the running sum, which keeps the
+ * stack finite, and splits the band into separate closed polygons, so the gap
+ * reads as a gap instead of as a band pinched to the axis.
  */
 export function stackedBands(
   series: readonly ChartSeries[],
@@ -274,13 +271,40 @@ export function stackedBands(
   const cum = new Array<number>(machs.length).fill(0);
   for (const se of series) {
     const lower = cum.slice();
-    for (let i = 0; i < machs.length; i++) cum[i] = (cum[i] ?? 0) + Math.max(0, se.values[i] ?? 0);
-    const top = machs.map((m, i) => `${X(m).toFixed(1)},${Y(cum[i]!).toFixed(1)}`).join(' L');
-    const bot = machs
-      .map((m, i) => `${X(m).toFixed(1)},${Y(lower[i]!).toFixed(1)}`)
-      .reverse()
-      .join(' L');
-    bands.push({ fill: se.color, d: `M${top} L${bot} Z` });
+    for (let i = 0; i < machs.length; i++) {
+      const v = se.values[i];
+      // Zero, not NaN: a sample we cannot read must not move the stack that the
+      // bands above this one are measured from.
+      cum[i] = (cum[i] ?? 0) + (Number.isFinite(v) ? Math.max(0, v!) : 0);
+    }
+    // One closed polygon per run of samples that can be drawn at all.
+    const parts: string[] = [];
+    let run: number[] = [];
+    const flush = () => {
+      if (run.length < 2) {
+        // A single point has no area; a band of one sample is nothing to draw.
+        run = [];
+        return;
+      }
+      const top = run.map((i) => `${X(machs[i]!).toFixed(1)},${Y(cum[i]!).toFixed(1)}`).join(' L');
+      const bot = run
+        .map((i) => `${X(machs[i]!).toFixed(1)},${Y(lower[i]!).toFixed(1)}`)
+        .reverse()
+        .join(' L');
+      parts.push(`M${top} L${bot} Z`);
+      run = [];
+    };
+    for (let i = 0; i < machs.length; i++) {
+      const drawable =
+        Number.isFinite(machs[i]) &&
+        Number.isFinite(se.values[i]) &&
+        Number.isFinite(cum[i]) &&
+        Number.isFinite(lower[i]);
+      if (drawable) run.push(i);
+      else flush();
+    }
+    flush();
+    bands.push({ fill: se.color, d: parts.join(' ') });
   }
   return bands;
 }
@@ -295,4 +319,44 @@ export function machTicks(machMin: number, machMax: number): number[] {
   const ticks = [machMin];
   for (let m = step; m <= machMax + 1e-9; m += step) ticks.push(Number(m.toFixed(2)));
   return ticks;
+}
+
+/**
+ * How the CP vs Mach axis reads: the user's length unit, a percentage of the
+ * WHOLE airframe, or a percentage of the AERODYNAMIC length.
+ *
+ * Both percentages are offered because they answer different questions. `aero`
+ * is the denominator OpenRocket's own `PercentageOfLengthUnit` uses
+ * (`getLengthAerodynamic`), so it is the figure the desktop shows. `body`
+ * divides by the overall length, which is what "how far along the rocket in
+ * front of me" means and is shorter to explain at a launch. They differ on any
+ * design carrying a non-aerodynamic part outside the aerodynamic envelope: an
+ * overhanging rail button, a shock cord, an aft mass.
+ */
+export type CpMode = 'len' | 'body' | 'aero';
+
+/**
+ * The modes a design can actually express, in display order.
+ *
+ * A percentage needs a positive denominator, so a mode whose length is zero is
+ * left out rather than offered and silently ignored: a button that rendered
+ * meters under a `%` axis label would be an inert control.
+ */
+export function cpModesFor(bodyLen: number, aeroLen: number): CpMode[] {
+  const modes: CpMode[] = ['len'];
+  if (bodyLen > 0) modes.push('body');
+  if (aeroLen > 0) modes.push('aero');
+  return modes;
+}
+
+/**
+ * The divisor for a mode, or 0 when the axis should stay in length units.
+ *
+ * 0 for `len`, and also for a percentage mode whose length is not positive, so
+ * a selection the current design cannot express falls back to the length axis
+ * rather than dividing by zero.
+ */
+export function cpDivisor(mode: CpMode, bodyLen: number, aeroLen: number): number {
+  const d = mode === 'body' ? bodyLen : mode === 'aero' ? aeroLen : 0;
+  return d > 0 ? d : 0;
 }

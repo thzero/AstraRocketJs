@@ -4,6 +4,7 @@ import { tubeFinRadius } from '../../tree/tubefins';
 import { DISC_TYPES } from '../files/componentFormats';
 import { discDims, tubeRadii } from './discGeometry';
 import { KERNEL_DEFAULTS } from '../../tree/kernelDefaults';
+import { mapTreePreserving, type MapContext } from '../../tree/treeWalk';
 
 /**
  * Diameters that follow the part next door: OpenRocket's **Automatic**
@@ -107,51 +108,42 @@ function parentDerived(node: ComponentNode, parent: ComponentNode | null, siblin
  * where nothing changed.
  */
 export function syncAutoRadii(tree: RocketTree): RocketTree {
-  const chain = (nodes: ComponentNode[], parent: ComponentNode | null = null): ComponentNode[] => {
-    let changed = false;
-    const out = nodes.map((n, i) => {
-      let node = n;
-      if (n.children) {
-        const kids = chain(n.children, n);
-        if (kids !== n.children) {
-          node = { ...node, children: kids };
-          changed = true;
-        }
+  const resolve = (n: ComponentNode, { index, siblings, parent }: MapContext): ComponentNode => {
+    let node = n;
+    // Rings, tube fins and packed devices take their size from what they are
+    // INSIDE, not from the part beside them, so they resolve against the
+    // parent rather than through the neighbor rule below.
+    if (node['outerRadiusAuto'] === true || node['innerRadiusAuto'] === true || node['radiusAuto'] === true) {
+      const before = { outer: node['outerRadius'], inner: node['innerRadius'], r: node['radius'] };
+      const draft = { ...node };
+      parentDerived(draft, parent, siblings);
+      if (
+        draft['outerRadius'] !== before.outer ||
+        draft['innerRadius'] !== before.inner ||
+        draft['radius'] !== before.r
+      ) {
+        node = draft;
       }
-      // Rings, tube fins and packed devices take their size from what they are
-      // INSIDE, not from the part beside them, so they resolve against the
-      // parent rather than through the neighbor rule below.
-      if (node['outerRadiusAuto'] === true || node['innerRadiusAuto'] === true || node['radiusAuto'] === true) {
-        const before = { outer: node['outerRadius'], inner: node['innerRadius'], r: node['radius'] };
-        const draft = { ...node };
-        parentDerived(draft, parent, nodes);
-        if (
-          draft['outerRadius'] !== before.outer ||
-          draft['innerRadius'] !== before.inner ||
-          draft['radius'] !== before.r
-        ) {
-          node = draft;
-          changed = true;
-        }
-      }
-      for (const spec of AUTO[node.type] ?? []) {
-        if (node[spec.flag] !== true) continue;
-        // Behind first, then ahead, as the kernel does. The neighbor is read
-        // from the ORIGINAL row: a resolved radius is not a source for anyone
-        // else, because a neighbor that is itself automatic is skipped.
-        const behind = facingRadius(nodes[i - 1], 'aft');
-        const ahead = facingRadius(nodes[i + 1], 'fore');
-        const first = spec.side === -1 ? behind : ahead;
-        const r = first ?? (spec.side === -1 ? ahead : behind) ?? KERNEL_DEFAULTS.bodytube.outerRadius;
-        if (node[spec.radius] !== r) {
-          node = { ...node, [spec.radius]: r };
-          changed = true;
-        }
-      }
-      return node;
-    });
-    return changed ? out : nodes;
+    }
+    for (const spec of AUTO[node.type] ?? []) {
+      if (node[spec.flag] !== true) continue;
+      // Behind first, then ahead, as the kernel does. The neighbor is read
+      // from the ORIGINAL row: a resolved radius is not a source for anyone
+      // else, because a neighbor that is itself automatic is skipped.
+      const behind = facingRadius(siblings[index - 1], 'aft');
+      const ahead = facingRadius(siblings[index + 1], 'fore');
+      const first = spec.side === -1 ? behind : ahead;
+      const r = first ?? (spec.side === -1 ? ahead : behind) ?? KERNEL_DEFAULTS.bodytube.outerRadius;
+      if (node[spec.radius] !== r) node = { ...node, [spec.radius]: r };
+    }
+    return node;
   };
-  const components = chain(tree.components);
+  // Pre-order: CHILDREN LAST, so each one sees a parent whose own radius is
+  // already resolved. Resolved inside-out, a disc inside an AUTOMATIC-radius
+  // coupler takes the coupler's bare default instead of its real bore (on a
+  // 3-inch airframe, a bulkhead 24.00 mm across rather than 72.2), and the
+  // schematic, the DXF and the printed template all repeat it. Every coupler
+  // the Add menu makes is automatic.
+  const components = mapTreePreserving(tree.components, resolve, 'pre');
   return components === tree.components ? tree : { ...tree, components };
 }

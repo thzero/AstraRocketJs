@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { dataHeaderLines, type ExportData } from '../../../src/services/exports/schematicExport';
 import { METRIC_UNITS } from '../../../src/prefs/units';
+import { appName } from '../../../src/services/app/appInfo';
 import type { StaticInfo } from '../../../src/engine/openRocketEngine';
 
 const info = {
@@ -28,6 +29,11 @@ describe('dataHeaderLines', () => {
     expect(lines[0]).toBe('My Rocket');
     expect(lines).toHaveLength(2);
     expect(lines[1]).toMatch(/v9\.9\.9 — \d{4}-\d{2}-\d{2}$/);
+  });
+
+  it('names the app the way every other export does', () => {
+    const footer = dataHeaderLines(data({ info: null }))[1]!;
+    expect(footer.startsWith(`${appName()} v9.9.9`)).toBe(true);
   });
 
   it('includes dimension, mass, and stability lines when info is present', () => {

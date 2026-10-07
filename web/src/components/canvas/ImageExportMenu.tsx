@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { IMAGE_WIDTHS, type ImageFormat } from '../../services/exports/schematicExport.js';
+import { useMenuPopover } from '../common/useMenuPopover';
 
 /** Per-export toggles carried alongside the format/width choice. Nothing here
  *  is persisted — the picker is reopened for every export anyway. */
@@ -32,50 +33,31 @@ export function ImageExportMenu({
   fitOption?: boolean;
 }) {
   const { t } = useTranslation();
-  const btnRef = useRef<HTMLButtonElement>(null);
-  const [open, setOpen] = useState(false);
+  const { open, toggle, close, wrapRef, triggerRef } = useMenuPopover();
   // Default ON: an export that wastes 80 % of its pixels on background is
   // never what was wanted, and the unchecked path is byte-for-byte the old
   // behavior for anyone who disagrees.
   const [fit, setFit] = useState(true);
-  const wrap = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const close = (e: PointerEvent) => {
-      if (wrap.current && !wrap.current.contains(e.target as Node)) setOpen(false);
-    };
-    window.addEventListener('pointerdown', close);
-    return () => window.removeEventListener('pointerdown', close);
-  }, [open]);
 
   const widthLabel = (w: number) => (w >= 7680 ? '8K' : w >= 3840 ? '4K' : 'HD');
+  const formatName = (fmt: ImageFormat) => (fmt === 'png' ? 'PNG' : 'JPG');
 
   return (
-    <div ref={wrap} style={{ position: 'relative', display: 'inline-block' }}>
+    <div ref={wrapRef} style={{ position: 'relative', display: 'inline-block' }}>
       <button
         className="file-btn"
         title={title}
         aria-haspopup="menu"
         aria-expanded={open}
-        ref={btnRef}
-        onClick={() => setOpen((v) => !v)}
+        ref={triggerRef}
+        onClick={toggle}
       >
         {label}
       </button>
       {open && (
         <div
           // A `role="menu"` whose children are plain buttons is an invalid
-          // structure: screen readers announce "menu, 0 items". Escape and
-          // focus-return complete the menu-button contract that AppHeader also
-          // implements; outside-pointerdown alone is not enough to close this.
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') {
-              e.stopPropagation();
-              setOpen(false);
-              btnRef.current?.focus();
-            }
-          }}
+          // structure: screen readers announce "menu, 0 items".
           role="menu"
           style={{
             position: 'absolute',
@@ -96,11 +78,14 @@ export function ImageExportMenu({
           }}
         >
           {(['png', 'jpeg'] as ImageFormat[]).map((fmt) => [
+            // The row label is for the eye. Each item names its own format, so
+            // the six read as "PNG HD" and "JPG HD" rather than "HD" twice.
             <span
               key={`${fmt}-label`}
+              aria-hidden="true"
               style={{ alignSelf: 'center', padding: '0 6px', color: 'var(--text-muted, #999)' }}
             >
-              {fmt === 'png' ? 'PNG' : 'JPG'}
+              {formatName(fmt)}
             </span>,
             ...IMAGE_WIDTHS.map((w) => (
               <button
@@ -108,8 +93,9 @@ export function ImageExportMenu({
                 role="menuitem"
                 className="file-btn"
                 title={`${w} px wide`}
+                aria-label={`${formatName(fmt)} ${widthLabel(w)}, ${w} px`}
                 onClick={() => {
-                  setOpen(false);
+                  close();
                   onPick(fmt, w, { fit: !!fitOption && fit });
                 }}
               >
@@ -134,7 +120,13 @@ export function ImageExportMenu({
               }}
               title={t('export.fitFrameHint')}
             >
-              <input type="checkbox" checked={fit} onChange={(e) => setFit(e.target.checked)} />
+              <input
+                type="checkbox"
+                role="menuitemcheckbox"
+                aria-checked={fit}
+                checked={fit}
+                onChange={(e) => setFit(e.target.checked)}
+              />
               {t('export.fitFrame')}
             </label>
           )}

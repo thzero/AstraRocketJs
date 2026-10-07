@@ -1,3 +1,4 @@
+import { nsKey } from '../../src/services/storage/storageKeys';
 import { afterEach } from 'vitest';
 import { cleanup, render, type RenderResult } from '@testing-library/react';
 import type { ReactElement } from 'react';
@@ -26,7 +27,7 @@ export function renderWithProviders(ui: ReactElement): RenderResult {
 }
 
 /** The key `services/storage/settings.ts` persists to. */
-const SETTINGS_KEY = 'astrarrocketjs:settings:v1';
+const SETTINGS_KEY = nsKey('settings:v1');
 
 /**
  * Pre-load a partial settings blob. Partial on purpose: `loadSettings` fills

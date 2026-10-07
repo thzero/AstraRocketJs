@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore } from '../../state/store';
 import { Dialog } from '../common/Dialog';
 import { loadExampleIndex, type ExampleMeta } from '../../services/storage/exampleLibrary';
+import { useAsyncLoad } from '../common/useAsyncLoad';
 
 /**
  * The bundled OpenRocket examples, in two places because they answer two
@@ -31,21 +31,11 @@ import { loadExampleIndex, type ExampleMeta } from '../../services/storage/examp
 export function ExampleList({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
   const openExample = useWorkspaceStore((s) => s.openExample);
-  const [examples, setExamples] = useState<ExampleMeta[] | null>(null);
-  const [failed, setFailed] = useState(false);
+  const loaded = useAsyncLoad(loadExampleIndex, 'examples');
+  const examples: ExampleMeta[] | null = loaded.data ?? null;
 
-  useEffect(() => {
-    let live = true;
-    loadExampleIndex().then(
-      (list) => live && setExamples(list),
-      () => live && setFailed(true),
-    );
-    return () => {
-      live = false;
-    };
-  }, []);
-
-  if (failed) return <p className="px-4 py-8 text-center text-sm text-slate-400">{t('library.examplesFailed')}</p>;
+  if (loaded.error !== null)
+    return <p className="px-4 py-8 text-center text-sm text-slate-400">{t('library.examplesFailed')}</p>;
   if (!examples) return <p className="px-4 py-8 text-center text-sm text-slate-400">{t('common.loading')}</p>;
 
   return (

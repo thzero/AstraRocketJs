@@ -7,6 +7,7 @@ import {
   stageFlies,
   type FlightConfig,
 } from '../../services/flight/flightConfigs';
+import { isRecoveryDevice } from '../../services/design/treeEdit';
 import { useWorkspaceStore } from '../../state/store';
 import type { ConfigsTab } from '../../state/tabs';
 
@@ -30,7 +31,7 @@ export function ConfigOverrideNote({ node }: { node: ComponentNode }) {
   const configs = useWorkspaceStore((s) => s.configs);
 
   const id = node.id as string;
-  const recovery = node.type === 'parachute' || node.type === 'streamer';
+  const recovery = isRecoveryDevice(node.type);
   const sub: ConfigsTab = recovery ? 'recovery' : 'separation';
   const overriding = configs.filter((c) => (recovery ? deployOverride(c, id) : sepOverride(c, id)));
   const grounding = recovery ? [] : configs.filter((c) => !stageFlies(c, id));

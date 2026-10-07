@@ -1,7 +1,9 @@
+import { nsKey } from '../../../src/services/storage/storageKeys';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { DesignLibrary } from '../../../src/services/storage/designLibrary';
 import type { KeyValueStore } from '../../../src/services/storage/keyValueStore';
 import type { Workspace } from '../../../src/services/storage/workspaceStore';
+import { defaultDesignName } from '../../../src/services/app/appInfo';
 
 class FakeKv implements KeyValueStore {
   readonly map = new Map<string, string>();
@@ -100,7 +102,7 @@ describe('design library', () => {
 
   it('ignores an active id whose design is gone from the index', async () => {
     await lib.create('A', ws('a'));
-    kv.map.set('astrarrocketjs:designs:active', 'ghost');
+    kv.map.set(nsKey('designs:active'), 'ghost');
     expect(await lib.activeId()).toBeNull();
   });
 
@@ -144,14 +146,14 @@ describe('design library', () => {
 
   it('survives a corrupt index without losing addressable designs', async () => {
     const a = await lib.create('A', ws('a'));
-    kv.map.set('astrarrocketjs:designs:index', '{not json');
+    kv.map.set(nsKey('designs:index'), '{not json');
     expect(await lib.list()).toEqual([]);
     expect(treeName(await lib.read(a.id))).toBe('a');
   });
 });
 
 describe('migrating the pre-library single workspace', () => {
-  const LEGACY = 'astrarrocketjs:workspace';
+  const LEGACY = nsKey('workspace');
 
   it('adopts an existing workspace as the first design and opens it', async () => {
     kv.map.set(LEGACY, JSON.stringify(ws('existing-work')));
@@ -170,9 +172,9 @@ describe('migrating the pre-library single workspace', () => {
     expect((await lib.list())[0]!.name).toBe('Fireball ZL1');
   });
 
-  it('falls back to a default name for a design with no .ork origin', async () => {
+  it('falls back to the translated default name for a design with no .ork origin', async () => {
     kv.map.set(LEGACY, JSON.stringify(ws('x')));
-    expect((await lib.list())[0]!.name).toBe('My Rocket');
+    expect((await lib.list())[0]!.name).toBe(defaultDesignName());
   });
 
   it('keeps the legacy blob if the migrating write fails', async () => {

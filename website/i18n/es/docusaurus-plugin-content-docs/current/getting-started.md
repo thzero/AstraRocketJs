@@ -12,11 +12,13 @@ Al cargar verás una breve pantalla de inicio mientras se carga el motor de fís
 
 ## La disposición {#the-layout}
 
-En un ordenador el banco de trabajo son tres **pestañas**, en la barra superior junto al nombre de la aplicación. Cada una organiza la ventana como su propia tarea necesita, en vez de compartir las tres una única cuadrícula fija:
+En un ordenador el banco de trabajo son cinco **pestañas**, en la barra superior junto al nombre de la aplicación. Cada una organiza la ventana como su propia tarea necesita, en vez de compartir todas una única cuadrícula fija:
 
 - **Diseño.** El árbol de componentes a la izquierda, la vista del cohete en el centro y el editor de la pieza seleccionada a la derecha. Esa tercera columna necesita una ventana de al menos 1536px de ancho, más de lo que tienen la mayoría de los portátiles; por debajo de eso el editor se abre como un diálogo sobre el dibujo, con los mismos campos y las mismas unidades.
+- **Configuraciones.** Las [configuraciones de vuelo](./flight-configurations.md) del diseño: qué motores vuelan, con qué retardos y con qué recuperación.
 - **Simulaciones.** La tabla de ejecuciones a todo lo ancho, con el editor de la simulación seleccionada (motor, ignición, configuración de lanzamiento, opciones) a la derecha.
 - **Resultados.** Las gráficas de vuelo, la traza en tierra y la trayectoria 3D en el centro, y los números de la ejecución a la derecha. Aparece en cuanto una simulación ha producido un resultado, y al terminar una ejecución te lleva directamente allí.
+- **Herramientas.** [Respuestas rápidas que no necesitan un diseño](./tools.md): una estimación del aterrizaje, una comprobación de la salida del raíl y el dimensionado de paracaídas. Por debajo de las pantallas más anchas la pestaña se muestra como 🧰.
 
 La **vista del cohete** del centro tiene una barra para cambiar de vista (2D · 3D · Aero · y, tras una simulación, Vuelo · Traza en tierra · Trayectoria 3D), interruptores para los marcadores **CG / CP** y la tarjeta de **información** rápida, y, en 2D, preajustes, calibres y zoom. Una franja de **estadísticas estáticas** en la parte inferior muestra longitud, masa, CG, CP, estabilidad y más.
 
@@ -30,12 +32,16 @@ En un **teléfono** las mismas áreas pasan a ser pestañas en la parte inferior
 
 - **Cohete** — el aviso del diseño cargado y la franja de estadísticas.
 - **Croquis** — la vista del cohete y su barra de herramientas (2D · 3D · Aero). Las vistas 2D y 3D se giran un cuarto de vuelta cuando sostienes el teléfono en vertical, para que el cohete recorra el lado largo de la pantalla en vez de quedar aplastado en su anchura; gira el teléfono y vuelven a su posición. Los diálogos también ocupan toda la pantalla allí.
+- **Config.**: las configuraciones de vuelo.
 - **Simular** — motor, configuración del lanzamiento, **Ejecutar** y el resumen de resultados.
 - **Resultados** — los números de la ejecución (apogeo, salida del raíl, velocidad máxima, aterrizaje, alcance …) con las gráficas de vuelo y la trayectoria 3D debajo. Aparece en cuanto una simulación ha producido un resultado, y al terminar una ejecución te lleva directamente allí.
+- **Herramientas**: el estimador de aterrizaje, la salida del raíl y el dimensionado de paracaídas.
 
 El panel de componentes es solo de escritorio, así que un teléfono no puede añadir, reordenar ni borrar piezas. Sí puede editar las que el diseño ya tiene: toca una pieza en la vista **Boceto** y su editor se abre como un diálogo. Dos cosas acompañan al panel y no al dibujo, y no se ofrecen donde el panel no está: **Mis piezas**, porque una pieza guardada se aplica a través de un componente, y el **nombre y la configuración del cohete**, porque poner nombre a un diseño es algo que se hace sobre uno que estás construyendo. Ambas se apartan también mientras el dibujo está maximizado, por la misma razón que el panel.
 
 La barra superior tiene **deshacer / rehacer**, un selector de idioma (diez idiomas), una nota de cuándo se guardó tu cohete por última vez y el **menú de la aplicación**: Nuevo, Abrir… y Guardar como… (la biblioteca de diseños de la app), **Importar ▸ OpenRocket** y **Exportar ▸ OpenRocket / RASAero II** para los archivos `.ork` y demás en disco, **Informe de diseño**, **Panel de motores**, **Ubicaciones de lanzamiento**, **Mis piezas**, **Ajustes**, **Ayuda**, **Privacidad** y **Acerca de**.
+
+**Ayuda** abre esta guía dentro de la aplicación en lugar de llevarte a un sitio web, y la guía completa se incluye con la aplicación, así que se lee en un campo de vuelo sin cobertura. Su panel de contenido enumera todas las páginas y los apartados de la que estás leyendo, y el cuadro que hay encima de esa lista las busca todas a la vez: elige un resultado y la página se abre con tus palabras resaltadas.
 
 ## Tu primer cohete
 

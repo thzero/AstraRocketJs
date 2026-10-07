@@ -33,7 +33,7 @@ Resistencia y estabilidad frente al número de Mach, para analizar el comportami
 
 - **Cd frente a Mach** — coeficiente de resistencia total en todo el rango de Mach. Aparece una segunda curva **con motor** solo si alguna etapa declara un diámetro de salida de tobera (una propiedad del `.ork` importado; no hay campo para ella en el editor). Es la única cifra de este panel que depende del motor —todo lo demás es geometría—, así que la barra indica para qué motor se calculó: el que tenga cargado la simulación activa.
 - **Desglose de la resistencia** — contribuciones de fricción, presión y base, apiladas. Para el mismo desglose *por pieza*, consulta la pestaña **Por componente** de abajo.
-- **CP frente a Mach** — cómo se desplaza el centro de presión con la velocidad.
+- **CP frente a Mach** — cómo se desplaza el centro de presión con la velocidad. Los botones de la esquina de la tarjeta eligen cómo se lee el eje: tu **unidad de longitud**, **% cuerpo** (un porcentaje de la longitud total del fuselaje, que es hasta dónde del cohete estás mirando) o **% longitud** (un porcentaje de la longitud *aerodinámica*, que es la cifra que da OpenRocket de escritorio). Los dos porcentajes difieren en cualquier diseño que lleve algo fuera de la envolvente aerodinámica: un botón de riel que sobresale, un cordón de choque, una masa de cola; por eso se ofrecen ambos en vez de elegir uno por ti. Una lectura sin longitud por la que dividir no se ofrece en absoluto.
 
 Una fila de **condiciones de vuelo** define con qué se calcula todo el barrido:
 
@@ -47,7 +47,7 @@ Un conmutador **Gráficas / Por componente** elige qué muestra el panel: las tr
 
 Una pieza que existe más de una vez —normalmente un juego de aletas— tiene además una columna **Por unidad** que indica `0,251 × 3`: la resistencia de una aleta y cuántas hay. La columna **Cd** es siempre el total de todas.
 
-**Contribución a la estabilidad** es la tabla complementaria, y la que responde a *por qué el CP está donde está*: el **CNα** de cada pieza (su parte de la pendiente de fuerza normal del cohete) y su propio **CP**. El juego de aletas suele aportar la gran mayoría del CNα —eso es lo que mantiene el CP hacia atrás—, mientras que el cono aporta un par de unidades que tiran de él hacia delante. El CP del cohete es la media de las filas ponderada por CNα. Las piezas que no generan fuerza normal, como un tubo recto, se omiten en vez de aparecer como ceros. Cada fila lleva además la **masa** de la pieza —una unidad, todas las unidades y el CG del conjunto—, de modo que las dos mitades de una cuestión de estabilidad quedan juntas.
+**Contribución a la estabilidad** es la tabla complementaria, y la que responde a *por qué el CP está donde está*: el **CNα** de cada pieza (su parte de la pendiente de fuerza normal del cohete) y su propio **CP**. El juego de aletas suele aportar la gran mayoría del CNα —eso es lo que mantiene el CP hacia atrás—, mientras que el cono aporta un par de unidades que tiran de él hacia delante. El CP del cohete es la media de las filas ponderada por CNα. Las piezas que no generan fuerza normal, como un tubo recto, se omiten en vez de aparecer como ceros. Cada fila lleva además la **masa** de la pieza —una unidad, todas las unidades y el CG del conjunto—, de modo que las dos mitades de una cuestión de estabilidad quedan juntas. El CP se da de tres maneras: en tu **unidad de longitud**, como **CP (% body)** sobre la longitud total del fuselaje y como **CP (% length)** sobre la longitud aerodinámica, que son los mismos dos porcentajes que ofrece la gráfica de CP frente a Mach. No hay que confundir ninguno de los dos con la columna **%** del extremo derecho, que es la parte del CNα del cohete que aporta la pieza, no una posición.
 
 **Dinámica de alabeo** lista todos los juegos de aletas con sus coeficientes de **forzamiento** y **amortiguamiento** de alabeo. Ambos son cero en un cohete que ni está calado ni gira: esa es la respuesta correcta, no una tabla que falta. Da un **ángulo de calaje** a un juego de aletas y el forzamiento sube; es el único sitio de la aplicación que confirma que ese calaje hace lo que pretendías. El amortiguamiento se opone a un alabeo existente, así que necesita el control **Vel. alabeo** de arriba.
 
@@ -125,6 +125,24 @@ La trayectoria 3D reproduce el vuelo en lugar de solo dibujarlo. **▶ Reproduci
 
 La velocidad con la que arranca una reproducción viene de **[Ajustes ▸ Reproducción](./settings.md#playback)**.
 
+## Entorno (tras una simulación) {#environment-after-a-simulation}
+
+El aire que realmente atravesó el vuelo, tal como lo registró el motor de cálculo en cada paso. El panel de lanzamiento muestra lo que introdujiste; esto muestra en qué se convirtió, incluida la atmósfera estándar cuando dejas en blanco la temperatura y la presión, un perfil de viento medido sobre el suelo convertido en alturas reales y un [pronóstico](./running-a-simulation.md#weather) cuando lo aplicas.
+
+La fila superior da la latitud, la longitud y la altitud del sitio, la fecha y la hora cuando las condiciones vienen de un pronóstico, y el aire cuando se encendió el motor: temperatura, presión, densidad, velocidad del sonido, velocidad del viento y dirección del viento. El aire en calma no tiene dirección, así que se muestra un guion. Cuando las condiciones vienen de [Open-Meteo](./running-a-simulation.md#weather), sigue el crédito CC BY 4.0 de Open-Meteo, con una nota si se ha cambiado un valor o se ha movido el sitio después de aplicarlo.
+
+Cuatro gráficas representan la **velocidad del viento**, la **dirección del viento**, la **temperatura del aire** y la **presión del aire** frente a la altura sobre la plataforma, desde el suelo hasta el apogeo. La subida es la línea brillante. La bajada es la tenue que queda debajo: un cohete bajo un paracaídas pasa por las mismas alturas durante un minuto o más mientras las ráfagas siguen cambiando, así que su viento es una nube densa y no una curva. La temperatura y la presión son las mismas en las dos pasadas, así que ahí las dos líneas se superponen. La línea de la dirección del viento se corta donde cruza el norte en lugar de atravesar la gráfica.
+
+Las gráficas cubren solo las alturas que alcanzó el vuelo. Los valores usan tus unidades, y la densidad se muestra con cuatro cifras significativas para que se lea bien tanto en g/cm³ como en kg/m³.
+
+### Dónde aterrizó {#where-it-landed}
+
+Debajo de las gráficas, **Aterrizaje** da dónde bajó cada etapa: su latitud y longitud, y su distancia y rumbo desde la plataforma.
+
+Cuando las condiciones de lanzamiento vienen de un [pronóstico de Open-Meteo](./running-a-simulation.md#weather), **Volar las horas alrededor de este pronóstico** vuela este diseño de nuevo bajo el pronóstico de cada hora, desde dos antes hasta dos después. Todos estos vuelos usan la misma semilla aleatoria, así que solo cambia el tiempo entre ellos. Usan el pronóstico tal como está ahora, que puede haber cambiado desde que se aplicó. Después, un mapa muestra la trayectoria del vuelo desde arriba, un punto donde aterrizó el vuelo de cada hora y la elipse 2σ alrededor de ellos, y una tabla da el aterrizaje de cada hora.
+
+Sin un pronóstico, la sección explica cómo obtenerlo. Para un cohete no diseñado aquí, el [estimador de aterrizaje](./tools.md#landing-estimator) de la pestaña Herramientas da una estimación a partir de velocidades de descenso escritas.
+
 ## Leer la franja de estadísticas {#reading-the-stats-strip}
 
 La franja inferior resume el diseño actual como una cuadrícula de fichas (se pliega con el galón de su cabecera):
@@ -132,7 +150,7 @@ La franja inferior resume el diseño actual como una cuadrícula de fichas (se p
 - **Longitud**, **diámetro máximo** y **relación de finura** (longitud / diámetro).
 - **Masa** y **CG**, cada uno mostrado **vacío / cargado** (en seco y con el motor) en una sola ficha.
 - **CP** (centro de presión).
-- **Peso de recuperación** — la masa de descenso (masa cargada menos el propelente que se quema). Se muestra cuando hay un motor cargado; es la masa que el paracaídas baja realmente.
+- **Peso de recuperación** — la masa de descenso (masa cargada menos el propelente que se quema). Se muestra cuando hay un motor cargado; es la masa que el paracaídas baja realmente. El recuadro indica **Masa (Recuperación, est.)** mientras esa cifra es la estimación propia de la aplicación a partir del diseño, y quita la marca cuando una simulación ha desplegado un dispositivo de recuperación y la masa del propio motor la ha sustituido.
 - **Estabilidad** — en **calibres** (en la rampa) y como **% de la longitud**.
 - **Coef. de resistencia** — el coeficiente de resistencia en planeo (sin empuje) a Mach 0,3.
 - **Pendiente de fuerza normal** — CNα (por radián), la pendiente del coeficiente de fuerza normal de Barrowman a Mach 0,3.

@@ -4,13 +4,16 @@ import { useWorkspaceStore, selectActive, selectConfig } from '../../state/store
 import { launchDiffKeys, prefDiffKeys } from '../../services/flight/simDiff';
 import { loadoutLabel } from '../../services/flight/flightConfigs';
 import { useSettings } from '../../state/SettingsProvider';
+import { SIM_BOUNDS } from '../../services/storage/settings';
 import { RunButton } from './RunButton';
 import { useIsDesktop } from '../common/useMediaQuery';
 import { LaunchPanel } from './LaunchPanel';
-import { NumberInput } from '../common/NumberInput';
 import { useUnits } from '../../prefs/useUnits';
-import { FieldLabel, markRing } from '../common/FieldMark';
+import { onSi } from '../../prefs/entryValue';
+import { unitScope } from '../../prefs/units';
 import type { SimPrefs } from '../../services/flight/simulations';
+import { NumberRow } from '../common/NumberRow';
+import { SPEED_WARNINGS } from './speedWarnings';
 
 /**
  * Everything about the SELECTED simulation: its name, the flight configuration
@@ -157,7 +160,7 @@ export function SimEditor() {
           </button>
         </section>
 
-        <LaunchPanel launch={launch} onChange={onLaunchChange} onCommit={onCommit} diff={launchDiff} />
+        <LaunchPanel launch={launch} onChange={onLaunchChange} onCommit={onCommit} diff={launchDiff} weather />
         <SimOptions diff={prefDiff} />
       </div>
     </div>
@@ -195,6 +198,13 @@ function SimOptions({ diff }: { diff?: ReadonlySet<keyof SimPrefs> }) {
   const clearSimPrefs = useWorkspaceStore((s) => s.clearSimPrefs);
   const onCommit = useWorkspaceStore((s) => s.commitEdit);
   const g = settings.simulation;
+  // The SAME FieldUnit the global setting resolves, under the same scope key, so
+  // the two surfaces for this one stored value cannot disagree about its unit.
+  // This read a hardcoded degree sign and an inline `* 180 / Math.PI`, which
+  // SettingsDialog says in its own comment it was changed away from. `angle`
+  // offers `rad`, so a user working in radians saw one surface in degrees and the
+  // other in radians, for the same number.
+  const angle = u.at(unitScope('settings', 'maxAngleStep'), 'angle');
 
   /** What this simulation actually runs with: its overrides over the globals. */
   const eff = { ...g, ...(prefs ?? {}) };
@@ -205,10 +215,8 @@ function SimOptions({ diff }: { diff?: ReadonlySet<keyof SimPrefs> }) {
   // velocity unit both ways; the stored value stays SI. `fmt` for the
   // placeholder rather than the raw number, since the global is SI too.
   const speed = (si: number | undefined): number | null => (si == null ? null : u.toUi('velocity', si));
-  const onSpeed =
-    (key: 'deploymentSpeedWarn' | 'mainHighSpeedWarn' | 'mainLowSpeedWarn' | 'drogueLowSpeedWarn') =>
-    (v: number | null) =>
-      setSimPref(key, v == null ? null : u.fromUi('velocity', v));
+  const onSpeed = (key: (typeof SPEED_WARNINGS)[number]['key']) =>
+    onSi(u.plain('velocity'), (si) => setSimPref(key, si));
   const vSym = u.sym('velocity');
   const vStep = u.step('velocity', 1);
 
@@ -232,40 +240,43 @@ function SimOptions({ diff }: { diff?: ReadonlySet<keyof SimPrefs> }) {
       </dl>
 
       <div className="space-y-2">
-        <Override
+        <NumberRow
           label={t('settings.timeStep')}
           unit="s"
           mixed={mixed('timeStep')}
           value={prefs?.timeStep ?? null}
           placeholder={String(g.timeStep)}
           step={0.01}
-          min={0.001}
+          min={SIM_BOUNDS.timeStep.min}
+          max={SIM_BOUNDS.timeStep.max}
           onChange={(v) => setSimPref('timeStep', v)}
           onCommit={onCommit}
         />
-        <Override
+        <NumberRow
           label={t('settings.maxTime')}
           unit="s"
           mixed={mixed('maxTime')}
           value={prefs?.maxTime ?? null}
           placeholder={String(g.maxTime)}
           step={60}
-          min={1}
+          min={SIM_BOUNDS.maxTime.min}
+          max={SIM_BOUNDS.maxTime.max}
           onChange={(v) => setSimPref('maxTime', v)}
           onCommit={onCommit}
         />
-        <Override
+        <NumberRow
           label={t('settings.maxAngleStep')}
           hint={t('settings.maxAngleStepHint')}
-          unit="°"
-          // Stored in RADIANS like the kernel's field, typed in degrees, which
-          // is the only way anyone thinks about "how far may it rotate".
+          unit={angle.sym}
+          // Stored in RADIANS like the kernel's field, edited in the user's angle
+          // unit through `angle` above - not in degrees by assumption.
           mixed={mixed('maxAngleStep')}
-          value={prefs?.maxAngleStep == null ? null : +((prefs.maxAngleStep * 180) / Math.PI).toFixed(3)}
-          placeholder={String(+((g.maxAngleStep * 180) / Math.PI).toFixed(3))}
-          step={0.5}
-          min={0.05}
-          onChange={(v) => setSimPref('maxAngleStep', v == null ? null : (v * Math.PI) / 180)}
+          value={prefs?.maxAngleStep == null ? null : angle.toUi(prefs.maxAngleStep)}
+          placeholder={String(angle.toUi(g.maxAngleStep))}
+          step={angle.step((0.5 * Math.PI) / 180)}
+          min={angle.toUi(SIM_BOUNDS.maxAngleStep.min)}
+          max={angle.toUi(SIM_BOUNDS.maxAngleStep.max)}
+          onChange={onSi(angle, (si) => setSimPref('maxAngleStep', si))}
           onCommit={onCommit}
         />
         {/* The desktop pairs the time step with a slider, because the useful
@@ -283,7 +294,7 @@ function SimOptions({ diff }: { diff?: ReadonlySet<keyof SimPrefs> }) {
           onKeyUp={onCommit}
           className="w-full accent-sky-500"
         />
-        <Override
+        <NumberRow
           label={t('settings.randomSeed')}
           mixed={mixed('randomSeed')}
           value={prefs?.randomSeed ?? null}
@@ -336,124 +347,24 @@ function SimOptions({ diff }: { diff?: ReadonlySet<keyof SimPrefs> }) {
         {t('settings.warnings')}
       </div>
       <div className="mt-2 space-y-2">
-        <Override
-          label={t('settings.deploySpeedWarn')}
-          hint={t('settings.deploySpeedWarnHint')}
-          unit={vSym}
-          mixed={mixed('deploymentSpeedWarn')}
-          value={speed(prefs?.deploymentSpeedWarn)}
-          placeholder={u.fmt('velocity', g.deploymentSpeedWarn)}
-          step={vStep}
-          min={0}
-          onChange={onSpeed('deploymentSpeedWarn')}
-          onCommit={onCommit}
-        />
-        <Override
-          label={t('settings.mainHighSpeedWarn')}
-          hint={t('settings.mainHighSpeedWarnHint')}
-          unit={vSym}
-          mixed={mixed('mainHighSpeedWarn')}
-          value={speed(prefs?.mainHighSpeedWarn)}
-          placeholder={u.fmt('velocity', g.mainHighSpeedWarn)}
-          step={vStep}
-          min={0}
-          onChange={onSpeed('mainHighSpeedWarn')}
-          onCommit={onCommit}
-        />
-        <Override
-          label={t('settings.mainLowSpeedWarn')}
-          hint={t('settings.mainLowSpeedWarnHint')}
-          unit={vSym}
-          mixed={mixed('mainLowSpeedWarn')}
-          value={speed(prefs?.mainLowSpeedWarn)}
-          placeholder={u.fmt('velocity', g.mainLowSpeedWarn)}
-          step={vStep}
-          min={0}
-          onChange={onSpeed('mainLowSpeedWarn')}
-          onCommit={onCommit}
-        />
-        <Override
-          label={t('settings.drogueLowSpeedWarn')}
-          hint={t('settings.drogueLowSpeedWarnHint')}
-          unit={vSym}
-          mixed={mixed('drogueLowSpeedWarn')}
-          value={speed(prefs?.drogueLowSpeedWarn)}
-          placeholder={u.fmt('velocity', g.drogueLowSpeedWarn)}
-          step={vStep}
-          min={0}
-          onChange={onSpeed('drogueLowSpeedWarn')}
-          onCommit={onCommit}
-        />
+        {SPEED_WARNINGS.map((w) => (
+          <NumberRow
+            key={w.key}
+            label={t(w.label)}
+            hint={t(w.hint)}
+            unit={vSym}
+            mixed={mixed(w.key)}
+            value={speed(prefs?.[w.key])}
+            placeholder={u.fmt('velocity', g[w.key])}
+            step={vStep}
+            min={0}
+            onChange={onSpeed(w.key)}
+            onCommit={onCommit}
+          />
+        ))}
       </div>
 
       <p className="mt-2 text-[11px] text-slate-500">{t('sims.optionsHint')}</p>
     </section>
-  );
-}
-
-function Override({
-  label,
-  unit,
-  value,
-  placeholder,
-  step,
-  min,
-  hint,
-  mixed,
-  onChange,
-  onCommit,
-}: {
-  label: string;
-  unit?: string;
-  value: number | null;
-  placeholder: string;
-  step: number;
-  min?: number;
-  /** What the number is FOR — same text the global setting carries. */
-  hint?: string;
-  /** The simulations being edited together disagree on this override. */
-  mixed?: boolean;
-  onChange: (v: number | null) => void;
-  onCommit: () => void;
-}) {
-  if (hint) {
-    return (
-      <div>
-        <Override
-          label={label}
-          unit={unit}
-          value={value}
-          placeholder={placeholder}
-          step={step}
-          min={min}
-          mixed={mixed}
-          onChange={onChange}
-          onCommit={onCommit}
-        />
-        <p className="mt-0.5 pr-24 text-[11px] leading-snug text-slate-500">{hint}</p>
-      </div>
-    );
-  }
-  return (
-    <label className="flex items-center justify-between gap-3">
-      <FieldLabel text={label} mixed={mixed} />
-      <span className="flex items-center gap-1">
-        <NumberInput
-          ariaLabel={label}
-          value={value}
-          onChange={onChange}
-          onCommit={onCommit}
-          step={step}
-          min={min}
-          placeholder={placeholder}
-          className={markRing(
-            'w-24 rounded-md bg-slate-800 px-2 py-1 text-right text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500',
-            false,
-            mixed,
-          )}
-        />
-        <span className="min-w-4 text-xs text-slate-500">{unit}</span>
-      </span>
-    </label>
   );
 }

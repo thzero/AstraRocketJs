@@ -260,7 +260,13 @@ describe('through-the-wall tab vs FinSet.java', () => {
  * from the consumer. Do not add the consumer to the allowlist.
  */
 describe('no module grows its own fin sampler', () => {
-  const SRC = fileURLToPath(new URL('..', import.meta.url));
+  // `../../src/`, NOT `..`. This test lives at web/tests/tree/, so `..`
+  // resolved to web/tests/ and the walk below read six helper files under
+  // tests/testing/ and not one line of src -- while every ALLOWED path named a
+  // file that does not exist under that root. The guard against the bug that
+  // survived three audits had never examined a source file. Asserted rather
+  // than trusted, two tests down.
+  const SRC = fileURLToPath(new URL('../../src/', import.meta.url));
   /** Ports of kernel trig that are allowed to compute it directly. */
   const ALLOWED = ['tree/finPlanform.ts', 'tree/tubefins.ts', 'tree/shapeProfile.ts'];
 
@@ -276,7 +282,55 @@ describe('no module grows its own fin sampler', () => {
     return out;
   };
 
+  /**
+   * The outline entry points. Importing `FIN_DEFAULTS` or `finRootChord` from
+   * the same module does NOT count: those are dimensions, and a consumer can
+   * hold every dimension and still draw its own curve, which is exactly what
+   * schematicShapes did.
+   */
+  const SHARED_OUTLINE = /finPlanformPoints|finCutContour|finPlanformMm/;
+
+  /**
+   * The modules that DRAW or CUT a fin. Each must take its outline from
+   * `tree/finPlanform`, whatever the mechanism.
+   *
+   * This list exists because the trig rule below cannot see the violation it
+   * was written for: `schematicShapes` drew its elliptical fin with an SVG `A`
+   * arc and its trapezoid with a polygon literal, with no trigonometry
+   * anywhere, so a textual trig guard would have passed it forever even
+   * pointed at the right tree. The invariant is about WHERE THE OUTLINE COMES
+   * FROM, not how it is spelled, and a named list is the only way to say that
+   * mechanically. Add a module here when it starts drawing fins.
+   */
+  const OUTLINE_CONSUMERS = [
+    'components/canvas/schematicShapes.tsx',
+    'components/canvas/rocketPieces.ts',
+    'services/report/reportGeometry.ts',
+    'services/exports/solidMesh.ts',
+  ];
+
+  it('reads the source tree, not itself', () => {
+    // The guard's own precondition. It passed vacuously for its whole life
+    // because nothing asserted that the walk reaches src at all.
+    const files = sourceFiles(SRC).map((f) => f.slice(SRC.length).split('\\').join('/'));
+    expect(files).toContain('tree/finPlanform.ts');
+    expect(files).toContain('components/canvas/schematicShapes.tsx');
+    expect(files.length).toBeGreaterThan(200);
+    // Every allowlist entry must name a file that exists, or the allowlist is
+    // excusing something that is not there while the real file goes unchecked.
+    for (const a of ALLOWED) expect(files, a).toContain(a);
+  });
+
+  it('every fin-drawing module takes its outline from tree/finPlanform', () => {
+    const missing = OUTLINE_CONSUMERS.filter((rel) => !SHARED_OUTLINE.test(readFileSync(SRC + rel, 'utf8')));
+    expect(missing).toEqual([]);
+  });
+
   it('keeps kernel trigonometry in the ports that own it', () => {
+    // The original narrow pattern, kept because it is free and has no false
+    // positives: trig applied directly to `Math.PI` is the historical shape of
+    // a hand-rolled sweep. It is the weaker of the two nets here -- the
+    // provenance test above is the one that catches an arc or a Bezier.
     const offenders: string[] = [];
     for (const file of sourceFiles(SRC)) {
       const rel = file.slice(SRC.length).split('\\').join('/');

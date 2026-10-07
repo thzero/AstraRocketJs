@@ -1,4 +1,6 @@
-import { unzipSync, strFromU8 } from 'fflate';
+import { unzipSync } from 'fflate';
+import { decodeFileText } from '../decodeText';
+import { parseXmlText } from '../xmlUtil';
 import { MAX_ARCHIVE_ENTRIES, MAX_ARCHIVE_ENTRY_BYTES, MAX_ARCHIVE_TOTAL_BYTES } from './importLimits';
 
 /**
@@ -55,24 +57,20 @@ export function unpackOrk(data: ArrayBuffer | string): OrkArchive {
       if (name === entryName) continue;
       // Any `.rse` in the archive, not just `thrustcurves/` ones: the folder is
       // the desktop's convention, not something the loader depends on.
-      if (name.toLowerCase().endsWith('.rse')) motorFiles.push(strFromU8(entries[name]!));
+      if (name.toLowerCase().endsWith('.rse')) motorFiles.push(decodeFileText(entries[name]!));
       // A thumbnail is regenerated on demand by whatever opens the file next, so
       // losing it is not a loss worth reporting.
       else if (name !== 'preview.png') dropped.push(name);
     }
-    return { xml: strFromU8(entries[entryName]!), motorFiles, dropped };
+    return { xml: decodeFileText(entries[entryName]!), motorFiles, dropped };
   }
-  return { xml: strFromU8(bytes), motorFiles: [], dropped: [] };
+  return { xml: decodeFileText(bytes), motorFiles: [], dropped: [] };
 }
 
 /** The parsed document, or an error naming what is wrong with the text. */
-export function parseOrkXml(xml: string): Document {
+export function parseOrkXml(xml: string, format: '.ork' | '.rkt' = '.ork'): Document {
   // OpenRocket writes a single-quoted XML declaration; some parsers reject it.
   if (xml.charCodeAt(0) === 0xfeff) xml = xml.slice(1); // strip optional BOM
   xml = xml.replace(/^\s*<\?xml[^?]*\?>/, '');
-  const doc = new DOMParser().parseFromString(xml, 'text/xml');
-  if (doc.querySelector('parsererror')) {
-    throw new Error('Not a valid .ork file (XML parse error)');
-  }
-  return doc;
+  return parseXmlText(xml, `Not a valid ${format} file (XML parse error)`);
 }

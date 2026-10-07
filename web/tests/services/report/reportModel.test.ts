@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import type { ComponentNode, StaticInfo } from '../../../src/engine/openRocketEngine';
 import { stageParts, finSetPositions, multiStageSummaries } from '../../../src/services/report/reportModel';
 import { motorSpecs, newFlightConfig } from '../../../src/services/flight/flightConfigs';
@@ -134,6 +134,12 @@ describe('multiStageSummaries', () => {
   const info = (mass: number) => ({ mass }) as unknown as StaticInfo;
   // The rebuilt whole-rocket handle the app should end up holding after the report.
   const whole = { info: info(99), handle: {} as never };
+  /** What the caller is told when the WHOLE-rocket rebuild is the thing that fails. */
+  let failures: unknown[] = [];
+  const failed = (e: unknown) => failures.push(e);
+  beforeEach(() => {
+    failures = [];
+  });
 
   it('returns one summary per stage and restores the whole-rocket handle once', () => {
     const restored: unknown[] = [];
@@ -143,6 +149,7 @@ describe('multiStageSummaries', () => {
       (st) => info(st.name === 'A' ? 1 : 2),
       () => whole,
       (b) => restored.push(b),
+      failed,
     );
     expect(out.map((sm) => sm.label)).toEqual(['A', 'B']);
     expect(out.map((sm) => (sm.info as unknown as { mass: number }).mass)).toEqual([1, 2]);
@@ -161,11 +168,61 @@ describe('multiStageSummaries', () => {
         },
         () => whole,
         (b) => restored.push(b),
+        failed,
       ),
     ).toThrow(/bad stage/);
     // The regression this refactor fixes: without the finally, a throwing stage
     // build would leave the app's live handle stranded on the last stage.
     expect(restored).toEqual([whole]);
+    expect(failures).toEqual([]);
+  });
+
+  /**
+   * The case the `finally` did NOT cover: `buildWhole()` itself throwing.
+   *
+   * `restore` then never ran, so the store kept the last per-stage handle - one
+   * stage standing in for the rocket - and nothing re-triggered the rebuild
+   * effect, because its dependencies had not moved. The aero pane stayed dead
+   * until an unrelated edit.
+   */
+  it('reports a failing whole-rocket rebuild instead of silently not restoring', () => {
+    const restored: unknown[] = [];
+    const out = multiStageSummaries(
+      stages,
+      stageName,
+      () => info(1),
+      () => {
+        throw new Error('whole rebuild failed');
+      },
+      (b) => restored.push(b),
+      failed,
+    );
+    // The report is still returned: the stage summaries came from isolated
+    // builds and the parts tables were gathered before any rebuild.
+    expect(out.map((sm) => sm.label)).toEqual(['A', 'B']);
+    expect(restored).toEqual([]);
+    expect(failures).toHaveLength(1);
+    expect((failures[0] as Error).message).toMatch(/whole rebuild failed/);
+  });
+
+  it('keeps the stage failure when BOTH throw, rather than replacing it', () => {
+    // A rethrow from a `finally` replaces whatever the try block threw. The
+    // stage failure names a part; the rebuild failure does not.
+    expect(() =>
+      multiStageSummaries(
+        stages,
+        stageName,
+        () => {
+          throw new Error('bad stage');
+        },
+        () => {
+          throw new Error('whole rebuild failed');
+        },
+        () => {},
+        failed,
+      ),
+    ).toThrow(/bad stage/);
+    expect(failures).toHaveLength(1);
   });
 });
 

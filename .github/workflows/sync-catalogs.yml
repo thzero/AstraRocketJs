@@ -46,6 +46,10 @@ concurrency:
 jobs:
   sync:
     runs-on: ubuntu-latest
+    # This job holds `contents: write` against the `data` branch the live app
+    # reads, and it fetches from an upstream API. Uncapped, a hung fetch sat on a
+    # write token for the 360-minute default.
+    timeout-minutes: 15
     env:
       TARGET: ${{ inputs.target || 'both' }}
     steps:
@@ -171,17 +175,10 @@ jobs:
               const noCurve = motors.filter((m) => m.noCurve).length;
               console.log("");
               console.log(`${noCurve.toLocaleString("en-US")} motors have no bundled thrust curve.`);
-              // Must match keyOf() in components/sim/MotorDashboard.tsx — it is the
-              // row key AND the selection identity, so a collision makes two distinct
-              // motors select as one. Upstream can introduce a new pair at any time.
-              const seen = new Set();
-              const dupes = motors
-                .map((m) => `${m.manufacturer}|${m.designation}|${m.diameter}|${m.code ?? ""}`)
-                .filter((k) => (seen.has(k) ? true : (seen.add(k), false)));
-              if (dupes.length) {
-                console.log("");
-                console.log(`> [!WARNING]`);
-                console.log(`> ${dupes.length} motors collide on the dashboard row key: ${dupes.join(", ")}`);
-              }
+              // Row-key collisions are NOT reported here any more. This step runs
+              // after the publish and only ever printed a warning, so a colliding
+              // pair reached every user with a green workflow. `assertSane` in
+              // sync-motors.mjs now refuses to write the catalog at all, which
+              // fails the sync step above and publishes nothing.
             '
           } >> "$GITHUB_STEP_SUMMARY"

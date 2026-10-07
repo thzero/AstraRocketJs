@@ -1,8 +1,8 @@
-import { lazy, Suspense, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { defaultDesignName } from '../../services/app/appInfo';
 import { useWorkspaceStore } from '../../state/store';
-import { ErrorBoundary } from '../common/ErrorBoundary';
+import { LazyBoundary, lazyNamed } from '../common/ErrorBoundary';
 import { DesignLibraryDialog } from './DesignLibraryDialog';
 import { DesignPropertiesDialog } from './DesignPropertiesDialog';
 import { ExamplesDialog } from './ExamplesDialog';
@@ -12,7 +12,7 @@ import { AboutDialog } from './AboutDialog';
 // out of the main bundle. One static import from a dialog this host mounts
 // eagerly pins the module and everything under it, and the build says so
 // (INEFFECTIVE_DYNAMIC_IMPORT). Nothing needs the report until it is opened.
-const ExportDialog = lazy(() => import('../report/ExportDialog').then((m) => ({ default: m.ExportDialog })));
+const ExportDialog = lazyNamed(() => import('../report/ExportDialog'), 'ExportDialog');
 import { PrintExportDialog } from '../report/PrintExportDialog';
 import { HelpDialog } from './HelpDialog';
 import { PrivacyDialog } from './PrivacyDialog';
@@ -88,17 +88,12 @@ function HeaderDialogs({ flags, onClose }: { flags: OpenFlags; onClose: (id: Hea
   return (
     <>
       {flags.motors && <MotorDashboard onClose={() => onClose('motors')} />}
-      {/* The boundary sits OUTSIDE the Suspense: it is the chunk FETCH that
-          fails on a stale deploy, and Suspense re-throws that rejection during
-          render. The fallback is nothing rather than an empty modal frame,
-          since a dialog that arrives a beat late reads better than one that
-          flashes a shell first. */}
+      {/* No fallback rather than an empty modal frame: a dialog that arrives a
+          beat late reads better than one that flashes a shell first. */}
       {flags.report && (
-        <ErrorBoundary>
-          <Suspense fallback={null}>
-            <ExportDialog onClose={() => onClose('report')} />
-          </Suspense>
-        </ErrorBoundary>
+        <LazyBoundary fallback={null}>
+          <ExportDialog onClose={() => onClose('report')} />
+        </LazyBoundary>
       )}
       {flags.about && <AboutDialog onClose={() => onClose('about')} />}
       {flags.privacy && <PrivacyDialog onClose={() => onClose('privacy')} />}

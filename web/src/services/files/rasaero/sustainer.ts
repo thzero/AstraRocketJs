@@ -1,7 +1,12 @@
 import type { ComponentNode } from '../../../engine/openRocketEngine';
 import { COMPONENT_DEFAULTS } from '../../design/componentDefaults';
-import { IN, fmt, nnum, type Cdx1Writer } from './units';
+import { nodeShape } from '../../../tree/shapeProfile';
+import { IN, fmt, type Cdx1Writer } from './units';
 import { SECTION_TO_AIRFOIL } from './surface';
+import { num } from '../../../tree/nodeProps';
+import { trapezoidDims } from '../../../tree/finPlanform';
+import { isFinSet } from '../../../tree/tubefins';
+import { isAssembly } from '../../../tree/assembly';
 
 /**
  * The sustainer's flat part chain (NoseCone / BodyTube / Transition, each
@@ -14,14 +19,7 @@ const FIN_MAX = 8;
 
 /** Trapezoid planform of a fin set (m), or null when it has none. */
 function finPlanform(fin: ComponentNode): { root: number; tip: number; sweep: number; height: number } | null {
-  if (fin.type === 'trapezoidfinset') {
-    return {
-      root: nnum(fin, 'rootChord', 0.05),
-      tip: nnum(fin, 'tipChord', 0.03),
-      sweep: nnum(fin, 'sweep', 0),
-      height: nnum(fin, 'height', 0.03),
-    };
-  }
+  if (fin.type === 'trapezoidfinset') return trapezoidDims(fin);
   if (fin.type === 'freeformfinset') {
     // Exact conversion for trapezoid-shaped outlines.
     const pts = (fin['points'] as [number, number][] | undefined) ?? [];
@@ -57,7 +55,7 @@ function finPlanform(fin: ComponentNode): { root: number; tip: number; sweep: nu
 /** The ONE fin set under `parent`, as a <Fin> block; nothing when it has none. */
 export function finXml(w: Cdx1Writer, parent: ComponentNode): void {
   const { emit } = w;
-  const finSets = (parent.children ?? []).filter((c) => c.type.endsWith('finset'));
+  const finSets = (parent.children ?? []).filter((c) => isFinSet(c.type));
   if (finSets.length === 0) return;
   if (finSets.length > 1) {
     throw new Error('RASAero allows ONE fin set per tube — remove extras or export as .ork.');
@@ -73,13 +71,13 @@ export function finXml(w: Cdx1Writer, parent: ComponentNode): void {
         : `RASAero has no ${fin.type === 'ellipticalfinset' ? 'elliptical' : 'tube'} fins — “${fin.name ?? 'Fins'}” can't be exported. Use trapezoid fins or export as .ork.`,
     );
   }
-  const count = Math.round(nnum(fin, 'finCount', 3));
+  const count = Math.round(num(fin, 'finCount', 3));
   if (count < FIN_MIN || count > FIN_MAX) {
     throw new Error(`RASAero needs 3–8 fins per set (found ${count}). Adjust "${fin.name ?? 'Fins'}".`);
   }
   const pos = fin.position ?? { method: 'bottom', offset: 0 };
   // Convert any position method to a bottom-referenced offset.
-  const tubeLen = nnum(parent, 'length', 0);
+  const tubeLen = num(parent, 'length', 0);
   const bottomOffset =
     pos.method === 'bottom'
       ? pos.offset
@@ -100,21 +98,21 @@ export function finXml(w: Cdx1Writer, parent: ComponentNode): void {
   emit(`<Span>${fmt(plan.height * IN)}</Span>`);
   emit(`<SweepDistance>${fmt(plan.sweep * IN)}</SweepDistance>`);
   emit(`<TipChord>${fmt(plan.tip * IN)}</TipChord>`);
-  emit(`<Thickness>${fmt(nnum(fin, 'thickness', 0.003) * IN)}</Thickness>`);
-  emit(`<LERadius>${section ? fmt(nnum(fin, 'finLeRadius', 0) * IN) : '0'}</LERadius>`);
+  emit(`<Thickness>${fmt(num(fin, 'thickness', 0.003) * IN)}</Thickness>`);
+  emit(`<LERadius>${section ? fmt(num(fin, 'finLeRadius', 0) * IN) : '0'}</LERadius>`);
   emit(`<Location>${fmt(locIn)}</Location>`);
   emit(
     `<AirfoilSection>${section ?? (cs === 'airfoil' ? 'Subsonic NACA' : cs === 'rounded' ? 'Rounded' : 'Square')}</AirfoilSection>`,
   );
-  emit(`<FX1>${section ? fmt(nnum(fin, 'airfoilLeDiamond', 0) * IN) : '0'}</FX1>`);
-  emit(`<FX3>${fin['airfoilSection'] === 'hexagonal' ? fmt(nnum(fin, 'airfoilTeDiamond', 0) * IN) : '0'}</FX3>`);
+  emit(`<FX1>${section ? fmt(num(fin, 'airfoilLeDiamond', 0) * IN) : '0'}</FX1>`);
+  emit(`<FX3>${fin['airfoilSection'] === 'hexagonal' ? fmt(num(fin, 'airfoilTeDiamond', 0) * IN) : '0'}</FX3>`);
   emit('</Fin>');
 }
 
 function noseXml(w: Cdx1Writer, node: ComponentNode): void {
   const { emit } = w;
-  const shape = String(node['shape'] ?? 'ogive');
-  const param = nnum(node, 'shapeParameter', NaN);
+  const shape = nodeShape(node);
+  const param = num(node, 'shapeParameter', NaN);
   let rasShape: string;
   let powerLaw: number | null = null;
   if (shape === 'conical') rasShape = 'Conical';
@@ -129,11 +127,11 @@ function noseXml(w: Cdx1Writer, node: ComponentNode): void {
     throw new Error(
       `RASAero has no "${shape}" nose shape — use conical/ogive/ellipsoid/haack/power, or export as .ork.`,
     );
-  const len = nnum(node, 'length', 0.07);
+  const len = num(node, 'length', 0.07);
   emit('<NoseCone>');
   emit('<PartType>NoseCone</PartType>');
   emit(`<Length>${fmt(len * IN)}</Length>`);
-  emit(`<Diameter>${fmt(nnum(node, 'aftRadius', 0.012) * 2 * IN)}</Diameter>`);
+  emit(`<Diameter>${fmt(num(node, 'aftRadius', 0.012) * 2 * IN)}</Diameter>`);
   emit(`<Shape>${rasShape}</Shape>`);
   emit('<BluntRadius>0</BluntRadius>');
   emit(`<Location>${fmt(w.locM * IN)}</Location>`);
@@ -145,22 +143,22 @@ function noseXml(w: Cdx1Writer, node: ComponentNode): void {
 
 function tubeXml(w: Cdx1Writer, node: ComponentNode): void {
   const { emit } = w;
-  const len = nnum(node, 'length', 0.2);
+  const len = num(node, 'length', 0.2);
   emit('<BodyTube>');
   emit('<PartType>BodyTube</PartType>');
   emit(`<Length>${fmt(len * IN)}</Length>`);
-  emit(`<Diameter>${fmt(nnum(node, 'outerRadius', 0.012) * 2 * IN)}</Diameter>`);
+  emit(`<Diameter>${fmt(num(node, 'outerRadius', 0.012) * 2 * IN)}</Diameter>`);
   const lug = (node.children ?? []).find((c) => c.type === 'launchlug');
-  emit(`<LaunchLugDiameter>${fmt(lug ? nnum(lug, 'outerRadius', 0.0022) * 2 * IN : 0)}</LaunchLugDiameter>`);
-  emit(`<LaunchLugLength>${fmt(lug ? nnum(lug, 'length', 0.05) * IN : 0)}</LaunchLugLength>`);
+  emit(`<LaunchLugDiameter>${fmt(lug ? num(lug, 'outerRadius', 0.0022) * 2 * IN : 0)}</LaunchLugDiameter>`);
+  emit(`<LaunchLugLength>${fmt(lug ? num(lug, 'length', 0.05) * IN : 0)}</LaunchLugLength>`);
   // A rail button is RASAero's rail guide: its outer diameter and its total
   // standoff height (the .ork <height>, COMPONENT_DEFAULTS when the node
   // never carried one). These were hard-wired to 0, so a button's drag was
   // dropped from the export while a lug's was kept.
   const rail = (node.children ?? []).find((c) => c.type === 'railbutton');
   const rb = COMPONENT_DEFAULTS.railbutton;
-  emit(`<RailGuideDiameter>${fmt(rail ? nnum(rail, 'outerDiameter', rb.outerDiameter) * IN : 0)}</RailGuideDiameter>`);
-  emit(`<RailGuideHeight>${fmt(rail ? nnum(rail, 'height', rb.height) * IN : 0)}</RailGuideHeight>`);
+  emit(`<RailGuideDiameter>${fmt(rail ? num(rail, 'outerDiameter', rb.outerDiameter) * IN : 0)}</RailGuideDiameter>`);
+  emit(`<RailGuideHeight>${fmt(rail ? num(rail, 'height', rb.height) * IN : 0)}</RailGuideHeight>`);
   emit('<LaunchShoeArea>0</LaunchShoeArea>');
   emit(`<Location>${fmt(w.locM * IN)}</Location>`);
   emit('<Color>Black</Color>');
@@ -175,15 +173,15 @@ function tubeXml(w: Cdx1Writer, node: ComponentNode): void {
 
 function transitionXml(w: Cdx1Writer, node: ComponentNode): void {
   const { emit } = w;
-  if (String(node['shape'] ?? 'conical') !== 'conical') {
+  if (nodeShape(node) !== 'conical') {
     throw new Error('RASAero transitions must be conical — change the shape or export as .ork.');
   }
-  const len = nnum(node, 'length', 0.04);
+  const len = num(node, 'length', 0.04);
   emit('<Transition>');
   emit('<PartType>Transition</PartType>');
   emit(`<Length>${fmt(len * IN)}</Length>`);
-  emit(`<Diameter>${fmt(nnum(node, 'foreRadius', 0.012) * 2 * IN)}</Diameter>`);
-  emit(`<RearDiameter>${fmt(nnum(node, 'aftRadius', 0.009) * 2 * IN)}</RearDiameter>`);
+  emit(`<Diameter>${fmt(num(node, 'foreRadius', 0.012) * 2 * IN)}</Diameter>`);
+  emit(`<RearDiameter>${fmt(num(node, 'aftRadius', 0.009) * 2 * IN)}</RearDiameter>`);
   emit(`<Location>${fmt(w.locM * IN)}</Location>`);
   emit('<Color>Black</Color>');
   finXml(w, node); // RASAero transitions/boat tails carry fins too
@@ -197,7 +195,7 @@ export function writeSustainerChain(w: Cdx1Writer, sustainer: ComponentNode): vo
     if (node.type === 'nosecone') noseXml(w, node);
     else if (node.type === 'bodytube') tubeXml(w, node);
     else if (node.type === 'transition') transitionXml(w, node);
-    else if (node.type === 'podset' || node.type === 'parallelstage') {
+    else if (isAssembly(node.type)) {
       // Never drop an assembly silently, like the fin cases: a pod or a
       // strap-on booster is external aerodynamics RASAero's flat part list
       // cannot hold, and a file that quietly omits it describes a different

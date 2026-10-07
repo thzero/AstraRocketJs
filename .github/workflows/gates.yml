@@ -31,6 +31,27 @@ permissions:
   contents: read
 
 jobs:
+  # Lists the golden values a pull request moved, in the job summary, so a
+  # re-record is seen where it is reviewed. Informational: it never fails.
+  # Values only, so a header-only re-record reports nothing. See
+  # test/parity/golden-guard.mjs.
+  golden-report:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Golden values this pull request moved
+        working-directory: engine-java
+        run: node test/parity/golden-guard.mjs "${{ github.base_ref }}"
+
   parity:
     runs-on: ubuntu-latest
     # The Gradle daemon is disabled for CI inside parity.mjs / build-engine.mjs
@@ -39,8 +60,8 @@ jobs:
     # engine-java/gradle.properties (daemon=true) overrides it. Setting it here
     # was tried and the step still hung. See the note in those scripts.
     # A backstop, not a budget. This job still runs four TeaVM builds - parity
-    # builds -Pparity for JS and for WASM-GC, then the committed-engine check
-    # builds both targets again - plus a cold Gradle cache save. It no longer
+    # builds and vendors JS and WASM-GC, then the committed-engine check builds
+    # both targets again - plus a cold Gradle cache save. It no longer
     # runs the JVM reference twice (see the parity step below). The cap has to
     # clear all of that on a cold cache with room to spare; 25 did not, and
     # canceled a job that was working.
@@ -78,9 +99,11 @@ jobs:
       # dependencies. It exists only to name these entry points, so `npm run`
       # works here with nothing installed and CI says what the docs say.
       #
-      # parity.mjs is self-contained: it builds the parity engine variant
-      # (-Pparity) and the JVM reference itself, then requires bit-identical
-      # output modulo a small ULP tolerance on transcendentals.
+      # parity.mjs is self-contained: it builds and vendors the engine, runs
+      # the VENDORED .mjs and .wasm (the files the app loads) through their
+      # runParity() export, and requires bit-identical output against the JVM
+      # running the same scenarios, modulo a small ULP tolerance on
+      # transcendentals.
       #
       # Both targets in one step, which is now the script's default: the JVM
       # reference is the expensive half and does not depend on the TeaVM target.
@@ -107,9 +130,12 @@ jobs:
       # turning. parity.mjs used to load the targets into itself. It no longer
       # does; test/parity/run-target.mjs carries that in a process built to be
       # killed. Nothing in this file had to change for it.
+      # --expect-lines pins how MANY golden values are checked: without it,
+      # dropping emissions from ParityMain and re-recording shrinks the physics
+      # gate while it still reports "ok". Change it only with a reason.
       - name: Parity — JVM vs TeaVM-JS and WASM-GC
         timeout-minutes: 20
-        run: npm run parity
+        run: npm run parity -- --expect-lines 359
 
       # Were the COMMITTED binaries actually built from this source?
       #
@@ -153,6 +179,16 @@ jobs:
   # Needs no JDK — just node and the pinned OpenRocket source.
   reproducible:
     runs-on: ubuntu-latest
+    # 15 minutes, against the 360-minute default this job used to inherit. The cap
+    # is for a HANG, not for slowness: a Playwright locator waiting on an element
+    # that never appears, a kernel build deadlocking, a fetch with no timeout of
+    # its own. Those used to sit burning runner minutes for six hours with the PR
+    # showing "in progress".
+    #
+    # 15 and not 10 because `build-and-test` (npm ci plus `verify:ci`) runs close
+    # to 8 minutes. A cap sized just over the work is the mistake T9 records: the
+    # thing that eats the margin is runner load, which a shared runner has.
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
 
@@ -223,12 +259,23 @@ jobs:
   #   --expect-gates  the anchor SET must not silently shrink, which is the
   #                   other way this fails open (the denominator just gets
   #                   smaller and the scorecard still reads normally)
+  #   --expect-gate-hash  nor change identity at the same size: a sha256 over
+  #                   every gated point's series, Mach, anchor and tolerance, so
+  #                   widening a tolerance or swapping hard points for easy ones
+  #                   fails too. The scorecard prints the current hash.
   #
-  # Raise the floors when the model improves; that is the point of a ratchet.
+  # Each fixture also pins its own drag, CNa and CP (`_expect.aero`), so a
+  # fixture that stops modeling its rocket fails before it is scored.
+  #
+  # All three numbers (floors, gate count, gate hash) live in
+  # engine-java/validation/floors.json, read by --check-floors; nothing here
+  # repeats them. Raise the floors when the model improves; that is the point of
+  # a ratchet.
   # Needs no JDK and no build - it imports the committed vendored engine - so
   # the whole job is a few seconds.
   validate:
     runs-on: ubuntu-latest
+    timeout-minutes: 15 # see `reproducible` for why 15
     steps:
       - uses: actions/checkout@v7
 
@@ -238,16 +285,17 @@ jobs:
 
       - name: Aero scorecard, classic Extended Barrowman (flags off)
         working-directory: engine-java
-        run: node validation/score.mjs --expect-gates 135 --min 9
+        run: node validation/score.mjs --check-floors
 
       - name: Aero scorecard, opt-in supersonic path
         working-directory: engine-java
-        run: node validation/score.mjs --supersonic --expect-gates 135 --min 61
+        run: node validation/score.mjs --supersonic --check-floors
 
   # Not gated on parity: see the ordering note at the top of this file.
   build-and-test:
     needs: [reproducible, validate]
     runs-on: ubuntu-latest
+    timeout-minutes: 15 # see `reproducible` for why 15
     defaults:
       run:
         working-directory: web
@@ -283,13 +331,19 @@ jobs:
       #   lint          ESLint, warnings included.
       #   knip          Dead exports / unimported modules. Cheap, and it only
       #                 stays useful if something runs it.
-      #   vitest run    The unit suite.
+      #   vite build    The production build. Before the suite on purpose: it is
+      #                 ~20 s against the suite's ~5 min, so a broken build is
+      #                 reported early rather than after everything else passes.
+      #   vitest        The unit suite. `verify:ci` runs it with coverage and
+      #                 enforces the floors in vitest.config.ts; `verify` runs it
+      #                 without, because instrumentation is 65 s against 335 s and
+      #                 that belongs on a runner rather than in the inner loop.
       #
-      # The ONE difference from a local `npm run verify`: `-- --coverage` lands
-      # on the final `vitest run`, so here the suite also collects coverage and
-      # enforces the floor in vitest.config.ts. Locally the same is
-      # `npm run test:coverage`.
-      - run: npm run verify -- --coverage
+      # `verify:ci`, which is `gates` plus the suite WITH coverage. `verify` is the
+      # same `gates` plus the suite without it: ONE shared list, two endings, so the
+      # gate set still cannot drift between here and a developer's machine while the
+      # 270 s of coverage instrumentation stays off the command a human types.
+      - run: npm run verify:ci
 
       # Coverage used to be emitted and seen by nobody: `text-summary` scrolled
       # past in the log and `lcov` was written to a disk that was thrown away
@@ -329,10 +383,12 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
-      # `vite build` directly, not `npm run build`: that script is
-      # `typecheck && lint && vite build`, and verify above has just run both.
-      # Running them again cost ~40 s for no new information.
-      - run: npx vite build
+      # The production build is INSIDE `npm run verify` now, so there is no build
+      # step here: it used to be the only place `vite build` ran, which meant a
+      # change that typechecked and tested clean but broke the build was invisible
+      # to the push gate and to the local pre-push command. `verify` runs `vite
+      # build` directly rather than `npm run build`, because that script is
+      # `typecheck && lint && vite build` and verify has just run both.
 
   # NOTE: the Docusaurus site is NOT built here. It is gated in deploy.yml
   # on merge to master, where it is built into web/public/docs anyway. The
@@ -343,37 +399,16 @@ jobs:
   # app, and a PR touching only web/ paid a full `npm ci` + Docusaurus build for
   # a risk it could not introduce.
 
-  # The integration layer: schematic, motor picker, recovery, mobile layout, the
-  # aero tables. It was previously run only when someone remembered to, which is
-  # how a shipped dialog reached master with an unbounded render loop in it.
+  # The core end-to-end specs: the paths a broken build breaks first (the list is
+  # CORE_SPECS in web/playwright.config.ts). Every pull request and master push
+  # runs them. The full suite runs in e2e-full.yml, by hand.
   # Separate job so a Playwright failure is legible on its own and the browser
   # download does not slow the unit gate.
   e2e:
     # Not gated on parity either: the ordering note at the top of this file.
     needs: [reproducible]
     runs-on: ubuntu-latest
-    # Sharded because the suite is ~3.6 min of WALL CLOCK that no amount of
-    # caching touches — the browser download the cache below removes is ~90s of
-    # a ~4.4 min job, and the tests are the rest.
-    #
-    # Sharding rather than raising `workers`: playwright.config.ts pins
-    # `workers: 1` on purpose (16 workers against ONE dev server, each
-    # software-rendering WebGL and loading the 2.9 MB WASM engine, gave 45 then
-    # 19 spurious failures and was SLOWER — 4.4 min vs 3.6). Each shard is its
-    # own runner with its own dev server and its own single worker, so that
-    # reasoning still holds and the contention never happens.
-    #
-    # Three ways: 146 tests over 29 files (the desktop project runs every
-    # spec, the Pixel 7 project re-runs the three phone-layout ones), so ~50
-    # tests a shard. Each shard pays its own ~50s of npm ci + browser restore +
-    # dev-server start, so the returns flatten fast past this — four would buy
-    # ~20s more for another runner's worth of minutes.
-    strategy:
-      # One shard failing must not cancel the others, or the first red shard
-      # hides every other failure and you find them one push at a time.
-      fail-fast: false
-      matrix:
-        shard: [1, 2, 3]
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: web
@@ -389,9 +424,7 @@ jobs:
       - run: npm ci
 
       # Key the browser cache on the resolved Playwright version, not on the
-      # lockfile hash: the browser build only changes when Playwright does, so
-      # hashing the lockfile would throw away a good 130 MB download on every
-      # unrelated dependency bump.
+      # lockfile hash: the browser build only changes when Playwright does.
       - name: Resolve Playwright version
         id: pw
         run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
@@ -402,33 +435,24 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
 
-      # Chromium only: both projects in playwright.config.ts (desktop and the
-      # Pixel 7 emulation) are Chromium, and the config already starts the dev
-      # server and sets retries/reporter under CI.
-      #
-      # Split on the cache: the browser itself lives in ~/.cache/ms-playwright
-      # and restores, but `--with-deps` also apt-installs system libraries that
-      # do NOT, so a cache hit still needs `install-deps` on its own.
+      # Both projects in playwright.config.ts are Chromium. The browser restores
+      # from the cache, but the system libraries `--with-deps` apt-installs do
+      # not, so a cache hit still needs `install-deps`.
       - run: npx playwright install --with-deps chromium
         if: steps.playwright-cache.outputs.cache-hit != 'true'
 
       - run: npx playwright install-deps chromium
         if: steps.playwright-cache.outputs.cache-hit == 'true'
 
-      - run: npm run e2e -- --shard=${{ matrix.shard }}/${{ strategy.job-total }}
+      - run: npm run e2e:core
 
-      # The HTML report, with the trace of any retried spec in it. It is only
-      # written because playwright.config.ts adds the `html` reporter under CI
-      # beside `github`; with `github` alone this directory did not exist and
-      # the upload silently had nothing to upload. A spec that failed and then
-      # passed on its retry is a flake, and the report is the only place that
-      # says so: the job is green.
+      # The HTML report, with the trace of any retried spec in it. A spec that
+      # failed and then passed on its retry is a flake, and the report is the
+      # only place that says so: the job is green.
       - uses: actions/upload-artifact@v7
         if: failure()
         with:
-          # Artifact names must be unique across a matrix, or the shards
-          # collide and only one report survives.
-          name: playwright-report-shard-${{ matrix.shard }}
+          name: playwright-report-core
           path: web/playwright-report/
           retention-days: 7
 
@@ -459,9 +483,30 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: web/package-lock.json
+          # The website lock too: this job builds the docs (below), which runs
+          # Docusaurus out of website/.
+          cache-dependency-path: |
+            web/package-lock.json
+            website/package-lock.json
 
       - run: npm ci
+
+
+      - name: Install the docs site's dependencies
+        working-directory: website
+        run: npm ci
+
+      # The in-app Help dialog reads web/public/docs, which is gitignored. With
+      # it absent, help-dialog.spec.ts SKIPPED -- on every CI run there had ever
+      # been -- and the shard still reported green, so the Help dialog had no
+      # automated coverage at all. The spec now FAILS in CI when the docs are
+      # missing, so this step cannot be quietly dropped again.
+      #
+      # Paid once per shard, which is the cost of the docs being a build input
+      # rather than only a published artifact. Both locales, as the deploy
+      # builds them, because the dialog can be opened in either.
+      - name: Build the docs the Help dialog reads
+        run: npm run docs:build
 
       - name: Resolve Playwright version
         id: pw
@@ -482,3 +527,9 @@ jobs:
       - run: npm run e2e:update
 
       - run: npm run e2e:offline-data
+
+      # Help with the network off, which is the case the docs are built INTO the
+      # app for: a launch site with no signal. The script existed and no workflow
+      # ran it, so the one promise the precached docs make was unchecked while its
+      # sibling (offline DATA) was gated.
+      - run: npm run e2e:offline-help

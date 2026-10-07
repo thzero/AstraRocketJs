@@ -1,4 +1,4 @@
-import type { FlightResult, FlightSeries } from '../../engine/openRocketEngine';
+import type { FlightBranch, FlightResult, FlightSeries } from '../../engine/openRocketEngine';
 import type { Quantity } from '../../prefs/units';
 
 /**
@@ -135,6 +135,17 @@ const ALL: FlightColumn[] = [...KNOWN, ...KERNEL];
 const KNOWN_KEYS = new Set(ALL.map((c) => c.key));
 
 /** The series of one branch: the numbered one, or the top-level trajectory. */
+/**
+ * Every branch a result carries, as one list. `branches` is present only once a
+ * staged rocket separates, and then its [0] IS the sustainer, the same data the
+ * top-level events and series carry; a single flight is wrapped as one branch
+ * named `fallbackName`. So one or the other, never both.
+ */
+export function flightBranches(result: FlightResult, fallbackName = ''): FlightBranch[] {
+  if (result.branches?.length) return result.branches;
+  return [{ name: fallbackName, events: result.events ?? [], series: result.series }];
+}
+
 export function branchSeries(result: FlightResult, branchIndex: number): FlightSeries | undefined {
   return result.branches?.length ? result.branches[branchIndex]?.series : result.series;
 }
@@ -161,6 +172,25 @@ export function flightColumns(result: FlightResult, branchIndex = 0): FlightColu
 
 /** The columns a fresh export starts from: the friendly dozen plus the track. */
 export const DEFAULT_CSV_COLUMNS: readonly string[] = [...KNOWN.map((c) => c.key), ...TRACK_KEYS];
+
+/**
+ * The flight CSV's starting format: the default columns, comma separated, three
+ * decimals, every comment block on. The settings default and the exporter's
+ * fallback both start here. A fresh object each call, so a caller can edit the
+ * column list.
+ */
+export function defaultCsvFormat() {
+  return {
+    columns: [...DEFAULT_CSV_COLUMNS],
+    separator: ',',
+    decimals: 3,
+    exponential: false,
+    simDescription: true,
+    fieldDescriptions: true,
+    flightEvents: true,
+    commentChar: '#',
+  };
+}
 
 /** Keep only the keys this result can actually fill, in column order. */
 export function usableColumns(all: readonly FlightColumn[], wanted: readonly string[]): FlightColumn[] {

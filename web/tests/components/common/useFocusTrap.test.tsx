@@ -33,7 +33,60 @@ function Panel({ active, onEscape }: { active: boolean; onEscape?: () => void })
   );
 }
 
+function FramePanel() {
+  const ref = useFocusTrap<HTMLDivElement>(true);
+  return (
+    <div ref={ref} role="dialog">
+      <button>close</button>
+      <iframe title="page" />
+    </div>
+  );
+}
+
 describe('useFocusTrap', () => {
+  it('counts an iframe as a stop, so Tab can reach the page inside it', () => {
+    render(<FramePanel />);
+    const frame = screen.getByTitle('page');
+    frame.focus();
+    // The frame is the last stop, so Tab from it wraps to the first control.
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Tab' });
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'close' }));
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Tab', shiftKey: true });
+    expect(document.activeElement).toBe(frame);
+  });
+
+  /**
+   * Tab inside an iframe is the frame document's keydown, which the panel never
+   * hears, so the browser can move focus straight past the panel's edge.
+   */
+  it('brings focus back when it lands outside the panel', () => {
+    render(
+      <>
+        <Panel active />
+        <button>behind</button>
+      </>,
+    );
+    screen.getByRole('button', { name: 'behind' }).focus();
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'first' }));
+  });
+
+  it('leaves focus alone in a surface opened on top of it', () => {
+    function Nested() {
+      const inner = useFocusTrap<HTMLDivElement>(true);
+      return (
+        <>
+          <Panel active />
+          <div ref={inner} role="alertdialog">
+            <button>inner</button>
+          </div>
+        </>
+      );
+    }
+    render(<Nested />);
+    const inner = screen.getByRole('button', { name: 'inner' });
+    inner.focus();
+    expect(document.activeElement).toBe(inner);
+  });
   it('keeps the boolean signature: focuses the first control and wraps Tab', () => {
     render(<Panel active />);
     const first = screen.getByRole('button', { name: 'first' });

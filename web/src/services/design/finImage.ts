@@ -50,12 +50,20 @@ export class FinImageError extends Error {
 
 type Facing = 'up' | 'down' | 'left' | 'right';
 
-/** Luma, then threshold: `0.299 R + 0.587 G + 0.114 B`, dark is fin. */
+/**
+ * Luma, then threshold: `0.299 R + 0.587 G + 0.114 B`, dark is fin.
+ *
+ * A channel past the end of the array reads as 255, not 0. `?? 0` is pure black,
+ * which is FIN: a `data` array shorter than `width * height * 4` - a truncated
+ * decode, or a fixture written by hand - invented fin pixels at the end of the
+ * image and the tracer walked an outline through them. Reading a byte that is not
+ * there as background invents nothing.
+ */
 function darkMask(img: Pixels): Uint8Array {
   const mask = new Uint8Array(img.width * img.height);
   for (let i = 0; i < mask.length; i++) {
     const p = i * 4;
-    const luma = 0.299 * (img.data[p] ?? 0) + 0.587 * (img.data[p + 1] ?? 0) + 0.114 * (img.data[p + 2] ?? 0);
+    const luma = 0.299 * (img.data[p] ?? 255) + 0.587 * (img.data[p + 1] ?? 255) + 0.114 * (img.data[p + 2] ?? 255);
     mask[i] = luma > LUMA_CUT ? 0 : 1;
   }
   return mask;
@@ -167,14 +175,79 @@ function simplify(input: FinPoint[]): FinPoint[] {
 }
 
 /**
+ * The longest edge this traces at, in pixels.
+ *
+ * The documented workflow is tracing a fin off a PHOTOGRAPH, and a phone camera
+ * hands over something like 4000 x 3000. `traceOutline` returns one point per
+ * boundary step, so that is a perimeter of roughly fourteen thousand points, and
+ * `simplify` is a triply nested scan over whatever it is given, on the main
+ * thread, with no progress and nothing to cancel. The existing tests use
+ * single-digit ASCII fixtures, so none of this was ever exercised.
+ *
+ * 1200 px is far finer than any fin outline carries: `FLATNESS` is 0.8 mm and one
+ * pixel is one millimeter, so a fin traced at this size still resolves detail
+ * below the tolerance the simplifier works to.
+ */
+const MAX_TRACE_EDGE = 1200;
+
+/**
+ * The image sampled down to {@link MAX_TRACE_EDGE} on its longest edge, with the
+ * per-axis scale back to the original.
+ *
+ * Nearest-neighbor and not an average on purpose: the very next thing that
+ * happens is a luma THRESHOLD, and averaging across the fin edge invents
+ * mid-gray pixels whose side of the cut depends on the factor. Taking one real
+ * pixel per block keeps every sampled pixel a pixel the image actually had.
+ *
+ * The mapping is ENDPOINT-INCLUSIVE - row `height - 1` samples source row
+ * `source.height - 1`, not `(height - 1) * factor` - because the tracer starts
+ * from the leftmost dark pixel on the BOTTOM ROW, and a plain stride misses that
+ * row whenever the height is not a multiple of the stride. A 300-pixel-tall image
+ * reduced by 4 would have sampled rows 0, 4, ... 296, so a fin touching only rows
+ * 297 to 299 would have been reported as not touching the bottom edge: a valid
+ * image refused with the message for an invalid one.
+ *
+ * `sx` and `sy` scale the traced points back, because one pixel is one millimeter
+ * is upstream's fixed scale. A fin traced at a quarter size has to come back at
+ * full size, or Scale fin - the other half of this workflow - would be working
+ * from a different number than it was before.
+ */
+function reduced(img: Pixels): { img: Pixels; sx: number; sy: number } {
+  const factor = Math.ceil(Math.max(img.width, img.height) / MAX_TRACE_EDGE);
+  if (factor <= 1) return { img, sx: 1, sy: 1 };
+  const width = Math.max(2, Math.floor(img.width / factor));
+  const height = Math.max(2, Math.floor(img.height / factor));
+  // Both endpoints included, so the first and last row and column of the reduced
+  // image are the first and last of the source.
+  const sx = (img.width - 1) / (width - 1);
+  const sy = (img.height - 1) / (height - 1);
+  const data = new Uint8ClampedArray(width * height * 4);
+  for (let y = 0; y < height; y++) {
+    const srcY = Math.round(y * sy);
+    for (let x = 0; x < width; x++) {
+      const src = (srcY * img.width + Math.round(x * sx)) * 4;
+      const dst = (y * width + x) * 4;
+      data[dst] = img.data[src] ?? 255;
+      data[dst + 1] = img.data[src + 1] ?? 255;
+      data[dst + 2] = img.data[src + 2] ?? 255;
+      data[dst + 3] = img.data[src + 3] ?? 255;
+    }
+  }
+  return { img: { width, height, data }, sx, sy };
+}
+
+/**
  * The fin outline traced out of an image, in meters, root on `y = 0`.
  *
  * Throws {@link FinImageError} when the image cannot be read as a fin: nothing
  * dark on the bottom edge, so there is no root to start from, or a trace that
  * comes back with fewer than three points.
  */
-export function finPointsFromImage(img: Pixels): FinPoint[] {
-  if (!(img.width > 0 && img.height > 0)) throw new FinImageError('notTouchingBottom');
+export function finPointsFromImage(source: Pixels): FinPoint[] {
+  if (!(source.width > 0 && source.height > 0)) throw new FinImageError('notTouchingBottom');
+  // Traced at a bounded resolution and scaled back up, so a photograph does not
+  // put a cubic scan over fourteen thousand points on the main thread.
+  const { img, sx, sy } = reduced(source);
   const mask = darkMask(img);
   // The leftmost dark pixel on the bottom row: the fin's leading root corner,
   // and the origin every traced point is measured from.
@@ -189,7 +262,7 @@ export function finPointsFromImage(img: Pixels): FinPoint[] {
   if (startX < 0) throw new FinImageError('notTouchingBottom');
   const traced = simplify(traceOutline(img, mask, startX));
   if (traced.length < 3) throw new FinImageError('noOutline');
-  return traced;
+  return sx === 1 && sy === 1 ? traced : traced.map(([x, y]) => [x * sx, y * sy] as FinPoint);
 }
 
 /**

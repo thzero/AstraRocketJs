@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { OpenRocketDesign, RocketTree, StaticInfo } from '../../../src/engine/openRocketEngine';
-import { computeStaticInfo, flightKey } from '../../../src/services/design/buildRocket';
+import { computeStaticInfo } from '../../../src/services/design/buildRocket';
+import { flightKey } from '../../../src/services/flight/simulations';
 import { newFlightConfig } from '../../../src/services/flight/flightConfigs';
 
 const tree = { components: [] } as unknown as RocketTree;
@@ -44,6 +45,51 @@ describe('computeStaticInfo', () => {
       throw new Error('bad geometry');
     });
     expect(res).toEqual({ error: 'bad geometry' });
+  });
+
+  /**
+   * A build failure the design can explain itself.
+   *
+   * A tube fin set with no length divides by its own chord for the aspect ratio
+   * (`TubeFinSetCalc`), and the kernel comes back with "The number NaN cannot be
+   * converted to a BigInt", which names no part. The app already knows which
+   * dimension is zero, and the Run button already says so; the banner should not
+   * be the one place that shows the user a BigInt.
+   */
+  it('names the zero dimensions when the build fails on a design that has some', () => {
+    const zeroTubeFin = {
+      components: [
+        {
+          id: 's1',
+          type: 'stage',
+          children: [
+            {
+              id: 'tube',
+              type: 'bodytube',
+              length: 0.3,
+              outerRadius: 0.013,
+              thickness: 0.0005,
+              children: [
+                { id: 'tf', type: 'tubefinset', name: 'Tube fins', finCount: 6, length: 0, thickness: 0.0005 },
+              ],
+            },
+          ],
+        },
+      ],
+    } as unknown as RocketTree;
+    const res = computeStaticInfo(zeroTubeFin, config, () => {
+      throw new Error('The number NaN cannot be converted to a BigInt');
+    });
+    expect('error' in res && res.bad).toEqual([{ id: 'tf', type: 'tubefinset', name: 'Tube fins', field: 'length' }]);
+  });
+
+  it('says nothing extra when the failure is not about a dimension', () => {
+    // An empty tree has no zero dimensions, so the engine's own message stands
+    // rather than being replaced by a reassuring list of nothing.
+    const res = computeStaticInfo(tree, config, () => {
+      throw new Error('engine not loaded');
+    });
+    expect(res).toEqual({ error: 'engine not loaded' });
   });
 
   it('returns an error when staticInfo() itself throws', () => {

@@ -1,13 +1,14 @@
 import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
 import { asStageNodes } from '../design/orkTree';
 import { parentRadiusOf } from '../../tree/finPlanform';
-import { discSolid, makeWatertight, solidForNode } from './solidMesh';
+import { findNode } from '../../tree/treeWalk';
+import { discSolidForNode, makeWatertight, solidForNode } from './solidMesh';
 import { resolveDisc } from '../design/discGeometry';
 import { DISC_TYPES } from '../files/componentFormats';
 import { printableParts } from './printableParts';
 import { colorForType } from '../design/partColors';
 import { buildThreeMf, THREE_MF_MIME, type ThreeMfPart } from './threeMf';
-import { saveBlob, safeFilename } from '../files/saveFile';
+import { exportFilename, saveBlob, safeFilename } from '../files/saveFile';
 
 /**
  * Whole-rocket 3MF export.
@@ -56,34 +57,26 @@ export interface PrintExportResult {
 }
 
 /**
- * The solid for one node, by the same two paths `exportComponent` uses: a
- * disc/ring needs its parent tube's bore resolved, everything else is
- * self-contained.
+ * The solid for one node. A disc, ring or tube part needs its parent tube's
+ * bore resolved to size it. Anything else is sized from the body radius it is
+ * mounted on: a tube fin set takes the kernel auto-radius from it, and any fin
+ * clamps a through-the-wall tab to the depth the kernel allows.
  */
-function solidFor(tree: RocketTree, node: ComponentNode): ReturnType<typeof solidForNode> {
+export function solidFor(tree: RocketTree, node: ComponentNode): ReturnType<typeof solidForNode> {
   const id = node.id as string;
   if (DISC_TYPES.has(node.type)) {
     const d = resolveDisc(tree, id);
-    return d ? discSolid(d.outerR, d.innerR, d.length) : null;
+    return d ? discSolidForNode(d.outerR, d.innerR, d.length) : null;
   }
   return solidForNode(node, parentRadiusOf(tree, id));
 }
 
-/** Find a node by id without re-walking from the caller. */
-function nodeById(tree: RocketTree, id: string): ComponentNode | undefined {
-  let hit: ComponentNode | undefined;
-  const walk = (nodes: ComponentNode[] | undefined): void => {
-    for (const n of nodes ?? []) {
-      if (hit) return;
-      if (n.id === id) {
-        hit = n;
-        return;
-      }
-      walk(n.children);
-    }
-  };
-  for (const stage of asStageNodes(tree)) walk(stage.children);
-  return hit;
+/** A part by id, searched below the stages (a stage itself is never a part). */
+function nodeById(tree: RocketTree, id: string): ComponentNode | null {
+  return findNode(
+    asStageNodes(tree).flatMap((stage) => stage.children ?? []),
+    id,
+  );
 }
 
 /**
@@ -122,13 +115,12 @@ export async function downloadRocket3mf(
 
   if (built.length === 0) throw new Error('No printable parts were selected.');
 
-  const rocket = safeFilename(name, 'rocket');
   if (!separateFiles) {
     const bytes = buildThreeMf(
       built.map((b) => b.part),
       { placeOnPlate },
     );
-    await saveBlob(new Blob([bytes as BlobPart], { type: THREE_MF_MIME }), `${rocket}.3mf`);
+    await saveBlob(new Blob([bytes as BlobPart], { type: THREE_MF_MIME }), exportFilename([name, 'print'], '3mf'));
     return { written: built.length, skipped };
   }
 
@@ -148,7 +140,7 @@ export async function downloadRocket3mf(
   }
   await saveBlob(
     new Blob([zipSync(files, { level: 6 }) as BlobPart], { type: 'application/zip' }),
-    `${rocket}-3mf.zip`,
+    exportFilename([name, '3mf'], 'zip'),
   );
   return { written: built.length, skipped };
 }

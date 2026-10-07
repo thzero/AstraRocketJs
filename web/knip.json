@@ -1,9 +1,18 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
-  "entry": ["src/engine/simWorker.ts", "scripts/**/*.mjs"],
-  "project": ["src/**/*.{ts,tsx}", "tests/**/*.{ts,tsx}", "scripts/**/*.mjs", "src/**/*.css", "e2e/**/*.ts"],
+  "entry": ["index.html", "src/engine/simWorker.ts", "scripts/**/*.mjs"],
+  "project": [
+    "src/**/*.{ts,tsx}",
+    "tests/**/*.{ts,tsx}",
+    "scripts/**/*.mjs",
+    "src/**/*.css",
+    "e2e/**/*.ts",
+    "*.{ts,js,mjs}"
+  ],
+  "includeEntryExports": true,
   "ignoreExportsUsedInFile": {
     "interface": true,
     "type": true
-  }
+  },
+  "ignoreBinaries": ["java", "javac"]
 }

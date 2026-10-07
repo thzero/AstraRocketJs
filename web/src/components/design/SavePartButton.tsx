@@ -2,8 +2,11 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ComponentNode } from '../../engine/openRocketEngine';
 import type { PickerType } from '../../services/parts/componentDb';
-import { DEFAULT_CUSTOM_MFR, saveCustomPart } from '../../services/parts/customParts';
+import { DEFAULT_CUSTOM_MFR, saveCustomPart, type PartMeta } from '../../services/parts/customParts';
+import { PartMetaFields } from './PartMetaFields';
 import { Dialog } from '../common/Dialog';
+import { errorMessage } from '../../services/app/errorMessage';
+import { DialogButton } from '../common/DialogButton';
 
 /**
  * Saves the selected component to the user's own parts library, so it can be
@@ -42,6 +45,11 @@ function SavePartDialog({ node, type, onClose }: { node: ComponentNode; type: Pi
   );
   const [mfr, setMfr] = useState(t('picker.saveDefaultMfr', { defaultValue: DEFAULT_CUSTOM_MFR }));
   const [desc, setDesc] = useState('');
+  const onMeta = (patch: Partial<PartMeta>) => {
+    if (patch.partNo !== undefined) setPartNo(patch.partNo);
+    if (patch.mfr !== undefined) setMfr(patch.mfr);
+    if (patch.desc !== undefined) setDesc(patch.desc);
+  };
   const [err, setErr] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -55,53 +63,19 @@ function SavePartDialog({ node, type, onClose }: { node: ComponentNode; type: Pi
     } catch (e) {
       // A refused write, or a node the picker could not list. Either way the
       // dialog stays open: closing it would say the part was saved.
-      setErr(e instanceof Error ? e.message : String(e));
+      setErr(errorMessage(e));
       setSaving(false);
     }
   };
 
-  const field =
-    'mt-1 w-full rounded-lg bg-slate-800 px-3 py-2 text-sm text-slate-100 ring-1 ring-white/10 focus:ring-sky-500';
-  const labelClass = 'mt-4 block text-xs font-medium text-slate-400';
-
   return (
     <Dialog id="savePart" title={t('picker.saveTitle')} onClose={onClose} layout="pad" expandable={false}>
-      <label htmlFor="save-part-no" className={labelClass}>
-        {t('picker.savePartNo')}
-      </label>
-      <input
-        id="save-part-no"
+      <PartMetaFields
+        idPrefix="save"
         autoFocus
-        value={partNo}
-        onChange={(e) => setPartNo(e.target.value)}
-        onKeyDown={(e) => e.key === 'Enter' && void submit()}
-        maxLength={80}
-        className={field}
-      />
-
-      <label htmlFor="save-part-mfr" className={labelClass}>
-        {t('picker.saveMfr')}
-      </label>
-      <input
-        id="save-part-mfr"
-        value={mfr}
-        onChange={(e) => setMfr(e.target.value)}
-        onKeyDown={(e) => e.key === 'Enter' && void submit()}
-        maxLength={80}
-        className={field}
-      />
-
-      <label htmlFor="save-part-desc" className={labelClass}>
-        {t('picker.saveDesc')}
-      </label>
-      <input
-        id="save-part-desc"
-        value={desc}
-        onChange={(e) => setDesc(e.target.value)}
-        onKeyDown={(e) => e.key === 'Enter' && void submit()}
-        maxLength={200}
-        placeholder={t('picker.saveDescHint')}
-        className={field}
+        meta={{ partNo, mfr, desc }}
+        onChange={onMeta}
+        onEnter={() => void submit()}
       />
 
       <p className="mt-4 text-xs leading-snug text-slate-500">{t('picker.saveHint')}</p>
@@ -114,19 +88,12 @@ function SavePartDialog({ node, type, onClose }: { node: ComponentNode; type: Pi
       {err && <p className="mt-2 text-xs text-red-400">{err}</p>}
 
       <div className="mt-6 flex justify-end gap-2">
-        <button
-          onClick={onClose}
-          className="rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
-        >
+        <DialogButton onClick={onClose} variant="secondary">
           {t('common.cancel')}
-        </button>
-        <button
-          onClick={() => void submit()}
-          disabled={!partNo.trim() || saving}
-          className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-500 disabled:opacity-50"
-        >
+        </DialogButton>
+        <DialogButton onClick={() => void submit()} disabled={!partNo.trim() || saving} variant="primary">
           {t('common.save')}
-        </button>
+        </DialogButton>
       </div>
     </Dialog>
   );

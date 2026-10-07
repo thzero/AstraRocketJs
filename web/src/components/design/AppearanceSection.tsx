@@ -1,8 +1,9 @@
-import { useMemo } from 'react';
+import { useId, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ComponentNode } from '../../engine/openRocketEngine';
 import { colorForType, mergePalette } from '../../services/design/partColors';
 import { useSettings } from '../../state/SettingsProvider';
+import { PropSection } from './PropSection';
 
 /**
  * How the part is DRAWN, as against what it is.
@@ -35,14 +36,19 @@ export function AppearanceSection({
   const { t } = useTranslation();
   const { settings } = useSettings();
   const palette = useMemo(() => mergePalette(settings.partColors), [settings.partColors]);
+  const colorId = useId();
 
   return (
-    <div className="space-y-3 border-t border-white/5 pt-3">
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t('prop.appearance')}</h3>
-      <label className="flex items-center justify-between gap-3">
-        <span className="text-xs text-slate-400">{t('prop.color')}</span>
+    <PropSection title={t('prop.appearance')}>
+      {/* A row, not one big <label>: the reset button is a second control, and a
+          label may only bind to one. */}
+      <div className="flex items-center justify-between gap-3">
+        <label htmlFor={colorId} className="text-xs text-slate-400">
+          {t('prop.color')}
+        </label>
         <span className="flex items-center gap-2">
           <input
+            id={colorId}
             type="color"
             // The swatch always shows what is DRAWN, so with no color of its
             // own it shows the one this part type gets from the palette. That
@@ -57,13 +63,14 @@ export function AppearanceSection({
             <button
               onClick={() => onCommitChange({ color: undefined })}
               title={t('prop.resetColor')}
+              aria-label={t('prop.resetColor')}
               className="rounded-md bg-slate-800 px-2 py-1 text-xs text-slate-400 ring-1 ring-white/10 hover:bg-slate-700"
             >
               ↺
             </button>
           )}
         </span>
-      </label>
-    </div>
+      </div>
+    </PropSection>
   );
 }

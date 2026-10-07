@@ -6,7 +6,11 @@ import {
   shapeIsClippable,
   shapeRadius,
   outerProfile,
+  nodeShape,
+  stationRadius,
 } from '../../src/tree/shapeProfile';
+import { KERNEL_SHAPES } from '../../src/tree/kernelDefaults';
+import type { ComponentNode } from '../../src/engine/openRocketEngine';
 
 describe('shape parameter metadata', () => {
   // Transition.Shape's own defaultParameter() overrides: OGIVE 1.0 ("Tangent
@@ -227,5 +231,43 @@ describe('calculateClip (via the clipped profile)', () => {
     expect(pts[0]![1]).toBeCloseTo(0.0495, 12);
     expect(pts[pts.length - 1]![1]).toBeCloseTo(0.05, 12);
     expect(pts.every(([, r]) => Number.isFinite(r))).toBe(true);
+  });
+});
+
+/**
+ * A nose cone or transition with no `shape` key is the shape the kernel builds:
+ * ComponentFactory reads `str(node, "shape", "ogive")` for a nose cone and
+ * `"conical"` for a transition. `stationRadius` defaulted both to conical, so an
+ * auto fin tab on a keyless nose cone was sized against a cone the kernel does
+ * not fly.
+ */
+describe('a node with no shape key', () => {
+  const nose = (shape?: string) =>
+    ({
+      type: 'nosecone',
+      id: 'n',
+      length: 0.1,
+      aftRadius: 0.02,
+      ...(shape ? { shape } : {}),
+    }) as unknown as ComponentNode;
+  const transition = (shape?: string) =>
+    ({
+      type: 'transition',
+      id: 't',
+      length: 0.05,
+      foreRadius: 0.02,
+      aftRadius: 0.03,
+      ...(shape ? { shape } : {}),
+    }) as unknown as ComponentNode;
+
+  it('is the kernel shape for its type', () => {
+    expect(nodeShape(nose())).toBe(KERNEL_SHAPES.nosecone);
+    expect(nodeShape(transition())).toBe(KERNEL_SHAPES.transition);
+    expect(nodeShape(nose('haack'))).toBe('haack');
+  });
+
+  it('gives a keyless nose cone the radius of an ogive at a station', () => {
+    expect(stationRadius(nose(), 0.05)).toBeCloseTo(stationRadius(nose('ogive'), 0.05), 12);
+    expect(stationRadius(nose(), 0.05)).not.toBeCloseTo(stationRadius(nose('conical'), 0.05), 6);
   });
 });

@@ -2,9 +2,11 @@ import { useTranslation } from 'react-i18next';
 import type { ComponentNode, ComponentPosition } from '../../engine/openRocketEngine';
 import { UnitChip } from '../common/UnitChip';
 import { useUnits } from '../../prefs/useUnits';
+import { onSi } from '../../prefs/entryValue';
 import { unitScope } from '../../prefs/units';
 import { PANEL_SCOPE_KEYS } from '../../services/design/componentFields';
 import { FieldRow, NumberField, sectionFields } from './DimensionFields';
+import { PropSection } from './PropSection';
 
 /**
  * The property panel's placement section: WHERE a nested part sits, as
@@ -45,8 +47,7 @@ export function PlacementSection({
   const rotations = sectionFields(node, 'placement');
 
   return (
-    <div className="space-y-3 border-t border-white/5 pt-3">
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t('prop.placement')}</h3>
+    <PropSection title={t('prop.placement')}>
       <label className="flex items-center justify-between gap-3">
         <span className="text-xs text-slate-400">{t('prop.positionFrom')}</span>
         <select
@@ -71,12 +72,12 @@ export function PlacementSection({
         // A negative offset is legal (a part sitting proud of its parent);
         // the bound is in the field's unit so it doesn't shrink in inches.
         min={-offsetUnit.toUi(100)}
-        onChange={(v) => onChange({ position: { ...pos, offset: offsetUnit.fromUi(v) } })}
+        onChange={onSi(offsetUnit, (si) => si !== null && onChange({ position: { ...pos, offset: si } }))}
         onCommit={onCommit}
       />
       {rotations.map((f) => (
         <FieldRow key={f.key} node={node} field={f} onChange={onChange} onCommit={onCommit} />
       ))}
-    </div>
+    </PropSection>
   );
 }

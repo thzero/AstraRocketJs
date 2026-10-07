@@ -113,12 +113,13 @@ test('the location editor carries a map under its fields', async ({ page }) => {
   // selecting the location on the left IS opening it.
   const editor = page.getByRole('dialog', { name: 'Manage saved locations' });
   await editor.getByRole('button', { name: /Home field/ }).click();
-  await expect(editor.getByText('39.0500° N, 104.8000° W')).toBeVisible();
+  // Exact: the list row beside the map prints the same coordinate, then " · 0 m".
+  await expect(editor.getByText('39.0500° N, 104.8000° W', { exact: true })).toBeVisible();
 
   // Typing a coordinate moves the pin, so the map answers the draft rather
   // than the location as saved.
   await editor.getByLabel('Latitude', { exact: true }).fill('51.5');
-  await expect(editor.getByText('51.5000° N, 104.8000° W')).toBeVisible();
+  await expect(editor.getByText('51.5000° N, 104.8000° W', { exact: true })).toBeVisible();
 
   // And a click writes both fields back, which is how a field with no
   // published coordinates gets entered at all.

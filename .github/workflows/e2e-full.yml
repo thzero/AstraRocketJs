@@ -1,0 +1,79 @@
+name: E2E (full)
+
+# The whole Playwright suite, run by hand from the Actions tab. Pull requests and master
+# pushes run only the core specs (the `e2e` job in gates.yml); this covers
+# the rest: Help, the aero tables, maps, library, exports, motor import and
+# the other feature specs. Run it before a release or after a change to one of
+# those features.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-full-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      # One shard failing must not cancel the other, or the first red shard
+      # hides the rest of the failures.
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          # The website lock too: the Help spec needs the docs built.
+          cache-dependency-path: |
+            web/package-lock.json
+            website/package-lock.json
+
+      - run: npm ci
+
+      - name: Install the docs site's dependencies
+        working-directory: website
+        run: npm ci
+
+      # The in-app Help dialog reads web/public/docs, which is gitignored.
+      # help-dialog.spec.ts fails in CI when the docs are missing, so this step
+      # cannot be dropped without the run going red.
+      - name: Build the docs the Help dialog reads
+        run: npm run docs:build
+
+      - name: Resolve Playwright version
+        id: pw
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v6
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
+
+      - run: npx playwright install --with-deps chromium
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+
+      - run: npx playwright install-deps chromium
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+
+      - run: npm run e2e -- --shard=${{ matrix.shard }}/${{ strategy.job-total }}
+
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: playwright-report-shard-${{ matrix.shard }}
+          path: web/playwright-report/
+          retention-days: 7

@@ -1,3 +1,5 @@
+import { nsKey } from '../../services/storage/storageKeys';
+import { readLocalJson, writeLocalJson } from '../../services/storage/localPref';
 /**
  * Dialog widths, and the user's choice to expand one.
  *
@@ -83,7 +85,7 @@ export const layerClass: Record<DialogLayer, string> = {
 };
 
 /** Where the expanded-dialog preferences live. Namespaced like the rest. */
-const KEY = 'astrarrocketjs:dialogExpanded';
+const KEY = nsKey('dialogExpanded');
 
 /**
  * Whether the user has expanded this dialog before.
@@ -94,29 +96,18 @@ const KEY = 'astrarrocketjs:dialogExpanded';
  * filter. Reads and writes are guarded: localStorage throws in a private window
  * with site data blocked, and a dialog must still open.
  */
+const isFlagMap = (v: unknown): v is Record<string, boolean> => !!v && typeof v === 'object' && !Array.isArray(v);
+
 export function readExpanded(id: string): boolean {
-  try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return false;
-    const map: unknown = JSON.parse(raw);
-    return !!map && typeof map === 'object' && (map as Record<string, unknown>)[id] === true;
-  } catch {
-    return false;
-  }
+  return readLocalJson(KEY, isFlagMap, {})[id] === true;
 }
 
 export function writeExpanded(id: string, expanded: boolean): void {
-  try {
-    const raw = localStorage.getItem(KEY);
-    const parsed: unknown = raw ? JSON.parse(raw) : {};
-    const map: Record<string, boolean> =
-      parsed && typeof parsed === 'object' ? (parsed as Record<string, boolean>) : {};
-    // Only the expanded ones are stored, so the key does not grow a `false` for
-    // every dialog the user ever opened and collapsed again.
-    if (expanded) map[id] = true;
-    else delete map[id];
-    localStorage.setItem(KEY, JSON.stringify(map));
-  } catch {
-    // A preference that cannot be saved is not a reason to refuse the resize.
-  }
+  const map = { ...readLocalJson(KEY, isFlagMap, {}) };
+  // Only the expanded ones are stored, so the key does not grow a `false` for
+  // every dialog the user ever opened and collapsed again. A preference that
+  // cannot be saved is not a reason to refuse the resize, so a refusal is ignored.
+  if (expanded) map[id] = true;
+  else delete map[id];
+  writeLocalJson(KEY, map);
 }

@@ -1,3 +1,4 @@
+import { nsKey } from '../../../src/services/storage/storageKeys';
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from 'vitest';
 import { fireEvent, screen, within } from '@testing-library/react';
@@ -300,6 +301,29 @@ describe('flight-path export dialog', () => {
     expect(mission().value).toBe('');
   });
 
+  it('answers Escape only for the surface on top, and closes once', () => {
+    let closes = 0;
+    renderWithProviders(
+      <ExportDialog
+        onClose={() => (closes += 1)}
+        meta={{ simName: 'Sim', rocketName: 'R', motorName: 'C6' }}
+        launch={launch}
+        result={flight([
+          { name: 'Sustainer', events, series },
+          { name: 'Booster', events, series },
+        ])}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Stage colors…' }));
+    fireEvent.keyDown(window, { key: 'Escape' });
+    // The stage colors close; the export dialog under them stays.
+    expect(screen.queryByRole('dialog', { name: 'Stage colors' })).toBeNull();
+    expect(closes).toBe(0);
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(closes).toBe(1);
+  });
+
   it('gives every stage a swatch per role, and only commits them on OK', () => {
     show(
       flight([
@@ -369,7 +393,7 @@ describe('flight-path export dialog', () => {
   describe('persistence', () => {
     const altUnit = () => screen.getByLabelText('Altitude') as HTMLSelectElement;
     const distUnit = () => screen.getByLabelText('Distance') as HTMLSelectElement;
-    const stored = () => localStorage.getItem('astrarrocketjs:settings:v1');
+    const stored = () => localStorage.getItem(nsKey('settings:v1'));
     /** The app's Settings > Units distance preference, changed outside the dialog. */
     const setAppDistance = (unit: string) => {
       const s = readSettings();

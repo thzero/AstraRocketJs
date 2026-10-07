@@ -1,8 +1,8 @@
 {
   "name": "ARCAS Short (NASA TN D-4013/D-4014 half-scale tunnel model, Config 1)",
-  "_expect": { "length": 1.0401, "refDiameter": 0.0571 },
+  "_expect": {"length":1.0401,"refDiameter":0.0571,"aero":{"classic.cd@0.5":0.3475356,"classic.cna@0.5":12.32982,"classic.cp@0.5":0.7987938,"classic.cd@2":0.4792313,"classic.cna@2":6.163344,"classic.cp@2":0.6761852,"supersonic.cd@0.5":0.3454474,"supersonic.cna@0.5":12.32982,"supersonic.cp@0.5":0.8009598,"supersonic.cd@2":0.4168411,"supersonic.cna@2":10.86307,"supersonic.cp@2":0.7852174}},
   "_notes": [
-    "Geometry from docs/research/validation-anchors-2026-08-03.md section 1.2. d = 2.250 in = 0.05715 m.",
+    "Geometry of the ARCAS tunnel model in NASA TN D-4013 and TN D-4014, the reports its anchors are read from (see the series sources in anchors.json). d = 2.250 in = 0.05715 m.",
     "Fins physically sit over the boattail station; modeled flush with the body tube aft end (the RASAero equal-volume convention region). Kernel cannot place fins on a transition.",
     "Tip chord: the research doc gives two values (1.568 in 'tip-region chord' vs 2.09 in per the D-4013 figure); this fixture uses 2.09 in = 0.93 d, matching the drawn planform.",
     "Boattail modeled from its dimensioned values (length 1.81 in, base dia 1.470 in); the nominal '15 deg half-angle' label is inconsistent with those (reflexed base lip ignored, as RASAero did).",

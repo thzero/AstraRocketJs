@@ -12,6 +12,7 @@ import { MotorRow } from '../sim/MotorRow';
 import { DeploymentSection } from './DeploymentSection';
 import { SeparationSection } from './SeparationSection';
 import { partName } from './ConfigsTable';
+import { mountFit } from '../../services/motors/motorPicker';
 
 /**
  * One flight configuration: its name, and whichever part of it the tab's sub-tab
@@ -94,16 +95,8 @@ export function ConfigEditor() {
         mounts.map((mt, i) => {
           const id = mt.id as string;
           const seated = config.motors[id];
-          const or = typeof mt.outerRadius === 'number' ? mt.outerRadius : null;
-          const th = typeof mt.thickness === 'number' ? mt.thickness : 0;
-          const bore = or != null ? (or - th) * 2 * 1000 : null; // inner diameter, mm
-          // How long a motor may be: the tube plus its overhang, because that is
-          // where the app already seats one (aft - motorLength + overhang). The
-          // bare tube length would refuse a motor the rocket can actually fly.
-          const tubeLen = typeof mt.length === 'number' ? mt.length : null;
-          const overhang = typeof mt.motorOverhang === 'number' ? mt.motorOverhang : 0;
-          const mount =
-            bore != null ? { bore, maxLength: tubeLen != null ? (tubeLen + overhang) * 1000 : undefined } : null;
+          // The same numbers the file reader judges a fit by (motorPicker.mountFit).
+          const mount = mountFit(mt as unknown as Record<string, unknown>);
           return (
             <MotorRow
               key={id}

@@ -1,6 +1,6 @@
 {
   "name": "ARCAS Long (NASA TN D-4013/D-4014 half-scale tunnel model, Config 2)",
-  "_expect": { "length": 1.3589, "refDiameter": 0.0571 },
+  "_expect": {"length":1.3589,"refDiameter":0.0571,"aero":{"classic.cd@0.5":0.397384,"classic.cna@0.5":12.32982,"classic.cp@0.5":1.065857,"classic.cd@2":0.5115141,"classic.cna@2":6.163344,"classic.cp@2":0.8915146,"supersonic.cd@0.5":0.3941291,"supersonic.cna@0.5":12.32982,"supersonic.cp@0.5":1.068023,"supersonic.cd@2":0.4484566,"supersonic.cna@2":10.86307,"supersonic.cp@2":1.04119}},
   "_notes": [
     "Identical to arcas-short.json except the body tube (41.09 in vs 28.54 in). See that fixture's notes."
   ],

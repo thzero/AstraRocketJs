@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 // jsdom: importing appInfo pulls in the i18next singleton (needs navigator/document).
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
-import { isPreRelease } from '../../../src/services/app/appInfo';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+import { defaultDesignName, designNameOf, isPreRelease } from '../../../src/services/app/appInfo';
 
 describe('isPreRelease', () => {
   it('is true for pre-1.0 (major 0) versions', () => {
@@ -67,5 +67,43 @@ describe('engine-java/extract/UPSTREAM', () => {
     // `git describe` ends in g<short sha>. Tying it to `ref` is what catches
     // the half-done bump: a new ref under the old description.
     expect(field('describe')).toMatch(new RegExp(`g${field('ref')!.slice(0, 7)}`));
+  });
+});
+
+/**
+ * What a design is called, in every download, report and header: its own name,
+ * else the name of the file it was imported from, else the app's default.
+ *
+ * Copies of this chain disagreed: the PDF report and the image exports put the
+ * imported file's name FIRST, so a renamed rocket carried its old name there
+ * and its new one everywhere else, and two storage paths fell back to an
+ * untranslated 'My Rocket'.
+ */
+describe('designNameOf', () => {
+  it('prefers the rocket name, then the imported file, then the default', () => {
+    expect(designNameOf({ name: 'Renamed' }, { name: 'imported' })).toBe('Renamed');
+    expect(designNameOf({}, { name: 'imported' })).toBe('imported');
+    expect(designNameOf({ name: '   ' }, null)).toBe(defaultDesignName());
+    expect(designNameOf({}, undefined)).toBe(defaultDesignName());
+  });
+
+  it('is the only place the chain is written', () => {
+    const src = resolve(__dirname, '../../../src');
+    const offenders: string[] = [];
+    const walk = (dir: string) => {
+      for (const entry of readdirSync(dir)) {
+        const path = join(dir, entry);
+        if (statSync(path).isDirectory()) {
+          if (entry !== 'vendor') walk(path);
+        } else if (/\.tsx?$/.test(entry) && !path.endsWith(join('app', 'appInfo.ts'))) {
+          const text = readFileSync(path, 'utf8');
+          if (/loadedMeta\?\.name(\?\.trim\(\))?\s*\|\||\|\|\s*loadedMeta\?\.name|'My Rocket'/.test(text)) {
+            offenders.push(path.slice(src.length + 1));
+          }
+        }
+      }
+    };
+    walk(src);
+    expect(offenders).toEqual([]);
   });
 });

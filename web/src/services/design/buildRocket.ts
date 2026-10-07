@@ -1,26 +1,33 @@
 import { buildRocketTree } from '../../engine/api';
 import type { OpenRocketDesign, RocketTree, StaticInfo } from '../../engine/openRocketEngine';
-import { configuredTree, liveMotors, stageFlies, type FlightConfig } from '../flight/flightConfigs';
+import { configuredTree, liveMotors, seatedMotorsKey, stageFlies, type FlightConfig } from '../flight/flightConfigs';
 import { findStages } from './treeEdit';
+import { badDimensions, type BadDimension } from './requiredComponent';
 import { hasUsableCurve } from '../motors/motorCurve';
+import { errorMessage } from '../app/errorMessage';
 
 /**
- * A key over everything about a design that can change a FLIGHT.
+ * A key over every CONFIGURATION input that can change the STATIC info.
  *
- * Deliberately narrower than the tree object: the root carries `name`,
- * `designer`, `comment`, `revision` and `designType`, which are round-tripped to
- * the `.ork` and touch no physics, and every node carries a `name` that is a
- * label. Keying result-invalidation on the tree's object identity meant typing a
- * designer name in the Rocket-configuration dialog — or renaming a part —
- * silently threw away every simulation result the user had.
+ * `buildConfiguredRocket` reads three things off the configuration, and the
+ * rebuild effect keyed on only one of them. `seatedMotorsKey` covers the motors
+ * and their ignition; nothing covered `grounded`, so grounding a booster left
+ * `info` describing the whole stack while the worker flew the sustainer alone.
+ * Mass, CG, CP, calibers and the RASAero launch mass all came from the stale
+ * handle, and the readouts and the flight described different rockets.
  *
- * Everything else is treated as flight-bearing, including fields we may not know
- * about (`ComponentNode` has an open index signature). That is the safe
- * direction to be wrong in: a needless invalidation costs a re-run, a missed one
- * shows numbers for a rocket that no longer exists.
+ * Sorted, because the key is about WHAT is grounded and not the order the user
+ * clicked. Combined with the tree's `components` identity by the caller.
+ *
+ * The configuration's deployment and separation overrides are deliberately NOT
+ * here, although `configuredTree` bakes them in: they move when recovery fires
+ * and when a stage lets go, which is flight timing, and change no static mass or
+ * dimension. A rebuild for one of those would be a needless kernel build on
+ * every chute-altitude keystroke.
  */
-export function flightKey(tree: RocketTree): string {
-  return JSON.stringify(tree.components, (k, v) => (k === 'name' ? undefined : (v as unknown)));
+export function buildKey(tree: RocketTree, config: FlightConfig): string {
+  const grounded = [...(config.grounded ?? [])].sort().join(',');
+  return `${seatedMotorsKey(tree, config)}#${grounded}`;
 }
 
 /**
@@ -63,8 +70,18 @@ export function buildConfiguredRocket(tree: RocketTree, config: FlightConfig): O
   return r;
 }
 
-/** Static info + the live handle it was read from, or a build/read error message. */
-export type StaticInfoResult = { info: StaticInfo; rocket: OpenRocketDesign } | { error: string };
+/**
+ * Static info + the live handle it was read from, or a build/read failure.
+ *
+ * A failure carries the engine's own message AND, where the design explains
+ * itself, the dimensions that are zero. The engine's message does not name a
+ * part: a tube fin set with a zero length divides by its own chord for the
+ * aspect ratio (`TubeFinSetCalc`), and what reaches the banner is "The number
+ * NaN cannot be converted to a BigInt", which tells nobody which part to go and
+ * fix. The app already knows (`badDimensions`), and the Run button already says
+ * so in those words, so the banner says the same thing.
+ */
+export type StaticInfoResult = { info: StaticInfo; rocket: OpenRocketDesign } | { error: string; bad?: BadDimension[] };
 
 /**
  * Build the configured rocket and read its static info (CG / CP / stability),
@@ -91,6 +108,7 @@ export function computeStaticInfo(
     }
     return { info, rocket };
   } catch (e) {
-    return { error: e instanceof Error ? e.message : String(e) };
+    const bad = badDimensions(tree);
+    return { error: errorMessage(e), ...(bad.length ? { bad } : {}) };
   }
 }

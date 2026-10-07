@@ -43,6 +43,7 @@ export const COMPONENT_DEFAULTS = {
     thickness: KERNEL_DEFAULTS.innertube.thickness,
   },
   tubecoupler: {
+    length: KERNEL_DEFAULTS.tubecoupler.length,
     thickness: KERNEL_DEFAULTS.tubecoupler.thickness,
   },
   engineblock: {
@@ -59,9 +60,8 @@ export const COMPONENT_DEFAULTS = {
   },
   finset: {
     finCount: KERNEL_DEFAULTS.trapezoidfinset.finCount,
-    // Not a kernel default (the factory requires a fin thickness); the .ork
-    // services and the DXF cut had all settled on 3 mm.
-    thickness: 0.003,
+    // The kernel's default for every planar fin type (ComponentFactory).
+    thickness: KERNEL_DEFAULTS.trapezoidfinset.thickness,
   },
   railbutton: {
     outerDiameter: KERNEL_DEFAULTS.railbutton.outerDiameter,

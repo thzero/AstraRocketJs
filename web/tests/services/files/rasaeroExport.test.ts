@@ -207,3 +207,34 @@ describe('rail button as RASAero rail guide', () => {
     expect(none).toContain('<RailGuideHeight>0</RailGuideHeight>');
   });
 });
+
+/**
+ * A non-finite number never reaches the file as text. RASAero's reader checked
+ * only `typeof === 'number'`, so a NaN or Infinity on a node passed through, and
+ * the writer printed "NaN" into the .CDX1. The shared `num` rejects it and falls
+ * back, as every other reader does.
+ */
+describe('a non-finite dimension', () => {
+  it('is never written as NaN or Infinity', () => {
+    const bad = structuredClone(tree);
+    const body = bad.components[0]!.children![1]!;
+    body['length'] = Number.NaN;
+    body['outerRadius'] = Number.POSITIVE_INFINITY;
+    const out = exportCdx1({ tree: bad, name: 'bad', launchMassKg: 0.45, launchCgM: 0.127 });
+    expect(out).not.toMatch(/NaN|Infinity/);
+  });
+});
+
+/**
+ * A trapezoid fin with no sweep key exports the kernel's default sweep
+ * (`FIN_DEFAULTS.sweep`, 0.02 m), which is what the engine flies for that node.
+ */
+describe('a trapezoid fin with no sweep key', () => {
+  it('writes the kernel default sweep', () => {
+    const bare = structuredClone(tree);
+    const fin = bare.components[0]!.children![1]!.children![0]!;
+    delete fin['sweep'];
+    const out = exportCdx1({ tree: bare, name: 'bare', launchMassKg: 0.45, launchCgM: 0.127 });
+    expect(out).toContain(`<SweepDistance>${(0.02 * 39.37).toFixed(4).replace(/0+$/, '')}</SweepDistance>`);
+  });
+});

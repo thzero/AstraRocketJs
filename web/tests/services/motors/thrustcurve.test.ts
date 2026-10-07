@@ -151,6 +151,17 @@ describe('fetchMotorSpec — bundled catalog motor (offline path)', () => {
     expect(spec.curveSrc).toBe('Certified · RASP');
   });
 
+  it('carries the full designation for display, keeping the common name the kernel and .ork match on', async () => {
+    const spec = await fetchMotorSpec({ ...bundled, designation: 'F67', code: 'F67W' } as CatalogMotor, 9);
+    expect(spec.designation).toBe('F67');
+    expect(spec.code).toBe('F67W');
+  });
+
+  it('adds no full designation that only repeats the common name', async () => {
+    const spec = await fetchMotorSpec({ ...bundled, code: 'C6' } as CatalogMotor, 5);
+    expect(spec.code).toBeUndefined();
+  });
+
   it('builds from the selected curve index and records its source', async () => {
     const multi = {
       designation: 'X',
@@ -388,6 +399,12 @@ describe('isCachedMotorSpec', () => {
     expect(isCachedMotorSpec({ ...good, masses: [0.02, Number.POSITIVE_INFINITY, 0.01] })).toBe(false);
   });
 
+  it('rejects a one-sample curve, which the builder and the Run button refuse', () => {
+    // hasUsableCurve wants MIN_CURVE_SAMPLES (2). Serving a one-sample spec from
+    // the cache only moves the refusal to Run, as "no motor".
+    expect(isCachedMotorSpec({ ...good, times: [0], thrusts: [10], masses: [0.02] })).toBe(false);
+  });
+
   it('rejects arrays of different lengths, an empty array, and non-objects', () => {
     expect(isCachedMotorSpec({ ...good, masses: [0.02, 0.01] })).toBe(false);
     expect(isCachedMotorSpec({ ...good, times: [] })).toBe(false);
@@ -439,5 +456,37 @@ describe('post timeout keeps its cause', () => {
     expect(err.message).toMatch(/timed out/);
     expect(err.cause).toBeInstanceOf(DOMException);
     expect((err.cause as DOMException).name).toBe('AbortError');
+  });
+});
+
+/**
+ * An error reply is abandoned the moment its status is read, the way
+ * remoteData.fetchJson does it: left open, a 5xx error page keeps streaming
+ * until the body timer fires. And it is still reported as the HTTP error it
+ * is, not as a timeout, although the request was aborted on the way out.
+ */
+describe('post on an error reply', () => {
+  const online = {
+    designation: 'J350',
+    manufacturer: 'AeroTech',
+    class: 'J',
+    diameter: 54,
+    impulse: 700,
+    burn: 2,
+    mass: 700,
+    length: 300,
+    propWeightG: 350,
+  } as unknown as CatalogMotor;
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('aborts the request and reports the status', async () => {
+    let signal: AbortSignal | undefined;
+    vi.stubGlobal('fetch', (_url: string, init: { signal: AbortSignal }) => {
+      signal = init.signal;
+      return Promise.resolve(new Response('<html>busy</html>', { status: 503 }));
+    });
+    await expect(fetchMotorSpec(online, 0)).rejects.toThrow(/HTTP 503/);
+    expect(signal?.aborted).toBe(true);
   });
 });

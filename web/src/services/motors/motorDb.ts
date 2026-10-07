@@ -13,6 +13,7 @@ import { parseEng, totalImpulse } from './engParser';
 import { parseRse } from './rseParser';
 import { motorFitsMount, offersPlugged, type MountFit } from './motorPicker';
 import { fetchCatalog } from '../app/remoteData';
+import { PLUGGED_DELAY } from '../../engine/openRocketEngine';
 
 /** One catalog row — the VC sync utility's schema, plus optional custom-motor tags. */
 export interface CatalogMotor {
@@ -51,10 +52,39 @@ export interface CatalogMotor {
   /** Set by the sync when no thrust curve could be bundled (none published, or
    *  missing length/prop weight). Such a motor can't be plotted / combined. */
   noCurve?: boolean;
+  /**
+   * OpenRocket's own digests for this motor, one per entry its database holds
+   * for the name, with the delays that entry offers. Put here by
+   * `npm run sync:motor-digests`.
+   *
+   * A `.ork` identifies a motor by manufacturer, designation, diameter and
+   * length, and the desktop's database holds SEVERAL entries behind one of
+   * those names (Estes C6 is a plugged one and a delayed one). With nothing to
+   * choose between them it takes the first and warns that it did. The digest is
+   * the only field that names which, which is why `<digest>` goes into every
+   * `<motor>` block we write - see `catalogDigest`.
+   */
+  digests?: { digest: string; delays: (number | 'P')[] }[];
   /** CG-vs-time as [[t (s), cgFromNose (m)]], read from the motor file (RockSim)
    *  — the real CG OpenRocket uses. Launch CG = cg[0][1]. Absent → the motor
    *  build falls back to mid-length (same as OpenRocket for RASP-only data). */
   cg?: [number, number][];
+}
+
+/**
+ * Which of OpenRocket's entries for this motor the seated delay means.
+ *
+ * The delay is what separates them in the usual case - a plugged C6 and a C6-5
+ * are different motors with different digests - and where it does not, the sync
+ * has already put the entry whose curve is closest to ours first. Undefined
+ * when the catalog has no digests for the row, which is a motor the desktop's
+ * database does not contain: then we write no digest rather than a wrong one.
+ */
+export function catalogDigest(cat: CatalogMotor, ejectionDelay: number): string | undefined {
+  const entries = cat.digests;
+  if (!entries?.length) return undefined;
+  const want: number | 'P' = ejectionDelay >= PLUGGED_DELAY ? 'P' : Math.round(ejectionDelay);
+  return (entries.find((e) => e.delays.includes(want)) ?? entries[0]!).digest;
 }
 
 /** Whether a catalog motor has a usable bundled thrust curve: the same sample
@@ -151,7 +181,10 @@ export async function loadCatalog(): Promise<CatalogMotor[]> {
  */
 export async function importCustomMotors(text: string): Promise<{ catalog: CatalogMotor[]; imported: number }> {
   const motors = text.trimStart().startsWith('<') ? parseRse(text) : [parseEng(text)];
-  for (const m of motors) await getMotorStore().addCustomMotor(m);
+  // ONE write for the whole file. A `.rse` engine database is a manufacturer's
+  // entire range, and a write per motor re-parsed the stored array every time and
+  // could stop half way with no way to say where.
+  await getMotorStore().addCustomMotors(motors);
   return { catalog: await loadCatalog(), imported: motors.length };
 }
 
@@ -229,11 +262,40 @@ export function allManufacturers(catalog: CatalogMotor[]): string[] {
  * The requested manufacturer breaks ties within each tier (AeroTech vs Cesaroni
  * "I180"). Returns undefined if nothing matches at all.
  */
-export function findCatalogMotor(
+/**
+ * Why a motor is not simply the one the file named.
+ *
+ * `maker`      the file named a manufacturer and this motor is not theirs
+ * `shortened`  the name only matched once parts of it were taken off
+ * `several`    more than one motor matched equally well and this is the first
+ */
+export type MotorMatchDoubt = 'maker' | 'shortened' | 'several';
+
+/** A found motor, and whether it is the one the file asked for. */
+export interface MotorMatch {
+  motor: CatalogMotor;
+  /** Absent when the file's own name and maker identify this motor outright. */
+  doubt?: MotorMatchDoubt;
+}
+
+/**
+ * The motor a name resolves to, AND how sure that is.
+ *
+ * The tiers below run from "this is the name" to "this is what the name looks
+ * like with the impulse and the propellant taken off", and the manufacturer is
+ * a preference rather than a filter, so a file naming a maker we carry no
+ * motors for still gets somebody's motor. Every one of those is a real match
+ * worth making and none of them is certain, and the caller was told none of it:
+ * an `I170-P` filed under Kosdon loaded Cesaroni's I170 in silence.
+ *
+ * `findCatalogMotor` is this without the doubt, for the callers that only want
+ * the row.
+ */
+export function matchCatalogMotor(
   catalog: CatalogMotor[],
   designation: string,
   manufacturer?: string,
-): CatalogMotor | undefined {
+): MotorMatch | undefined {
   const norm = (s: string) => s.trim().toLowerCase().replace(/[-\s]/g, '');
   const raw = designation.trim();
   const want = raw.toLowerCase();
@@ -244,18 +306,37 @@ export function findCatalogMotor(
   const byMfr = (cands: CatalogMotor[]): CatalogMotor[] => {
     if (!manufacturer || cands.length <= 1) return cands;
     const mf = manufacturer.trim().toLowerCase();
-    const hit = cands.filter((m) => {
-      const mm = m.manufacturer.toLowerCase();
-      return mm === mf || mm.includes(mf) || mf.includes(mm);
-    });
+    const hit = cands.filter((m) => sameMaker(m.manufacturer, mf));
     return hit.length ? hit : cands;
   };
 
   // `H128W-OLD` → base `H128W` (drop one trailing -/_ suffix) → bare `H128`
   // (drop trailing propellant letters). Both are retried against designation+code.
-  const base = raw.replace(/[-_][^-_]*$/, '');
-  const bare = base.replace(/[A-Za-z]+$/, '');
-  const stripped = [base, bare].map((s) => s.toLowerCase()).filter((s) => s && s !== want);
+  //
+  // One SEGMENT AT A TIME rather than one pass, because a file can carry
+  // several: RockSim writes a Cesaroni motor as `26-E31-WH-15A`, where the
+  // catalog holds `E31` and its own code is `26E31-15A`, so stopping after one
+  // left `26-E31-WH` and matched nothing. Every candidate has to keep a letter,
+  // so a name is never worn down to a bare number that could match another
+  // motor by its digits.
+  const shrink = (name: string): string[] => {
+    const out: string[] = [];
+    for (let s = name; s.length > 1; s = s.replace(/[-_][^-_]*$/, '')) {
+      out.push(s, s.replace(/[A-Za-z]+$/, '').replace(/[-_]+$/, ''));
+      if (!/[-_]/.test(s)) break;
+    }
+    return out.filter((c) => c.length > 1 && /[A-Za-z]/.test(c));
+  };
+  // `206J530-IM` → `J530-IM`, `26-E31-WH-15A` → `E31-WH-15A`. RockSim writes a
+  // Cesaroni motor with its total impulse in front of the name, hyphenated or
+  // not, where the catalog holds the name on its own and the file's number is
+  // not always the one our row's code carries. Only read past when a LETTER
+  // follows it, so a designation that really begins with digits ("1/2A6", a
+  // bare part number) is left alone.
+  const noImpulse = raw.replace(/^\d+[-_]?(?=[A-Za-z])/, '');
+  const stripped = [...new Set([...shrink(raw), ...(noImpulse === raw ? [] : shrink(noImpulse))])]
+    .map((s) => s.toLowerCase())
+    .filter((s) => s && s !== want);
 
   const tiers: Array<() => CatalogMotor[]> = [
     () => catalog.filter((m) => m.designation.toLowerCase() === want),
@@ -263,9 +344,47 @@ export function findCatalogMotor(
     () => catalog.filter((m) => norm(m.designation) === norm(raw) || norm(m.code ?? '') === norm(raw)),
     () => catalog.filter((m) => stripped.some((s) => m.designation.toLowerCase() === s || code(m) === s)),
   ];
-  for (const tier of tiers) {
-    const hit = byMfr(tier());
-    if (hit.length) return hit[0];
+  // The LAST tier is the shortened one: everything above it matched the name as
+  // the file wrote it, give or take spaces and dashes.
+  const shortenedTier = tiers.length - 1;
+  for (let i = 0; i < tiers.length; i++) {
+    const hit = byMfr(tiers[i]!());
+    if (!hit.length) continue;
+    const motor = hit[0]!;
+    return { motor, ...(doubtAbout(motor, hit.length, i === shortenedTier, manufacturer) ?? {}) };
   }
   return undefined;
+}
+
+/**
+ * Whether a catalog maker answers to the one a file asked for (`asked` already
+ * trimmed and lowercased): equal, or either name containing the other.
+ */
+function sameMaker(catalogMaker: string, asked: string): boolean {
+  const got = catalogMaker.toLowerCase();
+  return got === asked || got.includes(asked) || asked.includes(got);
+}
+
+/** Which doubt to report, most surprising first. */
+function doubtAbout(
+  motor: CatalogMotor,
+  candidates: number,
+  shortened: boolean,
+  manufacturer?: string,
+): { doubt: MotorMatchDoubt } | undefined {
+  const asked = manufacturer?.trim().toLowerCase();
+  // The same test `byMfr` prefers by, so "no doubt" means it got its way.
+  if (asked && !sameMaker(motor.manufacturer, asked)) return { doubt: 'maker' };
+  if (shortened) return { doubt: 'shortened' };
+  if (candidates > 1) return { doubt: 'several' };
+  return undefined;
+}
+
+/** The motor a name resolves to, without asking how sure that is. */
+export function findCatalogMotor(
+  catalog: CatalogMotor[],
+  designation: string,
+  manufacturer?: string,
+): CatalogMotor | undefined {
+  return matchCatalogMotor(catalog, designation, manufacturer)?.motor;
 }

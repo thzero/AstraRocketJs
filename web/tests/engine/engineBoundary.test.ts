@@ -5,6 +5,8 @@ import {
   type MotorSpec,
   type RocketTree,
 } from '../../src/engine/openRocketEngine';
+import { KERNEL_TEST_TIMEOUT_MS } from '../testing/kernelTimeout';
+import { MAX_FIN_POINTS, MAX_NESTING_DEPTH } from '../../src/services/files/ork/importLimits';
 
 /**
  * The REAL kernel, not a stub.
@@ -27,10 +29,12 @@ import {
  * 1 s on an idle machine, but 5.5-11.7 s under `--coverage` with the suite's
  * other 82 files running beside it — measured, three runs out of three.
  *
- * Scoped to this file on purpose. A global bump would slacken 854 tests that
- * have no business taking seconds, and hide the thing a timeout is for.
+ * The cap and the reasoning for it live in `testing/kernelTimeout.ts`, shared with
+ * the three other files that fly the kernel. Still opted into per file: a global
+ * bump would slacken the thousands of tests that have no business taking seconds,
+ * and hide the thing a timeout is for.
  */
-vi.setConfig({ testTimeout: 60_000, hookTimeout: 60_000 });
+vi.setConfig({ testTimeout: KERNEL_TEST_TIMEOUT_MS, hookTimeout: KERNEL_TEST_TIMEOUT_MS });
 
 type Engine = typeof import('../../src/engine/vendor/openrocket-engine.mjs');
 let engine: Engine;
@@ -338,6 +342,182 @@ describe('error envelopes, from the Java side', () => {
     const sweep = build().aeroSweep({ machMin: 0.1, machMax: 0.3, machStep: 0.1 });
     expect(sweep.machs.length).toBeGreaterThan(1);
     expect(sweep.machs.every((m) => Number.isFinite(m))).toBe(true);
+  });
+});
+
+/**
+ * Bad input the kernel used to accept silently, flying a different rocket than
+ * the one described, or none, with no error to say so.
+ */
+describe('the boundary refuses what it cannot build faithfully', () => {
+  /** TREE with one component's fields replaced. */
+  const withPart = (id: string, patch: Record<string, unknown>) => {
+    const tree = structuredClone(TREE) as unknown as { components: Record<string, unknown>[] };
+    const visit = (nodes: Record<string, unknown>[]) => {
+      for (const n of nodes) {
+        const kids = n['children'];
+        if (Array.isArray(kids)) visit(kids as Record<string, unknown>[]);
+        if (n['id'] === id) Object.assign(n, patch);
+      }
+    };
+    visit(tree.components);
+    return tree as unknown as RocketTree;
+  };
+
+  it('refuses a trapezoid fin count the kernel would quietly clamp or truncate', () => {
+    // FinSet.setFinCount clamps to 8, and a bare (int) cast truncated 3.9 to 3:
+    // each built a rocket with a different fin count than the file's.
+    for (const finCount of [12, 3.9, 0]) {
+      expect(() => OpenRocketDesign.buildTree(withPart('fins', { finCount })).staticInfo()).toThrow(/finCount.*1\.\.8/);
+    }
+    expect(OpenRocketDesign.buildTree(withPart('fins', { finCount: 8 })).staticInfo().mass).toBeGreaterThan(0);
+  });
+
+  it('refuses a dimension past any real part, instead of reporting an all-null design', () => {
+    expect(() => OpenRocketDesign.buildTree(withPart('nose', { length: 1e300 })).staticInfo()).toThrow(
+      /length.*out of range/,
+    );
+  });
+
+  it('refuses a children key that is not a list of parts, instead of dropping the subtree', () => {
+    expect(() => OpenRocketDesign.buildTree(withPart('tube', { children: [1, 2, 3] })).staticInfo()).toThrow(
+      /children.*object/,
+    );
+    expect(() =>
+      OpenRocketDesign.buildTree(withPart('tube', { children: { type: 'trapezoidfinset' } })).staticInfo(),
+    ).toThrow(/children.*list/);
+  });
+});
+
+describe('every enum name is read, and an unknown one is refused', () => {
+  /** TREE with one component's fields replaced (same as above, kept local). */
+  const patched = (id: string, patch: Record<string, unknown>) => {
+    const tree = structuredClone(TREE) as unknown as { components: Record<string, unknown>[] };
+    const visit = (nodes: Record<string, unknown>[]) => {
+      for (const n of nodes) {
+        const kids = n['children'];
+        if (Array.isArray(kids)) visit(kids as Record<string, unknown>[]);
+        if (n['id'] === id) Object.assign(n, patch);
+      }
+    };
+    visit(tree.components);
+    return tree as unknown as RocketTree;
+  };
+  const builds = (id: string, patch: Record<string, unknown>) =>
+    OpenRocketDesign.buildTree(patched(id, patch)).staticInfo();
+
+  it('refuses a name it does not know, instead of defaulting it', () => {
+    // Each of these used to build quietly as the default: square fins, an ogive
+    // nose, a part at the top, a chute at ejection, a normal finish.
+    expect(() => builds('fins', { crossSection: 'diamond' })).toThrow(/fin cross-section: 'diamond'/);
+    expect(() => builds('nose', { shape: 'bogus' })).toThrow(/shape: 'bogus'/);
+    expect(() => builds('fins', { position: { method: 'nonsense', offset: 0 } })).toThrow(/position method/);
+    expect(() => builds('nose', { finish: 'glossy' })).toThrow(/surface finish/);
+  });
+
+  it('reads the upstream names it used to drop', () => {
+    // A desktop file's lower-stage-separation chute, OpenRocket's mirror and
+    // optimum finishes, and the AFTER position all build now.
+    // Mapped, not just accepted: a mirror finish is smoother than a normal one,
+    // so it carries less friction drag. Defaulted to NORMAL, the two were equal.
+    const cd = (finish: string) =>
+      OpenRocketDesign.buildTree(patched('nose', { finish })).aeroSweep({ machMin: 0.3, machMax: 0.3, machStep: 0.1 })
+        .powerOff.total[0]!;
+    expect(cd('mirror')).toBeLessThan(cd('normal'));
+    expect(builds('nose', { finish: 'optimum' }).mass).toBeGreaterThan(0);
+    expect(builds('fins', { position: { method: 'after', offset: 0 } }).mass).toBeGreaterThan(0);
+  });
+});
+
+describe('the builders check what they are given', () => {
+  it('refuses a missing shape, a non-finite or negative size, and a fin count past 8', () => {
+    const rocket = engine.newRocket();
+    expect(() => engine.addNoseCone(rocket, 0.1, 0.013, 0.001, null as unknown as string, 0)).toThrow(/shape/);
+    expect(() => engine.addNoseCone(rocket, Number.NaN, 0.013, 0.001, 'ogive', 0)).toThrow(/length/);
+    expect(() => engine.addBodyTube(rocket, 0.3, -0.013, 0.0005, 0)).toThrow(/outerRadius/);
+    const tube = engine.addBodyTube(rocket, 0.3, 0.013, 0.0005, 0);
+    expect(() => engine.addTrapezoidFins(tube, 1e9, 0.06, 0.03, 0.03, 0.05, 0.003, 0)).toThrow(/finCount/);
+    expect(() => engine.getWorstThetaDeg(rocket, Number.NaN, 0)).toThrow(/mach/);
+  });
+});
+
+/**
+ * The browser's import ceilings are the kernel's, so a file that imports also
+ * builds. Nesting: the deepest design the importer admits (a stage plus
+ * MAX_NESTING_DEPTH levels of parts, 30 in all) must build, and one level more
+ * must be refused by the kernel, which is what makes the importer's cap exact.
+ */
+describe('the import ceilings match the kernel', () => {
+  // Parts that nest in each other indefinitely: a pod set inside a tube inside a
+  // pod set. The deepest part is a freeform fin, whose point list costs two more
+  // JSON levels than any other part.
+  const deep = (levels: number) => {
+    let node: Record<string, unknown> = {
+      type: 'freeformfinset',
+      finCount: 3,
+      thickness: 0.002,
+      points: [
+        [0, 0],
+        [0.02, 0.02],
+        [0.03, 0],
+      ],
+    };
+    for (let i = levels - 2; i >= 1; i--) {
+      node =
+        i % 2 === 1
+          ? { type: 'bodytube', length: 0.1, outerRadius: 0.02, thickness: 0.001, children: [node] }
+          : { type: 'podset', instanceCount: 1, children: [node] };
+    }
+    return { components: [{ type: 'stage', children: [node] }] } as unknown as RocketTree;
+  };
+
+  // The kernel's NESTING limit is what the importer's cap has to match, so that is
+  // what this asserts. At 30 levels this chain can still be refused for another
+  // reason (a fin cannot sit on a pod set at an even depth), which is no part of it.
+  it('admits the deepest design the importer admits, and refuses one level more', () => {
+    expect(() => OpenRocketDesign.buildTree(deep(MAX_NESTING_DEPTH + 1)).staticInfo()).not.toThrow(/nesting/);
+    expect(() => OpenRocketDesign.buildTree(deep(MAX_NESTING_DEPTH + 2)).staticInfo()).toThrow(/nesting/);
+  });
+
+  it('refuses a freeform outline past the browser ceiling', () => {
+    const tree = structuredClone(TREE) as unknown as { components: Record<string, unknown>[] };
+    const tube = (tree.components[0]!['children'] as Record<string, unknown>[])[1]!;
+    const points = Array.from({ length: MAX_FIN_POINTS + 1 }, (_, i) => [i * 1e-5, i === 0 ? 0 : 0.01]);
+    tube['children'] = [{ id: 'ff', type: 'freeformfinset', finCount: 3, thickness: 0.002, points }];
+    expect(() => OpenRocketDesign.buildTree(tree as unknown as RocketTree).staticInfo()).toThrow(/points/);
+  });
+});
+
+describe('one handle can be released, and the JSON reader is JSON', () => {
+  it('frees one handle without touching another, and refuses an unknown one', () => {
+    const a = engine.buildRocket(JSON.stringify(TREE));
+    const b = engine.buildRocket(JSON.stringify(TREE));
+    engine.free(a);
+    expect(JSON.parse(engine.getStaticInfo(a)).error).toMatch(/handle/i);
+    expect(JSON.parse(engine.getStaticInfo(b)).mass).toBeGreaterThan(0);
+    expect(() => engine.free(a)).toThrow(/Unknown handle/);
+  });
+
+  it('refuses numbers JSON.parse refuses', () => {
+    for (const bad of ['01', '+0.3', '.3', '1.', '1e']) {
+      expect(() => engine.buildRocket(`{"components":[],"x":${bad}}`)).toThrow(/bad number/);
+    }
+  });
+
+  it('refuses a lone surrogate, and still decodes a pair', () => {
+    const named = (escaped: string) => JSON.stringify(TREE).replace('{', `{"name":"${escaped}",`);
+    expect(() => engine.buildRocket(named(String.raw`\ud83d`))).toThrow(/surrogate/);
+    expect(() => engine.buildRocket(named(String.raw`\ude00`))).toThrow(/surrogate/);
+    expect(() => engine.buildRocket(named(String.raw`🚀`))).not.toThrow();
+  });
+
+  it('refuses a negative size instead of building a massless part', () => {
+    const tree = structuredClone(TREE) as unknown as { components: Record<string, unknown>[] };
+    const tube = (tree.components[0]!['children'] as Record<string, unknown>[])[1]!;
+    tube['outerRadius'] = -1;
+    expect(() => OpenRocketDesign.buildTree(tree as unknown as RocketTree).staticInfo()).toThrow(
+      /outerRadius' must not be negative/,
+    );
   });
 });
 
@@ -1004,6 +1184,18 @@ describe('the audit gaps reach the kernel', () => {
     // returns its CG on the axis whatever the radial position says
     // (`getComponentCG` ignores shiftY/shiftZ), so the value is a drawing and
     // bounding-box concern there, and the bridge is faithful to that.
+    expect(roll(0.012)).toBeGreaterThan(roll(0));
+  });
+
+  it.each([
+    { type: 'parachute', diameter: 0.4, cd: 0.8 },
+    { type: 'streamer', stripLength: 0.5, stripWidth: 0.05 },
+    { type: 'shockcord', cordLength: 1 },
+  ])('moves a $type off the axis when the design says so', (part) => {
+    const roll = (radialPosition: number) =>
+      OpenRocketDesign.buildTree(
+        withPart({ id: 'r', ...part, length: 0.05, radius: 0.005, radialPosition, radialDirection: 1 }),
+      ).staticInfo().rollInertia;
     expect(roll(0.012)).toBeGreaterThan(roll(0));
   });
 

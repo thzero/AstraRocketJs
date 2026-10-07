@@ -1,8 +1,10 @@
+import { nsKey } from './storageKeys';
 import type { PartKey } from '../design/partColors';
 import type { CompleteLaunch } from '../flight/requiredLaunch';
 import { DEFAULT_HEADING_DEG } from '../flight/simulations';
-import { DEFAULT_CSV_COLUMNS } from '../flight/flightColumns';
+import { defaultCsvFormat } from '../flight/flightColumns';
 import { usableWindLevels } from '../flight/windLevels';
+import { usableAtmosphereLevels } from '../flight/atmosphereLevels';
 import {
   METRIC_UNITS,
   UNIT_CHOICES,
@@ -12,6 +14,8 @@ import {
   type UnitOverrides,
   type UnitSelection,
 } from '../../prefs/units';
+import { hexOf, parseHexColor } from '../design/colorHex';
+import { parseDefaultMaterialKey } from '../design/materialSlots';
 
 /**
  * Bounds for the component-tree column (see `Settings.treePaneWidth`).
@@ -117,6 +121,24 @@ export interface SimulationSettings {
   /** Minimum safe rod/rail-exit velocity (m/s): the rod-exit tile is green at or
    *  above this, and warns below it (too slow to be stable off the rail). */
   railExitVelocityMin: number;
+  /**
+   * Which launch-guide clearance model to fly. Default false, OpenRocket's own.
+   *
+   * OpenRocket compares the rocket's travel with the FULL rod length wherever
+   * the guides sit: it computes a lug-aware effective length and never reads it
+   * at the check. A lug or rail button above the rocket's aft end is therefore
+   * credited with guided travel it does not have, and the rod-exit speed reads
+   * high; rail buttons are not considered at all.
+   *
+   * True flies the guide-aware model: the guided phase ends when the aft-most
+   * guide, lug or button, leaves the rod, and the rocket is released there as
+   * well as reported there.
+   *
+   * A CHOICE and not a fix, because the engine is validated bit-identical to
+   * upstream. It is also the only setting here that changes what the flight
+   * does rather than what it warns about, which is why it says so in the panel.
+   */
+  guideAwareRodClearance: boolean;
 }
 
 /** Which sides of the 2D side view carry a measurement ruler. */
@@ -380,7 +402,7 @@ const DEFAULT_PATH_EXPORT: PathExportSettings = {
 export function encodeStageColors(colors: Map<number, number>): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [index, rgb] of colors) {
-    out[String(index)] = (rgb & 0xffffff).toString(16).padStart(6, '0');
+    out[String(index)] = hexOf(rgb, false);
   }
   return out;
 }
@@ -399,8 +421,9 @@ export function decodeStageColors(value: unknown): Map<number, number> {
   for (const [key, raw] of Object.entries(value as Record<string, unknown>)) {
     const index = Number.parseInt(key, 10);
     if (!Number.isInteger(index) || index < 0) continue;
+    // Six bare digits, as encodeStageColors writes them.
     if (typeof raw !== 'string' || !/^[0-9a-fA-F]{6}$/.test(raw)) continue;
-    out.set(index, Number.parseInt(raw, 16) & 0xffffff);
+    out.set(index, parseHexColor(raw)!);
   }
   return out;
 }
@@ -418,6 +441,22 @@ const clampPlayback = (v: unknown): number =>
   typeof v === 'number' && Number.isFinite(v) && v > 0
     ? Math.min(10, Math.max(0.05, v))
     : DEFAULT_SETTINGS.playbackSpeed;
+
+/**
+ * Bounds for the solver inputs, in SI, shared by BOTH surfaces that offer them.
+ *
+ * `maxTime / timeStep` IS the solver's iteration count, and both ends were open
+ * on the per-simulation override while the global row capped them: 1000000 s (a
+ * plausible slip for 1000) at the default step asks for tens of millions of RK4
+ * steps, with nothing to interrupt it. The cap existed in one of the two places
+ * that can set the value, which is the drift this constant exists to stop.
+ * `maxAngleStep` is in radians here, like the field it bounds.
+ */
+export const SIM_BOUNDS = {
+  timeStep: { min: 0.001, max: 10 },
+  maxTime: { min: 1, max: 10_000 },
+  maxAngleStep: { min: (0.05 * Math.PI) / 180, max: (30 * Math.PI) / 180 },
+} as const;
 
 export const DEFAULT_SETTINGS: Settings = {
   units: METRIC_UNITS,
@@ -440,6 +479,8 @@ export const DEFAULT_SETTINGS: Settings = {
     mainLowSpeedWarn: 15.24,
     drogueLowSpeedWarn: 3.048,
     railExitVelocityMin: 15,
+    // OpenRocket's own model, so an existing install's numbers do not move.
+    guideAwareRodClearance: false,
   },
   launchDefaults: DEFAULT_LAUNCH,
   showMarkers: true,
@@ -450,28 +491,19 @@ export const DEFAULT_SETTINGS: Settings = {
   treePaneWidth: TREE_PANE_DEFAULT,
   sidePaneWidth: SIDE_PANE_DEFAULT,
   maximizeCenter: false,
-  rulers: { top: true, bottom: true, left: true, right: true },
+  rulers: { top: true, bottom: false, left: true, right: false },
   saveDesignInfo: false,
   report: DEFAULT_REPORT,
   pathExport: DEFAULT_PATH_EXPORT,
   // The three a flight is usually read by; the rest are one chip away.
   flightSeries: ['altitude', 'velocity', 'acceleration'],
-  flightCsv: {
-    // The named series, which is what a reader expects to find in the file.
-    // Everything else the run records is one tick away in the dialog.
-    columns: [...DEFAULT_CSV_COLUMNS],
-    separator: ',',
-    decimals: 3,
-    exponential: false,
-    simDescription: true,
-    fieldDescriptions: true,
-    flightEvents: true,
-    commentChar: '#',
-  },
+  // The named series, which is what a reader expects to find in the file.
+  // Everything else the run records is one tick away in the dialog.
+  flightCsv: defaultCsvFormat(),
   wipAcknowledged: false,
 };
 
-const KEY = 'astrarrocketjs:settings:v1';
+const KEY = nsKey('settings:v1');
 
 /**
  * Validate the stored flight-path export block field by field.
@@ -567,7 +599,7 @@ export function loadSettings(): Settings {
       // negative would reach the kernel as the mass of somebody's airframe.
       defaultMaterials: Object.fromEntries(
         Object.entries((s.defaultMaterials ?? {}) as Record<string, unknown>).filter(([key, v]) => {
-          if (!/^[a-z]+:(bulk|surface|line)$/.test(key)) return false;
+          if (!parseDefaultMaterialKey(key)) return false;
           const m = v as { name?: unknown; density?: unknown } | null;
           return (
             !!m &&
@@ -614,6 +646,10 @@ export function loadSettings(): Settings {
         // The rod-exit tile compares against it; a stored string or NaN made
         // the tile's color undecidable.
         sim.railExitVelocityMin = pos(sim.railExitVelocityMin, DEFAULT_SETTINGS.simulation.railExitVelocityMin);
+        // A stored string or number here would reach the bridge, where the
+        // options parser refuses anything but a boolean and takes the whole run
+        // down rather than the one key.
+        sim.guideAwareRodClearance = sim.guideAwareRodClearance === true;
         return sim;
       })(),
       launchDefaults: (() => {
@@ -668,6 +704,14 @@ export function loadSettings(): Settings {
             ? usableWindLevels(l.windLevels)
             : DEFAULT_SETTINGS.launchDefaults.windLevels;
         }
+        // Same reasoning for a forecast atmosphere: one bad level fails the run.
+        if (l.atmosphereLevels !== undefined) {
+          const kept = Array.isArray(l.atmosphereLevels) ? usableAtmosphereLevels(l.atmosphereLevels) : [];
+          if (kept.length) l.atmosphereLevels = kept;
+          else delete l.atmosphereLevels;
+        }
+        // Defaults seed every new simulation; a forecast's stamp describes one.
+        delete l.weatherSource;
         return l;
       })(),
       showMarkers: typeof s.showMarkers === 'boolean' ? s.showMarkers : DEFAULT_SETTINGS.showMarkers,
@@ -725,10 +769,26 @@ export function loadSettings(): Settings {
   }
 }
 
-export function saveSettings(s: Settings): void {
+/**
+ * Persist the settings, reporting whether the write happened.
+ *
+ * REPORTS rather than swallowing, which is the convention every other store in
+ * this slice was deliberately converted to (`designLibrary`,
+ * `launchLocationStore`, `workspaceStore`, `motorStore` all surface a refused
+ * write). A bare `catch {}` here meant a full quota silently discarded a
+ * preference change: the panel showed the new value for the rest of the session
+ * and the next session came up with the old one, with nothing in between to
+ * explain it.
+ *
+ * `false` covers both causes, which the caller cannot usefully tell apart: a
+ * quota refusal and storage being disabled outright both mean the preference did
+ * not persist.
+ */
+export function saveSettings(s: Settings): boolean {
   try {
     localStorage.setItem(KEY, JSON.stringify(s));
+    return true;
   } catch {
-    /* storage disabled */
+    return false;
   }
 }

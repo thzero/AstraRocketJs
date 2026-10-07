@@ -73,41 +73,39 @@ test.describe('AstraRocketJs smoke', () => {
     await expect(page.getByText('not run')).toHaveCount(0);
   });
 
-  test('the sim runs off the main thread (UI stays responsive)', async ({ page }) => {
+  test('the sim runs off the main thread', async ({ page }) => {
+    // Before the app loads, so the sim pool's workers are wrapped as they spawn.
+    // A sim run on the main thread posts nothing to a worker, so this fails on
+    // any machine. Not a frame-gap ceiling: rendering the click and the results
+    // is main-thread work by design, and its length depends on the machine.
+    await page.addInitScript(() => {
+      const probe: { id?: number; posted: boolean; replied: boolean } = { posted: false, replied: false };
+      (window as unknown as { __sim: typeof probe }).__sim = probe;
+      const post = Worker.prototype.postMessage;
+      Worker.prototype.postMessage = function (this: Worker, msg: unknown, ...rest: unknown[]) {
+        const m = msg as { id?: number; method?: string } | null;
+        if (m?.method === 'simulate' && !probe.posted) {
+          probe.posted = true;
+          probe.id = m.id;
+          this.addEventListener('message', (e: MessageEvent<{ id?: number }>) => {
+            if (e.data?.id === probe.id) probe.replied = true;
+          });
+        }
+        return (post as (...a: unknown[]) => void).call(this, msg, ...rest);
+      } as typeof Worker.prototype.postMessage;
+    });
     await page.goto('/');
     await expect(page.getByText('L/D', { exact: true })).toBeVisible();
-    // Before the heartbeat: switching tabs is its own React render, and folding
-    // it into the measurement would blame the worker for a stall it did not cause.
     await openTab(page, 'Simulations');
 
-    // Plant a requestAnimationFrame heartbeat; the largest gap between frames is
-    // how long the main thread was blocked. A synchronous sim stalls it for the
-    // full ~500 ms compute; the Web Worker keeps it to frame-scale. Guards
-    // against regressing runSim back onto the main thread.
-    await page.evaluate(() => {
-      (window as unknown as { __g: number[] }).__g = [];
-      let last = performance.now();
-      const tick = () => {
-        const now = performance.now();
-        (window as unknown as { __g: number[] }).__g.push(now - last);
-        last = now;
-        requestAnimationFrame(tick);
-      };
-      requestAnimationFrame(tick);
-    });
-    // A real sleep, on purpose: the heartbeat needs wall-clock time to collect
-    // a baseline of idle frames BEFORE the run, so that the stall measured
-    // below is the run's and not the first frame's. There is no event to wait
-    // on for "some frames have passed"; time is the thing being sampled.
-    // eslint-disable-next-line playwright/no-wait-for-timeout
-    await page.waitForTimeout(300);
     await page.getByRole('button', { name: /run flight simulation/i }).click();
     await expect(page.getByRole('button', { name: 'Flight', exact: true })).toBeVisible({ timeout: 30_000 });
 
-    const maxStall = await page.evaluate(() => Math.max(...(window as unknown as { __g: number[] }).__g));
-    // Generous ceiling: observed ~30 ms on the worker path; a main-thread sim
-    // would blow well past this (~480 ms).
-    expect(maxStall).toBeLessThan(300);
+    const sim = await page.evaluate(
+      () => (window as unknown as { __sim: { posted: boolean; replied: boolean } }).__sim,
+    );
+    expect(sim.posted, 'the flight was posted to a worker').toBe(true);
+    expect(sim.replied, 'and its result came back from that worker').toBe(true);
   });
 
   test('a duplicated simulation survives a page reload', async ({ page }) => {

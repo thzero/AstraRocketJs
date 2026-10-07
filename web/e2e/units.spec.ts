@@ -148,7 +148,9 @@ test('a length typed in inches round-trips through the SI tree', async ({ page }
   await page.locator('div[title="Body tube"]').click();
   // Scoped: the launch-conditions panel has a "Length" (the rod) of its own.
   const length = page.locator('section').filter({ hasText: 'Motor mount' }).getByLabel('Length', { exact: true });
-  await expect(length).toHaveValue('16.535433');
+  // 18 in exactly: the default airframe is an 18 in BT-50, the length Estes
+  // sells tube stock in.
+  await expect(length).toHaveValue('18');
   // Typed, not `fill()`: fill blanks the field first, and a blank geometry field
   // commits a 0-length tube that the rebuild does not recover from. (Pre-existing
   // NumberField behavior — `onChange(v ?? 0)` — not something units introduced.)

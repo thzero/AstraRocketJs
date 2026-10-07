@@ -15,6 +15,8 @@
 import type { ComponentNode } from '../../engine/openRocketEngine';
 import type { KeyValueStore } from '../storage/keyValueStore';
 import { IndexedDbKeyValueStore } from '../storage/idbKeyValueStore';
+import { JsonListStore } from '../storage/jsonListStore';
+import { nsKey } from '../storage/storageKeys';
 
 /** A component the user saved for reuse. */
 export interface CustomPart {
@@ -45,7 +47,7 @@ export interface PresetStore {
   remove(id: string): Promise<void>;
 }
 
-const CUSTOM_KEY = 'astrarrocketjs:parts:custom';
+const CUSTOM_KEY = nsKey('parts:custom');
 
 /**
  * One stored row this build can use.
@@ -72,64 +74,27 @@ function isCustomPart(v: unknown): v is CustomPart {
 }
 
 /**
- * Default PresetStore: serializes the saved-part list to a single key-value
- * entry through a KeyValueStore (IndexedDB by default).
+ * Default PresetStore: the saved-part list as one JSON array under one
+ * key-value entry (see JsonListStore for the read and write rules), newest
+ * save first, one entry per id.
  */
 export class KeyValuePresetStore implements PresetStore {
-  constructor(
-    private readonly key: string = CUSTOM_KEY,
-    private readonly kv: KeyValueStore = new IndexedDbKeyValueStore(),
-  ) {}
+  private readonly items: JsonListStore<CustomPart>;
 
-  /** The stored list, tolerating an absent, corrupt or partly invalid blob. */
-  private static parse(raw: string | null): CustomPart[] {
-    if (!raw) return [];
-    try {
-      const parsed = JSON.parse(raw) as unknown;
-      return Array.isArray(parsed) ? parsed.filter(isCustomPart) : [];
-    } catch {
-      return []; // corrupt entry
-    }
+  constructor(key: string = CUSTOM_KEY, kv: KeyValueStore = new IndexedDbKeyValueStore()) {
+    this.items = new JsonListStore(key, isCustomPart, (p) => p.id, kv);
   }
 
-  /**
-   * Read, transform and write in ONE store transaction, and propagate a
-   * refused write the way `motorStore.addCustomMotor` does.
-   *
-   * `kv.update` reports failure by RETURNING false rather than throwing, so
-   * discarding it would mean the dialog awaits the save, gets a clean resolve,
-   * and closes over a library that does not contain the part, with no error
-   * anywhere.
-   *
-   * `update`, not read-then-set: IndexedDB is shared across the tabs of this
-   * installable PWA, and a get/set with an await between them lets two tabs
-   * each drop the other's part (see `DesignLibrary.mutateIndex`).
-   */
-  private async mutate(fn: (list: CustomPart[]) => CustomPart[]): Promise<void> {
-    const ok = await this.kv.update(this.key, (raw) => JSON.stringify(fn(KeyValuePresetStore.parse(raw))));
-    if (!ok) throw new Error('storage-full');
+  list(): Promise<CustomPart[]> {
+    return this.items.list();
   }
 
-  /**
-   * Guarded, unlike the template store's: this list is read every time the
-   * component picker opens, beside the catalog fetch, and a storage layer that
-   * REJECTS (rather than returning null) would take the whole picker down over
-   * a feature the user may never have used.
-   */
-  async list(): Promise<CustomPart[]> {
-    try {
-      return KeyValuePresetStore.parse(await this.kv.get(this.key));
-    } catch {
-      return [];
-    }
+  add(part: CustomPart): Promise<void> {
+    return this.items.upsert([part]);
   }
 
-  async add(part: CustomPart): Promise<void> {
-    await this.mutate((list) => [part, ...list.filter((p) => p.id !== part.id)]);
-  }
-
-  async remove(id: string): Promise<void> {
-    await this.mutate((list) => list.filter((p) => p.id !== id));
+  remove(id: string): Promise<void> {
+    return this.items.remove(id);
   }
 }
 

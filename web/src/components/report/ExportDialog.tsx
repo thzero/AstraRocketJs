@@ -11,9 +11,13 @@ import { assembleReport, type ReportBuild, type ReportModel } from '../../servic
 import { isPlanarFinSet } from '../../tree/tubefins';
 import { markingGuides } from '../../services/report/markingGuide';
 import type { ComponentNode } from '../../engine/openRocketEngine';
+import { stageLabel } from '../../i18n/format';
+import { errorMessage } from '../../services/app/errorMessage';
+import { Check } from '../common/Check';
+import { ColorInput } from '../common/ColorInput';
+import { DialogButton } from '../common/DialogButton';
 
 interface StageSel {
-  include: boolean;
   parts: boolean;
   finTemplates: boolean;
   hasFins: boolean;
@@ -37,8 +41,6 @@ const hasType = (nodes: ComponentNode[], pred: (t: string) => boolean): boolean 
   }
   return false;
 };
-
-const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /**
  * The "Print or export" dialog: pick what to include, tweak output settings,
@@ -95,7 +97,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
     try {
       return { model: assembleReport((built) => (rebuilt = built)), error: null, rebuilt };
     } catch (e) {
-      return { model: null, error: errorText(e), rebuilt };
+      return { model: null, error: errorMessage(e), rebuilt };
     }
   });
   const model = initial.model;
@@ -125,14 +127,13 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
           transitionTemplates: hasTransitions,
           finMarkingGuide: hasMarkingGuides,
           stages: model.stages.map((st, i) => ({
-            include: true,
             parts: true,
             finTemplates: true,
             // isPlanarFinSet: this gates the FIN TEMPLATES checkbox, and tube
             // fins produce no template, so a stage finned only with tubes must
             // not offer one.
             hasFins: hasType(st.children ?? [], isPlanarFinSet),
-            label: (st.name as string) || model.partsByStage[i]?.stage || `Stage ${i + 1}`,
+            label: stageLabel(t, i, st.name),
           })),
         }
       : null,
@@ -160,7 +161,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
             noseTemplates: on && hasNoses,
             transitionTemplates: on && hasTransitions,
             finMarkingGuide: on && hasMarkingGuides,
-            stages: s.stages.map((st) => ({ ...st, include: on, parts: on, finTemplates: on && st.hasFins })),
+            stages: s.stages.map((st) => ({ ...st, parts: on, finTemplates: on && st.hasFins })),
           }
         : s,
     );
@@ -179,7 +180,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
           // Reported, not swallowed: swallowing writes the PDF with the
           // PREVIOUS run's numbers, unmarked. The user asked for fresh data, so
           // say why there is none and write nothing.
-          useWorkspaceStore.getState().setErr(t('export.simFailed', { message: errorText(e) }));
+          useWorkspaceStore.getState().setErr(t('export.simFailed', { message: errorMessage(e) }));
           return;
         } finally {
           useWorkspaceStore.getState().setView(prevView);
@@ -198,7 +199,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
           noseTemplates: sel.noseTemplates,
           transitionTemplates: sel.transitionTemplates,
           finMarkingGuide: sel.finMarkingGuide,
-          stages: sel.stages.map((st) => ({ include: st.include, parts: st.parts, finTemplates: st.finTemplates })),
+          stages: sel.stages.map((st) => ({ parts: st.parts, finTemplates: st.finTemplates })),
           paper: settings.report.paper,
           orientation: settings.report.orientation,
           templateFill: settings.report.templateFill,
@@ -208,7 +209,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
       );
       onClose();
     } catch (e) {
-      useWorkspaceStore.getState().setErr(t('export.pdfFailed', { message: errorText(e) }));
+      useWorkspaceStore.getState().setErr(t('export.pdfFailed', { message: errorMessage(e) }));
     } finally {
       setBusy(false);
     }
@@ -221,7 +222,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
       downloadDesignCsv(assembleReport() ?? model, exportUnits);
       onClose();
     } catch (e) {
-      useWorkspaceStore.getState().setErr(t('export.csvFailed', { message: errorText(e) }));
+      useWorkspaceStore.getState().setErr(t('export.csvFailed', { message: errorMessage(e) }));
     }
   };
 
@@ -249,13 +250,9 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
         >
           {t('export.saveCsv')}
         </button>
-        <button
-          onClick={save}
-          disabled={busy}
-          className="rounded-md bg-sky-500 px-4 py-2 text-sm font-medium text-white hover:bg-sky-400 disabled:opacity-50"
-        >
+        <DialogButton onClick={save} disabled={busy} variant="primary">
           {busy ? t('common.loading') : t('export.savePdf')}
-        </button>
+        </DialogButton>
       </div>
     </div>
   );
@@ -281,104 +278,79 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
           <div className="p-4">
             <p className="mb-2 text-xs uppercase tracking-wide text-slate-400">{t('export.select')}</p>
             <div className="rounded-lg bg-slate-800/50 p-2 ring-1 ring-white/5">
-              <label className={`${row} font-semibold text-sky-300`}>
-                <input type="checkbox" className={check} checked={allOn} onChange={(e) => setAll(e.target.checked)} />
-                {model.name}
-              </label>
+              <Check
+                className={`${row} font-semibold text-sky-300`}
+                checked={allOn}
+                onChange={setAll}
+                label={model.name}
+              />
               {sel.stages.map((st, i) => (
                 <div key={i} className="pl-4">
                   <div className={`${row} text-slate-300`}>{st.label}</div>
-                  <label className={`${row} pl-4`}>
-                    <input
-                      type="checkbox"
-                      className={check}
-                      checked={st.parts}
-                      onChange={(e) => patchStage(i, { parts: e.target.checked })}
-                    />
-                    {t('report.partsDetail')}
-                  </label>
+                  <Check
+                    className={`${row} pl-4`}
+                    checked={st.parts}
+                    onChange={(v) => patchStage(i, { parts: v })}
+                    label={t('report.partsDetail')}
+                  />
                   {st.hasFins && (
-                    <label className={`${row} pl-4`}>
-                      <input
-                        type="checkbox"
-                        className={check}
-                        checked={st.finTemplates}
-                        onChange={(e) => patchStage(i, { finTemplates: e.target.checked })}
-                      />
-                      {t('export.finTemplates')}
-                    </label>
+                    <Check
+                      className={`${row} pl-4`}
+                      checked={st.finTemplates}
+                      onChange={(v) => patchStage(i, { finTemplates: v })}
+                      label={t('export.finTemplates')}
+                    />
                   )}
                 </div>
               ))}
-              <label className={`${row} pl-4`}>
-                <input
-                  type="checkbox"
-                  className={check}
-                  checked={sel.designReport}
-                  onChange={(e) => patch({ designReport: e.target.checked })}
-                />
-                {t('export.designReport')}
-              </label>
-              <label className={`${row} pl-4 ${hasNoses ? '' : 'opacity-40'}`}>
-                <input
-                  type="checkbox"
-                  className={check}
-                  disabled={!hasNoses}
-                  checked={sel.noseTemplates}
-                  onChange={(e) => patch({ noseTemplates: e.target.checked })}
-                />
-                {t('export.noseTemplates')}
-              </label>
-              <label className={`${row} pl-4 ${hasTransitions ? '' : 'opacity-40'}`}>
-                <input
-                  type="checkbox"
-                  className={check}
-                  disabled={!hasTransitions}
-                  checked={sel.transitionTemplates}
-                  onChange={(e) => patch({ transitionTemplates: e.target.checked })}
-                />
-                {t('export.transitionTemplates')}
-              </label>
-              <label className={`${row} pl-4 ${hasMarkingGuides ? '' : 'opacity-40'}`}>
-                <input
-                  type="checkbox"
-                  className={check}
-                  disabled={!hasMarkingGuides}
-                  checked={sel.finMarkingGuide}
-                  onChange={(e) => patch({ finMarkingGuide: e.target.checked })}
-                />
-                {t('export.finMarkingGuide')}
-              </label>
+              <Check
+                className={`${row} pl-4`}
+                checked={sel.designReport}
+                onChange={(v) => patch({ designReport: v })}
+                label={t('export.designReport')}
+              />
+              <Check
+                className={`${row} pl-4`}
+                disabled={!hasNoses}
+                checked={sel.noseTemplates}
+                onChange={(v) => patch({ noseTemplates: v })}
+                label={t('export.noseTemplates')}
+              />
+              <Check
+                className={`${row} pl-4`}
+                disabled={!hasTransitions}
+                checked={sel.transitionTemplates}
+                onChange={(v) => patch({ transitionTemplates: v })}
+                label={t('export.transitionTemplates')}
+              />
+              <Check
+                className={`${row} pl-4`}
+                disabled={!hasMarkingGuides}
+                checked={sel.finMarkingGuide}
+                onChange={(v) => patch({ finMarkingGuide: v })}
+                label={t('export.finMarkingGuide')}
+              />
             </div>
 
             <div className="mt-3 space-y-1">
-              <label className={row}>
-                <input
-                  type="checkbox"
-                  className={check}
-                  checked={sel.includeMotors}
-                  onChange={(e) => patch({ includeMotors: e.target.checked })}
-                />
-                {t('export.includeMotors')}
-              </label>
-              <label className={row}>
-                <input
-                  type="checkbox"
-                  className={check}
-                  checked={sel.updateSimData}
-                  onChange={(e) => patch({ updateSimData: e.target.checked })}
-                />
-                {t('export.updateSim')}
-              </label>
-              <label className={row}>
-                <input
-                  type="checkbox"
-                  className={check}
-                  checked={sel.showByStage}
-                  onChange={(e) => patch({ showByStage: e.target.checked })}
-                />
-                {t('export.showByStage')}
-              </label>
+              <Check
+                className={row}
+                checked={sel.includeMotors}
+                onChange={(v) => patch({ includeMotors: v })}
+                label={t('export.includeMotors')}
+              />
+              <Check
+                className={row}
+                checked={sel.updateSimData}
+                onChange={(v) => patch({ updateSimData: v })}
+                label={t('export.updateSim')}
+              />
+              <Check
+                className={row}
+                checked={sel.showByStage}
+                onChange={(v) => patch({ showByStage: v })}
+                label={t('export.showByStage')}
+              />
               <label className="flex items-center justify-between gap-3 pt-1 text-sm text-slate-200">
                 <span>{t('export.units')}</span>
                 <select
@@ -441,21 +413,19 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
                       })
                     }
                   />
-                  <input
-                    type="color"
+                  <ColorInput
                     disabled={!settings.report.templateFill}
                     value={settings.report.templateFill || '#e5e7eb'}
-                    onChange={(e) => update({ report: { ...settings.report, templateFill: e.target.value } })}
+                    onCommit={(c) => update({ report: { ...settings.report, templateFill: c } })}
                     className="h-7 w-10 cursor-pointer rounded-md border border-white/10 bg-slate-800 p-0.5 disabled:opacity-40"
                   />
                 </span>
               </label>
               <label className="flex items-center justify-between gap-3 text-sm text-slate-300">
                 {t('export.border')}
-                <input
-                  type="color"
+                <ColorInput
                   value={settings.report.templateStroke}
-                  onChange={(e) => update({ report: { ...settings.report, templateStroke: e.target.value } })}
+                  onCommit={(c) => update({ report: { ...settings.report, templateStroke: c } })}
                   className="h-7 w-10 cursor-pointer rounded-md border border-white/10 bg-slate-800 p-0.5"
                 />
               </label>

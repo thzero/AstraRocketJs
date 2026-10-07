@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import en from '../../../src/i18n/locales/en.json';
 import es from '../../../src/i18n/locales/es.json';
-import { DEFAULT_CSV_COLUMNS, flightColumns } from '../../../src/services/flight/flightColumns';
+import { DEFAULT_CSV_COLUMNS, flightBranches, flightColumns } from '../../../src/services/flight/flightColumns';
 import type { FlightResult } from '../../../src/engine/openRocketEngine';
 
 /** A result carrying exactly these series keys. */
@@ -65,5 +65,28 @@ describe('flightColumns', () => {
     for (const c of flightColumns(withKeys(['time', 'Cd', 'M', 'Px', 'ρ']))) {
       expect(c.quantity ?? c.unit, `${c.key} has neither`).toBeDefined();
     }
+  });
+});
+
+describe('flightBranches', () => {
+  it('wraps a single flight as one branch, under the given name', () => {
+    const r = { series: { time: [0] }, events: [{ type: 'LIFTOFF', time: 0 }] } as unknown as FlightResult;
+    const [only, ...rest] = flightBranches(r, 'Flight');
+    expect(rest).toEqual([]);
+    expect(only).toEqual({ name: 'Flight', events: r.events, series: r.series });
+  });
+
+  it('reads a result without events as a branch with none', () => {
+    const r = { series: { time: [0] } } as unknown as FlightResult;
+    expect(flightBranches(r)[0]!.events).toEqual([]);
+  });
+
+  it('returns the separated branches as they are', () => {
+    const branches = [
+      { name: 'Sustainer', events: [], series: { time: [0] } },
+      { name: 'Booster', events: [], series: { time: [0] } },
+    ];
+    const r = { series: { time: [0] }, events: [], branches } as unknown as FlightResult;
+    expect(flightBranches(r)).toBe(branches);
   });
 });

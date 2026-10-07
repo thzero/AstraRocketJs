@@ -10,11 +10,13 @@ import { useSettings } from '../../state/SettingsProvider';
 import { ImageExportMenu } from './ImageExportMenu.js';
 import { useUnits } from '../../prefs/useUnits';
 import type { MotorDims } from './schematicGeometry';
-import { buildPieces, markerRadius } from './rocketPieces';
+import { markerRadius } from './rocketPieces';
+import { usePieces } from './usePieces';
 import { AxisCallout, markerTexture } from './rocketCallouts';
 import { StabilityCallout } from './StabilityCallout';
 import { RocketModel } from './RocketModel';
 import { useRocketExport, type R3fHandles } from './useRocketExport';
+import { CG_INK, CP_INK } from './stabilityGadget';
 
 // The store imports the motor-dims shape from here; the definition lives with
 // the other shared view helpers.
@@ -69,26 +71,17 @@ export function Rocket3D({
   const u = useUnits();
   const { settings } = useSettings();
   const palette = useMemo(() => mergePalette(settings.partColors), [settings.partColors]);
-  const { pieces, totalLen, maxR } = useMemo(() => buildPieces(tree, motors, palette), [tree, motors, palette]);
+  const { pieces, totalLen, maxR } = usePieces(tree, motors, palette);
   const r3f = useRef<R3fHandles | null>(null);
 
   // Hi-res snapshot (issue 2026-08-11b): the same scene rendered offscreen at
   // the export width, with the on-screen path as the fallback.
   const snapshot = useRocketExport(r3f, pieces, maxR, exportData);
-  // Mesh keys are stable across rebuilds, so R3F never unmounts/auto-disposes
-  // the swapped-out geometries — release them ourselves or every edit leaks
-  // a full set of GPU buffers.
-  useEffect(
-    () => () => {
-      for (const p of pieces) p.geometry.dispose();
-    },
-    [pieces],
-  );
   const center = totalLen / 2;
   const camDist = Math.max(totalLen * 1.1, maxR * 6, 0.25);
   const markerR = markerRadius(totalLen, maxR);
-  const cgTex = useMemo(() => markerTexture('#2b6cff'), []);
-  const cpTex = useMemo(() => markerTexture('#e34948'), []);
+  const cgTex = useMemo(() => markerTexture(CG_INK), []);
+  const cpTex = useMemo(() => markerTexture(CP_INK), []);
   useEffect(
     () => () => {
       cgTex.dispose();
@@ -237,7 +230,7 @@ export function Rocket3D({
                 dir={1}
                 color="#dbe3ea"
                 tex={cgTex}
-                label={`${t('schematic.cg')} · ${u.fmt('length', info.cg)} ${u.sym('length')}`}
+                label={`${t('schematic.cg')} · ${u.fmtSym('length', info.cg)}`}
                 len={maxR * 1.7}
                 markerR={markerR}
               />
@@ -265,8 +258,8 @@ export function Rocket3D({
         {showMarkers && (
           <>
             {' · '}
-            <span style={{ color: '#aab2bd' }}>●</span> {t('schematic.cg')} ·{' '}
-            <span style={{ color: '#e34948' }}>●</span> {t('schematic.cp')}
+            <span style={{ color: CG_INK }}>●</span> {t('schematic.cg')} · <span style={{ color: CP_INK }}>●</span>{' '}
+            {t('schematic.cp')}
           </>
         )}
       </p>

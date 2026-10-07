@@ -1,14 +1,21 @@
 import type { ComponentNode, RocketTree } from '../engine/openRocketEngine';
 import { num } from './nodeProps';
+import { findWithParent } from './treeWalk';
 import { freeformPoints, freeformRootChord } from './position';
 import { FIN_DEFAULTS, KERNEL_BODYTUBE_OUTER_RADIUS } from './kernelDefaults';
 
 /**
- * Re-exported for convenience. The values themselves live in `kernelDefaults.ts`,
- * the one table verified against the real engine; they are ComponentFactory's fin
- * defaults, not "what treeEdit and orkImport write".
+ * Re-exported for convenience. The value itself lives in `kernelDefaults.ts`,
+ * the one table verified against the real engine.
+ *
+ * `FIN_DEFAULTS` is deliberately NOT re-exported any more. It was, and
+ * `schematicShapes` imported it from here alongside `finRootChord` and
+ * `finSpan` and then assembled its own trapezoid and its own elliptical arc
+ * from those dimensions -- holding everything this module offers except the
+ * outline. A consumer that wants fin DIMENSIONS can take them from
+ * `kernelDefaults`; what it gets from here is a planform.
  */
-export { FIN_DEFAULTS, KERNEL_BODYTUBE_OUTER_RADIUS };
+export { KERNEL_BODYTUBE_OUTER_RADIUS };
 
 /**
  * THE fin planform. One source of truth for every consumer that draws, prints,
@@ -108,7 +115,7 @@ export function ellipticalFinPoints(rootChord: number, height: number): [number,
 }
 
 /** A trapezoid fin's four dimensions, with the one agreed set of fallbacks. */
-function trapezoidDims(node: ComponentNode): { root: number; tip: number; sweep: number; height: number } {
+export function trapezoidDims(node: ComponentNode): { root: number; tip: number; sweep: number; height: number } {
   return {
     root: num(node, 'rootChord', FIN_DEFAULTS.rootChord),
     tip: num(node, 'tipChord', FIN_DEFAULTS.tipChord),
@@ -125,6 +132,15 @@ function trapezoidDims(node: ComponentNode): { root: number; tip: number; sweep:
  */
 export function trapezoidFinPoints(node: ComponentNode): [number, number][] {
   const { root, tip, sweep, height } = trapezoidDims(node);
+  return trapezoidPoints(root, tip, sweep, height);
+}
+
+/**
+ * The `TrapezoidFinSet.getFinPoints()` outline from explicit dimensions (m),
+ * for a caller whose fallbacks differ from `FIN_DEFAULTS` (RockSim's are zero).
+ * Same collapse rule: a tip chord at or below 0.0001 m emits a triangle.
+ */
+export function trapezoidPoints(root: number, tip: number, sweep: number, height: number): [number, number][] {
   const pts: [number, number][] = [
     [0, 0],
     [sweep, height],
@@ -275,19 +291,12 @@ export function finCutContour(node: ComponentNode, parentRadius: number | null):
  * different tab depths.
  */
 export function parentRadiusOf(tree: RocketTree, nodeId: string): number | null {
-  let found: number | null = null;
-  const walk = (parent: ComponentNode): boolean => {
-    for (const child of parent.children ?? []) {
-      if (child.id === nodeId) {
-        found = symmetricRadius(parent);
-        return true;
-      }
-      if (walk(child)) return true;
-    }
-    return false;
-  };
-  for (const stage of tree.components) if (walk(stage)) break;
-  return found;
+  // Searched below each top-level node, which is never itself the fin.
+  for (const stage of tree.components) {
+    const hit = findWithParent(stage.children ?? [], nodeId, stage);
+    if (hit) return hit.parent ? symmetricRadius(hit.parent) : null;
+  }
+  return null;
 }
 
 /** The mounting radius of a symmetric body component, or `null` if it is not one. */

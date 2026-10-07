@@ -1,25 +1,34 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { LaunchConditions } from '../../services/design/orkTree';
-import { NumberInput } from '../common/NumberInput';
-import { FieldLabel, markRing } from '../common/FieldMark';
 import { isFilled, missingRequired, type RequiredLaunchKey } from '../../services/flight/requiredLaunch';
 import { UnitChip } from '../common/UnitChip';
 import { useUnits, type Units } from '../../prefs/useUnits';
 import { unitScope } from '../../prefs/units';
+import { onSi } from '../../prefs/entryValue';
 import { fmtUpTo, ladderDigits, withUnit } from '../../i18n/format';
 import { LAUNCH_SI, type LaunchUnitKind } from '../../prefs/launchUnits';
-import { MAX_ROD_ANGLE_RAD, MAX_WIND_SPEED_MS } from '../../services/flight/safetyLimits';
+import { MAX_ROD_ANGLE_RAD, MAX_TURBULENCE_PERCENT, MAX_WIND_SPEED_MS } from '../../services/flight/safetyLimits';
 import { G0 } from '../../services/motors/motorMath';
 import {
   hasIntensity,
+  retuneStdDev,
   stdDevForIntensity,
   turbulenceIntensity,
   turbulenceLevel,
 } from '../../services/flight/windTurbulence';
 import { WindProfileDialog } from './WindProfileDialog';
+import { WeatherDialog } from './WeatherDialog';
+import { WeatherSourceLine } from './WeatherSourceLine';
+import { WeatherKeyField } from './WeatherKeyField';
 import { LocationPicker } from './LocationPicker';
+import { LAUNCH_SITE_LIMITS } from '../../services/storage/launchLocationStore';
 import { SiteMapDialog } from './SiteMapDialog';
+import { useLatest } from '../common/useLatest';
+import { DEFAULT_HEADING_DEG } from '../../services/flight/simulations';
+import { NumberRow } from '../common/NumberRow';
+import { CardGroup } from '../common/CardGroup';
+import { LatLonRows } from './LatLonRows';
 
 /**
  * Launch & atmosphere conditions for the flight simulation: wind (single average
@@ -28,99 +37,12 @@ import { SiteMapDialog } from './SiteMapDialog';
  * App feeds these straight into simulate(). Populated from an imported .ork.
  */
 
-function Num({
-  label,
-  unit,
-  value,
-  step = 1,
-  min,
-  max,
-  placeholder,
-  hint,
-  mixed,
-  required,
-  missing,
-  onChange,
-}: {
-  label: string;
-  unit?: ReactNode;
-  value: number | null;
-  step?: number;
-  min?: number;
-  /** NumberInput clamps against this; without it a field is unbounded above. */
-  max?: number;
-  placeholder?: string;
-  /** Why the field stops where it does. Rendered under the row. */
-  hint?: string;
-  /**
-   * The simulations being edited together do not agree on this field. The box
-   * shows the ACTIVE one's value, so without the marker a bulk edit would
-   * flatten the others' values with nothing on screen to say so.
-   */
-  mixed?: boolean;
-  /** A launch field a flight cannot be computed without. Marked always. */
-  required?: boolean;
-  /** ...and it is currently empty, which blocks the run. */
-  missing?: boolean;
-  onChange: (v: number | null) => void;
-}) {
-  if (hint) {
-    return (
-      <div>
-        <Num
-          label={label}
-          unit={unit}
-          value={value}
-          step={step}
-          min={min}
-          max={max}
-          placeholder={placeholder}
-          mixed={mixed}
-          required={required}
-          missing={missing}
-          onChange={onChange}
-        />
-        <p className="mt-0.5 pr-24 text-[11px] leading-snug text-slate-500">{hint}</p>
-      </div>
-    );
-  }
-  return (
-    <label className="flex items-center justify-between gap-3">
-      <FieldLabel text={label} required={required} missing={missing} mixed={mixed} />
-      <span className="flex items-center gap-1">
-        <NumberInput
-          ariaLabel={label}
-          value={value}
-          /* An empty REQUIRED box writes nothing, so the field simply keeps what
-             it had. Not a focus trap -- tabbing away still works, which a trap
-             would forbid (WCAG 2.1.2) and which would fight anyone clearing a
-             field to retype it. NumberInput holds its own draft string while
-             focused, so the box still LOOKS empty as you type; only the commit
-             is withheld. An imported .ork that omits the field still arrives
-             blank, which is what the marker and the run gate are for. */
-          onChange={(v) => (v === null && required ? undefined : onChange(v))}
-          step={step}
-          min={min}
-          max={max}
-          placeholder={placeholder}
-          className={markRing(
-            'w-24 rounded-md bg-slate-800 px-2 py-1 text-right text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500',
-            missing,
-            mixed,
-          )}
-        />
-        {unit && <span className="min-w-10 text-xs text-slate-500">{unit}</span>}
-      </span>
-    </label>
-  );
-}
-
 /**
  * A launch-condition field in the user's chosen unit. `value`/`onChange` speak
  * the STORED convention (see SI above); `stepSi`/`minSi` are given in SI, so a
  * sensible 0.5 m/s or 10 m stays sensible once it is shown in ft/s or ft.
  */
-function QNum({
+export function QNum({
   label,
   chipLabel,
   field,
@@ -168,7 +90,7 @@ function QNum({
   const scope = unitScope('launch', field);
   const fu = u.at(scope, c.q);
   return (
-    <Num
+    <NumberRow
       label={label}
       // The field's own label, not just the quantity: this panel shows three
       // ANGLE chips (rod angle, rod direction, wind direction) and two WIND
@@ -183,17 +105,12 @@ function QNum({
       required={required}
       missing={missing}
       value={value === null ? null : fu.toUi(c.toSi(value))}
-      onChange={(v) => onChange(v === null ? null : c.fromSi(fu.fromUi(v)))}
+      // Two legs: the box's unit to SI, then SI to what the field is STORED
+      // in (degrees, Celsius, hPa). `onSi` checks both, so neither an entry
+      // that overflows on conversion nor one that overflows on the way to the
+      // stored convention reaches the launch conditions.
+      onChange={onSi(fu, onChange, c.fromSi)}
     />
-  );
-}
-
-function Group({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="rounded-xl bg-slate-900 p-3 ring-1 ring-white/10">
-      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">{title}</h3>
-      <div className="space-y-2">{children}</div>
-    </section>
   );
 }
 
@@ -202,6 +119,8 @@ export function LaunchPanel({
   onChange,
   onCommit,
   diff,
+  weather = false,
+  weatherKey = false,
 }: {
   launch: LaunchConditions;
   onChange: (patch: Partial<LaunchConditions>) => void;
@@ -214,6 +133,17 @@ export function LaunchPanel({
   /** Close the current edit's undo entry. Number fields commit via the panel's
    *  container blur (React blur bubbles); discrete controls commit immediately. */
   onCommit?: () => void;
+  /**
+   * Offer the Weather dialog. The simulation editor does; the Settings copy,
+   * which edits the defaults every future simulation starts from, does not: a
+   * forecast is for one day at one site.
+   */
+  weather?: boolean;
+  /**
+   * Offer the Open-Meteo API key, at the bottom of the Atmosphere card. Only the
+   * Settings copy does: the key is one setting for every simulation.
+   */
+  weatherKey?: boolean;
 }) {
   const { t } = useTranslation();
   const u = useUnits();
@@ -228,11 +158,17 @@ export function LaunchPanel({
     return withUnit(fmtUpTo(ui, ladderDigits(ui)), fu.sym);
   };
   const [profileOpen, setProfileOpen] = useState(false);
+  const [weatherOpen, setWeatherOpen] = useState(false);
+  // Opened from the source line's Refresh rather than the Get weather button.
+  const [weatherRefresh, setWeatherRefresh] = useState(false);
+  const atmosphereLevels = launch.atmosphereLevels ?? [];
   // Geolocation is a 10 s round trip that can simply be refused. Without a
   // pending state and a reported error, both outcomes are invisible and the
   // button appears to do nothing.
   const [locating, setLocating] = useState(false);
   const [locateErr, setLocateErr] = useState<string | null>(null);
+  // Which "use my location" attempt is current: the prompt outlives the panel.
+  const locate = useLatest();
   const [mapOpen, setMapOpen] = useState(false);
   const mixed = (k: keyof LaunchConditions) => diff?.has(k) ?? false;
   // Empty required fields on the simulation being shown. The SETTINGS copy of
@@ -268,7 +204,7 @@ export function LaunchPanel({
         {
           altitudeM: 0,
           speed: launch.windAverage || 0,
-          directionDeg: launch.windDirectionDeg ?? 90,
+          directionDeg: launch.windDirectionDeg ?? DEFAULT_HEADING_DEG,
           stddev: launch.windStdDev || 0,
         },
       ],
@@ -283,7 +219,7 @@ export function LaunchPanel({
     // cards relative to their siblings. The gap matches the sim editor's, so one
     // column of cards reads as one rhythm.
     <div className="space-y-4" onBlur={onCommit}>
-      <Group title={t('launch.launchRod')}>
+      <CardGroup title={t('launch.launchRod')}>
         <QNum
           label={t('launch.length')}
           chipLabel={t('launch.rodLengthName')}
@@ -332,16 +268,16 @@ export function LaunchPanel({
             u={u}
             stepSi={(5 * Math.PI) / 180}
             mixed={mixed('launchRodDirectionDeg')}
-            value={launch.launchRodDirectionDeg ?? 90}
+            value={launch.launchRodDirectionDeg ?? DEFAULT_HEADING_DEG}
             // Cleared is CLEARED: the box shows 90
             // when unset, so writing 0 for an emptied field silently turned
             // the default east into north.
             onChange={(v) => onChange({ launchRodDirectionDeg: v ?? undefined })}
           />
         )}
-      </Group>
+      </CardGroup>
 
-      <Group title={t('launch.site')}>
+      <CardGroup title={t('launch.site')}>
         {/* Above the three fields it fills, because picking a saved location is the
             alternative to typing them rather than something you do after. */}
         <LocationPicker launch={launch} onChange={onChange} onCommit={onCommit} />
@@ -351,48 +287,32 @@ export function LaunchPanel({
           kind="distance"
           u={u}
           stepSi={10}
-          // Dead Sea shore to above any launch site: the kernel's atmosphere
-          // model takes this straight, and it was one of two site fields left
-          // unbounded after every sibling was given a range.
-          minSi={-500}
-          maxSi={10000}
+          minSi={LAUNCH_SITE_LIMITS.launchAltitudeM.min}
+          maxSi={LAUNCH_SITE_LIMITS.launchAltitudeM.max}
           mixed={mixed('launchAltitudeM')}
           {...req('launchAltitudeM')}
           value={launch.launchAltitudeM}
           onChange={(v) => onChange({ launchAltitudeM: v })}
         />
-        <Num
-          label={t('launch.latitude')}
-          unit="°"
-          step={1}
-          // Unbounded, these reached the kernel as launchLatitude (gravity and
-          // Coriolis) AND flightPathExport as the KML/GPX origin, where a
-          // latitude past ±90 is rejected outright by Google Earth.
-          min={-90}
-          max={90}
-          mixed={mixed('latitudeDeg')}
-          {...req('latitudeDeg')}
-          value={launch.latitudeDeg}
-          onChange={(v) => onChange({ latitudeDeg: v })}
-        />
-        <Num
-          label={t('launch.longitude')}
-          unit="°"
-          step={1}
-          min={-180}
-          max={180}
-          mixed={mixed('longitudeDeg')}
-          {...req('longitudeDeg')}
-          value={launch.longitudeDeg}
-          onChange={(v) => onChange({ longitudeDeg: v })}
+        <LatLonRows
+          latitudeDeg={launch.latitudeDeg}
+          longitudeDeg={launch.longitudeDeg}
+          marks={(k) => ({ mixed: mixed(k), ...req(k) })}
+          onChange={onChange}
         />
         {'geolocation' in navigator && (
           <button
             onClick={() => {
               setLocateErr(null);
               setLocating(true);
+              // The browser's permission prompt can sit unanswered for minutes,
+              // and `onChange` writes to whatever rows are the CURRENT edit
+              // targets. Without this, allowing the prompt after switching
+              // simulations put the launch site on the wrong one.
+              const mine = locate.claim();
               navigator.geolocation.getCurrentPosition(
                 (pos) => {
+                  if (!mine()) return;
                   setLocating(false);
                   setLocateErr(null);
                   onChange({
@@ -402,6 +322,7 @@ export function LaunchPanel({
                   onCommit?.();
                 },
                 () => {
+                  if (!mine()) return;
                   // Denial is silent, and there is a 10 s timeout behind it,
                   // so the pending state has to be cleared on both paths or the
                   // button never settles.
@@ -441,18 +362,40 @@ export function LaunchPanel({
             onClose={() => setMapOpen(false)}
           />
         )}
-      </Group>
+      </CardGroup>
 
-      <Group title={t('launch.atmosphere')}>
+      <CardGroup title={t('launch.atmosphere')}>
+        {weather && (
+          <button
+            onClick={() => {
+              setWeatherRefresh(false);
+              setWeatherOpen(true);
+            }}
+            className="w-full rounded-md bg-slate-800 px-2 py-1.5 text-xs font-medium text-sky-300 ring-1 ring-white/10 hover:bg-slate-700"
+          >
+            {t('launch.getWeather')}
+          </button>
+        )}
+        <WeatherSourceLine
+          launch={launch}
+          onRefresh={
+            weather
+              ? () => {
+                  setWeatherRefresh(true);
+                  setWeatherOpen(true);
+                }
+              : undefined
+          }
+        />
         <QNum
           label={t('launch.temperature')}
           field="temperature"
           kind="degC"
-          // Below absolute zero is not a launch condition. These three were
-          // the only QNums with neither bound while every sibling is bounded,
-          // and they go straight to the kernel's atmosphere model.
-          minSi={-90}
-          maxSi={70}
+          // -90 to 70 degrees C, below and above any recorded air temperature.
+          // In KELVIN, because a QNum bound is SI: written as -90 and 70 they
+          // capped every entry at 70 K, about -203 degrees C.
+          minSi={LAUNCH_SI.degC.toSi(LAUNCH_SITE_LIMITS.temperatureC.min)}
+          maxSi={LAUNCH_SI.degC.toSi(LAUNCH_SITE_LIMITS.temperatureC.max)}
           u={u}
           stepSi={1}
           placeholder={t('launch.isa')}
@@ -479,7 +422,7 @@ export function LaunchPanel({
             reads off a forecast. Blank is ISA, like the two fields above, and
             humidity alone is enough to leave standard: the bridge only keeps
             ISA when all three are absent. */}
-        <Num
+        <NumberRow
           label={t('launch.humidity')}
           unit="%"
           step={5}
@@ -490,9 +433,31 @@ export function LaunchPanel({
           value={launch.relativeHumidity == null ? null : Math.round(launch.relativeHumidity * 100)}
           onChange={(v) => onChange({ relativeHumidity: v == null ? null : v / 100 })}
         />
-      </Group>
+        {/* A forecast atmosphere replaces the standard one above the site. It
+            is shown and can be removed here, where the standard atmosphere's
+            own fields are, so nothing flies that the panel does not show. */}
+        {atmosphereLevels.length > 0 && (
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-xs text-slate-400">
+              {t('launch.forecastProfile', {
+                top: `${u.fmtSym('distance', atmosphereLevels[atmosphereLevels.length - 1]!.altitudeM, 0)}`,
+              })}
+            </span>
+            <button
+              onClick={() => {
+                onChange({ atmosphereLevels: undefined });
+                onCommit?.();
+              }}
+              className="rounded-md bg-slate-800 px-2 py-1 text-xs font-medium text-slate-300 ring-1 ring-white/10 hover:bg-slate-700"
+            >
+              {t('launch.clearForecastProfile')}
+            </button>
+          </div>
+        )}
+        {weatherKey && <WeatherKeyField />}
+      </CardGroup>
 
-      <Group title={t('launch.wind')}>
+      <CardGroup title={t('launch.wind')}>
         <fieldset className="pb-1">
           <legend className="sr-only">{t('launch.windModel')}</legend>
           <div className="flex items-center justify-between gap-3">
@@ -543,7 +508,7 @@ export function LaunchPanel({
                 // fraction and rescaling would snap the scatter to the whole
                 // wind speed.
                 if (!hasIntensity(windAvg)) return onChange({ windAverage: v });
-                onChange({ windAverage: v, windStdDev: stdDevForIntensity(v, intensity) });
+                onChange({ windAverage: v, windStdDev: retuneStdDev(windAvg, windSd, v) });
               }}
             />
             <QNum
@@ -554,6 +519,7 @@ export function LaunchPanel({
               u={u}
               stepSi={0.5}
               minSi={0}
+              maxSi={MAX_WIND_SPEED_MS}
               mixed={mixed('windStdDev')}
               {...req('windStdDev')}
               value={launch.windStdDev}
@@ -564,11 +530,12 @@ export function LaunchPanel({
                 three fields are one value seen two ways, so typing 10% here
                 rewrites the deviation exactly as typing the deviation rewrites
                 this. Its descriptive name sits under it, as OpenRocket does. */}
-            <Num
+            <NumberRow
               label={t('launch.turbulenceIntensity')}
               unit="%"
               step={1}
               min={0}
+              max={MAX_TURBULENCE_PERCENT}
               mixed={mixed('windStdDev')}
               value={Math.round(intensity * 100)}
               onChange={(v) => onChange({ windStdDev: stdDevForIntensity(windAvg, (v ?? 0) / 100) })}
@@ -584,7 +551,7 @@ export function LaunchPanel({
               u={u}
               stepSi={(5 * Math.PI) / 180}
               mixed={mixed('windDirectionDeg')}
-              value={launch.windDirectionDeg ?? 90}
+              value={launch.windDirectionDeg ?? DEFAULT_HEADING_DEG}
               // See the rod direction: an emptied box goes back to unset.
               onChange={(v) => onChange({ windDirectionDeg: v ?? undefined })}
             />
@@ -604,9 +571,9 @@ export function LaunchPanel({
             </button>
           </div>
         )}
-      </Group>
+      </CardGroup>
 
-      <Group title={t('launch.earthModel')}>
+      <CardGroup title={t('launch.earthModel')}>
         <label className="flex items-center justify-between gap-3">
           <span className="text-xs text-slate-400">{t('launch.geodetic')}</span>
           <select
@@ -650,8 +617,17 @@ export function LaunchPanel({
             onChange={(v) => onChange({ constantGravity: v ?? G0 })}
           />
         )}
-      </Group>
+      </CardGroup>
 
+      {weatherOpen && (
+        <WeatherDialog
+          launch={launch}
+          onChange={onChange}
+          onCommit={onCommit}
+          onClose={() => setWeatherOpen(false)}
+          refresh={weatherRefresh}
+        />
+      )}
       {/* Mounted only while open: its error line and row keys reset by unmount. */}
       {profileOpen && (
         <WindProfileDialog

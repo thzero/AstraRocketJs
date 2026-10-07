@@ -31,10 +31,13 @@ altituderef
 altitudereference
 Altus
 angleoffset
+angus
+aopalliance
+apikey
 ARCAS
 arcgisonline
 astrarocketjs
-astrarrocketjs
+atmo
 authorable
 axialoffset
 barrowman
@@ -42,6 +45,7 @@ Barrowman's
 baseheight
 basematerials
 basepressure
+baserelativehumidity
 basetemperature
 bbody
 bfins
@@ -55,13 +59,14 @@ boosterset
 browsable
 Busemann
 bypassable
+caffeine
 cands
 caseairframe
 catchable
 centeringring
 Cesaroni
-chuteless
 checkcast
+chuteless
 classgraph
 CLDR
 clen
@@ -72,6 +77,7 @@ clusterscale
 CODATA
 codegen
 Coeff
+commonmark
 compname
 configdialog
 configid
@@ -85,9 +91,11 @@ crosshairs
 crossrange
 crosssection
 Crêpe
+currentconditions
 curveless
 customexpression
 customreference
+databind
 datasheet
 dataviz
 DATCOM
@@ -121,10 +129,12 @@ doublewedge
 drei
 drei's
 DREV
+easyops
 edgessameasinside
 efins
 Eggtimer
 ejectioncharge
+elevationapplied
 ellipticalfinset
 ENDSEC
 ENDTAB
@@ -136,6 +146,7 @@ evts
 extendedisa
 EXTMAX
 EXTMIN
+failureaccess
 fairingshape
 façade
 fbclid
@@ -159,6 +170,7 @@ flangeheight
 Fleeman
 flightcomputer
 flightdata
+forecastlevel
 foreradius
 foreshouldercapped
 foreshoulderlength
@@ -173,6 +185,7 @@ geodeticmethod
 Geographics
 Geolocator
 GEOMS
+geopotential
 glenmarc
 GLTF
 Golay
@@ -216,7 +229,9 @@ instanceseparation
 INSUNITS
 isdrogue
 isflipped
+istack
 Itot
+jakarta
 Jambol
 jank
 javac
@@ -232,6 +247,7 @@ kitchensink
 kitname
 KOSDON
 Kutta
+Kármán
 languagedetector
 launchaltitude
 launchintowind
@@ -251,6 +267,7 @@ linematerial
 linestyle
 Lngs
 loadouts
+logback
 luma
 Maccoll
 macrotask
@@ -280,6 +297,7 @@ misordered
 misrender
 misrenders
 mistap
+mkdtemp
 mktemp
 mmrocket
 mmrsim
@@ -289,6 +307,7 @@ motorconfiguration
 motormount
 mountainmanrockets
 msvc
+mtnmanak
 multisampled
 multiset
 myfinset
@@ -303,9 +322,12 @@ notsimulated
 nozzleexitdiameter
 nudgeable
 opacityaffectstexture
+opencsv
+openmeteo
 openrocket
 openstreetmap
 openxmlformats
+orc
 Ork's
 orkengine
 outerdiameter
@@ -347,6 +369,7 @@ precaches
 precaching
 prefs
 premultiplies
+PresetDump
 pushversion
 putchar
 quik
@@ -370,6 +393,7 @@ reimplementation
 relativehumidity
 relativeto
 reloadable
+reloadables
 rels
 requestfailed
 reselecting
@@ -392,6 +416,7 @@ separationconfiguration
 separationdelay
 separationevent
 SEQEND
+ServicesForTesting
 shapeclipped
 shapeparameter
 shockcord
@@ -431,6 +456,7 @@ Substitutor
 sust
 sustainers
 sweeplength
+swiftshader
 tabheight
 tablength
 tabposition
@@ -441,6 +467,7 @@ thrustcurve
 thrustcurve's
 thrustcurves
 thzero
+timeformat
 Timeto
 tipchord
 titebond
@@ -457,6 +484,7 @@ tubefin
 tubefins
 tubefinset
 turb
+txw
 unawaited
 unbuildable
 unbuilt
@@ -469,12 +497,14 @@ undoable
 unfloored
 unflyable
 unioned
+unixtime
 unmanifested
 unmemoized
 unmetered
 unmodeled
 unopenable
 unparseable
+unpowered
 unproject
 unreviewed
 Unrotated
@@ -494,6 +524,7 @@ verts
 visualização
 Vuelo
 weathercocking
+weathersource
 windaverage
 winddirection
 windlevel

@@ -43,8 +43,9 @@ vi.mock('../../src/services/storage/idbKeyValueStore', async (orig) => ({
   },
 }));
 
-import { useWorkspaceEffects } from '../../src/state/useWorkspaceEffects';
+import { REBUILD_DEBOUNCE_MS, useWorkspaceEffects } from '../../src/state/useWorkspaceEffects';
 import { useWorkspaceStore } from '../../src/state/store';
+import { asFlown, isStale } from '../testing/flown';
 import { useEngineStore } from '../../src/state/engineStore';
 import { getDesignLibrary, setDesignLibrary, type DesignLibrary } from '../../src/services/storage/designLibrary';
 import { renderWithProviders } from '../testing/renderWithProviders';
@@ -82,6 +83,9 @@ afterEach(() => {
   cleanup();
   vi.useRealTimers();
 });
+
+/** Let the debounced rebuild that an edit after the first build schedules land. */
+const settleRebuild = () => act(() => void vi.advanceTimersByTime(REBUILD_DEBOUNCE_MS));
 
 /** Render and let the load promise settle. */
 const mount = async (ui = <Host />) => {
@@ -163,7 +167,9 @@ describe('autosave', () => {
     save.mockClear();
 
     act(() => s().addPartToTree('bodytube'));
-    act(() => vi.advanceTimersByTime(400));
+    act(() => {
+      vi.advanceTimersByTime(400);
+    });
     act(() => s().addPartToTree('bodytube'));
     expect(save).not.toHaveBeenCalled(); // the second edit restarted the clock
 
@@ -210,7 +216,9 @@ describe('autosave', () => {
     renderWithProviders(<Host />);
 
     act(() => s().addPartToTree('bodytube'));
-    act(() => vi.advanceTimersByTime(1000));
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
     // Saving now would write the DEFAULT design over the one still being read.
     expect(save).not.toHaveBeenCalled();
 
@@ -280,7 +288,9 @@ describe('autosave', () => {
 describe('the unload journal', () => {
   it('flushes synchronously on pagehide', async () => {
     await mount();
-    act(() => window.dispatchEvent(new Event('pagehide')));
+    act(() => {
+      window.dispatchEvent(new Event('pagehide'));
+    });
     // Synchronous path: an async IndexedDB write cannot finish during teardown.
     expect(saveSync).toHaveBeenCalledTimes(1);
   });
@@ -288,14 +298,18 @@ describe('the unload journal', () => {
   it('does not journal a workspace it never hydrated', () => {
     load.mockReturnValue(new Promise(() => {})); // never settles
     renderWithProviders(<Host />);
-    act(() => window.dispatchEvent(new Event('pagehide')));
+    act(() => {
+      window.dispatchEvent(new Event('pagehide'));
+    });
     expect(saveSync).not.toHaveBeenCalled();
   });
 
   it('stops listening once unmounted', async () => {
     const { unmount } = await mount();
     unmount();
-    act(() => window.dispatchEvent(new Event('pagehide')));
+    act(() => {
+      window.dispatchEvent(new Event('pagehide'));
+    });
     expect(saveSync).not.toHaveBeenCalled();
   });
 });
@@ -309,13 +323,16 @@ describe('what triggers a rebuild', () => {
   it('editing the design metadata neither rebuilds nor invalidates', async () => {
     await mount();
     computeStaticInfo.mockClear();
-    const markOutdated = vi.spyOn(useWorkspaceStore.getState(), 'markOutdated');
+    act(() => {
+      useWorkspaceStore.setState((st) => ({
+        sims: st.sims.map((x) => asFlown(st, { ...x, result: { summary: { maxAltitude: 271 } } as never })),
+      }));
+    });
 
     act(() => s().updateDesignMeta({ designer: 'Ada Lovelace' }));
 
     expect(computeStaticInfo).not.toHaveBeenCalled();
-    expect(markOutdated).not.toHaveBeenCalled();
-    markOutdated.mockRestore();
+    expect(s().sims.every((x) => !isStale(x))).toBe(true);
   });
 
   it('renaming a part rebuilds — the engine labels its rows with the name', async () => {
@@ -326,7 +343,35 @@ describe('what triggers a rebuild', () => {
       s().setSelectedId(s().tree.components[0]!.id as string);
       s().patchSelected({ name: 'Ogive' });
     });
+    settleRebuild();
 
+    expect(computeStaticInfo).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * A typed or dragged dimension changes the design once per input event, and a
+   * build is a full kernel run on the main thread. A burst costs one build, of
+   * the design as it stands after the last event.
+   */
+  it('builds once for a burst of edits, after the last one', async () => {
+    await mount();
+    computeStaticInfo.mockClear();
+    act(() => s().setSelectedId(s().tree.components[0]!.id as string));
+
+    for (const length of [0.21, 0.22, 0.23, 0.24]) {
+      act(() => s().patchSelected({ length }));
+      act(() => void vi.advanceTimersByTime(REBUILD_DEBOUNCE_MS - 1));
+    }
+    expect(computeStaticInfo).not.toHaveBeenCalled();
+
+    settleRebuild();
+    expect(computeStaticInfo).toHaveBeenCalledTimes(1);
+    const built = computeStaticInfo.mock.calls[0]![0] as { components: { length?: number }[] };
+    expect(built.components[0]!.length).toBe(0.24);
+  });
+
+  it('builds the first time at once, without waiting out the debounce', async () => {
+    await mount();
     expect(computeStaticInfo).toHaveBeenCalledTimes(1);
   });
 
@@ -337,7 +382,7 @@ describe('what triggers a rebuild', () => {
     // the old `every(x => !x.result)` passed vacuously — no sim had ever run.
     act(() => {
       useWorkspaceStore.setState((st) => ({
-        sims: st.sims.map((x) => ({ ...x, result: { summary: { maxAltitude: 271 } } as never })),
+        sims: st.sims.map((x) => asFlown(st, { ...x, result: { summary: { maxAltitude: 271 } } as never })),
       }));
     });
 
@@ -345,10 +390,58 @@ describe('what triggers a rebuild', () => {
       s().setSelectedId(s().tree.components[0]!.id as string);
       s().patchSelected({ length: 0.2 });
     });
+    settleRebuild();
 
     expect(computeStaticInfo).toHaveBeenCalledTimes(1);
     expect(s().sims.every((x) => !!x.result)).toBe(true); // still readable
-    expect(s().sims.every((x) => x.outdated)).toBe(true); // …but flagged
+    expect(s().sims.every((x) => isStale(x))).toBe(true); // …but flagged
+  });
+
+  /**
+   * Grounding a stage changes the static info -- a grounded stage contributes no
+   * mass, no aero and no motor -- and the rebuild key did not mention it. The
+   * worker flew the sustainer alone while `info` still described the whole
+   * stack, so the stats strip, the stability badge and the RASAero launch mass
+   * all came from a handle for a different rocket. `seatedMotorsKey` could not
+   * see it: it is mount-and-spec only, and grounding moves neither.
+   */
+  it('grounding a stage rebuilds, because a grounded stage is a different rocket', async () => {
+    await mount();
+    // Two stages, because the store refuses to ground the only one ("something
+    // has to fly") -- against a single-stage design the call is a no-op and the
+    // test would pass for the wrong reason.
+    act(() => s().addStageToTree());
+    await act(async () => void (await Promise.resolve()));
+    settleRebuild();
+    computeStaticInfo.mockClear();
+    const cfg = s().configs[0]!;
+    const booster = s().tree.components.at(-1)!.id as string;
+
+    act(() => s().setStageFlies(cfg.id, booster, false));
+    settleRebuild();
+    expect(s().configs[0]!.grounded).toContain(booster); // the write landed
+    expect(computeStaticInfo).toHaveBeenCalledTimes(1);
+
+    // And back: un-grounding is just as much a change of rocket.
+    act(() => s().setStageFlies(cfg.id, booster, true));
+    settleRebuild();
+    expect(computeStaticInfo).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not rebuild when the grounded set is set to what it already was', async () => {
+    await mount();
+    act(() => s().addStageToTree());
+    await act(async () => void (await Promise.resolve()));
+    const cfg = s().configs[0]!;
+    const booster = s().tree.components.at(-1)!.id as string;
+    act(() => s().setStageFlies(cfg.id, booster, false));
+    settleRebuild();
+    computeStaticInfo.mockClear();
+
+    // The key is a sorted set, so a no-op write must not cost a kernel build.
+    act(() => s().setStageFlies(cfg.id, booster, false));
+    settleRebuild();
+    expect(computeStaticInfo).not.toHaveBeenCalled();
   });
 
   it('surfaces a build failure instead of leaving stale stats on screen', async () => {
@@ -359,6 +452,7 @@ describe('what triggers a rebuild', () => {
       s().setSelectedId(s().tree.components[0]!.id as string);
       s().patchSelected({ length: 0.3 });
     });
+    settleRebuild();
 
     expect(s().info).toBeNull();
     expect(s().err).toBe('fin tab longer than the root chord');
@@ -455,16 +549,16 @@ describe('a hydrate does not re-stamp the design', () => {
 /**
  * RESTORING a design is not EDITING it.
  *
- * On mount the flight key describes the DEFAULT rocket; `hydrate()` then swaps
- * in the saved design and the key changes. The effect that watches it had no
- * `ready` gate (unlike the rebuild effect beside it), so it fired on that
- * change and marked every result the user had already run as stale. With
- * `simulation.autoRunOutdated` on and a result view open, CenterView then
- * immediately re-flew flights that were already current.
+ * The boot design and the restored one differ, so anything comparing against
+ * the design on screen before the restore would read every restored result as
+ * stale, and with `simulation.autoRunOutdated` on and a result view open,
+ * CenterView would re-fly flights that are already current. A result is
+ * compared against what it was flown from, which a restore does not change.
  *
- * The pre-existing fixture could not catch this: it builds the saved workspace
- * as `{...s().tree, name: 'Restored'}`, and `flightKey` strips `name`, so its
- * hydrate never changed the key. These use a structurally different tree.
+ * `flightKey` strips `name`, so a fixture differing only by name would prove
+ * nothing. These use a structurally different tree. The saved rows carry the
+ * stored `outdated: false` flag and no `resultKey`, which hydrate keys to the
+ * inputs they load with.
  */
 describe('restoring a saved design does not invalidate its flights', () => {
   /** A saved workspace whose GEOMETRY differs from the default, with a flight. */
@@ -496,13 +590,13 @@ describe('restoring a saved design does not invalidate its flights', () => {
     // The geometry really did change on hydrate, so this is the case that used
     // to trip the effect.
     expect(s().sims[0]!.result).not.toBeNull();
-    expect(s().sims[0]!.outdated).toBe(false);
+    expect(isStale(s().sims[0]!)).toBe(false);
   });
 
   it('still invalidates when the user actually edits the geometry', async () => {
     load.mockResolvedValue(savedWithFlight());
     await mount();
-    expect(s().sims[0]!.outdated).toBe(false);
+    expect(isStale(s().sims[0]!)).toBe(false);
 
     const tube = s().tree.components[0]!.children?.find((c) => c.type === 'bodytube') ?? s().tree.components[0]!;
     await act(async () => {
@@ -511,15 +605,13 @@ describe('restoring a saved design does not invalidate its flights', () => {
       await Promise.resolve();
     });
 
-    expect(s().sims[0]!.outdated).toBe(true);
+    expect(isStale(s().sims[0]!)).toBe(true);
   });
 
   /**
-   * File > Open is a SECOND hydrate, after the boot one seeded the baseline.
-   * The library design carries its own results with `outdated: false`, and its key
-   * differs from the design it replaces, which the effect must not read as an edit:
-   * that flags every restored flight stale and `autoRunOutdated` re-flies it. Any
-   * hydrate re-seeds the baseline instead.
+   * File > Open is a SECOND hydrate, after the boot one. The library design
+   * carries its own current results, and its geometry differs from the design it
+   * replaces; that difference must not age them.
    */
   it('keeps the results current when a library design is opened over the boot design', async () => {
     await mount(); // boot on the default design; the baseline is now its key
@@ -541,7 +633,7 @@ describe('restoring a saved design does not invalidate its flights', () => {
 
     // The opened design is structurally different AND has a current result.
     expect(s().sims[0]!.result).not.toBeNull();
-    expect(s().sims[0]!.outdated).toBe(false);
+    expect(isStale(s().sims[0]!)).toBe(false);
 
     // A real edit after the open still ages it.
     const tube = s().tree.components[0]!.children?.find((c) => c.type === 'bodytube') ?? s().tree.components[0]!;
@@ -550,6 +642,6 @@ describe('restoring a saved design does not invalidate its flights', () => {
       s().patchSelected({ length: 0.42 });
       await Promise.resolve();
     });
-    expect(s().sims[0]!.outdated).toBe(true);
+    expect(isStale(s().sims[0]!)).toBe(true);
   });
 });

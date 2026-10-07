@@ -1,4 +1,4 @@
-import type { FlightResult, RocketTree, SimulationOptions } from './openRocketEngine';
+import type { BackendPref, FlightResult, RocketTree, SimulationOptions } from './openRocketEngine';
 import type { FlightConfig } from '../services/flight/flightConfigs';
 
 /**
@@ -23,11 +23,6 @@ export interface SimPayload {
   options: SimulationOptions;
 }
 
-/** Which engine backend the worker should load. Resolved on the MAIN thread
- *  (`?engine=` / localStorage), which a worker cannot read, and carried on
- *  every request so the first one to arrive can start the engine. */
-export type BackendPref = 'wasm' | 'js' | 'auto';
-
 /** One call, without its correlation id: the method and its typed arguments. */
 export type WorkerCall = { method: 'ping'; args: null } | { method: 'simulate'; args: SimPayload };
 
@@ -39,6 +34,9 @@ export interface WorkerResults {
   simulate: FlightResult;
 }
 
+/** `engine` is which backend the worker should load. It is resolved on the
+ *  MAIN thread (`?engine=` / localStorage), which a worker cannot read, and
+ *  carried on every request so the first one to arrive can start the engine. */
 export type WorkerRequest = { id: number; engine: BackendPref } & WorkerCall;
 
 export type WorkerResponse<M extends WorkerMethod = WorkerMethod> =

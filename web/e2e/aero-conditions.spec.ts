@@ -65,6 +65,9 @@ test.describe('aero flight conditions', () => {
     await setField(page, 'Cant angle', '3');
     await openAero(page);
 
+    // The engine rebuild is debounced, so the table can still show the uncanted
+    // fins for a moment. Wait for the cant to reach it.
+    await expect.poll(async () => (await rollRow(page))?.[0] ?? 0).toBeGreaterThan(0);
     const still = await rollRow(page);
     expect(still, 'the fin set row of the roll table').toBeDefined();
     expect(still?.[1]).toBe(0); // damping opposes a roll rate; there is none yet

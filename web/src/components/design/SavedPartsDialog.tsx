@@ -1,6 +1,7 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { confirm } from '../../state/confirmStore';
+import { MasterDetail, MasterRow, MasterStatus, useGuardedSelection } from '../common/MasterDetail';
 import { Dialog } from '../common/Dialog';
 import { fmtNum } from '../../i18n/format';
 import { useUnits, type Units } from '../../prefs/useUnits';
@@ -9,6 +10,7 @@ import { deleteCustomPart, type SavedPartEntry } from '../../services/parts/cust
 import type { Component } from '../../services/parts/componentDb';
 import { SavedPartEditor } from './SavedPartEditor';
 import { useSavedParts } from './useSavedParts';
+import { errorMessage } from '../../services/app/errorMessage';
 
 /**
  * The parts the user saved, all of them, in one place: the list on the left,
@@ -34,13 +36,12 @@ export function SavedPartsDialog({ onClose }: { onClose: () => void }) {
   const u = useUnits();
   const { entries } = useSavedParts();
   const [err, setErr] = useState<string | null>(null);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  // Reported by the editor, so the list can ask before a click throws away
-  // edits. The editor owns the draft; only IT can know whether one exists.
-  const [dirty, setDirty] = useState(false);
-  // Stable, because the editor passes it to an effect: a new function every
-  // render would re-run that effect on every keystroke.
-  const onDirtyChange = useCallback((d: boolean) => setDirty(d), []);
+  const {
+    selectedId,
+    select: guardedSelect,
+    settle,
+    onDirtyChange,
+  } = useGuardedSelection(t('picker.savedDiscardConfirm'));
 
   // Grouped by catalog type, each group's parts by name. The order of the
   // groups is fixed rather than first-seen, so the list does not rearrange
@@ -75,17 +76,7 @@ export function SavedPartsDialog({ onClose }: { onClose: () => void }) {
 
   /** Move the selection, asking first if it would throw away an edit. */
   const select = async (id: string | null) => {
-    if (dirty && id !== selectedId) {
-      const ok = await confirm({
-        message: t('picker.savedDiscardConfirm'),
-        confirmLabel: t('common.discard'),
-        danger: true,
-      });
-      if (!ok) return;
-      setDirty(false);
-    }
-    setErr(null);
-    setSelectedId(id);
+    if (await guardedSelect(id)) setErr(null);
   };
 
   const remove = async (e: SavedPartEntry) => {
@@ -101,11 +92,10 @@ export function SavedPartsDialog({ onClose }: { onClose: () => void }) {
     setErr(null);
     try {
       await deleteCustomPart(e.part.id);
-      setDirty(false);
-      setSelectedId(null);
+      settle(null);
     } catch (err2) {
       // The store's own message: a refused write is not always "storage full".
-      setErr(err2 instanceof Error ? err2.message : String(err2));
+      setErr(errorMessage(err2));
     }
   };
 
@@ -122,13 +112,7 @@ export function SavedPartsDialog({ onClose }: { onClose: () => void }) {
       // the list is the working surface and should not become a screen-tall
       // column on a large monitor.
       height={720}
-      footer={
-        err ? (
-          <p role="status" aria-live="polite" className="px-4 py-2 text-xs text-amber-400">
-            {err}
-          </p>
-        ) : undefined
-      }
+      footer={<MasterStatus err={err} />}
     >
       {entries === null ? (
         <p className="grid flex-1 place-items-center p-6 text-sm text-slate-400">{t('common.loading')}</p>
@@ -139,60 +123,48 @@ export function SavedPartsDialog({ onClose }: { onClose: () => void }) {
           {t('picker.savedEmpty')}
         </p>
       ) : (
-        <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-          {/* LEFT: the library. On a phone the two panes share the width, so
-              only one shows at a time and the detail carries a back control. */}
-          <div
-            className={`min-h-0 flex-col overflow-y-auto md:flex md:w-[300px] md:shrink-0 md:border-r md:border-white/10 ${
-              selected ? 'hidden md:flex' : 'flex'
-            }`}
-          >
-            {groups.map(({ type, list }) => (
-              <section key={type}>
-                <h3 className="sticky top-0 bg-slate-900 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                  {t(`part.${type}`, { defaultValue: type })}
-                </h3>
-                <ul className="divide-y divide-white/5">
-                  {list.map((e) => (
-                    <li key={e.part.id}>
-                      <button
-                        onClick={() => void select(e.part.id)}
-                        aria-pressed={e.part.id === selectedId}
-                        className={`block w-full px-4 py-2.5 text-left ${
-                          e.part.id === selectedId
-                            ? 'bg-sky-600/25 ring-1 ring-inset ring-sky-500/50'
-                            : 'hover:bg-slate-800'
-                        }`}
-                      >
-                        <span className="block truncate text-sm text-slate-100">
-                          <span className="mr-1 text-amber-400" aria-hidden="true">
-                            ★
+        <MasterDetail
+          showsDetail={selected !== null}
+          hint={t('picker.savedPickHint')}
+          list={
+            <>
+              {groups.map(({ type, list }) => (
+                <section key={type}>
+                  <h3 className="sticky top-0 bg-slate-900 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                    {t(`part.${type}`, { defaultValue: type })}
+                  </h3>
+                  <ul className="divide-y divide-white/5">
+                    {list.map((e) => (
+                      <li key={e.part.id}>
+                        <MasterRow selected={e.part.id === selectedId} onClick={() => void select(e.part.id)}>
+                          <span className="block truncate text-sm text-slate-100">
+                            <span className="mr-1 text-amber-400" aria-hidden="true">
+                              ★
+                            </span>
+                            {e.part.partNo}
                           </span>
-                          {e.part.partNo}
-                        </span>
-                        <span className="block truncate text-xs text-slate-500">
-                          {e.row ? (
-                            <>
-                              {e.part.mfr} · {describe(e.row, u, t)}
-                            </>
-                          ) : (
-                            // Shown rather than hidden: this is the only list
-                            // it can be deleted from, and the picker has
-                            // already dropped it.
-                            <span className="text-amber-400">{t('picker.savedBrokenShort')}</span>
-                          )}
-                        </span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ))}
-          </div>
-
-          {/* RIGHT: the selected part. */}
-          <div className={`min-h-0 min-w-0 flex-1 flex-col ${selected ? 'flex' : 'hidden md:flex'}`}>
-            {selected ? (
+                          <span className="block truncate text-xs text-slate-500">
+                            {e.row ? (
+                              <>
+                                {e.part.mfr} · {describe(e.row, u, t)}
+                              </>
+                            ) : (
+                              // Shown rather than hidden: this is the only list
+                              // it can be deleted from, and the picker has
+                              // already dropped it.
+                              <span className="text-amber-400">{t('picker.savedBrokenShort')}</span>
+                            )}
+                          </span>
+                        </MasterRow>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ))}
+            </>
+          }
+          detail={
+            selected && (
               <>
                 {!selected.row && (
                   <p className="border-b border-white/10 bg-amber-500/10 px-4 py-2 text-xs leading-snug text-amber-300">
@@ -209,13 +181,9 @@ export function SavedPartsDialog({ onClose }: { onClose: () => void }) {
                   onBack={() => void select(null)}
                 />
               </>
-            ) : (
-              <div className="grid flex-1 place-items-center p-6 text-center text-sm text-slate-500">
-                {t('picker.savedPickHint')}
-              </div>
-            )}
-          </div>
-        </div>
+            )
+          }
+        />
       )}
     </Dialog>
   );

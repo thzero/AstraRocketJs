@@ -3,6 +3,7 @@ import {
   stabilityState,
   stabilityTone,
   stabilityVerdictKey,
+  stabilityToneOf,
   EVENT_LABEL,
   EVENT_PRIORITY,
   clusterEventLabels,
@@ -36,10 +37,26 @@ describe('stabilityTone (margin-sign tiers)', () => {
 });
 
 describe('stabilityVerdictKey', () => {
-  it('mirrors stabilityTone tiers with i18n keys', () => {
+  it('splits under-stable into marginal and unstable, and names the over-stable band', () => {
     expect(stabilityVerdictKey(1)).toBe('stability.stable');
+    expect(stabilityVerdictKey(6)).toBe('stability.stable');
     expect(stabilityVerdictKey(0)).toBe('stability.marginal');
     expect(stabilityVerdictKey(-1)).toBe('stability.unstable');
+    // The drawing calls this over-stable; the stats strip must not call it stable.
+    expect(stabilityVerdictKey(7)).toBe('schematic.overStable');
+  });
+});
+
+/**
+ * The on-pad readouts share one band: the stats strip, the info card and the 2D
+ * and 3D drawings. A 7-caliber design was green "stable" in the strip and amber
+ * over-stable beside it; 0.5 cal was amber in the strip and red in the drawing.
+ */
+describe('stabilityToneOf', () => {
+  it('colors a margin by its band, as every on-pad readout does', () => {
+    expect(stabilityToneOf(stabilityState(7)!)).toBe('text-amber-400');
+    expect(stabilityToneOf(stabilityState(0.5)!)).toBe('text-red-400');
+    expect(stabilityToneOf(stabilityState(3)!)).toBe('text-emerald-400');
   });
 });
 

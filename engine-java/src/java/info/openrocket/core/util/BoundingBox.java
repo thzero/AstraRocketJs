@@ -167,11 +167,14 @@ public class BoundingBox {
 		return max.getY() - min.getY();
 	}
 
+	// PATCH(teavm-format-g): concatenation, not String.format. TeaVM's Formatter
+	// has no %g, so the first log line or message that printed a bounding box
+	// would throw inside the kernel, and on WASM-GC that is a trap no envelope
+	// catches. Same shape as upstream's, with Double.toString for each number.
 	@Override
 	public String toString() {
-		return String.format("[( %g, %g, %g) < ( %g, %g, %g)]",
-				min.getX(), min.getY(), min.getZ(),
-				max.getX(), max.getY(), max.getZ());
+		return "[( " + min.getX() + ", " + min.getY() + ", " + min.getZ()
+				+ ") < ( " + max.getX() + ", " + max.getY() + ", " + max.getZ() + ")]";
 	}
 
 	@Override

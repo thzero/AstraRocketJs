@@ -359,13 +359,3 @@ export function warmSimWorker(): void {
 export function simulateInWorker(payload: SimPayload, opts: SimCallOptions = {}): Promise<WorkerResults['simulate']> {
   return call({ method: 'simulate', args: payload }, { timeoutMs: SIM_TIMEOUT_MS, ...opts });
 }
-
-/** How many flights can be in the air at once on this machine.
- *
- *  Nothing in the app branches on it: the store submits the whole batch and lets
- *  the pool decide. It is exported so the sizing rule (a core left for the main
- *  thread, capped at {@link MAX_POOL}) can be asserted directly rather than only
- *  observed through how many workers happen to get spawned. */
-export function simConcurrency(): number {
-  return poolLimit();
-}

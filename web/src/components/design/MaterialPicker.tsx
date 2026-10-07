@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useRef } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   materialsForType,
@@ -12,6 +12,9 @@ import { UnitChip } from '../common/UnitChip';
 import { NumberInput } from '../common/NumberInput';
 import { useUnits } from '../../prefs/useUnits';
 import { unitScope, type Quantity } from '../../prefs/units';
+import { errorMessage } from '../../services/app/errorMessage';
+import { useAsyncLoad } from '../common/useAsyncLoad';
+import { useLatest } from '../common/useLatest';
 
 /**
  * Each material kind measures a different density, so each has its own
@@ -89,22 +92,10 @@ export function MaterialPicker({
   const [delErr, setDelErr] = useState<string | null>(null);
   // Set when the catalog could not be fetched. Distinct from "no materials":
   // the list is empty either way, and only one of them is the app's fault.
-  const [loadErr, setLoadErr] = useState<string | null>(null);
   // Both store round-trips below finish after an await, and selecting a
-  // different component unmounts this picker in between - the effect above
-  // already guards its own load with a `live` flag; these two did not.
-  //
-  // Re-armed in the effect body, not only cleared in its cleanup: the app
-  // mounts under React.StrictMode, whose development double-invoke runs the
-  // cleanup once and then the effect again. A cleanup-only guard was false for
-  // the picker's whole life, so a custom material was saved and never applied.
-  const mounted = useRef(true);
-  useEffect(() => {
-    mounted.current = true;
-    return () => {
-      mounted.current = false;
-    };
-  }, []);
+  // different component unmounts this picker in between. Observed, not claimed:
+  // an add and a delete are separate attempts and neither cancels the other.
+  const { observe } = useLatest();
   const u = useUnits();
   const quantity = QUANTITY[type];
   // One scope per material kind — fabric and cord densities are read in quite
@@ -115,25 +106,11 @@ export function MaterialPicker({
   // (0.68), and the unit can change under this readout at any time.
   const density = (si: number) => fu.fmt(si);
 
-  useEffect(() => {
-    let live = true;
-    materialsForType(type)
-      .then((m) => {
-        if (live) {
-          setMats(m);
-          setLoadErr(null);
-        }
-      })
-      .catch(() => {
-        // The catalog is a download now, so it can fail: offline, or a data
-        // host that is there but wrong. Say so instead of rendering an empty
-        // list, which is indistinguishable from "this app has no materials".
-        if (live) setLoadErr(t('material.loadFailed'));
-      });
-    return () => {
-      live = false;
-    };
-  }, [type, t]);
+  // The catalog is a download, so it can fail: offline, or a data host that is
+  // there but wrong. Say so instead of rendering an empty list, which is
+  // indistinguishable from "this app has no materials".
+  const loaded = useAsyncLoad(() => materialsForType(type), type, { onLoaded: setMats });
+  const loadErr = loaded.error !== null ? t('material.loadFailed') : null;
 
   // Resolved against the WHOLE list, never the filtered one: a design can
   // already name a material this picker would not offer (a `.ork` with an
@@ -180,9 +157,14 @@ export function MaterialPicker({
 
   const submitCustom = async () => {
     try {
-      const next = await addCustom(name, type, dens == null ? NaN : fu.fromUi(dens), group);
+      // `toSi`, not `fromUi`: the box holds the user's density unit and the
+      // store holds SI, and a bulk density also has a physical ceiling
+      // (prefs/entryValue). A refused entry arrives as NaN, which `addCustom`
+      // already rejects with the message the form shows.
+      const live = observe();
+      const next = await addCustom(name, type, fu.toSi(dens) ?? NaN, group);
       const list = await materialsForType(type);
-      if (!mounted.current) return; // see deleteCurrentCustom
+      if (!live()) return; // see deleteCurrentCustom
       setMats(list);
       const added = next[0];
       if (added) onChange(added.name, added.density, added.group);
@@ -192,24 +174,25 @@ export function MaterialPicker({
       setGroup(DEFAULT_CUSTOM_GROUP);
       setAddErr(null);
     } catch (e) {
-      setAddErr(e instanceof Error ? e.message : String(e));
+      setAddErr(errorMessage(e));
     }
   };
 
   const deleteCurrentCustom = async () => {
     if (!current?.custom) return;
+    const live = observe();
     try {
       await removeCustom(current.name, type);
     } catch (e) {
       // The store's own message: a refused write is not always "storage
       // full", and saying so for every failure sent people deleting designs
       // to make room that was never short.
-      setDelErr(e instanceof Error ? e.message : String(e));
+      setDelErr(errorMessage(e));
       return; // the material is still there; do not tell the user otherwise
     }
     setDelErr(null);
     const next = await materialsForType(type);
-    if (!mounted.current) return; // selecting another component unmounts this
+    if (!live()) return; // selecting another component unmounts this
     setMats(next);
     onChange(undefined, 0);
   };

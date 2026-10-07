@@ -1,3 +1,4 @@
+import { nsKey } from '../../../src/services/storage/storageKeys';
 import { describe, it, expect } from 'vitest';
 import {
   KeyValueTemplateStore,
@@ -28,7 +29,7 @@ class FakeKv implements KeyValueStore {
   }
 }
 
-const KEY = 'astrarrocketjs:templates:custom';
+const KEY = nsKey('templates:custom');
 const tpl = (id: string, ext = 'kml'): UserTemplate => ({
   id,
   name: id.replace(/\..*$/, ''),

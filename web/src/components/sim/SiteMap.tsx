@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   MIN_ZOOM,
@@ -18,6 +18,13 @@ import {
   type TileSourceId,
 } from '../../services/map/slippyMap';
 import { rememberTileLayer, tileLayer } from '../../services/map/tileLayer';
+import { useUnits, type Units } from '../../prefs/useUnits';
+import { fmtNum, withUnit } from '../../i18n/format';
+import { siToUi } from '../../prefs/units';
+import { useElementResize } from '../common/useElementResize';
+import { useTileVerdict } from '../common/map/useTileVerdict';
+import { MapCredit, TileImg, TileLayerButtons } from '../common/map/MapParts';
+import { SOURCE_LAYERS } from '../common/map/mapStyle';
 
 /**
  * The launch site, seen from above.
@@ -42,19 +49,11 @@ import { rememberTileLayer, tileLayer } from '../../services/map/tileLayer';
  * says so rather than showing an empty gray box.
  */
 
-/**
- * The two layers, with their labels spelled out.
- *
- * Not `t(`map.${id}`)`: a key built from a variable is invisible to the
- * key-coverage test, which then reports both of these as dead strings.
- */
-const LAYERS = [
-  { id: 'satellite', labelKey: 'map.satellite' },
-  { id: 'street', labelKey: 'map.street' },
-] as const;
-
 /** Below this many pixels of pointer travel, a drag was really a click. */
 const CLICK_SLOP_PX = 4;
+
+/** How far one arrow key pans the map, in screen pixels. */
+const KEY_PAN_PX = 80;
 
 interface View {
   lat: number;
@@ -75,7 +74,9 @@ export function SiteMap({
   className?: string;
 }) {
   const { t } = useTranslation();
+  const u = useUnits();
   const hostRef = useRef<HTMLDivElement>(null);
+  const keysId = useId();
   const [size, setSize] = useState({ w: 320, h: 256 });
   const [source, setSource] = useState<TileSourceId>(tileLayer());
   const [view, setView] = useState<View>({
@@ -83,36 +84,22 @@ export function SiteMap({
     lon: longitudeDeg ?? 0,
     zoom: latitudeDeg === null || longitudeDeg === null ? 2 : SITE_ZOOM,
   });
-  /**
-   * Whether tiles are getting through, and for WHICH source.
-   *
-   * Carrying the source with the verdict is what makes switching layers reset
-   * it: the stale verdict is simply not the current source's, so it reads as
-   * unknown again without an effect reaching in to clear it.
-   */
-  const [reached, setReached] = useState<{ src: TileSourceId; state: 'ok' | 'unavailable' } | null>(null);
-  const errors = useRef(0);
-
+  const { imagery, onTileLoad, onTileError, retry } = useTileVerdict(source);
   const tiles = TILE_SOURCES[source];
-  const imagery = reached?.src === source ? reached.state : 'unknown';
 
-  /** Switching layers re-asks the network, so the failure count starts over. */
+  /**
+   * Switching layers re-asks the network, and pressing the layer already shown
+   * is a retry, so the buttons stay up while the map is offline.
+   */
   const pickSource = (id: TileSourceId) => {
     rememberTileLayer(id);
-    errors.current = 0;
+    retry();
     setSource(id);
   };
 
-  useEffect(() => {
-    const el = hostRef.current;
-    if (!el || typeof ResizeObserver === 'undefined') return;
-    const ro = new ResizeObserver((entries) => {
-      const r = entries[0]!.contentRect;
-      if (r.width > 0 && r.height > 0) setSize({ w: r.width, h: r.height });
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
+  useElementResize(hostRef, (r) => {
+    if (r.width > 0 && r.height > 0) setSize({ w: r.width, h: r.height });
+  });
 
   /**
    * Recenter when the coordinates change from OUTSIDE the map.
@@ -195,6 +182,37 @@ export function SiteMap({
     });
   };
 
+  /**
+   * The keyboard path, for everything the pointer does: arrows pan, + and -
+   * zoom, and Enter or Space puts the location at the center of the view, which
+   * a crosshair marks while the map has keyboard focus. Keys aimed at the
+   * buttons inside the map are theirs.
+   */
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.target !== e.currentTarget) return;
+    const pan = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
+    if (pan) {
+      e.preventDefault();
+      const n = 2 ** view.zoom;
+      const cx = lonToTileX(view.lon, view.zoom) + (pan[0]! * KEY_PAN_PX) / TILE_SIZE;
+      const cy = Math.max(0, Math.min(n, latToTileY(view.lat, view.zoom) + (pan[1]! * KEY_PAN_PX) / TILE_SIZE));
+      setView({ lat: tileYToLat(cy, view.zoom), lon: normalizeLon(tileXToLon(cx, view.zoom)), zoom: view.zoom });
+    } else if (e.key === '+' || e.key === '=') {
+      e.preventDefault();
+      setZoom(view.zoom + 1);
+    } else if (e.key === '-' || e.key === '_') {
+      e.preventDefault();
+      setZoom(view.zoom - 1);
+    } else if ((e.key === 'Enter' || e.key === ' ') && onPick) {
+      e.preventDefault();
+      // Rounded like a click (see onPointerUp).
+      const lat = +view.lat.toFixed(4);
+      const lon = +view.lon.toFixed(4);
+      emitted.current = { lat, lon };
+      onPick(lat, lon);
+    }
+  };
+
   const onPointerUp = (e: React.PointerEvent) => {
     const d = drag.current;
     drag.current = null;
@@ -221,16 +239,43 @@ export function SiteMap({
       ? t('map.label')
       : `${t('map.label')}: ${formatCoord(latitudeDeg, longitudeDeg)}`;
 
+  /**
+   * Wheel zoom as a NATIVE non-passive listener, like `useWheelZoom` and
+   * `useChartZoom`.
+   *
+   * React's `onWheel` is registered passive at the root, so a `preventDefault`
+   * inside it does nothing: scrolling over the map zoomed the map AND scrolled the
+   * launch form underneath it, which on a phone means the map slides out from
+   * under the finger that is zooming it.
+   *
+   * The handler closes over `view` and `imagery`, so it is re-registered when
+   * either moves - cheap, and it keeps this a plain effect rather than a
+   * latest-value ref.
+   */
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host || imagery === 'unavailable') return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      setZoom(view.zoom + (e.deltaY < 0 ? 1 : -1), localPoint(e));
+    };
+    host.addEventListener('wheel', onWheel, { passive: false });
+    return () => host.removeEventListener('wheel', onWheel);
+  });
+
   return (
     <div className={`flex flex-col gap-1 ${className}`}>
       <div
         ref={hostRef}
         role="group"
         aria-label={ariaLabel}
+        aria-describedby={imagery === 'unavailable' ? undefined : keysId}
+        tabIndex={imagery === 'unavailable' ? undefined : 0}
+        onKeyDown={imagery === 'unavailable' ? undefined : onKeyDown}
         // `active:` rather than a class chosen from the drag ref: whether a
         // pointer is down is the browser's business, and reading a ref while
         // rendering is how a component ends up not re-rendering when it moves.
-        className={`relative min-h-0 flex-1 overflow-hidden rounded-lg bg-slate-800 ring-1 ring-white/10 ${
+        className={`group relative min-h-0 flex-1 overflow-hidden rounded-lg bg-slate-800 ring-1 ring-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 ${
           imagery === 'unavailable'
             ? 'cursor-default'
             : `${onPick ? 'cursor-crosshair' : 'cursor-grab'} active:cursor-grabbing`
@@ -239,54 +284,18 @@ export function SiteMap({
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={() => (drag.current = null)}
-        onWheel={(e) => {
-          if (imagery === 'unavailable') return;
-          setZoom(view.zoom + (e.deltaY < 0 ? 1 : -1), localPoint(e));
-        }}
       >
         {imagery === 'unavailable' ? (
           <Graticule latitudeDeg={latitudeDeg} longitudeDeg={longitudeDeg} width={size.w} height={size.h} />
         ) : (
           visibleTiles(view.lat, view.lon, view.zoom, size.w, size.h).map((tile) => (
-            <img
+            <TileImg
               key={`${source}:${tile.key}`}
-              src={tiles.url(tile.z, tile.x, tile.y)}
-              alt=""
-              draggable={false}
-              // CORS, to match the 3D ground map (FlightGroundMap.tsx), which loads
-              // these same tiles as WebGL textures and cannot use an opaque
-              // response. Without it the service worker caches this request's
-              // opaque copy and then hands it to the texture loader, which fails.
-              // Esri answers `Access-Control-Allow-Origin: *`.
-              crossOrigin="anonymous"
-              // No `referrerPolicy="no-referrer"`. Stripping the Referer hides
-              // WHO is asking, which is the one thing every tile provider's
-              // usage policy wants to be able to see - and the signature they
-              // block on. Identifying the app is the polite half of using
-              // someone else's tiles.
-              width={TILE_SIZE}
-              height={TILE_SIZE}
-              // `max-w-none` and an explicit CSS size: the reset's
-              // `img { max-width: 100% }` is relative to this box, so a map
-              // narrower than one tile would draw its tiles shrunk to the box
-              // while still spacing them a full tile apart. See the longer note
-              // in components/canvas/GroundTrack.tsx, where it actually bit.
-              className="pointer-events-none absolute max-w-none select-none"
-              style={{ left: tile.left, top: tile.top, width: TILE_SIZE, height: TILE_SIZE }}
-              onLoad={() => {
-                errors.current = 0;
-                setReached({ src: source, state: 'ok' });
-              }}
-              onError={() => {
-                // One 404 is a hole in the coverage at this zoom; a whole
-                // screenful failing is no network. Only the second is worth
-                // replacing the map over.
-                errors.current += 1;
-                if (errors.current < 3) return;
-                setReached((prev) =>
-                  prev?.src === source && prev.state === 'ok' ? prev : { src: source, state: 'unavailable' },
-                );
-              }}
+              source={source}
+              tile={tile}
+              className="pointer-events-none"
+              onLoad={onTileLoad}
+              onError={onTileError}
             />
           ))
         )}
@@ -302,22 +311,23 @@ export function SiteMap({
           </div>
         )}
 
+        {/* Up offline too: pressing a layer is the retry. */}
+        <TileLayerButtons layers={SOURCE_LAYERS} value={source} onPick={pickSource} />
         {imagery !== 'unavailable' && (
           <>
-            <div className="absolute left-1 top-1 flex overflow-hidden rounded-md ring-1 ring-black/40">
-              {LAYERS.map((layer) => (
-                <button
-                  key={layer.id}
-                  onClick={() => pickSource(layer.id)}
-                  aria-pressed={source === layer.id}
-                  className={`px-2 py-1 text-[11px] font-medium ${
-                    source === layer.id ? 'bg-sky-600 text-white' : 'bg-slate-900/80 text-slate-300 hover:bg-slate-800'
-                  }`}
-                >
-                  {t(layer.labelKey)}
-                </button>
-              ))}
-            </div>
+            <span id={keysId} className="sr-only">
+              {t(onPick ? 'map.keysPick' : 'map.keysView')}
+            </span>
+            {onPick && (
+              // Where Enter will put the location. Shown only for keyboard focus:
+              // a pointer user clicks the spot itself.
+              <div
+                aria-hidden
+                className="pointer-events-none absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 text-xl text-sky-300 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] group-focus-visible:block"
+              >
+                +
+              </div>
+            )}
             <div className="absolute right-1 top-1 flex flex-col overflow-hidden rounded-md ring-1 ring-black/40">
               <button
                 onClick={() => setZoom(view.zoom + 1)}
@@ -344,9 +354,7 @@ export function SiteMap({
                 ◎ {t('map.recenter')}
               </button>
             )}
-            <p className="pointer-events-none absolute bottom-0 right-0 bg-slate-900/70 px-1 text-[9px] leading-tight text-slate-400">
-              {tiles.attribution}
-            </p>
+            <MapCredit>{tiles.attribution}</MapCredit>
           </>
         )}
       </div>
@@ -358,7 +366,7 @@ export function SiteMap({
         {imagery === 'unavailable' ? (
           <span className="shrink-0 text-amber-400">{t('map.offline')}</span>
         ) : (
-          <span className="shrink-0 tabular-nums">{scaleLabel(view.lat, view.zoom)}</span>
+          <span className="shrink-0 tabular-nums">{scaleLabel(u, view.lat, view.zoom)}</span>
         )}
       </p>
       {onPick && imagery !== 'unavailable' && (
@@ -368,10 +376,30 @@ export function SiteMap({
   );
 }
 
-/** Roughly how much ground a hundred pixels covers, for a sense of scale. */
-function scaleLabel(lat: number, zoom: number): string {
-  const m = metersPerPixel(lat, zoom) * 100;
-  return m >= 1000 ? `${(m / 1000).toFixed(m >= 10000 ? 0 : 1)} km` : `${m.toFixed(0)} m`;
+/**
+ * The unit a scale bar PROMOTES to once the number gets large, by the unit the
+ * user picked.
+ *
+ * The label hardcoded m and km, so a user working in feet read the one length on
+ * this panel in a unit they do not use. Promoting is still worth doing - "1.2 km"
+ * beats "1234 m" - so the ladder is stated rather than dropped, and only for the
+ * two base units that have a large sibling in `UNITS.distance`. A user who
+ * already picked `km`, `yd` or `mi` is shown that unit at every size.
+ */
+/** The larger unit a distance unit's scale label moves up to past one of it. */
+const SCALE_PROMOTION: Record<string, string> = { m: 'km', ft: 'mi' };
+
+/**
+ * Roughly how much ground a hundred pixels covers, for a sense of scale, in the
+ * user's own distance unit.
+ */
+function scaleLabel(u: Units, lat: number, zoom: number): string {
+  const meters = metersPerPixel(lat, zoom) * 100;
+  const sym = u.sym('distance');
+  const up = SCALE_PROMOTION[sym];
+  const big = up ? siToUi('distance', up, meters) : 0;
+  if (up && big >= 1) return withUnit(fmtNum(big, big >= 10 ? 0 : 1), up);
+  return `${u.fmt('distance', meters, 0)} ${sym}`;
 }
 
 /**

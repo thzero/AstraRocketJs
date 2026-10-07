@@ -12,7 +12,7 @@
  * every desktop pane rule to carry an `lg:` override undoing a split that only
  * matters on a phone.
  */
-export type Tab = 'design' | 'configs' | 'sim' | 'results';
+export type Tab = 'design' | 'configs' | 'sim' | 'results' | 'tools';
 
 export type DesignPane = 'stats' | 'sketch';
 
@@ -31,11 +31,11 @@ export type ConfigsTab = 'motors' | 'recovery' | 'separation';
  * layer would import a React component module for a type and a one-line predicate.
  * The toggle re-exports both.
  */
-export type ViewMode = '2d' | '3d' | 'drag' | 'flight' | 'path' | 'ground';
+export type ViewMode = '2d' | '3d' | 'drag' | 'flight' | 'path' | 'ground' | 'environment';
 /** Views that read the design itself — the Design tab's switch. */
 export const DESIGN_VIEWS: readonly ViewMode[] = ['2d', '3d', 'drag'];
 /** Views that read a flight result — the Results tab's switch. */
-export const RESULT_VIEWS: readonly ViewMode[] = ['flight', 'path', 'ground'];
+export const RESULT_VIEWS: readonly ViewMode[] = ['flight', 'path', 'ground', 'environment'];
 
 /** True for a view that reads a flight result rather than the design itself. */
 export const isResultView = (view: ViewMode): boolean => RESULT_VIEWS.includes(view);

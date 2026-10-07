@@ -152,7 +152,8 @@
     "storage": "Your designs, simulations, preferences, and any custom materials or motors are saved in your browser's local storage, on your device — never sent to us or anyone else. Clearing your browser data (or using New) removes them.",
     "network": "The app downloads its motor and component catalogs from a public content-delivery network, and when you pick a motor it may fetch that motor's thrust-curve data from a public motor database; both are cached locally and subject to those providers' terms. Otherwise the app makes no network calls with your data.",
     "hosting": "Whoever hosts the app may keep standard web-server access logs (such as IP address and timestamp), as any website does. The app itself collects nothing.",
-    "close": "Close"
+    "close": "Close",
+    "weather": "When you press Fetch in the Weather dialog, the launch site’s coordinates and elevation and the chosen date go to Open-Meteo, which answers with the forecast. Nothing is sent otherwise. The requests do not name this app or the site serving it."
   },
   "help": {
     "title": "Help",
@@ -160,7 +161,12 @@
     "back": "Back",
     "openOnSite": "Open on the docs site",
     "loading": "Loading…",
-    "missing": "The documentation is not part of this copy of {{name}}, or it could not be read. You can still open it online."
+    "missing": "The documentation is not part of this copy of {{name}}, or it could not be read. You can still open it online.",
+    "search": "Search help",
+    "searchClear": "Clear search",
+    "searchNone": "Nothing in the guide matches “{{query}}”.",
+    "searchBusy": "Searching…",
+    "searchMatches": "Matches: {{n}}"
   },
   "override": {
     "title": "Overrides",
@@ -277,6 +283,7 @@
     "launchNote": "Default launch conditions for newly-created simulations. Edit an existing simulation's conditions in its Launch panel.",
     "defaultSpeed": "Default speed",
     "confirmDelete": "Confirm deletion of simulations",
+    "autoRunOutdated": "Run outdated simulations automatically",
     "warnings": "Safety warnings",
     "railExitMin": "Min rail-exit velocity",
     "deploySpeedWarn": "Deploy-speed warning above",
@@ -316,6 +323,9 @@
     "mainLowSpeedWarn": "Main deploy speed (min)",
     "drogueLowSpeedWarn": "Drogue deploy speed (min)",
     "railExitMinHint": "Below this the fins have too little airflow to steer, so the rocket can weathercock into the wind or go unstable as it leaves the rod.",
+    "simModel": "Flight model",
+    "guideAwareRodClearance": "Guide-aware rod clearance",
+    "guideAwareRodClearanceHint": "OpenRocket keeps the rocket on the rod for the full rod length, wherever its launch lugs or rail buttons sit. On, a lug guides until its aft end leaves the rod, while a rail needs two buttons and guides only until the second-to-last of them leaves it, so a single button gives no guided travel at all. Usually a little sooner off the rod, and a slightly lower rail-exit velocity. Off matches OpenRocket.",
     "deploySpeedWarnHint": "Single deployment (no drogue): above this speed, opening the parachute risks zippering the airframe or tearing the canopy.",
     "mainHighSpeedWarnHint": "Dual deployment: above this the MAIN is coming out too fast — usually a drogue too small to slow the rocket, or a main set to deploy too high.",
     "mainLowSpeedWarnHint": "Dual deployment: below this the main opens while the rocket is barely descending, which normally means it deployed near apogee — a slow, drifty descent from full altitude.",
@@ -391,7 +401,8 @@
     "simulations": "Simulations",
     "workbench": "Workbench",
     "configs": "Configurations",
-    "configsShort": "Config"
+    "configsShort": "Config",
+    "tools": "Tools"
   },
   "view": {
     "2d": "2D",
@@ -405,7 +416,7 @@
     "aft": "Aft",
     "cutaway": "Cutaway",
     "cutawayTitle": "Open the airframe along the centerline to show what is inside",
-    "roll": "Roll {{deg}}°",
+    "roll": "Roll {{deg}}",
     "rollHint": "Roll — spin the fins about the axis (or drag the drawing)",
     "rollAria": "Roll angle (degrees)",
     "loading3d": "Loading 3D…",
@@ -425,7 +436,8 @@
     "ruler_top_abbr": "T",
     "ruler_bottom_abbr": "B",
     "ruler_left_abbr": "L",
-    "ruler_right_abbr": "R"
+    "ruler_right_abbr": "R",
+    "environment": "Environment"
   },
   "stability": {
     "onPad": "Stability (on pad)",
@@ -448,7 +460,8 @@
     "needsMotor": "load a motor",
     "cd": "Drag coeff.",
     "rollInertia": "Roll inertia (loaded)",
-    "pitchInertia": "Pitch inertia (loaded)"
+    "pitchInertia": "Pitch inertia (loaded)",
+    "recoveryWeightEstimated": "Mass (Recovery, est.)"
   },
   "sim": {
     "run": "Run flight simulation",
@@ -590,7 +603,10 @@
       "longitudeDeg": "longitude"
     },
     "locationDenied": "Could not get your location. Check the browser permission and try again.",
-    "locating": "Locating…"
+    "locating": "Locating…",
+    "getWeather": "Get weather…",
+    "forecastProfile": "Forecast atmosphere to {{top}}",
+    "clearForecastProfile": "Clear"
   },
   "csv": {
     "title": "Export flight data",
@@ -729,7 +745,7 @@
     "zoomOut": "Zoom out",
     "zoomReset": "Reset zoom",
     "stages": "Stages",
-    "stage": "Stage",
+    "stageN": "Stage {{n}}",
     "crosshairHint": "Flight charts. Focus and use the arrow keys to move the crosshair; Shift for a larger step, Home and End for the ends, Escape to clear.",
     "events": "Flight events",
     "event": "Event",
@@ -799,7 +815,6 @@
     },
     "stageColors": "Stage colors…",
     "stageColorsTitle": "Stage colors",
-    "stageN": "Stage {{n}}",
     "resetColors": "Reset to defaults",
     "showWaypointLabels": "Draw waypoint names on the map",
     "colorWaypointPins": "Color waypoint pins per stage",
@@ -895,6 +910,7 @@
     "pressure": "Pressure",
     "base": "Base",
     "pctBody": "% body",
+    "pctLength": "% length",
     "supersonicNote": "Extended Barrowman — approximate above ~Mach 1.5.",
     "unavailable": "Build a valid rocket to see its drag.",
     "crosshairHint": "Drag curves. Focus and use the arrow keys to move the crosshair; Shift for a larger step, Home and End for the ends, Escape to clear.",
@@ -906,7 +922,8 @@
     "loaded": "Loaded design (.ork)",
     "close": "Close",
     "closeTitle": "Discard this import and start a fresh design",
-    "closeConfirm": "Discard this loaded design and start a fresh one? Unsaved changes will be lost."
+    "closeConfirm": "Discard this loaded design and start a fresh one? Unsaved changes will be lost.",
+    "repaired": "{{part}}: a {{field}} of {{was}} is outside anything the app allows, so it was reduced to {{now}}."
   },
   "part": {
     "stage": "Stage",
@@ -980,6 +997,7 @@
   "prop": {
     "selectHint": "Select a component in the tree or drawing to edit its properties.",
     "editTitle": "Edit component",
+    "catalogPart": "Catalog part",
     "name": "Name",
     "delete": "Delete",
     "lastStage": "A rocket needs at least one stage",
@@ -1178,7 +1196,6 @@
     "fit": "Fit to view",
     "aftAria": "Aft end view — looking at the rocket from behind; drag to rotate, wheel to zoom",
     "sideAria": "Rocket side view with CG and CP markers; wheel to zoom, drag background to pan",
-    "sideAriaVertical": "Rocket side view, nose up, with CG and CP markers",
     "caliperH": "Horizontal caliper handle {{end}}",
     "caliperV": "Vertical caliper handle {{end}}"
   },
@@ -1305,7 +1322,7 @@
   "recovery": {
     "title": "Descent sizing",
     "needsMotor": "Load a motor to size against the descent mass (loaded mass minus propellant).",
-    "forMass": "For a descent mass of {{mass}} g:",
+    "forMass": "Estimated for a descent mass of {{mass}}:",
     "thisChute": "This canopy",
     "mainTarget": "Main ({{range}})",
     "drogueTarget": "Drogue ({{range}})",
@@ -1316,7 +1333,17 @@
       "between": "between bands",
       "drogue": "drogue range",
       "fast": "very fast"
-    }
+    },
+    "forMassRun": "Measured in the last run, at a descent mass of {{mass}}:",
+    "forMassRunBranch": "Measured in the last run on {{branch}}, at a descent mass of {{mass}}:",
+    "diametersEstimated": "Diameters are estimates to design against, not simulation results.",
+    "open": "Descent sizing…",
+    "use": "Use",
+    "useMain": "Use the main diameter",
+    "useDrogue": "Use the drogue diameter",
+    "useTarget": "Use the diameter for your rate",
+    "targetRate": "Your own descent rate",
+    "atTarget": "At your rate"
   },
   "sims": {
     "new": "＋ New",
@@ -1446,7 +1473,8 @@
   "storage": {
     "full": "Could not save your work — browser storage is full. Export your design to keep it.",
     "degraded": "Your browser is blocking its database, so the app has fallen back to a much smaller storage area (about 5 MB) and saving may fail as your design grows. Private browsing is the usual cause. Export anything you want to keep.",
-    "loadFailed": "Your saved design could not be read. Starting fresh — new work will still be saved."
+    "loadFailed": "Your saved design could not be read. Starting fresh — new work will still be saved.",
+    "conflict": "This design was changed in another tab, so your edits here are not being saved. Export them to keep them, or reopen the design from My Rockets to load the other tab's version."
   },
   "library": {
     "title": "My Rockets",
@@ -1571,6 +1599,8 @@
     "zoomOut": "Zoom out",
     "recenter": "Center on the location",
     "pick": "Click the map to move the location.",
+    "keysPick": "Arrow keys move the map, plus and minus zoom, and Enter puts the location at the center.",
+    "keysView": "Arrow keys move the map, and plus and minus zoom.",
     "noCoords": "Enter a latitude and longitude to place the location.",
     "tooClose": "No imagery this close in",
     "offline": "No imagery offline"
@@ -1610,5 +1640,177 @@
     "payload": "Payload",
     "recoveryhardware": "Recovery hardware",
     "battery": "Battery"
+  },
+  "weather": {
+    "title": "Weather from Open-Meteo",
+    "dateLabel": "Date",
+    "hourLabel": "Hour (site time)",
+    "fetch": "Fetch",
+    "fetching": "Fetching…",
+    "apply": "Apply",
+    "needSite": "Set the launch site’s latitude and longitude first.",
+    "siteLine": "Site {{lat}}, {{lon}} at {{alt}}",
+    "noHour": "The answer has no data for that hour.",
+    "validForecast": "Forecast for {{time}}",
+    "validArchive": "Recorded weather for {{time}}",
+    "archiveNoAloft": "For a date this far back only surface conditions are available, with no winds or atmosphere aloft.",
+    "useTerrain": "Use the terrain elevation, {{terrain}}, for the site (now {{site}})",
+    "forecastNote": "A forecast is a model’s estimate, not a measurement.",
+    "credit": "Weather data by Open-Meteo.com",
+    "windValue": "{{speed}} from {{from}}°, gusts {{gust}}, profile to {{top}}",
+    "atmosphereValue": "Profile to {{top}}",
+    "group": {
+      "temperature": "Temperature",
+      "pressure": "Pressure",
+      "humidity": "Humidity",
+      "wind": "Wind",
+      "atmosphere": "Atmosphere aloft"
+    },
+    "dateRefusal": {
+      "tooFarAhead": "Open-Meteo forecasts up to 15 days ahead.",
+      "tooEarly": "Open-Meteo’s records start on 1 January 1940.",
+      "badDate": "Pick a date."
+    },
+    "error": {
+      "offline": "Could not reach Open-Meteo. Your launch conditions are unchanged.",
+      "timeout": "Open-Meteo did not answer in time. Your launch conditions are unchanged.",
+      "aborted": "Canceled. Your launch conditions are unchanged.",
+      "refused": "Open-Meteo refused the request: {{detail}}. Your launch conditions are unchanged.",
+      "badKey": "Open-Meteo did not accept the API key in Settings, Launch. Your launch conditions are unchanged.",
+      "quota": "Open-Meteo’s free limit is used up for now. Try again later, or add an API key in Settings, Launch. Your launch conditions are unchanged.",
+      "http": "Open-Meteo answered with an error ({{detail}}). Your launch conditions are unchanged.",
+      "shape": "Open-Meteo’s answer could not be read ({{detail}}). Your launch conditions are unchanged.",
+      "units": "Open-Meteo answered in units the app does not read ({{detail}}). Your launch conditions are unchanged.",
+      "noData": "Open-Meteo has no data for that date here. Your launch conditions are unchanged."
+    },
+    "keyLabel": "Open-Meteo API key",
+    "keyPlaceholder": "None (free service)",
+    "keyNote": "Optional. Without a key, weather comes from Open-Meteo’s free service, which is for non-commercial use. A key from a paid Open-Meteo plan removes its limits. The key is kept only in this browser.",
+    "keyNotSaved": "The key could not be saved in this browser.",
+    "source": {
+      "forecast": "Open-Meteo forecast for {{when}} at {{where}}, fetched {{fetched}}",
+      "record": "Open-Meteo record for {{when}} at {{where}}, fetched {{fetched}}",
+      "edited": "Edited since it was applied.",
+      "otherSite": "The launch site has moved since it was fetched.",
+      "old": "Fetched over 3 hours ago. A newer forecast may differ.",
+      "refresh": "Refresh…"
+    },
+    "fetchedAt": "Fetched at {{time}}.",
+    "reused": "Reused from {{time}}. Open-Meteo is asked again after 30 minutes.",
+    "fetchFresh": "Fetch fresh"
+  },
+  "env": {
+    "elevation": "Site elevation",
+    "note": "The air as the flight met it, recorded on the way up and back down, from the ground to apogee at {{apogee}}.",
+    "ascent": "Ascent",
+    "descent": "Descent",
+    "noData": "This result has no atmosphere data. Run the simulation again.",
+    "q": {
+      "windSpeed": "Wind speed",
+      "windDirection": "Wind direction",
+      "temperature": "Air temperature",
+      "pressure": "Air pressure",
+      "density": "Air density",
+      "speedOfSound": "Speed of sound"
+    },
+    "when": "Date / time",
+    "latitude": "Latitude",
+    "longitude": "Longitude",
+    "landing": {
+      "title": "Landing",
+      "stage": "Stage {{stage}} lands at",
+      "flyHours": "Fly the hours around this forecast",
+      "flying": "Flying… {{done}} of {{total}}",
+      "flyHoursNote": "Flies this design under the forecast for each hour from two before to two after, as the forecast stands now.",
+      "hour": "Hour",
+      "noForecast": "Fill the launch conditions with Get weather… to see how the landing moves over the hours around the forecast.",
+      "failed": "The flights could not be completed."
+    }
+  },
+  "landing": {
+    "title": "Landing estimator",
+    "intro": "Where a rocket comes down, from a site, a forecast hour, its apogee and its descent rates. This is an estimate: the flight up is not modeled and the rates are the ones you type. A rocket designed here gets its landing from the simulation, on the Results tab.",
+    "site": "Launch site",
+    "siteElevation": "Site elevation",
+    "terrain": "Terrain",
+    "siteElevationHint": "Leave blank to use the terrain model's height at the site.",
+    "when": "When",
+    "flight": "Flight",
+    "apogee": "Apogee above the pad",
+    "recovery": "Recovery",
+    "recovery_single": "Single",
+    "recovery_dual": "Dual",
+    "descentRate": "Descent rate",
+    "drogueRate": "Drogue descent rate",
+    "mainRate": "Main descent rate",
+    "mainAltitude": "Main opens above the pad at",
+    "mainAboveApogee": "The main has to open below apogee.",
+    "estimate": "Estimate landing",
+    "estimating": "Estimating…",
+    "empty": "Set the site, the hour and the flight, then press Estimate landing.",
+    "lands": "Lands at",
+    "distance": "Distance",
+    "bearing": "Bearing from the pad",
+    "descentTime": "Descent time",
+    "zone": "Landing zone (2σ)",
+    "noZone": "Too little spread to draw",
+    "groundAtLanding": "Ground at landing",
+    "estimateNote": "An estimate from typed descent rates. The zone covers {{descents}} descents: {{hours}} forecast hours, wind speed 20% either way, direction 15° either way, and descent rate 10% either way.",
+    "flatGround": "The ground's shape could not be fetched, so the landing is on flat ground at the pad's height.",
+    "surfaceWindOnly": "Open-Meteo's record for this date has only the wind near the ground, so the whole descent drifts on it.",
+    "mapLabel": "Landing estimate seen from above, landing {{distance}} from the pad"
+  },
+  "tools": {
+    "label": "Tools",
+    "tool_landing": "Landing estimator",
+    "tool_rail": "Off the rail",
+    "tool_chute": "Parachute sizing"
+  },
+  "chuteTool": {
+    "title": "Parachute sizing",
+    "intro": "The canopy that lands a rocket at a chosen descent rate, from what comes down, the canopy's drag coefficient and the air at the site. An estimate from the descent equation. A parachute on a designed rocket shows the same figures under Descent sizing in its editor.",
+    "rocket": "Rocket and canopy",
+    "mass": "Descent mass",
+    "massHint": "What comes down under the canopy: the rocket after its propellant has burned.",
+    "cd": "Canopy Cd",
+    "diameter": "Canopy diameter",
+    "none": "None",
+    "air": "Air at the site",
+    "standard": "Standard",
+    "result": "Parachute sizing result",
+    "empty": "Enter the descent mass and the canopy's Cd."
+  },
+  "rail": {
+    "title": "Off the rail",
+    "intro": "How a rocket leaves the rail on a given motor: its thrust to weight, the speed it leaves the rail at, and how far a crosswind turns it. A designed rocket gets these from its simulation, on the rail departure event.",
+    "motor": "Motor",
+    "noMotor": "No motor chosen",
+    "chooseMotor": "Choose…",
+    "rocket": "Rocket and rail",
+    "dryMass": "Rocket mass without the motor",
+    "dryMassHint": "The motor's loaded mass comes from the catalog and is added to this.",
+    "wind": "Wind speed",
+    "fromForecast": "Wind from a forecast",
+    "fetchWind": "Get the forecast wind",
+    "fetching": "Fetching…",
+    "forecastWind": "Forecast wind {{wind}} at 10 m, {{when}}.",
+    "forecastWindGust": "Forecast wind {{wind}} at 10 m, gusting to {{gust}}, {{when}}.",
+    "result": "Off the rail result",
+    "empty": "Choose a motor, and enter the rocket's mass and the rail length.",
+    "noLiftoff": "The motor's thrust never exceeds the rocket's weight, so it does not leave the pad.",
+    "stalls": "The rocket slows to a stop before it reaches the end of the rail.",
+    "liftoffMass": "Liftoff mass",
+    "twrAverage": "Thrust to weight, average",
+    "twrPeak": "Thrust to weight, peak",
+    "twrAtExit": "Thrust to weight, leaving the rail",
+    "exitSpeed": "Rail exit speed",
+    "exitTime": "Time to leave the rail",
+    "weathercock": "Weathercock angle",
+    "weathercockGust": "Weathercock angle in the gusts",
+    "maxWind": "Strongest wind under {{angle}}°",
+    "maxDryMass": "Heaviest rocket without the motor",
+    "none": "None",
+    "rules": "Amber marks an average thrust to weight under {{ratio}} : 1, a rail exit under {{speed}} (the minimum in Settings), or a weathercock angle over {{angle}}°. The heaviest rocket meets the first two.",
+    "estimateNote": "An estimate: no drag, no rail friction, and the rail taken as vertical, so the real exit is a little slower."
   }
 }

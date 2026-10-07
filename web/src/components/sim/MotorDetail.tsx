@@ -1,12 +1,11 @@
-import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { fmtNum } from '../../i18n/format';
 import { useUnits } from '../../prefs/useUnits';
 import type { CatalogMotor } from '../../services/motors/motorDb';
 import { initialThrust } from '../../services/motors/motorPicker';
 import { avgThrustOf, ispOf, massFracOf } from '../../services/motors/motorMath';
-import { ChartAxes, CHART_HEADROOM, chartScales, linePath, baselineArea } from './chartAxes';
-import { inUserUnit, withUnit } from './motorFormat';
+import { ChartAxes, CHART_HEADROOM, chartScales, linePath, baselineArea, LegendSwatch, peakOf } from './chartAxes';
+import { inUserUnit, withFixedUnit } from './motorFormat';
 
 const TYPE_KEY: Record<string, string> = { SU: 'typeSU', reload: 'typeReload', hybrid: 'typeHybrid' };
 
@@ -42,7 +41,7 @@ export function MotorDetail({
   // name ("E26") — `code` holds it when they differ.
   const tcUrl = `https://www.thrustcurve.org/motors/${encodeURIComponent(motor.manufacturer)}/${encodeURIComponent(motor.code || motor.designation)}/`;
 
-  const g = withUnit;
+  const g = withFixedUnit;
   // The catalog is in mm / g / N / N.s (see CatalogMotor), so `scale` lifts a
   // field to SI before the user's unit is applied.
   const q = (quantity: Parameters<typeof u.fmt>[0], v: number | null | undefined, scale = 1, d?: number) =>
@@ -100,35 +99,37 @@ export function MotorDetail({
       )}
 
       <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4">
-        <Stat label={t('motorDlg.commonName')} value={motor.designation} />
-        <Stat
+        <SpecItem label={t('motorDlg.commonName')} value={motor.designation} />
+        <SpecItem
           label={t('motorDlg.motorType')}
           value={motor.type ? t(`motorDlg.${TYPE_KEY[motor.type] ?? ''}`, { defaultValue: motor.type }) : '—'}
         />
-        <Stat label={t('motorDlg.delays')} value={motor.delays ?? '—'} />
-        <Stat label={t('prop.diameter')} value={q('motorDimensions', motor.diameter, 0.001)} />
-        <Stat label={t('prop.length')} value={q('motorDimensions', motor.length, 0.001)} />
-        <Stat label={t('motorDlg.totalWeight')} value={q('mass', motor.mass, 0.001)} />
-        <Stat label={t('motorDlg.propWeight')} value={q('mass', motor.propWeightG, 0.001)} />
-        <Stat label={t('motorDlg.avgThrust')} value={q('force', avg, 1, 1)} />
-        <Stat label={t('motorDlg.initialThrust') + '*'} value={q('force', init, 1, 1)} />
-        <Stat label={t('motorDlg.maxThrust')} value={q('force', max, 1, 1)} />
-        <Stat label={t('motorDlg.totalImpulse')} value={q('impulse', motor.impulse, 1, 1)} />
-        <Stat label={t('motorDlg.burnTime')} value={g(motor.burn, 's', 2)} />
-        <Stat label={t('motorDlg.isp') + '*'} value={g(isp, 's', 0)} />
-        <Stat
+        <SpecItem label={t('motorDlg.delays')} value={motor.delays ?? '—'} />
+        <SpecItem label={t('prop.diameter')} value={q('motorDimensions', motor.diameter, 0.001)} />
+        <SpecItem label={t('prop.length')} value={q('motorDimensions', motor.length, 0.001)} />
+        <SpecItem label={t('motorDlg.totalWeight')} value={q('mass', motor.mass, 0.001)} />
+        <SpecItem label={t('motorDlg.propWeight')} value={q('mass', motor.propWeightG, 0.001)} />
+        <SpecItem label={t('motorDlg.avgThrust')} value={q('force', avg, 1, 1)} />
+        <SpecItem label={t('motorDlg.initialThrust') + '*'} value={q('force', init, 1, 1)} />
+        <SpecItem label={t('motorDlg.maxThrust')} value={q('force', max, 1, 1)} />
+        <SpecItem label={t('motorDlg.totalImpulse')} value={q('impulse', motor.impulse, 1, 1)} />
+        <SpecItem label={t('motorDlg.burnTime')} value={g(motor.burn, 's', 2)} />
+        <SpecItem label={t('motorDlg.isp') + '*'} value={g(isp, 's', 0)} />
+        <SpecItem
           label={t('motorDlg.massFraction') + '*'}
           value={Number.isFinite(massFrac) ? `${fmtNum(massFrac, 0)}%` : '—'}
         />
-        <Stat label={t('motorDlg.propType')} value={motor.propInfo ?? '—'} />
-        <Stat label={t('motorDlg.sparky')} value={t(motor.sparky ? 'motorDlg.yes' : 'motorDlg.no')} />
+        <SpecItem label={t('motorDlg.propType')} value={motor.propInfo ?? '—'} />
+        <SpecItem label={t('motorDlg.sparky')} value={t(motor.sparky ? 'motorDlg.yes' : 'motorDlg.no')} />
       </dl>
       <p className="mt-2 text-[11px] leading-snug text-slate-500">{t('motorDlg.calcNote')}</p>
     </div>
   );
 }
 
-export function Stat({ label, value }: { label: string; value: string }) {
+/** One term and its value in a motor spec `<dl>`. Renders `<dt>`/`<dd>`, so it
+ *  must sit inside a `<dl>`; for a free-standing tile use `common/Stat`. */
+export function SpecItem({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <dt className="text-[10px] uppercase tracking-wide text-slate-500">{label}</dt>
@@ -148,7 +149,7 @@ export function ThrustChart({ samples, avg, burn }: { samples: [number, number][
   const { X, Y } = chartScales(dims, tMax, fMax);
   const line = linePath(samples, X, Y);
   const area = baselineArea(samples, X, Y, tMax);
-  const peak = samples.reduce((a, b) => (b[1] > a[1] ? b : a));
+  const peak = peakOf(samples);
 
   return (
     <div className="mt-2">
@@ -172,29 +173,20 @@ export function ThrustChart({ samples, avg, burn }: { samples: [number, number][
         <path d={line} fill="none" stroke="#f97316" strokeWidth="1.75" />
         <circle cx={X(peak[0])} cy={Y(peak[1])} r="3" fill="#f97316" />
         <text x={X(peak[0])} y={Y(peak[1]) - 6} textAnchor="middle" className="fill-slate-200 text-[9px] font-semibold">
-          {u.fmt('force', peak[1], 1)} {u.sym('force')}
+          {u.fmtSym('force', peak[1], 1)}
         </text>
       </svg>
       <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-slate-400">
-        <Legend color="#f97316">{t('motorDlg.chartThrust')}</Legend>
-        <Legend color="#2dd4bf" dash>
+        <LegendSwatch color="#f97316" width={14}>
+          {t('motorDlg.chartThrust')}
+        </LegendSwatch>
+        <LegendSwatch color="#2dd4bf" width={14} dash>
           {t('motorDlg.chartAvg')}
-        </Legend>
-        <Legend color="#eab308" dash>
+        </LegendSwatch>
+        <LegendSwatch color="#eab308" width={14} dash>
           {t('motorDlg.chartBurn')}
-        </Legend>
+        </LegendSwatch>
       </div>
     </div>
-  );
-}
-
-function Legend({ color, dash, children }: { color: string; dash?: boolean; children: ReactNode }) {
-  return (
-    <span className="inline-flex items-center gap-1">
-      <svg width="14" height="4" aria-hidden>
-        <line x1="0" y1="2" x2="14" y2="2" stroke={color} strokeWidth="2" strokeDasharray={dash ? '3 2' : undefined} />
-      </svg>
-      {children}
-    </span>
   );
 }

@@ -1,4 +1,4 @@
-import { fmtNum } from '../../i18n/format';
+import { fmtNum, withUnit } from '../../i18n/format';
 import type { Units } from '../../prefs/useUnits';
 import type { Quantity } from '../../prefs/units';
 
@@ -8,8 +8,8 @@ import type { Quantity } from '../../prefs/units';
  */
 
 /** A number with a FIXED unit (seconds, a percent): "1.20 s", or a dash when absent. */
-export const withUnit = (v: number | null | undefined, unit: string, digits = 1): string =>
-  v == null || !Number.isFinite(v) ? '—' : `${fmtNum(v, digits)} ${unit}`;
+export const withFixedUnit = (v: number | null | undefined, unit: string, digits = 1): string =>
+  v == null || !Number.isFinite(v) ? '—' : withUnit(fmtNum(v, digits), unit);
 
 /**
  * An SI value in the user's unit with its symbol: "61.0 N·s". `scale` lifts a
@@ -22,4 +22,4 @@ export const inUserUnit = (
   v: number | null | undefined,
   scale = 1,
   digits?: number,
-): string => (v == null || !Number.isFinite(v) ? '—' : `${u.fmt(quantity, v * scale, digits)} ${u.sym(quantity)}`);
+): string => (v == null || !Number.isFinite(v) ? '—' : withUnit(u.fmt(quantity, v * scale, digits), u.sym(quantity)));

@@ -1,8 +1,10 @@
+import { nsKey } from '../../../src/services/storage/storageKeys';
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest';
 import { LibraryWorkspaceStore, type Workspace } from '../../../src/services/storage/workspaceStore';
 import { DesignLibrary, setDesignLibrary } from '../../../src/services/storage/designLibrary';
 import type { KeyValueStore } from '../../../src/services/storage/keyValueStore';
+import { defaultDesignName } from '../../../src/services/app/appInfo';
 
 class FakeKv implements KeyValueStore {
   map = new Map<string, string>();
@@ -95,10 +97,7 @@ const workspace = (): Workspace =>
 const designKey = (kv: FakeKv) =>
   [...kv.map.keys()].find(
     (k) =>
-      k.startsWith('astrarrocketjs:designs:') &&
-      !k.endsWith(':index') &&
-      !k.endsWith(':active') &&
-      !k.endsWith(':results'),
+      k.startsWith(nsKey('designs:')) && !k.endsWith(':index') && !k.endsWith(':active') && !k.endsWith(':results'),
   )!;
 
 let kv: FakeKv;
@@ -133,6 +132,66 @@ describe('LibraryWorkspaceStore', () => {
     await store.save(workspace());
     await store.save(workspace());
     expect(await new DesignLibrary(kv).list()).toHaveLength(1);
+  });
+
+  /**
+   * THE AUTOSAVE SLOT IS SHARED BETWEEN TABS.
+   *
+   * Two tabs of an installed PWA open the same design, because both open
+   * whatever was active, and each autosaves its own copy on a 500 ms debounce.
+   * Writing unconditionally made the last writer win: one edit in a tab left
+   * open yesterday overwrote a day's work in the other, and once that tab had
+   * closed there was nothing left to recover from. Nothing said so either.
+   *
+   * A second store instance IS a second tab here: the claim a tab holds on an
+   * entry is per instance, which is exactly the thing two tabs do not share.
+   */
+  describe('a design changed by another tab', () => {
+    /** Both tabs on the same design, each having seen it as it was. */
+    const twoTabs = async () => {
+      await store.save(workspace());
+      const other = new LibraryWorkspaceStore();
+      await other.load();
+      await store.load();
+      return other;
+    };
+
+    it('refuses to write over it, rather than overwriting silently', async () => {
+      const other = await twoTabs();
+      await other.save({ ...workspace(), activeId: 'theirs' });
+      await expect(store.save({ ...workspace(), activeId: 'mine' })).rejects.toThrow('conflict');
+    });
+
+    it('leaves the other tab’s work in the library', async () => {
+      const other = await twoTabs();
+      await other.save({ ...workspace(), activeId: 'theirs' });
+      await store.save({ ...workspace(), activeId: 'mine' }).catch(() => {});
+      expect((await new LibraryWorkspaceStore().load())!.activeId).toBe('theirs');
+    });
+
+    it('keeps refusing, because the edits are still unsaved', async () => {
+      // Not a warn-once: writing on the next keystroke would destroy exactly
+      // what the first refusal was protecting.
+      const other = await twoTabs();
+      await other.save({ ...workspace(), activeId: 'theirs' });
+      await store.save(workspace()).catch(() => {});
+      await expect(store.save(workspace())).rejects.toThrow('conflict');
+    });
+
+    it('does not refuse a tab saving over its own writes', async () => {
+      // The ordinary case, and the one that must not become a false alarm.
+      await store.save(workspace());
+      await store.save(workspace());
+      await expect(store.save(workspace())).resolves.toBeUndefined();
+    });
+
+    it('does not refuse after switching to a different design', async () => {
+      // A switch drops the claim with everything else about the old entry.
+      const other = await twoTabs();
+      await other.save({ ...workspace(), activeId: 'theirs' });
+      store.setActiveId(null);
+      await expect(store.save(workspace())).resolves.toBeUndefined();
+    });
   });
 
   /**
@@ -182,7 +241,7 @@ describe('LibraryWorkspaceStore', () => {
     await store.save(workspace());
     store.setActiveId(null);
     await store.save(workspace());
-    expect((await new DesignLibrary(kv).list()).map((m) => m.name)).toEqual(['My Rocket', 'Once']);
+    expect((await new DesignLibrary(kv).list()).map((m) => m.name)).toEqual([defaultDesignName(), 'Once']);
   });
 
   /**
@@ -269,10 +328,7 @@ describe('LibraryWorkspaceStore', () => {
     // keys: the flights live beside each design under the same prefix.
     const keys = [...kv.map.keys()].filter(
       (k) =>
-        k.startsWith('astrarrocketjs:designs:') &&
-        !k.endsWith(':index') &&
-        !k.endsWith(':active') &&
-        !k.endsWith(':results'),
+        k.startsWith(nsKey('designs:')) && !k.endsWith(':index') && !k.endsWith(':active') && !k.endsWith(':results'),
     );
     expect(keys).toHaveLength(2);
   });

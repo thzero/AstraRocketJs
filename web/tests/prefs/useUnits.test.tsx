@@ -73,3 +73,22 @@ describe('useUnits', () => {
     expect(value((u) => u.at(SCOPE, 'length').fmt(Number.POSITIVE_INFINITY))).toBe('—');
   });
 });
+
+/**
+ * A value and its symbol, joined by `withUnit`: a degree sign closes up, every
+ * other symbol takes a space. Forty views joined `fmt` and `sym` by hand, which
+ * is the same thing until the angle unit is radians.
+ */
+describe('fmtSym', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('closes up degrees and spaces radians and everything else', () => {
+    seedSettings({ units: { angle: 'deg', length: 'm' } });
+    expect(value((u) => u.fmtSym('angle', Math.PI / 6, 0))).toBe('30°');
+    expect(value((u) => u.plain('length').fmtSym(1.5, 1))).toBe('1.5 m');
+    localStorage.clear();
+    seedSettings({ units: { angle: 'rad' } });
+    expect(value((u) => u.fmtSym('angle', 0.5, 1))).toBe('0.5 rad');
+    expect(value((u) => u.at(unitScope('x'), 'angle').fmtSym(0.5, 1))).toBe('0.5 rad');
+  });
+});

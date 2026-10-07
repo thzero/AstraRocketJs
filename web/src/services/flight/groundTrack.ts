@@ -67,6 +67,27 @@ export const distanceFromPad = (p: GroundPoint): number => Math.hypot(p.east, p.
 /** Compass bearing from the pad, degrees clockwise from north (0 = due north). */
 export const bearingFromPad = (p: GroundPoint): number => ((Math.atan2(p.east, p.north) * 180) / Math.PI + 360) % 360;
 
+/** An angle in degrees wrapped into [0, 360), for a heading of any size or sign. */
+export const norm360 = (deg: number): number => ((deg % 360) + 360) % 360;
+
+/**
+ * Where one branch came down, as the latitude and longitude the KERNEL recorded
+ * (φ, λ, degrees), with the Earth model the simulation chose: the last sample
+ * where both are finite. Null for a result that does not carry them (one saved
+ * before they were kept), whose reader then projects the offset itself.
+ */
+export function landingLatLon(series: FlightSeries | undefined): { lat: number; lon: number } | null {
+  const lat = series?.['φ'];
+  const lon = series?.['λ'];
+  if (!lat || !lon) return null;
+  for (let i = Math.min(lat.length, lon.length) - 1; i >= 0; i--) {
+    const a = lat[i];
+    const b = lon[i];
+    if (finite(a) && finite(b)) return { lat: a, lon: b };
+  }
+  return null;
+}
+
 /** The end of a track, or null when there is none. */
 const lastPoint = (points: readonly GroundPoint[]): GroundPoint | null =>
   points.length ? points[points.length - 1]! : null;

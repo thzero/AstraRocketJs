@@ -43,20 +43,7 @@ export function ComponentDialog() {
 
   return (
     <Dialog id="component-editor" title={t('prop.editTitle')} onClose={() => setOpen(false)}>
-      <PropertyPanel
-        flush
-        node={sel.node}
-        onChange={sel.onChange}
-        onCommit={sel.onCommit}
-        onRemove={sel.onRemove}
-        onMove={sel.onMove}
-        canMoveUp={sel.canMoveUp}
-        canMoveDown={sel.canMoveDown}
-        canRemove={sel.canRemove}
-        isFirstStage={sel.isFirstStage}
-        parentRadius={sel.parentRadius}
-        fit={sel.fit}
-      />
+      <PropertyPanel flush {...sel} />
     </Dialog>
   );
 }

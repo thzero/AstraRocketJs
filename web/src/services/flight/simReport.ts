@@ -1,8 +1,9 @@
 export type StabilityState = 'ok' | 'under' | 'over';
 
-/** Healthy-band classifier for the 2D schematic: under-stable (<1 cal), the ok
- *  band, or over-stable (>6 cal). The readout tiles use the finer margin-sign
- *  tiers below (stabilityTone / stabilityVerdictKey) instead. */
+/** Healthy-band classifier for every on-pad stability readout: under-stable
+ *  (<1 cal), the ok band, or over-stable (>6 cal). The stats strip, the info
+ *  card and the 2D and 3D drawings all color by it, so no two readouts on one
+ *  screen disagree about a design. */
 export function stabilityState(cal: number | null | undefined): StabilityState | null {
   if (cal == null || !Number.isFinite(cal)) return null;
   if (cal < 1.0) return 'under';
@@ -10,14 +11,22 @@ export function stabilityState(cal: number | null | undefined): StabilityState |
   return 'ok';
 }
 
-/** Tailwind text tone for a stability margin (caliber) — the one classification
- *  the readout tiles and the info overlay share: stable ≥1, marginal ≥0, else unstable. */
+/** Tailwind text tone for an on-pad stability band. */
+export function stabilityToneOf(state: StabilityState): string {
+  return state === 'ok' ? 'text-emerald-400' : state === 'over' ? 'text-amber-400' : 'text-red-400';
+}
+
+/** Tailwind text tone by margin sign (stable ≥1, marginal ≥0, else unstable).
+ *  For the rail-exit margin, a different quantity with no over-stable reading;
+ *  an on-pad margin is colored by its band ({@link stabilityToneOf}). */
 export function stabilityTone(cal: number): string {
   return cal >= 1 ? 'text-emerald-400' : cal >= 0 ? 'text-amber-400' : 'text-red-400';
 }
 
-/** i18n key for the one-word stability verdict, matching {@link stabilityTone}. */
+/** i18n key for the one-word on-pad verdict: the bands of {@link stabilityState},
+ *  with under-stable split by sign into marginal and unstable. */
 export function stabilityVerdictKey(cal: number): string {
+  if (cal > 6) return 'schematic.overStable';
   return cal >= 1 ? 'stability.stable' : cal >= 0 ? 'stability.marginal' : 'stability.unstable';
 }
 

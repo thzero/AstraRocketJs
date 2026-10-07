@@ -166,7 +166,7 @@ shim and the real class is invisible at compile time and wrong at runtime.
   divide-by-zero at Mach 0 and at the transonic boundary, `sqrt` of negative,
   `acos`/`asin` outside [-1,1], discontinuities at the regime joins, and
   whether the seams are honored or bypassed. Check against
-  `docs/rasaero/` and `docs/research/rasaero-supersonic-spec-2026-08-03.md`.
+  `docs/rasaero/`.
 - `Geo2D`: as in slice 1, its two methods stand in for `java.awt.geom` and are
   consumed by fin geometry.
 - `LongUUID`: contract as above, plus whether ids are stable across a

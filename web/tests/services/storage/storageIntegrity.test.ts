@@ -1,3 +1,4 @@
+import { STORAGE_PREFIX, nsKey } from '../../../src/services/storage/storageKeys';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { IndexedDbKeyValueStore, __resetIdbForTests } from '../../../src/services/storage/idbKeyValueStore';
 import { DesignLibrary } from '../../../src/services/storage/designLibrary';
@@ -48,7 +49,7 @@ class FakeLocal implements KeyValueStore {
 
 beforeEach(async () => {
   await __resetIdbForTests();
-  indexedDB.deleteDatabase('astrarrocketjs');
+  indexedDB.deleteDatabase(STORAGE_PREFIX);
 });
 
 /** Make IndexedDB writes fail while reads keep working, as a full quota does. */
@@ -192,7 +193,7 @@ describe('stored flight results are shape-checked before they are trusted', () =
 
   const readBack = async (stored: unknown) => {
     const kv = new FakeLocal();
-    kv.map.set('astrarrocketjs:designs:A:results', JSON.stringify(stored));
+    kv.map.set(nsKey('designs:A:results'), JSON.stringify(stored));
     return await new DesignLibrary(kv).readResults('A');
   };
 

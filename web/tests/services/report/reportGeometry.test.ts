@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { ComponentNode, RocketTree } from '../../../src/engine/openRocketEngine';
 import { finPlanformMm, profileMm, rocketSideView } from '../../../src/services/report/reportGeometry';
+import { KERNEL_DEFAULTS } from '../../../src/tree/kernelDefaults';
 
 const node = (o: object): ComponentNode => o as unknown as ComponentNode;
 
@@ -31,8 +32,8 @@ describe('finPlanformMm', () => {
  * The freeform outline and its through-the-wall TAB have to share one origin.
  *
  * The outline was drawn in raw point coordinates while the tab was placed in
- * root-relative ones (`finTabFront(node, root)` with `root = last.x - first.x`),
- * so they agreed only when points[0].x === 0. `FreeformFinEditor` lets the
+ * root-relative ones (`finTabSpan`, measured from the root chord rather than from
+ * the first point), so they agreed only when points[0].x === 0. `FreeformFinEditor` lets the
  * first vertex be dragged off the origin, and the kernel normalizes on
  * `setPoints` — so the app cut the tab somewhere the engine does not.
  */
@@ -76,9 +77,8 @@ describe('a freeform fin whose outline does not start at the origin', () => {
   };
 
   it('centers the tab on the OUTLINE, not 20 mm forward of it', () => {
-    // Comparing tab to tab proves nothing: `finTabFront` works off
-    // `root = last.x - first.x`, which is translation-invariant, so the tab
-    // lands at 20..40 either way. What moved was the outline around it — with
+    // Comparing tab to tab proves nothing: the tab is placed off the root chord,
+    // which is translation-invariant, so it lands at 20..40 either way. What moved was the outline around it — with
     // the raw points it spanned 20..80, putting the "centered" tab hard against
     // the leading edge.
     const [lo, hi] = tabSpan(ff(SHIFTED));
@@ -123,14 +123,13 @@ describe('a freeform fin whose outline does not start at the origin', () => {
 
 describe('profileMm', () => {
   it('returns null for a zero-length part', () => {
-    expect(profileMm(node({ type: 'transition', length: 0 }), 0.01, 0.008, 'conical')).toBeNull();
+    expect(profileMm(node({ type: 'transition', length: 0 }), 0.01, 0.008)).toBeNull();
   });
   it('sizes a conical transition to its length and max diameter', () => {
     const r = profileMm(
       node({ type: 'transition', shape: 'conical', length: 0.04, foreRadius: 0.013, aftRadius: 0.02 }),
       0.013,
       0.02,
-      'conical',
     );
     expect(r).not.toBeNull();
     expect(r!.w).toBeCloseTo(40, 6); // 0.04 m
@@ -552,5 +551,30 @@ describe('rocketSideView: off-axis assemblies', () => {
     expect(mids.every((m) => Math.abs(Math.abs(m) - expectedOffsetMm) < expectedOffsetMm)).toBe(true);
     expect(mids.some((m) => m > 0)).toBe(true);
     expect(mids.some((m) => m < 0)).toBe(true);
+  });
+});
+
+/**
+ * A nose cone, body tube or transition with no `length` key is laid out at the
+ * kernel's length for its type (ComponentFactory: nose 70 mm, body 300 mm,
+ * transition 50 mm), not at zero. Zero drew the part as nothing while the
+ * engine flew it full length. An explicit 0 (the phantom tube a T-tail hangs
+ * from) is still 0.
+ */
+describe('a chain part with no length key', () => {
+  it('counts toward the side view at the kernel length', () => {
+    const tree = {
+      name: 'K',
+      components: [
+        {
+          type: 'stage',
+          children: [
+            node({ type: 'nosecone', shape: 'ogive', aftRadius: 0.012 }),
+            node({ type: 'bodytube', length: 0.2, outerRadius: 0.012 }),
+          ],
+        },
+      ],
+    } as unknown as RocketTree;
+    expect(rocketSideView(tree).w).toBeCloseTo((KERNEL_DEFAULTS.nosecone.length + 0.2) * 1000, 6);
   });
 });

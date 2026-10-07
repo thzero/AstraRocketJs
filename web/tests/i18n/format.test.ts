@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { fmtUpTo, ladderDigits, withUnit } from '../../src/i18n/format';
+import { fmtSig, fmtSiteTime, fmtUpTo, ladderDigits, partLabel, stageLabel, withUnit } from '../../src/i18n/format';
+import i18n from '../../src/i18n';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { siToUi } from '../../src/prefs/units';
 import { DROGUE_BAND, MAIN_BAND } from '../../src/services/flight/recoverySizing';
 
@@ -60,5 +63,117 @@ describe('a descent band in the reader unit', () => {
   it('carries one decimal into the units that need it', () => {
     expect(band(MAIN_BAND, 'm/s')).toBe('4.6–6.1 m/s');
     expect(band(DROGUE_BAND, 'm/s')).toBe('15.2–22.9 m/s');
+  });
+});
+
+/**
+ * An unnamed stage reads the same in every view, through one interpolated key.
+ * Gluing a translated word to a number is wrong in a language that puts the
+ * number first (ja: "第 2 段"), and the PDF wrote English "Stage 2" in every
+ * language.
+ */
+describe('stageLabel', () => {
+  it('names a stage by its own name, else by an interpolated number', async () => {
+    const t = i18n.getFixedT('ja');
+    expect(stageLabel(t, 1)).toBe('第 2 段');
+    expect(stageLabel(t, 1, '  ')).toBe('第 2 段');
+    expect(stageLabel(t, 0, 'Booster')).toBe('Booster');
+  });
+
+  it('is the only way a view numbers a stage', () => {
+    const src = resolve(__dirname, '../../src');
+    const offenders: string[] = [];
+    const walk = (dir: string) => {
+      for (const entry of readdirSync(dir)) {
+        const path = join(dir, entry);
+        if (statSync(path).isDirectory()) {
+          if (entry !== 'vendor' && entry !== 'locales') walk(path);
+        } else if (/\.tsx?$/.test(entry)) {
+          const text = readFileSync(path, 'utf8');
+          if (/t\('flight\.stage'\)\}\s*\$\{|\|\|\s*`Stage \$\{/.test(text)) offenders.push(path.slice(src.length + 1));
+        }
+      }
+    };
+    walk(src);
+    expect(offenders).toEqual([]);
+  });
+});
+
+/**
+ * A part as every view names it: its own name, trimmed, else its translated
+ * type, else the raw type for one the locale does not know. Copies disagreed:
+ * one used `??`, so a cleared Name field drew a blank title.
+ */
+describe('partLabel', () => {
+  const t = i18n.getFixedT('en');
+  it('falls back to the translated type for an empty or blank name', () => {
+    expect(partLabel(t, { type: 'bodytube', name: '' })).toBe(t('part.bodytube'));
+    expect(partLabel(t, { type: 'bodytube', name: '  ' })).toBe(t('part.bodytube'));
+    expect(partLabel(t, { type: 'bodytube' })).toBe(t('part.bodytube'));
+    expect(partLabel(t, { type: 'bodytube', name: ' Airframe ' })).toBe('Airframe');
+    expect(partLabel(t, { type: 'widget' })).toBe('widget');
+  });
+});
+
+/**
+ * Significant figures in the reader's locale, for numbers spanning orders of
+ * magnitude (the inertia tiles). Built on toPrecision/toExponential they printed
+ * "0.001234" beside "0,12" in a German strip.
+ */
+describe('fmtSig', () => {
+  it('keeps four significant figures in the reader locale', async () => {
+    await i18n.changeLanguage('de');
+    try {
+      expect(fmtSig(0.0012345, 4)).toBe('0,001235');
+      expect(fmtSig(0.00001234, 4)).toMatch(/^1,234E-5$/);
+    } finally {
+      await i18n.changeLanguage('en');
+    }
+    expect(fmtSig(0.0012345, 4)).toBe('0.001235');
+    expect(fmtSig(0, 4)).toBe('0');
+    expect(fmtSig(Number.NaN, 4)).toBe('—');
+  });
+});
+
+/**
+ * An instant on the launch site's clock, with its zone named. One copy, with the
+ * fallback: the zone comes from Open-Meteo and from a saved weather source, and
+ * four of the six copies had no catch, so a zone the browser does not know threw
+ * a RangeError in the middle of rendering.
+ */
+describe('fmtSiteTime', () => {
+  const at = Date.UTC(2026, 6, 4, 18, 30);
+
+  it('formats on the site clock and names the zone', () => {
+    const s = fmtSiteTime(at, 'America/Denver');
+    expect(s).toMatch(/2026/);
+    expect(s).toMatch(/12:30/);
+    expect(s).toMatch(/MDT|GMT-6/);
+  });
+
+  it('falls back to the viewer clock for a zone the browser rejects', () => {
+    expect(() => fmtSiteTime(at, 'Not/AZone')).not.toThrow();
+    expect(fmtSiteTime(at, 'Not/AZone')).toMatch(/2026/);
+  });
+
+  it('leaves out the year or the date when asked', () => {
+    expect(fmtSiteTime(at, 'UTC', { year: false })).not.toMatch(/2026/);
+    expect(fmtSiteTime(at, 'UTC', { timeOnly: true })).toMatch(/^18:30$|^06:30 PM$/);
+  });
+
+  it('is how the components format a site time', () => {
+    const dir = resolve(__dirname, '../../src/components');
+    const offenders: string[] = [];
+    const walk = (d: string) => {
+      for (const entry of readdirSync(d)) {
+        const path = join(d, entry);
+        if (statSync(path).isDirectory()) walk(path);
+        else if (/\.tsx?$/.test(entry) && /DateTimeFormat\([^)]*\{[^}]*timeZone/s.test(readFileSync(path, 'utf8'))) {
+          offenders.push(path.slice(dir.length + 1));
+        }
+      }
+    };
+    walk(dir);
+    expect(offenders).toEqual([]);
   });
 });

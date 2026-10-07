@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useWorkspaceStore, selectActive, configOf } from '../../src/state/store';
+import { asFlown, isStale } from '../testing/flown';
 import { C6 } from '../../src/engine/api';
 import { findMounts } from '../../src/services/design/treeEdit';
 import { primaryMotor } from '../../src/services/flight/flightConfigs';
@@ -47,9 +48,11 @@ describe('editing across a selection', () => {
     st().setActiveId(first);
     st().setSimsSelected([]);
     st().commitEdit();
-    // Building the fixtures WAS editing, so every row is flagged stale by now.
-    // Clear the flags so "this edit aged these rows" is a real assertion.
-    useWorkspaceStore.setState({ sims: st().sims.map((x) => ({ ...x, outdated: false })) });
+    // Every row flown on the fixtures as built, so "this edit aged these rows"
+    // is a real assertion.
+    useWorkspaceStore.setState((s) => ({
+      sims: s.sims.map((x) => asFlown(s, { ...x, result: { summary: {} } as never })),
+    }));
   });
 
   it('writes to the active simulation alone when nothing is ticked', () => {
@@ -80,9 +83,9 @@ describe('editing across a selection', () => {
   it('ages every row it touched, so their cached results read as stale', () => {
     st().setSimsSelected([byName('A').id, byName('B').id]);
     st().patchLaunch({ windAverage: 7 });
-    expect(byName('A').outdated).toBe(true);
-    expect(byName('B').outdated).toBe(true);
-    expect(byName('C').outdated).toBeFalsy();
+    expect(isStale(byName('A'))).toBe(true);
+    expect(isStale(byName('B'))).toBe(true);
+    expect(isStale(byName('C'))).toBe(false);
   });
 
   it('keeps the name single-target, because three rows of one name is no naming', () => {
@@ -127,8 +130,8 @@ describe('editing across a selection', () => {
   it('ages every row flown on the configuration that changed', () => {
     st().setSimsSelected([byName('A').id]);
     st().setMountMotor(configIdOf('A'), mountId(), { ...C6, designation: 'E9' });
-    expect(byName('A').outdated).toBe(true);
-    expect(byName('B').outdated).toBe(true);
+    expect(isStale(byName('A'))).toBe(true);
+    expect(isStale(byName('B'))).toBe(true);
   });
 
   it('merges run-option overrides per row', () => {

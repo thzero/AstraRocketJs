@@ -10,16 +10,20 @@ import { test, expect, openTab, runFlight } from './base';
  * link inside that frame is intercepted and re-opened in the dialog rather than
  * navigating the frame out of the app.
  *
- * SKIPPED WITHOUT THE DOCS, and that is a real gap, not a formality.
- * `web/public/docs` is gitignored and the docs are deliberately NOT built on a
- * PR (see the note above the e2e job in gates.yml), so these skip in CI and run
- * for anyone who has run `npm run docs:build`. Building Docusaurus in the e2e
- * job, once per shard, would close it; that is a cost decision, and the one
- * already recorded in gates.yml was taken when the app did not depend on the
- * docs output. It does now.
+ * REQUIRES THE DOCS, and in CI that is not negotiable. `web/public/docs` is
+ * gitignored, so for a long time these tests skipped on every CI run and the
+ * job reported green: the in-app Help dialog and offline Help had no automated
+ * coverage anywhere, which is not what a passing e2e job looks like. The
+ * e2e-full workflow and the update-flow job run `npm run docs:build` for
+ * themselves.
  *
- * The skip is on the DIRECTORY, not on the dialog's behavior: with no docs the
- * dialog correctly offers the docs site instead, which is a different thing
+ * So the skip is LOCAL ONLY. Without the docs a CI run fails loudly and names
+ * the missing step, because a silent skip is the exact failure this spec was
+ * found in. Locally it still skips, so nobody has to build Docusaurus to run
+ * the rest of the suite.
+ *
+ * The condition is on the DIRECTORY, not on the dialog's behavior: with no docs
+ * the dialog correctly offers the docs site instead, which is a different thing
  * from the feature being broken, and helpDocs.test.ts covers that path.
  */
 
@@ -29,10 +33,18 @@ const helpDialog = 'Help';
 const docsBuilt = existsSync('public/docs/index.html');
 
 test.beforeEach(() => {
-  // Not a disabled test but an environment precondition. The rule exists to
-  // stop a failing spec being quietly switched off, and this one runs in full
-  // wherever the docs exist. The way to delete the suppression is to build the
-  // docs in the e2e job (see above), not to widen the rule.
+  // In CI the docs are a hard precondition: the job builds them, and if they
+  // are missing the job configuration is wrong and has to say so. Skipping
+  // here is what hid this spec entirely for every CI run it ever had.
+  if (process.env.CI && !docsBuilt) {
+    throw new Error(
+      'web/public/docs is not built. The e2e and update-flow jobs run `npm run docs:build`; ' +
+        'if that step was removed or failed, these tests must fail rather than skip.',
+    );
+  }
+  // Locally it stays a skip: an environment precondition, not a disabled test.
+  // The rule exists to stop a failing spec being quietly switched off, and this
+  // one runs in full wherever the docs exist.
   // eslint-disable-next-line playwright/no-skipped-test
   test.skip(!docsBuilt, 'web/public/docs is not built; run `npm run docs:build`');
 });
@@ -100,8 +112,9 @@ test('a link inside the docs navigates the dialog, and Back returns', async ({ p
   const docs = page.frameLocator(`iframe[title="${helpDialog}"]`);
   await docs.locator('.pagination-nav__link--next').click();
 
-  // Safety is the last User Guide page, so next is the Appendix's first.
-  await expect(dialog.getByRole('heading', { name: 'Compared with OpenRocket' })).toBeVisible();
+  // Safety is the last User Guide page, so next is the Appendix's first, which
+  // is the glossary (see the note in sidebars.ts for why it leads that group).
+  await expect(dialog.getByRole('heading', { name: 'Glossary' })).toBeVisible();
   // Still inside the app: the frame moved, the page did not.
   await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
 
@@ -162,6 +175,53 @@ test('the contents rail lists every page, and the headings of the one you are on
   await expect(contents).toBeHidden();
 });
 
+test('search finds a section on another page and opens it there', async ({ page }) => {
+  await page.goto('/');
+
+  await page.getByRole('button', { name: 'Menu' }).click();
+  await page.getByRole('menuitem', { name: 'Help' }).click();
+
+  const dialog = page.getByRole('dialog', { name: helpDialog });
+  const contents = dialog.getByRole('navigation', { name: 'Contents' });
+  // Opened at the docs index: the point is that search reaches a page the
+  // reader is not on and has never opened.
+  await expect(dialog.getByRole('heading', { name: 'Overview' })).toBeVisible();
+
+  await contents.getByLabel('Search help').fill('ejection delay');
+
+  // The index is built from the same built pages the frame renders, on first
+  // use, so what is worth an end-to-end test is that a REAL docs build comes
+  // back as searchable text: a page whose markup the reader changed shape on
+  // would index as nothing and fail here rather than in a unit test with a
+  // fixture in it.
+  // Scoped to the results group, which is named by its own count line: the rail
+  // holds two lists of buttons that look alike, and a row's accessible name
+  // includes its quoted snippet, so the phrase matches several of them.
+  const results = contents.getByRole('group', { name: /Matches:/ });
+  await expect(results).toBeVisible();
+
+  const hit = results.getByRole('button').first();
+  // Ranked first because the words are the section's own heading rather than a
+  // phrase somewhere in a page's text.
+  await expect(hit).toContainText('Ejection delay');
+  // Where the section is, beside what it is called.
+  await expect(hit).toContainText('Motors');
+
+  await hit.click();
+  await expect(dialog.getByRole('heading', { name: 'Motors' })).toBeVisible();
+
+  // And the words are marked in the page itself, which is what makes a hit on a
+  // long page (the glossary is one heading per letter) findable by eye.
+  const docs = page.frameLocator(`iframe[title="${helpDialog}"]`);
+  await expect(docs.locator('article mark[data-astra-help-mark]').first()).toBeVisible();
+
+  // Clearing gives the page list back, rather than leaving the rail showing
+  // results for a search that is no longer there.
+  await dialog.getByRole('button', { name: 'Clear search' }).click();
+  await expect(contents.getByRole('button', { name: 'Safety', exact: true })).toBeVisible();
+  await expect(docs.locator('article mark[data-astra-help-mark]')).toHaveCount(0);
+});
+
 test.describe('at phone width', () => {
   // The desktop project runs at 1600px, where the rail is simply beside the
   // page. This is the layout that matters at a launch site.
@@ -205,4 +265,33 @@ test('the Safety card opens Help without leaving the results', async ({ page }) 
 
   const dialog = page.getByRole('dialog', { name: helpDialog });
   await expect(dialog.getByRole('heading', { name: 'Safety' })).toBeVisible();
+});
+
+/**
+ * The rail's headings come from the fetched page HTML, so they are clickable
+ * while the frame is still loading that page. A click in that window has to land
+ * once the frame arrives rather than scroll a document that is not there yet.
+ */
+test('a rail heading picked before the frame has loaded still takes you there', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Menu' }).click();
+  await page.getByRole('menuitem', { name: 'Help' }).click();
+  const dialog = page.getByRole('dialog', { name: helpDialog });
+  const contents = dialog.getByRole('navigation', { name: 'Contents' });
+  await expect(contents.getByRole('button', { name: 'Designing a Rocket', exact: true })).toBeVisible();
+
+  // Hold back only the frame's document; the dialog's own fetch of the page,
+  // which builds the rail, goes through.
+  await page.route('**/docs/**', async (route) => {
+    const req = route.request();
+    if (req.resourceType() === 'document' && req.frame() !== page.mainFrame()) {
+      await new Promise((r) => setTimeout(r, 2000));
+    }
+    await route.continue();
+  });
+
+  await contents.getByRole('button', { name: 'Designing a Rocket', exact: true }).click();
+  const heading = contents.getByRole('button', { name: 'The component tree' });
+  await heading.click();
+  await expect(heading).toHaveAttribute('aria-current', 'location', { timeout: 10_000 });
 });

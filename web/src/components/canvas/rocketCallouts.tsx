@@ -6,7 +6,7 @@ import { Line } from '@react-three/drei';
  * Owns the annotation primitives of the 3D view: the OpenRocket-style CG/CP
  * marker texture, the billboard label texture and sprite, and the on-axis
  * callout (marker + dashed leader + label). Scene components only; the
- * stability-specific CP row is composed from these in StabilityCallout.tsx.
+ * stability-specific CP row is an AxisCallout composed in StabilityCallout.tsx.
  */
 
 /**
@@ -81,7 +81,7 @@ function labelTexture(text: string, color: string): { texture: THREE.CanvasTextu
  * CP sit almost on one line, so hanging all three to the right piles them up
  * exactly when the margin is small — the case that matters most.
  */
-export function CalloutLabel({
+function CalloutLabel({
   text,
   color,
   position,
@@ -130,14 +130,25 @@ export function AxisCallout({
   label,
   len,
   markerR,
+  labelColor = color,
+  place = dir === 1 ? 'above' : 'below',
+  dashSize = len * 0.09,
+  gapSize = len * 0.06,
 }: {
   x: number;
   dir: 1 | -1;
+  /** The leader's ink, and the label's unless `labelColor` is given. */
   color: string;
   tex: THREE.Texture;
-  label: string;
+  /** The label text; omitted draws the marker and leader alone. */
+  label: string | undefined;
   len: number;
   markerR: number;
+  labelColor?: string;
+  /** Which side of the leader's end the label hangs; defaults to past the end. */
+  place?: 'right' | 'left' | 'above' | 'below';
+  dashSize?: number;
+  gapSize?: number;
 }) {
   // drei's Line rebuilds its geometry whenever `points` changes identity, so
   // the leader is memoized rather than written as a literal per render.
@@ -155,20 +166,22 @@ export function AxisCallout({
         color={color}
         lineWidth={1.4}
         dashed
-        dashSize={len * 0.09}
-        gapSize={len * 0.06}
+        dashSize={dashSize}
+        gapSize={gapSize}
         depthTest={false}
         transparent
         renderOrder={12}
       />
-      <CalloutLabel
-        text={label}
-        color={color}
-        place={dir === 1 ? 'above' : 'below'}
-        position={end}
-        height={markerR * 0.52}
-        gap={markerR * 0.3}
-      />
+      {label !== undefined && (
+        <CalloutLabel
+          text={label}
+          color={labelColor}
+          place={place}
+          position={end}
+          height={markerR * 0.52}
+          gap={markerR * 0.3}
+        />
+      )}
     </>
   );
 }

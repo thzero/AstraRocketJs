@@ -6,10 +6,8 @@
 # THIS FILE IS THE ONLY COPY OF THE REF. The `reproducible` job in
 # .github/workflows/gates.yml reads it (its "Read the pinned OpenRocket ref"
 # step seds `repo` and `ref` out of here and checks that out), so a bump lands
-# in one place. It was written out in both for a while, with nothing comparing
-# them - the hazard docs/AUDIT_ENGINE.md G11 named, and the reason this header
-# used to say "bump it here AND in gates.yml". It does not any more; do not
-# reintroduce a second copy.
+# in one place. Two copies with nothing comparing them can drift apart, so do
+# not reintroduce a second one.
 #
 # Everything that NAMES the pinned build reads it from here too, so none of them
 # can drift from the tree that was actually extracted:
@@ -36,17 +34,17 @@
 # reachable tag in this fork, not because the tree predates 24.12: see `date`,
 # which is the commit's own date (UTC). The repo is a fork, but the SHA is
 # content-bound and the same commit fetches from canonical
-# openrocket/openrocket - verified on 2026-09-22, when this SHA was the head of
+# openrocket/openrocket - verified on 2026-10-04, when this SHA was the head of
 # canonical `unstable` itself, so the fork is not carrying anything of its own
 # at this point. Re-confirm that on every bump: a fork drifting ahead of - or
 # behind - canonical is invisible from inside the fork.
 #
-# 2026-09-22: bumped from 6deae5079 (2026-09-17). Five commits, and NOTHING
-# under core/src/main/java: two swing spinner step sizes (PR #3332) and the
-# deletion of the "Base drag hack (short-wide)" example design (PR #3331), which
-# is why the bundled example set went from seventeen to sixteen. No extracted
-# file moved, so no patch drifted and parity could not move.
+# 2026-10-04: bumped from 98f05af97 (2026-09-21). 298 commits, mostly
+# translations. Seven extracted files moved; the one that changes results is
+# PR #3327, which adds the nozzle-exit pressure term to thrust. One golden value
+# moved (flight.mindia, the only scenario with a nozzle exit). See the
+# 2026-10-04 entry in patches/LEDGER.md.
 repo = https://github.com/thzero/openrocket.git
-ref  = 98f05af97bfbcd570bf2098307c23e0075beef4b
-date = 2026-09-21
-describe = release-22.02.beta.01-5688-g98f05af97
+ref  = b4eb02a48b0ca44b9634e323c3b5fa43bcdc6906
+date = 2026-10-03
+describe = release-22.02.beta.01-5986-gb4eb02a48

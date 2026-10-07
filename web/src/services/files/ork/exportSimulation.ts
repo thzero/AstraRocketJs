@@ -1,7 +1,11 @@
-import type { LaunchConditions } from '../../design/orkTree';
+import type { AtmosphereLevel, LaunchConditions } from '../../design/orkTree';
 import { escapeXml } from '../xmlUtil';
+import { isWeatherSource, sourceStatus } from '../../weather/weatherSource';
 import { turbulenceIntensity } from '../../flight/windTurbulence';
 import type { OrkWriter } from './exportWriter';
+import { degToRad } from '../../../prefs/units';
+import { DEFAULT_HEADING_DEG } from '../../flight/simulations';
+import { G0 } from '../../motors/motorMath';
 
 /**
  * The <simulations> block: one <simulation> carrying the launch panel's
@@ -43,7 +47,7 @@ function conditionsXml(w: OrkWriter, depth: number, launch: LaunchConditions): v
   // was never set.
   emit(depth, `<launchintowind>${launch.launchIntoWind === true}</launchintowind>`);
   emit(depth, `<launchrodangle>${launch.launchRodAngleDeg ?? 0}</launchrodangle>`);
-  emit(depth, `<launchroddirection>${launch.launchRodDirectionDeg ?? 90}</launchroddirection>`);
+  emit(depth, `<launchroddirection>${launch.launchRodDirectionDeg ?? DEFAULT_HEADING_DEG}</launchroddirection>`);
   windXml(w, depth, launch);
   emit(depth, `<launchaltitude>${launch.launchAltitudeM ?? 0}</launchaltitude>`);
   emit(depth, `<launchlatitude>${launch.latitudeDeg ?? 0}</launchlatitude>`);
@@ -54,9 +58,10 @@ function conditionsXml(w: OrkWriter, depth: number, launch: LaunchConditions): v
   // touched it round-trips unchanged.
   if (launch.gravityModel === 'constant') {
     emit(depth, '<gravitymodel>Constant</gravitymodel>');
-    emit(depth, `<constantgravity>${launch.constantGravity ?? 9.80665}</constantgravity>`);
+    emit(depth, `<constantgravity>${launch.constantGravity ?? G0}</constantgravity>`);
   }
   atmosphereXml(w, depth, launch);
+  weatherSourceXml(w, depth, launch);
   // RK4SimulationStepper recommended defaults (the desktop's own values).
   emit(depth, '<timestep>0.05</timestep>');
   emit(depth, '<maxtime>1200.0</maxtime>');
@@ -64,7 +69,7 @@ function conditionsXml(w: OrkWriter, depth: number, launch: LaunchConditions): v
 
 function windXml(w: OrkWriter, depth: number, launch: LaunchConditions): void {
   const { emit } = w;
-  const windDirRad = ((launch.windDirectionDeg ?? 90) * Math.PI) / 180;
+  const windDirRad = degToRad(launch.windDirectionDeg ?? DEFAULT_HEADING_DEG);
   // ≤23.09 legacy trio the desktop still writes: turbulence here is the
   // INTENSITY ratio stddev/average, which is why it goes through the same
   // helper the panel reads from (zero wind maps to 0 or 1, as the kernel's
@@ -98,7 +103,7 @@ function windXml(w: OrkWriter, depth: number, launch: LaunchConditions): void {
       // average block's <direction>.
       emit(
         depth + 1,
-        `<windlevel altitude="${l.altitudeM}" speed="${l.speed}" direction="${(l.directionDeg * Math.PI) / 180}" standarddeviation="${l.stddev}"/>`,
+        `<windlevel altitude="${l.altitudeM}" speed="${l.speed}" direction="${degToRad(l.directionDeg)}" standarddeviation="${l.stddev}"/>`,
       );
     }
     emit(depth, '</wind>');
@@ -108,20 +113,73 @@ function windXml(w: OrkWriter, depth: number, launch: LaunchConditions): void {
 
 function atmosphereXml(w: OrkWriter, depth: number, launch: LaunchConditions): void {
   const { emit } = w;
+  const levels = launch.atmosphereLevels ?? [];
   if (launch.temperatureC === null && launch.pressureHPa === null && launch.relativeHumidity == null) {
-    emit(depth, '<atmosphere model="isa"/>');
+    if (!levels.length) emit(depth, '<atmosphere model="isa"/>');
+    else {
+      emit(depth, '<atmosphere model="isa">');
+      forecastLevelsXml(w, depth + 1, levels);
+      emit(depth, '</atmosphere>');
+    }
   } else {
     // KELVIN / PASCAL on disk. The desktop stores both-or-ISA, so a
     // single custom value fills the other with the ISA sea-level standard.
     emit(depth, '<atmosphere model="extendedisa">');
     emit(depth + 1, `<basetemperature>${(launch.temperatureC ?? 15) + 273.15}</basetemperature>`);
     emit(depth + 1, `<basepressure>${(launch.pressureHPa ?? 1013.25) * 100}</basepressure>`);
-    // Only when set: the desktop's atmosphere element carries temperature and
-    // pressure, so an unconditional humidity child would put something in
-    // every file for a value most of them never expressed.
+    // Only when set, so a file that never expressed humidity carries none.
+    // <baserelativehumidity> is the element desktop writes and reads
+    // (OpenRocketSaver, AtmosphereHandler); under any other name it skips it.
     if (launch.relativeHumidity != null) {
-      emit(depth + 1, `<relativehumidity>${launch.relativeHumidity}</relativehumidity>`);
+      emit(depth + 1, `<baserelativehumidity>${launch.relativeHumidity}</baserelativehumidity>`);
     }
+    forecastLevelsXml(w, depth + 1, levels);
     emit(depth, '</atmosphere>');
+  }
+}
+
+/**
+ * Where the weather-filled fields came from (the Weather dialog's stamp), as an
+ * extension element desktop OpenRocket skips. Whether they were edited since is
+ * decided now and written as `edited`, so the file needs no copy of the
+ * applied values.
+ */
+function weatherSourceXml(w: OrkWriter, depth: number, launch: LaunchConditions): void {
+  const s = launch.weatherSource;
+  if (!isWeatherSource(s)) return;
+  const edited = sourceStatus(launch, Date.now())?.edited === true;
+  const attr = (k: string, v: string | number | boolean) => `${k}="${escapeXml(String(v))}"`;
+  w.emit(
+    depth,
+    `<weathersource ${[
+      attr('provider', s.provider),
+      attr('endpoint', s.endpoint),
+      attr('date', s.date),
+      attr('hour', s.hour),
+      attr('timezone', s.timezone),
+      attr('latitude', s.latitudeDeg),
+      attr('longitude', s.longitudeDeg),
+      attr('elevation', s.elevationM),
+      attr('valid', s.validAt),
+      attr('fetched', s.fetchedAt),
+      attr('groups', s.groups.join(' ')),
+      attr('elevationapplied', s.elevationApplied),
+      attr('edited', edited),
+    ].join(' ')}/>`,
+  );
+}
+
+/**
+ * A forecast atmosphere, as an extension element of this app's: desktop
+ * OpenRocket has no such model and skips elements it does not know, so a
+ * desktop opening the file flies its own atmosphere. KELVIN and PASCAL, like
+ * <basetemperature> and <basepressure> beside it.
+ */
+function forecastLevelsXml(w: OrkWriter, depth: number, levels: readonly AtmosphereLevel[]): void {
+  for (const l of levels) {
+    w.emit(
+      depth,
+      `<forecastlevel altitude="${l.altitudeM}" temperature="${l.temperatureC + 273.15}" pressure="${l.pressureHPa * 100}" relativehumidity="${l.relativeHumidity}"/>`,
+    );
   }
 }

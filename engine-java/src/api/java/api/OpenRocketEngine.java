@@ -78,21 +78,77 @@ public final class OpenRocketEngine {
     /**
      * TeaVM entry point for the production build. Intentionally empty: OpenRocketEngine only
      * needs to be the configured mainClass so it stays reachable and its @JSExport statics
-     * survive dead-code elimination. The JVM↔JS parity harness ({@code parity.ParityMain}) is a
-     * separate mainClass, compiled only under {@code -Pparity} (see build.gradle / parity.mjs).
+     * survive dead-code elimination. The JVM↔JS parity harness ({@code parity.ParityMain}) is
+     * reached through {@link #runParity()} rather than as a mainClass of its own.
      */
     public static void main(String[] args) {
     }
 
+    /**
+     * Runs the parity scenarios, printing each result line to standard output.
+     * <p>
+     * In the shipped engine so that test/parity/parity.mjs can run the vendored
+     * .mjs and .wasm themselves against the JVM reference, rather than a separate
+     * harness build with its own entry point and link set. The app never calls
+     * it, and in the browser its output goes to the kernel log sink, which drops it.
+     */
+    @JSExport
+    public static void runParity() {
+        parity.ParityMain.main(new String[0]);
+    }
+
     private static int register(Object o) {
+        // Never wraps: a wrapped counter would hand out an id still in use.
+        if (nextHandle == Integer.MAX_VALUE) {
+            throw new IllegalStateException("handle ids exhausted; reload the engine");
+        }
         int h = nextHandle++;
         HANDLES.put(h, o);
         return h;
     }
 
+    /**
+     * Releases one handle. reset() releases them all; this is for a caller that
+     * builds more than one design without resetting, which otherwise kept every
+     * Rocket alive for the life of the module. A freed id stays unknown, as after
+     * reset(). Component handles from the add* builders are released the same way.
+     */
+    @JSExport
+    public static void free(int handle) {
+        if (HANDLES.remove(handle) == null) {
+            throw new IllegalArgumentException("Unknown handle " + handle);
+        }
+    }
+
     /** Double.isFinite, spelled out - TeaVM's classlib coverage of it varies. */
     private static boolean isFinite(double v) {
         return !Double.isNaN(v) && !Double.isInfinite(v);
+    }
+
+    // Guards for the addX builders, which take their numbers straight from the
+    // caller: a NaN length surfaced as `Error: null`, a negative radius built a
+    // massless part with no error, and 1e9 fins became 8. Bounded like file input
+    // (ComponentFactory.MAX_MAGNITUDE), and each names the argument it rejects.
+    private static double finiteArg(String what, double v) {
+        if (!isFinite(v) || Math.abs(v) > ComponentFactory.MAX_MAGNITUDE) {
+            throw new IllegalArgumentException(what + " must be a finite number within +/-"
+                    + ComponentFactory.MAX_MAGNITUDE + " (got " + v + ")");
+        }
+        return v;
+    }
+
+    private static double positiveArg(String what, double v) {
+        if (!(finiteArg(what, v) > 0)) {
+            throw new IllegalArgumentException(what + " must be greater than 0 (got " + v + ")");
+        }
+        return v;
+    }
+
+    private static double nonNegativeArg(String what, double v) {
+        if (finiteArg(what, v) < 0) {
+            throw new IllegalArgumentException(what + " must not be negative (got " + v + ")");
+        }
+        return v;
     }
 
     /**
@@ -305,7 +361,7 @@ public final class OpenRocketEngine {
      */
     static void applySeparationConfig(AxialStage stage, Map<String, Object> stageNode,
             Map<AxialStage, Double> nozzleDia) {
-        // RASAero power-on base-drag: per-stage nozzle exit diameter (metres). Upstream
+        // RASAero power-on base-drag: per-stage nozzle exit diameter (meters). Upstream
         // owns feature #2 natively via a PER-MOTOR MotorConfiguration.nozzleExitDiameter,
         // so we capture the per-stage input here and hand it to the stage's motor in
         // applyMotor. Applies to every stage (incl. the sustainer). Absent/0 => power-off.
@@ -379,7 +435,12 @@ public final class OpenRocketEngine {
     public static int addNoseCone(int rocketHandle, double length, double aftRadius,
             double thickness, String shape, double materialDensity) {
         RocketCtx ctx = get(rocketHandle, RocketCtx.class, "a rocket");
-        NoseCone nose = new NoseCone(shapeOf(shape), length, aftRadius);
+        if (shape == null) throw new IllegalArgumentException("addNoseCone: shape is required");
+        positiveArg("addNoseCone length", length);
+        positiveArg("addNoseCone aftRadius", aftRadius);
+        nonNegativeArg("addNoseCone thickness", thickness);
+        finiteArg("addNoseCone materialDensity", materialDensity);
+        NoseCone nose = new NoseCone(ComponentFactory.shapeOf(shape), length, aftRadius);
         nose.setThickness(thickness);
         setBulkMaterial(nose, materialDensity);
         ctx.stage.addChild(nose);
@@ -391,6 +452,10 @@ public final class OpenRocketEngine {
     public static int addBodyTube(int rocketHandle, double length, double outerRadius,
             double thickness, double materialDensity) {
         RocketCtx ctx = get(rocketHandle, RocketCtx.class, "a rocket");
+        positiveArg("addBodyTube length", length);
+        positiveArg("addBodyTube outerRadius", outerRadius);
+        nonNegativeArg("addBodyTube thickness", thickness);
+        finiteArg("addBodyTube materialDensity", materialDensity);
         BodyTube tube = new BodyTube(length, outerRadius, thickness);
         setBulkMaterial(tube, materialDensity);
         ctx.stage.addChild(tube);
@@ -401,6 +466,16 @@ public final class OpenRocketEngine {
     public static int addTrapezoidFins(int parentHandle, int finCount, double rootChord,
             double tipChord, double sweep, double height, double thickness, double materialDensity) {
         RocketComponent parent = get(parentHandle, RocketComponent.class, "a component");
+        if (finCount < 1 || finCount > ComponentFactory.MAX_FIN_COUNT) {
+            throw new IllegalArgumentException("addTrapezoidFins finCount must be a whole number in 1.."
+                    + ComponentFactory.MAX_FIN_COUNT + " (got " + finCount + ")");
+        }
+        positiveArg("addTrapezoidFins rootChord", rootChord);
+        nonNegativeArg("addTrapezoidFins tipChord", tipChord);
+        finiteArg("addTrapezoidFins sweep", sweep);
+        positiveArg("addTrapezoidFins height", height);
+        nonNegativeArg("addTrapezoidFins thickness", thickness);
+        finiteArg("addTrapezoidFins materialDensity", materialDensity);
         TrapezoidFinSet fins = new TrapezoidFinSet(finCount, rootChord, tipChord, sweep, height);
         fins.setThickness(thickness);
         setBulkMaterial(fins, materialDensity);
@@ -413,6 +488,10 @@ public final class OpenRocketEngine {
     public static int addInnerTube(int parentHandle, double length, double outerRadius,
             double thickness, double materialDensity) {
         RocketComponent parent = get(parentHandle, RocketComponent.class, "a component");
+        positiveArg("addInnerTube length", length);
+        positiveArg("addInnerTube outerRadius", outerRadius);
+        nonNegativeArg("addInnerTube thickness", thickness);
+        finiteArg("addInnerTube materialDensity", materialDensity);
         InnerTube tube = new InnerTube();
         tube.setLength(length);
         tube.setOuterRadius(outerRadius);
@@ -426,6 +505,8 @@ public final class OpenRocketEngine {
     @JSExport
     public static int addParachute(int parentHandle, double diameter, double dragCoefficient) {
         RocketComponent parent = get(parentHandle, RocketComponent.class, "a component");
+        positiveArg("addParachute diameter", diameter);
+        finiteArg("addParachute dragCoefficient", dragCoefficient);
         Parachute chute = new Parachute();
         chute.setDiameter(diameter);
         if (dragCoefficient > 0) {
@@ -697,6 +778,12 @@ public final class OpenRocketEngine {
         // disagrees with the desktop on any design with a non-aerodynamic part
         // outside the aerodynamic envelope.
         FlightConfiguration config = ctx.rocket.getSelectedConfiguration();
+        // A design whose length or mass is not a number is not a design the
+        // figures below describe. Written out, each would serialize as null beside
+        // `"warnings":0`, which the app paints as an empty, healthy rocket; an
+        // error names it instead.
+        requireFinite("length", ctx.rocket.getLength());
+        requireFinite("mass", structure.getMass());
         double margin = cp.getX() - cg;
         double stabilityCal = new CaliberUnit(config).toUnit(margin);
         double stabilityPct = new PercentageOfLengthUnit(config).toUnit(margin);
@@ -877,6 +964,9 @@ public final class OpenRocketEngine {
     @JSExport
     public static double getWorstThetaDeg(int rocketHandle, double machValue, double aoaDeg) {
         RocketCtx ctx = get(rocketHandle, RocketCtx.class, "a rocket");
+        // A NaN Mach returned 0 degrees, a plausible-looking answer to a broken question.
+        nonNegativeArg("getWorstThetaDeg mach", machValue);
+        finiteArg("getWorstThetaDeg aoaDeg", aoaDeg);
         FlightConfiguration config = ctx.rocket.getSelectedConfiguration();
         FlightConditions conditions = new FlightConditions(config);
         conditions.setMach(machValue);
@@ -965,14 +1055,26 @@ public final class OpenRocketEngine {
         double[] maMach = null;
         double[] maAlt = null;
         Object maRaw = o.get("machAlt");
-        if (maRaw instanceof java.util.List && !((java.util.List<?>) maRaw).isEmpty()) {
+        if (maRaw != null && !(maRaw instanceof java.util.List)) {
+            throw new IllegalArgumentException("'machAlt' should be a list of [mach, altitude] rows");
+        }
+        if (maRaw != null && !((java.util.List<?>) maRaw).isEmpty()) {
             java.util.List<?> rows = (java.util.List<?>) maRaw;
             maMach = new double[rows.size()];
             maAlt = new double[rows.size()];
             for (int i = 0; i < rows.size(); i++) {
-                java.util.List<?> row = (java.util.List<?>) rows.get(i);
-                maMach[i] = ((Number) row.get(0)).doubleValue();
-                maAlt[i] = ((Number) row.get(1)).doubleValue();
+                // Checked, not cast: an unchecked cast failed as a minified TeaVM
+                // TypeError on the JS backend and a bare ClassCastException on
+                // WASM, neither naming the field or the row.
+                Object row = rows.get(i);
+                if (!(row instanceof java.util.List) || ((java.util.List<?>) row).size() < 2
+                        || !(((java.util.List<?>) row).get(0) instanceof Double)
+                        || !(((java.util.List<?>) row).get(1) instanceof Double)) {
+                    throw new IllegalArgumentException(
+                            "'machAlt' row " + i + " should be [mach, altitude] numbers");
+                }
+                maMach[i] = (Double) ((java.util.List<?>) row).get(0);
+                maAlt[i] = (Double) ((java.util.List<?>) row).get(1);
             }
         }
         ExtendedISAModel isa = (maMach != null) ? new ExtendedISAModel() : null;
@@ -1165,7 +1267,7 @@ public final class OpenRocketEngine {
             String name = e.getKey();
             // `key` is the stable identity (rows, joins); `name` is only a label.
             sb.append("{\"key\":\"").append(escape(name)).append('"');
-            sb.append(",\"name\":\"").append(escape(byCompName.getOrDefault(name, ""))).append("\",\"cd\":");
+            sb.append(",\"name\":\"").append(escape(byCompName.get(name))).append("\",\"cd\":");
             nums(sb, e.getValue());
             sb.append(",\"cdInstance\":");
             nums(sb, byCompInstance.get(name));
@@ -1329,10 +1431,14 @@ public final class OpenRocketEngine {
                 JsonLite.dbl(o, "launchLongitude", -80.60),
                 launchAltitude));
         conditions.setGeodeticComputation(geodeticOf(JsonLite.str(o, "geodetic", "spherical")));
+        List<Map<String, Object>> atmosphereLevels = JsonLite.objList(o, "atmosphereLevels");
+        if (atmosphereLevels != null && !atmosphereLevels.isEmpty()) {
+            conditions.setAtmosphericModel(
+                    atmosphereProfileOf(atmosphereLevels, launchAltitude, temperature, pressure, humidity));
         // Any ONE of the three is enough to leave standard ISA: humidity alone is
         // a real case (ISA temperature and pressure, a muggy field), and keying
         // this off temperature/pressure only would have silently dropped it.
-        if (!Double.isNaN(temperature) || !Double.isNaN(pressure) || !Double.isNaN(humidity)) {
+        } else if (!Double.isNaN(temperature) || !Double.isNaN(pressure) || !Double.isNaN(humidity)) {
             // Upstream changed the 3-arg ExtendedISAModel to (temp, pressure, humidity)
             // and added a 4-arg (altitude, temp, pressure, humidity). Use the 4-arg form
             // so custom values keep their altitude meaning.
@@ -1451,6 +1557,16 @@ public final class OpenRocketEngine {
         conditions.setRecoveryDrogueMainHighSpeedWarning(JsonLite.dbl(o, "mainHighSpeedWarn", 30.48));
         conditions.setRecoveryDrogueMainLowSpeedWarning(JsonLite.dbl(o, "mainLowSpeedWarn", 15.24));
 
+        // OPT-IN guide-aware rod clearance. Upstream compares travel with the full
+        // rod length wherever the guides sit, so a lug or rail button above the
+        // aft end gets travel it does not have and the rod-exit speed reads high.
+        // The listener is simply absent when the key is off, which is why the
+        // default flight is byte-identical to upstream rather than switched at
+        // run time: see GuideClearanceListener for why no kernel file is patched.
+        if (JsonLite.bool(o, "guideAwareRodClearance", false)) {
+            conditions.getSimulationListenerList().add(new GuideClearanceListener());
+        }
+
         try {
             BasicEventSimulationEngine engine = new BasicEventSimulationEngine();
             engine.simulate(conditions);
@@ -1468,6 +1584,54 @@ public final class OpenRocketEngine {
 
     // ---------- helpers ----------
 
+    /**
+     * The atmosphere for a flight that carries {@code atmosphereLevels}: each
+     * {altitude (m MSL), temperature (K), pressure (Pa), relativeHumidity
+     * (fraction)}, in any order. See {@link AtmosphereProfile}.
+     * <p>
+     * When the site's temperature and pressure are both given, the site is the
+     * profile's lowest level and any level at or below the site, by height or
+     * by pressure, is dropped: the conditions stated for the pad win where the
+     * rocket starts. The site's
+     * humidity defaults to the lowest level kept above it. Without both site
+     * values the levels are used as they are.
+     */
+    private static AtmosphereProfile atmosphereProfileOf(List<Map<String, Object>> levels,
+            double launchAltitude, double temperature, double pressure, double humidity) {
+        List<double[]> rows = new ArrayList<>();
+        for (int i = 0; i < levels.size(); i++) {
+            Map<String, Object> l = levels.get(i);
+            rows.add(new double[] {
+                    JsonLite.dbl(l, "altitude", Double.NaN),
+                    JsonLite.dbl(l, "temperature", Double.NaN),
+                    JsonLite.dbl(l, "pressure", Double.NaN),
+                    JsonLite.dbl(l, "relativeHumidity", ExtendedISAModel.STANDARD_RELATIVE_HUMIDITY) });
+        }
+        rows.sort((a, b) -> Double.compare(a[0], b[0]));
+        boolean anchored = !Double.isNaN(temperature) && !Double.isNaN(pressure);
+        if (anchored) {
+            // A level at or below the pad, by height or by pressure, is ground
+            // the pad stands on, not air above it: the site's own values hold
+            // there. By pressure as well because the two can disagree, a typed
+            // site pressure against a forecast's levels, and a pressure that
+            // rises with height is not an atmosphere.
+            rows.removeIf(r -> r[0] <= launchAltitude || !(r[2] < pressure));
+            double siteHumidity = !Double.isNaN(humidity) ? humidity
+                    : rows.isEmpty() ? ExtendedISAModel.STANDARD_RELATIVE_HUMIDITY : rows.get(0)[3];
+            rows.add(0, new double[] { launchAltitude, temperature, pressure, siteHumidity });
+        }
+        int n = rows.size();
+        double[] alt = new double[n], t = new double[n], p = new double[n], rh = new double[n];
+        for (int i = 0; i < n; i++) {
+            double[] r = rows.get(i);
+            alt[i] = r[0];
+            t[i] = r[1];
+            p[i] = r[2];
+            rh[i] = r[3];
+        }
+        return new AtmosphereProfile(alt, t, p, rh);
+    }
+
     /** Map a geodetic-model name to the kernel strategy (default spherical). */
     private static GeodeticComputationStrategy geodeticOf(String name) {
         switch (name == null ? "" : name.toLowerCase()) {
@@ -1484,7 +1648,7 @@ public final class OpenRocketEngine {
         final FlightConfigurationId fcid;
         final Map<String, RocketComponent> ids = new HashMap<>();
         /**
-         * Per-stage RASAero power-on nozzle-exit diameter (metres), captured from
+         * Per-stage RASAero power-on nozzle-exit diameter (meters), captured from
          * the `nozzleExitDiameter` stage input. Applied to that stage's motor as
          * upstream's per-motor MotorConfiguration.nozzleExitDiameter when the motor
          * is set (see applyMotor) — the browser keeps a per-stage input; the engine
@@ -1506,18 +1670,6 @@ public final class OpenRocketEngine {
             this.rocket = rocket;
             this.stage = stage;
             this.fcid = fcid;
-        }
-    }
-
-    private static Transition.Shape shapeOf(String name) {
-        switch (name.toLowerCase()) {
-            case "conical": return Transition.Shape.CONICAL;
-            case "ellipsoid": return Transition.Shape.ELLIPSOID;
-            case "power": return Transition.Shape.POWER;
-            case "parabolic": return Transition.Shape.PARABOLIC;
-            case "haack": return Transition.Shape.HAACK;
-            case "ogive":
-            default: return Transition.Shape.OGIVE;
         }
     }
 
@@ -1730,7 +1882,7 @@ public final class OpenRocketEngine {
     }
 
     private static StringBuilder appendSeries(StringBuilder sb, String name, List<Double> values) {
-        sb.append('"').append(name).append("\":[");
+        sb.append('"').append(escape(name)).append("\":[");
         if (values != null) {
             for (int i = 0; i < values.size(); i++) {
                 if (i > 0) sb.append(',');
@@ -1744,6 +1896,13 @@ public final class OpenRocketEngine {
         return sb.append(']');
     }
 
+    private static void requireFinite(String what, double value) {
+        if (Double.isNaN(value) || Double.isInfinite(value)) {
+            throw new IllegalStateException("The design's " + what + " is not a finite number (" + value
+                    + "); a dimension is probably out of range.");
+        }
+    }
+
     private static StringBuilder num(StringBuilder sb, String key, double value) {
         sb.append('"').append(key).append("\":");
         if (Double.isNaN(value) || Double.isInfinite(value)) {
@@ -1753,6 +1912,7 @@ public final class OpenRocketEngine {
     }
 
     private static String escape(String s) {
+        if (s == null) return "";
         // Control characters must be escaped too: component names arrive through
         // buildRocket JSON (JsonLite decodes \n etc. into real chars) and are
         // re-emitted inside JSON string literals — a raw newline there makes the

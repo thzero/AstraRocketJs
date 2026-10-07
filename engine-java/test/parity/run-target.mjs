@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Run ONE TeaVM target's parity main() and print what it printed. Nothing else.
+ * Run ONE vendored engine target's runParity() and print what it printed. Nothing else.
  *
  * This is a SEPARATE, DISPOSABLE PROCESS, and it has to be.
  *
@@ -36,8 +36,9 @@ if (target !== 'js' && target !== 'wasm') {
 }
 
 const here = dirname(fileURLToPath(import.meta.url));
-const engineRoot = resolve(here, '..', '..');
-const teavmDir = join(engineRoot, 'build', 'generated', 'teavm');
+// The files the app loads, which parity.mjs has just built and vendored.
+const webRoot = resolve(here, '..', '..', '..', 'web');
+const wasmDir = join(webRoot, 'public', 'engine');
 
 // The target writes through console.log in-process, so it is captured rather
 // than piped.
@@ -55,7 +56,7 @@ process.stdout.write = (chunk) => { captured += String(chunk); return true; };
 
 if (target === 'wasm') {
   // The runtime is an IIFE that installs globalThis.TeaVM.wasmGC.{load,...}.
-  (0, eval)(readFileSync(join(teavmDir, 'wasm-gc', 'astrarrocketjs-engine.wasm-runtime.js'), 'utf8'));
+  (0, eval)(readFileSync(join(wasmDir, 'openrocket-engine.wasm-runtime.js'), 'utf8'));
 
   // BYTES, not a path. This is NOT what fixes the hang - see the note at the
   // bottom of this file, nothing short of a signal does - but it is right on
@@ -78,12 +79,12 @@ if (target === 'wasm') {
   // web/src/engine/openRocketEngine.ts. So this also stops the harness from
   // exercising a load path the app never uses, which is the fidelity argument
   // for keeping it regardless of the hang.
-  const wasmBytes = readFileSync(join(teavmDir, 'wasm-gc', 'astrarrocketjs-engine.wasm'));
+  const wasmBytes = readFileSync(join(wasmDir, 'openrocket-engine.wasm'));
   const teavm = await globalThis.TeaVM.wasmGC.load(wasmBytes);
-  teavm.exports.main([]);
+  teavm.exports.runParity();
 } else {
-  const mod = await import(pathToFileURL(join(teavmDir, 'js', 'astrarrocketjs-engine.js')).href);
-  mod.main();
+  const mod = await import(pathToFileURL(join(webRoot, 'src', 'engine', 'vendor', 'openrocket-engine.mjs')).href);
+  mod.runParity();
 }
 
 process.stdout.write = realStdoutWrite;

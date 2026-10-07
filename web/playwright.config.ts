@@ -15,18 +15,38 @@ import { defineConfig, devices } from '@playwright/test';
 // dividers and maximize specs are desktop-only by design and are not here.
 const MOBILE_SPECS = ['**/layout-overflow.spec.ts', '**/sketch-rotation.spec.ts', '**/mobile-layout.spec.ts'];
 
+// The specs every pull request and master push runs (`npm run e2e:core`): the
+// paths a broken build breaks first. The app boots with and without the engine,
+// a part is selected and edited, a motor is picked, a simulation runs, and the
+// shell holds together on a phone and from the keyboard. The rest of the suite
+// runs by hand (e2e-full.yml), and locally with `npm run e2e`.
+const CORE_SPECS = [
+  '**/smoke.spec.ts',
+  '**/engine-boot.spec.ts',
+  '**/wip-gate.spec.ts',
+  '**/schematic.spec.ts',
+  '**/schematic-interaction.spec.ts',
+  '**/component-editor.spec.ts',
+  '**/component-dialog.spec.ts',
+  '**/motor-picker.spec.ts',
+  '**/simulations-tab.spec.ts',
+  '**/auto-run.spec.ts',
+  '**/units.spec.ts',
+  '**/a11y.spec.ts',
+  '**/layout-overflow.spec.ts',
+  '**/mobile-layout.spec.ts',
+];
+const core = process.env.E2E_SCOPE === 'core';
+
 export default defineConfig({
   testDir: './e2e',
-  // Serial, everywhere. `fullyParallel: false` only serialises WITHIN a file —
-  // Playwright still spreads FILES across `workers`, which defaults to half the
-  // machine's cores. On a 32-core box that is 16 headless Chromiums, each
-  // software-rendering WebGL and loading the 2.9 MB WASM engine against this one
-  // dev server. Two runs at that default gave 45 and then 19 failures — every
-  // one a 30 s timeout or a click landing on the work-in-progress overlay, none
-  // a real defect. At one worker the same 90 specs pass in 3.6 min, FASTER than
-  // the 4.4 min the 16-way run took, so there is no throughput being traded away.
+  // Files spread across workers; the tests inside one file stay in order. Four
+  // locally runs the 213 tests in under 2 minutes with no failures. A GitHub
+  // runner has 4 vCPUs that also host the dev server and software-render WebGL
+  // for every browser, so CI runs two. Far more than that (16 on a 32-core box)
+  // starved the one dev server and timed out.
   fullyParallel: false,
-  workers: 1,
+  workers: process.env.CI ? 2 : 4,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   // Under CI the `github` reporter annotates the PR, and the HTML report is
@@ -48,11 +68,12 @@ export default defineConfig({
       // (1536), which is what the Design tab's property column asks for: at
       // 1500 that column is a dialog instead (component-dialog.spec) and every
       // spec that drives the property editor would be driving the dialog.
+      ...(core ? { testMatch: CORE_SPECS } : {}),
       use: { ...devices['Desktop Chrome'], viewport: { width: 1600, height: 950 } },
     },
     {
       name: 'mobile-chromium',
-      testMatch: MOBILE_SPECS,
+      testMatch: core ? MOBILE_SPECS.filter((spec) => CORE_SPECS.includes(spec)) : MOBILE_SPECS,
       use: { ...devices['Pixel 7'] },
     },
   ],

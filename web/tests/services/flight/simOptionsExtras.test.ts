@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { simConditions, type SimPrefs } from '../../../src/services/flight/simulations';
 import { exportOrk, importOrk } from '../../../src/services/files/orkFile';
-import { specToTree } from '../../../src/engine/api';
+import { specToTree } from '../../testing/specTree';
 import type { RocketSpec } from '../../../src/engine/openRocketEngine';
 import type { LaunchConditions } from '../../../src/services/design/orkTree';
 import type { CompleteLaunch } from '../../../src/services/flight/requiredLaunch';
@@ -30,6 +30,8 @@ const prefs: SimPrefs = {
   mainHighSpeedWarn: 30.48,
   mainLowSpeedWarn: 15.24,
   drogueLowSpeedWarn: 3.048,
+  // OpenRocket's own clearance model, which is the default.
+  guideAwareRodClearance: false,
 };
 
 describe('simConditions carries the options the bridge gained', () => {
@@ -90,7 +92,21 @@ describe('the new launch fields round-trip through .ork', () => {
     // model="isa" and throw the humidity away.
     const xml = exportOrk({ name: 'Opts', tree, launch: { ...base, relativeHumidity: 0.9 } });
     expect(xml).not.toContain('<atmosphere model="isa"/>');
-    expect(xml).toContain('<relativehumidity>0.9</relativehumidity>');
+    expect(xml).toContain('<baserelativehumidity>0.9</baserelativehumidity>');
+  });
+
+  it("reads desktop's humidity element, and the one this app wrote before", () => {
+    const xml = exportOrk({
+      name: 'Opts',
+      tree,
+      launch: { ...base, temperatureC: 20, pressureHPa: 1000, relativeHumidity: 0.5 },
+    });
+    for (const [from, to] of [
+      ['<baserelativehumidity>0.5</baserelativehumidity>', '<baserelativehumidity>0.3</baserelativehumidity>'],
+      ['<baserelativehumidity>0.5</baserelativehumidity>', '<relativehumidity>0.3</relativehumidity>'],
+    ]) {
+      expect(importOrk(xml.replace(from!, to!)).launch?.relativeHumidity).toBeCloseTo(0.3, 12);
+    }
   });
 
   it('carries a constant gravity model, and writes nothing for the default', () => {

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { initEngine, resetEngineInit, type EngineLoadStatus } from '../engine/openRocketEngine';
+import { errorMessage } from '../services/app/errorMessage';
 
 /**
  * Where the physics kernel is, as UI state.
@@ -70,7 +71,7 @@ export const useEngineStore = create<EngineState>((set) => {
       .catch((e: unknown) => {
         if (mine !== attempt) return;
         clearSlowTimer();
-        set({ phase: 'failed', error: e instanceof Error ? e.message : String(e), status: null });
+        set({ phase: 'failed', error: errorMessage(e), status: null });
       });
   };
 

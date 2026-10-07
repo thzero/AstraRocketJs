@@ -1,11 +1,12 @@
 import { useCallback, useId, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { fmtNum } from '../../i18n/format';
+import { fmtNum, ladderDigits } from '../../i18n/format';
 import { useUnits } from '../../prefs/useUnits';
 import { lerpAt } from '../../services/flight/interpolate';
 import { PAD_L, PAD_R, PANEL_H } from './flightChartAxis';
 import type { Branch, Meta } from './flightChartTraces';
 import { PanelHover } from './FlightChartHover';
+import { polylinePath } from '../common/svgPath';
 
 /**
  * Owns one small-multiple panel of the flight chart: the sample extraction
@@ -102,17 +103,17 @@ export function FlightChartPanel({
   // A fixed decimal count belongs to a fixed unit: "0 dp" is right for meters
   // of altitude and wrong for kilometers. For a quantity-backed series the
   // count comes from the span actually on screen instead.
-  const digits = meta.quantity
-    ? (() => {
-        const span = Math.abs(hi - lo);
-        return span >= 100 ? 0 : span >= 10 ? 1 : span >= 1 ? 2 : 3;
-      })()
-    : meta.digits;
+  const digits = meta.quantity ? ladderDigits(Math.abs(hi - lo)) : meta.digits;
 
   const Y = useCallback((v: number) => padT + (1 - (v - lo) / (hi - lo)) * ih, [lo, hi, ih]);
   const mkLine = useCallback(
     (pts: Pt[]) =>
-      pts.length >= 2 ? pts.map((p, i) => `${i ? 'L' : 'M'}${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`).join(' ') : '',
+      pts.length >= 2
+        ? polylinePath(
+            pts.map((p) => [X(p[0]), Y(p[1])]),
+            'comma',
+          )
+        : '',
     [X, Y],
   );
 

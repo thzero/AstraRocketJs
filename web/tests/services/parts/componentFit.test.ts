@@ -137,3 +137,25 @@ describe('fitContextFor', () => {
     expect(fitRuleFor('tubecoupler', fitContextFor(bad, 'x'))).toBeNull();
   });
 });
+
+/**
+ * A tube with no `thickness` key still has a bore: the one the kernel builds
+ * with the type's default wall (0.3 mm for a body tube). Treating it as "no
+ * bore" left the picker nothing to rank a coupler against.
+ */
+describe('fitContextFor on a keyless wall', () => {
+  it('derives the bore from the kernel default wall', () => {
+    const tree = {
+      components: [
+        {
+          id: 's1',
+          type: 'stage',
+          children: [
+            { id: 'tube', type: 'bodytube', outerRadius: 0.0273, children: [{ id: 'x', type: 'tubecoupler' }] },
+          ],
+        },
+      ],
+    } as unknown as RocketTree;
+    expect(fitContextFor(tree, 'x')!.parentInner).toBeCloseTo(2 * (0.0273 - 0.0003), 9);
+  });
+});

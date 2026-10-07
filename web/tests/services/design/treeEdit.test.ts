@@ -5,7 +5,6 @@ import {
   updateNode,
   removeNode,
   addChild,
-  findMountId,
   findMounts,
   isUpperStageMount,
   isAxial,
@@ -23,6 +22,10 @@ import {
 } from '../../../src/services/design/treeEdit';
 import type { RocketTree } from '../../../src/engine/openRocketEngine';
 import type { Component } from '../../../src/services/parts/componentDb';
+import type { ComponentNode } from '../../../src/engine/openRocketEngine';
+import { KERNEL_DEFAULTS } from '../../../src/tree/kernelDefaults';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 const makeTree = (): RocketTree =>
   ({
@@ -92,10 +95,6 @@ describe('immutable edits', () => {
 });
 
 describe('mount + type rules', () => {
-  it('findMountId returns the first motor-mount id', () => {
-    expect(findMountId(makeTree())).toBe('m1');
-  });
-
   it('findMounts returns every motor-mount node in order', () => {
     const t = makeTree();
     // add a second mount under the body tube
@@ -171,9 +170,65 @@ describe('catalogPatch', () => {
       shape: 'ogive',
       length: 0.1,
       aftRadius: 0.025,
+      filled: true,
       thickness: 0.025,
       density: 680,
       materialName: 'Balsa',
+    });
+  });
+
+  /**
+   * Whether a cone is SOLID is the part's answer, not the last part's.
+   *
+   * The kernel reads it from the `filled` flag (`api/ComponentFactory` calls
+   * `setFilled`), and the catalog publishes it on every nose cone row: 728 of
+   * the 855 are filled and 127 are not, our own default PNC-50KA among them. So
+   * a pick that left the flag alone let whatever was there before decide, and a
+   * solid cone followed by a hollow one went on flying solid at the hollow
+   * one's dimensions. It is several times the part's real mass, at the very
+   * nose, which moves the CG and the margin with it.
+   */
+  describe('a nose cone picked after another', () => {
+    const cone = (filled: boolean) =>
+      ({ type: 'nosecone', shape: 'ogive', length: 0.1, outerDiameter: 0.05, filled }) as unknown as Component;
+    const solidNode = { type: 'nosecone', filled: true, thickness: 0.03 } as unknown as ComponentNode;
+    const hollowNode = { type: 'nosecone', thickness: 0.0013 } as unknown as ComponentNode;
+
+    it('stops being solid when the part it replaces was', () => {
+      const patch = catalogPatch(cone(false), solidNode);
+      expect(patch).toMatchObject({ filled: false });
+      // And its wall is a WALL. The old node's 30 mm was the whole radius of a
+      // solid part; carried over it would keep this 25 mm cone solid.
+      expect(patch.thickness).toBe(KERNEL_DEFAULTS.nosecone.thickness);
+      expect(patch.thickness!).toBeLessThan(0.025);
+    });
+
+    it('keeps a wall that is already a wall', () => {
+      // 1.3 mm was typed for this airframe; a different hollow cone is no
+      // reason to throw it away, and the row states no wall of its own.
+      expect(catalogPatch(cone(false), hollowNode)).toMatchObject({ filled: false });
+      expect(catalogPatch(cone(false), hollowNode).thickness).toBeUndefined();
+    });
+
+    it('becomes solid when the part it replaces was not', () => {
+      expect(catalogPatch(cone(true), hollowNode)).toMatchObject({ filled: true, thickness: 0.025 });
+    });
+
+    it('still answers with no node to compare against', () => {
+      // The picker always has one, but the function is reachable without.
+      expect(catalogPatch(cone(false))).toMatchObject({
+        filled: false,
+        thickness: KERNEL_DEFAULTS.nosecone.thickness,
+      });
+    });
+
+    it('is still what the kernel reads solidness from', () => {
+      // The one thing holding this to the engine: the flag, not the thickness.
+      const factory = readFileSync(
+        resolve(process.cwd(), '../engine-java/src/api/java/api/ComponentFactory.java'),
+        'utf8',
+      );
+      expect(factory).toContain('nose.setFilled(bool(node, "filled", false));');
     });
   });
 

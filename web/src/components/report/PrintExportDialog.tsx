@@ -3,6 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore } from '../../state/store';
 import { Dialog } from '../common/Dialog';
 import { printableParts } from '../../services/exports/printableParts';
+import { partLabel } from '../../i18n/format';
+import { Check } from '../common/Check';
+import { DialogButton } from '../common/DialogButton';
 
 /**
  * The whole-rocket 3D-print export.
@@ -24,7 +27,7 @@ export function PrintExportDialog({ onClose }: { onClose: () => void }) {
   const parts = useMemo(() => printableParts(tree), [tree]);
   // What the list shows, and what the file's object names become for a part
   // with no name of its own — the same string in both places.
-  const label = (p: (typeof parts)[number]) => p.name || t(`part.${p.type}`, { defaultValue: p.type });
+  const label = (p: (typeof parts)[number]) => partLabel(t, p);
   const [excluded, setExcluded] = useState<Set<string>>(new Set());
   const [separateFiles, setSeparateFiles] = useState(false);
   const [placeOnPlate, setPlaceOnPlate] = useState(true);
@@ -54,29 +57,23 @@ export function PrintExportDialog({ onClose }: { onClose: () => void }) {
         empty ? undefined : (
           <>
             <div className="space-y-2 px-4 py-3">
-              <label className="flex items-center gap-2 text-xs text-slate-300">
-                <input
-                  type="checkbox"
-                  checked={separateFiles}
-                  onChange={(e) => setSeparateFiles(e.target.checked)}
-                  className="accent-sky-500"
-                />
-                {t('print.separateFiles')}
-              </label>
-              <label className="flex items-center gap-2 text-xs text-slate-300">
-                <input
-                  type="checkbox"
-                  checked={placeOnPlate}
-                  onChange={(e) => setPlaceOnPlate(e.target.checked)}
-                  className="accent-sky-500"
-                />
-                {t('print.placeOnPlate')}
-              </label>
+              <Check
+                className="text-xs text-slate-300"
+                checked={separateFiles}
+                onChange={setSeparateFiles}
+                label={t('print.separateFiles')}
+              />
+              <Check
+                className="text-xs text-slate-300"
+                checked={placeOnPlate}
+                onChange={setPlaceOnPlate}
+                label={t('print.placeOnPlate')}
+              />
               <p className="text-[11px] leading-snug text-slate-500">{t('print.orientationNote')}</p>
             </div>
             <div className="flex items-center justify-between gap-3 border-t border-white/10 px-4 py-3">
               <span className="text-xs text-slate-400">{t('print.count', { count: selected.length })}</span>
-              <button
+              <DialogButton
                 disabled={selected.length === 0}
                 onClick={() => {
                   void exportPrint({
@@ -87,10 +84,10 @@ export function PrintExportDialog({ onClose }: { onClose: () => void }) {
                   });
                   onClose();
                 }}
-                className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-500 disabled:opacity-50"
+                variant="primary"
               >
                 {t('print.save')}
-              </button>
+              </DialogButton>
             </div>
           </>
         )
@@ -102,15 +99,12 @@ export function PrintExportDialog({ onClose }: { onClose: () => void }) {
         <ul className="px-4 py-2">
           {parts.map((p) => (
             <li key={p.id} style={{ paddingLeft: `${p.depth * 14}px` }}>
-              <label className="flex items-center gap-2 py-1 text-sm text-slate-200">
-                <input
-                  type="checkbox"
-                  checked={!excluded.has(p.id)}
-                  onChange={() => toggle(p.id)}
-                  className="accent-sky-500"
-                />
-                {label(p)}
-              </label>
+              <Check
+                className="py-1 text-sm text-slate-200"
+                checked={!excluded.has(p.id)}
+                onChange={() => toggle(p.id)}
+                label={label(p)}
+              />
             </li>
           ))}
         </ul>

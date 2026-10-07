@@ -1,12 +1,15 @@
 import type { ComponentNode, RocketTree, StaticInfo } from '../../engine/openRocketEngine';
-import { num, numOpt } from '../../tree/nodeProps';
-import { axialLength, axialStart } from '../../tree/position.js';
+import { anyOuterRadius, num, numOpt } from '../../tree/nodeProps';
+import { axialChain, axialLength, axialStart, partLength } from '../../tree/position.js';
 import { finSpan } from '../../tree/finPlanform.js';
-import { outerProfile } from '../../tree/shapeProfile.js';
-import { tubeFinRadius } from '../../tree/tubefins.js';
-import { KERNEL_MASSCOMPONENT_RADIUS } from '../../tree/kernelDefaults.js';
+import { walkNodes } from '../../tree/treeWalk.js';
+import { nodeShape, outerProfile } from '../../tree/shapeProfile.js';
+import { isFinSet, tubeFinRadius } from '../../tree/tubefins.js';
+import { isChainType } from '../../tree/componentKinds.js';
+import { KERNEL_DEFAULTS, KERNEL_MASSCOMPONENT_RADIUS } from '../../tree/kernelDefaults.js';
 import { assemblyBoundingRadius, isAssembly, resolveAssemblyRadius } from '../../tree/assembly.js';
-import type { StabilityState } from '../../services/flight/simReport.js';
+import { stabilityState, type StabilityState } from '../../services/flight/simReport.js';
+import { fmtNum } from '../../i18n/format';
 
 export interface Ctx {
   scale: number;
@@ -110,31 +113,13 @@ export function calloutLayout(
   return { cg, cp, margin };
 }
 
-/** Tab front edge from the fin's leading edge (AxialMethod.getAsPosition). */
-export function finTabFront(n: ComponentNode, finLen: number): number {
-  const offset = num(n, 'tabOffset', 0);
-  const tabLen = num(n, 'tabLength', 0);
-  const method = typeof n['tabOffsetMethod'] === 'string' ? (n['tabOffsetMethod'] as string) : 'middle';
-  if (method === 'top') return offset;
-  if (method === 'bottom') return offset + (finLen - tabLen);
-  return offset + (finLen - tabLen) / 2;
-}
-
 // One implementation, in the tree layer. This file carried its own copy
 // (and Rocket3D a third, which disagreed on `absolute`); the canvas re-exports
 // so its importers keep working.
 export { axialStart };
 
 export function collect<T>(nodes: ComponentNode[], f: (n: ComponentNode) => T): T[] {
-  const out: T[] = [];
-  const walk = (ns: ComponentNode[]) => {
-    for (const n of ns) {
-      out.push(f(n));
-      walk(n.children ?? []);
-    }
-  };
-  walk(nodes);
-  return out;
+  return Array.from(walkNodes(nodes), (n) => f(n));
 }
 
 /**
@@ -151,7 +136,7 @@ export function profilePath(
   aftR: number,
   baseY: number,
 ): string {
-  const shape = typeof n['shape'] === 'string' ? (n['shape'] as string) : n.type === 'transition' ? 'conical' : 'ogive';
+  const shape = nodeShape(n);
   const param = numOpt(n, 'shapeParameter');
   // node['clipped'] (.ork <shapeclipped>) rides along so an unclipped
   // transition draws the way it simulates; absent = kernel default (clipped).
@@ -183,7 +168,7 @@ export function computeSchematicLayout(
   tree: RocketTree,
   info: StaticInfo | null,
   dims: {
-    vertical?: boolean;
+    /** Container height (CSS px), the drawing height under `fillHeight`. */
     chPx: number;
     cw: number;
     maxHeight: number;
@@ -208,23 +193,23 @@ export function computeSchematicLayout(
   scale: number;
   ctx: Ctx;
 } {
-  const { vertical, chPx, cw, maxHeight, fillHeight } = dims;
+  const { chPx, cw, maxHeight, fillHeight } = dims;
   // Stages flatten into one nose-to-tail chain (sustainer first, boosters
   // after — the desktop's stacking order); legacy flat trees pass through.
-  const chain = tree.components.flatMap((n) => (n.type === 'stage' ? (n.children ?? []) : [n]));
+  const chain = axialChain(tree);
   let totalLen = 0;
   let maxR = 0.001;
   for (const n of chain) {
-    if (n.type === 'nosecone' || n.type === 'bodytube' || n.type === 'transition') {
-      totalLen += num(n, 'length', 0);
-      maxR = Math.max(maxR, num(n, 'aftRadius', 0), num(n, 'outerRadius', 0), num(n, 'foreRadius', 0));
+    if (isChainType(n.type)) {
+      totalLen += partLength(n);
+      maxR = Math.max(maxR, anyOuterRadius(n));
     }
   }
   // A fin set's vertical span: freeform fins carry no 'height' key — their
   // reach is the outline's y-max (the 0.03 default clipped tall freeform fins
   // out of the adaptive-height frame).
   const spanOf = (n: ComponentNode, bodyR: number): number => {
-    if (!n.type.endsWith('finset')) return 0;
+    if (!isFinSet(n.type)) return 0;
     // Tube fins reach one tube diameter above the body surface; every planar
     // fin defers to the shared span (tree/finPlanform.ts) so this view cannot
     // drift from the exports about how tall a fin is.
@@ -249,7 +234,7 @@ export function computeSchematicLayout(
       for (const n of ns) {
         out.push(spanOf(n, r));
         if (n.children?.length) {
-          const own = Math.max(num(n, 'aftRadius', 0), num(n, 'outerRadius', 0), num(n, 'foreRadius', 0));
+          const own = anyOuterRadius(n);
           walk(n.children, own > 0 ? own : r);
         }
       }
@@ -258,7 +243,8 @@ export function computeSchematicLayout(
     return out;
   };
 
-  const protuberanceSpan = (n: ComponentNode): number => (n.type === 'fairing' ? num(n, 'height', 0.02) : 0);
+  const protuberanceSpan = (n: ComponentNode): number =>
+    n.type === 'fairing' ? num(n, 'height', KERNEL_DEFAULTS.fairing.height) : 0;
   const finH = Math.max(0, ...collectFinSpans(tree.components, maxR), ...collect(tree.components, protuberanceSpan));
   totalLen = Math.max(totalLen, 0.05);
 
@@ -272,7 +258,7 @@ export function computeSchematicLayout(
         vHalf = Math.max(vHalf, resolveAssemblyRadius(n, parentR) + assemblyBoundingRadius(n) + podFin);
         scanRadial(n.children ?? [], assemblyBoundingRadius(n));
       } else {
-        const r = Math.max(num(n, 'aftRadius', 0), num(n, 'outerRadius', 0), num(n, 'foreRadius', 0)) || parentR;
+        const r = anyOuterRadius(n) || parentR;
         scanRadial(n.children ?? [], r);
       }
     }
@@ -286,8 +272,8 @@ export function computeSchematicLayout(
   {
     let cx = 0;
     for (const n of chain) {
-      if (n.type === 'nosecone' || n.type === 'bodytube' || n.type === 'transition') {
-        const len = num(n, 'length', 0);
+      if (isChainType(n.type)) {
+        const len = partLength(n);
         snapXs.push(cx, cx + len);
         for (const child of n.children ?? []) {
           const clen = axialLength(child);
@@ -296,7 +282,7 @@ export function computeSchematicLayout(
             snapXs.push(cs, cs + clen);
           }
         }
-        const r = Math.max(num(n, 'aftRadius', 0), num(n, 'outerRadius', 0), num(n, 'foreRadius', 0));
+        const r = anyOuterRadius(n);
         if (r > 0) radialSet.add(r);
         cx += len;
       }
@@ -304,11 +290,7 @@ export function computeSchematicLayout(
   }
   const radialSnaps = [...radialSet];
 
-  // Vertical mode swaps the container roles BEFORE layout: all layout math
-  // stays horizontal (length along x) and the finished drawing rotates
-  // nose-up as one group, so the length axis fits the container HEIGHT and
-  // the cross extent its width.
-  const w = Math.max(320, vertical ? chPx : cw);
+  const w = Math.max(320, cw);
   const pad = 26;
   // Height follows the rocket's own proportions (clamped): a long thin
   // rocket gets a wide low band, not a fixed frame of empty sky. When info
@@ -319,21 +301,19 @@ export function computeSchematicLayout(
   // Side view reserves a ruler lane per requested side (length top/bottom, radial
   // left/right); each kept out of the fit so the drawing centers inside the frame.
   // A side that's toggled off reserves nothing, so the drawing reclaims that space.
-  const R = dims.rulers ?? { top: true, bottom: true, left: true, right: true };
-  const rTop = vertical || !R.top ? 0 : RULER_H;
-  const rBot = vertical || !R.bottom ? 0 : RULER_H;
-  const rLeft = vertical || !R.left ? 0 : RULER_W;
-  const rRight = vertical || !R.right ? 0 : RULER_W;
-  const crossCap = vertical ? Math.max(160, cw) : maxHeight;
-  const h =
-    vertical || !fillHeight
-      ? Math.round(
-          Math.min(
-            crossCap,
-            Math.max(200, 2 * vHalf * ((w - 2 * pad - rLeft - rRight) / totalLen) + 2 * pad + lanes + rTop + rBot),
-          ),
-        )
-      : Math.max(200, chPx);
+  const R = dims.rulers ?? { top: true, bottom: false, left: true, right: false };
+  const rTop = R.top ? RULER_H : 0;
+  const rBot = R.bottom ? RULER_H : 0;
+  const rLeft = R.left ? RULER_W : 0;
+  const rRight = R.right ? RULER_W : 0;
+  const h = !fillHeight
+    ? Math.round(
+        Math.min(
+          maxHeight,
+          Math.max(200, 2 * vHalf * ((w - 2 * pad - rLeft - rRight) / totalLen) + 2 * pad + lanes + rTop + rBot),
+        ),
+      )
+    : Math.max(200, chPx);
   // Horizontal headroom: `totalLen` covers only the axial chain (nose+body), so
   // aft-swept fins overhang past it and the CG/CP labels reach right of the aft.
   // Fit to ~12% more than the bare length so nothing sits flush to the edge, and
@@ -381,6 +361,16 @@ export function internalExtent(node: ComponentNode, parentRadius: number): { len
 }
 
 /**
+ * The drawn extent of an inner tube (a motor mount), in every view: its own
+ * length and outer radius, else the kernel's (ComponentFactory, case
+ * "innertube"). No cap against the parent, unlike {@link internalExtent}: that
+ * cap keeps an invented box off the wall, and a mount's radius is real.
+ */
+export function innerTubeExtent(node: ComponentNode): { length: number; radius: number } {
+  return { length: axialLength(node), radius: num(node, 'outerRadius', KERNEL_DEFAULTS.innertube.outerRadius) };
+}
+
+/**
  * A component's own `color` override, else the caller's default. The 2D side
  * view, the aft view and the 3D builder each carried a private copy of this
  * one-liner; one definition means one place for the override rule to change.
@@ -399,6 +389,31 @@ export const STABILITY_GLYPH: Record<StabilityState, string> = {
   over: '△',
   ok: '✓',
 };
+
+const STABILITY_WORD: Record<StabilityState, string> = {
+  under: 'schematic.underStable',
+  over: 'schematic.overStable',
+  ok: 'schematic.ok',
+};
+
+/**
+ * The margin readout every drawing prints beside its CP: glyph, calibers,
+ * percent of length and the verdict word, e.g. "△ 7.00 cal · 12.0% — over-stable".
+ * One builder, so the 2D overlay and the 3D callout cannot word it differently.
+ * Null without a finite margin or percentage, rather than "NaN%".
+ */
+export function marginText(
+  cal: number,
+  pct: number | null,
+  t: (key: string) => string,
+): { state: StabilityState; text: string } | null {
+  const state = stabilityState(cal);
+  if (!state || pct == null || !Number.isFinite(pct)) return null;
+  return {
+    state,
+    text: `${STABILITY_GLYPH[state]} ${fmtNum(cal, 2)} ${t('stability.caliber')} · ${fmtNum(pct, 1)}% — ${t(STABILITY_WORD[state])}`,
+  };
+}
 
 /** View transform of a zoomable SVG drawing: scale `k` about the origin, then
  *  translate by (x, y), all in viewBox units. Identity = whole drawing fits. */
@@ -422,6 +437,14 @@ export function zoomAbout(z: ZoomState, px: number, py: number, k: number): Zoom
   const mx = (px - z.x) / z.k;
   const my = (py - z.y) / z.k;
   return { k, x: px - mx * k, y: py - my * k };
+}
+
+/** The deepest zoom the schematic views allow. */
+export const MAX_ZOOM = 12;
+
+/** Multiply a view's scale by `f` about (px, py), held within [1, max]. */
+export function zoomStep(z: ZoomState, px: number, py: number, f: number, max: number): ZoomState {
+  return zoomAbout(z, px, py, Math.min(max, Math.max(1, z.k * f)));
 }
 
 /** Drawn extent (layout px) of one component, unioned across its instances. */

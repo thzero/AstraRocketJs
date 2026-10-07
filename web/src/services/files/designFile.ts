@@ -1,6 +1,7 @@
 import type { OrkImportResult } from './orkTypes';
 import { importOrk } from './orkFile';
 import { importRkt } from './rktImport';
+import { decodeFileText } from './decodeText';
 
 /**
  * Which design format a file is, decided from its BYTES rather than its name.
@@ -29,7 +30,10 @@ export function sniffDesignFormat(data: ArrayBuffer | string): DesignFormat | nu
   if (typeof data !== 'string') {
     const bytes = new Uint8Array(data);
     if (bytes[0] === 0x50 && bytes[1] === 0x4b) return 'ork'; // "PK": a zip
-    data = new TextDecoder().decode(bytes.subarray(0, SNIFF_BYTES));
+    // Through the shared decoder: a UTF-16 file sniffed as UTF-8 is a NUL
+    // between every character, matches neither root element, and is turned away
+    // as not a design file at all.
+    data = decodeFileText(bytes.subarray(0, SNIFF_BYTES));
   }
   const head = data.slice(0, SNIFF_BYTES);
   if (/<RockSimDocument[\s>]/.test(head)) return 'rkt';

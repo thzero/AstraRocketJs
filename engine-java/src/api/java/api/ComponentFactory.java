@@ -48,7 +48,6 @@ import info.openrocket.core.rocketcomponent.position.RadiusMethod;
 import info.openrocket.core.util.Coordinate;
 
 import static api.JsonLite.bool;
-import static api.JsonLite.dbl;
 import static api.JsonLite.obj;
 import static api.JsonLite.str;
 
@@ -80,6 +79,10 @@ final class ComponentFactory {
      *  nonsense value silently. */
     static final int MAX_FIN_COUNT = 8;
 
+    /** Freeform fin outline ceiling, the browser's own (importLimits.MAX_FIN_POINTS):
+     *  every point is a vertex in every mesh, drawing and kernel pass. */
+    static final int MAX_FIN_POINTS = 10000;
+
     /** Shroud-line ceiling. A parachute with 1e9 lines built happily and
      *  reported a 300000 kg rocket with zero warnings. */
     static final int MAX_LINE_COUNT = 1024;
@@ -99,6 +102,47 @@ final class ComponentFactory {
                     "'" + key + "' must be a whole number in 1.." + max + " (got " + v + ")");
         }
         return (int) v;
+    }
+
+    /**
+     * The largest magnitude any component number may carry, in SI units. No real
+     * part comes near it (a kilometer-long tube, a density forty times
+     * osmium's), and it is far below where the geometry overflows: a
+     * `"length":1e300` nose cone parsed, built, and came back with every static
+     * figure null and no error.
+     */
+    static final double MAX_MAGNITUDE = 1e6;
+
+    /**
+     * Sizes, densities and masses: never negative. The kernel clamped a negative
+     * one instead of refusing it, so `outerRadius:-1` built a part with mass 0.0
+     * and no warning. Positions, angles, sweep, overhang and offsets stay signed.
+     */
+    private static final java.util.Set<String> NON_NEGATIVE = new java.util.HashSet<>(java.util.Arrays.asList(
+            "length", "thickness", "outerRadius", "innerRadius", "radius", "aftRadius", "foreRadius",
+            "height", "rootChord", "tipChord", "diameter", "outerDiameter", "innerDiameter",
+            "shoulderLength", "shoulderRadius", "shoulderThickness",
+            "foreShoulderLength", "foreShoulderRadius", "foreShoulderThickness",
+            "aftShoulderLength", "aftShoulderRadius", "aftShoulderThickness",
+            "lineLength", "width", "cordLength", "stripLength", "stripWidth",
+            "density", "surfaceDensity", "lineDensity", "filletDensity", "mass", "overrideMass",
+            "filletRadius", "finLeRadius", "tabHeight", "tabLength", "flangeHeight", "baseHeight",
+            "screwHeight", "instanceSeparation", "deployDelay", "deployAltitude", "cd"));
+
+    /**
+     * A component number: {@link JsonLite#dbl}, refused past {@link #MAX_MAGNITUDE},
+     * and refused below 0 for the keys in {@link #NON_NEGATIVE}.
+     */
+    private static double dbl(Map<String, Object> node, String key, double fallback) {
+        double v = JsonLite.dbl(node, key, fallback);
+        if (Math.abs(v) > MAX_MAGNITUDE) {
+            throw new IllegalArgumentException(
+                    "'" + key + "' is out of range (got " + v + "; the limit is " + MAX_MAGNITUDE + ")");
+        }
+        if (v < 0 && NON_NEGATIVE.contains(key)) {
+            throw new IllegalArgumentException("'" + key + "' must not be negative (got " + v + ")");
+        }
+        return v;
     }
 
     private ComponentFactory() {}
@@ -246,7 +290,7 @@ final class ComponentFactory {
             }
             case "trapezoidfinset": {
                 TrapezoidFinSet fins = new TrapezoidFinSet(
-                        (int) dbl(node, "finCount", 3),
+                        count(node, "finCount", 3, MAX_FIN_COUNT),
                         dbl(node, "rootChord", 0.05),
                         dbl(node, "tipChord", 0.03),
                         dbl(node, "sweep", 0.02),
@@ -277,6 +321,10 @@ final class ComponentFactory {
                 Object rawPoints = node.get("points");
                 if (rawPoints instanceof List) {
                     List<?> list = (List<?>) rawPoints;
+                    if (list.size() > MAX_FIN_POINTS) {
+                        throw new IllegalArgumentException("freeformfinset has " + list.size()
+                                + " points; the limit is " + MAX_FIN_POINTS);
+                    }
                     Coordinate[] pts = new Coordinate[list.size()];
                     for (int i = 0; i < list.size(); i++) {
                         Object row = list.get(i);
@@ -557,11 +605,6 @@ final class ComponentFactory {
                 m.setComponentMass(dbl(node, "mass", 0.01));
                 m.setLength(dbl(node, "length", 0.02));
                 m.setRadius(dbl(node, "radius", 0.005));
-                // Off-centreline placement — drawn and saved since v0.087 but
-                // never reaching the engine, so an off-axis weight flew on the
-                // axis (wrong mass distribution and inertia). 0/0 = centred.
-                m.setRadialPosition(dbl(node, "radialPosition", 0));
-                m.setRadialDirection(dbl(node, "radialDirection", 0));
                 // What the lump IS (altimeter, battery, payload...). Carried in
                 // the file since the writer was fixed, never handed over. It
                 // changes no physics; OpenRocket uses it to name and picture
@@ -706,13 +749,20 @@ final class ComponentFactory {
                 line.setInstanceSeparation(sep);
             }
         }
-        // Off-centreline placement for INTERNAL structure. The inner tube and
-        // the mass component set their own above; a ring, coupler or engine
-        // block carries the same pair in the file and flew on the axis.
+        // Off-centerline placement for INTERNAL structure, as desktop's
+        // RingComponent and MassObject setters take it. The inner tube sets
+        // its own above. A mass object (mass component, parachute, streamer,
+        // shock cord) flies the offset: MassObject.getComponentCG puts its
+        // mass there. A ring part's getComponentCG ignores it, so a ring
+        // carries the offset and still flies on the axis, as on the desktop.
         if (c instanceof RingComponent) {
             RingComponent rc = (RingComponent) c;
             rc.setRadialPosition(dbl(node, "radialPosition", 0));
             rc.setRadialDirection(dbl(node, "radialDirection", 0));
+        } else if (c instanceof MassObject) {
+            MassObject mo = (MassObject) c;
+            mo.setRadialPosition(dbl(node, "radialPosition", 0));
+            mo.setRadialDirection(dbl(node, "radialDirection", 0));
         }
         // Automatic diameters on INNER structure and tube fins: the flag says
         // the part follows what it is inside, and the number beside it is what
@@ -814,28 +864,45 @@ final class ComponentFactory {
         }
     }
 
+    // The string-to-enum readers below take every name of the upstream enum,
+    // case- and underscore-insensitive (the desktop writes them lowercased, as
+    // `lower_stage_separation`), and REFUSE anything else. Defaulting an unknown
+    // name silently changed the rocket: `crossSection:"diamond"` flew square fins,
+    // `shape:"bogus"` an ogive nose (moving CP), `method:"nonsense"` put the part
+    // at the top, and a desktop file's lower-stage-separation chute opened at
+    // ejection instead. An ABSENT key still takes its default, at the call site.
+    private static String enumKey(String name) {
+        return name.toLowerCase().replace("_", "");
+    }
+
     private static DeploymentConfiguration.DeployEvent deployEventOf(String name) {
-        switch (name.toLowerCase()) {
+        switch (enumKey(name)) {
             case "launch": return DeploymentConfiguration.DeployEvent.LAUNCH;
+            case "ejection": return DeploymentConfiguration.DeployEvent.EJECTION;
             case "apogee": return DeploymentConfiguration.DeployEvent.APOGEE;
             case "altitude": return DeploymentConfiguration.DeployEvent.ALTITUDE;
+            case "lowerstageseparation": return DeploymentConfiguration.DeployEvent.LOWER_STAGE_SEPARATION;
             case "never": return DeploymentConfiguration.DeployEvent.NEVER;
-            case "ejection":
-            default: return DeploymentConfiguration.DeployEvent.EJECTION;
+            default:
+                throw new IllegalArgumentException("Unknown deploy event: '" + name + "' (expected one of launch, ejection, apogee, altitude, lower_stage_separation, never)");
         }
     }
 
     private static ExternalComponent.Finish finishOf(String name) {
-        switch (name.toLowerCase()) {
+        switch (enumKey(name)) {
             case "rough": return ExternalComponent.Finish.ROUGH;
             case "roughunfinished": return ExternalComponent.Finish.ROUGHUNFINISHED;
             case "unfinished": return ExternalComponent.Finish.UNFINISHED;
+            case "normal":
+            // The app's name for NORMAL in some files.
+            case "regular": return ExternalComponent.Finish.NORMAL;
             case "smooth": return ExternalComponent.Finish.SMOOTH;
             case "polished": return ExternalComponent.Finish.POLISHED;
             case "finishpolished": return ExternalComponent.Finish.FINISHPOLISHED;
-            case "normal":
-            case "regular":
-            default: return ExternalComponent.Finish.NORMAL;
+            case "optimum": return ExternalComponent.Finish.OPTIMUM;
+            case "mirror": return ExternalComponent.Finish.MIRROR;
+            default:
+                throw new IllegalArgumentException("Unknown surface finish: '" + name + "' (expected one of rough, roughunfinished, unfinished, normal, smooth, polished, finishpolished, optimum, mirror)");
         }
     }
 
@@ -940,38 +1007,44 @@ final class ComponentFactory {
     }
 
     private static RadiusMethod radiusMethodOf(String name) {
-        switch (name.toLowerCase()) {
+        switch (enumKey(name)) {
             case "free": return RadiusMethod.FREE;
             case "surface": return RadiusMethod.SURFACE;
             case "coaxial": return RadiusMethod.COAXIAL;
-            case "relative":
-            default: return RadiusMethod.RELATIVE;
+            case "relative": return RadiusMethod.RELATIVE;
+            default:
+                throw new IllegalArgumentException("Unknown radius method: '" + name + "' (expected one of relative, free, surface, coaxial)");
         }
     }
 
     private static AngleMethod angleMethodOf(String name) {
-        switch (name.toLowerCase()) {
+        switch (enumKey(name)) {
+            case "relative": return AngleMethod.RELATIVE;
             case "fixed": return AngleMethod.FIXED;
-            case "relative":
-            default: return AngleMethod.RELATIVE;
+            case "mirrorxy": return AngleMethod.MIRROR_XY;
+            default:
+                throw new IllegalArgumentException("Unknown angle method: '" + name + "' (expected one of relative, fixed, mirror_xy)");
         }
     }
 
-    private static Transition.Shape shapeOf(String name) {
-        switch (name.toLowerCase()) {
+    /** Also the facade's reader for its own nose-cone builder (OpenRocketEngine). */
+    static Transition.Shape shapeOf(String name) {
+        switch (enumKey(name)) {
             case "conical": return Transition.Shape.CONICAL;
+            case "ogive": return Transition.Shape.OGIVE;
             case "ellipsoid": return Transition.Shape.ELLIPSOID;
             case "power": return Transition.Shape.POWER;
             case "parabolic": return Transition.Shape.PARABOLIC;
             case "haack": return Transition.Shape.HAACK;
-            case "ogive":
-            default: return Transition.Shape.OGIVE;
+            default:
+                throw new IllegalArgumentException("Unknown nose or transition shape: '" + name + "' (expected one of conical, ogive, ellipsoid, power, parabolic, haack)");
         }
     }
 
     /** OpenRocket's MassComponent.MassComponentType, by the .ork spelling. */
     private static MassComponent.MassComponentType massComponentTypeOf(String name) {
-        switch (name == null ? "" : name.toLowerCase()) {
+        switch (enumKey(name)) {
+            case "masscomponent": return MassComponent.MassComponentType.MASSCOMPONENT;
             case "altimeter": return MassComponent.MassComponentType.ALTIMETER;
             case "flightcomputer": return MassComponent.MassComponentType.FLIGHTCOMPUTER;
             case "deploymentcharge": return MassComponent.MassComponentType.DEPLOYMENTCHARGE;
@@ -979,26 +1052,32 @@ final class ComponentFactory {
             case "payload": return MassComponent.MassComponentType.PAYLOAD;
             case "recoveryhardware": return MassComponent.MassComponentType.RECOVERYHARDWARE;
             case "battery": return MassComponent.MassComponentType.BATTERY;
-            default: return MassComponent.MassComponentType.MASSCOMPONENT;
+            default:
+                throw new IllegalArgumentException("Unknown mass component type: '" + name + "' (expected one of masscomponent, altimeter, flightcomputer, deploymentcharge, tracker, payload, recoveryhardware, battery)");
         }
     }
 
     private static FinSet.CrossSection crossSectionOf(String name) {
-        switch (name.toLowerCase()) {
+        switch (enumKey(name)) {
+            case "square": return FinSet.CrossSection.SQUARE;
             case "rounded": return FinSet.CrossSection.ROUNDED;
             case "airfoil": return FinSet.CrossSection.AIRFOIL;
-            case "square":
-            default: return FinSet.CrossSection.SQUARE;
+            default:
+                throw new IllegalArgumentException("Unknown fin cross-section: '" + name + "' (expected one of square, rounded, airfoil)");
         }
     }
 
     private static AxialMethod axialMethodOf(String name) {
-        switch (name.toLowerCase()) {
-            case "absolute": return AxialMethod.ABSOLUTE;
+        switch (enumKey(name)) {
+            case "top": return AxialMethod.TOP;
             case "middle": return AxialMethod.MIDDLE;
             case "bottom": return AxialMethod.BOTTOM;
-            case "top":
-            default: return AxialMethod.TOP;
+            case "absolute": return AxialMethod.ABSOLUTE;
+            // The app resolves `after` to `top` when it loads an .ork, but a tree
+            // that still carries it means OpenRocket's AFTER, not TOP.
+            case "after": return AxialMethod.AFTER;
+            default:
+                throw new IllegalArgumentException("Unknown position method: '" + name + "' (expected one of top, middle, bottom, absolute, after)");
         }
     }
 }

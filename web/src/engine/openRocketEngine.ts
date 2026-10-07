@@ -12,6 +12,8 @@
 // (neither backend is imported statically now) — see kernelLogSink.ts.
 import './kernelLogSink.js';
 import { declaredLength, readStreamWithProgress } from '../services/app/fetchProgress';
+import { nsKey } from '../services/storage/storageKeys';
+import { errorMessage } from '../services/app/errorMessage';
 
 // The WASM-GC engine + its loader live in web/public/engine/ (served verbatim by
 // Vite — a .js in src/ would be run through import-analysis, which warns on the
@@ -93,7 +95,7 @@ export class EngineCallError extends Error {
     readonly operation: string,
     engineCause: unknown,
   ) {
-    const detail = engineCause instanceof Error ? engineCause.message : String(engineCause);
+    const detail = errorMessage(engineCause);
     super(`engine ${operation} failed: ${detail || '(no message)'}`);
     this.name = 'EngineCallError';
     this.engineCause = engineCause;
@@ -292,10 +294,30 @@ async function tryLoadWasm(onStatus?: (s: EngineLoadStatus) => void): Promise<En
 
 export type BackendPref = 'wasm' | 'js' | 'auto';
 
-/** The app-namespaced localStorage key for the backend override. */
-export const ENGINE_PREF_KEY = 'astrarocketjs:engine';
-/** The pre-namespacing key, still honored so an existing override keeps working. */
-const LEGACY_ENGINE_PREF_KEY = 'engine';
+/**
+ * The app-namespaced localStorage key for the backend override.
+ *
+ * Built from `STORAGE_PREFIX` like every other key. It used to be spelled out,
+ * and spelled correctly while every other store used a misspelled prefix, which
+ * made this the app's SECOND storage namespace. Both are the one namespace now,
+ * and the prefix is spelled right, so this key is back to the value it always had.
+ */
+export const ENGINE_PREF_KEY = nsKey('engine');
+/**
+ * Keys this override used to live under, still honored so an existing one keeps
+ * working: `engine` is pre-namespacing, and the typo prefix is what every other
+ * store wrote before the spelling was corrected.
+ *
+ * This one key is worth a read chain where the stores are not, because it is a
+ * DEBUG switch quoted in the docs - someone following those instructions set it
+ * by hand and should not have to do it twice. A design under the old prefix is
+ * preview scratch and is not read back; a `?engine=js` someone set this morning is
+ * a live instruction.
+ *
+ * cspell:ignore astrarrocketjs -- the OLD prefix, and the only place left in `src`
+ * that has to name it.
+ */
+const LEGACY_ENGINE_PREF_KEYS = ['engine', 'astrarrocketjs:engine'] as const;
 
 /**
  * Backend preference. Default is 'auto' → try WASM-GC first, fall back to JS
@@ -305,7 +327,7 @@ const LEGACY_ENGINE_PREF_KEY = 'engine';
  * `(ArrayList) super.clone()`, which throws ClassCastException under WASM-GC's
  * strict typing — see the PATCH in engine-java). Overrides for debugging /
  * unsupported browsers: `?engine=js` (or
- * `localStorage.setItem('astrarocketjs:engine','js')`) forces JS;
+ * `localStorage.setItem(ENGINE_PREF_KEY,'js')`) forces JS;
  * `?engine=wasm` forces the WASM attempt.
  *
  * MAIN THREAD ONLY. A worker has no page `location` (its `location` is the
@@ -317,7 +339,9 @@ export function backendPref(): BackendPref {
   try {
     const q = new URLSearchParams(location.search).get('engine');
     if (q === 'wasm' || q === 'js') return q;
-    const ls = localStorage.getItem(ENGINE_PREF_KEY) ?? localStorage.getItem(LEGACY_ENGINE_PREF_KEY);
+    const ls =
+      localStorage.getItem(ENGINE_PREF_KEY) ??
+      LEGACY_ENGINE_PREF_KEYS.map((k) => localStorage.getItem(k)).find((v) => v != null);
     if (ls === 'wasm' || ls === 'js') return ls;
   } catch {
     /* no location/localStorage (SSR/tests/workers) → auto */
@@ -432,7 +456,18 @@ export interface RocketSpec {
 }
 
 export interface MotorSpec {
+  /**
+   * The name the kernel and a `.ork` match on: the catalog's common name
+   * (`F67`), which is also OpenRocket's own database name.
+   */
   designation: string;
+  /**
+   * The full manufacturer designation (`F67W`), for display only. Several
+   * motors share a common name (AeroTech's F67C and F67W are both `F67`), so a
+   * label built from `designation` alone cannot tell them apart. Absent when
+   * the catalog row has none or it adds nothing.
+   */
+  code?: string;
   /** Manufacturer name/abbreviation (display only; the engine ignores it). */
   manufacturer?: string;
   diameter: number;
@@ -493,6 +528,10 @@ export interface SimulationOptions {
   pressure?: number;
   /** Launch-site relative humidity as a FRACTION (0..1). Default: ISA standard. */
   relativeHumidity?: number;
+  /** A forecast atmosphere in place of the standard one above the site:
+   *  altitude m MSL, temperature K, pressure Pa, relativeHumidity a fraction.
+   *  With temperature and pressure also given, the site anchors the profile. */
+  atmosphereLevels?: { altitude: number; temperature: number; pressure: number; relativeHumidity: number }[];
   /** DEGREES (exception to the radians rule — WorldCoordinate's own unit). */
   launchLatitude?: number;
   /** DEGREES (exception to the radians rule). */
@@ -522,6 +561,28 @@ export interface SimulationOptions {
   mainHighSpeedWarn?: number;
   mainLowSpeedWarn?: number;
   drogueLowSpeedWarn?: number;
+  /**
+   * Which launch-guide clearance model to fly. Default false, which is
+   * OpenRocket's own.
+   *
+   * Upstream compares the rocket's travel with the FULL rod length wherever the
+   * guides actually sit: it computes a lug-aware effective length in
+   * `SimulationStatus` and never reads it at the check. So a lug or rail button
+   * above the rocket's aft end is credited with guided travel it does not have,
+   * and the reported rod-exit speed reads high. Rail buttons are not considered
+   * at all, and the lug search looks at one instance, which on a fore/aft pair
+   * is the forward one.
+   *
+   * Set true and the flight ends its guided phase when the aft-most guide, lug
+   * or button, leaves the rod. The rocket is released at that moment as well as
+   * reported there, since reporting a departure the rocket has not made would
+   * leave it mechanically constrained past its own exit.
+   *
+   * It is a choice rather than a fix because the engine is validated
+   * bit-identical to upstream: off, the bridge attaches nothing and the flight
+   * is upstream's exactly. See `api/GuideClearanceListener.java`.
+   */
+  guideAwareRodClearance?: boolean;
   /**
    * Series payload mode. 'summary' (the default) returns the 12 friendly-named
    * arrays plus only the symbol series the app's flight report reads every run
@@ -1257,6 +1318,7 @@ export class OpenRocketDesign {
           temperature: options.temperature,
           pressure: options.pressure,
           relativeHumidity: options.relativeHumidity,
+          atmosphereLevels: options.atmosphereLevels,
           launchLatitude: options.launchLatitude,
           launchLongitude: options.launchLongitude,
           timeStep: options.timeStep ?? 0.05,
@@ -1266,6 +1328,7 @@ export class OpenRocketDesign {
           mainHighSpeedWarn: options.mainHighSpeedWarn,
           mainLowSpeedWarn: options.mainLowSpeedWarn,
           drogueLowSpeedWarn: options.drogueLowSpeedWarn,
+          guideAwareRodClearance: options.guideAwareRodClearance,
           series: options.series,
         }),
       ),

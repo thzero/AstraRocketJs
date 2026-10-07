@@ -1,9 +1,16 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { exportOrk, importOrk, type OrkExportMotor } from '../../../src/services/files/orkFile';
-import { specToTree } from '../../../src/engine/api';
-import type { RocketSpec, ComponentNode, RocketTree } from '../../../src/engine/openRocketEngine';
+import { specToTree } from '../../testing/specTree';
+import {
+  PLUGGED_DELAY,
+  type RocketSpec,
+  type ComponentNode,
+  type RocketTree,
+} from '../../../src/engine/openRocketEngine';
 import type { DesignInfo } from '../../../src/services/files/orkTypes';
+import { writeWeatherKey } from '../../../src/services/weather/weatherKey';
+import { sourceStatus } from '../../../src/services/weather/weatherSource';
 import { badDimensions } from '../../../src/services/design/requiredComponent';
 import { updateNode } from '../../../src/services/design/treeEdit';
 
@@ -83,6 +90,25 @@ describe('exportOrk → importOrk round-trip', () => {
 
   it('accepts its own output as a bare XML string (no zip)', () => {
     expect(() => importOrk(xml)).not.toThrow();
+  });
+
+  // Desktop's MotorHandler: an absent or unparseable <delay> is plugged, not 0 s.
+  it.each([
+    ['absent', ''],
+    ['unparseable', '<delay>three</delay>'],
+    ['blank', '<delay></delay>'],
+  ])('imports a motor whose delay is %s as plugged', (_, replacement) => {
+    expect(xml).toContain('<delay>3</delay>');
+    const res = importOrk(xml.replace('<delay>3</delay>', replacement));
+    expect(res.motor?.delay).toBe(PLUGGED_DELAY);
+    expect(res.notes.join('\n')).toContain('the file gives no readable delay');
+  });
+
+  it('keeps a stated delay and a stated "none"', () => {
+    expect(importOrk(xml).motor?.delay).toBe(3);
+    const res = importOrk(xml.replace('<delay>3</delay>', '<delay>none</delay>'));
+    expect(res.motor?.delay).toBe(PLUGGED_DELAY);
+    expect(res.notes.join('\n')).not.toContain('the file gives no readable delay');
   });
 });
 
@@ -374,6 +400,37 @@ describe('launch-lug / rail-button radial angle round-trips', () => {
     expect(mass.radialPosition).toBeCloseTo(0.018, 6);
     expect(mass.radialDirection).toBeCloseTo(Math.PI / 4, 6);
   });
+
+  // Desktop loads and saves the pair on every RingComponent and MassObject.
+  it.each(['parachute', 'streamer', 'shockcord', 'tubecoupler', 'centeringring', 'bulkhead', 'engineblock'])(
+    'preserves an off-axis %s',
+    (type) => {
+      const withPart = {
+        components: [
+          {
+            type: 'stage',
+            name: 'Sustainer',
+            id: 's1',
+            children: [
+              {
+                type: 'bodytube',
+                id: 'body',
+                length: 0.3,
+                outerRadius: 0.026,
+                thickness: 0.0005,
+                children: [{ type, id: 'part', length: 0.02, radialPosition: 0.006, radialDirection: Math.PI / 2 }],
+              },
+            ],
+          },
+        ],
+      } as unknown as RocketTree;
+      const xml = exportOrk({ name: 'Offset', tree: withPart });
+      expect(xml).toContain('<radialdirection>90</radialdirection>');
+      const part = findByType(importOrk(xml).tree, type) as { radialPosition?: number; radialDirection?: number };
+      expect(part.radialPosition).toBeCloseTo(0.006, 9);
+      expect(part.radialDirection).toBeCloseTo(Math.PI / 2, 9);
+    },
+  );
 });
 
 describe('recovery-device features round-trip', () => {
@@ -867,7 +924,8 @@ describe('audit round trips (2026-09-27)', () => {
  * labels a hand-sized tube with somebody's part number.
  */
 describe('the catalog part a component came from', () => {
-  const withPreset = () =>
+  /** A link as an imported desktop file carries one: with its digest. */
+  const withPreset = (extra: Record<string, unknown> = {}) =>
     ({
       name: 'Preset',
       components: [
@@ -882,7 +940,13 @@ describe('the catalog part a component came from', () => {
               length: 0.3,
               outerRadius: 0.0131,
               thickness: 0.00046,
-              preset: { type: 'bodytube', manufacturer: 'Estes', partNo: 'BT-50' },
+              preset: {
+                type: 'bodytube',
+                manufacturer: 'Estes',
+                partNo: 'BT-50, 30352',
+                digest: 'a59dec8e4034a2fee5955dbf4ff07f1c',
+                ...extra,
+              },
             },
           ],
         },
@@ -891,12 +955,30 @@ describe('the catalog part a component came from', () => {
 
   it('survives a round trip', () => {
     const back = findByType(importOrk(exportOrk({ name: 'P', tree: withPreset() })).tree, 'bodytube');
-    expect(back!['preset']).toMatchObject({ manufacturer: 'Estes', partNo: 'BT-50' });
+    expect(back!['preset']).toMatchObject({
+      type: 'bodytube',
+      manufacturer: 'Estes',
+      partNo: 'BT-50, 30352',
+      digest: 'a59dec8e4034a2fee5955dbf4ff07f1c',
+    });
   });
 
   it('is written the way the desktop writes it', () => {
+    // The type is the kernel's enum constant, which is what `Type.valueOf`
+    // parses: a file saying `type="bodytube"` names a type it does not have.
+    // The digest and the attribute order are `RocketComponentSaver`'s own.
     const xml = exportOrk({ name: 'P', tree: withPreset() });
-    expect(xml).toContain('<preset type="bodytube" manufacturer="Estes" partno="BT-50"/>');
+    expect(xml).toContain(
+      '<preset type="BODY_TUBE" manufacturer="Estes" partno="BT-50, 30352" digest="a59dec8e4034a2fee5955dbf4ff07f1c"/>',
+    );
+  });
+
+  it('is not written at all without a digest', () => {
+    // The desktop rejects a preset element with no digest and says so in a
+    // dialog, so a link our own catalog cannot digest stays out of the file
+    // rather than costing every reader a warning about a part that loaded fine.
+    const noDigest = withPreset({ digest: undefined });
+    expect(exportOrk({ name: 'P', tree: noDigest })).not.toContain('<preset');
   });
 
   it('is dropped when a dimension it defines moves', () => {
@@ -913,5 +995,113 @@ describe('the catalog part a component came from', () => {
     for (const patch of [{ name: 'Payload bay' }, { comment: 'from the spares box' }, { overrideMass: 0.05 }]) {
       expect(findByType(updateNode(withPreset(), 'bt', patch), 'bodytube')!['preset']).toBeDefined();
     }
+  });
+});
+
+describe('a forecast atmosphere round-trips', () => {
+  const { tree } = specToTree(spec);
+  const levels = [
+    { altitudeM: 1949, temperatureC: 2.3, pressureHPa: 800, relativeHumidity: 0.3 },
+    { altitudeM: 3012, temperatureC: -4.6, pressureHPa: 700, relativeHumidity: 0.25 },
+  ];
+  const base = {
+    launchRodLengthM: 1,
+    launchRodAngleDeg: 0,
+    windAverage: 2,
+    windStdDev: 0.2,
+    launchAltitudeM: 1500,
+    latitudeDeg: 40,
+    longitudeDeg: -105,
+    temperatureC: 12 as number | null,
+    pressureHPa: 850 as number | null,
+    relativeHumidity: 0.4 as number | null,
+    atmosphereLevels: levels,
+  };
+  const back = (launch: typeof base) => importOrk(exportOrk({ name: 'Forecast', tree, launch })).launch!;
+
+  it('beside the site values', () => {
+    const got = back(base).atmosphereLevels!;
+    expect(got).toHaveLength(2);
+    got.forEach((l, i) => {
+      expect(l.altitudeM).toBeCloseTo(levels[i]!.altitudeM, 9);
+      expect(l.temperatureC).toBeCloseTo(levels[i]!.temperatureC, 9);
+      expect(l.pressureHPa).toBeCloseTo(levels[i]!.pressureHPa, 9);
+      expect(l.relativeHumidity).toBeCloseTo(levels[i]!.relativeHumidity, 9);
+    });
+  });
+
+  it('with the site on the standard atmosphere', () => {
+    const got = back({ ...base, temperatureC: null, pressureHPa: null, relativeHumidity: null });
+    expect(got.temperatureC).toBeNull();
+    expect(got.atmosphereLevels).toHaveLength(2);
+  });
+
+  it('writes no element when there is no profile', () => {
+    expect(exportOrk({ name: 'F', tree, launch: { ...base, atmosphereLevels: undefined } })).not.toContain(
+      '<forecastlevel',
+    );
+  });
+
+  it('never carries the Open-Meteo API key', () => {
+    writeWeatherKey('sk-test-123');
+    try {
+      expect(exportOrk({ name: 'F', tree, launch: base })).not.toContain('sk-test-123');
+    } finally {
+      writeWeatherKey('');
+    }
+  });
+});
+
+describe('the Weather stamp round-trips', () => {
+  const { tree } = specToTree(spec);
+  const stamp = {
+    provider: 'open-meteo' as const,
+    endpoint: 'forecast' as const,
+    date: '2026-10-05',
+    hour: 12,
+    timezone: 'America/Denver',
+    latitudeDeg: 40,
+    longitudeDeg: -105,
+    elevationM: 1500,
+    validAt: '2026-10-05T18:00:00.000Z',
+    fetchedAt: '2026-10-04T15:00:00.000Z',
+    groups: ['temperature', 'pressure'] as ('temperature' | 'pressure')[],
+    elevationApplied: false,
+    applied: { temperatureC: 12, pressureHPa: 850 },
+  };
+  const base = {
+    launchRodLengthM: 1,
+    launchRodAngleDeg: 0,
+    windAverage: 2,
+    windStdDev: 0.2,
+    launchAltitudeM: 1500,
+    latitudeDeg: 40,
+    longitudeDeg: -105,
+    temperatureC: 12 as number | null,
+    pressureHPa: 850 as number | null,
+    weatherSource: stamp,
+  };
+  const back = (launch: typeof base) => importOrk(exportOrk({ name: 'Stamped', tree, launch })).launch!;
+
+  it('with its date, hour, place and groups', () => {
+    const { applied: _a, ...rest } = stamp;
+    expect(back(base).weatherSource).toMatchObject(rest);
+  });
+
+  it('as clean when the values are as applied, and edited when they were not', () => {
+    expect(back(base).weatherSource!.edited).toBeUndefined();
+    expect(back({ ...base, pressureHPa: 840 }).weatherSource!.edited).toBe(true);
+  });
+
+  it('notices an edit made after opening', () => {
+    const opened = back(base);
+    const now = Date.parse('2026-10-04T15:05:00Z');
+    expect(sourceStatus(opened as never, now)!.edited).toBe(false);
+    expect(sourceStatus({ ...opened, temperatureC: 20 } as never, now)!.edited).toBe(true);
+  });
+
+  it('drops a damaged stamp rather than inventing one', () => {
+    const xml = exportOrk({ name: 'S', tree, launch: base }).replace('groups="temperature pressure"', 'groups="hail"');
+    expect(importOrk(xml).launch!.weatherSource).toBeUndefined();
   });
 });

@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { STORAGE_PREFIX, nsKey } from '../../src/services/storage/storageKeys';
 import {
   ENGINE_PREF_KEY,
   OpenRocketDesign,
@@ -270,10 +271,29 @@ describe('backendPref', () => {
     expect(backendPref()).toBe('wasm');
     store.set(ENGINE_PREF_KEY, 'js');
     expect(backendPref()).toBe('js');
-    expect(ENGINE_PREF_KEY).toBe('astrarocketjs:engine');
+    // Built from the app's one storage prefix, not spelled out. This key was the
+    // app's SECOND namespace: it alone was spelled correctly while every other
+    // store used a typo, and the rename made both of them this one.
+    expect(ENGINE_PREF_KEY).toBe(nsKey('engine'));
+    expect(ENGINE_PREF_KEY.startsWith(`${STORAGE_PREFIX}:`)).toBe(true);
     vi.stubGlobal('location', { search: '?engine=wasm' });
     expect(backendPref()).toBe('wasm');
     vi.stubGlobal('location', { search: '?engine=bogus' });
     expect(backendPref()).toBe('js'); // unknown query value: fall through to storage
+  });
+
+  it('still honors an override left under the MISSPELLED prefix', () => {
+    // The one legacy read chain kept across the rename, and the only one: this is a
+    // debug switch quoted in the docs, so someone who set it by hand this morning
+    // should not have to do it twice. A design under the old prefix is preview
+    // scratch and is deliberately not read back; a backend override is a live
+    // instruction.
+    //
+    // Spelled out rather than built from a constant, because the point is the
+    // string that no longer has one. cspell:ignore astrarrocketjs
+    const store = new Map<string, string>([['astrarrocketjs:engine', 'js']]);
+    vi.stubGlobal('localStorage', { getItem: (k: string) => store.get(k) ?? null });
+    vi.stubGlobal('location', { search: '' });
+    expect(backendPref()).toBe('js');
   });
 });

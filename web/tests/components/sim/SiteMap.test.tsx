@@ -114,6 +114,54 @@ describe('SiteMap', () => {
     expect(onPick).not.toHaveBeenCalled();
   });
 
+  describe('from the keyboard', () => {
+    const map = () => screen.getByRole('group', { name: /Launch site map/ });
+
+    it('is a tab stop, and says which keys do what', () => {
+      renderWithProviders(<SiteMap {...HOME} onPick={vi.fn()} />);
+      expect(map().tabIndex).toBe(0);
+      const hint = document.getElementById(map().getAttribute('aria-describedby')!);
+      expect(hint?.textContent).toMatch(/Enter puts the location at the center/);
+    });
+
+    it('puts the location at the center on Enter, after panning with the arrows', () => {
+      const onPick = vi.fn();
+      renderWithProviders(<SiteMap {...HOME} onPick={onPick} />);
+      fireEvent.keyDown(map(), { key: 'Enter' });
+      expect(onPick).toHaveBeenLastCalledWith(39.05, -104.8);
+      // East and north of where it started.
+      fireEvent.keyDown(map(), { key: 'ArrowRight' });
+      fireEvent.keyDown(map(), { key: 'ArrowUp' });
+      fireEvent.keyDown(map(), { key: ' ' });
+      const [lat, lon] = onPick.mock.calls.at(-1)! as [number, number];
+      expect(lat).toBeGreaterThan(39.05);
+      expect(lon).toBeGreaterThan(-104.8);
+    });
+
+    it('zooms with plus and minus', () => {
+      renderWithProviders(<SiteMap {...HOME} />);
+      fireEvent.keyDown(map(), { key: '+' });
+      expect(tiles().every((s) => s.includes('/tile/16/'))).toBe(true);
+      fireEvent.keyDown(map(), { key: '-' });
+      fireEvent.keyDown(map(), { key: '-' });
+      expect(tiles().every((s) => s.includes('/tile/14/'))).toBe(true);
+    });
+
+    it('only shows and pans when it is not a picker: Enter does nothing', () => {
+      renderWithProviders(<SiteMap {...HOME} />);
+      expect(document.getElementById(map().getAttribute('aria-describedby')!)?.textContent).not.toMatch(/Enter/);
+      fireEvent.keyDown(map(), { key: 'Enter' });
+      expect(screen.getByText('39.0500° N, 104.8000° W')).toBeTruthy();
+    });
+
+    it('leaves keys aimed at a button inside the map to that button', () => {
+      const onPick = vi.fn();
+      renderWithProviders(<SiteMap {...HOME} onPick={onPick} />);
+      fireEvent.keyDown(screen.getByRole('button', { name: 'Zoom in' }), { key: 'Enter' });
+      expect(onPick).not.toHaveBeenCalled();
+    });
+  });
+
   it('omits the click-to-move hint when it is only showing', () => {
     renderWithProviders(<SiteMap {...HOME} />);
     // The instruction line belongs to the control, not the read-only map.

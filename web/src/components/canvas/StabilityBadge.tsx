@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
-import { fmtNum } from '../../i18n/format';
+import { fmtNum, fmtSig } from '../../i18n/format';
 import type { StaticInfo } from '../../engine/api';
-import { stabilityTone, stabilityVerdictKey } from '../../services/flight/simReport';
+import { stabilityState, stabilityToneOf, stabilityVerdictKey } from '../../services/flight/simReport';
 import { Stat } from '../common/Stat';
 import { UnitChip } from '../common/UnitChip';
 import { useUnits } from '../../prefs/useUnits';
@@ -19,12 +19,19 @@ import { unitScope } from '../../prefs/units';
 export function StabilityBadge({
   info,
   recoveryWeight,
+  recoveryEstimated,
   expanded,
   onToggle,
 }: {
   info: StaticInfo | null;
   /** Descent mass (kg) = loaded − expelled propellant; undefined with no motor. */
   recoveryWeight?: number;
+  /**
+   * The recovery mass is the app's own arithmetic on the design rather than a
+   * figure from a run, so the tile's label says so. False once a run has deployed
+   * a device and the kernel's own mass has replaced it.
+   */
+  recoveryEstimated?: boolean;
   expanded: boolean;
   onToggle: () => void;
 }) {
@@ -40,15 +47,13 @@ export function StabilityBadge({
   const cpTile = u.at(unitScope('stats', 'cp'), 'length');
   if (!info) return null;
   const cal = info.stabilityCalibers;
+  // Colored by band, as the drawing and the info card beside it are.
+  const padTone = stabilityToneOf(stabilityState(cal) ?? 'under');
   // The engine's own figure, not ours: see StaticInfo.stabilityPercent.
   const pct = info.stabilityPercent;
   // Moments of inertia span orders of magnitude (roll ~1e-5, pitch ~1e-3 kg·m²);
   // exponential below 1e-4, 4-sig-fig fixed above, so both read cleanly.
-  const fmtInertia = (v: number) => {
-    if (!Number.isFinite(v)) return '—';
-    if (v === 0) return '0';
-    return Math.abs(v) < 1e-4 ? v.toExponential(3) : String(Number(v.toPrecision(4)));
-  };
+  const fmtInertia = (v: number) => fmtSig(v, 4);
   return (
     <div className="@container mx-3 mb-3 mt-3">
       <button
@@ -64,7 +69,7 @@ export function StabilityBadge({
         {!expanded && (
           <span className="ml-auto truncate text-[11px] tabular-nums text-slate-400">
             {lengthTile.fmt(info.length)} {lengthTile.sym} ·{' '}
-            <span className={stabilityTone(cal)}>
+            <span className={padTone}>
               {fmtNum(cal, 2)} {t('stability.caliber')}
             </span>
           </span>
@@ -100,11 +105,18 @@ export function StabilityBadge({
               </>
             }
           />
-          {/* Descent mass — loaded minus the propellant that burns off. Needs a
-              motor loaded to have propellant to subtract. Sits next to Mass. */}
+          {/* What the recovery system brings down. Estimated from the design
+              (loaded minus the propellant that burns off) until a run reports the
+              kernel's own mass under the chute, which is also the only way to get
+              it right on a staged design: a booster descends on its own branch.
+              Needs a motor loaded to have propellant to subtract.
+
+              The ESTIMATE is marked on the label rather than in place of the unit
+              chip below: the chip is the control that sets this tile's unit, and
+              a marker is not worth a control. */}
           <Stat
             card
-            label={t('stats.recoveryWeight')}
+            label={recoveryEstimated ? t('stats.recoveryWeightEstimated') : t('stats.recoveryWeight')}
             value={recoveryWeight != null ? recoveryTile.fmt(recoveryWeight) : '—'}
             sub={
               recoveryWeight != null ? (
@@ -149,7 +161,7 @@ export function StabilityBadge({
             label={t('stability.onPad')}
             value={`${fmtNum(cal, 2)} / ${fmtNum(pct, 1)}`}
             sub={`${t('stability.caliber')} / % · ${t(stabilityVerdictKey(cal))}`}
-            tone={stabilityTone(cal)}
+            tone={padTone}
           />
           <Stat card label={t('stats.cd')} value={info.cd != null ? fmtNum(info.cd, 3) : '—'} sub="Ma 0.3" />
           {/* Symbol lives in the sub — the tile label is uppercased, which would

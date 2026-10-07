@@ -138,8 +138,3 @@ export async function materialsForType(type: MaterialType): Promise<Material[]> 
     custom.filter((m) => m.type === type),
   );
 }
-
-/** Look up a material by name+type across built-ins and custom. */
-export async function findMaterial(name: string, type: MaterialType): Promise<Material | undefined> {
-  return (await materialsForType(type)).find((m) => m.name === name);
-}

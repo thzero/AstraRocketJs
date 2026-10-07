@@ -98,6 +98,57 @@ const config: Config = {
     },
   },
 
+  /**
+   * Offline, self-hosted search for the PUBLISHED site.
+   *
+   * Algolia DocSearch is the usual answer and is out: it is a network service,
+   * and this documentation ships inside an offline-first app. This plugin builds
+   * a lunr index at build time and serves it from our own origin, so the site
+   * searches with no network and nothing leaves the reader's browser.
+   *
+   * It puts its search box in the NAVBAR, which `src/css/custom.css` hides when a
+   * page is embedded in the app's Help dialog (a second set of site navigation
+   * inside the dialog is worse than none). So this serves people reading the site
+   * in a browser; the Help dialog has its own search over the same pages.
+   */
+  themes: [
+    [
+      '@easyops-cn/docusaurus-search-local',
+      {
+        // Both locales get their own index: a Spanish reader searching Spanish
+        // pages against an English index finds nothing.
+        language: ['en', 'es'],
+        /*
+         * Stamp the index request with a hash of the sources it was built from,
+         * so a deploy cannot serve a new site against a cached old index. The
+         * index keeps its plain name and the hash rides as `?_=<md5>`, which is
+         * what `true` means here; `'filename'` would hash the NAME instead, and
+         * that is deliberately not used: the published site replaces its files,
+         * so a tab still holding the previous build would ask for a name that no
+         * longer exists and its search would 404 rather than answer from the
+         * current index.
+         */
+        hashed: true,
+        /*
+         * WHAT THE HASH IS TAKEN OVER, and the only thing `docsDir` is used for
+         * in this plugin. It defaults to `docs`, which is the ENGLISH sources
+         * alone, so a Spanish-only change left the hash where it was and a reader
+         * holding a cached Spanish index kept it. Both locales' indexes are
+         * rebuilt on every deploy, so what the hash has to cover is every source
+         * either of them is built from.
+         */
+        docsDir: ['docs', 'i18n'],
+        indexDocs: true,
+        // No blog, and the docs ARE the site (`routeBasePath: '/'`), so there are
+        // no standalone pages to index either.
+        indexBlog: false,
+        indexPages: false,
+        docsRouteBasePath: '/',
+        highlightSearchTermsOnTargetPage: true,
+      },
+    ],
+  ],
+
   presets: [
     [
       'classic',

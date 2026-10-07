@@ -11,13 +11,16 @@
  * of a 35s run, where a TeaVM build is 6s once its outputs are cached. Checking one target
  * alone is the special case, behind a flag.
  *
- * Self-contained: builds the parity engine variant (-Pparity) and the JVM reference itself.
- * Needs a JDK (JAVA_HOME, or whatever the Gradle wrapper already resolves) and Node 22+.
+ * Self-contained: builds and vendors the engine (build-engine.mjs, the same step as `npm run
+ * build`), then runs the VENDORED .mjs and .wasm - the exact files the app loads - through their
+ * runParity() export, against the JVM running the same scenarios. Needs a JDK (JAVA_HOME, or
+ * whatever the Gradle wrapper already resolves) and Node 22+.
  *
  *   node test/parity/parity.mjs           # BOTH targets vs ONE JVM reference (default)
  *   node test/parity/parity.mjs --js      # TeaVM-JS only
  *   node test/parity/parity.mjs --wasm    # TeaVM WASM-GC only
  *   node test/parity/parity.mjs --golden  # rewrite golden.txt from this run (deliberate changes only)
+ *   node test/parity/parity.mjs --expect-lines 359  # also require exactly this many golden values
  */
 import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
@@ -43,6 +46,17 @@ const wantJs = process.argv.includes('--js');
 const wantWasm = process.argv.includes('--wasm');
 const targets = wantJs === wantWasm ? ['js', 'wasm'] : wantJs ? ['js'] : ['wasm'];
 const writeGolden = process.argv.includes('--golden');
+// The golden can be SHRUNK as well as moved: drop emissions from ParityMain,
+// re-record, and every remaining value still matches, so the gate reports "ok"
+// while the dropped physics goes unchecked. CI passes the expected count, so a
+// shrink (or a growth) has to be argued in the workflow diff, the way
+// validation's --expect-gates pins its anchor set.
+const expectLinesAt = process.argv.indexOf('--expect-lines');
+const expectLines = expectLinesAt === -1 ? null : Number(process.argv[expectLinesAt + 1]);
+if (expectLines !== null && !(Number.isInteger(expectLines) && expectLines > 0)) {
+  console.error(`parity: --expect-lines needs a positive whole number, got ${process.argv[expectLinesAt + 1]}`);
+  process.exit(1);
+}
 
 const here = dirname(fileURLToPath(import.meta.url));
 const engineRoot = resolve(here, '..', '..');
@@ -77,22 +91,29 @@ const gradle = (args) =>
     encoding: 'utf8',
   });
 
-// --- build the parity engine (harness as mainClass) + capture the JVM reference ---
-const GRADLE_TASK = { js: 'generateJavaScript', wasm: 'buildWasmGC' };
-for (const target of targets) {
-  console.error(`parity: building parity engine (-Pparity${target === 'wasm' ? ', WASM-GC' : ''}) …`);
-  gradle([GRADLE_TASK[target], '-Pparity', '--quiet', '--console=plain', ...NO_DAEMON]);
-}
+// --- build + vendor the SHIPPED engine, then capture the JVM reference ---
+//
+// The binary parity checks is the binary users get: build-engine.mjs builds
+// both targets with the production configuration and copies them into web/,
+// and the targets below are run from THOSE copies. A separate harness build
+// had its own entry point and a larger reachable set, and TeaVM links by
+// reachability, so it validated a sibling of what shipped.
+console.error(`parity: building and vendoring the engine (${targets.join(' + ')}) …`);
+execFileSync(process.execPath, [join(engineRoot, 'build-engine.mjs'), ...targets.map((t) => `--${t}`)], {
+  cwd: engineRoot,
+  env: gradleEnv,
+  stdio: ['ignore', process.stderr, 'inherit'],
+});
 // ONCE, however many targets are compared: the reference is the JVM running the
-// same harness, which does not depend on which TeaVM target it is checked against.
+// same scenarios, which does not depend on which TeaVM target it is checked against.
 console.error('parity: running JVM reference (parityJvm) …');
-const jvmRaw = gradle(['parityJvm', '-Pparity', '--quiet', '--console=plain', ...NO_DAEMON]);
+const jvmRaw = gradle(['parityJvm', '--quiet', '--console=plain', ...NO_DAEMON]);
 
-// --- TeaVM target output: run the parity main() and capture stdout ---
-const teavmDir = join(engineRoot, 'build', 'generated', 'teavm');
-const jsPath = join(teavmDir, 'js', 'astrarrocketjs-engine.js');
-const wasmPath = join(teavmDir, 'wasm-gc', 'astrarrocketjs-engine.wasm');
-const wasmRuntimePath = join(teavmDir, 'wasm-gc', 'astrarrocketjs-engine.wasm-runtime.js');
+// --- the vendored engine: run its runParity() and capture stdout ---
+const webRoot = resolve(engineRoot, '..', 'web');
+const jsPath = join(webRoot, 'src', 'engine', 'vendor', 'openrocket-engine.mjs');
+const wasmPath = join(webRoot, 'public', 'engine', 'openrocket-engine.wasm');
+const wasmRuntimePath = join(webRoot, 'public', 'engine', 'openrocket-engine.wasm-runtime.js');
 const runnerPath = join(here, 'run-target.mjs');
 
 // Purely a backstop. A target run is 1-4 seconds and run-target.mjs SIGKILLs
@@ -206,6 +227,12 @@ function linesMatch(a, b, forGolden = false) {
   const fb = b.split('|');
   if (fa.length !== fb.length || fa[0] !== fb[0]) return false;
   const isFlight = fa[0].startsWith('flight.');
+  // Against the golden, a line that is not time-integrated has no drift to
+  // excuse: the JVM reproduces every one of them bit for bit (measured, all 356
+  // golden values, flights included, on the recording machine). Only the
+  // integrated flight lines keep a band, for a golden recorded on another
+  // platform, and the run reports how many needed it.
+  if (forGolden && !isFlight) return false;
   const isTurbulent = fa[0].startsWith('flight.conditions');
   const isSeriesLens = fa[0] === 'flight.conditions.serieslens';
   const scale = forGolden ? GOLDEN_TOL_SCALE : 1;
@@ -303,9 +330,12 @@ const readGolden = () => {
 // Returns the number of moved values, printing the first 10.
 const compareGolden = (golden, what) => {
   let moved = 0;
+  let banded = 0;
   const gn = Math.max(golden.length, jvm.length);
   for (let i = 0; i < gn; i++) {
-    if (!linesMatch(golden[i], jvm[i], true)) {
+    const m = linesMatch(golden[i], jvm[i], true);
+    if (m === 'ulp') banded++;
+    if (!m) {
       if (moved < 10) {
         console.error(`${what} line ${i + 1}:`);
         console.error(`  expected: ${golden[i] ?? '<missing>'}`);
@@ -314,7 +344,16 @@ const compareGolden = (golden, what) => {
       moved++;
     }
   }
-  return { moved, gn };
+  return { moved, gn, banded };
+};
+
+// Where the golden was recorded, so a flight line that stops matching exactly can
+// be traced to a platform change rather than read as a regression.
+const platform = () => {
+  // `java -version` writes to stderr.
+  const r = spawnSync(javaExe(gradleEnv), ['-version'], { encoding: 'utf8' });
+  const java = `${r.stderr ?? ''}${r.stdout ?? ''}`.split(/\r?\n/)[0] || 'unknown';
+  return `${process.platform}-${process.arch} ${java.trim().replace(/\s+/g, '_')}`;
 };
 
 if (writeGolden) {
@@ -332,6 +371,7 @@ if (writeGolden) {
   } catch { /* not a checkout, or no git: provenance degrades, the sha256 does not */ }
   const header = [
     `${GOLDEN_MAGIC} sha256=${goldenDigest(jvm)} lines=${jvm.length} generated=${new Date().toISOString()} commit=${commit}`,
+    `# recorded on: ${platform()}`,
     '# The JVM reference output, recorded deliberately with `npm run parity:golden`.',
     '# parity.mjs re-verifies the sha256 above on every run, so a hand-edited value',
     '# here fails the gate instead of quietly becoming the new truth.',
@@ -366,14 +406,24 @@ if (writeGolden) {
     console.error('  so the change is a deliberate, reviewable regeneration.');
     process.exit(1);
   }
-  const { moved, gn } = compareGolden(data, 'GOLDEN');
+  if (expectLines !== null && data.length !== expectLines) {
+    console.error(`GOLDEN FAILURE: expected ${expectLines} reference value(s), golden.txt holds ${data.length}.`);
+    console.error('  The set of checked values changed shape. If that was deliberate, update');
+    console.error('  --expect-lines in .github/workflows/gates.yml and say why in review.');
+    process.exit(1);
+  }
+  const { moved, gn, banded } = compareGolden(data, 'GOLDEN');
   if (moved) {
     console.error(`GOLDEN FAILURE: ${moved} value(s) of ${gn} moved.`);
     console.error('The physics changed. If that was deliberate, re-run with --golden and');
     console.error('say in the commit message WHY the numbers moved.');
     process.exit(1);
   }
-  say(`golden ok: ${data.length} reference value(s) unchanged`);
+  say(`golden ok: ${data.length} reference value(s) unchanged (${data.length - banded} bit-identical, ${banded} flight line(s) within tolerance)`);
+  if (banded) {
+    const rec = readFileSync(goldenPath, 'utf8').match(/^# recorded on: (.*)$/m);
+    say(`  the golden was recorded on ${rec ? rec[1] : 'an unrecorded platform'}; this run is ${platform()}`);
+  }
 }
 
 // --- exit: nothing from here up may need the event loop ---------------------

@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
-import type { Simulation, SimStatus, SimRun } from '../../services/flight/simulations';
-import { simStatus } from '../../services/flight/simulations';
+import type { Simulation, SimPrefs, SimStatus, SimRun } from '../../services/flight/simulations';
+import { isOutdated, simStatus } from '../../services/flight/simulations';
 import type { RocketTree } from '../../engine/openRocketEngine';
 import { useUnits } from '../../prefs/useUnits';
 import { unitScope } from '../../prefs/units';
@@ -40,6 +40,7 @@ export function SimulationsTable({
   runs,
   tree,
   configs,
+  simPrefs,
   onSetConfig,
   onSelect,
   onToggle,
@@ -59,6 +60,8 @@ export function SimulationsTable({
   tree: RocketTree;
   /** The design's flight configurations, so each row can say what it flies. */
   configs: FlightConfig[];
+  /** The global run preferences, which a row's result is compared against. */
+  simPrefs: SimPrefs;
   /** Point one row at another configuration. */
   onSetConfig: (simId: string, configId: string) => void;
   onSelect: (id: string) => void;
@@ -138,7 +141,7 @@ export function SimulationsTable({
       </thead>
       <tbody>
         {sims.map((s) => {
-          const status = simStatus(s, runs, tree);
+          const status = simStatus(s, runs, tree, isOutdated(s, tree, configOf(configs, s), simPrefs));
           const isActive = s.id === activeId;
           const r = s.result?.summary;
           // Every number is from the LAST run, which for an outdated row

@@ -7,7 +7,6 @@ import {
   collect,
   profilePath,
   calloutLayout,
-  finTabFront,
   CALLOUT_LANES,
   computeSchematicLayout,
 } from '../../../src/components/canvas/schematicGeometry';
@@ -49,20 +48,6 @@ describe('collect', () => {
   });
   it('is empty for no nodes', () => {
     expect(collect([], (n) => n.type)).toEqual([]);
-  });
-});
-
-describe('finTabFront', () => {
-  it('top: the offset itself', () => {
-    expect(finTabFront({ type: 'trapezoidfinset', tabOffset: 0.01, tabOffsetMethod: 'top' }, 0.05)).toBeCloseTo(0.01);
-  });
-  it('bottom: offset + (finLen − tabLen)', () => {
-    expect(
-      finTabFront({ type: 'trapezoidfinset', tabOffset: 0, tabLength: 0.02, tabOffsetMethod: 'bottom' }, 0.05),
-    ).toBeCloseTo(0.03);
-  });
-  it('middle (default): centers the tab', () => {
-    expect(finTabFront({ type: 'trapezoidfinset', tabOffset: 0, tabLength: 0.02 }, 0.05)).toBeCloseTo(0.015);
   });
 });
 
@@ -152,12 +137,5 @@ describe('computeSchematicLayout', () => {
   it('exposes caliper snap targets', () => {
     const out = computeSchematicLayout(tree, null, dims);
     expect(out.snapXs.length).toBeGreaterThan(0);
-  });
-
-  it('stays finite in vertical (nose-up) mode', () => {
-    const out = computeSchematicLayout(tree, null, { ...dims, vertical: true });
-    expect(Number.isFinite(out.w)).toBe(true);
-    expect(Number.isFinite(out.h)).toBe(true);
-    expect(Number.isFinite(out.scale)).toBe(true);
   });
 });
