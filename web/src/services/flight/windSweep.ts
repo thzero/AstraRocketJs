@@ -3,7 +3,8 @@ import type { LaunchConditions, WindLevel } from '../design/orkTree';
 import type { CompleteLaunch } from './requiredLaunch';
 import { MAX_WIND_SPEED_MS, surfaceLevel } from './safetyLimits';
 import { DEFAULT_HEADING_DEG, type SimInputs } from './simulations';
-import { hasIntensity, stdDevForIntensity, turbulenceIntensity } from './windTurbulence';
+import { hasIntensity, retuneStdDev } from './windTurbulence';
+import { norm360 } from './groundTrack';
 
 /**
  * A batch of flights over a RANGE of wind conditions, rather than the one set
@@ -28,9 +29,6 @@ import { hasIntensity, stdDevForIntensity, turbulenceIntensity } from './windTur
  * and the store flies them through the same `simulateInWorker` path a normal
  * run uses.
  */
-
-/** Wrap a heading into [0, 360). */
-const norm360 = (deg: number): number => ((deg % 360) + 360) % 360;
 
 /**
  * The most flights one sweep may ask for.
@@ -102,7 +100,7 @@ export interface DriftSweep {
    * are still the honest answer for the rocket that flew them, and throwing
    * them away on the first fin tweak would mean re-flying a few dozen sims to
    * get back a picture the user was still reading. Same posture as a
-   * simulation's own `outdated` flag.
+   * simulation whose result reads outdated.
    */
   tree: RocketTree;
   /**
@@ -266,20 +264,6 @@ export function surfaceWind(launch: LaunchConditions): SweepPoint {
  * swept speed instead; there is no shear to preserve in a profile whose ground
  * layer is zero.
  */
-/**
- * The standard deviation `was`/`wasStdDev` means once the average moves to `now`.
- *
- * Untouched when the old average was zero: `turbulenceIntensity` answers a flat 1
- * there (the kernel's own stand-in for a ratio it cannot take), and putting that
- * through turns a still-air layer carrying a whisper of scatter into one whose
- * gusts equal the whole swept wind. The same guard the wind profile editor applies
- * when a level's speed is retyped.
- */
-function retune(was: number, wasStdDev: number, now: number): number {
-  if (!hasIntensity(was)) return wasStdDev;
-  return stdDevForIntensity(now, turbulenceIntensity(was, wasStdDev));
-}
-
 export function sweepLaunch(base: CompleteLaunch, point: SweepPoint): CompleteLaunch {
   const levels = base.windLevels;
   if (levels?.length) {
@@ -291,7 +275,7 @@ export function sweepLaunch(base: CompleteLaunch, point: SweepPoint): CompleteLa
       return {
         ...l,
         speed,
-        stddev: retune(l.speed, l.stddev, speed),
+        stddev: retuneStdDev(l.speed, l.stddev, speed),
         directionDeg: norm360(l.directionDeg + turn),
       };
     });
@@ -300,7 +284,7 @@ export function sweepLaunch(base: CompleteLaunch, point: SweepPoint): CompleteLa
   return {
     ...base,
     windAverage: point.speedMs,
-    windStdDev: retune(base.windAverage, base.windStdDev, point.speedMs),
+    windStdDev: retuneStdDev(base.windAverage, base.windStdDev, point.speedMs),
     windDirectionDeg: point.headingDeg,
   };
 }

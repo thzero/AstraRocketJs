@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { offersPlugged, parseDelays } from '../../../src/services/motors/motorPicker';
 import { parseEng, totalImpulse } from '../../../src/services/motors/engParser';
 
 const ENG = `; a comment
@@ -37,7 +38,7 @@ describe('parseEng', () => {
     expect(m.manufacturer).toBe('Test Mfr'); // multi-word manufacturer joined
     expect(m.propWeightG).toBeCloseTo(10, 6);
     expect(m.totalWeightG).toBeCloseTo(25, 6);
-    expect(m.delays).toEqual([3, 5]);
+    expect(m.delayList).toBe('3,5');
     expect(m.samples).toHaveLength(3);
     expect(m.source).toBe('eng');
     expect(m.id).toBe('custom:Test Mfr:TC10');
@@ -78,12 +79,75 @@ TD20 24 90 4-6 0.02 0.05 Test
     expect(m.samples).toHaveLength(3); // second motor's header + data not included
   });
 
-  it('treats a non-numeric delay field (e.g. plugged "P") as no delays', () => {
+  it('keeps a plugged "P" delay field, which is a motor with no ejection charge', () => {
+    // The only form that can say plugged, and the one `customToRow` puts in the
+    // row's delay column: dropped, the motor reached the picker with no delays
+    // at all and `offersPlugged` could not see it.
     const plugged = `TP10 24 70 P 0.010 0.025 Test
 0 0
 0.5 20
 1.0 0`;
-    expect(parseEng(plugged).delays).toBeUndefined();
+    expect(parseEng(plugged).delayList).toBe('P');
+  });
+
+  it('drops a sentinel delay rather than flying it, or calling it plugged', () => {
+    // RASP's own rule (`RASPMotorLoader`: "Many RASP files have 100 as an only
+    // delay"): 99 and over is thrown away. Kept, it is a charge long after the
+    // rocket is down; called plugged, it offers a no-ejection-charge motor the
+    // file never claimed. RockSim's 1000 DOES mean plugged, which is why the
+    // two formats do not share a rule.
+    const sentinel = `TS10 24 70 0-1000 0.010 0.025 Test
+0 0
+0.5 20
+1.0 0`;
+    expect(parseEng(sentinel).delayList).toBe('0');
+  });
+
+  it('reads RASP’s own word for a motor that lists none', () => {
+    const none = `TN10 24 70 None 0.010 0.025 Test
+0 0
+0.5 20
+1.0 0`;
+    expect(parseEng(none).delayList).toBeUndefined();
+  });
+
+  it('offers plugged to the picker for such a motor', () => {
+    const plugged = `TP10 24 70 3-P 0.010 0.025 Test
+0 0
+0.5 20
+1.0 0`;
+    expect(offersPlugged({ delays: parseEng(plugged).delayList })).toBe(true);
+    expect(parseDelays(parseEng(plugged).delayList).delays).toEqual([3]);
+  });
+
+  it('imports a two-pulse curve whole, coast and all', () => {
+    // Two humps with a zero-thrust coast between them. Nothing about a zero
+    // ends the block, and a blank line inside it is skipped the way upstream
+    // skips it, so the second pulse is not left out of the motor.
+    const twoPulse = `K1000 54 404 P 0.500 1.000 TwoPulse
+0.0 0
+0.5 1000
+1.2 0
+
+3.2 1000
+4.5 0`;
+    const m = parseEng(twoPulse);
+    expect(m.samples).toHaveLength(5);
+    expect(m.samples[m.samples.length - 1]).toEqual({ time: 4.5, thrust: 0 });
+  });
+
+  it('refuses a malformed data line instead of keeping the curve before it', () => {
+    // Upstream refuses the whole file (`RASPMotorLoader`: "Data should only
+    // have 2 entries"). Stopping there and keeping what came before imports a
+    // fragment of a curve as if it were the motor, which on a two-pulse motor
+    // is the first pulse flown as the whole thing, and says nothing.
+    const stray = `K1000 54 404 P 0.500 1.000 TwoPulse
+0.0 0
+0.5 1000
+1.2
+3.2 1000
+4.5 0`;
+    expect(() => parseEng(stray)).toThrow(/Malformed \.eng data on line 4/);
   });
 
   it('throws on too few lines', () => {

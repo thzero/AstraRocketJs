@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ComponentNode } from '../../engine/openRocketEngine';
-import { hasMaterial } from '../../services/design/treeEdit';
+import { hasMaterial, isRecoveryDevice } from '../../services/design/treeEdit';
 import { updateCustomPart, type PartMeta } from '../../services/parts/customParts';
 import type { CustomPart } from '../../services/parts/presetStore';
 import { AppearanceSection } from './AppearanceSection';
 import { FieldRow, FieldSection, sectionFields, visibleFields } from './DimensionFields';
 import { MaterialSection, RecoveryMaterialSection } from './MaterialSection';
+import { errorMessage } from '../../services/app/errorMessage';
+import { EditorFooter } from '../common/MasterDetail';
+import { PartMetaFields } from './PartMetaFields';
 
 /**
  * The detail half of My Parts: what the selected saved part is called, and
@@ -85,15 +88,11 @@ export function SavedPartEditor({
     } catch (e) {
       // A name another part already uses, a refused write, or geometry that no
       // longer projects to a row.
-      setErr(e instanceof Error ? e.message : String(e));
+      setErr(errorMessage(e));
     } finally {
       setSaving(false);
     }
   };
-
-  const field =
-    'mt-1 w-full rounded-lg bg-slate-800 px-3 py-2 text-sm text-slate-100 ring-1 ring-white/10 focus:ring-sky-500';
-  const labelClass = 'mt-4 block text-xs font-medium text-slate-400';
 
   return (
     <>
@@ -113,39 +112,7 @@ export function SavedPartEditor({
           </span>
         </div>
 
-        <label htmlFor="edit-part-no" className={labelClass}>
-          {t('picker.savePartNo')}
-        </label>
-        <input
-          id="edit-part-no"
-          value={meta.partNo}
-          onChange={(e) => setMetaField({ partNo: e.target.value })}
-          maxLength={80}
-          className={field}
-        />
-
-        <label htmlFor="edit-part-mfr" className={labelClass}>
-          {t('picker.saveMfr')}
-        </label>
-        <input
-          id="edit-part-mfr"
-          value={meta.mfr}
-          onChange={(e) => setMetaField({ mfr: e.target.value })}
-          maxLength={80}
-          className={field}
-        />
-
-        <label htmlFor="edit-part-desc" className={labelClass}>
-          {t('picker.saveDesc')}
-        </label>
-        <input
-          id="edit-part-desc"
-          value={meta.desc}
-          onChange={(e) => setMetaField({ desc: e.target.value })}
-          maxLength={200}
-          placeholder={t('picker.saveDescHint')}
-          className={field}
-        />
+        <PartMetaFields idPrefix="edit" meta={meta} onChange={setMetaField} />
 
         <div className="mt-5 space-y-3 border-t border-white/10 pt-4">
           {visibleFields(node, false).map((f) => (
@@ -157,39 +124,20 @@ export function SavedPartEditor({
           <FieldSection node={node} title={t('prop.motor')} fields={sectionFields(node, 'motor')} onChange={change} />
 
           {hasMaterial(node.type) && <MaterialSection node={node} onCommitChange={change} />}
-          {(node.type === 'parachute' || node.type === 'streamer') && (
-            <RecoveryMaterialSection node={node} onCommitChange={change} />
-          )}
+          {isRecoveryDevice(node.type) && <RecoveryMaterialSection node={node} onCommitChange={change} />}
           <AppearanceSection node={node} onChange={change} onCommitChange={change} />
         </div>
       </div>
 
-      {/* Pinned under the scrolling fields. Delete sits apart from Save, at the
-          other end of the row, because they are not two grades of the same
-          action. */}
-      <div className="flex shrink-0 items-center gap-2 border-t border-white/10 p-2">
-        <button
-          onClick={onDelete}
-          className="rounded-lg px-3 py-1.5 text-sm font-medium text-red-400 hover:bg-red-500/10"
-        >
-          {t('common.delete')}
-        </button>
+      <EditorFooter
+        onDelete={onDelete}
+        dirty={dirty}
+        onRevert={revert}
+        onSave={() => void submit()}
+        saveDisabled={!meta.partNo.trim() || saving}
+      >
         {err && <p className="min-w-0 flex-1 truncate text-xs text-red-400">{err}</p>}
-        <button
-          onClick={revert}
-          disabled={!dirty}
-          className="ml-auto rounded-lg bg-slate-800 px-3 py-1.5 text-sm font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700 disabled:opacity-40"
-        >
-          {t('common.discard')}
-        </button>
-        <button
-          onClick={() => void submit()}
-          disabled={!dirty || !meta.partNo.trim() || saving}
-          className="shrink-0 rounded-lg bg-sky-600 px-5 py-1.5 text-sm font-medium text-white hover:bg-sky-500 disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500"
-        >
-          {t('common.save')}
-        </button>
-      </div>
+      </EditorFooter>
     </>
   );
 }

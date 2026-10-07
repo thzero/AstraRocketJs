@@ -8,6 +8,7 @@ import { findMounts } from '../design/treeEdit';
 import { duplicateAltitudeRows } from './windLevels';
 import { hasUsableCurve } from '../motors/motorCurve';
 import type { RocketTree } from '../../engine/openRocketEngine';
+import { partLabel } from '../../i18n/format';
 
 /**
  * Why a given simulation cannot be flown - asked in ONE place, so the Run button
@@ -131,9 +132,7 @@ export function designBlockerText(
   if (b.kind === 'noMount') return t('sim.noMount');
   const byPart = new Map<string, string[]>();
   for (const d of b.bad) {
-    // An unnamed part falls back to its TYPE, which is a bare token like
-    // "bodytube"; translate that rather than printing it at the user.
-    const name = d.name === d.type ? t(`part.${d.type}`) : d.name;
+    const name = partLabel(t, d);
     const fields = byPart.get(name) ?? [];
     fields.push(t(`part.field.${d.field}`));
     byPart.set(name, fields);

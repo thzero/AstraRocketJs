@@ -33,6 +33,13 @@ export const numOpt = (n: ComponentNode, key: string): number | undefined =>
 export const MAX_INSTANCE_COUNT = 64;
 
 /**
+ * The most fins a fin set can carry: the kernel's own limit. `FinSet.setFinCount`
+ * clamps to 8, and the engine boundary rejects anything above it for every fin
+ * type, so a count past this is a design the engine will not build.
+ */
+export const MAX_FIN_COUNT = 8;
+
+/**
  * An instance count (fins, tubes, pod instances): a whole number in
  * [1, {@link MAX_INSTANCE_COUNT}].
  *
@@ -49,6 +56,27 @@ export const str = (n: ComponentNode, key: string, fb = ''): string =>
 /** Boolean parameter, or `fb` (default false) when absent / non-boolean. */
 export const bool = (n: ComponentNode, key: string, fb = false): boolean =>
   typeof n[key] === 'boolean' ? (n[key] as boolean) : fb;
+
+/**
+ * A chain member's outer radius (m), read from the key its type sizes by: a
+ * nose cone's `aftRadius`, a body tube's `outerRadius`, a transition's larger
+ * end. 0 for any other type or a missing value.
+ */
+export const chainOuterRadius = (n: ComponentNode): number => {
+  if (n.type === 'nosecone') return num(n, 'aftRadius', 0);
+  if (n.type === 'bodytube') return num(n, 'outerRadius', 0);
+  if (n.type === 'transition') return Math.max(num(n, 'foreRadius', 0), num(n, 'aftRadius', 0));
+  return 0;
+};
+
+/**
+ * The largest of a node's `outerRadius`, `aftRadius` and `foreRadius` (m),
+ * whatever its type; 0 when it carries none. Unlike {@link chainOuterRadius}
+ * it reads every radius key, so it also sizes non-chain parts and any node
+ * that carries a key its type does not size by.
+ */
+export const anyOuterRadius = (n: ComponentNode): number =>
+  Math.max(num(n, 'aftRadius', 0), num(n, 'outerRadius', 0), num(n, 'foreRadius', 0));
 
 const AXIAL_METHODS: ReadonlySet<string> = new Set<ComponentPosition['method']>([
   'top',

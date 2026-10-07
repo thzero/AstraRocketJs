@@ -7,9 +7,10 @@ import {
   svgToImage,
   type ExportData,
 } from '../../services/exports/schematicExport.js';
-import { download, safeFilename } from '../../services/files/saveFile.js';
+import { download, exportFilename } from '../../services/files/saveFile.js';
 import { ImageExportMenu } from './ImageExportMenu.js';
-import { ZOOM_IDENTITY, type ZoomState } from './schematicGeometry';
+import { MAX_ZOOM, ZOOM_IDENTITY, type ZoomState } from './schematicGeometry';
+import { errorMessage } from '../../services/app/errorMessage';
 
 /**
  * The TreeSchematic control strip: SVG / image export, the two caliper
@@ -72,12 +73,12 @@ export function SchematicControls({
               try {
                 const data = { ...exportData, spanM: 2 * vHalf };
                 download(
-                  `${safeFilename(data.name)}-2d.svg`,
+                  exportFilename([data.name, '2d'], 'svg'),
                   schematicSvg(svgRef.current, scale, w, h, data),
                   SVG_MIME,
                 );
               } catch (e) {
-                onError?.(`SVG export failed: ${e instanceof Error ? e.message : String(e)}`);
+                onError?.(`SVG export failed: ${errorMessage(e)}`);
               }
             }}
           >
@@ -92,11 +93,11 @@ export function SchematicControls({
                 const data = { ...exportData, spanM: 2 * vHalf };
                 const svg = schematicSvg(svgRef.current, scale, w, h, data);
                 download(
-                  `${safeFilename(data.name)}-2d.${IMAGE_FORMAT_EXT[format]}`,
+                  exportFilename([data.name, '2d'], IMAGE_FORMAT_EXT[format]),
                   await svgToImage(svg, widthPx, format),
                 );
               } catch (e) {
-                onError?.(t('export.imageFailed', { message: e instanceof Error ? e.message : String(e) }));
+                onError?.(t('export.imageFailed', { message: errorMessage(e) }));
               }
             }}
           />
@@ -132,7 +133,7 @@ export function SchematicControls({
         title={t('schematic.zoomIn')}
         aria-label={t('schematic.zoomIn')}
         onClick={() => zoomBy(1.5)}
-        disabled={zoom.k >= 12}
+        disabled={zoom.k >= MAX_ZOOM}
       >
         +
       </button>

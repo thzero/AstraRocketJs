@@ -152,7 +152,8 @@
     "storage": "Twoje projekty, symulacje, preferencje oraz wszelkie własne materiały i silniki są zapisywane w pamięci lokalnej przeglądarki, na twoim urządzeniu, i nigdy nie trafiają do nas ani do nikogo innego. Wyczyszczenie danych przeglądarki (albo użycie opcji Nowy) je usuwa.",
     "network": "Aplikacja pobiera katalogi silników i części z publicznej sieci dostarczania treści, a po wybraniu silnika może sięgnąć po jego krzywą ciągu do publicznej bazy silników; jedno i drugie jest buforowane lokalnie i podlega warunkom tych dostawców. Poza tym aplikacja nie wysyła twoich danych przez sieć.",
     "hosting": "Ten, kto hostuje aplikację, może prowadzić zwykłe dzienniki dostępu serwera (adres IP, czas i podobne), tak jak każda witryna. Sama aplikacja nie zbiera niczego.",
-    "close": "Zamknij"
+    "close": "Zamknij",
+    "weather": "Gdy naciśniesz Pobierz w oknie pogody, współrzędne i wysokość miejsca startu oraz wybrana data trafiają do Open-Meteo, które odpowiada prognozą. Poza tym nic nie jest wysyłane. Żądania nie wskazują tej aplikacji ani witryny, która ją udostępnia."
   },
   "help": {
     "title": "Pomoc",
@@ -160,7 +161,12 @@
     "back": "Wróć",
     "openOnSite": "Otwórz w witrynie dokumentacji",
     "loading": "Wczytywanie…",
-    "missing": "Dokumentacja nie wchodzi w skład tej kopii {{name}} albo nie da się jej odczytać. Nadal można ją otworzyć w internecie."
+    "missing": "Dokumentacja nie wchodzi w skład tej kopii {{name}} albo nie da się jej odczytać. Nadal można ją otworzyć w internecie.",
+    "search": "Szukaj w pomocy",
+    "searchClear": "Wyczyść wyszukiwanie",
+    "searchNone": "Nic w przewodniku nie pasuje do „{{query}}”.",
+    "searchBusy": "Szukanie…",
+    "searchMatches": "Trafienia: {{n}}"
   },
   "override": {
     "title": "Nadpisania",
@@ -277,6 +283,7 @@
     "launchNote": "Domyślne warunki startu dla nowo tworzonych symulacji. Warunki istniejącej symulacji zmienia się w jej panelu Start.",
     "defaultSpeed": "Domyślna prędkość",
     "confirmDelete": "Potwierdzaj usuwanie symulacji",
+    "autoRunOutdated": "Automatycznie uruchamiaj nieaktualne symulacje",
     "warnings": "Ostrzeżenia bezpieczeństwa",
     "railExitMin": "Min. prędkość przy zejściu z szyny",
     "deploySpeedWarn": "Ostrzegaj przy prędkości otwarcia powyżej",
@@ -318,6 +325,9 @@
     "mainLowSpeedWarn": "Prędkość otwarcia głównego (min.)",
     "drogueLowSpeedWarn": "Prędkość otwarcia hamującego (min.)",
     "railExitMinHint": "Poniżej tej wartości stateczniki mają za mały nadmuch, aby sterować, więc przy zejściu z pręta rakieta może obrócić się w wiatr albo stracić stabilność.",
+    "simModel": "Model lotu",
+    "guideAwareRodClearance": "Uwzględniaj położenie prowadnic",
+    "guideAwareRodClearanceHint": "OpenRocket utrzymuje rakietę na prowadnicy przez całą jej długość, niezależnie od położenia uszu startowych czy guzików szynowych. Włączone: ucho prowadzi, dopóki jego tylny koniec nie zejdzie z prowadnicy, natomiast szyna wymaga dwóch guzików i prowadzi tylko do zejścia przedostatniego z nich, więc pojedynczy guzik nie prowadzi wcale. Zwykle nieco wcześniejsze zejście i nieco niższa prędkość na końcu prowadnicy. Wyłączone odpowiada OpenRocket.",
     "deploySpeedWarnHint": "Otwarcie jednostopniowe (bez spadochronu hamującego): powyżej tej prędkości otwarcie spadochronu grozi podłużnym rozerwaniem kadłuba albo rozdarciem czaszy.",
     "mainHighSpeedWarnHint": "Otwarcie dwustopniowe: powyżej tej wartości GŁÓWNY spadochron wychodzi za szybko, zwykle z powodu zbyt małego spadochronu hamującego albo zbyt wysoko ustawionego otwarcia głównego.",
     "mainLowSpeedWarnHint": "Otwarcie dwustopniowe: poniżej tej wartości główny spadochron otwiera się, gdy rakieta prawie nie opada, co zwykle oznacza otwarcie blisko apogeum: wolne opadanie z pełnej wysokości i duży dryf.",
@@ -393,7 +403,8 @@
     "simulations": "Symulacje",
     "workbench": "Warsztat",
     "configs": "Konfiguracje",
-    "configsShort": "Konfig."
+    "configsShort": "Konfig.",
+    "tools": "Narzędzia"
   },
   "view": {
     "2d": "2D",
@@ -407,7 +418,7 @@
     "aft": "Z tyłu",
     "cutaway": "Przekrój",
     "cutawayTitle": "Otwórz kadłub wzdłuż osi, aby pokazać wnętrze",
-    "roll": "Przechylenie {{deg}}°",
+    "roll": "Przechylenie {{deg}}",
     "rollHint": "Przechylenie: obraca stateczniki wokół osi (albo przeciągnij rysunek)",
     "rollAria": "Kąt przechylenia (stopnie)",
     "loading3d": "Wczytywanie 3D…",
@@ -427,7 +438,8 @@
     "ruler_top_abbr": "G",
     "ruler_bottom_abbr": "D",
     "ruler_left_abbr": "L",
-    "ruler_right_abbr": "P"
+    "ruler_right_abbr": "P",
+    "environment": "Otoczenie"
   },
   "stability": {
     "onPad": "Stabilność (na wyrzutni)",
@@ -450,7 +462,8 @@
     "needsMotor": "włóż silnik",
     "cd": "Współ. oporu",
     "rollInertia": "Bezwładność przechylania (z paliwem)",
-    "pitchInertia": "Bezwładność pochylania (z paliwem)"
+    "pitchInertia": "Bezwładność pochylania (z paliwem)",
+    "recoveryWeightEstimated": "Masa (Odzysk, szac.)"
   },
   "sim": {
     "run": "Wykonaj symulację lotu",
@@ -596,7 +609,10 @@
       "longitudeDeg": "długość geograficzna"
     },
     "locationDenied": "Nie udało się ustalić twojej lokalizacji. Sprawdź uprawnienie w przeglądarce i spróbuj ponownie.",
-    "locating": "Ustalanie lokalizacji…"
+    "locating": "Ustalanie lokalizacji…",
+    "getWeather": "Pobierz pogodę…",
+    "forecastProfile": "Prognozowana atmosfera do {{top}}",
+    "clearForecastProfile": "Usuń"
   },
   "csv": {
     "title": "Eksport danych lotu",
@@ -735,7 +751,7 @@
     "zoomOut": "Pomniejsz",
     "zoomReset": "Przywróć powiększenie",
     "stages": "Stopnie",
-    "stage": "Stopień",
+    "stageN": "Stopień {{n}}",
     "crosshairHint": "Wykresy lotu. Ustaw fokus i przesuwaj celownik strzałkami; Shift dla większego kroku, Home i End na końce, Esc aby wyczyścić.",
     "events": "Zdarzenia lotu",
     "event": "Zdarzenie",
@@ -805,7 +821,6 @@
     },
     "stageColors": "Kolory stopni…",
     "stageColorsTitle": "Kolory stopni",
-    "stageN": "Stopień {{n}}",
     "resetColors": "Przywróć wartości domyślne",
     "showWaypointLabels": "Rysuj nazwy punktów trasy na mapie",
     "colorWaypointPins": "Koloruj pinezki punktów trasy według stopni",
@@ -903,6 +918,7 @@
     "pressure": "Ciśnienie",
     "base": "Denny",
     "pctBody": "% korpusu",
+    "pctLength": "% długości",
     "supersonicNote": "Rozszerzona metoda Barrowmana: powyżej około 1,5 liczby Macha to przybliżenie.",
     "unavailable": "Zbuduj poprawną rakietę, aby zobaczyć jej opór.",
     "crosshairHint": "Krzywe oporu. Ustaw fokus i przesuwaj celownik strzałkami; Shift dla większego kroku, Home i End na końce, Esc aby wyczyścić.",
@@ -916,7 +932,8 @@
     "loaded": "Wczytano projekt (.ork)",
     "close": "Zamknij",
     "closeTitle": "Odrzuć ten import i zacznij nowy projekt",
-    "closeConfirm": "Odrzucić wczytany projekt i zacząć nowy? Niezapisane zmiany zostaną utracone."
+    "closeConfirm": "Odrzucić wczytany projekt i zacząć nowy? Niezapisane zmiany zostaną utracone.",
+    "repaired": "{{part}}: wartość {{field}} równa {{was}} wykracza poza dopuszczalny zakres, więc zmniejszono ją do {{now}}."
   },
   "part": {
     "stage": "Stopień",
@@ -990,6 +1007,7 @@
   "prop": {
     "selectHint": "Wybierz część w drzewie albo na rysunku, aby zmienić jej właściwości.",
     "editTitle": "Edytuj część",
+    "catalogPart": "Część z katalogu",
     "name": "Nazwa",
     "delete": "Usuń",
     "lastStage": "Rakieta musi mieć co najmniej jeden stopień",
@@ -1190,7 +1208,6 @@
     "fit": "Dopasuj do widoku",
     "aftAria": "Widok z tyłu: rakieta widziana od tyłu; przeciągaj, aby obracać, kółko zmienia powiększenie",
     "sideAria": "Widok rakiety z boku ze znacznikami SC i SP; kółko zmienia powiększenie, przeciąganie tła przesuwa widok",
-    "sideAriaVertical": "Widok rakiety z boku, dziobem do góry, ze znacznikami SC i SP",
     "caliperH": "Uchwyt suwmiarki poziomej {{end}}",
     "caliperV": "Uchwyt suwmiarki pionowej {{end}}"
   },
@@ -1319,7 +1336,7 @@
   "recovery": {
     "title": "Dobór opadania",
     "needsMotor": "Włóż silnik, aby liczyć od masy przy opadaniu (masa z paliwem minus paliwo).",
-    "forMass": "Dla masy przy opadaniu {{mass}} g:",
+    "forMass": "Szacowane dla masy opadania {{mass}}:",
     "thisChute": "Ta czasza",
     "mainTarget": "Główny ({{range}})",
     "drogueTarget": "Hamujący ({{range}})",
@@ -1330,7 +1347,17 @@
       "between": "między zakresami",
       "drogue": "zakres hamującego",
       "fast": "bardzo szybko"
-    }
+    },
+    "forMassRun": "Zmierzone w ostatnim przebiegu, przy masie opadania {{mass}}:",
+    "forMassRunBranch": "Zmierzone w ostatnim przebiegu na {{branch}}, przy masie opadania {{mass}}:",
+    "diametersEstimated": "Średnice są szacunkami do projektowania, a nie wynikami symulacji.",
+    "open": "Dobór opadania…",
+    "use": "Użyj",
+    "useMain": "Użyj średnicy spadochronu głównego",
+    "useDrogue": "Użyj średnicy spadochronu hamującego",
+    "useTarget": "Użyj średnicy dla twojej prędkości",
+    "targetRate": "Własna prędkość opadania",
+    "atTarget": "Przy twojej prędkości"
   },
   "sims": {
     "new": "＋ Nowa",
@@ -1462,7 +1489,8 @@
   "storage": {
     "full": "Nie udało się zapisać pracy: pamięć przeglądarki jest pełna. Wyeksportuj projekt, aby go zachować.",
     "degraded": "Przeglądarka blokuje swoją bazę danych, więc aplikacja przeszła na znacznie mniejszą pamięć (około 5 MB) i wraz z rozrostem projektu zapis może się nie udawać. Zwykle dzieje się tak w trybie prywatnym. Wyeksportuj wszystko, co chcesz zachować.",
-    "loadFailed": "Nie udało się odczytać zapisanego projektu. Zaczynamy od nowa; dalsza praca będzie zapisywana."
+    "loadFailed": "Nie udało się odczytać zapisanego projektu. Zaczynamy od nowa; dalsza praca będzie zapisywana.",
+    "conflict": "Ten projekt został zmieniony w innej karcie, więc zmiany wprowadzone tutaj nie są zapisywane. Wyeksportuj je, aby je zachować, albo otwórz projekt ponownie w Moich rakietach, aby wczytać wersję z drugiej karty."
   },
   "library": {
     "title": "Moje rakiety",
@@ -1589,6 +1617,8 @@
     "zoomOut": "Pomniejsz",
     "recenter": "Wyśrodkuj na miejscu",
     "pick": "Kliknij mapę, aby przenieść miejsce.",
+    "keysPick": "Strzałki przesuwają mapę, plus i minus przybliżają, a Enter ustawia lokalizację na środku.",
+    "keysView": "Strzałki przesuwają mapę, a plus i minus przybliżają.",
     "noCoords": "Podaj szerokość i długość geograficzną, aby umieścić miejsce.",
     "tooClose": "Przy takim zbliżeniu nie ma zdjęć",
     "offline": "Bez sieci nie ma zdjęć"
@@ -1630,5 +1660,177 @@
     "payload": "Ładunek",
     "recoveryhardware": "Osprzęt odzysku",
     "battery": "Akumulator"
+  },
+  "weather": {
+    "title": "Pogoda z Open-Meteo",
+    "dateLabel": "Data",
+    "hourLabel": "Godzina (czas miejsca startu)",
+    "fetch": "Pobierz",
+    "fetching": "Pobieranie…",
+    "apply": "Zastosuj",
+    "needSite": "Najpierw podaj szerokość i długość geograficzną miejsca startu.",
+    "siteLine": "Miejsce {{lat}}, {{lon}} na wysokości {{alt}}",
+    "noHour": "Odpowiedź nie zawiera danych dla tej godziny.",
+    "validForecast": "Prognoza na {{time}}",
+    "validArchive": "Zarejestrowana pogoda na {{time}}",
+    "archiveNoAloft": "Dla tak odległej daty dostępne są tylko warunki przy powierzchni, bez wiatru i atmosfery na wysokości.",
+    "useTerrain": "Użyj wysokości terenu, {{terrain}}, dla miejsca startu (obecnie {{site}})",
+    "forecastNote": "Prognoza to oszacowanie modelu, a nie pomiar.",
+    "credit": "Dane pogodowe: Open-Meteo.com",
+    "windValue": "{{speed}} z {{from}}°, porywy {{gust}}, profil do {{top}}",
+    "atmosphereValue": "Profil do {{top}}",
+    "group": {
+      "temperature": "Temperatura",
+      "pressure": "Ciśnienie",
+      "humidity": "Wilgotność",
+      "wind": "Wiatr",
+      "atmosphere": "Atmosfera na wysokości"
+    },
+    "dateRefusal": {
+      "tooFarAhead": "Open-Meteo prognozuje do 15 dni naprzód.",
+      "tooEarly": "Dane Open-Meteo zaczynają się 1 stycznia 1940.",
+      "badDate": "Wybierz datę."
+    },
+    "error": {
+      "offline": "Nie można połączyć się z Open-Meteo. Twoje warunki startu nie zostały zmienione.",
+      "timeout": "Open-Meteo nie odpowiedziało na czas. Twoje warunki startu nie zostały zmienione.",
+      "aborted": "Anulowano. Twoje warunki startu nie zostały zmienione.",
+      "refused": "Open-Meteo odrzuciło żądanie: {{detail}}. Twoje warunki startu nie zostały zmienione.",
+      "badKey": "Open-Meteo nie przyjęło klucza API z Ustawień, Start. Twoje warunki startu nie zostały zmienione.",
+      "quota": "Darmowy limit Open-Meteo jest na razie wyczerpany. Spróbuj później lub dodaj klucz API w Ustawieniach, Start. Twoje warunki startu nie zostały zmienione.",
+      "http": "Open-Meteo odpowiedziało błędem ({{detail}}). Twoje warunki startu nie zostały zmienione.",
+      "shape": "Nie udało się odczytać odpowiedzi Open-Meteo ({{detail}}). Twoje warunki startu nie zostały zmienione.",
+      "units": "Open-Meteo odpowiedziało w jednostkach, których aplikacja nie odczytuje ({{detail}}). Twoje warunki startu nie zostały zmienione.",
+      "noData": "Open-Meteo nie ma tu danych dla tej daty. Twoje warunki startu nie zostały zmienione."
+    },
+    "keyLabel": "Klucz API Open-Meteo",
+    "keyPlaceholder": "Brak (darmowa usługa)",
+    "keyNote": "Opcjonalnie. Bez klucza pogoda pochodzi z darmowej usługi Open-Meteo, przeznaczonej do użytku niekomercyjnego. Klucz z płatnego planu Open-Meteo znosi jej limity. Klucz jest przechowywany tylko w tej przeglądarce.",
+    "keyNotSaved": "Nie udało się zapisać klucza w tej przeglądarce.",
+    "source": {
+      "forecast": "Prognoza Open-Meteo na {{when}} dla {{where}}, pobrana {{fetched}}",
+      "record": "Zapis Open-Meteo na {{when}} dla {{where}}, pobrany {{fetched}}",
+      "edited": "Edytowano od zastosowania.",
+      "otherSite": "Miejsce startu zmieniło się od pobrania.",
+      "old": "Pobrano ponad 3 godziny temu. Nowsza prognoza może się różnić.",
+      "refresh": "Odśwież…"
+    },
+    "fetchedAt": "Pobrano o {{time}}.",
+    "reused": "Użyto ponownie z {{time}}. Open-Meteo jest pytane ponownie po 30 minutach.",
+    "fetchFresh": "Pobierz ponownie"
+  },
+  "env": {
+    "elevation": "Wysokość miejsca startu",
+    "note": "Powietrze, jakie napotkał lot, zapisane w drodze w górę i z powrotem, od ziemi do apogeum na {{apogee}}.",
+    "ascent": "Wznoszenie",
+    "descent": "Opadanie",
+    "noData": "Ten wynik nie zawiera danych atmosfery. Uruchom symulację ponownie.",
+    "q": {
+      "windSpeed": "Prędkość wiatru",
+      "windDirection": "Kierunek wiatru",
+      "temperature": "Temperatura powietrza",
+      "pressure": "Ciśnienie powietrza",
+      "density": "Gęstość powietrza",
+      "speedOfSound": "Prędkość dźwięku"
+    },
+    "when": "Data / godzina",
+    "latitude": "Szerokość",
+    "longitude": "Długość",
+    "landing": {
+      "title": "Lądowanie",
+      "stage": "Stopień {{stage}} ląduje w",
+      "flyHours": "Przeleć godziny wokół tej prognozy",
+      "flying": "Trwa lot… {{done}} z {{total}}",
+      "flyHoursNote": "Przelatuje ten projekt w prognozie dla każdej godziny, od dwóch przed do dwóch po, według obecnej prognozy.",
+      "hour": "Godzina",
+      "noForecast": "Wypełnij warunki startu przyciskiem Pobierz pogodę…, aby zobaczyć, jak lądowanie przesuwa się w godzinach wokół prognozy.",
+      "failed": "Nie udało się ukończyć lotów."
+    }
+  },
+  "landing": {
+    "title": "Szacowanie lądowania",
+    "intro": "Gdzie rakieta spadnie, na podstawie miejsca, godziny prognozy, apogeum i prędkości opadania. To szacunek: wznoszenie nie jest modelowane, a prędkości są takie, jakie wpiszesz. Rakieta zaprojektowana tutaj dostaje lądowanie z symulacji, na karcie Wyniki.",
+    "site": "Miejsce startu",
+    "siteElevation": "Wysokość miejsca startu",
+    "terrain": "Teren",
+    "siteElevationHint": "Zostaw puste, aby użyć wysokości modelu terenu w miejscu startu.",
+    "when": "Kiedy",
+    "flight": "Lot",
+    "apogee": "Apogeum nad stanowiskiem",
+    "recovery": "Odzysk",
+    "recovery_single": "Pojedynczy",
+    "recovery_dual": "Podwójny",
+    "descentRate": "Prędkość opadania",
+    "drogueRate": "Opadanie na spadochronie hamującym",
+    "mainRate": "Opadanie na spadochronie głównym",
+    "mainAltitude": "Spadochron główny otwiera się nad stanowiskiem na",
+    "mainAboveApogee": "Spadochron główny musi otworzyć się poniżej apogeum.",
+    "estimate": "Oszacuj lądowanie",
+    "estimating": "Szacowanie…",
+    "empty": "Podaj miejsce, godzinę i lot, a potem naciśnij Oszacuj lądowanie.",
+    "lands": "Ląduje w",
+    "distance": "Odległość",
+    "bearing": "Kierunek od stanowiska",
+    "descentTime": "Czas opadania",
+    "zone": "Strefa lądowania (2σ)",
+    "noZone": "Zbyt mały rozrzut, by go narysować",
+    "groundAtLanding": "Teren w miejscu lądowania",
+    "estimateNote": "Szacunek na podstawie wpisanych prędkości opadania. Strefa obejmuje {{descents}} opadań: {{hours}} godzin prognozy, prędkość wiatru 20% w górę i w dół, kierunek 15° w każdą stronę i prędkość opadania 10% w górę i w dół.",
+    "flatGround": "Nie udało się pobrać kształtu terenu, więc lądowanie jest na płaskim terenie na wysokości stanowiska.",
+    "surfaceWindOnly": "Archiwum Open-Meteo dla tej daty ma tylko wiatr przy ziemi, więc całe opadanie dryfuje z nim.",
+    "mapLabel": "Szacowane lądowanie z góry, lądowanie {{distance}} od stanowiska"
+  },
+  "tools": {
+    "label": "Narzędzia",
+    "tool_landing": "Szacowanie lądowania",
+    "tool_rail": "Zejście z prowadnicy",
+    "tool_chute": "Dobór spadochronu"
+  },
+  "chuteTool": {
+    "title": "Dobór spadochronu",
+    "intro": "Czasza, która sprowadza rakietę z wybraną prędkością opadania, na podstawie tego, co opada, współczynnika oporu czaszy i powietrza w miejscu startu. Szacunek z równania opadania. Spadochron rakiety zaprojektowanej tutaj pokazuje te same wartości w Dobór opadania, w swoim edytorze.",
+    "rocket": "Rakieta i czasza",
+    "mass": "Masa przy opadaniu",
+    "massHint": "To, co opada pod czaszą: rakieta po wypaleniu paliwa.",
+    "cd": "Cd czaszy",
+    "diameter": "Średnica czaszy",
+    "none": "Brak",
+    "air": "Powietrze w miejscu startu",
+    "standard": "Standardowe",
+    "result": "Wynik doboru spadochronu",
+    "empty": "Wpisz masę przy opadaniu i Cd czaszy."
+  },
+  "rail": {
+    "title": "Zejście z prowadnicy",
+    "intro": "Jak rakieta schodzi z prowadnicy z danym silnikiem: stosunek ciągu do ciężaru, prędkość zejścia z prowadnicy i jak bardzo obraca ją wiatr boczny. Rakieta zaprojektowana tutaj otrzymuje te wartości z symulacji, przy zdarzeniu zejścia z prowadnicy.",
+    "motor": "Silnik",
+    "noMotor": "Nie wybrano silnika",
+    "chooseMotor": "Wybierz…",
+    "rocket": "Rakieta i prowadnica",
+    "dryMass": "Masa rakiety bez silnika",
+    "dryMassHint": "Masa załadowanego silnika pochodzi z katalogu i jest do niej dodawana.",
+    "wind": "Prędkość wiatru",
+    "fromForecast": "Wiatr z prognozy",
+    "fetchWind": "Pobierz prognozowany wiatr",
+    "fetching": "Pobieranie…",
+    "forecastWind": "Prognozowany wiatr {{wind}} na 10 m, {{when}}.",
+    "forecastWindGust": "Prognozowany wiatr {{wind}} na 10 m, w porywach do {{gust}}, {{when}}.",
+    "result": "Wynik zejścia z prowadnicy",
+    "empty": "Wybierz silnik i wpisz masę rakiety oraz długość prowadnicy.",
+    "noLiftoff": "Ciąg silnika nigdy nie przekracza ciężaru rakiety, więc nie startuje.",
+    "stalls": "Rakieta zwalnia do zatrzymania, zanim dotrze do końca prowadnicy.",
+    "liftoffMass": "Masa startowa",
+    "twrAverage": "Ciąg do ciężaru, średni",
+    "twrPeak": "Ciąg do ciężaru, szczytowy",
+    "twrAtExit": "Ciąg do ciężaru przy zejściu z prowadnicy",
+    "exitSpeed": "Prędkość zejścia z prowadnicy",
+    "exitTime": "Czas do zejścia z prowadnicy",
+    "weathercock": "Kąt wiatrowskazowy",
+    "weathercockGust": "Kąt wiatrowskazowy w porywach",
+    "maxWind": "Najsilniejszy wiatr poniżej {{angle}}°",
+    "maxDryMass": "Najcięższa rakieta bez silnika",
+    "none": "Brak",
+    "rules": "Na bursztynowo: średni stosunek ciągu do ciężaru poniżej {{ratio}} : 1, zejście z prowadnicy wolniej niż {{speed}} (minimum z Ustawień) lub kąt wiatrowskazowy powyżej {{angle}}°. Najcięższa rakieta spełnia dwa pierwsze.",
+    "estimateNote": "Szacunek: bez oporu powietrza, bez tarcia o prowadnicę i z pionową prowadnicą, więc rzeczywiste zejście jest nieco wolniejsze."
   }
 }

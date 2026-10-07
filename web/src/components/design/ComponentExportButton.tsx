@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ComponentNode } from '../../engine/openRocketEngine';
+import { fireAction } from '../../state/fireAction';
 import { useWorkspaceStore } from '../../state/store';
 import { componentFormats, type ExportFormat } from '../../services/files/componentFormats';
+import { useMenuPopover } from '../common/useMenuPopover';
 
 const LABEL: Record<ExportFormat, string> = {
   stl: 'file.stl',
@@ -22,33 +23,19 @@ const LABEL: Record<ExportFormat, string> = {
 export function ComponentExportButton({ node }: { node: ComponentNode }) {
   const { t } = useTranslation();
   const exportComponent = useWorkspaceStore((s) => s.exportComponent);
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
-    window.addEventListener('mousedown', onDown);
-    window.addEventListener('keydown', onKey);
-    return () => {
-      window.removeEventListener('mousedown', onDown);
-      window.removeEventListener('keydown', onKey);
-    };
-  }, [open]);
+  const { open, toggle, close, wrapRef, triggerRef } = useMenuPopover();
 
   const formats = componentFormats(node.type);
   const id = node.id as string | undefined;
   if (formats.length === 0 || !id) return null;
 
   return (
-    <div ref={ref} className="relative shrink-0">
+    <div ref={wrapRef} className="relative shrink-0">
       <button
+        ref={triggerRef}
         onClick={(e) => {
           e.stopPropagation(); // don't also select/deselect the row
-          setOpen((o) => !o);
+          toggle();
         }}
         aria-haspopup="menu"
         aria-expanded={open}
@@ -69,8 +56,8 @@ export function ComponentExportButton({ node }: { node: ComponentNode }) {
               role="menuitem"
               onClick={(e) => {
                 e.stopPropagation();
-                setOpen(false);
-                exportComponent(id, f);
+                close();
+                fireAction(exportComponent(id, f));
               }}
               className="flex w-full items-center px-3 py-1.5 text-left text-xs font-medium text-slate-200 hover:bg-slate-700"
             >

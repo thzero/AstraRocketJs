@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, it, expect } from 'vitest';
 import {
   airDensity,
@@ -69,6 +71,79 @@ describe('launch-site air density', () => {
   it('defaults to sea-level density with no launch data', () => {
     expect(airDensity(null)).toBeCloseTo(1.225, 3);
     expect(airDensity(undefined)).toBeCloseTo(1.225, 3);
+  });
+
+  /**
+   * The panel has to size for the air the FLIGHT flies, and the flight's rule
+   * has a step in it that only shows away from sea level.
+   *
+   * With every field blank the kernel gets standard ISA, which at the pad is
+   * the ISA value for the site altitude. As soon as any one of temperature,
+   * pressure or humidity is set it gets an `ExtendedISAModel` anchored at the
+   * site altitude, and a field left blank is filled with the SEA-LEVEL standard
+   * constant. Filling a blank from the site altitude instead is a different
+   * atmosphere, and sizing a canopy in it is sizing for a flight nobody makes.
+   */
+  describe('fills a blank the way the flight does', () => {
+    const HIGH = 2682; // m, the case that first showed the difference
+
+    it('uses the site-altitude ISA when nothing at all is set', () => {
+      const tIsa = 288.15 - 0.0065 * HIGH;
+      const pIsa = 101325 * Math.pow(tIsa / 288.15, 9.80665 / (287.053 * 0.0065));
+      expect(airDensity({ launchAltitudeM: HIGH })).toBeCloseTo(pIsa / (287.053 * tIsa), 6);
+    });
+
+    it('uses the sea-level standard pressure when only a temperature is typed', () => {
+      // 101325 / (287.053 * 303.15), NOT the ~73 kPa of a 2,682 m field.
+      expect(airDensity({ launchAltitudeM: HIGH, temperatureC: 30 })).toBeCloseTo(1.1644, 4);
+    });
+
+    it('uses the sea-level standard temperature when only a pressure is typed', () => {
+      // 85000 / (287.053 * 288.15), NOT the ~271 K of a 2,682 m field.
+      expect(airDensity({ launchAltitudeM: HIGH, pressureHPa: 850 })).toBeCloseTo(1.0276, 4);
+    });
+
+    it('switches branch on humidity alone, which sets neither value', () => {
+      // Humidity is enough to hand the kernel a custom model, so BOTH blanks
+      // are then the sea-level standards - the same air as a sea-level field.
+      expect(airDensity({ launchAltitudeM: HIGH, relativeHumidity: 0.8 })).toBeCloseTo(1.225, 3);
+      expect(airDensity({ launchAltitudeM: HIGH, relativeHumidity: 0.8 })).not.toBeCloseTo(
+        airDensity({ launchAltitudeM: HIGH }),
+        3,
+      );
+    });
+
+    it('agrees with the no-override case at sea level, where the branches meet', () => {
+      expect(airDensity({ launchAltitudeM: 0, temperatureC: 15 })).toBeCloseTo(airDensity({ launchAltitudeM: 0 }), 6);
+    });
+  });
+
+  /**
+   * The rule above is the BRIDGE's, and this is the only thing holding the copy
+   * to it. A JS atmosphere that quietly stops matching the Java one is exactly
+   * the drift that put an 18 % error in this panel, so the source that owns the
+   * rule is read here rather than trusted.
+   */
+  it('still matches the rule the bridge hands the kernel', () => {
+    const bridge = readFileSync(
+      resolve(process.cwd(), '../engine-java/src/api/java/api/OpenRocketEngine.java'),
+      'utf8',
+    );
+    // Any one of the three switches to the custom model...
+    expect(bridge).toMatch(
+      /if \(!Double\.isNaN\(temperature\) \|\| !Double\.isNaN\(pressure\) \|\| !Double\.isNaN\(humidity\)\)/,
+    );
+    // ...anchored at the site altitude, with the STANDARD constants for blanks.
+    expect(bridge).toContain('Double.isNaN(temperature) ? ExtendedISAModel.STANDARD_TEMPERATURE : temperature');
+    expect(bridge).toContain('Double.isNaN(pressure) ? ExtendedISAModel.STANDARD_PRESSURE : pressure');
+
+    // And those constants are the ones this module calls T0 and P0.
+    const model = readFileSync(
+      resolve(process.cwd(), '../engine-java/src/java/info/openrocket/core/models/atmosphere/ExtendedISAModel.java'),
+      'utf8',
+    );
+    expect(model).toContain('STANDARD_TEMPERATURE = 288.15');
+    expect(model).toContain('STANDARD_PRESSURE = 101325');
   });
 });
 

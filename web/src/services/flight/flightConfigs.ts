@@ -22,6 +22,8 @@ import { C6 } from '../../engine/api';
 import { findMounts, findRecoveryDevices, findSeparators, findStages, updateNode } from '../design/treeEdit';
 import { uuid } from '../app/uuid';
 import type { ComponentNode, IgnitionEvent, MotorSpec, RocketTree } from '../../engine/openRocketEngine';
+import { KERNEL_DEPLOYMENT, KERNEL_SEPARATION } from '../../tree/kernelDefaults';
+import { motorName } from '../motors/motorName';
 
 /** One mount's cell: the motor seated in it, and when that motor ignites. */
 export interface MountMotor {
@@ -88,6 +90,43 @@ export interface DeployOverride {
   deployEvent?: string;
   deployAltitude?: number;
   deployDelay?: number;
+}
+
+const designString = (node: ComponentNode, key: string, fallback: string): string => {
+  const v = node[key];
+  return typeof v === 'string' && v ? v : fallback;
+};
+const designNumber = (node: ComponentNode, key: string, fallback: number): number => {
+  const v = node[key];
+  return typeof v === 'number' && Number.isFinite(v) ? v : fallback;
+};
+
+/** A recovery device's deployment as the design states it, kernel defaults filling the gaps. */
+export function designDeployment(device: ComponentNode): Required<DeployOverride> {
+  return {
+    deployEvent: designString(device, 'deployEvent', KERNEL_DEPLOYMENT.deployEvent),
+    deployAltitude: designNumber(device, 'deployAltitude', KERNEL_DEPLOYMENT.deployAltitude),
+    deployDelay: designNumber(device, 'deployDelay', KERNEL_DEPLOYMENT.deployDelay),
+  };
+}
+
+/** A stage's separation as the design states it, kernel defaults filling the gaps. */
+export function designSeparation(stage: ComponentNode): Required<SepOverride> {
+  return {
+    separationEvent: designString(stage, 'separationEvent', KERNEL_SEPARATION.separationEvent),
+    separationAltitude: designNumber(stage, 'separationAltitude', KERNEL_SEPARATION.separationAltitude),
+    separationDelay: designNumber(stage, 'separationDelay', KERNEL_SEPARATION.separationDelay),
+  };
+}
+
+/** What a device does under one configuration: its override over the design. */
+export function effectiveDeployment(config: FlightConfig, device: ComponentNode): Required<DeployOverride> {
+  return { ...designDeployment(device), ...deployOverride(config, device.id as string) };
+}
+
+/** What a stage does under one configuration: its override over the design. */
+export function effectiveSeparation(config: FlightConfig, stage: ComponentNode): Required<SepOverride> {
+  return { ...designSeparation(stage), ...sepOverride(config, stage.id as string) };
 }
 
 export function newFlightConfig(
@@ -233,7 +272,7 @@ export function reconcileConfigs(tree: RocketTree, configs: FlightConfig[]): Fli
 export function loadoutLabel(tree: RocketTree, config: FlightConfig): string {
   return motorSpecs(tree, config)
     .filter((m) => m.designation)
-    .map((m) => (m.manufacturer ? `${m.manufacturer} ${m.designation}` : m.designation))
+    .map((m) => (m.manufacturer ? `${m.manufacturer} ${motorName(m)}` : motorName(m)))
     .join(' + ');
 }
 

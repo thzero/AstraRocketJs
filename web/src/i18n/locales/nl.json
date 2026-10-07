@@ -152,7 +152,8 @@
     "storage": "Je ontwerpen, simulaties, voorkeuren en eventuele eigen materialen of motoren worden opgeslagen in de lokale opslag van je browser, op je eigen apparaat, en gaan nooit naar ons of naar iemand anders. Als je je browsergegevens wist (of Nieuw gebruikt) zijn ze weg.",
     "network": "De app haalt de motor- en onderdelencatalogus op bij een openbaar contentnetwerk en kan, als je een motor kiest, de stuwkrachtcurve van die motor ophalen uit een openbare motordatabase; beide worden lokaal gecachet en vallen onder de voorwaarden van die aanbieders. Verder doet de app geen netwerkverzoeken met jouw gegevens.",
     "hosting": "Wie de app host kan gewone toegangslogs van de webserver bewaren (zoals IP-adres en tijdstip), zoals elke website doet. De app zelf verzamelt niets.",
-    "close": "Sluiten"
+    "close": "Sluiten",
+    "weather": "Als je in het weervenster op Ophalen drukt, gaan de coördinaten en hoogte van de lanceerplaats en de gekozen datum naar Open-Meteo, dat met de voorspelling antwoordt. Anders wordt er niets verzonden. De verzoeken noemen deze app en de site die haar levert niet."
   },
   "help": {
     "title": "Help",
@@ -160,7 +161,12 @@
     "back": "Terug",
     "openOnSite": "Openen op de documentatiesite",
     "loading": "Laden…",
-    "missing": "De documentatie zit niet in deze kopie van {{name}}, of kon niet worden gelezen. Je kunt die nog wel online openen."
+    "missing": "De documentatie zit niet in deze kopie van {{name}}, of kon niet worden gelezen. Je kunt die nog wel online openen.",
+    "search": "Zoeken in de help",
+    "searchClear": "Zoekopdracht wissen",
+    "searchNone": "Niets in de handleiding komt overeen met “{{query}}”.",
+    "searchBusy": "Zoeken…",
+    "searchMatches": "Overeenkomsten: {{n}}"
   },
   "override": {
     "title": "Overschrijvingen",
@@ -277,6 +283,7 @@
     "launchNote": "Standaard lanceeromstandigheden voor nieuwe simulaties. De omstandigheden van een bestaande simulatie pas je aan in het paneel Lancering daarvan.",
     "defaultSpeed": "Standaardsnelheid",
     "confirmDelete": "Verwijderen van simulaties bevestigen",
+    "autoRunOutdated": "Verouderde simulaties automatisch uitvoeren",
     "warnings": "Veiligheidswaarschuwingen",
     "railExitMin": "Min. snelheid bij verlaten rail",
     "deploySpeedWarn": "Waarschuwen bij openingssnelheid boven",
@@ -316,6 +323,9 @@
     "mainLowSpeedWarn": "Openingssnelheid hoofdparachute (min.)",
     "drogueLowSpeedWarn": "Openingssnelheid drogue (min.)",
     "railExitMinHint": "Daaronder hebben de vinnen te weinig luchtstroom om te sturen, dus kan de raket de wind in draaien of instabiel worden zodra hij de stang verlaat.",
+    "simModel": "Vluchtmodel",
+    "guideAwareRodClearance": "Railverlating volgens de geleiders",
+    "guideAwareRodClearanceHint": "OpenRocket houdt de raket over de volle lengte van de lanceerstang geleid, waar de lugs of railknoppen ook zitten. Aan: een lug geleidt tot het achterste uiteinde de stang verlaat, terwijl een rail twee knoppen nodig heeft en alleen geleidt tot de op een na laatste de rail verlaat, dus één knop geleidt helemaal niet. Meestal iets eerder van de stang en een iets lagere uittreesnelheid. Uit komt overeen met OpenRocket.",
     "deploySpeedWarnHint": "Enkelvoudig openen (zonder drogue): boven deze snelheid loop je het risico dat het openen van de parachute de romp openscheurt of de koepel verscheurt.",
     "mainHighSpeedWarnHint": "Dubbel openen: daarboven komt de HOOFDPARACHUTE er te snel uit, meestal door een drogue die te klein is om de raket af te remmen of door een hoofdparachute die te hoog is ingesteld.",
     "mainLowSpeedWarnHint": "Dubbel openen: daaronder gaat de hoofdparachute open terwijl de raket nauwelijks daalt, wat normaal betekent dat hij rond het apogeum is opengegaan: een langzame daling met veel drift vanaf de volle hoogte.",
@@ -391,7 +401,8 @@
     "simulations": "Simulaties",
     "workbench": "Werkbank",
     "configs": "Configuraties",
-    "configsShort": "Config."
+    "configsShort": "Config.",
+    "tools": "Hulpmiddelen"
   },
   "view": {
     "2d": "2D",
@@ -405,7 +416,7 @@
     "aft": "Achterkant",
     "cutaway": "Doorsnede",
     "cutawayTitle": "De romp langs de middenas openen om de binnenkant te tonen",
-    "roll": "Rol {{deg}}°",
+    "roll": "Rol {{deg}}",
     "rollHint": "Rol: draait de vinnen om de as (of sleep de tekening)",
     "rollAria": "Rolhoek (graden)",
     "loading3d": "3D laden…",
@@ -425,7 +436,8 @@
     "ruler_top_abbr": "B",
     "ruler_bottom_abbr": "O",
     "ruler_left_abbr": "L",
-    "ruler_right_abbr": "R"
+    "ruler_right_abbr": "R",
+    "environment": "Omgeving"
   },
   "stability": {
     "onPad": "Stabiliteit (op het platform)",
@@ -448,7 +460,8 @@
     "needsMotor": "laad een motor",
     "cd": "Weerstandscoëff.",
     "rollInertia": "Rolinertie (geladen)",
-    "pitchInertia": "Stampinertie (geladen)"
+    "pitchInertia": "Stampinertie (geladen)",
+    "recoveryWeightEstimated": "Massa (Berging, schatting)"
   },
   "sim": {
     "run": "Vluchtsimulatie uitvoeren",
@@ -590,7 +603,10 @@
       "longitudeDeg": "lengtegraad"
     },
     "locationDenied": "Kon je locatie niet bepalen. Controleer de toestemming in de browser en probeer het opnieuw.",
-    "locating": "Locatie bepalen…"
+    "locating": "Locatie bepalen…",
+    "getWeather": "Weer ophalen…",
+    "forecastProfile": "Voorspelde atmosfeer tot {{top}}",
+    "clearForecastProfile": "Wissen"
   },
   "csv": {
     "title": "Vluchtgegevens exporteren",
@@ -729,7 +745,7 @@
     "zoomOut": "Uitzoomen",
     "zoomReset": "Zoom herstellen",
     "stages": "Trappen",
-    "stage": "Trap",
+    "stageN": "Trap {{n}}",
     "crosshairHint": "Vluchtgrafieken. Focus en gebruik de pijltjestoetsen om het kruispunt te verplaatsen; Shift voor een grotere stap, Home en End voor de uiteinden, Esc om te wissen.",
     "events": "Vluchtgebeurtenissen",
     "event": "Gebeurtenis",
@@ -799,7 +815,6 @@
     },
     "stageColors": "Kleuren per trap…",
     "stageColorsTitle": "Kleuren per trap",
-    "stageN": "Trap {{n}}",
     "resetColors": "Terug naar de standaardwaarden",
     "showWaypointLabels": "Namen van routepunten op de kaart tekenen",
     "colorWaypointPins": "Spelden van routepunten per trap kleuren",
@@ -895,6 +910,7 @@
     "pressure": "Druk",
     "base": "Basis",
     "pctBody": "% romp",
+    "pctLength": "% lengte",
     "supersonicNote": "Uitgebreide Barrowman: een benadering boven ongeveer mach 1,5.",
     "unavailable": "Bouw een geldige raket om de weerstand ervan te zien.",
     "crosshairHint": "Weerstandscurven. Focus en gebruik de pijltjestoetsen om het kruispunt te verplaatsen; Shift voor een grotere stap, Home en End voor de uiteinden, Esc om te wissen.",
@@ -906,7 +922,8 @@
     "loaded": "Ontwerp geladen (.ork)",
     "close": "Sluiten",
     "closeTitle": "Deze import weggooien en met een nieuw ontwerp beginnen",
-    "closeConfirm": "Dit geladen ontwerp weggooien en met een nieuw beginnen? Niet-opgeslagen wijzigingen gaan verloren."
+    "closeConfirm": "Dit geladen ontwerp weggooien en met een nieuw beginnen? Niet-opgeslagen wijzigingen gaan verloren.",
+    "repaired": "{{part}}: een {{field}} van {{was}} valt buiten wat de app toestaat en is verlaagd naar {{now}}."
   },
   "part": {
     "stage": "Trap",
@@ -980,6 +997,7 @@
   "prop": {
     "selectHint": "Kies een onderdeel in de boom of de tekening om de eigenschappen ervan te bewerken.",
     "editTitle": "Onderdeel bewerken",
+    "catalogPart": "Catalogusonderdeel",
     "name": "Naam",
     "delete": "Verwijderen",
     "lastStage": "Een raket heeft minstens één trap nodig",
@@ -1178,7 +1196,6 @@
     "fit": "Passend maken",
     "aftAria": "Achteraanzicht: de raket van achteren gezien; sleep om te draaien, scrolwiel om te zoomen",
     "sideAria": "Zijaanzicht van de raket met de markers voor CG en CP; scrolwiel om te zoomen, sleep de achtergrond om te verschuiven",
-    "sideAriaVertical": "Zijaanzicht van de raket, neus omhoog, met de markers voor CG en CP",
     "caliperH": "Horizontale greep van de schuifmaat {{end}}",
     "caliperV": "Verticale greep van de schuifmaat {{end}}"
   },
@@ -1305,7 +1322,7 @@
   "recovery": {
     "title": "Daling dimensioneren",
     "needsMotor": "Laad een motor om te dimensioneren op de dalingsmassa (geladen massa min de stuwstof).",
-    "forMass": "Voor een dalingsmassa van {{mass}} g:",
+    "forMass": "Geschat voor een daalmassa van {{mass}}:",
     "thisChute": "Deze koepel",
     "mainTarget": "Hoofdparachute ({{range}})",
     "drogueTarget": "Drogue ({{range}})",
@@ -1316,7 +1333,17 @@
       "between": "tussen de bereiken",
       "drogue": "bereik drogue",
       "fast": "erg snel"
-    }
+    },
+    "forMassRun": "Gemeten in de laatste run, bij een daalmassa van {{mass}}:",
+    "forMassRunBranch": "Gemeten in de laatste run op {{branch}}, bij een daalmassa van {{mass}}:",
+    "diametersEstimated": "De diameters zijn schattingen om mee te ontwerpen, geen simulatieresultaten.",
+    "open": "Daling dimensioneren…",
+    "use": "Gebruiken",
+    "useMain": "Diameter van de hoofdparachute gebruiken",
+    "useDrogue": "Diameter van de remparachute gebruiken",
+    "useTarget": "Diameter voor jouw snelheid gebruiken",
+    "targetRate": "Eigen daalsnelheid",
+    "atTarget": "Bij jouw snelheid"
   },
   "sims": {
     "new": "＋ Nieuw",
@@ -1446,7 +1473,8 @@
   "storage": {
     "full": "Kon je werk niet opslaan: de browseropslag is vol. Exporteer je ontwerp om het te bewaren.",
     "degraded": "Je browser blokkeert zijn database, dus de app is teruggevallen op een veel kleinere opslagruimte (ongeveer 5 MB) en opslaan kan mislukken zodra je ontwerp groeit. Privé navigeren is de gebruikelijke oorzaak. Exporteer alles wat je wilt bewaren.",
-    "loadFailed": "Je opgeslagen ontwerp kon niet worden gelezen. Er wordt blanco begonnen; nieuw werk wordt wel opgeslagen."
+    "loadFailed": "Je opgeslagen ontwerp kon niet worden gelezen. Er wordt blanco begonnen; nieuw werk wordt wel opgeslagen.",
+    "conflict": "Dit ontwerp is in een ander tabblad gewijzigd, dus je wijzigingen hier worden niet opgeslagen. Exporteer ze om ze te bewaren, of open het ontwerp opnieuw via Mijn raketten om de versie van het andere tabblad te laden."
   },
   "library": {
     "title": "Mijn raketten",
@@ -1571,6 +1599,8 @@
     "zoomOut": "Uitzoomen",
     "recenter": "Op de locatie centreren",
     "pick": "Klik op de kaart om de locatie te verplaatsen.",
+    "keysPick": "Pijltoetsen verschuiven de kaart, plus en min zoomen, en Enter zet de locatie in het midden.",
+    "keysView": "Pijltoetsen verschuiven de kaart, en plus en min zoomen.",
     "noCoords": "Voer een breedte- en lengtegraad in om de locatie te plaatsen.",
     "tooClose": "Geen beeld op deze zoom",
     "offline": "Geen beeld offline"
@@ -1610,5 +1640,177 @@
     "payload": "Nuttige last",
     "recoveryhardware": "Bergingsmateriaal",
     "battery": "Batterij"
+  },
+  "weather": {
+    "title": "Weer van Open-Meteo",
+    "dateLabel": "Datum",
+    "hourLabel": "Uur (lokale tijd van de lanceerplaats)",
+    "fetch": "Ophalen",
+    "fetching": "Bezig met ophalen…",
+    "apply": "Toepassen",
+    "needSite": "Vul eerst de breedte- en lengtegraad van de lanceerplaats in.",
+    "siteLine": "Lanceerplaats {{lat}}, {{lon}} op {{alt}}",
+    "noHour": "Het antwoord bevat geen gegevens voor dat uur.",
+    "validForecast": "Voorspelling voor {{time}}",
+    "validArchive": "Gemeten weer voor {{time}}",
+    "archiveNoAloft": "Voor een datum zo ver terug zijn alleen grondwaarden beschikbaar, zonder wind en atmosfeer op hoogte.",
+    "useTerrain": "De terreinhoogte, {{terrain}}, gebruiken voor de lanceerplaats (nu {{site}})",
+    "forecastNote": "Een voorspelling is een schatting van een model, geen meting.",
+    "credit": "Weergegevens van Open-Meteo.com",
+    "windValue": "{{speed}} uit {{from}}°, windstoten {{gust}}, profiel tot {{top}}",
+    "atmosphereValue": "Profiel tot {{top}}",
+    "group": {
+      "temperature": "Temperatuur",
+      "pressure": "Luchtdruk",
+      "humidity": "Luchtvochtigheid",
+      "wind": "Wind",
+      "atmosphere": "Atmosfeer op hoogte"
+    },
+    "dateRefusal": {
+      "tooFarAhead": "Open-Meteo voorspelt tot 15 dagen vooruit.",
+      "tooEarly": "De gegevens van Open-Meteo beginnen op 1 januari 1940.",
+      "badDate": "Kies een datum."
+    },
+    "error": {
+      "offline": "Open-Meteo is niet bereikbaar. Je lanceeromstandigheden zijn niet gewijzigd.",
+      "timeout": "Open-Meteo antwoordde niet op tijd. Je lanceeromstandigheden zijn niet gewijzigd.",
+      "aborted": "Geannuleerd. Je lanceeromstandigheden zijn niet gewijzigd.",
+      "refused": "Open-Meteo weigerde het verzoek: {{detail}}. Je lanceeromstandigheden zijn niet gewijzigd.",
+      "badKey": "Open-Meteo accepteerde de API-sleutel uit Instellingen, Lancering niet. Je lanceeromstandigheden zijn niet gewijzigd.",
+      "quota": "De gratis limiet van Open-Meteo is voorlopig op. Probeer het later opnieuw of voeg een API-sleutel toe in Instellingen, Lancering. Je lanceeromstandigheden zijn niet gewijzigd.",
+      "http": "Open-Meteo antwoordde met een fout ({{detail}}). Je lanceeromstandigheden zijn niet gewijzigd.",
+      "shape": "Het antwoord van Open-Meteo kon niet worden gelezen ({{detail}}). Je lanceeromstandigheden zijn niet gewijzigd.",
+      "units": "Open-Meteo antwoordde in eenheden die de app niet leest ({{detail}}). Je lanceeromstandigheden zijn niet gewijzigd.",
+      "noData": "Open-Meteo heeft hier geen gegevens voor die datum. Je lanceeromstandigheden zijn niet gewijzigd."
+    },
+    "keyLabel": "Open-Meteo-API-sleutel",
+    "keyPlaceholder": "Geen (gratis dienst)",
+    "keyNote": "Optioneel. Zonder sleutel komt het weer van de gratis dienst van Open-Meteo, die bedoeld is voor niet-commercieel gebruik. Een sleutel van een betaald Open-Meteo-abonnement heft de limieten op. De sleutel wordt alleen in deze browser bewaard.",
+    "keyNotSaved": "De sleutel kon niet in deze browser worden opgeslagen.",
+    "source": {
+      "forecast": "Open-Meteo-voorspelling voor {{when}} op {{where}}, opgehaald {{fetched}}",
+      "record": "Open-Meteo-meting voor {{when}} op {{where}}, opgehaald {{fetched}}",
+      "edited": "Bewerkt sinds het toepassen.",
+      "otherSite": "De lanceerplaats is verplaatst sinds het ophalen.",
+      "old": "Meer dan 3 uur geleden opgehaald. Een nieuwere voorspelling kan afwijken.",
+      "refresh": "Vernieuwen…"
+    },
+    "fetchedAt": "Opgehaald om {{time}}.",
+    "reused": "Hergebruikt van {{time}}. Open-Meteo wordt na 30 minuten opnieuw gevraagd.",
+    "fetchFresh": "Opnieuw ophalen"
+  },
+  "env": {
+    "elevation": "Hoogte van de lanceerplaats",
+    "note": "De lucht zoals de vlucht die tegenkwam, vastgelegd op weg omhoog en terug omlaag, van de grond tot het apogeum op {{apogee}}.",
+    "ascent": "Opstijging",
+    "descent": "Afdaling",
+    "noData": "Dit resultaat bevat geen atmosfeergegevens. Voer de simulatie opnieuw uit.",
+    "q": {
+      "windSpeed": "Windsnelheid",
+      "windDirection": "Windrichting",
+      "temperature": "Luchttemperatuur",
+      "pressure": "Luchtdruk",
+      "density": "Luchtdichtheid",
+      "speedOfSound": "Geluidssnelheid"
+    },
+    "when": "Datum / tijd",
+    "latitude": "Breedtegraad",
+    "longitude": "Lengtegraad",
+    "landing": {
+      "title": "Landing",
+      "stage": "Trap {{stage}} landt op",
+      "flyHours": "De uren rond deze voorspelling vliegen",
+      "flying": "Bezig met vliegen… {{done}} van {{total}}",
+      "flyHoursNote": "Vliegt dit ontwerp onder de voorspelling voor elk uur van twee ervoor tot twee erna, zoals de voorspelling nu is.",
+      "hour": "Uur",
+      "noForecast": "Vul de lanceeromstandigheden met Weer ophalen… om te zien hoe de landing verschuift over de uren rond de voorspelling.",
+      "failed": "De vluchten konden niet worden voltooid."
+    }
+  },
+  "landing": {
+    "title": "Landingsschatting",
+    "intro": "Waar een raket neerkomt, uit een lanceerplaats, een voorspellingsuur, het apogeum en de daalsnelheden. Dit is een schatting: de opstijging wordt niet gemodelleerd en de snelheden zijn wat je invult. Een raket die hier is ontworpen, krijgt haar landing uit de simulatie, op het tabblad Resultaten.",
+    "site": "Lanceerplaats",
+    "siteElevation": "Hoogte van de lanceerplaats",
+    "terrain": "Terrein",
+    "siteElevationHint": "Laat leeg om de hoogte van het terreinmodel op de lanceerplaats te gebruiken.",
+    "when": "Wanneer",
+    "flight": "Vlucht",
+    "apogee": "Apogeum boven het platform",
+    "recovery": "Berging",
+    "recovery_single": "Enkel",
+    "recovery_dual": "Dubbel",
+    "descentRate": "Daalsnelheid",
+    "drogueRate": "Daalsnelheid aan de remparachute",
+    "mainRate": "Daalsnelheid aan de hoofdparachute",
+    "mainAltitude": "Hoofdparachute opent boven het platform op",
+    "mainAboveApogee": "De hoofdparachute moet onder het apogeum opengaan.",
+    "estimate": "Landing schatten",
+    "estimating": "Bezig met schatten…",
+    "empty": "Vul de lanceerplaats, het uur en de vlucht in en druk op Landing schatten.",
+    "lands": "Landt op",
+    "distance": "Afstand",
+    "bearing": "Richting vanaf het platform",
+    "descentTime": "Daaltijd",
+    "zone": "Landingszone (2σ)",
+    "noZone": "Te weinig spreiding om te tekenen",
+    "groundAtLanding": "Grond bij de landing",
+    "estimateNote": "Een schatting uit ingevulde daalsnelheden. De zone omvat {{descents}} afdalingen: {{hours}} voorspellingsuren, windsnelheid 20% hoger en lager, richting 15° naar beide kanten en daalsnelheid 10% hoger en lager.",
+    "flatGround": "De vorm van het terrein kon niet worden opgehaald, dus de landing is op vlakke grond op de hoogte van het platform.",
+    "surfaceWindOnly": "Het archief van Open-Meteo voor deze datum heeft alleen de wind bij de grond, dus de hele afdaling drijft daarop.",
+    "mapLabel": "Landingsschatting van bovenaf, landing op {{distance}} van het platform"
+  },
+  "tools": {
+    "label": "Gereedschap",
+    "tool_landing": "Landingsschatting",
+    "tool_rail": "Van de rail",
+    "tool_chute": "Parachute dimensioneren"
+  },
+  "chuteTool": {
+    "title": "Parachute dimensioneren",
+    "intro": "De koepel die een raket met een gekozen daalsnelheid laat landen, uit wat er naar beneden komt, de weerstandscoëfficiënt van de koepel en de lucht op de locatie. Een schatting uit de daalvergelijking. Een parachute van een hier ontworpen raket toont dezelfde waarden onder Daling dimensioneren in zijn editor.",
+    "rocket": "Raket en koepel",
+    "mass": "Dalingsmassa",
+    "massHint": "Wat onder de koepel naar beneden komt: de raket nadat de stuwstof is opgebrand.",
+    "cd": "Cd van de koepel",
+    "diameter": "Diameter van de koepel",
+    "none": "Geen",
+    "air": "Lucht op de locatie",
+    "standard": "Standaard",
+    "result": "Resultaat parachute dimensioneren",
+    "empty": "Vul de dalingsmassa en de Cd van de koepel in."
+  },
+  "rail": {
+    "title": "Van de rail",
+    "intro": "Hoe een raket met een bepaalde motor de rail verlaat: de stuwkracht-gewichtsverhouding, de snelheid waarmee hij de rail verlaat en hoeveel zijwind hem draait. Een hier ontworpen raket krijgt deze waarden uit zijn simulatie, bij de gebeurtenis het verlaten van de rail.",
+    "motor": "Motor",
+    "noMotor": "Geen motor gekozen",
+    "chooseMotor": "Kiezen…",
+    "rocket": "Raket en rail",
+    "dryMass": "Raketmassa zonder motor",
+    "dryMassHint": "De geladen massa van de motor komt uit de catalogus en wordt hierbij opgeteld.",
+    "wind": "Windsnelheid",
+    "fromForecast": "Wind uit een voorspelling",
+    "fetchWind": "Voorspelde wind ophalen",
+    "fetching": "Ophalen…",
+    "forecastWind": "Voorspelde wind {{wind}} op 10 m, {{when}}.",
+    "forecastWindGust": "Voorspelde wind {{wind}} op 10 m, vlagen tot {{gust}}, {{when}}.",
+    "result": "Resultaat van de rail",
+    "empty": "Kies een motor en vul de raketmassa en de raillengte in.",
+    "noLiftoff": "De stuwkracht van de motor komt nooit boven het gewicht van de raket uit, dus hij komt niet los.",
+    "stalls": "De raket remt af tot stilstand voordat hij het einde van de rail bereikt.",
+    "liftoffMass": "Startmassa",
+    "twrAverage": "Stuwkracht-gewicht, gemiddeld",
+    "twrPeak": "Stuwkracht-gewicht, piek",
+    "twrAtExit": "Stuwkracht-gewicht bij het verlaten van de rail",
+    "exitSpeed": "Snelheid bij het verlaten van de rail",
+    "exitTime": "Tijd tot het verlaten van de rail",
+    "weathercock": "Windvaanhoek",
+    "weathercockGust": "Windvaanhoek in de vlagen",
+    "maxWind": "Sterkste wind onder {{angle}}°",
+    "maxDryMass": "Zwaarste raket zonder motor",
+    "none": "Geen",
+    "rules": "Oranje: een gemiddelde stuwkracht-gewichtsverhouding onder {{ratio}} : 1, een railsnelheid onder {{speed}} (het minimum uit Instellingen) of een windvaanhoek boven {{angle}}°. De zwaarste raket voldoet aan de eerste twee.",
+    "estimateNote": "Een schatting: zonder luchtweerstand, zonder wrijving op de rail en met een verticale rail, dus het echte vertrek is iets langzamer."
   }
 }

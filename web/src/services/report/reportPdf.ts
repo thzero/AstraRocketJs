@@ -1,5 +1,6 @@
 import { saveBlob, exportFilename } from '../files/saveFile';
-import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
+import type { RocketTree } from '../../engine/openRocketEngine';
+import { walkNodes } from '../../tree/treeWalk';
 import type { ReportModel } from './reportModel';
 import type { UnitSelection } from '../../prefs/units';
 import { finSetsOf } from './layout';
@@ -51,13 +52,7 @@ export async function downloadReportPdf(
   // --- Templates (1:1) ---
   const finStages = model.stages.filter((_, i) => opts.stages[i]?.finTemplates);
   const finSets = finStages.flatMap((st) => finSetsOf(st));
-  const allNodes: ComponentNode[] = [];
-  (function walk(ns: ComponentNode[]) {
-    for (const n of ns) {
-      allNodes.push(n);
-      if (n.children) walk(n.children);
-    }
-  })(tree.components);
+  const allNodes = [...walkNodes(tree.components)];
   const noses = opts.noseTemplates ? allNodes.filter((n) => n.type === 'nosecone') : [];
   const transitions = opts.transitionTemplates ? allNodes.filter((n) => n.type === 'transition') : [];
   if (finSets.length || noses.length || transitions.length) {

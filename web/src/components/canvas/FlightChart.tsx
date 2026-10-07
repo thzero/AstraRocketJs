@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { fmtNum } from '../../i18n/format';
+import { fmtNum, stageLabel } from '../../i18n/format';
 import { EVENT_LABEL, clusterEventLabels } from '../../services/flight/simReport';
 import { FlightCsvDialog } from '../sim/FlightCsvDialog';
 import { useSettings } from '../../state/SettingsProvider';
@@ -10,6 +10,7 @@ import { useChartZoom } from './useChartZoom';
 import { useChartCrosshair } from './useChartCrosshair';
 import { EventLabelStrip, eventStripHeight, packEventLabels } from './FlightChartEvents';
 import { FlightChartPanel } from './FlightChartPanel';
+import { useElementResize } from '../common/useElementResize';
 
 // The series catalog and the axis math moved to their own modules; CenterView,
 // GroundTrack and the chart tests import them from here.
@@ -43,7 +44,7 @@ export function FlightChart({ flight }: { flight: ChartFlight }) {
   const [w, setW] = useState(640);
 
   // Every branch as a colored, selectable trace.
-  const branches = useMemo(() => buildTraces(flight, (i) => `${t('flight.stage')} ${i + 1}`), [flight, t]);
+  const branches = useMemo(() => buildTraces(flight, (i) => stageLabel(t, i)), [flight, t]);
   const multistage = branches.length >= 2;
 
   // Which traces are HIDDEN. Exclusions rather than inclusions: a new set of
@@ -79,13 +80,7 @@ export function FlightChart({ flight }: { flight: ChartFlight }) {
   const crosshair = useChartCrosshair(t0, t1);
   const { hoverT, setHoverT } = crosshair;
 
-  useEffect(() => {
-    const el = hostRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver((entries) => setW(Math.max(280, entries[0]!.contentRect.width)));
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
+  useElementResize(hostRef, (r) => setW(Math.max(280, r.width)));
 
   const centerT = () => hoverT ?? (t0 + t1) / 2;
 

@@ -3,9 +3,14 @@ import type { StaticInfo } from '../../../src/engine/openRocketEngine';
 import type { ReportModel } from '../../../src/services/report/reportModel';
 import { buildDesignCsv } from '../../../src/services/report/reportCsv';
 import { METRIC_UNITS, IMPERIAL_UNITS } from '../../../src/prefs/units';
+import { summaryRows, type PdfPage } from '../../../src/services/report/pdfPage';
+import i18n from '../../../src/i18n';
 
 const info = {
   length: 0.9,
+  // Shorter than `length`, so 30.9 (the engine's figure) and 27.4 (the wrong
+  // (cp - cg) / length) are distinguishable in the assertion below.
+  lengthAerodynamic: 0.8,
   refDiameter: 0.079,
   mass: 4.25,
   massEmpty: 3.43,
@@ -14,6 +19,7 @@ const info = {
   cp: 1.629,
   cna: 26.42,
   stabilityCalibers: 3.14,
+  stabilityPercent: 30.9,
   rollInertia: 0.0054,
   pitchInertia: 1.83,
   cd: 1.115,
@@ -52,6 +58,9 @@ describe('design CSV', () => {
   it('has the Rocket summary in the chosen units with dot decimals', () => {
     expect(rows).toContainEqual(['Rocket', 'Length', '90', 'cm']);
     expect(rows).toContainEqual(['Rocket', 'Stability (on pad)', '3.14', 'cal']);
+    // The kernel's own figure. (cp - cg) / length would be 27.4: right shape,
+    // wrong denominator. Pinning it is what stops that formula coming back.
+    expect(rows).toContainEqual(['Rocket', 'Stability (%)', '30.9', '%']);
     expect(rows).toContainEqual(['Rocket', 'CP', '162.9', 'cm']);
     expect(rows).toContainEqual(['Rocket', 'Normal-Force Slope (CNα)', '26.42', '/rad']);
   });
@@ -104,5 +113,45 @@ describe('design CSV', () => {
     // break to an RFC-4180 parser.
     const c = buildDesignCsv({ ...model, name: 'One\rTwo' }, METRIC_UNITS);
     expect(c).toContain('"One\rTwo"');
+  });
+});
+
+/**
+ * Every whole-rocket statistics table lists the same rows: the .ork
+ * <designinfo> block, this CSV and the PDF. A finless design has no defined CP,
+ * so OpenRocket omits CP, both stability rows and CNα, and a design with no
+ * reference diameter has no fineness. The CSV wrote all of them (fineness as 0),
+ * so it carried rows the .ork written beside it did not.
+ */
+describe('design CSV rows for a finless design', () => {
+  const finless = { ...info, cna: 0, refDiameter: 0 } as StaticInfo;
+  const csv = buildDesignCsv({ ...model, whole: { label: 'F', info: finless }, stageSummaries: [] }, METRIC_UNITS);
+  const fields = csv
+    .split('\r\n')
+    .map((l) => l.split(',')[1])
+    .filter(Boolean);
+
+  it('omits what OpenRocket omits, as the .ork designinfo does', () => {
+    for (const f of ['CP', 'Stability (on pad)', 'Stability (%)', 'Normal-Force Slope (CNα)', 'Fineness (L/D)']) {
+      expect(fields).not.toContain(f);
+    }
+    expect(fields).toContain('Length');
+    expect(fields).toContain('Roll Inertia (Loaded)');
+  });
+});
+
+describe('PDF summary rows', () => {
+  const page = { t: i18n.getFixedT('en'), units: METRIC_UNITS } as unknown as PdfPage;
+
+  it('carries the inertia rows the CSV and the .ork carry', () => {
+    const labels = summaryRows(page, info).map(([l]) => l);
+    expect(labels).toContain(i18n.t('stats.pitchInertia'));
+    expect(labels).toContain(i18n.t('stats.rollInertia'));
+  });
+
+  it('omits CP and stability for a finless design', () => {
+    const labels = summaryRows(page, { ...info, cna: 0 } as StaticInfo).map(([l]) => l);
+    expect(labels).not.toContain(i18n.t('report.cp'));
+    expect(labels).not.toContain(i18n.t('report.stabilityCal'));
   });
 });

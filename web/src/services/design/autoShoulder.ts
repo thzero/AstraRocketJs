@@ -1,5 +1,6 @@
 import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
 import { boreAt } from './discGeometry';
+import { mapTreePreserving, type MapContext } from '../../tree/treeWalk';
 
 /**
  * Shoulders that follow the tube they plug into.
@@ -46,35 +47,22 @@ const SHOULDERS: Record<string, readonly { auto: string; radius: string; side: -
  * invalidate memos that depend on the parts it did not touch.
  */
 export function syncAutoShoulders(tree: RocketTree): RocketTree {
-  const chain = (nodes: ComponentNode[]): ComponentNode[] => {
-    let changed = false;
-    const out = nodes.map((n, i) => {
-      let node = n;
-      if (n.children) {
-        const kids = chain(n.children);
-        if (kids !== n.children) {
-          node = { ...node, children: kids };
-          changed = true;
-        }
-      }
-      for (const s of SHOULDERS[node.type] ?? []) {
-        if (node[s.auto] !== true) continue;
-        // The neighbor is read from the ORIGINAL row: a shoulder never changes
-        // the bore it is measured against, so there is no ordering to get wrong.
-        const neighbor = nodes[i + s.side];
-        const bore = neighbor ? boreAt(neighbor, s.side === -1 ? 'aft' : 'fore') : null;
-        // No neighbor yet, or one with no bore to plug: leave the stored value
-        // alone rather than zeroing a shoulder somebody typed. Adding the tube
-        // later fills it in on that edit.
-        if (bore !== null && node[s.radius] !== bore) {
-          node = { ...node, [s.radius]: bore };
-          changed = true;
-        }
-      }
-      return node;
-    });
-    return changed ? out : nodes;
+  const resolve = (n: ComponentNode, { index, siblings }: MapContext): ComponentNode => {
+    let node = n;
+    for (const s of SHOULDERS[node.type] ?? []) {
+      if (node[s.auto] !== true) continue;
+      // The neighbor is read from the ORIGINAL row: a shoulder never changes
+      // the bore it is measured against, so there is no ordering to get wrong.
+      const neighbor = siblings[index + s.side];
+      const bore = neighbor ? boreAt(neighbor, s.side === -1 ? 'aft' : 'fore') : null;
+      // No neighbor yet, or one with no bore to plug: leave the stored value
+      // alone rather than zeroing a shoulder somebody typed. Adding the tube
+      // later fills it in on that edit.
+      if (bore !== null && node[s.radius] !== bore) node = { ...node, [s.radius]: bore };
+    }
+    return node;
   };
-  const components = chain(tree.components);
+  // Post-order: a node's children are resolved before the node itself.
+  const components = mapTreePreserving(tree.components, resolve, 'post');
   return components === tree.components ? tree : { ...tree, components };
 }

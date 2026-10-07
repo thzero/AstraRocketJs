@@ -31,6 +31,7 @@
  */
 
 import { declaredLength, readStreamWithProgress, type TransferProgress } from './fetchProgress';
+import { errorMessage } from './errorMessage';
 
 /** The copy that ships inside the build, under the deploy subpath. */
 const LOCAL_BASE = `${import.meta.env.BASE_URL}data/`;
@@ -95,6 +96,11 @@ async function readJson<T>(res: Response, onProgress?: (p: CatalogProgress) => v
 
 /** A non-2xx reply, with its status, so a caller can tell "not there" (404,
  *  a fact about the host) from a transient failure worth retrying. */
+/** A download's progress as a whole percent, or null while its size is unknown. */
+export function progressPercent(p: CatalogProgress | null | undefined): number | null {
+  return p?.total ? Math.min(100, Math.round((p.loaded / p.total) * 100)) : null;
+}
+
 export class HttpError extends Error {
   constructor(readonly status: number) {
     super(`HTTP ${status}`);
@@ -219,9 +225,7 @@ export function fetchCatalog<T>(name: string, valid?: (v: unknown) => boolean): 
       }
       // Every base failed: drop the stale byte count so a retry starts clean.
       lastProgress.delete(name);
-      throw new Error(
-        `Could not load the ${name} catalog (${lastErr instanceof Error ? lastErr.message : String(lastErr)})`,
-      );
+      throw new Error(`Could not load the ${name} catalog (${errorMessage(lastErr)})`);
     })();
     // Don't cache a failure — let the next caller retry.
     p.catch(() => catalogP.delete(name));

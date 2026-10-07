@@ -1,4 +1,4 @@
-import { Component, type ErrorInfo, type ReactNode } from 'react';
+import { Component, lazy, Suspense, type ComponentType, type ErrorInfo, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
 /**
@@ -84,4 +84,26 @@ export class ErrorBoundary extends Component<Props, State> {
   render() {
     return this.state.error ? <ErrorFallback error={this.state.error} /> : this.props.children;
   }
+}
+
+/**
+ * A lazy view with its loading fallback, inside an error boundary. The boundary
+ * sits OUTSIDE the Suspense: it is the chunk FETCH that fails on a stale deploy,
+ * and Suspense re-throws that rejection during render rather than holding it, so
+ * a boundary inside it catches nothing and the throw takes the whole app down.
+ */
+export function LazyBoundary({ fallback, children }: { fallback: ReactNode; children: ReactNode }) {
+  return (
+    <ErrorBoundary>
+      <Suspense fallback={fallback}>{children}</Suspense>
+    </ErrorBoundary>
+  );
+}
+
+/** `React.lazy` over a module's NAMED export, the form every view here exports. */
+// `any` is React.lazy's own constraint on the component; the export's real
+// props type is kept through T, so the caller is still checked.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function lazyNamed<K extends string, T extends ComponentType<any>>(load: () => Promise<Record<K, T>>, key: K) {
+  return lazy(() => load().then((m) => ({ default: m[key] })));
 }

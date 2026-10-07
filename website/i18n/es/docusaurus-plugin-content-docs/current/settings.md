@@ -104,6 +104,10 @@ Ten en cuenta que estos seis son *obligatorios*, no *distintos de cero*: aire en
 
 En este diálogo esos campos nunca pueden acabar en blanco: inicializan cada nueva simulación, así que borrar uno aquí simplemente conserva el valor que tenía.
 
+### Clave de API de Open-Meteo {#open-meteo-key}
+
+Al final de la tarjeta Atmósfera de la pestaña Lanzamiento hay un campo para una clave de API de Open-Meteo, que usa [el tiempo de Open-Meteo](./running-a-simulation.md#weather). Déjalo vacío para usar el servicio gratuito de Open-Meteo, que es para uso no comercial. Una clave de un plan de pago de Open-Meteo envía las solicitudes a su servicio de pago. La clave se guarda solo en este navegador, fuera de estos ajustes, así que **Restablecer** no la toca y ningún diseño ni `.ork` que guardes la lleva.
+
 ## Reproducción {#playback}
 
 - **Velocidad predeterminada** — la velocidad a la que empieza a reproducirse la trayectoria de vuelo 3D, de 0,25× a 4×. Es un punto de partida, no un bloqueo: el control de velocidad de la vista cambia la reproducción actual sin tocar este ajuste.
@@ -124,6 +128,18 @@ Los tres últimos solo se aplican al **despliegue dual** (una etapa que lleva un
 Los tres dependen de que el cohete diga qué paracaídas es cuál. Marca **Piloto (despliegue dual)** en el paracaídas o la cinta que se abre en el apogeo y el vuelo se juzga como despliegue dual; déjalo sin marcar y toda la etapa es despliegue simple, juzgada solo contra **Aviso de velocidad de apertura por encima de**.
 
 Cada uno de estos también se puede sobrescribir por simulación, en las opciones de esa simulación.
+
+Al cambiar cualquiera de ellos, todas las simulaciones que ya se han ejecutado se marcan como **desactualizadas**, de modo que un resultado guardado nunca afirma describir unos ajustes con los que no se voló. Una simulación que fija el ajuste por su cuenta no se toca, porque su propio valor sigue aplicándose. Vuelve a ejecutarla para actualizar los números.
+
+## Modelo de vuelo
+
+Todo lo anterior decide cuándo *avisa* un vuelo. Esto cambia lo que hace el vuelo.
+
+- **Salida según las guías** — desactivado por defecto, que es el comportamiento propio de OpenRocket: el cohete permanece en el riel durante toda su longitud, estén donde estén las guías de lanzamiento o los botones de riel. OpenRocket calcula una longitud que tiene en cuenta las guías y luego no la usa, así que una guía montada por encima de la cola del cohete recibe un recorrido guiado que no tiene, y los botones de riel no se consideran en absoluto.
+
+  Al activarlo, la fase guiada termina cuando la guía más trasera sale del riel, sea una guía de lanzamiento o un botón. El cohete se libera en ese momento además de informarse allí, así que cambia el vuelo en sí, no solo el número. Espera una velocidad de salida algo menor: un botón de riel suele quedar de 10 a 20 cm por encima de la cola, lo que en un riel de 1,8 m supone alrededor de un 8 % menos de recorrido guiado. Un diseño sin ninguna guía es una torre de lanzamiento y vuela igual en ambos casos.
+
+  Es un ajuste y no una corrección porque el motor se comprueba contra OpenRocket de escritorio vuelo a vuelo. Desactivado, una ejecución coincide exactamente con OpenRocket.
 
 ## Restablecer
 

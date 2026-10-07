@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { subscribeCatalogProgress, type CatalogProgress } from '../../services/app/remoteData';
+import { type CatalogProgress, progressPercent, subscribeCatalogProgress } from '../../services/app/remoteData';
 import { fmtMb } from '../../i18n/format';
 
 /**
@@ -24,7 +24,7 @@ export function useCatalogProgress(name: string): CatalogProgress | null {
 export function CatalogLoading({ name, label }: { name: string; label: string }) {
   const { t } = useTranslation();
   const progress = useCatalogProgress(name);
-  const pct = progress?.total ? Math.min(100, Math.round((progress.loaded / progress.total) * 100)) : null;
+  const pct = progressPercent(progress);
   const bytes =
     !progress || progress.loaded === 0
       ? null
@@ -63,7 +63,11 @@ export function CatalogError({ message, onRetry }: { message: string; onRetry: (
   const { t } = useTranslation();
   return (
     <div className="space-y-3 px-3 py-6 text-center text-base">
-      <p className="text-amber-300">{message}</p>
+      {/* An alert because it replaces a loading line in a cell that is already on
+          screen: nothing else tells a screen reader the download failed. */}
+      <p role="alert" className="text-amber-300">
+        {message}
+      </p>
       <button onClick={onRetry} className="rounded-lg bg-slate-700 px-4 py-2 text-slate-100 hover:bg-slate-600">
         {t('catalog.retry')}
       </button>

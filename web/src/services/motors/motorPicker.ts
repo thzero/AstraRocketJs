@@ -1,5 +1,6 @@
 // Pure helpers for the motor picker / detail — extracted from the components so
 // they're unit-testable without rendering. No React, no DOM.
+import { tubeWall } from '../design/discGeometry';
 
 // Standard motor diameters (mm) — the stops on the range slider.
 export const STD_DIAMS = [6, 13, 18, 24, 29, 38, 54, 75, 98, 150];
@@ -47,10 +48,93 @@ export interface MountFit {
  * imported from an `.eng` need not, and dropping it from the list would be a
  * guess dressed up as a measurement. Both bounds carry the rounding slack above.
  */
+/**
+ * The hole a motor has to go into, from the mount's own node, or null when the
+ * tube does not state a diameter.
+ *
+ * Shared so the motor browser and the file reader judge a fit by the same
+ * numbers. The LENGTH allowance is the tube PLUS its overhang, because that is
+ * where the app seats a motor (aft - motorLength + overhang); the bare tube
+ * would refuse a motor the rocket can actually fly.
+ */
+export function mountFit(node: Record<string, unknown>): MountFit | null {
+  const finite = (k: string): number | null => (Number.isFinite(node[k]) ? (node[k] as number) : null);
+  const or = finite('outerRadius');
+  if (or == null) return null;
+  // A missing or non-finite wall is the type's kernel default, never 0 (the
+  // bore would be the whole outside) and never NaN (every fit would pass).
+  const th = Number.isFinite(node['thickness']) ? (node['thickness'] as number) : tubeWall(node['type']);
+  const tubeLen = finite('length');
+  const overhang = finite('motorOverhang') ?? 0;
+  return {
+    bore: (or - th) * 2 * 1000,
+    ...(tubeLen != null ? { maxLength: (tubeLen + overhang) * 1000 } : {}),
+  };
+}
+
 export function motorFitsMount(m: { diameter: number; length?: number }, fit: MountFit): boolean {
   if (m.diameter > fit.bore + FIT_TOLERANCE_MM) return false;
   if (fit.maxLength != null && m.length != null && m.length > fit.maxLength + FIT_TOLERANCE_MM) return false;
   return true;
+}
+
+/**
+ * RASP keeps a whole-number delay under this and drops the rest
+ * (`RASPMotorLoader`, whose own comment is "Many RASP files have 100 as an only
+ * delay"). Dropped, not plugged: the file is not claiming a motor with no
+ * ejection charge, it is claiming nothing.
+ */
+const RASP_DROP_AT = 99;
+
+/** RockSim reads a delay at or past this AS plugged (`RockSimMotorLoader.DELAY_LIMIT`). */
+const ROCKSIM_PLUGGED_AT = 90;
+
+/**
+ * A motor file's delay field as the CATALOG spells it (`"4,6,10,P"`).
+ *
+ * The string is the only form that can say plugged, which is why it is what
+ * `parseDelays` and `offersPlugged` read and what a catalog row carries. Both
+ * importers come through here, and a `.eng` that never set it arrived at the
+ * picker with no delays at all.
+ *
+ * THE TWO FORMATS DISAGREE, so each gets its own kernel loader's rule rather
+ * than one that looks reasonable for both. A big number means opposite things:
+ * RockSim writes 1000 to mean plugged, while a RASP file writing 100 means
+ * nothing at all and upstream throws it away. Reading the RASP one as plugged
+ * offers a no-ejection-charge option the file never claimed; reading the
+ * RockSim one as seconds opens the chute long after the rocket is down.
+ */
+export function delayList(raw: string | null | undefined, format: 'rasp' | 'rocksim'): string | undefined {
+  if (!raw) return undefined;
+  const rasp = format === 'rasp';
+  // RASP's own word for "this motor lists none".
+  if (rasp && /^none$/i.test(raw.trim())) return undefined;
+  const out: number[] = [];
+  let plugged = false;
+  for (const tok of raw.split(rasp ? /[-,\s]+/ : /[,\s]+/)) {
+    const t = tok.trim();
+    if (!t) continue;
+    if (/^p/i.test(t)) {
+      plugged = true;
+      continue;
+    }
+    const v = Number(t);
+    if (!Number.isFinite(v)) continue;
+    if (rasp) {
+      // `[0-9]+` and under 99, exactly what RASPMotorLoader keeps.
+      if (/^\d+$/.test(t) && v < RASP_DROP_AT) out.push(v);
+    } else if (v >= ROCKSIM_PLUGGED_AT) {
+      plugged = true;
+    } else {
+      out.push(v);
+    }
+  }
+  // RASP sorts its delays; RockSim keeps the file's order, so neither is
+  // reordered here beyond what its own loader does.
+  if (rasp) out.sort((a, b) => a - b);
+  const parts = out.map(String);
+  if (plugged) parts.push('P');
+  return parts.length ? parts.join(',') : undefined;
 }
 
 /** Parse a motor's delay string ("4,6,7,8,10" / "0-3-5-7" / "P") into its numeric

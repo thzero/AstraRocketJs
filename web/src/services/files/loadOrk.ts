@@ -10,15 +10,19 @@ import {
 import { parseDesignFile } from './designFile';
 import type { OrkExportMotor } from './orkFile';
 import type { LaunchConditions } from '../design/orkTree';
-import { loadCatalog, findCatalogMotor } from '../motors/motorDb';
+import { loadCatalog, matchCatalogMotor, type CatalogMotor, type MotorMatchDoubt } from '../motors/motorDb';
 import { customMotorToSpec, fetchMotorSpec } from '../motors/thrustcurve';
 import { parseRse, removeDelay } from '../motors/rseParser';
 import type { CustomMotor } from '../motors/motorStore';
 import type { OrkMotorRef } from './orkTypes';
 import { findMounts } from '../design/treeEdit';
+import { motorFitsMount, mountFit } from '../motors/motorPicker';
 import { hasUsableCurve } from '../motors/motorCurve';
 import { uuid } from '../app/uuid';
-import { type DeployOverride, type MountMotor } from '../flight/flightConfigs';
+import { type DeployOverride, type MountMotor, type SepOverride } from '../flight/flightConfigs';
+import { errorMessage } from '../app/errorMessage';
+import { roundTo } from '../app/numbers';
+import { rseDigest } from './ork/embeddedMotors';
 
 /** One of the file's flight configurations, with its motors resolved. */
 export interface LoadedConfig {
@@ -28,6 +32,17 @@ export interface LoadedConfig {
   motors: Record<string, MountMotor>;
   /** What this configuration said about recovery deployment (carried, not edited). */
   deployments?: Record<string, DeployOverride>;
+  /**
+   * ...and about staging, and about which stages stay on the pad. Carried for
+   * the same reason the deployments are, and they were not: `OrkFlightConfig`
+   * has declared both as non-optional all along, and this interface named
+   * neither, so opening a `.ork` whose configuration said
+   * `<stage number="1" active="false"/>` or carried a
+   * `<separationconfiguration>` dropped it on the floor. `saveOrk` then wrote
+   * the undefined value back and the file lost the setting for good.
+   */
+  separations?: Record<string, SepOverride>;
+  grounded?: string[];
 }
 
 export interface LoadedOrk {
@@ -145,19 +160,28 @@ function mountMotor(ref: OrkMotorRef, spec: MotorSpec): MountMotor {
  * whole open: the design is still perfectly loadable without it, and the mount
  * falls through to the unresolved placeholder it would have had anyway.
  */
-function embeddedCurves(files: string[] | undefined, notes: string[]): Map<string, CustomMotor> {
-  const out = new Map<string, CustomMotor>();
+function embeddedCurves(
+  files: string[] | undefined,
+  notes: string[],
+): { byName: Map<string, CustomMotor>; byDigest: Map<string, CustomMotor> } {
+  const byName = new Map<string, CustomMotor>();
+  const byDigest = new Map<string, CustomMotor>();
   for (const text of files ?? []) {
     try {
-      for (const motor of parseRse(text)) {
+      const motors = parseRse(text);
+      for (const motor of motors) {
         const key = removeDelay(motor.designation).toUpperCase();
-        if (!out.has(key)) out.set(key, motor);
+        if (!byName.has(key)) byName.set(key, motor);
       }
+      // The digest the desktop computes for the file, which is what a `.ork`
+      // names an embedded motor by. One motor per file, as the desktop writes.
+      const digest = motors.length === 1 ? rseDigest(text) : null;
+      if (digest) byDigest.set(digest, motors[0]!);
     } catch {
       notes.push('A thrust curve stored in the file could not be read and was skipped.');
     }
   }
-  return out;
+  return { byName, byDigest };
 }
 
 /**
@@ -187,7 +211,7 @@ export function buildForImport(tree: RocketTree): { design: OpenRocketDesign; un
   try {
     return { design: OpenRocketDesign.buildTree(tree) };
   } catch (e) {
-    const reason = e instanceof Error ? e.message : String(e);
+    const reason = errorMessage(e);
     let repaired;
     try {
       repaired = OpenRocketDesign.buildTree(withoutFreeformOutlines(tree));
@@ -234,6 +258,9 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
   // One resolution per distinct motor, not per mount per configuration: three
   // configurations flying the same J350 are one catalog lookup and one fetch,
   // and one note when it cannot be found rather than three identical ones.
+  /** Millimeters as a reader states them: no decimal unless there is one. */
+  const round1 = (mm: number): string => String(roundTo(mm, 1));
+
   const resolved = new Map<string, MotorSpec>();
   const resolveMotor = async (ref: OrkMotorRef): Promise<MotorSpec> => {
     const key = `${(ref.manufacturer ?? '').toLowerCase()}|${ref.designation.toLowerCase()}|${ref.delay}`;
@@ -243,9 +270,42 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
     resolved.set(key, spec);
     return spec;
   };
+  /**
+   * What the catalog found, when it is not plainly what the file asked for.
+   *
+   * The lookup runs from "this is the name" down to "this is what the name looks
+   * like with its impulse and propellant taken off", and treats the file's
+   * manufacturer as a preference rather than a filter. Every one of those is a
+   * match worth making; none of them is the file confirming the motor. Loading
+   * one in silence is how an `I170-P` filed under Kosdon became a Cesaroni
+   * I170 with nothing on screen to say so.
+   */
+  const noteDoubt = (ref: OrkMotorRef, cat: CatalogMotor, doubt: MotorMatchDoubt): void => {
+    const got = `${cat.manufacturer} ${cat.designation}`;
+    const asked = `"${ref.designation}"`;
+    const check = 'check it before flying.';
+    if (doubt === 'maker') {
+      notes.push(
+        `Motor ${asked} is filed under ${ref.manufacturer} in this file and the catalog has no motor of theirs by that name. Loaded ${got} instead - ${check}`,
+      );
+    } else if (doubt === 'shortened') {
+      notes.push(`Motor ${asked} is not a name the catalog carries. Loaded the closest, ${got} - ${check}`);
+    } else {
+      notes.push(`Motor ${asked} matches more than one motor in the catalog. Loaded ${got} - ${check}`);
+    }
+  };
+
   const resolveOnce = async (ref: OrkMotorRef): Promise<MotorSpec> => {
-    const own = () => embedded.get(removeDelay(ref.designation).toUpperCase());
-    const cat = findCatalogMotor(catalog, ref.designation, ref.manufacturer);
+    const own = () => embedded.byName.get(removeDelay(ref.designation).toUpperCase());
+    const match = matchCatalogMotor(catalog, ref.designation, ref.manufacturer);
+    const cat = match?.motor;
+    // The curve the file names by digest, unless the catalog holds that exact
+    // motor: an imported motor saved from this app, or any motor the catalog
+    // does not carry under that digest. A name match alone could be a different
+    // motor that happens to share it.
+    const named = ref.digest ? embedded.byDigest.get(ref.digest) : undefined;
+    if (named && !cat?.digests?.some((d) => d.digest === ref.digest)) return customMotorToSpec(named, ref.delay);
+    if (match?.doubt) noteDoubt(ref, match.motor, match.doubt);
     if (!cat) {
       // Before giving up: the file may carry the curve itself.
       const curve = own();
@@ -278,7 +338,7 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
       // produce a runnable simulation flying a 10 N-s C6, with the only warning
       // buried in the import notes that settings.showImportNotes can hide.
       notes.push(
-        `Motor "${ref.designation}": ${e instanceof Error ? e.message : String(e)} - pick a motor for that mount (it won't fly a default).`,
+        `Motor "${ref.designation}": ${errorMessage(e)} - pick a motor for that mount (it won't fly a default).`,
       );
       return unresolvedMotor(ref);
     }
@@ -289,15 +349,61 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
   // elements were read without a declaration table (importConfigs).
   const declared = res.configs?.length
     ? res.configs
-    : [{ id: uuid(), name: null, isDefault: true, motors: res.motors ?? {}, deployments: {} }];
+    : [
+        {
+          id: uuid(),
+          name: null,
+          isDefault: true,
+          motors: res.motors ?? {},
+          deployments: {},
+          separations: {},
+          grounded: [],
+        },
+      ];
   const chosenConfigId = declared.some((c) => c.id === res.chosenConfigId) ? res.chosenConfigId! : declared[0]!.id;
 
-  const mounts = findMounts(res.tree).map((m) => m.id as string);
+  const mountNodes = findMounts(res.tree);
+  const mounts = mountNodes.map((m) => m.id as string);
+  const byId = new Map(mountNodes.map((m) => [m.id as string, m]));
+  // One complaint per mount and motor, however many configurations fly it.
+  const misfits = new Set<string>();
+  /**
+   * A motor the file names for a mount it does not go in.
+   *
+   * The file gives a NAME, and the name is all the catalog is searched by, so
+   * nothing stopped a 54 mm J360 being seated in a 38 mm tube: the app flew a
+   * rocket on a motor nobody could push into it, and said nothing. The browser
+   * has judged this all along (`motorFitsMount`) and the reader never asked.
+   *
+   * SEATED ANYWAY, because a file is a statement of what somebody built and
+   * dropping its motor would be the app overruling it on a tolerance it is
+   * guessing at. The note is the point.
+   */
+  const checkFit = (mountId: string, spec: MotorSpec): void => {
+    const node = byId.get(mountId);
+    const fit = node ? mountFit(node as unknown as Record<string, unknown>) : null;
+    if (!fit || !spec.designation || !(spec.diameter > 0)) return;
+    const motor = { diameter: spec.diameter * 1000, length: spec.length ? spec.length * 1000 : undefined };
+    if (motorFitsMount(motor, fit)) return;
+    const key = `${mountId}|${spec.designation}`;
+    if (misfits.has(key)) return;
+    misfits.add(key);
+    const where = `"${(node!.name as string) || node!.type}"`;
+    const tooWide = motor.diameter > fit.bore;
+    notes.push(
+      tooWide
+        ? `Motor "${spec.designation}" is ${round1(motor.diameter)} mm and mount ${where} takes ${round1(fit.bore)} mm, so it does not fit. Seated as the file names it - check it before flying.`
+        : `Motor "${spec.designation}" is ${round1(motor.length ?? 0)} mm long and mount ${where} holds ${round1(fit.maxLength ?? 0)} mm, so it does not fit. Seated as the file names it - check it before flying.`,
+    );
+  };
+
   const configs: LoadedConfig[] = [];
   for (const cfg of declared) {
     const motors: Record<string, MountMotor> = {};
     for (const [mountId, ref] of Object.entries(cfg.motors ?? {})) {
-      motors[mountId] = mountMotor(ref, await resolveMotor(ref));
+      const spec = await resolveMotor(ref);
+      checkFit(mountId, spec);
+      motors[mountId] = mountMotor(ref, spec);
     }
     // Every mount this configuration named no motor for gets the empty
     // placeholder (see emptyMountMotor), so nothing seeds it a default later.
@@ -307,6 +413,8 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
       name: cfg.name,
       motors,
       ...(Object.keys(cfg.deployments ?? {}).length ? { deployments: cfg.deployments } : {}),
+      ...(Object.keys(cfg.separations ?? {}).length ? { separations: cfg.separations } : {}),
+      ...(cfg.grounded?.length ? { grounded: cfg.grounded } : {}),
     });
   }
 

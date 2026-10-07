@@ -9,6 +9,7 @@
 import { initEngine, resetEngine } from './openRocketEngine';
 import { buildConfiguredRocket } from '../services/design/buildRocket';
 import type { WorkerRequest, WorkerResponse } from './simProtocol';
+import { errorMessage } from '../services/app/errorMessage';
 
 const ctx = self as unknown as DedicatedWorkerGlobalScope;
 
@@ -28,8 +29,6 @@ const ctx = self as unknown as DedicatedWorkerGlobalScope;
 let ready: Promise<void> | null = null;
 let fatal: string | null = null;
 
-const message = (err: unknown): string => (err instanceof Error ? err.message : String(err));
-
 ctx.onmessage = async (e: MessageEvent<WorkerRequest>) => {
   const req = e.data;
   const id = req.id;
@@ -37,7 +36,7 @@ ctx.onmessage = async (e: MessageEvent<WorkerRequest>) => {
   ready ??= initEngine(undefined, req.engine).then(
     () => undefined,
     (err: unknown) => {
-      fatal = `sim worker engine failed to load: ${message(err)}`;
+      fatal = `sim worker engine failed to load: ${errorMessage(err)}`;
     },
   );
   try {
@@ -66,6 +65,6 @@ ctx.onmessage = async (e: MessageEvent<WorkerRequest>) => {
         reply({ id, ok: false, error: `unknown method: ${String((req as { method: unknown }).method)}` });
     }
   } catch (err) {
-    reply({ id, ok: false, error: message(err) });
+    reply({ id, ok: false, error: errorMessage(err) });
   }
 };

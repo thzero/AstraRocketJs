@@ -11,7 +11,6 @@ import {
   fitRuleFor,
   fitScore,
   manufacturers,
-  odBounds,
   queryComponents,
   queryIsEmpty,
   type ComponentQuery,
@@ -466,13 +465,6 @@ describe('facets', () => {
     expect(ms.length).toBeGreaterThan(5);
     expect(ms).toEqual([...new Set(ms)]);
     expect(ms).toEqual([...ms].sort((a, b) => a.localeCompare(b)));
-  });
-
-  it('reports the outer-diameter span, and nothing for an empty list', () => {
-    const b = odBounds(ofType('bodytube'))!;
-    expect(b.min).toBeGreaterThan(0);
-    expect(b.max).toBeGreaterThan(b.min);
-    expect(odBounds([])).toBeNull();
   });
 
   it('knows when nothing is narrowing the list', () => {

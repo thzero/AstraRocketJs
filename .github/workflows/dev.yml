@@ -1,18 +1,34 @@
 name: Dev
 
-# The push gate for day-to-day work on `dev`.
+# The push gate for day-to-day work on EVERY branch but master.
 #
 # ci.yml is `pull_request`-only and deploy.yml is master-push-only, so a push
-# to dev with no PR open was checked by NOTHING: a broken typecheck or a red
-# unit test sat on the branch until someone opened the PR. The code-quality
-# audit (docs/AUDIT_CODE_QUALITY.md) called for a workflow on every push.
+# with no PR open was checked by NOTHING: a broken typecheck or a red unit test
+# sat on the branch until someone opened the PR.
 #
-# Only the web gates, and only the fast ones: `npm run verify`, the same list
-# a developer runs locally, so the two cannot drift. No Java toolchain, no
-# parity (20-60 min), no e2e (~4 min sharded), no coverage floor. Those stay
-# in gates.yml, which the PR still has to pass; this exists to say within a
-# few minutes of the push that it broke formatting, spelling, types, lint, a
-# unit test or knip.
+# That is what `branches-ignore: [master]` is for, and it is the second attempt
+# at it. The first read `branches: [dev]`, which closed the hole for one branch
+# name and left it open for every other: work on a `test`, a `fix/...` or a
+# `spike/...` branch went on being checked by nothing at all, which is where
+# most of the work actually happens. Naming the branch was the bug.
+#
+# master is excluded because deploy.yml already runs the full gate set there,
+# and a branch with a PR open deliberately runs both this and ci.yml: two
+# minutes of duplicate web checks is worth not having to reason about which
+# branches have PRs.
+#
+# Tag pushes do not trigger this: a branch filter of either kind confines the
+# `push` event to branches.
+#
+# Only the web gates: `npm run verify`, the same list a developer runs locally,
+# so the two cannot drift. No Java toolchain, no parity (20-60 min) and no e2e
+# (~4 min sharded) - those stay in gates.yml, which the PR still has to pass.
+#
+# `verify:ci` rather than `verify`: same gate list, but the suite runs WITH
+# coverage so the floors in vitest.config.ts are enforced on every push rather
+# than only on a PR. That is the expensive half - about 335 s against 65 s - which
+# is exactly why it lives here and not in `verify`, the command a developer types
+# before pushing.
 #
 # Cancels the previous run on the same ref: a second push while the first is
 # still installing makes the first run's verdict about a commit nobody will
@@ -20,7 +36,7 @@ name: Dev
 
 on:
   push:
-    branches: [dev]
+    branches-ignore: [master]
 
 permissions:
   contents: read
@@ -29,12 +45,21 @@ concurrency:
   group: dev-${{ github.ref }}
   cancel-in-progress: true
 
+# The workflow is still NAMED `Dev`, although it no longer runs only on `dev`.
+# The check GitHub reports is "<workflow name> / <job id>", so renaming it
+# renames "Dev / verify" and silently breaks any branch-protection rule that
+# requires that name. Rename it together with the protection settings, not
+# before.
+
 jobs:
   verify:
     runs-on: ubuntu-latest
-    # The list runs in ~2 min warm. A backstop only; if it is still going at
-    # ten minutes something is hung, not slow.
-    timeout-minutes: 10
+    # 15, raised from 10 when this job moved to `verify:ci`. The list was ~2 min
+    # when the cap was written and the suite ran without coverage; it is now about
+    # 6 min of `verify:ci` plus `npm ci`, so ten left under a third of the budget
+    # spare. A backstop only: if it is still going at fifteen minutes something is
+    # hung, not slow.
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: web
@@ -49,4 +74,4 @@ jobs:
 
       - run: npm ci
 
-      - run: npm run verify
+      - run: npm run verify:ci

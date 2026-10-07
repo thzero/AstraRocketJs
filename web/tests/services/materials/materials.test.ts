@@ -1,11 +1,6 @@
+import { nsKey } from '../../../src/services/storage/storageKeys';
 import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
-import {
-  builtinsForType,
-  addCustom,
-  removeCustom,
-  materialsForType,
-  findMaterial,
-} from '../../../src/services/materials/materials';
+import { builtinsForType, addCustom, removeCustom, materialsForType } from '../../../src/services/materials/materials';
 import { KeyValueMaterialStore, setMaterialStore } from '../../../src/services/materials/materialStore';
 import type { KeyValueStore } from '../../../src/services/storage/keyValueStore';
 import { serveData } from '../../testing/serveData';
@@ -36,7 +31,7 @@ class FakeKv implements KeyValueStore {
 beforeAll(serveData);
 
 // Fresh in-memory material store per test (avoids cross-test bleed via the singleton).
-beforeEach(() => setMaterialStore(new KeyValueMaterialStore('astrarrocketjs:materials:custom', new FakeKv())));
+beforeEach(() => setMaterialStore(new KeyValueMaterialStore(nsKey('materials:custom'), new FakeKv())));
 
 describe('builtinsForType', () => {
   it('returns only built-ins of the requested type', async () => {
@@ -63,7 +58,7 @@ describe('addCustom validation', () => {
   });
 });
 
-describe('materialsForType / findMaterial', () => {
+describe('materialsForType', () => {
   it('lists a custom material inside a real group, not above everything', async () => {
     // NOT `[...custom, ...builtins]`, which puts every custom material at the top
     // under a `Custom` group of its own. The provenance is the star the picker
@@ -84,12 +79,6 @@ describe('materialsForType / findMaterial', () => {
     expect(list.filter((m) => m.name === 'Balsa')).toHaveLength(1);
     expect(list.find((m) => m.name === 'Balsa')!.density).toBe(185);
     expect(list.find((m) => m.name === 'Balsa')!.group).toBe('Woods');
-  });
-
-  it('finds a material by name+type across custom and built-ins', async () => {
-    await addCustom('Findable', 'bulk', 500);
-    expect((await findMaterial('Findable', 'bulk'))?.density).toBe(500);
-    expect(await findMaterial('Nope', 'bulk')).toBeUndefined();
   });
 
   it('removeCustom drops the material', async () => {

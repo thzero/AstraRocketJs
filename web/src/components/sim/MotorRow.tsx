@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { NumberInput } from '../common/NumberInput';
 import { PLUGGED_DELAY, type MotorSpec, type IgnitionEvent } from '../../engine/openRocketEngine';
 import { MotorDialog } from './MotorDialog';
 import type { MountFit } from '../../services/motors/motorPicker';
 import { MotorSpecDialog } from './MotorSpecDialog';
 import { fmtNum } from '../../i18n/format';
 import { useUnits } from '../../prefs/useUnits';
+import { motorName } from '../../services/motors/motorName';
 
 // Only meaningful on an upper stage: the sustainer triggers fire off the stage
 // below, and "never" (skip this motor) would just strand a single/bottom stage
@@ -76,11 +78,11 @@ export function MotorRow({
           </div>
           {motor ? (
             <>
-              <div className="truncate text-lg font-semibold text-sky-400">{motor.designation}</div>
+              <div className="truncate text-lg font-semibold text-sky-400">{motorName(motor)}</div>
               <div className="text-xs text-slate-500">
                 {u.fmt('motorDimensions', motor.diameter)} × {u.fmt('motorDimensions', motor.length)}{' '}
                 {u.sym('motorDimensions')}
-                {hasCurve ? ` · ${u.fmt('mass', motor.masses[0]!)} ${u.sym('mass')}` : ''}
+                {hasCurve ? ` · ${u.fmtSym('mass', motor.masses[0]!)}` : ''}
               </div>
               {hasCurve ? (
                 <div className="mt-0.5 text-xs text-slate-500">
@@ -189,15 +191,23 @@ function IgnitionControl({
       {event !== 'never' && (
         <label className="flex shrink-0 items-center gap-1 text-slate-500">
           +
-          <input
-            type="number"
+          {/* `NumberInput` for the same reason the ejection delay in MotorDialog
+              is one: a raw box with `?? 0` commits a ZERO ignition delay the
+              moment the field is cleared to retype, which on an air-start is the
+              upper stage lighting at separation. The draft buffer holds the empty
+              string instead, and a blank box means "no change".
+
+              `parseFloat(x) || 0` let Infinity through before that, because
+              `Infinity || 0` is Infinity. */}
+          <NumberInput
             min={0}
             step={0.5}
             value={delay}
-            aria-label={t('sims.ignitionDelay')}
-            title={t('sims.ignitionDelay')}
-            onChange={(e) => onChange(event, Math.max(0, parseFloat(e.target.value) || 0))}
-            onBlur={onCommit}
+            ariaLabel={t('sims.ignitionDelay')}
+            onChange={(v) => {
+              if (v !== null) onChange(event, v);
+            }}
+            onCommit={onCommit}
             className="w-14 rounded bg-slate-950 px-1.5 py-0.5 text-right tabular-nums text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
           />
           s

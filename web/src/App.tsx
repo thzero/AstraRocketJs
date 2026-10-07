@@ -1,4 +1,4 @@
-import { useRef, useState, type RefObject } from 'react';
+import { useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore, selectActive, selectDesignName } from './state/store';
 import { useWorkspaceEffects } from './state/useWorkspaceEffects';
@@ -15,6 +15,7 @@ import { FlightEventsTable } from './components/sim/FlightEventsTable';
 import { SimSummary } from './components/sim/SimSummary';
 import { FlightWarnings } from './components/sim/FlightWarnings';
 import { TabBar } from './components/layout/TabBar';
+import { ToolsPane } from './components/tools/ToolsPane';
 import { WorkInProgressDialog } from './components/layout/WorkInProgressDialog';
 import { ConfirmDialog } from './components/common/ConfirmDialog';
 import { PromptDialog } from './components/common/PromptDialog';
@@ -68,10 +69,6 @@ export default function App() {
   const treeW = dragTree ?? settings.treePaneWidth;
   const sideW = dragSide ?? settings.sidePaneWidth;
   const treeRef = useRef<HTMLElement>(null);
-  // One ref per right column, because which one is mounted depends on the tab.
-  const propsRef = useRef<HTMLElement>(null);
-  const configEditRef = useRef<HTMLElement>(null);
-  const simEditRef = useRef<HTMLElement>(null);
   const summaryRef = useRef<HTMLElement>(null);
 
   // The four right columns share ONE width, so the divider is the same control
@@ -95,9 +92,14 @@ export default function App() {
   // below `2xl`, where there is no property column to leave room for, and the
   // tree would otherwise be capped against a pane that is not on screen.
   const propsW = wide ? sideW : 0;
-  const commitSide = (w: number) => {
-    setDragSide(null);
-    update({ sidePaneWidth: w });
+  const side: SideSplit = {
+    width: sideW,
+    reserve: sideReserve,
+    onDrag: setDragSide,
+    onCommit: (w: number) => {
+      setDragSide(null);
+      update({ sidePaneWidth: w });
+    },
   };
 
   return (
@@ -190,18 +192,9 @@ export default function App() {
             this column is not rendered at all: one editor in the document,
             never two. */}
         {wide && tab === 'design' && !maxed && (
-          <>
-            <SideSplitter
-              paneRef={propsRef}
-              width={sideW}
-              reserve={sideReserve}
-              onDrag={setDragSide}
-              onCommit={commitSide}
-            />
-            <section ref={propsRef} style={sideStyle} className="shrink-0 overflow-y-auto lg:h-full">
-              <PropertyPane />
-            </section>
-          </>
+          <RightColumn split={side} style={sideStyle}>
+            <PropertyPane />
+          </RightColumn>
         )}
 
         {/* CONFIGURATIONS — toolbar + the table of flight configurations. Full
@@ -218,18 +211,9 @@ export default function App() {
             desktop only). On a phone it is inline under the table instead, so a
             phone can still change a motor. */}
         {desktop && tab === 'configs' && (
-          <>
-            <SideSplitter
-              paneRef={configEditRef}
-              width={sideW}
-              reserve={sideReserve}
-              onDrag={setDragSide}
-              onCommit={commitSide}
-            />
-            <section ref={configEditRef} style={sideStyle} className="shrink-0 overflow-y-auto lg:h-full">
-              <ConfigEditor />
-            </section>
-          </>
+          <RightColumn split={side} style={sideStyle}>
+            <ConfigEditor />
+          </RightColumn>
         )}
 
         {/* SIMULATIONS — toolbar + the table of runs. Its own tab, so the table
@@ -245,18 +229,9 @@ export default function App() {
             only). On a phone it is inline under the table instead, so a phone
             can still change a motor. */}
         {desktop && tab === 'sim' && (
-          <>
-            <SideSplitter
-              paneRef={simEditRef}
-              width={sideW}
-              reserve={sideReserve}
-              onDrag={setDragSide}
-              onCommit={commitSide}
-            />
-            <section ref={simEditRef} style={sideStyle} className="shrink-0 overflow-y-auto lg:h-full">
-              <SimEditor />
-            </section>
-          </>
+          <RightColumn split={side} style={sideStyle}>
+            <SimEditor />
+          </RightColumn>
         )}
 
         {/* RIGHT — the run's numbers, beside the charts they describe (Results
@@ -265,15 +240,7 @@ export default function App() {
             one setting: right columns of different widths read as an accident.
             The tiles are a 3-up grid, which is what SIDE_PANE_MIN protects -
             narrower and "Static margin @ rail exit" wraps onto three lines. */}
-        {tab === 'results' && !maxed && (
-          <SideSplitter
-            paneRef={summaryRef}
-            width={sideW}
-            reserve={sideReserve}
-            onDrag={setDragSide}
-            onCommit={commitSide}
-          />
-        )}
+        {tab === 'results' && !maxed && <SideSplitter paneRef={summaryRef} {...side} />}
         <section
           ref={summaryRef}
           style={sideStyle}
@@ -294,6 +261,15 @@ export default function App() {
             <FlightEventsTable sim={result} simName={activeSimName} designName={designName} />
           </div>
         </section>
+        {/* Tools: work that stands apart from the open design, such as the
+            landing estimate for a rocket designed elsewhere. Mounted only while
+            open: hidden, its site fields would be a second Latitude and
+            Longitude in the document. The estimator keeps its own inputs. */}
+        {tab === 'tools' && (
+          <section className="flex min-h-0 flex-1 flex-col lg:h-full lg:overflow-hidden" aria-label={t('tabs.tools')}>
+            <ToolsPane />
+          </section>
+        )}
       </main>
 
       <TabBar />
@@ -305,6 +281,31 @@ export default function App() {
       <ConfirmDialog />
       <PromptDialog />
     </div>
+  );
+}
+
+/** The shared right-column width and the handlers that resize it. */
+interface SideSplit {
+  width: number;
+  reserve: number;
+  onDrag: (w: number | null) => void;
+  onCommit: (w: number) => void;
+}
+
+/**
+ * A right column that is mounted only on its own tab: the divider on its left
+ * edge and the scrolling pane it sizes. Each column holds its own ref, because
+ * which one is mounted depends on the tab.
+ */
+function RightColumn({ split, style, children }: { split: SideSplit; style: CSSProperties; children: ReactNode }) {
+  const ref = useRef<HTMLElement>(null);
+  return (
+    <>
+      <SideSplitter paneRef={ref} {...split} />
+      <section ref={ref} style={style} className="shrink-0 overflow-y-auto lg:h-full">
+        {children}
+      </section>
+    </>
   );
 }
 
@@ -324,12 +325,8 @@ function SideSplitter({
   reserve,
   onDrag,
   onCommit,
-}: {
+}: SideSplit & {
   paneRef: RefObject<HTMLElement | null>;
-  width: number;
-  reserve: number;
-  onDrag: (w: number | null) => void;
-  onCommit: (w: number) => void;
 }) {
   const { t } = useTranslation();
   return (

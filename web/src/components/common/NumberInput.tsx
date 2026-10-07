@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { parseEntry } from '../../prefs/entryValue';
 
 /** Round for DISPLAY only — trims unit-conversion float noise (e.g. 0.1 + 0.2).
  *  The value the parent stores keeps whatever precision the user actually typed. */
@@ -20,28 +21,20 @@ const fmt = (v: number) => String(Number(v.toFixed(6)));
  * What a typed field value means: a finite number clamped to the declared
  * bounds, or `null` for "no value".
  *
- * Pure and exported because the DOM cannot be trusted to exercise it. jsdom
- * refuses to deliver "1e999" to a `type="number"` input at all, so a rendered
- * test of the overflow case passes for the wrong reason; the browser does
- * deliver it, and `parseFloat` returns `Infinity`.
- *
- * `Number.isFinite`, not just `!isNaN`: Infinity slipped through both the NaN
- * check and the clamp (`Infinity < min` is false, and most callers pass no
- * `max`). It reached the node, was persisted, exported to `.ork`, and read
- * back as `0` by `num()` - so the field showed Infinity while the geometry
- * behaved as if the dimension were simply absent.
+ * A thin name over `parseEntry` (prefs/entryValue), which is the app's one rule
+ * for what a data entry may store. Kept exported here because this is where
+ * callers look for it, and because the DOM cannot be trusted to exercise the
+ * overflow case: jsdom refuses to deliver "1e999" to a `type="number"` input at
+ * all, so a rendered test of it passes for the wrong reason.
  *
  * The clamp is here because the HTML `min`/`max` are only spinner hints: a
  * typed-in out-of-range value would otherwise reach the live engine rebuild.
+ *
+ * This guards the ENTRY. A field whose value is unit-converted before storage
+ * must also guard the CONVERSION, because a finite entry is not a finite stored
+ * value - that is `FieldUnit.toSi`, and the same module backs both.
  */
-export function parseFieldValue(raw: string, min?: number, max?: number): number | null {
-  const n = parseFloat(raw);
-  if (raw === '' || !Number.isFinite(n)) return null;
-  let v = n;
-  if (min != null && v < min) v = min;
-  if (max != null && v > max) v = max;
-  return v;
-}
+export const parseFieldValue = parseEntry;
 
 export function NumberInput({
   value,
@@ -55,6 +48,7 @@ export function NumberInput({
   className,
   ariaLabel,
   invalid,
+  commitOnBlur = false,
 }: {
   value: number | null;
   onChange: (v: number | null) => void;
@@ -78,9 +72,29 @@ export function NumberInput({
    * ("Length mm"), and the name changes whenever the unit does.
    */
   ariaLabel?: string;
+  /**
+   * Report the typed value once, on blur or Enter, instead of on every
+   * keystroke: for a field whose every value costs something to apply (the
+   * aero sweep runs the kernel; a settings write hits storage). A visit that
+   * typed nothing reports nothing.
+   */
+  commitOnBlur?: boolean;
 }) {
   // null ⇒ not editing: mirror the prop. A string ⇒ the in-progress keystrokes.
   const [draft, setDraft] = useState<string | null>(null);
+  const edited = useRef(false);
+  const commit = () => {
+    if (commitOnBlur && edited.current && draft !== null) {
+      if (draft.trim() === '') onChange(null);
+      else {
+        const v = parseFieldValue(draft, min, max);
+        if (v !== null) onChange(v);
+      }
+    }
+    edited.current = false;
+    setDraft(null);
+    onCommit?.();
+  };
   const blank = value === null || value === undefined || Number.isNaN(value);
   return (
     <input
@@ -103,12 +117,27 @@ export function NumberInput({
       onChange={(e) => {
         const raw = e.target.value;
         setDraft(raw);
-        onChange(parseFieldValue(raw, min, max));
+        if (commitOnBlur) {
+          edited.current = true;
+          return;
+        }
+        // A BLANK box is a real edit and is reported as such. Text that is not
+        // a storable number - "abc", a lone "-" or ".", or a value finite only
+        // as typed ("1e999") - commits NOTHING instead, because `null` used to
+        // mean both and every optional field turned it into 0. That is how a
+        // refused overflow became a stored zero, and how a leading "-" snapped
+        // a freeform fin vertex to the origin on the way to a negative number.
+        // The draft text keeps showing what was typed either way.
+        if (raw.trim() === '') {
+          onChange(null);
+          return;
+        }
+        const v = parseFieldValue(raw, min, max);
+        if (v === null) return;
+        onChange(v);
       }}
-      onBlur={() => {
-        setDraft(null);
-        onCommit?.();
-      }}
+      onBlur={commit}
+      onKeyDown={commitOnBlur ? (e) => e.key === 'Enter' && commit() : undefined}
     />
   );
 }

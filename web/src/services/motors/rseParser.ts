@@ -30,10 +30,9 @@
 //     other.
 import type { CustomMotor } from './motorStore';
 import { impulseClass } from './motorCombine';
+import { delayList } from './motorPicker';
 import { totalImpulse } from './engParser';
-
-/** Any delay at or past this is the file's way of saying plugged. */
-const DELAY_LIMIT = 90;
+import { parseXmlText } from '../files/xmlUtil';
 
 /** RockSim's `Type` attribute, mapped to the catalog's own vocabulary. */
 const TYPES: Record<string, NonNullable<CustomMotor['type']>> = {
@@ -41,6 +40,22 @@ const TYPES: Record<string, NonNullable<CustomMotor['type']>> = {
   hybrid: 'hybrid',
   reloadable: 'reload',
 };
+
+/**
+ * Ceilings an untrusted `.rse` is held to.
+ *
+ * This parser is reached with NO file picker: `loadOrk` runs it over every
+ * `.rse` member an imported `.ork` carried, and that member may be up to the
+ * archive's 64 MiB per-entry ceiling. The `.ork` reader caps fin points and
+ * shroud lines for exactly this reason; the embedded-motor path capped nothing,
+ * so a member with a million `<engine>` elements froze the tab while merely
+ * OPENING a shared design.
+ *
+ * A manufacturer's whole range is a few hundred motors, and the longest real
+ * curve is a few thousand samples.
+ */
+export const MAX_RSE_ENGINES = 2000;
+export const MAX_RSE_SAMPLES = 20_000;
 
 /** One `<eng-data>` row, before the quirk fixing below. */
 interface Point {
@@ -76,35 +91,6 @@ function optNum(el: Element, name: string): number {
   if (raw === null) return NaN;
   const v = Number(raw);
   return Number.isFinite(v) ? v : NaN;
-}
-
-/**
- * The delays a file lists, as the catalog's delay STRING (`"4,6,10,P"`).
- *
- * A string rather than the number array `.eng` import produces, because that is
- * what `motorPicker.parseDelays` and `offersPlugged` read, and it is the only
- * way to say "plugged" at all: upstream uses an infinite delay for that and a
- * number array has nowhere to put it.
- */
-function parseDelays(raw: string | null): string | undefined {
-  if (!raw) return undefined;
-  const out: string[] = [];
-  let plugged = false;
-  for (const tok of raw.split(',')) {
-    const t = tok.trim();
-    if (!t) continue;
-    const v = Number(t);
-    if (Number.isFinite(v)) {
-      // Upstream reads any delay at or past 90 s as the file's way of writing
-      // a plugged motor, rather than as a real 90-second delay.
-      if (v >= DELAY_LIMIT) plugged = true;
-      else out.push(String(v));
-    } else if (/^p/i.test(t)) {
-      plugged = true;
-    }
-  }
-  if (plugged) out.push('P');
-  return out.length ? out.join(',') : undefined;
 }
 
 /**
@@ -184,7 +170,11 @@ function parseEngine(el: Element): CustomMotor {
     throw new Error(`.rse motor ${designation} lists more propellant than total mass.`);
   }
 
-  const rows: Point[] = [...el.querySelectorAll('data > eng-data')].map((d) => ({
+  const sampleEls = el.querySelectorAll('data > eng-data');
+  if (sampleEls.length > MAX_RSE_SAMPLES) {
+    throw new Error(`.rse motor ${designation} has more than ${MAX_RSE_SAMPLES} data points.`);
+  }
+  const rows: Point[] = [...sampleEls].map((d) => ({
     time: optNum(d, 't'),
     thrust: optNum(d, 'f'),
     mass: optNum(d, 'm'),
@@ -220,8 +210,7 @@ function parseEngine(el: Element): CustomMotor {
     length,
     totalWeightG,
     propWeightG,
-    delays: undefined,
-    delayList: parseDelays(el.getAttribute('delays')),
+    delayList: delayList(el.getAttribute('delays'), 'rocksim'),
     type,
     // Grams, parallel to `samples`. This is the whole reason `.rse` is the
     // richer format: the mass curve is measured rather than inferred from the
@@ -248,13 +237,13 @@ const isFalse = (v: string | null) => v === '0' || v?.toLowerCase() === 'false';
  * header block that the format gives no way to name.
  */
 export function parseRse(text: string): CustomMotor[] {
-  let xml = text;
-  if (xml.charCodeAt(0) === 0xfeff) xml = xml.slice(1); // strip optional BOM
-  const doc = new DOMParser().parseFromString(xml, 'text/xml');
-  if (doc.querySelector('parsererror')) {
-    throw new Error('Not a valid .rse file (XML parse error).');
+  const doc = parseXmlText(text, 'Not a valid .rse file (XML parse error).');
+  const engineEls = doc.querySelectorAll('engine');
+  if (engineEls.length === 0) throw new Error('Not a valid .rse file (no <engine> found).');
+  // Counted BEFORE the spread, so a crafted member does not materialize a
+  // million-element array on the way to being refused.
+  if (engineEls.length > MAX_RSE_ENGINES) {
+    throw new Error(`This .rse declares more than ${MAX_RSE_ENGINES} motors (possibly malformed).`);
   }
-  const engines = [...doc.querySelectorAll('engine')];
-  if (engines.length === 0) throw new Error('Not a valid .rse file (no <engine> found).');
-  return engines.map(parseEngine);
+  return [...engineEls].map(parseEngine);
 }

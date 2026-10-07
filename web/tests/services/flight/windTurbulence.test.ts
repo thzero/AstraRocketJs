@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  retuneStdDev,
   hasIntensity,
   stdDevForIntensity,
   turbulenceIntensity,
@@ -39,6 +40,15 @@ describe('stdDevForIntensity', () => {
 
   it('never returns a negative scatter', () => {
     expect(stdDevForIntensity(-5, 0.2)).toBe(0);
+  });
+});
+
+describe('retuneStdDev', () => {
+  it('holds the intensity when the average moves', () => {
+    expect(retuneStdDev(5, 1, 10)).toBeCloseTo(2, 12);
+  });
+  it('leaves the deviation alone from a zero average', () => {
+    expect(retuneStdDev(0, 0.3, 10)).toBe(0.3);
   });
 });
 

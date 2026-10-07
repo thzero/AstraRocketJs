@@ -7,6 +7,13 @@
 // Brings in the three types the current editor uses: body tubes, nose cones,
 // and parachutes (recovery). Run manually / in CI when refreshing the catalog:
 //   node scripts/sync-components.mjs [--src <openrocket presets dir>]
+//
+// THEN RUN `npm run sync:preset-digests`. This script cannot produce the part
+// DIGEST a `.ork` needs, because OpenRocket computes it at load time rather than
+// storing it in the `.orc` (see sync-preset-digests.mjs). A catalog refreshed
+// without that second step carries no digests, and every part link then stays
+// out of saved files, silently: `defaultRocketParts.test.ts` fails when that
+// happens, which is the alarm.
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';

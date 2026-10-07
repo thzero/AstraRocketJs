@@ -8,7 +8,7 @@ import { readFlightConfigs, readStageActiveness, type OrkImportContext } from '.
 import { readStages } from './ork/importReaders';
 import { KNOWN_DOCUMENT_TAGS, KNOWN_ROCKET_TAGS, readPassthrough } from './ork/passthrough';
 import { readLaunchConditions } from './ork/importLaunch';
-import { configNotes, modelingNotes } from './ork/importNotes';
+import { configNotes, ignoredNotes, modelingNotes } from './ork/importNotes';
 
 /**
  * .ork IMPORT: unpack and parse the file, pick the flight configuration to
@@ -16,7 +16,7 @@ import { configNotes, modelingNotes } from './ork/importNotes';
  * (`ork/importReaders.ts`), then the launch conditions and the notes. Each
  * of those steps has its own module under `ork/`; this is the orchestrator.
  */
-export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string }): OrkImportResult {
+export function importOrk(data: ArrayBuffer | string): OrkImportResult {
   const archive = unpackOrk(data);
   const doc = parseOrkXml(archive.xml);
   const rocketEl = doc.querySelector('openrocket > rocket');
@@ -50,7 +50,7 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
   const stages = Array.from(rocketEl.querySelectorAll(':scope > subcomponents > stage'));
   if (stages.length === 0) throw new Error('No stage found');
 
-  const { configEls, configs, chosenConfigId } = readFlightConfigs(rocketEl, opts?.configId);
+  const { configEls, configs, chosenConfigId } = readFlightConfigs(rocketEl);
   const ctx: OrkImportContext = {
     configs,
     chosenConfigId,
@@ -58,6 +58,7 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
     ignored: new Set<string>(),
     motors: {},
     motor: undefined,
+    nodeCount: 0,
   };
 
   // A file spells an automatic diameter as `auto`, which the readers turn into
@@ -76,9 +77,7 @@ export function importOrk(data: ArrayBuffer | string, opts?: { configId?: string
     findStages({ name, components } as RocketTree).map((n) => n.id as string),
   );
   const { notes, ignored } = ctx;
-  if (ignored.size) {
-    notes.push(`Ignored unsupported components: ${[...ignored].join(', ')}.`);
-  }
+  notes.push(...ignoredNotes(ignored));
   notes.push(...modelingNotes(components));
   notes.push(...configNotes(rocketEl, configs));
   notes.push(...archiveNotes(doc, archive.dropped));

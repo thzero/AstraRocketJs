@@ -14,6 +14,7 @@ import nl from './locales/nl.json';
 import pl from './locales/pl.json';
 import ru from './locales/ru.json';
 import ja from './locales/ja.json';
+import { nsKey } from '../services/storage/storageKeys';
 
 /**
  * Every locale, once: its code, its native name for the switcher, and its bundle.
@@ -66,8 +67,18 @@ i18n
       caches: ['localStorage'],
       // App-namespaced so we don't collide with another i18next app on the same
       // origin (the detector's default key is a bare 'i18nextLng').
-      lookupLocalStorage: 'astrarrocketjs:i18nextLng',
+      lookupLocalStorage: nsKey('i18nextLng'),
     },
+  })
+  // Every translation is BUNDLED, so there is no backend fetch here and nothing
+  // for the network to break: a rejection means the config above is wrong. It is
+  // still handled rather than dropped, because the failure mode is the app coming
+  // up showing raw translation keys, and without this nothing anywhere says why.
+  //
+  // `console.error` and not the store's error banner: this runs at module load,
+  // before the store exists, and a broken i18n cannot translate its own message.
+  .catch((e: unknown) => {
+    console.error('i18n init failed; the UI will show raw keys', e);
   });
 
 export default i18n;

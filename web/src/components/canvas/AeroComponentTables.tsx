@@ -14,6 +14,7 @@ import {
   stabilityRows,
   type HeatStyle,
 } from './aeroTables';
+import { ToggleButton } from '../common/ToggleButton';
 
 /**
  * The AeroAnalysis "Per component" pane: the three tables that report one
@@ -23,6 +24,17 @@ import {
  * the two would otherwise differ only by case, which a case-insensitive
  * filesystem resolves to whichever it finds first.
  */
+
+/** Five swatches of the shading ramp, from a fifth of `top` up to `top`. */
+function HeatRamp({ top, style }: { top: number; style: HeatStyle }) {
+  return (
+    <span className="flex overflow-hidden rounded-sm ring-1 ring-white/10">
+      {[0.2, 0.4, 0.6, 0.8, 1].map((f) => (
+        <span key={f} className="h-2.5 w-4" style={heat(f * top, top, style)} />
+      ))}
+    </span>
+  );
+}
 
 /** The ramp, shown once so the shading is readable rather than decorative. */
 function HeatLegend({ max, unit, style }: { max: number; unit: string; style: HeatStyle }) {
@@ -34,11 +46,7 @@ function HeatLegend({ max, unit, style }: { max: number; unit: string; style: He
   return (
     <div className="flex flex-wrap items-center gap-1.5 px-1 pt-1.5 text-[10px] text-slate-600">
       <span>{style === 'openrocket' ? t('aero.absolute') : t('aero.share')}</span>
-      <span className="flex overflow-hidden rounded-sm ring-1 ring-white/10">
-        {[0.2, 0.4, 0.6, 0.8, 1].map((f) => (
-          <span key={f} className="h-2.5 w-4" style={heat(f * top, top, style)} />
-        ))}
-      </span>
+      <HeatRamp top={top} style={style} />
       <span className="tabular-nums">
         0 &ndash; {fmtNum(top, 3)} {unit}
       </span>
@@ -47,17 +55,15 @@ function HeatLegend({ max, unit, style }: { max: number; unit: string; style: He
           writes the same preference, so the two stay in step and it sticks. */}
       <span className="ml-auto flex items-center gap-1">
         {(['sky', 'openrocket'] as const).map((v) => (
-          <button
+          <ToggleButton
             key={v}
+            active={style === v}
             onClick={() => update({ aeroHeat: v })}
-            aria-pressed={style === v}
             title={t('settings.aeroHeatNote')}
-            className={`rounded px-1.5 py-0.5 text-[10px] font-medium ring-1 ring-white/10 ${
-              style === v ? 'bg-sky-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-            }`}
+            className="rounded px-1.5 py-0.5 text-[10px] font-medium ring-1 ring-white/10"
           >
             {t(v === 'sky' ? 'settings.aeroHeatSky' : 'settings.aeroHeatOr')}
-          </button>
+          </ToggleButton>
         ))}
       </span>
     </div>
@@ -110,7 +116,7 @@ export function ComponentTable({ sweep, machs, mach }: { sweep: AeroSweep; machs
   // column is only worth having when something actually has more than one of
   // itself -- usually the fin set, and nothing else.
   const { totalCd, unattributed, hasSplit, hasInstances } = useMemo(() => dragTotals(sweep, i), [sweep, i]);
-  const pct = (v: number) => (totalCd ? `${((v / totalCd) * 100).toFixed(0)}%` : '—');
+  const pct = (v: number) => (totalCd ? `${fmtNum((v / totalCd) * 100, 0)}%` : '—');
   const rows = useMemo(() => dragRows(sweep, i), [sweep, i]);
 
   // `number | null`: a null cell is the kernel saying this reading was not
@@ -238,6 +244,8 @@ export function StabilityTable({
   lengthFactor,
   massUnit,
   massFactor,
+  bodyLen,
+  aeroLen,
 }: {
   sweep: AeroSweep;
   machs: number[];
@@ -247,6 +255,14 @@ export function StabilityTable({
   lengthFactor: number;
   massUnit: string;
   massFactor: number;
+  /** The overall airframe length (m): the denominator behind `CP (% body)`,
+   *  which is "how far along the rocket in front of me". 0 drops that column
+   *  rather than filling it with dashes. */
+  bodyLen: number;
+  /** The engine's aerodynamic length (m), the denominator OpenRocket's own
+   *  `PercentageOfLengthUnit` uses, and so the one behind `CP (% length)`. 0 drops
+   *  that column rather than filling it with dashes. */
+  aeroLen: number;
 }) {
   const { t } = useTranslation();
   const heatStyle = useSettings().settings.aeroHeat;
@@ -273,7 +289,18 @@ export function StabilityTable({
 
   const cell = 'px-2 py-1 text-right tabular-nums';
   const head = 'px-2 py-1 text-right font-medium';
-  const pct = (v: number) => (totalCna ? `${((v / totalCna) * 100).toFixed(0)}%` : '—');
+  const pct = (v: number) => (totalCna ? `${fmtNum((v / totalCna) * 100, 0)}%` : '—');
+  // CP as a percentage, over either length, the same two the CP vs Mach chart
+  // offers. `% body` is the whole airframe ("how far along the rocket in front
+  // of me"); `% length` is the AERODYNAMIC length, which is what the desktop's
+  // PercentageOfLengthUnit divides by. They differ on any design with a
+  // non-aerodynamic part outside the aerodynamic envelope. Both are distinct
+  // again from the `%` column on the far right, which is this component's share
+  // of total CNa, so each header names what it divides by.
+  const hasBodyLen = bodyLen > 0;
+  const hasAeroLen = aeroLen > 0;
+  const cpPctBody = (si: number) => fmtNum((si / bodyLen) * 100, 1);
+  const cpPctAero = (si: number) => fmtNum((si / aeroLen) * 100, 1);
 
   return (
     <div className="rounded-lg bg-slate-950/40 p-2 ring-1 ring-white/10">
@@ -287,6 +314,8 @@ export function StabilityTable({
               {hasMass && <th className={head}>{t('aero.totalMass', { unit: massUnit })}</th>}
               {hasMass && <th className={head}>{t('aero.cg', { unit: lengthUnit })}</th>}
               <th className={head}>CP ({lengthUnit})</th>
+              {hasBodyLen && <th className={head}>CP ({t('aero.pctBody')})</th>}
+              {hasAeroLen && <th className={head}>CP ({t('aero.pctLength')})</th>}
               <th className={head}>CNα</th>
               <th className={head}>%</th>
             </tr>
@@ -298,6 +327,8 @@ export function StabilityTable({
               {hasMass && <td className={cell}>&mdash;</td>}
               {hasMass && <td className={cell}>&mdash;</td>}
               <td className={cell}>{fmtNum((sweep.cp[i] ?? 0) * lengthFactor, 1)}</td>
+              {hasBodyLen && <td className={cell}>{cpPctBody(sweep.cp[i] ?? 0)}</td>}
+              {hasAeroLen && <td className={cell}>{cpPctAero(sweep.cp[i] ?? 0)}</td>}
               <td className={cell} style={cnaShaded ? heat(totalCna, totalCna, 'sky') : undefined}>
                 {fmtNum(totalCna, 2)}
               </td>
@@ -310,6 +341,8 @@ export function StabilityTable({
                 {hasMass && <td className={cell}>{r.mass ? fmtNum(r.mass.mass * massFactor, 1) : '—'}</td>}
                 {hasMass && <td className={cell}>{r.mass ? fmtNum(r.mass.cg * lengthFactor, 1) : '—'}</td>}
                 <td className={cell}>{fmtNum(r.cp * lengthFactor, 1)}</td>
+                {hasBodyLen && <td className={cell}>{cpPctBody(r.cp)}</td>}
+                {hasAeroLen && <td className={cell}>{cpPctAero(r.cp)}</td>}
                 <td className={cell} style={cnaShaded ? heat(r.cna, totalCna, 'sky') : undefined}>
                   {fmtNum(r.cna, 2)}
                 </td>
@@ -386,11 +419,7 @@ export function RollTable({ sweep, machs, mach }: { sweep: AeroSweep; machs: num
       {shaded && (
         <div className="flex items-center gap-1.5 px-1 pt-1.5 text-[10px] text-slate-600">
           <span>{t('aero.columnShare')}</span>
-          <span className="flex overflow-hidden rounded-sm ring-1 ring-white/10">
-            {[0.2, 0.4, 0.6, 0.8, 1].map((f) => (
-              <span key={f} className="h-2.5 w-4" style={heat(f, 1, 'sky')} />
-            ))}
-          </span>
+          <HeatRamp top={1} style="sky" />
         </div>
       )}
       <p className="px-1 pt-1.5 text-[10px] leading-snug text-slate-600">{t('aero.rollNote')}</p>

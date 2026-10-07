@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useLatest } from '../common/useLatest';
 import { listSavedParts, onSavedPartsChanged, type SavedPartEntry } from '../../services/parts/customParts';
 
 /**
@@ -19,32 +20,23 @@ import { listSavedParts, onSavedPartsChanged, type SavedPartEntry } from '../../
  */
 export function useSavedParts(): { entries: SavedPartEntry[] | null } {
   const [entries, setEntries] = useState<SavedPartEntry[] | null>(null);
-  // Re-armed in the effect body rather than only cleared in cleanup: the app
-  // mounts under StrictMode, whose development double-invoke runs the cleanup
-  // once and then the effect again (see MaterialPicker for the same guard).
-  const mounted = useRef(true);
-  /** Which read is the current one; an older answer is dropped, not applied. */
-  const latest = useRef(0);
+  /** Which read is the current one; an older answer, or one after unmount, is dropped. */
+  const { claim } = useLatest();
 
   useEffect(() => {
-    mounted.current = true;
     const refresh = () => {
-      const seq = ++latest.current;
+      const mine = claim();
       listSavedParts()
         .then((list) => {
-          if (mounted.current && seq === latest.current) setEntries(list);
+          if (mine()) setEntries(list);
         })
         .catch(() => {
-          if (mounted.current && seq === latest.current) setEntries([]);
+          if (mine()) setEntries([]);
         });
     };
     refresh();
-    const stop = onSavedPartsChanged(refresh);
-    return () => {
-      mounted.current = false;
-      stop();
-    };
-  }, []);
+    return onSavedPartsChanged(refresh);
+  }, [claim]);
 
   return { entries };
 }

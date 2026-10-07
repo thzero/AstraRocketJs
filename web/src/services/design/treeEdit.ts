@@ -26,6 +26,7 @@ import { uuid } from '../app/uuid';
 import { syncAutoShoulders } from './autoShoulder';
 import { syncAutoRadii } from './autoRadius';
 import { FIELDS } from './componentFields';
+import { findNode as findNodeIn, findSiblings, findWithParent, walkNodes } from '../../tree/treeWalk';
 
 /**
  * A unique id for a new node.
@@ -41,16 +42,8 @@ function newId(): string {
 
 const clone = (tree: RocketTree): RocketTree => structuredClone(tree);
 
-function* walk(nodes: ComponentNode[]): Generator<ComponentNode> {
-  for (const n of nodes) {
-    yield n;
-    if (n.children) yield* walk(n.children);
-  }
-}
-
 export function findNode(tree: RocketTree, id: string): ComponentNode | null {
-  for (const n of walk(tree.components)) if (n.id === id) return n;
-  return null;
+  return findNodeIn(tree.components, id);
 }
 
 /**
@@ -73,6 +66,31 @@ function breaksPreset(type: string, patch: Partial<ComponentNode>): boolean {
   if (keys.some((k) => k === 'materialName' || k === 'density')) return true;
   const dimensions = new Set((FIELDS[type] ?? []).filter((f) => f.section === undefined).map((f) => f.key));
   return keys.some((k) => dimensions.has(k));
+}
+
+/**
+ * Would {@link updateNode} change anything?
+ *
+ * `updateNode` always returns a fresh tree - it cannot cheaply know otherwise,
+ * because it path-copies the spine as it walks - and `tree.components` is the
+ * rebuild dependency, so a value-identical patch costs a full kernel build. The
+ * property panel fires one patch PER KEYSTROKE with the already-clamped value, so
+ * typing past a ceiling fires N identical patches, N kernel builds and an undo
+ * step that changes nothing.
+ *
+ * Shallow `!==` per key, which is the comparison `updateNode` itself makes when it
+ * spreads the patch. A patch that would drop the preset link counts as a change
+ * even when every value matches, because dropping it IS the change.
+ */
+export function patchChangesNode(tree: RocketTree, id: string, patch: Partial<ComponentNode>): boolean {
+  const node = findNode(tree, id);
+  if (!node) return false;
+  const current = node as unknown as Record<string, unknown>;
+  const incoming = patch as unknown as Record<string, unknown>;
+  for (const key of Object.keys(incoming)) {
+    if (current[key] !== incoming[key]) return true;
+  }
+  return node['preset'] !== undefined && breaksPreset(node.type, patch);
 }
 
 /**
@@ -114,40 +132,22 @@ export function updateNode(tree: RocketTree, id: string, patch: Partial<Componen
 
 export function removeNode(tree: RocketTree, id: string): RocketTree {
   const next = clone(tree);
-  const rec = (nodes: ComponentNode[]): boolean => {
-    const i = nodes.findIndex((n) => n.id === id);
-    if (i >= 0) {
-      nodes.splice(i, 1);
-      return true;
-    }
-    for (const n of nodes) if (n.children && rec(n.children)) return true;
-    return false;
-  };
-  rec(next.components);
+  const hit = findSiblings(next.components, id);
+  if (hit) hit.siblings.splice(hit.index, 1);
   return syncDerived(next);
 }
 
 export function addChild(tree: RocketTree, parentId: string, node: ComponentNode): RocketTree {
   const next = clone(tree);
-  for (const n of walk(next.components)) {
-    if (n.id === parentId) {
-      (n.children ??= []).push(node);
-      break;
-    }
-  }
+  const parent = findNodeIn(next.components, parentId);
+  if (parent) (parent.children ??= []).push(node);
   return syncDerived(next);
-}
-
-/** The id of the first motor-mount node, for seating the motor. */
-export function findMountId(tree: RocketTree): string | undefined {
-  for (const n of walk(tree.components)) if (n.motorMount === true && typeof n.id === 'string') return n.id;
-  return undefined;
 }
 
 /** All motor-mount nodes in tree order (first = primary). */
 export function findMounts(tree: RocketTree): ComponentNode[] {
   const out: ComponentNode[] = [];
-  for (const n of walk(tree.components)) if (n.motorMount === true && typeof n.id === 'string') out.push(n);
+  for (const n of walkNodes(tree.components)) if (n.motorMount === true && typeof n.id === 'string') out.push(n);
   return out;
 }
 
@@ -160,8 +160,8 @@ export function findMounts(tree: RocketTree): ComponentNode[] {
  */
 export function findRecoveryDevices(tree: RocketTree): ComponentNode[] {
   const out: ComponentNode[] = [];
-  for (const n of walk(tree.components)) {
-    if ((n.type === 'parachute' || n.type === 'streamer') && typeof n.id === 'string') out.push(n);
+  for (const n of walkNodes(tree.components)) {
+    if (isRecoveryDevice(n.type) && typeof n.id === 'string') out.push(n);
   }
   return out;
 }
@@ -177,7 +177,7 @@ export function findRecoveryDevices(tree: RocketTree): ComponentNode[] {
  */
 export function findStages(tree: RocketTree): ComponentNode[] {
   const out: ComponentNode[] = [];
-  for (const n of walk(tree.components)) {
+  for (const n of walkNodes(tree.components)) {
     if ((n.type === 'stage' || n.type === 'parallelstage') && typeof n.id === 'string') out.push(n);
   }
   return out;
@@ -191,8 +191,10 @@ export function findStages(tree: RocketTree): ComponentNode[] {
  * configuration's separation overrides are keyed by.
  */
 export function findSeparators(tree: RocketTree): ComponentNode[] {
-  const out = tree.components.filter((n) => n.type === 'stage' && typeof n.id === 'string').slice(1);
-  for (const n of walk(tree.components)) {
+  const out = stageNodes(tree)
+    .filter((n) => typeof n.id === 'string')
+    .slice(1);
+  for (const n of walkNodes(tree.components)) {
     if (n.type === 'parallelstage' && typeof n.id === 'string') out.push(n);
   }
   return out;
@@ -206,11 +208,11 @@ export function findSeparators(tree: RocketTree): ComponentNode[] {
  * sustainer … [last] = bottom booster.
  */
 export function isUpperStageMount(tree: RocketTree, mountId: string): boolean {
-  const stages = tree.components.filter((n) => n.type === 'stage');
+  const stages = stageNodes(tree);
   if (stages.length < 2) return false; // one (or implicit) stage → nothing below any mount
   const bottom = stages[stages.length - 1]!;
   // A mount is an upper-stage mount unless it lives in the bottom stage's subtree.
-  for (const n of walk([bottom])) if (n.id === mountId) return false;
+  for (const n of walkNodes([bottom])) if (n.id === mountId) return false;
   return true;
 }
 
@@ -345,6 +347,11 @@ export function hasMaterial(type: string): boolean {
   return MATERIAL_TYPES.has(type);
 }
 
+/** A part that deploys during the flight: a parachute or a streamer. */
+export function isRecoveryDevice(type: string): boolean {
+  return type === 'parachute' || type === 'streamer';
+}
+
 /**
  * The catalog link to record beside the dimensions a pick applies: which part
  * this component now IS, in the shape the `.ork` carries it
@@ -356,8 +363,17 @@ export function hasMaterial(type: string): boolean {
 export function presetRef(p: Component): Partial<ComponentNode> {
   if (p.custom || !p.partNo) return { preset: undefined } as Partial<ComponentNode>;
   return {
-    preset: { type: p.type, manufacturer: p.mfr, partNo: p.partNo },
+    preset: presetLink(p.type, p.mfr, p.partNo, (p as { digest?: string }).digest),
   } as unknown as Partial<ComponentNode>;
+}
+
+/**
+ * The `preset` value a catalog part writes onto a node. The digest is left off
+ * when there is none: the desktop rejects a link with no checksum, so writing
+ * an empty one would cost the reader a warning dialog and buy nothing.
+ */
+export function presetLink(type: string, manufacturer: string, partNo: string, digest: string | undefined) {
+  return { type, manufacturer, partNo, ...(digest ? { digest } : {}) };
 }
 
 /**
@@ -398,12 +414,30 @@ function pinStated(patch: Partial<ComponentNode>): Partial<ComponentNode> {
  * its next pass. That was unreachable while nothing started automatic; the four
  * bore-filling parts now do, as their kernel constructors do.
  */
-export function catalogPatch(p: Component): Partial<ComponentNode> {
-  return pinStated(statedPatch(p));
+export function catalogPatch(p: Component, node?: ComponentNode): Partial<ComponentNode> {
+  return pinStated(statedPatch(p, node));
+}
+
+/**
+ * A wall for a cone the catalog calls hollow but states no wall for.
+ *
+ * The row publishes `filled` and an outside diameter and nothing else, so a
+ * hollow part has to inherit a wall from somewhere. The node's own is the right
+ * answer when it IS a wall: picking a different hollow cone should not throw
+ * away a thickness that was typed for this airframe. It is the wrong answer
+ * when the part being replaced was SOLID, because its "wall" is its whole
+ * radius, and carried onto a hollow part it keeps the cone solid at the new
+ * part's dimensions - a nose cone still flying several times its real mass.
+ */
+function hollowWall(node: ComponentNode | undefined, radius: number): Partial<ComponentNode> {
+  const n = node as Record<string, unknown> | undefined;
+  const wall = typeof n?.['thickness'] === 'number' ? n['thickness'] : null;
+  const wasSolid = n?.['filled'] === true || wall == null || wall >= radius;
+  return wasSolid ? ({ thickness: KERNEL_DEFAULTS.nosecone.thickness } as Partial<ComponentNode>) : {};
 }
 
 /** The dimensions the chosen part states, before {@link pinStated} pins them. */
-function statedPatch(p: Component): Partial<ComponentNode> {
+function statedPatch(p: Component, node?: ComponentNode): Partial<ComponentNode> {
   // A SAVED part (customParts.ts) carries its whole node, not the handful of
   // dimensions a catalog row publishes, and applying only the switch below
   // would drop the nose cone's shoulder, the parachute's lines, the tube's
@@ -415,14 +449,22 @@ function statedPatch(p: Component): Partial<ComponentNode> {
       ? { density: p.materialDensity, materialName: (p as { material?: string }).material }
       : {};
   switch (p.type) {
-    case 'nosecone':
+    case 'nosecone': {
+      const radius = p.outerDiameter / 2;
       return {
         shape: p.shape,
         length: p.length,
-        aftRadius: p.outerDiameter / 2,
-        ...(p.filled ? { thickness: p.outerDiameter / 2 } : {}),
+        aftRadius: radius,
+        // SAID OUTRIGHT, both ways. The kernel reads solidness from this flag
+        // (`ComponentFactory` calls `setFilled`), not from the thickness, so
+        // leaving it alone let the part BEFORE this one decide: a solid cone
+        // followed by a hollow one went on flying solid, at the hollow one's
+        // dimensions, and the `.ork` went on saying `<thickness>filled`.
+        filled: !!p.filled,
+        ...(p.filled ? { thickness: radius } : hollowWall(node, radius)),
         ...mat,
       };
+    }
     case 'bodytube':
     case 'tubecoupler':
       return {
@@ -442,17 +484,8 @@ function statedPatch(p: Component): Partial<ComponentNode> {
 
 /** The node's index among its siblings and the sibling count (for move up/down). */
 export function siblingIndex(tree: RocketTree, id: string): { index: number; count: number } | null {
-  const rec = (nodes: ComponentNode[]): { index: number; count: number } | null => {
-    const i = nodes.findIndex((n) => n.id === id);
-    if (i >= 0) return { index: i, count: nodes.length };
-    for (const n of nodes)
-      if (n.children) {
-        const r = rec(n.children);
-        if (r) return r;
-      }
-    return null;
-  };
-  return rec(tree.components);
+  const hit = findSiblings(tree.components, id);
+  return hit ? { index: hit.index, count: hit.siblings.length } : null;
 }
 
 /**
@@ -463,38 +496,19 @@ export function siblingIndex(tree: RocketTree, id: string): { index: number; cou
  * they ring, which lives on the parent, not on the fin set.
  */
 export function findParent(tree: RocketTree, id: string): ComponentNode | null {
-  // Boxed, because `null` is a legitimate ANSWER (a top-level node has no
-  // parent) as well as the "keep looking" signal.
-  const rec = (nodes: ComponentNode[], parent: ComponentNode | null): { parent: ComponentNode | null } | null => {
-    for (const n of nodes) {
-      if (n.id === id) return { parent };
-      if (n.children) {
-        const r = rec(n.children, n);
-        if (r) return r;
-      }
-    }
-    return null;
-  };
-  return rec(tree.components, null)?.parent ?? null;
+  return findWithParent(tree.components, id)?.parent ?? null;
 }
 
 /** Move a node one slot earlier (dir -1) or later (dir +1) among its siblings. */
 export function moveNode(tree: RocketTree, id: string, dir: -1 | 1): RocketTree {
+  // At either end of its siblings, or not in the tree, the part has nowhere to
+  // go: the same tree comes back, so the caller can tell nothing changed.
+  const at = findSiblings(tree.components, id);
+  if (!at || at.index + dir < 0 || at.index + dir >= at.siblings.length) return tree;
   const next = clone(tree);
-  const rec = (nodes: ComponentNode[]): boolean => {
-    const i = nodes.findIndex((n) => n.id === id);
-    if (i >= 0) {
-      const j = i + dir;
-      if (j >= 0 && j < nodes.length) {
-        const [x] = nodes.splice(i, 1);
-        nodes.splice(j, 0, x!);
-      }
-      return true;
-    }
-    for (const n of nodes) if (n.children && rec(n.children)) return true;
-    return false;
-  };
-  rec(next.components);
+  const { siblings, index } = findSiblings(next.components, id)!;
+  const [x] = siblings.splice(index, 1);
+  siblings.splice(index + dir, 0, x!);
   // Moving a part changes WHO its neighbors are, so a shoulder that follows one
   // has a new tube to follow.
   return syncDerived(next);
@@ -738,7 +752,7 @@ export function stageNodes(tree: RocketTree): ComponentNode[] {
 export function recoveryDevices(tree: RocketTree, stageId: string): ComponentNode[] {
   const stage = findNode(tree, stageId);
   if (!stage?.children) return [];
-  return [...walk(stage.children)].filter((n) => n.type === 'parachute' || n.type === 'streamer');
+  return [...walkNodes(stage.children)].filter((n) => isRecoveryDevice(n.type));
 }
 
 /**
@@ -819,7 +833,7 @@ export function addPart(
 ): { tree: RocketTree; id: string } {
   const node = { ...defaultNode(type), ...seed };
   const id = node.id!;
-  const stageId = tree.components.find((n) => n.type === 'stage')?.id;
+  const stageId = stageNodes(tree)[0]?.id;
   let host = selectedId ? findNode(tree, selectedId) : null;
   while (host && !allowedChildren(host.type).includes(type)) {
     host = host.id ? findParent(tree, host.id) : null;

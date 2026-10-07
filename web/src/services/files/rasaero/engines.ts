@@ -1,4 +1,5 @@
 import type { ComponentNode } from '../../../engine/openRocketEngine';
+import { walkNodes } from '../../../tree/treeWalk';
 
 /**
  * Per-stage engine strings: which manufacturers RASAero's own motor database
@@ -95,17 +96,13 @@ export function stageEngineSlots(
   return stagesIn.map((st): StageEngineSlot => {
     if (!engineOn || !motors) return { engine: null, ignitionDelay: 0 };
     let found: Cdx1ExportEngine | undefined;
-    const seek = (nodes: ComponentNode[]) => {
-      for (const n of nodes) {
-        if (found) return;
-        if (n.id && motors[n.id]) {
-          found = motors[n.id];
-          return;
-        }
-        seek(n.children ?? []);
+    // One engine per stage in RASAero: the first mount wins.
+    for (const n of walkNodes(st.children ?? [])) {
+      if (n.id && motors[n.id]) {
+        found = motors[n.id];
+        break;
       }
-    };
-    seek(st.children ?? []); // one engine per stage in RASAero — first mount wins
+    }
     // Only a burnout-triggered motor has a delay this format can express.
     const ignitionDelay = found?.ignitionEvent === 'burnout' ? (found.ignitionDelay ?? 0) : 0;
     const abbrev = found ? rasaeroManufacturerAbbrev(found.manufacturer) : null;

@@ -101,6 +101,17 @@ describe('wireLoadedOrk', () => {
     expect(w.configs[0]!.deployments).toEqual(deployments);
   });
 
+  it('carries the separation overrides and the grounded stages with them', () => {
+    // All three are settings of THIS configuration. Forwarding one of the three
+    // silently reset the other two, so a staged design opened with its booster
+    // flying and its separation back on the design default.
+    const separations = { booster: { separationDelay: 2 } };
+    const grounded = ['booster'];
+    const w = wireLoadedOrk(loaded({ configs: [config({ separations, grounded })] }), launchDefaults);
+    expect(w.configs[0]!.separations).toEqual(separations);
+    expect(w.configs[0]!.grounded).toEqual(grounded);
+  });
+
   /**
    * A mount the FILE left empty flies nothing, not a default. Seating a C6 in it
    * opens a design saved without motors as a flyable rocket on motors the file

@@ -73,7 +73,7 @@ export function HorizontalCaliper({
               aria-valuemin={0}
               aria-valuemax={totalLen}
               aria-valuenow={cal[k]}
-              aria-valuetext={`${u.fmt('length', cal[k])} ${u.sym('length')}`}
+              aria-valuetext={`${u.fmtSym('length', cal[k])}`}
               onKeyDown={onKey(k)}
             />
             <circle cx={x} cy={top + 2} r={3.5} fill="var(--accent)" pointerEvents="none" />
@@ -101,7 +101,7 @@ export function HorizontalCaliper({
           strokeWidth="0.8"
         />
         <text x={mid} y={dimY - 1} textAnchor="middle" fontSize="9" fontWeight="bold" fill="var(--accent)">
-          {u.fmt('length', Math.abs(cal.b - cal.a))} {u.sym('length')}
+          {u.fmtSym('length', Math.abs(cal.b - cal.a))}
         </text>
       </g>
     </g>
@@ -166,7 +166,7 @@ export function VerticalCaliper({
               aria-valuemin={-vHalf}
               aria-valuemax={vHalf}
               aria-valuenow={cal[k]}
-              aria-valuetext={`${u.fmt('length', cal[k])} ${u.sym('length')}`}
+              aria-valuetext={`${u.fmtSym('length', cal[k])}`}
               onKeyDown={onKey(k)}
             />
             <circle cx={left + 4} cy={y} r={3.5} fill="var(--accent)" pointerEvents="none" />
@@ -183,10 +183,15 @@ export function VerticalCaliper({
           strokeWidth="1"
           vectorEffect="non-scaling-stroke"
         />
+        {/* Wider than the horizontal caliper's 56, because the number is the same
+            and this box also carries the unit symbol. It did not: the diameter
+            read as a bare number where the length readout directly above it says
+            "48.2 mm", so sighted users got LESS than screen-reader users, who had
+            it from `aria-valuetext` all along. */}
         <rect
-          x={dimX - 24}
+          x={dimX - 30}
           y={mid - 7}
-          width={48}
+          width={60}
           height={14}
           rx="3"
           fill="rgba(13,14,18,0.92)"
@@ -194,7 +199,7 @@ export function VerticalCaliper({
           strokeWidth="0.8"
         />
         <text x={dimX} y={mid + 3} textAnchor="middle" fontSize="9" fontWeight="bold" fill="var(--accent)">
-          {u.fmt('length', Math.abs(cal.a - cal.b))}
+          {u.fmtSym('length', Math.abs(cal.a - cal.b))}
         </text>
       </g>
     </g>

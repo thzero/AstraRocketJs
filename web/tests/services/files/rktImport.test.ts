@@ -117,8 +117,9 @@ const RKT = `<?xml version="1.0" encoding="UTF-8"?>
               <SpillHoleDia>40</SpillHoleDia>
               <ShroudLineMassPerMM>0.0001</ShroudLineMassPerMM>
               <ShroudLineMaterial>Braided nylon</ShroudLineMaterial>
-              <Density>0.67</Density>
+              <Density>0.0067</Density>
               <DensityType>1</DensityType>
+              <Thickness>0.05</Thickness>
               <Material>Ripstop nylon</Material>
             </Parachute>
             <MassObject>
@@ -185,7 +186,10 @@ describe('importRkt', () => {
   it('maps the shape, finish and construction codes', () => {
     const nose = byName(stage.children, 'Nose');
     expect(nose['shape']).toBe('ogive'); // ShapeCode 1
-    expect(nose['shapeParameter']).toBe(0.75);
+    // An OGIVE takes no shape parameter, and RockSim writes one for every nose
+    // cone regardless. `NoseConeHandler` applies it only to power, parabolic and
+    // haack, so the 0.75 in the fixture is deliberately dropped.
+    expect(nose['shapeParameter']).toBeUndefined();
     expect(nose['finish']).toBe('smooth'); // FinishCode 1 == RockSim "gloss"
     expect(nose['filled']).toBeUndefined(); // ConstructionType 1 == hollow
     // FinishCode 2 is RockSim's "matt", which is our default — not stored.
@@ -258,8 +262,14 @@ describe('importRkt', () => {
     expect(chute['lineCount']).toBe(6);
     expect(chute['lineLength']).toBeCloseTo(0.35, 9);
     expect(chute['spillHoleDiameter']).toBeCloseTo(0.04, 9);
-    // g/cm² → kg/m² is ×1/10; the canopy material is a SURFACE density, so it
-    // must not be left on `density`, where it would be read as a bulk one.
+    // g/cm2 to kg/m2 is x10, which is DIVIDING by the kernel's own
+    // `ROCKSIM_TO_OPENROCKET_SURFACE_DENSITY` of 1/10 - the direction
+    // `BaseHandler.computeDensity` uses it in, and the opposite of the direction
+    // `BasePartDTO` uses on the way out. 0.0067 g/cm2 is ripstop nylon at
+    // 0.067 kg/m2, so getting it backwards is a factor of a hundred and still
+    // leaves a plausible-looking number. The canopy material is a SURFACE
+    // density, so it must not be left on `density` either, where it would be
+    // read as a bulk one.
     expect(chute['surfaceDensity']).toBeCloseTo(0.067, 9);
     expect(chute['surfaceMaterialName']).toBe('Ripstop nylon');
     expect(chute.density).toBeUndefined();
@@ -293,6 +303,10 @@ describe('importRkt', () => {
   it('refuses a file that is not a RockSim design', () => {
     expect(() => importRkt('<openrocket><rocket/></openrocket>')).toThrow(/not a \.rkt/i);
   });
+
+  it('names its own format when the XML does not parse', () => {
+    expect(() => importRkt('<RockSimDocument><DesignInformation>')).toThrow(/not a valid \.rkt file/i);
+  });
 });
 
 describe('importRkt, multi-stage', () => {
@@ -308,5 +322,28 @@ describe('importRkt, multi-stage', () => {
     expect(byName(r.tree.components[0]!.children, 'Nose')).toBeTruthy();
     expect(r.tree.components[1]!.name).toBe('Booster 1');
     expect(byName(r.tree.components[1]!.children, 'Booster tube')).toBeTruthy();
+  });
+});
+
+describe('importRkt, hostile input', () => {
+  const rkt = (parts: string): string =>
+    `<RockSimDocument><DesignInformation><RocketDesign><Name>Many</Name><StageCount>1</StageCount>` +
+    `<Stage3Parts>${parts}</Stage3Parts></RocketDesign></DesignInformation></RockSimDocument>`;
+  const tube = '<BodyTube><Name>b</Name><Len>100</Len><OD>20</OD><ID>19</ID></BodyTube>';
+
+  /**
+   * The element-COUNT vector, which the byte caps do not bound. Flat and wide,
+   * so the nesting cap never sees it.
+   *
+   * Its own timeout: parsing ten thousand parts takes a second or two alone and
+   * has run ten times slower on a loaded CI runner.
+   */
+  it('refuses more components than MAX_COMPONENTS with a clear error', () => {
+    expect(() => importRkt(rkt(tube.repeat(10_050)))).toThrow(/too many components/i);
+  }, 60_000);
+
+  it('still accepts a component count a real design could plausibly use', () => {
+    const res = importRkt(rkt(tube.repeat(200)));
+    expect(res.tree.components[0]?.children?.length).toBe(200);
   });
 });

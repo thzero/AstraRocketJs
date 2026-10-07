@@ -1,8 +1,8 @@
 {
   "name": "AGARD/STA HB-2 hypersonic standard model (75 mm, approximated)",
-  "_expect": { "length": 0.3675, "refDiameter": 0.1200 },
+  "_expect": {"length":0.3675,"refDiameter":0.12,"aero":{"classic.cd@0.5":0.2965997,"classic.cna@0.5":2,"classic.cp@0.5":0.2115086,"classic.cd@2":0.5241962,"classic.cna@2":2,"classic.cp@2":0.2115086,"supersonic.cd@0.5":0.2965997,"supersonic.cna@0.5":2,"supersonic.cp@0.5":0.2115086,"supersonic.cd@2":0.5241962,"supersonic.cna@2":2.078125,"supersonic.cp@2":0.2050947}},
   "_notes": [
-    "Geometry from docs/research/validation-anchors-2026-08-03.md section 3.2. d = 75 mm; overall 4.900 d = 0.3675 m; base 1.600 d.",
+    "Geometry of the HB-2 standard model in AEDC-TDR-64-137, the report its anchors are read from (see the series sources in anchors.json). d = 75 mm; overall 4.900 d = 0.3675 m; base 1.600 d.",
     "APPROXIMATIONS (kernel limits, to be revisited when nose bluntness lands): the 0.300 d spherical nose cap + 25 deg cone + 0.700 d fairing arc are modeled as a sharp cone ending at the true shoulder-cylinder tangency (0.818 d); the 4.000 d cylinder-flare fairing arc is split into cylinder to the fairing-flare tangency (3.553 d) + a conical flare to the base.",
     "No fins - pure body aero (that is the point of this fixture).",
     "Finish: polished (machined tunnel model).",

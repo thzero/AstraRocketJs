@@ -42,8 +42,11 @@ const VITE = resolve(WEB, 'node_modules/vite/bin/vite.js');
 const OUT = 'dist-offline-data-check';
 const PORT = 4183;
 const URL_ = `http://localhost:${PORT}/`;
-// The app settings blob (services/storage/settings.ts); the same key e2e/base.ts seeds.
-const SETTINGS_KEY = 'astrarrocketjs:settings:v1';
+// The app settings blob (services/storage/settings.ts); the same key e2e/base.ts
+// seeds. Spelled out because this is a plain .mjs harness with no TS loader, so it
+// cannot import STORAGE_PREFIX. A mismatch is self-detecting: the app would come up
+// without settings and the check below would fail.
+const SETTINGS_KEY = 'astrarocketjs:settings:v1';
 
 const log = (...a) => console.log('[offline-data]', ...a);
 

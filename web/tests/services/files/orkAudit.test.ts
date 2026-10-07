@@ -282,3 +282,34 @@ describe('shared defaults (finding 15)', () => {
     expect(n['aftRadius']).toBe(KERNEL_DEFAULTS.nosecone.aftRadius);
   });
 });
+
+/**
+ * A centered internal part writes its placement the way the desktop savers do,
+ * "0.0" (a Java double), as the desktop-written fixture's inner tube shows. The
+ * inner tube and the mass component wrote it inline as "0", so a saved file
+ * differed from the desktop's for no reason.
+ */
+describe('radial placement of a centered internal part', () => {
+  it('is written as 0.0 for an inner tube and a mass component', () => {
+    const xml = exportOrk({
+      name: 'R',
+      tree: wrap([
+        node({
+          type: 'bodytube',
+          id: 'b',
+          length: 0.3,
+          outerRadius: 0.02,
+          children: [
+            node({ type: 'innertube', id: 'it', length: 0.07, outerRadius: 0.0095 }),
+            node({ type: 'masscomponent', id: 'mc', mass: 0.01 }),
+          ],
+        }),
+      ]),
+    });
+    for (const tag of ['innertube', 'masscomponent']) {
+      const block = xml.slice(xml.indexOf(`<${tag}>`), xml.indexOf(`</${tag}>`));
+      expect(block, tag).toContain('<radialposition>0.0</radialposition>');
+      expect(block, tag).toContain('<radialdirection>0.0</radialdirection>');
+    }
+  });
+});

@@ -2,6 +2,9 @@ import type * as THREE from 'three';
 import { zipSync, strToU8 } from 'fflate';
 import { escapeXml } from '../files/xmlUtil';
 import { M_TO_MM } from '../../prefs/units';
+import { plainDecimal } from '../files/numberText';
+import { hexOf, parseHexColor } from '../design/colorHex';
+import { UNKNOWN_PART_COLOR } from '../design/partColors';
 
 /**
  * 3MF (3D Manufacturing Format) writer.
@@ -49,21 +52,14 @@ export interface ThreeMfOptions {
 
 export const THREE_MF_MIME = 'model/3mf';
 
-const NEUTRAL = '#cfcabf';
-
 /** `#rgb` / `#rrggbb` → the `#RRGGBBAA` the spec's `displaycolor` wants. */
 function displayColor(color: string | undefined): string {
-  const hex = (color ?? NEUTRAL).trim();
-  const short = /^#([0-9a-f])([0-9a-f])([0-9a-f])$/i.exec(hex);
-  const full = short ? `#${short[1]}${short[1]}${short[2]}${short[2]}${short[3]}${short[3]}` : hex;
-  return /^#[0-9a-f]{6}$/i.test(full) ? `${full.toUpperCase()}FF` : `${NEUTRAL.toUpperCase()}FF`;
+  const rgb = parseHexColor(color) ?? (parseHexColor(UNKNOWN_PART_COLOR) as number);
+  return `${hexOf(rgb).toUpperCase()}FF`;
 }
 
 /** Six decimals is ~a nanometer at millimeter scale, and keeps the file small. */
-const fmt = (v: number): string => {
-  const r = Math.round(v * 1e6) / 1e6;
-  return Object.is(r, -0) ? '0' : String(r);
-};
+const fmt = (v: number): string => plainDecimal(v, 6, '0');
 
 /**
  * One object's `<mesh>`, plus the translation its build item needs.

@@ -1,7 +1,9 @@
 import type { ComponentNode, ComponentType, RocketTree } from '../engine/openRocketEngine';
 import { isAssembly } from './assembly';
 import { isChainType } from './componentKinds';
-import { numOpt, positionOf } from './nodeProps';
+import { chainOuterRadius, numOpt, positionOf } from './nodeProps';
+import { walkNodes } from './treeWalk';
+import { roundTo } from '../services/app/numbers';
 
 /**
  * Scale a whole rocket by one factor — the "upscale/downscale a plan" workflow.
@@ -166,10 +168,8 @@ const MASS_EXPONENT: Record<ComponentType, number> = {
   fairing: 0,
 };
 
-const round = (x: number, places = 12): number => {
-  const p = 10 ** places;
-  return Math.round(x * p) / p;
-};
+/** Twelve places: past any real dimension, short of float noise. */
+const round = (x: number, places = 12): number => roundTo(x, places);
 
 /**
  * Scales one node's own fields. Children are handled by the caller.
@@ -181,7 +181,14 @@ const round = (x: number, places = 12): number => {
 export function scaleNode(n: ComponentNode, k: number): ComponentNode {
   const type = n.type;
   const fixed = FIXED_SIZE.has(type);
-  const out: ComponentNode = { ...n };
+  // Children are left OFF, rather than carried by the spread and overwritten by
+  // whichever caller remembers to. Both callers already supply their own
+  // (`scaleRocket` walks them, `componentActions.scaleFin` reuses them), and a
+  // returned node that aliased the input's `children` array was a scaled node
+  // sharing a subtree with the unscaled one - the doc above says children are the
+  // caller's business and now the code says it too.
+  const { children: _children, ...own } = n;
+  const out: ComponentNode = { ...own } as ComponentNode;
 
   // `?? []` survives for a persisted node whose `type` the union does not
   // know: the table is complete for the union, not for arbitrary input.
@@ -197,7 +204,13 @@ export function scaleNode(n: ComponentNode, k: number): ComponentNode {
     out['points'] = pts.map((p) =>
       Array.isArray(p) && p.length >= 2 && typeof p[0] === 'number' && typeof p[1] === 'number'
         ? [round((p[0] as number) * k), round((p[1] as number) * k)]
-        : p,
+        : // A row that is not a numeric pair is COPIED rather than passed through
+          // by reference: it cannot be scaled, but the scaled node must not share
+          // an array with the node it was scaled from. Left unscaled on purpose -
+          // guessing at what a malformed vertex meant is worse than carrying it.
+          Array.isArray(p)
+          ? [...(p as unknown[])]
+          : p,
     );
   }
 
@@ -249,16 +262,7 @@ export function scaleRocket(tree: RocketTree, factor: number): RocketTree {
 /** The rocket's greatest body diameter (m) — what a "scale to a tube" factor divides. */
 export function maxBodyDiameter(tree: RocketTree): number {
   let r = 0;
-  const walk = (nodes: ComponentNode[]) => {
-    for (const n of nodes) {
-      const t = n.type;
-      if (t === 'bodytube') r = Math.max(r, numOpt(n, 'outerRadius') ?? 0);
-      else if (t === 'nosecone') r = Math.max(r, numOpt(n, 'aftRadius') ?? 0);
-      else if (t === 'transition') r = Math.max(r, numOpt(n, 'foreRadius') ?? 0, numOpt(n, 'aftRadius') ?? 0);
-      walk(n.children ?? []);
-    }
-  };
-  walk(tree.components);
+  for (const n of walkNodes(tree.components)) r = Math.max(r, chainOuterRadius(n));
   return r * 2;
 }
 

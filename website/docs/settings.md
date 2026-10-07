@@ -104,6 +104,10 @@ Note these six are *required*, not *non-zero*: still air, no gusts, sea level, t
 
 In this dialog the same fields can never end up blank at all — they seed every new simulation, so clearing one here simply keeps the value it had.
 
+### Open-Meteo API key {#open-meteo-key}
+
+At the bottom of the Atmosphere card on the Launch tab is a field for an Open-Meteo API key, used by [weather from Open-Meteo](./running-a-simulation.md#weather). Leave it empty to use Open-Meteo's free service, which is for non-commercial use. A key from a paid Open-Meteo plan sends requests to its paid service instead. The key is stored only in this browser, outside these settings, so **Reset** leaves it alone and no design or `.ork` you save carries it.
+
 ## Playback {#playback}
 
 - **Default speed** — the speed the 3D flight path starts playing at, from 0.25× to 4×. It is a starting point, not a lock: the speed control in the view changes the current playback without touching this.
@@ -124,6 +128,18 @@ The last three apply only to **dual deployment** (a stage carrying a drogue), wh
 All three depend on the rocket saying which chute is which. Tick **Drogue (dual deployment)** on the parachute or streamer that opens at apogee, and the flight is judged as dual deployment. Leave it clear and the whole stage is single deployment, judged against **Deploy-speed warning above** alone.
 
 Each of these can also be overridden per simulation, in the simulation's own options.
+
+Changing any of them marks every simulation that has already run as **outdated**, so a saved result never claims to describe settings it was not flown under. A simulation that pins the setting for itself is left alone, since its own value still applies. Run it again to bring the numbers up to date.
+
+## Flight model
+
+Everything above decides when a flight *warns*. This one changes what the flight does.
+
+- **Guide-aware rod clearance** — off by default, which is OpenRocket's own behavior: the rocket stays on the rod for the full rod length wherever its launch lugs or rail buttons sit. OpenRocket works out a guide-aware length and then never uses it, so a guide mounted above the rocket's aft end is credited with guided travel it does not have, and rail buttons are not considered at all.
+
+  Turn it on and the guided phase ends when the aft-most guide leaves the rod, lug or rail button alike. The rocket is released at that moment as well as reported there, so the flight itself changes, not just the number. Expect the rail-exit velocity to come out a little lower: a rail button usually sits 10 to 20 cm above the tail, which on a 1.8 m rail is roughly 8% less guided travel. A design with no guide at all is a tower launcher and flies identically either way.
+
+  It is a setting rather than a correction because the engine is checked against desktop OpenRocket flight for flight. Left off, a run matches OpenRocket exactly.
 
 ## Reset
 

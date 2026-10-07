@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { MotorSpec } from '../../../src/engine/openRocketEngine';
-import { motorStats, thrustToWeight } from '../../../src/services/report/rocketReport';
+import { motorStats } from '../../../src/services/report/rocketReport';
 
 // A simple triangular-ish curve: 10 N held for 2 s → 20 N·s, avg 10 N.
 const motor = {
@@ -15,6 +15,15 @@ const motor = {
 } as unknown as MotorSpec;
 
 describe('motorStats', () => {
+  it('reads the peak of a curve too long to spread into Math.max', () => {
+    // Engines cap spread arguments well below a million.
+    const n = 1_000_000;
+    const times = Array.from({ length: n }, (_, i) => i / 1000);
+    const thrusts = times.map((_, i) => (i === 1234 ? 99 : 5));
+    const m = motorStats({ ...motor, times, thrusts } as unknown as MotorSpec);
+    expect(m.maxThrust).toBe(99);
+  });
+
   it('summarizes a thrust curve', () => {
     const m = motorStats(motor);
     expect(m.burnTime).toBe(2);
@@ -31,13 +40,5 @@ describe('motorStats', () => {
     expect(m.burnTime).toBe(0);
     expect(m.avgThrust).toBe(0);
     expect(m.totalImpulse).toBe(0);
-  });
-});
-
-describe('thrustToWeight', () => {
-  it('is avg thrust over weight', () => {
-    expect(thrustToWeight(9.80665, 1)).toBeCloseTo(1, 6); // 1 kg weighs 9.80665 N
-    expect(thrustToWeight(50, 0.5)).toBeCloseTo(50 / (0.5 * 9.80665), 6);
-    expect(thrustToWeight(50, 0)).toBe(0);
   });
 });

@@ -3,6 +3,8 @@ import type { AeroSweep, ComponentMass } from '../../../src/engine/openRocketEng
 import {
   chartDomain,
   columnMax,
+  cpDivisor,
+  cpModesFor,
   dragRows,
   dragTotals,
   machTicks,
@@ -178,5 +180,53 @@ describe('machTicks', () => {
   });
   it('ticks whole Mach numbers above 1', () => {
     expect(machTicks(0.05, 3)).toEqual([0.05, 1, 2, 3]);
+  });
+});
+
+describe('cpModesFor', () => {
+  it('offers both percentages when both lengths are positive', () => {
+    expect(cpModesFor(1.2, 1.1)).toEqual(['len', 'body', 'aero']);
+  });
+
+  it('leaves out a percentage whose denominator is not positive', () => {
+    // A mode with no denominator would render meters under a "%" axis label,
+    // which is an inert control rather than a disabled one.
+    expect(cpModesFor(1.2, 0)).toEqual(['len', 'body']);
+    expect(cpModesFor(0, 1.1)).toEqual(['len', 'aero']);
+    expect(cpModesFor(0, 0)).toEqual(['len']);
+  });
+
+  it('ignores a negative or non-finite length', () => {
+    expect(cpModesFor(-1, Number.NaN)).toEqual(['len']);
+    expect(cpModesFor(Number.POSITIVE_INFINITY, -0)).toEqual(['len', 'body']);
+  });
+});
+
+describe('cpDivisor', () => {
+  // The two percentages must NOT share a denominator: `aero` is the
+  // aerodynamic length, which is what OpenRocket's PercentageOfLengthUnit
+  // divides by, and `body` is the whole airframe. A design with an overhanging
+  // part has both, and they differ.
+  it('divides by the aerodynamic length for aero and the overall length for body', () => {
+    expect(cpDivisor('body', 1.2, 1.1)).toBe(1.2);
+    expect(cpDivisor('aero', 1.2, 1.1)).toBe(1.1);
+  });
+
+  it('is 0 for the length-unit mode, so the axis stays in length units', () => {
+    expect(cpDivisor('len', 1.2, 1.1)).toBe(0);
+  });
+
+  it('is 0 when the selected mode has no usable denominator', () => {
+    // Falling back beats dividing by zero: a stale selection must not leave the
+    // axis claiming a percentage it is not drawing.
+    expect(cpDivisor('aero', 1.2, 0)).toBe(0);
+    expect(cpDivisor('body', 0, 1.1)).toBe(0);
+    expect(cpDivisor('aero', 1.2, Number.NaN)).toBe(0);
+  });
+
+  it('turns a CP position into the percentage each mode promises', () => {
+    const cp = 0.84;
+    expect((cp / cpDivisor('body', 1.2, 1.1)) * 100).toBeCloseTo(70, 6);
+    expect((cp / cpDivisor('aero', 1.2, 1.1)) * 100).toBeCloseTo(76.3636, 4);
   });
 });

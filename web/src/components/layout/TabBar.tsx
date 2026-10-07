@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore } from '../../state/store';
 import { useShowResultsTab } from './useShowResultsTab';
+import { taskTabs } from './tabTable';
 
 /**
  * Mobile bottom tab bar (hidden at lg+, where {@link WorkbenchTabs} sits under
@@ -41,11 +42,9 @@ export function TabBar() {
         label={t('tabs.sketch')}
         icon="📐"
       />
-      <TabButton active={tab === 'configs'} onClick={() => onTab('configs')} label={t('tabs.configsShort')} icon="🔥" />
-      <TabButton active={tab === 'sim'} onClick={() => onTab('sim')} label={t('tabs.simulate')} icon="📈" />
-      {showResults && (
-        <TabButton active={tab === 'results'} onClick={() => onTab('results')} label={t('tabs.results')} icon="📊" />
-      )}
+      {taskTabs(showResults).map((e) => (
+        <TabButton key={e.id} active={tab === e.id} onClick={() => onTab(e.id)} label={t(e.short)} icon={e.icon} />
+      ))}
     </nav>
   );
 }

@@ -23,6 +23,8 @@ El catálogo de motores lleva consigo la **curva de empuje** de cada motor, así
 
 **Las imágenes de mapa son la excepción.** Se descargan según las miras, no de antemano, y las teselas que ya has visto se conservan, así que un campo que consultaste en casa sigue dibujándose en el lanzamiento sin cobertura. Un terreno que no has visto nunca no se puede dibujar sin conexión: el mapa del lugar de lanzamiento recurre a una retícula de coordenadas, y la traza en tierra y la trayectoria 3D a sus gráficos simples, que de todos modos llevan la medida.
 
+**El tiempo necesita conexión.** [El tiempo de Open-Meteo](./running-a-simulation.md#weather) se consulta cuando lo pides y no se guarda para usarlo sin conexión. Lo que hayas aplicado se queda en la simulación.
+
 **Tus diseños siempre fueron locales.** Tu biblioteca de cohetes guardados, tus motores y materiales personalizados y tus ajustes viven en el almacenamiento de tu navegador, en tu dispositivo: eso no ha cambiado y nunca dependió de una conexión.
 
 ## Cómo instalarla {#installing-it}

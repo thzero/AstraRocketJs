@@ -17,6 +17,17 @@ export function asStageNodes(tree: RocketTree): ComponentNode[] {
     : [{ type: 'stage', name: 'Sustainer', children: tree.components } as ComponentNode];
 }
 
+/**
+ * The name a file gives an unnamed stage: "Sustainer" for the first, "Booster n"
+ * after it, as the `.ork` and `.rkt` readers and the `.ork` writer name them.
+ * File text, not a display label (that is `stageLabel` in i18n/format.ts).
+ */
+export const defaultStageName = (i: number): string => (i === 0 ? 'Sustainer' : `Booster ${i}`);
+
+/** A stage's name as a file states it: its own, else {@link defaultStageName}. */
+export const stageFileName = (st: ComponentNode, i: number): string =>
+  typeof st.name === 'string' ? st.name : defaultStageName(i);
+
 /** Launch conditions parsed from a .ork's first `<simulation>` `<conditions>`. */
 export interface WindLevel {
   /** Altitude MSL, meters. */
@@ -27,6 +38,20 @@ export interface WindLevel {
   directionDeg: number;
   /** Gust std-deviation, m/s. */
   stddev: number;
+}
+
+/**
+ * One level of a forecast atmosphere: what the air is at one altitude, from a
+ * weather model's pressure levels. With any present, the engine flies these in
+ * place of the standard atmosphere above the site (bridge AtmosphereProfile).
+ */
+export interface AtmosphereLevel {
+  /** Altitude MSL, meters. */
+  altitudeM: number;
+  temperatureC: number;
+  pressureHPa: number;
+  /** Relative humidity as a FRACTION (0..1). */
+  relativeHumidity: number;
 }
 
 export interface LaunchConditions {
@@ -84,4 +109,46 @@ export interface LaunchConditions {
    * pad is a slightly thinner one.
    */
   relativeHumidity?: number | null;
+  /**
+   * A forecast atmosphere above the site, from the Weather dialog. When the
+   * site's temperature and pressure are both set, the site is the profile's
+   * lowest level and the engine drops any level at or below it; otherwise the
+   * levels stand alone. Absent or empty is the standard atmosphere.
+   */
+  atmosphereLevels?: AtmosphereLevel[];
+  /**
+   * Where the weather-filled fields came from, written by the Weather dialog's
+   * Apply. Describes the other fields and is never flown: `resultKey` leaves it
+   * out, so a refresh that changes no value leaves results current.
+   */
+  weatherSource?: WeatherSource;
+}
+
+/** The forecast a simulation's launch conditions were filled from. */
+export interface WeatherSource {
+  provider: 'open-meteo';
+  endpoint: 'forecast' | 'archive';
+  /** The site-calendar date and hour (0..23) asked for, in `timezone`. */
+  date: string;
+  hour: number;
+  timezone: string;
+  /** Where it was asked for. A site moved since is a different forecast. */
+  latitudeDeg: number;
+  longitudeDeg: number;
+  elevationM: number;
+  /** The hour the values are for, ISO 8601. */
+  validAt: string;
+  /** When it was fetched, ISO 8601. */
+  fetchedAt: string;
+  /** The dialog groups that were applied. */
+  groups: ('temperature' | 'pressure' | 'humidity' | 'wind' | 'atmosphere')[];
+  /** Whether the forecast's terrain elevation was applied as the site altitude. */
+  elevationApplied: boolean;
+  /**
+   * The values Apply wrote, to tell whether any has been edited since. Absent
+   * when read from a file, which records the answer as `edited` instead.
+   */
+  applied?: Partial<LaunchConditions>;
+  /** Set when a file says the values were edited after they were applied. */
+  edited?: true;
 }

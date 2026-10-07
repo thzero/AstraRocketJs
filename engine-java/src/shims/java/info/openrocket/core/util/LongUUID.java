@@ -31,14 +31,15 @@ public final class LongUUID implements Comparable<LongUUID> {
      * Deterministic (counter-based) unique id - see class javadoc.
      * <p>
      * The counter is run through a SplitMix64 finalizer before the version and
-     * variant bits are applied, NOT used raw, which costs two things. The masked-out
-     * nibble at bits 12-15 makes the most-significant half REPEAT every 2048 calls
-     * (measured), and {@code MotorConfigurationId} keys only on the mount hash and
-     * {@code getMostSignificantBits()}, so two flight configurations created 2048
-     * apart on one mount get the same id and alias in the motor map. And with only
-     * the low bits of the counter moving, every id's first eight hex digits are the
-     * constant "01234567", so {@code FlightConfigurationId.toShortKey()} - the one
-     * field in a log line meant to tell configurations apart - says nothing.
+     * variant bits are applied, and it has to be: a raw counter would break two
+     * things. The masked-out nibble at bits 12-15 would make the most-significant
+     * half repeat every 2048 calls, and {@code MotorConfigurationId} keys only on
+     * the mount hash and {@code getMostSignificantBits()}, so two flight
+     * configurations created 2048 apart on one mount would alias in the motor map.
+     * And with only the counter's low bits moving, every id would start with the
+     * constant "01234567", so {@code FlightConfigurationId.toShortKey()} could not
+     * tell configurations apart in a log line. Mixed, 100,000 calls give 100,000
+     * distinct high halves and 99,998 distinct 8-hex prefixes (measured).
      * <p>
      * Still fully deterministic, which matters: the parity harness requires
      * bit-identical output across three targets, so this cannot become random.

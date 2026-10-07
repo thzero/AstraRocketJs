@@ -41,7 +41,12 @@ npm run preview      # serve the production build locally
 npm run test         # Vitest: unit tests (.test.ts) and component tests (.test.tsx)
 npm run test:watch   # Vitest in watch mode while developing
 npm run e2e          # Playwright end-to-end smoke tests (downloads Chromium the first time)
-npm run verify       # every gate CI runs on the web app: format, spell, typecheck, lint, knip, test
+npm run verify       # the pre-push gate: format, spell, typecheck, lint, knip,
+                     # the production build, and the unit suite. ~100 s.
+npm run verify:ci    # the same list, but the suite runs WITH coverage and fails if
+                     # it drops below the minimum percentages in vitest.config.ts
+                     # (lines 70, statements 69, branches 62, functions 61).
+                     # ~350 s, which is why CI runs this one and you run the other.
 ```
 
 Please **verify UI changes in a real browser**, not just that it compiles.
@@ -52,10 +57,21 @@ A few house rules that keep the codebase consistent:
 - **Never hardcode the app name, version, or the help/docs URL.** They come from `web/src/services/app/appInfo.ts` — name from i18n, version from `package.json`, and `HELP_URL` from `package.json`'s `wiki.url` (overridable at build time with `HELP_URL=…`).
 - **Match the surrounding code** — its naming, comment density, and style.
 
+## Where a number comes from
+
+**The engine owns the physics. The UI reports facts known before a run and facts known after a run; it does not calculate.** The kernel is what gets validated against desktop OpenRocket, so a figure the app works out for itself is a second implementation that nothing checks. One did drift and shipped wrong.
+
+Before adding a readout, ask which side of the run it comes from. Before a run, that is the design's own values and what the kernel reports about the built rocket; after a run, it is `result.summary`, `result.events` and `result.series` sampled at an event's time with `lerpAt`. Series and events are per branch, which is the only way to be right about a separated booster.
+
+An app-side **estimate** is allowed as a design aid, and only if the UI says it is an estimate and it is replaced by the kernel's figures once a run has them. `services/flight/recoverySizing.ts` (the estimate) against `services/flight/recoveryFlown.ts` (the reader) is the worked pair.
+
+Full reasoning and the exceptions: [**Who owns a number**](./ARCHITECTURE.md#who-owns-a-number).
+
 ## Working on the engine
 
 Most contributions don't touch the engine. If you do:
 
+- **Before patching a kernel file to change flight behavior, try a `SimulationListener` first.** The bridge can add one to `SimulationConditions`, which costs no patched file, no `DIVERGENCE.txt` re-bless, and leaves the default path byte-identical because the listener is simply not attached when the feature is off. `api/GuideClearanceListener.java` is the worked example; see [**The extracted engine**](./ARCHITECTURE.md#the-extracted-engine-engine-javasrcjava) for the hooks it relies on and the two traps.
 - **Don't edit the extracted OpenRocket sources under `engine-java/src/java/` directly** — they track OpenRocket's **unstable** branch. Necessary tweaks go through a documented override in `engine-java/patches/` (see also `engine-java/ATTRIBUTION.md`).
 - ARJ's own engine glue — the `@JSExport` facade, the component-tree builder, overrides, etc. — lives in `engine-java/src/api/`. That's fair game.
 - Changing the engine requires a **JDK** (see **Requirements** above) and rebuilding **both** targets (WASM-GC is the default backend, JS the fallback):
@@ -115,7 +131,7 @@ Open a PR from your branch to **`master`**. In the description:
 2. The underlying cause.
 3. How you fixed it.
 
-Make sure `npm run verify` passes (it runs the same gates CI does, in the same order), and that you've checked the change in the browser. Add or update tests for any logic you touch under `web/src/services` or `web/src/engine`. Keep engine `.mjs`/`.wasm` regenerations in the same PR as their Java changes.
+Make sure `npm run verify` passes (the same gate list CI runs, in the same order; CI adds coverage via `verify:ci`), and that you've checked the change in the browser. Add or update tests for any logic you touch under `web/src/services` or `web/src/engine`. Keep engine `.mjs`/`.wasm` regenerations in the same PR as their Java changes.
 
 What CI gates on the PR itself:
 
@@ -123,10 +139,10 @@ What CI gates on the PR itself:
 | ---------------- | ------------------------------------------------------------------------ | ------------------------- |
 | `parity`         | `npm run parity`, then a rebuild compared against the committed binaries | first                     |
 | `reproducible`   | `npm run extract:check` against the pinned OpenRocket                    | first                     |
-| `build-and-test` | `npm run verify` with coverage, then `vite build`                        | in parallel with `parity` |
+| `build-and-test` | `npm run verify:ci` (the `verify` list, with coverage)                   | in parallel with `parity` |
 | `e2e`            | Playwright, sharded three ways                                           | in parallel with `parity` |
 
-Pushes to `dev` run only the web gates (`dev.yml`, about two minutes), so a broken test shows up on the push that broke it rather than when the PR to `master` is opened.
+A push to **any branch but `master`** runs only the web gates (`dev.yml`, about six minutes: `verify:ci`, so the coverage minimums are checked on the push), so a broken test shows up on the push that broke it rather than when the PR to `master` is opened. `master` is excluded because `deploy.yml` already runs the full set there. This used to read `branches: [dev]`, which meant a push to any other branch, which is where most work happens, was checked by nothing at all; `web/tests/ciTriggers.test.ts` now fails if the trigger is narrowed back to a list of branch names.
 
 The Docusaurus site is **not** built on a PR. It is typechecked and built in `deploy.yml` on merge to `master`, so a broken MDX page or `sidebars.ts` shows up as a failed deploy rather than a failed PR check.
 

@@ -3,6 +3,7 @@ import {
   STD_DIAMS,
   fitIdx,
   motorFitsMount,
+  mountFit,
   offersPlugged,
   parseDelays,
   initialThrust,
@@ -110,5 +111,23 @@ describe('initialThrust', () => {
   it('returns null for fewer than two samples', () => {
     expect(initialThrust([[0, 5]])).toBeNull();
     expect(initialThrust([])).toBeNull();
+  });
+});
+
+/**
+ * The bore a mount offers is its outer radius less ITS wall, as the kernel
+ * builds it: a missing thickness is the type's own default (0.5 mm for an inner
+ * tube), not zero, and a NaN is not let through. A NaN bore failed every
+ * comparison in motorFitsMount, so every motor "fit".
+ */
+describe('mountFit', () => {
+  it('takes the kernel wall when the mount states none', () => {
+    expect(mountFit({ type: 'innertube', outerRadius: 0.0095, length: 0.07 })!.bore).toBeCloseTo(18, 9);
+  });
+
+  it('does not let a NaN wall through', () => {
+    const fit = mountFit({ type: 'innertube', outerRadius: 0.0095, thickness: Number.NaN, length: 0.07 })!;
+    expect(fit.bore).toBeCloseTo(18, 9);
+    expect(motorFitsMount({ diameter: 29, length: 70 }, fit)).toBe(false);
   });
 });

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   catalogTypeFor,
@@ -33,6 +33,11 @@ import { fmtNum } from '../../i18n/format';
 import { useUnits, type Units } from '../../prefs/useUnits';
 import { useCatalogProgress } from '../common/CatalogLoading';
 import { Dialog } from '../common/Dialog';
+import { errorMessage } from '../../services/app/errorMessage';
+import { progressPercent } from '../../services/app/remoteData';
+import { SortHeader } from '../common/SortHeader';
+import { UnitBound } from '../common/UnitBound';
+import { useAsyncLoad } from '../common/useAsyncLoad';
 
 /**
  * How many rows are rendered at once. There are 1088 body tubes and no
@@ -49,7 +54,6 @@ const ROW_CAP = 200;
 type CatalogState =
   { status: 'loading' } | { status: 'error'; message: string } | { status: 'ready'; all: Component[] };
 /** A fetch that finished, filed under the type and attempt it answers. */
-type CatalogLanded = { type: PickerType; attempt: number; result: Exclude<CatalogState, { status: 'loading' }> };
 
 /**
  * The rows for a node type: the user's own saved parts (customParts.ts) first,
@@ -74,6 +78,7 @@ async function loadRows(type: PickerType): Promise<Component[]> {
 export function ComponentPicker({
   type,
   fit,
+  current,
   onApply,
 }: {
   /** The NODE's type, not the catalog's: an inner tube is served by the body tube
@@ -82,54 +87,35 @@ export function ComponentPicker({
   /** Geometry around the node being filled, so the parts that actually fit can
    *  be ranked first. Absent is fine: the fit control then says so. */
   fit?: FitContext;
+  /** The part this component is already linked to, so the list can mark it. */
+  current?: string;
   onApply: (p: Component) => void;
 }) {
   const { t } = useTranslation();
   // The catalog is fetched at runtime (see componentDb / remoteData), so load it
   // on mount and hold the result. Same trigger as before (this picker is itself
   // lazy-loaded); it's just async now.
-  // Bumped by the retry button to re-run the load effect.
-  const [attempt, setAttempt] = useState(0);
-  // The outcome of the latest fetch that LANDED. `loading` is derived from it
-  // (the landed fetch is not for this type and attempt) rather than set at the
-  // top of the effect: that was a synchronous setState in an effect, which is
-  // a cascading render the compiler lint rejects.
-  const [landed, setLanded] = useState<CatalogLanded | null>(null);
-  // Deliberately NOT part of the identity below: a save or a delete re-runs
-  // the load, but the list already in hand stays `ready` while it does, so the
-  // open dialog is not torn down and the button does not flash back to
-  // "Loading" for a change the user just made in the panel behind it.
+  // A save or a delete re-runs the load (`refresh`), but the list already in
+  // hand stays ready while it does, so the open dialog is not torn down and the
+  // button does not flash back to "Loading" for a change the user just made in
+  // the panel behind it. A failure is reported with a retry, not swallowed:
+  // swallowed, the button read "Pick (0)" as though the catalog were empty.
   const version = useSyncExternalStore(onSavedPartsChanged, savedPartsVersion, savedPartsVersion);
-  const state: CatalogState =
-    landed && landed.type === type && landed.attempt === attempt ? landed.result : { status: 'loading' };
-  useEffect(() => {
-    let ok = true;
-    loadRows(type)
-      .then((all) => ok && setLanded({ type, attempt, result: { status: 'ready', all } }))
-      .catch((e: unknown) => {
-        if (!ok) return;
-        // Reported, not swallowed: swallowing leaves the button reading "Pick (0)"
-        // as though the catalog were simply empty. Say what happened, offer a
-        // retry.
-        setLanded({
-          type,
-          attempt,
-          result: { status: 'error', message: e instanceof Error ? e.message : String(e) },
-        });
-      });
-    return () => {
-      ok = false;
-    };
-  }, [type, attempt, version]);
+  const rows = useAsyncLoad(() => loadRows(type), type, { refresh: version });
+  const state: CatalogState = rows.loading
+    ? { status: 'loading' }
+    : rows.error !== null
+      ? { status: 'error', message: rows.error }
+      : { status: 'ready', all: rows.data! };
   // Live bytes for the ~1 MB component catalog, so a slow link is legible.
   const progress = useCatalogProgress('components');
-  const pct = progress?.total ? Math.min(100, Math.round((progress.loaded / progress.total) * 100)) : null;
+  const pct = progressPercent(progress);
   const [open, setOpen] = useState(false);
 
   return (
     <>
       <button
-        onClick={() => (state.status === 'error' ? setAttempt((n) => n + 1) : setOpen(true))}
+        onClick={() => (state.status === 'error' ? rows.retry() : setOpen(true))}
         disabled={state.status === 'loading'}
         title={state.status === 'error' ? state.message : undefined}
         className={`w-full rounded-lg px-2 py-1.5 text-xs font-medium hover:bg-slate-700 disabled:text-slate-500 ${
@@ -150,6 +136,7 @@ export function ComponentPicker({
           type={type}
           all={state.all}
           fit={fit}
+          current={current}
           onApply={(p) => {
             onApply(p);
             setOpen(false);
@@ -354,12 +341,14 @@ function PickerDialog({
   type,
   all,
   fit,
+  current,
   onApply,
   onClose,
 }: {
   type: PickerType;
   all: Component[];
   fit?: FitContext;
+  current?: string;
   onApply: (p: Component) => void;
   onClose: () => void;
 }) {
@@ -413,7 +402,7 @@ function PickerDialog({
       // subscribes to, so there is nothing to re-fetch here.
       await deleteCustomPart(p.id);
     } catch (e) {
-      setDelErr(e instanceof Error ? e.message : String(e));
+      setDelErr(errorMessage(e));
     }
   };
   // The delete column exists only when there is something to delete, so an
@@ -450,12 +439,6 @@ function PickerDialog({
 
   /** Clicking a heading sorts by it; clicking the active one flips direction. */
   const sortBy = (key: SortKey) => set(key === q.sort ? { dir: q.dir === 1 ? -1 : 1 } : { sort: key, dir: 1 });
-  /** Length typed in the user's own unit, held as meters. */
-  const odBound = (text: string): number | null => {
-    const n = Number(text);
-    return text.trim() === '' || !Number.isFinite(n) ? null : u.fromUi('length', n);
-  };
-  const boundText = (si: number | null) => (si == null ? '' : String(Number(u.toUi('length', si).toFixed(3))));
 
   return (
     <Dialog
@@ -526,23 +509,21 @@ function PickerDialog({
             )}
             <span className="flex items-center gap-1 text-xs text-slate-400">
               <span className="text-slate-500">⌀</span>
-              <input
-                type="number"
-                inputMode="decimal"
-                value={boundText(q.odMin)}
-                onChange={(e) => set({ odMin: odBound(e.target.value) })}
+              <UnitBound
+                quantity="length"
+                value={q.odMin}
+                onChange={(si) => set({ odMin: si })}
                 placeholder={t('picker.odFrom')}
-                aria-label={t('picker.odFrom')}
+                ariaLabel={t('picker.odFrom')}
                 className="w-16 rounded-md bg-slate-950 px-2 py-1.5 text-right tabular-nums text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
               />
               <span aria-hidden="true">–</span>
-              <input
-                type="number"
-                inputMode="decimal"
-                value={boundText(q.odMax)}
-                onChange={(e) => set({ odMax: odBound(e.target.value) })}
+              <UnitBound
+                quantity="length"
+                value={q.odMax}
+                onChange={(si) => set({ odMax: si })}
                 placeholder={t('picker.odTo')}
-                aria-label={t('picker.odTo')}
+                ariaLabel={t('picker.odTo')}
                 className="w-16 rounded-md bg-slate-950 px-2 py-1.5 text-right tabular-nums text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
               />
               <span className="text-slate-500">{u.sym('length')}</span>
@@ -589,26 +570,15 @@ function PickerDialog({
         <thead className="sticky top-0 z-10 bg-slate-900 text-[11px] uppercase tracking-wide text-slate-400">
           <tr>
             {cols.map((c) => (
-              <th
+              <SortHeader
                 key={c.key}
-                scope="col"
-                aria-sort={c.sort !== q.sort ? 'none' : q.dir === 1 ? 'ascending' : 'descending'}
                 className={`border-b border-white/10 px-2 py-2 font-medium ${c.num ? 'text-right' : 'text-left'} ${c.w ?? ''} ${c.hide ?? ''}`}
+                active={c.sort === q.sort}
+                dir={q.dir === 1 ? 1 : -1}
+                onSort={c.sort ? () => sortBy(c.sort!) : undefined}
               >
-                {c.sort ? (
-                  <button
-                    onClick={() => sortBy(c.sort!)}
-                    className={`hover:text-slate-200 ${c.sort === q.sort ? 'text-sky-400' : ''}`}
-                  >
-                    {c.head}
-                    {c.sort === q.sort && <span aria-hidden="true">{q.dir === 1 ? ' ▲' : ' ▼'}</span>}
-                  </button>
-                ) : c.headSrOnly ? (
-                  <span className="sr-only">{c.head}</span>
-                ) : (
-                  c.head
-                )}
-              </th>
+                {c.headSrOnly && !c.sort ? <span className="sr-only">{c.head}</span> : c.head}
+              </SortHeader>
             ))}
           </tr>
         </thead>
@@ -622,13 +592,19 @@ function PickerDialog({
               onClick={() => onApply(r.part)}
               tabIndex={0}
               role="button"
+              // The one this component is already built from, marked rather than
+              // merely present: opening a list of 856 parts to find out which one
+              // you are on is not an answer.
+              aria-current={r.part.partNo === current ? 'true' : undefined}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault();
                   onApply(r.part);
                 }
               }}
-              className="cursor-pointer border-b border-white/5 text-slate-300 hover:bg-slate-800 focus:bg-slate-800 focus:outline-none"
+              className={`cursor-pointer border-b border-white/5 hover:bg-slate-800 focus:bg-slate-800 focus:outline-none ${
+                r.part.partNo === current ? 'bg-slate-800 font-semibold text-sky-300' : 'text-slate-300'
+              }`}
             >
               {cols.map((c) => (
                 <td

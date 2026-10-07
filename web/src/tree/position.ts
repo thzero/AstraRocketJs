@@ -51,8 +51,8 @@ export function freeformRootChord(
  * desktop GUI's per-point edit path, not ours.)
  *
  * The app read the raw points instead, while placing the through-the-wall TAB
- * in root-relative coordinates via `finTabFront(node, root)` with
- * `root = last.x - first.x`. The two agree only when `points[0].x === 0`, and
+ * in root-relative coordinates (`finTabSpan`, which measures from the root chord
+ * rather than from the first point). The two agree only when `points[0].x === 0`, and
  * `FreeformFinEditor` lets the first vertex be dragged off it — so a fin whose
  * outline began at x = 20 mm had its tab cut 20 mm out of place on the 1:1 PDF
  * template and in the exported STL, on a part that has to pass through a slot.
@@ -68,6 +68,15 @@ export function normalizeFreeformPoints(pts: [number, number][] | undefined): [n
 /** A freeform node's outline in kernel coordinates. */
 export function freeformPoints(n: ComponentNode): [number, number][] {
   return n.type === 'freeformfinset' ? normalizeFreeformPoints(n['points'] as [number, number][] | undefined) : [];
+}
+
+/**
+ * A part's own `length`, else the kernel's length for its type, else 0 for a
+ * type the factory reads none for. Not the positioning extent (fins and
+ * assemblies differ there): see {@link axialLength}.
+ */
+export function partLength(n: ComponentNode): number {
+  return num(n, 'length', kernelLength(n.type) ?? 0);
 }
 
 /** A component's axial extent used for positioning (fins use root chord). */
@@ -93,7 +102,27 @@ export function axialLength(n: ComponentNode): number {
   // 25 mm where it flies 100 mm. Types the factory reads no length for (a
   // rail button, a stage) resolve to 0, which is the kernel's own
   // RocketComponent.length initial value.
-  return num(n, 'length', kernelLength(n.type) ?? 0);
+  return partLength(n);
+}
+
+/**
+ * The rocket's top-level components with every stage flattened into its
+ * children, in nose-to-tail order (sustainer first, boosters after). A
+ * top-level node that is not a stage (a legacy flat tree) passes through.
+ */
+export function axialChain(tree: RocketTree): ComponentNode[] {
+  return tree.components.flatMap((n) => (n.type === 'stage' ? (n.children ?? []) : [n]));
+}
+
+/**
+ * Where a motor's forward end sits (m, same frame as `mountStart`): flush
+ * with the mount's aft end, pushed aft by the mount's `motorOverhang`. The
+ * kernel's `getMotorPosition` in InnerTube and BodyTube returns
+ * `getLength() - motor.getLength() + getMotorOverhang()` relative to the
+ * mount's front; this adds the mount's own start.
+ */
+export function motorSeatStart(mount: ComponentNode, mountStart: number, mountLen: number, motorLen: number): number {
+  return mountStart + mountLen - motorLen + num(mount, 'motorOverhang', 0);
 }
 
 /**

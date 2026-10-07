@@ -1,3 +1,4 @@
+import { nsKey } from '../../../src/services/storage/storageKeys';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { KeyValueMaterialStore } from '../../../src/services/materials/materialStore';
 import type { KeyValueStore } from '../../../src/services/storage/keyValueStore';
@@ -25,7 +26,7 @@ class FakeKv implements KeyValueStore {
   }
 }
 
-const KEY = 'astrarrocketjs:materials:custom';
+const KEY = nsKey('materials:custom');
 const mat = (name: string, density = 1000): Material => ({ name, type: 'bulk', density }) as Material;
 
 let kv: FakeKv;

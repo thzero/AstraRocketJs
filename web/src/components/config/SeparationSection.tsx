@@ -1,11 +1,12 @@
 import { useTranslation } from 'react-i18next';
 import type { ComponentNode } from '../../engine/openRocketEngine';
-import { sepOverride, stageFlies, type FlightConfig } from '../../services/flight/flightConfigs';
+import { designSeparation, type FlightConfig, sepOverride, stageFlies } from '../../services/flight/flightConfigs';
 import { useWorkspaceStore } from '../../state/store';
-import { NumberInput } from '../common/NumberInput';
+import { OverrideCard, overrideFieldLabel, OverrideNumber, OverrideRow, OverrideSelect } from './OverrideFields';
 import { useUnits } from '../../prefs/useUnits';
+import { onSi } from '../../prefs/entryValue';
 import { unitScope } from '../../prefs/units';
-import { num, str } from '../../tree/nodeProps';
+import { partLabel } from '../../i18n/format';
 
 /**
  * The kernel's SeparationEvent vocabulary, in the order the property panel
@@ -51,99 +52,80 @@ export function SeparationSection({
   const id = stage.id as string;
   const flies = stageFlies(config, id);
   const over = sepOverride(config, id);
-  const baseEvent = str(stage, 'separationEvent') || 'ejection';
+  const design = designSeparation(stage);
+  const baseEvent = design.separationEvent;
   const event = over?.separationEvent ?? baseEvent;
   const alt = u.at(unitScope('prop', stage.type, 'separationAltitude'), 'distance');
-  const name = str(stage, 'name') || t(`part.${stage.type}`);
+  const name = partLabel(t, stage);
 
   return (
-    <section aria-label={name} className="rounded-xl bg-slate-900 p-3 ring-1 ring-white/10">
-      <div className="mb-2 flex items-baseline justify-between gap-2">
-        <span className="truncate text-sm font-medium text-slate-200">{name}</span>
-        {over && (
-          <span className="shrink-0 text-[10px] uppercase tracking-wide text-amber-300">{t('configs.overridden')}</span>
-        )}
-      </div>
-
+    <OverrideCard name={name} overridden={!!over}>
       {/* Whether it flies at all comes FIRST: everything under it describes a
           stage that is in the flight, and a grounded stage separates from
           nothing. */}
-      <label className="flex items-center justify-between gap-3">
-        <span className="text-xs text-slate-400">{t('configs.flies')}</span>
+      <OverrideRow first label={t('configs.flies')}>
         <input
           type="checkbox"
           checked={flies}
-          aria-label={`${name} - ${t('configs.flies')}`}
+          aria-label={overrideFieldLabel(name, t('configs.flies'))}
           onChange={(e) => setStageFlies(config.id, id, e.target.checked)}
           className="accent-sky-500"
         />
-      </label>
+      </OverrideRow>
 
       {!flies && <p className="mt-2 text-[11px] leading-snug text-slate-500">{t('configs.groundedHint')}</p>}
 
       {flies && separates && (
         <>
-          <label className="mt-2 flex items-center justify-between gap-3">
-            <span className="text-xs text-slate-400">{t('prop.separationEvent')}</span>
-            <select
-              value={over?.separationEvent ?? ''}
-              aria-label={`${name} - ${t('prop.separationEvent')}`}
-              onChange={(e) => {
-                setSeparation(config.id, id, 'separationEvent', e.target.value || null);
-                onCommit();
-              }}
-              className="w-44 rounded-md bg-slate-800 px-2 py-1 text-xs text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
-            >
-              <option value="">{t('configs.asDesigned', { value: t(`separationEvent.${baseEvent}`) })}</option>
-              {SEPARATION_EVENTS.map((ev) => (
-                <option key={ev} value={ev}>
-                  {t(`separationEvent.${ev}`)}
-                </option>
-              ))}
-            </select>
-          </label>
+          <OverrideSelect
+            name={name}
+            label={t('prop.separationEvent')}
+            value={over?.separationEvent}
+            designed={t(`separationEvent.${baseEvent}`)}
+            options={SEPARATION_EVENTS.map((ev) => ({ value: ev, label: t(`separationEvent.${ev}`) }))}
+            onChange={(v) => {
+              setSeparation(config.id, id, 'separationEvent', v);
+              onCommit();
+            }}
+            width="w-44"
+          />
 
-          <label className="mt-2 flex items-center justify-between gap-3">
-            <span className="text-xs text-slate-400">{t('prop.separationDelay')}</span>
-            <span className="flex items-center gap-1">
-              <NumberInput
-                ariaLabel={`${name} - ${t('prop.separationDelay')}`}
-                value={over?.separationDelay ?? null}
-                placeholder={String(num(stage, 'separationDelay'))}
-                step={0.5}
-                min={0}
-                onChange={(v) => setSeparation(config.id, id, 'separationDelay', v)}
-                onCommit={onCommit}
-                className="w-24 rounded-md bg-slate-800 px-2 py-1 text-right text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
-              />
-              <span className="min-w-6 text-xs text-slate-500">s</span>
-            </span>
-          </label>
+          <OverrideNumber
+            name={name}
+            label={t('prop.separationDelay')}
+            value={over?.separationDelay ?? null}
+            placeholder={String(design.separationDelay)}
+            step={0.5}
+            min={0}
+            unit="s"
+            onChange={(v) => setSeparation(config.id, id, 'separationDelay', v)}
+            onCommit={onCommit}
+          />
 
           {/* The altitude is read by the two altitude triggers only, and is offered
-          for the same reason the property panel offers it: the value survives a
-          trip through another event and is there when you come back. */}
-          <label className="mt-2 flex items-center justify-between gap-3">
-            <span className="text-xs text-slate-400">{t('prop.separationAltitude')}</span>
-            <span className="flex items-center gap-1">
-              <NumberInput
-                ariaLabel={`${name} - ${t('prop.separationAltitude')}`}
-                value={over?.separationAltitude == null ? null : alt.toUi(over.separationAltitude)}
-                placeholder={alt.fmt(num(stage, 'separationAltitude', 200))}
-                step={alt.step(10)}
-                onChange={(v) => setSeparation(config.id, id, 'separationAltitude', v == null ? null : alt.fromUi(v))}
-                onCommit={onCommit}
-                className="w-24 rounded-md bg-slate-800 px-2 py-1 text-right text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
-              />
-              <span className="min-w-6 text-xs text-slate-500">{alt.sym}</span>
-            </span>
-          </label>
+              for the same reason the property panel offers it: the value survives a
+              trip through another event and is there when you come back. */}
+          <OverrideNumber
+            name={name}
+            label={t('prop.separationAltitude')}
+            value={over?.separationAltitude == null ? null : alt.toUi(over.separationAltitude)}
+            placeholder={alt.fmt(design.separationAltitude)}
+            step={alt.step(10)}
+            // Floored at zero, like the design-side field. `onSi` rejects only a
+            // null or a failed conversion, not a negative, so a typed -150 would
+            // commit and the stage would never separate on altitude under that
+            // one configuration.
+            min={alt.toUi(0)}
+            unit={alt.sym}
+            onChange={onSi(alt, (si) => setSeparation(config.id, id, 'separationAltitude', si))}
+            onCommit={onCommit}
+          />
 
           {event === 'never' && (
             <p className="mt-2 text-[11px] leading-snug text-slate-500">{t('configs.neverSeparates')}</p>
           )}
         </>
       )}
-    </section>
+    </OverrideCard>
   );
 }

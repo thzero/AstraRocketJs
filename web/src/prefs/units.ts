@@ -1,6 +1,12 @@
 /** Meters to millimeters. The unit constant for every dimensional export. */
 export const M_TO_MM = 1000;
 
+/** Degrees to radians, in the order (d * π) / 180 every call site used, so results stay bit-identical. */
+export const degToRad = (d: number): number => (d * Math.PI) / 180;
+
+/** Radians to degrees, as (r * 180) / π. */
+export const radToDeg = (r: number): number => (r * 180) / Math.PI;
+
 /**
  * User-selectable units of measure, mirroring the desktop's UnitGroup
  * (info.openrocket.core.unit). Quantities are the desktop's unit groups; the
@@ -203,9 +209,16 @@ export const METRIC_UNITS: UnitSelection = {
   acceleration: 'm/s²',
   angle: '°',
   density: 'g/cm³',
-  surfaceDensity: 'kg/m²',
-  lineDensity: 'kg/m',
+  // `g/m²` and `g/m`, which is what the desktop sets, not the kg forms: a
+  // ripstop canopy is 67 g/m² and a shock cord 1.8 g/m, so the kg reading put
+  // every soft-goods density three decimal places below the leading digit.
+  surfaceDensity: 'g/m²',
+  lineDensity: 'g/m',
   temperature: '°C',
+  // DELIBERATE, and the only deviations in this table. The desktop sets `mbar`
+  // and `Ns`; `hPa` is the same unit under its SI name (both are 100 Pa, and the
+  // ladder carries both), and `N·s` is the same unit with the multiplication dot
+  // the rest of this file uses. Neither changes a number.
   pressure: 'hPa',
   force: 'N',
   impulse: 'N·s',
@@ -223,10 +236,18 @@ export const IMPERIAL_UNITS: UnitSelection = {
   acceleration: 'ft/s²',
   angle: '°',
   density: 'oz/in³',
-  // Fabric and cord are sold by these in the US, the way bulk stock is by oz/in³.
-  surfaceDensity: 'oz/yd²',
+  // `oz/ft²`, which is what the desktop sets. `oz/yd²` is how fabric is sold in
+  // the US and was chosen for that, but it is not in `UNITS_DENSITY_SURFACE` at
+  // all, so an imperial user comparing a density against the desktop was reading
+  // a unit the desktop cannot show. Still selectable; just not the preset.
+  surfaceDensity: 'oz/ft²',
   lineDensity: 'oz/ft',
   temperature: '°F',
+  // DELIBERATE. The desktop leaves these three METRIC in imperial mode:
+  // `UNITS_FORCE` stays `N`, `UNITS_IMPULSE` stays `Ns` and `UNITS_PRESSURE`
+  // stays `mbar` in `setDefaultImperialUnits` (UnitGroup.java:472-481). An
+  // "Imperial defaults" preset that reports thrust in newtons is the oversight,
+  // not the spec, and every one of these has its imperial unit in the ladder.
   pressure: 'psi',
   force: 'lbf',
   impulse: 'lbf·s',

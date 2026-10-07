@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
 import { useTranslation, Trans } from 'react-i18next';
 import { appName, APP_VERSION, CONTRIBUTORS_URL, isPreRelease, UPSTREAM } from '../../services/app/appInfo';
 import { fetchCatalog } from '../../services/app/remoteData';
 import { Dialog } from '../common/Dialog';
+import { DialogButton } from '../common/DialogButton';
+import { useAsyncLoad } from '../common/useAsyncLoad';
 
 interface Contributor {
   login: string;
@@ -24,17 +25,11 @@ const isContributors = (v: unknown): v is { contributors: Contributor[] } =>
  *  (`{open && <AboutDialog />}`), so nothing is fetched until it is asked for,
  *  and an unreachable file just means the section is not drawn. */
 function useContributors(): Contributor[] {
-  const [list, setList] = useState<Contributor[]>([]);
-  useEffect(() => {
-    let live = true;
-    fetchCatalog<{ contributors: Contributor[] }>('contributors', isContributors)
-      .then((d) => live && setList(d.contributors))
-      .catch(() => {});
-    return () => {
-      live = false;
-    };
-  }, []);
-  return list;
+  const { data } = useAsyncLoad(
+    () => fetchCatalog<{ contributors: Contributor[] }>('contributors', isContributors),
+    'contributors',
+  );
+  return data?.contributors ?? [];
 }
 
 // Credited open-source projects → homepage.
@@ -174,12 +169,9 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
       </div>
 
       <div className="mt-5 flex justify-end">
-        <button
-          onClick={onClose}
-          className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-500"
-        >
+        <DialogButton onClick={onClose} variant="primary">
           {t('about.close')}
-        </button>
+        </DialogButton>
       </div>
     </Dialog>
   );

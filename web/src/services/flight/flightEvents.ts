@@ -1,5 +1,6 @@
-import type { FlightBranch, FlightResult, FlightSeries } from '../../engine/openRocketEngine';
+import type { FlightResult, FlightSeries } from '../../engine/openRocketEngine';
 import { lerpAt } from './interpolate';
+import { flightBranches } from './flightColumns';
 
 /**
  * The flight as a TIMELINE: one row per event, each carrying the state of the
@@ -130,10 +131,14 @@ export interface MaxQPoint {
   velocity: number;
 }
 
-/** A series by key, tolerating both the named arrays and the symbol-keyed ones. */
-function at(series: FlightSeries, key: string, t: number): number | null {
+/**
+ * A series value at a time, by key, tolerating both the named arrays and the
+ * symbol-keyed ones. Null when the run did not record that series.
+ */
+export function seriesAt(series: FlightSeries, key: string, t: number): number | null {
   const ys = series[key];
-  return Array.isArray(ys) ? lerpAt(series.time, ys, t) : null;
+  if (!Array.isArray(ys) || !Array.isArray(series.time)) return null;
+  return lerpAt(series.time, ys, t);
 }
 
 /**
@@ -199,11 +204,6 @@ export function maxQ(series: FlightSeries | undefined): MaxQPoint | null {
   };
 }
 
-/** The branches to walk: the real ones, or the top-level flight wrapped as one. */
-function branchesOf(result: FlightResult): FlightBranch[] {
-  return result.branches?.length ? result.branches : [{ name: '', events: result.events ?? [], series: result.series }];
-}
-
 /**
  * The whole flight as rows, earliest first.
  *
@@ -225,7 +225,7 @@ function branchesOf(result: FlightResult): FlightBranch[] {
 export function eventRows(result: FlightResult | null | undefined): EventRow[] {
   if (!result) return [];
   const rows: EventRow[] = [];
-  branchesOf(result).forEach((b, i) => {
+  flightBranches(result).forEach((b, i) => {
     const series = b.series;
     const push = (type: string, time: number, source: string | undefined, q: number | null) => {
       rows.push({
@@ -235,12 +235,12 @@ export function eventRows(result: FlightResult | null | undefined): EventRow[] {
         branch: i,
         branchName: b.name ?? '',
         ...(source ? { source } : {}),
-        altitude: at(series, 'altitude', time),
-        velocity: at(series, 'velocity', time),
-        stability: at(series, 'stability', time),
-        twr: at(series, 'Twr', time),
-        aoa: at(series, 'aoa', time),
-        mach: at(series, 'mach', time),
+        altitude: seriesAt(series, 'altitude', time),
+        velocity: seriesAt(series, 'velocity', time),
+        stability: seriesAt(series, 'stability', time),
+        twr: seriesAt(series, 'Twr', time),
+        aoa: seriesAt(series, 'aoa', time),
+        mach: seriesAt(series, 'mach', time),
         q,
       });
     };

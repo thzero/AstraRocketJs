@@ -33,7 +33,7 @@ Drag and stability vs Mach number, for analyzing high-speed behavior:
 
 - **Cd vs Mach** — total drag coefficient across the Mach range. A second **power-on** curve appears only when a stage declares a nozzle exit diameter (an imported `.ork` property; there is no field for it in the editor). It is the one figure in this panel that depends on the motor — everything else is geometry — so the toolbar names the motor it was computed for, which is whichever the active simulation has loaded.
 - **Drag breakdown** — friction / pressure / base contributions, stacked. For the same split *per part*, see the **Per component** pane below.
-- **CP vs Mach** — how the center of pressure moves with speed.
+- **CP vs Mach** — how the center of pressure moves with speed. The buttons in the card's corner choose how the axis reads: your **length unit**, **% body** (a percentage of the overall airframe length, which is how far along the rocket you are looking at), or **% length** (a percentage of the *aerodynamic* length, which is the figure desktop OpenRocket quotes). The two percentages differ on any design carrying something outside the aerodynamic envelope — an overhanging rail button, a shock cord, a tail mass — so both are offered rather than one being chosen for you. A reading with no length to divide by is not offered at all.
 
 A row of **flight conditions** sets what the whole sweep is flown at:
 
@@ -47,7 +47,7 @@ A **Charts / Per component** switch chooses what the panel shows — the three c
 
 A part that exists more than once — a fin set, most often — also gets a **Per instance** column reading `0.251 × 3`: one fin's drag and how many there are. The **Cd** column is always the total for all of them.
 
-**Stability contribution** is the companion table, and the one that answers *why the CP is where it is*: each part's **CNα** (its share of the rocket's normal-force slope) and its own **CP**. The fin set usually carries the great majority of the CNα — that is what holds the CP aft — while the nose cone contributes a couple of units pulling it forward. The rocket's CP is the CNα-weighted mean of the rows. Parts that carry no normal force, such as a straight body tube, are left out rather than listed as zeros. Each row also carries the part's **mass** — one instance, all instances, and the CG of the set — so the two halves of a stability question sit side by side.
+**Stability contribution** is the companion table, and the one that answers *why the CP is where it is*: each part's **CNα** (its share of the rocket's normal-force slope) and its own **CP**. The fin set usually carries the great majority of the CNα — that is what holds the CP aft — while the nose cone contributes a couple of units pulling it forward. The rocket's CP is the CNα-weighted mean of the rows. Parts that carry no normal force, such as a straight body tube, are left out rather than listed as zeros. Each row also carries the part's **mass** — one instance, all instances, and the CG of the set — so the two halves of a stability question sit side by side. The CP is given three ways: in your **length unit**, as **CP (% body)** over the overall airframe length, and as **CP (% length)** over the aerodynamic length, which are the same two percentages the CP vs Mach chart offers. Do not confuse either with the **%** column at the far right, which is the part's share of the rocket's CNα, not a position.
 
 **Roll dynamics** lists every fin set with its **roll forcing** and **roll damping** coefficients. Both read zero on a rocket that is neither canted nor rolling — that is the honest answer, not a missing table. Give a fin set a **cant angle** and the forcing coefficient comes up; it is the one place in the app that confirms a cant is doing what you intended. Damping opposes an existing roll, so it needs the **Roll rate** control above.
 
@@ -125,6 +125,24 @@ The 3D path replays the flight rather than only drawing it. **▶ Play flight** 
 
 The speed a run starts at comes from **[Settings ▸ Playback](./settings.md#playback)**.
 
+## Environment (after a simulation) {#environment-after-a-simulation}
+
+The air the flight actually flew through, as the engine recorded it at every step. The launch panel shows what you entered; this shows what that became, including the standard atmosphere when temperature and pressure are left blank, a wind profile measured above ground turned into real heights, and a [forecast](./running-a-simulation.md#weather) when one is applied.
+
+The row along the top gives the site's latitude, longitude and elevation, the date and time when the conditions came from a forecast, and the air when the motor lit: temperature, pressure, density, speed of sound, wind speed and wind direction. Still air has no direction, so it shows a dash. When the conditions came from [Open-Meteo](./running-a-simulation.md#weather), Open-Meteo's CC BY 4.0 credit follows, with a note if a value has been edited or the site moved since it was applied.
+
+Four charts plot **wind speed**, **wind direction**, **air temperature** and **air pressure** against altitude above the pad, from the ground to apogee. The way up is the bright line. The way down is the faint one under it: a rocket under a parachute passes the same heights for a minute or more while the gusts keep changing, so its wind is a dense scatter rather than a curve. Temperature and pressure are the same on both passes, so there the two lines lie on top of each other. A wind direction line breaks where it crosses north instead of sweeping across the chart.
+
+The charts cover only the altitudes the flight reached. Values use your units, and density is shown to four significant figures so that it reads sensibly in g/cm³ as well as kg/m³.
+
+### Where it landed {#where-it-landed}
+
+Under the charts, **Landing** gives where each stage came down: its latitude and longitude, and its distance and bearing from the pad.
+
+When the launch conditions came from an [Open-Meteo forecast](./running-a-simulation.md#weather), **Fly the hours around this forecast** flies this design again under the forecast for each hour from two before to two after. Every one of these flights uses the same random seed, so only the weather differs between them. They use the forecast as it stands now, which may have changed since it was applied. A map then shows the flight's path from above, a dot where each hour's flight landed and the 2σ ellipse around them, and a table lists each hour's landing.
+
+Without a forecast, the section says how to get one. For a rocket not designed here, the [landing estimator](./tools.md#landing-estimator) on the Tools tab gives an estimate from typed descent rates.
+
 ## Reading the stats strip
 
 The bottom strip summarizes the current design as a grid of tiles (collapse it with the chevron on its header):
@@ -132,7 +150,7 @@ The bottom strip summarizes the current design as a grid of tiles (collapse it w
 - **Length**, **max diameter**, **fineness ratio** (length / diameter).
 - **Mass** and **CG**, each shown **empty / loaded** (dry, and with the motor) in one tile.
 - **CP** (center of pressure).
-- **Recovery weight** — the descent mass (loaded mass minus the propellant that burns off). Shown once a motor is loaded; this is the mass the parachute actually brings down.
+- **Recovery weight** — the descent mass (loaded mass minus the propellant that burns off). Shown once a motor is loaded; this is the mass the parachute actually brings down. The tile reads **Mass (Recovery, est.)** while that figure is the app's own estimate from the design, and drops the marker once a simulation has deployed a recovery device and the engine's own mass has replaced it.
 - **Stability** — in **calibers** (on the pad) and as **% of length**.
 - **Drag coeff.** — the coast (power-off) drag coefficient at Mach 0.3.
 - **Normal-force slope** — CNα (per radian), the Barrowman normal-force-coefficient slope at Mach 0.3.

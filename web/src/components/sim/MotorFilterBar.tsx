@@ -4,6 +4,9 @@ import { filterMotors, allClasses, allManufacturers, type CatalogMotor } from '.
 import { STD_DIAMS, MAX_IDX, fitIdx, type MountFit } from '../../services/motors/motorPicker';
 import { useUnits } from '../../prefs/useUnits';
 import { RangeSlider } from './RangeSlider';
+import { ToggleButton } from '../common/ToggleButton';
+import { UnitBound } from '../common/UnitBound';
+import { CheckMenu } from '../common/CheckMenu';
 
 /**
  * The filter controls the motor picker and the motor dashboard share: the same
@@ -140,13 +143,9 @@ export function useMotorFilter(catalog: CatalogMotor[], init: MotorFilterInit = 
 
 function Chip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
   return (
-    <button
-      onClick={onClick}
-      aria-pressed={active}
-      className={`rounded-full px-2.5 py-1 text-xs font-medium ${active ? 'bg-sky-600 text-white' : 'bg-slate-800 text-slate-300'}`}
-    >
+    <ToggleButton active={active} onClick={onClick} className="rounded-full px-2.5 py-1 text-xs font-medium">
       {label}
-    </button>
+    </ToggleButton>
   );
 }
 
@@ -194,36 +193,27 @@ export function ManufacturerMenu({
     onChange(n);
   };
   return (
-    <details className={`relative ${className}`}>
-      <summary className="cursor-pointer list-none rounded-lg bg-slate-950 px-3 py-1.5 text-sm text-slate-100 ring-1 ring-white/10">
-        {mfrs.size === 0
+    <CheckMenu
+      summary={
+        mfrs.size === 0
           ? t('motorDlg.allManufacturers')
           : mfrs.size === 1
             ? [...mfrs][0]
-            : t('motorDlg.mfrCount', { n: mfrs.size })}
-      </summary>
-      <div
-        className={`absolute top-full z-20 mt-1 max-h-64 w-64 overflow-y-auto rounded-lg bg-slate-950 p-1 shadow-xl ring-1 ring-white/10 ${
-          align === 'left' ? 'left-0' : 'right-0'
-        }`}
+            : t('motorDlg.mfrCount', { n: mfrs.size })
+      }
+      items={manufacturers.map((m) => ({ key: m, label: m, checked: mfrs.has(m) }))}
+      onToggle={toggle}
+      width="w-64"
+      align={align}
+      className={className}
+    >
+      <button
+        onClick={() => onChange(new Set())}
+        className="w-full rounded px-2 py-1 text-left text-xs font-medium text-sky-400 hover:bg-slate-800"
       >
-        <button
-          onClick={() => onChange(new Set())}
-          className="w-full rounded px-2 py-1 text-left text-xs font-medium text-sky-400 hover:bg-slate-800"
-        >
-          {t('motorDlg.allManufacturers')}
-        </button>
-        {manufacturers.map((m) => (
-          <label
-            key={m}
-            className="flex items-center gap-2 rounded px-2 py-1 text-sm text-slate-200 hover:bg-slate-800"
-          >
-            <input type="checkbox" checked={mfrs.has(m)} className="accent-sky-500" onChange={() => toggle(m)} />
-            {m}
-          </label>
-        ))}
-      </div>
-    </details>
+        {t('motorDlg.allManufacturers')}
+      </button>
+    </CheckMenu>
   );
 }
 
@@ -269,34 +259,27 @@ export function ImpulseRange({ imp, onChange }: { imp: ImpulseRange; onChange: (
   const field =
     'w-16 rounded-md bg-slate-950 px-2 py-1 text-right text-xs tabular-nums text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500';
   // Held in N·s like the catalog; only what is typed and shown moves to the
-  // user's unit, the same split the diameter stops use.
-  const bound = (text: string): number | null => {
-    const n = Number(text);
-    return text.trim() === '' || !Number.isFinite(n) ? null : u.fromUi('impulse', n);
-  };
-  const shown = (si: number | null) => (si == null ? '' : String(Number(u.toUi('impulse', si).toFixed(3))));
+  // user's unit.
   return (
     <div className="flex items-center gap-2 text-xs text-slate-300">
       <span className="shrink-0 text-slate-500">{t('motorDlg.totalImpulse')}</span>
-      <input
-        type="number"
-        inputMode="decimal"
+      <UnitBound
+        quantity="impulse"
         min={0}
-        value={shown(imp[0])}
-        onChange={(e) => onChange([bound(e.target.value), imp[1]])}
+        value={imp[0]}
+        onChange={(si) => onChange([si, imp[1]])}
         placeholder={t('motorDlg.min')}
-        aria-label={`${t('motorDlg.totalImpulse')} ${t('motorDlg.min')}`}
+        ariaLabel={`${t('motorDlg.totalImpulse')} ${t('motorDlg.min')}`}
         className={field}
       />
       <span aria-hidden="true">–</span>
-      <input
-        type="number"
-        inputMode="decimal"
+      <UnitBound
+        quantity="impulse"
         min={0}
-        value={shown(imp[1])}
-        onChange={(e) => onChange([imp[0], bound(e.target.value)])}
+        value={imp[1]}
+        onChange={(si) => onChange([imp[0], si])}
         placeholder={t('motorDlg.max')}
-        aria-label={`${t('motorDlg.totalImpulse')} ${t('motorDlg.max')}`}
+        ariaLabel={`${t('motorDlg.totalImpulse')} ${t('motorDlg.max')}`}
         className={field}
       />
       <span className="shrink-0 text-slate-500">{u.sym('impulse')}</span>
@@ -360,7 +343,7 @@ export function FitsMount({
   return (
     <FilterCheck
       label={t('motorDlg.fitsMount', {
-        bore: `${u.fmt('motorDimensions', mount.bore / 1000)} ${u.sym('motorDimensions')}`,
+        bore: `${u.fmtSym('motorDimensions', mount.bore / 1000)}`,
       })}
       hint={t('motorDlg.fitsMountHint')}
       on={fits}

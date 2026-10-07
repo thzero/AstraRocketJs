@@ -2,9 +2,10 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { NumberInput } from '../common/NumberInput';
 import { useUnits } from '../../prefs/useUnits';
+import { onSi } from '../../prefs/entryValue';
 import { unitScope } from '../../prefs/units';
 import { useSettings } from '../../state/SettingsProvider';
-import { useWorkspaceStore, configOf } from '../../state/store';
+import { useWorkspaceStore, configOf, selectDriftSweepFor } from '../../state/store';
 import { sameSimInputs, simInputs } from '../../services/flight/simulations';
 import { MAX_WIND_SPEED_MS } from '../../services/flight/safetyLimits';
 import {
@@ -46,7 +47,7 @@ export function DriftSweepPanel({ simId, launch }: { simId: string; launch: Laun
   const { settings } = useSettings();
   const wind = u.at(unitScope('launch', 'speed'), 'windspeed');
 
-  const sweep = useWorkspaceStore((s) => s.driftSweep);
+  const mine = useWorkspaceStore((s) => selectDriftSweepFor(s, simId));
   const run = useWorkspaceStore((s) => s.driftSweepRun);
   const tree = useWorkspaceStore((s) => s.tree);
   const sim = useWorkspaceStore((s) => s.sims.find((x) => x.id === simId));
@@ -62,7 +63,6 @@ export function DriftSweepPanel({ simId, launch }: { simId: string; launch: Laun
   const flights = useMemo(() => sweepFlightCount(spec), [spec]);
 
   const busy = run !== null;
-  const mine = sweep && sweep.simId === simId ? sweep : null;
   // Either half can age it: the airframe, or the row's own motor, loadout and
   // launch conditions. A sweep for a row that has since been deleted is stale
   // too, since there is nothing left to compare it against.
@@ -81,7 +81,7 @@ export function DriftSweepPanel({ simId, launch }: { simId: string; launch: Laun
       <span className="flex items-center gap-1">
         <NumberInput
           value={wind.toUi(spec[key])}
-          onChange={(v) => patch({ [key]: v == null ? 0 : wind.fromUi(v) })}
+          onChange={onSi(wind, (si) => patch({ [key]: si ?? 0 }))}
           onCommit={settle}
           step={wind.step(0.5)}
           min={0}
@@ -95,6 +95,24 @@ export function DriftSweepPanel({ simId, launch }: { simId: string; launch: Laun
         />
         <span className="w-8 text-[10px] text-slate-500">{wind.sym}</span>
       </span>
+    </label>
+  );
+
+  /** A grid count: a whole number of at least one, up to `max`. */
+  const stepsRow = (key: 'speedSteps' | 'headingSteps', label: string, max: number) => (
+    <label className="flex items-center justify-between gap-2 text-[11px]">
+      <span className="text-slate-400">{label}</span>
+      <NumberInput
+        value={spec[key]}
+        onChange={(v) => patch({ [key]: v ?? 1 })}
+        onCommit={settle}
+        step={1}
+        min={1}
+        max={max}
+        disabled={busy}
+        ariaLabel={label}
+        className={numCls}
+      />
     </label>
   );
 
@@ -120,34 +138,8 @@ export function DriftSweepPanel({ simId, launch }: { simId: string; launch: Laun
       <div className="space-y-1.5">
         {speedRow('speedMinMs', t('sweep.speedFrom'))}
         {speedRow('speedMaxMs', t('sweep.speedTo'))}
-        <label className="flex items-center justify-between gap-2 text-[11px]">
-          <span className="text-slate-400">{t('sweep.speedSteps')}</span>
-          <NumberInput
-            value={spec.speedSteps}
-            onChange={(v) => patch({ speedSteps: v ?? 1 })}
-            onCommit={settle}
-            step={1}
-            min={1}
-            max={12}
-            disabled={busy}
-            ariaLabel={t('sweep.speedSteps')}
-            className={numCls}
-          />
-        </label>
-        <label className="flex items-center justify-between gap-2 text-[11px]">
-          <span className="text-slate-400">{t('sweep.headingSteps')}</span>
-          <NumberInput
-            value={spec.headingSteps}
-            onChange={(v) => patch({ headingSteps: v ?? 1 })}
-            onCommit={settle}
-            step={1}
-            min={1}
-            max={36}
-            disabled={busy}
-            ariaLabel={t('sweep.headingSteps')}
-            className={numCls}
-          />
-        </label>
+        {stepsRow('speedSteps', t('sweep.speedSteps'), 12)}
+        {stepsRow('headingSteps', t('sweep.headingSteps'), 36)}
         <label className="flex items-center justify-between gap-2 text-[11px]">
           <span className="text-slate-400">{t('sweep.headingSpan')}</span>
           <select

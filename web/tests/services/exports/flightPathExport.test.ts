@@ -24,6 +24,7 @@ import type { LaunchConditions } from '../../../src/services/design/orkTree';
 import en from '../../../src/i18n/locales/en.json';
 import es from '../../../src/i18n/locales/es.json';
 import { localeTranslator } from '../../testing/localeTranslator';
+import { offsetToLatLon } from '../../../src/services/map/geodesy';
 
 // A tiny two-branch-free flight: launch → drift 100 m east / 200 m north,
 // climbing to 100 m AGL, with a couple of events.
@@ -154,27 +155,23 @@ describe('hexToRgbInt', () => {
     expect(hexToRgbInt('#FFFFFF')).toBe(0xffffff);
   });
 
-  it('reads unparseable input as black rather than NaN', () => {
+  it('reads unparseable input as black rather than NaN or part of it', () => {
     // A NaN here would reach `hex2` and render `NaN` into the KML color
-    // literal, which Google Earth rejects for the whole placemark.
-    for (const bad of ['', '#', 'rebeccapurple', '#zzzzzz', '  ']) {
+    // literal, which Google Earth rejects for the whole placemark. And "12zz"
+    // is not 0x12: a partial read is a wrong color with nothing saying so.
+    for (const bad of ['', '#', 'rebeccapurple', '#zzzzzz', '  ', '12zz']) {
       expect(hexToRgbInt(bad), `hexToRgbInt(${JSON.stringify(bad)})`).toBe(0);
     }
   });
 
-  it('masks off anything above the low 24 bits', () => {
-    // An 8-digit value (a #rrggbbaa from some other picker) must not leak its
-    // alpha into the packed RGB - KML carries alpha as a separate leading byte.
-    expect(hexToRgbInt('#ff8800cc')).toBe(0x8800cc);
+  it('reads an 8-digit #rrggbbaa as its color, dropping the alpha', () => {
+    // KML carries alpha as a separate leading byte, so the packed RGB is the
+    // first six digits.
+    expect(hexToRgbInt('#ff8800cc')).toBe(0xff8800);
   });
 
-  it('does NOT expand 3-digit shorthand', () => {
-    // Recorded rather than endorsed: unlike `hexToRgbTuple`, which rejects a
-    // 3-digit value outright, this parses `#f80` as 0x000f80. The only caller
-    // is an `<input type="color">`, which always hands over six digits, so
-    // nothing reaches it - but the two functions differ here and a future
-    // caller should know it.
-    expect(hexToRgbInt('#f80')).toBe(0xf80);
+  it('expands the 3-digit shorthand, as every color reader does', () => {
+    expect(hexToRgbInt('#f80')).toBe(0xff8800);
   });
 });
 
@@ -569,21 +566,36 @@ describe('launch position fallback', () => {
     expect(hasLaunchPosition(site(0, 0))).toBe(false);
   });
 
-  it('projects with WGS84 degree lengths, not a sphere', () => {
-    // The last sample is 100 m east and 200 m north of the pad, so the degrees
-    // it moved say what the projection thinks a degree is worth.
-    const last = build(result, {}, site(40, -105)).branches[0]!.path.slice(-1)[0]!;
-    const perDegreeLat = 200 / (last.latitude - 40);
-    const perDegreeLon = 100 / (last.longitude + 105);
+  it("writes the kernel's own latitude and longitude when the run recorded them", () => {
+    // Off the flat projection on purpose, so a value that was recomputed from
+    // Px/Py rather than read cannot pass.
+    const phi = [40, 40.0011, 40.0022];
+    const lam = [-105, -104.9993, -104.9987];
+    const withKernel = { ...result, series: { ...result.series, φ: phi, λ: lam } } as unknown as FlightResult;
+    const m = build(withKernel, {}, site(40, -105));
+    const b = m.branches[0]!;
+    expect(b.path.map((p) => [p.latitude, p.longitude])).toEqual(phi.map((la, k) => [la, lam[k]]));
+    const landing = b.waypoints.find((w) => w.type === 'landing')!;
+    expect([landing.latitude, landing.longitude]).toEqual([40.0022, -104.9987]);
+    expect([b.landingLatitudeStr, b.landingLongitudeStr]).toEqual(['40.002200', '-104.998700']);
+  });
 
-    // WGS84 at 40 deg N, to the centimeter.
-    expect(perDegreeLat).toBeCloseTo(111034.6, 1);
-    expect(perDegreeLon).toBeCloseTo(85393.94, 1);
-    // A sphere of radius 6371 km would say 111194.93 and 85180.26 -- 160 m and
-    // 214 m per degree out, enough to miss a launch field on a satellite image
-    // and enough to disagree with the same flight exported from desktop.
-    expect(Math.abs(perDegreeLat - 111194.93)).toBeGreaterThan(100);
-    expect(Math.abs(perDegreeLon - 85180.26)).toBeGreaterThan(100);
+  it("projects with the kernel's spherical model for a result saved without them", () => {
+    const last = build(result, {}, site(40, -105)).branches[0]!.path.slice(-1)[0]!;
+    const want = offsetToLatLon(40, -105, { east: 100, north: 200 });
+    expect(last.latitude).toBeCloseTo(want.lat, 9);
+    expect(last.longitude).toBeCloseTo(want.lon, 9);
+  });
+
+  it('projects about the substitute site, since the kernel flew from (0, 0)', () => {
+    const withKernel = {
+      ...result,
+      series: { ...result.series, φ: [0, 0.0009, 0.0018], λ: [0, 0.0004, 0.0009] },
+    } as unknown as FlightResult;
+    const last = build(withKernel, {}, site(0, 0)).branches[0]!.path.slice(-1)[0]!;
+    const want = offsetToLatLon(EXPORT_FALLBACK_LATITUDE, EXPORT_FALLBACK_LONGITUDE, { east: 100, north: 200 });
+    expect(last.latitude).toBeCloseTo(want.lat, 9);
+    expect(last.longitude).toBeCloseTo(want.lon, 9);
   });
 });
 
@@ -952,7 +964,7 @@ describe('export language', () => {
     expect(k).toContain(`${esDoc.groundTrack}</name>`);
     expect(k).toContain(`${esDoc.maxAltitude}: 100.0 m`); // document balloon
     expect(k).toContain(`${esDoc.maxRange}: 223.6 m ${esDoc.fromThePad}`); // folder balloon
-    expect(k).toContain(`${esDoc.coordinates}: 40.000901, -104.999414`); // waypoint balloon
+    expect(k).toContain(`${esDoc.coordinates}: 40.000899, -104.999413`); // waypoint balloon
     expect(k).toContain(`${esDoc.device}: Main chute`);
     // ...and nothing of the English is left behind.
     expect(k).not.toContain('Max altitude');
@@ -1021,7 +1033,7 @@ describe('KML summary balloons', () => {
     // clauses, because the coordinate carries a comma of its own and an
     // all-comma line reads as one run-on group. The bearing keeps its origin:
     // a bare angle beside a coordinate can be read as a heading of travel.
-    expect(doc).toContain('landing: 40.001801, -104.998829 (lat, lon); 223.6 m at 27° from the pad; T+2.0 s');
+    expect(doc).toContain('landing: 40.001799, -104.998826 (lat, lon); 223.6 m at 27° from the pad; T+2.0 s');
   });
 
   it('puts the range and the landing on the stage folder', () => {
@@ -1034,7 +1046,7 @@ describe('KML summary balloons', () => {
     // with the coordinate, on one line. A separate "Landing coordinates" line
     // demoted the very thing the document leads on, and gave one file two
     // presentations of one fact.
-    expect(folder).toContain('Landing: 40.001801, -104.998829 (lat, lon); 223.6 m at 27° from the pad; T+2.0 s');
+    expect(folder).toContain('Landing: 40.001799, -104.998826 (lat, lon); 223.6 m at 27° from the pad; T+2.0 s');
   });
 
   it('puts the point own numbers on each waypoint', () => {
@@ -1048,20 +1060,28 @@ describe('KML summary balloons', () => {
     // duplication a bold label makes obvious.
     expect(apogee).toContain('Altitude: 100.0 m above the pad, 1700.0 m above sea level');
     expect(apogee).toContain('Position: 111.8 m at 27° from the pad');
-    expect(apogee).toContain('Coordinates: 40.000901, -104.999414 (lat, lon)');
+    expect(apogee).toContain('Coordinates: 40.000899, -104.999413 (lat, lon)');
     // Only an ejection names a device; every other pin loses the line.
     expect(apogee).not.toContain('Device:');
     expect(asBalloonText(kml)).toContain('Device: Main chute');
   });
 
-  it('gives every described feature an empty Snippet, before the description', () => {
-    // Without it Google Earth prints the first lines of the description under
-    // the feature name in the Places tree, turning the waypoint list into a
-    // wall of text. KML fixes the order: name, Snippet, description, styleUrl.
-    expect(kml.split('<Snippet></Snippet>').length).toBe(kml.split('<description>').length);
-    for (const [, between] of kml.matchAll(/<Snippet><\/Snippet>([\s\S]*?)<description>/g)) {
-      expect(between!.trim()).toBe('');
-    }
+  it('writes no Snippet', () => {
+    // An empty <Snippet> did not stop Google Earth desktop listing the
+    // description under the name, and Google Earth for web rejects its maxLines
+    // form as an unsupported element. It did nothing and could only cause errors.
+    expect(kml).not.toContain('Snippet');
+  });
+
+  it('leaves out a waypoint style that would carry nothing, and the styleUrl to it', () => {
+    // Pins uncolored and labels shown: the <Style> would be empty.
+    const plain = renderKml(build(result, { colorWaypointPins: false, showWaypointLabels: true }));
+    expect(plain).not.toContain('<Style id="waypoint');
+    expect(plain).not.toContain('#waypoint');
+    // Either setting gives it content, and then every waypoint points at it.
+    const hidden = renderKml(build(result, { colorWaypointPins: false, showWaypointLabels: false }));
+    expect(hidden).toContain('<Style id="waypoint0">');
+    expect(hidden.split('<styleUrl>#waypoint0</styleUrl>').length - 1).toBe(hidden.split('<Point>').length - 1);
   });
 
   it('shows the range and the landing as the different numbers they are', () => {
@@ -1113,6 +1133,22 @@ describe('renderGpx', () => {
 });
 
 describe('renderWaypointCsv', () => {
+  it('colors each pin with its stage pin color, as the KML does', () => {
+    const m = model();
+    const rows = renderWaypointCsv(m).trimEnd().split('\r\n').slice(1);
+    const want = m.colorWaypointPins ? `"#${m.branches[0]!.pinColorRgb}"` : '"yellow"';
+    expect(rows.every((r) => r.split(',')[5] === want)).toBe(true);
+    expect(want).not.toBe('"yellow"'); // pins are colored by default
+  });
+
+  it('keeps the fixed yellow when pin coloring is off', () => {
+    const rows = renderWaypointCsv(build(result, { colorWaypointPins: false }))
+      .trimEnd()
+      .split('\r\n')
+      .slice(1);
+    expect(rows.every((r) => r.split(',')[5] === '"yellow"')).toBe(true);
+  });
+
   it('has the header and one quoted row per waypoint', () => {
     const csv = renderWaypointCsv(model());
     const lines = csv.trimEnd().split('\r\n');

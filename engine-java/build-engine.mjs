@@ -105,53 +105,32 @@ for (const target of targets) {
   }
 }
 
-// The parity harness validates a SIBLING of the shipped binary, not the
-// shipped binary.
-//
-// `-Pparity` does not change any numerics setting (optimization and
-// fastGlobalAnalysis are unconditional), so the usual worry does not apply.
-// What it changes is the PROGRAM: mainClass becomes parity.ParityMain and the
-// whole test tree joins the compile. fastGlobalAnalysis is class-hierarchy
-// analysis over the REACHABLE set, and README.md records the concrete
-// under-linking bug it exists to work around - so the parity variant, whose
-// reachable set is strictly larger, is the one where under-linking is LEAST
-// likely to bite, while the production variant's set was never checked
-// against anything.
-//
-// The two variants also write to the SAME Gradle output paths, so a stale
-// -Pparity artifact could in principle be vendored into web/ as production.
-//
-// Checking the export list catches both: a facade method pruned from the
-// production build, and a parity artifact wearing production's filename.
-const EXPECTED_JS_EXPORTS = [
+// Every expected facade export, checked in BOTH artifacts before either is
+// vendored. A method TeaVM pruned from the build would otherwise ship, and the
+// .wasm is the backend most browsers take, so checking the JS alone left the
+// one most users run unchecked. `runParity` is on the list because the parity
+// harness runs these exact files through it (test/parity/parity.mjs): without
+// it, parity could not run the shipped engine at all.
+const EXPECTED_EXPORTS = [
   'buildRocket', 'reset', 'getStaticInfo', 'getComponentInfo', 'getComponentMasses',
   'getAeroSweep', 'simulateJson', 'setMotorById', 'setMotorIgnitionById',
   // The FACADE names. `setRogersKbf` / `setStubbyNoseFloor` are the drag
   // calculator's own setters and appear in any build, so listing them checked
   // nothing about the export surface.
   'setSupersonicAero', 'setRogersModifiedBarrowman', 'setStubbyNoseDrag',
+  'runParity', 'free',
 ];
-{
-  const jsArtifact = TARGETS.js && TARGETS.js.copies[0] && TARGETS.js.copies[0][0];
-  if (targets.includes('js') && jsArtifact && existsSync(jsArtifact)) {
-    const text = readFileSync(jsArtifact, 'utf8');
-    const missing = EXPECTED_JS_EXPORTS.filter((name) => !new RegExp(`\\b${name}\\b`).test(text));
-    if (missing.length) {
-      console.error(`build-engine: the production JS build is missing ${missing.length} expected export(s):`);
-      missing.forEach((m) => console.error(`  ! ${m}`));
-      console.error('build-engine:   either TeaVM pruned a facade method, or this is a -Pparity');
-      console.error('build-engine:   artifact wearing the production filename. Do NOT vendor it.');
-      process.exit(1);
-    }
-    // No word boundaries: TeaVM emits the class as identifiers such as
-    // `p_ParityMain_asMap`, and `_` is a word character, so `\bParityMain\b`
-    // matched nothing in a real parity artifact. A bare substring match is
-    // what actually fires (verified against build/generated/teavm/js).
-    if (/ParityMain/.test(text)) {
-      console.error('build-engine: the production JS build contains ParityMain - this is the');
-      console.error('build-engine:   -Pparity variant. Run a clean `npm run build`.');
-      process.exit(1);
-    }
+for (const target of targets) {
+  const artifact = TARGETS[target].copies[0][0];
+  // The wasm's export names are plain ASCII in its export section, so latin1
+  // reads them without decoding the module.
+  const text = readFileSync(artifact, target === 'wasm' ? 'latin1' : 'utf8');
+  const missing = EXPECTED_EXPORTS.filter((name) => !new RegExp(`\\b${name}\\b`).test(text));
+  if (missing.length) {
+    console.error(`build-engine: the ${target} build is missing ${missing.length} expected export(s):`);
+    missing.forEach((m) => console.error(`  ! ${m}`));
+    console.error('build-engine:   TeaVM pruned a facade method. Do NOT vendor it.');
+    process.exit(1);
   }
 }
 

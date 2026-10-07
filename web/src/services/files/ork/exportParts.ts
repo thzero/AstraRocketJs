@@ -1,6 +1,7 @@
 import type { ComponentNode, ComponentPosition } from '../../../engine/openRocketEngine';
-import { shapeParamDefault } from '../../../tree/shapeProfile';
-import { num } from '../../../tree/nodeProps';
+import { nodeShape, shapeParamDefault } from '../../../tree/shapeProfile';
+import { num, numOpt } from '../../../tree/nodeProps';
+import { kernelPresetType } from './presetTypes';
 import { escapeXml } from '../xmlUtil';
 import { uuid } from '../../app/uuid';
 import { COMPONENT_DEFAULTS } from '../../design/componentDefaults';
@@ -8,6 +9,8 @@ import { KERNEL_MATERIALS } from '../../../tree/kernelDefaults';
 import type { OrkDeployOverride, OrkSepOverride } from '../orkTypes';
 import type { OrkWriter } from './exportWriter';
 import { passthroughOf } from './passthrough';
+import { parseHexColor } from '../../design/colorHex';
+import { designDeployment, designSeparation } from '../../flight/flightConfigs';
 
 /**
  * The element groups more than one .ork component writer shares: material,
@@ -114,14 +117,26 @@ export function header(w: OrkWriter, depth: number, node: ComponentNode, fallbac
  * the moment a dimension changes, the same way the kernel's setters call
  * `clearPreset`, so a link can never claim a part number the geometry no longer
  * is.
+ *
+ * WRITTEN ONLY WITH A DIGEST, which is why a link picked from our own catalog
+ * does not reach the file. The desktop's reader treats a preset element without
+ * one as invalid and says so in a dialog ("Invalid ComponentPreset for component
+ * Nose Cone, no digest specified"), so half an element is worse than none: it
+ * buys nothing and costs every reader a warning. The digest is an MD5 the
+ * kernel computes over a preset's own properties (`ComponentPreset.computeDigest`)
+ * and our catalog (`sync-components.mjs`) does not carry one yet, so the links
+ * that survive a save are the ones an imported desktop file brought with it.
+ *
+ * The TYPE is the kernel's enum constant, not our row type: see presetTypes.
  */
 function presetXml(w: OrkWriter, depth: number, node: ComponentNode): void {
   const p = node['preset'] as { type?: string; manufacturer?: string; partNo?: string; digest?: string } | undefined;
-  if (!p || typeof p !== 'object' || !p.partNo) return;
+  if (!p || typeof p !== 'object' || !p.partNo || !p.digest) return;
   const attr = (name: string, v: string | undefined) => (v ? ` ${name}="${escapeXml(v)}"` : '');
   w.emit(
     depth,
-    `<preset${attr('type', p.type)}${attr('manufacturer', p.manufacturer)}${attr('partno', p.partNo)}${attr('digest', p.digest)}/>`,
+    `<preset${attr('type', kernelPresetType(p.type))}${attr('manufacturer', p.manufacturer)}` +
+      `${attr('partno', p.partNo)}${attr('digest', p.digest)}/>`,
   );
 }
 
@@ -134,10 +149,8 @@ function presetXml(w: OrkWriter, depth: number, node: ComponentNode): void {
  * offered a control and then threw the answer away.
  */
 function colorXml(w: OrkWriter, depth: number, node: ComponentNode): void {
-  const hex = typeof node['color'] === 'string' ? (node['color'] as string) : null;
-  const m = hex && /^#?([0-9a-f]{6})$/i.exec(hex.trim());
-  if (!m) return;
-  const n = parseInt(m[1]!, 16);
+  const n = parseHexColor(node['color']);
+  if (n === null) return;
   w.emit(depth, `<color red="${(n >> 16) & 255}" green="${(n >> 8) & 255}" blue="${n & 255}"/>`);
 }
 
@@ -194,15 +207,7 @@ export function deploymentConfigs(w: OrkWriter, depth: number, node: ComponentNo
   if (w.writeConfigs.length < 2 && !w.writeConfigs[0]?.deployments) return;
   for (const c of w.writeConfigs) {
     const o: OrkDeployOverride =
-      c.deployments === null
-        ? {
-            deployEvent: String(node['deployEvent'] ?? 'ejection'),
-            deployAltitude: typeof node['deployAltitude'] === 'number' ? (node['deployAltitude'] as number) : 200,
-            deployDelay: typeof node['deployDelay'] === 'number' ? (node['deployDelay'] as number) : 0,
-          }
-        : node.id
-          ? (c.deployments[node.id] ?? {})
-          : {};
+      c.deployments === null ? designDeployment(node) : node.id ? (c.deployments[node.id] ?? {}) : {};
     if (Object.keys(o).length === 0) continue;
     w.emit(depth, `<deploymentconfiguration configid="${escapeXml(c.id)}">`);
     if (o.deployEvent !== undefined) w.emit(depth + 1, `<deployevent>${escapeXml(o.deployEvent)}</deployevent>`);
@@ -229,7 +234,7 @@ export function deploymentConfigs(w: OrkWriter, depth: number, node: ComponentNo
  */
 export function filletXml(w: OrkWriter, depth: number, node: ComponentNode): void {
   w.emit(depth, `<filletradius>${num(node, 'filletRadius', 0)}</filletradius>`);
-  const density = typeof node['filletDensity'] === 'number' ? (node['filletDensity'] as number) : null;
+  const density = numOpt(node, 'filletDensity') ?? null;
   if (density === null || !(density > 0)) {
     w.emit(
       depth,
@@ -286,9 +291,7 @@ export function finTabsXml(w: OrkWriter, depth: number, node: ComponentNode): vo
 export function thicknessXml(w: OrkWriter, depth: number, node: ComponentNode, fb: number): void {
   w.emit(
     depth,
-    node['filled'] === true
-      ? '<thickness>filled</thickness>'
-      : `<thickness>${typeof node['thickness'] === 'number' ? node['thickness'] : fb}</thickness>`,
+    node['filled'] === true ? '<thickness>filled</thickness>' : `<thickness>${num(node, 'thickness', fb)}</thickness>`,
   );
 }
 
@@ -309,7 +312,7 @@ export function packedXml(w: OrkWriter, depth: number, node: ComponentNode): voi
 // Engine defaults from Transition.Shape.defaultParameter() — writing any
 // other fallback silently reshapes the nose (haack's default is 0, not 1).
 export function shapeParamXml(w: OrkWriter, depth: number, node: ComponentNode): void {
-  const dflt = shapeParamDefault(String(node['shape'] ?? 'ogive'));
+  const dflt = shapeParamDefault(nodeShape(node));
   w.emit(depth, `<shapeparameter>${num(node, 'shapeParameter', dflt)}</shapeparameter>`);
 }
 
@@ -351,9 +354,7 @@ export function autoRadius(w: OrkWriter, depth: number, node: ComponentNode, key
  * one forgot when its booster let go.
  */
 export function separationXml(w: OrkWriter, depth: number, node: ComponentNode): void {
-  const ev = typeof node['separationEvent'] === 'string' ? (node['separationEvent'] as string) : 'ejection';
-  const delay = typeof node['separationDelay'] === 'number' ? (node['separationDelay'] as number) : 0;
-  const alt = typeof node['separationAltitude'] === 'number' ? (node['separationAltitude'] as number) : 200;
+  const { separationEvent: ev, separationDelay: delay, separationAltitude: alt } = designSeparation(node);
   const sep = (d: number, o: OrkSepOverride) => {
     w.emit(d, `<separationevent>${escapeXml(o.separationEvent ?? ev)}</separationevent>`);
     w.emit(d, `<separationaltitude>${o.separationAltitude ?? alt}</separationaltitude>`);

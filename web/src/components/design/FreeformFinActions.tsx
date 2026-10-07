@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ComponentNode } from '../../engine/openRocketEngine';
 import { NumberInput } from '../common/NumberInput';
@@ -7,9 +7,12 @@ import { unitScope } from '../../prefs/units';
 import { freeformPoints } from '../../tree/position';
 import { scaleComponent } from '../../services/design/componentActions';
 import { FinImageError, finPointsCsv, finPointsFromImage } from '../../services/design/finImage';
-import { download } from '../../services/files/saveFile';
+import { download, exportFilename } from '../../services/files/saveFile';
+import { CSV_MIME } from '../../services/exports/csvExport';
+import { partLabel } from '../../i18n/format';
 import { updateNode } from '../../services/design/treeEdit';
-import { useWorkspaceStore } from '../../state/store';
+import { selectDesignName, useWorkspaceStore } from '../../state/store';
+import { useFilePick } from '../common/useFilePick';
 
 /**
  * The three things OpenRocket's freeform editor does besides dragging points:
@@ -24,15 +27,26 @@ export function FreeformFinActions({ node }: { node: ComponentNode }) {
   const { t } = useTranslation();
   const u = useUnits();
   const apply = useWorkspaceStore((s) => s.applyTreeAction);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const designName = useWorkspaceStore(selectDesignName);
   const [factor, setFactor] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const id = node.id as string;
   const ptX = u.at(unitScope('freeform', 'x'), 'length');
 
+  // Cleared after each pick, so picking the same file twice fires again: how
+  // anyone retrying after a threshold tweak expects it to behave.
+  const imageFile = useFilePick({
+    accept: 'image/*',
+    label: t('freeform.importImage'),
+    onFile: (file) => void importImage(file),
+  });
+
   const exportCsv = () => {
-    const name = ((node.name as string) || 'fin').replace(/[^\w.-]+/g, '_');
-    download(`${name}.csv`, finPointsCsv(freeformPoints(node), ptX.sym, ptX.toUi), 'text/csv;charset=utf-8');
+    download(
+      exportFilename([designName, partLabel(t, node), 'points'], 'csv'),
+      finPointsCsv(freeformPoints(node), ptX.sym, ptX.toUi),
+      CSV_MIME,
+    );
   };
 
   const importImage = async (file: File) => {
@@ -77,7 +91,7 @@ export function FreeformFinActions({ node }: { node: ComponentNode }) {
           {t('freeform.applyScale')}
         </button>
         <button
-          onClick={() => fileRef.current?.click()}
+          onClick={imageFile.pick}
           title={t('freeform.importHint')}
           className="rounded-md bg-slate-800 px-2 py-1 text-xs text-slate-300 ring-1 ring-white/10 hover:bg-slate-700"
         >
@@ -89,20 +103,7 @@ export function FreeformFinActions({ node }: { node: ComponentNode }) {
         >
           {t('freeform.exportCsv')}
         </button>
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          aria-label={t('freeform.importImage')}
-          className="hidden"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            // Cleared so picking the same file twice fires again, which is how
-            // anyone retrying after a threshold tweak expects it to behave.
-            e.target.value = '';
-            if (file) void importImage(file);
-          }}
-        />
+        {imageFile.input}
       </div>
       <p className="text-[11px] leading-snug text-slate-500">{t('freeform.importHint')}</p>
       {error && <p className="text-[11px] leading-snug text-amber-400">{error}</p>}

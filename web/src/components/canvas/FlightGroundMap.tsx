@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import * as THREE from 'three';
 import {
   TILE_SIZE,
@@ -56,8 +56,9 @@ export interface GroundMapProps {
   /** Scene units per meter, from the flight scene's own scale. */
   unitsPerMeter: number;
   source: TileSourceId;
-  /** Told once, when the tiles turn out not to be reachable. */
-  onUnavailable?: () => void;
+  /** Told of each tile that loads and each that fails, for the view's offline verdict (useTileVerdict). */
+  onTileLoad?: () => void;
+  onTileError?: () => void;
 }
 
 /** One tile, and where its quad sits in the scene. */
@@ -117,7 +118,8 @@ export function FlightGroundMap({
   radiusM,
   unitsPerMeter,
   source,
-  onUnavailable,
+  onTileLoad,
+  onTileError,
 }: GroundMapProps) {
   const layer = useMemo(
     () => groundMapLayout(latitudeDeg, longitudeDeg, radiusM, unitsPerMeter, source),
@@ -137,7 +139,6 @@ export function FlightGroundMap({
     of: layer,
     texes: {},
   });
-  const failures = useRef(0);
 
   useEffect(() => {
     const loader = new THREE.TextureLoader();
@@ -145,7 +146,6 @@ export function FlightGroundMap({
     loader.setCrossOrigin('anonymous');
     let live = true;
     const mine: THREE.Texture[] = [];
-    failures.current = 0;
 
     for (const ref of layer.refs) {
       loader.load(
@@ -166,6 +166,7 @@ export function FlightGroundMap({
           tex.generateMipmaps = false;
           tex.minFilter = THREE.LinearFilter;
           mine.push(tex);
+          onTileLoad?.();
           setLoaded((prev) => ({
             of: layer,
             texes: prev.of === layer ? { ...prev.texes, [ref.key]: tex } : { [ref.key]: tex },
@@ -173,11 +174,9 @@ export function FlightGroundMap({
         },
         undefined,
         () => {
-          // One failure is a hole in the coverage; a screenful is no network,
-          // and that is worth telling the view so it can stop claiming a layer
-          // it does not have.
-          failures.current += 1;
-          if (live && failures.current >= 3) onUnavailable?.();
+          // The view decides whether this is a hole in the coverage or no
+          // network, so it can stop claiming a layer it does not have.
+          if (live) onTileError?.();
         },
       );
     }
@@ -186,7 +185,7 @@ export function FlightGroundMap({
       live = false;
       for (const tex of mine) tex.dispose();
     };
-    // `onUnavailable` is left out on purpose: it is a report, not an input, and
+    // The tile callbacks are left out on purpose: they are reports, not inputs, and
     // an unmemoized callback from the parent would re-fetch every tile on every
     // HUD tick.
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -31,7 +31,10 @@ const design: RocketTree = {
           length: 0.1,
           aftRadius: 0.0124,
           thickness: 0.0015,
-          shape: 'ogive',
+          // POWER, not ogive: a shape parameter only round-trips on a shape
+          // that uses one, because the reader drops it on the others exactly as
+          // `NoseConeHandler` does.
+          shape: 'power',
           shapeParameter: 0.75,
           materialName: 'Polystyrene',
           density: 1050,
@@ -146,8 +149,14 @@ const find = (nodes: ComponentNode[] | undefined, name: string): ComponentNode =
 
 describe('exportRkt', () => {
   it('writes a RockSim document a reader can find the design in', () => {
-    expect(xml.startsWith('<?xml version="1.0" encoding="UTF-8"?>')).toBe(true);
-    expect(xml).toContain('<RockSimDocument>');
+    // STARTS with the root element, nothing in front of it. Desktop
+    // OpenRocket identifies a RockSim file by its first eleven bytes being
+    // `<RockSimDoc` exactly (`GeneralRocketLoader.ROCKSIM_SIGNATURE`), unlike
+    // the OpenRocket check beside it, which scans the buffer. An XML
+    // declaration in front made every `.rkt` this app wrote open as
+    // "Unsupported or corrupt file". The desktop's own saver writes none.
+    expect(xml.startsWith('<RockSimDocument>')).toBe(true);
+    expect(xml).not.toContain('<?xml');
     expect(xml).toContain('<FileVersion>4</FileVersion>');
     expect(xml).toContain('<Name>Round Trip</Name>');
     expect(xml).toContain('<StageCount>1</StageCount>');
@@ -273,5 +282,214 @@ describe('exportRkt, multi-stage', () => {
     expect(r.tree.components).toHaveLength(2);
     expect(find(r.tree.components[0]!.children, 'Upper')).toBeTruthy();
     expect(find(r.tree.components[1]!.children, 'Lower')).toBeTruthy();
+  });
+});
+
+/**
+ * RockSim has no cluster: it knows one tube per motor.
+ *
+ * OpenRocket keeps ONE inner tube carrying a cluster pattern, and the desktop
+ * splits it on the way out (`InnerBodyTubeDTO.handleCluster`). This writer did
+ * not, so a three-motor cluster was saved as a single tube and the file named
+ * one motor where the design flies three. Everything mounted inside the mount
+ * went with that one tube too.
+ *
+ * Checked against the desktop's own output for the same design: three members
+ * at 10.9697 mm from the axis, 120 degrees apart, each carrying the engine
+ * block. The angles are written in degrees here, which is this writer's one
+ * deliberate departure from the format; the places are the same ones.
+ */
+describe('exportRkt — a clustered motor mount', () => {
+  const mount = (cluster: string): ComponentNode =>
+    ({
+      type: 'innertube',
+      id: 'mount',
+      name: 'Mount',
+      motorMount: true,
+      cluster,
+      length: 0.1,
+      outerRadius: 0.0095,
+      thickness: 0.0005,
+      position: { method: 'bottom', offset: 0 },
+      children: [
+        {
+          type: 'engineblock',
+          id: 'block',
+          name: 'Block',
+          length: 0.005,
+          outerRadius: 0.009,
+          thickness: 0.003,
+          position: { method: 'top', offset: 0 },
+        },
+      ],
+    }) as unknown as ComponentNode;
+
+  const clustered = (cluster: string): string =>
+    exportRkt('Cluster', {
+      name: 'Cluster',
+      components: [
+        {
+          type: 'stage',
+          id: 's1',
+          name: 'Sustainer',
+          children: [
+            {
+              type: 'bodytube',
+              id: 'tube',
+              name: 'Body',
+              length: 0.4,
+              outerRadius: 0.04,
+              thickness: 0.001,
+              children: [mount(cluster)],
+            },
+          ],
+        },
+      ],
+    } as unknown as RocketTree).xml;
+
+  it('writes one tube per motor, named as the desktop names them', () => {
+    const xml = clustered('3-ring');
+    for (const n of [1, 2, 3]) expect(xml).toContain(`<Name>Mount #${n}</Name>`);
+    // The airframe plus the three members, and no un-split mount left behind.
+    expect(xml.match(/<BodyTube>/g)).toHaveLength(4);
+    expect(xml).not.toContain('<Name>Mount</Name>');
+  });
+
+  it('puts everything inside the mount into EVERY tube, not just the first', () => {
+    // An engine block is what the motor pushes against, so a cluster missing
+    // two of them is a file describing a different rocket.
+    expect(clustered('3-ring').match(/<Name>Block<\/Name>/g)).toHaveLength(3);
+  });
+
+  it('places the members where the desktop places them', () => {
+    const xml = clustered('3-ring');
+    // 10.9697 mm from the axis for a 19 mm tube in a 3-ring, which is the
+    // figure OpenRocket 24.12 writes for the same design.
+    expect(xml.match(/<RadialLoc>10\.9696/g)).toHaveLength(3);
+    // 120 degrees apart, in this writer's own angle unit.
+    for (const a of ['-150', '-30', '90']) {
+      expect(xml).toContain(`<RadialAngle>${a}</RadialAngle>`);
+    }
+  });
+
+  it('turns the pattern by the clock angle less the radial direction, as the kernel does', () => {
+    // InnerTube.getClusterPoints rotates by `clusterRotation - radialDirection`.
+    // With the mount's direction at 90 degrees and no offset, the 3-ring's
+    // (-0.5, -0.289), (0.5, -0.289), (0, 0.577) turn to -60, 60 and 180 degrees.
+    const xml = exportRkt('Cluster', {
+      name: 'Cluster',
+      components: [
+        {
+          type: 'stage',
+          id: 's1',
+          name: 'Sustainer',
+          children: [
+            {
+              type: 'bodytube',
+              id: 'tube',
+              name: 'Body',
+              length: 0.4,
+              outerRadius: 0.04,
+              thickness: 0.001,
+              children: [{ ...mount('3-ring'), radialDirection: Math.PI / 2 }],
+            },
+          ],
+        },
+      ],
+    } as unknown as RocketTree).xml;
+    const angles = [...xml.matchAll(/<RadialAngle>([^<]+)<\/RadialAngle>/g)].map((m) => Math.round(Number(m[1])));
+    expect(angles.slice(0, 3).sort((a, b) => a - b)).toEqual([-60, 60, 180]);
+  });
+
+  it('leaves a single mount as one tube', () => {
+    const xml = clustered('single');
+    expect(xml).toContain('<Name>Mount</Name>');
+    expect(xml.match(/<BodyTube>/g)).toHaveLength(2);
+    expect(xml.match(/<Name>Block<\/Name>/g)).toHaveLength(1);
+  });
+});
+
+describe('exportRkt — off-axis placement, as desktop writes it', () => {
+  // BasePartDTO writes RadialLoc/RadialAngle for a RingComponent and
+  // MassObjectDTO for a mass component or shock cord. ParachuteDTO and
+  // StreamerDTO write neither. RadialAngle is degrees, our one deliberate
+  // divergence from desktop's radians.
+  const PLACED = ['tubecoupler', 'centeringring', 'bulkhead', 'engineblock', 'masscomponent', 'shockcord'];
+  const NOT_PLACED = ['parachute', 'streamer'];
+
+  const partXml = (type: string): string => {
+    const { xml } = exportRkt('Offset', {
+      name: 'Offset',
+      components: [
+        {
+          type: 'stage',
+          id: 's1',
+          name: 'S',
+          children: [
+            {
+              type: 'bodytube',
+              id: 'b1',
+              name: 'Body',
+              length: 0.3,
+              outerRadius: 0.02,
+              thickness: 0.001,
+              children: [
+                { type, id: 'p', name: 'Part', length: 0.02, radialPosition: 0.006, radialDirection: Math.PI / 2 },
+              ],
+            },
+          ],
+        },
+      ],
+    } as unknown as RocketTree);
+    // The part's own element: from its name to the next part's name or the end.
+    const at = xml.indexOf('<Name>Part</Name>');
+    const next = xml.indexOf('<Name>', at + 1);
+    return xml.slice(at, next === -1 ? undefined : next);
+  };
+
+  it.each(PLACED)('writes the offset of a %s', (type) => {
+    const x = partXml(type);
+    expect(x).toContain('<RadialLoc>6</RadialLoc>');
+    expect(x).toContain('<RadialAngle>90</RadialAngle>');
+  });
+
+  it.each(NOT_PLACED)('writes no offset for a %s', (type) => {
+    const x = partXml(type);
+    expect(x).not.toContain('<RadialLoc>');
+    expect(x).not.toContain('<RadialAngle>');
+  });
+
+  it.each(PLACED)('reads no offset back for a %s, as desktop reads none', (type) => {
+    const { xml } = exportRkt('Offset', {
+      name: 'Offset',
+      components: [
+        {
+          type: 'stage',
+          id: 's1',
+          name: 'S',
+          children: [
+            {
+              type: 'bodytube',
+              id: 'b1',
+              name: 'Body',
+              length: 0.3,
+              outerRadius: 0.02,
+              thickness: 0.001,
+              children: [{ type, id: 'p', name: 'Part', length: 0.02, radialPosition: 0.006 }],
+            },
+          ],
+        },
+      ],
+    } as unknown as RocketTree);
+    const nodes: ComponentNode[] = [];
+    const walk = (ns: ComponentNode[] = []) =>
+      ns.forEach((n) => {
+        nodes.push(n);
+        walk(n.children);
+      });
+    walk(importRkt(xml).tree.components);
+    const part = nodes.find((n) => n.name === 'Part');
+    expect(part).toBeDefined();
+    expect(part?.['radialPosition']).toBeUndefined();
   });
 });

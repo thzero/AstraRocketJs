@@ -3,10 +3,13 @@ import { useWorkspaceStore, selectConfig, configOf } from '../../state/store';
 import { buildConfiguredRocket } from '../design/buildRocket';
 import { motorSpecs } from '../flight/flightConfigs';
 import { motorStats, type MotorStats } from './rocketReport';
-import { num } from '../../tree/nodeProps';
+import { num, numOpt } from '../../tree/nodeProps';
 import { isFinSet } from '../../tree/tubefins';
 import { axialLength } from '../../tree/position';
-import { defaultDesignName } from '../app/appInfo';
+import { walkNodes } from '../../tree/treeWalk';
+import { designNameOf } from '../app/appInfo';
+import { stageFileName } from '../design/orkTree';
+import { errorMessage } from '../app/errorMessage';
 
 /** The full data model for the rocket report (SI). Pure data; the PDF formats it. */
 
@@ -86,9 +89,9 @@ export function stageParts(
         material: node.materialName as string | undefined,
         density: node.density as number | undefined,
         length: num(node, 'length', 0),
-        outerR: typeof node['outerRadius'] === 'number' ? (node['outerRadius'] as number) : undefined,
-        innerR: typeof node['innerRadius'] === 'number' ? (node['innerRadius'] as number) : undefined,
-        thickness: typeof node['thickness'] === 'number' ? (node['thickness'] as number) : undefined,
+        outerR: numOpt(node, 'outerRadius'),
+        innerR: numOpt(node, 'innerRadius'),
+        thickness: numOpt(node, 'thickness'),
         mass,
       });
     }
@@ -121,11 +124,29 @@ export function multiStageSummaries(
   buildStage: (st: ComponentNode) => StaticInfo,
   buildWhole: () => ReportBuild,
   restore: (built: ReportBuild) => void,
+  onRestoreFailed: (e: unknown) => void,
 ): Summary[] {
   try {
     return stages.map((st, i) => ({ label: stageName(st, i), info: buildStage(st) }));
   } finally {
-    restore(buildWhole());
+    // The `finally` protected against a STAGE build throwing. It did not protect
+    // against `buildWhole()` itself throwing, and then `restore` never ran and
+    // the store kept pointing at the last per-stage build: a handle for one
+    // stage, standing in for the rocket. Nothing re-triggers the rebuild effect,
+    // because its dependencies did not change, so the aero pane stayed dead
+    // until an unrelated edit moved them.
+    //
+    // Reported, never rethrown. Rethrowing from a `finally` REPLACES whatever
+    // the try block threw, which would lose the stage failure that is the more
+    // useful of the two. The report itself is still valid - parts and fin-set
+    // positions were gathered off the live handle before any rebuild, and each
+    // stage summary comes from its own isolated build - so it is returned, and
+    // what is wrong is said out loud rather than left to be discovered.
+    try {
+      restore(buildWhole());
+    } catch (e) {
+      onRestoreFailed(e);
+    }
   }
 }
 
@@ -145,14 +166,16 @@ export function assembleReport(install?: (built: ReportBuild) => void): ReportMo
   const s = useWorkspaceStore.getState();
   const { tree, info, rocket } = s;
   if (!info || !rocket) return null;
-  const name = s.loadedMeta?.name || tree.name || defaultDesignName();
+  const name = designNameOf(tree, s.loadedMeta);
   const stages = tree.components.filter((n) => n.type === 'stage');
   const stageList = stages.length
     ? stages
     : [{ type: 'stage', name: '', children: tree.components } as unknown as ComponentNode];
 
   const infoRocket = rocket as unknown as { componentInfo: (id: string) => { mass: number; positionX: number } };
-  const stageName = (st: ComponentNode, i: number) => (st.name as string) || `Stage ${i + 1}`;
+  // The name the .ork written beside this report gives the stage, since the
+  // report's own rows go into that file's <designinfo> and the design CSV.
+  const stageName = stageFileName;
 
   // Parts + fin-set positions need the live handle — gather BEFORE any rebuild.
   const partsByStage = stageList.map((st, i) => ({
@@ -190,6 +213,13 @@ export function assembleReport(install?: (built: ReportBuild) => void): ReportMo
         return { info: main.staticInfo(), handle: main };
       },
       install ?? ((built) => s.applyBuild(built.info, built.handle)),
+      (e) => {
+        // Clear the live build rather than leave a stage handle standing in for
+        // the rocket. The stats and the aero pane then show their "not built"
+        // state, which is true, and the next design edit rebuilds.
+        s.applyBuild(null, null);
+        s.setErr(errorMessage(e));
+      },
     );
   } else {
     stageSummaries = stageList.map((st, i) => ({ label: stageName(st, i), info }));
@@ -214,27 +244,22 @@ export function finSetPositions(
   rocket: { componentInfo: (id: string) => { positionX: number } },
 ): FinSetPosition[] {
   const out: FinSetPosition[] = [];
-  const walk = (nodes: ComponentNode[]) => {
-    for (const n of nodes) {
-      if (isFinSet(String(n.type)) && typeof n.id === 'string') {
-        // axialLength, not a per-type ternary here: it already dispatches
-        // freeform → root chord, trapezoid/elliptical → rootChord, everything
-        // else → length. That "everything else" is what tube fins need — they
-        // are marked like any other fin set (OpenRocket's FinMarkingGuide
-        // collects TubeFinSet beside FinSet) but their axial span is the TUBE'S
-        // length, and reading through rootChord gave every one of them a 50 mm
-        // root it does not have.
-        const root = axialLength(n);
-        try {
-          const topX = rocket.componentInfo(n.id).positionX;
-          out.push({ name: (n.name as string) || 'Fin set', topX, bottomX: topX + root });
-        } catch {
-          /* skip a fin set the engine can't locate */
-        }
-      }
-      if (n.children) walk(n.children);
+  for (const n of walkNodes(stage.children ?? [])) {
+    if (!isFinSet(String(n.type)) || typeof n.id !== 'string') continue;
+    // axialLength, not a per-type ternary here: it already dispatches
+    // freeform → root chord, trapezoid/elliptical → rootChord, everything
+    // else → length. That "everything else" is what tube fins need: they
+    // are marked like any other fin set (OpenRocket's FinMarkingGuide
+    // collects TubeFinSet beside FinSet) but their axial span is the TUBE'S
+    // length, and reading through rootChord would give every one of them a
+    // 50 mm root it does not have.
+    const root = axialLength(n);
+    try {
+      const topX = rocket.componentInfo(n.id).positionX;
+      out.push({ name: (n.name as string) || 'Fin set', topX, bottomX: topX + root });
+    } catch {
+      /* skip a fin set the engine can't locate */
     }
-  };
-  walk(stage.children ?? []);
+  }
   return out;
 }

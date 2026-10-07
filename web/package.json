@@ -1,10 +1,10 @@
 {
   "name": "astrarocketjs-web",
-  "version": "0.1.0",
+  "version": "0.1.5",
   "version_major": 0,
   "version_minor": 1,
-  "version_patch": 0,
-  "version_date": "09/29/2026",
+  "version_patch": 5,
+  "version_date": "10/06/2026",
   "type": "module",
   "description": "AstraRocketJs — browser UI for the OpenRocket engine",
   "author": "thZero.com",
@@ -32,7 +32,11 @@
     "build": "npm run typecheck && npm run lint && vite build",
     "preview": "vite preview",
     "docs:build": "node scripts/build-docs.mjs",
+    "sync:preset-digests": "node scripts/sync-preset-digests.mjs",
+    "sync:motor-digests": "node scripts/sync-motor-digests.mjs",
+    "check:ork": "node scripts/check-ork-opens.mjs",
     "e2e": "playwright test",
+    "e2e:core": "node scripts/e2e-core.mjs",
     "e2e:ui": "playwright test --ui",
     "e2e:update": "node scripts/check-update-flow.mjs",
     "e2e:offline-help": "node scripts/check-offline-help.mjs",
@@ -47,7 +51,9 @@
     "sync:examples": "node scripts/sync-examples.mjs",
     "sync:contributors": "node scripts/sync-contributors.mjs",
     "test:coverage": "vitest run --coverage",
-    "verify": "npm run format:check && npm run spell && npm run typecheck && npm run lint && npm run knip && vitest run"
+    "gates": "npm run format:check && npm run spell && npm run typecheck && npm run lint && npm run knip && vite build",
+    "verify": "npm run gates && vitest run",
+    "verify:ci": "npm run gates && npm run test:coverage"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.8",

@@ -66,8 +66,8 @@ exports[`golden .ork export > falls back to the FIRST configuration as default w
                 <position type="top">0</position>
                 <packedlength>0.02</packedlength>
                 <packedradius>0.005</packedradius>
-                <radialposition>0</radialposition>
-                <radialdirection>0</radialdirection>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
                 <mass>0.02</mass>
                 <masscomponenttype>tracker</masscomponenttype>
               </masscomponent>
@@ -319,8 +319,8 @@ exports[`golden .ork export > falls back to the FIRST configuration as default w
                 <position type="bottom">0</position>
                 <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
                 <length>0.07</length>
-                <radialposition>0</radialposition>
-                <radialdirection>0</radialdirection>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
                 <outerradius>0.0095</outerradius>
                 <thickness>0.0005</thickness>
                 <clusterconfiguration>single</clusterconfiguration>
@@ -569,8 +569,8 @@ exports[`golden .ork export > falls back to the FIRST configuration as default w
                         <position type="bottom">0</position>
                         <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
                         <length>0.1</length>
-                        <radialposition>0</radialposition>
-                        <radialdirection>0</radialdirection>
+                        <radialposition>0.0</radialposition>
+                        <radialdirection>0.0</radialdirection>
                         <outerradius>0.0095</outerradius>
                         <thickness>0.0005</thickness>
                         <clusterconfiguration>single</clusterconfiguration>
@@ -628,8 +628,8 @@ exports[`golden .ork export > falls back to the FIRST configuration as default w
                 <position type="bottom">0</position>
                 <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
                 <length>0.1</length>
-                <radialposition>0</radialposition>
-                <radialdirection>0</radialdirection>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
                 <outerradius>0.0095</outerradius>
                 <thickness>0.0005</thickness>
                 <clusterconfiguration>single</clusterconfiguration>
@@ -760,8 +760,8 @@ exports[`golden .ork export > mints one configuration for a design that declares
                 <position type="top">0</position>
                 <packedlength>0.02</packedlength>
                 <packedradius>0.005</packedradius>
-                <radialposition>0</radialposition>
-                <radialdirection>0</radialdirection>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
                 <mass>0.02</mass>
                 <masscomponenttype>tracker</masscomponenttype>
               </masscomponent>
@@ -972,8 +972,8 @@ exports[`golden .ork export > mints one configuration for a design that declares
                 <position type="bottom">0</position>
                 <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
                 <length>0.07</length>
-                <radialposition>0</radialposition>
-                <radialdirection>0</radialdirection>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
                 <outerradius>0.0095</outerradius>
                 <thickness>0.0005</thickness>
                 <clusterconfiguration>single</clusterconfiguration>
@@ -1189,8 +1189,8 @@ exports[`golden .ork export > mints one configuration for a design that declares
                         <position type="bottom">0</position>
                         <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
                         <length>0.1</length>
-                        <radialposition>0</radialposition>
-                        <radialdirection>0</radialdirection>
+                        <radialposition>0.0</radialposition>
+                        <radialdirection>0.0</radialdirection>
                         <outerradius>0.0095</outerradius>
                         <thickness>0.0005</thickness>
                         <clusterconfiguration>single</clusterconfiguration>
@@ -1238,8 +1238,8 @@ exports[`golden .ork export > mints one configuration for a design that declares
                 <position type="bottom">0</position>
                 <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
                 <length>0.1</length>
-                <radialposition>0</radialposition>
-                <radialdirection>0</radialdirection>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
                 <outerradius>0.0095</outerradius>
                 <thickness>0.0005</thickness>
                 <clusterconfiguration>single</clusterconfiguration>
@@ -1312,8 +1312,8 @@ exports[`golden .ork export > writes a lone configuration, and no launch block 1
                 <position type="top">0</position>
                 <packedlength>0.02</packedlength>
                 <packedradius>0.005</packedradius>
-                <radialposition>0</radialposition>
-                <radialdirection>0</radialdirection>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
                 <mass>0.02</mass>
                 <masscomponenttype>tracker</masscomponenttype>
               </masscomponent>
@@ -1541,8 +1541,8 @@ exports[`golden .ork export > writes a lone configuration, and no launch block 1
                 <position type="bottom">0</position>
                 <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
                 <length>0.07</length>
-                <radialposition>0</radialposition>
-                <radialdirection>0</radialdirection>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
                 <outerradius>0.0095</outerradius>
                 <thickness>0.0005</thickness>
                 <clusterconfiguration>single</clusterconfiguration>
@@ -1758,8 +1758,8 @@ exports[`golden .ork export > writes a lone configuration, and no launch block 1
                         <position type="bottom">0</position>
                         <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
                         <length>0.1</length>
-                        <radialposition>0</radialposition>
-                        <radialdirection>0</radialdirection>
+                        <radialposition>0.0</radialposition>
+                        <radialdirection>0.0</radialdirection>
                         <outerradius>0.0095</outerradius>
                         <thickness>0.0005</thickness>
                         <clusterconfiguration>single</clusterconfiguration>
@@ -1807,8 +1807,8 @@ exports[`golden .ork export > writes a lone configuration, and no launch block 1
                 <position type="bottom">0</position>
                 <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
                 <length>0.1</length>
-                <radialposition>0</radialposition>
-                <radialdirection>0</radialdirection>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
                 <outerradius>0.0095</outerradius>
                 <thickness>0.0005</thickness>
                 <clusterconfiguration>single</clusterconfiguration>
@@ -1893,8 +1893,8 @@ exports[`golden .ork export > writes every configuration, block and component ty
                 <position type="top">0</position>
                 <packedlength>0.02</packedlength>
                 <packedradius>0.005</packedradius>
-                <radialposition>0</radialposition>
-                <radialdirection>0</radialdirection>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
                 <mass>0.02</mass>
                 <masscomponenttype>tracker</masscomponenttype>
               </masscomponent>
@@ -2146,8 +2146,8 @@ exports[`golden .ork export > writes every configuration, block and component ty
                 <position type="bottom">0</position>
                 <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
                 <length>0.07</length>
-                <radialposition>0</radialposition>
-                <radialdirection>0</radialdirection>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
                 <outerradius>0.0095</outerradius>
                 <thickness>0.0005</thickness>
                 <clusterconfiguration>single</clusterconfiguration>
@@ -2396,8 +2396,8 @@ exports[`golden .ork export > writes every configuration, block and component ty
                         <position type="bottom">0</position>
                         <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
                         <length>0.1</length>
-                        <radialposition>0</radialposition>
-                        <radialdirection>0</radialdirection>
+                        <radialposition>0.0</radialposition>
+                        <radialdirection>0.0</radialdirection>
                         <outerradius>0.0095</outerradius>
                         <thickness>0.0005</thickness>
                         <clusterconfiguration>single</clusterconfiguration>
@@ -2455,8 +2455,8 @@ exports[`golden .ork export > writes every configuration, block and component ty
                 <position type="bottom">0</position>
                 <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
                 <length>0.1</length>
-                <radialposition>0</radialposition>
-                <radialdirection>0</radialdirection>
+                <radialposition>0.0</radialposition>
+                <radialdirection>0.0</radialdirection>
                 <outerradius>0.0095</outerradius>
                 <thickness>0.0005</thickness>
                 <clusterconfiguration>single</clusterconfiguration>
@@ -2519,7 +2519,7 @@ exports[`golden .ork export > writes every configuration, block and component ty
         <atmosphere model="extendedisa">
           <basetemperature>298.15</basetemperature>
           <basepressure>101325</basepressure>
-          <relativehumidity>0.4</relativehumidity>
+          <baserelativehumidity>0.4</baserelativehumidity>
         </atmosphere>
         <timestep>0.05</timestep>
         <maxtime>1200.0</maxtime>
@@ -3300,777 +3300,6 @@ exports[`golden .ork import > reads the kitchen-sink export back into the same r
           },
         ],
         "id": "c30",
-        "name": "Booster",
-        "separationAltitude": 100,
-        "separationDelay": 2,
-        "separationEvent": "launch",
-        "type": "stage",
-      },
-    ],
-    "designType": "kit",
-    "designer": "Golden <tester>",
-    "name": "Kitchen sink",
-    "revision": "r7",
-  },
-}
-`;
-
-exports[`golden .ork import > reads the kitchen-sink export back into the same result as before 2`] = `
-{
-  "chosenConfigId": "cfg-b",
-  "configs": [
-    {
-      "deployments": {
-        "c51": {
-          "deployAltitude": 250,
-          "deployDelay": 1.5,
-          "deployEvent": "apogee",
-        },
-        "c52": {
-          "deployAltitude": 150,
-          "deployDelay": 0,
-          "deployEvent": "altitude",
-        },
-        "c53": {
-          "deployAltitude": 200,
-          "deployDelay": 0,
-          "deployEvent": "ejection",
-        },
-      },
-      "grounded": [],
-      "id": "cfg-a",
-      "isDefault": true,
-      "motors": {
-        "c43": {
-          "delay": 10,
-          "designation": "H128W",
-          "diameter": 0.029,
-          "ignitionDelay": 0,
-          "ignitionEvent": "automatic",
-          "length": 0.194,
-          "manufacturer": "AeroTech",
-          "mountId": "c43",
-        },
-        "c64": {
-          "delay": 1000000000,
-          "designation": "G80",
-          "diameter": 0.029,
-          "ignitionDelay": 0,
-          "ignitionEvent": "launch",
-          "length": 0.124,
-          "manufacturer": "AeroTech",
-          "mountId": "c64",
-        },
-      },
-      "name": "Two stage",
-      "separations": {
-        "c59": {
-          "separationAltitude": 300,
-          "separationDelay": 0.5,
-          "separationEvent": "burnout",
-        },
-        "c62": {
-          "separationAltitude": 100,
-          "separationDelay": 2,
-          "separationEvent": "launch",
-        },
-      },
-    },
-    {
-      "deployments": {
-        "c51": {
-          "deployAltitude": 200,
-          "deployDelay": 0,
-          "deployEvent": "ejection",
-        },
-        "c52": {
-          "deployAltitude": 120,
-        },
-        "c53": {
-          "deployAltitude": 200,
-          "deployDelay": 0,
-          "deployEvent": "ejection",
-        },
-      },
-      "grounded": [],
-      "id": "cfg-b",
-      "isDefault": false,
-      "motors": {
-        "c38": {
-          "delay": 4,
-          "designation": "E12",
-          "diameter": 0.024,
-          "ignitionDelay": 0,
-          "ignitionEvent": "automatic",
-          "length": 0.07,
-          "manufacturer": "Estes",
-          "mountId": "c38",
-        },
-        "c43": {
-          "delay": 6,
-          "designation": "F39",
-          "diameter": 0.029,
-          "ignitionDelay": 0,
-          "ignitionEvent": "automatic",
-          "length": 0.124,
-          "manufacturer": "AeroTech",
-          "mountId": "c43",
-        },
-      },
-      "name": null,
-      "separations": {
-        "c59": {
-          "separationAltitude": 300,
-          "separationDelay": 0.5,
-          "separationEvent": "burnout",
-        },
-        "c62": {
-          "separationAltitude": 100,
-          "separationDelay": 2,
-          "separationEvent": "launch",
-        },
-      },
-    },
-    {
-      "deployments": {
-        "c51": {
-          "deployAltitude": 250,
-          "deployDelay": 1.5,
-          "deployEvent": "apogee",
-        },
-        "c52": {
-          "deployAltitude": 150,
-          "deployDelay": 0,
-          "deployEvent": "altitude",
-        },
-        "c53": {
-          "deployAltitude": 200,
-          "deployDelay": 0,
-          "deployEvent": "ejection",
-        },
-      },
-      "grounded": [],
-      "id": "cfg-c",
-      "isDefault": false,
-      "motors": {},
-      "name": "Empty",
-      "separations": {
-        "c59": {
-          "separationAltitude": 300,
-          "separationDelay": 0.5,
-          "separationEvent": "burnout",
-        },
-        "c62": {
-          "separationAltitude": 100,
-          "separationDelay": 2,
-          "separationEvent": "launch",
-        },
-      },
-    },
-  ],
-  "ignored": [],
-  "launch": {
-    "constantGravity": 9.8,
-    "geodetic": "wgs84",
-    "gravityModel": "constant",
-    "latitudeDeg": 39.5,
-    "launchAltitudeM": 1200,
-    "launchIntoWind": true,
-    "launchRodAngleDeg": 5,
-    "launchRodDirectionDeg": 45,
-    "launchRodLengthM": 1.5,
-    "longitudeDeg": -104.7,
-    "pressureHPa": 1013.25,
-    "relativeHumidity": 0.4,
-    "temperatureC": 25,
-    "windAltitudeReference": "agl",
-    "windAverage": 3,
-    "windDirectionDeg": 180,
-    "windLevels": [
-      {
-        "altitudeM": 0,
-        "directionDeg": 90,
-        "speed": 2,
-        "stddev": 0.2,
-      },
-      {
-        "altitudeM": 500,
-        "directionDeg": 135,
-        "speed": 6,
-        "stddev": 0.5,
-      },
-    ],
-    "windStdDev": 0.6,
-  },
-  "motor": {
-    "delay": 4,
-    "designation": "E12",
-    "diameter": 0.024,
-    "ignitionDelay": 0,
-    "ignitionEvent": "automatic",
-    "length": 0.07,
-    "manufacturer": "Estes",
-    "mountId": "c38",
-  },
-  "motors": {
-    "c38": {
-      "delay": 4,
-      "designation": "E12",
-      "diameter": 0.024,
-      "ignitionDelay": 0,
-      "ignitionEvent": "automatic",
-      "length": 0.07,
-      "manufacturer": "Estes",
-      "mountId": "c38",
-    },
-    "c43": {
-      "delay": 6,
-      "designation": "F39",
-      "diameter": 0.029,
-      "ignitionDelay": 0,
-      "ignitionEvent": "automatic",
-      "length": 0.124,
-      "manufacturer": "AeroTech",
-      "mountId": "c43",
-    },
-  },
-  "name": "Kitchen sink",
-  "notes": [
-    "2 components in this design (Centering Ring, Launch Lug) repeat as multiple instances. The file keeps every instance, but the drawing and the simulation currently show one.",
-  ],
-  "tree": {
-    "comment": "Every "type" & block",
-    "components": [
-      {
-        "children": [
-          {
-            "aftRadius": 0.025,
-            "children": [
-              {
-                "id": "c35",
-                "length": 0.02,
-                "mass": 0.02,
-                "massComponentType": "tracker",
-                "name": "Tracker",
-                "position": {
-                  "method": "top",
-                  "offset": 0,
-                },
-                "radius": 0.005,
-                "type": "masscomponent",
-              },
-            ],
-            "density": 1050,
-            "finish": "smooth",
-            "id": "c34",
-            "length": 0.15,
-            "materialName": "Polystyrene",
-            "name": "Nose",
-            "overrideCD": 0.4,
-            "overrideCGX": 0.07,
-            "overrideMass": 0.05,
-            "overrideSubcomponentsMass": true,
-            "shape": "haack",
-            "shapeParameter": 0.33,
-            "shoulderCapped": true,
-            "shoulderLength": 0.03,
-            "shoulderRadius": 0.024,
-            "shoulderThickness": 0.002,
-            "thickness": 0.002,
-            "type": "nosecone",
-          },
-          {
-            "aftRadius": 0.03,
-            "aftShoulderThickness": 0.001,
-            "clipped": false,
-            "density": 680,
-            "filled": true,
-            "foreRadius": 0.025,
-            "foreShoulderLength": 0.02,
-            "foreShoulderRadius": 0.024,
-            "id": "c36",
-            "length": 0.06,
-            "materialName": "Cardboard",
-            "name": "Transition",
-            "shape": "ellipsoid",
-            "shapeParameter": 0,
-            "type": "transition",
-          },
-          {
-            "aftRadius": 0.03,
-            "aftRadiusAuto": true,
-            "density": 680,
-            "foreRadius": 0.03,
-            "id": "c37",
-            "length": 0.04,
-            "materialName": "Cardboard",
-            "name": "Transition",
-            "shape": "conical",
-            "shapeParameter": 0,
-            "thickness": 0.002,
-            "type": "transition",
-          },
-          {
-            "caseAirframe": true,
-            "children": [
-              {
-                "airfoilLeDiamond": 0.01,
-                "airfoilSection": "doublewedge",
-                "airfoilTeDiamond": 0.02,
-                "cant": 0.0349,
-                "crossSection": "airfoil",
-                "density": 680,
-                "filletDensity": 1200,
-                "filletMaterialGroup": "Plastics",
-                "filletMaterialName": "Epoxy",
-                "filletRadius": 0.004,
-                "finCount": 4,
-                "finLeRadius": 0.001,
-                "height": 0.06,
-                "id": "c39",
-                "materialName": "Cardboard",
-                "name": "Fins",
-                "position": {
-                  "method": "bottom",
-                  "offset": -0.01,
-                },
-                "rootChord": 0.1,
-                "rotation": 0.7853981633974483,
-                "sweep": 0.04,
-                "tabHeight": 0.01,
-                "tabLength": 0.05,
-                "tabOffset": 0.005,
-                "tabOffsetMethod": "top",
-                "thickness": 0.003,
-                "tipChord": 0.05,
-                "type": "trapezoidfinset",
-              },
-              {
-                "density": 680,
-                "finCount": 3,
-                "id": "c40",
-                "materialName": "Cardboard",
-                "name": "Freeform Fin Set",
-                "points": [
-                  [
-                    0,
-                    0,
-                  ],
-                  [
-                    0.02,
-                    0.05,
-                  ],
-                  [
-                    0.06,
-                    0.05,
-                  ],
-                  [
-                    0.08,
-                    0,
-                  ],
-                ],
-                "position": {
-                  "method": "absolute",
-                  "offset": 0.31,
-                },
-                "tabHeight": 0.01,
-                "tabLength": 0.02,
-                "tabOffset": 0,
-                "tabOffsetMethod": "bottom",
-                "thickness": 0.003,
-                "type": "freeformfinset",
-              },
-              {
-                "density": 680,
-                "finCount": 2,
-                "height": 0.04,
-                "id": "c41",
-                "materialName": "Cardboard",
-                "name": "Elliptical Fin Set",
-                "position": {
-                  "method": "top",
-                  "offset": 0.3,
-                },
-                "rootChord": 0.07,
-                "tabHeight": 0.01,
-                "tabLength": 0.02,
-                "tabOffset": 0,
-                "tabOffsetMethod": "middle",
-                "thickness": 0.003,
-                "type": "ellipticalfinset",
-              },
-              {
-                "density": 680,
-                "finCount": 6,
-                "id": "c42",
-                "length": 0.08,
-                "materialName": "Cardboard",
-                "name": "Tube Fin Set",
-                "outerRadius": 0.012,
-                "position": {
-                  "method": "bottom",
-                  "offset": 0,
-                },
-                "rotation": 0.1,
-                "thickness": 0.0005,
-                "type": "tubefinset",
-              },
-              {
-                "children": [
-                  {
-                    "density": 680,
-                    "id": "c44",
-                    "length": 0.005,
-                    "materialName": "Cardboard",
-                    "name": "Engine Block",
-                    "outerRadius": 0.014,
-                    "position": {
-                      "method": "bottom",
-                      "offset": 0,
-                    },
-                    "thickness": 0.002,
-                    "type": "engineblock",
-                  },
-                  {
-                    "density": 680,
-                    "id": "c45",
-                    "innerRadius": 0.015,
-                    "instanceCount": 3,
-                    "instanceSeparation": 0.02,
-                    "length": 0.002,
-                    "materialName": "Cardboard",
-                    "name": "Centering Ring",
-                    "outerRadius": 0.014499999999999999,
-                    "outerRadiusAuto": true,
-                    "position": {
-                      "method": "bottom",
-                      "offset": 0,
-                    },
-                    "type": "centeringring",
-                  },
-                ],
-                "cluster": "2x2",
-                "clusterRotation": 0.5235987755982988,
-                "clusterScale": 1.1,
-                "density": 680,
-                "id": "c43",
-                "length": 0.12,
-                "materialName": "Cardboard",
-                "maxMotorLength": 0.14,
-                "motorMount": true,
-                "name": "Motor mount",
-                "outerRadius": 0.015,
-                "position": {
-                  "method": "bottom",
-                  "offset": 0,
-                },
-                "radialDirection": 1.5707963267948966,
-                "radialPosition": 0.01,
-                "thickness": 0.0005,
-                "type": "innertube",
-              },
-              {
-                "density": 680,
-                "id": "c46",
-                "length": 0.07,
-                "materialName": "Cardboard",
-                "motorMount": true,
-                "name": "Inner Tube",
-                "outerRadius": 0.0095,
-                "position": {
-                  "method": "bottom",
-                  "offset": 0,
-                },
-                "thickness": 0.0005,
-                "type": "innertube",
-              },
-              {
-                "density": 680,
-                "id": "c47",
-                "length": 0.06,
-                "materialName": "Cardboard",
-                "name": "Tube Coupler",
-                "outerRadius": 0.029,
-                "position": {
-                  "method": "middle",
-                  "offset": 0.05,
-                },
-                "thickness": 0.0005,
-                "type": "tubecoupler",
-              },
-              {
-                "density": 680,
-                "id": "c48",
-                "length": 0.004,
-                "materialName": "Cardboard",
-                "name": "Bulkhead",
-                "outerRadius": 0.029,
-                "position": {
-                  "method": "bottom",
-                  "offset": 0,
-                },
-                "type": "bulkhead",
-              },
-              {
-                "angleOffset": 1.0471975511965976,
-                "density": 680,
-                "id": "c49",
-                "instanceCount": 2,
-                "length": 0.04,
-                "materialName": "Cardboard",
-                "name": "Launch Lug",
-                "outerRadius": 0.0025,
-                "position": {
-                  "method": "middle",
-                  "offset": 0,
-                },
-                "thickness": 0.0003,
-                "type": "launchlug",
-              },
-              {
-                "angleOffset": 0,
-                "baseHeight": 0.003,
-                "density": 1400,
-                "height": 0.011,
-                "id": "c50",
-                "innerDiameter": 0.009,
-                "materialGroup": "Plastics",
-                "materialName": "Acetal",
-                "name": "Rail Button",
-                "outerDiameter": 0.0125,
-                "position": {
-                  "method": "middle",
-                  "offset": 0,
-                },
-                "type": "railbutton",
-              },
-              {
-                "cd": 0.8,
-                "deployAltitude": 200,
-                "deployDelay": 0,
-                "deployEvent": "ejection",
-                "diameter": 0.3,
-                "drogue": true,
-                "id": "c51",
-                "length": 0.06,
-                "lineCount": 8,
-                "lineDensity": 0.002,
-                "lineLength": 0.5,
-                "lineMaterialName": "Kevlar line",
-                "name": "Drogue",
-                "position": {
-                  "method": "top",
-                  "offset": 0,
-                },
-                "radius": 0.02,
-                "spillHoleDiameter": 0.03,
-                "surfaceDensity": 0.05,
-                "surfaceMaterialName": "Nylon",
-                "type": "parachute",
-              },
-              {
-                "cdAuto": true,
-                "deployAltitude": 120,
-                "deployDelay": 0,
-                "deployEvent": "altitude",
-                "diameter": 0.3,
-                "id": "c52",
-                "length": 0.025,
-                "lineCount": 6,
-                "lineDensity": 0.0018,
-                "lineLength": 0.3,
-                "lineMaterialName": "Elastic cord (round 2 mm, 1/16 in)",
-                "name": "Main",
-                "position": {
-                  "method": "top",
-                  "offset": 0,
-                },
-                "surfaceDensity": 0.067,
-                "surfaceMaterialName": "Ripstop nylon",
-                "type": "parachute",
-              },
-              {
-                "cd": 0.6,
-                "deployAltitude": 200,
-                "deployDelay": 0,
-                "deployEvent": "ejection",
-                "drogue": true,
-                "id": "c53",
-                "length": 0.025,
-                "name": "Streamer",
-                "position": {
-                  "method": "top",
-                  "offset": 0,
-                },
-                "stripLength": 1,
-                "stripWidth": 0.04,
-                "surfaceDensity": 0.067,
-                "surfaceMaterialName": "Ripstop nylon",
-                "type": "streamer",
-              },
-              {
-                "cordLength": 1.2,
-                "id": "c54",
-                "length": 0.025,
-                "lineDensity": 0.003,
-                "lineMaterialName": "Elastic",
-                "name": "Shock Cord",
-                "position": {
-                  "method": "top",
-                  "offset": 0,
-                },
-                "type": "shockcord",
-              },
-              {
-                "id": "c55",
-                "length": 0.05,
-                "mass": 0.1,
-                "massComponentType": "payload",
-                "name": "Mass Component",
-                "position": {
-                  "method": "top",
-                  "offset": 0,
-                },
-                "radialDirection": 3.141592653589793,
-                "radialPosition": 0.005,
-                "radius": 0.02,
-                "type": "masscomponent",
-              },
-              {
-                "fairingShape": "halfround",
-                "finish": "polished",
-                "height": 0.025,
-                "id": "c56",
-                "length": 0.09,
-                "mass": 0.04,
-                "name": "Camera shroud",
-                "position": {
-                  "method": "middle",
-                  "offset": 0,
-                },
-                "type": "fairing",
-                "width": 0.03,
-              },
-              {
-                "angleOffset": 1.5707963267948966,
-                "children": [
-                  {
-                    "density": 680,
-                    "id": "c58",
-                    "length": 0.1,
-                    "materialName": "Cardboard",
-                    "name": "Body Tube",
-                    "outerRadius": 0.01,
-                    "thickness": 0.0003,
-                    "type": "bodytube",
-                  },
-                ],
-                "id": "c57",
-                "instanceCount": 3,
-                "name": "Pod set",
-                "position": {
-                  "method": "bottom",
-                  "offset": 0,
-                },
-                "radiusMethod": "free",
-                "radiusOffset": 0.05,
-                "type": "podset",
-              },
-              {
-                "angleMethod": "fixed",
-                "angleOffset": 0.5,
-                "children": [
-                  {
-                    "children": [
-                      {
-                        "density": 680,
-                        "id": "c61",
-                        "length": 0.1,
-                        "materialName": "Cardboard",
-                        "motorMount": true,
-                        "name": "Inner Tube",
-                        "outerRadius": 0.0095,
-                        "position": {
-                          "method": "bottom",
-                          "offset": 0,
-                        },
-                        "thickness": 0.0005,
-                        "type": "innertube",
-                      },
-                    ],
-                    "density": 680,
-                    "id": "c60",
-                    "length": 0.2,
-                    "materialName": "Cardboard",
-                    "name": "Body Tube",
-                    "outerRadius": 0.015,
-                    "thickness": 0.0003,
-                    "type": "bodytube",
-                  },
-                ],
-                "id": "c59",
-                "instanceCount": 2,
-                "name": "Booster",
-                "position": {
-                  "method": "bottom",
-                  "offset": 0,
-                },
-                "radiusMethod": "relative",
-                "radiusOffset": 0.04,
-                "separationAltitude": 300,
-                "separationDelay": 0.5,
-                "separationEvent": "burnout",
-                "type": "parallelstage",
-              },
-            ],
-            "density": 680,
-            "id": "c38",
-            "length": 0.6,
-            "materialName": "Cardboard",
-            "motorMount": true,
-            "motorOverhang": 0.01,
-            "name": "Airframe",
-            "outerRadius": 0.03,
-            "thickness": 0.001,
-            "type": "bodytube",
-          },
-        ],
-        "id": "c33",
-        "name": "Sustainer",
-        "nozzleExitDiameter": 0.02,
-        "type": "stage",
-      },
-      {
-        "children": [
-          {
-            "children": [
-              {
-                "density": 680,
-                "id": "c64",
-                "length": 0.1,
-                "materialName": "Cardboard",
-                "motorMount": true,
-                "name": "Inner Tube",
-                "outerRadius": 0.0095,
-                "position": {
-                  "method": "bottom",
-                  "offset": 0,
-                },
-                "thickness": 0.0005,
-                "type": "innertube",
-              },
-            ],
-            "density": 680,
-            "id": "c63",
-            "length": 0.3,
-            "materialName": "Cardboard",
-            "name": "Body Tube",
-            "outerRadius": 0.03,
-            "thickness": 0.0003,
-            "type": "bodytube",
-          },
-        ],
-        "id": "c62",
         "name": "Booster",
         "separationAltitude": 100,
         "separationDelay": 2,

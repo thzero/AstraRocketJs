@@ -16,7 +16,7 @@ Cada simulación tiene su propia configuración de lanzamiento, agrupada en tarj
 
 - **Varilla / raíl de lanzamiento** — longitud, ángulo respecto a la vertical y dirección (o «lanzar contra el viento»).
 - **Campo de vuelo** — altitud, latitud y longitud, además de las [ubicaciones guardadas](#saved-locations) y un [mapa](#the-map).
-- **Atmósfera** — estándar ISA, o temperatura y presión personalizadas.
+- **Atmósfera** — estándar ISA, o temperatura, presión y humedad personalizadas, o rellenarlas junto con el viento a partir de un [pronóstico del tiempo](#weather).
 - **Viento** — velocidad media, rachas (desviación estándar) y dirección; o un perfil de viento **multinivel** que varía con la altitud.
 - **Modelo terrestre** — plano, esférico o WGS84 (afecta a los vuelos largos o muy altos).
 
@@ -43,6 +43,34 @@ Cuatro dígitos de latitud y cuatro de longitud no son algo que puedas comprobar
 Las teselas que ya has mirado quedan guardadas en la aplicación, así que una ubicación que consultaste en casa se dibuja igual en el campo sin cobertura. Un sitio que nunca has visto no se puede dibujar sin conexión: el mapa lo dice y pasa a una cuadrícula de coordenadas, que sigue situando el punto por hemisferios. Las teselas vienen de Esri, y solo se piden las de lo que estás mirando — consulta **[Sin conexión e instalación](./offline-and-installing.md)**.
 
 Una ubicación guarda **solo el lugar**. La guía, el viento y la atmósfera son condiciones del día, y una ubicación que restaurara el viento del mes pasado sería peor que una que no restaurara nada: parecería fiable. Las ubicaciones viven en este navegador y en este dispositivo, como tus motores y materiales personalizados; no se sube nada.
+
+### El tiempo de Open-Meteo {#weather}
+
+**Obtener el tiempo…**, en la tarjeta Atmósfera, rellena las condiciones de lanzamiento con un pronóstico de [Open-Meteo](https://open-meteo.com/) para el sitio de lanzamiento. Indica primero la latitud y la longitud del sitio, elige una fecha y una hora en la hora local del sitio y pulsa **Consultar**.
+
+El diálogo muestra lo que ha encontrado, cada cosa con su casilla, y no cambia nada hasta que pulsas **Aplicar**:
+
+- **Temperatura**, **Presión** y **Humedad** en la plataforma. La presión es la presión a la altitud del sitio, no la cifra a nivel del mar que da un parte meteorológico.
+- **Viento**: el viento a 10 m sobre la plataforma, los vientos a 80, 120 y 180 m por encima, y el viento en cada uno de los niveles de presión de Open-Meteo más arriba, escritos como un perfil de viento multinivel medido desde el nivel del mar. La turbulencia en la plataforma se estima a partir de las ráfagas, y los niveles superiores reciben un 10 %. Los campos de viento medio también se rellenan con el viento de la plataforma.
+- **Atmósfera en altura**: temperatura, presión y humedad en cada nivel de presión por encima de la plataforma. Si la aplicas, el vuelo usa esta atmósfera en lugar del estándar ISA por encima del sitio. La tarjeta Atmósfera la muestra como **Atmósfera pronosticada hasta** una altura, con **Quitar** para volver a la estándar.
+
+Las fechas desde unos tres meses atrás hasta 15 días por delante usan el pronóstico. Las fechas anteriores, hasta 1940, usan el registro histórico de Open-Meteo, que solo tiene valores de superficie, así que no se ofrecen ni el perfil de viento ni la atmósfera en altura. Cuando la altitud del sitio y la altura del terreno de Open-Meteo difieren en más de 30 m, el diálogo ofrece usar la altura del terreno como altitud del sitio, y los valores que muestra siguen esa elección.
+
+El diálogo indica cuándo se consultó la respuesta. Una respuesta se reutiliza durante 30 minutos para el mismo lugar y las mismas fechas, ya que el modelo de pronóstico más rápido publica una nueva pasada cada hora; el diálogo indica cuándo se ha reutilizado, y **Consultar de nuevo** vuelve a preguntar a Open-Meteo de todos modos.
+
+Un pronóstico es una estimación de un modelo. Aplicarlo es una edición normal que se deshace como cualquier otra, y los resultados volados con las condiciones anteriores aparecen como desactualizados.
+
+Después, la tarjeta Atmósfera indica de dónde salieron los valores, por ejemplo *Pronóstico de Open-Meteo para 5 oct 2026, 12:00 MDT en 39,739°, -104,990°, consultado 4 oct 2026, 9:14 MDT*, con el crédito de Open-Meteo, y añade una nota cuando ocurre algo de esto:
+
+- **Editado después de aplicarlo**: se ha cambiado un valor que había rellenado el pronóstico.
+- **El sitio de lanzamiento ha cambiado**: la latitud o la longitud ya no son las del lugar del pronóstico.
+- **Consultado hace más de 3 horas**: el pronóstico es para un momento que aún no ha llegado, y Open-Meteo probablemente ya ha publicado uno más reciente.
+
+**Actualizar…** abre el diálogo en la misma fecha y hora con las mismas casillas marcadas y consulta de inmediato; no cambia nada hasta que pulsas Aplicar. Una actualización que devuelve los mismos valores deja tus resultados vigentes. El registro se guarda con la simulación y en un `.ork`.
+
+**El servicio.** Las solicitudes van de tu navegador a Open-Meteo solo cuando pulsas Consultar, y llevan las coordenadas y la altitud del sitio y la fecha elegida. No identifican esta aplicación ni el sitio desde el que se sirve. Sin clave de API, la aplicación usa el servicio gratuito de Open-Meteo, que es para uso no comercial y tiene límites diarios. Si tienes un plan de pago de Open-Meteo, introduce su clave en [Ajustes](./settings.md#open-meteo-key), al final de la tarjeta Atmósfera de la pestaña Lanzamiento. La clave solo se guarda en este navegador y nunca se guarda en un diseño ni en un `.ork`. Los datos meteorológicos son de Open-Meteo.com con licencia CC BY 4.0, y el diálogo lo acredita.
+
+La atmósfera pronosticada es un añadido de esta aplicación. OpenRocket de escritorio usa el estándar ISA por encima del sitio, y un `.ork` guardado aquí lleva los niveles como una extensión que OpenRocket de escritorio ignora.
 
 ## Ejecútala
 

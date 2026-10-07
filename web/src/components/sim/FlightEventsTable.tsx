@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { fmtNum } from '../../i18n/format';
+import { fmtNum, stageLabel } from '../../i18n/format';
 import type { FlightResult } from '../../engine/api';
 import { CSV_MIME, flightEventsCsv } from '../../services/exports/csvExport';
 import { EVENT_EXTRAS, EVENT_NAME, eventRows, type EventRow, type ExtraKey } from '../../services/flight/flightEvents';
@@ -57,11 +57,11 @@ function Extras({ row }: { row: EventRow }) {
       case 'twr':
         return [`${t('flight.twr')} ${fmtNum(v, 1)}`];
       case 'aoa':
-        return [`${t('flight.aoa')} ${u.fmt('angle', v, 1)}${u.sym('angle')}`];
+        return [`${t('flight.aoa')} ${u.fmtSym('angle', v, 1)}`];
       case 'mach':
         return [`${t('flight.mach')} ${fmtNum(v, 2)}`];
       case 'q':
-        return [`${q.fmt(v)} ${q.sym}`];
+        return [`${q.fmtSym(v)}`];
     }
   });
   if (!parts.length) return null;
@@ -85,7 +85,7 @@ export function FlightEventsTable({
   // Only worth naming a stage when there is more than one; a single-stage
   // flight would otherwise wear a "Stage 1" chip on every row saying nothing.
   const staged = (sim?.branches?.length ?? 0) > 1;
-  const stageName = (r: EventRow) => (staged ? r.branchName || `${t('flight.stage')} ${r.branch + 1}` : '');
+  const stageName = (r: EventRow) => (staged ? stageLabel(t, r.branch, r.branchName) : '');
   if (!sim || !rows.length) return null;
 
   return (

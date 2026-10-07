@@ -2,6 +2,7 @@ import type { TFunction } from 'i18next';
 import { AUTO_COMPONENT_FIELDS, REQUIRED_COMPONENT_FIELDS } from './requiredComponent';
 import { CLUSTER_OPTIONS, clusterCount } from '../../tree/cluster';
 import type { DerivedName } from './derivedFields';
+import { KERNEL_DEPLOYMENT } from '../../tree/kernelDefaults';
 
 /**
  * The component field table: which properties each component type exposes,
@@ -115,6 +116,8 @@ export type Field = FieldFlags &
         kind: 'select';
         options: string[];
         optI18n?: string;
+        /** What an absent key flies as. The first option when not given. */
+        fallback?: string;
         /** Option text when it has to be computed rather than looked up. */
         optLabel?: (option: string, t: TFunction) => string;
       }
@@ -126,7 +129,9 @@ const NOSE_SHAPES = ['ogive', 'conical', 'ellipsoid', 'power', 'parabolic', 'haa
 
 // Recovery-device deployment triggers — the kernel DeployEvent vocabulary
 // (ComponentFactory.deployEventOf); the same strings .ork import/export use.
-// Apogee first: it's the default and the most common single-deploy trigger.
+// Apogee first: it is what a new part is created with and the most common
+// single-deploy trigger. A device with no event flies the kernel's default,
+// which the field names as its fallback.
 const DEPLOY_EVENTS = ['apogee', 'ejection', 'altitude', 'launch', 'never'];
 
 // What a mass component represents (MassComponent.MassComponentType). Naming
@@ -270,6 +275,35 @@ const ASSEMBLY_FIELDS: Field[] = [
   { key: 'angleOffset', label: 'rotation', kind: 'angle', section: 'placement' },
 ];
 
+// When a stage (or a parallel booster) lets go. The altitude is read only by
+// the altitude events.
+const SEPARATION_FIELDS: Field[] = [
+  {
+    key: 'separationEvent',
+    label: 'separationEvent',
+    kind: 'select',
+    options: SEPARATION_EVENTS,
+    optI18n: 'separationEvent',
+  },
+  { key: 'separationDelay', label: 'separationDelay', kind: 'number', unit: 's', step: 0.5 },
+  { key: 'separationAltitude', label: 'separationAltitude', kind: 'distance', step: 10 },
+];
+
+// When a recovery device comes out. The altitude is read only by the altitude
+// event.
+const DEPLOY_FIELDS: Field[] = [
+  {
+    key: 'deployEvent',
+    label: 'deployEvent',
+    kind: 'select',
+    options: DEPLOY_EVENTS,
+    optI18n: 'deployEvent',
+    fallback: KERNEL_DEPLOYMENT.deployEvent,
+  },
+  { key: 'deployAltitude', label: 'deployAltitude', kind: 'distance', step: 10 },
+  { key: 'deployDelay', label: 'deployDelay', kind: 'number', unit: 's', step: 0.5 },
+];
+
 // `label` is an i18n key suffix under `prop.*` (resolved at render).
 /**
  * Unit-scope keys the panel uses for its own rows, beyond the type-specific
@@ -284,19 +318,8 @@ export const PANEL_SCOPE_KEYS = ['overrideMass', 'overrideCGX', 'offset'] as con
  * unit choice.
  */
 const RAW_FIELDS: Record<string, Field[]> = {
-  // Separation only — shown for a non-first stage (see the render guard). The
-  // altitude is used only by the altitude events; harmless (like deployAltitude).
-  stage: [
-    {
-      key: 'separationEvent',
-      label: 'separationEvent',
-      kind: 'select',
-      options: SEPARATION_EVENTS,
-      optI18n: 'separationEvent',
-    },
-    { key: 'separationDelay', label: 'separationDelay', kind: 'number', unit: 's', step: 0.5 },
-    { key: 'separationAltitude', label: 'separationAltitude', kind: 'distance', step: 10 },
-  ],
+  // Separation only, shown for a non-first stage (see the render guard).
+  stage: SEPARATION_FIELDS,
   nosecone: [
     { key: 'shape', label: 'shape', kind: 'select', options: NOSE_SHAPES, optI18n: 'noseShape' },
     // Only meaningful for the shapes whose profile it actually controls
@@ -589,9 +612,7 @@ const RAW_FIELDS: Record<string, Field[]> = {
     // Which half of a dual-deployment pair this is. The kernel judges the
     // deployment speed against different thresholds depending on it, and cannot
     // warn about dual deployment at all unless something on the stage says drogue.
-    { key: 'deployEvent', label: 'deployEvent', kind: 'select', options: DEPLOY_EVENTS, optI18n: 'deployEvent' },
-    { key: 'deployAltitude', label: 'deployAltitude', kind: 'distance', step: 10 },
-    { key: 'deployDelay', label: 'deployDelay', kind: 'number', unit: 's', step: 0.5 },
+    ...DEPLOY_FIELDS,
     ...PACKED,
     ...RADIAL_PLACEMENT,
   ],
@@ -603,9 +624,7 @@ const RAW_FIELDS: Record<string, Field[]> = {
     { key: 'stripArea', label: 'stripArea', kind: 'derived', derived: 'stripArea' },
     { key: 'stripAspect', label: 'stripAspect', kind: 'derived', derived: 'stripAspect', step: 0.5 },
     { key: 'cd', label: 'dragCoeff', kind: 'number', step: 0.05, auto: { flag: 'cdAuto', tip: 'autoComputed' } },
-    { key: 'deployEvent', label: 'deployEvent', kind: 'select', options: DEPLOY_EVENTS, optI18n: 'deployEvent' },
-    { key: 'deployAltitude', label: 'deployAltitude', kind: 'distance', step: 10 },
-    { key: 'deployDelay', label: 'deployDelay', kind: 'number', unit: 's', step: 0.5 },
+    ...DEPLOY_FIELDS,
     ...PACKED,
     ...RADIAL_PLACEMENT,
   ],
@@ -639,18 +658,7 @@ const RAW_FIELDS: Record<string, Field[]> = {
   podset: ASSEMBLY_FIELDS,
   // Parallel booster: assembly placement + the same separation trigger a
   // booster <stage> carries (when it lets go of the core).
-  parallelstage: [
-    ...ASSEMBLY_FIELDS,
-    {
-      key: 'separationEvent',
-      label: 'separationEvent',
-      kind: 'select',
-      options: SEPARATION_EVENTS,
-      optI18n: 'separationEvent',
-    },
-    { key: 'separationDelay', label: 'separationDelay', kind: 'number', unit: 's', step: 0.5 },
-    { key: 'separationAltitude', label: 'separationAltitude', kind: 'distance', step: 10 },
-  ],
+  parallelstage: [...ASSEMBLY_FIELDS, ...SEPARATION_FIELDS],
 };
 
 /**

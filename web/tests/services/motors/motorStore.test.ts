@@ -1,3 +1,4 @@
+import { nsKey } from '../../../src/services/storage/storageKeys';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { KeyValueMotorStore, type CustomMotor } from '../../../src/services/motors/motorStore';
 import type { KeyValueStore } from '../../../src/services/storage/keyValueStore';
@@ -96,10 +97,7 @@ describe('custom motors', () => {
   });
 
   it('filters out invalid custom-motor rows', async () => {
-    await kv.set(
-      'astrarrocketjs:motors:custom',
-      JSON.stringify([custom('ok'), { id: 'bad' }, { designation: 'no-id' }]),
-    );
+    await kv.set(nsKey('motors:custom'), JSON.stringify([custom('ok'), { id: 'bad' }, { designation: 'no-id' }]));
     const list = await store.listCustomMotors();
     expect(list).toHaveLength(1);
     expect(list[0]!.id).toBe('ok');
@@ -149,7 +147,7 @@ describe('isCustomMotor rejects what would reach the kernel broken', () => {
 
   const survives = async (motor: unknown) => {
     const fresh = new FakeKv();
-    await fresh.set('astrarrocketjs:motors:custom', JSON.stringify([motor]));
+    await fresh.set(nsKey('motors:custom'), JSON.stringify([motor]));
     return (await new KeyValueMotorStore(fresh).listCustomMotors()).length;
   };
 
@@ -224,10 +222,7 @@ describe('custom motors are written through kv.update (one transaction)', () => 
 
   it('rejects a one-sample motor on read, the same threshold the builder uses', async () => {
     const kv = new FakeKv();
-    kv.map.set(
-      'astrarrocketjs:motors:custom',
-      JSON.stringify([{ ...custom('one'), samples: [{ time: 0, thrust: 5 }] }]),
-    );
+    kv.map.set(nsKey('motors:custom'), JSON.stringify([{ ...custom('one'), samples: [{ time: 0, thrust: 5 }] }]));
     expect(await new KeyValueMotorStore(kv).listCustomMotors()).toEqual([]);
   });
 

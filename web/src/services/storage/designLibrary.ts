@@ -1,9 +1,9 @@
 // The saved-designs library. Designs are addressable:
 //
-//   astrarrocketjs:designs:index        → DesignMeta[]  (small: id, name, updatedAt)
-//   astrarrocketjs:designs:<id>         → one Workspace blob (the INPUTS)
-//   astrarrocketjs:designs:<id>:results → that design's flight results
-//   astrarrocketjs:designs:active       → the id currently open
+//   <prefix>:designs:index        → DesignMeta[]  (small: id, name, updatedAt)
+//   <prefix>:designs:<id>         → one Workspace blob (the INPUTS)
+//   <prefix>:designs:<id>:results → that design's flight results
+//   <prefix>:designs:active       → the id currently open
 //
 // The index is deliberately separate from the designs. Autosave runs on a 500 ms
 // debounce while you edit, so it must rewrite ONE design — not a single document
@@ -17,18 +17,22 @@
 // written only when a run actually produces one (see workspaceStore.save).
 import type { KeyValueStore } from './keyValueStore';
 import { IndexedDbKeyValueStore } from './idbKeyValueStore';
+import { parseJsonList } from './jsonListStore';
 import type { Workspace } from './workspaceStore';
 import type { FlightResult } from '../../engine/openRocketEngine';
+import { nsKey } from './storageKeys';
+import { defaultDesignName, designNameOf } from '../app/appInfo';
+import { isFiniteNumber } from '../app/numbers';
 
 /** A design's cached flights, by simulation id. */
 export type StoredResults = Record<string, FlightResult>;
 
-const INDEX_KEY = 'astrarrocketjs:designs:index';
-const ACTIVE_KEY = 'astrarrocketjs:designs:active';
-const designKey = (id: string) => `astrarrocketjs:designs:${id}`;
-const resultsKey = (id: string) => `astrarrocketjs:designs:${id}:results`;
+const INDEX_KEY = nsKey('designs:index');
+const ACTIVE_KEY = nsKey('designs:active');
+const designKey = (id: string) => nsKey(`designs:${id}`);
+const resultsKey = (id: string) => nsKey(`designs:${id}:results`);
 /** The pre-library single-workspace key, migrated on first use. */
-const LEGACY_KEY = 'astrarrocketjs:workspace';
+const LEGACY_KEY = nsKey('workspace');
 
 export interface DesignMeta {
   id: string;
@@ -42,7 +46,6 @@ const isMeta = (v: unknown): v is DesignMeta => {
   return !!m && typeof m.id === 'string' && typeof m.name === 'string' && typeof m.updatedAt === 'number';
 };
 
-const isFiniteNumber = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 /** A summary field the kernel may legitimately leave unset. */
 const isNullableNumber = (v: unknown): boolean => v === null || isFiniteNumber(v);
 
@@ -103,14 +106,8 @@ export class DesignLibrary {
   }
 
   private async readIndex(): Promise<DesignMeta[]> {
-    const raw = await this.kv.get(INDEX_KEY);
-    if (!raw) return [];
-    try {
-      const parsed = JSON.parse(raw) as unknown;
-      return Array.isArray(parsed) ? parsed.filter(isMeta) : [];
-    } catch {
-      return []; // corrupt index — the designs themselves are still addressable
-    }
+    // A corrupt index reads as empty; the designs themselves are still addressable.
+    return parseJsonList(await this.kv.get(INDEX_KEY), isMeta);
   }
 
   private async writeIndex(list: DesignMeta[]): Promise<boolean> {
@@ -128,18 +125,8 @@ export class DesignLibrary {
    * becomes unreachable and its bytes are orphaned.
    */
   private async mutateIndex(fn: (list: DesignMeta[]) => DesignMeta[]): Promise<boolean> {
-    return await this.kv.update(INDEX_KEY, (raw) => {
-      let list: DesignMeta[] = [];
-      if (raw) {
-        try {
-          const parsed = JSON.parse(raw) as unknown;
-          if (Array.isArray(parsed)) list = parsed.filter(isMeta);
-        } catch {
-          /* corrupt index: rebuild from this mutation alone */
-        }
-      }
-      return JSON.stringify(fn(list));
-    });
+    // A corrupt index is rebuilt from this mutation alone.
+    return await this.kv.update(INDEX_KEY, (raw) => JSON.stringify(fn(parseJsonList(raw, isMeta))));
   }
 
   // --- active design -----------------------------------------------------
@@ -184,7 +171,17 @@ export class DesignLibrary {
     // existing one stops advancing its `updatedAt` so the library list silently
     // goes stale. Reporting the failure lets `workspaceStore.save()` raise
     // "storage full" instead of the user finding out later.
-    return await this.mutateIndex((list) => [{ id, name, updatedAt: Date.now() }, ...list.filter((m) => m.id !== id)]);
+    // STRICTLY LATER than the stamp being replaced, not merely `Date.now()`.
+    // Two writes inside the same millisecond leave the stamp unchanged, and the
+    // stamp is what tells a second tab that the entry moved under it
+    // (`workspaceStore.save`) and what tells a reload that the library has
+    // passed an unload journal (`Journal.t`). A tie reads as "nothing happened",
+    // which is the one answer that is never true after a write.
+    return await this.mutateIndex((list) => {
+      const prev = list.find((m) => m.id === id);
+      const updatedAt = Math.max(Date.now(), (prev?.updatedAt ?? 0) + 1);
+      return [{ id, name, updatedAt }, ...list.filter((m) => m.id !== id)];
+    });
   }
 
   /**
@@ -327,16 +324,14 @@ export class DesignLibrary {
   }
 }
 
-/** Name the migrated design after its imported .ork, else a sensible default. */
+/** Name the migrated design the way every download names it. */
 function legacyName(raw: string): string {
   try {
     const w = JSON.parse(raw) as Workspace;
-    const name = w.loadedMeta?.name?.trim();
-    if (name) return name;
+    return designNameOf(w.tree ?? {}, w.loadedMeta);
   } catch {
-    /* fall through */
+    return defaultDesignName();
   }
-  return 'My Rocket';
 }
 
 let library = new DesignLibrary();

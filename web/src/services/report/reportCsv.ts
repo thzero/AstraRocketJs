@@ -1,7 +1,12 @@
 import type { StaticInfo } from '../../engine/openRocketEngine';
 import type { ReportModel } from './reportModel';
-import { safeFilename, saveText } from '../files/saveFile';
+import { exportFilename, saveText } from '../files/saveFile';
 import { fmtSi, type UnitSelection } from '../../prefs/units';
+import { plainDecimal } from '../files/numberText';
+import { staticInfoRows } from './designInfo';
+import { type StatKey } from './designInfo';
+import { neutralizeFormula } from '../exports/csvCell';
+import { CSV_MIME } from '../exports/csvExport';
 
 /**
  * Design-info CSV export — the same Scope / Field / Value / Unit layout
@@ -13,7 +18,7 @@ import { fmtSi, type UnitSelection } from '../../prefs/units';
  */
 
 /** Number → clean string with a fixed max decimals and a '.' decimal point. */
-const round = (v: number, d: number): string => (Number.isFinite(v) ? Number(v.toFixed(d)).toString() : '');
+const round = (v: number, d: number): string => plainDecimal(v, d);
 
 /**
  * RFC-4180 cell, with spreadsheet formula injection neutralized.
@@ -28,33 +33,40 @@ const round = (v: number, d: number): string => (Number.isFinite(v) ? Number(v.t
  * unquoted bare CR inside a name splits the record for RFC-4180 readers.
  */
 const cell = (s: string): string => {
-  const safe = /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
+  const safe = neutralizeFormula(s);
   return /[",\r\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
 };
 
 /** [field, value, unit] rows for one summary, in the user's units. */
 function summaryRows(info: StaticInfo, units: UnitSelection): [string, string, string][] {
-  const pct = info.length > 0 ? ((info.cp - info.cg) / info.length) * 100 : 0;
   // `fmtSi`, not the locale-aware formatter: this is a data file, and its
   // decimal separator must not move with the UI language.
-  const len = (si: number) => fmtSi('length', units.length, si, 3);
-  const mass = (si: number) => fmtSi('mass', units.mass, si, 3);
-  return [
-    ['Length', len(info.length), units.length],
-    ['Max Diameter', len(info.refDiameter), units.length],
-    ['Mass (Empty)', mass(info.massEmpty), units.mass],
-    ['Mass (Loaded)', mass(info.mass), units.mass],
-    ['Fineness (L/D)', round(info.refDiameter > 0 ? info.length / info.refDiameter : 0, 2), ''],
-    ['CG (Empty)', len(info.cgEmpty), units.length],
-    ['CG (Loaded)', len(info.cg), units.length],
-    ['CP', len(info.cp), units.length],
-    ['Stability (on pad)', round(info.stabilityCalibers, 2), 'cal'],
-    ['Stability (%)', round(pct, 1), '%'],
-    ['Drag Coeff. (Ma 0.3)', info.cd != null ? round(info.cd, 3) : '', ''],
-    ['Normal-Force Slope (CNα)', round(info.cna, 2), '/rad'],
-    ['Pitch Inertia (Loaded)', round(info.pitchInertia, 6), 'kg·m²'],
-    ['Roll Inertia (Loaded)', round(info.rollInertia, 6), 'kg·m²'],
-  ];
+  const len = (si: number): [string, string] => [fmtSi('length', units.length, si, 3), units.length];
+  const mass = (si: number): [string, string] => [fmtSi('mass', units.mass, si, 3), units.mass];
+  const cellFor = (key: StatKey, v: number): [string, string] => {
+    switch (key) {
+      case 'massEmpty':
+      case 'massLoaded':
+        return mass(v);
+      case 'fineness':
+        return [round(v, 2), ''];
+      case 'stabilityCal':
+        return [round(v, 2), 'cal'];
+      case 'stabilityPct':
+        return [round(v, 1), '%'];
+      case 'cd':
+        return [round(v, 3), ''];
+      case 'cna':
+        return [round(v, 2), '/rad'];
+      case 'pitchInertia':
+      case 'rollInertia':
+        return [round(v, 6), 'kg·m²'];
+      default:
+        return len(v);
+    }
+  };
+  // Which rows exist is staticInfoRows' call, shared with the .ork and the PDF.
+  return staticInfoRows(info).map(({ key, field, value }) => [field, ...cellFor(key, value)]);
 }
 
 /** The full design-info CSV as a string. */
@@ -82,9 +94,7 @@ export function buildDesignCsv(model: ReportModel, units: UnitSelection): string
   return lines.join('\r\n') + '\r\n';
 }
 
-const safe = (name: string) => safeFilename(name, 'rocket');
-
 /** Build and download the design-info CSV. */
 export function downloadDesignCsv(model: ReportModel, units: UnitSelection): void {
-  void saveText(buildDesignCsv(model, units), `${safe(model.name)}-design.csv`, 'text/csv;charset=utf-8');
+  void saveText(buildDesignCsv(model, units), exportFilename([model.name, 'design'], 'csv'), CSV_MIME);
 }

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
-import { parseRse, removeDelay } from '../../../src/services/motors/rseParser';
+import { MAX_RSE_ENGINES, MAX_RSE_SAMPLES, parseRse, removeDelay } from '../../../src/services/motors/rseParser';
 import { parseEng, totalImpulse } from '../../../src/services/motors/engParser';
 import { samplesToMotorSpec } from '../../../src/services/motors/thrustcurve';
 
@@ -339,5 +339,43 @@ describe('.eng import still behaves', () => {
     expect(eng.type).toBeUndefined();
     expect(eng.massesG).toBeUndefined();
     expect(eng.cgMm).toBeUndefined();
+  });
+});
+
+/**
+ * Hostile `.rse`, because this parser is reached with no file picker: `loadOrk`
+ * runs it over every `.rse` member an imported `.ork` carried, and that member
+ * may be up to the archive's 64 MiB per-entry ceiling. The `.ork` reader caps
+ * fin points and shroud lines for exactly this reason; this path capped
+ * nothing, so merely OPENING a shared design could freeze the tab.
+ */
+describe('the hostile-input caps fire', () => {
+  it('refuses a file declaring more motors than MAX_RSE_ENGINES', () => {
+    const one = `<engine mfg="A" code="X" dia="29" len="100" initWt="100" propWt="50"><data>
+      <eng-data t="0" f="0" m="50" cg="50"/><eng-data t="1" f="10" m="0" cg="50"/>
+    </data></engine>`;
+    const xml = `<?xml version="1.0"?><engine-database><engine-list>${one.repeat(
+      MAX_RSE_ENGINES + 10,
+    )}</engine-list></engine-database>`;
+    expect(() => parseRse(xml)).toThrow(/more than .* motors/i);
+  });
+
+  it('refuses one motor with more data points than MAX_RSE_SAMPLES', () => {
+    const rows = '<eng-data t="0" f="1" m="50" cg="50"/>'.repeat(MAX_RSE_SAMPLES + 10);
+    expect(() => parseRse(rse(ATTRS, rows))).toThrow(/more than .* data points/i);
+  });
+
+  it('still accepts a manufacturer-range file and a long curve', () => {
+    const one = `<engine mfg="A" code="X" dia="29" len="100" initWt="100" propWt="50"><data>
+      <eng-data t="0" f="0" m="50" cg="50"/><eng-data t="1" f="10" m="0" cg="50"/>
+    </data></engine>`;
+    const xml = `<?xml version="1.0"?><engine-database><engine-list>${one.repeat(200)}</engine-list></engine-database>`;
+    expect(parseRse(xml)).toHaveLength(200);
+    // A real curve runs to a few thousand samples; that must still import.
+    const rows = Array.from(
+      { length: 3000 },
+      (_, i) => `<eng-data t="${(i / 1000).toFixed(3)}" f="10" m="${447 - i / 10}" cg="90"/>`,
+    ).join('');
+    expect(() => parseRse(rse(ATTRS, rows))).not.toThrow();
   });
 });

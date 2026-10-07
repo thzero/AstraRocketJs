@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { __setEngineForTests, type RocketTree } from '../../../src/engine/openRocketEngine';
 import { buildForImport } from '../../../src/services/files/loadOrk';
+import { KERNEL_TEST_TIMEOUT_MS } from '../../testing/kernelTimeout';
 
 /**
  * Opening a file is not flying it.
@@ -16,7 +17,7 @@ import { buildForImport } from '../../../src/services/files/loadOrk';
  * Real kernel, so the recovery is tested against what the Java actually throws
  * rather than against a stub's idea of it.
  */
-vi.setConfig({ testTimeout: 60_000, hookTimeout: 60_000 });
+vi.setConfig({ testTimeout: KERNEL_TEST_TIMEOUT_MS, hookTimeout: KERNEL_TEST_TIMEOUT_MS });
 
 beforeAll(async () => {
   __setEngineForTests(await import('../../../src/engine/vendor/openrocket-engine.mjs'));

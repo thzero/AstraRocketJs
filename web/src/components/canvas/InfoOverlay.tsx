@@ -1,22 +1,9 @@
 import { useTranslation } from 'react-i18next';
 import { fmtNum } from '../../i18n/format';
 import type { StaticInfo } from '../../engine/api';
-import { stabilityState, type StabilityState } from '../../services/flight/simReport';
+import { stabilityState, stabilityToneOf } from '../../services/flight/simReport';
 import { useUnits } from '../../prefs/useUnits';
 import { STABILITY_GLYPH } from './schematicGeometry';
-
-/**
- * Tone per stability band. The SAME classifier as the 2D callout and the 3D
- * gadget beside this card (`stabilityState`: under < 1 cal, over > 6 cal, ok
- * between), so the three readouts on one screen never disagree about a design. A
- * tier set of its own (>= 1 ok, >= 0 warn, else) calls a 7-caliber rocket fine
- * while the drawing next to it says over-stable.
- */
-const STABILITY_TONE: Record<StabilityState, string> = {
-  ok: 'text-emerald-400',
-  over: 'text-amber-400',
-  under: 'text-red-400',
-};
 
 /**
  * Quick-glance readout box for the 2D/3D view: length, loaded
@@ -34,13 +21,13 @@ export function InfoOverlay({ info }: { info: StaticInfo | null }) {
   // The engine's own figure, not ours: see StaticInfo.stabilityPercent.
   const pct = info.stabilityPercent;
   const rows: [string, React.ReactNode][] = [
-    [t('stats.length'), `${u.fmt('length', info.length)} ${u.sym('length')}`],
-    [t('stability.mass'), `${u.fmt('mass', info.mass)} ${u.sym('mass')}`],
-    [t('stability.cg'), `${u.fmt('length', info.cg)} ${u.sym('length')}`],
-    [t('stability.cp'), `${u.fmt('length', info.cp)} ${u.sym('length')}`],
+    [t('stats.length'), `${u.fmtSym('length', info.length)}`],
+    [t('stability.mass'), `${u.fmtSym('mass', info.mass)}`],
+    [t('stability.cg'), `${u.fmtSym('length', info.cg)}`],
+    [t('stability.cp'), `${u.fmtSym('length', info.cp)}`],
     [
       t('stability.onPad'),
-      <span className={STABILITY_TONE[state]}>
+      <span className={stabilityToneOf(state)}>
         {STABILITY_GLYPH[state]} {fmtNum(cal, 2)} {t('stability.caliber')} · {fmtNum(pct, 1)}%
       </span>,
     ],

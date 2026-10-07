@@ -17,9 +17,11 @@ import type { FitContext } from '../../../src/services/parts/componentFilter';
 /** A Public Missiles 2.1" airframe tube: 54.66 mm OD, 51.51 mm bore. */
 const PM_TUBE = { od: 0.0546608, bore: 0.0515112 };
 
-const open = async (type: PickerType, fit?: FitContext) => {
+const open = async (type: PickerType, fit?: FitContext, current?: string) => {
   const onApply = vi.fn();
-  const { container, unmount } = renderWithProviders(<ComponentPicker type={type} fit={fit} onApply={onApply} />);
+  const { container, unmount } = renderWithProviders(
+    <ComponentPicker type={type} fit={fit} current={current} onApply={onApply} />,
+  );
   // Scoped to THIS render: opening a second picker without unmounting the first
   // would otherwise find both trigger buttons.
   const button = await waitFor(() => {
@@ -278,7 +280,8 @@ describe('ComponentPicker', () => {
       const { dialog } = await open('bodytube');
       fireEvent.click(head(dialog, 'Length'));
       const th = [...dialog.querySelectorAll('thead th')];
-      const sorted = th.filter((h) => h.getAttribute('aria-sort') !== 'none');
+      // Only a sortable column carries aria-sort at all; one sorted says which way.
+      const sorted = th.filter((h) => h.hasAttribute('aria-sort') && h.getAttribute('aria-sort') !== 'none');
       expect(sorted.length).toBe(1);
       expect(sorted[0]!.textContent).toContain('Length');
       expect(sorted[0]!.getAttribute('aria-sort')).toBe('ascending');
@@ -395,5 +398,23 @@ describe('ComponentPicker', () => {
     fireEvent.change(within(dialog).getByLabelText(/Search parts/), { target: { value: 'BT_1.15_12_MMT' } });
     fireEvent.keyDown(dialog.querySelector('tbody tr')!, { key: 'Enter' });
     expect(onApply).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('the part this component already is', () => {
+  it('marks the linked row rather than leaving it in the pile', async () => {
+    // The complaint this answers: a component built from a catalog part opened a
+    // list of a thousand rows with nothing to say which one it came from.
+    const { dialog, unmount } = await open('bodytube', undefined, 'BT-50, 30352');
+    const marked = [...dialog.querySelectorAll('tbody tr[aria-current="true"]')];
+    expect(marked).toHaveLength(1);
+    expect(marked[0]!.textContent).toContain('BT-50, 30352');
+    unmount();
+  });
+
+  it('marks nothing when the component was typed rather than picked', async () => {
+    const { dialog, unmount } = await open('bodytube');
+    expect(dialog.querySelectorAll('tbody tr[aria-current="true"]')).toHaveLength(0);
+    unmount();
   });
 });

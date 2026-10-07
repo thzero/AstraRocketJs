@@ -32,59 +32,75 @@ import type { ComponentType } from '../engine/openRocketEngine';
  * fails if the resulting geometry differs. So an entry that stops matching
  * `ComponentFactory` is a failing test, not a silently wrong drawing.
  *
- * Every line cites where in `engine-java/src/api/java/api/ComponentFactory.java`
- * the kernel reads it. Keyed by `ComponentType` and checked with `satisfies`,
- * so a new component type has to declare its row (an empty one is a legitimate
- * answer: `stage`, `podset` and `parallelstage` read no dimensions there).
+ * Every row cites the `case` in `engine-java/src/api/java/api/ComponentFactory.java`
+ * that reads it, not a line number: line numbers there move with every change,
+ * and a citation that points at the wrong line is worse than none. Keyed by
+ * `ComponentType` and checked with `satisfies`, so a new component type has to
+ * declare its row (an empty one is a legitimate answer: `stage` reads no
+ * defaults; `podset` and `parallelstage` read only their instance count, in the
+ * shared `applyAssembly`).
  */
 export const KERNEL_DEFAULTS = {
   stage: {},
-  // ComponentFactory.java:106-108
+  // ComponentFactory, case "nosecone"
   nosecone: { length: 0.07, aftRadius: 0.012, thickness: 0.002 },
-  // ComponentFactory.java:150, 163
+  // ComponentFactory, case "transition"
   transition: { length: 0.05, thickness: 0.002 },
-  // ComponentFactory.java:190-192
+  // ComponentFactory, case "bodytube"
   bodytube: { length: 0.3, outerRadius: 0.012, thickness: 0.0003 },
-  // ComponentFactory.java:204-208
-  trapezoidfinset: { finCount: 3, rootChord: 0.05, tipChord: 0.03, sweep: 0.02, height: 0.03 },
-  // ComponentFactory.java:217-219 (finCount via count(node, "finCount", 3, ...))
-  ellipticalfinset: { finCount: 3, rootChord: 0.05, height: 0.03 },
-  // ComponentFactory.java:228. A freeform fin has no dimension defaults: its
-  // outline IS its geometry, and the factory throws on fewer than 3 points.
-  freeformfinset: { finCount: 3 },
-  // ComponentFactory.java:259-260
+  // ComponentFactory, case "trapezoidfinset"
+  trapezoidfinset: { finCount: 3, rootChord: 0.05, tipChord: 0.03, sweep: 0.02, height: 0.03, thickness: 0.003 },
+  // ComponentFactory, case "ellipticalfinset" (finCount via count(node, "finCount", 3, ...))
+  ellipticalfinset: { finCount: 3, rootChord: 0.05, height: 0.03, thickness: 0.003 },
+  // ComponentFactory, case "freeformfinset". A freeform fin has no planform defaults:
+  // its outline IS its geometry, and the factory throws on fewer than 3 points.
+  freeformfinset: { finCount: 3, thickness: 0.003 },
+  // ComponentFactory, case "tubefinset"
   tubefinset: { finCount: 6, length: 0.1 },
-  // ComponentFactory.java:275-277
+  // ComponentFactory, case "innertube"
   innertube: { length: 0.07, outerRadius: 0.0095, thickness: 0.0005 },
-  // ComponentFactory.java:314, 321
+  // ComponentFactory, case "tubecoupler"
   tubecoupler: { length: 0.05, thickness: 0.0005 },
-  // ComponentFactory.java:327
+  // ComponentFactory, case "centeringring"
   centeringring: { length: 0.002 },
-  // ComponentFactory.java:341
+  // ComponentFactory, case "bulkhead"
   bulkhead: { length: 0.002 },
-  // ComponentFactory.java:351, 356
+  // ComponentFactory, case "engineblock"
   engineblock: { length: 0.005, thickness: 0.00095 },
-  // ComponentFactory.java:362-364
+  // ComponentFactory, case "launchlug"
   launchlug: { length: 0.05, outerRadius: 0.0022, thickness: 0.0003 },
-  // ComponentFactory.java:374 reads the diameter only when present; the value
+  // ComponentFactory, case "railbutton" reads the diameter only when present; the value
   // is the kernel's own (RailButton.java:61). A rail button never sets
   // RocketComponent.length, so its axial length is the field's initial 0
   // (RocketComponent.java:91): no `length` entry here on purpose.
   railbutton: { outerDiameter: 0.0097 },
-  // ComponentFactory.java:506-507 (modeled as a MassComponent)
-  fairing: { length: 0.08, mass: 0.03 },
-  // ComponentFactory.java:390-391, 397
+  // ComponentFactory, case "fairing" (modeled as a MassComponent whose radius is
+  // max(width, height) / 2)
+  fairing: { length: 0.08, mass: 0.03, width: 0.025, height: 0.02 },
+  // ComponentFactory, case "parachute"
   parachute: { length: 0.025, diameter: 0.3, lineLength: 0.3 },
-  // ComponentFactory.java:421-423
+  // ComponentFactory, case "streamer"
   streamer: { length: 0.025, stripLength: 0.5, stripWidth: 0.05 },
-  // ComponentFactory.java:440-441
+  // ComponentFactory, case "shockcord"
   shockcord: { length: 0.025, cordLength: 0.3 },
-  // ComponentFactory.java:452-454
+  // ComponentFactory, case "masscomponent"
   masscomponent: { mass: 0.01, length: 0.02, radius: 0.005 },
-  // The kernel's PodSet default instance count (ComponentAssembly / PodSet).
+  // ComponentFactory.applyAssembly, shared by both assembly types.
   podset: { instanceCount: 2 },
-  parallelstage: {},
+  parallelstage: { instanceCount: 2 },
 } as const satisfies Record<ComponentType, Readonly<Record<string, number>>>;
+
+/**
+ * The profile shape the kernel builds when a node names none: ComponentFactory
+ * reads `str(node, "shape", "ogive")` for a nose cone (case "nosecone") and
+ * `"conical"` for a transition (case "transition"). Strings, so a table of their
+ * own rather than a row of KERNEL_DEFAULTS. Verified the same way, by building
+ * each part with the key absent and with the value below.
+ */
+export const KERNEL_SHAPES = {
+  nosecone: 'ogive',
+  transition: 'conical',
+} as const;
 
 /**
  * The material the kernel gives a component that names none, by material type.
@@ -141,8 +157,8 @@ export const KERNEL_BODYTUBE_OUTER_RADIUS = KERNEL_DEFAULTS.bodytube.outerRadius
 
 /**
  * Planar-fin dimension fallbacks: the kernel's trapezoid defaults
- * (ComponentFactory.java:205-208). The elliptical set shares `rootChord` and
- * `height` (:218-219).
+ * (ComponentFactory, case "trapezoidfinset"). The elliptical set shares
+ * `rootChord` and `height` (case "ellipticalfinset").
  *
  * These are the KERNEL's defaults, not "what treeEdit and orkImport write" (the
  * editor seeds a 60 x 50 mm fin), and this is the table that verifies them. A
@@ -155,4 +171,18 @@ export const FIN_DEFAULTS = {
   tipChord: KERNEL_DEFAULTS.trapezoidfinset.tipChord,
   sweep: KERNEL_DEFAULTS.trapezoidfinset.sweep,
   height: KERNEL_DEFAULTS.trapezoidfinset.height,
+  // The same for all three planar sets (cases "trapezoidfinset",
+  // "ellipticalfinset" and "freeformfinset").
+  thickness: KERNEL_DEFAULTS.trapezoidfinset.thickness,
 } as const;
+
+/**
+ * What the kernel flies for a recovery device that does not set a value: the
+ * field initializers of OpenRocket's `DeploymentConfiguration`. The bridge
+ * (`ComponentFactory.applyDeployment`) sets only the keys a node carries, so an
+ * absent key is this, not anything the app picks.
+ */
+export const KERNEL_DEPLOYMENT = { deployEvent: 'ejection', deployAltitude: 200, deployDelay: 0 } as const;
+
+/** The same for a stage's separation: OpenRocket's `StageSeparationConfiguration`. */
+export const KERNEL_SEPARATION = { separationEvent: 'ejection', separationAltitude: 200, separationDelay: 0 } as const;

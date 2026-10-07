@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { DESIGN_TYPES } from '../../engine/openRocketEngine';
 import { useWorkspaceStore } from '../../state/store';
 import { Dialog } from '../common/Dialog';
+import { DialogButton } from '../common/DialogButton';
 
 /**
  * The design-level "Rocket configuration" editor (OpenRocket's dialog of the
@@ -56,18 +57,12 @@ export function RocketConfigDialog({ onClose }: { onClose: () => void }) {
       size="lg"
       footer={
         <div className="flex justify-end gap-2 p-4">
-          <button
-            onClick={onClose}
-            className="rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
-          >
+          <DialogButton onClick={onClose} variant="secondary">
             {t('common.cancel')}
-          </button>
-          <button
-            onClick={save}
-            className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-500"
-          >
+          </DialogButton>
+          <DialogButton onClick={save} variant="primary">
             {t('config.save')}
-          </button>
+          </DialogButton>
         </div>
       }
     >

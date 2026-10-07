@@ -56,7 +56,7 @@ describe('downloadReportPdf fin templates', () => {
         noseTemplates: false,
         transitionTemplates: false,
         finMarkingGuide: false,
-        stages: [{ include: true, parts: false, finTemplates: true }],
+        stages: [{ parts: false, finTemplates: true }],
         paper: 'a4',
         orientation: 'portrait',
         templateFill: '',

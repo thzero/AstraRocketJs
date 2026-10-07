@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { UnitChip } from '../common/UnitChip';
 import { NumberInput } from '../common/NumberInput';
 import { useUnits } from '../../prefs/useUnits';
+import { onSi } from '../../prefs/entryValue';
 import { unitScope } from '../../prefs/units';
 
 type Pt = [number, number];
@@ -234,7 +235,7 @@ export function FreeformFinEditor({
                 real tree edit. A leading `-` did the same. */}
             <NumberInput
               value={ptX.toUi(selPt[0])}
-              onChange={(v) => setPoint(sel!, ptX.fromUi(v ?? 0), selPt[1])}
+              onChange={onSi(ptX, (si) => si !== null && setPoint(sel!, si, selPt[1]))}
               onCommit={onCommit}
               step={ptX.step(0.001)}
               ariaLabel="X"
@@ -246,7 +247,7 @@ export function FreeformFinEditor({
             Y
             <NumberInput
               value={ptY.toUi(selPt[1])}
-              onChange={(v) => setPoint(sel!, selPt[0], ptY.fromUi(v ?? 0))}
+              onChange={onSi(ptY, (si) => si !== null && setPoint(sel!, selPt[0], si))}
               onCommit={onCommit}
               step={ptY.step(0.001)}
               ariaLabel="Y"

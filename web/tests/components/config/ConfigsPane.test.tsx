@@ -46,6 +46,13 @@ describe('ConfigsPane', () => {
     expect(within(rows()[0]!).getByRole('button', { name: /C6/ })).toBeTruthy();
   });
 
+  it('names the seated motor with its delay, not just its designation', () => {
+    // The delay is when the nose comes off, so a cell reading "C6" has not said
+    // which motor this mount is flying. The app seats a C6 on a 5 s charge.
+    renderWithProviders(<ConfigsPane />);
+    expect(within(rows()[0]!).getByText('C6-5')).toBeTruthy();
+  });
+
   it('counts the simulations flying each configuration', () => {
     st().addSim(); // joins the same setup: one configuration, two flights
     renderWithProviders(<ConfigsPane />);

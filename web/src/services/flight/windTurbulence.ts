@@ -51,6 +51,21 @@ export function stdDevForIntensity(average: number, intensity: number): number {
   return Math.max(intensity * average, 0);
 }
 
+/**
+ * The standard deviation `was`/`wasStdDev` means once the average moves to
+ * `now`, holding the intensity constant as `PinkNoiseWindModel.setAverage`
+ * does: wind that was 15% gusty stays 15% gusty when it picks up.
+ *
+ * Untouched when the old average was zero: `turbulenceIntensity` answers a flat
+ * 1 there (the kernel's stand-in for a ratio it cannot take), and putting that
+ * through turns still air carrying a whisper of scatter into gusts that equal
+ * the whole new wind.
+ */
+export function retuneStdDev(was: number, wasStdDev: number, now: number): number {
+  if (!hasIntensity(was)) return wasStdDev;
+  return stdDevForIntensity(now, turbulenceIntensity(was, wasStdDev));
+}
+
 /** The rungs of OpenRocket's `getIntensityDescription` ladder. */
 export type TurbulenceLevel = 'none' | 'veryLow' | 'low' | 'medium' | 'high' | 'veryHigh' | 'extreme';
 

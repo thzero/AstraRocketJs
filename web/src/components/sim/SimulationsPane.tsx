@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { useWorkspaceStore, selectActive } from '../../state/store';
+import { useWorkspaceStore, selectActive, selectOutdated } from '../../state/store';
 import { confirm } from '../../state/confirmStore';
 import { useSettings } from '../../state/SettingsProvider';
 import { SimulationsTable } from './SimulationsTable';
@@ -24,6 +24,7 @@ export function SimulationsPane() {
   const activeId = useWorkspaceStore((s) => selectActive(s).id);
   const tree = useWorkspaceStore((s) => s.tree);
   const configs = useWorkspaceStore((s) => s.configs);
+  const simPrefs = useWorkspaceStore((s) => s.simPrefs);
   const setSimConfig = useWorkspaceStore((s) => s.setSimConfig);
   const simRuns = useWorkspaceStore((s) => s.simRuns);
   const selectedIds = useWorkspaceStore((s) => s.selectedSimIds);
@@ -41,7 +42,7 @@ export function SimulationsPane() {
   // How many rows are not current: never flown, or flown against a design that
   // has since changed. Counted in the label so the button says what it will do
   // rather than leaving you to work it out from the dots.
-  const staleCount = sims.filter((x) => !x.result || x.outdated).length;
+  const staleCount = useWorkspaceStore((s) => s.sims.filter((x) => !x.result || selectOutdated(s, x)).length);
 
   const onDelete = async () => {
     if (
@@ -91,6 +92,7 @@ export function SimulationsPane() {
           runs={simRuns}
           tree={tree}
           configs={configs}
+          simPrefs={simPrefs}
           onSetConfig={setSimConfig}
           onSelect={onSelect}
           onToggle={onToggle}

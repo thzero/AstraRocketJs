@@ -1,9 +1,14 @@
 import type { ComponentNode, ComponentPosition } from '../../../engine/openRocketEngine';
+import { appPresetType } from './presetTypes';
 import { xmlText as text } from '../xmlUtil';
 import { COMPONENT_DEFAULTS } from '../../design/componentDefaults';
 import { clampCount, finiteNum } from './numbers';
 import { MAX_ASSEMBLY_INSTANCES, MAX_FIN_COUNT } from './importLimits';
 import { EXTRA_KEY, readPassthrough } from './passthrough';
+import type { OrkDeployOverride, OrkSepOverride } from '../orkTypes';
+import { hexOf } from '../../design/colorHex';
+import { degToRad } from '../../../prefs/units';
+import { KERNEL_DEPLOYMENT, KERNEL_SEPARATION } from '../../../tree/kernelDefaults';
 
 /**
  * Readers for the individual .ork elements more than one component carries:
@@ -20,6 +25,27 @@ export function numTag(el: Element, tag: string, fallback: number): number {
   // Values like "auto 0.012" carry an automatic flag + last value.
   const v = t ? Number(t.split(/\s+/).pop()) : NaN;
   return Number.isFinite(v) ? v : fallback;
+}
+
+/**
+ * A DIMENSION or a MASS off an .ork element: `numTag`, floored at zero.
+ *
+ * Nothing clamped on the way in. `numTag` accepts any finite value, so a
+ * `<length>-5</length>` reached the tree, the mesh, the mass integral and the
+ * kernel, where a negative length is not a small design and not an error
+ * either: it is geometry that inverts. The `.rkt` reader already floors every
+ * dimension it reads (`nonNeg` in `rktImport.ts`) and says there that the
+ * handlers which do not are "an inconsistency rather than a decision". This is
+ * the same floor on the same quantities for the other format.
+ *
+ * Use it for a quantity no value of which can be negative: a length, a radius,
+ * a diameter, a thickness, a chord, a mass. NOT for a signed one - a fin
+ * `<sweeplength>` is negative when the fin sweeps forward, an `<axialoffset>`
+ * and a `<launchlatitude>` are signed, and a cant or a rotation is an angle.
+ * Those keep `numTag`.
+ */
+export function nonNegTag(el: Element, tag: string, fallback: number): number {
+  return Math.max(0, numTag(el, tag, fallback));
 }
 
 /**
@@ -67,7 +93,7 @@ export function finCountTag(el: Element, fallback: number = COMPONENT_DEFAULTS.f
  * to, so an untouched design stays clean.
  */
 export function readPackedSize(el: Element, node: ComponentNode): void {
-  node['length'] = numTag(el, 'packedlength', COMPONENT_DEFAULTS.recovery.packedLength);
+  node['length'] = nonNegTag(el, 'packedlength', COMPONENT_DEFAULTS.recovery.packedLength);
   // `<packedradius>auto 0.0125</packedradius>` is how MassObjectSaver writes an
   // automatic packed radius: the marker AND the value it worked out.
   const raw = text(el, ':scope > packedradius')?.trim() ?? '';
@@ -78,7 +104,7 @@ export function readPackedSize(el: Element, node: ComponentNode): void {
     return;
   }
   const r = numTag(el, 'packedradius', NaN);
-  if (!Number.isNaN(r) && r !== COMPONENT_DEFAULTS.recovery.packedRadius) node['radius'] = r;
+  if (r >= 0 && r !== COMPONENT_DEFAULTS.recovery.packedRadius) node['radius'] = r;
 }
 
 /** `<cd>auto</cd>`, `<linelength>auto</linelength>`, `<cordlength>auto</cordlength>`:
@@ -157,7 +183,7 @@ export function readInstances(el: Element, node: ComponentNode): void {
 export function readAngleAroundBody(el: Element): number {
   const a = numTag(el, 'angleoffset', NaN);
   const deg = Number.isFinite(a) ? a : numTag(el, 'radialdirection', 180);
-  return (deg * Math.PI) / 180;
+  return degToRad(deg);
 }
 
 /**
@@ -204,7 +230,7 @@ function readFillet(el: Element, node: ComponentNode): void {
 /** Fin-set rotation about the body axis (.ork stores DEGREES; we keep rad). */
 export function readFinRotation(el: Element, node: ComponentNode): void {
   const deg = numTag(el, 'rotation', 0);
-  if (deg !== 0) node['rotation'] = (deg * Math.PI) / 180;
+  if (deg !== 0) node['rotation'] = degToRad(deg);
 }
 
 /**
@@ -236,16 +262,40 @@ export function readFinTabs(el: Element, node: ComponentNode): void {
  * the fields the block carries.
  */
 export function readDeployment(el: Element, node: ComponentNode, configEl: Element | null = null): void {
-  for (const src of configEl ? [el, configEl] : [el]) {
-    const event = text(src, ':scope > deployevent');
-    if (event) node['deployEvent'] = event;
-    if (text(src, ':scope > deployaltitude') !== null) {
-      node['deployAltitude'] = numTag(src, 'deployaltitude', 200);
-    }
-    if (text(src, ':scope > deploydelay') !== null) {
-      node['deployDelay'] = numTag(src, 'deploydelay', 0);
-    }
-  }
+  for (const src of configEl ? [el, configEl] : [el]) Object.assign(node, readDeploymentTags(src));
+}
+
+/**
+ * The deployment tags one element states, and only those, the same way for the
+ * design and for each configuration's override. Altitude and delay are floored:
+ * a negative deploy altitude never fires the kernel's altitude trigger, and the
+ * input field holds the same minimum.
+ */
+export function readDeploymentTags(src: Element): OrkDeployOverride {
+  const o: OrkDeployOverride = {};
+  const event = text(src, ':scope > deployevent');
+  if (event) o.deployEvent = event;
+  if (text(src, ':scope > deployaltitude') !== null)
+    o.deployAltitude = nonNegTag(src, 'deployaltitude', KERNEL_DEPLOYMENT.deployAltitude);
+  if (text(src, ':scope > deploydelay') !== null)
+    o.deployDelay = nonNegTag(src, 'deploydelay', KERNEL_DEPLOYMENT.deployDelay);
+  return o;
+}
+
+/**
+ * The separation tags one element states, and only those, floored the way
+ * {@link readDeploymentTags} floors deployment, for the design and for each
+ * configuration's override alike.
+ */
+export function readSeparationTags(src: Element): OrkSepOverride {
+  const o: OrkSepOverride = {};
+  const event = text(src, ':scope > separationevent');
+  if (event) o.separationEvent = event;
+  if (text(src, ':scope > separationdelay') !== null)
+    o.separationDelay = nonNegTag(src, 'separationdelay', KERNEL_SEPARATION.separationDelay);
+  if (text(src, ':scope > separationaltitude') !== null)
+    o.separationAltitude = nonNegTag(src, 'separationaltitude', KERNEL_SEPARATION.separationAltitude);
+  return o;
 }
 
 /**
@@ -255,12 +305,13 @@ export function readDeployment(el: Element, node: ComponentNode, configEl: Eleme
  * from the desktop defaults are kept, so an untouched stage stays clean.
  */
 export function readSeparation(sepEl: Element, node: ComponentNode): void {
-  const ev = text(sepEl, ':scope > separationevent');
-  if (ev && ev !== 'ejection') node['separationEvent'] = ev;
-  const delay = numTag(sepEl, 'separationdelay', 0);
-  if (delay !== 0) node['separationDelay'] = delay;
-  const alt = numTag(sepEl, 'separationaltitude', NaN);
-  if (!Number.isNaN(alt) && alt !== 200) node['separationAltitude'] = alt;
+  const o = readSeparationTags(sepEl);
+  if (o.separationEvent && o.separationEvent !== KERNEL_SEPARATION.separationEvent)
+    node['separationEvent'] = o.separationEvent;
+  if (o.separationDelay !== undefined && o.separationDelay !== KERNEL_SEPARATION.separationDelay)
+    node['separationDelay'] = o.separationDelay;
+  if (o.separationAltitude !== undefined && o.separationAltitude !== KERNEL_SEPARATION.separationAltitude)
+    node['separationAltitude'] = o.separationAltitude;
 }
 
 function readPosition(el: Element): ComponentPosition | undefined {
@@ -306,7 +357,9 @@ export function readCommon(el: Element, node: ComponentNode, withPosition: boole
     const partNo = preset.getAttribute('partno');
     if (partNo) {
       node['preset'] = {
-        type: preset.getAttribute('type') ?? '',
+        // The file carries the kernel's enum constant (NOSE_CONE); the picker
+        // and the panel speak our row types.
+        type: appPresetType(preset.getAttribute('type') ?? ''),
         manufacturer: preset.getAttribute('manufacturer') ?? '',
         partNo,
         ...(preset.getAttribute('digest') ? { digest: preset.getAttribute('digest') } : {}),
@@ -329,7 +382,7 @@ export function readCommon(el: Element, node: ComponentNode, withPosition: boole
     };
     const [r, g, b] = [ch('red'), ch('green'), ch('blue')];
     if (r !== null && g !== null && b !== null) {
-      node['color'] = `#${[r, g, b].map((x) => x.toString(16).padStart(2, '0')).join('')}`;
+      node['color'] = hexOf((r << 16) | (g << 8) | b);
     }
   }
   readOverrides(el, node);
@@ -347,12 +400,17 @@ export function readCommon(el: Element, node: ComponentNode, withPosition: boole
  * overrides the writer emitted and the reader ignored.
  */
 export function readOverrides(el: Element, node: ComponentNode): void {
+  // Floored, like the .rkt reader's `Math.max(0, knownMass / MASS)` and
+  // `Math.max(0, knownCg)`. A negative override is not a lighter part: it
+  // SUBTRACTS from the rocket's total mass, pulls the CG off the airframe and
+  // takes the stability margin with it, and the override is by definition the
+  // figure that wins over everything computed.
   const om = numTag(el, 'overridemass', NaN);
-  if (!Number.isNaN(om)) node['overrideMass'] = om;
+  if (om >= 0) node['overrideMass'] = om;
   const ocg = numTag(el, 'overridecg', NaN);
-  if (!Number.isNaN(ocg)) node['overrideCGX'] = ocg;
+  if (ocg >= 0) node['overrideCGX'] = ocg;
   const ocd = numTag(el, 'overridecd', NaN);
-  if (!Number.isNaN(ocd)) node['overrideCD'] = ocd;
+  if (ocd >= 0) node['overrideCD'] = ocd;
   // "Override for all subcomponents": per-quantity flags (24.x format);
   // legacy files carry a single <overridesubcomponents> covering all.
   const legacyAll = text(el, ':scope > overridesubcomponents') === 'true';

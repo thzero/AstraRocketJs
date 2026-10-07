@@ -1,8 +1,9 @@
 import { PLUGGED_DELAY, type ComponentNode } from '../../../engine/openRocketEngine';
 import { xmlText as text } from '../xmlUtil';
-import type { OrkMotorRef, OrkFlightConfig, OrkDeployOverride, OrkSepOverride } from '../orkTypes';
-import { numTag } from './importTags';
+import type { OrkMotorRef, OrkFlightConfig } from '../orkTypes';
+import { nonNegTag, numTag, readDeploymentTags, readSeparationTags } from './importTags';
 import { MAX_MOTOR_CONFIGS } from './importLimits';
+import { finiteNum } from './numbers';
 
 /**
  * Flight configurations on the way IN: the rocket-level declaration table,
@@ -20,6 +21,10 @@ export interface OrkImportContext {
   motors: Record<string, OrkMotorRef>;
   /** The first motor found (legacy callers). */
   motor: OrkMotorRef | undefined;
+  /** Components read so far, against MAX_COMPONENTS. Mutable on purpose:
+   *  the readers recurse, so the ceiling has to be one running total
+   *  rather than a per-level one. */
+  nodeCount: number;
 }
 
 /**
@@ -32,10 +37,11 @@ export interface OrkImportContext {
  * the import O(configs x children) on the main thread and freezes the tab.
  * A real design has a handful.
  */
-export function readFlightConfigs(
-  rocketEl: Element,
-  requested: string | undefined,
-): { configEls: Element[]; configs: OrkFlightConfig[]; chosenConfigId: string | null } {
+export function readFlightConfigs(rocketEl: Element): {
+  configEls: Element[];
+  configs: OrkFlightConfig[];
+  chosenConfigId: string | null;
+} {
   const configEls = Array.from(rocketEl.querySelectorAll(':scope > motorconfiguration')).slice(0, MAX_MOTOR_CONFIGS);
   const configs: OrkFlightConfig[] = configEls
     .map((c) => ({
@@ -48,11 +54,7 @@ export function readFlightConfigs(
       grounded: [],
     }))
     .filter((c) => c.id !== '');
-  const chosenConfigId =
-    (requested != null && configs.some((c) => c.id === requested) ? requested : null) ??
-    configs.find((c) => c.isDefault)?.id ??
-    configs[0]?.id ??
-    null;
+  const chosenConfigId = configs.find((c) => c.isDefault)?.id ?? configs[0]?.id ?? null;
   return { configEls, configs, chosenConfigId };
 }
 
@@ -83,12 +85,8 @@ export function captureDeployments(ctx: OrkImportContext, el: Element, node: Com
     // the round-trip safe: on save the bare defaults are rewritten from the
     // configuration the user opened, so a config that silently inherited the
     // old defaults would otherwise inherit the NEW ones instead.
-    const src = block ?? el;
-    const o: OrkDeployOverride = {};
-    const event = text(src, ':scope > deployevent');
-    if (event) o.deployEvent = event;
-    if (text(src, ':scope > deployaltitude') !== null) o.deployAltitude = numTag(src, 'deployaltitude', 200);
-    if (text(src, ':scope > deploydelay') !== null) o.deployDelay = numTag(src, 'deploydelay', 0);
+    // The same reader as the design's own, floors included.
+    const o = readDeploymentTags(block ?? el);
     if (Object.keys(o).length > 0 && node.id) c.deployments[node.id] = o;
   }
 }
@@ -108,7 +106,14 @@ export function readStageActiveness(configEls: Element[], configs: OrkFlightConf
     if (!config) continue;
     for (const flag of Array.from(el.querySelectorAll(':scope > stage'))) {
       if (flag.getAttribute('active') !== 'false') continue;
-      const id = stageIds[Number(flag.getAttribute('number'))];
+      // Through `finiteNum`, because `Number(null)` is 0 and `Number('')` is 0:
+      // a `<stage active="false"/>` with NO number attribute, or a blank one,
+      // read as stage 0 and grounded the SUSTAINER. The doc above says such a
+      // flag is dropped rather than guessed at, and without this that held only
+      // for a non-numeric value.
+      const num = finiteNum(flag.getAttribute('number'));
+      if (num === undefined) continue;
+      const id = stageIds[num];
       if (id) config.grounded.push(id);
     }
   }
@@ -127,15 +132,21 @@ export function captureSeparations(ctx: OrkImportContext, el: Element, node: Com
     const block = Array.from(el.children).find(
       (x) => x.tagName === 'separationconfiguration' && x.getAttribute('configid') === c.id,
     );
-    const src = block ?? el;
-    const o: OrkSepOverride = {};
-    const event = text(src, ':scope > separationevent');
-    if (event) o.separationEvent = event;
-    if (text(src, ':scope > separationdelay') !== null) o.separationDelay = numTag(src, 'separationdelay', 0);
-    if (text(src, ':scope > separationaltitude') !== null)
-      o.separationAltitude = numTag(src, 'separationaltitude', 200);
+    const o = readSeparationTags(block ?? el);
     if (Object.keys(o).length > 0 && node.id) c.separations[node.id] = o;
   }
+}
+
+/**
+ * A motor's ejection delay. Desktop's MotorHandler treats "none", an absent
+ * <delay> and one it cannot parse alike: plugged, no ejection charge. A 0 s
+ * fallback would fire the charge at burnout instead.
+ */
+function readDelay(motorEl: Element): number {
+  const t = text(motorEl, ':scope > delay');
+  if (t === null || t === 'none') return PLUGGED_DELAY;
+  const v = Number(t.trim());
+  return t.trim() !== '' && Number.isFinite(v) ? Math.max(0, v) : PLUGGED_DELAY;
 }
 
 /** A mount's <motormount>: the mount flag, its overhang, and every configuration's motor. */
@@ -154,16 +165,21 @@ export function readMotor(ctx: OrkImportContext, el: Element, node: ComponentNod
   // (Motor.PLUGGED_DELAY). Represent as the JSON-safe PLUGGED_DELAY sentinel,
   // which the engine maps to +Inf ("never fires") at the kernel boundary.
   const resolveRef = (motorEl: Element, igEl: Element): OrkMotorRef => {
-    const delayText = text(motorEl, ':scope > delay');
+    // Carried through rather than used: the motor is resolved from our own
+    // catalog, but a design saved again should still name the desktop entry the
+    // file named, including for a motor we could not resolve. Absent stays
+    // absent, so a file with no digest round-trips to one with no digest.
+    const digest = text(motorEl, ':scope > digest');
     return {
       designation: text(motorEl, ':scope > designation') ?? 'unknown',
+      ...(digest ? { digest } : {}),
       manufacturer: text(motorEl, ':scope > manufacturer') ?? 'unknown',
-      diameter: numTag(motorEl, 'diameter', 0.018),
-      length: numTag(motorEl, 'length', 0.07),
-      delay: delayText === 'none' ? PLUGGED_DELAY : numTag(motorEl, 'delay', 0),
+      diameter: nonNegTag(motorEl, 'diameter', 0.018),
+      length: nonNegTag(motorEl, 'length', 0.07),
+      delay: readDelay(motorEl),
       mountId: node.id,
       ignitionEvent: text(igEl, ':scope > ignitionevent') ?? undefined,
-      ignitionDelay: numTag(igEl, 'ignitiondelay', 0),
+      ignitionDelay: nonNegTag(igEl, 'ignitiondelay', 0),
     };
   };
   // Stage B: EVERY declared configuration's motor rides along as a preset
@@ -185,8 +201,9 @@ export function readMotor(ctx: OrkImportContext, el: Element, node: ComponentNod
   // (desktop writes defaults bare, overrides in <ignitionconfiguration>).
   const ref = resolveRef(motorEl, configScoped(ctx, mountEl, 'ignitionconfiguration') ?? mountEl);
   if (ref.delay >= PLUGGED_DELAY) {
+    const unstated = text(motorEl, ':scope > delay') !== 'none' ? ' (the file gives no readable delay)' : '';
     ctx.notes.push(
-      `Motor ${ref.designation}: plugged (no ejection charge) — make sure recovery deploys on apogee/altitude, not the ejection charge.`,
+      `Motor ${ref.designation}: plugged (no ejection charge)${unstated} — make sure recovery deploys on apogee/altitude, not the ejection charge.`,
     );
   }
   if (node.id) {

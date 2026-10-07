@@ -152,7 +152,8 @@
     "storage": "Vos conceptions, simulations, préférences et tout matériau ou moteur personnalisé sont enregistrés dans le stockage local de votre navigateur, sur votre appareil : ils ne nous sont jamais envoyés, ni à quiconque. Effacer les données de votre navigateur (ou utiliser « Nouveau ») les supprime.",
     "network": "L'application télécharge ses catalogues de moteurs et de composants depuis un réseau de diffusion de contenu public, et lorsque vous choisissez un moteur elle peut récupérer sa courbe de poussée auprès d'une base de données de moteurs publique ; les deux sont mises en cache localement et soumises aux conditions de ces fournisseurs. En dehors de cela, l'application n'effectue aucun appel réseau avec vos données.",
     "hosting": "L'hébergeur de l'application peut conserver les journaux d'accès habituels d'un serveur web (adresse IP et horodatage, par exemple), comme tout site. L'application elle-même ne collecte rien.",
-    "close": "Fermer"
+    "close": "Fermer",
+    "weather": "Lorsque vous appuyez sur Récupérer dans la fenêtre Météo, les coordonnées et l’altitude du site de lancement ainsi que la date choisie sont envoyées à Open-Meteo, qui répond avec la prévision. Rien n’est envoyé autrement. Les requêtes ne nomment ni cette application ni le site qui la sert."
   },
   "help": {
     "title": "Aide",
@@ -160,7 +161,12 @@
     "back": "Retour",
     "openOnSite": "Ouvrir sur le site de documentation",
     "loading": "Chargement…",
-    "missing": "La documentation ne fait pas partie de cette copie de {{name}}, ou elle n'a pas pu être lue. Vous pouvez toujours l'ouvrir en ligne."
+    "missing": "La documentation ne fait pas partie de cette copie de {{name}}, ou elle n'a pas pu être lue. Vous pouvez toujours l'ouvrir en ligne.",
+    "search": "Rechercher dans l'aide",
+    "searchClear": "Effacer la recherche",
+    "searchNone": "Rien dans le guide ne correspond à « {{query}} ».",
+    "searchBusy": "Recherche…",
+    "searchMatches": "Résultats : {{n}}"
   },
   "override": {
     "title": "Valeurs forcées",
@@ -277,6 +283,7 @@
     "launchNote": "Conditions de lancement par défaut des simulations nouvellement créées. Les conditions d'une simulation existante se modifient dans son panneau Lancement.",
     "defaultSpeed": "Vitesse par défaut",
     "confirmDelete": "Confirmer la suppression des simulations",
+    "autoRunOutdated": "Exécuter automatiquement les simulations obsolètes",
     "warnings": "Avertissements de sécurité",
     "railExitMin": "Vitesse min. en sortie de rampe",
     "deploySpeedWarn": "Avertir au-dessus d'une vitesse de déploiement de",
@@ -317,6 +324,9 @@
     "mainLowSpeedWarn": "Vitesse de déploiement du principal (min.)",
     "drogueLowSpeedWarn": "Vitesse de déploiement du drogue (min.)",
     "railExitMinHint": "En dessous, les ailerons reçoivent trop peu d'écoulement pour guider la fusée, qui peut girouetter face au vent ou devenir instable en quittant la rampe.",
+    "simModel": "Modèle de vol",
+    "guideAwareRodClearance": "Sortie selon les guides",
+    "guideAwareRodClearanceHint": "OpenRocket maintient la fusée sur la rampe sur toute sa longueur, où que soient ses anneaux ou ses patins. Activé : un anneau guide jusqu'à ce que son extrémité arrière quitte la rampe, tandis qu'un rail exige deux patins et ne guide que jusqu'à la sortie de l'avant-dernier, de sorte qu'un patin seul ne guide pas du tout. En général un départ un peu plus tôt et une vitesse de sortie un peu plus faible. Désactivé correspond à OpenRocket.",
     "deploySpeedWarnHint": "Déploiement simple (sans drogue) : au-dessus de cette vitesse, l'ouverture du parachute risque de déchirer le tube (effet zipper) ou la voilure.",
     "mainHighSpeedWarnHint": "Double déploiement : au-dessus, le PRINCIPAL sort trop vite – en général un drogue trop petit pour freiner la fusée, ou un principal réglé pour s'ouvrir trop haut.",
     "mainLowSpeedWarnHint": "Double déploiement : en dessous, le principal s'ouvre alors que la fusée descend à peine, ce qui signifie normalement un déploiement près de l'apogée – une descente lente et très dérivante depuis l'altitude maximale.",
@@ -392,7 +402,8 @@
     "simulations": "Simulations",
     "workbench": "Établi",
     "configs": "Configurations",
-    "configsShort": "Config."
+    "configsShort": "Config.",
+    "tools": "Outils"
   },
   "view": {
     "2d": "2D",
@@ -406,7 +417,7 @@
     "aft": "Arrière",
     "cutaway": "Coupe",
     "cutawayTitle": "Ouvrir la cellule selon l'axe central pour voir l'intérieur",
-    "roll": "Roulis {{deg}}°",
+    "roll": "Roulis {{deg}}",
     "rollHint": "Roulis – faire tourner les ailerons autour de l'axe (ou faire glisser le dessin)",
     "rollAria": "Angle de roulis (degrés)",
     "loading3d": "Chargement de la 3D…",
@@ -426,7 +437,8 @@
     "ruler_top_abbr": "H",
     "ruler_bottom_abbr": "B",
     "ruler_left_abbr": "G",
-    "ruler_right_abbr": "D"
+    "ruler_right_abbr": "D",
+    "environment": "Environnement"
   },
   "stability": {
     "onPad": "Stabilité (sur la rampe)",
@@ -449,7 +461,8 @@
     "needsMotor": "chargez un moteur",
     "cd": "Coeff. de traînée",
     "rollInertia": "Inertie en roulis (en charge)",
-    "pitchInertia": "Inertie en tangage (en charge)"
+    "pitchInertia": "Inertie en tangage (en charge)",
+    "recoveryWeightEstimated": "Masse (Récupération, est.)"
   },
   "sim": {
     "run": "Lancer la simulation de vol",
@@ -593,7 +606,10 @@
       "longitudeDeg": "longitude"
     },
     "locationDenied": "Impossible d'obtenir votre position. Vérifiez l'autorisation du navigateur et réessayez.",
-    "locating": "Localisation…"
+    "locating": "Localisation…",
+    "getWeather": "Obtenir la météo…",
+    "forecastProfile": "Atmosphère prévue jusqu’à {{top}}",
+    "clearForecastProfile": "Retirer"
   },
   "csv": {
     "title": "Exporter les données de vol",
@@ -732,7 +748,7 @@
     "zoomOut": "Zoom arrière",
     "zoomReset": "Réinitialiser le zoom",
     "stages": "Étages",
-    "stage": "Étage",
+    "stageN": "Étage {{n}}",
     "crosshairHint": "Graphiques de vol. Placez le focus et utilisez les flèches pour déplacer le réticule ; Maj pour un pas plus grand, Origine et Fin pour les extrémités, Échap pour effacer.",
     "events": "Événements de vol",
     "event": "Événement",
@@ -802,7 +818,6 @@
     },
     "stageColors": "Couleurs des étages…",
     "stageColorsTitle": "Couleurs des étages",
-    "stageN": "Étage {{n}}",
     "resetColors": "Rétablir les valeurs par défaut",
     "showWaypointLabels": "Afficher le nom des points de passage sur la carte",
     "colorWaypointPins": "Colorer les repères de points de passage par étage",
@@ -899,6 +914,7 @@
     "pressure": "Pression",
     "base": "Culot",
     "pctBody": "% corps",
+    "pctLength": "% longueur",
     "supersonicNote": "Barrowman étendu – approximatif au-delà d'environ Mach 1,5.",
     "unavailable": "Construisez une fusée valide pour voir sa traînée.",
     "crosshairHint": "Courbes de traînée. Placez le focus et utilisez les flèches pour déplacer le réticule ; Maj pour un pas plus grand, Origine et Fin pour les extrémités, Échap pour effacer.",
@@ -911,7 +927,8 @@
     "loaded": "Conception chargée (.ork)",
     "close": "Fermer",
     "closeTitle": "Abandonner cet import et repartir d'une conception vierge",
-    "closeConfirm": "Abandonner cette conception chargée et en commencer une nouvelle ? Les modifications non enregistrées seront perdues."
+    "closeConfirm": "Abandonner cette conception chargée et en commencer une nouvelle ? Les modifications non enregistrées seront perdues.",
+    "repaired": "{{part}} : une valeur de {{field}} de {{was}} dépasse ce que l'application autorise, elle a été ramenée à {{now}}."
   },
   "part": {
     "stage": "Étage",
@@ -985,6 +1002,7 @@
   "prop": {
     "selectHint": "Sélectionnez un composant dans l'arborescence ou le dessin pour modifier ses propriétés.",
     "editTitle": "Modifier le composant",
+    "catalogPart": "Pièce du catalogue",
     "name": "Nom",
     "delete": "Supprimer",
     "lastStage": "Une fusée doit avoir au moins un étage",
@@ -1184,7 +1202,6 @@
     "fit": "Ajuster à la vue",
     "aftAria": "Vue arrière – la fusée vue de derrière ; glisser pour tourner, molette pour zoomer",
     "sideAria": "Vue de côté de la fusée avec les repères CG et CP ; molette pour zoomer, glisser le fond pour déplacer",
-    "sideAriaVertical": "Vue de côté de la fusée, ogive vers le haut, avec les repères CG et CP",
     "caliperH": "Poignée du pied à coulisse horizontal {{end}}",
     "caliperV": "Poignée du pied à coulisse vertical {{end}}"
   },
@@ -1312,7 +1329,7 @@
   "recovery": {
     "title": "Dimensionnement de la descente",
     "needsMotor": "Chargez un moteur pour dimensionner d'après la masse à la descente (masse en charge moins le propergol).",
-    "forMass": "Pour une masse à la descente de {{mass}} g :",
+    "forMass": "Estimé pour une masse à la descente de {{mass}} :",
     "thisChute": "Cette voilure",
     "mainTarget": "Principal ({{range}})",
     "drogueTarget": "Drogue ({{range}})",
@@ -1323,7 +1340,17 @@
       "between": "entre les plages",
       "drogue": "plage du drogue",
       "fast": "très rapide"
-    }
+    },
+    "forMassRun": "Mesuré au dernier vol, pour une masse à la descente de {{mass}} :",
+    "forMassRunBranch": "Mesuré au dernier vol sur {{branch}}, pour une masse à la descente de {{mass}} :",
+    "diametersEstimated": "Les diamètres sont des estimations pour concevoir, pas des résultats de simulation.",
+    "open": "Dimensionnement de la descente…",
+    "use": "Utiliser",
+    "useMain": "Utiliser le diamètre du principal",
+    "useDrogue": "Utiliser le diamètre du traînard",
+    "useTarget": "Utiliser le diamètre pour votre vitesse",
+    "targetRate": "Votre vitesse de descente",
+    "atTarget": "À votre vitesse"
   },
   "sims": {
     "new": "＋ Nouvelle",
@@ -1454,7 +1481,8 @@
   "storage": {
     "full": "Impossible d'enregistrer votre travail – le stockage du navigateur est plein. Exportez votre conception pour la conserver.",
     "degraded": "Votre navigateur bloque sa base de données : l'application se rabat donc sur un espace de stockage bien plus petit (environ 5 Mo) et l'enregistrement peut échouer à mesure que votre conception grandit. La navigation privée en est la cause habituelle. Exportez tout ce que vous souhaitez conserver.",
-    "loadFailed": "Votre conception enregistrée n'a pas pu être lue. Nouveau départ – le travail à venir sera toujours enregistré."
+    "loadFailed": "Votre conception enregistrée n'a pas pu être lue. Nouveau départ – le travail à venir sera toujours enregistré.",
+    "conflict": "Cette conception a été modifiée dans un autre onglet, vos modifications ici ne sont donc pas enregistrées. Exportez-les pour les conserver, ou rouvrez la conception dans Mes fusées pour charger la version de l'autre onglet."
   },
   "library": {
     "title": "Mes fusées",
@@ -1580,6 +1608,8 @@
     "zoomOut": "Zoom arrière",
     "recenter": "Centrer sur le lieu",
     "pick": "Cliquez sur la carte pour déplacer le lieu.",
+    "keysPick": "Les flèches déplacent la carte, plus et moins zooment, et Entrée place le site au centre.",
+    "keysView": "Les flèches déplacent la carte, et plus et moins zooment.",
     "noCoords": "Saisissez une latitude et une longitude pour placer le lieu.",
     "tooClose": "Pas d'imagerie à ce niveau de zoom",
     "offline": "Pas d'imagerie hors ligne"
@@ -1620,5 +1650,177 @@
     "payload": "Charge utile",
     "recoveryhardware": "Quincaillerie de récupération",
     "battery": "Batterie"
+  },
+  "weather": {
+    "title": "Météo d’Open-Meteo",
+    "dateLabel": "Date",
+    "hourLabel": "Heure (heure du site)",
+    "fetch": "Récupérer",
+    "fetching": "Récupération…",
+    "apply": "Appliquer",
+    "needSite": "Indiquez d’abord la latitude et la longitude du site de lancement.",
+    "siteLine": "Site {{lat}}, {{lon}} à {{alt}}",
+    "noHour": "La réponse ne contient pas de données pour cette heure.",
+    "validForecast": "Prévision pour {{time}}",
+    "validArchive": "Météo enregistrée pour {{time}}",
+    "archiveNoAloft": "Pour une date aussi ancienne, seules les conditions au sol sont disponibles, sans vents ni atmosphère en altitude.",
+    "useTerrain": "Utiliser l’altitude du terrain, {{terrain}}, pour le site (actuellement {{site}})",
+    "forecastNote": "Une prévision est une estimation d’un modèle, pas une mesure.",
+    "credit": "Données météo par Open-Meteo.com",
+    "windValue": "{{speed}} du {{from}}°, rafales {{gust}}, profil jusqu’à {{top}}",
+    "atmosphereValue": "Profil jusqu’à {{top}}",
+    "group": {
+      "temperature": "Température",
+      "pressure": "Pression",
+      "humidity": "Humidité",
+      "wind": "Vent",
+      "atmosphere": "Atmosphère en altitude"
+    },
+    "dateRefusal": {
+      "tooFarAhead": "Open-Meteo prévoit jusqu’à 15 jours à l’avance.",
+      "tooEarly": "Les archives d’Open-Meteo commencent le 1er janvier 1940.",
+      "badDate": "Choisissez une date."
+    },
+    "error": {
+      "offline": "Impossible de joindre Open-Meteo. Vos conditions de lancement sont inchangées.",
+      "timeout": "Open-Meteo n’a pas répondu à temps. Vos conditions de lancement sont inchangées.",
+      "aborted": "Annulé. Vos conditions de lancement sont inchangées.",
+      "refused": "Open-Meteo a refusé la requête : {{detail}}. Vos conditions de lancement sont inchangées.",
+      "badKey": "Open-Meteo n’a pas accepté la clé d’API des Paramètres, Lancement. Vos conditions de lancement sont inchangées.",
+      "quota": "Le quota gratuit d’Open-Meteo est épuisé pour le moment. Réessayez plus tard ou ajoutez une clé d’API dans Paramètres, Lancement. Vos conditions de lancement sont inchangées.",
+      "http": "Open-Meteo a répondu par une erreur ({{detail}}). Vos conditions de lancement sont inchangées.",
+      "shape": "La réponse d’Open-Meteo n’a pas pu être lue ({{detail}}). Vos conditions de lancement sont inchangées.",
+      "units": "Open-Meteo a répondu dans des unités que l’application ne lit pas ({{detail}}). Vos conditions de lancement sont inchangées.",
+      "noData": "Open-Meteo n’a pas de données pour cette date ici. Vos conditions de lancement sont inchangées."
+    },
+    "keyLabel": "Clé d’API Open-Meteo",
+    "keyPlaceholder": "Aucune (service gratuit)",
+    "keyNote": "Facultatif. Sans clé, la météo vient du service gratuit d’Open-Meteo, destiné à un usage non commercial. Une clé d’une offre payante d’Open-Meteo en lève les limites. La clé n’est conservée que dans ce navigateur.",
+    "keyNotSaved": "La clé n’a pas pu être enregistrée dans ce navigateur.",
+    "source": {
+      "forecast": "Prévision Open-Meteo pour {{when}} à {{where}}, récupérée {{fetched}}",
+      "record": "Relevé Open-Meteo pour {{when}} à {{where}}, récupéré {{fetched}}",
+      "edited": "Modifié depuis son application.",
+      "otherSite": "Le site de lancement a changé depuis la récupération.",
+      "old": "Récupéré il y a plus de 3 heures. Une prévision plus récente peut différer.",
+      "refresh": "Actualiser…"
+    },
+    "fetchedAt": "Récupéré à {{time}}.",
+    "reused": "Réutilisé depuis {{time}}. Open-Meteo est interrogé de nouveau après 30 minutes.",
+    "fetchFresh": "Récupérer à nouveau"
+  },
+  "env": {
+    "elevation": "Altitude du site",
+    "note": "L’air tel que le vol l’a rencontré, enregistré à la montée et à la descente, du sol jusqu’à l’apogée à {{apogee}}.",
+    "ascent": "Montée",
+    "descent": "Descente",
+    "noData": "Ce résultat ne contient pas de données d’atmosphère. Relancez la simulation.",
+    "q": {
+      "windSpeed": "Vitesse du vent",
+      "windDirection": "Direction du vent",
+      "temperature": "Température de l'air",
+      "pressure": "Pression de l'air",
+      "density": "Masse volumique de l'air",
+      "speedOfSound": "Vitesse du son"
+    },
+    "when": "Date / heure",
+    "latitude": "Latitude",
+    "longitude": "Longitude",
+    "landing": {
+      "title": "Atterrissage",
+      "stage": "L’étage {{stage}} atterrit à",
+      "flyHours": "Voler les heures autour de cette prévision",
+      "flying": "Vol en cours… {{done}} sur {{total}}",
+      "flyHoursNote": "Fait voler cette conception sous la prévision de chaque heure, de deux avant à deux après, telle que la prévision est maintenant.",
+      "hour": "Heure",
+      "noForecast": "Remplissez les conditions de lancement avec Obtenir la météo… pour voir comment l’atterrissage se déplace au fil des heures autour de la prévision.",
+      "failed": "Les vols n’ont pas pu être menés à bien."
+    }
+  },
+  "landing": {
+    "title": "Estimation d’atterrissage",
+    "intro": "Où une fusée retombe, à partir d’un site, d’une heure de prévision, de son apogée et de ses vitesses de descente. C’est une estimation : la montée n’est pas modélisée et les vitesses sont celles que vous saisissez. Une fusée conçue ici obtient son atterrissage de la simulation, dans l’onglet Résultats.",
+    "site": "Site de lancement",
+    "siteElevation": "Altitude du site",
+    "terrain": "Terrain",
+    "siteElevationHint": "Laissez vide pour utiliser la hauteur du modèle de terrain au site.",
+    "when": "Quand",
+    "flight": "Vol",
+    "apogee": "Apogée au-dessus du pas de tir",
+    "recovery": "Récupération",
+    "recovery_single": "Simple",
+    "recovery_dual": "Double",
+    "descentRate": "Vitesse de descente",
+    "drogueRate": "Descente sous l’extracteur",
+    "mainRate": "Descente sous le principal",
+    "mainAltitude": "Le principal s’ouvre au-dessus du pas de tir à",
+    "mainAboveApogee": "Le principal doit s’ouvrir sous l’apogée.",
+    "estimate": "Estimer l’atterrissage",
+    "estimating": "Estimation…",
+    "empty": "Indiquez le site, l’heure et le vol, puis appuyez sur Estimer l’atterrissage.",
+    "lands": "Atterrit à",
+    "distance": "Distance",
+    "bearing": "Cap depuis le pas de tir",
+    "descentTime": "Durée de descente",
+    "zone": "Zone d’atterrissage (2σ)",
+    "noZone": "Dispersion trop faible pour être tracée",
+    "groundAtLanding": "Sol à l’atterrissage",
+    "estimateNote": "Une estimation à partir de vitesses de descente saisies. La zone couvre {{descents}} descentes : {{hours}} heures de prévision, la vitesse du vent à 20% près, la direction à 15° près et la vitesse de descente à 10% près.",
+    "flatGround": "La forme du terrain n’a pas pu être récupérée, l’atterrissage se fait donc sur un sol plat à la hauteur du pas de tir.",
+    "surfaceWindOnly": "L'historique d'Open-Meteo pour cette date n'a que le vent près du sol, donc toute la descente dérive avec lui.",
+    "mapLabel": "Estimation d’atterrissage vue d’en haut, atterrissage à {{distance}} du pas de tir"
+  },
+  "tools": {
+    "label": "Outils",
+    "tool_landing": "Estimation d’atterrissage",
+    "tool_rail": "Sortie de rail",
+    "tool_chute": "Dimensionnement du parachute"
+  },
+  "chuteTool": {
+    "title": "Dimensionnement du parachute",
+    "intro": "La voilure qui pose une fusée à la vitesse de descente choisie, d’après ce qui descend, le coefficient de traînée de la voilure et l’air au site. Une estimation tirée de l’équation de descente. Un parachute d’une fusée conçue ici montre les mêmes valeurs sous Dimensionnement de la descente, dans son éditeur.",
+    "rocket": "Fusée et voilure",
+    "mass": "Masse en descente",
+    "massHint": "Ce qui descend sous la voilure : la fusée une fois le propergol brûlé.",
+    "cd": "Cd de la voilure",
+    "diameter": "Diamètre de la voilure",
+    "none": "Aucun",
+    "air": "Air au site",
+    "standard": "Standard",
+    "result": "Résultat du dimensionnement du parachute",
+    "empty": "Saisissez la masse en descente et le Cd de la voilure."
+  },
+  "rail": {
+    "title": "Sortie de rail",
+    "intro": "Comment une fusée quitte le rail avec un moteur donné : son rapport poussée/poids, la vitesse à laquelle elle quitte le rail et combien un vent de travers la fait tourner. Une fusée conçue ici obtient ces valeurs de sa simulation, à l’événement de sortie de rail.",
+    "motor": "Moteur",
+    "noMotor": "Aucun moteur choisi",
+    "chooseMotor": "Choisir…",
+    "rocket": "Fusée et rail",
+    "dryMass": "Masse de la fusée sans le moteur",
+    "dryMassHint": "La masse chargée du moteur vient du catalogue et s’y ajoute.",
+    "wind": "Vitesse du vent",
+    "fromForecast": "Vent d’une prévision",
+    "fetchWind": "Obtenir le vent prévu",
+    "fetching": "Récupération…",
+    "forecastWind": "Vent prévu {{wind}} à 10 m, {{when}}.",
+    "forecastWindGust": "Vent prévu {{wind}} à 10 m, rafales à {{gust}}, {{when}}.",
+    "result": "Résultat de la sortie de rail",
+    "empty": "Choisissez un moteur, puis saisissez la masse de la fusée et la longueur du rail.",
+    "noLiftoff": "La poussée du moteur ne dépasse jamais le poids de la fusée, elle ne décolle donc pas.",
+    "stalls": "La fusée ralentit jusqu’à l’arrêt avant d’atteindre le bout du rail.",
+    "liftoffMass": "Masse au décollage",
+    "twrAverage": "Poussée/poids, moyen",
+    "twrPeak": "Poussée/poids, maximal",
+    "twrAtExit": "Poussée/poids en sortie de rail",
+    "exitSpeed": "Vitesse de sortie de rail",
+    "exitTime": "Temps pour quitter le rail",
+    "weathercock": "Angle de girouette",
+    "weathercockGust": "Angle de girouette dans les rafales",
+    "maxWind": "Vent le plus fort sous {{angle}}°",
+    "maxDryMass": "Fusée la plus lourde sans le moteur",
+    "none": "Aucune",
+    "rules": "En ambre : un rapport poussée/poids moyen sous {{ratio}} : 1, une sortie de rail sous {{speed}} (le minimum des Paramètres) ou un angle de girouette au-delà de {{angle}}°. La fusée la plus lourde respecte les deux premiers.",
+    "estimateNote": "Une estimation : sans traînée, sans frottement sur le rail et avec un rail vertical, donc la sortie réelle est un peu plus lente."
   }
 }

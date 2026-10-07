@@ -2,11 +2,12 @@ import { useTranslation } from 'react-i18next';
 import { fmtNum } from '../../i18n/format';
 import { useUnits } from '../../prefs/useUnits';
 import { PLUGGED_DELAY, type MotorSpec } from '../../engine/openRocketEngine';
-import { ThrustChart, Stat } from './MotorDetail';
+import { ThrustChart, SpecItem } from './MotorDetail';
 import { initialThrust } from '../../services/motors/motorPicker';
 import { curveStats } from '../../services/motors/motorMath';
 import { Dialog } from '../common/Dialog';
-import { inUserUnit, withUnit } from './motorFormat';
+import { inUserUnit, withFixedUnit } from './motorFormat';
+import { motorName } from '../../services/motors/motorName';
 
 /**
  * Read-only popup for the simulation's current motor: its (flown) thrust curve
@@ -23,7 +24,7 @@ export function MotorSpecDialog({ motor, onClose }: { motor: MotorSpec; onClose:
   const samples: [number, number][] = motor.times.map((tt, i) => [tt, motor.thrusts[i] ?? 0]);
   const { impulse, burn, avg, max } = curveStats(samples);
   const init = initialThrust(samples);
-  const g = withUnit;
+  const g = withFixedUnit;
   // MotorSpec is SI; `q` converts to the user's unit and appends its symbol.
   const q = (quantity: Parameters<typeof u.fmt>[0], si: number | null, d?: number) => inUserUnit(u, quantity, si, 1, d);
   const delay = motor.ejectionDelay >= PLUGGED_DELAY ? t('motor.plugged') : `${fmtNum(motor.ejectionDelay, 1)} s`;
@@ -32,7 +33,7 @@ export function MotorSpecDialog({ motor, onClose }: { motor: MotorSpec; onClose:
     <Dialog
       id="motorSpec"
       eyebrow={motor.manufacturer || undefined}
-      title={motor.designation}
+      title={motorName(motor)}
       onClose={onClose}
       layout="pad"
       // A thrust chart and eight stats. Worth widening on a big screen.
@@ -45,16 +46,16 @@ export function MotorSpecDialog({ motor, onClose }: { motor: MotorSpec; onClose:
       )}
 
       <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4">
-        <Stat label={t('prop.diameter')} value={q('motorDimensions', motor.diameter)} />
-        <Stat label={t('prop.length')} value={q('motorDimensions', motor.length)} />
-        <Stat label={t('motorDlg.totalWeight')} value={q('mass', motor.masses[0]!)} />
-        <Stat label={t('sims.delay')} value={delay} />
-        <Stat label={t('motorDlg.avgThrust')} value={q('force', avg, 1)} />
-        <Stat label={t('motorDlg.maxThrust')} value={q('force', max, 1)} />
-        <Stat label={t('motorDlg.initialThrust')} value={q('force', init, 1)} />
-        <Stat label={t('motorDlg.totalImpulse')} value={q('impulse', impulse, 1)} />
-        <Stat label={t('motorDlg.burnTime')} value={g(burn, 's', 2)} />
-        {motor.curveSrc && <Stat label={t('motorDlg.curve')} value={motor.curveSrc} />}
+        <SpecItem label={t('prop.diameter')} value={q('motorDimensions', motor.diameter)} />
+        <SpecItem label={t('prop.length')} value={q('motorDimensions', motor.length)} />
+        <SpecItem label={t('motorDlg.totalWeight')} value={q('mass', motor.masses[0]!)} />
+        <SpecItem label={t('sims.delay')} value={delay} />
+        <SpecItem label={t('motorDlg.avgThrust')} value={q('force', avg, 1)} />
+        <SpecItem label={t('motorDlg.maxThrust')} value={q('force', max, 1)} />
+        <SpecItem label={t('motorDlg.initialThrust')} value={q('force', init, 1)} />
+        <SpecItem label={t('motorDlg.totalImpulse')} value={q('impulse', impulse, 1)} />
+        <SpecItem label={t('motorDlg.burnTime')} value={g(burn, 's', 2)} />
+        {motor.curveSrc && <SpecItem label={t('motorDlg.curve')} value={motor.curveSrc} />}
       </dl>
     </Dialog>
   );

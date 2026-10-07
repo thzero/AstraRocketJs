@@ -1,18 +1,18 @@
 import type { ComponentNode } from '../../engine/openRocketEngine';
-import { FIN_DEFAULTS, finRootChord, finSpan } from '../../tree/finPlanform';
+import { FREEFORM_FALLBACK, finPlanformPoints, finRootChord, finSpan, finTabSpan } from '../../tree/finPlanform';
 import { countOf, num } from '../../tree/nodeProps';
-import { KERNEL_RAILBUTTON_OUTER_DIAMETER } from '../../tree/kernelDefaults.js';
-import { freeformPoints } from '../../tree/position.js';
+import { KERNEL_DEFAULTS, KERNEL_RAILBUTTON_OUTER_DIAMETER } from '../../tree/kernelDefaults.js';
 import { clusterOffsets } from '../../tree/cluster.js';
 import { tubeFinRadius } from '../../tree/tubefins.js';
 import { DISPLAY_NAME } from '../../tree/schema.js';
+import { motorSeatStart, partLength } from '../../tree/position.js';
 import { DISC_TYPES } from '../../services/files/componentFormats.js';
 import { discDims, tubeRadii } from '../../services/design/discGeometry.js';
 import { assemblyChainLength, isAssembly, resolveAssemblyRadius, ringInstanceOffsets } from '../../tree/assembly.js';
 import {
   axialStart,
   colorOf,
-  finTabFront,
+  innerTubeExtent,
   internalExtent,
   profilePath,
   unionBox,
@@ -51,14 +51,12 @@ export interface SchematicShapesCfg {
    *  share one document — an unqualified id would cross-clip). */
   uid: string;
   motors?: Record<string, { length: number; diameter: number; label?: string }>;
-  vertical?: boolean;
   selectedId?: string | null;
   onSelect?: (id: string) => void;
   setHoverId: React.Dispatch<React.SetStateAction<string | null>>;
   /** Display name for an unnamed part (the tree panel's translated type name).
    *  Absent = the untranslated schema label. */
   partName?: (n: ComponentNode) => string;
-  textUp: (x: number, y: number) => { transform?: string };
 }
 
 /** What the scene knows about one component's drawn footprint, keyed by node
@@ -83,7 +81,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
   /** Every drawn component's extent and display name, for the hover overlay. */
   extents: HoverExtents;
 } {
-  const { chain, ctx, scale, roll, uid, motors, vertical, selectedId, onSelect, setHoverId, textUp } = cfg;
+  const { chain, ctx, scale, roll, uid, motors, selectedId, onSelect, setHoverId } = cfg;
   const nameOf = (n: ComponentNode): string => n.name ?? cfg.partName?.(n) ?? DISPLAY_NAME[n.type];
 
   // Selection sync: click any drawn component to select it in the tree; the
@@ -160,12 +158,10 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
    */
   const finFactors = (n: ComponentNode, dfltCount = 3): FinInstance[] => {
     const count = countOf(n, 'finCount', dfltCount);
-    const base = num(n, 'rotation', 0) + roll;
-    const out: FinInstance[] = [];
-    for (let i = 0; i < count; i++) {
-      const a = base + (2 * Math.PI * i) / count;
-      out.push({ p: Math.cos(a), near: Math.sin(a) >= 0 });
-    }
+    const out: FinInstance[] = ringInstanceOffsets(count, 1, num(n, 'rotation', 0) + roll).map(({ y, z }) => ({
+      p: y,
+      near: z >= 0,
+    }));
     return out.sort((x, y) => Math.abs(x.p) - Math.abs(y.p));
   };
 
@@ -263,7 +259,6 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
           fontSize="10"
           fontWeight="bold"
           fill="#ffffff"
-          {...textUp(lx, cY)}
           style={{ pointerEvents: 'none' }}
         >
           {motor.label}
@@ -297,11 +292,18 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
       // Through-the-wall fin tab: dashed rect from the body surface inward,
       // foreshortened with the fin instance `p` it belongs to.
       const renderTab = (finStart: number, finLen: number, p: number) => {
-        const tabH = Math.min(num(child, 'tabHeight', 0), pRadius);
-        const tabLen = num(child, 'tabLength', 0);
-        if (tabH <= 0 || tabLen <= 0) return;
-        const front = finStart + finTabFront(child, finLen);
-        const yInner = baseY - (pRadius - tabH) * p * ctx.scale;
+        // Through `finTabSpan`, not a local read of tabHeight/tabLength: it
+        // clamps the tab into [0, rootChord] and its height into the parent
+        // radius, which the local arithmetic here did not. A tab longer than
+        // its root chord -- a state the app warns about -- was drawn hanging
+        // past the fin's edges while the DXF, the STL and the 1:1 PDF template
+        // all cut the clamped tab. The drawing and the part you cut have to be
+        // the same part.
+        const tab = finTabSpan(child, finLen, pRadius);
+        if (!tab) return;
+        const front = finStart + tab.x0;
+        const tabLen = tab.x1 - tab.x0;
+        const yInner = baseY - (pRadius - tab.height) * p * ctx.scale;
         const ySurface = baseY - pRadius * p * ctx.scale;
         const hPx = Math.abs(yInner - ySurface);
         if (wire && hPx < 0.5) return;
@@ -321,10 +323,26 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
           />,
         );
       };
-      if (t === 'freeformfinset') {
-        const raw = freeformPoints(child);
-        if (raw.length >= 3) {
-          const xs = raw.map((p) => p[0]);
+      if (t === 'freeformfinset' || t === 'trapezoidfinset' || t === 'ellipticalfinset') {
+        // ONE branch for all three planar fin types, and the outline comes from
+        // `finPlanformPoints` -- the module that owns it -- rather than from
+        // dimensions re-assembled here.
+        //
+        // This file used to build the trapezoid as a polygon literal and the
+        // ellipse as an SVG `A` arc from `rootChord`/`tipChord`/`sweep`/
+        // `height`, which meant it silently skipped the two rules the kernel
+        // applies: the tip collapse (a tip chord at or below 0.0001 m is a
+        // TRIANGLE, not a trapezoid with a zero-length tip edge) and the
+        // `Math.max(root, MIN_ROOT)` floor. A `.ork` with rootChord <= 0 drew a
+        // degenerate shape here while every other view drew the floored one.
+        //
+        // The ellipse is now the kernel's own 31-point outline rather than a
+        // smooth arc. At schematic scale the two are indistinguishable, and the
+        // polygon is what the 3D view, the STL, the DXF and the PDF template
+        // all draw -- so the drawing is the part that gets cut, which an
+        // idealized arc could not promise.
+        const outline = finPlanformPoints(child) ?? FREEFORM_FALLBACK;
+        {
           // Root chord (first→last point, where the outline meets the body)
           // positions the fin and its tab — the same measure the engine uses,
           // from the one module that owns it (tree/finPlanform), so this view
@@ -333,7 +351,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
           // root when the tip trailing corner overhangs; it only widens the
           // drawn shape and its hover/hit box, and must NOT move the fin forward.
           const chord = finRootChord(child);
-          const aftX = Math.max(...xs);
+          const aftX = Math.max(...outline.map((pt) => pt[0]));
           const start = axialStart(child, chord, pStart, pLen);
           const ymax = finSpan(child);
           const reach = pRadius + ymax;
@@ -349,7 +367,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
           );
           const clip = airframeClip(baseY, pRadius);
           for (const { p, near } of projections) {
-            const ptsStr = raw
+            const ptsStr = outline
               .map(([px, py]) => `${ctx.x0 + (start + px) * ctx.scale},${baseY - (pRadius + py) * p * ctx.scale}`)
               .join(' ');
             // Rolled: an outline over the body — every instance, including one
@@ -380,86 +398,12 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
             }
           }
         }
-      } else if (t === 'trapezoidfinset' || t === 'ellipticalfinset') {
-        // Fallbacks from tree/finPlanform, not local literals: this file used
-        // `root * 0.6` for a missing tipChord while the mesh and PDF paths used
-        // 0.03, so the same fin was a different part on screen and in the STL.
-        // (The elliptical arc below is drawn with an SVG `A` command, which is a
-        // true half-ellipse, so only the trapezoid dimensions come from here.)
-        const root = num(child, 'rootChord', FIN_DEFAULTS.rootChord);
-        const tip = t === 'trapezoidfinset' ? num(child, 'tipChord', FIN_DEFAULTS.tipChord) : 0;
-        const sweep = t === 'trapezoidfinset' ? num(child, 'sweep', FIN_DEFAULTS.sweep) : root / 2;
-        const height = num(child, 'height', FIN_DEFAULTS.height);
-        const start = axialStart(child, root, pStart, pLen);
-        const reach = pRadius + height;
-        const projections = finFactors(child);
-        noteHoverFins(
-          child,
-          ctx.x0 + start * ctx.scale,
-          ctx.x0 + (start + Math.max(root, sweep + tip)) * ctx.scale,
-          baseY,
-          reach,
-          pRadius,
-          projections,
-        );
-        const finClip = airframeClip(baseY, pRadius);
-        for (const { p, near } of projections) {
-          // A point at radius r projects to y = baseY − r·cos θ (angle 0 = up);
-          // both the root (r = pRadius) and the tip (r = reach) scale by `p`.
-          const y0 = baseY - pRadius * p * ctx.scale;
-          const yh = baseY - reach * p * ctx.scale;
-          const X = ctx.x0 + start * ctx.scale;
-          const ry = Math.abs(y0 - yh);
-          // Elliptical fin = a true half-ellipse by SVG arc (a quadratic Bézier
-          // only reaches ~57% of its control height). ry unfloored while wired
-          // so an edge-on ellipse degenerates to the line the other shapes draw.
-          const ellipse = `M ${X} ${y0} A ${(root / 2) * ctx.scale} ${wire ? ry : Math.max(2, ry)} 0 0 ${p > 0 ? 1 : 0} ${X + root * ctx.scale} ${y0} Z`;
-          const trap = `${X},${y0} ${X + sweep * ctx.scale},${yh} ${X + (sweep + tip) * ctx.scale},${yh} ${X + root * ctx.scale},${y0}`;
-          if (wire) {
-            pushWire(child, grab, finClip, (extra) =>
-              t === 'trapezoidfinset' ? (
-                <polygon key={key++} points={trap} {...extra} />
-              ) : (
-                <path key={key++} d={ellipse} {...extra} />
-              ),
-            );
-            renderTab(start, root, p);
-            continue;
-          }
-          const outsideClip = near ? undefined : `url(#${finClip})`;
-          const body =
-            t === 'trapezoidfinset' ? (
-              <polygon
-                key={key++}
-                clipPath={outsideClip}
-                points={trap}
-                fill={fillOf(child, '#b9b7b0')}
-                stroke={selStroke(child, '#7a786f')}
-                strokeWidth={selWidth(child)}
-                {...grab}
-              />
-            ) : (
-              <path
-                key={key++}
-                clipPath={outsideClip}
-                d={ellipse}
-                fill={fillOf(child, '#b9b7b0')}
-                stroke={selStroke(child, '#7a786f')}
-                strokeWidth={selWidth(child)}
-                {...grab}
-              />
-            );
-          if (reach * Math.abs(p) > pRadius) {
-            (near ? overlay : shapes).push(body);
-            renderTab(start, root, p);
-          }
-        }
       } else if (t === 'tubefinset') {
         // Side view: every tube of the ring at its projected height. A tube runs
         // PARALLEL to the axis, so roll doesn't squash its 2·rt silhouette — only
         // its center moves, to (pRadius + rt)·cos θ. Tubes whose silhouette falls
         // entirely inside the airframe are hidden behind it and dropped.
-        const len = num(child, 'length', 0.1);
+        const len = num(child, 'length', KERNEL_DEFAULTS.tubefinset.length);
         const rt = tubeFinRadius(child, pRadius);
         const start = axialStart(child, len, pStart, pLen);
         const X = ctx.x0 + start * ctx.scale;
@@ -531,8 +475,8 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
       } else if (t === 'fairing') {
         // External shroud: SOLID outline (it's on the outside — Eric's spec),
         // drawn on the top surface; radial angle isn't modeled.
-        const len = num(child, 'length', 0.08);
-        const hgt = num(child, 'height', 0.02);
+        const len = num(child, 'length', KERNEL_DEFAULTS.fairing.length);
+        const hgt = num(child, 'height', KERNEL_DEFAULTS.fairing.height);
         const fshape = String(child['fairingShape'] ?? 'halfround');
         const start = axialStart(child, len, pStart, pLen);
         const X = ctx.x0 + start * ctx.scale;
@@ -580,8 +524,10 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
         // Rail buttons are edited via 'outerDiameter' (their only size field)
         // and have no axial 'length' — a button is about as long as it is wide.
         const btnDia = t === 'railbutton' ? num(child, 'outerDiameter', KERNEL_RAILBUTTON_OUTER_DIAMETER) : 0;
-        const len = t === 'railbutton' ? btnDia : num(child, 'length', 0.01);
-        const r = t === 'railbutton' ? btnDia / 2 : num(child, 'outerRadius', 0.002);
+        // A lug with no size keys is the kernel's own (ComponentFactory, case
+        // "launchlug"), the size the 3D view and the exporters already use.
+        const len = t === 'railbutton' ? btnDia : num(child, 'length', KERNEL_DEFAULTS.launchlug.length);
+        const r = t === 'railbutton' ? btnDia / 2 : num(child, 'outerRadius', KERNEL_DEFAULTS.launchlug.outerRadius);
         const start = axialStart(child, len, pStart, pLen);
         // Project the radial mount angle onto the side profile: 0° stands at full
         // height above the tube, ±90° is edge-on (foreshortens away), 180° sits
@@ -629,20 +575,23 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
         // A ring, coupler, bulkhead or engine block is sized the way the DXF cut
         // sheet and the printed solid size it: its own radii, else the bore of
         // the tube it sits in, with a ring's bore taken from the mount through
-        // it. Everything else keeps `internalExtent`, whose 85% cap is what
+        // it. An inner tube is drawn at its own size, the one it flies at
+        // (innerTubeExtent). Everything else keeps `internalExtent`, whose 85% cap is what
         // keeps a chute's INVENTED fallback box off the tube wall - a real
         // dimension does not need protecting from itself, and a coupler hit
         // that cap every time, since filling the bore is what a coupler is.
         const disc = DISC_TYPES.has(child.type) ? discDims(child, tubeRadii(parent), parent.children ?? []) : null;
         const { length: len, radius: r } = disc
           ? { length: disc.length, radius: disc.outerR }
-          : internalExtent(child, pRadius);
+          : child.type === 'innertube'
+            ? innerTubeExtent(child)
+            : internalExtent(child, pRadius);
         const start = axialStart(child, len, pStart, pLen);
         const offsets =
           child.type === 'innertube'
             ? clusterOffsets(
                 child['cluster'] as string | undefined,
-                num(child, 'outerRadius', 0.0095),
+                r,
                 num(child, 'clusterScale', 1),
                 num(child, 'clusterRotation', 0),
               )
@@ -748,12 +697,9 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
             }
           }
           // Type tag, when the box has room for it — glyph types skip the
-          // text once their picture is drawn. Counter-rotated tags read
-          // horizontally in vertical mode, so the room roles swap.
+          // text once their picture is drawn.
           const hasGlyph = gs >= 8 && ['parachute', 'masscomponent', 'centeringring', 'shockcord'].includes(child.type);
-          const tagRoom = vertical
-            ? 2 * r * ctx.scale > 26 && len * ctx.scale > 11
-            : len * ctx.scale > 26 && 2 * r * ctx.scale > 11;
+          const tagRoom = len * ctx.scale > 26 && 2 * r * ctx.scale > 11;
           if (style && !hasGlyph && tagRoom) {
             const tx = ctx.x0 + (start + len / 2) * ctx.scale;
             const ty = baseY + off.y * ctx.scale;
@@ -766,7 +712,6 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
                 dominantBaseline="central"
                 fontSize="8.5"
                 fill={fillOf(child, style.stroke)}
-                {...textUp(tx, ty)}
                 style={{ pointerEvents: 'none', textTransform: 'uppercase', letterSpacing: '0.04em' }}
               >
                 {style.tag}
@@ -775,11 +720,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
           }
           if (motor) {
             overlay.push(
-              ...motorShapes(
-                motor,
-                start + len - motor.length + num(child, 'motorOverhang', 0),
-                baseY + off.y * ctx.scale,
-              ),
+              ...motorShapes(motor, motorSeatStart(child, start, len, motor.length), baseY + off.y * ctx.scale),
             );
           }
         }
@@ -829,9 +770,9 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
   const renderChain = (nodes: ComponentNode[], xStart: number, baseY: number) => {
     let cx = xStart;
     for (const n of nodes) {
-      const len = num(n, 'length', 0);
+      const len = partLength(n);
       if (n.type === 'nosecone') {
-        const r = num(n, 'aftRadius', 0.012);
+        const r = num(n, 'aftRadius', KERNEL_DEFAULTS.nosecone.aftRadius);
         noteHover(n, ctx.x0 + cx * scale, baseY - r * scale, ctx.x0 + (cx + len) * scale, baseY + r * scale);
         shapes.push(
           <path
@@ -847,7 +788,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
         renderChildren(n, cx, len, r, baseY);
         cx += len;
       } else if (n.type === 'bodytube') {
-        const r = num(n, 'outerRadius', 0.012);
+        const r = num(n, 'outerRadius', KERNEL_DEFAULTS.bodytube.outerRadius);
         // A zero-size "phantom" tube (length 0, radius 0) is a modeling hack
         // used only to hang an off-axis fin set at a chosen radius (e.g. a
         // T-tail's horizontal stabilizer). Draw no rect for it — a degenerate
@@ -873,7 +814,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
         // real case size, seated flush against the tube's aft end.
         const tubeMotor = n.id ? motors?.[n.id] : undefined;
         if (tubeMotor) {
-          shapes.push(...motorShapes(tubeMotor, cx + len - tubeMotor.length + num(n, 'motorOverhang', 0), baseY));
+          shapes.push(...motorShapes(tubeMotor, motorSeatStart(n, cx, len, tubeMotor.length), baseY));
         }
         renderChildren(n, cx, len, r, baseY);
         cx += len;

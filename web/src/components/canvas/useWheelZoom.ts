@@ -1,5 +1,5 @@
 import { useEffect, useRef, type RefObject } from 'react';
-import { zoomAbout, type ZoomState } from './schematicGeometry';
+import { zoomStep, type ZoomState } from './schematicGeometry';
 
 /**
  * Wheel-zoom about the pointer for an SVG drawing, shared by TreeSchematic and
@@ -36,7 +36,7 @@ export function useWheelZoom(
       if (rect.width === 0 || rect.height === 0) return;
       const { px, py } = toView(e, rect);
       const step = e.deltaY < 0 ? opts.factor : 1 / opts.factor;
-      setZoom((z) => zoomAbout(z, px, py, Math.min(opts.max, Math.max(1, z.k * step))));
+      setZoom((z) => zoomStep(z, px, py, step, opts.max));
     };
     svg.addEventListener('wheel', onWheel, { passive: false });
     return () => svg.removeEventListener('wheel', onWheel);

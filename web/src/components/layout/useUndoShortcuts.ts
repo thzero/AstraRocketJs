@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useWorkspaceStore } from '../../state/store';
+import { isTextEntry } from '../common/isTextEntry';
 
 /**
  * Keyboard: Ctrl/Cmd+Z undoes, Ctrl+Shift+Z / Ctrl+Y redoes, globally. The
@@ -18,13 +19,7 @@ export function useUndoShortcuts(): void {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
-      const el = document.activeElement as HTMLElement | null;
-      if (
-        el &&
-        (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable)
-      ) {
-        return;
-      }
+      if (isTextEntry(document.activeElement)) return;
       const key = e.key.toLowerCase();
       if (key === 'z' && !e.shiftKey) {
         e.preventDefault();

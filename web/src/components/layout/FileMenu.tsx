@@ -1,6 +1,7 @@
-import { type KeyboardEvent as ReactKeyboardEvent, useEffect, useRef, useState } from 'react';
+import { type KeyboardEvent as ReactKeyboardEvent, type ReactNode, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useCanBuildDesign } from '../design/useCanBuildDesign';
+import { useMenuPopover } from '../common/useMenuPopover';
 
 /**
  * The header's file menu: the trigger button that owns the open flag and
@@ -36,6 +37,53 @@ export interface FileMenuActions {
   onSafety: () => void;
   onPrivacy: () => void;
   onAbout: () => void;
+}
+
+/**
+ * One entry of the file menu. `sub` indents it as an Import / Export format;
+ * `expanded` makes it the toggle for such a submenu, with the caret showing
+ * whether the formats are revealed.
+ */
+function MenuItem({
+  sub,
+  label,
+  expanded,
+  disabled,
+  onClick,
+  children,
+}: {
+  sub?: boolean;
+  /** Accessible name, when the visible text is too terse on its own. */
+  label?: string;
+  expanded?: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  const submenu = expanded !== undefined;
+  return (
+    <button
+      role="menuitem"
+      tabIndex={-1}
+      className={sub ? subItem : item}
+      aria-label={label}
+      aria-haspopup={submenu ? 'true' : undefined}
+      aria-expanded={expanded}
+      disabled={disabled}
+      onClick={onClick}
+    >
+      {submenu ? (
+        <>
+          <span className="flex-1">{children}</span>
+          <span aria-hidden className="text-slate-400">
+            {expanded ? '▾' : '▸'}
+          </span>
+        </>
+      ) : (
+        children
+      )}
+    </button>
+  );
 }
 
 /**
@@ -135,139 +183,65 @@ function FileMenu({
       onKeyDown={onMenuKey}
       className="absolute right-0 z-50 mt-1 w-44 overflow-hidden rounded-lg bg-slate-800 py-1 shadow-xl ring-1 ring-white/10"
     >
-      <button role="menuitem" tabIndex={-1} className={item} onClick={run(actions.onNew)}>
-        {t('file.new')}
-      </button>
-      <button role="menuitem" tabIndex={-1} className={item} onClick={run(actions.onOpenLibrary)}>
-        {t('file.openLibrary')}
-      </button>
-      <button role="menuitem" tabIndex={-1} className={item} disabled={!canSave} onClick={run(actions.onSaveAs)}>
+      <MenuItem onClick={run(actions.onNew)}>{t('file.new')}</MenuItem>
+      <MenuItem onClick={run(actions.onOpenLibrary)}>{t('file.openLibrary')}</MenuItem>
+      <MenuItem disabled={!canSave} onClick={run(actions.onSaveAs)}>
         {t('file.saveAs')}
-      </button>
+      </MenuItem>
       <div className="my-1 border-t border-white/10" />
-      <button
-        role="menuitem"
-        tabIndex={-1}
-        className={item}
-        aria-haspopup="true"
-        aria-expanded={importOpen}
-        onClick={() => setImportOpen((o) => !o)}
-      >
-        <span className="flex-1">{t('file.import')}</span>
-        <span aria-hidden className="text-slate-400">
-          {importOpen ? '▾' : '▸'}
-        </span>
-      </button>
+      <MenuItem expanded={importOpen} onClick={() => setImportOpen((o) => !o)}>
+        {t('file.import')}
+      </MenuItem>
       {importOpen && (
-        <button
-          role="menuitem"
-          tabIndex={-1}
-          className={subItem}
-          aria-label={t('file.importOrkLabel')}
-          onClick={run(actions.onImportOrk)}
-        >
+        <MenuItem sub label={t('file.importOrkLabel')} onClick={run(actions.onImportOrk)}>
           {t('file.importOrk')}
-        </button>
+        </MenuItem>
       )}
       {importOpen && (
-        <button
-          role="menuitem"
-          tabIndex={-1}
-          className={subItem}
-          aria-label={t('file.importRktLabel')}
-          onClick={run(actions.onImportRkt)}
-        >
+        <MenuItem sub label={t('file.importRktLabel')} onClick={run(actions.onImportRkt)}>
           {t('file.importRkt')}
-        </button>
+        </MenuItem>
       )}
       {/* Under Import and not beside New, because that is what opening one is:
           it reads a `.ork` and lands an unsaved copy, exactly as the entry above
           does — the file just happens to ship with the app. */}
       {importOpen && (
-        <button
-          role="menuitem"
-          tabIndex={-1}
-          className={subItem}
-          aria-label={t('file.importExamplesLabel')}
-          onClick={run(actions.onImportExamples)}
-        >
+        <MenuItem sub label={t('file.importExamplesLabel')} onClick={run(actions.onImportExamples)}>
           {t('file.importExamples')}
-        </button>
+        </MenuItem>
       )}
-      <button
-        role="menuitem"
-        tabIndex={-1}
-        className={item}
-        aria-haspopup="true"
-        aria-expanded={exportOpen}
-        disabled={!canSave}
-        onClick={() => setExportOpen((o) => !o)}
-      >
-        <span className="flex-1">{t('file.export')}</span>
-        <span aria-hidden className="text-slate-400">
-          {exportOpen ? '▾' : '▸'}
-        </span>
-      </button>
+      <MenuItem expanded={exportOpen} disabled={!canSave} onClick={() => setExportOpen((o) => !o)}>
+        {t('file.export')}
+      </MenuItem>
       {exportOpen && (
-        <button
-          role="menuitem"
-          tabIndex={-1}
-          className={subItem}
-          aria-label={t('file.exportOrkLabel')}
-          disabled={!canSave}
-          onClick={run(actions.onExportOrk)}
-        >
+        <MenuItem sub label={t('file.exportOrkLabel')} disabled={!canSave} onClick={run(actions.onExportOrk)}>
           {t('file.exportOrk')}
-        </button>
+        </MenuItem>
       )}
       {exportOpen && (
-        <button
-          role="menuitem"
-          tabIndex={-1}
-          className={subItem}
-          aria-label={t('file.exportRktLabel')}
-          disabled={!canSave}
-          onClick={run(actions.onExportRkt)}
-        >
+        <MenuItem sub label={t('file.exportRktLabel')} disabled={!canSave} onClick={run(actions.onExportRkt)}>
           {t('file.exportRkt')}
-        </button>
+        </MenuItem>
       )}
       {exportOpen && (
-        <button
-          role="menuitem"
-          tabIndex={-1}
-          className={subItem}
-          aria-label={t('file.exportPrintLabel')}
-          disabled={!canSave}
-          onClick={run(actions.onExportPrint)}
-        >
+        <MenuItem sub label={t('file.exportPrintLabel')} disabled={!canSave} onClick={run(actions.onExportPrint)}>
           {t('file.exportPrint')}
-        </button>
+        </MenuItem>
       )}
       {exportOpen && (
-        <button
-          role="menuitem"
-          tabIndex={-1}
-          className={subItem}
-          disabled={!canSave}
-          onClick={run(actions.onExportRasaero)}
-        >
+        <MenuItem sub disabled={!canSave} onClick={run(actions.onExportRasaero)}>
           {t('file.rasaero')}
-        </button>
+        </MenuItem>
       )}
-      <button role="menuitem" tabIndex={-1} className={item} disabled={!canSave} onClick={run(actions.onReport)}>
+      <MenuItem disabled={!canSave} onClick={run(actions.onReport)}>
         {t('file.report')}
-      </button>
+      </MenuItem>
       <div className="my-1 border-t border-white/10" />
-      <button role="menuitem" tabIndex={-1} className={item} onClick={run(actions.onMotors)}>
-        {t('dash.menu')}
-      </button>
+      <MenuItem onClick={run(actions.onMotors)}>{t('dash.menu')}</MenuItem>
       {/* Beside the motor dashboard, which is the same kind of entry: a place
           to see and manage a library of your own that is otherwise only
           reachable from the one panel that happens to use it. */}
-      <button role="menuitem" tabIndex={-1} className={item} onClick={run(actions.onLaunchLocations)}>
-        {t('location.menu')}
-      </button>
+      <MenuItem onClick={run(actions.onLaunchLocations)}>{t('location.menu')}</MenuItem>
       {/* And the third: the component picker only opens when a part of a
           matching type is selected, so this is the only way to see a saved
           bulkhead on a design that has no bulkhead in it.
@@ -278,35 +252,21 @@ function FileMenu({
           it has no way to put anything into. The picker inside the property
           editor stays, so a part already in the rocket can still be sized from
           the catalog, and saved parts are still SAVED from there. */}
-      {canBuild && (
-        <button role="menuitem" tabIndex={-1} className={item} onClick={run(actions.onSavedParts)}>
-          {t('picker.savedManage')}
-        </button>
-      )}
+      {canBuild && <MenuItem onClick={run(actions.onSavedParts)}>{t('picker.savedManage')}</MenuItem>}
       <div className="my-1 border-t border-white/10" />
-      <button role="menuitem" tabIndex={-1} className={item} onClick={run(actions.onSettings)}>
-        {t('settings.title')}
-      </button>
+      <MenuItem onClick={run(actions.onSettings)}>{t('settings.title')}</MenuItem>
       {/* Buttons, not links: these open the in-app Help dialog over the design
           you are holding rather than sending you to another tab, which is what
           makes help readable at a field with no signal. The dialog carries its
           own "open on the docs site" link for when you want the shareable URL. */}
-      <button role="menuitem" tabIndex={-1} className={item} onClick={run(actions.onHelp)}>
-        {t('menu.help')}
-      </button>
+      <MenuItem onClick={run(actions.onHelp)}>{t('menu.help')}</MenuItem>
       {/* Its own entry rather than a page buried in Help: what a simulation is
           worth, and what to check on the real rocket, is the one doc a user
           should not have to go looking for. */}
-      <button role="menuitem" tabIndex={-1} className={item} onClick={run(actions.onSafety)}>
-        {t('menu.safety')}
-      </button>
+      <MenuItem onClick={run(actions.onSafety)}>{t('menu.safety')}</MenuItem>
       <div className="my-1 border-t border-white/10" />
-      <button role="menuitem" tabIndex={-1} className={item} onClick={run(actions.onPrivacy)}>
-        {t('about.privacy')}
-      </button>
-      <button role="menuitem" tabIndex={-1} className={item} onClick={run(actions.onAbout)}>
-        {t('about.open')}
-      </button>
+      <MenuItem onClick={run(actions.onPrivacy)}>{t('about.privacy')}</MenuItem>
+      <MenuItem onClick={run(actions.onAbout)}>{t('about.open')}</MenuItem>
     </div>
   );
 }
@@ -314,32 +274,13 @@ function FileMenu({
 /** The menu-button: the trigger plus the menu it opens, closed on outside click. */
 export function FileMenuButton({ canSave, actions }: { canSave: boolean; actions: FileMenuActions }) {
   const { t } = useTranslation();
-  const menuRef = useRef<HTMLDivElement>(null);
-  const menuBtnRef = useRef<HTMLButtonElement>(null);
-  const [menuOpen, setMenuOpen] = useState(false);
-
-  // Close the menu on outside click / Escape.
-  useEffect(() => {
-    if (!menuOpen) return;
-    const onDown = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setMenuOpen(false);
-    };
-    window.addEventListener('mousedown', onDown);
-    window.addEventListener('keydown', onKey);
-    return () => {
-      window.removeEventListener('mousedown', onDown);
-      window.removeEventListener('keydown', onKey);
-    };
-  }, [menuOpen]);
+  const { open: menuOpen, toggle, close, wrapRef: menuRef, triggerRef: menuBtnRef } = useMenuPopover();
 
   return (
     <div className="relative" ref={menuRef}>
       <button
         ref={menuBtnRef}
-        onClick={() => setMenuOpen((o) => !o)}
+        onClick={toggle}
         aria-haspopup="menu"
         aria-expanded={menuOpen}
         title={t('menu.open')}
@@ -352,9 +293,9 @@ export function FileMenuButton({ canSave, actions }: { canSave: boolean; actions
       {menuOpen && (
         <FileMenu
           canSave={canSave}
-          onClose={() => setMenuOpen(false)}
+          onClose={close}
           onEscape={() => {
-            setMenuOpen(false);
+            close();
             menuBtnRef.current?.focus();
           }}
           actions={actions}

@@ -53,12 +53,22 @@ export default defineConfig({
     // Capping the pool fixes that and is ~4× faster: 46 s → 11.8 s with
     // coverage.
     maxWorkers: 4,
-    // Reported AND floored. `npm run test:coverage` (what CI runs) fails below
-    // the floor; `npm test` does not collect coverage and is unaffected. The
-    // floor is deliberately well under the measurement, not at it: it exists
-    // to catch a change that deletes a test file or a whole tested module,
-    // which drops lines by whole points, not to make every PR raise the
-    // number. Raise it when the measurement moves up and stays there.
+    // CI runs the suite with coverage on a shared 4-vCPU runner, where tests
+    // run about ten times slower than on a developer machine: a 500 ms test
+    // passes the 5 s default there. On CI the default is a minute, which still
+    // catches a hang; off CI it stays at vitest's 5 s, so a test that has
+    // started taking seconds is noticed where it is written. Files that fly the
+    // kernel still set KERNEL_TEST_TIMEOUT_MS, which is longer.
+    ...(process.env.CI ? { testTimeout: 60_000, hookTimeout: 60_000 } : {}),
+    // Reported AND enforced. `npm run verify:ci` (what both workflows run) fails
+    // below these minimums; `npm run verify` and `npm test` do not collect coverage
+    // at all and are unaffected, which is why instrumentation stays off the command
+    // a developer types before pushing.
+    //
+    // The minimums sit UNDER the measurement on purpose. They exist to catch a
+    // change that deletes a test file or a whole tested module, which drops the
+    // percentage by whole points, not to make every PR raise a number. Raise them
+    // when a higher reading has stayed put.
     coverage: {
       provider: 'v8',
       // `json-summary` is what gates.yml reads to put the totals in the job
@@ -70,12 +80,21 @@ export default defineConfig({
       // The tests and their scaffolding are their own tree now, and coverage
       // only INCLUDES src, so neither needs excluding any more.
       exclude: ['src/engine/vendor/**', 'src/**/*.d.ts'],
-      // 70.93% lines measured 2026-09-25 (`npm run test:coverage`, 2532 tests
-      // in 193 files); it read 62.03% on 2026-09-20 at 1655 tests, and 58% in
-      // the audit before that. The floor is left well under the measurement on
-      // purpose - it exists to catch a deletion, not to make every PR raise a
-      // number - so it moves only when a higher reading has stayed put.
-      thresholds: { lines: 55 },
+      // Measured 2026-10-02 (`npm run verify:ci`, 3490 tests in 263 files): lines
+      // 74.85%, statements 73.55%, branches 66.52%, functions 66%. Earlier readings:
+      // 70.93% lines on 2026-09-25 at 2532 tests, 62.03% on 2026-09-20 at 1655, and
+      // 58% in the audit before that.
+      //
+      // Each minimum is about five points under its measurement. `lines: 55` against
+      // 74.85% was twenty points of slack - roughly a fifth of the suite could be
+      // deleted and still pass - while five points absorbs the ordinary wobble of a
+      // refactor that moves code between files.
+      //
+      // Branches and functions are enforced too, where they used to be printed in
+      // the job summary and checked by nothing. A number nothing enforces is
+      // decoration, and these two are where coverage actually erodes: a new `if`
+      // with no test for its other side moves branches and leaves lines alone.
+      thresholds: { lines: 70, branches: 62, functions: 61, statements: 69 },
     },
   },
 });

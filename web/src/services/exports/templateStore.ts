@@ -5,6 +5,8 @@
 // the material/motor stores; swap setTemplateStore(...) for a bespoke backend.
 import type { KeyValueStore } from '../storage/keyValueStore';
 import { IndexedDbKeyValueStore } from '../storage/idbKeyValueStore';
+import { JsonListStore } from '../storage/jsonListStore';
+import { nsKey } from '../storage/storageKeys';
 
 /** A user-imported export template. */
 export interface UserTemplate {
@@ -44,7 +46,7 @@ export interface TemplateStore {
   remove(id: string): Promise<void>;
 }
 
-const CUSTOM_KEY = 'astrarrocketjs:templates:custom';
+const CUSTOM_KEY = nsKey('templates:custom');
 
 function isUserTemplate(v: unknown): v is UserTemplate {
   const t = v as UserTemplate;
@@ -58,56 +60,27 @@ function isUserTemplate(v: unknown): v is UserTemplate {
 }
 
 /**
- * Default TemplateStore: serializes the template list to a single key-value
- * entry through a KeyValueStore (IndexedDB by default).
+ * Default TemplateStore: the template list as one JSON array under one
+ * key-value entry (see JsonListStore for the read and write rules), newest
+ * import first, one entry per id.
  */
 export class KeyValueTemplateStore implements TemplateStore {
-  constructor(
-    private readonly key: string = CUSTOM_KEY,
-    private readonly kv: KeyValueStore = new IndexedDbKeyValueStore(),
-  ) {}
+  private readonly items: JsonListStore<UserTemplate>;
 
-  /** The stored list, tolerating an absent, corrupt or partly invalid blob. */
-  private static parse(raw: string | null): UserTemplate[] {
-    if (!raw) return [];
-    try {
-      const parsed = JSON.parse(raw) as unknown;
-      if (!Array.isArray(parsed)) return [];
-      return parsed.filter(isUserTemplate);
-    } catch {
-      return []; // corrupt entry
-    }
+  constructor(key: string = CUSTOM_KEY, kv: KeyValueStore = new IndexedDbKeyValueStore()) {
+    this.items = new JsonListStore(key, isUserTemplate, (t) => t.id, kv);
   }
 
-  /**
-   * Read, transform and write in ONE store transaction, and propagate a
-   * refused write the way `motorStore.addCustomMotor` does.
-   *
-   * `kv.update` reports failure by RETURNING false rather than throwing, so
-   * discarding it meant the dialog awaited the save, got a clean resolve, and
-   * re-rendered a list that simply did not contain the thing the user had just
-   * added - with no error anywhere. "Best-effort (re-addable)" was the excuse,
-   * but re-adding is only possible if you are told it did not stick.
-   *
-   * `update`, not read-then-set: IndexedDB is shared across the tabs of this
-   * installable PWA, and a get/set with an await between them let two tabs
-   * each drop the other's template (see `DesignLibrary.mutateIndex`).
-   */
-  private async mutate(fn: (list: UserTemplate[]) => UserTemplate[]): Promise<void> {
-    const ok = await this.kv.update(this.key, (raw) => JSON.stringify(fn(KeyValueTemplateStore.parse(raw))));
-    if (!ok) throw new Error('storage-full');
+  list(): Promise<UserTemplate[]> {
+    return this.items.list();
   }
 
-  async list(): Promise<UserTemplate[]> {
-    return KeyValueTemplateStore.parse(await this.kv.get(this.key));
+  add(template: UserTemplate): Promise<void> {
+    return this.items.upsert([template]);
   }
 
-  async add(template: UserTemplate): Promise<void> {
-    await this.mutate((list) => [template, ...list.filter((t) => t.id !== template.id)]);
-  }
-
-  async remove(id: string): Promise<void> {
-    await this.mutate((list) => list.filter((t) => t.id !== id));
+  remove(id: string): Promise<void> {
+    return this.items.remove(id);
   }
 }
 

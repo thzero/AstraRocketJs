@@ -113,8 +113,9 @@ describe('simClient pool', () => {
 
   it('leaves a core for the main thread and caps the pool', async () => {
     withCores(32);
-    const { simulateInWorker, simConcurrency } = await import('../../src/engine/simClient');
-    expect(simConcurrency()).toBe(4); // capped: each worker is a whole engine
+    const { simulateInWorker } = await import('../../src/engine/simClient');
+    // Eight requests on a 32-core machine create four workers, each a whole
+    // engine, leaving a core for the main thread.
     for (let i = 0; i < 8; i++) fire(() => simulateInWorker(payload));
     expect(created).toHaveLength(4);
   });

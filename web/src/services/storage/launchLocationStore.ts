@@ -1,6 +1,8 @@
 import type { KeyValueStore } from './keyValueStore';
 import { IndexedDbKeyValueStore } from './idbKeyValueStore';
+import { JsonListStore } from './jsonListStore';
 import { uuid } from '../app/uuid';
+import { nsKey } from './storageKeys';
 
 /**
  * Swappable client-side store for the user's saved LAUNCH PADS.
@@ -47,66 +49,65 @@ export interface LaunchLocationStore {
  * would leave that entry behind with nothing reading it - a list that silently
  * came back empty, which is exactly the failure this store exists to prevent.
  */
-const LOCATIONS_KEY = 'astrarrocketjs:pads:custom';
+const LOCATIONS_KEY = nsKey('pads:custom');
 
-/** A location whose numbers are inside the ranges the launch fields themselves enforce. */
+/**
+ * The ranges a launch site's numbers must fall in. The launch fields clamp to
+ * them and a stored location is validated against them, so a location saved from
+ * the fields always reads back.
+ *
+ * Latitude past +/-90 is rejected outright by Google Earth in the KML export, and
+ * all three reach the kernel (gravity, Coriolis, the atmosphere model). Altitude
+ * runs from the Dead Sea shore to above any launch site.
+ */
+export const LAUNCH_SITE_LIMITS = {
+  latitudeDeg: { min: -90, max: 90 },
+  longitudeDeg: { min: -180, max: 180 },
+  launchAltitudeM: { min: -500, max: 10000 },
+  /** Air temperature at the site, °C: the launch panel's and the tools' bounds. */
+  temperatureC: { min: -90, max: 70 },
+} as const;
+
+/** A location whose numbers are inside {@link LAUNCH_SITE_LIMITS}. */
 function isLocation(v: unknown): v is LaunchLocation {
   const p = v as LaunchLocation;
-  const num = (x: unknown, lo: number, hi: number): boolean =>
-    typeof x === 'number' && Number.isFinite(x) && x >= lo && x <= hi;
+  const num = (x: unknown, { min, max }: { min: number; max: number }): boolean =>
+    typeof x === 'number' && Number.isFinite(x) && x >= min && x <= max;
   return (
     !!p &&
     typeof p.id === 'string' &&
     p.id !== '' &&
     typeof p.name === 'string' &&
-    num(p.latitudeDeg, -90, 90) &&
-    num(p.longitudeDeg, -180, 180) &&
-    // The same floor and ceiling `LaunchPanel` clamps the altitude field to:
-    // the Dead Sea shore to above any launch site.
-    num(p.launchAltitudeM, -500, 10000)
+    num(p.latitudeDeg, LAUNCH_SITE_LIMITS.latitudeDeg) &&
+    num(p.longitudeDeg, LAUNCH_SITE_LIMITS.longitudeDeg) &&
+    num(p.launchAltitudeM, LAUNCH_SITE_LIMITS.launchAltitudeM)
   );
 }
 
-/** Default store: the location list as one key-value entry, through a KeyValueStore. */
+/**
+ * Default store: the location list as one JSON array under one key-value entry
+ * (see JsonListStore for the read and write rules), newest save first, one
+ * entry per id. A location outside {@link LAUNCH_SITE_LIMITS} is refused on
+ * save, not stored to be dropped on the next read.
+ */
 export class KeyValueLaunchLocationStore implements LaunchLocationStore {
-  constructor(
-    private readonly key: string = LOCATIONS_KEY,
-    private readonly kv: KeyValueStore = new IndexedDbKeyValueStore(),
-  ) {}
+  private readonly items: JsonListStore<LaunchLocation>;
 
-  /** The stored list, tolerating an absent, corrupt or partly invalid blob. */
-  private static parse(raw: string | null): LaunchLocation[] {
-    if (!raw) return [];
-    try {
-      const parsed = JSON.parse(raw) as unknown;
-      return Array.isArray(parsed) ? parsed.filter(isLocation) : [];
-    } catch {
-      return []; // corrupt entry
-    }
+  constructor(key: string = LOCATIONS_KEY, kv: KeyValueStore = new IndexedDbKeyValueStore()) {
+    this.items = new JsonListStore(key, isLocation, (p) => p.id, kv);
   }
 
-  /**
-   * Read, transform and write in ONE store transaction, and propagate a refused
-   * write rather than resolving cleanly over it — the same reasoning as
-   * `KeyValueMaterialStore.mutate`: this is an installable PWA with IndexedDB
-   * shared across tabs, and a caller told nothing cannot retry.
-   */
-  private async mutate(fn: (list: LaunchLocation[]) => LaunchLocation[]): Promise<void> {
-    const ok = await this.kv.update(this.key, (raw) => JSON.stringify(fn(KeyValueLaunchLocationStore.parse(raw))));
-    if (!ok) throw new Error('storage-full');
-  }
-
-  async list(): Promise<LaunchLocation[]> {
-    return KeyValueLaunchLocationStore.parse(await this.kv.get(this.key));
+  list(): Promise<LaunchLocation[]> {
+    return this.items.list();
   }
 
   async save(location: LaunchLocation): Promise<void> {
     if (!isLocation(location)) throw new Error('invalid-location');
-    await this.mutate((list) => [location, ...list.filter((p) => p.id !== location.id)]);
+    await this.items.upsert([location]);
   }
 
-  async remove(id: string): Promise<void> {
-    await this.mutate((list) => list.filter((p) => p.id !== id));
+  remove(id: string): Promise<void> {
+    return this.items.remove(id);
   }
 }
 

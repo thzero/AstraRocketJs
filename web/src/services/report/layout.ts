@@ -1,5 +1,7 @@
 import type { ComponentNode } from '../../engine/openRocketEngine';
 import { isPlanarFinSet } from '../../tree/tubefins';
+import { walkNodes } from '../../tree/treeWalk';
+import { parseHexColor } from '../design/colorHex';
 
 /**
  * The PDF report's layout arithmetic and the two selectors the sections share,
@@ -9,9 +11,8 @@ import { isPlanarFinSet } from '../../tree/tubefins';
 /** Exported for test: a malformed color silently becomes near-black otherwise. */
 /** `#rrggbb` to an [r,g,b] triple for jsPDF. See `flightPathExport.hexToRgbInt`. */
 export const hexToRgbTuple = (hex: string): [number, number, number] => {
-  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
-  if (!m) return [17, 24, 39];
-  const n = parseInt(m[1]!, 16);
+  const n = parseHexColor(hex);
+  if (n === null) return [17, 24, 39];
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 };
 
@@ -24,17 +25,8 @@ export const hexToRgbTuple = (hex: string): [number, number, number] => {
  * finPlanformMm a tube and got back a fabricated 50 × 30 mm trapezoid, printed
  * 1:1 and labeled with the tube fin set's own name and count.
  */
-export const finSetsOf = (stage: ComponentNode): ComponentNode[] => {
-  const out: ComponentNode[] = [];
-  const walk = (nodes: ComponentNode[]) => {
-    for (const n of nodes) {
-      if (isPlanarFinSet(String(n.type))) out.push(n);
-      if (n.children) walk(n.children);
-    }
-  };
-  walk(stage.children ?? []);
-  return out;
-};
+export const finSetsOf = (stage: ComponentNode): ComponentNode[] =>
+  [...walkNodes(stage.children ?? [])].filter((n) => isPlanarFinSet(String(n.type)));
 
 /**
  * The mm box every section lays out inside. Split out of downloadReportPdf so

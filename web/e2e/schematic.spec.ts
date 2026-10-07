@@ -1,4 +1,5 @@
 import { test, expect, type Page } from './base';
+import { nsKey } from '../src/services/storage/storageKeys';
 
 /**
  * 2D TreeSchematic render + interaction, in a real browser (jsdom can't lay out
@@ -67,4 +68,17 @@ test.describe('2D schematic', () => {
     const outer = (await box.boundingBox())!;
     expect(outer.y + outer.height - (inner.y + inner.height)).toBeGreaterThanOrEqual(4);
   });
+});
+
+test('the roll slider reads in the angle unit the user chose', async ({ page }) => {
+  await page.addInitScript((key: string) => {
+    const was = JSON.parse(localStorage.getItem(key) || '{}') as Record<string, unknown>;
+    const units = { ...((was.units as Record<string, string>) ?? {}), angle: 'rad' };
+    localStorage.setItem(key, JSON.stringify({ ...was, units }));
+  }, nsKey('settings:v1'));
+  await page.goto('/');
+  const slider = page.getByRole('slider', { name: 'Roll angle (degrees)' });
+  await expect(slider).toBeVisible();
+  await expect(slider).toHaveAttribute('title', /rad$/);
+  await expect(page.getByText('6.28 rad', { exact: true })).toBeVisible();
 });

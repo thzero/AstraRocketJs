@@ -12,6 +12,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { writeDataManifest } from './lib/dataManifest.mjs';
+import { collidingRowKeys } from './lib/motorRowKey.mjs';
 
 const API = 'https://www.thrustcurve.org/api/v1';
 // public/data is served as-is (not bundled) so the catalog can be refreshed
@@ -102,18 +103,46 @@ const MAX_RESULTS = 5000;
  * row fail the `totImpulseNs > 0` filter, would have gone live to every user
  * on their next open and emptied the motor picker. The app validates row
  * SHAPE, not catalog SIZE, so the floor has to be here.
+ *
+ * Row-key collisions are refused here for the same reason. The check used to
+ * live in the workflow's Summary step, which printed a `> [!WARNING]`, never
+ * set a non-zero exit, and ran AFTER the publish: a colliding pair reached
+ * every user's motor picker with a green weekly workflow and a warning nobody
+ * opens. A collision makes two distinct motors select, check and highlight as
+ * one, and it is a property of the UPSTREAM data, so it is checked on every
+ * sync rather than assumed.
  */
 async function assertSane(catalog, withCurves) {
   const problems = [];
   if (catalog.length === 0) problems.push('catalog is empty');
+  const collisions = collidingRowKeys(catalog);
+  if (collisions.length)
+    problems.push(
+      `${collisions.length} row-key collision(s) (manufacturer|designation|diameter|code): ${collisions.join(', ')}`,
+    );
   if (catalog.length && withCurves / catalog.length < 0.8)
     problems.push(`only ${withCurves}/${catalog.length} motors have a bundled curve`);
+  // The shrink floor compares against WHATEVER IS ON DISK at `OUT`, and which copy
+  // that is differs by caller. In the weekly workflow it is the live published
+  // catalog: the "Seed from the published catalogs" step clones the `data` branch
+  // over this file first, precisely so the floor measures against what users are
+  // actually being served. Run locally, with no seeding step, it is the committed
+  // copy, which can be months behind.
+  //
+  // Both are legitimate baselines, and the difference matters enough that the run
+  // says which one it used - a floor measured against a stale baseline is weaker
+  // than it looks, and nothing in the output distinguished the two cases.
   try {
     const prev = JSON.parse(await readFile(OUT, 'utf8'));
-    if (Array.isArray(prev) && prev.length && catalog.length < 0.9 * prev.length)
-      problems.push(`catalog shrank from ${prev.length} to ${catalog.length} motors`);
+    if (Array.isArray(prev) && prev.length) {
+      console.log(`Shrink floor: comparing ${catalog.length} against the ${prev.length} currently in ${OUT}.`);
+      if (catalog.length < 0.9 * prev.length)
+        problems.push(`catalog shrank from ${prev.length} to ${catalog.length} motors (baseline: ${OUT})`);
+    }
   } catch {
-    // No previous catalog to compare against (first run, or unreadable).
+    // No previous catalog to compare against (first run, or unreadable). Said out
+    // loud, because it means the shrink floor did not run at all.
+    console.log(`Shrink floor: SKIPPED, no readable baseline at ${OUT}.`);
   }
   if (problems.length) throw new Error(`Refusing to write motors.generated.json: ${problems.join('; ')}`);
 }

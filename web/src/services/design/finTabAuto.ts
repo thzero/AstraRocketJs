@@ -3,6 +3,9 @@ import { finRootChord } from '../../tree/finPlanform';
 import { num, positionOf } from '../../tree/nodeProps';
 import { startFromPosition } from '../../tree/position';
 import { stationRadius } from '../../tree/shapeProfile';
+import { findWithParent } from '../../tree/treeWalk';
+import { isChainType } from '../../tree/componentKinds';
+import { isPlanarFinSet } from '../../tree/tubefins';
 
 /**
  * OpenRocket's **Calculate automatically** button for a through-the-wall fin tab.
@@ -137,12 +140,10 @@ function tabBetweenRings(rings: Ring[], finTop: number, finLength: number): { le
   return { length: Math.max(0, length), offset };
 }
 
-/** The types `stationRadius` treats as a body a fin set can be mounted on. */
-const SYMMETRIC = new Set(['bodytube', 'nosecone', 'transition']);
-
 /** Whether Calculate automatically has anything to work with on this fin set. */
 export function canAutoFinTab(node: ComponentNode | null | undefined, parent: ComponentNode | null): boolean {
-  return !!node && node.type.endsWith('finset') && node.type !== 'tubefinset' && !!parent && SYMMETRIC.has(parent.type);
+  // `stationRadius` treats only a chain member as a body a fin set can be mounted on.
+  return !!node && isPlanarFinSet(node.type) && !!parent && isChainType(parent.type);
 }
 
 /**
@@ -155,7 +156,7 @@ export function canAutoFinTab(node: ComponentNode | null | undefined, parent: Co
  * offset in that frame; here the patch is the answer and the frame is part of it.
  */
 export function autoFinTab(tree: RocketTree, id: string): Partial<ComponentNode> | null {
-  const found = locate(tree, id);
+  const found = findWithParent(tree.components, id);
   if (!found) return null;
   const { node, parent } = found;
   if (!canAutoFinTab(node, parent) || !parent) return null;
@@ -205,20 +206,4 @@ export function autoFinTab(tree: RocketTree, id: string): Partial<ComponentNode>
   // broken design rather than a tab; upstream leaves the height alone too.
   if (height >= 0) (patch as Record<string, unknown>)['tabHeight'] = height;
   return patch;
-}
-
-/** The node and its parent, in one walk. */
-function locate(tree: RocketTree, id: string): { node: ComponentNode; parent: ComponentNode | null } | null {
-  const rec = (
-    nodes: ComponentNode[],
-    parent: ComponentNode | null,
-  ): { node: ComponentNode; parent: ComponentNode | null } | null => {
-    for (const n of nodes) {
-      if (n.id === id) return { node: n, parent };
-      const hit = n.children ? rec(n.children as ComponentNode[], n) : null;
-      if (hit) return hit;
-    }
-    return null;
-  };
-  return rec(tree.components, null);
 }

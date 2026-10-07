@@ -89,8 +89,14 @@ test('a phone opens it by tapping the part in the drawing', async ({ page }) => 
     .first();
   const b = (await svg.boundingBox())!;
   // The drawing is turned a quarter turn on a portrait phone, so the airframe
-  // runs DOWN the box; its center is mid-rocket, on the centerline.
-  await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
+  // runs DOWN the box. The centerline is the middle of the nose cone's shape,
+  // not of the box: the drawing centers between the ruler lanes that are on.
+  const nose = (await svg
+    .locator('title', { hasText: /^Nose cone$/ })
+    .first()
+    .locator('..')
+    .boundingBox())!;
+  await page.mouse.click(nose.x + nose.width / 2, b.y + b.height / 2);
 
   await expect(editor(page)).toBeVisible();
   await expect(editor(page).getByLabel('Motor mount')).toBeVisible(); // the body tube

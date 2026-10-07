@@ -1,12 +1,7 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import type { ComponentNode } from '../../../src/engine/openRocketEngine';
-import {
-  describeIssues,
-  isValidSolid,
-  meshTolerances,
-  validateSolid,
-} from '../../../src/services/exports/meshValidate';
+import { meshTolerances, validateSolid } from '../../../src/services/exports/meshValidate';
 import {
   countBoundaryEdges,
   isSimplePolygon,
@@ -37,7 +32,6 @@ function tetra(): THREE.BufferGeometry {
 describe('validateSolid detects what countBoundaryEdges cannot', () => {
   it('passes a closed, consistently wound solid', () => {
     expect(validateSolid(tetra())).toEqual([]);
-    expect(isValidSolid(tetra())).toBe(true);
   });
 
   it('catches an empty mesh, which an edge count calls watertight', () => {
@@ -79,10 +73,15 @@ describe('validateSolid detects what countBoundaryEdges cannot', () => {
     expect(validateSolid(flat).map((i) => i.kind)).toContain('degenerate-triangle');
   });
 
-  it('describes its findings in one line for an export error', () => {
+  it('names what is wrong, not merely that something is', () => {
+    // The detail text is what a caller would show, so it is asserted.
     const g = tetra();
     g.setIndex([]);
-    expect(describeIssues(validateSolid(g))).toMatch(/no triangles/);
+    expect(
+      validateSolid(g)
+        .map((i) => i.detail)
+        .join('; '),
+    ).toMatch(/no triangles/);
   });
 });
 
@@ -182,7 +181,7 @@ describe('every exported component is a valid solid', () => {
     const geo = solidForNode(n, parentRadius);
     expect(geo).not.toBeNull();
     const issues = validateSolid(geo!, meshTolerances(geo!).area);
-    expect(describeIssues(issues)).toBe('');
+    expect(issues).toEqual([]);
   });
 
   it('refuses a scaled-down design rather than exporting an empty solid', () => {
@@ -193,7 +192,7 @@ describe('every exported component is a valid solid', () => {
     const geo = solidForNode(tiny);
     expect(geo).not.toBeNull();
     expect(geo!.getIndex()!.count).toBeGreaterThan(0);
-    expect(describeIssues(validateSolid(geo!, meshTolerances(geo!).area))).toBe('');
+    expect(validateSolid(geo!, meshTolerances(geo!).area)).toEqual([]);
   });
 });
 
@@ -293,7 +292,7 @@ describe('makeWatertight caps a non-convex hole without overlapping itself', () 
   it('closes into a genuinely valid solid', () => {
     const capped = makeWatertight(openPrism());
     expect(countBoundaryEdges(capped)).toBe(0); // what the old check asked
-    expect(describeIssues(validateSolid(capped))).toBe(''); // what it could not ask
+    expect(validateSolid(capped)).toEqual([]); // what it could not ask
   });
 
   it('keeps every cap triangle inside the outline it is closing', () => {
