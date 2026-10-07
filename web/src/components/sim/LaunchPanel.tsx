@@ -277,9 +277,9 @@ export function LaunchPanel({
               onChange({ launchIntoWind: e.target.checked });
               onCommit?.();
             }}
-            className="accent-sky-500"
+            className="accent-accent-500"
           />
-          <span className="text-xs text-slate-400">{t('launch.intoWind')}</span>
+          <span className="text-xs text-ink-muted">{t('launch.intoWind')}</span>
         </label>
         {!launch.launchIntoWind && (
           <QNum
@@ -355,14 +355,14 @@ export function LaunchPanel({
               );
             }}
             disabled={locating}
-            className="w-full rounded-md bg-slate-800 px-2 py-1.5 text-xs font-medium text-slate-300 ring-1 ring-white/10 hover:bg-slate-700 disabled:opacity-60"
+            className="w-full rounded-md bg-raised px-2 py-1.5 text-xs font-medium text-ink-soft ring-1 ring-line/10 hover:bg-elevated disabled:opacity-60"
           >
             📍 {locating ? t('launch.locating') : t('launch.useLocation')}
           </button>
         )}
         <button
           onClick={() => setMapOpen(true)}
-          className="w-full rounded-md bg-slate-800 px-2 py-1.5 text-xs font-medium text-slate-300 ring-1 ring-white/10 hover:bg-slate-700"
+          className="w-full rounded-md bg-raised px-2 py-1.5 text-xs font-medium text-ink-soft ring-1 ring-line/10 hover:bg-elevated"
         >
           🗺 {t('map.show')}
         </button>
@@ -370,7 +370,7 @@ export function LaunchPanel({
             region created together with its text is not announced by most
             screen readers (see UpdateToast), so the refusal was silent to the
             people who cannot see the amber line. */}
-        <p role="status" aria-live="polite" className="mt-1 text-[11px] leading-snug text-amber-400">
+        <p role="status" aria-live="polite" className="mt-1 text-[11px] leading-snug text-warn-400">
           {locateErr}
         </p>
         {mapOpen && (
@@ -393,7 +393,7 @@ export function LaunchPanel({
               setWeatherRefresh(false);
               setWeatherOpen(true);
             }}
-            className="w-full rounded-md bg-slate-800 px-2 py-1.5 text-xs font-medium text-sky-300 ring-1 ring-white/10 hover:bg-slate-700"
+            className="w-full rounded-md bg-raised px-2 py-1.5 text-xs font-medium text-accent-300 ring-1 ring-line/10 hover:bg-elevated"
           >
             {t('launch.getWeather')}
           </button>
@@ -468,7 +468,7 @@ export function LaunchPanel({
             own fields are, so nothing flies that the panel does not show. */}
         {atmosphereLevels.length > 0 && (
           <div className="flex items-center justify-between gap-3">
-            <span className="text-xs text-slate-400">
+            <span className="text-xs text-ink-muted">
               {t('launch.forecastProfile', {
                 top: `${u.fmtSym('distance', atmosphereLevels[atmosphereLevels.length - 1]!.altitudeM, 0)}`,
               })}
@@ -478,7 +478,7 @@ export function LaunchPanel({
                 onChange({ atmosphereLevels: undefined });
                 onCommit?.();
               }}
-              className="rounded-md bg-slate-800 px-2 py-1 text-xs font-medium text-slate-300 ring-1 ring-white/10 hover:bg-slate-700"
+              className="rounded-md bg-raised px-2 py-1 text-xs font-medium text-ink-soft ring-1 ring-line/10 hover:bg-elevated"
             >
               {t('launch.clearForecastProfile')}
             </button>
@@ -491,7 +491,7 @@ export function LaunchPanel({
         <fieldset className="pb-1">
           <legend className="sr-only">{t('launch.windModel')}</legend>
           <div className="flex items-center justify-between gap-3">
-            <span className="text-xs text-slate-400">{t('launch.windModel')}</span>
+            <span className="text-xs text-ink-muted">{t('launch.windModel')}</span>
             <div className="flex gap-3">
               {(['average', 'multilevel'] as const).map((m) => (
                 <label key={m} className="flex items-center gap-1.5">
@@ -503,9 +503,9 @@ export function LaunchPanel({
                       setWindModel(m);
                       onCommit?.();
                     }}
-                    className="accent-sky-500"
+                    className="accent-accent-500"
                   />
-                  <span className="text-xs text-slate-400">{t(`launch.windModel_${m}`)}</span>
+                  <span className="text-xs text-ink-muted">{t(`launch.windModel_${m}`)}</span>
                 </label>
               ))}
             </div>
@@ -570,7 +570,7 @@ export function LaunchPanel({
               value={Math.round(intensity * 100)}
               onChange={(v) => onChange({ windStdDev: stdDevForIntensity(windAvg, (v ?? 0) / 100) })}
             />
-            <p className="-mt-1 pr-24 text-right text-xs text-slate-400">
+            <p className="-mt-1 pr-24 text-right text-xs text-ink-muted">
               {t(`launch.turbulenceLevel.${turbulenceLevel(intensity)}`)}
             </p>
             <QNum
@@ -588,14 +588,14 @@ export function LaunchPanel({
           </>
         ) : (
           <div className="space-y-2">
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-ink-muted">
               {t('launch.levelCount', { count: levels.length })}
               {' · '}
               {t(`windProfile.${launch.windAltitudeReference ?? 'msl'}Short`)}
             </p>
             <button
               onClick={() => setProfileOpen(true)}
-              className="w-full rounded-md bg-slate-800 py-1.5 text-xs font-medium text-sky-300 ring-1 ring-white/10 hover:bg-slate-700"
+              className="w-full rounded-md bg-raised py-1.5 text-xs font-medium text-accent-300 ring-1 ring-line/10 hover:bg-elevated"
             >
               {t('launch.editProfile')}
             </button>
@@ -605,14 +605,14 @@ export function LaunchPanel({
 
       <CardGroup title={t('launch.earthModel')}>
         <label className="flex items-center justify-between gap-3">
-          <span className="text-xs text-slate-400">{t('launch.geodetic')}</span>
+          <span className="text-xs text-ink-muted">{t('launch.geodetic')}</span>
           <select
             value={launch.geodetic ?? 'spherical'}
             onChange={(e) => {
               onChange({ geodetic: e.target.value as LaunchConditions['geodetic'] });
               onCommit?.();
             }}
-            className="w-32 rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
+            className="w-32 rounded-md bg-raised px-2 py-1 text-sm text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500"
           >
             <option value="flat">{t('launch.flat')}</option>
             <option value="spherical">{t('launch.spherical')}</option>
@@ -620,14 +620,14 @@ export function LaunchPanel({
           </select>
         </label>
         <label className="flex items-center justify-between gap-3">
-          <span className="text-xs text-slate-400">{t('launch.gravity')}</span>
+          <span className="text-xs text-ink-muted">{t('launch.gravity')}</span>
           <select
             value={launch.gravityModel ?? 'wgs'}
             onChange={(e) => {
               onChange({ gravityModel: e.target.value as LaunchConditions['gravityModel'] });
               onCommit?.();
             }}
-            className="w-32 rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
+            className="w-32 rounded-md bg-raised px-2 py-1 text-sm text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500"
           >
             <option value="wgs">{t('launch.gravityWgs')}</option>
             <option value="constant">{t('launch.gravityConstant')}</option>

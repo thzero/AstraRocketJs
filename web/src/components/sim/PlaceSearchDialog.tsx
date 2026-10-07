@@ -118,7 +118,7 @@ export function PlaceSearchDialog({ onPick, onClose }: { onPick: (pick: PlacePic
 
   return (
     <Dialog id="placeSearch" title={t('placeSearch.title')} onClose={onClose} layout="pad" size="md">
-      <label htmlFor="place-search" className="mt-4 block text-xs font-medium text-slate-400">
+      <label htmlFor="place-search" className="mt-4 block text-xs font-medium text-ink-muted">
         {t('placeSearch.label')}
       </label>
       <div className="mt-1 flex gap-2">
@@ -132,7 +132,7 @@ export function PlaceSearchDialog({ onPick, onClose }: { onPick: (pick: PlacePic
           }}
           placeholder={t('placeSearch.placeholder')}
           maxLength={2000}
-          className="min-w-0 flex-1 rounded-lg bg-slate-800 px-3 py-2 text-sm text-slate-100 ring-1 ring-white/10 focus:ring-sky-500"
+          className="min-w-0 flex-1 rounded-lg bg-raised px-3 py-2 text-sm text-ink-strong ring-1 ring-line/10 focus:ring-accent-500"
         />
         <DialogButton
           onClick={() => void search()}
@@ -143,11 +143,11 @@ export function PlaceSearchDialog({ onPick, onClose }: { onPick: (pick: PlacePic
           {state.kind === 'searching' ? t('placeSearch.searching') : t('placeSearch.search')}
         </DialogButton>
       </div>
-      <p className="mt-1 text-[11px] text-slate-500">{t('placeSearch.hint')}</p>
+      <p className="mt-1 text-[11px] text-ink-faint">{t('placeSearch.hint')}</p>
 
       {/* Mounted always, so what lands in it is announced. */}
       <div role="status" aria-live="polite" className="mt-3">
-        {state.kind === 'message' && <p className="text-xs text-amber-300">{state.text}</p>}
+        {state.kind === 'message' && <p className="text-xs text-warn-300">{state.text}</p>}
         {state.kind === 'rows' && (
           <ul className="space-y-1">
             {state.rows.map((r) => (
@@ -163,13 +163,13 @@ export function PlaceSearchDialog({ onPick, onClose }: { onPick: (pick: PlacePic
                   // Not before the elevation lookup has answered: picking then
                   // would write a site with the OLD field's elevation under it.
                   disabled={r.elevationM === undefined}
-                  className="w-full rounded-lg bg-slate-800/60 px-3 py-2 text-left ring-1 ring-white/10 hover:bg-slate-700 disabled:cursor-wait disabled:opacity-60"
+                  className="w-full rounded-lg bg-raised/60 px-3 py-2 text-left ring-1 ring-line/10 hover:bg-elevated disabled:cursor-wait disabled:opacity-60"
                 >
-                  <span className="block text-sm text-slate-100">
+                  <span className="block text-sm text-ink-strong">
                     {r.title}
-                    {r.detail && <span className="text-slate-400"> · {r.detail}</span>}
+                    {r.detail && <span className="text-ink-muted"> · {r.detail}</span>}
                   </span>
-                  <span className="block text-[11px] text-slate-400">
+                  <span className="block text-[11px] text-ink-muted">
                     {formatCoord(r.latitudeDeg, r.longitudeDeg)} · {elevationText(r.elevationM)}
                   </span>
                 </button>
@@ -180,7 +180,7 @@ export function PlaceSearchDialog({ onPick, onClose }: { onPick: (pick: PlacePic
       </div>
 
       {/* GeoNames' license asks for the credit wherever its places are shown. */}
-      <GeoNamesCredit className="mt-4 text-[11px] text-slate-500" />
+      <GeoNamesCredit className="mt-4 text-[11px] text-ink-faint" />
 
       <div className="mt-4 flex justify-end">
         <DialogButton onClick={onClose} variant="secondary">

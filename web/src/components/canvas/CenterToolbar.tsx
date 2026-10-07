@@ -58,7 +58,7 @@ export function CenterToolbar({
             twice. `ResultPicker` renders its own h2 in that case. */}
             <ResultPicker fallbackName={resultName} />
             {outdated && result && (
-              <span className="rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-300 ring-1 ring-amber-400/30">
+              <span className="rounded-md bg-warn-500/15 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-warn-300 ring-1 ring-warn-400/30">
                 {t('sims.statusOutdated')}
               </span>
             )}
@@ -86,7 +86,7 @@ export function CenterToolbar({
             {/* Rulers only frame the 2D side view; one toggle per side (T/B/L/R). */}
             {view === '2d' && (
               <div className="flex items-center gap-1">
-                <span className="pl-1 text-xs font-medium text-slate-400">{t('view.rulers')}</span>
+                <span className="pl-1 text-xs font-medium text-ink-muted">{t('view.rulers')}</span>
                 {(['top', 'bottom', 'left', 'right'] as const).map((side) => (
                   <ViewBtn
                     key={side}

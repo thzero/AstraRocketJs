@@ -176,7 +176,7 @@ export function AeroAnalysis() {
 
   if (!sweep)
     return (
-      <div className="grid h-full place-items-center text-sm text-slate-500" aria-busy={pending}>
+      <div className="grid h-full place-items-center text-sm text-ink-faint" aria-busy={pending}>
         {pending ? t('aero.computing') : t('aero.unavailable')}
       </div>
     );
@@ -185,12 +185,12 @@ export function AeroAnalysis() {
   const machMin = machs[0] ?? 0.05;
 
   return (
-    <div className="flex h-full flex-col rounded-xl bg-slate-900 ring-1 ring-white/10" aria-busy={pending}>
+    <div className="flex h-full flex-col rounded-xl bg-surface ring-1 ring-line/10" aria-busy={pending}>
       <div className="flex flex-wrap items-center gap-2 px-3 pb-2 pt-3">
-        <h2 className="mr-auto text-xs font-semibold uppercase tracking-wide text-slate-400">
+        <h2 className="mr-auto text-xs font-semibold uppercase tracking-wide text-ink-muted">
           {t('aero.title')}
           {/* The previous sweep stays up while the next one runs; say so. */}
-          {pending && <span className="ml-2 normal-case tracking-normal text-slate-500">{t('aero.computing')}</span>}
+          {pending && <span className="ml-2 normal-case tracking-normal text-ink-faint">{t('aero.computing')}</span>}
         </h2>
         <Segmented
           options={['charts', 'components'] as const}
@@ -199,18 +199,18 @@ export function AeroAnalysis() {
           fmt={(v) => t(v === 'charts' ? 'aero.charts' : 'aero.perComponent')}
         />
         {sweep?.hasNozzle && motorName && (
-          <span className="text-[10px] text-slate-500" title={t('aero.powerOnMotorNote')}>
+          <span className="text-[10px] text-ink-faint" title={t('aero.powerOnMotorNote')}>
             {t('aero.powerOnMotor', { motor: motorName })}
           </span>
         )}
-        <span className="text-[10px] text-slate-500">{t('aero.maxMach')}</span>
+        <span className="text-[10px] text-ink-faint">{t('aero.maxMach')}</span>
         <Segmented options={[1, 2, 3, 5] as const} value={machMax} onChange={setMachMax} fmt={(v) => `M${v}`} />
         <button
           onClick={() =>
             download(exportFilename([designName, 'aero-table'], 'csv'), aeroTableCsv(sweep, u.all), CSV_MIME)
           }
           title={t('aero.exportCsv')}
-          className="rounded-md bg-slate-800 px-2 py-1 text-[11px] font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
+          className="rounded-md bg-raised px-2 py-1 text-[11px] font-medium text-ink ring-1 ring-line/10 hover:bg-elevated"
         >
           ⬇ CSV
         </button>
@@ -245,7 +245,7 @@ export function AeroAnalysis() {
               }
             }}
             title={t('aero.worstNote')}
-            className="rounded-md bg-slate-800 px-2 py-0.5 text-[11px] font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
+            className="rounded-md bg-raised px-2 py-0.5 text-[11px] font-medium text-ink ring-1 ring-line/10 hover:bg-elevated"
           >
             {t('aero.worst')}
           </button>
@@ -279,7 +279,7 @@ export function AeroAnalysis() {
           keyboard. It shows on both panes now, and the crosshair still drives
           the same state when you do use a pointer. */}
       <div className="flex items-center gap-2 px-3 pb-2">
-        <span className="shrink-0 text-[10px] text-slate-500">{t('aero.atMach', { mach: fmtNum(pick, 2) })}</span>
+        <span className="shrink-0 text-[10px] text-ink-faint">{t('aero.atMach', { mach: fmtNum(pick, 2) })}</span>
         <input
           type="range"
           min={machs[0] ?? 0}
@@ -291,7 +291,7 @@ export function AeroAnalysis() {
           value={pick}
           onChange={(e) => setMachPick(parseFloat(e.target.value))}
           aria-label={t('aero.machPicker')}
-          className="w-full accent-sky-500"
+          className="w-full accent-accent-500"
         />
       </div>
       <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-3 pb-3">

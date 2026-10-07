@@ -311,6 +311,14 @@
     "saveDesignInfo": "Enregistrer les infos de conception (statistiques) dans le fichier",
     "askWhereToSave": "Demander où enregistrer chaque fichier",
     "askWhereToSaveHint": "Ouvre la boîte d’enregistrement du navigateur pour choisir le nom et le dossier. Désactivé, les fichiers vont directement dans votre dossier de téléchargements.",
+    "theme": "Thème",
+    "themeHint": "Plein jour est un thème clair au texte noir et aux couleurs plus sombres, pour lire l’écran au soleil sur le terrain.",
+    "themeOption": {
+      "dark": "Sombre",
+      "light": "Clair",
+      "system": "Comme le système",
+      "daylight": "Plein jour (contraste élevé)"
+    },
     "resetTab": "Réinitialiser {{name}}",
     "resetAll": "Tout réinitialiser",
     "resetOne": "Rétablir la couleur par défaut",

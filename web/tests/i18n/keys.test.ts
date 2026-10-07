@@ -71,6 +71,7 @@ const DYNAMIC_PREFIXES: string[] = [
   // tab's row labels. Only the slots whose part name is not label enough have
   // a key; the rest fall back to `part.<type>` through defaultValue.
   'settings.materialSlot.',
+  'settings.themeOption.', // t(`settings.themeOption.${p}`) - the General tab's Theme choices
   'view.', // t(`view.${v}`), t(`view.ruler_${side}`) - ViewToggle, rulers
   'pathExport.fmt.', // t(`pathExport.fmt.${f.id}`) - flight-path export formats
   'pathExport.preset.', // t(`pathExport.preset.${preset.id}`) and `${id}Note`

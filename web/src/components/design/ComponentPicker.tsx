@@ -118,8 +118,8 @@ export function ComponentPicker({
         onClick={() => (state.status === 'error' ? rows.retry() : setOpen(true))}
         disabled={state.status === 'loading'}
         title={state.status === 'error' ? state.message : undefined}
-        className={`w-full rounded-lg px-2 py-1.5 text-xs font-medium hover:bg-slate-700 disabled:text-slate-500 ${
-          state.status === 'error' ? 'bg-slate-800 text-amber-300' : 'bg-slate-800 text-slate-200'
+        className={`w-full rounded-lg px-2 py-1.5 text-xs font-medium hover:bg-elevated disabled:text-ink-faint ${
+          state.status === 'error' ? 'bg-raised text-warn-300' : 'bg-raised text-ink'
         }`}
       >
         {state.status === 'error'
@@ -428,7 +428,7 @@ function PickerDialog({
                 // key handler as well, deleting the part and applying it.
                 onKeyDown={(e) => e.stopPropagation()}
                 aria-label={t('picker.deleteSaved', { name: r.part.partNo })}
-                className="text-red-400 hover:text-red-300"
+                className="text-danger-400 hover:text-danger-300"
               >
                 ✕
               </button>
@@ -459,7 +459,7 @@ function PickerDialog({
             autoFocus
             placeholder={t('picker.search')}
             aria-label={t('picker.search')}
-            className="w-full rounded-lg bg-slate-950 px-3 py-2 text-sm text-slate-100 ring-1 ring-white/10 placeholder:text-slate-500 focus:outline-none focus:ring-sky-500"
+            className="w-full rounded-lg bg-canvas px-3 py-2 text-sm text-ink-strong ring-1 ring-line/10 placeholder:text-ink-faint focus:outline-none focus:ring-accent-500"
           />
           {/* The narrowing controls, with Clear pushed to the far right by
               `ml-auto` so it reads as the way out rather than as one more filter. */}
@@ -468,7 +468,7 @@ function PickerDialog({
               value={q.mfr}
               onChange={(e) => set({ mfr: e.target.value })}
               aria-label={t('picker.colMfr')}
-              className="rounded-lg bg-slate-800 px-2 py-2 text-xs text-slate-200 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
+              className="rounded-lg bg-raised px-2 py-2 text-xs text-ink ring-1 ring-line/10 focus:outline-none focus:ring-accent-500"
             >
               <option value="">{t('picker.allMfrs')}</option>
               {mfrs.map((m) => (
@@ -482,7 +482,7 @@ function PickerDialog({
                 value={q.material}
                 onChange={(e) => set({ material: e.target.value })}
                 aria-label={t('material.title')}
-                className="rounded-lg bg-slate-800 px-2 py-2 text-xs text-slate-200 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
+                className="rounded-lg bg-raised px-2 py-2 text-xs text-ink ring-1 ring-line/10 focus:outline-none focus:ring-accent-500"
               >
                 <option value="">{t('picker.allMaterials')}</option>
                 {mats.map((m) => (
@@ -497,7 +497,7 @@ function PickerDialog({
                 value={q.shape}
                 onChange={(e) => set({ shape: e.target.value })}
                 aria-label={t('prop.shape')}
-                className="rounded-lg bg-slate-800 px-2 py-2 text-xs text-slate-200 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
+                className="rounded-lg bg-raised px-2 py-2 text-xs text-ink ring-1 ring-line/10 focus:outline-none focus:ring-accent-500"
               >
                 <option value="">{t('picker.allShapes')}</option>
                 {shapes.map((sh) => (
@@ -507,15 +507,15 @@ function PickerDialog({
                 ))}
               </select>
             )}
-            <span className="flex items-center gap-1 text-xs text-slate-400">
-              <span className="text-slate-500">⌀</span>
+            <span className="flex items-center gap-1 text-xs text-ink-muted">
+              <span className="text-ink-faint">⌀</span>
               <UnitBound
                 quantity="length"
                 value={q.odMin}
                 onChange={(si) => set({ odMin: si })}
                 placeholder={t('picker.odFrom')}
                 ariaLabel={t('picker.odFrom')}
-                className="w-16 rounded-md bg-slate-950 px-2 py-1.5 text-right tabular-nums text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
+                className="w-16 rounded-md bg-canvas px-2 py-1.5 text-right tabular-nums text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500"
               />
               <span aria-hidden="true">–</span>
               <UnitBound
@@ -524,17 +524,17 @@ function PickerDialog({
                 onChange={(si) => set({ odMax: si })}
                 placeholder={t('picker.odTo')}
                 ariaLabel={t('picker.odTo')}
-                className="w-16 rounded-md bg-slate-950 px-2 py-1.5 text-right tabular-nums text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
+                className="w-16 rounded-md bg-canvas px-2 py-1.5 text-right tabular-nums text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500"
               />
-              <span className="text-slate-500">{u.sym('length')}</span>
+              <span className="text-ink-faint">{u.sym('length')}</span>
             </span>
             {canFit && (
-              <label className="flex items-center gap-1.5 text-xs text-slate-300" title={t('picker.fitsHint')}>
+              <label className="flex items-center gap-1.5 text-xs text-ink-soft" title={t('picker.fitsHint')}>
                 <input
                   type="checkbox"
                   checked={q.fitsOnly}
                   onChange={(e) => set({ fitsOnly: e.target.checked })}
-                  className="accent-sky-500"
+                  className="accent-accent-500"
                 />
                 {t('picker.fitsOnly')}
               </label>
@@ -544,7 +544,7 @@ function PickerDialog({
                 onClick={() =>
                   set({ text: '', mfr: '', material: '', shape: '', odMin: null, odMax: null, fitsOnly: false })
                 }
-                className="ml-auto rounded-md bg-slate-800 px-2 py-1.5 text-xs text-slate-300 hover:bg-slate-700"
+                className="ml-auto rounded-md bg-raised px-2 py-1.5 text-xs text-ink-soft hover:bg-elevated"
               >
                 {t('picker.clear')}
               </button>
@@ -553,26 +553,26 @@ function PickerDialog({
         </div>
       }
       footer={
-        <div className="p-2 text-center text-[11px] uppercase tracking-wide text-slate-500">
+        <div className="p-2 text-center text-[11px] uppercase tracking-wide text-ink-faint">
           {ranked.length > shown.length
             ? t('picker.showing', { shown: shown.length, total: ranked.length })
             : t('picker.results', { count: ranked.length })}
           {/* A delete that the storage layer refused. It belongs here rather
               than beside the row, which is gone from view the moment the list
               is scrolled or filtered. */}
-          {delErr && <div className="mt-1 normal-case tracking-normal text-red-400">{delErr}</div>}
+          {delErr && <div className="mt-1 normal-case tracking-normal text-danger-400">{delErr}</div>}
         </div>
       }
     >
       {/* `table-fixed`: see Col.w. Auto layout re-measured the columns from
           whichever rows were rendered, so they jumped on every keystroke. */}
       <table className="w-full table-fixed border-collapse text-sm">
-        <thead className="sticky top-0 z-10 bg-slate-900 text-[11px] uppercase tracking-wide text-slate-400">
+        <thead className="sticky top-0 z-10 bg-surface text-[11px] uppercase tracking-wide text-ink-muted">
           <tr>
             {cols.map((c) => (
               <SortHeader
                 key={c.key}
-                className={`border-b border-white/10 px-2 py-2 font-medium ${c.num ? 'text-right' : 'text-left'} ${c.w ?? ''} ${c.hide ?? ''}`}
+                className={`border-b border-line/10 px-2 py-2 font-medium ${c.num ? 'text-right' : 'text-left'} ${c.w ?? ''} ${c.hide ?? ''}`}
                 active={c.sort === q.sort}
                 dir={q.dir === 1 ? 1 : -1}
                 onSort={c.sort ? () => sortBy(c.sort!) : undefined}
@@ -602,8 +602,8 @@ function PickerDialog({
                   onApply(r.part);
                 }
               }}
-              className={`cursor-pointer border-b border-white/5 hover:bg-slate-800 focus:bg-slate-800 focus:outline-none ${
-                r.part.partNo === current ? 'bg-slate-800 font-semibold text-sky-300' : 'text-slate-300'
+              className={`cursor-pointer border-b border-line/5 hover:bg-raised focus:bg-raised focus:outline-none ${
+                r.part.partNo === current ? 'bg-raised font-semibold text-accent-300' : 'text-ink-soft'
               }`}
             >
               {cols.map((c) => (
@@ -614,8 +614,8 @@ function PickerDialog({
                   // jumping-layout problem one axis over.
                   title={c.title?.(r) || undefined}
                   className={`truncate px-2 py-1.5 ${c.num ? 'text-right tabular-nums' : ''} ${
-                    c.key === 'partNo' ? 'font-medium text-slate-100' : ''
-                  } ${c.key === 'notes' || c.key === 'material' ? 'text-slate-500' : ''} ${c.hide ?? ''}`}
+                    c.key === 'partNo' ? 'font-medium text-ink-strong' : ''
+                  } ${c.key === 'notes' || c.key === 'material' ? 'text-ink-faint' : ''} ${c.hide ?? ''}`}
                 >
                   {c.render ? c.render(r) : c.cell(r)}
                 </td>
@@ -624,11 +624,11 @@ function PickerDialog({
           ))}
           {shown.length === 0 && (
             <tr>
-              <td colSpan={cols.length} className="px-3 py-8 text-center text-sm text-slate-500">
+              <td colSpan={cols.length} className="px-3 py-8 text-center text-sm text-ink-faint">
                 {t('picker.noResults')}
                 {/* The likeliest reason for an empty list is the fit filter,
                         which is ON by default when it can judge. Name it. */}
-                {q.fitsOnly && <div className="mt-1 text-xs text-slate-600">{t('picker.fitsHint')}</div>}
+                {q.fitsOnly && <div className="mt-1 text-xs text-ink-dim">{t('picker.fitsHint')}</div>}
               </td>
             </tr>
           )}

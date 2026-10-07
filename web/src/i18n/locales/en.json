@@ -310,6 +310,14 @@
     "saveDesignInfo": "Save design info (statistics) in the file",
     "askWhereToSave": "Ask where to save each file",
     "askWhereToSaveHint": "Opens the browser's save dialog, so you choose the name and the folder. Off, files go straight to your downloads folder.",
+    "theme": "Theme",
+    "themeHint": "Daylight is a light theme with black text and darker colors, for reading a screen in sunlight at the field.",
+    "themeOption": {
+      "dark": "Dark",
+      "light": "Light",
+      "system": "Follow system",
+      "daylight": "Daylight (high contrast)"
+    },
     "resetTab": "Reset {{name}}",
     "resetAll": "Reset all",
     "resetOne": "Reset to default color",

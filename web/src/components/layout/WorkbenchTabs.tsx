@@ -54,8 +54,8 @@ function TabButton({ active, onClick, label }: { active: boolean; onClick: () =>
       // (workbench-header.spec.ts).
       className={`-mb-px flex items-center border-b-2 px-1 text-sm font-semibold 2xl:px-3 ${
         active
-          ? 'border-sky-500 text-sky-300'
-          : 'border-transparent text-slate-400 hover:border-white/20 hover:text-slate-200'
+          ? 'border-accent-500 text-accent-300'
+          : 'border-transparent text-ink-muted hover:border-line/20 hover:text-ink'
       }`}
     >
       {label}

@@ -311,6 +311,14 @@
     "saveDesignInfo": "Salvar as informações do projeto (estatísticas) no arquivo",
     "askWhereToSave": "Perguntar onde salvar cada arquivo",
     "askWhereToSaveHint": "Abre a janela de salvar do navegador, para você escolher o nome e a pasta. Desligado, os arquivos vão direto para a pasta de downloads.",
+    "theme": "Tema",
+    "themeHint": "Luz do dia é um tema claro com texto preto e cores mais escuras, para ler a tela sob o sol no campo.",
+    "themeOption": {
+      "dark": "Escuro",
+      "light": "Claro",
+      "system": "Seguir o sistema",
+      "daylight": "Luz do dia (alto contraste)"
+    },
     "resetTab": "Redefinir {{name}}",
     "resetAll": "Redefinir tudo",
     "resetOne": "Voltar à cor padrão",

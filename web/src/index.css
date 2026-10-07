@@ -1,6 +1,230 @@
 @import 'tailwindcss';
 
 /*
+ * The app's colors, by role, in one place. Components use these names
+ * (`bg-surface`, `text-ink-muted`, `ring-line/10`, `text-accent-300`), never a
+ * Tailwind palette color, so a theme is a second set of values for the
+ * `--c-*` properties below rather than an edit to every component.
+ *
+ *   canvas, surface, raised, elevated, prominent   backgrounds, darkest first
+ *   ink-strong, ink, ink-soft, ink-muted, ink-faint, ink-dim
+ *                                                  text and marks, brightest first
+ *   line      the white every border and ring is drawn in, at an opacity
+ *   shade     the black scrims and shadows are drawn in
+ *   on-accent text and marks on a colored fill
+ *   accent, warn, danger, error, ok
+ *             the hue families, each a full 50-950 ramp
+ *
+ * `@theme inline` makes each utility read the `--c-*` property itself, so
+ * an opacity modifier (`/10`) and a later theme both work. The values are
+ * Tailwind's own palette, so nothing looks different for the move.
+ */
+@theme inline {
+  --color-canvas: var(--c-canvas);
+  --color-surface: var(--c-surface);
+  --color-raised: var(--c-raised);
+  --color-elevated: var(--c-elevated);
+  --color-prominent: var(--c-prominent);
+  --color-prominent-hover: var(--c-prominent-hover);
+  --color-ink-strong: var(--c-ink-strong);
+  --color-ink: var(--c-ink);
+  --color-ink-soft: var(--c-ink-soft);
+  --color-ink-muted: var(--c-ink-muted);
+  --color-ink-faint: var(--c-ink-faint);
+  --color-ink-dim: var(--c-ink-dim);
+  --color-line: var(--c-line);
+  --color-shade: var(--c-shade);
+  --color-on-accent: var(--c-on-accent);
+  --color-accent-50: var(--c-accent-50);
+  --color-accent-100: var(--c-accent-100);
+  --color-accent-200: var(--c-accent-200);
+  --color-accent-300: var(--c-accent-300);
+  --color-accent-400: var(--c-accent-400);
+  --color-accent-500: var(--c-accent-500);
+  --color-accent-600: var(--c-accent-600);
+  --color-accent-700: var(--c-accent-700);
+  --color-accent-800: var(--c-accent-800);
+  --color-accent-900: var(--c-accent-900);
+  --color-accent-950: var(--c-accent-950);
+  --color-warn-50: var(--c-warn-50);
+  --color-warn-100: var(--c-warn-100);
+  --color-warn-200: var(--c-warn-200);
+  --color-warn-300: var(--c-warn-300);
+  --color-warn-400: var(--c-warn-400);
+  --color-warn-500: var(--c-warn-500);
+  --color-warn-600: var(--c-warn-600);
+  --color-warn-700: var(--c-warn-700);
+  --color-warn-800: var(--c-warn-800);
+  --color-warn-900: var(--c-warn-900);
+  --color-warn-950: var(--c-warn-950);
+  --color-danger-50: var(--c-danger-50);
+  --color-danger-100: var(--c-danger-100);
+  --color-danger-200: var(--c-danger-200);
+  --color-danger-300: var(--c-danger-300);
+  --color-danger-400: var(--c-danger-400);
+  --color-danger-500: var(--c-danger-500);
+  --color-danger-600: var(--c-danger-600);
+  --color-danger-700: var(--c-danger-700);
+  --color-danger-800: var(--c-danger-800);
+  --color-danger-900: var(--c-danger-900);
+  --color-danger-950: var(--c-danger-950);
+  --color-error-50: var(--c-error-50);
+  --color-error-100: var(--c-error-100);
+  --color-error-200: var(--c-error-200);
+  --color-error-300: var(--c-error-300);
+  --color-error-400: var(--c-error-400);
+  --color-error-500: var(--c-error-500);
+  --color-error-600: var(--c-error-600);
+  --color-error-700: var(--c-error-700);
+  --color-error-800: var(--c-error-800);
+  --color-error-900: var(--c-error-900);
+  --color-error-950: var(--c-error-950);
+  --color-ok-50: var(--c-ok-50);
+  --color-ok-100: var(--c-ok-100);
+  --color-ok-200: var(--c-ok-200);
+  --color-ok-300: var(--c-ok-300);
+  --color-ok-400: var(--c-ok-400);
+  --color-ok-500: var(--c-ok-500);
+  --color-ok-600: var(--c-ok-600);
+  --color-ok-700: var(--c-ok-700);
+  --color-ok-800: var(--c-ok-800);
+  --color-ok-900: var(--c-ok-900);
+  --color-ok-950: var(--c-ok-950);
+}
+
+:root {
+  --c-canvas: oklch(12.9% 0.042 264.695); /* slate-950 */
+  --c-surface: oklch(20.8% 0.042 265.755); /* slate-900 */
+  --c-raised: oklch(27.9% 0.041 260.031); /* slate-800 */
+  --c-elevated: oklch(37.2% 0.044 257.287); /* slate-700 */
+  --c-prominent: oklch(44.6% 0.043 257.281); /* slate-600 */
+  --c-prominent-hover: oklch(55.4% 0.046 257.417); /* slate-500 */
+  --c-ink-strong: oklch(96.8% 0.007 247.896); /* slate-100 */
+  --c-ink: oklch(92.9% 0.013 255.508); /* slate-200 */
+  --c-ink-soft: oklch(86.9% 0.022 252.894); /* slate-300 */
+  --c-ink-muted: oklch(70.4% 0.04 256.788); /* slate-400 */
+  --c-ink-faint: oklch(55.4% 0.046 257.417); /* slate-500 */
+  --c-ink-dim: oklch(44.6% 0.043 257.281); /* slate-600 */
+  --c-line: #fff; /* white, used with an opacity */
+  --c-shade: #000; /* black, for scrims and shadows */
+  --c-on-accent: #fff; /* white, on colored fills */
+  --c-accent-50: oklch(97.7% 0.013 236.62); /* sky-50 */
+  --c-accent-100: oklch(95.1% 0.026 236.824); /* sky-100 */
+  --c-accent-200: oklch(90.1% 0.058 230.902); /* sky-200 */
+  --c-accent-300: oklch(82.8% 0.111 230.318); /* sky-300 */
+  --c-accent-400: oklch(74.6% 0.16 232.661); /* sky-400 */
+  --c-accent-500: oklch(68.5% 0.169 237.323); /* sky-500 */
+  --c-accent-600: oklch(58.8% 0.158 241.966); /* sky-600 */
+  --c-accent-700: oklch(50% 0.134 242.749); /* sky-700 */
+  --c-accent-800: oklch(44.3% 0.11 240.79); /* sky-800 */
+  --c-accent-900: oklch(39.1% 0.09 240.876); /* sky-900 */
+  --c-accent-950: oklch(29.3% 0.066 243.157); /* sky-950 */
+  --c-warn-50: oklch(98.7% 0.022 95.277); /* amber-50 */
+  --c-warn-100: oklch(96.2% 0.059 95.617); /* amber-100 */
+  --c-warn-200: oklch(92.4% 0.12 95.746); /* amber-200 */
+  --c-warn-300: oklch(87.9% 0.169 91.605); /* amber-300 */
+  --c-warn-400: oklch(82.8% 0.189 84.429); /* amber-400 */
+  --c-warn-500: oklch(76.9% 0.188 70.08); /* amber-500 */
+  --c-warn-600: oklch(66.6% 0.179 58.318); /* amber-600 */
+  --c-warn-700: oklch(55.5% 0.163 48.998); /* amber-700 */
+  --c-warn-800: oklch(47.3% 0.137 46.201); /* amber-800 */
+  --c-warn-900: oklch(41.4% 0.112 45.904); /* amber-900 */
+  --c-warn-950: oklch(27.9% 0.077 45.635); /* amber-950 */
+  --c-danger-50: oklch(97.1% 0.013 17.38); /* red-50 */
+  --c-danger-100: oklch(93.6% 0.032 17.717); /* red-100 */
+  --c-danger-200: oklch(88.5% 0.062 18.334); /* red-200 */
+  --c-danger-300: oklch(80.8% 0.114 19.571); /* red-300 */
+  --c-danger-400: oklch(70.4% 0.191 22.216); /* red-400 */
+  --c-danger-500: oklch(63.7% 0.237 25.331); /* red-500 */
+  --c-danger-600: oklch(57.7% 0.245 27.325); /* red-600 */
+  --c-danger-700: oklch(50.5% 0.213 27.518); /* red-700 */
+  --c-danger-800: oklch(44.4% 0.177 26.899); /* red-800 */
+  --c-danger-900: oklch(39.6% 0.141 25.723); /* red-900 */
+  --c-danger-950: oklch(25.8% 0.092 26.042); /* red-950 */
+  --c-error-50: oklch(96.9% 0.015 12.422); /* rose-50 */
+  --c-error-100: oklch(94.1% 0.03 12.58); /* rose-100 */
+  --c-error-200: oklch(89.2% 0.058 10.001); /* rose-200 */
+  --c-error-300: oklch(81% 0.117 11.638); /* rose-300 */
+  --c-error-400: oklch(71.2% 0.194 13.428); /* rose-400 */
+  --c-error-500: oklch(64.5% 0.246 16.439); /* rose-500 */
+  --c-error-600: oklch(58.6% 0.253 17.585); /* rose-600 */
+  --c-error-700: oklch(51.4% 0.222 16.935); /* rose-700 */
+  --c-error-800: oklch(45.5% 0.188 13.697); /* rose-800 */
+  --c-error-900: oklch(41% 0.159 10.272); /* rose-900 */
+  --c-error-950: oklch(27.1% 0.105 12.094); /* rose-950 */
+  --c-ok-50: oklch(97.9% 0.021 166.113); /* emerald-50 */
+  --c-ok-100: oklch(95% 0.052 163.051); /* emerald-100 */
+  --c-ok-200: oklch(90.5% 0.093 164.15); /* emerald-200 */
+  --c-ok-300: oklch(84.5% 0.143 164.978); /* emerald-300 */
+  --c-ok-400: oklch(76.5% 0.177 163.223); /* emerald-400 */
+  --c-ok-500: oklch(69.6% 0.17 162.48); /* emerald-500 */
+  --c-ok-600: oklch(59.6% 0.145 163.225); /* emerald-600 */
+  --c-ok-700: oklch(50.8% 0.118 165.612); /* emerald-700 */
+  --c-ok-800: oklch(43.2% 0.095 166.913); /* emerald-800 */
+  --c-ok-900: oklch(37.8% 0.077 168.94); /* emerald-900 */
+  --c-ok-950: oklch(26.2% 0.051 172.552); /* emerald-950 */
+  /* Colors drawn in code (components/common/colorTokens.token). */
+  --c-series-1: #38bdf8; /* stages and part kinds, by identity: sky */
+  --c-series-2: #fbbf24; /* amber */
+  --c-series-3: #34d399; /* emerald */
+  --c-series-4: #a78bfa; /* violet */
+  --c-series-5: #fb7185; /* rose */
+  --c-series-6: #22d3ee; /* cyan */
+  --c-chart-1: #3987e5; /* the categorical chart slots, in the dataviz skill's validated order: blue, orange, aqua, yellow, magenta, green, violet, red */
+  --c-chart-2: #d95926;
+  --c-chart-3: #199e70;
+  --c-chart-4: #c98500;
+  --c-chart-5: #d55181;
+  --c-chart-6: #008300;
+  --c-chart-7: #9085e9;
+  --c-chart-8: #e66767;
+  --c-thrust: #f97316; /* a motor thrust curve */
+  --c-thrust-average: #2dd4bf; /* its average-thrust line */
+  --c-thrust-burnout: #eab308; /* its burnout line */
+  --c-thrust-band: #22d3ee; /* the shaded first half second */
+  /* The 3D views, read by components/canvas/sceneColors (hex: three.js parses it). */
+  --c-scene-sky: #cfe8ff; /* the 3D views: sky light */
+  --c-scene-ground: #0b1220; /* ground light */
+  --c-scene-floor: #0b1724; /* the flight view ground plane */
+  --c-scene-grid: #33506a; /* its grid */
+  --c-scene-grid-minor: #18293a;
+  --c-scene-marker: #e2e8f0; /* the pad marker */
+  --c-scene-light-key: #fff7ee; /* the rocket view key light */
+  --c-scene-light-fill: #e8eef8; /* and fill light */
+  --c-scene-callout: #dbe3ea; /* CG callout leader */
+  --c-scene-callout-light: #ffffff; /* the light quarters of a CG/CP marker */
+  --c-scene-selected: #7dd3fc; /* a selected part */
+  --c-scene-selected-glow: #0284c7; /* and its glow */
+  --c-scene-cg: #2b6cff; /* the CG marker */
+  --c-scene-cp: #e34948; /* the CP marker */
+  --c-scene-stable-ok: #4dbd4d; /* stability margin tiers */
+  --c-scene-stable-over: #e0a53d;
+  --c-scene-stable-under: #f0716f;
+  /* The schematic on screen; its print colors are schematicExport's own. */
+  --c-sch-line: #7a786f; /* the schematic: outlines */
+  --c-sch-part: #b9b7b0; /* parts with no color of their own */
+  --c-sch-part-light: #c8c5be;
+  --c-sch-shell: #d5d2cb; /* nose, tubes and transitions with no color */
+  --c-sch-shell-light: #e7e5e0;
+  --c-sch-ink: #9a978f; /* internal parts with no ink of their own */
+  --c-sch-label: #ffffff; /* labels on a filled shape */
+  --c-sch-motor: #8b5a2b; /* a motor case (aft view) */
+  --c-sch-motor-edge: #6b4520;
+  --c-sch-motor-outline: #e0764a; /* the loaded motor outline (side view) */
+  --c-sch-shoulder: #4f8fa0; /* shoulders */
+  --c-sch-hatch: #66748c; /* section hatching */
+  --c-sch-parachute: #b06a35; /* internal parts, by kind */
+  --c-sch-streamer: #a08c2e;
+  --c-sch-shockcord: #8f7a8d;
+  --c-sch-masscomponent: #a85f5c;
+  --c-sch-centeringring: #6f8a5c;
+  --c-sch-bulkhead: #66748c;
+  --c-sch-engineblock: #7d7050;
+  --c-sch-tubecoupler: #7f6ea8;
+  --c-sch-innertube: #3f8f6f;
+}
+
+/*
  * The app header is one row from 1180 up, in every language, and in English at
  * every desktop width. Below that, in the wordiest languages, it wraps: at 1024
  * the four workbench tabs, the identity block (mark, name, version, pre-release
@@ -36,6 +260,15 @@ body,
 body {
   margin: 0;
   overscroll-behavior: none;
+}
+
+/* The page behind the app (overscroll, gaps between panes) in a light theme's
+   canvas. Outranks index.html's boot style, which paints dark before any CSS. */
+:root[data-theme='light'],
+:root[data-theme='light'] body,
+:root[data-theme='daylight'],
+:root[data-theme='daylight'] body {
+  background: var(--c-canvas);
 }
 
 /* The Sketch pane is a landscape workspace: a hobby airframe is 15-25x longer
@@ -126,17 +359,214 @@ body {
   }
 }
 
+/*
+ * The other themes: the same tokens with values for a light surface. The theme
+ * is `data-theme` on <html> (services/app/theme.ts), which is also what the 3D
+ * scene colors watch. Dark is the base above, so a missing attribute is dark.
+ *
+ * Light swaps the neutrals end for end and moves each hue ramp's light steps
+ * (text and marks) to the matching dark ones. Daylight is light for a screen in
+ * sunlight: white surfaces, black text, every hue one step darker again.
+ * The schematic's own colors are paint-like greys that read on either surface,
+ * so it keeps them; its print colors are separate (schematicExport).
+ */
+:root[data-theme='light'],
+:root[data-theme='daylight'] {
+  color-scheme: light;
+  --c-canvas: oklch(96.8% 0.007 247.896);
+  --c-surface: #ffffff;
+  --c-raised: oklch(96.8% 0.007 247.896);
+  --c-elevated: oklch(92.9% 0.013 255.508);
+  --c-prominent: oklch(86.9% 0.022 252.894);
+  --c-prominent-hover: oklch(70.4% 0.04 256.788);
+  --c-ink-strong: oklch(20.8% 0.042 265.755);
+  --c-ink: oklch(27.9% 0.041 260.031);
+  --c-ink-soft: oklch(37.2% 0.044 257.287);
+  --c-ink-muted: oklch(44.6% 0.043 257.281);
+  --c-ink-faint: oklch(55.4% 0.046 257.417);
+  --c-ink-dim: oklch(70.4% 0.04 256.788);
+  --c-line: #0f172a;
+  --c-shade: #000;
+  --c-on-accent: #fff;
+  --c-accent-50: oklch(29.3% 0.066 243.157);
+  --c-accent-100: oklch(39.1% 0.09 240.876);
+  --c-accent-200: oklch(44.3% 0.11 240.79);
+  --c-accent-300: oklch(50% 0.134 242.749);
+  --c-accent-400: oklch(58.8% 0.158 241.966);
+  --c-accent-500: oklch(68.5% 0.169 237.323);
+  --c-accent-600: oklch(58.8% 0.158 241.966);
+  --c-accent-700: oklch(50% 0.134 242.749);
+  --c-accent-800: oklch(44.3% 0.11 240.79);
+  --c-accent-900: oklch(95.1% 0.026 236.824);
+  --c-accent-950: oklch(97.7% 0.013 236.62);
+  --c-warn-50: oklch(27.9% 0.077 45.635);
+  --c-warn-100: oklch(41.4% 0.112 45.904);
+  --c-warn-200: oklch(47.3% 0.137 46.201);
+  --c-warn-300: oklch(55.5% 0.163 48.998);
+  --c-warn-400: oklch(66.6% 0.179 58.318);
+  --c-warn-500: oklch(76.9% 0.188 70.08);
+  --c-warn-600: oklch(66.6% 0.179 58.318);
+  --c-warn-700: oklch(55.5% 0.163 48.998);
+  --c-warn-800: oklch(47.3% 0.137 46.201);
+  --c-warn-900: oklch(96.2% 0.059 95.617);
+  --c-warn-950: oklch(98.7% 0.022 95.277);
+  --c-danger-50: oklch(25.8% 0.092 26.042);
+  --c-danger-100: oklch(39.6% 0.141 25.723);
+  --c-danger-200: oklch(44.4% 0.177 26.899);
+  --c-danger-300: oklch(50.5% 0.213 27.518);
+  --c-danger-400: oklch(57.7% 0.245 27.325);
+  --c-danger-500: oklch(63.7% 0.237 25.331);
+  --c-danger-600: oklch(57.7% 0.245 27.325);
+  --c-danger-700: oklch(50.5% 0.213 27.518);
+  --c-danger-800: oklch(44.4% 0.177 26.899);
+  --c-danger-900: oklch(93.6% 0.032 17.717);
+  --c-danger-950: oklch(97.1% 0.013 17.38);
+  --c-error-50: oklch(27.1% 0.105 12.094);
+  --c-error-100: oklch(41% 0.159 10.272);
+  --c-error-200: oklch(45.5% 0.188 13.697);
+  --c-error-300: oklch(51.4% 0.222 16.935);
+  --c-error-400: oklch(58.6% 0.253 17.585);
+  --c-error-500: oklch(64.5% 0.246 16.439);
+  --c-error-600: oklch(58.6% 0.253 17.585);
+  --c-error-700: oklch(51.4% 0.222 16.935);
+  --c-error-800: oklch(45.5% 0.188 13.697);
+  --c-error-900: oklch(94.1% 0.03 12.58);
+  --c-error-950: oklch(96.9% 0.015 12.422);
+  --c-ok-50: oklch(26.2% 0.051 172.552);
+  --c-ok-100: oklch(37.8% 0.077 168.94);
+  --c-ok-200: oklch(43.2% 0.095 166.913);
+  --c-ok-300: oklch(50.8% 0.118 165.612);
+  --c-ok-400: oklch(59.6% 0.145 163.225);
+  --c-ok-500: oklch(69.6% 0.17 162.48);
+  --c-ok-600: oklch(59.6% 0.145 163.225);
+  --c-ok-700: oklch(50.8% 0.118 165.612);
+  --c-ok-800: oklch(43.2% 0.095 166.913);
+  --c-ok-900: oklch(95% 0.052 163.051);
+  --c-ok-950: oklch(97.9% 0.021 166.113);
+  --c-series-1: #0284c7;
+  --c-series-2: #d97706;
+  --c-series-3: #059669;
+  --c-series-4: #7c3aed;
+  --c-series-5: #e11d48;
+  --c-series-6: #0891b2;
+  --c-chart-1: #2a78d6;
+  --c-chart-2: #eb6834;
+  --c-chart-3: #1baf7a;
+  --c-chart-4: #eda100;
+  --c-chart-5: #e87ba4;
+  --c-chart-6: #008300;
+  --c-chart-7: #4a3aa7;
+  --c-chart-8: #e34948;
+  --c-thrust: #ea580c;
+  --c-thrust-average: #0d9488;
+  --c-thrust-burnout: #ca8a04;
+  --c-thrust-band: #0891b2;
+  --c-scene-sky: #ffffff;
+  --c-scene-ground: #94a3b8;
+  --c-scene-floor: #e2e8f0;
+  --c-scene-grid: #94a3b8;
+  --c-scene-grid-minor: #cbd5e1;
+  --c-scene-marker: #334155;
+  --c-scene-light-key: #ffffff;
+  --c-scene-light-fill: #f1f5f9;
+  --c-scene-callout: #475569;
+  --c-scene-callout-light: #ffffff;
+  --c-scene-selected: #0284c7;
+  --c-scene-selected-glow: #38bdf8;
+  --c-scene-cg: #1d4ed8;
+  --c-scene-cp: #dc2626;
+  --c-scene-stable-ok: #15803d;
+  --c-scene-stable-over: #b45309;
+  --c-scene-stable-under: #dc2626;
+}
+
+:root[data-theme='daylight'] {
+  --c-canvas: #ffffff;
+  --c-surface: #ffffff;
+  --c-raised: oklch(96.8% 0.007 247.896);
+  --c-elevated: oklch(92.9% 0.013 255.508);
+  --c-ink-strong: #000000;
+  --c-ink: #000000;
+  --c-ink-soft: oklch(20.8% 0.042 265.755);
+  --c-ink-muted: oklch(27.9% 0.041 260.031);
+  --c-ink-faint: oklch(37.2% 0.044 257.287);
+  --c-ink-dim: oklch(44.6% 0.043 257.281);
+  --c-line: #000000;
+  --c-scene-floor: #f1f5f9;
+  --c-scene-grid: #475569;
+  --c-scene-marker: #000000;
+  --c-scene-callout: #000000;
+  --c-accent-50: oklch(29.3% 0.066 243.157);
+  --c-accent-100: oklch(29.3% 0.066 243.157);
+  --c-accent-200: oklch(39.1% 0.09 240.876);
+  --c-accent-300: oklch(44.3% 0.11 240.79);
+  --c-accent-400: oklch(50% 0.134 242.749);
+  --c-accent-500: oklch(68.5% 0.169 237.323);
+  --c-accent-600: oklch(58.8% 0.158 241.966);
+  --c-accent-700: oklch(50% 0.134 242.749);
+  --c-accent-800: oklch(44.3% 0.11 240.79);
+  --c-accent-900: oklch(95.1% 0.026 236.824);
+  --c-accent-950: oklch(97.7% 0.013 236.62);
+  --c-warn-50: oklch(27.9% 0.077 45.635);
+  --c-warn-100: oklch(27.9% 0.077 45.635);
+  --c-warn-200: oklch(41.4% 0.112 45.904);
+  --c-warn-300: oklch(47.3% 0.137 46.201);
+  --c-warn-400: oklch(55.5% 0.163 48.998);
+  --c-warn-500: oklch(76.9% 0.188 70.08);
+  --c-warn-600: oklch(66.6% 0.179 58.318);
+  --c-warn-700: oklch(55.5% 0.163 48.998);
+  --c-warn-800: oklch(47.3% 0.137 46.201);
+  --c-warn-900: oklch(96.2% 0.059 95.617);
+  --c-warn-950: oklch(98.7% 0.022 95.277);
+  --c-danger-50: oklch(25.8% 0.092 26.042);
+  --c-danger-100: oklch(25.8% 0.092 26.042);
+  --c-danger-200: oklch(39.6% 0.141 25.723);
+  --c-danger-300: oklch(44.4% 0.177 26.899);
+  --c-danger-400: oklch(50.5% 0.213 27.518);
+  --c-danger-500: oklch(63.7% 0.237 25.331);
+  --c-danger-600: oklch(57.7% 0.245 27.325);
+  --c-danger-700: oklch(50.5% 0.213 27.518);
+  --c-danger-800: oklch(44.4% 0.177 26.899);
+  --c-danger-900: oklch(93.6% 0.032 17.717);
+  --c-danger-950: oklch(97.1% 0.013 17.38);
+  --c-error-50: oklch(27.1% 0.105 12.094);
+  --c-error-100: oklch(27.1% 0.105 12.094);
+  --c-error-200: oklch(41% 0.159 10.272);
+  --c-error-300: oklch(45.5% 0.188 13.697);
+  --c-error-400: oklch(51.4% 0.222 16.935);
+  --c-error-500: oklch(64.5% 0.246 16.439);
+  --c-error-600: oklch(58.6% 0.253 17.585);
+  --c-error-700: oklch(51.4% 0.222 16.935);
+  --c-error-800: oklch(45.5% 0.188 13.697);
+  --c-error-900: oklch(94.1% 0.03 12.58);
+  --c-error-950: oklch(96.9% 0.015 12.422);
+  --c-ok-50: oklch(26.2% 0.051 172.552);
+  --c-ok-100: oklch(26.2% 0.051 172.552);
+  --c-ok-200: oklch(37.8% 0.077 168.94);
+  --c-ok-300: oklch(43.2% 0.095 166.913);
+  --c-ok-400: oklch(50.8% 0.118 165.612);
+  --c-ok-500: oklch(69.6% 0.17 162.48);
+  --c-ok-600: oklch(59.6% 0.145 163.225);
+  --c-ok-700: oklch(50.8% 0.118 165.612);
+  --c-ok-800: oklch(43.2% 0.095 166.913);
+  --c-ok-900: oklch(95% 0.052 163.051);
+  --c-ok-950: oklch(97.9% 0.021 166.113);
+}
+
+/* The schematic's names for the same colors. Aliases, so they follow the
+   tokens; the names stay because services/exports/schematicExport maps each
+   one to a print color by name. */
 :root {
-  --text-primary: #f1f5f9; /* slate-100 */
-  --text-muted: #94a3b8; /* slate-400 */
-  --border: rgba(255, 255, 255, 0.12);
-  --surface-1: #1e293b; /* slate-800 */
-  --hover: #334155; /* slate-700 */
-  --accent: #38bdf8; /* sky-400 */
-  --launch: #38bdf8; /* sky-400 */
-  --status-good: #34d399; /* emerald-400 */
-  --status-warn: #fbbf24; /* amber-400 */
-  --status-serious: #f87171; /* red-400 */
+  --text-primary: var(--c-ink-strong);
+  --text-muted: var(--c-ink-muted);
+  --border: color-mix(in oklab, var(--c-line) 12%, transparent);
+  --surface-1: var(--c-raised);
+  --hover: var(--c-elevated);
+  --accent: var(--c-accent-400);
+  --launch: var(--c-accent-400);
+  --status-good: var(--c-ok-400);
+  --status-warn: var(--c-warn-400);
+  --status-serious: var(--c-danger-400);
 }
 
 .file-btn {

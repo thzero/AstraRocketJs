@@ -257,7 +257,7 @@ export function MotorDialog({
       <div className="flex min-h-0 flex-1 flex-col md:flex-row">
         {/* LEFT: filters + list + count */}
         <div
-          className={`flex min-h-0 flex-col md:w-[360px] md:shrink-0 md:border-r md:border-white/10 ${shown ? 'hidden md:flex' : 'flex'}`}
+          className={`flex min-h-0 flex-col md:w-[360px] md:shrink-0 md:border-r md:border-line/10 ${shown ? 'hidden md:flex' : 'flex'}`}
         >
           <div className="space-y-2 p-3">
             <div className="flex gap-2">
@@ -266,11 +266,11 @@ export function MotorDialog({
                 onChange={(e) => setText(e.target.value)}
                 autoFocus
                 placeholder={t('motorDlg.searchCode')}
-                className="min-w-0 flex-1 rounded-lg bg-slate-950 px-3 py-2 text-sm text-slate-100 ring-1 ring-white/10 placeholder:text-slate-500 focus:outline-none focus:ring-sky-500"
+                className="min-w-0 flex-1 rounded-lg bg-canvas px-3 py-2 text-sm text-ink-strong ring-1 ring-line/10 placeholder:text-ink-faint focus:outline-none focus:ring-accent-500"
               />
               <button
                 onClick={motorFile.pick}
-                className="shrink-0 rounded-lg bg-slate-800 px-3 py-2 text-xs font-medium text-slate-200 hover:bg-slate-700"
+                className="shrink-0 rounded-lg bg-raised px-3 py-2 text-xs font-medium text-ink hover:bg-elevated"
               >
                 {t('motor.import')}
               </button>
@@ -312,7 +312,7 @@ export function MotorDialog({
               <CatalogLoading name="motors" label={t('motorDlg.loadingCatalog')} />
             </div>
           ) : (
-            <ul className="min-h-0 flex-1 divide-y divide-white/5 overflow-y-auto">
+            <ul className="min-h-0 flex-1 divide-y divide-line/5 overflow-y-auto">
               {matches.map((m) => {
                 const k = keyOf(m);
                 const isLoading = loadingKey === k;
@@ -324,27 +324,27 @@ export function MotorDialog({
                       disabled={loadingKey !== null}
                       aria-pressed={selectedKey === k}
                       className={`flex min-w-0 flex-1 items-center justify-between gap-2 px-3 py-2 text-left text-sm disabled:opacity-50 ${
-                        selectedKey === k ? 'bg-sky-600/25 ring-1 ring-inset ring-sky-500/50' : 'hover:bg-slate-800'
+                        selectedKey === k ? 'bg-accent-600/25 ring-1 ring-inset ring-accent-500/50' : 'hover:bg-raised'
                       }`}
                     >
                       <span className="min-w-0">
                         {m.custom && (
-                          <span className="mr-1 text-amber-400" title={t('motor.importedTitle')}>
+                          <span className="mr-1 text-warn-400" title={t('motor.importedTitle')}>
                             ★
                           </span>
                         )}
-                        <span className="font-medium text-slate-100">{m.code || m.designation}</span>
-                        <span className="ml-2 text-xs text-slate-500">{m.manufacturer}</span>
+                        <span className="font-medium text-ink-strong">{m.code || m.designation}</span>
+                        <span className="ml-2 text-xs text-ink-faint">{m.manufacturer}</span>
                         {!m.custom && !hasCurve(m) && (
                           <span
-                            className="ml-2 rounded bg-slate-700 px-1 py-0.5 text-[9px] uppercase tracking-wide text-slate-400"
+                            className="ml-2 rounded bg-elevated px-1 py-0.5 text-[9px] uppercase tracking-wide text-ink-muted"
                             title={t('motorDlg.noBundledCurve')}
                           >
                             {t('dash.noCurve')}
                           </span>
                         )}
                       </span>
-                      <span className="shrink-0 text-xs tabular-nums text-slate-400">
+                      <span className="shrink-0 text-xs tabular-nums text-ink-muted">
                         {isLoading
                           ? t('motorDlg.loading')
                           : `${u.fmtSym('impulse', m.impulse, m.impulse < 10 ? 1 : 0)} · ${u.fmtSym('motorDimensions', m.diameter / 1000, 0)}`}
@@ -354,7 +354,7 @@ export function MotorDialog({
                       <button
                         onClick={() => onDelete(m)}
                         aria-label={t('motor.deleteTitle', { name: m.designation })}
-                        className="shrink-0 px-3 text-red-400 hover:bg-slate-800"
+                        className="shrink-0 px-3 text-danger-400 hover:bg-raised"
                       >
                         ✕
                       </button>
@@ -363,18 +363,18 @@ export function MotorDialog({
                 );
               })}
               {matches.length === 0 && (
-                <li className="px-3 py-8 text-center text-sm text-slate-500">
+                <li className="px-3 py-8 text-center text-sm text-ink-faint">
                   {t('motorDlg.noResults')}
                   {/* The likeliest reason for an empty list is the fit filter,
                       which is on by default whenever there is a mount to judge
                       against. Name it, rather than leaving a blank panel. */}
-                  {fits && <div className="mt-1 text-xs text-slate-600">{t('motorDlg.fitsMountHint')}</div>}
+                  {fits && <div className="mt-1 text-xs text-ink-dim">{t('motorDlg.fitsMountHint')}</div>}
                 </li>
               )}
             </ul>
           )}
 
-          <div className="border-t border-white/10 p-2 text-center text-[11px] uppercase tracking-wide text-slate-500">
+          <div className="border-t border-line/10 p-2 text-center text-[11px] uppercase tracking-wide text-ink-faint">
             {loading ? '' : (note ?? t('motor.count', { total: matches.length }))}
           </div>
         </div>
@@ -390,19 +390,19 @@ export function MotorDialog({
                 curveIndex={curveIdx}
                 onCurveChange={setCurveIdx}
               />
-              <div className="flex shrink-0 items-center justify-between gap-2 border-t border-white/10 p-2">
+              <div className="flex shrink-0 items-center justify-between gap-2 border-t border-line/10 p-2">
                 <DelayControl motor={shown} delay={delay} onDelay={setDelay} />
                 <button
                   onClick={() => pick(shown, curveIdx)}
                   disabled={loadingKey !== null}
-                  className="shrink-0 rounded-lg bg-sky-600 px-5 py-1.5 text-sm font-medium text-white hover:bg-sky-500 disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500"
+                  className="shrink-0 rounded-lg bg-accent-600 px-5 py-1.5 text-sm font-medium text-on-accent hover:bg-accent-500 disabled:cursor-not-allowed disabled:bg-raised disabled:text-ink-faint"
                 >
                   {loadingKey !== null ? t('motorDlg.loading') : t('motorDlg.select')}
                 </button>
               </div>
             </>
           ) : (
-            <div className="grid flex-1 place-items-center p-6 text-center text-sm text-slate-500">
+            <div className="grid flex-1 place-items-center p-6 text-center text-sm text-ink-faint">
               {t('motorDlg.pickHint')}
             </div>
           )}
@@ -422,8 +422,8 @@ function DelayControl({ motor, delay, onDelay }: { motor: CatalogMotor; delay: n
   if (plugged && delays.length === 0) return <span />; // plugged-only: already plugged, no choice to make
   const chip = 'rounded px-1.5 py-0.5 text-xs font-medium';
   return (
-    <div className="flex min-w-0 flex-wrap items-center gap-1 text-xs text-slate-400">
-      <span className="text-slate-500">{t('sims.delay')}</span>
+    <div className="flex min-w-0 flex-wrap items-center gap-1 text-xs text-ink-muted">
+      <span className="text-ink-faint">{t('sims.delay')}</span>
       {delays.map((d) => (
         <ToggleButton key={d} active={delay === d} onClick={() => onDelay(d)} className={chip}>
           {d}
@@ -455,7 +455,7 @@ function DelayControl({ motor, delay, onDelay }: { motor: CatalogMotor; delay: n
         }}
         placeholder={t('motorDlg.custom')}
         ariaLabel={t('sims.delay')}
-        className="w-14 rounded bg-slate-950 px-1.5 py-0.5 text-right tabular-nums text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
+        className="w-14 rounded bg-canvas px-1.5 py-0.5 text-right tabular-nums text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500"
       />
     </div>
   );

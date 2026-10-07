@@ -311,6 +311,14 @@
     "saveDesignInfo": "Guardar la información de diseño (estadísticas) en el archivo",
     "askWhereToSave": "Preguntar dónde guardar cada archivo",
     "askWhereToSaveHint": "Abre el diálogo de guardado del navegador para que elijas el nombre y la carpeta. Desactivado, los archivos van directamente a tu carpeta de descargas.",
+    "theme": "Tema",
+    "themeHint": "Luz de día es un tema claro con texto negro y colores más oscuros, para leer la pantalla al sol en el campo.",
+    "themeOption": {
+      "dark": "Oscuro",
+      "light": "Claro",
+      "system": "Según el sistema",
+      "daylight": "Luz de día (alto contraste)"
+    },
     "resetTab": "Restablecer {{name}}",
     "resetAll": "Restablecer todo",
     "resetOne": "Restablecer color predeterminado",

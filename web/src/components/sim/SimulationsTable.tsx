@@ -12,17 +12,17 @@ import { launcherKind, withLauncher } from '../../services/design/launcher';
 
 /** Dot color per status. Paired with a text label in the cell, never color alone. */
 const TONE: Record<SimStatus, string> = {
-  upToDate: 'bg-emerald-400',
-  outdated: 'bg-amber-400',
+  upToDate: 'bg-ok-400',
+  outdated: 'bg-warn-400',
   // Queued is the same hue as running but still: with a pool, a batch shows a
   // few rows in the air and the rest waiting, and a waiting row that pulses
   // claims to be doing work it is not.
-  queued: 'bg-sky-400/50',
-  running: 'bg-sky-400 animate-pulse',
-  failed: 'bg-red-500',
-  notRun: 'bg-slate-600',
+  queued: 'bg-accent-400/50',
+  running: 'bg-accent-400 animate-pulse',
+  failed: 'bg-danger-500',
+  notRun: 'bg-prominent',
   // Figures from a file, not flown here: present, but not this app's run.
-  fromFile: 'bg-slate-300',
+  fromFile: 'bg-ink-soft',
 };
 
 /**
@@ -105,7 +105,7 @@ export function SimulationsTable({
   return (
     <table className="w-full border-collapse text-sm">
       <thead>
-        <tr className="border-b border-white/10 text-[11px] uppercase tracking-wide text-slate-400">
+        <tr className="border-b border-line/10 text-[11px] uppercase tracking-wide text-ink-muted">
           <th scope="col" className="w-8 px-2 py-2">
             <input
               type="checkbox"
@@ -117,7 +117,7 @@ export function SimulationsTable({
               }}
               onChange={(e) => onToggleAll(e.target.checked)}
               aria-label={t('sims.selectAll')}
-              className="accent-sky-500"
+              className="accent-accent-500"
             />
           </th>
           <Th>{t('sims.status')}</Th>
@@ -156,7 +156,7 @@ export function SimulationsTable({
           // Every number is from the LAST run, which for an outdated row
           // describes a design that has since moved on. The row is dimmed to say
           // so — the numbers are still worth reading, they are just not current.
-          const dim = status === 'outdated' || status === 'fromFile' ? 'text-slate-400' : 'text-slate-200';
+          const dim = status === 'outdated' || status === 'fromFile' ? 'text-ink-muted' : 'text-ink';
           return (
             // The row click is a mouse convenience; the button in the name cell
             // is what actually selects, so the table stays reachable from the
@@ -165,8 +165,8 @@ export function SimulationsTable({
             <tr
               key={s.id}
               onClick={() => onSelect(s.id)}
-              className={`cursor-pointer border-b border-white/5 ${
-                isActive ? 'bg-sky-600/20 ring-1 ring-inset ring-sky-500/40' : 'hover:bg-slate-800/60'
+              className={`cursor-pointer border-b border-line/5 ${
+                isActive ? 'bg-accent-600/20 ring-1 ring-inset ring-accent-500/40' : 'hover:bg-raised/60'
               }`}
             >
               <td className="w-8 px-2 py-2">
@@ -178,20 +178,20 @@ export function SimulationsTable({
                   onClick={(e) => e.stopPropagation()}
                   onChange={() => onToggle(s.id)}
                   aria-label={t('sims.selectOne', { name: s.name })}
-                  className="accent-sky-500"
+                  className="accent-accent-500"
                 />
               </td>
               <Td>
                 <span className="flex items-center gap-1.5">
                   <span className={`size-2 shrink-0 rounded-full ${TONE[status]}`} aria-hidden />
-                  <span className="text-[11px] text-slate-400">{statusLabel[status]}</span>
+                  <span className="text-[11px] text-ink-muted">{statusLabel[status]}</span>
                   {/* A run can be current AND have flagged something, which the
                       status dot on its own cannot say. The detail is on the
                       Results tab; this is the pointer to it. */}
                   {!!s.result?.warnings?.length && (
                     <span
                       title={s.result.warnings.map((w) => warningText(w.message, t)).join('\n')}
-                      className="shrink-0 text-[11px] text-amber-400"
+                      className="shrink-0 text-[11px] text-warn-400"
                     >
                       &#9888; {s.result.warnings.length}
                     </span>
@@ -202,8 +202,8 @@ export function SimulationsTable({
                 <button
                   onClick={() => onSelect(s.id)}
                   aria-current={isActive ? 'true' : undefined}
-                  className={`rounded text-left font-medium focus:outline-none focus:ring-1 focus:ring-sky-500 ${
-                    isActive ? 'text-sky-100' : 'text-slate-100'
+                  className={`rounded text-left font-medium focus:outline-none focus:ring-1 focus:ring-accent-500 ${
+                    isActive ? 'text-accent-100' : 'text-ink-strong'
                   }`}
                 >
                   {s.name}
@@ -223,7 +223,7 @@ export function SimulationsTable({
                     onSetConfig(s.id, e.target.value);
                   }}
                   aria-label={t('configs.pickFor', { name: s.name })}
-                  className="w-full max-w-56 rounded-md bg-slate-800 px-1.5 py-1 text-xs text-slate-200 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
+                  className="w-full max-w-56 rounded-md bg-raised px-1.5 py-1 text-xs text-ink ring-1 ring-line/10 focus:outline-none focus:ring-accent-500"
                 >
                   {configs.map((c) => (
                     <option key={c.id} value={c.id}>
@@ -264,7 +264,7 @@ export function SimulationsTable({
                     }}
                     title={t('sims.viewResults')}
                     aria-label={t('sims.viewResultsFor', { name: s.name })}
-                    className="rounded-md px-1.5 py-0.5 text-sm text-sky-300 hover:bg-slate-700 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                    className="rounded-md px-1.5 py-0.5 text-sm text-accent-300 hover:bg-elevated focus:outline-none focus:ring-1 focus:ring-accent-500"
                   >
                     📊
                   </button>
@@ -300,11 +300,11 @@ function Td({ children, wide }: { children: React.ReactNode; wide?: boolean }) {
 function Num({ children, wide, className }: { children: React.ReactNode; wide?: boolean; className?: string }) {
   return (
     <td className={`${wide ? 'hidden lg:table-cell' : ''} px-2 py-2 text-right tabular-nums ${className ?? ''}`}>
-      {children ?? <span className="text-slate-600">–</span>}
+      {children ?? <span className="text-ink-dim">–</span>}
     </td>
   );
 }
 
 function Unit({ children }: { children: React.ReactNode }) {
-  return <span className="font-normal text-slate-500">{children}</span>;
+  return <span className="font-normal text-ink-faint">{children}</span>;
 }

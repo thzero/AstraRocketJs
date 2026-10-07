@@ -65,12 +65,12 @@ export function UnitChip({
         else next[scope] = e.target.value;
         update({ unitOverrides: next });
       }}
-      className={`cursor-pointer appearance-none bg-transparent text-xs hover:text-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-500 ${
-        overridden ? 'font-medium text-amber-400' : 'text-slate-500'
+      className={`cursor-pointer appearance-none bg-transparent text-xs hover:text-accent-400 focus:outline-none focus:ring-1 focus:ring-accent-500 ${
+        overridden ? 'font-medium text-warn-400' : 'text-ink-faint'
       } ${className}`}
     >
       {UNITS[quantity].map((u) => (
-        <option key={u.symbol} value={u.symbol} className="bg-slate-800 text-slate-100">
+        <option key={u.symbol} value={u.symbol} className="bg-raised text-ink-strong">
           {u.symbol}
         </option>
       ))}

@@ -127,11 +127,11 @@ test('the run summary carries a safety card linking to the docs', async ({ page 
 
   await expect(card.getByRole('listitem').filter({ hasText: 'Not modeled at all' })).toContainText('Fin flutter');
 
-  // The whole card is a WARNING, not a note: it carries the shared amber tone
+  // The whole card is a WARNING, not a note: it carries the shared warn tone
   // and the ⚠ glyph, because the failures it lists are the ones no number above
   // will ever mention. Pinned on both, since the glyph is the half that still
   // works for a reader who cannot use the color.
-  await expect(card).toHaveClass(/amber/);
+  await expect(card).toHaveClass(/(^|\s)bg-warn-/);
   await expect(card).toContainText('⚠');
 
   // ABOVE the tiles, not below them: it leads the numbers, because what a

@@ -43,21 +43,20 @@ export function ScaleDialog({ onClose }: { onClose: () => void }) {
     onClose();
   };
   const input =
-    'w-24 rounded-md bg-slate-800 px-2 py-1.5 text-sm tabular-nums text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500';
-  const chip =
-    'rounded-md bg-slate-800 px-2 py-1 text-xs font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700';
+    'w-24 rounded-md bg-raised px-2 py-1.5 text-sm tabular-nums text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500';
+  const chip = 'rounded-md bg-raised px-2 py-1 text-xs font-medium text-ink ring-1 ring-line/10 hover:bg-elevated';
 
   return (
     <Dialog id="scale" title={t('scale.title')} onClose={onClose} layer="over" layout="pad" size="md">
       {baseD <= 0 ? (
-        <p className="mt-4 text-sm leading-relaxed text-slate-400">{t('scale.noAirframe')}</p>
+        <p className="mt-4 text-sm leading-relaxed text-ink-muted">{t('scale.noAirframe')}</p>
       ) : (
         <>
-          <p className="mt-3 text-sm leading-relaxed text-slate-400">{t('scale.intro')}</p>
+          <p className="mt-3 text-sm leading-relaxed text-ink-muted">{t('scale.intro')}</p>
 
           <div className="mt-4 space-y-3">
             <div className="flex items-center gap-2">
-              <label className="w-28 shrink-0 text-xs font-medium uppercase tracking-wide text-slate-400">
+              <label className="w-28 shrink-0 text-xs font-medium uppercase tracking-wide text-ink-muted">
                 {t('scale.factor')}
               </label>
               <NumberInput
@@ -67,7 +66,7 @@ export function ScaleDialog({ onClose }: { onClose: () => void }) {
                 min={0.01}
                 className={input}
               />
-              <span className="text-xs tabular-nums text-slate-500">× · {pct}%</span>
+              <span className="text-xs tabular-nums text-ink-faint">× · {pct}%</span>
               <div className="ml-auto flex gap-1">
                 {[0.5, 2].map((f) => (
                   <button key={f} type="button" onClick={() => setFactor(f)} className={chip}>
@@ -78,7 +77,7 @@ export function ScaleDialog({ onClose }: { onClose: () => void }) {
             </div>
 
             <div className="flex items-center gap-2">
-              <label className="w-28 shrink-0 text-xs font-medium uppercase tracking-wide text-slate-400">
+              <label className="w-28 shrink-0 text-xs font-medium uppercase tracking-wide text-ink-muted">
                 {t('scale.newDiameter')}
               </label>
               {/* In the field's own unit: a fixed step of 1 and floor of 0.1
@@ -99,22 +98,22 @@ export function ScaleDialog({ onClose }: { onClose: () => void }) {
                 min={fu.toUi(0.001)}
                 className={input}
               />
-              <span className="text-xs text-slate-500">
+              <span className="text-xs text-ink-faint">
                 {t('scale.currentDiameter', { mm: `${fu.fmtSym(baseD)}` })}
               </span>
             </div>
           </div>
 
-          <p className="mt-4 text-sm leading-relaxed text-slate-300">
-            <span className="font-semibold text-slate-100">
+          <p className="mt-4 text-sm leading-relaxed text-ink-soft">
+            <span className="font-semibold text-ink-strong">
               {fu.fmt(baseL)} × {fu.fmt(baseD)} <UnitChip quantity="length" scope={scope} />
             </span>{' '}
             {t('scale.becomes')}{' '}
-            <span className="font-semibold text-sky-300">
+            <span className="font-semibold text-accent-300">
               {fu.fmt(baseL * factor)} × {fu.fmt(baseD * factor)} <UnitChip quantity="length" scope={scope} />
             </span>
           </p>
-          <p className="mt-2 text-xs leading-relaxed text-slate-500">
+          <p className="mt-2 text-xs leading-relaxed text-ink-faint">
             {t('scale.massNote', { cube: fmtNum(factor ** 3, 2) })}
           </p>
 

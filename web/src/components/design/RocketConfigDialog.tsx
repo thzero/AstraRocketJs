@@ -44,9 +44,9 @@ export function RocketConfigDialog({ onClose }: { onClose: () => void }) {
     onClose();
   };
 
-  const label = 'w-28 shrink-0 pt-1.5 text-xs font-medium uppercase tracking-wide text-slate-400';
+  const label = 'w-28 shrink-0 pt-1.5 text-xs font-medium uppercase tracking-wide text-ink-muted';
   const field =
-    'min-w-0 flex-1 rounded-md bg-slate-800 px-2 py-1.5 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500';
+    'min-w-0 flex-1 rounded-md bg-raised px-2 py-1.5 text-sm text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500';
 
   return (
     <Dialog

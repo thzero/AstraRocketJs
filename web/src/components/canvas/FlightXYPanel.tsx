@@ -105,11 +105,11 @@ export function FlightXYPanel({
   const peak = lines[0]?.vel.reduce((m, v) => Math.max(m, v), 0) ?? 0;
 
   return (
-    <div className="mb-2 rounded-lg bg-slate-800/40 ring-1 ring-white/10">
+    <div className="mb-2 rounded-lg bg-raised/40 ring-1 ring-line/10">
       <div className="flex items-baseline justify-between gap-2 px-2 pt-1.5">
-        <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{t(meta.label)}</span>
+        <span className="text-[10px] font-semibold uppercase tracking-wide text-ink-muted">{t(meta.label)}</span>
         <span className="flex items-baseline gap-2">
-          <span className="text-xs font-semibold tabular-nums text-slate-100">
+          <span className="text-xs font-semibold tabular-nums text-ink-strong">
             {head && head.v != null && head.a != null
               ? t('flight.velocityAtAltitude', {
                   velocity: `${fmtNum(head.v, yDigits)} ${u.sym('velocity')}`,
@@ -143,16 +143,16 @@ export function FlightXYPanel({
             a != null && v != null ? <circle key={i} cx={X(a)} cy={Y(v)} r={3} fill={l.color} /> : null,
           )}
         </g>
-        <text x={PAD_L - 4} y={padT + 7} textAnchor="end" className="fill-slate-500 text-[9px] tabular-nums">
+        <text x={PAD_L - 4} y={padT + 7} textAnchor="end" className="fill-ink-faint text-[9px] tabular-nums">
           {fmtNum(y1, yDigits)}
         </text>
-        <text x={PAD_L - 4} y={height - padB} textAnchor="end" className="fill-slate-500 text-[9px] tabular-nums">
+        <text x={PAD_L - 4} y={height - padB} textAnchor="end" className="fill-ink-faint text-[9px] tabular-nums">
           {fmtNum(y0, yDigits)}
         </text>
-        <text x={PAD_L} y={height - 3} className="fill-slate-500 text-[9px] tabular-nums">
+        <text x={PAD_L} y={height - 3} className="fill-ink-faint text-[9px] tabular-nums">
           {fmtNum(x0, xDigits)}
         </text>
-        <text x={w - PAD_R} y={height - 3} textAnchor="end" className="fill-slate-500 text-[9px] tabular-nums">
+        <text x={w - PAD_R} y={height - 3} textAnchor="end" className="fill-ink-faint text-[9px] tabular-nums">
           {`${fmtNum(x1, xDigits)} ${u.sym('distance')}`}
         </text>
       </svg>

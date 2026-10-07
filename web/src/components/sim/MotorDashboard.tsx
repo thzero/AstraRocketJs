@@ -108,13 +108,13 @@ export function MotorDashboard({ onClose }: { onClose: () => void }) {
       actions={
         checked.size > 0 && (
           <>
-            <span className="text-xs text-slate-400">{t('dash.selectedN', { n: checked.size })}</span>
+            <span className="text-xs text-ink-muted">{t('dash.selectedN', { n: checked.size })}</span>
             <button
               onClick={() => {
                 setChecked(new Map());
                 setMode('detail');
               }}
-              className="rounded-lg bg-slate-800 px-2 py-1 text-xs text-slate-300 hover:bg-slate-700"
+              className="rounded-lg bg-raised px-2 py-1 text-xs text-ink-soft hover:bg-elevated"
             >
               {t('dash.clear')}
             </button>
@@ -128,7 +128,7 @@ export function MotorDashboard({ onClose }: { onClose: () => void }) {
               instead of pushing the detail pane. Hidden while a full-width tool
               (compare/combine) is open. */}
         <div
-          className={`${effMode === 'detail' ? 'flex' : 'hidden'} min-h-0 min-w-0 flex-1 flex-col md:border-r md:border-white/10`}
+          className={`${effMode === 'detail' ? 'flex' : 'hidden'} min-h-0 min-w-0 flex-1 flex-col md:border-r md:border-line/10`}
         >
           <div className="flex flex-wrap items-center gap-2 p-3">
             <input
@@ -136,7 +136,7 @@ export function MotorDashboard({ onClose }: { onClose: () => void }) {
               onChange={(e) => setText(e.target.value)}
               autoFocus
               placeholder={t('motorDlg.searchCode')}
-              className="min-w-[140px] flex-1 rounded-lg bg-slate-950 px-3 py-1.5 text-sm text-slate-100 ring-1 ring-white/10 placeholder:text-slate-500 focus:outline-none focus:ring-sky-500"
+              className="min-w-[140px] flex-1 rounded-lg bg-canvas px-3 py-1.5 text-sm text-ink-strong ring-1 ring-line/10 placeholder:text-ink-faint focus:outline-none focus:ring-accent-500"
             />
             <ManufacturerMenu manufacturers={manufacturers} mfrs={mfrs} onChange={setMfrs} align="right" />
             <ColumnChooser visCols={visCols} onToggle={toggleCol} />
@@ -176,10 +176,10 @@ export function MotorDashboard({ onClose }: { onClose: () => void }) {
           className={`min-h-0 overflow-y-auto ${effMode === 'detail' ? 'w-full md:w-[440px] md:shrink-0' : 'w-full flex-1'}`}
         >
           {effMode !== 'detail' && (
-            <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-white/10 bg-slate-900 px-3 py-2">
+            <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-line/10 bg-surface px-3 py-2">
               <button
                 onClick={() => setMode('detail')}
-                className="rounded-lg bg-slate-800 px-3 py-1 text-xs font-medium text-slate-200 hover:bg-slate-700"
+                className="rounded-lg bg-raised px-3 py-1 text-xs font-medium text-ink hover:bg-elevated"
               >
                 ← {t('dash.back')}
               </button>
@@ -187,7 +187,7 @@ export function MotorDashboard({ onClose }: { onClose: () => void }) {
                 active={effMode === 'compare'}
                 disabled={checked.size < 2}
                 onClick={() => setMode('compare')}
-                className="w-24 rounded-lg px-3 py-1 text-center text-xs font-medium ring-1 ring-white/10"
+                className="w-24 rounded-lg px-3 py-1 text-center text-xs font-medium ring-1 ring-line/10"
               >
                 {t('dash.compareN', { n: checked.size })}
               </ToggleButton>
@@ -195,7 +195,7 @@ export function MotorDashboard({ onClose }: { onClose: () => void }) {
                 active={effMode === 'combine'}
                 disabled={checked.size < 2}
                 onClick={() => setMode('combine')}
-                className="w-24 rounded-lg px-3 py-1 text-center text-xs font-medium ring-1 ring-white/10"
+                className="w-24 rounded-lg px-3 py-1 text-center text-xs font-medium ring-1 ring-line/10"
               >
                 {t('dash.combine', { n: checked.size })}
               </ToggleButton>
@@ -210,31 +210,31 @@ export function MotorDashboard({ onClose }: { onClose: () => void }) {
             // rather than a single motor's detail.
             <div className="p-6">
               <div className="mx-auto max-w-xs space-y-4 text-center">
-                <div className="text-xs uppercase tracking-wide text-slate-500">
+                <div className="text-xs uppercase tracking-wide text-ink-faint">
                   {t('dash.selectedN', { n: checked.size })}
                 </div>
                 <div className="space-y-2 text-left">
                   <button
                     onClick={() => setMode('compare')}
-                    className="w-full rounded-lg bg-sky-600 px-3 py-2 text-sm font-medium text-white hover:bg-sky-500"
+                    className="w-full rounded-lg bg-accent-600 px-3 py-2 text-sm font-medium text-on-accent hover:bg-accent-500"
                   >
                     {t('dash.compareN', { n: checked.size })}
                   </button>
-                  <p className="text-xs leading-snug text-slate-500">{t('dash.compareDesc')}</p>
+                  <p className="text-xs leading-snug text-ink-faint">{t('dash.compareDesc')}</p>
                   <button
                     onClick={() => setMode('combine')}
-                    className="w-full rounded-lg bg-slate-700 px-3 py-2 text-sm font-medium text-slate-100 hover:bg-slate-600"
+                    className="w-full rounded-lg bg-elevated px-3 py-2 text-sm font-medium text-ink-strong hover:bg-prominent"
                   >
                     {t('dash.combine', { n: checked.size })}
                   </button>
-                  <p className="text-xs leading-snug text-slate-500">{t('dash.combineDesc')}</p>
+                  <p className="text-xs leading-snug text-ink-faint">{t('dash.combineDesc')}</p>
                 </div>
               </div>
             </div>
           ) : selected ? (
             <MotorDetail motor={selected} curveIndex={curveIdx} onCurveChange={setCurveIdx} />
           ) : (
-            <div className="grid h-full place-items-center p-6 text-center text-sm text-slate-500">
+            <div className="grid h-full place-items-center p-6 text-center text-sm text-ink-faint">
               {t('dash.hint')}
             </div>
           )}

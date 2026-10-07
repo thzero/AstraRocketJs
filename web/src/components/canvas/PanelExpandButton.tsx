@@ -15,7 +15,7 @@ export function PanelExpandButton({ expanded, onClick }: { expanded: boolean; on
       aria-pressed={expanded}
       aria-label={label}
       title={label}
-      className="rounded px-1 text-[11px] leading-none text-slate-400 hover:bg-slate-700 hover:text-slate-100"
+      className="rounded px-1 text-[11px] leading-none text-ink-muted hover:bg-elevated hover:text-ink-strong"
     >
       {expanded ? '⤡' : '⤢'}
     </button>

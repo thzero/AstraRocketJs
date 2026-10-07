@@ -144,6 +144,7 @@ Everything above decides when a flight *warns*. This one changes what the flight
 
 ## General
 
+- **Theme**: Dark, Light, Follow system (light or dark as your device is set, changing when it does) or Daylight (high contrast), a light theme with black text and darker colors for reading a screen in sunlight at the field. Dark by default. The 3D views and the schematic follow the theme; a downloaded or printed schematic keeps its own print colors whatever the theme. The ☀ button in the header switches to Daylight in one tap, and a second tap goes back to the theme you had.
 - **Save design info (statistics) in the file**: writes the design's derived figures (mass, CG, CP, stability) into a saved `.ork`, as desktop OpenRocket can. Off by default.
 - **Ask where to save each file**: opens the browser's own save dialog for every export, so you choose the name and the folder. On by default, and shown only in browsers that have that dialog (Chrome and Edge). Off, or in Firefox and Safari, files go straight to your downloads folder.
 

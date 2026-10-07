@@ -47,7 +47,7 @@ import { useOnline } from '../common/useOnline';
  */
 
 const btn =
-  'rounded-md bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-300 ring-1 ring-white/10 hover:bg-slate-700 disabled:opacity-50';
+  'rounded-md bg-raised px-3 py-1.5 text-xs font-medium text-ink-soft ring-1 ring-line/10 hover:bg-elevated disabled:opacity-50';
 
 /** The next whole hour starts within this one; the dialog opens on it. */
 
@@ -214,7 +214,7 @@ export function WeatherDialog({
             {t('common.cancel')}
           </button>
           <button
-            className="rounded-md bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-500 disabled:opacity-50"
+            className="rounded-md bg-accent-600 px-3 py-1.5 text-xs font-semibold text-on-accent hover:bg-accent-500 disabled:opacity-50"
             disabled={!proposal || chosen.size === 0}
             onClick={apply}
           >
@@ -225,7 +225,7 @@ export function WeatherDialog({
     >
       <div className="space-y-3 p-3 text-sm">
         {!hasSite ? (
-          <p className="text-amber-400">{t('weather.needSite')}</p>
+          <p className="text-warn-400">{t('weather.needSite')}</p>
         ) : (
           <>
             <div className="flex flex-wrap items-end gap-3">
@@ -249,29 +249,29 @@ export function WeatherDialog({
                 {state.kind === 'loading' ? t('weather.fetching') : t('weather.fetch')}
               </button>
             </div>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-ink-muted">
               {t('weather.siteLine', { lat: formatLat(lat, 3), lon: formatLon(lon, 3), alt: alt(siteM) })}
             </p>
           </>
         )}
 
-        <p role="status" aria-live="polite" className="text-xs text-amber-400">
+        <p role="status" aria-live="polite" className="text-xs text-warn-400">
           {state.kind === 'error' ? state.message : ''}
         </p>
 
-        {answer && !sample && <p className="text-xs text-amber-400">{t('weather.noHour')}</p>}
+        {answer && !sample && <p className="text-xs text-warn-400">{t('weather.noHour')}</p>}
 
         {answer && proposal && (
           <div className="space-y-2">
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-ink-muted">
               {t(answer.endpoint === 'archive' ? 'weather.validArchive' : 'weather.validForecast', { time: validTime })}
             </p>
-            {answer.endpoint === 'archive' && <p className="text-xs text-slate-400">{t('weather.archiveNoAloft')}</p>}
+            {answer.endpoint === 'archive' && <p className="text-xs text-ink-muted">{t('weather.archiveNoAloft')}</p>}
             {/* When the answer came from, and a way past the reuse window: a
                 reused answer is not a fresh one, and the user may know a newer
                 run is out. */}
             <div className="flex items-center justify-between gap-3">
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-ink-muted">
                 {t(answer.reused ? 'weather.reused' : 'weather.fetchedAt', {
                   time: new Intl.DateTimeFormat(i18n.language, { hour: '2-digit', minute: '2-digit' }).format(
                     new Date(answer.fetchedAtMs),
@@ -290,7 +290,7 @@ export function WeatherDialog({
             {answer.variants.length > 1 && answer.terrainM !== null && (
               <Check
                 align="start"
-                className="text-xs text-slate-300"
+                className="text-xs text-ink-soft"
                 checked={useTerrain}
                 onChange={setUseTerrain}
                 label={t('weather.useTerrain', { terrain: alt(answer.terrainM), site: alt(siteM) })}
@@ -302,17 +302,17 @@ export function WeatherDialog({
                   {/* The value sits outside the label, so the checkbox is named
                       by its group alone and the value is read after it. */}
                   <Check
-                    className="text-xs text-slate-300"
+                    className="text-xs text-ink-soft"
                     checked={ticked.has(g)}
                     onChange={() => toggle(g)}
                     label={t(`weather.group.${g}`)}
                   />
-                  <span className="text-right text-xs tabular-nums text-slate-100">{describe(g)}</span>
+                  <span className="text-right text-xs tabular-nums text-ink-strong">{describe(g)}</span>
                 </li>
               ))}
             </ul>
-            <p className="text-xs text-slate-500">{t('weather.forecastNote')}</p>
-            <OpenMeteoCredit className="text-xs text-slate-500" />
+            <p className="text-xs text-ink-faint">{t('weather.forecastNote')}</p>
+            <OpenMeteoCredit className="text-xs text-ink-faint" />
           </div>
         )}
       </div>

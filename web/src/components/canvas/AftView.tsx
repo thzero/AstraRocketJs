@@ -14,6 +14,7 @@ import { discDims, tubeRadii } from '../../services/design/discGeometry';
 import { DISC_TYPES } from '../../services/files/componentFormats';
 import { partLabel } from '../../i18n/format';
 import { radToDeg } from '../../prefs/units';
+import { token } from '../common/colorTokens';
 
 /**
  * Aft end view — the rocket seen from behind (down the +X axis). This is the
@@ -89,8 +90,8 @@ function buildAftScene(
     y,
     z,
     r: diameter / 2,
-    fill: '#8b5a2b',
-    stroke: '#6b4520',
+    fill: token('sch-motor'),
+    stroke: token('sch-motor-edge'),
     title: t('part.motor'),
   });
 
@@ -110,8 +111,8 @@ function buildAftScene(
         y: cy,
         z: cz,
         r,
-        fill: colorOf(n, '#e7e5e0'),
-        stroke: '#7a786f',
+        fill: colorOf(n, token('sch-shell-light')),
+        stroke: token('sch-line'),
         title: nameOf(n),
       });
       reach(cy, cz, r);
@@ -153,8 +154,8 @@ function buildAftScene(
             from: pRadius,
             to: pRadius + span,
             thick,
-            fill: colorOf(child, '#b9b7b0'),
-            stroke: '#7a786f',
+            fill: colorOf(child, token('sch-part')),
+            stroke: token('sch-line'),
             title: `${nameOf(child)} ×${count}`,
           });
         }
@@ -171,7 +172,7 @@ function buildAftScene(
             z: cz + off.z,
             r: rt,
             fill: 'none',
-            stroke: '#7a786f',
+            stroke: token('sch-line'),
             title: `${nameOf(child)} ×${count}`,
           });
         }
@@ -189,8 +190,8 @@ function buildAftScene(
           from: pRadius,
           to: pRadius + hgt,
           thick: wid,
-          fill: colorOf(child, '#c8c5be'),
-          stroke: '#7a786f',
+          fill: colorOf(child, token('sch-part-light')),
+          stroke: token('sch-line'),
           title: nameOf(child),
         });
         reach(cy, cz, pRadius + hgt);
@@ -212,8 +213,8 @@ function buildAftScene(
           y: cy + rad * Math.cos(ang),
           z: cz + rad * Math.sin(ang),
           r,
-          fill: colorOf(child, '#c8c5be'),
-          stroke: '#7a786f',
+          fill: colorOf(child, token('sch-part-light')),
+          stroke: token('sch-line'),
           title: nameOf(child),
         });
         reach(cy, cz, pRadius + 2 * r);
@@ -237,7 +238,7 @@ function buildAftScene(
             z: cz + off.z,
             r,
             fill: 'none',
-            stroke: colorOf(child, '#9a978f'),
+            stroke: colorOf(child, token('sch-ink')),
             dash: '3 2',
             title: nameOf(child),
           });
@@ -260,7 +261,7 @@ function buildAftScene(
             z: cz,
             r,
             fill: 'none',
-            stroke: colorOf(child, '#9a978f'),
+            stroke: colorOf(child, token('sch-ink')),
             dash: '2 3',
             title: nameOf(child),
           }),
@@ -345,7 +346,7 @@ export function AftView({
           cy={-toSvg(s.z)}
           r={toSvg(s.r)}
           fill={s.fill}
-          fillOpacity={s.fill === '#8b5a2b' ? 0.45 : undefined}
+          fillOpacity={s.fill === token('sch-motor') ? 0.45 : undefined}
           stroke={s.stroke}
           strokeWidth={E / 220}
           strokeDasharray={
@@ -453,8 +454,8 @@ export function AftView({
           {inner.map(drawShape)}
           {outer.map(drawShape)}
           {/* Center crosshair */}
-          <line x1={-E * 0.05} y1={0} x2={E * 0.05} y2={0} stroke="#9a978f" strokeWidth={E / 300} />
-          <line x1={0} y1={-E * 0.05} x2={0} y2={E * 0.05} stroke="#9a978f" strokeWidth={E / 300} />
+          <line x1={-E * 0.05} y1={0} x2={E * 0.05} y2={0} stroke={token('sch-ink')} strokeWidth={E / 300} />
+          <line x1={0} y1={-E * 0.05} x2={0} y2={E * 0.05} stroke={token('sch-ink')} strokeWidth={E / 300} />
         </g>
       </svg>
       {/* Gated the way `SchematicControls` gates the same three. At the default

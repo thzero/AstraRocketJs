@@ -312,6 +312,14 @@
     "saveDesignInfo": "Zapisuj informacje o projekcie (statystyki) w pliku",
     "askWhereToSave": "Pytaj, gdzie zapisać każdy plik",
     "askWhereToSaveHint": "Otwiera okno zapisu przeglądarki, w którym wybierasz nazwę i folder. Wyłączone: pliki trafiają od razu do folderu pobranych.",
+    "theme": "Motyw",
+    "themeHint": "Światło dzienne to jasny motyw z czarnym tekstem i ciemniejszymi kolorami, do czytania ekranu w słońcu na polu startowym.",
+    "themeOption": {
+      "dark": "Ciemny",
+      "light": "Jasny",
+      "system": "Jak w systemie",
+      "daylight": "Światło dzienne (wysoki kontrast)"
+    },
     "resetTab": "Przywróć „{{name}}”",
     "resetAll": "Przywróć wszystko",
     "resetOne": "Przywróć domyślny kolor",

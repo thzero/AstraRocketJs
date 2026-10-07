@@ -39,7 +39,7 @@ export function Num({
   // commit-on-blur shape `NumberInput.onCommit` uses elsewhere.
   return (
     <label className="flex items-center gap-1.5">
-      <span className="text-[10px] text-slate-500">{label}</span>
+      <span className="text-[10px] text-ink-faint">{label}</span>
       <NumberInput
         commitOnBlur
         value={value}
@@ -49,9 +49,9 @@ export function Num({
         ariaLabel={label}
         // An emptied box commits nothing: the box falls back to what it had.
         onChange={(v) => v !== null && onChange(v)}
-        className="w-16 rounded-md bg-slate-800 px-1.5 py-0.5 text-right text-[11px] tabular-nums text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
+        className="w-16 rounded-md bg-raised px-1.5 py-0.5 text-right text-[11px] tabular-nums text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500"
       />
-      <span className="text-[10px] text-slate-600">{unit}</span>
+      <span className="text-[10px] text-ink-dim">{unit}</span>
     </label>
   );
 }

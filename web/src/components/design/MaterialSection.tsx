@@ -18,7 +18,7 @@ export function MaterialSection({
   onCommitChange: (patch: Partial<ComponentNode>) => void;
 }) {
   return (
-    <div className="border-t border-white/5 pt-3">
+    <div className="border-t border-line/5 pt-3">
       <MaterialPicker
         value={typeof node.materialName === 'string' ? node.materialName : undefined}
         onChange={(name, d) => onCommitChange({ materialName: name, density: d || undefined })}
@@ -38,7 +38,7 @@ export function RecoveryMaterialSection({
 }) {
   const { t } = useTranslation();
   return (
-    <div className="space-y-3 border-t border-white/5 pt-3">
+    <div className="space-y-3 border-t border-line/5 pt-3">
       <MaterialPicker
         type="surface"
         label={t(node.type === 'streamer' ? 'material.strip' : 'material.canopy')}

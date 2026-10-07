@@ -2,6 +2,7 @@ import type { FlightResult, FlightSeries } from '../../engine/openRocketEngine';
 import type { Quantity } from '../../prefs/units';
 import { flightBranches } from '../../services/flight/flightColumns';
 import { dynamicPressure, qAlpha, rollRate } from '../../services/flight/flightEvents';
+import { token } from '../common/colorTokens';
 
 /**
  * Owns what the flight chart draws: the series catalog (one panel per
@@ -104,7 +105,14 @@ export function visibleSeries(saved: readonly string[]): Key[] {
 // One color per trace: sky first (the original single line), then the rest.
 // Matches the component-tree palette so a stage reads the same color everywhere.
 // Cycles if a design or a comparison somehow runs past six.
-const STAGE_COLORS = ['#38bdf8', '#fbbf24', '#34d399', '#a78bfa', '#fb7185', '#22d3ee'];
+const STAGE_COLORS = [
+  token('series-1'),
+  token('series-2'),
+  token('series-3'),
+  token('series-4'),
+  token('series-5'),
+  token('series-6'),
+];
 
 /** The flight to draw, named so the pane can say which simulation it is. */
 export interface ChartFlight {

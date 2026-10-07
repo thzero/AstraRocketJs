@@ -28,11 +28,11 @@ describe('stabilityState (healthy-band classifier)', () => {
 
 describe('stabilityTone (margin-sign tiers)', () => {
   it('is emerald at/above 1 cal, amber in [0,1), red below 0', () => {
-    expect(stabilityTone(1)).toBe('text-emerald-400');
-    expect(stabilityTone(2.5)).toBe('text-emerald-400');
-    expect(stabilityTone(0)).toBe('text-amber-400');
-    expect(stabilityTone(0.5)).toBe('text-amber-400');
-    expect(stabilityTone(-0.1)).toBe('text-red-400');
+    expect(stabilityTone(1)).toBe('text-ok-400');
+    expect(stabilityTone(2.5)).toBe('text-ok-400');
+    expect(stabilityTone(0)).toBe('text-warn-400');
+    expect(stabilityTone(0.5)).toBe('text-warn-400');
+    expect(stabilityTone(-0.1)).toBe('text-danger-400');
   });
 });
 
@@ -54,9 +54,9 @@ describe('stabilityVerdictKey', () => {
  */
 describe('stabilityToneOf', () => {
   it('colors a margin by its band, as every on-pad readout does', () => {
-    expect(stabilityToneOf(stabilityState(7)!)).toBe('text-amber-400');
-    expect(stabilityToneOf(stabilityState(0.5)!)).toBe('text-red-400');
-    expect(stabilityToneOf(stabilityState(3)!)).toBe('text-emerald-400');
+    expect(stabilityToneOf(stabilityState(7)!)).toBe('text-warn-400');
+    expect(stabilityToneOf(stabilityState(0.5)!)).toBe('text-danger-400');
+    expect(stabilityToneOf(stabilityState(3)!)).toBe('text-ok-400');
   });
 });
 

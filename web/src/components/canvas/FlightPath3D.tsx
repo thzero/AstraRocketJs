@@ -27,6 +27,7 @@ import { MapCredit, TileLayerButtons } from '../common/map/MapParts';
 import { useGroundLayer } from '../common/map/useTileVerdict';
 import { MIN_EXTENT_M } from '../../services/flight/groundTrack';
 import { ColorInput } from '../common/ColorInput';
+import { useSceneColors } from './sceneColors';
 
 /**
  * 3D flight path (adapted from Vector Celeste's Flight3D, one better). Draws the
@@ -79,6 +80,7 @@ export function FlightPath3D({
   latitudeDeg?: number | null;
   longitudeDeg?: number | null;
 }) {
+  const sceneInk = useSceneColors();
   const { t } = useTranslation();
   const u = useUnits();
   const { settings, update } = useSettings();
@@ -212,19 +214,19 @@ export function FlightPath3D({
   const mapSource: TileSourceId | null = ground.imagery === 'unavailable' ? null : ground.source;
 
   if (n < 2) {
-    return <div className="grid h-full place-items-center text-sm text-slate-500">{t('sim.prompt')}</div>;
+    return <div className="grid h-full place-items-center text-sm text-ink-faint">{t('sim.prompt')}</div>;
   }
 
   const chuteR = recovery?.kind === 'parachute' ? Math.max(0.5, (recovery.diameter / 2) * modelScale) : 0;
 
   return (
-    <div className="relative h-full overflow-hidden rounded-xl bg-slate-950 ring-1 ring-white/10">
+    <div className="relative h-full overflow-hidden rounded-xl bg-canvas ring-1 ring-line/10">
       <Canvas camera={{ position: [34, 22, 34], fov: 42 }} gl={{ preserveDrawingBuffer: true }}>
-        <hemisphereLight args={['#cfe8ff', '#0b1220', 1.5]} />
+        <hemisphereLight args={[sceneInk['scene-sky'], sceneInk['scene-ground'], 1.5]} />
         <directionalLight position={[14, 26, 16]} intensity={1.7} />
         <mesh rotation={[-Math.PI / 2, 0, 0]}>
           <circleGeometry args={[60, 72]} />
-          <meshStandardMaterial color="#0b1724" roughness={1} metalness={0.05} />
+          <meshStandardMaterial color={sceneInk['scene-floor']} roughness={1} metalness={0.05} />
         </mesh>
         {/* Real ground under a real trajectory. Drawn between the plain ground
             plane and the grid, so the grid stays readable as the scale it is. */}
@@ -239,7 +241,7 @@ export function FlightPath3D({
             onTileError={ground.onTileError}
           />
         )}
-        <gridHelper args={[120, 60, '#33506a', '#18293a']} position={[0, 0.02, 0]} />
+        <gridHelper args={[120, 60, sceneInk['scene-grid'], sceneInk['scene-grid-minor']]} position={[0, 0.02, 0]} />
         {/* The whole path is uploaded ONCE; the frame loop reveals it segment by
             segment through the geometry's instanceCount (a Line2 is instanced,
             one instance per segment), so no buffer is rebuilt during playback.
@@ -248,7 +250,7 @@ export function FlightPath3D({
             with visible=false is never drawn, whatever the loop later sets on
             the object. */}
         <Line ref={attachTrail} points={scenePts} vertexColors={colors} lineWidth={3} />
-        <Marker pos={scenePts[0]!} color="#e2e8f0" />
+        <Marker pos={scenePts[0]!} color={sceneInk['scene-marker']} />
         {idx >= apogeeIdx && <Marker pos={scenePts[apogeeIdx]!} color={phase.coast} />}
         {idx >= n - 1 && <Marker pos={scenePts[n - 1]!} color={phase.descent} />}
 
@@ -269,7 +271,7 @@ export function FlightPath3D({
           >
             <div
               data-flight-callout
-              className="whitespace-nowrap rounded bg-slate-900/85 px-1.5 py-0.5 text-[10px] font-medium text-amber-300 ring-1 ring-white/10"
+              className="whitespace-nowrap rounded bg-surface/85 px-1.5 py-0.5 text-[10px] font-medium text-warn-300 ring-1 ring-line/10"
             >
               {t(EVENT_LABEL[c.type] ?? c.type)}
             </div>
@@ -324,12 +326,12 @@ export function FlightPath3D({
         />
       </Canvas>
 
-      <div className="pointer-events-none absolute left-3 top-3 flex gap-3 rounded-lg bg-slate-900/80 px-3 py-2 text-xs ring-1 ring-white/10">
+      <div className="pointer-events-none absolute left-3 top-3 flex gap-3 rounded-lg bg-surface/80 px-3 py-2 text-xs ring-1 ring-line/10">
         <Hud label={t('flight.altitude')} value={`${u.fmtSym('distance', alts[idx] ?? 0)}`} />
         <Hud label={t('flight.velocity')} value={`${u.fmtSym('velocity', vels[idx] ?? 0)}`} />
         <Hud label={t('flight.time')} value={`${fmtNum(nowT, 1)} s`} />
       </div>
-      <div className="pointer-events-none absolute right-3 top-3 flex flex-col gap-1 rounded-lg bg-slate-900/80 px-2 py-1.5 text-[10px] ring-1 ring-white/10">
+      <div className="pointer-events-none absolute right-3 top-3 flex flex-col gap-1 rounded-lg bg-surface/80 px-2 py-1.5 text-[10px] ring-1 ring-line/10">
         <Legend color={phase.boost} label={t('flight.boost')} onChange={setBoost} />
         <Legend color={phase.coast} label={t('flight.coast')} onChange={setCoast} />
         <Legend color={phase.descent} label={t('flight.descent')} onChange={setDescent} />
@@ -351,11 +353,11 @@ export function FlightPath3D({
         </MapCredit>
       )}
 
-      <div className="absolute inset-x-3 bottom-3 flex items-center gap-2 rounded-lg bg-slate-900/85 px-3 py-2 ring-1 ring-white/10">
+      <div className="absolute inset-x-3 bottom-3 flex items-center gap-2 rounded-lg bg-surface/85 px-3 py-2 ring-1 ring-line/10">
         <button
           onClick={handlePlay}
           aria-label={countdown !== null ? t('flight.cancel') : playing ? t('flight.pause') : t('flight.play')}
-          className="shrink-0 rounded-md bg-slate-800 px-2 py-1 text-xs text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
+          className="shrink-0 rounded-md bg-raised px-2 py-1 text-xs text-ink ring-1 ring-line/10 hover:bg-elevated"
         >
           {countdown !== null ? '✕' : playing ? '⏸' : '▶'}
         </button>
@@ -363,7 +365,7 @@ export function FlightPath3D({
           onClick={handleReset}
           title={t('flight.reset')}
           aria-label={t('flight.reset')}
-          className="shrink-0 rounded-md bg-slate-800 px-2 py-1 text-xs text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
+          className="shrink-0 rounded-md bg-raised px-2 py-1 text-xs text-ink ring-1 ring-line/10 hover:bg-elevated"
         >
           ⟲
         </button>
@@ -372,7 +374,7 @@ export function FlightPath3D({
           title={t('flight.loop')}
           aria-label={t('flight.loop')}
           aria-pressed={loop}
-          className={`shrink-0 rounded-md px-2 py-1 text-xs ring-1 ring-white/10 ${loop ? 'bg-sky-600 text-white' : 'bg-slate-800 text-slate-200 hover:bg-slate-700'}`}
+          className={`shrink-0 rounded-md px-2 py-1 text-xs ring-1 ring-line/10 ${loop ? 'bg-accent-600 text-on-accent' : 'bg-raised text-ink hover:bg-elevated'}`}
         >
           ⟳
         </button>
@@ -380,7 +382,7 @@ export function FlightPath3D({
           onClick={() => setFollow((f) => !f)}
           title={t('flight.follow')}
           aria-pressed={follow}
-          className={`shrink-0 rounded-md px-2 py-1 text-xs ring-1 ring-white/10 ${follow ? 'bg-sky-600 text-white' : 'bg-slate-800 text-slate-200 hover:bg-slate-700'}`}
+          className={`shrink-0 rounded-md px-2 py-1 text-xs ring-1 ring-line/10 ${follow ? 'bg-accent-600 text-on-accent' : 'bg-raised text-ink hover:bg-elevated'}`}
         >
           ⊙ {t('flight.follow')}
         </button>
@@ -394,12 +396,12 @@ export function FlightPath3D({
             setPlaying(false);
             seek(parseFloat(e.target.value));
           }}
-          className="min-w-0 flex-1 accent-sky-500"
+          className="min-w-0 flex-1 accent-accent-500"
         />
         <select
           value={speed}
           onChange={(e) => setSpeed(parseFloat(e.target.value))}
-          className="shrink-0 rounded-md bg-slate-800 px-1.5 py-1 text-xs text-slate-200 ring-1 ring-white/10"
+          className="shrink-0 rounded-md bg-raised px-1.5 py-1 text-xs text-ink ring-1 ring-line/10"
         >
           {SPEEDS.map((s) => (
             <option key={s} value={s}>
@@ -414,7 +416,7 @@ export function FlightPath3D({
           <span
             key={countdown}
             style={{ animation: 'fp-cd 0.9s ease-out' }}
-            className="text-8xl font-black tabular-nums text-white drop-shadow-[0_2px_14px_rgba(0,0,0,0.85)]"
+            className="text-8xl font-black tabular-nums text-on-accent drop-shadow-[0_2px_14px_rgba(0,0,0,0.85)]"
           >
             {countdown}
           </span>
@@ -714,8 +716,8 @@ function Marker({ pos, color }: { pos: THREE.Vector3; color: string }) {
 function Hud({ label, value }: { label: string; value: string }) {
   return (
     <span className="flex flex-col leading-tight">
-      <span className="text-[9px] uppercase tracking-wide text-slate-400">{label}</span>
-      <span className="font-semibold tabular-nums text-slate-100">{value}</span>
+      <span className="text-[9px] uppercase tracking-wide text-ink-muted">{label}</span>
+      <span className="font-semibold tabular-nums text-ink-strong">{value}</span>
     </span>
   );
 }
@@ -723,11 +725,11 @@ function Hud({ label, value }: { label: string; value: string }) {
 /** Legend row that doubles as the phase-color editor — click the swatch to recolor. */
 function Legend({ color, label, onChange }: { color: string; label: string; onChange: (c: string) => void }) {
   return (
-    <label className="flex cursor-pointer items-center gap-1.5 text-slate-300" title={label}>
+    <label className="flex cursor-pointer items-center gap-1.5 text-ink-soft" title={label}>
       <ColorInput
         value={color}
         onCommit={onChange}
-        className="h-3 w-3 cursor-pointer appearance-none rounded-sm border border-white/20 bg-transparent p-0"
+        className="h-3 w-3 cursor-pointer appearance-none rounded-sm border border-line/20 bg-transparent p-0"
         style={{ background: color }}
       />
       {label}

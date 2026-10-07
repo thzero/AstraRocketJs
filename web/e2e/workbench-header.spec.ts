@@ -74,7 +74,8 @@ test('the workbench tabs live in the header rather than a row of their own', asy
  * The mark, the app name, the version, the pre-release word and the engine
  * backend are what the header answers at a glance, so no breakpoint takes one of
  * them away: a narrower window must not mean a different header. What gives
- * instead is the save status' age and the menu button's word, below xl, and
+ * instead is the save status' age and the menu button's word, below xl, the
+ * header's gaps and its icon buttons' padding between lg and xl, and
  * below 1180 the row wraps in the wordiest languages rather than dropping any of
  * the five.
  *

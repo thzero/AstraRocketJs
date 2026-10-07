@@ -16,15 +16,15 @@ import {
 
 /** Tone for the current-chute descent rate: green inside a band, amber outside. */
 const VERDICT_TONE: Record<RateVerdict, string> = {
-  slow: 'text-amber-400',
-  main: 'text-emerald-400',
-  between: 'text-emerald-400',
-  drogue: 'text-emerald-400',
-  fast: 'text-amber-400',
+  slow: 'text-warn-400',
+  main: 'text-ok-400',
+  between: 'text-ok-400',
+  drogue: 'text-ok-400',
+  fast: 'text-warn-400',
 };
 
 const useBtn =
-  'rounded-md bg-slate-800 px-2 py-0.5 text-[11px] font-medium text-slate-300 ring-1 ring-white/10 hover:bg-slate-700';
+  'rounded-md bg-raised px-2 py-0.5 text-[11px] font-medium text-ink-soft ring-1 ring-line/10 hover:bg-elevated';
 
 /**
  * The descent-sizing figures for one descent mass and canopy Cd: how fast the
@@ -75,8 +75,8 @@ export function SizingFigures({
 
   const row = (label: string, d: number, unit: typeof mainUnit, scope: string, useLabel: string) => (
     <div className="flex items-baseline justify-between gap-3">
-      <span className="text-xs text-slate-400">{label}</span>
-      <span className="flex items-baseline gap-2 text-sm tabular-nums text-slate-200">
+      <span className="text-xs text-ink-muted">{label}</span>
+      <span className="flex items-baseline gap-2 text-sm tabular-nums text-ink">
         <span>
           Ø {unit.fmt(d)} <UnitChip quantity="length" scope={unitScope('recovery', scope)} />
         </span>
@@ -93,11 +93,11 @@ export function SizingFigures({
     <div className="space-y-2">
       {rate != null && verdict != null && (
         <div className="flex items-baseline justify-between gap-3">
-          <span className="text-xs text-slate-400">{t('recovery.thisChute')}</span>
+          <span className="text-xs text-ink-muted">{t('recovery.thisChute')}</span>
           <span className="text-sm tabular-nums">
             <span className={VERDICT_TONE[verdict]}>{rateUnit.fmt(rate, 1)}</span>{' '}
             <UnitChip quantity="velocity" scope={unitScope('recovery', 'rate')} />{' '}
-            <span className="text-slate-500">({t(`recovery.verdict.${verdict}`)})</span>
+            <span className="text-ink-faint">({t(`recovery.verdict.${verdict}`)})</span>
           </span>
         </div>
       )}
@@ -127,7 +127,7 @@ export function SizingFigures({
         onChange={setTarget}
       />
       {targetD != null && row(t('recovery.atTarget'), targetD, targetUnit, 'targetD', t('recovery.useTarget'))}
-      <p className="text-[10px] text-slate-500">
+      <p className="text-[10px] text-ink-faint">
         {t('recovery.atCd', { cd: fmtNum(cd, 2) })} {t('recovery.diametersEstimated')}
       </p>
     </div>

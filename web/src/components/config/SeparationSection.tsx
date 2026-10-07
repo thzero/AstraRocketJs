@@ -69,11 +69,11 @@ export function SeparationSection({
           checked={flies}
           aria-label={overrideFieldLabel(name, t('configs.flies'))}
           onChange={(e) => setStageFlies(config.id, id, e.target.checked)}
-          className="accent-sky-500"
+          className="accent-accent-500"
         />
       </OverrideRow>
 
-      {!flies && <p className="mt-2 text-[11px] leading-snug text-slate-500">{t('configs.groundedHint')}</p>}
+      {!flies && <p className="mt-2 text-[11px] leading-snug text-ink-faint">{t('configs.groundedHint')}</p>}
 
       {flies && separates && (
         <>
@@ -122,7 +122,7 @@ export function SeparationSection({
           />
 
           {event === 'never' && (
-            <p className="mt-2 text-[11px] leading-snug text-slate-500">{t('configs.neverSeparates')}</p>
+            <p className="mt-2 text-[11px] leading-snug text-ink-faint">{t('configs.neverSeparates')}</p>
           )}
         </>
       )}

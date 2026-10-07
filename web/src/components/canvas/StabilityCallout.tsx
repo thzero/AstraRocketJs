@@ -5,7 +5,8 @@ import type { StaticInfo } from '../../engine/openRocketEngine';
 import { useUnits } from '../../prefs/useUnits';
 import { AxisCallout } from './rocketCallouts';
 import { marginText } from './schematicGeometry';
-import { CP_INK, MARGIN_COLOR } from './stabilityGadget';
+import { CP_INK, MARGIN_INK } from './stabilityGadget';
+import { useSceneColors } from './sceneColors';
 
 /**
  * Owns the CP row of the 3D view: marker, dashed leader and the
@@ -30,12 +31,13 @@ export function StabilityCallout({
   markerR: number;
   tex: THREE.Texture;
 }) {
+  const scene = useSceneColors();
   const { t } = useTranslation();
   const u = useUnits();
   const cal = info.stabilityCalibers;
   // The CP row as ONE text label (proven labelTexture/CalloutLabel path), laid
   // out left→right like the 2D: "CP · X cm   ⚠ N cal · P% — word". The tiers
-  // and inks are the shared marginText / MARGIN_COLOR, the same text the 2D
+  // and inks are the shared marginText / MARGIN_INK, the same text the 2D
   // overlay prints and the inks the callout gadget (stabilityGadget.ts) uses.
   const cpCallout = useMemo(() => {
     if (!Number.isFinite(info.cp)) return null;
@@ -44,14 +46,14 @@ export function StabilityCallout({
     if (!margin) return null;
     return {
       text: `${t('schematic.cp')} · ${u.fmtSym('length', info.cp)}    ${margin.text}`,
-      color: MARGIN_COLOR[margin.state],
+      color: scene[MARGIN_INK[margin.state]],
     };
-  }, [info, cal, t, u]);
+  }, [info, cal, t, u, scene]);
   return (
     <AxisCallout
       x={info.cp}
       dir={-1}
-      color={CP_INK}
+      color={scene[CP_INK]}
       tex={tex}
       label={cpCallout?.text}
       labelColor={cpCallout?.color}

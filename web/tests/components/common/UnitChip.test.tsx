@@ -50,14 +50,14 @@ describe('UnitChip', () => {
     renderWithProviders(<UnitChip quantity="length" scope={SCOPE} />);
 
     expect(chip().getAttribute('aria-label')).toBe('Component dimensions unit, set for this field');
-    expect(chip().className).toContain('text-amber-400');
+    expect(chip().className).toContain('text-warn-400');
   });
 
   it('names a field that follows the preference without qualification', () => {
     renderWithProviders(<UnitChip quantity="length" scope={SCOPE} />);
 
     expect(chip().getAttribute('aria-label')).toBe('Component dimensions unit');
-    expect(chip().className).toContain('text-slate-500');
+    expect(chip().className).toContain('text-ink-faint');
   });
 
   it('offers only the units its quantity defines', () => {

@@ -142,14 +142,14 @@ export function FlightChart({ flight }: { flight: ChartFlight }) {
   };
 
   const zBtn =
-    'rounded-md bg-slate-800 px-2 py-1 text-[11px] font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700 disabled:opacity-40';
+    'rounded-md bg-raised px-2 py-1 text-[11px] font-medium text-ink ring-1 ring-line/10 hover:bg-elevated disabled:opacity-40';
 
   return (
-    <div className="flex h-full flex-col rounded-xl bg-slate-900 ring-1 ring-white/10">
+    <div className="flex h-full flex-col rounded-xl bg-surface ring-1 ring-line/10">
       <div className="flex items-center justify-between gap-2 px-3 pt-3">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t('flight.title')}</h2>
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-ink-muted">{t('flight.title')}</h2>
         <div className="flex items-center gap-2">
-          <span className="text-xs tabular-nums text-slate-400" aria-live="polite">
+          <span className="text-xs tabular-nums text-ink-muted" aria-live="polite">
             {t('flight.time')} {fmtNum(hoverT ?? maxT, hoverT != null ? 2 : 1)} s
           </span>
           <div className="flex items-center gap-1">
@@ -183,7 +183,7 @@ export function FlightChart({ flight }: { flight: ChartFlight }) {
           <button
             onClick={() => setCsvOpen(true)}
             title={t('flight.exportCsv')}
-            className="rounded-md bg-slate-800 px-2 py-1 text-[11px] font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
+            className="rounded-md bg-raised px-2 py-1 text-[11px] font-medium text-ink ring-1 ring-line/10 hover:bg-elevated"
           >
             ⬇ CSV
           </button>
@@ -191,7 +191,7 @@ export function FlightChart({ flight }: { flight: ChartFlight }) {
       </div>
       {multistage && (
         <div className="flex flex-wrap items-center gap-1.5 px-3 pt-2">
-          <span className="mr-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+          <span className="mr-0.5 text-[10px] font-semibold uppercase tracking-wide text-ink-faint">
             {t('flight.stages')}
           </span>
           {branches.map((b) => {
@@ -201,7 +201,7 @@ export function FlightChart({ flight }: { flight: ChartFlight }) {
                 key={b.key}
                 onClick={() => toggleStage(b.key)}
                 aria-pressed={active}
-                className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 ${active ? 'bg-slate-700 text-slate-100 ring-white/20' : 'bg-slate-800 text-slate-400 ring-white/10'}`}
+                className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 ${active ? 'bg-elevated text-ink-strong ring-line/20' : 'bg-raised text-ink-muted ring-line/10'}`}
               >
                 <span
                   className="inline-block h-2 w-2 shrink-0 rounded-full"
@@ -221,7 +221,7 @@ export function FlightChart({ flight }: { flight: ChartFlight }) {
               key={m.key}
               onClick={() => toggle(m.key)}
               aria-pressed={active}
-              className={`rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 ${active ? 'bg-sky-600 text-white ring-sky-500' : 'bg-slate-800 text-slate-300 ring-white/10'}`}
+              className={`rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 ${active ? 'bg-accent-600 text-on-accent ring-accent-500' : 'bg-raised text-ink-soft ring-line/10'}`}
             >
               {t(m.label)}
             </button>
@@ -240,7 +240,7 @@ export function FlightChart({ flight }: { flight: ChartFlight }) {
         tabIndex={0}
         role="group"
         aria-label={t('flight.crosshairHint')}
-        className={`min-h-0 flex-1 overflow-y-auto px-3 pb-3 focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-inset focus-visible:outline-none ${zoomed ? 'cursor-grab' : ''}`}
+        className={`min-h-0 flex-1 overflow-y-auto px-3 pb-3 focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-inset focus-visible:outline-none ${zoomed ? 'cursor-grab' : ''}`}
         onPointerDown={onDown}
         onPointerMove={onMove}
         onPointerUp={zoomCtl.endPan}
@@ -253,7 +253,7 @@ export function FlightChart({ flight }: { flight: ChartFlight }) {
         }}
       >
         {activeMetas.length === 0 ? (
-          <p className="grid h-full place-items-center text-sm text-slate-500">{t('flight.pickSeries')}</p>
+          <p className="grid h-full place-items-center text-sm text-ink-faint">{t('flight.pickSeries')}</p>
         ) : (
           <>
             {stripH > 0 && <EventLabelStrip labels={eventLabels} w={w} stripH={stripH} t={t} />}

@@ -160,7 +160,7 @@ export function PaneSplitter({
       // `touch-none` keeps a touch drag from scrolling the pane instead.
       className="group hidden w-[5px] shrink-0 cursor-col-resize touch-none justify-center bg-transparent focus:outline-none lg:flex"
     >
-      <div className="h-full w-px bg-white/10 transition-colors group-hover:w-[3px] group-hover:bg-sky-500/70 group-focus:w-[3px] group-focus:bg-sky-500" />
+      <div className="h-full w-px bg-line/10 transition-colors group-hover:w-[3px] group-hover:bg-accent-500/70 group-focus:w-[3px] group-focus:bg-accent-500" />
     </div>
   );
 }

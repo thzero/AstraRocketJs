@@ -200,13 +200,13 @@ export function NumberField({
             max={max}
             disabled={auto?.on}
             className={markRing(
-              `w-24 rounded-md px-2 py-1 text-right text-sm ring-1 ring-white/10 focus:outline-none focus:ring-sky-500 ${
-                auto?.on ? 'bg-slate-800/50 text-slate-400' : 'bg-slate-800 text-slate-100'
+              `w-24 rounded-md px-2 py-1 text-right text-sm ring-1 ring-line/10 focus:outline-none focus:ring-accent-500 ${
+                auto?.on ? 'bg-raised/50 text-ink-muted' : 'bg-raised text-ink-strong'
               }`,
               missing,
             )}
           />
-          {unit && <span className="min-w-10 text-xs text-slate-500">{unit}</span>}
+          {unit && <span className="min-w-10 text-xs text-ink-faint">{unit}</span>}
         </span>
       </label>
       {/* The switch says what it is. It was a bare 13px checkbox at the right
@@ -218,14 +218,14 @@ export function NumberField({
       {auto && (
         <label
           title={auto.title}
-          className="flex shrink-0 cursor-pointer items-center gap-1 text-[11px] leading-none text-slate-400"
+          className="flex shrink-0 cursor-pointer items-center gap-1 text-[11px] leading-none text-ink-muted"
         >
           <input
             type="checkbox"
             checked={auto.on}
             onChange={(e) => auto.onToggle(e.target.checked)}
             aria-label={auto.label}
-            className="accent-sky-500"
+            className="accent-accent-500"
           />
           {t('prop.auto')}
         </label>
@@ -319,11 +319,11 @@ export function FieldRow({
       const cur = typeof node[f.key] === 'string' ? (node[f.key] as string) : (f.fallback ?? f.options[0]);
       return (
         <label className="flex items-center justify-between gap-3">
-          <span className="text-xs text-slate-400">{label}</span>
+          <span className="text-xs text-ink-muted">{label}</span>
           <select
             value={cur}
             onChange={(e) => commitChange({ [f.key]: e.target.value })}
-            className="w-32 rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
+            className="w-32 rounded-md bg-raised px-2 py-1 text-sm text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500"
           >
             {f.options.map((o) => (
               <option key={o} value={o}>
@@ -337,25 +337,25 @@ export function FieldRow({
     case 'text':
       return (
         <label className="flex flex-col gap-1">
-          <span className="text-xs text-slate-400">{label}</span>
+          <span className="text-xs text-ink-muted">{label}</span>
           <textarea
             rows={3}
             value={typeof node[f.key] === 'string' ? (node[f.key] as string) : ''}
             onChange={(e) => onChange({ [f.key]: e.target.value || undefined })}
             onBlur={onCommit}
-            className="w-full resize-y rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
+            className="w-full resize-y rounded-md bg-raised px-2 py-1 text-sm text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500"
           />
         </label>
       );
     case 'bool':
       return (
         <label className="flex items-center justify-between gap-3">
-          <span className="text-xs text-slate-400">{label}</span>
+          <span className="text-xs text-ink-muted">{label}</span>
           <input
             type="checkbox"
             checked={node[f.key] === true}
             onChange={(e) => commitChange({ [f.key]: e.target.checked })}
-            className="accent-sky-500"
+            className="accent-accent-500"
           />
         </label>
       );

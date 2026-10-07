@@ -9,6 +9,7 @@ import { motorSeatStart, partLength } from '../../tree/position.js';
 import { DISC_TYPES } from '../../services/files/componentFormats.js';
 import { discDims, tubeRadii } from '../../services/design/discGeometry.js';
 import { assemblyChainLength, isAssembly, resolveAssemblyRadius, ringInstanceOffsets } from '../../tree/assembly.js';
+import { token } from '../common/colorTokens';
 import {
   axialStart,
   colorOf,
@@ -169,7 +170,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
   const wireInk = (n: ComponentNode, grab: Record<string, unknown>) => ({
     ...grab,
     fill: 'none',
-    stroke: selStroke(n, fillOf(n, '#7a786f')),
+    stroke: selStroke(n, fillOf(n, token('sch-line'))),
     strokeWidth: selWidth(n, 1.4),
   });
 
@@ -242,7 +243,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
         rx="1"
         fill="var(--launch)"
         fillOpacity="0.85"
-        stroke="#e0764a"
+        stroke={token('sch-motor-outline')}
         strokeWidth="0.8"
         style={{ pointerEvents: 'none' }}
       />,
@@ -258,7 +259,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
           dominantBaseline="central"
           fontSize="10"
           fontWeight="bold"
-          fill="#ffffff"
+          fill={token('sch-label')}
           style={{ pointerEvents: 'none' }}
         >
           {motor.label}
@@ -314,9 +315,9 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
             y={Math.min(yInner, ySurface)}
             width={Math.max(2, tabLen * ctx.scale)}
             height={wire ? hPx : Math.max(1.5, hPx)}
-            fill={wire ? 'none' : fillOf(child, '#b9b7b0')}
+            fill={wire ? 'none' : fillOf(child, token('sch-part'))}
             fillOpacity={wire ? undefined : '0.35'}
-            stroke="#7a786f"
+            stroke={token('sch-line')}
             strokeWidth="1"
             strokeDasharray="3 2"
             style={{ pointerEvents: 'none' }}
@@ -382,8 +383,8 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
                 key={key++}
                 points={ptsStr}
                 clipPath={near ? undefined : `url(#${clip})`}
-                fill={fillOf(child, '#b9b7b0')}
-                stroke={selStroke(child, '#7a786f')}
+                fill={fillOf(child, token('sch-part'))}
+                stroke={selStroke(child, token('sch-line'))}
                 strokeWidth={selWidth(child)}
                 {...grab}
               />
@@ -431,7 +432,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
                 y1={yc}
                 x2={X + len * ctx.scale}
                 y2={yc}
-                stroke="#7a786f"
+                stroke={token('sch-line')}
                 strokeWidth="0.8"
                 strokeDasharray="4 3"
                 style={{ pointerEvents: 'none' }}
@@ -451,9 +452,9 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
                 width={w2}
                 height={2 * half}
                 rx="2"
-                fill={fillOf(child, '#c8c5be')}
+                fill={fillOf(child, token('sch-part-light'))}
                 fillOpacity="0.6"
-                stroke={selStroke(child, '#7a786f')}
+                stroke={selStroke(child, token('sch-line'))}
                 strokeWidth={selWidth(child)}
                 {...grab}
               />,
@@ -464,7 +465,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
                 x2={X + len * ctx.scale}
                 y2={yc}
                 clipPath={cut}
-                stroke="#7a786f"
+                stroke={token('sch-line')}
                 strokeWidth="0.8"
                 strokeDasharray="4 3"
                 style={{ pointerEvents: 'none' }}
@@ -489,8 +490,8 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
             <polygon
               key={key++}
               points={`${X},${y0} ${X + 0.3 * len * ctx.scale},${yh} ${X + 0.7 * len * ctx.scale},${yh} ${Xe},${y0}`}
-              fill={fillOf(child, '#c8c5be')}
-              stroke={selStroke(child, '#7a786f')}
+              fill={fillOf(child, token('sch-part-light'))}
+              stroke={selStroke(child, token('sch-line'))}
               strokeWidth={selWidth(child)}
               {...grab}
             />
@@ -498,8 +499,8 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
             <path
               key={key++}
               d={`M ${X} ${y0} L ${X} ${yh + 0.35 * (y0 - yh)} Q ${X} ${yh} ${X + Math.min(8, len * ctx.scale * 0.25)} ${yh} L ${Xe - Math.min(8, len * ctx.scale * 0.25)} ${yh} Q ${Xe} ${yh} ${Xe} ${yh + 0.35 * (y0 - yh)} L ${Xe} ${y0} Z`}
-              fill={fillOf(child, '#c8c5be')}
-              stroke={selStroke(child, '#7a786f')}
+              fill={fillOf(child, token('sch-part-light'))}
+              stroke={selStroke(child, token('sch-line'))}
               strokeWidth={selWidth(child)}
               {...grab}
             />
@@ -510,8 +511,8 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
               y={yh}
               width={Math.max(2, len * ctx.scale)}
               height={Math.max(2, hgt * ctx.scale)}
-              fill={fillOf(child, '#c8c5be')}
-              stroke={selStroke(child, '#7a786f')}
+              fill={fillOf(child, token('sch-part-light'))}
+              stroke={selStroke(child, token('sch-line'))}
               strokeWidth={selWidth(child)}
               {...grab}
             />
@@ -545,8 +546,8 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
             y={yTop}
             width={Math.max(2, len * ctx.scale)}
             height={h}
-            fill={fillOf(child, '#c8c5be')}
-            stroke={selStroke(child, '#7a786f')}
+            fill={fillOf(child, token('sch-part-light'))}
+            stroke={selStroke(child, token('sch-line'))}
             strokeWidth={selWidth(child)}
             {...grab}
           />,
@@ -558,18 +559,18 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
         // gray boxes (issue 2026-08-05a #21): payload-type parts get muted
         // colors from the theme-safe midrange.
         const TYPE_STYLE: Partial<Record<string, { stroke: string; tag: string }>> = {
-          parachute: { stroke: '#b06a35', tag: 'chute' },
-          streamer: { stroke: '#a08c2e', tag: 'strmr' },
-          shockcord: { stroke: '#8f7a8d', tag: 'cord' },
-          masscomponent: { stroke: '#a85f5c', tag: 'mass' },
-          centeringring: { stroke: '#6f8a5c', tag: 'CR' },
-          bulkhead: { stroke: '#66748c', tag: 'BH' },
-          engineblock: { stroke: '#7d7050', tag: 'EB' },
+          parachute: { stroke: token('sch-parachute'), tag: 'chute' },
+          streamer: { stroke: token('sch-streamer'), tag: 'strmr' },
+          shockcord: { stroke: token('sch-shockcord'), tag: 'cord' },
+          masscomponent: { stroke: token('sch-masscomponent'), tag: 'mass' },
+          centeringring: { stroke: token('sch-centeringring'), tag: 'CR' },
+          bulkhead: { stroke: token('sch-bulkhead'), tag: 'BH' },
+          engineblock: { stroke: token('sch-engineblock'), tag: 'EB' },
           // Couplers and inner tubes get their own ink too: left neutral they
           // are two unlabeled gray boxes told apart only by size, and size is
           // what the 85% cap distorts for the coupler.
-          tubecoupler: { stroke: '#7f6ea8', tag: 'TC' },
-          innertube: { stroke: '#3f8f6f', tag: 'IT' },
+          tubecoupler: { stroke: token('sch-tubecoupler'), tag: 'TC' },
+          innertube: { stroke: token('sch-innertube'), tag: 'IT' },
         };
         const style = TYPE_STYLE[child.type];
         // A ring, coupler, bulkhead or engine block is sized the way the DXF cut
@@ -600,7 +601,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
         // flush against the mount's aft end (how motors actually load).
         const motor = child.type === 'innertube' && child.id ? motors?.[child.id] : undefined;
         for (const off of offsets) {
-          const inkColor = isSel(child) ? 'var(--accent)' : fillOf(child, style?.stroke ?? '#9a978f');
+          const inkColor = isSel(child) ? 'var(--accent)' : fillOf(child, style?.stroke ?? token('sch-ink'));
           noteHover(
             child,
             ctx.x0 + start * ctx.scale,
@@ -635,7 +636,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
           if (gs >= 8) {
             const g = gs / 2;
             const glyphProps = {
-              stroke: fillOf(child, style?.stroke ?? '#9a978f'),
+              stroke: fillOf(child, style?.stroke ?? token('sch-ink')),
               fill: 'none',
               strokeWidth: 1.2,
               style: { pointerEvents: 'none' as const },
@@ -657,7 +658,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
                     y={gcy - g * 0.35}
                     width={g * 1.4}
                     height={g * 1.05}
-                    fill={fillOf(child, style?.stroke ?? '#9a978f')}
+                    fill={fillOf(child, style?.stroke ?? token('sch-ink'))}
                     fillOpacity="0.35"
                   />
                   <path
@@ -740,7 +741,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
    * matters where two meet: a transition's fore shoulder and the nose cone's aft
    * shoulder can sit in the same tube.
    */
-  const SHOULDER_INK = '#4f8fa0';
+  const SHOULDER_INK = token('sch-shoulder');
 
   // Dashed outline for a shoulder sliding inside the adjacent tube. Painted in
   // the overlay pass — an aft shoulder lives inside the NEXT tube, which is
@@ -778,8 +779,8 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
           <path
             key={key++}
             d={profilePath(ctx, n, cx, len, 0, r, baseY)}
-            fill={fillOf(n, '#d5d2cb')}
-            stroke={selStroke(n, '#7a786f')}
+            fill={fillOf(n, token('sch-shell'))}
+            stroke={selStroke(n, token('sch-line'))}
             strokeWidth={selWidth(n)}
             {...clickable(n)}
           />,
@@ -803,8 +804,8 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
               y={baseY - r * scale}
               width={len * scale}
               height={2 * r * scale}
-              fill={fillOf(n, '#e7e5e0')}
-              stroke={selStroke(n, '#7a786f')}
+              fill={fillOf(n, token('sch-shell-light'))}
+              stroke={selStroke(n, token('sch-line'))}
               strokeWidth={selWidth(n)}
               {...clickable(n)}
             />,
@@ -832,8 +833,8 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
           <path
             key={key++}
             d={profilePath(ctx, n, cx, len, rf, ra, baseY)}
-            fill={fillOf(n, '#d5d2cb')}
-            stroke={selStroke(n, '#7a786f')}
+            fill={fillOf(n, token('sch-shell'))}
+            stroke={selStroke(n, token('sch-line'))}
             strokeWidth={selWidth(n)}
             {...clickable(n)}
           />,

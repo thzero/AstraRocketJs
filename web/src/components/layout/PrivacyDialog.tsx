@@ -20,12 +20,12 @@ export function PrivacyDialog({ onClose }: { onClose: () => void }) {
       // harder to read, not easier.
       expandable={false}
     >
-      <div className="space-y-3 text-sm leading-relaxed text-slate-300">
+      <div className="space-y-3 text-sm leading-relaxed text-ink-soft">
         <p>{t('privacy.intro', { name: appName() })}</p>
         <p>{t('privacy.storage')}</p>
         <p>{t('privacy.network')}</p>
         <p>{t('privacy.weather')}</p>
-        <p className="text-xs text-slate-500">{t('privacy.hosting')}</p>
+        <p className="text-xs text-ink-faint">{t('privacy.hosting')}</p>
       </div>
 
       <div className="mt-5 flex justify-end">

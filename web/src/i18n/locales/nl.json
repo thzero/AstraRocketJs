@@ -310,6 +310,14 @@
     "saveDesignInfo": "Ontwerpinformatie (statistiek) in het bestand opslaan",
     "askWhereToSave": "Bij elk bestand vragen waar het moet worden opgeslagen",
     "askWhereToSaveHint": "Opent het opslagvenster van de browser, zodat je de naam en de map kiest. Uit: bestanden gaan direct naar je downloadmap.",
+    "theme": "Thema",
+    "themeHint": "Daglicht is een licht thema met zwarte tekst en donkerdere kleuren, om het scherm in de zon op het veld te lezen.",
+    "themeOption": {
+      "dark": "Donker",
+      "light": "Licht",
+      "system": "Zoals systeem",
+      "daylight": "Daglicht (hoog contrast)"
+    },
     "resetTab": "{{name}} herstellen",
     "resetAll": "Alles herstellen",
     "resetOne": "Terug naar de standaardkleur",

@@ -2,8 +2,8 @@
 // transparent with only its thumb clickable, so the two overlap cleanly.
 const THUMB =
   'pointer-events-none absolute inset-x-0 top-0 m-0 h-5 w-full cursor-pointer appearance-none bg-transparent focus:outline-none' +
-  ' [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-sky-400 [&::-webkit-slider-thumb]:ring-2 [&::-webkit-slider-thumb]:ring-slate-900' +
-  ' [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:h-3.5 [&::-moz-range-thumb]:w-3.5 [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-sky-400';
+  ' [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-accent-400 [&::-webkit-slider-thumb]:ring-2 [&::-webkit-slider-thumb]:ring-surface' +
+  ' [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:h-3.5 [&::-moz-range-thumb]:w-3.5 [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-accent-400';
 
 /** A two-thumb range slider over `count` discrete stops (OpenRocket-style). */
 export function RangeSlider({
@@ -36,9 +36,9 @@ export function RangeSlider({
   const pct = (i: number) => (i / (count - 1)) * 100;
   return (
     <div className="relative h-5 min-w-[120px] flex-1">
-      <div className="absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 rounded-full bg-slate-700" />
+      <div className="absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 rounded-full bg-elevated" />
       <div
-        className="absolute top-1/2 h-1 -translate-y-1/2 rounded-full bg-sky-500"
+        className="absolute top-1/2 h-1 -translate-y-1/2 rounded-full bg-accent-500"
         style={{ left: `${pct(low)}%`, right: `${100 - pct(high)}%` }}
       />
       {/* Under the track rather than on it, so the selected-range fill never
@@ -50,7 +50,7 @@ export function RangeSlider({
           aria-hidden
           title={stop}
           className={`absolute bottom-0 h-1.5 w-px -translate-x-1/2 ${
-            i >= low && i <= high ? 'bg-sky-400/80' : 'bg-slate-600'
+            i >= low && i <= high ? 'bg-accent-400/80' : 'bg-prominent'
           }`}
           style={{ left: `${pct(i)}%` }}
         />

@@ -48,9 +48,9 @@ export function WeatherSourceLine({
   ].filter(Boolean);
 
   return (
-    <div className="space-y-1 rounded-md bg-slate-800/60 p-2 ring-1 ring-white/10">
+    <div className="space-y-1 rounded-md bg-raised/60 p-2 ring-1 ring-line/10">
       {summary && (
-        <p className="text-xs text-slate-300">
+        <p className="text-xs text-ink-soft">
           {t(source.endpoint === 'archive' ? 'weather.source.record' : 'weather.source.forecast', {
             when: fmtSiteTime(source.validAt, source.timezone),
             where: formatCoord(source.latitudeDeg, source.longitudeDeg, 3),
@@ -59,14 +59,14 @@ export function WeatherSourceLine({
         </p>
       )}
       {notes.map((n) => (
-        <p key={n as string} className="text-xs text-amber-400">
+        <p key={n as string} className="text-xs text-warn-400">
           {n}
         </p>
       ))}
       {onRefresh && (
         <button
           onClick={onRefresh}
-          className="rounded-md bg-slate-800 px-2 py-1 text-xs font-medium text-sky-300 ring-1 ring-white/10 hover:bg-slate-700"
+          className="rounded-md bg-raised px-2 py-1 text-xs font-medium text-accent-300 ring-1 ring-line/10 hover:bg-elevated"
         >
           {t('weather.source.refresh')}
         </button>

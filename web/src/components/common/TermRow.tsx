@@ -11,9 +11,9 @@ export function TermRow({
 }) {
   return (
     <div>
-      <dt className="text-slate-400">{label}</dt>
-      <dd className="tabular-nums text-slate-100">{children}</dd>
-      {detail !== undefined && <dd className="tabular-nums text-slate-300">{detail}</dd>}
+      <dt className="text-ink-muted">{label}</dt>
+      <dd className="tabular-nums text-ink-strong">{children}</dd>
+      {detail !== undefined && <dd className="tabular-nums text-ink-soft">{detail}</dd>}
     </div>
   );
 }

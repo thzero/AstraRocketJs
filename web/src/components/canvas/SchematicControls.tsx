@@ -11,6 +11,7 @@ import { download, exportFilename } from '../../services/files/saveFile.js';
 import { ImageExportMenu } from './ImageExportMenu.js';
 import { MAX_ZOOM, ZOOM_IDENTITY, type ZoomState } from './schematicGeometry';
 import { errorMessage } from '../../services/app/errorMessage';
+import { token } from '../common/colorTokens';
 
 /**
  * The TreeSchematic control strip: SVG / image export, the two caliper
@@ -108,7 +109,7 @@ export function SchematicControls({
         title={t('schematic.calipersH')}
         aria-label={t('schematic.calipersH')}
         aria-pressed={!!caliperH}
-        style={caliperH ? { background: 'var(--accent)', color: '#fff' } : undefined}
+        style={caliperH ? { background: 'var(--accent)', color: token('on-accent') } : undefined}
         onClick={() => setCaliperH((c) => (c ? null : { a: totalLen * 0.2, b: totalLen * 0.8 }))}
       >
         ⟺
@@ -118,7 +119,7 @@ export function SchematicControls({
         title={t('schematic.calipersV')}
         aria-label={t('schematic.calipersV')}
         aria-pressed={!!caliperV}
-        style={caliperV ? { background: 'var(--accent)', color: '#fff' } : undefined}
+        style={caliperV ? { background: 'var(--accent)', color: token('on-accent') } : undefined}
         onClick={() => setCaliperV((c) => (c ? null : { a: maxR, b: -maxR }))}
       >
         ⇕

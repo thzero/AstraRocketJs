@@ -93,7 +93,7 @@ export function SimulationsPane() {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex flex-wrap items-center gap-2 border-b border-white/10 p-3">
+      <div className="flex flex-wrap items-center gap-2 border-b border-line/10 p-3">
         <ToolBtn onClick={onAdd}>{t('sims.new')}</ToolBtn>
         <ToolBtn onClick={() => onDuplicate(activeId)}>{t('sims.duplicate')}</ToolBtn>
         <ToolBtn

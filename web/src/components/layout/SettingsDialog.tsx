@@ -17,6 +17,7 @@ import { ColorInput } from '../common/ColorInput';
 import { DialogButton } from '../common/DialogButton';
 import { canAskWhereToSave } from '../../services/files/saveFile';
 import { SPEED_WARNINGS } from '../sim/speedWarnings';
+import { THEME_PREFS, type ThemePref } from '../../services/app/theme';
 
 const SPEEDS = [0.25, 0.5, 1, 2, 4];
 const speedLabel = (s: number) => (s === 0.25 ? '¼×' : s === 0.5 ? '½×' : `${s}×`);
@@ -66,7 +67,12 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
 
   const resetSection = () => {
     if (tab === 'general')
-      update({ saveDesignInfo: DEFAULT_SETTINGS.saveDesignInfo, askWhereToSave: DEFAULT_SETTINGS.askWhereToSave });
+      update({
+        saveDesignInfo: DEFAULT_SETTINGS.saveDesignInfo,
+        askWhereToSave: DEFAULT_SETTINGS.askWhereToSave,
+        theme: DEFAULT_SETTINGS.theme,
+        themeBeforeDaylight: DEFAULT_SETTINGS.themeBeforeDaylight,
+      });
     else if (tab === 'units') update({ units: DEFAULT_SETTINGS.units, unitOverrides: {} });
     else if (tab === 'colors') update({ partColors: {}, phaseColors: DEFAULT_SETTINGS.phaseColors });
     else if (tab === 'materials') update({ defaultMaterials: DEFAULT_SETTINGS.defaultMaterials });
@@ -95,7 +101,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
             <button
               key={tb.key}
               {...tabs.tab(tb.key)}
-              className={`rounded-lg px-3 py-1.5 text-xs font-medium ${tab === tb.key ? 'bg-sky-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}
+              className={`rounded-lg px-3 py-1.5 text-xs font-medium ${tab === tb.key ? 'bg-accent-600 text-on-accent' : 'bg-raised text-ink-soft hover:bg-elevated'}`}
             >
               {t(tb.label)}
             </button>
@@ -107,13 +113,13 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
           <div className="flex gap-2">
             <button
               onClick={resetSection}
-              className="rounded-lg bg-slate-800 px-3 py-2 text-xs font-medium text-slate-300 ring-1 ring-white/10 hover:bg-slate-700"
+              className="rounded-lg bg-raised px-3 py-2 text-xs font-medium text-ink-soft ring-1 ring-line/10 hover:bg-elevated"
             >
               {t('settings.resetTab', { name: t(TABS.find((x) => x.key === tab)!.label) })}
             </button>
             <button
               onClick={reset}
-              className="rounded-lg bg-slate-800 px-3 py-2 text-xs font-medium text-slate-300 ring-1 ring-white/10 hover:bg-slate-700"
+              className="rounded-lg bg-raised px-3 py-2 text-xs font-medium text-ink-soft ring-1 ring-line/10 hover:bg-elevated"
             >
               {t('settings.resetAll')}
             </button>
@@ -137,7 +143,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
             {/* Part colors apply to the 3D model, which a phone reaches
                   through the Sketch tab just as a desktop reaches it through the
                   view switch — so this is not gated on width. */}
-            <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
               {t('settings.parts')}
             </div>
             {PART_KEYS.map((key) => (
@@ -154,23 +160,23 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
             {/* Taste, not correctness: the default is a magnitude ramp, and
                   OpenRocket's green-to-red is here for anyone who reads that
                   faster because they already know it from the desktop. */}
-            <div className="pt-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+            <div className="pt-1 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
               {t('settings.aeroHeat')}
             </div>
-            <label className="flex items-center justify-between gap-3 text-sm text-slate-300">
+            <label className="flex items-center justify-between gap-3 text-sm text-ink-soft">
               {t('settings.aeroHeatLabel')}
               <select
                 value={settings.aeroHeat}
                 onChange={(e) => update({ aeroHeat: e.target.value as 'sky' | 'openrocket' })}
-                className="w-44 rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
+                className="w-44 rounded-md bg-raised px-2 py-1 text-sm text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500"
               >
                 <option value="sky">{t('settings.aeroHeatSky')}</option>
                 <option value="openrocket">{t('settings.aeroHeatOr')}</option>
               </select>
             </label>
-            <p className="text-[11px] leading-snug text-slate-500">{t('settings.aeroHeatNote')}</p>
+            <p className="text-[11px] leading-snug text-ink-faint">{t('settings.aeroHeatNote')}</p>
 
-            <div className="pt-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+            <div className="pt-1 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
               {t('settings.phases')}
             </div>
             <ColorRow
@@ -193,7 +199,22 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
 
         {tab === 'general' && (
           <>
-            <p className="text-[11px] leading-snug text-slate-500">{t('settings.generalNote')}</p>
+            <p className="text-[11px] leading-snug text-ink-faint">{t('settings.generalNote')}</p>
+            <label className="flex items-center justify-between gap-3 text-sm text-ink">
+              <span>{t('settings.theme')}</span>
+              <select
+                value={settings.theme}
+                onChange={(e) => update({ theme: e.target.value as ThemePref })}
+                className="rounded-md bg-raised px-2 py-1 text-sm text-ink ring-1 ring-line/10 focus:outline-none focus:ring-accent-500"
+              >
+                {THEME_PREFS.map((p) => (
+                  <option key={p} value={p}>
+                    {t(`settings.themeOption.${p}`)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <p className="-mt-1 text-[11px] leading-snug text-ink-faint">{t('settings.themeHint')}</p>
             <Check
               label={t('settings.saveDesignInfo')}
               checked={settings.saveDesignInfo}
@@ -215,7 +236,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
 
         {tab === 'units' && (
           <>
-            <p className="text-[11px] leading-snug text-slate-500">{t('settings.unitsNote')}</p>
+            <p className="text-[11px] leading-snug text-ink-faint">{t('settings.unitsNote')}</p>
             {/* Whole-system presets first: most people want "imperial" and are
                   done, and only then reach in to change one quantity. A preset
                   is a clean slate, so it also drops every per-field override —
@@ -224,25 +245,25 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
             <div className="flex gap-2 pb-1">
               <button
                 onClick={() => update({ units: METRIC_UNITS, unitOverrides: {} })}
-                className="rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
+                className="rounded-lg bg-raised px-3 py-1.5 text-xs font-medium text-ink ring-1 ring-line/10 hover:bg-elevated"
               >
                 {t('settings.unitsMetric')}
               </button>
               <button
                 onClick={() => update({ units: IMPERIAL_UNITS, unitOverrides: {} })}
-                className="rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
+                className="rounded-lg bg-raised px-3 py-1.5 text-xs font-medium text-ink ring-1 ring-line/10 hover:bg-elevated"
               >
                 {t('settings.unitsImperial')}
               </button>
             </div>
             {QUANTITIES.map((q) => (
               <label key={q} className="flex items-center justify-between gap-3">
-                <span className="text-sm text-slate-300">{t(`units.q.${q}`)}</span>
+                <span className="text-sm text-ink-soft">{t(`units.q.${q}`)}</span>
                 <select
                   aria-label={t(`units.q.${q}`)}
                   value={settings.units[q]}
                   onChange={(e) => update({ units: { ...settings.units, [q]: e.target.value } })}
-                  className="w-28 rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
+                  className="w-28 rounded-md bg-raised px-2 py-1 text-sm text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500"
                 >
                   {UNITS[q].map((u) => (
                     <option key={u.symbol} value={u.symbol}>
@@ -260,7 +281,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
             {overriddenFields > 0 && (
               <button
                 onClick={() => update({ unitOverrides: {} })}
-                className="mt-1 w-full rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-medium text-amber-300 ring-1 ring-white/10 hover:bg-slate-700"
+                className="mt-1 w-full rounded-lg bg-raised px-3 py-1.5 text-xs font-medium text-warn-300 ring-1 ring-line/10 hover:bg-elevated"
               >
                 {t('settings.unitsClearFields', { count: overriddenFields })}
               </button>
@@ -270,11 +291,11 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
 
         {tab === 'playback' && (
           <label className="flex items-center justify-between gap-3">
-            <span className="text-sm text-slate-300">{t('settings.defaultSpeed')}</span>
+            <span className="text-sm text-ink-soft">{t('settings.defaultSpeed')}</span>
             <select
               value={settings.playbackSpeed}
               onChange={(e) => update({ playbackSpeed: parseFloat(e.target.value) })}
-              className="rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
+              className="rounded-md bg-raised px-2 py-1 text-sm text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500"
             >
               {SPEEDS.map((s) => (
                 <option key={s} value={s}>
@@ -287,13 +308,13 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
 
         {tab === 'sketch' && (
           <>
-            <p className="text-[11px] leading-snug text-slate-500">{t('settings.sketchNote')}</p>
+            <p className="text-[11px] leading-snug text-ink-faint">{t('settings.sketchNote')}</p>
             <Check
               label={t('settings.sketchMarkers')}
               checked={settings.showMarkers}
               onChange={(v) => update({ showMarkers: v })}
             />
-            <div className="pt-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+            <div className="pt-1 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
               {t('settings.sketchRulers')}
             </div>
             {RULER_SIDES.map((side) => (
@@ -319,7 +340,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
               checked={settings.simulation.autoRunOutdated}
               onChange={(v) => setSim({ autoRunOutdated: v })}
             />
-            <div className="pt-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+            <div className="pt-1 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
               {t('settings.simOptions')}
             </div>
             <InfoRow label={t('settings.calcMethod')} value="Extended Barrowman" />
@@ -362,7 +383,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
               value={settings.simulation.randomSeed}
               onChange={(v) => setSim({ randomSeed: v })}
             />
-            <div className="pt-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+            <div className="pt-1 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
               {t('settings.warnings')}
             </div>
             <NumRow
@@ -400,7 +421,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
             {/* Everything above this heading decides when a flight WARNS. What
                   follows changes what the flight does, so it is separated and
                   its hint says which way the number moves. */}
-            <div className="pt-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+            <div className="pt-1 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
               {t('settings.simModel')}
             </div>
             <Check
@@ -414,7 +435,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
 
         {tab === 'launch' && (
           <>
-            <p className="text-[11px] leading-snug text-slate-500">{t('settings.launchNote')}</p>
+            <p className="text-[11px] leading-snug text-ink-faint">{t('settings.launchNote')}</p>
             {/* These are the values a NEW simulation is seeded from, so a
                   blank one would hand every future simulation a hole. Clearing
                   a required field here keeps what it had rather than storing
@@ -442,8 +463,8 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <span className="text-sm text-slate-400">{label}</span>
-      <span className="text-sm text-slate-300">{value}</span>
+      <span className="text-sm text-ink-muted">{label}</span>
+      <span className="text-sm text-ink-soft">{value}</span>
     </div>
   );
 }
@@ -469,7 +490,7 @@ function NumRow(props: NumRowProps) {
   return (
     <div>
       <NumField {...props} />
-      <p className="mt-0.5 pr-28 text-[11px] leading-snug text-slate-500">{props.hint}</p>
+      <p className="mt-0.5 pr-28 text-[11px] leading-snug text-ink-faint">{props.hint}</p>
     </div>
   );
 }
@@ -483,7 +504,7 @@ function NumRow(props: NumRowProps) {
 function NumField({ label, unit, value, step, min, max, placeholder, onChange }: NumRowProps) {
   return (
     <label className="flex items-center justify-between gap-3">
-      <span className="text-sm text-slate-300">{label}</span>
+      <span className="text-sm text-ink-soft">{label}</span>
       <span className="flex items-center gap-1">
         <NumberInput
           value={value}
@@ -495,9 +516,9 @@ function NumField({ label, unit, value, step, min, max, placeholder, onChange }:
           max={max}
           placeholder={placeholder}
           ariaLabel={label}
-          className="w-24 rounded-md bg-slate-800 px-2 py-1 text-right text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
+          className="w-24 rounded-md bg-raised px-2 py-1 text-right text-sm text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500"
         />
-        {unit && <span className="min-w-8 text-xs text-slate-500">{unit}</span>}
+        {unit && <span className="min-w-8 text-xs text-ink-faint">{unit}</span>}
       </span>
     </label>
   );
@@ -523,7 +544,7 @@ function ColorRow({
     // A row, not one big <label>: the reset button is a second control, and a
     // label may only bind to one.
     <div className="flex items-center justify-between gap-3">
-      <label htmlFor={id} className="text-sm text-slate-300">
+      <label htmlFor={id} className="text-sm text-ink-soft">
         {label}
       </label>
       <span className="flex items-center gap-2">
@@ -531,14 +552,14 @@ function ColorRow({
           id={id}
           value={value}
           onCommit={onChange}
-          className="h-7 w-10 cursor-pointer rounded-md border border-white/10 bg-slate-800 p-0.5"
+          className="h-7 w-10 cursor-pointer rounded-md border border-line/10 bg-raised p-0.5"
         />
         {overridden && onReset && (
           <button
             onClick={onReset}
             title={resetTitle}
             aria-label={resetTitle}
-            className="rounded-md bg-slate-800 px-2 py-1 text-xs text-slate-400 ring-1 ring-white/10 hover:bg-slate-700"
+            className="rounded-md bg-raised px-2 py-1 text-xs text-ink-muted ring-1 ring-line/10 hover:bg-elevated"
           >
             ↺
           </button>

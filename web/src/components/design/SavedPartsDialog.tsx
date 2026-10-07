@@ -115,11 +115,11 @@ export function SavedPartsDialog({ onClose }: { onClose: () => void }) {
       footer={<MasterStatus err={err} />}
     >
       {entries === null ? (
-        <p className="grid flex-1 place-items-center p-6 text-sm text-slate-400">{t('common.loading')}</p>
+        <p className="grid flex-1 place-items-center p-6 text-sm text-ink-muted">{t('common.loading')}</p>
       ) : entries.length === 0 ? (
         // Reachable from the menu before anything is saved, so it has to say
         // where saved parts come from rather than show a void.
-        <p className="grid flex-1 place-items-center p-6 text-center text-sm leading-snug text-slate-400">
+        <p className="grid flex-1 place-items-center p-6 text-center text-sm leading-snug text-ink-muted">
           {t('picker.savedEmpty')}
         </p>
       ) : (
@@ -130,20 +130,20 @@ export function SavedPartsDialog({ onClose }: { onClose: () => void }) {
             <>
               {groups.map(({ type, list }) => (
                 <section key={type}>
-                  <h3 className="sticky top-0 bg-slate-900 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                  <h3 className="sticky top-0 bg-surface px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-muted">
                     {t(`part.${type}`, { defaultValue: type })}
                   </h3>
-                  <ul className="divide-y divide-white/5">
+                  <ul className="divide-y divide-line/5">
                     {list.map((e) => (
                       <li key={e.part.id}>
                         <MasterRow selected={e.part.id === selectedId} onClick={() => void select(e.part.id)}>
-                          <span className="block truncate text-sm text-slate-100">
-                            <span className="mr-1 text-amber-400" aria-hidden="true">
+                          <span className="block truncate text-sm text-ink-strong">
+                            <span className="mr-1 text-warn-400" aria-hidden="true">
                               ★
                             </span>
                             {e.part.partNo}
                           </span>
-                          <span className="block truncate text-xs text-slate-500">
+                          <span className="block truncate text-xs text-ink-faint">
                             {e.row ? (
                               <>
                                 {e.part.mfr} · {describe(e.row, u, t)}
@@ -152,7 +152,7 @@ export function SavedPartsDialog({ onClose }: { onClose: () => void }) {
                               // Shown rather than hidden: this is the only list
                               // it can be deleted from, and the picker has
                               // already dropped it.
-                              <span className="text-amber-400">{t('picker.savedBrokenShort')}</span>
+                              <span className="text-warn-400">{t('picker.savedBrokenShort')}</span>
                             )}
                           </span>
                         </MasterRow>
@@ -167,7 +167,7 @@ export function SavedPartsDialog({ onClose }: { onClose: () => void }) {
             selected && (
               <>
                 {!selected.row && (
-                  <p className="border-b border-white/10 bg-amber-500/10 px-4 py-2 text-xs leading-snug text-amber-300">
+                  <p className="border-b border-line/10 bg-warn-500/10 px-4 py-2 text-xs leading-snug text-warn-300">
                     {t('picker.savedBroken')}
                   </p>
                 )}

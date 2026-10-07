@@ -46,7 +46,7 @@ function OverrideRow({
   return (
     <div className="space-y-1">
       <label className="flex items-center justify-between gap-3">
-        <span className="flex items-center gap-2 text-xs text-slate-400">
+        <span className="flex items-center gap-2 text-xs text-ink-muted">
           <input
             type="checkbox"
             checked={enabled}
@@ -54,7 +54,7 @@ function OverrideRow({
               onToggle(e.target.checked);
               onCommit?.();
             }}
-            className="accent-sky-500"
+            className="accent-accent-500"
           />
           {label}
         </span>
@@ -67,13 +67,13 @@ function OverrideRow({
             disabled={!enabled}
             step={step}
             min={0}
-            className="w-24 rounded-md bg-slate-800 px-2 py-1 text-right text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500 disabled:opacity-40"
+            className="w-24 rounded-md bg-raised px-2 py-1 text-right text-sm text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500 disabled:opacity-40"
           />
-          {unit && <span className="min-w-10 text-xs text-slate-500">{unit}</span>}
+          {unit && <span className="min-w-10 text-xs text-ink-faint">{unit}</span>}
         </span>
       </label>
       {enabled && (
-        <label className="flex items-center gap-2 pl-6 text-[11px] text-slate-500">
+        <label className="flex items-center gap-2 pl-6 text-[11px] text-ink-faint">
           <input
             type="checkbox"
             checked={sub}
@@ -81,7 +81,7 @@ function OverrideRow({
               onSub(e.target.checked);
               onCommit?.();
             }}
-            className="accent-sky-500"
+            className="accent-accent-500"
           />
           {subLabel}
         </label>
@@ -164,7 +164,7 @@ export function OverridesSection({
         sub={node.overrideSubcomponentsCD === true}
         onSub={(on) => onChange({ overrideSubcomponentsCD: on || undefined })}
       />
-      <p className="text-[11px] leading-snug text-slate-500">{t('override.cpNote')}</p>
+      <p className="text-[11px] leading-snug text-ink-faint">{t('override.cpNote')}</p>
     </PropSection>
   );
 }

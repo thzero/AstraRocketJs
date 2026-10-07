@@ -18,8 +18,8 @@ export function FlightWarnings({ sim }: { sim: FlightResult | null }) {
   if (!sim || !warnings.length) return null;
 
   return (
-    <section className="rounded-xl bg-slate-900 p-3 ring-1 ring-white/10">
-      <div className="mb-2 text-[10px] uppercase tracking-wide text-slate-400">
+    <section className="rounded-xl bg-surface p-3 ring-1 ring-line/10">
+      <div className="mb-2 text-[10px] uppercase tracking-wide text-ink-muted">
         {t('sim.warnings', { count: warnings.length })}
       </div>
       <ul className="space-y-1.5">

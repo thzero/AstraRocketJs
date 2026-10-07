@@ -31,7 +31,7 @@ export function AutoFinTabButton({ node }: { node: ComponentNode }) {
         })
       }
       title={t('prop.autoFinTabTip')}
-      className="rounded-md bg-slate-800 px-2 py-1 text-xs text-slate-300 ring-1 ring-white/10 hover:bg-slate-700"
+      className="rounded-md bg-raised px-2 py-1 text-xs text-ink-soft ring-1 ring-line/10 hover:bg-elevated"
     >
       {t('prop.autoFinTab')}
     </button>

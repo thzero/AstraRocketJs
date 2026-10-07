@@ -1,9 +1,9 @@
 import type { ButtonHTMLAttributes } from 'react';
 
 const VARIANT = {
-  primary: 'bg-sky-600 text-white hover:bg-sky-500',
-  secondary: 'bg-slate-800 text-slate-200 ring-1 ring-white/10 hover:bg-slate-700',
-  danger: 'bg-red-600 text-white hover:bg-red-500',
+  primary: 'bg-accent-600 text-on-accent hover:bg-accent-500',
+  secondary: 'bg-raised text-ink ring-1 ring-line/10 hover:bg-elevated',
+  danger: 'bg-danger-600 text-on-accent hover:bg-danger-500',
 } as const;
 
 /**

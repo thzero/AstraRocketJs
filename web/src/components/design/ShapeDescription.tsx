@@ -65,7 +65,7 @@ export function ShapeDescription({ node }: { node: ComponentNode }) {
   const text = t(key, { defaultValue: '' });
   if (!text || text === key) return null;
   return (
-    <p className="rounded-md bg-slate-800/60 px-2 py-1.5 text-[11px] leading-snug text-slate-400 ring-1 ring-white/5">
+    <p className="rounded-md bg-raised/60 px-2 py-1.5 text-[11px] leading-snug text-ink-muted ring-1 ring-line/5">
       {richText(text)}
     </p>
   );

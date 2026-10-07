@@ -69,33 +69,33 @@ export function MotorRow({
   // to say which tube it seats.
   const cardLabel = title ?? t('sims.motor');
   return (
-    <section aria-label={cardLabel} className={'rounded-xl bg-slate-900 p-3 ring-1 ring-white/10'}>
+    <section aria-label={cardLabel} className={'rounded-xl bg-surface p-3 ring-1 ring-line/10'}>
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <div className="flex items-baseline gap-2 text-[10px] uppercase tracking-wide text-slate-400">
+          <div className="flex items-baseline gap-2 text-[10px] uppercase tracking-wide text-ink-muted">
             {cardLabel}
-            {soloEdit && <span className="normal-case text-slate-500">{t('sims.thisOneOnly')}</span>}
+            {soloEdit && <span className="normal-case text-ink-faint">{t('sims.thisOneOnly')}</span>}
           </div>
           {motor ? (
             <>
-              <div className="truncate text-lg font-semibold text-sky-400">{motorName(motor)}</div>
-              <div className="text-xs text-slate-500">
+              <div className="truncate text-lg font-semibold text-accent-400">{motorName(motor)}</div>
+              <div className="text-xs text-ink-faint">
                 {u.fmt('motorDimensions', motor.diameter)} × {u.fmt('motorDimensions', motor.length)}{' '}
                 {u.sym('motorDimensions')}
                 {hasCurve ? ` · ${u.fmtSym('mass', motor.masses[0]!)}` : ''}
               </div>
               {hasCurve ? (
-                <div className="mt-0.5 text-xs text-slate-500">
+                <div className="mt-0.5 text-xs text-ink-faint">
                   {t('sims.delay')}{' '}
                   {motor.ejectionDelay >= PLUGGED_DELAY ? t('motor.plugged') : `${fmtNum(motor.ejectionDelay, 1)} s`}
-                  {motor.curveSrc ? <span className="text-slate-400"> · {motor.curveSrc}</span> : null}
+                  {motor.curveSrc ? <span className="text-ink-muted"> · {motor.curveSrc}</span> : null}
                 </div>
               ) : (
-                <div className="mt-0.5 text-xs text-amber-400">{t('sims.motorNotFound')}</div>
+                <div className="mt-0.5 text-xs text-warn-400">{t('sims.motorNotFound')}</div>
               )}
             </>
           ) : (
-            <div className="mt-0.5 text-sm text-slate-500">{t('sims.noMotor')}</div>
+            <div className="mt-0.5 text-sm text-ink-faint">{t('sims.noMotor')}</div>
           )}
         </div>
         <div className="flex shrink-0 items-center gap-1">
@@ -104,14 +104,14 @@ export function MotorRow({
               onClick={() => setCurveOpen(true)}
               title={t('sims.viewCurve')}
               aria-label={t('sims.viewCurve')}
-              className="rounded-lg bg-slate-800 px-2 py-1.5 text-xs text-slate-200 hover:bg-slate-700"
+              className="rounded-lg bg-raised px-2 py-1.5 text-xs text-ink hover:bg-elevated"
             >
               📈
             </button>
           )}
           <button
             onClick={() => setOpen(true)}
-            className="rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-slate-700"
+            className="rounded-lg bg-raised px-3 py-1.5 text-xs font-medium text-ink hover:bg-elevated"
           >
             {t('sims.changeMotor')}
           </button>
@@ -171,8 +171,8 @@ function IgnitionControl({
     ...UPPER_STAGE_EVENTS.filter((e) => upperStage || e === event),
   ];
   return (
-    <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-white/5 pt-2 text-xs">
-      <span className="text-slate-500">{t('sims.ignition')}</span>
+    <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-line/5 pt-2 text-xs">
+      <span className="text-ink-faint">{t('sims.ignition')}</span>
       <select
         value={event}
         aria-label={t('sims.ignition')}
@@ -180,7 +180,7 @@ function IgnitionControl({
           onChange(e.target.value as IgnitionEvent, delay);
           onCommit?.();
         }}
-        className="min-w-0 flex-1 rounded-md bg-slate-950 px-2 py-1 text-xs text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
+        className="min-w-0 flex-1 rounded-md bg-canvas px-2 py-1 text-xs text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500"
       >
         {events.map((ev) => (
           <option key={ev} value={ev}>
@@ -189,7 +189,7 @@ function IgnitionControl({
         ))}
       </select>
       {event !== 'never' && (
-        <label className="flex shrink-0 items-center gap-1 text-slate-500">
+        <label className="flex shrink-0 items-center gap-1 text-ink-faint">
           +
           {/* `NumberInput` for the same reason the ejection delay in MotorDialog
               is one: a raw box with `?? 0` commits a ZERO ignition delay the
@@ -208,7 +208,7 @@ function IgnitionControl({
               if (v !== null) onChange(event, v);
             }}
             onCommit={onCommit}
-            className="w-14 rounded bg-slate-950 px-1.5 py-0.5 text-right tabular-nums text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
+            className="w-14 rounded bg-canvas px-1.5 py-0.5 text-right tabular-nums text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500"
           />
           s
         </label>

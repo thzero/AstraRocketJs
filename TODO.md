@@ -40,7 +40,6 @@ Ordered by plausibility: how much stands between the entry and a working change,
 
 - **Charts described for screen readers** (from the MMRocket Sim review, 2026-10-07). Each flight chart panel, the drag charts and the ground track get a short written summary a screen reader announces: the measure, its peak and when it happened, and the events marked on it, in the reader's units. Today the charts' accessible names cover only their controls (zoom, crosshair), so the numbers in a chart reach a screen reader only through the crosshair readout. The summaries can be built from what the panels already compute (`FlightChartPanel` has the peak; `flightChartTraces` has the series), placed in each panel as visually hidden text or an `aria-describedby` target, and translated in all ten locales.
 
-- **A light theme and a high-contrast daylight mode** (from the MMRocket Sim review, 2026-10-07). Light, Dark or Follow system in Settings, plus a high-contrast mode for reading a phone in sunlight at the field. The real work comes first: the app has about 1,400 hard-coded Tailwind color classes (`bg-slate-900`, `text-sky-300`...) and almost no CSS color variables, so a theme means moving those colors onto a small set of semantic tokens (surface, raised surface, text, muted text, accent, warning, danger) defined per theme in `index.css`. The charts, the schematic and the 3D view set colors in code and need the same tokens. `color-scheme: dark` in `index.css` becomes per theme.
 
 ### Blocked on something outside the code
 

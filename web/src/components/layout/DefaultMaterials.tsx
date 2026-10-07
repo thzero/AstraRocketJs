@@ -38,7 +38,7 @@ export function DefaultMaterials({
 
   return (
     <div className="space-y-3">
-      <p className="text-[11px] leading-snug text-slate-500">{t('settings.materialsNote')}</p>
+      <p className="text-[11px] leading-snug text-ink-faint">{t('settings.materialsNote')}</p>
       {MATERIAL_SLOTS.map(({ part, material }) => {
         const key = defaultMaterialKey(part, material);
         return (

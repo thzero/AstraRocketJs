@@ -43,7 +43,7 @@ export function AppearanceSection({
       {/* A row, not one big <label>: the reset button is a second control, and a
           label may only bind to one. */}
       <div className="flex items-center justify-between gap-3">
-        <label htmlFor={colorId} className="text-xs text-slate-400">
+        <label htmlFor={colorId} className="text-xs text-ink-muted">
           {t('prop.color')}
         </label>
         <span className="flex items-center gap-2">
@@ -57,14 +57,14 @@ export function AppearanceSection({
             value={typeof node.color === 'string' ? node.color : colorForType(node.type, palette)}
             onChange={(e) => onChange({ color: e.target.value })}
             onBlur={onCommit}
-            className="h-7 w-10 cursor-pointer rounded-md border border-white/10 bg-slate-800 p-0.5"
+            className="h-7 w-10 cursor-pointer rounded-md border border-line/10 bg-raised p-0.5"
           />
           {typeof node.color === 'string' && (
             <button
               onClick={() => onCommitChange({ color: undefined })}
               title={t('prop.resetColor')}
               aria-label={t('prop.resetColor')}
-              className="rounded-md bg-slate-800 px-2 py-1 text-xs text-slate-400 ring-1 ring-white/10 hover:bg-slate-700"
+              className="rounded-md bg-raised px-2 py-1 text-xs text-ink-muted ring-1 ring-line/10 hover:bg-elevated"
             >
               ↺
             </button>

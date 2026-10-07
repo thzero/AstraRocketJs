@@ -134,7 +134,7 @@ export function LocationPicker({
             if (location) apply(location);
             else toDefaultSite();
           }}
-          className="min-w-0 flex-1 rounded-md bg-slate-800 px-2 py-1.5 text-xs text-slate-200 ring-1 ring-white/10"
+          className="min-w-0 flex-1 rounded-md bg-raised px-2 py-1.5 text-xs text-ink ring-1 ring-line/10"
         >
           {/* Both a STATE and a CHOICE: it is what the dropdown shows whenever
               the fields match no saved location, and picking it returns them to
@@ -150,7 +150,7 @@ export function LocationPicker({
           onClick={() => setSearching(true)}
           title={t('placeSearch.open')}
           aria-label={t('placeSearch.open')}
-          className="rounded-md bg-slate-800 px-2 py-1.5 text-xs text-slate-300 ring-1 ring-white/10 hover:bg-slate-700"
+          className="rounded-md bg-raised px-2 py-1.5 text-xs text-ink-soft ring-1 ring-line/10 hover:bg-elevated"
         >
           🔍
         </button>
@@ -159,7 +159,7 @@ export function LocationPicker({
           disabled={!savable}
           title={savable ? t('location.save') : t('location.needsSite')}
           aria-label={t('location.save')}
-          className="rounded-md bg-slate-800 px-2 py-1.5 text-xs text-slate-300 ring-1 ring-white/10 hover:bg-slate-700 disabled:opacity-40"
+          className="rounded-md bg-raised px-2 py-1.5 text-xs text-ink-soft ring-1 ring-line/10 hover:bg-elevated disabled:opacity-40"
         >
           💾
         </button>
@@ -168,13 +168,13 @@ export function LocationPicker({
           disabled={locations.length === 0}
           title={t('location.manage')}
           aria-label={t('location.manage')}
-          className="rounded-md bg-slate-800 px-2 py-1.5 text-xs text-slate-300 ring-1 ring-white/10 hover:bg-slate-700 disabled:opacity-40"
+          className="rounded-md bg-raised px-2 py-1.5 text-xs text-ink-soft ring-1 ring-line/10 hover:bg-elevated disabled:opacity-40"
         >
           ⚙
         </button>
       </div>
       {err && (
-        <p role="status" aria-live="polite" className="text-[11px] leading-snug text-amber-400">
+        <p role="status" aria-live="polite" className="text-[11px] leading-snug text-warn-400">
           {err}
         </p>
       )}

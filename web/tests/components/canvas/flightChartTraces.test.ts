@@ -32,7 +32,7 @@ describe('buildTraces', () => {
     // Named for the stage, not the simulation: the pane heading already says
     // which simulation this is.
     expect(only!.name).toBe('Stage 1');
-    expect(only!.color).toBe('#38bdf8'); // sky, the original single line
+    expect(only!.color).toBe('var(--c-series-1)'); // sky, the original single line
   });
 
   it('gives each stage its own name and color', () => {

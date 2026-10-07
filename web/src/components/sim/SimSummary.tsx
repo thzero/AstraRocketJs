@@ -183,8 +183,8 @@ export function SimSummary({ sim }: { sim: FlightResult | null }) {
   const { deploymentSpeedWarn, railExitVelocityMin } = settings.simulation;
   const s = sim?.summary;
   // Safe-if-green thresholds (global settings): fast off the rail, gentle at deploy.
-  const goodTone = 'text-emerald-400',
-    warnTone = 'text-amber-400';
+  const goodTone = 'text-ok-400',
+    warnTone = 'text-warn-400';
   // Static margin at the instant the rocket clears the rod/rail — the
   // flight-relevant figure (real velocity + partly-burned mass), vs. the on-pad
   // "Stability" tile (Mach 0.3, fully loaded). OpenRocket records the same
@@ -254,7 +254,7 @@ export function SimSummary({ sim }: { sim: FlightResult | null }) {
           label={t('sim.apogee')}
           value={apogee.fmt(s.maxAltitude)}
           sub={<UnitChip label={t('sim.apogee')} quantity="distance" scope={unitScope('sim', 'apogee')} />}
-          tone="text-sky-400"
+          tone="text-accent-400"
         />
         {s.deploymentVelocity != null && (
           <Stat

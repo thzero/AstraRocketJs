@@ -162,10 +162,10 @@ describe('AlertDialog', () => {
 
     it('paints a destructive confirm red', () => {
       const plain = open();
-      expect(within(plain.dialog).getByText('Delete').className).toContain('bg-sky-600');
+      expect(within(plain.dialog).getByText('Delete').className).toContain('bg-accent-600');
       plain.unmount();
       const danger = open({ danger: true });
-      expect(within(danger.dialog).getByText('Delete').className).toContain('bg-red-600');
+      expect(within(danger.dialog).getByText('Delete').className).toContain('bg-danger-600');
     });
 
     it('confirms on its own button only', () => {

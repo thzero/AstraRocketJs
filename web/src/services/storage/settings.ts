@@ -16,6 +16,7 @@ import {
 } from '../../prefs/units';
 import { hexOf, parseHexColor } from '../design/colorHex';
 import { parseDefaultMaterialKey } from '../design/materialSlots';
+import { THEME_PREFS, type NonDaylightPref, type ThemePref } from '../app/theme';
 
 /**
  * Bounds for the component-tree column (see `Settings.treePaneWidth`).
@@ -275,6 +276,10 @@ export interface Settings {
    * one (Chrome and Edge). Off, a file goes straight to the downloads folder.
    */
   askWhereToSave: boolean;
+  /** Dark, light, follow the system, or daylight (high contrast); services/app/theme.ts. */
+  theme: ThemePref;
+  /** The theme the header's daylight toggle goes back to. */
+  themeBeforeDaylight: NonDaylightPref;
   /** PDF report / template output preferences. */
   report: ReportSettings;
   /** Flight-path export preferences that outlive one export. */
@@ -499,6 +504,8 @@ export const DEFAULT_SETTINGS: Settings = {
   rulers: { top: true, bottom: false, left: true, right: false },
   saveDesignInfo: false,
   askWhereToSave: true,
+  theme: 'dark',
+  themeBeforeDaylight: 'dark',
   report: DEFAULT_REPORT,
   pathExport: DEFAULT_PATH_EXPORT,
   // The three a flight is usually read by; the rest are one chip away.
@@ -734,6 +741,11 @@ export function loadSettings(): Settings {
       rulers: { ...DEFAULT_SETTINGS.rulers, ...legacyRulers, ...savedRulers },
       saveDesignInfo: typeof s.saveDesignInfo === 'boolean' ? s.saveDesignInfo : DEFAULT_SETTINGS.saveDesignInfo,
       askWhereToSave: typeof s.askWhereToSave === 'boolean' ? s.askWhereToSave : DEFAULT_SETTINGS.askWhereToSave,
+      theme: THEME_PREFS.includes(s.theme as ThemePref) ? (s.theme as ThemePref) : DEFAULT_SETTINGS.theme,
+      themeBeforeDaylight:
+        (s.themeBeforeDaylight as string) !== 'daylight' && THEME_PREFS.includes(s.themeBeforeDaylight as ThemePref)
+          ? (s.themeBeforeDaylight as NonDaylightPref)
+          : DEFAULT_SETTINGS.themeBeforeDaylight,
       report: (() => {
         const r = { ...DEFAULT_REPORT, ...(s.report ?? {}) };
         // A hand-edited or future-version choice falls back rather than being

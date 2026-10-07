@@ -29,7 +29,7 @@ export function TabBar() {
   const onPane = useWorkspaceStore((s) => s.setDesignPane);
   const showResults = useShowResultsTab();
   return (
-    <nav className="flex shrink-0 border-t border-white/10 bg-slate-900/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
+    <nav className="flex shrink-0 border-t border-line/10 bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
       <TabButton
         active={tab === 'design' && pane === 'stats'}
         onClick={() => onPane('stats')}
@@ -66,7 +66,7 @@ function TabButton({
       // Which tab you are on was signalled by color alone — nothing a screen
       // reader could announce, and nothing a low-vision user could rely on.
       aria-current={active ? 'page' : undefined}
-      className={`flex flex-1 flex-col items-center gap-0.5 py-3 text-xs ${active ? 'text-sky-400' : 'text-slate-400'}`}
+      className={`flex flex-1 flex-col items-center gap-0.5 py-3 text-xs ${active ? 'text-accent-400' : 'text-ink-muted'}`}
     >
       <span className="text-lg">{icon}</span>
       {label}

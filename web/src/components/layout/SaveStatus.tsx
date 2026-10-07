@@ -63,7 +63,7 @@ export function SaveStatus() {
       title={t('save.tip', {
         time: new Intl.DateTimeFormat(i18n.language, { timeStyle: 'medium' }).format(new Date(lastSavedAt)),
       })}
-      className="text-[10px] font-medium text-slate-500"
+      className="text-[10px] font-medium text-ink-faint"
     >
       {withAge ? t('save.saved', { when }) : t('save.savedShort')}
     </span>

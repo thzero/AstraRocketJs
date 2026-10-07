@@ -258,13 +258,13 @@ function UpdateToastBody({
   // button that looked untouched in that moment read as one that did nothing.
   const [applying, setApplying] = useState(false);
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-sky-500/40 bg-sky-900/60 px-4 py-2 text-sm text-sky-50">
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-accent-500/40 bg-accent-900/60 px-4 py-2 text-sm text-accent-50">
       <div className="min-w-0 flex-1">
         <p className="font-semibold">{t('update.available')}</p>
         {/* Which build you are ON. The waiting worker does not tell us its own
             version, so this names the one being replaced rather than inventing
             the one replacing it. */}
-        <p className="text-xs text-sky-200/80">{t('update.running', { version: APP_VERSION })}</p>
+        <p className="text-xs text-accent-200/80">{t('update.running', { version: APP_VERSION })}</p>
       </div>
       <button
         onClick={() => {
@@ -273,10 +273,10 @@ function UpdateToastBody({
         }}
         disabled={applying}
         aria-busy={applying}
-        className="flex shrink-0 items-center gap-2 rounded-lg bg-sky-500 px-3 py-1.5 font-semibold text-white transition-transform hover:bg-sky-400 active:scale-95 active:bg-sky-600 disabled:cursor-wait disabled:bg-sky-700 disabled:active:scale-100"
+        className="flex shrink-0 items-center gap-2 rounded-lg bg-accent-500 px-3 py-1.5 font-semibold text-on-accent transition-transform hover:bg-accent-400 active:scale-95 active:bg-accent-600 disabled:cursor-wait disabled:bg-accent-700 disabled:active:scale-100"
       >
         {applying && (
-          <span aria-hidden className="size-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+          <span aria-hidden className="size-3.5 animate-spin rounded-full border-2 border-line/40 border-t-white" />
         )}
         {applying ? t('update.reloading') : t('update.reload')}
       </button>
@@ -286,13 +286,13 @@ function UpdateToastBody({
           <button
             onClick={onLater}
             title={t('update.laterTitle', { hours: Math.round(UPDATE_SNOOZE_MS / 3_600_000) })}
-            className="shrink-0 rounded-lg px-2 py-1.5 text-xs text-sky-200 hover:text-white"
+            className="shrink-0 rounded-lg px-2 py-1.5 text-xs text-accent-200 hover:text-on-accent"
           >
             {t('update.later')}
           </button>
           <button
             onClick={onDismiss}
-            className="shrink-0 rounded-lg px-1 py-1.5 text-sky-300 hover:text-white"
+            className="shrink-0 rounded-lg px-1 py-1.5 text-accent-300 hover:text-on-accent"
             aria-label={t('update.dismiss')}
           >
             ✕

@@ -49,11 +49,11 @@ export function ConfigEditor() {
 
   return (
     <div className="space-y-4 p-3">
-      <section className="rounded-xl bg-slate-900 p-3 ring-1 ring-white/10">
+      <section className="rounded-xl bg-surface p-3 ring-1 ring-line/10">
         {/* A div rather than a <label htmlFor>: this component renders twice (the
             phone's inline copy and the desktop column), and a duplicated id is a
             broken association for whichever copy loses. */}
-        <div className="mb-1 text-[10px] uppercase tracking-wide text-slate-400">{t('configs.name')}</div>
+        <div className="mb-1 text-[10px] uppercase tracking-wide text-ink-muted">{t('configs.name')}</div>
         <input
           value={config.name ?? ''}
           onChange={(e) => renameConfig(config.id, e.target.value)}
@@ -65,16 +65,16 @@ export function ConfigEditor() {
           // The field's weight is for a NAME somebody typed. The placeholder is
           // a hint about what happens if they do not, so it drops back to the
           // weight and color every other hint in the app uses.
-          className="w-full rounded-md bg-slate-800 px-2 py-1.5 text-sm font-medium text-slate-100 ring-1 ring-white/10 placeholder:font-normal placeholder:text-slate-500 focus:outline-none focus:ring-sky-500"
+          className="w-full rounded-md bg-raised px-2 py-1.5 text-sm font-medium text-ink-strong ring-1 ring-line/10 placeholder:font-normal placeholder:text-ink-faint focus:outline-none focus:ring-accent-500"
         />
-        <p className="mt-2 text-[11px] leading-snug text-slate-500">{t('configs.flownBy', { count: flights })}</p>
+        <p className="mt-2 text-[11px] leading-snug text-ink-faint">{t('configs.flownBy', { count: flights })}</p>
       </section>
 
       {sub === 'recovery' &&
         (devices.length ? (
           devices.map((d) => <DeploymentSection key={d.id as string} config={config} device={d} />)
         ) : (
-          <p className="text-xs text-slate-500">{t('configs.noRecovery')}</p>
+          <p className="text-xs text-ink-faint">{t('configs.noRecovery')}</p>
         ))}
 
       {sub === 'separation' &&
@@ -88,7 +88,7 @@ export function ConfigEditor() {
             />
           ))
         ) : (
-          <p className="text-xs text-slate-500">{t('configs.noSeparation')}</p>
+          <p className="text-xs text-ink-faint">{t('configs.noSeparation')}</p>
         ))}
 
       {sub === 'motors' &&

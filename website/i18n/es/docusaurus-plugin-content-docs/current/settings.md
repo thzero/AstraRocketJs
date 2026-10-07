@@ -144,6 +144,7 @@ Todo lo anterior decide cuándo *avisa* un vuelo. Esto cambia lo que hace el vue
 
 ## General
 
+- **Tema**: Oscuro, Claro, Según el sistema (claro u oscuro según esté configurado tu dispositivo, y cambia cuando él cambia) o Luz de día (alto contraste), un tema claro con texto negro y colores más oscuros para leer la pantalla al sol en el campo. Oscuro por defecto. Las vistas 3D y el esquema siguen el tema; un esquema descargado o impreso conserva sus propios colores de impresión sea cual sea el tema. El botón ☀ de la cabecera cambia a Luz de día con un toque, y un segundo toque vuelve al tema que tenías.
 - **Guardar la información de diseño (estadísticas) en el archivo**: escribe las cifras derivadas del diseño (masa, CG, CP, estabilidad) en un `.ork` guardado, como puede hacerlo OpenRocket de escritorio. Desactivado por defecto.
 - **Preguntar dónde guardar cada archivo**: abre el diálogo de guardado del propio navegador en cada exportación, para que elijas el nombre y la carpeta. Activado por defecto, y solo aparece en los navegadores que tienen ese diálogo (Chrome y Edge). Desactivado, o en Firefox y Safari, los archivos van directamente a tu carpeta de descargas.
 

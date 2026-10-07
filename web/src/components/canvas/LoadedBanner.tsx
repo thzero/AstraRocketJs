@@ -62,13 +62,13 @@ export function LoadedBanner({
   // a Close. One that did not has only its name, so it gets a slim title row
   // rather than 64px of card chrome around a single line - the drawing below is
   // what the pane is for.
-  const shell = loaded || repaired.length ? 'm-3 rounded-xl bg-slate-900 p-3 ring-1 ring-white/10' : 'mx-3 mt-2';
+  const shell = loaded || repaired.length ? 'm-3 rounded-xl bg-surface p-3 ring-1 ring-line/10' : 'mx-3 mt-2';
 
   return (
     <div className={shell}>
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
-          {loaded && <div className="text-[10px] uppercase tracking-wide text-slate-400">{t('banner.loaded')}</div>}
+          {loaded && <div className="text-[10px] uppercase tracking-wide text-ink-muted">{t('banner.loaded')}</div>}
           {/* A button or a title, never a button that does nothing: the ✎ and
               the sky tint are what say this line is a control, so both go with
               the action rather than being left as a dead affordance. */}
@@ -77,19 +77,17 @@ export function LoadedBanner({
               onClick={() => setConfigOpen(true)}
               aria-label={t('config.edit')}
               title={t('config.edit')}
-              className={`group flex min-w-0 items-center gap-1.5 rounded px-1 py-0.5 text-left font-semibold text-sky-400 hover:bg-slate-800/60 focus:bg-slate-800 focus:outline-none focus:ring-1 focus:ring-sky-500 ${
+              className={`group flex min-w-0 items-center gap-1.5 rounded px-1 py-0.5 text-left font-semibold text-accent-400 hover:bg-raised/60 focus:bg-raised focus:outline-none focus:ring-1 focus:ring-accent-500 ${
                 loaded ? 'text-lg' : 'text-sm'
               }`}
             >
               <span className="min-w-0 truncate">{name}</span>
-              <span aria-hidden className="shrink-0 text-xs text-slate-500 group-hover:text-sky-300">
+              <span aria-hidden className="shrink-0 text-xs text-ink-faint group-hover:text-accent-300">
                 ✎
               </span>
             </button>
           ) : (
-            <div
-              className={`min-w-0 truncate px-1 py-0.5 font-semibold text-slate-200 ${loaded ? 'text-lg' : 'text-sm'}`}
-            >
+            <div className={`min-w-0 truncate px-1 py-0.5 font-semibold text-ink ${loaded ? 'text-lg' : 'text-sm'}`}>
               {name}
             </div>
           )}
@@ -99,11 +97,11 @@ export function LoadedBanner({
             <button
               onClick={() => update({ showImportNotes: !open })}
               aria-expanded={open}
-              className="flex items-center gap-1.5 rounded-lg bg-slate-800 px-2 py-1.5 text-xs text-amber-300 ring-1 ring-white/10 hover:bg-slate-700"
+              className="flex items-center gap-1.5 rounded-lg bg-raised px-2 py-1.5 text-xs text-warn-300 ring-1 ring-line/10 hover:bg-elevated"
             >
               <span aria-hidden>⚠</span>
               {t('banner.notes', { count })}
-              <span aria-hidden className="text-[9px] text-slate-400">
+              <span aria-hidden className="text-[9px] text-ink-muted">
                 {open ? '▾' : '▸'}
               </span>
             </button>
@@ -114,7 +112,7 @@ export function LoadedBanner({
             <button
               onClick={onClose}
               title={t('banner.closeTitle')}
-              className="rounded-lg bg-slate-800 px-3 py-1.5 text-xs text-slate-300 ring-1 ring-white/10 hover:bg-slate-700"
+              className="rounded-lg bg-raised px-3 py-1.5 text-xs text-ink-soft ring-1 ring-line/10 hover:bg-elevated"
             >
               {t('banner.close')}
             </button>
@@ -122,7 +120,7 @@ export function LoadedBanner({
         </div>
       </div>
       {count > 0 && open && (
-        <ul className="mt-2 space-y-1 text-xs text-amber-400/90">
+        <ul className="mt-2 space-y-1 text-xs text-warn-400/90">
           {notes.map((n, i) => (
             <li key={i}>⚠ {n}</li>
           ))}

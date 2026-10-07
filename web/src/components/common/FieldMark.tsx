@@ -30,9 +30,9 @@ import { useTranslation } from 'react-i18next';
 /** Classes that turn a field label into a flagged pill. Empty when it is neither. */
 const box = (missing?: boolean, mixed?: boolean): string =>
   missing
-    ? 'rounded bg-red-500/20 px-1.5 py-0.5 text-red-200 ring-1 ring-red-500/60'
+    ? 'rounded bg-danger-500/20 px-1.5 py-0.5 text-danger-200 ring-1 ring-danger-500/60'
     : mixed
-      ? 'rounded bg-amber-500/20 px-1.5 py-0.5 text-amber-200 ring-1 ring-amber-500/50'
+      ? 'rounded bg-warn-500/20 px-1.5 py-0.5 text-warn-200 ring-1 ring-warn-500/50'
       : '';
 
 /**
@@ -47,7 +47,7 @@ export function FieldLabel({
   required,
   missing,
   mixed,
-  className = 'text-xs text-slate-400',
+  className = 'text-xs text-ink-muted',
 }: {
   text: string;
   required?: boolean;
@@ -71,7 +71,7 @@ export function FieldLabel({
     <span className={`${className} ${flagged}`} title={why || undefined}>
       {text}
       {required && !missing && (
-        <span className="ml-0.5 align-super text-[10px] leading-none text-red-400/80" aria-hidden>
+        <span className="ml-0.5 align-super text-[10px] leading-none text-danger-400/80" aria-hidden>
           *
         </span>
       )}
@@ -82,12 +82,12 @@ export function FieldLabel({
 
 /**
  * Swap a control's resting ring for the flagged one. Applied by REPLACING
- * `ring-white/10` rather than appending, because two `ring-*` utilities in one
+ * `ring-line/10` rather than appending, because two `ring-*` utilities in one
  * class list resolve by stylesheet order, not by which came later in the string.
  */
 export const markRing = (cls: string, missing?: boolean, mixed?: boolean): string =>
   missing
-    ? cls.replace('ring-white/10', 'ring-red-500/70')
+    ? cls.replace('ring-line/10', 'ring-danger-500/70')
     : mixed
-      ? cls.replace('ring-white/10', 'ring-amber-500/60')
+      ? cls.replace('ring-line/10', 'ring-warn-500/60')
       : cls;

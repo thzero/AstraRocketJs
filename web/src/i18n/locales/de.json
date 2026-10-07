@@ -310,6 +310,14 @@
     "saveDesignInfo": "Entwurfsinfos (Statistik) in der Datei speichern",
     "askWhereToSave": "Bei jeder Datei nach dem Speicherort fragen",
     "askWhereToSaveHint": "Öffnet den Speicherdialog des Browsers, sodass Sie Namen und Ordner wählen. Aus: Dateien landen direkt im Download-Ordner.",
+    "theme": "Design",
+    "themeHint": "Tageslicht ist ein helles Design mit schwarzer Schrift und dunkleren Farben, um den Bildschirm im Sonnenlicht auf dem Startgelände zu lesen.",
+    "themeOption": {
+      "dark": "Dunkel",
+      "light": "Hell",
+      "system": "Wie System",
+      "daylight": "Tageslicht (hoher Kontrast)"
+    },
     "resetTab": "{{name}} zurücksetzen",
     "resetAll": "Alles zurücksetzen",
     "resetOne": "Auf Standardfarbe zurücksetzen",

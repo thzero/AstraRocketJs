@@ -8,6 +8,7 @@ import { WorkbenchTabs } from './WorkbenchTabs';
 import { EngineBadge } from './EngineBadge';
 import { SaveStatus } from './SaveStatus';
 import { UndoRedoButtons } from './UndoRedoButtons';
+import { DaylightToggle } from './DaylightToggle';
 import { FileMenuButton } from './FileMenu';
 import { useHeaderDialogs } from './HeaderDialogs';
 import { useUndoShortcuts } from './useUndoShortcuts';
@@ -45,12 +46,13 @@ export function AppHeader() {
     // right edge and make the whole DOCUMENT scroll sideways, sliding the bottom
     // tab bar out of view. Wrapping keeps every control reachable and the page
     // exactly one viewport wide, at any width and in any language.
-    <header className="flex flex-wrap items-center gap-1.5 border-b border-white/10 px-4 py-3 xl:gap-2">
+    <header className="flex flex-wrap items-center gap-1.5 border-b border-line/10 px-4 py-3 lg:gap-1 xl:gap-2">
       {/* The mark, the name and the three badges are the app's identity, and they
           read the same at every width: no breakpoint takes one of them away, so
           nobody has to learn that a narrower window means a different header.
           What gives when the row runs short is elsewhere - the save status' age
-          and the menu's word below 2xl - and below that the row wraps, which is
+          and the menu's word below 2xl, the gaps and the icon buttons' padding
+          below xl - and below that the row wraps, which is
           what it has always done on a phone. */}
       <span className="text-xl">🚀</span>
       <h1 className="text-base font-semibold tracking-tight">{t('app.title')}</h1>
@@ -60,16 +62,16 @@ export function AppHeader() {
           reads as clutter where a single grouped one reads as a stamp. The colors
           separate them: the backend is emerald for WebAssembly and slate for the
           JavaScript fallback, the pre-release word is amber. */}
-      <span className="inline-flex items-center gap-1 rounded px-1 py-0.5 text-[10px] leading-none ring-1 ring-white/10">
+      <span className="inline-flex items-center gap-1 rounded px-1 py-0.5 text-[10px] leading-none ring-1 ring-line/10">
         <button
           onClick={() => open('about')}
           title={t('about.open')}
-          className="font-medium tabular-nums text-slate-500 hover:text-sky-400"
+          className="font-medium tabular-nums text-ink-faint hover:text-accent-400"
         >
           v{APP_VERSION}
         </button>
         {isPreRelease() && (
-          <span title={t('about.wip')} className="text-[9px] font-semibold uppercase tracking-wide text-amber-300">
+          <span title={t('about.wip')} className="text-[9px] font-semibold uppercase tracking-wide text-warn-300">
             {t('wip.badge')}
           </span>
         )}
@@ -82,8 +84,9 @@ export function AppHeader() {
           TabBar takes over. */}
       <WorkbenchTabs />
 
-      <div className="ml-auto flex shrink-0 items-center gap-1.5 xl:gap-2">
+      <div className="ml-auto flex shrink-0 items-center gap-1.5 lg:gap-1 xl:gap-2">
         <UndoRedoButtons />
+        <DaylightToggle />
         <LanguageSwitcher />
         <FileMenuButton
           canSave={canSave}

@@ -57,8 +57,8 @@ export function CenterCanvas({
   const motors = useMemo(() => selectMotorDims(tree, config), [tree, config]);
   const exportData = useExportData(motors);
   const { showMarkers, showInfoCard, rulers } = useViewPrefs();
-  const loading = <div className="grid h-full place-items-center text-sm text-slate-500">{t('view.loading3d')}</div>;
-  const prompt = <div className="grid h-full place-items-center text-sm text-slate-500">{t('sim.prompt')}</div>;
+  const loading = <div className="grid h-full place-items-center text-sm text-ink-faint">{t('view.loading3d')}</div>;
+  const prompt = <div className="grid h-full place-items-center text-sm text-ink-faint">{t('sim.prompt')}</div>;
 
   return (
     // The view flexes to fill the pane; the stats strip below is a pinned
@@ -205,7 +205,7 @@ function RollSlider() {
   const shown = u.fmtSym('angle', degToRad(deg), digits);
   return (
     <div
-      className="absolute inset-y-2 left-1 z-10 flex w-8 flex-col items-center text-[11px] font-semibold leading-none text-slate-300"
+      className="absolute inset-y-2 left-1 z-10 flex w-8 flex-col items-center text-[11px] font-semibold leading-none text-ink-soft"
       title={t('view.rollHint')}
     >
       <span className="pb-1">{u.fmtSym('angle', 0, digits)}</span>
@@ -218,12 +218,12 @@ function RollSlider() {
         onChange={(e) => onRollValue(degToRad(parseFloat(e.target.value)))}
         title={t('view.roll', { deg: shown })}
         aria-label={t('view.rollAria')}
-        className="accent-sky-500"
+        className="accent-accent-500"
         style={{ writingMode: 'vertical-lr', width: '100%', flex: '1 1 0%', minHeight: 0 }}
       />
       <span className="pt-1">{u.fmtSym('angle', 2 * Math.PI, digits)}</span>
       {/* Live roll readout, centered on the slider. */}
-      <span className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded bg-slate-800/95 px-0.5 py-0.5 text-[9px] text-sky-300 ring-1 ring-white/10">
+      <span className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded bg-raised/95 px-0.5 py-0.5 text-[9px] text-accent-300 ring-1 ring-line/10">
         {shown}
       </span>
     </div>

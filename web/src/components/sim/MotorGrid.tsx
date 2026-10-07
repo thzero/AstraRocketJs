@@ -97,7 +97,7 @@ export function MotorGrid({
     <>
       <div className="min-h-0 flex-1 overflow-auto">
         <table className="min-w-full border-collapse whitespace-nowrap text-sm">
-          <thead className="sticky top-0 z-10 bg-slate-900 text-[10px] uppercase tracking-wide text-slate-500">
+          <thead className="sticky top-0 z-10 bg-surface text-[10px] uppercase tracking-wide text-ink-faint">
             <tr>
               <th scope="col" className="w-8 px-2 py-1.5">
                 <span className="sr-only">{t('dash.compareTitle')}</span>
@@ -135,7 +135,7 @@ export function MotorGrid({
                   key={k}
                   data-key={k}
                   onClick={() => onSelect(m)}
-                  className={`cursor-pointer border-t border-white/5 tabular-nums ${isSel ? 'bg-sky-600/25' : 'hover:bg-slate-800/60'}`}
+                  className={`cursor-pointer border-t border-line/5 tabular-nums ${isSel ? 'bg-accent-600/25' : 'hover:bg-raised/60'}`}
                 >
                   <td className="px-2 py-1.5">
                     <input
@@ -146,18 +146,18 @@ export function MotorGrid({
                       title={hasCurve(m) ? undefined : t('dash.noCurveTip')}
                       onClick={(e) => e.stopPropagation()}
                       onChange={() => onToggleCheck(m)}
-                      className="accent-sky-500 disabled:opacity-30"
+                      className="accent-accent-500 disabled:opacity-30"
                     />
                   </td>
                   {cols.map((c) => (
                     <td
                       key={c.id}
-                      className={`px-2 py-1.5 ${ALIGN[c.align]} ${c.always ? 'font-medium text-slate-100' : 'text-slate-300'}`}
+                      className={`px-2 py-1.5 ${ALIGN[c.align]} ${c.always ? 'font-medium text-ink-strong' : 'text-ink-soft'}`}
                     >
-                      {c.always && m.custom && <span className="mr-1 text-amber-400">★</span>}
+                      {c.always && m.custom && <span className="mr-1 text-warn-400">★</span>}
                       {c.cell(m, u)}
                       {c.always && !hasCurve(m) && (
-                        <span className="ml-1.5 rounded bg-slate-700 px-1 py-0.5 text-[9px] font-normal uppercase tracking-wide text-slate-400">
+                        <span className="ml-1.5 rounded bg-elevated px-1 py-0.5 text-[9px] font-normal uppercase tracking-wide text-ink-muted">
                           {t('dash.noCurve')}
                         </span>
                       )}
@@ -169,7 +169,7 @@ export function MotorGrid({
           </tbody>
         </table>
       </div>
-      <div className="border-t border-white/10 p-2 text-center text-[11px] uppercase tracking-wide text-slate-500">
+      <div className="border-t border-line/10 p-2 text-center text-[11px] uppercase tracking-wide text-ink-faint">
         {t('motor.count', { total: shown.length })}
       </div>
     </>

@@ -111,9 +111,9 @@ export function PropertyPanel({
   const { t } = useTranslation();
   const u = useUnits();
   // The card is the panel's own surface, and the host says whether it needs one.
-  const card = flush ? '' : ' rounded-xl bg-slate-900 ring-1 ring-white/10';
+  const card = flush ? '' : ' rounded-xl bg-surface ring-1 ring-line/10';
   if (!node) {
-    return <section className={`p-3 text-sm text-slate-500${card}`}>{t('prop.selectHint')}</section>;
+    return <section className={`p-3 text-sm text-ink-faint${card}`}>{t('prop.selectHint')}</section>;
   }
 
   const fields = visibleFields(node, isFirstStage);
@@ -133,7 +133,7 @@ export function PropertyPanel({
   return (
     <section className={`space-y-3 p-3${card}`}>
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-400">{label}</h2>
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-ink-muted">{label}</h2>
         <div className="flex items-center gap-1">
           {onMove && (
             <>
@@ -142,7 +142,7 @@ export function PropertyPanel({
                 disabled={!canMoveUp}
                 title={t('prop.moveUp')}
                 aria-label={t('prop.moveUp')}
-                className="rounded-md bg-slate-800 px-2 py-1 text-xs text-slate-300 ring-1 ring-white/10 hover:bg-slate-700 disabled:cursor-not-allowed disabled:text-slate-600 disabled:hover:bg-slate-800"
+                className="rounded-md bg-raised px-2 py-1 text-xs text-ink-soft ring-1 ring-line/10 hover:bg-elevated disabled:cursor-not-allowed disabled:text-ink-dim disabled:hover:bg-raised"
               >
                 ↑
               </button>
@@ -151,7 +151,7 @@ export function PropertyPanel({
                 disabled={!canMoveDown}
                 title={t('prop.moveDown')}
                 aria-label={t('prop.moveDown')}
-                className="rounded-md bg-slate-800 px-2 py-1 text-xs text-slate-300 ring-1 ring-white/10 hover:bg-slate-700 disabled:cursor-not-allowed disabled:text-slate-600 disabled:hover:bg-slate-800"
+                className="rounded-md bg-raised px-2 py-1 text-xs text-ink-soft ring-1 ring-line/10 hover:bg-elevated disabled:cursor-not-allowed disabled:text-ink-dim disabled:hover:bg-raised"
               >
                 ↓
               </button>
@@ -161,7 +161,7 @@ export function PropertyPanel({
             onClick={onRemove}
             disabled={!canRemove}
             title={canRemove ? t('prop.delete') : t('prop.lastStage')}
-            className="rounded-md bg-red-500/15 px-2 py-1 text-xs font-medium text-red-300 ring-1 ring-red-500/30 hover:bg-red-500/25 disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-600 disabled:ring-white/10 disabled:hover:bg-slate-800"
+            className="rounded-md bg-danger-500/15 px-2 py-1 text-xs font-medium text-danger-300 ring-1 ring-danger-500/30 hover:bg-danger-500/25 disabled:cursor-not-allowed disabled:bg-raised disabled:text-ink-dim disabled:ring-line/10 disabled:hover:bg-raised"
           >
             {t('prop.delete')}
           </button>
@@ -173,14 +173,14 @@ export function PropertyPanel({
           these two say what the part is, and that one says how it is drawn. */}
       <PropSection title={t('prop.part')}>
         <label className="flex items-center justify-between gap-3">
-          <span className="text-xs text-slate-400">{t('prop.name')}</span>
+          <span className="text-xs text-ink-muted">{t('prop.name')}</span>
           <input
             type="text"
             value={typeof node.name === 'string' ? node.name : ''}
             placeholder={label}
             onChange={(e) => onChange({ name: e.target.value })}
             onBlur={onCommit}
-            className="w-40 rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
+            className="w-40 rounded-md bg-raised px-2 py-1 text-sm text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500"
           />
         </label>
 
@@ -194,20 +194,20 @@ export function PropertyPanel({
         */}
         {catalogPart && (
           <div className="flex items-center justify-between gap-3">
-            <span className="text-xs text-slate-400">{t('prop.catalogPart')}</span>
+            <span className="text-xs text-ink-muted">{t('prop.catalogPart')}</span>
             <span
-              className="w-40 truncate text-right text-sm text-slate-200"
+              className="w-40 truncate text-right text-sm text-ink"
               title={`${catalogPart.manufacturer} ${catalogPart.partNo}`}
             >
               {catalogPart.partNo}
-              <span className="block truncate text-[10px] text-slate-500">{catalogPart.manufacturer}</span>
+              <span className="block truncate text-[10px] text-ink-faint">{catalogPart.manufacturer}</span>
             </span>
           </div>
         )}
 
         {hasCatalog(node.type) && (
           // A picker that fails to load leaves the dimensions below it editable.
-          <LazyBoundary fallback={<div className="text-xs text-slate-500">{t('common.loading')}</div>}>
+          <LazyBoundary fallback={<div className="text-xs text-ink-faint">{t('common.loading')}</div>}>
             <div className="space-y-2">
               <ComponentPicker
                 type={node.type as PickerType}
@@ -320,7 +320,7 @@ export function PropertyPanel({
           through a change, and both ways out (fewer tubes, thinner tubes) are
           theirs to pick. */}
       {node.type === 'tubefinset' && tubeFinsCollide(node, parentRadius) && (
-        <p className="rounded-md bg-amber-500/10 px-2 py-1.5 text-[11px] leading-snug text-amber-300 ring-1 ring-amber-500/30">
+        <p className="rounded-md bg-warn-500/10 px-2 py-1.5 text-[11px] leading-snug text-warn-300 ring-1 ring-warn-500/30">
           {t('prop.tubeFinsCollide', {
             max: tubeFinMaxCount(num(node, 'outerRadius'), parentRadius),
             // Doubled to match the field it is about: the tube's size reads as
@@ -354,7 +354,7 @@ export function PropertyPanel({
       {/* Freeform fin: its defining feature is the outline polygon, edited
           graphically rather than as scalar fields. */}
       {node.type === 'freeformfinset' && (
-        <div className="border-t border-white/5 pt-3">
+        <div className="border-t border-line/5 pt-3">
           <FreeformFinEditor
             points={(node.points as [number, number][] | undefined) ?? []}
             onChange={(pts) => onChange({ points: pts } as Partial<ComponentNode>)}

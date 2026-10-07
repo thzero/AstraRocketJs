@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import * as THREE from 'three';
 import { useHoverCursor } from '../common/useHoverCursor';
 import type { Piece } from './rocketPieces';
+import { useSceneColors } from './sceneColors';
 
 /**
  * Owns the rocket body in the 3D scene: one <mesh> per Piece with the
@@ -23,6 +24,7 @@ export function RocketModel({
    *  is cut, so there is no open cross-section to cap and no stencil pass. */
   clip?: THREE.Plane | null;
 }) {
+  const scene = useSceneColors();
   const hoverCursor = useHoverCursor();
   // One array for every material: a new [plane] each render would reallocate
   // (and re-upload) uniforms on every frame the component re-renders.
@@ -76,10 +78,10 @@ export function RocketModel({
                   the ones over it; DoubleSide draws far walls for depth. A
                   selected part glows sky-blue and turns opaque so it reads. */}
             <meshStandardMaterial
-              color={selected ? '#7dd3fc' : p.color}
+              color={selected ? scene['scene-selected'] : p.color}
               roughness={0.6}
               metalness={0.05}
-              emissive={selected ? '#0284c7' : '#000000'}
+              emissive={selected ? scene['scene-selected-glow'] : '#000000'}
               emissiveIntensity={selected ? 0.6 : 0}
               transparent={!selected && !cut && (!!p.translucent || !!p.innerGlass)}
               opacity={selected || cut ? 1 : p.translucent ? 0.55 : p.innerGlass ? 0.5 : 1}

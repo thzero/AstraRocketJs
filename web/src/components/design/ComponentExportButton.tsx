@@ -41,14 +41,14 @@ export function ComponentExportButton({ node }: { node: ComponentNode }) {
         aria-expanded={open}
         aria-label={t('file.export')}
         title={t('file.export')}
-        className="rounded px-1 text-sm leading-none text-slate-500 hover:bg-slate-700 hover:text-sky-300"
+        className="rounded px-1 text-sm leading-none text-ink-faint hover:bg-elevated hover:text-accent-300"
       >
         ⬇
       </button>
       {open && (
         <div
           role="menu"
-          className="absolute right-0 z-30 mt-1 w-40 overflow-hidden rounded-lg bg-slate-800 py-1 shadow-xl ring-1 ring-white/10"
+          className="absolute right-0 z-30 mt-1 w-40 overflow-hidden rounded-lg bg-raised py-1 shadow-xl ring-1 ring-line/10"
         >
           {formats.map((f) => (
             <button
@@ -59,7 +59,7 @@ export function ComponentExportButton({ node }: { node: ComponentNode }) {
                 close();
                 fireAction(exportComponent(id, f));
               }}
-              className="flex w-full items-center px-3 py-1.5 text-left text-xs font-medium text-slate-200 hover:bg-slate-700"
+              className="flex w-full items-center px-3 py-1.5 text-left text-xs font-medium text-ink hover:bg-elevated"
             >
               {t(LABEL[f])}
             </button>
