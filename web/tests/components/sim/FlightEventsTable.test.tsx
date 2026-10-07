@@ -172,7 +172,9 @@ describe('FlightEventsTable', () => {
     expect(text).toContain('# Simulation: C6 flight');
     // The extras the table hides on a sub-line are real columns in the file.
     expect(text).toContain('Stability (cal),Thrust/weight');
-    expect(text).toContain('"Rail departure"');
+    // The default design rides a launch lug, so it leaves a rod
+    // (services/design/launcher).
+    expect(text).toContain('"Rod departure"');
     spy.mockRestore();
   });
 

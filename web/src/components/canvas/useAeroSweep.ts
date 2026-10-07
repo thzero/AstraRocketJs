@@ -21,6 +21,12 @@ export interface AeroSweepInputs {
   aoaDeg: number;
   thetaDeg: number;
   rollRate: number;
+  /**
+   * Altitude the whole sweep is flown at (m). The air there sets the Reynolds
+   * number and so the skin friction; 0 is sea level, which is what the sweep
+   * did before it could be chosen.
+   */
+  altitudeM: number;
 }
 
 /** What the hook needs of the engine handle; the store's `rocket` satisfies it. */
@@ -39,7 +45,7 @@ const SWEEP_DEFER_MS = 0;
 
 export function useAeroSweep(
   rocket: SweepSource | null,
-  { machMax, aoaDeg, thetaDeg, rollRate }: AeroSweepInputs,
+  { machMax, aoaDeg, thetaDeg, rollRate, altitudeM }: AeroSweepInputs,
 ): { sweep: AeroSweep | null; pending: boolean } {
   // One object per distinct set of inputs. The result is filed under the run
   // it answers, so `pending` is DERIVED (the latest result is not for this
@@ -48,8 +54,8 @@ export function useAeroSweep(
   // render the compiler lint rejects, and it was also one more thing that
   // could drift from the truth it summarized.
   const run = useMemo<Run>(
-    () => ({ rocket, machMax, aoaDeg, thetaDeg, rollRate }),
-    [rocket, machMax, aoaDeg, thetaDeg, rollRate],
+    () => ({ rocket, machMax, aoaDeg, thetaDeg, rollRate, altitudeM }),
+    [rocket, machMax, aoaDeg, thetaDeg, rollRate, altitudeM],
   );
   const [done, setDone] = useState<{ sweep: AeroSweep | null; run: Run | null }>({ sweep: null, run: null });
 
@@ -71,6 +77,12 @@ export function useAeroSweep(
             aoaDeg: run.aoaDeg,
             thetaDeg: run.thetaDeg,
             rollRate: run.rollRate,
+            // One altitude at every Mach, through the kernel's own standard
+            // atmosphere (the bridge's Mach-altitude table). Left out at sea
+            // level, which is the bridge's default.
+            ...(run.altitudeM !== 0
+              ? { machAlt: [[0, run.altitudeM] as [number, number], [run.machMax, run.altitudeM] as [number, number]] }
+              : {}),
           });
         } catch (e) {
           // Was a silent catch: a kernel that throws here left the pane on its

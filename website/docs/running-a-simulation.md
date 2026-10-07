@@ -4,6 +4,8 @@ sidebar_position: 12
 ---
 Simulations live in the right-hand panel. A simulation is a [flight configuration](./flight-configurations.md) — the motors, the recovery and the staging — flown under a set of launch conditions, so what a row carries of its own is its name, the configuration it flies, the conditions and the last result. You can keep **several named simulations** for one design (e.g. different motors or launch sites), **duplicate** one as a starting point, and delete them. The red **Delete simulation** button (next to the current simulation's name) removes it after a confirmation; the workspace always keeps at least one, so it's disabled when only one remains.
 
+**⬇ CSV** in the toolbar downloads the **run table**: every simulation as one row, with its configuration, motors, status and results (apogee, speeds, times, Max-Q, max q·α and max roll rate) in your units. A simulation that has not flown is listed with its figures blank, and an outdated one is marked as such, since its figures describe the design before your latest edits.
+
 ## Pick what it flies
 
 The **Configuration** column in the table, and the picker at the top of the editor, choose which [flight configuration](./flight-configurations.md) the row flies; the motors it seats are spelled out underneath. **Edit motors…** opens the Configurations tab on that one.
@@ -14,9 +16,9 @@ Several rows can fly the same configuration, which is the point of having them: 
 
 Each simulation has its own launch configuration, grouped into cards:
 
-- **Launch rod / rail** — length, angle from vertical, and direction (or "launch into the wind").
+- **Launch rail**, **Launch rod** or **Launcher**: length, angle from vertical, and direction (or "launch into the wind"). The card takes its name from the design's guides: rail buttons ride a rail, launch lugs ride a rod, and a design with neither, or both, says launcher. The same word runs through the results tiles, the flight events, the warnings and the report.
 - **Launch site** — altitude, latitude, and longitude, plus [saved locations](#saved-locations) and a [map](#the-map).
-- **Atmosphere** — ISA standard, or override temperature, pressure and humidity, or fill them and the wind from a [weather forecast](#weather).
+- **Atmosphere** — ISA standard, or override temperature, pressure and humidity, or fill them and the wind from a [weather forecast](#weather). **Pressure** is the pressure *at the site*, not the sea-level figure weather apps and airport reports usually give. A typed pressure well above the standard pressure for the site's elevation gets an amber note under the field saying so, since that is what a sea-level figure looks like at a high field. The note never blocks a run: the value may be right.
 - **Wind** — average speed, gusts (standard deviation), and direction; or a **multi-level** wind profile that varies with altitude.
 - **Earth model** — flat, spherical, or WGS84 (affects long/high flights).
 
@@ -26,11 +28,12 @@ New simulations start from your global [Settings](./settings.md) defaults.
 
 The launch site is a property of the **field**, not of a flight, so it does not have to be retyped every time. The row at the top of the Launch site card saves and recalls them:
 
+- **🔍 Find a place** sets the site from a place name, a postal code, pasted coordinates or a map link. A name or postal code is looked up with Open-Meteo's place search, the same way the weather is fetched, and lists the matches with their elevation; choosing one sets latitude, longitude and elevation as one edit. Coordinates and map links from Google, Apple, OpenStreetMap or Bing are read in the app and never sent anywhere, and only the elevation at that point is looked up. A shortened link (`maps.app.goo.gl/…`) hides the place behind a redirect, so open it and paste the full address instead. Place names come from GeoNames, under CC BY 4.0.
 - **💾 Save this location** stores the three site fields under a name. Saving under a name you already used updates that location instead of adding a second one you could not tell apart in the list.
 - The **dropdown** applies a saved location's latitude, longitude and elevation. It is one ordinary edit, so it undoes like any other. It reads **Custom location** whenever the fields match no saved location, recognized from the numbers themselves, so it stays right whether you typed them, imported them from a `.ork` or used 📍 **Use my location**. Picking **Custom location** yourself returns the three site fields to your [Settings](./settings.md) launch defaults — the **Kennedy Space Center** unless you have changed them. That is for when you are somewhere new and would rather start from a known place than edit a saved location's numbers one at a time: the map has somewhere to open, and all three fields stay filled, so the run is never refused for a blank. It is an ordinary edit too, so undo brings the old site back.
 - **⚙ Manage saved locations** is a two-pane library: the locations on the left with their coordinates, so two fields with similar names can be told apart, and the selected one open on the right. The editor is the whole location — name, latitude, longitude, elevation and the map — because a mistyped coordinate is the thing you most often want to fix. **Save** writes it and leaves it selected, **Discard** puts it back as it was stored, and moving to another location with unsaved edits asks first. **Use** applies the selected location to the simulation you have open, and is refused while you have unsaved edits, since what it offers is one of the sites you have *saved*. **New location** creates one by typing the numbers in. The same library is in the **menu → Launch locations**, beside the Motor Dashboard, so you can look at your locations without first opening a simulation, and **New location** is the way to add one from there, where no launch fields are on screen to capture.
 
-Elevation is shown and edited in whatever unit your launch site card uses, so a field at 6,004 ft reads that way in both places. Latitude and longitude are always degrees, and both are required — 0°, 0° is a point in the Gulf of Guinea, not "unset".
+Elevation is shown and edited in whatever unit your launch site card uses, so a field at 6,004 ft reads that way in both places. Latitude and longitude are always degrees, and both are required — 0°, 0° is a point in the Gulf of Guinea, not "unset". Beside each one, the unit names the hemisphere the sign puts the site in (**° N** or **° S**, **° E** or **° W**) as you type, so a dropped minus sign shows at once.
 
 ### The map
 
@@ -128,6 +131,8 @@ Under it, results are shown as tiles, in roughly chronological flight order, inc
 - **Deployment speed** (flagged if above your warning threshold; green when safely low). On a [dual-deployment](./designing-a-rocket.md#dual-deployment) design the flight engine judges the main and the drogue against their own thresholds instead, and reports a warning for each.
 - **Landing speed**, **flight time**, and **downrange** distance
 - **Max-Q**, the peak dynamic pressure of the boost. The engine does not record it, so it is derived from the air density and speed of sound the run already carries; it is the number that decides whether the airframe holds together. A result saved before simulations kept the full series set has no air density stored, and reports no Max-Q rather than a zero that would look like an answer.
+- **Max q·α**, the largest dynamic pressure times angle of attack while the rocket still flies forward (up to deployment, else apogee), in kPa·°. The side load on fins and couplers follows it. Derived the same way as Max-Q.
+- **Max roll rate**, the fastest the rocket rolled during the flight, read from the engine's roll rate series.
 
 ### Flight events
 
@@ -135,7 +140,7 @@ Under the tiles, the **Flight events** table is the flight as a list you can rea
 
 Every event the engine raises is named, not just the five the charts label, so rail departure, ignition, stage separation and tumble appear here for the first time. Each row carries the **altitude** and **speed** at its instant, in units you set from the column headers, and the rows that are read for more carry it on a line of their own:
 
-- **Rail departure** gives the static margin, thrust-to-weight and angle of attack it left the rail with.
+- **Rail departure** (or rod or launcher departure, after the design's guides) gives the static margin, thrust-to-weight and angle of attack it left with.
 - **Burnout** gives its Mach.
 - **Max-Q** gives the dynamic pressure and the Mach at the peak.
 

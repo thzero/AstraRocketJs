@@ -10,6 +10,7 @@ import {
   readyToApplyHidden,
 } from '../../services/app/updateCheck';
 import { useWorkspaceStore } from '../../state/store';
+import { useUpdateStore } from '../../state/updateStore';
 
 /**
  * "A new version is available — reload?" for the service worker.
@@ -129,6 +130,37 @@ export function UpdateToast() {
       window.removeEventListener('online', check);
     };
   }, [swReg]);
+
+  /*
+   * The About dialog's "Check for updates": the same update() the timer calls,
+   * but waited on and answered. A worker that starts installing is followed to
+   * the end, so "up to date" is never said over a download still in progress.
+   * One already waiting, behind a dismissed or snoozed banner, brings the banner
+   * back: the person asked.
+   */
+  useEffect(() => {
+    if (!swReg) return;
+    const { setChecker } = useUpdateStore.getState();
+    setChecker(async () => {
+      lastCheck.current = Date.now();
+      await swReg.update();
+      const installing = swReg.installing;
+      if (installing) {
+        await new Promise<void>((done) => {
+          const settle = () => {
+            if (installing.state === 'installed' || installing.state === 'redundant') done();
+          };
+          installing.addEventListener('statechange', settle);
+          settle();
+        });
+      }
+      if (!swReg.waiting) return 'upToDate';
+      setSnoozed(null);
+      setNeedRefresh(true);
+      return 'available';
+    });
+    return () => setChecker(null);
+  }, [swReg, setNeedRefresh]);
 
   /*
    * Apply it while nobody is looking.

@@ -1391,6 +1391,15 @@ export function sanitizeSeries(series: FlightSeries): FlightSeries {
 }
 
 /** Frees all engine-side objects (all OpenRocketDesign handles become invalid). */
+/**
+ * The pressure of OpenRocket's standard atmosphere at an altitude (Pa), from
+ * the kernel's own model, or null while the engine is still loading.
+ */
+export function standardPressurePa(altitudeM: number): number | null {
+  if (!active) return null;
+  return callEngine('standardPressure', () => eng().getStandardPressure(altitudeM));
+}
+
 export function resetEngine(): void {
   callEngine('reset', () => eng().reset());
   engineGeneration++;

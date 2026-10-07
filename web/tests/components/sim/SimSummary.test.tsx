@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from 'vitest';
-import { screen } from '@testing-library/react';
+import { afterEach, describe, expect, it } from 'vitest';
+import { act, screen } from '@testing-library/react';
+import { useWorkspaceStore } from '../../../src/state/store';
 import { SimSummary } from '../../../src/components/sim/SimSummary';
 import { renderWithProviders } from '../../testing/renderWithProviders';
 import { fmtNum, ladderDigits } from '../../../src/i18n/format';
-import type { FlightResult } from '../../../src/engine/openRocketEngine';
+import type { FlightResult, RocketTree } from '../../../src/engine/openRocketEngine';
 
 const sim = (Px: (number | null)[], Py: (number | null)[]) =>
   ({
@@ -62,5 +63,38 @@ describe('SimSummary figure precision', () => {
     expect(tile('Rod exit')).toBe(ladder(20));
     expect(tile('Max accel')).toBe(ladder(85));
     expect(tile('Max speed')).toBe(ladder(50));
+  });
+});
+
+/**
+ * The launcher is named the way the design's guides name it: rail buttons ride a
+ * rail, a launch lug rides a rod (services/design/launcher).
+ */
+describe('SimSummary names the launcher after the design', () => {
+  const before = useWorkspaceStore.getState().tree;
+  afterEach(() => act(() => useWorkspaceStore.setState({ tree: before })));
+
+  const guided = (type: string) =>
+    ({
+      components: [{ type: 'stage', children: [{ type: 'bodytube', children: [{ type }, { type }] }] }],
+    }) as unknown as RocketTree;
+
+  it('says rail for a design on rail buttons', () => {
+    act(() => useWorkspaceStore.setState({ tree: guided('railbutton') }));
+    renderWithProviders(<SimSummary sim={sim([0, 0, 0], [0, 0, 0])} />);
+    expect(screen.getByText('Rail exit')).toBeTruthy();
+    expect(screen.queryByText('Rod exit')).toBeNull();
+  });
+
+  it('says rod for a design on a launch lug', () => {
+    act(() => useWorkspaceStore.setState({ tree: guided('launchlug') }));
+    renderWithProviders(<SimSummary sim={sim([0, 0, 0], [0, 0, 0])} />);
+    expect(screen.getByText('Rod exit')).toBeTruthy();
+  });
+
+  it('says launcher for a design with neither', () => {
+    act(() => useWorkspaceStore.setState({ tree: { components: [] } as unknown as RocketTree }));
+    renderWithProviders(<SimSummary sim={sim([0, 0, 0], [0, 0, 0])} />);
+    expect(screen.getByText('Launcher exit')).toBeTruthy();
   });
 });

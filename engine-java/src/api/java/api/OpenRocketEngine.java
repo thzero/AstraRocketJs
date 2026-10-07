@@ -975,6 +975,22 @@ public final class OpenRocketEngine {
         return Math.toDegrees(conditions.getTheta());
     }
 
+    /**
+     * The pressure of OpenRocket's standard atmosphere at an altitude, in Pa.
+     *
+     * For the launch panel's check on a typed pressure: weather sources quote
+     * pressure reduced to sea level, while the launch pressure is the pressure AT
+     * the site, so a sea-level figure typed at a high site reads far above this.
+     * Taken from the kernel's own model so the app holds no second atmosphere.
+     *
+     * @param altitude meters above sea level
+     */
+    @JSExport
+    public static double getStandardPressure(double altitude) {
+        finiteArg("getStandardPressure altitude", altitude);
+        return new ExtendedISAModel().getConditions(altitude).getPressure();
+    }
+
     @JSExport
     public static String getAeroSweep(int rocketHandle, String optionsJson) {
         try {

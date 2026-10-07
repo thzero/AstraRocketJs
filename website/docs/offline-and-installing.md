@@ -44,13 +44,17 @@ Installing gives it its own icon and its own window, without browser tabs and ad
 
 ## Updates
 
-When a new version ships, a small message appears at the bottom of the window offering to **reload**. It won't reload on its own, because that could interrupt a design you're in the middle of, and it is not a dialog for the same reason: it says its piece and lets you finish what you were typing.
+When a new version ships, a banner appears under the header offering to **reload**. It won't reload on its own, because that could interrupt a design you're in the middle of, and it is not a dialog for the same reason: it says its piece and lets you finish what you were typing.
 
 **Later** puts it away and brings it back in a couple of hours. The **✕** keeps the current version until you next reload, whenever suits you.
+
+**Check for updates** in the About dialog (the version number in the header) asks right away and answers either way: that you are on the latest version, or that a new one is ready, in which case the banner comes back even if you put it away.
 
 The app looks for a new version about every ten minutes, and again whenever you come back to the tab or your connection returns, so a tab left open all day still finds out that something shipped. A plain reload also picks up a new version directly, so you never need a hard reload; the site is served through a CDN that holds files for up to ten minutes, which is the longest a fresh deploy takes to reach you.
 
 Motor and component catalogs refresh separately from the app itself, in the background, so new motors reach you without an app update.
+
+While you are offline, the buttons that need a connection are greyed out and say so when you point at them: fetching weather, a place search by name, the landing estimate, flying the forecast hours and checking for updates. Everything else works as usual.
 
 ## Clearing it
 

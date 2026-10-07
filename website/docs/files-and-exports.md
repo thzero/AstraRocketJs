@@ -10,6 +10,8 @@ AstraRocketJs reads and writes standard **OpenRocket `.ork`** files, so designs 
 - **Examples** (menu → Import → Examples) opens one of the [example rockets](./getting-started.md#example-rockets) that ship with the app. It is an import like any other, so what you get is your own unsaved copy — including the question above if you have opened that example before.
 - **Export** (menu → Export → OpenRocket) writes the current design back to a `.ork` file on your device.
 
+**Simulations travel with the file.** A `.ork` keeps every simulation, each with its name, the flight configuration it flies, its launch conditions and the summary of its last result: apogee, the speeds, the times and the optimum delay, as desktop OpenRocket writes them. Desktop opens those figures without re-running. Opening a `.ork` brings its simulations back the same way; one the file had results for shows them in the simulations table marked **From file** until you run it here, and turns **Outdated** as soon as anything it flies changes. A summary has no flight samples, so the charts appear once it has been run. A file with no simulations gets one per flight configuration.
+
 A round-trip through export and import is verified to preserve the physics (mass, CG, CP, stability), and the files re-open in desktop OpenRocket.
 
 ## RockSim (`.rkt`)
@@ -108,6 +110,7 @@ Then choose an output:
 
 - **Save as PDF** — a real PDF file (vector text, tables and 1:1 templates; the schematic is drawn to scale).
 - **Save as CSV** — the design summary as a tidy `Scope, Field, Value, Unit` table (Design / Rocket / per-stage blocks, plus each fin set's root position), for a spreadsheet.
+- **Save parts as CSV**: the component table, one row per part in stage order, with its type, name, material, density, length, outer and inner diameters, thickness and mass, in the report's units.
 
 **Units** (persisted, next to the other options) picks what the PDF and the CSV are written in: **My default units** follows [Settings ▸ Units](./settings.md#units), or pin the document to **Metric** or **Imperial** so it reads the same whatever you happen to be working in — useful when the report is for someone else. Note that "my default units" means the tab defaults, *not* a unit you have set on an individual field: a report written half in inches and half in centimeters because of where you happened to click is not one anyone wants. The 1:1 templates and the printed scale bar always stay in mm/cm, because they measure the page.
 

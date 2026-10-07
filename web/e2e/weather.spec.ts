@@ -63,3 +63,47 @@ test('a weather request names neither the app nor its site', async ({ page }) =>
   await expect(page.getByText(/^Open-Meteo forecast for /)).toBeVisible();
   await expect(page.getByRole('link', { name: 'CC BY 4.0' })).toBeVisible();
 });
+
+test('a place search names neither the app nor its site, and sets the site', async ({ page }) => {
+  const seen: Seen[] = [];
+  await page.route(/open-meteo\.com/, async (route) => {
+    const req = route.request();
+    seen.push({ url: req.url(), headers: await req.allHeaders() });
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      headers: { 'access-control-allow-origin': '*' },
+      body: JSON.stringify({
+        results: [
+          {
+            name: 'Pueblo',
+            latitude: 38.25445,
+            longitude: -104.60914,
+            elevation: 1430,
+            admin1: 'Colorado',
+            country: 'United States',
+          },
+        ],
+      }),
+    });
+  });
+  await ready(page);
+  await openTab(page, 'Simulations');
+  await page.getByRole('button', { name: 'Find a place' }).click();
+  await page.getByLabel(/Place, postal code/).fill('Pueblo');
+  await page.getByRole('button', { name: 'Search', exact: true }).click();
+  await page.getByRole('button', { name: /Pueblo.*Colorado, United States/ }).click();
+
+  await expect(page.getByLabel('Latitude', { exact: true })).toHaveValue(/^38\.25/);
+  await expect(page.getByLabel('Longitude', { exact: true })).toHaveValue(/^-104\.6/);
+  await expect(page.getByLabel('Altitude', { exact: true })).toHaveValue(/^1,?430/);
+
+  const site = new URL(page.url());
+  expect(seen).toHaveLength(1);
+  const [{ url, headers }] = seen;
+  expect(url.startsWith('https://geocoding-api.open-meteo.com/v1/search?name=Pueblo')).toBe(true);
+  expect(headers['origin']).toBe('null');
+  expect(headers['referer']).toBeUndefined();
+  expect(headers['cookie']).toBeUndefined();
+  for (const value of Object.values(headers)) expect(value).not.toContain(site.host);
+});

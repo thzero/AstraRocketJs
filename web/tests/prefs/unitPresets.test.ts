@@ -35,6 +35,7 @@ const DESKTOP_METRIC: Partial<Record<Quantity, string>> = {
   force: 'N',
   temperature: '°C',
   windspeed: 'm/s',
+  rollRate: 'r/s',
 };
 
 /** `setDefaultImperialUnits()`, line for line. */
@@ -52,6 +53,7 @@ const DESKTOP_IMPERIAL: Partial<Record<Quantity, string>> = {
   lineDensity: 'oz/ft',
   temperature: '°F',
   windspeed: 'mph',
+  rollRate: 'r/s',
 };
 
 /**

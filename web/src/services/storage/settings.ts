@@ -270,6 +270,11 @@ export interface Settings {
   /** Write the derived <designinfo> statistics block into saved .ork files. Off
    *  by default, so a normal save is byte-identical to before. */
   saveDesignInfo: boolean;
+  /**
+   * Ask where to save each file, with the browser's own save dialog, where it has
+   * one (Chrome and Edge). Off, a file goes straight to the downloads folder.
+   */
+  askWhereToSave: boolean;
   /** PDF report / template output preferences. */
   report: ReportSettings;
   /** Flight-path export preferences that outlive one export. */
@@ -493,6 +498,7 @@ export const DEFAULT_SETTINGS: Settings = {
   maximizeCenter: false,
   rulers: { top: true, bottom: false, left: true, right: false },
   saveDesignInfo: false,
+  askWhereToSave: true,
   report: DEFAULT_REPORT,
   pathExport: DEFAULT_PATH_EXPORT,
   // The three a flight is usually read by; the rest are one chip away.
@@ -727,6 +733,7 @@ export function loadSettings(): Settings {
       maximizeCenter: typeof s.maximizeCenter === 'boolean' ? s.maximizeCenter : DEFAULT_SETTINGS.maximizeCenter,
       rulers: { ...DEFAULT_SETTINGS.rulers, ...legacyRulers, ...savedRulers },
       saveDesignInfo: typeof s.saveDesignInfo === 'boolean' ? s.saveDesignInfo : DEFAULT_SETTINGS.saveDesignInfo,
+      askWhereToSave: typeof s.askWhereToSave === 'boolean' ? s.askWhereToSave : DEFAULT_SETTINGS.askWhereToSave,
       report: (() => {
         const r = { ...DEFAULT_REPORT, ...(s.report ?? {}) };
         // A hand-edited or future-version choice falls back rather than being

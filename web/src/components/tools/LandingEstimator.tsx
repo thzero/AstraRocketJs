@@ -18,6 +18,7 @@ import { formatCoord } from '../../services/map/slippyMap';
 import { weatherErrorText } from '../../services/weather/weatherErrorText';
 import { fmtSiteTime } from '../../i18n/format';
 import { useLatest } from '../common/useLatest';
+import { useOnline } from '../common/useOnline';
 
 /**
  * Where a rocket will come down, for a flight that has not been designed here:
@@ -52,6 +53,7 @@ export function forgetLandingEstimator(): void {
 
 export function LandingEstimator() {
   const { t } = useTranslation();
+  const online = useOnline();
   const u = useUnits();
   const { settings } = useSettings();
   const defaults = settings.launchDefaults;
@@ -222,7 +224,8 @@ export function LandingEstimator() {
 
         <button
           className="w-full rounded-md bg-sky-600 px-3 py-2 text-sm font-semibold text-white hover:bg-sky-500 disabled:opacity-50"
-          disabled={!ready || state.kind === 'loading'}
+          disabled={!ready || state.kind === 'loading' || !online}
+          title={online ? undefined : t('common.needsConnection')}
           onClick={() => void estimate()}
         >
           {state.kind === 'loading' ? t('landing.estimating') : t('landing.estimate')}

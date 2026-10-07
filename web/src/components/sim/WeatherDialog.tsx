@@ -29,6 +29,7 @@ import { OpenMeteoCredit } from '../common/OpenMeteoCredit';
 import { Check } from '../common/Check';
 import { useLatest } from '../common/useLatest';
 import { WhenFields } from './WhenFields';
+import { useOnline } from '../common/useOnline';
 
 /**
  * Launch conditions from an Open-Meteo forecast for a date and hour at the
@@ -79,6 +80,7 @@ export function WeatherDialog({
   const [useTerrain, setUseTerrain] = useState(prior?.elevationApplied ?? false);
   const [ticked, setTicked] = useState<Set<ProposalGroup>>(() => new Set(prior?.groups ?? PROPOSAL_GROUPS));
   const request = useLatest();
+  const online = useOnline();
 
   const lat = launch.latitudeDeg;
   const lon = launch.longitudeDeg;
@@ -238,7 +240,12 @@ export function WeatherDialog({
                 }}
                 onHour={setHour}
               />
-              <button className={btn} disabled={state.kind === 'loading'} onClick={() => void fetchNow()}>
+              <button
+                className={btn}
+                disabled={state.kind === 'loading' || !online}
+                title={online ? undefined : t('common.needsConnection')}
+                onClick={() => void fetchNow()}
+              >
                 {state.kind === 'loading' ? t('weather.fetching') : t('weather.fetch')}
               </button>
             </div>
@@ -271,7 +278,12 @@ export function WeatherDialog({
                   ),
                 })}
               </p>
-              <button className={btn} onClick={() => void fetchNow(true)}>
+              <button
+                className={btn}
+                disabled={!online}
+                title={online ? undefined : t('common.needsConnection')}
+                onClick={() => void fetchNow(true)}
+              >
                 {t('weather.fetchFresh')}
               </button>
             </div>

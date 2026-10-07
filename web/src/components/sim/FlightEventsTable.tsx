@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useLauncherT } from '../common/useLauncher';
 import { fmtNum, stageLabel } from '../../i18n/format';
 import type { FlightResult } from '../../engine/api';
 import { CSV_MIME, flightEventsCsv } from '../../services/exports/csvExport';
@@ -43,7 +43,7 @@ const NUM = 'py-1 pl-2 text-right tabular-nums';
  * would be one number and a dozen blanks.
  */
 function Extras({ row }: { row: EventRow }) {
-  const { t } = useTranslation();
+  const t = useLauncherT();
   const u = useUnits();
   // Max-Q shares its unit with the summary tile, so the chip on that tile moves
   // this number too: they are the same figure and would otherwise disagree.
@@ -77,7 +77,7 @@ export function FlightEventsTable({
   simName?: string;
   designName?: string;
 }) {
-  const { t } = useTranslation();
+  const t = useLauncherT();
   const u = useUnits();
   const alt = u.at(unitScope('events', 'altitude'), 'distance');
   const spd = u.at(unitScope('events', 'velocity'), 'velocity');

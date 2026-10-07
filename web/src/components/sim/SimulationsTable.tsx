@@ -8,6 +8,7 @@ import { fmtNum } from '../../i18n/format';
 import { warningText } from '../../services/app/warningText';
 import { loadoutLabel, type FlightConfig } from '../../services/flight/flightConfigs';
 import { configOf } from '../../state/store';
+import { launcherKind, withLauncher } from '../../services/design/launcher';
 
 /** Dot color per status. Paired with a text label in the cell, never color alone. */
 const TONE: Record<SimStatus, string> = {
@@ -20,6 +21,8 @@ const TONE: Record<SimStatus, string> = {
   running: 'bg-sky-400 animate-pulse',
   failed: 'bg-red-500',
   notRun: 'bg-slate-600',
+  // Figures from a file, not flown here: present, but not this app's run.
+  fromFile: 'bg-slate-300',
 };
 
 /**
@@ -70,7 +73,11 @@ export function SimulationsTable({
   /** Open this simulation's flight on the Results tab. Only rows that have one. */
   onOpenResults: (id: string) => void;
 }) {
-  const { t } = useTranslation();
+  const { t: plainT } = useTranslation();
+  const t = withLauncher(
+    plainT as unknown as (key: string, options?: Record<string, unknown>) => string,
+    launcherKind(tree),
+  );
   const u = useUnits();
   // Each column owns its unit, and shares the scope with the summary tiles — so
   // reading apogee in feet there reads in feet here too.
@@ -92,6 +99,7 @@ export function SimulationsTable({
     running: t('sims.statusRunning'),
     failed: t('sims.statusFailed'),
     notRun: t('sims.notRun'),
+    fromFile: t('sims.statusFromFile'),
   };
 
   return (
@@ -143,11 +151,12 @@ export function SimulationsTable({
         {sims.map((s) => {
           const status = simStatus(s, runs, tree, isOutdated(s, tree, configOf(configs, s), simPrefs));
           const isActive = s.id === activeId;
-          const r = s.result?.summary;
+          // A file's summary fills the row until the simulation is flown here.
+          const r = s.result?.summary ?? s.fileSummary?.summary;
           // Every number is from the LAST run, which for an outdated row
           // describes a design that has since moved on. The row is dimmed to say
           // so — the numbers are still worth reading, they are just not current.
-          const dim = status === 'outdated' ? 'text-slate-400' : 'text-slate-200';
+          const dim = status === 'outdated' || status === 'fromFile' ? 'text-slate-400' : 'text-slate-200';
           return (
             // The row click is a mouse convenience; the button in the name cell
             // is what actually selects, so the table stays reachable from the

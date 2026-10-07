@@ -115,6 +115,13 @@ const DYNAMIC_PREFIXES: string[] = [
  */
 const PLURAL_SUFFIX = /_(zero|one|two|few|many|other)$/;
 
+/**
+ * The launcher variants: `withLauncher` (services/design/launcher.ts) passes the
+ * design's launcher as i18next context, so `sim.rodExit` is also read as
+ * `sim.rodExit_rail` and `sim.rodExit_rod` without either being written out.
+ */
+const LAUNCHER_SUFFIX = /_(rail|rod)$/;
+
 const KNOWN_DEAD: string[] = [];
 
 describe('en.json keys', () => {
@@ -124,7 +131,11 @@ describe('en.json keys', () => {
       src.includes(`'${key}'`) || src.includes(`"${key}"`) || src.includes(`\`${key}\``);
     const dead = flatten(en as Tree).filter((full) => {
       const key = full.replace(PLURAL_SUFFIX, '');
-      return !referenced(key) && !DYNAMIC_PREFIXES.some((p) => key.startsWith(p)) && !KNOWN_DEAD.includes(key);
+      // Either the key itself or the base a launcher variant hangs off; a real
+      // key that merely ends in `_rail` (`tools.tool_rail`) is the first case.
+      const live = (k: string) =>
+        referenced(k) || DYNAMIC_PREFIXES.some((p) => k.startsWith(p)) || KNOWN_DEAD.includes(k);
+      return !live(key) && !live(key.replace(LAUNCHER_SUFFIX, ''));
     });
     expect(dead).toEqual([]);
   });

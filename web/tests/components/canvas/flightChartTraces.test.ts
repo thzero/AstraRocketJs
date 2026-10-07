@@ -95,3 +95,41 @@ describe('visibleSeries', () => {
     expect(visibleSeries(['altitude', 'altitude'])).toEqual(['altitude']);
   });
 });
+
+describe('the derived panels', () => {
+  it('ride on each line as series of their own', () => {
+    const s = {
+      time: [0, 1],
+      altitude: [0, 10],
+      velocity: [0, 20],
+      mach: [0, 0.1],
+      aoa: [0, 0.2],
+      ρ: [1.2, 1.2],
+      Vs: [340, 340],
+      dΦ: [0, 3],
+    } as unknown as FlightSeries;
+    const [line] = buildTraces(
+      { id: 'a', name: 'A', result: { summary: { flightTime: 1 }, events: [], series: s } as unknown as FlightResult },
+      stageLabel,
+    );
+    const q = 0.5 * 1.2 * 34 * 34;
+    expect(line!.series.dynamicPressure).toEqual([0, q]);
+    expect(line!.series.qAlpha![1]).toBeCloseTo(q * 0.2, 9);
+    expect(line!.series.rollRate).toEqual([0, 3]);
+  });
+
+  it('leaves them absent when the run lacks their inputs', () => {
+    const [line] = buildTraces(flight('a', 'A'), stageLabel);
+    expect(line!.series.dynamicPressure).toBeUndefined();
+    expect(line!.series.rollRate).toBeUndefined();
+  });
+
+  it('can be chosen like any other panel', () => {
+    expect(visibleSeries(['velocityAltitude', 'rollRate', 'qAlpha', 'dynamicPressure'])).toEqual([
+      'dynamicPressure',
+      'qAlpha',
+      'rollRate',
+      'velocityAltitude',
+    ]);
+  });
+});

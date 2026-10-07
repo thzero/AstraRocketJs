@@ -7,6 +7,7 @@ import { PAD_L, PAD_R, PANEL_H } from './flightChartAxis';
 import type { Branch, Meta } from './flightChartTraces';
 import { PanelHover } from './FlightChartHover';
 import { polylinePath } from '../common/svgPath';
+import { PanelExpandButton } from './PanelExpandButton';
 
 /**
  * Owns one small-multiple panel of the flight chart: the sample extraction
@@ -25,6 +26,9 @@ export function FlightChartPanel({
   hoverT,
   clipT,
   events,
+  height = PANEL_H,
+  expanded = false,
+  onToggleExpand,
 }: {
   meta: Meta;
   branches: Branch[];
@@ -33,12 +37,16 @@ export function FlightChartPanel({
   hoverT: number | null;
   clipT: number;
   events: { type: string; time: number }[];
+  /** The panel's plot height; the pane's whole height when it is the expanded one. */
+  height?: number;
+  expanded?: boolean;
+  onToggleExpand?: () => void;
 }) {
   const { t } = useTranslation();
   const u = useUnits();
   const padT = 8;
   const padB = 8;
-  const ih = PANEL_H - padT - padB;
+  const ih = height - padT - padB;
   // A quantity-backed series scales and labels itself from the preference; the
   // rest keep their fixed unit. `factor`, not `toUi`, because this scales a
   // whole series — none of these carry a temperature-style offset.
@@ -157,12 +165,15 @@ export function FlightChartPanel({
     <div className="mb-2 rounded-lg bg-slate-800/40 ring-1 ring-white/10">
       <div className="flex items-baseline justify-between px-2 pt-1.5">
         <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{t(meta.label)}</span>
-        <span className="text-xs font-semibold tabular-nums text-slate-100">
-          {fmtNum(shown, digits)}
-          {unit && <span className="ml-0.5 text-[10px] text-slate-500">{unit}</span>}
+        <span className="flex items-baseline gap-2">
+          <span className="text-xs font-semibold tabular-nums text-slate-100">
+            {fmtNum(shown, digits)}
+            {unit && <span className="ml-0.5 text-[10px] text-slate-500">{unit}</span>}
+          </span>
+          {onToggleExpand && <PanelExpandButton expanded={expanded} onClick={onToggleExpand} />}
         </span>
       </div>
-      <svg viewBox={`0 0 ${w} ${PANEL_H}`} width="100%" height={PANEL_H} preserveAspectRatio="none" className="block">
+      <svg viewBox={`0 0 ${w} ${height}`} width="100%" height={height} preserveAspectRatio="none" className="block">
         <defs>
           {/* Filled area only for a lone line (single stage) — colored to match
               it; overlaid stages would muddy each other, so they're lines only. */}
@@ -175,7 +186,7 @@ export function FlightChartPanel({
           {/* Clip everything time-mapped to the plot area, so zoomed-out-of-window
               points don't spill over the y-axis labels / panel edges. */}
           <clipPath id={clipId}>
-            <rect x={PAD_L} y={0} width={Math.max(0, w - PAD_L - PAD_R)} height={PANEL_H} />
+            <rect x={PAD_L} y={0} width={Math.max(0, w - PAD_L - PAD_R)} height={height} />
           </clipPath>
         </defs>
         {zeroInRange && <line x1={PAD_L} y1={Y(0)} x2={w - PAD_R} y2={Y(0)} className="stroke-white/15" />}
@@ -186,7 +197,7 @@ export function FlightChartPanel({
               x1={X(e.time)}
               y1={padT}
               x2={X(e.time)}
-              y2={PANEL_H - padB}
+              y2={height - padB}
               className="stroke-amber-400/25"
               strokeDasharray="3 2"
               vectorEffect="non-scaling-stroke"
@@ -212,7 +223,7 @@ export function FlightChartPanel({
               X={X}
               Y={Y}
               top={padT}
-              bottom={PANEL_H - padB}
+              bottom={height - padB}
               single={single}
               digits={digits}
             />
@@ -221,7 +232,7 @@ export function FlightChartPanel({
         <text x={PAD_L - 4} y={padT + 7} textAnchor="end" className="fill-slate-500 text-[9px] tabular-nums">
           {fmtNum(hi, digits)}
         </text>
-        <text x={PAD_L - 4} y={PANEL_H - padB} textAnchor="end" className="fill-slate-500 text-[9px] tabular-nums">
+        <text x={PAD_L - 4} y={height - padB} textAnchor="end" className="fill-slate-500 text-[9px] tabular-nums">
           {fmtNum(lo, digits)}
         </text>
       </svg>

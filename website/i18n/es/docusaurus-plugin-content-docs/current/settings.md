@@ -25,6 +25,7 @@ Cada magnitud tiene su propia unidad, configurable en la pestaña **Unidades**. 
 | Presión | presión del aire en el campo | hPa | psi |
 | Empuje / fuerza | empuje del motor | N | lbf |
 | Impulso | impulso total | N·s | lbf·s |
+| Velocidad de alabeo | la velocidad de alabeo del vuelo | r/s | r/s |
 
 Una instalación nueva arranca con los **valores métricos**, y eso es exactamente lo que restauran también los botones de restablecer: solo hay un conjunto métrico, así que nada puede sorprenderte con un «métrico» distinto.
 
@@ -140,6 +141,11 @@ Todo lo anterior decide cuándo *avisa* un vuelo. Esto cambia lo que hace el vue
   Al activarlo, la fase guiada termina cuando la guía más trasera sale del riel, sea una guía de lanzamiento o un botón. El cohete se libera en ese momento además de informarse allí, así que cambia el vuelo en sí, no solo el número. Espera una velocidad de salida algo menor: un botón de riel suele quedar de 10 a 20 cm por encima de la cola, lo que en un riel de 1,8 m supone alrededor de un 8 % menos de recorrido guiado. Un diseño sin ninguna guía es una torre de lanzamiento y vuela igual en ambos casos.
 
   Es un ajuste y no una corrección porque el motor se comprueba contra OpenRocket de escritorio vuelo a vuelo. Desactivado, una ejecución coincide exactamente con OpenRocket.
+
+## General
+
+- **Guardar la información de diseño (estadísticas) en el archivo**: escribe las cifras derivadas del diseño (masa, CG, CP, estabilidad) en un `.ork` guardado, como puede hacerlo OpenRocket de escritorio. Desactivado por defecto.
+- **Preguntar dónde guardar cada archivo**: abre el diálogo de guardado del propio navegador en cada exportación, para que elijas el nombre y la carpeta. Activado por defecto, y solo aparece en los navegadores que tienen ese diálogo (Chrome y Edge). Desactivado, o en Firefox y Safari, los archivos van directamente a tu carpeta de descargas.
 
 ## Restablecer
 

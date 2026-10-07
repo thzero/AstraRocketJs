@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useLauncherT } from '../common/useLauncher';
 import { useWorkspaceStore, selectActive, configOf } from '../../state/store';
 import { primaryMotor } from '../../services/flight/flightConfigs';
 import { useSettings } from '../../state/SettingsProvider';
@@ -14,7 +14,7 @@ import { designBlocker, designBlockerText, unflyableSims, unflyableText } from '
  * a lie about what the click would do.
  */
 export function RunButton({ className = '' }: { className?: string }) {
-  const { t } = useTranslation();
+  const t = useLauncherT();
   const { settings } = useSettings();
   const units = useUnits();
   // Subscribe to the two STABLE pieces and derive the list here. Subscribing to

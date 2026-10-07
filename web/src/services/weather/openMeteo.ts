@@ -28,10 +28,15 @@ import { isFiniteNumber, roundTo } from '../app/numbers';
 
 // --------------------------------------------------------------- endpoints
 
-const FREE = { forecast: 'https://api.open-meteo.com', archive: 'https://archive-api.open-meteo.com' } as const;
+const FREE = {
+  forecast: 'https://api.open-meteo.com',
+  archive: 'https://archive-api.open-meteo.com',
+  geocoding: 'https://geocoding-api.open-meteo.com',
+} as const;
 const PAID = {
   forecast: 'https://customer-api.open-meteo.com',
   archive: 'https://customer-archive-api.open-meteo.com',
+  geocoding: 'https://customer-geocoding-api.open-meteo.com',
 } as const;
 
 /** Each request's own deadline. Open-Meteo answers in well under a second. */
@@ -551,6 +556,75 @@ export async function fetchElevation(
     if (err instanceof WeatherError && err.kind === 'aborted') throw err;
     return null;
   }
+}
+
+/** One place a name or postal code search found. */
+export interface PlaceMatch {
+  name: string;
+  /** State, province or region, where Open-Meteo gives one. */
+  region: string | null;
+  country: string | null;
+  latitudeDeg: number;
+  longitudeDeg: number;
+  /** Ground height from Open-Meteo's terrain model; null where it gives none. */
+  elevationM: number | null;
+}
+
+/** How many matches a search asks for. */
+const PLACE_MATCHES = 10;
+
+/**
+ * Places matching a name or a postal code, from Open-Meteo's geocoding (whose
+ * places come from GeoNames, CC BY 4.0). Same transport as the weather, so the
+ * request names neither this app nor its site, and the same free or paid host.
+ *
+ * Not spaced like the weather requests: a search is one small call a person
+ * makes by hand, and the geocoding service is counted apart from the forecast.
+ * Throws `WeatherError`, as the weather calls do.
+ *
+ * @param language two-letter code for the place names, e.g. `en`
+ */
+export async function searchPlaces(
+  query: string,
+  language: string,
+  apiKey: string | undefined,
+  o: FetchOpts = {},
+): Promise<PlaceMatch[]> {
+  const url =
+    `${(apiKey ? PAID : FREE).geocoding}/v1/search?name=${encodeURIComponent(query.trim())}` +
+    `&count=${PLACE_MATCHES}&language=${encodeURIComponent(language)}&format=json${keyParam(apiKey)}`;
+  return cached(url, o, async () => {
+    const a = await getJson(url, o);
+    if (a.status < 200 || a.status >= 300) throw httpError(a.status, a.json);
+    return parsePlaces(a.json);
+  });
+}
+
+/** The matches in a geocoding answer. No `results` at all is Open-Meteo's "nothing found". */
+export function parsePlaces(json: unknown): PlaceMatch[] {
+  if (!isObj(json)) throw new WeatherError('shape', 'not an object');
+  const results = json['results'];
+  if (results === undefined) return [];
+  if (!Array.isArray(results)) throw new WeatherError('shape', 'results is not a list');
+  const text = (x: unknown) => (typeof x === 'string' && x.trim() !== '' ? x : null);
+  return results.flatMap((r): PlaceMatch[] => {
+    if (!isObj(r)) return [];
+    const name = text(r['name']);
+    const lat = r['latitude'];
+    const lon = r['longitude'];
+    if (!name || !(isFiniteNumber(lat) && isFiniteNumber(lon))) return [];
+    if (Math.abs(lat) > 90 || Math.abs(lon) > 180) return [];
+    return [
+      {
+        name,
+        region: text(r['admin1']),
+        country: text(r['country']),
+        latitudeDeg: lat,
+        longitudeDeg: lon,
+        elevationM: finiteOrNull(r['elevation']),
+      },
+    ];
+  });
 }
 
 /**

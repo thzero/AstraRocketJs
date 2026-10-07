@@ -7,10 +7,24 @@ import { useTranslation } from 'react-i18next';
  */
 export function OpenMeteoCredit({ className = 'text-[11px] text-slate-500' }: { className?: string }) {
   const { t } = useTranslation();
+  return <CcByCredit className={className} href="https://open-meteo.com/" label={t('weather.credit')} />;
+}
+
+/**
+ * The place search's credit: its places come from GeoNames, under the same
+ * CC BY 4.0, by way of Open-Meteo's geocoding. Here beside Open-Meteo's so the
+ * license link is still written once.
+ */
+export function GeoNamesCredit({ className = 'text-[11px] text-slate-500' }: { className?: string }) {
+  const { t } = useTranslation();
+  return <CcByCredit className={className} href="https://www.geonames.org/" label={t('placeSearch.credit')} />;
+}
+
+function CcByCredit({ className, href, label }: { className: string; href: string; label: string }) {
   return (
     <p className={className}>
-      <a className="text-sky-400 hover:underline" href="https://open-meteo.com/" target="_blank" rel="noreferrer">
-        {t('weather.credit')}
+      <a className="text-sky-400 hover:underline" href={href} target="_blank" rel="noreferrer">
+        {label}
       </a>
       {' · '}
       <a

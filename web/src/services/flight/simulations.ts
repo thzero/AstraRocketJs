@@ -2,7 +2,7 @@
 // flight configuration it flies + launch conditions + last result. The right
 // panel is a list of these; switching the active one drives the stability
 // readout and sim.
-import type { FlightResult, RocketTree } from '../../engine/openRocketEngine';
+import type { FlightResult, RocketTree, FlightSummary } from '../../engine/openRocketEngine';
 import type { FlightConfig } from './flightConfigs';
 import type { LaunchConditions } from '../design/orkTree';
 import type { CompleteLaunch } from './requiredLaunch';
@@ -36,6 +36,16 @@ export interface Simulation {
   launch: LaunchConditions;
   /** Cached last flight result (null until this simulation has ever been run). */
   result: FlightResult | null;
+  /**
+   * The result summary a .ork carried for this simulation, until it is flown here.
+   *
+   * A summary, not a flight: the file holds the desktop's ten figures and no
+   * samples, so it fills the simulations table and the run table but no chart.
+   * `key` is the {@link resultKey} of the inputs it was loaded with, or null when
+   * the file itself called it outdated, so it ages exactly as a result does.
+   * The first run of this simulation replaces it.
+   */
+  fileSummary?: { summary: FlightSummary; key: string | null };
   /**
    * What `result` was flown from, as {@link resultKey} wrote it at dispatch.
    *
@@ -144,9 +154,14 @@ export function resultKey(tree: RocketTree, config: FlightConfig, sim: Simulatio
   return stableJson([flightKey(tree), flown, launch, SIM_PREF_KEYS.map((k) => prefs[k] ?? null)]);
 }
 
-/** The row has a result, and it was flown from inputs other than the current ones. */
+/**
+ * The row has a result, and it was flown from inputs other than the current ones.
+ * A summary read from a file counts as a result here, aging the same way.
+ */
 export function isOutdated(sim: Simulation, tree: RocketTree, config: FlightConfig, globals: SimPrefs): boolean {
-  return sim.result !== null && sim.resultKey !== resultKey(tree, config, sim, globals);
+  if (sim.result !== null) return sim.resultKey !== resultKey(tree, config, sim, globals);
+  if (sim.fileSummary) return sim.fileSummary.key !== resultKey(tree, config, sim, globals);
+  return false;
 }
 
 /** The flight the Results tab is drawing. */
@@ -191,7 +206,7 @@ export function resultFlight(
 }
 
 /** What the simulations table's status dot says about one row. */
-export type SimStatus = 'notRun' | 'queued' | 'running' | 'failed' | 'outdated' | 'upToDate';
+export type SimStatus = 'notRun' | 'queued' | 'running' | 'failed' | 'outdated' | 'upToDate' | 'fromFile';
 
 /**
  * Transient run state for ONE simulation, keyed by sim id in the store.
@@ -223,7 +238,7 @@ export function simStatus(
   if (run?.phase === 'queued') return 'queued';
   if (run?.phase === 'running') return 'running';
   if (run?.phase === 'failed' && run.tree === tree) return 'failed';
-  if (!sim.result) return 'notRun';
+  if (!sim.result) return sim.fileSummary ? (outdated ? 'outdated' : 'fromFile') : 'notRun';
   return outdated ? 'outdated' : 'upToDate';
 }
 

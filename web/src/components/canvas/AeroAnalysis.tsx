@@ -87,10 +87,11 @@ export function AeroAnalysis() {
   const [aoaDeg, setAoaDeg] = useState(0);
   const [thetaDeg, setThetaDeg] = useState(0);
   const [rollRate, setRollRate] = useState(0);
+  const [altitudeM, setAltitudeM] = useState(0);
 
   // Deferred off the render (see useAeroSweep): the previous sweep stays up
   // while the next one runs, and `pending` says so in the header.
-  const { sweep, pending } = useAeroSweep(rocket, { machMax, aoaDeg, thetaDeg, rollRate });
+  const { sweep, pending } = useAeroSweep(rocket, { machMax, aoaDeg, thetaDeg, rollRate, altitudeM });
 
   // The picked Mach, clamped to the sweep at READ time. Shrinking the sweep has
   // to bring the picked Mach back with it, or the strip header prints the raw
@@ -257,6 +258,17 @@ export function AeroAnalysis() {
           max={50}
           step={1}
           unit="rad/s"
+        />
+        {/* Shown in the altitude unit; the sweep takes meters. Up to 30 km,
+            where the standard atmosphere still has air worth sweeping. */}
+        <Num
+          label={t('aero.altitude')}
+          value={Math.round(altitudeM * u.factor('distance'))}
+          onChange={(v) => setAltitudeM(v / u.factor('distance'))}
+          min={0}
+          max={Math.round(30_000 * u.factor('distance'))}
+          step={Math.round(500 * u.factor('distance'))}
+          unit={u.sym('distance')}
         />
       </div>
 

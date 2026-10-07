@@ -26,6 +26,7 @@ import { type FlightSeries } from '../../engine/openRocketEngine';
 import { useLatest } from '../common/useLatest';
 import { TermRow } from '../common/TermRow';
 import { flightBranches } from '../../services/flight/flightColumns';
+import { useOnline } from '../common/useOnline';
 
 /**
  * Where the flight came down, and, when its conditions came from a forecast,
@@ -45,6 +46,7 @@ const btn =
 
 export function EnvironmentLanding({ flight }: { flight: ResultFlight }) {
   const { t } = useTranslation();
+  const online = useOnline();
   const u = useUnits();
   // The flight's distance unit, as Ground Track reads this same landing.
   const dist = u.at(unitScope('sim', 'apogee'), 'distance');
@@ -137,7 +139,12 @@ export function EnvironmentLanding({ flight }: { flight: ResultFlight }) {
       {source?.endpoint === 'forecast' ? (
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-3">
-            <button className={btn} disabled={run.kind === 'running' || !sim} onClick={() => void fly()}>
+            <button
+              className={btn}
+              disabled={run.kind === 'running' || !sim || !online}
+              title={online ? undefined : t('common.needsConnection')}
+              onClick={() => void fly()}
+            >
               {run.kind === 'running'
                 ? t('env.landing.flying', { done: run.done, total: run.total })
                 : t('env.landing.flyHours')}

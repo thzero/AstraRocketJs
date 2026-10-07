@@ -1,7 +1,7 @@
 import type { RocketTree } from '../../engine/openRocketEngine';
 import { resolveFilePositions } from '../../tree/position';
 import { loadoutLabel, newFlightConfig, reconcileConfig, type FlightConfig } from '../flight/flightConfigs';
-import { newSimulation, type Simulation } from '../flight/simulations';
+import { newSimulation, resultKey, type Simulation, type SimPrefs } from '../flight/simulations';
 import type { LoadedOrk } from './loadOrk';
 import type { LaunchConditions } from '../design/orkTree';
 import type { OrkExportMotor } from './orkFile';
@@ -33,7 +33,7 @@ export interface WiredOrk {
  * Pure (no I/O): the caller supplies `launchDefaults` so this stays testable, it
  * being the .ork-import mapping most likely to regress on odd files.
  */
-export function wireLoadedOrk(res: LoadedOrk, launchDefaults: LaunchConditions): WiredOrk {
+export function wireLoadedOrk(res: LoadedOrk, launchDefaults: LaunchConditions, simPrefs?: SimPrefs): WiredOrk {
   // `.ork` can position a component with method="absolute", which is a
   // ROCKET-origin offset. The editor works entirely in the parent frame, so
   // leaving it means the schematic, 3D view, drag handles and PDF all draw the
@@ -63,14 +63,29 @@ export function wireLoadedOrk(res: LoadedOrk, launchDefaults: LaunchConditions):
     };
   });
 
-  const taken = new Set<string>();
-  const sims = configs.map((c) => newSimulation(simName(tree, c, res.name, taken), c.id, launch));
+  // The file's own simulations when it has any: each with its name, the
+  // configuration it flies, its launch and the summary of its result. A file
+  // with none gets one simulation per configuration, as before.
+  const sims = res.simulations?.length
+    ? res.simulations.map((fs) => {
+        const config = configs.find((c) => c.id === fs.configId) ?? configs[0]!;
+        const sim = newSimulation(fs.name, config.id, { ...launchDefaults, ...fs.launch });
+        if (!fs.summary) return sim;
+        // Current as loaded, unless the file said otherwise or there is nothing
+        // to key it against; from here on it ages the way a result does.
+        const key = fs.outdated || !simPrefs ? null : resultKey(tree, config, sim, simPrefs);
+        return { ...sim, fileSummary: { summary: fs.summary, key } };
+      })
+    : (() => {
+        const taken = new Set<string>();
+        return configs.map((c) => newSimulation(simName(tree, c, res.name, taken), c.id, launch));
+      })();
 
   return {
     tree,
     configs,
     sims,
-    activeId: sims[configs.findIndex((c) => c.id === res.chosenConfigId)]?.id ?? sims[0]!.id,
+    activeId: sims.find((s) => s.configId === res.chosenConfigId)?.id ?? sims[0]!.id,
     loadedMeta: { name: res.name, notes: res.notes, exportMotors: res.motors },
   };
 }

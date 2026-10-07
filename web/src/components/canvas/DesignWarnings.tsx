@@ -1,4 +1,4 @@
-import { useTranslation } from 'react-i18next';
+import { useLauncherT } from '../common/useLauncher';
 import { useWorkspaceStore } from '../../state/store';
 import { warningText } from '../../services/app/warningText';
 
@@ -17,7 +17,7 @@ import { warningText } from '../../services/app/warningText';
  * currently selected.
  */
 export function DesignWarnings() {
-  const { t } = useTranslation();
+  const t = useLauncherT();
   const texts = useWorkspaceStore((s) => s.info?.warningTexts);
   if (!texts?.length) return null;
 

@@ -16,6 +16,7 @@ export function NumberRow({
   max,
   placeholder,
   hint,
+  caution,
   mixed,
   required,
   missing,
@@ -32,6 +33,8 @@ export function NumberRow({
   placeholder?: string;
   /** Why the field stops where it does. Rendered under the row. */
   hint?: string;
+  /** A value that is allowed but probably wrong. Rendered under the row, in amber. */
+  caution?: string;
   /**
    * The simulations being edited together do not agree on this field. The box
    * shows the ACTIVE one's value, so without the marker a bulk edit would
@@ -46,7 +49,7 @@ export function NumberRow({
   /** Blur: closes the undo entry a run of live edits opened. */
   onCommit?: () => void;
 }) {
-  if (hint) {
+  if (hint || caution) {
     return (
       <div>
         <NumberRow
@@ -63,7 +66,8 @@ export function NumberRow({
           onChange={onChange}
           onCommit={onCommit}
         />
-        <p className="mt-0.5 pr-24 text-[11px] leading-snug text-slate-500">{hint}</p>
+        {hint && <p className="mt-0.5 pr-24 text-[11px] leading-snug text-slate-500">{hint}</p>}
+        {caution && <p className="mt-0.5 text-[11px] leading-snug text-amber-300">{caution}</p>}
       </div>
     );
   }

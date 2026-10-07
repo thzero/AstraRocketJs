@@ -29,6 +29,10 @@ import { DEFAULT_HEADING_DEG } from '../../services/flight/simulations';
 import { NumberRow } from '../common/NumberRow';
 import { CardGroup } from '../common/CardGroup';
 import { LatLonRows } from './LatLonRows';
+import { withLauncher, type LauncherKind } from '../../services/design/launcher';
+import { useEngineStore } from '../../state/engineStore';
+import { standardPressurePa } from '../../engine/openRocketEngine';
+import { seaLevelExcessPa } from '../../services/flight/sitePressure';
 
 /**
  * Launch & atmosphere conditions for the flight simulation: wind (single average
@@ -54,6 +58,7 @@ export function QNum({
   maxSi,
   placeholder,
   hint,
+  caution,
   mixed,
   required,
   missing,
@@ -78,6 +83,8 @@ export function QNum({
   maxSi?: number;
   placeholder?: string;
   hint?: string;
+  /** See {@link NumberRow}. */
+  caution?: string;
   /** See {@link Num}. */
   mixed?: boolean;
   /** See {@link Num}. */
@@ -101,6 +108,7 @@ export function QNum({
       max={maxSi !== undefined ? fu.toUi(maxSi) : undefined}
       placeholder={placeholder}
       hint={hint}
+      caution={caution}
       mixed={mixed}
       required={required}
       missing={missing}
@@ -121,6 +129,7 @@ export function LaunchPanel({
   diff,
   weather = false,
   weatherKey = false,
+  launcher = null,
 }: {
   launch: LaunchConditions;
   onChange: (patch: Partial<LaunchConditions>) => void;
@@ -144,8 +153,11 @@ export function LaunchPanel({
    * Settings copy does: the key is one setting for every simulation.
    */
   weatherKey?: boolean;
+  /** What the design is launched from, which names the launcher fields; null for the neutral word. */
+  launcher?: LauncherKind | null;
 }) {
-  const { t } = useTranslation();
+  const { t: plainT } = useTranslation();
+  const t = withLauncher(plainT as unknown as (key: string, options?: Record<string, unknown>) => string, launcher);
   const u = useUnits();
   /**
    * A safety-code cap in the unit ITS OWN FIELD is shown in — resolved the way
@@ -162,6 +174,16 @@ export function LaunchPanel({
   // Opened from the source line's Refresh rather than the Get weather button.
   const [weatherRefresh, setWeatherRefresh] = useState(false);
   const atmosphereLevels = launch.atmosphereLevels ?? [];
+  // A typed pressure well above the standard pressure at the site's elevation
+  // is probably a sea-level figure (see services/flight/sitePressure). The
+  // standard pressure is the kernel's, so nothing here re-derives the
+  // atmosphere; until the engine is up there is simply no check.
+  const engineReady = useEngineStore((s) => s.phase === 'ready');
+  const pressureExcess = useMemo(() => {
+    if (!engineReady || launch.pressureHPa == null || launch.launchAltitudeM == null) return null;
+    const standard = standardPressurePa(launch.launchAltitudeM);
+    return standard == null ? null : seaLevelExcessPa(LAUNCH_SI.hPa.toSi(launch.pressureHPa), standard);
+  }, [engineReady, launch.pressureHPa, launch.launchAltitudeM]);
   // Geolocation is a 10 s round trip that can simply be refused. Without a
   // pending state and a reported error, both outcomes are invisible and the
   // button appears to do nothing.
@@ -415,6 +437,14 @@ export function LaunchPanel({
           maxSi={110_000}
           placeholder={t('launch.isa')}
           mixed={mixed('pressureHPa')}
+          caution={
+            pressureExcess == null
+              ? undefined
+              : t('launch.pressureSeaLevel', {
+                  excess: capFor('hPa', 'pressure', pressureExcess),
+                  altitude: capFor('distance', 'altitude', launch.launchAltitudeM ?? 0),
+                })
+          }
           value={launch.pressureHPa}
           onChange={(v) => onChange({ pressureHPa: v })}
         />

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { defaultToolSite, rememberedSlot, useRemembered } from './remembered';
 import { useTranslation } from 'react-i18next';
 import { useUnits } from '../../prefs/useUnits';
+import { unitScope } from '../../prefs/units';
 import { useSettings } from '../../state/SettingsProvider';
 import type { MotorSpec } from '../../engine/openRocketEngine';
 import { fmtNum, fmtSiteTime } from '../../i18n/format';
@@ -12,6 +13,7 @@ import {
   maxWindMs,
   MIN_THRUST_TO_WEIGHT,
   railExit,
+  railNeededM,
   weathercockDeg,
   WEATHERCOCK_LIMIT_DEG,
 } from '../../services/tools/railExit';
@@ -26,6 +28,7 @@ import { weatherErrorText } from '../../services/weather/weatherErrorText';
 import { roundTo } from '../../services/app/numbers';
 import { useLatest } from '../common/useLatest';
 import { motorName } from '../../services/motors/motorName';
+import { useOnline } from '../common/useOnline';
 
 /**
  * Off the rail, for a rocket that has not been designed here: a motor from the
@@ -57,6 +60,7 @@ export function forgetOffTheRail(): void {
 
 export function OffTheRail() {
   const { t } = useTranslation();
+  const online = useOnline();
   const u = useUnits();
   const { settings } = useSettings();
   const minExit = settings.simulation.railExitVelocityMin;
@@ -109,6 +113,9 @@ export function OffTheRail() {
   const exit = ready ? railExit({ motor, dryMassKg, railLengthM }) : null;
   const ok = exit != null && typeof exit !== 'string' ? exit : null;
   const heaviest = ready && ok ? maxDryMassKg(motor, railLengthM, minExit) : null;
+  // The rail that reaches the minimum exit speed, in the rail length field's own unit.
+  const needed = ready && ok ? railNeededM(motor, dryMassKg, minExit) : null;
+  const railUnit = u.at(unitScope('launch', 'railLength'), 'length');
   const angle = ok && windMs != null ? weathercockDeg(windMs, ok.exitSpeedMs) : null;
   const gustAngle =
     ok && fetched.kind === 'ready' && fetched.wind.gustMs != null
@@ -165,7 +172,7 @@ export function OffTheRail() {
             onChange={setDryMassKg}
           />
           <QNum
-            label={t('launch.rodLengthName')}
+            label={t('launch.rodLengthName', { context: 'rail' })}
             field="railLength"
             kind="length"
             u={u}
@@ -198,7 +205,10 @@ export function OffTheRail() {
               <WhenFields date={date} hour={hour} onDate={setDate} onHour={setHour} />
               <button
                 className={`${toolBtn} w-full`}
-                disabled={site.latitudeDeg == null || site.longitudeDeg == null || fetched.kind === 'loading'}
+                disabled={
+                  site.latitudeDeg == null || site.longitudeDeg == null || fetched.kind === 'loading' || !online
+                }
+                title={online ? undefined : t('common.needsConnection')}
                 onClick={() => void getWind()}
               >
                 {fetched.kind === 'loading' ? t('rail.fetching') : t('rail.fetchWind')}
@@ -243,6 +253,13 @@ export function OffTheRail() {
                 <span className={ok.exitSpeedMs < minExit ? warn : undefined}>{fmtSpeed(ok.exitSpeedMs)}</span>
               </Stat>
               <Stat label={t('rail.exitTime')}>{`${fmtNum(ok.exitS, 2)} s`}</Stat>
+              <Stat label={t('rail.railNeeded', { speed: fmtSpeed(minExit) })}>
+                {needed != null ? (
+                  <span className={needed > railLengthM ? warn : undefined}>{railUnit.fmtSym(needed, 2)}</span>
+                ) : (
+                  t('rail.none')
+                )}
+              </Stat>
               {angle != null && (
                 <Stat label={t('rail.weathercock')}>
                   <span className={angle > WEATHERCOCK_LIMIT_DEG ? warn : undefined}>{`${fmtNum(angle, 1)}°`}</span>

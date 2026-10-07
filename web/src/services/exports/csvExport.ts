@@ -1,4 +1,4 @@
-import type { FlightResult, AeroSweep } from '../../engine/openRocketEngine';
+import type { FlightResult, FlightSummary, AeroSweep } from '../../engine/openRocketEngine';
 import {
   branchSeries,
   defaultCsvFormat,
@@ -6,7 +6,8 @@ import {
   usableColumns,
   type FlightColumn,
 } from '../flight/flightColumns';
-import type { EventRow } from '../flight/flightEvents';
+import { forwardFlightEnd, maxQ, maxQAlpha, maxRollRate, type EventRow } from '../flight/flightEvents';
+import type { LauncherKind } from '../design/launcher';
 import { siToUiDelta, type Quantity, type UnitSelection } from '../../prefs/units';
 import { plainDecimal } from '../files/numberText';
 import { neutralizeFormula } from './csvCell';
@@ -279,6 +280,91 @@ export function flightEventsCsv(
         cell(mul(r.aoa, ang.f)),
         cell(r.mach),
         cell(mul(r.q, pres.f)),
+      ]),
+    );
+  }
+  return lines.join(EOL) + EOL;
+}
+
+/** One simulation as the run table writes it. */
+export interface RunTableRow {
+  name: string;
+  /** The configuration's name, or what it flies when it has none. */
+  configuration: string;
+  /** The motors it flies, e.g. "Estes C6-5". */
+  motors: string;
+  /** Up to date, Outdated, Not run: the table's own status, translated by the caller. */
+  status: string;
+  /** The last run, which for an outdated row describes a design since edited. */
+  result?: FlightResult | null;
+  /** A .ork's summary for a simulation not flown here; the figures it has, no peaks. */
+  fileSummary?: FlightSummary;
+}
+
+/**
+ * The run table: one row per simulation with the figures the simulations table
+ * shows and the peaks the summary adds, in the user's units, each header naming
+ * its unit. A row that has never flown keeps its name and leaves the figures
+ * blank rather than being dropped, so the file lists every simulation.
+ */
+export function runTableCsv(
+  rows: readonly RunTableRow[],
+  units: UnitSelection,
+  launcher: LauncherKind | null = null,
+): string {
+  const exit = launcher === 'rail' ? 'Rail' : launcher === 'rod' ? 'Rod' : 'Launcher';
+  const dist = col(units, 'distance');
+  const vel = col(units, 'velocity');
+  const acc = col(units, 'acceleration');
+  const pres = col(units, 'pressure');
+  const roll = col(units, 'rollRate');
+  // Every text cell is the user's own words or a translation: quoted, and a
+  // leading formula trigger neutralized, as the events export does.
+  const text = (v: string): string => `"${neutralizeFormula(v.replace(/[\r\n]+/g, ' ')).replace(/"/g, '""')}"`;
+  const lines = [
+    row([
+      'Simulation',
+      'Configuration',
+      'Motors',
+      'Status',
+      `Apogee (${dist.sym})`,
+      `Max velocity (${vel.sym})`,
+      `Max acceleration (${acc.sym})`,
+      'Max Mach',
+      `${exit} exit velocity (${vel.sym})`,
+      'Time to apogee (s)',
+      'Flight time (s)',
+      `Deployment velocity (${vel.sym})`,
+      `Landing velocity (${vel.sym})`,
+      'Optimum delay (s)',
+      `Max dynamic pressure (${pres.sym})`,
+      'Max q·alpha (kPa·deg)',
+      `Max roll rate (${roll.sym})`,
+    ]),
+  ];
+  for (const r of rows) {
+    const s = r.result?.summary ?? r.fileSummary;
+    const series = r.result?.series;
+    const qa = r.result ? maxQAlpha(series, forwardFlightEnd(r.result)) : null;
+    lines.push(
+      row([
+        text(r.name),
+        text(r.configuration),
+        text(r.motors),
+        text(r.status),
+        cell(mul(s?.maxAltitude, dist.f)),
+        cell(mul(s?.maxVelocity, vel.f)),
+        cell(mul(s?.maxAcceleration, acc.f)),
+        cell(s?.maxMachNumber),
+        cell(mul(s?.launchRodVelocity, vel.f)),
+        cell(s?.timeToApogee),
+        cell(s?.flightTime),
+        cell(mul(s?.deploymentVelocity, vel.f)),
+        cell(mul(s?.groundHitVelocity, vel.f)),
+        cell(s?.optimumDelay),
+        cell(mul(maxQ(series)?.q, pres.f)),
+        cell(mul(qa?.value, 180 / Math.PI / 1000)),
+        cell(mul(maxRollRate(series), roll.f)),
       ]),
     );
   }

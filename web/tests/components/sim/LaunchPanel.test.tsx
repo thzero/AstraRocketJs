@@ -4,6 +4,8 @@ import { screen, fireEvent } from '@testing-library/react';
 import { LaunchPanel } from '../../../src/components/sim/LaunchPanel';
 import { renderWithProviders } from '../../testing/renderWithProviders';
 import type { LaunchConditions } from '../../../src/services/design/orkTree';
+import { __setEngineForTests } from '../../../src/engine/openRocketEngine';
+import { useEngineStore } from '../../../src/state/engineStore';
 
 const LAUNCH: LaunchConditions = {
   launchRodLengthM: 1,
@@ -199,5 +201,41 @@ describe('the Open-Meteo API key', () => {
     unmount();
     renderWithProviders(<LaunchPanel launch={LAUNCH} onChange={() => {}} weather />);
     expect(screen.queryByLabelText('Open-Meteo API key')).toBeNull();
+  });
+});
+
+describe('the sea-level pressure check', () => {
+  afterEach(() => {
+    __setEngineForTests(null);
+    useEngineStore.setState({ phase: 'loading' });
+  });
+
+  /** A kernel that answers the standard pressure at 1500 m, and nothing else. */
+  const kernelAt1500 = () => {
+    __setEngineForTests({ getStandardPressure: () => 84_556 });
+    useEngineStore.setState({ phase: 'ready' });
+  };
+
+  it('cautions on a sea-level figure typed at a high site', () => {
+    kernelAt1500();
+    renderWithProviders(
+      <LaunchPanel launch={{ ...LAUNCH, launchAltitudeM: 1500, pressureHPa: 1013 }} onChange={() => {}} />,
+    );
+    expect(screen.getByText(/reduced to sea level/)).toBeTruthy();
+  });
+
+  it('says nothing for a pressure that fits the site', () => {
+    kernelAt1500();
+    renderWithProviders(
+      <LaunchPanel launch={{ ...LAUNCH, launchAltitudeM: 1500, pressureHPa: 850 }} onChange={() => {}} />,
+    );
+    expect(screen.queryByText(/reduced to sea level/)).toBeNull();
+  });
+
+  it('says nothing while the engine is still loading', () => {
+    renderWithProviders(
+      <LaunchPanel launch={{ ...LAUNCH, launchAltitudeM: 1500, pressureHPa: 1013 }} onChange={() => {}} />,
+    );
+    expect(screen.queryByText(/reduced to sea level/)).toBeNull();
   });
 });

@@ -8,6 +8,7 @@ import { readFlightConfigs, readStageActiveness, type OrkImportContext } from '.
 import { readStages } from './ork/importReaders';
 import { KNOWN_DOCUMENT_TAGS, KNOWN_ROCKET_TAGS, readPassthrough } from './ork/passthrough';
 import { readLaunchConditions } from './ork/importLaunch';
+import { readSimulations } from './ork/importSimulations';
 import { configNotes, ignoredNotes, modelingNotes } from './ork/importNotes';
 
 /**
@@ -83,6 +84,7 @@ export function importOrk(data: ArrayBuffer | string): OrkImportResult {
   notes.push(...archiveNotes(doc, archive.dropped));
 
   const launch = readLaunchConditions(doc);
+  const simulations = readSimulations(doc);
 
   return {
     name,
@@ -105,6 +107,7 @@ export function importOrk(data: ArrayBuffer | string): OrkImportResult {
     ignored: [...ignored],
     notes,
     ...(launch ? { launch } : {}),
+    ...(simulations.length ? { simulations } : {}),
     ...(archive.motorFiles.length ? { embeddedMotors: archive.motorFiles } : {}),
   };
 }

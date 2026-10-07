@@ -34,7 +34,7 @@ On a **phone** the same areas become tabs along the bottom, because there is no 
 - **Sketch** — the rocket view and its toolbar (2D · 3D · Aero). The 2D and 3D views are turned a quarter turn when you hold the phone upright, so the rocket runs down the long edge of the screen instead of being squeezed into its width; turn the phone sideways and they turn back. Dialogs fill the screen there too.
 - **Config**: the flight configurations.
 - **Simulate** — motor, launch setup, **Run**, and the result summary.
-- **Results** — the run's numbers (apogee, rod exit, max speed, landing, downrange …) with the flight charts and the 3D flight path below them. It appears once a simulation has produced a result, and a finished run takes you straight to it.
+- **Results** — the run's numbers (apogee, launcher exit, max speed, landing, downrange …) with the flight charts and the 3D flight path below them. It appears once a simulation has produced a result, and a finished run takes you straight to it.
 - **Tools**: the landing estimator, rail exit check and parachute sizing.
 
 The components panel is desktop-only, so a phone cannot add, reorder or delete parts. It can edit the ones a design already has: tap a part in the **Sketch** view and its editor opens as a dialog. Two things follow the panel rather than the drawing, and are not offered where it is absent: **My Parts**, since a saved part is applied through a component, and the **rocket's name and configuration**, since naming a design is something you do to one you are building. Both also step aside while the drawing is maximized, for the same reason the panel does.

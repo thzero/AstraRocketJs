@@ -215,6 +215,15 @@ async function main() {
       await page.getByText(`v${VERSION_B}`, { exact: true }).waitFor({ timeout: 60_000 });
     });
 
+    // The manual check, against a real worker: on the newest build it answers
+    // "up to date", which the timer never says.
+    await step('Check for updates in About says the newest build is up to date', async () => {
+      await page.getByRole('button', { name: `v${VERSION_B}`, exact: true }).click();
+      await page.getByRole('button', { name: 'Check for updates', exact: true }).click();
+      await page.getByText('You are running the latest version.').waitFor({ timeout: 60_000 });
+      await page.keyboard.press('Escape');
+    });
+
     // Network-first page loads must not cost the PWA its reason to exist:
     // with the network gone, a reload still gets the shell (the precached
     // index.html through the fallback) and the app still boots.

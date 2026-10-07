@@ -1,3 +1,4 @@
+import type { OrkSimulation } from './ork/importSimulations';
 import {
   OpenRocketDesign,
   resetEngine,
@@ -68,6 +69,8 @@ export interface LoadedOrk {
   chosenConfigId: string;
   /** Imported launch/sim conditions (wind, rod, site, geodetic), if the file had any. */
   launch?: Partial<LaunchConditions>;
+  /** Every simulation the file carried, each with its own conditions and result summary. */
+  simulations?: OrkSimulation[];
   /**
    * Set when the tree AS WRITTEN could not be built, and the handle below was
    * built from a repaired copy so the file could still be opened (see
@@ -452,6 +455,7 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
     configs,
     chosenConfigId,
     launch: res.launch,
+    ...(res.simulations ? { simulations: res.simulations } : {}),
     unbuildable: built.unbuildable,
   };
 }

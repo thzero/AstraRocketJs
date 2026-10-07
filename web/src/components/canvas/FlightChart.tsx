@@ -4,12 +4,13 @@ import { fmtNum, stageLabel } from '../../i18n/format';
 import { EVENT_LABEL, clusterEventLabels } from '../../services/flight/simReport';
 import { FlightCsvDialog } from '../sim/FlightCsvDialog';
 import { useSettings } from '../../state/SettingsProvider';
-import { PAD_L, PAD_R, maxFlightTime } from './flightChartAxis';
+import { PAD_L, PAD_R, PANEL_H, maxFlightTime } from './flightChartAxis';
 import { SERIES, buildTraces, visibleSeries, type ChartFlight, type Key } from './flightChartTraces';
 import { useChartZoom } from './useChartZoom';
 import { useChartCrosshair } from './useChartCrosshair';
 import { EventLabelStrip, eventStripHeight, packEventLabels } from './FlightChartEvents';
 import { FlightChartPanel } from './FlightChartPanel';
+import { FlightXYPanel } from './FlightXYPanel';
 import { useElementResize } from '../common/useElementResize';
 
 // The series catalog and the axis math moved to their own modules; CenterView,
@@ -42,6 +43,9 @@ export function FlightChart({ flight }: { flight: ChartFlight }) {
   const [csvOpen, setCsvOpen] = useState(false);
   const hostRef = useRef<HTMLDivElement>(null);
   const [w, setW] = useState(640);
+  const [hostH, setHostH] = useState(0);
+  // One panel shown at the pane's full height, or null for all of them.
+  const [expanded, setExpanded] = useState<Key | null>(null);
 
   // Every branch as a colored, selectable trace.
   const branches = useMemo(() => buildTraces(flight, (i) => stageLabel(t, i)), [flight, t]);
@@ -80,7 +84,10 @@ export function FlightChart({ flight }: { flight: ChartFlight }) {
   const crosshair = useChartCrosshair(t0, t1);
   const { hoverT, setHoverT } = crosshair;
 
-  useElementResize(hostRef, (r) => setW(Math.max(280, r.width)));
+  useElementResize(hostRef, (r) => {
+    setW(Math.max(280, r.width));
+    setHostH(r.height);
+  });
 
   const centerT = () => hoverT ?? (t0 + t1) / 2;
 
@@ -116,6 +123,14 @@ export function FlightChart({ flight }: { flight: ChartFlight }) {
 
   const toggle = (k: Key) => update({ flightSeries: on.includes(k) ? on.filter((x) => x !== k) : [...on, k] });
   const activeMetas = SERIES.filter((m) => on.includes(m.key));
+  // An expanded panel that has since been switched off drops the expansion
+  // rather than leaving the pane empty.
+  const solo = expanded && on.includes(expanded) ? expanded : null;
+  const shownMetas = solo ? activeMetas.filter((m) => m.key === solo) : activeMetas;
+  // The pane less the event strip and the panel's own header and margins.
+  const soloH = Math.max(PANEL_H, hostH - stripH - 48);
+  const panelH = solo ? soloH : PANEL_H;
+  const toggleExpand = (k: Key) => setExpanded(solo === k ? null : k);
 
   // Pointer: drag pans (only when zoomed in); otherwise it drives the hover crosshair.
   const onDown = (e: React.PointerEvent) => {
@@ -242,18 +257,34 @@ export function FlightChart({ flight }: { flight: ChartFlight }) {
         ) : (
           <>
             {stripH > 0 && <EventLabelStrip labels={eventLabels} w={w} stripH={stripH} t={t} />}
-            {activeMetas.map((m) => (
-              <FlightChartPanel
-                key={m.key}
-                meta={m}
-                branches={selectedBranches}
-                w={w}
-                X={X}
-                hoverT={hoverT}
-                clipT={clipT}
-                events={events}
-              />
-            ))}
+            {shownMetas.map((m) =>
+              m.xy ? (
+                <FlightXYPanel
+                  key={m.key}
+                  meta={m}
+                  branches={selectedBranches}
+                  w={w}
+                  height={panelH}
+                  hoverT={hoverT}
+                  expanded={solo === m.key}
+                  onToggleExpand={() => toggleExpand(m.key)}
+                />
+              ) : (
+                <FlightChartPanel
+                  key={m.key}
+                  meta={m}
+                  branches={selectedBranches}
+                  w={w}
+                  X={X}
+                  hoverT={hoverT}
+                  clipT={clipT}
+                  events={events}
+                  height={panelH}
+                  expanded={solo === m.key}
+                  onToggleExpand={() => toggleExpand(m.key)}
+                />
+              ),
+            )}
           </>
         )}
       </div>

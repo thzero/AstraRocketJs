@@ -1,4 +1,4 @@
-import { useTranslation } from 'react-i18next';
+import { useLauncherT } from '../common/useLauncher';
 import type { FlightResult } from '../../engine/api';
 import { warningText, warningHelp } from '../../services/app/warningText';
 import { WARNING_ROW, WARNING_TONE } from './warningTone';
@@ -13,7 +13,7 @@ import { WARNING_ROW, WARNING_TONE } from './warningTone';
  * This is the other half of those settings.
  */
 export function FlightWarnings({ sim }: { sim: FlightResult | null }) {
-  const { t } = useTranslation();
+  const t = useLauncherT();
   const warnings = sim?.warnings ?? [];
   if (!sim || !warnings.length) return null;
 

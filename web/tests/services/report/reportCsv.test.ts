@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { StaticInfo } from '../../../src/engine/openRocketEngine';
 import type { ReportModel } from '../../../src/services/report/reportModel';
-import { buildDesignCsv } from '../../../src/services/report/reportCsv';
+import { buildComponentCsv, buildDesignCsv } from '../../../src/services/report/reportCsv';
 import { METRIC_UNITS, IMPERIAL_UNITS } from '../../../src/prefs/units';
 import { summaryRows, type PdfPage } from '../../../src/services/report/pdfPage';
 import i18n from '../../../src/i18n';
@@ -153,5 +153,60 @@ describe('PDF summary rows', () => {
     const labels = summaryRows(page, { ...info, cna: 0 } as StaticInfo).map(([l]) => l);
     expect(labels).not.toContain(i18n.t('report.cp'));
     expect(labels).not.toContain(i18n.t('report.stabilityCal'));
+  });
+});
+
+describe('buildComponentCsv', () => {
+  const parts: ReportModel = {
+    ...model,
+    partsByStage: [
+      {
+        stage: 'Sustainer',
+        rows: [
+          {
+            depth: 0,
+            type: 'nosecone',
+            name: 'Nose',
+            material: 'Polystyrene',
+            density: 1050,
+            length: 0.1,
+            outerR: 0.0125,
+            mass: 0.012,
+          },
+          {
+            depth: 1,
+            type: 'bodytube',
+            name: '=HYPERLINK("x")',
+            length: 0.3,
+            outerR: 0.0125,
+            innerR: 0.012,
+            thickness: 0.0005,
+            mass: 0.02,
+          },
+        ],
+      },
+    ],
+  };
+  const csv = (units = METRIC_UNITS) =>
+    buildComponentCsv(parts, units, (type) => ({ nosecone: 'Nose cone', bodytube: 'Body tube' })[type] ?? type)
+      .trimEnd()
+      .split('\r\n');
+
+  it('writes one row per part, in the chosen units, the header naming them', () => {
+    const [head, nose] = csv();
+    expect(head).toBe(
+      'Stage,Depth,Type,Name,Material,Density (g/cm³),Length (cm),Outer diameter (cm),Inner diameter (cm),Thickness (cm),Mass (g)',
+    );
+    const cells = nose!.split(',');
+    expect(cells.slice(0, 5)).toEqual(['Sustainer', '0', 'Nose cone', 'Nose', 'Polystyrene']);
+    // A radius in the model is a diameter in the file: 12.5 mm is 2.5 cm across.
+    expect(Number(cells[7])).toBeCloseTo(2.5, 6);
+    // A figure the part does not have is blank.
+    expect(cells[8]).toBe('');
+  });
+
+  it('keeps a part name from becoming a spreadsheet formula', () => {
+    const tube = csv()[2]!;
+    expect(tube).toContain("'=HYPERLINK");
   });
 });

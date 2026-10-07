@@ -15,6 +15,7 @@ import { onSi } from '../../prefs/entryValue';
 import { Check } from '../common/Check';
 import { ColorInput } from '../common/ColorInput';
 import { DialogButton } from '../common/DialogButton';
+import { canAskWhereToSave } from '../../services/files/saveFile';
 import { SPEED_WARNINGS } from '../sim/speedWarnings';
 
 const SPEEDS = [0.25, 0.5, 1, 2, 4];
@@ -64,7 +65,8 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
   const overriddenFields = Object.keys(settings.unitOverrides).length;
 
   const resetSection = () => {
-    if (tab === 'general') update({ saveDesignInfo: DEFAULT_SETTINGS.saveDesignInfo });
+    if (tab === 'general')
+      update({ saveDesignInfo: DEFAULT_SETTINGS.saveDesignInfo, askWhereToSave: DEFAULT_SETTINGS.askWhereToSave });
     else if (tab === 'units') update({ units: DEFAULT_SETTINGS.units, unitOverrides: {} });
     else if (tab === 'colors') update({ partColors: {}, phaseColors: DEFAULT_SETTINGS.phaseColors });
     else if (tab === 'materials') update({ defaultMaterials: DEFAULT_SETTINGS.defaultMaterials });
@@ -197,6 +199,17 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
               checked={settings.saveDesignInfo}
               onChange={(v) => update({ saveDesignInfo: v })}
             />
+            {/* Only where the browser has a save dialog to offer: a box that
+                changes nothing in Firefox or Safari would be a control that
+                does nothing. */}
+            {canAskWhereToSave() && (
+              <Check
+                label={t('settings.askWhereToSave')}
+                hint={t('settings.askWhereToSaveHint')}
+                checked={settings.askWhereToSave}
+                onChange={(v) => update({ askWhereToSave: v })}
+              />
+            )}
           </>
         )}
 

@@ -35,7 +35,8 @@ export type Quantity =
   | 'temperature' // UNITS_TEMPERATURE
   | 'pressure' // UNITS_PRESSURE
   | 'force' // motor thrust (UNITS_FORCE)
-  | 'impulse'; // total impulse (UNITS_IMPULSE)
+  | 'impulse' // total impulse (UNITS_IMPULSE)
+  | 'rollRate'; // UNITS_ROLL
 
 export interface UnitDef {
   symbol: string;
@@ -148,6 +149,14 @@ export const UNITS: Record<Quantity, UnitDef[]> = {
     { symbol: 'N·s', toSI: 1 },
     { symbol: 'lbf·s', toSI: 4.4482216 },
   ],
+  // Desktop UnitGroup.UNITS_ROLL, unit for unit; SI is rad/s.
+  rollRate: [
+    { symbol: 'rad/s', toSI: 1 },
+    { symbol: '°/s', toSI: Math.PI / 180 },
+    { symbol: 'r/s', toSI: 2 * Math.PI },
+    { symbol: 'Hz', toSI: 2 * Math.PI },
+    { symbol: 'rpm', toSI: (2 * Math.PI) / 60 },
+  ],
 };
 
 /** Every quantity, in the order the preferences UI lists them. */
@@ -222,6 +231,7 @@ export const METRIC_UNITS: UnitSelection = {
   pressure: 'hPa',
   force: 'N',
   impulse: 'N·s',
+  rollRate: 'r/s',
 };
 
 /** Desktop UnitGroup.setDefaultImperialUnits(). */
@@ -251,6 +261,8 @@ export const IMPERIAL_UNITS: UnitSelection = {
   pressure: 'psi',
   force: 'lbf',
   impulse: 'lbf·s',
+  // The desktop's default in both systems.
+  rollRate: 'r/s',
 };
 
 /**

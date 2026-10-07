@@ -8,6 +8,7 @@ import { SIM_BOUNDS } from '../../services/storage/settings';
 import { RunButton } from './RunButton';
 import { useIsDesktop } from '../common/useMediaQuery';
 import { LaunchPanel } from './LaunchPanel';
+import { useLauncherKind } from '../common/useLauncher';
 import { useUnits } from '../../prefs/useUnits';
 import { onSi } from '../../prefs/entryValue';
 import { unitScope } from '../../prefs/units';
@@ -41,6 +42,7 @@ export function SimEditor() {
   const setSelectedConfigId = useWorkspaceStore((s) => s.setSelectedConfigId);
   const setTab = useWorkspaceStore((s) => s.setTab);
   const onLaunchChange = useWorkspaceStore((s) => s.patchLaunch);
+  const launcher = useLauncherKind();
   const onCommit = useWorkspaceStore((s) => s.commitEdit);
 
   const desktop = useIsDesktop();
@@ -160,7 +162,14 @@ export function SimEditor() {
           </button>
         </section>
 
-        <LaunchPanel launch={launch} onChange={onLaunchChange} onCommit={onCommit} diff={launchDiff} weather />
+        <LaunchPanel
+          launch={launch}
+          onChange={onLaunchChange}
+          onCommit={onCommit}
+          diff={launchDiff}
+          weather
+          launcher={launcher}
+        />
         <SimOptions diff={prefDiff} />
       </div>
     </div>

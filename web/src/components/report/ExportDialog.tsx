@@ -215,6 +215,18 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
     }
   };
 
+  // One row per part, in the export's units (services/report/reportCsv).
+  const savePartsCsv = async () => {
+    if (!model) return;
+    try {
+      const { downloadComponentCsv } = await import('../../services/report/reportCsv');
+      downloadComponentCsv(assembleReport() ?? model, exportUnits, (type) => t(`part.${type}`));
+      onClose();
+    } catch (e) {
+      useWorkspaceStore.getState().setErr(t('export.csvFailed', { message: errorMessage(e) }));
+    }
+  };
+
   const saveCsv = async () => {
     if (!model) return;
     try {
@@ -249,6 +261,13 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
           className="rounded-md bg-slate-800 px-3 py-2 text-sm text-slate-200 ring-1 ring-white/10 hover:bg-slate-700 disabled:opacity-50"
         >
           {t('export.saveCsv')}
+        </button>
+        <button
+          onClick={savePartsCsv}
+          disabled={busy}
+          className="rounded-md bg-slate-800 px-3 py-2 text-sm text-slate-200 ring-1 ring-white/10 hover:bg-slate-700 disabled:opacity-50"
+        >
+          {t('export.savePartsCsv')}
         </button>
         <DialogButton onClick={save} disabled={busy} variant="primary">
           {busy ? t('common.loading') : t('export.savePdf')}

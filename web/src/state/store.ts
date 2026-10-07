@@ -5,6 +5,7 @@ import { prompt } from './promptStore';
 import { scaleRocket } from '../tree/scaleRocket';
 import { syncAutoShoulders } from '../services/design/autoShoulder';
 import { defaultRocketTree } from '../services/design/defaultRocket';
+import { launcherKind, withLauncher } from '../services/design/launcher';
 import { buildRocketTree, type StaticInfo } from '../engine/api';
 import type {
   MotorSpec,
@@ -794,6 +795,13 @@ function withKey<T extends object, K extends keyof T>(obj: T | undefined, key: K
 const nonEmpty = <T extends object>(obj: T): T | undefined => (Object.keys(obj).length ? obj : undefined);
 
 export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
+  // The translator for messages about the design in the workspace, naming its
+  // launcher the way its guides do (services/design/launcher).
+  const launcherT = () =>
+    withLauncher(
+      i18n.t as unknown as (key: string, options?: Record<string, unknown>) => string,
+      launcherKind(get().tree),
+    );
   /**
    * Patch every simulation the editor is pointed at: the TICKED rows, or the
    * active one when nothing is ticked (see {@link selectEditIds}).
@@ -1440,7 +1448,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       }
       const { flying, skipped } = plan;
       if (!flying.length) {
-        if (skipped.length) set({ err: runProblems(skipped, [], i18n.t, displayUnits()).join(' ') });
+        if (skipped.length) set({ err: runProblems(skipped, [], launcherT(), displayUnits()).join(' ') });
         return;
       }
       // Failures are collected and reported with the skips once the batch drains
@@ -1499,7 +1507,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
               }
               setRun(sim.id, null);
               set((st) => ({
-                sims: st.sims.map((x) => (x.id === sim.id ? { ...x, result, resultKey: flownKey } : x)),
+                sims: st.sims.map((x) =>
+                  x.id === sim.id ? { ...x, result, resultKey: flownKey, fileSummary: undefined } : x,
+                ),
               }));
             } catch (e) {
               // Canceling is not a fault: the row goes back to what it was
@@ -1520,7 +1530,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // A canceled batch says nothing further: the user stopped it, so
         // neither the skip list nor a jump to the Results tab is wanted.
         if (abort.signal.aborted) return;
-        const problems = runProblems(skipped, failed, i18n.t, displayUnits());
+        const problems = runProblems(skipped, failed, launcherT(), displayUnits());
         if (problems.length) set({ err: problems.join(' ') });
         // Show the run. Every run, one or twelve: running IS asking to see the
         // answer, and having to click over to Results afterwards is a step with
@@ -1613,7 +1623,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
       const config = configOf(s.configs, sim);
       const reason = unflyable(sim, primaryMotor(s.tree, config));
       if (reason) {
-        set({ err: unflyableText({ id: sim.id, name: sim.name, reason }, i18n.t, displayUnits()) });
+        set({ err: unflyableText({ id: sim.id, name: sim.name, reason }, launcherT(), displayUnits()) });
         return;
       }
       // Captured, because the narrowing `isComplete` gives is lost the moment
@@ -1760,7 +1770,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         const { loadOrk } = await import('../services/files/loadOrk');
         const res = await loadOrk(bytes);
         if (stale()) return;
-        const { tree, configs, sims, activeId, loadedMeta } = wireLoadedOrk(res, loadSettings().launchDefaults);
+        const { tree, configs, sims, activeId, loadedMeta } = wireLoadedOrk(
+          res,
+          loadSettings().launchDefaults,
+          get().simPrefs,
+        );
         // Where this rocket is going to live, settled while the previous design
         // is still the open one (see homeForImport).
         const home = await homeForImport(loadedMeta.name, stale);
@@ -1771,7 +1785,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // design of the same name, in which case that entry IS its home.
         getWorkspaceStore().setActiveId?.(home.id);
         if (!home.id) getWorkspaceStore().setPendingName?.(home.name);
-        const notes = importNotes(loadedMeta.notes, sims[0]!.launch, i18n.t, displayUnits());
+        const notes = importNotes(loadedMeta.notes, sims[0]!.launch, launcherT(), displayUnits());
         // A file is the likeliest source of a value no material has, and the
         // one place the app can still say where it came from.
         const fixed = repairValues(tree);
@@ -1969,6 +1983,22 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         const activeConfigId = selectConfig(get()).id;
         const launch = selectActive(get()).launch;
         const configSnapshot = get().configs;
+        // Every simulation, each with its result summary and the status the
+        // desktop reads: a result (or a file's summary) that is current is
+        // uptodate, one the design has moved past is outdated, and a simulation
+        // with neither is not simulated.
+        const { sims: simSnapshot, simPrefs: prefsSnapshot } = get();
+        const simulations = simSnapshot.map((sim) => {
+          const summary = sim.result?.summary ?? sim.fileSummary?.summary;
+          const stale = isOutdated(sim, tree, configOf(configSnapshot, sim), prefsSnapshot);
+          return {
+            name: sim.name,
+            configId: sim.configId,
+            launch: sim.launch,
+            ...(summary ? { summary } : {}),
+            status: !summary ? ('notsimulated' as const) : stale ? ('outdated' as const) : ('uptodate' as const),
+          };
+        });
         // EVERY configuration, each with its own motors: the file carries the
         // whole set, so opening one setup and saving cannot discard the others.
         const base = loadedMeta?.exportMotors ?? {};
@@ -2009,6 +2039,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
           configs,
           activeConfigId,
           launch,
+          simulations,
           designInfo,
         });
       } catch (e) {

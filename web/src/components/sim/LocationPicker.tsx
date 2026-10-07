@@ -6,6 +6,7 @@ import { loadSettings } from '../../services/storage/settings';
 import { useLocationList } from './useLocationList';
 import { DesignPropertiesDialog } from '../layout/DesignPropertiesDialog';
 import { LocationsDialog } from './LocationsDialog';
+import { PlaceSearchDialog } from './PlaceSearchDialog';
 
 /**
  * Saved launch locations, at the top of the launch panel's Site group.
@@ -35,6 +36,7 @@ export function LocationPicker({
   const { t } = useTranslation();
   const [naming, setNaming] = useState(false);
   const [managing, setManaging] = useState(false);
+  const [searching, setSearching] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   // Shared with the manage dialog, and ordered: see `useLocationList` for why a
@@ -145,6 +147,14 @@ export function LocationPicker({
           ))}
         </select>
         <button
+          onClick={() => setSearching(true)}
+          title={t('placeSearch.open')}
+          aria-label={t('placeSearch.open')}
+          className="rounded-md bg-slate-800 px-2 py-1.5 text-xs text-slate-300 ring-1 ring-white/10 hover:bg-slate-700"
+        >
+          🔍
+        </button>
+        <button
           onClick={() => setNaming(true)}
           disabled={!savable}
           title={savable ? t('location.save') : t('location.needsSite')}
@@ -185,6 +195,19 @@ export function LocationPicker({
               const location = locationFrom(name, launch);
               await getLaunchLocationStore().save(existing ? { ...location, id: existing.id } : location);
             });
+          }}
+        />
+      )}
+
+      {/* Finding a place is another way to fill the same three fields, so it
+          writes them the way picking a saved location does: one undoable edit. */}
+      {searching && (
+        <PlaceSearchDialog
+          onClose={() => setSearching(false)}
+          onPick={(pick) => {
+            setSearching(false);
+            onChange(pick);
+            onCommit?.();
           }}
         />
       )}
