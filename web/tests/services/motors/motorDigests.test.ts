@@ -214,6 +214,14 @@ describe('a saved .ork carries the curve of a motor the catalog does not have', 
     expect(Object.keys(zip).filter((n) => n.startsWith('thrustcurves/'))).toEqual([]);
   });
 
+  it('embeds the curve of a motor that shares a catalog name but not its diameter', async () => {
+    // The catalog's Estes C6 is 18 mm; a 24 mm motor under that name is not it.
+    const { motors, zip } = await save({ ...curve, designation: 'C6', manufacturer: 'Estes', diameter: 0.024 });
+    const digest = motors.body!.digest!;
+    expect(digest).not.toBe(catalogDigest(row('Estes', 'C6'), 5));
+    expect(rseDigest(new TextDecoder().decode(zip[`thrustcurves/${digest}.rse`]!))).toBe(digest);
+  });
+
   it('is found by our own importer under that digest', async () => {
     const motors = await fillMotorDigests(buildExportMotorMap(tree, config(curve)));
     const bytes = orkArchive({ name: 'Mine', tree, configs: [{ id: 'c', name: null, motors }] });

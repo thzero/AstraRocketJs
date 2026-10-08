@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 /**
@@ -68,7 +68,10 @@ describe('CI trigger coverage', () => {
  * workflow's jobs, each of which is capped here.
  */
 describe('every job has a timeout', () => {
-  const FILES = ['ci.yml', 'deploy.yml', 'dev.yml', 'gates.yml', 'sync-catalogs.yml'];
+  // Every workflow in the folder, so a new one is checked without being listed.
+  const FILES = readdirSync(fileURLToPath(new URL('../../.github/workflows/', import.meta.url))).filter((f) =>
+    /\.ya?ml$/.test(f),
+  );
 
   /** Job blocks in one workflow, as `[name, body]`, split on the 2-space indent. */
   const jobsOf = (text: string): [string, string][] => {

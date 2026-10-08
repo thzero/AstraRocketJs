@@ -263,6 +263,74 @@ describe('exportRkt → importRkt round trip', () => {
   });
 });
 
+/**
+ * RockSim has no middle placement. Desktop's BasePartDTO writes a middle part
+ * as a top offset: the gap from the parent's top to the part's top when
+ * centered, plus its own offset. A fin set's extent is its root chord.
+ */
+describe('exportRkt, a middle-placed part', () => {
+  const xbOf = (xml: string, name: string): number => {
+    const block = xml.slice(xml.indexOf(`<Name>${name}</Name>`));
+    return Number(/<Xb>([^<]+)<\/Xb>/.exec(block)?.[1]);
+  };
+  const tree: RocketTree = {
+    name: 'Middle',
+    components: [
+      {
+        type: 'stage',
+        id: 's1',
+        name: 'Sustainer',
+        children: [
+          {
+            type: 'bodytube',
+            id: 'b1',
+            name: 'Airframe',
+            length: 0.3,
+            outerRadius: 0.0124,
+            thickness: 0.0004,
+            children: [
+              {
+                type: 'launchlug',
+                id: 'l1',
+                name: 'Lug',
+                length: 0.03,
+                outerRadius: 0.003,
+                thickness: 0.0005,
+                position: { method: 'middle', offset: 0.01 },
+              },
+              {
+                type: 'trapezoidfinset',
+                id: 'f1',
+                name: 'Fins',
+                finCount: 3,
+                rootChord: 0.06,
+                tipChord: 0.03,
+                height: 0.05,
+                position: { method: 'middle', offset: 0 },
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  } as unknown as RocketTree;
+
+  it('writes a top offset measured from the parent top', () => {
+    const { xml } = exportRkt('Middle', tree);
+    // (0.3 - 0.03) / 2 + 0.01 = 0.145 m
+    expect(xbOf(xml, 'Lug')).toBeCloseTo(145, 6);
+    // (0.3 - 0.06) / 2 = 0.12 m
+    expect(xbOf(xml, 'Fins')).toBeCloseTo(120, 6);
+  });
+
+  it('reads back to the same place', () => {
+    const r = importRkt(exportRkt('Middle', tree).xml);
+    const tube = find(r.tree.components[0]!.children, 'Airframe');
+    expect(find(tube.children, 'Lug').position).toEqual({ method: 'top', offset: expect.closeTo(0.145, 9) as number });
+    expect(find(tube.children, 'Fins').position).toEqual({ method: 'top', offset: expect.closeTo(0.12, 9) as number });
+  });
+});
+
 describe('exportRkt, multi-stage', () => {
   it('writes the sustainer into Stage3Parts, nose-first', () => {
     const two: RocketTree = {

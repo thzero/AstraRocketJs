@@ -1,6 +1,7 @@
 import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
 import { clusterCount, clusterPoints } from '../../tree/cluster';
 import { numOpt } from '../../tree/nodeProps';
+import { axialLength } from '../../tree/position';
 import { asStageNodes } from '../design/orkTree';
 import { escapeXml } from './xmlUtil';
 import { plainDecimal } from './numberText';
@@ -48,7 +49,12 @@ const SHAPE_CODES: Record<string, number> = {
   haack: 6,
 };
 
-/** `RockSimLocationMode` ordinals, by our placement method. */
+/**
+ * `RockSimLocationMode` ordinals, by our placement method. RockSim has no
+ * middle or after mode: middle is converted to a top offset when written (see
+ * writeCommon), and after is written as top with its offset, as desktop's
+ * BasePartDTO does, because RockSim lays out a stage's parts in order.
+ */
 const LOCATION_CODES: Record<string, number> = { top: 0, absolute: 1, bottom: 2, middle: 0, after: 0 };
 
 /**
@@ -71,6 +77,8 @@ interface Writer {
   emit: (depth: number, s: string) => void;
   /** Types that had no RockSim element, named once each for the caller. */
   skipped: Set<string>;
+  /** Axial length (m) of the part whose children are being written. */
+  parentLength: number;
 }
 
 // --------------------------------------------------------------- helpers ---
@@ -131,8 +139,12 @@ function writeCommon(w: Writer, d: number, n: ComponentNode, withPosition: boole
     const pos = n.position;
     const method = pos?.method ?? 'top';
     const offset = pos?.offset ?? 0;
-    // Only bottom flips, exactly as the reader does.
-    el(w, d, 'Xb', mm(method === 'bottom' ? -offset : offset));
+    // Bottom flips sign, as the reader does. Middle becomes a top offset, as
+    // desktop's BasePartDTO writes it: the gap from the parent's top to this
+    // part's top when centered, plus the offset.
+    const xb =
+      method === 'bottom' ? -offset : method === 'middle' ? offset + (w.parentLength - axialLength(n)) / 2 : offset;
+    el(w, d, 'Xb', mm(xb));
     el(w, d, 'LocationMode', LOCATION_CODES[method] ?? 0);
   }
 }
@@ -418,7 +430,10 @@ function writePart(w: Writer, depth: number, n: ComponentNode): void {
   const kids = n.children ?? [];
   if (kids.length > 0) {
     w.emit(depth + 1, '<AttachedParts>');
+    const outer = w.parentLength;
+    w.parentLength = axialLength(n);
     for (const kid of kids) writePart(w, depth + 2, kid);
+    w.parentLength = outer;
     w.emit(depth + 1, '</AttachedParts>');
   }
   w.emit(depth, `</${spec.tag}>`);
@@ -447,6 +462,7 @@ export function exportRkt(name: string, tree: RocketTree): RktExportResult {
   const w: Writer = {
     emit: (depth, s) => lines.push('  '.repeat(depth) + s),
     skipped: new Set(),
+    parentLength: 0,
   };
 
   // RockSim reads at most three stages, nose-first. A design with more loses
@@ -479,6 +495,7 @@ export function exportRkt(name: string, tree: RocketTree): RktExportResult {
       return;
     }
     w.emit(3, `<${elName}>`);
+    w.parentLength = stage ? axialLength(stage) : 0;
     for (const kid of kids) writePart(w, 4, kid);
     w.emit(3, `</${elName}>`);
   });

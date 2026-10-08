@@ -92,8 +92,9 @@ export async function fillMotorDigests(
     const digest = same ? catalogDigest(row, m.delay) : undefined;
     // A motor the catalog does not have travels with its own curve, named by
     // that curve's digest: no database has it, so nothing else could name it.
-    // One the catalog has is written as the catalog's, embedding nothing.
-    const embedded = !row && m.seated ? embeddedMotorFile(m.seated) : null;
+    // That includes a name match whose diameter differs, which is a different
+    // motor. One the catalog has is written as the catalog's, embedding nothing.
+    const embedded = !same && m.seated ? embeddedMotorFile(m.seated) : null;
     out[id] = embedded ? { ...m, embedded, digest: embedded.digest } : digest ? { ...m, digest } : m;
   }
   return out;
