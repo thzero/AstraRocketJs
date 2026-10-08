@@ -49,13 +49,13 @@ export function PlacementSection({
   return (
     <PropSection title={t('prop.placement')}>
       <label className="flex items-center justify-between gap-3">
-        <span className="text-xs text-slate-400">{t('prop.positionFrom')}</span>
+        <span className="text-xs text-ink-muted">{t('prop.positionFrom')}</span>
         <select
           value={pos.method}
           onChange={(e) =>
             commitChange({ position: { ...pos, method: e.target.value as ComponentPosition['method'] } })
           }
-          className="w-32 rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
+          className="w-32 rounded-md bg-raised px-2 py-1 text-sm text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500"
         >
           {(['top', 'middle', 'bottom', 'absolute'] as const).map((m) => (
             <option key={m} value={m}>

@@ -16,14 +16,14 @@ const set = (patch: Partial<ReturnType<typeof useWorkspaceStore.getState>>) =>
   act(() => useWorkspaceStore.setState(patch));
 
 /**
- * jsdom has no matchMedia, and the status asks whether the window is at least xl
+ * jsdom has no matchMedia, and the status asks whether the window is at least 2xl
  * wide: below that it says the word alone, because the header is carrying the
  * tabs, the app name and the badge group and the age is what that band trades
  * away. `true` is the wide answer, which is the one that includes the age.
  */
-const stubWidth = (isXl: boolean): void => {
+const stubWidth = (isWide: boolean): void => {
   window.matchMedia = ((query: string) => ({
-    matches: isXl,
+    matches: isWide,
     media: query,
     onchange: null,
     addEventListener: () => {},
@@ -53,7 +53,7 @@ describe('SaveStatus', () => {
     expect(screen.getByRole('status').textContent).toBe('Saved just now');
   });
 
-  it('says the word without the age below xl', () => {
+  it('says the word without the age below 2xl', () => {
     stubWidth(false);
     renderWithProviders(<SaveStatus />);
     set({ lastSavedAt: Date.now() });

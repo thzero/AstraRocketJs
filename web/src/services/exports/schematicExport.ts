@@ -64,6 +64,47 @@ const EXPORT_VARS: [string, string][] = [
 ];
 
 /**
+ * The print colors of the schematic's own tokens (`var(--c-sch-*)`, index.css).
+ * A downloaded SVG has no stylesheet to resolve a variable against, and a page
+ * prints on white whatever theme the screen is in, so each token has a print
+ * value of its own here rather than whatever it reads on screen.
+ */
+export const PRINT_COLORS: Record<string, string> = {
+  'sch-line': '#7a786f',
+  'sch-part': '#b9b7b0',
+  'sch-part-light': '#c8c5be',
+  'sch-shell': '#d5d2cb',
+  'sch-shell-light': '#e7e5e0',
+  'sch-ink': '#9a978f',
+  'sch-label': '#ffffff',
+  'sch-motor': '#8b5a2b',
+  'sch-motor-edge': '#6b4520',
+  'sch-motor-outline': '#e0764a',
+  'sch-shoulder': '#4f8fa0',
+  'sch-hatch': '#66748c',
+  'sch-parachute': '#b06a35',
+  'sch-streamer': '#a08c2e',
+  'sch-shockcord': '#8f7a8d',
+  'sch-masscomponent': '#a85f5c',
+  'sch-centeringring': '#6f8a5c',
+  'sch-bulkhead': '#66748c',
+  'sch-engineblock': '#7d7050',
+  'sch-tubecoupler': '#7f6ea8',
+  'sch-innertube': '#3f8f6f',
+};
+
+/**
+ * Every `var(--c-*)` in the markup as a plain color: its print value when it
+ * has one, else what it reads on screen now, so no variable reaches the file.
+ */
+export function bakeTokens(markup: string): string {
+  const root = typeof document === 'undefined' ? null : getComputedStyle(document.documentElement);
+  return markup.replace(/var\(--c-([\w-]+)\)/g, (_whole, name: string) => {
+    return PRINT_COLORS[name] ?? (root?.getPropertyValue(`--c-${name}`).trim() || '#000000');
+  });
+}
+
+/**
  * Standalone SVG from the live schematic <svg>: identity view transform,
  * CSS variables baked to light-theme values, white background, data header
  * on top, physical size in mm so it prints at 100 % scale.
@@ -91,6 +132,7 @@ export function schematicSvg(
   for (const [v, val] of EXPORT_VARS) {
     inner = inner.split(v).join(val);
   }
+  inner = bakeTokens(inner);
 
   // Header band: proportional to drawing width so it stays readable at any
   // physical size (a 4 m rocket printed 1:1 gets 4 m of banner).

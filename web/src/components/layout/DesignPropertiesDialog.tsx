@@ -62,7 +62,7 @@ export function DesignPropertiesDialog({
       // One field and two buttons. Nothing to widen.
       expandable={false}
     >
-      <label htmlFor="design-name" className="mt-4 block text-xs font-medium text-slate-400">
+      <label htmlFor="design-name" className="mt-4 block text-xs font-medium text-ink-muted">
         {t('library.name')}
       </label>
       <input
@@ -74,12 +74,12 @@ export function DesignPropertiesDialog({
           if (e.key === 'Enter') submit();
         }}
         maxLength={80}
-        className="mt-1 w-full rounded-lg bg-slate-800 px-3 py-2 text-sm text-slate-100 ring-1 ring-white/10 focus:ring-sky-500"
+        className="mt-1 w-full rounded-lg bg-raised px-3 py-2 text-sm text-ink-strong ring-1 ring-line/10 focus:ring-accent-500"
       />
 
       {/* A duplicate name is allowed (designs are keyed by id, not name) but
             two identical rows in the library are confusing, so say so. */}
-      {duplicate && <p className="mt-2 text-xs text-amber-300">{t('library.duplicateName')}</p>}
+      {duplicate && <p className="mt-2 text-xs text-warn-300">{t('library.duplicateName')}</p>}
 
       <div className="mt-6 flex justify-end gap-2">
         <DialogButton onClick={onCancel} variant="secondary">

@@ -28,7 +28,7 @@ import { ToggleButton } from '../common/ToggleButton';
 /** Five swatches of the shading ramp, from a fifth of `top` up to `top`. */
 function HeatRamp({ top, style }: { top: number; style: HeatStyle }) {
   return (
-    <span className="flex overflow-hidden rounded-sm ring-1 ring-white/10">
+    <span className="flex overflow-hidden rounded-sm ring-1 ring-line/10">
       {[0.2, 0.4, 0.6, 0.8, 1].map((f) => (
         <span key={f} className="h-2.5 w-4" style={heat(f * top, top, style)} />
       ))}
@@ -44,7 +44,7 @@ function HeatLegend({ max, unit, style }: { max: number; unit: string; style: He
   // which: the row set's own largest, or OpenRocket's fixed full-red-at-1.5.
   const top = style === 'openrocket' ? 1.5 : max;
   return (
-    <div className="flex flex-wrap items-center gap-1.5 px-1 pt-1.5 text-[10px] text-slate-600">
+    <div className="flex flex-wrap items-center gap-1.5 px-1 pt-1.5 text-[10px] text-ink-dim">
       <span>{style === 'openrocket' ? t('aero.absolute') : t('aero.share')}</span>
       <HeatRamp top={top} style={style} />
       <span className="tabular-nums">
@@ -60,7 +60,7 @@ function HeatLegend({ max, unit, style }: { max: number; unit: string; style: He
             active={style === v}
             onClick={() => update({ aeroHeat: v })}
             title={t('settings.aeroHeatNote')}
-            className="rounded px-1.5 py-0.5 text-[10px] font-medium ring-1 ring-white/10"
+            className="rounded px-1.5 py-0.5 text-[10px] font-medium ring-1 ring-line/10"
           >
             {t(v === 'sky' ? 'settings.aeroHeatSky' : 'settings.aeroHeatOr')}
           </ToggleButton>
@@ -85,8 +85,8 @@ function TableHead({ title, mach }: { title: string; mach: number }) {
   const { t } = useTranslation();
   return (
     <div className="flex flex-wrap items-baseline gap-2 px-1 pb-1.5">
-      <h3 className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{title}</h3>
-      <span className="text-[10px] tabular-nums text-slate-500">{t('aero.atMach', { mach: fmtNum(mach, 2) })}</span>
+      <h3 className="text-[11px] font-semibold uppercase tracking-wide text-ink-muted">{title}</h3>
+      <span className="text-[10px] tabular-nums text-ink-faint">{t('aero.atMach', { mach: fmtNum(mach, 2) })}</span>
     </div>
   );
 }
@@ -128,19 +128,19 @@ export function ComponentTable({ sweep, machs, mach }: { sweep: AeroSweep; machs
   const head = 'px-2 py-1 text-right font-medium';
 
   return (
-    <div className="rounded-lg bg-slate-950/40 p-2 ring-1 ring-white/10">
+    <div className="rounded-lg bg-canvas/40 p-2 ring-1 ring-line/10">
       <TableHead title={t('aero.dragByComponent')} mach={machs[i] ?? 0} />
       {!!sweep.nonFinite && (
         // The kernel met a reading it could not compute. Those cells come back
         // null and print as an em dash, but a column SUM coerces null to 0 — so
         // without this the breakdown would quietly stop adding up to the rocket
         // totals above it, which is the whole failure this counter exists for.
-        <p className="px-2 pb-1 text-[11px] text-amber-400">{t('aero.nonFinite', { count: sweep.nonFinite })}</p>
+        <p className="px-2 pb-1 text-[11px] text-warn-400">{t('aero.nonFinite', { count: sweep.nonFinite })}</p>
       )}
       <div className="overflow-x-auto">
-        <table className="w-full text-[11px] text-slate-300">
-          <thead className="text-slate-500">
-            <tr className="border-b border-white/10">
+        <table className="w-full text-[11px] text-ink-soft">
+          <thead className="text-ink-faint">
+            <tr className="border-b border-line/10">
               <th className="px-2 py-1 text-left font-medium">{t('aero.component')}</th>
               {hasSplit && <th className={head}>{t('aero.pressure')}</th>}
               {hasSplit && <th className={head}>{t('aero.base')}</th>}
@@ -151,7 +151,7 @@ export function ComponentTable({ sweep, machs, mach }: { sweep: AeroSweep; machs
             </tr>
           </thead>
           <tbody>
-            <tr className="border-b border-white/10 font-semibold text-slate-100">
+            <tr className="border-b border-line/10 font-semibold text-ink-strong">
               <td className="px-2 py-1 text-left">{t('aero.wholeRocket')}</td>
               {hasSplit && (
                 <td className={cell} style={heat(sweep.powerOff.pressure[i] ?? 0, totalCd, heatStyle)}>
@@ -175,7 +175,7 @@ export function ComponentTable({ sweep, machs, mach }: { sweep: AeroSweep; machs
               <td className={cell}>100%</td>
             </tr>
             {rows.map((r) => (
-              <tr key={r.key} className="border-b border-white/5 last:border-0">
+              <tr key={r.key} className="border-b border-line/5 last:border-0">
                 <td className="px-2 py-1 text-left">{r.name}</td>
                 {hasSplit && (
                   <td className={cell} style={heat(r.pressure ?? 0, totalCd, heatStyle)}>
@@ -200,11 +200,11 @@ export function ComponentTable({ sweep, machs, mach }: { sweep: AeroSweep; machs
                 <td className={cell} style={heat(r.cd, totalCd, heatStyle)}>
                   {num(r.cd)}
                 </td>
-                <td className={`${cell} text-slate-500`}>{pct(r.cd)}</td>
+                <td className={`${cell} text-ink-faint`}>{pct(r.cd)}</td>
               </tr>
             ))}
             {unattributed > 1e-6 && (
-              <tr className="border-t border-white/10 text-slate-500">
+              <tr className="border-t border-line/10 text-ink-faint">
                 <td className="px-2 py-1 text-left italic">{t('aero.unattributed')}</td>
                 {hasSplit && <td className={cell}>—</td>}
                 {hasSplit && <td className={cell}>—</td>}
@@ -219,9 +219,9 @@ export function ComponentTable({ sweep, machs, mach }: { sweep: AeroSweep; machs
       </div>
       <HeatLegend max={totalCd} unit="Cd" style={heatStyle} />
       {unattributed > 1e-6 && (
-        <p className="px-1 pt-1.5 text-[10px] leading-snug text-slate-600">{t('aero.unattributedNote')}</p>
+        <p className="px-1 pt-1.5 text-[10px] leading-snug text-ink-dim">{t('aero.unattributedNote')}</p>
       )}
-      {!hasSplit && <p className="px-1 pt-1.5 text-[10px] leading-snug text-slate-600">{t('aero.splitUnavailable')}</p>}
+      {!hasSplit && <p className="px-1 pt-1.5 text-[10px] leading-snug text-ink-dim">{t('aero.splitUnavailable')}</p>}
     </div>
   );
 }
@@ -303,12 +303,12 @@ export function StabilityTable({
   const cpPctAero = (si: number) => fmtNum((si / aeroLen) * 100, 1);
 
   return (
-    <div className="rounded-lg bg-slate-950/40 p-2 ring-1 ring-white/10">
+    <div className="rounded-lg bg-canvas/40 p-2 ring-1 ring-line/10">
       <TableHead title={t('aero.stabilityContribution')} mach={machs[i] ?? 0} />
       <div className="overflow-x-auto">
-        <table className="w-full text-[11px] text-slate-300">
-          <thead className="text-slate-500">
-            <tr className="border-b border-white/10">
+        <table className="w-full text-[11px] text-ink-soft">
+          <thead className="text-ink-faint">
+            <tr className="border-b border-line/10">
               <th className="px-2 py-1 text-left font-medium">{t('aero.component')}</th>
               {hasMass && <th className={head}>{t('aero.eachMass', { unit: massUnit })}</th>}
               {hasMass && <th className={head}>{t('aero.totalMass', { unit: massUnit })}</th>}
@@ -321,7 +321,7 @@ export function StabilityTable({
             </tr>
           </thead>
           <tbody>
-            <tr className="border-b border-white/10 font-semibold text-slate-100">
+            <tr className="border-b border-line/10 font-semibold text-ink-strong">
               <td className="px-2 py-1 text-left">{t('aero.wholeRocket')}</td>
               {hasMass && <td className={cell}>&mdash;</td>}
               {hasMass && <td className={cell}>&mdash;</td>}
@@ -335,7 +335,7 @@ export function StabilityTable({
               <td className={cell}>100%</td>
             </tr>
             {rows.map((r) => (
-              <tr key={r.key} className="border-b border-white/5 last:border-0">
+              <tr key={r.key} className="border-b border-line/5 last:border-0">
                 <td className="px-2 py-1 text-left">{r.name}</td>
                 {hasMass && <td className={cell}>{r.mass ? fmtNum(r.mass.eachMass * massFactor, 1) : '—'}</td>}
                 {hasMass && <td className={cell}>{r.mass ? fmtNum(r.mass.mass * massFactor, 1) : '—'}</td>}
@@ -346,7 +346,7 @@ export function StabilityTable({
                 <td className={cell} style={cnaShaded ? heat(r.cna, totalCna, 'sky') : undefined}>
                   {fmtNum(r.cna, 2)}
                 </td>
-                <td className={`${cell} text-slate-500`}>{pct(r.cna)}</td>
+                <td className={`${cell} text-ink-faint`}>{pct(r.cna)}</td>
               </tr>
             ))}
           </tbody>
@@ -390,12 +390,12 @@ export function RollTable({ sweep, machs, mach }: { sweep: AeroSweep; machs: num
   const cell = 'px-2 py-1 text-right tabular-nums';
   const head = 'px-2 py-1 text-right font-medium';
   return (
-    <div className="rounded-lg bg-slate-950/40 p-2 ring-1 ring-white/10">
+    <div className="rounded-lg bg-canvas/40 p-2 ring-1 ring-line/10">
       <TableHead title={t('aero.rollDynamics')} mach={machs[i] ?? 0} />
       <div className="overflow-x-auto">
-        <table className="w-full text-[11px] text-slate-300">
-          <thead className="text-slate-500">
-            <tr className="border-b border-white/10">
+        <table className="w-full text-[11px] text-ink-soft">
+          <thead className="text-ink-faint">
+            <tr className="border-b border-line/10">
               <th className="px-2 py-1 text-left font-medium">{t('aero.component')}</th>
               <th className={head}>{t('aero.rollForcing')}</th>
               <th className={head}>{t('aero.rollDamping')}</th>
@@ -403,7 +403,7 @@ export function RollTable({ sweep, machs, mach }: { sweep: AeroSweep; machs: num
           </thead>
           <tbody>
             {rows.map((r) => (
-              <tr key={r.key} className="border-b border-white/5 last:border-0">
+              <tr key={r.key} className="border-b border-line/5 last:border-0">
                 <td className="px-2 py-1 text-left">{r.name}</td>
                 <td className={cell} style={shaded ? heat(Math.abs(r.force), maxForce, 'sky') : undefined}>
                   {fmtNum(r.force, 4)}
@@ -417,12 +417,12 @@ export function RollTable({ sweep, machs, mach }: { sweep: AeroSweep; machs: num
         </table>
       </div>
       {shaded && (
-        <div className="flex items-center gap-1.5 px-1 pt-1.5 text-[10px] text-slate-600">
+        <div className="flex items-center gap-1.5 px-1 pt-1.5 text-[10px] text-ink-dim">
           <span>{t('aero.columnShare')}</span>
           <HeatRamp top={1} style="sky" />
         </div>
       )}
-      <p className="px-1 pt-1.5 text-[10px] leading-snug text-slate-600">{t('aero.rollNote')}</p>
+      <p className="px-1 pt-1.5 text-[10px] leading-snug text-ink-dim">{t('aero.rollNote')}</p>
     </div>
   );
 }

@@ -18,7 +18,15 @@ import { DOC_EXTRA_KEY, ROCKET_EXTRA_KEY, passthroughOf } from './ork/passthroug
  * `ork/exportWriters.ts`; the flight-configuration table, the simulation block
  * and the design-info block each have their own module.
  */
-export function exportOrk({ name, tree, launch, configs, activeConfigId, designInfo }: OrkTreeExportInput): string {
+export function exportOrk({
+  name,
+  tree,
+  launch,
+  simulations,
+  configs,
+  activeConfigId,
+  designInfo,
+}: OrkTreeExportInput): string {
   const { writeConfigs, defaultId } = resolveWriteConfigs({ configs, activeConfigId });
   const w = createOrkWriter(writeConfigs, defaultId);
   const { emit } = w;
@@ -68,7 +76,7 @@ export function exportOrk({ name, tree, launch, configs, activeConfigId, designI
   }
   emit(2, '</subcomponents>');
   emit(1, '</rocket>');
-  simulationsXml(w, 1, launch);
+  simulationsXml(w, 1, launch, simulations);
   designInfoXml(w, 1, designInfo);
   // Document-level blocks this app has no editor for: the Photo Studio setup,
   // the design's own preferences and materials, its custom expressions. Last,

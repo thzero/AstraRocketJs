@@ -7,7 +7,7 @@ import { useWorkspaceStore } from '../../state/store';
  */
 
 const iconBtn =
-  'rounded-lg bg-slate-800 px-2.5 py-1.5 text-sm leading-none text-slate-200 ring-1 ring-white/10 hover:bg-slate-700 disabled:cursor-not-allowed disabled:text-slate-600 disabled:hover:bg-slate-800';
+  'rounded-lg bg-raised px-2 py-1.5 xl:px-2.5 text-sm leading-none text-ink ring-1 ring-line/10 hover:bg-elevated disabled:cursor-not-allowed disabled:text-ink-dim disabled:hover:bg-raised';
 
 export function UndoRedoButtons() {
   const { t } = useTranslation();

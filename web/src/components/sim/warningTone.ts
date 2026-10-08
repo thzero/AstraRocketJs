@@ -10,9 +10,9 @@
  * that wears these also carries the ⚠ glyph and says in words what it is about.
  */
 export const WARNING_TONE: Record<string, string> = {
-  HIGH: 'bg-red-500/10 text-red-300 ring-red-400/30',
-  NORMAL: 'bg-amber-500/10 text-amber-200 ring-amber-400/30',
-  LOW: 'bg-slate-800 text-slate-300 ring-white/10',
+  HIGH: 'bg-danger-500/10 text-danger-300 ring-danger-400/30',
+  NORMAL: 'bg-warn-500/10 text-warn-200 ring-warn-400/30',
+  LOW: 'bg-raised text-ink-soft ring-line/10',
 };
 
 /** The shell every warning row shares: glyph column, padding, ring, text size. */

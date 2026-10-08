@@ -72,10 +72,23 @@ function averageThrust(m: RailMotor): number {
   return burn > 0 ? impulse / burn : 0;
 }
 
-export function railExit(input: RailInput): RailExit | RailFailure {
-  const { motor, dryMassKg, railLengthM } = input;
-  const liftoffMassKg = dryMassKg + (motor.masses[0] ?? 0);
-  const weight = liftoffMassKg * G0;
+/** Where the climb stands when the stopping condition is met. */
+interface RailPoint {
+  /** s after ignition */
+  t: number;
+  /** m traveled */
+  s: number;
+  /** m/s */
+  v: number;
+  liftoffS: number;
+}
+
+/**
+ * The climb up a rail of unlimited length, from ignition until `stop` says so.
+ * The one integration both {@link railExit} (stop at the rail's end) and
+ * {@link railNeededM} (stop at a speed) are measured from.
+ */
+function climb(motor: RailMotor, dryMassKg: number, stop: (s: number, v: number) => boolean): RailPoint | RailFailure {
   // Through the catalog's reader: zero outside the burn, and at a step (two
   // samples at one time) the value going forward from it.
   const curve = motor.times.map((ti, i): Sample => [ti, motor.thrusts[i] ?? 0]);
@@ -100,19 +113,38 @@ export function railExit(input: RailInput): RailExit | RailFailure {
     if (v <= 0) return 'stalls';
     s += v * DT;
     t += DT;
-    if (s >= railLengthM) {
-      return {
-        liftoffMassKg,
-        thrustToWeightAverage: averageThrust(motor) / weight,
-        thrustToWeightPeak: Math.max(...motor.thrusts) / weight,
-        thrustToWeightAtExit: thrustAt(curve, t) / ((dryMassKg + motorMassAt(motor, t)) * G0),
-        liftoffS,
-        exitS: t,
-        exitSpeedMs: v,
-      };
-    }
+    if (stop(s, v)) return { t, s, v, liftoffS };
   }
   return liftoffS === null ? 'noLiftoff' : 'stalls';
+}
+
+export function railExit(input: RailInput): RailExit | RailFailure {
+  const { motor, dryMassKg, railLengthM } = input;
+  const liftoffMassKg = dryMassKg + (motor.masses[0] ?? 0);
+  const weight = liftoffMassKg * G0;
+  const at = climb(motor, dryMassKg, (s) => s >= railLengthM);
+  if (typeof at === 'string') return at;
+  const curve = motor.times.map((ti, i): Sample => [ti, motor.thrusts[i] ?? 0]);
+  return {
+    liftoffMassKg,
+    thrustToWeightAverage: averageThrust(motor) / weight,
+    thrustToWeightPeak: Math.max(...motor.thrusts) / weight,
+    thrustToWeightAtExit: thrustAt(curve, at.t) / ((dryMassKg + motorMassAt(motor, at.t)) * G0),
+    liftoffS: at.liftoffS,
+    exitS: at.t,
+    exitSpeedMs: at.v,
+  };
+}
+
+/**
+ * The rail length that leaves the rocket at `minExitMs`: how far it travels
+ * before it reaches that speed. Null when it never does, because it does not
+ * lift off or the burn ends first. The same point-mass climb as
+ * {@link railExit}, so it errs short in the same way that one errs fast.
+ */
+export function railNeededM(motor: RailMotor, dryMassKg: number, minExitMs: number): number | null {
+  const at = climb(motor, dryMassKg, (_s, v) => v >= minExitMs);
+  return typeof at === 'string' ? null : at.s;
 }
 
 /** The angle a rocket leaving the rail at `exitSpeedMs` turns into a crosswind, degrees. */

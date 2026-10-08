@@ -241,3 +241,17 @@ test('the motor card opens a read-only thrust-curve popup', async ({ page }) => 
   // It renders the curve as an SVG, not the picker's list.
   await expect(popup.locator('svg').first()).toBeVisible();
 });
+
+test('hides motors out of regular production until the box is cleared', async ({ page }) => {
+  const dialog = await openPicker(page);
+  await dialog.getByPlaceholder(/Search by code/i).fill('A8');
+  const rows = dialog.locator('ul li');
+  // Estes still makes the A8; Quest's and SCR's are out of production.
+  await expect(rows.filter({ hasText: 'Estes' })).not.toHaveCount(0);
+  await expect(rows.filter({ hasText: 'Quest' })).toHaveCount(0);
+
+  await dialog.getByRole('checkbox', { name: 'Hide motors not in regular production' }).uncheck();
+  await expect(rows.filter({ hasText: 'Quest' })).not.toHaveCount(0);
+  await rows.filter({ hasText: 'Quest' }).first().getByRole('button').first().click();
+  await expect(dialog.getByText('Out of production')).toBeVisible();
+});

@@ -3,19 +3,28 @@ import { escapeXml } from '../xmlUtil';
 import { isWeatherSource, sourceStatus } from '../../weather/weatherSource';
 import { turbulenceIntensity } from '../../flight/windTurbulence';
 import type { OrkWriter } from './exportWriter';
+import type { FlightSummary } from '../../../engine/openRocketEngine';
+import type { OrkExportSimulation } from '../orkTypes';
 import { degToRad } from '../../../prefs/units';
 import { DEFAULT_HEADING_DEG } from '../../flight/simulations';
 import { G0 } from '../../motors/motorMath';
 
 /**
- * The <simulations> block: one <simulation> carrying the launch panel's
- * conditions (rod, wind, site, atmosphere), or the empty wrapper when the
- * caller has no launch conditions to save.
+ * The <simulations> block: every simulation, each with its own conditions and
+ * result summary, when the caller passes them; else one <simulation> carrying
+ * the launch panel's conditions; else the empty wrapper.
  */
-export function simulationsXml(w: OrkWriter, depth: number, launch: LaunchConditions | undefined): void {
+export function simulationsXml(
+  w: OrkWriter,
+  depth: number,
+  launch: LaunchConditions | undefined,
+  simulations?: readonly OrkExportSimulation[],
+): void {
   const { emit } = w;
   emit(depth, '<simulations>');
-  if (launch) {
+  if (simulations?.length) {
+    for (const sim of simulations) simulationXml(w, depth + 1, sim);
+  } else if (launch) {
     // One <simulation> in the exact shape of the desktop's
     // OpenRocketSaver.saveSimulation() so 24.12 opens it cleanly. Its loader
     // tolerates missing elements but WARNS on any simulator/calculator other
@@ -34,9 +43,52 @@ export function simulationsXml(w: OrkWriter, depth: number, launch: LaunchCondit
   emit(depth, '</simulations>');
 }
 
-function conditionsXml(w: OrkWriter, depth: number, launch: LaunchConditions): void {
+/**
+ * One simulation, in the shape of the desktop's OpenRocketSaver.saveSimulation():
+ * status, name, simulator, calculator, conditions, then the <flightdata> summary
+ * when there is a result. The summary is the ten figures as attributes; the
+ * per-sample <databranch> data is not written, so the desktop shows the figures
+ * and re-flies the simulation for its plots.
+ */
+function simulationXml(w: OrkWriter, depth: number, sim: OrkExportSimulation): void {
   const { emit } = w;
-  emit(depth, `<configid>${escapeXml(w.defaultId)}</configid>`);
+  const summary = sim.status === 'notsimulated' ? undefined : sim.summary;
+  emit(depth, `<simulation status="${summary ? sim.status : 'notsimulated'}">`);
+  emit(depth + 1, `<name>${escapeXml(sim.name)}</name>`);
+  emit(depth + 1, '<simulator>RK4Simulator</simulator>');
+  emit(depth + 1, '<calculator>BarrowmanCalculator</calculator>');
+  emit(depth + 1, '<conditions>');
+  const configId = w.writeConfigs.some((c) => c.id === sim.configId) ? sim.configId : w.defaultId;
+  conditionsXml(w, depth + 2, sim.launch, configId);
+  emit(depth + 1, '</conditions>');
+  if (summary) emit(depth + 1, flightDataTag(summary));
+  emit(depth, '</simulation>');
+}
+
+/** The <flightdata> summary as the desktop writes it: one attribute per figure it has. */
+function flightDataTag(s: FlightSummary): string {
+  const attrs: [string, number | null][] = [
+    ['maxaltitude', s.maxAltitude],
+    ['maxvelocity', s.maxVelocity],
+    ['maxacceleration', s.maxAcceleration],
+    ['maxmach', s.maxMachNumber],
+    ['timetoapogee', s.timeToApogee],
+    ['flighttime', s.flightTime],
+    ['groundhitvelocity', s.groundHitVelocity],
+    ['launchrodvelocity', s.launchRodVelocity],
+    ['deploymentvelocity', s.deploymentVelocity],
+    ['optimumdelay', s.optimumDelay],
+  ];
+  const written = attrs
+    .filter(([, v]) => v != null && Number.isFinite(v))
+    .map(([k, v]) => ` ${k}="${v}"`)
+    .join('');
+  return `<flightdata${written}/>`;
+}
+
+function conditionsXml(w: OrkWriter, depth: number, launch: LaunchConditions, configId: string = w.defaultId): void {
+  const { emit } = w;
+  emit(depth, `<configid>${escapeXml(configId)}</configid>`);
   emit(depth, `<launchrodlength>${launch.launchRodLengthM ?? 0}</launchrodlength>`);
   // The app edits launch-into-wind, the rod heading, the wind heading and the
   // longitude (LaunchPanel), so all four are written from the design rather than

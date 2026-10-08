@@ -33,7 +33,7 @@ export function ToolsPane() {
       <div
         role="tablist"
         aria-label={t('tools.label')}
-        className="flex shrink-0 gap-1 overflow-x-auto border-b border-white/10 px-3 pt-2"
+        className="flex shrink-0 gap-1 overflow-x-auto border-b border-line/10 px-3 pt-2"
       >
         {TOOLS.map((k) => (
           <button
@@ -41,7 +41,7 @@ export function ToolsPane() {
             type="button"
             {...tabs.tab(k)}
             className={`-mb-px whitespace-nowrap border-b-2 px-3 py-1.5 text-xs font-semibold ${
-              tool === k ? 'border-sky-400 text-sky-300' : 'border-transparent text-slate-400 hover:text-slate-200'
+              tool === k ? 'border-accent-400 text-accent-300' : 'border-transparent text-ink-muted hover:text-ink'
             }`}
           >
             {t(`tools.tool_${k}`)}

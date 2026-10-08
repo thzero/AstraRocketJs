@@ -25,6 +25,7 @@ Every quantity has its own unit, set on the **Units** tab. **Metric defaults** a
 | Pressure | launch-site air pressure | hPa | psi |
 | Thrust / force | motor thrust | N | lbf |
 | Impulse | total impulse | N·s | lbf·s |
+| Roll rate | the flight's roll rate | r/s | r/s |
 
 A fresh install starts on the **metric defaults**, and that is exactly what the reset buttons restore too — there is only one metric set, so nothing can surprise you with a different "metric".
 
@@ -116,7 +117,7 @@ At the bottom of the Atmosphere card on the Launch tab is a field for an Open-Me
 
 Five thresholds, in the units you have chosen for velocity. They color the result tiles *and* reach the flight engine, so they decide which warnings a run reports rather than only how the numbers are painted.
 
-- **Min rail-exit velocity** — below this the fins have too little airflow to steer, so the rocket can weathercock into the wind or go unstable as it leaves the rod. The rod-exit tile is green at or above this and warns below it.
+- **Min launcher-exit velocity**: below this the fins have too little airflow to steer, so the rocket can weathercock into the wind or go unstable as it leaves the launcher. The launcher-exit tile is green at or above this and warns below it.
 - **Deploy-speed warning above** — single deployment (no drogue): above this speed, opening the parachute risks zippering the airframe or tearing the canopy.
 
 The last three apply only to **dual deployment** (a stage carrying a drogue), where the main and the drogue are judged instead of the single threshold above:
@@ -135,11 +136,17 @@ Changing any of them marks every simulation that has already run as **outdated**
 
 Everything above decides when a flight *warns*. This one changes what the flight does.
 
-- **Guide-aware rod clearance** — off by default, which is OpenRocket's own behavior: the rocket stays on the rod for the full rod length wherever its launch lugs or rail buttons sit. OpenRocket works out a guide-aware length and then never uses it, so a guide mounted above the rocket's aft end is credited with guided travel it does not have, and rail buttons are not considered at all.
+- **Guide-aware launcher clearance**: off by default, which is OpenRocket's own behavior: the rocket stays on the launcher for its full length wherever its launch lugs or rail buttons sit. OpenRocket works out a guide-aware length and then never uses it, so a guide mounted above the rocket's aft end is credited with guided travel it does not have, and rail buttons are not considered at all.
 
   Turn it on and the guided phase ends when the aft-most guide leaves the rod, lug or rail button alike. The rocket is released at that moment as well as reported there, so the flight itself changes, not just the number. Expect the rail-exit velocity to come out a little lower: a rail button usually sits 10 to 20 cm above the tail, which on a 1.8 m rail is roughly 8% less guided travel. A design with no guide at all is a tower launcher and flies identically either way.
 
   It is a setting rather than a correction because the engine is checked against desktop OpenRocket flight for flight. Left off, a run matches OpenRocket exactly.
+
+## General
+
+- **Theme**: Dark, Light, Follow system (light or dark as your device is set, changing when it does) or Daylight (high contrast), a light theme with black text and darker colors for reading a screen in sunlight at the field. Dark by default. The 3D views and the schematic follow the theme; a downloaded or printed schematic keeps its own print colors whatever the theme. The ☀ button in the header switches to Daylight in one tap, and a second tap goes back to the theme you had.
+- **Save design info (statistics) in the file**: writes the design's derived figures (mass, CG, CP, stability) into a saved `.ork`, as desktop OpenRocket can. Off by default.
+- **Ask where to save each file**: opens the browser's own save dialog for every export, so you choose the name and the folder. On by default, and shown only in browsers that have that dialog (Chrome and Edge). Off, or in Firefox and Safari, files go straight to your downloads folder.
 
 ## Reset
 

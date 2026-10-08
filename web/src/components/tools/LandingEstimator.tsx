@@ -18,6 +18,7 @@ import { formatCoord } from '../../services/map/slippyMap';
 import { weatherErrorText } from '../../services/weather/weatherErrorText';
 import { fmtSiteTime } from '../../i18n/format';
 import { useLatest } from '../common/useLatest';
+import { useOnline } from '../common/useOnline';
 
 /**
  * Where a rocket will come down, for a flight that has not been designed here:
@@ -52,6 +53,7 @@ export function forgetLandingEstimator(): void {
 
 export function LandingEstimator() {
   const { t } = useTranslation();
+  const online = useOnline();
   const u = useUnits();
   const { settings } = useSettings();
   const defaults = settings.launchDefaults;
@@ -128,8 +130,8 @@ export function LandingEstimator() {
     <div className="grid gap-4 lg:grid-cols-[22rem_minmax(0,1fr)]">
       <div className="space-y-4">
         <div>
-          <h2 className="text-sm font-semibold text-slate-200">{t('landing.title')}</h2>
-          <p className="mt-1 text-xs text-slate-400">{t('landing.intro')}</p>
+          <h2 className="text-sm font-semibold text-ink">{t('landing.title')}</h2>
+          <p className="mt-1 text-xs text-ink-muted">{t('landing.intro')}</p>
         </div>
 
         <CardGroup title={t('landing.site')}>
@@ -157,7 +159,7 @@ export function LandingEstimator() {
           <fieldset>
             <legend className="sr-only">{t('landing.recovery')}</legend>
             <div className="flex items-center justify-between gap-3">
-              <span className="text-xs text-slate-400">{t('landing.recovery')}</span>
+              <span className="text-xs text-ink-muted">{t('landing.recovery')}</span>
               <div className="flex gap-3">
                 {(['single', 'dual'] as const).map((r) => (
                   <label key={r} className="flex items-center gap-1.5">
@@ -166,9 +168,9 @@ export function LandingEstimator() {
                       name="landingRecovery"
                       checked={recovery === r}
                       onChange={() => setRecovery(r)}
-                      className="accent-sky-500"
+                      className="accent-accent-500"
                     />
-                    <span className="text-xs text-slate-400">{t(`landing.recovery_${r}`)}</span>
+                    <span className="text-xs text-ink-muted">{t(`landing.recovery_${r}`)}</span>
                   </label>
                 ))}
               </div>
@@ -221,14 +223,15 @@ export function LandingEstimator() {
         </CardGroup>
 
         <button
-          className="w-full rounded-md bg-sky-600 px-3 py-2 text-sm font-semibold text-white hover:bg-sky-500 disabled:opacity-50"
-          disabled={!ready || state.kind === 'loading'}
+          className="w-full rounded-md bg-accent-600 px-3 py-2 text-sm font-semibold text-on-accent hover:bg-accent-500 disabled:opacity-50"
+          disabled={!ready || state.kind === 'loading' || !online}
+          title={online ? undefined : t('common.needsConnection')}
           onClick={() => void estimate()}
         >
           {state.kind === 'loading' ? t('landing.estimating') : t('landing.estimate')}
         </button>
-        {!hasSite && <p className="text-xs text-amber-400">{t('weather.needSite')}</p>}
-        <p role="status" aria-live="polite" className="text-xs text-amber-400">
+        {!hasSite && <p className="text-xs text-warn-400">{t('weather.needSite')}</p>}
+        <p role="status" aria-live="polite" className="text-xs text-warn-400">
           {state.kind === 'error' ? state.message : ''}
         </p>
       </div>
@@ -245,7 +248,7 @@ export function LandingEstimator() {
               ellipse={e.ellipse}
               distanceUnit={dist}
             />
-            <dl className="grid grid-cols-[repeat(auto-fill,minmax(9rem,1fr))] gap-x-4 gap-y-2 rounded-xl bg-slate-900 p-3 text-xs ring-1 ring-white/10">
+            <dl className="grid grid-cols-[repeat(auto-fill,minmax(9rem,1fr))] gap-x-4 gap-y-2 rounded-xl bg-surface p-3 text-xs ring-1 ring-line/10">
               <TermRow label={t('landing.lands')}>
                 {formatCoord(e.nominal.landingLatDeg, e.nominal.landingLonDeg, 5)}
               </TermRow>
@@ -260,17 +263,17 @@ export function LandingEstimator() {
               <TermRow label={t('landing.groundAtLanding')}>{fmtM(e.nominal.groundElevationM)}</TermRow>
               <TermRow label={t('env.when')}>{validTime}</TermRow>
             </dl>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-ink-muted">
               {t('landing.estimateNote', { descents: e.samples.length, hours: e.hours })}
             </p>
-            {!run.terrain && <p className="text-xs text-amber-400">{t('landing.flatGround')}</p>}
+            {!run.terrain && <p className="text-xs text-warn-400">{t('landing.flatGround')}</p>}
             {run.answer.endpoint === 'archive' && (
-              <p className="text-xs text-amber-400">{t('landing.surfaceWindOnly')}</p>
+              <p className="text-xs text-warn-400">{t('landing.surfaceWindOnly')}</p>
             )}
             <OpenMeteoCredit />
           </>
         ) : (
-          <p className="p-4 text-sm text-slate-500">{t('landing.empty')}</p>
+          <p className="p-4 text-sm text-ink-faint">{t('landing.empty')}</p>
         )}
       </div>
     </div>

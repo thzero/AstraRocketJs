@@ -47,7 +47,7 @@ const SPLITTABLE: Record<string, { count: string; angle: string }> = {
 
 /** Every id in this subtree replaced with a fresh one, so a copy is a new part
  *  rather than a second node claiming the same identity. */
-function reid(node: ComponentNode): ComponentNode {
+export function reid(node: ComponentNode): ComponentNode {
   const out: ComponentNode = { ...node, id: uuid() };
   if (node.children) out.children = node.children.map(reid);
   return out;

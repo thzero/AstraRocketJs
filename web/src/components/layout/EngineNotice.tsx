@@ -42,7 +42,7 @@ export function EngineNotice() {
       // Amber once it is stuck, because by then it is a warning rather than a
       // progress line; the app's shared warning tone, as the flight warnings use.
       className={`flex flex-wrap items-center gap-x-3 gap-y-1 border-b px-4 py-2 text-sm ${
-        stuck ? 'border-amber-500/30 bg-amber-950/40 text-amber-200' : 'border-white/10 bg-slate-900 text-slate-300'
+        stuck ? 'border-warn-500/30 bg-warn-950/40 text-warn-200' : 'border-line/10 bg-surface text-ink-soft'
       }`}
       role="status"
     >
@@ -54,7 +54,7 @@ export function EngineNotice() {
         <button
           type="button"
           onClick={retry}
-          className="ml-auto rounded-md bg-amber-500/15 px-2 py-1 text-xs font-medium text-amber-100 ring-1 ring-amber-400/30 hover:bg-amber-500/25"
+          className="ml-auto rounded-md bg-warn-500/15 px-2 py-1 text-xs font-medium text-warn-100 ring-1 ring-warn-400/30 hover:bg-warn-500/25"
         >
           {t('engine.retry')}
         </button>

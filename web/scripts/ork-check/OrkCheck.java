@@ -4,6 +4,8 @@ import com.google.inject.Injector;
 import info.openrocket.core.database.ComponentPresetDao;
 import info.openrocket.core.database.ComponentPresetDatabase;
 import info.openrocket.core.document.OpenRocketDocument;
+import info.openrocket.core.document.Simulation;
+import info.openrocket.core.simulation.FlightData;
 import info.openrocket.core.file.GeneralRocketLoader;
 import info.openrocket.core.logging.Warning;
 import info.openrocket.core.motor.MotorConfiguration;
@@ -26,8 +28,9 @@ import java.io.File;
  * showed up as a warning dialog on somebody's screen.
  *
  * Prints every component that came back carrying a catalog part, every motor
- * that resolved and the digest it resolved to, and then the loader's own warning
- * set. Exit code 1 if there are any warnings, so this can gate a change.
+ * that resolved and the digest it resolved to, every simulation with the status
+ * the loader gave it, and then the loader's own warning set. Exit code 1 if
+ * there are any warnings, so this can gate a change.
  *
  * WIRING. `CoreModule` builds its own database loaders and only starts them when
  * asked, and the preset database cannot be built before `Application.setInjector`
@@ -72,6 +75,14 @@ public class OrkCheck {
                     System.out.println("  motor " + mc.getMotor().getDesignation()
                             + " (" + mc.getMotor().getDigest() + ")");
                 }
+            }
+            // Each simulation, with the status the loader gave it: LOADED means it
+            // read a result summary, NOT_SIMULATED that there was none.
+            for (Simulation sim : doc.getSimulations()) {
+                FlightData d = sim.getSimulatedData();
+                System.out.println("  sim   " + sim.getName() + " [" + sim.getStatus() + "] config "
+                        + sim.getFlightConfigurationId().key
+                        + (d != null ? " apogee " + d.getMaxAltitude() + " m" : ""));
             }
             if (loader.getWarnings().isEmpty()) {
                 System.out.println("  no warnings");

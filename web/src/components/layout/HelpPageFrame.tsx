@@ -27,13 +27,13 @@ export function HelpPageFrame({
     <div className="relative min-h-0 flex-1">
       {status === 'missing' ? (
         <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
-          <p className="text-sm text-slate-300">{t('help.missing', { name: appName() })}</p>
+          <p className="text-sm text-ink-soft">{t('help.missing', { name: appName() })}</p>
           {siteHref && (
             <a
               href={siteHref}
               target="_blank"
               rel="noopener noreferrer"
-              className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-500"
+              className="rounded-lg bg-accent-600 px-4 py-2 text-sm font-medium text-on-accent hover:bg-accent-500"
             >
               {t('help.openOnSite')}
             </a>
@@ -42,7 +42,7 @@ export function HelpPageFrame({
       ) : (
         <>
           {status !== 'ready' && (
-            <p className="absolute inset-0 grid place-items-center text-sm text-slate-500">{t('help.loading')}</p>
+            <p className="absolute inset-0 grid place-items-center text-sm text-ink-faint">{t('help.loading')}</p>
           )}
           {status !== 'probing' && (
             <iframe

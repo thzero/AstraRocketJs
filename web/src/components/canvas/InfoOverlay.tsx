@@ -33,13 +33,13 @@ export function InfoOverlay({ info }: { info: StaticInfo | null }) {
     ],
   ];
   return (
-    <div className="pointer-events-none rounded-lg bg-slate-900/85 px-3 py-2 ring-1 ring-white/10">
+    <div className="pointer-events-none rounded-lg bg-surface/85 px-3 py-2 ring-1 ring-line/10">
       <table className="border-separate border-spacing-x-3 border-spacing-y-0.5">
         <tbody>
           {rows.map(([label, value], i) => (
             <tr key={i}>
-              <td className="text-[10px] uppercase tracking-wide text-slate-400">{label}</td>
-              <td className="text-right text-xs font-semibold tabular-nums text-slate-100">{value}</td>
+              <td className="text-[10px] uppercase tracking-wide text-ink-muted">{label}</td>
+              <td className="text-right text-xs font-semibold tabular-nums text-ink-strong">{value}</td>
             </tr>
           ))}
         </tbody>

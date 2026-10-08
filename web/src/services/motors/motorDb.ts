@@ -52,6 +52,9 @@ export interface CatalogMotor {
   /** Set by the sync when no thrust curve could be bundled (none published, or
    *  missing length/prop weight). Such a motor can't be plotted / combined. */
   noCurve?: boolean;
+  /** Out of regular production (thrustcurve.org's OOP). Desktop's chooser hides
+   *  these behind "Hide motors which are not in regular production". */
+  oop?: boolean;
   /**
    * OpenRocket's own digests for this motor, one per entry its database holds
    * for the name, with the delays that entry offers. Put here by
@@ -179,13 +182,30 @@ export async function loadCatalog(): Promise<CatalogMotor[]> {
  * can be a manufacturer's whole range and importing 40 of them silently would
  * be indistinguishable from importing one.
  */
-export async function importCustomMotors(text: string): Promise<{ catalog: CatalogMotor[]; imported: number }> {
-  const motors = text.trimStart().startsWith('<') ? parseRse(text) : [parseEng(text)];
-  // ONE write for the whole file. A `.rse` engine database is a manufacturer's
+export async function importCustomMotors(
+  files: { name: string; text: string }[],
+): Promise<{ catalog: CatalogMotor[]; imported: number; failed: string[] }> {
+  // Several files at once, the way desktop loads a whole folder of thrust
+  // curves. A file that cannot be read is named and skipped rather than
+  // stopping the rest.
+  const motors: ReturnType<typeof parseEng>[] = [];
+  const failed: string[] = [];
+  let firstError: unknown = null;
+  for (const { name, text } of files) {
+    try {
+      motors.push(...(text.trimStart().startsWith('<') ? parseRse(text) : [parseEng(text)]));
+    } catch (err) {
+      failed.push(name);
+      firstError ??= err;
+    }
+  }
+  // Nothing read at all: the parser's own message says what is wrong with it.
+  if (motors.length === 0 && firstError) throw firstError;
+  // ONE write for every file. A `.rse` engine database is a manufacturer's
   // entire range, and a write per motor re-parsed the stored array every time and
   // could stop half way with no way to say where.
   await getMotorStore().addCustomMotors(motors);
-  return { catalog: await loadCatalog(), imported: motors.length };
+  return { catalog: await loadCatalog(), imported: motors.length, failed };
 }
 
 /** Remove an imported motor and return the refreshed catalog. */
@@ -221,6 +241,10 @@ export interface MotorFilter {
    * offersPlugged), so this finds the ones built without an ejection charge.
    */
   plugged?: boolean;
+  /** Leave out motors no longer in regular production (desktop's "hide unavailable"). */
+  hideOop?: boolean;
+  /** Leave out these motors, by `keyOf`: the ones already used in the mount. */
+  hide?: ReadonlySet<string>;
 }
 
 export function filterMotors(catalog: CatalogMotor[], filter: MotorFilter): CatalogMotor[] {
@@ -234,6 +258,9 @@ export function filterMotors(catalog: CatalogMotor[], filter: MotorFilter): Cata
     if (filter.maxImpulse != null && m.impulse > filter.maxImpulse) return false;
     if (filter.fit && !motorFitsMount(m, filter.fit)) return false;
     if (filter.plugged && !offersPlugged(m)) return false;
+    if (filter.hideOop && m.oop) return false;
+    if (filter.hide && filter.hide.has(`${m.manufacturer}|${m.designation}|${m.diameter}|${m.code ?? ''}`))
+      return false;
     if (text && !m.designation.toLowerCase().includes(text)) return false;
     return true;
   });

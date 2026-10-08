@@ -32,21 +32,23 @@ export function CheckMenu({
 }) {
   return (
     <details className={className ? `relative ${className}` : 'relative'}>
-      <summary className="cursor-pointer list-none rounded-lg bg-slate-950 px-3 py-1.5 text-sm text-slate-100 ring-1 ring-white/10">
+      <summary className="cursor-pointer list-none rounded-lg bg-canvas px-3 py-1.5 text-sm text-ink-strong ring-1 ring-line/10">
         {summary}
       </summary>
       <div
-        className={`absolute top-full z-20 mt-1 max-h-64 ${width} overflow-y-auto rounded-lg bg-slate-950 p-1 shadow-xl ring-1 ring-white/10 ${
+        className={`absolute top-full z-20 mt-1 max-h-64 ${width} overflow-y-auto rounded-lg bg-canvas p-1 shadow-xl ring-1 ring-line/10 ${
           align === 'left' ? 'left-0' : 'right-0'
         }`}
       >
         {children}
         {items.map((it) => (
-          <label
-            key={it.key}
-            className="flex items-center gap-2 rounded px-2 py-1 text-sm text-slate-200 hover:bg-slate-800"
-          >
-            <input type="checkbox" checked={it.checked} className="accent-sky-500" onChange={() => onToggle(it.key)} />
+          <label key={it.key} className="flex items-center gap-2 rounded px-2 py-1 text-sm text-ink hover:bg-raised">
+            <input
+              type="checkbox"
+              checked={it.checked}
+              className="accent-accent-500"
+              onChange={() => onToggle(it.key)}
+            />
             {it.label}
           </label>
         ))}

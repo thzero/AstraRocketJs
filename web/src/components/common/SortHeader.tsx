@@ -30,7 +30,7 @@ export function SortHeader({
         <button
           type="button"
           onClick={onSort}
-          className={`inline-flex items-center gap-0.5 hover:text-slate-200 ${active ? 'text-sky-400' : ''}`}
+          className={`inline-flex items-center gap-0.5 hover:text-ink ${active ? 'text-accent-400' : ''}`}
         >
           {children}
           {active && <span aria-hidden="true">{dir === 1 ? '▲' : '▼'}</span>}

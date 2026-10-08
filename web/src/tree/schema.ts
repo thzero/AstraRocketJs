@@ -37,8 +37,8 @@ export const DISPLAY_NAME: Record<ComponentType, string> = {
   streamer: 'Streamer',
   shockcord: 'Shock cord',
   masscomponent: 'Mass component',
-  // RASAero-origin and unreachable from the editor (no ALLOWED_CHILDREN
-  // entry, no defaultNode case, no property panel). Present only in a
+  // RASAero-origin and unreachable from the editor (not in the Add menu,
+  // no defaultNode case, no property panel). Present only in a
   // design loaded from a .ork this app wrote. See openRocketEngine.ts.
   fairing: 'Camera shroud / fairing',
   podset: 'Pod set',

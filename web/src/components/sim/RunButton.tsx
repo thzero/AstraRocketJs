@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useLauncherT } from '../common/useLauncher';
 import { useWorkspaceStore, selectActive, configOf } from '../../state/store';
 import { primaryMotor } from '../../services/flight/flightConfigs';
 import { useSettings } from '../../state/SettingsProvider';
@@ -14,7 +14,7 @@ import { designBlocker, designBlockerText, unflyableSims, unflyableText } from '
  * a lie about what the click would do.
  */
 export function RunButton({ className = '' }: { className?: string }) {
-  const { t } = useTranslation();
+  const t = useLauncherT();
   const { settings } = useSettings();
   const units = useUnits();
   // Subscribe to the two STABLE pieces and derive the list here. Subscribing to
@@ -69,14 +69,14 @@ export function RunButton({ className = '' }: { className?: string }) {
       <button
         onClick={() => (busy ? cancelRun() : runSims(runIds, settings.simulation))}
         disabled={!busy && (!info || blocked)}
-        className={`w-full rounded-lg px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50 ${
-          busy ? 'bg-slate-600 hover:bg-slate-500' : 'bg-sky-600 hover:bg-sky-500'
+        className={`w-full rounded-lg px-4 py-2.5 text-sm font-semibold text-on-accent disabled:cursor-not-allowed disabled:opacity-50 ${
+          busy ? 'bg-prominent hover:bg-prominent-hover' : 'bg-accent-600 hover:bg-accent-500'
         }`}
       >
         {label}
       </button>
       {notice && !busy && (
-        <p className="rounded-lg bg-amber-500/10 px-3 py-1.5 text-xs leading-snug text-amber-300 ring-1 ring-amber-400/30">
+        <p className="rounded-lg bg-warn-500/10 px-3 py-1.5 text-xs leading-snug text-warn-300 ring-1 ring-warn-400/30">
           ⚠{' '}
           {/* Says what the click will actually do. Blocked, this is the whole
               story; with some rows still flyable it names what gets left out,

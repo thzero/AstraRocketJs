@@ -42,7 +42,7 @@ export function MotorSpecDialog({ motor, onClose }: { motor: MotorSpec; onClose:
       {samples.length >= 2 ? (
         <ThrustChart samples={samples} avg={avg} burn={burn} />
       ) : (
-        <p className="my-4 text-xs text-slate-400">{t('motorDlg.noCurve')}</p>
+        <p className="my-4 text-xs text-ink-muted">{t('motorDlg.noCurve')}</p>
       )}
 
       <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4">

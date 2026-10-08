@@ -27,7 +27,7 @@ export function Segmented<T extends string | number | boolean>({
 }) {
   return (
     <div
-      className={`inline-flex overflow-hidden ring-1 ring-white/10 ${size === 'sm' ? 'rounded-lg' : 'rounded-md'} ${disabled ? 'opacity-40' : ''}`}
+      className={`inline-flex overflow-hidden ring-1 ring-line/10 ${size === 'sm' ? 'rounded-lg' : 'rounded-md'} ${disabled ? 'opacity-40' : ''}`}
     >
       {options.map((o) => (
         <ToggleButton

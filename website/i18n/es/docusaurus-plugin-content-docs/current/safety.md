@@ -46,7 +46,7 @@ Lo más valioso que puedes hacer es dejar de simular un plano y empezar a simula
 5. **Comprueba la velocidad de descenso y la de aterrizaje**, y la traza sobre el suelo para ver cuánto te aleja a sotavento. Luego mira el tamaño real del campo.
 6. **Vuelve a ejecutar tras cualquier cambio**, incluido un cambio de motor. Los resultados solo valen para el diseño y las condiciones con los que se ejecutaron.
 
-La sección de invalidaciones ofrece masa, CG y coeficiente de resistencia, cada una con un interruptor de "aplicar a todos los subcomponentes", igual que en OpenRocket. Consulta [Diseñar un cohete](./designing-a-rocket.md).
+La sección de invalidaciones ofrece masa, CG y coeficiente de resistencia, cada una con un interruptor de "aplicar a todos los subcomponentes", igual que en OpenRocket. Una pieza dentro de una de ellas lo indica en rojo ("Masa anulada por Sustainer") y su propia invalidación de ese valor queda bloqueada, como en el programa de escritorio: el valor exterior ya lo decide. Consulta [Diseñar un cohete](./designing-a-rocket.md).
 
 ## Los límites que impone la aplicación {#the-limits-the-app-enforces}
 

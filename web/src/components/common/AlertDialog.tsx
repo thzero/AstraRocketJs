@@ -72,7 +72,7 @@ export function AlertDialog({
 
   return (
     <div
-      className={`fixed inset-0 ${layerClass[layer]} grid place-items-center bg-black/60 p-4`}
+      className={`fixed inset-0 ${layerClass[layer]} grid place-items-center bg-shade/60 p-4`}
       onClick={(e) => {
         e.stopPropagation();
         onCancel?.();
@@ -88,7 +88,7 @@ export function AlertDialog({
         // cannot overflow, but a confirmation quoting a long design name on a
         // short window could, and running off the bottom would take the buttons
         // with it.
-        className={`w-full ${widthClass(size)} max-h-[85vh] overflow-y-auto rounded-2xl bg-slate-900 p-6 ring-1 ring-white/10`}
+        className={`w-full ${widthClass(size)} max-h-[85vh] overflow-y-auto rounded-2xl bg-surface p-6 ring-1 ring-line/10`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-3">
@@ -97,11 +97,11 @@ export function AlertDialog({
               {icon}
             </span>
           )}
-          <h2 id={titleId} className="text-base font-semibold text-slate-100">
+          <h2 id={titleId} className="text-base font-semibold text-ink-strong">
             {title}
           </h2>
         </div>
-        <p id={messageId} className="mt-3 text-sm leading-relaxed text-slate-300">
+        <p id={messageId} className="mt-3 text-sm leading-relaxed text-ink-soft">
           {message}
         </p>
         <div className="mt-6 flex justify-end gap-2">

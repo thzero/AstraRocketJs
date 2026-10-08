@@ -132,7 +132,7 @@ export function Dialog({
 
   return (
     <div
-      className={`dialog-overlay fixed inset-0 ${layerClass[layer]} flex items-center justify-center bg-black/60 p-4`}
+      className={`dialog-overlay fixed inset-0 ${layerClass[layer]} flex items-center justify-center bg-shade/60 p-4`}
       // The stop is not optional: a nested dialog renders INSIDE its parent's
       // overlay, so a bare onClose here bubbled up and dismissed both at once.
       // One dialog had noticed and written the guard itself; the rest had not.
@@ -147,7 +147,7 @@ export function Dialog({
         aria-modal="true"
         aria-labelledby={name === undefined ? headingId : undefined}
         aria-label={name}
-        className={`${fullBleed ? 'dialog-panel' : ''} flex w-full flex-col overflow-hidden rounded-xl bg-slate-900 ring-1 ring-white/10 ${sizeClasses(size, expanded, layout === 'fill' && height === undefined)} ${height === undefined ? '' : 'h-[var(--dialog-height)]'}`}
+        className={`${fullBleed ? 'dialog-panel' : ''} flex w-full flex-col overflow-hidden rounded-xl bg-surface ring-1 ring-line/10 ${sizeClasses(size, expanded, layout === 'fill' && height === undefined)} ${height === undefined ? '' : 'h-[var(--dialog-height)]'}`}
         // The pixel height arrives as a CUSTOM PROPERTY read by a class, not as
         // an inline `height`. Inline styles beat a stylesheet, so an inline
         // height silently defeated the full-bleed phone rule in index.css and a
@@ -156,7 +156,7 @@ export function Dialog({
         style={height === undefined ? undefined : ({ '--dialog-height': `${height}px` } as CSSProperties)}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between gap-2 border-b border-white/10 p-3">
+        <div className="flex items-center justify-between gap-2 border-b border-line/10 p-3">
           {/*
             The title scale follows the CONTENT's density rather than the dialog:
             a dense list wants a quiet heading, a page of prose wants a real one.
@@ -167,13 +167,13 @@ export function Dialog({
           {leading}
           <div className="min-w-0 flex-1">
             {eyebrow && (
-              <div className="truncate text-[11px] font-semibold uppercase tracking-wider text-amber-400/90">
+              <div className="truncate text-[11px] font-semibold uppercase tracking-wider text-warn-400/90">
                 {eyebrow}
               </div>
             )}
             <h2
               id={headingId}
-              className={`truncate font-semibold text-slate-200 ${layout === 'scroll' ? 'text-sm' : 'text-base'}`}
+              className={`truncate font-semibold text-ink ${layout === 'scroll' ? 'text-sm' : 'text-base'}`}
             >
               {title}
             </h2>
@@ -188,7 +188,7 @@ export function Dialog({
                 aria-pressed={expanded}
                 aria-label={t(expanded ? 'dialog.shrink' : 'dialog.expand')}
                 title={t(expanded ? 'dialog.shrink' : 'dialog.expand')}
-                className="hidden rounded-md bg-slate-800 px-2 py-1 text-xs text-slate-300 hover:bg-slate-700 lg:block"
+                className="hidden rounded-md bg-raised px-2 py-1 text-xs text-ink-soft hover:bg-elevated lg:block"
               >
                 {expanded ? '⤡' : '⤢'}
               </button>
@@ -196,7 +196,7 @@ export function Dialog({
             <button
               onClick={onClose}
               aria-label={t('common.close')}
-              className="rounded-md bg-slate-800 px-2 py-1 text-xs text-slate-300 hover:bg-slate-700"
+              className="rounded-md bg-raised px-2 py-1 text-xs text-ink-soft hover:bg-elevated"
             >
               ✕
             </button>
@@ -205,13 +205,13 @@ export function Dialog({
 
         {layout === 'scroll' && (
           <>
-            {toolbar && <div className="border-b border-white/10">{toolbar}</div>}
+            {toolbar && <div className="border-b border-line/10">{toolbar}</div>}
             <div className="min-h-0 flex-1 overflow-auto">{children}</div>
           </>
         )}
         {layout === 'pad' && <div className="min-h-0 flex-1 overflow-y-auto p-4">{children}</div>}
         {layout === 'fill' && <div className="flex min-h-0 flex-1 flex-col">{children}</div>}
-        {layout !== 'pad' && footer && <div className="border-t border-white/10">{footer}</div>}
+        {layout !== 'pad' && footer && <div className="border-t border-line/10">{footer}</div>}
       </div>
     </div>
   );

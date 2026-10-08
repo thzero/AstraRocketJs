@@ -6,7 +6,7 @@ import type { useHelpSearch } from './useHelpSearch';
 
 /** A rail row: the page list and the heading list share their look. */
 const railRow =
-  'block w-full truncate rounded px-2 py-1 text-left text-xs text-slate-300 hover:bg-slate-800 hover:text-slate-100';
+  'block w-full truncate rounded px-2 py-1 text-left text-xs text-ink-soft hover:bg-raised hover:text-ink-strong';
 
 /** Text with the searched-for words marked, for a result row. */
 function Marked({ text, tokens }: { text: string; tokens: string[] }) {
@@ -14,7 +14,7 @@ function Marked({ text, tokens }: { text: string; tokens: string[] }) {
     <>
       {splitHighlight(text, tokens).map((segment, i) =>
         segment.hit ? (
-          <mark key={i} className="rounded bg-amber-300/25 text-amber-100">
+          <mark key={i} className="rounded bg-warn-300/25 text-warn-100">
             {segment.text}
           </mark>
         ) : (
@@ -58,7 +58,7 @@ export function HelpRail({
     entry.page === null ? (
       <p
         key={`group-${i}`}
-        className="mt-3 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500 first:mt-0"
+        className="mt-3 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-ink-faint first:mt-0"
       >
         {entry.label}
       </p>
@@ -67,7 +67,7 @@ export function HelpRail({
         <button
           onClick={() => pick(entry.page!)}
           aria-current={entry.page === slug ? 'page' : undefined}
-          className={`${railRow} ${entry.page === slug ? 'bg-slate-800 font-semibold text-sky-300' : ''}`}
+          className={`${railRow} ${entry.page === slug ? 'bg-raised font-semibold text-accent-300' : ''}`}
         >
           {entry.label}
         </button>
@@ -83,7 +83,7 @@ export function HelpRail({
               onClick={() => pick(`${slug}${h.hash}`)}
               aria-current={h.hash === activeHash ? 'location' : undefined}
               className={`${railRow} ${h.level > 1 ? 'pl-8' : 'pl-5'} ${
-                h.hash === activeHash ? 'bg-slate-800 text-sky-300' : 'text-slate-400'
+                h.hash === activeHash ? 'bg-raised text-accent-300' : 'text-ink-muted'
               }`}
             >
               {h.label}
@@ -96,7 +96,7 @@ export function HelpRail({
   return (
     <nav
       aria-label={t('help.contents')}
-      className="absolute inset-y-0 left-0 z-10 w-56 shrink-0 overflow-y-auto border-r border-white/10 bg-slate-900 p-2 md:static md:z-auto"
+      className="absolute inset-y-0 left-0 z-10 w-56 shrink-0 overflow-y-auto border-r border-line/10 bg-surface p-2 md:static md:z-auto"
     >
       {/* Search the whole guide, not this page: the index is every page
           the rail lists. It sits in the rail because that is where the
@@ -113,14 +113,14 @@ export function HelpRail({
           placeholder={t('help.search')}
           aria-label={t('help.search')}
           enterKeyHint="search"
-          className="min-w-0 flex-1 rounded bg-slate-800 px-2 py-1 text-xs text-slate-200 ring-1 ring-white/10 placeholder:text-slate-500 focus:outline-none focus:ring-sky-500"
+          className="min-w-0 flex-1 rounded bg-raised px-2 py-1 text-xs text-ink ring-1 ring-line/10 placeholder:text-ink-faint focus:outline-none focus:ring-accent-500"
         />
         {query !== '' && (
           <button
             onClick={clearSearch}
             aria-label={t('help.searchClear')}
             title={t('help.searchClear')}
-            className="shrink-0 rounded px-1.5 py-1 text-xs text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+            className="shrink-0 rounded px-1.5 py-1 text-xs text-ink-muted hover:bg-raised hover:text-ink"
           >
             ✕
           </button>
@@ -129,30 +129,30 @@ export function HelpRail({
 
       {results !== null ? (
         results.length === 0 ? (
-          <p className="px-2 py-3 text-xs text-slate-400">{t('help.searchNone', { query: trimmed })}</p>
+          <p className="px-2 py-3 text-xs text-ink-muted">{t('help.searchNone', { query: trimmed })}</p>
         ) : (
           // Grouped, and named by its own count line: the rail holds two
           // lists that look alike, and this is what says which one is on
           // screen to a screen reader and to a test.
           <div role="group" aria-labelledby={resultsId}>
-            <p id={resultsId} className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+            <p id={resultsId} className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-wide text-ink-faint">
               {t('help.searchMatches', { n: results.length })}
             </p>
             {results.map((hit) => (
               <button
                 key={hit.page}
                 onClick={() => openHit(hit)}
-                className="mb-1 block w-full rounded px-2 py-1 text-left hover:bg-slate-800"
+                className="mb-1 block w-full rounded px-2 py-1 text-left hover:bg-raised"
               >
                 {/* The section, then the page it is in: a result is a
                     place in the guide, and the section is the part of that
                     you were looking for. A page's lead text has no heading
                     of its own, so the page name stands in. */}
-                <span className="block truncate text-xs font-semibold text-slate-200">
+                <span className="block truncate text-xs font-semibold text-ink">
                   <Marked text={hit.heading || hit.label} tokens={hitTokens} />
                 </span>
-                {hit.heading !== '' && <span className="block truncate text-[10px] text-slate-500">{hit.label}</span>}
-                <span className="mt-0.5 block text-[10px] leading-snug text-slate-400">
+                {hit.heading !== '' && <span className="block truncate text-[10px] text-ink-faint">{hit.label}</span>}
+                <span className="mt-0.5 block text-[10px] leading-snug text-ink-muted">
                   <Marked text={hit.snippet} tokens={hitTokens} />
                 </span>
               </button>
@@ -160,7 +160,7 @@ export function HelpRail({
           </div>
         )
       ) : searching ? (
-        <p className="px-2 py-3 text-xs text-slate-500">{t('help.searchBusy')}</p>
+        <p className="px-2 py-3 text-xs text-ink-faint">{t('help.searchBusy')}</p>
       ) : (
         pageRows
       )}

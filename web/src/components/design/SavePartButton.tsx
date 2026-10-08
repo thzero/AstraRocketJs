@@ -24,7 +24,7 @@ export function SavePartButton({ node, type }: { node: ComponentNode; type: Pick
     <>
       <button
         onClick={() => setOpen(true)}
-        className="w-full rounded-lg bg-slate-800 px-2 py-1.5 text-xs font-medium text-slate-300 hover:bg-slate-700"
+        className="w-full rounded-lg bg-raised px-2 py-1.5 text-xs font-medium text-ink-soft hover:bg-elevated"
       >
         {t('picker.save')}
       </button>
@@ -78,14 +78,14 @@ function SavePartDialog({ node, type, onClose }: { node: ComponentNode; type: Pi
         onEnter={() => void submit()}
       />
 
-      <p className="mt-4 text-xs leading-snug text-slate-500">{t('picker.saveHint')}</p>
+      <p className="mt-4 text-xs leading-snug text-ink-faint">{t('picker.saveHint')}</p>
       {/* Said before the save, not after: a body tube saved with its fins
           attached comes back without them, and finding that out by applying
           it to another design is too late. */}
       {node.children && node.children.length > 0 && (
-        <p className="mt-2 text-xs leading-snug text-amber-300">{t('picker.saveNoChildren')}</p>
+        <p className="mt-2 text-xs leading-snug text-warn-300">{t('picker.saveNoChildren')}</p>
       )}
-      {err && <p className="mt-2 text-xs text-red-400">{err}</p>}
+      {err && <p className="mt-2 text-xs text-danger-400">{err}</p>}
 
       <div className="mt-6 flex justify-end gap-2">
         <DialogButton onClick={onClose} variant="secondary">

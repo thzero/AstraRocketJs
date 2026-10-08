@@ -48,7 +48,7 @@ export function LanguageSwitcher() {
         onChange={(e) => i18n.changeLanguage(e.target.value)}
         aria-label={t('lang.label')}
         title={t('lang.label')}
-        className="absolute inset-0 h-full w-full appearance-none truncate rounded-lg bg-slate-800 pr-7 pl-2 text-xs font-medium text-slate-200 ring-1 ring-white/10 focus:ring-sky-500 focus:outline-none"
+        className="absolute inset-0 h-full w-full appearance-none truncate rounded-lg bg-raised pr-7 pl-2 text-xs font-medium text-ink ring-1 ring-line/10 focus:ring-accent-500 focus:outline-none"
       >
         {LANGUAGES.map((l) => (
           <option key={l.code} value={l.code}>
@@ -64,7 +64,7 @@ export function LanguageSwitcher() {
       <svg
         aria-hidden
         viewBox="0 0 10 6"
-        className="pointer-events-none absolute right-2.5 h-1.5 w-2.5 fill-none stroke-slate-400 stroke-2"
+        className="pointer-events-none absolute right-2.5 h-1.5 w-2.5 fill-none stroke-ink-muted stroke-2"
       >
         <path d="M1 1l4 4 4-4" strokeLinecap="round" strokeLinejoin="round" />
       </svg>

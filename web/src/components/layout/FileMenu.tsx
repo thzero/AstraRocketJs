@@ -10,10 +10,10 @@ import { useMenuPopover } from '../common/useMenuPopover';
  */
 
 const item =
-  'flex w-full items-center px-3 py-2 text-left text-xs font-medium text-slate-200 hover:bg-slate-700 disabled:cursor-not-allowed disabled:text-slate-600 disabled:hover:bg-transparent';
+  'flex w-full items-center px-3 py-2 text-left text-xs font-medium text-ink hover:bg-elevated disabled:cursor-not-allowed disabled:text-ink-dim disabled:hover:bg-transparent';
 // Indented row style for the Import / Export format entries.
 const subItem =
-  'flex w-full items-center py-2 pl-8 pr-3 text-left text-xs font-medium text-slate-200 hover:bg-slate-700 disabled:cursor-not-allowed disabled:text-slate-600 disabled:hover:bg-transparent';
+  'flex w-full items-center py-2 pl-8 pr-3 text-left text-xs font-medium text-ink hover:bg-elevated disabled:cursor-not-allowed disabled:text-ink-dim disabled:hover:bg-transparent';
 
 export interface FileMenuActions {
   onNew: () => void;
@@ -75,7 +75,7 @@ function MenuItem({
       {submenu ? (
         <>
           <span className="flex-1">{children}</span>
-          <span aria-hidden className="text-slate-400">
+          <span aria-hidden className="text-ink-muted">
             {expanded ? '▾' : '▸'}
           </span>
         </>
@@ -181,14 +181,14 @@ function FileMenu({
       ref={menuRef}
       role="menu"
       onKeyDown={onMenuKey}
-      className="absolute right-0 z-50 mt-1 w-44 overflow-hidden rounded-lg bg-slate-800 py-1 shadow-xl ring-1 ring-white/10"
+      className="absolute right-0 z-50 mt-1 w-44 overflow-hidden rounded-lg bg-raised py-1 shadow-xl ring-1 ring-line/10"
     >
       <MenuItem onClick={run(actions.onNew)}>{t('file.new')}</MenuItem>
       <MenuItem onClick={run(actions.onOpenLibrary)}>{t('file.openLibrary')}</MenuItem>
       <MenuItem disabled={!canSave} onClick={run(actions.onSaveAs)}>
         {t('file.saveAs')}
       </MenuItem>
-      <div className="my-1 border-t border-white/10" />
+      <div className="my-1 border-t border-line/10" />
       <MenuItem expanded={importOpen} onClick={() => setImportOpen((o) => !o)}>
         {t('file.import')}
       </MenuItem>
@@ -236,7 +236,7 @@ function FileMenu({
       <MenuItem disabled={!canSave} onClick={run(actions.onReport)}>
         {t('file.report')}
       </MenuItem>
-      <div className="my-1 border-t border-white/10" />
+      <div className="my-1 border-t border-line/10" />
       <MenuItem onClick={run(actions.onMotors)}>{t('dash.menu')}</MenuItem>
       {/* Beside the motor dashboard, which is the same kind of entry: a place
           to see and manage a library of your own that is otherwise only
@@ -253,7 +253,7 @@ function FileMenu({
           editor stays, so a part already in the rocket can still be sized from
           the catalog, and saved parts are still SAVED from there. */}
       {canBuild && <MenuItem onClick={run(actions.onSavedParts)}>{t('picker.savedManage')}</MenuItem>}
-      <div className="my-1 border-t border-white/10" />
+      <div className="my-1 border-t border-line/10" />
       <MenuItem onClick={run(actions.onSettings)}>{t('settings.title')}</MenuItem>
       {/* Buttons, not links: these open the in-app Help dialog over the design
           you are holding rather than sending you to another tab, which is what
@@ -264,7 +264,7 @@ function FileMenu({
           worth, and what to check on the real rocket, is the one doc a user
           should not have to go looking for. */}
       <MenuItem onClick={run(actions.onSafety)}>{t('menu.safety')}</MenuItem>
-      <div className="my-1 border-t border-white/10" />
+      <div className="my-1 border-t border-line/10" />
       <MenuItem onClick={run(actions.onPrivacy)}>{t('about.privacy')}</MenuItem>
       <MenuItem onClick={run(actions.onAbout)}>{t('about.open')}</MenuItem>
     </div>
@@ -284,11 +284,11 @@ export function FileMenuButton({ canSave, actions }: { canSave: boolean; actions
         aria-haspopup="menu"
         aria-expanded={menuOpen}
         title={t('menu.open')}
-        className="flex items-center gap-1.5 rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
+        className="flex items-center gap-1.5 rounded-lg bg-raised px-3 py-1.5 text-xs font-medium text-ink ring-1 ring-line/10 hover:bg-elevated"
       >
-        {/* The word goes below xl, where the header is tightest; the button is
+        {/* The word goes below 2xl, where the header is tightest; the button is
             still named 'Menu' there, by its own title attribute. */}
-        <span aria-hidden>☰</span> <span className="hidden xl:inline">{t('menu.open')}</span>
+        <span aria-hidden>☰</span> <span className="hidden 2xl:inline">{t('menu.open')}</span>
       </button>
       {menuOpen && (
         <FileMenu

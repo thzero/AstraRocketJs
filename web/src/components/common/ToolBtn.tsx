@@ -24,8 +24,8 @@ export function ToolBtn({
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className={`rounded-lg px-3 py-1.5 text-sm font-medium ring-1 ring-white/10 disabled:cursor-not-allowed disabled:text-slate-600 ${
-        danger ? 'bg-slate-800 text-red-300 hover:bg-slate-700' : 'bg-slate-800 text-sky-300 hover:bg-slate-700'
+      className={`rounded-lg px-3 py-1.5 text-sm font-medium ring-1 ring-line/10 disabled:cursor-not-allowed disabled:text-ink-dim ${
+        danger ? 'bg-raised text-danger-300 hover:bg-elevated' : 'bg-raised text-accent-300 hover:bg-elevated'
       }`}
     >
       {children}

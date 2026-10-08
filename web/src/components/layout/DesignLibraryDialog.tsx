@@ -75,7 +75,7 @@ export function DesignLibraryDialog({ onClose }: { onClose: () => void }) {
                 key={key}
                 {...tabs.tab(key)}
                 className={`rounded-t-md px-3 py-1.5 text-xs font-medium ${
-                  tab === key ? 'bg-white/10 text-slate-100' : 'text-slate-400 hover:text-slate-200'
+                  tab === key ? 'bg-line/10 text-ink-strong' : 'text-ink-muted hover:text-ink'
                 }`}
               >
                 {key === 'mine' ? t('library.mine') : t('library.examples')}
@@ -88,9 +88,9 @@ export function DesignLibraryDialog({ onClose }: { onClose: () => void }) {
           {tab === 'examples' ? (
             <ExampleList onClose={onClose} />
           ) : designs.length === 0 ? (
-            <p className="px-4 py-8 text-center text-sm text-slate-400">{t('library.empty')}</p>
+            <p className="px-4 py-8 text-center text-sm text-ink-muted">{t('library.empty')}</p>
           ) : (
-            <ul className="min-h-0 flex-1 divide-y divide-white/5 overflow-y-auto">
+            <ul className="min-h-0 flex-1 divide-y divide-line/5 overflow-y-auto">
               {designs.map((d) => (
                 <li key={d.id} className="flex items-center gap-2 px-4 py-2.5">
                   <button
@@ -100,23 +100,25 @@ export function DesignLibraryDialog({ onClose }: { onClose: () => void }) {
                     }}
                     className="flex-1 text-left"
                   >
-                    <span className={`text-sm ${d.id === activeId ? 'font-semibold text-sky-400' : 'text-slate-100'}`}>
+                    <span
+                      className={`text-sm ${d.id === activeId ? 'font-semibold text-accent-400' : 'text-ink-strong'}`}
+                    >
                       {d.name}
                     </span>
-                    <span className="ml-2 text-xs text-slate-500">
+                    <span className="ml-2 text-xs text-ink-faint">
                       {when.format(new Date(d.updatedAt))}
                       {d.id === activeId && ` · ${t('library.open')}`}
                     </span>
                   </button>
                   <button
                     onClick={() => setRenaming({ id: d.id, name: d.name })}
-                    className="rounded px-2 py-1 text-xs text-slate-400 hover:text-slate-200"
+                    className="rounded px-2 py-1 text-xs text-ink-muted hover:text-ink"
                   >
                     {t('library.rename')}
                   </button>
                   <button
                     onClick={() => void askDelete(d.id, d.name)}
-                    className="rounded px-2 py-1 text-xs text-slate-400 hover:text-red-300"
+                    className="rounded px-2 py-1 text-xs text-ink-muted hover:text-danger-300"
                   >
                     {t('common.delete')}
                   </button>

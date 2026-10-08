@@ -52,7 +52,7 @@ export function PanelHover({
         x2={X(hoverT)}
         y2={bottom}
         data-crosshair
-        className="stroke-slate-300/40"
+        className="stroke-ink-soft/40"
         vectorEffect="non-scaling-stroke"
       />
       {list.map((s, i) => {

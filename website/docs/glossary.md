@@ -141,7 +141,7 @@ Use the search box at the top of this site, or the search in the app's **Help** 
 
 **Flight event** — Something the engine records at an instant: liftoff, rod clearance, burnout, apogee, deployment, separation, ground hit. *In the app:* the events table, and the markers on the plots.
 
-**Flight model** — Which physics option a run uses where the app offers a choice. *In the app:* Settings ▸ Simulation ▸ **Flight model**. See **Guide-aware rod clearance**.
+**Flight model** — Which physics option a run uses where the app offers a choice. *In the app:* Settings ▸ Simulation ▸ **Flight model**. See **Guide-aware launcher clearance**.
 
 **Flight time** — How long the whole flight lasted. **Time to apogee** is the climb alone.
 
@@ -155,7 +155,7 @@ Use the search box at the top of this site, or the search in the app's **Help** 
 
 **Ground-hit velocity** — How fast the rocket was descending when it landed. *In the app:* the landing-speed readout.
 
-**Guide-aware rod clearance** — An optional flight model in which the rocket leaves the rod when its aft-most launch lug or rail button does, rather than after the full rod length. Off by default, which matches OpenRocket. On, the rail-exit velocity usually reads a little lower. *In the app:* Settings ▸ Simulation ▸ Flight model.
+**Guide-aware launcher clearance**: An optional flight model in which the rocket leaves the launcher when its aft-most launch lug or rail button does, rather than after the launcher's full length. Off by default, which matches OpenRocket. On, the rail-exit velocity usually reads a little lower. *In the app:* Settings ▸ Simulation ▸ Flight model.
 
 ## H
 
@@ -267,7 +267,7 @@ Use the search box at the top of this site, or the search in the app's **Help** 
 
 **Rail button** — A small stud on the airframe that runs in a launch rail's slot, the usual alternative to launch lugs on larger rockets.
 
-**Rail-exit velocity** — How fast the rocket is moving as it leaves the launch guide. Too slow and the fins have too little airflow to steer, so it can weathercock or go unstable. *In the app:* the **Rod exit** tile, judged against a minimum you set. See **Guide-aware rod clearance**.
+**Rail-exit velocity** — How fast the rocket is moving as it leaves the launch guide. Too slow and the fins have too little airflow to steer, so it can weathercock or go unstable. *In the app:* the **Rail exit**, **Rod exit** or **Launcher exit** tile, named after the design's guides, judged against a minimum you set. See **Guide-aware launcher clearance**.
 
 **Recovery sizing** — Working out what canopy a rocket needs for a chosen descent rate. *In the app:* the descent-sizing block under a selected parachute, which is an estimate until a run has flown it. See **Estimate**.
 

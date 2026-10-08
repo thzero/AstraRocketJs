@@ -89,11 +89,11 @@ export function PlanView({
   const tooClose = tileScale > MAX_MAGNIFICATION;
   const mapOn = tiles !== null && imagery !== 'unavailable' && !tooClose;
   const g: PlanGeometry = { half, X, Y, poly, mapOn };
-  const grid = mapOn ? 'stroke-white/40' : 'stroke-white/10';
+  const grid = mapOn ? 'stroke-line/40' : 'stroke-line/10';
 
   return (
     <div
-      className={`relative shrink-0 overflow-hidden ${mapOn ? 'rounded-lg ring-1 ring-white/10' : ''}`}
+      className={`relative shrink-0 overflow-hidden ${mapOn ? 'rounded-lg ring-1 ring-line/10' : ''}`}
       style={{ width: size, height: size }}
     >
       {mapOn && site && source && (
@@ -114,7 +114,7 @@ export function PlanView({
         </div>
       )}
       {/* Knocks the imagery back so a saturated track still reads over it. */}
-      {mapOn && <div aria-hidden className="pointer-events-none absolute inset-0 bg-slate-950/30" />}
+      {mapOn && <div aria-hidden className="pointer-events-none absolute inset-0 bg-canvas/30" />}
 
       <svg
         width={size}
@@ -132,7 +132,7 @@ export function PlanView({
               x={half + 3}
               y={Y(r) + 10}
               style={mapOn ? HALO : undefined}
-              className={`text-[9px] tabular-nums ${mapOn ? 'fill-white' : 'fill-slate-500'}`}
+              className={`text-[9px] tabular-nums ${mapOn ? 'fill-on-accent' : 'fill-ink-faint'}`}
             >
               {fmtDist(r)}
             </text>
@@ -146,14 +146,14 @@ export function PlanView({
           y={PAD - 4}
           textAnchor="middle"
           style={mapOn ? HALO : undefined}
-          className={`text-[10px] font-semibold ${mapOn ? 'fill-white' : 'fill-slate-400'}`}
+          className={`text-[10px] font-semibold ${mapOn ? 'fill-on-accent' : 'fill-ink-muted'}`}
         >
           {t('flight.north')}
         </text>
         {children(g)}
         {/* The pad, drawn last so it is never buried under a track. */}
-        {mapOn && <circle cx={half} cy={half} r={5} className="fill-slate-950/75" />}
-        <circle cx={half} cy={half} r={3.5} className="fill-slate-200" />
+        {mapOn && <circle cx={half} cy={half} r={5} className="fill-canvas/75" />}
+        <circle cx={half} cy={half} r={3.5} className="fill-ink" />
       </svg>
 
       {/* Offered only where it can do something: with no coordinates there is

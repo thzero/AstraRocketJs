@@ -60,14 +60,14 @@ export function StabilityBadge({
         onClick={onToggle}
         aria-expanded={expanded}
         title={t('stats.title')}
-        className="flex w-full items-center gap-2 rounded-md px-1 py-1 text-left text-slate-300 hover:bg-slate-800/60"
+        className="flex w-full items-center gap-2 rounded-md px-1 py-1 text-left text-ink-soft hover:bg-raised/60"
       >
-        <span className="w-3 shrink-0 text-[10px] leading-none text-slate-400">{expanded ? '▾' : '▸'}</span>
-        <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{t('stats.title')}</span>
+        <span className="w-3 shrink-0 text-[10px] leading-none text-ink-muted">{expanded ? '▾' : '▸'}</span>
+        <span className="text-[10px] font-semibold uppercase tracking-wide text-ink-muted">{t('stats.title')}</span>
         {/* Collapsed: keep the two headline numbers in view so hiding the grid
             still leaves the essentials (overall length + on-pad stability). */}
         {!expanded && (
-          <span className="ml-auto truncate text-[11px] tabular-nums text-slate-400">
+          <span className="ml-auto truncate text-[11px] tabular-nums text-ink-muted">
             {lengthTile.fmt(info.length)} {lengthTile.sym} ·{' '}
             <span className={padTone}>
               {fmtNum(cal, 2)} {t('stability.caliber')}

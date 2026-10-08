@@ -7,8 +7,8 @@ const UNITS: DistanceUnit[] = ['m', 'ft', 'km', 'mi'];
 
 export function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-xl bg-slate-800/40 p-3 ring-1 ring-white/10">
-      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">{title}</h3>
+    <section className="rounded-xl bg-raised/40 p-3 ring-1 ring-line/10">
+      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-muted">{title}</h3>
       <div className="space-y-1.5">{children}</div>
     </section>
   );
@@ -27,12 +27,12 @@ export function AltitudeRefSelect({
   const { t } = useTranslation();
   return (
     <label className="flex items-center justify-between gap-3">
-      <span className="text-xs text-slate-400">{label}</span>
+      <span className="text-xs text-ink-muted">{label}</span>
       <select
         aria-label={label}
         value={value}
         onChange={(e) => onChange(e.target.value as AltitudeReference)}
-        className="w-40 rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
+        className="w-40 rounded-md bg-raised px-2 py-1 text-sm text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500"
       >
         <option value="automatic">{t('pathExport.altRef.automatic')}</option>
         <option value="ground">{t('pathExport.altRef.ground')}</option>
@@ -54,12 +54,12 @@ export function UnitRow({
 }) {
   return (
     <label className="flex items-center justify-between gap-3">
-      <span className="text-xs text-slate-400">{label}</span>
+      <span className="text-xs text-ink-muted">{label}</span>
       <select
         aria-label={label}
         value={value}
         onChange={(e) => onChange(e.target.value as DistanceUnit)}
-        className="w-24 rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
+        className="w-24 rounded-md bg-raised px-2 py-1 text-sm text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500"
       >
         {UNITS.map((u) => (
           <option key={u} value={u}>

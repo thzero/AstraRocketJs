@@ -3,6 +3,7 @@ import type { StaticInfo } from '../../engine/openRocketEngine';
 import { useUnits } from '../../prefs/useUnits';
 import type { StabilityState } from '../../services/flight/simReport.js';
 import { calloutLayout, hoverTagFor, marginText, MARKER_R, type Ctx, type HoverBox } from './schematicGeometry';
+import { token } from '../common/colorTokens';
 
 /**
  * The decoration drawn OVER the TreeSchematic's part outlines, inside the
@@ -181,7 +182,14 @@ export function HoverOverlay({ box, name, w, h }: { box: HoverBox | null; name: 
           stroke="var(--border)"
           strokeWidth="1"
         />
-        <text x={tag.x} y={tag.y} textAnchor="middle" dominantBaseline="central" fontSize="11" fill="#ffffff">
+        <text
+          x={tag.x}
+          y={tag.y}
+          textAnchor="middle"
+          dominantBaseline="central"
+          fontSize="11"
+          fill={token('sch-label')}
+        >
           {name}
         </text>
       </g>

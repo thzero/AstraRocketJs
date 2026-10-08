@@ -76,10 +76,10 @@ describe('the per-simulation angle override resolves its unit', () => {
 describe('the 3D legend matches its markers', () => {
   it('draws the CG and CP marker and legend from the shared inks', () => {
     const text = src('components/canvas/Rocket3D.tsx');
-    expect(text).toContain('markerTexture(CG_INK)');
-    expect(text).toContain('markerTexture(CP_INK)');
-    expect(text).toContain('color: CG_INK');
-    expect(text).toContain('color: CP_INK');
+    expect(text).toContain('markerTexture(scene[CG_INK], light)');
+    expect(text).toContain('markerTexture(scene[CP_INK], light)');
+    expect(text).toContain('color: token(CG_INK)');
+    expect(text).toContain('color: token(CP_INK)');
     expect(text).not.toMatch(/#2b6cff|#aab2bd|#e34948/);
   });
 });

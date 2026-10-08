@@ -1,6 +1,7 @@
 import { saveBlob, exportFilename } from '../files/saveFile';
 import type { RocketTree } from '../../engine/openRocketEngine';
 import { walkNodes } from '../../tree/treeWalk';
+import { launcherKind, withLauncher } from '../design/launcher';
 import type { ReportModel } from './reportModel';
 import type { UnitSelection } from '../../prefs/units';
 import { finSetsOf } from './layout';
@@ -37,7 +38,8 @@ export async function downloadReportPdf(
 ): Promise<void> {
   const { jsPDF } = await import('jspdf');
   const doc = new jsPDF({ unit: 'mm', format: opts.paper, orientation: opts.orientation });
-  const page = createPdfPage(doc, t, opts, units);
+  // Names the launcher the way this design's guides do (design/launcher).
+  const page = createPdfPage(doc, withLauncher(t, launcherKind(tree)), opts, units);
 
   // --- Design report (summary + side view) ---
   if (opts.designReport) writeDesignSection(page, model, tree);

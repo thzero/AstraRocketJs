@@ -10,6 +10,8 @@ import {
   resetWeatherState,
   sampleAt,
   SURFACE_VARS,
+  SKY_VARS,
+  FORECAST_SKY_VARS,
   WeatherError,
 } from '../../../src/services/weather/openMeteo';
 import { answer } from '../../testing/openMeteoFixture';
@@ -65,10 +67,10 @@ describe('forecastUrl', () => {
   });
   it('asks for every surface variable, and the levels only from the forecast', () => {
     const vars = new URL(forecastUrl(q)).searchParams.get('hourly')!.split(',');
-    expect(vars).toEqual([...SURFACE_VARS, ...ALOFT_VARS]);
+    expect(vars).toEqual([...SURFACE_VARS, ...SKY_VARS, ...FORECAST_SKY_VARS, ...ALOFT_VARS]);
     expect(vars).toContain(`geopotential_height_${PRESSURE_LEVELS[PRESSURE_LEVELS.length - 1]}hPa`);
     const archived = new URL(forecastUrl({ ...q, endpoint: 'archive' })).searchParams.get('hourly')!.split(',');
-    expect(archived).toEqual([...SURFACE_VARS]);
+    expect(archived).toEqual([...SURFACE_VARS, ...SKY_VARS]);
   });
   it('repeats the point for a second elevation', () => {
     expect(forecastUrl({ ...q, elevationsM: [1600, 1712.04] })).toContain(
@@ -97,6 +99,21 @@ describe('parseForecast', () => {
     expect(s.heightWinds.map((h) => h.heightM)).toEqual([80, 120, 180]);
     expect(s.levels).toHaveLength(PRESSURE_LEVELS.length);
     expect(s.levels[0]).toMatchObject({ pressureHPa: 1000, windSpeed: 10, humidityPct: 30 });
+  });
+  it('reads the sky readouts, and visibility only from the forecast', () => {
+    const [v] = parseForecast(answer(1600), [1600]);
+    expect(v!.samples[0]).toMatchObject({ cloudCoverPct: 40, cloudCoverLowPct: 10, visibilityM: 24140 });
+    const [a] = parseForecast(answer(1600, { archive: true }), [1600]);
+    expect(a!.samples[0]).toMatchObject({ cloudCoverPct: 40, visibilityM: null });
+  });
+  it('reads an answer without the sky as missing, not as a failure', () => {
+    const [v] = parseForecast(answer(1600, { sky: false }), [1600]);
+    expect(v!.samples[0]).toMatchObject({ cloudCoverPct: null, cloudCoverLowPct: null, visibilityM: null });
+  });
+  it('refuses visibility in another unit', () => {
+    expect(() => parseForecast(answer(1600, { units: { visibility: 'ft' } }), [1600])).toThrow(
+      expect.objectContaining({ kind: 'units' }),
+    );
   });
   it('reads an archive answer as surface only', () => {
     const [v] = parseForecast(answer(1600, { archive: true }), [1600]);

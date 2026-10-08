@@ -8,6 +8,7 @@ import { SIM_BOUNDS } from '../../services/storage/settings';
 import { RunButton } from './RunButton';
 import { useIsDesktop } from '../common/useMediaQuery';
 import { LaunchPanel } from './LaunchPanel';
+import { useLauncherKind } from '../common/useLauncher';
 import { useUnits } from '../../prefs/useUnits';
 import { onSi } from '../../prefs/entryValue';
 import { unitScope } from '../../prefs/units';
@@ -41,6 +42,7 @@ export function SimEditor() {
   const setSelectedConfigId = useWorkspaceStore((s) => s.setSelectedConfigId);
   const setTab = useWorkspaceStore((s) => s.setTab);
   const onLaunchChange = useWorkspaceStore((s) => s.patchLaunch);
+  const launcher = useLauncherKind();
   const onCommit = useWorkspaceStore((s) => s.commitEdit);
 
   const desktop = useIsDesktop();
@@ -71,10 +73,10 @@ export function SimEditor() {
   const banner = multi ? (
     <p
       role="status"
-      className="rounded-lg border border-sky-500/30 bg-sky-950/40 px-2 py-1.5 text-xs leading-snug text-sky-200"
+      className="rounded-lg border border-accent-500/30 bg-accent-950/40 px-2 py-1.5 text-xs leading-snug text-accent-200"
     >
       {t('sims.editingMany', { count: targets.length })}{' '}
-      <span className="text-sky-300/80">{t('sims.editingManyHint')}</span>
+      <span className="text-accent-300/80">{t('sims.editingManyHint')}</span>
     </p>
   ) : null;
 
@@ -93,7 +95,7 @@ export function SimEditor() {
           stays in the pane's toolbar instead - one instance either way
           (see useMediaQuery). */}
       {desktop && (
-        <div className="sticky top-0 z-10 -mx-3 -mt-3 mb-4 space-y-2 border-b border-white/10 bg-slate-950 p-3">
+        <div className="sticky top-0 z-10 -mx-3 -mt-3 mb-4 space-y-2 border-b border-line/10 bg-canvas p-3">
           <RunButton />
           {banner}
         </div>
@@ -102,7 +104,7 @@ export function SimEditor() {
       <div className="space-y-4">
         {!desktop && banner}
 
-        <section className="rounded-xl bg-slate-900 p-3 ring-1 ring-white/10">
+        <section className="rounded-xl bg-surface p-3 ring-1 ring-line/10">
           {/* A div, not a <label htmlFor>: this component is rendered twice (the
               phone's inline copy and the desktop column), and a duplicated id is
               a broken association for whichever copy loses. The input names itself
@@ -110,32 +112,32 @@ export function SimEditor() {
           {/* The one field that does NOT follow the selection: pushing a name
               across three simulations would leave three rows called the same
               thing, which is the opposite of what naming is for. */}
-          <div className="mb-1 flex items-baseline gap-2 text-[10px] uppercase tracking-wide text-slate-400">
+          <div className="mb-1 flex items-baseline gap-2 text-[10px] uppercase tracking-wide text-ink-muted">
             {t('sims.name')}
-            {multi && <span className="normal-case text-slate-500">{t('sims.thisOneOnly')}</span>}
+            {multi && <span className="normal-case text-ink-faint">{t('sims.thisOneOnly')}</span>}
           </div>
           <input
             value={name}
             onChange={(e) => onRenameSim(activeId, e.target.value)}
             onBlur={onCommit}
             aria-label={t('sims.rename')}
-            className="w-full rounded-md bg-slate-800 px-2 py-1.5 text-sm font-medium text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
+            className="w-full rounded-md bg-raised px-2 py-1.5 text-sm font-medium text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500"
           />
         </section>
 
         {/* WHICH setup this row flies. The motors themselves are in the
             Configurations tab: one place writes a loadout, and a configuration
             several rows share cannot be quietly edited from one of them. */}
-        <section className="rounded-xl bg-slate-900 p-3 ring-1 ring-white/10">
-          <div className="mb-1 flex items-baseline gap-2 text-[10px] uppercase tracking-wide text-slate-400">
+        <section className="rounded-xl bg-surface p-3 ring-1 ring-line/10">
+          <div className="mb-1 flex items-baseline gap-2 text-[10px] uppercase tracking-wide text-ink-muted">
             {t('configs.name')}
-            {multi && <span className="normal-case text-slate-500">{t('sims.thisOneOnly')}</span>}
+            {multi && <span className="normal-case text-ink-faint">{t('sims.thisOneOnly')}</span>}
           </div>
           <select
             value={config.id}
             onChange={(e) => setSimConfig(activeId, e.target.value)}
             aria-label={t('configs.pick')}
-            className="w-full rounded-md bg-slate-800 px-2 py-1.5 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
+            className="w-full rounded-md bg-raised px-2 py-1.5 text-sm text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500"
           >
             {configs.map((c) => (
               <option key={c.id} value={c.id}>
@@ -145,7 +147,7 @@ export function SimEditor() {
           </select>
           {/* What it actually seats, spelled out: a named configuration says
               nothing about its motors, and the motors are what the row flies. */}
-          <p className="mt-2 text-xs text-slate-400">{loadoutLabel(tree, config) || t('configs.noMotors')}</p>
+          <p className="mt-2 text-xs text-ink-muted">{loadoutLabel(tree, config) || t('configs.noMotors')}</p>
           <button
             type="button"
             onClick={() => {
@@ -154,13 +156,20 @@ export function SimEditor() {
               setSelectedConfigId(config.id);
               setTab('configs');
             }}
-            className="mt-2 rounded-md bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-slate-700"
+            className="mt-2 rounded-md bg-raised px-3 py-1.5 text-xs font-medium text-ink hover:bg-elevated"
           >
             {t('configs.edit')}
           </button>
         </section>
 
-        <LaunchPanel launch={launch} onChange={onLaunchChange} onCommit={onCommit} diff={launchDiff} weather />
+        <LaunchPanel
+          launch={launch}
+          onChange={onLaunchChange}
+          onCommit={onCommit}
+          diff={launchDiff}
+          weather
+          launcher={launcher}
+        />
         <SimOptions diff={prefDiff} />
       </div>
     </div>
@@ -221,8 +230,8 @@ function SimOptions({ diff }: { diff?: ReadonlySet<keyof SimPrefs> }) {
   const vStep = u.step('velocity', 1);
 
   return (
-    <section className="rounded-xl bg-slate-900 p-3 ring-1 ring-white/10">
-      <div className="mb-2 text-[10px] uppercase tracking-wide text-slate-400">{t('sims.options')}</div>
+    <section className="rounded-xl bg-surface p-3 ring-1 ring-line/10">
+      <div className="mb-2 text-[10px] uppercase tracking-wide text-ink-muted">{t('sims.options')}</div>
 
       {/* What the kernel is actually running, stated rather than assumed, as the
           desktop states it. Fixed, not chosen: the bridge always builds a
@@ -230,12 +239,12 @@ function SimOptions({ diff }: { diff?: ReadonlySet<keyof SimPrefs> }) {
           extensions the engine CAN carry are not wired into the web app. */}
       <dl className="mb-3 space-y-1">
         <div className="flex items-baseline justify-between gap-3">
-          <dt className="text-xs text-slate-400">{t('settings.calcMethod')}</dt>
-          <dd className="text-xs text-slate-300">Extended Barrowman</dd>
+          <dt className="text-xs text-ink-muted">{t('settings.calcMethod')}</dt>
+          <dd className="text-xs text-ink-soft">Extended Barrowman</dd>
         </div>
         <div className="flex items-baseline justify-between gap-3">
-          <dt className="text-xs text-slate-400">{t('settings.simMethod')}</dt>
-          <dd className="text-xs text-slate-300">6-DOF Runge-Kutta 4</dd>
+          <dt className="text-xs text-ink-muted">{t('settings.simMethod')}</dt>
+          <dd className="text-xs text-ink-soft">6-DOF Runge-Kutta 4</dd>
         </div>
       </dl>
 
@@ -292,7 +301,7 @@ function SimOptions({ diff }: { diff?: ReadonlySet<keyof SimPrefs> }) {
           onChange={(e) => setSimPref('timeStep', TIME_STEPS[Number(e.target.value)]!)}
           onMouseUp={onCommit}
           onKeyUp={onCommit}
-          className="w-full accent-sky-500"
+          className="w-full accent-accent-500"
         />
         <NumberRow
           label={t('settings.randomSeed')}
@@ -317,7 +326,7 @@ function SimOptions({ diff }: { diff?: ReadonlySet<keyof SimPrefs> }) {
             clearSimPrefs();
             onCommit();
           }}
-          className="flex-1 rounded-md bg-slate-800 px-2 py-1.5 text-xs font-medium text-slate-300 ring-1 ring-white/10 hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
+          className="flex-1 rounded-md bg-raised px-2 py-1.5 text-xs font-medium text-ink-soft ring-1 ring-line/10 hover:bg-elevated disabled:cursor-not-allowed disabled:opacity-40"
         >
           {t('sims.resetToDefault')}
         </button>
@@ -331,7 +340,7 @@ function SimOptions({ diff }: { diff?: ReadonlySet<keyof SimPrefs> }) {
             clearSimPrefs();
             onCommit();
           }}
-          className="flex-1 rounded-md bg-slate-800 px-2 py-1.5 text-xs font-medium text-slate-300 ring-1 ring-white/10 hover:bg-slate-700"
+          className="flex-1 rounded-md bg-raised px-2 py-1.5 text-xs font-medium text-ink-soft ring-1 ring-line/10 hover:bg-elevated"
         >
           {t('sims.saveAsDefault')}
         </button>
@@ -343,7 +352,7 @@ function SimOptions({ diff }: { diff?: ReadonlySet<keyof SimPrefs> }) {
           is judged against the next two, the DROGUE against the last. All of them
           reach the kernel, which is what raises the warnings shown on the Results
           tab. The last three apply only once a device is marked as a drogue. */}
-      <div className="mt-3 border-t border-white/10 pt-2 text-[10px] uppercase tracking-wide text-slate-400">
+      <div className="mt-3 border-t border-line/10 pt-2 text-[10px] uppercase tracking-wide text-ink-muted">
         {t('settings.warnings')}
       </div>
       <div className="mt-2 space-y-2">
@@ -364,7 +373,7 @@ function SimOptions({ diff }: { diff?: ReadonlySet<keyof SimPrefs> }) {
         ))}
       </div>
 
-      <p className="mt-2 text-[11px] text-slate-500">{t('sims.optionsHint')}</p>
+      <p className="mt-2 text-[11px] text-ink-faint">{t('sims.optionsHint')}</p>
     </section>
   );
 }

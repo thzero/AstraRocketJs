@@ -80,8 +80,8 @@ export function ChartAxes({
         const gy = Y(fMax * f);
         return (
           <g key={f}>
-            <line x1={dims.padL} y1={gy} x2={dims.width - dims.padR} y2={gy} className="stroke-white/10" />
-            <text x={dims.padL - 4} y={gy + 3} textAnchor="end" className="fill-slate-500 text-[9px] tabular-nums">
+            <line x1={dims.padL} y1={gy} x2={dims.width - dims.padR} y2={gy} className="stroke-line/10" />
+            <text x={dims.padL - 4} y={gy + 3} textAnchor="end" className="fill-ink-faint text-[9px] tabular-nums">
               {fmtNum(fMax * f * fScale, fDigits)}
             </text>
           </g>
@@ -93,7 +93,7 @@ export function ChartAxes({
           x={X(tt)}
           y={dims.height - 6}
           textAnchor="middle"
-          className="fill-slate-500 text-[9px] tabular-nums"
+          className="fill-ink-faint text-[9px] tabular-nums"
         >
           {fmtNum(tt, tt < 10 ? 1 : 0)}
         </text>

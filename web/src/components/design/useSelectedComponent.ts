@@ -7,6 +7,7 @@ import { useWorkspaceStore } from '../../state/store';
 import { confirm } from '../../state/confirmStore';
 import { num } from '../../tree/nodeProps';
 import { partLabel } from '../../i18n/format';
+import { overriddenBy, type OverrideKind } from '../../services/design/overriddenBy';
 
 /**
  * Everything {@link PropertyPanel} needs about the current selection: the node,
@@ -50,6 +51,16 @@ export function useSelectedComponent() {
   const stages = stageNodes(tree);
   const isOnlyStage = !!node && node.type === 'stage' && stages.length <= 1;
   const isFirstStage = !!node && node.type === 'stage' && stages[0]?.id === node.id;
+  // The ancestor whose override decides each of this part's values, by name.
+  const coveredBy = useMemo(() => {
+    const out: Partial<Record<OverrideKind, string>> = {};
+    if (!selectedId) return out;
+    for (const kind of ['mass', 'cg', 'cd'] as const) {
+      const by = overriddenBy(tree, selectedId, kind);
+      if (by) out[kind] = partLabel(t, by);
+    }
+    return out;
+  }, [tree, selectedId, t]);
 
   const onRemove = async () => {
     if (!node || isOnlyStage) return;
@@ -80,6 +91,7 @@ export function useSelectedComponent() {
     canMoveDown: !!sib && sib.index < sib.count - 1,
     canRemove: !isOnlyStage,
     isFirstStage,
+    coveredBy,
     parentRadius,
     fit,
   };

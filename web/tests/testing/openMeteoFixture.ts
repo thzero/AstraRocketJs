@@ -1,4 +1,4 @@
-import { ALOFT_VARS, SURFACE_VARS, unitFor } from '../../src/services/weather/openMeteo';
+import { ALOFT_VARS, FORECAST_SKY_VARS, SKY_VARS, SURFACE_VARS, unitFor } from '../../src/services/weather/openMeteo';
 
 /**
  * Open-Meteo answers for tests, in the service's own shape, so no test reaches
@@ -9,9 +9,17 @@ import { ALOFT_VARS, SURFACE_VARS, unitFor } from '../../src/services/weather/op
 /** An answer in Open-Meteo's shape: `hours` hourly samples from `start`, every variable filled. */
 export function answer(
   elevation: number,
-  { start = 1_760_000_400, hours = 3, archive = false, units = {} as Record<string, string> } = {},
+  {
+    start = 1_760_000_400,
+    hours = 3,
+    archive = false,
+    units = {} as Record<string, string>,
+    /** Include the sky readouts (cloud cover, and visibility from the forecast). */
+    sky = true,
+  } = {},
 ) {
-  const vars = ['time', ...SURFACE_VARS, ...(archive ? [] : ALOFT_VARS)];
+  const skyVars = sky ? [...SKY_VARS, ...(archive ? [] : FORECAST_SKY_VARS)] : [];
+  const vars = ['time', ...SURFACE_VARS, ...skyVars, ...(archive ? [] : ALOFT_VARS)];
   const hourly: Record<string, number[]> = {};
   const hourlyUnits: Record<string, string> = {};
   for (const v of vars) {
@@ -29,6 +37,9 @@ function valueFor(v: string, i: number, start: number): number {
   if (v === 'wind_speed_10m') return 4;
   if (v === 'wind_gusts_10m') return 7;
   if (v === 'wind_direction_10m') return 270;
+  if (v === 'cloud_cover') return 40;
+  if (v === 'cloud_cover_low') return 10;
+  if (v === 'visibility') return 24140;
   const p = /_(\d+)hPa$/.exec(v);
   if (p) {
     const hPa = Number(p[1]);

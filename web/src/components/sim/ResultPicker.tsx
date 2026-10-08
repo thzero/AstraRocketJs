@@ -42,7 +42,7 @@ export function ResultPicker({ fallbackName }: { fallbackName: string }) {
   const name = shown?.name ?? sims.find((s) => s.id === activeId)?.name ?? fallbackName;
 
   // A single-simulation run is not a choice, so the heading is just a heading.
-  if (ran.length < 2) return <h2 className="text-sm font-semibold text-slate-100">{name}</h2>;
+  if (ran.length < 2) return <h2 className="text-sm font-semibold text-ink-strong">{name}</h2>;
 
   return (
     <div ref={wrapRef} className="relative inline-block">
@@ -57,10 +57,10 @@ export function ResultPicker({ fallbackName }: { fallbackName: string }) {
           // the table's row buttons do ("View results for Kept").
           aria-label={t('flight.pickAria', { name })}
           title={t('flight.pickTitle')}
-          className="flex items-center gap-1 rounded-md px-1 py-0.5 text-sm font-semibold text-slate-100 hover:bg-slate-800"
+          className="flex items-center gap-1 rounded-md px-1 py-0.5 text-sm font-semibold text-ink-strong hover:bg-raised"
         >
           {name}
-          <span aria-hidden className="text-[9px] text-slate-400">
+          <span aria-hidden className="text-[9px] text-ink-muted">
             ▼
           </span>
         </button>
@@ -68,7 +68,7 @@ export function ResultPicker({ fallbackName }: { fallbackName: string }) {
       {open && (
         <div
           role="menu"
-          className="absolute left-0 z-50 mt-1 min-w-48 rounded-lg bg-slate-900 p-1.5 shadow-xl ring-1 ring-white/15"
+          className="absolute left-0 z-50 mt-1 min-w-48 rounded-lg bg-surface p-1.5 shadow-xl ring-1 ring-line/15"
         >
           {ran.map((s) => {
             const on = s.id === shown?.id;
@@ -81,8 +81,8 @@ export function ResultPicker({ fallbackName }: { fallbackName: string }) {
                   setChosen(s.id);
                   close();
                 }}
-                className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs hover:bg-slate-800 ${
-                  on ? 'text-sky-200' : 'text-slate-200'
+                className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs hover:bg-raised ${
+                  on ? 'text-accent-200' : 'text-ink'
                 }`}
               >
                 <span aria-hidden className="w-3 shrink-0 text-[10px]">

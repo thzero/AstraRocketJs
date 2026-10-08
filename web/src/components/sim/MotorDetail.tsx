@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { fmtNum } from '../../i18n/format';
 import { useUnits } from '../../prefs/useUnits';
@@ -6,6 +7,13 @@ import { initialThrust } from '../../services/motors/motorPicker';
 import { avgThrustOf, ispOf, massFracOf } from '../../services/motors/motorMath';
 import { ChartAxes, CHART_HEADROOM, chartScales, linePath, baselineArea, LegendSwatch, peakOf } from './chartAxes';
 import { inUserUnit, withFixedUnit } from './motorFormat';
+import { token } from '../common/colorTokens';
+import { motorSimilarity } from '../../engine/openRocketEngine';
+import { loadHideSimilar, saveHideSimilar } from './motorPrefs';
+import { finalizeSamples } from '../../services/motors/curveFinalize';
+
+/** Desktop's threshold for "Hide very similar thrust curves" (MOTOR_SIMILARITY_THRESHOLD). */
+const SIMILAR = 0.95;
 
 const TYPE_KEY: Record<string, string> = { SU: 'typeSU', reload: 'typeReload', hybrid: 'typeHybrid' };
 
@@ -24,8 +32,36 @@ export function MotorDetail({
 }) {
   const { t } = useTranslation();
   const u = useUnits();
-  const curves = motor.curves ?? [];
+  const curves = useMemo(() => motor.curves ?? [], [motor.curves]);
   const samples = (curves[curveIndex] ?? curves[0])?.samples ?? [];
+  const [hideSimilar, setHideSimilarRaw] = useState(loadHideSimilar);
+  const setHideSimilar = (on: boolean) => {
+    setHideSimilarRaw(on);
+    saveHideSimilar(on);
+  };
+  // The curves the dropdown offers: the one shown, and with the box ticked only
+  // those the kernel's MotorCorrelation does not call near duplicates of it.
+  // Every curve while the engine is still loading, rather than none.
+  const offered = useMemo(
+    () =>
+      curves
+        .map((_, i) => i)
+        .filter((i) => {
+          if (!hideSimilar || i === curveIndex || !curves[curveIndex]) return true;
+          // A curve the kernel cannot compare is offered rather than hidden, and
+          // never takes the dialog down with it.
+          try {
+            const score = motorSimilarity(
+              finalizeSamples(curves[curveIndex]!.samples),
+              finalizeSamples(curves[i]!.samples),
+            );
+            return score === null || score < SIMILAR;
+          } catch {
+            return true;
+          }
+        }),
+    [curves, curveIndex, hideSimilar],
+  );
   const title = motor.code || motor.designation;
   const showCommon = !!motor.code && motor.code !== motor.designation;
 
@@ -50,18 +86,16 @@ export function MotorDetail({
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-3">
       {onBack && (
-        <button onClick={onBack} className="mb-2 self-start text-xs text-sky-400 hover:underline md:hidden">
+        <button onClick={onBack} className="mb-2 self-start text-xs text-accent-400 hover:underline md:hidden">
           ← {t('motorDlg.backToList')}
         </button>
       )}
-      <div className="text-[11px] font-semibold uppercase tracking-wider text-amber-400/90">{motor.manufacturer}</div>
+      <div className="text-[11px] font-semibold uppercase tracking-wider text-warn-400/90">{motor.manufacturer}</div>
       <div className="mt-1 flex items-center gap-2">
-        <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 text-xs font-semibold text-emerald-300">
-          {motor.class}
-        </span>
-        <h3 className="text-2xl font-bold text-slate-100">{title}</h3>
+        <span className="rounded bg-ok-500/15 px-1.5 py-0.5 text-xs font-semibold text-ok-300">{motor.class}</span>
+        <h3 className="text-2xl font-bold text-ink-strong">{title}</h3>
       </div>
-      <div className="mt-0.5 text-sm text-slate-400">
+      <div className="mt-0.5 text-sm text-ink-muted">
         {showCommon && (
           <>
             {t('motorDlg.commonName')} {motor.designation} ·{' '}
@@ -69,33 +103,51 @@ export function MotorDetail({
         )}
         {motor.type ? t(`motorDlg.${TYPE_KEY[motor.type] ?? ''}`, { defaultValue: motor.type }) : ''}
       </div>
-      <a href={tcUrl} target="_blank" rel="noreferrer" className="mt-1 self-start text-sm text-sky-400 hover:underline">
+      <a
+        href={tcUrl}
+        target="_blank"
+        rel="noreferrer"
+        className="mt-1 self-start text-sm text-accent-400 hover:underline"
+      >
         {t('motorDlg.viewOnTc')} ↗
       </a>
 
+      {motor.oop && <p className="mt-1 text-xs font-medium text-warn-300">{t('motorDlg.oop')}</p>}
+
       {curves.length > 1 && (
-        <label className="mt-4 flex items-center gap-2">
-          <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-            {t('motorDlg.curve')}
-          </span>
-          <select
-            value={curveIndex}
-            onChange={(e) => onCurveChange(Number(e.target.value))}
-            className="rounded-md bg-slate-950 px-2 py-1 text-xs text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
-          >
-            {curves.map((c, i) => (
-              <option key={i} value={i}>
-                {c.src} ({c.samples.length})
-              </option>
-            ))}
-          </select>
-        </label>
+        <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1">
+          <label className="flex items-center gap-2">
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-ink-faint">
+              {t('motorDlg.curve')}
+            </span>
+            <select
+              value={curveIndex}
+              onChange={(e) => onCurveChange(Number(e.target.value))}
+              className="rounded-md bg-canvas px-2 py-1 text-xs text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500"
+            >
+              {offered.map((i) => (
+                <option key={i} value={i}>
+                  {curves[i]!.src} ({curves[i]!.samples.length})
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex items-center gap-2 text-xs text-ink-soft" title={t('motorDlg.hideSimilarHint')}>
+            <input
+              type="checkbox"
+              checked={hideSimilar}
+              onChange={(e) => setHideSimilar(e.target.checked)}
+              className="accent-accent-500"
+            />
+            {t('motorDlg.hideSimilar')}
+          </label>
+        </div>
       )}
 
       {samples.length >= 2 ? (
         <ThrustChart samples={samples} avg={avg} burn={motor.burn} />
       ) : (
-        <p className="my-4 rounded-lg bg-slate-800/50 p-3 text-xs text-slate-400">{t('motorDlg.noCurve')}</p>
+        <p className="my-4 rounded-lg bg-raised/50 p-3 text-xs text-ink-muted">{t('motorDlg.noCurve')}</p>
       )}
 
       <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4">
@@ -122,7 +174,7 @@ export function MotorDetail({
         <SpecItem label={t('motorDlg.propType')} value={motor.propInfo ?? '—'} />
         <SpecItem label={t('motorDlg.sparky')} value={t(motor.sparky ? 'motorDlg.yes' : 'motorDlg.no')} />
       </dl>
-      <p className="mt-2 text-[11px] leading-snug text-slate-500">{t('motorDlg.calcNote')}</p>
+      <p className="mt-2 text-[11px] leading-snug text-ink-faint">{t('motorDlg.calcNote')}</p>
     </div>
   );
 }
@@ -132,8 +184,8 @@ export function MotorDetail({
 export function SpecItem({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="text-[10px] uppercase tracking-wide text-slate-500">{label}</dt>
-      <dd className="text-sm font-semibold text-slate-100">{value}</dd>
+      <dt className="text-[10px] uppercase tracking-wide text-ink-faint">{label}</dt>
+      <dd className="text-sm font-semibold text-ink-strong">{value}</dd>
     </div>
   );
 }
@@ -156,34 +208,50 @@ export function ThrustChart({ samples, avg, burn }: { samples: [number, number][
       <svg viewBox={`0 0 ${W} ${H}`} width="100%" className="block">
         <defs>
           <linearGradient id="thrustFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#f97316" stopOpacity="0.45" />
-            <stop offset="100%" stopColor="#f97316" stopOpacity="0.04" />
+            <stop offset="0%" stopColor={token('thrust')} stopOpacity="0.45" />
+            <stop offset="100%" stopColor={token('thrust')} stopOpacity="0.04" />
           </linearGradient>
         </defs>
         {/* initial-thrust window (0–0.5 s) */}
         {0.5 < tMax && (
-          <rect x={X(0)} y={PT} width={X(0.5) - X(0)} height={H - PT - PB} fill="#22d3ee" opacity="0.06" />
+          <rect x={X(0)} y={PT} width={X(0.5) - X(0)} height={H - PT - PB} fill={token('thrust-band')} opacity="0.06" />
         )}
         <ChartAxes dims={dims} tMax={tMax} fMax={fMax} X={X} Y={Y} fScale={u.factor('force')} />
         <path d={area} fill="url(#thrustFill)" />
-        <line x1={PL} y1={Y(avg)} x2={W - PR} y2={Y(avg)} stroke="#2dd4bf" strokeWidth="1" strokeDasharray="4 3" />
+        <line
+          x1={PL}
+          y1={Y(avg)}
+          x2={W - PR}
+          y2={Y(avg)}
+          stroke={token('thrust-average')}
+          strokeWidth="1"
+          strokeDasharray="4 3"
+        />
         {burn > 0 && burn <= tMax && (
-          <line x1={X(burn)} y1={PT} x2={X(burn)} y2={H - PB} stroke="#eab308" strokeWidth="1" strokeDasharray="2 3" />
+          <line
+            x1={X(burn)}
+            y1={PT}
+            x2={X(burn)}
+            y2={H - PB}
+            stroke={token('thrust-burnout')}
+            strokeWidth="1"
+            strokeDasharray="2 3"
+          />
         )}
-        <path d={line} fill="none" stroke="#f97316" strokeWidth="1.75" />
-        <circle cx={X(peak[0])} cy={Y(peak[1])} r="3" fill="#f97316" />
-        <text x={X(peak[0])} y={Y(peak[1]) - 6} textAnchor="middle" className="fill-slate-200 text-[9px] font-semibold">
+        <path d={line} fill="none" stroke={token('thrust')} strokeWidth="1.75" />
+        <circle cx={X(peak[0])} cy={Y(peak[1])} r="3" fill={token('thrust')} />
+        <text x={X(peak[0])} y={Y(peak[1]) - 6} textAnchor="middle" className="fill-ink text-[9px] font-semibold">
           {u.fmtSym('force', peak[1], 1)}
         </text>
       </svg>
-      <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-slate-400">
-        <LegendSwatch color="#f97316" width={14}>
+      <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-ink-muted">
+        <LegendSwatch color={token('thrust')} width={14}>
           {t('motorDlg.chartThrust')}
         </LegendSwatch>
-        <LegendSwatch color="#2dd4bf" width={14} dash>
+        <LegendSwatch color={token('thrust-average')} width={14} dash>
           {t('motorDlg.chartAvg')}
         </LegendSwatch>
-        <LegendSwatch color="#eab308" width={14} dash>
+        <LegendSwatch color={token('thrust-burnout')} width={14} dash>
           {t('motorDlg.chartBurn')}
         </LegendSwatch>
       </div>

@@ -63,3 +63,62 @@ test('a weather request names neither the app nor its site', async ({ page }) =>
   await expect(page.getByText(/^Open-Meteo forecast for /)).toBeVisible();
   await expect(page.getByRole('link', { name: 'CC BY 4.0' })).toBeVisible();
 });
+
+test('a place search names neither the app nor its site, and sets the site', async ({ page }) => {
+  const seen: Seen[] = [];
+  await page.route(/open-meteo\.com/, async (route) => {
+    const req = route.request();
+    seen.push({ url: req.url(), headers: await req.allHeaders() });
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      headers: { 'access-control-allow-origin': '*' },
+      body: JSON.stringify({
+        results: [
+          {
+            name: 'Pueblo',
+            latitude: 38.25445,
+            longitude: -104.60914,
+            elevation: 1430,
+            admin1: 'Colorado',
+            country: 'United States',
+          },
+        ],
+      }),
+    });
+  });
+  await ready(page);
+  await openTab(page, 'Simulations');
+  await page.getByRole('button', { name: 'Find a place' }).click();
+  await page.getByLabel(/Place, postal code/).fill('Pueblo');
+  await page.getByRole('button', { name: 'Search', exact: true }).click();
+  await page.getByRole('button', { name: /Pueblo.*Colorado, United States/ }).click();
+
+  await expect(page.getByLabel('Latitude', { exact: true })).toHaveValue(/^38\.25/);
+  await expect(page.getByLabel('Longitude', { exact: true })).toHaveValue(/^-104\.6/);
+  await expect(page.getByLabel('Altitude', { exact: true })).toHaveValue(/^1,?430/);
+
+  const site = new URL(page.url());
+  expect(seen).toHaveLength(1);
+  const { url, headers } = seen[0]!; // length checked just above
+  expect(url.startsWith('https://geocoding-api.open-meteo.com/v1/search?name=Pueblo')).toBe(true);
+  expect(headers['origin']).toBe('null');
+  expect(headers['referer']).toBeUndefined();
+  expect(headers['cookie']).toBeUndefined();
+  for (const value of Object.values(headers)) expect(value).not.toContain(site.host);
+});
+
+test('the forecast shows cloud cover and visibility for the hour, without applying them', async ({ page }) => {
+  await answerOpenMeteo(page);
+  await ready(page);
+  await openTab(page, 'Simulations');
+  await page.getByRole('button', { name: 'Get weather…' }).click();
+  await page.getByRole('button', { name: 'Fetch', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: /weather/i });
+  await expect(dialog.getByText('Clouds and visibility (forecast, not applied)')).toBeVisible();
+  const row = (name: string) => dialog.locator('dl > div').filter({ hasText: name });
+  await expect(row('Low cloud cover')).toContainText('10 %');
+  await expect(row('Visibility')).toContainText(/24\.1 km|15\.0 mi/);
+  // Nothing to tick: the readouts are information, not something a flight reads.
+  await expect(dialog.getByRole('checkbox', { name: /cloud|visibility/i })).toHaveCount(0);
+});

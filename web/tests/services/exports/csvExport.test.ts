@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { flightDataCsv, aeroTableCsv, flightEventsCsv } from '../../../src/services/exports/csvExport';
+import { flightDataCsv, aeroTableCsv, flightEventsCsv, runTableCsv } from '../../../src/services/exports/csvExport';
 import { METRIC_UNITS, IMPERIAL_UNITS } from '../../../src/prefs/units';
 import type { FlightResult, AeroSweep } from '../../../src/engine/openRocketEngine';
 
@@ -334,5 +334,62 @@ describe('flightEventsCsv', () => {
   it('leaves an ordinary name untouched, prefix and all', () => {
     const csvText = flightEventsCsv([{ ...rows[0]!, branchName: 'Booster' }], METRIC_UNITS, name, (r) => r.branchName);
     expect(fields(csvText.trim().split('\r\n')[1]!)[3]).toBe('Booster');
+  });
+});
+
+describe('runTableCsv', () => {
+  const flown = {
+    summary: {
+      maxAltitude: 304.8,
+      maxVelocity: 100,
+      maxAcceleration: 50,
+      maxMachNumber: 0.29,
+      timeToApogee: 7.5,
+      flightTime: 40,
+      groundHitVelocity: 5,
+      launchRodVelocity: 15,
+      deploymentVelocity: 8,
+      optimumDelay: 5,
+    },
+    events: [{ type: 'APOGEE', time: 7.5 }],
+    series: { time: [0, 1], altitude: [0, 10], velocity: [0, 10], mach: [0, 0.1], aoa: [0, 0], dΦ: [0, -6.283185307] },
+  } as unknown as FlightResult;
+
+  it('writes one row per simulation, in the chosen units, headers naming them', () => {
+    const csv = runTableCsv(
+      [
+        { name: 'C6', configuration: 'Estes C6-5', motors: 'Estes C6-5', status: 'Up to date', result: flown },
+        { name: 'Never flown', configuration: 'D12', motors: 'Estes D12-5', status: 'Not run' },
+      ],
+      IMPERIAL_UNITS,
+    );
+    const [head, a, b] = csv.trimEnd().split('\r\n');
+    expect(head).toContain('Apogee (ft)');
+    expect(head).toContain('Max roll rate (r/s)');
+    const cells = a!.split(',');
+    expect(cells.slice(0, 4)).toEqual(['"C6"', '"Estes C6-5"', '"Estes C6-5"', '"Up to date"']);
+    expect(Number(cells[4])).toBeCloseTo(1000, 6);
+    // One turn a second, by magnitude.
+    expect(Number(cells[cells.length - 1])).toBeCloseTo(1, 6);
+    // A simulation that never flew is still listed, with no figures.
+    expect(b!.startsWith('"Never flown","D12","Estes D12-5","Not run",')).toBe(true);
+    expect(
+      b!
+        .split(',')
+        .slice(4)
+        .every((c) => c === ''),
+    ).toBe(true);
+  });
+
+  it('keeps a name from becoming a spreadsheet formula', () => {
+    const csv = runTableCsv([{ name: '=HYPERLINK("x")', configuration: '', motors: '', status: '' }], METRIC_UNITS);
+    expect(csv.split('\r\n')[1]!.startsWith('"\'=HYPERLINK(""x"")"')).toBe(true);
+  });
+
+  it("names the exit column after the design's launcher", () => {
+    const head = (k: 'rail' | 'rod' | null) => runTableCsv([], METRIC_UNITS, k).split('\r\n')[0]!;
+    expect(head('rail')).toContain('Rail exit velocity (m/s)');
+    expect(head('rod')).toContain('Rod exit velocity (m/s)');
+    expect(head(null)).toContain('Launcher exit velocity (m/s)');
   });
 });

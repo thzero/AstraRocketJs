@@ -94,6 +94,68 @@ export function buildDesignCsv(model: ReportModel, units: UnitSelection): string
   return lines.join('\r\n') + '\r\n';
 }
 
+/**
+ * The component table: one row per part, stage by stage in tree order, with the
+ * figures the PDF's parts list shows. Diameters rather than radii, the way the
+ * desktop's dialogs give them; every value in the user's units, which the header
+ * names. A figure a part does not have is left blank.
+ *
+ * `partName` turns a part type into the reader's word for it; it is passed in
+ * because this service has no translator.
+ */
+export function buildComponentCsv(
+  model: ReportModel,
+  units: UnitSelection,
+  partName: (type: string) => string,
+): string {
+  const lines = [
+    [
+      'Stage',
+      'Depth',
+      'Type',
+      'Name',
+      'Material',
+      `Density (${units.density})`,
+      `Length (${units.length})`,
+      `Outer diameter (${units.length})`,
+      `Inner diameter (${units.length})`,
+      `Thickness (${units.length})`,
+      `Mass (${units.mass})`,
+    ].join(','),
+  ];
+  const len = (m: number | undefined) => (m == null ? '' : fmtSi('length', units.length, m, 3));
+  const dia = (r: number | undefined) => (r == null ? '' : len(2 * r));
+  for (const st of model.partsByStage) {
+    for (const p of st.rows) {
+      lines.push(
+        [
+          cell(st.stage),
+          String(p.depth),
+          cell(partName(p.type)),
+          cell(p.name),
+          cell(p.material ?? ''),
+          p.density == null ? '' : fmtSi('density', units.density, p.density, 3),
+          len(p.length),
+          dia(p.outerR),
+          dia(p.innerR),
+          len(p.thickness),
+          fmtSi('mass', units.mass, p.mass, 3),
+        ].join(','),
+      );
+    }
+  }
+  return lines.join('\r\n') + '\r\n';
+}
+
+/** Build and download the component table. */
+export function downloadComponentCsv(
+  model: ReportModel,
+  units: UnitSelection,
+  partName: (type: string) => string,
+): void {
+  void saveText(buildComponentCsv(model, units, partName), exportFilename([model.name, 'parts'], 'csv'), CSV_MIME);
+}
+
 /** Build and download the design-info CSV. */
 export function downloadDesignCsv(model: ReportModel, units: UnitSelection): void {
   void saveText(buildDesignCsv(model, units), exportFilename([model.name, 'design'], 'csv'), CSV_MIME);

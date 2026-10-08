@@ -43,6 +43,9 @@ describe('which quantities a unit conversion can overflow', () => {
       'impulse',
       'lineDensity',
       'pressure',
+      // r/s and Hz are 2π rad/s. Shown, never typed, so no entry box is exposed
+      // yet; one that takes a roll rate needs the same guard as the rest.
+      'rollRate',
       'surfaceDensity',
     ]);
   });

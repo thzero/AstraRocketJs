@@ -69,9 +69,9 @@ export function FreeformFinActions({ node }: { node: ComponentNode }) {
   };
 
   return (
-    <div className="space-y-2 border-t border-white/5 pt-3">
+    <div className="space-y-2 border-t border-line/5 pt-3">
       <div className="flex flex-wrap items-center gap-2">
-        <label className="flex items-center gap-1 text-xs text-slate-400">
+        <label className="flex items-center gap-1 text-xs text-ink-muted">
           {t('freeform.scaleFin')}
           <NumberInput
             value={factor}
@@ -79,34 +79,34 @@ export function FreeformFinActions({ node }: { node: ComponentNode }) {
             step={0.1}
             min={0}
             ariaLabel={t('freeform.scaleFactor')}
-            className="w-16 rounded bg-slate-800 px-1.5 py-0.5 text-right tabular-nums text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
+            className="w-16 rounded bg-raised px-1.5 py-0.5 text-right tabular-nums text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500"
           />
         </label>
         <button
           onClick={() => apply((tree) => scaleComponent(tree, id, factor))}
           disabled={!(factor > 0) || factor === 1}
           title={t('freeform.scaleFinTip')}
-          className="rounded-md bg-slate-800 px-2 py-1 text-xs text-slate-300 ring-1 ring-white/10 hover:bg-slate-700 disabled:cursor-not-allowed disabled:text-slate-600 disabled:hover:bg-slate-800"
+          className="rounded-md bg-raised px-2 py-1 text-xs text-ink-soft ring-1 ring-line/10 hover:bg-elevated disabled:cursor-not-allowed disabled:text-ink-dim disabled:hover:bg-raised"
         >
           {t('freeform.applyScale')}
         </button>
         <button
           onClick={imageFile.pick}
           title={t('freeform.importHint')}
-          className="rounded-md bg-slate-800 px-2 py-1 text-xs text-slate-300 ring-1 ring-white/10 hover:bg-slate-700"
+          className="rounded-md bg-raised px-2 py-1 text-xs text-ink-soft ring-1 ring-line/10 hover:bg-elevated"
         >
           {t('freeform.importImage')}
         </button>
         <button
           onClick={exportCsv}
-          className="rounded-md bg-slate-800 px-2 py-1 text-xs text-slate-300 ring-1 ring-white/10 hover:bg-slate-700"
+          className="rounded-md bg-raised px-2 py-1 text-xs text-ink-soft ring-1 ring-line/10 hover:bg-elevated"
         >
           {t('freeform.exportCsv')}
         </button>
         {imageFile.input}
       </div>
-      <p className="text-[11px] leading-snug text-slate-500">{t('freeform.importHint')}</p>
-      {error && <p className="text-[11px] leading-snug text-amber-400">{error}</p>}
+      <p className="text-[11px] leading-snug text-ink-faint">{t('freeform.importHint')}</p>
+      {error && <p className="text-[11px] leading-snug text-warn-400">{error}</p>}
     </div>
   );
 }

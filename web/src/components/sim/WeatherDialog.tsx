@@ -29,6 +29,8 @@ import { OpenMeteoCredit } from '../common/OpenMeteoCredit';
 import { Check } from '../common/Check';
 import { useLatest } from '../common/useLatest';
 import { WhenFields } from './WhenFields';
+import { useOnline } from '../common/useOnline';
+import { fmtNum } from '../../i18n/format';
 
 /**
  * Launch conditions from an Open-Meteo forecast for a date and hour at the
@@ -46,7 +48,7 @@ import { WhenFields } from './WhenFields';
  */
 
 const btn =
-  'rounded-md bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-300 ring-1 ring-white/10 hover:bg-slate-700 disabled:opacity-50';
+  'rounded-md bg-raised px-3 py-1.5 text-xs font-medium text-ink-soft ring-1 ring-line/10 hover:bg-elevated disabled:opacity-50';
 
 /** The next whole hour starts within this one; the dialog opens on it. */
 
@@ -79,6 +81,7 @@ export function WeatherDialog({
   const [useTerrain, setUseTerrain] = useState(prior?.elevationApplied ?? false);
   const [ticked, setTicked] = useState<Set<ProposalGroup>>(() => new Set(prior?.groups ?? PROPOSAL_GROUPS));
   const request = useLatest();
+  const online = useOnline();
 
   const lat = launch.latitudeDeg;
   const lon = launch.longitudeDeg;
@@ -170,6 +173,10 @@ export function WeatherDialog({
   const pres = (hPa: number) => `${u.fmtSym('pressure', LAUNCH_SI.hPa.toSi(hPa), 1)}`;
   const wind = (ms: number) => `${u.fmtSym('windspeed', ms, 1)}`;
   const alt = (m: number) => `${u.fmtSym('distance', m, 0)}`;
+  // Visibility runs to tens of kilometers, so it reads in km or miles: the
+  // large unit of whichever system the distance unit belongs to.
+  const imperial = ['ft', 'mi'].includes(u.sym('distance'));
+  const far = (m: number) => (imperial ? `${fmtNum(m / 1609.344, 1)} mi` : `${fmtNum(m / 1000, 1)} km`);
 
   const describe = (g: ProposalGroup): string => {
     const p = proposal!;
@@ -212,7 +219,7 @@ export function WeatherDialog({
             {t('common.cancel')}
           </button>
           <button
-            className="rounded-md bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-500 disabled:opacity-50"
+            className="rounded-md bg-accent-600 px-3 py-1.5 text-xs font-semibold text-on-accent hover:bg-accent-500 disabled:opacity-50"
             disabled={!proposal || chosen.size === 0}
             onClick={apply}
           >
@@ -223,7 +230,7 @@ export function WeatherDialog({
     >
       <div className="space-y-3 p-3 text-sm">
         {!hasSite ? (
-          <p className="text-amber-400">{t('weather.needSite')}</p>
+          <p className="text-warn-400">{t('weather.needSite')}</p>
         ) : (
           <>
             <div className="flex flex-wrap items-end gap-3">
@@ -238,47 +245,57 @@ export function WeatherDialog({
                 }}
                 onHour={setHour}
               />
-              <button className={btn} disabled={state.kind === 'loading'} onClick={() => void fetchNow()}>
+              <button
+                className={btn}
+                disabled={state.kind === 'loading' || !online}
+                title={online ? undefined : t('common.needsConnection')}
+                onClick={() => void fetchNow()}
+              >
                 {state.kind === 'loading' ? t('weather.fetching') : t('weather.fetch')}
               </button>
             </div>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-ink-muted">
               {t('weather.siteLine', { lat: formatLat(lat, 3), lon: formatLon(lon, 3), alt: alt(siteM) })}
             </p>
           </>
         )}
 
-        <p role="status" aria-live="polite" className="text-xs text-amber-400">
+        <p role="status" aria-live="polite" className="text-xs text-warn-400">
           {state.kind === 'error' ? state.message : ''}
         </p>
 
-        {answer && !sample && <p className="text-xs text-amber-400">{t('weather.noHour')}</p>}
+        {answer && !sample && <p className="text-xs text-warn-400">{t('weather.noHour')}</p>}
 
         {answer && proposal && (
           <div className="space-y-2">
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-ink-muted">
               {t(answer.endpoint === 'archive' ? 'weather.validArchive' : 'weather.validForecast', { time: validTime })}
             </p>
-            {answer.endpoint === 'archive' && <p className="text-xs text-slate-400">{t('weather.archiveNoAloft')}</p>}
+            {answer.endpoint === 'archive' && <p className="text-xs text-ink-muted">{t('weather.archiveNoAloft')}</p>}
             {/* When the answer came from, and a way past the reuse window: a
                 reused answer is not a fresh one, and the user may know a newer
                 run is out. */}
             <div className="flex items-center justify-between gap-3">
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-ink-muted">
                 {t(answer.reused ? 'weather.reused' : 'weather.fetchedAt', {
                   time: new Intl.DateTimeFormat(i18n.language, { hour: '2-digit', minute: '2-digit' }).format(
                     new Date(answer.fetchedAtMs),
                   ),
                 })}
               </p>
-              <button className={btn} onClick={() => void fetchNow(true)}>
+              <button
+                className={btn}
+                disabled={!online}
+                title={online ? undefined : t('common.needsConnection')}
+                onClick={() => void fetchNow(true)}
+              >
                 {t('weather.fetchFresh')}
               </button>
             </div>
             {answer.variants.length > 1 && answer.terrainM !== null && (
               <Check
                 align="start"
-                className="text-xs text-slate-300"
+                className="text-xs text-ink-soft"
                 checked={useTerrain}
                 onChange={setUseTerrain}
                 label={t('weather.useTerrain', { terrain: alt(answer.terrainM), site: alt(siteM) })}
@@ -290,17 +307,39 @@ export function WeatherDialog({
                   {/* The value sits outside the label, so the checkbox is named
                       by its group alone and the value is read after it. */}
                   <Check
-                    className="text-xs text-slate-300"
+                    className="text-xs text-ink-soft"
                     checked={ticked.has(g)}
                     onChange={() => toggle(g)}
                     label={t(`weather.group.${g}`)}
                   />
-                  <span className="text-right text-xs tabular-nums text-slate-100">{describe(g)}</span>
+                  <span className="text-right text-xs tabular-nums text-ink-strong">{describe(g)}</span>
                 </li>
               ))}
             </ul>
-            <p className="text-xs text-slate-500">{t('weather.forecastNote')}</p>
-            <OpenMeteoCredit className="text-xs text-slate-500" />
+            {sample &&
+              (sample.cloudCoverPct !== null || sample.cloudCoverLowPct !== null || sample.visibilityM !== null) && (
+                <div className="rounded-md bg-raised/60 p-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-muted">{t('weather.sky')}</p>
+                  <dl className="mt-1 space-y-0.5 text-xs">
+                    {(
+                      [
+                        ['weather.cloudCover', sample.cloudCoverPct, (v: number) => `${Math.round(v)} %`],
+                        ['weather.cloudCoverLow', sample.cloudCoverLowPct, (v: number) => `${Math.round(v)} %`],
+                        ['weather.visibility', sample.visibilityM, far],
+                      ] as const
+                    ).map(([key, value, fmt]) =>
+                      value === null ? null : (
+                        <div key={key} className="flex justify-between gap-3">
+                          <dt className="text-ink-soft">{t(key)}</dt>
+                          <dd className="tabular-nums text-ink-strong">{fmt(value)}</dd>
+                        </div>
+                      ),
+                    )}
+                  </dl>
+                </div>
+              )}
+            <p className="text-xs text-ink-faint">{t('weather.forecastNote')}</p>
+            <OpenMeteoCredit className="text-xs text-ink-faint" />
           </div>
         )}
       </div>

@@ -18,7 +18,11 @@ import { radToDeg } from '../../../prefs/units';
  * the desktop still writes alongside it.
  */
 export function readLaunchConditions(doc: Document): Partial<LaunchConditions> | undefined {
-  const simEl = doc.querySelector('openrocket > simulations > simulation');
+  return readSimulationLaunch(doc.querySelector('openrocket > simulations > simulation'));
+}
+
+/** The same, from one given <simulation> element (see ork/importSimulations). */
+export function readSimulationLaunch(simEl: Element | null): Partial<LaunchConditions> | undefined {
   const condEl = simEl?.querySelector(':scope > conditions');
   if (!condEl) return undefined;
   const launch: Partial<LaunchConditions> = {};

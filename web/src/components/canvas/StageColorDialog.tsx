@@ -97,7 +97,7 @@ export function StageColorDialog({
           <div className="flex items-center justify-between gap-2 pb-1">
             <span className="flex-1" />
             {COLOR_ROLES.map((role) => (
-              <span key={role} className="w-12 shrink-0 text-center text-[10px] uppercase tracking-wide text-slate-400">
+              <span key={role} className="w-12 shrink-0 text-center text-[10px] uppercase tracking-wide text-ink-muted">
                 {t(ROLE_LABEL[role])}
               </span>
             ))}
@@ -106,7 +106,7 @@ export function StageColorDialog({
             const stage = stageLabel(t, i, name);
             return (
               <div key={`${i}-${name}`} className="flex items-center justify-between gap-2">
-                <span className="flex-1 truncate text-sm text-slate-300">{stage}</span>
+                <span className="flex-1 truncate text-sm text-ink-soft">{stage}</span>
                 {COLOR_ROLES.map((role) => (
                   <input
                     key={role}
@@ -114,7 +114,7 @@ export function StageColorDialog({
                     aria-label={`${stage} ${t(ROLE_LABEL[role])}`}
                     value={rgbToHex(drafts[role].get(i) ?? ROLE_DEFAULT[role](i))}
                     onChange={(e) => setColor(role, i, hexToRgbInt(e.target.value))}
-                    className="h-7 w-12 shrink-0 cursor-pointer rounded-md bg-slate-800 ring-1 ring-white/10"
+                    className="h-7 w-12 shrink-0 cursor-pointer rounded-md bg-raised ring-1 ring-line/10"
                   />
                 ))}
               </div>
@@ -125,7 +125,7 @@ export function StageColorDialog({
           <button
             type="button"
             onClick={() => setDrafts({ path: new Map(), ground: new Map(), pin: new Map() })}
-            className="mr-auto rounded-lg bg-slate-800 px-3 py-2 text-xs text-slate-300 ring-1 ring-white/10 hover:bg-slate-700"
+            className="mr-auto rounded-lg bg-raised px-3 py-2 text-xs text-ink-soft ring-1 ring-line/10 hover:bg-elevated"
           >
             {t('pathExport.resetColors')}
           </button>

@@ -1,6 +1,15 @@
 import { describe, it, expect } from 'vitest';
 import type { FlightResult, FlightSeries } from '../../../src/engine/openRocketEngine';
-import { dynamicPressure, eventRows, maxQ, MAX_Q } from '../../../src/services/flight/flightEvents';
+import {
+  dynamicPressure,
+  eventRows,
+  forwardFlightEnd,
+  maxQ,
+  maxQAlpha,
+  maxRollRate,
+  MAX_Q,
+  qAlpha,
+} from '../../../src/services/flight/flightEvents';
 
 /**
  * The timeline join and the dynamic-pressure peak. Both are pure, so the two
@@ -167,5 +176,47 @@ describe('eventRows', () => {
 
   it('is empty without a result, so the table can mount before a run', () => {
     expect(eventRows(null)).toEqual([]);
+  });
+});
+
+describe('q·α and roll rate', () => {
+  const air = { ρ: [1.2, 1.2, 1.2, 1.2], Vs: [340, 340, 340, 340] };
+
+  it('is dynamic pressure times the size of the angle of attack', () => {
+    const s = series({ ...air, aoa: [0, 0.1, -0.2, 0.05] });
+    const qs = dynamicPressure(s)!;
+    expect(qAlpha(s)).toEqual([0, qs[1]! * 0.1, qs[2]! * 0.2, qs[3]! * 0.05]);
+  });
+
+  it('peaks only while the rocket flies forward', () => {
+    // The biggest product is at t=3, after the window closes at t=2.
+    const s = series({ ...air, aoa: [0, 0.1, 0.1, 1.5] });
+    const peak = maxQAlpha(s, 2)!;
+    expect(peak.time).toBe(2);
+    expect(peak.value).toBeCloseTo(dynamicPressure(s)![2]! * 0.1, 9);
+  });
+
+  it('has nothing to say on a run without the air series', () => {
+    expect(qAlpha(series())).toBeNull();
+    expect(maxQAlpha(series(), Infinity)).toBeNull();
+  });
+
+  it('reads the fastest roll by magnitude, from the kernel series', () => {
+    expect(maxRollRate(series({ dΦ: [0, 2, -5, 1] }))).toBe(5);
+    expect(maxRollRate(series())).toBeNull();
+  });
+
+  it('ends forward flight at deployment, else apogee, else the summary', () => {
+    expect(
+      forwardFlightEnd({
+        events: [
+          { type: 'APOGEE', time: 8 },
+          { type: 'RECOVERY_DEVICE_DEPLOYMENT', time: 9 },
+        ],
+      }),
+    ).toBe(9);
+    expect(forwardFlightEnd({ events: [{ type: 'APOGEE', time: 8 }] })).toBe(8);
+    expect(forwardFlightEnd({ events: [], summary: { timeToApogee: 7 } })).toBe(7);
+    expect(forwardFlightEnd({ events: [] })).toBe(Infinity);
   });
 });

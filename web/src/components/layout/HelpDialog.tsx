@@ -87,7 +87,7 @@ export function HelpDialog({ page, onClose }: { page: string; onClose: () => voi
               aria-expanded={contentsOpen}
               aria-label={t('help.contents')}
               title={t('help.contents')}
-              className="shrink-0 rounded-lg bg-slate-800 px-2 py-1 text-sm text-slate-300 ring-1 ring-white/10 hover:bg-slate-700"
+              className="shrink-0 rounded-lg bg-raised px-2 py-1 text-sm text-ink-soft ring-1 ring-line/10 hover:bg-elevated"
             >
               ☰
             </button>
@@ -97,7 +97,7 @@ export function HelpDialog({ page, onClose }: { page: string; onClose: () => voi
             disabled={!canGoBack}
             aria-label={t('help.back')}
             title={t('help.back')}
-            className="shrink-0 rounded-lg bg-slate-800 px-2 py-1 text-sm text-slate-300 ring-1 ring-white/10 hover:bg-slate-700 disabled:cursor-not-allowed disabled:text-slate-600 disabled:hover:bg-slate-800"
+            className="shrink-0 rounded-lg bg-raised px-2 py-1 text-sm text-ink-soft ring-1 ring-line/10 hover:bg-elevated disabled:cursor-not-allowed disabled:text-ink-dim disabled:hover:bg-raised"
           >
             &lsaquo;
           </button>
@@ -111,7 +111,7 @@ export function HelpDialog({ page, onClose }: { page: string; onClose: () => voi
             rel="noopener noreferrer"
             aria-label={t('help.openOnSite')}
             title={t('help.openOnSite')}
-            className="shrink-0 rounded-lg bg-slate-800 px-2 py-1 text-xs text-slate-300 ring-1 ring-white/10 hover:bg-slate-700"
+            className="shrink-0 rounded-lg bg-raised px-2 py-1 text-xs text-ink-soft ring-1 ring-line/10 hover:bg-elevated"
           >
             {/* The label costs about 130px, and at phone width the header
                 already carries four controls; below `sm` the glyph stands in

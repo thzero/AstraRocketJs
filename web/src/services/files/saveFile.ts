@@ -6,10 +6,13 @@
  * the app as an INSTALLED PWA, where a blob download silently does nothing and the
  * file never appears. The app is installable, so that is a real configuration.
  *
- * So: anchor download everywhere, which is what people expect (straight to the
- * downloads folder, no extra tap), and the share sheet only where the anchor
- * cannot be trusted, which on iOS offers "Save to Files".
+ * So: the browser's own save dialog where it has one and the user has not turned
+ * it off (Settings, General), so they choose the name and the folder; else the
+ * anchor download, straight to the downloads folder; and the share sheet only
+ * where the anchor cannot be trusted, which on iOS offers "Save to Files".
  */
+
+import { loadSettings } from '../storage/settings';
 
 /** iOS or iPadOS. iPadOS 13+ reports as a Mac, hence the touch check. */
 function isApplePhoneOrTablet(): boolean {
@@ -43,6 +46,49 @@ function anchorDownload(blob: Blob, filename: string): void {
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
 
+/** The File System Access save dialog, where the browser has one. */
+type SavePicker = (options: {
+  suggestedName: string;
+  types?: { description?: string; accept: Record<string, string[]> }[];
+}) => Promise<{ createWritable: () => Promise<{ write: (data: Blob) => Promise<void>; close: () => Promise<void> }> }>;
+
+function savePicker(): SavePicker | null {
+  if (typeof window === 'undefined') return null;
+  const picker = (window as unknown as { showSaveFilePicker?: SavePicker }).showSaveFilePicker;
+  return typeof picker === 'function' ? picker : null;
+}
+
+/** Whether this browser can ask where to save: Chrome and Edge, not Firefox or Safari. */
+export function canAskWhereToSave(): boolean {
+  return savePicker() !== null;
+}
+
+/**
+ * Save through the browser's dialog. True when the file was written or the user
+ * canceled; false when the dialog could not be used and the caller should fall
+ * back. A save that starts too long after the click that asked for it is
+ * refused by the browser (it needs that click), which is the usual false.
+ */
+async function pickAndSave(picker: SavePicker, blob: Blob, filename: string): Promise<boolean> {
+  const ext = /\.([A-Za-z0-9]+)$/.exec(filename)?.[1];
+  // The dialog wants a bare MIME type: `text/csv;charset=utf-8` is refused.
+  const mime = (blob.type || 'application/octet-stream').split(';')[0]!.trim();
+  try {
+    const handle = await picker({
+      suggestedName: filename,
+      ...(ext ? { types: [{ description: ext.toUpperCase(), accept: { [mime]: [`.${ext}`] } }] } : {}),
+    });
+    const out = await handle.createWritable();
+    await out.write(blob);
+    await out.close();
+    return true;
+  } catch (e) {
+    // The user closed the dialog: they chose not to save, so nothing follows.
+    if (e instanceof DOMException && e.name === 'AbortError') return true;
+    return false;
+  }
+}
+
 /**
  * Save `blob` as `filename`. Resolves once handed off; never rejects — a user
  * canceling the share sheet is not an error, and a failed share falls back to
@@ -63,6 +109,8 @@ export async function saveBlob(blob: Blob, filename: string): Promise<void> {
       // Anything else (share unsupported for files, transient failure): fall through.
     }
   }
+  const picker = loadSettings().askWhereToSave ? savePicker() : null;
+  if (picker && (await pickAndSave(picker, blob, filename))) return;
   anchorDownload(blob, filename);
 }
 

@@ -113,3 +113,19 @@ describe('lerpAt binary search agrees with the linear scan', () => {
     for (const p of [-1, 0, 0.5, 1, 2.5, 3, 4]) expect(lerpAt(xs, ys, p)).toBe(linear(xs, ys, p));
   });
 });
+
+describe('lerpAt and NaN samples', () => {
+  it('takes the real value at a rail departure, not the NaN recorded on the rail', () => {
+    // The kernel's stability series: NaN on the rail, real from the departure on.
+    const time = [0.24, 0.25, 0.27];
+    const stability = [NaN, 0.54, 0.55];
+    expect(lerpAt(time, stability, 0.25)).toBe(0.54);
+    expect(lerpAt(time, stability, 0.245)).toBe(0.54);
+  });
+
+  it('never returns NaN, even at the ends', () => {
+    expect(lerpAt([0, 1], [NaN, NaN], 0.5)).toBeNull();
+    expect(lerpAt([0, 1], [NaN, 2], -1)).toBeNull();
+    expect(lerpAt([0, 1], [1, NaN], 5)).toBeNull();
+  });
+});

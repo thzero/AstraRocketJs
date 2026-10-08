@@ -1,4 +1,4 @@
-import { test, expect, importOrk, type NameClash, type Page } from './base';
+import { test, expect, autosaved, importOrk, type NameClash, type Page } from './base';
 
 const openLibrary = async (page: Page) => {
   await page.getByRole('button', { name: 'Menu' }).click();
@@ -153,8 +153,8 @@ test('an example opens from the library, as its own unsaved design', async ({ pa
   await entry.click();
   await expect(dlg).toBeHidden();
 
-  // It lands as an IMPORT: the file's own name and parts, and no library entry
-  // of its own, so editing it can never write back over the bundled copy.
+  // It lands as an IMPORT: the file's own name and parts, in a design of its
+  // own, so editing it can never write back over the bundled copy.
   const title = page.getByRole('button', { name: 'Edit rocket configuration' });
   await expect(title).toContainText('Clustered motors');
   // Scoped to the TREE. The name is also on four SVG <title>s in the
@@ -162,8 +162,16 @@ test('an example opens from the library, as its own unsaved design', async ({ pa
   // cluster came through.
   await expect(page.getByRole('tree', { name: 'Components' }).getByText('Clustered Inner Tube')).toBeVisible();
 
+  // An import becomes its OWN saved design once it autosaves, not an edit to
+  // the bundled file: My rockets lists it, and Examples still offers the
+  // original. Waiting on the autosave, because before it the list is empty and
+  // after it the entry is there; checking either without waiting is a race.
+  await autosaved(page, 'Clustered Inner Tube');
   await openLibrary(page);
-  await expect(page.getByRole('dialog', { name: 'My Rockets' }).getByText('No saved rockets yet')).toBeVisible();
+  const lib = page.getByRole('dialog', { name: 'My Rockets' });
+  await expect(lib.getByRole('button', { name: /^Clustered motors/ })).toBeVisible();
+  await page.getByRole('tab', { name: 'Examples' }).click();
+  await expect(lib.getByRole('button').filter({ hasText: 'Clustered motors' })).toBeVisible();
 });
 
 /**

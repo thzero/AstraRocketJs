@@ -1,10 +1,10 @@
-import { useTranslation } from 'react-i18next';
+import { useLauncherT } from '../common/useLauncher';
 import { fmtNum } from '../../i18n/format';
 import { UnitChip } from '../common/UnitChip';
 import { useUnits } from '../../prefs/useUnits';
 import { unitScope } from '../../prefs/units';
 import type { FlightResult } from '../../engine/api';
-import { maxQ, seriesAt } from '../../services/flight/flightEvents';
+import { forwardFlightEnd, maxQ, maxQAlpha, maxRollRate, seriesAt } from '../../services/flight/flightEvents';
 import { distanceFromPad, landingPoint } from '../../services/flight/groundTrack';
 import { stabilityTone } from '../../services/flight/simReport';
 import { useSettings } from '../../state/SettingsProvider';
@@ -54,7 +54,7 @@ import { WARNING_TONE } from './warningTone';
 const BULLET = 'flex gap-2';
 
 function SafetyCard() {
-  const { t } = useTranslation();
+  const t = useLauncherT();
   const openHelp = useHelpStore((s) => s.openHelp);
   const { settings, update } = useSettings();
   const open = settings.showSafetyCard;
@@ -163,7 +163,7 @@ function SafetyCard() {
  * numbers belong beside the charts they describe rather than a tab away.
  */
 export function SimSummary({ sim }: { sim: FlightResult | null }) {
-  const { t } = useTranslation();
+  const t = useLauncherT();
   const u = useUnits();
   // Each result tile owns its unit: reading apogee in feet should not drag
   // landing speed, downrange and the rest along with it.
@@ -176,14 +176,15 @@ export function SimSummary({ sim }: { sim: FlightResult | null }) {
   const maxAccel = u.at(unitScope('sim', 'maxAccel'), 'acceleration');
   const maxQUnit = u.at(unitScope('sim', 'maxQ'), 'pressure');
   const maxSpeed = u.at(unitScope('sim', 'maxSpeed'), 'velocity');
+  const maxRollUnit = u.at(unitScope('sim', 'maxRoll'), 'rollRate');
   // No fixed digits on these tiles: the ladder's precision follows the size of
   // the number in the reader's unit, and is what the simulations table shows.
   const { settings } = useSettings();
   const { deploymentSpeedWarn, railExitVelocityMin } = settings.simulation;
   const s = sim?.summary;
   // Safe-if-green thresholds (global settings): fast off the rail, gentle at deploy.
-  const goodTone = 'text-emerald-400',
-    warnTone = 'text-amber-400';
+  const goodTone = 'text-ok-400',
+    warnTone = 'text-warn-400';
   // Static margin at the instant the rocket clears the rod/rail — the
   // flight-relevant figure (real velocity + partly-burned mass), vs. the on-pad
   // "Stability" tile (Mach 0.3, fully loaded). OpenRocket records the same
@@ -200,6 +201,11 @@ export function SimSummary({ sim }: { sim: FlightResult | null }) {
   // when the app asked for the `summary` series set, which carries neither air
   // density nor the speed of sound — see services/flight/flightEvents.
   const peakQ = sim ? maxQ(sim.series) : null;
+  // q·α while the rocket still flies forward: up to deployment, else apogee,
+  // the window the chart clips its aero series to. Derived the way Max-Q is.
+  const peakQAlpha = sim ? maxQAlpha(sim.series, forwardFlightEnd(sim)) : null;
+  // The kernel's own roll rate series, read for its peak magnitude.
+  const peakRoll = sim ? maxRollRate(sim.series) : null;
   if (!s) return null;
   return (
     // The safety card and the tiles are ONE block, so the card travels with the
@@ -248,7 +254,7 @@ export function SimSummary({ sim }: { sim: FlightResult | null }) {
           label={t('sim.apogee')}
           value={apogee.fmt(s.maxAltitude)}
           sub={<UnitChip label={t('sim.apogee')} quantity="distance" scope={unitScope('sim', 'apogee')} />}
-          tone="text-sky-400"
+          tone="text-accent-400"
         />
         {s.deploymentVelocity != null && (
           <Stat
@@ -305,6 +311,25 @@ export function SimSummary({ sim }: { sim: FlightResult | null }) {
             label={t('sim.maxQ')}
             value={maxQUnit.fmt(peakQ.q)}
             sub={<UnitChip label={t('sim.maxQ')} quantity="pressure" scope={unitScope('sim', 'maxQ')} />}
+          />
+        )}
+        {/* The side load on the airframe scales with q·α, so it is the figure a
+            fin or a coupler is judged against. Pa·rad shown as kPa·°: a product
+            of two units has no single preference to follow. */}
+        {peakQAlpha && (
+          <Stat
+            card
+            label={t('sim.maxQAlpha')}
+            value={fmtNum((peakQAlpha.value * 180) / Math.PI / 1000, 1)}
+            sub="kPa·°"
+          />
+        )}
+        {peakRoll != null && (
+          <Stat
+            card
+            label={t('sim.maxRollRate')}
+            value={maxRollUnit.fmt(peakRoll)}
+            sub={<UnitChip label={t('sim.maxRollRate')} quantity="rollRate" scope={unitScope('sim', 'maxRoll')} />}
           />
         )}
       </section>

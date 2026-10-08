@@ -46,7 +46,7 @@ The single most valuable thing you can do is stop simulating a drawing and start
 5. **Check the descent rate and the landing speed**, and the ground track for how far downwind it puts you. Then look at the actual size of the field.
 6. **Re-run after any change**, including a motor swap. Results are only about the design and conditions they were run with.
 
-The override section carries mass, CG and drag coefficient, each with an "apply to all subcomponents" toggle, matching OpenRocket's semantics. See [Designing a Rocket](./designing-a-rocket.md).
+The override section carries mass, CG and drag coefficient, each with an "apply to all subcomponents" toggle, matching OpenRocket's semantics. A part inside one of those says so in red ("Mass overridden by Sustainer"), and its own override for that value is locked, as on the desktop: the outer value already decides it. See [Designing a Rocket](./designing-a-rocket.md).
 
 ## The limits the app enforces
 

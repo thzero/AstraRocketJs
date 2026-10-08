@@ -18,6 +18,7 @@ import { PlanView } from '../common/map/PlanView';
 import { useGroundLayer } from '../common/map/useTileVerdict';
 import { buildTraces, type ChartFlight } from './FlightChart';
 import { useElementResize } from '../common/useElementResize';
+import { token } from '../common/colorTokens';
 
 /**
  * The flight from directly above: the path over the ground, the pad at the
@@ -116,7 +117,7 @@ export function GroundTrack({
   const extent = useMemo(() => trackExtent(lines, sweepReach), [lines, sweepReach]);
 
   /** The color of the stage a region belongs to, so region and track agree. */
-  const regionColor = (branch: number) => lines[branch]?.color ?? lines[0]?.color ?? '#38bdf8';
+  const regionColor = (branch: number) => lines[branch]?.color ?? lines[0]?.color ?? token('series-1');
 
   /**
    * Fit the square to the space LEFT OVER by the legend, not to the whole pane.
@@ -238,8 +239,8 @@ export function GroundTrack({
                 <button
                   onClick={() => setSweepOpen((v) => !v)}
                   aria-expanded={sweepOpen}
-                  className={`rounded-md px-2 py-1 text-[11px] font-medium ring-1 ring-black/40 ${
-                    sweepOpen || mine ? 'bg-sky-600 text-white' : 'bg-slate-900/80 text-slate-300 hover:bg-slate-800'
+                  className={`rounded-md px-2 py-1 text-[11px] font-medium ring-1 ring-shade/40 ${
+                    sweepOpen || mine ? 'bg-accent-600 text-on-accent' : 'bg-surface/80 text-ink-soft hover:bg-raised'
                   }`}
                 >
                   {t('sweep.button')}
@@ -319,19 +320,19 @@ export function GroundTrack({
           // index is the trace's position, which is how `buildTraces` keys them.
           const region = regions.find((r) => r.branch === i);
           return (
-            <span key={l.key} className="flex items-center gap-1.5 text-[11px] text-slate-300">
+            <span key={l.key} className="flex items-center gap-1.5 text-[11px] text-ink-soft">
               <span className="inline-block h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: l.color }} />
               {/* The name in an element of its own rather than a bare text node,
                 so it can be read (and matched) apart from the figures beside it. */}
               <span>{l.name}</span>
-              <span className="tabular-nums text-slate-400">
+              <span className="tabular-nums text-ink-muted">
                 {fmtDist(l.distance)} · {fmtNum(l.bearing, 0)}°
               </span>
               {/* The swept spread, when there is one: the walk to plan for is
                   the FURTHEST landing over the conditions asked about, not the
                   one that was typed. */}
               {region && (
-                <span className="tabular-nums text-slate-500">
+                <span className="tabular-nums text-ink-faint">
                   (
                   {/* The unit is carried once, on the far end: "566-707 m" reads as a
                       band where "566 m-707 m" reads as two separate figures. */}
@@ -341,7 +342,7 @@ export function GroundTrack({
             </span>
           );
         })}
-        {!drawn.length && <span className="text-[11px] text-slate-500">{t('flight.groundTrackEmpty')}</span>}
+        {!drawn.length && <span className="text-[11px] text-ink-faint">{t('flight.groundTrackEmpty')}</span>}
       </div>
     </div>
   );

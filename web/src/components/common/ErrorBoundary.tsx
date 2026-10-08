@@ -49,14 +49,14 @@ function ErrorFallback({ error }: { error: Error }) {
   const stale = isChunkLoadError(error);
   return (
     <div role="alert" className="flex h-full min-h-32 flex-col items-center justify-center gap-3 p-4 text-center">
-      <p className="text-sm text-slate-300">{t(stale ? 'errors.staleBuild' : 'errors.viewFailed')}</p>
+      <p className="text-sm text-ink-soft">{t(stale ? 'errors.staleBuild' : 'errors.viewFailed')}</p>
       {/* The message itself, small and below: on a bug inside the view it is
           the only clue the user can pass on, and on a stale build it names the
           file that went missing. */}
-      <p className="max-w-md break-words text-[11px] leading-snug text-slate-500">{error.message}</p>
+      <p className="max-w-md break-words text-[11px] leading-snug text-ink-faint">{error.message}</p>
       <button
         onClick={() => window.location.reload()}
-        className="rounded-lg bg-sky-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-sky-500"
+        className="rounded-lg bg-accent-600 px-3 py-1.5 text-sm font-medium text-on-accent hover:bg-accent-500"
       >
         {t('update.reload')}
       </button>

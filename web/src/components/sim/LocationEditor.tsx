@@ -160,23 +160,23 @@ export function LocationEditor({
         {/* Phone only: at `md` and up the list is beside this. */}
         <button
           onClick={onBack}
-          className="-mb-1 self-start rounded px-1 text-sm text-slate-400 hover:text-slate-200 md:hidden"
+          className="-mb-1 self-start rounded px-1 text-sm text-ink-muted hover:text-ink md:hidden"
           aria-label={t('location.back')}
         >
           ‹
         </button>
 
-        <label className="block text-xs text-slate-400">
+        <label className="block text-xs text-ink-muted">
           {t('location.name')}
           <input
             ref={nameRef}
             value={name}
             maxLength={80}
             onChange={(e) => setName(e.target.value)}
-            className="mt-1 w-full rounded-lg bg-slate-800 px-3 py-2 text-sm text-slate-100 ring-1 ring-white/10 focus:ring-sky-500"
+            className="mt-1 w-full rounded-lg bg-raised px-3 py-2 text-sm text-ink-strong ring-1 ring-line/10 focus:ring-accent-500"
           />
         </label>
-        {duplicate && <p className="text-[11px] leading-snug text-amber-400">{t('location.duplicateName')}</p>}
+        {duplicate && <p className="text-[11px] leading-snug text-warn-400">{t('location.duplicateName')}</p>}
 
         <div key={revision} className="grid gap-x-4 gap-y-2 sm:grid-cols-2">
           <Row label={t('launch.latitude')} unit="°">
@@ -254,7 +254,7 @@ export function LocationEditor({
             // coordinates that exist nowhere is not what "use this location"
             // offers.
             title={dirty ? t('location.applyNeedsSave') : t('location.apply')}
-            className="rounded-lg px-3 py-1.5 text-sm font-medium text-sky-300 hover:bg-sky-500/10 disabled:text-slate-500 disabled:hover:bg-transparent"
+            className="rounded-lg px-3 py-1.5 text-sm font-medium text-accent-300 hover:bg-accent-500/10 disabled:text-ink-faint disabled:hover:bg-transparent"
           >
             {t('location.use')}
           </button>
@@ -265,15 +265,15 @@ export function LocationEditor({
 }
 
 const numberClass =
-  'w-28 rounded-md bg-slate-800 px-2 py-1.5 text-right text-sm tabular-nums text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500';
+  'w-28 rounded-md bg-raised px-2 py-1.5 text-right text-sm tabular-nums text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500';
 
 function Row({ label, unit, children }: { label: string; unit: ReactNode; children: ReactNode }) {
   return (
-    <label className="flex items-center justify-between gap-3 text-xs text-slate-300">
+    <label className="flex items-center justify-between gap-3 text-xs text-ink-soft">
       <span className="min-w-24">{label}</span>
       <span className="flex items-center gap-1">
         {children}
-        <span className="min-w-8 text-slate-500">{unit}</span>
+        <span className="min-w-8 text-ink-faint">{unit}</span>
       </span>
     </label>
   );

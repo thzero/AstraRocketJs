@@ -45,8 +45,8 @@ export function ParachuteTool() {
     <div className="grid gap-4 lg:grid-cols-[22rem_minmax(0,28rem)]">
       <div className="space-y-4">
         <div>
-          <h2 className="text-sm font-semibold text-slate-200">{t('chuteTool.title')}</h2>
-          <p className="mt-1 text-xs text-slate-400">{t('chuteTool.intro')}</p>
+          <h2 className="text-sm font-semibold text-ink">{t('chuteTool.title')}</h2>
+          <p className="mt-1 text-xs text-ink-muted">{t('chuteTool.intro')}</p>
         </div>
         <CardGroup title={t('chuteTool.rocket')}>
           <QNum
@@ -112,11 +112,11 @@ export function ParachuteTool() {
           />
         </CardGroup>
       </div>
-      <section className="h-fit rounded-xl bg-slate-900 p-3 ring-1 ring-white/10" aria-label={t('chuteTool.result')}>
+      <section className="h-fit rounded-xl bg-surface p-3 ring-1 ring-line/10" aria-label={t('chuteTool.result')}>
         {ready ? (
           <SizingFigures massKg={massKg} cd={cd} rho={rho} diameterM={diameterM} />
         ) : (
-          <p className="text-xs text-slate-400">{t('chuteTool.empty')}</p>
+          <p className="text-xs text-ink-muted">{t('chuteTool.empty')}</p>
         )}
       </section>
     </div>

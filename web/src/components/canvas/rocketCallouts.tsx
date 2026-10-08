@@ -14,7 +14,8 @@ import { Line } from '@react-three/drei';
  * (two opposite quadrants colored, two white) with a colored rim. Drawn to a
  * canvas so a <sprite> can always face the camera instead of a 3D ball.
  */
-export function markerTexture(color: string): THREE.CanvasTexture {
+/** `light` is the color of the two light quarters, the scene's own. */
+export function markerTexture(color: string, light: string): THREE.CanvasTexture {
   const s = 128;
   const cvs = document.createElement('canvas');
   cvs.width = s;
@@ -25,14 +26,14 @@ export function markerTexture(color: string): THREE.CanvasTexture {
     r = s / 2 - 6;
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.fillStyle = '#ffffff';
+  ctx.fillStyle = light;
   ctx.fill();
   for (let i = 0; i < 4; i++) {
     ctx.beginPath();
     ctx.moveTo(cx, cy);
     ctx.arc(cx, cy, r, (i * Math.PI) / 2, (i * Math.PI) / 2 + Math.PI / 2);
     ctx.closePath();
-    ctx.fillStyle = i % 2 === 0 ? color : '#ffffff';
+    ctx.fillStyle = i % 2 === 0 ? color : light;
     ctx.fill();
   }
   ctx.beginPath();

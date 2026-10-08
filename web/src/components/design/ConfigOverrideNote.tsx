@@ -58,7 +58,7 @@ function NamedConfigs({ label, configs, sub }: { label: string; configs: FlightC
   if (!configs.length) return null;
 
   return (
-    <p className="mt-1 text-[11px] leading-snug text-amber-300/90">
+    <p className="mt-1 text-[11px] leading-snug text-warn-300/90">
       {label}{' '}
       {configs.map((c, i) => (
         <span key={c.id}>
@@ -72,7 +72,7 @@ function NamedConfigs({ label, configs, sub }: { label: string; configs: FlightC
               setConfigsTab(sub);
               setTab('configs');
             }}
-            className="underline decoration-dotted hover:text-amber-200"
+            className="underline decoration-dotted hover:text-warn-200"
           >
             {c.name || loadoutLabel(tree, c) || t('configs.noMotors')}
           </button>

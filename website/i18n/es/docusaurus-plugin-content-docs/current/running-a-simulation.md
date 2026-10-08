@@ -4,6 +4,8 @@ sidebar_position: 12
 ---
 Las simulaciones están en el panel de la derecha. Una simulación es una [configuración de vuelo](./flight-configurations.md) —los motores, la recuperación y las etapas— volada bajo unas condiciones de lanzamiento, así que lo que cada fila lleva de propio es su nombre, la configuración que vuela, las condiciones y el último resultado. Puedes mantener **varias simulaciones con nombre** para un mismo diseño (por ejemplo, distintos motores o campos de vuelo), **duplicar** una como punto de partida y eliminarlas. El botón rojo **Eliminar simulación** (junto al nombre de la simulación actual) la borra tras una confirmación; el espacio de trabajo siempre conserva al menos una, así que se desactiva cuando solo queda una.
 
+**⬇ CSV**, en la barra de herramientas, descarga la **tabla de simulaciones**: cada simulación en una fila, con su configuración, motores, estado y resultados (apogeo, velocidades, tiempos, Max-Q, q·α máx. y alabeo máx.) en tus unidades. Una simulación que no ha volado aparece con las cifras en blanco, y una desactualizada aparece marcada como tal, porque sus cifras describen el diseño anterior a tus últimos cambios.
+
 ## Elige qué vuela
 
 La columna **Configuración** de la tabla, y el selector en la parte superior del editor, eligen qué [configuración de vuelo](./flight-configurations.md) vuela esa fila; los motores que lleva se detallan debajo. **Editar motores…** abre la pestaña Configuraciones en esa configuración.
@@ -14,9 +16,9 @@ Varias filas pueden volar la misma configuración, que es justo para lo que est�
 
 Cada simulación tiene su propia configuración de lanzamiento, agrupada en tarjetas:
 
-- **Varilla / raíl de lanzamiento** — longitud, ángulo respecto a la vertical y dirección (o «lanzar contra el viento»).
+- **Raíl de lanzamiento**, **Varilla de lanzamiento** o **Guía de lanzamiento**: longitud, ángulo respecto a la vertical y dirección (o «lanzar contra el viento»). La tarjeta toma el nombre de las guías del diseño: los botones de raíl van en un raíl, las anillas de lanzamiento en una varilla, y un diseño sin ninguna de las dos, o con ambas, dice guía. La misma palabra se usa en los resultados, los eventos de vuelo, los avisos y el informe.
 - **Campo de vuelo** — altitud, latitud y longitud, además de las [ubicaciones guardadas](#saved-locations) y un [mapa](#the-map).
-- **Atmósfera** — estándar ISA, o temperatura, presión y humedad personalizadas, o rellenarlas junto con el viento a partir de un [pronóstico del tiempo](#weather).
+- **Atmósfera** — estándar ISA, o temperatura, presión y humedad personalizadas, o rellenarlas junto con el viento a partir de un [pronóstico del tiempo](#weather). La **presión** es la presión *en el sitio*, no la cifra reducida al nivel del mar que suelen dar las aplicaciones del tiempo y los partes de aeropuerto. Una presión escrita muy por encima de la presión estándar para la altitud del sitio muestra una nota en ámbar bajo el campo que lo indica, porque así se ve una cifra a nivel del mar en un campo alto. La nota nunca impide simular: el valor puede ser correcto.
 - **Viento** — velocidad media, rachas (desviación estándar) y dirección; o un perfil de viento **multinivel** que varía con la altitud.
 - **Modelo terrestre** — plano, esférico o WGS84 (afecta a los vuelos largos o muy altos).
 
@@ -26,11 +28,12 @@ Las simulaciones nuevas parten de los valores por defecto de tus [Ajustes](./set
 
 El lugar de lanzamiento es una propiedad del **campo**, no de un vuelo, así que no hace falta volver a teclearlo cada vez. La fila superior de la tarjeta de lugar de lanzamiento los guarda y los recupera:
 
+- **🔍 Buscar un lugar** fija el sitio a partir de un nombre de lugar, un código postal, unas coordenadas pegadas o un enlace de mapa. Un nombre o código postal se busca con el buscador de lugares de Open-Meteo, igual que se consulta el tiempo, y muestra las coincidencias con su altitud; elegir una fija la latitud, la longitud y la altitud en una sola edición. Las coordenadas y los enlaces de Google, Apple, OpenStreetMap o Bing se leen en la aplicación y no se envían a ninguna parte; solo se consulta la altitud de ese punto. Un enlace acortado (`maps.app.goo.gl/…`) oculta el lugar tras una redirección, así que ábrelo y pega la dirección completa. Los nombres de lugares son de GeoNames, con licencia CC BY 4.0.
 - **💾 Guardar esta ubicación** almacena los tres campos del lugar con un nombre. Guardar con un nombre que ya usaste actualiza esa ubicación en lugar de añadir una segunda que no podrías distinguir en la lista.
 - El **desplegable** aplica la latitud, la longitud y la altitud de una ubicación guardada. Es una edición normal, así que se deshace como cualquier otra. Muestra **Ubicación personalizada** siempre que los campos no coincidan con ninguna ubicación guardada, reconocido a partir de los propios números, así que sigue siendo correcto tanto si los escribiste, como si los importaste de un `.ork` o usaste 📍 **Usar mi ubicación**. Si eliges tú **Ubicación personalizada**, los tres campos del lugar vuelven a los valores por defecto de lanzamiento de tus [Ajustes](./settings.md): el **Centro Espacial Kennedy**, salvo que los hayas cambiado. Sirve para cuando estás en un sitio nuevo y prefieres partir de un lugar conocido a ir corrigiendo los números de una ubicación guardada uno a uno: el mapa tiene dónde abrirse y los tres campos siguen rellenos, así que la ejecución nunca se rechaza por un hueco. También es una edición normal, así que deshacer recupera el lugar anterior.
 - **⚙ Gestionar ubicaciones guardadas** es una biblioteca de dos paneles: las ubicaciones a la izquierda con sus coordenadas, para poder distinguir dos campos de nombre parecido, y la seleccionada abierta a la derecha. El editor es la ubicación entera —nombre, latitud, longitud, altitud y el mapa—, porque una coordenada mal escrita es lo que más veces hay que corregir. **Guardar** la escribe y la deja seleccionada, **Descartar** la devuelve a como estaba almacenada, y pasar a otra ubicación con cambios sin guardar pregunta antes. **Usar** aplica la ubicación seleccionada a la simulación que tengas abierta, y se rechaza mientras haya cambios sin guardar, porque lo que ofrece es uno de los lugares que has *guardado*. **Nueva ubicación** crea una escribiendo los números. La misma biblioteca está en **menú → Ubicaciones de lanzamiento**, junto al panel de motores, así que puedes consultar tus ubicaciones sin abrir antes una simulación, y **Nueva ubicación** es la forma de añadir una desde ahí, donde no hay campos de lanzamiento en pantalla que capturar.
 
-La altitud se muestra y se edita en la unidad que uses en la tarjeta de lugar de lanzamiento, así que un campo a 6.004 ft se lee igual en los dos sitios. La latitud y la longitud van siempre en grados, y las dos son obligatorias: 0°, 0° es un punto del golfo de Guinea, no «sin definir».
+La altitud se muestra y se edita en la unidad que uses en la tarjeta de lugar de lanzamiento, así que un campo a 6.004 ft se lee igual en los dos sitios. La latitud y la longitud van siempre en grados, y las dos son obligatorias: 0°, 0° es un punto del golfo de Guinea, no «sin definir». Junto a cada una, la unidad indica el hemisferio en el que el signo pone el sitio (**° N** o **° S**, **° E** o **° W**) mientras escribes, así que un signo menos olvidado se ve al momento.
 
 ### El mapa {#the-map}
 
@@ -57,6 +60,8 @@ El diálogo muestra lo que ha encontrado, cada cosa con su casilla, y no cambia 
 Las fechas desde unos tres meses atrás hasta 15 días por delante usan el pronóstico. Las fechas anteriores, hasta 1940, usan el registro histórico de Open-Meteo, que solo tiene valores de superficie, así que no se ofrecen ni el perfil de viento ni la atmósfera en altura. Cuando la altitud del sitio y la altura del terreno de Open-Meteo difieren en más de 30 m, el diálogo ofrece usar la altura del terreno como altitud del sitio, y los valores que muestra siguen esa elección.
 
 El diálogo indica cuándo se consultó la respuesta. Una respuesta se reutiliza durante 30 minutos para el mismo lugar y las mismas fechas, ya que el modelo de pronóstico más rápido publica una nueva pasada cada hora; el diálogo indica cuándo se ha reutilizado, y **Consultar de nuevo** vuelve a preguntar a Open-Meteo de todos modos.
+
+Debajo, para la misma hora, el diálogo muestra la **nubosidad** pronosticada (total y baja) y la **visibilidad** (solo en fechas de pronóstico; el registro histórico no la tiene). Son información para decidir si se vuela, no datos de entrada: nada en un vuelo las lee, así que no tienen casilla y nunca se aplican. El permiso del campo y el RSO deciden si el cielo es adecuado.
 
 Un pronóstico es una estimación de un modelo. Aplicarlo es una edición normal que se deshace como cualquier otra, y los resultados volados con las condiciones anteriores aparecen como desactualizados.
 
@@ -126,6 +131,8 @@ Debajo, los resultados se muestran como fichas, en orden aproximadamente cronol�
 - **Velocidad de apertura** (marcada si supera tu umbral de aviso; en verde cuando es suficientemente baja). En un diseño de [despliegue dual](./designing-a-rocket.md#despliegue-dual) el motor de vuelo juzga el principal y el piloto contra sus propios umbrales, y devuelve un aviso por cada uno.
 - **Velocidad de aterrizaje**, **tiempo de vuelo** y **distancia recorrida**
 - **Max-Q**, el pico de presión dinámica del impulso. El motor no lo registra, así que se deriva de la densidad del aire y la velocidad del sonido que la simulación ya lleva; es el número que decide si el fuselaje aguanta. Un resultado guardado antes de que las simulaciones conservaran el conjunto completo de series no tiene densidad del aire almacenada, y no informa Max-Q en vez de un cero que parecería una respuesta.
+- **q·α máx.**, el mayor producto de presión dinámica por ángulo de ataque mientras el cohete aún vuela hacia delante (hasta la apertura, si no hasta el apogeo), en kPa·°. La carga lateral sobre aletas y acopladores lo sigue. Se deriva igual que Max-Q.
+- **Alabeo máx.**, lo más rápido que giró el cohete durante el vuelo, leído de la serie de velocidad de alabeo del motor de simulación.
 
 ### Eventos de vuelo {#flight-events}
 
@@ -133,7 +140,7 @@ Bajo las fichas, la tabla **Eventos de vuelo** es el vuelo como una lista que se
 
 Se nombra cada evento que levanta el motor, no solo los cinco que etiquetan las gráficas, así que la salida de rampa, la ignición, la separación de etapa y el volteo aparecen aquí por primera vez. Cada fila lleva la **altitud** y la **velocidad** de su instante, en las unidades que elijas desde los encabezados de columna, y las filas por las que se lee algo más lo llevan en una línea propia:
 
-- La **salida de rampa** da el margen estático, la relación empuje-peso y el ángulo de ataque con los que dejó el raíl.
+- La **salida del raíl** (o de la varilla o de la guía, según las guías del diseño) da el margen estático, la relación empuje-peso y el ángulo de ataque con los que salió.
 - El **fin de empuje** da su Mach.
 - **Max-Q** da la presión dinámica y el Mach en el pico.
 

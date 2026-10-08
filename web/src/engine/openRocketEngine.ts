@@ -671,8 +671,8 @@ export type ComponentType =
   // external faired pod for an onboard camera, added for the RASAero
   // supersonic work (ork extension element, 2026-08-05b #18), never finished.
   //
-  // There is no way to create one: `ALLOWED_CHILDREN` has no fairing entry so
-  // the add menu never offers it, `defaultNode` has no case, and
+  // There is no way to create one: the Add menu (`ADD_GROUPS` in ComponentTree)
+  // never offers it, `defaultNode` has no case, and
   // `componentFields` gives it no property panel. It only exists in a design
   // that was loaded from a `.ork` this app itself wrote. The renderers do draw
   // it, and import/export round-trip it.
@@ -1391,6 +1391,33 @@ export function sanitizeSeries(series: FlightSeries): FlightSeries {
 }
 
 /** Frees all engine-side objects (all OpenRocketDesign handles become invalid). */
+/**
+ * The pressure of OpenRocket's standard atmosphere at an altitude (Pa), from
+ * the kernel's own model, or null while the engine is still loading.
+ */
+export function standardPressurePa(altitudeM: number): number | null {
+  if (!active) return null;
+  return callEngine('standardPressure', () => eng().getStandardPressure(altitudeM));
+}
+
+/**
+ * How alike two thrust curves are, 0 to 1, from the kernel's
+ * `MotorCorrelation.similarity` (what desktop's "Hide very similar thrust
+ * curves" compares against 0.95), or null while the engine is still loading.
+ * Curves are `[time s, thrust N]` samples.
+ */
+export function motorSimilarity(a: [number, number][], b: [number, number][]): number | null {
+  if (!active) return null;
+  return callEngine('motorSimilarity', () =>
+    eng().getMotorSimilarity(
+      a.map((p) => p[0]),
+      a.map((p) => p[1]),
+      b.map((p) => p[0]),
+      b.map((p) => p[1]),
+    ),
+  );
+}
+
 export function resetEngine(): void {
   callEngine('reset', () => eng().reset());
   engineGeneration++;

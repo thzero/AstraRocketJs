@@ -53,6 +53,19 @@ export const test = base.extend<{ wip: WipState }>({
         }
       }, SETTINGS_KEY);
     }
+    // Downloads, not the save dialog. Chromium has `showSaveFilePicker`, so the
+    // app would open a dialog nothing can answer here and every export would
+    // wait on it; the download path is what these specs check, and the dialog
+    // has its own unit tests (tests/services/files/saveFile.test.ts). Merged
+    // like the seed above, on every navigation.
+    await page.addInitScript((key: string) => {
+      try {
+        const stored = (JSON.parse(localStorage.getItem(key) || '{}') as Record<string, unknown>) ?? {};
+        localStorage.setItem(key, JSON.stringify({ ...stored, askWhereToSave: false }));
+      } catch {
+        // No usable storage on about:blank, or a corrupt blob the app discards.
+      }
+    }, SETTINGS_KEY);
     // Map tiles never leave the test runner.
     //
     // `components/sim/SiteMap.tsx` requests real tiles from Esri. A suite that

@@ -162,6 +162,21 @@ describe('loadSettings', () => {
     localStorage.setItem(KEY, JSON.stringify({ showImportNotes: 'no' }));
     expect(loadSettings().showImportNotes).toBe(true);
   });
+
+  it('defaults the theme to dark, keeps a stored choice and drops an unknown one', () => {
+    expect(loadSettings().theme).toBe('dark');
+    for (const theme of ['light', 'system', 'daylight'] as const) {
+      localStorage.setItem(KEY, JSON.stringify({ theme }));
+      expect(loadSettings().theme).toBe(theme);
+    }
+    localStorage.setItem(KEY, JSON.stringify({ theme: 'solarized' }));
+    expect(loadSettings().theme).toBe('dark');
+    // The toggle's way back is never daylight itself.
+    localStorage.setItem(KEY, JSON.stringify({ themeBeforeDaylight: 'daylight' }));
+    expect(loadSettings().themeBeforeDaylight).toBe('dark');
+    localStorage.setItem(KEY, JSON.stringify({ themeBeforeDaylight: 'system' }));
+    expect(loadSettings().themeBeforeDaylight).toBe('system');
+  });
 });
 
 describe('saveSettings', () => {

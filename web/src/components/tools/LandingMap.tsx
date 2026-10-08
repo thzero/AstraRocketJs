@@ -7,6 +7,7 @@ import { LINER } from '../common/map/mapStyle';
 import { PlanView } from '../common/map/PlanView';
 import { useGroundLayer } from '../common/map/useTileVerdict';
 import { useElementResize } from '../common/useElementResize';
+import { token } from '../common/colorTokens';
 
 /**
  * The landing estimate seen from above: the pad at the center, north up, the
@@ -63,15 +64,15 @@ export function LandingMap({
             {zone.length > 2 && (
               <polygon
                 points={poly(zone)}
-                fill="#f59e0b"
+                fill={token('warn-500')}
                 fillOpacity={0.12}
-                stroke="#f59e0b"
+                stroke={token('warn-500')}
                 strokeWidth={1.5}
                 strokeDasharray="4 3"
               />
             )}
             {samples.map((p, i) => (
-              <circle key={i} cx={X(p.east)} cy={Y(p.north)} r={1.6} className="fill-amber-300/70" />
+              <circle key={i} cx={X(p.east)} cy={Y(p.north)} r={1.6} className="fill-warn-300/70" />
             ))}
           </>
         )}
@@ -79,11 +80,18 @@ export function LandingMap({
         {({ X, Y, poly, mapOn }) => (
           <>
             {mapOn && <polyline points={poly(path)} fill="none" stroke={LINER} strokeWidth={3.75} />}
-            <polyline points={poly(path)} fill="none" stroke="#38bdf8" strokeWidth={1.75} />
+            <polyline points={poly(path)} fill="none" stroke={token('accent-400')} strokeWidth={1.75} />
             {mapOn && (
               <circle cx={X(landing.east)} cy={Y(landing.north)} r={5} fill="none" stroke={LINER} strokeWidth={4} />
             )}
-            <circle cx={X(landing.east)} cy={Y(landing.north)} r={5} fill="none" stroke="#38bdf8" strokeWidth={2} />
+            <circle
+              cx={X(landing.east)}
+              cy={Y(landing.north)}
+              r={5}
+              fill="none"
+              stroke={token('accent-400')}
+              strokeWidth={2}
+            />
           </>
         )}
       </PlanView>

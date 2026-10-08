@@ -85,17 +85,19 @@ constantgravity
 constructability
 cordlength
 cosθ
+Crêpe
 Croll
 crossflow
 crosshairs
 crossrange
 crosssection
-Crêpe
 currentconditions
 curveless
 customexpression
 customreference
+daddr
 databind
+databranch
 datasheet
 dataviz
 DATCOM
@@ -108,6 +110,7 @@ deploydelay
 deployevent
 deploymentcharge
 deploymentconfiguration
+deploymentvelocity
 Depron
 Derivs
 desig
@@ -146,9 +149,9 @@ evts
 extendedisa
 EXTMAX
 EXTMIN
+façade
 failureaccess
 fairingshape
-façade
 fbclid
 fcid
 FDLIBM
@@ -170,6 +173,7 @@ flangeheight
 Fleeman
 flightcomputer
 flightdata
+flighttime
 forecastlevel
 foreradius
 foreshouldercapped
@@ -181,6 +185,7 @@ Français
 freeformfinset
 fshape
 gainmap
+generationtime
 geodeticmethod
 Geographics
 Geolocator
@@ -193,6 +198,7 @@ goldens
 gradlew
 gravitymodel
 gridlines
+groundhitvelocity
 Guardado
 Guice
 haack
@@ -241,13 +247,13 @@ jdkstubs
 Jorgensen
 Kalman
 Karman
+Kármán
 Kevlars
 killable
 kitchensink
 kitname
 KOSDON
 Kutta
-Kármán
 languagedetector
 launchaltitude
 launchintowind
@@ -259,6 +265,7 @@ LAUNCHROD
 launchrodangle
 launchroddirection
 launchrodlength
+launchrodvelocity
 lerp
 Lexan
 linecount
@@ -277,7 +284,9 @@ masscalc
 masscomponent
 masscomponenttype
 maxacceleration
+maxaltitude
 Maxar
+maxmach
 maxmotorlength
 maxq
 maxtime
@@ -299,6 +308,8 @@ misrenders
 mistap
 mkdtemp
 mktemp
+mlat
+mlon
 mmrocket
 mmrsim
 monkeypatching
@@ -320,6 +331,7 @@ nosetoroottop
 nosuchfinish
 notsimulated
 nozzleexitdiameter
+NSEW
 nudgeable
 opacityaffectstexture
 opencsv
@@ -327,6 +339,7 @@ openmeteo
 openrocket
 openstreetmap
 openxmlformats
+optimumdelay
 orc
 Ork's
 orkengine
@@ -355,6 +368,7 @@ pitot
 placemark
 planarfin
 planform
+planforms
 plottable
 podset
 podsets
@@ -469,6 +483,7 @@ thrustcurves
 thzero
 timeformat
 Timeto
+timetoapogee
 tipchord
 titebond
 Toggleable
@@ -517,6 +532,7 @@ unwired
 uppercased
 upperignition
 upstreaming
+uptodate
 USGS
 Vantor
 vels

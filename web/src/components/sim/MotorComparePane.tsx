@@ -7,6 +7,7 @@ import { ALIGN, heading, type Col } from './motorColumns';
 import { seriesColor } from '../common/chartPalette';
 import { ChartAxes, CHART_HEADROOM, chartScales, LegendSwatch, SeriesPath } from './chartAxes';
 import { hasCurve } from '../../services/motors/motorDb';
+import { token } from '../common/colorTokens';
 
 /**
  * The motor dashboard's COMPARE tool: the checked motors' thrust curves
@@ -42,10 +43,10 @@ export function MotorComparePane({ motors, cols }: { motors: CatalogMotor[]; col
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-3">
-      <div className="text-[11px] font-semibold uppercase tracking-wider text-amber-400/90">
+      <div className="text-[11px] font-semibold uppercase tracking-wider text-warn-400/90">
         {t('dash.compareTitle')}
       </div>
-      <h3 className="mt-1 text-lg font-bold text-slate-100">{t('dash.compareN', { n: motors.length })}</h3>
+      <h3 className="mt-1 text-lg font-bold text-ink-strong">{t('dash.compareN', { n: motors.length })}</h3>
 
       {series.length >= 1 ? (
         <>
@@ -66,7 +67,7 @@ export function MotorComparePane({ motors, cols }: { motors: CatalogMotor[]; col
             ))}
           </svg>
           {/* Legend — identity is never color-alone. */}
-          <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-300">
+          <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-ink-soft">
             {series.map((s) => (
               <LegendSwatch key={keyOf(s.m)} color={s.color} width={12}>
                 {s.m.code || s.m.designation}
@@ -75,12 +76,12 @@ export function MotorComparePane({ motors, cols }: { motors: CatalogMotor[]; col
           </div>
         </>
       ) : (
-        <p className="my-4 rounded-lg bg-slate-800/50 p-3 text-xs text-slate-400">{t('motorDlg.noCurve')}</p>
+        <p className="my-4 rounded-lg bg-raised/50 p-3 text-xs text-ink-muted">{t('motorDlg.noCurve')}</p>
       )}
 
       <div className="mt-3 overflow-x-auto">
         <table className="w-full border-collapse whitespace-nowrap text-xs tabular-nums">
-          <thead className="text-[10px] uppercase tracking-wide text-slate-500">
+          <thead className="text-[10px] uppercase tracking-wide text-ink-faint">
             <tr>
               <th scope="col" className="px-2 py-1 text-left font-semibold">
                 {t('dash.colMotor')}
@@ -94,19 +95,19 @@ export function MotorComparePane({ motors, cols }: { motors: CatalogMotor[]; col
           </thead>
           <tbody>
             {motors.map((m) => (
-              <tr key={keyOf(m)} className="border-t border-white/5">
-                <td className="px-2 py-1 font-medium text-slate-100">
+              <tr key={keyOf(m)} className="border-t border-line/5">
+                <td className="px-2 py-1 font-medium text-ink-strong">
                   <span
                     className="mr-1.5 inline-block h-2 w-2 rounded-full align-middle"
-                    style={{ background: colorFor.get(keyOf(m)) ?? '#475569' }}
+                    style={{ background: colorFor.get(keyOf(m)) ?? token('ink-dim') }}
                   />
                   {m.code || m.designation}
                   {!colorFor.has(keyOf(m)) && (
-                    <span className="ml-1 text-[10px] font-normal text-slate-500">({t('dash.noCurve')})</span>
+                    <span className="ml-1 text-[10px] font-normal text-ink-faint">({t('dash.noCurve')})</span>
                   )}
                 </td>
                 {specCols.map((c) => (
-                  <td key={c.id} className={`px-2 py-1 text-slate-300 ${ALIGN[c.align]}`}>
+                  <td key={c.id} className={`px-2 py-1 text-ink-soft ${ALIGN[c.align]}`}>
                     {c.cell(m, u)}
                   </td>
                 ))}

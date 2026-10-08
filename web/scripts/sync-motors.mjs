@@ -148,9 +148,13 @@ async function assertSane(catalog, withCurves) {
 }
 
 async function main() {
-  console.log('Fetching available motors…');
-  const { results: motors = [] } = await post('search.json', { availability: 'available', maxResults: MAX_RESULTS });
-  console.log(`  ${motors.length} available motors`);
+  // Every motor, in production or not, as desktop OpenRocket's motor database
+  // carries them: its chooser hides the ones out of regular production behind a
+  // checkbox rather than leaving them out, so a motor someone still has on the
+  // shelf can be flown.
+  console.log('Fetching motors…');
+  const { results: motors = [] } = await post('search.json', { availability: 'all', maxResults: MAX_RESULTS });
+  console.log(`  ${motors.length} motors`);
   if (motors.length >= MAX_RESULTS)
     throw new Error(`search.json returned ${motors.length} motors, the page cap; raise MAX_RESULTS or page the query`);
 
@@ -196,6 +200,9 @@ async function main() {
       if (m.delays) row.delays = m.delays; // "4,6,7,8,10"
       if (m.propInfo) row.propInfo = m.propInfo; // propellant type
       if (m.sparky) row.sparky = true;
+      // thrustcurve.org's availability is regular, occasional or OOP; desktop's
+      // "not in regular production" is OOP. Marked only when true, to keep rows small.
+      if (m.availability === 'OOP') row.oop = true;
       if (Number.isFinite(m.avgThrustN)) row.avgThrust = round(m.avgThrustN, 2);
       if (Number.isFinite(m.maxThrustN)) row.maxThrust = round(m.maxThrustN, 2);
       if (Number.isFinite(m.length)) row.length = round(m.length, 2); // mm
