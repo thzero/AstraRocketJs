@@ -39,7 +39,7 @@ export function motorColumns(tree: RocketTree, t: TFunction): ConfigColumn[] {
       return (
         <>
           {motorDesignation(seated.spec)}
-          {/* Ignition only when it is NOT the default: an "automatic" on every
+          {/* Ignition only when it is not the default: an "automatic" on every
               cell is noise, and the one cell that air-starts is the thing worth
               seeing here. */}
           {ign && ign !== 'automatic' && (
@@ -82,7 +82,7 @@ export function separationColumns(
   t: TFunction,
   alt: (stage: ComponentNode) => FieldUnit,
 ): ConfigColumn[] {
-  // EVERY stage, not only the ones that separate: a configuration decides
+  // Every stage, not only the ones that separate: a configuration decides
   // whether each stage flies at all, and the top stage has no separation to
   // speak of but can still be left on the ground.
   const separates = new Set(findSeparators(tree).map((n) => n.id as string));

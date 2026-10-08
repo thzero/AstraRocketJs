@@ -33,7 +33,7 @@ export interface FileMenuActions {
   onSettings: () => void;
   /** Open in-app Help at the docs index. */
   onHelp: () => void;
-  /** Open in-app Help ON the Safety page. */
+  /** Open in-app Help on the Safety page. */
   onSafety: () => void;
   onPrivacy: () => void;
   onAbout: () => void;
@@ -177,7 +177,7 @@ function FileMenu({
   };
 
   return (
-    <div
+    <div // eslint-disable-line jsx-a11y-x/interactive-supports-focus -- roving tabindex: focus moves to the items, as in the ARIA menu pattern, so the container is not
       ref={menuRef}
       role="menu"
       onKeyDown={onMenuKey}
@@ -204,7 +204,7 @@ function FileMenu({
       )}
       {/* Under Import and not beside New, because that is what opening one is:
           it reads a `.ork` and lands an unsaved copy, exactly as the entry above
-          does — the file just happens to ship with the app. */}
+          does; the file just happens to ship with the app. */}
       {importOpen && (
         <MenuItem sub label={t('file.importExamplesLabel')} onClick={run(actions.onImportExamples)}>
           {t('file.importExamples')}
@@ -247,11 +247,11 @@ function FileMenu({
           bulkhead on a design that has no bulkhead in it.
 
           Gone where the component tree is (useCanBuildDesign). A saved part is
-          applied THROUGH a component, and it is adding the component it belongs
+          applied through a component, and it is adding the component it belongs
           on that such a window cannot do; the library would open onto a design
           it has no way to put anything into. The picker inside the property
           editor stays, so a part already in the rocket can still be sized from
-          the catalog, and saved parts are still SAVED from there. */}
+          the catalog, and parts are still saved from there. */}
       {canBuild && <MenuItem onClick={run(actions.onSavedParts)}>{t('picker.savedManage')}</MenuItem>}
       <div className="my-1 border-t border-line/10" />
       <MenuItem onClick={run(actions.onSettings)}>{t('settings.title')}</MenuItem>

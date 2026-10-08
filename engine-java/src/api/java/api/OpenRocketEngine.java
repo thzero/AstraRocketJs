@@ -60,10 +60,10 @@ import info.openrocket.core.util.WorldCoordinate;
 /**
  * JS-facing engine facade (@JSExport). Handle-based API: components live in
  * a registry and are addressed by integer handles; parameters are primitives
- * or arrays; results are JSON strings (built by hand — no JSON library in
- * the kernel). All values SI (meters, kilograms, seconds, newtons), angles
- * in radians — conversions belong to the caller. Documented exceptions:
- * launchLatitude/launchLongitude are DEGREES (WorldCoordinate's own unit)
+ * or arrays; results are JSON strings (built by hand, since the kernel has no
+ * JSON library). All values SI (meters, kilograms, seconds, newtons), angles
+ * in radians; conversions belong to the caller. Documented exceptions:
+ * launchLatitude/launchLongitude are degrees (WorldCoordinate's own unit)
  * and getAeroSweep's aoaDeg is degrees (converted here).
  */
 public final class OpenRocketEngine {
@@ -110,8 +110,8 @@ public final class OpenRocketEngine {
 
     /**
      * Releases one handle. reset() releases them all; this is for a caller that
-     * builds more than one design without resetting, which otherwise kept every
-     * Rocket alive for the life of the module. A freed id stays unknown, as after
+     * builds more than one design without resetting, which would otherwise keep
+     * every Rocket alive for the life of the module. A freed id stays unknown, as after
      * reset(). Component handles from the add* builders are released the same way.
      */
     @JSExport
@@ -127,8 +127,8 @@ public final class OpenRocketEngine {
     }
 
     // Guards for the addX builders, which take their numbers straight from the
-    // caller: a NaN length surfaced as `Error: null`, a negative radius built a
-    // massless part with no error, and 1e9 fins became 8. Bounded like file input
+    // caller: unchecked, a NaN length surfaces as `Error: null`, a negative radius
+    // builds a massless part with no error, and 1e9 fins become 8. Bounded like file input
     // (ComponentFactory.MAX_MAGNITUDE), and each names the argument it rejects.
     private static double finiteArg(String what, double v) {
         if (!isFinite(v) || Math.abs(v) > ComponentFactory.MAX_MAGNITUDE) {
@@ -155,14 +155,14 @@ public final class OpenRocketEngine {
     /**
      * The `{"error": ...}` envelope the JS side looks for.
      *
-     * EVERY entry point has to produce one. `parsed.error` is checked in
-     * web/src/engine/openRocketEngine.ts after getStaticInfo, getComponentInfo,
-     * getAeroSweep and getComponentMasses, so a method that throws out of TeaVM
-     * instead surfaces in JS as an opaque throw from inside a 2.9 MB bundle and
-     * JSON.parse never runs.
+     * Every entry point that returns a JSON string has to produce one.
+     * parseEnvelope in web/src/engine/openRocketEngine.ts checks `error` after
+     * getStaticInfo, getComponentInfo, getAeroSweep, getComponentMasses and
+     * simulateJson, so a method that throws out of TeaVM instead surfaces in JS
+     * as an opaque throw from inside the bundle and JSON.parse never runs.
      *
-     * READ THIS BEFORE ADDING AN ENTRY POINT:
-     * `catch (RuntimeException e) { return errorJson(e); }` is NOT a safety net on
+     * Before adding an entry point, note that
+     * `catch (RuntimeException e) { return errorJson(e); }` is not a safety net on
      * the target that ships.
      *
      * The engine compiles twice. TeaVM's JS backend converts a native JavaScript
@@ -171,14 +171,14 @@ public final class OpenRocketEngine {
      * no equivalent: a wasm trap is not a `WebAssembly.Exception` carrying the
      * `teavm.javaException` tag, so no Java catch clause sees it and it unwinds
      * straight out of the module. The app loads WASM-GC by default and falls back to
-     * JS, so the backend WITHOUT the net is the one users run.
+     * JS, so the backend without the net is the one users run.
      *
-     * Measured on the shipped artifacts with one 6000-deep options blob: JS returned
+     * With a 6000-deep options blob, JS returns
      * `{"error":"(JavaScript) RangeError: Maximum call stack size exceeded"}`;
-     * WASM-GC threw a bare RangeError out of the module.
+     * WASM-GC throws a bare RangeError out of the module.
      *
-     * A trap cannot be caught, so the rule for anything that can recurse, loop or
-     * allocate on caller-supplied input is: BOUND IT AT THE BOUNDARY. That is what
+     * A trap cannot be caught, so anything that can recurse, loop or allocate on
+     * caller-supplied input must be bounded at the boundary. That is what
      * `JsonLite.MAX_DEPTH` and `MAX_INPUT_CHARS`, the `MAX_SWEEP_POINTS` integer
      * point count, and `ComponentFactory.count()` exist for. The envelope is for
      * reporting ordinary bad input, not for surviving exhaustion.
@@ -203,11 +203,11 @@ public final class OpenRocketEngine {
     }
 
     /**
-     * A handle of a KNOWN kind.
+     * A handle of a known kind.
      * <p>
      * Checked here rather than blind-cast at the call site: the wrapper's
-     * generation counter catches a handle from a RESET engine but never one of the
-     * wrong TYPE, and the engine compiles at {@code optimization = NONE}, where
+     * generation counter catches a handle from a reset engine but never one of the
+     * wrong type, and the engine compiles at {@code optimization = NONE}, where
      * TeaVM elides the checkcast. So passing a rocket handle to
      * {@code addTrapezoidFins} throws no ClassCastException at all; it uses the
      * wrong object and fails further in with
@@ -231,13 +231,12 @@ public final class OpenRocketEngine {
     /** Frees every handle (rockets, components, motors). */
     @JSExport
     public static void reset() {
-        // Clear, but do NOT rewind the counter. Rewinding made handle ids
-        // reusable, and web/src/engine/api.ts calls reset() before every
-        // rebuild: buildRocket registers exactly one object, so the new design
-        // got handle 1 — the same number an OpenRocketDesign held from before
-        // the rebuild still carried. That stale object's staticInfo()/simulate()
-        // then returned results for the NEW rocket with no error at all, and
-        // get()'s unknown-handle check could never fire. A freed handle now
+        // Clear, but do not rewind the counter. web/src/engine/api.ts resets
+        // before every rebuild, and buildRocket registers exactly one object, so
+        // a rewound counter would give the new design the same handle an
+        // OpenRocketDesign from before the rebuild still carries. That stale
+        // object would then return results for the new rocket with no error,
+        // and get()'s unknown-handle check could never fire. A freed handle
         // stays permanently unknown.
         HANDLES.clear();
     }
@@ -258,17 +257,17 @@ public final class OpenRocketEngine {
     }
 
     /**
-     * Builds a complete rocket from a JSON component tree (P2.1 API):
+     * Builds a complete rocket from a JSON component tree:
      * { "name": "...", "components": [ {"type": "nosecone", "id": "n1", ...,
      *   "children": [...]}, ... ] }
      *
-     * Multi-stage (P3): the top level may instead be STAGE nodes —
+     * Multi-stage: the top level may instead be stage nodes:
      * { "components": [ {"type":"stage", "name":"Sustainer", "children":[...]},
      *   {"type":"stage", "name":"Booster", "separationEvent":"ejection",
      *    "separationDelay":0, "children":[...]} ] }
      * Stage 0 is the top (sustainer); order matches the desktop. A top level
-     * WITHOUT stage nodes keeps the legacy meaning: children of one implicit
-     * stage. Mixing stage and component nodes at the top level is an error.
+     * without stage nodes means the children of one implicit stage. Mixing
+     * stage and component nodes at the top level is an error.
      * separationEvent: launch|ignition|burnout|ejection|upperignition|
      * altitudeascending|apogee|altitudedescending|never (desktop default:
      * ejection).
@@ -286,9 +285,9 @@ public final class OpenRocketEngine {
         }
 
         Object comps = tree.get("components");
-        // PRESENT but not a list is an error, not an empty list: coerced,
-        // buildRocket('{"components":"nope"}') returns a handle and reports a
-        // perfectly healthy all-zero rocket. Absent means an empty tree.
+        // Present but not a list is an error, not an empty list: coerced,
+        // buildRocket('{"components":"nope"}') would return a handle and report
+        // a healthy all-zero rocket. Absent means an empty tree.
         if (comps != null && !(comps instanceof List)) {
             throw new IllegalArgumentException("'components' must be a list, got "
                     + comps.getClass().getSimpleName());
@@ -358,13 +357,13 @@ public final class OpenRocketEngine {
     /**
      * Per-stage separation trigger/delay (defaults preserved when absent).
      * Package-private so ComponentFactory can reuse it for a parallelstage
-     * (ParallelStage IS an AxialStage) — no duplication.
+     * (a ParallelStage is an AxialStage).
      */
     static void applySeparationConfig(AxialStage stage, Map<String, Object> stageNode,
             Map<AxialStage, Double> nozzleDia) {
-        // RASAero power-on base-drag: per-stage nozzle exit diameter (meters). Upstream
-        // owns feature #2 natively via a PER-MOTOR MotorConfiguration.nozzleExitDiameter,
-        // so we capture the per-stage input here and hand it to the stage's motor in
+        // Power-on base drag: per-stage nozzle exit diameter (meters). Upstream
+        // models it per motor (MotorConfiguration.nozzleExitDiameter), so the
+        // per-stage input is captured here and handed to the stage's motor in
         // applyMotor. Applies to every stage (incl. the sustainer). Absent/0 => power-off.
         double nozzleExitDiameter = JsonLite.dbl(stageNode, "nozzleExitDiameter", Double.NaN);
         if (!Double.isNaN(nozzleExitDiameter) && nozzleExitDiameter > 0) {
@@ -421,7 +420,7 @@ public final class OpenRocketEngine {
             double[] masses, double cgX, double ejectionDelay) {
         RocketCtx ctx = get(rocketHandle, RocketCtx.class, "a rocket");
         RocketComponent comp = ctx.ids.get(componentId);
-        // Inner tube OR a body tube flagged as a mount (min-diameter rockets) —
+        // Inner tube or a body tube flagged as a mount (min-diameter rockets):
         // the kernel treats both through the MotorMount interface.
         if (!(comp instanceof MotorMount)) {
             throw new IllegalArgumentException(
@@ -537,11 +536,9 @@ public final class OpenRocketEngine {
     private static void applyMotor(RocketCtx ctx, MotorMount mount, String designation,
             double diameter, double length, double[] times, double[] thrusts,
             double[] masses, double cgX, double ejectionDelay) {
-        // At the BOUNDARY, not only in the JS wrapper. cgPoints was sized from
-        // times.length and then indexed masses[i] unchecked, so a short masses
-        // array left TeaVM throwing ArrayIndexOutOfBounds with no envelope —
-        // and this class of bug already shipped once as TeaVM's opaque
-        // "The number NaN cannot be converted to a BigInt".
+        // At the boundary, not only in the JS wrapper. cgPoints is sized from
+        // times.length and indexes masses[i], so a short masses array would
+        // otherwise throw ArrayIndexOutOfBounds out of TeaVM with no envelope.
         if (times == null || thrusts == null || masses == null) {
             throw new IllegalArgumentException("motor " + designation + ": times/thrusts/masses are required");
         }
@@ -581,8 +578,8 @@ public final class OpenRocketEngine {
         MotorConfiguration mc = new MotorConfiguration(mount, ctx.fcid);
         mc.setMotor(motor);
         mc.setEjectionDelay(ejectionDelay);
-        // RASAero feature #2 (power-on base drag): apply this stage's captured nozzle
-        // exit diameter to the motor (upstream's native per-motor model). Upstream
+        // Power-on base drag: apply this stage's captured nozzle exit diameter
+        // to the motor (upstream's native per-motor model). Upstream
         // rejects a nozzle wider than the motor, so clamp to the motor diameter
         // rather than throw and break the sim.
         Double nozzle = ctx.nozzleDia.get(((RocketComponent) mount).getStage());
@@ -592,16 +589,16 @@ public final class OpenRocketEngine {
         mount.setMotorConfig(mc, ctx.fcid);
         // Refresh the configuration's active-motor list so mass-based static analysis
         // (MassCalculator.calculateLaunch → getStaticInfo's loaded CG/stability) counts
-        // this motor. setMotorConfig alone leaves the config's motors map stale — our
-        // build path never fires the change event that would trigger updateMotors() — so
-        // without this the on-pad CG/CP/stability reflect the UNLOADED rocket.
+        // this motor. setMotorConfig alone leaves the config's motors map stale (this
+        // build path never fires the change event that would trigger updateMotors()), so
+        // without this the on-pad CG/CP/stability reflect the unloaded rocket.
         ctx.rocket.getSelectedConfiguration().update();
     }
 
     /**
-     * Overrides WHEN the identified mount's motor ignites (call after
+     * Overrides when the identified mount's motor ignites (call after
      * setMotorById). Default is "automatic": launch-stage motors light at
-     * launch, upper-stage motors on the ejection charge of the stage below —
+     * launch, upper-stage motors on the ejection charge of the stage below,
      * the low/mid-power pattern. High-power sustainers use electronics:
      * "burnout" or "launch" plus a timer delay.
      * ignitionEvent: automatic|launch|ejectioncharge|burnout|never.
@@ -621,9 +618,8 @@ public final class OpenRocketEngine {
                     "No motor loaded on mount '" + componentId + "' — call setMotorById first");
         }
         // At the boundary, like the motor curve in applyMotor. This method is
-        // void, so a bad delay cannot come back as an envelope: it went straight
-        // into the ignition time and the sim's result JSON as `"time":Infinity`,
-        // which is not JSON, and the whole flight was discarded at JSON.parse.
+        // void, so a bad delay cannot come back as an envelope; unchecked, it
+        // would go straight into the ignition time and every event after it.
         if (!isFinite(ignitionDelay)) {
             throw new IllegalArgumentException("ignitionDelay must be finite (got " + ignitionDelay + ")");
         }
@@ -654,7 +650,7 @@ public final class OpenRocketEngine {
      * stack and the upper stage by itself.
      *
      * Addressed by component id like every other per-part call here, rather than
-     * by the kernel's stage NUMBER: numbers are handed out in the order stages
+     * by the kernel's stage number: numbers are handed out in the order stages
      * are added, so a parallel booster nested in an early stage shifts the ones
      * after it, and the caller would have to reproduce that rule to be right.
      */
@@ -676,15 +672,10 @@ public final class OpenRocketEngine {
     // ---------- Analysis ----------
 
     /**
-     * Static design info: length, mass, CG, CP (at Mach 0.3, AoA 0), stability
-     * margin in calibers. "mass"/"cg" are launch values (motors loaded when
-     * set); "massEmpty"/"cgEmpty" are the dry structure.
-     */
-    /**
      * Opt-in "Rogers Modified Barrowman" body-in-presence-of-fins interference
-     * (Kbf), feature #3. When enabled, the displayed CP/stability and the flight
+     * (Kbf). When enabled, the displayed CP/stability and the flight
      * sim both include the body carryover load classic Barrowman drops, which
-     * moves CP slightly aft and so RAISES the static margin shown. Aft is not
+     * moves CP slightly aft and so raises the static margin shown. Aft is not
      * "conservative" - see the note in the FinSetCalc patch. Off by default; a
      * per-design setting.
      */
@@ -697,8 +688,8 @@ public final class OpenRocketEngine {
      * Opt-in stubby nose-cone drag correction: a subsonic pressure-drag floor
      * for short stored-table nose shapes (ellipsoid, power, parabolic, Haack),
      * which the classic model leaves with ~zero subsonic pressure drag. A
-     * standalone correction (independent of the supersonic / Rogers models),
-     * submitted upstream to OpenRocket. Off by default; off ⇒ bit-identical.
+     * standalone correction (independent of the supersonic / Rogers models).
+     * Off by default; off ⇒ bit-identical.
      * Applies to staticInfo, simulate and getAeroSweep.
      */
     @JSExport
@@ -707,7 +698,7 @@ public final class OpenRocketEngine {
     }
 
     /**
-     * RASAero feature #1 (Phase 1): opt-in supersonic aerodynamics — corrected
+     * Opt-in RASAero supersonic aerodynamics: corrected
      * supersonic fin normal force, NACA-1307 body-fin interference, and
      * Mach-dependent nose CNa. Applies to staticInfo, simulate and getAeroSweep.
      */
@@ -718,8 +709,8 @@ public final class OpenRocketEngine {
 
     /**
      * Build a BarrowmanCalculator wired with the design's opt-in RASAero
-     * extensions (feature #1 supersonicAero, feature #3 rogersKbf). With both
-     * flags off this is bit-identical to a stock {@code new BarrowmanCalculator()},
+     * extensions (supersonicAero, rogersKbf) and the stubby-nose drag floor. With
+     * all flags off this is bit-identical to a stock {@code new BarrowmanCalculator()},
      * so getStaticInfo / getAeroSweep / simulateJson all agree.
      */
     private static BarrowmanCalculator rasAeroCalculator(RocketCtx ctx) {
@@ -733,6 +724,11 @@ public final class OpenRocketEngine {
         return new BarrowmanCalculator(stab, drag);
     }
 
+    /**
+     * Static design info: length, mass, CG, CP (at Mach 0.3, AoA 0), stability
+     * margin in calibers. "mass"/"cg" are launch values (motors loaded when
+     * set); "massEmpty"/"cgEmpty" are the dry structure.
+     */
     @JSExport
     public static String getStaticInfo(int rocketHandle) {
         try {
@@ -752,27 +748,26 @@ public final class OpenRocketEngine {
         conditions.setMach(0.3);
         conditions.setAOA(0);
         WarningSet warnings = new WarningSet();
-        // Upstream refactor: getCP()/getCM() now return CoordinateIF (accessor-based).
         CoordinateIF cp = calc.getCP(ctx.rocket.getSelectedConfiguration(), conditions, warnings);
-        // The GEOMETRY warnings - diameter discontinuity, open airframe forward,
-        // zero-volume body, podset overlap - are raised by checkGeometry, which
-        // getCP does not call. Without this the warning set came back empty for
+        // The geometry warnings (diameter discontinuity, open airframe forward,
+        // zero-volume body, podset overlap) are raised by checkGeometry, which
+        // getCP does not call. Without this the warning set comes back empty for
         // every design, however wrong: a nose cone four times the diameter of the
-        // tube behind it reported nothing. Upstream's own UI calls both.
+        // tube behind it reports nothing. Upstream's own UI calls both.
         calc.checkGeometry(ctx.rocket.getSelectedConfiguration(), ctx.rocket, warnings);
 
-        double refDiameter = conditions.getRefLength(); // refLength IS the reference diameter
+        double refDiameter = conditions.getRefLength(); // refLength is the reference diameter
         double cg = structure.getCM().getX();
 
-        // The stability margin is a LENGTH (cp - cg); calibers and percent are two
-        // ways of displaying it. Both conversions are OpenRocket's OWN unit
+        // The stability margin is a length (cp - cg); calibers and percent are two
+        // ways of displaying it. Both conversions are OpenRocket's own unit
         // classes bound to the selected configuration, not arithmetic of ours,
         // because the two denominators are not what they look like:
         //
-        //   CaliberUnit           -> the largest body DIAMETER over the active
+        //   CaliberUnit           -> the largest body diameter over the active
         //                            components (CaliberUnit.calculateCaliber).
         //   PercentageOfLengthUnit-> getLengthAerodynamic(), the span of the
-        //                            AERODYNAMIC components only - not
+        //                            aerodynamic components only, not
         //                            getLength(), which bounds every component.
         //
         // Dividing by the app's own `length` (all components) for the percentage
@@ -819,7 +814,7 @@ public final class OpenRocketEngine {
 
     /**
      * Per-component info for a buildRocket() id: length, own mass (override-
-     * aware; a fin set's mass covers ALL its fins), subtree mass including
+     * aware; a fin set's mass covers all its fins), subtree mass including
      * children, CG from the component's own front, and the component's
      * absolute position from the rocket nose (first instance).
      */
@@ -850,28 +845,12 @@ public final class OpenRocketEngine {
     }
 
     /**
-     * Drag polar sweep (RASAero-style Aero Plots). For each Mach across the
-     * requested range it returns total CD plus the friction / pressure / base
-     * split, for BOTH power-off (coast) and power-on (all stages thrusting —
-     * the nozzle-exit base-drag reduction from feature #2), and a per-component
-     * power-off CD breakdown. Zero-alpha by default. This is a static design
-     * property (no flight needed).
-     *
-     * Options JSON: { machMin=0.05, machMax=3.0, machStep=0.05, aoaDeg=0 }.
-     * Returns: { machs:[], hasNozzle:bool,
-     *            powerOff:{total[],friction[],pressure[],base[]},
-     *            powerOn:{...}, components:[{name,cd[]}...] }.
-     * NOTE: the underlying method is Extended Barrowman — accurate subsonic/
-     * transonic, degrading above ~Mach 1.5-2 (full supersonic fidelity is
-     * feature #1). The UI labels the supersonic region accordingly.
-     */
-    /**
      * Per-component mass breakdown: each instance's mass, the aggregate mass of
      * all instances, and the aggregate CG.
      *
-     * Its own call rather than a field on {@link #staticInfo}, which runs on
+     * Its own call rather than a field on {@link #getStaticInfo}, which runs on
      * every keystroke, and not part of the drag sweep, which is swept over Mach
-     * -- mass does not vary with speed. Mirrors the desktop's Component
+     * while mass does not vary with speed. Mirrors the desktop's Component
      * Analysis "Stability" tab, which reads the same
      * {@code MassCalculator.getCMAnalysis}.
      */
@@ -892,8 +871,8 @@ public final class OpenRocketEngine {
 
         // Row order must not depend on HashMap iteration. getCMAnalysis returns a
         // Map keyed by component.hashCode(), and RocketComponent.hashCode() hashes
-        // a per-run random UUID — so the mass table came out in a different order
-        // on every run, and differently again JVM vs TeaVM. Emit in TREE order,
+        // a per-run random UUID, so map order differs on every run, and again
+        // between JVM and TeaVM. Emit in tree order,
         // the order the component tree beside it already shows, and put the
         // entries with no component behind them (the motor rows) last, by name.
         java.util.Map<String, info.openrocket.core.masscalc.CMAnalysisEntry> byKey =
@@ -950,7 +929,7 @@ public final class OpenRocketEngine {
     }
 
     /**
-     * The wind direction that puts the CP furthest forward -- the desktop's
+     * The wind direction that puts the CP furthest forward: the desktop's
      * "Worst" button.
      *
      * A rocket is least stable at some angle about its roll axis, and for a
@@ -965,7 +944,7 @@ public final class OpenRocketEngine {
     @JSExport
     public static double getWorstThetaDeg(int rocketHandle, double machValue, double aoaDeg) {
         RocketCtx ctx = get(rocketHandle, RocketCtx.class, "a rocket");
-        // A NaN Mach returned 0 degrees, a plausible-looking answer to a broken question.
+        // A NaN Mach would return 0 degrees, a plausible-looking answer to a broken question.
         nonNegativeArg("getWorstThetaDeg mach", machValue);
         finiteArg("getWorstThetaDeg aoaDeg", aoaDeg);
         FlightConfiguration config = ctx.rocket.getSelectedConfiguration();
@@ -980,7 +959,7 @@ public final class OpenRocketEngine {
      * The pressure of OpenRocket's standard atmosphere at an altitude, in Pa.
      *
      * For the launch panel's check on a typed pressure: weather sources quote
-     * pressure reduced to sea level, while the launch pressure is the pressure AT
+     * pressure reduced to sea level, while the launch pressure is the pressure at
      * the site, so a sea-level figure typed at a high site reads far above this.
      * Taken from the kernel's own model so the app holds no second atmosphere.
      *
@@ -1034,6 +1013,23 @@ public final class OpenRocketEngine {
                 .build();
     }
 
+    /**
+     * Drag polar sweep (RASAero-style Aero Plots). For each Mach across the
+     * requested range it returns total CD plus the friction / pressure / base
+     * split, for both power-off (coast) and power-on (all stages thrusting,
+     * with the nozzle-exit base-drag reduction), CP and CNa, and a per-component
+     * power-off breakdown. Zero-alpha by default. This is a static design
+     * property (no flight needed).
+     *
+     * Options JSON: { machMin=0.05, machMax=3.0, machStep=0.05, aoaDeg=0,
+     *                 thetaDeg=0, rollRate=0, machAlt }.
+     * Returns: { machs:[], hasNozzle:bool, nonFinite:int, cp[], cna[],
+     *            powerOff:{total[],friction[],pressure[],base[]},
+     *            powerOn:{...}, components:[{key,name,cd[],...}...] }.
+     * The underlying method is Extended Barrowman: accurate subsonic/
+     * transonic, degrading above ~Mach 1.5-2 unless the opt-in supersonic
+     * model is on. The UI labels the supersonic region accordingly.
+     */
     @JSExport
     public static String getAeroSweep(int rocketHandle, String optionsJson) {
         try {
@@ -1052,39 +1048,36 @@ public final class OpenRocketEngine {
         double machStep = JsonLite.dbl(o, "machStep", 0.05);
         double aoa = Math.toRadians(JsonLite.dbl(o, "aoaDeg", 0));
         // Wind direction about the roll axis, and the roll rate itself. Both
-        // default to zero, which is what every sweep ran at before they were
-        // exposed. Roll rate matters for the roll DAMPING coefficient, which is
-        // proportional to it and therefore reads zero without one.
+        // default to zero. Roll rate matters for the roll damping coefficient,
+        // which is proportional to it and therefore reads zero without one.
         double theta = Math.toRadians(JsonLite.dbl(o, "thetaDeg", 0));
         double rollRate = JsonLite.dbl(o, "rollRate", 0);
-        // Absent or non-positive means "use the default" - long-standing
-        // behavior the JS side relies on. NaN cannot reach here any more
-        // (JsonLite rejects non-finite literals) but is folded in for callers
-        // that bypass it.
+        // Absent or non-positive means "use the default", which the JS side
+        // relies on. NaN cannot reach here (JsonLite rejects non-finite
+        // literals) but is folded in for callers that bypass it.
         if (Double.isNaN(machStep) || machStep <= 0) {
             machStep = 0.05;
         }
-        // Only machStep was guarded. machMin/machMax were not, so
-        // {"machMax":1e9} built a List<Double> of 2e10 entries and took the tab
-        // down with it — no error, just an exhausted heap.
+        // machMin/machMax need their own guard: unchecked, {"machMax":1e9}
+        // builds a list of 2e10 entries and exhausts the heap with no error.
         if (!isFinite(machMin) || !isFinite(machMax) || machMax < machMin) {
             throw new IllegalArgumentException(
                     "aero sweep needs finite machMin <= machMax (got " + machMin + ".." + machMax + ")");
         }
-        // Count the points as an INTEGER before believing the guard. Dividing
-        // first meant machMin == machMax made the numerator 0, so ANY step
-        // passed - and a step below ulp(machMin) then made `m += machStep` a
-        // no-op, growing the list until the tab died. machMin == machMax is a
-        // real call pattern (services/buildRocket.ts asks for a single Mach).
+        // Count the points as an integer before believing the guard. When
+        // machMin == machMax the span is 0, so any step passes a span-only
+        // check, and a step below ulp(machMin) would never advance an
+        // accumulating loop. machMin == machMax is a real call pattern
+        // (services/design/buildRocket.ts asks for a single Mach).
         if (!isFinite(machStep) || machStep <= 0) {
             throw new IllegalArgumentException("aero sweep needs a finite machStep > 0 (got " + machStep + ")");
         }
-        // Judge the quotient as a DOUBLE before casting it. Finite inputs can
+        // Judge the quotient as a double before casting it. Finite inputs can
         // still make it infinite (machStep 5e-324, or a span wider than a
         // double), and `(long) Infinity` is Long.MAX_VALUE: the `+ 1` below
-        // wrapped it negative, the `points > MAX` guard passed, and WASM-GC
-        // returned an empty sweep with no error while the JS target threw a
-        // RangeError. A finite quotient past the cap saturates the same way.
+        // would wrap it negative and pass the `points > MAX` guard, giving an
+        // empty sweep on WASM-GC and a RangeError on the JS target. A finite
+        // quotient past the cap saturates the same way.
         final double quotient = (machMax - machMin) / machStep;
         if (!isFinite(quotient) || quotient > MAX_SWEEP_POINTS) {
             throw new IllegalArgumentException("aero sweep of " + machMin + ".." + machMax
@@ -1108,7 +1101,7 @@ public final class OpenRocketEngine {
         }
 
         // Optional Reynolds matching: "machAlt": [[mach, altitude_m], ...] pins
-        // the atmosphere (hence Re) per Mach point, linearly interpolated — the
+        // the atmosphere (hence Re) per Mach point, linearly interpolated. The
         // validation harness uses it to match wind-tunnel Re/ft, the same
         // mechanism as RASAero's Mach-Alt table. Absent ⇒ ISA sea level.
         double[] maMach = null;
@@ -1122,7 +1115,7 @@ public final class OpenRocketEngine {
             maMach = new double[rows.size()];
             maAlt = new double[rows.size()];
             for (int i = 0; i < rows.size(); i++) {
-                // Checked, not cast: an unchecked cast failed as a minified TeaVM
+                // Checked, not cast: an unchecked cast fails as a minified TeaVM
                 // TypeError on the JS backend and a bare ClassCastException on
                 // WASM, neither naming the field or the row.
                 Object row = rows.get(i);
@@ -1138,12 +1131,12 @@ public final class OpenRocketEngine {
         }
         ExtendedISAModel isa = (maMach != null) ? new ExtendedISAModel() : null;
 
-        // RASAero power-on base drag: per-assembly thrusting nozzle-exit areas of the
+        // Power-on base drag: per-assembly thrusting nozzle-exit areas of the
         // design's motors (upstream's native per-motor model). Mirrors
         // AbstractSimulationStepper.setThrustingNozzleExitAreas; the drag sweep is a
         // static analysis, so every motor is treated as thrusting (the power-on curve).
-        // Read motors straight off the mounts (keyed by fcid) — the FlightConfiguration's
-        // motors map is derived via updateMotors(), which our setMotorById flow doesn't
+        // Read motors straight off the mounts (keyed by fcid): the FlightConfiguration's
+        // motors map is derived via updateMotors(), which the setMotorById flow doesn't
         // trigger, so it can be stale here. (The flight sim is unaffected: it reads motors
         // through SimulationStatus, a separate runtime path.)
         java.util.Map<ComponentAssembly, Double> nozzleAreas = new java.util.HashMap<>();
@@ -1169,29 +1162,28 @@ public final class OpenRocketEngine {
 
         double[] offTotal = new double[n], offFric = new double[n], offPress = new double[n], offBase = new double[n];
         double[] onTotal = new double[n], onFric = new double[n], onPress = new double[n], onBase = new double[n];
-        // CP location (m from nose) and CNa (per rad) per Mach — power state does
+        // CP location (m from nose) and CNa (per rad) per Mach. Power state does
         // not affect them (thrust only changes base drag), so one set from fOff.
-        // Feeds the validation harness (ARCAS/HB-2/Finner anchors) and a future
-        // CP-vs-Mach panel.
+        // Feeds the validation harness (ARCAS/HB-2/Finner anchors).
         double[] cp = new double[n], cna = new double[n];
         // Per-component series. `getForceAnalysis` hands back the whole
-        // AerodynamicForces for each component -- the same object OpenRocket's
-        // Component Analysis dialog tabulates -- so the drag SPLIT and the
+        // AerodynamicForces for each component (the same object OpenRocket's
+        // Component Analysis dialog tabulates), so the drag split and the
         // stability contribution cost nothing beyond reading more fields off a
         // call we already make.
         java.util.LinkedHashMap<String, double[]> byComp = new java.util.LinkedHashMap<>();
         java.util.LinkedHashMap<String, double[]> byCompInstance = new java.util.LinkedHashMap<>();
         java.util.LinkedHashMap<String, Integer> byCompCount = new java.util.LinkedHashMap<>();
-        // Every map above is keyed on the component's UUID, not its NAME.
+        // Every map above is keyed on the component's UUID, not its name.
         // getName() is not unique: nothing forces a user to rename a part, and
         // an unnamed one takes its class default, so a two-tube rocket has two
-        // components both called "Body tube". Keying on the name merged them
-        // into one row -- drag summed, instance count last-wins, CP averaged
-        // into a station belonging to neither. This holds the label to show.
+        // components both called "Body tube". Keying on the name would merge
+        // them into one row (drag summed, instance count last-wins, CP averaged
+        // into a station belonging to neither). This holds the label to show.
         java.util.LinkedHashMap<String, String> byCompName = new java.util.LinkedHashMap<>();
         // The component's class, so the UI can tell a fin set from a body tube.
-        // The roll table lists fin sets even when their coefficients are zero --
-        // which is every uncanted rocket -- and there is no way to tell from the
+        // The roll table lists fin sets even when their coefficients are zero
+        // (which is every uncanted rocket), and there is no way to tell from the
         // numbers alone, since an uncanted fin set reports exactly what a tube does.
         java.util.LinkedHashMap<String, String> byCompType = new java.util.LinkedHashMap<>();
         java.util.LinkedHashMap<String, double[]> byCompFric = new java.util.LinkedHashMap<>();
@@ -1267,10 +1259,10 @@ public final class OpenRocketEngine {
                 AerodynamicForces f = e.getValue();
                 String name = c.getID().toString();
                 byCompName.put(name, c.getName());
-                // getCD() is PER INSTANCE and getCDTotal() counts them all --
+                // getCD() is per instance and getCDTotal() counts them all:
                 // the desktop's "Per instance CD" and "Total CD" columns
                 // (CAParameterSweep). `cd` has to be the total or a breakdown
-                // does not add up: a 3-fin set contributed a third of its drag.
+                // does not add up: a 3-fin set would contribute a third of its drag.
                 nonFinite += countNonFinite(f.getCDTotal(), f.getCD(), f.getFrictionCD(),
                         f.getPressureCD(), f.getBaseCD(), f.getCrollForce(), f.getCrollDamp());
                 series(byComp, name, n)[i] += f.getCDTotal();
@@ -1281,7 +1273,7 @@ public final class OpenRocketEngine {
                 series(byCompPress, name, n)[i] += f.getPressureCD();
                 series(byCompBase, name, n)[i] += f.getBaseCD();
                 // Roll forcing and damping: non-zero only for a canted fin set,
-                // which is exactly why they are worth showing -- it is the one
+                // which is exactly why they are worth showing: it is the one
                 // way to tell a cant is doing what you meant it to.
                 series(byCompRollF, name, n)[i] += f.getCrollForce();
                 series(byCompRollD, name, n)[i] += f.getCrollDamp();
@@ -1298,7 +1290,7 @@ public final class OpenRocketEngine {
 
         // Non-finite readings swallowed on the way in. Null in a series says
         // "this cell is unusable", but a consumer summing a column coerces null
-        // back to 0 — so the count travels alongside, and the aero view can say
+        // back to 0, so the count travels alongside, and the aero view can say
         // the breakdown is incomplete rather than quietly disagreeing with the
         // rocket totals.
         double[] machArr = new double[n];
@@ -1352,7 +1344,7 @@ public final class OpenRocketEngine {
             double[] cpOut = new double[n];
             for (int i = 0; i < n; i++) {
                 // A NaN weight takes this branch (NaN != 0) and divides out to
-                // NaN, which nums() writes as null — distinct from the genuine
+                // NaN, which nums() writes as null, distinct from the genuine
                 // "no normal force, hence no CP" zero on the other side.
                 cpOut[i] = cnaRow[i] != 0 ? cpRow[i] / cnaRow[i] : 0;
             }
@@ -1373,7 +1365,7 @@ public final class OpenRocketEngine {
         return row;
     }
 
-    /** How many of these are NaN or infinite — see getAeroSweep's `nonFinite`. */
+    /** How many of these are NaN or infinite; see getAeroSweep's `nonFinite`. */
     private static int countNonFinite(double... vs) {
         int k = 0;
         for (double v : vs) {
@@ -1418,9 +1410,8 @@ public final class OpenRocketEngine {
     public static String simulate(int rocketHandle, double launchRodLength, double launchRodAngle,
             double windAverage, double windStdDeviation, double launchAltitude, double timeStep) {
         // These are concatenated straight into JSON, and JsonLite.number()
-        // accepts only [+-0123456789.eE] — so a NaN emitted "windAverage":NaN
-        // and blew up as IllegalArgumentException("JSON: expected number at 45"),
-        // which simulateJson's SimulationException catch did not cover.
+        // accepts only [+-0123456789.eE], so a NaN would emit "windAverage":NaN
+        // and fail the options parse with a message that names no option.
         double[] opts = { launchRodLength, launchRodAngle, windAverage, windStdDeviation, launchAltitude, timeStep };
         for (double v : opts) {
             if (!isFinite(v)) {
@@ -1439,15 +1430,15 @@ public final class OpenRocketEngine {
      *   launchAltitude, launchLatitude, launchLongitude,
      *   temperature (K, launch-site), pressure (Pa, launch-site),
      *   timeStep, maxTime, randomSeed,
-     *   series: "summary" (default) | "full" — see appendBranchSeries }
+     *   series: "summary" (default) | "full" (see appendBranchSeries) }
      * Custom temperature/pressure switch the atmosphere to an ISA model based
      * at the launch site; otherwise standard ISA is used.
      */
     @JSExport
     public static String simulateJson(int rocketHandle, String optionsJson) {
         // The whole body, not just the simulate() call: the handle lookup and the
-        // options parse have to be INSIDE this try, or a stale handle or a
-        // malformed options blob escapes as an opaque TeaVM throw out of a 2.9 MB
+        // options parse have to be inside this try, or a stale handle or a
+        // malformed options blob escapes as an opaque TeaVM throw out of the
         // bundle, and openRocketEngine.ts only inspects `error`.
         try {
             return simulateJsonImpl(rocketHandle, optionsJson);
@@ -1463,17 +1454,16 @@ public final class OpenRocketEngine {
         double launchAltitude = JsonLite.dbl(o, "launchAltitude", 0);
         double temperature = JsonLite.dbl(o, "temperature", Double.NaN);
         double pressure = JsonLite.dbl(o, "pressure", Double.NaN);
-        // Relative humidity as a FRACTION (0..1), like the kernel's own field.
-        // It was hardcoded to STANDARD_RELATIVE_HUMIDITY, so a humid launch flew
-        // dry: humidity lowers air density (water vapor is lighter than dry
-        // air), which is small but not nothing on a marginal-stability flight.
+        // Relative humidity as a fraction (0..1), like the kernel's own field.
+        // Humidity lowers air density (water vapor is lighter than dry air),
+        // which is small but not nothing on a marginal-stability flight.
         double humidity = JsonLite.dbl(o, "relativeHumidity", Double.NaN);
         double timeStep = JsonLite.dbl(o, "timeStep", 0.05);
         // Series payload mode. "summary" (default) emits the friendly dozen
         // plus only the symbol series the app's flight report reads on every
         // run; "full" adds the branch's whole recording. Serializing all ~60
-        // series unconditionally cost ~45% extra single-sim wall clock, so
-        // full is strictly opt-in.
+        // series adds roughly 45% to single-sim wall clock, so full is
+        // strictly opt-in.
         String seriesMode = JsonLite.str(o, "series", "summary");
         if (!"summary".equals(seriesMode) && !"full".equals(seriesMode)) {
             throw new IllegalArgumentException("Unknown series mode: " + seriesMode);
@@ -1494,13 +1484,13 @@ public final class OpenRocketEngine {
         if (atmosphereLevels != null && !atmosphereLevels.isEmpty()) {
             conditions.setAtmosphericModel(
                     atmosphereProfileOf(atmosphereLevels, launchAltitude, temperature, pressure, humidity));
-        // Any ONE of the three is enough to leave standard ISA: humidity alone is
+        // Any one of the three is enough to leave standard ISA: humidity alone is
         // a real case (ISA temperature and pressure, a muggy field), and keying
-        // this off temperature/pressure only would have silently dropped it.
+        // this off temperature/pressure only would silently drop it.
         } else if (!Double.isNaN(temperature) || !Double.isNaN(pressure) || !Double.isNaN(humidity)) {
-            // Upstream changed the 3-arg ExtendedISAModel to (temp, pressure, humidity)
-            // and added a 4-arg (altitude, temp, pressure, humidity). Use the 4-arg form
-            // so custom values keep their altitude meaning.
+            // The 4-arg ExtendedISAModel (altitude, temp, pressure, humidity), so the
+            // custom values are taken as the conditions at the launch altitude; the
+            // 3-arg form has no altitude.
             conditions.setAtmosphericModel(new ExtendedISAModel(
                     launchAltitude,
                     Double.isNaN(temperature) ? ExtendedISAModel.STANDARD_TEMPERATURE : temperature,
@@ -1510,16 +1500,16 @@ public final class OpenRocketEngine {
             conditions.setAtmosphericModel(new ExtendedISAModel());
         }
         // WGS (latitude- and altitude-dependent) unless asked for a constant g.
-        // OpenRocket offers both; we only ever built the WGS one, so a design
-        // checked against a hand calculation at 9.80665 could not be reproduced.
+        // OpenRocket offers both; the constant one lets a design be checked
+        // against a hand calculation at 9.80665.
         if ("constant".equalsIgnoreCase(JsonLite.str(o, "gravityModel", "wgs"))) {
             conditions.setGravityModel(new ConstantGravityModel(JsonLite.dbl(o, "constantGravity", 9.80665)));
         } else {
             conditions.setGravityModel(new WGSGravityModel());
         }
         // The RK4 stepper shortens its step so the rocket never rotates more
-        // than this in one step. Never set, so we always ran the kernel's
-        // RECOMMENDED_ANGLE_STEP (3 degrees) whatever the simulation asked.
+        // than this in one step. Absent, the kernel's RECOMMENDED_ANGLE_STEP
+        // (3 degrees) applies.
         double maxAngleStep = JsonLite.dbl(o, "maxAngleStep", Double.NaN);
         if (!Double.isNaN(maxAngleStep) && maxAngleStep > 0) {
             conditions.setMaximumAngleStep(maxAngleStep);
@@ -1528,7 +1518,7 @@ public final class OpenRocketEngine {
         int randomSeed = (int) JsonLite.dbl(o, "randomSeed", 42);
         List<Map<String, Object>> windLevels = JsonLite.objList(o, "windLevels");
         if (windLevels != null && !windLevels.isEmpty()) {
-            // Altitude-layered winds (24.x multilevel profile): one pink-noise
+            // Altitude-layered winds (multilevel profile): one pink-noise
             // sub-model per level; the kernel interpolates between levels by
             // altitude. clearLevels() drops the constructor's default level 0.
             MultiLevelPinkNoiseWindModel ml = new MultiLevelPinkNoiseWindModel();
@@ -1536,13 +1526,12 @@ public final class OpenRocketEngine {
             List<Double> seen = new ArrayList<>();
             for (int i = 0; i < windLevels.size(); i++) {
                 Map<String, Object> lvl = windLevels.get(i);
-                // The altitude is the level's IDENTITY here, not a quantity with
+                // The altitude is the level's identity here, not a quantity with
                 // a sensible zero: the kernel keys its levels on it and
                 // interpolates between them by it. Defaulting an absent or
-                // unreadable one to 0 therefore did not mean "ground level"
-                // harmlessly -- it dropped the layer onto the pad, where it
-                // either displaced the surface wind or collided with it and
-                // failed the whole run. A level that cannot say where it is is
+                // unreadable one to 0 would drop the layer onto the pad, where it
+                // either displaces the surface wind or collides with it and
+                // fails the whole run. A level that cannot say where it is is
                 // refused here, where the message can say which one it was.
                 double altitude = JsonLite.dbl(lvl, "altitude", Double.NaN);
                 if (!isFinite(altitude)) {
@@ -1550,7 +1539,7 @@ public final class OpenRocketEngine {
                             "wind level " + (i + 1) + " of " + windLevels.size() + " has no usable altitude");
                 }
                 // Said here rather than left to addWindLevel, which throws
-                // "Wind level already exists for altitude: 0.0" -- true, but it
+                // "Wind level already exists for altitude: 0.0": true, but it
                 // names neither the rows involved nor what to do about it.
                 if (seen.contains(Double.valueOf(altitude))) {
                     throw new IllegalArgumentException("wind levels repeat the altitude " + altitude
@@ -1563,32 +1552,32 @@ public final class OpenRocketEngine {
                         JsonLite.dbl(lvl, "direction", Math.PI / 2),
                         JsonLite.dbl(lvl, "stddev", 0));
             }
-            // Seeded LAST, after every level is in place: setSeed walks the
+            // Seeded last, after every level is in place: setSeed walks the
             // level list, which is only complete now. addWindLevel builds each
             // level's sub-model with the no-arg PinkNoiseWindModel constructor
             // (seed from new Random().nextInt()), so without this the turbulence
-            // of a multi-level profile was freshly random on every run and two
-            // runs of one design at one randomSeed could not be compared --
-            // which is exactly what the wind sweep does. setRandomSeed below
-            // does NOT cover it: that stores an int on SimulationConditions and
-            // never reaches the wind model. Upstream makes this same call in
-            // SimulationOptions.toSimulationConditions; we hand-build the
-            // conditions instead, so we have to make it ourselves.
-            // The single-level branch below has always been seeded, via the
-            // constructor. Level seeds are derived by altitude rank, so they do
-            // not depend on the order the levels arrived in.
+            // of a multi-level profile is freshly random on every run and two
+            // runs of one design at one randomSeed cannot be compared, which is
+            // exactly what the wind sweep does. setRandomSeed below does not
+            // cover it: that stores an int on SimulationConditions and never
+            // reaches the wind model. Upstream makes this same call in
+            // SimulationOptions.toSimulationConditions; the bridge hand-builds
+            // the conditions instead, so it has to make the call itself.
+            // The single-level branch below is seeded via the constructor.
+            // Level seeds are derived by altitude rank (the kernel keeps levels
+            // sorted), so they do not depend on the order the levels arrived in.
             ml.setSeed(randomSeed);
-            // MSL or AGL. The constructor defaults to MSL and nothing here used
-            // to say otherwise, so an AGL profile flew as if its altitudes were
-            // above sea level -- the same numbers, a different wind, and at a
-            // mile-high site not remotely the same flight.
+            // MSL or AGL. The constructor defaults to MSL, so without this an
+            // AGL profile would fly as if its altitudes were above sea level:
+            // the same numbers, a different wind, and at a mile-high site not
+            // remotely the same flight.
             ml.setAltitudeReference("agl".equalsIgnoreCase(JsonLite.str(o, "windAltitudeReference", "msl"))
                     ? WindModel.AltitudeReference.AGL
                     : WindModel.AltitudeReference.MSL);
             conditions.setWindModel(ml);
         } else {
             // Seeded explicitly: the no-arg PinkNoiseWindModel constructor seeds
-            // from new Random().nextInt() — nondeterministic across runs.
+            // from new Random().nextInt(), which is nondeterministic across runs.
             PinkNoiseWindModel wind = new PinkNoiseWindModel(randomSeed);
             wind.setAverage(JsonLite.dbl(o, "windAverage", 0));
             wind.setStandardDeviation(JsonLite.dbl(o, "windStdDeviation", 0));
@@ -1604,19 +1593,18 @@ public final class OpenRocketEngine {
         // they decide when the flight raises a deployment warning, and those
         // warnings already ride out to the caller in the result's `warnings`.
         // Defaults match SimulationConditions' own, so an options blob that omits
-        // them behaves exactly as before.
+        // them gets the kernel's thresholds.
         //
-        // drogueLowSpeed reads live too, via PATCH(drogue-low-speed) in
-        // BasicEventSimulationEngine: upstream ships that check commented out, so
-        // the threshold was carried and never read. All four need the deploying
-        // stage's drogue flag to pick a branch, which ComponentFactory now sets
-        // from the node's `drogue` key.
+        // drogueLowSpeed is read via PATCH(drogue-low-speed) in
+        // BasicEventSimulationEngine: upstream ships that check commented out.
+        // All four need the deploying stage's drogue flag to pick a branch,
+        // which ComponentFactory sets from the node's `drogue` key.
         conditions.setRecoverySpeedWarning(JsonLite.dbl(o, "recoverySpeedWarn", 20.0));
         conditions.setDrogueLowSpeedWarning(JsonLite.dbl(o, "drogueLowSpeedWarn", 3.048));
         conditions.setRecoveryDrogueMainHighSpeedWarning(JsonLite.dbl(o, "mainHighSpeedWarn", 30.48));
         conditions.setRecoveryDrogueMainLowSpeedWarning(JsonLite.dbl(o, "mainLowSpeedWarn", 15.24));
 
-        // OPT-IN guide-aware rod clearance. Upstream compares travel with the full
+        // Opt-in guide-aware rod clearance. Upstream compares travel with the full
         // rod length wherever the guides sit, so a lug or rail button above the
         // aft end gets travel it does not have and the rod-exit speed reads high.
         // The listener is simply absent when the key is off, which is why the
@@ -1710,18 +1698,17 @@ public final class OpenRocketEngine {
          * Per-stage RASAero power-on nozzle-exit diameter (meters), captured from
          * the `nozzleExitDiameter` stage input. Applied to that stage's motor as
          * upstream's per-motor MotorConfiguration.nozzleExitDiameter when the motor
-         * is set (see applyMotor) — the browser keeps a per-stage input; the engine
+         * is set (see applyMotor). The browser keeps a per-stage input; the engine
          * uses OpenRocket's native per-motor model.
          */
         final Map<AxialStage, Double> nozzleDia = new HashMap<>();
-        /** Opt-in Rogers Modified Barrowman body-fin interference (feature #3). */
+        /** Opt-in Rogers Modified Barrowman body-fin interference. */
         boolean rogersKbf = false;
-        /** Opt-in supersonic aerodynamics (feature #1 Phase 1). */
+        /** Opt-in supersonic aerodynamics. */
         boolean supersonicAero = false;
         /**
          * Opt-in stubby stored-table nose-cone subsonic pressure-drag floor.
-         * Standalone (not part of the RASAero models); submitted upstream to
-         * OpenRocket, so this fork flag retires once that lands natively.
+         * Standalone (not part of the RASAero models).
          */
         boolean stubbyNoseFloor = false;
 
@@ -1764,9 +1751,9 @@ public final class OpenRocketEngine {
         appendEvents(sb, data.getBranch(0));
         sb.append(",\"series\":");
         appendBranchSeries(sb, data.getBranch(0), fullSeries);
-        // Staged flights: EVERY branch (sustainer = branch 0, then each
+        // Staged flights: every branch (sustainer = branch 0, then each
         // separated booster's own descent), each with name, events, series.
-        // Omitted for single-branch flights — no payload change.
+        // Omitted for single-branch flights.
         if (data.getBranchCount() > 1) {
             sb.append(",\"branches\":[");
             for (int i = 0; i < data.getBranchCount(); i++) {
@@ -1786,8 +1773,8 @@ public final class OpenRocketEngine {
 
     /**
      * Simulation warnings (FlightData.getWarningSet()) as structured entries:
-     * "key" — stable machine identity (see warningKey), "message" — the human
-     * text (Warning.toString(), source component names included), "priority" —
+     * "key" is the stable machine identity (see warningKey), "message" the human
+     * text (Warning.toString(), source component names included), "priority"
      * LOW|NORMAL|HIGH (MessagePriority's own export labels).
      */
     private static void appendWarnings(StringBuilder sb, WarningSet warnings) {
@@ -1806,7 +1793,7 @@ public final class OpenRocketEngine {
 
     /**
      * Plain warning messages, same "warningTexts" shape and naming as
-     * getStaticInfo() — the app treats static and flight warnings alike.
+     * getStaticInfo(); the app treats static and flight warnings alike.
      */
     private static void appendWarningTexts(StringBuilder sb, WarningSet warnings) {
         sb.append('[');
@@ -1820,19 +1807,19 @@ public final class OpenRocketEngine {
     }
 
     /**
-     * Stable machine identity for a Warning. No reflection — TeaVM's class
-     * metadata must never leak into parity-compared output — so the typed
+     * Stable machine identity for a Warning. No reflection (TeaVM's class
+     * metadata must never leak into parity-compared output), so the typed
      * Warning subclasses are enumerated by hand. Every other warning is a
      * Warning.Other; the shim translator is a DebugTranslator, so those texts
      * start with the bracketed l10n key ("[Warning.NO_RECOVERY_DEVICE]…"),
-     * and that key IS the identity. Anything else falls back to "Other".
+     * and that key is the identity. Anything else falls back to "Other".
      */
     private static String warningKey(info.openrocket.core.logging.Warning w) {
         if (w instanceof info.openrocket.core.logging.Warning.LargeAOA) {
             return "LargeAOA";
         }
-        // Upstream renamed Warning.HighSpeedDeployment -> RecoveryHighSpeedDeployment;
-        // keep the JSON key stable for the web app.
+        // The web app's key for Warning.RecoveryHighSpeedDeployment is
+        // "HighSpeedDeployment".
         if (w instanceof info.openrocket.core.logging.Warning.RecoveryHighSpeedDeployment) {
             return "HighSpeedDeployment";
         }
@@ -1859,14 +1846,13 @@ public final class OpenRocketEngine {
         for (FlightEvent ev : branch.getEvents()) {
             if (!first) sb.append(',');
             first = false;
-            // The ONE numeric emission that skipped num()'s non-finite guard.
-            // An Infinity ignition delay (the facade forwards delayS unvalidated)
-            // wrote `"time":Infinity`, which is not JSON, so JSON.parse threw on
-            // the browser side and discarded an entire 1200 s flight.
+            // The time goes through num()'s non-finite guard: a raw
+            // `"time":Infinity` is not JSON, so JSON.parse would throw on the
+            // browser side and discard the entire flight.
             sb.append("{\"type\":\"").append(ev.getType().name()).append('"').append(',');
             num(sb, "time", ev.getTime());
-            // Source component name — tells dual-deployment rockets apart
-            // (WHICH recovery device deployed: drogue vs main).
+            // Source component name: tells dual-deployment rockets apart
+            // (which recovery device deployed: drogue vs main).
             RocketComponent src = ev.getSource();
             if (src != null && src.getName() != null) {
                 sb.append(",\"source\":\"").append(escape(src.getName())).append('"');
@@ -1877,8 +1863,8 @@ public final class OpenRocketEngine {
     }
 
     /**
-     * The 12 types serialized under friendly names in appendBranchSeries —
-     * re-emitting them under their symbols ("t", "h"…) would be pure byte
+     * The 12 types serialized under friendly names in appendBranchSeries.
+     * Re-emitting them under their symbols ("t", "h"…) would be pure byte
      * duplication (~17% of the payload), so the symbol-keyed section always
      * skips them.
      */
@@ -1892,8 +1878,8 @@ public final class OpenRocketEngine {
                     FlightDataType.TYPE_CG_LOCATION, FlightDataType.TYPE_AOA));
 
     /**
-     * The symbol series the app's flight report consumes on EVERY run —
-     * lateral drift (Pl, θl, Px, Py) and roll rate (dΦ) — the only
+     * The symbol series the app's flight report consumes on every run
+     * (lateral drift Pl, θl, Px, Py and roll rate dΦ): the only
      * symbol keys "summary" mode emits.
      */
     private static final java.util.Set<FlightDataType> SUMMARY_SYMBOL_TYPES =
@@ -1917,10 +1903,10 @@ public final class OpenRocketEngine {
         appendSeries(sb, "cgLocation", branch.get(FlightDataType.TYPE_CG_LOCATION)).append(',');
         appendSeries(sb, "aoa", branch.get(FlightDataType.TYPE_AOA));
         // Symbol-keyed series ("Pl", "Cdf", "mp"…) beyond the friendly
-        // dozen, in getTypes()' natural sort order — only the types this
-        // branch actually carries. Key ORDER is deterministic; with
+        // dozen, in getTypes()' natural sort order, only the types this
+        // branch actually carries. Key order is deterministic, and with
         // TYPE_COMPUTATION_TIME (tc, wall-clock measurement noise) excluded
-        // the VALUES now are too, so the parity test can compare the whole payload.
+        // so are the values, so the parity test can compare the whole payload.
         // Summary mode emits only SUMMARY_SYMBOL_TYPES; full mode emits
         // everything except tc and the friendly-named duplicates.
         for (FlightDataType type : branch.getTypes()) {
@@ -1947,7 +1933,7 @@ public final class OpenRocketEngine {
                 if (i > 0) sb.append(',');
                 Double v = values.get(i);
                 // isInfinite too: Java Double.toString(Infinity) is a bare
-                // 'Infinity', which JSON.parse rejects — one such sample
+                // 'Infinity', which JSON.parse rejects; one such sample
                 // would kill the whole result (num() already guards this).
                 sb.append(v == null || v.isNaN() || v.isInfinite() ? "null" : v.toString());
             }
@@ -1974,7 +1960,7 @@ public final class OpenRocketEngine {
         if (s == null) return "";
         // Control characters must be escaped too: component names arrive through
         // buildRocket JSON (JsonLite decodes \n etc. into real chars) and are
-        // re-emitted inside JSON string literals — a raw newline there makes the
+        // re-emitted inside JSON string literals, and a raw newline there makes the
         // whole payload unparseable by JSON.parse on the JS side.
         StringBuilder sb = new StringBuilder(s.length() + 8);
         for (int i = 0; i < s.length(); i++) {
@@ -1987,8 +1973,9 @@ public final class OpenRocketEngine {
                 case '\t': sb.append("\\t"); break;
                 default:
                     if (c < 0x20) {
-                        // Hand-rolled backslash-u00XX (avoid String.format —
-                        // TeaVM's Formatter is incomplete, see the %g ledger note).
+                        // Hand-rolled backslash-u00XX (avoid String.format:
+                        // TeaVM's Formatter is incomplete, see PATCH(teavm-format-g)
+                        // in patches/LEDGER.md).
                         sb.append("\\u00");
                         sb.append(Character.forDigit((c >> 4) & 0xF, 16));
                         sb.append(Character.forDigit(c & 0xF, 16));

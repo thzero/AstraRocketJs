@@ -25,7 +25,7 @@ const SEPARATION_EVENTS = [
 ] as const;
 
 /**
- * Whether one stage flies under THIS configuration, and when it lets go.
+ * Whether one stage flies under this configuration, and when it lets go.
  *
  * The same override shape the recovery section has: empty follows the design,
  * whose value is the placeholder, so the control reads as what the flight will
@@ -60,7 +60,7 @@ export function SeparationSection({
 
   return (
     <OverrideCard name={name} overridden={!!over}>
-      {/* Whether it flies at all comes FIRST: everything under it describes a
+      {/* Whether it flies at all comes first: everything under it describes a
           stage that is in the flight, and a grounded stage separates from
           nothing. */}
       <OverrideRow first label={t('configs.flies')}>

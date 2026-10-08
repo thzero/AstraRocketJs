@@ -3,24 +3,19 @@ import * as THREE from 'three';
 /**
  * Is this geometry actually a solid a slicer can print?
  *
- * ## Why this exists
- *
- * `solidMesh` had three separate bugs that all shared one property: **the
- * exporter's own check passed anyway.** `countBoundaryEdges` asks one question,
- * "is every edge used twice", and that question is blind to
+ * `countBoundaryEdges` in solidMesh asks one question, "is every edge used
+ * twice", and that question is blind to
  *
  * - a cap fanned from a point outside its own loop, whose triangles overlap and
  *   face opposite ways (a fan always uses each edge twice),
- * - an EMPTY index, which trivially has no unused edges, so a solid whose every
- *   triangle was dropped as degenerate reported success and downloaded as a
- *   0-byte-of-geometry STL,
+ * - an empty index, which trivially has no unused edges, so a solid whose every
+ *   triangle was dropped as degenerate would download as an STL with no
+ *   geometry,
  * - a planform that touches itself at a point, which extrudes to a non-manifold
  *   pinch where four faces share one vertex.
  *
- * Writing a bespoke assertion for each of those is how a codebase ends up with
- * three divergent copies of the same check. So: one validator, and every
- * exported solid goes through it. Add a check here, and everything that
- * produces a mesh gets it at once.
+ * This is the one validator every exported solid goes through. Add a check
+ * here, and everything that produces a mesh gets it at once.
  *
  * All checks are cheap and topological (O(triangles)); this is not a
  * self-intersection test, which needs spatial indexing and is not worth it for
@@ -110,11 +105,11 @@ export function validateSolid(geo: THREE.BufferGeometry, areaTol = 0): MeshIssue
   /**
    * Six times the signed volume, by the divergence theorem.
    *
-   * The directed-edge count below proves the winding is CONSISTENT; it cannot say
+   * The directed-edge count below proves the winding is consistent; it cannot say
    * which way the surface faces, because flipping every triangle in a closed mesh
-   * flips every directed edge too and the counts come out identical. So a solid
-   * wound entirely inside out passed every check here, and a slicer reading it
-   * fills the room and leaves the part hollow.
+   * flips every directed edge too and the counts come out identical. Without this,
+   * a solid wound entirely inside out would pass every other check, and a slicer
+   * reading it fills the room and leaves the part hollow.
    */
   let volume6 = 0;
   /** Directed edge use count, to separate "shared" from "shared the same way". */
@@ -184,7 +179,7 @@ export function validateSolid(geo: THREE.BufferGeometry, areaTol = 0): MeshIssue
   }
 
   // Orientation: in a consistently wound closed mesh each edge is traversed
-  // once in each direction, so no DIRECTED edge may appear twice. This is what
+  // once in each direction, so no directed edge may appear twice. This is what
   // catches a cap whose triangles overlap and face opposite ways, which the
   // undirected count above cannot see.
   let flipped = 0;
@@ -197,7 +192,7 @@ export function validateSolid(geo: THREE.BufferGeometry, areaTol = 0): MeshIssue
     });
   }
 
-  // Which way the surface FACES, and only once it is closed and consistent:
+  // Which way the surface faces, and only once it is closed and consistent:
   // signed volume is meaningless on an open shell, and reporting it on top of a
   // hole would name a second fault for one defect.
   if (!open && !overused && !flipped && !repeated && !nonFinite && idx.count >= 3 && volume6 < 0) {
@@ -211,7 +206,7 @@ export function validateSolid(geo: THREE.BufferGeometry, areaTol = 0): MeshIssue
 }
 
 /**
- * Tolerances derived from the model's OWN size.
+ * Tolerances derived from the model's own size.
  *
  * A fixed 1e-6 m weld tolerance and 1e-12 m^2 degeneracy cut are right for a
  * rocket in meters and catastrophic for the same rocket scaled down: at 0.003x
@@ -219,9 +214,8 @@ export function validateSolid(geo: THREE.BufferGeometry, areaTol = 0): MeshIssue
  * dropped, and an empty mesh passes a boundary-edge count. Scaling both with
  * the bounding-box diagonal keeps the ratio the numbers were chosen for.
  *
- * The diagonal is floored at 1 m so a normal-sized rocket keeps exactly the
- * tolerances it has always had, and this only ever loosens for something huge
- * or tightens for something tiny.
+ * The diagonal is capped at 1 m, so anything 1 m or larger gets the fixed
+ * 1e-6 m / 1e-12 m^2 tolerances and only something smaller gets tighter ones.
  */
 export function meshTolerances(geo: THREE.BufferGeometry): { weld: number; area: number } {
   geo.computeBoundingBox();

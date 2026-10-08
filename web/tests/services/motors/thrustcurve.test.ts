@@ -203,11 +203,11 @@ describe('fetchMotorSpec — bundled catalog motor (offline path)', () => {
 });
 
 /**
- * The FRESH network path must run the same validator the cache read does.
+ * The fresh network path must run the same validator the cache read does.
  *
- * `fetchSamplesCached` checked the cached branch with `isSampleArray` and
- * returned the downloaded array unchecked. A garbled or hostile
- * `download.json` carrying a null time therefore went straight into
+ * `fetchSamplesCached` checks the cached branch with `isSampleArray`, and the
+ * downloaded array needs the same check. Unchecked, a garbled or hostile
+ * `download.json` carrying a null time goes straight into
  * `samplesToMotorSpec`: cumulative impulse NaN, nulls through times and
  * masses, and the whole array across the TeaVM boundary, where it surfaces as
  * the opaque "cannot be converted to a BigInt" blank design this module
@@ -286,12 +286,12 @@ describe('fetchMotorSpec - malformed thrustcurve.org response', () => {
 });
 
 /**
- * The search.json hit is validated BEFORE it is picked, cached or requested.
+ * The search.json hit is validated before it is picked, cached or requested.
  *
- * The network `TcMotor[]` was used with no shape check at all; only the cache
- * READ looked for `.motorId`. A hit without one was therefore written to the
- * cache as the motor's metadata and then requested from download.json as
- * `motorIds: [undefined]`, and whatever came back was built into a spec.
+ * Without a shape check on the network `TcMotor[]`, a hit with no `.motorId`
+ * would be written to the cache as the motor's metadata and then requested from
+ * download.json as `motorIds: [undefined]`, and whatever came back would be
+ * built into a spec.
  */
 describe('fetchMotorSpec - search.json hit without a motorId', () => {
   // A motor nothing else in this file resolves, so no cached entry from an
@@ -371,10 +371,10 @@ describe('fetchMotorSpec - search.json hit without a motorId', () => {
 });
 
 /**
- * The cache-read validator for a stored MotorSpec checked only that the three
- * arrays were non-empty, while the curve validator beside it checked every
- * sample was finite. A spec whose arrays had been serialized with a null (JSON
- * has no NaN or Infinity) passed the length check and went straight back into
+ * The cache-read validator for a stored MotorSpec checks that every sample is
+ * finite, as the curve validator beside it does, not only that the three arrays
+ * are non-empty. A spec whose arrays were serialized with a null (JSON has no
+ * NaN or Infinity) would otherwise pass a length check and go straight back into
  * the kernel, the BigInt crash the sample guard exists to prevent.
  */
 describe('isCachedMotorSpec', () => {

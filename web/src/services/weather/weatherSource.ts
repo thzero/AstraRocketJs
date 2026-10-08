@@ -17,7 +17,7 @@ export const STALE_AFTER_MS = 3 * 3_600_000;
 /** Coordinates within this many degrees are the site the forecast was asked for (requests round to 3 dp). */
 const SAME_SITE_DEG = 0.0005;
 
-/** The fields each applied group writes, and the site altitude when the terrain elevation was applied. */
+/** The fields each applied group writes. The site altitude, when applied, is added by `sourceFields`. */
 const GROUP_FIELDS: Record<WeatherSource['groups'][number], (keyof LaunchConditions)[]> = {
   temperature: ['temperatureC'],
   pressure: ['pressureHPa'],
@@ -100,7 +100,7 @@ export function sourceStatus(launch: LaunchConditions, nowMs: number): SourceSta
 export function restoredSource(source: Omit<WeatherSource, 'applied'>, launch: LaunchConditions): WeatherSource {
   if (source.edited) return source;
   const applied: Partial<LaunchConditions> = {};
-  const fields = sourceFields(source as WeatherSource);
+  const fields = sourceFields(source);
   for (const k of fields) (applied as Record<string, unknown>)[k] = launch[k];
   return { ...source, applied };
 }

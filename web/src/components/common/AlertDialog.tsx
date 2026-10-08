@@ -11,20 +11,19 @@ import { DialogButton } from './DialogButton';
  * {@link Dialog} shell with a smaller body. An alertdialog interrupts to say
  * something or to ask one question, so it has no toolbar, no footer, no scrolling
  * body, no layout to choose and nothing to expand into: there is no content
- * behind the content. What it DOES need and a plain dialog does not is a
+ * behind the content. What it does need and a plain dialog does not is a
  * description: the message is what a screen reader should read out on arrival,
  * pointed at by `aria-describedby`.
  *
- * It is deliberately NOT full-bleed on a phone (no `.dialog-panel`, see
+ * It is deliberately not full-bleed on a phone (no `.dialog-panel`, see
  * index.css): filling a screen with two lines and a button is all empty space,
  * and one of these opens on top of a dialog that is already full-screen there,
  * where full bleed would read as that dialog being replaced rather than as
  * something raised over it.
  *
- * One shell, because copies drift: different backdrop opacities, different heading
- * scales, an `aria-label` repeating its own visible heading in one and a hardcoded
- * element id in the next, and a window-level Escape listener beside the one
- * `useFocusTrap` already provides.
+ * One shell, because copies drift: backdrop opacity, heading scale, an
+ * `aria-label` repeating the visible heading, a hardcoded element id, or a
+ * window-level Escape listener beside the one `useFocusTrap` already provides.
  */
 export function AlertDialog({
   title,
@@ -54,7 +53,7 @@ export function AlertDialog({
   /** Overrides the generic "Cancel". Ignored without `onCancel`. */
   cancelLabel?: string;
   /**
-   * The way out, and the ONLY thing that decides whether there is one: given, it
+   * The way out, and the only thing that decides whether there is one: given, it
    * is the Cancel button, the Escape key and the backdrop alike. Omitted, the
    * prompt must be acknowledged - no button, and Escape and the backdrop do
    * nothing rather than dismissing something the app is waiting on.
@@ -63,22 +62,21 @@ export function AlertDialog({
 }) {
   const { t } = useTranslation();
   // Escape reaches the topmost open surface only, and a prompt with no way out
-  // SWALLOWS it there rather than letting it through to whatever is underneath
-  // (useFocusTrap). That is what replaces the hand-written window listener one
-  // of these carried.
+  // swallows it there rather than letting it through to whatever is underneath
+  // (useFocusTrap), so no window-level listener is needed here.
   const panelRef = useFocusTrap<HTMLDivElement>(true, onCancel ? { onEscape: onCancel } : {});
   const titleId = useId();
   const messageId = useId();
 
   return (
-    <div
+    <div // eslint-disable-line jsx-a11y-x/click-events-have-key-events, jsx-a11y-x/no-static-element-interactions -- a backdrop click is the mouse twin of Escape, which the focus trap handles; the panel only stops that click
       className={`fixed inset-0 ${layerClass[layer]} grid place-items-center bg-shade/60 p-4`}
       onClick={(e) => {
         e.stopPropagation();
         onCancel?.();
       }}
     >
-      <div
+      <div // eslint-disable-line jsx-a11y-x/click-events-have-key-events, jsx-a11y-x/no-noninteractive-element-interactions -- a backdrop click is the mouse twin of Escape, which the focus trap handles; the panel only stops that click
         ref={panelRef}
         role="alertdialog"
         aria-modal="true"
@@ -105,10 +103,10 @@ export function AlertDialog({
           {message}
         </p>
         <div className="mt-6 flex justify-end gap-2">
-          {/* Cancel FIRST in the DOM, with the focus on confirm: the pair that
-              took a bug to get right. The trap used to move focus to the first
-              focusable child after React had honored `autoFocus`, so the focus
-              ring sat on Cancel while Enter ran the destructive action. */}
+          {/* Cancel first in the DOM, with the focus on confirm (`autoFocus`).
+              The focus trap must respect `autoFocus` rather than move focus to
+              the first focusable child, or the focus ring sits on Cancel while
+              Enter runs the destructive action. */}
           {onCancel && (
             <DialogButton onClick={onCancel} variant="secondary">
               {cancelLabel ?? t('common.cancel')}

@@ -7,7 +7,7 @@ import type { LaunchConditions } from '../../../src/services/design/orkTree';
 
 const node = (o: object) => o as unknown as ComponentNode;
 
-/** A fin set positioned in the ROCKET frame, the way a desktop `.ork` can. */
+/** A fin set positioned in the rocket frame, the way a desktop `.ork` can. */
 const absoluteTree = () =>
   ({
     components: [
@@ -33,7 +33,7 @@ const xmlFor = (tree: RocketTree) => exportOrk({ name: 'Rocket', tree } as never
 
 /**
  * An imported `absolute` position is rewritten into the parent frame on load,
- * because the editor works only in that frame and leaving it made the app draw
+ * because the editor works only in that frame; leaving it would make the app draw
  * a part where the engine does not fly it.
  *
  * That rewrite must not leak into what we write back out: `.ork` round-trips
@@ -114,15 +114,13 @@ describe('exportOrk - the drogue flag', () => {
 });
 
 /**
- * A design can be SAVED mid-edit with a required launch field still blank,
- * even though it cannot be FLOWN. `LaunchConditions` models those holes as
- * `null`, and six of them were interpolated raw, so the file got the literal
- * string "null" where a number belongs. The legacy `<windaverage>` pair two
- * lines away already handled this, with a comment explaining that a hole is
- * written as zero rather than blocking the save; these were missed.
+ * A design can be saved mid-edit with a required launch field still blank,
+ * even though it cannot be flown. `LaunchConditions` models those holes as
+ * `null`, and a hole is written as zero rather than blocking the save, never as
+ * the literal string "null" where a number belongs.
  *
- * Re-importing drops the field silently (numTag -> NaN -> fallback), and
- * desktop OpenRocket 24.12 logs a parse warning on every one.
+ * A "null" would be dropped silently on re-import (numTag -> NaN -> fallback),
+ * and desktop OpenRocket 24.12 logs a parse warning on every one.
  */
 describe('exportOrk - a blank launch field', () => {
   const blank = (): LaunchConditions =>

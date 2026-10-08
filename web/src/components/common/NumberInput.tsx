@@ -1,22 +1,10 @@
 import { useRef, useState } from 'react';
 import { parseEntry } from '../../prefs/entryValue';
 
-/** Round for DISPLAY only — trims unit-conversion float noise (e.g. 0.1 + 0.2).
+/** Round for display only: trims unit-conversion float noise (e.g. 0.1 + 0.2).
  *  The value the parent stores keeps whatever precision the user actually typed. */
 const fmt = (v: number) => String(Number(v.toFixed(6)));
 
-/**
- * Controlled numeric <input> that doesn't fight the user's keystrokes.
- *
- * While focused it renders a raw text buffer, so typing "2.", momentarily
- * clearing the field, or entering many decimals survives instead of being
- * normalized away on every render (the old `value={+v.toFixed(4)}` +
- * `parseFloat(...) || 0` round-trip truncated >4 decimals and snapped a cleared
- * field to 0). `onChange` still fires live — with the parsed number, or null for
- * an empty/unparseable field — so canvas previews stay responsive; `onCommit`
- * fires on blur to close the undo entry. When blurred it shows the canonical,
- * noise-trimmed value from the prop.
- */
 /**
  * What a typed field value means: a finite number clamped to the declared
  * bounds, or `null` for "no value".
@@ -30,12 +18,24 @@ const fmt = (v: number) => String(Number(v.toFixed(6)));
  * The clamp is here because the HTML `min`/`max` are only spinner hints: a
  * typed-in out-of-range value would otherwise reach the live engine rebuild.
  *
- * This guards the ENTRY. A field whose value is unit-converted before storage
- * must also guard the CONVERSION, because a finite entry is not a finite stored
+ * This guards the entry. A field whose value is unit-converted before storage
+ * must also guard the conversion, because a finite entry is not a finite stored
  * value - that is `FieldUnit.toSi`, and the same module backs both.
  */
 export const parseFieldValue = parseEntry;
 
+/**
+ * Controlled numeric <input> that doesn't fight the user's keystrokes.
+ *
+ * While focused it renders a raw text buffer, so typing "2.", momentarily
+ * clearing the field, or entering many decimals survives instead of being
+ * normalized away on every render (a rounded `value` plus a parse-or-0
+ * round-trip would truncate decimals and snap a cleared field to 0).
+ * `onChange` still fires live (with the parsed number, or null for an empty
+ * field) so canvas previews stay responsive; `onCommit`
+ * fires on blur to close the undo entry. When blurred it shows the canonical,
+ * noise-trimmed value from the prop.
+ */
 export function NumberInput({
   value,
   onChange,
@@ -67,7 +67,7 @@ export function NumberInput({
   invalid?: boolean;
   /**
    * Names the input explicitly. A field row is a <label> that also holds the
-   * UnitChip, and a wrapping label's accessible name is its whole subtree — so
+   * UnitChip, and a wrapping label's accessible name is its whole subtree, so
    * without this the chip's selected symbol glues itself onto every field name
    * ("Length mm"), and the name changes whenever the unit does.
    */
@@ -107,13 +107,13 @@ export function NumberInput({
       className={className}
       aria-label={ariaLabel}
       aria-invalid={invalid || undefined}
-      value={draft ?? (blank ? '' : fmt(value as number))}
+      value={draft ?? (blank ? '' : fmt(value))}
       // `fmt`, not `String`: the prop is usually a unit conversion, so a
       // stored 0.3 m arrives here as 0.30000000000000004 in cm, and String()
-      // put that whole tail into the box the moment it was focused. The
+      // would put that whole tail into the box the moment it is focused. The
       // blurred display already trims it; the draft must start from the same
       // text the user was looking at.
-      onFocus={() => setDraft(blank ? '' : fmt(value as number))}
+      onFocus={() => setDraft(blank ? '' : fmt(value))}
       onChange={(e) => {
         const raw = e.target.value;
         setDraft(raw);
@@ -121,13 +121,13 @@ export function NumberInput({
           edited.current = true;
           return;
         }
-        // A BLANK box is a real edit and is reported as such. Text that is not
+        // A blank box is a real edit and is reported as such. Text that is not
         // a storable number - "abc", a lone "-" or ".", or a value finite only
-        // as typed ("1e999") - commits NOTHING instead, because `null` used to
-        // mean both and every optional field turned it into 0. That is how a
-        // refused overflow became a stored zero, and how a leading "-" snapped
-        // a freeform fin vertex to the origin on the way to a negative number.
-        // The draft text keeps showing what was typed either way.
+        // as typed ("1e999") - commits nothing instead, because callers treat
+        // `null` as a cleared field and an optional field turns it into 0: a
+        // refused overflow would become a stored zero, and a leading "-" would
+        // snap a freeform fin vertex to the origin on the way to a negative
+        // number. The draft text keeps showing what was typed either way.
         if (raw.trim() === '') {
           onChange(null);
           return;

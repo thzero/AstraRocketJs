@@ -3,14 +3,13 @@ import { Dialog } from '../common/Dialog';
 import { SiteMap } from './SiteMap';
 
 /**
- * The launch site map, opened over the simulation panel.
+ * The launch site map, opened over the panel that holds the site fields.
  *
- * The site card is one column of a three-column workbench, around 380px wide,
- * and a map that small shows a field and nothing around it - not the road in,
- * not the town, not the next field over, which is exactly the context that
- * tells you whether you have the right place. So it opens rather than sitting
- * inline: the location editor, which is already a dialog, has room for the map
- * beside its fields and keeps it there.
+ * The site card sits in a narrow column, and a map that small shows a field and
+ * nothing around it (not the road in, not the town, not the next field over),
+ * which is exactly the context that tells you whether you have the right place.
+ * So it opens rather than sitting inline: the location editor, which is already
+ * a dialog, has room for the map under its fields and keeps it there.
  *
  * Clicking the map writes the coordinates through the panel's own change path,
  * so it is one undoable edit like typing them, and it lands on whichever

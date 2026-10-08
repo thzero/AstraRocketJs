@@ -15,7 +15,7 @@ const st = () => useWorkspaceStore.getState();
  * The ground track's map layer, without a network.
  *
  * jsdom never fetches an `<img>`, so nothing here needs a tile server: what is
- * checked is which tiles the view ASKS for, and that it still draws a correct
+ * checked is which tiles the view asks for, and that it still draws a correct
  * plan view when it asks for none. The projection itself is covered against
  * hand-computed figures in `services/map/slippyMap.test.ts`, and the track geometry
  * in `services/flight/groundTrack.test.ts`.
@@ -24,7 +24,7 @@ const st = () => useWorkspaceStore.getState();
  * keeping its 420 px default.
  */
 
-/** A complete, in-limits set of conditions — what the drift-sweep panel reads. */
+/** A complete, in-limits set of conditions: what the drift-sweep panel reads. */
 const LAUNCH = {
   launchRodLengthM: 1,
   launchRodAngleDeg: 0,
@@ -63,10 +63,10 @@ const tiles = () => Array.from(document.querySelectorAll('img')).map((el) => el.
 /**
  * Turn imagery on for the view just rendered.
  *
- * Needed by nearly every test here, because imagery is OFF until asked for.
+ * Needed by nearly every test here, because imagery is off until asked for.
  * Both the layer and whether imagery shows at all are also remembered at module
- * scope for the session (that is the point - switching to street in the site
- * map carries over), so a test that leaves it on would decide what the NEXT
+ * scope for the session (that is the point: switching to street in the site
+ * map carries over), so a test that leaves it on would decide what the next
  * test renders. Asking for it explicitly is what keeps these independent of
  * each other's order.
  */
@@ -78,8 +78,8 @@ const hideImagery = () => fireEvent.click(screen.getByRole('button', { name: 'No
 describe('GroundTrack imagery', () => {
   /**
    * Nothing is fetched from anybody's tile servers until somebody asks to see
-   * the ground. The plan view is a measurement that stands on its own - the
-   * range rings do not depend on a picture - so opening Results is not a reason
+   * the ground. The plan view is a measurement that stands on its own (the
+   * range rings do not depend on a picture), so opening Results is not a reason
    * to reach out for scenery.
    */
   it('asks for no tiles at all until the ground is turned on', () => {
@@ -104,9 +104,9 @@ describe('GroundTrack imagery', () => {
   });
 
   /**
-   * The zoom follows the flight rather than sitting at SITE_ZOOM, which is the
-   * whole reason this could not just reuse the site map. A 500 m drift draws
-   * closer in than a 5 km one, so it must ask for a HIGHER zoom.
+   * The zoom follows the flight rather than sitting at the site map's fixed
+   * SITE_ZOOM. A 500 m drift draws closer in than a 5 km one, so it must ask for
+   * a higher zoom.
    */
   it('zooms to the track rather than to a fixed site zoom', () => {
     const zoomOf = (sources: string[]) => Number(sources[0]!.match(/MapServer\/tile\/(\d+)\//)![1]);
@@ -151,8 +151,8 @@ describe('GroundTrack imagery', () => {
   /**
    * A simulation cannot run without coordinates (services/flight/requiredLaunch.ts),
    * so this is the defensive case rather than the common one. It matters
-   * because the alternative - falling back to a default site the way the KML
-   * export does - would draw somebody else's field under a real measurement.
+   * because falling back to a default site the way the KML export does
+   * would draw somebody else's field under a real measurement.
    */
   it('draws the bare plan view, with no layer buttons, when the site is blank', () => {
     renderWithProviders(<GroundTrack flight={flight()} latitudeDeg={null} longitudeDeg={null} launch={LAUNCH} />);
@@ -190,7 +190,7 @@ describe('GroundTrack imagery', () => {
   /**
    * One 404 is a hole in the coverage at this zoom; a screenful failing is no
    * network, and the results views are exactly where somebody is standing in a
-   * field with no signal. What is left is the view this had before imagery.
+   * field with no signal. What is left is the bare plan view.
    */
   it('falls back to the bare plan view when the tiles do not arrive', () => {
     renderWithProviders(<GroundTrack flight={flight()} {...HOME} />);
@@ -214,7 +214,7 @@ describe('GroundTrack imagery', () => {
  * The drift region a wind sweep leaves behind.
  *
  * The store is written directly rather than a sweep being flown: what is under
- * test here is the DRAWING — that the region belongs to the right flight, is
+ * test here is the drawing: that the region belongs to the right flight, is
  * framed rather than clipped, and says which ground it covers.
  */
 describe('GroundTrack drift region', () => {
@@ -273,7 +273,7 @@ describe('GroundTrack drift region', () => {
 
   /**
    * The region routinely reaches further than the single track drawn through
-   * it, so the frame has to be sized to hold it — otherwise the view clips
+   * it, so the frame has to be sized to hold it; otherwise the view clips
    * exactly the thing it was opened for.
    */
   it('widens the frame to hold a region bigger than the track', () => {

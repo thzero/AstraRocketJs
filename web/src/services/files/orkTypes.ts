@@ -25,12 +25,12 @@ export interface OrkTreeImportResult {
   tree: RocketTree;
   /** First motor found (legacy callers). */
   motor?: OrkMotorRef;
-  /** EVERY mount's motor, keyed by the mount's editor node id. */
+  /** Every mount's motor, keyed by the mount's editor node id. */
   motors: Record<string, OrkMotorRef>;
   ignored: string[];
   notes: string[];
   /**
-   * Launch conditions from the file's FIRST <simulation>'s <conditions> —
+   * Launch conditions from the file's first <simulation>'s <conditions>:
    * only the fields the file actually carried (temperature/pressure are set
    * to null when the file declares the ISA standard atmosphere).
    */
@@ -56,29 +56,29 @@ export interface OrkFlightConfig {
   name: string | null;
   isDefault: boolean;
   /**
-   * THIS configuration's per-mount motors (Stage B presets), keyed by the
+   * This configuration's per-mount motors, keyed by the
    * mount's editor node id from the same parse, resolved with the same
    * default/override semantics as the chosen config. A mount with no motor
    * for this configuration simply has no entry.
    */
   motors: Record<string, OrkMotorRef>;
   /**
-   * THIS configuration's <deploymentconfiguration> overrides, keyed by the
+   * This configuration's <deploymentconfiguration> overrides, keyed by the
    * recovery device's editor node id. Carried so a save can write every
-   * configuration's recovery settings back — without it, the configuration the
-   * user opened became the file's new default for ALL of them, which could
+   * configuration's recovery settings back; without it, the configuration the
+   * user opened would become the file's default for all of them, which could
    * leave another configuration's chute set to deploy at the wrong time.
    */
   deployments: Record<string, OrkDeployOverride>;
   /**
-   * THIS configuration's <separationconfiguration> overrides, keyed by the
+   * This configuration's <separationconfiguration> overrides, keyed by the
    * booster's editor node id. Carried for the same reason the deployments are:
    * a save that wrote one configuration's staging over every other one would
    * change when a booster lets go on flights nobody opened.
    */
   separations: Record<string, OrkSepOverride>;
   /**
-   * THIS configuration's grounded stages, by the stage's editor node id: the
+   * This configuration's grounded stages, by the stage's editor node id: the
    * `<stage number="n" active="false"/>` flags in its declaration.
    */
   grounded: string[];
@@ -99,18 +99,16 @@ export interface OrkSepOverride {
 }
 
 /**
- * importOrk's result: OrkTreeImportResult (the shape importRkt/importCdx1
- * also produce) plus the .ork flight-configuration table, so a caller can
- * offer a picker and re-import with `{ configId }`.
+ * What importOrk and importRkt return: OrkTreeImportResult plus the
+ * flight-configuration table.
  */
 export interface OrkImportResult extends OrkTreeImportResult {
   /** Declared flight configurations in file order (empty when none). */
   configs: OrkFlightConfig[];
   /**
    * The configuration whose motors/ignition/deployment/separation were
-   * applied — opts.configId when it names a declared config, else the
-   * default="true" one, else the first declared; null when the file
-   * declares none (legacy first-element reads).
+   * applied: the default="true" one, else the first declared; null when the
+   * file declares none (per-component reads then take the first element).
    */
   chosenConfigId: string | null;
 }
@@ -119,7 +117,7 @@ export interface OrkExportMotor {
   designation: string;
   manufacturer?: string;
   /**
-   * OpenRocket's own digest for the motor: which of ITS database entries this
+   * OpenRocket's own digest for the motor: which of its database entries this
    * is. Several can share a manufacturer and designation, and with no digest
    * the desktop takes the first and says it did.
    */
@@ -151,7 +149,7 @@ export interface DesignStat {
   unit: string;
 }
 
-/** A statistics group — the whole rocket, or one stage of a multi-stage design. */
+/** A statistics group: the whole rocket, or one stage of a multi-stage design. */
 export interface DesignStatGroup {
   scope: 'rocket' | 'stage';
   stageNumber?: number;
@@ -175,7 +173,7 @@ export interface DesignInfo {
   finsets: DesignFinSet[];
 }
 
-/** One flight configuration to write (Stage B) — the stable id from import. */
+/** One flight configuration to write, with its stable id from import. */
 export interface OrkExportConfig {
   id: string;
   /** Written as <name> only when non-null (desktop writes renamed configs only). */
@@ -184,8 +182,8 @@ export interface OrkExportConfig {
   motors: Record<string, OrkExportMotor>;
   /**
    * This configuration's recovery-deployment overrides keyed by recovery-device
-   * node id, as captured at import. The DEFAULT configuration's values come from
-   * the live tree instead; these keep every OTHER configuration intact.
+   * node id, as captured at import. A configuration without them takes the live
+   * tree's values instead; these keep every other configuration intact.
    */
   deployments?: Record<string, OrkDeployOverride>;
   /**
@@ -207,7 +205,7 @@ export interface OrkExportSimulation {
   summary?: FlightSummary;
   /**
    * The status the desktop reads: `uptodate` and `outdated` with a summary,
-   * `notsimulated` without. The desktop loads any summary as LOADED unless the
+   * `notsimulated` without. The desktop loads any summary as loaded unless the
    * status says outdated (SingleSimulationHandler).
    */
   status: 'uptodate' | 'outdated' | 'notsimulated';
@@ -225,7 +223,7 @@ export interface OrkTreeExportInput {
   configs?: OrkExportConfig[];
   /** Which configuration is written default="true"; the first when unset. */
   activeConfigId?: string | null;
-  /** Launch-site conditions — written as one <simulation> when present and `simulations` is not. */
+  /** Launch-site conditions, written as one <simulation> when present and `simulations` is not. */
   launch?: LaunchConditions;
   /**
    * Every simulation, each written as its own <simulation> with its name, the

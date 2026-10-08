@@ -57,14 +57,15 @@ beforeEach(async () => {
   });
 });
 
-// The request succeeding and the transaction committing are DIFFERENT moments.
+// The request succeeding and the transaction committing are different moments.
 // The tests using this pin the gap: let the request report success, then abort
 // the transaction before it commits, which is what a commit-time I/O error or a quota
-// hit looks like. Resolving on `onsuccess` reported those as saved.
+// hit looks like. Resolving on `onsuccess` would report those as saved.
 //
 // `abortAfterSuccess` restores itself via try/finally, or an assertion failure
 // here leaves the spy installed and silently corrupts the next test.
 const abortAfterSuccess = async (body: () => Promise<void>) => {
+  // eslint-disable-next-line @typescript-eslint/unbound-method -- saved to patch the prototype; called back with .call(this, ...)
   const realPut = IDBObjectStore.prototype.put;
   const spy = vi.spyOn(IDBObjectStore.prototype, 'put').mockImplementation(function (
     this: IDBObjectStore,
@@ -113,7 +114,7 @@ describe('migration from localStorage', () => {
     local.map.set(nsKey('workspace'), '{"design":"old"}');
     const kv = new IndexedDbKeyValueStore(local);
 
-    // The pre-upgrade design must survive — losing it would lose the user's work.
+    // The pre-upgrade design must survive: losing it would lose the user's work.
     expect(await kv.get(nsKey('workspace'))).toBe('{"design":"old"}');
     // Reclaiming the 5 MB budget is the point of moving.
     expect(local.map.has(nsKey('workspace'))).toBe(false);
@@ -172,7 +173,7 @@ describe('migration from localStorage', () => {
     await __resetIdbForTests();
 
     expect(await kv.get('k')).toBe('precious');
-    // Not deleted on a failed migration — otherwise an interrupted upgrade
+    // Not deleted on a failed migration: otherwise an interrupted upgrade
     // would destroy the only copy.
     expect(local.map.get('k')).toBe('precious');
     boom.mockRestore();
@@ -230,13 +231,13 @@ describe('when IndexedDB is unavailable', () => {
 });
 
 /**
- * The blocked-open path, which nothing had ever taken.
+ * The blocked-open path.
  *
  * `onblocked` fires when another tab still holds an older version of the
- * database open. Rejecting alone left the `open` request PENDING: when the
- * blocking tab finally closed, `onsuccess` fired on an already-settled promise
- * and the connection was leaked with nobody holding it to `close()` - which
- * then blocks the NEXT version upgrade in turn, in a tab that has no idea why.
+ * database open. Rejecting alone leaves the `open` request pending: when the
+ * blocking tab finally closes, `onsuccess` fires on an already-settled promise
+ * and the connection is leaked with nobody holding it to `close()`, which
+ * then blocks the next version upgrade in turn, in a tab that has no idea why.
  * It cannot be provoked through fake-indexeddb at a fixed DB_VERSION, so the
  * request object is stood in for directly.
  */
@@ -351,7 +352,7 @@ describe('storage-degraded signal', () => {
  * `update()` falling back to localStorage the same way `set()` does.
  *
  * On a failed IndexedDB write both delete the now-stale IndexedDB entry, so that in
- * the NEXT session, where `fellBack` is empty again, `get` cannot read IndexedDB
+ * the next session, where `fellBack` is empty again, `get` cannot read IndexedDB
  * first and serve the old value. Recording the key in `fellBack` and stopping there
  * is not enough: the design library index is mutated only through `update`, so a
  * library edit that hit the quota would look saved for the rest of the session and
@@ -376,7 +377,7 @@ describe('update() falling back to localStorage', () => {
   });
 
   it('hands the reducer the IndexedDB value when the fallback holds none', async () => {
-    // Once migrated the value lives ONLY in IndexedDB. A reducer given `null`
+    // Once migrated the value lives only in IndexedDB. A reducer given `null`
     // would rebuild the library index from nothing and drop every other entry.
     const local = new FakeLocal();
     const kv = new IndexedDbKeyValueStore(local);

@@ -4,8 +4,7 @@ import type { ReportModel } from '../../../src/services/report/reportModel';
 import type { UnitSelection } from '../../../src/prefs/units';
 
 /**
- * GOLDEN drawing log of the PDF report, pinned before `downloadReportPdf` was
- * split into page sections. jsPDF's own bytes carry a creation date, so the
+ * Golden drawing log of the PDF report. jsPDF's own bytes carry a creation date, so the
  * pin is the exact sequence of drawing calls (method, arguments, order) the
  * report makes against the document, which is what decides where every line
  * of text and every 1:1 template lands on the page.
@@ -379,7 +378,7 @@ describe('golden PDF report', () => {
     await downloadReportPdf(model, tree, t, everything, units);
     expect(calls.join('\n')).toMatchSnapshot();
     // "-report", the way the design CSV beside it is "-design": a name says
-    // which rocket AND which document, not only which rocket.
+    // which rocket and which document, not only which rocket.
     expect(saved).toEqual(['Golden_Report_1_-report.pdf']);
   });
 

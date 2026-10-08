@@ -23,11 +23,11 @@ const SEARCH_MIN_CHARS = 2;
 /**
  * Searching the whole guide from the Help dialog's rail.
  *
- * `query` is what has been typed; `found` is the answer for a query, TAGGED
+ * `query` is what has been typed; `found` is the answer for a query, tagged
  * with it the same way the page probe is tagged with its src, so a result list
  * for a query that has since been edited stops matching instead of having to be
  * cleared. `highlight` is the words to mark inside the frame, which is set by
- * OPENING a result rather than by typing: marking the page you happen to be
+ * opening a result rather than by typing: marking the page you happen to be
  * reading as you type would be the dialog rearranging itself under you.
  */
 export function useHelpSearch(pages: HelpEntry[], language: string, pick: (next: string) => void) {

@@ -36,7 +36,7 @@ export function MotorSpecDialog({ motor, onClose }: { motor: MotorSpec; onClose:
       title={motorName(motor)}
       onClose={onClose}
       layout="pad"
-      // A thrust chart and eight stats. Worth widening on a big screen.
+      // A thrust chart and up to ten stats. Worth widening on a big screen.
       size="lg"
     >
       {samples.length >= 2 ? (

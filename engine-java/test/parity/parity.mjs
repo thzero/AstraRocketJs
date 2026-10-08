@@ -1,22 +1,22 @@
 #!/usr/bin/env node
 /**
  * Parity test: run parity.ParityMain on the JVM and under each TeaVM target in Node, and require
- * BIT-IDENTICAL output (modulo a small ULP tolerance for JS Math transcendentals). Any real
+ * bit-identical output (modulo a small ULP tolerance for JS Math transcendentals). Any real
  * diff is a fidelity break: a TeaVM miscompile, a semantics divergence, or an unported dep.
  *
- * BOTH targets are checked by default, because both are shipped: openRocketEngine.ts loads
+ * Both targets are checked by default, because both are shipped: openRocketEngine.ts loads
  * WASM-GC where the browser supports it and falls back to JS. Checking one alone leaves the
- * other's fidelity unproven, and the two do NOT fail together (a miscompile is per backend).
+ * other's fidelity unproven, and the two do not fail together (a miscompile is per backend).
  * They share the JVM reference, so the pair costs barely more than one: parityJvm measured 22s
  * of a 35s run, where a TeaVM build is 6s once its outputs are cached. Checking one target
  * alone is the special case, behind a flag.
  *
  * Self-contained: builds and vendors the engine (build-engine.mjs, the same step as `npm run
- * build`), then runs the VENDORED .mjs and .wasm - the exact files the app loads - through their
+ * build`), then runs the vendored .mjs and .wasm (the exact files the app loads) through their
  * runParity() export, against the JVM running the same scenarios. Needs a JDK (JAVA_HOME, or
  * whatever the Gradle wrapper already resolves) and Node 22+.
  *
- *   node test/parity/parity.mjs           # BOTH targets vs ONE JVM reference (default)
+ *   node test/parity/parity.mjs           # both targets vs one JVM reference (default)
  *   node test/parity/parity.mjs --js      # TeaVM-JS only
  *   node test/parity/parity.mjs --wasm    # TeaVM WASM-GC only
  *   node test/parity/parity.mjs --golden  # rewrite golden.txt from this run (deliberate changes only)
@@ -30,7 +30,7 @@ import { fileURLToPath } from 'node:url';
 import { TARGET_COMPLETE, writeStdoutSync } from './stdout-sync.mjs';
 import { gradleArgv, javaExe } from '../../gradle-exec.mjs';
 
-// Every VERDICT this script prints goes through a synchronous write, never
+// Every verdict this script prints goes through a synchronous write, never
 // console.log, so that nothing is still buffered when the process.exit() at the
 // bottom of this file runs. stdout-sync.mjs explains why that matters and why
 // it cannot hang. Diagnostics keep using console.error: that is stderr, a
@@ -40,13 +40,13 @@ const say = (line) => writeStdoutSync(line + '\n');
 // Neither flag (or both) means both targets, the default that has to be right (see above).
 // --js / --wasm narrow it to one, for bisecting a divergence that only one backend shows.
 // Both go against the same JVM reference and the same tolerances: WASM f64 tracks the JVM's
-// IEEE-754 at least as closely as JS Math does. `--both` is still accepted, as an explicit
-// spelling of the default.
+// IEEE-754 at least as closely as JS Math does. `--both` is not parsed; passing it gives
+// the default.
 const wantJs = process.argv.includes('--js');
 const wantWasm = process.argv.includes('--wasm');
 const targets = wantJs === wantWasm ? ['js', 'wasm'] : wantJs ? ['js'] : ['wasm'];
 const writeGolden = process.argv.includes('--golden');
-// The golden can be SHRUNK as well as moved: drop emissions from ParityMain,
+// The golden can be shrunk as well as moved: drop emissions from ParityMain,
 // re-record, and every remaining value still matches, so the gate reports "ok"
 // while the dropped physics goes unchecked. CI passes the expected count, so a
 // shrink (or a growth) has to be argued in the workflow diff, the way
@@ -64,11 +64,11 @@ const engineRoot = resolve(here, '..', '..');
 const gradleEnv = { ...process.env };
 if (process.env.JAVA_HOME && !existsSync(process.env.JAVA_HOME)) delete gradleEnv.JAVA_HOME;
 
-// CI runs with NO GRADLE DAEMON, on the command line.
+// CI runs with no Gradle daemon, set on the command line.
 //
 // The daemon is a long-lived `java` process that inherits this process's stdio.
 // When this script exits, the daemon keeps that pipe open, the CI runner never
-// sees EOF on the step's output, and the STEP HANGS, which cleanup reports as
+// sees EOF on the step's output, and the step hangs, which cleanup reports as
 // "Terminate orphan process: pid (NNNN) (java)".
 //
 // This is a separate matter from the WASM-GC exit problem; see the exit note at
@@ -77,7 +77,7 @@ if (process.env.JAVA_HOME && !existsSync(process.env.JAVA_HOME)) delete gradleEn
 // It has to be the command line. Gradle's precedence for `org.gradle.daemon` is
 // (highest first) command line, GRADLE_USER_HOME/gradle.properties, the project
 // gradle.properties, then GRADLE_OPTS. Setting it via GRADLE_OPTS in the
-// workflow did NOT work: engine-java/gradle.properties says daemon=true and
+// workflow is not enough: engine-java/gradle.properties says daemon=true and
 // outranks it. `--no-daemon` cannot be overridden.
 //
 // Local runs keep the daemon, where a warm JIT across invocations is worth
@@ -91,20 +91,20 @@ const gradle = (args) =>
     encoding: 'utf8',
   });
 
-// --- build + vendor the SHIPPED engine, then capture the JVM reference ---
+// --- build + vendor the shipped engine, then capture the JVM reference ---
 //
 // The binary parity checks is the binary users get: build-engine.mjs builds
 // both targets with the production configuration and copies them into web/,
-// and the targets below are run from THOSE copies. A separate harness build
-// had its own entry point and a larger reachable set, and TeaVM links by
-// reachability, so it validated a sibling of what shipped.
+// and the targets below are run from those copies. A separate harness build
+// would have its own entry point and a larger reachable set, and TeaVM links by
+// reachability, so it would validate a sibling of what ships.
 console.error(`parity: building and vendoring the engine (${targets.join(' + ')}) …`);
 execFileSync(process.execPath, [join(engineRoot, 'build-engine.mjs'), ...targets.map((t) => `--${t}`)], {
   cwd: engineRoot,
   env: gradleEnv,
   stdio: ['ignore', process.stderr, 'inherit'],
 });
-// ONCE, however many targets are compared: the reference is the JVM running the
+// Once, however many targets are compared: the reference is the JVM running the
 // same scenarios, which does not depend on which TeaVM target it is checked against.
 console.error('parity: running JVM reference (parityJvm) …');
 const jvmRaw = gradle(['parityJvm', '--quiet', '--console=plain', ...NO_DAEMON]);
@@ -117,13 +117,13 @@ const wasmRuntimePath = join(webRoot, 'public', 'engine', 'openrocket-engine.was
 const runnerPath = join(here, 'run-target.mjs');
 
 // Purely a backstop. A target run is 1-4 seconds and run-target.mjs SIGKILLs
-// itself the moment it has printed, so this only matters if a future target
-// wedges BEFORE printing - in which case the run should fail in a couple of
-// minutes with a clear message rather than sit until the workflow's step cap.
+// itself the moment it has printed, so this only matters if a target wedges
+// before printing. The run then fails in a couple of minutes with a clear
+// message rather than sitting until the workflow's step cap.
 const TARGET_TIMEOUT_MS = 2 * 60 * 1000;
 
 /**
- * Run one TeaVM target's parity main() in a CHILD PROCESS and return everything
+ * Run one TeaVM target's parity main() in a child process and return everything
  * it printed.
  *
  * A child, not this process, and that is what keeps this script able to exit: on
@@ -133,7 +133,7 @@ const TARGET_TIMEOUT_MS = 2 * 60 * 1000;
  * target. The measurements are at the bottom of run-target.mjs.
  *
  * Because the child leaves by SIGKILL it has no exit status to report with, so
- * SUCCESS IS THE SENTINEL, not the status. Anything else is a failed target and
+ * success is the sentinel, not the status. Anything else is a failed target and
  * says which way it failed. A crash still reports the ordinary way: node prints
  * the stack to stderr (forwarded below), no sentinel arrives, this fails.
  *
@@ -157,7 +157,7 @@ function runTarget(target) {
     killSignal: 'SIGKILL',
   });
 
-  // The child's stderr is diagnostics - the engine's own log lines, and a stack
+  // The child's stderr is diagnostics: the engine's own log lines, and a stack
   // trace if it threw. Pass it through rather than swallowing it.
   if (r.stderr) process.stderr.write(r.stderr);
 
@@ -197,23 +197,23 @@ const REL_TOL_DEFAULT = 1e-13;   // static/instantaneous calcs stay bit-identica
 // cross-platform Math difference can flip which limit wins, drifting the timestep,
 // which the (deliberately under-damped) apogee turn amplifies. On the smooth
 // reference flight this reaches ~1.9e-3 relative by apogee (≈0.2 mm of 330 m, ~1 ms
-// of 7 s) — physically negligible. NOT a bug: the JVM is byte-identical run-to-run,
-// and every static calc matches to 1e-13. Raised from 1e-9 during the OpenRocket
-// unstable migration (a new per-step damping term made the flight more ULP-sensitive).
+// of 7 s), which is physically negligible. It is not a defect: the JVM is byte-identical
+// run-to-run, and every static calc matches to 1e-13. The kernel's per-step damping
+// term makes the flight ULP-sensitive enough that a tighter bound such as 1e-9 fails.
 const REL_TOL_FLIGHT = 5e-3;     // smooth-flight cross-platform drift (worst observed 1.9e-3)
 const ABS_TOL_FLIGHT = 1e-4;     // near-zero flight quantities (small velocities/accels near apogee)
 const REL_TOL_TURBULENT = 5e-2;  // chaotic gusty wind: platforms take different valid trajectories (worst ~3.2e-2)
 const ABS_SLACK_SERIESLENS = 25; // chaotic wind flights differ in sample count (worst 517 vs 534)
 
-// The golden comparison does NOT need the cross-platform headroom.
+// The golden comparison does not need the cross-platform headroom.
 //
 // Those tolerances exist so a golden recorded on one OS does not trip on
 // another over ULP noise in the integrated flight, and the worst drift ever
 // observed is 1.9e-3. But golden is a same-machine comparison of the JVM run
-// against a committed file, and reusing 5e-3 for it left a measured blind band:
+// against a committed file, and reusing 5e-3 for it would leave a blind band:
 // apogee could move 1.65 m, flight time 0.51 s and every event time 0.5%, all
-// silently. Measured, not estimated - perturbing a golden copy by +0.49%
-// passed and +0.6% failed.
+// silently. Measured, not estimated: perturbing a golden copy by +0.49%
+// passes at 5e-3 and +0.6% fails.
 //
 // 3e-3 is still above the worst observed cross-platform drift, so a golden
 // recorded elsewhere is not going to start failing; it just halves the band a
@@ -228,8 +228,8 @@ function linesMatch(a, b, forGolden = false) {
   if (fa.length !== fb.length || fa[0] !== fb[0]) return false;
   const isFlight = fa[0].startsWith('flight.');
   // Against the golden, a line that is not time-integrated has no drift to
-  // excuse: the JVM reproduces every one of them bit for bit (measured, all 356
-  // golden values, flights included, on the recording machine). Only the
+  // excuse: the JVM reproduces every one of them bit for bit (measured over every
+  // golden value, flights included, on the recording machine). Only the
   // integrated flight lines keep a band, for a golden recorded on another
   // platform, and the run reports how many needed it.
   if (forGolden && !isFlight) return false;
@@ -237,10 +237,10 @@ function linesMatch(a, b, forGolden = false) {
   const isSeriesLens = fa[0] === 'flight.conditions.serieslens';
   const scale = forGolden ? GOLDEN_TOL_SCALE : 1;
   const relTol = (isTurbulent ? REL_TOL_TURBULENT : isFlight ? REL_TOL_FLIGHT : REL_TOL_DEFAULT) * scale;
-  // The absolute escape is NOT scaled away for series lengths (a chaotic wind
-  // flight genuinely differs in sample count) but IS for ordinary flight
-  // fields, where 1e-4 absolute on a descent acceleration of ~5.9e-4 was a 17%
-  // free change and `flight.sample.0` - all zeros - was unconstrained entirely.
+  // The absolute escape is not scaled for series lengths (a chaotic wind
+  // flight genuinely differs in sample count) but is for ordinary flight
+  // fields, where 1e-4 absolute on a descent acceleration of ~5.9e-4 would be a
+  // 17% free change and `flight.sample.0` (all zeros) would be unconstrained.
   const absTol = isSeriesLens ? ABS_SLACK_SERIESLENS : isFlight ? ABS_TOL_FLIGHT * scale : 0;
   let ulp = false;
   for (let i = 1; i < fa.length; i++) {
@@ -289,10 +289,10 @@ for (const target of targets) {
   say(`parity ok${label(target)}: ${n} lines (${exactLines} bit-identical, ${ulpLines} within ULP tolerance)`);
 }
 
-// --- a flight that FAILED is not a flight that matched ---------------------
+// --- a flight that failed is not a flight that matched ---------------------
 // ParityMain catches SimulationException and prints "EXCEPTION: ...". Thrown
-// identically on both platforms it compared line-for-line and reported ok - so
-// a change that broke every flight outright passed this harness.
+// identically on both platforms it compares line-for-line as ok, so without
+// this check a change that broke every flight outright would pass.
 const exceptions = jvm.filter((l) => l.includes('EXCEPTION:'));
 if (exceptions.length) {
   console.error(`PARITY FAILURE: ${exceptions.length} scenario(s) threw instead of flying:`);
@@ -300,19 +300,19 @@ if (exceptions.length) {
   process.exit(1);
 }
 
-// --- golden values: did the PHYSICS change? --------------------------------
+// --- golden values: did the physics change? --------------------------------
 //
-// This is the ONLY check here that looks at the source rather than the compile.
+// This is the only check here that looks at the source rather than the compile.
 // Parity proves TeaVM translated our Java faithfully; three targets agreeing on
 // a wrong coefficient is still three targets agreeing. So this file is what
 // stands between a changed number and a green build, and it is protected
 // accordingly:
 //
-//   - a MISSING golden.txt fails, rather than warning and exiting 0, which would
+//   - a missing golden.txt fails, rather than warning and exiting 0, which would
 //     let `git rm`ing it switch the physics gate off with CI still green;
 //   - the header carries a sha256 of the data lines, re-verified on every run,
 //     so hand-editing one value to make a regression pass fails instead;
-//   - --golden compares BEFORE it overwrites and prints what it is about to
+//   - --golden compares before it overwrites and prints what it is about to
 //     change, so the regeneration transcript names the movement.
 const goldenPath = join(here, 'golden.txt');
 const GOLDEN_MAGIC = '# golden v1';
@@ -362,7 +362,7 @@ if (writeGolden) {
     const { data } = readGolden();
     const { moved, gn } = compareGolden(data, 'GOLDEN MOVED');
     say(moved
-      ? `parity: --golden is overwriting ${moved} moved value(s) of ${gn}. Say WHY in the commit message.`
+      ? `parity: --golden is overwriting ${moved} moved value(s) of ${gn}. Be ready to say why they moved.`
       : 'parity: --golden rewrote an unchanged golden (no values moved).');
   }
   let commit = 'unknown';
@@ -415,8 +415,8 @@ if (writeGolden) {
   const { moved, gn, banded } = compareGolden(data, 'GOLDEN');
   if (moved) {
     console.error(`GOLDEN FAILURE: ${moved} value(s) of ${gn} moved.`);
-    console.error('The physics changed. If that was deliberate, re-run with --golden and');
-    console.error('say in the commit message WHY the numbers moved.');
+    console.error('The physics changed. If that was deliberate, re-run with --golden; the');
+    console.error('moved values are listed above, so the reason for each can be checked.');
     process.exit(1);
   }
   say(`golden ok: ${data.length} reference value(s) unchanged (${data.length - banded} bit-identical, ${banded} flight line(s) within tolerance)`);
@@ -430,7 +430,7 @@ if (writeGolden) {
 //
 // Measured on Ubuntu 26.04 / node 22.23.2:
 //
-//   ONCE A PROCESS HAS INSTANTIATED THE WASM-GC MODULE IT CANNOT EXIT, and its
+//   Once a process has instantiated the WASM-GC module it cannot exit, and its
 //   event loop stops turning. Falling off the end hangs, process.exit() hangs,
 //   waiting first hangs, and timers armed beforehand never fire, so a timeout
 //   fallback cannot help either. Only a signal ends it. Loading the module is
@@ -438,8 +438,9 @@ if (writeGolden) {
 //   Windows, so it shows up only in CI.
 //
 // The rule is therefore not "flush carefully" or "exit explicitly": it is that
-// THIS script must never load a TeaVM target. run-target.mjs does it in a process
-// built to be killed, and this one stays ordinary - every verdict goes out through
+// this script must never load a TeaVM target. run-target.mjs does it in a process
+// built to be killed, and this one stays ordinary: every verdict goes out through
+
 // a synchronous write (see `say` at the top) so nothing is buffered here, and the
 // exit below is a bare statement.
 process.exit(0);

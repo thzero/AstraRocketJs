@@ -9,7 +9,7 @@
  * simplifier's tolerance is what decides whether a traced fin comes back as six
  * points or six hundred.
  *
- * ONE PIXEL IS ONE MILLIMETER, which is upstream's fixed scale and not a
+ * One pixel is one millimeter, which is upstream's fixed scale and not a
  * guess. The traced fin therefore comes in at whatever size the image happens
  * to be, and Scale fin is the other half of the workflow.
  */
@@ -36,7 +36,7 @@ const M_PER_PIXEL = 0.001;
 /**
  * The image could not be read as a fin.
  *
- * Its own class because the one failure mode worth naming is the SHAPE of the
+ * Its own class because the one failure mode worth naming is the shape of the
  * image rather than a coding error: a fin that does not touch the bottom edge
  * has no root for the tracer to start from, which is what the desktop's own
  * message says.
@@ -54,10 +54,10 @@ type Facing = 'up' | 'down' | 'left' | 'right';
  * Luma, then threshold: `0.299 R + 0.587 G + 0.114 B`, dark is fin.
  *
  * A channel past the end of the array reads as 255, not 0. `?? 0` is pure black,
- * which is FIN: a `data` array shorter than `width * height * 4` - a truncated
- * decode, or a fixture written by hand - invented fin pixels at the end of the
- * image and the tracer walked an outline through them. Reading a byte that is not
- * there as background invents nothing.
+ * which is fin: a `data` array shorter than `width * height * 4` (a truncated
+ * decode, or a fixture written by hand) would invent fin pixels at the end of the
+ * image and the tracer would walk an outline through them. Reading a byte that is
+ * not there as background invents nothing.
  */
 function darkMask(img: Pixels): Uint8Array {
   const mask = new Uint8Array(img.width * img.height);
@@ -139,7 +139,7 @@ function distanceFromLine(a: FinPoint, b: FinPoint, p: FinPoint): number {
  * Collapse runs of points that lie on a straight line, longest run first.
  *
  * `CustomFinImporter.optimizePoints`, and the greedy direction matters: from
- * each surviving point it reaches for the FURTHEST point it can still see in a
+ * each surviving point it reaches for the furthest point it can still see in a
  * straight line, so a traced straight edge comes back as its two ends rather
  * than as a staircase of short segments. Upstream repeats the whole pass until
  * it stops removing anything, and so does this.
@@ -177,12 +177,11 @@ function simplify(input: FinPoint[]): FinPoint[] {
 /**
  * The longest edge this traces at, in pixels.
  *
- * The documented workflow is tracing a fin off a PHOTOGRAPH, and a phone camera
+ * The documented workflow is tracing a fin off a photograph, and a phone camera
  * hands over something like 4000 x 3000. `traceOutline` returns one point per
  * boundary step, so that is a perimeter of roughly fourteen thousand points, and
  * `simplify` is a triply nested scan over whatever it is given, on the main
- * thread, with no progress and nothing to cancel. The existing tests use
- * single-digit ASCII fixtures, so none of this was ever exercised.
+ * thread, with no progress and nothing to cancel.
  *
  * 1200 px is far finer than any fin outline carries: `FLATNESS` is 0.8 mm and one
  * pixel is one millimeter, so a fin traced at this size still resolves detail
@@ -195,22 +194,22 @@ const MAX_TRACE_EDGE = 1200;
  * per-axis scale back to the original.
  *
  * Nearest-neighbor and not an average on purpose: the very next thing that
- * happens is a luma THRESHOLD, and averaging across the fin edge invents
+ * happens is a luma threshold, and averaging across the fin edge invents
  * mid-gray pixels whose side of the cut depends on the factor. Taking one real
  * pixel per block keeps every sampled pixel a pixel the image actually had.
  *
- * The mapping is ENDPOINT-INCLUSIVE - row `height - 1` samples source row
- * `source.height - 1`, not `(height - 1) * factor` - because the tracer starts
- * from the leftmost dark pixel on the BOTTOM ROW, and a plain stride misses that
+ * The mapping is endpoint-inclusive (row `height - 1` samples source row
+ * `source.height - 1`, not `(height - 1) * factor`), because the tracer starts
+ * from the leftmost dark pixel on the bottom row, and a plain stride misses that
  * row whenever the height is not a multiple of the stride. A 300-pixel-tall image
- * reduced by 4 would have sampled rows 0, 4, ... 296, so a fin touching only rows
- * 297 to 299 would have been reported as not touching the bottom edge: a valid
+ * reduced by 4 with a plain stride samples rows 0, 4, ... 296, so a fin touching
+ * only rows 297 to 299 would be reported as not touching the bottom edge: a valid
  * image refused with the message for an invalid one.
  *
  * `sx` and `sy` scale the traced points back, because one pixel is one millimeter
  * is upstream's fixed scale. A fin traced at a quarter size has to come back at
- * full size, or Scale fin - the other half of this workflow - would be working
- * from a different number than it was before.
+ * full size, or Scale fin (the other half of this workflow) would be working
+ * from a different number than the image's own scale.
  */
 function reduced(img: Pixels): { img: Pixels; sx: number; sy: number } {
   const factor = Math.ceil(Math.max(img.width, img.height) / MAX_TRACE_EDGE);

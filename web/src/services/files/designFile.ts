@@ -4,12 +4,12 @@ import { importRkt } from './rktImport';
 import { decodeFileText } from './decodeText';
 
 /**
- * Which design format a file is, decided from its BYTES rather than its name.
+ * Which design format a file is, decided from its bytes rather than its name.
  *
- * The app now reads two: OpenRocket `.ork` (a zip, or bare XML) and RockSim
+ * The app reads two: OpenRocket `.ork` (a zip, or bare XML) and RockSim
  * `.rkt` (XML). Sniffing rather than trusting the extension means a `.rkt`
  * chosen in the OpenRocket picker still opens, and a file renamed on the way
- * out of somebody's email does too — and it keeps the loader to ONE path, so
+ * out of somebody's email does too, and it keeps the loader to one path, so
  * everything downstream (`loadOrk`, the notes banner, the safety-limit check)
  * is shared instead of duplicated per format.
  */
@@ -23,8 +23,8 @@ export type DesignFormat = 'ork' | 'rkt';
  * The format of a design file, or null when it is neither.
  *
  * A zip is always a `.ork`: RockSim writes plain XML. Otherwise the root
- * element decides, which is why this looks for the tag and not merely the word
- * — "RockSim" appears in plenty of `.ork` files as a material or a comment.
+ * element decides, which is why this looks for the tag and not merely the word:
+ * "RockSim" appears in plenty of `.ork` files as a material or a comment.
  */
 export function sniffDesignFormat(data: ArrayBuffer | string): DesignFormat | null {
   if (typeof data !== 'string') {

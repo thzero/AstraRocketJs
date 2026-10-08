@@ -6,11 +6,10 @@ import type { Quantity } from '../../src/prefs/units';
  * The two presets against `UnitGroup.setDefaultMetricUnits()` and
  * `setDefaultImperialUnits()`, which is what their comments claim they are.
  *
- * Six entries differed and nothing said so. The conversion factors were all
- * correct, so no stored value was wrong, but a preset labeled "the desktop's" and
- * showing a different unit is a claim the code does not keep: a metric user read
- * a 67 g/m² canopy as 0.067, and an imperial user read a surface density in a
- * unit `UNITS_DENSITY_SURFACE` does not contain.
+ * A wrong default unit leaves every stored value correct, so nothing else catches
+ * it, but a preset labeled "the desktop's" that shows a different unit is a claim
+ * the code does not keep (a 67 g/m² canopy reading as 0.067, or a surface density
+ * in a unit `UNITS_DENSITY_SURFACE` does not contain).
  *
  * The desktop values below are transcribed from
  * `engine-java/src/java/info/openrocket/core/unit/UnitGroup.java:422-486`, with
@@ -104,8 +103,8 @@ describe('every quantity is accounted for, one way or the other', () => {
   });
 
   it('names a deviation only where the two presets actually differ', () => {
-    // A row here that agrees with the desktop would be a comment explaining a
-    // difference that no longer exists, which is how a file starts lying again.
+    // A row here that agrees with the desktop explains a difference that does
+    // not exist.
     for (const q of Object.keys(DEVIATIONS) as Quantity[]) {
       const dev = DEVIATIONS[q]!;
       if (dev.metric) expect(METRIC_UNITS[q], q).not.toBe(dev.metric);

@@ -1,10 +1,10 @@
-// Build-time importer for OpenRocket's own EXAMPLE ROCKETS.
+// Build-time importer for OpenRocket's own example rockets.
 //
 // OpenRocket ships a folder of curated `.ork` files it opens from File → Open
 // Example. They are the best starter designs that exist for this app: real,
 // varied, authored by the people who wrote the physics, and already proven to
-// load — everything one of ours would have to earn. This pulls them from the
-// SAME upstream commit the engine was extracted from
+// load: everything one of ours would have to earn. This pulls them from the
+// same upstream commit the engine was extracted from
 // (engine-java/extract/UPSTREAM), so an example can never demonstrate a feature
 // the bundled kernel does not have.
 //
@@ -12,19 +12,18 @@
 //
 // With no --src it reads the pinned repo/ref from UPSTREAM and fetches over
 // HTTPS. --src points at a full OpenRocket checkout instead (the extractor's
-// .openrocket-src is sparse to core/src/main/java, so it does NOT have these).
+// .openrocket-src is sparse to core/src/main/java, so it does not have these).
 //
-// WHAT IT STRIPS. Upstream's files carry the flight data of every simulation
+// What it strips. Upstream's files carry the flight data of every simulation
 // that was ever run in them: 96% of the bytes, 3.5 MB of the 3.6 MB across the
-// set. It is dead weight here — `orkImport` never reads `<flightdata>`
+// set. It is dead weight here: `orkImport` never reads `<flightdata>`
 // (`grep -rn flightdata src/services` is empty), because the app runs its own
 // simulations and shows its own results. Stripping it takes the set to ~340 kB,
 // which is small enough to sit in the build and be precached, so examples work
-// on a first offline load like everything else. Verified byte-for-byte
-// equivalent by exampleLibrary.test.ts, which builds every one through the real
-// kernel and checks mass/CG/CP.
+// on a first offline load like everything else. exampleLibrary.test.ts builds
+// every stripped file through the real kernel and checks mass/CG/CP.
 //
-// WHY public/examples AND NOT public/data. The catalogs under public/data are
+// Why public/examples and not public/data. The catalogs under public/data are
 // refreshed on a schedule by .github/workflows/sync-catalogs.yml and served
 // from the `data` branch so they can change without an app build. Examples are
 // the opposite: they are pinned to the engine's upstream ref, so they change
@@ -45,7 +44,7 @@ const arg = (name) => {
   return i >= 0 ? process.argv[i + 1] : undefined;
 };
 
-/** repo + ref from engine-java/extract/UPSTREAM — the commit the engine is built from. */
+/** repo + ref from engine-java/extract/UPSTREAM: the commit the engine is built from. */
 function pinnedUpstream() {
   const text = readFileSync(UPSTREAM, 'utf8');
   const field = (k) => text.match(new RegExp(`^${k}\\s*=\\s*(\\S+)`, 'm'))?.[1];
@@ -114,7 +113,7 @@ function headerTag(xml, tag) {
 // Upstream's <comment> is the description everywhere it exists, because it is
 // the author's own words about the design. These fill the gaps:
 //   - three files carry no comment at all;
-//   - the two "simulation extension" examples demonstrate a DESKTOP PLUGIN
+//   - the two "simulation extension" examples demonstrate a desktop plugin
 //     (roll control and airstart via OpenRocket's extension API, one of them in
 //     JavaScript). The airframes load and fly here, but the extension does not
 //     run, so upstream's description would promise behavior this app does not
@@ -155,7 +154,7 @@ if (sources.length === 0) {
   process.exit(1);
 }
 
-// Rewritten from scratch every run, so an example REMOVED upstream is removed
+// Rewritten from scratch every run, so an example removed upstream is removed
 // here too rather than lingering as a file nothing indexes.
 rmSync(OUT_DIR, { recursive: true, force: true });
 mkdirSync(OUT_DIR, { recursive: true });
@@ -170,7 +169,7 @@ for (const { name, bytes } of sources.sort((a, b) => a.name.localeCompare(b.name
   examples.push({
     id,
     file: `${id}.ork`,
-    // The FILENAME, not the design's <name>: upstream's menu labels these by
+    // The filename, not the design's <name>: upstream's menu labels these by
     // file, and at least one ("Two stage high power rocket") is called plain
     // "Rocket" inside.
     name: name.replace(/\.ork$/i, ''),

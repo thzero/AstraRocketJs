@@ -13,11 +13,11 @@ import { test, expect, tableRows, defined } from './base';
 test('two parts sharing a name are two rows, not one merged one', async ({ page }) => {
   await page.goto('/');
 
-  // Both parts renamed to the SAME string. It has to be an exact collision:
-  // renaming one to the other's DISPLAYED label is not enough, because an
+  // Both parts renamed to the same string. It has to be an exact collision:
+  // renaming one to the other's displayed label is not enough, because an
   // untouched part reports the kernel's own "[BodyTube.BodyTube]" rather than
-  // the "Body Tube" the table shows — a version of this test that renamed only
-  // one part passed against the broken engine.
+  // the "Body Tube" the table shows, so renaming only one part would pass even
+  // with rows keyed on name.
   for (const part of ['Nose cone', 'Body tube']) {
     await page.locator(`div[title="${part}"]`).first().click();
     const name = page.getByLabel('Name', { exact: true });
@@ -36,7 +36,7 @@ test('two parts sharing a name are two rows, not one merged one', async ({ page 
   await expect.poll(async () => (await twins()).length).toBe(2);
   const r = await tableRows(page, 'Drag by component');
 
-  // And the rows still account for the whole rocket — the split must not have
+  // And the rows still account for the whole rocket: the split must not have
   // double-counted or dropped anything.
   const cd = defined(r[0], 'the drag table header row').indexOf('Cd');
   const total = Number(

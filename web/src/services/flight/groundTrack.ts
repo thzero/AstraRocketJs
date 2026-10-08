@@ -1,14 +1,12 @@
 import type { FlightSeries } from '../../engine/openRocketEngine';
 
 /**
- * The flight seen from directly above: where the rocket went over the GROUND,
+ * The flight seen from directly above: where the rocket went over the ground,
  * with height thrown away.
  *
  * The 3D path view answers "how did it fly"; this answers "where does it come
- * down, and how far from the pad" — which on a breezy day is the difference
- * between a walk and a search. The app could already answer it OUTSIDE itself
- * (`flightPathExport.ts` projects the same drift onto lat/lon and ships KML and
- * GPX), so this is the same question asked without leaving the app.
+ * down, and how far from the pad". `flightPathExport.ts` projects the same
+ * drift onto lat/lon for KML and GPX; this answers it inside the app.
  *
  * Meters from the pad, not lat/lon. A plan view is read against the field you
  * are standing on, so the pad is the origin and the numbers are the ones you
@@ -43,7 +41,7 @@ const finite = (v: number | null | undefined): v is number => v != null && Numbe
 /**
  * Pull the horizontal track out of one branch's series.
  *
- * A sample is kept only when BOTH components are finite. Dropping a half-valid
+ * A sample is kept only when both components are finite. Dropping a half-valid
  * sample rather than substituting zero matters: zero is the pad, so a single
  * null would otherwise draw a line back to the launch point and out again.
  */
@@ -71,10 +69,10 @@ export const bearingFromPad = (p: GroundPoint): number => ((Math.atan2(p.east, p
 export const norm360 = (deg: number): number => ((deg % 360) + 360) % 360;
 
 /**
- * Where one branch came down, as the latitude and longitude the KERNEL recorded
+ * Where one branch came down, as the latitude and longitude the kernel recorded
  * (φ, λ, degrees), with the Earth model the simulation chose: the last sample
- * where both are finite. Null for a result that does not carry them (one saved
- * before they were kept), whose reader then projects the offset itself.
+ * where both are finite. Null for a result that does not carry them (a stored
+ * result without those series), whose reader then projects the offset itself.
  */
 export function landingLatLon(series: FlightSeries | undefined): { lat: number; lon: number } | null {
   const lat = series?.['φ'];
@@ -96,7 +94,7 @@ const lastPoint = (points: readonly GroundPoint[]): GroundPoint | null =>
  * Where one branch came down: the last usable sample, or null for an empty
  * track.
  *
- * Its own function because a wind sweep wants ONLY this from each of a few
+ * Its own function because a wind sweep wants only this from each of a few
  * dozen flights (`windSweep.ts`) and has no use for the track, the color or the
  * name that {@link groundTrackLine} builds around it.
  */
@@ -127,16 +125,15 @@ export function groundTrackLine(
 /**
  * The closest this view ever zooms in: half a side, so a hundred meters across.
  *
- * Sizing purely to the flight is right for a breezy day and absurd for a calm
+ * Sizing purely to the flight is right for a breezy day and wrong for a calm
  * one. Still air lands a rocket about a tenth of a meter from the pad, and a
- * plan view scaled to THAT is a picture of ten centimeters of grass: range
- * rings labeled 0.05 m, a track that is a straight line whatever it did, and no
- * aerial imagery at all, because nobody photographs the ground that closely.
+ * plan view scaled to that shows ten centimeters of ground: range rings labeled
+ * 0.05 m, a track that is a straight line whatever it did, and no aerial
+ * imagery, because no imagery resolves the ground that closely.
  *
- * A hundred meters across is the frame the question is actually asked in. It is
- * the pad, the flight line and the near treeline; a landing on the pad reads as
- * a dot ON the pad, which is the truth, and a fifty-meter walk still reads as
- * half the radius. It also sits inside the best aerial imagery's resolution, so
+ * A hundred meters across covers the pad, the flight line and the near
+ * treeline; a landing on the pad reads as a dot on the pad, and a fifty-meter
+ * walk still reads as half the radius. It also sits inside the best aerial imagery's resolution, so
  * the map under the track is a map rather than four blown-up pixels.
  */
 export const MIN_EXTENT_M = 50;
@@ -145,8 +142,8 @@ export const MIN_EXTENT_M = 50;
  * The square half-extent, in meters, that contains the pad, every track, and
  * any `extra` points the caller wants kept in frame.
  *
- * SQUARE, and centered on the pad, on purpose: a plan view whose axes are scaled
- * differently is not a map — it would bend a straight drift into a curve and
+ * Square, and centered on the pad, on purpose: a plan view whose axes are scaled
+ * differently is not a map; it would bend a straight drift into a curve and
  * make a circle of equal distance read as an ellipse. Centering on the pad keeps
  * the launch point where the reader expects it rather than drifting with the
  * wind.
@@ -174,8 +171,8 @@ export function trackExtent(lines: readonly GroundTrackLine[], extra: readonly G
 /**
  * Radii for the range rings, in meters: at most `count`, on a 1/2/5 × 10ⁿ step.
  *
- * The rings are what turn the picture into a measurement — without them a drift
- * is just a squiggle. The step comes off the same 1/2/5 ladder chart axes use,
+ * The rings are what turn the picture into a measurement: without them the
+ * drift has no scale. The step comes off the same 1/2/5 ladder chart axes use,
  * so the labels are numbers a person reads ("200 m") rather than whatever the
  * extent divided by four happened to be.
  */

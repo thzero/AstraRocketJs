@@ -1,11 +1,50 @@
-import { test, expect, runFlight, defined } from './base';
+import AxeBuilder from '@axe-core/playwright';
+import { test, expect, runFlight, defined, ready, openTab, type Page } from './base';
+
+/** What axe found on the page as it is, one line per element, WCAG 2.1 A and AA. */
+async function axeViolations(page: Page, where: string): Promise<string[]> {
+  const result = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
+  return result.violations.flatMap((v) =>
+    v.nodes.map((n) => {
+      const colors = n.any[0]?.data as { fgColor?: string; bgColor?: string; contrastRatio?: number } | undefined;
+      const detail = colors?.contrastRatio
+        ? ` (${colors.fgColor} on ${colors.bgColor}, ${colors.contrastRatio}:1)`
+        : '';
+      return `${where}: ${v.id}${detail} at ${n.target.join(' ')}`;
+    }),
+  );
+}
 
 /**
- * Keyboard and screen-reader reachability.
- *
- * Each of these was a real gap: a modal with no way out but the mouse, state
- * signalled by color alone, several controls sharing one accessible name, and
- * a "disabled" toggle that was only disabled to the mouse.
+ * The main screens through axe, in every theme. Contrast is the part the JSX
+ * lint cannot see: it depends on the theme's tokens and the surface under the
+ * text, so each theme is its own scan. The theme attribute is set directly;
+ * the setting that normally sets it is covered in daylight-toggle.spec.ts.
+ */
+for (const theme of ['dark', 'light', 'daylight'] as const) {
+  test(`axe finds nothing on the main screens in the ${theme} theme`, async ({ page }) => {
+    await ready(page);
+    await runFlight(page);
+    await page.evaluate((t) => document.documentElement.setAttribute('data-theme', t), theme);
+
+    const found: string[] = [];
+    for (const tab of ['Design', 'Simulations', 'Results'] as const) {
+      await openTab(page, tab);
+      found.push(...(await axeViolations(page, tab)));
+    }
+    await page.getByRole('button', { name: 'Menu' }).click();
+    await page.getByRole('menuitem', { name: /Settings/i }).click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+    found.push(...(await axeViolations(page, 'Settings')));
+
+    expect(found, found.join('\n')).toEqual([]);
+  });
+}
+
+/**
+ * Keyboard and screen-reader reachability: modals close from the keyboard,
+ * state is exposed rather than shown by color alone, and controls that sit
+ * together carry distinct accessible names.
  */
 test.describe('accessibility', () => {
   test('the export dialog closes on Escape and names its close button', async ({ page }) => {
@@ -19,7 +58,7 @@ test.describe('accessibility', () => {
     // The close button carries a real accessible name, not just the ✕ glyph.
     await expect(dialog.getByRole('button', { name: 'Close' })).toBeVisible();
 
-    // …and there was no keyboard way out of an aria-modal overlay.
+    // An aria-modal overlay must have a keyboard way out.
     await page.keyboard.press('Escape');
     await expect(dialog).toBeHidden();
   });
@@ -40,9 +79,9 @@ test.describe('accessibility', () => {
   test('unit chips in the stats strip have distinct accessible names', async ({ page }) => {
     await page.goto('/');
 
-    // Four of these are the LENGTH quantity (length, max diameter, CG, CP) and
-    // two are MASS. Named by quantity alone all six announced identically;
-    // each now carries its own tile's name.
+    // Four of these are the length quantity (length, max diameter, CG, CP) and
+    // two are mass. Named by quantity alone they would announce identically, so
+    // each carries its own tile's name.
     //
     // Scoped to the strip: "Length unit" also exists in the launch panel (the
     // rod's length), which is a separate cross-panel collision and not what
@@ -59,10 +98,10 @@ test.describe('accessibility', () => {
     await page.goto('/');
 
     // The whole workbench at once: the stats strip, the property panel and the
-    // launch panel each mint unit chips, and they must not collide ACROSS panels
-    // — two "Length unit"s (the rod's and the rocket's) and two "Direction
-    // unit"s (the rod's and the wind's) on screen together, indistinguishable
-    // to anyone navigating by name.
+    // launch panel each mint unit chips, and they must not collide across panels:
+    // two "Length unit"s (the rod's and the rocket's) or two "Direction unit"s
+    // (the rod's and the wind's) on screen together are indistinguishable to
+    // anyone navigating by name.
     await expect(page.getByText('Max diameter')).toBeVisible();
     const names = await page.evaluate(() =>
       [...document.querySelectorAll('select[aria-label]')]
@@ -75,10 +114,9 @@ test.describe('accessibility', () => {
   });
 
   /**
-   * Seven dialogs declared `aria-modal` with no focus trap and no focus
-   * restore, so Tab walked straight out into the page behind the overlay and
-   * the trigger lost focus on close — while seven of their siblings used
-   * `useFocusTrap` all along.
+   * An `aria-modal` dialog needs a focus trap and focus restore (`useFocusTrap`):
+   * without them Tab walks out into the page behind the overlay and the trigger
+   * loses focus on close.
    */
   test('a modal keeps Tab inside it and hands focus back on close', async ({ page }) => {
     await page.goto('/');
@@ -113,10 +151,9 @@ test.describe('accessibility', () => {
   });
 
   /**
-   * Both hand-rolled chart families carried their numbers only on hover:
-   * `hoverM` / `hoverT` had exactly one setter each, `onPointerMove` on a plain
-   * `<div>`. So every value in the drag curves and the flight charts was
-   * unreachable without a mouse.
+   * The drag curves and the flight charts show their values at a crosshair.
+   * The crosshair must be movable from the keyboard as well as by pointer, or
+   * those values are unreachable without a mouse.
    */
   test('the aero chart crosshair can be driven from the keyboard', async ({ page }) => {
     await page.goto('/');
@@ -125,14 +162,14 @@ test.describe('accessibility', () => {
     const chart = page.getByRole('group', { name: /arrow keys to move the crosshair/i }).first();
     await expect(chart).toBeVisible();
 
-    // Focusing alone plants the crosshair — there is something to read at once.
+    // Focusing alone plants the crosshair, so there is something to read at once.
     await chart.focus();
     // The crosshair line carries a data hook so the test does not depend on
     // its color class.
     const crosshair = () => page.locator('svg line[data-crosshair]');
     // Count, not visibility: a 1px SVG <line> has no meaningful bounding box,
     // so Playwright reports it hidden even while it is drawn and positioned.
-    // One per chart card — hoverM is shared, so all three track together.
+    // One per chart card: hoverM is shared, so all three track together.
     expect(await crosshair().count()).toBeGreaterThan(0);
 
     // Arrowing moves it: the line's x must change.
@@ -166,7 +203,7 @@ test.describe('accessibility', () => {
 
     // Web-first (`toHaveText` retries) rather than a one-shot `textContent()`
     // compare: the readout is a live region that updates after the keypress,
-    // and a read taken before it did compared the text with itself.
+    // and a read taken before it would compare the text with itself.
     await page.keyboard.press('ArrowLeft');
     await page.keyboard.press('ArrowLeft');
     await expect(readout).not.toHaveText(mid);

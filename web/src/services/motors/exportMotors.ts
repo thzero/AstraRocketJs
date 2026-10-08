@@ -12,14 +12,14 @@ import { embeddedMotorFile } from '../files/ork/embeddedMotors';
  * `base` carries through fields captured at import that this map has no model
  * for, so a round-trip export does not drop them.
  *
- * The MANUFACTURER is the motor's own, not just the imported one. The desktop
+ * The manufacturer is the motor's own, not just the imported one. The desktop
  * finds a motor by manufacturer and designation together, so a file that names
  * no manufacturer is a file whose motors it cannot resolve: it says "No motor
  * with designation 'C6' for manufacturer 'custom' found" and opens the design
  * with an empty mount. Every motor the picker seats carries its manufacturer
- * (thrustcurve.ts), and this is where it was being dropped.
+ * (thrustcurve.ts), and this map writes it through.
  *
- * The DIGEST is the other half of resolving it, and it is filled in separately,
+ * The digest is the other half of resolving it, and it is filled in separately,
  * by `fillMotorDigests`.
  */
 export function buildExportMotorMap(
@@ -50,25 +50,25 @@ const DIAMETER_TOLERANCE_MM = 1;
 /**
  * Fill in each motor's OpenRocket digest from the motor catalog.
  *
- * WHY THE DIGEST IS NEEDED. The desktop resolves a motor by manufacturer,
- * designation, diameter and length, and its database holds SEVERAL entries
- * behind one of those names - Estes C6 is a plugged one and a delayed one - so
+ * Why the digest is needed: the desktop resolves a motor by manufacturer,
+ * designation, diameter and length, and its database holds several entries
+ * behind one of those names (Estes C6 is a plugged one and a delayed one), so
  * with nothing to choose between them it takes the first and says so:
  * "Multiple motors with designation 'C6' for manufacturer 'Estes' found, one
  * chosen arbitrarily". The digest is the only field that names which, which is
  * why the desktop writes one into every `<motor>` block it saves.
  *
- * WHY AT WRITE TIME, and not when the motor is picked. A seated motor's full
- * spec is persisted with the design, so a design built before the catalog
- * carried digests would never gain one: nothing re-resolves a spec that is
- * already in the file on disk. Looking it up here makes the digest a property
- * of the FILE rather than of the session that happened to seat the motor.
+ * Why at write time, and not when the motor is picked: a seated motor's full
+ * spec is persisted with the design, and nothing re-resolves a spec that is
+ * already stored, so a spec saved without a digest would never gain one.
+ * Looking it up here makes the digest a property of the file rather than of
+ * the session that happened to seat the motor.
  *
  * The delay is what picks between the entries, and where it does not the sync
  * has already put the closest curve first (`sync-motor-digests.mjs`). A motor
  * with no catalog row, an imported one or one the desktop's database does not
  * contain, keeps whatever it came in with: a checksum that matches nothing is
- * worse than none, because the desktop then reports the motor as CHANGED rather
+ * worse than none, because the desktop then reports the motor as changed rather
  * than resolving it.
  *
  * Offline-safe. The catalog is a runtime fetch and a save must not depend on
@@ -92,8 +92,9 @@ export async function fillMotorDigests(
     const digest = same ? catalogDigest(row, m.delay) : undefined;
     // A motor the catalog does not have travels with its own curve, named by
     // that curve's digest: no database has it, so nothing else could name it.
-    // One the catalog has is written as the catalog's, embedding nothing.
-    const embedded = !row && m.seated ? embeddedMotorFile(m.seated) : null;
+    // That includes a name match whose diameter differs, which is a different
+    // motor. One the catalog has is written as the catalog's, embedding nothing.
+    const embedded = !same && m.seated ? embeddedMotorFile(m.seated) : null;
     out[id] = embedded ? { ...m, embedded, digest: embedded.digest } : digest ? { ...m, digest } : m;
   }
   return out;

@@ -16,24 +16,24 @@ import { WARNING_TONE } from './warningTone';
 /**
  * What the numbers below are and are not, as a card of its own above them.
  *
- * It rides with the MEASUREMENTS rather than living in a dialog or a first-run
+ * It rides with the measurements rather than living in a dialog or a first-run
  * gate, because the moment a reading can mislead somebody is the moment it is
  * being read. It leads them rather than following them: what a number is worth
- * is a thing to know BEFORE reading it, and a caution under a grid of tiles is
- * one the eye reaches only after it has already drawn its conclusion. It says three things, in the order they are acted on: verify the
- * model against the rocket on the bench, know what the model never had (the
- * gaps are specific on purpose — "results are approximate" tells nobody which
- * failure to go and think about), and remember who actually calls the flight.
+ * is a thing to know before reading it, and a caution under a grid of tiles is
+ * one the eye reaches only after it has already drawn its conclusion. It says
+ * three things, in the order they are acted on: verify the model against the
+ * rocket on the bench, know what the model never had (the gaps are specific on
+ * purpose: "results are approximate" tells nobody which failure to go and think
+ * about), and remember who actually calls the flight.
  *
- * Carded and at the same `text-xs` as the tiles, not a footnote: it started
- * life as an 11px line under the grid and read as fine print, which is exactly
- * how it would then be treated.
+ * Carded and at the same `text-xs` as the tiles, not a footnote: a small line
+ * under the grid reads as fine print and gets treated as fine print.
  *
- * The WHOLE card wears the shared warning tone (WARNING_TONE NORMAL, the same
+ * The whole card wears the shared warning tone (WARNING_TONE NORMAL, the same
  * amber as a kernel flight warning), plus the ⚠ glyph on its heading, because
  * all of it is a warning: nothing on this card is a result, and the one thing
  * the app can never flag from a results panel is the failure it did not model.
- * Saying so IS the flag. Note this does read as loud as a FlightWarnings row
+ * Saying so is the flag. Note this does read as loud as a FlightWarnings row
  * while being present on every flight rather than only a problematic one; it is
  * amber on purpose, and the ⚠ carries the meaning for anyone who cannot use the
  * color.
@@ -59,7 +59,7 @@ function SafetyCard() {
   const { settings, update } = useSettings();
   const open = settings.showSafetyCard;
   /**
-   * Folding it away is GATED; unfolding it is not.
+   * Folding it away is gated; unfolding it is not.
    *
    * The card is the one thing on this pane that is not a result, and the fold
    * is remembered, so the click that hides it is the last time it gets asked
@@ -67,7 +67,7 @@ function SafetyCard() {
    * is a thing you do deliberately, and a notice that folds silently is a
    * notice nobody read. Canceling leaves it open.
    *
-   * There is no matching gate on the way back OPEN, because reading the
+   * There is no matching gate on the way back open, because reading the
    * warning again needs no permission.
    */
   const toggle = async () => {
@@ -86,7 +86,7 @@ function SafetyCard() {
   };
   return (
     <section aria-label={t('sim.safetyTitle')} className={`rounded-xl p-3 ring-1 ${WARNING_TONE.NORMAL}`}>
-      {/* The heading is the fold control, and it is ALL that folds away to.
+      {/* The heading is the fold control, and it is all that folds away to.
           The ⚠ and the title stay on screen at every state: what is being
           hidden is the explanation, not the fact that there is something to
           read before flying. A control that could remove the last trace of it
@@ -110,12 +110,12 @@ function SafetyCard() {
           <p className="text-xs font-semibold leading-snug">{t('sim.safetyLead')}</p>
           {/* Hanging bullets: the glyph is its own column so a wrapped line lines up
           under the text, not under the dot.
-          Spelled out one <li> at a time rather than mapped over a key array —
+          Spelled out one <li> at a time rather than mapped over a key array:
           `t(\`sim.${key}\`)` would hide all three from keys.test.ts, whose whole
           job is to notice a string nothing references any more. The dynamic
           allowlist there is for sets the kernel or the catalog produces, not for
           three sentences written by hand. */}
-          <ul className="mt-2 space-y-1.5 text-xs leading-snug opacity-90">
+          <ul className="mt-2 space-y-1.5 text-xs leading-snug">
             <li className={BULLET}>
               <span aria-hidden>·</span>
               <span className="min-w-0">{t('sim.safetyVerify')}</span>
@@ -139,7 +139,7 @@ function SafetyCard() {
           no-warranty and no-liability clauses, kept short so it reads as part
           of the card rather than a wall of legal text; the full version is on
           the Safety page the link below opens. */}
-          <p className="mt-2 text-[11px] leading-snug opacity-80">{t('sim.safetyDisclaimer')}</p>
+          <p className="mt-2 text-[11px] leading-snug">{t('sim.safetyDisclaimer')}</p>
           {/* nowrap so the arrow cannot be orphaned onto a line of its own. */}
           <button
             onClick={() => openHelp('safety')}
@@ -158,9 +158,9 @@ function SafetyCard() {
  * optimum delay, times, apogee, deploy and landing speeds, downrange, and the
  * peaks.
  *
- * Its own component because it is read in two places — under the Run button on
- * the Simulations panel, and at the top of the mobile Results tab, where the
- * numbers belong beside the charts they describe rather than a tab away.
+ * Its own component because it is read in two places: the desktop Results
+ * tab's right column, and the top of the mobile Results tab, where the numbers
+ * belong beside the charts they describe rather than a tab away.
  */
 export function SimSummary({ sim }: { sim: FlightResult | null }) {
   const t = useLauncherT();
@@ -185,7 +185,7 @@ export function SimSummary({ sim }: { sim: FlightResult | null }) {
   // Safe-if-green thresholds (global settings): fast off the rail, gentle at deploy.
   const goodTone = 'text-ok-400',
     warnTone = 'text-warn-400';
-  // Static margin at the instant the rocket clears the rod/rail — the
+  // Static margin at the instant the rocket clears the rod/rail: the
   // flight-relevant figure (real velocity + partly-burned mass), vs. the on-pad
   // "Stability" tile (Mach 0.3, fully loaded). OpenRocket records the same
   // series but buries it at the "# Event LAUNCHROD" line of a data export.
@@ -196,10 +196,10 @@ export function SimSummary({ sim }: { sim: FlightResult | null }) {
   // the drift are finite, the same point the ground track reports.
   const landing = sim ? landingPoint(sim.series) : null;
   const downrange = landing ? distanceFromPad(landing) : null;
-  // Max-Q: the kernel never recorded it, but it records both halves of it, so
-  // it is derived here rather than in the engine. Null on a result saved back
-  // when the app asked for the `summary` series set, which carries neither air
-  // density nor the speed of sound — see services/flight/flightEvents.
+  // Max-Q: the kernel does not record it, but it records both halves of it, so
+  // it is derived here rather than in the engine. Null on a stored result
+  // recorded with the `summary` series set, which carries neither air density
+  // nor the speed of sound (see services/flight/flightEvents).
   const peakQ = sim ? maxQ(sim.series) : null;
   // q·α while the rocket still flies forward: up to deployment, else apogee,
   // the window the chart clips its aero series to. Derived the way Max-Q is.
@@ -208,16 +208,16 @@ export function SimSummary({ sim }: { sim: FlightResult | null }) {
   const peakRoll = sim ? maxRollRate(sim.series) : null;
   if (!s) return null;
   return (
-    // The safety card and the tiles are ONE block, so the card travels with the
+    // The safety card and the tiles are one block, so the card travels with the
     // numbers to every place the summary is mounted. The gap is the wrapper's,
     // matching FlightWarnings' spacing above rather than inheriting whatever
     // rhythm each parent happens to use.
     <div className="space-y-3">
       <SafetyCard />
-      {/* A grid of CARDS, not a card of tiles: the same shape the rocket's
+      {/* A grid of cards, not a card of tiles: the same shape the rocket's
           static-stats strip uses, so a measurement reads the same wherever it
-          is. Two columns, because this column is 380px and three squeezed
-          "Static margin @ rail exit" onto four lines. */}
+          is. Two columns, because the column is narrow and three would squeeze
+          "Static margin @ rail exit" onto several lines. */}
       <section aria-label={t('sims.summary')} className="grid grid-cols-2 gap-2">
         {/* Chronological: liftoff → boost → apogee → recovery → landing, then peaks. */}
         <Stat
@@ -225,7 +225,7 @@ export function SimSummary({ sim }: { sim: FlightResult | null }) {
           label={t('sim.rodExit')}
           value={rodExit.fmt(s.launchRodVelocity)}
           sub={<UnitChip label={t('sim.rodExit')} quantity="velocity" scope={unitScope('sim', 'rodExit')} />}
-          // The threshold is stored in SI, so the comparison stays in SI —
+          // The threshold is stored in SI, so the comparison stays in SI;
           // only the number on screen changes unit.
           tone={s.launchRodVelocity >= railExitVelocityMin ? goodTone : warnTone}
         />

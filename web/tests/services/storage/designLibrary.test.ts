@@ -107,11 +107,11 @@ describe('design library', () => {
   });
 
   /**
-   * A create whose POINTER write is refused must leave nothing behind.
+   * A create whose pointer write is refused must leave nothing behind.
    *
    * The caller (workspaceStore.save) still has no active id after the throw,
-   * so its next autosave creates again - and a half-done create that kept its
-   * indexed design added one identical row to the library per retry, i.e. one
+   * so its next autosave creates again. A half-done create that kept its
+   * indexed design would add one identical row to the library per retry, one
    * every 500 ms for as long as the pointer write kept failing.
    */
   it('rolls back a create whose active-pointer write is refused', async () => {
@@ -185,10 +185,10 @@ describe('migrating the pre-library single workspace', () => {
   });
 
   /**
-   * The blob write was already gated; the INDEX write was not — and the line
-   * after it deletes the user's only other copy. `activeId()` filters against
-   * that index, so a design missing from it is unreachable: the next session
-   * opened empty with the pre-library design gone for good.
+   * The index write is gated as well as the blob write, because the line after
+   * it deletes the user's only other copy. `activeId()` filters against that
+   * index, so a design missing from it is unreachable: the next session would
+   * open empty with the pre-library design gone for good.
    */
   it('keeps the legacy blob if only the index write fails', async () => {
     kv.map.set(LEGACY, JSON.stringify(ws('precious')));
@@ -206,7 +206,7 @@ describe('migrating the pre-library single workspace', () => {
 
   /**
    * `create()` must not discard the boolean `write()` returns and fall back to a
-   * FABRICATED meta, which resolves cleanly for a design that was never stored.
+   * fabricated meta, which resolves cleanly for a design that was never stored.
    * This is the path the first save of a session takes, when there is no other copy
    * yet.
    */

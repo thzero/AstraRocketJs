@@ -10,14 +10,13 @@ import { useUnits } from '../../prefs/useUnits';
 import { UnitChip } from '../common/UnitChip';
 
 /**
- * The flight as a list you can read DOWN: every event, when it happened, and
+ * The flight as a list you can read down: every event, when it happened, and
  * the state of the rocket at that instant.
  *
- * The charts have always marked the same events as a label strip, which is the
- * right thing on a plot and answers only "when". The numbers that say whether
- * each moment went well — how fast off the rail, how stable it was there, what
- * speed the chute actually saw — were already computed and had nowhere to be
- * read. This is that reading.
+ * The charts mark the same events as a label strip, which is the right thing on
+ * a plot and answers only "when". This table carries the numbers that say
+ * whether each moment went well: how fast off the rail, how stable it was
+ * there, what speed the chute actually saw.
  *
  * Its rows are the pure join in services/flight/flightEvents; this file is the markup,
  * the same split aeroTables.ts and AeroComponentTables make.
@@ -25,7 +24,7 @@ import { UnitChip } from '../common/UnitChip';
  * Every branch, interleaved on the one launch clock, because the charts beside
  * it already draw every branch: a booster's landing missing from a table next
  * to a chart that plots it would read as a bug. The stage rides on the row as a
- * chip rather than as a column of its own — this pane is 380px wide, and a
+ * chip rather than as a column of its own: this pane is 380px wide, and a
  * fifth column costs more than the single-stage case (where there is no stage
  * to name) can spare.
  */
@@ -92,7 +91,7 @@ export function FlightEventsTable({
     <section aria-label={t('flight.events')} className="rounded-xl bg-surface p-3 ring-1 ring-line/10">
       <div className="mb-2 flex items-center justify-between gap-2">
         <span className="text-[10px] uppercase tracking-wide text-ink-muted">{t('flight.events')}</span>
-        {/* The file carries EVERY extra as its own column, where the table puts
+        {/* The file carries every extra as its own column, where the table puts
             them on a sub-line - a spreadsheet wants a rectangle it can sort,
             and it has no 380px to respect. It writes the settings-level units
             rather than this table's own chips, the way every other export in
@@ -122,7 +121,7 @@ export function FlightEventsTable({
               <th scope="col" className="py-1 pl-2 text-right font-normal">
                 {t('flight.time')}
               </th>
-              {/* The unit lives in the HEADER, not on every row: one chip per
+              {/* The unit lives in the header, not on every row: one chip per
                   column changes the whole column, and a chip per cell would be
                   a dozen identical selects down the table. */}
               <th scope="col" className="py-1 pl-2 text-right font-normal">
@@ -146,7 +145,7 @@ export function FlightEventsTable({
             </tr>
           </thead>
           {/* One <tbody> per event, so an extras line is tied to its own row
-              rather than floating between two of them — and so a row and its
+              rather than floating between two of them, and so a row and its
               detail cannot be split by a zebra stripe or a border. */}
           {rows.map((r) => (
             <tbody key={r.key} className="border-b border-line/5 last:border-0">

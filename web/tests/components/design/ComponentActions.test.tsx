@@ -7,8 +7,8 @@ import { useWorkspaceStore } from '../../../src/state/store';
 import type { ComponentNode, RocketTree } from '../../../src/engine/openRocketEngine';
 
 /**
- * The actions row. What is tested here is the OFFER - which buttons a part gets,
- * and which are refused with a reason - plus that pressing one reaches the store
+ * The actions row. What is tested here is the offer (which buttons a part gets,
+ * and which are refused with a reason) plus that pressing one reaches the store
  * as a single undoable step. The transforms themselves are covered by
  * services/design/componentActions.test.ts.
  */

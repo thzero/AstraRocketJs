@@ -3,9 +3,9 @@
  *
  * `res.json()` / `res.arrayBuffer()` resolve only once the whole transfer is
  * done, which tells the user nothing during the two multi-megabyte downloads
- * this app makes — the ~2.3 MB WASM engine at boot and the ~1.6 MB motor
- * catalog. On a slow link that is precisely when "still downloading" needs to
- * be distinguishable from "stuck".
+ * this app makes: the WASM engine at boot and the motor catalog. On a slow
+ * link that is precisely when "still downloading" needs to be distinguishable
+ * from "stuck".
  */
 
 /** Bytes transferred so far, and the total when the host declared one. */
@@ -23,7 +23,7 @@ export function declaredLength(res: Response): number | null {
  * Reports once up front with `loaded: 0`, so a caller can show a bar before the
  * first chunk lands.
  *
- * `maxBytes` is enforced against bytes ACTUALLY RECEIVED rather than the
+ * `maxBytes` is enforced against bytes actually received rather than the
  * declared length, so a host that omits or misstates content-length cannot slip
  * past the cap.
  */
@@ -45,8 +45,8 @@ export async function readStreamWithProgress(
     loaded += value.byteLength;
     if (loaded > maxBytes) {
       // Cancel, do not merely abandon. Dropping the reader leaves the transfer
-      // in flight, so the cap would bound the buffer we KEEP and not the bytes
-      // the network moves -- and the caller goes on to try its fallback base
+      // in flight, so the cap would bound the buffer we keep and not the bytes
+      // the network moves, and the caller goes on to try its fallback base
       // while the refused response is still downloading. `cancel` can itself
       // reject (a stream already errored by the network), and that must not
       // mask the reason we are here.

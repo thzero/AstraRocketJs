@@ -2,7 +2,8 @@ package info.openrocket.core.rocketcomponent;
 
 // PATCH(teavm-uuid): java.util.UUID -> core.util.LongUUID. TeaVM's UUID is
 // string-backed and has no (long, long) constructor, no getMostSignificantBits
-// and no compareTo, all of which this class uses. The shim reproduces
+// and no compareTo. This class uses the constructor and compareTo, and
+// MotorConfigurationId reads key.getMostSignificantBits(). The shim reproduces
 // java.util.UUID's toString/hashCode/equals/compareTo exactly, so ids that
 // reach .ork files or parity output are indistinguishable. See patches/LEDGER.md.
 import info.openrocket.core.util.LongUUID;
@@ -54,7 +55,7 @@ public final class FlightConfigurationId implements Comparable<FlightConfigurati
 	}
 
 	/**
-	 * builds he id with the given LongUUID object
+	 * builds the id with the given LongUUID object
 	 * 
 	 * @param _val the LongUUID to be made into the id
 	 */

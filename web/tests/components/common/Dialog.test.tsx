@@ -76,8 +76,7 @@ describe('Dialog', () => {
 
     it('does not dismiss the dialog it is nested inside', () => {
       // A nested dialog renders inside its parent's overlay, so a backdrop click
-      // that bubbles closes both. One dialog had spotted this and guarded it by
-      // hand; the shell guards all of them.
+      // that bubbles closes both. The shell stops it for every dialog.
       const outer = vi.fn();
       const r = renderWithProviders(
         <div onClick={outer}>
@@ -91,7 +90,7 @@ describe('Dialog', () => {
     });
 
     it('stacks a dialog that opens over another above it', () => {
-      // Three z-indexes were being chosen by hand. The layer names them.
+      // The layer names the z-index rather than each dialog picking one by hand.
       const base = open({ layer: 'base' });
       expect(base.container.querySelector('.dialog-overlay')!.className).toContain('z-50');
       base.unmount();
@@ -200,18 +199,18 @@ describe('Dialog', () => {
 
     it('takes a fixed height for a dialog that must not resize under you', () => {
       // Eight tabs holding between two rows and thirty: without this the panel
-      // resized and re-centered every time you switched between them.
+      // would resize and re-center every time you switched between them.
       const { dialog } = open({ height: 560 });
       expect(dialog.style.getPropertyValue('--dialog-height')).toBe('560px');
       expect(dialog.className).toContain('h-[var(--dialog-height)]');
       // Still capped: 560px is taller than a short window.
       expect(dialog.className).toContain('max-h-[85vh]');
-      // NOT an inline height. An inline style beats a stylesheet, so an inline
-      // height defeated the full-bleed phone rule and left a 560px Settings
+      // Not an inline height. An inline style beats a stylesheet, so an inline
+      // height would defeat the full-bleed phone rule and leave a 560px Settings
       // panel floating in the middle of an 844px phone. As a class it loses to
-      // that rule, the way `fill`'s own height already did. (Tailwind compiles
-      // arbitrary values at build time, so an `h-[560px]` assembled at runtime
-      // would name a class that was never generated -- hence the variable.)
+      // that rule, as `fill`'s own height does. (Tailwind compiles arbitrary
+      // values at build time, so an `h-[560px]` assembled at runtime would name a
+      // class that was never generated, hence the variable.)
       expect(dialog.style.height).toBe('');
     });
 

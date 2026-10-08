@@ -18,13 +18,12 @@ import { errorMessage } from '../../services/app/errorMessage';
  *
  * It exists for the reason `LocationsDialog` exists: a library you can only
  * see from the one panel that happens to use it is a library nobody finds.
- * Saved parts were worse than that, because the component picker only opens
- * when a component of a MATCHING type is selected — so a saved bulkhead was
- * invisible, and could not be deleted, on any design that had no bulkhead in
- * it. Reaching it meant adding a throwaway part to get at the picker.
+ * The component picker only opens when a component of a matching type is
+ * selected, so without this a saved bulkhead is invisible, and cannot be
+ * deleted, on any design that has no bulkhead in it.
  *
  * Master-detail rather than a list of dialogs: editing a library is a thing
- * you do to SEVERAL parts in a sitting, comparing one against the next, and a
+ * you do to several parts in a sitting, comparing one against the next, and a
  * modal per part makes each edit a separate errand. Saving leaves the part
  * selected and the list under your cursor.
  *
@@ -68,7 +67,7 @@ export function SavedPartsDialog({ onClose }: { onClose: () => void }) {
       }));
   }, [entries]);
 
-  // Resolved from the LIST rather than held as its own copy, so a save (which
+  // Resolved from the list rather than held as its own copy, so a save (which
   // refreshes the list under this pane) leaves the detail showing the stored
   // part, and a part deleted in another tab clears the selection instead of
   // editing something that is gone.
@@ -211,7 +210,7 @@ function describe(row: Component, u: Units, t: (k: string, o?: Record<string, un
     case 'streamer':
       return `${len(row.stripLength)} × ${len(row.stripWidth)} ${sym}`;
     default:
-      // Tube-shaped: the bore is what a coupler or ring IS, so it is named
+      // Tube-shaped: the bore is what a coupler or ring is, so it is named
       // even when the catalog would have left it null.
       return `⌀ ${len(row.outerDiameter)}${
         row.innerDiameter == null ? '' : ` / ${len(row.innerDiameter)}`

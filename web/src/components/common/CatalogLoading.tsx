@@ -8,7 +8,7 @@ import { fmtMb } from '../../i18n/format';
  *
  * The motor catalog is ~1.6 MB and the component catalog ~1.0 MB, fetched on
  * first use rather than bundled. A bare "Loading…" leaves the user unable to
- * tell a slow link from a stalled one — which is the common case on mobile,
+ * tell a slow link from a stalled one, which is the common case on mobile,
  * where the transfer can legitimately take tens of seconds.
  */
 
@@ -19,7 +19,7 @@ export function useCatalogProgress(name: string): CatalogProgress | null {
   return progress;
 }
 
-/** Phase label plus a bar — determinate when the host declared a length, pulsing
+/** Phase label plus a bar: determinate when the host declared a length, pulsing
  *  when it did not, so we never show a percentage we cannot stand behind. */
 export function CatalogLoading({ name, label }: { name: string; label: string }) {
   const { t } = useTranslation();
@@ -45,7 +45,7 @@ export function CatalogLoading({ name, label }: { name: string; label: string })
         aria-label={label}
         aria-valuemin={0}
         aria-valuemax={100}
-        // Omitted while indeterminate — assistive tech then announces "busy"
+        // Omitted while indeterminate: assistive tech then announces "busy"
         // rather than a made-up percentage.
         aria-valuenow={pct ?? undefined}
       >

@@ -1,7 +1,7 @@
 import { test, expect, type Page } from './base';
 
 /**
- * Motor Dashboard — the standalone motor reference: a sortable grid + detail
+ * Motor Dashboard: the standalone motor reference: a sortable grid + detail
  * pane, plus the multi-select Compare (overlay) and Combine (cluster) tools.
  * Opens from the header ☰ menu. All data is bundled → fully offline.
  */
@@ -22,11 +22,10 @@ test('opens from the menu and shows a motor detail on row selection', async ({ p
   const dialog = await openDashboard(page);
   await dialog.getByPlaceholder(/Search by code/i).fill('C6');
 
-  // Wait for the FILTERED row, not just any row: the grid renders before the
+  // Wait for the filtered row, not just any row: the grid renders before the
   // motor catalog has landed, so clicking `first()` immediately can land on a
-  // row that is replaced when the catalog arrives, losing the selection. This
-  // surfaced as an intermittent failure once the suite grew long enough to slow
-  // the catalog load past the assertion's 5 s budget.
+  // row that is replaced when the catalog arrives, losing the selection. Under a
+  // loaded suite the catalog load can take longer than the assertion's 5 s budget.
   const row = dialog.locator('tbody tr').first();
   await expect(row).toContainText('C6');
   await row.click();
@@ -56,7 +55,7 @@ test('column chooser adds columns and remembers them across a reload', async ({ 
   }
   await expect(dialog.getByRole('button', { name: /Peak/ })).toBeVisible();
 
-  // The grid's scroll container never crushes columns — cells don't wrap.
+  // The grid's scroll container never crushes columns: cells don't wrap.
   await expect(dialog.locator('table').first()).toHaveCSS('white-space', 'nowrap');
 
   // The choice is remembered across a reload (persisted to localStorage).
@@ -100,9 +99,9 @@ test('adding many columns scrolls the grid, it does not shove the detail pane', 
   }
   await dialog.getByText('Columns', { exact: true }).click(); // close the dropdown
 
-  // The detail pane is still visible — the grid absorbed the width internally…
+  // The detail pane is still visible: the grid absorbs the width internally…
   await expect(dialog.getByText('View on ThrustCurve.org')).toBeVisible();
-  // …by overflowing its own scroll container (the reported bug was the opposite).
+  // …by overflowing its own scroll container, rather than pushing the pane aside.
   const overflows = await dialog.locator('tbody').evaluate((tb) => {
     const c = tb.closest('.overflow-auto') as HTMLElement;
     return c.scrollWidth > c.clientWidth;

@@ -4,7 +4,7 @@ import { resultFlight, type ResultFlight } from '../../services/flight/simulatio
 
 /**
  * The flight the results views draw and the flight the 3D path animates. Owns
- * which simulation's result is SHOWN; nothing here draws.
+ * which simulation's result is shown; nothing here draws.
  */
 export function useResultFlight() {
   const result = useWorkspaceStore((s) => selectActive(s).result);
@@ -25,14 +25,14 @@ export function useResultFlight() {
   );
 
   /**
-   * The flight the 3D path animates: the one being SHOWN, falling back to the
+   * The flight the 3D path animates: the one being shown, falling back to the
    * active row's own result.
    *
-   * Bound once so the guard and the view cannot disagree. They did: the guard
-   * asked the active simulation for a result while the view below it drew this
-   * expression, so adding a second row after a run - or picking another row in
-   * the Results picker - left the 3D path saying "run a simulation" while the
-   * charts beside it drew the flight.
+   * Bound once so the guard and the view cannot disagree. A guard that asked
+   * the active simulation for a result while the view drew this expression
+   * would, after adding a second row or picking another row in the Results
+   * picker, leave the 3D path saying "run a simulation" while the charts
+   * beside it drew the flight.
    */
   const pathResult = flight?.result ?? result;
 

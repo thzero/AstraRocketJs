@@ -2,7 +2,7 @@ package info.openrocket.core.rocketcomponent;
 
 // PATCH(astrarrocketjs): java.awt.geom (Line2D/Point2D) -> info.openrocket.core.util.Geo2D.
 // java.awt.geom is in the java.desktop GUI module, absent from TeaVM's classlib.
-// Only pure segment-intersection/distance arithmetic is used here. See LEDGER.md.
+// Only pure segment-intersection/distance arithmetic is used here. See patches/LEDGER.md.
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -299,15 +299,13 @@ public class FreeformFinSet extends FinSet {
 
 		update(validateFinTab);
 
-		// PATCH(astrarrocketjs): RECORD the refusal. Upstream rolls a refused outline
+		// PATCH(astrarrocketjs): record the refusal. Upstream rolls a refused outline
 		// back to whatever the fin held before and returns normally, so a design that
-		// draws a self-intersecting fin silently flies the CONSTRUCTOR'S DEFAULT fin:
-		// measured on the JS artifact, a crossing outline read length 0.325 m / CP
-		// 0.2588 m (the default fin's own numbers) where the outline as drawn gives
-		// 0.300 m / 0.2454 m. api/ComponentFactory reads this flag and refuses the
-		// build BY NAME instead. Assigned inside the `if` (double parens: deliberate,
-		// not a comparison typo) so the rollback below keeps its shape, and assigned
-		// on EVERY call, so a later good outline clears it.
+		// draws a self-intersecting fin on a new fin set would fly the constructor's
+		// default fin with no error. api/ComponentFactory reads this flag and refuses
+		// the build by name instead. Assigned inside the `if` (double parens: an
+		// assignment, not a comparison typo) so the rollback below keeps its shape,
+		// and assigned on every call, so a later good outline clears it.
 		if ((outlineRefused = intersects())) {
 			// on error, reset to the old points
 			this.points = pointsCopy;
@@ -591,10 +589,10 @@ public class FreeformFinSet extends FinSet {
 			// throw new IndexOutOfBoundsException("request validate of non-existent fin edge segment: " + targetIndex + "/" + points.size());
 		}
 
-		// PATCH(astrarrocketjs): rewritten on Geo2D instead of java.awt.geom
-		// (Point2D/Line2D). Pure coordinate math; Geo2D.segmentsIntersect reproduces
-		// Line2D.linesIntersect semantics (incl. collinear overlaps). The %g warn
-		// logs are rebuilt with string concatenation (TeaVM's Formatter lacks %g).
+		// PATCH(astrarrocketjs): uses Geo2D instead of java.awt.geom (Point2D/Line2D).
+		// Pure coordinate math; Geo2D.segmentsIntersect reproduces
+		// Line2D.linesIntersect semantics (incl. collinear overlaps). The warn logs
+		// use string concatenation instead of %g (TeaVM's Formatter lacks %g).
 		final double t1x = points.get(targetIndex).getX(), t1y = points.get(targetIndex).getY();
 		final double t2x = points.get(targetIndex + 1).getX(), t2y = points.get(targetIndex + 1).getY();
 
@@ -624,14 +622,13 @@ public class FreeformFinSet extends FinSet {
 	
 
 	// PATCH(astrarrocketjs): see patches/LEDGER.md. Appended after upstream's last
-	// member so every upstream line above keeps its number. Set by
-	// setPoints(ArrayList, boolean), the only path the bridge builds an outline
-	// through; the interactive setPoint/addPoint/removePoint rollbacks are
-	// desktop-only and are left exactly as upstream wrote them.
+	// member. Set by setPoints(ArrayList, boolean), the only path the bridge builds
+	// an outline through; the interactive setPoint/addPoint/removePoint rollbacks
+	// are desktop-only and are left exactly as upstream wrote them.
 	private boolean outlineRefused = false;
 	
 	/**
-	 * True when the LAST setPoints() call was refused for self-intersection and the
+	 * True when the last setPoints() call was refused for self-intersection and the
 	 * previous outline kept. Upstream reports a refusal only to the log.
 	 */
 	public boolean isOutlineRefused() {

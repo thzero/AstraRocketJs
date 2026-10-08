@@ -19,7 +19,7 @@ afterEach(() => vi.restoreAllMocks());
 
 /**
  * The whole-rocket print file is named the way every export is: rocket, then
- * what the file is. A bare "Bertha.3mf" said which rocket and not which document.
+ * what the file is. A bare "Bertha.3mf" says which rocket and not which document.
  */
 describe('downloadRocket3mf', () => {
   it('names the single file rocket plus what it is', async () => {

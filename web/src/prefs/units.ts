@@ -1,7 +1,7 @@
 /** Meters to millimeters. The unit constant for every dimensional export. */
 export const M_TO_MM = 1000;
 
-/** Degrees to radians, in the order (d * π) / 180 every call site used, so results stay bit-identical. */
+/** Degrees to radians, as (d * π) / 180; the operation order keeps results bit-identical across call sites. */
 export const degToRad = (d: number): number => (d * Math.PI) / 180;
 
 /** Radians to degrees, as (r * 180) / π. */
@@ -14,9 +14,9 @@ export const radToDeg = (r: number): number => (r * 180) / Math.PI;
  *
  *     si = (ui + offset) * toSI        (offset is temperature-only)
  *
- * The kernel and every stored document stay pure SI / radians — these
- * conversions live at the UI edge ONLY. A unit that leaks inward is how the
- * desktop got bugs like #2475, and .ork round-trips must stay byte-stable.
+ * The kernel and every stored document stay pure SI / radians; these
+ * conversions live at the UI edge only. A unit that leaks inward corrupts stored
+ * values, and .ork round-trips must stay byte-stable.
  */
 
 export type Quantity =
@@ -107,7 +107,7 @@ export const UNITS: Record<Quantity, UnitDef[]> = {
     { symbol: 'lb/ft³', toSI: 16.0184634 },
   ],
   // Areal and linear densities. Unlike the groups above (copied from
-  // UnitGroup.java), these factors are WRITTEN AS THE DEFINING DIVISION rather
+  // UnitGroup.java), these factors are written as the defining division rather
   // than a decimal, so each one can be checked by eye: an ounce per square yard
   // is one ounce over one square yard, and nothing is lost to a typo.
   surfaceDensity: [
@@ -165,7 +165,7 @@ export const QUANTITIES = Object.keys(UNITS) as Quantity[];
 export type UnitSelection = Record<Quantity, string>;
 
 /**
- * Units changed from an inline chip, keyed by the FIELD the chip sits on — not
+ * Units changed from an inline chip, keyed by the field the chip sits on, not
  * by quantity. Setting the nose cone's Length to inches changes that readout
  * and nothing else: not its Thickness, not the tree, not the stats strip.
  *
@@ -173,15 +173,15 @@ export type UnitSelection = Record<Quantity, string>;
  * reading is a local act: re-basing every length in the app is too large an
  * effect to hang off a chip.
  *
- * A field with no entry here follows Settings ▸ Units, and keeps following it
- * — so changing a default still moves everything the user never touched.
+ * A field with no entry here follows Settings ▸ Units, and keeps following it,
+ * so changing a default still moves everything the user never touched.
  *
  * Keys come from `unitScope()`. Values are unit symbols, validated lazily by
  * `unitFor` against the quantity the field turns out to be, since a key alone
  * does not say which quantity it belongs to. (The .ork format has nowhere to
- * put any of this — its only `unit` tokens are the per-stat SI labels inside
- * the optional <designinfo> block — so, like desktop OpenRocket, it lives in
- * app preferences.)
+ * put any of this, since its only `unit` tokens are the per-stat SI labels
+ * inside the optional <designinfo> block, so, like desktop OpenRocket, it lives
+ * in app preferences.)
  */
 export type UnitOverrides = Record<string, string>;
 
@@ -189,7 +189,7 @@ export type UnitOverrides = Record<string, string>;
  * A stable id for one unit-bearing field. Parts are joined with '.', so a
  * caller reads as `unitScope('prop', node.type, field.key)`.
  *
- * Component fields are scoped BY COMPONENT TYPE, not per instance: selecting
+ * Component fields are scoped by component type, not per instance: selecting
  * another body tube must not forget the unit you just set, and every body tube
  * is the same field on the same card.
  */
@@ -198,14 +198,12 @@ export function unitScope(...parts: (string | number)[]): string {
 }
 
 /**
- * Desktop UnitGroup.setDefaultMetricUnits() — and the app's starting units: a
- * fresh install, an older settings blob with no `units` key, and the Units
- * tab's Reset all land here.
+ * Desktop UnitGroup.setDefaultMetricUnits(), and the app's starting units: a
+ * fresh install, a settings blob with no `units` key, and the Units tab's Reset
+ * all land here.
  *
- * There is deliberately only ONE metric set. Having two (the app's original
- * hard-coded mm / kg·m⁻³ as the default, the desktop's cm / g·cm⁻³ as the
- * preset) left Reset and "Metric defaults" disagreeing about length and
- * density, with nothing on screen to explain why.
+ * There is deliberately only one metric set, so Reset and "Metric defaults"
+ * always agree about length and density.
  */
 export const METRIC_UNITS: UnitSelection = {
   length: 'cm',
@@ -219,12 +217,12 @@ export const METRIC_UNITS: UnitSelection = {
   angle: '°',
   density: 'g/cm³',
   // `g/m²` and `g/m`, which is what the desktop sets, not the kg forms: a
-  // ripstop canopy is 67 g/m² and a shock cord 1.8 g/m, so the kg reading put
-  // every soft-goods density three decimal places below the leading digit.
+  // ripstop canopy is 67 g/m² and a shock cord 1.8 g/m, so the kg reading would
+  // put every soft-goods density three decimal places below the leading digit.
   surfaceDensity: 'g/m²',
   lineDensity: 'g/m',
   temperature: '°C',
-  // DELIBERATE, and the only deviations in this table. The desktop sets `mbar`
+  // Deliberate, and the only deviations in this table. The desktop sets `mbar`
   // and `Ns`; `hPa` is the same unit under its SI name (both are 100 Pa, and the
   // ladder carries both), and `N·s` is the same unit with the multiplication dot
   // the rest of this file uses. Neither changes a number.
@@ -247,15 +245,15 @@ export const IMPERIAL_UNITS: UnitSelection = {
   angle: '°',
   density: 'oz/in³',
   // `oz/ft²`, which is what the desktop sets. `oz/yd²` is how fabric is sold in
-  // the US and was chosen for that, but it is not in `UNITS_DENSITY_SURFACE` at
-  // all, so an imperial user comparing a density against the desktop was reading
-  // a unit the desktop cannot show. Still selectable; just not the preset.
+  // the US, but it is not in `UNITS_DENSITY_SURFACE` at all, so as the preset it
+  // would show an imperial user a unit the desktop cannot. Still selectable;
+  // just not the preset.
   surfaceDensity: 'oz/ft²',
   lineDensity: 'oz/ft',
   temperature: '°F',
-  // DELIBERATE. The desktop leaves these three METRIC in imperial mode:
+  // Deliberate. The desktop leaves these three metric in imperial mode:
   // `UNITS_FORCE` stays `N`, `UNITS_IMPULSE` stays `Ns` and `UNITS_PRESSURE`
-  // stays `mbar` in `setDefaultImperialUnits` (UnitGroup.java:472-481). An
+  // stays `mbar` in `setDefaultImperialUnits` (UnitGroup.java). An
   // "Imperial defaults" preset that reports thrust in newtons is the oversight,
   // not the spec, and every one of these has its imperial unit in the ladder.
   pressure: 'psi',
@@ -268,7 +266,7 @@ export const IMPERIAL_UNITS: UnitSelection = {
 /**
  * What an export should be written in. An export is a document that outlives
  * the session and often goes to someone else, so its units are its own choice
- * rather than whatever the app happened to be showing — but `current` keeps
+ * rather than whatever the app happens to be showing, but `current` keeps
  * them in step for the common case of printing what you are looking at.
  */
 export type UnitChoice = 'current' | 'metric' | 'imperial';
@@ -300,21 +298,20 @@ export function uiToSi(quantity: Quantity, symbol: string, ui: number): number {
 }
 
 /**
- * SI → the user's unit for a DIFFERENCE rather than a reading: the temperature
+ * SI → the user's unit for a difference rather than a reading: the temperature
  * offset cancels across a delta, so a 1 K step is 1 °C and not −272.15 °C.
  */
 export function siToUiDelta(quantity: Quantity, symbol: string, si: number): number {
   return si / unitDef(quantity, symbol).toSI;
 }
 
-/** Rounds a converted step to a "nice" 1–2–5 value so spinners stay usable. */
 /**
- * A 1-2-5 step for a SPINNER increment, in the user's unit.
+ * Rounds a converted step to a "nice" 1-2-5 value so spinners stay usable, in
+ * the user's unit.
  *
  * Not the same function as `schematicGeometry.niceRulerStep`, which divides by
- * 8 first and has a 2.5 rung: normalized 2.2 gives 2 here and 2.5 there. They
- * shared the name `niceStep`, so importing the wrong one gave tick spacing
- * off by ~8x with no type error and nothing cross-referencing them.
+ * 8 first and has a 2.5 rung: normalized 2.2 gives 2 here and 2.5 there. Using
+ * one in place of the other gives tick spacing off by ~8x with no type error.
  */
 export function niceStep(x: number): number {
   if (!(x > 0) || !Number.isFinite(x)) return 1;
@@ -325,9 +322,9 @@ export function niceStep(x: number): number {
 }
 
 /**
- * Format an SI value in the selected unit. With `digits`, shows UP TO that many
+ * Format an SI value in the selected unit. With `digits`, shows up to that many
  * decimals (trailing zeros stripped); without, a magnitude ladder. Plain ASCII
- * digits — locale-aware display goes through i18n/format's `fmtNum` instead
+ * digits; locale-aware display goes through i18n/format's `fmtNum` instead
  * (see prefs/useUnits), so this stays usable from non-React export code.
  */
 export function fmtSi(quantity: Quantity, symbol: string, si: number, digits?: number): string {
@@ -339,7 +336,7 @@ export function fmtSi(quantity: Quantity, symbol: string, si: number, digits?: n
 }
 
 /**
- * Drop anything a stored preference blob holds that this build doesn't know —
+ * Drop anything a stored preference blob holds that this build doesn't know:
  * an unknown symbol would make every readout of that quantity fall back to the
  * first unit silently, and a hand-edited store shouldn't be able to do that.
  */
@@ -374,8 +371,8 @@ export function normalizeUnitOverrides(raw: unknown): UnitOverrides {
  * The unit one field is shown in: its own override if it has a valid one, else
  * the Settings default for its quantity.
  *
- * The symbol is checked against THIS quantity, which is where a stale or
- * hand-edited store gets caught — a key says nothing about which quantity it
+ * The symbol is checked against this quantity, which is where a stale or
+ * hand-edited store gets caught: a key says nothing about which quantity it
  * belongs to, and 'in' left over from a length field would otherwise be handed
  * to a mass readout, where `unitDef` would quietly fall back to grams and hide
  * the problem.
@@ -386,7 +383,7 @@ export function unitFor(units: UnitSelection, overrides: UnitOverrides, quantity
 }
 
 /**
- * Just the symbol lookup, so a SERVICE can render a figure in the reader's unit
+ * Just the symbol lookup, so a service can render a figure in the reader's unit
  * without importing the settings module.
  *
  * Services under `services/` sit in an import cycle with `settings.ts` (settings

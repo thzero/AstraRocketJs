@@ -15,10 +15,10 @@ import {
 /**
  * The typed facade over the WASM kernel.
  *
- * This is the ONE boundary where JS numbers become physics inputs, and it had
- * no test file at all — so a dropped `?? default` in an options block would
- * change every simulation with nothing failing. These tests stub the engine so
- * they assert what the facade HANDS the kernel, not what the kernel computes.
+ * This is the one boundary where JS numbers become physics inputs, so a dropped
+ * `?? default` in an options block would change every simulation. These tests
+ * stub the engine so they assert what the facade hands the kernel, not what the
+ * kernel computes.
  */
 
 /** Records every call so a test can inspect the JSON the facade built. */
@@ -71,7 +71,7 @@ describe('assertFiniteCurve — the motor curve', () => {
   it('names the motor when a sample is non-finite', () => {
     // TeaVM reports this as an opaque "number NaN cannot be converted to a
     // BigInt" from deep inside the compiled Java. The point of the guard is a
-    // message that says WHICH motor.
+    // message that says which motor.
     for (const bad of [{ masses: [0.024, NaN, 0.012] }, { thrusts: [0, NaN, 0] }, { times: [0, NaN, 2] }]) {
       expect(() => design().setMotorById('mount', motor(bad))).toThrow(/C6/);
     }
@@ -83,9 +83,9 @@ describe('assertFiniteCurve — the motor curve', () => {
 });
 
 describe('assertFiniteCurve — the scalars', () => {
-  // These cross into the kernel too and were unguarded. thrustcurve.ts computes
+  // These cross into the kernel too. thrustcurve.ts computes
   // `length: motor.length / 1000` and `cgX: … ?? motor.length / 2000`, so a
-  // catalog row missing `length` makes BOTH NaN.
+  // catalog row missing `length` makes both NaN.
   it.each([['diameter'], ['length'], ['cgX']] as const)('rejects a non-finite %s', (field) => {
     expect(() => design().setMotorById('mount', motor({ [field]: NaN }))).toThrow(new RegExp(`C6.*${field}`));
   });
@@ -156,10 +156,10 @@ describe('error envelopes', () => {
   });
 
   it('throws rather than handing back an error object shaped like a mass list', () => {
-    // This one cast the parse straight to `ComponentMass[]`, so a failure came
-    // back as `{error: "..."}` claiming to be an array — and blew up later, in
-    // whichever caller first called `.map` on it, with the kernel's message
-    // already discarded.
+    // Cast straight to `ComponentMass[]`, a failure would come back as
+    // `{error: "..."}` claiming to be an array, and blow up later in whichever
+    // caller first called `.map` on it, with the kernel's message already
+    // discarded.
     __setEngineForTests({
       ...s.api,
       getComponentMasses: () => JSON.stringify({ error: 'no configuration selected' }),
@@ -205,7 +205,7 @@ describe('a design does not outlive the engine that built it', () => {
     const { resetEngine, StaleDesignError } = await import('../../src/engine/openRocketEngine');
     resetEngine();
 
-    // Typed and named, before the call crosses into TeaVM — the kernel would
+    // Typed and named, before the call crosses into TeaVM: the kernel would
     // also reject it, but only as an opaque message from inside the bundle.
     expect(() => d.staticInfo()).toThrow(StaleDesignError);
     expect(() => d.componentMasses()).toThrow(/reset/i);
@@ -271,9 +271,7 @@ describe('backendPref', () => {
     expect(backendPref()).toBe('wasm');
     store.set(ENGINE_PREF_KEY, 'js');
     expect(backendPref()).toBe('js');
-    // Built from the app's one storage prefix, not spelled out. This key was the
-    // app's SECOND namespace: it alone was spelled correctly while every other
-    // store used a typo, and the rename made both of them this one.
+    // Built from the app's one storage prefix, not spelled out.
     expect(ENGINE_PREF_KEY).toBe(nsKey('engine'));
     expect(ENGINE_PREF_KEY.startsWith(`${STORAGE_PREFIX}:`)).toBe(true);
     vi.stubGlobal('location', { search: '?engine=wasm' });
@@ -283,14 +281,13 @@ describe('backendPref', () => {
   });
 
   it('still honors an override left under the MISSPELLED prefix', () => {
-    // The one legacy read chain kept across the rename, and the only one: this is a
-    // debug switch quoted in the docs, so someone who set it by hand this morning
-    // should not have to do it twice. A design under the old prefix is preview
-    // scratch and is deliberately not read back; a backend override is a live
-    // instruction.
+    // The one legacy read chain: this is a debug switch quoted in the docs, so
+    // someone who set it by hand under the misspelled prefix should not have to do
+    // it twice. A design under that prefix is preview scratch and is deliberately
+    // not read back; a backend override is a live instruction.
     //
-    // Spelled out rather than built from a constant, because the point is the
-    // string that no longer has one. cspell:ignore astrarrocketjs
+    // Spelled out rather than built from a constant, because no constant names
+    // the misspelled prefix. cspell:ignore astrarrocketjs
     const store = new Map<string, string>([['astrarrocketjs:engine', 'js']]);
     vi.stubGlobal('localStorage', { getItem: (k: string) => store.get(k) ?? null });
     vi.stubGlobal('location', { search: '' });

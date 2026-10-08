@@ -37,7 +37,7 @@ export function NumberRow({
   caution?: string;
   /**
    * The simulations being edited together do not agree on this field. The box
-   * shows the ACTIVE one's value, so without the marker a bulk edit would
+   * shows the active one's value, so without the marker a bulk edit would
    * flatten the others' values with nothing on screen to say so.
    */
   mixed?: boolean;
@@ -78,11 +78,11 @@ export function NumberRow({
         <NumberInput
           ariaLabel={label}
           value={value}
-          /* An empty REQUIRED box writes nothing, so the field simply keeps what
+          /* An empty required box writes nothing, so the field simply keeps what
              it had. Not a focus trap -- tabbing away still works, which a trap
              would forbid (WCAG 2.1.2) and which would fight anyone clearing a
              field to retype it. NumberInput holds its own draft string while
-             focused, so the box still LOOKS empty as you type; only the commit
+             focused, so the box still looks empty as you type; only the commit
              is withheld. An imported .ork that omits the field still arrives
              blank, which is what the marker and the run gate are for. */
           onChange={(v) => (v === null && required ? undefined : onChange(v))}

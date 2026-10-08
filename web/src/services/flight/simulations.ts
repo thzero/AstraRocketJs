@@ -15,8 +15,8 @@ import { stableJson } from '../app/stableJson';
 /**
  * The default compass heading (degrees) for the launch rod and the wind: due
  * east, the kernel's own (`SimulationOptions` defaults `launchRodDirection`
- * and `windDirection` to PI/2). One constant, where `settings.ts` and this
- * file each carried the literal 90 in several places.
+ * and `windDirection` to PI/2). Shared with the launch panel so every
+ * fallback heading reads the same value.
  */
 export const DEFAULT_HEADING_DEG = 90;
 
@@ -49,7 +49,7 @@ export interface Simulation {
   /**
    * What `result` was flown from, as {@link resultKey} wrote it at dispatch.
    *
-   * Whether the result is outdated is DERIVED from this ({@link isOutdated}),
+   * Whether the result is outdated is derived from this ({@link isOutdated}),
    * never stored: an edit leaves the result readable, as OpenRocket does, and the
    * row reads outdated for as long as the current inputs differ from these.
    * Being a value rather than a set of object references, it survives a reload,
@@ -59,28 +59,28 @@ export interface Simulation {
   /**
    * Per-simulation overrides of the global run preferences (Settings ›
    * Simulation). Unset keys fall through to the global value, so a workspace
-   * that never touches this behaves exactly as before.
+   * that never sets one flies on the globals.
    *
-   * NOTE: these ride on the workspace autosave, not the `.ork` — that file has
-   * never carried simulation options in either direction (`orkFile.ts` neither
-   * reads nor writes them), so a round-trip through `.ork` drops them.
+   * These ride on the workspace autosave, not the `.ork`: the `.ork` reader and
+   * writer (`ork/importSimulations.ts`, `ork/exportSimulation.ts`) do not carry
+   * them, so a round trip through `.ork` drops them.
    */
   prefs?: Partial<SimPrefs>;
 }
 
 /**
- * Everything one simulation's flight is computed FROM, other than the design.
+ * Everything one simulation's flight is computed from, other than the design.
  *
  * A run takes a snapshot of these and posts it to a worker; by the time the
  * answer comes back the user may have changed any of them. Installing it then
  * would mark the row current while showing numbers from the inputs it replaced,
  * which is worse than no numbers at all. `runSims` captures this before
- * dispatch and compares it again at install time, the way it already does with
- * the design tree.
+ * dispatch and compares it again at install time, as it does with the design
+ * tree.
  *
  * Reference identity is the whole test, and it is enough because every store
  * action replaces these rather than mutating them (`patchTargets` and
- * `patchActiveConfig` spread). An edit that happens to restore the same value is
+ * `patchConfig` spread). An edit that happens to restore the same value is
  * a different object and costs a run, which is the safe direction to be wrong in.
  */
 export interface SimInputs {
@@ -119,7 +119,7 @@ const PART_NAME = new Set(['name']);
 const treeKeys = new WeakMap<RocketTree, string>();
 
 /**
- * A key over everything about a design that can change a FLIGHT.
+ * A key over everything about a design that can change a flight.
  *
  * Deliberately narrower than the tree object: the root carries `name`,
  * `designer`, `comment`, `revision` and `designType`, which are round-tripped to
@@ -171,7 +171,7 @@ export interface ResultFlight {
   result: FlightResult;
   /**
    * The conditions this flight was flown under, carried along rather than read
-   * off the ACTIVE simulation by whoever draws it.
+   * off the active simulation by whoever draws it.
    *
    * The Results picker can be showing a flight from a different row than the
    * one being edited, so `selectActive(s).launch` is not reliably this flight's
@@ -184,12 +184,12 @@ export interface ResultFlight {
 /**
  * The flight the Results tab shows.
  *
- * `chosen` is the Results picker's own selection; NULL means "whichever
+ * `chosen` is the Results picker's own selection; null means "whichever
  * simulation is active", so opening Results reads the row you were just
  * working on.
  *
- * Falls back to the active simulation whenever the choice cannot be honored -
- * an id that no longer names a row, or one whose run has since been cleared -
+ * Falls back to the active simulation whenever the choice cannot be honored
+ * (an id that no longer names a row, or one whose run has since been cleared),
  * because an empty Results tab with a chart frame and no data reads as a bug
  * rather than as a choice.
  */
@@ -209,13 +209,13 @@ export function resultFlight(
 export type SimStatus = 'notRun' | 'queued' | 'running' | 'failed' | 'outdated' | 'upToDate' | 'fromFile';
 
 /**
- * Transient run state for ONE simulation, keyed by sim id in the store.
+ * Transient run state for one simulation, keyed by sim id in the store.
  *
  * Per-sim because the worker pool runs several flights at once, and because a
  * batch of twelve is queued all at once and starts a few at a time: "waiting its
  * turn" and "in the air" are different things a row has to be able to say.
  *
- * `failed` carries the design it failed ON, which is what stops auto-run
+ * `failed` carries the design it failed on, which is what stops auto-run
  * retrying a configuration already known to fail while still allowing a retry
  * the moment the design changes (see `selectRunFailed`).
  */
@@ -249,7 +249,7 @@ export function simStatus(
  */
 export const withoutResults = (sims: readonly Simulation[]): Simulation[] => sims.map((s) => ({ ...s, result: null }));
 
-/** Globally-unique id for a new simulation — a UUID (like OpenRocket's own ids),
+/** Globally-unique id for a new simulation: a UUID (like OpenRocket's own ids),
  *  so ids minted after a reload can't collide with persisted ones. */
 function newSimId(): string {
   return uuid();
@@ -264,21 +264,21 @@ export interface SimPrefs {
   timeStep: number;
   maxTime: number;
   /**
-   * The most the rocket may rotate in one RK4 step, RADIANS. The stepper
+   * The most the rocket may rotate in one RK4 step, in radians. The stepper
    * shortens its step to respect it, so a smaller value buys accuracy through a
    * fast pitch-over without paying for it over the whole coast.
    */
   maxAngleStep: number;
   randomSeed: number | null;
-  /** Recovery-deployment warning thresholds (m/s) - see SimulationSettings. */
+  /** Recovery-deployment warning thresholds (m/s); see SimulationSettings. */
   deploymentSpeedWarn: number;
   mainHighSpeedWarn: number;
   mainLowSpeedWarn: number;
   /** Drogue-side minimum, dual deployment only. */
   drogueLowSpeedWarn: number;
   /**
-   * Which launch-guide clearance model to fly - see `SimulationSettings`. The
-   * only member of this type that changes the FLIGHT rather than a warning
+   * Which launch-guide clearance model to fly; see `SimulationSettings`. The
+   * only member of this type that changes the flight rather than a warning
    * threshold, and the only reason it lives here is that `settings.simulation`
    * is handed to `runSims` as the prefs whole: there is no per-simulation
    * control for it, and a design does not carry one.
@@ -289,15 +289,15 @@ export interface SimPrefs {
 /**
  * Every {@link SimPrefs} key, at runtime.
  *
- * `SimPrefs` is exactly the settings a FLIGHT reads, which is what makes it the
+ * `SimPrefs` is exactly the settings a flight reads, which is what makes it the
  * right list for deciding whether a saved result still describes the current
  * ones: `SimulationSettings` also carries `confirmDelete` and `autoRunOutdated`
  * (interface only) and `railExitVelocityMin` (the rod-exit tile's color, never
  * passed to the engine), none of which can change a number.
  *
- * The check below is what keeps this honest. A type cannot be enumerated at
- * runtime, so this list is hand-written, and a key added to `SimPrefs` without
- * being added here would silently stop invalidating results. `EXHAUSTIVE` fails
+ * A type cannot be enumerated at runtime, so this list is hand-written, and a
+ * key added to `SimPrefs` without being added here would never invalidate
+ * results. `EXHAUSTIVE` fails
  * to compile in that case.
  */
 export const SIM_PREF_KEYS = [
@@ -321,7 +321,7 @@ const _exhaustive: EXHAUSTIVE = true;
 void _exhaustive;
 
 /**
- * Which flight-affecting preferences differ between two sets of GLOBALS.
+ * Which flight-affecting preferences differ between two sets of globals.
  *
  * Compared key by key rather than by identity, because the settings object is
  * rebuilt on every unrelated change in the same store: switching a unit or a
@@ -335,11 +335,10 @@ export function changedPrefKeys(before: SimPrefs, after: SimPrefs): (keyof SimPr
 /**
  * A fresh seed for the wind turbulence, for when the user has not pinned one.
  *
- * This has to be minted HERE rather than left out of the payload. The engine
+ * This has to be minted here rather than left out of the payload. The engine
  * bridge reads `JsonLite.dbl(o, "randomSeed", 42)`, and an omitted key is not an
- * absent seed — it is the constant 42. So "auto" quietly meant "always 42": two
- * runs of the same turbulent-wind flight came back bit-identical, which is the
- * one thing a turbulence model exists to avoid. OpenRocket seeds from
+ * absent seed: it is the constant 42, and every turbulent-wind run of one
+ * flight would come back identical. OpenRocket seeds from
  * `new Random().nextInt()` when `randomSeedFixed` is false; this is that.
  *
  * Signed 32-bit, because the bridge casts to a Java `int`.
@@ -350,16 +349,16 @@ export const freshSeed = (): number => Math.floor(Math.random() * 2 ** 32) - 2 *
  * Map UI launch conditions (+ global sim prefs) to the engine's simulate()
  * options (radians, kelvin, Pa).
  *
- * Takes a COMPLETE launch: the required fields are `number | null` in the
+ * Takes a complete launch: the required fields are `number | null` in the
  * editor, because a cleared field has to be distinguishable from a typed zero,
  * and the type says that distinction is already resolved by the time anything
  * reaches the engine. `runSims` refuses an incomplete simulation before it gets
- * here (see services/flight/runnability), so this cannot invent a value to paper over
- * a blank -- which is exactly what the old `v ?? 0` coercion did.
+ * here (see services/flight/runnability), so this never has to invent a value
+ * for a blank (a `v ?? 0` coercion would turn "cleared" into a real zero).
  */
 export function simConditions(launch: CompleteLaunch, prefs?: SimPrefs) {
   // "Launch into the wind" aims the rod at the surface wind heading, overriding
-  // the manual rod direction. Multilevel wind: the SURFACE level is the lowest
+  // the manual rod direction. Multilevel wind: the surface level is the lowest
   // altitude (safetyLimits.surfaceLevel), not `windLevels[0]`: levels are not
   // kept sorted, so a top-down profile would aim the rod at the wind aloft.
   const windDirDeg = surfaceLevel(launch)?.directionDeg ?? launch.windDirectionDeg ?? DEFAULT_HEADING_DEG;
@@ -406,18 +405,15 @@ export function simConditions(launch: CompleteLaunch, prefs?: SimPrefs) {
     mainLowSpeedWarn: prefs?.mainLowSpeedWarn,
     drogueLowSpeedWarn: prefs?.drogueLowSpeedWarn,
     guideAwareRodClearance: prefs?.guideAwareRodClearance,
-    // EVERY series the branch records, not the friendly dozen.
-    //
-    // `summary` was the default here since the option existed, so a run kept 17
-    // series out of the 69 the kernel had already computed - and the app could
-    // never plot or export the rest, because it had never asked for them. That
-    // is a strange thing to withhold: the work is done either way, the flight is
-    // simulated the same, and only the serialization differs.
+    // Every series the branch records, not the friendly dozen. `summary` keeps
+    // 17 of the 69 series the kernel computes either way, and the app can only
+    // plot or export what it asked for; the flight is simulated the same and
+    // only the serialization differs.
     //
     // Measured on a C6 flight at a 0.01 s step, three runs each: 509 ms and
     // 427 KB for `summary` against 596 ms and 1537 KB for `full`. 87 ms is not
     // worth two thirds of the flight data, and IndexedDB has room for the
-    // payload. (An older comment in the bridge put the cost at ~45%; it is 17%.)
+    // payload.
     series: 'full' as const,
   };
 }

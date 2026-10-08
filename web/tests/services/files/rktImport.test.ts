@@ -5,7 +5,7 @@ import type { ComponentNode } from '../../../src/engine/openRocketEngine';
 
 /**
  * A `.rkt` in RockSim's own layout, written element for element from
- * `RockSimCommonConstants.java` and the `importt/` handlers — the same posture
+ * `RockSimCommonConstants.java` and the `importt/` handlers, the same posture
  * `orkDesktopFixture.test.ts` takes for `.ork`. A round trip through our own
  * writer would only prove the reader understands the writer; this proves it
  * understands RockSim.
@@ -13,7 +13,7 @@ import type { ComponentNode } from '../../../src/engine/openRocketEngine';
  * The numbers are deliberately awkward (24.8 mm, 3.2 mm walls) so a factor-of-2
  * or factor-of-1000 slip shows up as a wrong value rather than a plausible one.
  * RockSim is millimeters and grams throughout, and every circular dimension in
- * the file is a DIAMETER.
+ * the file is a diameter.
  */
 const RKT = `<?xml version="1.0" encoding="UTF-8"?>
 <RockSimDocument>
@@ -166,8 +166,8 @@ const byName = (nodes: ComponentNode[] | undefined, name: string): ComponentNode
 describe('importRkt', () => {
   it('reads the design name and makes one stage per declared stage', () => {
     expect(res.name).toBe('Fixture Bird');
-    // StageCount is 1, so the two empty blocks in the file must NOT become
-    // booster stages — they are there in every RockSim file, used or not.
+    // StageCount is 1, so the two empty blocks in the file must not become
+    // booster stages: they are there in every RockSim file, used or not.
     expect(res.tree.components).toHaveLength(1);
     expect(stage.type).toBe('stage');
     expect(stage.name).toBe('Sustainer');
@@ -177,7 +177,7 @@ describe('importRkt', () => {
     const nose = byName(stage.children, 'Nose');
     expect(nose.type).toBe('nosecone');
     expect(nose['length']).toBeCloseTo(0.1, 9);
-    expect(nose['aftRadius']).toBeCloseTo(0.0124, 9); // 24.8 mm ACROSS
+    expect(nose['aftRadius']).toBeCloseTo(0.0124, 9); // 24.8 mm across
     expect(nose['thickness']).toBeCloseTo(0.0015, 9);
     expect(nose['shoulderRadius']).toBeCloseTo(0.0118, 9);
     expect(nose['shoulderLength']).toBeCloseTo(0.02, 9);
@@ -186,13 +186,13 @@ describe('importRkt', () => {
   it('maps the shape, finish and construction codes', () => {
     const nose = byName(stage.children, 'Nose');
     expect(nose['shape']).toBe('ogive'); // ShapeCode 1
-    // An OGIVE takes no shape parameter, and RockSim writes one for every nose
+    // An ogive takes no shape parameter, and RockSim writes one for every nose
     // cone regardless. `NoseConeHandler` applies it only to power, parabolic and
     // haack, so the 0.75 in the fixture is deliberately dropped.
     expect(nose['shapeParameter']).toBeUndefined();
     expect(nose['finish']).toBe('smooth'); // FinishCode 1 == RockSim "gloss"
     expect(nose['filled']).toBeUndefined(); // ConstructionType 1 == hollow
-    // FinishCode 2 is RockSim's "matt", which is our default — not stored.
+    // FinishCode 2 is RockSim's "matt", which is our default, so it is not stored.
     expect(byName(stage.children, 'Airframe')['finish']).toBeUndefined();
   });
 
@@ -243,7 +243,7 @@ describe('importRkt', () => {
     expect(mount['motorMount']).toBe(true);
     expect(mount['motorOverhang']).toBeCloseTo(0.003, 9);
     expect(mount['outerRadius']).toBeCloseTo(0.00935, 9);
-    // An airframe tube that is NOT a mount must not be flagged as one.
+    // An airframe tube that is not a mount must not be flagged as one.
     expect(byName(stage.children, 'Airframe')['motorMount']).toBeUndefined();
   });
 
@@ -256,24 +256,24 @@ describe('importRkt', () => {
   it('reads a parachute, including the surface and line densities', () => {
     const chute = byName(stage.children, 'Chute');
     expect(chute.type).toBe('parachute');
-    // `Dia` really is a diameter on both sides — the one field that is NOT halved.
+    // `Dia` really is a diameter on both sides: the one field that is not halved.
     expect(chute['diameter']).toBeCloseTo(0.4, 9);
     expect(chute['cd']).toBe(0.8);
     expect(chute['lineCount']).toBe(6);
     expect(chute['lineLength']).toBeCloseTo(0.35, 9);
     expect(chute['spillHoleDiameter']).toBeCloseTo(0.04, 9);
-    // g/cm2 to kg/m2 is x10, which is DIVIDING by the kernel's own
+    // g/cm2 to kg/m2 is x10, which is dividing by the kernel's own
     // `ROCKSIM_TO_OPENROCKET_SURFACE_DENSITY` of 1/10 - the direction
     // `BaseHandler.computeDensity` uses it in, and the opposite of the direction
     // `BasePartDTO` uses on the way out. 0.0067 g/cm2 is ripstop nylon at
     // 0.067 kg/m2, so getting it backwards is a factor of a hundred and still
-    // leaves a plausible-looking number. The canopy material is a SURFACE
+    // leaves a plausible-looking number. The canopy material is a surface
     // density, so it must not be left on `density` either, where it would be
     // read as a bulk one.
     expect(chute['surfaceDensity']).toBeCloseTo(0.067, 9);
     expect(chute['surfaceMaterialName']).toBe('Ripstop nylon');
     expect(chute.density).toBeUndefined();
-    // Line density is per MILLIMETER of cord in the file.
+    // Line density is per millimeter of cord in the file.
     expect(chute['lineDensity']).toBeCloseTo(0.0001, 9);
     expect(chute['lineMaterialName']).toBe('Braided nylon');
   });
@@ -332,7 +332,7 @@ describe('importRkt, hostile input', () => {
   const tube = '<BodyTube><Name>b</Name><Len>100</Len><OD>20</OD><ID>19</ID></BodyTube>';
 
   /**
-   * The element-COUNT vector, which the byte caps do not bound. Flat and wide,
+   * The element-count vector, which the byte caps do not bound. Flat and wide,
    * so the nesting cap never sees it.
    *
    * Its own timeout: parsing ten thousand parts takes a second or two alone and

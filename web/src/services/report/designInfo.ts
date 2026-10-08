@@ -20,8 +20,8 @@ const PER_RAD = '1/rad';
 const NONE = '';
 
 /**
- * Round to 4 significant figures, rendered as a plain decimal string — no
- * exponent, no trailing zeros. e.g. 0.4250 → "0.425", 24993 → "24990",
+ * Round to 4 significant figures, rendered as a plain decimal string with no
+ * exponent and no trailing zeros. e.g. 0.4250 → "0.425", 24993 → "24990",
  * 9.3e-6 → "0.0000093".
  */
 export function sig4(v: number): string {
@@ -61,7 +61,7 @@ export interface StatRow {
 }
 
 /**
- * WHICH statistics a rocket or stage has, in order: the one list the .ork
+ * Which statistics a rocket or stage has, in order: the one list the .ork
  * <designinfo> block, the design CSV and the PDF summary all write, each with
  * its own formatting. A finless design has no defined CP, so OpenRocket omits CP,
  * both stability rows and CNα; a design with no reference diameter has no
@@ -82,7 +82,7 @@ export function staticInfoRows(info: StaticInfo): StatRow[] {
     add('cp', 'CP', info.cp);
     add('stabilityCal', 'Stability (on pad)', info.stabilityCalibers);
     // The engine's own figure, not ours: see StaticInfo.stabilityPercent. The
-    // margin is over the AERODYNAMIC length, which this module does not have.
+    // margin is over the aerodynamic length, which this module does not have.
     add('stabilityPct', 'Stability (%)', info.stabilityPercent);
   }
   if (info.cd != null) add('cd', `Drag Coeff. (Ma ${CD_MACH})`, info.cd);
@@ -122,7 +122,7 @@ export function buildDesignInfo(report: ReportModel): DesignInfo {
   // Whole rocket (all stages active). Only the live whole-rocket info carries cd.
   groups.push({ scope: 'rocket', stats: statsFor(report.whole.info) });
 
-  // Per-stage — multi-stage designs only (a single stage IS the whole rocket).
+  // Per-stage: multi-stage designs only (a single stage is the whole rocket).
   if (report.stageSummaries.length > 1) {
     report.stageSummaries.forEach((s, i) => {
       groups.push({ scope: 'stage', stageNumber: i, name: s.label, stats: statsFor(s.info) });

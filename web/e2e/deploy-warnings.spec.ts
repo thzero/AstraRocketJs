@@ -4,10 +4,10 @@ import { test, expect, openTab, runFlight } from './base';
  * Recovery-deployment warnings, end to end: the setting reaches the kernel, the
  * kernel decides, and the Results tab shows what it decided.
  *
- * Both halves were missing. The threshold never left the browser — the engine
- * ran on its own hard-coded 20 m/s, so moving the setting repainted a summary
- * tile and changed nothing about the flight — and the warnings the engine did
- * export were parsed into `FlightResult.warnings` and never rendered.
+ * Both halves matter. If the threshold stays in the browser, the engine runs on
+ * its own 20 m/s default and moving the setting changes nothing about the
+ * flight; and the warnings the engine exports into `FlightResult.warnings` have
+ * to be rendered to be seen.
  */
 
 async function setDeploySpeedWarn(page: import('@playwright/test').Page, ms: string) {
@@ -31,7 +31,7 @@ test('the deployment-speed threshold reaches the engine and its warning is shown
   await expect(warnings).toBeVisible();
 
   // Absurdly high: same flight, same everything, no warning. If the threshold
-  // were still stuck at the kernel default, both runs would read the same.
+  // did not reach the kernel, both runs would read the same.
   await setDeploySpeedWarn(page, '900');
   await openTab(page, 'Simulations');
   await runFlight(page);

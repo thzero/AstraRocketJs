@@ -13,7 +13,7 @@ import { PartMetaFields } from './PartMetaFields';
 
 /**
  * The detail half of My Parts: what the selected saved part is called, and
- * what it IS.
+ * what it is.
  *
  * Built out of the property panel's own pieces (`visibleFields` / `FieldRow`,
  * the material and appearance sections) rather than a second set of inputs, so
@@ -21,14 +21,14 @@ import { PartMetaFields } from './PartMetaFields';
  * same validation as a body tube in a design. All of those take a node and an
  * onChange and nothing else, which is what makes this possible at all.
  *
- * What it deliberately does NOT show is the half of the panel that describes a
+ * What it deliberately does not show is the half of the panel that describes a
  * part's place in a rocket: position, move, the fit-ranked picker, the
  * descent-rate readout. A saved part has no parent, no siblings and no design
  * to be judged against, so those are not hidden features, they are questions
  * that do not apply until the part is applied to something.
  *
  * Edits are held locally and written on Save, so this is a form over a stored
- * record rather than the live design. The parent mounts it KEYED ON THE PART,
+ * record rather than the live design. The parent mounts it keyed on the part,
  * so selecting another one re-seeds every field by remounting rather than by
  * an effect that has to notice.
  */
@@ -48,13 +48,13 @@ export function SavedPartEditor({
   const { t } = useTranslation();
   const [meta, setMeta] = useState<PartMeta>({ mfr: part.mfr, partNo: part.partNo, desc: part.desc });
   // The saved node plus its type, which is what the field tables key off. The
-  // type is not stored ON the node (customParts.presetNode strips it, since it
+  // type is not stored on the node (customParts.presetNode strips it, since it
   // identifies the node a part came from), so it is put back here.
   const [node, setNode] = useState<ComponentNode>({ ...part.node, type: part.type } as ComponentNode);
   const [err, setErr] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  // Compared against what is STORED rather than tracked by a flag set on every
+  // Compared against what is stored rather than tracked by a flag set on every
   // keystroke, so typing a character and deleting it again leaves the editor
   // clean and the discard prompt does not fire over an edit nobody made.
   const dirty =
@@ -143,7 +143,7 @@ export function SavedPartEditor({
 }
 
 /**
- * The node as it would be STORED: without the `type` the editor put back on it
+ * The node as it would be stored: without the `type` the editor put back on it
  * for the field tables to read. Used for the write and for the dirty
  * comparison, so the two cannot disagree about what a change is.
  */

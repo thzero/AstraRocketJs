@@ -5,19 +5,19 @@ import { readData, DATA_DIR } from '../../testing/dataDir';
 import { isMaterialCatalog, type MaterialRow } from '../../../src/services/materials/materialTypes';
 
 /**
- * The SHIPPED material catalog, read off disk.
+ * The shipped material catalog, read off disk.
  *
  * `public/data/materials.generated.json` is what the app fetches, and this
- * reads that file rather than anything that imports it: the catalog is no
- * longer bundled, so a test that went through the loader would be testing a
+ * reads that file rather than anything that imports it: the catalog is not
+ * bundled, so a test that went through the loader would be testing a
  * fetch stub. Its two inputs are upstream's `Databases.java` (rows marked
  * `upstream`) and the hand-maintained `scripts/data/materials.app.json`
  * (everything else); `scripts/sync-materials.mjs` merges them.
  *
- * What these cannot check is whether a density is RIGHT: each of ours is a
+ * What these cannot check is whether a density is right: each of ours is a
  * number read off a manufacturer document, cited beside it in the app file and
- * in `website/docs/designing-a-rocket.md`. A wrong one is silent — the rocket
- * just weighs the wrong amount — so the citation is the check.
+ * in `website/docs/designing-a-rocket.md`. A wrong one is silent (the rocket
+ * just weighs the wrong amount), so the citation is the check.
  */
 const CATALOG = readData<MaterialRow[]>('materials.generated.json');
 const APP = (
@@ -59,7 +59,7 @@ describe('the catalog the app fetches', () => {
 });
 
 /**
- * The adhesives are the ONE part of the table that is not upstream
+ * The adhesives are the one part of the table that is not upstream
  * OpenRocket's, added because upstream has no adhesive at all and a fin fillet
  * is made of nothing else.
  */
@@ -94,19 +94,16 @@ describe('adhesive materials', () => {
  * `Databases.java` with a shim, so no committed file in this repo carries
  * upstream's list to compare against.
  *
- * These counts stand in for it in the fast suite. They caught nothing on the
- * way in — the drift they describe was found by running that comparison by
- * hand — but a deletion is the easy way to break this file, and a deletion
- * moves a count.
+ * These counts stand in for it in the fast suite: a deletion is the easy way to
+ * break this file, and a deletion moves a count.
  */
 describe('upstream material counts', () => {
   const countOf = (type: string) => UPSTREAM.filter((m) => m.type === type).length;
 
   it('carries all 42 of upstream line materials', () => {
-    // It carried 20 for a while: every Kevlar 12-strand above 5/16 in, all five
-    // nylon flat webbings, both rubber bands, all seven braided elastics and
-    // the Paraline were missing, which is most of what a shock cord or a set of
-    // shroud lines is made of.
+    // The Kevlar 12-strands, nylon flat webbings, rubber bands, braided elastics
+    // and Paraline are most of what a shock cord or a set of shroud lines is
+    // made of.
     expect(countOf('line')).toBe(42);
   });
 
@@ -118,7 +115,7 @@ describe('upstream material counts', () => {
 
 /**
  * Upstream's flat elastic cords read 0.0018, 0.0043 and 0.008 for 2, 6 and
- * 12 mm, then 0.0012 for 19 mm and 0.0016 for 25 mm — the two widest lighter
+ * 12 mm, then 0.0012 for 19 mm and 0.0016 for 25 mm: the two widest lighter
  * than the 6 mm, by a factor of ten. It is a dropped digit, and it makes a 3 m
  * shock cord of 3/4 in flat elastic read 3.6 g instead of about 37.
  *

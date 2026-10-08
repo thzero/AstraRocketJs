@@ -3,10 +3,10 @@
  *
  * A color reaches the app from a color input (always `#rrggbb`), a saved file
  * (`.ork` channels, a `.rkt` hex or name) or a hand-edited settings blob, and
- * leaves it into the `.ork`, 3MF, KML and PDF writers. Each of those once parsed
- * on its own: one took any hex prefix ("12zz" read as 0x12), one expanded the
- * `#rgb` shorthand while another dropped it. They agree now, and each caller
- * keeps only its own fallback for a value that is not a color.
+ * leaves it into the `.ork`, 3MF, KML and PDF writers. All of them parse and
+ * format through these two functions so they agree on what is a color (no
+ * partial hex prefix such as "12zz", the same `#rgb` shorthand handling), and
+ * each caller keeps only its own fallback for a value that is not a color.
  */
 
 /**

@@ -4,17 +4,17 @@
  * Requests go from the user's browser straight to Open-Meteo, through a
  * sandboxed frame (`anonymousGet`) so that they carry no `Origin` but `null`
  * and no `Referer`: nothing in them names this app or the site serving it.
- * There is no key, account, proxy or server of this app's in between. Without a key the free
- * tier answers, which Open-Meteo allows for non-commercial use. With a key from
+ * There is no account, proxy or server of this app's in between. Without a key the free
+ * tier answers, which Open-Meteo allows for non-commercial use. With the user's key from
  * a paid plan the same requests go to its `customer-` hosts with `apikey`.
  *
  * The data is CC BY 4.0: the dialog shows the credit wherever it shows values.
  *
  * What is asked for, and why:
- *  - An ELEVATION is always sent. Without one, Open-Meteo answers for its terrain
+ *  - An elevation is always sent. Without one, Open-Meteo answers for its terrain
  *    model's height of the grid cell, and the surface pressure is for that
  *    height, not the pad's. See `requestElevations`.
- *  - `surface_pressure`, the pressure AT that elevation, never `pressure_msl`.
+ *  - `surface_pressure`, the pressure at that elevation, never `pressure_msl`.
  *  - `timeformat=unixtime` with `timezone=auto`; local times are made here with
  *    `Intl`, because the answer's `utc_offset_seconds` is today's offset stamped
  *    on every hour, even across a daylight saving change.
@@ -280,7 +280,10 @@ export class WeatherError extends Error {
 
 // ------------------------------------------------------------------ parsing
 
-/** One pressure level at one hour. Null is MISSING, never zero. */
+/** A unit as the answer gave it, for an error message. */
+const unitText = (u: unknown): string => (u === undefined ? 'no unit' : typeof u === 'string' ? u : JSON.stringify(u));
+
+/** One pressure level at one hour. Null means missing, never zero. */
 export interface PressureLevelSample {
   pressureHPa: number;
   /** Geopotential height, which for a rocket's purposes is meters above sea level. */
@@ -291,16 +294,16 @@ export interface PressureLevelSample {
   windFromDeg: number | null;
 }
 
-/** One hour of one elevation's answer. Null is MISSING, never zero. */
+/** One hour of one elevation's answer. Null means missing, never zero. */
 export interface HourSample {
   unix: number;
   temperatureC: number | null;
   humidityPct: number | null;
   pressureHPa: number | null;
   windSpeed: number | null;
-  /** The strongest gust in the hour BEFORE `unix`. */
+  /** The strongest gust in the hour before `unix`. */
   windGust: number | null;
-  /** Where the 10 m wind blows FROM, compass degrees, as the kernel takes it. */
+  /** The direction the 10 m wind blows from, compass degrees, as the kernel takes it. */
   windFromDeg: number | null;
   /** Wind at 80, 120 and 180 m above ground; empty from the archive. */
   heightWinds: { heightM: number; speed: number | null; fromDeg: number | null }[];
@@ -327,7 +330,7 @@ const finiteOrNull = (x: unknown): number | null => (isFiniteNumber(x) ? x : nul
 
 /** Open-Meteo's own refusal, `{"error": true, "reason": "..."}`, or null. */
 function refusalReason(body: unknown): string | null {
-  const one = Array.isArray(body) ? body[0] : body;
+  const one: unknown = Array.isArray(body) ? body[0] : body;
   return isObj(one) && one['error'] === true
     ? typeof one['reason'] === 'string'
       ? one['reason']
@@ -359,7 +362,7 @@ export function parseForecast(body: unknown, elevationsM: readonly number[]): Fo
     const units = item['hourly_units'];
     const h = item['hourly'];
     for (const v of ['time', ...SURFACE_VARS]) {
-      if (units[v] !== unitFor(v)) throw new WeatherError('units', `${v} in ${String(units[v] ?? 'no unit')}`);
+      if (units[v] !== unitFor(v)) throw new WeatherError('units', `${v} in ${unitText(units[v])}`);
     }
     const e = finiteOrNull(item['elevation']);
     if (e === null || Math.abs(e - elevationsM[i]!) > 0.5) {
@@ -375,7 +378,7 @@ export function parseForecast(body: unknown, elevationsM: readonly number[]): Fo
       if (a === undefined && !required) return time.map(() => null);
       if (!Array.isArray(a) || a.length !== time.length)
         throw new WeatherError('shape', `${v} does not match its hours`);
-      if (units[v] !== unitFor(v)) throw new WeatherError('units', `${v} in ${String(units[v] ?? 'no unit')}`);
+      if (units[v] !== unitFor(v)) throw new WeatherError('units', `${v} in ${unitText(units[v])}`);
       return a.map(finiteOrNull);
     };
     const s = Object.fromEntries(SURFACE_VARS.map((v) => [v, series(v, true)])) as Record<
@@ -425,7 +428,6 @@ export function parseForecast(body: unknown, elevationsM: readonly number[]): Fo
   return variants;
 }
 
-/** The terrain model's ground height from an elevation answer, to 1 m, or null. */
 /** Most points one elevation request carries; Open-Meteo refuses more. */
 const ELEVATION_BATCH = 100;
 
@@ -436,6 +438,7 @@ function parseElevations(body: unknown, count: number): number[] | null {
   return out.every((e): e is number => e !== null) ? out : null;
 }
 
+/** The terrain model's ground height from an elevation answer, to 1 m, or null. */
 function parseElevation(body: unknown): number | null {
   if (!isObj(body) || !Array.isArray(body['elevation'])) return null;
   const e = finiteOrNull(body['elevation'][0]);

@@ -12,11 +12,11 @@ import info.openrocket.core.simulation.SimulationStepperMethod;
 import info.openrocket.core.util.GeodeticComputationStrategy;
 
 /**
- * SHIM replacing OpenRocket's 1600-line desktop ApplicationPreferences (which
- * drags the OBJ-export subsystem and java.util.prefs). Exposes only the
- * surface the carved kernel calls, returning OpenRocket's stock defaults —
- * default values copied verbatim from upstream. Grown on demand as carve
- * slices expand; the compiler tells us what's used.
+ * SHIM replacing OpenRocket's desktop ApplicationPreferences (which drags in
+ * the OBJ-export subsystem and java.util.prefs). Exposes only the surface the
+ * carved kernel calls, returning OpenRocket's stock defaults, with values copied
+ * verbatim from upstream. A kernel call to a missing method fails to compile, so
+ * the surface grows only as needed.
  */
 public class ApplicationPreferences {
 
@@ -36,7 +36,7 @@ public class ApplicationPreferences {
     }
 
     // ---- Generic accessors: no persisted store in the web engine, so the
-    // ---- caller-supplied default IS the value (matches an empty prefs store).
+    // ---- caller-supplied default is the value (matches an empty prefs store).
 
     public double getDouble(String key, double defaultValue) {
         return defaultValue;
@@ -139,12 +139,11 @@ public class ApplicationPreferences {
     /**
      * Upstream lazily creates the model and then seeds it from the stored wind
      * preferences ({@code loadWindModelState}), so a fresh desktop install gets
-     * 2 m/s at 10% turbulence blowing from due east, NOT a dead-calm model.
-     * Returning a bare {@code new PinkNoiseWindModel()} here (average 0,
-     * standard deviation 0) was a silent divergence from the desktop: anything
-     * that reaches this model without overriding it, such as
-     * {@code MultiLevelPinkNoiseWindModel.addInitialLevel()} seeding level 0,
-     * would fly a calm day where OpenRocket flies a breezy one.
+     * 2 m/s at 10% turbulence blowing from due east, not a dead-calm model.
+     * A bare {@code new PinkNoiseWindModel()} (average 0, standard deviation 0)
+     * would diverge from the desktop: anything that reaches this model without
+     * overriding it, such as {@code MultiLevelPinkNoiseWindModel.addInitialLevel()}
+     * seeding level 0, would fly a calm day where OpenRocket flies a breezy one.
      */
     public PinkNoiseWindModel getAverageWindModel() {
         if (averageWindModel == null) {
@@ -156,8 +155,8 @@ public class ApplicationPreferences {
 
     /**
      * Upstream's seeding step, reproduced. There is no persisted store here, so
-     * every {@code getDouble} returns the default - which is the point: these
-     * three defaults ARE upstream's.
+     * every {@code getDouble} returns its default, and these three defaults are
+     * upstream's.
      */
     protected void loadWindModelState() {
         averageWindModel.setAverage(getDouble(WIND_AVERAGE, 2.0));

@@ -38,7 +38,7 @@ describe('a trapezoid fin sweep, as an angle', () => {
   });
 
   it('reads a right angle off a fin with no height, and writing one is a no-op', () => {
-    // atan2(x, 0) would be the answer anyway; what matters is that a ZERO
+    // atan2(x, 0) would be the answer anyway; what matters is that a zero
     // sweep on a zero-height fin reads 0 and not a right angle.
     expect(DERIVED.sweepAngle.read(fin(0.02, 0))).toBeCloseTo(Math.PI / 2, 9);
     expect(DERIVED.sweepAngle.read(fin(-0.02, 0))).toBeCloseTo(-Math.PI / 2, 9);

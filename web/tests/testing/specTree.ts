@@ -18,9 +18,9 @@ export function specToTree(spec: RocketSpec): { tree: RocketTree; mountId: strin
    * one, and otherwise the stock material for every slot the type has
    * (`defaultMaterialPatch` with no user preference).
    *
-   * Never nothing. `RocketSpec` carries no density at all today, so leaving the
-   * fallback out meant every part of the first design anybody opens read "Not
-   * specified" in the panel while the kernel flew it as cardboard - the editor
+   * Never nothing. `RocketSpec` carries no density at all, so without the
+   * fallback every part of the first design anybody opens would read "Not
+   * specified" in the panel while the kernel flies it as cardboard: the editor
    * disagreeing with the simulation about the same rocket. It is the same three
    * materials either way, so no mass moves; the panel just says which.
    */
@@ -60,7 +60,7 @@ export function specToTree(spec: RocketSpec): { tree: RocketTree; mountId: strin
         height: spec.fins.height,
         thickness: spec.fins.thickness,
         // Fin sets sit at the aft end of the body tube (bottom-aligned), like
-        // OpenRocket's default — without this they draw up by the nose.
+        // OpenRocket's default; without this they draw up by the nose.
         position: { method: 'bottom', offset: 0 },
         ...material('trapezoidfinset', spec.fins),
       },

@@ -1,4 +1,4 @@
-// Swappable client-side store for the user's custom flight-path EXPORT TEMPLATES
+// Swappable client-side store for the user's custom flight-path export templates
 // (Mustache). This is the browser equivalent of OpenRocket's desktop
 // `ExportTemplates` folder: instead of scanning a user directory, we persist
 // imported templates through a KeyValueStore (IndexedDB by default). Mirrors
@@ -84,8 +84,8 @@ export class KeyValueTemplateStore implements TemplateStore {
   }
 }
 
-// The active template store. The header promised `setTemplateStore` and it
-// did not exist; the seam is the same one the material store has.
+// The active template store, replaceable through `setTemplateStore`; the same
+// seam the material store has.
 let store: TemplateStore = new KeyValueTemplateStore();
 
 export function getTemplateStore(): TemplateStore {

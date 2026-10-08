@@ -4,31 +4,31 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 /**
- * The SHIPPED target's boundary behavior.
+ * The shipped target's boundary behavior.
  *
- * Every other test in this directory loads `vendor/openrocket-engine.mjs` -
- * the JavaScript build. The app loads WASM-GC when the browser supports it and
- * only falls back to JS, so **the build the tests vouched for is not the build
+ * Every other test in this directory loads `vendor/openrocket-engine.mjs`, the
+ * JavaScript build. The app loads WASM-GC when the browser supports it and only
+ * falls back to JS, so **the build the other tests check is not the build most
  * users run**.
  *
- * That gap matters specifically for ERROR behavior, because the two backends
+ * That gap matters specifically for error behavior, because the two backends
  * genuinely differ there and the difference runs the wrong way:
  *
  *   - TeaVM's JS backend converts a native JavaScript error caught inside a
  *     Java `try` into a `java.lang.RuntimeException`, so the facade's
- *     `catch (RuntimeException e) { return errorJson(e); }` DOES catch a stack
+ *     `catch (RuntimeException e) { return errorJson(e); }` does catch a stack
  *     overflow and hands back an `{"error": ...}` envelope.
  *   - WASM-GC has no equivalent. A wasm trap is not a `WebAssembly.Exception`
  *     carrying the `teavm.javaException` tag, so no Java catch clause ever sees
  *     it and it unwinds straight out of the module.
  *
  * So the error handling the facade appears to have does not exist on the
- * target that ships. It cannot be fixed in our Java - there is no catch that
- * sees a trap - which is why the real defense is bounding the inputs
+ * target that ships. It cannot be fixed in our Java (there is no catch that
+ * sees a trap), which is why the real defense is bounding the inputs
  * (`JsonLite.MAX_DEPTH`, the aero-sweep point cap, `ComponentFactory`'s count
  * caps). See the `errorJson` contract in engine-java/src/api/java/api/OpenRocketEngine.java.
  *
- * This file exists so that stays TRUE rather than remembered: it runs the bad
+ * This file exists so that stays true rather than remembered: it runs the bad
  * inputs against WASM and asserts the bounds hold there too. If someone adds an
  * unbounded path and relies on the catch, this is where it shows up.
  */
@@ -80,9 +80,8 @@ beforeAll(async () => {
 
 describe('the harness is really driving WASM', () => {
   // Guarding the guard. Every assertion below is worthless if `wasm` quietly
-  // ended up being the JS module - the two-target comparison would be JS
-  // against itself and pass vacuously. Today's defaults test shipped in
-  // exactly that state until a deliberately wrong value failed to fail.
+  // ended up being the JS module: the two-target comparison would be JS
+  // against itself and pass vacuously.
   it('loaded a distinct module through TeaVM.wasmGC', () => {
     expect(wasm).toBeTruthy();
     expect(js).toBeTruthy();
@@ -99,7 +98,7 @@ describe('the harness is really driving WASM', () => {
     wasm.reset();
     const jsHandle = js.buildRocket(tree());
     wasm.reset();
-    // Resetting WASM must NOT invalidate the JS handle.
+    // Resetting WASM must not invalidate the JS handle.
     expect(() => JSON.parse(js.getStaticInfo(jsHandle))).not.toThrow();
     expect(JSON.parse(js.getStaticInfo(jsHandle)).error).toBeUndefined();
   });
@@ -107,7 +106,7 @@ describe('the harness is really driving WASM', () => {
 
 describe('the shipped WASM-GC build enforces the same input bounds as JS', () => {
   // These are the inputs that reach an unbounded loop, an unbounded allocation or
-  // a stack overflow. On WASM those failures are NOT catchable, so the bound has
+  // a stack overflow. On WASM those failures are not catchable, so the bound has
   // to fire before the kernel gets there.
   const cases: Array<[name: string, call: (e: any) => unknown, expected: RegExp]> = [
     [
@@ -141,9 +140,9 @@ describe('the shipped WASM-GC build enforces the same input bounds as JS', () =>
       (e) => {
         const h = e.buildRocket(tree([MOUNT]));
         e.setMotorById(h, 'm', 'C6', 0.018, 0.07, [0, 1, 2], [0, 6, 0], [0.024, 0.018, 0.012], 0.035, 5);
-        // A level's altitude is its IDENTITY to the kernel, which keys its
-        // levels on it, so the bridge's `JsonLite.dbl(lvl, "altitude", 0)` put
-        // an unnamed layer on the pad rather than refusing it.
+        // A level's altitude is its identity to the kernel, which keys its
+        // levels on it, so defaulting a missing one to 0 would put an unnamed
+        // layer on the pad rather than refusing it.
         return e.simulateJson(
           h,
           JSON.stringify({
@@ -181,9 +180,9 @@ describe('the shipped WASM-GC build enforces the same input bounds as JS', () =>
       (e) => {
         const h = e.buildRocket(tree());
         // (1 - 0) / 5e-324 is Infinity. `(long) Infinity` is Long.MAX_VALUE,
-        // `+ 1` wrapped it negative, and the `points > MAX` guard passed: WASM
-        // handed back an EMPTY sweep with no error at all, and the JS build
-        // threw a RangeError from inside the bundle. Both inputs are finite.
+        // `+ 1` wraps it negative, and a `points > MAX` guard alone passes: WASM
+        // would hand back an empty sweep with no error at all, and the JS build
+        // would throw a RangeError from inside the bundle. Both inputs are finite.
         return e.getAeroSweep(h, JSON.stringify({ machMin: 0, machMax: 1, machStep: 5e-324 }));
       },
       /infinite|over the/,
@@ -209,9 +208,9 @@ describe('the shipped WASM-GC build enforces the same input bounds as JS', () =>
   it('a sub-ulp sweep step terminates instead of looping forever', () => {
     wasm.reset();
     const h = wasm.buildRocket(tree());
-    // Before the integer point-count guard this never returned: machMin ===
-    // machMax made the divide-based check pass, and `m += 1e-300` made no
-    // progress. A hang here is the regression, so the assertion is that it
+    // Without the integer point-count guard this never returns: machMin ===
+    // machMax makes a divide-based check pass, and `m += 1e-300` makes no
+    // progress. A hang here is the failure, so the assertion is that it
     // returns at all.
     const out = JSON.parse(wasm.getAeroSweep(h, JSON.stringify({ machMin: 0.05, machMax: 0.05, machStep: 1e-300 })));
     expect(out.machs).toEqual([0.05]);
@@ -222,8 +221,9 @@ describe('the shipped WASM-GC build enforces the same input bounds as JS', () =>
     const h = wasm.buildRocket(tree([MOUNT]));
     wasm.setMotorById(h, 'm', 'C6', 0.018, 0.07, [0, 1, 2], [0, 6, 0], [0.024, 0.018, 0.012], 0.035, 5);
     // `setMotorIgnitionById` returns void, so there is no envelope to carry a
-    // refusal: it has to throw. Before the guard it wrote Infinity straight into
-    // the motor config and the sim's result JSON came out as `"time":Infinity`.
+    // refusal: it has to throw. Unguarded, it would write Infinity straight into
+    // the motor config and the sim's result JSON would come out as
+    // `"time":Infinity`.
     for (const bad of [Infinity, -Infinity, NaN]) {
       const got = outcome(() => wasm.setMotorIgnitionById(h, 'm', 'launch', bad));
       expect(got.kind, `delay ${bad}: expected a throw, got ${got.kind}: ${got.message}`).toBe('threw');
@@ -234,13 +234,13 @@ describe('the shipped WASM-GC build enforces the same input bounds as JS', () =>
 });
 
 describe('both targets agree on the errors the facade can actually report', () => {
-  // Where the facade returns an `{"error"}` envelope, the two backends MUST
-  // agree - that path does not depend on how exceptions cross the boundary.
+  // Where the facade returns an `{"error"}` envelope, the two backends must
+  // agree: that path does not depend on how exceptions cross the boundary.
   const enveloped: Array<[name: string, call: (e: any) => unknown]> = [
     ['an unknown handle', (e) => e.simulateJson(99999, '{}')],
     ['a malformed options blob', (e) => e.simulateJson(e.buildRocket(tree()), '{oops')],
     ['an unknown component type', (e) => e.getComponentInfo(e.buildRocket(tree()), 'nope')],
-    // Unchecked casts here once failed as a minified TeaVM TypeError on JS and a
+    // Unchecked casts here would fail as a minified TeaVM TypeError on JS and a
     // bare ClassCastException on WASM, neither naming the row.
     ['a machAlt row that is not a pair', (e) => e.getAeroSweep(e.buildRocket(tree()), '{"machAlt":["a"]}')],
     ['a machAlt row of strings', (e) => e.getAeroSweep(e.buildRocket(tree()), '{"machAlt":[[0.5,0],["x","y"]]}')],
@@ -271,7 +271,7 @@ describe('the shipped build computes what the JS build computes', () => {
     wasm.reset();
     const a = JSON.parse(js.getStaticInfo(js.buildRocket(tree())));
     const b = JSON.parse(wasm.getStaticInfo(wasm.buildRocket(tree())));
-    // Parity already proves this to the ULP across 342 lines; this is a cheap
+    // Parity already proves this to the ULP; this is a cheap
     // guard that the WASM artifact under test is not stale relative to the JS
     // one, so a failure above cannot be an artifact-mismatch artifact.
     expect(b.mass).toBeCloseTo(a.mass, 12);
@@ -280,19 +280,19 @@ describe('the shipped build computes what the JS build computes', () => {
   });
 
   /**
-   * The seeding of a LAYERED wind, on the target that ships.
+   * The seeding of a layered wind, on the target that ships.
    *
    * Upstream's 4-arg `addWindLevel` builds each level's sub-model with the
    * no-arg `PinkNoiseWindModel` constructor, which seeds itself from
-   * `new Random().nextInt()`; nothing else put the run's seed back, so a
-   * turbulent multi-level profile flew a different gust pattern every run. The
+   * `new Random().nextInt()`; unless the bridge puts the run's seed back, a
+   * turbulent multi-level profile flies a different gust pattern every run. The
    * parity set carries no `windLevels` case at all, so neither the JVM
-   * comparison nor the golden values cover this - the JS boundary test and this
+   * comparison nor the golden values cover this: the JS boundary test and this
    * one are the whole of it, and this is the build most browsers run.
    *
-   * Equality is EXACT on purpose: the claim is that one seed reproduces one
+   * Equality is exact on purpose: the claim is that one seed reproduces one
    * flight, and a tolerance would pass on turbulence that merely landed nearby.
-   * Cross-target equality is deliberately NOT asserted here; turbulence
+   * Cross-target equality is deliberately not asserted here; turbulence
    * compounds a ULP difference over a whole trajectory, and bit-for-bit
    * JS/WASM agreement is what the parity gate is for.
    */

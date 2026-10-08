@@ -9,12 +9,12 @@ import { numTag } from './importTags';
 import { radToDeg } from '../../../prefs/units';
 
 /**
- * Launch conditions from the FIRST <simulation>'s <conditions> (the desktop
+ * Launch conditions from the first <simulation>'s <conditions> (the desktop
  * saves one block per simulation; the app has a single launch panel). Units
- * per the desktop OpenRocketSaver: rod angle in DEGREES, wind speeds m/s,
- * altitude m, temperature KELVIN, pressure PASCAL. <wind model="average"> is
- * the modern form; the bare windaverage/windturbulence pair — turbulence
- * stored as the INTENSITY ratio stddev/average — is the ≤23.09 legacy form
+ * per the desktop OpenRocketSaver: rod angle in degrees, wind speeds m/s,
+ * altitude m, temperature kelvin, pressure pascal. <wind model="average"> is
+ * the modern form; the bare windaverage/windturbulence pair (turbulence
+ * stored as the intensity ratio stddev/average) is the ≤23.09 legacy form
  * the desktop still writes alongside it.
  */
 export function readLaunchConditions(doc: Document): Partial<LaunchConditions> | undefined {
@@ -31,7 +31,7 @@ export function readSimulationLaunch(simEl: Element | null): Partial<LaunchCondi
   if (!Number.isNaN(rodLen)) launch.launchRodLengthM = rodLen;
   const rodAngle = numTag(condEl, 'launchrodangle', NaN);
   if (!Number.isNaN(rodAngle)) launch.launchRodAngleDeg = rodAngle;
-  // Rod heading is DEGREES on disk like the rod angle (OpenRocketSaver.java:
+  // Rod heading is degrees on disk like the rod angle (OpenRocketSaver:
   // launchroddirection is written as radians * 360 / 2pi). The app edits all
   // three of these, so they are read from the file rather than defaulted, or a
   // launch set up on the desktop comes back pointing at the default heading.
@@ -115,11 +115,11 @@ function readWind(condEl: Element, launch: Partial<LaunchConditions>): void {
   // direction standarddeviation/>…>. Honored when windmodeltype selects it.
   const mlEl = windEls.find((w) => (w.getAttribute('model') ?? '').toLowerCase() === 'multilevel');
   if (mlEl && windModelType.includes('multilevel')) {
-    // finiteNum, not `parseFloat(x) || 0`: that let "Infinity" through as a
-    // wind speed, and the kernel's wind model has no answer for it.
+    // finiteNum, not `parseFloat(x) || 0`: that would let "Infinity" through
+    // as a wind speed, and the kernel's wind model has no answer for it.
     //
     // The altitude has no `?? 0`, unlike the other three: it is the level's
-    // IDENTITY to the kernel, which keys its levels on it. Defaulted to 0 m, a
+    // identity to the kernel, which keys its levels on it. Defaulted to 0 m, a
     // file that omits or garbles one imports as a second surface level, which
     // either displaces the real surface wind or collides with it and fails every
     // run with `Wind level already exists for altitude: 0.0`. `usableWindLevels`
@@ -133,12 +133,12 @@ function readWind(condEl: Element, launch: Partial<LaunchConditions>): void {
       })),
     );
     if (levels.length) launch.windLevels = levels;
-    // MSL unless the file says AGL. The desktop carries it as an ATTRIBUTE on
-    // the <wind> element (OpenRocketSaver.java:367 writes
-    // <wind model="multilevel" altituderef="AGL">, importt/WindHandler.java:25
+    // MSL unless the file says AGL. The desktop carries it as an attribute on
+    // the <wind> element (OpenRocketSaver writes
+    // <wind model="multilevel" altituderef="AGL">, importt/WindHandler
     // reads attributes.get("altituderef")), so that is what is read here, or
     // every AGL profile the desktop saves comes in as MSL. The other spellings
-    // stay accepted for the files older builds of this app wrote.
+    // stay accepted for files older builds of this app wrote.
     const ref = (
       mlEl.getAttribute('altituderef') ??
       text(mlEl, ':scope > altitudereference') ??
@@ -164,9 +164,10 @@ function readAtmosphere(condEl: Element, launch: Partial<LaunchConditions>): voi
     const pPa = numTag(atmEl, 'basepressure', NaN);
     if (!Number.isNaN(pPa)) launch.pressureHPa = pPa / 100;
   }
-  // A FRACTION on disk, as the kernel holds it. <baserelativehumidity> is
-  // desktop's element and what this app writes; <relativehumidity> is what this
-  // app wrote before, and <launchrelativehumidity> on <conditions> is read too.
+  // A fraction on disk, as the kernel holds it. <baserelativehumidity> is
+  // desktop's element and what this app writes; <relativehumidity> (an older
+  // spelling this app wrote) and <launchrelativehumidity> on <conditions> are
+  // read too.
   const rh = numTag(
     atmEl,
     'baserelativehumidity',

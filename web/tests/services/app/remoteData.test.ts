@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-// remoteData resolves its bases at MODULE LOAD from import.meta.env, and memoizes
-// every fetch for the session — so each case stubs the env, resets the module
+// remoteData resolves its bases at module load from import.meta.env, and memoizes
+// every fetch for the session, so each case stubs the env, resets the module
 // registry, and imports a fresh copy.
 
 type Route = { status?: number; body?: unknown; fail?: boolean; hang?: boolean; bodyMs?: number };
@@ -14,7 +14,7 @@ function stubFetch(routes: Record<string, Route>) {
     // Match ignoring the ?v=<hash> cache-buster.
     const route = routes[url.split('?')[0]!];
     if (!route || route.fail) return Promise.reject(new Error('network down'));
-    // A host that accepts the connection and then never answers — the case the
+    // A host that accepts the connection and then never answers: the case the
     // short probe timeout exists for. Settles only when fetchJson aborts it.
     if (route.hang)
       return new Promise((_res, rej) => {
@@ -27,7 +27,7 @@ function stubFetch(routes: Record<string, Route>) {
       json: () =>
         route.bodyMs == null
           ? Promise.resolve(route.body)
-          : // A response whose headers arrived but whose body is still streaming —
+          : // A response whose headers arrived but whose body is still streaming:
             // a slow link, not a dead host. Abortable, like a real body stream.
             new Promise((res, rej) => {
               const t = setTimeout(() => res(route.body), route.bodyMs);
@@ -117,7 +117,7 @@ describe('fetchCatalog — separate data host configured', () => {
     const fetchCatalog = await load();
 
     await expect(fetchCatalog('motors')).resolves.toEqual(['local']);
-    // Pairs the LOCAL hash with the LOCAL file — never the remote manifest's.
+    // Pairs the local hash with the local file, never the remote manifest's.
     expect(seen).toContain('/data/motors.generated.json?v=stale11');
   });
 
@@ -135,8 +135,8 @@ describe('fetchCatalog — separate data host configured', () => {
   });
 
   it('falls back when the host is UP but serving the wrong shape', async () => {
-    // The nastiest case for a fallback chain: `{"error":"rebuilding"}` with HTTP
-    // 200 parses fine, so unvalidated the loop returns it, never tries the
+    // The hardest case for a fallback chain: `{"error":"rebuilding"}` with HTTP
+    // 200 parses fine, so unvalidated the loop would return it, never tries the
     // in-build copy, and leaves the caller spreading a non-array into the motor
     // picker.
     vi.stubEnv('VITE_DATA_BASE', REMOTE);
@@ -209,7 +209,7 @@ describe('fetchCatalog — separate data host configured', () => {
       expect(settled).toBe(false);
 
       // ...and the manifest attempt aborts at 4s, then the catalog attempt at 8s,
-      // after which it drops to the in-build copy. Well inside one 15s timeout.
+      // after which it drops to the in-build copy.
       await vi.advanceTimersByTimeAsync(4_200);
       await expect(p).resolves.toEqual(['local']);
     } finally {
@@ -249,7 +249,7 @@ describe('fetchCatalog — separate data host configured', () => {
     vi.useFakeTimers();
     try {
       // Headers land immediately; the body takes 30s, as ~1.6 MB does on a
-      // throttled link. A single combined budget would have aborted this.
+      // throttled link. A single combined budget would abort this.
       stubFetch({
         '/data/manifest.json': { body: { motors: 'abc123' } },
         '/data/motors.generated.json': { body: ['slow-but-complete'], bodyMs: 30_000 },
@@ -295,14 +295,14 @@ describe('fetchCatalog — separate data host configured', () => {
 });
 
 /**
- * The size cap has to apply to bytes RECEIVED, not to a header the host may not
- * send — and `manifest()` is the call that proves it.
+ * The size cap has to apply to bytes received, not to a header the host may not
+ * send, and `manifest()` is the call that proves it.
  *
  * `fetchCatalog` always passes an onProgress (it publishes progress per
- * catalog), so the catalog body was streamed and capped all along. `manifest()`
- * passes none, and the old `readJson` sent exactly that case to `res.json()`
- * with no meter at all. A chunked manifest — no content-length, so the declared
- * -size check cannot fire either — buffered without bound.
+ * catalog), so the catalog body is always streamed and capped. `manifest()`
+ * passes none, and must still be metered: a chunked manifest has no
+ * content-length, so the declared-size check cannot fire, and an unmetered
+ * `res.json()` would buffer it without bound.
  */
 describe('the manifest body is metered, not just the catalog', () => {
   it('stops pulling an endless chunked manifest instead of buffering it whole', async () => {
@@ -322,8 +322,8 @@ describe('the manifest body is metered, not just the catalog', () => {
         ok: true,
         status: 200,
         headers: { get: () => null }, // no content-length: the declared check is blind here
-        // A real Response.json() DRAINS the body. Modeling that is the whole
-        // point — a stub that ignores the body cannot tell a metered read from
+        // A real Response.json() drains the body. Modeling that is the whole
+        // point: a stub that ignores the body cannot tell a metered read from
         // an unmetered one, and reports success either way.
         json: async () => {
           const r = body.getReader();
@@ -354,12 +354,12 @@ describe('the manifest body is metered, not just the catalog', () => {
     );
 
     const fetchCatalog = await load();
-    // A failed manifest is not an error — it just means no cache-buster — so the
+    // A failed manifest is not an error (it just means no cache-buster), so the
     // catalog still loads. The point is what it cost to get there.
     await expect(fetchCatalog('motors')).resolves.toEqual([{ designation: 'H128' }]);
 
     // 32 MiB / 4 MiB = 8 chunks, plus the one that trips the limit. Unmetered,
-    // res.json() drained all 200.
+    // res.json() would drain all 200.
     expect(manifestChunksPulled).toBeLessThanOrEqual(10);
   });
 });

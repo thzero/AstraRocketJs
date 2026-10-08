@@ -1,7 +1,7 @@
 import type { ComponentType } from '../engine/openRocketEngine';
 
 /**
- * What KIND of thing each component type is, in one table.
+ * What kind of thing each component type is, in one table.
  *
  * One table, so "is this a chain member / an assembly / a fin set" has one answer.
  * Asked with ad-hoc string tests instead - `type.endsWith('finset')`, a

@@ -19,7 +19,7 @@ import {
   newModelPose,
   type FlightScene,
 } from './flightScene';
-import type { MotorDims } from './schematicGeometry';
+import type { MotorDims } from '../../tree/schematicGeometry';
 import { FlightGroundMap } from './FlightGroundMap';
 import { TILE_SOURCES, type TileSourceId } from '../../services/map/slippyMap';
 import { LAYERS } from '../common/map/mapStyle';
@@ -30,26 +30,24 @@ import { ColorInput } from '../common/ColorInput';
 import { useSceneColors } from './sceneColors';
 
 /**
- * 3D flight path (adapted from Vector Celeste's Flight3D, one better). Draws the
- * REAL trajectory (Px/Py drift × altitude) as a phase-colored arc over a ground
- * plane, with the actual design model flying along it (buildPieces) — sitting on
- * the pad at launch, nose-along-velocity during boost/coast (with a layered motor
- * flame), then hanging under its actual recovery device (parachute sized to its
- * real diameter, or a streamer, or nothing) on descent. Event callouts, a live
- * HUD, and play · scrub · speed transport.
+ * 3D flight path. Draws the real trajectory (Px/Py drift × altitude) as a
+ * phase-colored arc over a ground plane, with the actual design model flying
+ * along it (buildPieces): sitting on the pad at launch, nose-along-velocity
+ * during boost/coast (with a layered motor flame), then hanging under its
+ * actual recovery device (parachute sized to its real diameter, or a streamer,
+ * or nothing) on descent. Event callouts, a live HUD, and play · scrub · speed
+ * transport.
  *
- * Two clocks. The ANIMATION runs inside the canvas (`Playback`, a `useFrame`
+ * Two clocks. The animation runs inside the canvas (`Playback`, a `useFrame`
  * subscriber) and drives the model, flame, recovery device, trail and follow
  * camera by mutating them from `progressRef`, so a frame costs a binary search
  * and a few vector copies. REACT only hears about it at HUD_INTERVAL_MS: the
  * slider, the readouts, the markers and the callouts re-render from the
- * throttled `progress` state. The previous shape called setState from a rAF
- * loop and re-rendered this whole tree - every piece mesh, every callout, a
- * fresh Vector3/Quaternion pair, three new legend callbacks - sixty times a
- * second, and needed a render-time ref cache just to keep the trail geometry
- * from being re-uploaded per frame.
+ * throttled `progress` state. Calling setState from the frame loop instead
+ * would re-render this whole tree (every piece mesh, every callout, the legend
+ * callbacks) sixty times a second.
  */
-const MODEL_LEN = 1.6; // scene units the rocket model is scaled to — kept small vs the ~24u arc; the follow-cam makes it readable
+const MODEL_LEN = 1.6; // scene units the rocket model is scaled to; kept small vs the ~24u arc, the follow-cam makes it readable
 const PLAY_SECONDS = 8; // wall-clock length of a full 1× playback (time-based, so boost isn't slow)
 /** How often the frame loop hands React a progress sample for the HUD/slider. */
 const HUD_INTERVAL_MS = 100;
@@ -59,7 +57,7 @@ const SPEEDS = [0.25, 0.5, 1, 2, 4];
  * How far past the flight's own reach the ground map extends.
  *
  * A margin rather than the whole ground plane: the plane and its grid are a
- * fixed 60 units however far the rocket went, so covering them meant fetching
+ * fixed size however far the rocket went, so covering them can mean fetching
  * imagery for a kilometer of ground either side of a three-hundred-meter
  * flight. Enough that the arc never runs off the edge of the map, and the tile
  * grid's own rounding to whole tiles usually adds most of another one anyway.
@@ -142,7 +140,7 @@ export function FlightPath3D({
   const shownCallouts = useMemo(() => callouts.filter((c) => nowT >= c.time), [callouts, nowT]);
 
   // T-minus countdown before the initial launch: 5→4→3→2→1, then play from
-  // t=0. The launch happens INSIDE the timer callback rather than in a
+  // t=0. The launch happens inside the timer callback rather than in a
   // follow-up effect keyed on `countdown <= 0`, so it is one state commit and
   // there is no intermediate render showing "0".
   useEffect(() => {
@@ -242,10 +240,10 @@ export function FlightPath3D({
           />
         )}
         <gridHelper args={[120, 60, sceneInk['scene-grid'], sceneInk['scene-grid-minor']]} position={[0, 0.02, 0]} />
-        {/* The whole path is uploaded ONCE; the frame loop reveals it segment by
+        {/* The whole path is uploaded once; the frame loop reveals it segment by
             segment through the geometry's instanceCount (a Line2 is instanced,
             one instance per segment), so no buffer is rebuilt during playback.
-            Hidden on mount through the ref, NOT a `visible` prop: drei's Line
+            Hidden on mount through the ref, not a `visible` prop: drei's Line
             spreads its rest props onto the material as well, and a material
             with visible=false is never drawn, whatever the loop later sets on
             the object. */}
@@ -256,16 +254,15 @@ export function FlightPath3D({
 
         {shownCallouts.map((c) => (
           // Keyed by identity, not array index: the filtered list grows as the
-          // flight plays, so index keys remounted every existing callout each
-          // time a new one appeared.
+          // flight plays, and index keys would remount every existing callout
+          // each time a new one appeared.
           <Html
             key={`${c.type}@${c.time}`}
             position={[c.pos.x, c.pos.y, c.pos.z]}
             center
-            // drei's default range starts at 16,777,271, which put every callout
-            // above every dialog in the app (they sit at z-50 to z-70): a
-            // "Burnout" tag drew through the Design Report. Keep the labels
-            // above the canvas and below anything modal.
+            // drei's default range starts at 16,777,271, which puts every
+            // callout above every dialog in the app (they sit at z-50 to z-70).
+            // Keep the labels above the canvas and below anything modal.
             zIndexRange={[10, 0]}
             style={{ pointerEvents: 'none' }}
           >
@@ -602,7 +599,7 @@ const FlyingModel = memo(function FlyingModel({
   );
 });
 
-/** Rocket-blast flame: the cone's POINT sits at the nozzle and it flares WIDE below,
+/** Rocket-blast flame: the cone's POINT sits at the nozzle and it flares wide below,
  *  hottest (white) at the tip, orange out at the flared base. Vertex-colored along the
  *  local +X (trailing) axis so its orientation is fixed by construction. */
 function Flame({ len, r }: { len: number; r: number }) {
@@ -691,9 +688,9 @@ function Streamer({ length, width, color }: { length: number; width: number; col
     return g;
   }, [w, L]);
   // R3F does not dispose geometry it did not construct, and this one is passed
-  // in via the `geometry` prop. Every streamer-equipped design therefore leaked
-  // one GPU buffer per unmount and per w/L change. Flame, CalloutLabel and
-  // buildPieces all dispose; this was the omission.
+  // in via the `geometry` prop, so without this each unmount and each w/L
+  // change would leak one GPU buffer. Flame, CalloutLabel and buildPieces
+  // dispose theirs the same way.
   useEffect(() => () => geo.dispose(), [geo]);
   return (
     <group position={[0, L / 2, 0]}>
@@ -722,7 +719,7 @@ function Hud({ label, value }: { label: string; value: string }) {
   );
 }
 
-/** Legend row that doubles as the phase-color editor — click the swatch to recolor. */
+/** Legend row that doubles as the phase-color editor: click the swatch to recolor. */
 function Legend({ color, label, onChange }: { color: string; label: string; onChange: (c: string) => void }) {
   return (
     <label className="flex cursor-pointer items-center gap-1.5 text-ink-soft" title={label}>

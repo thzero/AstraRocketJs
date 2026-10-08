@@ -49,8 +49,8 @@ describe('stabilityVerdictKey', () => {
 
 /**
  * The on-pad readouts share one band: the stats strip, the info card and the 2D
- * and 3D drawings. A 7-caliber design was green "stable" in the strip and amber
- * over-stable beside it; 0.5 cal was amber in the strip and red in the drawing.
+ * and 3D drawings, so a 7-caliber design is amber over-stable and 0.5 cal is red
+ * in every one of them.
  */
 describe('stabilityToneOf', () => {
   it('colors a margin by its band, as every on-pad readout does', () => {
@@ -85,7 +85,7 @@ describe('clusterEventLabels', () => {
       { time: 34.2, type: 'RECOVERY_DEVICE_DEPLOYMENT' },
     ];
     const out = clusterEventLabels(evts, x);
-    // Apogee absorbs the coincident ejection charge; BOTH deployments survive.
+    // Apogee absorbs the coincident ejection charge; both deployments survive.
     expect(out.map((g) => g.type)).toEqual(['APOGEE', 'RECOVERY_DEVICE_DEPLOYMENT', 'RECOVERY_DEVICE_DEPLOYMENT']);
   });
 

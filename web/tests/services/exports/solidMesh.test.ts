@@ -187,11 +187,10 @@ describe('solid mesher (per component)', () => {
 
   it('returns null for a wall at least as thick as the radius, rather than a solid rod', () => {
     // Reachable from a units slip in a hand-edited .ork (thickness 0.02 against
-    // radius 0.012). `discSolid` falls through to its no-bore branch, so the
-    // part exported as a 24 mm SOLID ROD with nothing able to fit inside it -
-    // a watertight, plausible-looking, completely wrong mesh. The sibling
-    // degenerate cases above are all zero-valued; this one is not, which is why
-    // it slipped past them.
+    // radius 0.012). Without the guard the no-bore branch would export the part
+    // as a 24 mm solid rod with nothing able to fit inside it: a watertight,
+    // plausible-looking, completely wrong mesh. The sibling degenerate cases
+    // above are all zero-valued; this one is not, so they do not cover it.
     const n = (o: object) => solidForNode(o as unknown as ComponentNode);
     expect(n({ type: 'bodytube', length: 0.3, outerRadius: 0.012, thickness: 0.02 })).toBeNull();
     expect(n({ type: 'bodytube', length: 0.3, outerRadius: 0.012, thickness: 0.012 })).toBeNull(); // exactly equal
@@ -201,8 +200,8 @@ describe('solid mesher (per component)', () => {
   });
 
   it('folds a through-the-wall tab into the fin solid, and stays watertight', () => {
-    // The DXF and the 1:1 PDF template both include the tab; the mesh did not,
-    // so a printed fin would not seat in the airframe slot.
+    // The DXF and the 1:1 PDF template both include the tab; a mesh without it
+    // would print a fin that does not seat in the airframe slot.
     const fin = (o: object) => solidForNode(o as unknown as ComponentNode)!;
     const plain = fin({
       type: 'trapezoidfinset',
@@ -233,9 +232,9 @@ describe('solid mesher (per component)', () => {
   });
 
   it('refuses an inverted ring rather than exporting it as a solid disc', () => {
-    // ID >= OD is reachable from a malformed .ork or a bad catalog row. It used
-    // to fall through to the solid-cylinder branch, so a centering ring printed
-    // as a solid disc that blocks the motor tube — with nothing said.
+    // ID >= OD is reachable from a malformed .ork or a bad catalog row. Falling
+    // through to the solid-cylinder branch would print a centering ring as a
+    // solid disc that blocks the motor tube, with nothing said.
     expect(discSolid(0.012, 0.012, 0.003)).toBeNull();
     expect(discSolid(0.012, 0.02, 0.003)).toBeNull();
   });
@@ -284,7 +283,7 @@ describe('solid mesher (per component)', () => {
       } as unknown as ComponentNode,
     ];
     for (const t of tubes) expect(minRadius(solidForNode(t)!)).toBeGreaterThan(0.001); // has a bore
-    // A nose is a solid body — it reaches the axis.
+    // A nose is a solid body: it reaches the axis.
     expect(
       minRadius(
         solidForNode({ type: 'nosecone', shape: 'ogive', length: 0.1, aftRadius: 0.013 } as unknown as ComponentNode)!,
@@ -305,7 +304,7 @@ const geom = (pos: number[], idx: number[]) => {
 
 describe('makeWatertight keeps its contract or fails', () => {
   it('still caps an ordinary open loop', () => {
-    // One triangle: a closed three-edge boundary, capped as it always was.
+    // One triangle: a closed three-edge boundary, capped as usual.
     expect(countBoundaryEdges(makeWatertight(geom([0, 0, 0, 1, 0, 0, 0, 1, 0], [0, 1, 2])))).toBe(0);
   });
 
@@ -318,8 +317,8 @@ describe('makeWatertight keeps its contract or fails', () => {
   });
 
   it('throws on a non-manifold edge rather than returning it as watertight', () => {
-    // Three triangles sharing ONE edge. Fan-capping cannot fix an edge used three
-    // times, and the walk never sees it (it is not a BOUNDARY edge, it is an
+    // Three triangles sharing one edge. Fan-capping cannot fix an edge used three
+    // times, and the walk never sees it (it is not a boundary edge, it is an
     // over-used one), so capping what can be capped returns a geometry with seven
     // bad edges that meshExport would label watertight and write into an STL.
     const fan = geom([0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -1, 0, 0, 0, 1], [0, 1, 2, 0, 1, 3, 0, 1, 4]);
@@ -380,9 +379,9 @@ describe('isSimplePolygon', () => {
 
 describe('a self-crossing freeform fin is not exportable', () => {
   // Root chord = last.x − first.x = 0.06, so this clears the existing
-  // degenerate-geometry gate and reaches the crossing check — the point being
-  // tested. (An earlier draft of this fixture had first.x === last.x, making
-  // the root 0, so it was rejected for being degenerate and proved nothing.)
+  // degenerate-geometry gate and reaches the crossing check, which is the point
+  // being tested. With first.x === last.x the root would be 0, and the fixture
+  // would be rejected as degenerate and prove nothing.
   const crossed = [
     [0, 0],
     [0.06, 0.04],
@@ -409,13 +408,12 @@ describe('a self-crossing freeform fin is not exportable', () => {
 });
 
 /**
- * The validation choke point, and the two paths that used to go round it.
+ * The validation choke point for discs and rings.
  *
- * `solidForNode`'s comment claimed every printable solid left through it. Two
- * did not: the per-component export and the print sheet both resolved a
- * disc/ring themselves and called `discSolid` raw, so centering rings,
- * bulkheads, couplers and engine blocks were the four part types with no
- * validation at all.
+ * The per-component export and the print sheet both resolve a disc/ring
+ * themselves, so they go through `discSolidForNode` rather than `discSolid` raw;
+ * otherwise centering rings, bulkheads, couplers and engine blocks would leave
+ * with no validation at all.
  */
 describe('discSolidForNode applies the same validation as solidForNode', () => {
   it('builds an ordinary ring', () => {
@@ -423,25 +421,24 @@ describe('discSolidForNode applies the same validation as solidForNode', () => {
   });
 
   it('refuses a zero outer radius instead of a zero-triangle solid', () => {
-    // The shape of the bug: four on-axis points, `dropDegenerate` removes every
-    // triangle, and `makeWatertight` returns early on `boundaryEdges === 0`
-    // before its own throw. The STL then downloads with no geometry in it and
-    // the export reports success.
+    // Four on-axis points: `dropDegenerate` removes every triangle, and
+    // `makeWatertight` returns early on `boundaryEdges === 0` before its own
+    // throw. Without the check the STL would download with no geometry in it
+    // and the export would report success.
     expect(discSolidForNode(0, 0, 0.003)).toBeNull();
   });
 
   it('refuses a non-positive outer radius, inverted winding and all', () => {
-    // A negative radius lathes an INSIDE-OUT solid, and `validateSolid` cannot
-    // see that: its orientation check counts directed edges, which a
-    // consistently reversed winding satisfies. So the dimension is refused
-    // where it is read.
+    // A negative radius lathes an inside-out solid. The dimension is refused
+    // where it is read, before any mesh is built, rather than left to the
+    // mesh checks.
     expect(discSolid(-0.012, 0, 0.003)).toBeNull();
     expect(discSolidForNode(-0.012, 0, 0.003)).toBeNull();
     expect(discSolidForNode(0, 0, 0.003)).toBeNull();
   });
 
   it('substitutes a nominal length for a missing one, on purpose', () => {
-    // NOT a degenerate case: `discSolid` reads a length at or below 1e-6 as
+    // Not a degenerate case: `discSolid` reads a length at or below 1e-6 as
     // "not stated" and uses 2 mm, so a ring whose length the file omitted is
     // still exportable. Pinned so the guard above is not later widened into
     // refusing it.
@@ -459,8 +456,8 @@ describe('discSolidForNode applies the same validation as solidForNode', () => {
 /**
  * A nose cone, body tube or transition with no `length` key is laid out at the
  * kernel's length for its type (ComponentFactory: nose 70 mm, body 300 mm,
- * transition 50 mm), not at zero. Zero drew the part as nothing while the
- * engine flew it full length. An explicit 0 (the phantom tube a T-tail hangs
+ * transition 50 mm), not at zero. Zero would draw the part as nothing while the
+ * engine flies it full length. An explicit 0 (the phantom tube a T-tail hangs
  * from) is still 0.
  */
 describe('a keyless chain part as a printable solid', () => {

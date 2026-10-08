@@ -25,13 +25,11 @@ const columnColors = (page: Page, table: number, header: string) =>
 
 /**
  * The "By heat" palette is OpenRocket's own formula, and it is anchored to an
- * ABSOLUTE Cd scale that reaches full red at 1.5. That is meaningful for drag
+ * absolute Cd scale that reaches full red at 1.5. That is meaningful for drag
  * and meaningless for anything else: CNalpha runs to 15 or 20 per radian, so
  * every row would clamp to the same red and the column would say nothing.
  *
- * So the stability table does not pass the style through for CNalpha. Note that
- * `heatStyle === 'openrocket' ? 'openrocket' : 'sky'` is not a guard: HeatStyle has
- * exactly two members, so it is an identity expression.
+ * So under "By heat" the stability table leaves the CNalpha column unshaded.
  */
 test.describe('aero table shading', () => {
   test('Cd is shaded on the OpenRocket scale, CNalpha is not', async ({ page }) => {
@@ -44,7 +42,7 @@ test.describe('aero table shading', () => {
     const cd = (await columnColors(page, 0, 'Cd')).filter(Boolean);
     expect(cd.length).toBeGreaterThan(0);
 
-    // CNalpha is not, so it carries no inline color at all — the same call the
+    // CNalpha is not, so it carries no inline color at all: the same call the
     // roll table makes, and the same one the desktop makes by only coloring
     // its drag tab.
     const cna = (await columnColors(page, 1, 'CNα')).filter(Boolean);
@@ -60,7 +58,7 @@ test.describe('aero table shading', () => {
     const cna = (await columnColors(page, 1, 'CNα')).filter(Boolean);
     expect(cna.length).toBeGreaterThan(1);
     // The point of shading: different magnitudes must look different. Under the
-    // absolute-Cd ramp every one of these clamped to the same full red.
+    // absolute-Cd ramp every one of these would clamp to the same full red.
     expect(new Set(cna).size).toBeGreaterThan(1);
   });
 });

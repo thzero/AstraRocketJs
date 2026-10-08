@@ -3,15 +3,15 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 /**
- * The five surfaces whose async callbacks could land on the wrong rows, each
- * checked for the guard.
+ * The surfaces whose async callbacks could land on the wrong rows, each checked
+ * for the guard.
  *
  * Source-level, and node-env rather than jsdom for the same reason
- * `simBounds.test.ts` is: the failure is an ABSENT guard, and a render test that
+ * `simBounds.test.ts` is: the failure is an absent guard, and a render test that
  * does not know to simulate a slow resolve passes either way. Each of these
- * awaits something the user can outlive - a file read, a browser permission
- * prompt, an IndexedDB round trip - and then calls an `onChange` that writes to
- * whatever rows are the CURRENT edit targets.
+ * awaits something the user can outlive (a file read, a browser permission
+ * prompt, an IndexedDB round trip) and then calls an `onChange` that writes to
+ * whatever rows are the current edit targets.
  *
  * `useLatest.test.tsx` covers the hook itself.
  */

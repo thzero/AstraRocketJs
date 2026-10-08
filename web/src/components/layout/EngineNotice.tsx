@@ -6,13 +6,12 @@ import { fmtMb } from '../../i18n/format';
  * The banner that stands in for the numbers while the physics kernel is not
  * there yet.
  *
- * It replaces the pre-React boot splash, which could only ever be shown by NOT
- * mounting the app (see main.tsx). Saying the same thing from inside the app
- * costs nothing and leaves everything that needs no kernel usable while it
+ * It is shown from inside the mounted app rather than by holding the mount back
+ * (see main.tsx), which leaves everything that needs no kernel usable while it
  * loads: the tree, the drawing, the library, import and export.
  *
  * Two states, and the difference matters. A load that is merely slow reports
- * bytes and will finish. A load that has STALLED reports nothing at all and
+ * bytes and will finish. A load that has stalled reports nothing at all and
  * never finishes - no error, no progress, no end - so after
  * `engineStore.SLOW_AFTER_MS` the banner stops pretending to wait and offers
  * the retry, which is the only thing that can recover it short of a reload.
@@ -28,8 +27,8 @@ export function EngineNotice() {
 
   const stuck = phase === 'failed' || slow;
 
-  // The step, in the words the boot splash used: they are already translated and
-  // they already say the right thing.
+  // The step, in the `boot.*` strings: already translated, and they say the
+  // right thing.
   const step = () => {
     if (!status) return t('boot.downloading');
     if (status.phase === 'starting') return t('boot.starting');

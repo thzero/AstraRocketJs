@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import type { RocketTree } from '../../engine/openRocketEngine';
 import type { PartPalette } from '../../services/design/partColors';
-import type { MotorDims } from './schematicGeometry';
+import type { MotorDims } from '../../tree/schematicGeometry';
 import { buildPieces } from './rocketPieces';
 
 /**

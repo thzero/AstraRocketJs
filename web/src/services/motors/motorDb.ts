@@ -1,11 +1,11 @@
-// The motor CATALOG — brought in by the VC-style build-time sync utility
+// The motor catalog, produced by the build-time sync utility
 // (scripts/sync-motors.mjs), which sweeps thrustcurve.org for every available,
 // license-clean motor and ships the factual specs plus, where one is
 // published, the bundled thrust curve (`curves`). A motor without one has its
 // curve fetched on demand at pick time (see thrustcurve.ts).
 //
 // The catalog is a runtime file fetched through remoteData.ts and memoized for
-// the session. There is NO localStorage mirror of it: a catalog-with-curves is
+// the session. There is no localStorage mirror of it: a catalog-with-curves is
 // too large for that budget, and the bundle is always available offline.
 import { getMotorStore, type CustomMotor } from './motorStore';
 import { MIN_CURVE_SAMPLES } from './motorCurve';
@@ -14,8 +14,10 @@ import { parseRse } from './rseParser';
 import { motorFitsMount, offersPlugged, type MountFit } from './motorPicker';
 import { fetchCatalog } from '../app/remoteData';
 import { PLUGGED_DELAY } from '../../engine/openRocketEngine';
+import { keyOf } from './motorKey';
+import { errorMessage } from '../app/errorMessage';
 
-/** One catalog row — the VC sync utility's schema, plus optional custom-motor tags. */
+/** One catalog row: the sync utility's schema, plus optional custom-motor tags. */
 export interface CatalogMotor {
   /** commonName || designation (thrustcurve). */
   designation: string;
@@ -34,12 +36,13 @@ export interface CatalogMotor {
   /** Set for user-imported motors; carries the CustomMotor id so it resolves locally. */
   custom?: boolean;
   id?: string;
-  /** Bundled thrust curve (from the build-time sync) — lets the motor resolve
-   *  entirely offline, no thrustcurve.org fetch. Absent → fetched on demand. */
+  /** Length and propellant weight, which together with a bundled curve let the
+   *  motor resolve entirely offline, with no thrustcurve.org fetch. */
   length?: number; // mm
   propWeightG?: number; // g
-  /** Thrust curves, best-first (a motor can have several — cert/user, RASP/RockSim).
-   *  Each `samples` is [time (s), thrust (N)] pairs. */
+  /** Bundled thrust curves from the build-time sync, best-first (a motor can have
+   *  several: cert/user, RASP/RockSim). Each `samples` is [time (s), thrust (N)]
+   *  pairs. Absent → fetched on demand. */
   curves?: { src: string; samples: [number, number][] }[];
   // Descriptive metadata for the detail panel (bundled by sync-motors.mjs).
   code?: string; // full manufacturer designation, e.g. "E26W"
@@ -61,15 +64,15 @@ export interface CatalogMotor {
    * `npm run sync:motor-digests`.
    *
    * A `.ork` identifies a motor by manufacturer, designation, diameter and
-   * length, and the desktop's database holds SEVERAL entries behind one of
+   * length, and the desktop's database holds several entries behind one of
    * those names (Estes C6 is a plugged one and a delayed one). With nothing to
    * choose between them it takes the first and warns that it did. The digest is
    * the only field that names which, which is why `<digest>` goes into every
    * `<motor>` block we write - see `catalogDigest`.
    */
   digests?: { digest: string; delays: (number | 'P')[] }[];
-  /** CG-vs-time as [[t (s), cgFromNose (m)]], read from the motor file (RockSim)
-   *  — the real CG OpenRocket uses. Launch CG = cg[0][1]. Absent → the motor
+  /** CG-vs-time as [[t (s), cgFromNose (m)]], read from the motor file (RockSim):
+   *  the real CG OpenRocket uses. Launch CG = cg[0][1]. Absent → the motor
    *  build falls back to mid-length (same as OpenRocket for RASP-only data). */
   cg?: [number, number][];
 }
@@ -123,12 +126,11 @@ function customToRow(cm: CustomMotor): CatalogMotor {
 /**
  * A catalog row this app can actually use.
  *
- * `Array.isArray` alone was the whole check, and the catalog can come from a
- * separately deployed host (VITE_DATA_BASE / the jsDelivr data branch). One
- * row missing `class` then threw inside `allClasses`' `localeCompare`, and one
- * missing `designation` threw in `filterMotors`' `toLowerCase` - taking down
- * the entire motor picker rather than that one entry. `motorStore` already
- * guards custom motors exactly this way.
+ * The catalog can come from a separately deployed host (VITE_DATA_BASE / the
+ * jsDelivr data branch), so each row is checked. A row missing `class` throws
+ * inside `allClasses`' `localeCompare`, and one missing `designation` throws in
+ * `filterMotors`' `toLowerCase`, taking down the entire motor picker rather than
+ * that one entry. `motorStore` guards custom motors the same way.
  */
 const isCatalogMotor = (v: unknown): v is CatalogMotor => {
   const m = v as CatalogMotor | null;
@@ -146,10 +148,10 @@ const isCatalogMotor = (v: unknown): v is CatalogMotor => {
 /**
  * A usable catalog: an array with at least one usable row.
  *
- * `every` here made one malformed row reject the WHOLE catalog (and fall
- * through to the in-build copy, or to an empty picker), which is the outcome
- * row-by-row validation exists to avoid. The gate only decides whether this
- * host's copy is worth anything at all; the bad rows are dropped in
+ * `some`, not `every`: with `every`, one malformed row would reject the whole
+ * catalog (and fall through to the in-build copy, or to an empty picker), which
+ * is the outcome row-by-row validation exists to avoid. The gate only decides
+ * whether this host's copy is worth anything at all; the bad rows are dropped in
  * `loadCatalog` and the rest are kept.
  */
 const isCatalog = (v: unknown): boolean => Array.isArray(v) && v.some(isCatalogMotor);
@@ -157,7 +159,7 @@ const isCatalog = (v: unknown): boolean => Array.isArray(v) && v.some(isCatalogM
 export async function loadCatalog(): Promise<CatalogMotor[]> {
   // The 700 kB+ catalog is a runtime file under public/data (see remoteData.ts),
   // fetched only when something first needs it (e.g. the motor picker opens)
-  // rather than weighing down the initial app bundle — and refreshable without
+  // rather than weighing down the initial app bundle, and refreshable without
   // rebuilding the app.
   const [custom, bundled] = await Promise.all([
     getMotorStore()
@@ -173,7 +175,7 @@ export async function loadCatalog(): Promise<CatalogMotor[]> {
 /**
  * Parse a motor file, store what it holds, and return the refreshed catalog.
  *
- * The format is chosen from the file's BYTES rather than its extension, the
+ * The format is chosen from the file's bytes rather than its extension, the
  * way `designFile.ts` picks between `.ork` and `.rkt`: a `.rse` arrives named
  * `.rse`, `.rse.xml` or occasionally `.eng` from a site that guessed, and the
  * one thing that never lies is whether the text is XML.
@@ -190,20 +192,20 @@ export async function importCustomMotors(
   // stopping the rest.
   const motors: ReturnType<typeof parseEng>[] = [];
   const failed: string[] = [];
-  let firstError: unknown = null;
+  let firstError: Error | null = null;
   for (const { name, text } of files) {
     try {
       motors.push(...(text.trimStart().startsWith('<') ? parseRse(text) : [parseEng(text)]));
     } catch (err) {
       failed.push(name);
-      firstError ??= err;
+      firstError ??= err instanceof Error ? err : new Error(errorMessage(err));
     }
   }
   // Nothing read at all: the parser's own message says what is wrong with it.
   if (motors.length === 0 && firstError) throw firstError;
-  // ONE write for every file. A `.rse` engine database is a manufacturer's
-  // entire range, and a write per motor re-parsed the stored array every time and
-  // could stop half way with no way to say where.
+  // One write for every file. A `.rse` engine database is a manufacturer's
+  // entire range, and a write per motor would re-parse the stored array every
+  // time and could stop half way with no way to say where.
   await getMotorStore().addCustomMotors(motors);
   return { catalog: await loadCatalog(), imported: motors.length, failed };
 }
@@ -227,7 +229,7 @@ export interface MotorFilter {
   /**
    * Total impulse range (N·s), inclusive. Undefined ends = open.
    *
-   * Not the same question as the impulse CLASS above, which is why both exist: a
+   * Not the same question as the impulse class above, which is why both exist: a
    * class is a doubling bucket, so H spans 160 to 320 N·s, and "at least 400 N·s"
    * is a number that comes out of a design rather than a letter you can pick.
    */
@@ -237,7 +239,7 @@ export interface MotorFilter {
   fit?: MountFit;
   /**
    * Keep only motors the manufacturer lists as available plugged. What the spec
-   * says rather than what is possible: any motor can be FLOWN plugged (see
+   * says rather than what is possible: any motor can be flown plugged (see
    * offersPlugged), so this finds the ones built without an ejection charge.
    */
   plugged?: boolean;
@@ -259,8 +261,7 @@ export function filterMotors(catalog: CatalogMotor[], filter: MotorFilter): Cata
     if (filter.fit && !motorFitsMount(m, filter.fit)) return false;
     if (filter.plugged && !offersPlugged(m)) return false;
     if (filter.hideOop && m.oop) return false;
-    if (filter.hide && filter.hide.has(`${m.manufacturer}|${m.designation}|${m.diameter}|${m.code ?? ''}`))
-      return false;
+    if (filter.hide && filter.hide.has(keyOf(m))) return false;
     if (text && !m.designation.toLowerCase().includes(text)) return false;
     return true;
   });
@@ -276,19 +277,6 @@ export function allManufacturers(catalog: CatalogMotor[]): string[] {
   return [...new Set(catalog.map((m) => m.manufacturer))].sort((a, b) => a.localeCompare(b));
 }
 
-/**
- * Best catalog match for a designation from a .ork file (which names a motor but
- * carries no curve). A .ork stores the FULL manufacturer designation — AeroTech
- * "H128W" (propellant letter), Cesaroni "131G84-10A" (case + delay) — while our
- * catalog keys the SHORT name ("H128", "G84") and stashes the full one in `code`.
- * So we match, progressively looser, against both `designation` and `code`:
- *   1) exact designation           2) exact code (the full name)
- *   3) normalized either (ignore -/space)
- *   4) strip a trailing -VARIANT (…-OLD / …-10A) and/or a trailing propellant
- *      letter, then retry — this is what resolves "J350W-OLD" → "J350"/"J350W".
- * The requested manufacturer breaks ties within each tier (AeroTech vs Cesaroni
- * "I180"). Returns undefined if nothing matches at all.
- */
 /**
  * Why a motor is not simply the one the file named.
  *
@@ -306,14 +294,25 @@ export interface MotorMatch {
 }
 
 /**
- * The motor a name resolves to, AND how sure that is.
+ * The catalog motor a design file's designation resolves to, and how sure that is.
  *
- * The tiers below run from "this is the name" to "this is what the name looks
- * like with the impulse and the propellant taken off", and the manufacturer is
- * a preference rather than a filter, so a file naming a maker we carry no
- * motors for still gets somebody's motor. Every one of those is a real match
- * worth making and none of them is certain, and the caller was told none of it:
- * an `I170-P` filed under Kosdon loaded Cesaroni's I170 in silence.
+ * A file stores the full manufacturer designation (AeroTech "H128W" with its
+ * propellant letter, Cesaroni "131G84-10A" with case and delay) while the
+ * catalog keys the short name ("H128", "G84") and keeps the full one in `code`.
+ * So the match runs, progressively looser, against both `designation` and `code`:
+ *   1) exact designation           2) exact code (the full name)
+ *   3) normalized either (ignore -/space)
+ *   4) strip trailing -VARIANT segments (…-OLD / …-10A), a leading impulse
+ *      number and/or a trailing propellant letter, then retry. This is what
+ *      resolves "J350W-OLD" → "J350"/"J350W".
+ * The requested manufacturer breaks ties within each tier (AeroTech vs Cesaroni
+ * "I180"). Returns undefined if nothing matches at all.
+ *
+ * The manufacturer is a preference rather than a filter, so a file naming a
+ * maker we carry no motors for still gets somebody's motor. Every tier is a
+ * real match worth making and none of them is certain, so the result carries a
+ * `doubt`: without it, an `I170-P` filed under Kosdon would load Cesaroni's I170
+ * with no notice.
  *
  * `findCatalogMotor` is this without the doubt, for the callers that only want
  * the row.
@@ -340,10 +339,10 @@ export function matchCatalogMotor(
   // `H128W-OLD` → base `H128W` (drop one trailing -/_ suffix) → bare `H128`
   // (drop trailing propellant letters). Both are retried against designation+code.
   //
-  // One SEGMENT AT A TIME rather than one pass, because a file can carry
+  // One segment at a time rather than one pass, because a file can carry
   // several: RockSim writes a Cesaroni motor as `26-E31-WH-15A`, where the
   // catalog holds `E31` and its own code is `26E31-15A`, so stopping after one
-  // left `26-E31-WH` and matched nothing. Every candidate has to keep a letter,
+  // would leave `26-E31-WH`, which matches nothing. Every candidate has to keep a letter,
   // so a name is never worn down to a bare number that could match another
   // motor by its digits.
   const shrink = (name: string): string[] => {
@@ -357,7 +356,7 @@ export function matchCatalogMotor(
   // `206J530-IM` → `J530-IM`, `26-E31-WH-15A` → `E31-WH-15A`. RockSim writes a
   // Cesaroni motor with its total impulse in front of the name, hyphenated or
   // not, where the catalog holds the name on its own and the file's number is
-  // not always the one our row's code carries. Only read past when a LETTER
+  // not always the one our row's code carries. Only read past when a letter
   // follows it, so a designation that really begins with digits ("1/2A6", a
   // bare part number) is left alone.
   const noImpulse = raw.replace(/^\d+[-_]?(?=[A-Za-z])/, '');
@@ -371,7 +370,7 @@ export function matchCatalogMotor(
     () => catalog.filter((m) => norm(m.designation) === norm(raw) || norm(m.code ?? '') === norm(raw)),
     () => catalog.filter((m) => stripped.some((s) => m.designation.toLowerCase() === s || code(m) === s)),
   ];
-  // The LAST tier is the shortened one: everything above it matched the name as
+  // The last tier is the shortened one: everything above it matched the name as
   // the file wrote it, give or take spaces and dashes.
   const shortenedTier = tiers.length - 1;
   for (let i = 0; i < tiers.length; i++) {

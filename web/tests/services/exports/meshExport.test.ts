@@ -5,7 +5,7 @@ import type { ComponentNode } from '../../../src/engine/openRocketEngine';
 import { solidForNode } from '../../../src/services/exports/solidMesh';
 import { solidToObj, solidToStl, solidToGlb } from '../../../src/services/exports/meshExport';
 
-// A single nose cone's watertight solid, in meters — the mesh exporters scale it.
+// A single nose cone's watertight solid, in meters: the mesh exporters scale it.
 const nose = solidForNode({
   type: 'nosecone',
   shape: 'ogive',
@@ -55,7 +55,7 @@ describe('component mesh export', () => {
     let holes = 0;
     for (const c of edges.values()) if (c === 1) holes++;
     expect(holes).toBe(0);
-    // A 0.1 m nose lies along the X axis — must export at ~100 mm (meter-bug guard).
+    // A 0.1 m nose lies along the X axis: it must export at ~100 mm, not 0.1.
     expect(maxX - minX).toBeGreaterThan(50);
   });
 

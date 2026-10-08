@@ -9,12 +9,12 @@ import { AlertDialog } from '../common/AlertDialog';
  * persisted as `wipAcknowledged` in the app settings store, so it survives
  * reloads and rides along with the rest of the user's preferences.
  *
- * It must be ACKNOWLEDGED: no Cancel, no Escape, no outside click. That is the
+ * It must be acknowledged: no Cancel, no Escape, no outside click. That is the
  * whole of the difference from the confirmation prompt it shares its shell with,
  * and in {@link AlertDialog} it is spelled as having no `onCancel` at all rather
  * than as three separate things this component remembers not to do.
  *
- * It sits a layer BELOW the confirmation, so a confirmation raised while it is up
+ * It sits a layer below the confirmation, so a confirmation raised while it is up
  * would still be reachable. Nothing raises one there today; the ordering is free
  * and the alternative is a notice that can be buried.
  */

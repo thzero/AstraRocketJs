@@ -8,10 +8,10 @@ import type { PickerType } from '../../../src/services/parts/componentDb';
 import type { FitContext } from '../../../src/services/parts/componentFilter';
 
 /**
- * The picker over the REAL catalog (`serveData`), because every complaint it is
- * answering is about volume: 1088 body tubes in one narrow column, 237 couplers
- * with no way to ask which of them fit the tube you are holding. A test against
- * six invented rows would not have caught any of it.
+ * The picker over the real catalog (`serveData`), because what it has to handle
+ * is volume: 1088 body tubes in one narrow column, 237 couplers with no way to
+ * ask which of them fit the tube you are holding. A test against six invented
+ * rows would not exercise any of it.
  */
 
 /** A Public Missiles 2.1" airframe tube: 54.66 mm OD, 51.51 mm bore. */
@@ -22,7 +22,7 @@ const open = async (type: PickerType, fit?: FitContext, current?: string) => {
   const { container, unmount } = renderWithProviders(
     <ComponentPicker type={type} fit={fit} current={current} onApply={onApply} />,
   );
-  // Scoped to THIS render: opening a second picker without unmounting the first
+  // Scoped to this render: opening a second picker without unmounting the first
   // would otherwise find both trigger buttons.
   const button = await waitFor(() => {
     const b = within(container).getByRole('button') as HTMLButtonElement;
@@ -76,8 +76,8 @@ describe('ComponentPicker', () => {
 
   it('gives each type the columns that identify it', async () => {
     // A ring's `length` is a thickness, a parachute has no length at all, and a
-    // nose cone's shape is part of its identity. One shared column set meant the
-    // picker showed a blank or a mislabeled cell for each of those.
+    // nose cone's shape is part of its identity. One shared column set would show
+    // a blank or a mislabeled cell for each of those.
     const ring = await open('centeringring');
     expect(headers(ring.dialog)).toContain('Thickness (mm)');
     expect(headers(ring.dialog)).toContain('ID (mm)');
@@ -107,7 +107,7 @@ describe('ComponentPicker', () => {
     });
 
     it('reports the true match count and says when it is holding rows back', async () => {
-      // 1088 body tubes, 200 rendered. The footer reports the MATCH count, not the
+      // 1088 body tubes, 200 rendered. The footer reports the match count, not the
       // cap, which would read as though the catalog held 200 parts.
       const { dialog } = await open('bodytube');
       expect(rows(dialog).length).toBe(200);
@@ -206,7 +206,7 @@ describe('ComponentPicker', () => {
       expect(families).toContain('Fiberglass');
       expect(families.length).toBeLessThan(10);
       fireEvent.change(select, { target: { value: 'Fiberglass' } });
-      // The column still shows the RAW name, because G10 and G12 are not the
+      // The column still shows the raw name, because G10 and G12 are not the
       // same material to build with even though the filter groups them.
       for (const r of rows(dialog)) expect(r[5]).toContain('Fiberglass');
     });
@@ -293,13 +293,13 @@ describe('ComponentPicker', () => {
   describe('an inner tube', () => {
     it('can be picked at all, from the body tube rows', async () => {
       // The catalog has no inner-tube type, and neither does OpenRocket: an inner
-      // tube IS a body tube dimensionally, and 51 of those rows are motor mounts.
+      // tube is a body tube dimensionally, and 51 of those rows are motor mounts.
       const { dialog, onApply } = await open('innertube');
       expect(headers(dialog)).toEqual(['Mfr.', 'Part no.', 'OD (mm)', 'ID (mm)', 'Length (mm)', 'Material', 'Notes']);
       fireEvent.change(within(dialog).getByLabelText(/Search parts/), { target: { value: 'mmt' } });
       expect(rows(dialog).length).toBeGreaterThan(10);
       fireEvent.click(dialog.querySelector('tbody tr')!);
-      // A body tube ROW, which is what catalogPatch already knows how to apply.
+      // A body tube row, which is what catalogPatch already knows how to apply.
       expect(onApply.mock.calls[0]![0]).toMatchObject({ type: 'bodytube' });
     });
 
@@ -323,7 +323,7 @@ describe('ComponentPicker', () => {
 
     it('sorts a parachute by drag coefficient', async () => {
       const { dialog } = await open('parachute');
-      // A heading that is a BUTTON: the column is sortable, not just labeled.
+      // A heading that is a button: the column is sortable, not just labeled.
       fireEvent.click(head(dialog, 'Drag coeff'));
       const th = [...dialog.querySelectorAll('thead th')].find((h) => h.textContent!.includes('Drag coeff'))!;
       expect(th.getAttribute('aria-sort')).toBe('ascending');
@@ -331,8 +331,8 @@ describe('ComponentPicker', () => {
   });
 
   it('marks a drag coefficient the catalog did not publish as a default', async () => {
-    // Every parachute the catalog ships omits its Cd, so a bare "0.80" read as a
-    // manufacturer spec. It is still shown, because it is what picking applies.
+    // Every parachute the catalog ships omits its Cd, so a bare "0.80" would read
+    // as a manufacturer spec. It is still shown, because it is what picking applies.
     const { dialog } = await open('parachute');
     const cds = rows(dialog).map((r) => r[3]);
     expect(cds.every((c) => c === '(0.80)')).toBe(true);
@@ -355,9 +355,9 @@ describe('ComponentPicker', () => {
   });
 
   it('holds its column widths still while you type', async () => {
-    // The complaint this fixes: with the browser's default auto layout the
-    // widths came from whichever rows were rendered, so every keystroke relaid
-    // the table out and the columns jumped.
+    // With the browser's default auto layout the widths come from whichever rows
+    // are rendered, so every keystroke would relay the table out and the columns
+    // would jump.
     const { dialog } = await open('bodytube');
     const table = dialog.querySelector('table')!;
     expect(table.className).toContain('table-fixed');
@@ -403,8 +403,8 @@ describe('ComponentPicker', () => {
 
 describe('the part this component already is', () => {
   it('marks the linked row rather than leaving it in the pile', async () => {
-    // The complaint this answers: a component built from a catalog part opened a
-    // list of a thousand rows with nothing to say which one it came from.
+    // A component built from a catalog part opens a list of a thousand rows, so
+    // the row it came from has to be marked.
     const { dialog, unmount } = await open('bodytube', undefined, 'BT-50, 30352');
     const marked = [...dialog.querySelectorAll('tbody tr[aria-current="true"]')];
     expect(marked).toHaveLength(1);

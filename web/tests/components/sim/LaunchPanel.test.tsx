@@ -35,11 +35,11 @@ afterEach(() => {
 /**
  * The geolocation refusal is announced.
  *
- * `{locateErr && <p role="status">...}` mounted the live region together with
- * its text, and a region that does not exist before its content is inserted
- * is not announced by most screen readers: the same defect UpdateToast had.
- * The region has to be there, empty, from the first render, and be the SAME
- * element once the message lands.
+ * A region that does not exist before its content is inserted is not announced
+ * by most screen readers, so mounting the live region together with its text
+ * (`{locateErr && <p role="status">...}`) would announce nothing; UpdateToast
+ * has the same constraint. The region has to be there, empty, from the first
+ * render, and be the same element once the message lands.
  */
 describe('the geolocation status region', () => {
   it('is mounted and empty before anything has been said', () => {
@@ -64,9 +64,8 @@ describe('the geolocation status region', () => {
 });
 
 /**
- * Site altitude and pressure were the two QNums without a range while the
- * comment beside temperature claimed all three were bounded. Both go straight
- * to the kernel's atmosphere model. Bounds are given in SI and shown in the
+ * Site altitude, pressure and temperature are all bounded, because they go
+ * straight to the kernel's atmosphere model. Bounds are given in SI and shown in the
  * field's unit; the app default is metric, so meters and hPa here.
  */
 describe('launch site bounds', () => {
@@ -88,8 +87,9 @@ describe('launch site bounds', () => {
     const onChange = vi.fn();
     renderWithProviders(<LaunchPanel launch={LAUNCH} onChange={onChange} />);
     const input = screen.getByLabelText('Temperature') as HTMLInputElement;
-    // Written as -90 and 70 in a slot that reads KELVIN, these were -363 and
-    // -203 degrees C, so every entry above -203 degrees C was clamped to it.
+    // The bounds are SI: written as -90 and 70 in a slot that reads kelvin they
+    // would be -363 and -203 degrees C, and every entry above -203 degrees C
+    // would be clamped to it.
     expect(Number(input.min)).toBeCloseTo(-90, 9);
     expect(Number(input.max)).toBeCloseTo(70, 9);
     fireEvent.change(input, { target: { value: '30' } });
@@ -105,9 +105,9 @@ describe('launch site bounds', () => {
 });
 
 /**
- * The two direction fields display 90 when unset, so clearing one wrote 0:
- * a real heading (north), silently replacing the east the blank stood for.
- * Like `longitudeDeg`, an emptied box goes back to unset.
+ * The two direction fields display 90 when unset, so clearing one must not write
+ * 0: that is a real heading (north), and would silently replace the east the
+ * blank stood for. Like `longitudeDeg`, an emptied box goes back to unset.
  */
 describe('direction fields', () => {
   it('clear to unset rather than to 0', () => {

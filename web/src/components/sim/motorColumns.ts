@@ -17,21 +17,19 @@ import { readLocalJson, writeLocalJson } from '../../services/storage/localPref'
 /** Format a numeric cell to `d` decimals, or a dash when absent / non-finite. */
 const fmtCell = (v: number | undefined, d: number) => (v != null && Number.isFinite(v) ? fmtNum(v, d) : '—');
 
-/** Sortable numeric that sinks unknowns to the bottom on ascending sort. */
-const sortNum = (v: number) => (Number.isFinite(v) ? v : -1);
-
 export interface Col {
   id: string;
   label: string; // i18n suffix under `dash.*`
   align: 'left' | 'center' | 'right';
   always?: boolean;
   cell: (m: CatalogMotor, u: Units) => string;
-  sortVal?: (m: CatalogMotor) => number | string; // omit → not sortable
+  /** Sort key; omit for a column that does not sort. NaN or '' means unknown, which sorts last. */
+  sortVal?: (m: CatalogMotor) => number | string;
   /**
    * Preference group for the column's unit. The header appends its symbol, so
-   * the labels stay unitless; a column with a FIXED unit (seconds, a percent)
+   * the labels stay unitless; a column with a fixed unit (seconds, a percent)
    * keeps it in the label instead. `siScale` lifts the catalog's own units
-   * (mm / g — see CatalogMotor) to SI first.
+   * (mm / g, see CatalogMotor) to SI first.
    */
   quantity?: Quantity;
   siScale?: number;
@@ -41,7 +39,7 @@ export interface Col {
 export const heading = (c: Col, t: TFunction, u: Units): string =>
   c.quantity ? `${t(`dash.${c.label}`)} ${u.sym(c.quantity)}` : t(`dash.${c.label}`);
 
-/** A catalog value in the user's unit — the catalog's mm/g lifted to SI first. */
+/** A catalog value in the user's unit, the catalog's mm/g lifted to SI first. */
 const cell = (u: Units, q: Quantity, v: number | undefined, siScale: number, d: number): string =>
   v != null && Number.isFinite(v) ? u.fmt(q, v * siScale, d) : '—';
 
@@ -88,7 +86,7 @@ export const COLUMNS: Col[] = [
     align: 'right',
     quantity: 'force',
     cell: (m, u) => cell(u, 'force', m.maxThrust, 1, 0),
-    sortVal: (m) => m.maxThrust ?? 0,
+    sortVal: (m) => m.maxThrust ?? NaN,
   },
   { id: 'burn', label: 'colBurn', align: 'right', cell: (m) => fmtNum(m.burn, 1), sortVal: (m) => m.burn },
   {
@@ -97,7 +95,7 @@ export const COLUMNS: Col[] = [
     align: 'right',
     quantity: 'motorDimensions',
     cell: (m, u) => cell(u, 'motorDimensions', m.length, 0.001, 0),
-    sortVal: (m) => m.length ?? 0,
+    sortVal: (m) => m.length ?? NaN,
   },
   {
     id: 'mass',
@@ -105,7 +103,7 @@ export const COLUMNS: Col[] = [
     align: 'right',
     quantity: 'mass',
     cell: (m, u) => cell(u, 'mass', m.mass, 0.001, 0),
-    sortVal: (m) => m.mass ?? 0,
+    sortVal: (m) => m.mass ?? NaN,
   },
   {
     id: 'prop',
@@ -113,7 +111,7 @@ export const COLUMNS: Col[] = [
     align: 'right',
     quantity: 'mass',
     cell: (m, u) => cell(u, 'mass', m.propWeightG, 0.001, 0),
-    sortVal: (m) => m.propWeightG ?? 0,
+    sortVal: (m) => m.propWeightG ?? NaN,
   },
   { id: 'delays', label: 'colDelays', align: 'center', cell: (m) => m.delays ?? '—' },
   { id: 'type', label: 'colType', align: 'center', cell: (m) => m.type ?? '—', sortVal: (m) => m.type ?? '' },
@@ -124,13 +122,13 @@ export const COLUMNS: Col[] = [
     cell: (m) => m.code || m.designation,
     sortVal: (m) => m.code || m.designation,
   },
-  { id: 'isp', label: 'colIsp', align: 'right', cell: (m) => fmtCell(ispOf(m), 0), sortVal: (m) => sortNum(ispOf(m)) },
+  { id: 'isp', label: 'colIsp', align: 'right', cell: (m) => fmtCell(ispOf(m), 0), sortVal: (m) => ispOf(m) },
   {
     id: 'massFrac',
     label: 'colMassFrac',
     align: 'right',
     cell: (m) => (Number.isFinite(massFracOf(m)) ? `${fmtNum(massFracOf(m), 0)}%` : '—'),
-    sortVal: (m) => sortNum(massFracOf(m)),
+    sortVal: (m) => massFracOf(m),
   },
   {
     id: 'sparky',
@@ -164,7 +162,7 @@ export function useVisibleColumns() {
     saveCols(visCols);
   }, [visCols]);
 
-  // Columns to render — in canonical COLUMNS order regardless of toggle order.
+  // Columns to render, in canonical COLUMNS order regardless of toggle order.
   const cols = useMemo(() => COLUMNS.filter((c) => c.always || visCols.includes(c.id)), [visCols]);
   const toggleCol = (id: string) =>
     setVisCols((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));

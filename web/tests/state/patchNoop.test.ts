@@ -5,25 +5,24 @@ import { findNode, patchChangesNode } from '../../src/services/design/treeEdit';
 /**
  * A patch that says what the node already says must do nothing.
  *
- * `patchSelected` was the one tree-editing action with no no-op guard, where
- * `applyTreeAction` and `setStageDrogue` beside it both return on an unchanged
- * tree. It matters because `updateNode` always hands back a fresh `components`
+ * `patchSelected` returns on an unchanged tree, as `applyTreeAction` and
+ * `setStageDrogue` beside it do. It matters because `updateNode` always hands back a fresh `components`
  * array - it path-copies the spine as it walks, so it cannot cheaply know
  * otherwise - and `components` is the kernel rebuild dependency.
  *
- * `NumberInput` fires one patch per keystroke with the ALREADY-CLAMPED value, so
- * typing past a ceiling fired N identical patches: N full kernel builds, and an
- * undo step that changes nothing waiting for the user at the end of it.
+ * `NumberInput` fires one patch per keystroke with the already-clamped value, so
+ * without the guard typing past a ceiling fires N identical patches: N full kernel
+ * builds, and an undo step that changes nothing waiting for the user at the end.
  */
 const s = () => useWorkspaceStore.getState();
 
 /**
  * The tree with the nose cone's catalog link already gone.
  *
- * The default design's nose carries a `preset`, and patching any DIMENSION of a
+ * The default design's nose carries a `preset`, and patching any dimension of a
  * preset part drops that link - which is itself a change, so `patchChangesNode`
  * reports one however equal the values are. The no-op case this guard exists for
- * is the SECOND and later keystroke, by which point the link is long gone.
+ * is the second and later keystroke, by which point the link is long gone.
  */
 const unlinked = () => {
   const current = findNode(s().tree, 'nose')!.length as number;
@@ -58,9 +57,9 @@ describe('patchChangesNode', () => {
   });
 
   it('is true when the only change is dropping the preset link', () => {
-    // Dropping the link IS the change, even with every value already equal: the
+    // Dropping the link is the change, even with every value already equal: the
     // panel's Parts Library row stops claiming this is a catalog part. The
-    // DEFAULT nose carries a preset, so this is the plain tree.
+    // default nose carries a preset, so this is the plain tree.
     const nose = findNode(s().tree, 'nose')!;
     expect(nose['preset']).toBeTruthy();
     expect(patchChangesNode(s().tree, 'nose', { length: nose.length as number })).toBe(true);
@@ -94,8 +93,8 @@ describe('patchSelected does nothing on a no-op', () => {
 
   it('survives the clamped-keystroke sequence with one step', () => {
     // What the user does: type past a ceiling. The box clamps and reports the
-    // same value for every further character. The first patch is real; every one
-    // after it was a full kernel build for nothing.
+    // same value for every further character. The first patch is real; without the
+    // guard every one after it would be a full kernel build for nothing.
     const clamped = 0.42;
     const before = s().tree;
     s().patchSelected({ length: clamped });

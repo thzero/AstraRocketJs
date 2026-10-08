@@ -53,7 +53,10 @@ export function HelpPageFrame({
               // Hidden until the theme and the embed attribute are on,
               // otherwise a light-mode machine shows a white flash of the
               // full site chrome before the first paint of the stripped one.
-              className={`h-full w-full border-0 ${status === 'ready' ? '' : 'opacity-0'}`}
+              // And out of reach until then: the load handler is what keeps a
+              // link inside the dialog, so a click on the unseen page before it
+              // runs would go to the docs site's own router instead.
+              className={`h-full w-full border-0 ${status === 'ready' ? '' : 'pointer-events-none opacity-0'}`}
             />
           )}
         </>

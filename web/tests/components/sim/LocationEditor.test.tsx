@@ -6,9 +6,9 @@ import { renderWithProviders } from '../../testing/renderWithProviders';
 import type { LaunchLocation } from '../../../src/services/storage/launchLocationStore';
 
 /**
- * The full location editor: name AND coordinates.
+ * The full location editor: name and coordinates.
  *
- * Renaming alone was never the useful edit — the thing you most want to correct
+ * Renaming alone is not the useful edit: the thing you most want to correct
  * about a location is a number. These cover the two jobs the pane does (fix an
  * existing location, create one from nothing) and the guard that keeps a location the
  * store would reject from being reachable at all.
@@ -51,7 +51,7 @@ describe('LocationEditor, editing', () => {
 
   it('saves a corrected coordinate, keeping the location id', () => {
     // The id is what makes this an edit rather than a second location with the same
-    // name — `launchLocationStore.save` replaces by id.
+    // name: `launchLocationStore.save` replaces by id.
     const { onSave } = render(HOME);
     fireEvent.change(field('Latitude'), { target: { value: '39.1234' } });
     fireEvent.click(save());
@@ -90,7 +90,7 @@ describe('LocationEditor, the map', () => {
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'The club field' } });
     // Not a real place to click in jsdom, but the coordinate under the
     // pointer is what matters, and with no coordinate yet the map opens on
-    // the world at 0,0 — so its center is 0,0.
+    // the world at 0,0, so its center is 0,0.
     const map = screen.getByRole('group', { name: /Launch site map/ });
     fireEvent.pointerDown(map, { pointerId: 1, clientX: 160, clientY: 128 });
     fireEvent.pointerUp(map, { pointerId: 1, clientX: 160, clientY: 128 });
@@ -170,7 +170,7 @@ describe('LocationEditor, the unsaved-edit guard', () => {
   });
 
   it('is clean again when an edit is typed back to what was stored', () => {
-    // Compared against the STORED location rather than tracked by a flag set
+    // Compared against the stored location rather than tracked by a flag set
     // on every keystroke, so the discard prompt cannot fire over an edit
     // nobody made.
     const { onDirtyChange } = render(HOME);

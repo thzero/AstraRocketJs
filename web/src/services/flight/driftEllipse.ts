@@ -7,23 +7,22 @@ import { degToRad } from '../../prefs/units';
  * Two shapes, because they answer two different questions and neither is the
  * other:
  *
- * - The HULL is the exact swept envelope. The sweep is a grid, so its landings
- *   are not a sample from anything — they are the whole set of answers to the
+ * - The hull is the exact swept envelope. The sweep is a grid, so its landings
+ *   are not a sample from anything: they are the whole set of answers to the
  *   conditions that were asked about, and the smallest convex region holding
  *   them is a statement with no statistics in it: fly one of these winds and
  *   the rocket lands in here. That is the shape to walk out and look at.
- * - The ELLIPSE is the familiar recovery-ellipse reading: the spread of those
+ * - The ellipse is the familiar recovery-ellipse reading: the spread of those
  *   landings as a center, two axes and a bearing. It compresses the picture to
  *   four numbers you can write on a flight card, and it is the shape that
  *   compares across designs, motors and days.
  *
- * The ellipse is deliberately NOT called a confidence region. A confidence
- * region needs a distribution over the conditions, and a grid sweep asserts
- * none — every cell is flown once, whatever its real-world likelihood. What the
- * ellipse describes is the scatter of the landings that were flown, at a stated
- * number of standard deviations. Over a whole-compass sweep it will sit INSIDE
- * the ring of landings, which is correct and is exactly why the hull is drawn
- * as well.
+ * The ellipse is not called a confidence region. A confidence region needs a
+ * distribution over the conditions, and a grid sweep asserts none: every cell
+ * is flown once, whatever its real-world likelihood. What the ellipse describes
+ * is the scatter of the landings that were flown, at a stated number of
+ * standard deviations. Over a whole-compass sweep it sits inside the ring of
+ * landings, which is correct and is why the hull is drawn as well.
  *
  * Everything here is meters east and north of the pad, the same plane
  * `groundTrack.ts` works in.
@@ -51,11 +50,10 @@ const cross = (o: GroundPoint, a: GroundPoint, b: GroundPoint): number =>
 /**
  * The convex hull, counterclockwise, by Andrew's monotone chain.
  *
- * Collinear points are dropped (`<= 0`, not `< 0`), so a sweep of one heading —
- * whose landings lie on a straight line out from the pad — comes back as its
+ * Collinear points are dropped (`<= 0`, not `< 0`), so a sweep of one heading,
+ * whose landings lie on a straight line out from the pad, comes back as its
  * two ends rather than as every sample along it. That degenerate hull is a line
- * segment, which is the truth about that sweep, and the drawing treats it as
- * one rather than pretending to an area.
+ * segment, and the drawing treats it as one rather than as an area.
  *
  * Fewer than three distinct points cannot bound anything, so they are returned
  * as they are.
@@ -113,13 +111,12 @@ export interface DriftEllipse {
  * The covariance ellipse of these landings, at `sigma` standard deviations.
  *
  * The sample covariance (divided by n-1, so two landings describe the spread
- * BETWEEN them rather than half of it) diagonalized by hand: a symmetric 2x2
- * has closed-form eigenvalues and eigenvectors, and pulling in a matrix library
- * for one would be four hundred kilobytes to avoid six lines.
+ * between them rather than half of it) diagonalized by hand: a symmetric 2x2
+ * has closed-form eigenvalues and eigenvectors, so no matrix library is needed.
  *
  * Null below two points, because one landing has no spread to describe. A
  * perfectly collinear set gives a zero minor axis, which draws as a line and is
- * again the truth rather than a failure.
+ * a valid result, not a failure.
  */
 export function driftEllipse(points: readonly GroundPoint[], sigma = DEFAULT_SIGMA): DriftEllipse | null {
   const center = centroid(points);
@@ -150,7 +147,7 @@ export function driftEllipse(points: readonly GroundPoint[], sigma = DEFAULT_SIG
 
   // Eigenvector for the larger eigenvalue. With no covariance the axes are
   // already the eigenvectors, and which of the two is the long one is decided
-  // by which variance is larger — atan2(0, 0) would otherwise answer 0 and call
+  // by which variance is larger; atan2(0, 0) would otherwise answer 0 and call
   // a north-south spread an east-west one.
   const [ve, vn] = sen !== 0 ? [major - snn, sen] : see >= snn ? [1, 0] : [0, 1];
 
@@ -168,8 +165,8 @@ export function driftEllipse(points: readonly GroundPoint[], sigma = DEFAULT_SIG
  * through the same projection the tracks use.
  *
  * An SVG `<ellipse>` with a rotation transform would have to be re-derived
- * against whatever transform the view already applies, and would silently go
- * wrong the first time the two axes stopped sharing a scale. A polygon cannot.
+ * against whatever transform the view already applies, and would go wrong
+ * whenever the two axes do not share a scale. A polygon cannot.
  */
 export function ellipsePolygon(e: DriftEllipse, segments = 72): GroundPoint[] {
   // The major axis as a unit vector in east/north, from its compass bearing.
@@ -196,7 +193,7 @@ export interface DriftRegion {
   hull: GroundPoint[];
   /** Null when fewer than two landings were flown. */
   ellipse: DriftEllipse | null;
-  /** The furthest landing from the pad, meters — the walk to plan for. */
+  /** The furthest landing from the pad, meters: the walk to plan for. */
   maxRangeM: number;
   /** The nearest landing, meters. */
   minRangeM: number;

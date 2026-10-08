@@ -1,7 +1,7 @@
 import type { ComponentNode } from '../engine/openRocketEngine';
 
 /**
- * Shared walks over a component tree. Every search stops at the FIRST match in
+ * Shared walks over a component tree. Every search stops at the first match in
  * its stated order, so a design that somehow carries a duplicate id resolves
  * to the same node everywhere.
  */
@@ -58,7 +58,7 @@ export function findSiblings(nodes: ComponentNode[], id: string): { siblings: Co
 export interface MapContext {
   /** Index among its siblings. */
   index: number;
-  /** The ORIGINAL sibling array, before any of it was mapped. */
+  /** The original sibling array, before any of it was mapped. */
   siblings: ComponentNode[];
   /**
    * The parent as mapped: in `pre` order its own function has already run;

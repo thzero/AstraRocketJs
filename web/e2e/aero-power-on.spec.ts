@@ -8,18 +8,17 @@ const openAero = async (page: Page) => {
 /**
  * The power-on drag curve.
  *
- * This is the ONE figure in the Aero panel that depends on the motor. Everything
- * else — power-off Cd, the friction/pressure/base split, CP, CNα, the roll
- * coefficients — is geometry.
+ * This is the one figure in the Aero panel that depends on the motor. Everything
+ * else (power-off Cd, the friction/pressure/base split, CP, CNα, the roll
+ * coefficients) is geometry.
  *
- * And it reaches the sweep by an indirect route worth pinning: `nozzleExitDiameter`
- * is a STAGE property in our tree, captured by `applySeparationConfig` into
+ * It reaches the sweep by an indirect route worth pinning: `nozzleExitDiameter`
+ * is a stage property in our tree, captured by `applySeparationConfig` into
  * `ctx.nozzleDia` and then applied to the seated motor's `MotorConfiguration` in
- * `applyMotor`. The sweep reads it back off the mounts by fcid — deliberately,
- * because the FlightConfiguration's own motors map is stale under our
- * `setMotorById` flow (a comment at OpenRocketEngine.java:698 says so). So the
- * curve needs a stage nozzle AND a seated motor, and a future change to either
- * half can silently drop it.
+ * `applyMotor`. The sweep reads it back off the mounts by fcid, because the
+ * FlightConfiguration's own motors map is stale under our `setMotorById` flow
+ * (see the nozzle-area loop in OpenRocketEngine.java). So the curve needs a stage
+ * nozzle and a seated motor, and a change to either half can silently drop it.
  *
  * There is no UI for `nozzleExitDiameter`; it is import/export only, so this
  * starts from a fixture.
@@ -34,7 +33,7 @@ test.describe('power-on drag curve', () => {
     await expect(page.getByText('Power-on', { exact: true })).toBeVisible({ timeout: 15_000 });
 
     // …and the panel says which motor it belongs to, since there is no motor
-    // selector here — the active simulation's motor is what gets analyzed.
+    // selector here: the active simulation's motor is what gets analyzed.
     await expect(page.getByText(/^Power-on: /)).toBeVisible();
   });
 

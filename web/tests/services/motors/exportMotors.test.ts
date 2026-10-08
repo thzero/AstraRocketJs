@@ -61,10 +61,10 @@ describe('buildExportMotorMap', () => {
 
 describe('the motor manufacturer', () => {
   it('is the seated motor’s own', () => {
-    // The desktop resolves a motor by manufacturer AND designation, so a file
+    // The desktop resolves a motor by manufacturer and designation, so a file
     // that names no manufacturer opens with "No motor with designation 'C6' for
     // manufacturer 'custom' found" and an empty mount. Every motor the picker
-    // seats carries one (thrustcurve.ts); this map used to drop it.
+    // seats carries one (thrustcurve.ts), and the map must keep it.
     const m = buildExportMotorMap(tree, newFlightConfig({ primary: mount('C6', undefined, 'Estes') }));
     expect(m.primary).toMatchObject({ designation: 'C6', manufacturer: 'Estes' });
   });

@@ -2,11 +2,11 @@ import { KERNEL_MATERIALS } from '../../tree/kernelDefaults';
 import { isMaterialType, type MaterialType } from '../materials/materialTypes';
 
 /**
- * What a part is MADE OF by default: which material slots each type has, and
+ * What a part is made of by default: which material slots each type has, and
  * what goes in them when nobody has said.
  *
  * Its own module, and a leaf one. `services/materials/materials` reaches the material
- * CATALOG, which pulls in the remote-data fetch and the IndexedDB custom store,
+ * catalog, which pulls in the remote-data fetch and the IndexedDB custom store,
  * and the default rocket is built in `engine/api`, where none of that belongs.
  * Nothing here needs a catalog: the three stock materials are the kernel's own
  * and are named in `tree/kernelDefaults`.
@@ -14,7 +14,7 @@ import { isMaterialType, type MaterialType } from '../materials/materialTypes';
 
 /**
  * Which node keys a material of each kind lands on. A part carries up to three
- * at once — a parachute has a canopy AND shroud lines — so the material type is
+ * at once (a parachute has a canopy and shroud lines), so the material type is
  * what decides, not the part.
  *
  * Only the bulk material has a `group` key. The `.ork` writer emits the group
@@ -33,7 +33,7 @@ const MATERIAL_KEYS: Record<MaterialType, { name: string; density: string; group
  * One list, read by Settings ▸ Materials to draw its rows and by
  * {@link defaultMaterialPatch} to decide what a new part is made of. Most parts
  * have exactly one; a parachute has two, its canopy and its shroud lines, which
- * is why this is keyed by the PAIR rather than by the part.
+ * is why this is keyed by the pair rather than by the part.
  *
  * A type that is not here has no material at all: a stage, a pod set and a mass
  * component carry a mass outright rather than a density and a volume.
@@ -72,7 +72,7 @@ export function parseDefaultMaterialKey(key: string): { part: string; material: 
 }
 
 /**
- * What to stamp onto a NEWLY ADDED part of `partType`: the user's per-part-type
+ * What to stamp onto a newly added part of `partType`: the user's per-part-type
  * default (Settings ▸ Materials) where they have set one, and otherwise the
  * material the kernel would weigh the part with anyway
  * ({@link KERNEL_MATERIALS}).
@@ -83,14 +83,13 @@ export function parseDefaultMaterialKey(key: string): { part: string; material: 
  * equivalent preference at runtime, which means the same file weighs one thing
  * on the machine that made it and another on the machine it was sent to.
  *
- * The kernel fallback is why a new part no longer reads "Not specified". That
- * state was never a lighter part - the kernel was already flying it as
- * cardboard, ripstop nylon or elastic cord - but nothing in the editor said so,
- * and it did not survive a round trip either, since the `.ork` writer fills the
- * same three materials in and the reader hands them back. The panel now says
- * what the simulation is using, before the save rather than after it, which is
- * also what the desktop shows: every OpenRocket component is constructed WITH
- * one of these, so its own dropdown never has an empty state to explain.
+ * The kernel fallback is why a new part does not read "Not specified". An unset
+ * material is not a lighter part: the kernel flies it as cardboard, ripstop
+ * nylon or elastic cord, and the `.ork` writer fills the same three materials
+ * in. Stamping it here makes the panel say what the simulation is using before
+ * the save rather than after it, which is also what the desktop shows: every
+ * OpenRocket component is constructed with one of these, so its own dropdown
+ * never has an empty state to explain.
  *
  * Returns `{}` for a type with no material slot at all (a stage, a pod set, a
  * mass component, which carries a mass outright).

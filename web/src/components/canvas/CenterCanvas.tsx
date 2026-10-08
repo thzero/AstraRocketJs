@@ -17,7 +17,7 @@ import { useViewPrefs } from './useViewPrefs';
 import { degToRad, radToDeg } from '../../prefs/units';
 import { useUnits } from '../../prefs/useUnits';
 
-// three.js is heavy, so the 3D views are code-split — their chunks load only when
+// three.js is heavy, so the 3D views are code-split: their chunks load only when
 // the user actually switches to a 3D view, keeping the default (2D) path light.
 const Rocket3D = lazyNamed(() => import('./Rocket3D'), 'Rocket3D');
 const FlightPath3D = lazyNamed(() => import('./FlightPath3D'), 'FlightPath3D');
@@ -65,27 +65,22 @@ export function CenterCanvas({
     // footer, so switching views never resizes the pane and the strip is
     // always visible without scrolling.
     //
-    // `pb-2` to match the `pt-2`: this box had padding on three sides, so a
-    // zoomed-in drawing ended exactly ON the pane's bottom edge - the bottom
-    // ruler and the roll slider's 360° label sat flush against the window
-    // with nothing under them.
+    // `pb-2` to match the `pt-2`: without bottom padding a zoomed-in drawing
+    // ends exactly on the pane's bottom edge, and the bottom ruler and the
+    // roll slider's 360° label sit flush against the window.
     <div className="relative min-h-0 w-full flex-1 overflow-hidden px-3 pb-2 pt-2">
-      {/* Canvas parts can be dragged to reposition them (a design edit), so
-      lock the design views while a sim runs. Results views (flight/path)
-      don't mutate the design, so they stay interactive. */}
+      {/* The roll slider belongs to the 2D view only. */}
       {view === '2d' && <RollSlider />}
-      {/* Quick-glance stats card: sits INSIDE the ruler frame on
+      {/* Quick-glance stats card: sits inside the ruler frame on
       the 2D view (clear of the top + left rulers when they're on), and in the
       upper-left corner in 3D. Toggleable via the header Info button.
 
-      In 3D it hangs BELOW the view-preset row rather than level with it.
-      That row is pinned top-right and the card top-left, which reads as
-      two corners only while the pane is wider than both put together —
-      below that they overlap, and the card is z-20 against the row's
-      z-index 2, so it covered Reset / Side / Aft AND ate their clicks.
-      Buttons you can see and cannot press is the worse half of that, and
-      it got worse with every button added to the row. A readout yields to
-      a control. */}
+      In 3D it hangs below the view-preset row rather than level with it.
+      That row is pinned top-right and the card top-left, and on a pane
+      narrower than both put together they overlap; the card is z-20
+      against the row's z-index 2, so level with it the card would cover
+      the preset buttons and take their clicks. A readout yields to a
+      control. */}
       {(view === '2d' || view === '3d') && showInfoCard && (
         <div
           className="absolute z-20"
@@ -137,7 +132,7 @@ export function CenterCanvas({
       ) : view === 'flight' ? (
         // Keyed on the simulation: a different flight gets a fresh chart
         // (trace selection and zoom start over), while a re-run of the
-        // SAME simulation keeps its id and so keeps the view. Resetting
+        // same simulation keeps its id and so keeps the view. Resetting
         // both through effects keyed on the trace list instead blanks the
         // first frame and leaves a stale zoom on re-run.
         <div className="h-full p-2">{flight ? <FlightChart key={flight.id} flight={flight} /> : prompt}</div>
@@ -147,7 +142,7 @@ export function CenterCanvas({
             <>
               <LazyBoundary fallback={loading}>
                 {/* One rocket is animated, so this follows the picker's
-                      FIRST choice rather than overlaying like the charts and
+                      first choice rather than overlaying like the charts and
                       the ground track do. */}
                 <FlightPath3D
                   result={pathResult}
@@ -170,7 +165,7 @@ export function CenterCanvas({
       ) : view === 'ground' ? (
         <div className="h-full p-2">
           {flight ? (
-            // The coordinates come off the flight's OWN simulation, not
+            // The coordinates come off the flight's own simulation, not
             // the active one: the Results picker can be showing a row
             // other than the one being edited.
             <GroundTrack

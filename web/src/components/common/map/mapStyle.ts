@@ -37,7 +37,7 @@ export const LINER = 'rgba(2,6,23,0.75)';
  * being worth drawing.
  *
  * The zoom normally lands within a half step of the drawing, so this never
- * fires on a real flight. It fires on a SMALL one: a still-air launch lands a
+ * fires on a real flight. It fires on a small one: a still-air launch lands a
  * handful of centimeters from the pad, the view sizes itself to that, and the
  * zoom runs into the provider's maximum. Past that the layer is one tile blown
  * up eighty times: a smear at best, and in practice a box that draws nothing

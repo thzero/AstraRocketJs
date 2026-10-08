@@ -3,8 +3,8 @@ import type { ComponentNode, RocketTree } from '../../../src/engine/openRocketEn
 import { exportCdx1 } from '../../../src/services/files/rasaeroExport';
 
 /**
- * GOLDEN output of the .CDX1 writer, pinned before it was split into the
- * sustainer, booster, recovery, launch-site and simulation writers. A three
+ * Golden output of the .CDX1 writer, covering the sustainer, booster, recovery,
+ * launch-site and simulation writers. A three
  * stage design exercises every branch: each nose shape, a shoulder and a boat
  * tail on a booster, fins on a transition, rail buttons and lugs, two chutes,
  * a Mach-Alt table, custom launch conditions and per-stage engines.

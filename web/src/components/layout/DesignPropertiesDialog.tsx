@@ -7,8 +7,8 @@ import { DialogButton } from '../common/DialogButton';
  * Name/rename a saved design. Used by File > Save As... and by Rename in the
  * library, which differ only in title and button label.
  *
- * Replaces a `window.prompt`, which could not be styled, translated reliably,
- * or validated, and which some browsers suppress entirely.
+ * A dialog rather than `window.prompt`, which cannot be styled, translated
+ * reliably, or validated, and which some browsers suppress entirely.
  *
  * Mounted only while open (`{open && <DesignPropertiesDialog />}`), so the
  * name field is seeded once from `initialName` in its initializer; there is no
@@ -55,8 +55,7 @@ export function DesignPropertiesDialog({
       title={title}
       onClose={onCancel}
       // It renders inside the library's overlay, so it needs the layer above it.
-      // The backdrop click no longer has to guard against dismissing both: the
-      // shell stops it bubbling for every dialog.
+      // The shell stops the backdrop click bubbling, so it does not dismiss both.
       layer="top"
       layout="pad"
       // One field and two buttons. Nothing to widen.

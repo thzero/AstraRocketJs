@@ -27,9 +27,9 @@ export function simulationsXml(
   } else if (launch) {
     // One <simulation> in the exact shape of the desktop's
     // OpenRocketSaver.saveSimulation() so 24.12 opens it cleanly. Its loader
-    // tolerates missing elements but WARNS on any simulator/calculator other
-    // than RK4Simulator/BarrowmanCalculator and on unknown status values —
-    // write the only ones it accepts. <configid> ties the simulation to the
+    // tolerates missing elements but warns on any simulator/calculator other
+    // than RK4Simulator/BarrowmanCalculator and on unknown status values, so
+    // this writes the only ones it accepts. <configid> ties the simulation to the
     // default-marked motorconfiguration emitted above.
     emit(depth + 1, '<simulation status="notsimulated">');
     emit(depth + 2, '<name>Simulation 1</name>');
@@ -92,11 +92,11 @@ function conditionsXml(w: OrkWriter, depth: number, launch: LaunchConditions, co
   emit(depth, `<launchrodlength>${launch.launchRodLengthM ?? 0}</launchrodlength>`);
   // The app edits launch-into-wind, the rod heading, the wind heading and the
   // longitude (LaunchPanel), so all four are written from the design rather than
-  // from the desktop's preference defaults. Units per OpenRocketSaver.java:
-  // 349-354: the rod heading is DEGREES on disk (written as radians * 360 / 2pi,
-  // like the rod angle); the wind heading is RADIANS (getDirection() written
-  // raw). The fallbacks are the desktop's own defaults, used only when the field
-  // was never set.
+  // from the desktop's preference defaults. Units per OpenRocketSaver: the rod
+  // heading is degrees on disk (written as radians * 360 / 2pi, like the rod
+  // angle); the wind heading is radians (getDirection() written raw). The
+  // fallbacks are the desktop's own defaults, used only when the field was
+  // never set.
   emit(depth, `<launchintowind>${launch.launchIntoWind === true}</launchintowind>`);
   emit(depth, `<launchrodangle>${launch.launchRodAngleDeg ?? 0}</launchrodangle>`);
   emit(depth, `<launchroddirection>${launch.launchRodDirectionDeg ?? DEFAULT_HEADING_DEG}</launchroddirection>`);
@@ -106,7 +106,7 @@ function conditionsXml(w: OrkWriter, depth: number, launch: LaunchConditions, co
   // Degrees; the desktop's preference default when the site was never set.
   emit(depth, `<launchlongitude>${launch.longitudeDeg ?? -80.6}</launchlongitude>`);
   emit(depth, `<geodeticmethod>${launch.geodetic ?? 'spherical'}</geodeticmethod>`);
-  // Gravity: only written when it is NOT the default, so a file that never
+  // Gravity: only written when it is not the default, so a file that never
   // touched it round-trips unchanged.
   if (launch.gravityModel === 'constant') {
     emit(depth, '<gravitymodel>Constant</gravitymodel>');
@@ -123,10 +123,10 @@ function windXml(w: OrkWriter, depth: number, launch: LaunchConditions): void {
   const { emit } = w;
   const windDirRad = degToRad(launch.windDirectionDeg ?? DEFAULT_HEADING_DEG);
   // ≤23.09 legacy trio the desktop still writes: turbulence here is the
-  // INTENSITY ratio stddev/average, which is why it goes through the same
+  // intensity ratio stddev/average, which is why it goes through the same
   // helper the panel reads from (zero wind maps to 0 or 1, as the kernel's
   // PinkNoiseWindModel does, so old desktops recover the same stddev).
-  // A design can be SAVED mid-edit, with a required field still blank, even
+  // A design can be saved mid-edit, with a required field still blank, even
   // though it cannot be flown. The file format has no way to say "blank", so
   // a hole is written as zero here rather than blocking the save.
   const turb = turbulenceIntensity(launch.windAverage ?? 0, launch.windStdDev ?? 0);
@@ -138,20 +138,19 @@ function windXml(w: OrkWriter, depth: number, launch: LaunchConditions): void {
   emit(depth + 1, `<direction>${windDirRad}</direction>`);
   emit(depth + 1, `<standarddeviation>${launch.windStdDev ?? 0}</standarddeviation>`);
   emit(depth, '</wind>');
-  // The multilevel profile, when there is one. The desktop writes BOTH wind
+  // The multilevel profile, when there is one. The desktop writes both wind
   // elements and lets <windmodeltype> pick, which is also what our importer
   // reads, so the average block above stays as the fallback a reader without
-  // multilevel support sees. Without this the profile imported fine and then
-  // vanished on the way back out.
+  // multilevel support sees.
   const levels = launch.windLevels ?? [];
   if (levels.length) {
-    // The altitude reference is an ATTRIBUTE of <wind>, exactly as
-    // OpenRocketSaver.java:367 writes it and importt/WindHandler.java:25 reads
-    // it. As a child element the desktop never looks at it, so an AGL profile
-    // saved here would open there as MSL.
+    // The altitude reference is an attribute of <wind>, as OpenRocketSaver
+    // writes it and importt/WindHandler reads it. As a child element the
+    // desktop never looks at it, so an AGL profile saved here would open there
+    // as MSL.
     emit(depth, `<wind model="multilevel" altituderef="${(launch.windAltitudeReference ?? 'msl').toUpperCase()}">`);
     for (const l of levels) {
-      // Attributes, not child elements, and direction in RADIANS like the
+      // Attributes, not child elements, and direction in radians like the
       // average block's <direction>.
       emit(
         depth + 1,
@@ -174,7 +173,7 @@ function atmosphereXml(w: OrkWriter, depth: number, launch: LaunchConditions): v
       emit(depth, '</atmosphere>');
     }
   } else {
-    // KELVIN / PASCAL on disk. The desktop stores both-or-ISA, so a
+    // Kelvin / pascal on disk. The desktop stores both-or-ISA, so a
     // single custom value fills the other with the ISA sea-level standard.
     emit(depth, '<atmosphere model="extendedisa">');
     emit(depth + 1, `<basetemperature>${(launch.temperatureC ?? 15) + 273.15}</basetemperature>`);
@@ -193,7 +192,7 @@ function atmosphereXml(w: OrkWriter, depth: number, launch: LaunchConditions): v
 /**
  * Where the weather-filled fields came from (the Weather dialog's stamp), as an
  * extension element desktop OpenRocket skips. Whether they were edited since is
- * decided now and written as `edited`, so the file needs no copy of the
+ * decided at save time and written as `edited`, so the file needs no copy of the
  * applied values.
  */
 function weatherSourceXml(w: OrkWriter, depth: number, launch: LaunchConditions): void {
@@ -224,7 +223,7 @@ function weatherSourceXml(w: OrkWriter, depth: number, launch: LaunchConditions)
 /**
  * A forecast atmosphere, as an extension element of this app's: desktop
  * OpenRocket has no such model and skips elements it does not know, so a
- * desktop opening the file flies its own atmosphere. KELVIN and PASCAL, like
+ * desktop opening the file flies its own atmosphere. Kelvin and pascal, like
  * <basetemperature> and <basepressure> beside it.
  */
 function forecastLevelsXml(w: OrkWriter, depth: number, levels: readonly AtmosphereLevel[]): void {

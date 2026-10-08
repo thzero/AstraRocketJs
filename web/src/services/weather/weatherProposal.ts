@@ -9,7 +9,7 @@ import { roundTo } from '../app/numbers';
  * dialog offers one checkbox each. A group is absent when the hour has nothing
  * usable for it, so the dialog never offers to write a hole.
  *
- * The mapping follows desktop OpenRocket's current-conditions client (PR #3211):
+ * The mapping follows desktop OpenRocket's current-conditions client:
  * the surface wind at 10 m above the site, the 80, 120 and 180 m winds above the
  * site, then each pressure level at its geopotential height, all as MSL wind
  * levels; turbulence estimated from the gust spread at the surface and a fixed
@@ -52,7 +52,7 @@ export type ProposalGroup = 'temperature' | 'pressure' | 'humidity' | 'wind' | '
 /** The groups a proposal can fill, in the order the dialog lists them. */
 export const PROPOSAL_GROUPS: readonly ProposalGroup[] = ['temperature', 'pressure', 'humidity', 'wind', 'atmosphere'];
 
-/** Whether `proposal` has anything for `group`. */
+/** Whether proposal `p` has anything for `group`. */
 export function hasGroup(p: WeatherProposal, group: ProposalGroup): boolean {
   switch (group) {
     case 'temperature':

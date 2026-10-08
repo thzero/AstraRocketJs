@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { ComponentNode, RocketTree } from '../../../src/engine/openRocketEngine';
+import type { ComponentNode, RocketTree } from '../../src/engine/openRocketEngine';
 import {
   niceRulerStep,
   rulerGraduations,
@@ -15,8 +15,8 @@ import {
   zoomStep,
   MAX_ZOOM,
   marginText,
-} from '../../../src/components/canvas/schematicGeometry';
-import i18n from '../../../src/i18n';
+} from '../../src/tree/schematicGeometry';
+import i18n from '../../src/i18n';
 
 const node = (o: object): ComponentNode => o as unknown as ComponentNode;
 
@@ -155,7 +155,7 @@ describe('profilePath', () => {
 
 /**
  * Tube fins size themselves to the body they ring, so the frame has to measure
- * them against THAT body — not the widest thing on the rocket.
+ * them against that body, not the widest thing on the rocket.
  */
 describe('computeSchematicLayout: tube fins on a narrow aft tube', () => {
   // A 60 mm forward section stepping down to a 25 mm aft tube, tube fins on the
@@ -190,8 +190,8 @@ describe('computeSchematicLayout: tube fins on a narrow aft tube', () => {
   });
 
   it('does not reserve the reach they would have had on the 60 mm section', () => {
-    // Measured against the whole rocket's 30 mm maxR the same set claimed
-    // 2 × 30 = 60 mm — 2.4× too much — and vHalf came out at 90 mm, shrinking
+    // Measured against the whole rocket's 30 mm maxR the same set would claim
+    // 2 × 30 = 60 mm (2.4× too much) and vHalf would come out at 90 mm, shrinking
     // every other part of the drawing to make room for nothing.
     const out = computeSchematicLayout(stepped, null, dims);
     expect(out.vHalf).toBeLessThan(0.09);
@@ -279,9 +279,7 @@ describe('colorOf', () => {
 
 /**
  * One margin text for every view that prints one, the 2D overlay and the 3D CP
- * callout alike: the tiered glyph, calibers, percent and the verdict word. The
- * 3D copy printed one warning emoji for both under and over and no word at all
- * when the design was fine.
+ * callout alike: the tiered glyph, calibers, percent and the verdict word.
  */
 describe('marginText', () => {
   const t = (k: string) => i18n.t(k);

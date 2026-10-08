@@ -21,7 +21,7 @@ import {
  * Which of OpenRocket's motors a saved `.ork` says it means.
  *
  * The desktop resolves a motor by manufacturer, designation, diameter and
- * length, and its database holds SEVERAL entries behind one of those names:
+ * length, and its database holds several entries behind one of those names:
  * Estes C6 is a plugged one and a delayed one. With nothing to choose between
  * them it takes the first and says so, as "Multiple motors with designation
  * 'C6' for manufacturer 'Estes' found, one chosen arbitrarily", which is a
@@ -39,7 +39,7 @@ const row = (manufacturer: string, designation: string) =>
   CATALOG.find((m) => m.manufacturer === manufacturer && m.designation === designation)!;
 
 // The real catalog off disk, without the runtime fetch it normally comes
-// through: these are about the data that SHIPS, and the test environment has no
+// through: these are about the data that ships, and the test environment has no
 // server to serve it from. Everything else in `motorDb` stays real.
 vi.mock('../../../src/services/motors/motorDb', async (original) => ({
   ...(await original<typeof import('../../../src/services/motors/motorDb')>()),
@@ -212,6 +212,14 @@ describe('a saved .ork carries the curve of a motor the catalog does not have', 
     const { motors, zip } = await save({ ...curve, designation: 'C6', manufacturer: 'Estes' });
     expect(motors.body!.digest).toBe(catalogDigest(row('Estes', 'C6'), 5));
     expect(Object.keys(zip).filter((n) => n.startsWith('thrustcurves/'))).toEqual([]);
+  });
+
+  it('embeds the curve of a motor that shares a catalog name but not its diameter', async () => {
+    // The catalog's Estes C6 is 18 mm; a 24 mm motor under that name is not it.
+    const { motors, zip } = await save({ ...curve, designation: 'C6', manufacturer: 'Estes', diameter: 0.024 });
+    const digest = motors.body!.digest!;
+    expect(digest).not.toBe(catalogDigest(row('Estes', 'C6'), 5));
+    expect(rseDigest(new TextDecoder().decode(zip[`thrustcurves/${digest}.rse`]!))).toBe(digest);
   });
 
   it('is found by our own importer under that digest', async () => {

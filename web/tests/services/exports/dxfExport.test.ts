@@ -135,10 +135,9 @@ describe('per-component DXF export', () => {
 });
 
 /**
- * The engine-block wall fallback lived in three files with two values: the
- * .ork reader and writer said 0.001 while this cutter said 0.00095 (the
- * kernel's). A block that lost its <thickness> tag was therefore read at one
- * bore and cut at another. All three now read the one shared table.
+ * The engine-block wall fallback comes from the one shared table that the .ork
+ * reader and writer also use (0.00095 m, the kernel's), so a block with no
+ * <thickness> tag is read and cut at the same bore.
  */
 describe('resolveDisc uses the shared component defaults', () => {
   const bare = {

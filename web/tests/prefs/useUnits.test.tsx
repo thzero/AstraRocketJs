@@ -23,8 +23,8 @@ const value = (read: (u: Units) => string): string => {
 };
 
 /**
- * The conversions are covered in units.test.ts; what is NOT covered there is
- * the wiring — that `at()` actually consults the per-field layer while the
+ * The conversions are covered in units.test.ts; what is not covered there is
+ * the wiring: that `at()` actually consults the per-field layer while the
  * quantity-level calls deliberately don't, which is the whole contract the
  * rest of the UI is written against.
  */
@@ -76,8 +76,8 @@ describe('useUnits', () => {
 
 /**
  * A value and its symbol, joined by `withUnit`: a degree sign closes up, every
- * other symbol takes a space. Forty views joined `fmt` and `sym` by hand, which
- * is the same thing until the angle unit is radians.
+ * other symbol takes a space. Joining `fmt` and `sym` by hand gives the same
+ * result until the angle unit is radians.
  */
 describe('fmtSym', () => {
   beforeEach(() => localStorage.clear());

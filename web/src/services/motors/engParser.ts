@@ -6,13 +6,11 @@
 //
 // e.g.  C6  18  70  0-3-5-7  0.0108  0.0242  Estes
 //
-// We parse the FIRST motor definition in the file (single-motor imports are the
+// We parse the first motor definition in the file (single-motor imports are the
 // norm); data parsing stops at the first non-numeric line.
 import type { CustomMotor } from './motorStore';
-// ONE classifier, shared with the Motor Dashboard. The private copy that used
-// to live here clamped every sub-A impulse to index 0 and so labeled a 0.75
-// N-s MicroMaxx an "A", while the shared one called the same motor "below A".
-// Same motor, two different classes depending on which screen you were on.
+// The one impulse classifier, shared with the Motor Dashboard, so a motor gets
+// the same class on every screen (a 0.75 N-s MicroMaxx is a 1/2A, not an A).
 import { impulseClass } from './motorCombine';
 import { trapezoidImpulse } from './motorMath';
 import { delayList } from './motorPicker';
@@ -47,8 +45,8 @@ export function parseEng(text: string): CustomMotor {
     throw new Error('Malformed .eng header — non-numeric diameter/length/weight.');
   }
   // Finite is not enough. `samplesToMotorSpec` rejects a non-positive diameter
-  // or length and a prop mass above the total, but NOT a negative prop mass:
-  // `masses = total - prop*(impulse/totalImpulse)` then makes the rocket GAIN
+  // or length and a prop mass above the total, but not a negative prop mass:
+  // `masses = total - prop*(impulse/totalImpulse)` then makes the rocket gain
   // mass as the motor burns.
   if (!(diameter > 0) || !(length > 0)) {
     throw new Error('Malformed .eng header — diameter and length must be positive.');
@@ -58,19 +56,18 @@ export function parseEng(text: string): CustomMotor {
   }
 
   // Through the shared reader, which is what the catalog's delay column is and
-  // the only form that can say plugged. Splitting on '-' and dropping anything
-  // non-numeric lost the whole field for a plugged motor, and `customToRow`
-  // reads `delayList` and nothing else, so an imported `.eng` arrived at the
-  // picker with no delays at all.
+  // the only form that can say plugged. `customToRow` reads `delayList` and
+  // nothing else, so a field that failed to parse here would reach the picker
+  // with no delays at all.
   const delays = delayList(delaysS, 'rasp');
 
   // A data line is a time and a thrust, and nothing else is tolerated inside
   // the block. Upstream (`RASPMotorLoader`) refuses the whole file on anything
-  // else; this stopped at it and kept what it had, so a file with one bad line
-  // imported as the fragment of a curve before it, with no complaint. On a
-  // two-pulse motor that is the first pulse flown as the whole motor.
+  // else, and so does this: stopping at a bad line would import the fragment of
+  // a curve before it, which on a two-pulse motor flies the first pulse as the
+  // whole motor.
   //
-  // The one line that legitimately ends the block is the NEXT motor's header,
+  // The one line that legitimately ends the block is the next motor's header,
   // which is why its 7 fields are the only non-data line that stops rather than
   // throws (comments and blanks are already gone).
   const samples: { time: number; thrust: number }[] = [];

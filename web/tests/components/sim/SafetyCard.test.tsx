@@ -10,7 +10,7 @@ import type { FlightResult } from '../../../src/engine/openRocketEngine';
 /**
  * The "Before you fly" card folds, and the fold sticks.
  *
- * Two rules it has to keep. The fold is GATED by an acknowledgment, because
+ * Two rules it has to keep. The fold is gated by an acknowledgment, because
  * the fold is remembered and that click is the last time the notes get asked
  * for on this browser. And the card never disappears: the heading and its ⚠
  * stay on screen in both states, so what folds away is the explanation.
@@ -55,7 +55,7 @@ const sim = {
 } as unknown as FlightResult;
 
 describe('SafetyCard folding', () => {
-  // RTL's cleanup unmounts but leaves localStorage, and the fold is PERSISTED -
+  // RTL's cleanup unmounts but leaves localStorage, and the fold is persisted,
   // so without this each test would inherit the previous one's fold and the
   // toggles would run backwards.
   beforeEach(() => {

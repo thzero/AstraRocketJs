@@ -4,7 +4,7 @@ import { curveStats } from '../motors/motorMath';
 import { motorName } from '../motors/motorName';
 
 /**
- * Report computations — the numbers that back the print/export rocket report.
+ * Report computations: the numbers that back the print/export rocket report.
  * Pure and unit-agnostic (SI in, SI out); the view formats + labels them.
  */
 

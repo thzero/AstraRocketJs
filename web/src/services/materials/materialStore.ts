@@ -1,5 +1,5 @@
-// Swappable client-side store for MATERIAL data — the user's custom materials.
-// This is a typed DOMAIN store (list/add/remove Materials); the default
+// Swappable client-side store for material data: the user's custom materials.
+// This is a typed domain store (list/add/remove Materials); the default
 // implementation persists through a KeyValueStore, but you can replace the whole
 // thing with any MaterialStore on the client (setMaterialStore(...)),
 // independently of the motor store.
@@ -26,8 +26,8 @@ const CUSTOM_KEY = nsKey('materials:custom');
  * `density > 0`, not merely finite. Every reader of a density divides or
  * multiplies by it: a zero gives a part with no mass at all and a negative one
  * gives a part that lightens the rocket and drags the CG off the airframe. The
- * `.ork` and `.rkt` readers both already require `> 0` of a density off a file
- * (`matDensity`, `readSoftMaterial`), and the kernel only calls `setMaterial`
+ * `.ork` reader (`matDensity`, `readSoftMaterial` in `ork/importTags.ts`) and the
+ * `.rkt` reader both require `> 0` of a density off a file, and the kernel only calls `setMaterial`
  * when the node carries a positive one. This is the same rule for the entry that
  * comes back out of the user's own custom list.
  */
@@ -85,8 +85,8 @@ export class KeyValueMaterialStore implements MaterialStore {
   }
 }
 
-// The active material store. Usually you don't swap THIS — swap the underlying
-// KeyValueStore instead — but the seam remains if a bespoke material backend is
+// The active material store. Usually you don't swap this (swap the underlying
+// KeyValueStore instead), but the seam remains if a bespoke material backend is
 // ever wanted (e.g. a server-side shared material library).
 let store: MaterialStore = new KeyValueMaterialStore();
 

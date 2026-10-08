@@ -1,21 +1,21 @@
 /**
  * OpenRocket's own example rockets, bundled with the app.
  *
- * Sixteen curated `.ork` files from the SAME upstream commit the engine was
+ * Sixteen curated `.ork` files from the same upstream commit the engine was
  * extracted from (see scripts/sync-examples.mjs, which pulls and strips them).
  * They are a third way in beside "new" and "import": a first-time user has
  * something real to open, and every one of them exercises a feature worth
- * seeing — clusters, pods, tube fins, parallel and serial staging, dual deploy,
+ * seeing: clusters, pods, tube fins, parallel and serial staging, dual deploy,
  * a payload section that separates.
  *
  * They live in `public/examples/`, copied verbatim into the build like the WASM
- * engine, NOT fetched through `remoteData` the way the motor and component
+ * engine, not fetched through `remoteData` the way the motor and component
  * catalogs are. The catalogs are refreshed on a schedule from the `data` branch
  * because they change without the app; these change only when the app is
  * rebuilt against a newer OpenRocket, and they are precached, so opening one
  * works on a first offline load.
  *
- * An opened example is an IMPORT, not a library entry: it lands as an unsaved
+ * An opened example is an import, not a library entry: it lands as an unsaved
  * working copy with no `activeDesignId`, so editing it can never write back
  * over the bundled file, and opening the same example twice gives two
  * independent designs.
@@ -27,7 +27,7 @@ export interface ExampleMeta {
   id: string;
   /** File name under `public/examples/`. */
   file: string;
-  /** Display name — upstream's FILE name, which is what its own menu shows. */
+  /** Display name: upstream's file name, which is what its own menu shows. */
   name: string;
   /** The design's `<comment>`, or our own words where that was missing or
    *  would have promised a desktop feature this app does not have. */
@@ -55,7 +55,7 @@ async function get(path: string): Promise<Response> {
   return res;
 }
 
-/** The bundled examples, newest generation first read wins. Rejects if absent. */
+/** The bundled examples, read once per session. Rejects if absent. */
 export function loadExampleIndex(): Promise<ExampleMeta[]> {
   cached ??= (async () => {
     const index = (await (await get('examples.generated.json')).json()) as ExampleIndex;

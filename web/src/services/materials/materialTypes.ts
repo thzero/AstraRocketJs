@@ -1,13 +1,13 @@
-// What a material IS. Types only, no data and no I/O, so anything that merely
+// What a material is. Types only, no data and no I/O, so anything that merely
 // needs the shape (the store, the picker's props, a settings row) can import it
 // without dragging the catalog in behind it.
 //
-// The catalog itself is a runtime file — public/data/materials.generated.json,
-// written by scripts/sync-materials.mjs and fetched on demand like motors and
-// components (see remoteData.ts). It is NOT bundled: nothing in src/ holds the
+// The catalog itself is a runtime file (public/data/materials.generated.json,
+// written by scripts/sync-materials.mjs) fetched on demand like motors and
+// components (see remoteData.ts). It is not bundled: nothing in src/ holds the
 // table.
 //
-// The engine applies a material by DENSITY, so that is all the app needs to
+// The engine applies a material by density, so that is all the app needs to
 // reproduce OpenRocket's mass/CG. Densities are SI: bulk kg/m^3, surface
 // kg/m^2, line kg/m.
 
@@ -20,7 +20,7 @@ export type MaterialType = (typeof MATERIAL_TYPES)[number];
 export const isMaterialType = (v: unknown): v is MaterialType => (MATERIAL_TYPES as readonly unknown[]).includes(v);
 
 /**
- * The one group that is not a material a rocket is BUILT from.
+ * The one group that is not a material a rocket is built from.
  *
  * Every other bulk material in the table is something a part can legitimately
  * be made of (people build fins from aluminum and nose cones from PLA) so the
@@ -76,11 +76,11 @@ const isRow = (v: unknown): v is MaterialRow => {
  * Shape guard for the fetched catalog.
  *
  * `fetchCatalog` needs this for the same reason the motor catalog does: a data
- * host that is UP but WRONG serves `{"error":"rebuilding"}` with HTTP 200,
+ * host that is up but wrong can serve `{"error":"rebuilding"}` with HTTP 200,
  * which parses fine and would reach the picker as a material list. A failed
- * check makes that host's answer a failure of THAT host, so the in-build copy
- * is still tried. The density test earns its keep twice over here, since a row
- * that got through would be stamped onto a part and flown.
+ * check makes that host's answer a failure of that host, so the in-build copy
+ * is still tried. The density test matters most here, since a row that got
+ * through would be stamped onto a part and flown.
  */
 export function isMaterialCatalog(v: unknown): v is MaterialRow[] {
   return Array.isArray(v) && v.length > 0 && v.every(isRow);

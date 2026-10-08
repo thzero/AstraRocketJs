@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useState } from 'react';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 
-// The real one drives the engine. This dialog's job is the SELECTION UI on top
+// The real one drives the engine. This dialog's job is the selection UI on top
 // of it, so hand it a fixed model and assert on what the user can do with it.
 const assembleReport = vi.hoisted(() => vi.fn());
 vi.mock('../../../src/services/report/reportModel', async (orig) => ({
@@ -69,11 +69,11 @@ describe('ExportDialog', () => {
   });
 
   /**
-   * The report-settings popover is rendered as a CHILD of the export dialog's
+   * The report-settings popover is rendered as a child of the export dialog's
    * own full-screen overlay, and that overlay's onClick is `onClose`. Left to
    * bubble, a click on the popover's backdrop shuts the whole Export dialog, and
    * since reopening resets the once-per-open assemble latch, every include/exclude
-   * checkbox comes back from defaults - so adjusting a report setting discards the
+   * checkbox comes back from defaults, so adjusting a report setting discards the
    * selection.
    */
   it('dismissing the settings popover does not close the dialog behind it', () => {
@@ -105,14 +105,14 @@ describe('ExportDialog', () => {
   });
 
   /**
-   * Escape dismisses the TOPMOST surface. Gated only on `open`, it closed the
-   * whole dialog from inside the popover — and reopening resets the
-   * once-per-open assemble latch, so every include/exclude checkbox came back
-   * from defaults. That is the same loss the popover's backdrop handler already
-   * guards against for the click path; the keyboard path was left open.
+   * Escape dismisses the topmost surface. Gated only on `open`, it would close
+   * the whole dialog from inside the popover, and reopening resets the
+   * once-per-open assemble latch, so every include/exclude checkbox would come
+   * back from defaults. That is the same loss the popover's backdrop handler
+   * guards against for the click path.
    *
-   * The earlier version of this test pressed Escape with the popover CLOSED, so
-   * it passed either way.
+   * The popover has to be open when Escape is pressed, or the test passes either
+   * way.
    */
   it('Escape closes the settings popover, not the dialog behind it', () => {
     const onClose = open();
@@ -141,9 +141,9 @@ describe('ExportDialog', () => {
   });
 
   /**
-   * The popover is a SIBLING of the trapped panel, so a trap anchored on the
-   * panel could not reach its controls: with it open, Tab went on cycling the
-   * dialog behind it and the fill color, paper size and orientation were
+   * The popover is a sibling of the trapped panel, so a trap anchored on the
+   * panel cannot reach its controls: with it open, Tab would go on cycling the
+   * dialog behind it and the fill color, paper size and orientation would be
    * unreachable by keyboard.
    */
   it('moves the focus trap to the popover while it is open', () => {
@@ -164,10 +164,10 @@ describe('ExportDialog', () => {
   });
 
   /**
-   * "Update simulation data" ran the simulation with `.catch(() => {})`, so a
-   * failed run went unmentioned and the PDF was written from the PREVIOUS
-   * run's numbers with nothing on the page to say so. The user asked for
-   * fresh data: say why there is none, and write nothing.
+   * "Update simulation data" runs the simulation first. Swallowing a failed run
+   * would write the PDF from the previous run's numbers with nothing on the page
+   * to say so. The user asked for fresh data: say why there is none, and write
+   * nothing.
    */
   it('reports a failed simulation and writes no PDF', async () => {
     useWorkspaceStore.setState({ runSim: async () => Promise.reject(new Error('kernel choked')) } as never);

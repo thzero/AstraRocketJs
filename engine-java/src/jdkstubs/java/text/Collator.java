@@ -8,10 +8,9 @@ import java.util.Locale;
  * physics.
  * <p>
  * <b>On the JVM the real JDK class wins by parent delegation, so this code runs
- * ONLY under TeaVM.</b> That is precisely what makes it dangerous: the JVM
- * reference and the browser can sort differently, and the parity harness cannot
- * see it unless something prints a sorted list. {@code ParityMain.collatorScenarios()}
- * does, so a divergence fails the gate instead of shipping quietly.
+ * only under TeaVM.</b> The JVM reference and the browser can therefore sort
+ * differently, and the parity harness sees it only if something prints a sorted
+ * list. {@code ParityMain.collatorScenarios()} does, so a divergence fails the gate.
  *
  * <h2>What it reproduces</h2>
  *
@@ -32,14 +31,14 @@ import java.util.Locale;
  *   <li><b>Primary</b>: every character but space and {@code -}, case-folded.
  *       Those two are the only ones en_US ignores here, so "H128W" and "H128-W"
  *       are PRIMARY-equal, which is what {@code DesignationComparator} relies
- *       on. {@code _ / . '} are NOT ignored: they carry primary weights, in that
- *       order, ahead of every digit and letter. Ignoring them made "H128W" and
- *       "H128.W" equal, and two motors that compare equal through both steps of
+ *       on. {@code _ / . '} are not ignored: they carry primary weights, in that
+ *       order, ahead of every digit and letter. Ignoring them would make "H128W"
+ *       and "H128.W" equal, and two motors that compare equal through both steps of
  *       {@code ThrustCurveMotor.compareTo} are one motor to a sorted set.</li>
  *   <li><b>Secondary</b>: a weight per character, compared in order: space and
  *       {@code -} weigh more than everything else, space less than {@code -}.
  *       So a string without one sorts before a string with one ("H128W" before
- *       "H128-W"), and WHERE it falls matters, not only which it is.</li>
+ *       "H128-W"), and where it falls matters, not only which it is.</li>
  *   <li><b>Tertiary</b>: case, per character, and note the direction - Java
  *       collation sorts <em>lowercase before uppercase</em>, the opposite of a
  *       raw {@code compareTo}. Backwards, this reverses "K550W" and "k550w".</li>
@@ -64,10 +63,10 @@ public abstract class Collator implements java.util.Comparator<Object> {
 
     // Accepted and ignored: this shim does no normalization. The constants
     // exist because info.openrocket.core.util.AlphanumComparator references
-    // CANONICAL_DECOMPOSITION and calls setDecomposition, and their absence was
-    // invisible to javac - jdkstubs is a separate source set, so the main
+    // CANONICAL_DECOMPOSITION and calls setDecomposition. javac cannot catch a
+    // missing member here: jdkstubs is a separate source set, so the main
     // compile resolves java.text.Collator from the real java.base and only
-    // TeaVM linking would have found the gap, as a runtime NoSuchMethodError.
+    // TeaVM linking sees the gap, as a runtime NoSuchMethodError.
     public static final int NO_DECOMPOSITION = 0;
     public static final int CANONICAL_DECOMPOSITION = 1;
     public static final int FULL_DECOMPOSITION = 2;
@@ -78,13 +77,11 @@ public abstract class Collator implements java.util.Comparator<Object> {
     protected Collator() {}
 
     /**
-     * A NEW collator each call, as the real JDK does.
+     * A new collator each call, as the real JDK does.
      * <p>
-     * This used to hand out one shared singleton whose {@code setStrength} was
-     * a no-op, which is worse than it sounds: {@code DesignationComparator}
-     * asks for PRIMARY and {@code AlphanumComparator} asks for TERTIARY, on
-     * what was the same object. Whichever class initialized last would have
-     * decided the strength for both, globally, had the setter done anything.
+     * A shared instance would be wrong: {@code DesignationComparator} sets
+     * PRIMARY and {@code AlphanumComparator} sets TERTIARY, so whichever class
+     * initialized last would decide the strength for both.
      */
     public static Collator getInstance() {
         return getInstance(Locale.getDefault());
@@ -165,7 +162,7 @@ public abstract class Collator implements java.util.Comparator<Object> {
         return b.toString();
     }
 
-    /** Case, per character. '0' = lower, '1' = upper: lowercase sorts FIRST. */
+    /** Case, per character. '0' = lower, '1' = upper: lowercase sorts first. */
     private static String tertiaryKey(String s) {
         StringBuilder b = new StringBuilder(s.length());
         for (int i = 0; i < s.length(); i++) {

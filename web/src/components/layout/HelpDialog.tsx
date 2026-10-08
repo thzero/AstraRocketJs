@@ -11,27 +11,27 @@ import { useHelpPage } from './useHelpPage';
 import { useHelpSearch } from './useHelpSearch';
 
 /**
- * Help, read WITHOUT leaving the design you are holding.
+ * Help, read without leaving the design you are holding.
  *
- * This is a second RENDERER over the Docusaurus site, never a copy of it. The
+ * This is a second renderer over the Docusaurus site, never a copy of it. The
  * deploy builds that site into `web/public/docs` before the app build, so the
  * pages shown here are byte for byte the pages published at the docs URL; what
  * this adds is a frame around them. The docs stay one source, and the external
  * link stays in the menu too, because a docs site you can send someone is not
  * replaceable by a dialog.
  *
- * WHY AN IFRAME of the built HTML, rather than rendering the source markdown:
+ * Why an iframe of the built HTML, rather than rendering the source markdown:
  * the markdown route needs Docusaurus to emit its sources (it does not), a
  * markdown renderer in the bundle, MDX and admonition handling, a generated
  * slug index, and the translated sources as well. That is a second rendering
  * pipeline, which is the drift the "one source" rule exists to prevent. The
  * built HTML is same-origin, so the site's own chrome is stripped by an embed
- * stylesheet that ships WITH the docs (website/src/css/custom.css), and code
+ * stylesheet that ships with the docs (website/src/css/custom.css), and code
  * highlighting, admonitions and images are simply already right.
  *
- * WHY IT WORKS OFFLINE: it loads `docs/<slug>/index.html`, which is the exact
+ * Why it works offline: it loads `docs/<slug>/index.html`, which is the exact
  * key the service worker precaches each page under. Navigating to
- * `docs/<slug>/` is the form that does NOT resolve from the precache (see
+ * `docs/<slug>/` is the form that does not resolve from the precache (see
  * docPageFileUrl), so every link inside the frame is intercepted (useHelpFrame)
  * and re-opened as a file instead of being followed.
  */
@@ -57,16 +57,16 @@ export function HelpDialog({ page, onClose }: { page: string; onClose: () => voi
   return (
     <Dialog
       id="help"
-      // The PAGE's title, not the word Help: the dialog is a reader and which
+      // The page's title, not the word Help: the dialog is a reader and which
       // page you are on is the thing worth saying. It is also the accessible
       // name, so a screen reader announces the same.
       title={heading}
       // The dialog stays "Help" to assistive tech while the heading above moves
-      // with the page: this is the one dialog you navigate WITHIN, and a name
+      // with the page: this is the one dialog you navigate within, and a name
       // that changed under you as you followed a link would be worse than one
       // naming the frame.
       name={t('help.title')}
-      // Only once a real page title is showing. Before one loads the heading IS
+      // Only once a real page title is showing. Before one loads the heading is
       // "Help", and an eyebrow saying so again just prints the word twice.
       eyebrow={probed?.page?.title ? t('help.title') : undefined}
       onClose={onClose}

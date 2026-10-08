@@ -1,4 +1,4 @@
-// Component catalog — real manufacturer parts extracted from OpenRocket's
+// Component catalog: real manufacturer parts extracted from OpenRocket's
 // `.orc` files by scripts/sync-components.mjs. (OpenRocket calls these
 // "component presets"; here they're just the components catalog, symmetric with
 // the motors catalog.) The catalog is a runtime file under public/data, fetched
@@ -14,7 +14,7 @@ interface ComponentBase {
   partNo: string;
   desc: string;
   /**
-   * The three fields below are a SAVED PART's, and absent on every catalog
+   * The three fields below are a saved part's, and absent on every catalog
    * row. They live here rather than in a row type of their own so that the
    * user's own parts are ordinary rows to the picker and to componentFilter:
    * one list to search, facet, fit-rank and sort. See customParts.ts.
@@ -25,7 +25,7 @@ interface ComponentBase {
   custom?: true;
   /**
    * The whole saved node. A catalog row publishes a handful of dimensions; a
-   * saved part is a component the user BUILT, so applying only those
+   * saved part is a component the user built, so applying only those
    * dimensions would drop its shoulder, its lines, its motor mount and its
    * color. `treeEdit.catalogPatch` applies this instead of the per-type map.
    */
@@ -70,7 +70,7 @@ export interface TubeComponent extends ComponentBase {
   length: number;
 }
 
-/** Bulkhead — a (usually solid) disc. Inner structural part. */
+/** Bulkhead: a (usually solid) disc. Inner structural part. */
 export interface BulkHeadComponent extends ComponentBase {
   type: 'bulkhead';
   material?: string;
@@ -98,7 +98,7 @@ export interface TransitionComponent extends ComponentBase {
   aftShoulderLength: number | null;
 }
 
-/** Streamer: a strip, whose material is a SURFACE one (density per square meter). */
+/** Streamer: a strip, whose material is a surface one (density per square meter). */
 export interface StreamerComponent extends ComponentBase {
   type: 'streamer';
   material?: string;
@@ -107,7 +107,7 @@ export interface StreamerComponent extends ComponentBase {
   stripWidth: number;
 }
 
-/** Discriminated by `type` — keeps ComponentType and componentsForType in sync. */
+/** Discriminated by `type`; keeps ComponentType and componentsForType in sync. */
 interface ComponentMap {
   bodytube: BodyTubeComponent;
   nosecone: NoseConeComponent;
@@ -149,12 +149,12 @@ export type ComponentType = keyof ComponentMap;
 export type Component = ComponentMap[ComponentType];
 
 /**
- * A node type the picker can serve, which is NOT the same set as the catalog's
+ * A node type the picker can serve, which is not the same set as the catalog's
  * own types: an inner tube has no catalog of its own.
  *
  * Neither does it upstream. OpenRocket's preset files carry a `BodyTube` block
- * and nothing for inner tubes, because an inner tube IS dimensionally a body
- * tube, and 51 of the body tube rows are explicitly motor mount tubes
+ * and nothing for inner tubes, because an inner tube is dimensionally a body
+ * tube, and many of the body tube rows are explicitly motor mount tubes
  * (`Blue Tube, 1.15"/29mm, MMT`). So an inner tube picks from the body tubes,
  * the same way desktop OpenRocket does, and `catalogPatch` needs no new case
  * because the row it receives is a body tube row.
@@ -175,11 +175,11 @@ const isStr = (v: unknown): v is string => typeof v === 'string';
 const isNullableFinite = (v: unknown): boolean => v === null || isFiniteNumber(v);
 
 /**
- * One catalog row this build can hand to the editor, checked PER TYPE.
+ * One catalog row this build can hand to the editor, checked per type.
  *
  * The rows go straight into `treeEdit.catalogPatch`, which divides
  * `outerDiameter` by two and subtracts `innerDiameter` from it; a row missing
- * either produced a NaN radius in the design and nothing said so. Each type
+ * either would put a NaN radius in the design with no error. Each type
  * requires exactly the fields its `catalogPatch` case reads.
  */
 export function isComponentRow(v: unknown): v is Component {
@@ -238,11 +238,11 @@ export function isComponentRow(v: unknown): v is Component {
 
 /**
  * The shape gate handed to `fetchCatalog`: an object carrying a `components`
- * ARRAY. "Any object" was the whole check before, and the data host can serve
- * `{"error":"rebuilding"}` with HTTP 200: that parsed, passed, was memoized
- * for the session, and `projectByType` then threw on `.filter` of undefined
- * at every picker open until a reload. A wrong shape is a failure of THAT
- * base (remoteData falls through to the in-build copy) and is never cached.
+ * array. The data host can serve `{"error":"rebuilding"}` with HTTP 200; a
+ * looser check would let that be memoized for the session, and `projectByType`
+ * would then throw on `.filter` of undefined at every picker open until a
+ * reload. A wrong shape is a failure of that base (remoteData falls through to
+ * the in-build copy) and is never cached.
  */
 export const isComponentCatalog = (v: unknown): v is { components: unknown[] } =>
   !!v && typeof v === 'object' && Array.isArray((v as { components?: unknown }).components);
@@ -257,7 +257,7 @@ function loadCatalog(): Promise<ComponentCatalog> {
     catalogP = fetchCatalog<ComponentCatalog & { components: unknown[] }>('components', isComponentCatalog).then(
       (cat) => ({ ...cat, components: cat.components.filter(isComponentRow) }),
     );
-    // Don't memoize a FAILURE: a cached rejected promise would replay the same
+    // Don't memoize a failure: a cached rejected promise would replay the same
     // error on every retry, so the picker could never recover from one bad load.
     // (remoteData clears its own cache on failure for the same reason.)
     catalogP.catch(() => (catalogP = null));
@@ -270,7 +270,7 @@ export function projectByType<T extends ComponentType>(cat: ComponentCatalog, ty
   return cat.components.filter((p): p is ComponentMap[T] => p.type === type);
 }
 
-/** All catalog components of a type — loads (and caches) the catalog on first use. */
+/** All catalog components of a type; loads (and caches) the catalog on first use. */
 export async function componentsForType<T extends ComponentType>(type: T): Promise<ComponentMap[T][]> {
   return projectByType(await loadCatalog(), type);
 }

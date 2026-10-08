@@ -17,7 +17,7 @@ export interface HoverSeries {
   t1?: number;
 }
 
-/** A stage only reports a hovered value while its own flight is under way — a
+/** A stage only reports a hovered value while its own flight is under way: a
  *  spent booster already on the ground must not show a flat clamped dot. */
 function hoverValue(s: HoverSeries, hoverT: number): number | null {
   return s.t0 != null && s.t1 != null && hoverT >= s.t0 && hoverT <= s.t1 ? lerpAt(s.xs, s.ys, hoverT) : null;

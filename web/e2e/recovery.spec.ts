@@ -20,7 +20,7 @@ test('the parachute editor exposes deployment overrides, simulates, and persists
   await expect(page.getByLabel('Shroud lines')).toBeVisible();
   // `exact`, because the field carries an Auto switch labeled "Line length:
   // Auto" and getByLabel matches on substring: without it this resolves to the
-  // number field AND the checkbox, and fails on strict mode rather than on
+  // number field and the checkbox, and fails on strict mode rather than on
   // anything about the editor.
   await expect(page.getByLabel('Line length', { exact: true })).toBeVisible();
   await expect(page.getByText('Canopy material')).toBeVisible();
@@ -35,13 +35,13 @@ test('the parachute editor exposes deployment overrides, simulates, and persists
   await page.getByLabel('Deploy altitude (AGL)').fill('150');
   await page.getByLabel('Deploy delay').fill('1');
 
-  // The override reaches the engine — a flight runs cleanly with it applied.
-  // (A tab away now: running lives on the Simulations tab.)
+  // The override reaches the engine: a flight runs cleanly with it applied.
+  // (A tab away: running lives on the Simulations tab.)
   await runFlight(page);
 
-  // It rides on the design, so the workspace autosave restores it after reload
-  // — once the write has landed. The 700 ms guess here failed twice in one
-  // afternoon on a loaded machine while passing in isolation.
+  // It rides on the design, so the workspace autosave restores it after reload,
+  // once the write has landed. Waiting on the store rather than a fixed sleep
+  // keeps this stable on a loaded machine.
   await autosaved(page, '"deployAltitude":150');
   await page.reload();
   await page.locator('div[title="Parachute"]').click();

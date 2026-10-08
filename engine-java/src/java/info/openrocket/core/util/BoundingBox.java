@@ -1,7 +1,8 @@
 package info.openrocket.core.util;
 
-// PATCH(astrarrocketjs): removed import java.awt.geom.Rectangle2D — unavailable
-// under TeaVM (java.desktop module); the two methods using it are dropped below.
+// PATCH(astrarrocketjs): no java.awt.geom.Rectangle2D import. It is unavailable
+// under TeaVM (java.desktop module), so the two upstream methods that use it are
+// left out below.
 import java.util.ArrayList;
 import java.util.Collection;
 
@@ -108,9 +109,9 @@ public class BoundingBox {
 		return this;
 	}
 
-	// PATCH(astrarrocketjs): dropped update(Rectangle2D) — java.awt.geom is in the
-	// java.desktop GUI module, absent from TeaVM's classlib. This overload is
-	// unused by the extracted physics. See patches/LEDGER.md.
+	// PATCH(astrarrocketjs): no update(Rectangle2D). java.awt.geom is in the
+	// java.desktop GUI module, absent from TeaVM's classlib, and the extracted
+	// physics does not use this overload. See patches/LEDGER.md.
 
 	public BoundingBox update(final CoordinateIF[] list) {
 		for (CoordinateIF c : list) {
@@ -155,9 +156,9 @@ public class BoundingBox {
 		return toReturn;
 	}
 
-	// PATCH(astrarrocketjs): dropped toRectangle() — see the update(Rectangle2D)
-	// note above; java.awt.geom.Rectangle2D is unavailable under TeaVM and unused
-	// by the extracted physics.
+	// PATCH(astrarrocketjs): no toRectangle(), for the same reason as
+	// update(Rectangle2D) above: java.awt.geom.Rectangle2D is unavailable under
+	// TeaVM and unused by the extracted physics.
 
 	public double getWidth() {
 		return max.getX() - min.getX();

@@ -17,7 +17,7 @@ import { bearingFromPad, distanceFromPad } from '../flight/groundTrack';
  * a near-vertical boost the drift under canopy is most of the distance.
  */
 
-/** One wind level: meters above sea level, m/s, and where it blows FROM in compass degrees. */
+/** One wind level: meters above sea level, m/s, and where it blows from in compass degrees. */
 export interface WindLayer {
   altitudeM: number;
   speed: number;
@@ -70,7 +70,7 @@ const STEP_M = 10;
 
 /**
  * The air's velocity at an altitude (m above sea level), east and north in m/s:
- * the direction it moves TOWARD, opposite to where the wind blows from.
+ * the direction it moves toward, opposite to where the wind blows from.
  * Interpolated linearly in its components, so a backing or veering wind turns
  * through the short way without the angle wrapping; held at the end values
  * outside the profile.

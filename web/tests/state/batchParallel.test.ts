@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 // The sim normally runs in a Web Worker pool; stub the client so each call can
 // be held open and released by hand, which is the only way to observe that a
-// batch is in flight ALL AT ONCE rather than one row after another.
+// batch is in flight all at once rather than one row after another.
 const simulateMock = vi.hoisted(() => vi.fn());
 vi.mock('../../src/engine/simClient', async (orig) => ({
   ...(await orig<typeof import('../../src/engine/simClient')>()),
@@ -53,7 +53,7 @@ interface Call {
 }
 
 /**
- * The batch runs every row CONCURRENTLY.
+ * The batch runs every row concurrently.
  *
  * An `await` per sim inside a `for` loop is the bottleneck once there is a pool of
  * workers rather than one engine, so these assert the store submits them all and
@@ -92,7 +92,7 @@ describe('a batch over the worker pool', () => {
       st().sims.map((x) => x.id),
       PREFS,
     );
-    // Before: this was 1, and stayed 1 until the first flight came back.
+    // All three are submitted before any flight comes back.
     expect(simulateMock).toHaveBeenCalledTimes(3);
 
     for (const [i, c] of calls.entries()) c.resolve(result(100 + i));
@@ -106,7 +106,7 @@ describe('a batch over the worker pool', () => {
       st().sims.map((x) => x.id),
       PREFS,
     );
-    // All three are submitted, so all three are QUEUED; none has been handed to
+    // All three are submitted, so all three are queued; none has been handed to
     // a worker yet. Queued and running stop being the same instant once there
     // is a pool, which is the distinction the table's dot needs.
     expect(['A', 'B', 'C'].map(statusOf)).toEqual(['queued', 'queued', 'queued']);
@@ -187,7 +187,7 @@ describe('a batch over the worker pool', () => {
 });
 
 /**
- * Cancel and "run outdated", the two batch controls the pool made worth having.
+ * Cancel and "run outdated", the two batch controls a pool makes worth having.
  */
 describe('canceling a batch', () => {
   let calls: Call[];
@@ -311,12 +311,11 @@ describe('running everything outdated', () => {
 /**
  * Editing a simulation while it flies.
  *
- * The design has always had `ranOn`: an answer flown against a tree that has
- * since changed is discarded. A row's OWN inputs had no such guard, and were
- * protected by locking the simulation editor for the duration of a run instead.
- * That lock is gone, so the guard has to be real: without the check a result
- * would overwrite an edit made mid-run and show numbers for conditions the row
- * no longer has.
+ * The design has `ranOn`: an answer flown against a tree that has since
+ * changed is discarded. A row's own inputs need the same guard, because the
+ * simulation editor stays open during a run: without the check a result would
+ * overwrite an edit made mid-run and show numbers for conditions the row no
+ * longer has.
  */
 describe('a simulation edited while it is in the air', () => {
   let calls: Call[];
@@ -347,7 +346,7 @@ describe('a simulation edited while it is in the air', () => {
     const target = byName('A').id;
     const run = st().runSims([target], PREFS);
 
-    // Edit the row that is flying. `patchLaunch` hits the ACTIVE simulation, so
+    // Edit the row that is flying. `patchLaunch` hits the active simulation, so
     // point the editor at it first.
     st().setActiveId(target);
     st().patchLaunch({ windAverage: 7 });

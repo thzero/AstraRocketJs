@@ -2,7 +2,7 @@
  * Both derived-value passes, in the order they depend on each other: an
  * automatic diameter moves a tube's bore, and a shoulder follows that bore.
  *
- * Exported because it is the ONE choke point for it: any module that rewrites
+ * Exported because it is the one choke point for it: any module that rewrites
  * the tree ends with this, or the values that follow a neighbor go stale until
  * some unrelated edit happens to fix them.
  */
@@ -11,8 +11,8 @@ export const syncDerived = (tree: RocketTree): RocketTree => syncAutoShoulders(s
 /**
  * Pure, immutable helpers for editing a component tree (add / update / remove
  * nodes) plus sensible defaults for new parts. Each op returns a fresh tree so
- * React state updates cleanly; the caller re-runs buildTree to recompute the
- * physics. Keeps App/PropertyPanel free of tree-walking bookkeeping.
+ * React state updates cleanly; the caller rebuilds the engine design from it to
+ * recompute the physics. Keeps App/PropertyPanel free of tree-walking bookkeeping.
  */
 import type { ComponentNode, ComponentType, RocketTree } from '../../engine/openRocketEngine';
 import type { Component } from '../parts/componentDb';
@@ -20,9 +20,9 @@ import { DEFAULT_CHUTE_CD } from '../parts/componentFilter';
 import { KERNEL_DEFAULTS } from '../../tree/kernelDefaults.js';
 import { isChainType } from '../../tree/componentKinds';
 import { uuid } from '../app/uuid';
-// Every mutator here ends by resolving the shoulders that follow a neighbor:
-// this is the one door the tree is edited through, so nothing downstream has to
-// know the feature exists.
+// Every mutator here ends by resolving the radii and shoulders that follow a
+// neighbor (syncDerived): this is the one door the tree is edited through, so
+// nothing downstream has to know the feature exists.
 import { syncAutoShoulders } from './autoShoulder';
 import { syncAutoRadii } from './autoRadius';
 import { FIELDS } from './componentFields';
@@ -33,8 +33,8 @@ import { findNode as findNodeIn, findSiblings, findWithParent, walkNodes } from 
  *
  * A UUID, not a `<type>-<n>` counter: a module-scope counter restarts at zero on
  * every page load while the persisted tree keeps its ids, so the next session's
- * first body tube is `bodytube-1` again. Every walker in this file stops at the
- * first match, so editing or deleting the new part would hit the old one.
+ * first body tube would be `bodytube-1` again. Every walker in this file stops at
+ * the first match, so editing or deleting the new part would hit the old one.
  */
 function newId(): string {
   return uuid();
@@ -74,16 +74,16 @@ function breaksPreset(type: string, patch: Partial<ComponentNode>): boolean {
 /**
  * Would {@link updateNode} change anything?
  *
- * `updateNode` always returns a fresh tree - it cannot cheaply know otherwise,
- * because it path-copies the spine as it walks - and `tree.components` is the
+ * `updateNode` always returns a fresh tree (it cannot cheaply know otherwise,
+ * because it path-copies the spine as it walks), and `tree.components` is the
  * rebuild dependency, so a value-identical patch costs a full kernel build. The
- * property panel fires one patch PER KEYSTROKE with the already-clamped value, so
+ * property panel fires one patch per keystroke with the already-clamped value, so
  * typing past a ceiling fires N identical patches, N kernel builds and an undo
  * step that changes nothing.
  *
  * Shallow `!==` per key, which is the comparison `updateNode` itself makes when it
  * spreads the patch. A patch that would drop the preset link counts as a change
- * even when every value matches, because dropping it IS the change.
+ * even when every value matches, because dropping it is the change.
  */
 export function patchChangesNode(tree: RocketTree, id: string, patch: Partial<ComponentNode>): boolean {
   const node = findNode(tree, id);
@@ -99,7 +99,7 @@ export function patchChangesNode(tree: RocketTree, id: string, patch: Partial<Co
 /**
  * Patch one node, returning a new tree.
  *
- * Path-copies only the SPINE from the root to the patched node; every sibling and
+ * Path-copies only the spine from the root to the patched node; every sibling and
  * untouched subtree is shared with the input. This runs on every keystroke in the
  * property panel, so a `structuredClone` of the whole design would serialize a
  * hundred parts per character on a hundred-part rocket. The input tree is never
@@ -170,7 +170,7 @@ export function findRecoveryDevices(tree: RocketTree): ComponentNode[] {
 }
 
 /**
- * Every stage in the design, in the order the KERNEL numbers them.
+ * Every stage in the design, in the order the kernel numbers them.
  *
  * Stage numbers are handed out as stages are added to the rocket, and the build
  * walks the tree depth-first, so this pre-order walk over stage and
@@ -204,8 +204,8 @@ export function findSeparators(tree: RocketTree): ComponentNode[] {
 }
 
 /**
- * Whether a mount sits on a stage that has another stage BELOW it (a sustainer /
- * upper stage) — the only case where "ignite on the stage below's ejection /
+ * Whether a mount sits on a stage that has another stage below it (a sustainer /
+ * upper stage): the only case where "ignite on the stage below's ejection /
  * burnout" can ever fire. False for a single (or implicit) stage and for the
  * bottom booster. Top-level `stage` nodes run desktop order: [0] = top
  * sustainer … [last] = bottom booster.
@@ -221,8 +221,8 @@ export function isUpperStageMount(tree: RocketTree, mountId: string): boolean {
 
 /**
  * Axial components stack nose→tail in the stage; everything else nests inside
- * a tube. The one `CHAIN_TYPES` table (tree/componentKinds.ts), not a fourth
- * local copy of it.
+ * a tube. The one `CHAIN_TYPES` table (tree/componentKinds.ts), not a local
+ * copy of it.
  */
 export function isAxial(type: string): boolean {
   return isChainType(type);
@@ -330,13 +330,12 @@ const MATERIAL_TYPES: ReadonlySet<string> = new Set([
   'nosecone',
   'bodytube',
   'transition',
-  // NOT 'fairing'. It is modeled as a MassComponent whose mass is set outright
+  // Not 'fairing'. It is modeled as a MassComponent whose mass is set outright
   // (ComponentFactory's fairing case calls setComponentMass), so a material
-  // changes nothing the kernel flies; `writeFairing` has no <material> element
-  // to put one in either, so the choice was dropped on the next save. It was
-  // the one type for which picking a material did nothing and then forgot
-  // itself. See `ork/materialRoundTrip.test.ts`, which holds every type in this
-  // set to the opposite.
+  // changes nothing the kernel flies, and `writeFairing` has no <material>
+  // element to put one in, so the choice would be dropped on the next save.
+  // `ork/materialRoundTrip.test.ts` holds every type in this set to a material
+  // that survives the round trip.
   'trapezoidfinset',
   'ellipticalfinset',
   'freeformfinset',
@@ -360,17 +359,17 @@ export function isRecoveryDevice(type: string): boolean {
 
 /**
  * The catalog link to record beside the dimensions a pick applies: which part
- * this component now IS, in the shape the `.ork` carries it
+ * this component now is, in the shape the `.ork` carries it
  * (`RocketComponentSaver`, `<preset type manufacturer partno>`).
  *
  * A part the user saved themselves is not in anybody's catalog, so it gets no
  * link: writing one would claim a manufacturer's part number for it.
  */
 export function presetRef(p: Component): Partial<ComponentNode> {
-  if (p.custom || !p.partNo) return { preset: undefined } as Partial<ComponentNode>;
+  if (p.custom || !p.partNo) return { preset: undefined };
   return {
     preset: presetLink(p.type, p.mfr, p.partNo, (p as { digest?: string }).digest),
-  } as unknown as Partial<ComponentNode>;
+  };
 }
 
 /**
@@ -386,8 +385,8 @@ export function presetLink(type: string, manufacturer: string, partNo: string, d
  * The automatic flag that governs each dimension a preset can state.
  *
  * Only the ones `syncAutoRadii` actually resolves. The kernel's own setters do
- * this - `RadiusRingComponent.setOuterRadius` and `BodyTube.setOuterRadius`
- * both clear `outerRadiusAutomatic` - and here it is what stops the resolver
+ * this (`RadiusRingComponent.setOuterRadius` and `BodyTube.setOuterRadius`
+ * both clear `outerRadiusAutomatic`), and here it is what stops the resolver
  * overwriting the part you just picked on its next pass, which would read as
  * the picker doing nothing at all.
  */
@@ -401,24 +400,24 @@ const AUTO_FLAG_OF: Record<string, string> = {
 
 /**
  * Turn the automatic flag off for every dimension the patch states outright,
- * unless the patch has an opinion about the flag itself - a saved part that was
- * stored AS automatic stays automatic.
+ * unless the patch has an opinion about the flag itself: a saved part that was
+ * stored as automatic stays automatic.
  */
 function pinStated(patch: Partial<ComponentNode>): Partial<ComponentNode> {
   const out: Record<string, unknown> = { ...patch };
   for (const [dim, flag] of Object.entries(AUTO_FLAG_OF)) {
     if (out[dim] !== undefined && out[flag] === undefined) out[flag] = false;
   }
-  return out as Partial<ComponentNode>;
+  return out;
 }
 
 /**
  * Map a chosen catalog part onto a node patch (radii, length, material, …).
  *
- * The dimensions it states are PINNED as they are applied: a part picked for a
+ * The dimensions it states are pinned as they are applied: a part picked for a
  * ring whose diameter is automatic would otherwise be undone by the resolver on
- * its next pass. That was unreachable while nothing started automatic; the four
- * bore-filling parts now do, as their kernel constructors do.
+ * its next pass. The four bore-filling parts start automatic, as their kernel
+ * constructors do.
  */
 export function catalogPatch(p: Component, node?: ComponentNode): Partial<ComponentNode> {
   return pinStated(statedPatch(p, node));
@@ -429,25 +428,25 @@ export function catalogPatch(p: Component, node?: ComponentNode): Partial<Compon
  *
  * The row publishes `filled` and an outside diameter and nothing else, so a
  * hollow part has to inherit a wall from somewhere. The node's own is the right
- * answer when it IS a wall: picking a different hollow cone should not throw
+ * answer when it is a wall: picking a different hollow cone should not throw
  * away a thickness that was typed for this airframe. It is the wrong answer
- * when the part being replaced was SOLID, because its "wall" is its whole
+ * when the part being replaced was solid, because its "wall" is its whole
  * radius, and carried onto a hollow part it keeps the cone solid at the new
- * part's dimensions - a nose cone still flying several times its real mass.
+ * part's dimensions: a nose cone still flying several times its real mass.
  */
 function hollowWall(node: ComponentNode | undefined, radius: number): Partial<ComponentNode> {
   const n = node as Record<string, unknown> | undefined;
   const wall = typeof n?.['thickness'] === 'number' ? n['thickness'] : null;
   const wasSolid = n?.['filled'] === true || wall == null || wall >= radius;
-  return wasSolid ? ({ thickness: KERNEL_DEFAULTS.nosecone.thickness } as Partial<ComponentNode>) : {};
+  return wasSolid ? { thickness: KERNEL_DEFAULTS.nosecone.thickness } : {};
 }
 
 /** The dimensions the chosen part states, before {@link pinStated} pins them. */
 function statedPatch(p: Component, node?: ComponentNode): Partial<ComponentNode> {
-  // A SAVED part (customParts.ts) carries its whole node, not the handful of
+  // A saved part (customParts.ts) carries its whole node, not the handful of
   // dimensions a catalog row publishes, and applying only the switch below
   // would drop the nose cone's shoulder, the parachute's lines, the tube's
-  // motor mount and the part's color: everything the user saved it FOR.
+  // motor mount and the part's color: everything the user saved it for.
   // Copied, so the stored object cannot be mutated through the tree.
   if (p.custom && p.patch) return { ...p.patch };
   const mat =
@@ -461,11 +460,11 @@ function statedPatch(p: Component, node?: ComponentNode): Partial<ComponentNode>
         shape: p.shape,
         length: p.length,
         aftRadius: radius,
-        // SAID OUTRIGHT, both ways. The kernel reads solidness from this flag
+        // Said outright, both ways. The kernel reads solidness from this flag
         // (`ComponentFactory` calls `setFilled`), not from the thickness, so
-        // leaving it alone let the part BEFORE this one decide: a solid cone
-        // followed by a hollow one went on flying solid, at the hollow one's
-        // dimensions, and the `.ork` went on saying `<thickness>filled`.
+        // leaving it alone would let the part before this one decide: a solid
+        // cone followed by a hollow one would go on flying solid, at the hollow
+        // one's dimensions, and the `.ork` would go on saying `<thickness>filled`.
         filled: !!p.filled,
         ...(p.filled ? { thickness: radius } : hollowWall(node, radius)),
         ...mat,
@@ -543,7 +542,7 @@ export function siblingIndex(tree: RocketTree, id: string): { index: number; cou
  * The node's parent component, or null for a top-level node (a stage) or an
  * id that isn't in the tree.
  *
- * Tube fins need it: whether their tubes collide depends on the BODY radius
+ * Tube fins need it: whether their tubes collide depends on the body radius
  * they ring, which lives on the parent, not on the fin set.
  */
 export function findParent(tree: RocketTree, id: string): ComponentNode | null {
@@ -560,7 +559,7 @@ export function moveNode(tree: RocketTree, id: string, dir: -1 | 1): RocketTree 
   const { siblings, index } = findSiblings(next.components, id)!;
   const [x] = siblings.splice(index, 1);
   siblings.splice(index + dir, 0, x!);
-  // Moving a part changes WHO its neighbors are, so a shoulder that follows one
+  // Moving a part changes who its neighbors are, so a shoulder that follows one
   // has a new tube to follow.
   return syncDerived(next);
 }
@@ -574,7 +573,7 @@ export function defaultNode(type: ComponentType): ComponentNode {
     case 'stage':
       return { type, id, separationEvent: 'ejection', separationDelay: 0 };
     // The shoulder diameters follow the tube next door (see autoShoulder.ts).
-    // Only on parts created HERE: the flag is never written by the .ork reader,
+    // Only on parts created here: the flag is never written by the .ork reader,
     // so no design that already exists grows a shoulder it did not have.
     case 'nosecone':
       return { type, id, shape: 'ogive', length: 0.1, aftRadius: 0.013, thickness: 0.001, shoulderAuto: true };
@@ -614,7 +613,7 @@ export function defaultNode(type: ComponentType): ComponentNode {
         thickness: 0.003,
         position: { method: 'bottom', offset: 0 },
       };
-    // Freeform outline (m): a swept quad — root 0→0.06 along the body, tip at 0.05 height.
+    // Freeform outline (m): a swept quad, root 0→0.06 along the body, tip at 0.05 height.
     case 'freeformfinset':
       return {
         type,
@@ -651,11 +650,11 @@ export function defaultNode(type: ComponentType): ComponentNode {
         position: { method: 'bottom', offset: 0 },
       };
     // The four parts that fill the bore of the tube they sit in start
-    // AUTOMATIC, because that is what their kernel constructors do:
+    // automatic, because that is what their kernel constructors do:
     // `TubeCoupler()`, `Bulkhead()` and `EngineBlock()` each call
     // `setOuterRadiusAutomatic(true)`, and `CenteringRing()` turns on both its
     // outer radius and its inner one. Without the flags a ring dropped into a
-    // 54 mm airframe arrived sized for a 25 mm one and stayed that way until
+    // 54 mm airframe would arrive sized for a 25 mm one and stay that way until
     // someone noticed the checkbox, which is a wrong rocket that simulates
     // quietly. The radii below are still written, because the app keeps the
     // resolved number beside the flag rather than spelling auto as an absent
@@ -679,7 +678,7 @@ export function defaultNode(type: ComponentType): ComponentNode {
         outerRadius: 0.0125,
         outerRadiusAuto: true,
         // A ring's bore follows the motor mount running through it, and is 0
-        // with no mount there - a solid disc, which is what the kernel gives
+        // with no mount there: a solid disc, which is what the kernel gives
         // too (`CenteringRing.getInnerRadius` starts at 0 and takes the largest
         // InnerTube sibling it overlaps).
         innerRadius: 0.0092,
@@ -741,9 +740,9 @@ export function defaultNode(type: ComponentType): ComponentNode {
         deployDelay: 0,
         position: { method: 'top', offset: 0.02 },
       };
-    // `radius` is set EXPLICITLY rather than left to each side's own default.
-    // Omitting it meant the kernel flew KERNEL_DEFAULTS.masscomponent.radius
-    // while the schematic drew 70% of the parent radius.
+    // `radius` is set explicitly rather than left to each side's own default.
+    // Omitting it would let the kernel fly KERNEL_DEFAULTS.masscomponent.radius
+    // while the schematic draws 70% of the parent radius.
     case 'masscomponent':
       return {
         type,
@@ -753,9 +752,8 @@ export function defaultNode(type: ComponentType): ComponentNode {
         radius: KERNEL_DEFAULTS.masscomponent.radius,
         position: { method: 'top', offset: 0 },
       };
-    // Rail buttons had no case at all, so the editor produced a bare
-    // `{ type, id }`: flown at the kernel's 9.7 mm, drawn at 4 mm, and saved
-    // as 9.7 mm by orkExport. Only the drawing was wrong, but nothing said so.
+    // The kernel's own diameter, stated on the node. A bare `{ type, id }` would
+    // fly and save at the kernel's 9.7 mm but be drawn at 4 mm.
     case 'railbutton':
       return {
         type,
@@ -797,7 +795,7 @@ export function stageNodes(tree: RocketTree): ComponentNode[] {
  * The recovery devices inside one stage, in tree order.
  *
  * What the stage's Recovery section chooses between: OpenRocket asks which
- * device in THIS stage is the drogue, so a chute in the booster is not on offer
+ * device in this stage is the drogue, so a chute in the booster is not on offer
  * when configuring the sustainer.
  */
 export function recoveryDevices(tree: RocketTree, stageId: string): ComponentNode[] {
@@ -807,13 +805,13 @@ export function recoveryDevices(tree: RocketTree, stageId: string): ComponentNod
 }
 
 /**
- * Make ONE device in a stage the drogue, or none of them.
+ * Make one device in a stage the drogue, or none of them.
  *
  * The drogue flag is stored per device (`<isdrogue>` in the file), but it is a
- * property of the STAGE's recovery plan: single deployment is no drogue, dual
+ * property of the stage's recovery plan: single deployment is no drogue, dual
  * deployment is exactly one, and the desktop only ever sets it from the stage's
  * Recovery tab, clearing the rest of the stage first. Doing the same here is
- * what keeps a design out of the state OpenRocket's own UI cannot produce - two
+ * what keeps a design out of the state OpenRocket's own UI cannot produce: two
  * drogues in one stage, which its warning code reads as whichever it walks into
  * first.
  *
@@ -832,12 +830,12 @@ export function setStageDrogue(tree: RocketTree, stageId: string, deviceId: stri
     if ((node['drogue'] === true) === on) continue;
     // `undefined` rather than `false`, so a single-deployment stage writes no
     // `<isdrogue>` at all, which is what the desktop's saver omits.
-    next = updateNode(next, id, { drogue: on ? true : undefined } as Partial<ComponentNode>);
+    next = updateNode(next, id, { drogue: on ? true : undefined });
   }
   return next;
 }
 
-/** Whether `id` is the top stage — the one with nothing above it to separate from. */
+/** Whether `id` is the top stage: the one with nothing above it to separate from. */
 export function isFirstStage(tree: RocketTree, id: string): boolean {
   const stages = stageNodes(tree);
   return stages.length > 0 && stages[0]!.id === id;
@@ -863,7 +861,7 @@ export function addStage(tree: RocketTree): { tree: RocketTree; id: string } {
  * Add a new part of `type` under the selected node, or under the stage when
  * nothing is selected. Returns the new tree and the new node's id.
  *
- * {@link allowedChildren} is ENFORCED here, not only by the Add menu. The menu
+ * {@link allowedChildren} is enforced here, not only by the Add menu. The menu
  * offers valid types for the selected part, but this is the function every caller
  * goes through, so trusting `selectedId` outright would put a part added while a
  * fin was selected under the fin and let the kernel build a tree the desktop
@@ -876,7 +874,7 @@ export function addPart(
   tree: RocketTree,
   type: ComponentType,
   selectedId: string | null,
-  /** Merged onto the new node — the caller's per-part-type material defaults
+  /** Merged onto the new node: the caller's per-part-type material defaults
    *  (`services/design/materialSlots.defaultMaterialPatch`). Kept as a parameter rather
    *  than read here so this module stays a pure tree editor with no settings
    *  of its own. */

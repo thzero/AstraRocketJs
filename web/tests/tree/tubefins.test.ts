@@ -61,7 +61,7 @@ describe('tubeFinMaxCount', () => {
 });
 
 describe('tubeFinRadius numeric guard', () => {
-  // The hand-rolled `typeof x === 'number' && x > 0` let Infinity through,
+  // A hand-rolled `typeof x === 'number' && x > 0` lets Infinity through,
   // which propagates to the schematic's scale and collapses the drawing to
   // nothing. `numOpt` carries the Number.isFinite guard nodeProps documents as
   // load-bearing, so a non-finite radius falls back to the auto rule instead.
@@ -83,9 +83,9 @@ describe('tubeFinRadius numeric guard', () => {
 /**
  * The fin-set predicates.
  *
- * `<tubefinset>` ends in "finset" but `TubeFinSet extends Tube`, not FinSet —
- * so OpenRocket's `instanceof FinSet` excludes it and our string match did not.
- * That one-word difference fabricated a 50 × 30 mm cutting template, a
+ * `<tubefinset>` ends in "finset" but `TubeFinSet extends Tube`, not FinSet,
+ * so OpenRocket's `instanceof FinSet` excludes it and a string match would not.
+ * That one-word difference would fabricate a 50 × 30 mm cutting template, a
  * made-up fin in the report silhouette, and a 50 mm root span, for a part that
  * is a tube.
  */

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { keyOf } from '../../../src/components/sim/motorKey';
+import { keyOf } from '../../../src/services/motors/motorKey';
 // @ts-expect-error - a plain .mjs build script helper, no types
 import { motorRowKey, collidingRowKeys } from '../../../scripts/lib/motorRowKey.mjs';
 import type { CatalogMotor } from '../../../src/services/motors/motorDb';
@@ -9,13 +9,12 @@ import type { CatalogMotor } from '../../../src/services/motors/motorDb';
  *
  * `keyOf` is the dashboard row key and the selection identity: two motors with
  * the same key select, check and highlight as one. The sync script has to
- * detect collisions BEFORE publishing, and it is a plain `.mjs` with no TS
+ * detect collisions before publishing, and it is a plain `.mjs` with no TS
  * loader, so it cannot import `keyOf`. Rather than let a hand-written copy
  * drift, the copy lives in one place and this test pins it to the original.
  *
- * There was a third copy: the publish workflow spelled the expression inline,
- * in a Summary step that printed a warning, never failed the job, and ran AFTER
- * the publish. The gate is `assertSane` now.
+ * The publish gate is `assertSane` in scripts/sync-motors.mjs, which refuses to
+ * write a catalog with colliding keys.
  */
 const motor = (o: Partial<CatalogMotor>): CatalogMotor =>
   ({ manufacturer: 'Estes', designation: 'C6', diameter: 0.018, code: 'C6', ...o }) as CatalogMotor;
@@ -55,8 +54,8 @@ describe('collidingRowKeys', () => {
   });
 
   it('separates motors that differ only in code', () => {
-    // The field that was added to `keyOf` because 14 real catalog pairs collide
-    // on manufacturer, designation and diameter alone.
+    // `code` is part of `keyOf` because real catalog pairs collide on
+    // manufacturer, designation and diameter alone.
     expect(collidingRowKeys([motor({ code: 'C6-3' }), motor({ code: 'C6-5' })])).toEqual([]);
   });
 
@@ -64,7 +63,7 @@ describe('collidingRowKeys', () => {
     const a = motor({ manufacturer: 'A', designation: 'X', diameter: 0.018, code: undefined });
     const b = motor({ manufacturer: 'A', designation: 'X', diameter: 0.018, code: '' });
     // Same key via the `?? ''` branch: exactly the pair a hand-written copy
-    // without that branch would have let through.
+    // without that branch would let through.
     expect(collidingRowKeys([a, b])).toEqual([keyOf(a)]);
   });
 });

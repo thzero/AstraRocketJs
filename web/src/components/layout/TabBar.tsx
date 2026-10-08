@@ -7,12 +7,13 @@ import { taskTabs } from './tabTable';
  * Mobile bottom tab bar (hidden at lg+, where {@link WorkbenchTabs} sits under
  * the header instead).
  *
- * Five buttons over four tabs: the Design tab has two halves a phone can't show
- * at once, so Rocket and Sketch both open it and pick the half (`designPane`).
- * At lg+ that split disappears and Design is one button showing both.
+ * One more button than there are tabs: the Design tab has two halves a phone
+ * can't show at once, so Rocket and Sketch both open it and pick the half
+ * (`designPane`). At lg+ that split disappears and Design is one button showing
+ * both.
  *
- * The labels are shorter here than in the header strip, because five of them
- * share the width of a phone: `tabs.configsShort` names the tab that the desktop
+ * The labels are shorter here than in the header strip, because five or six of
+ * them share the width of a phone: `tabs.configsShort` names the tab that the desktop
  * calls Configurations.
  *
  * It is the last flex child of a fixed-height column whose main area is
@@ -63,8 +64,9 @@ function TabButton({
   return (
     <button
       onClick={onClick}
-      // Which tab you are on was signalled by color alone — nothing a screen
-      // reader could announce, and nothing a low-vision user could rely on.
+      // Which tab you are on is announced (`aria-current`), not shown by color
+      // alone, which a screen reader cannot announce and a low-vision user
+      // cannot rely on.
       aria-current={active ? 'page' : undefined}
       className={`flex flex-1 flex-col items-center gap-0.5 py-3 text-xs ${active ? 'text-accent-400' : 'text-ink-muted'}`}
     >

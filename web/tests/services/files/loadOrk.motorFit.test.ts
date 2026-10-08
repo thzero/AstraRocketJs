@@ -3,12 +3,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 /**
  * A `.ork` names a motor, and the name is all the catalog is searched by.
  *
- * So nothing stopped a 54 mm Cesaroni J360 being seated in a 38 mm tube: the
- * app flew a rocket on a motor nobody could push into it, and said nothing. The
- * motor browser has judged this all along (`motorFitsMount`) and the file reader
- * never asked.
+ * So a file can seat a 54 mm Cesaroni J360 in a 38 mm tube, and the app would
+ * fly a rocket on a motor nobody could push into it. The file reader asks the
+ * same question the motor browser does (`motorFitsMount`) and says so in a note.
  *
- * It is still SEATED, because a file is a statement of what somebody built and
+ * It is still seated, because a file is a statement of what somebody built and
  * dropping its motor would be the app overruling it on a tolerance it is
  * guessing at. The note is the point.
  *
@@ -139,7 +138,7 @@ describe('a motor the file names for a mount it does not go in', () => {
 
   it('judges the length too, against the tube plus its overhang', async () => {
     // 1 m of motor in 300 mm of tube. Length is the other half of a fit, and
-    // the browser has always judged both.
+    // the browser judges both.
     fetchMotorSpec.mockResolvedValue(spec(0.038, 1.0));
     const notes = (await loadOrk(new ArrayBuffer(0))).notes.join(' ');
     expect(notes).toMatch(/1000 mm long/);

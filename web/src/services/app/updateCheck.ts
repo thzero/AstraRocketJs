@@ -5,8 +5,8 @@
  * The service worker is registered with `registerType: 'prompt'` so a deploy can
  * never reload the page under someone mid-design. The cost of that choice is
  * that nothing happens on its own: the browser only looks for a new worker on a
- * NAVIGATION, so a tab left open all afternoon -- which is exactly how this app
- * is used -- would never find out a new version had shipped.
+ * navigation, so a tab left open all afternoon (which is how this app is
+ * used) would never find out a new version had shipped.
  *
  * The timing lives here rather than in the component so it can be tested without
  * a service worker, a fake clock in a jsdom page, or the `virtual:pwa-register`
@@ -20,10 +20,10 @@
  * which caches `sw.js` for 600 s and ignores the no-cache request a worker
  * update check sends (and a cache-busting query, which it strips), so a
  * deploy is invisible to every browser for up to ten minutes whatever they
- * do. An hourly poll stacked on that meant a focused tab could sit on a stale
- * build for over an hour with no toast, and the natural reaction was a hard
- * reload, which is exactly the thing the toast exists to spare people. Each
- * check is one conditional GET of a 12 kB script; ten minutes is cheap.
+ * do. An hourly poll stacked on that would let a focused tab sit on a stale
+ * build for over an hour with no toast, and the natural reaction is a hard
+ * reload, which is the thing the toast exists to spare people. Each check is
+ * one conditional GET of a 12 kB script; ten minutes is cheap.
  */
 export const UPDATE_POLL_MS = 10 * 60_000;
 
@@ -66,8 +66,8 @@ export function snoozeUntil(now: number, ms: number = UPDATE_SNOOZE_MS): number 
  *
  * Long enough that alt-tabbing to read a motor chart and coming straight back
  * does not reload the page under you; short enough that stepping away for a
- * minute is enough. The design is already safe either way - the workspace
- * autosaves on a 500 ms debounce and flushes on `visibilitychange` - so what
+ * minute is enough. The design is already safe either way (the workspace
+ * autosaves on a 500 ms debounce and flushes on `visibilitychange`), so what
  * this protects is attention, not data.
  */
 export const UPDATE_APPLY_HIDDEN_MS = 30_000;
@@ -75,14 +75,14 @@ export const UPDATE_APPLY_HIDDEN_MS = 30_000;
 /**
  * Whether a waiting worker may be applied with no answer from the user.
  *
- * `registerType: 'prompt'` means the new worker activates ONLY when the running
+ * `registerType: 'prompt'` means the new worker activates only when the running
  * page posts SKIP_WAITING, and `clientsClaim` is off, so it cannot take over by
  * itself. A worker nobody asks for therefore waits for the life of the tab.
  * That is a permanent stranding in three ordinary cases: a build old enough to
  * have no prompt, a second tab holding the old worker alive, and the prompt
  * simply being dismissed. The only escape is the hard reload this whole
  * mechanism exists to spare people, so an offer nobody answered is taken up on
- * their behalf - but only once doing it cannot interrupt anything.
+ * their behalf, but only once doing it cannot interrupt anything.
  *
  * `busy` is a flight in the air. A reload would throw it away, and it is the
  * one thing here that keeps running while the tab is hidden.

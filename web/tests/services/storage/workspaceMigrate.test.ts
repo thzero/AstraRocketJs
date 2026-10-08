@@ -28,7 +28,7 @@ describe('migrateWorkspace', () => {
   });
 
   it('refuses a version this build does not know, rather than half-reading it', () => {
-    // An installed PWA can have an older build cached, so a NEWER workspace is a
+    // An installed PWA can have an older build cached, so a newer workspace is a
     // live possibility. Reading it as far as it parses would overwrite the user's
     // design with a partial copy of itself.
     expect(migrateWorkspace({ ...v1(), version: 3 })).toBeNull();

@@ -13,22 +13,22 @@ import { exportFilename, saveBlob, safeFilename } from '../files/saveFile';
 /**
  * Whole-rocket 3MF export.
  *
- * The per-component ⬇ button has always been able to write one part at a time,
- * which is fine for reprinting a fin and tedious for printing a rocket. This
- * walks the design once, builds every printable solid, and writes them either
- * as ONE 3MF holding a named object per part — the thing 3MF is for — or as a
- * zip of one file per part, for a workflow that wants them separate.
+ * The per-component ⬇ button writes one part at a time, which is fine for
+ * reprinting a fin and tedious for printing a rocket. This walks the design
+ * once, builds every printable solid, and writes them either as one 3MF holding
+ * a named object per part (the thing 3MF is for) or as a zip of one file per
+ * part, for a workflow that wants them separate.
  *
- * Parts with no solid are left out and NAMED: a parachute, a shock cord, a mass
+ * Parts with no solid are left out and named: a parachute, a shock cord, a mass
  * component and a rail button have no printable body, and a part whose geometry
  * fails `solidForNode`'s manifold check would produce a file no slicer accepts.
  * Both are the caller's to report.
  *
- * The HEAVY half: this pulls in the three.js meshers and the 3MF writer, so it
- * is reached only through the dynamic import in `store.exportPrint`. Which
- * parts a design can print is `printableParts.ts`, which the export dialog
- * imports instead; a static import of this module from a dialog the header
- * mounts eagerly would put the meshers back in the main bundle.
+ * The heavy half: this pulls in the three.js meshers and the 3MF writer, so it
+ * is reached only through the dynamic import in the store's `exportPrint`.
+ * Which parts a design can print is `printableParts.ts`, which the export
+ * dialog imports instead; a static import of this module from a dialog the
+ * header mounts eagerly would put the meshers in the main bundle.
  */
 
 export interface PrintExportOptions {
@@ -131,7 +131,7 @@ export async function downloadRocket3mf(
   const used = new Set<string>();
   for (const b of built) {
     // Two parts can legitimately share a name ("Centering ring" twice), and a
-    // zip entry cannot — the second would silently replace the first.
+    // zip entry cannot: the second would silently replace the first.
     let entry = safeFilename(b.part.name, b.part.name || 'part');
     let n = 2;
     while (used.has(entry)) entry = `${safeFilename(b.part.name, 'part')}-${n++}`;
@@ -139,7 +139,7 @@ export async function downloadRocket3mf(
     files[`${entry}.3mf`] = buildThreeMf([b.part], { placeOnPlate });
   }
   await saveBlob(
-    new Blob([zipSync(files, { level: 6 }) as BlobPart], { type: 'application/zip' }),
+    new Blob([zipSync(files, { level: 6 })], { type: 'application/zip' }),
     exportFilename([name, '3mf'], 'zip'),
   );
   return { written: built.length, skipped };

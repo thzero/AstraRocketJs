@@ -6,8 +6,8 @@ import { renderUserTemplate, type FlightPathModel } from '../../../src/services/
  *
  * `templateStore.parseTemplateFilename` defaults a bare name to `txt`, so the
  * fall-through branch is reachable by anyone who saves a template without a
- * recognized extension. It used to be the identity function: real values, some
- * of them file-sourced component names, rendered raw into a format whose
+ * recognized extension. It cannot be the identity function: real values, some
+ * of them file-sourced component names, would render raw into a format whose
  * quoting rules nothing here knows.
  */
 describe('renderUserTemplate escapers', () => {

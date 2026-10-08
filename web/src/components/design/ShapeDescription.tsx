@@ -4,7 +4,7 @@ import type { ComponentNode } from '../../engine/openRocketEngine';
 import { str } from '../../tree/nodeProps';
 
 /**
- * What the selected nose cone or transition shape IS, under the shape picker.
+ * What the selected nose cone or transition shape is, under the shape picker.
  *
  * The desktop shows this beside its shape selector and it is the only place
  * the app explains what a shape parameter of 0.75 on a parabolic series does,

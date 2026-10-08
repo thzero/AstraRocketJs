@@ -8,47 +8,39 @@ import { FIN_DEFAULTS, KERNEL_BODYTUBE_OUTER_RADIUS } from './kernelDefaults';
  * Re-exported for convenience. The value itself lives in `kernelDefaults.ts`,
  * the one table verified against the real engine.
  *
- * `FIN_DEFAULTS` is deliberately NOT re-exported any more. It was, and
- * `schematicShapes` imported it from here alongside `finRootChord` and
- * `finSpan` and then assembled its own trapezoid and its own elliptical arc
- * from those dimensions -- holding everything this module offers except the
- * outline. A consumer that wants fin DIMENSIONS can take them from
- * `kernelDefaults`; what it gets from here is a planform.
+ * `FIN_DEFAULTS` is deliberately not re-exported. A consumer that wants fin
+ * dimensions takes them from `kernelDefaults`; what it gets from here is a
+ * planform, so it never assembles its own trapezoid or elliptical arc from
+ * dimensions.
  */
 export { KERNEL_BODYTUBE_OUTER_RADIUS };
 
 /**
- * THE fin planform. One source of truth for every consumer that draws, prints,
+ * The fin planform. One source of truth for every consumer that draws, prints,
  * cuts or exports a fin: the 3D view, the 2D schematic, the PDF template and
  * side view, the DXF writer and the solid-mesh exporter.
  *
  * ## Why this module exists
  *
- * It did not, and the cost was a fin that was the wrong shape for twelve days
- * across three audits. `solidMesh`, `reportGeometry` and `Rocket3D` each had
- * their own elliptical sampler generating a SINE ARCH (`x = root*t`,
- * `y = height*sin(pi*t)`); `dxfExport` had a fourth, independently written and
- * correct. So the printed fin, the 1:1 PDF template and the laser-cut DXF of
- * the same component were three different parts, and none of the three wrong
- * ones matched the rocket the kernel flew. On a 50 x 30 mm fin the error at
- * the x = 5 mm station is 18.0 mm vs 9.3 mm — 94%.
+ * No consumer may sample a fin outline itself. Call this module. A sampler
+ * written independently is easy to get plausibly wrong: an elliptical outline
+ * sampled as a sine arch (`x = root*t`, `y = height*sin(pi*t)`) looks right but
+ * is a different part from the one the kernel flies. On a 50 x 30 mm fin the
+ * height at the x = 5 mm station is 18.0 mm vs 9.3 mm, 94% off, and the
+ * printed fin, the 1:1 PDF template and the laser-cut DXF would each disagree.
  *
- * It survived because every audit compared the copies to EACH OTHER and took
- * the oldest as ground truth. Nothing compared any of them to
- * `EllipticalFinSet.java`. A fix in one round even propagated the wrong curve
- * into a new module and labeled it "A true half-ellipse".
- *
- * So: no consumer may sample a fin outline itself. Call this module. The
- * companion `finPlanform.kernel.test.ts` re-derives every formula here
- * straight from the committed Java under `engine-java/src/java` and fails if
- * either side drifts, so a future kernel bump cannot silently desync the port.
+ * Copies checked against each other can agree while all being wrong; the
+ * reference is `EllipticalFinSet.java`. The companion
+ * `finPlanform.kernel.test.ts` re-derives every formula here straight from the
+ * committed Java under `engine-java/src/java` and fails if either side drifts,
+ * so a kernel bump cannot silently desync the port.
  */
 
 /**
  * Sample count of the kernel's elliptical outline (`EllipticalFinSet.POINTS`).
  *
  * Deliberately not a caller-tunable resolution. The kernel flies a 31-point
- * polygon, so 31 points IS the fin; a consumer rendering a "smoother" 48-point
+ * polygon, so 31 points is the fin; a consumer rendering a "smoother" 48-point
  * version would be drawing a shape the simulation never saw, which is the
  * class of divergence this module exists to end.
  */
@@ -59,12 +51,11 @@ export const KERNEL_ELLIPSE_POINTS = 31;
  * `kernelDefaults.ts`.
  *
  * Every creation path sets these (`treeEdit.defaultNode` and `orkImport`), so
- * they only bite on a hand-edited or truncated node — but they were the SECOND
- * drift: `tipChord` fell back to `0.03` in the mesh and PDF paths and to
- * `root * 0.6` in the DXF and schematic ones, so one fin was a 30 mm tip in
- * the STL and a 60 mm tip in the DXF. They are the kernel's own trapezoid
- * defaults (ComponentFactory.java:205-208), which is what the engine flies for
- * such a node, and the kernel test pins them.
+ * they only apply to a hand-edited or truncated node. Every consumer must use
+ * the same ones, or one fin comes out with a different tip chord in the STL and
+ * in the DXF. They are the kernel's own trapezoid defaults (ComponentFactory,
+ * case "trapezoidfinset"), which is what the engine flies for such a node, and
+ * the kernel test pins them.
  */
 
 /**
@@ -93,9 +84,9 @@ const MIN_ROOT = 0.0001;
  * with the first and last entries then pinned to exactly (0,0) and (1,0), and
  * `getFinPoints()` scales them by `(max(length, 0.0001), height)`.
  *
- * Note `x` is NOT linear in `i`: it is `(1 - cos(pi*t))/2`, which bunches the
+ * Note `x` is not linear in `i`: it is `(1 - cos(pi*t))/2`, which bunches the
  * samples toward the leading and trailing edges where the curve turns. Reading
- * it as `x = root*t` is precisely the bug described above.
+ * it as `x = root*t` gives the sine arch described above.
  *
  * @returns points from the leading root corner to the trailing one, root on
  *   `y = 0` and span toward `+y`, in meters.
@@ -128,7 +119,7 @@ export function trapezoidDims(node: ComponentNode): { root: number; tip: number;
  * The trapezoidal planform, as `TrapezoidFinSet.getFinPoints()` builds it.
  *
  * Including the kernel's collapse rule: a tip chord at or below 0.0001 m emits
- * a TRIANGLE (three points), not a trapezoid with a zero-length tip edge.
+ * a triangle (three points), not a trapezoid with a zero-length tip edge.
  */
 export function trapezoidFinPoints(node: ComponentNode): [number, number][] {
   const { root, tip, sweep, height } = trapezoidDims(node);
@@ -152,7 +143,7 @@ export function trapezoidPoints(root: number, tip: number, sweep: number, height
 
 /**
  * The span-up planform of any planar fin set (root on `y = 0`, span toward
- * `+y`), in meters, WITHOUT the through-the-wall tab. `null` when the outline
+ * `+y`), in meters, without the through-the-wall tab. `null` when the outline
  * is degenerate and nothing should be drawn or cut.
  *
  * Freeform outlines come back kernel-normalized (translated so the first point
@@ -176,7 +167,7 @@ export function finPlanformPoints(node: ComponentNode): [number, number][] | nul
  * A fin's root chord (m): the axial span its root occupies on the body.
  *
  * For a freeform fin this is `last.x - first.x`, which is what the kernel uses
- * (`FreeformFinSet.length`) — NOT the furthest-aft point. A fin whose tip
+ * (`FreeformFinSet.length`), not the furthest-aft point. A fin whose tip
  * trailing corner overhangs the root reaches further aft than its root chord
  * does, and using that overhang puts a bottom- or middle-anchored fin, and its
  * tab, forward of its true station. See {@link freeformRootChord}.
@@ -193,7 +184,7 @@ export function finRootChord(node: ComponentNode, fallback: number = FIN_DEFAULT
  * A fin's span (m): how far it reaches above the body surface.
  *
  * A freeform fin carries no `height` key, so its span is its outline's y-max,
- * measured from the KERNEL-normalized points (translated by -p0 in both axes).
+ * measured from the kernel-normalized points (translated by -p0 in both axes).
  * Floored at 0 so a degenerate outline reads as "no span" rather than a
  * negative one that would invert a silhouette or a lathe.
  *
@@ -257,7 +248,7 @@ export function finTabSpan(
 function finTabFrontEdge(node: ComponentNode, rootChord: number): number {
   const offset = num(node, 'tabOffset', 0);
   const tabLen = num(node, 'tabLength', 0);
-  const method = typeof node['tabOffsetMethod'] === 'string' ? (node['tabOffsetMethod'] as string) : 'middle';
+  const method = typeof node['tabOffsetMethod'] === 'string' ? node['tabOffsetMethod'] : 'middle';
   if (method === 'top') return offset;
   if (method === 'bottom') return offset + (rootChord - tabLen);
   return offset + (rootChord - tabLen) / 2;
@@ -282,13 +273,12 @@ export function finCutContour(node: ComponentNode, parentRadius: number | null):
  *
  * This is what {@link finTabSpan} clamps against. The kernel takes
  * `min(getParentFrontRadius(), getParentTrailingRadius())`, so a tapered
- * parent contributes its NARROWER end: that is the station where a tab of the
+ * parent contributes its narrower end: that is the station where a tab of the
  * full height would break through first.
  *
  * Provided here, beside the clamp that consumes it, so that no exporter has to
- * invent its own answer — `dxfExport` used the enclosing tube's bore while the
- * mesh and PDF paths used nothing at all, and the same fin came out with three
- * different tab depths.
+ * invent its own answer; exporters that each pick a radius would cut the same
+ * fin's tab to different depths.
  */
 export function parentRadiusOf(tree: RocketTree, nodeId: string): number | null {
   // Searched below each top-level node, which is never itself the fin.

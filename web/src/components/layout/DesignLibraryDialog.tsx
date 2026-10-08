@@ -27,12 +27,12 @@ export function DesignLibraryDialog({ onClose }: { onClose: () => void }) {
   const openDesign = useWorkspaceStore((s) => s.openDesign);
   const renameDesign = useWorkspaceStore((s) => s.renameDesign);
   const deleteDesign = useWorkspaceStore((s) => s.deleteDesign);
-  // `onClose` is an inline arrow in AppHeader, so it gets a NEW identity on
+  // `onClose` is an inline arrow in AppHeader, so it gets a new identity on
   // every AppHeader render, and `refresh()` writes a fresh `designs` array
-  // that AppHeader subscribes to. One effect that both refreshed and listened
-  // for Escape, keyed on onClose, therefore looped: refresh -> re-render ->
-  // new onClose -> refresh. The refresh runs once on mount (below); the Escape
-  // listener is the focus trap's own effect, which re-subscribes harmlessly.
+  // that AppHeader subscribes to. An effect keyed on onClose that refreshed
+  // would loop: refresh -> re-render -> new onClose -> refresh. So the refresh
+  // runs once on mount (below); the Escape listener is the focus trap's own
+  // effect, which re-subscribes harmlessly.
 
   const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null);
   const [tab, setTab] = useState<'mine' | 'examples'>('mine');
@@ -42,12 +42,12 @@ export function DesignLibraryDialog({ onClose }: { onClose: () => void }) {
     void refresh();
   }, [refresh]);
 
-  // The saved-at stamp in the app's language, not the browser's: a Spanish UI
-  // over an en-US browser showed "9/20/2026, 3:04 PM" beside Spanish labels.
+  // The saved-at stamp in the app's language, not the browser's: otherwise a
+  // Spanish UI over an en-US browser shows "9/20/2026, 3:04 PM" beside Spanish labels.
   const when = new Intl.DateTimeFormat(i18n.language, { dateStyle: 'medium', timeStyle: 'short' });
 
   // Deleting a saved design cannot be undone, and on a phone this button sits a
-  // few millimeters from Rename in a full-screen dialog. Ask first -- the same
+  // few millimeters from Rename in a full-screen dialog. Ask first: the same
   // gate the far less destructive "close loaded design" already uses.
   const askDelete = async (id: string, name: string) => {
     const ok = await confirm({

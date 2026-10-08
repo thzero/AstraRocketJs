@@ -11,7 +11,7 @@
 // It exists instead of a one-line npm script because of DOCS_BASE_URL. The
 // docs config defaults its baseUrl to "/" so `docusaurus start` and `serve`
 // work standalone, but inside the app the site lives one directory down, and
-// every asset it references is an ABSOLUTE path built from that base. Left at
+// every asset it references is an absolute path built from that base. Left at
 // the default, a local build would ask for /assets/css/... and get the app's
 // 404 instead of its own stylesheet. So the base is derived here from the same
 // PAGES_BASE the app build reads, which keeps the two in step.

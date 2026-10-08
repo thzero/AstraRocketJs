@@ -6,7 +6,7 @@ import { useSettings } from '../../state/SettingsProvider';
 import { PropSection } from './PropSection';
 
 /**
- * How the part is DRAWN, as against what it is.
+ * How the part is drawn, as against what it is.
  *
  * Color is the only thing in here, and it does not belong in the Part section with
  * the name and the catalog picker: those say what the part is and what it is made
@@ -50,7 +50,7 @@ export function AppearanceSection({
           <input
             id={colorId}
             type="color"
-            // The swatch always shows what is DRAWN, so with no color of its
+            // The swatch always shows what is drawn, so with no color of its
             // own it shows the one this part type gets from the palette. That
             // is why the reset button appears only when the node carries one:
             // it is the only way to tell "set to this" from "defaulted to this".

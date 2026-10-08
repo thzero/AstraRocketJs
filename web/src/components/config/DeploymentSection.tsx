@@ -12,7 +12,7 @@ import { partLabel } from '../../i18n/format';
 const DEPLOY_EVENTS = ['apogee', 'ejection', 'altitude', 'launch', 'never'] as const;
 
 /**
- * When one recovery device opens under THIS configuration.
+ * When one recovery device opens under this configuration.
  *
  * Every field is an override with a fall-through: empty means the device's own
  * value on the design, which is shown as the placeholder, so the control reads
@@ -64,7 +64,7 @@ export function DeploymentSection({ config, device }: { config: FlightConfig; de
         // `min = 0` default. `onSi` rejects only a null or a failed conversion,
         // not a negative, so a typed or pasted -150 would commit into the flight
         // configuration: the kernel's altitude trigger then never fires and the
-        // design flies ballistic under that ONE configuration, with nothing on
+        // design flies ballistic under that one configuration, with nothing on
         // screen marking the field.
         min={alt.toUi(0)}
         unit={alt.sym}

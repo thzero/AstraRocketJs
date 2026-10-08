@@ -36,8 +36,8 @@ describe('specToTree', () => {
     const nose = child(tree, 'nose') as { shape?: string; density?: number; materialName?: string };
     expect(nose.shape).toBe('ogive');
     // The nose names no material, so it gets the one the kernel would weigh it
-    // with anyway rather than nothing. Leaving it bare only meant the panel read
-    // "Not specified" for a part already flying as cardboard.
+    // with anyway rather than nothing. Left bare, the panel would read "Not
+    // specified" for a part already flying as cardboard.
     expect(nose.density).toBe(KERNEL_MATERIALS.bulk.density);
     expect(nose.materialName).toBe(KERNEL_MATERIALS.bulk.name);
     // The spec's own material wins where it has one, and brings no stock group

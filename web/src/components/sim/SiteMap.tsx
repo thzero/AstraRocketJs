@@ -31,7 +31,7 @@ import { SOURCE_LAYERS } from '../common/map/mapStyle';
  *
  * A latitude and a longitude are four digits each and no feedback whatsoever:
  * a dropped minus sign moves a Colorado field to western China and nothing on
- * screen looks any different. This is the confirmation — and for a club field
+ * screen looks any different. This is the confirmation, and for a club field
  * with no published coordinates, the way to enter them at all, since you can
  * recognize the mown strip from the air when you could never have looked its
  * numbers up.
@@ -45,7 +45,7 @@ import { SOURCE_LAYERS } from '../common/map/mapStyle';
  *
  * Tiles are cached by the service worker (see the runtime rule in
  * vite.config.ts), so a location you looked at at home still draws at the field with
- * no signal. Somewhere you have NEVER viewed cannot draw offline, and the map
+ * no signal. Somewhere you have never viewed cannot draw offline, and the map
  * says so rather than showing an empty gray box.
  */
 
@@ -102,7 +102,7 @@ export function SiteMap({
   });
 
   /**
-   * Recenter when the coordinates change from OUTSIDE the map.
+   * Recenter when the coordinates change from outside the map.
    *
    * A location picked from the dropdown, an imported `.ork` or "use my location" all
    * move the site and the map has to follow. A click on the map moves it too,
@@ -146,17 +146,15 @@ export function SiteMap({
 
   const onPointerDown = (e: React.PointerEvent) => {
     if (imagery === 'unavailable') return;
-    // A control inside the map is NOT the map.
+    // A control inside the map is not the map.
     //
     // The layer buttons, the zoom buttons and the recenter button are children
     // of this box, so their pointer events bubble to these handlers. Without
-    // this the handler read a click on a button as a click on the GROUND and
-    // moved the launch site to whatever the button was covering: switching to
-    // the street layer quietly relocated you to the top-left corner of the map,
-    // which is where the layer buttons sit. Leaving `drag` unset also makes
-    // `onPointerUp` bail, so one guard covers both halves.
+    // this guard a click on a button would read as a click on the ground and
+    // move the launch site to whatever the button covers. Leaving `drag` unset
+    // also makes `onPointerUp` bail, so one guard covers both halves.
     if ((e.target as Element).closest?.('button')) return;
-    // Captured on the BOX, not on `e.target`: the target is usually a tile,
+    // Captured on the box, not on `e.target`: the target is usually a tile,
     // and a tile unmounts as soon as the drag pans or zooms past it, which
     // drops the capture mid-gesture.
     e.currentTarget.setPointerCapture?.(e.pointerId);
@@ -240,16 +238,16 @@ export function SiteMap({
       : `${t('map.label')}: ${formatCoord(latitudeDeg, longitudeDeg)}`;
 
   /**
-   * Wheel zoom as a NATIVE non-passive listener, like `useWheelZoom` and
+   * Wheel zoom as a native non-passive listener, like `useWheelZoom` and
    * `useChartZoom`.
    *
    * React's `onWheel` is registered passive at the root, so a `preventDefault`
-   * inside it does nothing: scrolling over the map zoomed the map AND scrolled the
-   * launch form underneath it, which on a phone means the map slides out from
+   * inside it does nothing: scrolling over the map would zoom the map and scroll
+   * the launch form underneath it, which on a phone means the map slides out from
    * under the finger that is zooming it.
    *
    * The handler closes over `view` and `imagery`, so it is re-registered when
-   * either moves - cheap, and it keeps this a plain effect rather than a
+   * either moves. That is cheap, and it keeps this a plain effect rather than a
    * latest-value ref.
    */
   useEffect(() => {
@@ -265,11 +263,12 @@ export function SiteMap({
 
   return (
     <div className={`flex flex-col gap-1 ${className}`}>
-      <div
+      <div // eslint-disable-line jsx-a11y-x/no-noninteractive-element-interactions -- a focusable map: the arrows pan it and +/- zoom it, and the group names it without claiming a widget role it does not fit
         ref={hostRef}
         role="group"
         aria-label={ariaLabel}
         aria-describedby={imagery === 'unavailable' ? undefined : keysId}
+        // eslint-disable-next-line jsx-a11y-x/no-noninteractive-tabindex -- a focusable map: the arrows pan it and +/- zoom it, and the group names it without claiming a widget role it does not fit
         tabIndex={imagery === 'unavailable' ? undefined : 0}
         onKeyDown={imagery === 'unavailable' ? undefined : onKeyDown}
         // `active:` rather than a class chosen from the drag ref: whether a
@@ -377,14 +376,12 @@ export function SiteMap({
 }
 
 /**
- * The unit a scale bar PROMOTES to once the number gets large, by the unit the
- * user picked.
+ * The unit a scale bar promotes to once the number gets large, by the unit the
+ * user picked, so a user working in feet reads the scale in feet and miles.
  *
- * The label hardcoded m and km, so a user working in feet read the one length on
- * this panel in a unit they do not use. Promoting is still worth doing - "1.2 km"
- * beats "1234 m" - so the ladder is stated rather than dropped, and only for the
- * two base units that have a large sibling in `UNITS.distance`. A user who
- * already picked `km`, `yd` or `mi` is shown that unit at every size.
+ * Promoting is worth doing ("1.2 km" beats "1234 m"), so the ladder is stated,
+ * and only for the two base units that have a large sibling in `UNITS.distance`.
+ * A user who already picked `km`, `yd` or `mi` is shown that unit at every size.
  */
 /** The larger unit a distance unit's scale label moves up to past one of it. */
 const SCALE_PROMOTION: Record<string, string> = { m: 'km', ft: 'mi' };
@@ -408,8 +405,9 @@ function scaleLabel(u: Units, lat: number, zoom: number): string {
  * Deliberately not a drawn coastline. There is no map data in this app and
  * inventing a rough one would put the pin in a shape that is nearly a country,
  * which is worse than no shape at all when the whole job is telling you whether
- * the coordinates are where you meant. The grid and the hemisphere labels do
- * catch the error that actually happens, which is a sign the wrong way round.
+ * the coordinates are where you meant. The grid, with the equator and prime
+ * meridian drawn stronger, does catch the error that actually happens, which is
+ * a sign the wrong way round.
  */
 function Graticule({
   latitudeDeg,

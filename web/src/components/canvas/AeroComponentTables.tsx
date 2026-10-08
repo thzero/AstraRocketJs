@@ -50,7 +50,7 @@ function HeatLegend({ max, unit, style }: { max: number; unit: string; style: He
       <span className="tabular-nums">
         0 &ndash; {fmtNum(top, 3)} {unit}
       </span>
-      {/* The switch sits ON the legend, which is the thing it changes -- rather
+      {/* The switch sits on the legend, which is the thing it changes -- rather
           than only in Settings, where you would have to go looking for it. It
           writes the same preference, so the two stay in step and it sticks. */}
       <span className="ml-auto flex items-center gap-1">
@@ -92,7 +92,7 @@ function TableHead({ title, mach }: { title: string; mach: number }) {
 }
 
 /**
- * Per-component drag at ONE Mach — the table behind OpenRocket's Component
+ * Per-component drag at one Mach: the table behind OpenRocket's Component
  * Analysis "Drag characteristics" tab.
  *
  * Where the desktop makes you type a Mach number into a spinner, this follows
@@ -102,15 +102,15 @@ function TableHead({ title, mach }: { title: string; mach: number }) {
  * strip quotes its drag coefficient at.
  *
  * The friction / pressure / base columns appear only when the kernel supplies
- * them: they come from the same `getForceAnalysis` call as `cd`, but a kernel
- * built before they were added omits them rather than reporting zeros.
+ * them: they come from the same `getForceAnalysis` call as `cd`, and a kernel
+ * build that does not report them omits them rather than reporting zeros.
  */
 export function ComponentTable({ sweep, machs, mach }: { sweep: AeroSweep; machs: number[]; mach: number }) {
   const { t } = useTranslation();
   const heatStyle = useSettings().settings.aeroHeat;
   const i = useSampleAt(machs, mach);
 
-  // Rounding aside, the component totals ARE the rocket's drag. The remainder
+  // Rounding aside, the component totals are the rocket's drag. The remainder
   // row only appears if that stops being true, which would mean the kernel had
   // started booking drag somewhere the walk does not reach. The instance
   // column is only worth having when something actually has more than one of
@@ -120,9 +120,9 @@ export function ComponentTable({ sweep, machs, mach }: { sweep: AeroSweep; machs
   const rows = useMemo(() => dragRows(sweep, i), [sweep, i]);
 
   // `number | null`: a null cell is the kernel saying this reading was not
-  // finite, which must read as an em dash and NOT as a fabricated 0 — a
+  // finite, which must read as an em dash and not as a fabricated 0; a
   // component that genuinely makes no drag reports 0 and means it. `v == null`
-  // already catches both; only the type was too narrow.
+  // catches both null and undefined.
   const num = (v: number | null | undefined, digits = 3) => (v == null ? '—' : fmtNum(v, digits));
   const cell = 'px-2 py-1 text-right tabular-nums';
   const head = 'px-2 py-1 text-right font-medium';
@@ -132,9 +132,9 @@ export function ComponentTable({ sweep, machs, mach }: { sweep: AeroSweep; machs
       <TableHead title={t('aero.dragByComponent')} mach={machs[i] ?? 0} />
       {!!sweep.nonFinite && (
         // The kernel met a reading it could not compute. Those cells come back
-        // null and print as an em dash, but a column SUM coerces null to 0 — so
-        // without this the breakdown would quietly stop adding up to the rocket
-        // totals above it, which is the whole failure this counter exists for.
+        // null and print as an em dash, but a column sum coerces null to 0, so
+        // without this notice the breakdown would silently stop adding up to
+        // the rocket totals above it.
         <p className="px-2 pb-1 text-[11px] text-warn-400">{t('aero.nonFinite', { count: sweep.nonFinite })}</p>
       )}
       <div className="overflow-x-auto">
@@ -228,7 +228,7 @@ export function ComponentTable({ sweep, machs, mach }: { sweep: AeroSweep; machs
 
 /**
  * Each component's share of the rocket's normal-force slope, and where its own
- * center of pressure sits — the desktop's Component Analysis "Stability" tab.
+ * center of pressure sits: the desktop's Component Analysis "Stability" tab.
  *
  * This is the table that answers "why is my CP there": a fin set carrying most
  * of the CNa is what holds the CP aft, and a nose cone contributing a couple of
@@ -269,14 +269,15 @@ export function StabilityTable({
   const i = useSampleAt(machs, mach);
   const hasCna = sweep.components.some((c) => c.cna);
   const totalCna = sweep.cna[i] ?? 0;
-  // CNa is shaded by MAGNITUDE only, whatever the palette preference says.
+  // CNa is shaded by magnitude against the column's own total, and left
+  // unshaded under the `openrocket` style.
   //
   // The `openrocket` ramp is not a generic heat scale: it is the desktop's
-  // formula anchored to an ABSOLUTE Cd scale that reaches full red at 1.5. CNa
-  // is not on that scale -- a fin set runs to 15 or 20 per radian -- so every
-  // row above about 1.1 clamps to the same red and the column stops saying
-  // anything. OpenRocket colors only its drag tab for exactly this reason.
-  // The RollTable makes the same call, for the same reason.
+  // formula anchored to an absolute Cd scale that reaches full red at 1.5. CNa
+  // is not on that scale (a fin set runs to 15 or 20 per radian), so every
+  // row above about 1.1 would clamp to the same red and the column would say
+  // nothing. OpenRocket colors only its drag tab for this reason. The
+  // RollTable does the same.
   const cnaShaded = heatStyle !== 'openrocket';
 
   // Mass comes from a different engine call than the aero sweep; the join is
@@ -357,15 +358,13 @@ export function StabilityTable({
 }
 
 /**
- * Roll forcing and damping per fin set — the desktop's Component Analysis "Roll
+ * Roll forcing and damping per fin set: the desktop's Component Analysis "Roll
  * dynamics" tab.
  *
  * Shown for every fin set, whether or not it rolls. Both coefficients are zero
- * on an uncanted rocket flown at zero roll rate -- which is the default -- and
- * an earlier version hid the whole section in that case. That was wrong: it
- * meant most people never saw the table exist, and had no way to discover that
- * canting the fins or setting a roll rate would fill it in. The desktop shows
- * the zeros, and so do we.
+ * on an uncanted rocket flown at zero roll rate (the default); the table still
+ * shows, as the desktop's does, so it is clear that canting the fins or setting
+ * a roll rate would fill it in.
  *
  * Fin sets are picked out by the kernel's class name, because their numbers at
  * rest are indistinguishable from a body tube's.
@@ -379,7 +378,7 @@ export function RollTable({ sweep, machs, mach }: { sweep: AeroSweep; machs: num
 
   // Shading only earns its place with something to compare against: one fin set
   // is its own maximum, so every cell would sit at full tint and say nothing.
-  // Each column is scaled against its OWN largest — forcing and damping are
+  // Each column is scaled against its own largest: forcing and damping are
   // different coefficients, and a shared scale would misrepresent the smaller.
   // `openrocket` style stays out of it: its ramp is an absolute Cd scale, which
   // roll coefficients are not on, and the desktop leaves this tab unshaded too.

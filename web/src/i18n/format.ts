@@ -1,5 +1,5 @@
 // Locale-aware number formatting, bound to the active i18n language. Use this
-// for every DISPLAYED number (decimal separator + grouping differ per locale —
+// for every displayed number (decimal separator + grouping differ per locale:
 // "1,234.5" en-US vs "1.234,5" es-ES). Number <input> values stay canonical;
 // the browser handles their locale separator, so inputs don't use this.
 import i18n from './index';
@@ -36,7 +36,7 @@ export function fmtSig(n: number, sig: number): string {
 }
 
 /**
- * Decimal places the magnitude ladder gives a value — the precision a readout
+ * Decimal places the magnitude ladder gives a value: the precision a readout
  * wants when the unit can change under it, since the same quantity is 1234 in
  * one unit and 48.6 in another.
  */
@@ -46,7 +46,7 @@ export function ladderDigits(v: number): number {
 }
 
 /**
- * Format with UP TO `digits` decimals, trailing zeros dropped — `fmtSi`'s
+ * Format with up to `digits` decimals, trailing zeros dropped: `fmtSi`'s
  * behavior, but locale-aware.
  *
  * For a figure that is round in the unit it was authored in and not in the
@@ -130,9 +130,8 @@ const MB = 1024 * 1024;
 
 /**
  * Bytes as megabytes, for the two download progress readouts (the boot splash
- * and the catalog loader). It lived in both, verbatim, with a bare `toFixed(1)`
- * — so the one number those panels show was the only displayed number in the
- * app not following the user's locale.
+ * and the catalog loader), in the user's locale like every other displayed
+ * number.
  */
 export function fmtMb(bytes: number): string {
   return fmtNum(bytes / MB, 1);

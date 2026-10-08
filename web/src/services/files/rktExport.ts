@@ -1,30 +1,31 @@
 import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
 import { clusterCount, clusterPoints } from '../../tree/cluster';
 import { numOpt } from '../../tree/nodeProps';
+import { axialLength } from '../../tree/position';
 import { asStageNodes } from '../design/orkTree';
 import { escapeXml } from './xmlUtil';
 import { plainDecimal } from './numberText';
 import { radToDeg } from '../../prefs/units';
 
 /**
- * RockSim (`.rkt`) EXPORT.
+ * RockSim (`.rkt`) export.
  *
  * The mirror of `rktImport.ts`, written against the same schema
  * (`RockSimCommonConstants.java` and `file/rocksim/export/*DTO.java`), so
  * everything the reader understands the writer produces and a round trip
  * through the pair is lossless for every type both support.
  *
- * SCOPE, stated plainly. This writes a DESIGN, not a RockSim document: no
- * simulations, no engine selections, no view state. RockSim keeps its motor
- * choices and launch setup with its simulations, which is a different object
- * from the rocket, and inventing a simulation block to carry ours would mean
- * guessing at fields RockSim would then treat as authoritative. The file opens
- * in RockSim as a design with no motor loaded, which is the honest result.
+ * Scope: this writes a design, not a full RockSim document: no simulations,
+ * no engine selections, no view state. RockSim keeps its motor choices and
+ * launch setup with its simulations, which is a different object from the
+ * rocket, and inventing a simulation block to carry ours would mean guessing
+ * at fields RockSim would then treat as authoritative. The file opens in
+ * RockSim as a design with no motor loaded.
  *
- * Some of what we can build has no RockSim element at all — rail buttons,
- * parallel (strap-on) stages, the app's own fairing extension. Those are
- * skipped and NAMED, because a part silently missing from a file someone else
- * opens is worse than a part they were told about.
+ * Some of what we can build has no RockSim element at all (rail buttons,
+ * parallel (strap-on) stages, the app's own fairing extension). Those are
+ * skipped and named in the result, so the user is told which parts are
+ * missing from the file.
  */
 
 /** m → mm. */
@@ -48,7 +49,12 @@ const SHAPE_CODES: Record<string, number> = {
   haack: 6,
 };
 
-/** `RockSimLocationMode` ordinals, by our placement method. */
+/**
+ * `RockSimLocationMode` ordinals, by our placement method. RockSim has no
+ * middle or after mode: middle is converted to a top offset when written (see
+ * writeCommon), and after is written as top with its offset, as desktop's
+ * BasePartDTO does, because RockSim lays out a stage's parts in order.
+ */
 const LOCATION_CODES: Record<string, number> = { top: 0, absolute: 1, bottom: 2, middle: 0, after: 0 };
 
 /**
@@ -61,7 +67,7 @@ const TIP_SHAPE_CODES: Record<string, number> = { square: 0, rounded: 1, airfoil
 /**
  * kg/m2 → RockSim's surface density in g/cm2.
  *
- * `ROCKSIM_TO_OPENROCKET_SURFACE_DENSITY`, MULTIPLIED on the way out and divided
+ * `ROCKSIM_TO_OPENROCKET_SURFACE_DENSITY`, multiplied on the way out and divided
  * on the way in, which is the one direction the kernel uses it in each path
  * (`BasePartDTO` line 181 and `BaseHandler.computeDensity`).
  */
@@ -71,6 +77,8 @@ interface Writer {
   emit: (depth: number, s: string) => void;
   /** Types that had no RockSim element, named once each for the caller. */
   skipped: Set<string>;
+  /** Axial length (m) of the part whose children are being written. */
+  parentLength: number;
 }
 
 // --------------------------------------------------------------- helpers ---
@@ -98,9 +106,8 @@ const put = (w: Writer, d: number, name: string, v: number | undefined, scale: (
  *
  * `UseKnownCG` is the single switch RockSim has where we have three overrides.
  * It is written as 1 only when the node overrides mass or CG, because setting
- * it makes RockSim stop computing BOTH from the geometry — turning it on for a
- * part that only overrides drag would silently freeze its mass at whatever we
- * happened to write.
+ * it makes RockSim stop computing both from the geometry: turning it on for a
+ * part that only overrides drag would freeze its mass at whatever we wrote.
  */
 function writeCommon(w: Writer, d: number, n: ComponentNode, withPosition: boolean, densityType = 0): void {
   el(w, d, 'Name', n.name ?? '');
@@ -109,10 +116,10 @@ function writeCommon(w: Writer, d: number, n: ComponentNode, withPosition: boole
 
   const density = numOpt(n, 'density') ?? numOpt(n, 'surfaceDensity');
   if (density !== undefined) {
-    // A surface density goes back out in g/cm2, which is a TENTH of kg/m2.
+    // A surface density goes back out in g/cm2, which is a tenth of kg/m2.
     // `BasePartDTO` line 181 multiplies by the same constant the reader divides
-    // by, so the two directions are one factor, not two; writing x10 here made
-    // an exported canopy a hundred times too heavy in RockSim.
+    // by, so the two directions are one factor, not two; writing x10 here would
+    // make an exported canopy a hundred times too heavy in RockSim.
     el(w, d, 'Density', densityType === 1 ? density * SURFACE_DENSITY : density);
     el(w, d, 'DensityType', densityType);
   }
@@ -132,8 +139,12 @@ function writeCommon(w: Writer, d: number, n: ComponentNode, withPosition: boole
     const pos = n.position;
     const method = pos?.method ?? 'top';
     const offset = pos?.offset ?? 0;
-    // Only BOTTOM flips, exactly as the reader does.
-    el(w, d, 'Xb', mm(method === 'bottom' ? -offset : offset));
+    // Bottom flips sign, as the reader does. Middle becomes a top offset, as
+    // desktop's BasePartDTO writes it: the gap from the parent's top to this
+    // part's top when centered, plus the offset.
+    const xb =
+      method === 'bottom' ? -offset : method === 'middle' ? offset + (w.parentLength - axialLength(n)) / 2 : offset;
+    el(w, d, 'Xb', mm(xb));
     el(w, d, 'LocationMode', LOCATION_CODES[method] ?? 0);
   }
 }
@@ -154,8 +165,6 @@ function writeShape(w: Writer, d: number, n: ComponentNode, fallback: string): v
   const param = numOpt(n, 'shapeParameter');
   if (param !== undefined) el(w, d, 'ShapeParameter', param);
 }
-
-/** An angle stored in radians, back out as RockSim's degrees. */
 
 // --------------------------------------------------------------- writers ---
 
@@ -274,7 +283,7 @@ const writeFinSet: PartWriter = (w, d, n) => {
   if (cant) el(w, d, 'CantAngle', radToDeg(cant));
   writeRadialAngle(w, d, numOpt(n, 'angleOffset'));
   // The fin's cross section, which RockSim calls a tip shape
-  // (`FinSetDTO` line 72). Omitting it exported every fin as square.
+  // (`FinSetDTO` line 72). Without it RockSim reads every fin as square.
   el(w, d, 'TipShapeCode', TIP_SHAPE_CODES[strOf(n, 'crossSection') ?? 'square'] ?? 0);
 
   const tabLength = numOpt(n, 'tabLength');
@@ -294,8 +303,8 @@ const writeTubeFinSet: PartWriter = (w, d, n) => {
 };
 
 const writeParachute: PartWriter = (w, d, n) => {
-  writeCommon(w, d, n, true, 1); // canopy fabric is a SURFACE density
-  // `Dia` is a diameter on both sides — not halved, unlike every other
+  writeCommon(w, d, n, true, 1); // canopy fabric is a surface density
+  // `Dia` is a diameter on both sides, not halved, unlike every other
   // circular field in the format.
   put(w, d, 'Dia', numOpt(n, 'diameter'), mm);
   const cd = numOpt(n, 'cd');
@@ -306,7 +315,7 @@ const writeParachute: PartWriter = (w, d, n) => {
   const lineMaterial = strOf(n, 'lineMaterialName');
   if (lineMaterial) el(w, d, 'ShroudLineMaterial', lineMaterial);
   // kg/m straight through, despite the element's name: see the note on the
-  // reader's side — `ROCKSIM_TO_OPENROCKET_LINE_DENSITY` is 1.
+  // reader's side. `ROCKSIM_TO_OPENROCKET_LINE_DENSITY` is 1.
   const lineDensity = numOpt(n, 'lineDensity');
   if (lineDensity !== undefined) el(w, d, 'ShroudLineMassPerMM', lineDensity);
 };
@@ -327,7 +336,7 @@ const writeMassObject =
     if (shockCord) {
       const len = numOpt(n, 'cordLength') ?? 0;
       el(w, d, 'Len', mm(len));
-      // RockSim states a shock cord's MASS, not its line density.
+      // RockSim states a shock cord's mass, not its line density.
       el(w, d, 'KnownMass', g((numOpt(n, 'lineDensity') ?? 0) * len));
     } else {
       put(w, d, 'Len', numOpt(n, 'length'), mm);
@@ -371,15 +380,14 @@ const PARTS: Record<string, { tag: string; write: PartWriter }> = {
  * A clustered motor mount as the tubes RockSim can actually hold.
  *
  * RockSim has no cluster: it knows one tube per motor, each placed by its own
- * radial distance and angle. OpenRocket keeps ONE inner tube carrying a cluster
+ * radial distance and angle. OpenRocket keeps one inner tube carrying a cluster
  * pattern, and the desktop's own exporter splits it on the way out
- * (`InnerBodyTubeDTO.handleCluster`). This writer did not, so a three-motor
- * cluster was saved as a single tube: the file named one motor where the design
- * flies three, and everything mounted inside the mount went with the one tube.
+ * (`InnerBodyTubeDTO.handleCluster`). Without the split a three-motor cluster
+ * would be saved as a single tube holding one motor.
  *
  * Every member keeps the mount's children, so an engine block inside the cluster
  * is written into each tube rather than only the first. The pattern itself is
- * dropped from the copies, because each one IS a single tube now.
+ * dropped from the copies, because each one is a single tube.
  *
  * The member's radial place is the cluster offset added to whatever offset the
  * mount itself carried, composed in Cartesian and handed back as the distance
@@ -397,15 +405,12 @@ function clusterMembers(n: ComponentNode): ComponentNode[] {
     numOpt(n, 'radialPosition') ?? 0,
     numOpt(n, 'radialDirection') ?? 0,
   );
-  return places.map(
-    (p, i) =>
-      ({
-        ...n,
-        name: `${n.name ?? 'Mount'} #${i + 1}`,
-        cluster: 'single',
-        ...p,
-      }) as unknown as ComponentNode,
-  );
+  return places.map((p, i) => ({
+    ...n,
+    name: `${n.name ?? 'Mount'} #${i + 1}`,
+    cluster: 'single',
+    ...p,
+  }));
 }
 
 /** One part and, in `<AttachedParts>`, everything mounted on it. */
@@ -425,7 +430,10 @@ function writePart(w: Writer, depth: number, n: ComponentNode): void {
   const kids = n.children ?? [];
   if (kids.length > 0) {
     w.emit(depth + 1, '<AttachedParts>');
+    const outer = w.parentLength;
+    w.parentLength = axialLength(n);
     for (const kid of kids) writePart(w, depth + 2, kid);
+    w.parentLength = outer;
     w.emit(depth + 1, '</AttachedParts>');
   }
   w.emit(depth, `</${spec.tag}>`);
@@ -454,6 +462,7 @@ export function exportRkt(name: string, tree: RocketTree): RktExportResult {
   const w: Writer = {
     emit: (depth, s) => lines.push('  '.repeat(depth) + s),
     skipped: new Set(),
+    parentLength: 0,
   };
 
   // RockSim reads at most three stages, nose-first. A design with more loses
@@ -463,11 +472,11 @@ export function exportRkt(name: string, tree: RocketTree): RktExportResult {
   const written = Math.min(stages.length, STAGE_ELEMENTS.length);
   if (stages.length > STAGE_ELEMENTS.length) w.skipped.add(`stage ${STAGE_ELEMENTS.length + 1} and beyond`);
 
-  // NO XML DECLARATION. `GeneralRocketLoader` identifies a RockSim file by the
-  // first eleven bytes being `<RockSimDoc` exactly - unlike its OpenRocket
-  // check, which scans the buffer - so a declaration in front of the root
-  // element made every `.rkt` this app wrote "Unsupported or corrupt file" in
-  // desktop OpenRocket. The desktop's own `RockSimSaver` writes none either.
+  // No XML declaration. `GeneralRocketLoader` identifies a RockSim file by the
+  // first eleven bytes being `<RockSimDoc` exactly (unlike its OpenRocket
+  // check, which scans the buffer), so a declaration in front of the root
+  // element makes desktop OpenRocket reject the file as "Unsupported or
+  // corrupt file". The desktop's own `RockSimSaver` writes none either.
   w.emit(0, '<RockSimDocument>');
   // Version 4 is what OpenRocket's own saver writes and what its loader reads.
   w.emit(1, '<FileVersion>4</FileVersion>');
@@ -486,6 +495,7 @@ export function exportRkt(name: string, tree: RocketTree): RktExportResult {
       return;
     }
     w.emit(3, `<${elName}>`);
+    w.parentLength = stage ? axialLength(stage) : 0;
     for (const kid of kids) writePart(w, 4, kid);
     w.emit(3, `</${elName}>`);
   });

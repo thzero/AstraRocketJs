@@ -6,8 +6,8 @@ import { test, expect, openTab, ready, type Page } from './base';
  * Tile requests are answered locally by the fixture in `base.ts`, so nothing
  * here depends on Esri being reachable. What that still
  * proves is the part unit tests cannot: that the map is reachable from both
- * places it was asked for, that a click on it lands in the launch fields as
- * ONE undoable edit, and that the layer buttons change which provider is
+ * places it is offered, that a click on it lands in the launch fields as
+ * one undoable edit, and that the layer buttons change which provider is
  * asked.
  */
 
@@ -54,7 +54,7 @@ test('clicking the map moves the location, as one undoable edit', async ({ page 
   expect(Number(await lon(page).inputValue())).toBeLessThan(-104.8);
 
   // One edit, so one undo puts the site back rather than leaving half of it
-  // moved — the coordinates are written as a single patch.
+  // moved: the coordinates are written as a single patch.
   await page.keyboard.press('Control+z');
   await expect(lat(page)).toHaveValue('39.05');
   await expect(lon(page)).toHaveValue('-104.8');
@@ -79,7 +79,7 @@ test('the layer buttons switch which provider is asked', async ({ page }) => {
   await dialog.getByRole('button', { name: 'Street' }).click();
   await expect.poll(() => asked.some((u) => u.includes('World_Street_Map'))).toBe(true);
 
-  // Switching layers is a question about the PICTURE, so it must not touch the
+  // Switching layers is a question about the picture, so it must not touch the
   // coordinates. The layer buttons sit inside the box the map's pointer
   // handlers are on, and their events bubble, so an unstopped click reads as a
   // click on the ground and moves the launch site to the map's top-left corner.
@@ -110,7 +110,7 @@ test('the location editor carries a map under its fields', async ({ page }) => {
 
   await page.getByRole('button', { name: 'Manage saved locations' }).click();
   // Master-detail: the editor is the right-hand pane of the same dialog, so
-  // selecting the location on the left IS opening it.
+  // selecting the location on the left is opening it.
   const editor = page.getByRole('dialog', { name: 'Manage saved locations' });
   await editor.getByRole('button', { name: /Home field/ }).click();
   // Exact: the list row beside the map prints the same coordinate, then " · 0 m".

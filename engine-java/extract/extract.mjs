@@ -1,37 +1,36 @@
 #!/usr/bin/env node
 /**
- * extract.mjs — (re)generate engine-java/src/java/ from an OpenRocket source tree.
+ * extract.mjs: (re)generate engine-java/src/java/ from an OpenRocket source tree.
  *
  * "Extraction" copies only the physics/simulation subset of OpenRocket's core that the browser
  * engine needs (see extract/manifest.txt), then overlays the TeaVM-compat patches from
  * engine-java/patches/ (documented in patches/LEDGER.md). This is a deliberate step you run
- * only when adopting a new upstream OpenRocket version — the extracted output is committed so the
+ * only when adopting a new upstream OpenRocket version; the extracted output is committed so the
  * normal build never needs it.
  *
- * Unlike the upstream tool this replaced, it hardcodes no machine paths and can point at any
- * source layout.
+ * It hardcodes no machine paths and can point at any source layout.
  *
  *   node extract/extract.mjs --check   # verify only; fetches the pinned upstream itself
  *   node extract/extract.mjs --bless   # re-record extract/DIVERGENCE.txt and SHIMS.txt
- *   node extract/extract.mjs --src <openrocket-source>   # regenerate src/java/ (WRITES)
+ *   node extract/extract.mjs --src <openrocket-source>   # regenerate src/java/ (writes)
  *   OPENROCKET_SRC=<path> node extract/extract.mjs       # explicit source instead
  *
- * You do NOT need to clone OpenRocket by hand. With no --src and no
+ * You do not need to clone OpenRocket by hand. With no --src and no
  * OPENROCKET_SRC, this clones the exact repo and ref named in extract/UPSTREAM
  * into engine-java/.openrocket-src (gitignored, sparse, blobless: a few
  * seconds and ~15 MB) and reuses it on every later run. Pass --src to point at
  * your own checkout, and --refresh to force the cache back to the pinned ref.
  *
  * extract/DIVERGENCE.txt is the committed, reviewed answer to "how far is each
- * patch from upstream". --check recomputes it and FAILS on any difference. That
+ * patch from upstream". --check recomputes it and fails on any difference. That
  * is the only thing standing between the repo and an undocumented edit to the
  * kernel: the core invariant here is "src/java == upstream + patches", and the
- * patches are an INPUT to that equation, so a coordinated patches/ + src/java
+ * patches are an input to that equation, so a coordinated patches/ + src/java
  * edit satisfies it by construction. Changing a patch therefore means running
  * --bless and explaining the new number in review.
  *
  * <openrocket-source> may be a repo checkout (…/core/src/main/java/…), a plain source tree,
- * or an extracted -sources.jar — the core java root is auto-detected.
+ * or an extracted -sources.jar; the core java root is auto-detected.
  */
 import {
   readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSync,
@@ -59,9 +58,9 @@ if (args.includes('--help') || args.includes('-h')) {
 }
 const check = args.includes('--check');
 const bless = args.includes('--bless');
-// --bless only re-records the baseline. It must NOT rewrite src/java: the
+// --bless only re-records the baseline. It must not rewrite src/java: the
 // extractor writes upstream's bytes verbatim, so on a CRLF checkout an
-// incidental extraction rewrites all 272 files to LF. Blessing a number is a
+// incidental extraction rewrites every extracted file to LF. Blessing a number is a
 // review action, not a regeneration.
 const readOnly = check || bless;
 const refresh = args.includes('--refresh');
@@ -78,7 +77,7 @@ const readPin = () => {
   if (!repo || !ref) die('extract/UPSTREAM is missing a repo or ref line');
   // `describe` is how a reader interprets the pin, and nothing else checks it.
   // The clone is shallow, so `git describe` cannot verify its tag half here, but
-  // its `-g<sha>` suffix has to name THIS ref: a bump that moves `ref` and forgets
+  // its `-g<sha>` suffix has to name this ref: a bump that moves `ref` and forgets
   // `describe` would otherwise ship the old commit's provenance with CI green.
   const describe = field('describe');
   if (describe) {
@@ -155,8 +154,8 @@ if (!coreJavaRoot) die(`no info/openrocket/core under ${srcArg} (looked in: ${la
 const manifest = readFileSync(manifestPath, 'utf8')
   .split('\n').map((s) => s.trim()).filter((s) => s && !s.startsWith('#'));
 const manifestSet = new Set(manifest);
-// A duplicate line inflates the manifest count every document quotes ("272 manifest
-// files") against the files that actually exist, and extracts nothing twice.
+// A duplicate line inflates the reported manifest count against the files that
+// actually exist, and extracts nothing twice.
 if (manifestSet.size !== manifest.length) {
   const seen = new Set();
   const dups = manifest.filter((m) => (seen.has(m) ? true : (seen.add(m), false)));
@@ -201,7 +200,7 @@ for (const rel of manifest) {
 
 // Warn about extracted files not in the manifest (stale after a manifest shrink).
 // No .java filter: "src/java is exactly upstream(+patches)" should be true of
-// the DIRECTORY, not just of its Java files. A stray notes.txt compiles into
+// the directory, not just of its Java files. A stray notes.txt compiles into
 // nothing and cannot reach the engine, but it also is not something an
 // extraction would ever produce, and the check claims otherwise.
 const stale = walk(extractedRoot)
@@ -219,11 +218,8 @@ if (stale.length) {
   stale.forEach((s) => console.warn(`  ? ${s}`));
 }
 // A src/java file that was hand-edited but has no patches/ counterpart is
-// INVISIBLE to this tool: a regeneration silently reverts it to upstream. That
-// is how three TeaVM-compat fixes the build cannot run without (java.nio.file
-// and Locale.Category are absent from TeaVM's classlib; the ArrayList.clone()
-// rewrite is the WASM-GC ClassCastException at build.gradle:81-82) came to sit
-// one `extract --src` away from being wiped.
+// invisible to this tool: a regeneration silently reverts it to upstream, which
+// for a TeaVM-compat fix means a build that no longer runs.
 const unpatched = walk(extractedRoot)
   .map((p) => relative(extractedRoot, p).replace(/\\/g, '/'))
   .filter((p) => p.endsWith('.java') && !patchSet.has(p))
@@ -235,13 +231,11 @@ const unpatched = walk(extractedRoot)
   // silently revert this". Do not narrow it.
   .filter((p) => /PATCH\(/.test(readFileSync(join(extractedRoot, p), 'utf8')));
 
-// For a PATCHED file the comparison above is src/java vs the patch, so it can
-// never see upstream moving underneath. Report that separately, or a patch sits
-// hundreds of lines behind upstream while --check calls it clean - which is
-// exactly what happened to FinSetCalc (871 lines, and a whole NACA Report 1307
-// fin-body interference model that was never extracted at all).
+// For a patched file the comparison above is src/java vs the patch, so it can
+// never see upstream moving underneath. Report that separately, or a patch can
+// sit hundreds of lines behind upstream while --check calls it clean.
 //
-// A real LCS diff, NOT a line-MULTISET count (`a.filter(l => !bSet.has(l))`), which
+// A real LCS diff, not a line-multiset count (`a.filter(l => !bSet.has(l))`), which
 // is not a diff at all: a change made only of deletions, or of reorderings, scores 0
 // whenever the moved lines' exact text occurs elsewhere in the file. Deleting the
 // `count++;` from MathUtil.average() scores 0, because the identical line also
@@ -275,7 +269,7 @@ const changedLines = (a, b) => {
   return (x.length - lcs) + (y.length - lcs);
 };
 
-// EVERY patch, including delta 0. A patch identical to upstream is the
+// Every patch, including delta 0. A patch identical to upstream is the
 // "leftover" LEDGER.md describes: it does nothing until someone runs extract,
 // at which point it silently swaps itself in. Zero is information, not noise.
 //
@@ -384,7 +378,7 @@ if (bless) {
   console.log(`extract: blessed ${divergence.length} patch divergence(s) -> extract/DIVERGENCE.txt`);
 }
 
-// ---- shims that SHADOW an upstream class -----------------------------------
+// ---- shims that shadow an upstream class -----------------------------------
 //
 // A shim is the only provider of a fully-qualified name that upstream also
 // defines, so a semantic gap between the two is invisible at compile time and
@@ -393,14 +387,13 @@ if (bless) {
 // upstream bump can re-extract every drifted manifest file without touching a single
 // shim.
 //
-// That is not hypothetical: ApplicationPreferences.getAverageWindModel() stopped
-// matching upstream - returning a dead-calm wind model where the desktop seeds 2 m/s
-// at 10% turbulence - with no gate in this repo able to see it. See
-// patches/LEDGER.md, "Two shims stopped matching upstream".
+// For example, an ApplicationPreferences.getAverageWindModel() that returned a
+// dead-calm wind model, where the desktop seeds 2 m/s at 10% turbulence, would
+// pass every other gate in this repo.
 //
 // A shim cannot be diffed against the class it replaces (that is the point of a
-// shim: 162 lines standing in for 2089). What CAN be checked is whether the
-// upstream class has MOVED since someone last read it. This records a hash of
+// shim: a short class standing in for a much larger one). What can be checked is
+// whether the upstream class has moved since someone last read it. This records a hash of
 // each shadowed upstream file; when upstream changes, --check fails and asks a
 // human to re-read that class and confirm the shim still matches. It is the
 // same bargain as DIVERGENCE.txt: the tool cannot judge the semantics, but it
@@ -497,47 +490,36 @@ if (!hasBaseline) {
   console.error('extract:   create it with --bless.');
 }
 
-// Every one of these is a reason the extracted tree is not reproducible, so every
-// one has to fail the check. With only `missing` failing, a single bogus manifest
-// entry becomes load-bearing: delete it and --check goes green over 16 drifted and
-// 13 unmanaged files.
-// `unblessed` is counted for the reason DIVERGENCE.txt's own header gives: the
-// other four counters all rest on "src/java == upstream + patches", which a
-// coordinated edit to BOTH sides satisfies by construction. This counter is the
-// only one that interrogates the patches themselves. A missing baseline counts
-// too, so deleting the file is not a way to switch the check off.
 // ---- the app's material table ----
 //
 // `web/public/data/materials.generated.json` is the app's material catalog, and
-// the rows marked `upstream` in it are a COPY of upstream's material database.
+// the rows marked `upstream` in it are a copy of upstream's material database.
 // It is the one port in this repo that no Java file mirrors: upstream loads its
 // materials from a resource at startup, so the extraction replaces
 // `database/Databases.java` with a shim that synthesizes the handful of
-// materials the carved kernel asks for BY NAME. The rest of the list exists
-// only on the app side, where nothing was comparing it to anything.
+// materials the carved kernel asks for by name. The rest of the list exists
+// only on the app side, where nothing else compares it to anything.
 //
-// Unchecked it drifts silently: upstream carries 42 LINE materials against the
-// app's 20, missing every Kevlar 12-strand above 5/16 in, all five nylon flat
-// webbings, both rubber bands, all seven braided elastics and the Paraline - which
-// is most of what a shock cord or a set of shroud lines is made of. Each
-// absence is invisible from inside the app: the picker simply does not offer
+// Unchecked it drifts silently, and a missing line material is most of what a
+// shock cord or a set of shroud lines is made of. Each absence is invisible
+// from inside the app: the picker simply does not offer
 // it, and a design that names one arrives from a `.ork` as a custom material.
 //
 // So --check reads them both. `web/scripts/sync-materials.mjs` is what writes
 // the JSON; this only ever says whether it still matches. The app's own
 // materials (adhesives, and corrections to upstream values that are wrong) come
 // from `web/scripts/data/materials.app.json` and are marked with a different
-// `kind`, so they are none of this check's business — except that one of them
-// must never take an upstream material's name, which WOULD be this check's
+// `kind`, so they are none of this check's business, except that one of them
+// must never take an upstream material's name, which would be this check's
 // business: it would shadow that material in the picker and silently re-weigh
 // every design that names it.
 //
 // The Java side is parsed with escapes allowed, and every `newMaterial` call is
-// counted before the lists are compared. An earlier version read a name as
-// `"([^"]*)"`, which stopped at the escaped quote in
-// `Styrofoam \"Blue foam\" (XPS)` and dropped it from BOTH sides at once, so
-// the two lists balanced and the check reported clean. A parser that skips a
-// row is worse than no parser, because it is a check that passes.
+// counted before the lists are compared. A name pattern of `"([^"]*)"` would
+// stop at the escaped quote in `Styrofoam \"Blue foam\" (XPS)` and drop it from
+// both sides at once, so the two lists would balance and the check would report
+// clean. A parser that skips a row is worse than no parser, because it is a
+// check that passes.
 const MATERIALS_JSON = join(engineRoot, '..', 'web', 'public', 'data', 'materials.generated.json');
 const JAVA_MATERIAL = /newMaterial\(Type\.(BULK|SURFACE|LINE),\s*"((?:[^"\\]|\\.)*)",\s*([0-9.eE+-]+)/g;
 // Java escapes non-ASCII in a literal ("Cr\u00eape paper") and escapes an inner
@@ -578,7 +560,7 @@ const materialDrift = (() => {
   const ours = new Map(rows.map((r) => [materialKey(r.type, r.name), r.density]));
   if (ours.size !== rows.length) out.push(`the app's list has ${rows.length - ours.size} duplicate material(s)`);
 
-  // The app's own rows may add to the list; they may not REPLACE an upstream
+  // The app's own rows may add to the list; they may not replace an upstream
   // one. A correction is carried under its own name ("Elastic cord, corrected
   // (flat 19 mm, 3/4 in)") for exactly this reason: both densities stay
   // readable, so a design saved against the wrong one still loads as it was.
@@ -602,7 +584,17 @@ if (materialDrift.length) {
   console.error("extract:   the app's own materials belong in web/scripts/data/materials.app.json, with their source.");
 }
 
+// Every one of these is a reason the extracted tree is not reproducible, so every
+// one has to fail the check. If only `missing` failed, a single bogus manifest
+// entry would be load-bearing: deleting it would turn --check green over any
+// number of drifted and unmanaged files.
+// `unblessed` is counted for the reason DIVERGENCE.txt's own header gives: the
+// four src/java counters all rest on "src/java == upstream + patches", which a
+// coordinated edit to both sides satisfies by construction. This counter is the
+// only one that interrogates the patches themselves. A missing baseline counts
+// too, so deleting the file is not a way to switch the check off.
 const baselineMissing = hasBaseline ? 0 : 1;
+
 const shimBaselineMissing = hasShimBaseline ? 0 : 1;
 if (leftovers.length) {
   console.error(`extract: ${leftovers.length} patch(es) identical to upstream (leftovers; delete them):`);

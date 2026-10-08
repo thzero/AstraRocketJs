@@ -8,12 +8,9 @@ import { scaleNode } from '../../../src/tree/scaleRocket';
 import type { ComponentNode } from '../../../src/engine/openRocketEngine';
 
 /**
- * The small ones, each a thing that failed quietly.
- *
- * None of these is dramatic on its own. What they share is that the failure left
- * no trace: a refused write that resolved cleanly, a quadratic import that merely
- * felt slow, a scaled node that shared an array with the node it came from. A
- * silent failure is the kind that gets found by an audit rather than by a user.
+ * Small failure modes that each leave no trace: a refused write that resolves
+ * cleanly, a quadratic import that merely feels slow, a scaled node that shares
+ * an array with the node it came from.
  */
 
 describe('saveSettings reports a refused write', () => {
@@ -26,8 +23,8 @@ describe('saveSettings reports a refused write', () => {
   });
 
   it('returns false rather than swallowing a quota failure', () => {
-    // The bare `catch {}` this replaces meant the panel showed the new value for
-    // the rest of the session and the next session came up with the old one.
+    // A bare `catch {}` would leave the panel showing the new value for the rest
+    // of the session while the next session comes up with the old one.
     // Spied on `Storage.prototype`, where jsdom defines it: assigning to the
     // instance does not shadow it.
     vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
@@ -86,7 +83,7 @@ describe('a custom-motor import is ONE write', () => {
   };
 
   it('stores a whole engine range in ONE read-modify-write', async () => {
-    // The quadratic shape this replaces: one `kv.update` per motor, each parsing
+    // The quadratic shape to avoid: one `kv.update` per motor, each parsing
     // and re-serializing the entire stored array. A `.rse` engine database is a
     // manufacturer's whole range, so that is hundreds of round trips through the
     // same JSON.
@@ -94,10 +91,10 @@ describe('a custom-motor import is ONE write', () => {
     const store = new KeyValueMotorStore(kv);
     await store.addCustomMotors([motor('A'), motor('B'), motor('C'), motor('D')]);
     expect(updates()).toBe(1);
-    // Newest first, which is the order repeated single adds produced: each one
-    // prepended, so A then B then C then D left D at the front. The batch reverses
-    // itself to keep that, rather than quietly changing the order of the list the
-    // picker shows.
+    // Newest first, which is the order repeated single adds give: each one
+    // prepends, so A then B then C then D leaves D at the front. The batch reverses
+    // itself to match, so the order of the list the picker shows does not depend
+    // on how the motors were added.
     expect((await store.listCustomMotors()).map((m) => m.id)).toEqual(['D', 'C', 'B', 'A']);
   });
 
@@ -203,17 +200,17 @@ describe('the traced fin image is bounded', () => {
     const { finPointsFromImage } = await import('../../../src/services/design/finImage');
     const started = Date.now();
     finPointsFromImage(block(4000, 3000));
-    // Generous, because this is a timing assertion on shared CI. The unbounded
-    // version was a triply nested scan over a fourteen-thousand-point perimeter.
+    // Generous, because this is a timing assertion on shared CI. An unbounded
+    // trace is a triply nested scan over a fourteen-thousand-point perimeter.
     expect(Date.now() - started).toBeLessThan(10_000);
   });
 
   it('still finds a root on a height that is not a multiple of the reduction', async () => {
-    // The regression a plain stride would have introduced: with a 300-pixel image
+    // What a plain stride would get wrong: with a 300-pixel image
     // reduced by 4, a stride samples rows 0, 4 ... 296, so a fin touching only
     // rows 297 to 299 reads as not touching the bottom edge - a valid image
     // refused with the message for an invalid one. The mapping includes both
-    // endpoints, so the reduced bottom row IS the source bottom row.
+    // endpoints, so the reduced bottom row is the source bottom row.
     const { finPointsFromImage } = await import('../../../src/services/design/finImage');
     const w = 4000;
     const h = 4003; // deliberately shares no factor with any stride this will pick
@@ -233,8 +230,9 @@ describe('the traced fin image is bounded', () => {
 
   it('reads a channel past the end of the array as background, not as fin', async () => {
     const { finPointsFromImage, FinImageError } = await import('../../../src/services/design/finImage');
-    // `data` far too short for the stated size. `?? 0` is pure black, which is
-    // FIN, so this used to invent an outline out of bytes that are not there.
+    // `data` far too short for the stated size. `?? 0` is pure black, which reads
+    // as fin, so defaulting to it would invent an outline out of bytes that are
+    // not there.
     const truncated = { width: 20, height: 20, data: new Uint8ClampedArray(8).fill(0) };
     expect(() => finPointsFromImage(truncated)).toThrow(FinImageError);
   });

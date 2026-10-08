@@ -16,7 +16,7 @@ import { download, exportFilename } from '../../services/files/saveFile';
 import { launcherKind } from '../../services/design/launcher';
 
 /**
- * The Simulations tab: a toolbar, the table of runs, and — on a phone — the
+ * The Simulations tab: a toolbar, the table of runs, and (on a phone) the
  * selected simulation's editor underneath it. At lg+ the editor is the tab's
  * right column instead (see App.tsx), so the table gets the full width.
  */
@@ -24,7 +24,7 @@ export function SimulationsPane() {
   const { t } = useTranslation();
   const { settings } = useSettings();
   // At lg+ the editor is the tab's right column (App.tsx). Below that there is
-  // no right column, so it goes inline under the table — rendered ONCE either
+  // no right column, so it goes inline under the table: rendered once either
   // way, never two copies with one hidden. See useMediaQuery.
   const desktop = useIsDesktop();
   const sims = useWorkspaceStore((s) => s.sims);
@@ -143,9 +143,9 @@ export function SimulationsPane() {
           onToggle={onToggle}
           onToggleAll={(all) => setSelected(all ? sims.map((x) => x.id) : [])}
           onOpenResults={(id) => {
-            // Point BOTH at it: the editor follows the active simulation, and
+            // Point both at it: the editor follows the active simulation, and
             // the results views follow their own picker. Setting only the first
-            // left this button opening whatever the last run was showing.
+            // would open whatever the last run was showing.
             onSelect(id);
             setResultSimId(id);
             setTab('results');

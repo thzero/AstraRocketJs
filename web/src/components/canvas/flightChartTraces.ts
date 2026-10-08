@@ -37,7 +37,7 @@ export interface Meta {
   digits: number;
   /**
    * The preference group this series belongs to. When set it supplies both the
-   * scale and the label, and `unit`/`scale`/`digits` below are unused — they
+   * scale and the label, and `unit`/`scale`/`digits` below are unused; they
    * stay for the handful of series (Mach, calibers) that are unitless.
    */
   quantity?: Quantity;
@@ -46,7 +46,7 @@ export interface Meta {
   /** Level bands (CG/CP/mass/stability) get a tight y-domain + no area fill;
    *  flow series (altitude/velocity/…) get a zero baseline + filled area. */
   level?: boolean;
-  /** Aero-derived (CP / stability): only meaningful while flying forward — after
+  /** Aero-derived (CP / stability): only meaningful while flying forward; after
    *  recovery deploys the rocket tumbles (AoA≈90°) and these collapse to junk, so
    *  the series is clipped to the boost→apogee window. */
   aero?: boolean;
@@ -92,9 +92,9 @@ const KEYS = new Set<string>(SERIES.map((m) => m.key));
 /**
  * The saved panel choice, narrowed to keys this build actually has.
  *
- * A list saved by a later version can name a series that no longer exists (or
- * does not exist yet); dropping those here means a stale preference costs you
- * one panel rather than blanking the chart. The order is the SERIES order, so
+ * A list saved by another version can name a series this build does not have;
+ * dropping those here means a stale preference costs you
+ * one panel rather than blanking the chart. The order is the series order, so
  * the panels stack the same way however the preference was written.
  */
 export function visibleSeries(saved: readonly string[]): Key[] {
@@ -102,7 +102,7 @@ export function visibleSeries(saved: readonly string[]): Key[] {
   return SERIES.filter((m) => want.has(m.key)).map((m) => m.key);
 }
 
-// One color per trace: sky first (the original single line), then the rest.
+// One color per trace, in series-token order.
 // Matches the component-tree palette so a stage reads the same color everywhere.
 // Cycles if a design or a comparison somehow runs past six.
 const STAGE_COLORS = [

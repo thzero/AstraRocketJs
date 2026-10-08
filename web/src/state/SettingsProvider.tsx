@@ -10,7 +10,7 @@ import { applyTheme, followSystemTheme } from '../services/app/theme';
  * write during render. The microtask puts it after the render pass. Same banner
  * the design library and the workspace use for the same cause.
  *
- * The store is imported LAZILY, and not for weight: a static edge from here would
+ * The store is imported lazily, and not for weight: a static edge from here would
  * construct the workspace store as a side effect of loading this provider, and the
  * store's initial state reads `loadSettings()` at construction. A test that mocks
  * the settings module then builds the store against the mock before it has set one
@@ -43,7 +43,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   // Persist from the two events that change settings, never from an effect on
   // `settings`. An effect writes loadSettings()' own output straight back on
   // mount, and `loadSettings` normalizes by dropping keys it does not recognize,
-  // so merely OPENING an older build would destroy any preference a newer build
+  // so merely opening an older build would destroy any preference a newer build
   // wrote. A "skip the first run" ref does not save it either: StrictMode runs
   // every effect's setup twice on mount and refs persist across the pair, so the
   // second run sees the flag set and writes anyway. Writing from the event has no

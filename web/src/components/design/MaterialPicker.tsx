@@ -40,7 +40,7 @@ const QUANTITY: Record<MaterialType, Quantity> = {
  * `.ork` writer wants it, to file the material under its own category.
  */
 /**
- * What the material is FOR, which decides whether the adhesives belong in the
+ * What the material is for, which decides whether the adhesives belong in the
  * list. Nothing else is filtered: every other bulk material in the table is
  * something a part can legitimately be made of, and guessing which ones suit
  * which component would block real builds (an aluminum fin, a printed nose
@@ -72,7 +72,7 @@ export function MaterialPicker({
   /**
    * What the "no material chosen" option is called. It means two different
    * things depending on where the picker is, so it cannot be one string: on a
-   * PART it means the part is weighed with the built-in density, and in
+   * part it means the part is weighed with the built-in density, and in
    * Settings ▸ Materials it means new parts of that type get no material at
    * all. Defaults to the part wording.
    */
@@ -106,7 +106,7 @@ export function MaterialPicker({
   const { observe } = useLatest();
   const u = useUnits();
   const quantity = QUANTITY[type];
-  // One scope per material kind — fabric and cord densities are read in quite
+  // One scope per material kind: fabric and cord densities are read in quite
   // different units from bulk stock, so they must not share a choice.
   const scope = unitScope('material', type);
   const fu = u.at(scope, quantity);
@@ -120,7 +120,7 @@ export function MaterialPicker({
   const loaded = useAsyncLoad(() => materialsForType(type), type, { onLoaded: setMats });
   const loadErr = loaded.error !== null ? t('material.loadFailed') : null;
 
-  // Resolved against the WHOLE list, never the filtered one: a design can
+  // Resolved against the whole list, never the filtered one: a design can
   // already name a material this picker would not offer (a `.ork` with an
   // epoxy body tube), and the row has to keep showing what the part is made of.
   const current = mats.find((m) => m.name === value);
@@ -129,10 +129,10 @@ export function MaterialPicker({
   const own = value && !current ? { name: value, density: ownDensity && ownDensity > 0 ? ownDensity : null } : null;
 
   /**
-   * The list is the materials for THIS use, and nothing else.
+   * The list is the materials for this use, and nothing else.
    *
    * A structural part drops the adhesives: nothing is built out of glue, and
-   * they were 13 rows of it under every body tube and centering ring. A fillet
+   * they would add a block of rows under every body tube and centering ring. A fillet
    * drops everything that is not an adhesive, for the mirror of that reason.
    *
    * Filtering the fillet rather than merely ordering it is deliberate, and it
@@ -140,7 +140,7 @@ export function MaterialPicker({
    * putty is a custom material, and the add form asks which group it belongs
    * in, so filing it under Adhesives puts it here.
    *
-   * Whatever the part ALREADY uses stays in the list either way. Dropping it
+   * Whatever the part already uses stays in the list either way. Dropping it
    * would leave the select showing no option for the value it holds, which
    * reads as "no material" on a part that has one.
    */
@@ -196,8 +196,8 @@ export function MaterialPicker({
       await removeCustom(current.name, type);
     } catch (e) {
       // The store's own message: a refused write is not always "storage
-      // full", and saying so for every failure sent people deleting designs
-      // to make room that was never short.
+      // full", and saying so for every failure would send people deleting
+      // designs to make room that is not short.
       setDelErr(errorMessage(e));
       return; // the material is still there; do not tell the user otherwise
     }

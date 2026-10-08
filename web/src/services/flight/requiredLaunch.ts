@@ -9,8 +9,9 @@ import type { LaunchConditions } from '../design/orkTree';
  * and pressure mean ISA standard).
  *
  * Stored as null when cleared, never coerced with `v ?? 0`: zero reads as a real
- * value to everything downstream, and five of these six are legitimately zero --
- * rod angle straight up, still air, no gusts, sea level, the equator -- so a
+ * value to everything downstream, and six of these seven are legitimately zero
+ * (rod angle straight up, still air, no gusts, sea level, the equator, the prime
+ * meridian), so a
  * coerced field makes "the user cleared it" and "the user meant 0" the same state.
  */
 export const REQUIRED_LAUNCH_KEYS = [
@@ -44,7 +45,7 @@ export function isComplete(launch: LaunchConditions): launch is CompleteLaunch {
 /**
  * Fill any blank required field from `fallback`.
  *
- * For the SETTINGS copy of the launch panel, which edits the defaults a new
+ * For the settings copy of the launch panel, which edits the defaults a new
  * simulation is seeded from. A blank default would hand every future
  * simulation a hole, so there is nothing useful for "cleared" to mean there --
  * the field simply keeps what it had.

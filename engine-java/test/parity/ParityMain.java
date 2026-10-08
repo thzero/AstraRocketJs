@@ -19,14 +19,14 @@ import info.openrocket.core.util.CoordinateIF;
 import info.openrocket.core.util.Quaternion;
 
 /**
- * JVM-vs-JS parity harness.
+ * JVM-vs-TeaVM parity harness.
  *
  * Runs a fixed battery of engine calculations (atmosphere, mass/CG, aero CP/CD, full flights,
  * staging, clusters, etc.) and prints every result as a pipe-delimited line of raw
- * {@code Double.toString} values — no rounding, no locale, so the text is byte-comparable.
+ * {@code Double.toString} values: no rounding, no locale, so the text is byte-comparable.
  *
- * The point is not the numbers themselves but that they are IDENTICAL on two runtimes: this
- * same class runs on the JVM and inside the SHIPPED engine (TeaVM-JS and WASM-GC, through
+ * The point is not the numbers themselves but that they are identical across runtimes: this
+ * same class runs on the JVM and inside the shipped engine (TeaVM-JS and WASM-GC, through
  * {@code OpenRocketEngine.runParity()}), and {@code test/parity/parity.mjs} diffs the output
  * line by line. A mismatch means the browser build diverged from the reference JVM (a TeaVM
  * miscompile or unported dependency). It ships so that parity checks the very files the app
@@ -53,9 +53,6 @@ public final class ParityMain {
         airfoilSectionScenarios();
         rogersKbfScenarios();
         supersonicAeroScenarios();
-        // nozzleBaseDragScenarios(): RASAero feature #2 is now upstream-native
-        // (per-motor MotorConfiguration.nozzleExitDiameter). A native-model parity
-        // scenario is deferred with the web nozzle-bridge migration.
         rollScenarios();
         collatorScenarios();
         uuidScenarios();
@@ -68,14 +65,12 @@ public final class ParityMain {
     /**
      * Fin cant and the roll coefficients it drives, across Mach and roll rate.
      * <p>
-     * This existed nowhere before. No parity design set a cant angle, so
-     * {@code FinSetCalc} multiplied the roll forcing by {@code cantAngle == 0}
-     * and every roll quantity was identically zero in all 255 golden lines; and
-     * the {@code aero.forces} field list did not print a roll term anyway. Both
-     * gates were therefore blind to it: halving the roll forcing in
-     * {@code FinSetCalc} gave `parity ok` on both targets AND `golden ok` on
-     * every line, and {@code validation/score.mjs} only knows cd/cp/cna so it
-     * could not have seen it either.
+     * No other parity design sets a cant angle, so everywhere else
+     * {@code FinSetCalc} multiplies the roll forcing by {@code cantAngle == 0}
+     * and every roll quantity is identically zero; the {@code aero.forces} field
+     * list prints no roll term either. Without this scenario, a change to the
+     * roll forcing in {@code FinSetCalc} would pass both parity and golden, and
+     * {@code validation/score.mjs} only knows cd/cp/cna.
      * <p>
      * Not obscure physics: {@code ComponentFactory} reads a `cant` key for all
      * three fin-set types, the web app round-trips it, and
@@ -137,20 +132,20 @@ public final class ParityMain {
     }
 
     /**
-     * Motor-designation sort order, which is the ONE place the two platforms
+     * Motor-designation sort order, which is the one place the two platforms
      * run genuinely different code.
      * <p>
      * {@code java.text.Collator} is a jdkstub: on the JVM the real JDK class
      * wins by parent delegation, under TeaVM the stub runs. So this scenario
      * is not testing that TeaVM compiled our source faithfully, it is testing
-     * that our stub agrees with the JDK it stands in for - the one comparison
+     * that our stub agrees with the JDK it stands in for: the one comparison
      * in this harness where a mismatch means the stub is wrong rather than the
      * compiler. Without a sorted list printed here, the stub could disagree with
      * the JDK indefinitely and no gate would notice.
      * <p>
      * {@code DesignationComparator} is the live consumer and it sorts at
-     * PRIMARY, where "H128W" and "H128-W" must compare EQUAL, "H128W" and "H128.W"
-     * must NOT, and "AeroTech" must sort before "A-P" - a raw case-sensitive
+     * PRIMARY, where "H128W" and "H128-W" must compare equal, "H128W" and "H128.W"
+     * must not, and "AeroTech" must sort before "A-P"; a raw case-sensitive
      * tiebreak gets that last one backwards.
      */
     private static void collatorScenarios() {
@@ -158,8 +153,8 @@ public final class ParityMain {
                 "H128W", "H128-W", "AeroTech", "A-P", "K550W", "k550w",
                 "A10-3T", "A10 3T", "Pro38", "Pro-38", "1/2A3", "-5",
                 "C11-3", "C11 3", "Estes", "Cesaroni", "Loki", "LOKI", "loki",
-                // The four marks en_US does NOT ignore, each where it was once
-                // ignored and made two motors one, and real names that carry them.
+                // The four marks en_US does not ignore (ignoring one would make two
+                // motors one), and real names that carry them.
                 "H128.W", "H128'W", "H128_W", "H128/W", "A.T.", "1/4A3", "LOC/Precision",
                 // The same space and hyphen in different places: secondary order
                 // depends on where they fall, not only on which they are.
@@ -199,15 +194,15 @@ public final class ParityMain {
     /**
      * {@code LongUUID.randomUUID} determinism and spread.
      * <p>
-     * The ids never reach the facade's output, so nothing here was pinned and
-     * two defects lived in it undisturbed: the counter's nibble at bits 12-15
-     * was masked away, so the most-significant half repeated every 2048 calls
-     * (and {@code MotorConfigurationId} keys on exactly that, so two
-     * configurations on one mount could alias); and only the low bits moved, so
-     * every {@code toShortKey()} was the constant "01234567".
+     * The ids never reach the facade's output, so only this pins them. A raw
+     * counter would lose its nibble at bits 12-15 to the version mask, so the
+     * most-significant half would repeat every 2048 calls (and
+     * {@code MotorConfigurationId} keys on exactly that, so two configurations
+     * on one mount could alias); and with only the low bits moving, every
+     * {@code toShortKey()} would be the constant "01234567".
      * <p>
      * Pinning it also asserts something parity is uniquely able to check: that
-     * the JVM and both TeaVM targets generate the SAME ids. If they ever
+     * the JVM and both TeaVM targets generate the same ids. If they ever
      * diverge, every id-keyed map iterates differently on the two platforms.
      */
     private static void uuidScenarios() {
@@ -234,11 +229,10 @@ public final class ParityMain {
      * A shim is the only provider of a fully-qualified name that upstream also
      * defines, so a default that silently stops matching the desktop is invisible
      * at compile time and wrong at runtime. Nothing in {@code extract --check}
-     * compares a shim to the class it shadows, and the wind model is the case that
-     * proved it: {@code getAverageWindModel()} returned a dead-calm model where
-     * upstream seeds 2 m/s at 10% turbulence from due east. It reached nothing
-     * only because {@code OpenRocketEngine} clears the wind levels before every
-     * run, which is one line away from not being true.
+     * compares a shim to the class it shadows. The wind model is the sharpest
+     * case: {@code getAverageWindModel()} must seed 2 m/s at 10% turbulence from
+     * due east as upstream does, and a dead-calm model would go unnoticed because
+     * {@code OpenRocketEngine} clears the wind levels before every run.
      */
     private static void preferencesScenarios() {
         info.openrocket.core.preferences.ApplicationPreferences prefs =
@@ -256,13 +250,13 @@ public final class ParityMain {
     }
 
     /**
-     * Opt-in supersonic aerodynamics (RASAero feature #1, Phase 1). With the
-     * flag ON: corrected supersonic fin normal force (2D Busemann level with
-     * finite-span correction — roughly doubles the clamped classic value),
+     * Opt-in supersonic aerodynamics (RASAero supersonicAero). With the
+     * flag on: corrected supersonic fin normal force (2D Busemann level with
+     * finite-span correction, roughly double the clamped classic value),
      * exact NACA-1307 body-fin interference, Mach-dependent nose CNa growth,
      * and no M4.9 grid clamp. Locks CP/CNa at transonic, supersonic and
-     * hypersonic Mach for both flag states — flag OFF must stay identical to
-     * the classic values (also covered by existing paritys).
+     * hypersonic Mach for both flag states; flag off must stay identical to
+     * the classic values (also covered by the aero.cp lines).
      */
     private static void supersonicAeroScenarios() {
         Rocket rocket = buildReferenceRocket();
@@ -280,7 +274,7 @@ public final class ParityMain {
             cOff.setAOA(Math.toRadians(2));
             CoordinateIF cpOff = off.getCP(config, cOff, w);
 
-            // feature #1 supersonicAero via the RASAero strategy pair.
+            // supersonicAero via the RASAero strategy pair.
             info.openrocket.core.aerodynamics.RASAeroStabilityCalculator stab =
                     new info.openrocket.core.aerodynamics.RASAeroStabilityCalculator();
             stab.setSupersonicAero(true);
@@ -297,7 +291,7 @@ public final class ParityMain {
 
             line("ssaero." + mach, cpOff.getX(), cpOff.getWeight(), cpOn.getX(), cpOn.getWeight());
 
-            // Phase 2: lock the flag-on drag decomposition too.
+            // Lock the flag-on drag decomposition too.
             info.openrocket.core.aerodynamics.AerodynamicForces fOn =
                     on.getAerodynamicForces(config, cOn, w);
             line("ssaerocd." + mach, fOn.getCD(), fOn.getFrictionCD(),
@@ -306,11 +300,11 @@ public final class ParityMain {
     }
 
     /**
-     * RASAero feature #4: fin airfoil cross-sections. Input-gated (no flag):
-     * a single-wedge section (thickness wave + fin base drag) and a hexagonal
-     * section with an explicit LE radius, locked at subsonic/supersonic Mach.
-     * The same tree WITHOUT airfoilSection is covered by existing paritys
-     * (absent input = bit-identical classic).
+     * RASAero fin airfoil cross-sections: a single-wedge section (thickness wave
+     * + fin base drag) and a hexagonal section with an explicit LE radius, locked
+     * at subsonic/supersonic Mach. The section physics runs only with rogersKbf or
+     * supersonicAero on, and this scenario sets neither, so these lines pin the
+     * classic crossSection path for these inputs.
      */
     private static void airfoilSectionScenarios() {
         String base = "{\"components\":[{\"type\":\"stage\",\"name\":\"S\",\"children\":["
@@ -337,8 +331,8 @@ public final class ParityMain {
     }
 
     /**
-     * Minimum-diameter rocket: the BODY TUBE itself is the motor mount (no
-     * inner tube) — kernel BodyTube implements MotorMount, and setMotorById
+     * Minimum-diameter rocket: the body tube itself is the motor mount (no
+     * inner tube); kernel BodyTube implements MotorMount, and setMotorById
      * must accept it. 24 mm airframe flying a 18 mm C6 loaded directly in the
      * tube, with a nozzle exit near the body diameter (the power-on base-drag
      * case min-diameter rockets exist for). Locks static info + flight summary.
@@ -410,12 +404,12 @@ public final class ParityMain {
     }
 
     /**
-     * Opt-in Rogers Modified Barrowman body-fin interference (feature #3). With
-     * the flag ON the fin set adds the Kbf body carryover (τ·cna at the fin root
-     * quarter-chord), so total CNα rises and CP moves slightly AFT (more
-     * conservative margin) vs classic Barrowman. Flag OFF must reproduce the
-     * plain-Barrowman CP exactly (covered by the existing aero.cp paritys; here
-     * we assert on≠off and the direction). Both JVM and JS run the patched calc.
+     * Opt-in Rogers Modified Barrowman body-fin interference (rogersKbf). With
+     * the flag on the fin set adds the Kbf body carryover (τ·cna at the fin root
+     * quarter-chord), so total CNα rises and CP moves slightly aft (more
+     * conservative margin) vs classic Barrowman. Flag off must reproduce the
+     * plain-Barrowman CP exactly (covered by the aero.cp lines; here both
+     * states are printed side by side). The JVM and both TeaVM targets run the patched calc.
      */
     private static void rogersKbfScenarios() {
         Rocket rocket = buildReferenceRocket();
@@ -433,7 +427,7 @@ public final class ParityMain {
             cOff.setAOA(Math.toRadians(2));
             CoordinateIF cpOff = off.getCP(config, cOff, w);
 
-            // feature #3 Rogers Kbf via the RASAero strategy pair.
+            // Rogers Kbf via the RASAero strategy pair.
             info.openrocket.core.aerodynamics.RASAeroStabilityCalculator stab =
                     new info.openrocket.core.aerodynamics.RASAeroStabilityCalculator();
             stab.setRogersKbf(true);
@@ -453,9 +447,10 @@ public final class ParityMain {
     }
 
     /**
-     * Aero sweep bridge method (feature #5). Exercises getAeroSweep over a
-     * small Mach grid on a rocket with a stage nozzle set — power-off vs power-on
-     * total/base CD must match JVM↔JS, and power-on base CD must be lower.
+     * Aero sweep bridge method. Exercises getAeroSweep over a small Mach grid
+     * and pins power-off and power-on total/base CD. The design sets a stage
+     * nozzle but has no motor, so no nozzle-exit area reaches the sweep and the
+     * power-on values equal the power-off ones.
      */
     private static void aeroSweepScenarios() {
         String json = "{\"components\":[{\"type\":\"stage\",\"name\":\"S\",\"nozzleExitDiameter\":0.016,\"children\":["
@@ -484,24 +479,8 @@ public final class ParityMain {
     }
 
     /**
-     * RASAero power-on base-drag reduction (feature #2). The reference rocket's
-     * body tube has an exposed aft base; setting a stage nozzle exit diameter
-     * must LOWER the base CD (and total CD) while that stage's motor is thrusting
-     * (power-on), and leave it unchanged during coast (power-off). Power-off must
-     * exactly equal the no-nozzle base CD. Both JVM and JS run the patched
-     * calculator, so the values must match bit-for-bit.
-     */
-    private static void nozzleBaseDragScenarios() {
-        // PATCH(migration Stage 1): disabled — used the removed per-stage
-        // setNozzleExitDiameter()/setThrustingStages() APIs. Feature #2 is now
-        // upstream-native (per-motor MotorConfiguration.nozzleExitDiameter +
-        // FlightConditions.thrustingNozzleExitAreas); re-add a native-model
-        // scenario in Stage 2 alongside the web nozzle-bridge migration.
-    }
-
-    /**
-     * Off-axis assemblies (PodSet / ParallelStage) through the tree API — the
-     * newly-reachable ComponentAssemblyCalc / off-axis MassCalculation paths.
+     * Off-axis assemblies (PodSet / ParallelStage) through the tree API: the
+     * ComponentAssemblyCalc and off-axis MassCalculation paths.
      * A symmetric 2-pod ring keeps CG on-axis but gains transverse/roll inertia
      * (parallel-axis term); a 1-instance pod shifts CG laterally (CM.y != 0);
      * a separating ParallelStage must spawn an extra flight branch.
@@ -577,7 +556,7 @@ public final class ParityMain {
         lineStaticInfo("para.info", api.OpenRocketEngine.getStaticInfo(rb));
 
         // maxTime cap: turbulent-descent ULP row-count drift (same reasoning as
-        // conditions/staging). Assert branch COUNT + names EXACTLY; summary at tol.
+        // conditions/staging). Assert branch count + names exactly; summary at tol.
         String result = api.OpenRocketEngine.simulateJson(rb, "{\"rodLength\":1.2,\"maxTime\":6}");
         java.util.Map<String, Object> parsed = api.JsonLite.parseObject(result);
         Object branchesObj = parsed.get("branches");
@@ -598,17 +577,17 @@ public final class ParityMain {
     }
 
     /**
-     * Serial two-stage flights through the tree API. Two patterns from the
-     * field (Eric's rules):
-     * - "auto": low/mid-power gap staging — booster motor's ejection charge
-     *   (delay 0) separates the booster AND lights the sustainer
+     * Serial two-stage flights through the tree API. Two common field patterns:
+     * - "auto": low/mid-power gap staging: booster motor's ejection charge
+     *   (delay 0) separates the booster and lights the sustainer
      *   (IgnitionEvent.AUTOMATIC). Chuteless booster falls on its own branch.
-     * - "timed": the high-power pattern — separation at booster burnout,
+     * - "timed": the high-power pattern: separation at booster burnout,
      *   sustainer lit by electronics (burnout + 1 s); booster recovers under
      *   its own chute on its own branch.
      * Locks: branch count/names, per-branch event sequences, per-branch
      * apogee/end-time (the sustainer must fly ~2 stages high; the booster
-     * branch must end on its own GROUND_HIT).
+     * branch must end on its own GROUND_HIT). Only apogee and separation time
+     * are printed per branch, not the end time.
      */
     private static void stagingScenarios() {
         runStagingScenario("auto", null, 0.0, false);
@@ -676,10 +655,10 @@ public final class ParityMain {
             for (Object v : alt) {
                 if (v instanceof Double && (Double) v > maxAlt) maxAlt = (Double) v;
             }
-            // Apogee + separation time only: the END of a ~3-minute chute
+            // Apogee + separation time only: the end of a ~3-minute chute
             // descent accumulates transcendental ULP noise (end time drifts
-            // ~1e-6 rel, sample count ±1) — same class as the turbulent-
-            // scenario cap. The event SEQUENCES above are exact strings.
+            // ~1e-6 rel, sample count ±1), the same class as the turbulent-
+            // scenario cap. The event sequences above are exact strings.
             double sepTime = Double.NaN;
             for (Object e : (java.util.List<?>) b.get("events")) {
                 java.util.Map<String, Object> ev = asMap(e);
@@ -695,7 +674,7 @@ public final class ParityMain {
     /**
      * Clustered motor mount: identical airframe flown with a single mount vs
      * a 3-ring cluster of the same motor. The kernel fires the cluster as
-     * thrust×count with mass/inertia at the cluster geometry points — the
+     * thrust×count with mass/inertia at the cluster geometry points: the
      * cluster flight must show ~3× the loaded-motor mass delta and a much
      * higher max acceleration. Also asserts the cluster geometry itself
      * (count + tube offsets) so a silently-ignored cluster param can't pass.
@@ -753,12 +732,12 @@ public final class ParityMain {
     }
 
     /**
-     * PATCH(offaxis-roll-inertia): the same two motors 15 mm off the axis, built
+     * Off-axis roll inertia: the same two motors 15 mm off the axis, built
      * two ways. "split" is the desktop split cluster, two single-instance inner
      * tubes each at radialPosition 0.015; "double" is one inner tube with a
      * double cluster scaled to the same offsets. The mass is in the same places,
      * so roll inertia (Ixx) must agree between the two, for the structure and
-     * with the motors loaded. Upstream gave the split pair neither the tubes'
+     * with the motors loaded. Upstream gives the split pair neither the tubes'
      * nor the motors' m * r^2. "axis" is the on-axis control: the patch adds
      * exactly 0.0 there.
      */
@@ -806,8 +785,8 @@ public final class ParityMain {
         }
 
         // The same tube 15 mm off the axis, drawn as a coupler and as an inner
-        // tube. Only InnerTube's offsets carry its radial shift, so the coupler
-        // used to get no m * r^2 at all; the two Ixx must now agree.
+        // tube. Only InnerTube's offsets carry its radial shift, so without the
+        // patch the coupler gets no m * r^2 at all; the two Ixx must agree.
         String offAxisTube = "\"length\":0.05,\"outerRadius\":0.0095,\"thickness\":0.0005,\"density\":1200,"
                 + "\"radialPosition\":0.015,\"radialDirection\":0.7,\"position\":{\"method\":\"top\",\"offset\":0.1}}";
         for (String type : new String[] { "tubecoupler", "innertube" }) {
@@ -821,8 +800,8 @@ public final class ParityMain {
 
     /**
      * Dual deployment: drogue at apogee + main at 150 m AGL. Events must
-     * carry their SOURCE component name so the app can tell WHICH device
-     * deployed (drogue vs main) — safety thresholds differ per stage.
+     * carry their source component name so the app can tell which device
+     * deployed (drogue vs main); safety thresholds differ per stage.
      */
     private static void dualDeployScenarios() {
         String rocket = "{\"name\":\"DualDeploy\",\"components\":["
@@ -1000,12 +979,12 @@ public final class ParityMain {
                 api.JsonLite.dbl(info, "positionX", Double.NaN));
     }
 
-    /** Reflection-free accessor: rebuild handle context via the public API. */
+    /** Reflection-free accessor: the kernel Rocket behind a handle, via the public API. */
     private static Object getRocketFromInfo(int handle) {
         return api.OpenRocketEngine.getRocketForTesting(handle);
     }
 
-    /** P2.4: custom launch conditions (wind + site atmosphere) through the API. */
+    /** Custom launch conditions (wind + site atmosphere) through the API. */
     private static void conditionsScenarios() {
         String reference = "{\"name\":\"Ref\",\"components\":["
                 + "{\"type\":\"nosecone\",\"length\":0.07,\"aftRadius\":0.012,\"thickness\":0.002,\"shape\":\"ogive\"},"
@@ -1025,7 +1004,7 @@ public final class ParityMain {
         // maxTime caps the flight just past apogee (~6.8 s) and deployment
         // (~7.2 s): a turbulent sim is chaotic, and over a ~100 s descent the
         // JVM-vs-JS transcendental ULP noise amplifies until the adaptive
-        // stepper's ROW COUNT flips — a structural diff no numeric tolerance
+        // stepper's row count flips, a structural diff no numeric tolerance
         // absorbs. 8 s keeps full coverage (wind, atmosphere, deployment,
         // every series) while staying within comparable drift.
         String result = api.OpenRocketEngine.simulateJson(r, "{"
@@ -1059,7 +1038,7 @@ public final class ParityMain {
     }
 
     /**
-     * P2.1: the JSON tree API must produce identical physics to direct
+     * The JSON tree API must produce identical physics to direct
      * construction, and the extended component set must compute consistent
      * mass/CP on both JVM and TeaVM.
      */
@@ -1114,13 +1093,13 @@ public final class ParityMain {
                 api.JsonLite.dbl(info, "warnings", Double.NaN));
     }
 
-    /** java.util.Random is algorithm-specified (LCG) — verify TeaVM matches. */
+    /** java.util.Random is algorithm-specified (LCG); verify TeaVM matches. */
     private static void randomScenarios() {
         java.util.Random r = new java.util.Random(42);
         line("random.seeded42", r.nextDouble(), r.nextDouble(), r.nextGaussian(), r.nextGaussian());
     }
 
-    /** P1.4: full 6DOF flight — C6-class motor, no wind, ISA, WGS gravity. */
+    /** Full 6DOF flight: C6-class motor, no wind, ISA, WGS gravity. */
     private static void flightScenarios() {
         Rocket rocket = buildReferenceRocket();
         // Dedicated flight configuration (motors cannot attach to the default config).
@@ -1224,7 +1203,7 @@ public final class ParityMain {
         }
     }
 
-    /** P1.3: Extended-Barrowman CP and force coefficients across Mach and AoA. */
+    /** Extended-Barrowman CP and force coefficients across Mach and AoA. */
     private static void aeroScenarios() {
         Rocket rocket = buildReferenceRocket();
         FlightConfiguration config = rocket.getSelectedConfiguration();
@@ -1307,7 +1286,7 @@ public final class ParityMain {
         FlightConfiguration config = rocket.getSelectedConfiguration();
 
         // Direct per-class calls to the bounds API. These are real parity values
-        // AND they force TeaVM's dependency analyzer to link every implementation
+        // and they force TeaVM's dependency analyzer to link every implementation
         // (it under-links impls reached only via map-key virtual dispatch).
         int bi = 0;
         for (info.openrocket.core.rocketcomponent.RocketComponent c : config.getAllComponents()) {
@@ -1318,20 +1297,20 @@ public final class ParityMain {
             line("comp.bounds." + (bi++), boundsSize, instBox);
         }
 
-        // Structural counts — parity values AND the first divergence tripwire.
+        // Structural counts: parity values and the first divergence tripwire.
         line("tree.counts", rocket.getChildCount(), config.getAllComponents().size(),
                 config.getActiveComponents().size(), config.getActiveStages().size(),
                 config.getStageCount(), config.getActiveInstances().size());
 
-        // Per-component masses — localizes any mass divergence to a component.
+        // Per-component masses: localizes any mass divergence to a component.
         // (Indexed tag, not getSimpleName(): TeaVM strips class name metadata.)
         int ci = 0;
         for (info.openrocket.core.rocketcomponent.RocketComponent c : config.getAllComponents()) {
             line("comp.mass." + (ci++), c.getMass(), c.getLength());
         }
 
-        // Instance-context counts — masses aggregate through these transforms.
-        // Sorted (HashMap iteration order differs between JVM and TeaVM).
+        // Instance-context counts: masses aggregate through these transforms.
+        // Sorted, so the line does not depend on map iteration order.
         java.util.List<Integer> ctxCounts = new java.util.ArrayList<>();
         for (java.util.ArrayList<info.openrocket.core.rocketcomponent.InstanceContext> v
                 : config.getActiveInstances().values()) {
@@ -1344,7 +1323,7 @@ public final class ParityMain {
         }
         line("tree.ctx.sorted", sortedCounts);
 
-        // Direct probes at the JVM/JS divergence point (fin instance expansion).
+        // Direct probes of fin instance expansion.
         TrapezoidFinSet finProbe = null;
         for (info.openrocket.core.rocketcomponent.RocketComponent c : config.getAllComponents()) {
             if (c instanceof TrapezoidFinSet) {
@@ -1355,13 +1334,13 @@ public final class ParityMain {
                 finProbe.getInstanceAngles().length, finProbe.getInstanceOffsets().length);
 
         // Virtual dispatch check: the tree walk calls getInstanceCount() through
-        // a RocketComponent-typed reference — must hit FinSet's override (=3).
+        // a RocketComponent-typed reference; it must hit FinSet's override (=3).
         info.openrocket.core.rocketcomponent.RocketComponent rcRef = finProbe;
         line("fins.virtual", rcRef.getInstanceCount(), rcRef.getInstanceAngles().length);
 
         // Map emplace probe: repeated emplace on the same key must append (list
-        // grows), not replace. InstanceMap extends LinkedHashMap (patched from
-        // upstream's ConcurrentHashMap — see patches/LEDGER.md determinism fix).
+        // grows), not replace. InstanceMap extends LinkedHashMap where upstream
+        // uses ConcurrentHashMap (see patches/LEDGER.md).
         info.openrocket.core.rocketcomponent.InstanceMap im =
                 new info.openrocket.core.rocketcomponent.InstanceMap();
         im.emplace(finProbe, 0, info.openrocket.core.util.Transformation.IDENTITY);
@@ -1400,8 +1379,9 @@ public final class ParityMain {
             line("isa.std", alt, c.getTemperature(), c.getPressure(), c.getDensity(),
                     c.getMachSpeed(), c.getKinematicViscosity());
         }
-        // Custom launch-site model (plan: base configurable at site altitude).
-        // Upstream added a relative-humidity arg: (altitude, temp, pressure, humidity).
+        // Custom launch-site model, based at the site altitude.
+        // Arguments: (altitude, temp, pressure, humidity).
+
         ExtendedISAModel site = new ExtendedISAModel(1400, 285.15, 86000,
                 ExtendedISAModel.STANDARD_RELATIVE_HUMIDITY);
         for (double alt : new double[] { 0, 1400, 1401, 3000, 11000, 20000 }) {

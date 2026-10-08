@@ -6,8 +6,8 @@ import { test, expect, ready } from './base';
  * you are done with it.
  *
  * Driven end to end rather than unit-tested alone because the three pieces
- * live in three places — the store (presetStore), the projection to a picker
- * row (customParts) and the picker itself — and the interesting failure is a
+ * live in three places (the store in presetStore, the projection to a picker
+ * row in customParts, and the picker itself), and the interesting failure is a
  * save that lands in storage and never appears in the list.
  */
 
@@ -45,7 +45,7 @@ test.beforeEach(async ({ page }) => {
 /**
  * The library goes where the component tree goes.
  *
- * A saved part is applied THROUGH a component, so a window that cannot add the
+ * A saved part is applied through a component, so a window that cannot add the
  * component it belongs on would open the library onto a design it has no way to
  * put anything into. The catalog picker inside the property editor is a
  * different thing and stays: it re-sizes a part the design already has.
@@ -101,9 +101,9 @@ test('a saved body tube is offered back in the picker, starred, and can be delet
 });
 
 test('every saved part is listed and removable from the menu, whatever the design holds', async ({ page }) => {
-  // A BULKHEAD, deliberately: the default rocket has none, so its picker
-  // cannot be opened at all, and before My Parts this was a part you could
-  // save and then never see or delete again.
+  // A bulkhead, deliberately: the default rocket has none, so its picker
+  // cannot be opened at all, and My Parts is the only place such a saved part
+  // can be seen or deleted.
   await page.locator('div[title="Body tube"]').click();
   await page.locator('select').filter({ hasText: 'Bulkhead' }).selectOption({ label: 'Bulkhead' });
   await saveSelectedAs(page, 'Bench bulkhead');
@@ -134,7 +134,7 @@ test('a saved part can be renamed and resized in place, and the picker follows',
   const manage = page.getByRole('dialog', { name: 'My Parts' });
   await manage.getByRole('button', { name: /Bench draft/ }).click();
 
-  // Renamed AND resized in the detail pane: the fields are the property
+  // Renamed and resized in the detail pane: the fields are the property
   // panel's own, so the length reads in the user's unit. Save is inert until
   // something actually changes.
   await expect(manage.getByRole('button', { name: 'Save', exact: true })).toBeDisabled();
@@ -186,7 +186,7 @@ test('switching parts with unsaved edits asks before throwing them away', async 
 
 test('a saved part carries back what no catalog column describes', async ({ page }) => {
   // A motor mount is a body tube flag the catalog has no column for, so it is
-  // the plainest evidence that the WHOLE node was saved and not the handful of
+  // the plainest evidence that the whole node was saved and not the handful of
   // dimensions the picker lists.
   await page.locator('div[title="Body tube"]').click();
   const mount = page.getByLabel('Motor mount');

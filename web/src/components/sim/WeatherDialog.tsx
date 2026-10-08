@@ -34,7 +34,7 @@ import { fmtNum } from '../../i18n/format';
 
 /**
  * Launch conditions from an Open-Meteo forecast for a date and hour at the
- * launch site. Desktop OpenRocket's "Use Current Conditions" (PR #3211) is the
+ * launch site. Desktop OpenRocket's "Use Current Conditions" is the
  * model: fetch, show every value with its time and source and a checkbox each,
  * and change nothing until Apply.
  *
@@ -49,8 +49,6 @@ import { fmtNum } from '../../i18n/format';
 
 const btn =
   'rounded-md bg-raised px-3 py-1.5 text-xs font-medium text-ink-soft ring-1 ring-line/10 hover:bg-elevated disabled:opacity-50';
-
-/** The next whole hour starts within this one; the dialog opens on it. */
 
 type State =
   | { kind: 'idle' }

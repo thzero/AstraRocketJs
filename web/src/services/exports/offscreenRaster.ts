@@ -61,10 +61,10 @@ export function flipRows(pixels: Uint8Array | Uint8ClampedArray, width: number, 
 }
 
 /**
- * A 2D canvas holding a WebGL readback, the right way up. This is the ONLY
+ * A 2D canvas holding a WebGL readback, the right way up. This is the only
  * DOM touch on the export path before the header/encode step, and the canvas
  * it returns is an ordinary HTMLCanvasElement, so `snapshotWithHeader` draws
- * it exactly as it drew the live WebGL canvas.
+ * it the same way it draws a live WebGL canvas.
  */
 export function pixelsToCanvas(
   pixels: Uint8Array | Uint8ClampedArray,

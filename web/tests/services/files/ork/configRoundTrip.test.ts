@@ -9,7 +9,7 @@ const node = (o: object) => o as unknown as ComponentNode;
  * The imported chute's node id.
  *
  * `.ork` carries no component ids, so the importer mints them: a configuration's
- * deployment map is keyed by the ids from the SAME parse, which is what makes
+ * deployment map is keyed by the ids from the same parse, which is what makes
  * re-exporting an imported design write the blocks back against the right parts.
  */
 const chuteId = (tree: RocketTree): string => {
@@ -119,7 +119,7 @@ describe('per-configuration separation through a .ork', () => {
       { id: 'cfg-b', name: 'Sustainer only', motors: {}, grounded: ['booster'] },
     ];
     const xml = exportOrk({ name: 'Two stage', tree: staged, configs: grounding, activeConfigId: 'cfg-a' });
-    // The flags are per stage NUMBER in the file: 0 is the sustainer, 1 the booster.
+    // The flags are per stage number in the file: 0 is the sustainer, 1 the booster.
     expect(xml).toMatch(/<motorconfiguration configid="cfg-b"[\s\S]*?<stage number="1" active="false"\/>/);
     const res = importOrk(xml);
     const booster = boosterId(res.tree);

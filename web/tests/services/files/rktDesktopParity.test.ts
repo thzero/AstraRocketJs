@@ -51,7 +51,7 @@ describe('a zero ID is solid, not missing', () => {
   /**
    * `BodyTube.setInnerRadius(r)` is `setThickness(getOuterRadius() - r)`, and
    * every handler calls it unconditionally, so `<ID>0</ID>` means a solid part.
-   * Treating it as absent left the bridge's default 1 mm wall on a solid rod.
+   * Treating it as absent would leave the bridge's default 1 mm wall on a solid rod.
    */
   it('gives a tube with no bore a wall equal to its own radius', () => {
     const tube = find(parts('<BodyTube><Name>Rod</Name><Len>100</Len><OD>20</OD><ID>0</ID></BodyTube>'), 'Rod');
@@ -99,9 +99,9 @@ describe('a recovery device fabric', () => {
   });
 
   /**
-   * `RecoveryDeviceHandler.computeDensity`: a BULK density is per volume, so it
+   * `RecoveryDeviceHandler.computeDensity`: a bulk density is per volume, so it
    * only becomes per area once multiplied by the fabric's own thickness. Without
-   * it a kg/m3 number sat in a kg/m2 field.
+   * it a kg/m3 number would sit in a kg/m2 field.
    */
   it('turns a BULK density into a surface one with the fabric thickness', () => {
     // 1390 kg/m3 of 0.05 mm mylar is 0.0695 kg/m2.
@@ -185,7 +185,7 @@ describe('a fin set', () => {
   });
 
   /**
-   * `FinSetHandler.endHandler` overrides an AIRFOIL fin's mass and CG with
+   * `FinSetHandler.endHandler` overrides an airfoil fin's mass and CG with
    * RockSim's own computed pair even though the file asked for no override,
    * because RockSim computes one mass per fin whatever the cross section.
    */
@@ -208,7 +208,7 @@ describe('a fin set', () => {
   });
 
   /**
-   * A tab is measured from the front of the fin root, so on a TAPERING body its
+   * A tab is measured from the front of the fin root, so on a tapering body its
    * stated depth already contains the drop from the fore radius to the aft one:
    * `setTabHeight(tabDepth - max(front - trailing, 0))`.
    */
@@ -227,7 +227,7 @@ describe('a fin set', () => {
 describe('a shoulder', () => {
   /**
    * `NoseConeHandler.endHandler` / `TransitionHandler.endHandler`: a filled part
-   * has a SOLID shoulder, so its thickness is its own radius; a hollow one hands
+   * has a solid shoulder, so its thickness is its own radius; a hollow one hands
    * the shoulder its wall.
    */
   it('on a hollow part carries that part wall', () => {
@@ -271,7 +271,7 @@ describe('a mass object', () => {
 
   /**
    * `MassObjectHandler`: RockSim measures a mass object's CG from the front of
-   * its PARENT, and that is already carried in the object's position, so keeping
+   * its parent, and that is already carried in the object's position, so keeping
    * it as a CG override counts it twice. Desktop zeroes it for this reason.
    */
   it('zeroes the CG override RockSim states, because the position already has it', () => {
@@ -286,9 +286,9 @@ describe('a mass object', () => {
   });
 
   /**
-   * `inferAsShockCord`: the type code says so, OR the object is at least twice
-   * its parent's length and made of a LINE material. Its comment says the type
-   * code usually does NOT say so, because of bugs in RockSim's own databases.
+   * `inferAsShockCord`: the type code says so, or the object is at least twice
+   * its parent's length and made of a line material. Its comment says the type
+   * code usually does not say so, because of bugs in RockSim's own databases.
    */
   it('is a shock cord when it is long and made of line, whatever the type code says', () => {
     const c = find(
@@ -350,7 +350,7 @@ describe('a pod', () => {
 
   /**
    * `PodHandler.subtractAngleOffset`: RockSim stores a pod child's angle in
-   * ABSOLUTE coordinates and OpenRocket stores it relative to the assembly, so
+   * absolute coordinates and OpenRocket stores it relative to the assembly, so
    * without this every part inside a pod is rotated by the pod's angle twice.
    */
   it('takes its own roll angle off the parts inside it', () => {
@@ -364,8 +364,8 @@ describe('a pod', () => {
 describe('a stage', () => {
   /**
    * `RockSimHandler.openElement` applies each positive Stage*Mass and Stage*CG as
-   * a stage-level override with "apply to subcomponents" on. Dropping them flew
-   * every imported design at our computed mass rather than the measured one.
+   * a stage-level override with "apply to subcomponents" on. Dropping them would
+   * fly every imported design at our computed mass rather than the measured one.
    */
   it('takes the mass and CG RockSim states for it, over the whole subtree', () => {
     const list = read(
@@ -422,7 +422,7 @@ describe('a fin set on a nose cone or transition', () => {
 
   /**
    * `Transition.isCompatible` admits only an internal component and a
-   * FreeformFinSet, and a NoseCone IS a Transition, so a trapezoid there has to
+   * FreeformFinSet, and a NoseCone is a Transition, so a trapezoid there has to
    * become freeform before it can be attached at all. Desktop reads the outline
    * off the detached fin, whose root points are a single zero, so the result is
    * the four plain corners.
@@ -506,7 +506,7 @@ describe('a shoulder RockSim gives a length to', () => {
    * Neither RockSim nor its handlers have a cap flag: the kernel caps a shoulder
    * itself when it first gains a length and desktop never turns it off, so every
    * `.rkt` shoulder arrives capped. `ComponentFactory` sets the cap after the
-   * length from a key defaulting to false, so leaving the key out undid it.
+   * length from a key defaulting to false, so leaving the key out would undo it.
    */
   it('is capped, which is what makes its cap disc weigh anything', () => {
     const n = find(

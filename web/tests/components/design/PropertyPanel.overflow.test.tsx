@@ -21,14 +21,14 @@ const chute = (): ComponentNode =>
   }) as unknown as ComponentNode;
 
 /**
- * A finite ENTRY is not a finite stored value.
+ * A finite entry is not a finite stored value.
  *
  * `NumberInput.parseFieldValue` refuses a non-finite entry, so Infinity cannot
  * be typed. But the box holds display units and the node holds SI, and the
  * conversion between them overflows on its own wherever the display unit is the
- * larger of the two: 1e306 km is 1e309 m, which is Infinity. That reached the
- * node, was persisted, and went out to the `.ork` as `Infinity` — which the
- * reader takes back as 0, so the field showed a number the geometry never had.
+ * larger of the two: 1e306 km is 1e309 m, which is Infinity. Written through, it
+ * would be persisted and go out to the `.ork` as `Infinity`, which the reader
+ * takes back as 0, so the field would show a number the geometry never had.
  */
 describe('a dimension whose unit conversion overflows', () => {
   // Kilometers on this one field: in meters (the default) the conversion is a

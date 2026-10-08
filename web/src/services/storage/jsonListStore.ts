@@ -16,20 +16,20 @@ export function parseJsonList<T>(raw: string | null, isItem: (v: unknown) => v i
 }
 
 /**
- * A list of user items persisted as ONE JSON array under one key of a
+ * A list of user items persisted as one JSON array under one key of a
  * KeyValueStore: the shared storage half of the custom motor, material, part,
  * template and launch location stores. The domain stores wrap it and keep
  * their own public API, ordering and validation.
  *
  * Reads never reject. `list` is read whenever a picker or dialog opens, often
- * beside a catalog fetch, and a storage layer that REJECTS (blocked IndexedDB,
+ * beside a catalog fetch, and a storage layer that rejects (blocked IndexedDB,
  * a private window) must not take that dialog down over a feature the user may
  * never have used; it reads as an empty list, the same as a corrupt blob.
  *
- * Writes always report. Each one reads, transforms and writes in ONE
+ * Writes always report. Each one reads, transforms and writes in one
  * `kv.update` transaction, because IndexedDB is shared across the tabs of this
  * installable PWA and a get/set with an await between them lets two tabs each
- * drop the other's item. `kv.update` reports a refused write by RETURNING
+ * drop the other's item. `kv.update` reports a refused write by returning
  * false, so that is turned into a `storage-full` rejection: a caller told
  * nothing cannot tell the user the item did not stick.
  */

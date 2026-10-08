@@ -2,8 +2,8 @@
  * Runtime loader for the reference data (motors, components, materials,
  * contributors).
  *
- * The data files live in `public/data/` — copied verbatim into the build like
- * the WASM engine, NOT compiled into the JS bundle — and are fetched at runtime.
+ * The data files live in `public/data/` (copied verbatim into the build like
+ * the WASM engine, not compiled into the JS bundle) and are fetched at runtime.
  * That decouples the data from the app: refreshing a catalog is a matter of
  * overwriting the JSON on the host, no rebuild/redeploy of the app.
  *
@@ -12,8 +12,8 @@
  * than as a copy of the database it comes from, and drifts from it.
  *
  * `VITE_DATA_BASE` takes that a step further. Point it at a separately deployed
- * catalog host — the orphan `data` branch served over jsDelivr, published by
- * .github/workflows/sync-catalogs.yml — and refreshing a catalog needs no app
+ * catalog host (the orphan `data` branch served over jsDelivr, published by
+ * .github/workflows/sync-catalogs.yml) and refreshing a catalog needs no app
  * build and no Pages deploy at all, just a push to that branch. Left unset it
  * resolves to the in-build copy, which is what dev, preview and an unconfigured
  * build use.
@@ -25,8 +25,8 @@
  * `manifest.json` (written by the sync scripts) carries a content hash per file;
  * we read it first (revalidated, tiny) and append it as `?v=<hash>` so a browser
  * or CDN can't serve a stale copy after the file is replaced. Missing manifest
- * just means no cache-buster — the fetch still works (and dev has none). The
- * manifest and the catalog are always read from the SAME base, so a hash never
+ * just means no cache-buster: the fetch still works (and dev has none). The
+ * manifest and the catalog are always read from the same base, so a hash never
  * gets paired with a different host's copy of the file.
  */
 
@@ -49,27 +49,27 @@ const BASES = REMOTE_BASE && REMOTE_BASE !== LOCAL_BASE ? [REMOTE_BASE, LOCAL_BA
 /**
  * Budgets are split into "is the host alive?" and "is the transfer moving?",
  * because one combined timeout cannot serve both. motors.generated.json is
- * ~1.6 MB — roughly 3 s on typical 4G but ~18 s on 3G and ~34 s throttled — so
+ * ~1.6 MB (roughly 3 s on typical 4G but ~18 s on 3G and ~34 s throttled), so
  * any single budget generous enough to let a slow link finish is also a long
  * wait before a dead host gives up, and any budget short enough to fail fast
  * also severs downloads that were progressing perfectly well.
  *
- * Time-to-first-byte answers the first question and does NOT scale with file
+ * Time-to-first-byte answers the first question and does not scale with file
  * size, so it can be short for everyone. Once headers arrive the host is alive
  * and the body gets a generous ceiling, which only exists to stop a host that
  * responds and then stalls forever from hanging the picker.
  */
 const TTFB_TIMEOUT_MS = 8_000;
 /** Shorter first-byte budget for a base that still has a fallback behind it: a
- *  host that REFUSES fails in milliseconds, but one that HANGS would otherwise
+ *  host that refuses fails in milliseconds, but one that hangs would otherwise
  *  burn the budget on the manifest and again on the catalog before we drop to
  *  the copy already sitting in the build. Only reachable when a separate data
  *  host is configured. */
 const PROBE_TTFB_MS = 4_000;
-/** Ceiling on the body once it has started arriving — comfortably past the
+/** Ceiling on the body once it has started arriving, comfortably past the
  *  ~34 s a throttled link needs for the largest catalog. */
 const BODY_TIMEOUT_MS = 60_000;
-const MAX_CATALOG_BYTES = 32 * 1024 * 1024; // 32 MiB — the biggest bundled catalog is ~2 MiB
+const MAX_CATALOG_BYTES = 32 * 1024 * 1024; // 32 MiB; the biggest bundled catalog is ~2 MiB
 
 /** First-byte budget for `base`: shorter while a fallback is still available. */
 const ttfbFor = (base: string) => (base === BASES[BASES.length - 1] ? TTFB_TIMEOUT_MS : PROBE_TTFB_MS);
@@ -80,12 +80,12 @@ export type CatalogProgress = TransferProgress;
 /**
  * Parse the body, metering it against {@link MAX_CATALOG_BYTES}.
  *
- * ALWAYS streams when a stream is available, progress wanted or not. The
- * `content-length` check in fetchJson only fires when the host DECLARED a
- * length, and a chunked response declares none — so the no-progress path went
- * to `res.json()` completely unmetered, which is the case the cap exists for.
- * `manifest()` is exactly that path. Falls back to `res.json()` only where
- * there is no stream to read (a stubbed Response in tests).
+ * Always streams when a stream is available, progress wanted or not. The
+ * `content-length` check in fetchJson only fires when the host declared a
+ * length, and a chunked response declares none, so `res.json()` would read it
+ * unmetered, which is the case the cap exists for. `manifest()` takes the
+ * no-progress path. Falls back to `res.json()` only where there is no stream
+ * to read (a stubbed Response in tests).
  */
 async function readJson<T>(res: Response, onProgress?: (p: CatalogProgress) => void): Promise<T> {
   if (!res.body) return (await res.json()) as T;
@@ -94,13 +94,13 @@ async function readJson<T>(res: Response, onProgress?: (p: CatalogProgress) => v
   return JSON.parse(new TextDecoder().decode(bytes)) as T;
 }
 
-/** A non-2xx reply, with its status, so a caller can tell "not there" (404,
- *  a fact about the host) from a transient failure worth retrying. */
 /** A download's progress as a whole percent, or null while its size is unknown. */
 export function progressPercent(p: CatalogProgress | null | undefined): number | null {
   return p?.total ? Math.min(100, Math.round((p.loaded / p.total) * 100)) : null;
 }
 
+/** A non-2xx reply, with its status, so a caller can tell "not there" (404,
+ *  a fact about the host) from a transient failure worth retrying. */
 export class HttpError extends Error {
   constructor(readonly status: number) {
     super(`HTTP ${status}`);
@@ -108,7 +108,7 @@ export class HttpError extends Error {
   }
 }
 
-/** fetch + JSON with staged abort timeouts and a declared-size cap, so a hung or
+/** fetch + JSON with staged abort timeouts and a size cap, so a hung or
  *  oversized host response can't stall the picker or exhaust memory on parse. */
 async function fetchJson<T>(
   url: string,
@@ -140,7 +140,7 @@ async function fetchJson<T>(
 }
 
 // Progress is published per catalog rather than returned, because fetchCatalog
-// memoizes: the dashboard and the picker can both be waiting on ONE in-flight
+// memoizes: the dashboard and the picker can both be waiting on one in-flight
 // download, and a component that subscribes late still needs the current figure.
 const progressListeners = new Map<string, Set<(p: CatalogProgress) => void>>();
 const lastProgress = new Map<string, CatalogProgress>();
@@ -163,7 +163,7 @@ function reportProgress(name: string, p: CatalogProgress): void {
   for (const cb of progressListeners.get(name) ?? []) cb(p);
 }
 
-// One in-flight/settled manifest promise per base — the fallback base is only
+// One in-flight/settled manifest promise per base; the fallback base is only
 // ever fetched if the primary one actually fails.
 const manifestP = new Map<string, Promise<Record<string, string>>>();
 function manifest(base: string): Promise<Record<string, string>> {
@@ -171,11 +171,11 @@ function manifest(base: string): Promise<Record<string, string>> {
   if (!p) {
     // `no-cache` → the browser revalidates the (small) manifest with the server,
     // so a replaced catalog is picked up on the next load even behind a CDN.
-    // A MISSING manifest (404) is not an error: `{}` just means no cache-buster,
-    // and that answer is a fact about the host worth keeping. A TRANSIENT
+    // A missing manifest (404) is not an error: `{}` just means no cache-buster,
+    // and that answer is a fact about the host worth keeping. A transient
     // failure (network down, timeout, 5xx) is not: caching `{}` from one of
-    // those pinned every later catalog fetch this session to "no buster", so a
-    // catalog replaced on the host kept being served from the browser cache.
+    // those would pin every later catalog fetch this session to "no buster", so a
+    // catalog replaced on the host would keep being served from the browser cache.
     p = fetchJson<Record<string, string>>(`${base}manifest.json`, ttfbFor(base), { cache: 'no-cache' }).catch(
       (e: unknown) => {
         if (!(e instanceof HttpError && e.status === 404)) manifestP.delete(base);
@@ -195,7 +195,7 @@ const catalogP = new Map<string, Promise<unknown>>();
 /**
  * Fetch and parse one runtime catalog by name (`'motors'` → `motors.generated.json`),
  * cache-busted by its manifest hash and memoized for the session. Tries each
- * configured base in order and rejects with the LAST failure only when every
+ * configured base in order and rejects with the last failure only when every
  * base is unreachable, so the caller can surface it.
  */
 export function fetchCatalog<T>(name: string, valid?: (v: unknown) => boolean): Promise<T> {
@@ -212,10 +212,10 @@ export function fetchCatalog<T>(name: string, valid?: (v: unknown) => boolean): 
             undefined,
             (p) => reportProgress(name, p),
           );
-          // A host that is UP but WRONG would otherwise defeat the fallback
+          // A host that is up but wrong would otherwise defeat the fallback
           // chain: `{"error":"rebuilding"}` served with HTTP 200 parses fine, so
           // the loop would return it, never try the in-build copy, and leave the
-          // caller spreading a non-array. A shape mismatch is a failure of THIS
+          // caller spreading a non-array. A shape mismatch is a failure of this
           // base, so treat it as one and move on.
           if (valid && !valid(body)) throw new Error('unexpected catalog shape');
           return body;
@@ -227,7 +227,7 @@ export function fetchCatalog<T>(name: string, valid?: (v: unknown) => boolean): 
       lastProgress.delete(name);
       throw new Error(`Could not load the ${name} catalog (${errorMessage(lastErr)})`);
     })();
-    // Don't cache a failure — let the next caller retry.
+    // Don't cache a failure; let the next caller retry.
     p.catch(() => catalogP.delete(name));
     catalogP.set(name, p);
   }

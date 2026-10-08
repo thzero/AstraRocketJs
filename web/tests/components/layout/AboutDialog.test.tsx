@@ -12,7 +12,7 @@ import { AboutDialog } from '../../../src/components/layout/AboutDialog';
  * desktop app, or to ask whether a feature from some release is in here, finds
  * the commit. The value is injected from engine-java/extract/UPSTREAM at build
  * time (a stand-in under Vitest, see vitest.config.ts), so what is worth
- * holding still is that it REACHES the dialog: the line is an i18n string with
+ * holding still is that it reaches the dialog: the line is an i18n string with
  * an interpolated link in it, and a mistyped placeholder or a renamed component
  * key renders the sentence with the commit missing and nothing else wrong.
  */

@@ -8,14 +8,14 @@ import { DEFAULT_PRESETS } from '../../src/services/design/defaultRocket';
 import { KERNEL_MATERIALS } from '../../src/tree/kernelDefaults';
 
 /**
- * What the default rocket is MADE OF, and whether those parts still exist.
+ * What the default rocket is made of, and whether those parts still exist.
  *
  * It is the first design anybody opens and the one every screenshot is of, so
  * "a shape with a density" is not good enough: it is built out of catalog Estes
  * parts, by part number, each carrying the same preset link the component picker
  * writes. The point of this file is that the link cannot quietly become a lie.
  *
- * Both catalogs are GENERATED from upstream (`sync-components.mjs`,
+ * Both catalogs are generated from upstream (`sync-components.mjs`,
  * `sync-materials.mjs`). A sync that renames a part, re-weighs a material or
  * drops a part number would otherwise leave the default rocket flying at
  * dimensions and densities no catalog row has, with a panel still naming the
@@ -36,7 +36,7 @@ type PartRow = {
   diameter?: number;
 };
 
-// From disk rather than fetched: this is about what SHIPS in the catalogs, and
+// From disk rather than fetched: this is about what ships in the catalogs, and
 // the test environment has no server to serve them from.
 const read = <T>(name: string): T => JSON.parse(readFileSync(resolve(process.cwd(), 'public/data', name), 'utf8')) as T;
 const MATERIALS = read<MaterialRow[]>('materials.generated.json');
@@ -91,7 +91,7 @@ describe('the default rocket is built from catalog parts', () => {
 
   it('cuts the fins from the material catalog’s own balsa', () => {
     // The one structural part with no preset to name, because the catalog has no
-    // fin rows at all. Its material therefore has to hold against the MATERIAL
+    // fin rows at all. Its material therefore has to hold against the material
     // catalog instead, the same way every other named material in the app does.
     const balsa = bulk('Balsa');
     expect(balsa, 'Balsa is no longer a bulk material in the catalog').toBeTruthy();
@@ -122,7 +122,7 @@ describe('the default rocket is built from catalog parts', () => {
 
   it('plugs the nose cone into the tube it is sold for', () => {
     // The shoulder is the fit, and the row states none, so it is stated here:
-    // the tube's BORE, not its outside.
+    // the tube's bore, not its outside.
     expect(part('nose')['shoulderRadius']).toBe(DEFAULT_PRESETS.body.innerDiameter / 2);
     expect(part('nose')['shoulderLength']).toBeGreaterThan(0);
   });

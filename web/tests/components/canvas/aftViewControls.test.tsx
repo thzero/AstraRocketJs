@@ -8,10 +8,10 @@ import type { RocketTree } from '../../../src/engine/openRocketEngine';
 /**
  * No inert controls on the aft view.
  *
- * At the default view, zoom-out and fit were both no-ops: `zoomBy` clamps the
+ * At the default view, zoom-out and fit are both no-ops: `zoomBy` clamps the
  * scale at 1, and fit sets the view to `ZOOM_IDENTITY`, which is what it already
- * is. `SchematicControls` gates the equivalent three; this surface did not, so
- * two of its three buttons looked clickable and did nothing.
+ * is. Like `SchematicControls`, the aft view disables them there, so no button
+ * looks clickable and does nothing.
  *
  * Driven through the real buttons rather than asserted against the component's
  * internals: `disabled` is what the user can see.
@@ -118,8 +118,7 @@ describe('the aft view draws a keyless launch lug at the kernel size', () => {
 /**
  * A ring, coupler, bulkhead or engine block is sized as every other view sizes
  * it (discGeometry.discDims): its own radius, else the bore of the tube it sits
- * in. The aft view drew 95% of the tube's OUTSIDE radius and left out the
- * ring's own bore.
+ * in, and it draws the ring's own bore.
  */
 describe('the aft view sizes a centering ring the way the cut sheet does', () => {
   it('fills the bore of the tube and shows the ring bore', () => {

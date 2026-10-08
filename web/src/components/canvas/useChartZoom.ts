@@ -21,8 +21,8 @@ export function useChartZoom(hostRef: RefObject<HTMLDivElement | null>, maxT: nu
   const [zoom, setZoom] = useState<TimeWindow | null>(null);
   const { t0, t1, zoomed } = resolveWindow(zoom, maxT);
   // Memoized so the per-panel path memo can key on it: a fresh arrow every
-  // render made that memo useless, and hovering re-renders the chart on every
-  // pointer move.
+  // render would make that memo useless, and hovering re-renders the chart on
+  // every pointer move.
   const X = useCallback((tt: number) => PAD_L + ((tt - t0) / (t1 - t0)) * iw, [t0, t1, iw]);
   const invX = (px: number) => t0 + ((px - PAD_L) / iw) * (t1 - t0);
   /** Pointer x relative to the plot's left edge (host inset added back). */
@@ -37,7 +37,7 @@ export function useChartZoom(hostRef: RefObject<HTMLDivElement | null>, maxT: nu
 
   // Ctrl/pinch-wheel zooms about the cursor (plain wheel still scrolls the
   // panel list). Native non-passive listener so we can preventDefault. The
-  // listener is attached ONCE and reads the latest handler through a ref.
+  // listener is attached once and reads the latest handler through a ref.
   // Closing over the window directly re-attaches on every zoom, pan and resize,
   // which is a remove/add pair per wheel notch.
   const onWheelRef = useRef<(e: WheelEvent) => void>(() => {});
@@ -62,7 +62,7 @@ export function useChartZoom(hostRef: RefObject<HTMLDivElement | null>, maxT: nu
   // took the event, so the caller can hand the rest to the hover crosshair.
   const drag = useRef<{ x: number; t0: number; t1: number } | null>(null);
   const startPan = (e: ReactPointerEvent): boolean => {
-    if (!zoomed) return false; // nothing to pan at full view — keep hover behavior
+    if (!zoomed) return false; // nothing to pan at full view; keep hover behavior
     drag.current = { x: e.clientX, t0, t1 };
     hostRef.current?.setPointerCapture?.(e.pointerId);
     return true;

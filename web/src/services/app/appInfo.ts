@@ -2,9 +2,9 @@ import i18n from '../../i18n';
 
 /**
  * Single source for the app's identity:
- *  - the display NAME comes from the translated `app.title` i18n string, so it's
+ *  - the display name comes from the translated `app.title` i18n string, so it's
  *    localizable and defined in exactly one place per locale;
- *  - the VERSION comes from package.json, injected at build time by Vite
+ *  - the version comes from package.json, injected at build time by Vite
  *    (`__APP_VERSION__`, see vite.config.ts + globals.d.ts).
  *
  * Everything (UI and non-React code) should read the name/version from here
@@ -27,7 +27,7 @@ const withTrailingSlash = (url: string): string => url.replace(/\/*$/, '/');
 /**
  * The docs URL for a UI language. The docs site serves English at the root and
  * other locales under a sub-path (`/docs/es/`), and an untranslated page there
- * falls back to English rather than 404ing — so pointing a Spanish user at the
+ * falls back to English rather than 404ing, so pointing a Spanish user at the
  * Spanish tree is always safe.
  *
  * Falls back to the plain help URL for a language the docs do not build, or if
@@ -41,9 +41,9 @@ export function helpUrlFor(language: string): string {
 }
 
 /**
- * One docs PAGE, built on a base from {@link helpUrlFor}. The docs site serves
+ * One docs page, built on a base from {@link helpUrlFor}. The docs site serves
  * its pages at the root (`routeBasePath: '/'`), so a page is the base plus its
- * slug — with the trailing slash normalized, since `HELP_URL` may or may not
+ * slug, with the trailing slash normalized, since `HELP_URL` may or may not
  * carry one and a base without it would glue the slug onto the last path
  * segment instead of adding one.
  *
@@ -56,9 +56,9 @@ export function docPageUrl(base: string, page: string): string {
 }
 
 /**
- * The docs copied INTO the app, for a UI language.
+ * The docs copied into the app, for a UI language.
  *
- * The deploy builds the Docusaurus site into `web/public/docs` BEFORE the app
+ * The deploy builds the Docusaurus site into `web/public/docs` before the app
  * build (see .github/workflows/deploy.yml), and Vite copies public/ verbatim
  * into dist, so the very pages the docs site publishes are also served from the
  * app's own origin under `import.meta.env.BASE_URL`. One source, two places it
@@ -76,10 +76,10 @@ export function localDocsUrlFor(language: string): string {
 }
 
 /**
- * The FILE behind a docs page: `.../docs/safety/` becomes
+ * The file behind a docs page: `.../docs/safety/` becomes
  * `.../docs/safety/index.html`.
  *
- * This one character of difference IS the offline story. Docusaurus emits every
+ * This one character of difference is the offline story. Docusaurus emits every
  * page as a directory with an index.html inside it (`trailingSlash: true`), and
  * the service worker precaches each page under that file name. Asking for the
  * file is therefore a precache hit; asking for the directory is not, because
@@ -94,7 +94,7 @@ export function docPageFileUrl(base: string, page: string): string {
 }
 
 /**
- * WHICH OpenRocket the bundled engine is - the pinned commit, its date, and a
+ * Which OpenRocket the bundled engine is: the pinned commit, its date, and a
  * link to it, injected at build time from `engine-java/extract/UPSTREAM` (see
  * vite.config.ts). That file is the only place the ref is written down; this is
  * derived from it at every build, so the About dialog cannot come to name a
@@ -108,7 +108,7 @@ export function docPageFileUrl(base: string, page: string): string {
 export const UPSTREAM: { ref: string; shortRef: string; date: string; commitUrl: string } = __UPSTREAM__;
 
 /**
- * Where the About dialog's contributors heading links — by default the
+ * Where the About dialog's contributors heading links: by default the
  * repository's GitHub contributor graph, overridable at build time (see
  * vite.config.ts) via `contributorsPage.url` in package.json or the
  * `CONTRIBUTORS_URL` env var. Empty string ⇒ render the heading unlinked.
@@ -116,7 +116,7 @@ export const UPSTREAM: { ref: string; shortRef: string; date: string; commitUrl:
 export const CONTRIBUTORS_URL: string = __CONTRIBUTORS_URL__;
 
 /**
- * True while the app is a pre-1.0 (work-in-progress) build — i.e. the version's
+ * True while the app is a pre-1.0 (work-in-progress) build, i.e. the version's
  * major number is 0. Gates the "work in progress" acknowledgment popup and the
  * About-dialog notice; both switch off automatically once the version hits 1.0.
  */
@@ -125,14 +125,14 @@ export const isPreRelease = (version: string = APP_VERSION): boolean => {
   return Number.isFinite(major) && major < 1;
 };
 
-/** The app's display name — translated (i18next singleton; safe outside React). */
+/** The app's display name, translated (i18next singleton; safe outside React). */
 export const appName = (): string => i18n.t('app.title');
 
 /** Default name for a new / exported design, e.g. "AstraRocketJs design" (translated). */
 export const defaultDesignName = (): string => i18n.t('app.designName', { name: appName() });
 
 /**
- * What to CALL a design, everywhere it is named: its own name, else the name of
+ * What to call a design, everywhere it is named: its own name, else the name of
  * the file it was imported from, else the app's default. The one copy of the
  * chain, so every download, report and image header names a renamed rocket the
  * same way.

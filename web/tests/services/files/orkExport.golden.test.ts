@@ -5,8 +5,7 @@ import type { LaunchConditions } from '../../../src/services/design/orkTree';
 import type { OrkTreeExportInput } from '../../../src/services/files/orkTypes';
 
 /**
- * GOLDEN output of the .ork writer and reader, pinned before the two were split
- * into per-type tables. Every component type the writer knows, every optional
+ * Golden output of the .ork writer and reader. Every component type the writer knows, every optional
  * block (multi-config motors and deployments, separation, wind profile, custom
  * atmosphere, design info) and the classic single-config path all appear here,
  * so any drift in a line's text, order or indentation fails the snapshot.

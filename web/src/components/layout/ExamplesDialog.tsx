@@ -9,13 +9,13 @@ import { useAsyncLoad } from '../common/useAsyncLoad';
  * different questions.
  *
  * Menu → Import → Examples is the primary one, and the semantically exact one:
- * opening an example IS an import. It goes through `openOrkFile`, it lands as
+ * opening an example is an import. It goes through `openOrkFile`, it lands as
  * an unsaved copy with no library entry, and it raises the same notes banner a
  * picked `.ork` would. Anything that behaves like an import belongs beside the
  * import that reads a file.
  *
  * The library dialog shows the same list as its second tab, because that is the
- * dialog you open when you are looking for a rocket to work on — and on a first
+ * dialog you open when you are looking for a rocket to work on, and on a first
  * run its other tab is empty, which is exactly when an example is worth most.
  * One list component, mounted twice; there is no second code path.
  */
@@ -56,9 +56,9 @@ export function ExampleList({ onClose }: { onClose: () => void }) {
               // the design once it is opened, so nothing is lost by not showing
               // all of it in a picker.
               //
-              // No `block` beside the clamp. `line-clamp-2` IS a display rule
+              // No `block` beside the clamp. `line-clamp-2` is a display rule
               // (-webkit-box), so the two fight over `display` and whichever
-              // Tailwind emits last wins — which was `block`, and the clamp did
+              // Tailwind emits last wins; if that is `block`, the clamp does
               // nothing. -webkit-box is block-level anyway.
               <span className="mt-0.5 line-clamp-2 text-xs leading-snug text-ink-muted">{e.description}</span>
             )}

@@ -4,30 +4,30 @@
 //   npm run sync:motor-digests -- --jar <path.jar>   a particular release
 //   npm run sync:motor-digests -- --or <checkout>    a built source tree
 //
-// WHAT THE DIGEST IS FOR. A `.ork` names a motor by manufacturer, designation,
-// diameter and length, and the desktop's database holds SEVERAL entries behind
+// What the digest is for. A `.ork` names a motor by manufacturer, designation,
+// diameter and length, and the desktop's database holds several entries behind
 // one of those names: Estes C6 is three, a plugged one and two copies of the
 // delayed one, loaded from different source files. With nothing to choose
 // between them `DatabaseMotorFinder` takes the first and says so, as "Multiple
 // motors with designation 'C6' for manufacturer 'Estes' found, one chosen
-// arbitrarily". The `<digest>` element is the only field that names WHICH entry,
+// arbitrarily". The `<digest>` element is the only field that names which entry,
 // which is why the desktop writes one into every `<motor>` block it saves.
 //
-// WHY THE DIGEST IS COPIED RATHER THAN COMPUTED. It is an MD5 over the motor's
+// Why the digest is copied rather than computed. It is an MD5 over the motor's
 // time, mass, CG and thrust series at fixed precision, so it describes the
-// samples in THAT database rather than the motor as a product. Our curves come
+// samples in that database rather than the motor as a product. Our curves come
 // from thrustcurve.org and the desktop's from a database serialized at its
 // release; the same motor, not always the same samples. A digest we computed
 // from our own curve would therefore name no entry at all, and a digest that
-// matches nothing is WORSE than none: where there is only one candidate the
-// desktop reports the motor as CHANGED instead of resolving it quietly.
+// matches nothing is worse than none: where there is only one candidate the
+// desktop reports the motor as changed instead of resolving it quietly.
 //
-// WHICH ENTRY A ROW GETS. All of them that the key matches, each with the
+// Which entry a row gets. All of them that the key matches, each with the
 // delays that entry offers, because a plugged C6 and a delayed C6 are different
 // motors with different digests and the design knows which one it seated. The
 // writer picks by delay (`exportMotors.ts`).
 //
-// MATCHING is on manufacturer, designation and diameter, with length as a
+// Matching is on manufacturer, designation and diameter, with length as a
 // tolerance check. Both of the desktop's names are tried, because its
 // designation is the maker's full code ("D24T") and its common name the impulse
 // one ("D24"), and a row synced from thrustcurve.org carries whichever that
@@ -52,7 +52,7 @@ const JAVA_SRC = resolve(HERE, 'motor-digests/MotorDump.java');
 const norm = (s) => (s ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
 const key = (mfr, designation, diameterMm) => `${norm(mfr)}|${norm(designation)}|${Math.round(diameterMm)}`;
 
-/** A motor's length may be stated to the tenth of a millimeter either side. */
+/** How far the two databases' stated lengths for one motor may differ, in millimeters. */
 const LENGTH_TOLERANCE_MM = 2;
 
 /** Every dumped entry, indexed under each name its manufacturer answers to. */
@@ -166,7 +166,7 @@ function main() {
     }
   }
   // The same guard the other sync steps have, for the same reason: a run that
-  // silently halves the coverage is a broken classpath, not a smaller database.
+  // silently loses coverage is a broken classpath, not a smaller database.
   if (hit < before) {
     throw new Error(`refusing to write: motors with digests fell from ${before} to ${hit}. Nothing written.`);
   }

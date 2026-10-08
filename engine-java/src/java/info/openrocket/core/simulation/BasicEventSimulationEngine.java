@@ -604,7 +604,7 @@ public class BasicEventSimulationEngine implements SimulationEngine {
 					// Make sure upper stages can still be simulated
 					checkGeometry(currentStatus);
 					
-					// PATCH(teavm-format-g): "%g" -> "%s" — TeaVM's Formatter lacks the %g
+					// PATCH(teavm-format-g): "%g" -> "%s". TeaVM's Formatter lacks the %g
 					// conversion and throws on every stage separation. Log-only; no physics.
 					log.info(String.format("==>> @ %s; from Branch: %s ---- Branching: %s ---- \n",
 										   Double.toString(currentStatus.getSimulationTime()),
@@ -672,11 +672,10 @@ public class BasicEventSimulationEngine implements SimulationEngine {
 					if (stageHasDrogue) {
 						// Dual-deployment: warn on both high and low speed for the main chute
 						if (deployingDevice.isDrogue()) {
-							// PATCH(drogue-low-speed): upstream ships this block commented out, so
-							// SimulationConditions.drogueLowSpeedWarning was a threshold nothing ever
-							// read. The bridge passes it (options key `drogueLowSpeedWarn`) and the app
-							// has a setting for it, so the check it exists to drive is enabled here.
-							// Upstream's own code, verbatim - only the comment markers are gone.
+							// PATCH(drogue-low-speed): upstream ships this block commented out, which
+							// leaves SimulationConditions.drogueLowSpeedWarning unread. The bridge sets it
+							// (options key `drogueLowSpeedWarn`) and the app has a setting for it, so the
+							// check is enabled here. The code is upstream's, without the comment markers.
 							DeploymentConfiguration dc = deployingDevice.getDeploymentConfigurations().get(this.fcid);
 							if (dc.getDeployEvent() == DeploymentConfiguration.DeployEvent.APOGEE
 									&& deploySpeed < conds.getDrogueLowSpeedWarning()) {

@@ -6,18 +6,17 @@ import type { ComponentType } from '../engine/openRocketEngine';
  * ## Why this file exists
  *
  * `api.ComponentFactory` reads every optional field as
- * `dbl(node, "key", DEFAULT)`. Three other places independently decided what
- * those defaults are: `services/design/treeEdit.defaultNode` (what the editor creates),
+ * `dbl(node, "key", DEFAULT)`. Three other places also need a value for a
+ * missing key: `services/design/treeEdit.defaultNode` (what the editor creates),
  * `services/files/orkImport` (what a missing `.ork` tag becomes), and the renderers'
- * per-call-site `num(node, 'key', fallback)`. Four hand-maintained tables, none
- * of them derived from the other three.
+ * per-call-site `num(node, 'key', fallback)`.
  *
- * Mostly that stays invisible, because `defaultNode` and `orkImport` write every
- * key explicitly, so the kernel's default is never reached. It bites exactly
- * when a key is ABSENT: a node from an older persisted design, a `.ork` tag the
- * desktop omits, or - as happened with both entries below - a `defaultNode`
- * case that simply forgot a field. Then the drawing and the simulation quietly
- * describe different rockets, and nothing anywhere reports a problem.
+ * Mostly the kernel's default is never reached, because `defaultNode` and
+ * `orkImport` write every key explicitly. It matters exactly when a key is
+ * absent: a node from an older persisted design, a `.ork` tag the desktop
+ * omits, or a `defaultNode` case that misses a field. If the fallbacks differ
+ * then, the drawing and the simulation quietly describe different rockets, and
+ * nothing anywhere reports a problem.
  *
  * ## The rule
  *
@@ -53,7 +52,7 @@ export const KERNEL_DEFAULTS = {
   // ComponentFactory, case "ellipticalfinset" (finCount via count(node, "finCount", 3, ...))
   ellipticalfinset: { finCount: 3, rootChord: 0.05, height: 0.03, thickness: 0.003 },
   // ComponentFactory, case "freeformfinset". A freeform fin has no planform defaults:
-  // its outline IS its geometry, and the factory throws on fewer than 3 points.
+  // its outline is its geometry, and the factory throws on fewer than 3 points.
   freeformfinset: { finCount: 3, thickness: 0.003 },
   // ComponentFactory, case "tubefinset"
   tubefinset: { finCount: 6, length: 0.1 },
@@ -112,14 +111,14 @@ export const KERNEL_SHAPES = {
  * `ApplicationPreferences.getDefaultComponentMaterial`, which with no stored
  * preference returns the three below (`ApplicationPreferences.StaticFieldHolder`).
  *
- * These are the densities such a part is ALREADY flying at. They are here so
+ * These are the densities such a part is already flying at. They are here so
  * that the editor can name them - a part that reads "Not specified" while
  * weighing 680 kg/m3 of cardboard is a panel disagreeing with the simulation -
  * and so the `.ork` writer's fallbacks and the new-part seed are one table
  * rather than three copies of the same three numbers.
  *
  * `group` is the `.ork` database string upstream's `RocketComponentSaver`
- * writes (`mat.getGroup().getDatabaseString()`), NOT the display group the
+ * writes (`mat.getGroup().getDatabaseString()`), not the display group the
  * material catalog sorts the picker by; those vocabularies differ (Cardboard is
  * `PaperProducts` in a file and `Paper` in the list).
  */
@@ -160,8 +159,8 @@ export const KERNEL_BODYTUBE_OUTER_RADIUS = KERNEL_DEFAULTS.bodytube.outerRadius
  * (ComponentFactory, case "trapezoidfinset"). The elliptical set shares
  * `rootChord` and `height` (case "ellipticalfinset").
  *
- * These are the KERNEL's defaults, not "what treeEdit and orkImport write" (the
- * editor seeds a 60 x 50 mm fin), and this is the table that verifies them. A
+ * These are the kernel's defaults, not "what treeEdit and orkImport write" (the
+ * editor seeds a 60 mm root, 50 mm span fin), and this is the table that verifies them. A
  * freeform fin's root-chord fallback for a degenerate outline reads `rootChord`
  * from here too; that one is an app choice, since the kernel refuses such an
  * outline, and it is pinned to the kernel's trapezoid so every consumer agrees.

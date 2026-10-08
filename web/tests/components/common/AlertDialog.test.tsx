@@ -7,12 +7,10 @@ import { renderWithProviders } from '../../testing/renderWithProviders';
 /**
  * The shell behind the confirmation prompt and the work-in-progress notice.
  *
- * They were two copies with the same shape and different details: different
- * backdrop opacities, different heading scales, one naming itself with an
- * `aria-label` that repeated its own visible heading and the other with a
- * hardcoded element id, neither describing its message to a screen reader, and
- * one carrying a window-level Escape listener beside the one useFocusTrap
- * already provides. These are the guarantees that replace all of that.
+ * Both share one backdrop and heading scale, name themselves by their visible
+ * heading with a generated id, describe their message to a screen reader, and
+ * leave Escape to useFocusTrap rather than adding a window-level listener of
+ * their own. These are those guarantees.
  */
 
 /**
@@ -58,8 +56,7 @@ describe('AlertDialog', () => {
   describe('what it announces', () => {
     it('names itself by its visible heading and DESCRIBES itself by its message', () => {
       // The description is the half an alertdialog needs and a plain dialog does
-      // not: the message is what should be read out on arrival, and neither copy
-      // pointed at it.
+      // not: the message is what should be read out on arrival.
       const { dialog } = open();
       expect(dialog.getAttribute('aria-modal')).toBe('true');
       expect(dialog.getAttribute('aria-label')).toBeNull();
@@ -88,7 +85,7 @@ describe('AlertDialog', () => {
     it('stays a centered card on a phone instead of filling it', () => {
       // `.dialog-panel` is what opts a surface into the full-bleed rules in
       // index.css. A screen filled with two lines and a button is empty space,
-      // and one of these opens over a dialog that IS full-screen there.
+      // and one of these opens over a dialog that is full-screen there.
       const { dialog } = open();
       expect(dialog.className).not.toContain('dialog-panel');
       expect(backdrop(dialog).className).not.toContain('dialog-overlay');
@@ -151,9 +148,9 @@ describe('AlertDialog', () => {
 
   describe('the buttons', () => {
     it('focuses confirm, though cancel comes first in reading order', () => {
-      // The pair it took a bug to get right: the trap moved focus to the first
-      // focusable child after React had honored `autoFocus`, so the focus ring
-      // sat on Cancel while Enter ran the destructive action.
+      // The focus trap must not move focus to the first focusable child after
+      // React has honored `autoFocus`, or the focus ring sits on Cancel while
+      // Enter runs the destructive action.
       const { dialog } = open();
       const buttons = within(dialog).getAllByRole('button');
       expect(buttons.map((b) => b.textContent)).toEqual(['Cancel', 'Delete']);

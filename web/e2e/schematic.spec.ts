@@ -1,12 +1,11 @@
-import { test, expect, type Page } from './base';
+import { test, expect, ready, type Page } from './base';
 import { nsKey } from '../src/services/storage/storageKeys';
 
 /**
  * 2D TreeSchematic render + interaction, in a real browser (jsdom can't lay out
- * SVG). Guards the schematic against regressions the unit tests can't see — the
- * geometry MATH is covered by TreeSchematic.test.ts; this covers that the
- * component actually draws and that a re-render (zoom) keeps it intact. Together
- * they're the safety net for decomposing the 1300-line component.
+ * SVG). Guards the schematic against regressions the unit tests can't see: the
+ * geometry math is covered by TreeSchematic.test.ts; this covers that the
+ * component actually draws and that a re-render (zoom) keeps it intact.
  *
  * The schematic svg is the one carrying per-component <title> labels (the header
  * logo svg has none), so `svg:has(title)` selects it unambiguously.
@@ -19,12 +18,12 @@ test.describe('2D schematic', () => {
       .first();
 
   test('draws the default airframe with labeled components', async ({ page }) => {
-    await page.goto('/');
+    await ready(page);
 
     const svg = schematic(page);
     await expect(svg).toBeVisible();
     // The SVG is visible as soon as its container renders, but the shapes come
-    // from the engine rebuild — so counting straight away can catch a PARTIAL
+    // from the engine rebuild, so counting straight away can catch a partial
     // render and fail for a reason that has nothing to do with the schematic.
     // `toHaveCount`-style polling waits for the real thing instead.
     // Nose + body + fins + motor + inner tube… ⇒ several drawn outline/segment paths.
@@ -36,7 +35,7 @@ test.describe('2D schematic', () => {
   });
 
   test('zooming re-renders the schematic without losing the geometry', async ({ page }) => {
-    await page.goto('/');
+    await ready(page);
     const svg = schematic(page);
     await expect(svg).toBeVisible();
 
@@ -54,15 +53,15 @@ test.describe('2D schematic', () => {
     await page.getByTitle(/Zoom in/i).click();
     await page.getByTitle(/Zoom in/i).click();
 
-    // Zoom state applied (re-render happened) and the airframe is still drawn —
+    // Zoom state applied (re-render happened) and the airframe is still drawn,
     // i.e. the memoized layout produced correct geometry across the re-render.
     await expect.poll(scaleOf).toBeGreaterThan(1);
     expect(await svg.locator('path').count()).toBeGreaterThanOrEqual(5);
 
-    // …and the drawing keeps a margin under it. The canvas box had padding on
-    // three sides, so a zoomed-in schematic ended exactly ON the pane's bottom
-    // edge: the bottom ruler and the roll slider's 360° label sat flush against
-    // whatever came next, with nothing under them.
+    // …and the drawing keeps a margin under it. Without bottom padding on the
+    // canvas box a zoomed-in schematic ends exactly on the pane's bottom edge, and
+    // the bottom ruler and the roll slider's 360° label sit flush against
+    // whatever comes next.
     const box = svg.locator('xpath=ancestor::div[contains(@class,"overflow-hidden")][1]');
     const inner = (await svg.boundingBox())!;
     const outer = (await box.boundingBox())!;
@@ -76,7 +75,7 @@ test('the roll slider reads in the angle unit the user chose', async ({ page }) 
     const units = { ...((was.units as Record<string, string>) ?? {}), angle: 'rad' };
     localStorage.setItem(key, JSON.stringify({ ...was, units }));
   }, nsKey('settings:v1'));
-  await page.goto('/');
+  await ready(page);
   const slider = page.getByRole('slider', { name: 'Roll angle (degrees)' });
   await expect(slider).toBeVisible();
   await expect(slider).toHaveAttribute('title', /rad$/);

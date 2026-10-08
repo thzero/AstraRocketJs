@@ -47,12 +47,12 @@ const hasType = (nodes: ComponentNode[], pred: (t: string) => boolean): boolean 
  * Save as PDF.
  *
  * Mounted only while open (`{open && <ExportDialog />}`). The report model is
- * assembled ONCE and the include/exclude selection is derived from it in the
+ * assembled once and the include/exclude selection is derived from it in the
  * same pass; both then hold still for the dialog's life. Rebuilding either from
  * a value that changes throws the selection away whenever `open` goes false,
  * which dismissing the print-settings popover does.
  *
- * Assembling a MULTI-STAGE report builds each stage alone, which resets the
+ * Assembling a multi-stage report builds each stage alone, which resets the
  * shared engine, so the whole rocket is rebuilt afterwards. Installing that
  * rebuild is a store write, and this dialog cannot make it from the initializer
  * without updating every other store subscriber mid-render, so it takes the
@@ -74,7 +74,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
 
   const hasNoses = useMemo(() => hasType(tree.components, (ty) => ty === 'nosecone'), [tree]);
   const hasTransitions = useMemo(() => hasType(tree.components, (ty) => ty === 'transition'), [tree]);
-  // The real rule, not a re-derived one: a marking guide needs a BODY TUBE
+  // The real rule, not a re-derived one: a marking guide needs a body tube
   // carrying at least one fin set, which is exactly what markingGuides finds.
   // Asking it means the checkbox cannot offer a guide the report would not draw.
   const hasMarkingGuides = useMemo(() => markingGuides(tree).guides.length > 0, [tree]);
@@ -84,7 +84,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
   // failure is remembered here and reported below, so the initializer stays a
   // pure computation.
   //
-  // `rebuilt` is the whole-rocket build a MULTI-STAGE report leaves behind, for
+  // `rebuilt` is the whole-rocket build a multi-stage report leaves behind, for
   // the effect below to install. Assembling per-stage summaries resets the
   // shared engine, and `assembleReport` would otherwise re-seat the live handle
   // through the store from inside this initializer: a store write during render,
@@ -103,7 +103,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
   const model = initial.model;
 
   // Before the browser paints, so the window is never shown against an engine
-  // left on the last stage that was built. The engine ITSELF is already whole
+  // left on the last stage that was built. The engine itself is already whole
   // by here; this is only the store catching up to the new handle.
   useLayoutEffect(() => {
     if (initial.rebuilt) useWorkspaceStore.getState().applyBuild(initial.rebuilt.info, initial.rebuilt.handle);
@@ -129,7 +129,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
           stages: model.stages.map((st, i) => ({
             parts: true,
             finTemplates: true,
-            // isPlanarFinSet: this gates the FIN TEMPLATES checkbox, and tube
+            // isPlanarFinSet: this gates the fin templates checkbox, and tube
             // fins produce no template, so a stage finned only with tubes must
             // not offer one.
             hasFins: hasType(st.children ?? [], isPlanarFinSet),
@@ -178,7 +178,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
           await runSim(settings.simulation);
         } catch (e) {
           // Reported, not swallowed: swallowing writes the PDF with the
-          // PREVIOUS run's numbers, unmarked. The user asked for fresh data, so
+          // previous run's numbers, unmarked. The user asked for fresh data, so
           // say why there is none and write nothing.
           useWorkspaceStore.getState().setErr(t('export.simFailed', { message: errorMessage(e) }));
           return;
@@ -394,11 +394,10 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
       </Dialog>
 
       {/* Its own surface on its own layer, outside the dialog rather than a
-          sibling of its panel inside the shared overlay. That arrangement is
-          what used to need two focus traps here, with this one switching the
-          dialog's OFF: anchored on the panel, the trap could not reach controls
-          that were not inside it, so the fill color, paper size and orientation
-          were unreachable by keyboard. Two dialogs each own their own. */}
+          sibling of its panel inside the shared overlay: a trap anchored on the
+          dialog's panel cannot reach controls outside it, so the fill color,
+          paper size and orientation would be unreachable by keyboard. Two
+          dialogs, each with its own trap. */}
       {showSettings && (
         <Dialog
           id="reportPrintSettings"

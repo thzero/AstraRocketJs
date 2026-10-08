@@ -67,7 +67,7 @@ export function PlanView({
   const { source, imagery } = ground;
   const tiles = site && source ? TILE_SOURCES[source] : null;
   /**
-   * Tile zoom, and the factor that puts the tile layer at the DRAWING's scale.
+   * Tile zoom, and the factor that puts the tile layer at the drawing's scale.
    *
    * The rings own the scale, because they are the measurement, so the imagery
    * bends to them rather than the other way round: take the tile zoom nearest
@@ -161,7 +161,7 @@ export function PlanView({
       {site && <TileLayerButtons layers={LAYERS} value={ground.layer} onPick={ground.pick} />}
       {overlay}
       {mapOn && tiles && <MapCredit>{tiles.attribution}</MapCredit>}
-      {/* Asked for imagery and did not get it. Say WHICH reason, rather than
+      {/* Asked for imagery and did not get it. Say which reason, rather than
           leaving the reader with a pressed button and an empty box. */}
       {tiles && !mapOn && <MapCredit warn>{tooClose ? t('map.tooClose') : t('map.offline')}</MapCredit>}
     </div>

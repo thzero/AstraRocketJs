@@ -12,9 +12,9 @@ import {
 /**
  * The mesh validator, and every solid the exporter can produce, checked with it.
  *
- * Three bugs in `solidMesh` all shared the property that the exporter's own
- * check passed anyway, because `countBoundaryEdges` asks only "is every edge
- * used twice". These tests do two jobs: prove the validator actually detects
+ * An edge count (`countBoundaryEdges`) asks only "is every edge used twice",
+ * which an empty mesh, a flipped face and a self-overlapping cap all pass.
+ * These tests do two jobs: prove the validator actually detects
  * each failure mode (a gate nobody has seen fail is not a gate), and then hold
  * every real component to it.
  */
@@ -35,8 +35,8 @@ describe('validateSolid detects what countBoundaryEdges cannot', () => {
   });
 
   it('catches an empty mesh, which an edge count calls watertight', () => {
-    // The scaled-down-design bug: every triangle dropped as degenerate leaves
-    // an index with no unused edges at all, so an edge count reports success.
+    // A scaled-down design can have every triangle dropped as degenerate, which
+    // leaves an index with no unused edges at all, so an edge count reports success.
     const g = tetra();
     g.setIndex([]);
     expect(validateSolid(g).map((i) => i.kind)).toContain('empty');
@@ -49,14 +49,14 @@ describe('validateSolid detects what countBoundaryEdges cannot', () => {
   });
 
   it('catches a flipped face that leaves every edge used exactly twice', () => {
-    // This is the cap-fan failure in miniature: the edge COUNT is still
+    // This is the cap-fan failure in miniature: the edge count is still
     // perfect, but two faces traverse the same edge the same way, so the
     // surface has no consistent inside.
     const g = tetra();
     g.setIndex([0, 2, 1, 0, 1, 3, 0, 3, 2, 1, 3, 2]); // last face reversed
     const kinds = validateSolid(g).map((i) => i.kind);
     expect(kinds).toContain('inconsistent-winding');
-    // ...and prove the old question would have been satisfied: every
+    // ...and prove an edge count alone would be satisfied: every
     // undirected edge is still shared by exactly two faces.
     expect(kinds).not.toContain('non-manifold-edge');
   });
@@ -158,7 +158,7 @@ describe('every exported component is a valid solid', () => {
       0.012,
     ],
     [
-      // Non-convex planform: the case the fan-from-the-mean cap got wrong.
+      // Non-convex planform: the case a fan-from-the-mean cap gets wrong.
       'freeform fin with a concave notch',
       node({
         type: 'freeformfinset',
@@ -185,9 +185,9 @@ describe('every exported component is a valid solid', () => {
   });
 
   it('refuses a scaled-down design rather than exporting an empty solid', () => {
-    // 0.003x on a 70 mm nose cone put every triangle under the old fixed
-    // 1e-12 area cut. They were all dropped, the empty result had no open
-    // edges, and the export "succeeded" with nothing in the file.
+    // 0.003x on a 70 mm nose cone puts every triangle under a fixed 1e-12 area
+    // cut. With a fixed cut they would all be dropped, the empty result would
+    // have no open edges, and the export would "succeed" with nothing in the file.
     const tiny = node({ type: 'nosecone', shape: 'ogive', length: 0.00021, aftRadius: 0.000036 });
     const geo = solidForNode(tiny);
     expect(geo).not.toBeNull();
@@ -221,7 +221,7 @@ describe('isSimplePolygon rejects a pinched outline', () => {
 
   it('rejects two vertices dragged onto each other', () => {
     // FreeformFinEditor allows it, and it extrudes into a pinch point where
-    // four shell faces share one vertex. Strict inequalities alone said fine.
+    // four shell faces share one vertex. Strict inequalities alone would accept it.
     expect(
       isSimplePolygon([
         [0, 0],
@@ -250,10 +250,10 @@ describe('isSimplePolygon rejects a pinched outline', () => {
 describe('makeWatertight caps a non-convex hole without overlapping itself', () => {
   /**
    * An open prism whose cross-section is concave: a notch at (1, 0.5) between
-   * two spikes. The arithmetic MEAN of the five corners is (1, 0.9), which
-   * sits in the notch, OUTSIDE the polygon. Fanning a cap from there emits
+   * two spikes. The arithmetic mean of the five corners is (1, 0.9), which
+   * sits in the notch, outside the polygon. Fanning a cap from there emits
    * triangles that overlap and face opposite ways, while still using every
-   * boundary edge exactly twice, so the old edge count reported a watertight
+   * boundary edge exactly twice, so an edge count reports a watertight
    * solid. Ear clipping uses only the loop's own vertices and cannot do that.
    */
   const CONTOUR: Array<[number, number]> = [
@@ -291,12 +291,12 @@ describe('makeWatertight caps a non-convex hole without overlapping itself', () 
 
   it('closes into a genuinely valid solid', () => {
     const capped = makeWatertight(openPrism());
-    expect(countBoundaryEdges(capped)).toBe(0); // what the old check asked
+    expect(countBoundaryEdges(capped)).toBe(0); // what an edge count asks
     expect(validateSolid(capped)).toEqual([]); // what it could not ask
   });
 
   it('keeps every cap triangle inside the outline it is closing', () => {
-    // THE fan bug, stated directly. It is a GEOMETRIC defect, not a
+    // The fan failure, stated directly. It is a geometric defect, not a
     // topological one: a fan from an apex outside the loop is still a closed,
     // consistently wound surface (each spoke is traversed once each way), so
     // neither an edge count nor validateSolid's winding check can see it. What
@@ -334,7 +334,7 @@ describe('makeWatertight caps a non-convex hole without overlapping itself', () 
   });
 
   it('adds no vertex of its own', () => {
-    // The fan invented an apex; ear clipping reuses the loop's corners. A cap
+    // A fan invents an apex; ear clipping reuses the loop's corners. A cap
     // that needs a new point is a cap that can put it in the wrong place.
     const open = openPrism();
     const before = open.getAttribute('position').count;

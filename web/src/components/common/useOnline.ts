@@ -13,7 +13,7 @@ const subscribe = (onChange: () => void) => {
  * Whether the browser says it has a connection.
  *
  * For the buttons that need one (a forecast, a place search, an update check):
- * greyed out with the reason while offline, rather than letting a click run
+ * grayed out with the reason while offline, rather than letting a click run
  * into a timeout at a field with no signal. `navigator.onLine` can say online on
  * a network that reaches nothing, so a request can still fail and says so; it
  * does not say offline while connected, which is the case this is for.

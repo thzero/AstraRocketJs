@@ -16,7 +16,7 @@ export interface RunPlan {
   /** The rows refused, each naming its reason. */
   skipped: Unflyable[];
   /**
-   * The rows to record as failed ON this design: every requested row when the
+   * The rows to record as failed on this design: every requested row when the
    * design is blocked, else the skipped ones. The record is what holds auto-run
    * back from retrying them until the design changes (`selectRunFailed`).
    */
@@ -26,7 +26,7 @@ export interface RunPlan {
 /**
  * Which of the requested rows fly, and why each of the others does not.
  *
- * A fault in the DESIGN stops the whole batch: no motor mount (nowhere to seat a
+ * A fault in the design stops the whole batch: no motor mount (nowhere to seat a
  * motor) or a part whose required dimension is zero, since a zero-volume body
  * tube would still hand back an apogee. The Run button is disabled for these
  * too; this is the guard a programmatic run cannot get past.
@@ -70,7 +70,7 @@ export function planRun(
 }
 
 /**
- * ONE line's worth of messages for everything in a batch that did not produce a
+ * One line's worth of messages for everything in a batch that did not produce a
  * flight, refusals first and then failures, each naming its row.
  *
  * Collected and reported together rather than as they happen: a per-row error

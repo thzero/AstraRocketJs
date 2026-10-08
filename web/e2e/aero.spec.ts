@@ -9,7 +9,7 @@ const xTicks = (page: Page) =>
 
 /**
  * The Mach sweep defaults to M1 because the overwhelming majority of hobby
- * flights never reach it — sweeping to M3 spent two thirds of the x axis on
+ * flights never reach it; sweeping to M3 would spend two thirds of the x axis on
  * speeds the rocket will not see.
  */
 test.describe('aero drag sweep', () => {
@@ -19,8 +19,8 @@ test.describe('aero drag sweep', () => {
 
     // Charts, not the tables: the curves are what you come to Aero to see, and
     // the tables are the follow-up question. `:visible` because the Simulations
-    // tab's own table is mounted (hidden) in `main` at all times — the claim
-    // here is that no table is ON SCREEN, not that the app has none.
+    // tab's own table is mounted (hidden) in `main` at all times; the claim
+    // here is that no table is on screen, not that the app has none.
     await expect(page.getByRole('button', { name: 'Charts', exact: true })).toHaveAttribute('aria-pressed', 'true');
     await expect(page.locator('main table:visible')).toHaveCount(0);
 

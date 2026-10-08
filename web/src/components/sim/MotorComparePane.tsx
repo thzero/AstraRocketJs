@@ -1,8 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import type { CatalogMotor } from '../../services/motors/motorDb';
-import type { Sample } from '../../services/motors/motorCombine';
 import { useUnits } from '../../prefs/useUnits';
-import { keyOf } from './motorKey';
+import { keyOf } from '../../services/motors/motorKey';
 import { ALIGN, heading, type Col } from './motorColumns';
 import { seriesColor } from '../common/chartPalette';
 import { ChartAxes, CHART_HEADROOM, chartScales, LegendSwatch, SeriesPath } from './chartAxes';
@@ -10,7 +9,7 @@ import { hasCurve } from '../../services/motors/motorDb';
 import { token } from '../common/colorTokens';
 
 /**
- * The motor dashboard's COMPARE tool: the checked motors' thrust curves
+ * The motor dashboard's Compare tool: the checked motors' thrust curves
  * overlaid on one chart, with a legend, and a side-by-side spec table using
  * the grid's chosen columns.
  */
@@ -22,7 +21,7 @@ export function MotorComparePane({ motors, cols }: { motors: CatalogMotor[]; col
   const { t } = useTranslation();
   const u = useUnits();
   // Assign a color only to motors that actually have a curve (in order), so the
-  // chart, legend and table dots agree — and a curveless motor gets none.
+  // chart, legend and table dots agree, and a curveless motor gets none.
   const colorFor = new Map<string, string>();
   let ci = 0;
   for (const m of motors) {
@@ -30,7 +29,7 @@ export function MotorComparePane({ motors, cols }: { motors: CatalogMotor[]; col
   }
   const series = motors
     .filter((m) => colorFor.has(keyOf(m)))
-    .map((m) => ({ m, color: colorFor.get(keyOf(m))!, pts: m.curves![0]!.samples as Sample[] }));
+    .map((m) => ({ m, color: colorFor.get(keyOf(m))!, pts: m.curves![0]!.samples }));
   // Identity is the motor name (+ color dot); show every other chosen column.
   const specCols = cols.filter((c) => c.id !== 'designation');
 
@@ -66,7 +65,7 @@ export function MotorComparePane({ motors, cols }: { motors: CatalogMotor[]; col
               />
             ))}
           </svg>
-          {/* Legend — identity is never color-alone. */}
+          {/* Legend: identity is never color alone. */}
           <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-ink-soft">
             {series.map((s) => (
               <LegendSwatch key={keyOf(s.m)} color={s.color} width={12}>

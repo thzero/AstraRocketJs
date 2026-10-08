@@ -1,9 +1,9 @@
 import { test, expect, type Page, note, ready, box } from './base';
 
 /**
- * The Sketch tab exists because the 2D side view is a LANDSCAPE drawing: a hobby
+ * The Sketch tab exists because the 2D side view is a landscape drawing: a hobby
  * airframe is 15-25x longer than it is wide. Sharing a portrait phone with the
- * stats strip left it a couple of hundred pixels tall, and even alone it only
+ * stats strip would leave it a couple of hundred pixels tall, and even alone it only
  * gets the screen's short edge. So on a portrait screen the drawing is turned a
  * quarter turn -- its short dimension along the device's short dimension, its
  * length down the screen -- and turned back once the device is landscape and
@@ -25,7 +25,7 @@ test.describe('sketch tab', () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await ready(page);
 
-    // Rocket tab shows the stats, not the drawing. The drawing stays MOUNTED
+    // Rocket tab shows the stats, not the drawing. The drawing stays mounted
     // behind it so switching tabs never reinitializes the canvas -- so it has to
     // come back correctly sized, which the measurements below check.
     await expect(page.locator('main svg').first()).toBeHidden();
@@ -36,13 +36,13 @@ test.describe('sketch tab', () => {
     const portrait = await stage(page);
     note('portrait', JSON.stringify(portrait));
     expect(portrait.rotated).toBe(true);
-    // The toolbar turns WITH the drawing, so it sits along the screen's long
+    // The toolbar turns with the drawing, so it sits along the screen's long
     // edge at the top of the sheet it controls, not across the short edge.
     const toolbar = await box(page.getByRole('button', { name: 'Reset' }));
     note('toolbar', JSON.stringify({ x: Math.round(toolbar.x), y: Math.round(toolbar.y) }));
     expect(toolbar.x).toBeGreaterThan(390 * 0.75); // hard against the right edge
     expect(toolbar.height).toBeGreaterThan(toolbar.width); // stood on end
-    // Taller than wide: the canvas took the device's LONG axis for the rocket's
+    // Taller than wide: the canvas took the device's long axis for the rocket's
     // length. Unrotated it would be 366x~200 and the rocket a dozen pixels tall.
     expect(portrait.h).toBeGreaterThan(portrait.w);
 
@@ -70,10 +70,10 @@ test.describe('sketch tab', () => {
 
 test('frames the 3D model correctly inside the quarter turn', async ({ page }) => {
   // r3f measures its canvas to size the drawing buffer and the camera aspect.
-  // Its default measurement is getBoundingClientRect, which on a ROTATED element
-  // reports the axis-aligned screen box -- width and height swapped. That framed
-  // a 658x325 host at aspect 0.49 and drew the rocket four times too big and
-  // clipped. `resize={{ offsetSize: true }}` measures the layout box instead.
+  // Its default measurement is getBoundingClientRect, which on a rotated element
+  // reports the axis-aligned screen box, width and height swapped. That would
+  // frame a landscape host at a portrait aspect and draw the rocket far too big
+  // and clipped. `resize={{ offsetSize: true }}` measures the layout box instead.
   await page.setViewportSize({ width: 390, height: 844 });
   await ready(page);
   await page.getByRole('button', { name: /Sketch/ }).click();
@@ -82,21 +82,21 @@ test('frames the 3D model correctly inside the quarter turn', async ({ page }) =
   const canvas = page.locator('main canvas').first();
   await expect(canvas).toBeVisible();
   // Polled, not sampled once: r3f sizes the buffer from a ResizeObserver, so the
-  // first frame after the view switch can still carry the previous dimensions.
-  // Reading it once made this test flaky under a loaded parallel run.
+  // first frame after the view switch can still carry the previous dimensions,
+  // and a single read is flaky under a loaded parallel run.
   await expect
     .poll(
       async () =>
         canvas.evaluate((c: HTMLCanvasElement) => {
           const host = c.parentElement;
           if (!host) return false;
-          // The buffer has to match the host's LAYOUT box -- landscape -- and
+          // The buffer has to match the host's layout box (landscape), and
           // not the axis-aligned bbox the rotation gives it. Compared in CSS
           // pixels: r3f sizes the buffer at the layout box times the device
           // pixel ratio clamped to 2 (its default `dpr={[1, 2]}`; Rocket3D
           // sets none), so the Pixel 7 project (DPR 2.625) gets a 2x buffer
           // where the desktop project gets 1x. Comparing raw buffer pixels
-          // to CSS pixels failed on the phone project for that reason alone.
+          // to CSS pixels would fail on the phone project for that reason alone.
           const k = Math.min(window.devicePixelRatio || 1, 2);
           return Math.abs(c.width / k - host.offsetWidth) < 3 && Math.abs(c.height / k - host.offsetHeight) < 3;
         }),

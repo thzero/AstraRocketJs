@@ -2,12 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import type { AeroSweep, OpenRocketDesign } from '../../engine/openRocketEngine';
 
 /**
- * The deferred aero sweep behind AeroAnalysis. Owns WHEN the kernel's
+ * The deferred aero sweep behind AeroAnalysis. Owns when the kernel's
  * `aeroSweep` runs and what the pane shows while it does; nothing here draws.
  *
- * The sweep runs from an EFFECT into state, not inside a render-time memo.
- * `rocket.aeroSweep` is a synchronous kernel call (48-50 samples with a full
- * per-component force analysis), so run in the render body it stalls the render on
+ * The sweep runs from an effect into state, not inside a render-time memo.
+ * `rocket.aeroSweep` is a synchronous kernel call (roughly 40 to 60 samples, each
+ * with a full per-component force analysis), so run in the render body it stalls the render on
  * every input change with no busy state and nothing on screen able to respond.
  * Deferring it one macrotask lets the render that shows `pending` paint first: the
  * previous chart stays up and interactive, the header shows it is computing, and a
@@ -23,8 +23,7 @@ export interface AeroSweepInputs {
   rollRate: number;
   /**
    * Altitude the whole sweep is flown at (m). The air there sets the Reynolds
-   * number and so the skin friction; 0 is sea level, which is what the sweep
-   * did before it could be chosen.
+   * number and so the skin friction; 0 is sea level.
    */
   altitudeM: number;
 }
@@ -48,11 +47,10 @@ export function useAeroSweep(
   { machMax, aoaDeg, thetaDeg, rollRate, altitudeM }: AeroSweepInputs,
 ): { sweep: AeroSweep | null; pending: boolean } {
   // One object per distinct set of inputs. The result is filed under the run
-  // it answers, so `pending` is DERIVED (the latest result is not for this
-  // run) rather than a flag the effect sets on entry. The flag version was a
+  // it answers, so `pending` is derived (the latest result is not for this
+  // run) rather than a flag the effect sets on entry. A flag would need a
   // synchronous setState at the top of the effect, which is a cascading
-  // render the compiler lint rejects, and it was also one more thing that
-  // could drift from the truth it summarized.
+  // render the compiler lint rejects, and could drift from what it reports.
   const run = useMemo<Run>(
     () => ({ rocket, machMax, aoaDeg, thetaDeg, rollRate, altitudeM }),
     [rocket, machMax, aoaDeg, thetaDeg, rollRate, altitudeM],
@@ -85,8 +83,8 @@ export function useAeroSweep(
               : {}),
           });
         } catch (e) {
-          // Was a silent catch: a kernel that throws here left the pane on its
-          // "build a valid rocket" prompt with nothing anywhere saying why.
+          // Logged, not swallowed: a kernel that throws here leaves the pane on
+          // its unavailable prompt, and the console is the only place that says why.
           console.error('aeroSweep failed', e);
         }
       }

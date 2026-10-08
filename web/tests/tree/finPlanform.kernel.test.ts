@@ -14,33 +14,31 @@ import { tubeFinRadius } from '../../src/tree/tubefins';
 import { finPlanformMm } from '../../src/services/report/reportGeometry';
 
 /**
- * DIFFERENTIAL TEST: the ported fin geometry vs the OpenRocket kernel.
+ * Differential test: the ported fin geometry vs the OpenRocket kernel.
  *
  * ## What this guards and why it is shaped this way
  *
  * `web/src/tree` and `web/src/services` re-implement kernel math in TypeScript
  * so the app can draw, print and cut a fin without a round trip through the
- * WASM engine. The `parity` CI job does NOT cover any of it: parity compares
- * the kernel to ITSELF across JVM, TeaVM-JS and WASM-GC. The hand-ports therefore
- * had no gate at all, and an elliptical fin was the wrong curve for twelve days
- * and three audits because every review compared the four copies of the
- * sampler to each other instead of to `EllipticalFinSet.java`.
+ * WASM engine. The `parity` CI job does not cover any of it: parity compares
+ * the kernel to itself across JVM, TeaVM-JS and WASM-GC. Without this file the
+ * hand-ports have no gate, and comparing copies of a sampler to each other
+ * instead of to `EllipticalFinSet.java` cannot catch a wrong curve.
  *
  * So this file does two things that a normal unit test does not:
  *
  * 1. **Source-drift guard.** It reads the committed Java under
  *    `engine-java/src/java` and asserts the formulas are still the ones the
  *    port was written against. A kernel bump that changes the shape of a fin
- *    fails here, loudly, naming the port to update — rather than letting the
+ *    fails here, loudly, naming the port to update, rather than letting the
  *    exports drift silently out of step with the simulation.
  *
  * 2. **Independent re-derivation.** The expected values are computed here from
  *    the kernel's own algorithm, transcribed in the kernel's own structure,
- *    NOT by calling the code under test or by copying its output. A test that
- *    asserts the implementation against itself proves nothing, which is the
- *    other half of how the bug survived: the previous test asserted only that
- *    the curve had "more than 10 points" and that its apex reached full
- *    height. A sine arch satisfies both.
+ *    not by calling the code under test or by copying its output. A test that
+ *    asserts the implementation against itself proves nothing, and a check
+ *    that the curve has "more than 10 points" and that its apex reaches full
+ *    height is one a sine arch satisfies.
  *
  * Any new ported geometry belongs here too. Adding a case is cheap; finding
  * out from a user that their printed part is the wrong shape is not.
@@ -134,8 +132,8 @@ describe('elliptical fin planform vs EllipticalFinSet.java', () => {
 
   it('pins the station that three audits walked past', () => {
     // Closed form at x = 5 mm on a 50 x 30 mm fin: y = h*sqrt(1 - (2x/root - 1)^2) = 18.0 mm.
-    // The sine arch that shipped gave 9.27 mm here. This is the regression sentinel:
-    // if it ever reads ~9.3 again, a consumer has grown its own sampler.
+    // A sine arch gives 9.27 mm here. If this ever reads ~9.3, a consumer has
+    // grown its own sampler.
     const root = 0.05,
       height = 0.03;
     const pts = ellipticalFinPoints(root, height);
@@ -250,22 +248,19 @@ describe('through-the-wall tab vs FinSet.java', () => {
 /**
  * The recurrence guard.
  *
- * Fixing the four copies is only half the job: the bug came back twice because
- * nothing stopped a consumer from growing its own sampler again, and each new
- * copy looked locally reasonable. Kernel trigonometry is allowed in exactly two
- * modules — this planform port and the tube-fin auto-radius port — and anywhere
- * else it means a fifth copy is being born.
+ * Nothing else stops a consumer from growing its own sampler, and each new copy
+ * looks locally reasonable. Kernel trigonometry is allowed only in the modules
+ * listed in ALLOWED (the planform, tube-fin and shape-profile ports), and
+ * anywhere else it means another copy is being born.
  *
  * If this fails on a legitimate new use, move the math into `tree/` and call it
  * from the consumer. Do not add the consumer to the allowlist.
  */
 describe('no module grows its own fin sampler', () => {
-  // `../../src/`, NOT `..`. This test lives at web/tests/tree/, so `..`
-  // resolved to web/tests/ and the walk below read six helper files under
-  // tests/testing/ and not one line of src -- while every ALLOWED path named a
-  // file that does not exist under that root. The guard against the bug that
-  // survived three audits had never examined a source file. Asserted rather
-  // than trusted, two tests down.
+  // `../../src/`, not `..`: this test lives at web/tests/tree/, so `..` would
+  // resolve to web/tests/ and the walk below would read test helpers and not one
+  // line of src, while every ALLOWED path named a file that does not exist under
+  // that root. Asserted rather than trusted, two tests down.
   const SRC = fileURLToPath(new URL('../../src/', import.meta.url));
   /** Ports of kernel trig that are allowed to compute it directly. */
   const ALLOWED = ['tree/finPlanform.ts', 'tree/tubefins.ts', 'tree/shapeProfile.ts'];
@@ -284,22 +279,20 @@ describe('no module grows its own fin sampler', () => {
 
   /**
    * The outline entry points. Importing `FIN_DEFAULTS` or `finRootChord` from
-   * the same module does NOT count: those are dimensions, and a consumer can
-   * hold every dimension and still draw its own curve, which is exactly what
-   * schematicShapes did.
+   * the same module does not count: those are dimensions, and a consumer can
+   * hold every dimension and still draw its own curve.
    */
   const SHARED_OUTLINE = /finPlanformPoints|finCutContour|finPlanformMm/;
 
   /**
-   * The modules that DRAW or CUT a fin. Each must take its outline from
+   * The modules that draw or cut a fin. Each must take its outline from
    * `tree/finPlanform`, whatever the mechanism.
    *
-   * This list exists because the trig rule below cannot see the violation it
-   * was written for: `schematicShapes` drew its elliptical fin with an SVG `A`
-   * arc and its trapezoid with a polygon literal, with no trigonometry
-   * anywhere, so a textual trig guard would have passed it forever even
-   * pointed at the right tree. The invariant is about WHERE THE OUTLINE COMES
-   * FROM, not how it is spelled, and a named list is the only way to say that
+   * This list exists because the trig rule below cannot see every violation: a
+   * module can draw an elliptical fin with an SVG `A` arc and a trapezoid with a
+   * polygon literal, with no trigonometry anywhere, and a textual trig guard
+   * would pass it. The invariant is about where the outline comes from, not how
+   * it is spelled, and a named list is the only way to say that
    * mechanically. Add a module here when it starts drawing fins.
    */
   const OUTLINE_CONSUMERS = [
@@ -310,8 +303,8 @@ describe('no module grows its own fin sampler', () => {
   ];
 
   it('reads the source tree, not itself', () => {
-    // The guard's own precondition. It passed vacuously for its whole life
-    // because nothing asserted that the walk reaches src at all.
+    // The guard's own precondition: without it the guard passes vacuously if the
+    // walk never reaches src.
     const files = sourceFiles(SRC).map((f) => f.slice(SRC.length).split('\\').join('/'));
     expect(files).toContain('tree/finPlanform.ts');
     expect(files).toContain('components/canvas/schematicShapes.tsx');
@@ -327,10 +320,10 @@ describe('no module grows its own fin sampler', () => {
   });
 
   it('keeps kernel trigonometry in the ports that own it', () => {
-    // The original narrow pattern, kept because it is free and has no false
-    // positives: trig applied directly to `Math.PI` is the historical shape of
-    // a hand-rolled sweep. It is the weaker of the two nets here -- the
-    // provenance test above is the one that catches an arc or a Bezier.
+    // A narrow pattern, kept because it is free and has no false positives: trig
+    // applied directly to `Math.PI` is the usual shape of a hand-rolled sweep. It
+    // is the weaker of the two nets here; the provenance test above is the one
+    // that catches an arc or a Bezier.
     const offenders: string[] = [];
     for (const file of sourceFiles(SRC)) {
       const rel = file.slice(SRC.length).split('\\').join('/');
@@ -342,13 +335,13 @@ describe('no module grows its own fin sampler', () => {
 });
 
 /**
- * The export paths must describe the SAME part.
+ * The export paths must describe the same part.
  *
  * `finCutContour` backs the STL/OBJ/GLB and the DXF; `finPlanformMm` backs the
- * 1:1 PDF template. They are the two public entry points, and the original bug
- * was precisely that they disagreed. This pins them together for every fin
- * type, so a consumer that stops calling the shared module fails here even if
- * it reintroduces the divergence without any trigonometry of its own.
+ * 1:1 PDF template. They are the two public entry points, and they must not
+ * disagree. This pins them together for every fin type, so a consumer that stops
+ * calling the shared module fails here even if it introduces a divergence
+ * without any trigonometry of its own.
  */
 describe('the cut contour and the printed template are the same part', () => {
   const R = 0.012; // body radius, so the tab clamp is exercised on both paths

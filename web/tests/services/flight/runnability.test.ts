@@ -3,7 +3,7 @@ import { hasThrustCurve, unflyable, unflyableSims, unflyableText } from '../../.
 import { MAX_ROD_ANGLE_DEG, MAX_WIND_SPEED_MS } from '../../../src/services/flight/safetyLimits';
 import { METRIC_UNITS, unitSymbols } from '../../../src/prefs/units';
 
-/** The reader's units, which every limit sentence is now rendered in. */
+/** The reader's units, which every limit sentence is rendered in. */
 const units = unitSymbols(METRIC_UNITS, {});
 import type { Simulation } from '../../../src/services/flight/simulations';
 import type { MotorSpec } from '../../../src/engine/openRocketEngine';
@@ -26,7 +26,7 @@ const CURVE = { designation: 'C6', times: [0, 1], thrusts: [0, 5], masses: [0.02
 /**
  * A row, with the motor it is judged by hanging off it.
  *
- * The gate takes the motor as an argument now, because it lives in the row's
+ * The gate takes the motor as an argument because it lives in the row's
  * flight configuration rather than on the row; carrying it here keeps each case
  * readable as one object.
  */

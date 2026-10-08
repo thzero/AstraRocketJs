@@ -4,7 +4,7 @@ interface TabEntry {
   id: Tab;
   /** The desktop strip's label key. */
   label: string;
-  /** The phone bar's label key: five buttons share a phone's width. */
+  /** The phone bar's label key: five or six buttons share a phone's width. */
   short: string;
   icon: string;
 }

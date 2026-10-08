@@ -6,10 +6,8 @@ import type { KeyValueStore } from '../../src/services/storage/keyValueStore';
 /**
  * The store actions that produce files or mutate the design library.
  *
- * These were the untested ones, and they are exactly the actions whose
- * failures are SILENT: the user gets a wrong file, or a lost design, with no
- * exception anywhere. The rest of the store is well covered, which made the
- * gap sharper rather than smaller.
+ * These are the actions whose failures are silent: the user gets a wrong file,
+ * or a lost design, with no exception anywhere.
  */
 
 class FakeKv implements KeyValueStore {

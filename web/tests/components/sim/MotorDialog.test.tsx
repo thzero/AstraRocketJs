@@ -78,11 +78,9 @@ beforeEach(() => {
 
 describe('MotorDialog', () => {
   /**
-   * The seated motor's delay was restored by an effect guarded by two refs
-   * that only ran once per opening, and the "reset on selection" effect had a
-   * matching skip-once ref. After a close and reopen the refs disagreed about
-   * whose turn it was, so clicking a different motor kept the 7 s that had
-   * been seeded for the first one.
+   * The seated motor's delay seeds the first opening only. After a close and
+   * reopen, clicking a different motor must take that motor's own default
+   * delay, not the 7 s seeded for the first one.
    */
   it('does not leak the seated delay onto the next pick after a reopen', async () => {
     renderWithProviders(<Host current={seatedX} onSelect={() => {}} />);
@@ -102,7 +100,7 @@ describe('MotorDialog', () => {
 
   /**
    * fetchMotorSpec can take seconds over the network. A result landing after
-   * the user had already canceled was applied to the mount anyway.
+   * the user has already canceled must not be applied to the mount.
    */
   it('drops a pick that resolves after the dialog was closed', async () => {
     let resolve!: (m: MotorSpec) => void;
@@ -134,9 +132,9 @@ describe('MotorDialog', () => {
   });
 
   /**
-   * Rows were keyed on their list index, so the highlight had to be dropped
-   * on every filter change or it would point at whichever motor moved into
-   * that slot. Keyed on the motor's identity, it survives.
+   * Rows are keyed on the motor's identity, not their list index, so the
+   * highlight survives a filter change instead of pointing at whichever motor
+   * moved into that slot.
    */
   it('keeps the highlighted motor across a filter change', async () => {
     renderWithProviders(<Host current={null} onSelect={() => {}} />);

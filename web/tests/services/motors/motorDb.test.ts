@@ -177,8 +177,8 @@ describe('findCatalogMotor', () => {
  *
  * RockSim names a Cesaroni motor that way - `206J530-IM` for a J530 - where the
  * catalog holds the name on its own and its own `code` carries a different
- * impulse figure. With nothing to read past the number, such a motor matched
- * nothing at all and the mount opened empty.
+ * impulse figure. Without reading past the number, such a motor matches
+ * nothing at all and the mount opens empty.
  */
 describe('findCatalogMotor — a leading impulse number', () => {
   const cat: CatalogMotor[] = [
@@ -200,7 +200,7 @@ describe('findCatalogMotor — a leading impulse number', () => {
   });
 
   it('leaves a designation that really starts with digits alone', () => {
-    // The number is only read past when a LETTER follows it, so "1/2A6" is not
+    // The number is only read past when a letter follows it, so "1/2A6" is not
     // quietly turned into an A6.
     expect(findCatalogMotor(cat, '1/2A6', 'Estes')!.designation).toBe('1/2A6');
   });
@@ -217,8 +217,8 @@ describe('findCatalogMotor — a leading impulse number', () => {
  *
  * RockSim writes a Cesaroni motor as `26-E31-WH-15A` - impulse, designation,
  * propellant, delay - where the catalog holds `E31` and its own code is
- * `26E31-15A`. Dropping one trailing segment left `26-E31-WH`, which is neither,
- * so the motor matched nothing and the mount opened empty.
+ * `26E31-15A`. Dropping only one trailing segment leaves `26-E31-WH`, which is
+ * neither, so the motor would match nothing and the mount would open empty.
  */
 describe('findCatalogMotor — a name in several hyphenated parts', () => {
   const cat: CatalogMotor[] = [
@@ -278,8 +278,8 @@ describe('findCatalogMotor — a name in several hyphenated parts', () => {
 });
 
 describe('findCatalogMotor — full .ork designations vs short catalog names', () => {
-  // Catalog keys the SHORT designation; the full name lives in `code`, exactly
-  // as our bundled motors.generated.json does (see Fireball.ZL1.DD.multi.ork).
+  // Catalog keys the short designation; the full name lives in `code`, exactly
+  // as the bundled motors.generated.json does.
   const cat: CatalogMotor[] = [
     {
       designation: 'H128',
@@ -421,13 +421,13 @@ describe('loadCatalog with a malformed row', () => {
 });
 
 /**
- * HOW the motor was found, not just which one.
+ * How the motor was found, not just which one.
  *
  * The tiers run from "this is the name" down to "this is what the name looks
  * like with its impulse and propellant taken off", and the file's manufacturer
  * is a preference rather than a filter. Every one of those is a match worth
- * making and none is the file confirming the motor, and the caller used to be
- * told none of it: an `I170-P` filed under Kosdon loaded Cesaroni's I170 in
+ * making and none is the file confirming the motor, so the caller is told
+ * which: otherwise an `I170-P` filed under Kosdon loads Cesaroni's I170 in
  * silence.
  */
 describe('matchCatalogMotor — how sure the match is', () => {
@@ -471,7 +471,7 @@ describe('matchCatalogMotor — how sure the match is', () => {
   });
 
   it('puts the maker first, as the most surprising of the three', () => {
-    // `206-I170-WH-14A` under Kosdon is shortened AND another maker's AND one
+    // `206-I170-WH-14A` under Kosdon is shortened and another maker's and one
     // of two. Which one it is told about should be the one that moves a flight.
     expect(matchCatalogMotor(cat, '206-I170-WH-14A', 'Kosdon')!.doubt).toBe('maker');
   });

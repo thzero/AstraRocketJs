@@ -6,9 +6,9 @@ import { act, cleanup } from '@testing-library/react';
  * The workspace effects: hydration gate, debounced autosave, unload journal,
  * engine rebuild and result invalidation.
  *
- * Five audit findings lived in this file and none of them were reachable from
- * `store.test.ts`, because every one is about the ORDER and the GUARDS around
- * the async edges — not about what the store actions do. So this drives the
+ * None of this is reachable from `store.test.ts`, because it is about the order
+ * and the guards around the async edges, not about what the store actions do.
+ * So this drives the
  * real hook with the edges stubbed: a workspace store whose load can be made
  * to reject or to resolve late, and a `computeStaticInfo` that just counts.
  */
@@ -74,9 +74,9 @@ beforeEach(() => {
   save.mockReset().mockResolvedValue(undefined);
   saveSync.mockReset();
   computeStaticInfo.mockReset().mockReturnValue({ info: { length: 1 }, rocket: {} });
-  // The rebuild effect waits on the kernel now, because the app mounts before it
-  // is loaded. Every test here but the gating one is about what the rebuild does
-  // ONCE there is an engine, so they start with one.
+  // The rebuild effect waits on the kernel, because the app mounts before it is
+  // loaded. Every test here but the gating one is about what the rebuild does
+  // once there is an engine, so they start with one.
   useEngineStore.setState({ phase: 'ready', backend: 'js', status: null, slow: false, error: null });
 });
 afterEach(() => {
@@ -103,7 +103,7 @@ describe('hydration', () => {
     await mount();
     expect(s().tree.name).toBe('Restored');
     expect(computeStaticInfo).toHaveBeenCalledTimes(1);
-    // And it built the RESTORED design, not the default it was mounted with.
+    // And it built the restored design, not the default it was mounted with.
     expect((computeStaticInfo.mock.calls[0]![0] as { name: string }).name).toBe('Restored');
   });
 
@@ -144,8 +144,8 @@ describe('hydration', () => {
     load.mockRejectedValue(new Error('idb blocked'));
     await mount();
 
-    // In the warning slot, NOT `setErr`: opening the gate runs the rebuild
-    // effect, and its success path calls `setErr(null)` — a message written
+    // In the warning slot, not `setErr`: opening the gate runs the rebuild
+    // effect, and its success path calls `setErr(null)`; a message written
     // there is wiped in the same tick and the user never sees it.
     expect(s().storageWarning).toBeTruthy();
     expect(s().storageWarningKind).toBe('loadFailed');
@@ -182,8 +182,8 @@ describe('autosave', () => {
 
   /**
    * The header's save status reads `lastSavedAt`, and it is the only thing
-   * that reports a save now that the File menu has no Save item. So it has to
-   * be set where a write LANDED, not where one was asked for: a failed save
+   * that reports a save, since the File menu has no Save item. So it has to
+   * be set where a write landed, not where one was asked for: a failed save
    * that still said "Saved" would be worse than saying nothing.
    */
   it('records when the write landed, and not when it failed', async () => {
@@ -219,7 +219,7 @@ describe('autosave', () => {
     act(() => {
       vi.advanceTimersByTime(1000);
     });
-    // Saving now would write the DEFAULT design over the one still being read.
+    // Saving now would write the default design over the one still being read.
     expect(save).not.toHaveBeenCalled();
 
     await act(async () => {
@@ -252,10 +252,10 @@ describe('autosave', () => {
 
   /**
    * ...but only that one. `markDegraded()` is one-way and never notifies twice
-   * (idbKeyValueStore.ts:56), so clearing its message on the next successful
-   * write retired it for the whole session — one keystroke after it appeared.
-   * The user then met the 5 MB cap with nothing on screen to explain it, which
-   * is the exact outcome the warning exists to prevent.
+   * (idbKeyValueStore.ts), so clearing its message on the next successful
+   * write would retire it for the whole session, one keystroke after it
+   * appeared. The user would then meet the 5 MB cap with nothing on screen to
+   * explain it, which is the exact outcome the warning exists to prevent.
    */
   it.each([
     ['degraded', () => degraded.fire!()],
@@ -378,8 +378,8 @@ describe('what triggers a rebuild', () => {
   it('changing a dimension rebuilds and ages the results without destroying them', async () => {
     await mount();
     computeStaticInfo.mockClear();
-    // Seed a result, so this asserts the KEEP as well as the flag. Without one
-    // the old `every(x => !x.result)` passed vacuously — no sim had ever run.
+    // Seed a result, so this asserts the keep as well as the flag. Without one
+    // an `every(x => !x.result)` check passes vacuously, because no sim has run.
     act(() => {
       useWorkspaceStore.setState((st) => ({
         sims: st.sims.map((x) => asFlown(st, { ...x, result: { summary: { maxAltitude: 271 } } as never })),
@@ -398,11 +398,11 @@ describe('what triggers a rebuild', () => {
   });
 
   /**
-   * Grounding a stage changes the static info -- a grounded stage contributes no
-   * mass, no aero and no motor -- and the rebuild key did not mention it. The
-   * worker flew the sustainer alone while `info` still described the whole
-   * stack, so the stats strip, the stability badge and the RASAero launch mass
-   * all came from a handle for a different rocket. `seatedMotorsKey` could not
+   * Grounding a stage changes the static info (a grounded stage contributes no
+   * mass, no aero and no motor), so the rebuild key has to include it. Otherwise
+   * the worker flies the sustainer alone while `info` still describes the whole
+   * stack, and the stats strip, the stability badge and the RASAero launch mass
+   * all come from a handle for a different rocket. `seatedMotorsKey` cannot
    * see it: it is mount-and-spec only, and grounding moves neither.
    */
   it('grounding a stage rebuilds, because a grounded stage is a different rocket', async () => {
@@ -502,10 +502,10 @@ describe('what triggers a rebuild', () => {
 describe('a hydrate does not re-stamp the design', () => {
   /**
    * `hydrate()` replaces tree/sims/extraMotors, which re-runs the autosave
-   * effect and schedules a write of the bytes just read — and
-   * `DesignLibrary.write` stamps `updatedAt: Date.now()`. Opening the app
-   * therefore re-stamped the design, so the library's "most recently updated"
-   * order meant "most recently opened".
+   * effect and schedules a write of the bytes just read, and
+   * `DesignLibrary.write` stamps `updatedAt: Date.now()`. Unless that write is
+   * skipped, opening the app re-stamps the design, and the library's "most
+   * recently updated" order means "most recently opened".
    */
   it('writes nothing after loading a saved workspace', async () => {
     load.mockResolvedValue(saved());
@@ -547,7 +547,7 @@ describe('a hydrate does not re-stamp the design', () => {
 });
 
 /**
- * RESTORING a design is not EDITING it.
+ * Restoring a design is not editing it.
  *
  * The boot design and the restored one differ, so anything comparing against
  * the design on screen before the restore would read every restored result as
@@ -561,7 +561,7 @@ describe('a hydrate does not re-stamp the design', () => {
  * inputs they load with.
  */
 describe('restoring a saved design does not invalidate its flights', () => {
-  /** A saved workspace whose GEOMETRY differs from the default, with a flight. */
+  /** A saved workspace whose geometry differs from the default, with a flight. */
   const savedWithFlight = () => {
     const tree = structuredClone(s().tree) as typeof s extends never ? never : ReturnType<typeof s>['tree'];
     const bumpLength = (n: { type?: string; length?: number; children?: unknown[] }) => {
@@ -587,8 +587,8 @@ describe('restoring a saved design does not invalidate its flights', () => {
     load.mockResolvedValue(savedWithFlight());
     await mount();
 
-    // The geometry really did change on hydrate, so this is the case that used
-    // to trip the effect.
+    // The geometry really did change on hydrate, so this is the case that could
+    // trip the effect.
     expect(s().sims[0]!.result).not.toBeNull();
     expect(isStale(s().sims[0]!)).toBe(false);
   });
@@ -609,7 +609,7 @@ describe('restoring a saved design does not invalidate its flights', () => {
   });
 
   /**
-   * File > Open is a SECOND hydrate, after the boot one. The library design
+   * File > Open is a second hydrate, after the boot one. The library design
    * carries its own current results, and its geometry differs from the design it
    * replaces; that difference must not age them.
    */
@@ -631,7 +631,7 @@ describe('restoring a saved design does not invalidate its flights', () => {
       setDesignLibrary(original);
     }
 
-    // The opened design is structurally different AND has a current result.
+    // The opened design is structurally different and has a current result.
     expect(s().sims[0]!.result).not.toBeNull();
     expect(isStale(s().sims[0]!)).toBe(false);
 

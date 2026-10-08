@@ -35,12 +35,10 @@ export interface LoadedConfig {
   deployments?: Record<string, DeployOverride>;
   /**
    * ...and about staging, and about which stages stay on the pad. Carried for
-   * the same reason the deployments are, and they were not: `OrkFlightConfig`
-   * has declared both as non-optional all along, and this interface named
-   * neither, so opening a `.ork` whose configuration said
-   * `<stage number="1" active="false"/>` or carried a
-   * `<separationconfiguration>` dropped it on the floor. `saveOrk` then wrote
-   * the undefined value back and the file lost the setting for good.
+   * the same reason the deployments are: a configuration that says
+   * `<stage number="1" active="false"/>` or carries a
+   * `<separationconfiguration>` must keep it, or `saveOrk` writes the setting
+   * back as absent and the file loses it.
    */
   separations?: Record<string, SepOverride>;
   grounded?: string[];
@@ -56,7 +54,7 @@ export interface LoadedOrk {
   tree: RocketTree;
   motors: Record<string, OrkExportMotor>;
   /**
-   * EVERY flight configuration the file declared, with its motors resolved to
+   * Every flight configuration the file declared, with its motors resolved to
    * thrust curves, in file order and never empty.
    *
    * All of them, not just the one the import applied: a `.ork` carrying three
@@ -72,10 +70,10 @@ export interface LoadedOrk {
   /** Every simulation the file carried, each with its own conditions and result summary. */
   simulations?: OrkSimulation[];
   /**
-   * Set when the tree AS WRITTEN could not be built, and the handle below was
+   * Set when the tree as written could not be built, and the handle below was
    * built from a repaired copy so the file could still be opened (see
-   * `buildForImport`). `design` and `info` then describe that copy, NOT this
-   * design: read neither. The app does not - it rebuilds from `tree` - and the
+   * `buildForImport`). `design` and `info` then describe that copy, not this
+   * design: read neither. The app does not (it rebuilds from `tree`), and the
    * rebuild refuses in the same place, which is what the user needs to see.
    */
   unbuildable?: string;
@@ -84,11 +82,11 @@ export interface LoadedOrk {
 const IGNITION_EVENTS: ReadonlySet<string> = new Set(['automatic', 'launch', 'ejectioncharge', 'burnout', 'never']);
 
 /**
- * A placeholder for a .ork motor we couldn't resolve — it keeps the designation
- * and dimensions the file named but carries NO thrust curve, so `hasThrustCurve`
+ * A placeholder for a .ork motor we couldn't resolve. It keeps the designation
+ * and dimensions the file named but carries no thrust curve, so `hasThrustCurve`
  * is false: the run is blocked ("no motor") and the design builds with an empty
- * mount. Crucially it is NOT swapped for a default (C6), so the sim never
- * silently flies a motor the file didn't specify.
+ * mount. It is not swapped for a default (C6), so the sim never silently flies
+ * a motor the file didn't specify.
  */
 function unresolvedMotor(ref: {
   designation: string;
@@ -111,17 +109,16 @@ function unresolvedMotor(ref: {
 }
 
 /**
- * The placeholder for a mount the FILE left empty: no designation, no curve.
+ * The placeholder for a mount the file left empty: no designation, no curve.
  *
  * The policy for a `.ork` is that a mount flies only what the file put in it.
- * `unresolvedMotor` already covers a motor the file named that could not be
- * produced; this covers a mount the file named no motor for at all. Both are
- * curve-less, so `hasThrustCurve` is false and the run gate reports "no motor"
- * until the user picks one. Without it, `wireLoadedOrk` seeded a default C6
- * into an empty primary mount and `reconcileMounts` into every other empty
- * mount, so a design saved with its mounts empty opened as a runnable rocket
- * flying motors the file never specified, which is exactly what the two
- * branches above go out of their way to prevent.
+ * `unresolvedMotor` covers a motor the file named that could not be produced;
+ * this covers a mount the file named no motor for at all. Both are curve-less,
+ * so `hasThrustCurve` is false and the run gate reports "no motor" until the
+ * user picks one. A mount with no entry at all is seeded with a default C6
+ * (`flightConfigs.reconcileConfig`), so without this placeholder a design saved
+ * with its mounts empty would open as a runnable rocket flying motors the file
+ * never specified.
  */
 export function emptyMountMotor(): MotorSpec {
   return {
@@ -188,26 +185,26 @@ function embeddedCurves(
 }
 
 /**
- * Build the file's tree, and if the kernel REFUSES it, build a repaired copy
+ * Build the file's tree, and if the kernel refuses it, build a repaired copy
  * instead so the file still opens.
  *
- * The kernel refuses a design it cannot fly - a freeform fin whose outline
- * crosses itself is the case this was written for, since the kernel rolls such
- * an outline back and the bridge now says so by name rather than flying the
- * default fin. Opening is not flying, though: a design that cannot be simulated
- * is exactly the design somebody needs to OPEN in order to fix, and refusing the
- * whole file would leave a rocket saved from this app unreachable. So the tree is
- * handed back untouched and only the throwaway handle - which exists to seat the
- * file's motors, and whose numbers nothing downstream reads (`wireLoadedOrk`
- * takes the tree, the specs and the notes) - is built from a copy with every
- * freeform outline dropped to the kernel's default.
+ * The kernel refuses a design it cannot fly. The main case is a freeform fin
+ * whose outline crosses itself: the kernel rolls such an outline back and the
+ * bridge reports it by name rather than flying the default fin. Opening is not
+ * flying, though: a design that cannot be simulated is exactly the design
+ * somebody needs to open in order to fix, and refusing the whole file would
+ * leave a rocket saved from this app unreachable. So the tree is handed back
+ * untouched and only the throwaway handle (which exists to seat the file's
+ * motors, and whose numbers nothing downstream reads; `wireLoadedOrk` takes the
+ * tree, the specs and the notes) is built from a copy with every freeform
+ * outline dropped to the kernel's default.
  *
- * The retry is deliberately blind: no attempt to decide from the message whether
- * an outline was the cause. A build that fails for some other reason fails the
- * retry too and the ORIGINAL error is what the caller sees.
+ * The retry is blind: no attempt to decide from the message whether an outline
+ * was the cause. A build that fails for some other reason fails the retry too
+ * and the original error is what the caller sees.
  *
  * The note carries the kernel's own sentence, which names the offending part,
- * and the app's rebuild hits the same refusal a moment later - so the reason
+ * and the app's rebuild hits the same refusal a moment later, so the reason
  * appears in the banner as well, in the same words, for as long as it is true.
  */
 export function buildForImport(tree: RocketTree): { design: OpenRocketDesign; unbuildable?: string } {
@@ -232,18 +229,18 @@ export function buildForImport(tree: RocketTree): { design: OpenRocketDesign; un
 function withoutFreeformOutlines(tree: RocketTree): RocketTree {
   const strip = (nodes: ComponentNode[] | undefined): ComponentNode[] | undefined =>
     nodes?.map((n) => {
-      const kids = strip(n.children as ComponentNode[] | undefined);
+      const kids = strip(n.children);
       const next = { ...n, ...(kids ? { children: kids } : {}) } as ComponentNode & { points?: unknown };
       if (next.type === 'freeformfinset') delete next.points;
       return next;
     });
-  return { ...tree, components: strip(tree.components as ComponentNode[]) ?? [] } as RocketTree;
+  return { ...tree, components: strip(tree.components) ?? [] };
 }
 
 export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
   resetEngine(); // free the previous design's handles
   // Either format, chosen from the bytes (designFile.ts). Everything below is
-  // format-agnostic: it works off the import RESULT, and a `.rkt` simply
+  // format-agnostic: it works off the import result, and a `.rkt` simply
   // arrives with no motors and no flight configurations to resolve.
   const res = parseDesignFile(buffer);
   const built = buildForImport(res.tree);
@@ -258,12 +255,12 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
   // somewhere that does not have them.
   const embedded = embeddedCurves(res.embeddedMotors, notes);
 
-  // One resolution per distinct motor, not per mount per configuration: three
-  // configurations flying the same J350 are one catalog lookup and one fetch,
-  // and one note when it cannot be found rather than three identical ones.
   /** Millimeters as a reader states them: no decimal unless there is one. */
   const round1 = (mm: number): string => String(roundTo(mm, 1));
 
+  // One resolution per distinct motor, not per mount per configuration: three
+  // configurations flying the same J350 are one catalog lookup and one fetch,
+  // and one note when it cannot be found rather than three identical ones.
   const resolved = new Map<string, MotorSpec>();
   const resolveMotor = async (ref: OrkMotorRef): Promise<MotorSpec> => {
     const key = `${(ref.manufacturer ?? '').toLowerCase()}|${ref.designation.toLowerCase()}|${ref.delay}`;
@@ -278,9 +275,9 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
    *
    * The lookup runs from "this is the name" down to "this is what the name looks
    * like with its impulse and propellant taken off". Every one of those is a
-   * match worth making; none of them is the file confirming the motor. Loading
-   * one in silence is how an `I170-P` filed under Kosdon became a Cesaroni
-   * I170 with nothing on screen to say so. Another maker's motor is not loaded
+   * match worth making; none of them is the file confirming the motor. Loaded
+   * in silence, an `I170-P` filed under Kosdon would become a Cesaroni I170
+   * with nothing on screen to say so. Another maker's motor is not loaded
    * at all (see `resolveOnce`), so the maker doubt never reaches here.
    */
   const noteDoubt = (ref: OrkMotorRef, cat: CatalogMotor, doubt: MotorMatchDoubt): void => {
@@ -297,7 +294,7 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
   const resolveOnce = async (ref: OrkMotorRef): Promise<MotorSpec> => {
     const own = () => embedded.byName.get(removeDelay(ref.designation).toUpperCase());
     const match = matchCatalogMotor(catalog, ref.designation, ref.manufacturer);
-    // The file's maker is a FILTER, as desktop's motor database reads a file
+    // The file's maker is a filter, as desktop's motor database reads a file
     // (ThrustCurveMotorSetDatabase.findMotors): a motor of the same name from
     // another maker is a different motor, and desktop leaves the mount empty
     // with a missing-motor warning rather than fly it. The one exception is the
@@ -320,12 +317,12 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
         notes.push(`Motor "${ref.designation}" isn't in the catalog — using the thrust curve stored in the file.`);
         return customMotorToSpec(curve, ref.delay);
       }
-      // Keep the designation as an UNRESOLVED (curve-less) motor rather than a
+      // Keep the designation as an unresolved (curve-less) motor rather than a
       // default: the mount shows what the file wanted, the run is blocked until
       // the user picks a real motor, and nothing silently flies a C6.
       notes.push(
         otherMaker
-          ? `Motor "${ref.designation}" is filed under ${ref.manufacturer} in this file, and the catalog has no motor of theirs by that name (only ${match!.motor.manufacturer}'s). Pick a motor for that mount (it won't fly a default).`
+          ? `Motor "${ref.designation}" is filed under ${ref.manufacturer} in this file, and the catalog has no motor of theirs by that name (only ${match.motor.manufacturer}'s). Pick a motor for that mount (it won't fly a default).`
           : `Motor "${ref.designation}" isn't in the catalog — pick a motor for that mount (it won't fly a default).`,
       );
       return unresolvedMotor(ref);
@@ -340,7 +337,7 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
         notes.push(`Motor "${ref.designation}" could not be fetched — using the thrust curve stored in the file.`);
         return customMotorToSpec(curve, ref.delay);
       }
-      // Seat the UNRESOLVED motor, exactly as the `!cat` branch above does.
+      // Seat the unresolved motor, as the `!cat` branch above does.
       // Leaving the mount empty is not neutral: a mount without an entry is
       // seeded with a default C6 (flightConfigs.reconcileConfig), so a single
       // transient thrustcurve.org failure while opening an L-motor design would
@@ -379,18 +376,17 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
   /**
    * A motor the file names for a mount it does not go in.
    *
-   * The file gives a NAME, and the name is all the catalog is searched by, so
-   * nothing stopped a 54 mm J360 being seated in a 38 mm tube: the app flew a
-   * rocket on a motor nobody could push into it, and said nothing. The browser
-   * has judged this all along (`motorFitsMount`) and the reader never asked.
+   * The file gives a name, and the name is all the catalog is searched by, so
+   * without this check a 54 mm J360 could be seated in a 38 mm tube with nothing
+   * said. The same `motorFitsMount` test the motor browser uses decides it.
    *
-   * SEATED ANYWAY, because a file is a statement of what somebody built and
+   * Seated anyway, because a file is a statement of what somebody built and
    * dropping its motor would be the app overruling it on a tolerance it is
    * guessing at. The note is the point.
    */
   const checkFit = (mountId: string, spec: MotorSpec): void => {
     const node = byId.get(mountId);
-    const fit = node ? mountFit(node as unknown as Record<string, unknown>) : null;
+    const fit = node ? mountFit(node) : null;
     if (!fit || !spec.designation || !(spec.diameter > 0)) return;
     const motor = { diameter: spec.diameter * 1000, length: spec.length ? spec.length * 1000 : undefined };
     if (motorFitsMount(motor, fit)) return;
@@ -441,7 +437,7 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
     }
   }
 
-  // Seat the OPENED configuration into the throwaway handle, which is what the
+  // Seat the opened configuration into the throwaway handle, which is what the
   // static info below is read from. The other configurations are data at this
   // point; each is built in turn by whichever simulation flies it.
   for (const [mountId, m] of Object.entries(chosen.motors)) {

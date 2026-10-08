@@ -19,7 +19,7 @@ import { mountFit } from '../../services/motors/motorPicker';
  * is showing - a motor card per mount, a deployment card per recovery device, or
  * a separation card per booster.
  *
- * The ONLY place a configuration is written. A setup several simulations share
+ * The only place a configuration is written. A setup several simulations share
  * cannot also be editable from one of those simulations without the two surfaces
  * disagreeing about whether a change is about the row or about the setup, so the
  * simulation editor points at a configuration and this changes it.
@@ -51,9 +51,8 @@ export function ConfigEditor() {
   return (
     <div className="space-y-4 p-3">
       <section className="rounded-xl bg-surface p-3 ring-1 ring-line/10">
-        {/* A div rather than a <label htmlFor>: this component renders twice (the
-            phone's inline copy and the desktop column), and a duplicated id is a
-            broken association for whichever copy loses. */}
+        {/* A div rather than a <label htmlFor>: the input is named by its own
+            `aria-label`, so the heading is visual only and needs no id. */}
         <div className="mb-1 text-[10px] uppercase tracking-wide text-ink-muted">{t('configs.name')}</div>
         <input
           value={config.name ?? ''}
@@ -63,7 +62,7 @@ export function ConfigEditor() {
           // which is what the desktop shows for a setup nobody titled.
           placeholder={t('configs.namePlaceholder')}
           aria-label={t('configs.rename')}
-          // The field's weight is for a NAME somebody typed. The placeholder is
+          // The field's weight is for a name somebody typed. The placeholder is
           // a hint about what happens if they do not, so it drops back to the
           // weight and color every other hint in the app uses.
           className="w-full rounded-md bg-raised px-2 py-1.5 text-sm font-medium text-ink-strong ring-1 ring-line/10 placeholder:font-normal placeholder:text-ink-faint focus:outline-none focus:ring-accent-500"
@@ -97,7 +96,7 @@ export function ConfigEditor() {
           const id = mt.id as string;
           const seated = config.motors[id];
           // The same numbers the file reader judges a fit by (motorPicker.mountFit).
-          const mount = mountFit(mt as unknown as Record<string, unknown>);
+          const mount = mountFit(mt);
           return (
             <MotorRow
               key={id}
@@ -110,7 +109,7 @@ export function ConfigEditor() {
               onIgnitionChange={(e, d) => setMountIgnition(config.id, id, e, d)}
               onCommit={onCommit}
               upperStage={isUpperStageMount(tree, id)}
-              used={configs.flatMap((c) => (c.id !== config.id && c.motors[id]?.spec ? [c.motors[id]!.spec] : []))}
+              used={configs.flatMap((c) => (c.id !== config.id && c.motors[id]?.spec ? [c.motors[id].spec] : []))}
             />
           );
         })}

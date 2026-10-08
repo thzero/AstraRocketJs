@@ -39,7 +39,7 @@ describe('the intervals themselves', () => {
   });
 
   it('snooze for hours, not seconds', () => {
-    // "Later" replaced a dismissal that lasted the whole session. It has to come
+    // "Later" is a timed snooze, not a dismissal for the session. It has to come
     // back, and it has to not nag.
     expect(UPDATE_SNOOZE_MS).toBeGreaterThanOrEqual(UPDATE_POLL_MS);
     expect(snoozeUntil(T)).toBe(T + UPDATE_SNOOZE_MS);

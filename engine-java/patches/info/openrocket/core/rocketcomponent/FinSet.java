@@ -2,8 +2,8 @@ package info.openrocket.core.rocketcomponent;
 
 // PATCH(astrarrocketjs): java.awt.geom.Point2D -> info.openrocket.core.util.Geo2D.
 // java.awt.geom lives in the java.desktop GUI module, which TeaVM's classlib
-// lacks. Only pure distance arithmetic is used here (fin-fillet cross-section);
-// Geo2D.distance is an awt-free replacement. See patches/LEDGER.md.
+// lacks. Only distance arithmetic is used here (fillet segment length), and
+// Geo2D.distance provides it without AWT. See patches/LEDGER.md.
 import info.openrocket.core.util.Geo2D;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -279,11 +279,12 @@ public abstract class FinSet extends ExternalComponent
 	
 	
 	/**
-	 * PATCH (RASAero feature #4, see engine-java/patches/LEDGER.md): fin airfoil
-	 * cross-sections. When non-null, overrides the classic 3-value CrossSection
-	 * for pressure-drag purposes with a RASAero-class section:
-	 * "hexagonal" | "naca" | "doublewedge" | "biconvex" | "hexbluntbase" |
-	 * "singlewedge". Null (the default) ⇒ bit-identical classic behavior.
+	 * PATCH (RASAero, see engine-java/patches/LEDGER.md): fin airfoil
+	 * cross-sections. When non-null and the Rogers Kbf or supersonic aero model
+	 * is on, FinSetCalc uses this section for pressure drag in place of the
+	 * three-valued CrossSection: "hexagonal" | "naca" | "doublewedge" |
+	 * "biconvex" | "hexbluntbase" | "singlewedge". Null (the default) keeps the
+	 * classic behavior bit-identical.
 	 * The diamond lengths are chamfer lengths measured chordwise at mid-span
 	 * (m); the LE radius (m) adds swept-cylinder bluntness drag (not for NACA,
 	 * whose radius is implicit).

@@ -56,7 +56,7 @@ public abstract class ComponentAssembly extends RocketComponent implements Axial
 		// Transformation.transform(Collection) calls clear()/addAll() on this;
 		// on the JDK clear() on an empty immutable list is a silent no-op, but
 		// TeaVM's immutable-list template throws UnsupportedOperationException
-		// unconditionally. An empty mutable list is behavior-identical. See LEDGER.
+		// unconditionally. An empty mutable list is behavior-identical. See patches/LEDGER.md.
 		return new java.util.ArrayList<>();
 	}
 

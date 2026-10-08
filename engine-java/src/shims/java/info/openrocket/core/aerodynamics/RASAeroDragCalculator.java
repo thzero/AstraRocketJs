@@ -15,27 +15,21 @@ import info.openrocket.core.util.MathUtil;
  * extended-Barrowman drag calculator:
  *
  * <ul>
- *   <li><b>feature #1 Phase 2</b> — sharp-airfoil / boat-tail / nose supersonic
- *       wave drag and the ×1.8 fin-body junction increment (in {@link FinSetCalc}
- *       / {@link SymmetricComponentCalc}, activated by binding the flags below);</li>
- *   <li><b>feature #1 Phase 2/4</b> — the high-Mach base-CD cap
- *       ({@link #effectiveBaseCD}) and the Van&nbsp;Driest&nbsp;II friction fade
- *       ({@link #turbulentCompressibility}); and</li>
- *   <li><b>feature #4</b> — fin airfoil cross-section thickness-wave drag (gated in
- *       {@link FinSetCalc} on the same flags).</li>
+ *   <li>fin thickness, boat-tail and nose supersonic wave drag and the x1.8 fin
+ *       friction drag factor (in {@link FinSetCalc} / {@link SymmetricComponentCalc},
+ *       activated by binding the flags below);</li>
+ *   <li>the high-Mach base-CD cap ({@link #effectiveBaseCD}) and the
+ *       Van&nbsp;Driest&nbsp;II friction fade ({@link #turbulentCompressibility}); and</li>
+ *   <li>fin airfoil cross-section thickness-wave drag (gated in {@link FinSetCalc}
+ *       on the same flags).</li>
  * </ul>
  *
- * With both flags off it is bit-identical to {@link BarrowmanDragCalculator}.
+ * With every flag off it is bit-identical to {@link BarrowmanDragCalculator}.
  *
- * <p>Not ported: mmrocket's boundary-layer {@code partialLaminar} change
- * (2026-08-25). There {@code partialLaminar = (rogersKbf || supersonicAero) &&
- * isPerfectFinish()} replaced a bare {@code isPerfectFinish()} in the friction
- * calc — but that only alters the <em>flag-off</em> path (when a flag is on,
- * {@code partialLaminar == isPerfectFinish}, i.e. identical to stock). It was
- * mmrocket's correction to make <em>their</em> classic model match desktop
- * OpenRocket. Our flag-off must stay bit-identical to the unstable base (which
- * uses {@code isPerfectFinish}), and our flag-on matches it — so porting it would
- * regress flag-off parity for no flag-on gain. Deliberately omitted.</p>
+ * <p>Partial-laminar friction stays gated on a bare {@code isPerfectFinish()}.
+ * Gating it as {@code (rogersKbf || supersonicAero) && isPerfectFinish()} would
+ * change only the flag-off result (with a flag on the two are identical), and the
+ * flag-off path must stay bit-identical to the stock calculator.</p>
  */
 public class RASAeroDragCalculator extends BarrowmanDragCalculator {
 
@@ -59,7 +53,7 @@ public class RASAeroDragCalculator extends BarrowmanDragCalculator {
 		return rogersKbf;
 	}
 
-	/** PATCH (C7): the stubby-nose subsonic pressure-drag floor, its own opt-in. */
+	/** The stubby-nose subsonic pressure-drag floor, its own opt-in. */
 	public void setStubbyNoseFloor(boolean enabled) {
 		this.stubbyNoseFloor = enabled;
 	}
@@ -81,7 +75,7 @@ public class RASAeroDragCalculator extends BarrowmanDragCalculator {
 			((FinSetCalc) calc).setSupersonicAero(supersonicAero);
 		} else if (calc instanceof SymmetricComponentCalc) {
 			((SymmetricComponentCalc) calc).setSupersonicAero(supersonicAero);
-			// PATCH (C7): the stubby-nose floor is its own switch, independent of
+			// The stubby-nose floor is its own switch, independent of
 			// the supersonic / Rogers models.
 			((SymmetricComponentCalc) calc).setStubbyNoseFloor(stubbyNoseFloor);
 		}
@@ -89,7 +83,7 @@ public class RASAeroDragCalculator extends BarrowmanDragCalculator {
 	}
 
 	/**
-	 * Feature #1 Phase 2: above M1 with the flag on, cap the base CD at the
+	 * Above M1 with supersonicAero on, cap the base CD at the
 	 * base-pressure vacuum trend {@code 1.2/M^2} (≈0.85 of 2/(γM²); crossover
 	 * ≈ M4.8, matching the HB-2 base-drag trend). Flag off ⇒ the stock value.
 	 */
@@ -103,8 +97,8 @@ public class RASAeroDragCalculator extends BarrowmanDragCalculator {
 	}
 
 	/**
-	 * Feature #1 Phase 4: the stock {@code (1+0.15 M^2)^-0.58} turbulent fit
-	 * tracks Van Driest II only to M≈4. Flag on, above M3.5, fade to the
+	 * The stock {@code (1+0.15 M^2)^-0.58} turbulent fit tracks Van Driest II
+	 * only to M≈4. With supersonicAero on, above M3.5, fade to the
 	 * adiabatic-wall VD-II engineering fit {@code (1+0.144 M^2)^-0.65} (Hopkins
 	 * & Inouye, NASA TN D-6945), fully in by M4.5.
 	 */

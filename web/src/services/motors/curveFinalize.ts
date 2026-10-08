@@ -13,7 +13,7 @@
  *   4. two final points at one time, one of them zero: drop the zero.
  * Desktop stops there, and cannot load a curve that still steps between two
  * thrusts at one instant. The last step keeps the later of the two, which is
- * how the rest of the app already reads such a step (`motorCombine.thrustAt`).
+ * how the rest of the app reads such a step (`motorCombine.thrustAt`).
  *
  * Points carry extra fields (a measured mass) through unchanged, so a column
  * that rides along stays against the right times.

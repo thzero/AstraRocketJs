@@ -1,14 +1,14 @@
-// The user's saved parts as PICKER ROWS: the layer between the raw store
+// The user's saved parts as picker rows: the layer between the raw store
 // (presetStore.ts) and the component picker, the way materials.ts sits between
 // materialStore.ts and the material picker.
 //
 // A saved part holds the whole node. The picker, however, lists, searches,
 // facets, range-filters, fit-ranks and sorts `Component` rows, so each saved
-// part is PROJECTED down to one of those (the inverse of treeEdit.catalogPatch)
+// part is projected down to one of those (the inverse of treeEdit.catalogPatch)
 // and carries the node along in `patch` for the apply. That way a saved part is
 // an ordinary row everywhere except the star beside it and the button that
-// removes it, and none of componentFilter had to learn about it.
-import type { ComponentNode, NoseShape } from '../../engine/openRocketEngine';
+// removes it, and componentFilter needs no knowledge of it.
+import type { ComponentNode } from '../../engine/openRocketEngine';
 import { catalogTypeFor, isComponentRow, type Component, type ComponentType, type PickerType } from './componentDb';
 import { getPresetStore, type CustomPart } from './presetStore';
 
@@ -16,15 +16,15 @@ import { getPresetStore, type CustomPart } from './presetStore';
 export const DEFAULT_CUSTOM_MFR = 'Custom';
 
 /**
- * Node keys a saved part does NOT keep.
+ * Node keys a saved part does not keep.
  *
- * `id` and `type` identify the node it was saved FROM, and applying either to
+ * `id` and `type` identify the node it was saved from, and applying either to
  * another node would either duplicate an id or change what the part is.
- * `name` is what the user called it in THAT design; applying it would rename
+ * `name` is what the user called it in that design; applying it would rename
  * the part they are filling, which no catalog pick does either.
  * `position` is where it sat in that design, which is never what you want here.
  *
- * `children` is the interesting one. Saving a body tube WITH its fin set is a
+ * `children` is the interesting one. Saving a body tube with its fin set is a
  * real feature and this is not it: the patch path is a shallow merge
  * (`patchSelected`), so the children would replace whatever the target holds,
  * and every one of them would arrive carrying the id it had in the design it
@@ -36,7 +36,7 @@ const NOT_SAVED: ReadonlySet<string> = new Set(['id', 'type', 'name', 'position'
 export function presetNode(node: ComponentNode): Partial<ComponentNode> {
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(node)) if (!NOT_SAVED.has(k) && v !== undefined) out[k] = v;
-  return out as Partial<ComponentNode>;
+  return out;
 }
 
 /** A finite number from the node's parameter bag, or null when absent. */
@@ -105,8 +105,8 @@ function rowGeometry(node: Partial<ComponentNode>, type: string): Record<string,
         type,
         material,
         materialDensity,
-        shape: node.shape as NoseShape,
-        // Mirrors what catalogPatch WRITES for a filled cone (thickness = the
+        shape: node.shape,
+        // Mirrors what catalogPatch writes for a filled cone (thickness = the
         // radius), so a catalog cone that was picked, saved and listed again
         // reads the same both times.
         filled: wall !== null && wall >= od / 2 - 1e-9,
@@ -127,7 +127,7 @@ function rowGeometry(node: Partial<ComponentNode>, type: string): Record<string,
         type,
         material,
         materialDensity,
-        shape: node.shape as NoseShape,
+        shape: node.shape,
         filled: node.filled === true,
         thickness: node.filled === true ? null : wall,
         length,
@@ -215,7 +215,7 @@ export async function saveCustomPart(node: ComponentNode, type: PickerType, meta
   const { mfr, partNo, desc } = cleanMeta(meta);
   const catalogType = catalogTypeFor(type);
   // "Saving again under the same maker and name replaces it" is matched on the
-  // LABEL, and the id is stable and opaque. An id encoding
+  // label, and the id is stable and opaque. An id encoding
   // `<type>:<mfr>:<partNo>` cannot express a rename: it changes with the name, so
   // the part is copied and the original stays behind under its old name.
   const existing = (await getPresetStore().list()).find(
@@ -231,7 +231,7 @@ export async function saveCustomPart(node: ComponentNode, type: PickerType, meta
   });
 }
 
-/** What the user types about a part, as opposed to what the part IS. */
+/** What the user types about a part, as opposed to what the part is. */
 export interface PartMeta {
   mfr: string;
   partNo: string;
@@ -286,7 +286,7 @@ export async function deleteCustomPart(id: string): Promise<void> {
 }
 
 /**
- * The user's saved parts of one CATALOG type, as picker rows.
+ * The user's saved parts of one catalog type, as picker rows.
  *
  * Row by row, like the catalog itself: a part that no longer projects (an
  * older shape, a hand-edited store) costs that part and not the list.
@@ -306,10 +306,10 @@ export interface SavedPartEntry {
 }
 
 /**
- * EVERY saved part, of every type, for the manage view.
+ * Every saved part, of every type, for the manage view.
  *
  * Deliberately not `customRowsForType` over each type in turn, and the
- * difference is the whole reason this exists: the picker DROPS a part that no
+ * difference is the whole reason this exists: the picker drops a part that no
  * longer projects to a row, which is right for a list you are choosing from
  * and wrong for the only list you can delete from. A part nothing can show you
  * is a part you can never get rid of. So the row is optional here, and a null

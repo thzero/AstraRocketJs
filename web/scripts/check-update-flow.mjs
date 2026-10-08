@@ -1,12 +1,10 @@
 // The service-worker update flow, end to end, against two real builds.
 //
-// The dev server registers no service worker, so nothing in the Playwright
-// suite can exercise what happens on a deploy: a tab open on the old build must
-// see the new one on a plain reload, be offered it by the toast if it stays
-// open, and come back on it when Reload is clicked. Every one of those shipped
-// broken at some point without anything here noticing: the worker answered
-// page loads from its precache (so a reload could never show a deploy and
-// people learned to hard-reload), and nothing under vitest can see a worker.
+// The Playwright suite serves one build, so nothing in it can exercise what
+// happens on a deploy: a tab open on the old build must see the new one on a
+// plain reload, be offered it by the toast if it stays open, and come back on it
+// when Reload is clicked. Nothing under vitest can see a worker either. No step
+// here may need a hard reload.
 //
 // This builds version A into its own output directory, serves it, loads it in
 // Chromium until the worker controls the page, then rebuilds version B into the
@@ -93,10 +91,10 @@ async function main() {
     const page = await browser.newPage();
     await acknowledgeWip(page);
 
-    // A tab on its FIRST visit, in a context of its own so it shares no worker
+    // A tab on its first visit, in a context of its own so it shares no worker
     // with `page`. Its worker installs but never controls it (`clientsClaim` is
-    // off), and that is the tab whose Reload did nothing: the library reloads
-    // only when the new worker takes control, which here it never does.
+    // off), so the toast's Reload has to work without the library's own reload,
+    // which waits for the new worker to take control and here never sees it.
     const firstVisit = await (await browser.newContext()).newPage();
     await acknowledgeWip(firstVisit);
     const markDocument = (p) =>
@@ -185,10 +183,9 @@ async function main() {
       await firstVisit.context().close();
     });
 
-    // The complaint this file exists for: a plain reload after a deploy showed
-    // the OLD build, because the worker answered page loads from its precache,
-    // and people learned to hard-reload. Page loads are network-first now, so
-    // an ordinary reload lands on the new build with no toast involved.
+    // Page loads are network-first, so an ordinary reload after a deploy lands
+    // on the new build with no toast involved. Answered from the precache, a
+    // reload would keep showing the old build until a hard reload.
     await step('a plain reload shows version B, before any update prompt', async () => {
       await page.reload();
       await page.getByText(`v${VERSION_B}`, { exact: true }).waitFor({ timeout: 60_000 });
@@ -259,14 +256,11 @@ async function main() {
 
     build(VERSION_C);
 
-    // The case that stranded a real tab, and the reason this step exists.
-    //
-    // Under `registerType: 'prompt'` the waiting worker activates ONLY when the
+    // Under `registerType: 'prompt'` the waiting worker activates only when the
     // page posts SKIP_WAITING, and `clientsClaim` is off, so a worker nobody
-    // asks for waits for the life of the tab. Dismissing the toast used to be
-    // exactly that - one click and the tab stayed on the old build until it was
-    // hard-reloaded, which is the thing this whole file exists to prove
-    // unnecessary. So an unanswered update is taken up once the tab is hidden.
+    // asks for waits for the life of the tab. Dismissing the toast is exactly
+    // that, and without more the tab would stay on the old build until it was
+    // hard-reloaded. So an unanswered update is taken up once the tab is hidden.
     await step('an update nobody answers is applied once the tab is hidden', async () => {
       await page.evaluate(async () => {
         const reg = await navigator.serviceWorker.getRegistration();

@@ -15,7 +15,7 @@ import ja from '../../src/i18n/locales/ja.json';
 // from a translation shows up as English in a Spanish UI rather than as an error,
 // which is exactly the kind of drift nobody notices. These tests make it loud.
 //
-// "Every English key" is the rule for ordinary keys, but NOT for a plural family.
+// "Every English key" is the rule for ordinary keys, but not for a plural family.
 // i18next picks the suffix with `Intl.PluralRules`, so the set of forms a locale
 // needs is a fact about that locale, not about English:
 //
@@ -26,12 +26,10 @@ import ja from '../../src/i18n/locales/ja.json';
 //
 // Checking those against English's two suffixes fails both ways round. It demands
 // `_one` from Japanese, which never selects it, and it rejects the `_few` that
-// Russian cannot work without. The gap is not theoretical: a category the locale
-// declares but the file omits does not degrade to that locale's `_other`, it
-// falls through to ENGLISH, so `t('sweep.flights', { count: 3 })` renders
-// "3 flights" inside an otherwise Russian UI. So each locale is held to its own
-// categories, which is also what caught `_many` missing from Spanish, French and
-// both Portuguese files.
+// Russian cannot work without. A category the locale declares but the file omits
+// does not degrade to that locale's `_other`, it falls through to English, so
+// `t('sweep.flights', { count: 3 })` renders "3 flights" inside an otherwise
+// Russian UI. So each locale is held to its own categories.
 
 type Tree = { [k: string]: string | Tree };
 
@@ -83,7 +81,7 @@ function required(locale: string): string[] {
 const enFor = (key: string) => EN[key] ?? EN[`${base(key)}_other`];
 
 const LOCALES: [string, Record<string, string>][] = [
-  // English is in here too: it is the reference for WHICH keys exist, but it has
+  // English is in here too: it is the reference for which keys exist, but it has
   // no standing over its own plural forms, and a stray `skipping_few` added to
   // it would otherwise go unnoticed.
   ['en', EN],
@@ -104,9 +102,9 @@ describe('plural families', () => {
   });
 
   it('never leaves a family base as a bare key too', () => {
-    // `banner.notes` alongside `banner.notes_other` worked, because i18next
-    // falls back to the bare key when `_one` is absent, but it hid the family
-    // from anything counting forms. One spelling only.
+    // A bare `banner.notes` alongside `banner.notes_other` still renders, because
+    // i18next falls back to the bare key when `_one` is absent, but it hides the
+    // family from anything counting forms. One spelling only.
     expect(FAMILIES.filter((b) => b in EN)).toEqual([]);
   });
 });
@@ -128,15 +126,15 @@ describe.each(LOCALES)('%s locale', (name, L) => {
     const mismatched = Object.keys(L)
       .filter((k) => enFor(k) !== undefined)
       .filter((k) => placeholders(enFor(k)!).join(',') !== placeholders(L[k]!).join(','))
-      .map((k) => `${k}: en=[${placeholders(enFor(k)!)}] vs [${placeholders(L[k]!)}]`);
+      .map((k) => `${k}: en=[${placeholders(enFor(k)!).join(', ')}] vs [${placeholders(L[k]!).join(', ')}]`);
     expect(mismatched).toEqual([]);
   });
 
   it('interpolates {{count}} in every plural form', () => {
     // A plural form must never spell its number out. English's `_one` only ever
-    // means exactly 1, so "Reset 1 field" read fine and every translation copied
-    // it — but Russian's `one` also covers 21, 31 and 101, where that string
-    // says "1". The count is the one thing a plural form is selected BY, so it
+    // means exactly 1, so "Reset 1 field" reads fine in English, but Russian's
+    // `one` also covers 21, 31 and 101, where that string would say "1". The
+    // count is the one thing a plural form is selected by, so it
     // has to come from the interpolation.
     expect(
       Object.entries(L)

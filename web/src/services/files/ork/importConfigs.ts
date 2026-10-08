@@ -6,7 +6,7 @@ import { MAX_MOTOR_CONFIGS } from './importLimits';
 import { finiteNum } from './numbers';
 
 /**
- * Flight configurations on the way IN: the rocket-level declaration table,
+ * Flight configurations on the way in: the rocket-level declaration table,
  * which one the import applies, and the per-component reads that depend on it
  * (a mount's motors and ignition, a recovery device's deployment overrides).
  */
@@ -17,7 +17,7 @@ export interface OrkImportContext {
   chosenConfigId: string | null;
   notes: string[];
   ignored: Set<string>;
-  /** EVERY mount's motor for the chosen configuration, keyed by node id. */
+  /** Every mount's motor for the chosen configuration, keyed by node id. */
   motors: Record<string, OrkMotorRef>;
   /** The first motor found (legacy callers). */
   motor: OrkMotorRef | undefined;
@@ -29,10 +29,10 @@ export interface OrkImportContext {
 
 /**
  * Flight-configuration table: rocket-level <motorconfiguration> blocks
- * (optional <name>, optional default="true" — desktop 24.12
+ * (optional <name>, optional default="true"; desktop 24.12
  * MotorConfigurationHandler).
  * Capped like the archive itself. `captureDeployments` and `configScoped`
- * both scan a component's children once PER CONFIG, so a ~500 KB file
+ * both scan a component's children once per config, so a ~500 KB file
  * declaring 20 000 configurations against a few thousand components makes
  * the import O(configs x children) on the main thread and freezes the tab.
  * A real design has a handful.
@@ -59,9 +59,9 @@ export function readFlightConfigs(rocketEl: Element): {
 }
 
 // The chosen configuration's child of `el` by tag name (per-config motor
-// or override block). With no declared configs, the first such child —
+// or override block). With no declared configs, the first such child:
 // hand-rolled files may key <motor configid>s without declarations, and
-// first-in-document-order is the long-standing read for them.
+// first-in-document-order is the read for them.
 export function configScoped(ctx: OrkImportContext, el: Element, tag: string): Element | null {
   return ctx.chosenConfigId === null
     ? el.querySelector(`:scope > ${tag}`)
@@ -70,7 +70,7 @@ export function configScoped(ctx: OrkImportContext, el: Element, tag: string): E
 }
 
 /**
- * Record EVERY configuration's <deploymentconfiguration> for this recovery
+ * Record every configuration's <deploymentconfiguration> for this recovery
  * device, not just the chosen one. Export replays them so opening config A
  * and saving cannot rewrite config B's recovery settings (see
  * OrkFlightConfig.deployments).
@@ -80,11 +80,11 @@ export function captureDeployments(ctx: OrkImportContext, el: Element, node: Com
     const block = Array.from(el.children).find(
       (x) => x.tagName === 'deploymentconfiguration' && x.getAttribute('configid') === c.id,
     );
-    // Fall back to the BARE tags for a configuration that declares no block
+    // Fall back to the bare tags for a configuration that declares no block
     // of its own. Recording the resolved value (not "nothing") is what makes
     // the round-trip safe: on save the bare defaults are rewritten from the
-    // configuration the user opened, so a config that silently inherited the
-    // old defaults would otherwise inherit the NEW ones instead.
+    // configuration the user opened, so a config that recorded nothing would
+    // inherit the opened configuration's values instead.
     // The same reader as the design's own, floors included.
     const o = readDeploymentTags(block ?? el);
     if (Object.keys(o).length > 0 && node.id) c.deployments[node.id] = o;
@@ -95,7 +95,7 @@ export function captureDeployments(ctx: OrkImportContext, el: Element, node: Com
  * Read each configuration's `<stage number="n" active="false"/>` flags into the
  * stages they name.
  *
- * Called once the tree is built, because the file addresses a stage by NUMBER
+ * Called once the tree is built, because the file addresses a stage by number
  * and everything downstream addresses it by node id: `stages` is the same walk
  * the numbering comes from (treeEdit.findStages), so position n is stage n. A
  * flag naming a stage the file does not have is dropped rather than guessed at.
@@ -106,11 +106,10 @@ export function readStageActiveness(configEls: Element[], configs: OrkFlightConf
     if (!config) continue;
     for (const flag of Array.from(el.querySelectorAll(':scope > stage'))) {
       if (flag.getAttribute('active') !== 'false') continue;
-      // Through `finiteNum`, because `Number(null)` is 0 and `Number('')` is 0:
-      // a `<stage active="false"/>` with NO number attribute, or a blank one,
-      // read as stage 0 and grounded the SUSTAINER. The doc above says such a
-      // flag is dropped rather than guessed at, and without this that held only
-      // for a non-numeric value.
+      // Through `finiteNum`, because `Number(null)` and `Number('')` are 0: a
+      // `<stage active="false"/>` with no number attribute, or a blank one,
+      // would otherwise read as stage 0 and ground the sustainer instead of
+      // being dropped as the doc above says.
       const num = finiteNum(flag.getAttribute('number'));
       if (num === undefined) continue;
       const id = stageIds[num];
@@ -120,11 +119,11 @@ export function readStageActiveness(configEls: Element[], configs: OrkFlightConf
 }
 
 /**
- * Record EVERY configuration's <separationconfiguration> for this booster, the
+ * Record every configuration's <separationconfiguration> for this booster, the
  * way {@link captureDeployments} records its recovery.
  *
  * Same fallback for the same reason: a configuration that declares no block of
- * its own stages the way the bare tags say, and recording the RESOLVED value is
+ * its own stages the way the bare tags say, and recording the resolved value is
  * what keeps a save from handing it the opened configuration's staging instead.
  */
 export function captureSeparations(ctx: OrkImportContext, el: Element, node: ComponentNode): void {
@@ -153,14 +152,14 @@ function readDelay(motorEl: Element): number {
 export function readMotor(ctx: OrkImportContext, el: Element, node: ComponentNode): void {
   const mountEl = el.querySelector(':scope > motormount');
   if (!mountEl) return;
-  // Any tube with a <motormount> IS a mount — an inner tube, or a body tube
+  // Any tube with a <motormount> is a mount: an inner tube, or a body tube
   // on a minimum-diameter rocket (kernel BodyTube implements MotorMount,
   // same as the desktop). The flag survives even with no motor loaded.
   node['motorMount'] = true;
-  // Motor overhang (m): aft protrusion past the mount — min-diameter practice.
+  // Motor overhang (m): aft protrusion past the mount (min-diameter practice).
   const overhang = numTag(mountEl, 'overhang', 0);
   if (overhang !== 0) node['motorOverhang'] = overhang;
-  // ONE configuration's motor+ignition off this mount. Plugged motors (no
+  // One configuration's motor+ignition off this mount. Plugged motors (no
   // ejection charge): the desktop writes the literal string "none"
   // (Motor.PLUGGED_DELAY). Represent as the JSON-safe PLUGGED_DELAY sentinel,
   // which the engine maps to +Inf ("never fires") at the kernel boundary.
@@ -182,15 +181,15 @@ export function readMotor(ctx: OrkImportContext, el: Element, node: ComponentNod
       ignitionDelay: nonNegTag(igEl, 'ignitiondelay', 0),
     };
   };
-  // Stage B: EVERY declared configuration's motor rides along as a preset
+  // Every declared configuration's motor rides along as a preset
   // (its own ignition override winning over the bare defaults, same as the
-  // chosen read below). Quiet — only the chosen config's notes surface.
+  // chosen read below). Quiet: only the chosen config's notes surface.
   if (node.id) {
     for (const cfg of ctx.configs) {
       const byId = (tag: string) =>
         Array.from(mountEl.children).find((c) => c.tagName === tag && c.getAttribute('configid') === cfg.id);
       const cfgMotorEl = byId('motor');
-      if (!cfgMotorEl) continue; // no motor for this config here — empty
+      if (!cfgMotorEl) continue; // no motor for this config here: empty
       cfg.motors[node.id] = resolveRef(cfgMotorEl, byId('ignitionconfiguration') ?? mountEl);
     }
   }

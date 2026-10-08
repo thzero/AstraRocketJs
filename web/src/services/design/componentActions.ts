@@ -8,7 +8,7 @@ import { syncDerived } from './treeEdit';
 import { uuid } from '../app/uuid';
 
 /**
- * The buttons on OpenRocket's config dialogs that CHANGE THE TREE rather than
+ * The buttons on OpenRocket's config dialogs that change the tree rather than
  * set a field: convert a fin set to freeform, split a fin set into single fins,
  * split a pod set or booster into separate ones, split a motor cluster into
  * separate tubes, and put a cluster's spacing back to the default.
@@ -18,7 +18,7 @@ import { uuid } from '../app/uuid';
  * because a disabled button that says why beats one that does nothing on a fin
  * set with a single fin.
  *
- * All of them replace a node with one or more nodes at the SAME position among
+ * All of them replace a node with one or more nodes at the same position among
  * its siblings, which is the shape of `splitInstances` upstream.
  */
 
@@ -31,7 +31,7 @@ const PLANFORM_KEYS = ['rootChord', 'tipChord', 'sweep', 'height'] as const;
 
 /**
  * What a split divides: how many copies, and which key holds the angle they are
- * spread around. A fin set's instance count is its FIN count and its angle is
+ * spread around. A fin set's instance count is its fin count and its angle is
  * its base rotation; a pod set or booster counts instances and carries an
  * `angleOffset`. Upstream reaches both through `getInstanceCount` and
  * `AnglePositionable`, which our nodes spell differently per type.
@@ -90,7 +90,7 @@ export const canConvertToFreeform = (node: ComponentNode | null | undefined): bo
  * descriptions of one shape with nothing keeping them in step.
  *
  * The part keeps its id, so the selection and anything that names it are
- * undisturbed. An UNNAMED fin set relabels itself, because the tree falls back
+ * undisturbed. An unnamed fin set relabels itself, because the tree falls back
  * to the type's own name; one the user named keeps that name, which is the
  * intent of upstream's rename-only-if-it-is-still-the-default rule.
  */
@@ -119,8 +119,8 @@ export const canSplit = (node: ComponentNode | null | undefined): boolean => spl
  * three-fin set becomes three one-fin sets at 0, 120 and 240 degrees, and a
  * two-instance booster becomes two boosters half a turn apart.
  *
- * `baseName` is the name to number - the caller passes the part's display name,
- * because an unnamed part shows its TYPE and this module cannot localize. An
+ * `baseName` is the name to number: the caller passes the part's display name,
+ * because an unnamed part shows its type and this module cannot localize. An
  * override mass is divided between the copies, since it was a figure for the
  * whole set.
  */
@@ -192,7 +192,7 @@ export function splitCluster(tree: RocketTree, id: string, baseName: string): Ro
 /**
  * The desktop's Reset settings button beside the cluster picker: spacing back to
  * one tube diameter and roll back to zero. Only those two, which is what its own
- * tooltip promises - the pattern itself is left alone.
+ * tooltip promises; the pattern itself is left alone.
  */
 export function resetCluster(tree: RocketTree, id: string): RocketTree {
   const node = findNode(tree.components, id);
@@ -202,15 +202,15 @@ export function resetCluster(tree: RocketTree, id: string): RocketTree {
 }
 
 /**
- * Scale ONE component by a factor: the freeform editor's **Scale fin**.
+ * Scale one component by a factor: the freeform editor's **Scale fin**.
  *
  * The desktop reaches the general Scale dialog here with only this component
  * selected, so it is the same scale a whole-rocket one would apply, confined to
- * one part - the outline, the wall, the tab and the fillet all together, since a
+ * one part (the outline, the wall, the tab and the fillet all together), since a
  * fin scaled without its tab no longer passes through its own slot.
  *
  * A component has no children worth scaling (a fin set has none at all), so this
- * deliberately does NOT recurse: scaling a body tube here would leave everything
+ * deliberately does not recurse: scaling a body tube here would leave everything
  * inside it at its old size, and that is the whole-rocket scale's job.
  */
 export function scaleComponent(tree: RocketTree, id: string, factor: number): RocketTree {

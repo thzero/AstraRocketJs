@@ -4,8 +4,8 @@ import { useEffect, useLayoutEffect, useRef } from 'react';
  * A color input that commits once, when the picker closes, rather than on every
  * drag tick. React's `onChange` on a color input maps to the native `input`
  * event, which fires continuously while the OS picker is dragged; bound to a
- * saved setting, every tick wrote the whole settings object to storage, dozens
- * of writes per gesture. This listens to the NATIVE `change` (once, on close)
+ * saved setting, every tick would write the whole settings object to storage,
+ * dozens of writes per gesture. This listens to the NATIVE `change` (once, on close)
  * and to blur, since closing the picker with its own OK does not always move
  * focus. The swatch still previews while dragging: it shows its own value.
  */

@@ -5,33 +5,29 @@ import { shapeRadius, shapeParamDefault } from '../../src/tree/shapeProfile';
  * The six profile curves against the kernel's own arithmetic.
  *
  * `shapeProfile.test.ts` covers the surrounding behavior - the clip search, the
- * endpoint, monotonicity, the degenerate parameters - and it cannot cover the
- * SHAPE, because it computes every interior expectation by calling `shapeRadius`,
- * the function under test. A wrong formula produces a wrong expectation and the
- * test agrees with itself.
+ * endpoint, monotonicity, the degenerate parameters - and it cannot fully cover
+ * the shape, because it computes its interior expectations by calling
+ * `shapeRadius`, the function under test. A wrong formula produces a wrong
+ * expectation and the test agrees with itself.
  *
- * MEASURED, not assumed, and the audit finding that prompted this file overstated
- * the gap. Each of the six branches was replaced in turn with a quarter sine arch -
- * which reaches full radius at the base and rises monotonically, the property set
- * the old assertions were said to admit - and the old file was run against each:
+ * Replacing each branch in turn with a quarter sine arch (which reaches full
+ * radius at the base and rises monotonically) shows what each file catches:
  *
  * | sabotaged | `shapeProfile.test.ts` | this file |
  * | --- | --- | --- |
  * | `conical` | catches | catches |
  * | `ellipsoid` | catches | catches |
  * | `power` | catches | catches |
- * | `parabolic` | **PASSES** | catches |
+ * | `parabolic` | passes | catches |
  * | `haack` | catches | catches |
  *
- * So the old file is blind to ONE shape, not four: it has more shape-specific
- * assertions than the finding credited it with (the ellipsoid one, for instance,
- * checks it against the virtual nose it was cut from). `parabolic` is the real hole,
- * and it is the branch with no block of its own and no dedicated assertion anywhere.
+ * So `shapeProfile.test.ts` is blind to one shape: `parabolic`, the branch with no
+ * block of its own and no dedicated assertion anywhere. (The ellipsoid one, for
+ * instance, is checked against the virtual nose it was cut from.)
  *
- * The circular-expectation problem is the other half and is independent of that
- * count: where the old file does check interior points, it computes the expected
- * value by calling `shapeRadius`, so a wrong formula yields a wrong expectation and
- * the test agrees with itself. Every expectation here is written out from the Java
+ * The circular-expectation problem is independent of that: where
+ * `shapeProfile.test.ts` checks interior points, it computes the expected value
+ * by calling `shapeRadius`. Every expectation here is written out from the Java
  * instead.
  *
  * Transcribed from
@@ -47,7 +43,7 @@ import { shapeRadius, shapeParamDefault } from '../../src/tree/shapeProfile';
  * | `haack` | `θ = acos(1 − 2t); radius * sqrt((θ − sin(2θ)/2 + p·sin³θ)/π)` | as written |
  * | `ogive` | a circular arc; see `ogiveJava` below | as written |
  *
- * Each is an INDEPENDENT rewrite of the Java, which is the point: if `shapeProfile.ts`
+ * Each is an independent rewrite of the Java, which is the point: if `shapeProfile.ts`
  * and this file ever disagree, one of them has drifted from the Java and the diff
  * says which expression to look at. Keeping them textually close to the Java is
  * deliberate for the same reason - prettier arithmetic here would be a third
@@ -88,7 +84,7 @@ const ogiveJava = (x: number, radius: number, length: number, param: number): nu
   return Math.sqrt(Rc * Rc - (Lc - x) * (Lc - x)) - y0;
 };
 
-/** Interior stations. Not 0 or L: the endpoints are what the old test already had. */
+/** Interior stations. Not 0 or L: the endpoints are covered in shapeProfile.test.ts. */
 const STATIONS = [0.1, 0.25, 0.4, 0.5, 0.6, 0.75, 0.9];
 
 describe('every curve matches the kernel at interior points', () => {
@@ -102,7 +98,7 @@ describe('every curve matches the kernel at interior points', () => {
   ] as const)('%s', (shape, expected) => {
     const param = shapeParamDefault(shape);
     for (const t of STATIONS) {
-      // `shapeRadius` takes x in the SAME units as length, not a fraction of it.
+      // `shapeRadius` takes x in the same units as length, not a fraction of it.
       expect(shapeRadius(shape, t * L, R, L, param), `${shape} at t=${t}`).toBeCloseTo(expected(t), 9);
     }
   });
@@ -110,7 +106,7 @@ describe('every curve matches the kernel at interior points', () => {
 
 describe('the curves are distinguishable from each other, and from a wrong one', () => {
   /**
-   * The substitution the old test could not see: a quarter sine arch. It reaches
+   * The substitution used in the table above: a quarter sine arch. It reaches
    * full radius at the base, rises monotonically, and is not any of these shapes.
    */
   const sineArch = (t: number) => R * Math.sin((Math.PI / 2) * t);
@@ -118,7 +114,7 @@ describe('the curves are distinguishable from each other, and from a wrong one',
   const mid = (shape: string, len = L) => shapeRadius(shape, 0.5 * len, R, len, shapeParamDefault(shape)) / R;
 
   it('pins each midpoint to the figure the Java gives, as a fraction of R', () => {
-    // Written as LITERALS on purpose. Every other assertion in this file derives its
+    // Written as literals on purpose. Every other assertion in this file derives its
     // expectation from a formula, so a mistake copied into both a formula and the
     // code it checks would still pass; these are the numbers themselves.
     //
@@ -129,7 +125,7 @@ describe('the curves are distinguishable from each other, and from a wrong one',
     expect(mid('haack')).toBeCloseTo(0.7071068, 6); // sqrt(0.5), param 0
     expect(mid('conical')).toBeCloseTo(0.5, 6);
     expect(mid('power')).toBeCloseTo(0.7071068, 6); // sqrt(0.5), param 0.5
-    // The OGIVE is not, and that is worth a line of its own: it is the arc of a
+    // The ogive is not, and that is worth a line of its own: it is the arc of a
     // circle whose radius is computed from both `length` and `radius`, so its
     // profile depends on the length-to-radius ratio rather than only on `x/L`. At
     // this fixture's L/R of 4 the midpoint is 0.7614 R; it is 0.7913 at L/R 2 and
@@ -141,7 +137,7 @@ describe('the curves are distinguishable from each other, and from a wrong one',
     // Stated as a property rather than left implicit in the number above, because a
     // reader comparing midpoints across fixtures will otherwise think one of them is
     // wrong. Also a real guard: a rewrite that normalized the ogive on `x/L` alone
-    // would pass every per-station assertion at ONE L and fail here.
+    // would pass every per-station assertion at one L and fail here.
     for (const shape of ['conical', 'ellipsoid', 'power', 'parabolic', 'haack'] as const) {
       expect(mid(shape, 0.1), shape).toBeCloseTo(mid(shape, 1), 6);
     }
@@ -151,9 +147,9 @@ describe('the curves are distinguishable from each other, and from a wrong one',
   it('separates ellipsoid from a sine arch', () => {
     // 0.866 R against 0.707 R: an 18% error at the midpoint of the nose cone, on a
     // curve that satisfies "full radius at the base" and "monotonic" just as well.
-    // The old file does catch this particular substitution; what it does not catch
-    // is the same trick on `parabolic`, which is why the sweep above covers all six
-    // rather than only the shape whose assertion was missing.
+    // `shapeProfile.test.ts` does catch this particular substitution; what it does
+    // not catch is the same trick on `parabolic`, which is why the sweep above
+    // covers all six rather than only that shape.
     const ours = shapeRadius('ellipsoid', 0.5 * L, R, L, shapeParamDefault('ellipsoid'));
     expect(ours).toBeCloseTo(ellipsoidJava(0.5 * L, R, L), 9);
     expect(Math.abs(ours - sineArch(0.5)) / R).toBeGreaterThan(0.15);
@@ -166,7 +162,7 @@ describe('the curves are distinguishable from each other, and from a wrong one',
     const haack = shapeRadius('haack', 0.5 * L, R, L, shapeParamDefault('haack'));
     const power = shapeRadius('power', 0.5 * L, R, L, shapeParamDefault('power'));
     expect(Math.abs(haack - power) / R).toBeLessThan(0.001);
-    // And that the sweep DOES separate them, at a station nearer the tip.
+    // And that the sweep does separate them, at a station nearer the tip.
     const t = 0.1;
     const haackT = shapeRadius('haack', t * L, R, L, shapeParamDefault('haack'));
     const powerT = shapeRadius('power', t * L, R, L, shapeParamDefault('power'));
@@ -174,7 +170,7 @@ describe('the curves are distinguishable from each other, and from a wrong one',
   });
 
   it('gives every pair of curves a station where they differ', () => {
-    // The property the old file lacked outright: these are six DIFFERENT shapes, so
+    // A property `shapeProfile.test.ts` does not check: these are six different shapes, so
     // no two of them may agree everywhere. A copy-paste in the switch that made two
     // branches identical would pass every other test in both files.
     const shapes = ['conical', 'ellipsoid', 'power', 'parabolic', 'haack', 'ogive'] as const;
@@ -195,16 +191,16 @@ describe('the shape parameter is the one the kernel defaults to', () => {
     ['ogive', 1.0],
     ['power', 0.5],
     ['parabolic', 1.0],
-    // ZERO, and checked because it is the one worth getting wrong. `HAACK` does not
-    // override `defaultParameter()`, so it inherits the base class@s `0.0`
-    // (Transition.java:1312) - an LD-Haack. Its `maxParameter()` IS 1/3, and that is
+    // Zero, and checked because it is the one easy to get wrong. `HAACK` does not
+    // override `defaultParameter()`, so it inherits the base class's `0.0`
+    // (Transition.java:1312) - an LD-Haack. Its `maxParameter()` is 1/3, and that is
     // the number a reader reaches for: writing 1/3 here draws a Von Karman instead,
     // and both curves pass every other assertion in this file.
     ['haack', 0.0],
     ['conical', 0.0],
     ['ellipsoid', 0.0],
   ] as const)('%s defaults to %s', (shape, expected) => {
-    // These decide WHICH member of each family is drawn, so a wrong default is a
+    // These decide which member of each family is drawn, so a wrong default is a
     // wrong curve even with the formula right.
     expect(shapeParamDefault(shape)).toBeCloseTo(expected, 9);
   });

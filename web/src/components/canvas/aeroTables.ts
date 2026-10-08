@@ -22,12 +22,12 @@ export function hsv(h: number, sat: number, val: number): string {
 /**
  * Cell shading for a magnitude, in either of two styles.
  *
- * `sky` (default) is ONE hue that strengthens with the value, scaled against the
+ * `sky` (default) is one hue that strengthens with the value, scaled against the
  * row set's own largest: a relative magnitude ramp on a dark table. Capped short
  * of opaque so the text keeps its own color.
  *
  * `openrocket` is the desktop's renderer, formula for formula: hue rotates green
- * to red over an ABSOLUTE Cd scale (full red at 1.5), saturation climbs with it,
+ * to red over an absolute Cd scale (full red at 1.5), saturation climbs with it,
  * value pinned at 1. The cells come out light, so the text goes dark with them.
  */
 export function heat(value: number, max: number, style: HeatStyle): CSSProperties | undefined {
@@ -74,7 +74,7 @@ export function buildLinePath(
 /**
  * The sampled Mach nearest `mach`. The tables quote a real sample rather than
  * interpolating between two, so their numbers match the CSV exactly. Ties go
- * to the lower index, as the scan always has.
+ * to the lower index.
  */
 export function nearestSampleIndex(machs: readonly number[], mach: number): number {
   let best = 0;
@@ -119,7 +119,7 @@ export function dragRows(sweep: AeroSweep, i: number): DragRow[] {
 
 /**
  * The whole-rocket figures the drag table reads against. Rounding aside, the
- * component totals ARE the rocket's drag; `unattributed` is the remainder, which
+ * component totals are the rocket's drag; `unattributed` is the remainder, which
  * only matters if the kernel starts booking drag somewhere the walk does not
  * reach. `hasSplit` and `hasInstances` say which optional columns have data.
  */
@@ -139,7 +139,7 @@ export function dragTotals(
 }
 
 /** Masses keyed on the engine's stable id, not the label: joining on the name
- *  gave two same-named parts each other's mass. */
+ *  would give two same-named parts each other's mass. */
 export const massIndex = (masses: readonly ComponentMass[]): Map<string, ComponentMass> =>
   new Map(masses.map((m) => [m.key || m.name, m]));
 
@@ -252,12 +252,11 @@ export function chartDomain(
  * inverts.
  *
  * Non-finite samples are handled the way {@link buildLinePath} handles them, and
- * for the same reason: they demonstrably occur, since `sweep.nonFinite` is
- * surfaced in the UI. Here one NaN was worse than a hole in a line. It
- * accumulated into `cum`, so the literal string `NaN` went into the path data and
- * EVERY band stacked above it was poisoned too; the browser then silently drops a
- * path whose data it cannot parse, so the chart lost whole series with nothing
- * said. A non-finite sample contributes zero to the running sum, which keeps the
+ * for the same reason: they do occur, since `sweep.nonFinite` is surfaced in
+ * the UI. Here one NaN is worse than a hole in a line: accumulated into `cum`,
+ * it would put the literal string `NaN` into the path data of every band
+ * stacked above it, and the browser silently drops a path whose data it cannot
+ * parse. A non-finite sample contributes zero to the running sum, which keeps the
  * stack finite, and splits the band into separate closed polygons, so the gap
  * reads as a gap instead of as a band pinched to the axis.
  */
@@ -323,7 +322,7 @@ export function machTicks(machMin: number, machMax: number): number[] {
 
 /**
  * How the CP vs Mach axis reads: the user's length unit, a percentage of the
- * WHOLE airframe, or a percentage of the AERODYNAMIC length.
+ * whole airframe, or a percentage of the AERODYNAMIC length.
  *
  * Both percentages are offered because they answer different questions. `aero`
  * is the denominator OpenRocket's own `PercentageOfLengthUnit` uses

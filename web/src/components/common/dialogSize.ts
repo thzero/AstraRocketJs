@@ -10,8 +10,7 @@ import { readLocalJson, writeLocalJson } from '../../services/storage/localPref'
 
 /**
  * A dialog's declared width, named for the Tailwind token it is, so there is no
- * translation layer to get wrong. These are the widths the app already used
- * before they were centralized: `sm` through `6xl`.
+ * translation layer to get wrong: `sm` through `6xl`.
  */
 export type DialogSize = 'sm' | 'md' | 'lg' | '3xl' | '4xl' | '6xl';
 
@@ -32,7 +31,7 @@ const WIDTH: Record<DialogSize, string> = {
 export const widthClass = (size: DialogSize): string => WIDTH[size];
 
 /**
- * What a dialog expands TO. Not `w-screen`: the overlay keeps its padding at
+ * What a dialog expands to. Not `w-screen`: the overlay keeps its padding at
  * `lg` and up, and a viewport-wide panel inside a padded overlay overflows it.
  */
 const EXPANDED = 'max-w-[96vw]';
@@ -45,11 +44,11 @@ const HEIGHT_EXPANDED = 'max-h-[94vh]';
 /**
  * The panel's size classes.
  *
- * `fill` asks for a DEFINITE height rather than a maximum, because a body that
+ * `fill` asks for a definite height rather than a maximum, because a body that
  * fills the dialog (a map, a chart) is a `flex-1` child, and `flex-1` inside an
  * auto-height parent collapses to nothing.
  *
- * A dialog that wants a definite height in PIXELS passes `Dialog`'s `height`
+ * A dialog that wants a definite height in pixels passes `Dialog`'s `height`
  * instead, which arrives as a custom property read by a class rather than as an
  * inline `height`: Tailwind compiles its arbitrary values at build time, so an
  * `h-[${n}px]` assembled here would name a class that was never generated, and
@@ -63,18 +62,16 @@ export const sizeClasses = (size: DialogSize, expanded: boolean, fill = false): 
 };
 
 /**
- * Which stacking layer a dialog sits on. The app already used three z-indexes
- * by hand; naming them keeps a dialog that opens OVER another from having to
- * guess a number.
+ * Which stacking layer a dialog sits on. Naming the three z-indexes keeps a
+ * dialog that opens over another from having to guess a number.
  *
  * `base` is an ordinary dialog. `over` is one a base dialog can open on top of
  * itself (a motor's spec sheet over the motor list). `top` is one that opens over
  * an `over` (the rename prompt, reached from inside the design library).
  *
- * The app-wide ConfirmDialog is not on this scale: it is its own component with
- * its own z-index, and it currently shares `top`'s value, so a confirmation
- * raised from a `top` dialog is ordered by DOM position rather than by layer.
- * Worth separating, but it means touching the confirm flow.
+ * The app-wide ConfirmDialog sits on `top` (AlertDialog's default layer), so a
+ * confirmation raised from a `top` dialog is ordered by DOM position rather
+ * than by layer.
  */
 export type DialogLayer = 'base' | 'over' | 'top';
 

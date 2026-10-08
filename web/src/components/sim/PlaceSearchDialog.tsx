@@ -52,7 +52,7 @@ const placeRow = (p: PlaceMatch, i: number): Row => ({
  * site. Coordinates and map links are read here and never sent anywhere; only
  * the elevation at them is looked up, the way the weather dialog does.
  *
- * It sets the SITE, not the weather: the forecast, the map and the flight all
+ * It sets the site, not the weather: the forecast, the map and the flight all
  * read the site, so they stay on one place. Choosing a row writes the three
  * site fields as one undoable edit, through the caller.
  */
@@ -161,7 +161,7 @@ export function PlaceSearchDialog({ onPick, onClose }: { onPick: (pick: PlacePic
                     })
                   }
                   // Not before the elevation lookup has answered: picking then
-                  // would write a site with the OLD field's elevation under it.
+                  // would write a site with the previous field's elevation under it.
                   disabled={r.elevationM === undefined}
                   className="w-full rounded-lg bg-raised/60 px-3 py-2 text-left ring-1 ring-line/10 hover:bg-elevated disabled:cursor-wait disabled:opacity-60"
                 >

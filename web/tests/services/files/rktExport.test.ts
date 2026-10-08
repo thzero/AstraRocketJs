@@ -7,12 +7,12 @@ import type { ComponentNode, RocketTree } from '../../../src/engine/openRocketEn
 /**
  * The writer, checked two ways.
  *
- * A ROUND TRIP proves the pair agree with each other, which is necessary and
+ * A round trip proves the pair agree with each other, which is necessary and
  * not sufficient: reader and writer can share a wrong unit factor and still
- * round-trip perfectly. `rktImport.test.ts` is the other half — it reads a
+ * round-trip perfectly. `rktImport.test.ts` is the other half: it reads a
  * fixture written from RockSim's own schema, so between them a factor can only
  * be wrong in one place at a time. The literal-output checks below pin the few
- * fields where the two sides are NOT symmetric (diameters, shock-cord mass,
+ * fields where the two sides are not symmetric (diameters, shock-cord mass,
  * stage order), because those are the ones a shared mistake could hide.
  */
 
@@ -31,7 +31,7 @@ const design: RocketTree = {
           length: 0.1,
           aftRadius: 0.0124,
           thickness: 0.0015,
-          // POWER, not ogive: a shape parameter only round-trips on a shape
+          // Power, not ogive: a shape parameter only round-trips on a shape
           // that uses one, because the reader drops it on the others exactly as
           // `NoseConeHandler` does.
           shape: 'power',
@@ -149,11 +149,11 @@ const find = (nodes: ComponentNode[] | undefined, name: string): ComponentNode =
 
 describe('exportRkt', () => {
   it('writes a RockSim document a reader can find the design in', () => {
-    // STARTS with the root element, nothing in front of it. Desktop
+    // Starts with the root element, nothing in front of it. Desktop
     // OpenRocket identifies a RockSim file by its first eleven bytes being
     // `<RockSimDoc` exactly (`GeneralRocketLoader.ROCKSIM_SIGNATURE`), unlike
     // the OpenRocket check beside it, which scans the buffer. An XML
-    // declaration in front made every `.rkt` this app wrote open as
+    // declaration in front would make the desktop open the `.rkt` as
     // "Unsupported or corrupt file". The desktop's own saver writes none.
     expect(xml.startsWith('<RockSimDocument>')).toBe(true);
     expect(xml).not.toContain('<?xml');
@@ -176,7 +176,7 @@ describe('exportRkt', () => {
     expect(xml).toContain('<OD>24.8</OD>');
     expect(xml).toContain('<ID>24</ID>'); // 0.0124 - 0.0004, doubled
     expect(xml).toContain('<Len>300</Len>');
-    // …but a parachute's `Dia` is a diameter on both sides and is NOT doubled.
+    // …but a parachute's `Dia` is a diameter on both sides and is not doubled.
     expect(xml).toContain('<Dia>400</Dia>');
   });
 
@@ -184,12 +184,12 @@ describe('exportRkt', () => {
     expect(xml).toContain('<KnownMass>9.5</KnownMass>'); // 0.0095 kg
     expect(xml).toContain('<CantAngle>1.5</CantAngle>');
     expect(xml).toContain('<RadialAngle>30</RadialAngle>');
-    // A shock cord states its MASS in RockSim: 0.006 kg/m over 1 m.
+    // A shock cord states its mass in RockSim: 0.006 kg/m over 1 m.
     expect(xml).toContain('<KnownMass>6</KnownMass>');
   });
 
   it('sets UseKnownCG only on the part that actually overrides', () => {
-    // Turning it on makes RockSim stop computing mass AND CG from geometry, so it
+    // Turning it on makes RockSim stop computing mass and CG from geometry, so it
     // must not appear on a part with no measured figures.
     expect(xml.match(/<UseKnownCG>1<\/UseKnownCG>/g)).toHaveLength(1);
   });
@@ -263,6 +263,74 @@ describe('exportRkt → importRkt round trip', () => {
   });
 });
 
+/**
+ * RockSim has no middle placement. Desktop's BasePartDTO writes a middle part
+ * as a top offset: the gap from the parent's top to the part's top when
+ * centered, plus its own offset. A fin set's extent is its root chord.
+ */
+describe('exportRkt, a middle-placed part', () => {
+  const xbOf = (xml: string, name: string): number => {
+    const block = xml.slice(xml.indexOf(`<Name>${name}</Name>`));
+    return Number(/<Xb>([^<]+)<\/Xb>/.exec(block)?.[1]);
+  };
+  const tree: RocketTree = {
+    name: 'Middle',
+    components: [
+      {
+        type: 'stage',
+        id: 's1',
+        name: 'Sustainer',
+        children: [
+          {
+            type: 'bodytube',
+            id: 'b1',
+            name: 'Airframe',
+            length: 0.3,
+            outerRadius: 0.0124,
+            thickness: 0.0004,
+            children: [
+              {
+                type: 'launchlug',
+                id: 'l1',
+                name: 'Lug',
+                length: 0.03,
+                outerRadius: 0.003,
+                thickness: 0.0005,
+                position: { method: 'middle', offset: 0.01 },
+              },
+              {
+                type: 'trapezoidfinset',
+                id: 'f1',
+                name: 'Fins',
+                finCount: 3,
+                rootChord: 0.06,
+                tipChord: 0.03,
+                height: 0.05,
+                position: { method: 'middle', offset: 0 },
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  } as unknown as RocketTree;
+
+  it('writes a top offset measured from the parent top', () => {
+    const { xml } = exportRkt('Middle', tree);
+    // (0.3 - 0.03) / 2 + 0.01 = 0.145 m
+    expect(xbOf(xml, 'Lug')).toBeCloseTo(145, 6);
+    // (0.3 - 0.06) / 2 = 0.12 m
+    expect(xbOf(xml, 'Fins')).toBeCloseTo(120, 6);
+  });
+
+  it('reads back to the same place', () => {
+    const r = importRkt(exportRkt('Middle', tree).xml);
+    const tube = find(r.tree.components[0]!.children, 'Airframe');
+    expect(find(tube.children, 'Lug').position).toEqual({ method: 'top', offset: expect.closeTo(0.145, 9) as number });
+    expect(find(tube.children, 'Fins').position).toEqual({ method: 'top', offset: expect.closeTo(0.12, 9) as number });
+  });
+});
+
 describe('exportRkt, multi-stage', () => {
   it('writes the sustainer into Stage3Parts, nose-first', () => {
     const two: RocketTree = {
@@ -288,11 +356,11 @@ describe('exportRkt, multi-stage', () => {
 /**
  * RockSim has no cluster: it knows one tube per motor.
  *
- * OpenRocket keeps ONE inner tube carrying a cluster pattern, and the desktop
- * splits it on the way out (`InnerBodyTubeDTO.handleCluster`). This writer did
- * not, so a three-motor cluster was saved as a single tube and the file named
- * one motor where the design flies three. Everything mounted inside the mount
- * went with that one tube too.
+ * OpenRocket keeps one inner tube carrying a cluster pattern, and the desktop
+ * splits it on the way out (`InnerBodyTubeDTO.handleCluster`). So does this
+ * writer: saved as a single tube, a three-motor cluster would name one motor
+ * where the design flies three. Everything mounted inside the mount is copied
+ * into each member.
  *
  * Checked against the desktop's own output for the same design: three members
  * at 10.9697 mm from the axis, 120 degrees apart, each carrying the engine

@@ -11,9 +11,9 @@ import type { ExportFormat } from './componentFormats';
 import { solidFor } from '../exports/rocketPrintExport';
 
 /**
- * The HEAVY half of per-component export: the dispatch that builds + downloads
- * one component as a mesh (STL/OBJ/GLB) or a DXF. Pulls in the meshers and the
- * DXF writer, so it's loaded on demand (store.exportComponent) rather than at
+ * The heavy half of per-component export: the dispatch that builds + downloads
+ * one component as a mesh (STL/OBJ/GLB/3MF) or a DXF. Pulls in the meshers and
+ * the DXF writer, so it's loaded on demand (the store's exportComponent) rather than at
  * first paint. Which formats a part offers lives in the light `componentFormats`
  * module, imported by the tree's export button.
  */

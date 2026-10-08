@@ -4,11 +4,11 @@ import { vi } from 'vitest';
 import { DATA_DIR } from './dataDir';
 
 /**
- * Serves `public/data/` over a stubbed `fetch`, so a test can use the REAL
+ * Serves `public/data/` over a stubbed `fetch`, so a test can use the real
  * catalogs.
  *
- * The data files are runtime files now, not imports, which means a component
- * that wants a material list does a fetch — and in a test there is no server to
+ * The data files are runtime files, not imports, which means a component
+ * that wants a material list does a fetch, and in a test there is no server to
  * answer it. Rather than mock the loader and test around it, this answers with
  * the bytes that actually ship: the same `materials.generated.json` the app
  * downloads, the same shape guard, the same merge with the user's custom

@@ -26,7 +26,7 @@ import { useCallback, useEffect, useRef } from 'react';
 export interface Latest {
   /**
    * Start a new attempt and get the predicate that says it is still the current
-   * one. Claiming SUPERSEDES any attempt already in flight, which is the
+   * one. Claiming supersedes any attempt already in flight, which is the
    * behavior a second click on the same control wants.
    */
   claim: () => () => boolean;

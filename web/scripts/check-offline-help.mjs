@@ -2,20 +2,20 @@
 //
 //   npm run e2e:offline-help
 //
-// The Playwright suite runs against the Vite DEV server, which registers no
-// service worker, so nothing in it can see whether Help actually works at a
-// launch site with no signal. That is the whole reason the docs are built into
+// The Playwright suite never takes the network away from a worker-controlled
+// page, so nothing in it can see whether Help actually works at a launch site
+// with no signal. That is the whole reason the docs are built into
 // the app rather than only published, so it is worth a check of its own.
 //
 // Two things are proven here, and they are cached by different mechanisms:
 //
-//  1. The in-app Help dialog opens a page NOBODY HAS READ, offline. It asks for
+//  1. The in-app Help dialog opens a page nobody has read, offline. It asks for
 //     `docs/<slug>/index.html`, which is the key Workbox precaches each page
 //     under, so every page is available from the first install onward. This is
 //     the promise the feature is for.
 //
 //  2. Navigating straight to a docs URL still works offline for a page already
-//     visited. Those requests go to `docs/<slug>/`, which the precache does NOT
+//     visited. Those requests go to `docs/<slug>/`, which the precache does not
 //     answer (`directoryIndex` is off, see vite.config.ts), so they are covered
 //     by the `astra-docs` runtimeCaching rule instead.
 //

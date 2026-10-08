@@ -8,7 +8,7 @@ const node = (o: object) => o as unknown as ComponentNode;
 /**
  * `discDims` is the one source the DXF cut sheet, the printable solids and the
  * 3D internals all share for ring and coupler sizing, so a wrong answer here is
- * three wrong parts at once. It had no test file.
+ * three wrong parts at once.
  */
 describe('discDims', () => {
   /** A 12 mm-radius tube with a 1 mm wall, as the enclosing airframe. */
@@ -22,17 +22,17 @@ describe('discDims', () => {
   });
 
   it('refuses a wall at or past the radius instead of reporting a solid rod', () => {
-    // `discSolid` takes its NO-BORE branch on innerR === 0 and lathes a solid
-    // cylinder, so a units slip (a 20 mm wall on a 12 mm radius) printed the
+    // `discSolid` takes its no-bore branch on innerR === 0 and lathes a solid
+    // cylinder, so a units slip (a 20 mm wall on a 12 mm radius) would print the
     // coupler as a plug with nothing saying so. `solidMesh`'s tube branch
-    // refuses the same case and explains why; the disc path had no guard.
+    // refuses the same case, and the disc path has to match it.
     expect(discDims(node({ type: 'tubecoupler', thickness: 0.02, length: 0.05 }), tube, [])).toBeNull();
     expect(discDims(node({ type: 'engineblock', thickness: 0.05 }), tube, [])).toBeNull();
   });
 
   it('refuses a wall exactly equal to the radius', () => {
-    // The boundary, which `Math.max(0, outerR - wall)` turned into a 0 bore
-    // rather than a refusal.
+    // The boundary: a clamp like `Math.max(0, outerR - wall)` would turn it
+    // into a 0 bore rather than a refusal.
     const r = plateOuter(node({ type: 'tubecoupler' }), tube);
     expect(discDims(node({ type: 'tubecoupler', thickness: r }), tube, [])).toBeNull();
   });
@@ -63,11 +63,11 @@ describe('tubeRadii', () => {
 });
 
 /**
- * A tube with no `thickness` key takes its OWN type's kernel wall, wherever its
+ * A tube with no `thickness` key takes its own type's kernel wall, wherever its
  * bore is read. The kernel gives an inner tube and a coupler 0.5 mm
  * (ComponentFactory, cases "innertube" and "tubecoupler") and a body tube
- * 0.3 mm; reading the body tube's for all three made a coupler's bore, as the
- * tube enclosing a ring, 0.2 mm wider than the coupler itself.
+ * 0.3 mm; reading the body tube's for all three would make a coupler's bore, as
+ * the tube enclosing a ring, 0.2 mm wider than the coupler itself.
  */
 describe('a keyless tube wall', () => {
   const tube = (type: string, outerRadius: number) => ({ type, id: type, outerRadius }) as unknown as ComponentNode;

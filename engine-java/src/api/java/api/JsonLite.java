@@ -98,8 +98,8 @@ public final class JsonLite {
             ws();
             consume(':');
             ws();
-            // A duplicate key silently overwrote, so a file could carry two
-            // answers for one field and the last one won with nothing said.
+            // A duplicate key is refused: overwriting would let a file carry two
+            // answers for one field and keep the last one silently.
             if (map.containsKey(key)) {
                 throw new IllegalArgumentException("JSON: duplicate key '" + key + "' at " + pos);
             }
@@ -162,15 +162,13 @@ public final class JsonLite {
                     case 'r': sb.append('\r'); break;
                     case 't': sb.append('\t'); break;
                     case 'u':
-                        // Integer.parseInt(..., 16) accepts a sign and throws a
-                        // StringIndexOutOfBounds on a truncated escape, so
-                        // "\\u-123" silently injected (char) -291 into a
-                        // component name and "\\u12" threw the wrong exception
-                        // type. Validate all four digits are hex first.
+                        // hex4 checks each of the four digits itself rather than using
+                        // Integer.parseInt(..., 16), which accepts a sign ("\\u-123")
+                        // and throws StringIndexOutOfBounds on a truncated escape.
                         int cp = hex4();
                         // A surrogate is only half a character: a high one must be
                         // followed by a low one, and a low one cannot stand alone.
-                        // Kept, a lone one was re-emitted raw and left the output
+                        // A lone one would be re-emitted raw and leave the output
                         // not well-formed UTF-8 for anything that encoded it.
                         if (Character.isLowSurrogate((char) cp)) throw err("a high surrogate before \\u" + Integer.toHexString(cp));
                         sb.append((char) cp);
@@ -211,8 +209,8 @@ public final class JsonLite {
         if (start == pos) throw err("number");
         final String text = src.substring(start, pos);
         // JSON's own grammar, not Double.parseDouble's: `01`, `+0.3` and `.3` are
-        // numbers to Java and errors to JSON.parse, so a payload the JS side would
-        // reject was read here as if it were valid.
+        // numbers to Java and errors to JSON.parse, and a payload the JS side would
+        // reject must not be read here as if it were valid.
         if (!isJsonNumber(text)) {
             throw new IllegalArgumentException("JSON: bad number '" + text + "' at " + start);
         }
@@ -220,8 +218,8 @@ public final class JsonLite {
         try {
             d = Double.parseDouble(text);
         } catch (NumberFormatException e) {
-            // NumberFormatException carries a null message here, which reached
-            // the UI verbatim as "null" via services/buildRocket.ts.
+            // NumberFormatException can carry a null message, which would reach
+            // the UI verbatim as "null" through services/design/buildRocket.ts.
             throw new IllegalArgumentException("JSON: bad number '" + text + "' at " + start);
         }
         // An exponent overflow must not pass as Infinity: `"length":1e999` builds a
@@ -294,11 +292,10 @@ public final class JsonLite {
 
     // ---- typed accessors for builder code ----
 
-    // An ABSENT key legitimately falls back to the default. A key that is
-    // PRESENT but of the wrong type is a caller bug or a bad file, and silently
-    // falling back meant `"length":"0.9"` (a quoted number from a lax exporter)
-    // built a 0.3 m body tube - the default - and reported success. Different
-    // rocket, no warning.
+    // An absent key falls back to the default. A key that is present but of the
+    // wrong type is a caller bug or a bad file and is refused: falling back would
+    // turn `"length":"0.9"` (a quoted number from a lax exporter) into a body tube
+    // of the default 0.3 m and report success.
     private static IllegalArgumentException wrongType(String key, Object v, String want) {
         return new IllegalArgumentException(
                 "JSON: key '" + key + "' should be " + want + ", got " + v.getClass().getSimpleName());
@@ -327,9 +324,9 @@ public final class JsonLite {
 
     /**
      * A list of objects. Absent is empty; present as anything else is refused,
-     * and so is an element that is not an object. Skipping either dropped a whole
-     * subtree: `"children":[1,2,3]` built a body tube with no fins, motor mount or
-     * recovery, and reported a healthy rocket.
+     * and so is an element that is not an object. Skipping either would drop a
+     * whole subtree: `"children":[1,2,3]` would build a body tube with no fins,
+     * motor mount or recovery, and report a healthy rocket.
      */
     @SuppressWarnings("unchecked")
     public static List<Map<String, Object>> objList(Map<String, Object> m, String key) {

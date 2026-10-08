@@ -4,15 +4,10 @@ import { test, expect } from './base';
 /**
  * The 2D/3D image export.
  *
- * Every piece of this shipped unreachable: `TreeSchematic` and `Rocket3D` gate
- * their export controls on an `exportData` prop, and `CenterView` — the only
- * thing that renders either — never passed it. `git log -S exportData` shows it
- * never had. So the buttons, `ImageExportMenu`, `schematicSvg`, `svgToImage`
- * and `snapshotWithHeader` were several hundred lines plus a whole service that
- * no user could reach and no test could execute.
- *
- * These tests exist so that cannot recur quietly: they fail if the prop stops
- * being passed.
+ * `TreeSchematic` and `Rocket3D` gate their export controls on an `exportData`
+ * prop, which `CenterCanvas` (the only thing that renders either) supplies.
+ * Without it the buttons, `ImageExportMenu` and the export service behind them
+ * are unreachable, so these tests fail if the prop stops being passed.
  */
 test.describe('image export', () => {
   test('the 2D view offers SVG and image export', async ({ page }) => {
@@ -31,9 +26,9 @@ test.describe('image export', () => {
     // Named after the design, and actually an SVG with the data header in it.
     expect(dl.suggestedFilename()).toMatch(/-2d\.svg$/);
     const path = await dl.path();
-    const svg = await readFile(path!, 'utf8');
+    const svg = await readFile(path, 'utf8');
     expect(svg.startsWith('<svg') || svg.includes('<svg')).toBe(true);
-    // The header block is the point of the export — it is what a cert reviewer
+    // The header block is the point of the export: it is what a cert reviewer
     // reads off the page.
     expect(svg).toMatch(/mm|CG|CP/);
   });
@@ -69,7 +64,7 @@ test.describe('image export', () => {
     expect(dl.suggestedFilename()).toMatch(/.png$/);
 
     const sharp = (await import('sharp')).default;
-    const img = sharp(await readFile((await dl.path())!));
+    const img = sharp(await readFile(await dl.path()));
     const meta = await img.metadata();
     expect(meta.width).toBeGreaterThanOrEqual(1920);
     expect(meta.height).toBeGreaterThan(0);

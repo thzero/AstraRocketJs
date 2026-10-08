@@ -5,7 +5,7 @@ import { weatherErrorText } from '../../../src/services/weather/weatherErrorText
 import { WeatherError } from '../../../src/services/weather/openMeteo';
 
 const t = (key: string, opts?: Record<string, unknown>) =>
-  opts?.['detail'] ? `${key}(${String(opts['detail'])})` : key;
+  typeof opts?.['detail'] === 'string' ? `${key}(${opts['detail']})` : key;
 
 describe('weatherErrorText', () => {
   it('explains a refused date in its own words', () => {

@@ -14,12 +14,11 @@ import type { ComponentNode } from '../../../src/engine/openRocketEngine';
 /**
  * The PDF report's layout arithmetic.
  *
- * `downloadReportPdf` builds a MILLIMETER document and draws fin, nose-cone and
+ * `downloadReportPdf` builds a millimeter document and draws fin, nose-cone and
  * transition outlines into it at 1:1, so a reader can print the page and cut to
- * it. Every helper in that file was a closure over `doc` and a mutable `y`,
- * which is why all 203 executable lines and all 38 functions ran at zero — and
- * the failure they can produce is the quiet kind: a PDF that opens fine, looks
- * right, and is the wrong size, found only after someone has cut to it.
+ * it. The helpers below are exported so they can be checked without a `doc`,
+ * and the failure they can produce is the quiet kind: a PDF that opens fine,
+ * looks right, and is the wrong size, found only after someone has cut to it.
  *
  * The page numbers below are the paper standards (ISO 216 A4 = 210 × 297 mm;
  * ANSI A "Letter" = 8.5 × 11 in = 215.9 × 279.4 mm), not values read back out
@@ -58,7 +57,7 @@ describe('templateFits — a template prints 1:1 or not at all', () => {
   });
 
   it('trades width for height when the reader picks landscape', () => {
-    // A 250 mm root chord — an ordinary mid-power fin — is wider than A4
+    // A 250 mm root chord (an ordinary mid-power fin) is wider than A4
     // portrait's 186 mm but well inside landscape's 273 mm.
     expect(templateFits(250, 60, A4_PORTRAIT)).toBe(false);
     expect(templateFits(250, 60, A4_LANDSCAPE)).toBe(true);
@@ -115,15 +114,15 @@ describe('hexToRgbTuple — the template stroke and fill', () => {
 
   it('falls back to near-black rather than NaN for anything else', () => {
     // NaN would reach jsPDF's setDrawColor and land an invalid color operator
-    // in the content stream — a file that opens in some readers and not others.
+    // in the content stream: a file that opens in some readers and not others.
     for (const bad of ['', 'nonsense', '#12345', '#1234567', 'rgb(1,2,3)']) {
       expect(hexToRgbTuple(bad), `hexToRgbTuple(${JSON.stringify(bad)})`).toEqual([17, 24, 39]);
     }
   });
 
   it('takes the three-digit shorthand, as every color reader does', () => {
-    // `#f80` is valid CSS; it was drawn near-black here while the 3MF writer
-    // expanded it.
+    // `#f80` is valid CSS and the 3MF writer expands it, so it must not be drawn
+    // near-black here.
     expect(hexToRgbTuple('#f80')).toEqual([255, 136, 0]);
   });
 });
@@ -159,9 +158,9 @@ describe('finSetsOf — tube fins have no template', () => {
   const node = (o: object) => o as unknown as ComponentNode;
 
   it('skips a tube fin set while keeping the flat ones beside it', () => {
-    // `<tubefinset>` ends in "finset", so the old element-name match handed it
-    // to finPlanformMm, which fell through to its trapezoid branch and invented
-    // a 50 x 30 mm swept fin out of the rootChord/height defaults — printed 1:1
+    // `<tubefinset>` ends in "finset", so an element-name match would hand it to
+    // finPlanformMm, which would fall through to its trapezoid branch and invent
+    // a 50 x 30 mm swept fin out of the rootChord/height defaults, printed 1:1
     // and labeled with the tube fin set's own name and count. OpenRocket
     // cannot make that mistake: TubeFinSet extends Tube, so it never reaches
     // PrintableFinSet (AbstractPrintable<FinSet>).

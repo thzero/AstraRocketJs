@@ -12,9 +12,9 @@ async function openUnitsTab(page: Page) {
   return dialog;
 }
 
-// The glyph is the button's TEXT, not its name: SettingsDialog.tsx labels it
-// `aria-label={t('settings.close')}` ("Close"), and a11y.spec.ts pins that a
-// close button is named. Matching the ✕ found whichever dialog drew one first.
+// The glyph is the button's text, not its name: the shared Dialog.tsx labels it
+// `aria-label={t('common.close')}` ("Close"), and a11y.spec.ts pins that a
+// close button is named. Matching the ✕ would find whichever dialog drew one first.
 // The dialog has two buttons named Close (the header ✕ carries aria-label
 // "Close", the footer button says it); either dismisses, so take the first.
 const closeDialog = (page: Page) =>
@@ -24,7 +24,7 @@ const closeDialog = (page: Page) =>
  * Units are a display/entry preference: the tree and the kernel stay SI.
  *
  * The two halves that can silently rot are that a preference reaches every
- * readout, and that an inline chip does NOT — a chip changes its own field and
+ * readout, and that an inline chip does not: a chip changes its own field and
  * stops there, which is the whole reason the per-field layer exists.
  */
 test('the preferences reach the fields, the tree, the rulers and the stats strip', async ({ page }) => {
@@ -34,7 +34,7 @@ test('the preferences reach the fields, the tree, the rulers and the stats strip
   // The ruler's unit caption is its own <text>, distinct from the tick numbers,
   // found by its data hook rather than its color class - and reached without
   // going through `svg.first()`, which is whichever svg the document happens to
-  // put first and has been the language switcher's chevron as readily as the
+  // put first and can be the language switcher's chevron as readily as the
   // drawing. The hook is unique to the rulers; `.first()` picks the length ruler
   // over the cross-section one.
   const rulerUnit = page.locator('text[data-ruler-unit]').first();
@@ -89,7 +89,7 @@ test('a field showing a non-default unit says so in its name', async ({ page }) 
   // presentation detail; the accessible name is the contract).
   await lengthChip.selectOption('in');
 
-  // Overridden: tinted, AND the accessible name carries the same fact, since a
+  // Overridden: tinted, and the accessible name carries the same fact, since a
   // color-only cue reaches nobody using a screen reader.
   const overridden = card.getByLabel('Component dimensions unit, set for this field').first();
   await expect(overridden).toHaveValue('in');
@@ -152,8 +152,8 @@ test('a length typed in inches round-trips through the SI tree', async ({ page }
   // sells tube stock in.
   await expect(length).toHaveValue('18');
   // Typed, not `fill()`: fill blanks the field first, and a blank geometry field
-  // commits a 0-length tube that the rebuild does not recover from. (Pre-existing
-  // NumberField behavior — `onChange(v ?? 0)` — not something units introduced.)
+  // commits a 0-length tube that the rebuild does not recover from (NumberField in
+  // DimensionFields.tsx commits `onChange(v ?? 0)`).
   await length.click();
   await length.press('Control+a');
   await length.pressSequentially('24');

@@ -102,7 +102,7 @@ describe('dragRows / dragTotals', () => {
 describe('stabilityRows', () => {
   const masses: ComponentMass[] = [
     { key: 'k-fins', name: 'Fins', eachMass: 0.01, mass: 0.03, cg: 0.5 },
-    // Same NAME as the tube row but a different key: must not be joined to it.
+    // Same name as the tube row but a different key: must not be joined to it.
     { key: 'other', name: 'Body tube', eachMass: 1, mass: 1, cg: 0 },
   ] as ComponentMass[];
   it('joins mass on the stable key, drops parts with no normal force, sorts by CNa', () => {
@@ -203,7 +203,7 @@ describe('cpModesFor', () => {
 });
 
 describe('cpDivisor', () => {
-  // The two percentages must NOT share a denominator: `aero` is the
+  // The two percentages must not share a denominator: `aero` is the
   // aerodynamic length, which is what OpenRocket's PercentageOfLengthUnit
   // divides by, and `body` is the whole airframe. A design with an overhanging
   // part has both, and they differ.

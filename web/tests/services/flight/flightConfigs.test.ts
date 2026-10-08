@@ -75,7 +75,7 @@ describe('reconcileConfig', () => {
   });
 
   it('seeds it on a delay the picker itself would have chosen', () => {
-    // The seeded motor is the one motor the app picks FOR you, so the delay has
+    // The seeded motor is the one motor the app picks for you, so the delay has
     // to be one Estes actually sells on a C6 and the one `MotorDialog.choose`
     // would land on: the middle of that motor's own charges, not a constant.
     const { delays } = parseDelays(
@@ -151,7 +151,7 @@ describe('ensureConfig', () => {
 describe('seatedMotorsKey', () => {
   it('moves when a motor does', () => {
     const before = newFlightConfig({ aft: { spec: spec('C6') } });
-    const after = newFlightConfig({ aft: { spec: spec('C6') } }); // a DIFFERENT spec object
+    const after = newFlightConfig({ aft: { spec: spec('C6') } }); // a different spec object
     expect(seatedMotorsKey(tree, before)).not.toBe(seatedMotorsKey(tree, after));
   });
 
@@ -178,7 +178,7 @@ describe('motorSpecs', () => {
 });
 
 describe('deployment overrides', () => {
-  /** A design with one chute that the DESIGN opens at apogee. */
+  /** A design with one chute that the design opens at apogee. */
   const withChute = {
     components: [
       node({
@@ -204,7 +204,7 @@ describe('deployment overrides', () => {
     const out = configuredTree(withChute, over({ deployAltitude: 150 }));
     const chute = out.components[0]!.children![0]!;
     expect(chute['deployAltitude']).toBe(150);
-    expect(chute['deployEvent']).toBe('apogee'); // the design still decides WHEN
+    expect(chute['deployEvent']).toBe('apogee'); // the design still decides when
     expect(chute['deployDelay']).toBe(0);
   });
 
@@ -248,7 +248,7 @@ describe('separation overrides', () => {
     const out = configuredTree(staged, over({ separationDelay: 2 }));
     const booster = out.components[1]!;
     expect(booster['separationDelay']).toBe(2);
-    expect(booster['separationEvent']).toBe('ejection'); // the design still decides WHAT
+    expect(booster['separationEvent']).toBe('ejection'); // the design still decides what
   });
 
   it('leaves the tree alone when nothing is overridden', () => {

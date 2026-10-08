@@ -78,7 +78,7 @@ export async function flyForecastHours(
         {
           tree: q.tree,
           config: q.config,
-          options: { ...simConditions(launch as CompleteLaunch, { ...q.prefs, randomSeed: seed }), series: 'summary' },
+          options: { ...simConditions(launch, { ...q.prefs, randomSeed: seed }), series: 'summary' },
         },
         { signal: o.signal },
       );

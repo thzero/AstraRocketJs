@@ -59,7 +59,7 @@ export function useExportTemplates() {
       const { id, name, ext } = parseTemplateFilename(file.name);
       await store.add({ id, name, ext, source });
       const listed = await store.list();
-      // The store write is deliberately NOT undone on a stale token - the
+      // The store write is deliberately not undone on a stale token - the
       // template is stored and should stay stored. What must not happen is
       // selecting it in a dialog that has moved on, or reporting the outcome of
       // one import over another's.

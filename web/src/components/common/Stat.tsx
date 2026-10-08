@@ -18,8 +18,8 @@ export function Stat({
   // The carded tiles are the rocket's static-stats strip: a dozen of them read
   // side by side, where what you are looking for matters as much as the number
   // itself. So its label and unit lines run a step larger and the value a step
-  // smaller than the default — a flatter scale that scans as a set. The plain
-  // tiles stay as they were: they sit in dense dialog grids where the number is
+  // smaller than the default, a flatter scale that scans as a set. The plain
+  // tiles keep the default: they sit in dense dialog grids where the number is
   // the point and the vertical room is tighter.
   //
   // `text-xs` and not an arbitrary size: the sub line usually holds a UnitChip,

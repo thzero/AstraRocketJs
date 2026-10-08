@@ -18,11 +18,11 @@ import { colorForType, DEFAULT_PART_COLORS, type PartPalette } from '../../servi
 import { COMPONENT_DEFAULTS } from '../../services/design/componentDefaults';
 import { DISC_TYPES } from '../../services/files/componentFormats';
 import { resolveDisc } from '../../services/design/discGeometry';
-import { axialStart, colorOf, innerTubeExtent, internalExtent, type MotorDims } from './schematicGeometry';
+import { axialStart, colorOf, innerTubeExtent, internalExtent, type MotorDims } from '../../tree/schematicGeometry';
 
 /**
  * Owns the 3D geometry of the rocket: the component tree to Piece list build
- * (`buildPieces`, shared with the OBJ exporter and the flight path view), the
+ * (`buildPieces`, shared with the flight path view), the
  * bounds of that list, and the marker size rule the callouts hang off. Pure
  * three.js, no React, so every number here is testable without a canvas.
  * Rocket axis = +X (nose tip at x=0, aft increasing), matching the engine.
@@ -31,7 +31,7 @@ import { axialStart, colorOf, innerTubeExtent, internalExtent, type MotorDims } 
 // A component's own `color` override, else its group color from the palette.
 const nodeColor = (n: ComponentNode, palette: PartPalette): string => colorOf(n, colorForType(n.type, palette));
 
-/** Internal parts drawn as the SPACE THEY TAKE rather than as a made part —
+/** Internal parts drawn as the space they take rather than as a made part:
  *  packed recovery gear and mass objects. `DISC_TYPES` are the made parts. */
 const PACKED_TYPES = new Set(['parachute', 'streamer', 'shockcord', 'masscomponent']);
 
@@ -63,11 +63,9 @@ const shoulderOf = (n: ComponentNode, prefix: '' | 'fore' | 'aft'): Shoulder | u
  *
  * Shoulders are part of the profile, not separate pieces: two more points at
  * the stub's radius, exactly the pair `solidMesh` appends for the printed
- * solid. They were missing here alone, so a shoulder round-tripped through
- * `.ork`, was editable, drew in the 2D schematic and printed - and the 3D
- * model stopped dead at the base of the cone. Inside the neighboring tube is
- * where a shoulder lives, which is the one place the view could not show it
- * until the airframe could be opened.
+ * solid, so the 3D model carries the shoulder the 2D schematic draws and the
+ * print includes. It sits inside the neighboring tube, where the cutaway
+ * shows it.
  */
 function lathePoints(
   shape: string,
@@ -100,10 +98,10 @@ function lathePoints(
  * A tube or ring cross-section revolved about the rocket axis: the rectangle
  * innerR..outerR by 0..length, spanning x = 0..length.
  *
- * Tubes were solid cylinders, which is invisible while the only way to see
- * inside is a translucent shell, and wrong the moment one is cut open: a
- * zero-thickness shell has no wall to show, so a section through it reads as a
- * soap bubble, and the bore is where every internal part has to fit.
+ * Tubes are drawn with their wall rather than as solid cylinders or
+ * zero-thickness shells: once the airframe is cut open, a zero-thickness shell
+ * has no wall to show, so a section through it reads as a soap bubble, and the
+ * bore is where every internal part has to fit.
  *
  * The dimensions come from the same `resolveDisc` the DXF cut sheet and the
  * print solids use. The revolve is the view's own because `solidMesh.ts` says
@@ -138,21 +136,21 @@ function annulusGeometry(outerR: number, innerR: number, length: number): THREE.
 
 export interface Piece {
   key: string;
-  /** Owning component's node id — for two-way selection with the tree/2D. */
+  /** Owning component's node id, for two-way selection with the tree/2D. */
   id?: string;
   geometry: THREE.BufferGeometry;
   color: string;
   position?: [number, number, number];
   rotation?: [number, number, number];
-  /** External shell (nose/tube/transition) — drawn see-through so mounts and
-   *  motors read inside (S5, 2026-08-21c). */
+  /** External shell (nose/tube/transition), drawn see-through so mounts and
+   *  motors read inside. */
   translucent?: boolean;
-  /** Inner tubes — glassier still, so the loaded motor INSIDE them shows
-   *  (batch 08-21d: an opaque mount hid the motor entirely). */
+  /** Inner tubes: glassier still, so the loaded motor inside them shows
+   *  (an opaque mount would hide the motor entirely). */
   innerGlass?: boolean;
 }
 
-/** Shared with the OBJ exporter — this IS the app's 3D geometry. */
+/** The app's 3D geometry, shared by the 3D view and the flight path view. */
 export function buildPieces(
   tree: RocketTree,
   motors?: MotorDims,
@@ -161,13 +159,13 @@ export function buildPieces(
   const pieces: Piece[] = [];
   let maxR = 0.005;
   let k = 0;
-  // Id of the component currently being emitted — every place()/push tags its
+  // Id of the component currently being emitted: every place()/push tags its
   // pieces with it so clicking a mesh maps back to a tree node (and vice versa).
   let curId: string | undefined;
 
   // Push a piece. For off-axis assemblies an instance transform `xform` is
-  // baked into the geometry (like addFins already does), so the flat Piece[]
-  // stays position/rotation-free there and the OBJ exporter needs no changes.
+  // baked into the geometry (as addFins does), so the flat Piece[] stays
+  // position/rotation-free there.
   const place = (
     key: string,
     geometry: THREE.BufferGeometry,
@@ -202,11 +200,9 @@ export function buildPieces(
     const start = axialStart(child, root, pStart, pLen);
     maxR = Math.max(maxR, pRadius + height);
 
-    // The outline comes from the ONE fin-geometry module (tree/finPlanform.ts).
-    // Two bugs lived here: the elliptical branch sampled a sine arch rather than
-    // the kernel's half-ellipse, and the freeform branch measured root/height
-    // from the NORMALIZED points while drawing the RAW ones, so a fin whose
-    // outline began at x = 20 mm was rendered 20 mm aft of where it is mounted.
+    // The outline comes from the one fin-geometry module (tree/finPlanform.ts),
+    // so the ellipse is the kernel's half-ellipse and root/height are measured
+    // from the same points that are drawn.
     const outline = finPlanformPoints(child) ?? FREEFORM_FALLBACK;
     // A planform needs three points to enclose anything. A degenerate one (a
     // freeform set whose points were cleared) must not reach `outline[0]!`, which
@@ -282,7 +278,7 @@ export function buildPieces(
         const len = num(child, 'length', KERNEL_DEFAULTS.launchlug.length);
         const r = num(child, 'outerRadius', KERNEL_DEFAULTS.launchlug.outerRadius);
         // Ride around the body at the radial mount angle (kernel default 180°),
-        // staying axial. y = R·cosθ, z = R·sinθ — the pod/cluster convention.
+        // staying axial. y = R·cosθ, z = R·sinθ, the pod/cluster convention.
         const ang = num(child, 'angleOffset', Math.PI);
         const rad = pRadius + r;
         const start = axialStart(child, len, pStart, pLen);
@@ -296,7 +292,7 @@ export function buildPieces(
           xform,
         );
       } else if (child.type === 'innertube') {
-        // Motor mount / inner tube, one per cluster position — visible through
+        // Motor mount / inner tube, one per cluster position, visible through
         // the translucent shell. A loaded motor seats flush against the
         // mount's aft end (how motors actually load), same as the 2D view.
         const { length: len, radius: r } = innerTubeExtent(child);
@@ -369,12 +365,11 @@ export function buildPieces(
       } else if (PACKED_TYPES.has(child.type)) {
         // Packed recovery gear and mass objects, at the same extent the 2D
         // schematic dashes in (`internalExtent`). Their packed size only
-        // reaches the tree from an imported .ork — the editor has no field for
-        // it and the kernel never reads it (TODO.md, recovery packed
-        // dimensions) — so for a design built here this is the schematic's
-        // fallback box, drawn as a volume. Getting a real one is that item's
-        // job, not this one's; what matters here is that it is never a
-        // DIFFERENT invented size from the one the 2D view already shows.
+        // reaches the tree from an imported .ork (the editor has no field for
+        // it and the kernel never reads it), so for a design built here this
+        // is the schematic's fallback box, drawn as a volume. What matters is
+        // that it is never a different invented size from the one the 2D view
+        // shows.
         const { length, radius } = internalExtent(child, pRadius);
         if (radius > 0 && length > 0) {
           const start = axialStart(child, length, pStart, pLen);
@@ -470,7 +465,7 @@ export function buildPieces(
           len,
           rf,
           ra,
-          typeof n['clipped'] === 'boolean' ? (n['clipped'] as boolean) : undefined,
+          typeof n['clipped'] === 'boolean' ? n['clipped'] : undefined,
           shoulderOf(n, 'fore'),
           shoulderOf(n, 'aft'),
         );
@@ -498,15 +493,15 @@ export function buildPieces(
   return { pieces, totalLen: Math.max(totalLen, 0.05), maxR };
 }
 
-/** One size rule for the on-axis marker spheres AND the callout gadget. */
+/** One size rule for the on-axis marker spheres and the callout gadget. */
 export const markerRadius = (totalLen: number, maxR: number): number => Math.max(totalLen * 0.015, maxR * 0.35);
 
 /**
  * World-space bounds of the rendered rocket, straight off the Piece list.
- * `Box3.setFromObject(scene)` would also work, but the pieces ARE what the
+ * `Box3.setFromObject(scene)` would also work, but the pieces are what the
  * scene is built from, so this needs no world matrices to be up to date, is
  * deterministic outside a mounted canvas (hence testable), and leaves out the
- * CG/CP marker spheres — annotations, not rocket. Pieces carrying a bake-in
+ * CG/CP marker spheres (annotations, not rocket). Pieces carrying a bake-in
  * transform already have it applied to their geometry; the rest get their
  * position/rotation applied here as T·R, exactly as <mesh> composes it. A
  * rotated piece contributes the AABB of its rotated box: conservative, so the

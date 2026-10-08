@@ -49,14 +49,13 @@ const pressed = () =>
 /**
  * The placement options decide how the exported KML sits on the map. The button
  * that opens this dialog lives in the 3D path view, which needs WebGL and
- * crashes headless Chromium — so the wiring is checked here instead of in an
+ * crashes headless Chromium, so the wiring is checked here instead of in an
  * end-to-end test.
  */
 describe('flight-path export dialog', () => {
-  // The dialog persists its options now, so cases would otherwise inherit
-  // each other's choices through localStorage - which is exactly the
-  // cross-export carry-over the feature is FOR, and exactly what a test
-  // must not have.
+  // The dialog persists its options, so cases would otherwise inherit each
+  // other's choices through localStorage: the cross-export carry-over the
+  // feature exists for, and what a test must not have.
   beforeEach(() => localStorage.clear());
 
   it('opens on the flight-path placement, selected', () => {
@@ -79,7 +78,7 @@ describe('flight-path export dialog', () => {
   });
 
   it('clears the placement highlight the moment a control it covers is moved', () => {
-    // A preset only SETS the controls, so a selection that survived an edit
+    // A preset only sets the controls, so a selection that survived an edit
     // would be claiming a shape the dialog had since been adjusted out of.
     show(flight());
     fireEvent.click(preset('Drift cast'));
@@ -148,7 +147,7 @@ describe('flight-path export dialog', () => {
     expect([trackRef().value, pinRef().value]).toEqual(['clamped', 'clamped']); // placement
     expect(check('Include flight path line').checked).toBe(false); // lines
     expect(check('Include ground track').checked).toBe(true);
-    expect(check('Landing').checked).toBe(true); // waypoints — the third section
+    expect(check('Landing').checked).toBe(true); // waypoints, the third section
 
     // Landing plots narrows the waypoints to the one it is about.
     fireEvent.click(screen.getByRole('button', { name: 'Landing plots' }));
@@ -185,7 +184,7 @@ describe('flight-path export dialog', () => {
 
   it('hides the stage-track control for a single-stage flight', () => {
     // It asks where each stage's track begins, which means nothing when there
-    // is one — and an option that cannot matter is noise in a busy dialog.
+    // is one, and an option that cannot matter is noise in a busy dialog.
     show(flight());
     expect(screen.queryByLabelText("Each stage's track starts")).toBeNull();
   });
@@ -204,7 +203,7 @@ describe('flight-path export dialog', () => {
 
   it('offers an export language, following the app until you pick one', () => {
     // Same argument as the two unit dropdowns beside it: the language belongs
-    // to the FILE, because a KML going to somebody else may want their language
+    // to the file, because a KML going to somebody else may want their language
     // whatever you are reading the app in.
     show(flight());
     const select = screen.getByLabelText('Language') as HTMLSelectElement;
@@ -226,7 +225,7 @@ describe('flight-path export dialog', () => {
   });
 
   it('remembers the export language, including a deliberate "follow the app"', () => {
-    // '' is a choice here, not an absence, so it has to survive a reload -
+    // '' is a choice here, not an absence, so it has to survive a reload:
     // picking Spanish and then going back has to stick rather than silently
     // leaving the file in Spanish next time.
     const stored = () => (readSettings().pathExport as Record<string, unknown>).exportLanguage;
@@ -270,7 +269,7 @@ describe('flight-path export dialog', () => {
     fireEvent.click(colors().getByRole('button', { name: 'OK' }));
 
     // Close the dialog entirely and open a fresh one, which is the real
-    // question: does the NEXT export start where the last one left off.
+    // question: does the next export start where the last one left off.
     unmount();
     show(
       flight([
@@ -337,7 +336,7 @@ describe('flight-path export dialog', () => {
     const swatch = (stage: string, role: string) => colors().getByLabelText(`${stage} ${role}`) as HTMLInputElement;
 
     openColors();
-    // Each role starts on its OWN palette, not on a shade of the path's.
+    // Each role starts on its own palette, not on a shade of the path's.
     expect(swatch('Sustainer', 'Path').value).toBe('#0072bd');
     expect(swatch('Sustainer', 'Ground').value).toBe('#ff2d55');
     expect(swatch('Sustainer', 'Pin').value).toBe('#0072bd');
@@ -350,10 +349,9 @@ describe('flight-path export dialog', () => {
     openColors();
     expect(swatch('Sustainer', 'Path').value).toBe('#0072bd');
 
-    // Moving one column must NOT drag the others. An earlier design had ground
-    // and pin follow the path swatch while they were still on their derived
-    // value, which made two identical-looking swatches behave differently
-    // depending on history.
+    // Moving one column must not drag the others. If ground and pin followed
+    // the path swatch while still on their derived value, two identical-looking
+    // swatches would behave differently depending on history.
     fireEvent.change(swatch('Sustainer', 'Path'), { target: { value: '#112233' } });
     expect(swatch('Sustainer', 'Ground').value).toBe('#ff2d55');
     expect(swatch('Sustainer', 'Pin').value).toBe('#0072bd');
@@ -386,7 +384,7 @@ describe('flight-path export dialog', () => {
    * What the dialog writes to the app settings, and when. Persisted from an effect
    * keyed on the whole option object it would run on mount, so merely opening the
    * dialog rewrites the settings, and on every keystroke in the mission field,
-   * which is the one field deliberately NOT persisted. Storing the units
+   * which is the one field deliberately not persisted. Storing the units
    * unconditionally freezes them to whatever the app showed on the first open
    * instead of following the app's distance unit.
    */
@@ -426,7 +424,7 @@ describe('flight-path export dialog', () => {
     it('follows the app distance unit until a unit is chosen in the dialog', () => {
       const { unmount } = show(flight());
       expect([altUnit().value, distUnit().value]).toEqual(['m', 'm']);
-      // A persisted change, so the store IS written after this open...
+      // A persisted change, so the store is written after this open...
       fireEvent.click(screen.getByRole('checkbox', { name: 'Apogee' }));
       unmount();
       // ...and neither unit was frozen into it.
