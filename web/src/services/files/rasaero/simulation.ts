@@ -59,6 +59,9 @@ export function writeSimulationList(
   emit(`<IncludeBooster1>${stageEngines[1] ? 'True' : 'False'}</IncludeBooster1>`);
   if (stageEngines[2]) emit(`<Booster2Engine>${esc(stageEngines[2])}</Booster2Engine>`);
   emit(`<Booster2LaunchWt>${stackWt(2)}</Booster2LaunchWt>`);
+  // `Booster2Delay`, not `Booster2SeparationDelay`: RASAero names the two
+  // boosters' separation delays differently, and desktop's
+  // RASAeroCommonConstants.BOOSTER2_SEPARATION_DELAY is this same tag.
   emit(`<Booster2Delay>${stageSeparationDelay(2)}</Booster2Delay>`);
   emit(`<Booster2CG>${stackCg(2)}</Booster2CG>`);
   emit('<Booster2NozzleDiameter>0</Booster2NozzleDiameter>');

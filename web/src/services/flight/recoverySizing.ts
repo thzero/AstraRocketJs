@@ -1,6 +1,8 @@
 import { LAUNCH_SI } from '../../prefs/launchUnits';
 import { uiToSi } from '../../prefs/units';
 import { G0 } from '../motors/motorMath';
+import type { AtmosphereLevel } from '../design/orkTree';
+import { usableAtmosphereLevels } from './atmosphereLevels';
 /**
  * Recovery sizing: the descent half of the recovery story.
  *
@@ -53,6 +55,8 @@ export interface SizingLaunch {
    * stated accuracy and not worth a second copy of that formula.
    */
   relativeHumidity?: number | null;
+  /** Forecast levels the flight flies through, if the launch carries any. */
+  atmosphereLevels?: readonly AtmosphereLevel[];
 }
 
 /**
@@ -62,8 +66,14 @@ export interface SizingLaunch {
  *
  * The rule is the flight's, not one chosen here, because a sizing panel that
  * sizes for air the rocket will not fly in is worse than one that says
- * nothing. The bridge (`api/OpenRocketEngine.simulate`) decides it in two
- * branches when no forecast profile is set, and both are mirrored below:
+ * nothing. The bridge (`api/OpenRocketEngine.simulate`) decides it in three
+ * branches, and all three are mirrored below:
+ *
+ *   Forecast levels set, and the site temperature or pressure blank: the
+ *   levels alone (`AtmosphereProfile`), read at the site altitude. See
+ *   {@link profileDensity}. With both site values set, the site anchors the
+ *   bottom of the profile, so the air at the pad is the site's own values: the
+ *   custom branch below gives the same number.
  *
  *   Nothing set: standard ISA, which at the pad is the ISA value for the site
  *   altitude.
@@ -81,15 +91,85 @@ export interface SizingLaunch {
 export function airDensity(launch?: SizingLaunch | null): number {
   if (!launch) return RHO0;
   const h = launch.launchAltitudeM ?? 0;
+  const anchored = launch.temperatureC != null && launch.pressureHPa != null;
+  const levels = launch.atmosphereLevels?.length ? usableAtmosphereLevels(launch.atmosphereLevels) : [];
+  if (levels.length && !anchored) return profileDensity(levels, h);
   const custom = launch.temperatureC != null || launch.pressureHPa != null || launch.relativeHumidity != null;
-  const tIsa = T0 - LAPSE * h;
-  const pIsa = P0 * Math.pow(tIsa / T0, G0 / (R_AIR * LAPSE));
+  const { t: tIsa, p: pIsa } = isaAt(h);
   // T0 / P0 are the kernel's own ExtendedISAModel.STANDARD_TEMPERATURE and
   // STANDARD_PRESSURE; a blank in the custom branch is filled with those.
   const t = launch.temperatureC != null ? LAUNCH_SI.degC.toSi(launch.temperatureC) : custom ? T0 : tIsa;
   const p = launch.pressureHPa != null ? LAUNCH_SI.hPa.toSi(launch.pressureHPa) : custom ? P0 : pIsa;
   if (!(t > 0) || !(p > 0)) return RHO0;
   return p / (R_AIR * t);
+}
+
+/** ISA reference Earth radius (m), for the geopotential altitude. */
+const ISA_EARTH_RADIUS = 6356766;
+/** Spacing (m) of the kernel's precomputed standard-atmosphere table. */
+const ISA_TABLE_STEP = 500;
+/** The tropopause: geopotential altitude (m) and temperature (K). */
+const H_TROPOPAUSE = 11000;
+const T_TROPOPAUSE = T0 - LAPSE * H_TROPOPAUSE;
+const P_TROPOPAUSE = P0 * Math.pow(T_TROPOPAUSE / T0, G0 / (R_AIR * LAPSE));
+
+/** The standard atmosphere's exact values at geometric altitude `h` m, up to 20 km. */
+function isaExact(h: number): { t: number; p: number } {
+  const geo = Math.min((ISA_EARTH_RADIUS * h) / (ISA_EARTH_RADIUS + h), 20000);
+  if (geo < H_TROPOPAUSE) {
+    const t = T0 - LAPSE * geo;
+    return { t, p: P0 * Math.pow(t / T0, G0 / (R_AIR * LAPSE)) };
+  }
+  // 11 to 20 km is isothermal.
+  return { t: T_TROPOPAUSE, p: P_TROPOPAUSE * Math.exp((-(geo - H_TROPOPAUSE) * G0) / (R_AIR * T_TROPOPAUSE)) };
+}
+
+/**
+ * Standard-atmosphere temperature (K) and pressure (Pa) at `h` m, as the
+ * kernel's ExtendedISAModel reads it: exact values every 500 m (geopotential
+ * altitude), linear in between, and sea level at or below 0.
+ */
+function isaAt(h: number): { t: number; p: number } {
+  if (!(h > 0)) return isaExact(0);
+  const i = Math.floor(h / ISA_TABLE_STEP);
+  const f = (h - i * ISA_TABLE_STEP) / ISA_TABLE_STEP;
+  const lo = isaExact(i * ISA_TABLE_STEP);
+  const hi = isaExact((i + 1) * ISA_TABLE_STEP);
+  return { t: lo.t + (hi.t - lo.t) * f, p: lo.p + (hi.p - lo.p) * f };
+}
+
+/**
+ * Air density (kg/m^3) at `h` m in a forecast profile, as the bridge's
+ * `AtmosphereProfile.getConditions` computes it. Between two levels the
+ * temperature is linear in altitude and the pressure is linear in its
+ * logarithm. Below the lowest level or above the highest, the standard
+ * atmosphere's change from that level is applied to its values.
+ *
+ * `levels` are the usable ones, lowest first (`usableAtmosphereLevels`).
+ */
+function profileDensity(levels: readonly AtmosphereLevel[], h: number): number {
+  const tK = (l: AtmosphereLevel) => LAUNCH_SI.degC.toSi(l.temperatureC);
+  const pPa = (l: AtmosphereLevel) => LAUNCH_SI.hPa.toSi(l.pressureHPa);
+  const first = levels[0]!;
+  const last = levels[levels.length - 1]!;
+  let t: number;
+  let p: number;
+  const outside = h <= first.altitudeM ? first : h >= last.altitudeM ? last : null;
+  if (outside) {
+    const atLevel = isaAt(outside.altitudeM);
+    const atH = isaAt(h);
+    t = tK(outside) + (atH.t - atLevel.t);
+    p = pPa(outside) * (atH.p / atLevel.p);
+  } else {
+    let i = 0;
+    while (levels[i + 1]!.altitudeM < h) i++;
+    const lo = levels[i]!;
+    const hi = levels[i + 1]!;
+    const f = (h - lo.altitudeM) / (hi.altitudeM - lo.altitudeM);
+    t = tK(lo) + (tK(hi) - tK(lo)) * f;
+    p = Math.exp(Math.log(pPa(lo)) + (Math.log(pPa(hi)) - Math.log(pPa(lo))) * f);
+  }
+  return t > 0 && p > 0 ? p / (R_AIR * t) : RHO0;
 }
 
 /** Propellant a motor expels: loaded minus burnout mass (0 without a curve). */

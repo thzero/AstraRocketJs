@@ -61,7 +61,41 @@ describe('launch-site air density', () => {
     expect(airDensity({ launchAltitudeM: 1524 })).toBeLessThan(airDensity({ launchAltitudeM: 0 }));
   });
 
-  it('honours explicit temperature / pressure overrides', () => {
+  /**
+   * With forecast levels and no site temperature or pressure, the flight flies
+   * the levels alone (the bridge's AtmosphereProfile), so the estimate reads
+   * the air at the pad from them too.
+   */
+  describe('with forecast levels', () => {
+    const levels = [
+      { altitudeM: 1000, temperatureC: 15, pressureHPa: 900, relativeHumidity: 0.5 },
+      { altitudeM: 3000, temperatureC: 5, pressureHPa: 700, relativeHumidity: 0.3 },
+    ];
+
+    it('interpolates between levels: temperature linearly, pressure on a log scale', () => {
+      // Halfway: 10 C, and sqrt(900 * 700) hPa.
+      expect(airDensity({ launchAltitudeM: 2000, atmosphereLevels: levels })).toBeCloseTo(0.976544, 5);
+    });
+
+    it('follows the standard atmosphere from the lowest level below it', () => {
+      // 500 m under the 1000 m level: the standard 3.25 K warmer and the
+      // standard pressure ratio, applied to that level's 15 C and 900 hPa.
+      // The kernel's own value is checked in tests/engine/atmosphereProfile.test.ts.
+      expect(airDensity({ launchAltitudeM: 500, atmosphereLevels: levels })).toBeCloseTo(1.14281, 5);
+    });
+
+    it('uses the site values when both are set, as the flight does', () => {
+      const site = { launchAltitudeM: 2000, temperatureC: 20, pressureHPa: 800 };
+      expect(airDensity({ ...site, atmosphereLevels: levels })).toBe(airDensity(site));
+    });
+
+    it('reads the levels when only one site value is set', () => {
+      const one = airDensity({ launchAltitudeM: 2000, temperatureC: 20, atmosphereLevels: levels });
+      expect(one).toBeCloseTo(0.976544, 5);
+    });
+  });
+
+  it('honors explicit temperature / pressure overrides', () => {
     // Hot day thins the air.
     const hot = airDensity({ launchAltitudeM: 0, temperatureC: 40 });
     const cool = airDensity({ launchAltitudeM: 0, temperatureC: 0 });
@@ -88,9 +122,13 @@ describe('launch-site air density', () => {
     const HIGH = 2682; // m, high enough for the two rules to differ clearly
 
     it('uses the site-altitude ISA when nothing at all is set', () => {
+      // The textbook ISA value to within 0.1 %: the kernel tabulates the
+      // standard atmosphere every 500 m and interpolates linearly, and the
+      // estimate reads it the same way (checked against the kernel in
+      // tests/engine/atmosphereProfile.test.ts).
       const tIsa = 288.15 - 0.0065 * HIGH;
       const pIsa = 101325 * Math.pow(tIsa / 288.15, 9.80665 / (287.053 * 0.0065));
-      expect(airDensity({ launchAltitudeM: HIGH })).toBeCloseTo(pIsa / (287.053 * tIsa), 6);
+      expect(airDensity({ launchAltitudeM: HIGH }) / (pIsa / (287.053 * tIsa))).toBeCloseTo(1, 3);
     });
 
     it('uses the sea-level standard pressure when only a temperature is typed', () => {
