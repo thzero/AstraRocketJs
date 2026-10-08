@@ -14,12 +14,12 @@ On your first visit the browser quietly stores, in the background:
 
 - the app itself,
 - the **physics engine** (~2.3 MB),
-- the **motor catalog** (~800 motors with thrust curves) and the **component catalog** (~2,900 parts),
+- the **motor catalog** (~1,150 motors with thrust curves) and the **component catalog** (~3,400 parts),
 - the **[example rockets](./getting-started.md#example-rockets)** (~330 kB for all sixteen), so one opens on a first offline load rather than only if you were online when you went looking.
 
 About 8 MB in total. You don't need to do anything to trigger it — just let the first load finish.
 
-The motor catalog carries each motor's **thrust curve** with it, so simulating offline works for motors you've never opened before — 781 of the 815 motors. The remaining 34 have no published curve to bundle; the picker marks them, and they need a connection to fetch one from thrustcurve.org (cached once you do).
+The motor catalog carries each motor's **thrust curve** with it, so simulating offline works for motors you've never opened before — 1,063 of the 1,156 motors. The remaining 93 have no published curve to bundle; the picker marks them, and they need a connection to fetch one from thrustcurve.org (cached once you do).
 
 **Map imagery is the exception.** It is fetched as you look at it rather than downloaded up front, and the tiles you have viewed are kept — so a field you checked at home still draws at the launch with no signal. Ground you have never viewed cannot be drawn offline: the launch-site map falls back to a coordinate grid, and the ground track and 3D path to their plain plots, which carry the measurements anyway.
 

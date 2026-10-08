@@ -21,7 +21,7 @@ engine-java/
   extract/                  extract.mjs + manifest.txt — regenerate src/java/ from OpenRocket
   patches/                18 full-file OVERRIDES of OpenRocket sources (why each, in the file header)
   src/
-    java/                 272 OpenRocket source files (the physics), already overridden
+    java/                 273 OpenRocket source files (the physics), already overridden
     shims/java/           our replacements for classes we don't extract (Guice, prefs, LongUUID, Geo2D, RASAero…)
     jdkstubs/             java.text.Collator stand-in — the one java.* class TeaVM's JDK lacks
     api/java/api/         the @JSExport facade the browser calls (OpenRocketEngine, …)
@@ -35,12 +35,13 @@ OpenRocket's full `core` is ~700 files and pulls in Guice, JAXB, GraalVM-JS, cla
 
 ### 1. `src/java/` — the OpenRocket physics, extracted to a subset
 
-**Extraction** = copying only the 272 files the physics + simulation actually need, leaving the reflection/IO-heavy machinery (file loaders, plugin system, scripting, Swing hooks) behind. These files are **real OpenRocket source** — 254 are byte-for-byte upstream; 18 carry overrides (see `patches/`). By package:
+**Extraction** = copying only the 273 files the physics + simulation actually need, leaving the reflection/IO-heavy machinery (file loaders, plugin system, scripting, Swing hooks) behind. These files are **real OpenRocket source** — 255 are byte-for-byte upstream; 18 carry overrides (see `patches/`). By package:
 
 | files | package | what it is |
 |------:|---------|------------|
 | 73 | `rocketcomponent` | rocket model: nose, body, fins, stages, mounts, flight configs |
 | 60 | `util` | math/geometry (Coordinate, quaternions, interpolation) |
+| 1 | `utils` | `MotorCorrelation`: how alike two thrust curves are, for the motor picker |
 | 42 | `simulation` | flight simulator: RK4/RK6 integrators, steppers, tumble detection, flight data |
 | 19 | `aerodynamics` | Extended Barrowman + RASAero CP / drag / stability (force breakdown) |
 | 16 | `unit` | unit system (internals are pure SI) |
@@ -77,7 +78,7 @@ Just `java.text.Collator` now — the one `java.*` class the extracted physics n
 The facade has two failure contracts, decided by the return type:
 
 - **JSON-returning methods** (`getStaticInfo`, `getComponentInfo`, `getComponentMasses`, `getAeroSweep`, `simulate`, `simulateJson`) never throw for a bad input or a failed computation. They return an `{"error": "<message>"}` envelope and the wrapper reads it.
-- **Void and primitive-returning methods** cannot carry an envelope (there is nowhere in an `int`, a `double` or a `void` to put a message), so they **throw** instead: `buildRocket`, `newRocket`, `setMotor`, `setMotorById`, `setMotorIgnitionById`, `getWorstThetaDeg`, `getStandardPressure`, the flag setters (`setRogersModifiedBarrowman`, `setStubbyNoseDrag`, `setSupersonicAero`) and the `addX` builders (`addNoseCone`, `addBodyTube`, `addTrapezoidFins`, `addInnerTube`, `addParachute`). A rejected input is an `IllegalArgumentException` with a message that names the field (an unknown handle, a non-mount component id, a non-finite ignition delay, a malformed thrust curve); anything else is whatever `RuntimeException` the kernel raised. On both targets the exception crosses into JavaScript as a throw carrying the Java message. Callers must not inspect the return value of these methods for an `error` key; there is none.
+- **Void and primitive-returning methods** cannot carry an envelope (there is nowhere in an `int`, a `double` or a `void` to put a message), so they **throw** instead: `buildRocket`, `newRocket`, `setMotor`, `setMotorById`, `setMotorIgnitionById`, `getWorstThetaDeg`, `getStandardPressure`, `getMotorSimilarity`, the flag setters (`setRogersModifiedBarrowman`, `setStubbyNoseDrag`, `setSupersonicAero`) and the `addX` builders (`addNoseCone`, `addBodyTube`, `addTrapezoidFins`, `addInnerTube`, `addParachute`). A rejected input is an `IllegalArgumentException` with a message that names the field (an unknown handle, a non-mount component id, a non-finite ignition delay, a malformed thrust curve); anything else is whatever `RuntimeException` the kernel raised. On both targets the exception crosses into JavaScript as a throw carrying the Java message. Callers must not inspect the return value of these methods for an `error` key; there is none.
 
 The TypeScript wrapper (`../web/src/engine/openRocketEngine.ts`) runs every one of these through `callEngine`, which rethrows the failure as an `EngineCallError` whose `operation` names the facade method and whose message keeps the kernel text. A design used after `resetEngine()` throws `StaleDesignError` ahead of the call, and `callEngine` lets that one through untouched. The wrapper also validates the motor curve and the ignition delay itself before calling in, so the kernel guards are the second line of defense, not the only one.
 
@@ -147,7 +148,7 @@ backwards for a check whose job is catching a local edit before it lands.
 
 `--bless` and `--check` both write nothing to `src/java`. Only a bare
 `extract --src …` regenerates the tree, and on a CRLF checkout that rewrites all
-272 files to LF, so do not run it casually.
+273 files to LF, so do not run it casually.
 
 Or call them directly, which is identical:
 

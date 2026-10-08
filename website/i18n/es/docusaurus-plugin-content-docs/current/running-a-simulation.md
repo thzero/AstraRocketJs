@@ -61,6 +61,8 @@ Las fechas desde unos tres meses atrás hasta 15 días por delante usan el pron�
 
 El diálogo indica cuándo se consultó la respuesta. Una respuesta se reutiliza durante 30 minutos para el mismo lugar y las mismas fechas, ya que el modelo de pronóstico más rápido publica una nueva pasada cada hora; el diálogo indica cuándo se ha reutilizado, y **Consultar de nuevo** vuelve a preguntar a Open-Meteo de todos modos.
 
+Debajo, para la misma hora, el diálogo muestra la **nubosidad** pronosticada (total y baja) y la **visibilidad** (solo en fechas de pronóstico; el registro histórico no la tiene). Son información para decidir si se vuela, no datos de entrada: nada en un vuelo las lee, así que no tienen casilla y nunca se aplican. El permiso del campo y el RSO deciden si el cielo es adecuado.
+
 Un pronóstico es una estimación de un modelo. Aplicarlo es una edición normal que se deshace como cualquier otra, y los resultados volados con las condiciones anteriores aparecen como desactualizados.
 
 Después, la tarjeta Atmósfera indica de dónde salieron los valores, por ejemplo *Pronóstico de Open-Meteo para 5 oct 2026, 12:00 MDT en 39,739°, -104,990°, consultado 4 oct 2026, 9:14 MDT*, con el crédito de Open-Meteo, y añade una nota cuando ocurre algo de esto:

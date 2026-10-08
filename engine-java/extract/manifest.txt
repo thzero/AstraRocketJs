@@ -280,3 +280,5 @@ info/openrocket/core/util/MutableCoordinate.java
 # this) with the complete NACA Report 1307 model. Verbatim — it imports only
 # MathUtil, which is already extracted.
 info/openrocket/core/aerodynamics/barrowman/NACA1307FinBodyInterference.java
+
+info/openrocket/core/utils/MotorCorrelation.java

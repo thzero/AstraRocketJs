@@ -61,6 +61,8 @@ Dates from about three months back to 15 days ahead use the forecast. Earlier da
 
 The dialog says when the answer was fetched. An answer is reused for 30 minutes for the same place and dates, since the fastest forecast model publishes a new run once an hour; the dialog says when it was reused, and **Fetch fresh** asks Open-Meteo again anyway.
 
+Below them, for the same hour, the dialog shows the forecast **cloud cover** (all levels, and low cloud) and the **visibility** (forecast dates only; the historical record has none). They are information for deciding whether to fly, not inputs: nothing in a flight reads them, so they have no checkbox and are never applied. The field's waiver and the RSO decide whether the sky is good enough.
+
 A forecast is a model's estimate. Applying it is an ordinary edit that undoes like any other, and results flown under the old conditions show as outdated.
 
 The Atmosphere card then says where the values came from, such as *Open-Meteo forecast for Oct 5, 2026, 12:00 PM MDT at 39.739°, -104.990°, fetched Oct 4, 2026, 9:14 AM MDT*, with Open-Meteo's credit, and adds a note when one of these is true:

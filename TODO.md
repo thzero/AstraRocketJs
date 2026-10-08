@@ -95,4 +95,48 @@ Decided against, with the reason, so they are not proposed again. Move one back 
 
 - **A longitude check that offers to flip east and west** (seen in MMRocket Sim, skipped 2026-10-06) - it compares the site with the file's other sites, or with the fetched ground height, and offers to change the sign. The latitude and longitude fields now name the hemisphere beside the number as you type (`components/sim/LatLonRows.tsx`), and the site map shows where the point is, which covers the dropped minus sign the check exists for without the extra machinery.
 
+- **A whole-app crash recovery screen** (seen in MMRocket Sim, skipped 2026-10-07) - a guard around the whole app that, on a rendering error, offers to download the autosaved design as `.ork` and start fresh. Only the lazily loaded views have a guard today, so an error elsewhere blanks the window, but nobody has seen it happen, and a reload brings back the autosave.
+
+- **"On a fin" and "Between fins" angle buttons, and a warning when a part sits in front of a fin** (seen in MMRocket Sim, skipped 2026-10-07) - app-side geometry that desktop OpenRocket's component dialogs do not have, the same as the rail button placement above.
+
+- **A parachute spill hole field** (seen in MMRocket Sim, skipped 2026-10-07) - desktop's field is commented out of its parachute dialog ("TODO COMPLETE Spill hole development") and the kernel has no such property, so it is a value that only lives in files. `.ork` import and export carry it through untouched.
+
+- **"Motor case is the airframe", and a maximum motor length per mount with an Estimate button** (seen in MMRocket Sim, skipped 2026-10-07) - neither is in desktop OpenRocket's dialogs.
+
+- **Filling a part's fields from its catalog entry when a file opens, with "use" marks and a Detach button** (seen in MMRocket Sim, skipped 2026-10-07) - desktop does not fill fields from the catalog on open; it links the part and drops the link when a dimension is edited, which the app already does (`treeEdit.breaksPreset`).
+
+- **A weighed mass and balance point that places ballast at the right station** (seen in MMRocket Sim, skipped 2026-10-07) - the ballast position is a calculation the app would own, and desktop answers a weighed rocket with mass and CG overrides. A `.rkt` known mass already becomes a stage override, as desktop's RockSim import does.
+
+- **A list of real canopies ranked by descent rate and filtered by bay fit** (seen in MMRocket Sim, skipped 2026-10-07) - the ranking is a descent calculation of the app's own. The parachute catalog in the parts picker and the Parachute sizing tool cover choosing a canopy.
+
+- **Standard tube diameters, snapping mounts to motor sizes, a motor-fit warning and a backup offer in the Scale dialog** (seen in MMRocket Sim, skipped 2026-10-07) - not in desktop OpenRocket's Scale dialog, whose options (scope, from/to, explicit masses, offsets) the app now has.
+
+- **Snapping to the parent's middle and to fin tab edges** (seen in MMRocket Sim, skipped 2026-10-07) - desktop's only snapping is for its measuring calipers.
+
+- **A first-run tour** (seen in MMRocket Sim, skipped 2026-10-07) - it has to be redone every time the layout changes, and the docs and in-app Help cover getting started without that upkeep.
+
+- **Diameter or radius entry, and a choice of stability in calibers, percent or both** (seen in MMRocket Sim, skipped 2026-10-07) - desktop has no radius toggle, and the app already shows calibers and percent together, so a choice could only take one away.
+
+- **Whole-rocket OBJ, GLB and STL export** (seen in MMRocket Sim, skipped 2026-10-07) - whole-rocket 3MF and every format per part already cover printing; a whole-rocket display model adds little.
+
+- **Splitting oversized parts for a 3D printer** (seen in MMRocket Sim, skipped 2026-10-07) - printer bed presets, joint clearance and a zip of pieces joined by spigots: a large feature for a narrow need.
+
+- **Share links that carry the design in the URL** (seen in MMRocket Sim, skipped 2026-10-07) - sharing a design means sending its `.ork`, which every OpenRocket user can open. A link would hold the design after the `#`, which never reaches a server, but long designs make long links, and opening one has to ask before replacing the design on screen.
+
+- **A "Keep this tab's design" choice when two tabs edit the same design** (seen in MMRocket Sim, skipped 2026-10-07) - it would overwrite the other tab's newer save. The banner that points to export or reopen loses nothing.
+
+- **In-app release notes** (seen in MMRocket Sim, skipped 2026-10-07) - CHANGELOG.md already records each release for users.
+
+- **A run history kept across motor swaps** (seen in MMRocket Sim, skipped 2026-10-07) - the run table exports every simulation in the design, and a flight worth keeping can be kept as a simulation of its own.
+
+- **Flying the rounded optimum ejection delay automatically, with a report of delays by mount** (seen in MMRocket Sim, skipped 2026-10-07) - desktop OpenRocket shows the optimum delay and leaves the delay to the flier, as the app does.
+
+- **A "check thrustcurve.org" button listing new, changed and delisted motors** (seen in MMRocket Sim, skipped 2026-10-07) - not in desktop, and the motor catalog already refreshes from the `data` branch on a schedule without a rebuild.
+
+- **Quick picks of common Estes motors that fit the mount** (seen in MMRocket Sim, skipped 2026-10-07) - not in desktop, and the motor picker's "Fits the mount" filter does the same job.
+
+- **An estimated cloud base in the weather dialog** (seen in MMRocket Sim, skipped 2026-10-07) - worked out from the temperature and dew-point spread, a weather formula of the app's own, and a rough one from model-grid values; the same reason as the density altitude readout. The dialog shows the forecast's own cloud cover and visibility instead.
+
+- **Quoting 14 CFR 101.25 beside the forecast's cloud and visibility** (seen in MMRocket Sim, skipped 2026-10-07) - legal text to keep current, and a quoted rule beside a forecast number reads as a check even when labeled otherwise. The safety notes already defer to the safety code, the field's waiver and the RSO.
+
 - **RockSim simulation import** - a `.rkt`'s motor SELECTION does not come across: reading `EngineSet` / `StageNEngines` so the motors seat themselves on the matching mount would need the serial-number cross-reference (`MountSerialNo`) that neither `services/files/rktImport.ts` nor `services/files/rktExport.ts` writes. The design itself moves both ways, and the limitation is documented where a user meets it: the FAQ and **Files & Exports** both say motors and launch conditions stay behind, because RockSim keeps those with its simulations rather than its designs. Pick a motor after importing.

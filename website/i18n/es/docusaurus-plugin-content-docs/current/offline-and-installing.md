@@ -14,12 +14,12 @@ En tu primera visita, el navegador almacena discretamente, en segundo plano:
 
 - la propia aplicación,
 - el **motor de física** (~2,3 MB),
-- el **catálogo de motores** (~800 motores con curvas de empuje) y el **catálogo de componentes** (~2.900 piezas),
+- el **catálogo de motores** (~1.150 motores con curvas de empuje) y el **catálogo de componentes** (~3.400 piezas),
 - los **[cohetes de ejemplo](./getting-started.md#example-rockets)** (~330 kB los dieciséis), para que uno se abra en una primera carga sin conexión y no solo si estabas conectado cuando fuiste a buscarlo.
 
 Unos 8 MB en total. No tienes que hacer nada para activarlo: basta con dejar que termine la primera carga.
 
-El catálogo de motores lleva consigo la **curva de empuje** de cada motor, así que simular sin conexión funciona incluso con motores que nunca has abierto: 781 de los 815. Los 34 restantes no tienen curva publicada que incluir; el selector los señala y necesitan conexión para descargarla de thrustcurve.org (y queda en caché una vez lo hagas).
+El catálogo de motores lleva consigo la **curva de empuje** de cada motor, así que simular sin conexión funciona incluso con motores que nunca has abierto: 1.063 de los 1.156. Los 93 restantes no tienen curva publicada que incluir; el selector los señala y necesitan conexión para descargarla de thrustcurve.org (y queda en caché una vez lo hagas).
 
 **Las imágenes de mapa son la excepción.** Se descargan según las miras, no de antemano, y las teselas que ya has visto se conservan, así que un campo que consultaste en casa sigue dibujándose en el lanzamiento sin cobertura. Un terreno que no has visto nunca no se puede dibujar sin conexión: el mapa del lugar de lanzamiento recurre a una retícula de coordenadas, y la traza en tierra y la trayectoria 3D a sus gráficos simples, que de todos modos llevan la medida.
 
