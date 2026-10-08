@@ -107,3 +107,18 @@ test('a place search names neither the app nor its site, and sets the site', asy
   expect(headers['cookie']).toBeUndefined();
   for (const value of Object.values(headers)) expect(value).not.toContain(site.host);
 });
+
+test('the forecast shows cloud cover and visibility for the hour, without applying them', async ({ page }) => {
+  await answerOpenMeteo(page);
+  await ready(page);
+  await openTab(page, 'Simulations');
+  await page.getByRole('button', { name: 'Get weather…' }).click();
+  await page.getByRole('button', { name: 'Fetch', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: /weather/i });
+  await expect(dialog.getByText('Clouds and visibility (forecast, not applied)')).toBeVisible();
+  const row = (name: string) => dialog.locator('dl > div').filter({ hasText: name });
+  await expect(row('Low cloud cover')).toContainText('10 %');
+  await expect(row('Visibility')).toContainText(/24\.1 km|15\.0 mi/);
+  // Nothing to tick: the readouts are information, not something a flight reads.
+  await expect(dialog.getByRole('checkbox', { name: /cloud|visibility/i })).toHaveCount(0);
+});

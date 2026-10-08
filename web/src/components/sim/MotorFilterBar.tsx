@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { loadHideOop, saveHideOop } from './motorPrefs';
 import { useTranslation } from 'react-i18next';
 import { filterMotors, allClasses, allManufacturers, type CatalogMotor } from '../../services/motors/motorDb';
 import { STD_DIAMS, MAX_IDX, fitIdx, type MountFit } from '../../services/motors/motorPicker';
@@ -34,12 +35,22 @@ export interface MotorFilterInit {
   mount?: MountFit | null;
 }
 
+const EMPTY: ReadonlySet<string> = new Set();
+
 /** Total impulse bounds in N·s, either end open. */
 export type ImpulseRange = [min: number | null, max: number | null];
 
 /** Filter state over a catalog and the rows that survive it. */
-export function useMotorFilter(catalog: CatalogMotor[], init: MotorFilterInit = {}) {
+export function useMotorFilter(
+  catalog: CatalogMotor[],
+  init: MotorFilterInit = {},
+  /** Motors already used in the mount, by `keyOf`, for "Hide motors already used in the mount". */
+  used: ReadonlySet<string> = EMPTY,
+) {
   const [text, setText] = useState('');
+  const [hideOop, setHideOop] = useState(loadHideOop);
+  const [hideUsed, setHideUsed] = useState(false);
+  useEffect(() => saveHideOop(hideOop), [hideOop]);
   const [cls, setCls] = useState<string | null>(null);
   const [mfrs, setMfrs] = useState<Set<string>>(() => init.mfrs ?? new Set());
   const [imp, setImp] = useState<ImpulseRange>([null, null]);
@@ -115,8 +126,10 @@ export function useMotorFilter(catalog: CatalogMotor[], init: MotorFilterInit = 
         maxImpulse: impMax ?? undefined,
         fit,
         plugged,
+        hideOop,
+        hide: hideUsed ? used : undefined,
       }),
-    [catalog, text, cls, mfrs, lowIdx, highIdx, impMin, impMax, fit, plugged],
+    [catalog, text, cls, mfrs, lowIdx, highIdx, impMin, impMax, fit, plugged, hideOop, hideUsed, used],
   );
   return {
     text,
@@ -132,6 +145,10 @@ export function useMotorFilter(catalog: CatalogMotor[], init: MotorFilterInit = 
     setImp,
     plugged,
     setPlugged,
+    hideOop,
+    setHideOop,
+    hideUsed,
+    setHideUsed,
     fits,
     setFits: setFitsAndCeiling,
     mount,
@@ -320,6 +337,18 @@ export function PluggedFilter({ plugged, onChange }: { plugged: boolean; onChang
   return (
     <FilterCheck label={t('motorDlg.plugged')} hint={t('motorDlg.pluggedHint')} on={plugged} onChange={onChange} />
   );
+}
+
+/** Desktop's "Hide motors which are not in regular production". */
+export function OopFilter({ on, onChange }: { on: boolean; onChange: (on: boolean) => void }) {
+  const { t } = useTranslation();
+  return <FilterCheck label={t('motorDlg.hideOop')} hint={t('motorDlg.hideOopHint')} on={on} onChange={onChange} />;
+}
+
+/** Desktop's "Hide motors already used in the mount": in its other flight configurations. */
+export function UsedFilter({ on, onChange }: { on: boolean; onChange: (on: boolean) => void }) {
+  const { t } = useTranslation();
+  return <FilterCheck label={t('motorDlg.hideUsed')} hint={t('motorDlg.hideUsedHint')} on={on} onChange={onChange} />;
 }
 
 /**

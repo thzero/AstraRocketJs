@@ -9,10 +9,14 @@ import { useRef, type ReactElement } from 'react';
 export function useFilePick({
   accept,
   onFile,
+  onFiles,
   label,
 }: {
   accept: string;
-  onFile: (file: File) => void;
+  /** One file. */
+  onFile?: (file: File) => void;
+  /** Several at once: the picker then lets the user choose more than one. */
+  onFiles?: (files: File[]) => void;
   /** The input's accessible name, for a picker a test or a screen reader reaches directly. */
   label?: string;
 }): { pick: () => void; input: ReactElement } {
@@ -22,12 +26,15 @@ export function useFilePick({
       ref={ref}
       type="file"
       accept={accept}
+      multiple={!!onFiles}
       aria-label={label}
       className="hidden"
       onChange={(e) => {
-        const file = e.target.files?.[0];
+        const files = [...(e.target.files ?? [])];
         e.target.value = '';
-        if (file) onFile(file);
+        if (onFiles) {
+          if (files.length) onFiles(files);
+        } else if (files[0]) onFile?.(files[0]);
       }}
     />
   );

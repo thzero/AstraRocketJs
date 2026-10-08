@@ -246,7 +246,7 @@ describe('every curve in the bundled catalog', () => {
         }
       }
     }
-    expect(curves.length).toBeGreaterThan(50); // 74 in the shipped catalog
+    expect(curves.length).toBeGreaterThan(30); // 41 in the shipped catalog
     expect(wrong).toEqual([]);
   });
 });

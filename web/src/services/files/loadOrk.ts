@@ -277,21 +277,17 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
    * What the catalog found, when it is not plainly what the file asked for.
    *
    * The lookup runs from "this is the name" down to "this is what the name looks
-   * like with its impulse and propellant taken off", and treats the file's
-   * manufacturer as a preference rather than a filter. Every one of those is a
+   * like with its impulse and propellant taken off". Every one of those is a
    * match worth making; none of them is the file confirming the motor. Loading
    * one in silence is how an `I170-P` filed under Kosdon became a Cesaroni
-   * I170 with nothing on screen to say so.
+   * I170 with nothing on screen to say so. Another maker's motor is not loaded
+   * at all (see `resolveOnce`), so the maker doubt never reaches here.
    */
   const noteDoubt = (ref: OrkMotorRef, cat: CatalogMotor, doubt: MotorMatchDoubt): void => {
     const got = `${cat.manufacturer} ${cat.designation}`;
     const asked = `"${ref.designation}"`;
     const check = 'check it before flying.';
-    if (doubt === 'maker') {
-      notes.push(
-        `Motor ${asked} is filed under ${ref.manufacturer} in this file and the catalog has no motor of theirs by that name. Loaded ${got} instead - ${check}`,
-      );
-    } else if (doubt === 'shortened') {
+    if (doubt === 'shortened') {
       notes.push(`Motor ${asked} is not a name the catalog carries. Loaded the closest, ${got} - ${check}`);
     } else {
       notes.push(`Motor ${asked} matches more than one motor in the catalog. Loaded ${got} - ${check}`);
@@ -301,14 +297,22 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
   const resolveOnce = async (ref: OrkMotorRef): Promise<MotorSpec> => {
     const own = () => embedded.byName.get(removeDelay(ref.designation).toUpperCase());
     const match = matchCatalogMotor(catalog, ref.designation, ref.manufacturer);
-    const cat = match?.motor;
+    // The file's maker is a FILTER, as desktop's motor database reads a file
+    // (ThrustCurveMotorSetDatabase.findMotors): a motor of the same name from
+    // another maker is a different motor, and desktop leaves the mount empty
+    // with a missing-motor warning rather than fly it. The one exception is the
+    // file's digest naming that very motor, which settles it whatever the maker
+    // is called.
+    const digestConfirms = !!ref.digest && !!match?.motor.digests?.some((d) => d.digest === ref.digest);
+    const otherMaker = match?.doubt === 'maker' && !digestConfirms;
+    const cat = otherMaker ? undefined : match?.motor;
     // The curve the file names by digest, unless the catalog holds that exact
     // motor: an imported motor saved from this app, or any motor the catalog
     // does not carry under that digest. A name match alone could be a different
     // motor that happens to share it.
     const named = ref.digest ? embedded.byDigest.get(ref.digest) : undefined;
     if (named && !cat?.digests?.some((d) => d.digest === ref.digest)) return customMotorToSpec(named, ref.delay);
-    if (match?.doubt) noteDoubt(ref, match.motor, match.doubt);
+    if (match?.doubt && match.doubt !== 'maker') noteDoubt(ref, match.motor, match.doubt);
     if (!cat) {
       // Before giving up: the file may carry the curve itself.
       const curve = own();
@@ -320,7 +324,9 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
       // default: the mount shows what the file wanted, the run is blocked until
       // the user picks a real motor, and nothing silently flies a C6.
       notes.push(
-        `Motor "${ref.designation}" isn't in the catalog — pick a motor for that mount (it won't fly a default).`,
+        otherMaker
+          ? `Motor "${ref.designation}" is filed under ${ref.manufacturer} in this file, and the catalog has no motor of theirs by that name (only ${match!.motor.manufacturer}'s). Pick a motor for that mount (it won't fly a default).`
+          : `Motor "${ref.designation}" isn't in the catalog — pick a motor for that mount (it won't fly a default).`,
       );
       return unresolvedMotor(ref);
     }

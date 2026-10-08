@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { fmtNum } from '../../i18n/format';
 import { useUnits } from '../../prefs/useUnits';
@@ -7,6 +8,12 @@ import { avgThrustOf, ispOf, massFracOf } from '../../services/motors/motorMath'
 import { ChartAxes, CHART_HEADROOM, chartScales, linePath, baselineArea, LegendSwatch, peakOf } from './chartAxes';
 import { inUserUnit, withFixedUnit } from './motorFormat';
 import { token } from '../common/colorTokens';
+import { motorSimilarity } from '../../engine/openRocketEngine';
+import { loadHideSimilar, saveHideSimilar } from './motorPrefs';
+import { finalizeSamples } from '../../services/motors/curveFinalize';
+
+/** Desktop's threshold for "Hide very similar thrust curves" (MOTOR_SIMILARITY_THRESHOLD). */
+const SIMILAR = 0.95;
 
 const TYPE_KEY: Record<string, string> = { SU: 'typeSU', reload: 'typeReload', hybrid: 'typeHybrid' };
 
@@ -25,8 +32,36 @@ export function MotorDetail({
 }) {
   const { t } = useTranslation();
   const u = useUnits();
-  const curves = motor.curves ?? [];
+  const curves = useMemo(() => motor.curves ?? [], [motor.curves]);
   const samples = (curves[curveIndex] ?? curves[0])?.samples ?? [];
+  const [hideSimilar, setHideSimilarRaw] = useState(loadHideSimilar);
+  const setHideSimilar = (on: boolean) => {
+    setHideSimilarRaw(on);
+    saveHideSimilar(on);
+  };
+  // The curves the dropdown offers: the one shown, and with the box ticked only
+  // those the kernel's MotorCorrelation does not call near duplicates of it.
+  // Every curve while the engine is still loading, rather than none.
+  const offered = useMemo(
+    () =>
+      curves
+        .map((_, i) => i)
+        .filter((i) => {
+          if (!hideSimilar || i === curveIndex || !curves[curveIndex]) return true;
+          // A curve the kernel cannot compare is offered rather than hidden, and
+          // never takes the dialog down with it.
+          try {
+            const score = motorSimilarity(
+              finalizeSamples(curves[curveIndex]!.samples),
+              finalizeSamples(curves[i]!.samples),
+            );
+            return score === null || score < SIMILAR;
+          } catch {
+            return true;
+          }
+        }),
+    [curves, curveIndex, hideSimilar],
+  );
   const title = motor.code || motor.designation;
   const showCommon = !!motor.code && motor.code !== motor.designation;
 
@@ -77,23 +112,36 @@ export function MotorDetail({
         {t('motorDlg.viewOnTc')} ↗
       </a>
 
+      {motor.oop && <p className="mt-1 text-xs font-medium text-warn-300">{t('motorDlg.oop')}</p>}
+
       {curves.length > 1 && (
-        <label className="mt-4 flex items-center gap-2">
-          <span className="text-[10px] font-semibold uppercase tracking-wide text-ink-faint">
-            {t('motorDlg.curve')}
-          </span>
-          <select
-            value={curveIndex}
-            onChange={(e) => onCurveChange(Number(e.target.value))}
-            className="rounded-md bg-canvas px-2 py-1 text-xs text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500"
-          >
-            {curves.map((c, i) => (
-              <option key={i} value={i}>
-                {c.src} ({c.samples.length})
-              </option>
-            ))}
-          </select>
-        </label>
+        <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1">
+          <label className="flex items-center gap-2">
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-ink-faint">
+              {t('motorDlg.curve')}
+            </span>
+            <select
+              value={curveIndex}
+              onChange={(e) => onCurveChange(Number(e.target.value))}
+              className="rounded-md bg-canvas px-2 py-1 text-xs text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500"
+            >
+              {offered.map((i) => (
+                <option key={i} value={i}>
+                  {curves[i]!.src} ({curves[i]!.samples.length})
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex items-center gap-2 text-xs text-ink-soft" title={t('motorDlg.hideSimilarHint')}>
+            <input
+              type="checkbox"
+              checked={hideSimilar}
+              onChange={(e) => setHideSimilar(e.target.checked)}
+              className="accent-accent-500"
+            />
+            {t('motorDlg.hideSimilar')}
+          </label>
+        </div>
       )}
 
       {samples.length >= 2 ? (

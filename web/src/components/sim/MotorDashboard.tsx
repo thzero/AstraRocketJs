@@ -11,6 +11,7 @@ import {
   ImpulseRange,
   ManufacturerMenu,
   PluggedFilter,
+  OopFilter,
   useMotorFilter,
 } from './MotorFilterBar';
 import { useVisibleColumns } from './motorColumns';
@@ -65,6 +66,8 @@ export function MotorDashboard({ onClose }: { onClose: () => void }) {
     classes,
     manufacturers,
     matches: filtered,
+    hideOop,
+    setHideOop,
   } = useMotorFilter(catalog);
 
   const { sort, shown, clickHeader } = useMotorSort(filtered);
@@ -150,6 +153,7 @@ export function MotorDashboard({ onClose }: { onClose: () => void }) {
                 letters. */}
             <ImpulseRange imp={imp} onChange={setImp} />
             <PluggedFilter plugged={plugged} onChange={setPlugged} />
+            <OopFilter on={hideOop} onChange={setHideOop} />
           </div>
 
           <MotorGrid

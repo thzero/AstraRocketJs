@@ -12,9 +12,10 @@ const MARK = 'mark[data-astra-help-mark]';
  * keyed on the anchor as well as on the page. Marking is undone before each
  * re-run, which leaves the document as it was served.
  *
- * The docs page can hydrate and re-render its article after the frame's load
- * event, which drops the marks (or replaces the article outright), so the body
- * is watched and the words marked again whenever the article has none.
+ * The docs page can render its article after the frame's load event (there may
+ * be no article at all yet when this runs), and can re-render it later, which
+ * drops the marks or replaces the article outright. So the body is watched from
+ * the start, and the words are marked whenever an article is there without them.
  */
 export function useFrameHighlight(
   frameRef: RefObject<HTMLIFrameElement | null>,
@@ -24,7 +25,7 @@ export function useFrameHighlight(
 ): void {
   useEffect(() => {
     const doc = frameRef.current?.contentDocument;
-    if (!ready || !doc?.querySelector('article')) return;
+    if (!ready || !doc?.body) return;
     const win = doc.defaultView;
     let scrolled = false;
 

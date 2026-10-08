@@ -18,6 +18,18 @@ export const saveMfrs = (s: Set<string>): void => void writeLocalJson(MFRS_KEY, 
  * mount follow the user to every other mount they load; capping by the mount is
  * the fit checkbox's job instead.
  */
+const isBool = (v: unknown): v is boolean => typeof v === 'boolean';
+
+/** "Hide motors not in regular production", remembered; on until turned off, as desktop's is. */
+const HIDE_OOP_KEY = nsKey('motorPicker:hideOop');
+export const loadHideOop = (): boolean => readLocalJson(HIDE_OOP_KEY, isBool, true);
+export const saveHideOop = (on: boolean): void => void writeLocalJson(HIDE_OOP_KEY, on);
+
+/** "Hide very similar thrust curves", remembered; on until turned off, as desktop's is. */
+const HIDE_SIMILAR_KEY = nsKey('motorPicker:hideSimilar');
+export const loadHideSimilar = (): boolean => readLocalJson(HIDE_SIMILAR_KEY, isBool, true);
+export const saveHideSimilar = (on: boolean): void => void writeLocalJson(HIDE_SIMILAR_KEY, on);
+
 const DIA_KEY = nsKey('motorPicker:dia2');
 export const loadDia = (): [number, number] | null => readLocalJson<[number, number] | null>(DIA_KEY, isRange, null);
 export const saveDia = (d: [number, number]): void => void writeLocalJson(DIA_KEY, d);

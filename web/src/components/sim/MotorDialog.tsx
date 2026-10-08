@@ -1,5 +1,5 @@
 import { useLatest } from '../common/useLatest';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { NumberInput } from '../common/NumberInput';
 import { hasCurve, importCustomMotors, deleteCustomMotor, type CatalogMotor } from '../../services/motors/motorDb';
@@ -19,6 +19,8 @@ import {
   ImpulseRange,
   ManufacturerMenu,
   PluggedFilter,
+  OopFilter,
+  UsedFilter,
   useMotorFilter,
 } from './MotorFilterBar';
 import { readFileText } from '../../services/files/decodeText';
@@ -69,6 +71,7 @@ export function MotorDialog({
   onError,
   mount,
   current,
+  used = [],
 }: {
   onClose: () => void;
   onSelect: (m: MotorSpec) => void;
@@ -81,6 +84,8 @@ export function MotorDialog({
   mount?: MountFit | null;
   /** The motor already seated on this mount, pre-selected when the dialog opens. */
   current?: MotorSpec | null;
+  /** The motors this mount carries in its other flight configurations. */
+  used?: MotorSpec[];
 }) {
   const { t } = useTranslation();
   const u = useUnits();
@@ -119,6 +124,16 @@ export function MotorDialog({
    * to fly. Capping by the mount is the fit checkbox's job, which is per-mount,
    * visible, and can be turned off.
    */
+  const usedKeys = useMemo(
+    () =>
+      new Set(
+        used.flatMap((spec) => {
+          const m = findSeated(catalog, spec);
+          return m ? [keyOf(m)] : [];
+        }),
+      ),
+    [used, catalog],
+  );
   const [filterInit] = useState(() => ({
     mfrs: loadMfrs(),
     dia: loadDia() ?? ([0, MAX_IDX] as [number, number]),
@@ -144,7 +159,11 @@ export function MotorDialog({
     classes,
     manufacturers,
     matches,
-  } = useMotorFilter(catalog, filterInit);
+    hideOop,
+    setHideOop,
+    hideUsed,
+    setHideUsed,
+  } = useMotorFilter(catalog, filterInit, usedKeys);
 
   // Persist the manufacturer selection and diameter range across sessions.
   useEffect(() => {
@@ -195,7 +214,7 @@ export function MotorDialog({
   // motor pick are different attempts and neither should cancel the other.
   const catalogWrite = useLatest();
 
-  const onImport = async (file: File) => {
+  const onImport = async (files: File[]) => {
     onError(null);
     setNote(null);
     // A file read plus an IndexedDB write per motor, and a manufacturer range is
@@ -203,20 +222,22 @@ export function MotorDialog({
     // a closed dialog, or behind a second import, is discarded.
     const mine = catalogWrite.claim();
     try {
-      const { catalog, imported } = await importCustomMotors(await readFileText(file));
+      const texts = await Promise.all(files.map(async (f) => ({ name: f.name, text: await readFileText(f) })));
+      const { catalog, imported, failed } = await importCustomMotors(texts);
       if (!mine()) return;
       setCatalog(catalog);
       // Reported in the dialog rather than through onError, which is the
       // simulation panel behind it: a RockSim engine-database file can hold a
       // manufacturer whole range, and one motor landing looks exactly like
       // forty in a list of 800.
-      setNote(t('motor.importedN', { count: imported }));
+      const done = t('motor.importedN', { count: imported });
+      setNote(failed.length ? `${done} ${t('motor.importSkipped', { files: failed.join(', ') })}` : done);
     } catch (err) {
       if (!mine()) return;
       onError(errorMessage(err));
     }
   };
-  const motorFile = useFilePick({ accept: '.eng,.ENG,.rse,.RSE', onFile: (f) => void onImport(f) });
+  const motorFile = useFilePick({ accept: '.eng,.ENG,.rse,.RSE', onFiles: (f) => void onImport(f) });
 
   const onDelete = async (m: CatalogMotor) => {
     if (!m.id) return;
@@ -300,6 +321,8 @@ export function MotorDialog({
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
               {fitMount && <FitsMount mount={fitMount} fits={fits} onChange={setFits} />}
               <PluggedFilter plugged={plugged} onChange={setPlugged} />
+              <OopFilter on={hideOop} onChange={setHideOop} />
+              {usedKeys.size > 0 && <UsedFilter on={hideUsed} onChange={setHideUsed} />}
             </div>
           </div>
 

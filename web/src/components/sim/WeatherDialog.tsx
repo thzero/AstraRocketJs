@@ -30,6 +30,7 @@ import { Check } from '../common/Check';
 import { useLatest } from '../common/useLatest';
 import { WhenFields } from './WhenFields';
 import { useOnline } from '../common/useOnline';
+import { fmtNum } from '../../i18n/format';
 
 /**
  * Launch conditions from an Open-Meteo forecast for a date and hour at the
@@ -172,6 +173,10 @@ export function WeatherDialog({
   const pres = (hPa: number) => `${u.fmtSym('pressure', LAUNCH_SI.hPa.toSi(hPa), 1)}`;
   const wind = (ms: number) => `${u.fmtSym('windspeed', ms, 1)}`;
   const alt = (m: number) => `${u.fmtSym('distance', m, 0)}`;
+  // Visibility runs to tens of kilometers, so it reads in km or miles: the
+  // large unit of whichever system the distance unit belongs to.
+  const imperial = ['ft', 'mi'].includes(u.sym('distance'));
+  const far = (m: number) => (imperial ? `${fmtNum(m / 1609.344, 1)} mi` : `${fmtNum(m / 1000, 1)} km`);
 
   const describe = (g: ProposalGroup): string => {
     const p = proposal!;
@@ -311,6 +316,28 @@ export function WeatherDialog({
                 </li>
               ))}
             </ul>
+            {sample &&
+              (sample.cloudCoverPct !== null || sample.cloudCoverLowPct !== null || sample.visibilityM !== null) && (
+                <div className="rounded-md bg-raised/60 p-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-muted">{t('weather.sky')}</p>
+                  <dl className="mt-1 space-y-0.5 text-xs">
+                    {(
+                      [
+                        ['weather.cloudCover', sample.cloudCoverPct, (v: number) => `${Math.round(v)} %`],
+                        ['weather.cloudCoverLow', sample.cloudCoverLowPct, (v: number) => `${Math.round(v)} %`],
+                        ['weather.visibility', sample.visibilityM, far],
+                      ] as const
+                    ).map(([key, value, fmt]) =>
+                      value === null ? null : (
+                        <div key={key} className="flex justify-between gap-3">
+                          <dt className="text-ink-soft">{t(key)}</dt>
+                          <dd className="tabular-nums text-ink-strong">{fmt(value)}</dd>
+                        </div>
+                      ),
+                    )}
+                  </dl>
+                </div>
+              )}
             <p className="text-xs text-ink-faint">{t('weather.forecastNote')}</p>
             <OpenMeteoCredit className="text-xs text-ink-faint" />
           </div>

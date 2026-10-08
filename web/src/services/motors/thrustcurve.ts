@@ -5,6 +5,7 @@ import { cumulativeImpulse } from './motorMath';
 import { getMotorStore, isThrustSampleArray, type CustomMotor } from './motorStore';
 import { declaredLength, readStreamWithProgress } from '../app/fetchProgress';
 import { nsKey } from '../storage/storageKeys';
+import { finalizeCurve } from './curveFinalize';
 
 /**
  * thrustcurve.org API v1 client (CORS-enabled; verified reflective
@@ -125,19 +126,17 @@ export function samplesToMotorSpec(
    */
   massSamples?: number[],
 ): MotorSpec {
-  // Normalize: sorted, starting at t=0. A supplied mass column RIDES ALONG
-  // through both steps rather than being indexed separately afterwards, so a
-  // file whose samples are not in time order cannot end up with its masses
-  // against the wrong times, and the prepended t=0 point takes the first
-  // mass (the loaded mass) rather than shifting the whole column by one.
+  // Normalize, as desktop's motor loader does. A supplied mass column RIDES
+  // ALONG through every step rather than being indexed separately afterwards,
+  // so a file whose samples are not in time order cannot end up with its masses
+  // against the wrong times, and an added t=0 point takes the first mass (the
+  // loaded mass) rather than shifting the whole column by one.
   const measured = massSamples?.length === samples.length ? massSamples : undefined;
-  const pts = samples.map((s, i) => ({ ...s, mass: measured?.[i] })).sort((a, b) => a.time - b.time);
-  if (pts.length === 0) {
+  if (samples.length === 0) {
     throw new Error(`No thrust samples for ${motor.designation}`);
   }
-  if (pts[0]!.time > 0) {
-    pts.unshift({ time: 0, thrust: 0, mass: pts[0]!.mass });
-  }
+  // Into the shape the kernel takes: from t = 0, one thrust per time (curveFinalize).
+  const pts = finalizeCurve(samples.map((s, i) => ({ ...s, mass: measured?.[i] })));
 
   // thrustcurve.org's catalog is not uniformly populated: some entries publish
   // no loaded/propellant weight, and a few list more propellant than loaded

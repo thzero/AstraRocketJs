@@ -485,3 +485,18 @@ describe('matchCatalogMotor — how sure the match is', () => {
     expect(findCatalogMotor(cat, 'I170', 'Kosdon')).toBe(matchCatalogMotor(cat, 'I170', 'Kosdon')!.motor);
   });
 });
+
+/** Desktop's chooser filters: out of regular production, and already used in the mount. */
+describe('filterMotors, desktop filters', () => {
+  const withOop: CatalogMotor[] = [...catalog, { ...catalog[0]!, designation: 'C5', oop: true }];
+
+  it('hides motors out of regular production only when asked', () => {
+    expect(filterMotors(withOop, filter())).toHaveLength(5);
+    expect(filterMotors(withOop, filter({ hideOop: true })).map((m) => m.designation)).not.toContain('C5');
+  });
+
+  it('hides the motors named in `hide`, by their key', () => {
+    const out = filterMotors(catalog, filter({ hide: new Set(['Estes|C6|18|']) }));
+    expect(out.map((m) => `${m.manufacturer} ${m.designation}`)).toEqual(['Quest C6', 'Estes D12', 'Estes B6']);
+  });
+});

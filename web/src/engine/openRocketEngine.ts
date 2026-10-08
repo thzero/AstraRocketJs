@@ -1400,6 +1400,24 @@ export function standardPressurePa(altitudeM: number): number | null {
   return callEngine('standardPressure', () => eng().getStandardPressure(altitudeM));
 }
 
+/**
+ * How alike two thrust curves are, 0 to 1, from the kernel's
+ * `MotorCorrelation.similarity` (what desktop's "Hide very similar thrust
+ * curves" compares against 0.95), or null while the engine is still loading.
+ * Curves are `[time s, thrust N]` samples.
+ */
+export function motorSimilarity(a: [number, number][], b: [number, number][]): number | null {
+  if (!active) return null;
+  return callEngine('motorSimilarity', () =>
+    eng().getMotorSimilarity(
+      a.map((p) => p[0]),
+      a.map((p) => p[1]),
+      b.map((p) => p[0]),
+      b.map((p) => p[1]),
+    ),
+  );
+}
+
 export function resetEngine(): void {
   callEngine('reset', () => eng().reset());
   engineGeneration++;

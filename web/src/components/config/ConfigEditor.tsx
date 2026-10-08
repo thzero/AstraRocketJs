@@ -32,6 +32,7 @@ export function ConfigEditor() {
   const { t } = useTranslation();
   const tree = useWorkspaceStore((s) => s.tree);
   const config = useWorkspaceStore(selectEditedConfig);
+  const configs = useWorkspaceStore((s) => s.configs);
   const setMountMotor = useWorkspaceStore((s) => s.setMountMotor);
   const setMountIgnition = useWorkspaceStore((s) => s.setMountIgnition);
   const renameConfig = useWorkspaceStore((s) => s.renameConfig);
@@ -109,6 +110,7 @@ export function ConfigEditor() {
               onIgnitionChange={(e, d) => setMountIgnition(config.id, id, e, d)}
               onCommit={onCommit}
               upperStage={isUpperStageMount(tree, id)}
+              used={configs.flatMap((c) => (c.id !== config.id && c.motors[id]?.spec ? [c.motors[id]!.spec] : []))}
             />
           );
         })}

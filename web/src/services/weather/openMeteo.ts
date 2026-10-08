@@ -76,6 +76,14 @@ export const SURFACE_VARS = [
   'wind_gusts_10m',
 ] as const;
 
+/**
+ * The sky, shown with the hour and never applied: nothing in a flight reads
+ * cloud or visibility. Optional in the answer, so a model without them costs
+ * the readout and not the fetch. The archive has cloud cover but no visibility.
+ */
+export const SKY_VARS = ['cloud_cover', 'cloud_cover_low'] as const;
+export const FORECAST_SKY_VARS = ['visibility'] as const;
+
 /** Wind heights above ground the forecast reports, in meters. */
 const WIND_HEIGHTS = [80, 120, 180] as const;
 
@@ -105,6 +113,8 @@ export function unitFor(variable: string): string {
   if (variable.startsWith('wind_direction_')) return '°';
   if (variable.startsWith('wind_')) return 'm/s';
   if (variable.startsWith('geopotential_height_')) return 'm';
+  if (variable.startsWith('cloud_cover')) return '%';
+  if (variable === 'visibility') return 'm';
   throw new Error(`no unit known for ${variable}`);
 }
 
@@ -232,7 +242,11 @@ export function forecastUrl(q: {
   const path = q.endpoint === 'archive' ? '/v1/archive' : '/v1/forecast';
   const n = q.elevationsM.length;
   const rep = (s: string) => Array.from({ length: n }, () => s).join(',');
-  const vars = [...SURFACE_VARS, ...(q.endpoint === 'archive' ? [] : ALOFT_VARS)];
+  const vars = [
+    ...SURFACE_VARS,
+    ...SKY_VARS,
+    ...(q.endpoint === 'archive' ? [] : [...FORECAST_SKY_VARS, ...ALOFT_VARS]),
+  ];
   return (
     `${host}${path}?latitude=${rep(dp3(q.latitudeDeg))}&longitude=${rep(dp3(q.longitudeDeg))}` +
     `&elevation=${q.elevationsM.map(elev).join(',')}` +
@@ -292,6 +306,11 @@ export interface HourSample {
   heightWinds: { heightM: number; speed: number | null; fromDeg: number | null }[];
   /** Empty from the archive. */
   levels: PressureLevelSample[];
+  /** Cloud cover, all levels and low, %; shown, never applied. */
+  cloudCoverPct: number | null;
+  cloudCoverLowPct: number | null;
+  /** Horizontal visibility, m; forecast only. */
+  visibilityM: number | null;
 }
 
 /** One elevation's answer. */
@@ -363,6 +382,7 @@ export function parseForecast(body: unknown, elevationsM: readonly number[]): Fo
       (typeof SURFACE_VARS)[number],
       (number | null)[]
     >;
+    const sky = Object.fromEntries([...SKY_VARS, ...FORECAST_SKY_VARS].map((v) => [v, series(v, false)]));
     const aloft = new Map<string, (number | null)[]>();
     for (const v of ALOFT_VARS) if (h[v] !== undefined) aloft.set(v, series(v, false));
     const at = (v: string, j: number) => aloft.get(v)?.[j] ?? null;
@@ -392,6 +412,9 @@ export function parseForecast(body: unknown, elevationsM: readonly number[]): Fo
               windFromDeg: at(`wind_direction_${p}hPa`, j),
             }))
           : [],
+        cloudCoverPct: sky['cloud_cover']![j]!,
+        cloudCoverLowPct: sky['cloud_cover_low']![j]!,
+        visibilityM: sky['visibility']![j]!,
       };
       if (sample.temperatureC !== null || sample.pressureHPa !== null || sample.windSpeed !== null) anyValue = true;
       return sample;

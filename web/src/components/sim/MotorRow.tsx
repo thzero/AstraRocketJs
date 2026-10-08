@@ -30,6 +30,7 @@ export function MotorRow({
   onCommit,
   upperStage,
   soloEdit,
+  used,
 }: {
   motor: MotorSpec | null;
   onChange: (m: MotorSpec) => void;
@@ -55,6 +56,8 @@ export function MotorRow({
    * normal state of a comparison, not something to flag.
    */
   soloEdit?: boolean;
+  /** The motors this mount carries in its other flight configurations. */
+  used?: MotorSpec[];
 }) {
   const { t } = useTranslation();
   const u = useUnits();
@@ -137,6 +140,7 @@ export function MotorRow({
           onError={onError}
           mount={mount}
           current={motor}
+          used={used}
         />
       )}
       {curveOpen && hasCurve && motor && <MotorSpecDialog motor={motor} onClose={() => setCurveOpen(false)} />}
