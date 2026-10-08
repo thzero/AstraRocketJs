@@ -131,7 +131,7 @@ Decided against, with the reason, so they are not proposed again. Move one back 
 
 - **Flying the rounded optimum ejection delay automatically, with a report of delays by mount** (seen in MMRocket Sim, skipped 2026-10-07) - desktop OpenRocket shows the optimum delay and leaves the delay to the flier, as the app does.
 
-- **A "check thrustcurve.org" button listing new, changed and delisted motors** (seen in MMRocket Sim, skipped 2026-10-07) - not in desktop, and the motor catalog already refreshes from the `data` branch on a schedule without a rebuild.
+- **A "check thrustcurve.org" button listing new, changed and withdrawn motors** (seen in MMRocket Sim, skipped 2026-10-07) - not in desktop, and the motor catalog already refreshes from the `data` branch on a schedule without a rebuild.
 
 - **Quick picks of common Estes motors that fit the mount** (seen in MMRocket Sim, skipped 2026-10-07) - not in desktop, and the motor picker's "Fits the mount" filter does the same job.
 

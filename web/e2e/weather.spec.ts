@@ -100,7 +100,7 @@ test('a place search names neither the app nor its site, and sets the site', asy
 
   const site = new URL(page.url());
   expect(seen).toHaveLength(1);
-  const [{ url, headers }] = seen;
+  const { url, headers } = seen[0]!; // length checked just above
   expect(url.startsWith('https://geocoding-api.open-meteo.com/v1/search?name=Pueblo')).toBe(true);
   expect(headers['origin']).toBe('null');
   expect(headers['referer']).toBeUndefined();

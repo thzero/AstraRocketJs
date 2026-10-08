@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+// cspell:ignore Nowhereville
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, screen } from '@testing-library/react';
 import { PlaceSearchDialog } from '../../../src/components/sim/PlaceSearchDialog';

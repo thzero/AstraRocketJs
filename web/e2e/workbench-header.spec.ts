@@ -1,3 +1,4 @@
+// cspell:ignore Инструменты Hulpmiddelen Opgeslagen язык
 import { test, expect, runFlight, ready, box } from './base';
 
 /**

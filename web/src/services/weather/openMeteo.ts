@@ -624,7 +624,7 @@ export async function searchPlaces(
 }
 
 /** The matches in a geocoding answer. No `results` at all is Open-Meteo's "nothing found". */
-export function parsePlaces(json: unknown): PlaceMatch[] {
+function parsePlaces(json: unknown): PlaceMatch[] {
   if (!isObj(json)) throw new WeatherError('shape', 'not an object');
   const results = json['results'];
   if (results === undefined) return [];

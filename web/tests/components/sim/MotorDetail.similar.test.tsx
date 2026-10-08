@@ -40,7 +40,7 @@ const options = () => [...(screen.getByRole('combobox') as HTMLSelectElement).op
 describe('the curve choice', () => {
   beforeEach(() => localStorage.clear());
 
-  it('hides near-duplicate curves by default, and shows them all when unticked', () => {
+  it('hides near-duplicate curves by default, and shows them all when the box is cleared', () => {
     renderWithProviders(<MotorDetail motor={motor} curveIndex={0} onCurveChange={vi.fn()} />);
     expect(options()).toEqual(['Certified · RASP (3)', 'far (3)']);
     fireEvent.click(screen.getByRole('checkbox', { name: 'Hide very similar thrust curves' }));
