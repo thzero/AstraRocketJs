@@ -9,7 +9,7 @@ import {
   calloutLayout,
   CALLOUT_LANES,
   computeSchematicLayout,
-} from '../../../src/components/canvas/schematicGeometry';
+} from '../../../src/tree/schematicGeometry';
 
 describe('snapNear', () => {
   const snaps = [0, 0.1, 0.2];

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { keyOf } from '../../../src/components/sim/motorKey';
+import { keyOf } from '../../../src/services/motors/motorKey';
 import type { CatalogMotor } from '../../../src/services/motors/motorDb';
 
 const motor = (o: Partial<CatalogMotor>) =>

@@ -18,7 +18,7 @@ import { colorForType, DEFAULT_PART_COLORS, type PartPalette } from '../../servi
 import { COMPONENT_DEFAULTS } from '../../services/design/componentDefaults';
 import { DISC_TYPES } from '../../services/files/componentFormats';
 import { resolveDisc } from '../../services/design/discGeometry';
-import { axialStart, colorOf, innerTubeExtent, internalExtent, type MotorDims } from './schematicGeometry';
+import { axialStart, colorOf, innerTubeExtent, internalExtent, type MotorDims } from '../../tree/schematicGeometry';
 
 /**
  * Owns the 3D geometry of the rocket: the component tree to Piece list build

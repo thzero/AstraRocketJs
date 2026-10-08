@@ -1,15 +1,15 @@
-import type { ComponentNode, RocketTree, StaticInfo } from '../../engine/openRocketEngine';
-import { anyOuterRadius, num, numOpt } from '../../tree/nodeProps';
-import { axialChain, axialLength, axialStart, partLength } from '../../tree/position.js';
-import { finSpan } from '../../tree/finPlanform.js';
-import { walkNodes } from '../../tree/treeWalk.js';
-import { nodeShape, outerProfile } from '../../tree/shapeProfile.js';
-import { isFinSet, tubeFinRadius } from '../../tree/tubefins.js';
-import { isChainType } from '../../tree/componentKinds.js';
-import { KERNEL_DEFAULTS, KERNEL_MASSCOMPONENT_RADIUS } from '../../tree/kernelDefaults.js';
-import { assemblyBoundingRadius, isAssembly, resolveAssemblyRadius } from '../../tree/assembly.js';
-import { stabilityState, type StabilityState } from '../../services/flight/simReport.js';
-import { fmtNum } from '../../i18n/format';
+import type { ComponentNode, RocketTree, StaticInfo } from '../engine/openRocketEngine';
+import { anyOuterRadius, num, numOpt } from './nodeProps';
+import { axialChain, axialLength, axialStart, partLength } from './position.js';
+import { finSpan } from './finPlanform.js';
+import { walkNodes } from './treeWalk.js';
+import { nodeShape, outerProfile } from './shapeProfile.js';
+import { isFinSet, tubeFinRadius } from './tubefins.js';
+import { isChainType } from './componentKinds.js';
+import { KERNEL_DEFAULTS, KERNEL_MASSCOMPONENT_RADIUS } from './kernelDefaults.js';
+import { assemblyBoundingRadius, isAssembly, resolveAssemblyRadius } from './assembly.js';
+import { stabilityState, type StabilityState } from '../services/flight/simReport.js';
+import { fmtNum } from '../i18n/format';
 
 export interface Ctx {
   scale: number;

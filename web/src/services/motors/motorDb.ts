@@ -14,6 +14,7 @@ import { parseRse } from './rseParser';
 import { motorFitsMount, offersPlugged, type MountFit } from './motorPicker';
 import { fetchCatalog } from '../app/remoteData';
 import { PLUGGED_DELAY } from '../../engine/openRocketEngine';
+import { keyOf } from './motorKey';
 
 /** One catalog row — the VC sync utility's schema, plus optional custom-motor tags. */
 export interface CatalogMotor {
@@ -259,8 +260,7 @@ export function filterMotors(catalog: CatalogMotor[], filter: MotorFilter): Cata
     if (filter.fit && !motorFitsMount(m, filter.fit)) return false;
     if (filter.plugged && !offersPlugged(m)) return false;
     if (filter.hideOop && m.oop) return false;
-    if (filter.hide && filter.hide.has(`${m.manufacturer}|${m.designation}|${m.diameter}|${m.code ?? ''}`))
-      return false;
+    if (filter.hide && filter.hide.has(keyOf(m))) return false;
     if (text && !m.designation.toLowerCase().includes(text)) return false;
     return true;
   });

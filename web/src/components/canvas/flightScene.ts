@@ -4,7 +4,7 @@ import { KERNEL_DEFAULTS } from '../../tree/kernelDefaults';
 import { findRecoveryDevices } from '../../services/design/treeEdit';
 import { num } from '../../tree/nodeProps';
 import { colorForType, type PartPalette } from '../../services/design/partColors';
-import { colorOf } from './schematicGeometry';
+import { colorOf } from '../../tree/schematicGeometry';
 
 /**
  * The trajectory geometry behind FlightPath3D — pulled out of the component's

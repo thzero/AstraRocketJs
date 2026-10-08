@@ -1,5 +1,5 @@
 import { useEffect, useRef, type RefObject } from 'react';
-import { zoomStep, type ZoomState } from './schematicGeometry';
+import { zoomStep, type ZoomState } from '../../tree/schematicGeometry';
 
 /**
  * Wheel-zoom about the pointer for an SVG drawing, shared by TreeSchematic and

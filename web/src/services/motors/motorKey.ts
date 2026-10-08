@@ -1,4 +1,4 @@
-import type { CatalogMotor } from '../../services/motors/motorDb';
+import type { CatalogMotor } from './motorDb';
 
 /**
  * Stable identity for a motor across filter/sort changes.
@@ -11,8 +11,9 @@ import type { CatalogMotor } from '../../services/motors/motorDb';
  * collision does not just warn in the console: it makes two distinct motors
  * select and check as one.
  *
- * Its own module so the picker (MotorDialog) can share it without importing the
- * whole dashboard. Keyed on the LIST INDEX instead, a highlight points at a
- * different motor the moment a filter moves the list.
+ * Its own module so the dashboard, the picker and the catalog filter
+ * (`filterMotors`, which leaves out the motors a mount already flies) share one
+ * definition. Keyed on the LIST INDEX instead, a highlight points at a different
+ * motor the moment a filter moves the list.
  */
 export const keyOf = (m: CatalogMotor) => `${m.manufacturer}|${m.designation}|${m.diameter}|${m.code ?? ''}`;

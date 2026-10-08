@@ -91,7 +91,7 @@ import { defaultDesignName, designNameOf } from '../services/app/appInfo';
 import { getDesignLibrary, type DesignMeta } from '../services/storage/designLibrary';
 import { getWorkspaceStore, type Workspace } from '../services/storage/workspaceStore';
 import { migrateWorkspace } from '../services/storage/workspaceMigrate';
-import type { MotorDims } from '../components/canvas/Rocket3D';
+import type { MotorDims } from '../tree/schematicGeometry';
 import { isResultView, type ConfigsTab, type Tab, type DesignPane, type ViewMode } from './tabs';
 import { unitSymbols } from '../prefs/units';
 import { errorMessage } from '../services/app/errorMessage';
@@ -1835,10 +1835,16 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => {
         // design of the same name, in which case that entry IS its home.
         getWorkspaceStore().setActiveId?.(home.id);
         if (!home.id) getWorkspaceStore().setPendingName?.(home.name);
-        const notes = importNotes(loadedMeta.notes, sims[0]!.launch, launcherT(), displayUnits());
         // A file is the likeliest source of a value no material has, and the
         // one place the app can still say where it came from.
         const fixed = repairValues(tree);
+        // Worded for the IMPORTED design's launcher, not the one still open:
+        // the store's tree is the previous design until replaceWorkspace below.
+        const t = withLauncher(
+          i18n.t as unknown as (key: string, options?: Record<string, unknown>) => string,
+          launcherKind(fixed.tree),
+        );
+        const notes = importNotes(loadedMeta.notes, sims[0]!.launch, t, displayUnits());
         replaceWorkspace({
           repairNotes: repairNotes(fixed.repaired),
           tree: fixed.tree,

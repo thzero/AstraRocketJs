@@ -9,7 +9,7 @@ import { mergePalette } from '../../services/design/partColors';
 import { useSettings } from '../../state/SettingsProvider';
 import { ImageExportMenu } from './ImageExportMenu.js';
 import { useUnits } from '../../prefs/useUnits';
-import type { MotorDims } from './schematicGeometry';
+import type { MotorDims } from '../../tree/schematicGeometry';
 import { markerRadius } from './rocketPieces';
 import { usePieces } from './usePieces';
 import { AxisCallout, markerTexture } from './rocketCallouts';
@@ -20,9 +20,6 @@ import { CG_INK, CP_INK } from './stabilityGadget';
 import { token } from '../common/colorTokens';
 import { useSceneColors } from './sceneColors';
 
-// The store imports the motor-dims shape from here; the definition lives with
-// the other shared view helpers.
-export type { MotorDims } from './schematicGeometry';
 // The geometry build and the export framing moved to their own modules; the
 // flight path view, the OBJ exporter and Rocket3D.test.ts import them here.
 export { buildPieces, piecesBounds, type Piece } from './rocketPieces';

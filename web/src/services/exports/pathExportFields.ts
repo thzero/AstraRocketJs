@@ -4,8 +4,8 @@ import {
   asStageTrackStart,
   asWaypointKinds,
   type FlightPathExportOptions,
-} from '../../services/exports/flightPathExport';
-import { decodeStageColors, encodeStageColors, type PathExportSettings } from '../../services/storage/settings';
+} from './flightPathExport';
+import { decodeStageColors, encodeStageColors, type PathExportSettings } from '../storage/settings';
 
 /**
  * The flight-path export options that outlive one export, as ONE table that

@@ -7,7 +7,7 @@ import {
 } from '../../services/exports/flightPathExport';
 import { useUnits } from '../../prefs/useUnits';
 import { useSettings } from '../../state/SettingsProvider';
-import { hydrateExportOptions, persistedExportSettings, type UnitField } from './pathExportFields';
+import { hydrateExportOptions, persistedExportSettings, type UnitField } from '../../services/exports/pathExportFields';
 
 /**
  * Owns the flight-path export dialog's options: the state, hydrated from the

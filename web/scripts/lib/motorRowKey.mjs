@@ -1,6 +1,6 @@
 // The motor catalog's row key, for the build-time scripts.
 //
-// MUST match `keyOf` in src/components/sim/motorKey.ts, which is the dashboard
+// MUST match `keyOf` in src/services/motors/motorKey.ts, which is the dashboard
 // row key AND the selection identity: two motors that produce the same key
 // select, check and highlight as one. `tests/services/motors/motorRowKey.test.ts`
 // holds the two implementations equal, because this cannot import the TypeScript

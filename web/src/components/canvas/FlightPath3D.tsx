@@ -19,7 +19,7 @@ import {
   newModelPose,
   type FlightScene,
 } from './flightScene';
-import type { MotorDims } from './schematicGeometry';
+import type { MotorDims } from '../../tree/schematicGeometry';
 import { FlightGroundMap } from './FlightGroundMap';
 import { TILE_SOURCES, type TileSourceId } from '../../services/map/slippyMap';
 import { LAYERS } from '../common/map/mapStyle';

@@ -3,7 +3,7 @@ import { fmtNum } from '../../i18n/format';
 import type { StaticInfo } from '../../engine/api';
 import { stabilityState, stabilityToneOf } from '../../services/flight/simReport';
 import { useUnits } from '../../prefs/useUnits';
-import { STABILITY_GLYPH } from './schematicGeometry';
+import { STABILITY_GLYPH } from '../../tree/schematicGeometry';
 
 /**
  * Quick-glance readout box for the 2D/3D view: length, loaded

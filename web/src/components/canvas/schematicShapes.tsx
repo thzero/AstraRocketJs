@@ -19,7 +19,7 @@ import {
   unionBox,
   type Ctx,
   type HoverBox,
-} from './schematicGeometry';
+} from '../../tree/schematicGeometry';
 
 // The one shared override rule (schematicGeometry.colorOf), under the name this
 // file has always used it by.

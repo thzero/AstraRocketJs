@@ -1,9 +1,10 @@
 import { defineConfig, devices } from '@playwright/test';
 
 /**
- * End-to-end config. Playwright auto-starts the Vite dev server on a fixed
- * port (strictPort so it fails loudly rather than drifting to 5174…), drives a
- * headless Chromium, and tears the server down when the run ends. The
+ * End-to-end config. Playwright builds the app and serves the BUILD with
+ * `vite preview` on a fixed port (strictPort so it fails loudly rather than
+ * drifting to 5174…), drives a headless Chromium, and tears the server down
+ * when the run ends. The
  * SwiftShader flags software-render WebGL so the 3D views don't come up blank
  * on a headless/CI box with no GPU.
  */
@@ -40,13 +41,14 @@ const core = process.env.E2E_SCOPE === 'core';
 
 export default defineConfig({
   testDir: './e2e',
-  // Files spread across workers; the tests inside one file stay in order. Four
-  // locally runs the 213 tests in under 2 minutes with no failures. A GitHub
-  // runner has 4 vCPUs that also host the dev server and software-render WebGL
-  // for every browser, so CI runs two. Far more than that (16 on a 32-core box)
-  // starved the one dev server and timed out.
-  fullyParallel: false,
-  workers: process.env.CI ? 2 : 4,
+  // Every test spreads across the workers, not just every file: each test has
+  // its own browser context and storage, so none depends on another's order,
+  // and a long file (simulations-tab) no longer sets the floor. Against the
+  // built app, 8 workers run the 228 tests in about a minute on a 28-core box;
+  // 12 is no faster. A GitHub runner has 4 vCPUs that also serve the app and
+  // software-render WebGL for every browser, so CI runs two.
+  fullyParallel: true,
+  workers: process.env.CI ? 2 : 8,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   // Under CI the `github` reporter annotates the PR, and the HTML report is
@@ -77,10 +79,17 @@ export default defineConfig({
       use: { ...devices['Pixel 7'] },
     },
   ],
+  // The production build, not the dev server. The dev server compiles modules
+  // on request, so every fresh page in every worker paid for hundreds of them
+  // and the one Vite process was the bottleneck: the suite took twice as long.
+  // It is also what ships: the build's timing exposed an import-notes bug the
+  // dev server's slower boot hid. Built fresh each run, and never reused, so a
+  // server left on the port cannot serve an old build. The docs the Help dialog
+  // reads are copied in from public/docs by the build (npm run docs:build).
   webServer: {
-    command: 'npm run dev -- --port 5180 --strictPort',
+    command: 'npx vite build && npx vite preview --port 5180 --strictPort',
     url: 'http://localhost:5180',
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
     timeout: 120_000,
   },
 });

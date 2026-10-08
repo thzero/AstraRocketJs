@@ -10,7 +10,7 @@ import { useUnits } from '../../prefs/useUnits';
 import { Dialog } from '../common/Dialog';
 import { CatalogLoading, CatalogError } from '../common/CatalogLoading';
 import { MotorDetail } from './MotorDetail';
-import { keyOf } from './motorKey';
+import { keyOf } from '../../services/motors/motorKey';
 import { useCatalog } from './useCatalog';
 import {
   ClassChips,

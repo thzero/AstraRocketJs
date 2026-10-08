@@ -15,7 +15,7 @@ import {
   zoomStep,
   MAX_ZOOM,
   type MotorDims,
-} from './schematicGeometry';
+} from '../../tree/schematicGeometry';
 import { buildSchematicShapes } from './schematicShapes';
 import { useWheelZoom } from './useWheelZoom';
 import { HorizontalCaliper, VerticalCaliper } from './SchematicCalipers';

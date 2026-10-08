@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { CatalogMotor } from '../../services/motors/motorDb';
 import { Dialog } from '../common/Dialog';
 import { MotorDetail } from './MotorDetail';
-import { keyOf } from './motorKey';
+import { keyOf } from '../../services/motors/motorKey';
 import { useCatalog } from './useCatalog';
 import {
   ClassChips,

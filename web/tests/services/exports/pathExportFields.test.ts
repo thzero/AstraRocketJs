@@ -3,7 +3,7 @@ import {
   PATH_EXPORT_FIELDS,
   hydrateExportOptions,
   persistedExportSettings,
-} from '../../../src/components/canvas/pathExportFields';
+} from '../../../src/services/exports/pathExportFields';
 import { defaultExportOptions, type FlightPathExportOptions } from '../../../src/services/exports/flightPathExport';
 import type { PathExportSettings } from '../../../src/services/storage/settings';
 

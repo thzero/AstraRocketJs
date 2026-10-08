@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { useUnits } from '../../prefs/useUnits';
-import type { Ctx } from './schematicGeometry';
+import type { Ctx } from '../../tree/schematicGeometry';
 
 /**
  * The TreeSchematic measure tool: the two caliper overlays (length and

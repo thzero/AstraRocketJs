@@ -18,7 +18,10 @@ test('an imported .ork outside the limits is flagged and refused', async ({ page
   await importOrk(page, 'e2e/fixtures/out-of-limits.ork');
 
   // The loaded banner lists what is wrong, with the numbers and the rule.
-  const banner = page.getByText(/Launch rod angle is 35/);
+  // "Launcher", not "Launch rod": this file has neither lugs nor rail buttons,
+  // and the notes name the launcher from the IMPORTED design. The default rocket
+  // open before it has a lug, which is the wording the notes used to borrow.
+  const banner = page.getByText(/Launcher angle is 35/);
   await expect(banner).toBeVisible();
   await expect(page.getByText('Wind speed is 15 m/s')).toBeVisible();
 
@@ -49,7 +52,7 @@ test('the import notes fold away, and the name is not repeated', async ({ page }
   await importOrk(page, 'e2e/fixtures/out-of-limits.ork');
 
   // The notes are open on the import that raised them.
-  const note = page.getByText(/Launch rod angle is 35/);
+  const note = page.getByText(/Launcher angle is 35/);
   await expect(note).toBeVisible();
 
   // And fold away without dismissing the banner, which is the only record of them.
@@ -74,7 +77,7 @@ test('folded notes are remembered, across a reload and across designs', async ({
   await page.goto('/');
   await importOrk(page, 'e2e/fixtures/out-of-limits.ork');
 
-  const note = page.getByText(/Launch rod angle is 35/);
+  const note = page.getByText(/Launcher angle is 35/);
   const toggle = page.getByRole('button', { name: /import note/ });
   await expect(note).toBeVisible();
   await toggle.click();

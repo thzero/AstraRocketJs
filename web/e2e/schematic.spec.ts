@@ -1,4 +1,4 @@
-import { test, expect, type Page } from './base';
+import { test, expect, ready, type Page } from './base';
 import { nsKey } from '../src/services/storage/storageKeys';
 
 /**
@@ -19,7 +19,7 @@ test.describe('2D schematic', () => {
       .first();
 
   test('draws the default airframe with labeled components', async ({ page }) => {
-    await page.goto('/');
+    await ready(page);
 
     const svg = schematic(page);
     await expect(svg).toBeVisible();
@@ -36,7 +36,7 @@ test.describe('2D schematic', () => {
   });
 
   test('zooming re-renders the schematic without losing the geometry', async ({ page }) => {
-    await page.goto('/');
+    await ready(page);
     const svg = schematic(page);
     await expect(svg).toBeVisible();
 
@@ -76,7 +76,7 @@ test('the roll slider reads in the angle unit the user chose', async ({ page }) 
     const units = { ...((was.units as Record<string, string>) ?? {}), angle: 'rad' };
     localStorage.setItem(key, JSON.stringify({ ...was, units }));
   }, nsKey('settings:v1'));
-  await page.goto('/');
+  await ready(page);
   const slider = page.getByRole('slider', { name: 'Roll angle (degrees)' });
   await expect(slider).toBeVisible();
   await expect(slider).toHaveAttribute('title', /rad$/);

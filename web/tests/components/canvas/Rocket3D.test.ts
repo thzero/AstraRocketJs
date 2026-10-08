@@ -8,7 +8,7 @@ import {
   piecesBounds,
   type Piece,
 } from '../../../src/components/canvas/Rocket3D';
-import { internalExtent } from '../../../src/components/canvas/schematicGeometry';
+import { internalExtent } from '../../../src/tree/schematicGeometry';
 import { resolveDisc } from '../../../src/services/design/discGeometry';
 import { KERNEL_DEFAULTS } from '../../../src/tree/kernelDefaults';
 import type { ComponentNode, RocketTree } from '../../../src/engine/openRocketEngine';

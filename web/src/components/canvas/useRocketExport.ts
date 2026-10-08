@@ -11,7 +11,7 @@ import type { ImageExportOptions } from './ImageExportMenu.js';
 import { piecesBounds, type Piece } from './rocketPieces';
 import { exportCamera, isFittableBox } from './rocketExportCamera';
 import { captureSceneOffscreen } from './offscreenCapture';
-import { clampExportSize } from './offscreenRaster';
+import { clampExportSize } from '../../services/exports/offscreenRaster';
 import { useLatest } from '../common/useLatest';
 
 /**

@@ -1,6 +1,6 @@
 // cspell:ignore glsl Reinhard Cineon MSAA tonemapping OETF
 import * as THREE from 'three';
-import { pixelsToCanvas } from './offscreenRaster';
+import { pixelsToCanvas } from '../../services/exports/offscreenRaster';
 
 /**
  * Owns the GPU side of the offscreen 3D image export: render the scene into a

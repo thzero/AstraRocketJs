@@ -4,7 +4,7 @@ import type { CatalogMotor } from '../../services/motors/motorDb';
 import { combineCurves, impulseClass, type Sample } from '../../services/motors/motorCombine';
 import { useUnits } from '../../prefs/useUnits';
 import { SpecItem } from './MotorDetail';
-import { keyOf } from './motorKey';
+import { keyOf } from '../../services/motors/motorKey';
 import { seriesColor } from '../common/chartPalette';
 import { inUserUnit, withFixedUnit } from './motorFormat';
 import { ChartAxes, CHART_HEADROOM, chartScales, linePath, baselineArea, LegendSwatch, SeriesPath } from './chartAxes';

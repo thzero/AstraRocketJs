@@ -9,7 +9,7 @@ import {
 } from '../../services/exports/schematicExport.js';
 import { download, exportFilename } from '../../services/files/saveFile.js';
 import { ImageExportMenu } from './ImageExportMenu.js';
-import { MAX_ZOOM, ZOOM_IDENTITY, type ZoomState } from './schematicGeometry';
+import { MAX_ZOOM, ZOOM_IDENTITY, type ZoomState } from '../../tree/schematicGeometry';
 import { errorMessage } from '../../services/app/errorMessage';
 import { token } from '../common/colorTokens';
 

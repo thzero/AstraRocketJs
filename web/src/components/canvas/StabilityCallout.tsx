@@ -4,7 +4,7 @@ import type * as THREE from 'three';
 import type { StaticInfo } from '../../engine/openRocketEngine';
 import { useUnits } from '../../prefs/useUnits';
 import { AxisCallout } from './rocketCallouts';
-import { marginText } from './schematicGeometry';
+import { marginText } from '../../tree/schematicGeometry';
 import { CP_INK, MARGIN_INK } from './stabilityGadget';
 import { useSceneColors } from './sceneColors';
 

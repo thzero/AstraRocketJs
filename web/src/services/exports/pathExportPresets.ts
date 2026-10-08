@@ -1,8 +1,4 @@
-import {
-  WAYPOINT_KINDS,
-  type FlightPathExportOptions,
-  type WaypointKind,
-} from '../../services/exports/flightPathExport';
+import { WAYPOINT_KINDS, type FlightPathExportOptions, type WaypointKind } from './flightPathExport';
 
 /**
  * One-click export shapes, after the three export buttons GPS DC offers. Each

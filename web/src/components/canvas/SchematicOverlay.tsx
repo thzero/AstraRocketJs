@@ -2,7 +2,14 @@ import { useTranslation } from 'react-i18next';
 import type { StaticInfo } from '../../engine/openRocketEngine';
 import { useUnits } from '../../prefs/useUnits';
 import type { StabilityState } from '../../services/flight/simReport.js';
-import { calloutLayout, hoverTagFor, marginText, MARKER_R, type Ctx, type HoverBox } from './schematicGeometry';
+import {
+  calloutLayout,
+  hoverTagFor,
+  marginText,
+  MARKER_R,
+  type Ctx,
+  type HoverBox,
+} from '../../tree/schematicGeometry';
 import { token } from '../common/colorTokens';
 
 /**

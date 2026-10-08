@@ -8,7 +8,14 @@ import { finSpan } from '../../tree/finPlanform.js';
 import { clusterOffsets } from '../../tree/cluster.js';
 import { isPlanarFinSet, tubeFinRadius } from '../../tree/tubefins.js';
 import { isAssembly, resolveAssemblyRadius, ringInstanceOffsets } from '../../tree/assembly.js';
-import { colorOf, innerTubeExtent, MAX_ZOOM, ZOOM_IDENTITY, zoomStep, type MotorDims } from './schematicGeometry';
+import {
+  colorOf,
+  innerTubeExtent,
+  MAX_ZOOM,
+  ZOOM_IDENTITY,
+  zoomStep,
+  type MotorDims,
+} from '../../tree/schematicGeometry';
 import { useWheelZoom } from './useWheelZoom';
 import { discDims, tubeRadii } from '../../services/design/discGeometry';
 import { DISC_TYPES } from '../../services/files/componentFormats';

@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import type { CatalogMotor } from '../../services/motors/motorDb';
 import type { Sample } from '../../services/motors/motorCombine';
 import { useUnits } from '../../prefs/useUnits';
-import { keyOf } from './motorKey';
+import { keyOf } from '../../services/motors/motorKey';
 import { ALIGN, heading, type Col } from './motorColumns';
 import { seriesColor } from '../common/chartPalette';
 import { ChartAxes, CHART_HEADROOM, chartScales, LegendSwatch, SeriesPath } from './chartAxes';

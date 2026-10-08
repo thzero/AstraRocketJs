@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { keyOf } from '../../../src/components/sim/motorKey';
+import { keyOf } from '../../../src/services/motors/motorKey';
 // @ts-expect-error - a plain .mjs build script helper, no types
 import { motorRowKey, collidingRowKeys } from '../../../scripts/lib/motorRowKey.mjs';
 import type { CatalogMotor } from '../../../src/services/motors/motorDb';

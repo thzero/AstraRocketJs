@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { hasCurve, type CatalogMotor } from '../../services/motors/motorDb';
 import { useUnits } from '../../prefs/useUnits';
 import { CatalogLoading, CatalogError } from '../common/CatalogLoading';
-import { keyOf } from './motorKey';
+import { keyOf } from '../../services/motors/motorKey';
 import { ALIGN, COLUMNS, heading, type Col } from './motorColumns';
 import type { MotorSort } from './useMotorSort';
 import { SortHeader } from '../common/SortHeader';

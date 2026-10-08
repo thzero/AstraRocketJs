@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { clampExportSize, flipRows } from '../../../src/components/canvas/offscreenRaster';
+import { clampExportSize, flipRows } from '../../../src/services/exports/offscreenRaster';
 
 /**
  * The pure half of the offscreen 3D export. The WebGL half cannot run under

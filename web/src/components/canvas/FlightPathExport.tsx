@@ -20,7 +20,7 @@ import { LANGUAGES } from '../../i18n';
 import { AltitudeRefSelect, Section, UnitRow } from './PathExportControls';
 import { ExportFormatPicker } from './ExportFormatPicker';
 import { StageColorDialog } from './StageColorDialog';
-import { EXPORT_PRESETS, matchingPreset } from './pathExportPresets';
+import { EXPORT_PRESETS, matchingPreset } from '../../services/exports/pathExportPresets';
 import { useExportOptions } from './useExportOptions';
 import { useExportTemplates } from './useExportTemplates';
 import { Check } from '../common/Check';

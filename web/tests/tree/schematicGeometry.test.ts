@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { ComponentNode, RocketTree } from '../../../src/engine/openRocketEngine';
+import type { ComponentNode, RocketTree } from '../../src/engine/openRocketEngine';
 import {
   niceRulerStep,
   rulerGraduations,
@@ -15,8 +15,8 @@ import {
   zoomStep,
   MAX_ZOOM,
   marginText,
-} from '../../../src/components/canvas/schematicGeometry';
-import i18n from '../../../src/i18n';
+} from '../../src/tree/schematicGeometry';
+import i18n from '../../src/i18n';
 
 const node = (o: object): ComponentNode => o as unknown as ComponentNode;
 
