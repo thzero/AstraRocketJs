@@ -3,7 +3,7 @@ import { COMPONENT_DEFAULTS } from '../../design/componentDefaults';
 import { nodeShape } from '../../../tree/shapeProfile';
 import { IN, fmt, type Cdx1Writer } from './units';
 import { SECTION_TO_AIRFOIL } from './surface';
-import { num } from '../../../tree/nodeProps';
+import { num, str } from '../../../tree/nodeProps';
 import { trapezoidDims } from '../../../tree/finPlanform';
 import { isFinSet } from '../../../tree/tubefins';
 import { isAssembly } from '../../../tree/assembly';
@@ -88,9 +88,9 @@ export function finXml(w: Cdx1Writer, parent: ComponentNode): void {
           : 0; // 'absolute' has no tube-relative meaning here
   // Fin Location = front edge from the tube bottom (inches).
   const locIn = (plan.root - bottomOffset) * IN;
-  const cs = String(fin['crossSection'] ?? 'square');
+  const cs = str(fin, 'crossSection', 'square');
   // A supersonic airfoil section (feature #4) beats the plain cross section.
-  const section = SECTION_TO_AIRFOIL[String(fin['airfoilSection'] ?? '')];
+  const section = SECTION_TO_AIRFOIL[str(fin, 'airfoilSection', '')];
   // No <PartType> inside <Fin> — RASAero's parser is rigid.
   emit('<Fin>');
   emit(`<Count>${count}</Count>`);

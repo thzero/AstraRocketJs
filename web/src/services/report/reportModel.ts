@@ -73,7 +73,7 @@ export function stageParts(
   const rows: PartRow[] = [];
   const walk = (node: ComponentNode, depth: number) => {
     if (node.type !== 'stage') {
-      const id = node.id as string | undefined;
+      const id = node.id;
       let mass = 0;
       if (id) {
         try {
@@ -87,7 +87,7 @@ export function stageParts(
         type: node.type,
         name: (node.name as string) || '',
         material: node.materialName as string | undefined,
-        density: node.density as number | undefined,
+        density: node.density,
         length: num(node, 'length', 0),
         outerR: numOpt(node, 'outerRadius'),
         innerR: numOpt(node, 'innerRadius'),
@@ -204,7 +204,7 @@ export function assembleReport(install?: (built: ReportBuild) => void): ReportMo
         // MOUNT ID, so a one-stage tree gets exactly the motors that stage's own
         // mounts hold: the sustainer's motor cannot land in the booster, and a
         // stage with no mount is built empty rather than borrowing one.
-        buildConfiguredRocket({ name, components: [st] } as never, flown).staticInfo(),
+        buildConfiguredRocket({ name, components: [st] }, flown).staticInfo(),
       () => {
         // The live handle is REPLACED by this, so it has to be configured the
         // way the rebuild effect configures it - the same configuration, whose

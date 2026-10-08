@@ -63,6 +63,7 @@ describe('EngineCallError names the call and keeps the cause', () => {
     __setEngineForTests(
       stubApi({
         getWorstThetaDeg: () => {
+          // eslint-disable-next-line @typescript-eslint/only-throw-error -- what TeaVM throws: a bare string
           throw 'unreachable executed';
         },
       }),

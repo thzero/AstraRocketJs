@@ -105,7 +105,7 @@ export function MotorCombinePane({ motors }: { motors: CatalogMotor[] }) {
           series={motors.map((m, i) => ({
             m,
             color: seriesColor(i),
-            pts: (m.curves?.[0]?.samples ?? []) as Sample[],
+            pts: m.curves?.[0]?.samples ?? [],
           }))}
         />
       )}

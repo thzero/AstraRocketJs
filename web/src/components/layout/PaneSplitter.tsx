@@ -133,7 +133,7 @@ export function PaneSplitter({
   };
 
   return (
-    <div
+    <div // eslint-disable-line jsx-a11y-x/no-noninteractive-element-interactions -- a focusable separator is a widget in ARIA 1.2 (the window splitter pattern); the rule treats every separator as static
       role="separator"
       aria-orientation="vertical"
       aria-label={label}
@@ -145,6 +145,7 @@ export function PaneSplitter({
       // announced maximum. Derived from the SUBSCRIBED width so a resize
       // re-renders it; `clamp` reads the same number live.
       aria-valuemax={Math.round(Math.max(min, Math.min(max, innerWidth - reserve)))}
+      // eslint-disable-next-line jsx-a11y-x/no-noninteractive-tabindex -- a focusable separator is a widget in ARIA 1.2 (the window splitter pattern); the rule treats every separator as static
       tabIndex={0}
       title={label}
       onPointerDown={onPointerDown}

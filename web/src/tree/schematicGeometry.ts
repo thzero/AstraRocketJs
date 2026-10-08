@@ -148,7 +148,7 @@ export function profilePath(
     aftR,
     24,
     undefined,
-    typeof n['clipped'] === 'boolean' ? (n['clipped'] as boolean) : undefined,
+    typeof n['clipped'] === 'boolean' ? n['clipped'] : undefined,
   );
   const px = (xi: number) => ctx.x0 + (x + xi) * ctx.scale;
   const top = pts.map(([xi, r]) => `${px(xi)} ${baseY - r * ctx.scale}`);
@@ -375,8 +375,7 @@ export function innerTubeExtent(node: ComponentNode): { length: number; radius: 
  * view, the aft view and the 3D builder each carried a private copy of this
  * one-liner; one definition means one place for the override rule to change.
  */
-export const colorOf = (n: ComponentNode, dflt: string): string =>
-  typeof n['color'] === 'string' ? (n['color'] as string) : dflt;
+export const colorOf = (n: ComponentNode, dflt: string): string => (typeof n['color'] === 'string' ? n['color'] : dflt);
 
 /** Loaded motor case dimensions (m) keyed by mount node id. The one shape every
  *  view takes; Rocket3D re-exports it for the store's import site. */

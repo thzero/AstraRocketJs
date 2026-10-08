@@ -1,6 +1,6 @@
 import type { ComponentNode } from '../../engine/openRocketEngine';
 import { FREEFORM_FALLBACK, finPlanformPoints, finRootChord, finSpan, finTabSpan } from '../../tree/finPlanform';
-import { countOf, num } from '../../tree/nodeProps';
+import { countOf, num, str } from '../../tree/nodeProps';
 import { KERNEL_DEFAULTS, KERNEL_RAILBUTTON_OUTER_DIAMETER } from '../../tree/kernelDefaults.js';
 import { clusterOffsets } from '../../tree/cluster.js';
 import { tubeFinRadius } from '../../tree/tubefins.js';
@@ -478,7 +478,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
         // drawn on the top surface; radial angle isn't modeled.
         const len = num(child, 'length', KERNEL_DEFAULTS.fairing.length);
         const hgt = num(child, 'height', KERNEL_DEFAULTS.fairing.height);
-        const fshape = String(child['fairingShape'] ?? 'halfround');
+        const fshape = str(child, 'fairingShape', 'halfround');
         const start = axialStart(child, len, pStart, pLen);
         const X = ctx.x0 + start * ctx.scale;
         const y0 = baseY - pRadius * ctx.scale;

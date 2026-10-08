@@ -65,6 +65,7 @@ beforeEach(async () => {
 // `abortAfterSuccess` restores itself via try/finally, or an assertion failure
 // here leaves the spy installed and silently corrupts the next test.
 const abortAfterSuccess = async (body: () => Promise<void>) => {
+  // eslint-disable-next-line @typescript-eslint/unbound-method -- saved to patch the prototype; called back with .call(this, ...)
   const realPut = IDBObjectStore.prototype.put;
   const spy = vi.spyOn(IDBObjectStore.prototype, 'put').mockImplementation(function (
     this: IDBObjectStore,

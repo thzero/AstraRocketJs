@@ -186,7 +186,7 @@ export function resolveFilePositions(tree: RocketTree): RocketTree {
         next = {
           ...child,
           position: { method: 'top', offset: resolved, ork: { method: 'after', offset: pos.offset, resolved } },
-        } as ComponentNode;
+        };
       } else if (pos.method === 'absolute') {
         changed = true;
         const resolved = pos.offset - pStart;
@@ -198,14 +198,14 @@ export function resolveFilePositions(tree: RocketTree): RocketTree {
             offset: resolved,
             ork: { method: 'absolute', offset: pos.offset, resolved },
           },
-        } as ComponentNode;
+        };
       }
       const cLen = axialLength(next);
       const relStart = startFromPosition(positionOf(next), cLen, pLen);
       prevEndRel = relStart + cLen;
       return fixChildren(next, pStart + relStart, cLen);
     });
-    return { ...parent, children } as ComponentNode;
+    return { ...parent, children };
   };
 
   // Stages flatten into one nose-to-tail chain; chain members stack
@@ -238,7 +238,7 @@ export function resolveFilePositions(tree: RocketTree): RocketTree {
       const own = axialLength(n);
       return fixChildren(n, stageStart + startFromPosition(positionOf(n), own, stageLen), own);
     });
-    return stage.type === 'stage' ? ({ ...stage, children: fixedKids } as ComponentNode) : fixedKids[0]!;
+    return stage.type === 'stage' ? { ...stage, children: fixedKids } : fixedKids[0]!;
   });
   return changed ? { ...tree, components } : tree;
 }

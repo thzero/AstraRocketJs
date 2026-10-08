@@ -58,7 +58,7 @@ export function StageRecovery({ node }: { node: ComponentNode }) {
           name={`recovery-${stageId}`}
           checked={dual}
           disabled={!hasDevices}
-          onChange={() => setDrogue(stageId, picked as string)}
+          onChange={() => setDrogue(stageId, picked)}
           className="accent-accent-500"
         />
         <span className={hasDevices ? undefined : 'text-ink-faint'}>{t('prop.dual')}</span>
@@ -67,7 +67,7 @@ export function StageRecovery({ node }: { node: ComponentNode }) {
         <label className="flex items-center justify-between gap-3 pl-6">
           <span className="text-xs text-ink-muted">{t('prop.drogueDevice')}</span>
           <select
-            value={picked as string}
+            value={picked}
             disabled={!dual}
             aria-label={t('prop.drogueDevice')}
             onChange={(e) => setDrogue(stageId, e.target.value)}

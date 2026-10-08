@@ -397,15 +397,12 @@ function clusterMembers(n: ComponentNode): ComponentNode[] {
     numOpt(n, 'radialPosition') ?? 0,
     numOpt(n, 'radialDirection') ?? 0,
   );
-  return places.map(
-    (p, i) =>
-      ({
-        ...n,
-        name: `${n.name ?? 'Mount'} #${i + 1}`,
-        cluster: 'single',
-        ...p,
-      }) as unknown as ComponentNode,
-  );
+  return places.map((p, i) => ({
+    ...n,
+    name: `${n.name ?? 'Mount'} #${i + 1}`,
+    cluster: 'single',
+    ...p,
+  }));
 }
 
 /** One part and, in `<AttachedParts>`, everything mounted on it. */

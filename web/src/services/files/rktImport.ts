@@ -500,8 +500,8 @@ function readFinSet(ctx: RktContext, el: Element, parent?: ComponentNode): Compo
       // A tab is measured from the front of the fin root, so on a body that
       // TAPERS the depth already contains the drop from the fore radius to the
       // aft one and has to give it back. Zero on a tube, where the two are equal.
-      const foreR = typeof parent?.['foreRadius'] === 'number' ? (parent['foreRadius'] as number) : 0;
-      const aftR = typeof parent?.['aftRadius'] === 'number' ? (parent['aftRadius'] as number) : 0;
+      const foreR = typeof parent?.['foreRadius'] === 'number' ? parent['foreRadius'] : 0;
+      const aftR = typeof parent?.['aftRadius'] === 'number' ? parent['aftRadius'] : 0;
       n['tabHeight'] = Math.max(0, tabDepth - Math.max(foreR - aftR, 0));
     }
     n['tabOffset'] = mm(el, 'TabOffset') ?? 0;
@@ -611,10 +611,10 @@ function applySurfaceMaterial(n: ComponentNode, density: number | undefined): vo
  * tube flew with its mass on a radius nobody chose.
  */
 function packedRadius(parent: ComponentNode | undefined, diameter: number | undefined): number | undefined {
-  const outer = typeof parent?.['outerRadius'] === 'number' ? (parent['outerRadius'] as number) : undefined;
+  const outer = typeof parent?.['outerRadius'] === 'number' ? parent['outerRadius'] : undefined;
   if (parent?.type === 'bodytube' && outer !== undefined) return outer * 0.9;
   if (parent?.type === 'innertube' && outer !== undefined) {
-    const wall = typeof parent['thickness'] === 'number' ? (parent['thickness'] as number) : 0;
+    const wall = typeof parent['thickness'] === 'number' ? parent['thickness'] : 0;
     return Math.max(0, outer - wall) * 0.9;
   }
   return diameter === undefined ? undefined : diameter * 0.025;
@@ -675,7 +675,7 @@ const CORD_PACKED_RATIO = 100;
  */
 const isShockCord = (el: Element, parent: ComponentNode | undefined, len: number | undefined): boolean => {
   if (num(el, 'TypeCode') === 1) return true;
-  const parentLen = typeof parent?.['length'] === 'number' ? (parent['length'] as number) : undefined;
+  const parentLen = typeof parent?.['length'] === 'number' ? parent['length'] : undefined;
   return len !== undefined && parentLen !== undefined && len >= 2 * parentLen && densityType(el) === 2;
 };
 
@@ -723,9 +723,9 @@ const readMassObject = (el: Element, parent?: ComponentNode): ComponentNode => {
 function coaxialBore(parent: ComponentNode | undefined): number | undefined {
   if (!parent) return undefined;
   if (!['bodytube', 'innertube', 'tubecoupler', 'engineblock'].includes(parent.type)) return undefined;
-  const outer = typeof parent['outerRadius'] === 'number' ? (parent['outerRadius'] as number) : undefined;
+  const outer = typeof parent['outerRadius'] === 'number' ? parent['outerRadius'] : undefined;
   if (outer === undefined) return undefined;
-  const wall = typeof parent['thickness'] === 'number' ? (parent['thickness'] as number) : 0;
+  const wall = typeof parent['thickness'] === 'number' ? parent['thickness'] : 0;
   return Math.max(0, outer - wall);
 }
 
@@ -761,7 +761,7 @@ const readPod = (ctx: RktContext, el: Element): ComponentNode => {
 function subtractAngleOffset(children: ComponentNode[], angle: number): void {
   for (const child of children) {
     if (typeof child['angleOffset'] === 'number') {
-      child['angleOffset'] = (child['angleOffset'] as number) - angle;
+      child['angleOffset'] = child['angleOffset'] - angle;
     }
     if (child.type !== 'podset' && child.type !== 'parallelstage' && child.children) {
       subtractAngleOffset(child.children, angle);

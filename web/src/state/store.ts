@@ -807,7 +807,7 @@ export const workspaceSnapshot = (
  */
 function withKey<T extends object, K extends keyof T>(obj: T | undefined, key: K, value: T[K] | null): T {
   const next = { ...obj } as T;
-  if (value === null) delete (next as Record<PropertyKey, unknown>)[key as PropertyKey];
+  if (value === null) delete (next as Record<PropertyKey, unknown>)[key];
   else next[key] = value;
   return next;
 }

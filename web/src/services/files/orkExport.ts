@@ -61,7 +61,7 @@ export function exportOrk({
   motorConfigurationsXml(
     w,
     2,
-    findStages(tree).map((n) => n.id as string | undefined),
+    findStages(tree).map((n) => n.id),
   );
   // The file's own reference, not a constant: a hardcoded `maximum` silently
   // re-measures a design whose calibers were set against a custom length.

@@ -328,7 +328,7 @@ export function configuredTree(tree: RocketTree, config: FlightConfig): RocketTr
  */
 function patchNode<T extends object>(tree: RocketTree, id: string, over: T, keys: readonly (keyof T & string)[]) {
   const patch: Partial<ComponentNode> = {};
-  for (const key of keys) if (over[key] !== undefined) patch[key] = over[key] as ComponentNode[string];
+  for (const key of keys) if (over[key] !== undefined) patch[key] = over[key];
   return Object.keys(patch).length ? updateNode(tree, id, patch) : tree;
 }
 

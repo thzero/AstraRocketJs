@@ -135,6 +135,7 @@ export function VerticalCaliper({
     right = ctx.x0 + totalLen * scale;
   const dimX = ctx.x0 + 20,
     mid = (ay + by) / 2;
+  const vMin = -vHalf;
   return (
     <g>
       {(['a', 'b'] as const).map((k) => {
@@ -163,7 +164,7 @@ export function VerticalCaliper({
               role="slider"
               aria-label={t('schematic.caliperV', { end: k === 'a' ? 1 : 2 })}
               aria-orientation="vertical"
-              aria-valuemin={-vHalf}
+              aria-valuemin={vMin}
               aria-valuemax={vHalf}
               aria-valuenow={cal[k]}
               aria-valuetext={`${u.fmtSym('length', cal[k])}`}

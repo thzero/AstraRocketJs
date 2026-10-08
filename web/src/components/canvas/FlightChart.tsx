@@ -235,8 +235,9 @@ export function FlightChart({ flight }: { flight: ChartFlight }) {
         coarse step, Home/End for the ends, Escape to drop it. The readout above
         is a live region, so the value is announced as it moves.
       */}
-      <div
+      <div // eslint-disable-line jsx-a11y-x/no-noninteractive-element-interactions -- a focusable crosshair: the arrows move it, and the group names it without claiming a widget role it does not fit
         ref={hostRef}
+        // eslint-disable-next-line jsx-a11y-x/no-noninteractive-tabindex -- a focusable crosshair: the arrows move it, and the group names it without claiming a widget role it does not fit
         tabIndex={0}
         role="group"
         aria-label={t('flight.crosshairHint')}

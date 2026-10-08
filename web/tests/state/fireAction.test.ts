@@ -30,6 +30,7 @@ describe('fireAction', () => {
   });
 
   it('reports a non-Error rejection as its string', async () => {
+    // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- the case under test: a rejection that is not an Error
     fireAction(Promise.reject('just a string'));
     await Promise.resolve();
     await Promise.resolve();

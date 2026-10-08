@@ -159,8 +159,9 @@ export function ChartCard({
         a mouse. The arrows walk the Mach grid sample by sample (Shift for ten),
         Home/End go to the ends, Escape drops the crosshair.
       */}
-      <div
+      <div // eslint-disable-line jsx-a11y-x/no-noninteractive-element-interactions -- a focusable crosshair: the arrows move it, and the group names it without claiming a widget role it does not fit
         ref={hostRef}
+        // eslint-disable-next-line jsx-a11y-x/no-noninteractive-tabindex -- a focusable crosshair: the arrows move it, and the group names it without claiming a widget role it does not fit
         tabIndex={0}
         role="group"
         aria-label={t('aero.crosshairHint')}

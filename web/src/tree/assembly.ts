@@ -36,7 +36,7 @@ export function assemblyBoundingRadius(pod: ComponentNode): number {
  */
 export function resolveAssemblyRadius(pod: ComponentNode, parentOuterRadius: number): number {
   const offset = num(pod, 'radiusOffset', 0);
-  const method = typeof pod['radiusMethod'] === 'string' ? (pod['radiusMethod'] as string) : 'relative';
+  const method = typeof pod['radiusMethod'] === 'string' ? pod['radiusMethod'] : 'relative';
   if (method === 'free') return offset;
   return offset + parentOuterRadius + assemblyBoundingRadius(pod);
 }

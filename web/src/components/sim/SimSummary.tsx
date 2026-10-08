@@ -115,7 +115,7 @@ function SafetyCard() {
           job is to notice a string nothing references any more. The dynamic
           allowlist there is for sets the kernel or the catalog produces, not for
           three sentences written by hand. */}
-          <ul className="mt-2 space-y-1.5 text-xs leading-snug opacity-90">
+          <ul className="mt-2 space-y-1.5 text-xs leading-snug">
             <li className={BULLET}>
               <span aria-hidden>·</span>
               <span className="min-w-0">{t('sim.safetyVerify')}</span>
@@ -139,7 +139,7 @@ function SafetyCard() {
           no-warranty and no-liability clauses, kept short so it reads as part
           of the card rather than a wall of legal text; the full version is on
           the Safety page the link below opens. */}
-          <p className="mt-2 text-[11px] leading-snug opacity-80">{t('sim.safetyDisclaimer')}</p>
+          <p className="mt-2 text-[11px] leading-snug">{t('sim.safetyDisclaimer')}</p>
           {/* nowrap so the arrow cannot be orphaned onto a line of its own. */}
           <button
             onClick={() => openHelp('safety')}

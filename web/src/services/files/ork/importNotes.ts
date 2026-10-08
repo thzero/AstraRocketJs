@@ -19,7 +19,7 @@ export function modelingNotes(components: ComponentNode[]): string[] {
   const instanced = allNodes.filter(
     (nd) =>
       typeof nd['instanceCount'] === 'number' &&
-      (nd['instanceCount'] as number) > 1 &&
+      nd['instanceCount'] > 1 &&
       nd.type !== 'parallelstage' &&
       nd.type !== 'podset',
   );

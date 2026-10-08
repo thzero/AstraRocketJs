@@ -367,10 +367,10 @@ export function isRecoveryDevice(type: string): boolean {
  * link: writing one would claim a manufacturer's part number for it.
  */
 export function presetRef(p: Component): Partial<ComponentNode> {
-  if (p.custom || !p.partNo) return { preset: undefined } as Partial<ComponentNode>;
+  if (p.custom || !p.partNo) return { preset: undefined };
   return {
     preset: presetLink(p.type, p.mfr, p.partNo, (p as { digest?: string }).digest),
-  } as unknown as Partial<ComponentNode>;
+  };
 }
 
 /**
@@ -409,7 +409,7 @@ function pinStated(patch: Partial<ComponentNode>): Partial<ComponentNode> {
   for (const [dim, flag] of Object.entries(AUTO_FLAG_OF)) {
     if (out[dim] !== undefined && out[flag] === undefined) out[flag] = false;
   }
-  return out as Partial<ComponentNode>;
+  return out;
 }
 
 /**
@@ -439,7 +439,7 @@ function hollowWall(node: ComponentNode | undefined, radius: number): Partial<Co
   const n = node as Record<string, unknown> | undefined;
   const wall = typeof n?.['thickness'] === 'number' ? n['thickness'] : null;
   const wasSolid = n?.['filled'] === true || wall == null || wall >= radius;
-  return wasSolid ? ({ thickness: KERNEL_DEFAULTS.nosecone.thickness } as Partial<ComponentNode>) : {};
+  return wasSolid ? { thickness: KERNEL_DEFAULTS.nosecone.thickness } : {};
 }
 
 /** The dimensions the chosen part states, before {@link pinStated} pins them. */
@@ -832,7 +832,7 @@ export function setStageDrogue(tree: RocketTree, stageId: string, deviceId: stri
     if ((node['drogue'] === true) === on) continue;
     // `undefined` rather than `false`, so a single-deployment stage writes no
     // `<isdrogue>` at all, which is what the desktop's saver omits.
-    next = updateNode(next, id, { drogue: on ? true : undefined } as Partial<ComponentNode>);
+    next = updateNode(next, id, { drogue: on ? true : undefined });
   }
   return next;
 }

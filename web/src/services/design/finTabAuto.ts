@@ -170,7 +170,7 @@ export function autoFinTab(tree: RocketTree, id: string): Partial<ComponentNode>
   let maxTubeRadius = 0;
   let maxRingRadius = 0;
   const rings: Ring[] = [];
-  for (const child of (parent.children ?? []) as ComponentNode[]) {
+  for (const child of parent.children ?? []) {
     const top = offsetFromTop(child, parentLength);
     if (child.type === 'innertube') {
       if (!overlapsFin(top, num(child, 'length'), finTop, finLength)) continue;
@@ -193,7 +193,7 @@ export function autoFinTab(tree: RocketTree, id: string): Partial<ComponentNode>
     tabOffsetMethod: 'top',
     tabOffset: placed.offset,
     tabLength: placed.length,
-  } as Partial<ComponentNode>;
+  };
 
   // How DEEP: down to the mount tube, from whichever end of the tab the body is
   // narrower at. On a boat tail those two differ, and cutting to the wider one

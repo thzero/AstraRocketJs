@@ -277,7 +277,7 @@ export function stationRadius(node: ComponentNode, x: number): number {
       const foreR = node.type === 'nosecone' ? 0 : num(node, 'foreRadius');
       const aftR = num(node, 'aftRadius');
       if (!(length > 0)) return aftR;
-      const clipped = typeof node['clipped'] === 'boolean' ? (node['clipped'] as boolean) : undefined;
+      const clipped = typeof node['clipped'] === 'boolean' ? node['clipped'] : undefined;
       const at = Math.max(0, Math.min(length, x));
       const pts = outerProfile(nodeShape(node), numOpt(node, 'shapeParameter'), length, foreR, aftR, 1, [at], clipped);
       return pts.find(([px]) => Math.abs(px - at) < 1e-9)?.[1] ?? aftR;

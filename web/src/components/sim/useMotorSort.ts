@@ -22,7 +22,7 @@ export function useMotorSort(filtered: CatalogMotor[]) {
     return [...filtered].sort((a, b) => {
       const va = val(a),
         vb = val(b);
-      const c = typeof va === 'string' ? va.localeCompare(vb as string) : (va as number) - (vb as number);
+      const c = typeof va === 'string' ? va.localeCompare(vb as string) : va - (vb as number);
       return sort!.dir * c;
     });
   }, [filtered, sort]);

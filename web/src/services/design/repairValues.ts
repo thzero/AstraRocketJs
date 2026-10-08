@@ -58,7 +58,7 @@ export function repairValues(tree: RocketTree): { tree: RocketTree; repaired: Re
       const now = clampEntry(v, limit.min, limit.max)!;
       if (now === v) continue;
       repaired.push({ type: node.type, name: typeof node.name === 'string' ? node.name : '', field: key, was: v, now });
-      out = { ...out, [key]: now } as ComponentNode;
+      out = { ...out, [key]: now };
     }
     return out;
   };

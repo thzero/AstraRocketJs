@@ -54,6 +54,7 @@ beforeEach(async () => {
 
 /** Make IndexedDB writes fail while reads keep working, as a full quota does. */
 async function withFailingWrites<T>(fn: () => Promise<T>): Promise<T> {
+  // eslint-disable-next-line @typescript-eslint/unbound-method -- saved to patch the prototype; called back with .call(this, ...)
   const realPut = IDBObjectStore.prototype.put;
   IDBObjectStore.prototype.put = function put() {
     throw new Error('QuotaExceededError');

@@ -81,6 +81,7 @@ test.describe('AstraRocketJs smoke', () => {
     await page.addInitScript(() => {
       const probe: { id?: number; posted: boolean; replied: boolean } = { posted: false, replied: false };
       (window as unknown as { __sim: typeof probe }).__sim = probe;
+      // eslint-disable-next-line @typescript-eslint/unbound-method -- saved to patch the prototype; called back with .call(this, ...)
       const post = Worker.prototype.postMessage;
       Worker.prototype.postMessage = function (this: Worker, msg: unknown, ...rest: unknown[]) {
         const m = msg as { id?: number; method?: string } | null;

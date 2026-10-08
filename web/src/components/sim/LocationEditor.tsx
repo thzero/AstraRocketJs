@@ -145,7 +145,7 @@ export function LocationEditor({
 
   return (
     <>
-      <div
+      <div // eslint-disable-line jsx-a11y-x/no-static-element-interactions -- catches Enter bubbling up from any field in the form; the div itself takes no input
         className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4"
         // On the wrapper rather than the panel, which the shell owns. Keydown
         // bubbles from whichever field is being typed into, so this still

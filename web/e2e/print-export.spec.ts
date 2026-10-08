@@ -42,7 +42,7 @@ test('it downloads a real 3MF package', async ({ page }) => {
   // file named .3mf that slicers reject is the failure worth catching.
   const { readFile } = await import('node:fs/promises');
   const { unzipSync, strFromU8 } = await import('fflate');
-  const archive = unzipSync(new Uint8Array(await readFile((await dl.path())!)));
+  const archive = unzipSync(new Uint8Array(await readFile(await dl.path())));
   expect(Object.keys(archive).sort()).toEqual(['3D/3dmodel.model', '[Content_Types].xml', '_rels/.rels']);
 
   const model = strFromU8(archive['3D/3dmodel.model']!);
@@ -64,7 +64,7 @@ test('clearing a part leaves it out of the file', async ({ page }) => {
 
   const { readFile } = await import('node:fs/promises');
   const { unzipSync, strFromU8 } = await import('fflate');
-  const model = strFromU8(unzipSync(new Uint8Array(await readFile((await dl.path())!)))['3D/3dmodel.model']!);
+  const model = strFromU8(unzipSync(new Uint8Array(await readFile(await dl.path())))['3D/3dmodel.model']!);
   expect(model).not.toContain('name="Nose cone"');
   expect(model).toContain('name="Body tube"');
 });

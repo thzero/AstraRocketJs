@@ -36,7 +36,7 @@ export function PlacementSection({
   // The placement offset carries its own unit, like the override rows.
   const offsetScope = unitScope('prop', node.type, PANEL_SCOPE_KEYS[2]);
   const offsetUnit = u.at(offsetScope, 'length');
-  const pos = (node.position as ComponentPosition | undefined) ?? { method: 'top', offset: 0 };
+  const pos = node.position ?? { method: 'top', offset: 0 };
   // Discrete controls (select / checkbox / pickers) finish the moment they
   // change, so patch and close the undo entry in one shot.
   const commitChange = (patch: Partial<ComponentNode>) => {

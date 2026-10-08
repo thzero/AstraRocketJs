@@ -77,7 +77,7 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
             i18nKey="about.scope"
             components={{
               orLink: (
-                <a
+                <a // eslint-disable-line jsx-a11y-x/anchor-has-content -- Trans fills the link text from the translation
                   href="https://openrocket.info"
                   target="_blank"
                   rel="noreferrer"
@@ -147,7 +147,7 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
             values={{ ref: UPSTREAM.shortRef, date: UPSTREAM.date }}
             components={{
               commitLink: (
-                <a
+                <a // eslint-disable-line jsx-a11y-x/anchor-has-content -- Trans fills the link text from the translation
                   href={UPSTREAM.commitUrl}
                   target="_blank"
                   rel="noreferrer"

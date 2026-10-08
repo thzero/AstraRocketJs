@@ -189,7 +189,7 @@ test('the manufacturer selection persists across reloads', async ({ page }) => {
   // on screen: whenever the list has not finished opening, `.first()` resolves
   // to THAT immediately rather than waiting, and the test ticks the wrong box.
   const firstMfr = dialog.locator('details').getByRole('checkbox').first();
-  const name = (await firstMfr.evaluate((el) => el.closest('label')?.textContent?.trim() ?? '')) as string;
+  const name = await firstMfr.evaluate((el) => el.closest('label')?.textContent?.trim() ?? '');
   await firstMfr.check();
   await expect(summary).toHaveText(name);
 

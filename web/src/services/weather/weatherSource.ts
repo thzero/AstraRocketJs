@@ -100,7 +100,7 @@ export function sourceStatus(launch: LaunchConditions, nowMs: number): SourceSta
 export function restoredSource(source: Omit<WeatherSource, 'applied'>, launch: LaunchConditions): WeatherSource {
   if (source.edited) return source;
   const applied: Partial<LaunchConditions> = {};
-  const fields = sourceFields(source as WeatherSource);
+  const fields = sourceFields(source);
   for (const k of fields) (applied as Record<string, unknown>)[k] = launch[k];
   return { ...source, applied };
 }

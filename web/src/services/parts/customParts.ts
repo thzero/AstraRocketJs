@@ -8,7 +8,7 @@
 // and carries the node along in `patch` for the apply. That way a saved part is
 // an ordinary row everywhere except the star beside it and the button that
 // removes it, and none of componentFilter had to learn about it.
-import type { ComponentNode, NoseShape } from '../../engine/openRocketEngine';
+import type { ComponentNode } from '../../engine/openRocketEngine';
 import { catalogTypeFor, isComponentRow, type Component, type ComponentType, type PickerType } from './componentDb';
 import { getPresetStore, type CustomPart } from './presetStore';
 
@@ -36,7 +36,7 @@ const NOT_SAVED: ReadonlySet<string> = new Set(['id', 'type', 'name', 'position'
 export function presetNode(node: ComponentNode): Partial<ComponentNode> {
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(node)) if (!NOT_SAVED.has(k) && v !== undefined) out[k] = v;
-  return out as Partial<ComponentNode>;
+  return out;
 }
 
 /** A finite number from the node's parameter bag, or null when absent. */
@@ -105,7 +105,7 @@ function rowGeometry(node: Partial<ComponentNode>, type: string): Record<string,
         type,
         material,
         materialDensity,
-        shape: node.shape as NoseShape,
+        shape: node.shape,
         // Mirrors what catalogPatch WRITES for a filled cone (thickness = the
         // radius), so a catalog cone that was picked, saved and listed again
         // reads the same both times.
@@ -127,7 +127,7 @@ function rowGeometry(node: Partial<ComponentNode>, type: string): Record<string,
         type,
         material,
         materialDensity,
-        shape: node.shape as NoseShape,
+        shape: node.shape,
         filled: node.filled === true,
         thickness: node.filled === true ? null : wall,
         length,

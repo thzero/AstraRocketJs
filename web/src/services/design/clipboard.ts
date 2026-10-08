@@ -44,7 +44,7 @@ export function pastePlace(tree: RocketTree, clip: ComponentNode, selectedId: st
 /** The stage a node is in (itself, for a stage). */
 function stageOf(tree: RocketTree, id: string): ComponentNode | null {
   let node = findNode(tree, id);
-  while (node && node.type !== 'stage') node = node.id ? findParent(tree, node.id as string) : null;
+  while (node && node.type !== 'stage') node = node.id ? findParent(tree, node.id) : null;
   return node;
 }
 

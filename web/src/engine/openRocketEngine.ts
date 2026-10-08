@@ -34,6 +34,10 @@ let initPromise: Promise<'wasm' | 'js'> | null = null;
 /** The active engine; throws if initEngine() has not resolved yet. The app mounts
  *  before it has, so callers on the main thread check `engineStore.phase` rather
  *  than treating this as unreachable. */
+
+/** An error envelope's message: the bridge sends a string, and anything else is shown as JSON. */
+const envelopeText = (err: unknown): string => (typeof err === 'string' ? err : JSON.stringify(err));
+
 function eng(): EngineApi {
   if (!active) {
     throw new Error('OpenRocket engine not initialized — await initEngine() before using it.');
@@ -141,13 +145,13 @@ function parseEnvelope<T>(operation: string, raw: string, expectArray = false): 
   if (expectArray) {
     if (Array.isArray(parsed)) return parsed as T;
     const err = (parsed as { error?: unknown } | null)?.error;
-    throw new EngineCallError(operation, new Error(err ? String(err) : 'unexpected reply shape'));
+    throw new EngineCallError(operation, new Error(err ? envelopeText(err) : 'unexpected reply shape'));
   }
   if (!parsed || typeof parsed !== 'object') {
     throw new EngineCallError(operation, new Error(`unexpected reply shape: ${String(raw).slice(0, 120)}`));
   }
   const err = (parsed as { error?: unknown }).error;
-  if (err) throw new EngineCallError(operation, new Error(String(err)));
+  if (err) throw new EngineCallError(operation, new Error(envelopeText(err)));
   return parsed as T;
 }
 

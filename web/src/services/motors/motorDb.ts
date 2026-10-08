@@ -15,6 +15,7 @@ import { motorFitsMount, offersPlugged, type MountFit } from './motorPicker';
 import { fetchCatalog } from '../app/remoteData';
 import { PLUGGED_DELAY } from '../../engine/openRocketEngine';
 import { keyOf } from './motorKey';
+import { errorMessage } from '../app/errorMessage';
 
 /** One catalog row — the VC sync utility's schema, plus optional custom-motor tags. */
 export interface CatalogMotor {
@@ -191,13 +192,13 @@ export async function importCustomMotors(
   // stopping the rest.
   const motors: ReturnType<typeof parseEng>[] = [];
   const failed: string[] = [];
-  let firstError: unknown = null;
+  let firstError: Error | null = null;
   for (const { name, text } of files) {
     try {
       motors.push(...(text.trimStart().startsWith('<') ? parseRse(text) : [parseEng(text)]));
     } catch (err) {
       failed.push(name);
-      firstError ??= err;
+      firstError ??= err instanceof Error ? err : new Error(errorMessage(err));
     }
   }
   // Nothing read at all: the parser's own message says what is wrong with it.

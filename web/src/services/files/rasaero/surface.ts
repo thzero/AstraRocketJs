@@ -54,10 +54,10 @@ export function rasaeroSurface(finish: string): { surface: string; warning?: str
  */
 export function designSurface(stagesIn: ComponentNode[], warnings: string[] | undefined): string {
   const finishOf = (n: ComponentNode | undefined) =>
-    n ? (typeof n['finish'] === 'string' ? (n['finish'] as string) : 'normal') : undefined;
+    n ? (typeof n['finish'] === 'string' ? n['finish'] : 'normal') : undefined;
   const walk = (nodes: ComponentNode[]): string | undefined => {
     for (const n of nodes) {
-      if (typeof n['finish'] === 'string') return n['finish'] as string;
+      if (typeof n['finish'] === 'string') return n['finish'];
       const hit = walk(n.children ?? []);
       if (hit) return hit;
     }

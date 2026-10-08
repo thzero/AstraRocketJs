@@ -51,7 +51,7 @@ test('the design exports back out as a .rkt', async ({ page }) => {
   // Plain XML, not a zip: RockSim does not archive its files, and a .ork-shaped
   // download here would open in nothing.
   const path = await dl.path();
-  const text = await (await import('node:fs/promises')).readFile(path!, 'utf8');
+  const text = await (await import('node:fs/promises')).readFile(path, 'utf8');
   expect(text).toContain('<RockSimDocument>');
   expect(text).toContain('<Name>RockSim Bird</Name>');
   expect(text).toContain('<StageCount>1</StageCount>');

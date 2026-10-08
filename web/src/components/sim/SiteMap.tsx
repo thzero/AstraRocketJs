@@ -265,11 +265,12 @@ export function SiteMap({
 
   return (
     <div className={`flex flex-col gap-1 ${className}`}>
-      <div
+      <div // eslint-disable-line jsx-a11y-x/no-noninteractive-element-interactions -- a focusable map: the arrows pan it and +/- zoom it, and the group names it without claiming a widget role it does not fit
         ref={hostRef}
         role="group"
         aria-label={ariaLabel}
         aria-describedby={imagery === 'unavailable' ? undefined : keysId}
+        // eslint-disable-next-line jsx-a11y-x/no-noninteractive-tabindex -- a focusable map: the arrows pan it and +/- zoom it, and the group names it without claiming a widget role it does not fit
         tabIndex={imagery === 'unavailable' ? undefined : 0}
         onKeyDown={imagery === 'unavailable' ? undefined : onKeyDown}
         // `active:` rather than a class chosen from the drag ref: whether a

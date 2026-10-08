@@ -326,6 +326,7 @@ Nederlands
 Niskanen
 nnum
 Nonaxial
+noninteractive
 nosetorootbottom
 nosetoroottop
 nosuchfinish
@@ -539,6 +540,7 @@ vels
 verts
 visualização
 Vuelo
+WCAG
 weathercocking
 weathersource
 windaverage

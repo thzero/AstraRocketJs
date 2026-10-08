@@ -13,11 +13,11 @@ import type { ComponentNode, ComponentPosition } from '../engine/openRocketEngin
  *  otherwise flow straight into every geometry/mesh/report path as NaN
  *  coordinates. Treat non-finite as absent (fall back). */
 export const num = (n: ComponentNode, key: string, fb = 0): number =>
-  typeof n[key] === 'number' && Number.isFinite(n[key] as number) ? (n[key] as number) : fb;
+  typeof n[key] === 'number' && Number.isFinite(n[key]) ? n[key] : fb;
 
 /** Like {@link num} but yields `undefined` (not a fallback) when absent / non-finite. */
 export const numOpt = (n: ComponentNode, key: string): number | undefined =>
-  typeof n[key] === 'number' && Number.isFinite(n[key] as number) ? (n[key] as number) : undefined;
+  typeof n[key] === 'number' && Number.isFinite(n[key]) ? n[key] : undefined;
 
 /**
  * A SAFETY ceiling on any instance count, not a design opinion.
@@ -50,12 +50,10 @@ export const countOf = (n: ComponentNode, key: string, fb: number): number =>
   Math.min(MAX_INSTANCE_COUNT, Math.max(1, Math.round(num(n, key, fb))));
 
 /** String parameter, or `fb` (default '') when absent / non-string. */
-export const str = (n: ComponentNode, key: string, fb = ''): string =>
-  typeof n[key] === 'string' ? (n[key] as string) : fb;
+export const str = (n: ComponentNode, key: string, fb = ''): string => (typeof n[key] === 'string' ? n[key] : fb);
 
 /** Boolean parameter, or `fb` (default false) when absent / non-boolean. */
-export const bool = (n: ComponentNode, key: string, fb = false): boolean =>
-  typeof n[key] === 'boolean' ? (n[key] as boolean) : fb;
+export const bool = (n: ComponentNode, key: string, fb = false): boolean => (typeof n[key] === 'boolean' ? n[key] : fb);
 
 /**
  * A chain member's outer radius (m), read from the key its type sizes by: a
@@ -101,10 +99,7 @@ const AXIAL_METHODS: ReadonlySet<string> = new Set<ComponentPosition['method']>(
  */
 export const positionOf = (n: ComponentNode): ComponentPosition => {
   const raw = n.position as Partial<ComponentPosition> | null | undefined;
-  const method =
-    raw && typeof raw.method === 'string' && AXIAL_METHODS.has(raw.method)
-      ? (raw.method as ComponentPosition['method'])
-      : 'top';
+  const method = raw && typeof raw.method === 'string' && AXIAL_METHODS.has(raw.method) ? raw.method : 'top';
   const offset = raw && typeof raw.offset === 'number' && Number.isFinite(raw.offset) ? raw.offset : 0;
   return raw?.ork ? { method, offset, ork: raw.ork } : { method, offset };
 };

@@ -52,9 +52,12 @@ export interface ThreeMfOptions {
 
 export const THREE_MF_MIME = 'model/3mf';
 
+/** The unknown-part color as a number. The constant is valid hex, so the 0 is never used. */
+const UNKNOWN_RGB = parseHexColor(UNKNOWN_PART_COLOR) ?? 0;
+
 /** `#rgb` / `#rrggbb` → the `#RRGGBBAA` the spec's `displaycolor` wants. */
 function displayColor(color: string | undefined): string {
-  const rgb = parseHexColor(color) ?? (parseHexColor(UNKNOWN_PART_COLOR) as number);
+  const rgb = parseHexColor(color) ?? UNKNOWN_RGB;
   return `${hexOf(rgb).toUpperCase()}FF`;
 }
 

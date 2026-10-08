@@ -52,7 +52,7 @@ export function MotorDetail({
           // never takes the dialog down with it.
           try {
             const score = motorSimilarity(
-              finalizeSamples(curves[curveIndex]!.samples),
+              finalizeSamples(curves[curveIndex].samples),
               finalizeSamples(curves[i]!.samples),
             );
             return score === null || score < SIMILAR;

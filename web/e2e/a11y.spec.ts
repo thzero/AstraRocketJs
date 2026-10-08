@@ -1,4 +1,45 @@
-import { test, expect, runFlight, defined } from './base';
+import AxeBuilder from '@axe-core/playwright';
+import { test, expect, runFlight, defined, ready, openTab, type Page } from './base';
+
+/** What axe found on the page as it is, one line per element, WCAG 2.1 A and AA. */
+async function axeViolations(page: Page, where: string): Promise<string[]> {
+  const result = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
+  return result.violations.flatMap((v) =>
+    v.nodes.map((n) => {
+      const colors = n.any[0]?.data as { fgColor?: string; bgColor?: string; contrastRatio?: number } | undefined;
+      const detail = colors?.contrastRatio
+        ? ` (${colors.fgColor} on ${colors.bgColor}, ${colors.contrastRatio}:1)`
+        : '';
+      return `${where}: ${v.id}${detail} at ${n.target.join(' ')}`;
+    }),
+  );
+}
+
+/**
+ * The main screens through axe, in every theme. Contrast is the part the JSX
+ * lint cannot see: it depends on the theme's tokens and the surface under the
+ * text, so each theme is its own scan. The theme attribute is set directly;
+ * the setting that normally sets it is covered in daylight-toggle.spec.ts.
+ */
+for (const theme of ['dark', 'light', 'daylight'] as const) {
+  test(`axe finds nothing on the main screens in the ${theme} theme`, async ({ page }) => {
+    await ready(page);
+    await runFlight(page);
+    await page.evaluate((t) => document.documentElement.setAttribute('data-theme', t), theme);
+
+    const found: string[] = [];
+    for (const tab of ['Design', 'Simulations', 'Results'] as const) {
+      await openTab(page, tab);
+      found.push(...(await axeViolations(page, tab)));
+    }
+    await page.getByRole('button', { name: 'Menu' }).click();
+    await page.getByRole('menuitem', { name: /Settings/i }).click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+    found.push(...(await axeViolations(page, 'Settings')));
+
+    expect(found, found.join('\n')).toEqual([]);
+  });
+}
 
 /**
  * Keyboard and screen-reader reachability.

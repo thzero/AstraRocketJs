@@ -4,7 +4,14 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
-const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8'));
+/** The package.json fields this config reads. */
+interface PackageInfo {
+  version: string;
+  repository?: { url?: string };
+  wiki?: { url?: string };
+  contributorsPage?: { url?: string };
+}
+const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8')) as PackageInfo;
 // The version the app reports. Overridable so scripts/check-update-flow.mjs can
 // build two distinguishable versions from one checkout and watch the service
 // worker hand one over to the other; nothing else sets it.

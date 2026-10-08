@@ -232,12 +232,12 @@ export function buildForImport(tree: RocketTree): { design: OpenRocketDesign; un
 function withoutFreeformOutlines(tree: RocketTree): RocketTree {
   const strip = (nodes: ComponentNode[] | undefined): ComponentNode[] | undefined =>
     nodes?.map((n) => {
-      const kids = strip(n.children as ComponentNode[] | undefined);
+      const kids = strip(n.children);
       const next = { ...n, ...(kids ? { children: kids } : {}) } as ComponentNode & { points?: unknown };
       if (next.type === 'freeformfinset') delete next.points;
       return next;
     });
-  return { ...tree, components: strip(tree.components as ComponentNode[]) ?? [] } as RocketTree;
+  return { ...tree, components: strip(tree.components) ?? [] };
 }
 
 export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
@@ -325,7 +325,7 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
       // the user picks a real motor, and nothing silently flies a C6.
       notes.push(
         otherMaker
-          ? `Motor "${ref.designation}" is filed under ${ref.manufacturer} in this file, and the catalog has no motor of theirs by that name (only ${match!.motor.manufacturer}'s). Pick a motor for that mount (it won't fly a default).`
+          ? `Motor "${ref.designation}" is filed under ${ref.manufacturer} in this file, and the catalog has no motor of theirs by that name (only ${match.motor.manufacturer}'s). Pick a motor for that mount (it won't fly a default).`
           : `Motor "${ref.designation}" isn't in the catalog — pick a motor for that mount (it won't fly a default).`,
       );
       return unresolvedMotor(ref);
@@ -390,7 +390,7 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
    */
   const checkFit = (mountId: string, spec: MotorSpec): void => {
     const node = byId.get(mountId);
-    const fit = node ? mountFit(node as unknown as Record<string, unknown>) : null;
+    const fit = node ? mountFit(node) : null;
     if (!fit || !spec.designation || !(spec.diameter > 0)) return;
     const motor = { diameter: spec.diameter * 1000, length: spec.length ? spec.length * 1000 : undefined };
     if (motorFitsMount(motor, fit)) return;

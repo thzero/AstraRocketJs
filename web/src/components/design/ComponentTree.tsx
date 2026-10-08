@@ -136,7 +136,7 @@ function detail(n: ComponentNode, t: TFunction, u: Units): string {
   if (ty === 'nosecone')
     return [typeof n.shape === 'string' ? n.shape : null, len(u, n.length)].filter(Boolean).join(' · ');
   if (isFinSet(ty)) {
-    const c = (n.finCount ?? n.count) as unknown;
+    const c = n.finCount ?? n.count;
     return typeof c === 'number' ? t('tree.fins', { count: c }) : '';
   }
   if (ty === 'parachute') {
@@ -259,7 +259,7 @@ function Row({
       {!isCollapsed &&
         node.children?.map((c, i) => (
           <Row
-            key={(c.id as string) ?? `${c.type}-${i}`}
+            key={c.id ?? `${c.type}-${i}`}
             node={c}
             depth={depth + 1}
             selectedId={selectedId}
@@ -523,7 +523,7 @@ export function ComponentTree({
       {/* The rule is the tree's spine, so it keeps its 1px; the inset beside it
           was decoration the names were paying for. */}
       {listOpen && (
-        <div
+        <div // eslint-disable-line jsx-a11y-x/interactive-supports-focus -- roving tabindex: the selected row is the tab stop, as in the ARIA tree pattern, so the container is not
           ref={listRef}
           role="tree"
           aria-label={t('tree.components')}

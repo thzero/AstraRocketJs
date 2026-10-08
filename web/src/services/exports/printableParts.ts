@@ -33,7 +33,7 @@ export function printableParts(tree: RocketTree): PrintablePart[] {
   const out: PrintablePart[] = [];
   const walk = (nodes: ComponentNode[] | undefined, depth: number): void => {
     for (const n of nodes ?? []) {
-      const id = n.id as string | undefined;
+      const id = n.id;
       if (id && isPrintable(n.type)) out.push({ id, name: n.name ?? '', type: n.type, depth });
       // Recurse whatever the parent was: a body tube is printable and so are
       // the rings inside it, and an unprintable parent (a stage, a pod set)

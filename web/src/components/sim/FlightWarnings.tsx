@@ -36,7 +36,7 @@ export function FlightWarnings({ sim }: { sim: FlightResult | null }) {
               <span aria-hidden>⚠</span>
               <span className="min-w-0">
                 <span className="font-medium">{warningText(w.message, t)}</span>
-                {help && <span className="mt-1 block font-normal leading-snug opacity-80">{help}</span>}
+                {help && <span className="mt-1 block font-normal leading-snug">{help}</span>}
               </span>
             </li>
           );

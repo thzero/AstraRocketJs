@@ -147,7 +147,7 @@ export function flightDataCsv(
       .join(sep),
   );
 
-  const n = (series?.['time']?.length ?? 0) as number;
+  const n = series?.['time']?.length ?? 0;
   for (let i = 0; i < n; i++) {
     lines.push(
       cols

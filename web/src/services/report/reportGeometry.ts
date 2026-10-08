@@ -56,7 +56,7 @@ export function profileMm(
 ): { w: number; h: number; pts: Pt[] } | null {
   const len = partLength(node);
   if (len <= 0) return null;
-  const clipped = typeof node['clipped'] === 'boolean' ? (node['clipped'] as boolean) : undefined;
+  const clipped = typeof node['clipped'] === 'boolean' ? node['clipped'] : undefined;
   const prof = outerProfile(nodeShape(node), numOpt(node, 'shapeParameter'), len, foreR, aftR, 80, undefined, clipped);
   const maxR = Math.max(...prof.map(([, r]) => r), aftR, foreR);
   const h = maxR * 2 * M_TO_MM;
@@ -92,7 +92,7 @@ export function rocketSideView(tree: RocketTree): { w: number; h: number; body: 
   const radiusSampler = (node: ComponentNode, foreR: number, aftR: number, len: number) => (lx: number) => {
     if (!(len > 0)) return aftR;
     const shape = nodeShape(node);
-    const clipped = typeof node['clipped'] === 'boolean' ? (node['clipped'] as boolean) : undefined;
+    const clipped = typeof node['clipped'] === 'boolean' ? node['clipped'] : undefined;
     const at = Math.max(0, Math.min(len, lx));
     // `extraX` gives the profile an exact sample at the station we asked for,
     // so this reads the true curve rather than a chord between two samples.
@@ -179,7 +179,7 @@ export function rocketSideView(tree: RocketTree): { w: number; h: number; body: 
 
     const revolve = (node: ComponentNode, foreR: number, aftR: number, len: number) => {
       const shape = nodeShape(node);
-      const clipped = typeof node['clipped'] === 'boolean' ? (node['clipped'] as boolean) : undefined;
+      const clipped = typeof node['clipped'] === 'boolean' ? node['clipped'] : undefined;
       for (const [px, r] of outerProfile(
         shape,
         numOpt(node, 'shapeParameter'),

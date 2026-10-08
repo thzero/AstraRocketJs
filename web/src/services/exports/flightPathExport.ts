@@ -731,7 +731,7 @@ function launchPositionUnset(launch: LaunchConditions): boolean {
 
 /** Coerce a possibly-missing series value to a finite number, or 0. */
 const finiteOr0 = (v: number | null | undefined): number => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
-const series = (s: FlightSeries, key: string): (number | null)[] | undefined => s[key] as (number | null)[] | undefined;
+const series = (s: FlightSeries, key: string): (number | null)[] | undefined => s[key];
 
 /**
  * Staged flights carry per-branch data (branch 0 = the sustainer stack); a

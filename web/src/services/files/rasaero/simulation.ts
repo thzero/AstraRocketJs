@@ -2,7 +2,7 @@ import type { ComponentNode } from '../../../engine/openRocketEngine';
 import { escapeXml as esc } from '../xmlUtil';
 import { FT, IN, LB, fmt, type Cdx1Writer } from './units';
 import type { StageEngineSlot } from './engines';
-import { num } from '../../../tree/nodeProps';
+import { num, str } from '../../../tree/nodeProps';
 
 /** Design-level `[mach, altitude m]` conditions table (RASAero's Mach-Alt table). */
 export type MachAltTable = [number, number][];
@@ -41,7 +41,7 @@ export function writeSimulationList(
   const stackCg = (i: number): string => fmt((i === lastStage ? (launchCgM ?? 0) : 0) * IN);
   const stageSeparationDelay = (i: number): string => {
     const st = stagesIn[i];
-    return fmt(st && String(st['separationEvent'] ?? 'ejection') === 'burnout' ? num(st, 'separationDelay', 0) : 0);
+    return fmt(st && str(st, 'separationEvent', 'ejection') === 'burnout' ? num(st, 'separationDelay', 0) : 0);
   };
   emit('<SimulationList>');
   emit('<Simulation>');

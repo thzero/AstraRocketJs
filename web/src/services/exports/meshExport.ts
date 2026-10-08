@@ -22,6 +22,7 @@ export const GLB_MIME = 'model/gltf-binary';
 // export, and it was written out in three separate files.
 import { M_TO_MM } from '../../prefs/units';
 import { UNKNOWN_PART_COLOR } from '../design/partColors';
+import { errorMessage } from '../app/errorMessage';
 
 /** A watertight, millimeter-scaled mesh of one solid, ready for an exporter. */
 function meshGroup(geometry: THREE.BufferGeometry): THREE.Group {
@@ -49,7 +50,7 @@ export function solidToGlb(geometry: THREE.BufferGeometry): Promise<ArrayBuffer>
     new GLTFExporter().parse(
       meshGroup(geometry),
       (result) => resolve(result as ArrayBuffer),
-      (err) => reject(err instanceof Error ? err : new Error(String(err))),
+      (err) => reject(err instanceof Error ? err : new Error(errorMessage(err))),
       { binary: true },
     );
   });

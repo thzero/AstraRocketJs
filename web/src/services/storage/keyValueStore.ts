@@ -34,29 +34,30 @@ export interface KeyValueStore {
 
 /** Default implementation: the browser's localStorage (per-browser, per-origin). */
 export class LocalStorageKeyValueStore implements KeyValueStore {
-  async get(key: string): Promise<string | null> {
+  get(key: string): Promise<string | null> {
     try {
-      return localStorage.getItem(key);
+      return Promise.resolve(localStorage.getItem(key));
     } catch {
-      return null; // storage unavailable (private mode etc.)
+      return Promise.resolve(null); // storage unavailable (private mode etc.)
     }
   }
 
-  async set(key: string, value: string): Promise<boolean> {
+  set(key: string, value: string): Promise<boolean> {
     try {
       localStorage.setItem(key, value);
-      return true;
+      return Promise.resolve(true);
     } catch {
-      return false; // quota exceeded / storage blocked
+      return Promise.resolve(false); // quota exceeded / storage blocked
     }
   }
 
-  async remove(key: string): Promise<void> {
+  remove(key: string): Promise<void> {
     try {
       localStorage.removeItem(key);
     } catch {
       // best-effort
     }
+    return Promise.resolve();
   }
 
   /**

@@ -128,7 +128,7 @@ describe.each(LOCALES)('%s locale', (name, L) => {
     const mismatched = Object.keys(L)
       .filter((k) => enFor(k) !== undefined)
       .filter((k) => placeholders(enFor(k)!).join(',') !== placeholders(L[k]!).join(','))
-      .map((k) => `${k}: en=[${placeholders(enFor(k)!)}] vs [${placeholders(L[k]!)}]`);
+      .map((k) => `${k}: en=[${placeholders(enFor(k)!).join(', ')}] vs [${placeholders(L[k]!).join(', ')}]`);
     expect(mismatched).toEqual([]);
   });
 

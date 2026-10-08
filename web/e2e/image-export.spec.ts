@@ -31,7 +31,7 @@ test.describe('image export', () => {
     // Named after the design, and actually an SVG with the data header in it.
     expect(dl.suggestedFilename()).toMatch(/-2d\.svg$/);
     const path = await dl.path();
-    const svg = await readFile(path!, 'utf8');
+    const svg = await readFile(path, 'utf8');
     expect(svg.startsWith('<svg') || svg.includes('<svg')).toBe(true);
     // The header block is the point of the export — it is what a cert reviewer
     // reads off the page.
@@ -69,7 +69,7 @@ test.describe('image export', () => {
     expect(dl.suggestedFilename()).toMatch(/.png$/);
 
     const sharp = (await import('sharp')).default;
-    const img = sharp(await readFile((await dl.path())!));
+    const img = sharp(await readFile(await dl.path()));
     const meta = await img.metadata();
     expect(meta.width).toBeGreaterThanOrEqual(1920);
     expect(meta.height).toBeGreaterThan(0);

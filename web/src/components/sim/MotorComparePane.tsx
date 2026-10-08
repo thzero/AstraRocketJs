@@ -1,6 +1,5 @@
 import { useTranslation } from 'react-i18next';
 import type { CatalogMotor } from '../../services/motors/motorDb';
-import type { Sample } from '../../services/motors/motorCombine';
 import { useUnits } from '../../prefs/useUnits';
 import { keyOf } from '../../services/motors/motorKey';
 import { ALIGN, heading, type Col } from './motorColumns';
@@ -30,7 +29,7 @@ export function MotorComparePane({ motors, cols }: { motors: CatalogMotor[]; col
   }
   const series = motors
     .filter((m) => colorFor.has(keyOf(m)))
-    .map((m) => ({ m, color: colorFor.get(keyOf(m))!, pts: m.curves![0]!.samples as Sample[] }));
+    .map((m) => ({ m, color: colorFor.get(keyOf(m))!, pts: m.curves![0]!.samples }));
   // Identity is the motor name (+ color dot); show every other chosen column.
   const specCols = cols.filter((c) => c.id !== 'designation');
 

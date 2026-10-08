@@ -300,8 +300,8 @@ export function PropertyPanel({
         <MaterialPicker
           use="fillet"
           label={t('material.fillet')}
-          value={typeof node['filletMaterialName'] === 'string' ? (node['filletMaterialName'] as string) : undefined}
-          density={typeof node['filletDensity'] === 'number' ? (node['filletDensity'] as number) : undefined}
+          value={typeof node['filletMaterialName'] === 'string' ? node['filletMaterialName'] : undefined}
+          density={typeof node['filletDensity'] === 'number' ? node['filletDensity'] : undefined}
           onChange={(name, d, group) =>
             commitChange({
               filletMaterialName: name,
@@ -313,7 +313,7 @@ export function PropertyPanel({
               // custom adhesive carries its group this way too, which the old
               // built-ins-only lookup could not see.
               filletMaterialGroup: (name && group) || undefined,
-            } as Partial<ComponentNode>)
+            })
           }
         />
       </FieldSection>
@@ -361,7 +361,7 @@ export function PropertyPanel({
         <div className="border-t border-line/5 pt-3">
           <FreeformFinEditor
             points={(node.points as [number, number][] | undefined) ?? []}
-            onChange={(pts) => onChange({ points: pts } as Partial<ComponentNode>)}
+            onChange={(pts) => onChange({ points: pts })}
             onCommit={onCommit}
           />
           {/* Scale fin, Import from image and Export CSV: the desktop's own

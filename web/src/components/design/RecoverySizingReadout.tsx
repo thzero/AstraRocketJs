@@ -63,7 +63,7 @@ export function RecoverySizingReadout({
           <SizingBody
             node={node}
             onUse={(d) => {
-              onChange({ diameter: d } as Partial<ComponentNode>);
+              onChange({ diameter: d });
               onCommit?.();
             }}
           />

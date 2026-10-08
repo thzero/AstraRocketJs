@@ -71,14 +71,14 @@ export function AlertDialog({
   const messageId = useId();
 
   return (
-    <div
+    <div // eslint-disable-line jsx-a11y-x/click-events-have-key-events, jsx-a11y-x/no-static-element-interactions -- a backdrop click is the mouse twin of Escape, which the focus trap handles; the panel only stops that click
       className={`fixed inset-0 ${layerClass[layer]} grid place-items-center bg-shade/60 p-4`}
       onClick={(e) => {
         e.stopPropagation();
         onCancel?.();
       }}
     >
-      <div
+      <div // eslint-disable-line jsx-a11y-x/click-events-have-key-events, jsx-a11y-x/no-noninteractive-element-interactions -- a backdrop click is the mouse twin of Escape, which the focus trap handles; the panel only stops that click
         ref={panelRef}
         role="alertdialog"
         aria-modal="true"

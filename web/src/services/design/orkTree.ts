@@ -14,7 +14,7 @@ export function freshId(): string {
 export function asStageNodes(tree: RocketTree): ComponentNode[] {
   return tree.components.every((c) => c.type === 'stage')
     ? tree.components
-    : [{ type: 'stage', name: 'Sustainer', children: tree.components } as ComponentNode];
+    : [{ type: 'stage', name: 'Sustainer', children: tree.components }];
 }
 
 /**

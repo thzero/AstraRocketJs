@@ -1,6 +1,6 @@
 import type { ComponentNode, ComponentType } from '../../../engine/openRocketEngine';
 import { nodeShape, shapeIsClippable } from '../../../tree/shapeProfile';
-import { num } from '../../../tree/nodeProps';
+import { num, str } from '../../../tree/nodeProps';
 import { escapeXml } from '../xmlUtil';
 import { uuid } from '../../app/uuid';
 import { COMPONENT_DEFAULTS } from '../../design/componentDefaults';
@@ -56,7 +56,7 @@ const planarFinHead = (w: OrkWriter, node: ComponentNode, d: number, fallback: s
   finishXml(w, d, node);
   material(w, d, node);
   w.emit(d, `<thickness>${num(node, 'thickness', COMPONENT_DEFAULTS.finset.thickness)}</thickness>`);
-  w.emit(d, `<crosssection>${escapeXml(String(node['crossSection'] ?? 'square'))}</crosssection>`);
+  w.emit(d, `<crosssection>${escapeXml(str(node, 'crossSection', 'square'))}</crosssection>`);
   airfoilXml(w, d, node);
   w.emit(d, `<cant>${(num(node, 'cant', 0) * 180) / Math.PI}</cant>`);
   finTabsXml(w, d, node);
@@ -87,7 +87,7 @@ const recoveryHead = (w: OrkWriter, node: ComponentNode, d: number, fallback: st
   // after the material and omits it for a main, so a round-tripped file stays
   // byte-comparable with one the desktop wrote.
   if (node['drogue'] === true) w.emit(d, '<isdrogue>true</isdrogue>');
-  w.emit(d, `<deployevent>${escapeXml(String(node['deployEvent'] ?? 'ejection'))}</deployevent>`);
+  w.emit(d, `<deployevent>${escapeXml(str(node, 'deployEvent', 'ejection'))}</deployevent>`);
   w.emit(d, `<deployaltitude>${num(node, 'deployAltitude', 200)}</deployaltitude>`);
   w.emit(d, `<deploydelay>${num(node, 'deployDelay', 0)}</deploydelay>`);
   deploymentConfigs(w, d, node);
@@ -138,7 +138,7 @@ const writeTransition: NodeWriter = (w, node, d) => {
   // anyway would grow a 'clipped' field on re-import that the golden
   // file never had (breaking bit-stable round trips).
   if (shapeIsClippable(nodeShape(node))) {
-    const clippedOut = typeof node['clipped'] === 'boolean' ? (node['clipped'] as boolean) : true;
+    const clippedOut = typeof node['clipped'] === 'boolean' ? node['clipped'] : true;
     w.emit(d, `<shapeclipped>${clippedOut}</shapeclipped>`);
   }
   shapeParamXml(w, d, node);
@@ -226,7 +226,7 @@ const writeInnertube: NodeWriter = (w, node, d) => {
   // Desktop stores cluster rotation in DEGREES; we keep radians inside.
   w.emit(
     d,
-    `<clusterconfiguration>${escapeXml(typeof node['cluster'] === 'string' ? (node['cluster'] as string) : 'single')}</clusterconfiguration>`,
+    `<clusterconfiguration>${escapeXml(typeof node['cluster'] === 'string' ? node['cluster'] : 'single')}</clusterconfiguration>`,
   );
   w.emit(d, `<clusterscale>${num(node, 'clusterScale', 1)}</clusterscale>`);
   w.emit(d, `<clusterrotation>${(num(node, 'clusterRotation', 0) * 180) / Math.PI}</clusterrotation>`);
@@ -284,7 +284,7 @@ const writeFairing: NodeWriter = (w, node, d) => {
   w.emit(d, `<length>${num(node, 'length', 0.08)}</length>`);
   w.emit(d, `<width>${num(node, 'width', 0.025)}</width>`);
   w.emit(d, `<height>${num(node, 'height', 0.02)}</height>`);
-  w.emit(d, `<fairingshape>${escapeXml(String(node['fairingShape'] ?? 'halfround'))}</fairingshape>`);
+  w.emit(d, `<fairingshape>${escapeXml(str(node, 'fairingShape', 'halfround'))}</fairingshape>`);
   w.emit(d, `<mass>${num(node, 'mass', 0.03)}</mass>`);
 };
 
@@ -327,14 +327,14 @@ const writeRailbutton: NodeWriter = (w, node, d) => {
 const writeParachute: NodeWriter = (w, node, d) => {
   recoveryHead(w, node, d, 'Parachute');
   w.emit(d, `<diameter>${num(node, 'diameter', 0.3)}</diameter>`);
-  if (typeof node['spillHoleDiameter'] === 'number' && (node['spillHoleDiameter'] as number) > 0) {
+  if (typeof node['spillHoleDiameter'] === 'number' && node['spillHoleDiameter'] > 0) {
     // Extension tag (desktop warns-and-ignores, same as airfoilsection).
     w.emit(d, `<spillholediameter>${node['spillHoleDiameter']}</spillholediameter>`);
   }
   w.emit(d, `<linecount>${num(node, 'lineCount', 6)}</linecount>`);
   w.emit(d, `<linelength>${node['lineLengthAuto'] === true ? 'auto' : num(node, 'lineLength', 0.3)}</linelength>`);
   if (typeof node['lineDensity'] === 'number') {
-    const lname = typeof node['lineMaterialName'] === 'string' ? (node['lineMaterialName'] as string) : 'custom';
+    const lname = typeof node['lineMaterialName'] === 'string' ? node['lineMaterialName'] : 'custom';
     w.emit(d, `<linematerial type="line" density="${node['lineDensity']}">${escapeXml(lname)}</linematerial>`);
   } else {
     w.emit(
@@ -370,10 +370,7 @@ const writeMasscomponent: NodeWriter = (w, node, d) => {
   // Legal values = MassComponent.MassComponentType lowercased:
   // masscomponent, altimeter, flightcomputer, deploymentcharge,
   // tracker, payload, recoveryhardware, battery.
-  w.emit(
-    d,
-    `<masscomponenttype>${escapeXml(String(node['massComponentType'] ?? 'masscomponent'))}</masscomponenttype>`,
-  );
+  w.emit(d, `<masscomponenttype>${escapeXml(str(node, 'massComponentType', 'masscomponent'))}</masscomponenttype>`);
 };
 
 /** ComponentAssembly (pod set, parallel stage): the placement block they share. */
@@ -464,7 +461,7 @@ export function stageXml(w: OrkWriter, depth: number, st: ComponentNode, i: numb
   // RASAero power-on base-drag input (meters, no conversion). Non-standard
   // element (OpenRocket desktop ignores it); only emitted when set > 0 so a
   // plain design round-trips exactly. Applies to every stage incl. sustainer.
-  if (typeof st['nozzleExitDiameter'] === 'number' && (st['nozzleExitDiameter'] as number) > 0) {
+  if (typeof st['nozzleExitDiameter'] === 'number' && st['nozzleExitDiameter'] > 0) {
     emit(depth + 1, `<nozzleexitdiameter>${st['nozzleExitDiameter']}</nozzleexitdiameter>`);
   }
   if (i > 0) {

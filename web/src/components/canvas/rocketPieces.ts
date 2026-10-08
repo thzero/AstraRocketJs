@@ -470,7 +470,7 @@ export function buildPieces(
           len,
           rf,
           ra,
-          typeof n['clipped'] === 'boolean' ? (n['clipped'] as boolean) : undefined,
+          typeof n['clipped'] === 'boolean' ? n['clipped'] : undefined,
           shoulderOf(n, 'fore'),
           shoulderOf(n, 'aft'),
         );

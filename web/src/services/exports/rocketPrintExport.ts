@@ -139,7 +139,7 @@ export async function downloadRocket3mf(
     files[`${entry}.3mf`] = buildThreeMf([b.part], { placeOnPlate });
   }
   await saveBlob(
-    new Blob([zipSync(files, { level: 6 }) as BlobPart], { type: 'application/zip' }),
+    new Blob([zipSync(files, { level: 6 })], { type: 'application/zip' }),
     exportFilename([name, '3mf'], 'zip'),
   );
   return { written: built.length, skipped };

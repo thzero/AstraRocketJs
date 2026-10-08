@@ -42,11 +42,11 @@ export interface FlightScene {
 }
 
 export function buildFlightScene(result: FlightResult, phase: PhaseColors): FlightScene {
-  const time = (result.series.time ?? []) as number[];
-  const alt = (result.series.altitude ?? []) as number[];
-  const vel = (result.series.velocity ?? []) as number[];
-  const px = (result.series.Px ?? []) as (number | null)[];
-  const py = (result.series.Py ?? []) as (number | null)[];
+  const time = result.series.time ?? [];
+  const alt = result.series.altitude ?? [];
+  const vel = result.series.velocity ?? [];
+  const px = result.series.Px ?? [];
+  const py = result.series.Py ?? [];
   const rows: { t: number; a: number; v: number; x: number; z: number }[] = [];
   for (let i = 0; i < time.length; i++) {
     if (!Number.isFinite(time[i]) || !Number.isFinite(alt[i])) continue;

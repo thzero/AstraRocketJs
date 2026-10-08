@@ -131,7 +131,7 @@ export function Dialog({
   };
 
   return (
-    <div
+    <div // eslint-disable-line jsx-a11y-x/click-events-have-key-events, jsx-a11y-x/no-static-element-interactions -- a backdrop click is the mouse twin of Escape, which the focus trap handles; the panel only stops that click
       className={`dialog-overlay fixed inset-0 ${layerClass[layer]} flex items-center justify-center bg-shade/60 p-4`}
       // The stop is not optional: a nested dialog renders INSIDE its parent's
       // overlay, so a bare onClose here bubbled up and dismissed both at once.
@@ -141,7 +141,7 @@ export function Dialog({
         if (dismissible) onClose();
       }}
     >
-      <div
+      <div // eslint-disable-line jsx-a11y-x/click-events-have-key-events, jsx-a11y-x/no-noninteractive-element-interactions -- a backdrop click is the mouse twin of Escape, which the focus trap handles; the panel only stops that click
         ref={panelRef}
         role="dialog"
         aria-modal="true"

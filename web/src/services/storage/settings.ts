@@ -606,7 +606,7 @@ export function loadSettings(): Settings {
         Object.entries((s.partColors ?? {}) as Record<string, unknown>).filter(
           ([, v]) => typeof v === 'string' && HEX_COLOR.test(v),
         ),
-      ) as Partial<Record<PartKey, string>>,
+      ),
       // Filtered the same way, and for a sharper reason: a density out of this
       // map is stamped onto a new part and flown. A stored string, NaN or a
       // negative would reach the kernel as the mass of somebody's airframe.

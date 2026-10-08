@@ -177,7 +177,7 @@ function FileMenu({
   };
 
   return (
-    <div
+    <div // eslint-disable-line jsx-a11y-x/interactive-supports-focus -- roving tabindex: focus moves to the items, as in the ARIA menu pattern, so the container is not
       ref={menuRef}
       role="menu"
       onKeyDown={onMenuKey}

@@ -74,7 +74,7 @@ export function FlightChartPanel({
     const out: { color: string; name: string; pts: Pt[]; xs: number[]; ys: number[]; t0?: number; t1?: number }[] = [];
     for (const b of branches) {
       const time = b.series.time ?? [];
-      const raw = (b.series[meta.key] ?? []) as (number | null)[];
+      const raw = b.series[meta.key] ?? [];
       const p: Pt[] = [];
       const xa: number[] = [];
       const ya: number[] = [];

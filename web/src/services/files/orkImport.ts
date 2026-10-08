@@ -1,7 +1,6 @@
 import { xmlText as text } from './xmlUtil';
 import { syncAutoRadii } from '../design/autoRadius';
 import { findStages } from '../design/treeEdit';
-import type { RocketTree } from '../../engine/openRocketEngine';
 import type { OrkImportResult } from './orkTypes';
 import { parseOrkXml, unpackOrk } from './ork/importUnpack';
 import { readFlightConfigs, readStageActiveness, type OrkImportContext } from './ork/importConfigs';
@@ -66,7 +65,7 @@ export function importOrk(data: ArrayBuffer | string): OrkImportResult {
   // a flag. Resolve it here rather than waiting for the first edit: everything
   // downstream of an import - the drawing, the mesh, the exports - reads a
   // plain radius, and an unresolved one would draw at a default nobody chose.
-  const components = syncAutoRadii({ name, components: readStages(ctx, stages) } as RocketTree).components;
+  const components = syncAutoRadii({ name, components: readStages(ctx, stages) }).components;
   if (components.every((s) => (s.children ?? []).length === 0)) {
     throw new Error('No supported components found in this design.');
   }
@@ -75,7 +74,7 @@ export function importOrk(data: ArrayBuffer | string): OrkImportResult {
   readStageActiveness(
     configEls,
     configs,
-    findStages({ name, components } as RocketTree).map((n) => n.id as string),
+    findStages({ name, components }).map((n) => n.id as string),
   );
   const { notes, ignored } = ctx;
   notes.push(...ignoredNotes(ignored));

@@ -52,6 +52,7 @@ test.describe('design library', () => {
     await page.addInitScript(() => {
       const w = window as unknown as { __idbGets: number };
       w.__idbGets = 0;
+      // eslint-disable-next-line @typescript-eslint/unbound-method -- saved to patch the prototype; called back with .call(this, ...)
       const orig = IDBObjectStore.prototype.get;
       IDBObjectStore.prototype.get = function (...args: [IDBValidKey | IDBKeyRange]) {
         w.__idbGets++;

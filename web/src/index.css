@@ -17,7 +17,9 @@
  *
  * `@theme inline` makes each utility read the `--c-*` property itself, so
  * an opacity modifier (`/10`) and a later theme both work. The values are
- * Tailwind's own palette, so nothing looks different for the move.
+ * Tailwind's own palette, except where a step is moved to give text 4.5:1
+ * contrast (WCAG AA) on the surfaces it is used on; e2e/a11y.spec.ts checks
+ * that with axe in every theme.
  */
 @theme inline {
   --color-canvas: var(--c-canvas);
@@ -103,7 +105,7 @@
   --c-ink: oklch(92.9% 0.013 255.508); /* slate-200 */
   --c-ink-soft: oklch(86.9% 0.022 252.894); /* slate-300 */
   --c-ink-muted: oklch(70.4% 0.04 256.788); /* slate-400 */
-  --c-ink-faint: oklch(55.4% 0.046 257.417); /* slate-500 */
+  --c-ink-faint: oklch(65.4% 0.046 257.417); /* slate-500 lightened to 4.5:1 on raised */
   --c-ink-dim: oklch(44.6% 0.043 257.281); /* slate-600 */
   --c-line: #fff; /* white, used with an opacity */
   --c-shade: #000; /* black, for scrims and shadows */
@@ -114,7 +116,7 @@
   --c-accent-300: oklch(82.8% 0.111 230.318); /* sky-300 */
   --c-accent-400: oklch(74.6% 0.16 232.661); /* sky-400 */
   --c-accent-500: oklch(68.5% 0.169 237.323); /* sky-500 */
-  --c-accent-600: oklch(58.8% 0.158 241.966); /* sky-600 */
+  --c-accent-600: oklch(55.3% 0.158 241.966); /* sky-600 darkened to 4.5:1 under white text */
   --c-accent-700: oklch(50% 0.134 242.749); /* sky-700 */
   --c-accent-800: oklch(44.3% 0.11 240.79); /* sky-800 */
   --c-accent-900: oklch(39.1% 0.09 240.876); /* sky-900 */
@@ -383,7 +385,7 @@ body {
   --c-ink: oklch(27.9% 0.041 260.031);
   --c-ink-soft: oklch(37.2% 0.044 257.287);
   --c-ink-muted: oklch(44.6% 0.043 257.281);
-  --c-ink-faint: oklch(55.4% 0.046 257.417);
+  --c-ink-faint: oklch(51.3% 0.046 257.417);
   --c-ink-dim: oklch(70.4% 0.04 256.788);
   --c-line: #0f172a;
   --c-shade: #000;
@@ -392,9 +394,9 @@ body {
   --c-accent-100: oklch(39.1% 0.09 240.876);
   --c-accent-200: oklch(44.3% 0.11 240.79);
   --c-accent-300: oklch(50% 0.134 242.749);
-  --c-accent-400: oklch(58.8% 0.158 241.966);
+  --c-accent-400: oklch(53.1% 0.158 241.966);
   --c-accent-500: oklch(68.5% 0.169 237.323);
-  --c-accent-600: oklch(58.8% 0.158 241.966);
+  --c-accent-600: oklch(55.3% 0.158 241.966);
   --c-accent-700: oklch(50% 0.134 242.749);
   --c-accent-800: oklch(44.3% 0.11 240.79);
   --c-accent-900: oklch(95.1% 0.026 236.824);
@@ -436,7 +438,7 @@ body {
   --c-ok-100: oklch(37.8% 0.077 168.94);
   --c-ok-200: oklch(43.2% 0.095 166.913);
   --c-ok-300: oklch(50.8% 0.118 165.612);
-  --c-ok-400: oklch(59.6% 0.145 163.225);
+  --c-ok-400: oklch(51.4% 0.145 163.225);
   --c-ok-500: oklch(69.6% 0.17 162.48);
   --c-ok-600: oklch(59.6% 0.145 163.225);
   --c-ok-700: oklch(50.8% 0.118 165.612);
@@ -502,7 +504,7 @@ body {
   --c-accent-300: oklch(44.3% 0.11 240.79);
   --c-accent-400: oklch(50% 0.134 242.749);
   --c-accent-500: oklch(68.5% 0.169 237.323);
-  --c-accent-600: oklch(58.8% 0.158 241.966);
+  --c-accent-600: oklch(55.3% 0.158 241.966);
   --c-accent-700: oklch(50% 0.134 242.749);
   --c-accent-800: oklch(44.3% 0.11 240.79);
   --c-accent-900: oklch(95.1% 0.026 236.824);

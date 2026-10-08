@@ -15,7 +15,7 @@ import { findMounts } from '../design/treeEdit';
 import { loadoutSignature, newFlightConfig, type FlightConfig, type MountMotor } from '../flight/flightConfigs';
 import type { Simulation } from '../flight/simulations';
 import type { Workspace } from './workspaceStore';
-import type { IgnitionEvent, MotorSpec, RocketTree } from '../../engine/openRocketEngine';
+import type { IgnitionEvent, MotorSpec } from '../../engine/openRocketEngine';
 
 /** One version-1 simulation: the loadout inline, the first mount apart from the rest. */
 interface SimulationV1 extends Omit<Simulation, 'configId'> {
@@ -77,7 +77,7 @@ export function migrateWorkspace(w: unknown): Workspace | null {
  * Naming them would be inventing a name the user never typed.
  */
 function fromV1(w: WorkspaceV1): Workspace {
-  const primaryId = findMounts(w.tree as RocketTree)[0]?.id as string | undefined;
+  const primaryId = findMounts(w.tree)[0]?.id;
   const configs: FlightConfig[] = [];
   const bySignature = new Map<string, FlightConfig>();
   const sims: Simulation[] = w.sims.map((s) => {

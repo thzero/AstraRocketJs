@@ -178,7 +178,7 @@ export function TreeSchematic({
   const beginCaliperDrag = (axis: 'h' | 'v', end: 'a' | 'b') => (e: React.PointerEvent) => {
     e.stopPropagation(); // don't also start a pan
     caliperDrag.current = { axis, end };
-    (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
+    e.currentTarget.setPointerCapture?.(e.pointerId);
   };
 
   /**
@@ -238,7 +238,7 @@ export function TreeSchematic({
       if (!p.active) {
         if (Math.abs(dx) < PAN_SLOP && Math.abs(dy) < PAN_SLOP) return;
         p.active = true;
-        (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
+        e.currentTarget.setPointerCapture?.(e.pointerId);
       }
       // Drag-to-roll: horizontal motion spins the fins (~1 turn per width).
       if (onRoll) {

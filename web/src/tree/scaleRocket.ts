@@ -209,7 +209,7 @@ export function scaleNode(n: ComponentNode, k: number, options: ScaleOptions = {
   // sharing a subtree with the unscaled one - the doc above says children are the
   // caller's business and now the code says it too.
   const { children: _children, ...own } = n;
-  const out: ComponentNode = { ...own } as ComponentNode;
+  const out: ComponentNode = { ...own };
 
   // `?? []` survives for a persisted node whose `type` the union does not
   // know: the table is complete for the union, not for arbitrary input.
@@ -225,7 +225,7 @@ export function scaleNode(n: ComponentNode, k: number, options: ScaleOptions = {
     const pts = n['points'] as unknown[];
     out['points'] = pts.map((p) =>
       Array.isArray(p) && p.length >= 2 && typeof p[0] === 'number' && typeof p[1] === 'number'
-        ? [round((p[0] as number) * k), round((p[1] as number) * k)]
+        ? [round(p[0] * k), round(p[1] * k)]
         : // A row that is not a numeric pair is COPIED rather than passed through
           // by reference: it cannot be scaled, but the scaled node must not share
           // an array with the node it was scaled from. Left unscaled on purpose -
@@ -276,7 +276,7 @@ export function scaleRocket(tree: RocketTree, factor: number, options: ScaleOpti
   const walk = (nodes: ComponentNode[]): ComponentNode[] =>
     nodes.map((n) => {
       const scaled = scaleNode(n, factor, options);
-      return n.children ? ({ ...scaled, children: walk(n.children) } as ComponentNode) : scaled;
+      return n.children ? { ...scaled, children: walk(n.children) } : scaled;
     });
   return { ...tree, components: walk(tree.components) };
 }
@@ -298,7 +298,7 @@ export function scalePart(
   let found = false;
   const all = (n: ComponentNode): ComponentNode => {
     const scaled = scaleNode(n, factor, options);
-    return n.children ? ({ ...scaled, children: n.children.map(all) } as ComponentNode) : scaled;
+    return n.children ? { ...scaled, children: n.children.map(all) } : scaled;
   };
   const walk = (nodes: ComponentNode[]): ComponentNode[] =>
     nodes.map((n) => {
@@ -306,9 +306,9 @@ export function scalePart(
         found = true;
         if (withChildren) return all(n);
         const scaled = scaleNode(n, factor, options);
-        return n.children ? ({ ...scaled, children: n.children } as ComponentNode) : scaled;
+        return n.children ? { ...scaled, children: n.children } : scaled;
       }
-      return n.children ? ({ ...n, children: walk(n.children) } as ComponentNode) : n;
+      return n.children ? { ...n, children: walk(n.children) } : n;
     });
   const components = walk(tree.components);
   return found ? { ...tree, components } : tree;

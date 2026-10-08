@@ -97,7 +97,7 @@ export function ConfigEditor() {
           const id = mt.id as string;
           const seated = config.motors[id];
           // The same numbers the file reader judges a fit by (motorPicker.mountFit).
-          const mount = mountFit(mt as unknown as Record<string, unknown>);
+          const mount = mountFit(mt);
           return (
             <MotorRow
               key={id}
@@ -110,7 +110,7 @@ export function ConfigEditor() {
               onIgnitionChange={(e, d) => setMountIgnition(config.id, id, e, d)}
               onCommit={onCommit}
               upperStage={isUpperStageMount(tree, id)}
-              used={configs.flatMap((c) => (c.id !== config.id && c.motors[id]?.spec ? [c.motors[id]!.spec] : []))}
+              used={configs.flatMap((c) => (c.id !== config.id && c.motors[id]?.spec ? [c.motors[id].spec] : []))}
             />
           );
         })}

@@ -1,6 +1,6 @@
 import type { ComponentNode, ComponentPosition } from '../../../engine/openRocketEngine';
 import { nodeShape, shapeParamDefault } from '../../../tree/shapeProfile';
-import { num, numOpt } from '../../../tree/nodeProps';
+import { num, numOpt, str } from '../../../tree/nodeProps';
 import { kernelPresetType } from './presetTypes';
 import { escapeXml } from '../xmlUtil';
 import { uuid } from '../../app/uuid';
@@ -39,11 +39,10 @@ export function material(
   const { emit } = w;
   if (kind === 'bulk') {
     if (typeof node.density === 'number' && node.density > 0) {
-      const name = typeof node['materialName'] === 'string' ? (node['materialName'] as string) : 'custom';
+      const name = typeof node['materialName'] === 'string' ? node['materialName'] : 'custom';
       // The group rides along when the reader kept one (readMaterialGroup),
       // so a desktop material round-trips with its catalog category.
-      const group =
-        typeof node['materialGroup'] === 'string' ? ` group="${escapeXml(node['materialGroup'] as string)}"` : '';
+      const group = typeof node['materialGroup'] === 'string' ? ` group="${escapeXml(node['materialGroup'])}"` : '';
       emit(depth, `<material type="bulk" density="${node.density}"${group}>${escapeXml(name)}</material>`);
     } else {
       emit(
@@ -54,7 +53,7 @@ export function material(
     }
   } else if (kind === 'surface') {
     if (typeof node['surfaceDensity'] === 'number') {
-      const name = typeof node['surfaceMaterialName'] === 'string' ? (node['surfaceMaterialName'] as string) : 'custom';
+      const name = typeof node['surfaceMaterialName'] === 'string' ? node['surfaceMaterialName'] : 'custom';
       emit(depth, `<material type="surface" density="${node['surfaceDensity']}">${escapeXml(name)}</material>`);
     } else {
       emit(
@@ -65,7 +64,7 @@ export function material(
     }
   } else {
     if (typeof node['lineDensity'] === 'number') {
-      const name = typeof node['lineMaterialName'] === 'string' ? (node['lineMaterialName'] as string) : 'custom';
+      const name = typeof node['lineMaterialName'] === 'string' ? node['lineMaterialName'] : 'custom';
       emit(depth, `<material type="line" density="${node['lineDensity']}">${escapeXml(name)}</material>`);
     } else {
       emit(
@@ -83,7 +82,7 @@ export function position(
   node: ComponentNode,
   dflt: ComponentPosition['method'] = 'top',
 ): void {
-  const pos = (node.position ?? { method: dflt, offset: 0 }) as ComponentPosition;
+  const pos = node.position ?? { method: dflt, offset: 0 };
   // An imported `absolute` position was rewritten to the parent frame on load
   // (see ComponentPosition.ork). Write the original back so a round-trip is
   // byte-stable -- but only while the user has not moved the part, in which
@@ -97,10 +96,10 @@ export function header(w: OrkWriter, depth: number, node: ComponentNode, fallbac
   w.emit(depth, `<name>${escapeXml(node.name ?? fallback)}</name>`);
   w.emit(depth, `<id>${uuid()}</id>`);
   if (typeof node['comment'] === 'string' && node['comment']) {
-    w.emit(depth, `<comment>${escapeXml(node['comment'] as string)}</comment>`);
+    w.emit(depth, `<comment>${escapeXml(node['comment'])}</comment>`);
   }
   if (typeof node['lineStyle'] === 'string' && node['lineStyle']) {
-    w.emit(depth, `<linestyle>${escapeXml(node['lineStyle'] as string)}</linestyle>`);
+    w.emit(depth, `<linestyle>${escapeXml(node['lineStyle'])}</linestyle>`);
   }
   presetXml(w, depth, node);
   colorXml(w, depth, node);
@@ -242,11 +241,9 @@ export function filletXml(w: OrkWriter, depth: number, node: ComponentNode): voi
     );
     return;
   }
-  const matName = typeof node['filletMaterialName'] === 'string' ? (node['filletMaterialName'] as string) : 'custom';
+  const matName = typeof node['filletMaterialName'] === 'string' ? node['filletMaterialName'] : 'custom';
   const group =
-    typeof node['filletMaterialGroup'] === 'string'
-      ? ` group="${escapeXml(node['filletMaterialGroup'] as string)}"`
-      : '';
+    typeof node['filletMaterialGroup'] === 'string' ? ` group="${escapeXml(node['filletMaterialGroup'])}"` : '';
   w.emit(depth, `<filletmaterial type="bulk" density="${density}"${group}>` + `${escapeXml(matName)}</filletmaterial>`);
 }
 
@@ -267,7 +264,7 @@ export function finAngleXml(w: OrkWriter, depth: number, node: ComponentNode, me
 export function finishXml(w: OrkWriter, depth: number, node: ComponentNode): void {
   // finish (like shape/crosssection/cluster below) is file-sourced free
   // text on import — escape it or a crafted file breaks the re-export.
-  w.emit(depth, `<finish>${escapeXml(String(node['finish'] ?? 'normal'))}</finish>`);
+  w.emit(depth, `<finish>${escapeXml(str(node, 'finish', 'normal'))}</finish>`);
 }
 
 // Fin tabs — written like the desktop's FinSetSaver: only when both depth
@@ -278,7 +275,7 @@ export function finTabsXml(w: OrkWriter, depth: number, node: ComponentNode): vo
   const h = num(node, 'tabHeight', 0);
   const len = num(node, 'tabLength', 0);
   if (h <= 0 || len <= 0) return;
-  const method = typeof node['tabOffsetMethod'] === 'string' ? (node['tabOffsetMethod'] as string) : 'middle';
+  const method = typeof node['tabOffsetMethod'] === 'string' ? node['tabOffsetMethod'] : 'middle';
   const legacy = method === 'top' ? 'front' : method === 'bottom' ? 'end' : 'center';
   const offset = num(node, 'tabOffset', 0);
   w.emit(depth, `<tabheight>${h}</tabheight>`);

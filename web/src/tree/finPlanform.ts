@@ -257,7 +257,7 @@ export function finTabSpan(
 function finTabFrontEdge(node: ComponentNode, rootChord: number): number {
   const offset = num(node, 'tabOffset', 0);
   const tabLen = num(node, 'tabLength', 0);
-  const method = typeof node['tabOffsetMethod'] === 'string' ? (node['tabOffsetMethod'] as string) : 'middle';
+  const method = typeof node['tabOffsetMethod'] === 'string' ? node['tabOffsetMethod'] : 'middle';
   if (method === 'top') return offset;
   if (method === 'bottom') return offset + (rootChord - tabLen);
   return offset + (rootChord - tabLen) / 2;

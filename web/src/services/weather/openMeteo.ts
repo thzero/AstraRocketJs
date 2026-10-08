@@ -280,6 +280,9 @@ export class WeatherError extends Error {
 
 // ------------------------------------------------------------------ parsing
 
+/** A unit as the answer gave it, for an error message. */
+const unitText = (u: unknown): string => (u === undefined ? 'no unit' : typeof u === 'string' ? u : JSON.stringify(u));
+
 /** One pressure level at one hour. Null is MISSING, never zero. */
 export interface PressureLevelSample {
   pressureHPa: number;
@@ -327,7 +330,7 @@ const finiteOrNull = (x: unknown): number | null => (isFiniteNumber(x) ? x : nul
 
 /** Open-Meteo's own refusal, `{"error": true, "reason": "..."}`, or null. */
 function refusalReason(body: unknown): string | null {
-  const one = Array.isArray(body) ? body[0] : body;
+  const one: unknown = Array.isArray(body) ? body[0] : body;
   return isObj(one) && one['error'] === true
     ? typeof one['reason'] === 'string'
       ? one['reason']
@@ -359,7 +362,7 @@ export function parseForecast(body: unknown, elevationsM: readonly number[]): Fo
     const units = item['hourly_units'];
     const h = item['hourly'];
     for (const v of ['time', ...SURFACE_VARS]) {
-      if (units[v] !== unitFor(v)) throw new WeatherError('units', `${v} in ${String(units[v] ?? 'no unit')}`);
+      if (units[v] !== unitFor(v)) throw new WeatherError('units', `${v} in ${unitText(units[v])}`);
     }
     const e = finiteOrNull(item['elevation']);
     if (e === null || Math.abs(e - elevationsM[i]!) > 0.5) {
@@ -375,7 +378,7 @@ export function parseForecast(body: unknown, elevationsM: readonly number[]): Fo
       if (a === undefined && !required) return time.map(() => null);
       if (!Array.isArray(a) || a.length !== time.length)
         throw new WeatherError('shape', `${v} does not match its hours`);
-      if (units[v] !== unitFor(v)) throw new WeatherError('units', `${v} in ${String(units[v] ?? 'no unit')}`);
+      if (units[v] !== unitFor(v)) throw new WeatherError('units', `${v} in ${unitText(units[v])}`);
       return a.map(finiteOrNull);
     };
     const s = Object.fromEntries(SURFACE_VARS.map((v) => [v, series(v, true)])) as Record<

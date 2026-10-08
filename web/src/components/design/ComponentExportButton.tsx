@@ -26,7 +26,7 @@ export function ComponentExportButton({ node }: { node: ComponentNode }) {
   const { open, toggle, close, wrapRef, triggerRef } = useMenuPopover();
 
   const formats = componentFormats(node.type);
-  const id = node.id as string | undefined;
+  const id = node.id;
   if (formats.length === 0 || !id) return null;
 
   return (

@@ -22,7 +22,7 @@ const KEYS: Record<OverrideKind, { value: string; sub: string }> = {
 export function overriddenBy(tree: RocketTree, id: string, kind: OverrideKind): ComponentNode | null {
   const { value, sub } = KEYS[kind];
   let found: ComponentNode | null = null;
-  for (let p = findParent(tree, id); p; p = p.id ? findParent(tree, p.id as string) : null) {
+  for (let p = findParent(tree, id); p; p = p.id ? findParent(tree, p.id) : null) {
     if (typeof p[value] === 'number' && p[sub] === true) found = p;
   }
   return found;

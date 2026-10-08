@@ -474,7 +474,7 @@ function buildSolid(node: ComponentNode, parentRadius: number | null): THREE.Buf
       const ra = num(node, 'aftRadius', 0.009);
       if (!(len > 0) || !(Math.max(rf, ra) > 0)) return null; // degenerate → no solid
       const shape = nodeShape(node);
-      const clipped = typeof node['clipped'] === 'boolean' ? (node['clipped'] as boolean) : undefined;
+      const clipped = typeof node['clipped'] === 'boolean' ? node['clipped'] : undefined;
       let surface = outerProfile(shape, numOpt(node, 'shapeParameter'), len, rf, ra, SEGMENTS, undefined, clipped);
       // Fore/aft shoulders: stubs that plug into the tubes on either side.
       const fShR = num(node, 'foreShoulderRadius', 0),

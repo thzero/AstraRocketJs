@@ -2,6 +2,7 @@ import js from '@eslint/js';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 import reactHooks from 'eslint-plugin-react-hooks';
+import jsxA11y from 'eslint-plugin-jsx-a11y-x';
 import playwright from 'eslint-plugin-playwright';
 import vitest from '@vitest/eslint-plugin';
 import prettier from 'eslint-config-prettier';
@@ -30,7 +31,7 @@ export default tseslint.config(
     languageOptions: { ecmaVersion: 2022, sourceType: 'module', globals: { ...globals.node } },
   },
   {
-    extends: [js.configs.recommended, ...tseslint.configs.recommended],
+    extends: [js.configs.recommended, ...tseslint.configs.recommendedTypeChecked],
     files: ['**/*.{ts,tsx}'],
     languageOptions: {
       ecmaVersion: 2020,
@@ -100,17 +101,56 @@ export default tseslint.config(
       // 26 of them would be flagging React. The other `checksVoidReturn` cases,
       // where a void-returning position is a real mistake, stay on.
       '@typescript-eslint/no-misused-promises': ['error', { checksVoidReturn: { attributes: false } }],
-      // The rest of `recommendedTypeChecked` is deliberately NOT adopted wholesale.
-      // The `no-unsafe-*` family fires on every `as unknown as` boundary cast, and
-      // this app has them on purpose at the kernel seam, where the vendored TeaVM
-      // bundle has no types to check against. Enabling that set means deciding what
-      // to do at that seam, which is its own change.
+      // The rest comes from `recommendedTypeChecked` above. It used to be held
+      // back because the `no-unsafe-*` family fired on every cast at the kernel
+      // seam; the vendored engine has a declaration file now
+      // (src/engine/openrocket-engine.d.ts), and in src that family finds next
+      // to nothing.
+    },
+  },
+  {
+    // Accessibility in the app's JSX: labels, roles, keyboard reach for
+    // clickable elements. The es-tooling fork of eslint-plugin-jsx-a11y, the
+    // same rules; the original's peer range stops at ESLint 9. It reads JSX
+    // only, so what it cannot see (contrast, focus order, names that come
+    // from i18n at run time) is the axe scan's job in e2e/a11y.spec.ts.
+    files: ['src/**/*.tsx'],
+    extends: [jsxA11y.configs.recommended],
+    rules: {
+      // Every autoFocus here is the first field of a modal dialog, and moving
+      // focus into a dialog that opens is what the ARIA dialog pattern asks
+      // for. The rule is about a page that grabs focus on load, which this app
+      // has no form for.
+      'jsx-a11y-x/no-autofocus': 'off',
+      // NumberInput renders an <input>, so a label wrapping it is labeled.
+      'jsx-a11y-x/label-has-associated-control': ['error', { controlComponents: ['NumberInput'], depth: 3 }],
     },
   },
   {
     // Tests and Node-side config run outside the browser sandbox.
     files: ['**/*.test.{ts,tsx}', '**/*.config.{ts,js}'],
     languageOptions: { globals: { ...globals.node } },
+  },
+  {
+    // What the type-checked rules mean in a test, as against the app.
+    files: ['tests/**/*.{ts,tsx}', '**/*.test.{ts,tsx}'],
+    rules: {
+      // A mock written `async () => value` stands in for a function that
+      // returns a promise; it has nothing to await, and that is the point.
+      '@typescript-eslint/require-await': 'off',
+      // The kernel tests drive the real engine and read its JSON envelopes,
+      // which arrive untyped by design: the test is the type check.
+      '@typescript-eslint/no-unsafe-argument': 'off',
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-return': 'off',
+      // Testing Library's queries are generic and infer their element type
+      // from a cast around them, so the rule reads `getByRole(...) as
+      // HTMLInputElement` as already HTMLInputElement and calls the cast
+      // needless; removing it leaves HTMLElement and breaks the test.
+      '@typescript-eslint/no-unnecessary-type-assertion': 'off',
+    },
   },
   {
     // The Playwright specs. The recommended set is mostly "you forgot to
