@@ -11,8 +11,8 @@
 // catalog is refreshed.
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { homedir, tmpdir } from 'node:os';
+import { delimiter, join } from 'node:path';
 
 /** The Gradle-cached jars a `--or` checkout needs, by artifact name. */
 const JARS = [
@@ -54,7 +54,8 @@ const arg = (name, fallback = null) => {
 
 /** Every jar under the Gradle cache whose file name starts with a wanted artifact. */
 function cachedJars() {
-  const root = join(process.env.USERPROFILE ?? process.env.HOME ?? '', '.gradle/caches/modules-2/files-2.1');
+  const gradleHome = process.env.GRADLE_USER_HOME ?? join(homedir(), '.gradle');
+  const root = join(gradleHome, 'caches/modules-2/files-2.1');
   if (!existsSync(root)) throw new Error(`no Gradle cache at ${root}; build the OpenRocket checkout first`);
   const out = [];
   const walk = (dir, depth) => {
@@ -90,7 +91,10 @@ function installedJar() {
     'C:/Program Files/OpenRocket/jar',
     'C:/Program Files (x86)/OpenRocket/jar',
     '/Applications/OpenRocket.app/Contents/app',
-    join(process.env.HOME ?? '', 'OpenRocket/jar'),
+    // The Linux installer's system-wide and per-user defaults.
+    '/opt/OpenRocket/jar',
+    '/opt/openrocket/jar',
+    join(homedir(), 'OpenRocket/jar'),
   ];
   for (const dir of roots) {
     if (!existsSync(dir)) continue;
@@ -114,7 +118,8 @@ function classpath(orDir, jar) {
       throw new Error(`missing ${d}\nBuild the checkout first: cd ${orDir} && ./gradlew build`);
     }
   }
-  return [...cachedJars(), main, test, join(orDir, 'core/build/resources/main')].join(';');
+  // `delimiter` is the platform's class path separator: `;` on Windows, `:` elsewhere.
+  return [...cachedJars(), main, test, join(orDir, 'core/build/resources/main')].join(delimiter);
 }
 
 /**
@@ -145,7 +150,7 @@ export function runJava({ cp, javaSrc, className, args = [] }) {
   const work = mkdtempSync(join(tmpdir(), 'or-java-'));
   try {
     execFileSync('javac', ['-cp', cp, '-d', work, javaSrc], { stdio: 'inherit' });
-    execFileSync('java', ['-cp', `${cp};${work}`, className, ...args], { stdio: 'inherit' });
+    execFileSync('java', ['-cp', `${cp}${delimiter}${work}`, className, ...args], { stdio: 'inherit' });
     return 0;
   } catch (e) {
     return typeof e.status === 'number' ? e.status : 1;
@@ -163,7 +168,7 @@ export function runDumper({ cp, javaSrc, className }) {
   try {
     execFileSync('javac', ['-cp', cp, '-d', work, javaSrc], { stdio: 'inherit' });
     const out = join(work, 'dump.tsv');
-    const log = execFileSync('java', ['-cp', `${cp};${work}`, className, out], { encoding: 'utf8' });
+    const log = execFileSync('java', ['-cp', `${cp}${delimiter}${work}`, className, out], { encoding: 'utf8' });
     process.stdout.write(`  ${log.trim()}\n`);
     // Split on either ending: the Java writer emits platform line separators,
     // and on Windows a stray carriage return otherwise rides into the last
