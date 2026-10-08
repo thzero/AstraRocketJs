@@ -87,10 +87,11 @@ export function AeroAnalysis() {
   const [aoaDeg, setAoaDeg] = useState(0);
   const [thetaDeg, setThetaDeg] = useState(0);
   const [rollRate, setRollRate] = useState(0);
+  const [altitudeM, setAltitudeM] = useState(0);
 
   // Deferred off the render (see useAeroSweep): the previous sweep stays up
   // while the next one runs, and `pending` says so in the header.
-  const { sweep, pending } = useAeroSweep(rocket, { machMax, aoaDeg, thetaDeg, rollRate });
+  const { sweep, pending } = useAeroSweep(rocket, { machMax, aoaDeg, thetaDeg, rollRate, altitudeM });
 
   // The picked Mach, clamped to the sweep at READ time. Shrinking the sweep has
   // to bring the picked Mach back with it, or the strip header prints the raw
@@ -175,7 +176,7 @@ export function AeroAnalysis() {
 
   if (!sweep)
     return (
-      <div className="grid h-full place-items-center text-sm text-slate-500" aria-busy={pending}>
+      <div className="grid h-full place-items-center text-sm text-ink-faint" aria-busy={pending}>
         {pending ? t('aero.computing') : t('aero.unavailable')}
       </div>
     );
@@ -184,12 +185,12 @@ export function AeroAnalysis() {
   const machMin = machs[0] ?? 0.05;
 
   return (
-    <div className="flex h-full flex-col rounded-xl bg-slate-900 ring-1 ring-white/10" aria-busy={pending}>
+    <div className="flex h-full flex-col rounded-xl bg-surface ring-1 ring-line/10" aria-busy={pending}>
       <div className="flex flex-wrap items-center gap-2 px-3 pb-2 pt-3">
-        <h2 className="mr-auto text-xs font-semibold uppercase tracking-wide text-slate-400">
+        <h2 className="mr-auto text-xs font-semibold uppercase tracking-wide text-ink-muted">
           {t('aero.title')}
           {/* The previous sweep stays up while the next one runs; say so. */}
-          {pending && <span className="ml-2 normal-case tracking-normal text-slate-500">{t('aero.computing')}</span>}
+          {pending && <span className="ml-2 normal-case tracking-normal text-ink-faint">{t('aero.computing')}</span>}
         </h2>
         <Segmented
           options={['charts', 'components'] as const}
@@ -198,18 +199,18 @@ export function AeroAnalysis() {
           fmt={(v) => t(v === 'charts' ? 'aero.charts' : 'aero.perComponent')}
         />
         {sweep?.hasNozzle && motorName && (
-          <span className="text-[10px] text-slate-500" title={t('aero.powerOnMotorNote')}>
+          <span className="text-[10px] text-ink-faint" title={t('aero.powerOnMotorNote')}>
             {t('aero.powerOnMotor', { motor: motorName })}
           </span>
         )}
-        <span className="text-[10px] text-slate-500">{t('aero.maxMach')}</span>
+        <span className="text-[10px] text-ink-faint">{t('aero.maxMach')}</span>
         <Segmented options={[1, 2, 3, 5] as const} value={machMax} onChange={setMachMax} fmt={(v) => `M${v}`} />
         <button
           onClick={() =>
             download(exportFilename([designName, 'aero-table'], 'csv'), aeroTableCsv(sweep, u.all), CSV_MIME)
           }
           title={t('aero.exportCsv')}
-          className="rounded-md bg-slate-800 px-2 py-1 text-[11px] font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
+          className="rounded-md bg-raised px-2 py-1 text-[11px] font-medium text-ink ring-1 ring-line/10 hover:bg-elevated"
         >
           ⬇ CSV
         </button>
@@ -244,7 +245,7 @@ export function AeroAnalysis() {
               }
             }}
             title={t('aero.worstNote')}
-            className="rounded-md bg-slate-800 px-2 py-0.5 text-[11px] font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
+            className="rounded-md bg-raised px-2 py-0.5 text-[11px] font-medium text-ink ring-1 ring-line/10 hover:bg-elevated"
           >
             {t('aero.worst')}
           </button>
@@ -258,6 +259,17 @@ export function AeroAnalysis() {
           step={1}
           unit="rad/s"
         />
+        {/* Shown in the altitude unit; the sweep takes meters. Up to 30 km,
+            where the standard atmosphere still has air worth sweeping. */}
+        <Num
+          label={t('aero.altitude')}
+          value={Math.round(altitudeM * u.factor('distance'))}
+          onChange={(v) => setAltitudeM(v / u.factor('distance'))}
+          min={0}
+          max={Math.round(30_000 * u.factor('distance'))}
+          step={Math.round(500 * u.factor('distance'))}
+          unit={u.sym('distance')}
+        />
       </div>
 
       {/* The Mach both panes report at. It used to be hidden on the Charts pane,
@@ -267,7 +279,7 @@ export function AeroAnalysis() {
           keyboard. It shows on both panes now, and the crosshair still drives
           the same state when you do use a pointer. */}
       <div className="flex items-center gap-2 px-3 pb-2">
-        <span className="shrink-0 text-[10px] text-slate-500">{t('aero.atMach', { mach: fmtNum(pick, 2) })}</span>
+        <span className="shrink-0 text-[10px] text-ink-faint">{t('aero.atMach', { mach: fmtNum(pick, 2) })}</span>
         <input
           type="range"
           min={machs[0] ?? 0}
@@ -279,7 +291,7 @@ export function AeroAnalysis() {
           value={pick}
           onChange={(e) => setMachPick(parseFloat(e.target.value))}
           aria-label={t('aero.machPicker')}
-          className="w-full accent-sky-500"
+          className="w-full accent-accent-500"
         />
       </div>
       <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-3 pb-3">

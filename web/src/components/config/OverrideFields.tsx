@@ -26,11 +26,11 @@ export function OverrideCard({
 }) {
   const { t } = useTranslation();
   return (
-    <section aria-label={name} className="rounded-xl bg-slate-900 p-3 ring-1 ring-white/10">
+    <section aria-label={name} className="rounded-xl bg-surface p-3 ring-1 ring-line/10">
       <div className="mb-2 flex items-baseline justify-between gap-2">
-        <span className="truncate text-sm font-medium text-slate-200">{name}</span>
+        <span className="truncate text-sm font-medium text-ink">{name}</span>
         {overridden && (
-          <span className="shrink-0 text-[10px] uppercase tracking-wide text-amber-300">{t('configs.overridden')}</span>
+          <span className="shrink-0 text-[10px] uppercase tracking-wide text-warn-300">{t('configs.overridden')}</span>
         )}
       </div>
       {children}
@@ -42,7 +42,7 @@ export function OverrideCard({
 export function OverrideRow({ label, first, children }: { label: string; first?: boolean; children: ReactNode }) {
   return (
     <label className={`${first ? '' : 'mt-2 '}flex items-center justify-between gap-3`}>
-      <span className="text-xs text-slate-400">{label}</span>
+      <span className="text-xs text-ink-muted">{label}</span>
       {children}
     </label>
   );
@@ -80,7 +80,7 @@ export function OverrideSelect({
         value={value ?? ''}
         aria-label={overrideFieldLabel(name, label)}
         onChange={(e) => onChange(e.target.value || null)}
-        className={`${width} rounded-md bg-slate-800 px-2 py-1 text-xs text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500`}
+        className={`${width} rounded-md bg-raised px-2 py-1 text-xs text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500`}
       >
         <option value="">{t('configs.asDesigned', { value: designed })}</option>
         {options.map((o) => (
@@ -128,9 +128,9 @@ export function OverrideNumber({
           min={min}
           onChange={onChange}
           onCommit={onCommit}
-          className="w-24 rounded-md bg-slate-800 px-2 py-1 text-right text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
+          className="w-24 rounded-md bg-raised px-2 py-1 text-right text-sm text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500"
         />
-        <span className="min-w-6 text-xs text-slate-500">{unit}</span>
+        <span className="min-w-6 text-xs text-ink-faint">{unit}</span>
       </span>
     </OverrideRow>
   );

@@ -19,7 +19,7 @@ export function EngineBadge() {
       // No pill and no width gate of its own: it is one item inside the
       // header's badge group, which carries both. See AppHeader.
       className={`text-[9px] font-semibold uppercase tracking-wide ${
-        backend === 'wasm' ? 'text-emerald-300' : 'text-slate-400'
+        backend === 'wasm' ? 'text-ok-300' : 'text-ink-muted'
       }`}
     >
       {backend}

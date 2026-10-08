@@ -113,7 +113,7 @@ The contents rail, the page headings and the search index are all read out of th
 
 Motors come from [thrustcurve.org](https://www.thrustcurve.org), in two tiers that keep recurring API load to essentially one scheduled job:
 
-1. **Catalog (generated, fetched at runtime).** `web/scripts/sync-motors.mjs` sweeps thrustcurve for every available, license-clean motor and writes the specs — and their bundled thrust curves — to `web/public/data/motors.generated.json` (~815 motors). `public/data` is copied verbatim into the build rather than compiled into the JS bundle, and `services/app/remoteData.ts` fetches it on first use. `.github/workflows/sync-catalogs.yml` runs the sweep weekly and publishes the result to the orphan `data` branch, which the deployed app reads over jsDelivr (`VITE_DATA_BASE`), so a refresh needs no rebuild; the committed copy is the fallback when that host is unreachable. To regenerate locally:
+1. **Catalog (generated, fetched at runtime).** `web/scripts/sync-motors.mjs` sweeps thrustcurve for every motor, in production or not (out-of-production ones marked `oop`), and writes the specs — and their bundled thrust curves — to `web/public/data/motors.generated.json` (~1,150 motors). `public/data` is copied verbatim into the build rather than compiled into the JS bundle, and `services/app/remoteData.ts` fetches it on first use. `.github/workflows/sync-catalogs.yml` runs the sweep weekly and publishes the result to the orphan `data` branch, which the deployed app reads over jsDelivr (`VITE_DATA_BASE`), so a refresh needs no rebuild; the committed copy is the fallback when that host is unreachable. To regenerate locally:
 
    ```bash
    cd web && npm run sync:motors            # regenerate the committed fallback catalog
@@ -121,7 +121,7 @@ Motors come from [thrustcurve.org](https://www.thrustcurve.org), in two tiers th
 
    The catalog is **not** mirrored to `localStorage` — it now ships its thrust curves, which is far too large for that — but it is memoized for the session and cache-busted by the content hash in `public/data/manifest.json`. thrustcurve.org itself is never called for the catalog at runtime.
 
-2. **Thrust curves.** The sweep bundles each motor's curve samples into the catalog (781 of 815; the rest are flagged `noCurve`, having none published), so a picked motor builds its `MotorSpec` with **no runtime call**. Only a `noCurve` motor falls through to `web/src/services/motors/thrustcurve.ts`, which resolves it (`search.json`), pulls its curve (`download.json`) and builds the spec (trapezoidal impulse → per-sample mass). Those fetches are cached through the `MotorStore` (IndexedDB):
+2. **Thrust curves.** The sweep bundles each motor's curve samples into the catalog (1,063 of 1,156; the rest are flagged `noCurve`, having none published), so a picked motor builds its `MotorSpec` with **no runtime call**. Only a `noCurve` motor falls through to `web/src/services/motors/thrustcurve.ts`, which resolves it (`search.json`), pulls its curve (`download.json`) and builds the spec (trapezoidal impulse → per-sample mass). Those fetches are cached through the `MotorStore` (IndexedDB):
 
    | key | holds | refetched |
    |-----|-------|-----------|

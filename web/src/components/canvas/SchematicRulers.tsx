@@ -46,7 +46,7 @@ export function LengthRuler({
   const u = useUnits();
   return (
     <g pointerEvents="none">
-      <line x1={x0} y1={baseY} x2={x1} y2={baseY} className="stroke-white/55" />
+      <line x1={x0} y1={baseY} x2={x1} y2={baseY} className="stroke-line/55" />
       {minorMarks.map((m, i) => {
         const x = ctxX0 + m * scale;
         const medium = Math.abs(((((m / rulerStep) % 1) + 1) % 1) - 0.5) < 0.02;
@@ -57,7 +57,7 @@ export function LengthRuler({
             y1={baseY}
             x2={x}
             y2={baseY + dir * (medium ? 10 : 7)}
-            className={medium ? 'stroke-white/80' : 'stroke-white/60'}
+            className={medium ? 'stroke-line/80' : 'stroke-line/60'}
           />
         );
       })}
@@ -65,14 +65,14 @@ export function LengthRuler({
         const x = ctxX0 + m * scale;
         return (
           <g key={i}>
-            <line x1={x} y1={baseY} x2={x} y2={baseY + dir * 12} className="stroke-white/90" strokeWidth={1.5} />
-            <text x={x} y={labelY} textAnchor="middle" className="fill-slate-100 text-[8px] tabular-nums">
+            <line x1={x} y1={baseY} x2={x} y2={baseY + dir * 12} className="stroke-line/90" strokeWidth={1.5} />
+            <text x={x} y={labelY} textAnchor="middle" className="fill-ink-strong text-[8px] tabular-nums">
               {u.fmt('length', m, rulerDigits)}
             </text>
           </g>
         );
       })}
-      <text x={x1} y={unitY} textAnchor="end" data-ruler-unit className="fill-slate-300 text-[9px] font-medium">
+      <text x={x1} y={unitY} textAnchor="end" data-ruler-unit className="fill-ink-soft text-[9px] font-medium">
         {u.sym('length')}
       </text>
     </g>
@@ -119,7 +119,7 @@ export function RadialRuler({
       {/* Baseline runs corner-to-corner (to the top/bottom length-ruler baselines,
           or the viewport edge where that side's ruler is off) so the rulers close
           into one frame; the ticks stay in vTop..vBot. */}
-      <line x1={baseX} y1={frameTopY} x2={baseX} y2={frameBotY} className="stroke-white/55" />
+      <line x1={baseX} y1={frameTopY} x2={baseX} y2={frameBotY} className="stroke-line/55" />
       {minorTicks.map((m, i) => {
         const y = vTop + m * scale;
         const medium = Math.abs(((((m / rulerStep) % 1) + 1) % 1) - 0.5) < 0.02;
@@ -130,19 +130,19 @@ export function RadialRuler({
             y1={y}
             x2={baseX + dir * (medium ? 10 : 7)}
             y2={y}
-            className={medium ? 'stroke-white/80' : 'stroke-white/60'}
+            className={medium ? 'stroke-line/80' : 'stroke-line/60'}
           />
         );
       })}
       {ticks.map((tk, i) => (
         <g key={i}>
-          <line x1={baseX} y1={tk.y} x2={baseX + dir * 12} y2={tk.y} className="stroke-white/90" strokeWidth={1.5} />
+          <line x1={baseX} y1={tk.y} x2={baseX + dir * 12} y2={tk.y} className="stroke-line/90" strokeWidth={1.5} />
           <text
             x={labelX}
             y={tk.y}
             textAnchor={anchor}
             dominantBaseline="central"
-            className="fill-slate-100 text-[8px] tabular-nums"
+            className="fill-ink-strong text-[8px] tabular-nums"
           >
             {u.fmt('length', tk.label, rulerDigits)}
           </text>
@@ -153,7 +153,7 @@ export function RadialRuler({
         y={vTop - 6}
         textAnchor={anchor}
         data-ruler-unit
-        className="fill-slate-300 text-[9px] font-medium"
+        className="fill-ink-soft text-[9px] font-medium"
       >
         {u.sym('length')}
       </text>

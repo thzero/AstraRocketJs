@@ -129,13 +129,19 @@ export function normalizeLon(lonDeg: number): number {
  * "104.8000° W" is harder to misread than "-104.8000".
  */
 export function formatLat(latDeg: number, places = 4): string {
-  return `${fmtNum(Math.abs(latDeg), places)}° ${latDeg < 0 ? 'S' : 'N'}`;
+  return `${fmtNum(Math.abs(latDeg), places)}° ${latHemisphere(latDeg)}`;
 }
 
 /** A longitude, the same way as {@link formatLat}. */
 export function formatLon(lonDeg: number, places = 4): string {
-  return `${fmtNum(Math.abs(lonDeg), places)}° ${lonDeg < 0 ? 'W' : 'E'}`;
+  return `${fmtNum(Math.abs(lonDeg), places)}° ${lonHemisphere(lonDeg)}`;
 }
+
+/** The hemisphere letter {@link formatLat} prints, for a field that keeps the sign. */
+export const latHemisphere = (latDeg: number): 'N' | 'S' => (latDeg < 0 ? 'S' : 'N');
+
+/** The hemisphere letter {@link formatLon} prints. */
+export const lonHemisphere = (lonDeg: number): 'E' | 'W' => (lonDeg < 0 ? 'W' : 'E');
 
 /** A latitude and longitude pair. */
 export function formatCoord(latDeg: number, lonDeg: number, places = 4): string {

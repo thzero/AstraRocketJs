@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useWorkspaceStore } from '../../state/store';
 import { ComponentTree } from './ComponentTree';
 import { ScaleDialog } from './ScaleDialog';
+import { useTreeEdit } from './useTreeEdit';
 
 /** Design tab, left column: the component tree and the Scale dialog it
  *  launches. The selected part's editor is the opposite column
@@ -14,6 +15,7 @@ export function TreePanel() {
   const onAdd = useWorkspaceStore((s) => s.addPartToTree);
   const onAddStage = useWorkspaceStore((s) => s.addStageToTree);
   const [scaleOpen, setScaleOpen] = useState(false);
+  const edit = useTreeEdit();
 
   return (
     <div className="space-y-4 p-2">
@@ -24,6 +26,7 @@ export function TreePanel() {
         onAdd={onAdd}
         onScale={() => setScaleOpen(true)}
         onAddStage={onAddStage}
+        edit={edit}
       />
       {/* Mounted only while open: the factor resets by unmount. */}
       {scaleOpen && <ScaleDialog onClose={() => setScaleOpen(false)} />}

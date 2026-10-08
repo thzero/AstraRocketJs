@@ -78,18 +78,33 @@ async function main() {
   const server = await serve();
   const browser = await chromium.launch();
   try {
-    const page = await browser.newPage();
     // A fresh profile gets the pre-release "work in progress" modal, which sits
     // above the toast and would swallow the click on Reload. Acknowledge it
     // the way e2e/base.ts does, so this drives a returning user's tab.
-    await page.addInitScript((key) => {
-      try {
-        const stored = JSON.parse(localStorage.getItem(key) || '{}') ?? {};
-        localStorage.setItem(key, JSON.stringify({ ...stored, wipAcknowledged: true }));
-      } catch {
-        // about:blank has no storage; the real navigation runs this again
-      }
-    }, SETTINGS_KEY);
+    const acknowledgeWip = (p) =>
+      p.addInitScript((key) => {
+        try {
+          const stored = JSON.parse(localStorage.getItem(key) || '{}') ?? {};
+          localStorage.setItem(key, JSON.stringify({ ...stored, wipAcknowledged: true }));
+        } catch {
+          // about:blank has no storage; the real navigation runs this again
+        }
+      }, SETTINGS_KEY);
+    const page = await browser.newPage();
+    await acknowledgeWip(page);
+
+    // A tab on its FIRST visit, in a context of its own so it shares no worker
+    // with `page`. Its worker installs but never controls it (`clientsClaim` is
+    // off), and that is the tab whose Reload did nothing: the library reloads
+    // only when the new worker takes control, which here it never does.
+    const firstVisit = await (await browser.newContext()).newPage();
+    await acknowledgeWip(firstVisit);
+    const markDocument = (p) =>
+      p.evaluate(() => {
+        window.__stillTheSameDocument = true;
+      });
+    const reloaded = (p) =>
+      p.waitForFunction(() => window.__stillTheSameDocument === undefined, null, { timeout: 60_000 });
 
     // On failure, say what each layer thinks the page is: the server's copy,
     // the copy the worker hands the page, the worker in control, and what
@@ -145,7 +160,30 @@ async function main() {
       await page.getByText(`v${VERSION_A}`, { exact: true }).waitFor({ timeout: 60_000 });
     });
 
+    await step('open a first-visit tab on version A, which its worker does not control', async () => {
+      await firstVisit.goto(URL_);
+      await firstVisit.waitForFunction(() => navigator.serviceWorker.ready.then(() => true), null, { timeout: 60_000 });
+      await firstVisit.getByText(`v${VERSION_A}`, { exact: true }).waitFor({ timeout: 60_000 });
+      if (await firstVisit.evaluate(() => !!navigator.serviceWorker.controller)) {
+        throw new Error('the first visit is already controlled, so this step would prove nothing');
+      }
+    });
+
     build(VERSION_B);
+
+    await step('the toast Reload takes a first-visit tab to version B', async () => {
+      await firstVisit.evaluate(async () => {
+        const reg = await navigator.serviceWorker.getRegistration();
+        if (!reg) throw new Error('no registration');
+        await reg.update();
+      });
+      await firstVisit.getByText('A new version is available.').waitFor({ timeout: 60_000 });
+      await markDocument(firstVisit);
+      await firstVisit.getByRole('button', { name: 'Reload', exact: true }).click();
+      await reloaded(firstVisit);
+      await firstVisit.getByText(`v${VERSION_B}`, { exact: true }).waitFor({ timeout: 60_000 });
+      await firstVisit.context().close();
+    });
 
     // The complaint this file exists for: a plain reload after a deploy showed
     // the OLD build, because the worker answered page loads from its precache,
@@ -168,9 +206,22 @@ async function main() {
       await page.getByText('A new version is available.').waitFor({ timeout: 60_000 });
     });
 
-    await step('the toast Reload keeps version B on screen', async () => {
+    // The page already shows B from the plain reload, so its text alone would
+    // pass with a Reload that did nothing; the marker is what proves it reloaded.
+    await step('the toast Reload reloads, and version B stays on screen', async () => {
+      await markDocument(page);
       await page.getByRole('button', { name: 'Reload', exact: true }).click();
+      await reloaded(page);
       await page.getByText(`v${VERSION_B}`, { exact: true }).waitFor({ timeout: 60_000 });
+    });
+
+    // The manual check, against a real worker: on the newest build it answers
+    // "up to date", which the timer never says.
+    await step('Check for updates in About says the newest build is up to date', async () => {
+      await page.getByRole('button', { name: `v${VERSION_B}`, exact: true }).click();
+      await page.getByRole('button', { name: 'Check for updates', exact: true }).click();
+      await page.getByText('You are running the latest version.').waitFor({ timeout: 60_000 });
+      await page.keyboard.press('Escape');
     });
 
     // Network-first page loads must not cost the PWA its reason to exist:
@@ -230,9 +281,7 @@ async function main() {
 
       // A marker that cannot survive a navigation, so the assertion below is
       // about the page having actually reloaded rather than about its text.
-      await page.evaluate(() => {
-        window.__stillTheSameDocument = true;
-      });
+      await markDocument(page);
 
       // Hide the tab. Playwright cannot set visibilityState, and the code under
       // test reads exactly that plus the event, so both are supplied here.
@@ -247,7 +296,9 @@ async function main() {
       await page.getByText(`v${VERSION_C}`, { exact: true }).waitFor({ timeout: 60_000 });
     });
 
-    log('OK: a plain reload, the toast and a dismissed prompt all end on the new build, and offline still boots');
+    log(
+      'OK: a plain reload, the toast (on a first visit too) and a dismissed prompt all end on the new build, and offline still boots',
+    );
   } finally {
     await browser.close();
     server.kill();

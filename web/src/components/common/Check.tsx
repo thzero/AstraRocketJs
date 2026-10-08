@@ -12,7 +12,7 @@ export function Check({
   label,
   disabled,
   hint,
-  className = 'text-sm text-slate-300',
+  className = 'text-sm text-ink-soft',
   align = 'center',
 }: {
   checked: boolean;
@@ -33,7 +33,7 @@ export function Check({
         checked={checked}
         disabled={disabled}
         onChange={(e) => onChange(e.target.checked)}
-        className={`accent-sky-500 ${align === 'start' ? 'mt-0.5' : ''}`}
+        className={`accent-accent-500 ${align === 'start' ? 'mt-0.5' : ''}`}
       />
       {label}
     </label>
@@ -42,7 +42,7 @@ export function Check({
   return (
     <div>
       {row}
-      <p className="mt-0.5 text-[11px] leading-snug text-slate-500">{hint}</p>
+      <p className="mt-0.5 text-[11px] leading-snug text-ink-faint">{hint}</p>
     </div>
   );
 }

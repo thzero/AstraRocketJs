@@ -81,14 +81,14 @@ export function ComponentActions({ node }: { node: ComponentNode }) {
 
   if (!buttons.length) return null;
   return (
-    <div className="flex flex-wrap gap-2 border-t border-white/5 pt-3">
+    <div className="flex flex-wrap gap-2 border-t border-line/5 pt-3">
       {buttons.map((b) => (
         <button
           key={b.key}
           onClick={b.run}
           disabled={!b.enabled}
           title={b.title}
-          className="rounded-md bg-slate-800 px-2 py-1 text-xs text-slate-300 ring-1 ring-white/10 hover:bg-slate-700 disabled:cursor-not-allowed disabled:text-slate-600 disabled:hover:bg-slate-800"
+          className="rounded-md bg-raised px-2 py-1 text-xs text-ink-soft ring-1 ring-line/10 hover:bg-elevated disabled:cursor-not-allowed disabled:text-ink-dim disabled:hover:bg-raised"
         >
           {b.label}
         </button>

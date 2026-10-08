@@ -74,6 +74,7 @@ Un viento cruzado llega a un cohete que sube en vertical, así que el aire que v
 - **Masa al despegue**: el cohete y el motor cargado.
 - **Empuje-peso**: el empuje medio del motor durante su combustión, su empuje máximo y su empuje en el momento en que el cohete sale del raíl, cada uno entre el peso al despegue. El último es la cifra que da una simulación en la salida del raíl.
 - **Velocidad de salida del raíl** y **Tiempo hasta salir del raíl**.
+- **Raíl para** la velocidad mínima de salida: cuánto raíl hace falta para alcanzar esa velocidad, en ámbar cuando es más que el raíl que indicaste.
 - **Ángulo de veleteo** con el viento que introdujiste, y **con las rachas** cuando el viento viene de un pronóstico.
 - **Viento máximo por debajo de 20°**: el viento que lo gira exactamente 20° a esta velocidad de salida.
 - **Cohete más pesado sin el motor**: lo máximo que puede pesar y seguir cumpliendo tanto una relación empuje-peso media de 5 : 1 como la velocidad mínima de salida del raíl.

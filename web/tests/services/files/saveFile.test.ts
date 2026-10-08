@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { download, exportFilename, saveBlob, safeFilename } from '../../../src/services/files/saveFile';
+import { loadSettings, saveSettings } from '../../../src/services/storage/settings';
 
 // The share sheet is used ONLY where `<a download>` is known to fail: iOS or
 // iPadOS running the app as an installed PWA. Everywhere else the anchor wins,
@@ -206,5 +207,65 @@ describe('exportFilename', () => {
   it('falls back when nothing usable is left, rather than naming a file ".csv"', () => {
     expect(exportFilename(['', '///'], 'csv')).toBe('rocket.csv');
     expect(exportFilename([], 'kml', 'flight')).toBe('flight.kml');
+  });
+});
+
+/**
+ * Chrome and Edge's save dialog: the user picks the name and the folder. It
+ * needs the click that asked for the file, so a save that comes too late is
+ * refused, and the anchor download is what that save falls back to.
+ */
+describe('saveBlob with the browser save dialog', () => {
+  const picker = (behavior: 'save' | 'cancel' | 'refuse') => {
+    const written: Blob[] = [];
+    const fn = vi.fn(async (opts: { suggestedName: string; types?: { accept: Record<string, string[]> }[] }) => {
+      if (behavior === 'cancel') throw new DOMException('closed', 'AbortError');
+      if (behavior === 'refuse') throw new DOMException('needs a gesture', 'SecurityError');
+      void opts;
+      return {
+        createWritable: async () => ({
+          write: async (b: Blob) => void written.push(b),
+          close: async () => {},
+        }),
+      };
+    });
+    vi.stubGlobal('showSaveFilePicker', fn);
+    return { fn, written };
+  };
+  const askWhereToSave = (on: boolean) => saveSettings({ ...loadSettings(), askWhereToSave: on });
+  afterEach(() => askWhereToSave(true));
+
+  it('writes through the dialog, suggesting the name and a bare MIME type', async () => {
+    pose({ apple: false, standalone: false });
+    const { fn, written } = picker('save');
+    await saveBlob(new Blob(['a,b'], { type: 'text/csv;charset=utf-8' }), 'run-table.csv');
+    expect(written).toHaveLength(1);
+    expect(clicks).toHaveLength(0);
+    const opts = fn.mock.calls[0]![0];
+    expect(opts.suggestedName).toBe('run-table.csv');
+    expect(opts.types?.[0]?.accept).toEqual({ 'text/csv': ['.csv'] });
+  });
+
+  it('saves nothing when the user closes the dialog', async () => {
+    pose({ apple: false, standalone: false });
+    picker('cancel');
+    await saveBlob(blob(), 'rocket.ork');
+    expect(clicks).toHaveLength(0);
+  });
+
+  it('falls back to the download when the browser refuses the dialog', async () => {
+    pose({ apple: false, standalone: false });
+    picker('refuse');
+    await saveBlob(blob(), 'rocket.ork');
+    expect(clicks).toHaveLength(1);
+  });
+
+  it('goes straight to the download when the setting is off', async () => {
+    pose({ apple: false, standalone: false });
+    const { fn } = picker('save');
+    askWhereToSave(false);
+    await saveBlob(blob(), 'rocket.ork');
+    expect(fn).not.toHaveBeenCalled();
+    expect(clicks).toHaveLength(1);
   });
 });

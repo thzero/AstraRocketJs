@@ -42,37 +42,37 @@ export function StageRecovery({ node }: { node: ComponentNode }) {
 
   return (
     <PropSection title={t('prop.recoveryType')}>
-      <label className="flex items-center gap-2 text-xs text-slate-300">
+      <label className="flex items-center gap-2 text-xs text-ink-soft">
         <input
           type="radio"
           name={`recovery-${stageId}`}
           checked={!dual}
           onChange={() => setDrogue(stageId, null)}
-          className="accent-sky-500"
+          className="accent-accent-500"
         />
         {t('prop.single')}
       </label>
-      <label className="flex items-center gap-2 text-xs text-slate-300">
+      <label className="flex items-center gap-2 text-xs text-ink-soft">
         <input
           type="radio"
           name={`recovery-${stageId}`}
           checked={dual}
           disabled={!hasDevices}
           onChange={() => setDrogue(stageId, picked as string)}
-          className="accent-sky-500"
+          className="accent-accent-500"
         />
-        <span className={hasDevices ? undefined : 'text-slate-500'}>{t('prop.dual')}</span>
+        <span className={hasDevices ? undefined : 'text-ink-faint'}>{t('prop.dual')}</span>
       </label>
       {hasDevices ? (
         <label className="flex items-center justify-between gap-3 pl-6">
-          <span className="text-xs text-slate-400">{t('prop.drogueDevice')}</span>
+          <span className="text-xs text-ink-muted">{t('prop.drogueDevice')}</span>
           <select
             value={picked as string}
             disabled={!dual}
             aria-label={t('prop.drogueDevice')}
             onChange={(e) => setDrogue(stageId, e.target.value)}
-            className={`w-32 rounded-md px-2 py-1 text-sm ring-1 ring-white/10 focus:outline-none focus:ring-sky-500 ${
-              dual ? 'bg-slate-800 text-slate-100' : 'bg-slate-800/50 text-slate-500'
+            className={`w-32 rounded-md px-2 py-1 text-sm ring-1 ring-line/10 focus:outline-none focus:ring-accent-500 ${
+              dual ? 'bg-raised text-ink-strong' : 'bg-raised/50 text-ink-faint'
             }`}
           >
             {devices.map((d) => (
@@ -83,7 +83,7 @@ export function StageRecovery({ node }: { node: ComponentNode }) {
           </select>
         </label>
       ) : (
-        <p className="pl-6 text-xs text-slate-500">{t('prop.noDevices')}</p>
+        <p className="pl-6 text-xs text-ink-faint">{t('prop.noDevices')}</p>
       )}
     </PropSection>
   );

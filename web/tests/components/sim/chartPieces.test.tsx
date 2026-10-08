@@ -69,6 +69,6 @@ describe('seriesColor', () => {
   it('walks the categorical palette and grays out past the sixth motor', () => {
     expect(seriesColor(0)).toBe(CATEGORICAL[0]);
     expect(seriesColor(5)).toBe(CATEGORICAL[5]);
-    expect(seriesColor(6)).toBe('#94a3b8');
+    expect(seriesColor(6)).toBe('var(--c-ink-muted)');
   });
 });

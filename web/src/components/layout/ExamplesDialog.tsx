@@ -35,11 +35,11 @@ export function ExampleList({ onClose }: { onClose: () => void }) {
   const examples: ExampleMeta[] | null = loaded.data ?? null;
 
   if (loaded.error !== null)
-    return <p className="px-4 py-8 text-center text-sm text-slate-400">{t('library.examplesFailed')}</p>;
-  if (!examples) return <p className="px-4 py-8 text-center text-sm text-slate-400">{t('common.loading')}</p>;
+    return <p className="px-4 py-8 text-center text-sm text-ink-muted">{t('library.examplesFailed')}</p>;
+  if (!examples) return <p className="px-4 py-8 text-center text-sm text-ink-muted">{t('common.loading')}</p>;
 
   return (
-    <ul className="min-h-0 flex-1 divide-y divide-white/5 overflow-y-auto">
+    <ul className="min-h-0 flex-1 divide-y divide-line/5 overflow-y-auto">
       {examples.map((e) => (
         <li key={e.id}>
           <button
@@ -47,9 +47,9 @@ export function ExampleList({ onClose }: { onClose: () => void }) {
               void openExample(e.file);
               onClose();
             }}
-            className="w-full px-4 py-2.5 text-left hover:bg-white/5"
+            className="w-full px-4 py-2.5 text-left hover:bg-line/5"
           >
-            <span className="text-sm text-slate-100">{e.name}</span>
+            <span className="text-sm text-ink-strong">{e.name}</span>
             {e.description && (
               // Clamped: upstream's comment is the author's own note and runs to
               // a full build guide on one of them. The whole text rides along on
@@ -60,7 +60,7 @@ export function ExampleList({ onClose }: { onClose: () => void }) {
               // (-webkit-box), so the two fight over `display` and whichever
               // Tailwind emits last wins — which was `block`, and the clamp did
               // nothing. -webkit-box is block-level anyway.
-              <span className="mt-0.5 line-clamp-2 text-xs leading-snug text-slate-400">{e.description}</span>
+              <span className="mt-0.5 line-clamp-2 text-xs leading-snug text-ink-muted">{e.description}</span>
             )}
           </button>
         </li>
@@ -79,7 +79,7 @@ export function ExamplesDialog({ onClose }: { onClose: () => void }) {
       title={t('library.examplesTitle')}
       onClose={onClose}
       size="lg"
-      toolbar={<p className="px-4 py-2 text-xs leading-snug text-slate-400">{t('library.examplesIntro')}</p>}
+      toolbar={<p className="px-4 py-2 text-xs leading-snug text-ink-muted">{t('library.examplesIntro')}</p>}
     >
       <ExampleList onClose={onClose} />
     </Dialog>

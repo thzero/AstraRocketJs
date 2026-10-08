@@ -7,6 +7,8 @@ import { ComponentExportButton } from './ComponentExportButton';
 import { useUnits, type Units } from '../../prefs/useUnits';
 import { partLabel } from '../../i18n/format';
 import { isFinSet } from '../../tree/tubefins';
+import { token } from '../common/colorTokens';
+import type { TreeCommand } from './useTreeEdit';
 
 // Parts offered in the "Add part" menu, grouped like OpenRocket's palette.
 // Labels come from the `part.*` / `tree.*` i18n keys at render time.
@@ -76,28 +78,28 @@ const len = (u: Units, v: unknown): string | null =>
 // Category colors match the app palette: structure = sky, fins = amber,
 // recovery = emerald, inner structure = slate, attachments/mass = violet.
 const TYPE_COLOR: Record<string, string> = {
-  stage: '#e2e8f0',
-  nosecone: '#38bdf8',
-  transition: '#38bdf8',
-  bodytube: '#38bdf8',
-  fairing: '#38bdf8',
-  trapezoidfinset: '#fbbf24',
-  ellipticalfinset: '#fbbf24',
-  freeformfinset: '#fbbf24',
-  tubefinset: '#fbbf24',
-  innertube: '#94a3b8',
-  tubecoupler: '#94a3b8',
-  centeringring: '#94a3b8',
-  bulkhead: '#94a3b8',
-  engineblock: '#94a3b8',
-  launchlug: '#a78bfa',
-  railbutton: '#a78bfa',
-  masscomponent: '#a78bfa',
-  parachute: '#34d399',
-  streamer: '#34d399',
-  shockcord: '#34d399',
-  podset: '#e2e8f0',
-  parallelstage: '#e2e8f0',
+  stage: token('ink'),
+  nosecone: token('series-1'),
+  transition: token('series-1'),
+  bodytube: token('series-1'),
+  fairing: token('series-1'),
+  trapezoidfinset: token('series-2'),
+  ellipticalfinset: token('series-2'),
+  freeformfinset: token('series-2'),
+  tubefinset: token('series-2'),
+  innertube: token('ink-muted'),
+  tubecoupler: token('ink-muted'),
+  centeringring: token('ink-muted'),
+  bulkhead: token('ink-muted'),
+  engineblock: token('ink-muted'),
+  launchlug: token('series-4'),
+  railbutton: token('series-4'),
+  masscomponent: token('series-4'),
+  parachute: token('series-3'),
+  streamer: token('series-3'),
+  shockcord: token('series-3'),
+  podset: token('ink'),
+  parallelstage: token('ink'),
 };
 
 // A distinct glyph per component type, colored by TYPE_COLOR so
@@ -172,7 +174,7 @@ function Row({
 }) {
   const { t } = useTranslation();
   const u = useUnits();
-  const color = TYPE_COLOR[node.type] ?? '#94a3b8';
+  const color = TYPE_COLOR[node.type] ?? token('ink-muted');
   const symbol = TYPE_SYMBOL[node.type] ?? '□';
   const label = typeLabel(node.type, t);
   const name = partLabel(t, node);
@@ -217,7 +219,7 @@ function Row({
             : undefined
         }
         className={`flex items-center gap-2 rounded-md py-1 pr-2 ${selectable ? 'cursor-pointer' : ''} ${
-          selected ? 'bg-sky-600/25 ring-1 ring-inset ring-sky-500/50' : 'hover:bg-slate-800'
+          selected ? 'bg-accent-600/25 ring-1 ring-inset ring-accent-500/50' : 'hover:bg-raised'
         }`}
         // 2px, not 8: at depth 0 that leading gap is pure inset against the
         // spine, and every level below inherits it. The 16 per level is the
@@ -233,7 +235,7 @@ function Row({
             }}
             aria-label={isCollapsed ? t('tree.expand') : t('tree.collapse')}
             tabIndex={-1}
-            className="w-6 shrink-0 text-center text-xl leading-none text-slate-500 hover:text-slate-200"
+            className="w-6 shrink-0 text-center text-xl leading-none text-ink-faint hover:text-ink"
           >
             {isCollapsed ? '▸' : '▾'}
           </button>
@@ -243,14 +245,14 @@ function Row({
         <span className="w-4 shrink-0 text-center text-xs leading-none" style={{ color }} aria-hidden>
           {symbol}
         </span>
-        <span className={`truncate text-sm ${selected ? 'text-sky-200' : 'text-slate-200'}`}>{name}</span>
+        <span className={`truncate text-sm ${selected ? 'text-accent-200' : 'text-ink'}`}>{name}</span>
         {isMount && (
-          <span className="shrink-0 rounded bg-sky-500/15 px-1 text-[10px] font-medium text-sky-300">
+          <span className="shrink-0 rounded bg-accent-500/15 px-1 text-[10px] font-medium text-accent-300">
             {t('tree.motorTag')}
           </span>
         )}
         <div className="ml-auto flex shrink-0 items-center gap-1 pl-2">
-          {det && <span className="text-[11px] tabular-nums text-slate-500">{det}</span>}
+          {det && <span className="text-[11px] tabular-nums text-ink-faint">{det}</span>}
           <ComponentExportButton node={node} />
         </div>
       </div>
@@ -278,6 +280,7 @@ export function ComponentTree({
   onAdd,
   onScale,
   onAddStage,
+  edit,
 }: {
   tree: RocketTree;
   selectedId?: string | null;
@@ -285,6 +288,8 @@ export function ComponentTree({
   onAdd?: (type: ComponentType) => void;
   onScale?: () => void; // open the whole-rocket scale dialog
   onAddStage?: () => void; // append a new (booster) stage at the bottom
+  /** Cut, Copy, Paste and Duplicate (useTreeEdit): buttons in the header, and their shortcuts on the rows. */
+  edit?: { cut: TreeCommand; copy: TreeCommand; paste: TreeCommand; duplicate: TreeCommand };
 }) {
   const { t } = useTranslation();
   // Ids of collapsed (folded) branches: ephemeral view state per node id.
@@ -325,6 +330,17 @@ export function ComponentTree({
   const onTreeKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     const rowEl = (e.target as HTMLElement).closest<HTMLElement>('[data-tree-row]');
     if (!rowEl || !listRef.current?.contains(rowEl)) return;
+    // Desktop's Edit shortcuts, on the selected part, while a row has focus.
+    // Scoped to the tree so text fields keep their own copy and paste, and
+    // Ctrl+D here duplicates rather than bookmarking the page.
+    if (edit && (e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey) {
+      const command = { x: edit.cut, c: edit.copy, v: edit.paste, d: edit.duplicate }[e.key.toLowerCase()];
+      if (command) {
+        e.preventDefault();
+        if (command.enabled) command.run();
+        return;
+      }
+    }
     const rows = Array.from(listRef.current.querySelectorAll<HTMLElement>('[data-tree-row]'));
     const idx = rows.indexOf(rowEl);
     if (idx < 0) return;
@@ -394,7 +410,7 @@ export function ComponentTree({
     // pixel here is the SECOND gutter on the same edge - and the one on the left
     // pushes the whole tree right, where it comes straight off the part names at
     // every depth.
-    <section className="rounded-xl bg-slate-900 p-2 ring-1 ring-white/10">
+    <section className="rounded-xl bg-surface p-2 ring-1 ring-line/10">
       {/* Everything you DO to the design, on one row above the list: add a stage,
           add a component to the selected part, scale the whole rocket.
 
@@ -411,7 +427,7 @@ export function ComponentTree({
             <button
               onClick={onAddStage}
               title={t('tree.addStageTitle')}
-              className="whitespace-nowrap rounded-md bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-sky-300 ring-1 ring-white/10 hover:bg-slate-700"
+              className="whitespace-nowrap rounded-md bg-raised px-2.5 py-1.5 text-xs font-medium text-accent-300 ring-1 ring-line/10 hover:bg-elevated"
             >
               {t('tree.addStage')}
             </button>
@@ -425,7 +441,7 @@ export function ComponentTree({
                 if (v) onAdd(v);
                 e.currentTarget.value = '';
               }}
-              className="rounded-md bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-sky-300 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500 disabled:text-slate-600"
+              className="rounded-md bg-raised px-2.5 py-1.5 text-xs font-medium text-accent-300 ring-1 ring-line/10 focus:outline-none focus:ring-accent-500 disabled:text-ink-dim"
               title={
                 groups.length ? t('tree.canHost', { parent: parentLabel }) : t('tree.cantHost', { parent: parentLabel })
               }
@@ -446,7 +462,7 @@ export function ComponentTree({
             <button
               onClick={onScale}
               title={t('scale.title')}
-              className="whitespace-nowrap rounded-md bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-sky-300 ring-1 ring-white/10 hover:bg-slate-700"
+              className="whitespace-nowrap rounded-md bg-raised px-2.5 py-1.5 text-xs font-medium text-accent-300 ring-1 ring-line/10 hover:bg-elevated"
             >
               {t('tree.scale')}
             </button>
@@ -459,14 +475,14 @@ export function ComponentTree({
           onClick={() => setListOpen((o) => !o)}
           aria-expanded={listOpen}
           title={listOpen ? t('tree.collapseTree') : t('tree.expandTree')}
-          className="flex min-w-0 items-center gap-1.5 rounded px-1 py-0.5 hover:bg-slate-800"
+          className="flex min-w-0 items-center gap-1.5 rounded px-1 py-0.5 hover:bg-raised"
         >
-          <span className="text-base leading-none text-sky-400">{listOpen ? '▾' : '▸'}</span>
-          <h2 className="shrink-0 text-xs font-semibold uppercase tracking-wide text-slate-400">
+          <span className="text-base leading-none text-accent-400">{listOpen ? '▾' : '▸'}</span>
+          <h2 className="shrink-0 text-xs font-semibold uppercase tracking-wide text-ink-muted">
             {t('tree.components')}
           </h2>
           {!listOpen && selectedName && (
-            <span className="truncate text-xs font-medium text-sky-300">· {selectedName}</span>
+            <span className="truncate text-xs font-medium text-accent-300">· {selectedName}</span>
           )}
         </button>
         {listOpen && branchIds.length > 0 && (
@@ -474,10 +490,34 @@ export function ComponentTree({
             onClick={toggleAll}
             title={allCollapsed ? t('tree.expandAll') : t('tree.collapseAll')}
             aria-label={allCollapsed ? t('tree.expandAll') : t('tree.collapseAll')}
-            className="rounded px-1 text-xl leading-none text-slate-500 hover:bg-slate-800 hover:text-slate-200"
+            className="rounded px-1 text-xl leading-none text-ink-faint hover:bg-raised hover:text-ink"
           >
             {allCollapsed ? '⊞' : '⊟'}
           </button>
+        )}
+        {edit && (
+          <div className="ml-auto flex shrink-0 items-center gap-0.5">
+            {(
+              [
+                // U+FE0E asks for the text glyph; without it the scissors draw as a color emoji.
+                ['cut', '✂︎', edit.cut],
+                ['copy', '⧉', edit.copy],
+                ['paste', '⎘', edit.paste],
+                ['duplicate', '❐', edit.duplicate],
+              ] as const
+            ).map(([key, glyph, command]) => (
+              <button
+                key={key}
+                onClick={command.run}
+                disabled={!command.enabled}
+                title={command.title}
+                aria-label={t(`tree.${key}`)}
+                className="rounded px-1.5 py-0.5 text-sm leading-none text-ink-soft hover:bg-raised hover:text-ink disabled:cursor-not-allowed disabled:text-ink-dim disabled:hover:bg-transparent"
+              >
+                {glyph}
+              </button>
+            ))}
+          </div>
         )}
       </div>
       {/* The rule is the tree's spine, so it keeps its 1px; the inset beside it
@@ -488,7 +528,7 @@ export function ComponentTree({
           role="tree"
           aria-label={t('tree.components')}
           onKeyDown={onTreeKeyDown}
-          className="border-l border-white/5"
+          className="border-l border-line/5"
         >
           {tree.components.length ? (
             tree.components.map((c, i) => (
@@ -504,7 +544,7 @@ export function ComponentTree({
               />
             ))
           ) : (
-            <p className="px-2 py-1 text-sm text-slate-500">{t('tree.noComponents')}</p>
+            <p className="px-2 py-1 text-sm text-ink-faint">{t('tree.noComponents')}</p>
           )}
         </div>
       )}

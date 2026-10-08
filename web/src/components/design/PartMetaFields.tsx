@@ -2,8 +2,8 @@ import { useTranslation } from 'react-i18next';
 import type { PartMeta } from '../../services/parts/customParts';
 
 const field =
-  'mt-1 w-full rounded-lg bg-slate-800 px-3 py-2 text-sm text-slate-100 ring-1 ring-white/10 focus:ring-sky-500';
-const labelClass = 'mt-4 block text-xs font-medium text-slate-400';
+  'mt-1 w-full rounded-lg bg-raised px-3 py-2 text-sm text-ink-strong ring-1 ring-line/10 focus:ring-accent-500';
+const labelClass = 'mt-4 block text-xs font-medium text-ink-muted';
 
 /** A saved part's name, manufacturer and description: the fields it is found by in the picker. */
 export function PartMetaFields({

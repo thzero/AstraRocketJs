@@ -137,8 +137,8 @@ describe('the motor picker filters by what fits the mount', () => {
     expect((ticks[9] as HTMLElement).style.left).toBe('100%');
     // Lit inside the selected range, plain outside it: the marks say which sizes
     // are in as well as where they are. The mount has capped this at 18 mm.
-    expect(ticks[2]!.className).toContain('bg-sky-400/80');
-    expect(ticks[3]!.className).toContain('bg-slate-600');
+    expect(ticks[2]!.className).toContain('bg-accent-400/80');
+    expect(ticks[3]!.className).toContain('bg-prominent');
   });
 
   it('keeps the whole track, so the slider can still be dragged past the mount', async () => {

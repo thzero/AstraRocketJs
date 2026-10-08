@@ -97,24 +97,24 @@ export function SavedPartEditor({
   return (
     <>
       <div className="min-h-0 flex-1 overflow-y-auto p-4 pt-0">
-        <div className="sticky top-0 -mx-4 mb-1 flex items-center gap-2 bg-slate-900 px-4 py-2">
+        <div className="sticky top-0 -mx-4 mb-1 flex items-center gap-2 bg-surface px-4 py-2">
           {/* Phone only: at `md` and up the list is beside this, so there is
               nothing to go back to. */}
           <button
             onClick={onBack}
-            className="rounded px-1 text-sm text-slate-400 hover:text-slate-200 md:hidden"
+            className="rounded px-1 text-sm text-ink-muted hover:text-ink md:hidden"
             aria-label={t('picker.savedBack')}
           >
             ‹
           </button>
-          <span className="truncate text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+          <span className="truncate text-[11px] font-semibold uppercase tracking-wide text-ink-muted">
             {t(`part.${part.type}`, { defaultValue: part.type })}
           </span>
         </div>
 
         <PartMetaFields idPrefix="edit" meta={meta} onChange={setMetaField} />
 
-        <div className="mt-5 space-y-3 border-t border-white/10 pt-4">
+        <div className="mt-5 space-y-3 border-t border-line/10 pt-4">
           {visibleFields(node, false).map((f) => (
             <FieldRow key={f.key} node={node} field={f} onChange={change} />
           ))}
@@ -136,7 +136,7 @@ export function SavedPartEditor({
         onSave={() => void submit()}
         saveDisabled={!meta.partNo.trim() || saving}
       >
-        {err && <p className="min-w-0 flex-1 truncate text-xs text-red-400">{err}</p>}
+        {err && <p className="min-w-0 flex-1 truncate text-xs text-danger-400">{err}</p>}
       </EditorFooter>
     </>
   );

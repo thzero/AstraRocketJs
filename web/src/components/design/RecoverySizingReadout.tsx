@@ -43,11 +43,11 @@ export function RecoverySizingReadout({
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   return (
-    <div className="border-t border-white/5 pt-3">
+    <div className="border-t border-line/5 pt-3">
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="w-full rounded-md bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
+        className="w-full rounded-md bg-raised px-3 py-1.5 text-xs font-medium text-ink ring-1 ring-line/10 hover:bg-elevated"
       >
         {t('recovery.open')}
       </button>
@@ -102,10 +102,10 @@ function SizingBody({ node, onUse }: { node: ComponentNode; onUse: (diameterM: n
     return { mass, rate: flown?.rate ?? null, measured: flown != null, branch: flown?.branch ?? '' };
   }, [info?.mass, tree, config, result, name]);
 
-  if (sizing == null) return <p className="mt-3 text-xs text-slate-400">{t('recovery.needsMotor')}</p>;
+  if (sizing == null) return <p className="mt-3 text-xs text-ink-muted">{t('recovery.needsMotor')}</p>;
   return (
     <div className="mt-3 space-y-3">
-      <p className="text-xs text-slate-400">
+      <p className="text-xs text-ink-muted">
         {/* Three keys, not one with a conditional clause: i18next cannot
             omit a fragment, and gluing the branch name on here would not
             translate. The branch is named only when the flight HAD more than

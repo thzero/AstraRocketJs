@@ -61,7 +61,16 @@ const tree = {
 vi.mock('../../../src/services/files/designFile', () => ({
   parseDesignFile: () => ({
     tree,
-    motors: { mount1: { designation: 'J360SK', manufacturer: 'Cesaroni', delay: 0, diameter: 0.038, length: 0.3 } },
+    motors: {
+      mount1: {
+        designation: 'J360SK',
+        manufacturer: 'Cesaroni',
+        delay: 0,
+        diameter: 0.038,
+        length: 0.3,
+        ...(fileDigest.value ? { digest: fileDigest.value } : {}),
+      },
+    },
     notes: [],
     ignored: [],
   }),
@@ -74,7 +83,9 @@ vi.mock('../../../src/services/motors/thrustcurve', () => ({
 
 /** What the lookup says about its own confidence, set per test. */
 const doubt: { value: string | undefined } = { value: undefined };
-const row = { designation: 'J360', manufacturer: 'Cesaroni', diameter: 54 };
+/** The digest the file names its motor by, set per test. */
+const fileDigest: { value: string | undefined } = { value: undefined };
+const row = { designation: 'J360', manufacturer: 'Cesaroni', diameter: 54, digests: [{ digest: 'cat-j360' }] };
 
 vi.mock('../../../src/services/motors/motorDb', () => ({
   loadCatalog: () => Promise.resolve([]),
@@ -147,9 +158,10 @@ describe('a motor the file names for a mount it does not go in', () => {
 /**
  * A motor the catalog found but the file did not confirm.
  *
- * The lookup will take a name apart and will settle for another maker's motor
- * rather than none, which is the right trade and is not the file speaking. It
- * used to happen in silence.
+ * The lookup will take a name apart, which is a match worth making but not the
+ * file speaking, so it is said. Another maker's motor is a different motor:
+ * desktop's motor database treats the file's maker as a filter and leaves the
+ * mount empty, and so does this, unless the file's digest names that motor.
  */
 describe('a motor the file did not confirm', () => {
   beforeEach(() => {
@@ -158,11 +170,25 @@ describe('a motor the file did not confirm', () => {
     doubt.value = undefined;
   });
 
-  it('says whose motor it loaded when the maker did not match', async () => {
+  it("leaves the mount for the user when the catalog has only another maker's motor", async () => {
     doubt.value = 'maker';
-    const notes = (await loadOrk(new ArrayBuffer(0))).notes.join(' ');
-    expect(notes).toMatch(/Cesaroni J360/);
-    expect(notes).toMatch(/check it before flying/i);
+    fileDigest.value = undefined;
+    const loaded = await loadOrk(new ArrayBuffer(0));
+    expect(fetchMotorSpec).not.toHaveBeenCalled();
+    const seated = loaded.configs[0]!.motors['mount1']!.spec;
+    expect(seated.times).toHaveLength(0); // unresolved: it will not fly a stand-in
+    const notes = loaded.notes.join(' ');
+    expect(notes).toMatch(/filed under Cesaroni/);
+    expect(notes).toMatch(/pick a motor for that mount/i);
+  });
+
+  it("loads another maker's motor when the file's digest names it", async () => {
+    doubt.value = 'maker';
+    fileDigest.value = 'cat-j360';
+    const loaded = await loadOrk(new ArrayBuffer(0));
+    expect(fetchMotorSpec).toHaveBeenCalled();
+    expect(loaded.configs[0]!.motors['mount1']!.spec.designation).toBe('J360');
+    fileDigest.value = undefined;
   });
 
   it('says the name was not one the catalog carries', async () => {

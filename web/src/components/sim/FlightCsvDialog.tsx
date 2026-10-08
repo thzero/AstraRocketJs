@@ -63,9 +63,9 @@ export function FlightCsvDialog({
     onClose();
   };
 
-  const box = 'rounded-lg bg-slate-900/60 p-3 ring-1 ring-white/10';
-  const label = 'mb-2 text-[10px] font-semibold uppercase tracking-wide text-slate-400';
-  const field = 'rounded-md bg-slate-800 px-2 py-1 text-xs text-slate-100 ring-1 ring-white/10';
+  const box = 'rounded-lg bg-surface/60 p-3 ring-1 ring-line/10';
+  const label = 'mb-2 text-[10px] font-semibold uppercase tracking-wide text-ink-muted';
+  const field = 'rounded-md bg-raised px-2 py-1 text-xs text-ink-strong ring-1 ring-line/10';
 
   return (
     <Dialog
@@ -81,14 +81,14 @@ export function FlightCsvDialog({
         <div className="flex justify-end gap-2 p-3">
           <button
             onClick={onClose}
-            className="rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
+            className="rounded-lg bg-raised px-3 py-1.5 text-xs font-medium text-ink ring-1 ring-line/10 hover:bg-elevated"
           >
             {t('common.close')}
           </button>
           <button
             onClick={onExport}
             disabled={!chosen.length}
-            className="rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-lg bg-accent-600 px-3 py-1.5 text-xs font-semibold text-on-accent hover:bg-accent-500 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {t('csv.export')}
           </button>
@@ -103,31 +103,31 @@ export function FlightCsvDialog({
             <table className="w-full text-xs">
               <tbody>
                 {columns.map((c) => (
-                  <tr key={c.key} className="border-b border-white/5">
+                  <tr key={c.key} className="border-b border-line/5">
                     <td className="w-8 py-1">
                       <input
                         type="checkbox"
                         checked={chosen.includes(c.key)}
                         onChange={() => toggle(c.key)}
                         aria-label={name(c)}
-                        className="accent-sky-500"
+                        className="accent-accent-500"
                       />
                     </td>
-                    <td className="py-1 text-slate-200">{name(c)}</td>
-                    <td className="w-16 py-1 text-right text-slate-500">{unit(c)}</td>
+                    <td className="py-1 text-ink">{name(c)}</td>
+                    <td className="w-16 py-1 text-right text-ink-faint">{unit(c)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          <div className="mt-2 flex items-center gap-2 border-t border-white/10 pt-2">
+          <div className="mt-2 flex items-center gap-2 border-t border-line/10 pt-2">
             <button className={field} onClick={() => patch({ columns: columns.map((c) => c.key) })}>
               {t('csv.selectAll')}
             </button>
             <button className={field} onClick={() => patch({ columns: [] })}>
               {t('csv.selectNone')}
             </button>
-            <span className="text-[11px] text-slate-400">
+            <span className="text-[11px] text-ink-muted">
               {t('csv.count', { count: chosen.length, total: columns.length })}
             </span>
           </div>
@@ -137,7 +137,7 @@ export function FlightCsvDialog({
         <div className="flex min-h-0 flex-col gap-3 overflow-y-auto">
           <div className={box}>
             <div className={label}>{t('csv.format')}</div>
-            <div className="space-y-2 text-xs text-slate-300">
+            <div className="space-y-2 text-xs text-ink-soft">
               <div className="flex items-center justify-between gap-2">
                 <span>{t('csv.separator')}</span>
                 <select
@@ -176,7 +176,7 @@ export function FlightCsvDialog({
 
           <div className={box}>
             <div className={label}>{t('csv.comments')}</div>
-            <div className="space-y-2 text-xs text-slate-300">
+            <div className="space-y-2 text-xs text-ink-soft">
               {(
                 [
                   ['simDescription', 'csv.simDescription'],

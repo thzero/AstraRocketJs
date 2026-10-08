@@ -52,27 +52,27 @@ export function PrintExportDialog({ onClose }: { onClose: () => void }) {
       // The intro and the options/Save row are PINNED, above and below the part
       // list, which is the only thing here that can grow. Leaving them in the
       // flow put the Save button below however many parts the design has.
-      toolbar={empty ? undefined : <p className="px-4 py-2 text-xs leading-snug text-slate-400">{t('print.intro')}</p>}
+      toolbar={empty ? undefined : <p className="px-4 py-2 text-xs leading-snug text-ink-muted">{t('print.intro')}</p>}
       footer={
         empty ? undefined : (
           <>
             <div className="space-y-2 px-4 py-3">
               <Check
-                className="text-xs text-slate-300"
+                className="text-xs text-ink-soft"
                 checked={separateFiles}
                 onChange={setSeparateFiles}
                 label={t('print.separateFiles')}
               />
               <Check
-                className="text-xs text-slate-300"
+                className="text-xs text-ink-soft"
                 checked={placeOnPlate}
                 onChange={setPlaceOnPlate}
                 label={t('print.placeOnPlate')}
               />
-              <p className="text-[11px] leading-snug text-slate-500">{t('print.orientationNote')}</p>
+              <p className="text-[11px] leading-snug text-ink-faint">{t('print.orientationNote')}</p>
             </div>
-            <div className="flex items-center justify-between gap-3 border-t border-white/10 px-4 py-3">
-              <span className="text-xs text-slate-400">{t('print.count', { count: selected.length })}</span>
+            <div className="flex items-center justify-between gap-3 border-t border-line/10 px-4 py-3">
+              <span className="text-xs text-ink-muted">{t('print.count', { count: selected.length })}</span>
               <DialogButton
                 disabled={selected.length === 0}
                 onClick={() => {
@@ -94,13 +94,13 @@ export function PrintExportDialog({ onClose }: { onClose: () => void }) {
       }
     >
       {empty ? (
-        <p className="px-4 py-8 text-center text-sm text-slate-400">{t('print.nothing')}</p>
+        <p className="px-4 py-8 text-center text-sm text-ink-muted">{t('print.nothing')}</p>
       ) : (
         <ul className="px-4 py-2">
           {parts.map((p) => (
             <li key={p.id} style={{ paddingLeft: `${p.depth * 14}px` }}>
               <Check
-                className="py-1 text-sm text-slate-200"
+                className="py-1 text-sm text-ink"
                 checked={!excluded.has(p.id)}
                 onChange={() => toggle(p.id)}
                 label={label(p)}

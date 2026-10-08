@@ -175,6 +175,72 @@ export function dynamicPressure(series: FlightSeries | undefined): (number | nul
 }
 
 /**
+ * When the rocket stops flying forward: the recovery deployment, else apogee.
+ * After it the rocket tumbles under its recovery, so the aero figures (q·α,
+ * stability, CP) say nothing about the airframe past this point.
+ */
+export function forwardFlightEnd(result: {
+  events: readonly { type: string; time: number }[];
+  summary?: { timeToApogee?: number };
+}): number {
+  return (
+    result.events.find((e) => e.type === 'RECOVERY_DEVICE_DEPLOYMENT' || e.type === 'EJECTION_CHARGE')?.time ??
+    result.events.find((e) => e.type === 'APOGEE')?.time ??
+    result.summary?.timeToApogee ??
+    Infinity
+  );
+}
+
+/**
+ * q·α over a branch, in Pa·rad: dynamic pressure times the angle of attack.
+ * The aerodynamic side load on the airframe scales with it, which is why it is
+ * the figure a fin or a coupler is judged against. Null when the run did not
+ * record what {@link dynamicPressure} needs.
+ */
+export function qAlpha(series: FlightSeries | undefined): (number | null)[] | null {
+  const qs = dynamicPressure(series);
+  if (!qs || !series) return null;
+  return qs.map((q, i) => {
+    const a = series.aoa[i];
+    return q == null || a == null ? null : q * Math.abs(a);
+  });
+}
+
+/**
+ * The largest q·α while the rocket is still flying forward, up to `untilT`
+ * (the deployment, else apogee). After that it tumbles under its recovery, the
+ * angle of attack reads near 90 degrees and the product says nothing about the
+ * airframe, which is the same window the chart clips its aero series to.
+ */
+export function maxQAlpha(series: FlightSeries | undefined, untilT: number): { time: number; value: number } | null {
+  const qa = qAlpha(series);
+  if (!qa || !series) return null;
+  let best: { time: number; value: number } | null = null;
+  for (let i = 0; i < qa.length; i++) {
+    const v = qa[i];
+    const t = series.time[i];
+    if (v == null || t == null || t > untilT) continue;
+    if (!best || v > best.value) best = { time: t, value: v };
+  }
+  return best;
+}
+
+/** Roll rate over a branch (rad/s), the kernel's `dΦ`; null when not recorded. */
+export function rollRate(series: FlightSeries | undefined): (number | null)[] | null {
+  const r = series?.['dΦ'];
+  return Array.isArray(r) ? r : null;
+}
+
+/** The fastest roll over the whole flight, by magnitude (rad/s). */
+export function maxRollRate(series: FlightSeries | undefined): number | null {
+  const r = rollRate(series);
+  if (!r) return null;
+  let best: number | null = null;
+  for (const v of r) if (v != null && Number.isFinite(v) && (best == null || Math.abs(v) > best)) best = Math.abs(v);
+  return best;
+}
+
+/**
  * Max-Q: the largest sample of {@link dynamicPressure}, and where it happened.
  *
  * The sample rather than a fitted peak, because the flight is only ever known

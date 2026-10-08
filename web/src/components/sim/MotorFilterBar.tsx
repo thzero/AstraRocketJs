@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { loadHideOop, saveHideOop } from './motorPrefs';
 import { useTranslation } from 'react-i18next';
 import { filterMotors, allClasses, allManufacturers, type CatalogMotor } from '../../services/motors/motorDb';
 import { STD_DIAMS, MAX_IDX, fitIdx, type MountFit } from '../../services/motors/motorPicker';
@@ -34,12 +35,22 @@ export interface MotorFilterInit {
   mount?: MountFit | null;
 }
 
+const EMPTY: ReadonlySet<string> = new Set();
+
 /** Total impulse bounds in N·s, either end open. */
 export type ImpulseRange = [min: number | null, max: number | null];
 
 /** Filter state over a catalog and the rows that survive it. */
-export function useMotorFilter(catalog: CatalogMotor[], init: MotorFilterInit = {}) {
+export function useMotorFilter(
+  catalog: CatalogMotor[],
+  init: MotorFilterInit = {},
+  /** Motors already used in the mount, by `keyOf`, for "Hide motors already used in the mount". */
+  used: ReadonlySet<string> = EMPTY,
+) {
   const [text, setText] = useState('');
+  const [hideOop, setHideOop] = useState(loadHideOop);
+  const [hideUsed, setHideUsed] = useState(false);
+  useEffect(() => saveHideOop(hideOop), [hideOop]);
   const [cls, setCls] = useState<string | null>(null);
   const [mfrs, setMfrs] = useState<Set<string>>(() => init.mfrs ?? new Set());
   const [imp, setImp] = useState<ImpulseRange>([null, null]);
@@ -115,8 +126,10 @@ export function useMotorFilter(catalog: CatalogMotor[], init: MotorFilterInit = 
         maxImpulse: impMax ?? undefined,
         fit,
         plugged,
+        hideOop,
+        hide: hideUsed ? used : undefined,
       }),
-    [catalog, text, cls, mfrs, lowIdx, highIdx, impMin, impMax, fit, plugged],
+    [catalog, text, cls, mfrs, lowIdx, highIdx, impMin, impMax, fit, plugged, hideOop, hideUsed, used],
   );
   return {
     text,
@@ -132,6 +145,10 @@ export function useMotorFilter(catalog: CatalogMotor[], init: MotorFilterInit = 
     setImp,
     plugged,
     setPlugged,
+    hideOop,
+    setHideOop,
+    hideUsed,
+    setHideUsed,
     fits,
     setFits: setFitsAndCeiling,
     mount,
@@ -209,7 +226,7 @@ export function ManufacturerMenu({
     >
       <button
         onClick={() => onChange(new Set())}
-        className="w-full rounded px-2 py-1 text-left text-xs font-medium text-sky-400 hover:bg-slate-800"
+        className="w-full rounded px-2 py-1 text-left text-xs font-medium text-accent-400 hover:bg-raised"
       >
         {t('motorDlg.allManufacturers')}
       </button>
@@ -227,8 +244,8 @@ export function DiameterRange({ dia, onChange }: { dia: [number, number]; onChan
   // unit.
   const stop = (i: number) => u.fmt('motorDimensions', STD_DIAMS[i]! / 1000);
   return (
-    <div className="flex items-center gap-3 text-xs text-slate-300">
-      <span className="shrink-0 text-slate-500">{t('motorDlg.diameter')}</span>
+    <div className="flex items-center gap-3 text-xs text-ink-soft">
+      <span className="shrink-0 text-ink-faint">{t('motorDlg.diameter')}</span>
       <RangeSlider
         count={STD_DIAMS.length}
         low={lowIdx}
@@ -237,7 +254,7 @@ export function DiameterRange({ dia, onChange }: { dia: [number, number]; onChan
         label={t('motorDlg.diameter')}
         stops={STD_DIAMS.map((_, i) => `${stop(i)} ${u.sym('motorDimensions')}`)}
       />
-      <span className="w-20 shrink-0 text-right tabular-nums text-slate-400">
+      <span className="w-20 shrink-0 text-right tabular-nums text-ink-muted">
         {lowIdx > 0 ? stop(lowIdx) : t('motorDlg.any')}–{highIdx < MAX_IDX ? stop(highIdx) : t('motorDlg.any')}{' '}
         {u.sym('motorDimensions')}
       </span>
@@ -257,12 +274,12 @@ export function ImpulseRange({ imp, onChange }: { imp: ImpulseRange; onChange: (
   const { t } = useTranslation();
   const u = useUnits();
   const field =
-    'w-16 rounded-md bg-slate-950 px-2 py-1 text-right text-xs tabular-nums text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500';
+    'w-16 rounded-md bg-canvas px-2 py-1 text-right text-xs tabular-nums text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500';
   // Held in N·s like the catalog; only what is typed and shown moves to the
   // user's unit.
   return (
-    <div className="flex items-center gap-2 text-xs text-slate-300">
-      <span className="shrink-0 text-slate-500">{t('motorDlg.totalImpulse')}</span>
+    <div className="flex items-center gap-2 text-xs text-ink-soft">
+      <span className="shrink-0 text-ink-faint">{t('motorDlg.totalImpulse')}</span>
       <UnitBound
         quantity="impulse"
         min={0}
@@ -282,7 +299,7 @@ export function ImpulseRange({ imp, onChange }: { imp: ImpulseRange; onChange: (
         ariaLabel={`${t('motorDlg.totalImpulse')} ${t('motorDlg.max')}`}
         className={field}
       />
-      <span className="shrink-0 text-slate-500">{u.sym('impulse')}</span>
+      <span className="shrink-0 text-ink-faint">{u.sym('impulse')}</span>
     </div>
   );
 }
@@ -300,8 +317,8 @@ function FilterCheck({
   onChange: (on: boolean) => void;
 }) {
   return (
-    <label className="flex items-center gap-2 text-xs text-slate-300" title={hint}>
-      <input type="checkbox" checked={on} onChange={(e) => onChange(e.target.checked)} className="accent-sky-500" />
+    <label className="flex items-center gap-2 text-xs text-ink-soft" title={hint}>
+      <input type="checkbox" checked={on} onChange={(e) => onChange(e.target.checked)} className="accent-accent-500" />
       {label}
     </label>
   );
@@ -320,6 +337,18 @@ export function PluggedFilter({ plugged, onChange }: { plugged: boolean; onChang
   return (
     <FilterCheck label={t('motorDlg.plugged')} hint={t('motorDlg.pluggedHint')} on={plugged} onChange={onChange} />
   );
+}
+
+/** Desktop's "Hide motors which are not in regular production". */
+export function OopFilter({ on, onChange }: { on: boolean; onChange: (on: boolean) => void }) {
+  const { t } = useTranslation();
+  return <FilterCheck label={t('motorDlg.hideOop')} hint={t('motorDlg.hideOopHint')} on={on} onChange={onChange} />;
+}
+
+/** Desktop's "Hide motors already used in the mount": in its other flight configurations. */
+export function UsedFilter({ on, onChange }: { on: boolean; onChange: (on: boolean) => void }) {
+  const { t } = useTranslation();
+  return <FilterCheck label={t('motorDlg.hideUsed')} hint={t('motorDlg.hideUsedHint')} on={on} onChange={onChange} />;
 }
 
 /**

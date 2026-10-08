@@ -1,3 +1,5 @@
+import type { FlightSummary } from '../../engine/openRocketEngine';
+import type { OrkSimulation } from './ork/importSimulations';
 import { type MotorSpec, type RocketTree } from '../../engine/openRocketEngine';
 import { type LaunchConditions } from '../design/orkTree';
 import type { EmbeddedMotorFile } from './ork/embeddedMotors';
@@ -33,6 +35,8 @@ export interface OrkTreeImportResult {
    * to null when the file declares the ISA standard atmosphere).
    */
   launch?: Partial<LaunchConditions>;
+  /** Every <simulation> a .ork carried, with its result summary (ork/importSimulations). */
+  simulations?: OrkSimulation[];
   /**
    * RockSim thrust curves the `.ork` archive carried, as raw `.rse` text.
    *
@@ -193,6 +197,22 @@ export interface OrkExportConfig {
   grounded?: string[];
 }
 
+/** One simulation as the .ork writer takes it. */
+export interface OrkExportSimulation {
+  name: string;
+  /** The configuration it flies; must be one of `configs`, else the default is used. */
+  configId: string;
+  launch: LaunchConditions;
+  /** The result summary to write as <flightdata>, when it has one. */
+  summary?: FlightSummary;
+  /**
+   * The status the desktop reads: `uptodate` and `outdated` with a summary,
+   * `notsimulated` without. The desktop loads any summary as LOADED unless the
+   * status says outdated (SingleSimulationHandler).
+   */
+  status: 'uptodate' | 'outdated' | 'notsimulated';
+}
+
 export interface OrkTreeExportInput {
   name: string;
   tree: RocketTree;
@@ -205,8 +225,14 @@ export interface OrkTreeExportInput {
   configs?: OrkExportConfig[];
   /** Which configuration is written default="true"; the first when unset. */
   activeConfigId?: string | null;
-  /** Launch-site conditions — written as one <simulation> when present. */
+  /** Launch-site conditions — written as one <simulation> when present and `simulations` is not. */
   launch?: LaunchConditions;
+  /**
+   * Every simulation, each written as its own <simulation> with its name, the
+   * configuration it flies, its conditions and, when it has one, the summary of
+   * its result. Takes precedence over `launch`.
+   */
+  simulations?: OrkExportSimulation[];
   /** Derived statistics block; emitted only when the caller opts in (preference). */
   designInfo?: DesignInfo;
 }

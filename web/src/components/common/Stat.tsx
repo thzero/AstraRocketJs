@@ -6,7 +6,7 @@ export function Stat({
   label,
   value,
   sub,
-  tone = 'text-slate-100',
+  tone = 'text-ink-strong',
   card = false,
 }: {
   label: string;
@@ -30,10 +30,10 @@ export function Stat({
   const valueClass = card ? 'text-base' : 'text-lg';
   const subClass = card ? 'text-xs' : 'text-[10px]';
   return (
-    <div className={`text-center ${card ? 'rounded-lg bg-slate-800/60 px-2 py-1.5 ring-1 ring-white/10' : ''}`}>
-      <div className={`${labelClass} uppercase tracking-wide text-slate-400`}>{label}</div>
+    <div className={`text-center ${card ? 'rounded-lg bg-raised/60 px-2 py-1.5 ring-1 ring-line/10' : ''}`}>
+      <div className={`${labelClass} uppercase tracking-wide text-ink-muted`}>{label}</div>
       <div className={`${valueClass} font-semibold tabular-nums ${tone}`}>{value}</div>
-      <div className={`${subClass} text-slate-500`}>{sub}</div>
+      <div className={`${subClass} text-ink-faint`}>{sub}</div>
     </div>
   );
 }

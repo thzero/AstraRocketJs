@@ -3,7 +3,7 @@
 // without rendering a dialog.
 //
 // The catalog is SI throughout (meters), like componentDb.
-import type { Component, ComponentType, PickerType } from './componentDb';
+import { lengthOf, outerDiameterOf, type Component, type ComponentType, type PickerType } from './componentDb';
 
 /**
  * How far UNDER a bore a part may be and still be a fit, in meters. A coupler is
@@ -63,10 +63,12 @@ type FitRule =
 export function fitRuleFor(type: PickerType, fit: FitContext | undefined): FitRule | null {
   if (!fit) return null;
   switch (type) {
-    // These live INSIDE an airframe, so the bore is the constraint.
+    // These live INSIDE an airframe (an engine block inside its motor tube), so
+    // the bore is the constraint.
     case 'tubecoupler':
     case 'centeringring':
     case 'bulkhead':
+    case 'engineblock':
       return fit.parentInner != null && fit.parentInner > 0 ? { kind: 'inside', target: fit.parentInner } : null;
     // These ARE the airframe, so they continue it. The enclosing body's OD comes
     // first (a tube inside a pod matches that pod), else any airframe OD already
@@ -92,12 +94,18 @@ export function fitRuleFor(type: PickerType, fit: FitContext | undefined): FitRu
     // answers the physical question instead.
     case 'innertube':
       return null;
+    // A transition joins two diameters and a lug or a streamer joins none, so
+    // a single outer diameter says nothing about whether they fit.
+    case 'transition':
+    case 'launchlug':
+    case 'streamer':
+      return null;
   }
 }
 
 /** The outer diameter a fit rule measures, or null for a part that has none. */
 function outerOf(p: Component): number | null {
-  return p.type === 'parachute' ? null : p.outerDiameter;
+  return p.type === 'parachute' ? null : outerDiameterOf(p);
 }
 
 /**
@@ -151,6 +159,8 @@ const MATERIAL_FAMILIES: [RegExp, string][] = [
   [/foam/i, 'Foam'],
   [/mylar|polycarbonate|polyethylene|polypropylene|polystyrene|polymer|urethane|acrylic|nylon|plastic/i, 'Plastic'],
   [/fiber/i, 'Fiber'],
+  // Launch lugs and engine blocks in metal.
+  [/aluminum|brass|copper|steel|titanium/i, 'Metal'],
 ];
 
 /**
@@ -177,7 +187,7 @@ export function materialFamily(p: Component): string | null {
  */
 export const DEFAULT_CHUTE_CD = 0.8;
 
-export type SortKey = 'fit' | 'mfr' | 'partNo' | 'od' | 'id' | 'length' | 'shape' | 'cd';
+export type SortKey = 'fit' | 'mfr' | 'partNo' | 'od' | 'id' | 'length' | 'shape' | 'cd' | 'fore' | 'width';
 
 export interface ComponentQuery {
   /** Free text, whitespace-separated terms AND-ed across mfr / part no / desc. */
@@ -186,7 +196,7 @@ export interface ComponentQuery {
   mfr: string;
   /** Material family (see materialFamily), or '' for all. */
   material: string;
-  /** Nose cone shape, or '' for all. Ignored by every other type. */
+  /** Nose cone or transition shape, or '' for all. Ignored by every other type. */
   shape: string;
   /** Outer-diameter bounds in meters; null for unbounded. */
   odMin: number | null;
@@ -230,16 +240,20 @@ function sortValue(p: Component, key: SortKey): string | number | null {
     case 'partNo':
       return p.partNo.toLowerCase();
     case 'od':
-      return p.type === 'parachute' ? p.diameter : p.outerDiameter;
+      return outerDiameterOf(p);
     case 'id':
       return 'innerDiameter' in p ? p.innerDiameter : null;
     case 'length':
-      return p.type === 'parachute' ? null : p.length;
+      return lengthOf(p);
     case 'shape':
-      return p.type === 'nosecone' ? p.shape : null;
+      return 'shape' in p ? p.shape : null;
     case 'cd':
       // The default the picker will apply, so the column and its order agree.
       return p.type === 'parachute' ? (p.cd ?? DEFAULT_CHUTE_CD) : null;
+    case 'fore':
+      return p.type === 'transition' ? p.foreOuterDiameter : null;
+    case 'width':
+      return p.type === 'streamer' ? p.stripWidth : null;
     case 'fit':
       return null; // ranked from the scores in `cmp`, not from the part
   }
@@ -272,10 +286,10 @@ export function queryComponents<C extends Component>(
     if (!textMatches(part, terms)) continue;
     if (q.mfr && part.mfr !== q.mfr) continue;
     if (q.material && materialFamily(part) !== q.material) continue;
-    if (q.shape && !(part.type === 'nosecone' && part.shape === q.shape)) continue;
-    const od = part.type === 'parachute' ? part.diameter : part.outerDiameter;
-    if (q.odMin != null && od < q.odMin) continue;
-    if (q.odMax != null && od > q.odMax) continue;
+    if (q.shape && !('shape' in part && part.shape === q.shape)) continue;
+    const od = outerDiameterOf(part);
+    if (q.odMin != null && (od == null || od < q.odMin)) continue;
+    if (q.odMax != null && (od == null || od > q.odMax)) continue;
     const score = boreClears(part, fit) ? fitScore(part, rule) : null;
     if (q.fitsOnly && score == null) continue;
     rows.push({ part, fit: score });
@@ -316,10 +330,10 @@ export const manufacturers = (list: Component[]): string[] =>
 export const materialFamilies = (list: Component[]): string[] =>
   [...new Set(list.map(materialFamily).filter((f): f is string => f != null))].sort((a, b) => a.localeCompare(b));
 
-/** Every nose cone shape present in a list, for the facet. Empty for any other
- *  type, which is how the picker knows not to offer the control. */
+/** Every nose cone or transition shape present in a list, for the facet. Empty
+ *  for any other type, which is how the picker knows not to offer the control. */
 export const noseShapes = (list: Component[]): string[] =>
-  [...new Set(list.filter((p) => p.type === 'nosecone').map((p) => p.shape))].sort((a, b) => a.localeCompare(b));
+  [...new Set(list.flatMap((p) => ('shape' in p ? [p.shape] : [])))].sort((a, b) => a.localeCompare(b));
 
 /**
  * Units and the words that join two of them.
@@ -355,6 +369,10 @@ const TYPE_WORDS: Record<ComponentType, RegExp> = {
   tubecoupler: /^(tube\s*)?couplers?$/i,
   centeringring: /^centering\s*rings?$/i,
   bulkhead: /^bulk\s*heads?$/i,
+  transition: /^transitions?$/i,
+  engineblock: /^engine\s*blocks?$/i,
+  launchlug: /^launch\s*lugs?$/i,
+  streamer: /^streamers?$/i,
 };
 
 /**
@@ -388,7 +406,7 @@ export function describeNotes(p: Component): string {
   const pns = p.partNo.split(',').map(bare).filter(Boolean);
   // A nose cone's shape has a column of its own, so the word in the description
   // is the same duplication as a diameter, just spelled rather than measured.
-  const shape = p.type === 'nosecone' ? p.shape.toLowerCase() : null;
+  const shape = 'shape' in p ? p.shape.toLowerCase() : null;
   return p.desc
     .split(',')
     .map((seg) => seg.trim())

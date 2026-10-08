@@ -170,3 +170,23 @@ describe('WeatherDialog', () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 });
+
+/** Pose as offline for one test; jsdom reports online otherwise. */
+const goOffline = () => {
+  Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
+  return () => Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
+};
+
+describe('WeatherDialog offline', () => {
+  it('greys out Fetch and says why', () => {
+    const back = goOffline();
+    try {
+      open();
+      const fetch = screen.getByRole('button', { name: 'Fetch' }) as HTMLButtonElement;
+      expect(fetch.disabled).toBe(true);
+      expect(fetch.title).toMatch(/offline/i);
+    } finally {
+      back();
+    }
+  });
+});

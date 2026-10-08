@@ -63,7 +63,10 @@ export function findNode(tree: RocketTree, id: string): ComponentNode | null {
 function breaksPreset(type: string, patch: Partial<ComponentNode>): boolean {
   if ('preset' in patch) return false; // the picker sets the link and the dimensions together
   const keys = Object.keys(patch);
-  if (keys.some((k) => k === 'materialName' || k === 'density')) return true;
+  if (
+    keys.some((k) => k === 'materialName' || k === 'density' || k === 'surfaceMaterialName' || k === 'surfaceDensity')
+  )
+    return true;
   const dimensions = new Set((FIELDS[type] ?? []).filter((f) => f.section === undefined).map((f) => f.key));
   return keys.some((k) => dimensions.has(k));
 }
@@ -225,82 +228,81 @@ export function isAxial(type: string): boolean {
   return isChainType(type);
 }
 
-/**
- * Which child types each parent type may host (roughly OpenRocket's rules).
- * A parent absent from this map is a leaf — nothing can be added under it, so
- * the Add menu is empty when such a part is selected.
+/*
+ * Which part may sit inside which: the kernel's `isCompatible` rules, by the
+ * class each type is built as. The kernel's `addChild` throws for any other
+ * pair, so a looser rule here is a design that fails to build, and a tighter
+ * one rejects a `.ork` desktop writes.
  */
-const ALLOWED_CHILDREN: Record<string, ComponentType[]> = {
-  stage: ['nosecone', 'bodytube', 'transition'],
-  nosecone: [
-    'innertube',
-    'tubecoupler',
-    'centeringring',
-    'bulkhead',
-    'launchlug',
-    'parachute',
-    'streamer',
-    'masscomponent',
-    'podset',
-  ],
-  bodytube: [
-    'trapezoidfinset',
-    'ellipticalfinset',
-    'freeformfinset',
-    'tubefinset',
-    'innertube',
-    'tubecoupler',
-    'centeringring',
-    'bulkhead',
-    'engineblock',
-    'launchlug',
-    'parachute',
-    'streamer',
-    'masscomponent',
-    'podset',
-  ],
-  transition: [
-    'trapezoidfinset',
-    'ellipticalfinset',
-    'freeformfinset',
-    'innertube',
-    'tubecoupler',
-    'centeringring',
-    'bulkhead',
-    'launchlug',
-    'parachute',
-    'streamer',
-    'masscomponent',
-    'podset',
-  ],
-  innertube: ['engineblock', 'masscomponent'],
-  tubecoupler: ['centeringring', 'bulkhead', 'masscomponent'],
-  // A mass component hosts other INTERNAL components: an altimeter bay or a
-  // payload sled with its rings, bulkheads and hardware nested inside it.
-  //
-  // The list mirrors the kernel's own rule (`MassComponent.isCompatible` takes
-  // any `InternalComponent`) rather than a narrower one of our own. It has to:
-  // the engine builds whatever tree it is handed, and a rule tighter than the
-  // kernel's would reject a `.ork` the desktop writes happily.
-  masscomponent: [
-    'innertube',
-    'tubecoupler',
-    'centeringring',
-    'bulkhead',
-    'engineblock',
-    'parachute',
-    'streamer',
-    'shockcord',
-    'masscomponent',
-  ],
-  // A PodSet hosts its own axial chain (a mini nose→body→transition stack),
-  // just like a stage; the chain members then host fins / inner tubes / etc.
-  podset: ['nosecone', 'bodytube', 'transition'],
-};
+/** InternalComponent: rings, tubes inside the airframe, recovery and mass. A
+ *  `fairing` is built as a mass component, so it counts here. */
+const INTERNAL: ReadonlySet<string> = new Set([
+  'innertube',
+  'tubecoupler',
+  'centeringring',
+  'bulkhead',
+  'engineblock',
+  'parachute',
+  'streamer',
+  'shockcord',
+  'masscomponent',
+  'fairing',
+]);
+/** BodyComponent: the airframe chain. */
+const BODY: ReadonlySet<string> = new Set(['nosecone', 'bodytube', 'transition']);
+/** ExternalComponent that is not a BodyComponent: fins, lugs and buttons. */
+const ON_BODY: ReadonlySet<string> = new Set([
+  'trapezoidfinset',
+  'ellipticalfinset',
+  'freeformfinset',
+  'tubefinset',
+  'launchlug',
+  'railbutton',
+]);
+const ALL_TYPES: readonly ComponentType[] = [
+  'stage',
+  ...BODY,
+  ...ON_BODY,
+  ...INTERNAL,
+  'podset',
+  'parallelstage',
+] as ComponentType[];
 
-/** Child types that may be added under a parent of `parentType` (empty for leaves). */
+/**
+ * Whether a part of `childType` may sit directly inside one of `parentType`.
+ * `'rocket'` is the design itself, whose children are the stages.
+ */
+export function canHost(parentType: string, childType: string): boolean {
+  switch (parentType) {
+    case 'rocket':
+      return childType === 'stage';
+    case 'stage':
+    case 'parallelstage':
+    case 'podset':
+      return BODY.has(childType);
+    case 'bodytube':
+      return (
+        childType === 'podset' || childType === 'parallelstage' || INTERNAL.has(childType) || ON_BODY.has(childType)
+      );
+    // Transition.isCompatible, which the nose cone inherits: internal parts and
+    // freeform fins only. Trapezoidal and elliptical fins, lugs and pods are
+    // refused, because their geometry assumes a straight tube.
+    case 'transition':
+    case 'nosecone':
+      return INTERNAL.has(childType) || childType === 'freeformfinset';
+    case 'innertube':
+    case 'tubecoupler':
+    case 'masscomponent':
+      return INTERNAL.has(childType);
+    default:
+      return false;
+  }
+}
+
+/** Child types that may sit under a parent of `parentType` (empty for leaves). */
 export function allowedChildren(parentType: string | undefined): ComponentType[] {
-  return ALLOWED_CHILDREN[parentType ?? 'stage'] ?? [];
+  const parent = parentType ?? 'stage';
+  return ALL_TYPES.filter((type) => canHost(parent, type));
 }
 
 // Node types that can be picked from the parts catalog. Mostly componentDb's own
@@ -309,11 +311,15 @@ export function allowedChildren(parentType: string | undefined): ComponentType[]
 const CATALOG_TYPES: ReadonlySet<string> = new Set([
   'nosecone',
   'bodytube',
+  'transition',
   'innertube',
   'tubecoupler',
   'centeringring',
   'bulkhead',
+  'engineblock',
+  'launchlug',
   'parachute',
+  'streamer',
 ]);
 export function hasCatalog(type: string): boolean {
   return CATALOG_TYPES.has(type);
@@ -479,6 +485,51 @@ function statedPatch(p: Component, node?: ComponentNode): Partial<ComponentNode>
       return { outerRadius: p.outerDiameter / 2, length: p.length, ...mat };
     case 'parachute':
       return { diameter: p.diameter, cd: p.cd ?? DEFAULT_CHUTE_CD };
+    // Transition.loadFromPreset: both ends pinned, the shoulders as stated, and
+    // a filled part's shoulders solid too. A stated shoulder replaces the one
+    // that follows the neighboring tube.
+    case 'transition': {
+      const shoulder = (side: 'fore' | 'aft', diameter: number | null, length: number | null) => {
+        if (diameter == null) return {};
+        const radius = diameter / 2;
+        return {
+          [`${side}ShoulderAuto`]: false,
+          [`${side}ShoulderRadius`]: radius,
+          ...(length == null ? {} : { [`${side}ShoulderLength`]: length }),
+          ...(p.filled ? { [`${side}ShoulderThickness`]: radius } : {}),
+        };
+      };
+      return {
+        shape: p.shape,
+        length: p.length,
+        foreRadius: p.foreOuterDiameter / 2,
+        aftRadius: p.aftOuterDiameter / 2,
+        filled: !!p.filled,
+        ...(p.thickness != null && !p.filled ? { thickness: p.thickness } : {}),
+        ...shoulder('fore', p.foreShoulderDiameter, p.foreShoulderLength),
+        ...shoulder('aft', p.aftShoulderDiameter, p.aftShoulderLength),
+        ...mat,
+      };
+    }
+    // ThicknessRingComponent.loadFromPreset: the outer radius, and the wall the
+    // two diameters leave.
+    case 'engineblock':
+    case 'launchlug':
+      return {
+        outerRadius: p.outerDiameter / 2,
+        length: p.length,
+        ...(p.innerDiameter ? { thickness: Math.max(0.0001, (p.outerDiameter - p.innerDiameter) / 2) } : {}),
+        ...mat,
+      };
+    // Streamer.loadFromPreset: the strip, its surface material, and the drag
+    // coefficient left for the kernel to work out from them.
+    case 'streamer':
+      return {
+        stripLength: p.stripLength,
+        stripWidth: p.stripWidth,
+        ...(p.materialDensity ? { surfaceMaterialName: p.material, surfaceDensity: p.materialDensity } : {}),
+        cdAuto: true,
+      };
   }
 }
 

@@ -119,7 +119,7 @@ export function LocationsDialog({ onClose }: { onClose: () => void }) {
         // the quicker route, since the numbers are already there.
         <button
           onClick={() => void select(NEW)}
-          className="rounded-md bg-slate-800 px-2 py-1 text-xs font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
+          className="rounded-md bg-raised px-2 py-1 text-xs font-medium text-ink ring-1 ring-line/10 hover:bg-elevated"
         >
           {t('location.new')}
         </button>
@@ -127,7 +127,7 @@ export function LocationsDialog({ onClose }: { onClose: () => void }) {
       footer={<MasterStatus err={err} />}
     >
       {locations === null ? (
-        <p className="grid flex-1 place-items-center p-6 text-sm text-slate-400">{t('common.loading')}</p>
+        <p className="grid flex-1 place-items-center p-6 text-sm text-ink-muted">{t('common.loading')}</p>
       ) : (
         <MasterDetail
           showsDetail={showsDetail}
@@ -136,16 +136,16 @@ export function LocationsDialog({ onClose }: { onClose: () => void }) {
             locations.length === 0 ? (
               // Reachable from the menu before anything is saved, so it has to
               // say what a location is and where they come from.
-              <p className="p-6 text-center text-sm leading-snug text-slate-400">{t('location.empty')}</p>
+              <p className="p-6 text-center text-sm leading-snug text-ink-muted">{t('location.empty')}</p>
             ) : (
-              <ul className="divide-y divide-white/5">
+              <ul className="divide-y divide-line/5">
                 {locations.map((p) => (
                   <li key={p.id}>
                     <MasterRow selected={p.id === selectedId} onClick={() => void select(p.id)}>
-                      <span className="block truncate text-sm text-slate-100">{p.name}</span>
+                      <span className="block truncate text-sm text-ink-strong">{p.name}</span>
                       {/* Plain coordinates: the row that lets you tell two
                           fields both called "the club field" apart. */}
-                      <span className="block text-xs tabular-nums text-slate-500">
+                      <span className="block text-xs tabular-nums text-ink-faint">
                         {formatCoord(p.latitudeDeg, p.longitudeDeg)} · {altUnit.fmt(p.launchAltitudeM, 0)} {altUnit.sym}
                       </span>
                     </MasterRow>

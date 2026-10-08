@@ -56,7 +56,7 @@ export function MasterDetail({
   return (
     <div className="flex min-h-0 flex-1 flex-col md:flex-row">
       <div
-        className={`min-h-0 flex-col overflow-y-auto md:flex md:w-[300px] md:shrink-0 md:border-r md:border-white/10 ${
+        className={`min-h-0 flex-col overflow-y-auto md:flex md:w-[300px] md:shrink-0 md:border-r md:border-line/10 ${
           showsDetail ? 'hidden md:flex' : 'flex'
         }`}
       >
@@ -66,7 +66,7 @@ export function MasterDetail({
         {showsDetail ? (
           detail
         ) : (
-          <div className="grid flex-1 place-items-center p-6 text-center text-sm text-slate-500">{hint}</div>
+          <div className="grid flex-1 place-items-center p-6 text-center text-sm text-ink-faint">{hint}</div>
         )}
       </div>
     </div>
@@ -88,7 +88,7 @@ export function MasterRow({
       onClick={onClick}
       aria-pressed={selected}
       className={`block w-full px-4 py-2.5 text-left ${
-        selected ? 'bg-sky-600/25 ring-1 ring-inset ring-sky-500/50' : 'hover:bg-slate-800'
+        selected ? 'bg-accent-600/25 ring-1 ring-inset ring-accent-500/50' : 'hover:bg-raised'
       }`}
     >
       {children}
@@ -99,7 +99,7 @@ export function MasterRow({
 /** The dialog footer line that reports a failed write. */
 export function MasterStatus({ err }: { err: string | null }) {
   return err ? (
-    <p role="status" aria-live="polite" className="px-4 py-2 text-xs text-amber-400">
+    <p role="status" aria-live="polite" className="px-4 py-2 text-xs text-warn-400">
       {err}
     </p>
   ) : null;
@@ -130,11 +130,11 @@ export function EditorFooter({
 }) {
   const { t } = useTranslation();
   return (
-    <div className="flex shrink-0 items-center gap-2 border-t border-white/10 p-2">
+    <div className="flex shrink-0 items-center gap-2 border-t border-line/10 p-2">
       {onDelete && (
         <button
           onClick={onDelete}
-          className="rounded-lg px-3 py-1.5 text-sm font-medium text-red-400 hover:bg-red-500/10"
+          className="rounded-lg px-3 py-1.5 text-sm font-medium text-danger-400 hover:bg-danger-500/10"
         >
           {t('common.delete')}
         </button>
@@ -143,7 +143,7 @@ export function EditorFooter({
       <button
         onClick={onRevert}
         disabled={!dirty}
-        className="ml-auto rounded-lg bg-slate-800 px-3 py-1.5 text-sm font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700 disabled:opacity-40"
+        className="ml-auto rounded-lg bg-raised px-3 py-1.5 text-sm font-medium text-ink ring-1 ring-line/10 hover:bg-elevated disabled:opacity-40"
       >
         {t('common.discard')}
       </button>
@@ -151,7 +151,7 @@ export function EditorFooter({
         onClick={onSave}
         disabled={!dirty || saveDisabled}
         title={saveTitle}
-        className="shrink-0 rounded-lg bg-sky-600 px-5 py-1.5 text-sm font-medium text-white hover:bg-sky-500 disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500"
+        className="shrink-0 rounded-lg bg-accent-600 px-5 py-1.5 text-sm font-medium text-on-accent hover:bg-accent-500 disabled:cursor-not-allowed disabled:bg-raised disabled:text-ink-faint"
       >
         {t('common.save')}
       </button>

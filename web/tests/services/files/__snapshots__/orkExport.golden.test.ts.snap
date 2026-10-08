@@ -2767,6 +2767,46 @@ exports[`golden .ork import > reads the kitchen-sink export back into the same r
     "Motor G80: plugged (no ejection charge) — make sure recovery deploys on apogee/altitude, not the ejection charge.",
     "2 components in this design (Centering Ring, Launch Lug) repeat as multiple instances. The file keeps every instance, but the drawing and the simulation currently show one.",
   ],
+  "simulations": [
+    {
+      "configId": "cfg-a",
+      "launch": {
+        "constantGravity": 9.8,
+        "geodetic": "wgs84",
+        "gravityModel": "constant",
+        "latitudeDeg": 39.5,
+        "launchAltitudeM": 1200,
+        "launchIntoWind": true,
+        "launchRodAngleDeg": 5,
+        "launchRodDirectionDeg": 45,
+        "launchRodLengthM": 1.5,
+        "longitudeDeg": -104.7,
+        "pressureHPa": 1013.25,
+        "relativeHumidity": 0.4,
+        "temperatureC": 25,
+        "windAltitudeReference": "agl",
+        "windAverage": 3,
+        "windDirectionDeg": 180,
+        "windLevels": [
+          {
+            "altitudeM": 0,
+            "directionDeg": 90,
+            "speed": 2,
+            "stddev": 0.2,
+          },
+          {
+            "altitudeM": 500,
+            "directionDeg": 135,
+            "speed": 6,
+            "stddev": 0.5,
+          },
+        ],
+        "windStdDev": 0.6,
+      },
+      "name": "Simulation 1",
+      "outdated": false,
+    },
+  ],
   "tree": {
     "comment": "Every "type" & block",
     "components": [

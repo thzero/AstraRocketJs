@@ -64,7 +64,7 @@ export function ConfigsPane() {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex flex-wrap items-center gap-2 border-b border-white/10 p-3">
+      <div className="flex flex-wrap items-center gap-2 border-b border-line/10 p-3">
         <ToolBtn onClick={addConfig}>{t('configs.new')}</ToolBtn>
         <ToolBtn onClick={() => copyConfig(selected.id)}>{t('configs.copy')}</ToolBtn>
         <ToolBtn
@@ -89,7 +89,7 @@ export function ConfigsPane() {
       </div>
 
       <div className="min-h-0 flex-1 overflow-auto">
-        <p className="px-3 py-2 text-[11px] leading-snug text-slate-500">{t(hint)}</p>
+        <p className="px-3 py-2 text-[11px] leading-snug text-ink-faint">{t(hint)}</p>
         <ConfigsTable
           configs={configs}
           tree={tree}
@@ -101,7 +101,7 @@ export function ConfigsPane() {
         {/* Below lg there is no right column, so the editor goes here - which is
             the only way a phone can change a motor at all. */}
         {!desktop && (
-          <div className="border-t border-white/10">
+          <div className="border-t border-line/10">
             <ConfigEditor />
           </div>
         )}

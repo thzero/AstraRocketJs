@@ -42,9 +42,8 @@ import { polylinePath } from '../common/svgPath';
 /** A default level, matching the kernel's `addInitialLevel` (still air at the pad). */
 const initialLevel = (): WindLevel => ({ altitudeM: 0, speed: 0, directionDeg: DEFAULT_HEADING_DEG, stddev: 0 });
 
-const cell = 'rounded bg-slate-800 px-1 py-1 text-right text-xs tabular-nums text-slate-100 ring-1 ring-white/10';
-const btn =
-  'rounded-md bg-slate-800 px-2 py-1.5 text-xs font-medium text-slate-300 ring-1 ring-white/10 hover:bg-slate-700';
+const cell = 'rounded bg-raised px-1 py-1 text-right text-xs tabular-nums text-ink-strong ring-1 ring-line/10';
+const btn = 'rounded-md bg-raised px-2 py-1.5 text-xs font-medium text-ink-soft ring-1 ring-line/10 hover:bg-elevated';
 
 /**
  * Altitude against wind speed, the way the desktop draws it: altitude up, speed
@@ -82,40 +81,40 @@ function ProfileChart({ levels, u, showVectors }: { levels: WindLevel[]; u: Unit
     // Hidden from assistive tech: it pictures the levels the editable rows
     // already list, so announcing it would read them twice.
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full" aria-hidden="true">
-      <line x1={padL} y1={padT} x2={padL} y2={H - padB} stroke="currentColor" className="text-slate-600" />
-      <line x1={padL} y1={H - padB} x2={W - padR} y2={H - padB} stroke="currentColor" className="text-slate-600" />
+      <line x1={padL} y1={padT} x2={padL} y2={H - padB} stroke="currentColor" className="text-ink-dim" />
+      <line x1={padL} y1={H - padB} x2={W - padR} y2={H - padB} stroke="currentColor" className="text-ink-dim" />
       {pts.length > 1 && (
         <path
           d={polylinePath(pts.map((p) => [p.x, p.y]))}
           fill="none"
           stroke="currentColor"
           strokeWidth={1.5}
-          className="text-sky-500"
+          className="text-accent-500"
         />
       )}
       {pts.map((p, i) => (
         <g key={i}>
-          <circle cx={p.x} cy={p.y} r={3} className="fill-sky-400" />
+          <circle cx={p.x} cy={p.y} r={3} className="fill-accent-400" />
           {showVectors && (
             // Screen-space: 0 degrees points up the page, and the arrow shows
             // the heading the layer's wind is described by.
             <g transform={`translate(${p.x.toFixed(1)} ${p.y.toFixed(1)}) rotate(${p.dir})`}>
-              <line x1={0} y1={0} x2={0} y2={-14} stroke="currentColor" strokeWidth={1} className="text-sky-300" />
-              <path d="M -2.5 -10 L 0 -15 L 2.5 -10 Z" className="fill-sky-300" />
+              <line x1={0} y1={0} x2={0} y2={-14} stroke="currentColor" strokeWidth={1} className="text-accent-300" />
+              <path d="M -2.5 -10 L 0 -15 L 2.5 -10 Z" className="fill-accent-300" />
             </g>
           )}
         </g>
       ))}
-      <text x={4} y={padT + 8} className="fill-slate-500 text-[9px]">
+      <text x={4} y={padT + 8} className="fill-ink-faint text-[9px]">
         {u.sym('distance')}
       </text>
-      <text x={W - padR} y={H - 6} textAnchor="end" className="fill-slate-500 text-[9px]">
+      <text x={W - padR} y={H - 6} textAnchor="end" className="fill-ink-faint text-[9px]">
         {u.sym('windspeed')}
       </text>
-      <text x={padL} y={H - padB + 12} textAnchor="middle" className="fill-slate-500 text-[9px]">
+      <text x={padL} y={H - padB + 12} textAnchor="middle" className="fill-ink-faint text-[9px]">
         0
       </text>
-      <text x={W - padR} y={H - padB + 12} textAnchor="end" className="fill-slate-500 text-[9px]">
+      <text x={W - padR} y={H - padB + 12} textAnchor="end" className="fill-ink-faint text-[9px]">
         {fmtNum(sHi, sHi < 10 ? 1 : 0)}
       </text>
     </svg>
@@ -256,7 +255,7 @@ export function WindProfileDialog({
       <div onBlur={onCommit}>
         <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_280px]">
           <div className="min-w-0">
-            <div className="flex gap-1 px-1 pb-1 text-[10px] uppercase tracking-wide text-slate-500">
+            <div className="flex gap-1 px-1 pb-1 text-[10px] uppercase tracking-wide text-ink-faint">
               <span className="w-20">
                 {t('windProfile.altitude')} {t(`windProfile.${reference}Short`)} ({u.sym('distance')})
               </span>
@@ -272,7 +271,7 @@ export function WindProfileDialog({
               <span className="w-6" />
             </div>
 
-            {!levels.length && <p className="px-1 py-3 text-xs text-slate-500">{t('windProfile.noLevels')}</p>}
+            {!levels.length && <p className="px-1 py-3 text-xs text-ink-faint">{t('windProfile.noLevels')}</p>}
 
             <div className="max-h-[320px] space-y-1 overflow-y-auto">
               {levels.map((l, i) => {
@@ -336,7 +335,7 @@ export function WindProfileDialog({
                       onChange={(v) => patchLevel(i, { stddev: stdDevForIntensity(l.speed, (v ?? 0) / 100) })}
                       className={`${cell} w-14`}
                     />
-                    <span className="w-20 truncate text-[11px] text-slate-400">
+                    <span className="w-20 truncate text-[11px] text-ink-muted">
                       {t(`launch.turbulenceLevel.${turbulenceLevel(intensity)}`)}
                     </span>
                     <button
@@ -346,7 +345,7 @@ export function WindProfileDialog({
                       }}
                       title={t('launch.removeLevel')}
                       aria-label={`${t('launch.removeLevel')} ${i + 1}`}
-                      className="w-6 rounded bg-red-500/15 py-1 text-xs text-red-300 ring-1 ring-red-500/30"
+                      className="w-6 rounded bg-danger-500/15 py-1 text-xs text-danger-300 ring-1 ring-danger-500/30"
                     >
                       ×
                     </button>
@@ -380,35 +379,35 @@ export function WindProfileDialog({
               </button>
               {levelsFile.input}
             </div>
-            <p className="mt-1 text-[11px] leading-snug text-slate-500">{t('windProfile.csvFormat')}</p>
+            <p className="mt-1 text-[11px] leading-snug text-ink-faint">{t('windProfile.csvFormat')}</p>
             {dupeRows.size > 0 && (
-              <p role="alert" className="mt-1 text-[11px] leading-snug text-red-300">
+              <p role="alert" className="mt-1 text-[11px] leading-snug text-danger-300">
                 {t('windProfile.duplicateAltitude')}
               </p>
             )}
             {error && (
-              <p role="alert" className="mt-1 text-[11px] leading-snug text-red-300">
+              <p role="alert" className="mt-1 text-[11px] leading-snug text-danger-300">
                 {error}
               </p>
             )}
           </div>
 
           <div className="min-w-0">
-            <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">
+            <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-ink-muted">
               {t('windProfile.visualization')}
             </h3>
-            <div className="rounded-lg bg-slate-950/40 p-2 ring-1 ring-white/5">
+            <div className="rounded-lg bg-canvas/40 p-2 ring-1 ring-line/5">
               <ProfileChart levels={levels} u={u} showVectors={showVectors} />
             </div>
             <Check
-              className="mt-2 text-xs text-slate-400"
+              className="mt-2 text-xs text-ink-muted"
               checked={showVectors}
               onChange={setShowVectors}
               label={t('windProfile.showVectors')}
             />
 
             <fieldset className="mt-4">
-              <legend className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+              <legend className="text-xs font-semibold uppercase tracking-wide text-ink-muted">
                 {t('windProfile.altitudeReference')}
               </legend>
               <div className="mt-1 space-y-1">
@@ -422,13 +421,13 @@ export function WindProfileDialog({
                         onChange({ windAltitudeReference: r });
                         onCommit?.();
                       }}
-                      className="accent-sky-500"
+                      className="accent-accent-500"
                     />
-                    <span className="text-xs text-slate-400">{t(`windProfile.${r}`)}</span>
+                    <span className="text-xs text-ink-muted">{t(`windProfile.${r}`)}</span>
                   </label>
                 ))}
               </div>
-              <p className="mt-1 text-[11px] leading-snug text-slate-500">{t('windProfile.referenceNote')}</p>
+              <p className="mt-1 text-[11px] leading-snug text-ink-faint">{t('windProfile.referenceNote')}</p>
             </fieldset>
           </div>
         </div>
@@ -436,7 +435,7 @@ export function WindProfileDialog({
         <div className="mt-5 flex justify-end">
           <button
             onClick={onClose}
-            className="rounded-lg bg-sky-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-sky-500"
+            className="rounded-lg bg-accent-600 px-3 py-1.5 text-sm font-medium text-on-accent hover:bg-accent-500"
           >
             {t('common.close')}
           </button>

@@ -56,7 +56,7 @@ export function EnvironmentView({ flight }: { flight: ResultFlight }) {
   // A run has a date only when its weather came from a forecast for one.
   const source = flight.launch.weatherSource;
   const validAt = source ? fmtSiteTime(source.validAt, source.timezone) : null;
-  if (!env) return <p className="p-4 text-sm text-slate-400">{t('env.noData')}</p>;
+  if (!env) return <p className="p-4 text-sm text-ink-muted">{t('env.noData')}</p>;
 
   const unit = (q: EnvironmentQuantity) => u.plain(QUANTITY[q]);
   const dist = u.plain('distance');
@@ -68,7 +68,7 @@ export function EnvironmentView({ flight }: { flight: ResultFlight }) {
 
   return (
     <div className="h-full space-y-3 overflow-auto p-2">
-      <section className="rounded-xl bg-slate-900 p-3 ring-1 ring-white/10">
+      <section className="rounded-xl bg-surface p-3 ring-1 ring-line/10">
         {/* As many columns as fit: one row on a wide screen, wrapped on a phone. */}
         <dl className="grid grid-cols-[repeat(auto-fill,minmax(7rem,1fr))] gap-x-4 gap-y-1 text-xs">
           {validAt && <TermRow label={t('env.when')}>{validAt}</TermRow>}
@@ -88,7 +88,7 @@ export function EnvironmentView({ flight }: { flight: ResultFlight }) {
         )}
       </section>
       <EnvironmentLanding flight={flight} />
-      <p className="text-xs text-slate-400">{t('env.note', { apogee: sig4(dist, env.apogee) })}</p>
+      <p className="text-xs text-ink-muted">{t('env.note', { apogee: sig4(dist, env.apogee) })}</p>
       <div className="grid gap-3 md:grid-cols-2">
         {CHARTS.map((q) => (
           <ProfileChart
@@ -192,48 +192,48 @@ function ProfileChart({
   const label = `${title}: ${loUi} to ${hiUi} ${xSym}, ground to ${y.fmtSym(apogee, 0)}`;
 
   return (
-    <figure className="rounded-xl bg-slate-900 p-2 ring-1 ring-white/10">
+    <figure className="rounded-xl bg-surface p-2 ring-1 ring-line/10">
       <figcaption className="flex items-center justify-between px-1 pb-1 text-xs">
-        <span className="font-semibold text-slate-300">{title}</span>
-        <span className="flex gap-3 text-slate-400">
+        <span className="font-semibold text-ink-soft">{title}</span>
+        <span className="flex gap-3 text-ink-muted">
           <span className="flex items-center gap-1">
             <svg width="16" height="4" aria-hidden="true">
-              <line x1="0" y1="2" x2="16" y2="2" className="stroke-sky-400" strokeWidth="2" />
+              <line x1="0" y1="2" x2="16" y2="2" className="stroke-accent-400" strokeWidth="2" />
             </svg>
             {ascentLabel}
           </span>
           <span className="flex items-center gap-1">
             <svg width="16" height="4" aria-hidden="true">
-              <line x1="0" y1="2" x2="16" y2="2" className="stroke-amber-400" strokeWidth="2" strokeOpacity={0.6} />
+              <line x1="0" y1="2" x2="16" y2="2" className="stroke-warn-400" strokeWidth="2" strokeOpacity={0.6} />
             </svg>
             {descentLabel}
           </span>
         </span>
       </figcaption>
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label={label}>
-        <line x1={PAD_L} y1={PAD_T} x2={PAD_L} y2={H - PAD_B} className="stroke-slate-600" />
-        <line x1={PAD_L} y1={H - PAD_B} x2={W - PAD_R} y2={H - PAD_B} className="stroke-slate-600" />
+        <line x1={PAD_L} y1={PAD_T} x2={PAD_L} y2={H - PAD_B} className="stroke-ink-dim" />
+        <line x1={PAD_L} y1={H - PAD_B} x2={W - PAD_R} y2={H - PAD_B} className="stroke-ink-dim" />
         {/* Thin and faint, under the ascent: a descent under canopy passes the
             same heights for a minute or more while the gusts keep changing, so
             its wind is a dense zigzag that would bury the ascent at full weight. */}
-        <path d={path(legs.descent)} fill="none" strokeWidth={0.75} strokeOpacity={0.6} className="stroke-amber-400" />
-        <path d={path(legs.ascent)} fill="none" strokeWidth={1.75} className="stroke-sky-400" />
-        <text x={PAD_L - 4} y={PAD_T + 8} textAnchor="end" className="fill-slate-400 text-[10px]">
+        <path d={path(legs.descent)} fill="none" strokeWidth={0.75} strokeOpacity={0.6} className="stroke-warn-400" />
+        <path d={path(legs.ascent)} fill="none" strokeWidth={1.75} className="stroke-accent-400" />
+        <text x={PAD_L - 4} y={PAD_T + 8} textAnchor="end" className="fill-ink-muted text-[10px]">
           {y.fmt(apogee, 0)}
         </text>
-        <text x={PAD_L - 4} y={H - PAD_B} textAnchor="end" className="fill-slate-400 text-[10px]">
+        <text x={PAD_L - 4} y={H - PAD_B} textAnchor="end" className="fill-ink-muted text-[10px]">
           0
         </text>
-        <text x={4} y={(H - PAD_B + PAD_T) / 2} className="fill-slate-500 text-[10px]">
+        <text x={4} y={(H - PAD_B + PAD_T) / 2} className="fill-ink-faint text-[10px]">
           {y.sym}
         </text>
-        <text x={PAD_L} y={H - PAD_B + 13} textAnchor="start" className="fill-slate-400 text-[10px]">
+        <text x={PAD_L} y={H - PAD_B + 13} textAnchor="start" className="fill-ink-muted text-[10px]">
           {loUi}
         </text>
-        <text x={W - PAD_R} y={H - PAD_B + 13} textAnchor="end" className="fill-slate-400 text-[10px]">
+        <text x={W - PAD_R} y={H - PAD_B + 13} textAnchor="end" className="fill-ink-muted text-[10px]">
           {hiUi}
         </text>
-        <text x={(PAD_L + W - PAD_R) / 2} y={H - 4} textAnchor="middle" className="fill-slate-500 text-[10px]">
+        <text x={(PAD_L + W - PAD_R) / 2} y={H - 4} textAnchor="middle" className="fill-ink-faint text-[10px]">
           {xSym}
         </text>
       </svg>

@@ -20,7 +20,7 @@ const rocketFor = (calls: number[]) => ({
     return fakeSweep(o?.machMax ?? NaN);
   },
 });
-const inputs = (machMax: number) => ({ machMax, aoaDeg: 0, thetaDeg: 0, rollRate: 0 });
+const inputs = (machMax: number, altitudeM = 0) => ({ machMax, aoaDeg: 0, thetaDeg: 0, rollRate: 0, altitudeM });
 
 afterEach(() => vi.useRealTimers());
 
@@ -88,5 +88,27 @@ describe('useAeroSweep', () => {
     expect(result.current).toEqual({ sweep: null, pending: false });
     expect(err).toHaveBeenCalled();
     err.mockRestore();
+  });
+
+  it('flies the sweep at the chosen altitude, and sends no table at sea level', async () => {
+    vi.useFakeTimers();
+    const seen: unknown[] = [];
+    const rocket = {
+      aeroSweep: (o?: { machAlt?: unknown }) => {
+        seen.push(o?.machAlt);
+        return fakeSweep(1);
+      },
+    };
+    const { rerender } = renderHook(({ alt }) => useAeroSweep(rocket, inputs(2, alt)), { initialProps: { alt: 0 } });
+    await act(() => vi.runAllTimersAsync());
+    rerender({ alt: 1500 });
+    await act(() => vi.runAllTimersAsync());
+    expect(seen).toEqual([
+      undefined,
+      [
+        [0, 1500],
+        [2, 1500],
+      ],
+    ]);
   });
 });

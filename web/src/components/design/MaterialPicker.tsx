@@ -50,6 +50,7 @@ export type MaterialUse = 'structure' | 'fillet';
 
 export function MaterialPicker({
   value,
+  density: ownDensity,
   onChange,
   type = 'bulk',
   label,
@@ -57,6 +58,13 @@ export function MaterialPicker({
   unsetLabel,
 }: {
   value?: string;
+  /**
+   * The density the part carries with `value`, SI. Shown when the name is not
+   * in this list: a catalog part brings its maker's material ("Balsa, bulk,
+   * BMS typical") at its own density, which is what the part is weighed with,
+   * and almost none of those names are in the list.
+   */
+  density?: number;
   onChange: (name: string | undefined, density: number, group?: string) => void;
   type?: MaterialType;
   label?: string;
@@ -116,6 +124,9 @@ export function MaterialPicker({
   // already name a material this picker would not offer (a `.ork` with an
   // epoxy body tube), and the row has to keep showing what the part is made of.
   const current = mats.find((m) => m.name === value);
+  // A material the part names that this list does not hold. It is still the
+  // part's material, so it is shown as chosen rather than as "not specified".
+  const own = value && !current ? { name: value, density: ownDensity && ownDensity > 0 ? ownDensity : null } : null;
 
   /**
    * The list is the materials for THIS use, and nothing else.
@@ -200,33 +211,44 @@ export function MaterialPicker({
   return (
     <div>
       <div className="mb-1 flex items-center justify-between text-sm">
-        <span className="text-slate-300">{label ?? t('material.title')}</span>
-        <span className="tabular-nums text-xs text-slate-400">
-          {current ? (
+        <span className="text-ink-soft">{label ?? t('material.title')}</span>
+        <span className="tabular-nums text-xs text-ink-muted">
+          {current || own?.density ? (
             <>
-              {density(current.density)} <UnitChip quantity={quantity} scope={scope} />
+              {density(current ? current.density : own!.density!)} <UnitChip quantity={quantity} scope={scope} />
             </>
-          ) : (
+          ) : own ? null : (
             t('material.default')
           )}
           {current?.custom && (
-            <button onClick={deleteCurrentCustom} className="ml-2 text-red-400" aria-label={t('material.deleteCustom')}>
+            <button
+              onClick={deleteCurrentCustom}
+              className="ml-2 text-danger-400"
+              aria-label={t('material.deleteCustom')}
+            >
               ✕
             </button>
           )}
         </span>
       </div>
       <select
-        value={current ? current.name : loadErr && value ? value : '__default__'}
+        value={current ? current.name : own ? own.name : '__default__'}
         onChange={(e) => handleSelect(e.target.value)}
-        className="w-full rounded-lg bg-slate-950 px-2 py-2 text-sm text-slate-100 ring-1 ring-white/10"
+        className="w-full rounded-lg bg-canvas px-2 py-2 text-sm text-ink-strong ring-1 ring-line/10"
       >
         <option value="__default__">{unsetLabel ?? t('material.defaultOption')}</option>
-        {/* The part's own material, when the catalog did not arrive to confirm
-            it. Without this the select falls back to "no material", so the row
-            would describe a part that has one as a part that does not. Its
-            density is in the tree, not here, so the name is all this shows. */}
-        {loadErr && value && !current && <option value={value}>{value}</option>}
+        {/* The part's own material, when the list does not hold it: a catalog
+            part's maker's material, or any material while the list failed to
+            load. Without this the select falls back to "no material", so the
+            row would describe a part that has one as a part that does not. */}
+        {own && (
+          <optgroup label={t('material.thisPart')}>
+            <option value={own.name}>
+              {own.name}
+              {own.density ? ` · ${density(own.density)} ${fu.sym}` : ''}
+            </option>
+          </optgroup>
+        )}
         {groups.map(([g, list]) => (
           <optgroup key={g} label={g}>
             {list.map((m) => (
@@ -240,26 +262,26 @@ export function MaterialPicker({
         <option value="__add__">{t('material.addCustom')}</option>
       </select>
 
-      {!current && !loadErr && (
-        <p className="mt-1 text-[11px] leading-snug text-slate-500">{t('material.defaultHint')}</p>
+      {!current && !own && !loadErr && (
+        <p className="mt-1 text-[11px] leading-snug text-ink-faint">{t('material.defaultHint')}</p>
       )}
-      {loadErr && <p className="mt-1 text-xs text-red-400">{loadErr}</p>}
-      {delErr && <p className="mt-1 text-xs text-red-400">{delErr}</p>}
+      {loadErr && <p className="mt-1 text-xs text-danger-400">{loadErr}</p>}
+      {delErr && <p className="mt-1 text-xs text-danger-400">{delErr}</p>}
 
       {adding && (
-        <div className="mt-2 space-y-2 rounded-lg bg-slate-950 p-2 ring-1 ring-white/10">
+        <div className="mt-2 space-y-2 rounded-lg bg-canvas p-2 ring-1 ring-line/10">
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder={t('material.namePlaceholder')}
-            className="w-full rounded bg-slate-900 px-2 py-1.5 text-sm ring-1 ring-white/10 placeholder:text-slate-500"
+            className="w-full rounded bg-surface px-2 py-1.5 text-sm ring-1 ring-line/10 placeholder:text-ink-faint"
           />
-          <label className="flex items-center justify-between gap-2 text-xs text-slate-400">
+          <label className="flex items-center justify-between gap-2 text-xs text-ink-muted">
             {t('material.group')}
             <select
               value={group}
               onChange={(e) => setGroup(e.target.value)}
-              className="w-40 rounded bg-slate-900 px-2 py-1.5 text-sm text-slate-100 ring-1 ring-white/10"
+              className="w-40 rounded bg-surface px-2 py-1.5 text-sm text-ink-strong ring-1 ring-line/10"
             >
               {groupsOf(mats).map((g) => (
                 <option key={g} value={g}>
@@ -278,11 +300,14 @@ export function MaterialPicker({
             step={fu.step(10)}
             placeholder={`${t('material.densityPlaceholder')} (${fu.sym})`}
             ariaLabel={`${t('material.densityPlaceholder')} (${fu.sym})`}
-            className="w-full rounded bg-slate-900 px-2 py-1.5 text-sm tabular-nums ring-1 ring-white/10 placeholder:text-slate-500"
+            className="w-full rounded bg-surface px-2 py-1.5 text-sm tabular-nums ring-1 ring-line/10 placeholder:text-ink-faint"
           />
-          {addErr && <p className="text-xs text-red-400">{addErr}</p>}
+          {addErr && <p className="text-xs text-danger-400">{addErr}</p>}
           <div className="flex gap-2">
-            <button onClick={submitCustom} className="flex-1 rounded bg-sky-600 py-1.5 text-sm font-medium text-white">
+            <button
+              onClick={submitCustom}
+              className="flex-1 rounded bg-accent-600 py-1.5 text-sm font-medium text-on-accent"
+            >
               {t('material.save')}
             </button>
             <button
@@ -290,7 +315,7 @@ export function MaterialPicker({
                 setAdding(false);
                 setAddErr(null);
               }}
-              className="flex-1 rounded bg-slate-800 py-1.5 text-sm text-slate-300"
+              className="flex-1 rounded bg-raised py-1.5 text-sm text-ink-soft"
             >
               {t('material.cancel')}
             </button>

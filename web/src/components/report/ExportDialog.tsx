@@ -215,6 +215,18 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
     }
   };
 
+  // One row per part, in the export's units (services/report/reportCsv).
+  const savePartsCsv = async () => {
+    if (!model) return;
+    try {
+      const { downloadComponentCsv } = await import('../../services/report/reportCsv');
+      downloadComponentCsv(assembleReport() ?? model, exportUnits, (type) => t(`part.${type}`));
+      onClose();
+    } catch (e) {
+      useWorkspaceStore.getState().setErr(t('export.csvFailed', { message: errorMessage(e) }));
+    }
+  };
+
   const saveCsv = async () => {
     if (!model) return;
     try {
@@ -229,26 +241,33 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
   // The pinned row of actions, declared here because it is the shell's `footer`
   // and so has to be named before the body it is passed with.
   const actionRow = (
-    <div className="flex items-center justify-between gap-2 border-t border-white/10 p-4">
+    <div className="flex items-center justify-between gap-2 border-t border-line/10 p-4">
       <button
         onClick={() => setShowSettings(true)}
-        className="rounded-md bg-slate-800 px-3 py-2 text-sm text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
+        className="rounded-md bg-raised px-3 py-2 text-sm text-ink ring-1 ring-line/10 hover:bg-elevated"
       >
         {t('export.settings')}
       </button>
       <div className="flex gap-2">
         <button
           onClick={onClose}
-          className="rounded-md bg-slate-800 px-3 py-2 text-sm text-slate-300 ring-1 ring-white/10 hover:bg-slate-700"
+          className="rounded-md bg-raised px-3 py-2 text-sm text-ink-soft ring-1 ring-line/10 hover:bg-elevated"
         >
           {t('common.cancel')}
         </button>
         <button
           onClick={saveCsv}
           disabled={busy}
-          className="rounded-md bg-slate-800 px-3 py-2 text-sm text-slate-200 ring-1 ring-white/10 hover:bg-slate-700 disabled:opacity-50"
+          className="rounded-md bg-raised px-3 py-2 text-sm text-ink ring-1 ring-line/10 hover:bg-elevated disabled:opacity-50"
         >
           {t('export.saveCsv')}
+        </button>
+        <button
+          onClick={savePartsCsv}
+          disabled={busy}
+          className="rounded-md bg-raised px-3 py-2 text-sm text-ink ring-1 ring-line/10 hover:bg-elevated disabled:opacity-50"
+        >
+          {t('export.savePartsCsv')}
         </button>
         <DialogButton onClick={save} disabled={busy} variant="primary">
           {busy ? t('common.loading') : t('export.savePdf')}
@@ -257,8 +276,8 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
     </div>
   );
 
-  const check = 'accent-sky-500';
-  const row = 'flex items-center gap-2 py-0.5 text-sm text-slate-200';
+  const check = 'accent-accent-500';
+  const row = 'flex items-center gap-2 py-0.5 text-sm text-ink';
 
   return (
     <>
@@ -276,17 +295,17 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
       >
         {sel && model ? (
           <div className="p-4">
-            <p className="mb-2 text-xs uppercase tracking-wide text-slate-400">{t('export.select')}</p>
-            <div className="rounded-lg bg-slate-800/50 p-2 ring-1 ring-white/5">
+            <p className="mb-2 text-xs uppercase tracking-wide text-ink-muted">{t('export.select')}</p>
+            <div className="rounded-lg bg-raised/50 p-2 ring-1 ring-line/5">
               <Check
-                className={`${row} font-semibold text-sky-300`}
+                className={`${row} font-semibold text-accent-300`}
                 checked={allOn}
                 onChange={setAll}
                 label={model.name}
               />
               {sel.stages.map((st, i) => (
                 <div key={i} className="pl-4">
-                  <div className={`${row} text-slate-300`}>{st.label}</div>
+                  <div className={`${row} text-ink-soft`}>{st.label}</div>
                   <Check
                     className={`${row} pl-4`}
                     checked={st.parts}
@@ -351,13 +370,13 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
                 onChange={(v) => patch({ showByStage: v })}
                 label={t('export.showByStage')}
               />
-              <label className="flex items-center justify-between gap-3 pt-1 text-sm text-slate-200">
+              <label className="flex items-center justify-between gap-3 pt-1 text-sm text-ink">
                 <span>{t('export.units')}</span>
                 <select
                   aria-label={t('export.units')}
                   value={settings.report.units}
                   onChange={(e) => update({ report: { ...settings.report, units: e.target.value as UnitChoice } })}
-                  className="rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
+                  className="rounded-md bg-raised px-2 py-1 text-sm text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500"
                 >
                   {UNIT_CHOICES.map((c) => (
                     <option key={c} value={c}>
@@ -366,11 +385,11 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
                   ))}
                 </select>
               </label>
-              <p className="text-[11px] leading-snug text-slate-500">{t('export.unitsNote')}</p>
+              <p className="text-[11px] leading-snug text-ink-faint">{t('export.unitsNote')}</p>
             </div>
           </div>
         ) : (
-          <p className="p-6 text-sm text-slate-500">{t('report.noDesign')}</p>
+          <p className="p-6 text-sm text-ink-faint">{t('report.noDesign')}</p>
         )}
       </Dialog>
 
@@ -397,7 +416,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
         >
           <>
             <div className="space-y-3">
-              <label className="flex items-center justify-between gap-3 text-sm text-slate-300">
+              <label className="flex items-center justify-between gap-3 text-sm text-ink-soft">
                 {t('export.fill')}
                 <span className="flex items-center gap-2">
                   <input
@@ -417,37 +436,37 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
                     disabled={!settings.report.templateFill}
                     value={settings.report.templateFill || '#e5e7eb'}
                     onCommit={(c) => update({ report: { ...settings.report, templateFill: c } })}
-                    className="h-7 w-10 cursor-pointer rounded-md border border-white/10 bg-slate-800 p-0.5 disabled:opacity-40"
+                    className="h-7 w-10 cursor-pointer rounded-md border border-line/10 bg-raised p-0.5 disabled:opacity-40"
                   />
                 </span>
               </label>
-              <label className="flex items-center justify-between gap-3 text-sm text-slate-300">
+              <label className="flex items-center justify-between gap-3 text-sm text-ink-soft">
                 {t('export.border')}
                 <ColorInput
                   value={settings.report.templateStroke}
                   onCommit={(c) => update({ report: { ...settings.report, templateStroke: c } })}
-                  className="h-7 w-10 cursor-pointer rounded-md border border-white/10 bg-slate-800 p-0.5"
+                  className="h-7 w-10 cursor-pointer rounded-md border border-line/10 bg-raised p-0.5"
                 />
               </label>
-              <label className="flex items-center justify-between gap-3 text-sm text-slate-300">
+              <label className="flex items-center justify-between gap-3 text-sm text-ink-soft">
                 {t('export.paper')}
                 <select
                   value={settings.report.paper}
                   onChange={(e) => update({ report: { ...settings.report, paper: e.target.value as 'letter' | 'a4' } })}
-                  className="rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 ring-1 ring-white/10"
+                  className="rounded-md bg-raised px-2 py-1 text-sm text-ink-strong ring-1 ring-line/10"
                 >
                   <option value="letter">Letter</option>
                   <option value="a4">A4</option>
                 </select>
               </label>
-              <label className="flex items-center justify-between gap-3 text-sm text-slate-300">
+              <label className="flex items-center justify-between gap-3 text-sm text-ink-soft">
                 {t('export.orientation')}
                 <select
                   value={settings.report.orientation}
                   onChange={(e) =>
                     update({ report: { ...settings.report, orientation: e.target.value as 'portrait' | 'landscape' } })
                   }
-                  className="rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 ring-1 ring-white/10"
+                  className="rounded-md bg-raised px-2 py-1 text-sm text-ink-strong ring-1 ring-line/10"
                 >
                   <option value="portrait">{t('export.portrait')}</option>
                   <option value="landscape">{t('export.landscape')}</option>
@@ -457,13 +476,13 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
             <div className="mt-4 flex justify-end gap-2">
               <button
                 onClick={() => update({ report: DEFAULT_REPORT })}
-                className="rounded-md bg-slate-800 px-3 py-1.5 text-sm text-slate-300 ring-1 ring-white/10 hover:bg-slate-700"
+                className="rounded-md bg-raised px-3 py-1.5 text-sm text-ink-soft ring-1 ring-line/10 hover:bg-elevated"
               >
                 {t('export.reset')}
               </button>
               <button
                 onClick={() => setShowSettings(false)}
-                className="rounded-md bg-sky-500 px-4 py-1.5 text-sm font-medium text-white hover:bg-sky-400"
+                className="rounded-md bg-accent-500 px-4 py-1.5 text-sm font-medium text-on-accent hover:bg-accent-400"
               >
                 {t('common.close')}
               </button>

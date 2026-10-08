@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, vi } from 'vitest';
 import {
   __setEngineForTests,
   OpenRocketDesign,
+  standardPressurePa,
   type MotorSpec,
   type RocketTree,
 } from '../../src/engine/openRocketEngine';
@@ -1389,5 +1390,21 @@ describe('a self-intersecting freeform fin outline is refused', () => {
   it('builds a good outline after a refused one', () => {
     expect(() => info(BOWTIE)).toThrow();
     expect(info(VALID).length).toBeCloseTo(0.3, 9);
+  });
+});
+
+/**
+ * The launch panel's sea-level pressure check reads the standard pressure at
+ * the site from the kernel's own atmosphere, so the app holds no second one.
+ */
+describe('the standard atmosphere comes from the kernel', () => {
+  it('gives the standard pressure at sea level and at a high site', () => {
+    expect(standardPressurePa(0)).toBeCloseTo(101_325, 0);
+    // The textbook figure at 1500 m is 84 556 Pa.
+    expect(Math.abs(standardPressurePa(1500)! - 84_556)).toBeLessThan(50);
+  });
+
+  it('refuses an altitude that is not a number', () => {
+    expect(() => standardPressurePa(Number.NaN)).toThrow();
   });
 });

@@ -1,6 +1,8 @@
 import type { FlightResult, FlightSeries } from '../../engine/openRocketEngine';
 import type { Quantity } from '../../prefs/units';
 import { flightBranches } from '../../services/flight/flightColumns';
+import { dynamicPressure, qAlpha, rollRate } from '../../services/flight/flightEvents';
+import { token } from '../common/colorTokens';
 
 /**
  * Owns what the flight chart draws: the series catalog (one panel per
@@ -21,7 +23,11 @@ export type Key =
   | 'stability'
   | 'cpLocation'
   | 'cgLocation'
-  | 'aoa';
+  | 'aoa'
+  | 'dynamicPressure'
+  | 'qAlpha'
+  | 'rollRate'
+  | 'velocityAltitude';
 
 export interface Meta {
   key: Key;
@@ -44,6 +50,12 @@ export interface Meta {
    *  recovery deploys the rocket tumbles (AoA≈90°) and these collapse to junk, so
    *  the series is clipped to the boost→apogee window. */
   aero?: boolean;
+  /**
+   * Plotted against altitude rather than time: velocity over altitude. It sits
+   * outside the shared time axis, so it neither zooms with it nor shows event
+   * lines; the crosshair's moment is marked on the curve instead.
+   */
+  xy?: boolean;
 }
 
 export const SERIES: Meta[] = [
@@ -67,6 +79,12 @@ export const SERIES: Meta[] = [
   },
   { key: 'cgLocation', label: 'flight.cg', unit: 'cm', digits: 1, scale: 100, level: true, quantity: 'length' },
   { key: 'aoa', label: 'flight.aoa', unit: '°', digits: 1, scale: 180 / Math.PI, quantity: 'angle' },
+  // Derived in buildTraces from what the kernel records; see flightEvents.ts.
+  { key: 'dynamicPressure', label: 'flight.dynamicPressure', unit: 'Pa', digits: 0, quantity: 'pressure' },
+  // Pa·rad to kPa·°: a product of two units has no single preference to follow.
+  { key: 'qAlpha', label: 'flight.qAlpha', unit: 'kPa·°', digits: 1, scale: 180 / Math.PI / 1000, aero: true },
+  { key: 'rollRate', label: 'flight.rollRate', unit: 'r/s', digits: 2, quantity: 'rollRate' },
+  { key: 'velocityAltitude', label: 'flight.velocityAltitude', unit: '', digits: 0, xy: true },
 ];
 /** Every key the chart can draw, for validating what comes back from settings. */
 const KEYS = new Set<string>(SERIES.map((m) => m.key));
@@ -87,7 +105,14 @@ export function visibleSeries(saved: readonly string[]): Key[] {
 // One color per trace: sky first (the original single line), then the rest.
 // Matches the component-tree palette so a stage reads the same color everywhere.
 // Cycles if a design or a comparison somehow runs past six.
-const STAGE_COLORS = ['#38bdf8', '#fbbf24', '#34d399', '#a78bfa', '#fb7185', '#22d3ee'];
+const STAGE_COLORS = [
+  token('series-1'),
+  token('series-2'),
+  token('series-3'),
+  token('series-4'),
+  token('series-5'),
+  token('series-6'),
+];
 
 /** The flight to draw, named so the pane can say which simulation it is. */
 export interface ChartFlight {
@@ -130,6 +155,13 @@ export function buildTraces(flight: ChartFlight | null, stageLabel: (i: number) 
     name: b.name || stageLabel(i),
     color: STAGE_COLORS[i % STAGE_COLORS.length]!,
     events: b.events ?? [],
-    series: b.series,
+    // The derived panels ride as series of their own, so a panel reads them the
+    // way it reads any other. A run that lacks their inputs leaves them absent.
+    series: {
+      ...b.series,
+      dynamicPressure: dynamicPressure(b.series) ?? undefined,
+      qAlpha: qAlpha(b.series) ?? undefined,
+      rollRate: rollRate(b.series) ?? undefined,
+    },
   }));
 }

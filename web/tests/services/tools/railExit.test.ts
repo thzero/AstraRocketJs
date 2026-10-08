@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { G0 } from '../../../src/services/motors/motorMath';
-import { maxDryMassKg, maxWindMs, railExit, weathercockDeg, type RailExit } from '../../../src/services/tools/railExit';
+import {
+  maxDryMassKg,
+  maxWindMs,
+  railExit,
+  railNeededM,
+  weathercockDeg,
+  type RailExit,
+} from '../../../src/services/tools/railExit';
 
 /** 10 N for a second, burning no mass, so the rail run has a closed form. */
 const STEADY = { times: [0, 1], thrusts: [10, 10], masses: [0.02, 0.02] };
@@ -60,5 +67,25 @@ describe('the wind and mass limits', () => {
 
   it('has no heaviest rocket when even the motor alone falls short', () => {
     expect(maxDryMassKg({ times: [0, 1], thrusts: [0.5, 0.5], masses: [0.02, 0.02] }, 1, 10)).toBeNull();
+  });
+});
+
+describe('railNeededM', () => {
+  it('is the distance to reach the speed, for a steady motor', () => {
+    const a = 10 / 0.1 - G0;
+    // v² = 2as, so 15 m/s takes 225 / 2a meters.
+    expect(railNeededM(STEADY, 0.08, 15)).toBeCloseTo(225 / (2 * a), 1);
+  });
+
+  it('agrees with railExit: that rail leaves at that speed', () => {
+    const need = railNeededM(STEADY, 0.08, 12)!;
+    const r = railExit({ motor: STEADY, dryMassKg: 0.08, railLengthM: need }) as RailExit;
+    expect(r.exitSpeedMs).toBeCloseTo(12, 1);
+  });
+
+  it('is null when the rocket never gets that fast', () => {
+    const short = { times: [0, 0.01, 0.02], thrusts: [10, 10, 0], masses: [0.02, 0.02, 0.02] };
+    expect(railNeededM(short, 0.08, 15)).toBeNull();
+    expect(railNeededM(STEADY, 2, 15)).toBeNull();
   });
 });

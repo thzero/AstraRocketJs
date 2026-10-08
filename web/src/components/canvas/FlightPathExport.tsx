@@ -53,8 +53,8 @@ export function FlightPathExport({ variant = 'chip' }: { variant?: 'chip' | 'ove
 
   const btnClass =
     variant === 'overlay'
-      ? 'rounded-md bg-slate-900/80 px-2 py-1 text-[11px] font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-800'
-      : 'rounded-md bg-slate-800 px-2 py-1 text-[11px] font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700';
+      ? 'rounded-md bg-surface/80 px-2 py-1 text-[11px] font-medium text-ink ring-1 ring-line/10 hover:bg-raised'
+      : 'rounded-md bg-raised px-2 py-1 text-[11px] font-medium text-ink ring-1 ring-line/10 hover:bg-elevated';
 
   return (
     <>
@@ -212,8 +212,8 @@ export function ExportDialog({
                     title={t(`pathExport.preset.${preset.id}Note`)}
                     className={`rounded-md px-2 py-1 text-xs font-medium ring-1 ${
                       active
-                        ? 'bg-sky-600 text-white ring-sky-400/40'
-                        : 'bg-slate-800 text-slate-200 ring-white/10 hover:bg-slate-700'
+                        ? 'bg-accent-600 text-on-accent ring-accent-400/40'
+                        : 'bg-raised text-ink ring-line/10 hover:bg-elevated'
                     }`}
                   >
                     {t(`pathExport.preset.${preset.id}`)}
@@ -221,7 +221,7 @@ export function ExportDialog({
                 );
               })}
             </div>
-            <p className="text-[11px] leading-snug text-slate-500">{t('pathExport.presetsNote')}</p>
+            <p className="text-[11px] leading-snug text-ink-faint">{t('pathExport.presetsNote')}</p>
           </Section>
 
           {/* Waypoints */}
@@ -252,7 +252,7 @@ export function ExportDialog({
                 label={t('pathExport.includeGroundTrack')}
               />
               <label className="mt-1 flex items-center justify-between gap-3">
-                <span className="text-xs text-slate-400">{t('pathExport.stride')}</span>
+                <span className="text-xs text-ink-muted">{t('pathExport.stride')}</span>
                 <NumberInput
                   min={1}
                   step={1}
@@ -261,7 +261,7 @@ export function ExportDialog({
                   // Whole samples, at least one. NumberInput refuses a non-finite
                   // entry, and an emptied box keeps the stride it had.
                   onChange={(v) => v !== null && change({ pathStride: Math.max(1, Math.floor(v)) })}
-                  className="w-20 rounded-md bg-slate-800 px-2 py-1 text-right text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
+                  className="w-20 rounded-md bg-raised px-2 py-1 text-right text-sm text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500"
                 />
               </label>
               {/* Where a stage's track begins, and what color it is drawn in,
@@ -272,12 +272,12 @@ export function ExportDialog({
               <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
                 {staged ? (
                   <label className="flex items-center gap-2">
-                    <span className="text-xs text-slate-400">{t('pathExport.stageTrackStart')}</span>
+                    <span className="text-xs text-ink-muted">{t('pathExport.stageTrackStart')}</span>
                     <select
                       aria-label={t('pathExport.stageTrackStart')}
                       value={opts.stageTrackStart}
                       onChange={(e) => change({ stageTrackStart: e.target.value as StageTrackStart })}
-                      className="rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
+                      className="rounded-md bg-raised px-2 py-1 text-sm text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500"
                     >
                       <option value="separation">{t('pathExport.trackStart.separation')}</option>
                       <option value="pad">{t('pathExport.trackStart.pad')}</option>
@@ -292,7 +292,7 @@ export function ExportDialog({
                   title={t('pathExport.stageColorsTitle')}
                   // text-sm to match the stage-track-start select beside it:
                   // the two are halves of one row.
-                  className="rounded-md bg-slate-800 px-3 py-1.5 text-sm font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
+                  className="rounded-md bg-raised px-3 py-1.5 text-sm font-medium text-ink ring-1 ring-line/10 hover:bg-elevated"
                 >
                   {t('pathExport.stageColors')}
                 </button>
@@ -312,14 +312,14 @@ export function ExportDialog({
               value={opts.waypointAltitudeReference}
               onChange={(v) => change({ waypointAltitudeReference: v })}
             />
-            <p className="text-[11px] leading-snug text-slate-500">{t('pathExport.altitudeReferenceNote')}</p>
+            <p className="text-[11px] leading-snug text-ink-faint">{t('pathExport.altitudeReferenceNote')}</p>
             <Check
               checked={opts.drawShadow}
               disabled={opts.altitudeReference === 'clamped' && opts.waypointAltitudeReference === 'clamped'}
               onChange={(v) => change({ drawShadow: v })}
               label={t('pathExport.drawShadow')}
             />
-            <p className="text-[11px] leading-snug text-slate-500">{t('pathExport.shadowNote')}</p>
+            <p className="text-[11px] leading-snug text-ink-faint">{t('pathExport.shadowNote')}</p>
             <Check
               checked={opts.showWaypointLabels}
               onChange={(v) => change({ showWaypointLabels: v })}
@@ -330,7 +330,7 @@ export function ExportDialog({
               onChange={(v) => change({ colorWaypointPins: v })}
               label={t('pathExport.colorWaypointPins')}
             />
-            <p className="text-[11px] leading-snug text-slate-500">{t('pathExport.pinsNote')}</p>
+            <p className="text-[11px] leading-snug text-ink-faint">{t('pathExport.pinsNote')}</p>
           </Section>
 
           {/* What the file SAYS, rather than where it sits - so it is neither
@@ -341,7 +341,7 @@ export function ExportDialog({
               onChange={(v) => change({ includeDescriptions: v })}
               label={t('pathExport.includeDescriptions')}
             />
-            <p className="text-[11px] leading-snug text-slate-500">{t('pathExport.descriptionsNote')}</p>
+            <p className="text-[11px] leading-snug text-ink-faint">{t('pathExport.descriptionsNote')}</p>
           </Section>
 
           {/* Units */}
@@ -357,12 +357,12 @@ export function ExportDialog({
               onChange={(u) => setUnit('distance', u)}
             />
             <label className="flex items-center justify-between gap-3">
-              <span className="text-xs text-slate-400">{t('pathExport.language')}</span>
+              <span className="text-xs text-ink-muted">{t('pathExport.language')}</span>
               <select
                 aria-label={t('pathExport.language')}
                 value={opts.language}
                 onChange={(e) => change({ language: e.target.value })}
-                className="w-40 rounded-md bg-slate-800 px-2 py-1 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
+                className="w-40 rounded-md bg-raised px-2 py-1 text-sm text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500"
               >
                 <option value="">{t('pathExport.languageSameAsApp')}</option>
                 {LANGUAGES.map((l) => (
@@ -372,7 +372,7 @@ export function ExportDialog({
                 ))}
               </select>
             </label>
-            <p className="text-[11px] leading-snug text-slate-500">{t('pathExport.languageNote')}</p>
+            <p className="text-[11px] leading-snug text-ink-faint">{t('pathExport.languageNote')}</p>
           </Section>
 
           {/* Its own group, after Units, because it names the whole document
@@ -387,24 +387,24 @@ export function ExportDialog({
               // Dialog state only: the mission name is never persisted, and
               // typing it must not write the settings (see `useExportOptions`).
               onChange={(e) => patchOpts({ missionName: e.target.value })}
-              className="w-full rounded-md bg-slate-800 px-2 py-1.5 text-sm text-slate-100 ring-1 ring-white/10 placeholder:text-slate-600 focus:outline-none focus:ring-sky-500"
+              className="w-full rounded-md bg-raised px-2 py-1.5 text-sm text-ink-strong ring-1 ring-line/10 placeholder:text-ink-dim focus:outline-none focus:ring-accent-500"
             />
-            <p className="text-[11px] leading-snug text-slate-500">{t('pathExport.missionNote')}</p>
+            <p className="text-[11px] leading-snug text-ink-faint">{t('pathExport.missionNote')}</p>
             <Check
               checked={opts.labelWaypointsWithMission}
               onChange={(v) => change({ labelWaypointsWithMission: v })}
               label={t('pathExport.labelWaypointsWithMission')}
             />
-            <p className="text-[11px] leading-snug text-slate-500">{t('pathExport.missionMarkersNote')}</p>
+            <p className="text-[11px] leading-snug text-ink-faint">{t('pathExport.missionMarkersNote')}</p>
           </Section>
 
           {noPosition && (
-            <p className="rounded-lg bg-amber-500/10 px-3 py-2 text-xs leading-relaxed text-amber-300 ring-1 ring-amber-400/30">
+            <p className="rounded-lg bg-warn-500/10 px-3 py-2 text-xs leading-relaxed text-warn-300 ring-1 ring-warn-400/30">
               {t('pathExport.noPosition')}
             </p>
           )}
           {error && (
-            <p className="rounded-lg bg-rose-500/10 px-3 py-2 text-xs leading-relaxed text-rose-300 ring-1 ring-rose-400/30">
+            <p className="rounded-lg bg-error-500/10 px-3 py-2 text-xs leading-relaxed text-error-300 ring-1 ring-error-400/30">
               {error}
             </p>
           )}

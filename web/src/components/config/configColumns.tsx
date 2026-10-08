@@ -25,7 +25,7 @@ import { motorDesignation } from '../../services/motors/motorName';
 
 /** A value this configuration overrides, called out against the ones it inherits. */
 function Overridden({ children }: { children: React.ReactNode }) {
-  return <span className="text-amber-300/90">{children}</span>;
+  return <span className="text-warn-300/90">{children}</span>;
 }
 
 export function motorColumns(tree: RocketTree, t: TFunction): ConfigColumn[] {
@@ -35,7 +35,7 @@ export function motorColumns(tree: RocketTree, t: TFunction): ConfigColumn[] {
     cell: (c: FlightConfig) => {
       const seated = c.motors[mt.id as string];
       const ign = seated?.ignitionEvent;
-      if (!seated?.spec.designation) return <span className="text-slate-600">–</span>;
+      if (!seated?.spec.designation) return <span className="text-ink-dim">–</span>;
       return (
         <>
           {motorDesignation(seated.spec)}
@@ -94,7 +94,7 @@ export function separationColumns(
       // Grounded is the whole cell: what a stage that is not in the flight
       // separates on is not a fact about the flight.
       if (!stageFlies(c, id)) return <Overridden>{t('configs.grounded')}</Overridden>;
-      if (!separates.has(id)) return <span className="text-slate-600">–</span>;
+      if (!separates.has(id)) return <span className="text-ink-dim">–</span>;
       const over = sepOverride(c, id);
       const {
         separationEvent: event,

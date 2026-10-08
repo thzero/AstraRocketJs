@@ -1,5 +1,6 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode, useEffect } from 'react';
 import { DEFAULT_SETTINGS, loadSettings, saveSettings, type Settings } from '../services/storage/settings';
+import { applyTheme, followSystemTheme } from '../services/app/theme';
 
 /**
  * Surface a refused settings write, out of the React updater it is detected in.
@@ -32,6 +33,12 @@ const Ctx = createContext<SettingsCtx | null>(null);
 /** Holds the app's user preferences, persists them, and exposes them reactively. */
 export function SettingsProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<Settings>(loadSettings);
+
+  // The theme follows the setting, and "Follow system" follows the OS.
+  useEffect(() => {
+    applyTheme(settings.theme);
+    return followSystemTheme(settings.theme);
+  }, [settings.theme]);
 
   // Persist from the two events that change settings, never from an effect on
   // `settings`. An effect writes loadSettings()' own output straight back on

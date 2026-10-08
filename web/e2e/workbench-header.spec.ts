@@ -1,3 +1,4 @@
+// cspell:ignore Инструменты Hulpmiddelen Opgeslagen язык
 import { test, expect, runFlight, ready, box } from './base';
 
 /**
@@ -74,14 +75,17 @@ test('the workbench tabs live in the header rather than a row of their own', asy
  * The mark, the app name, the version, the pre-release word and the engine
  * backend are what the header answers at a glance, so no breakpoint takes one of
  * them away: a narrower window must not mean a different header. What gives
- * instead is the save status' age and the menu button's word, below xl, and
+ * instead is the save status' age and the menu button's word, below xl, the
+ * header's gaps and its icon buttons' padding between lg and xl, and
  * below 1180 the row wraps in the wordiest languages rather than dropping any of
  * the five.
  *
  * Measured in {@link WIDE_FACE}, not in the one the developer happens to have,
  * and in European Portuguese, which is the worst case twice over: its own name is
  * the longest in the language switcher, and 'Pré-visualização' is the longest
- * translation of the pre-release word.
+ * translation of the pre-release word. Russian and Dutch are checked at 1180 too:
+ * their words for the tabs, 'Инструменты' and 'Hulpmiddelen' above all, are
+ * the longest, and leave the row only a few pixels to spare.
  */
 test('the identity block is the same at every width, and the row fits from 1180', async ({ page }) => {
   await page.setViewportSize({ width: 1180, height: 900 });
@@ -117,5 +121,15 @@ test('the identity block is the same at every width, and the row fits from 1180'
   for (const width of [1180, 1280, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     expect((await box(header)).height).toBeLessThan(70);
+  }
+
+  await page.setViewportSize({ width: 1180, height: 900 });
+  for (const [lang, saved] of [
+    ['ru', /^Сохранено/],
+    ['nl', /^Opgeslagen/],
+  ] as const) {
+    await page.getByRole('combobox', { name: /language|idioma|язык|taal/i }).selectOption(lang);
+    await expect(header.getByText(saved)).toBeVisible();
+    expect((await box(header)).height, lang).toBeLessThan(70);
   }
 });

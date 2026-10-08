@@ -60,9 +60,9 @@ export interface ParachuteComponent extends ComponentBase {
   cd: number | null;
 }
 
-/** Tube coupler / centering ring — a tube (OD/ID/length). Inner structural part. */
+/** Tube coupler, centering ring, engine block or launch lug: a tube (OD/ID/length). */
 export interface TubeComponent extends ComponentBase {
-  type: 'tubecoupler' | 'centeringring';
+  type: 'tubecoupler' | 'centeringring' | 'engineblock' | 'launchlug';
   material?: string;
   materialDensity: number;
   outerDiameter: number;
@@ -80,6 +80,33 @@ export interface BulkHeadComponent extends ComponentBase {
   filled: boolean;
 }
 
+/** Transition: both ends and both shoulders, as Transition.loadFromPreset reads them. */
+export interface TransitionComponent extends ComponentBase {
+  type: 'transition';
+  material?: string;
+  materialDensity: number;
+  shape: NoseShape;
+  filled: boolean;
+  /** Wall thickness, when the row states one; most state `filled` instead. */
+  thickness: number | null;
+  length: number;
+  foreOuterDiameter: number;
+  foreShoulderDiameter: number | null;
+  foreShoulderLength: number | null;
+  aftOuterDiameter: number;
+  aftShoulderDiameter: number | null;
+  aftShoulderLength: number | null;
+}
+
+/** Streamer: a strip, whose material is a SURFACE one (density per square meter). */
+export interface StreamerComponent extends ComponentBase {
+  type: 'streamer';
+  material?: string;
+  materialDensity: number;
+  stripLength: number;
+  stripWidth: number;
+}
+
 /** Discriminated by `type` — keeps ComponentType and componentsForType in sync. */
 interface ComponentMap {
   bodytube: BodyTubeComponent;
@@ -88,6 +115,34 @@ interface ComponentMap {
   tubecoupler: TubeComponent;
   centeringring: TubeComponent;
   bulkhead: BulkHeadComponent;
+  transition: TransitionComponent;
+  engineblock: TubeComponent;
+  launchlug: TubeComponent;
+  streamer: StreamerComponent;
+}
+
+/**
+ * The outer diameter the picker sorts, filters and fits a row by: a chute's
+ * canopy, a transition's aft end (the end that meets the tube below), and null
+ * for a streamer, which has none.
+ */
+export function outerDiameterOf(p: Component): number | null {
+  switch (p.type) {
+    case 'parachute':
+      return p.diameter;
+    case 'transition':
+      return p.aftOuterDiameter;
+    case 'streamer':
+      return null;
+    default:
+      return p.outerDiameter;
+  }
+}
+
+/** The length the picker shows and sorts by: a streamer's strip, nothing for a chute. */
+export function lengthOf(p: Component): number | null {
+  if (p.type === 'parachute') return null;
+  return p.type === 'streamer' ? p.stripLength : p.length;
 }
 
 export type ComponentType = keyof ComponentMap;
@@ -135,6 +190,8 @@ export function isComponentRow(v: unknown): v is Component {
     case 'bodytube':
     case 'tubecoupler':
     case 'centeringring':
+    case 'engineblock':
+    case 'launchlug':
       return (
         isFiniteNumber(r.materialDensity) &&
         isFiniteNumber(r.outerDiameter) &&
@@ -158,6 +215,22 @@ export function isComponentRow(v: unknown): v is Component {
       );
     case 'parachute':
       return isFiniteNumber(r.diameter) && isNullableFinite(r.cd);
+    case 'transition':
+      return (
+        isFiniteNumber(r.materialDensity) &&
+        isStr(r.shape) &&
+        typeof r.filled === 'boolean' &&
+        isNullableFinite(r.thickness) &&
+        isFiniteNumber(r.length) &&
+        isFiniteNumber(r.foreOuterDiameter) &&
+        isNullableFinite(r.foreShoulderDiameter) &&
+        isNullableFinite(r.foreShoulderLength) &&
+        isFiniteNumber(r.aftOuterDiameter) &&
+        isNullableFinite(r.aftShoulderDiameter) &&
+        isNullableFinite(r.aftShoulderLength)
+      );
+    case 'streamer':
+      return isFiniteNumber(r.materialDensity) && isFiniteNumber(r.stripLength) && isFiniteNumber(r.stripWidth);
     default:
       return false;
   }

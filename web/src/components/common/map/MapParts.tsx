@@ -16,14 +16,14 @@ export function TileLayerButtons<Id extends string>({
 }) {
   const { t } = useTranslation();
   return (
-    <div className={`${className} flex overflow-hidden rounded-md ring-1 ring-black/40`}>
+    <div className={`${className} flex overflow-hidden rounded-md ring-1 ring-shade/40`}>
       {layers.map((l) => (
         <button
           key={l.id}
           onClick={() => onPick(l.id)}
           aria-pressed={value === l.id}
           className={`px-2 py-1 text-[11px] font-medium ${
-            value === l.id ? 'bg-sky-600 text-white' : 'bg-slate-900/80 text-slate-300 hover:bg-slate-800'
+            value === l.id ? 'bg-accent-600 text-on-accent' : 'bg-surface/80 text-ink-soft hover:bg-raised'
           }`}
         >
           {t(l.labelKey)}
@@ -89,8 +89,8 @@ export function MapCredit({
 }) {
   return (
     <p
-      className={`pointer-events-none ${className} bg-slate-900/70 px-1 text-[9px] leading-tight ${
-        warn ? 'text-amber-400' : 'text-slate-400'
+      className={`pointer-events-none ${className} bg-surface/70 px-1 text-[9px] leading-tight ${
+        warn ? 'text-warn-400' : 'text-ink-muted'
       }`}
     >
       {children}

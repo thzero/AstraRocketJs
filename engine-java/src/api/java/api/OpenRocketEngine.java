@@ -52,6 +52,7 @@ import info.openrocket.core.simulation.SimulationConditions;
 import info.openrocket.core.simulation.exception.SimulationException;
 import info.openrocket.core.material.Material;
 import info.openrocket.core.util.Coordinate;
+import info.openrocket.core.utils.MotorCorrelation;
 import info.openrocket.core.util.CoordinateIF;
 import info.openrocket.core.util.GeodeticComputationStrategy;
 import info.openrocket.core.util.WorldCoordinate;
@@ -973,6 +974,64 @@ public final class OpenRocketEngine {
         conditions.setAOA(Math.toRadians(aoaDeg));
         rasAeroCalculator(ctx).getWorstCP(config, conditions, new WarningSet());
         return Math.toDegrees(conditions.getTheta());
+    }
+
+    /**
+     * The pressure of OpenRocket's standard atmosphere at an altitude, in Pa.
+     *
+     * For the launch panel's check on a typed pressure: weather sources quote
+     * pressure reduced to sea level, while the launch pressure is the pressure AT
+     * the site, so a sea-level figure typed at a high site reads far above this.
+     * Taken from the kernel's own model so the app holds no second atmosphere.
+     *
+     * @param altitude meters above sea level
+     */
+    @JSExport
+    public static double getStandardPressure(double altitude) {
+        finiteArg("getStandardPressure altitude", altitude);
+        return new ExtendedISAModel().getConditions(altitude).getPressure();
+    }
+
+    /**
+     * How alike two thrust curves are, 0 to 1: the kernel's
+     * `MotorCorrelation.similarity`, which desktop's motor chooser uses to
+     * hide a motor's near-duplicate curves ("Hide very similar thrust curves",
+     * at 0.95). It reads thrust only, so the motors are built with a nominal
+     * size and mass that do not enter the result.
+     */
+    @JSExport
+    public static double getMotorSimilarity(double[] times1, double[] thrusts1, double[] times2, double[] thrusts2) {
+        return MotorCorrelation.similarity(curveMotor("a", times1, thrusts1), curveMotor("b", times2, thrusts2));
+    }
+
+    /** A thrust-curve motor carrying only the curve, for comparing curves. */
+    private static ThrustCurveMotor curveMotor(String name, double[] times, double[] thrusts) {
+        if (times == null || thrusts == null || times.length < 2 || thrusts.length != times.length) {
+            throw new IllegalArgumentException("motor similarity " + name + ": times/thrusts must be the same length and at least 2");
+        }
+        Coordinate[] cg = new Coordinate[times.length];
+        for (int i = 0; i < times.length; i++) {
+            if (!isFinite(times[i]) || !isFinite(thrusts[i]) || thrusts[i] < 0) {
+                throw new IllegalArgumentException("motor similarity " + name + ": non-finite or negative sample at " + i);
+            }
+            if (i > 0 && times[i] < times[i - 1]) {
+                throw new IllegalArgumentException("motor similarity " + name + ": times must be non-decreasing at " + i);
+            }
+            cg[i] = new Coordinate(0.05, 0, 0, 0.1);
+        }
+        return new ThrustCurveMotor.Builder()
+                .setManufacturer(Manufacturer.getManufacturer("custom"))
+                .setDesignation(name)
+                .setCommonName(name)
+                .setMotorType(Motor.Type.SINGLE)
+                .setStandardDelays(new double[] { 0 })
+                .setDiameter(0.029)
+                .setLength(0.1)
+                .setTimePoints(times)
+                .setThrustPoints(thrusts)
+                .setCGPoints(cg)
+                .setDigest("similarity-" + name)
+                .build();
     }
 
     @JSExport

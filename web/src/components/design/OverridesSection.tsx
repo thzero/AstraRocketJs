@@ -30,6 +30,7 @@ function OverrideRow({
   subLabel,
   sub,
   onSub,
+  coveredBy,
 }: {
   label: string;
   unit?: ReactNode;
@@ -42,19 +43,24 @@ function OverrideRow({
   subLabel: string;
   sub: boolean;
   onSub: (on: boolean) => void;
+  /** The note naming the ancestor whose override decides this value; the row is locked while it does. */
+  coveredBy?: { note: string; tip: string };
 }) {
+  const locked = !!coveredBy;
   return (
     <div className="space-y-1">
       <label className="flex items-center justify-between gap-3">
-        <span className="flex items-center gap-2 text-xs text-slate-400">
+        <span className="flex items-center gap-2 text-xs text-ink-muted">
           <input
             type="checkbox"
             checked={enabled}
+            disabled={locked}
+            title={coveredBy?.tip}
             onChange={(e) => {
               onToggle(e.target.checked);
               onCommit?.();
             }}
-            className="accent-sky-500"
+            className="accent-accent-500"
           />
           {label}
         </span>
@@ -64,24 +70,30 @@ function OverrideRow({
             value={Number.isFinite(value) ? value : 0}
             onChange={(v) => onValue(v ?? 0)}
             onCommit={onCommit}
-            disabled={!enabled}
+            disabled={!enabled || locked}
             step={step}
             min={0}
-            className="w-24 rounded-md bg-slate-800 px-2 py-1 text-right text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500 disabled:opacity-40"
+            className="w-24 rounded-md bg-raised px-2 py-1 text-right text-sm text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500 disabled:opacity-40"
           />
-          {unit && <span className="min-w-10 text-xs text-slate-500">{unit}</span>}
+          {unit && <span className="min-w-10 text-xs text-ink-faint">{unit}</span>}
         </span>
       </label>
+      {coveredBy && (
+        <p title={coveredBy.tip} className="pl-6 text-[11px] leading-snug text-danger-400">
+          {coveredBy.note}
+        </p>
+      )}
       {enabled && (
-        <label className="flex items-center gap-2 pl-6 text-[11px] text-slate-500">
+        <label className="flex items-center gap-2 pl-6 text-[11px] text-ink-faint">
           <input
             type="checkbox"
             checked={sub}
+            disabled={locked}
             onChange={(e) => {
               onSub(e.target.checked);
               onCommit?.();
             }}
-            className="accent-sky-500"
+            className="accent-accent-500"
           />
           {subLabel}
         </label>
@@ -90,18 +102,34 @@ function OverrideRow({
   );
 }
 
+/** The note and its tooltip for each override an ancestor can decide (desktop's RocketCompCfg wording). */
+const COVER_KEYS = {
+  mass: ['override.massBy', 'override.massByTip'],
+  cg: ['override.cgBy', 'override.cgByTip'],
+  cd: ['override.cdBy', 'override.cdByTip'],
+} as const;
+
 /** Mass / CG / CD overrides (OpenRocket semantics). A stage-level override
  *  with "all subcomponents" on is the usual way to pin a measured mass/CG. */
 export function OverridesSection({
   node,
   onChange,
   onCommit,
+  coveredBy = {},
 }: {
   node: ComponentNode;
   onChange: (patch: Partial<ComponentNode>) => void;
   onCommit?: () => void;
+  /** The ancestor whose override decides each value, by name. */
+  coveredBy?: Partial<Record<'mass' | 'cg' | 'cd', string>>;
 }) {
   const { t } = useTranslation();
+  // Desktop's wording: a red note naming the ancestor, and its explanation on hover.
+  const cover = (kind: 'mass' | 'cg' | 'cd') => {
+    const name = coveredBy[kind];
+    const [note, tip] = COVER_KEYS[kind];
+    return name ? { note: t(note, { name }), tip: t(tip, { name }) } : undefined;
+  };
   const u = useUnits();
   // The rows below the type-specific fields carry their own units too.
   const massOverrideScope = unitScope('prop', node.type, PANEL_SCOPE_KEYS[0]);
@@ -128,6 +156,7 @@ export function OverridesSection({
         subLabel={t('override.applyAll')}
         sub={node.overrideSubcomponentsMass === true}
         onSub={(on) => onChange({ overrideSubcomponentsMass: on || undefined })}
+        coveredBy={cover('mass')}
       />
       <OverrideRow
         label={t(node.type === 'stage' ? 'override.cgStage' : 'override.cg')}
@@ -146,6 +175,7 @@ export function OverridesSection({
         subLabel={t('override.applyAll')}
         sub={node.overrideSubcomponentsCG === true}
         onSub={(on) => onChange({ overrideSubcomponentsCG: on || undefined })}
+        coveredBy={cover('cg')}
       />
       <OverrideRow
         label={t('override.cd')}
@@ -163,8 +193,9 @@ export function OverridesSection({
         subLabel={t('override.applyAll')}
         sub={node.overrideSubcomponentsCD === true}
         onSub={(on) => onChange({ overrideSubcomponentsCD: on || undefined })}
+        coveredBy={cover('cd')}
       />
-      <p className="text-[11px] leading-snug text-slate-500">{t('override.cpNote')}</p>
+      <p className="text-[11px] leading-snug text-ink-faint">{t('override.cpNote')}</p>
     </PropSection>
   );
 }

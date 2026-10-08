@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useLauncherT } from '../common/useLauncher';
 import { fmtNum, stageLabel } from '../../i18n/format';
 import type { FlightResult } from '../../engine/api';
 import { CSV_MIME, flightEventsCsv } from '../../services/exports/csvExport';
@@ -43,7 +43,7 @@ const NUM = 'py-1 pl-2 text-right tabular-nums';
  * would be one number and a dozen blanks.
  */
 function Extras({ row }: { row: EventRow }) {
-  const { t } = useTranslation();
+  const t = useLauncherT();
   const u = useUnits();
   // Max-Q shares its unit with the summary tile, so the chip on that tile moves
   // this number too: they are the same figure and would otherwise disagree.
@@ -65,7 +65,7 @@ function Extras({ row }: { row: EventRow }) {
     }
   });
   if (!parts.length) return null;
-  return <div className="pb-1 pl-2 text-[10px] leading-snug text-slate-500">{parts.join(' · ')}</div>;
+  return <div className="pb-1 pl-2 text-[10px] leading-snug text-ink-faint">{parts.join(' · ')}</div>;
 }
 
 export function FlightEventsTable({
@@ -77,7 +77,7 @@ export function FlightEventsTable({
   simName?: string;
   designName?: string;
 }) {
-  const { t } = useTranslation();
+  const t = useLauncherT();
   const u = useUnits();
   const alt = u.at(unitScope('events', 'altitude'), 'distance');
   const spd = u.at(unitScope('events', 'velocity'), 'velocity');
@@ -89,9 +89,9 @@ export function FlightEventsTable({
   if (!sim || !rows.length) return null;
 
   return (
-    <section aria-label={t('flight.events')} className="rounded-xl bg-slate-900 p-3 ring-1 ring-white/10">
+    <section aria-label={t('flight.events')} className="rounded-xl bg-surface p-3 ring-1 ring-line/10">
       <div className="mb-2 flex items-center justify-between gap-2">
-        <span className="text-[10px] uppercase tracking-wide text-slate-400">{t('flight.events')}</span>
+        <span className="text-[10px] uppercase tracking-wide text-ink-muted">{t('flight.events')}</span>
         {/* The file carries EVERY extra as its own column, where the table puts
             them on a sub-line - a spreadsheet wants a rectangle it can sort,
             and it has no 380px to respect. It writes the settings-level units
@@ -107,7 +107,7 @@ export function FlightEventsTable({
             )
           }
           title={t('flight.eventsCsv')}
-          className="shrink-0 rounded-md bg-slate-800 px-2 py-1 text-[11px] font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
+          className="shrink-0 rounded-md bg-raised px-2 py-1 text-[11px] font-medium text-ink ring-1 ring-line/10 hover:bg-elevated"
         >
           ⬇ CSV
         </button>
@@ -115,7 +115,7 @@ export function FlightEventsTable({
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
           <thead>
-            <tr className="border-b border-white/10 text-[10px] uppercase tracking-wide text-slate-400">
+            <tr className="border-b border-line/10 text-[10px] uppercase tracking-wide text-ink-muted">
               <th scope="col" className="py-1 text-left font-normal">
                 {t('flight.event')}
               </th>
@@ -149,9 +149,9 @@ export function FlightEventsTable({
               rather than floating between two of them — and so a row and its
               detail cannot be split by a zebra stripe or a border. */}
           {rows.map((r) => (
-            <tbody key={r.key} className="border-b border-white/5 last:border-0">
+            <tbody key={r.key} className="border-b border-line/5 last:border-0">
               <tr>
-                <th scope="row" className="py-1 text-left font-medium text-slate-200">
+                <th scope="row" className="py-1 text-left font-medium text-ink">
                   {t(EVENT_NAME[r.type]!)}{' '}
                   {/* The component that raised it: which parachute, which
                       motor. This is how a dual-deploy drogue is told from the
@@ -159,9 +159,9 @@ export function FlightEventsTable({
                       The {' '} is a real space rather than only the margin,
                       so a row selected and copied out of the table reads
                       "Recovery deployment Drogue" and not one run-on word. */}
-                  {r.source && <span className="ml-1 font-normal text-slate-500">{r.source}</span>}{' '}
+                  {r.source && <span className="ml-1 font-normal text-ink-faint">{r.source}</span>}{' '}
                   {staged && (
-                    <span className="ml-1 whitespace-nowrap rounded bg-slate-800 px-1 text-[10px] font-normal text-slate-400">
+                    <span className="ml-1 whitespace-nowrap rounded bg-raised px-1 text-[10px] font-normal text-ink-muted">
                       {stageName(r)}
                     </span>
                   )}

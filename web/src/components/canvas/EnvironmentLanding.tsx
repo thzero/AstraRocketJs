@@ -26,6 +26,7 @@ import { type FlightSeries } from '../../engine/openRocketEngine';
 import { useLatest } from '../common/useLatest';
 import { TermRow } from '../common/TermRow';
 import { flightBranches } from '../../services/flight/flightColumns';
+import { useOnline } from '../common/useOnline';
 
 /**
  * Where the flight came down, and, when its conditions came from a forecast,
@@ -41,10 +42,11 @@ type Run =
   | { kind: 'done'; hours: HourLanding[] };
 
 const btn =
-  'rounded-md bg-slate-800 px-3 py-1.5 text-xs font-medium text-sky-300 ring-1 ring-white/10 hover:bg-slate-700 disabled:opacity-50';
+  'rounded-md bg-raised px-3 py-1.5 text-xs font-medium text-accent-300 ring-1 ring-line/10 hover:bg-elevated disabled:opacity-50';
 
 export function EnvironmentLanding({ flight }: { flight: ResultFlight }) {
   const { t } = useTranslation();
+  const online = useOnline();
   const u = useUnits();
   // The flight's distance unit, as Ground Track reads this same landing.
   const dist = u.at(unitScope('sim', 'apogee'), 'distance');
@@ -116,8 +118,8 @@ export function EnvironmentLanding({ flight }: { flight: ResultFlight }) {
   const hourLabel = (ms: number) => fmtSiteTime(ms, source?.timezone, { timeOnly: true });
 
   return (
-    <section className="space-y-3 rounded-xl bg-slate-900 p-3 ring-1 ring-white/10">
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t('env.landing.title')}</h3>
+    <section className="space-y-3 rounded-xl bg-surface p-3 ring-1 ring-line/10">
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-muted">{t('env.landing.title')}</h3>
       <dl className="grid grid-cols-[repeat(auto-fill,minmax(9rem,1fr))] gap-x-4 gap-y-1 text-xs">
         {branches.map((b, i) => {
           const p = landingPoint(b.series);
@@ -137,14 +139,19 @@ export function EnvironmentLanding({ flight }: { flight: ResultFlight }) {
       {source?.endpoint === 'forecast' ? (
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-3">
-            <button className={btn} disabled={run.kind === 'running' || !sim} onClick={() => void fly()}>
+            <button
+              className={btn}
+              disabled={run.kind === 'running' || !sim || !online}
+              title={online ? undefined : t('common.needsConnection')}
+              onClick={() => void fly()}
+            >
               {run.kind === 'running'
                 ? t('env.landing.flying', { done: run.done, total: run.total })
                 : t('env.landing.flyHours')}
             </button>
-            <p className="text-xs text-slate-400">{t('env.landing.flyHoursNote')}</p>
+            <p className="text-xs text-ink-muted">{t('env.landing.flyHoursNote')}</p>
           </div>
-          <p role="status" aria-live="polite" className="text-xs text-amber-400">
+          <p role="status" aria-live="polite" className="text-xs text-warn-400">
             {run.kind === 'error' ? run.message : ''}
           </p>
           {run.kind === 'done' && (
@@ -160,17 +167,17 @@ export function EnvironmentLanding({ flight }: { flight: ResultFlight }) {
               />
               <table className="w-full text-xs">
                 <thead>
-                  <tr className="text-left text-slate-400">
+                  <tr className="text-left text-ink-muted">
                     <th className="font-normal">{t('env.landing.hour')}</th>
                     <th className="font-normal">{t('landing.distance')}</th>
                     <th className="font-normal">{t('landing.bearing')}</th>
                   </tr>
                 </thead>
-                <tbody className="tabular-nums text-slate-100">
+                <tbody className="tabular-nums text-ink-strong">
                   {run.hours.map((h) => {
                     const p = h.landings[0];
                     return (
-                      <tr key={h.offset} className={h.offset === 0 ? 'text-sky-300' : ''}>
+                      <tr key={h.offset} className={h.offset === 0 ? 'text-accent-300' : ''}>
                         <td>{hourLabel(h.validMs)}</td>
                         <td>{p ? fmtM(distanceFromPad(p)) : '—'}</td>
                         <td>{p ? bearing(p) : '—'}</td>
@@ -183,7 +190,7 @@ export function EnvironmentLanding({ flight }: { flight: ResultFlight }) {
           )}
         </div>
       ) : (
-        <p className="text-xs text-slate-400">{t('env.landing.noForecast')}</p>
+        <p className="text-xs text-ink-muted">{t('env.landing.noForecast')}</p>
       )}
     </section>
   );

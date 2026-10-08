@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { defaultToolSite, rememberedSlot, useRemembered } from './remembered';
 import { useTranslation } from 'react-i18next';
 import { useUnits } from '../../prefs/useUnits';
+import { unitScope } from '../../prefs/units';
 import { useSettings } from '../../state/SettingsProvider';
 import type { MotorSpec } from '../../engine/openRocketEngine';
 import { fmtNum, fmtSiteTime } from '../../i18n/format';
@@ -12,6 +13,7 @@ import {
   maxWindMs,
   MIN_THRUST_TO_WEIGHT,
   railExit,
+  railNeededM,
   weathercockDeg,
   WEATHERCOCK_LIMIT_DEG,
 } from '../../services/tools/railExit';
@@ -26,6 +28,7 @@ import { weatherErrorText } from '../../services/weather/weatherErrorText';
 import { roundTo } from '../../services/app/numbers';
 import { useLatest } from '../common/useLatest';
 import { motorName } from '../../services/motors/motorName';
+import { useOnline } from '../common/useOnline';
 
 /**
  * Off the rail, for a rocket that has not been designed here: a motor from the
@@ -57,6 +60,7 @@ export function forgetOffTheRail(): void {
 
 export function OffTheRail() {
   const { t } = useTranslation();
+  const online = useOnline();
   const u = useUnits();
   const { settings } = useSettings();
   const minExit = settings.simulation.railExitVelocityMin;
@@ -109,6 +113,9 @@ export function OffTheRail() {
   const exit = ready ? railExit({ motor, dryMassKg, railLengthM }) : null;
   const ok = exit != null && typeof exit !== 'string' ? exit : null;
   const heaviest = ready && ok ? maxDryMassKg(motor, railLengthM, minExit) : null;
+  // The rail that reaches the minimum exit speed, in the rail length field's own unit.
+  const needed = ready && ok ? railNeededM(motor, dryMassKg, minExit) : null;
+  const railUnit = u.at(unitScope('launch', 'railLength'), 'length');
   const angle = ok && windMs != null ? weathercockDeg(windMs, ok.exitSpeedMs) : null;
   const gustAngle =
     ok && fetched.kind === 'ready' && fetched.wind.gustMs != null
@@ -122,7 +129,7 @@ export function OffTheRail() {
   const fmtWind = (ms: number) => `${wind.fmtSym(ms, 1)}`;
   const fmtMass = (kg: number) => `${mass.fmtSym(kg)}`;
   const ratio = (r: number) => `${fmtNum(r, 1)} : 1`;
-  const warn = 'text-amber-400';
+  const warn = 'text-warn-400';
 
   const validTime =
     fetched.kind === 'ready'
@@ -133,20 +140,20 @@ export function OffTheRail() {
     <div className="grid gap-4 lg:grid-cols-[22rem_minmax(0,28rem)]">
       <div className="space-y-4">
         <div>
-          <h2 className="text-sm font-semibold text-slate-200">{t('rail.title')}</h2>
-          <p className="mt-1 text-xs text-slate-400">{t('rail.intro')}</p>
+          <h2 className="text-sm font-semibold text-ink">{t('rail.title')}</h2>
+          <p className="mt-1 text-xs text-ink-muted">{t('rail.intro')}</p>
         </div>
 
         <CardGroup title={t('rail.motor')}>
           <div className="flex items-center justify-between gap-3">
-            <span className="min-w-0 truncate text-sm text-slate-200">
+            <span className="min-w-0 truncate text-sm text-ink">
               {motor ? `${motor.manufacturer ? `${motor.manufacturer} ` : ''}${motorName(motor)}` : t('rail.noMotor')}
             </span>
             <button className={toolBtn} onClick={() => setMotorOpen(true)}>
               {motor ? t('sims.changeMotor') : t('rail.chooseMotor')}
             </button>
           </div>
-          {motorError && <p className="text-xs text-rose-400">{motorError}</p>}
+          {motorError && <p className="text-xs text-error-400">{motorError}</p>}
         </CardGroup>
 
         <CardGroup title={t('rail.rocket')}>
@@ -165,7 +172,7 @@ export function OffTheRail() {
             onChange={setDryMassKg}
           />
           <QNum
-            label={t('launch.rodLengthName')}
+            label={t('launch.rodLengthName', { context: 'rail' })}
             field="railLength"
             kind="length"
             u={u}
@@ -191,22 +198,25 @@ export function OffTheRail() {
             value={windMs}
             onChange={setWindMs}
           />
-          <details className="rounded-md bg-slate-950/40 p-2" open={fetched.kind !== 'idle' || undefined}>
-            <summary className="cursor-pointer text-xs font-medium text-sky-300">{t('rail.fromForecast')}</summary>
+          <details className="rounded-md bg-canvas/40 p-2" open={fetched.kind !== 'idle' || undefined}>
+            <summary className="cursor-pointer text-xs font-medium text-accent-300">{t('rail.fromForecast')}</summary>
             <div className="mt-2 space-y-2">
               <SiteFields site={site} onChange={setSite} />
               <WhenFields date={date} hour={hour} onDate={setDate} onHour={setHour} />
               <button
                 className={`${toolBtn} w-full`}
-                disabled={site.latitudeDeg == null || site.longitudeDeg == null || fetched.kind === 'loading'}
+                disabled={
+                  site.latitudeDeg == null || site.longitudeDeg == null || fetched.kind === 'loading' || !online
+                }
+                title={online ? undefined : t('common.needsConnection')}
                 onClick={() => void getWind()}
               >
                 {fetched.kind === 'loading' ? t('rail.fetching') : t('rail.fetchWind')}
               </button>
-              {fetched.kind === 'error' && <p className="text-xs text-rose-400">{fetched.message}</p>}
+              {fetched.kind === 'error' && <p className="text-xs text-error-400">{fetched.message}</p>}
               {fetched.kind === 'ready' && (
                 <>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-ink-muted">
                     {t(fetched.wind.gustMs != null ? 'rail.forecastWindGust' : 'rail.forecastWind', {
                       wind: fmtWind(fetched.wind.speedMs),
                       gust: fetched.wind.gustMs != null ? fmtWind(fetched.wind.gustMs) : '',
@@ -221,9 +231,9 @@ export function OffTheRail() {
         </CardGroup>
       </div>
 
-      <section className="h-fit rounded-xl bg-slate-900 p-3 ring-1 ring-white/10" aria-label={t('rail.result')}>
+      <section className="h-fit rounded-xl bg-surface p-3 ring-1 ring-line/10" aria-label={t('rail.result')}>
         {!ready ? (
-          <p className="text-xs text-slate-400">{t('rail.empty')}</p>
+          <p className="text-xs text-ink-muted">{t('rail.empty')}</p>
         ) : exit === 'noLiftoff' ? (
           <p className={`text-sm ${warn}`}>{t('rail.noLiftoff')}</p>
         ) : exit === 'stalls' ? (
@@ -243,6 +253,13 @@ export function OffTheRail() {
                 <span className={ok.exitSpeedMs < minExit ? warn : undefined}>{fmtSpeed(ok.exitSpeedMs)}</span>
               </Stat>
               <Stat label={t('rail.exitTime')}>{`${fmtNum(ok.exitS, 2)} s`}</Stat>
+              <Stat label={t('rail.railNeeded', { speed: fmtSpeed(minExit) })}>
+                {needed != null ? (
+                  <span className={needed > railLengthM ? warn : undefined}>{railUnit.fmtSym(needed, 2)}</span>
+                ) : (
+                  t('rail.none')
+                )}
+              </Stat>
               {angle != null && (
                 <Stat label={t('rail.weathercock')}>
                   <span className={angle > WEATHERCOCK_LIMIT_DEG ? warn : undefined}>{`${fmtNum(angle, 1)}°`}</span>
@@ -260,14 +277,14 @@ export function OffTheRail() {
               </Stat>
               <Stat label={t('rail.maxDryMass')}>{heaviest != null ? fmtMass(heaviest) : t('rail.none')}</Stat>
             </dl>
-            <p className="text-[11px] text-slate-500">
+            <p className="text-[11px] text-ink-faint">
               {t('rail.rules', {
                 ratio: MIN_THRUST_TO_WEIGHT,
                 speed: fmtSpeed(minExit),
                 angle: WEATHERCOCK_LIMIT_DEG,
               })}
             </p>
-            <p className="text-[11px] text-slate-500">{t('rail.estimateNote')}</p>
+            <p className="text-[11px] text-ink-faint">{t('rail.estimateNote')}</p>
           </div>
         ) : null}
       </section>
@@ -292,8 +309,8 @@ export function OffTheRail() {
 function Stat({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <>
-      <dt className="text-slate-400">{label}</dt>
-      <dd className="text-right tabular-nums text-slate-200">{children}</dd>
+      <dt className="text-ink-muted">{label}</dt>
+      <dd className="text-right tabular-nums text-ink">{children}</dd>
     </>
   );
 }

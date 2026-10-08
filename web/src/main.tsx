@@ -5,6 +5,8 @@ import { SettingsProvider } from './state/SettingsProvider';
 import { useEngineStore } from './state/engineStore';
 import './index.css';
 import './i18n';
+import { applyTheme } from './services/app/theme';
+import { loadSettings } from './services/storage/settings';
 
 // The engine loads BEHIND the app, not in front of it.
 //
@@ -21,6 +23,10 @@ import './i18n';
 // it on their own (state/engineStore.ts, and the rebuild effect in
 // useWorkspaceEffects).
 useEngineStore.getState().start();
+
+// The saved theme, before anything paints: applied from the provider's effect
+// instead, the first frame would flash the dark theme for a light user.
+applyTheme(loadSettings().theme);
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

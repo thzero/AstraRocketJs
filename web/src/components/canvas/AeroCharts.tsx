@@ -11,6 +11,7 @@ import {
   type ChartSeries as Series,
 } from './aeroTables';
 import { useElementResize } from '../common/useElementResize';
+import { token } from '../common/colorTokens';
 
 /**
  * The AeroAnalysis chart cards: one `ChartCard` per curve set (title, legend
@@ -130,20 +131,20 @@ export function ChartCard({
   };
 
   return (
-    <div className="rounded-lg bg-slate-800/40 ring-1 ring-white/10">
+    <div className="rounded-lg bg-raised/40 ring-1 ring-line/10">
       <div className="flex items-center gap-2 px-2 pt-1.5">
-        <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{title}</span>
+        <span className="text-[10px] font-semibold uppercase tracking-wide text-ink-muted">{title}</span>
         {right && <span className="ml-auto">{right}</span>}
       </div>
       <div className="flex flex-wrap gap-x-3 gap-y-0.5 px-2 pb-1 pt-1">
         {series.map((se, li) => {
           const val = hoverM != null ? lerpAt(machs, se.values, hoverM) : null;
           return (
-            <span key={li} className="inline-flex items-center gap-1 text-[10px] text-slate-300">
+            <span key={li} className="inline-flex items-center gap-1 text-[10px] text-ink-soft">
               <span className="inline-block h-2 w-2 rounded-sm" style={{ background: se.color }} />
               {se.name}
               {val != null && (
-                <span className="tabular-nums text-slate-400">
+                <span className="tabular-nums text-ink-muted">
                   · {fmtNum(val, digits)}
                   {unit && ` ${unit}`}
                 </span>
@@ -163,7 +164,7 @@ export function ChartCard({
         tabIndex={0}
         role="group"
         aria-label={t('aero.crosshairHint')}
-        className="focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-inset focus-visible:outline-none"
+        className="focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-inset focus-visible:outline-none"
         onPointerMove={onMove}
         onPointerLeave={() => setHoverM(null)}
         onFocus={() => setHoverM((m) => m ?? machs[Math.floor(machs.length / 2)] ?? null)}
@@ -179,13 +180,13 @@ export function ChartCard({
               x2={geom.X(hoverM)}
               y2={CHART_H - PAD_B}
               data-crosshair
-              className="stroke-slate-300/40"
+              className="stroke-ink-soft/40"
               vectorEffect="non-scaling-stroke"
             />
           )}
         </svg>
       </div>
-      {note && <p className="px-2 pb-1.5 text-[9px] text-slate-500">{note}</p>}
+      {note && <p className="px-2 pb-1.5 text-[9px] text-ink-faint">{note}</p>}
     </div>
   );
 }
@@ -234,8 +235,8 @@ const ChartBody = memo(function ChartBody({
         const gy = Y(yv);
         return (
           <g key={i}>
-            <line x1={PAD_L} y1={gy} x2={w - PAD_R} y2={gy} className="stroke-white/10" />
-            <text x={PAD_L - 4} y={gy + 3} textAnchor="end" className="fill-slate-500 text-[9px] tabular-nums">
+            <line x1={PAD_L} y1={gy} x2={w - PAD_R} y2={gy} className="stroke-line/10" />
+            <text x={PAD_L - 4} y={gy + 3} textAnchor="end" className="fill-ink-faint text-[9px] tabular-nums">
               {fmtNum(yv, digits)}
             </text>
           </g>
@@ -248,7 +249,7 @@ const ChartBody = memo(function ChartBody({
               d={b.d}
               fill={b.fill}
               fillOpacity={0.85}
-              stroke="#0f172a"
+              stroke={token('surface')}
               strokeWidth={1}
               vectorEffect="non-scaling-stroke"
             />
@@ -264,7 +265,7 @@ const ChartBody = memo(function ChartBody({
             />
           ))}
       {xTicks.map((m, i) => (
-        <text key={i} x={X(m)} y={CHART_H - 5} textAnchor="middle" className="fill-slate-500 text-[9px] tabular-nums">
+        <text key={i} x={X(m)} y={CHART_H - 5} textAnchor="middle" className="fill-ink-faint text-[9px] tabular-nums">
           {i === 0 ? `M ${fmtNum(m, machDecimals)}` : fmtNum(m, machDecimals)}
         </text>
       ))}

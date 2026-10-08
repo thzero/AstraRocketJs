@@ -275,7 +275,7 @@ export function SiteMap({
         // `active:` rather than a class chosen from the drag ref: whether a
         // pointer is down is the browser's business, and reading a ref while
         // rendering is how a component ends up not re-rendering when it moves.
-        className={`group relative min-h-0 flex-1 overflow-hidden rounded-lg bg-slate-800 ring-1 ring-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 ${
+        className={`group relative min-h-0 flex-1 overflow-hidden rounded-lg bg-raised ring-1 ring-line/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 ${
           imagery === 'unavailable'
             ? 'cursor-default'
             : `${onPick ? 'cursor-crosshair' : 'cursor-grab'} active:cursor-grabbing`
@@ -323,17 +323,17 @@ export function SiteMap({
               // a pointer user clicks the spot itself.
               <div
                 aria-hidden
-                className="pointer-events-none absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 text-xl text-sky-300 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] group-focus-visible:block"
+                className="pointer-events-none absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 text-xl text-accent-300 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] group-focus-visible:block"
               >
                 +
               </div>
             )}
-            <div className="absolute right-1 top-1 flex flex-col overflow-hidden rounded-md ring-1 ring-black/40">
+            <div className="absolute right-1 top-1 flex flex-col overflow-hidden rounded-md ring-1 ring-shade/40">
               <button
                 onClick={() => setZoom(view.zoom + 1)}
                 disabled={view.zoom >= tiles.maxZoom}
                 aria-label={t('map.zoomIn')}
-                className="bg-slate-900/80 px-2 py-0.5 text-sm text-slate-200 hover:bg-slate-800 disabled:opacity-40"
+                className="bg-surface/80 px-2 py-0.5 text-sm text-ink hover:bg-raised disabled:opacity-40"
               >
                 +
               </button>
@@ -341,7 +341,7 @@ export function SiteMap({
                 onClick={() => setZoom(view.zoom - 1)}
                 disabled={view.zoom <= MIN_ZOOM}
                 aria-label={t('map.zoomOut')}
-                className="bg-slate-900/80 px-2 py-0.5 text-sm text-slate-200 hover:bg-slate-800 disabled:opacity-40"
+                className="bg-surface/80 px-2 py-0.5 text-sm text-ink hover:bg-raised disabled:opacity-40"
               >
                 −
               </button>
@@ -349,7 +349,7 @@ export function SiteMap({
             {!pinVisible && latitudeDeg !== null && longitudeDeg !== null && (
               <button
                 onClick={() => setView((v) => ({ ...v, lat: latitudeDeg, lon: longitudeDeg }))}
-                className="absolute bottom-1 left-1 rounded-md bg-slate-900/80 px-2 py-1 text-[11px] text-slate-200 ring-1 ring-black/40 hover:bg-slate-800"
+                className="absolute bottom-1 left-1 rounded-md bg-surface/80 px-2 py-1 text-[11px] text-ink ring-1 ring-shade/40 hover:bg-raised"
               >
                 ◎ {t('map.recenter')}
               </button>
@@ -359,18 +359,18 @@ export function SiteMap({
         )}
       </div>
 
-      <p className="flex items-baseline justify-between gap-2 text-[11px] leading-tight text-slate-400">
+      <p className="flex items-baseline justify-between gap-2 text-[11px] leading-tight text-ink-muted">
         <span className="tabular-nums">
           {latitudeDeg === null || longitudeDeg === null ? t('map.noCoords') : formatCoord(latitudeDeg, longitudeDeg)}
         </span>
         {imagery === 'unavailable' ? (
-          <span className="shrink-0 text-amber-400">{t('map.offline')}</span>
+          <span className="shrink-0 text-warn-400">{t('map.offline')}</span>
         ) : (
           <span className="shrink-0 tabular-nums">{scaleLabel(u, view.lat, view.zoom)}</span>
         )}
       </p>
       {onPick && imagery !== 'unavailable' && (
-        <p className="text-[11px] leading-tight text-slate-500">{t('map.pick')}</p>
+        <p className="text-[11px] leading-tight text-ink-faint">{t('map.pick')}</p>
       )}
     </div>
   );
@@ -429,7 +429,7 @@ function Graticule({
 
   return (
     <svg width={width} height={height} className="absolute inset-0" aria-hidden>
-      <rect width={width} height={height} className="fill-slate-800" />
+      <rect width={width} height={height} className="fill-raised" />
       {meridians.map((lon) => (
         <line
           key={lon}
@@ -437,7 +437,7 @@ function Graticule({
           x2={((lon + 180) / 360) * width}
           y1={0}
           y2={height}
-          className={lon === 0 ? 'stroke-slate-500' : 'stroke-slate-700'}
+          className={lon === 0 ? 'stroke-ink-faint' : 'stroke-elevated'}
           strokeWidth={1}
         />
       ))}
@@ -448,14 +448,14 @@ function Graticule({
           y2={((90 - lat) / 180) * height}
           x1={0}
           x2={width}
-          className={lat === 0 ? 'stroke-slate-500' : 'stroke-slate-700'}
+          className={lat === 0 ? 'stroke-ink-faint' : 'stroke-elevated'}
           strokeWidth={1}
         />
       ))}
       {x !== null && y !== null && (
         <>
-          <circle cx={x} cy={y} r={5} className="fill-sky-400" />
-          <circle cx={x} cy={y} r={11} className="fill-none stroke-sky-400/60" strokeWidth={1.5} />
+          <circle cx={x} cy={y} r={5} className="fill-accent-400" />
+          <circle cx={x} cy={y} r={11} className="fill-none stroke-accent-400/60" strokeWidth={1.5} />
         </>
       )}
     </svg>

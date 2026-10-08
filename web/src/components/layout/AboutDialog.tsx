@@ -1,9 +1,11 @@
 import { useTranslation, Trans } from 'react-i18next';
 import { appName, APP_VERSION, CONTRIBUTORS_URL, isPreRelease, UPSTREAM } from '../../services/app/appInfo';
+import { useUpdateStore } from '../../state/updateStore';
 import { fetchCatalog } from '../../services/app/remoteData';
 import { Dialog } from '../common/Dialog';
 import { DialogButton } from '../common/DialogButton';
 import { useAsyncLoad } from '../common/useAsyncLoad';
+import { useOnline } from '../common/useOnline';
 
 interface Contributor {
   login: string;
@@ -58,16 +60,15 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
           content rather than chrome, so they open the body instead. */}
       <div className="mb-4 flex items-center gap-3">
         <span className="text-3xl">🚀</span>
-        <p className="text-xs text-slate-400">
+        <p className="text-xs text-ink-muted">
           {t('about.tagline')} · v{APP_VERSION}
         </p>
       </div>
+      <UpdateCheck />
 
-      <div className="mt-4 space-y-3 text-sm leading-relaxed text-slate-300">
+      <div className="mt-4 space-y-3 text-sm leading-relaxed text-ink-soft">
         {isPreRelease() && (
-          <p className="rounded-lg bg-amber-500/10 px-3 py-2 text-amber-300 ring-1 ring-amber-400/30">
-            {t('about.wip')}
-          </p>
+          <p className="rounded-lg bg-warn-500/10 px-3 py-2 text-warn-300 ring-1 ring-warn-400/30">{t('about.wip')}</p>
         )}
         <p>{t('about.body', { name: appName() })}</p>
         <p>{t('about.ork')}</p>
@@ -80,7 +81,7 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
                   href="https://openrocket.info"
                   target="_blank"
                   rel="noreferrer"
-                  className="text-sky-400 hover:underline"
+                  className="text-accent-400 hover:underline"
                 />
               ),
             }}
@@ -89,7 +90,7 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
       </div>
 
       {CONTRIBUTORS.length > 0 && (
-        <div className="mt-4 border-t border-white/10 pt-3 text-xs leading-relaxed text-slate-500">
+        <div className="mt-4 border-t border-line/10 pt-3 text-xs leading-relaxed text-ink-faint">
           <p>
             {/* The heading links to the full contributor graph when one is
                   configured — the list here is a build-time snapshot. */}
@@ -99,7 +100,7 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
                 target="_blank"
                 rel="noreferrer"
                 title={t('about.contributorsAll')}
-                className="text-sky-400 hover:underline"
+                className="text-accent-400 hover:underline"
               >
                 {t('about.contributors')}
               </a>
@@ -114,14 +115,14 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
                   href={c.url}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex items-center gap-1.5 text-sky-400 hover:underline"
+                  className="flex items-center gap-1.5 text-accent-400 hover:underline"
                 >
                   {c.avatar ? (
-                    <img src={c.avatar} alt="" aria-hidden className="size-5 rounded-full ring-1 ring-white/10" />
+                    <img src={c.avatar} alt="" aria-hidden className="size-5 rounded-full ring-1 ring-line/10" />
                   ) : (
                     <span
                       aria-hidden
-                      className="grid size-5 place-items-center rounded-full bg-slate-800 text-[10px] font-medium text-slate-300 ring-1 ring-white/10"
+                      className="grid size-5 place-items-center rounded-full bg-raised text-[10px] font-medium text-ink-soft ring-1 ring-line/10"
                     >
                       {c.login.charAt(0).toUpperCase()}
                     </span>
@@ -134,7 +135,7 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
         </div>
       )}
 
-      <div className="mt-4 border-t border-white/10 pt-3 text-xs leading-relaxed text-slate-500">
+      <div className="mt-4 border-t border-line/10 pt-3 text-xs leading-relaxed text-ink-faint">
         <p>{t('about.credits')}</p>
         {/* WHICH OpenRocket. "The same physics core" is not checkable on its
               own: comparing a number against the desktop app, or asking whether
@@ -150,7 +151,7 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
                   href={UPSTREAM.commitUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-sky-400 hover:underline"
+                  className="text-accent-400 hover:underline"
                 />
               ),
             }}
@@ -159,8 +160,8 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
         <p className="mt-2 flex flex-wrap gap-x-2 gap-y-1">
           {LINKS.map(([name, href], i) => (
             <span key={name}>
-              {i > 0 && <span className="text-slate-600">· </span>}
-              <a href={href} target="_blank" rel="noreferrer" className="text-sky-400 hover:underline">
+              {i > 0 && <span className="text-ink-dim">· </span>}
+              <a href={href} target="_blank" rel="noreferrer" className="text-accent-400 hover:underline">
                 {name}
               </a>
             </span>
@@ -174,5 +175,40 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
         </DialogButton>
       </div>
     </Dialog>
+  );
+}
+
+/**
+ * Check for a new version now and say what came of it, including that this is
+ * the latest, which the banner's own timer never says. Disabled where there is
+ * no service worker to ask (the dev server), with the reason in its title.
+ */
+function UpdateCheck() {
+  const { t } = useTranslation();
+  const checker = useUpdateStore((s) => s.checker);
+  const result = useUpdateStore((s) => s.result);
+  const checkNow = useUpdateStore((s) => s.checkNow);
+  const online = useOnline();
+  const message: Partial<Record<typeof result, string>> = {
+    checking: t('update.checking'),
+    upToDate: t('update.upToDate'),
+    available: t('update.foundNew'),
+    failed: t('update.checkFailed'),
+  };
+  return (
+    <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+      <button
+        onClick={() => void checkNow()}
+        disabled={!checker || result === 'checking' || !online}
+        title={!checker ? t('update.checkUnavailable') : online ? undefined : t('common.needsConnection')}
+        className="rounded-md bg-raised px-2.5 py-1 font-medium text-ink ring-1 ring-line/10 hover:bg-elevated disabled:opacity-40"
+      >
+        {t('update.check')}
+      </button>
+      {/* Mounted always, so the answer is announced when it lands. */}
+      <span role="status" aria-live="polite" className={result === 'failed' ? 'text-warn-300' : 'text-ink-muted'}>
+        {message[result] ?? ''}
+      </span>
+    </div>
   );
 }

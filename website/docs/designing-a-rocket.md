@@ -10,6 +10,17 @@ A rocket is a tree of components, nose-to-tail, grouped into stages. Select any 
 
 Branches with children **fold** at their **▾ / ▸** chevrons (or fold/unfold everything from the header), and you can **collapse the whole component list** — its header keeps the selected part in view — to give the property editor more room on a tall design. Deleting a part (the **Delete** button in its properties) asks you to confirm first.
 
+### Cut, copy, paste and duplicate
+
+The ✂ ⧉ ⎘ ❐ buttons at the right of the tree's header cut, copy, paste and duplicate the selected part, with everything inside it. With a row focused, **Ctrl+X**, **Ctrl+C**, **Ctrl+V** and **Ctrl+D** do the same (**⌘** on a Mac). They work as desktop OpenRocket's Edit menu does:
+
+- **Paste** puts the copy inside the selected part when it can hold it, as its last child, and otherwise right after the selected part. When neither works, Paste is off and its tooltip says why: fins, for example, cannot go in a nose cone or beside one. A stage pastes after the selected stage.
+- **Duplicate** puts the copy at the end of the part's parent.
+- **Cut** removes the part and keeps it to paste. It does not ask first, since Undo brings it back, except for your only motor mount. The last stage cannot be cut.
+- The copy keeps the original's name. A stage has at most one drogue, so a pasted parachute or streamer that would make a second one comes in as a plain recovery device.
+
+What was cut or copied stays available while you switch designs, so a part can move from one design to another. Each paste or duplicate is one undo step.
+
 The tree is fully keyboard-navigable: **Tab** into it, then **↑ / ↓** (and **Home / End**) move between parts, **← / →** collapse or expand a branch, and **Enter / Space** selects — so a long tree is a single tab stop, not one per part.
 
 Supported components include:
@@ -128,9 +139,16 @@ Undo/redo covers the **whole workspace** on one timeline: adding, removing, movi
 
 ## Scaling the whole rocket
 
-The **⤢ Scale** button (next to the rocket's name in the Components panel) resizes the entire design by one factor — the "build this plan at half size" or "upscale to a bigger tube" workflow. Enter a **factor** (with 0.5× / 2× shortcuts), or type a **target body diameter** and the factor follows (the two are linked, so you can scale straight to the tube you're building in). A live summary shows the before → after length and diameter.
+The **⤢ Scale** button (next to the rocket's name in the Components panel) resizes the design by one factor — the "build this plan at half size" or "upscale to a bigger tube" workflow. It is desktop OpenRocket's Scale dialog:
 
-It multiplies every length, diameter, wall thickness, fin planform (freeform points included), shoulder, tab, fillet, chute and streamer size, cord length, and axial position. It deliberately does **not** scale angles, fin/instance counts, material densities, drag coefficients, finish, motor choice, or launch settings; fixed-size hardware (camera shrouds, rail buttons, a launch lug's bore) keeps its size and just moves to its new station.
+- **Scale**: the **Entire rocket**, the **Selection and all subcomponents**, or **Only selected component**. With a part other than a stage selected, it starts on that part and what is inside it.
+- **Scale by** a factor (with 0.5× / 2× shortcuts), or **Scale from** one length **to** another and the factor follows. "From" starts at the selected part's diameter (or its length, for a part with no diameter), or the widest body with nothing selected, so you can scale straight to the tube you're building in.
+- **Update explicit mass values**: mass components and mass overrides scale too. Off when the design has neither.
+- **Scale component offsets**: positions scale too (axial and radial offsets, spacing between instances, override CGs). Off, parts keep their stations and only change size. It starts off for **Only selected component**, where the usual intent is a bigger part in the same place, and on otherwise.
+
+For the entire rocket, a live summary shows the before → after length and diameter.
+
+It multiplies every length, diameter, wall thickness, fin planform (freeform points included), shoulder, tab, fillet, chute and streamer size, and cord length, and with offsets on, every position. It deliberately does **not** scale angles, fin/instance counts, material densities, drag coefficients, finish, motor choice, or launch settings; fixed-size hardware (camera shrouds, rail buttons) keeps its size and just moves to its new station. A launch lug scales like any other tube, bore included, as on the desktop.
 
 Solid parts keep their material, so their mass grows as the **cube** of the factor. Recovery fabric doesn't — a canopy scales with its area — so a scaled design is no longer exactly similar and its stability shifts slightly; re-check the parachute size and that the motor still fits its mount. The whole scale lands as a **single undo step** (`Ctrl/⌘+Z`).
 
@@ -138,10 +156,11 @@ Solid parts keep their material, so their mass grows as the **cube** of the fact
 
 Instead of dialing in dimensions by hand, use the contextual **"Select a part…"** pickers to drop in **real manufacturer parts** (Estes / Apogee / LOC / …):
 
-- A **nose cone** or **body tube** picker prefills geometry and material.
-- A **parachute** picker (Recovery) prefills diameter and drag coefficient.
+- **Nose cones, body tubes, inner tubes, transitions, tube couplers, centering rings, bulkheads, engine blocks and launch lugs** prefill their geometry and material. A transition brings both ends and both shoulders.
+- A **parachute** prefills its diameter and drag coefficient.
+- A **streamer** prefills its strip length, width and material, and leaves the drag coefficient automatic, as desktop does.
 
-Applying a preset just fills in the component's fields — you can tweak it afterward. The catalog is bundled reference data (~2,900 parts); nothing is fetched at runtime.
+These are the kinds desktop OpenRocket's parts library offers, from the same community parts database. Desktop's library also lists rail buttons, which that database does not carry. Applying a preset just fills in the component's fields — you can tweak it afterward. The catalog is bundled reference data (~3,400 parts); nothing is fetched at runtime.
 
 ### Saving your own parts
 
@@ -174,6 +193,8 @@ The two suggested **diameters** stay estimates whatever happens, and are marked 
 Every structural component has a **material**, which the engine uses (by its **density**) to compute mass and CG. A part you add carries one from the moment it exists: whatever you set in [Settings ▸ Materials](./settings.md#materials), or else the stock material the engine would weigh it with anyway: **Cardboard** for a solid part, **Ripstop nylon** for a canopy, **Elastic cord** for shroud lines and shock cord. Those are OpenRocket's own defaults, the same ones it builds every new component with.
 
 A part can still read **Not specified** if it came from a design saved before this app named them. It is not a weightless part: the engine falls back to the same three materials. Pick one from the list and the panel stops guessing.
+
+A part picked from the catalog carries its maker's material, such as "Balsa, bulk, BMS typical", at the maker's density. Most of those names are not in the list below, so the picker shows the part's own material under **From this part**, with its density, and that is what the part is weighed with.
 
 - **Built-in materials** — OpenRocket's full list (bulk / surface / line, with densities). Each kind has its own [density unit](./settings.md#units) — bulk stock by volume, parachute fabric by area, cord by length — and a custom material's density is read in whichever unit is shown.
 - **Custom materials** — define your own (name, density and which group it belongs in); they're saved in your browser and reusable across designs. A custom material sits **in that group**, marked with a ★, rather than in a group of its own: it is usually a variant of something already in the list, and it reads better beside it. Give one the **same name as a built-in** and it replaces that entry at your density instead of appearing twice.

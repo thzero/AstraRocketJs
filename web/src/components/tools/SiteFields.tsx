@@ -9,7 +9,7 @@ import { QNum } from '../sim/LaunchPanel';
 import { LatLonRows } from '../sim/LatLonRows';
 
 export const toolBtn =
-  'rounded-md bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-300 ring-1 ring-white/10 hover:bg-slate-700 disabled:opacity-50';
+  'rounded-md bg-raised px-3 py-1.5 text-xs font-medium text-ink-soft ring-1 ring-line/10 hover:bg-elevated disabled:opacity-50';
 
 export interface ToolSite {
   latitudeDeg: number | null;

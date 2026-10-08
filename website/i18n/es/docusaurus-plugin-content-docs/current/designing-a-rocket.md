@@ -10,6 +10,17 @@ Un cohete es un árbol de componentes, de la ojiva a la cola, agrupados en etapa
 
 Las ramas con hijos se **pliegan** con sus galones **▾ / ▸** (o pliega y despliega todo desde la cabecera), y puedes **plegar la lista de componentes entera** —su cabecera mantiene a la vista la pieza seleccionada— para dar más espacio al editor de propiedades en un diseño alto. Al eliminar una pieza (el botón **Eliminar** de sus propiedades) se te pide confirmación.
 
+### Cortar, copiar, pegar y duplicar {#cut-copy-paste-and-duplicate}
+
+Los botones ✂ ⧉ ⎘ ❐ a la derecha de la cabecera del árbol cortan, copian, pegan y duplican la pieza seleccionada, con todo lo que contiene. Con una fila enfocada, **Ctrl+X**, **Ctrl+C**, **Ctrl+V** y **Ctrl+D** hacen lo mismo (**⌘** en un Mac). Funcionan como el menú Editar de OpenRocket de escritorio:
+
+- **Pegar** coloca la copia dentro de la pieza seleccionada cuando puede contenerla, como su último hijo, y si no, justo después de la pieza seleccionada. Cuando ninguna de las dos opciones vale, Pegar queda desactivado y su información emergente dice por qué: las aletas, por ejemplo, no pueden ir dentro de una ojiva ni a su lado. Una etapa se pega después de la etapa seleccionada.
+- **Duplicar** coloca la copia al final de los hijos de la pieza padre.
+- **Cortar** quita la pieza y la guarda para pegarla. No pide confirmación, porque Deshacer la recupera, salvo para tu único soporte de motor. La última etapa no se puede cortar.
+- La copia conserva el nombre del original. Una etapa tiene como mucho un paracaídas piloto (drogue), así que un paracaídas o una serpentina pegados que serían un segundo llegan como dispositivo de recuperación normal.
+
+Lo que cortaste o copiaste sigue disponible al cambiar de diseño, así que una pieza puede pasar de un diseño a otro. Cada pegado o duplicado es un solo paso de deshacer.
+
 El árbol se recorre por completo con el teclado: entra con **Tab**, después **↑ / ↓** (y **Inicio / Fin**) se mueven entre piezas, **← / →** pliegan o despliegan una rama, y **Intro / Espacio** selecciona — así un árbol largo es una sola parada de tabulación, no una por pieza.
 
 Los componentes admitidos incluyen:
@@ -129,9 +140,16 @@ Deshacer y rehacer abarcan **todo el espacio de trabajo** en una sola línea tem
 
 ## Escalar todo el cohete {#scaling-the-whole-rocket}
 
-El botón **⤢ Escalar** (junto al nombre del cohete en el panel de Componentes) redimensiona el diseño entero con un solo factor: el flujo de trabajo de «construir este plano a mitad de tamaño» o «ampliarlo a un tubo mayor». Introduce un **factor** (con atajos de 0,5× / 2×), o escribe un **diámetro de fuselaje objetivo** y el factor se ajusta solo (los dos están enlazados, así que puedes escalar directamente al tubo con el que vas a construir). Un resumen en vivo muestra la longitud y el diámetro antes → después.
+El botón **⤢ Escalar** (junto al nombre del cohete en el panel de Componentes) redimensiona el diseño con un solo factor: el flujo de trabajo de «construir este plano a mitad de tamaño» o «ampliarlo a un tubo mayor». Es el cuadro Escalar de OpenRocket de escritorio:
 
-Multiplica cada longitud, diámetro, espesor de pared, planta de aleta (incluidos los puntos de forma libre), hombro, pestaña, filete, tamaño de paracaídas y cinta, longitud de cordón y posición axial. Deliberadamente **no** escala ángulos, número de aletas o instancias, densidades de materiales, coeficientes de resistencia, acabado, elección de motor ni ajustes de lanzamiento; el herraje de tamaño fijo (carenados de cámara, botones de raíl, el diámetro interior de una guía de lanzamiento) conserva su tamaño y simplemente se mueve a su nueva posición.
+- **Escala**: **Todo el cohete**, la **Selección y todos sus subcomponentes**, o **Solo el componente seleccionado**. Con una pieza que no sea una etapa seleccionada, empieza en esa pieza y lo que contiene.
+- **Escalar por** un factor (con atajos de 0,5× / 2×), o **Escalar desde** una longitud **hasta** otra y el factor se ajusta solo. «Desde» empieza en el diámetro de la pieza seleccionada (o su longitud, si no tiene diámetro), o en el fuselaje más ancho si no hay nada seleccionado, así que puedes escalar directamente al tubo con el que vas a construir.
+- **Actualizar valores de masa explícitos**: los componentes de masa y las masas anuladas también se escalan. Desactivado cuando el diseño no tiene ninguno de los dos.
+- **Escalar desplazamientos**: las posiciones también se escalan (desplazamientos axiales y radiales, separación entre instancias, CG anulados). Desactivado, las piezas conservan su posición y solo cambian de tamaño. Empieza desactivado para **Solo el componente seleccionado**, donde lo habitual es una pieza mayor en el mismo sitio, y activado en los demás casos.
+
+Para todo el cohete, un resumen en vivo muestra la longitud y el diámetro antes → después.
+
+Multiplica cada longitud, diámetro, espesor de pared, planta de aleta (incluidos los puntos de forma libre), hombro, pestaña, filete, tamaño de paracaídas y cinta y longitud de cordón, y con los desplazamientos activados, cada posición. Deliberadamente **no** escala ángulos, número de aletas o instancias, densidades de materiales, coeficientes de resistencia, acabado, elección de motor ni ajustes de lanzamiento; el herraje de tamaño fijo (carenados de cámara, botones de raíl) conserva su tamaño y simplemente se mueve a su nueva posición. Una guía de lanzamiento escala como cualquier otro tubo, diámetro interior incluido, como en el programa de escritorio.
 
 Las piezas macizas conservan su material, así que su masa crece con el **cubo** del factor. El tejido de recuperación no: una campana escala con su área, de modo que un diseño escalado ya no es exactamente semejante y su estabilidad se desplaza ligeramente; vuelve a comprobar el tamaño del paracaídas y que el motor siga cabiendo en su soporte. Todo el escalado queda como **un único paso de deshacer** (`Ctrl/⌘+Z`).
 
@@ -139,10 +157,11 @@ Las piezas macizas conservan su material, así que su masa crece con el **cubo**
 
 En lugar de introducir dimensiones a mano, usa los selectores contextuales **«Selecciona una pieza…»** para colocar **piezas reales de fabricante** (Estes / Apogee / LOC / …):
 
-- Un selector de **ojiva** o de **tubo** rellena la geometría y el material.
-- Un selector de **paracaídas** (Recuperación) rellena el diámetro y el coeficiente de resistencia.
+- **Ojivas, tubos, tubos interiores, transiciones, acopladores, anillos de centrado, mamparos, topes de motor y guías de lanzamiento** rellenan su geometría y su material. Una transición trae ambos extremos y ambos hombros.
+- Un **paracaídas** rellena su diámetro y su coeficiente de resistencia.
+- Una **serpentina** rellena el largo, el ancho y el material de la tira, y deja automático el coeficiente de resistencia, como hace el programa de escritorio.
 
-Aplicar un preajuste solo rellena los campos del componente: puedes retocarlo después. El catálogo son datos de referencia incluidos (~2.900 piezas).
+Son los tipos que ofrece la biblioteca de piezas de OpenRocket de escritorio, de la misma base de datos comunitaria. La biblioteca de escritorio también incluye botones de riel, que esa base de datos no tiene. Aplicar un preajuste solo rellena los campos del componente: puedes retocarlo después. El catálogo son datos de referencia incluidos (~3.400 piezas).
 
 ### Guardar tus propias piezas {#saving-your-own-parts}
 
@@ -175,6 +194,8 @@ Los dos **diámetros** sugeridos siguen siendo estimaciones en todos los casos, 
 Todo componente estructural tiene un **material**, que el motor de física usa (por su **densidad**) para calcular la masa y el CG. Una pieza que añades lleva uno desde que existe: el que hayas puesto en [Ajustes ▸ Materiales](./settings.md#materials), o si no el material de serie con el que el motor la pesaría de todos modos: **Cardboard** para una pieza maciza, **Ripstop nylon** para una tela, **Elastic cord** para las cuerdas y el cordón de choque. Son los propios valores por defecto de OpenRocket, los mismos con los que construye cada componente nuevo.
 
 Una pieza aún puede poner **Sin especificar** si viene de un diseño guardado antes de que esta aplicación los nombrara. No es una pieza sin peso: el motor recurre a esos mismos tres materiales. Elige uno de la lista y el panel deja de adivinar.
+
+Una pieza elegida del catálogo lleva el material de su fabricante, como «Balsa, bulk, BMS typical», con la densidad del fabricante. La mayoría de esos nombres no están en la lista de abajo, así que el selector muestra el material propio de la pieza bajo **De esta pieza**, con su densidad, y es con él con el que se pesa la pieza.
 
 - **Materiales incorporados** — la lista completa de OpenRocket (volumen / superficie / línea, con sus densidades). Cada tipo tiene su propia [unidad de densidad](./settings.md#units) — el material sólido por volumen, la tela del paracaídas por superficie y la cuerda por longitud — y la densidad de un material personalizado se lee en la unidad que esté mostrándose.
 - **Materiales personalizados** — define los tuyos (nombre, densidad y a qué grupo pertenece); se guardan en tu navegador y se reutilizan en todos los diseños. Un material personalizado va **dentro de ese grupo**, marcado con una ★, y no en un grupo aparte: casi siempre es una variante de algo que ya está en la lista y se lee mejor a su lado. Si le das el **mismo nombre que a uno incorporado**, lo reemplaza con tu densidad en vez de aparecer dos veces.

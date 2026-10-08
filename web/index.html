@@ -8,6 +8,17 @@
     <!-- iOS ignores the web app manifest's icons and uses this instead. -->
     <link rel="apple-touch-icon" href="%BASE_URL%apple-touch-icon.png" />
     <title>AstraRocketJs</title>
+    <script>
+      /* The saved theme on <html> before the first paint, so a light user never
+         sees a dark frame. Mirrors services/app/theme.ts applyTheme and the
+         settings key (services/storage/settings.ts); main.tsx applies it again
+         once the modules load, so a stale copy here costs one frame, not more. */
+      try {
+        var pref = JSON.parse(localStorage.getItem('astrarocketjs:settings:v1') || '{}').theme;
+        if (pref === 'system') pref = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        if (pref === 'light' || pref === 'daylight') document.documentElement.setAttribute('data-theme', pref);
+      } catch (e) {}
+    </script>
     <style>
       /* Instant paint before any JS: dark background (no white flash) plus a
          wordmark, so the first frame is not an empty page while the app's own
@@ -37,6 +48,27 @@
           Segoe UI,
           Roboto,
           sans-serif;
+      }
+      /* The light themes' splash: the same layout on their canvas. */
+      html[data-theme='light'],
+      html[data-theme='light'] body {
+        background: #f1f5f9;
+      }
+      html[data-theme='daylight'],
+      html[data-theme='daylight'] body {
+        background: #ffffff;
+      }
+      html[data-theme='light'] #boot,
+      html[data-theme='daylight'] #boot {
+        color: #0f172a;
+      }
+      html[data-theme='light'] #boot .wm,
+      html[data-theme='daylight'] #boot .wm {
+        color: #1e293b;
+      }
+      html[data-theme='light'] #boot .cap,
+      html[data-theme='daylight'] #boot .cap {
+        color: #475569;
       }
       #boot .rk {
         font-size: 52px;

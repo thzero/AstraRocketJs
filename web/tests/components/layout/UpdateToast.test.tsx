@@ -93,6 +93,18 @@ describe('the toast itself', () => {
     expect(updateServiceWorker).toHaveBeenCalledWith(true);
   });
 
+  it('shows that Reload was pressed while the new version activates', () => {
+    needRefresh = true;
+    render(<UpdateToast />);
+    fireEvent.click(screen.getByRole('button', { name: 'Reload' }));
+    const busy = screen.getByRole('button', { name: /Reloading/ }) as HTMLButtonElement;
+    expect(busy.disabled).toBe(true);
+    expect(busy.getAttribute('aria-busy')).toBe('true');
+    // Nothing left to put off once it is on its way.
+    expect(screen.queryByRole('button', { name: 'Later' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Dismiss' })).toBeNull();
+  });
+
   it('hides the body on Later without discarding the waiting worker', () => {
     // "Later" snoozes; it must NOT clear needRefresh, or the same update can
     // never be offered again this session.

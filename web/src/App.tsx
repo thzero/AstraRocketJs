@@ -106,7 +106,7 @@ export default function App() {
     // h-full, not h-screen: the shell follows #root's height, which index.css
     // pins to the DYNAMIC viewport on mobile. `h-screen` would re-assert 100vh
     // here and put the tab bar back under the browser chrome.
-    <div className="flex h-full flex-col bg-slate-950 text-slate-100">
+    <div className="flex h-full flex-col bg-canvas text-ink-strong">
       <AppHeader />
       <UpdateToast />
 
@@ -114,11 +114,11 @@ export default function App() {
           it says the user's work is not being kept, which stays true until a
           save succeeds, while `err` is about the last thing they did. */}
       {storageWarning && (
-        <p role="status" className="border-b border-amber-500/30 bg-amber-950/60 px-4 py-2 text-sm text-amber-200">
+        <p role="status" className="border-b border-warn-500/30 bg-warn-950/60 px-4 py-2 text-sm text-warn-200">
           {storageWarning}
         </p>
       )}
-      {err && <p className="border-b border-red-500/30 bg-red-950/60 px-4 py-2 text-sm text-red-300">{err}</p>}
+      {err && <p className="border-b border-danger-500/30 bg-danger-950/60 px-4 py-2 text-sm text-danger-300">{err}</p>}
       {/* Third banner, and the one that outranks both: without the kernel there
           are no numbers to be wrong about. It renders nothing once the engine is
           up, which is the ordinary case within a second or two of first paint. */}

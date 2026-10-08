@@ -17,6 +17,8 @@ import { StabilityCallout } from './StabilityCallout';
 import { RocketModel } from './RocketModel';
 import { useRocketExport, type R3fHandles } from './useRocketExport';
 import { CG_INK, CP_INK } from './stabilityGadget';
+import { token } from '../common/colorTokens';
+import { useSceneColors } from './sceneColors';
 
 // The store imports the motor-dims shape from here; the definition lives with
 // the other shared view helpers.
@@ -43,7 +45,7 @@ export { exportCamera, fitCameraToBox, isFittableBox } from './rocketExportCamer
 
 /** Highlight the active view preset (sky-600) to match the 2D preset buttons. */
 const presetStyle = (active: boolean): import('react').CSSProperties =>
-  active ? { background: '#0284c7', borderColor: '#0284c7', color: '#fff' } : {};
+  active ? { background: token('accent-600'), borderColor: token('accent-600'), color: token('on-accent') } : {};
 
 export function Rocket3D({
   tree,
@@ -80,8 +82,10 @@ export function Rocket3D({
   const center = totalLen / 2;
   const camDist = Math.max(totalLen * 1.1, maxR * 6, 0.25);
   const markerR = markerRadius(totalLen, maxR);
-  const cgTex = useMemo(() => markerTexture(CG_INK), []);
-  const cpTex = useMemo(() => markerTexture(CP_INK), []);
+  const scene = useSceneColors();
+  const light = scene['scene-callout-light'];
+  const cgTex = useMemo(() => markerTexture(scene[CG_INK], light), [scene, light]);
+  const cpTex = useMemo(() => markerTexture(scene[CP_INK], light), [scene, light]);
   useEffect(
     () => () => {
       cgTex.dispose();
@@ -206,8 +210,8 @@ export function Rocket3D({
         {/* Soft studio setup (S5): warm-neutral key, cool fill, low rim —
             subtle and blueprint-serious, no shadows or environment maps. */}
         <ambientLight intensity={0.55} />
-        <directionalLight position={[1.5, 2.5, 2]} intensity={0.95} color="#fff7ee" />
-        <directionalLight position={[-2, 0.5, -1]} intensity={0.45} color="#e8eef8" />
+        <directionalLight position={[1.5, 2.5, 2]} intensity={0.95} color={scene['scene-light-key']} />
+        <directionalLight position={[-2, 0.5, -1]} intensity={0.45} color={scene['scene-light-fill']} />
         <directionalLight position={[-0.5, -1.5, -2.5]} intensity={0.35} />
         <Bounds fit clip observe margin={1.1}>
           <group>
@@ -228,7 +232,7 @@ export function Rocket3D({
               <AxisCallout
                 x={info.cg}
                 dir={1}
-                color="#dbe3ea"
+                color={scene['scene-callout']}
                 tex={cgTex}
                 label={`${t('schematic.cg')} · ${u.fmtSym('length', info.cg)}`}
                 len={maxR * 1.7}
@@ -258,8 +262,8 @@ export function Rocket3D({
         {showMarkers && (
           <>
             {' · '}
-            <span style={{ color: CG_INK }}>●</span> {t('schematic.cg')} · <span style={{ color: CP_INK }}>●</span>{' '}
-            {t('schematic.cp')}
+            <span style={{ color: token(CG_INK) }}>●</span> {t('schematic.cg')} ·{' '}
+            <span style={{ color: token(CP_INK) }}>●</span> {t('schematic.cp')}
           </>
         )}
       </p>

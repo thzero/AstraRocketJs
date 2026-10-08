@@ -62,7 +62,7 @@ export function EventLabelStrip({
       width="100%"
       height={stripH}
       preserveAspectRatio="none"
-      className="sticky top-0 z-10 block bg-slate-900"
+      className="sticky top-0 z-10 block bg-surface"
     >
       {labels.map((l, i) => (
         <g key={i}>
@@ -71,10 +71,10 @@ export function EventLabelStrip({
             y1={l.row * EVENT_ROW_H + EVENT_ROW_H - 2}
             x2={l.x}
             y2={stripH}
-            className="stroke-amber-400/30"
+            className="stroke-warn-400/30"
             vectorEffect="non-scaling-stroke"
           />
-          <text x={l.x} y={l.row * EVENT_ROW_H + 9} textAnchor="middle" className="fill-amber-400/90 text-[9px]">
+          <text x={l.x} y={l.row * EVENT_ROW_H + 9} textAnchor="middle" className="fill-warn-400/90 text-[9px]">
             {t(EVENT_LABEL[l.type] ?? l.type)}
           </text>
         </g>

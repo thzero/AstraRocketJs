@@ -33,14 +33,14 @@ export function CatalogLoading({ name, label }: { name: string; label: string })
         : t('catalog.loadedSoFar', { done: fmtMb(progress.loaded) });
 
   return (
-    <div className="space-y-3 px-3 py-6 text-center text-base text-slate-300">
+    <div className="space-y-3 px-3 py-6 text-center text-base text-ink-soft">
       <p>
         {label}
-        {bytes && <span className="ml-1.5 tabular-nums text-slate-400">{bytes}</span>}
+        {bytes && <span className="ml-1.5 tabular-nums text-ink-muted">{bytes}</span>}
       </p>
       <div
         // Capped against the viewport so the wider bar never overflows on a phone.
-        className="mx-auto h-2 w-[min(20rem,72vw)] overflow-hidden rounded-full bg-slate-700/60"
+        className="mx-auto h-2 w-[min(20rem,72vw)] overflow-hidden rounded-full bg-elevated/60"
         role="progressbar"
         aria-label={label}
         aria-valuemin={0}
@@ -50,7 +50,7 @@ export function CatalogLoading({ name, label }: { name: string; label: string })
         aria-valuenow={pct ?? undefined}
       >
         <div
-          className={`h-full rounded-full bg-sky-500 transition-[width] duration-150 ${pct == null ? 'animate-pulse' : ''}`}
+          className={`h-full rounded-full bg-accent-500 transition-[width] duration-150 ${pct == null ? 'animate-pulse' : ''}`}
           style={{ width: pct == null ? '100%' : `${pct}%` }}
         />
       </div>
@@ -65,10 +65,10 @@ export function CatalogError({ message, onRetry }: { message: string; onRetry: (
     <div className="space-y-3 px-3 py-6 text-center text-base">
       {/* An alert because it replaces a loading line in a cell that is already on
           screen: nothing else tells a screen reader the download failed. */}
-      <p role="alert" className="text-amber-300">
+      <p role="alert" className="text-warn-300">
         {message}
       </p>
-      <button onClick={onRetry} className="rounded-lg bg-slate-700 px-4 py-2 text-slate-100 hover:bg-slate-600">
+      <button onClick={onRetry} className="rounded-lg bg-elevated px-4 py-2 text-ink-strong hover:bg-prominent">
         {t('catalog.retry')}
       </button>
     </div>

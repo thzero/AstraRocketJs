@@ -5,6 +5,7 @@ import { NumberInput } from '../common/NumberInput';
 import { useUnits } from '../../prefs/useUnits';
 import { onSi } from '../../prefs/entryValue';
 import { unitScope } from '../../prefs/units';
+import { token } from '../common/colorTokens';
 
 type Pt = [number, number];
 
@@ -151,11 +152,11 @@ export function FreeformFinEditor({
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <span className="text-xs text-slate-400">{t('freeform.outline')}</span>
+        <span className="text-xs text-ink-muted">{t('freeform.outline')}</span>
         <button
           onClick={removeSel}
           disabled={sel == null || pts.length <= 3}
-          className="rounded bg-slate-800 px-2 py-1 text-xs text-slate-300 hover:bg-slate-700 disabled:opacity-40"
+          className="rounded bg-raised px-2 py-1 text-xs text-ink-soft hover:bg-elevated disabled:opacity-40"
         >
           {t('freeform.removePoint')}
         </button>
@@ -167,15 +168,21 @@ export function FreeformFinEditor({
         width="100%"
         role="group"
         aria-label={t('freeform.outline')}
-        className="block touch-none rounded-lg bg-slate-950 ring-1 ring-white/10"
+        className="block touch-none rounded-lg bg-canvas ring-1 ring-line/10"
         onPointerMove={onMove}
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
         onLostPointerCapture={endDrag}
       >
         {/* body surface (root line) */}
-        <line x1={PAD / 2} y1={sy(0)} x2={W - PAD / 2} y2={sy(0)} className="stroke-white/15" strokeDasharray="4 3" />
-        <polygon points={poly} fill="#fbbf24" fillOpacity="0.18" stroke="#fbbf24" strokeWidth="1.5" />
+        <line x1={PAD / 2} y1={sy(0)} x2={W - PAD / 2} y2={sy(0)} className="stroke-line/15" strokeDasharray="4 3" />
+        <polygon
+          points={poly}
+          fill={token('warn-400')}
+          fillOpacity="0.18"
+          stroke={token('warn-400')}
+          strokeWidth="1.5"
+        />
         {/* edge midpoints — click to insert a vertex */}
         {pts.map((p, i) => {
           const b = pts[(i + 1) % pts.length]!;
@@ -188,7 +195,7 @@ export function FreeformFinEditor({
               role="button"
               tabIndex={0}
               aria-label={t('freeform.insertAfter', { n: i + 1 })}
-              className="cursor-pointer fill-sky-500/60 hover:fill-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400"
+              className="cursor-pointer fill-accent-500/60 hover:fill-accent-400 focus:outline-none focus:ring-2 focus:ring-accent-400"
               onPointerDown={(e) => {
                 e.stopPropagation();
                 insertAfter(i);
@@ -212,8 +219,8 @@ export function FreeformFinEditor({
             role="button"
             tabIndex={0}
             aria-label={t('freeform.vertex', { n: i + 1 })}
-            className={`cursor-grab stroke-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-400 ${
-              sel === i ? 'fill-amber-300' : 'fill-amber-500'
+            className={`cursor-grab stroke-surface focus:outline-none focus:ring-2 focus:ring-accent-400 ${
+              sel === i ? 'fill-warn-300' : 'fill-warn-500'
             }`}
             onPointerDown={startDrag(i)}
             onFocus={() => setSel(i)}
@@ -223,8 +230,8 @@ export function FreeformFinEditor({
       </svg>
 
       {selPt && (
-        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
-          <span className="text-slate-500">{t('freeform.point', { n: sel! + 1 })}</span>
+        <div className="flex flex-wrap items-center gap-2 text-xs text-ink-muted">
+          <span className="text-ink-faint">{t('freeform.point', { n: sel! + 1 })}</span>
           <label className="flex items-center gap-1">
             X
             {/* NumberInput, not a raw <input>: the old
@@ -239,7 +246,7 @@ export function FreeformFinEditor({
               onCommit={onCommit}
               step={ptX.step(0.001)}
               ariaLabel="X"
-              className="w-16 rounded bg-slate-800 px-1.5 py-0.5 text-right tabular-nums text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
+              className="w-16 rounded bg-raised px-1.5 py-0.5 text-right tabular-nums text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500"
             />
             <UnitChip label="X" quantity="length" scope={unitScope('freeform', 'x')} />
           </label>
@@ -251,13 +258,13 @@ export function FreeformFinEditor({
               onCommit={onCommit}
               step={ptY.step(0.001)}
               ariaLabel="Y"
-              className="w-16 rounded bg-slate-800 px-1.5 py-0.5 text-right tabular-nums text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
+              className="w-16 rounded bg-raised px-1.5 py-0.5 text-right tabular-nums text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500"
             />
             <UnitChip label="Y" quantity="length" scope={unitScope('freeform', 'y')} />
           </label>
         </div>
       )}
-      <p className="text-[11px] leading-snug text-slate-500">{t('freeform.hint')}</p>
+      <p className="text-[11px] leading-snug text-ink-faint">{t('freeform.hint')}</p>
     </div>
   );
 }

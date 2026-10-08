@@ -85,7 +85,7 @@ export function DeploymentSection({ config, device }: { config: FlightConfig; de
       />
 
       {event === 'altitude' && over?.deployAltitude == null && (
-        <p className="mt-2 text-[11px] leading-snug text-slate-500">{t('configs.altitudeFromDesign')}</p>
+        <p className="mt-2 text-[11px] leading-snug text-ink-faint">{t('configs.altitudeFromDesign')}</p>
       )}
     </OverrideCard>
   );

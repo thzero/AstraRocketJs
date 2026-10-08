@@ -10,6 +10,7 @@ import {
   readyToApplyHidden,
 } from '../../services/app/updateCheck';
 import { useWorkspaceStore } from '../../state/store';
+import { useUpdateStore } from '../../state/updateStore';
 
 /**
  * "A new version is available — reload?" for the service worker.
@@ -31,9 +32,10 @@ import { useWorkspaceStore } from '../../state/store';
  *     snoozes, and the prompt comes back.
  *
  * Deliberately NOT a modal. A modal on a deploy would interrupt an edit in
- * progress, which is the exact thing `registerType: 'prompt'` exists to prevent;
- * this says its piece from the bottom of the window and lets you finish the
- * sentence you were typing.
+ * progress, which is the exact thing `registerType: 'prompt'` exists to prevent.
+ * It is a banner across the top instead, under the header with the app's other
+ * banners: hard to miss, and it still lets you finish the sentence you were
+ * typing. A card in a bottom corner was easy to take for part of the page.
  *
  * And it finishes the job whether or not it is answered. Under `prompt` the new
  * worker activates only when the page posts SKIP_WAITING, and `clientsClaim` is
@@ -79,7 +81,34 @@ export function UpdateToast() {
     onNeedRefresh() {
       setWaiting(true);
     },
+    // The library reloads only on a controller change, and only when a worker
+    // already controlled the page at load. Routed through `reloadOnce` so the
+    // reload `apply` arranges below and this one never both run.
+    onNeedReload: reloadOnce,
   });
+
+  /*
+   * Take the waiting worker up, then land on it.
+   *
+   * `updateServiceWorker(true)` posts SKIP_WAITING, and the library reloads
+   * when the new worker takes control. A tab opened on its FIRST visit has no
+   * controller (`clientsClaim` is off), so the new worker activates without
+   * ever taking control of it and nothing reloads: Reload did nothing at all.
+   * Waiting for the worker to reach `activated` covers that tab, and a worker
+   * already gone from `waiting` (another tab took it up) needs only a reload.
+   */
+  const apply = useCallback(() => {
+    const next = swReg?.waiting;
+    if (swReg && !next) {
+      reloadOnce();
+      return;
+    }
+    next?.addEventListener('statechange', () => next.state === 'activated' && reloadOnce());
+    // The button says "Reloading" from the click on, so it must: a worker that
+    // never reaches `activated` would otherwise leave it saying so forever.
+    if (swReg) setTimeout(reloadOnce, APPLY_FALLBACK_MS);
+    void updateServiceWorker(true);
+  }, [swReg, updateServiceWorker]);
 
   useEffect(() => {
     if (!swReg) return;
@@ -101,6 +130,37 @@ export function UpdateToast() {
       window.removeEventListener('online', check);
     };
   }, [swReg]);
+
+  /*
+   * The About dialog's "Check for updates": the same update() the timer calls,
+   * but waited on and answered. A worker that starts installing is followed to
+   * the end, so "up to date" is never said over a download still in progress.
+   * One already waiting, behind a dismissed or snoozed banner, brings the banner
+   * back: the person asked.
+   */
+  useEffect(() => {
+    if (!swReg) return;
+    const { setChecker } = useUpdateStore.getState();
+    setChecker(async () => {
+      lastCheck.current = Date.now();
+      await swReg.update();
+      const installing = swReg.installing;
+      if (installing) {
+        await new Promise<void>((done) => {
+          const settle = () => {
+            if (installing.state === 'installed' || installing.state === 'redundant') done();
+          };
+          installing.addEventListener('statechange', settle);
+          settle();
+        });
+      }
+      if (!swReg.waiting) return 'upToDate';
+      setSnoozed(null);
+      setNeedRefresh(true);
+      return 'available';
+    });
+    return () => setChecker(null);
+  }, [swReg, setNeedRefresh]);
 
   /*
    * Apply it while nobody is looking.
@@ -132,7 +192,7 @@ export function UpdateToast() {
       timer = setInterval(() => {
         if (!readyToApplyHidden(true, hiddenSince, useWorkspaceStore.getState().simBusy, Date.now())) return;
         stop();
-        void updateServiceWorker(true);
+        apply();
       }, 5_000);
     };
     document.addEventListener('visibilitychange', onVisibility);
@@ -141,7 +201,7 @@ export function UpdateToast() {
       stop();
       document.removeEventListener('visibilitychange', onVisibility);
     };
-  }, [waiting, updateServiceWorker]);
+  }, [waiting, apply]);
 
   // Snoozing hides the prompt without throwing away `needRefresh`, so the same
   // waiting worker is still there to offer when the snooze runs out.
@@ -166,15 +226,21 @@ export function UpdateToast() {
   // the toast.
   return (
     <div role="status" aria-live="polite">
-      {show && (
-        <UpdateToastBody
-          onRefresh={() => void updateServiceWorker(true)}
-          onLater={later}
-          onDismiss={() => setNeedRefresh(false)}
-        />
-      )}
+      {show && <UpdateToastBody onRefresh={apply} onLater={later} onDismiss={() => setNeedRefresh(false)} />}
     </div>
   );
+}
+
+/** How long Reload waits for the new worker before reloading regardless. */
+const APPLY_FALLBACK_MS = 10_000;
+
+let reloading = false;
+
+/** Reload the page, once, however many paths ask for it. */
+function reloadOnce(): void {
+  if (reloading) return;
+  reloading = true;
+  window.location.reload();
 }
 
 function UpdateToastBody({
@@ -187,35 +253,52 @@ function UpdateToastBody({
   onDismiss: () => void;
 }) {
   const { t } = useTranslation();
+  // Set on the click and never cleared: the page reloads out from under it.
+  // Until then the new worker is activating, which takes a moment, and a
+  // button that looked untouched in that moment read as one that did nothing.
+  const [applying, setApplying] = useState(false);
   return (
-    <div className="fixed inset-x-0 bottom-4 z-50 mx-auto flex w-[min(30rem,92vw)] items-center gap-3 rounded-xl bg-slate-800 px-4 py-3 text-sm text-slate-100 shadow-lg ring-1 ring-white/10">
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-accent-500/40 bg-accent-900/60 px-4 py-2 text-sm text-accent-50">
       <div className="min-w-0 flex-1">
-        <p>{t('update.available')}</p>
+        <p className="font-semibold">{t('update.available')}</p>
         {/* Which build you are ON. The waiting worker does not tell us its own
             version, so this names the one being replaced rather than inventing
             the one replacing it. */}
-        <p className="text-xs text-slate-400">{t('update.running', { version: APP_VERSION })}</p>
+        <p className="text-xs text-accent-200/80">{t('update.running', { version: APP_VERSION })}</p>
       </div>
       <button
-        onClick={onRefresh}
-        className="shrink-0 rounded-lg bg-sky-600 px-3 py-1.5 font-medium text-white hover:bg-sky-500"
+        onClick={() => {
+          setApplying(true);
+          onRefresh();
+        }}
+        disabled={applying}
+        aria-busy={applying}
+        className="flex shrink-0 items-center gap-2 rounded-lg bg-accent-500 px-3 py-1.5 font-semibold text-on-accent transition-transform hover:bg-accent-400 active:scale-95 active:bg-accent-600 disabled:cursor-wait disabled:bg-accent-700 disabled:active:scale-100"
       >
-        {t('update.reload')}
+        {applying && (
+          <span aria-hidden className="size-3.5 animate-spin rounded-full border-2 border-line/40 border-t-white" />
+        )}
+        {applying ? t('update.reloading') : t('update.reload')}
       </button>
-      <button
-        onClick={onLater}
-        title={t('update.laterTitle', { hours: Math.round(UPDATE_SNOOZE_MS / 3_600_000) })}
-        className="shrink-0 rounded-lg px-2 py-1.5 text-xs text-slate-400 hover:text-slate-200"
-      >
-        {t('update.later')}
-      </button>
-      <button
-        onClick={onDismiss}
-        className="shrink-0 rounded-lg px-1 py-1.5 text-slate-500 hover:text-slate-200"
-        aria-label={t('update.dismiss')}
-      >
-        ✕
-      </button>
+      {/* Gone once Reload is pressed: there is nothing left to put off. */}
+      {!applying && (
+        <>
+          <button
+            onClick={onLater}
+            title={t('update.laterTitle', { hours: Math.round(UPDATE_SNOOZE_MS / 3_600_000) })}
+            className="shrink-0 rounded-lg px-2 py-1.5 text-xs text-accent-200 hover:text-on-accent"
+          >
+            {t('update.later')}
+          </button>
+          <button
+            onClick={onDismiss}
+            className="shrink-0 rounded-lg px-1 py-1.5 text-accent-300 hover:text-on-accent"
+            aria-label={t('update.dismiss')}
+          >
+            ✕
+          </button>
+        </>
+      )}
     </div>
   );
 }

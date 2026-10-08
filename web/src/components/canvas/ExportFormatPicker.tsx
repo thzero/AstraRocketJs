@@ -31,11 +31,11 @@ export function ExportFormatPicker({
   return (
     <div className="space-y-2">
       <label className="flex items-center justify-between gap-3">
-        <span className="text-xs font-medium uppercase tracking-wide text-slate-400">{t('pathExport.format')}</span>
+        <span className="text-xs font-medium uppercase tracking-wide text-ink-muted">{t('pathExport.format')}</span>
         <select
           value={selected}
           onChange={(e) => onSelect(e.target.value)}
-          className="flex-1 rounded-md bg-slate-800 px-2 py-1.5 text-sm text-slate-100 ring-1 ring-white/10 focus:outline-none focus:ring-sky-500"
+          className="flex-1 rounded-md bg-raised px-2 py-1.5 text-sm text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500"
         >
           <optgroup label={t('pathExport.builtIns')}>
             {EXPORT_FORMATS.map((f) => (
@@ -59,7 +59,7 @@ export function ExportFormatPicker({
         <div className="flex flex-wrap gap-2">
           <button
             onClick={templateFile.pick}
-            className="rounded-md bg-slate-800 px-2 py-1 text-[11px] font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
+            className="rounded-md bg-raised px-2 py-1 text-[11px] font-medium text-ink ring-1 ring-line/10 hover:bg-elevated"
           >
             {t('pathExport.import')}
           </button>
@@ -67,7 +67,7 @@ export function ExportFormatPicker({
           <button
             onClick={onDownloadTemplate}
             title={t('pathExport.downloadTemplateTitle')}
-            className="rounded-md bg-slate-800 px-2 py-1 text-[11px] font-medium text-slate-200 ring-1 ring-white/10 hover:bg-slate-700"
+            className="rounded-md bg-raised px-2 py-1 text-[11px] font-medium text-ink ring-1 ring-line/10 hover:bg-elevated"
           >
             {t('pathExport.downloadTemplate')}
           </button>
@@ -75,7 +75,7 @@ export function ExportFormatPicker({
         {canDelete && (
           <button
             onClick={onDelete}
-            className="rounded-md bg-rose-600/80 px-2 py-1 text-[11px] font-medium text-white ring-1 ring-rose-400/30 hover:bg-rose-600"
+            className="rounded-md bg-error-600/80 px-2 py-1 text-[11px] font-medium text-on-accent ring-1 ring-error-400/30 hover:bg-error-600"
           >
             {t('pathExport.delete')}
           </button>

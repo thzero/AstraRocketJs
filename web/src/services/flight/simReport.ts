@@ -13,14 +13,14 @@ export function stabilityState(cal: number | null | undefined): StabilityState |
 
 /** Tailwind text tone for an on-pad stability band. */
 export function stabilityToneOf(state: StabilityState): string {
-  return state === 'ok' ? 'text-emerald-400' : state === 'over' ? 'text-amber-400' : 'text-red-400';
+  return state === 'ok' ? 'text-ok-400' : state === 'over' ? 'text-warn-400' : 'text-danger-400';
 }
 
 /** Tailwind text tone by margin sign (stable ≥1, marginal ≥0, else unstable).
  *  For the rail-exit margin, a different quantity with no over-stable reading;
  *  an on-pad margin is colored by its band ({@link stabilityToneOf}). */
 export function stabilityTone(cal: number): string {
-  return cal >= 1 ? 'text-emerald-400' : cal >= 0 ? 'text-amber-400' : 'text-red-400';
+  return cal >= 1 ? 'text-ok-400' : cal >= 0 ? 'text-warn-400' : 'text-danger-400';
 }
 
 /** i18n key for the one-word on-pad verdict: the bands of {@link stabilityState},

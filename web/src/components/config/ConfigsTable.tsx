@@ -45,7 +45,7 @@ export function ConfigsTable({
   return (
     <table aria-label={t('configs.title')} className="w-full border-collapse text-sm">
       <thead>
-        <tr className="border-b border-white/10 text-[11px] uppercase tracking-wide text-slate-400">
+        <tr className="border-b border-line/10 text-[11px] uppercase tracking-wide text-ink-muted">
           <th scope="col" className="px-2 py-2 text-left font-semibold">
             {t('configs.name')}
           </th>
@@ -66,8 +66,8 @@ export function ConfigsTable({
             <tr
               key={c.id}
               onClick={() => onSelect(c.id)}
-              className={`cursor-pointer border-b border-white/5 ${
-                c.id === selectedId ? 'bg-sky-950/40' : 'hover:bg-slate-800/50'
+              className={`cursor-pointer border-b border-line/5 ${
+                c.id === selectedId ? 'bg-accent-950/40' : 'hover:bg-raised/50'
               }`}
             >
               <td className="px-2 py-2">
@@ -77,17 +77,17 @@ export function ConfigsTable({
                 <button
                   onClick={() => onSelect(c.id)}
                   aria-current={c.id === selectedId ? 'true' : undefined}
-                  className={`text-left ${c.id === selectedId ? 'font-semibold text-sky-300' : 'text-slate-200'}`}
+                  className={`text-left ${c.id === selectedId ? 'font-semibold text-accent-300' : 'text-ink'}`}
                 >
-                  {label || <span className="text-slate-500">{t('configs.noMotors')}</span>}
+                  {label || <span className="text-ink-faint">{t('configs.noMotors')}</span>}
                 </button>
               </td>
               {columns.map((col) => (
-                <td key={col.id} className="hidden px-2 py-2 text-slate-400 lg:table-cell">
+                <td key={col.id} className="hidden px-2 py-2 text-ink-muted lg:table-cell">
                   {col.cell(c)}
                 </td>
               ))}
-              <td className="px-2 py-2 text-right tabular-nums text-slate-400">{flights[c.id] ?? 0}</td>
+              <td className="px-2 py-2 text-right tabular-nums text-ink-muted">{flights[c.id] ?? 0}</td>
             </tr>
           );
         })}
