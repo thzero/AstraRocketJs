@@ -5,7 +5,7 @@
  * `npm run parity:golden` re-records every reference value, and parity.mjs says
  * how many moved, but only on the machine that ran it. This puts the same list
  * where the change is reviewed: the job summary of the pull request. Only the
- * VALUES are compared, never the header, so a re-record that moved nothing (a new
+ * values are compared, never the header, so a re-record that moved nothing (a new
  * timestamp or platform line) reports nothing.
  *
  *   node test/parity/golden-guard.mjs <base-ref>

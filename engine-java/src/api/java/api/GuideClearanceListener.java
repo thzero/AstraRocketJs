@@ -21,19 +21,19 @@ import java.util.List;
  *
  * {@code SimulationStatus} computes an effective rod length from the launch
  * lugs, and {@code BasicEventSimulationEngine} then compares travel with the
- * FULL rod length and never reads that effective one (its only consumer in the
+ * full rod length and never reads that effective one (its only consumer in the
  * whole kernel is the NaN guard). So a guide sitting above the rocket's aft end
  * gets guided travel it does not have, and the rod-exit speed reads high.
  * Rail buttons are not considered at all, and the lug search looks at one
- * instance, which for a fore/aft pair is the FORWARD one.
+ * instance, which for a fore/aft pair is the forward one.
  *
  * <h2>A rod and a rail are guided differently</h2>
  *
- * A LUG is a tube threaded onto the rod, so one of them holds the rocket's
- * angle by itself and it guides until its aft end leaves the rod. A BUTTON is a
+ * A lug is a tube threaded onto the rod, so one of them holds the rocket's
+ * angle by itself and it guides until its aft end leaves the rod. A button is a
  * stud in a slot and holds nothing on its own: the rocket is only constrained
- * while TWO buttons of the same line are in the rail, so a rail guides until the
- * SECOND-TO-LAST button station leaves it, and one button, or several side by
+ * while two buttons of the same line are in the rail, so a rail guides until the
+ * second-to-last button station leaves it, and one button, or several side by
  * side at one station, guides not at all. The two cannot be one rule.
  *
  * <h2>Why this is a listener and not a patch</h2>
@@ -42,7 +42,7 @@ import java.util.List;
  * patched files and the default path stays byte-identical to upstream:
  *
  * <ul>
- * <li>{@code firePostStep} runs BEFORE the engine's own clearance check and is
+ * <li>{@code firePostStep} runs before the engine's own clearance check and is
  * handed the mutable status, so the event can be added earlier.</li>
  * <li>Handling a {@code LAUNCHROD} event does nothing but
  * {@code setLaunchRodCleared(true)}, and the engine's own check is guarded on
@@ -74,7 +74,7 @@ final class GuideClearanceListener extends AbstractSimulationListener {
 	private CoordinateIF origin = null;
 
 	/**
-	 * A SYSTEM listener, so touching the status does not raise
+	 * A system listener, so touching the status does not raise
 	 * {@code Warning.LISTENERS_AFFECTED} on every flight. This is part of how the
 	 * engine was configured to run, not a user extension bolted onto a run.
 	 */
@@ -122,31 +122,31 @@ final class GuideClearanceListener extends AbstractSimulationListener {
 	 * is the rod length less the gap from the guiding point to the rocket's aft
 	 * bound.
 	 *
-	 * WHICH POINT GUIDES depends on what the guide is, because a rod and a rail do
+	 * Which point guides depends on what the guide is, because a rod and a rail do
 	 * not hold a rocket the same way:
 	 *
 	 * <ul>
-	 * <li>A LUG is a tube threaded onto the rod and holds the rocket's angle on
-	 * its own, so it guides until its aft END leaves the rod, at
+	 * <li>A lug is a tube threaded onto the rod and holds the rocket's angle on
+	 * its own, so it guides until its aft end leaves the rod, at
 	 * {@code origin + getLength()}. The aft-most lug of the set wins.</li>
-	 * <li>A BUTTON is a stud in a slot and holds nothing by itself: two of them in
+	 * <li>A button is a stud in a slot and holds nothing by itself: two of them in
 	 * the same rail are what stop the rocket pivoting. So a line of buttons guides
-	 * until its SECOND-TO-LAST station leaves the rail, and from there the rocket
+	 * until its second-to-last station leaves the rail, and from there the rocket
 	 * is free though one button is still in the slot. A button's own
 	 * {@code getComponentBounds} spans -r..+r in x, so its origin is its axial
-	 * CENTER and its aft edge is {@code center + outerDiameter / 2}; it never sets
+	 * center and its aft edge is {@code center + outerDiameter / 2}; it never sets
 	 * {@code length}, so measuring it like a lug would lose its radius.</li>
 	 * </ul>
 	 *
-	 * Buttons are ONE LINE when they sit within a degree of each other around the
-	 * body, and ONE STATION when they sit within half a millimeter along it. A line
+	 * Buttons are one line when they sit within a degree of each other around the
+	 * body, and one station when they sit within half a millimeter along it. A line
 	 * with one station gives no guided travel at all; with several lines the best
 	 * one is taken, because the rail holds whichever line it was loaded on.
 	 *
 	 * Every absolute instance of every guide is searched, not one: the first
-	 * instance of a fore/aft pair is the FORWARD one, which is the wrong end.
+	 * instance of a fore/aft pair is the forward one, which is the wrong end.
 	 *
-	 * A design carrying BOTH takes whichever guides the shorter distance, since a
+	 * A design carrying both takes whichever guides the shorter distance, since a
 	 * rod and a rail are never used together and the rocket flies off one of them.
 	 * Buttons that cannot guide are not that answer, so they are ignored rather
 	 * than counted as zero when a lug is there to do the work.

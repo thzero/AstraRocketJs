@@ -22,7 +22,7 @@ import info.openrocket.core.util.ModID;
  * <h2>Between levels</h2>
  *
  * Temperature and humidity are linear in altitude. Pressure is linear in its
- * LOGARITHM, which is exact for an isothermal layer and within a few pascals of
+ * logarithm, which is exact for an isothermal layer and within a few pascals of
  * the barometric formula across the layers a forecast reports, and it passes
  * through every stated pressure exactly, which the barometric formula from one
  * level does not reach at the next.
@@ -30,7 +30,7 @@ import info.openrocket.core.util.ModID;
  * <h2>Outside the levels</h2>
  *
  * Below the lowest level and above the highest, the profile follows the
- * standard atmosphere's SHAPE from the end level: the standard temperature
+ * standard atmosphere's shape from the end level: the standard temperature
  * change and the standard pressure ratio, applied to that level's values. The
  * profile is continuous at both ends, and a flight past the top of a forecast
  * (30 hPa is about 24 km) keeps a physical atmosphere instead of a frozen one.

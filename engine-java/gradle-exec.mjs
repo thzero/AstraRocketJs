@@ -1,9 +1,9 @@
 /**
- * Run the Gradle wrapper WITHOUT a shell.
+ * Run the Gradle wrapper without a shell.
  *
- * NOT `execFileSync(gradlew.bat, args, { shell: process.platform === 'win32' })`,
+ * Not `execFileSync(gradlew.bat, args, { shell: process.platform === 'win32' })`,
  * which is the only way `execFile` can launch a `.bat` and which Node deprecated
- * (DEP0190): with `shell: true` the argument array is CONCATENATED into a command
+ * (DEP0190): with `shell: true` the argument array is concatenated into a command
  * line rather than escaped, so any argument carrying a space or a shell
  * metacharacter is a quoting bug waiting for the first path with a space in it.
  *
@@ -38,7 +38,7 @@ export function javaExe(env = process.env) {
  * containing a space was never expressible through them either.
  *
  * DEFAULT_JVM_OPTS (`-Xmx64m -Xms64m` in the generated wrapper) is deliberately
- * NOT forwarded: it sizes the little launcher JVM, and leaving it to the JVM
+ * not forwarded: it sizes the little launcher JVM, and leaving it to the JVM
  * default only ever gives that process more headroom.
  */
 export function gradleArgv(engineRoot, args, env = process.env) {

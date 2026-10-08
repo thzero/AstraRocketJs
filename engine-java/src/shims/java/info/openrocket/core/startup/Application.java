@@ -60,18 +60,17 @@ public final class Application {
     }
 
     /**
-     * A bare {@code DebugTranslator}, DELIBERATELY - do not "fix" this to match
-     * upstream.
+     * A bare {@code DebugTranslator}, deliberately different from upstream.
      * <p>
      * Upstream wraps the base translator in {@code ClassBasedTranslator} and
      * {@code ExceptionSuppressingTranslator}, which turn keys into prose. Here
-     * the bracket form IS the protocol: every kernel string arrives as
+     * the bracket form is the protocol: every kernel string arrives as
      * {@code [Warning.RECOVERY_HIGH_SPEED]}, and
-     * {@code web/src/services/warningText.ts} parses exactly that, with tests
+     * {@code web/src/services/app/warningText.ts} parses exactly that, with tests
      * asserting it. Stable machine keys beat untranslatable English at a
      * boundary the app has to localize itself.
      * <p>
-     * Restoring upstream's chain is a one-line change that would silently break
+     * Switching to upstream's chain is a one-line change that would silently break
      * every warning string in the UI, with only the web test to catch it.
      */
     public static Translator getTranslator() {

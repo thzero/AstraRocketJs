@@ -8,10 +8,10 @@ package info.openrocket.core.util;
  * engine-java/patches/LEDGER.md).
  *
  * toString / hashCode / equals / compareTo reproduce java.util.UUID's
- * semantics EXACTLY (JDK algorithms), so any id string that leaks into
+ * semantics exactly (JDK algorithms), so any id string that leaks into
  * output or .ork files is indistinguishable from the original.
  *
- * randomUUID() is DETERMINISTIC (counter-based) by design: the engine needs
+ * randomUUID() is deterministic (counter-based) by design: the engine needs
  * reproducible runs for differential testing, and this class is compiled
  * into both the JVM and TeaVM sides, so behavior is identical everywhere.
  */

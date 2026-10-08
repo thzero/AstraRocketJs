@@ -6,8 +6,7 @@ import info.openrocket.core.simulation.SimulationOptions;
 
 /**
  * SHIM: minimal parent-simulation holder. SimulationConditions delegates
- * getRocket()/getId() here, which the simulation engine reads. The real
- * document model arrives with .ork I/O work (P1.8).
+ * getRocket()/getId() here, which the simulation engine reads.
  */
 public class Simulation {
 
@@ -33,18 +32,17 @@ public class Simulation {
      * getOptions().getSimulationStepperMethodChoice() to pick the stepper; the
      * default is RK4, matching the web engine's behavior).
      *
-     * UPSTREAM INVARIANT, and why this is lazily created rather than wired:
+     * Upstream invariant, and why this is lazily created rather than wired:
      * upstream sets conditions.setSimulation(this) immediately after
-     * options.toSimulationConditions(), so getSimulation().getOptions() IS the
+     * options.toSimulationConditions(), so getSimulation().getOptions() is the
      * object that produced the conditions. Here the facade builds
      * SimulationConditions by hand and never hands its options in, so this
      * returns an unrelated default instead.
      *
-     * That reaches nothing today ONLY because the facade exposes no stepper
-     * knob, so the read above always lands on RK4 either way. Add a
-     * {"stepper":"rk6"} option and set it on the conditions, and the engine
-     * would silently keep running RK4 with no error - so wire the real options
-     * through here at the same time.
+     * That is harmless only because the facade exposes no stepper option, so
+     * the read above lands on RK4 either way. A stepper option set on the
+     * conditions alone would be ignored and the engine would keep running RK4
+     * with no error, so any such option must also be wired through here.
      */
     public SimulationOptions getOptions() {
         if (options == null) {

@@ -533,8 +533,8 @@ public class BarrowmanDragCalculator implements DragCalculator {
 		}
 	}
 
-	// PATCH(astrarrocketjs): method visibility widened + reflective calc
-	// construction replaced (see createCalcObject) so the RASAero DragCalculator
+	// PATCH(astrarrocketjs): protected, and building calcs through
+	// createCalcObject rather than reflection, so the RASAero DragCalculator
 	// subclass can bind opt-in aero flags onto the per-component calcs.
 	protected void buildCalcMap(FlightConfiguration configuration) {
 		calcMap = new HashMap<>();
@@ -548,10 +548,11 @@ public class BarrowmanDragCalculator implements DragCalculator {
 		}
 	}
 
-	// PATCH(astrarrocketjs): reflection-free calc construction — see the identical
+	// PATCH(astrarrocketjs): reflection-free calc construction; see the matching
 	// note in BarrowmanStabilityCalculator. Upstream's Reflection.construct throws
 	// under TeaVM (no reflection metadata). This instanceof chain reproduces the
-	// hierarchy-walk resolution exactly. MUST track any new upstream *Calc classes.
+	// hierarchy-walk resolution exactly, and needs a new branch for any *Calc
+	// class upstream adds.
 	protected RocketComponentCalc createCalcObject(RocketComponent comp) {
 		if (comp instanceof FinSet) {
 			return new FinSetCalc((FinSet) comp);

@@ -12,11 +12,9 @@ import info.openrocket.core.rocketcomponent.RocketComponent;
  * stock extended-Barrowman stability calculator:
  *
  * <ul>
- *   <li><b>feature #1</b> — corrected supersonic fin normal force, exact NACA-1307
- *       body-fin interference, and Mach-dependent nose CN&alpha; growth
- *       ({@code supersonicAero}); and</li>
- *   <li><b>feature #3</b> — opt-in Rogers Modified Barrowman body-fin carryover
- *       ({@code rogersKbf}).</li>
+ *   <li>{@code supersonicAero}: corrected supersonic fin normal force, exact
+ *       NACA-1307 body-fin interference, and Mach-dependent nose CN&alpha; growth; and</li>
+ *   <li>{@code rogersKbf}: Rogers Modified Barrowman body-fin carryover.</li>
  * </ul>
  *
  * The physics lives in the per-component calc classes ({@link FinSetCalc},
