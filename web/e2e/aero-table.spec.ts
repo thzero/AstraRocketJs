@@ -7,8 +7,8 @@ import { test, expect, type Page, note, tableUnder, tableRows, defined } from '.
  * you were just looking at.
  *
  * Tables are reached through their headings (`tableRows` / `tableUnder` in
- * base.ts), not by document index: `querySelectorAll('table')[1]` moved every
- * time a table was added or a hidden pane mounted one.
+ * base.ts), not by document index: a `querySelectorAll('table')` index shifts
+ * whenever a table is added or a hidden pane mounts one.
  */
 test.describe('aero component table', () => {
   test('adds up: the rows account for the whole rocket', async ({ page }) => {
@@ -35,9 +35,9 @@ test.describe('aero component table', () => {
     note('total', total, 'sum of rows', sum.toFixed(3));
 
     // The component rows sum to the whole-rocket figure, with nothing left over.
-    // They did not until the kernel started reporting each component's TOTAL
-    // drag rather than its PER-INSTANCE drag: a 3-fin set was contributing one
-    // fin, which put 39% of the rocket's drag nowhere.
+    // That holds only while the kernel reports each component's total drag rather
+    // than its per-instance drag: a 3-fin set counted as one fin leaves most of the
+    // fin drag unattributed.
     expect(Math.abs(sum - total)).toBeLessThan(0.005);
     expect(r.some((x) => x[0] === 'Not attributed to a component')).toBe(false);
   });
@@ -58,7 +58,7 @@ test.describe('aero component table', () => {
     const cd = header.indexOf('Cd');
     expect(perInstance).toBeGreaterThan(-1);
 
-    // "0.251 × 3" per instance, 0.754 total — the default rocket has three fins.
+    // "0.251 × 3" per instance, 0.754 total: the default rocket has three fins.
     const [one, count] = defined(fins[perInstance], 'the per-instance cell')
       .split('×')
       .map((x) => Number(x.trim()));
@@ -81,7 +81,7 @@ test.describe('aero component table', () => {
 
     // Arrow keys rather than fill(): a range input steps, and stepping is the
     // behavior under test. The slider's step is the sweep's own sampling, so
-    // every stop is a Mach that was actually computed — otherwise the slider
+    // every stop is a Mach that was actually computed. Otherwise the slider
     // reads 0.30 while the table, which snaps to the nearest sample, reads 0.29.
     const slider = page.getByLabel('Mach number for the tables');
     await slider.focus();
@@ -100,7 +100,7 @@ test.describe('aero component table', () => {
 /**
  * The stability table answers "why is my CP there": a fin set carrying most of
  * the normal-force slope is what holds the CP aft. Barrowman reports a fin
- * set's CNa for the whole set, so — unlike drag — there is no per-instance
+ * set's CNa for the whole set, so (unlike drag) there is no per-instance
  * multiplication to get wrong here; this pins that it stays true.
  */
 test.describe('aero stability table', () => {
@@ -112,9 +112,9 @@ test.describe('aero stability table', () => {
 
     const r = await tableRows(page, 'Stability contribution');
     const head = defined(r[0], 'the stability table header row');
-    // The table carries TWO CP columns: the position in the user's length unit
+    // The table carries two CP columns: the position in the user's length unit
     // and, when the design has an aerodynamic length, the same position as a
-    // percentage of it. This test weights POSITIONS, so it must take the
+    // percentage of it. This test weights positions, so it must take the
     // length-unit one; `startsWith('CP')` alone would silently pass whichever
     // came first if the two were ever reordered.
     const cp = head.findIndex((h) => h.startsWith('CP (') && !h.includes('%'));
@@ -129,7 +129,7 @@ test.describe('aero stability table', () => {
     note('rocket CNa', rocket[cna], 'sum of parts', sumCna.toFixed(2));
     expect(sumCna).toBeCloseTo(Number(rocket[cna]), 1);
 
-    // The rocket's CP is the CNa-weighted mean of its parts' — which is the
+    // The rocket's CP is the CNa-weighted mean of its parts', which is the
     // arithmetic the engine does, un-weighted back out for display.
     const weighted = parts.reduce((a, x) => a + Number(x[cp]) * Number(x[cna]), 0) / sumCna;
     note('rocket CP', rocket[cp], 'weighted mean', weighted.toFixed(1));
@@ -149,9 +149,9 @@ test('carries the mass breakdown beside the aero figures', async ({ page }) => {
 
   const r = await tableRows(page, 'Stability contribution');
   const head = defined(r[0], 'the stability table header row');
-  // Mass comes from a different engine call than the aero sweep, keyed on the
-  // component name -- so a rename on one side and not the other would show up
-  // as dashes here rather than as wrong numbers.
+  // Mass comes from a different engine call than the aero sweep, joined on the
+  // component's engine id, so a join that misses shows up as dashes here rather
+  // than as wrong numbers.
   for (const col of ['Each (g)', 'Total (g)', 'CG (cm)']) expect(head).toContain(col);
   const fins = defined(
     r.find((x) => /Fin Set/.test(x[0] ?? '')),
@@ -162,10 +162,10 @@ test('carries the mass breakdown beside the aero figures', async ({ page }) => {
 });
 
 /**
- * Roll dynamics is shown for every fin set, canted or not. An earlier version
- * hid the section when both coefficients were zero — which is every default
- * rocket — so most people never saw it exist, let alone learned that canting the
- * fins would fill it in. Zeros are the honest answer and the desktop shows them.
+ * Roll dynamics is shown for every fin set, canted or not. Both coefficients are
+ * zero on every default rocket; hiding the section then would keep people from
+ * learning that canting the fins fills it in. Zeros are the correct answer and
+ * the desktop shows them.
  */
 test('always shows roll dynamics, and fills it in once the fins are canted', async ({ page }) => {
   await page.goto('/');
@@ -224,7 +224,7 @@ const cdCells = (page: Page) =>
   });
 
 /**
- * Cell shading is a magnitude ramp: ONE hue, stronger with the value. Not the
+ * Cell shading is a magnitude ramp: one hue, stronger with the value. Not the
  * desktop's green-to-red, which rotates hue 120 degrees and reads as a verdict
  * the number does not carry. This pins the encoding, not merely that cells are
  * colored: a ramp that stopped tracking the value would still "have color".
@@ -242,7 +242,7 @@ test('shades the drag cells in proportion to the value', async ({ page }) => {
   });
   note('cd cells', JSON.stringify(cells));
 
-  // One hue throughout — the ramp is alpha over a single color, not a rotation.
+  // One hue throughout: the ramp is alpha over a single color, not a rotation.
   expect(new Set(cells.map((c) => c.rgb)).size).toBe(1);
 
   // Stronger with the value, in the same order as the values themselves.
@@ -260,7 +260,7 @@ test('shades the drag cells in proportion to the value', async ({ page }) => {
 
 /**
  * The desktop's green-to-red heat, offered as a choice. It is a 120-degree hue
- * rotation on an absolute Cd scale with dark text on light cells — a different
+ * rotation on an absolute Cd scale with dark text on light cells, a different
  * encoding from the default magnitude ramp, not a recolor of it, so this checks
  * the formula reproduces rather than merely that something changed.
  */
@@ -281,11 +281,11 @@ test('offers OpenRocket’s heat as an alternative shading', async ({ page }) =>
 
   /*
    * ComponentAnalysisGeneralPanel's DragCellRenderer, written out: hue rotates
-   * green to red over an ABSOLUTE 0-1.5 Cd scale, saturation climbs with it,
+   * green to red over an absolute 0-1.5 Cd scale, saturation climbs with it,
    * value pinned at 1.
    *
    * Written out here rather than imported, because importing ours would compare
-   * the app with itself. Applied to the cell's OWN value rather than hard-coded
+   * the app with itself. Applied to the cell's own value rather than hard-coded
    * against one rocket, so editing the default design cannot turn this into a
    * failing color assertion; what it pins is the formula. The cell text is
    * rounded to three decimals while the color uses the full value, which is
@@ -321,14 +321,14 @@ test('offers OpenRocket’s heat as an alternative shading', async ({ page }) =>
   expect(big[0]).toBeGreaterThan(defined(big[1], 'the green channel of the biggest cell')); // red dominant
   expect(small[1]).toBeGreaterThan(defined(small[0], 'the red channel of the smallest cell')); // green dominant
 
-  // Light cells, so the text goes dark with them — the trade the desktop makes.
+  // Light cells, so the text goes dark with them: the trade the desktop makes.
   expect(cells.every((c) => c.fg === 'rgb(0, 0, 0)')).toBe(true);
   await expect(page.getByText('Cd scale')).toBeVisible(); // the fixed 0–1.5 scale is named
 });
 
 /**
  * The shading switch lives on the legend, beside the ramp it changes, and writes
- * the same preference Settings does — so it sticks, and the two never disagree.
+ * the same preference Settings does, so it sticks, and the two never disagree.
  */
 test('the shading switch on the legend is the same preference as Settings', async ({ page }) => {
   await page.goto('/');

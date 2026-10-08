@@ -63,8 +63,8 @@ describe('loadSettings', () => {
   it('drops a partColors value that is not a hex string', () => {
     // These reach a `style` attribute. The round-trip case below stores a valid
     // '#123456' and so cannot see the filter at all - every rejected shape has
-    // to be passed in deliberately. A stored object, array or CSS payload used
-    // to ride straight through the spread and into the renderer.
+    // to be passed in deliberately. Without the filter, a stored object, array or
+    // CSS payload would ride straight through the spread and into the renderer.
     localStorage.setItem(
       KEY,
       JSON.stringify({
@@ -152,7 +152,7 @@ describe('loadSettings', () => {
   });
 
   it('defaults the import notes to expanded and round-trips a stored false', () => {
-    // Open by default: a note says what a file could NOT bring across, which is
+    // Open by default: a note says what a file could not bring across, which is
     // worth seeing once before it is folded away for good.
     expect(loadSettings().showImportNotes).toBe(true);
     localStorage.setItem(KEY, JSON.stringify({ showImportNotes: false }));
@@ -190,9 +190,9 @@ describe('saveSettings', () => {
 });
 
 /**
- * `launchDefaults` reaches simConditions() and then simulate() for every NEW
- * simulation, and was spread-merged unchecked — while the `simulation` block
- * directly above it has clamped for exactly this reason since it was written.
+ * `launchDefaults` reaches simConditions() and then simulate() for every new
+ * simulation, so it is checked on load the same way the `simulation` block
+ * directly above it is, rather than spread-merged unchecked.
  */
 describe('launchDefaults is validated per field', () => {
   const load = (launchDefaults: unknown) => {
@@ -202,7 +202,7 @@ describe('launchDefaults is validated per field', () => {
 
   it('falls back for a required number that is a string, null or NaN', () => {
     // NaN cannot survive JSON (it writes as null), so null is what a corrupt
-    // blob actually reads back as — plus a string, which a hand-edit gives.
+    // blob actually reads back as, plus a string, which a hand-edit gives.
     expect(load({ launchRodLengthM: null }).launchRodLengthM).toBe(DEFAULT_SETTINGS.launchDefaults.launchRodLengthM);
     expect(load({ windAverage: '5' }).windAverage).toBe(DEFAULT_SETTINGS.launchDefaults.windAverage);
     expect(load({ latitudeDeg: {} }).latitudeDeg).toBe(DEFAULT_SETTINGS.launchDefaults.latitudeDeg);
@@ -220,7 +220,7 @@ describe('launchDefaults is validated per field', () => {
   });
 
   it('keeps null temperature and pressure, which MEAN the ISA standard atmosphere', () => {
-    // The one place null is an answer, not a missing value — so it must survive.
+    // The one place null is an answer, not a missing value, so it must survive.
     expect(load({ temperatureC: null, pressureHPa: null }).temperatureC).toBeNull();
     expect(load({ temperatureC: null, pressureHPa: null }).pressureHPa).toBeNull();
     expect(load({ temperatureC: 'warm' }).temperatureC).toBe(DEFAULT_SETTINGS.launchDefaults.temperatureC);
@@ -289,9 +289,9 @@ describe('loadSettings validates what reaches styles, jsPDF and the CSV writer',
 
 /**
  * The saved per-part default materials survive a reload for every slot the
- * Settings dialog offers. The key format was written in materialSlots and
- * restated as a regex here; a new material type or a key change on one side
- * would make loadSettings drop the user's saved defaults without a word.
+ * Settings dialog offers. The key format is defined in materialSlots; a new
+ * material type or a key change that loadSettings does not follow would drop
+ * the user's saved defaults without a word.
  */
 describe('default materials across a reload', () => {
   it('keeps one for every material slot', () => {

@@ -8,12 +8,12 @@ import { __setEngineForTests, OpenRocketDesign } from '../../../src/engine/openR
 import { KERNEL_TEST_TIMEOUT_MS } from '../../testing/kernelTimeout';
 
 /**
- * Every bundled example, flown through the REAL kernel.
+ * Every bundled example, flown through the real kernel.
  *
  * These files are not ours: they come from OpenRocket via
- * `scripts/sync-examples.mjs`, which also STRIPS each one's stored flight data
+ * `scripts/sync-examples.mjs`, which also strips each one's stored flight data
  * (96% of the bytes). Two things could go wrong silently and both would ship a
- * broken front door — the strip could damage a design, and an upstream bump
+ * broken front door: the strip could damage a design, and an upstream bump
  * could bring in an example using something the importer does not handle. A
  * user's first click would be the thing that found out.
  *
@@ -26,7 +26,7 @@ import { KERNEL_TEST_TIMEOUT_MS } from '../../testing/kernelTimeout';
  */
 vi.setConfig({ testTimeout: KERNEL_TEST_TIMEOUT_MS, hookTimeout: KERNEL_TEST_TIMEOUT_MS });
 
-// vitest runs with `web/` as its root, so the repo paths hang off cwd —
+// vitest runs with `web/` as its root, so the repo paths hang off cwd;
 // `import.meta.url` is not a file: URL under the jsdom environment.
 const PUBLIC = resolve(process.cwd(), 'public');
 const EXAMPLES = join(PUBLIC, 'examples');

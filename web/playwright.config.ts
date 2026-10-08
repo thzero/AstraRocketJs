@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 /**
- * End-to-end config. Playwright builds the app and serves the BUILD with
+ * End-to-end config. Playwright builds the app and serves the build with
  * `vite preview` on a fixed port (strictPort so it fails loudly rather than
  * drifting to 5174…), drives a headless Chromium, and tears the server down
  * when the run ends. The
@@ -43,8 +43,8 @@ export default defineConfig({
   testDir: './e2e',
   // Every test spreads across the workers, not just every file: each test has
   // its own browser context and storage, so none depends on another's order,
-  // and a long file (simulations-tab) no longer sets the floor. Against the
-  // built app, 8 workers run the 228 tests in about a minute on a 28-core box;
+  // and a long file (simulations-tab) does not set the floor. Against the
+  // built app, 8 workers run the suite in about a minute on a 28-core box;
   // 12 is no faster. A GitHub runner has 4 vCPUs that also serve the app and
   // software-render WebGL for every browser, so CI runs two.
   fullyParallel: true,
@@ -55,7 +55,7 @@ export default defineConfig({
   // written beside it (never auto-opened: there is no browser to open it in)
   // so that a retry which passed on the second go is still visible as a flake
   // in the uploaded report. The `github` reporter alone shows only the final
-  // verdict, which is how flaky specs went unnoticed.
+  // verdict, which hides flaky specs.
   reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : 'list',
   use: {
     baseURL: 'http://localhost:5180',
@@ -66,7 +66,7 @@ export default defineConfig({
     {
       name: 'chromium',
       // Desktop width so the split-pane layout (stats footer + Simulations
-      // panel) renders — the mobile layout hides both behind tabs. Past `2xl`
+      // panel) renders; the mobile layout hides both behind tabs. Past `2xl`
       // (1536), which is what the Design tab's property column asks for: at
       // 1500 that column is a dialog instead (component-dialog.spec) and every
       // spec that drives the property editor would be driving the dialog.
@@ -80,10 +80,10 @@ export default defineConfig({
     },
   ],
   // The production build, not the dev server. The dev server compiles modules
-  // on request, so every fresh page in every worker paid for hundreds of them
-  // and the one Vite process was the bottleneck: the suite took twice as long.
-  // It is also what ships: the build's timing exposed an import-notes bug the
-  // dev server's slower boot hid. Built fresh each run, and never reused, so a
+  // on request, so every fresh page in every worker pays for hundreds of them
+  // and the one Vite process becomes the bottleneck. The build is also what
+  // ships, with the timing that ships: the dev server's slower boot can hide
+  // ordering bugs. Built fresh each run, and never reused, so a
   // server left on the port cannot serve an old build. The docs the Help dialog
   // reads are copied in from public/docs by the build (npm run docs:build).
   webServer: {

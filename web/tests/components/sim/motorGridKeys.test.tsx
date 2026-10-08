@@ -8,11 +8,11 @@ import type { CatalogMotor } from '../../../src/services/motors/motorDb';
 
 /**
  * The grid's arrow-key stepper is a `window` listener, and `MotorDashboard`
- * keeps the grid MOUNTED while a full-width tool (Compare / Combine) is open --
- * it only hides it with a CSS class. So ArrowDown pressed while reading the
- * Compare pane stepped the selection, and the dashboard's `onSelect` flips the
- * mode back to the detail rail, closing the comparison that had just been set
- * up. A hidden surface must not own a global key.
+ * keeps the grid mounted while a full-width tool (Compare / Combine) is open:
+ * it only hides it with a CSS class. Unguarded, ArrowDown pressed while reading
+ * the Compare pane would step the selection, and the dashboard's `onSelect`
+ * flips the mode back to the detail rail, closing the comparison that had just
+ * been set up. A hidden surface must not own a global key.
  */
 const motor = (designation: string): CatalogMotor =>
   ({
@@ -75,7 +75,7 @@ describe('MotorGrid arrow keys', () => {
     renderWithProviders(<Grid active={false} onSelect={onSelect} />);
     await screen.findByText('A');
 
-    // Still mounted, still rendering its rows -- and must not answer the key.
+    // Still mounted, still rendering its rows, and must not answer the key.
     fireEvent.keyDown(window, { key: 'ArrowDown' });
     fireEvent.keyDown(window, { key: 'ArrowUp' });
     expect(onSelect).not.toHaveBeenCalled();

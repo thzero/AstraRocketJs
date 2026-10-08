@@ -10,10 +10,11 @@ import type { Material } from '../../../src/services/materials/materialTypes';
 
 /**
  * The picker's two store round-trips finish after an await and are guarded by
- * a `mounted` ref. `main.tsx` renders the app under React.StrictMode, whose
- * development double-invoke runs every effect's cleanup once and then re-runs
- * the effect - a guard that only ever flips the ref to false is therefore
- * false for the component's whole life, and the post-await state never lands.
+ * `useLatest().observe()`. `main.tsx` renders the app under React.StrictMode,
+ * whose development double-invoke runs every effect's cleanup once and then
+ * re-runs the effect, so a guard that only ever flips to stale on cleanup would
+ * stay stale for the component's whole life, and the post-await state would
+ * never land.
  */
 
 /** An in-memory material store, so the test never touches IndexedDB. */

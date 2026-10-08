@@ -92,10 +92,9 @@ describe('exportCdx1', () => {
 
 /**
  * The surface table is the desktop's RASAeroCommonConstants
- * .OPENROCKET_TO_RASAERO_SURFACE (lines 370-391), row for row. The earlier
- * "approx" table sent `polished` to Sheet Metal, `smooth` to Smooth Paint and
- * `rough` to Cast Iron; the desktop sends none of those there, and lets ROUGH
- * and POLISHED fall to its default with a warning.
+ * .OPENROCKET_TO_RASAERO_SURFACE (lines 370-391), row for row. It does not send
+ * `polished` to Sheet Metal, `smooth` to Smooth Paint or `rough` to Cast Iron,
+ * and it lets ROUGH and POLISHED fall to its default with a warning.
  */
 describe('finish to RASAero surface (desktop table)', () => {
   it.each([
@@ -209,10 +208,10 @@ describe('rail button as RASAero rail guide', () => {
 });
 
 /**
- * A non-finite number never reaches the file as text. RASAero's reader checked
- * only `typeof === 'number'`, so a NaN or Infinity on a node passed through, and
- * the writer printed "NaN" into the .CDX1. The shared `num` rejects it and falls
- * back, as every other reader does.
+ * A non-finite number never reaches the file as text. A bare
+ * `typeof === 'number'` check would let a NaN or Infinity on a node through, and
+ * the writer would print "NaN" into the .CDX1. The shared `num` rejects it and
+ * falls back, as every other reader does.
  */
 describe('a non-finite dimension', () => {
   it('is never written as NaN or Infinity', () => {

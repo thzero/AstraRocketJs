@@ -12,7 +12,7 @@ import { flightBranches } from '../flight/flightColumns';
 import { bearingFromPad, distanceFromPad } from '../flight/groundTrack';
 
 /**
- * Templated flight-path export — a TypeScript port of OpenRocket's
+ * Templated flight-path export: a TypeScript port of OpenRocket's
  * `info.openrocket.core.file.flightpath` subsystem (KML / GPX / waypoint CSV).
  *
  * Positions are the kernel's own latitude and longitude (`φ`, `λ`), which it
@@ -53,7 +53,7 @@ export type DistanceUnit = 'm' | 'ft' | 'km' | 'mi';
 /**
  * A translator, in the shape `i18next` already hands out.
  *
- * The export takes ONE of these rather than a per-waypoint label callback,
+ * The export takes one of these rather than a per-waypoint label callback,
  * because the file's language is a property of the file: the caller binds this
  * to the export language and every string in the output follows, from the
  * waypoint names to the balloon labels. A caller that wants the app's language
@@ -82,9 +82,9 @@ export const WAYPOINT_LABEL_KEY: Record<WaypointKind, string> = {
 
 /**
  * The strings the built-in templates write into the file, by the name a
- * template refers to them by: `{{labels.peakAltitude}}`.
+ * template refers to them by: `{{labels.maxAltitude}}`.
  *
- * They are on the MODEL rather than inline in the template so that the export
+ * They are on the model rather than inline in the template so that the export
  * language can differ from the app's. A phrase whose word order changes between
  * languages is not in here - it is composed through `t()` with its values and
  * arrives as one finished string (see `distanceBearing` and `stageLanding`),
@@ -129,7 +129,7 @@ function buildLabels(t: Translate): Record<string, string> {
  *
  * `clamped` is ours, not the desktop's: it drapes the track and the pins flat on
  * the terrain, which is what you want when the question is what the rocket drifts
- * OVER rather than how high it went. The value still travels fine in a desktop
+ * over rather than how high it went. The value still travels fine in a desktop
  * template, because the model carries the resolved `<altitudeMode>` as a string.
  */
 export type AltitudeReference = 'automatic' | 'ground' | 'sealevel' | 'clamped';
@@ -144,26 +144,26 @@ export type AltitudeReference = 'automatic' | 'ground' | 'sealevel' | 'clamped';
  */
 export type StageTrackStart = 'separation' | 'pad';
 
-/**
- * `automatic` resolved against a launch altitude: a launch altitude the user
- * actually set means the flight can be placed at its true elevation; the
- * default of zero means it cannot.
- */
 /** `toFixed`, but a non-finite or absent value reads as a dash, not a throw. */
 function fixed(v: number | null | undefined, digits: number): string {
   return typeof v === 'number' && Number.isFinite(v) ? v.toFixed(digits) : '-';
 }
 
 /**
- * A time in seconds to one decimal, or EMPTY for a moment the flight never
+ * A time in seconds to one decimal, or empty for a moment the flight never
  * reached. Empty rather than a dash because the balloons use these as Mustache
- * sections, and an empty string is false there — the line disappears instead of
+ * sections, and an empty string is false there: the line disappears instead of
  * reporting a flight time the run does not have.
  */
 function seconds(v: number | null | undefined): string {
   return typeof v === 'number' && Number.isFinite(v) ? v.toFixed(1) : '';
 }
 
+/**
+ * `automatic` resolved against a launch altitude: a nonzero launch altitude
+ * means the flight can be placed at its true elevation; the default of zero
+ * means it cannot.
+ */
 export function resolveAltitudeReference(
   reference: AltitudeReference,
   launchAltitudeMeters: number,
@@ -193,23 +193,23 @@ export interface FlightPathExportOptions {
   /** Unit for the human-facing horizontal-distance column. */
   distanceUnit: DistanceUnit;
   /**
-   * What the exported TRACK's altitudes are measured from. GPS Visualizer sets
-   * this and the waypoint reference below from two separate dropdowns, and it is
-   * right to: a flight is worth seeing suspended in the air, while the pins that
-   * label it are easier to read against the ground they sit over.
+   * What the exported track's altitudes are measured from. This and
+   * `waypointAltitudeReference` are separate settings because a flight is worth
+   * seeing suspended in the air, while the pins that label it are easier to read
+   * against the ground they sit over.
    */
   altitudeReference: AltitudeReference;
-  /** What the exported WAYPOINTS' altitudes are measured from. */
+  /** What the exported waypoints' altitudes are measured from. */
   waypointAltitudeReference: AltitudeReference;
   /**
-   * Draw a line from the track and each pin straight down to the ground — KML's
+   * Draw a line from the track and each pin straight down to the ground (KML's
    * `<extrude>`, which Google Earth renders as a curtain under the path and a
-   * plumb line under a pin. It is how you read WHERE a point in the air sits on
+   * plumb line under a pin). It is how you read where a point in the air sits on
    * the map. Meaningless once the thing is already on the ground, so it is
    * ignored for a clamped reference.
    */
   drawShadow: boolean;
-  /** Where each stage's track begins — see {@link StageTrackStart}. */
+  /** Where each stage's track begins; see {@link StageTrackStart}. */
   stageTrackStart: StageTrackStart;
   /**
    * Whether waypoint names are drawn on the map. A near-vertical flight stacks
@@ -224,16 +224,16 @@ export interface FlightPathExportOptions {
    */
   colorWaypointPins: boolean;
   /**
-   * Whether the KML carries the summary balloons — the flight's numbers on the
+   * Whether the KML carries the summary balloons: the flight's numbers on the
    * document, the stage's on its folder, and each waypoint's on its own pin.
    * On by default; off for a file going somewhere the descriptions would only
    * get in the way.
    */
   includeDescriptions: boolean;
   /**
-   * The language the FILE is written in, or '' to follow the app.
+   * The language the file is written in, or '' to follow the app.
    *
-   * Same argument as the two unit fields beside it: a KML going to someone else
+   * Same argument as the two unit fields: a KML going to someone else
    * may want their language whatever the app happens to be showing, and the
    * choice belongs to the file. Empty is a real, selectable value rather than
    * an absence, so it is stored like any other.
@@ -251,48 +251,38 @@ export interface FlightPathExportOptions {
    * Whether the mission name also prefixes the waypoint markers. Off by
    * default: a near-vertical flight packs every marker into a few screen
    * pixels, where the labels already overlap enough to have a switch of their
-   * own, and making each one longer is strictly worse. It earns its place only
-   * when two flights' markers genuinely sit on top of each other.
+   * own, and making each one longer makes that worse. It is useful only when
+   * two flights' markers sit on top of each other.
    */
   labelWaypointsWithMission: boolean;
   /**
-   * Per-stage FLIGHT-PATH color overrides, keyed by the branch's index in the
+   * Per-stage flight-path color overrides, keyed by the branch's index in the
    * built model. Sparse on purpose: a stage left on its palette color stores
    * nothing, so the palette can change later without stranding saved values.
    */
   branchColors: Map<number, number>;
   /**
-   * Per-stage GROUND-TRACK color overrides. Same shape, same sparseness.
+   * Per-stage ground-track color overrides. Same shape, same sparseness.
    *
    * Its own color with its own palette, rather than a darkened derivative of the
    * path color: a derived color washes out against satellite imagery and leaves
    * the user nothing to fix it with. The cost is that from directly overhead,
-   * where the ground track sits under the flight path, the two no longer read as
+   * where the ground track sits under the flight path, the two do not read as
    * one line.
    */
   branchGroundColors: Map<number, number>;
   /**
-   * Per-stage WAYPOINT-PIN color overrides. Same shape again.
-   *
-   * Pins had no color of their own; the template reused the flight path's.
+   * Per-stage waypoint-pin color overrides. Same shape again. Without an
+   * override a pin takes {@link defaultPinColor}.
    */
   branchPinColors: Map<number, number>;
 }
 
 /**
- * Default options: every waypoint, both tracks, keep all points. The two
- * distance units START from the user's `distance` preference, so someone who
- * works in feet doesn't have to re-pick feet on every export — but they stay
- * separate fields, because the file's unit is a property of the FILE and a
- * KML meant for someone else may want meters whatever the app is showing.
- * A preference this dialog has no unit for (yd, km, mi is covered; anything
- * else) falls back to meters rather than writing a unit the format can't name.
- */
-/**
  * Narrow a stored string to a union member, or undefined.
  *
  * The settings store keeps these as plain strings because it must survive a
- * value written by another build; the legal set lives HERE, next to the union,
+ * value written by another build; the legal set lives here, next to the union,
  * so there is one place to update when a member is added.
  */
 export function asWaypointKinds(values: readonly string[] | undefined): Set<WaypointKind> | undefined {
@@ -313,6 +303,14 @@ export function asStageTrackStart(value: string | undefined): StageTrackStart | 
   return value === 'separation' || value === 'pad' ? value : undefined;
 }
 
+/**
+ * Default options: every waypoint, both tracks, keep all points. The two
+ * distance units start from the user's `distance` preference, so someone who
+ * works in feet does not have to re-pick feet on every export, but they stay
+ * separate fields, because the file's unit is a property of the file and a
+ * KML meant for someone else may want meters whatever the app is showing.
+ * A preference other than m, ft, km or mi falls back to meters.
+ */
 export function defaultExportOptions(preferred?: string): FlightPathExportOptions {
   const unit: DistanceUnit = preferred === 'ft' || preferred === 'km' || preferred === 'mi' ? preferred : 'm';
   return {
@@ -343,7 +341,7 @@ export function defaultExportOptions(preferred?: string): FlightPathExportOption
 /**
  * Per-branch track colors, so the stages of a staged flight can be told apart.
  * The desktop's palette, value for value, so a stage keeps its color between
- * the two apps — and so a template written against one renders the same in the
+ * the two apps, and so a template written against one renders the same in the
  * other.
  */
 const BRANCH_COLORS = [
@@ -351,14 +349,13 @@ const BRANCH_COLORS = [
 ];
 
 /**
- * Ground-track palette. Entry *i* is chosen to CONTRAST with entry *i* of
+ * Ground-track palette. Entry *i* is chosen to contrast with entry *i* of
  * `BRANCH_COLORS`, because a ground track sits directly beneath its flight path
  * when the map is viewed from overhead: blue path / red ground, orange / teal,
  * yellow / purple, and so on.
  *
- * More saturated than a darkened shade would be, because a ground track is read
- * against satellite imagery rather than a white plot background. That is the
- * whole reason this palette exists instead of `darken(pathColor)`.
+ * More saturated than a darkened path color would be, because a ground track is
+ * read against satellite imagery rather than a white plot background.
  */
 const GROUND_COLORS = [
   0xff2d55, 0x00b3a4, 0x8e44ad, 0x2ecc40, 0xe01b84, 0xd35400, 0x1abc9c, 0x2e86c1, 0x27ae60, 0xe74c3c,
@@ -372,44 +369,42 @@ function paletteAt(palette: readonly number[], index: number): number {
 }
 
 /**
- * The FLIGHT-PATH color a branch falls on when it has no override.
+ * The flight-path color a branch falls on when it has no override.
  */
 export function defaultBranchColor(index: number): number {
   return paletteAt(BRANCH_COLORS, index);
 }
 
 /**
- * The GROUND-TRACK color a branch falls on when it has no override.
+ * The ground-track color a branch falls on when it has no override.
  */
 export function defaultGroundColor(index: number): number {
   return paletteAt(GROUND_COLORS, index);
 }
 
 /**
- * The WAYPOINT-PIN color a branch falls on when it has no override.
+ * The waypoint-pin color a branch falls on when it has no override.
  *
- * Pins want to match the flight path today, so this delegates. That is NOT the
- * old derivation: this is a default that happens to equal another default,
- * resolved once at build time, and an override replaces it without touching
- * anything else. Keeping it as its own named function means giving pins their
- * own palette later is a one-line change.
+ * Pins match the flight path by default, so this delegates. It is a default
+ * that equals another default, resolved once at build time; a pin override
+ * replaces it without touching the path color. Keeping it as its own function
+ * means giving pins their own palette is a one-line change.
  */
 export function defaultPinColor(index: number): number {
   return defaultBranchColor(index);
 }
 
-/** A branch color as the `RRGGBB` a color input wants. */
+/** A branch color as the `#rrggbb` a color input wants. */
 export function rgbToHex(rgb: number): string {
   return hexOf(rgb);
 }
 
-/** `#RRGGBB` back to a number; anything unparseable reads as black. */
 /**
- * `#rrggbb` to a PACKED 0xRRGGBB integer, which is what KML colors want.
+ * `#rrggbb` to a packed 0xRRGGBB integer, which is what KML colors want.
+ * Anything unparseable reads as black.
  *
- * Distinct from `reportPdf.hexToRgbTuple`, which returns an [r,g,b] triple for
- * jsPDF. They had the same name and different return types; TypeScript caught
- * a swap at the call site, but the names gave no hint which was which.
+ * Distinct from `hexToRgbTuple` in services/report/layout.ts, which returns an
+ * [r,g,b] triple for jsPDF.
  */
 export function hexToRgbInt(hex: string): number {
   return parseHexColor(hex) ?? 0;
@@ -425,23 +420,23 @@ function kmlColor(rgb: number, alpha: number): string {
 }
 
 /**
- * A waypoint label prefixed with the stage it belongs to, e.g. "Booster
- * Apogee". Only when the flight actually staged — otherwise every stage
- * contributes an identically named "Apogee", "Burnout" and "Landing" and the
- * export is impossible to read. A label that already starts with the stage name
- * is left alone rather than stuttering.
- */
-/**
- * A name prefixed with the mission, if there is one. The `startsWith` guard is
- * what keeps a mission named after the rocket from yielding "Sod Blaster Sod
- * Blaster Sustainer" — the common case, since the obvious thing to type is the
- * name of the thing you flew.
+ * A name prefixed with the mission, if there is one. The `startsWith` guard
+ * keeps a mission named after the rocket from yielding "Sod Blaster Sod
+ * Blaster Sustainer", which is the common case, since the obvious thing to type
+ * is the name of the thing you flew.
  */
 function withMission(mission: string, text: string | null | undefined): string {
   if (!mission || !text) return text ?? '';
   return text.toLowerCase().startsWith(mission.toLowerCase()) ? text : `${mission} ${text}`;
 }
 
+/**
+ * A waypoint label prefixed with the stage it belongs to, e.g. "Booster
+ * Apogee", when `qualify` is set (the caller sets it when the flight staged).
+ * Otherwise every stage contributes an identically named "Apogee", "Burnout"
+ * and "Landing" and the export is impossible to read. A label that already
+ * starts with the stage name is left alone rather than stuttering.
+ */
 function qualifyLabel(qualifier: string, label: string, qualify: boolean): string {
   if (!qualify || !qualifier || !label) return label ?? '';
   return label.toLowerCase().startsWith(qualifier.toLowerCase()) ? label : `${qualifier} ${label}`;
@@ -518,13 +513,13 @@ export interface FlightPathBranch {
   /** Zero-based position in `model.branches`, for building unique style ids. */
   index: number;
   /**
-   * This branch's FLIGHT-PATH color as RRGGBB. Templates reference this key by
+   * This branch's flight-path color as RRGGBB. Templates reference this key by
    * name, so renaming it stops saved templates rendering.
    */
   colorRgb: string;
-  /** This branch's GROUND-TRACK color as RRGGBB. */
+  /** This branch's ground-track color as RRGGBB. */
   groundColorRgb: string;
-  /** This branch's WAYPOINT-PIN color as RRGGBB. */
+  /** This branch's waypoint-pin color as RRGGBB. */
   pinColorRgb: string;
   /** The flight-path color as an opaque KML aabbggrr literal. */
   pathColorKml: string;
@@ -534,7 +529,7 @@ export interface FlightPathBranch {
   pinColorKml: string;
   /**
    * The CSV `color` column: the stage's pin color as `#RRGGBB` when pins are
-   * colored, else `yellow`, the fixed color that column always carried. A map
+   * colored, else `yellow`. A map
    * importer reads it, so pins match the KML's per-stage colors.
    */
   csvPinColor: string;
@@ -552,13 +547,12 @@ export interface FlightPathBranch {
   /**
    * The farthest this stage got from the pad, horizontally, in meters.
    *
-   * Scanned over the WHOLE branch — including the ascent the stages flew bolted
-   * together before separation — because the stack's excursion counts against
-   * every stage that was part of it. That is deliberately unlike the peak
-   * velocity and peak acceleration waypoints, which are scanned from the
-   * separation point so a spent booster reports its own peaks: a peak velocity
-   * is a claim about what that stage DID, while a range is a claim about where
-   * that airframe WENT.
+   * Scanned over the whole branch, including the ascent the stages flew bolted
+   * together before separation, because the stack's excursion counts against
+   * every stage that was part of it. That is unlike the peak velocity and peak
+   * acceleration waypoints, which are scanned from the separation point so a
+   * spent booster reports its own peaks: a peak velocity is a claim about what
+   * that stage did, while a range is a claim about where that airframe went.
    */
   maxRangeMeters: number;
   /** {@link maxRangeMeters} in the distance unit. */
@@ -614,9 +608,8 @@ export interface FlightPathModel {
   distanceUnit: string;
   /**
    * Unit labels for the peak velocity and acceleration. Neither has a unit
-   * option of its own — both are exported in SI whatever the distance unit is —
-   * so until the balloons wanted to name them they reached a template as bare
-   * numbers with nothing saying what they were.
+   * option of its own (both are exported in SI whatever the distance unit is),
+   * so these name the unit for a template that prints them.
    */
   velocityUnit: string;
   accelerationUnit: string;
@@ -628,14 +621,14 @@ export interface FlightPathModel {
   kmlWaypointAltitudeMode: string;
   /**
    * Draw `<extrude>` lines from the track and the pins down to the ground.
-   * A Mustache SECTION, not a value: a template that predates this field simply
+   * A Mustache section, not a value: a template that predates this field
    * renders nothing for it, where `<extrude>{{extrude}}</extrude>` would emit an
    * empty element. Already false when the thing is clamped to the ground.
    */
   extrudePath: boolean;
   extrudeWaypoints: boolean;
   /**
-   * Break the flight-path line into terrain-following pieces. KML only honours
+   * Break the flight-path line into terrain-following pieces. KML only honors
    * `<tessellate>` for a clamped line, and without it a clamped path cuts
    * straight through hills instead of draping over them.
    */
@@ -648,7 +641,7 @@ export interface FlightPathModel {
   maxVelocity: string;
   maxAcceleration: string;
   /**
-   * The farthest ANY stage got from the pad, horizontally, in the distance
+   * The farthest any stage got from the pad, horizontally, in the distance
    * unit. Not the landing distance: a rocket can drift downrange under the
    * chute and then partway back, so the range-safety figure is the maximum and
    * where it came down is a separate fact. Both are exported.
@@ -659,13 +652,13 @@ export interface FlightPathModel {
   /** Seconds from liftoff to the end of the flight, to one decimal. */
   flightTime: string;
   /**
-   * Whether the summary balloons are written at all. A Mustache SECTION, so a
-   * template that predates it renders exactly as it did before.
+   * Whether the summary balloons are written at all. A Mustache section, so a
+   * template that does not reference it is unaffected.
    */
   includeDescriptions: boolean;
   /**
    * The built-in templates' own strings, in the export language:
-   * `{{labels.peakAltitude}}`. See `LABEL_KEYS` for what is in here and what is
+   * `{{labels.maxAltitude}}`. See `LABEL_KEYS` for what is in here and what is
    * deliberately not.
    */
   labels: Record<string, string>;
@@ -684,7 +677,6 @@ export interface FlightPathMeta {
 // ---------------------------------------------------------------------------
 
 const UNIT_SYMBOL: Record<DistanceUnit, string> = { m: 'm', ft: 'ft', km: 'km', mi: 'mi' };
-/** Meters → unit multiplier. */
 /** Decimals shown per unit (larger units get more). */
 const UNIT_DECIMALS: Record<DistanceUnit, number> = { m: 1, ft: 1, km: 3, mi: 3 };
 
@@ -711,14 +703,14 @@ export const EXPORT_FALLBACK_LATITUDE = 28.61;
 export const EXPORT_FALLBACK_LONGITUDE = -80.6;
 
 /**
- * True when BOTH coordinates are still zero — the only combination that cannot
+ * True when both coordinates are still zero, the only combination that cannot
  * be a real launch site anyone uses, since (0, 0) is open ocean in the Gulf of
  * Guinea.
  *
- * This is deliberately narrower than desktop OpenRocket, whose
- * `FlightPathModelBuilder` treats a zero in *either* coordinate as unset. A
- * zero longitude is a legitimate position — Greenwich, and everywhere else on
- * the prime meridian — and so is a zero latitude, so OpenRocket's rule would
+ * This is narrower than desktop OpenRocket, whose `FlightPathModelBuilder`
+ * treats a zero in *either* coordinate as unset. A zero longitude is a
+ * legitimate position (Greenwich, and everywhere else on the prime meridian),
+ * and so is a zero latitude, so OpenRocket's rule would
  * relocate a real launch site that happens to sit on one of those lines.
  */
 function launchPositionUnset(launch: LaunchConditions): boolean {
@@ -758,7 +750,7 @@ function usableSeries(s: FlightSeries): { time: (number | null)[]; alt: (number 
 
 /**
  * The raw stage names of the branches this flight will actually export, in the
- * order their `index` will be assigned — what the stage-color picker offers a
+ * order their `index` will be assigned: what the stage-color picker offers a
  * swatch for. Unprefixed: it names the stage, not the file.
  */
 export function exportBranchNames(result: FlightResult, meta: FlightPathMeta): string[] {
@@ -822,7 +814,7 @@ export function buildFlightPathModel(
     altitudeUnit: UNIT_SYMBOL[options.altitudeUnit],
     distanceUnit: UNIT_SYMBOL[options.distanceUnit],
     // The two peaks are SI whatever the distance unit is, so these are
-    // constants rather than a lookup — see the field docs.
+    // constants rather than a lookup; see the field docs.
     velocityUnit: 'm/s',
     accelerationUnit: 'm/s²',
     includeFlightPath: options.includeFlightPath,
@@ -837,10 +829,9 @@ export function buildFlightPathModel(
     colorWaypointPins: options.colorWaypointPins,
     maxAltitude: fmtLength(result.summary.maxAltitude, options.altitudeUnit),
     // `toFixed` on a non-number throws. A stored result that went through
-    // JSON has `null` wherever a NaN/Infinity was, and this ran unguarded
-    // while `maxAltitude` above went through `fmtLength`. readResults now
-    // rejects such a result outright; this is the second line of defense, on
-    // the path a user reaches by exporting after a reload.
+    // JSON has `null` wherever a NaN/Infinity was. `readResults` rejects such
+    // a result; `fixed` is the second line of defense, on the path a user
+    // reaches by exporting after a reload.
     maxVelocity: fixed(result.summary.maxVelocity, 1),
     maxAcceleration: fixed(result.summary.maxAcceleration, 1),
     // Filled in below, once the branches it is the maximum over exist.
@@ -854,7 +845,7 @@ export function buildFlightPathModel(
 
   const rawBranches = rawBranchesOf(result, meta);
 
-  // Only a staged flight needs its waypoints qualified — see `qualifyLabel`.
+  // Only a staged flight needs its waypoints qualified; see `qualifyLabel`.
   const qualify = rawBranches.length > 1;
 
   for (const [i, raw] of rawBranches.entries()) {
@@ -932,7 +923,7 @@ interface BranchCtx {
   /** True when the flight staged, so waypoint labels name their stage. */
   qualify: boolean;
   /**
-   * The mission prefix for the waypoint LABELS, or '' for none. Kept apart from
+   * The mission prefix for the waypoint labels, or '' for none. Kept apart from
    * the branch name for the reason given where it is applied: the folder and
    * track names can carry the mission while the markers stay short.
    */
@@ -940,7 +931,7 @@ interface BranchCtx {
   /**
    * True for the branch the whole vehicle flew. Leaving the pad is something
    * the stack does, not any one stage, so only this branch gets a pad
-   * waypoint — and only the others can have a shared ascent to trim.
+   * waypoint, and only the others can have a shared ascent to trim.
    */
   primary: boolean;
   /** Where this branch's own flight begins; see {@link StageTrackStart}. */
@@ -952,7 +943,7 @@ interface BranchCtx {
  *
  * A separated branch repeats its parent's points from the pad up to the moment
  * it let go. Exporting that prefix again draws the shared ascent once per
- * stage, and attributes the stack's flight — and its peak speed — to a stage
+ * stage, and attributes the stack's flight (and its peak speed) to a stage
  * that was not yet flying on its own.
  *
  * Falls back to 0 for the primary branch, when the user asked for every track
@@ -1078,7 +1069,7 @@ function buildBranch(
   }
   branch.maxRange = fmtLength(branch.maxRangeMeters, ctx.distUnit);
 
-  // Scanned from the branch's own events, NOT read back out of the waypoints
+  // Scanned from the branch's own events, not read back out of the waypoints
   // built below: the user can switch the landing marker off, and the summary
   // still has to know where the stage came down.
   const groundHit = raw.events.find((e) => e.type === 'GROUND_HIT' && Number.isFinite(e.time));
@@ -1107,12 +1098,12 @@ function buildBranch(
     if (kind === 'recovery') {
       // A device the user never renamed reaches us as the bundle key its
       // default name is looked up under - `[Parachute.Parachute]` - because the
-      // TeaVM kernel carries no resource bundles. Translated with the EXPORT's
+      // TeaVM kernel carries no resource bundles. Translated with the export's
       // translator, so it follows the language box like every other word in
-      // the file rather than being the one English one among them.
+      // the file.
       const raw = event.source ?? '';
       const device = componentName(raw, t);
-      // The event word, QUALIFIED by the device: "Drogue Ejection", not
+      // The event word, qualified by the device: "Drogue Ejection", not
       // "Drogue" and not a bare "Ejection". Naming the pin for the device
       // alone loses the event vocabulary that every other pin uses; naming it
       // for the event alone makes a dual-deployment flight two identical pins.
@@ -1161,18 +1152,17 @@ function buildBranch(
     /**
      * One track point, or nothing at all for a sample we do not have.
      *
-     * `finiteOr0` is the right answer for a SUMMARY figure - a missing distance
-     * reads as zero range - and the wrong one for a track point, where it plants
+     * `finiteOr0` is the right answer for a summary figure (a missing distance
+     * reads as zero range) and the wrong one for a track point, where it plants
      * the rocket on the pad at sea level in the middle of the flight and draws a
-     * line down to it and back. The sibling chart (`buildLinePath`) breaks its
-     * path on a non-finite sample for exactly this reason, and non-finite samples
-     * demonstrably occur: `sweep.nonFinite` is surfaced in the UI.
+     * line down to it and back. The aero charts' `buildLinePath` breaks its path
+     * on a non-finite sample for the same reason.
      *
      * Skipped rather than broken into separate track segments: a KML `LineString`
      * and a GPX `trkseg` are one polyline per branch by format, and the templates
      * are a published contract. So the line between the two real neighbors still
-     * closes the gap - which is an interpolation between two measured points, and
-     * honest in a way a fabricated sea-level point is not.
+     * closes the gap, which is an interpolation between two measured points
+     * rather than a fabricated sea-level point.
      */
     const pushPoint = (i: number) => {
       if (![time[i], alt[i], north?.[i], east?.[i]].every((v) => typeof v === 'number' && Number.isFinite(v))) return;
@@ -1244,7 +1234,7 @@ function indexOfMax(values: (number | null)[], from: number, n: number): number 
 //
 // Each built-in format renders through the shared Mustache path using its own
 // template source (EXPORT_FORMATS[].source). There is no hand-written renderer
-// to drift from the template — the file you download and re-import IS what
+// to drift from the template: the file you download and re-import is what
 // produces the built-in output. Templates live next to the format registry.
 
 /** Render the model as KML (Google Earth). */
@@ -1274,8 +1264,8 @@ export interface ExportFormat {
   mime: string;
   render: (model: FlightPathModel) => string;
   /** The Mustache template source, offered for download as a starting point for
-   *  custom templates. It renders through {@link renderUserTemplate} to output
-   *  equivalent to this format's built-in renderer. */
+   *  custom templates. The built-in renderer renders this same source through
+   *  {@link renderUserTemplate}. */
   source: string;
   /** Suggested filename when downloading {@link ExportFormat.source}. */
   templateFilename: string;
@@ -1285,14 +1275,14 @@ export interface ExportFormat {
 // They are the "download to modify" starting points; the model field names match
 // so an edited copy re-imports and renders through renderUserTemplate.
 //
-// The KML balloons' HTML is written PRE-ESCAPED (`&lt;b&gt;`, not `<b>`), and
-// deliberately not wrapped in CDATA. `escaperFor('kml')` escapes every value
-// this template substitutes, because they are user-supplied names that would
-// otherwise break the XML — and inside a CDATA block the XML parser does not
+// The KML balloons' HTML is written pre-escaped (`&lt;b&gt;`, not `<b>`), and
+// not wrapped in CDATA. `escaperFor('kml')` escapes every value this template
+// substitutes, because they are user-supplied names that would otherwise break
+// the XML, and inside a CDATA block the XML parser does not
 // decode those escapes, so a rocket named `Bill & Ted` would reach the balloon
 // as the literal text `Bill &amp; Ted`. A CDATA block is breakable too: a name
 // containing `]]>` would close it early and produce an invalid document.
-// Pre-escaping makes the two consistent — the template's own markup and the
+// Pre-escaping makes the two consistent: the template's own markup and the
 // values are each escaped exactly once, the parser decodes them together, and
 // the balloon gets the HTML the template meant and the name the user typed.
 // The degree sign is a literal UTF-8 character rather than `&deg;` for the same
@@ -1484,7 +1474,7 @@ function escaperFor(extension: string): (raw: string) => string {
       //
       // A leading `-` is a trigger only when what follows is not a number: the
       // pre-formatted numeric fields (longitude, altitude, distance) go through
-      // this same escaper, and quoting `-80.600000` turned every
+      // this same escaper, and quoting `-80.600000` would turn every
       // western-hemisphere longitude and every below-pad altitude into text.
       return (raw) => neutralizeFormula(raw, { keepNumericMinus: true }).replace(/"/g, '""');
     case 'json':
@@ -1502,10 +1492,9 @@ function escaperFor(extension: string): (raw: string) => string {
       // would use to forge a record boundary. Printable punctuation is left
       // alone, because in an unknown format it is as likely to be content.
       // Matched per character and compared by code point rather than with a
-      // control-character class, which `no-control-regex` rejects for the
-      // ordinary reason that a literal control in a pattern is usually a
-      // mistake. Here they are the entire point, so the test moves out of the
-      // pattern instead of the rule being switched off.
+      // control-character class, which `no-control-regex` rejects because a
+      // literal control in a pattern is usually a mistake. Keeping the test out
+      // of the pattern avoids switching the rule off.
       return (raw) => raw.replace(/./gsu, (ch) => (ch < ' ' || ch === '' ? ' ' : ch));
   }
 }
@@ -1532,8 +1521,8 @@ export function mimeForExtension(extension: string): string {
  * Render a user-supplied Mustache template against the model, escaping values by
  * the output extension. The model uses the same field names as OpenRocket's
  * desktop `FlightPathModel`, so existing OpenRocket export templates render
- * verbatim. Only the rendered text is ever downloaded — never injected into the
- * DOM — so a template cannot script the app.
+ * verbatim. Only the rendered text is ever downloaded, never injected into the
+ * DOM, so a template cannot script the app.
  */
 export function renderUserTemplate(source: string, extension: string, model: FlightPathModel): string {
   // Mustache.escape is a module-level hook; set it for this synchronous render

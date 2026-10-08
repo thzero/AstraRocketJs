@@ -9,17 +9,15 @@ const TICK_MS = 30_000;
 /**
  * "Saved just now" in the header: when the autosave last actually landed.
  *
- * This replaced the File menu's **Save** item. That item never stood between
- * the user and their work - editing autosaves on a 500 ms debounce and unload
- * writes a synchronous journal - so what it really offered was the reassurance
- * that saving was happening at all, and it charged a click for it. A status
- * says the same thing without being asked, and says it from the only place
- * that knows: the write's own success path (useWorkspaceEffects), not the
- * moment something requested one.
+ * There is no Save item: editing autosaves on a 500 ms debounce and unload
+ * writes a synchronous journal. What a Save button would offer is the
+ * reassurance that saving is happening at all; this status says it without
+ * being asked, from the only place that knows: the write's own success path
+ * (useWorkspaceEffects), not the moment something requested one.
  *
  * Silent until the first write, because "Saved" over a design that has never
  * reached storage is the one thing it must not say. Silent under the storage
- * banner too: that banner says work is NOT being kept, it outlives any one
+ * banner too: that banner says work is not being kept, it outlives any one
  * write, and two contradicting claims in the same header is worse than one.
  */
 export function SaveStatus() {
@@ -27,17 +25,17 @@ export function SaveStatus() {
   const lastSavedAt = useWorkspaceStore((s) => s.lastSavedAt);
   // Below 2xl the status is the word alone: the header is carrying the workbench
   // tabs, the app name and the badge group there, and the age is 55px of
-  // it in German. What the status is for is that a save HAPPENED; the exact time is in the
+  // it in German. What the status is for is that a save happened; the exact time is in the
   // tooltip at every width.
   const withAge = useIsWide();
   const warning = useWorkspaceStore((s) => s.storageWarning);
 
-  // The clock is STATE, read in render, rather than a `Date.now()` in the
+  // The clock is state, read in render, rather than a `Date.now()` in the
   // markup: the interval is what makes "just now" become "5 minutes ago" on a
   // design nobody is touching, and a render that read the wall clock directly
   // would be at the mercy of whatever else happened to re-render the header.
   //
-  // A save can land BEFORE the next tick, leaving `now` behind `lastSavedAt`.
+  // A save can land before the next tick, leaving `now` behind `lastSavedAt`.
   // That needs no extra set: the clamp below reads a negative age as zero,
   // which is "just now", which is what it is.
   const [now, setNow] = useState(() => Date.now());

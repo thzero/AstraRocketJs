@@ -8,17 +8,16 @@ import type { ComponentNode, ComponentType } from '../../src/engine/openRocketEn
  *
  * The method is deliberately behavioral rather than declarative. There is no
  * way to ask `ComponentFactory` "what default did you use for bodytube
- * thickness", and a table that merely *claims* to mirror the Java is the same
- * hand-maintained artifact that produced the divergence in the first place.
+ * thickness", and a table that merely *claims* to mirror the Java is a
+ * hand-maintained artifact that can drift unnoticed.
  *
  * Each case builds the same component twice through the real engine - once
  * with the field absent, once with the value from the table - and requires the
  * observable to be identical.
  *
  * **Every case also asserts its own sensitivity**, because "identical" proves
- * nothing if the observable cannot see the field at all. The first version of
- * this file used component length/mass for all fourteen fields and passed
- * happily with a deliberately wrong mass-component radius: a mass component's
+ * nothing if the observable cannot see the field at all. Component length/mass
+ * would pass a deliberately wrong mass-component radius: a mass component's
  * mass is an override, so its radius moves neither. Two fields therefore use a
  * whole-rocket observable, where the radius shows up in roll inertia and the
  * pod instance count in total mass.
@@ -262,9 +261,8 @@ const CASES: Case[] = [
     0.006,
   ],
   // ---- The per-type lengths and the fin planform defaults ------------------
-  // Every one is read from KERNEL_DEFAULTS and pinned here against the engine,
-  // rather than a 0.025 fallback in `position.axialLength`, a FIN_DEFAULTS declared
-  // as "what treeEdit writes", and a bare 6 in `tubefins`.
+  // Every one is read from KERNEL_DEFAULTS and pinned here against the engine, so
+  // no consumer carries a fallback number of its own.
   [
     'nosecone.length',
     n({ type: 'nosecone', shape: 'ogive', aftRadius: 0.013 }),
@@ -559,7 +557,8 @@ describe('KERNEL_DEFAULTS matches the kernel', () => {
     const absent = observe(engine, base, parent, scope);
 
     // The observable must be able to see this field, or the assertion below is
-    // vacuous. This is not ceremony: it caught two fields that it was.
+    // vacuous. This is not ceremony: an observable that looks reasonable can be
+    // blind to the field.
     const other = observe(engine, n({ ...base, [field]: probeOther }), parent, scope);
     expect(other, 'probe cannot observe this field, so the check below proves nothing').not.toBe(absent);
 
@@ -592,8 +591,8 @@ describe('KERNEL_SHAPES matches the kernel', () => {
 });
 
 describe('defaultNode does not leave a divergent field unset', () => {
-  // Both fields were omitted, so the editor produced a node whose drawing and
-  // simulation described different hardware. Setting them explicitly is what
+  // With either field omitted, the editor would produce a node whose drawing and
+  // simulation describe different hardware. Setting them explicitly is what
   // makes all four sides agree for a newly created component.
   it('a mass component carries an explicit radius', () => {
     expect(defaultNode('masscomponent')['radius']).toBe(KERNEL_DEFAULTS.masscomponent.radius);

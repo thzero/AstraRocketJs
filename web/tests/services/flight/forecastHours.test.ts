@@ -5,7 +5,7 @@ const flown: SimPayload[] = [];
 vi.mock('../../../src/engine/simClient', () => ({
   simulateInWorker: vi.fn(async (payload: SimPayload) => {
     flown.push(payload);
-    // Land further east the stronger the surface wind that hour, so each hour is told apart.
+    // Land farther east the stronger the surface wind that hour, so each hour is told apart.
     const surface = payload.options.windLevels?.[0]?.speed ?? 0;
     return { series: { Px: [0, surface * 10], Py: [0, 5] } };
   }),

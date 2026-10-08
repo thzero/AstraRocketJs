@@ -15,7 +15,7 @@ vi.setConfig({ testTimeout: 60_000 });
  * line in every locale and hides which strings the UI actually shows. Most
  * keys are referenced by a quoted literal (`t('sim.noMount')`, or a table
  * entry like `labelKey: 'flight.altitude'`), so a literal grep of the source
- * finds them. The rest are BUILT at runtime from a prefix and a value
+ * finds them. The rest are built at runtime from a prefix and a value
  * (`t(\`part.${node.type}\`)`); those prefixes are listed here, each with the
  * expression that builds it, so an unlisted dynamic family fails loudly
  * rather than being assumed.
@@ -34,7 +34,7 @@ function flatten(node: Tree, prefix = '', out: string[] = []): string[] {
 
 /** Every non-test source file under src, as [path relative to src, text]. */
 function sourceFiles(): [string, string][] {
-  // Out of tests/i18n and into the SOURCE tree, which is what this scans.
+  // Out of tests/i18n and into the source tree, which is what this scans.
   const root = join(__dirname, '../../src');
   const files: [string, string][] = [];
   const walk = (dir: string) => {
@@ -62,7 +62,7 @@ function sourceText(): string {
 /**
  * Key families built at runtime: `prefix` is what the code concatenates, and
  * the comment says where. Keep this list honest: a prefix here is a promise
- * that SOME call site builds keys under it.
+ * that some call site builds keys under it.
  */
 const DYNAMIC_PREFIXES: string[] = [
   'part.', // t(`part.${node.type}`) - component type names (schematic, tree, runnability)
@@ -75,7 +75,7 @@ const DYNAMIC_PREFIXES: string[] = [
   'view.', // t(`view.${v}`), t(`view.ruler_${side}`) - ViewToggle, rulers
   'pathExport.fmt.', // t(`pathExport.fmt.${f.id}`) - flight-path export formats
   'pathExport.preset.', // t(`pathExport.preset.${preset.id}`) and `${id}Note`
-  'pathExport.doc.', // buildLabels() - the strings the built-in export templates write INTO the file
+  'pathExport.doc.', // buildLabels() - the strings the built-in export templates write into the file
   'deployEvent.', // `${f.optI18n}.${o}` - componentFields option labels
   'crossSection.', // same - the fin section (square / rounded / airfoil)
   'massComponentType.', // same - what a mass component represents
@@ -105,8 +105,8 @@ const DYNAMIC_PREFIXES: string[] = [
   'ignition.', // t(`ignition.${ev}`)
   'export.units_', // t(`export.units_${c}`)
   'config.type_', // t(`config.type_${tk}`)
-  'warn.', // `warn.${key}` - warningText.ts:80, per kernel warning code
-  'warnHelp.', // `warnHelp.${key}` - warningText.ts:66, the longer explanation
+  'warn.', // `warn.${key}` - warningText(), per kernel warning code
+  'warnHelp.', // `warnHelp.${key}` - warningHelp(), the longer explanation
 ];
 
 /**

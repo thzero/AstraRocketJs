@@ -11,7 +11,7 @@ import { readSimulations } from './ork/importSimulations';
 import { configNotes, ignoredNotes, modelingNotes } from './ork/importNotes';
 
 /**
- * .ork IMPORT: unpack and parse the file, pick the flight configuration to
+ * .ork import: unpack and parse the file, pick the flight configuration to
  * apply, read the stages through the per-tag reader table
  * (`ork/importReaders.ts`), then the launch conditions and the notes. Each
  * of those steps has its own module under `ork/`; this is the orchestrator.
@@ -23,7 +23,7 @@ export function importOrk(data: ArrayBuffer | string): OrkImportResult {
   if (!rocketEl) throw new Error('Not a .ork file (missing <rocket>)');
 
   const name = text(rocketEl, ':scope > name') ?? 'Imported rocket';
-  // Design-level metadata (OpenRocket's Rocket configuration) — preserved so a
+  // Design-level metadata (OpenRocket's Rocket configuration), preserved so a
   // round-trip export doesn't drop the designer / comments / revision.
   const designer = text(rocketEl, ':scope > designer') ?? undefined;
   const comment = text(rocketEl, ':scope > comment') ?? undefined;
@@ -31,19 +31,19 @@ export function importOrk(data: ArrayBuffer | string): OrkImportResult {
   const designType = text(rocketEl, ':scope > designtype')?.toLowerCase() ?? undefined;
   // What the stability calibers are measured against. Read rather than carried,
   // because the writer emits a `referencetype` of its own and a hardcoded
-  // `maximum` brings a design measured against a custom length back measured
-  // against its widest body tube.
-  // Only when it is NOT the default: `maximum` is what this app measures against
+  // `maximum` would bring a design measured against a custom length back
+  // measured against its widest body tube.
+  // Only when it is not the default: `maximum` is what this app measures against
   // and what the writer emits anyway, so recording it would put the same word on
   // every tree for nothing.
   const refType = text(rocketEl, ':scope > referencetype')?.toLowerCase();
   const referenceType = refType && refType !== 'maximum' ? refType : undefined;
   const customRef = Number(text(rocketEl, ':scope > customreference'));
   const customReference = Number.isFinite(customRef) && customRef > 0 ? customRef : undefined;
-  // The two levels ABOVE a component that can also carry things we do not model:
+  // The two levels above a component that can also carry things we do not model:
   // `<rocket>` itself, and the document around it (Photo Studio, the document
-  // preferences, the custom expressions). Neither was reachable from the
-  // component-level pass, so both were dropped on every save.
+  // preferences, the custom expressions). Neither is reachable from the
+  // component-level pass, so each is read here or it would be dropped on save.
   const rocketExtra = readPassthrough(rocketEl, KNOWN_ROCKET_TAGS);
   const docEl = doc.querySelector('openrocket');
   const docExtra = docEl ? readPassthrough(docEl, KNOWN_DOCUMENT_TAGS) : undefined;
@@ -63,7 +63,7 @@ export function importOrk(data: ArrayBuffer | string): OrkImportResult {
 
   // A file spells an automatic diameter as `auto`, which the readers turn into
   // a flag. Resolve it here rather than waiting for the first edit: everything
-  // downstream of an import - the drawing, the mesh, the exports - reads a
+  // downstream of an import (the drawing, the mesh, the exports) reads a
   // plain radius, and an unresolved one would draw at a default nobody chose.
   const components = syncAutoRadii({ name, components: readStages(ctx, stages) }).components;
   if (components.every((s) => (s.children ?? []).length === 0)) {
@@ -114,14 +114,11 @@ export function importOrk(data: ArrayBuffer | string): OrkImportResult {
 /**
  * What the file carried that this app does not use, said out loud.
  *
- * Silence was the real problem: appearance settings and decals were read
- * nowhere and written nowhere, so a design that came here for one dimension
- * went back stripped of its paint with nothing on screen about it. The
- * appearance XML is preserved now (services/files/ork/passthrough.ts) and the note
- * says so; a decal is the one thing that genuinely cannot survive, because its
- * image is a separate member of the archive that we do not keep.
+ * Appearance XML is preserved (services/files/ork/passthrough.ts) and the note
+ * says so; a decal is the one thing that cannot survive, because its image is a
+ * separate member of the archive that we do not keep.
  *
- * Counted off the DOCUMENT rather than reported by the readers, so no state has
+ * Counted off the document rather than reported by the readers, so no state has
  * to be threaded through every one of them to answer the same question.
  */
 function archiveNotes(doc: Document, dropped: string[]): string[] {
@@ -143,7 +140,7 @@ function archiveNotes(doc: Document, dropped: string[]): string[] {
   }
   // Whole features rather than fields, so they are named: someone who set a
   // Photo Studio shot in the desktop should know this app does not show it and
-  // is not going to eat it either.
+  // does not discard it either.
   const docLevel = ['photostudio', 'docprefs', 'datatypes'].filter((t) => doc.querySelector(`openrocket > ${t}`));
   if (docLevel.length) {
     out.push(`This app has no editor for: ${docLevel.join(', ')}. They are preserved, so a save keeps them.`);

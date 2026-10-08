@@ -98,9 +98,8 @@ describe('useFocusTrap', () => {
   });
 
   /**
-   * Sixteen dialogs each carried their own window keydown listener for Escape.
-   * The one copy lives here now, so a regression here is a regression in every
-   * modal at once.
+   * The modals rely on this one window keydown listener for Escape rather than
+   * each carrying its own, so a break here breaks every modal at once.
    */
   it('calls onEscape on a window-level Escape while active', () => {
     const onEscape = vi.fn();
@@ -128,9 +127,9 @@ describe('useFocusTrap', () => {
 
   /**
    * The listener has to be on the window, because a dialog is not always the
-   * thing focused when Escape is pressed. That meant every open surface heard
-   * every Escape, and two of them both closed: dismissing the rename prompt
-   * inside the design library shut the library behind it too.
+   * thing focused when Escape is pressed. So every open surface hears every
+   * Escape, and only the top one may act on it: dismissing the rename prompt
+   * inside the design library must not shut the library behind it too.
    */
   describe('with more than one surface open', () => {
     it('gives Escape to the one on top, and only that one', () => {

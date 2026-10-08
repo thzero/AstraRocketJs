@@ -50,18 +50,18 @@ export function useRocketExport(
     // render target (see clampExportSize for why that clamp exists).
     const { width, height } = clampExportSize(widthPx, cssW / cssH, st.gl.capabilities.maxTextureSize);
 
-    // Auto-fit (Eric, 12 Aug 2026). His real 8K export has the rocket filling
-    // roughly a fifth of the frame, so four fifths of those pixels are
-    // background. Trimming to content AFTER the render cannot fix that — it
-    // throws pixels away, so an "8K" export of a small on-screen rocket yields
-    // far fewer than 8K pixels OF ROCKET. Moving the camera in BEFORE the
+    // Auto-fit. With the on-screen framing the rocket can fill a fifth of the
+    // frame, leaving most of the pixels as background. Trimming to content
+    // after the render cannot fix that: it throws pixels away, so an "8K"
+    // export of a small on-screen rocket yields far fewer than 8K pixels of
+    // rocket. Moving the camera in before the
     // hi-res render lands the full requested resolution on the subject; trim
     // is the weaker half of the same idea.
     //
-    // The fit renders through a THROWAWAY camera instead of moving the live
+    // The fit renders through a throwaway camera instead of moving the live
     // one and restoring it. OrbitControls owns the on-screen camera and
     // re-derives its state from it every frame, and the hi-res encode below
-    // takes long enough (seconds, at 8K) for plenty of frames to land — a
+    // takes long enough (seconds, at 8K) for plenty of frames to land; a
     // mutate/restore pair would flash a jumped view at the user and risks
     // leaving the controls desynced if the capture throws. A throwaway cannot
     // desync: there is nothing to put back. Building it fresh rather than
@@ -91,17 +91,17 @@ export function useRocketExport(
       return;
     }
 
-    // Fallback (the original export): re-render the SAME scene at the export
-    // size through the LIVE renderer (updateStyle=false keeps the on-screen
-    // CSS size), grab the buffer, then restore — preserveDrawingBuffer on the
+    // Fallback: re-render the same scene at the export
+    // size through the live renderer (updateStyle=false keeps the on-screen
+    // CSS size), grab the buffer, then restore; preserveDrawingBuffer on the
     // canvas makes the read reliable.
     const pr = st.gl.getPixelRatio();
     const live = observe();
     try {
-      // The LIVE renderer is resized for the encode, and an 8K encode takes
-      // seconds. With the frame loop left running, R3F kept rendering the
+      // The live renderer is resized for the encode, and an 8K encode takes
+      // seconds. With the frame loop left running, R3F keeps rendering the
       // on-screen camera into the resized buffer underneath the capture (and
-      // OrbitControls kept damping into it), so a frame could land between
+      // OrbitControls keeps damping into it), so a frame could land between
       // our render and the readback. Freezing the loop for the duration makes
       // the export frame the only frame; `finally` restores it.
       st.setFrameloop('never');
@@ -111,11 +111,11 @@ export function useRocketExport(
       download(filename, await snapshotWithHeader(el, data, format));
     } finally {
       // Switching away from the 3D view, or an edit remounting the canvas,
-      // disposes the renderer underneath it - and restoring a disposed
-      // WebGLRenderer threw out of the `finally`, which surfaced as an
-      // unhandled rejection and lost the "export failed" signal entirely.
-      // TreeSchematic routes its export errors to `onError`; this had no such
-      // channel, so at minimum it must not make things worse.
+      // disposes the renderer underneath it, and restoring a disposed
+      // WebGLRenderer throws out of the `finally`, which surfaces as an
+      // unhandled rejection and loses the "export failed" signal. So the
+      // restore runs only while the view is mounted and still holds this
+      // renderer.
       if (live() && r3f.current === st) {
         st.gl.setPixelRatio(pr);
         st.gl.setSize(cssW, cssH, false);

@@ -30,13 +30,12 @@ export function Num({
 }) {
   // Committed on blur or Enter, not per keystroke.
   //
-  // These three drive `sweep`, a 48-to-50 sample `rocket.aeroSweep()` with a
-  // full per-component force analysis. It now runs deferred from an effect
-  // with a busy state, but it is still a synchronous kernel call on the main
-  // thread: firing it on every keystroke meant typing "12" ran two complete
-  // sweeps back to back, and the panel visibly stalled on a multi-stage
-  // design. The draft keeps the box responsive while you type; the same
-  // commit-on-blur shape `NumberInput.onCommit` uses elsewhere.
+  // These inputs drive `rocket.aeroSweep()`, roughly 40 to 60 samples each with
+  // a full per-component force analysis. It runs deferred from an effect with
+  // a busy state, but it is still a synchronous kernel call on the main
+  // thread: committing per keystroke would run a complete sweep for every
+  // digit typed, and the panel stalls on a multi-stage design. The draft
+  // (NumberInput's `commitOnBlur`) keeps the box responsive while you type.
   return (
     <label className="flex items-center gap-1.5">
       <span className="text-[10px] text-ink-faint">{label}</span>

@@ -1,6 +1,6 @@
 // i18n setup (react-i18next). English is the source-of-truth locale; other
 // locales fall back to it for any missing key. Add a language by dropping a
-// JSON file under locales/ and adding ONE row to LOCALES below.
+// JSON file under locales/ and adding one row to LOCALES below.
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
@@ -28,8 +28,8 @@ import { nsKey } from '../services/storage/storageKeys';
  * drag, landing are each a different word), and in how a verb in progress is
  * built. So they ship as two files, not one.
  *
- * ORDER MATTERS for a region-tagged pair: a browser asking for a bare language,
- * or for a region we do not ship, lands on the FIRST matching row here. See
+ * Order matters for a region-tagged pair: a browser asking for a bare language,
+ * or for a region we do not ship, lands on the first matching row here. See
  * resolve.test.ts, which pins every case.
  */
 const LOCALES = [
@@ -55,7 +55,7 @@ i18n
     resources: Object.fromEntries(LOCALES.map((l) => [l.code, { translation: l.translation }])),
     fallbackLng: 'en',
     supportedLngs: LANGUAGES.map((l) => l.code),
-    // NO `load: 'languageOnly'`: it strips the region from every code,
+    // No `load: 'languageOnly'`: it strips the region from every code,
     // collapsing pt-BR and pt-PT onto a 'pt' we do not ship and sending every
     // Portuguese browser to English. i18next's best-match already widens
     // correctly: an unshipped region falls back to the base language when we
@@ -70,7 +70,7 @@ i18n
       lookupLocalStorage: nsKey('i18nextLng'),
     },
   })
-  // Every translation is BUNDLED, so there is no backend fetch here and nothing
+  // Every translation is bundled, so there is no backend fetch here and nothing
   // for the network to break: a rejection means the config above is wrong. It is
   // still handled rather than dropped, because the failure mode is the app coming
   // up showing raw translation keys, and without this nothing anywhere says why.

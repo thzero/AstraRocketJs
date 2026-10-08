@@ -14,14 +14,14 @@ import { Check } from '../common/Check';
 import { NumberInput } from '../common/NumberInput';
 
 /**
- * What goes in the flight CSV, before it is written — OpenRocket's Export data
+ * What goes in the flight CSV, before it is written: OpenRocket's Export data
  * tab: the variables, the format, the comments and which stage.
  *
  * All of it is the user's choice rather than an immediate download of twelve fixed
  * columns, commas, six significant digits and event comments: that is one opinion
  * about a file somebody else has to read.
  *
- * The variable list comes from the RESULT rather than a fixed table, so it shows
+ * The variable list comes from the result rather than a fixed table, so it shows
  * what this run actually recorded. Series the app has no name for are listed
  * under their kernel symbol, which is what they are called everywhere else.
  */

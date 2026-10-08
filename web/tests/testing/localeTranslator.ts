@@ -1,7 +1,7 @@
 import type { Translate } from '../../src/services/exports/flightPathExport';
 
 /**
- * A {@link Translate} over a REAL locale bundle, for tests of code that writes
+ * A {@link Translate} over a real locale bundle, for tests of code that writes
  * translated strings into a file.
  *
  * Real strings rather than a stub, for the same reason the component tests use

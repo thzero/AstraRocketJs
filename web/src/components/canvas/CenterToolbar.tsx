@@ -46,16 +46,15 @@ export function CenterToolbar({
         {/* Whose flight this is. The design views are about the one rocket
         on screen and need no label, but a result belongs to a named
         simulation, and with several of them the charts are otherwise
-        unattributed. The stale marker rides along because results now
-        survive a design edit — the numbers stay readable, so the tab has
+        unattributed. The stale marker rides along because results
+        survive a design edit: the numbers stay readable, so the tab has
         to say when they no longer describe the rocket. */}
         {tab === 'results' && (
           <div className="flex items-center gap-2">
             {/* A heading, not a span: it titles the whole pane, and a
             screen reader should be able to jump to it. Once a second
-            simulation has flown the picker BECOMES the heading — the name
-            and a dropdown showing the same name beside it said one thing
-            twice. `ResultPicker` renders its own h2 in that case. */}
+            simulation has flown the picker becomes the heading, so the name
+            is not shown twice. `ResultPicker` renders its own h2 in that case. */}
             <ResultPicker fallbackName={resultName} />
             {outdated && result && (
               <span className="rounded-md bg-warn-500/15 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-warn-300 ring-1 ring-warn-400/30">

@@ -81,8 +81,8 @@ TD20 24 90 4-6 0.02 0.05 Test
 
   it('keeps a plugged "P" delay field, which is a motor with no ejection charge', () => {
     // The only form that can say plugged, and the one `customToRow` puts in the
-    // row's delay column: dropped, the motor reached the picker with no delays
-    // at all and `offersPlugged` could not see it.
+    // row's delay column: dropped, the motor would reach the picker with no
+    // delays at all and `offersPlugged` could not see it.
     const plugged = `TP10 24 70 P 0.010 0.025 Test
 0 0
 0.5 20
@@ -94,7 +94,7 @@ TD20 24 90 4-6 0.02 0.05 Test
     // RASP's own rule (`RASPMotorLoader`: "Many RASP files have 100 as an only
     // delay"): 99 and over is thrown away. Kept, it is a charge long after the
     // rocket is down; called plugged, it offers a no-ejection-charge motor the
-    // file never claimed. RockSim's 1000 DOES mean plugged, which is why the
+    // file never claimed. RockSim's 1000 does mean plugged, which is why the
     // two formats do not share a rule.
     const sentinel = `TS10 24 70 0-1000 0.010 0.025 Test
 0 0
@@ -171,10 +171,9 @@ TD20 24 90 4-6 0.02 0.05 Test
 /**
  * Header values that are finite but physically impossible.
  *
- * `samplesToMotorSpec` rejects a non-positive diameter or length and a prop
- * mass above the total, but NOT a negative prop mass: `masses = total -
- * prop * (impulse / totalImpulse)` then makes the rocket GAIN mass as the
- * motor burns. Only `Number.isFinite` stood in the way.
+ * All of these pass `Number.isFinite`, so the parser checks each one. A
+ * negative prop mass is the subtle one: `masses = total - prop * (impulse /
+ * totalImpulse)` then makes the rocket gain mass as the motor burns.
  */
 describe('a .eng header that is finite but impossible', () => {
   const eng = (prop: string, total = '1.0', dia = '54', len = '400') =>

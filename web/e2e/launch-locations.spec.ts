@@ -5,7 +5,7 @@ import { test, expect, openTab, ready, runButton, type Page } from './base';
  *
  * `launchLocationStore.test.ts` covers the store and `LocationPicker.test.tsx` the component
  * against an in-memory one. What neither can reach is the thing that matters
- * most here: that a location SURVIVES A RELOAD. A location you have to re-enter is the
+ * most here: that a location survives a reload. A location you have to re-enter is the
  * problem this feature exists to remove.
  */
 
@@ -23,7 +23,7 @@ const savePad = async (page: Page, name: string) => {
 /**
  * Move focus off a number field before touching the location dropdown.
  *
- * `NumberInput` renders a raw text draft WHILE FOCUSED and mirrors the prop
+ * `NumberInput` renders a raw text draft while focused and mirrors the prop
  * once blurred. A real click on the select blurs the field first; Playwright's
  * `selectOption` sets the value without moving focus, so without this the input
  * would keep showing the stale draft even though the store was updated.
@@ -62,7 +62,7 @@ test('the picker says Custom once the fields no longer match', async ({ page }) 
 
   // Saving leaves the fields matching the location, so it is the current selection.
   await expect(padSelect(page)).toHaveValue(/.+/);
-  // Edit one number and it is no longer that location. Recognized from the NUMBERS,
+  // Edit one number and it is no longer that location. Recognized from the numbers,
   // not a remembered id, so this holds however the fields changed.
   await page.getByLabel('Latitude', { exact: true }).fill('12.5');
   await blurFields(page);
@@ -77,9 +77,9 @@ test('picking Custom location returns the site to the launch defaults', async ({
   await savePad(page, 'Home field');
   await expect(padSelect(page)).toHaveValue(/.+/);
 
-  // The option was inert at first: the select's value is derived from the
-  // fields, so picking it changed nothing and the location sprang back. It then
-  // CLEARED the fields, which left all three required site inputs blank, the
+  // The select's value is derived from the fields, so picking Custom has to
+  // write real values: doing nothing would let the location spring back, and
+  // clearing the fields would leave all three required site inputs blank, the
   // map with nothing to draw and the Run button refusing.
   await blurFields(page);
   await padSelect(page).selectOption('');
@@ -154,12 +154,12 @@ test('a location applies to the current simulation from the menu', async ({ page
   await blurFields(page);
 
   // From the menu there is no site field on screen to write into, so applying
-  // targets the ACTIVE simulation through the same patch the dropdown uses.
+  // targets the active simulation through the same patch the dropdown uses.
   await page.getByRole('button', { name: 'Menu' }).click();
   await page.getByRole('menuitem', { name: 'Launch locations' }).click();
   const menuManage = page.getByRole('dialog', { name: 'Manage saved locations' });
-  // Selecting shows the location; Use is what applies it. A row click applied
-  // it outright before, which was an action with no visible affordance.
+  // Selecting shows the location; Use is what applies it, so applying is a
+  // visible action rather than a side effect of a row click.
   await menuManage.getByRole('button', { name: /Home field/ }).click();
   await menuManage.getByRole('button', { name: 'Use', exact: true }).click();
 
@@ -177,13 +177,13 @@ test('a location’s coordinates can be corrected, not just its name', async ({ 
   const manage = page.getByRole('dialog', { name: 'Manage saved locations' });
   await manage.getByRole('button', { name: /Home field/ }).click();
   // The reason this editor exists: a typo in a coordinate is the thing you most
-  // want to fix about a location, and renaming could not.
+  // want to fix about a location, and a rename alone cannot.
   await manage.getByLabel('Latitude', { exact: true }).fill('39.1234');
   await manage.getByLabel('Altitude', { exact: true }).fill('1830');
   // The name must still be the name. The editor focuses and selects it when
-  // CREATING, and while that was a `requestAnimationFrame` it could land a
-  // frame late, mid-keystroke, and swallow the latitude into the name box -
-  // saving a location called "39.1234". Silent to a user, so it is asserted.
+  // creating; a focus that lands late, mid-keystroke, would swallow the latitude
+  // into the name box and save a location called "39.1234". That is silent to a
+  // user, so it is asserted.
   await expect(manage.getByRole('textbox')).toHaveValue('Home field');
   await manage.getByRole('button', { name: 'Save', exact: true }).click();
 
@@ -213,7 +213,7 @@ test('a location can be created from nothing, in the menu', async ({ page }) => 
   await manage.getByLabel('Altitude', { exact: true }).fill('238');
   await manage.getByRole('button', { name: 'Save', exact: true }).click();
 
-  // Scoped to the LIST row: the map's readout carries the same coordinate,
+  // Scoped to the list row: the map's readout carries the same coordinate,
   // and both panes are on screen at once.
   await expect(manage.getByRole('button', { name: /Bong/ })).toContainText(/42\.6600/);
 

@@ -15,8 +15,8 @@ const materialSelect = () =>
 /**
  * A catalog part brings its maker's material ("Balsa, bulk, BMS typical") at
  * its own density, and the part is weighed with it. Almost none of those names
- * are in the materials list, and the row used to call such a part "Not
- * specified" and say it was weighed as cardboard.
+ * are in the materials list, so the row has to show the part's own material
+ * rather than call it "Not specified" and say it is weighed as cardboard.
  */
 describe('a material the list does not hold', () => {
   beforeAll(serveData);

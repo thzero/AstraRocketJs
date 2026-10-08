@@ -6,21 +6,20 @@ import { countOf, numOpt } from './nodeProps';
 /**
  * Tube-fin tube radius (m). When the set carries no explicit outerRadius the
  * kernel's "auto" rule applies: N tubes just touching each other around the
- * body — r = R·sin(π/N) / (1 − sin(π/N)) (TubeFinSet.getOuterRadius).
+ * body: r = R·sin(π/N) / (1 − sin(π/N)) (TubeFinSet.getOuterRadius).
  */
 export function tubeFinRadius(node: ComponentNode, bodyRadius: number): number {
-  // `numOpt`, not a hand-rolled typeof check: the module already imports the
-  // shared readers, and they carry the Number.isFinite guard nodeProps.ts:14
-  // documents as load-bearing. `typeof x === 'number' && x > 0` lets Infinity
-  // through, which propagates to the schematic's scale and collapses the whole
-  // drawing to nothing, where a fallback would at least have drawn something.
+  // `numOpt`, not a hand-rolled typeof check: it carries the Number.isFinite
+  // guard documented in nodeProps.ts. `typeof x === 'number' && x > 0` lets
+  // Infinity through, which propagates to the schematic's scale and collapses the
+  // whole drawing to nothing, where the auto radius still draws something.
   const explicit = numOpt(node, 'outerRadius');
   if (explicit !== undefined && explicit > 0) return explicit;
-  // The kernel's tube-fin count (ComponentFactory.java:259), from the verified
-  // table rather than a literal that had to agree with it by luck.
+  // The kernel's default tube-fin count (ComponentFactory, case "tubefinset"),
+  // read from the shared defaults table so it cannot drift from the kernel.
   const n = countOf(node, 'finCount', KERNEL_DEFAULTS.tubefinset.finCount);
   // Kernel rule (TubeFinSet.getOuterRadius): fewer than 3 fins auto-size to
-  // the body radius — and n=2 would divide by zero below (sin π/2 = 1).
+  // the body radius, and n=2 would divide by zero below (sin π/2 = 1).
   if (n < 3) return bodyRadius;
   const s = Math.sin(Math.PI / n);
   return (bodyRadius * s) / (1 - s);
@@ -28,7 +27,7 @@ export function tubeFinRadius(node: ComponentNode, bodyRadius: number): number {
 
 /**
  * The largest tube radius (m) at which N tubes around a body of radius R
- * don't collide — the touching radius. Undefined (null) below 3 fins:
+ * don't collide: the touching radius. Undefined (null) below 3 fins:
  * 1–2 tubes can never meet each other around the body.
  */
 export function tubeFinMaxRadius(finCount: number, bodyRadius: number): number | null {
@@ -62,18 +61,17 @@ export function tubeFinMaxCount(outerRadius: number, bodyRadius: number): number
 export const isFinSet = (type: string): type is FinSetType => (FIN_SET_TYPES as ReadonlySet<string>).has(type);
 
 /**
- * Fin sets with a FLAT planform — everything except tube fins.
+ * Fin sets with a flat planform: everything except tube fins.
  *
  * This is exactly OpenRocket's `instanceof FinSet`. `TubeFinSet extends Tube`,
- * NOT FinSet, so a tube fin cannot reach `PrintableFinSet`
+ * not FinSet, so a tube fin cannot reach `PrintableFinSet`
  * (`AbstractPrintable<FinSet>`) and `FinSetPrintStrategy`'s
- * `if (rocketComponent instanceof FinSet)` skips it. OpenRocket's type system
- * made the mistake impossible; matching on the element name alone reintroduced
- * it, because `<tubefinset>` collides on the string where TubeFinSet never
- * collided on the type.
+ * `if (rocketComponent instanceof FinSet)` skips it. Matching on the element
+ * name alone would not exclude it, because `<tubefinset>` matches a fin-set
+ * string test where TubeFinSet never matches the type.
  *
- * A tube has no planform, so every consumer that produces an OUTLINE — a
- * cutting template, a side-view fin shape, a root chord — must use this one.
+ * A tube has no planform, so every consumer that produces an outline (a
+ * cutting template, a side-view fin shape, a root chord) must use this one.
  * The broad match fabricates a 50 × 30 mm swept trapezoid out of the
  * `rootChord` / `height` / `sweep` defaults for a part that is a tube.
  */

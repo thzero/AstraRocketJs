@@ -55,9 +55,9 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
   const CONTRIBUTORS = useContributors();
   return (
     <Dialog id="about" title={appName()} onClose={onClose} layout="pad" size="lg">
-      {/* The rocket, the tagline and the version used to be part of a bespoke
-          header. The header is shared now and has one shape, and these read as
-          content rather than chrome, so they open the body instead. */}
+      {/* The rocket, the tagline and the version open the body rather than a
+          custom header: the dialog header is shared and has one shape, and
+          these read as content rather than chrome. */}
       <div className="mb-4 flex items-center gap-3">
         <span className="text-3xl">🚀</span>
         <p className="text-xs text-ink-muted">
@@ -93,7 +93,7 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
         <div className="mt-4 border-t border-line/10 pt-3 text-xs leading-relaxed text-ink-faint">
           <p>
             {/* The heading links to the full contributor graph when one is
-                  configured — the list here is a build-time snapshot. */}
+                  configured; the list here is a build-time snapshot. */}
             {CONTRIBUTORS_URL ? (
               <a
                 href={CONTRIBUTORS_URL}
@@ -137,7 +137,7 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
 
       <div className="mt-4 border-t border-line/10 pt-3 text-xs leading-relaxed text-ink-faint">
         <p>{t('about.credits')}</p>
-        {/* WHICH OpenRocket. "The same physics core" is not checkable on its
+        {/* Which OpenRocket. "The same physics core" is not checkable on its
               own: comparing a number against the desktop app, or asking whether
               a feature from some release is in here, needs the commit. Read from
               engine-java/extract/UPSTREAM at build time, never typed here. */}

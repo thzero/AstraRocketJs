@@ -14,7 +14,7 @@ import { clusterOffsets } from '../../../src/tree/cluster';
 import { trapezoidFinPoints } from '../../../src/tree/finPlanform';
 
 /**
- * The config-dialog buttons that change the TREE: Convert to freeform, the three
+ * The config-dialog buttons that change the tree: Convert to freeform, the three
  * Splits, and the cluster Reset. Each replaces the part being edited, so what
  * matters is what survives the replacement and where the pieces land.
  */

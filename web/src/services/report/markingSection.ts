@@ -7,9 +7,9 @@ import { GUIDE_WIDTH_MM, cutPoints, type MarkingGuide, type MarkingGuideSet } fr
 /**
  * The fin marking guide: one wrap-around strip per body tube, drawn 1:1.
  *
- * This is the only printed aid a TUBE FIN set gets at all — a tube has no
- * planform, so it can never reach the cutting templates — and it is the only
- * thing in the report that says where around the body ANY of it goes.
+ * This is the only printed aid a tube fin set gets at all (a tube has no
+ * planform, so it can never reach the cutting templates), and it is the only
+ * thing in the report that says where around the body any of it goes.
  *
  * The arithmetic (which tube, how long the wrap is, where the seam falls, how
  * far along each mark sits) is `markingGuide.ts`. This module only puts it on
@@ -49,10 +49,10 @@ export function writeMarkingGuideSection(p: PdfPage, set: MarkingGuideSet): void
   writeRuler(p);
 
   // A strip is never scaled, since it has to be the tube's real circumference,
-  // so one too long for the page is CUT INTO PIECES that butt
+  // so one too long for the page is cut into pieces that butt
   // together, the way upstream tiles its rasterized guide across pages. A 4 in
   // tube wraps 320 mm, which no paper this report offers can hold in one piece,
-  // and that is the size the guide matters most at. `cutPoints` decides WHERE
+  // and that is the size the guide matters most at. `cutPoints` decides where
   // the joins fall; they are kept off the marks.
   const maxStripMm = p.BOTTOM - p.M - HEADER_MM;
   const panels: Panel[] = [];
@@ -176,7 +176,7 @@ function drawPanel(p: PdfPage, panel: Panel, x: number, top: number): void {
     }
 
     // Canted: the root is no longer parallel to the body axis, so the line is
-    // drawn at the cant and pinned at the fin's AFT end — the end most likely
+    // drawn at the cant and pinned at the fin's aft end, the end most likely
     // to sit at the aft end of the tube, where a line running off the end of
     // the paper cannot be drawn at all (`paintFinMarkingGuide`).
     const half = mark.rootChordMm / 2;

@@ -23,14 +23,14 @@ import { PropSection } from './PropSection';
 
 /**
  * The shape a nose cone or transition falls back to when the node carries
- * none: what `shapeUsesParameter` and `shapeParamMax` are asked about. It was
- * spelled out twice, in the field filter and the shape-parameter field.
+ * none: what `shapeUsesParameter` and `shapeParamMax` are asked about, shared by
+ * the field filter and the shape-parameter field so the two agree.
  */
 const defaultShape = (node: ComponentNode): string =>
   str(node, 'shape', node.type === 'nosecone' ? 'ogive' : 'conical');
 
 /**
- * Whether a declared field APPLIES to this particular node, as opposed to being
+ * Whether a declared field applies to this particular node, as opposed to being
  * declared for its type. Every one of these would otherwise be a control that
  * sets a value nothing reads.
  *
@@ -40,35 +40,28 @@ const defaultShape = (node: ComponentNode): string =>
  */
 function applies(node: ComponentNode, f: Field): boolean {
   /**
-   * Drop the shape parameter for shapes that do not use one.
-   *
-   * The field did not exist at all before: `shapeParameter` was READ by the
-   * mesh, report, schematic, 3D view and both .ork paths but written by
-   * nothing, so a power/haack/ogive/parabolic nose imported from a file
-   * carried a parameter that changes its whole profile, that the user could
-   * see the effect of and never edit, and that round-tripping froze at
-   * whatever the file said. `shapeUsesParameter` was the exported, tested
-   * helper that would have gated it, with zero production callers.
+   * Drop the shape parameter for shapes that do not use one. For a
+   * power/haack/ogive/parabolic shape it changes the whole profile, and the
+   * mesh, report, schematic, 3D view and both .ork paths all read it.
    */
   if (f.key === 'shapeParameter') return shapeUsesParameter(defaultShape(node));
   /**
-   * Same for the CLIPPED flag. `Transition.isClipped()` returns false outright
+   * Same for the clipped flag. `Transition.isClipped()` returns false outright
    * for a shape that cannot be clipped (conical, ogive, parabolic), so on those
    * the checkbox would set a value the kernel and both views ignore: a control
    * that does nothing.
    */
   if (f.key === 'clipped') return shapeIsClippable(defaultShape(node));
   /**
-   * A FILLED part is solid, so it has no wall and no bore. The desktop greys
+   * A filled part is solid, so it has no wall and no bore. The desktop grays
    * both out; a one-column panel drops them, which also stops the bore row
    * offering to write a thickness the kernel is ignoring.
    */
   if (f.key === 'thickness' || f.key === 'innerDiameter') return node['filled'] !== true;
   /**
    * The cluster's spacing and roll, both ways of stating the spacing, and the
-   * angle the group sits at describe where the OTHER tubes go. A single tube
-   * has no others: `clusterCount` is 1, every consumer ignores all three, and
-   * the rows sat there taking values anyway.
+   * angle the group sits at describe where the other tubes go. A single tube
+   * has no others: `clusterCount` is 1 and every consumer ignores all three.
    */
   if (f.key === 'clusterScale' || f.key === 'clusterSeparation' || f.key === 'clusterRotation') {
     return clusterCount(str(node, 'cluster', 'single')) > 1;
@@ -78,7 +71,7 @@ function applies(node: ComponentNode, f: Field): boolean {
 
 /** The declared fields of this part that the panel shows in its dimension list. */
 export function visibleFields(node: ComponentNode, isFirstStage: boolean): Field[] {
-  // The top stage separates from nothing above it — hide its separation fields.
+  // The top stage separates from nothing above it, so hide its separation fields.
   const allFields = node.type === 'stage' && isFirstStage ? [] : (FIELDS[node.type] ?? []);
   return allFields.filter(
     // Sectioned fields are rendered by their own section instead, so the
@@ -90,7 +83,7 @@ export function visibleFields(node: ComponentNode, isFirstStage: boolean): Field
 /**
  * The declared fields of this part that belong to one named section.
  *
- * Kept next to `visibleFields` because the two PARTITION the type's fields,
+ * Kept next to `visibleFields` because the two partition the type's fields,
  * and a field that fell out of both would simply stop being editable.
  */
 export function sectionFields(node: ComponentNode, section: PanelSection): Field[] {
@@ -103,7 +96,7 @@ export function sectionFields(node: ComponentNode, section: PanelSection): Field
  * unconditionally rather than repeating the type test at the call site.
  *
  * `children` render under the declared rows, for a section that also needs a
- * control the FIELDS table cannot describe — the fillet's material picker.
+ * control the FIELDS table cannot describe: the fillet's material picker.
  */
 export function FieldSection({
   node,
@@ -150,7 +143,7 @@ export function NumberField({
   min?: number;
   /** Upper bound, forwarded to the input so the spinner respects it too. */
   max?: number;
-  /** A zero here is degenerate geometry — see the `Field` type. */
+  /** A zero here is degenerate geometry; see the `Field` type. */
   required?: boolean;
   /**
    * A "follows something else" switch. While it is on the number is derived
@@ -160,32 +153,31 @@ export function NumberField({
    */
   auto?: { on: boolean; label: string; title: string; onToggle: (on: boolean) => void };
   onChange: (v: number) => void;
-  onCommit?: () => void; // fires on blur — closes the undo entry for this edit
+  onCommit?: () => void; // fires on blur; closes the undo entry for this edit
 }) {
   const { t } = useTranslation();
   // No separate "blank" state to check for: 0 is exactly what is wrong here, so
   // an emptied box and a typed zero collapse into one condition.
   const missing = required && !(Number.isFinite(value) && value > 0);
   /**
-   * An empty REQUIRED box writes nothing at all.
+   * An empty required box writes nothing at all.
    *
-   * Not a focus trap -- you can still tab away, which a trap would forbid
+   * Not a focus trap: you can still tab away, which a trap would forbid
    * (WCAG 2.1.2) and which would fight anyone clearing a field to retype it.
-   * The input keeps its own draft string while focused, so the box still LOOKS
+   * The input keeps its own draft string while focused, so the box still looks
    * empty as you type; it is only the commit that is withheld. Blur then shows
-   * the value that was already there. So the accidental path to a zero is gone
-   * entirely, while a deliberately typed 0 still lands, still goes red, and is
-   * still refused by the run.
+   * the value that was already there. So clearing a box never writes a zero,
+   * while a deliberately typed 0 still lands, goes red, and is refused by the
+   * run.
    */
   const write = (v: number | null) => {
     if (v === null && required) return;
     onChange(v ?? 0);
   };
   return (
-    // A row, not one big <label>. The switch below is a SECOND control, and a
-    // label may only bind to one: wrapping both made the word "Auto" focus the
-    // number box rather than tick the box beside it, which is why it could not
-    // be worded at all before.
+    // A row, not one big <label>. The switch below is a second control, and a
+    // label may only bind to one: wrapping both would make the word "Auto"
+    // focus the number box rather than tick the box beside it.
     <div className="flex items-center justify-between gap-2">
       <label className="flex min-w-0 flex-1 items-center justify-between gap-2">
         <FieldLabel text={label} required={required} missing={missing} />
@@ -209,10 +201,9 @@ export function NumberField({
           {unit && <span className="min-w-10 text-xs text-ink-faint">{unit}</span>}
         </span>
       </label>
-      {/* The switch says what it is. It was a bare 13px checkbox at the right
-          end of the row with the word only in a `title`, so on a centering ring
-          - where BOTH diameters have one - it read as two unexplained ticks,
-          and the feature they turn on was reported missing. The accessible name
+      {/* The switch carries its word on screen, not only in a `title`: on a
+          centering ring both diameters have one, and two bare checkboxes read
+          as unexplained ticks. The accessible name
           keeps the field's own name in front of it ("Outer diameter: Auto"), so
           the two rows are still told apart when the page is read aloud. */}
       {auto && (
@@ -253,7 +244,7 @@ export function FieldRow({
   const { t } = useTranslation();
   const u = useUnits();
   const label = t(`prop.${f.label}`);
-  // One scope per field of this component TYPE: every body tube is the
+  // One scope per field of this component type: every body tube is the
   // same Length field on the same card, so selecting another must not
   // forget the unit just set on it, but a nose cone's Length is its own.
   const scope = unitScope('prop', node.type, f.key);
@@ -268,13 +259,13 @@ export function FieldRow({
    *
    * Each branch below converts through `FieldUnit.toSi`, which is the app's one
    * rule for what an entry may store (prefs/entryValue) and answers `null` for
-   * a value that cannot survive the conversion -- 1e306 g/cm3 is 1e309 kg/m3,
+   * a value that cannot survive the conversion: 1e306 g/cm3 is 1e309 kg/m3,
    * which is Infinity. This drops such a patch rather than writing the `null`
    * on into the node.
    *
    * The whole patch is dropped, not the bad key: a `derived` field writes two
    * linked numbers, and half of that pair is worse than neither. That is also
-   * why the finite check stays here as well as in `toSi` -- `derived` and `bore`
+   * why the finite check stays here as well as in `toSi`: `derived` and `bore`
    * do arithmetic of their own on the converted value before it lands.
    */
   const patchNumber = (patch: Partial<ComponentNode>) => {
@@ -367,9 +358,9 @@ export function FieldRow({
         step: 1,
         min: 1,
         max,
-        // Clamped at the SOURCE as well as in every consumer: the field had a
-        // floor and no ceiling, so the count reached the node and was
-        // persisted and exported before any renderer saw it.
+        // Clamped here as well as in every consumer: without a ceiling at the
+        // source, the count would reach the node and be persisted and exported
+        // before any renderer saw it.
         onChange: (v) => patchNumber({ [f.key]: Math.min(max, Math.max(1, Math.round(v))) }),
       });
     }
@@ -398,7 +389,7 @@ export function FieldRow({
       return inUnit('angle', ((f.step ?? 5) * Math.PI) / 180, (fu) => -fu.toUi(Math.PI));
     case 'bore': {
       // A tube's inner diameter, which is not stored: the node and the `.ork`
-      // carry the outer radius and the WALL, and the bore is the pair of them.
+      // carry the outer radius and the wall, and the bore is the pair of them.
       // So typing a bore writes the wall back, leaving the outside where it is
       // - the same way OpenRocket's three linked tube fields behave, and the
       // right way round for the job: the outside of a tube is decided by what
@@ -430,7 +421,7 @@ export function FieldRow({
       });
     }
     case 'derived': {
-      // A second door onto numbers the part DOES store: a fin's sweep as an
+      // A second door onto numbers the part does store: a fin's sweep as an
       // angle, a streamer's area or aspect ratio, a mass component's density.
       // Nothing here is a node key - the pair of conversions in
       // services/design/derivedFields.ts reads the stored keys and writes them back,
@@ -454,8 +445,8 @@ export function FieldRow({
         value: fu ? fu.toUi(value) : value,
         // The spec's own bounds, converted like the value. Snapped, because a
         // bound is a round number by construction and the unit round trip
-        // leaves dust on it: 89 degrees came out as 89.00000000000001, which
-        // the input then shows as the limit.
+        // leaves dust on it: 89 degrees comes out as 89.00000000000001, which
+        // the input would then show as the limit.
         min: bound(d.min?.(node) ?? 0),
         max: bound(d.max?.(node)),
         step: fu ? fu.step(f.step ?? 0.1) : (f.step ?? 0.1),

@@ -4,7 +4,7 @@ import type { DesignInfo } from '../orkTypes';
 import type { OrkWriter } from './exportWriter';
 
 /**
- * Optional derived-statistics block (sibling of <rocket>) — only when the
+ * Optional derived-statistics block (sibling of <rocket>), written only when the
  * caller opts in. OpenRocket recomputes this and skips it on load; older / other
  * software ignores it with a harmless "unknown element" warning.
  */

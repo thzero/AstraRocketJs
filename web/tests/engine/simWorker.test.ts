@@ -5,7 +5,7 @@ import type { WorkerRequest, WorkerResponse } from '../../src/engine/simProtocol
  * The worker's message loop, driven directly: `self` is the module's
  * `DedicatedWorkerGlobalScope`, which in this process is `globalThis`, so the
  * handler it installs is `globalThis.onmessage` and its replies go to a
- * stubbed `postMessage`. The engine is mocked; these assert the PROTOCOL the
+ * stubbed `postMessage`. The engine is mocked; these assert the protocol the
  * worker keeps, not the physics.
  */
 const engine = vi.hoisted(() => ({
@@ -65,9 +65,9 @@ describe('simWorker', () => {
   });
 
   it('reports a failed engine load as FATAL on every request, with no unhandled rejection', async () => {
-    // A module-level `const ready = initEngine()` that rejected was an
-    // unhandled rejection, and the dead worker then answered every call with
-    // "engine not initialized" until its idle reaper got to it.
+    // A rejected engine load must not escape as an unhandled rejection, and
+    // each request must say the failure is fatal so the client retires the
+    // worker instead of sending it more calls it cannot answer.
     engine.initEngine.mockRejectedValue(new Error('WASM and JS both failed'));
     const unhandled = vi.fn();
     process.on('unhandledRejection', unhandled);

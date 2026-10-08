@@ -50,17 +50,17 @@ export interface FlightConfig {
   /** Motor per mount id. A mount with no entry is loaded with a default. */
   motors: Record<string, MountMotor>;
   /**
-   * When each recovery device opens under THIS configuration, keyed by device
+   * When each recovery device opens under this configuration, keyed by device
    * node id. Absent, or absent for one device, means the device's own values on
    * the design tree - which is how every device starts.
    *
-   * An override is per FIELD: a configuration can move the altitude and leave
+   * An override is per field: a configuration can move the altitude and leave
    * the event alone, which is what the file format expresses and what "deploy
    * the main at 150 m instead of 120 m on this flight" means.
    */
   deployments?: Record<string, DeployOverride>;
   /**
-   * When each booster lets go under THIS configuration, keyed by stage node id.
+   * When each booster lets go under this configuration, keyed by stage node id.
    * Absent means the stage's own values on the design.
    *
    * Per field, like the deployments above: a configuration can add a delay and
@@ -70,7 +70,7 @@ export interface FlightConfig {
   /**
    * The stages this configuration leaves on the ground, by stage node id.
    *
-   * A LIST of the exceptions rather than a flag per stage: every stage flies
+   * A list of the exceptions rather than a flag per stage: every stage flies
    * unless something says otherwise, so a configuration that grounds nothing
    * carries nothing, and a stage added later is in the flight without having to
    * be added here too.
@@ -149,7 +149,7 @@ export function configFor(configs: readonly FlightConfig[], configId: string): F
 }
 
 /**
- * Every LIVE mount paired with its motor, in tree order.
+ * Every live mount paired with its motor, in tree order.
  *
  * Tree order rather than object-key order, and mounts rather than map entries,
  * so this is the one answer to "what does this configuration seat where":
@@ -171,7 +171,7 @@ export function liveMotors(tree: RocketTree, config: FlightConfig): [string, Mou
  * The motor whose absence blocks a flight: the first mount in tree order.
  *
  * One mount has to carry a usable motor for a run to mean anything, and it is
- * the first one, the way the run gate has always judged it. An upper stage left
+ * the first one, the way the run gate judges it. An upper stage left
  * empty is a design decision; a rocket with nothing in its aft mount is not a
  * flight.
  */
@@ -191,12 +191,12 @@ export function motorSpecs(tree: RocketTree, config: FlightConfig): MotorSpec[] 
  * misrender), and seeds a default C6 into a mount with no motor at all, so every
  * mount is loaded and a fresh mount does not silently block the run.
  *
- * A mount the entry says is EMPTY keeps that entry. An imported `.ork` seats a
+ * A mount the entry says is empty keeps that entry. An imported `.ork` seats a
  * curve-less placeholder in a mount the file left empty (`loadOrk`), and the
  * policy for a file is that a mount flies only what the file put in it: seeding
  * a C6 over the placeholder would fly a motor the file never named.
  *
- * Returns the SAME object when nothing moved, so a plain dimension edit
+ * Returns the same object when nothing moved, so a plain dimension edit
  * allocates nothing and the autosave does not see a change that isn't one.
  */
 export function reconcileConfig(tree: RocketTree, config: FlightConfig): FlightConfig {
@@ -258,7 +258,7 @@ export function reconcileConfigs(tree: RocketTree, configs: FlightConfig[]): Fli
 }
 
 /**
- * What a configuration is CALLED when nobody has named it: its motor list, aft
+ * What a configuration is called when nobody has named it: its motor list, aft
  * to nose.
  *
  * The desktop's own rule. An unnamed configuration is the normal case - every
@@ -294,7 +294,7 @@ export function sepOverride(config: FlightConfig, stageId: string): SepOverride 
 }
 
 /**
- * The tree as THIS configuration flies it: each overridden recovery device and
+ * The tree as this configuration flies it: each overridden recovery device and
  * booster carrying that configuration's own values.
  *
  * Applied to the tree rather than to the built rocket because deployment and
@@ -303,7 +303,7 @@ export function sepOverride(config: FlightConfig, stageId: string): SepOverride 
  * seat a value, and the worker gets it by building the configuration it was
  * handed.
  *
- * Returns the SAME tree when nothing is overridden, which is the common case and
+ * Returns the same tree when nothing is overridden, which is the common case and
  * what keeps the rebuild effect's keys and the memo chains from seeing a change
  * that isn't one.
  */
@@ -333,7 +333,7 @@ function patchNode<T extends object>(tree: RocketTree, id: string, over: T, keys
 }
 
 /**
- * Serial numbers for spec OBJECTS, so a key can carry reference identity.
+ * Serial numbers for spec objects, so a key can carry reference identity.
  *
  * A WeakMap, so a spec that goes out of scope takes its number with it.
  */
@@ -349,7 +349,7 @@ function serialOf(spec: object): number {
 }
 
 /**
- * A key over the MOTORS a configuration seats, and nothing else.
+ * A key over the motors a configuration seats, and nothing else.
  *
  * The engine rebuild is keyed on this rather than on the configuration object.
  * Ignition timing cannot move mass, CG, CP, static margin or Cd - `staticInfo()`
@@ -371,8 +371,8 @@ export function seatedMotorsKey(tree: RocketTree, config: FlightConfig): string 
 /**
  * What makes two loadouts the same flight.
  *
- * Mount ids with the motor's identity (manufacturer, designation, delay) and its
- * ignition, sorted so key order cannot make two identical loadouts look
+ * Mount ids with the motor's identity (manufacturer, designation, delay,
+ * diameter, length) and its ignition, sorted so key order cannot make two identical loadouts look
  * different. Not the thrust samples: two catalog fetches of one motor are the
  * same motor, and comparing curves would split them.
  */

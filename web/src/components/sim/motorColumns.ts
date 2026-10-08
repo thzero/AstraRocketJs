@@ -17,7 +17,7 @@ import { readLocalJson, writeLocalJson } from '../../services/storage/localPref'
 /** Format a numeric cell to `d` decimals, or a dash when absent / non-finite. */
 const fmtCell = (v: number | undefined, d: number) => (v != null && Number.isFinite(v) ? fmtNum(v, d) : '—');
 
-/** Sortable numeric that sinks unknowns to the bottom on ascending sort. */
+/** Sortable numeric that sorts unknowns as -1: first on ascending, last on descending. */
 const sortNum = (v: number) => (Number.isFinite(v) ? v : -1);
 
 export interface Col {
@@ -29,9 +29,9 @@ export interface Col {
   sortVal?: (m: CatalogMotor) => number | string; // omit → not sortable
   /**
    * Preference group for the column's unit. The header appends its symbol, so
-   * the labels stay unitless; a column with a FIXED unit (seconds, a percent)
+   * the labels stay unitless; a column with a fixed unit (seconds, a percent)
    * keeps it in the label instead. `siScale` lifts the catalog's own units
-   * (mm / g — see CatalogMotor) to SI first.
+   * (mm / g, see CatalogMotor) to SI first.
    */
   quantity?: Quantity;
   siScale?: number;
@@ -41,7 +41,7 @@ export interface Col {
 export const heading = (c: Col, t: TFunction, u: Units): string =>
   c.quantity ? `${t(`dash.${c.label}`)} ${u.sym(c.quantity)}` : t(`dash.${c.label}`);
 
-/** A catalog value in the user's unit — the catalog's mm/g lifted to SI first. */
+/** A catalog value in the user's unit, the catalog's mm/g lifted to SI first. */
 const cell = (u: Units, q: Quantity, v: number | undefined, siScale: number, d: number): string =>
   v != null && Number.isFinite(v) ? u.fmt(q, v * siScale, d) : '—';
 
@@ -164,7 +164,7 @@ export function useVisibleColumns() {
     saveCols(visCols);
   }, [visCols]);
 
-  // Columns to render — in canonical COLUMNS order regardless of toggle order.
+  // Columns to render, in canonical COLUMNS order regardless of toggle order.
   const cols = useMemo(() => COLUMNS.filter((c) => c.always || visCols.includes(c.id)), [visCols]);
   const toggleCol = (id: string) =>
     setVisCols((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));

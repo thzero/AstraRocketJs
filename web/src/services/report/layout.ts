@@ -8,8 +8,10 @@ import { parseHexColor } from '../design/colorHex';
  * kept free of jsPDF so every number here is reachable from a plain unit test.
  */
 
-/** Exported for test: a malformed color silently becomes near-black otherwise. */
-/** `#rrggbb` to an [r,g,b] triple for jsPDF. See `flightPathExport.hexToRgbInt`. */
+/**
+ * `#rrggbb` to an [r,g,b] triple for jsPDF; a malformed color becomes near-black.
+ * Exported for test. See `flightPathExport.hexToRgbInt`.
+ */
 export const hexToRgbTuple = (hex: string): [number, number, number] => {
   const n = parseHexColor(hex);
   if (n === null) return [17, 24, 39];
@@ -17,22 +19,22 @@ export const hexToRgbTuple = (hex: string): [number, number, number] => {
 };
 
 /**
- * Exported for test: this decides WHICH fin templates get printed at all.
+ * Exported for test: this decides which fin templates get printed at all.
  *
- * `isPlanarFinSet`, not `endsWith('finset')` — a tube fin has no planform to
+ * `isPlanarFinSet`, not `endsWith('finset')`: a tube fin has no planform to
  * cut, and OpenRocket's FinSetPrintStrategy cannot reach one either
- * (`instanceof FinSet`, and TubeFinSet extends Tube). The broad match handed
- * finPlanformMm a tube and got back a fabricated 50 × 30 mm trapezoid, printed
+ * (`instanceof FinSet`, and TubeFinSet extends Tube). The broad match would hand
+ * finPlanformMm a tube and get back a fabricated 50 × 30 mm trapezoid, printed
  * 1:1 and labeled with the tube fin set's own name and count.
  */
 export const finSetsOf = (stage: ComponentNode): ComponentNode[] =>
   [...walkNodes(stage.children ?? [])].filter((n) => isPlanarFinSet(String(n.type)));
 
 /**
- * The mm box every section lays out inside. Split out of downloadReportPdf so
- * the arithmetic below it is reachable without driving jsPDF — none of it was,
- * and a drift here prints a 1:1 template at the wrong size, which looks entirely
- * plausible on paper and is only found after someone has cut to it.
+ * The mm box every section lays out inside. Kept apart from downloadReportPdf so
+ * the arithmetic below it is testable without driving jsPDF: a drift here prints
+ * a 1:1 template at the wrong size, which looks entirely plausible on paper and
+ * is only found after someone has cut to it.
  */
 export interface PageFrame {
   /** Page margin (mm), all four sides. */
@@ -50,11 +52,11 @@ export function pageFrame(pageWidthMm: number, pageHeightMm: number): PageFrame 
   return { margin, contentWidth: pageWidthMm - 2 * margin, bottom: pageHeightMm - margin };
 }
 
-/** The side view's band height (mm) — it is fit-to-page, not 1:1. */
+/** The side view's band height (mm); it is fit-to-page, not 1:1. */
 export const SIDE_VIEW_BAND_MM = 34;
 
 /**
- * Fit the rocket side view to the content width AND the band height, whichever
+ * Fit the rocket side view to the content width and the band height, whichever
  * binds first. `Math.max(h, 1)` keeps a zero-height silhouette (a design that is
  * all zero radii) from yielding Infinity and a blank page.
  */
@@ -77,8 +79,8 @@ export function sideViewOrigin(
 }
 
 /**
- * Does a 1:1 template fit the page? Templates are NEVER scaled down — a shrunk
- * cutting template is worse than none — so one that does not fit is replaced by
+ * Does a 1:1 template fit the page? Templates are never scaled down (a shrunk
+ * cutting template is worse than none), so one that does not fit is replaced by
  * the `report.tooLarge` note telling the reader to pick a bigger paper or
  * landscape.
  */

@@ -20,13 +20,13 @@ export function RangeSlider({
   onChange: (lo: number, hi: number) => void;
   label: string;
   /**
-   * What each stop IS, one label per stop, drawn as a tick under the track and
+   * What each stop is, one label per stop, drawn as a tick under the track and
    * readable on hover.
    *
-   * The stops are the standard motor diameters, not a continuous scale, and
-   * without marks the slider looked like one: nothing said that the ten
-   * positions were 6, 13, 18, 24, 29, 38, 54, 75, 98 and 150 mm, so there was no
-   * way to aim at a size except to drag and read the number back.
+   * The stops are discrete sizes (for the diameter filter, the ten standard motor
+   * diameters from 6 to 150 mm), not a continuous scale, and without marks the
+   * slider would look like one, leaving no way to aim at a size except to drag
+   * and read the number back.
    *
    * Decorative for assistive tech, which gets the value from the inputs
    * themselves, so the ticks are hidden from it rather than read out ten times.

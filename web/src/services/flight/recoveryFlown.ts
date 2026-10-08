@@ -3,7 +3,7 @@ import { seriesAt } from './flightEvents';
 import { flightBranches } from './flightColumns';
 
 /**
- * What a RUN reported about one recovery device, as opposed to what
+ * What a run reported about one recovery device, as opposed to what
  * `recoverySizing` estimates from the design.
  *
  * Nothing here computes: every number is read out of the kernel's own series at
@@ -16,7 +16,7 @@ import { flightBranches } from './flightColumns';
 /** The one deployment event type the kernel raises for a recovery device. */
 const DEPLOYMENT = 'RECOVERY_DEVICE_DEPLOYMENT';
 
-/** Events that END a device's descent phase: the next chute out, or the ground. */
+/** Events that end a device's descent phase: the next chute out, or the ground. */
 const PHASE_END = new Set([DEPLOYMENT, 'GROUND_HIT']);
 
 export interface DeviceDescent {
@@ -41,8 +41,8 @@ export interface DeviceDescent {
    * The settled descent speed under it (m/s), or null when the run did not
    * record one.
    *
-   * Read at the END of the device's own phase - the next deployment, or the
-   * ground - because that is where the descent under THIS device has settled.
+   * Read at the end of the device's own phase (the next deployment, or the
+   * ground), because that is where the descent under this device has settled.
    * Read immediately after it opened would report the speed it was still
    * slowing from.
    */
@@ -86,7 +86,7 @@ export function deviceDescent(result: FlightResult | null | undefined, deviceNam
 }
 
 /**
- * The mass the FIRST recovery device on the sustainer came down under, for the
+ * The mass the first recovery device on the sustainer came down under, for the
  * whole-rocket stats tile.
  *
  * The sustainer because the tile is one number for the design on screen, and the

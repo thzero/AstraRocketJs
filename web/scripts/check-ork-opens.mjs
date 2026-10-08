@@ -5,10 +5,10 @@
 //
 // The only check that asks the thing we are trying to satisfy. Our own tests can
 // prove the writer puts a part link or a motor digest into the file; they cannot
-// prove the desktop ACCEPTS it, and for a long time it did not. Every `<preset>`
-// was rejected for having no digest and every motor resolved to whichever entry
-// came first, and both failures were invisible from this side of the boundary:
-// they showed up as a warning dialog on somebody's screen.
+// prove the desktop accepts it. The desktop rejects a `<preset>` with no digest,
+// and resolves a motor with no digest to whichever entry comes first, and both
+// failures are invisible from this side of the boundary: they show up
+// as a warning dialog on somebody's screen.
 //
 // Prints every component that came back carrying a catalog part, every motor
 // that resolved, and the loader's own warnings. Exits non-zero if there are any.

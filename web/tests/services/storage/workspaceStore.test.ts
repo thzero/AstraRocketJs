@@ -21,7 +21,7 @@ class FakeKv implements KeyValueStore {
     this.map.delete(k);
   }
   /**
-   * ATOMIC, like the real IndexedDB transaction behind it.
+   * Atomic, like the real IndexedDB transaction behind it.
    *
    * A plain `get` then `set` with an await in between is not what the store does,
    * and it lets two overlapping index mutations read the same list so the second
@@ -92,7 +92,7 @@ const workspace = (): Workspace =>
   }) as unknown as Workspace;
 
 /** Raw key of the one design in the library, for seeding corrupt blobs.
- *  `:results` is excluded along with the index and active keys — the flights
+ *  `:results` is excluded along with the index and active keys: the flights
  *  live beside the design under the same prefix. */
 const designKey = (kv: FakeKv) =>
   [...kv.map.keys()].find(
@@ -135,15 +135,15 @@ describe('LibraryWorkspaceStore', () => {
   });
 
   /**
-   * THE AUTOSAVE SLOT IS SHARED BETWEEN TABS.
+   * The autosave slot is shared between tabs.
    *
    * Two tabs of an installed PWA open the same design, because both open
    * whatever was active, and each autosaves its own copy on a 500 ms debounce.
-   * Writing unconditionally made the last writer win: one edit in a tab left
-   * open yesterday overwrote a day's work in the other, and once that tab had
-   * closed there was nothing left to recover from. Nothing said so either.
+   * Writing unconditionally would make the last writer win: one edit in a tab
+   * left open yesterday would silently overwrite a day's work in the other, and
+   * once that tab closed there would be nothing left to recover from.
    *
-   * A second store instance IS a second tab here: the claim a tab holds on an
+   * A second store instance is a second tab here: the claim a tab holds on an
    * entry is per instance, which is exactly the thing two tabs do not share.
    */
   describe('a design changed by another tab', () => {
@@ -195,7 +195,7 @@ describe('LibraryWorkspaceStore', () => {
   });
 
   /**
-   * Overlapping FIRST saves are one design, not one each.
+   * Overlapping first saves are one design, not one each.
    *
    * A save that finds no active id must not call `lib.create()` unconditionally:
    * the first create is the slowest write the app makes, the 500 ms autosave
@@ -219,7 +219,7 @@ describe('LibraryWorkspaceStore', () => {
   /**
    * A create that lands after the workspace has been replaced must not adopt
    * its id: the entry it made belongs to the design that just went away, and
-   * claiming it would send the NEW design's autosaves over the old one.
+   * claiming it would send the new design's autosaves over the old one.
    */
   it('does not adopt a create that finished after a detach', async () => {
     const saving = store.save(workspace());
@@ -245,7 +245,7 @@ describe('LibraryWorkspaceStore', () => {
   });
 
   /**
-   * Flights persist, but NOT inside the design blob.
+   * Flights persist, but not inside the design blob.
    *
    * Stored under their own key, because the design blob is rewritten on every
    * keystroke's debounced autosave and a result is tens of thousands of samples.
@@ -274,7 +274,7 @@ describe('LibraryWorkspaceStore', () => {
     await store.save({ ...w, tree: { components: [{ id: 'x' }] } } as unknown as Workspace);
     expect(kv.map.get(key)).toBe('SENTINEL');
 
-    // A new result object IS a change.
+    // A new result object is a change.
     const ran = { ...w, sims: [{ ...w.sims[0]!, result: flight([1, 2]) }] } as unknown as Workspace;
     await store.save(ran);
     expect(kv.map.get(key)).not.toBe('SENTINEL');
@@ -292,10 +292,10 @@ describe('LibraryWorkspaceStore', () => {
   });
 
   /**
-   * A design that is THERE but unreadable is not the same as no design.
+   * A design that is there but unreadable is not the same as no design.
    *
    * `load()` returning null for both opens the hydration gate with the default
-   * rocket, and the autosave writes it over the unreadable design AT THE SAME ID
+   * rocket, and the autosave writes it over the unreadable design at the same id
    * 500 ms after the first edit. It throws instead - which the effects hook handles
    * by raising the load-failed warning - and detaches, so the next save creates a
    * new entry rather than finishing the overwrite.
@@ -320,11 +320,11 @@ describe('LibraryWorkspaceStore', () => {
 
     await expect(store.load()).rejects.toThrow(/unreadable/);
 
-    // The next save must land somewhere NEW. The unreadable bytes stay put, so
+    // The next save must land somewhere new. The unreadable bytes stay put, so
     // whatever can be recovered by hand still can be.
     await store.save(workspace());
     expect(kv.map.get(originalKey)).toBe(corrupt);
-    // DESIGN blobs, so `:results` is excluded along with the index and active
+    // Design blobs, so `:results` is excluded along with the index and active
     // keys: the flights live beside each design under the same prefix.
     const keys = [...kv.map.keys()].filter(
       (k) =>

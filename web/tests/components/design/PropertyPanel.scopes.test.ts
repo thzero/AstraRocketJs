@@ -4,8 +4,8 @@ import { unitScope } from '../../../src/prefs/units';
 import { isAxial } from '../../../src/services/design/treeEdit';
 
 /**
- * Unit scopes are strings assembled at the call site — `unitScope('prop',
- * node.type, field.key)` — which is flexible but unchecked by the compiler.
+ * Unit scopes are strings assembled at the call site (`unitScope('prop',
+ * node.type, field.key)`), which is flexible but unchecked by the compiler.
  * The realistic way that bites is a copy-paste: two fields on one component
  * type sharing a key, which silently makes them share one unit choice, so
  * changing the unit on one moves the other. These guard that.

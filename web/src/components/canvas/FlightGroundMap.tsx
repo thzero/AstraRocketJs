@@ -11,7 +11,7 @@ import {
 } from '../../services/map/slippyMap';
 
 /**
- * Aerial imagery laid ON the 3D view's ground plane.
+ * Aerial imagery laid on the 3D view's ground plane.
  *
  * The trajectory is drawn over real ground in meters east and north of the pad
  * (flightScene.ts), so the ground it is drawn over may as well be the real one:
@@ -74,7 +74,7 @@ export interface GroundQuad extends TileRef {
  *
  * The pad is both the tile viewport's center and the scene's origin, so a
  * tile's offset in tile pixels converts straight to meters and then to scene
- * units. Pixel y grows SOUTH while the scene's +z is north, which is the one
+ * units. Pixel y grows south while the scene's +z is north, which is the one
  * subtraction that runs the other way - and the one mistake here that would
  * still look like a perfectly good map.
  *
@@ -82,11 +82,10 @@ export interface GroundQuad extends TileRef {
  * aerial photograph of a field is a photograph of a field.
  *
  * `radiusM` is the flight's own reach, not the ground plane's. The plane and
- * its grid are a fixed 60 units whatever the flight did, and covering all of
- * that meant fetching tiles for a kilometer of ground either side of a rocket
+ * its grid are a fixed size whatever the flight did, and covering all of it
+ * can mean fetching tiles for a kilometer of ground either side of a rocket
  * that went three hundred meters. Sized to the track instead, with the margin
- * its caller adds, the imagery ends just past where the rocket got to - which
- * is the last place anyone looks.
+ * its caller adds, the imagery ends just past where the rocket got to.
  */
 export function groundMapLayout(
   latitudeDeg: number,
@@ -155,7 +154,7 @@ export function FlightGroundMap({
             tex.dispose();
             return;
           }
-          // The image's top row is NORTH. A plane laid flat by rotating -90°
+          // The image's top row is north. A plane laid flat by rotating -90°
           // about x sends its own +y to -z (south), so the default flip would
           // mirror the ground north for south - a map that looks entirely
           // plausible and is wrong.

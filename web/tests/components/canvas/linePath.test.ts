@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { buildLinePath } from '../../../src/components/canvas/AeroAnalysis';
 
-// Identity scales keep the assertions about the PATH STRUCTURE, not arithmetic.
+// Identity scales keep the assertions about the path structure, not arithmetic.
 const X = (m: number) => m;
 const Y = (v: number) => v;
 
@@ -11,10 +11,10 @@ describe('buildLinePath', () => {
   });
 
   /**
-   * The bug: the command letter came from the array INDEX (`${i ? 'L' : 'M'}`),
-   * so a non-finite first sample produced a `d` beginning with `L…`. That is
-   * invalid path data — the browser drops the whole <path> silently and the
-   * curve renders blank with no error anywhere.
+   * The command letter follows the first plotted point, not the array index:
+   * keyed on the index, a non-finite first sample produces a `d` beginning with
+   * `L…`. That is invalid path data; the browser drops the whole <path> silently
+   * and the curve renders blank with no error anywhere.
    */
   it('still starts with M when the first sample is non-finite', () => {
     const d = buildLinePath([0, 1, 2], [NaN, 20, 30], X, Y);
@@ -39,7 +39,7 @@ describe('buildLinePath', () => {
   });
 
   it('treats a missing value as a gap', () => {
-    // `vals` shorter than `machs` — the sweep can return a shorter series.
+    // `vals` shorter than `machs`: the sweep can return a shorter series.
     expect(buildLinePath([0, 1, 2], [10], X, Y)).toBe('M0.0,10.0');
   });
 });

@@ -4,15 +4,14 @@ import { degToRad, radToDeg } from './units';
 /**
  * The bridge between `LaunchConditions` and SI.
  *
- * Launch conditions are stored in the .ork's own conventions, which are NOT all
+ * Launch conditions are stored in the .ork's own conventions, which are not all
  * SI: angles in degrees, temperature in Celsius, pressure in hPa. Everything
  * else in the app hands SI to the unit helpers, so these fields convert here
  * and nowhere else.
  *
  * It lives in its own module rather than inside LaunchPanel because it is pure
- * arithmetic — including the app's only offset conversion outside units.ts —
- * and the test runner only collects `.test.ts`, so logic parked in a `.tsx`
- * cannot be unit-tested at all.
+ * arithmetic (including the app's only offset conversion outside units.ts),
+ * and out of a component it can be unit-tested without rendering anything.
  */
 export interface LaunchUnitBridge {
   /** Which preference group the field is shown in. */

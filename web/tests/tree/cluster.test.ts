@@ -31,7 +31,7 @@ describe('CLUSTER_POINTS / CLUSTER_OPTIONS', () => {
 
   it('offers every pattern as a dropdown option, in kernel order', () => {
     // The property panel renders these verbatim as <option value>, so the list
-    // must be the pattern NAMES and must not drift from CLUSTER_POINTS.
+    // must be the pattern names and must not drift from CLUSTER_POINTS.
     expect(CLUSTER_OPTIONS).toEqual(Object.keys(CLUSTER_POINTS));
     expect(CLUSTER_OPTIONS[0]).toBe('single');
     expect(CLUSTER_OPTIONS.every((n) => clusterCount(n) >= 1)).toBe(true);
@@ -60,9 +60,9 @@ describe('clusterOffsets', () => {
 
   it('rotates the layout the way the kernel rotates it', () => {
     // double rotated 90° swings the pair onto the z axis. The kernel applies
-    // R(−θ), so the point (−0.5, 0) goes to (0, +0.5) — +z, not −z. This test
-    // asserted −z, which is what let the app draw every rotated cluster mirrored
-    // against the arrangement the kernel was flying.
+    // R(−θ), so the point (−0.5, 0) goes to (0, +0.5): +z, not −z. Expecting −z
+    // here would let the app draw every rotated cluster mirrored against the
+    // arrangement the kernel is flying.
     const out = clusterOffsets('double', 0.01, 1, Math.PI / 2);
     expect(out[0]!.y).toBeCloseTo(0);
     expect(out[0]!.z).toBeCloseTo(0.01);
@@ -73,7 +73,7 @@ describe('clusterOffsets', () => {
   /**
    * …and it stays that way. This transcribes ClusterConfiguration.getPoints
    * (ClusterConfiguration.java:108-119) independently rather than re-running
-   * clusterOffsets, so a sign that drifts back fails for every pattern at once
+   * clusterOffsets, so a sign that drifts fails for every pattern at once
    * instead of only in whichever single case someone remembered to pin.
    */
   it('matches ClusterConfiguration.getPoints for every pattern and rotation', () => {

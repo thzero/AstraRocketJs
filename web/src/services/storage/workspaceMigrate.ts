@@ -28,7 +28,7 @@ interface SimulationV1 extends Omit<Simulation, 'configId'> {
 interface WorkspaceV1 extends Omit<Workspace, 'version' | 'sims' | 'configs'> {
   version: 1;
   sims: SimulationV1[];
-  /** Older still: ONE loadout for the whole workspace, applied to every sim. */
+  /** Older still: one loadout for the whole workspace, applied to every sim. */
   extraMotors?: Record<string, MountMotor>;
 }
 
@@ -37,7 +37,7 @@ interface WorkspaceV1 extends Omit<Workspace, 'version' | 'sims' | 'configs'> {
  *
  * Null covers a truncated or hand-edited blob, and a version this build does not
  * know: `tree.components` that is not an array would crash `buildTree` deep in
- * the kernel rather than fail cleanly here, and a workspace written by a NEWER
+ * the kernel rather than fail cleanly here, and a workspace written by a newer
  * build (an installed PWA can have an older one cached) must be refused rather
  * than half-read. The caller decides what a refusal means - the boot path
  * detaches rather than overwriting the design it could not read.
@@ -64,7 +64,7 @@ export function migrateWorkspace(w: unknown): Workspace | null {
 }
 
 /**
- * Version 1 to 2: mint a configuration per DISTINCT loadout.
+ * Version 1 to 2: mint a configuration per distinct loadout.
  *
  * Deduped, because two rows that seated the same motors in the same mounts were
  * already flying the same configuration - one row per copy would open the
@@ -81,7 +81,7 @@ function fromV1(w: WorkspaceV1): Workspace {
   const configs: FlightConfig[] = [];
   const bySignature = new Map<string, FlightConfig>();
   const sims: Simulation[] = w.sims.map((s) => {
-    // The oldest shape kept ONE map for the whole workspace, which applied to
+    // The oldest shape kept one map for the whole workspace, which applied to
     // every simulation; folding it in reproduces exactly what that workspace
     // flew. A simulation carrying its own map keeps it.
     const extras = s.extraMotors ?? w.extraMotors ?? {};

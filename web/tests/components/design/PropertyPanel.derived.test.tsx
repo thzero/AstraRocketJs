@@ -8,9 +8,9 @@ import type { ComponentNode } from '../../../src/engine/openRocketEngine';
 
 /**
  * The rows that are a second way of typing a number the part already stores:
- * OpenRocket offers all three, because they are how people actually have the
- * figure. Nothing here is a node key, so each one is checked BOTH ways round -
- * the value it shows, and the stored keys a typed value writes.
+ * OpenRocket offers them, because they are how people actually have the figure.
+ * Nothing here is a node key, so each one is checked both ways round: the value
+ * it shows, and the stored keys a typed value writes.
  */
 
 const node = (o: Record<string, unknown>): ComponentNode => o as unknown as ComponentNode;
@@ -171,7 +171,7 @@ describe('a motor cluster states its gap both ways', () => {
 
   it('offers no cluster rows at all on a single tube', () => {
     render(tube({ cluster: 'single' }), vi.fn());
-    // All three describe where the OTHER tubes go, and there are none.
+    // All three describe where the other tubes go, and there are none.
     expect(screen.queryByLabelText('Cluster spacing')).toBeNull();
     expect(screen.queryByLabelText('Tube separation')).toBeNull();
     expect(screen.queryByLabelText('Cluster rotation')).toBeNull();

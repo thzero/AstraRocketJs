@@ -233,7 +233,7 @@
  * word, engine backend), the save status and the four controls need more width
  * than there is, and wrapping is what a flex row does about that. The identity
  * block is never what gives - it reads the same at every width - and the budget
- * is checked by e2e/workbench-header.spec.ts in a font WIDER than the local one,
+ * is checked by e2e/workbench-header.spec.ts in a font wider than the local one,
  * because `system-ui` is whatever the OS supplies.
  */
 
@@ -246,7 +246,7 @@ body,
 #root {
   height: 100%;
 }
-/* A mobile browser reports 100vh as the viewport with its chrome HIDDEN, so a
+/* A mobile browser reports 100vh as the viewport with its chrome hidden, so a
    100vh-tall app shell is taller than what you can actually see and the bottom
    tab bar is pushed off under the URL bar until you scroll the chrome away.
    `dvh` tracks the visible area as that chrome shows and hides, which keeps the
@@ -278,9 +278,9 @@ body {
    upright is the opposite shape, and fitting that drawing to the width leaves
    the rocket a dozen pixels tall.
 
-   So on a portrait phone the whole pane is turned a quarter turn — its short
+   So on a portrait phone the whole pane is turned a quarter turn: its short
    dimension laid along the phone's short dimension, its length running down the
-   screen, nose at the top. The TOOLBAR turns with it, which is the point: it
+   screen, nose at the top. The toolbar turns with it, which is the point: it
    stays along the long edge, at the top of the drawing it controls, instead of
    sitting across the short edge detached from it.
 
@@ -300,9 +300,9 @@ body {
    one number to change, not two that can drift apart. */
 @media (orientation: portrait) and (width < theme(--breakpoint-lg)) {
   /* Scoped to the rotated case on purpose. `container-type: size` also turns on
-     SIZE CONTAINMENT, which makes the pane contribute nothing to intrinsic
-     sizing — on a short desktop window the flex algorithm then handed the whole
-     height to the stats strip and collapsed the drawing to zero. */
+     size containment, which makes the pane contribute nothing to intrinsic
+     sizing: on a short desktop window the flex algorithm would then hand the
+     whole height to the stats strip and collapse the drawing to zero. */
   .sketch-stage {
     container-type: size;
   }
@@ -322,11 +322,11 @@ body {
    a short window inside a dimmed one.
 
    One rule rather than a `max-lg:` variant repeated on sixteen panels, which is
-   how they drift apart. These live OUTSIDE `@layer`, so they win over the
+   how they drift apart. These live outside `@layer`, so they win over the
    Tailwind utilities they override without needing `!important`.
 
-   A dialog opts IN by carrying these classes. Short prompts deliberately do not
-   -- the confirm, the work-in-progress notice, and the report's print-settings
+   A dialog opts in by carrying these classes. Short prompts deliberately do
+   not: the confirm, the work-in-progress notice, and the report's print-settings
    popover are two or three lines and a button, and blowing them up to fill a
    phone is all empty space. The popover has a second reason: it opens on top of
    the full-screen report dialog, and full bleed would read as that dialog being
@@ -334,8 +334,8 @@ body {
 @media (width < theme(--breakpoint-lg)) {
   /* The inset clears the home indicator: index.html asks for viewport-fit=cover,
      so a full-bleed panel would otherwise run under it with its last row out of
-     reach. Taking it on the OVERLAY rather than the panel leaves each panel's
-     own padding alone -- overriding padding-bottom here would silently drop the
+     reach. Taking it on the overlay rather than the panel leaves each panel's
+     own padding alone; overriding padding-bottom here would silently drop the
      bottom gutter of every `p-6` dialog. */
   .dialog-overlay {
     padding: 0 0 env(safe-area-inset-bottom) 0;
@@ -349,7 +349,7 @@ body {
   }
 }
 
-/* <button> uses the arrow cursor by default — the finger/pointer is a browser
+/* <button> uses the arrow cursor by default; the finger/pointer is a browser
    default only for links, and Tailwind v4's Preflight doesn't add it. Give every
    enabled button (and role=button / summary) the pointer; disabled ones keep the
    `disabled:cursor-not-allowed` utilities already set on them. */
@@ -369,7 +369,7 @@ body {
  * Light swaps the neutrals end for end and moves each hue ramp's light steps
  * (text and marks) to the matching dark ones. Daylight is light for a screen in
  * sunlight: white surfaces, black text, every hue one step darker again.
- * The schematic's own colors are paint-like greys that read on either surface,
+ * The schematic's own colors are paint-like grays that read on either surface,
  * so it keeps them; its print colors are separate (schematicExport).
  */
 :root[data-theme='light'],

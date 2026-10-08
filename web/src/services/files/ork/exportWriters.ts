@@ -65,7 +65,7 @@ const planarFinHead = (w: OrkWriter, node: ComponentNode, d: number, fallback: s
 
 /**
  * Off-axis placement of an internal part: <radialposition> meters,
- * <radialdirection> DEGREES, as RingComponentSaver and MassObjectSaver write
+ * <radialdirection> degrees, as RingComponentSaver and MassObjectSaver write
  * them. A centered part keeps the literal 0.0 the desktop writes.
  */
 const radialXml = (w: OrkWriter, d: number, node: ComponentNode) => {
@@ -133,18 +133,18 @@ const writeTransition: NodeWriter = (w, node, d) => {
   // aerodynamics: an explicit imported/edited 'clipped' wins; otherwise
   // the kernel's default clipped state, which setShapeType() sets to
   // type.isClippable() (true for every shape that reaches this branch).
-  // Desktop TransitionSaver only writes <shapeclipped> for CLIPPABLE
-  // shapes — a conical transition carries no tag, and emitting one
-  // anyway would grow a 'clipped' field on re-import that the golden
-  // file never had (breaking bit-stable round trips).
+  // Desktop TransitionSaver only writes <shapeclipped> for clippable
+  // shapes: a conical transition carries no tag, and emitting one
+  // anyway would grow a 'clipped' field on re-import that a desktop-written
+  // file does not have (breaking bit-stable round trips).
   if (shapeIsClippable(nodeShape(node))) {
     const clippedOut = typeof node['clipped'] === 'boolean' ? node['clipped'] : true;
     w.emit(d, `<shapeclipped>${clippedOut}</shapeclipped>`);
   }
   shapeParamXml(w, d, node);
-  // A transition's radius is automatic when the FLAG says so, and still when
-  // the key is simply missing: that is how a tree built before the flag
-  // existed spells it, and how the reader has always understood the file.
+  // A transition's radius is automatic when the flag says so, and also when
+  // the key is missing: that is how a tree without the flag spells it, and
+  // how the reader reads the file.
   const transAuto = (key: 'foreRadius' | 'aftRadius') =>
     node[`${key}Auto`] === true || typeof node[key] !== 'number' ? 'auto' : String(node[key]);
   w.emit(d, `<foreradius>${transAuto('foreRadius')}</foreradius>`);
@@ -223,7 +223,7 @@ const writeInnertube: NodeWriter = (w, node, d) => {
   radialXml(w, d, node);
   w.emit(d, `<outerradius>${num(node, 'outerRadius', 0.0095)}</outerradius>`);
   w.emit(d, `<thickness>${num(node, 'thickness', COMPONENT_DEFAULTS.innertube.thickness)}</thickness>`);
-  // Desktop stores cluster rotation in DEGREES; we keep radians inside.
+  // Desktop stores cluster rotation in degrees; we keep radians inside.
   w.emit(
     d,
     `<clusterconfiguration>${escapeXml(typeof node['cluster'] === 'string' ? node['cluster'] : 'single')}</clusterconfiguration>`,
@@ -273,10 +273,9 @@ const writeEngineblock: NodeWriter = (w, node, d) => {
   w.emit(d, `<thickness>${num(node, 'thickness', COMPONENT_DEFAULTS.engineblock.thickness)}</thickness>`);
 };
 
-// Extension element from the RASAero work: our own reader round-trips
-// it; the desktop warns-and-skips (same contract as the
-// airfoil-section tags, which are also RASAero). Unreachable from the
-// editor - see openRocketEngine.ts ComponentType.
+// Extension element (the camera shroud): our own reader round-trips it; the
+// desktop warns-and-skips (same contract as the airfoil-section tags).
+// Unreachable from the editor; see ComponentType in openRocketEngine.ts.
 const writeFairing: NodeWriter = (w, node, d) => {
   header(w, d, node, 'Camera shroud');
   position(w, d, node, 'middle');
@@ -376,13 +375,13 @@ const writeMasscomponent: NodeWriter = (w, node, d) => {
 /** ComponentAssembly (pod set, parallel stage): the placement block they share. */
 const assemblyHead = (w: OrkWriter, node: ComponentNode, d: number, fallback: string) => {
   header(w, d, node, fallback);
-  // ComponentAssembly: NO <color>/<linestyle>/<radialdirection> — the
-  // desktop savers suppress all three for assemblies.
+  // ComponentAssembly: no <radialdirection>, which the desktop savers
+  // suppress for assemblies.
   w.emit(d, `<instancecount>${num(node, 'instanceCount', 2)}</instancecount>`);
   const rMethod = node['radiusMethod'] === 'free' ? 'free' : 'relative';
   w.emit(d, `<radiusoffset method="${rMethod}">${num(node, 'radiusOffset', 0)}</radiusoffset>`); // meters
   const aMethod = node['angleMethod'] === 'fixed' ? 'fixed' : 'relative';
-  // angleOffset is stored in radians → DEGREES on disk (same as cant).
+  // angleOffset is stored in radians → degrees on disk (same as cant).
   w.emit(d, `<angleoffset method="${aMethod}">${(num(node, 'angleOffset', 0) * 180) / Math.PI}</angleoffset>`);
   position(w, d, node, 'bottom');
 };
@@ -456,7 +455,7 @@ export function stageXml(w: OrkWriter, depth: number, st: ComponentNode, i: numb
   // A stage can be overridden like any other component, and the kernel applies
   // it. This block writes its own name and id rather than going through
   // `header()`, which is where every other component picks the overrides up,
-  // so a stage-level override flew and was dropped on the way out.
+  // so it writes them itself or a stage-level override would be lost on save.
   overrides(w, depth + 1, st);
   // RASAero power-on base-drag input (meters, no conversion). Non-standard
   // element (OpenRocket desktop ignores it); only emitted when set > 0 so a
@@ -465,7 +464,7 @@ export function stageXml(w: OrkWriter, depth: number, st: ComponentNode, i: numb
     emit(depth + 1, `<nozzleexitdiameter>${st['nozzleExitDiameter']}</nozzleexitdiameter>`);
   }
   if (i > 0) {
-    // Separation (lower stages only) — desktop writes the DEFAULT params
+    // Separation (lower stages only): desktop writes the default params
     // bare, then a per-config block (AxialStageSaver).
     separationXml(w, depth + 1, st);
   }

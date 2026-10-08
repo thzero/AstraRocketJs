@@ -7,12 +7,11 @@ import { exportOrk } from '../../../src/services/files/orkFile';
 import { DEFAULT_PRESETS } from '../../../src/services/design/defaultRocket';
 
 /**
- * What the DEFAULT design actually writes into a `.ork`, read out of the file.
+ * What the default design actually writes into a `.ork`, read out of the file.
  *
  * The other tests here prove the writer round-trips a link it was handed. They
- * did not prove the design anybody opens writes one, which is the thing the
- * desktop either recognizes or does not, and for a long time it did not: the
- * file carried no part links at all. This asserts on the bytes.
+ * do not prove the design anybody opens writes one, which is the thing the
+ * desktop either recognizes or does not. This asserts on the bytes.
  *
  * The digests are not typed here. They are read from the catalog, which is where
  * `npm run sync:preset-digests` puts OpenRocket's own, so this cannot drift into
@@ -43,8 +42,8 @@ describe('the default design as a .ork', () => {
 
   it('writes a link for every part of the design that has one', () => {
     // Five parts, six elements: the two centering rings are the same catalog
-    // part. A sixth link appearing here means a part gained one; a missing one
-    // means a digest was lost, which is the failure that used to be silent.
+    // part. A seventh link here means a part gained one; a missing one means a
+    // digest was lost, which nothing else would report.
     expect(xml().match(/<preset /g)).toHaveLength(6);
   });
 });

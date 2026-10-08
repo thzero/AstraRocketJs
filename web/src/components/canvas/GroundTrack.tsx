@@ -36,12 +36,12 @@ import { token } from '../common/colorTokens';
  * spent booster usually lands somewhere quite different from the sustainer.
  *
  * The imagery is the same tile machinery the launch-site map uses
- * (services/map/slippyMap.ts), at the coordinates the flight was actually FLOWN
+ * (services/map/slippyMap.ts), at the coordinates the flight was actually flown
  * from: latitude and longitude are required simulation inputs that go to the
  * kernel (services/flight/requiredLaunch.ts, services/flight/simulations.ts), so there is
  * nothing to infer. Tiles are cached by the service worker, so a site looked at
  * at home still draws at the field; somewhere never viewed draws without them,
- * which is the view this had before and is still a correct picture.
+ * which is still a correct picture.
  */
 
 export function GroundTrack({
@@ -54,7 +54,7 @@ export function GroundTrack({
   /** The site this flight was flown from. Null only if it was never filled in. */
   latitudeDeg: number | null;
   longitudeDeg: number | null;
-  /** The conditions it was flown under — what a wind sweep is built around. */
+  /** The conditions it was flown under: what a wind sweep is built around. */
   launch: LaunchConditions;
 }) {
   const { t } = useTranslation();
@@ -75,7 +75,7 @@ export function GroundTrack({
   );
   const drawn = lines.filter((l) => l.points.length >= 2);
 
-  // --- the drift sweep, when one has been flown for THIS flight ---------------
+  // --- the drift sweep, when one has been flown for this flight ---------------
   const mine = useWorkspaceStore((s) => selectDriftSweepFor(s, flight.id));
   const [sweepOpen, setSweepOpen] = useState(false);
 
@@ -120,14 +120,13 @@ export function GroundTrack({
   const regionColor = (branch: number) => lines[branch]?.color ?? lines[0]?.color ?? token('series-1');
 
   /**
-   * Fit the square to the space LEFT OVER by the legend, not to the whole pane.
+   * Fit the square to the space left over by the legend, not to the whole pane.
    *
-   * Measuring the outer host instead took the full height, so the square plus
-   * the legend beneath it was taller than the pane that held them and the
-   * centered overflow was clipped at both ends: the N marker off the top, the
-   * distance and bearing - the two numbers the view exists to give you - cut in
-   * half at the bottom. The inner box is what is actually available, so a square
-   * that fits it cannot push anything out.
+   * Sized to the outer host, the square plus the legend beneath it would be
+   * taller than the pane that holds them, and the centered overflow would clip
+   * at both ends: the N marker off the top, the distance and bearing cut in
+   * half at the bottom. The inner box is what is actually available, so a
+   * square that fits it cannot push anything out.
    */
   useElementResize(fitRef, (r) => setSize(Math.max(200, Math.min(r.width, r.height))));
 
@@ -146,7 +145,7 @@ export function GroundTrack({
           ariaLabel={t('flight.groundTrackLabel')}
           under={({ X, Y, poly, mapOn }) => (
             <>
-              {/* The swept drift region, UNDER everything else: it is the ground a
+              {/* The swept drift region, under everything else: it is the ground a
                 landing could fall on, so the rings that measure it and the track
                 that produced it both have to read over it rather than through
                 it.
@@ -309,7 +308,7 @@ export function GroundTrack({
       {/* Distance and bearing per track: the two numbers you actually act on.
           Named as a group of its own, because a stage's name and its drift are
           also the names in the simulations table behind this - a reader (or a
-          spec) asking for "Stage 1" has to be able to say WHICH one. */}
+          spec) asking for "Stage 1" has to be able to say which one. */}
       <div
         role="group"
         aria-label={t('flight.groundTrackReadout')}

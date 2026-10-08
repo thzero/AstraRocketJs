@@ -13,17 +13,17 @@ import { FlightChartPanel } from './FlightChartPanel';
 import { FlightXYPanel } from './FlightXYPanel';
 import { useElementResize } from '../common/useElementResize';
 
-// The series catalog and the axis math moved to their own modules; CenterView,
-// GroundTrack and the chart tests import them from here.
+// The series catalog and the axis math live in their own modules; GroundTrack
+// and the chart tests import them through this one.
 export { buildTraces, visibleSeries, type ChartFlight } from './flightChartTraces';
 export { maxFlightTime } from './flightChartAxis';
 
 /**
- * Flight data as SMALL MULTIPLES: time on a shared x, and one
- * stacked single-series panel per measure — each with its OWN y-scale, because
+ * Flight data as small MULTIPLES: time on a shared x, and one
+ * stacked single-series panel per measure, each with its own y-scale, because
  * measures of different magnitude are never dual-axed. A chip bar toggles which
  * panels show; a single hover drives a synchronized crosshair + value readout
- * across every visible panel. All eleven series already ride in on every sim run.
+ * across every visible panel. Every series rides in on every sim run.
  * The x (time) axis zooms/pans (buttons, drag, ctrl/pinch-wheel); a sticky strip
  * up top row-packs the event labels so they never overlap.
  *
@@ -51,7 +51,7 @@ export function FlightChart({ flight }: { flight: ChartFlight }) {
   const branches = useMemo(() => buildTraces(flight, (i) => stageLabel(t, i)), [flight, t]);
   const multistage = branches.length >= 2;
 
-  // Which traces are HIDDEN. Exclusions rather than inclusions: a new set of
+  // Which traces are hidden. Exclusions rather than inclusions: a new set of
   // stages is all shown by construction (none of its keys is in the set), so
   // no effect has to reset the selection when the flight changes, and there is
   // no first frame drawn with a stale list. The last shown stage cannot be
@@ -229,11 +229,10 @@ export function FlightChart({ flight }: { flight: ChartFlight }) {
         })}
       </div>
       {/*
-        The crosshair was pointer-only: hoverT's single setter was onPointerMove
-        on a plain div, so every number these charts carry was unreachable
-        without a mouse. Focusable, with the arrows stepping it — Shift for a
-        coarse step, Home/End for the ends, Escape to drop it. The readout above
-        is a live region, so the value is announced as it moves.
+        Focusable, so every number these charts carry can be reached without a
+        pointer: the arrows step the crosshair, Shift for a coarse step,
+        Home/End for the ends, Escape to drop it. The readout above is a live
+        region, so the value is announced as it moves.
       */}
       <div // eslint-disable-line jsx-a11y-x/no-noninteractive-element-interactions -- a focusable crosshair: the arrows move it, and the group names it without claiming a widget role it does not fit
         ref={hostRef}

@@ -10,12 +10,11 @@ const openLibrary = async (page: Page) => {
 const idbGets = (page: Page) => page.evaluate(() => (window as unknown as { __idbGets: number }).__idbGets);
 
 /**
- * Wait for the store to go QUIET: two consecutive samples of the read counter
+ * Wait for the store to go quiet: two consecutive samples of the read counter
  * agree. A settled dialog issues no reads at all, so the first pair of samples
  * satisfies this; a refresh loop issues one per render and the samples never
  * agree, so this times out and says so, rather than a fixed sleep guessing at
- * how long "long enough to notice" is (it was 1.5 s and 1 s, and both were
- * guesses about the machine under CI).
+ * how long "long enough to notice" is on the machine under CI.
  */
 const idbSettled = async (page: Page) => {
   let prev = await idbGets(page);
@@ -35,19 +34,17 @@ const idbSettled = async (page: Page) => {
 /**
  * The saved-designs library.
  *
- * The first test here exists because this dialog shipped with an unbounded
- * render loop and nothing caught it: the open-effect listed `onClose` in its
- * deps, `onClose` was an inline arrow in AppHeader, and the effect's own
- * `refresh()` wrote a fresh `designs` array that AppHeader subscribes to — so
- * every refresh re-rendered AppHeader, minted a new `onClose`, and refreshed
- * again, for as long as the dialog stayed open.
+ * The first test here guards against an unbounded render loop: if the
+ * open-effect depends on an `onClose` that AppHeader mints inline, and the
+ * effect's own `refresh()` writes a fresh `designs` array that AppHeader
+ * subscribes to, then every refresh re-renders AppHeader, mints a new
+ * `onClose`, and refreshes again, for as long as the dialog stays open.
  */
 test.describe('design library', () => {
   // Count IndexedDB reads, not DOM mutations: each loop iteration calls
   // refresh() -> designLibrary.list() -> a store read. A MutationObserver
-  // cannot see this bug at all, because re-rendering identical output mutates
-  // no DOM — a version of this test built on one passed against the broken
-  // code.
+  // cannot see the loop at all, because re-rendering identical output mutates
+  // no DOM.
   test.beforeEach(async ({ page }) => {
     await page.addInitScript(() => {
       const w = window as unknown as { __idbGets: number };
@@ -67,8 +64,8 @@ test.describe('design library', () => {
     await openLibrary(page);
     const panel = page.getByRole('dialog', { name: 'My Rockets' });
 
-    // An open, settled dialog reads nothing further. The loop issued a read per
-    // iteration, without limit, for as long as it stayed open. Sampled AFTER
+    // An open, settled dialog reads nothing further; a refresh loop issues a
+    // read per iteration for as long as the dialog stays open. Sampled after
     // the open, so the one list read that opening legitimately does is not
     // counted against it.
     const before = await idbGets(page);
@@ -131,7 +128,7 @@ test.describe('design library', () => {
 /**
  * The bundled OpenRocket examples, as the library's second tab.
  *
- * They are the only designs that ship WITH the app, so the failure this guards
+ * They are the only designs that ship with the app, so the failure this guards
  * is a deployment one: the files live in `public/examples/` and are listed by a
  * generated index, and neither the index nor the fetch is exercised by any
  * unit test. `exampleLibrary.test.ts` proves every file imports and flies; this
@@ -145,7 +142,7 @@ test('an example opens from the library, as its own unsaved design', async ({ pa
   await page.getByRole('tab', { name: 'Examples' }).click();
 
   // Every entry carries the author's own note under its name, which is most of
-  // why the tab is worth having: a list of seventeen bare filenames does not
+  // why the tab is worth having: a list of bare filenames does not
   // tell anyone which one to open.
   const entry = dlg.getByRole('button').filter({ hasText: 'Clustered motors' });
   await expect(entry).toBeVisible({ timeout: 15_000 });
@@ -154,16 +151,16 @@ test('an example opens from the library, as its own unsaved design', async ({ pa
   await entry.click();
   await expect(dlg).toBeHidden();
 
-  // It lands as an IMPORT: the file's own name and parts, in a design of its
+  // It lands as an import: the file's own name and parts, in a design of its
   // own, so editing it can never write back over the bundled copy.
   const title = page.getByRole('button', { name: 'Edit rocket configuration' });
   await expect(title).toContainText('Clustered motors');
-  // Scoped to the TREE. The name is also on four SVG <title>s in the
+  // Scoped to the tree. The name is also on four SVG <title>s in the
   // schematic, one per clustered instance, which is its own small proof the
   // cluster came through.
   await expect(page.getByRole('tree', { name: 'Components' }).getByText('Clustered Inner Tube')).toBeVisible();
 
-  // An import becomes its OWN saved design once it autosaves, not an edit to
+  // An import becomes its own saved design once it autosaves, not an edit to
   // the bundled file: My rockets lists it, and Examples still offers the
   // original. Waiting on the autosave, because before it the list is empty and
   // after it the entry is there; checking either without waiting is a race.
@@ -179,8 +176,8 @@ test('an example opens from the library, as its own unsaved design', async ({ pa
  * The same examples, reached the other way.
  *
  * Menu → Import → Examples is the primary route and the semantically exact
- * one — opening an example runs the identical `openOrkFile` path a picked file
- * does — so it sits beside the `.ork` import rather than beside New. The
+ * one (opening an example runs the identical `openOrkFile` path a picked file
+ * does), so it sits beside the `.ork` import rather than beside New. The
  * library tab above is the same list mounted a second time, for the moment you
  * are browsing rather than starting.
  */
@@ -203,11 +200,11 @@ test('an example opens from Import, as its own unsaved design', async ({ page })
 /**
  * Re-importing a rocket does not silently stack up copies of it.
  *
- * An import gets its own library entry, which is right - it is a new design,
- * not an edit to whatever was open - but nothing looked at the NAME, so the
- * edit-in-OpenRocket-and-import-again loop filled File > Open with rows called
- * the same thing, each a real design with its own id and nothing to tell them
- * apart by.
+ * An import gets its own library entry, which is right (it is a new design,
+ * not an edit to whatever was open), but without a check on the name the
+ * edit-in-OpenRocket-and-import-again loop would fill File > Open with rows
+ * called the same thing, each a real design with its own id and nothing to tell
+ * them apart by.
  */
 test.describe('re-importing a rocket the library already holds', () => {
   /** The rocket names File > Open lists, opening and closing the dialog. */
@@ -224,7 +221,7 @@ test.describe('re-importing a rocket the library already holds', () => {
 
   const importTwice = async (page: Page, clash: NameClash) => {
     await importOrk(page, 'e2e/fixtures/two-stage.ork');
-    // The entry is created by the DEBOUNCED autosave, so wait for it to exist
+    // The entry is created by the debounced autosave, so wait for it to exist
     // rather than racing the second import against the write it clashes with.
     await expect.poll(() => savedNames(page), { timeout: 20_000 }).toHaveLength(1);
     await importOrk(page, 'e2e/fixtures/two-stage.ork', clash);

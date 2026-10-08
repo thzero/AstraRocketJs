@@ -5,7 +5,7 @@ import type { ComponentNode } from '../../../engine/openRocketEngine';
  * strings RASAero's global <Surface> and per-fin <AirfoilSection> accept.
  */
 
-/** Our airfoilSection ids → RASAero's supersonic airfoil strings (feature #4). */
+/** Our airfoilSection ids → RASAero's supersonic airfoil strings. */
 export const SECTION_TO_AIRFOIL: Record<string, string> = {
   doublewedge: 'Double Wedge',
   hexbluntbase: 'Hexagonal Blunt Base',
@@ -17,14 +17,10 @@ export const SECTION_TO_AIRFOIL: Record<string, string> = {
 
 /**
  * Our finish ids (the .ork spelling: ExternalComponent.Finish lowercased) to
- * RASAero's global surface strings, transcribed VERBATIM from the desktop's
- * RASAeroCommonConstants.OPENROCKET_TO_RASAERO_SURFACE (lines 370-391). The
- * earlier table was "approx" and disagreed with it on three rows: `polished`
- * went to Sheet Metal (the desktop sends OPTIMUM there and lets POLISHED fall
- * to the default), `smooth` to Smooth Paint (desktop: Camouflage Paint) and
- * `rough` to Cast Iron (desktop: ROUGHUNFINISHED). ROUGH and POLISHED have no
- * row in the desktop either; they take {@link RASAERO_SURFACE_DEFAULT} with a
- * warning, exactly as its `else` branch does.
+ * RASAero's global surface strings, transcribed verbatim from the desktop's
+ * RASAeroCommonConstants.OPENROCKET_TO_RASAERO_SURFACE. `rough` and `polished`
+ * have no row in the desktop table; they take {@link RASAERO_SURFACE_DEFAULT}
+ * with a warning, as its `else` branch does.
  */
 const FINISH_TO_SURFACE: Readonly<Record<string, string>> = {
   mirror: 'Smooth (Zero Roughness)',
@@ -49,7 +45,7 @@ export function rasaeroSurface(finish: string): { surface: string; warning?: str
 
 /**
  * Global surface: the desktop takes it from the first nose cone's finish
- * (RocketDesignDTO.java:108); with none, the first part carrying a finish.
+ * (RocketDesignDTO); with none, the first part carrying a finish.
  * A part with no finish key has the kernel's default, NORMAL.
  */
 export function designSurface(stagesIn: ComponentNode[], warnings: string[] | undefined): string {

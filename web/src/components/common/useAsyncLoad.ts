@@ -6,7 +6,7 @@ type Landed<T> = { key: string; attempt: number } & ({ ok: true; data: T } | { o
 /**
  * Data loaded asynchronously, with its loading, error and retry state.
  *
- * - A new `key` (or a `retry`) reads as loading until ITS load lands; a result
+ * - A new `key` (or a `retry`) reads as loading until its own load lands; a result
  *   that lands for a key or attempt no longer current is ignored.
  * - A change of `refresh` reloads in the background: what is on screen stays
  *   until the new result replaces it, so a list does not flash back to

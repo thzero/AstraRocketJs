@@ -1,10 +1,10 @@
 /**
- * Main-thread client for the sim worker (engine/simWorker.ts). Owns a POOL of
+ * Main-thread client for the sim worker (engine/simWorker.ts). Owns a pool of
  * workers, correlates requests/responses by id, and exposes a small typed
- * surface. The transport is a generic RPC so future phases can add methods
- * without changing this plumbing.
+ * surface. The transport is a generic RPC so methods can be added without
+ * changing this plumbing.
  *
- * Why a pool. `simulate()` inside a worker is a SYNCHRONOUS engine call, so it
+ * Why a pool. `simulate()` inside a worker is a synchronous engine call, so it
  * blocks that worker's message loop for the whole flight: posting four requests
  * to one worker runs them one after another, and a batch of twelve costs twelve
  * times one. Each worker holds its own engine instance and calls `resetEngine()`
@@ -21,10 +21,10 @@ import type { SimPayload, WorkerCall, WorkerMethod, WorkerRequest, WorkerRespons
 /** Hard ceiling for a single worker call. A flight sim is normally well under a
  *  second; if the engine hangs (degenerate geometry, an integrator that never
  *  converges) the worker's message loop is blocked, so no amount of waiting
- *  recovers it — the call must time out and the worker be killed. Generous
+ *  recovers it: the call must time out and the worker be killed. Generous
  *  enough that a legitimately heavy sim never trips it.
  *
- *  It starts when the call reaches a worker, NOT when it is queued: behind a
+ *  It starts when the call reaches a worker, not when it is queued: behind a
  *  full pool a request can wait several flights for its turn, and timing that
  *  wait out would punish a healthy batch for being busy. */
 const SIM_TIMEOUT_MS = 30_000;
@@ -91,7 +91,7 @@ interface Queued {
   /** The method and its typed arguments, as one discriminated pair. */
   call: WorkerCall;
   timeoutMs: number | undefined;
-  /** Called the moment this task is handed to a worker — see {@link SimCallOptions.onStart}. */
+  /** Called the moment this task is handed to a worker; see {@link SimCallOptions.onStart}. */
   onStart: (() => void) | undefined;
   resolve: (v: unknown) => void;
   reject: (e: Error) => void;
@@ -153,8 +153,8 @@ function spawn(): Slot {
   };
   // A reply that could not be deserialized on this side (a structured-clone
   // failure) is a reply that will never settle its call: without this the slot
-  // stayed `busy` until the sim timeout fired, and a call with no timeout
-  // hung forever.
+  // would stay `busy` until the sim timeout fired, and a call with no timeout
+  // would hang forever.
   worker.onmessageerror = () => {
     killWorker(slot, new Error('sim worker reply could not be deserialized'));
   };
@@ -163,13 +163,12 @@ function spawn(): Slot {
 }
 
 /**
- * Terminate ONE worker and fail only the call it was serving.
+ * Terminate one worker and fail only the call it was serving.
  *
- * With a single worker this could reject everything in flight, because
- * everything in flight was on that worker. In a pool it must not: one
- * degenerate rocket hanging one worker has nothing to do with the three healthy
- * flights beside it. The slot is dropped rather than reused — a terminated
- * worker is gone — and the queue drains onto whatever is left, spawning fresh.
+ * One degenerate rocket hanging one worker has nothing to do with the healthy
+ * flights beside it, so nothing else in flight is rejected. The slot is dropped
+ * rather than reused (a terminated worker is gone), and the queue drains onto
+ * whatever is left, spawning fresh.
  */
 function killWorker(slot: Slot, err: Error): void {
   const p = slot.busy;
@@ -212,7 +211,7 @@ function dispatch(slot: Slot, task: Queued): void {
     resolve: task.resolve,
     reject: task.reject,
     // On timeout the worker is hung mid-call and cannot be interrupted, so kill
-    // it — that rejects this call via killWorker.
+    // it; that rejects this call via killWorker.
     timer:
       task.timeoutMs && task.timeoutMs > 0
         ? setTimeout(() => killWorker(slot, new SimTimeoutError()), task.timeoutMs)
@@ -301,7 +300,7 @@ function call<M extends WorkerMethod>(
       call: c,
       timeoutMs: opts.timeoutMs,
       onStart: opts.onStart,
-      // Wrapped so the task leaves the live set however it ends — a settled
+      // Wrapped so the task leaves the live set however it ends: a settled
       // task that stayed in it would let a later cancel kill a worker that has
       // moved on to somebody else's flight.
       // The transport carries `unknown`; the method's result type is what
@@ -338,8 +337,8 @@ function call<M extends WorkerMethod>(
  * Ceiling on the warm-up ping. The worker answers only once its engine has
  * loaded (a WASM fetch + compile), so a stalled fetch behind a captive portal
  * or a wedged service worker would otherwise hold the slot `busy` forever: on
- * a two-core machine the pool is one slot, and every later sim sat in "queued"
- * with nothing to time it out. Generous, because a cold WASM load on a slow
+ * a two-core machine the pool is one slot, and every later sim would sit in
+ * "queued" with nothing to time it out. Generous, because a cold WASM load on a slow
  * phone is legitimately tens of seconds.
  */
 const WARM_TIMEOUT_MS = 120_000;
@@ -355,7 +354,7 @@ export function warmSimWorker(): void {
 /** Run a flight simulation off the main thread. Rejects with the engine error
  *  message, or {@link SimTimeoutError} if the worker doesn't answer in time.
  *
- *  Several calls run CONCURRENTLY, up to the pool limit; the rest queue. */
+ *  Several calls run concurrently, up to the pool limit; the rest queue. */
 export function simulateInWorker(payload: SimPayload, opts: SimCallOptions = {}): Promise<WorkerResults['simulate']> {
   return call({ method: 'simulate', args: payload }, { timeoutMs: SIM_TIMEOUT_MS, ...opts });
 }

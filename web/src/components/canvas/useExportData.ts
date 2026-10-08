@@ -4,14 +4,11 @@ import { useUnits } from '../../prefs/useUnits';
 import { APP_VERSION, designNameOf } from '../../services/app/appInfo';
 
 /**
- * The header block the 2D/3D image exports stamp on the page — name, the
+ * The header block the 2D/3D image exports stamp on the page: name, the
  * static numbers, the user's units, the app version.
  *
- * This existed unreachable: `TreeSchematic` and `Rocket3D` gate their export
- * buttons on `exportData` and nothing ever passed it, so `⬇ SVG`, `⬇ Image`,
- * `📷 Image`, `ImageExportMenu`, `schematicSvg`, `svgToImage` and
- * `snapshotWithHeader` — several hundred lines plus a whole service — were
- * shipped and unusable. `git log -S exportData` says it was never wired.
+ * `TreeSchematic` and `Rocket3D` show their export buttons only when given
+ * `exportData`, so without this hook neither view offers an export.
  */
 export function useExportData(motors: object) {
   const loadedMeta = useWorkspaceStore((s) => s.loadedMeta);

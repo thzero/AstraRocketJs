@@ -19,17 +19,16 @@ import { formatCoord } from '../../services/map/slippyMap';
  * applies a location through `patchLaunch`, so it works both from the launch
  * panel's ⚙ (where the site fields are on screen) and from the menu (where they
  * are not). That is why it exists as its own component rather than living
- * inside `LocationPicker` — a manage view reachable only from the one panel
- * that already has a dropdown is a manage view nobody finds.
+ * inside `LocationPicker`: a manage view reachable only from the one panel
+ * that already has a dropdown is hard to find.
  *
  * Master-detail rather than a list that opens a dialog per row: correcting a
- * set of coordinates is something you do to SEVERAL fields in a sitting, and a
+ * set of coordinates is something you do to several fields in a sitting, and a
  * modal per location makes each one a separate errand. It also gives the map
- * room to be worth looking at, which a small dialog over a small dialog did
- * not.
+ * room to be useful.
  *
- * Applying from here targets the ACTIVE simulation, which is what `patchLaunch`
- * patches — the same single undoable edit the dropdown makes.
+ * Applying from here targets the active simulation, which is what `patchLaunch`
+ * patches: the same single undoable edit the dropdown makes.
  */
 export function LocationsDialog({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
@@ -49,7 +48,7 @@ export function LocationsDialog({ onClose }: { onClose: () => void }) {
   const [err, setErr] = useState<string | null>(null);
 
   const creating = selectedId === NEW;
-  // Resolved from the LIST rather than held as its own copy, so a save (which
+  // Resolved from the list rather than held as its own copy, so a save (which
   // refreshes the list under this pane) leaves the detail showing what was
   // stored, and a location deleted in another tab clears the selection instead
   // of editing something that is gone.
@@ -114,8 +113,8 @@ export function LocationsDialog({ onClose }: { onClose: () => void }) {
       // list should not become a screen-tall column on a large monitor.
       height={720}
       actions={
-        // The only way to add a location from the MENU, where no launch field
-        // is on screen to capture. From the launch panel the 💾 button is still
+        // The only way to add a location from the menu, where no launch field
+        // is on screen to capture. From the launch panel the 💾 button is
         // the quicker route, since the numbers are already there.
         <button
           onClick={() => void select(NEW)}

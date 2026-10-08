@@ -5,18 +5,18 @@ import { useTranslation } from 'react-i18next';
  * Catches a render-time throw from one part of the app and offers a way out,
  * instead of letting it take the whole window down.
  *
- * There was no boundary anywhere, which matters most around the LAZY views:
- * Rocket3D, FlightPath3D, ComponentPicker and SavePartButton are each an
- * `import()` fetched on first use. A failed chunk fetch rejects, Suspense
- * re-throws the rejection during render, and with nothing above it to catch it
- * React unmounts the entire tree — a blank window, no view switch, no menu,
+ * This matters most around the lazy views: Rocket3D, FlightPath3D,
+ * ComponentPicker, SavePartButton and ExportDialog are each an `import()`
+ * fetched on first use. A failed chunk fetch rejects, Suspense re-throws the
+ * rejection during render, and with nothing above it to catch it React
+ * unmounts the entire tree: a blank window, no view switch, no menu,
  * nothing left to click. A stale Pages deploy produces exactly that: the chunk
  * name the loaded build asks for is no longer on the server, the server answers
  * with its index.html, and the browser reports the HTML body as a bad module
  * ("'text/html' is not a valid JavaScript MIME type" in Safari, "Failed to
  * fetch dynamically imported module" in Chrome).
  *
- * Wrapped AROUND each Suspense rather than once around the app, so the failure
+ * Wrapped around each Suspense rather than once around the app, so the failure
  * is contained where it happened: the 3D canvas says it could not load and the
  * view switch, the tree and the property panel beside it all keep working.
  */
@@ -41,7 +41,7 @@ export function isChunkLoadError(error: unknown): boolean {
  * that does nothing: React's `lazy` caches a rejected import forever, so
  * remounting the same lazy component re-throws the same error without going
  * back to the network. Reloading is also the only thing that can help in the
- * case this exists for — a new deploy has new chunk names, and only a fresh
+ * case this exists for: a new deploy has new chunk names, and only a fresh
  * document knows them.
  */
 function ErrorFallback({ error }: { error: Error }) {
@@ -77,7 +77,7 @@ export class ErrorBoundary extends Component<Props, State> {
   componentDidCatch(error: Error, info: ErrorInfo) {
     // The console, not the app's error banner. The banner lives in the
     // workspace store, and writing to a store from here re-renders the tree
-    // that just threw — which throws again, from inside error handling.
+    // that just threw, which throws again, from inside error handling.
     console.error('view failed to render', error, info.componentStack);
   }
 
@@ -88,7 +88,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
 /**
  * A lazy view with its loading fallback, inside an error boundary. The boundary
- * sits OUTSIDE the Suspense: it is the chunk FETCH that fails on a stale deploy,
+ * sits outside the Suspense: it is the chunk fetch that fails on a stale deploy,
  * and Suspense re-throws that rejection during render rather than holding it, so
  * a boundary inside it catches nothing and the throw takes the whole app down.
  */
@@ -100,7 +100,7 @@ export function LazyBoundary({ fallback, children }: { fallback: ReactNode; chil
   );
 }
 
-/** `React.lazy` over a module's NAMED export, the form every view here exports. */
+/** `React.lazy` over a module's named export, the form every view here exports. */
 // `any` is React.lazy's own constraint on the component; the export's real
 // props type is kept through T, so the caller is still checked.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -2,9 +2,9 @@ import { LAUNCH_SI } from '../../prefs/launchUnits';
 import { uiToSi } from '../../prefs/units';
 import { G0 } from '../motors/motorMath';
 /**
- * RECOVERY SIZING — the descent half of the recovery story.
+ * Recovery sizing: the descent half of the recovery story.
  *
- * The Recovery-weight stat already answers WHAT comes down (loaded mass minus
+ * The Recovery-weight stat answers what comes down (loaded mass minus
  * the propellant that burns off). This answers what to hang it under: for a
  * given descent mass, what canopy diameter lands it inside the accepted
  * descent-rate bands, and how fast the currently-fitted chute actually brings
@@ -15,20 +15,18 @@ import { G0 } from '../motors/motorMath';
  *     v = sqrt( 2 m g / (rho . Cd . A) ),   A = pi D^2 / 4
  *
  * so three inputs decide whether the answer is right: m (the descent mass),
- * rho (the air density at the LAUNCH SITE, not sea level) and the canopy's
+ * rho (the air density at the launch site, not sea level) and the canopy's
  * Cd.A. Each is handled below.
  *
- * Scope note: this is deliberately the SIZE answer only — the diameter and the
- * rate — not a catalog of real parachutes to buy. The app carries no chute
+ * Scope: this is the size answer only (the diameter and the rate), not a
+ * catalog of real parachutes to buy. The app carries no chute
  * preset catalog, so matching named canopies is out of scope here.
  */
 
-/** Standard gravity, m/s^2 (CODATA / the kernel's own g0). */
-
-/** Feet per second in m/s — the bands are quoted in ft/s, the code is SI. */
+/** Feet per second in m/s: the bands are quoted in ft/s, the code is SI. */
 const FT_S = uiToSi('velocity', 'ft/s', 1);
 
-/** Specific gas constant of dry air, J/(kg.K) — the kernel's own value. */
+/** Specific gas constant of dry air, J/(kg.K), the kernel's own value. */
 const R_AIR = 287.053;
 
 // ISA sea-level reference and troposphere lapse rate.
@@ -46,9 +44,9 @@ export interface SizingLaunch {
   /** Site pressure override, hPa, or null to use the ISA value. */
   pressureHPa?: number | null;
   /**
-   * Site relative humidity as a FRACTION, or null for the kernel's 0.
+   * Site relative humidity as a fraction, or null for the kernel's 0.
    *
-   * Read only to decide WHICH air the flight is flying (see `airDensity`); the
+   * Read only to decide which air the flight is flying (see `airDensity`); the
    * density below is dry-air. The kernel's own humidity term raises the gas
    * constant by about a percent at 30 degrees C and saturation
    * (`AtmosphericConditions.getGasConstant`), which is inside this block's
@@ -62,24 +60,23 @@ export interface SizingLaunch {
  * at sea level, and it matters: rho falls ~14 % by 5,000 ft and v goes as
  * 1/sqrt(rho), so the same canopy lands ~8 % faster there.
  *
- * THE RULE IS THE FLIGHT'S, not a reasonable one chosen here, because a sizing
- * panel that sizes for air the rocket will not fly in is worse than one that
- * says nothing. The bridge (`api/OpenRocketEngine.simulate`) decides it in two
- * branches, and both are mirrored below:
+ * The rule is the flight's, not one chosen here, because a sizing panel that
+ * sizes for air the rocket will not fly in is worse than one that says
+ * nothing. The bridge (`api/OpenRocketEngine.simulate`) decides it in two
+ * branches when no forecast profile is set, and both are mirrored below:
  *
- *   NOTHING set - standard ISA, which at the pad is the ISA value FOR THE SITE
- *   ALTITUDE.
+ *   Nothing set: standard ISA, which at the pad is the ISA value for the site
+ *   altitude.
  *
- *   ANY ONE of temperature, pressure or humidity set - an `ExtendedISAModel`
- *   anchored AT the site altitude, where a field left blank is filled with the
- *   sea-level STANDARD constant rather than with the ISA value for that
- *   altitude. Humidity counts: humidity alone switches branches.
+ *   Any one of temperature, pressure or humidity set: an `ExtendedISAModel`
+ *   anchored at the site altitude, where a field left blank is filled with the
+ *   sea-level standard constant rather than with the ISA value for that
+ *   altitude. Humidity alone switches branches.
  *
- * The second branch is the one that bites, and only away from sea level, which
- * is why it went unnoticed. At a 2,682 m field with 30 C typed and the pressure
- * left blank, filling the blank from the site altitude gives 0.8388 kg/m^3
- * where the flight flies 1.1644, and a descent rate 18 % apart. At sea level
- * the two branches agree exactly, so nothing shows.
+ * The second branch only differs away from sea level. At a 2,682 m field with
+ * 30 C typed and the pressure left blank, filling the blank from the site
+ * altitude would give 0.8388 kg/m^3 where the flight flies 1.1644, and a
+ * descent rate 18 % apart. At sea level the two branches agree exactly.
  */
 export function airDensity(launch?: SizingLaunch | null): number {
   if (!launch) return RHO0;
@@ -95,7 +92,7 @@ export function airDensity(launch?: SizingLaunch | null): number {
   return p / (R_AIR * t);
 }
 
-/** Propellant a motor expels — loaded minus burnout mass (0 without a curve). */
+/** Propellant a motor expels: loaded minus burnout mass (0 without a curve). */
 export function propellantMass(m: { masses?: number[] } | null | undefined): number {
   const ms = m?.masses;
   return ms && ms.length ? Math.max(0, ms[0]! - ms[ms.length - 1]!) : 0;

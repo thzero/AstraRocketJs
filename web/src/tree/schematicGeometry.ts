@@ -25,19 +25,18 @@ export const RULER_H = 32;
 export const RULER_W = 46;
 
 export const MARKER_R = 9;
-/** Total viewBox px of height reserved for the two callout lanes (S2). */
+/** Total viewBox px of height reserved for the two callout lanes. */
 export const CALLOUT_LANES = 34;
 /** Lane-center distance from the airframe edge (or marker edge, if wider). */
 const LANE_GAP = 13;
 
-/** A "nice" ruler tick step (meters) giving ~8 marks across `totalM`. */
 /**
- * A nice RULER graduation for a drawing that spans `totalM`.
+ * A nice ruler tick step (meters) giving ~8 marks across a drawing that spans
+ * `totalM`.
  *
  * Divides by 8 before rounding and has a 2.5 rung, unlike
  * `prefs/units.niceStep`, which rounds its argument directly on a 1-2-5
- * ladder. Renamed from `niceStep` because the two were indistinguishable at
- * an import site and are not interchangeable.
+ * ladder. Named apart from `niceStep` because the two are not interchangeable.
  */
 export function niceRulerStep(totalM: number): number {
   const target = Math.max(totalM, 1e-6) / 8;
@@ -60,10 +59,10 @@ export function snapNear(raw: number, snaps: number[], eps: number): number {
   return out;
 }
 /** CP label footprint in the lower lane, relative to cpX: dot (r 4) plus
- *  the "CP" text to its right — the margin text must not land on it. */
+ *  the "CP" text to its right; the margin text must not land on it. */
 const CP_LABEL_L = 6;
-// Wide enough for "CP · 22.4 cm" (was 27 for a bare "CP") so the margin text
-// is nudged clear of the longer label.
+// Wide enough for "CP · 22.4 cm" so the margin text is nudged clear of the
+// label.
 const CP_LABEL_R = 92;
 /** Rough half-width of the margin text (13 px bold ≈ 7.2 px per char). */
 const marginHalfW = (text: string) => (text.length * 7.2) / 2;
@@ -75,11 +74,10 @@ export interface CalloutLayout {
 }
 
 /**
- * Leader-line callout geometry (S2): dashed leaders run from the centerline
+ * Leader-line callout geometry: dashed leaders run from the centerline
  * markers to labeled dots in clear lanes above (CG) and below (CP) the drawn
- * airframe; the margin text sits in the LOWER lane midway between the two —
- * the upper-right corner belongs to the export/zoom control strip, which the
- * text collided with the moment the canvas became the hero (batch 08-21c) —
+ * airframe. The margin text sits in the lower lane midway between the two
+ * (the upper-right corner belongs to the export/zoom control strip),
  * clamped inside the viewBox and nudged off the CP label when they'd collide
  * (leftward as the fallback when the right side has no room).
  *
@@ -113,9 +111,8 @@ export function calloutLayout(
   return { cg, cp, margin };
 }
 
-// One implementation, in the tree layer. This file carried its own copy
-// (and Rocket3D a third, which disagreed on `absolute`); the canvas re-exports
-// so its importers keep working.
+// One implementation, in the tree layer (position.ts), re-exported here for the
+// canvas modules that import it from this file.
 export { axialStart };
 
 export function collect<T>(nodes: ComponentNode[], f: (n: ComponentNode) => T): T[] {
@@ -195,7 +192,7 @@ export function computeSchematicLayout(
 } {
   const { chPx, cw, maxHeight, fillHeight } = dims;
   // Stages flatten into one nose-to-tail chain (sustainer first, boosters
-  // after — the desktop's stacking order); legacy flat trees pass through.
+  // after: the desktop's stacking order); legacy flat trees pass through.
   const chain = axialChain(tree);
   let totalLen = 0;
   let maxR = 0.001;
@@ -205,8 +202,8 @@ export function computeSchematicLayout(
       maxR = Math.max(maxR, anyOuterRadius(n));
     }
   }
-  // A fin set's vertical span: freeform fins carry no 'height' key — their
-  // reach is the outline's y-max (the 0.03 default clipped tall freeform fins
+  // A fin set's vertical span: freeform fins carry no 'height' key; their
+  // reach is the outline's y-max (a fixed default would clip tall freeform fins
   // out of the adaptive-height frame).
   const spanOf = (n: ComponentNode, bodyR: number): number => {
     if (!isFinSet(n.type)) return 0;
@@ -218,15 +215,14 @@ export function computeSchematicLayout(
   };
   /**
    * Fin spans under `nodes`, each measured against the radius of the body it is
-   * actually ATTACHED to, narrowing as the walk descends.
+   * actually attached to, narrowing as the walk descends.
    *
    * Only tube fins care, and they care a lot: carrying no explicit outerRadius
    * they auto-size to the body they ring (tubefins.ts `tubeFinRadius`), so the
-   * radius handed in decides the answer. A plain `collect` over the tree
-   * measured every one of them against the WHOLE rocket's largest radius —
-   * tube fins on a 25 mm aft tube behind a 60 mm forward section claimed 2.4×
-   * the vertical reach they need, and the entire schematic shrank to leave room
-   * for space they never used.
+   * radius handed in decides the answer. Measured against the whole rocket's
+   * largest radius, tube fins on a 25 mm aft tube behind a 60 mm forward section
+   * would claim 2.4× the vertical reach they need, and the entire schematic
+   * would shrink to leave room for space they never use.
    */
   const collectFinSpans = (nodes: ComponentNode[], bodyR: number): number[] => {
     const out: number[] = [];
@@ -266,7 +262,7 @@ export function computeSchematicLayout(
   scanRadial(chain, maxR);
 
   // Caliper snap targets: axial component + child edges (horizontal), and radial
-  // magnitudes — each component's radius, the body, the full span (vertical).
+  // magnitudes: each component's radius, the body, the full span (vertical).
   const snapXs: number[] = [];
   const radialSet = new Set<number>([0, maxR, vHalf]);
   {
@@ -295,7 +291,7 @@ export function computeSchematicLayout(
   // Height follows the rocket's own proportions (clamped): a long thin
   // rocket gets a wide low band, not a fixed frame of empty sky. When info
   // is present the CG/CP callout lanes need sky of their own, so their
-  // allowance is added to the height AND kept out of the vertical fit —
+  // allowance is added to the height and kept out of the vertical fit;
   // otherwise a height-limited short/fat rocket would fill it and clip them.
   const lanes = info ? CALLOUT_LANES : 0;
   // Side view reserves a ruler lane per requested side (length top/bottom, radial
@@ -323,7 +319,7 @@ export function computeSchematicLayout(
     (h - 2 * pad - lanes - rTop - rBot) / (2 * vHalf),
   );
   // Center the rocket between the left/right ruler lanes, and vertically between
-  // the top/bottom ones — the centerline shifts by half the top/bottom imbalance
+  // the top/bottom ones: the centerline shifts by half the top/bottom imbalance
   // so an asymmetric set of rulers still frames the drawing evenly.
   const x0 = Math.max(pad + rLeft, (w - totalLen * scale) / 2);
   const ctx: Ctx = { scale, cy: (h + rTop - rBot) / 2, x0 };
@@ -331,25 +327,24 @@ export function computeSchematicLayout(
 }
 
 /**
- * The drawn extent of an INTERNAL component — the box the 2D schematic dashes
- * in, and the solid the 3D view puts inside the airframe. ONE function,
+ * The drawn extent of an internal component: the box the 2D schematic dashes
+ * in, and the solid the 3D view puts inside the airframe. One function,
  * because the two views disagreeing about what fits in a bay is worse than
  * either of them being rough.
  *
  * `packedLength` / `packedRadius` are not consulted: orkImport reads
- * <packedlength>/<packedradius> into `length` / `radius`
- * (orkImport.ts:441-488), so neither key is ever written and a branch reading
- * them is unreachable.
+ * <packedlength>/<packedradius> into `length` / `radius`, so neither key is
+ * ever written.
  *
- * For a MASS COMPONENT the last-resort radius is the KERNEL's default
+ * For a mass component the last-resort radius is the kernel's default
  * (ComponentFactory masscomponent radius = 0.005), not a fraction of the
  * parent. A `pRadius * 0.7` fraction draws a mass component with no `radius` key
  * - which is every one the editor creates - at ~9 mm on a 13 mm tube while the
  * kernel flies it at 5 mm, and the drawing must agree with the simulation.
  *
  * Every other internal type keeps the fraction: the kernel does not read `radius`
- * for a parachute, streamer or shock cord (packed sizes are not wired through,
- * see TODO.md), so there is no simulated size to agree with, and the 5 mm mass
+ * for a parachute, streamer or shock cord (packed sizes are not wired through),
+ * so there is no simulated size to agree with, and the 5 mm mass
  * default shrinks the default design's chute box until its glyph does not fit.
  */
 export function internalExtent(node: ComponentNode, parentRadius: number): { length: number; radius: number } {
@@ -372,13 +367,13 @@ export function innerTubeExtent(node: ComponentNode): { length: number; radius: 
 
 /**
  * A component's own `color` override, else the caller's default. The 2D side
- * view, the aft view and the 3D builder each carried a private copy of this
- * one-liner; one definition means one place for the override rule to change.
+ * view, the aft view and the 3D builder share it, so the override rule has one
+ * place to change.
  */
 export const colorOf = (n: ComponentNode, dflt: string): string => (typeof n['color'] === 'string' ? n['color'] : dflt);
 
 /** Loaded motor case dimensions (m) keyed by mount node id. The one shape every
- *  view takes; Rocket3D re-exports it for the store's import site. */
+ *  view and the store's `selectMotorDims` use. */
 export type MotorDims = Record<string, { length: number; diameter: number; label?: string }>;
 
 /** Same tiered glyphs for the stability verdict wherever a view prints one:
@@ -397,7 +392,7 @@ const STABILITY_WORD: Record<StabilityState, string> = {
 
 /**
  * The margin readout every drawing prints beside its CP: glyph, calibers,
- * percent of length and the verdict word, e.g. "△ 7.00 cal · 12.0% — over-stable".
+ * percent of length and the verdict word, e.g. "△ 7.00 cal · 12.0%" then "over-stable".
  * One builder, so the 2D overlay and the 3D callout cannot word it differently.
  * Null without a finite margin or percentage, rather than "NaN%".
  */
@@ -523,8 +518,7 @@ export function rulerGraduations({
   }
   const ticks: { y: number; label: number }[] = [];
   if (showRad) for (let m = 0; m <= vSpanM + 1e-6; m += rulerStep) ticks.push({ y: vTop + m * scale, label: m });
-  // Minor subdivisions: 10 per labeled major, plus a taller "medium" tick at
-  // the half-major, for a properly graduated ruler.
+  // Minor subdivisions: 5 per labeled major.
   const minorMarks: number[] = [];
   const minorTicks: number[] = [];
   if (showLen) {

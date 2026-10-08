@@ -4,7 +4,7 @@ import { test, expect, openTab, ready, importRkt } from './base';
  * RockSim `.rkt` import and export, through the real app.
  *
  * The readers and writers have unit tests (`rktImport.test.ts`,
- * `rktExport.test.ts`); this covers what those cannot — that the menu entries
+ * `rktExport.test.ts`); this covers what those cannot: that the menu entries
  * are wired, that the format sniff routes a `.rkt` to the right reader inside
  * the worker-backed load path, and that the imported design actually builds in
  * the kernel and produces numbers.
@@ -29,8 +29,8 @@ test('a .rkt imports, builds and flies', async ({ page }) => {
   // rather than leaving the user to wonder where the motor went.
   await expect(page.getByText(/motor selections and launch conditions are not imported/i)).toBeVisible();
 
-  // The mount came across AS a mount, which is what makes the design flyable
-  // once a motor is chosen. Until then the run is refused and says why — the
+  // The mount came across as a mount, which is what makes the design flyable
+  // once a motor is chosen. Until then the run is refused and says why: the
   // app will not seat a default C6 to make an unflyable file look flyable.
   await openTab(page, 'Simulations');
   await expect(page.getByRole('button', { name: /Run flight simulation/ })).toBeDisabled();

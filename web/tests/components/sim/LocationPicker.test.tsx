@@ -19,10 +19,11 @@ const DEFAULT_SITE = loadSettings().launchDefaults;
  * The picker, with an in-memory store so nothing touches IndexedDB.
  *
  * Rendered under StrictMode for the same reason MaterialPicker's test is: the
- * store round-trip finishes after an await behind a `mounted` ref, and the
- * development double-invoke runs the cleanup once and then the effect again —
- * a guard that is only ever cleared in cleanup stays false for the component's
- * whole life, and the location list never appears.
+ * store round-trip (`useLocationList`) finishes after an await behind a
+ * `useLatest` guard, and the development double-invoke runs the cleanup once and
+ * then the effect again. A guard that only ever goes stale in cleanup would stay
+ * stale for the component's whole life, and the location list would never
+ * appear.
  */
 
 function memoryStore(seed: LaunchLocation[] = []): LaunchLocationStore {
@@ -85,7 +86,7 @@ describe('LocationPicker', () => {
     await waitFor(() => screen.getByRole('option', { name: 'Home field' }));
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'home' } });
 
-    // Exactly the location's three fields: a location is a PLACE, so restoring the rod or
+    // Exactly the location's three fields: a location is a place, so restoring the rod or
     // the wind with it would put last month's conditions on today's flight.
     expect(onChange).toHaveBeenCalledWith({
       latitudeDeg: 39.05,
@@ -97,13 +98,13 @@ describe('LocationPicker', () => {
   });
 
   it('returns the site to the launch defaults when Custom location is picked', async () => {
-    // The complaint this started from: the option was inert. The select's value
-    // is derived from the fields, so choosing it changed nothing and React put
-    // the matching location straight back.
+    // The select's value is derived from the fields, so the option has to change
+    // the fields or it is inert: React would put the matching location straight
+    // back.
     //
-    // It then cleared the fields, which left all three required inputs blank,
-    // the map with nothing to draw and the Run button refusing. Your defaults
-    // are a real place instead - the Kennedy Space Center as shipped.
+    // Clearing the fields would leave all three required inputs blank, the map
+    // with nothing to draw and the Run button refusing. The launch defaults are a
+    // real place instead: the Kennedy Space Center as shipped.
     const { onChange, onCommit } = render({
       launch: launch({ latitudeDeg: 39.05, longitudeDeg: -104.8, launchAltitudeM: 1830 }),
     });
@@ -124,7 +125,7 @@ describe('LocationPicker', () => {
   });
 
   it('ships the Kennedy Space Center as that default', () => {
-    // Asserted against the NUMBERS, not against `loadSettings()` again: the test
+    // Asserted against the numbers, not against `loadSettings()` again: the test
     // above reads the same source the component does, so on its own it keeps
     // passing whatever the shipped default becomes.
     expect(DEFAULT_SITE.latitudeDeg).toBeCloseTo(28.61, 6);
@@ -139,8 +140,8 @@ describe('LocationPicker', () => {
     // The default launch is Florida, not the saved Colorado field.
     expect(select().value).toBe('');
 
-    // Re-rendered with the location's own coordinates, the select recognizes it —
-    // matched on the NUMBERS, so a location applied, imported from a `.ork` or set
+    // Re-rendered with the location's own coordinates, the select recognizes it,
+    // matched on the numbers, so a location applied, imported from a `.ork` or set
     // by "use my location" is recognized the same way.
     renderWithProviders(
       <LocationPicker
@@ -212,7 +213,7 @@ describe('LocationPicker', () => {
     // The row that lets you tell two fields with the same name apart.
     expect(dialog.textContent).toContain('39.0500');
     // The elevation is formatted in the user's own unit, so it carries a
-    // thousands separator — matched loosely rather than pinned to a locale.
+    // thousands separator, matched loosely rather than pinned to a locale.
     expect(dialog.textContent).toMatch(/1[,. ]?830\s*m/);
   });
 
@@ -225,7 +226,7 @@ describe('LocationPicker', () => {
   });
 });
 
-/** The live store's contents — the picker refreshes from it after every write. */
+/** The live store's contents: the picker refreshes from it after every write. */
 async function setPadThenList(): Promise<LaunchLocation[]> {
   const { getLaunchLocationStore } = await import('../../../src/services/storage/launchLocationStore');
   return getLaunchLocationStore().list();

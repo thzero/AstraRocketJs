@@ -2,14 +2,15 @@ import { test, expect, note, ready, box } from './base';
 
 /**
  * The app shell is a fixed-height column: header, one scrolling pane, then the
- * bottom tab bar. That only holds if the DOCUMENT itself never scrolls — a row
+ * bottom tab bar. That only holds if the document itself never scrolls: a row
  * that runs past the right edge makes the whole page scrollable sideways, and
- * the tab bar (exactly one viewport wide) slides out of view with it, which is
- * how it stopped reading as a static footer on a phone.
+ * the tab bar (exactly one viewport wide) slides out of view with it, so it no
+ * longer reads as a static footer on a phone.
  *
  * So this asserts the shell fits the viewport in both axes at the widths real
- * phones use, in the longer of the two languages as well. It caught two rows
- * that did not wrap: the app header's action group and the 2D/3D/Aero toggle.
+ * phones use, in the longer of the two languages as well. The rows most at risk
+ * are the ones that must wrap, such as the app header's action group and the
+ * 2D/3D/Aero toggle.
  */
 
 for (const w of [320, 360, 390, 414, 600, 768]) {

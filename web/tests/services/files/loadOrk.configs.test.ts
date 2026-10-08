@@ -152,11 +152,11 @@ describe('loadOrk with several flight configurations', () => {
   /**
    * `OrkFlightConfig` declares `separations` and `grounded` non-optional and
    * documents both as "carried for the same reason the deployments are".
-   * `LoadedConfig` named neither, so a `.ork` whose configuration said
-   * `<stage number="1" active="false"/>` or carried a
-   * `<separationconfiguration>` lost it on open -- and `saveOrk` then wrote the
-   * undefined value back, so the file lost it for good. The round-trip test
-   * could not see this: it goes importOrk to exportOrk and never through
+   * `LoadedConfig` has to carry them too: a `.ork` whose configuration says
+   * `<stage number="1" active="false"/>` or carries a
+   * `<separationconfiguration>` would otherwise lose it on open, and `saveOrk`
+   * would write the undefined value back, losing it for good. The round-trip
+   * test cannot see this: it goes importOrk to exportOrk and never through
    * `loadOrk`.
    */
   it('carries the separation overrides and the grounded stages too', async () => {

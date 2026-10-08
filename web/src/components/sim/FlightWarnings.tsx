@@ -7,10 +7,8 @@ import { WARNING_ROW, WARNING_TONE } from './warningTone';
  * What the kernel flagged about this flight: a recovery device out too fast, a
  * large angle of attack, no recovery device at all.
  *
- * The engine has exported these for a while and NOTHING read them — the field
- * was parsed into the type and dropped on the floor, so the deployment-speed
- * thresholds could be tuned all day without a user ever seeing their output.
- * This is the other half of those settings.
+ * This is the other half of the deployment-speed threshold settings: without
+ * it they could be tuned all day without a user ever seeing their output.
  */
 export function FlightWarnings({ sim }: { sim: FlightResult | null }) {
   const t = useLauncherT();
@@ -24,7 +22,7 @@ export function FlightWarnings({ sim }: { sim: FlightResult | null }) {
       </div>
       <ul className="space-y-1.5">
         {warnings.map((w, i) => {
-          // What it MEANS, not just what tripped. A deployment-speed warning
+          // What it means, not just what tripped. A deployment-speed warning
           // that does not say what a fast deployment does to the airframe is a
           // number the reader has to already understand in order to act on.
           const help = warningHelp(w.message, t);

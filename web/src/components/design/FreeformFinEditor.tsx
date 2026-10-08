@@ -81,9 +81,9 @@ export function FreeformFinEditor({
   };
   // Also the pointercancel / lostpointercapture end: a touch drag that the
   // browser takes over for scrolling, or a pen lifted out of range, never sends
-  // pointerup, so the vertex stayed "held" and the next move anywhere on the
-  // outline dragged it, with the undo entry left open. PaneSplitter ends its
-  // drag the same way.
+  // pointerup; without this the vertex would stay "held" and the next move
+  // anywhere on the outline would drag it, with the undo entry left open.
+  // PaneSplitter ends its drag the same way.
   const endDrag = (e: React.PointerEvent) => {
     if (dragging.current != null) onCommit?.(); // a drag is one undo entry, closed on release
     dragging.current = null;
@@ -111,14 +111,12 @@ export function FreeformFinEditor({
   /**
    * Keyboard editing.
    *
-   * The outline was pointer-only: vertices and edge midpoints had no role,
-   * tabIndex or key handler, and the X/Y inputs below render ONLY once `sel` is
-   * set — which only `startDrag`/`insertAfter` could do, both pointer-driven. So
-   * a keyboard or screen-reader user could not select a vertex, and therefore
-   * could not edit a freeform fin at all.
+   * The X/Y inputs below render only once `sel` is set, so vertices and edge
+   * midpoints need a role, a tabIndex and a key handler for a keyboard or
+   * screen-reader user to select a vertex at all.
    *
    * Arrows nudge by one step (Shift for ten), Enter/Space on a midpoint inserts,
-   * Delete removes. One undo entry per key, closed immediately — a nudge is a
+   * Delete removes. One undo entry per key, closed immediately: a nudge is a
    * discrete edit, unlike a drag.
    */
   const NUDGE = 0.001; // 1 mm in stored meters
@@ -183,7 +181,7 @@ export function FreeformFinEditor({
           stroke={token('warn-400')}
           strokeWidth="1.5"
         />
-        {/* edge midpoints — click to insert a vertex */}
+        {/* edge midpoints: click to insert a vertex */}
         {pts.map((p, i) => {
           const b = pts[(i + 1) % pts.length]!;
           return (
@@ -208,7 +206,7 @@ export function FreeformFinEditor({
             />
           );
         })}
-        {/* vertices — drag to move */}
+        {/* vertices: drag to move */}
         {pts.map((p, i) => (
           <circle
             key={`v-${i}`}
@@ -234,12 +232,10 @@ export function FreeformFinEditor({
           <span className="text-ink-faint">{t('freeform.point', { n: sel! + 1 })}</span>
           <label className="flex items-center gap-1">
             X
-            {/* NumberInput, not a raw <input>: the old
-                `value={+v.toFixed(3)}` + `parseFloat(...) || 0` round-trip is
-                exactly what it was written to replace. Select-all and type a
-                replacement and the field is briefly empty -- which parsed to 0
-                and snapped the vertex to the origin, deforming the outline as a
-                real tree edit. A leading `-` did the same. */}
+            {/* NumberInput, not a raw <input> with `parseFloat(...) || 0`:
+                select-all and type a replacement and the field is briefly
+                empty, which would parse to 0 and snap the vertex to the origin
+                as a real tree edit. A leading `-` would do the same. */}
             <NumberInput
               value={ptX.toUi(selPt[0])}
               onChange={onSi(ptX, (si) => si !== null && setPoint(sel!, si, selPt[1]))}

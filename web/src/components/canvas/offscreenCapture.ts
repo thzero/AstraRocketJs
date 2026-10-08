@@ -10,7 +10,7 @@ import { pixelsToCanvas } from '../../services/exports/offscreenRaster';
  * drawing buffer is never resized, frozen or redrawn.
  *
  * Why the second pass: three applies tone mapping and the output transfer
- * function ONLY when the render target is the canvas (WebGLPrograms picks
+ * function only when the render target is the canvas (WebGLPrograms picks
  * NoToneMapping and the linear working space for any other target). A single
  * render into a target therefore comes back linear and un-tone-mapped, and
  * the export would be visibly brighter and flatter than the view on screen.
@@ -40,7 +40,7 @@ const SAMPLES = 4;
  * The full-frame material for the output pass. `tonemapping_pars_fragment`
  * is included by hand because three only prepends it when the target is the
  * canvas; `colorspace_pars_fragment` (sRGBTransferOETF) is in every fragment
- * prefix. Alpha is un-premultiplied FIRST: the scene pass blends straight
+ * prefix. Alpha is un-premultiplied first: the scene pass blends straight
  * alpha over a cleared (0,0,0,0) target, leaving premultiplied color in the
  * buffer, and the browser reads the on-screen canvas the same way. Tone
  * mapping the straight color, then storing straight RGBA, is what makes the

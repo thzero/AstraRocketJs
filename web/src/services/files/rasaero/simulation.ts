@@ -20,11 +20,11 @@ export function writeMachAlt(w: Cdx1Writer, machAlt: MachAltTable | undefined): 
 }
 
 /**
- * Simulation block: RASAero's loader dereferences EVERY child without null
+ * Simulation block: RASAero's loader dereferences every child without null
  * checks, so its own files always carry all of these. The *Engine elements are
- * the only optional ones and must be OMITTED (not written empty) when there is
- * no motor. The per-stage weight/CG cells are CUMULATIVE — we know only the
- * whole rocket's loaded mass/CG, so only the LAST stage's cell can be filled.
+ * the only optional ones and must be omitted (not written empty) when there is
+ * no motor. The per-stage weight/CG cells are cumulative; we know only the
+ * whole rocket's loaded mass/CG, so only the last stage's cell can be filled.
  */
 export function writeSimulationList(
   w: Cdx1Writer,

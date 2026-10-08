@@ -11,7 +11,7 @@ import { wireLoadedOrk } from '../services/files/wireLoadedOrk';
 // Static, not the lazy import the neighboring .ork paths use: this is a fetch
 // wrapper with no heavy dependencies, and the library dialog imports it
 // statically anyway, so a dynamic import here only produces rolldown's
-// INEFFECTIVE_DYNAMIC_IMPORT warning without moving a byte.
+// ineffective-dynamic-import warning without moving a byte.
 import { fetchExample } from '../services/storage/exampleLibrary';
 import { isOutdated, newSimulation } from '../services/flight/simulations';
 import { loadSettings } from '../services/storage/settings';
@@ -43,8 +43,8 @@ import { showing } from './viewSlice';
  */
 export interface FileSlice {
   /** Open a `.ork`. A `Blob` rather than a `File` so a bundled example, which
-   *  arrives as bytes from a fetch, takes the identical path a picked file does
-   *  — `.arrayBuffer()` is the only thing this ever wanted from a File. */
+   *  arrives as bytes from a fetch, takes the identical path a picked file does;
+   *  `.arrayBuffer()` is the only thing this needs from a File. */
   openOrkFile: (file: Blob) => Promise<void>;
   /** Open one of the bundled OpenRocket examples by its file name. */
   openExample: (file: string) => Promise<void>;
@@ -58,10 +58,8 @@ export interface FileSlice {
   saveDesignAs: (name: string) => Promise<void>;
   renameDesign: (id: string, name: string) => Promise<void>;
   deleteDesign: (id: string) => Promise<void>;
-  // These four are implemented `async`. Declaring them `() => void` was a
-  // lie the type system then enforced: no caller and no test could await
-  // them, which is part of why none of the four had a test. The `void`-calling
-  // sites in AppHeader keep their `void`.
+  // These are implemented `async` and typed to return the promise, so callers
+  // and tests can await them. The `void`-calling sites in AppHeader keep their `void`.
   newWorkspace: () => Promise<void>;
   saveOrk: () => Promise<void>;
   /** Write the design as a RockSim `.rkt`. */
@@ -91,7 +89,7 @@ interface FileSliceShared {
  * continuation, which flushes the imported rocket out under a null id (a stray
  * entry) and hydrates the library design over the top of it.
  *
- * So every action that REPLACES the workspace bumps this, and every
+ * So every action that replaces the workspace bumps this, and every
  * continuation past an await re-checks before it touches the store.
  */
 let workspaceGen = 0;
@@ -103,16 +101,15 @@ const claimWorkspace = (): (() => boolean) => {
   return () => mine !== workspaceGen;
 };
 /**
- * OBSERVE the workspace without claiming it: the predicate reports whether
+ * Observe the workspace without claiming it: the predicate reports whether
  * someone replaced it, but taking this token does not itself count as a
  * replacement.
  *
- * `saveDesignAs` does not replace the workspace - it only needs to notice if
- * something else did - but it used `claimWorkspace`, which bumps the
- * generation and so invalidated every other continuation. Dropping a large
- * `.ork` on the app and hitting Save As while it parsed made `openOrkFile`'s
- * `stale()` true, and BOTH its success and its error paths are gated on that,
- * so nothing loaded and nothing was reported.
+ * `saveDesignAs` and `saveOrk` do not replace the workspace; they only need to
+ * notice if something else did. `claimWorkspace` would bump the generation and
+ * invalidate every other continuation: hitting Save As while a large `.ork`
+ * parsed would make `openOrkFile`'s `stale()` true, and both its success and its
+ * error paths are gated on that, so nothing would load and nothing be reported.
  */
 const observeWorkspace = (): (() => boolean) => {
   const mine = workspaceGen;
@@ -137,7 +134,7 @@ export const createFileSlice =
         await getWorkspaceStore().save(workspaceSnapshot(get()));
         return true;
       } catch (e) {
-        // Recorded rather than returned, so a caller that only cares WHETHER the
+        // Recorded rather than returned, so a caller that only cares whether the
         // write landed still reports the right reason it did not.
         lastFlushFailure = e;
         return false;
@@ -158,15 +155,15 @@ export const createFileSlice =
     };
 
     /**
-     * Decide which library entry an imported rocket belongs in, and do it BEFORE
+     * Decide which library entry an imported rocket belongs in, and do it before
      * the rocket replaces what is open.
      *
      * An import detaches the workspace store, so the next debounced autosave
-     * CREATES an entry. That is deliberate — an imported rocket is its own design,
-     * not an edit to whatever was on screen — but nothing checked the name, so
+     * creates an entry. That is deliberate (an imported rocket is its own design,
+     * not an edit to whatever was on screen), but without a name check,
      * re-importing the same .ork (edit in OpenRocket, import, edit, import…) or
-     * reopening the same example stacked up identical rows in File > Open, each
-     * one a real design the user then had to tell apart by nothing at all.
+     * reopening the same example would stack up identically named rows in
+     * File > Open with nothing to tell them apart.
      *
      * So on a name clash, ask: overwrite that design, or name this one something
      * else. The answer has to be settled here, ahead of `replaceWorkspace`,
@@ -214,7 +211,7 @@ export const createFileSlice =
         takenNames: taken,
       });
       if (stale()) return null;
-      // Canceling the NAME dialog does not cancel the import: the file is parsed
+      // Canceling the name dialog does not cancel the import: the file is parsed
       // and about to be on screen, and the one outcome this flow exists to rule
       // out is a second row with the same name. Fall back to the suggestion.
       return { id: null, name: chosen?.trim() || suggested };
@@ -226,10 +223,10 @@ export const createFileSlice =
 
       openOrkFile: async (file) => {
         // Three awaits before anything is written, and the file input has no busy
-        // gate — so a second import (or a library open) can land in between.
+        // gate, so a second import (or a library open) can land in between.
         const stale = claimWorkspace();
         try {
-          // The .ork parser (fflate + XML importer) is a lazily-imported chunk —
+          // The .ork parser (fflate + XML importer) is a lazily-imported chunk:
           // it isn't part of first paint, only of opening a file.
           const bytes = await file.arrayBuffer();
           if (stale()) return;
@@ -245,16 +242,16 @@ export const createFileSlice =
           // is still the open one (see homeForImport).
           const home = await homeForImport(loadedMeta.name, stale);
           if (!home || stale()) return;
-          clearHistory(); // a loaded design is a fresh document — nothing to undo across the load
-          // An imported rocket becomes its OWN library entry rather than
-          // replacing whatever was open — unless the user chose to overwrite a
-          // design of the same name, in which case that entry IS its home.
+          clearHistory(); // a loaded design is a fresh document; nothing to undo across the load
+          // An imported rocket becomes its own library entry rather than
+          // replacing whatever was open, unless the user chose to overwrite a
+          // design of the same name, in which case that entry is its home.
           getWorkspaceStore().setActiveId?.(home.id);
           if (!home.id) getWorkspaceStore().setPendingName?.(home.name);
           // A file is the likeliest source of a value no material has, and the
           // one place the app can still say where it came from.
           const fixed = repairValues(tree);
-          // Worded for the IMPORTED design's launcher, not the one still open:
+          // Worded for the imported design's launcher, not the one still open:
           // the store's tree is the previous design until replaceWorkspace below.
           const t = withLauncher(
             i18n.t as unknown as (key: string, options?: Record<string, unknown>) => string,
@@ -284,7 +281,7 @@ export const createFileSlice =
         }
       },
       openExample: async (file) => {
-        // Fetched, then handed to the ordinary import path — an example is an
+        // Fetched, then handed to the ordinary import path: an example is an
         // import that happens to ship with the app, so it gets the same notes
         // banner, the same safety-limit check and the same unsaved-copy
         // semantics, with no second code path to keep in step.
@@ -296,9 +293,9 @@ export const createFileSlice =
         }
       },
       refreshDesigns: async () => {
-        // The only async action without a guard. It is called from four places
-        // that can overlap (openDesign's tail, deleteDesign's tail, saveDesignAs
-        // and the library dialog), so a slower earlier call landing last put a
+        // Called from places that can overlap (openDesign's tail, deleteDesign's
+        // tail, saveDesignAs, renameDesign and the library dialog). Without the
+        // sequence check, a slower earlier call landing last would put a
         // just-deleted design back in the list, where clicking it takes the
         // `library.missing` path.
         const mine = ++designsGen;
@@ -309,18 +306,17 @@ export const createFileSlice =
       },
 
       openDesign: async (id) => {
-        // Four sequential awaits, and the user can click a second design during
-        // any of them. If B's read resolved first, A's continuation then ran
-        // flushActive() — writing B's tree out under the store's current active
-        // id — and finished with setActive(A) + hydrate(A). The user clicked B
-        // last and was looking at A. A monotonic token makes every continuation
-        // check it is still the most recent request before it touches anything.
+        // Several sequential awaits, and the user can click a second design during
+        // any of them. Unguarded, if B's read resolved first, A's continuation would
+        // run flushActive() (writing B's tree out under the store's current active
+        // id) and finish with setActive(A) + hydrate(A), leaving the user looking at
+        // A after clicking B. A monotonic token makes every continuation check it
+        // is still the most recent request before it touches anything.
         const stale = claimWorkspace();
 
         const lib = getDesignLibrary();
-        // The boot path runs every stored design through the same shape check
-        // before it hydrates; this path read the raw blob and handed it straight
-        // to hydrate(), where a non-array `tree.components` reaches reconcileConfigs
+        // The same shape check the boot path runs: a raw blob handed straight to
+        // hydrate() with a non-array `tree.components` would reach reconcileConfigs
         // and then the kernel. Same check, same `library.missing` outcome.
         const w = migrateWorkspace(await lib.read(id));
         if (stale()) return;
@@ -329,7 +325,7 @@ export const createFileSlice =
           await get().refreshDesigns();
           return;
         }
-        // Persist whatever is open BEFORE switching, or the edits since the last
+        // Persist whatever is open before switching, or the edits since the last
         // debounced autosave would be lost to the swap. A refused write does not
         // block the switch (the user asked to open something else), but it is
         // not silent either.
@@ -355,11 +351,10 @@ export const createFileSlice =
 
       saveDesignAs: async (name) => {
         const s = get();
-        // `create` now THROWS when storage refuses the write, rather than handing
-        // back a fabricated meta for a design that was never stored. AppHeader
-        // fires this with `void`, so surface it here or it becomes an unhandled
-        // rejection and the user sees a Save As that appeared to work.
-        // `s` is snapshotted NOW; if the workspace is replaced while create() is
+        // `create` throws when storage refuses the write. AppHeader fires this
+        // with `void`, so surface it here or it becomes an unhandled rejection
+        // and the user sees a Save As that appeared to work.
+        // `s` is snapshotted now; if the workspace is replaced while create() is
         // in flight, pointing the library at the new entry would leave the user
         // looking at one design with another one active.
         const stale = observeWorkspace();
@@ -397,9 +392,9 @@ export const createFileSlice =
         }
         // Deleting the open design leaves nothing to autosave into; start fresh so
         // the next edit creates a new library entry rather than resurrecting it.
-        // Read BEFORE the await: opening another design during remove() would
-        // otherwise leave activeDesignId pointing at the new one and skip the
-        // reset — or, worse, reset the design the user had just switched to.
+        // `wasActive` is read before the await, and activeDesignId is checked again
+        // after it: opening another design during remove() moves activeDesignId,
+        // and resetting then would discard the design the user had just switched to.
         if (wasActive && get().activeDesignId === id) {
           getWorkspaceStore().setActiveId?.(null);
           get().resetWorkspace();
@@ -438,13 +433,11 @@ export const createFileSlice =
       },
       saveOrk: async () => {
         try {
-          // ONE vintage of the design, captured before the first await.
+          // One vintage of the design, captured before the first await.
           //
-          // `tree` and `loadedMeta` were snapshotted here and `activeConfigId` and
-          // `launch` were read FRESH after the catalog fetch, which made this the
-          // only async action in the store with no staleness handling of any kind.
-          // Saving while the motor catalog was still loading and then editing wrote
-          // pre-edit geometry with a post-edit launch block: a file internally
+          // Reading any part of it after the catalog fetch would mix vintages:
+          // saving while the motor catalog was still loading and then editing would
+          // write pre-edit geometry with a post-edit launch block, a file internally
           // inconsistent in a way neither surface shows.
           //
           // The whole snapshot, not a `stale()` bail, because a save should write
@@ -471,7 +464,7 @@ export const createFileSlice =
               status: !summary ? ('notsimulated' as const) : stale ? ('outdated' as const) : ('uptodate' as const),
             };
           });
-          // EVERY configuration, each with its own motors: the file carries the
+          // Every configuration, each with its own motors: the file carries the
           // whole set, so opening one setup and saving cannot discard the others.
           const base = loadedMeta?.exportMotors ?? {};
           // The digests come from the motor catalog here rather than from the
@@ -487,7 +480,7 @@ export const createFileSlice =
               grounded: c.grounded,
             })),
           );
-          // Derived-statistics block — only when the user opted in (off by default,
+          // Derived-statistics block, only when the user opted in (off by default,
           // so a normal save stays byte-identical). Built from the same report model
           // the PDF export uses; both are lazily imported (also avoids a static
           // store → reportModel → store import cycle).
@@ -500,7 +493,7 @@ export const createFileSlice =
             const report = assembleReport();
             if (report) designInfo = buildDesignInfo(report);
           }
-          // The .ork writer is a lazily-imported chunk — only needed on save.
+          // The .ork writer is a lazily-imported chunk, only needed on save.
           const { downloadOrk } = await import('../services/files/saveOrk');
           // A different design is open now: writing this one would hand the user a
           // file for something they are no longer looking at.
@@ -542,7 +535,7 @@ export const createFileSlice =
           const name = designNameOf(tree, loadedMeta);
           const { skipped } = await downloadRocket3mf(name, tree, opts);
           // A part whose geometry fails the manifold check is left out rather
-          // than written as a file no slicer would accept — but silently leaving
+          // than written as a file no slicer would accept, but silently leaving
           // it out is how somebody discovers a missing fin at the printer.
           if (skipped.length) set({ err: i18n.t('errors.exportPrintPartial', { parts: skipped.join(', ') }) });
         } catch (e) {
@@ -553,10 +546,10 @@ export const createFileSlice =
         try {
           const { tree, loadedMeta, info } = get();
           const active = selectActive(get());
-          // Same motor map the .ork exporter builds — OrkExportMotor satisfies the
+          // Same motor map the .ork exporter builds; OrkExportMotor satisfies the
           // CDX1 engine-string writer's Cdx1ExportEngine verbatim.
           const motors = buildExportMotorMap(tree, selectConfig(get()), loadedMeta?.exportMotors ?? {});
-          // The RASAero writer is a lazily-imported chunk — only needed on export.
+          // The RASAero writer is a lazily-imported chunk, only needed on export.
           const { downloadCdx1 } = await import('../services/files/rasaeroExport');
           downloadCdx1({
             name: designNameOf(tree, loadedMeta),

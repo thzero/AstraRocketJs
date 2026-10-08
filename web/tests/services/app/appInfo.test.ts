@@ -30,7 +30,7 @@ describe('isPreRelease', () => {
  * `UPSTREAM` in appInfo is injected by vite.config.ts from
  * engine-java/extract/UPSTREAM, so there is nothing to test about the value
  * itself here (under Vitest it is the stand-in from vitest.config.ts). What is
- * worth testing is the FILE: it now answers "which OpenRocket is this?" for
+ * worth testing is the file: it answers "which OpenRocket is this?" for
  * every reader of the app and the docs, and a bump that moves `ref` while
  * leaving `date` or `describe` behind would ship a confidently wrong answer.
  *
@@ -74,10 +74,9 @@ describe('engine-java/extract/UPSTREAM', () => {
  * What a design is called, in every download, report and header: its own name,
  * else the name of the file it was imported from, else the app's default.
  *
- * Copies of this chain disagreed: the PDF report and the image exports put the
- * imported file's name FIRST, so a renamed rocket carried its old name there
- * and its new one everywhere else, and two storage paths fell back to an
- * untranslated 'My Rocket'.
+ * The order matters: the imported file's name first would give a renamed rocket
+ * its old name, and the default comes from the translated string, not a literal
+ * 'My Rocket'.
  */
 describe('designNameOf', () => {
   it('prefers the rocket name, then the imported file, then the default', () => {

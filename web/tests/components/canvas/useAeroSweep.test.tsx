@@ -6,10 +6,10 @@ import { useAeroSweep } from '../../../src/components/canvas/useAeroSweep';
 
 /**
  * The deferred sweep's contract with the pane: `pending` is true from the
- * render that changes an input until the run for THOSE inputs lands, the
+ * render that changes an input until the run for those inputs lands, the
  * previous sweep stays up meanwhile, a run whose inputs changed before it
  * started never lands, and no rocket means nothing is pending and nothing is
- * shown. `pending` is DERIVED rather than a flag set at the top of the effect, and
+ * shown. `pending` is derived rather than a flag set at the top of the effect, and
  * these pin that the derivation says all four of those things.
  */
 

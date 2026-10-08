@@ -1,5 +1,5 @@
 /**
- * Wind turbulence intensity: the wind's scatter as a FRACTION of its average
+ * Wind turbulence intensity: the wind's scatter as a fraction of its average
  * (standard deviation / average) rather than in m/s.
  *
  * This is how OpenRocket states gustiness and how the hobby talks about it.
@@ -11,13 +11,13 @@
  * standard deviation (`OpenRocketEngine.java` builds a `PinkNoiseWindModel` and
  * sets both explicitly), which is exactly what `LaunchConditions` stores, so a
  * given pair flies identically whatever this says about it. This is a second
- * reading of values we already hold — mirrored function for function from the
+ * reading of values we already hold, mirrored function for function from the
  * kernel we ship (`PinkNoiseWindModel.getTurbulenceIntensity`,
  * `setTurbulenceIntensity`, `getIntensityDescription`) so the two cannot drift.
  */
 
 /**
- * `MathUtil.equals(x, 0)` — the kernel's near-zero test, which is what
+ * `MathUtil.equals(x, 0)`: the kernel's near-zero test, which is what
  * `getTurbulenceIntensity` branches on. Its epsilon halves for a comparison
  * against zero (`MathUtil.EPSILON` is 1e-8), so the threshold is 5e-9.
  */
@@ -28,7 +28,7 @@ const isZero = (x: number) => Math.abs(x) < 0.00000001 / 2;
  *
  * Zero average has no ratio, so the kernel answers with the two extremes rather
  * than dividing: no scatter is 0, any scatter at all is 1. The `.ork` ≤23.09
- * `<windturbulence>` element stores THIS value, which is why import and export
+ * `<windturbulence>` element stores this value, which is why import and export
  * both go through here.
  */
 export function turbulenceIntensity(average: number, stdDev: number): number {

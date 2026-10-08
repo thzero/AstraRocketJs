@@ -1,8 +1,8 @@
 import { token } from './colorTokens';
 
 /**
- * The categorical chart colors: the dataviz skill's validated dark slots in
- * their fixed CVD-safe order. Every chart that colors series by identity draws
+ * The categorical chart colors: validated dark-theme slots in their fixed
+ * CVD-safe order. Every chart that colors series by identity draws
  * from this list, so the same slot reads the same color across panes. A chart
  * still needs a legend or direct labels; identity is never color alone.
  */

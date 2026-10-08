@@ -6,7 +6,7 @@ import { UNITS, unitFor, type Quantity } from '../../prefs/units';
  * The unit shown beside a value, changeable in place: a borderless <select>
  * styled to read as plain text.
  *
- * It changes THIS FIELD ONLY. `scope` names the field (see `unitScope`), and
+ * It changes this field only. `scope` names the field (see `unitScope`), and
  * the choice is stored against that key, so setting a nose cone's Length to
  * inches leaves its Thickness, the tree, the rulers and the stats strip alone.
  * Settings ▸ Units remains the one place that moves everything at once.
@@ -17,11 +17,11 @@ import { UNITS, unitFor, type Quantity } from '../../prefs/units';
  *
  * A field showing something other than the default is tinted, so a card with
  * one length in inches among centimeters reads as deliberate rather than as a
- * bug — and so a choice made months ago is findable where it actually matters,
+ * bug, and so a choice made months ago is findable where it actually matters,
  * not only in the preferences dialog.
  *
- * The accessible name carries the QUANTITY, not just "unit" — a panel can show
- * a dozen of these at once, and a bare "Unit" makes every one of them announce
+ * The accessible name carries the figure or quantity, not just "unit": a panel can
+ * show a dozen of these at once, and a bare "Unit" makes every one of them announce
  * identically to a screen reader.
  */
 export function UnitChip({
@@ -36,8 +36,8 @@ export function UnitChip({
    * The name of the figure this chip belongs to ("Rod exit", "CG", …).
    *
    * The quantity alone is not enough to tell chips apart: the stats strip shows
-   * four LENGTH chips at once (length, max diameter, CG, CP) and the flight
-   * summary four VELOCITY ones, so without this they all announce identically
+   * four length chips at once (length, max diameter, CG, CP) and the flight
+   * summary four velocity ones, so without this they all announce identically
    * and `getByLabel` matches every one of them.
    */
   label?: string;
@@ -52,7 +52,7 @@ export function UnitChip({
       value={current}
       title={overridden ? t('units.chipOverridden', { unit: settings.units[quantity] }) : t('units.chipTitle')}
       // The tint is a color-only cue, which reaches nobody using a screen
-      // reader — so the accessible name carries the same fact in words.
+      // reader, so the accessible name carries the same fact in words.
       aria-label={
         overridden
           ? t('units.ariaForOverridden', { quantity: label ?? t(`units.q.${quantity}`) })

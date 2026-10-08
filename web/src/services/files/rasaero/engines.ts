@@ -8,10 +8,10 @@ import { walkNodes } from '../../../tree/treeWalk';
  */
 
 /**
- * Engine-string export gate — PROVEN against real RASAero II 2026-08-25. RASAero
- * looks every exported engine name up in its own motor database and throws a
- * NullReferenceException when the name is missing, so we only write manufacturers
- * it documents (unmapped ones are omitted entirely, never guessed).
+ * Engine-string export gate. RASAero II looks every exported engine name up in
+ * its own motor database and throws a NullReferenceException when the name is
+ * missing, so we only write manufacturers it documents (unmapped ones are
+ * omitted entirely, never guessed).
  */
 export const CDX1_ENGINE_EXPORT = true;
 
@@ -56,8 +56,8 @@ const RASAERO_MFG_LOOKUP: Record<string, string> = Object.fromEntries(
 
 /**
  * The RASAero abbreviation for one of our manufacturer strings, or null when
- * RASAero doesn't document the maker — writing a name RASAero's database lacks
- * is the NRE, so unknown means OMIT, never guess.
+ * RASAero doesn't document the maker. Writing a name RASAero's database lacks
+ * causes the NullReferenceException, so unknown means omit, never guess.
  */
 function rasaeroManufacturerAbbrev(mfg: string | undefined): string | null {
   if (!mfg) return null;
@@ -66,7 +66,7 @@ function rasaeroManufacturerAbbrev(mfg: string | undefined): string | null {
   return RASAERO_MFG_LOOKUP[n] ?? null;
 }
 
-/** The slice of a motor assignment the engine-string writer reads — the .ork
+/** The slice of a motor assignment the engine-string writer reads; the .ork
     export map (OrkExportMotor) satisfies it verbatim, extra fields ignored. */
 export interface Cdx1ExportEngine {
   designation: string;
@@ -84,9 +84,10 @@ export interface StageEngineSlot {
 }
 
 /**
- * Per-stage engine strings, desktop format 'DESIGNATION  (ABBREV)' — two
- * spaces, the exact shape the importer's parseEngine reads back. null = no
- * motor on the stage, or a manufacturer RASAero doesn't document (the NRE risk).
+ * Per-stage engine strings, desktop format 'DESIGNATION  (ABBREV)': two
+ * spaces, the exact shape the desktop's RASAero importer reads back. null = no
+ * motor on the stage, or a manufacturer RASAero doesn't document (the
+ * NullReferenceException risk).
  */
 export function stageEngineSlots(
   stagesIn: ComponentNode[],

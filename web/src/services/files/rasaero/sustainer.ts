@@ -52,7 +52,7 @@ function finPlanform(fin: ComponentNode): { root: number; tip: number; sweep: nu
   return null;
 }
 
-/** The ONE fin set under `parent`, as a <Fin> block; nothing when it has none. */
+/** The one fin set under `parent`, as a <Fin> block; nothing when it has none. */
 export function finXml(w: Cdx1Writer, parent: ComponentNode): void {
   const { emit } = w;
   const finSets = (parent.children ?? []).filter((c) => isFinSet(c.type));
@@ -63,7 +63,7 @@ export function finXml(w: Cdx1Writer, parent: ComponentNode): void {
   const fin = finSets[0]!;
   const plan = finPlanform(fin);
   if (!plan) {
-    // Never drop fins silently — an aero program with no fins is a radically
+    // Never drop fins silently: an aero program with no fins is a radically
     // different rocket.
     throw new Error(
       fin.type === 'freeformfinset'
@@ -89,9 +89,9 @@ export function finXml(w: Cdx1Writer, parent: ComponentNode): void {
   // Fin Location = front edge from the tube bottom (inches).
   const locIn = (plan.root - bottomOffset) * IN;
   const cs = str(fin, 'crossSection', 'square');
-  // A supersonic airfoil section (feature #4) beats the plain cross section.
+  // A supersonic airfoil section beats the plain cross section.
   const section = SECTION_TO_AIRFOIL[str(fin, 'airfoilSection', '')];
-  // No <PartType> inside <Fin> — RASAero's parser is rigid.
+  // No <PartType> inside <Fin>: RASAero's parser is rigid.
   emit('<Fin>');
   emit(`<Count>${count}</Count>`);
   emit(`<Chord>${fmt(plan.root * IN)}</Chord>`);
@@ -153,8 +153,7 @@ function tubeXml(w: Cdx1Writer, node: ComponentNode): void {
   emit(`<LaunchLugLength>${fmt(lug ? num(lug, 'length', 0.05) * IN : 0)}</LaunchLugLength>`);
   // A rail button is RASAero's rail guide: its outer diameter and its total
   // standoff height (the .ork <height>, COMPONENT_DEFAULTS when the node
-  // never carried one). These were hard-wired to 0, so a button's drag was
-  // dropped from the export while a lug's was kept.
+  // never carried one), so a button's drag reaches the export as a lug's does.
   const rail = (node.children ?? []).find((c) => c.type === 'railbutton');
   const rb = COMPONENT_DEFAULTS.railbutton;
   emit(`<RailGuideDiameter>${fmt(rail ? num(rail, 'outerDiameter', rb.outerDiameter) * IN : 0)}</RailGuideDiameter>`);
@@ -204,6 +203,6 @@ export function writeSustainerChain(w: Cdx1Writer, sustainer: ComponentNode): vo
         `RASAero has no ${node.type === 'podset' ? 'pods' : 'parallel (strap-on) stages'}: "${node.name ?? node.type}" can't be exported. Remove it or export as .ork.`,
       );
     }
-    // internals/others have no RASAero representation — silently external-only
+    // internals/others have no RASAero representation: silently external-only
   }
 }

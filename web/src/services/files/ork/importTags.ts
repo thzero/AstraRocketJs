@@ -28,18 +28,17 @@ export function numTag(el: Element, tag: string, fallback: number): number {
 }
 
 /**
- * A DIMENSION or a MASS off an .ork element: `numTag`, floored at zero.
+ * A dimension or a mass off an .ork element: `numTag`, floored at zero.
  *
- * Nothing clamped on the way in. `numTag` accepts any finite value, so a
- * `<length>-5</length>` reached the tree, the mesh, the mass integral and the
- * kernel, where a negative length is not a small design and not an error
- * either: it is geometry that inverts. The `.rkt` reader already floors every
- * dimension it reads (`nonNeg` in `rktImport.ts`) and says there that the
- * handlers which do not are "an inconsistency rather than a decision". This is
- * the same floor on the same quantities for the other format.
+ * `numTag` accepts any finite value, so without the floor a
+ * `<length>-5</length>` would reach the tree, the mesh, the mass integral and
+ * the kernel, where a negative length is not a small design and not an error
+ * either: it is geometry that inverts. The `.rkt` reader floors every
+ * dimension it reads (`nonNeg` in `rktImport.ts`); this is the same floor on
+ * the same quantities for the other format.
  *
  * Use it for a quantity no value of which can be negative: a length, a radius,
- * a diameter, a thickness, a chord, a mass. NOT for a signed one - a fin
+ * a diameter, a thickness, a chord, a mass. Not for a signed one: a fin
  * `<sweeplength>` is negative when the fin sweeps forward, an `<axialoffset>`
  * and a `<launchlatitude>` are signed, and a cant or a rotation is an angle.
  * Those keep `numTag`.
@@ -59,9 +58,8 @@ export function nonNegTag(el: Element, tag: string, fallback: number): number {
  * `undefined` means automatic, which is how the rest of the app spells it: the
  * node simply has no radius key, `ComponentFactory` leaves the kernel's
  * automatic flag on, and the exporter writes `auto` straight back. Reading
- * `auto` as a NUMBER was the bug this replaces - `numTag` fell through to its
- * fallback, and every imported ring arrived with no radius at all, which the
- * required-dimension check then refused to fly.
+ * `auto` through `numTag` instead would fall through to its fallback and lose
+ * the automatic flag.
  */
 export function autoRadiusTag(el: Element, tag: string): number | undefined {
   const t = text(el, `:scope > ${tag}`)?.trim();
@@ -84,18 +82,15 @@ export function finCountTag(el: Element, fallback: number = COMPONENT_DEFAULTS.f
  * A recovery device's packed size: <packedlength> as `length` and
  * <packedradius> as `radius`. Both are MassObject's own length and radius
  * upstream, which is why those are the names, and `radius` is the key the
- * engine bridge, the schematic and the 3D build all read.
- *
- * It was stored as `packedRadius` instead, a key nothing else in the app
- * touched, so the value survived a round trip through the file and reached
- * nothing: the kernel flew the 12.5 mm default and the views drew their own
- * fallback. Kept only when it differs from the default the writer falls back
- * to, so an untouched design stays clean.
+ * engine bridge, the schematic and the 3D build all read. Under any other key
+ * the value would survive a round trip through the file and reach nothing: the
+ * kernel would fly the 12.5 mm default. Kept only when it differs from the
+ * default the writer falls back to, so an untouched design stays clean.
  */
 export function readPackedSize(el: Element, node: ComponentNode): void {
   node['length'] = nonNegTag(el, 'packedlength', COMPONENT_DEFAULTS.recovery.packedLength);
   // `<packedradius>auto 0.0125</packedradius>` is how MassObjectSaver writes an
-  // automatic packed radius: the marker AND the value it worked out.
+  // automatic packed radius: the marker and the value it worked out.
   const raw = text(el, ':scope > packedradius')?.trim() ?? '';
   if (raw.toLowerCase().startsWith('auto')) {
     node['radiusAuto'] = true;
@@ -134,7 +129,7 @@ function matDensity(el: Element): number | undefined {
   return Number.isFinite(d) && d > 0 ? d : undefined;
 }
 
-/** Material NAME if it's a real name (not the "custom" placeholder). */
+/** Material name if it's a real name (not the "custom" placeholder). */
 function matName(el: Element, type: string, selector = ':scope > material'): string | undefined {
   const m = el.querySelector(selector);
   if (!m || m.getAttribute('type') !== type) return undefined;
@@ -160,15 +155,13 @@ export function readSoftMaterial(
 }
 
 /**
- * <instancecount>/<instanceseparation>, PASS-THROUGH only.
+ * <instancecount>/<instanceseparation>, pass-through only.
  *
  * CenteringRing and Bulkhead are LineInstanceable and LaunchLug/RailButton are
- * Instanceable, so OpenRocket writes these for all four. Neither was read, and
- * export hard-wrote 1 / 0.0 — so a motor mount declared as one CenteringRing
- * with instancecount 3 came back from a save as a single ring, permanently
- * losing two-thirds of that structural mass from the user's own file. The app
- * still simulates and draws ONE; the file keeps all N, and the import note
- * says so rather than letting the difference stay silent.
+ * Instanceable, so OpenRocket writes these for all four. Carrying them keeps a
+ * motor mount declared as one CenteringRing with instancecount 3 from coming
+ * back from a save as a single ring. The app simulates and draws one; the file
+ * keeps all N, and the import note says so.
  */
 export function readInstances(el: Element, node: ComponentNode): void {
   const count = clampCount(numTag(el, 'instancecount', 1), 1, MAX_ASSEMBLY_INSTANCES);
@@ -177,7 +170,7 @@ export function readInstances(el: Element, node: ComponentNode): void {
   if (sep !== 0) node['instanceSeparation'] = sep;
 }
 
-/** Radial mounting angle (LaunchLug / RailButton) in RADIANS. OpenRocket writes
+/** Radial mounting angle (LaunchLug / RailButton) in radians. OpenRocket writes
  *  it as <angleoffset> (degrees), older files as <radialdirection>; the kernel
  *  default is 180°. Stored in radians to match the tree/renderers. */
 export function readAngleAroundBody(el: Element): number {
@@ -187,8 +180,8 @@ export function readAngleAroundBody(el: Element): number {
 }
 
 /**
- * RASAero feature #4: supersonic airfoil section (our extension tags — the
- * desktop loader warns on unknown elements and continues, so files stay
+ * Supersonic airfoil section, used by the RASAero export (our extension tags:
+ * the desktop loader warns on unknown elements and continues, so files stay
  * openable there). Absent tags leave the classic cross-section behavior.
  */
 export function readAirfoil(el: Element, node: ComponentNode): void {
@@ -204,7 +197,7 @@ export function readAirfoil(el: Element, node: ComponentNode): void {
 }
 
 /**
- * Fin fillets, PASS-THROUGH only.
+ * Fin fillets, pass-through only.
  *
  * OpenRocket's FinSetSaver writes <filletradius>/<filletmaterial> for every fin
  * set and counts the fillet volume toward fin mass. This app's kernel bridge does
@@ -227,7 +220,7 @@ function readFillet(el: Element, node: ComponentNode): void {
   if (name) node['filletMaterialName'] = name;
 }
 
-/** Fin-set rotation about the body axis (.ork stores DEGREES; we keep rad). */
+/** Fin-set rotation about the body axis (.ork stores degrees; we keep rad). */
 export function readFinRotation(el: Element, node: ComponentNode): void {
   const deg = numTag(el, 'rotation', 0);
   if (deg !== 0) node['rotation'] = degToRad(deg);
@@ -235,8 +228,8 @@ export function readFinRotation(el: Element, node: ComponentNode): void {
 
 /**
  * Fin tabs: <tabheight>, <tablength>, <tabposition relativeto="...">. Desktop
- * files carry TWO tabposition elements (legacy front/center/end + modern
- * top/middle/bottom) — like the desktop reader, the last one wins.
+ * files carry two tabposition elements (legacy front/center/end + modern
+ * top/middle/bottom); like the desktop reader, the last one wins.
  */
 export function readFinTabs(el: Element, node: ComponentNode): void {
   const h = numTag(el, 'tabheight', 0);
@@ -258,7 +251,7 @@ export function readFinTabs(el: Element, node: ComponentNode): void {
 /**
  * Recovery-device deployment: the bare tags are the defaults; the chosen
  * config's <deploymentconfiguration> block (same child tag names) overrides
- * them PER FIELD — the desktop handler clones the default and applies only
+ * them per field: the desktop handler clones the default and applies only
  * the fields the block carries.
  */
 export function readDeployment(el: Element, node: ComponentNode, configEl: Element | null = null): void {
@@ -316,20 +309,20 @@ export function readSeparation(sepEl: Element, node: ComponentNode): void {
 
 function readPosition(el: Element): ComponentPosition | undefined {
   // Modern files write <axialoffset method="...">; OpenRocket ≤ 15.03 wrote
-  // only <position type="..."> — fall back to it or old files lose every
+  // only <position type="...">; fall back to it or old files lose every
   // fin/lug/inner-tube offset.
   const off = el.querySelector(':scope > axialoffset') ?? el.querySelector(':scope > position');
   if (!off) return undefined;
   const method = (off.getAttribute('method') ?? off.getAttribute('type') ?? 'top') as ComponentPosition['method'];
-  // 'after' was missing, so every part using it lost its position entirely and
-  // fell back to the parent's top — a part seated after its sibling jumped to
-  // the front of the parent.
+  // 'after' must be in this list: a part whose method is rejected loses its
+  // position and falls back to the parent's top, so a part seated after its
+  // sibling would jump to the front of the parent.
   if (!['top', 'middle', 'bottom', 'absolute', 'after'].includes(method)) return undefined;
   return { method, offset: finiteNum(off.textContent) ?? 0 };
 }
 
 /**
- * What EVERY component carries: name, bulk material, finish, the mass/CG/Cd
+ * What every component carries: name, bulk material, finish, the mass/CG/Cd
  * overrides and (for the types the desktop positions) the axial position.
  */
 export function readCommon(el: Element, node: ComponentNode, withPosition: boolean): void {
@@ -395,14 +388,13 @@ export function readCommon(el: Element, node: ComponentNode, withPosition: boole
 /**
  * Mass / CG / Cd overrides, and the flags that spread them over the subtree.
  *
- * Split out of `readCommon` for the STAGE, which builds its own node rather
- * than going through the part reader, and so was the one component whose
- * overrides the writer emitted and the reader ignored.
+ * Split out of `readCommon` for the stage, which builds its own node rather
+ * than going through the part reader and reads its overrides through this.
  */
 export function readOverrides(el: Element, node: ComponentNode): void {
   // Floored, like the .rkt reader's `Math.max(0, knownMass / MASS)` and
   // `Math.max(0, knownCg)`. A negative override is not a lighter part: it
-  // SUBTRACTS from the rocket's total mass, pulls the CG off the airframe and
+  // subtracts from the rocket's total mass, pulls the CG off the airframe and
   // takes the stability margin with it, and the override is by definition the
   // figure that wins over everything computed.
   const om = numTag(el, 'overridemass', NaN);

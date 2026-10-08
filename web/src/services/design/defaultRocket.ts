@@ -5,7 +5,7 @@ import { presetLink } from './treeEdit';
 
 /**
  * The design the app opens with: a classic Estes-class sport model, built out of
- * PARTS THAT EXIST.
+ * parts that exist.
  *
  * Every tube, cone, ring and canopy below is a row of the shipped component
  * catalog (`public/data/components.generated.json`, synced from upstream's
@@ -14,7 +14,7 @@ import { presetLink } from './treeEdit';
  * catalog part a component is, exactly as it would had you picked it yourself,
  * and a reader who wants to build this rocket can order it.
  *
- * WHY THAT MATTERS BEYOND THE LABEL: a preset states the part's own material and
+ * Why that matters beyond the label: a preset states the part's own material and
  * density, and the numbers are not the kernel's generic ones. Estes spiral kraft
  * glassine is 894.4 kg/m3 against the stock cardboard's 680, which is a third of
  * the airframe's mass, and the airframe is the heaviest structural part of a
@@ -25,7 +25,7 @@ import { presetLink } from './treeEdit';
  * re-weighs a material or drops a part number fails rather than quietly opening
  * a rocket made of something else.
  *
- * WHAT IS NOT A PRESET, and why each one is still here:
+ * What is not a preset, and why each one is still here:
  *
  *  - the **fin set**, because the catalog has no fin presets at all: a kit's fins
  *    are die-cut balsa sheet, so they take the material catalog's own Balsa and
@@ -46,8 +46,8 @@ export interface PresetRow {
   type: 'nosecone' | 'bodytube' | 'centeringring' | 'parachute';
   /**
    * OpenRocket's own checksum for this part (`ComponentPreset.computeDigest`),
-   * computed from the `.orc` row by `scripts/preset-digest.mjs` and verified
-   * against digests in real OpenRocket files. Without it the desktop rejects the
+   * produced by OpenRocket's own preset loader through
+   * `scripts/sync-preset-digests.mjs`. Without it the desktop rejects the
    * link outright, so a row with no digest is written to the file without one.
    */
   digest?: string;
@@ -65,15 +65,15 @@ export interface PresetRow {
  * An 18 in BT-50 airframe on an 18 mm motor, which is the commonest sport-model
  * layout there is, and every part sized for it out of the same manufacturer's
  * range so the fits are real: the cone's shoulder and the rings' outer diameter
- * are the tube's INNER diameter, and the rings' bore is the motor tube's outer.
+ * are the tube's inner diameter, and the rings' bore is the motor tube's outer.
  */
 export const DEFAULT_PRESETS = {
   /**
    * Plastic ogive cone, 2.75 in.
    *
    * This row rather than its better-known sibling PNC-50K because its diameter is
-   * the BT-50's EXACTLY. PNC-50K is catalogued 0.05 mm narrower, which real parts
-   * are, and the kernel reads any base-to-tube step as a DISCONTINUITY: the first
+   * the BT-50's exactly. PNC-50K is cataloged 0.05 mm narrower, which real parts
+   * are, and the kernel reads any base-to-tube step as a discontinuity: the first
    * design anybody opens would come with a warning on it.
    *
    * The catalog states no wall thickness for a plastic cone: see NOSE_WALL.
@@ -130,11 +130,11 @@ export const DEFAULT_PRESETS = {
 } as const satisfies Record<string, PresetRow>;
 
 /**
- * The nose cone's wall, which the catalog row does NOT state.
+ * The nose cone's wall, which the catalog row does not state.
  *
  * Its `filled` flag is false and it publishes no inner diameter, so the picker
  * applies no thickness either and the node keeps whatever it had. 1.3 mm is a
- * typical injection-molded cone of this size, and it is OUR number rather than
+ * typical injection-molded cone of this size, and it is our number rather than
  * Estes'; it is the only dimension in this design that is.
  */
 const NOSE_WALL = 0.0013;
@@ -145,7 +145,7 @@ const NOSE_WALL = 0.0013;
  * Also not in the catalog row, and not optional either: without it the cone is a
  * shape balanced on the end of a tube, and the app's own nose-cone editor has a
  * shoulder section that would read as empty on the first design anybody opens.
- * 19 mm is the usual 3/4 in engagement. Left UNCAPPED because a molded cone is
+ * 19 mm is the usual 3/4 in engagement. Left uncapped because a molded cone is
  * open at its base; capping it would add a disc the real part does not have.
  */
 const SHOULDER_LENGTH = 0.019;
@@ -153,16 +153,16 @@ const SHOULDER_LENGTH = 0.019;
 /**
  * The fin set: the app's own swept planform, scaled to this airframe.
  *
- * The SHAPE is the one this design has always had, and it is the one part of the
- * rocket that is a look rather than a part number, because the catalog carries no
- * fin presets at all. Sweep longer than the span is what makes the silhouette.
+ * The shape is the app's own, and it is the one part of the rocket that is a
+ * look rather than a part number, because the catalog carries no fin presets at
+ * all. Sweep longer than the span is what makes the silhouette.
  *
- * The SIZE is that shape at 0.7, which is why the four dimensions are written as
- * ratios of the root rather than as four numbers: a fin edited one dimension at a
- * time stops being the same shape, and this one has to stay it. At full size the
- * span was 2.3 body diameters, which is a competition-class fin on a sport model
- * and 5.6 g of balsa at the very tail; at 0.7 it is 1.6 diameters and 2.1 g, and
- * the rocket flies 54 m higher on the same motor.
+ * The size is that shape at 0.7, which is why the four dimensions are written as
+ * the planform times one scale rather than as four numbers: a fin edited one
+ * dimension at a time stops being the same shape, and this one has to stay it. At full size
+ * the span would be 2.3 body diameters, which is a competition-class fin on a
+ * sport model and 5.6 g of balsa at the very tail; at 0.7 it is 1.6 diameters and
+ * 2.1 g, and the rocket flies 54 m higher on the same motor.
  *
  * 3/32 in sheet, which is what a fin this size is cut from: 2.38125 mm, the
  * exact conversion rather than a rounded 2.4, because balsa is sold by the
@@ -192,9 +192,9 @@ const PACK = { chute: 0.03, cord: 0.1, wadding: 0.155 };
 /**
  * A single 1/8 in launch lug, alongside the fin root.
  *
- * Measured from the TAIL (a negative offset is forward of it), because that is
+ * Measured from the tail (a negative offset is forward of it), because that is
  * what the position means on this part: a kit glues the lug between two fins, low
- * down, not up the airframe. Where it sits is not only cosmetic - the guided
+ * down, not up the airframe. Where it sits is not only cosmetic: the guided
  * phase ends when the aft-most guide leaves the rod, so a lug further forward is
  * guided travel the rocket does not get (Settings, Simulation, guide-aware rod
  * clearance).
@@ -257,7 +257,7 @@ export function defaultRocketTree(): RocketTree {
     aftRadiusAuto: false,
     thickness: NOSE_WALL,
     shoulderLength: SHOULDER_LENGTH,
-    // The tube's BORE, which is what the shoulder has to fit.
+    // The tube's bore, which is what the shoulder has to fit.
     shoulderRadius: body.innerDiameter / 2,
     shoulderThickness: NOSE_WALL,
   } as unknown as ComponentNode;

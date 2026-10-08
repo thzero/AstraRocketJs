@@ -4,7 +4,7 @@ import { test, expect, ready } from './base';
  * The whole-rocket 3MF export, through the real app.
  *
  * The writer has unit tests (`threeMf.test.ts`) that parse the package and
- * check its geometry; this covers what those cannot — that the menu entry is
+ * check its geometry; this covers what those cannot: that the menu entry is
  * wired, that the dialog lists what the live design can print, and that the
  * download that comes out is a real 3MF built from the real meshers.
  */

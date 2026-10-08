@@ -6,7 +6,7 @@ import { parseDesignFile, sniffDesignFormat } from '../../../src/services/files/
 /**
  * The format dispatch, which is the one place a `.rkt` and a `.ork` meet.
  *
- * It reads BYTES, not file names, so that a design renamed on its way through
+ * It reads bytes, not file names, so that a design renamed on its way through
  * somebody's email still opens and so the loader keeps one path for both
  * formats. The cases that matter are the ambiguous ones: a `.ork` that mentions
  * RockSim in its text (materials named "RockSim …" are common in files that
@@ -49,7 +49,7 @@ describe('sniffDesignFormat', () => {
 
   it('is not fooled by the word RockSim inside a .ork', () => {
     // Material names carried over from RockSim are common in real files; the
-    // sniff looks for the TAG, so a mention in the text must not win.
+    // sniff looks for the tag, so a mention in the text must not win.
     const ork = ORK.replace('<name>Tube</name>', '<name>Tube</name><material>RockSim Kraft phenolic</material>');
     expect(sniffDesignFormat(ork)).toBe('ork');
   });
@@ -57,8 +57,8 @@ describe('sniffDesignFormat', () => {
   /**
    * A Windows tool writes UTF-16 readily, and the file is perfectly valid XML.
    * Read as UTF-8 it is the right characters with a NUL between each one, so it
-   * matched neither root element and the app turned it away as not a design
-   * file at all - a file that opens fine everywhere else.
+   * would match neither root element and be turned away as not a design file at
+   * all, though it opens fine everywhere else.
    */
   describe('a file written in UTF-16', () => {
     /** The string as UTF-16 bytes, with or without a byte order mark. */

@@ -48,8 +48,8 @@ describe('COMPONENT_KIND', () => {
   });
 
   it('says no to a type the union does not know', () => {
-    // A persisted design or a hostile file can carry anything here. The old
-    // `endsWith('finset')` test said yes to this one.
+    // A persisted design or a hostile file can carry anything here. An
+    // `endsWith('finset')` test would say yes to this one.
     for (const t of ['myfinset', 'finset', '', 'pod']) {
       expect(isChainType(t)).toBe(false);
       expect(isAssembly(t)).toBe(false);

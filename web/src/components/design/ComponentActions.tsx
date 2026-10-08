@@ -17,7 +17,7 @@ import { useWorkspaceStore } from '../../state/store';
 import { partLabel } from '../../i18n/format';
 
 /**
- * The buttons on OpenRocket's config dialogs that change the TREE rather than a
+ * The buttons on OpenRocket's config dialogs that change the tree rather than a
  * field: Convert to freeform, Split fins, Split pods, Split boosters, Split
  * cluster and the cluster's Reset settings.
  *
@@ -25,7 +25,7 @@ import { partLabel } from '../../i18n/format';
  * the desktop puts them in, because every one of them replaces the part being
  * edited - so they belong together and away from the rows that describe it.
  *
- * A button that cannot do anything is DISABLED with the reason in its tooltip,
+ * A button that cannot do anything is disabled with the reason in its tooltip,
  * not hidden: a one-fin set and a single tube are exactly the cases where
  * someone goes looking for Split and needs to know why it is not offered.
  */

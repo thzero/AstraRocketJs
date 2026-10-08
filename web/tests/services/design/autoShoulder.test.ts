@@ -7,13 +7,13 @@ import { defaultNode, updateNode } from '../../../src/services/design/treeEdit';
  * Shoulders that follow the tube they plug into.
  *
  * The thing these have to pin down is not the arithmetic, which is one
- * subtraction, but WHICH number gets subtracted: the bore at the END a shoulder
+ * subtraction, but which number gets subtracted: the bore at the end a shoulder
  * plugs into, on the neighbor it actually meets. A transition's two ends are
  * different sizes, so asking for "the tube's bore" without saying which end
  * gives a boat tail's fore shoulder the aft radius and no test notices, because
  * on a plain body tube the two answers are the same.
  *
- * The other half is what must NOT happen: absent already means "this part has
+ * The other half is what must not happen: absent already means "this part has
  * no shoulder", so nothing may be derived without the explicit flag, or every
  * design ever imported grows a shoulder and changes mass.
  */

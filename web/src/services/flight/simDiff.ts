@@ -3,11 +3,11 @@ import type { LaunchConditions } from '../design/orkTree';
 import { stableJson } from '../app/stableJson';
 
 /**
- * Which fields the simulations being edited together DISAGREE on.
+ * Which fields the simulations being edited together disagree on.
  *
  * Editing a selection writes the field you touch to every selected simulation,
  * so the one thing the editor must not do is let you flatten a value you could
- * not see. The panel shows the ACTIVE simulation's value (blanking it would
+ * not see. The panel shows the active simulation's value (blanking it would
  * collide with the atmosphere fields, where blank already means ISA), and marks
  * every field where the others differ.
  *
@@ -23,7 +23,7 @@ import { stableJson } from '../app/stableJson';
 function same(a: unknown, b: unknown): boolean {
   if (a === b) return true;
   // null and undefined both mean "not set" here: `temperatureC` is null for ISA
-  // and an older workspace may simply lack the key.
+  // and a stored workspace may lack the key.
   if (a == null && b == null) return true;
   if (a == null || b == null) return false;
   if (typeof a !== 'object' || typeof b !== 'object') return false;
@@ -56,7 +56,7 @@ export function launchDiffKeys(sims: Simulation[]): Set<keyof LaunchConditions> 
 }
 
 /**
- * The run-preference keys that differ. Compared as the EFFECTIVE value would
+ * The run-preference keys that differ. Compared as the effective value would
  * read in the editor, which is the override or nothing: two simulations that
  * both fall through to the same global agree, and one that pins the global's
  * own number still differs from one that leaves it unset, because clearing the

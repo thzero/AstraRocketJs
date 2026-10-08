@@ -5,7 +5,7 @@ import type { OrkTreeExportInput } from '../orkTypes';
 import type { OrkWriteConfig, OrkWriter } from './exportWriter';
 
 /**
- * Flight configurations on the way OUT: which configurations a save writes
+ * Flight configurations on the way out: which configurations a save writes
  * (and which is the default), the rocket-level <motorconfiguration> table, and
  * the per-mount <motormount> block that lists each configuration's motor and
  * ignition settings.
@@ -16,8 +16,8 @@ import type { OrkWriteConfig, OrkWriter } from './exportWriter';
  *
  * What the app holds, written as it stands: a design has flight configurations
  * (services/flight/flightConfigs.ts), and each one carries its own motors. A design
- * with none at all - a `.rkt` on its way out, or a rocket with no mounts - gets
- * ONE unnamed configuration minted here, because every `<motormount>` block
+ * with none at all (a `.rkt` on its way out, or a rocket with no mounts) gets
+ * one unnamed configuration minted here, because every `<motormount>` block
  * keys its motors by a `configid` and the file has to declare one for them.
  *
  * A configuration that overrides no deployment writes `null`, which the device

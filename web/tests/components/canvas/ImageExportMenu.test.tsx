@@ -6,16 +6,15 @@ import { ImageExportMenu } from '../../../src/components/canvas/ImageExportMenu'
 import { IMAGE_WIDTHS } from '../../../src/services/exports/schematicExport.js';
 
 /**
- * The menu-button contract, which this popover declared and did not keep.
+ * The menu-button contract this popover declares.
  *
- * The trigger carries `aria-haspopup="menu"` and the popover `role="menu"`,
- * but its children were plain buttons - and a `menu` whose children are not
- * `menuitem` is an invalid structure that screen readers announce as "menu, 0
- * items", with the width buttons unreachable by menu navigation. Escape and
- * focus-return are the rest of the contract; only an outside pointerdown used
- * to close it, so a keyboard user who opened it was stuck inside. `AppHeader`
- * implements all of this and `e2e/a11y.spec.ts` covers it there, which is
- * exactly why this one going without was easy to miss.
+ * The trigger carries `aria-haspopup="menu"` and the popover `role="menu"`, so
+ * its children must be `menuitem`s: a `menu` with plain button children is an
+ * invalid structure that screen readers announce as "menu, 0 items", with the
+ * width buttons unreachable by menu navigation. Escape and focus-return are the
+ * rest of the contract; with only an outside pointerdown to close it, a keyboard
+ * user who opened it would be stuck inside. `e2e/a11y.spec.ts` covers the
+ * `AppHeader` menus, not this one, so it is checked here.
  */
 
 const open = (onPick = vi.fn(), fitOption = false) => {

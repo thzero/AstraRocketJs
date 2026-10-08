@@ -55,7 +55,7 @@ export function HelpPageFrame({
               // full site chrome before the first paint of the stripped one.
               // And out of reach until then: the load handler is what keeps a
               // link inside the dialog, so a click on the unseen page before it
-              // runs went to the docs site's own router instead.
+              // runs would go to the docs site's own router instead.
               className={`h-full w-full border-0 ${status === 'ready' ? '' : 'pointer-events-none opacity-0'}`}
             />
           )}

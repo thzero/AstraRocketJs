@@ -2,12 +2,12 @@ import { describe, it, expect, vi } from 'vitest';
 import { hasThrustCurve } from '../../../src/services/flight/runnability';
 
 /**
- * A `.ork` whose mount carries NO motor at all (as opposed to one it names
+ * A `.ork` whose mount carries no motor at all (as opposed to one it names
  * but the app cannot produce, covered in loadOrk.test.ts). The policy is the
  * same: the mount is seated with a curve-less placeholder so the run gate
  * blocks with "no motor", and the import notes say which mount to fill.
  * Nothing downstream may treat the missing entry as a hole for `wireLoadedOrk` or
- * `reconcileMounts` to fill with a default C6.
+ * `reconcileConfig` to fill with a default C6.
  */
 
 const design = {
@@ -21,11 +21,10 @@ vi.mock('../../../src/engine/openRocketEngine', () => ({
   resetEngine: () => {},
 }));
 
-// The PARSER is stubbed, not the file format: these cover what loadOrk does
-// with an import RESULT (resolving motors, seating placeholders), and the two
-// readers behind `parseDesignFile` have tests of their own. Mocking the
-// dispatcher rather than `./orkFile` keeps that true now that loadOrk reads
-// both `.ork` and `.rkt`.
+// The parser is stubbed, not the file format: these cover what loadOrk does
+// with an import result (resolving motors, seating placeholders), and the two
+// readers behind `parseDesignFile` have tests of their own. The dispatcher is
+// mocked rather than `./orkFile` because loadOrk reads both `.ork` and `.rkt`.
 vi.mock('../../../src/services/files/designFile', () => ({
   parseDesignFile: () => ({
     tree: {

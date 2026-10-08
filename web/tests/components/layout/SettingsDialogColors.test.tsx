@@ -6,8 +6,8 @@ import { readSettings, renderWithProviders } from '../../testing/renderWithProvi
 
 /**
  * A color in Settings is written when the picker closes, not on every drag tick:
- * each tick wrote the whole settings object to storage, dozens of writes per
- * gesture.
+ * each tick would write the whole settings object to storage, dozens of writes
+ * per gesture.
  */
 describe('Settings colors', () => {
   beforeEach(() => localStorage.clear());

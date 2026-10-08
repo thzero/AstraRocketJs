@@ -4,12 +4,12 @@ import { validateSolid } from '../../../src/services/exports/meshValidate';
 import { discSolid } from '../../../src/services/exports/solidMesh';
 
 /**
- * Which way a closed surface FACES.
+ * Which way a closed surface faces.
  *
  * The directed-edge check proves the winding is consistent. It cannot prove the
  * surface faces outward, because flipping every triangle in a closed mesh flips
  * every directed edge too and the counts come out identical. So a solid wound
- * entirely inside out passed every check the validator made, and a slicer reading
+ * entirely inside out passes every winding and edge check, and a slicer reading
  * that file fills the room and leaves the part hollow.
  *
  * Signed volume is the question that separates them, and it only makes sense once
@@ -47,8 +47,8 @@ describe('a closed solid must face outward', () => {
   });
 
   it('still calls the flipped mesh consistently wound, which is the point', () => {
-    // If the inversion showed up as inconsistent winding, the old check would
-    // already have caught it and there would be nothing to fix. It does not.
+    // The inversion does not show up as inconsistent winding, which is why the
+    // signed-volume check is needed at all.
     expect(kinds(flipped(tube()))).not.toContain('inconsistent-winding');
   });
 

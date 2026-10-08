@@ -1,20 +1,20 @@
 /**
- * Nose-cone / transition radius profiles — an exact port of the carved
+ * Nose-cone / transition radius profiles: an exact port of the carved
  * kernel's Transition.Shape.getRadius() implementations and the
  * Transition.getRadius() outer-profile logic (incl. the clipped path), so the
  * 2D schematic and the 3D view draw the same geometry the engine flies.
  *
- * Kernel semantics mirrored here (issue batch 2026-08-11a):
+ * Kernel semantics mirrored here:
  * - A nose cone is never clipped (NoseCone.isClipped() → false): its profile
  *   is Shape.getRadius(x, aftRadius, length, param) directly.
  * - A transition built by the bridge keeps the kernel default clipped state,
- *   which setShapeType() leaves at type.isClippable() — so ellipsoid / power /
- *   haack transitions simulate (and therefore must draw) CLIPPED: the profile
+ *   which setShapeType() leaves at type.isClippable(), so ellipsoid / power /
+ *   haack transitions simulate (and therefore must draw) clipped: the profile
  *   is the continuation of the virtual nose shape, cut off at the fore radius.
  *   Conical / ogive / parabolic transitions are never clippable.
- * - A node CAN override that default (the .ork <shapeclipped> flag, forwarded
+ * - A node can override that default (the .ork <shapeclipped> flag, forwarded
  *   to the engine bridge as node['clipped']): outerProfile's `clipped`
- *   argument mirrors Transition.isClipped() — non-clippable shapes ignore it
+ *   argument mirrors Transition.isClipped(). Non-clippable shapes ignore it
  *   entirely, absent means the kernel default (clipped), and an explicit
  *   false draws the unclipped delta shape r1 + shape(x, r2−r1, length), the
  *   same profile the engine then flies.
@@ -46,7 +46,7 @@ export function shapeParamDefault(shape: string): number {
   }
 }
 
-/** Mirrors Shape.usesParameter() — whether the shape-parameter field matters. */
+/** Mirrors Shape.usesParameter(): whether the shape-parameter field matters. */
 export function shapeUsesParameter(shape: string): boolean {
   return shape === 'ogive' || shape === 'power' || shape === 'parabolic' || shape === 'haack';
 }
@@ -56,7 +56,7 @@ export function shapeParamMax(shape: string): number {
   return shape === 'haack' ? 1 / 3 : 1;
 }
 
-/** Mirrors Shape.isClippable() — ellipsoid, power and haack transitions clip. */
+/** Mirrors Shape.isClippable(): ellipsoid, power and haack transitions clip. */
 export function shapeIsClippable(shape: string): boolean {
   return shape === 'ellipsoid' || shape === 'power' || shape === 'haack';
 }
@@ -67,7 +67,7 @@ export function shapeIsClippable(shape: string): boolean {
  */
 export function shapeRadius(shape: string, x: number, radius: number, length: number, param: number): number {
   // A degenerate shape (zero/negative/non-finite length or radius) has no
-  // profile — every branch below divides by `length` (or, for ogive, by
+  // profile: every branch below divides by `length` (or, for ogive, by
   // `radius`), so return 0 rather than emit Infinity/NaN. outerProfile already
   // guards length<=0 and passes a positive delta radius, so this only shields
   // direct callers.
@@ -125,7 +125,7 @@ function calculateClip(shape: string, param: number, length: number, r1: number,
   let max = length;
   // Non-finite input makes `max - min` NaN below, and NaN compares false
   // against everything, so the bisection's only exit could never fire and a
-  // hostile transition length hung the tab. The Java has the same loop but its
+  // hostile transition length would hang the tab. The Java has the same loop but its
   // callers can never hand it NaN; ours read a file.
   if (r1 === 0 || !Number.isFinite(length) || length <= 0 || !Number.isFinite(r1) || !Number.isFinite(r2)) return 0;
   let n = 0;
@@ -154,8 +154,8 @@ function calculateClip(shape: string, param: number, length: number, r1: number,
  * The abscissas outerProfile() samples: the even 0..length ladder, plus any
  * caller-supplied `extra` merged in (sorted, deduped, clamped to the span).
  *
- * WHY the extras exist: a consumer that has to read the profile AT some x —
- * services/report/reportGeometry.ts, sizing a part at a station — otherwise lands on a
+ * Why the extras exist: a consumer that has to read the profile at some x
+ * (services/report/reportGeometry.ts, sizing a part at a station) otherwise lands on a
  * chord between two samples instead of on the true curve. The error is tiny
  * (a 3" 4:1 tangent ogive has a ~1238 mm ogive radius, so a 4.76 mm chord has
  * a 0.0023 mm sagitta, three orders below print resolution, and it is the same
@@ -163,9 +163,8 @@ function calculateClip(shape: string, param: number, length: number, r1: number,
  * sample costs nothing and keeps "the printed part is the geometry the engine
  * flies" literally true.
  *
- * The no-extras path returns the SAME array, built by the same expression, in
- * the same order as before this parameter existed — every existing call site
- * is bit-identical, and shapeProfile.test.ts pins that.
+ * The no-extras path returns exactly the even ladder, bit for bit, and
+ * shapeProfile.test.ts pins that.
  */
 function sampleXs(length: number, steps: number, extra?: readonly number[]): number[] {
   // Floor steps to >=1: steps=0 would make the divisor 0 and emit a single NaN
@@ -176,7 +175,7 @@ function sampleXs(length: number, steps: number, extra?: readonly number[]): num
   if (!extra || extra.length === 0) return xs;
   for (const e of extra) {
     if (!Number.isFinite(e) || e < 0 || e > length) continue;
-    // Within a collapse tolerance of an existing sample, REPLACE it: the
+    // Within a collapse tolerance of an existing sample, replace it: the
     // caller's abscissa is the one that must survive (it is a cut plane), and
     // two points 1 nm apart would be collapsed to one downstream anyway.
     const j = xs.findIndex((v) => Math.abs(v - e) <= 1e-9);
@@ -194,12 +193,12 @@ function sampleXs(length: number, steps: number, extra?: readonly number[]): num
  * Nose cones are this with foreR = 0.
  *
  * `extraX` (optional, meters, in this profile's own x) merges exact samples at
- * the given abscissas — see sampleXs(). Purely additive: omit it and nothing
+ * the given abscissas (see sampleXs()). Purely additive: omit it and nothing
  * changes.
  *
  * `clipped` (optional) is the node's stored clipped flag (node['clipped'],
  * from .ork <shapeclipped>). Absent = kernel default = clipped; it only
- * matters on clippable shapes (ellipsoid/power/haack) — exactly
+ * matters on clippable shapes (ellipsoid/power/haack), exactly as
  * Transition.isClipped(), which returns false outright for the rest.
  */
 export function outerProfile(
@@ -226,8 +225,8 @@ export function outerProfile(
   const flipped = foreR > aftR;
   const r1 = flipped ? aftR : foreR;
   const r2 = flipped ? foreR : aftR;
-  // (clipped ?? true): the kernel default IS clipped; the flag can only turn
-  // clipping OFF, and only on clippable shapes (Transition.isClipped()).
+  // (clipped ?? true): the kernel default is clipped; the flag can only turn
+  // clipping off, and only on clippable shapes (Transition.isClipped()).
   const clip = r1 > 0 && shapeIsClippable(shape) && (clipped ?? true);
   const clipLength = clip ? calculateClip(shape, p, length, r1, r2) : 0;
 
@@ -257,7 +256,7 @@ export function nodeShape(node: ComponentNode): string {
 }
 
 /**
- * The outer radius of a SYMMETRIC component at one station along it, in meters.
+ * The outer radius of a symmetric component at one station along it, in meters.
  *
  * `SymmetricComponent.getRadius(x)`: a tube is one radius end to end, a nose
  * cone runs from a point to its base and a transition between its two ends. The

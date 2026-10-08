@@ -9,7 +9,7 @@ import { FieldRow, NumberField, sectionFields } from './DimensionFields';
 import { PropSection } from './PropSection';
 
 /**
- * The property panel's placement section: WHERE a nested part sits, as
+ * The property panel's placement section: where a nested part sits, as
  * against what shape it is. Along the parent tube (the reference method and
  * the offset from it), and around it (the rotation, for the parts that have
  * one).
@@ -21,7 +21,7 @@ import { PropSection } from './PropSection';
  * `getAngleOffset()`.
  */
 
-/** Placement — only meaningful for parts nested inside a tube. */
+/** Placement: only meaningful for parts nested inside a tube. */
 export function PlacementSection({
   node,
   onChange,

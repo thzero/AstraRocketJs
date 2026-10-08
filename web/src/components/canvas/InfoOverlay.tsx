@@ -16,7 +16,7 @@ export function InfoOverlay({ info }: { info: StaticInfo | null }) {
   if (!info) return null;
   const cal = info.stabilityCalibers;
   const state = stabilityState(cal) ?? 'under';
-  // Margin as a fraction of overall length — the same figure the stat tiles and
+  // Margin as a fraction of overall length: the same figure the stat tiles and
   // the CP callout carry, so the quick-glance card isn't missing a data item.
   // The engine's own figure, not ours: see StaticInfo.stabilityPercent.
   const pct = info.stabilityPercent;

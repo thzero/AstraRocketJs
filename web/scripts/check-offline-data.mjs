@@ -5,24 +5,23 @@
 //
 // Motors, components, materials and contributors are files under public/data
 // fetched at run time (src/services/app/remoteData.ts), not bundled. They are
-// precached by the service worker, so "offline at first open" should cover them
-// the way it covers the app shell and the docs. It did not.
+// precached by the service worker, so "offline at first open" has to cover them
+// the way it covers the app shell and the docs.
 //
-// THE BUG THIS EXISTS FOR. remoteData appends the manifest's content hash to
-// every catalog URL so a CDN cannot serve a stale copy after the file is
+// The hazard is the cache-buster. remoteData appends the manifest's content hash
+// to every catalog URL so a CDN cannot serve a stale copy after the file is
 // replaced. `manifest.json` is itself precached, so with the network off the
-// app still READS a hash and still asks for
-// `data/motors.generated.json?v=429fee4cf0b3`. Workbox keys the precache on
+// app still reads a hash and still asks for
+// `data/motors.generated.json?v=<hash>`. Workbox keys the precache on
 // `data/motors.generated.json` and its default `ignoreURLParametersMatching`
-// covers only `utm_*` and `fbclid`, so every one of those was a miss: the
-// request fell through each runtime rule (they cover page loads, the jsDelivr
-// host and the engine fallback) and failed at the network. No motors, no
-// components, no materials, on exactly the device that is standing at a launch
-// site with no signal. The fix is in vite.config.ts, and it is one line; the
-// reason it went unnoticed for so long is that nothing looked.
+// covers only `utm_*` and `fbclid`, so vite.config.ts adds `v` to that list.
+// Without it every catalog request misses the precache, falls through each
+// runtime rule (they cover page loads, the jsDelivr host and the engine
+// fallback) and fails at the network: no motors, no components, no materials,
+// on exactly the device that is standing at a launch site with no signal.
 //
-// Nothing else here can see this. The Playwright suite runs against the Vite
-// DEV server, which registers no worker, and vitest has no browser.
+// Nothing else here can see this. The Playwright suite never takes the network
+// away from a worker-controlled page, and vitest has no browser.
 //
 // What is checked is the URL the app actually builds: read manifest.json the
 // way the app reads it, then ask for every catalog it names with the buster

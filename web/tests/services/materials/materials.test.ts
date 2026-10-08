@@ -60,7 +60,7 @@ describe('addCustom validation', () => {
 
 describe('materialsForType', () => {
   it('lists a custom material inside a real group, not above everything', async () => {
-    // NOT `[...custom, ...builtins]`, which puts every custom material at the top
+    // Not `[...custom, ...builtins]`, which puts every custom material at the top
     // under a `Custom` group of its own. The provenance is the star the picker
     // draws, not the material's place in the list. See `materialsMerge.test.ts`
     // for the rule itself.

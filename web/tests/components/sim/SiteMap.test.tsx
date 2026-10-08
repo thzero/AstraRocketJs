@@ -8,12 +8,12 @@ import { renderWithProviders } from '../../testing/renderWithProviders';
  * The map, without a network.
  *
  * jsdom never fetches an `<img>`, so nothing here depends on a tile server
- * being reachable: what is checked is the URLs the component ASKS for, where
+ * being reachable: what is checked is the URLs the component asks for, where
  * it puts the pin, and what a pointer does. The projection itself is covered
  * in `services/map/slippyMap.test.ts` against hand-computed figures.
  *
  * There is no ResizeObserver in jsdom either, which the component handles by
- * keeping its 320x256 default — so the center of the box is (160, 128) below.
+ * keeping its 320x256 default, so the center of the box is (160, 128) below.
  */
 
 const HOME = { latitudeDeg: 39.05, longitudeDeg: -104.8 };
@@ -101,9 +101,9 @@ describe('SiteMap', () => {
   it('does not move the location when a control inside the map is clicked', () => {
     // The controls are children of the box the pointer handlers are on, so
     // their events bubble there. Read as a click on the ground, switching to
-    // the street layer relocated the launch site to the top-left corner of the
-    // map, which is where the layer buttons sit. Silent: the coordinates just
-    // changed under you.
+    // the street layer would relocate the launch site to the top-left corner of
+    // the map, where the layer buttons sit, with nothing to say the coordinates
+    // had changed.
     const onPick = vi.fn();
     renderWithProviders(<SiteMap {...HOME} onPick={onPick} />);
     for (const name of ['Street', 'Satellite', 'Zoom in', 'Zoom out']) {

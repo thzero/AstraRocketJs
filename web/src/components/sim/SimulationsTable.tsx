@@ -79,7 +79,7 @@ export function SimulationsTable({
     launcherKind(tree),
   );
   const u = useUnits();
-  // Each column owns its unit, and shares the scope with the summary tiles — so
+  // Each column owns its unit, and shares the scope with the summary tiles, so
   // reading apogee in feet there reads in feet here too.
   const apogee = u.at(unitScope('sim', 'apogee'), 'distance');
   const rodExit = u.at(unitScope('sim', 'rodExit'), 'velocity');
@@ -153,9 +153,9 @@ export function SimulationsTable({
           const isActive = s.id === activeId;
           // A file's summary fills the row until the simulation is flown here.
           const r = s.result?.summary ?? s.fileSummary?.summary;
-          // Every number is from the LAST run, which for an outdated row
+          // Every number is from the last run, which for an outdated row
           // describes a design that has since moved on. The row is dimmed to say
-          // so — the numbers are still worth reading, they are just not current.
+          // so: the numbers are still worth reading, they are just not current.
           const dim = status === 'outdated' || status === 'fromFile' ? 'text-ink-muted' : 'text-ink';
           return (
             // The row click is a mouse convenience; the button in the name cell
@@ -173,7 +173,7 @@ export function SimulationsTable({
                 <input
                   type="checkbox"
                   checked={selectedIds.includes(s.id)}
-                  // The row's own click selects it for EDITING; the tick must not
+                  // The row's own click selects it for editing; the tick must not
                   // also drag the editor over to a row you only wanted to fly.
                   onClick={(e) => e.stopPropagation()}
                   onChange={() => onToggle(s.id)}
@@ -185,7 +185,7 @@ export function SimulationsTable({
                 <span className="flex items-center gap-1.5">
                   <span className={`size-2 shrink-0 rounded-full ${TONE[status]}`} aria-hidden />
                   <span className="text-[11px] text-ink-muted">{statusLabel[status]}</span>
-                  {/* A run can be current AND have flagged something, which the
+                  {/* A run can be current and have flagged something, which the
                       status dot on its own cannot say. The detail is on the
                       Results tab; this is the pointer to it. */}
                   {!!s.result?.warnings?.length && (
@@ -253,9 +253,9 @@ export function SimulationsTable({
               </Num>
               <td className="w-10 px-2 py-2 text-right">
                 {/* A run that has a result is worth looking at, and the Results
-                    tab shows ONE simulation - so each row needs its own way in.
-                    Without this a batch left every row flown and no route to any
-                    of them but re-running one. */}
+                    tab shows one simulation, so each row needs its own way in.
+                    Without this a batch would leave every row flown and no route
+                    to any of them but re-running one. */}
                 {!!s.result && (
                   <button
                     onClick={(e) => {
@@ -278,7 +278,7 @@ export function SimulationsTable({
   );
 }
 
-/** `wide` columns are dropped below the desktop breakpoint — see the file docs. */
+/** `wide` columns are dropped below the desktop breakpoint; see the file docs. */
 function Th({ children, num, wide }: { children: React.ReactNode; num?: boolean; wide?: boolean }) {
   return (
     <th
@@ -295,7 +295,7 @@ function Td({ children, wide }: { children: React.ReactNode; wide?: boolean }) {
 }
 
 /** A measured cell: right-aligned and tabular, so the column reads as a column.
- *  An empty value renders an em dash rather than nothing, so a never-run row is
+ *  An empty value renders a dash rather than nothing, so a never-run row is
  *  visibly blank rather than looking like a rendering failure. */
 function Num({ children, wide, className }: { children: React.ReactNode; wide?: boolean; className?: string }) {
   return (

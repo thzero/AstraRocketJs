@@ -15,8 +15,8 @@ export interface PromptOptions {
  * Drives the single app-wide {@link PromptDialog}: the name dialog as a
  * promise, so the workspace store can ask for a name mid-action.
  *
- * The sibling of {@link confirmStore}, and for the same reason: the import path
- * needs a name BEFORE it hands a rocket to the library, and it lives in the store,
+ * The sibling of {@link useConfirmStore}, and for the same reason: the import path
+ * needs a name before it hands a rocket to the library, and it lives in the store,
  * so naming cannot be reachable only through the header's dialog host. Letting the
  * import land first and naming it afterwards is the race that fills the library
  * with copies.

@@ -1,10 +1,10 @@
 import { test, expect, autosaved, openTab } from './base';
 
 /**
- * Behavioral smoke suite — asserts on DOM/behavior, not pixels, so an
+ * Behavioral smoke suite: asserts on DOM/behavior, not pixels, so an
  * intentional UI tweak doesn't break it. Covers the paths that only ever fail
- * at runtime (engine → store → canvas) and the regressions we've already fixed
- * (sim run unlocking result views, workspace persistence across reload).
+ * at runtime (engine → store → canvas) and the core flows around them (a sim
+ * run unlocking result views, workspace persistence across reload).
  *
  * Selector notes: the caliper buttons expose their label through `title` (their
  * text is just the ⟺/⇕ glyph), so getByTitle.
@@ -14,13 +14,13 @@ test.describe('AstraRocketJs smoke', () => {
   test('boots with an engine-computed design', async ({ page }) => {
     await page.goto('/');
 
-    // The simulations table proves the sim pane + store mounted — it lives on
-    // its own tab now, so go there and come back.
+    // The simulations table proves the sim pane + store mounted; it lives on
+    // its own tab, so go there and come back.
     await openTab(page, 'Simulations');
     await expect(page.getByRole('row').filter({ hasText: 'Simulation 1' })).toBeVisible();
     await openTab(page, 'Design');
 
-    // The stats footer only populates from live StaticInfo — "L/D" is the
+    // The stats footer only populates from live StaticInfo. "L/D" is the
     // unique fineness-tile unit, so its presence means the engine ran and the
     // tiles rendered real numbers.
     await expect(page.getByText('L/D', { exact: true })).toBeVisible();
@@ -34,9 +34,9 @@ test.describe('AstraRocketJs smoke', () => {
 
   /**
    * The header's save status, end to end: the autosave actually landing is
-   * what puts it on screen. It replaced the File menu's Save item, so this is
-   * now the only thing in the app that tells anyone their work is being kept -
-   * and it is wired through three places (the write's success path, the store,
+   * what puts it on screen. The File menu has no Save item, so this is the
+   * only thing in the app that tells anyone their work is being kept, and it
+   * is wired through three places (the write's success path, the store,
    * the header) that no unit test crosses.
    */
   test('says when the rocket was last saved, once a save has landed', async ({ page }) => {
@@ -53,7 +53,7 @@ test.describe('AstraRocketJs smoke', () => {
 
     await expect(page.getByText(/^Saved/)).toHaveText('Saved just now');
 
-    // And the File menu no longer offers a Save of its own.
+    // And the File menu does not offer a Save of its own.
     await page.getByRole('button', { name: 'Menu' }).click();
     await expect(page.getByRole('menuitem', { name: 'Save As…' })).toBeVisible();
     await expect(page.getByRole('menuitem', { name: 'Save', exact: true })).toHaveCount(0);
@@ -116,7 +116,7 @@ test.describe('AstraRocketJs smoke', () => {
     await openTab(page, 'Simulations');
     await page.getByRole('button', { name: 'Duplicate simulation' }).click();
 
-    // The table is the count now: two rows, the copy named after the original.
+    // The table is the count: two rows, the copy named after the original.
     const rows = page.getByRole('row').filter({ hasText: /Simulation/ });
     await expect(rows).toHaveCount(2);
 

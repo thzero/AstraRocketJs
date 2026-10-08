@@ -5,18 +5,18 @@ import { finRootChord } from '../../tree/finPlanform';
 import { isFinSet, isPlanarFinSet } from '../../tree/tubefins';
 
 /**
- * THE fin marking guide's arithmetic: which body tube gets a guide, how long
+ * The fin marking guide's arithmetic: which body tube gets a guide, how long
  * the wrapped strip is, where its seam falls, and how far along it each fin,
  * tube fin, launch lug and rail button is marked.
  *
  * Ported from OpenRocket's `FinMarkingGuide.java`
  * (`swing/src/main/java/info/openrocket/swing/gui/print/`) at the ref pinned in
- * `engine-java/extract/UPSTREAM`. That file is NOT in `engine-java/src/java`:
+ * `engine-java/extract/UPSTREAM`. That file is not in `engine-java/src/java`:
  * the extraction is sparse to `core/src/main/java`, and the marking guide lives
  * in the swing module, so there is no committed Java for a kernel test to
- * re-derive these numbers from. Every formula below therefore carries the Java
- * line it came from, and the companion test pins the cases that formula has to
- * get right.
+ * re-derive these numbers from. Every formula below therefore names the Java
+ * method or constant it came from, and the companion test pins the cases that
+ * formula has to get right.
  *
  * Kept free of jsPDF, the way `layout.ts` is: a drift in the seam rule or the
  * circumference prints a guide that looks entirely plausible and puts the fins
@@ -31,7 +31,7 @@ export const TWO_PI = 2 * Math.PI;
  * Printer paper, 0.1 mm (`FinMarkingGuide.PAPER_THICKNESS_IN_METERS`).
  *
  * Wrapping the strip around the tube puts the printed marks one paper
- * thickness OUT from the tube surface, so the strip has to be cut to the
+ * thickness out from the tube surface, so the strip has to be cut to the
  * circumference of that slightly larger circle or its ends will not meet.
  * Upstream's note: the smaller the tube, the larger the error as a fraction of
  * the circumference. On a 13 mm tube it is 0.8%, which on four fins is nearly
@@ -43,7 +43,7 @@ export const PAPER_THICKNESS_M = 0.0001;
  * The strip's width across the body axis, 3 in (`DEFAULT_GUIDE_WIDTH`).
  *
  * Arbitrary, and upstream says so: it only has to be wide enough to rule a
- * line along. It is NOT the page width — the width is fixed so that two guides
+ * line along. It is not the page width: the width is fixed so that two guides
  * sit side by side on a page.
  */
 export const GUIDE_WIDTH_MM = 76.2;
@@ -57,7 +57,7 @@ export interface GuideMark {
   type: string;
   /** Fin cant (rad). 0 for tube fins, lugs and rail buttons, which cannot cant. */
   cant: number;
-  /** Root chord (mm) — the cant marks are laid out from it. 0 when not canted. */
+  /** Root chord (mm); the cant marks are laid out from it. 0 when not canted. */
   rootChordMm: number;
 }
 
@@ -113,11 +113,11 @@ export const zeroTwoPi = (v: number): number => {
 };
 
 /**
- * Where to put the strip's seam (rad) — `FinMarkingGuide.findRadialOrigin`.
+ * Where to put the strip's seam (rad): `FinMarkingGuide.findRadialOrigin`.
  *
  * The seam is the one place on the wrap that cannot be marked: it is where the
  * two ends butt together and where the tape goes. So the origin is chosen as
- * the MIDDLE OF THE WIDEST GAP between marks, which puts every mark as far
+ * the middle of the widest gap between marks, which puts every mark as far
  * from the seam as the design allows. A single mark has no gap, so it goes
  * half a turn away (`pos[0] + PI`).
  *
@@ -154,8 +154,8 @@ const finCountDefault = (type: string): number => {
  * (`getBaseRotation() + fin * TWO_PI / finCount`); a lug or rail button is a
  * single mark at its `getAngleOffset()`. The property names and their
  * fallbacks are the ones the 3D view places the same parts at
- * (`rocketPieces.ts:141`, `:166`, `:203`) and the ones the `.ork` writer saves
- * (`exportWriters.ts:278`, `:291`), so the guide cannot mark a fin somewhere
+ * (`rocketPieces.ts`) and the ones the `.ork` writer saves
+ * (`exportWriters.ts`), so the guide cannot mark a fin somewhere
  * the app does not draw it.
  */
 export function mountAngles(node: ComponentNode): number[] {
@@ -170,11 +170,11 @@ export function mountAngles(node: ComponentNode): number[] {
  * Where to cut a strip too long for one page, as distances along the wrap:
  * always `[0, …, circumference]`, so consecutive pairs are the pieces.
  *
- * Upstream never faces this — it rasterizes the guide and crops it across
+ * Upstream never faces this: it rasterizes the guide and crops it across
  * pages, so its joins fall wherever the page edge does. Ours are butt joints
  * the reader tapes, and a join is no better to mark on than the seam is: the
  * tape covers it and the two pieces can shift against each other. So a cut is
- * placed at the point of its legal window FURTHEST FROM ANY MARK, with the gap
+ * placed at the point of its legal window furthest from any mark, with the gap
  * midpoints as the candidates, the way {@link radialOrigin} picks the seam.
  *
  * The window is what keeps every piece printable: a cut may not leave this
@@ -236,7 +236,7 @@ function buildGuide(tube: ComponentNode, angular: ComponentNode[]): MarkingGuide
         type: String(node.type),
         cant,
         // `finRootChord`, which is `FinSet.getLength()`: the axial span of the
-        // ROOT, so a freeform fin measures its outline rather than reading a
+        // root, so a freeform fin measures its outline rather than reading a
         // `rootChord` key it does not carry.
         rootChordMm: cant !== 0 ? finRootChord(node) * 1000 : 0,
       };
@@ -256,14 +256,14 @@ function buildGuide(tube: ComponentNode, angular: ComponentNode[]): MarkingGuide
  * Two upstream rules are kept:
  *
  * - **A tube with no fin set gets no guide.** "Don't draw the lug if there are
- *   no fins" (`hasFins`): this is a FIN marking guide, and a lone lug line has
+ *   no fins" (`hasFins`): this is a fin marking guide, and a lone lug line has
  *   nothing to be square to.
  * - **Body tubes only.** A nose cone or transition changes radius along its
  *   length, so there is no single circumference to wrap.
  *
  * One is not. Upstream groups by "the last BodyTube the iterator walked past",
- * so a fin set mounted on a nose cone is marked on the PREVIOUS tube, at that
- * tube's circumference — a wrong guide rather than no guide. Here anything a
+ * so a fin set mounted on a nose cone is marked on the previous tube, at that
+ * tube's circumference: a wrong guide rather than no guide. Here anything a
  * guide cannot carry comes back in `omitted` and the drawing names it, because
  * a part that silently vanishes from the guide is one that silently does not
  * get glued on.

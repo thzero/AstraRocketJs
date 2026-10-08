@@ -82,7 +82,7 @@ describe('KeyValueLaunchLocationStore', () => {
   it('reports a refused write instead of resolving over it', async () => {
     // The caller holds the only copy of what the user just typed. Told nothing,
     // it re-renders a list that does not contain it and there is no error
-    // anywhere — the failure `materialStore` was fixed for.
+    // anywhere, the same failure `materialStore` guards against.
     kv.refuse = true;
     await expect(store.save(location())).rejects.toThrow(/storage-full/);
   });
@@ -103,7 +103,7 @@ describe('KeyValueLaunchLocationStore', () => {
   });
 
   it('refuses coordinates outside the ranges the launch fields enforce', async () => {
-    // A latitude past ±90 reaches the kernel's gravity and Coriolis terms AND
+    // A latitude past ±90 reaches the kernel's gravity and Coriolis terms and
     // the KML origin, which Google Earth rejects outright.
     for (const bad of [
       { latitudeDeg: 91 },
@@ -131,7 +131,7 @@ describe('locationFrom', () => {
   });
 
   it('still produces a complete location from a half-filled site', () => {
-    // A `LaunchLocation` is a PLACE, so every field has to be a number. The zeroes are a
+    // A `LaunchLocation` is a place, so every field has to be a number. The zeroes are a
     // last resort rather than a default: both coordinates are required launch
     // fields and `LocationPicker` disables its save button while either is blank,
     // so a location at 0,0 is not reachable from the panel. Altitude genuinely does

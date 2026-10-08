@@ -99,7 +99,7 @@ export const displayUnits = () => {
 type Rocket = ReturnType<typeof buildRocketTree>;
 type LoadedMeta = { name: string; notes: string[]; exportMotors: Record<string, OrkExportMotor> } | null;
 
-/** One undo/redo checkpoint: the whole editable workspace — the design tree (and
+/** One undo/redo checkpoint: the whole editable workspace: the design tree (and
  *  which part was selected, so undo re-focuses what changed) plus the simulations,
  *  the active sim, and the flight configurations, all of which persist to the same
  *  file. Cached flight `result`s are stripped in {@link snap}: they're large,
@@ -114,9 +114,9 @@ type HistoryEntry = {
   /**
    * The three fields `deleteSim` prunes alongside `sims`.
    *
-   * Without them, undoing a delete brought the row back but not its tick (so
-   * the Run button's count was wrong) and not its place in `lastRunIds` (so
-   * the Results picker collapsed to a single name even though the run really
+   * Without them, undoing a delete would bring the row back but not its tick
+   * (so the Run button's count would be wrong) and not its place in `lastRunIds`
+   * (so the Results picker would collapse to a single name even though the run
    * had flown it).
    */
   selectedSimIds: string[];
@@ -129,7 +129,7 @@ const HISTORY_LIMIT = 100;
 /** Each repaired value as the banner's own line. */
 export const repairNotes = (repaired: RepairedValue[]): string[] => repaired.map((r) => repairedText(r, i18n.t));
 
-/** Which condition raised `storageWarning` — only 'full' is save-clearable. */
+/** Which condition raised `storageWarning`; only 'full' is save-clearable. */
 export type StorageWarningKind = 'full' | 'degraded' | 'loadFailed' | 'conflict';
 
 /**
@@ -149,14 +149,14 @@ export interface WorkspaceState extends ViewSlice, FileSlice {
   // --- design ---
   tree: RocketTree;
   info: StaticInfo | null;
-  /** Transient failure of the thing the user just did — a bad .ork, a sim that
+  /** Transient failure of the thing the user just did: a bad .ork, a sim that
    *  threw. Cleared by the next successful rebuild. */
   err: string | null;
   /**
    * Values a design arrived with that no value of their quantity can be, pulled
    * back to the limit on the way in (`design/repairValues`).
    *
-   * TRANSIENT, unlike the import notes beside them in the banner. The repair is
+   * Transient, unlike the import notes beside them in the banner. The repair is
    * saved with the design, so it is done once and there is nothing left to
    * report on the next load; a note kept in `loadedMeta` would persist and say
    * it again forever. Every load path fills this, including the autosaved
@@ -167,11 +167,11 @@ export interface WorkspaceState extends ViewSlice, FileSlice {
    * Browser storage is not keeping the user's work (quota hit, or IndexedDB
    * blocked and we are back on the 5 MB localStorage cap).
    *
-   * A SEPARATE slot from `err`, because the rebuild effect clears `err` on every
-   * successful build — milliseconds after load, and again on every keystroke —
+   * A separate slot from `err`, because the rebuild effect clears `err` on every
+   * successful build (milliseconds after load, and again on every keystroke),
    * and this warning has to outlive that.
    *
-   * A successful save clears ONLY the transient "full" case. `degraded` and
+   * A successful save clears only the transient "full" case. `degraded` and
    * `loadFailed` are facts about this session that a later save does not undo,
    * and `idbKeyValueStore.markDegraded()` is one-way and never notifies twice,
    * so a message cleared here would never be raised again. Hence the `kind`.
@@ -180,7 +180,7 @@ export interface WorkspaceState extends ViewSlice, FileSlice {
   storageWarningKind: StorageWarningKind | null;
   selectedId: string | null;
   /**
-   * Bumped by every selection GESTURE, including one that picks the part that
+   * Bumped by every selection gesture, including one that picks the part that
    * was already selected.
    *
    * `selectedId` alone cannot carry that: tapping the same part in the drawing
@@ -222,8 +222,8 @@ export interface WorkspaceState extends ViewSlice, FileSlice {
    */
   selectedConfigId: string | null;
   /**
-   * Which part of a configuration the tab is showing: its motors, or when its
-   * recovery devices open.
+   * Which part of a configuration the tab is showing: its motors, when its
+   * recovery devices open, or when its boosters separate.
    *
    * In the store rather than the pane, because the table and the editor beside
    * it are different components at lg+ (see App.tsx) and both follow it.
@@ -231,7 +231,7 @@ export interface WorkspaceState extends ViewSlice, FileSlice {
   configsTab: ConfigsTab;
   activeId: string;
   /**
-   * Rows ticked for running, which is a DIFFERENT question from `activeId`.
+   * Rows ticked for running, which is a different question from `activeId`.
    *
    * `activeId` is the simulation the editor is pointed at - exactly one, always.
    * This is the set the Run button will fly, and it is normally empty: with
@@ -249,28 +249,28 @@ export interface WorkspaceState extends ViewSlice, FileSlice {
    * air, and which threw on the design they were flown against.
    *
    * Per-sim rather than a single `runningId` because the worker pool runs
-   * several flights at once. It is deliberately NOT part of a `Simulation`,
+   * several flights at once. It is deliberately not part of a `Simulation`,
    * which is persisted: "running" must not survive a reload.
    *
    * The failed entries carry their design because useAutoRunOutdated's "auto-run
    * outdated" re-fires whenever `simBusy` goes false while a result view is open
-   * and there is no result — exactly the state a failed run leaves behind, so a
-   * reproducible failure (a sim that times out) retried without limit.
+   * and there is no result, which is exactly the state a failed run leaves behind,
+   * so a reproducible failure (a sim that times out) would retry without limit.
    * Recording the design it failed on lets the retry wait for an actual change.
    */
   simRuns: Record<string, SimRun>;
   /**
    * Which flight the Results tab is showing, chosen from its own picker.
    *
-   * NULL means "whichever simulation is active", which is the behavior the tab
-   * had before the picker existed and the right default: open Results and you
-   * see the row you were just working on, without having chosen anything.
+   * Null means "whichever simulation is active", the right default: open
+   * Results and you see the row you were just working on, without having
+   * chosen anything.
    *
    * Separate from `selectedSimIds` on purpose. The ticks answer "which rows
    * should Run fly"; this answers "which flight am I reading". They are
    * different questions asked at different moments, and tying them together
-   * meant that reading one result silently re-armed the Run button, or that
-   * ticking rows to fly them yanked the charts around.
+   * would mean that reading one result silently re-arms the Run button, or that
+   * ticking rows to fly them yanks the charts around.
    *
    * An id that no longer names a simulation falls back rather than being pruned,
    * so deleting a row cannot leave the tab empty mid-read.
@@ -279,9 +279,9 @@ export interface WorkspaceState extends ViewSlice, FileSlice {
   /**
    * The last finished wind sweep, or null.
    *
-   * ONE at a time, workspace-wide, rather than one per simulation. A sweep is a
+   * One at a time, workspace-wide, rather than one per simulation. A sweep is a
    * few dozen flights and answers a question you ask about the row you are
-   * reading right now ("where could THIS come down today"); keeping a stale one
+   * reading right now ("where could this come down today"); keeping a stale one
    * per row would hold megabytes of landings for rows nobody is looking at, and
    * would put the reader in front of a picture they did not just ask for. It
    * carries the simulation and the design it was flown from, so the ground
@@ -295,17 +295,17 @@ export interface WorkspaceState extends ViewSlice, FileSlice {
    * The sweep in flight: which row, and how far through. Null when none is.
    *
    * Progress is counted rather than shown per flight, because the flights are
-   * not rows anybody can see — there is no table of thirty-two swept cells, and
+   * not rows anybody can see: there is no table of thirty-two swept cells, and
    * there should not be. "18 of 32" is the whole of what a reader needs.
    */
   driftSweepRun: { simId: string; done: number; total: number } | null;
   /**
-   * The simulations the LAST run actually flew, in the order they were asked for.
+   * The simulations the last run actually flew, in the order they were asked for.
    *
    * This, not "every simulation that has a result", is what decides whether the
    * Results tab shows a plain name or a picker: results persist, so counting
-   * them meant running one simulation today after running another yesterday put
-   * a dropdown on screen for a single run. One run, one name.
+   * them would put a dropdown on screen for a single run whenever another
+   * simulation had been run earlier. One run, one name.
    */
   lastRunIds: string[];
 
@@ -353,7 +353,7 @@ export interface WorkspaceState extends ViewSlice, FileSlice {
   setSelectedId: (id: string | null) => void;
   patchSelected: (patch: Partial<ComponentNode>) => void;
   /**
-   * Run one of the tree-shape ACTIONS from services/design/componentActions: convert a
+   * Run one of the tree-shape actions from services/design/componentActions: convert a
    * fin set to freeform, split a fin set / pod / booster / cluster, reset a
    * cluster's spacing. One undo step, and nothing at all when the action says
    * there was nothing to do.
@@ -402,7 +402,7 @@ export interface WorkspaceState extends ViewSlice, FileSlice {
    * Override one deployment field of one recovery device, in one configuration;
    * null clears that field so the device's own value on the design applies again.
    *
-   * Per FIELD, like a simulation's preference overrides: a configuration can
+   * Per field, like a simulation's preference overrides: a configuration can
    * move the altitude and leave the event where the design put it.
    */
   setDeployment: <K extends keyof DeployOverride>(
@@ -486,12 +486,12 @@ export const selectDriftSweepFor = (s: WorkspaceState, simId: string): DriftSwee
   s.driftSweep && s.driftSweep.simId === simId ? s.driftSweep : null;
 
 /**
- * What to CALL this rocket: its own name, else the name of the file it was
+ * What to call this rocket: its own name, else the name of the file it was
  * imported from, else the app's default.
  *
- * The same three-step fallback the .ork, .rkt, 3MF and RASAero exports each
- * spelled out inline; it is here so every download that carries the rocket's
- * name carries the same one (see `exportFilename`).
+ * The same three-step fallback (`designNameOf`) the .ork, .rkt, 3MF and RASAero
+ * exports use, so every download that carries the rocket's name carries the same
+ * one (see `exportFilename`).
  */
 export const selectDesignName = (s: WorkspaceState): string => designNameOf(s.tree, s.loadedMeta);
 
@@ -500,7 +500,7 @@ export const selectDesignName = (s: WorkspaceState): string => designNameOf(s.tr
  * nothing is ticked. One place decides it, so the button's label, its enabled
  * state and the action itself can never disagree.
  *
- * NOT for `useWorkspaceStore(selectRunIds)`: it builds a fresh array per call
+ * Not for `useWorkspaceStore(selectRunIds)`: it builds a fresh array per call
  * and zustand compares by reference, so subscribing to it re-renders forever.
  * Components subscribe to `selectedSimIds` and the active id and derive it.
  */
@@ -508,7 +508,7 @@ export const selectRunIds = (s: WorkspaceState): string[] =>
   s.selectedSimIds.length ? s.selectedSimIds : [selectActive(s).id];
 
 /**
- * What an EDIT in the right-hand editor applies to: the ticked rows, or the
+ * What an edit in the right-hand editor applies to: the ticked rows, or the
  * active simulation when nothing is ticked.
  *
  * Deliberately the same rule as {@link selectRunIds}. A tick already means
@@ -522,7 +522,7 @@ export const selectRunIds = (s: WorkspaceState): string[] =>
 const selectEditIds = (s: WorkspaceState): string[] => selectRunIds(s);
 
 /**
- * The flight configuration the ACTIVE simulation flies.
+ * The flight configuration the active simulation flies.
  *
  * Safe to subscribe to: it hands back a stored object, so a re-render happens
  * when that configuration or the active row changes and not otherwise.
@@ -553,7 +553,7 @@ export const selectOutdated = (s: WorkspaceState, sim: Simulation = selectActive
   isOutdated(sim, s.tree, configOf(s.configs, sim), s.simPrefs);
 
 /**
- * True when the ACTIVE sim's last run threw on the design that is still loaded.
+ * True when the active sim's last run threw on the design that is still loaded.
  *
  * Self-expiring by construction: it compares the recorded tree against the
  * current one, so any edit makes it false again and a retry is allowed:
@@ -611,7 +611,7 @@ function legacyResultKey(sim: Simulation, tree: RocketTree, config: FlightConfig
 /**
  * At least one configuration, always.
  *
- * A curve-less motor inside one is KEPT as-is: the build does not seat it, so it
+ * A curve-less motor inside one is kept as-is: the build does not seat it, so it
  * cannot blank the app, the run stays blocked ("no motor"), and an unresolved
  * `.ork` motor is never silently replaced with a default. Only a wholly missing
  * set falls back to a default loadout.
@@ -635,7 +635,7 @@ export function selectMotorDims(tree: RocketTree, config: FlightConfig): MotorDi
   return m;
 }
 
-/** First `label(n)` (n = start, start+1, …) not already used by a sim — so New
+/** First `label(n)` (n = start, start+1, …) not already used by a sim, so New
  *  and Duplicate never reuse a name, even after deletions. */
 function uniqueSimName(sims: Simulation[], label: (n: number) => string, start: number): string {
   const taken = new Set(sims.map((x) => x.name));
@@ -658,7 +658,7 @@ let batchAbort: AbortController | null = null;
  *
  * Its own handle rather than `batchAbort`. A sweep and a normal run are
  * separate pieces of work with separate Cancel buttons, and sharing one
- * controller would mean canceling a sweep also killed a batch of simulations
+ * controller would mean canceling a sweep also kills a batch of simulations
  * somebody started beside it.
  */
 let sweepAbort: AbortController | null = null;
@@ -718,10 +718,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
       launcherKind(get().tree),
     );
   /**
-   * Patch every simulation the editor is pointed at: the TICKED rows, or the
+   * Patch every simulation the editor is pointed at: the ticked rows, or the
    * active one when nothing is ticked (see {@link selectEditIds}).
    *
-   * `patch` is built PER simulation rather than passed in whole, because a bulk
+   * The patch is built per simulation rather than passed in whole, because a bulk
    * edit must merge into each target's own state -- `{...sim.launch, ...p}` off
    * the active sim would copy the active sim's entire launch block onto the
    * others and silently flatten every field the user never touched. Built per
@@ -736,7 +736,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
   /**
    * Edit one flight configuration in place.
    *
-   * SHARED by design: a configuration is a setup several simulations can point
+   * Shared by design: a configuration is a setup several simulations can point
    * at, so changing its motors changes what all of them fly. That is what the
    * configurations tab is for, and it is why motors are edited there and nowhere
    * else - two surfaces writing the same loadout under different rules is how
@@ -760,7 +760,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
   let txn: HistoryEntry | null = null;
   const snap = (): HistoryEntry => {
     const s = get();
-    // Drop cached flight results — large per-timestep arrays and a recomputable
+    // Drop cached flight results: large per-timestep arrays and a recomputable
     // output, not an edit. Undo/redo restores inputs and leaves sims to re-run.
     return structuredClone({
       tree: s.tree,
@@ -774,7 +774,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
     });
   };
   /**
-   * Put the recorded INPUTS back, and carry the live results across.
+   * Put the recorded inputs back, and carry the live results across.
    *
    * History entries hold no results (see {@link snap}), so the live ones are
    * carried across rather than blanked: an undo of a typo must not throw away
@@ -817,7 +817,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
   /**
    * Install a whole-tree edit as one undo step, with the configurations
    * reconciled to it (a mount or stage can appear or go). The edit is computed
-   * BEFORE this runs, so one that throws leaves no empty step behind, and an
+   * before this runs, so one that throws leaves no empty step behind, and an
    * edit that returns the tree it was given records nothing. False when nothing
    * changed.
    */
@@ -835,7 +835,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
   }; // on load / new design
 
   /**
-   * Swap the whole workspace in ONE `set`, always resetting the transient block.
+   * Swap the whole workspace in one `set`, always resetting the transient block.
    *
    * `hydrate`, `openOrkFile` and `resetWorkspace` all route through here so the
    * transient block cannot outlive the design it belongs to: a stale `simRuns`,
@@ -864,9 +864,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
       driftSweep: null,
       driftSweepRun: null,
       err: null,
-      // The BUILD, too. `info` and `rocket` describe the design on its way out,
+      // The build, too. `info` and `rocket` describe the design on its way out,
       // and the rebuild effect only replaces them on its next run, so for one
-      // frame a brand-new blank design showed the previous one's mass, CG and
+      // frame a brand-new blank design would show the previous one's mass, CG and
       // stability. Cleared here, which is the same state the rebuild effect uses
       // for "not built yet" (`applyBuild(null, null)`), so the stats read as
       // pending rather than as someone else's numbers.
@@ -928,9 +928,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
       // (services/storage/workspaceMigrate), so this only has to repair a blob that is
       // the right shape and still partial.
       const configs = sanitizeConfigs(w.tree, w.configs);
-      // And the VALUES, which nothing clamped on the way in: a design autosaved
-      // by a build from before a limit existed, or opened from a file by one,
-      // can carry a density no material has. See `repairValues`.
+      // And the values, which nothing clamped on the way in: a design autosaved
+      // by a build without a given limit, or opened from a file by one, can
+      // carry a density no material has. See `repairValues`.
       const fixed = repairValues(w.tree);
       const sims = sanitizeSims(w.sims, configs).map((x) =>
         legacyResultKey(x, fixed.tree, configOf(configs, x), get().simPrefs),
@@ -948,7 +948,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
 
     // Each structural/field edit reconciles the flight configurations to the new
     // tree (drop gone mounts, seed a default for new ones) so no loadout can
-    // drift from the mounts. EVERY configuration, because the mounts belong to
+    // drift from the mounts. Every configuration, because the mounts belong to
     // the shared design even though the motors seated in them belong to the
     // configurations.
     scaleDesign: (factor, scope = 'rocket', options = {}) => {
@@ -971,7 +971,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
       if (!selectedId) return;
       // Nothing at all when the patch says what the node already says, the way
       // `applyTreeAction` and `setStageDrogue` below both return on an unchanged
-      // tree. Without it a clamped keystroke was a full kernel rebuild and an
+      // tree. Without it a clamped keystroke would be a full kernel rebuild and an
       // undo step that changes nothing.
       if (!patchChangesNode(tree, selectedId, patch)) return;
       beginEdit();
@@ -1064,7 +1064,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
       set({ future: future.slice(0, -1), past: [...past, snap()], ...restore(next) });
     },
 
-    setActiveId: (activeId) => set({ activeId }), // switching the active sim isn't an edit — no history
+    setActiveId: (activeId) => set({ activeId }), // switching the active sim isn't an edit, so no history
     setSelectedConfigId: (selectedConfigId) => set({ selectedConfigId }),
     setConfigsTab: (configsTab) => set({ configsTab }),
     setMountMotor: (configId, mountId, m) => {
@@ -1082,7 +1082,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
     setDeployment: (configId, deviceId, key, value) => {
       beginEdit();
       patchConfig(configId, (c) => {
-        // REMOVED, not stored as undefined: `applyDeployments` patches every key
+        // Removed, not stored as undefined: `applyDeployments` patches every key
         // the override declares, and an explicit `undefined` would write it over
         // the design's own value as a blank.
         const device = nonEmpty(withKey(c.deployments?.[deviceId], key, value));
@@ -1119,9 +1119,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
     addConfig: () => {
       recordStep();
       const s = get();
-      // Always a NEW one, even when an identical loadout is already there: this
-      // is the button that says "another setup", and one that sometimes silently
-      // selected an existing row would be a button that does nothing.
+      // Always a new one, even when an identical loadout is already there: this
+      // is the button that says "another setup", and one that silently selected
+      // an existing row would be a button that does nothing.
       const made = defaultConfig(s.tree);
       set({ configs: [...s.configs, made], selectedConfigId: made.id });
     },
@@ -1142,7 +1142,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
     },
     renameConfig: (id, name) => {
       beginEdit();
-      // Empty means UNNAMED, not a blank name: the label falls back to the motor
+      // Empty means unnamed, not a blank name: the label falls back to the motor
       // list, which is what the desktop shows and what a blank row could not.
       const trimmed = name.trim();
       set((s) => ({ configs: s.configs.map((c) => (c.id === id ? { ...c, name: trimmed || null } : c)) }));
@@ -1175,7 +1175,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
     addSim: () => {
       // A fresh simulation flies the app default loadout under the user's global
       // launch defaults (duplicateSim carries an existing setup forward instead).
-      // It JOINS an existing configuration that already holds that loadout rather
+      // It joins an existing configuration that already holds that loadout rather
       // than minting a second identical one.
       recordStep();
       const s = get();
@@ -1192,11 +1192,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
       const copy = i18n.t('sims.copyName', { name: src.name });
       const name = uniqueSimName(s.sims, (n) => (n === 1 ? copy : `${copy} ${n}`), 1);
       // Carry the whole setup forward: the same flight configuration, and any
-      // per-simulation option overrides. Duplicate exists to vary ONE thing
+      // per-simulation option overrides. Duplicate exists to vary one thing
       // against an otherwise identical setup, so anything it silently reset would
-      // be a trap. The copy SHARES the configuration rather than cloning it -
-      // editing either row's motors forks it (see patchActiveConfig), so what the
-      // copy flies cannot change under it.
+      // be a trap. The copy shares the configuration rather than cloning it: a
+      // configuration is a setup several rows can fly (see `patchConfig`), so a
+      // motor change on the Configurations tab applies to both rows.
       const s0 = { ...newSimulation(name, src.configId, src.launch), prefs: src.prefs };
       const next = [...s.sims];
       next.splice(s.sims.findIndex((x) => x.id === id) + 1, 0, s0);
@@ -1226,7 +1226,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
     setSimPref: (key, value) => {
       beginEdit();
       patchTargets((sim) => {
-        // A cleared override is REMOVED, not stored as undefined: `prefs` is
+        // A cleared override is removed, not stored as undefined: `prefs` is
         // spread over the globals at run time, and an explicit
         // `timeStep: undefined` would shadow the global with nothing.
         return { prefs: nonEmpty(withKey(sim.prefs, key, value)) };
@@ -1257,7 +1257,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
     /**
      * Fly each of these simulations.
      *
-     * Runs them CONCURRENTLY: the sim worker pool holds several independent
+     * Runs them concurrently: the sim worker pool holds several independent
      * engine instances, so a batch is bounded by the pool rather than by one
      * flight after another (`simClient.ts`). Every request is submitted at once
      * and the pool decides how many are in the air; the rows say which of them
@@ -1269,7 +1269,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
      */
     runSims: async (ids, prefs) => {
       const s = get();
-      // What flies and what does not is decided BEFORE anything is dispatched,
+      // What flies and what does not is decided before anything is dispatched,
       // so the queued rows all light up together rather than one at a time.
       const plan = planRun(ids, s.sims, s.tree, s.configs);
       // What we are about to fly. The awaits below can outlast the design: if the
@@ -1308,7 +1308,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
       try {
         await Promise.all(
           flying.map(async ({ sim, launch }) => {
-            // What this row is being flown FROM. The design has `ranOn`; this is
+            // What this row is being flown from. The design has `ranOn`; this is
             // the same guard per simulation, for the motor, ignition, launch
             // conditions and run overrides that only this row carries.
             const config = configOf(get().configs, sim);
@@ -1317,14 +1317,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
             try {
               // The sim runs in a Web Worker (its own engine instance), off the main
               // thread, so a ~500 ms flight never freezes the UI. The worker rebuilds
-              // the rocket from the posted tree/motors — identical to the main-thread
-              // build (buildConfiguredRocket) — so the result matches what's on screen.
+              // the rocket from the posted tree/motors, identical to the main-thread
+              // build (buildConfiguredRocket), so the result matches what's on screen.
               const result = await simulateInWorker(
                 {
                   tree: ranOn,
                   config,
                   // The sim's own overrides win over the global preferences; unset keys
-                  // fall through, so a workspace that never touches them runs as before.
+                  // fall through, so a workspace that never touches them runs on the globals.
                   options: simConditions(launch, effectivePrefs(prefs, sim.prefs)),
                 },
                 // Queued and running are different states once there is a pool:
@@ -1335,7 +1335,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
               // rocket, so drop it rather than install numbers for geometry that
               // is no longer on screen. The others in flight do the same.
               if (get().tree !== ranOn) return;
-              // Same test for THIS row's own inputs. Editing a simulation's
+              // Same test for this row's own inputs. Editing a simulation's
               // launch conditions while it flies drops the answer rather than
               // locking the editor for the duration, which leaves the row where
               // the edit left it -- outdated, with its previous numbers --
@@ -1355,7 +1355,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
             } catch (e) {
               // Canceling is not a fault: the row goes back to what it was
               // (its old result, or nothing) rather than turning red, and the
-              // error banner stays empty. Anything else IS a fault.
+              // error banner stays empty. Anything else is a fault.
               if (e instanceof SimCanceledError) {
                 setRun(sim.id, null);
                 return;
@@ -1373,7 +1373,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
         if (abort.signal.aborted) return;
         const problems = runProblems(skipped, failed, launcherT(), displayUnits());
         if (problems.length) set({ err: problems.join(' ') });
-        // Show the run. Every run, one or twelve: running IS asking to see the
+        // Show the run. Every run, one or twelve: running is asking to see the
         // answer, and having to click over to Results afterwards is a step with
         // nothing behind it.
         if (get().tree !== ranOn) return;
@@ -1381,7 +1381,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
         const show = landingView(landed, selectActive(get()).id);
         if (show) set({ ...show, view: 'flight', tab: 'results' });
       } finally {
-        // Only if no LATER batch has started: a run kicked off while this one
+        // Only if no later batch has started: a run kicked off while this one
         // was unwinding owns the flag and the controller now.
         if (batchAbort === abort) {
           batchAbort = null;
@@ -1409,7 +1409,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
     /**
      * Stop the batch in flight.
      *
-     * Rows that already landed keep their results — canceling is "stop
+     * Rows that already landed keep their results: canceling is "stop
      * starting new ones and drop what is still going", not an undo. A row still
      * waiting for a worker is simply dropped; one already inside a worker costs
      * that worker, since a synchronous engine call cannot be interrupted any
@@ -1420,25 +1420,25 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
     },
 
     /**
-     * Fly one simulation over a GRID of wind conditions and keep where each
+     * Fly one simulation over a grid of wind conditions and keep where each
      * flight came down.
      *
      * Everything but the wind is the row's own: the same design, motor loadout,
      * ignition, rod, site and run preferences. That is what makes the resulting
-     * spread attributable — the landings differ because the wind did, not
+     * spread attributable: the landings differ because the wind did, not
      * because a dozen things did at once.
      *
      * Three deliberate departures from {@link WorkspaceState.runSims}:
      *
-     * - The results are NOT installed on the row. A swept flight is not the
+     * - The results are not installed on the row. A swept flight is not the
      *   simulation's flight; it was flown under conditions the user did not
      *   type, and writing one back would replace the numbers on their flight
      *   card with a hypothetical.
      * - `series: 'summary'`, against `simConditions`'s 'full'. The only thing
      *   read from a swept flight is where its track ends, and a full series set
-     *   is about a megabyte and a half each — thirty-two of those is fifty
+     *   is about a megabyte and a half each, and thirty-two of those is fifty
      *   megabytes serialized out of a worker and dropped on the floor.
-     * - ONE random seed for the whole grid, minted here when the preferences do
+     * - One random seed for the whole grid, minted here when the preferences do
      *   not pin one. Letting each flight draw its own turbulence would mix the
      *   scatter the sweep exists to measure with scatter from the dice, and the
      *   same sweep run twice would draw a different region for no reason the
@@ -1476,7 +1476,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
       const points = sweepPoints(normalized, surfaceWind(launch).headingDeg);
       if (!points.length) return;
 
-      // What this sweep is OF. The awaits below can outlast any of it, exactly
+      // What this sweep is of. The awaits below can outlast any of it, exactly
       // as a normal batch can, and a region drawn from a rocket that has since
       // changed is worse than no region.
       const ranOn = s.tree;
@@ -1527,7 +1527,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
               // here too and is handled by the aborted check below, which
               // discards the whole part-flown grid.
             } finally {
-              // Only while THIS sweep still owns the counter. A second sweep
+              // Only while this sweep still owns the counter. A second sweep
               // replaces the first mid-flight (the run button is not gated on
               // the earlier one draining), and the first's stragglers would
               // otherwise tick the new one's progress past its own total --

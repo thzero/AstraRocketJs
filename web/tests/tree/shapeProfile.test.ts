@@ -14,10 +14,10 @@ import type { ComponentNode } from '../../src/engine/openRocketEngine';
 
 describe('shape parameter metadata', () => {
   // Transition.Shape's own defaultParameter() overrides: OGIVE 1.0 ("Tangent
-  // ogive by default", Transition.java:1039-1041), POWER 0.5 (:1104-1106),
+  // ogive by default", Transition.java:1039-1041), power 0.5 (:1104-1106),
   // PARABOLIC 1.0 (:1150-1152); the shapes that do not use the parameter
   // report 0. HAACK's ceiling is maxParameter() = 1.0/3.0 ("Range 0...1/3",
-  // :1187-1189) — the LV-Haack end of the series.
+  // :1187-1189), the LV-Haack end of the series.
   it('defaults per shape (ogive/parabolic 1, power 0.5, rest 0)', () => {
     expect(shapeParamDefault('ogive')).toBe(1);
     expect(shapeParamDefault('parabolic')).toBe(1);
@@ -119,17 +119,17 @@ describe('outerProfile', () => {
 });
 
 /**
- * The clipped profile — `calculateClip()`, the binary search that positions
+ * The clipped profile: `calculateClip()`, the binary search that positions
  * every clipped ellipsoid / power / haack transition.
  *
  * It is the one piece of this port whose output is not obvious by inspection: it
- * solves for how far up a VIRTUAL nose cone the transition starts. The kernel states
+ * solves for how far up a virtual nose cone the transition starts. The kernel states
  * the equation it solves, in the comment over `Transition.calculateClip`
  * (Transition.java:695-700):
  *
  *     r1 == type.getRadius(clipLength, r2, clipLength + length, shapeParameter)
  *
- * so these tests recover `clipLength` by an INDEPENDENT solve of that same published
+ * so these tests recover `clipLength` by an independent solve of that same published
  * equation and check the drawn profile against it. A binary search with the wrong
  * bracket or convergence, or one clipping something it should not, fails; any
  * rewrite that still solves the kernel's equation passes.
@@ -189,7 +189,7 @@ describe('calculateClip (via the clipped profile)', () => {
   });
 
   it('a nose cone (foreR 0) is never clipped — clipLength is 0 by definition', () => {
-    // r1 == 0 short-circuits the search: the profile IS the shape itself.
+    // r1 == 0 short-circuits the search: the profile is the shape itself.
     for (const shape of CLIPPABLE) {
       const p = shapeParamDefault(shape);
       for (const [x, r] of outerProfile(shape, p, 0.1, 0, 0.04, 8)) {
@@ -208,7 +208,7 @@ describe('calculateClip (via the clipped profile)', () => {
 
   it('a shrinking transition is the mirror of the growing one', () => {
     // Transition.getRadius() normalizes to the small end and flips back, so a
-    // boat tail must be the same curve read backwards — not a different solve.
+    // boat tail must be the same curve read backwards, not a different solve.
     const p = shapeParamDefault('haack');
     const grow = outerProfile('haack', p, 0.1, 0.02, 0.04, 16);
     const shrink = outerProfile('haack', p, 0.1, 0.04, 0.02, 16);
@@ -237,9 +237,9 @@ describe('calculateClip (via the clipped profile)', () => {
 /**
  * A nose cone or transition with no `shape` key is the shape the kernel builds:
  * ComponentFactory reads `str(node, "shape", "ogive")` for a nose cone and
- * `"conical"` for a transition. `stationRadius` defaulted both to conical, so an
- * auto fin tab on a keyless nose cone was sized against a cone the kernel does
- * not fly.
+ * `"conical"` for a transition. Defaulting both to conical in `stationRadius`
+ * would size an auto fin tab on a keyless nose cone against a cone the kernel
+ * does not fly.
  */
 describe('a node with no shape key', () => {
   const nose = (shape?: string) =>

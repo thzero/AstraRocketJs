@@ -1,4 +1,4 @@
-// Reading the geometry AROUND a node, so the part picker can rank the catalog
+// Reading the geometry around a node, so the part picker can rank the catalog
 // against the design instead of listing it flat.
 //
 // Separate from componentFilter (which scores a candidate against a context and
@@ -71,21 +71,21 @@ export function fitContextFor(tree: RocketTree, nodeId: string | null): FitConte
   if (!node) return undefined;
   const parent = findParent(tree, nodeId);
 
-  // What this part has to clear: the widest INNER TUBE sharing its parent. A
+  // What this part has to clear: the widest inner tube sharing its parent. A
   // centering ring's bore is sized to the motor mount it holds, and that mount
-  // is the ring's SIBLING, not its child.
+  // is the ring's sibling, not its child.
   //
   // Inner tubes only. A coupler in the same bay is also a sibling and also has
-  // an outer diameter, but nothing centers on it: counting it made the widest
-  // part in the bay the constraint rather than the mount, so a 29 mm mount with
-  // a 51 mm coupler beside it rejected every ring that actually fits.
+  // an outer diameter, but nothing centers on it: counting it would make the
+  // widest part in the bay the constraint rather than the mount, so a 29 mm mount
+  // with a 51 mm coupler beside it would reject every ring that actually fits.
   const siblings = (parent?.children ?? []).filter((n) => n.id !== nodeId);
   const mounts = siblings
     .filter((n) => n.type === 'innertube')
     .map(outerDiameter)
     .filter((d): d is number => d != null && d > 0);
 
-  // The node's OWN diameter stays in the airframe list on purpose. Picking a
+  // The node's own diameter stays in the airframe list on purpose. Picking a
   // catalog part for a tube you have already sized means you want real parts at
   // that size, so matching yourself is the answer rather than a degenerate case.
   return {

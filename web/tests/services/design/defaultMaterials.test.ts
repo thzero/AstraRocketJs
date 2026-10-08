@@ -7,15 +7,15 @@ import { loadSettings, saveSettings, DEFAULT_SETTINGS } from '../../../src/servi
 import type { ComponentNode, RocketTree } from '../../../src/engine/openRocketEngine';
 
 /**
- * Settings ▸ Materials: what a NEWLY ADDED part is made of.
+ * Settings ▸ Materials: what a newly added part is made of.
  *
- * The preference is spent at CREATION — the part carries the material outright,
+ * The preference is spent at creation: the part carries the material outright,
  * so it shows in the panel and is written to the `.ork`. Desktop OpenRocket
  * keeps the part unset and applies its equivalent preference when it computes
  * mass, which means the same file weighs one thing on the machine that made it
  * and another on the machine it was sent to. That is the property this design
- * is chosen to avoid, and the round-trip test in `ork/materialRoundTrip.test.ts`
- * is what makes the choice worth anything.
+ * avoids, and the round-trip test in `files/ork/materialRoundTrip.test.ts`
+ * checks that the material survives the file.
  */
 
 const PLY = { name: 'Plywood (birch)', density: 630 };
@@ -23,12 +23,11 @@ const KEVLAR = { name: 'Kevlar 12-strand (3.2 mm, 1/8 in)', density: 0.00967306 
 
 describe('defaultMaterialPatch', () => {
   it('falls back to the material the kernel would weigh the part with', () => {
-    // Not empty. An unset part was never a lighter part: `ComponentFactory`
-    // only calls `setMaterial` for a positive density, so the part kept its
-    // Java constructor's material and flew as cardboard regardless. Leaving the
-    // node bare only meant the panel could not say so, and said "Not specified"
-    // instead - a state desktop OpenRocket has no equivalent of, since every
-    // component there is constructed WITH one of these.
+    // Not empty. An unset part is not a lighter part: `ComponentFactory` only
+    // calls `setMaterial` for a positive density, so the part keeps its Java
+    // constructor's material and flies as cardboard regardless. A bare node would
+    // only make the panel say "Not specified", a state desktop OpenRocket has no
+    // equivalent of, since every component there is constructed with one of these.
     expect(defaultMaterialPatch('bodytube', {})).toEqual({
       materialName: KERNEL_MATERIALS.bulk.name,
       density: KERNEL_MATERIALS.bulk.density,
@@ -63,7 +62,7 @@ describe('defaultMaterialPatch', () => {
   });
 
   it('maps surface and line onto their own keys, on one part', () => {
-    // A parachute has a canopy AND shroud lines, in different units.
+    // A parachute has a canopy and shroud lines, in different units.
     const patch = defaultMaterialPatch('parachute', {
       'parachute:surface': { name: 'Silk', density: 0.06 },
       'parachute:line': KEVLAR,
@@ -104,7 +103,7 @@ describe('a new part is seeded with it', () => {
   it('carries the kernel material when there is no preference', () => {
     // `addPart` takes the seed from its caller, so this is what the store hands
     // it (store.addPartToTree). With no preference set that is the kernel's own
-    // material rather than nothing, which is why a new part no longer opens on
+    // material rather than nothing, so a new part does not open on
     // "Not specified" while flying as cardboard.
     const seed = defaultMaterialPatch('bodytube', {});
     const { tree: next, id } = addPart(tree, 'bodytube', null, seed as Partial<ComponentNode>);
@@ -114,8 +113,8 @@ describe('a new part is seeded with it', () => {
   });
 
   it('does not overwrite the dimensions a part is created with', () => {
-    // The seed is merged ONTO the default node, so it must add a material and
-    // nothing else: a body tube still comes out the size it always did.
+    // The seed is merged onto the default node, so it must add a material and
+    // nothing else: a body tube comes out the same size with or without it.
     const bare = addPart(tree, 'bodytube', null);
     const seeded = addPart(tree, 'bodytube', null, {
       materialName: 'Blue tube',

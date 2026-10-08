@@ -10,7 +10,7 @@ import { unitScope } from '../../prefs/units';
 /**
  * "All stats" strip under the canvas: length, max diameter,
  * empty/loaded mass and CG, CP, and stability (calibers + % of length). All from
- * the live StaticInfo — empty = dry structure, loaded = with the seated motor.
+ * the live StaticInfo: empty = dry structure, loaded = with the seated motor.
  *
  * Collapsible: the header row is always shown (with a chevron + a compact
  * length·stability summary when collapsed); the full tile grid expands below it.
@@ -76,8 +76,8 @@ export function StabilityBadge({
         )}
       </button>
       {expanded && (
-        /* Container queries: columns track THIS strip's width (see the @container
-           parent), not the browser window — so the side panels don't throw the
+        /* Container queries: columns track this strip's width (see the @container
+           parent), not the browser window, so the side panels don't throw the
            count off. <576px → 2, 576–1151 → 3, ≥1152 → 6. */
         <div className="mt-2 grid grid-cols-2 gap-2 @xl:grid-cols-3 @6xl:grid-cols-6">
           <Stat
@@ -111,7 +111,7 @@ export function StabilityBadge({
               it right on a staged design: a booster descends on its own branch.
               Needs a motor loaded to have propellant to subtract.
 
-              The ESTIMATE is marked on the label rather than in place of the unit
+              The estimate is marked on the label rather than in place of the unit
               chip below: the chip is the control that sets this tile's unit, and
               a marker is not worth a control. */}
           <Stat
@@ -153,7 +153,7 @@ export function StabilityBadge({
             value={fmtNum(info.refDiameter > 0 ? info.length / info.refDiameter : 0, 1)}
             sub="L/D"
           />
-          {/* One card, both conventions for the same margin — calibers and % of
+          {/* One card, both conventions for the same margin: calibers and % of
               length as paired values (like Mass/CG's empty / loaded), with the
               verdict in the sub. */}
           <Stat
@@ -164,7 +164,7 @@ export function StabilityBadge({
             tone={padTone}
           />
           <Stat card label={t('stats.cd')} value={info.cd != null ? fmtNum(info.cd, 3) : '—'} sub="Ma 0.3" />
-          {/* Symbol lives in the sub — the tile label is uppercased, which would
+          {/* Symbol lives in the sub: the tile label is uppercased, which would
               turn the Greek α into Α (a plain "A"). */}
           <Stat card label={t('stats.cna')} value={fmtNum(info.cna, 2)} sub="CNα · rad⁻¹" />
           <Stat card label={t('stats.pitchInertia')} value={fmtInertia(info.pitchInertia)} sub="kg·m²" />

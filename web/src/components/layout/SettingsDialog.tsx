@@ -93,9 +93,9 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
       // between them.
       height={560}
       toolbar={
-        // Tabs. A real tablist: which section is open was signaled by
-        // background color alone, which a screen reader cannot announce. In the
-        // toolbar band so it stays put while a long tab scrolls.
+        // Tabs. A real tablist, so which section is open is announced rather
+        // than shown by background color alone. In the toolbar band so it stays
+        // put while a long tab scrolls.
         <div role="tablist" aria-label={t('settings.title')} className="flex flex-wrap gap-1 p-3">
           {TABS.map((tb) => (
             <button
@@ -142,7 +142,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
           <>
             {/* Part colors apply to the 3D model, which a phone reaches
                   through the Sketch tab just as a desktop reaches it through the
-                  view switch — so this is not gated on width. */}
+                  view switch, so this is not gated on width. */}
             <div className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
               {t('settings.parts')}
             </div>
@@ -239,7 +239,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
             <p className="text-[11px] leading-snug text-ink-faint">{t('settings.unitsNote')}</p>
             {/* Whole-system presets first: most people want "imperial" and are
                   done, and only then reach in to change one quantity. A preset
-                  is a clean slate, so it also drops every per-field override —
+                  is a clean slate, so it also drops every per-field override;
                   otherwise "Imperial defaults" would leave a field a chip had
                   touched still showing its old unit. */}
             <div className="flex gap-2 pb-1">
@@ -277,7 +277,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
                   to forget where it was: a field showing inches while this tab
                   says cm looks like a bug unless you remember changing it. This
                   is the one place that can say how many there are and undo them
-                  all — hidden when there are none, so it is never noise. */}
+                  all, hidden when there are none, so it is never noise. */}
             {overriddenFields > 0 && (
               <button
                 onClick={() => update({ unitOverrides: {} })}
@@ -350,9 +350,9 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
               unit="s"
               step={0.01}
               min={SIM_BOUNDS.timeStep.min}
-              // maxTime / timeStep IS the solver's iteration count, and both
-              // ends were open. 1000000 s (a plausible slip for 1000) at the
-              // default 0.01 s step asks for 100 M integration steps, with
+              // maxTime / timeStep is the solver's iteration count, so both
+              // ends are bounded. 1000000 s (a plausible slip for 1000) at the
+              // default 0.01 s step would ask for 100 M integration steps, with
               // no way to interrupt the run.
               max={SIM_BOUNDS.timeStep.max}
               value={settings.simulation.timeStep}
@@ -418,7 +418,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
                 )}
               />
             ))}
-            {/* Everything above this heading decides when a flight WARNS. What
+            {/* Everything above this heading decides when a flight warns. What
                   follows changes what the flight does, so it is separated and
                   its hint says which way the number moves. */}
             <div className="pt-1 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
@@ -436,10 +436,10 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
         {tab === 'launch' && (
           <>
             <p className="text-[11px] leading-snug text-ink-faint">{t('settings.launchNote')}</p>
-            {/* These are the values a NEW simulation is seeded from, so a
+            {/* These are the values a new simulation is seeded from, so a
                   blank one would hand every future simulation a hole. Clearing
                   a required field here keeps what it had rather than storing
-                  the blank -- which is why no red marker ever shows up in this
+                  the blank, which is why no red marker ever shows up in this
                   copy of the panel. */}
             <LaunchPanel
               weatherKey
@@ -477,7 +477,7 @@ interface NumRowProps {
   min?: number;
   max?: number;
   placeholder?: string;
-  /** What the number is FOR. A threshold with no explanation is only usable by
+  /** What the number is for. A threshold with no explanation is only usable by
    *  someone who already knows what it does. */
   hint?: string;
   /** Fires on blur with the typed value, or null for an emptied field. */

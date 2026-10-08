@@ -7,7 +7,7 @@ import { useSettings } from '../../state/SettingsProvider';
 
 /**
  * The design card at the head of the center pane: the rocket's name, the ✎ that
- * opens its configuration, and — for an imported `.ork` — what the file could
+ * opens its configuration, and, for an imported `.ork`, what the file could
  * not bring across, with a button to dismiss it.
  *
  * The name lives here and not in the component tree's header too, which would say
@@ -24,7 +24,7 @@ import { useSettings } from '../../state/SettingsProvider';
  * third of the canvas; dismissing the card is the only other way to fold them away,
  * and that throws away the only record of them.
  *
- * Collapsed or not is a SETTING (`showImportNotes`), not component state: the card
+ * Collapsed or not is a setting (`showImportNotes`), not component state: the card
  * unmounts whenever you close a design or leave the Design tab, so local state lets
  * the notes spring open again on the next import. App-wide rather than per design,
  * for the reasons on the setting itself.
@@ -40,7 +40,7 @@ export function LoadedBanner({
   const { t } = useTranslation();
   const treeName = useWorkspaceStore((s) => s.tree.name);
   // The name, the designer, the design type and the revision history are things
-  // you set on a design you are BUILDING, and the window that cannot add a part
+  // you set on a design you are building, and the window that cannot add a part
   // to it has no business renaming it either. Where the component tree is not
   // offered the name is a title and nothing more (useCanBuildDesign).
   const canEditMeta = useCanBuildDesign();

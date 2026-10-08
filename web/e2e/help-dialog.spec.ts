@@ -10,19 +10,16 @@ import { test, expect, openTab, runFlight } from './base';
  * link inside that frame is intercepted and re-opened in the dialog rather than
  * navigating the frame out of the app.
  *
- * REQUIRES THE DOCS, and in CI that is not negotiable. `web/public/docs` is
- * gitignored, so for a long time these tests skipped on every CI run and the
- * job reported green: the in-app Help dialog and offline Help had no automated
- * coverage anywhere, which is not what a passing e2e job looks like. The
- * e2e-full workflow and the update-flow job run `npm run docs:build` for
- * themselves.
+ * Requires the docs, and in CI that is not optional. `web/public/docs` is
+ * gitignored, so a skip on a missing build would let a CI run report green with
+ * the in-app Help dialog untested. The e2e-full workflow and the update-flow job
+ * run `npm run docs:build` for themselves.
  *
- * So the skip is LOCAL ONLY. Without the docs a CI run fails loudly and names
- * the missing step, because a silent skip is the exact failure this spec was
- * found in. Locally it still skips, so nobody has to build Docusaurus to run
- * the rest of the suite.
+ * So the skip is local only. Without the docs a CI run fails loudly and names
+ * the missing step. Locally it still skips, so nobody has to build Docusaurus
+ * to run the rest of the suite.
  *
- * The condition is on the DIRECTORY, not on the dialog's behavior: with no docs
+ * The condition is on the directory, not on the dialog's behavior: with no docs
  * the dialog correctly offers the docs site instead, which is a different thing
  * from the feature being broken, and helpDocs.test.ts covers that path.
  */
@@ -34,8 +31,8 @@ const docsBuilt = existsSync('public/docs/index.html');
 
 test.beforeEach(() => {
   // In CI the docs are a hard precondition: the job builds them, and if they
-  // are missing the job configuration is wrong and has to say so. Skipping
-  // here is what hid this spec entirely for every CI run it ever had.
+  // are missing the job configuration is wrong and has to say so. A skip here
+  // would hide this spec from CI entirely.
   if (process.env.CI && !docsBuilt) {
     throw new Error(
       'web/public/docs is not built. The e2e and update-flow jobs run `npm run docs:build`; ' +
@@ -80,7 +77,7 @@ test('Safety opens Help already on the Safety page', async ({ page }) => {
 
   const dialog = page.getByRole('dialog', { name: helpDialog });
   // The heading is read off the loaded page, so it doubles as proof that the
-  // dialog opened ON the named topic rather than at the docs index.
+  // dialog opened on the named topic rather than at the docs index.
   await expect(dialog.getByRole('heading', { name: 'Safety' })).toBeVisible();
 
   // The external link is kept: a docs site you can send someone is not
@@ -143,7 +140,7 @@ test('the contents rail lists every page, and the headings of the one you are on
   await expect(contents.getByText('User Guide', { exact: true })).toBeVisible();
   await expect(contents.getByRole('button', { name: 'User Guide', exact: true })).toHaveCount(0);
 
-  // A page from the LAST group, opened from the FIRST page. Docusaurus renders
+  // A page from the last group, opened from the first page. Docusaurus renders
   // a collapsed category's children into no page at all, so this is what fails
   // if a category in sidebars.ts loses its `collapsed: false` and takes a whole
   // group out of the rail.
@@ -152,7 +149,7 @@ test('the contents rail lists every page, and the headings of the one you are on
   await contents.getByRole('button', { name: 'Designing a Rocket', exact: true }).click();
   await expect(dialog.getByRole('heading', { name: 'Designing a Rocket' })).toBeVisible();
 
-  // The page you are ON opens into its own headings, so the rail answers both
+  // The page you are on opens into its own headings, so the rail answers both
   // "what else is there" and "where in this page".
   const heading = contents.getByRole('button', { name: 'The component tree' });
   await expect(heading).toBeVisible();
@@ -190,7 +187,7 @@ test('search finds a section on another page and opens it there', async ({ page 
   await contents.getByLabel('Search help').fill('ejection delay');
 
   // The index is built from the same built pages the frame renders, on first
-  // use, so what is worth an end-to-end test is that a REAL docs build comes
+  // use, so what is worth an end-to-end test is that a real docs build comes
   // back as searchable text: a page whose markup the reader changed shape on
   // would index as nothing and fail here rather than in a unit test with a
   // fixture in it.

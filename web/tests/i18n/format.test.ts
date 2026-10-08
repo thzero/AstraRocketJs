@@ -69,8 +69,8 @@ describe('a descent band in the reader unit', () => {
 /**
  * An unnamed stage reads the same in every view, through one interpolated key.
  * Gluing a translated word to a number is wrong in a language that puts the
- * number first (ja: "第 2 段"), and the PDF wrote English "Stage 2" in every
- * language.
+ * number first (ja: "第 2 段"), and a hard-coded "Stage 2" would show English in
+ * every language.
  */
 describe('stageLabel', () => {
   it('names a stage by its own name, else by an interpolated number', async () => {
@@ -101,8 +101,9 @@ describe('stageLabel', () => {
 
 /**
  * A part as every view names it: its own name, trimmed, else its translated
- * type, else the raw type for one the locale does not know. Copies disagreed:
- * one used `??`, so a cleared Name field drew a blank title.
+ * type, else the raw type for one the locale does not know. An empty name
+ * falls through too (not just a missing one), so a cleared Name field never
+ * draws a blank title.
  */
 describe('partLabel', () => {
   const t = i18n.getFixedT('en');
@@ -117,8 +118,8 @@ describe('partLabel', () => {
 
 /**
  * Significant figures in the reader's locale, for numbers spanning orders of
- * magnitude (the inertia tiles). Built on toPrecision/toExponential they printed
- * "0.001234" beside "0,12" in a German strip.
+ * magnitude (the inertia tiles). toPrecision/toExponential ignore the locale,
+ * so they would print "0.001234" beside "0,12" in a German strip.
  */
 describe('fmtSig', () => {
   it('keeps four significant figures in the reader locale', async () => {
@@ -136,10 +137,9 @@ describe('fmtSig', () => {
 });
 
 /**
- * An instant on the launch site's clock, with its zone named. One copy, with the
- * fallback: the zone comes from Open-Meteo and from a saved weather source, and
- * four of the six copies had no catch, so a zone the browser does not know threw
- * a RangeError in the middle of rendering.
+ * An instant on the launch site's clock, with its zone named. The zone comes from
+ * Open-Meteo or from a saved weather source, so it can be one the browser does
+ * not know; that must fall back rather than throw a RangeError mid-render.
  */
 describe('fmtSiteTime', () => {
   const at = Date.UTC(2026, 6, 4, 18, 30);

@@ -7,9 +7,8 @@ describe('componentFormats', () => {
     expect(componentFormats('freeformfinset')).toEqual(['stl', 'obj', 'glb', '3mf', 'dxf']);
   });
 
-  // 3MF sits after the three that were here first, so an existing click does
-  // not move, and before DXF, which is a different KIND of output (a cut sheet,
-  // not a solid).
+  // 3MF sits after STL, OBJ and GLB, so their positions stay fixed, and before
+  // DXF, which is a different kind of output (a cut sheet, not a solid).
   it('offers only mesh for a solid body of revolution', () => {
     expect(componentFormats('nosecone')).toEqual(['stl', 'obj', 'glb', '3mf']);
     expect(componentFormats('bodytube')).toEqual(['stl', 'obj', 'glb', '3mf']);

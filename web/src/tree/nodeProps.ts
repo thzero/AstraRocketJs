@@ -20,14 +20,13 @@ export const numOpt = (n: ComponentNode, key: string): number | undefined =>
   typeof n[key] === 'number' && Number.isFinite(n[key]) ? n[key] : undefined;
 
 /**
- * A SAFETY ceiling on any instance count, not a design opinion.
+ * A safety ceiling on any instance count, not a design opinion.
  *
- * Every consumer read counts as `Math.max(1, Math.round(...))`: a floor and no
- * ceiling. Each one then loops that many times allocating as it goes - a
- * cloned ExtrudeGeometry per fin in the 3D view, an SVG shape per fin in the
- * schematic, a tube per instance in the aft view. Typing 100000 into Fin count
- * (a plausible slip on a 3-fin design) locked the tab, and a hostile `.ork`
- * could carry the same value. 64 is far above anything buildable and far below
+ * Each consumer loops that many times allocating as it goes: a cloned
+ * ExtrudeGeometry per fin in the 3D view, an SVG shape per fin in the
+ * schematic, a tube per instance in the aft view. Without a ceiling, typing
+ * 100000 into Fin count (a plausible slip on a 3-fin design) locks the tab, and
+ * a hostile `.ork` could carry the same value. 64 is far above anything buildable and far below
  * anything that hurts.
  */
 export const MAX_INSTANCE_COUNT = 64;
@@ -43,8 +42,8 @@ export const MAX_FIN_COUNT = 8;
  * An instance count (fins, tubes, pod instances): a whole number in
  * [1, {@link MAX_INSTANCE_COUNT}].
  *
- * One reader so the cap cannot be applied in some of the eleven places that
- * loop on a count and forgotten in the rest.
+ * One reader so the cap cannot be applied in some of the places that loop on a
+ * count and forgotten in the rest.
  */
 export const countOf = (n: ComponentNode, key: string, fb: number): number =>
   Math.min(MAX_INSTANCE_COUNT, Math.max(1, Math.round(num(n, key, fb))));
@@ -85,9 +84,10 @@ const AXIAL_METHODS: ReadonlySet<string> = new Set<ComponentPosition['method']>(
 ]);
 
 /**
- * A node's axial position, VALIDATED: the method is one the union names and
+ * A node's axial position, validated: the method is one the union names and
  * the offset is a finite number, each falling back to the kernel's own
- * default (`top`, 0: ComponentFactory.java:606-607) otherwise.
+ * default (`top`, 0: ComponentFactory's `str(position, "method", "top")` and
+ * `dbl(position, "offset", 0)`) otherwise.
  *
  * One reader, applying the same guard as the numeric accessors above, rather than
  * an `as ComponentPosition` cast at each call site: a hand-edited design or a

@@ -11,7 +11,7 @@ import type { RocketTree } from '../../engine/openRocketEngine';
 import { partLabel } from '../../i18n/format';
 
 /**
- * Why a given simulation cannot be flown - asked in ONE place, so the Run button
+ * Why a given simulation cannot be flown, asked in one place so the Run button
  * and the run loop cannot disagree about it. Judged apart, they diverge on which
  * rows a batch is judged by and on whether a limit blocks the batch or skips the
  * row, which shows up as a batch refused over one bad row, or a batch with an
@@ -30,7 +30,7 @@ export const hasThrustCurve = (m: MotorSpec | undefined | null): boolean => hasU
 export type UnflyableReason =
   | { kind: 'noMotor' }
   | { kind: 'incomplete'; missing: RequiredLaunchKey[] }
-  /** Two wind levels at one altitude — a profile the kernel will not build. */
+  /** Two wind levels at one altitude: a profile the kernel will not build. */
   | { kind: 'windProfile' }
   | { kind: 'limits'; violations: LimitViolation[] };
 
@@ -49,11 +49,11 @@ export interface Unflyable {
  */
 export function unflyable(sim: Simulation, motor: MotorSpec | undefined): UnflyableReason | null {
   if (!hasThrustCurve(motor)) return { kind: 'noMotor' };
-  // Before the safety codes, because a code is judged ON these numbers: a blank
+  // Before the safety codes, because a code is judged on these numbers: a blank
   // rod angle is not "within 20 degrees of vertical", it is nothing to judge.
   const missing = missingRequired(sim.launch);
   if (missing.length) return { kind: 'incomplete', missing };
-  // Before the limits for the same reason: the codes are judged on the SURFACE
+  // Before the limits for the same reason: the codes are judged on the surface
   // level, and a profile with two levels at one altitude is not a profile the
   // kernel will accept at all. Left to `simulate()` it comes back as `engine
   // simulate failed: Wind level already exists for altitude: 0.0`, which names
@@ -102,9 +102,9 @@ export function unflyableText(
 }
 
 /**
- * Why NO simulation of this design can fly.
+ * Why no simulation of this design can fly.
  *
- * Separate from {@link unflyable} because these are facts about the ROCKET, not
+ * Separate from {@link unflyable} because these are facts about the rocket, not
  * about one row: every simulation shares the tree, so there is no "skip the bad
  * one and fly the rest" here. A design with a zero-radius body tube simulates
  * happily and hands back an apogee, which is a worse answer than none.
@@ -122,7 +122,7 @@ export function designBlocker(tree: RocketTree): DesignBlocker | null {
 /**
  * A design blocker as a sentence, naming each part and what it is missing.
  *
- * Grouped by part rather than one line per field: a tube with its radius AND
+ * Grouped by part rather than one line per field: a tube with its radius and
  * thickness zeroed is one thing to go and fix, not two.
  */
 export function designBlockerText(

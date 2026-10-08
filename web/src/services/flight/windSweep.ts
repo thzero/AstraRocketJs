@@ -7,7 +7,7 @@ import { hasIntensity, retuneStdDev } from './windTurbulence';
 import { norm360 } from './groundTrack';
 
 /**
- * A batch of flights over a RANGE of wind conditions, rather than the one set
+ * A batch of flights over a range of wind conditions, rather than the one set
  * that was typed.
  *
  * The ground track answers "where does it come down" for the conditions in the
@@ -17,8 +17,8 @@ import { norm360 } from './groundTrack';
  * everything the day might do. This is the batch that produces that, and
  * `driftEllipse.ts` turns its landings into a region.
  *
- * A GRID, not a Monte Carlo. Every flight is a named cell — this speed, that
- * heading — so the same sweep run twice gives the same picture, a landing can
+ * A grid, not a Monte Carlo. Every flight is a named cell (this speed, that
+ * heading), so the same sweep run twice gives the same picture, a landing can
  * be traced back to the conditions that produced it, and the envelope it draws
  * is a statement about the conditions actually flown rather than a sample from
  * a distribution nobody specified. It costs more flights per unit of coverage
@@ -36,7 +36,7 @@ import { norm360 } from './groundTrack';
  * Each is a full trajectory in a worker, so an unbounded grid is an unbounded
  * wait: 6 speeds by 12 headings is 72 flights and already tens of seconds on a
  * four-worker pool. Two hundred is past anything a drift picture is improved
- * by — the envelope stops moving long before that — and it is a ceiling rather
+ * by (the envelope stops moving long before that), and it is a ceiling rather
  * than a target, so a spec that exceeds it has its heading count trimmed rather
  * than being refused.
  */
@@ -57,9 +57,9 @@ export interface SweepPoint {
 /**
  * What a sweep varies, and how finely.
  *
- * Speeds are absolute (m/s at the pad); headings are an ARC CENTERED on the
+ * Speeds are absolute (m/s at the pad); headings are an arc centered on the
  * flight's own wind direction, because that is how the uncertainty is actually
- * held — "southwest, give or take" — and because a spec centered on the typed
+ * held ("southwest, give or take"), and because a spec centered on the typed
  * heading survives changing it.
  */
 export interface WindSweepSpec {
@@ -96,18 +96,18 @@ export interface DriftSweep {
   /**
    * The design it was flown on.
    *
-   * Kept so an edit can make the sweep STALE rather than wrong: the landings
-   * are still the honest answer for the rocket that flew them, and throwing
+   * Kept so an edit can make the sweep stale rather than wrong: the landings
+   * are still the right answer for the rocket that flew them, and throwing
    * them away on the first fin tweak would mean re-flying a few dozen sims to
    * get back a picture the user was still reading. Same posture as a
    * simulation whose result reads outdated.
    */
   tree: RocketTree;
   /**
-   * The simulation's own inputs as they stood when it flew — motor, loadout,
+   * The simulation's own inputs as they stood when it flew: motor, loadout,
    * ignition, launch conditions, run overrides.
    *
-   * Staleness is not only about the DESIGN: swapping the motor or moving the pad
+   * Staleness is not only about the design: swapping the motor or moving the pad
    * changes where the rocket comes down as surely as moving a fin does, so a
    * region must not go on describing the old motor. Compared by reference, the
    * same test a run uses (`sameSimInputs`).
@@ -124,16 +124,16 @@ export interface DriftSweep {
 /**
  * Pull a spec into its legal range.
  *
- * The wind ceiling is the NAR / Tripoli one the Run button already enforces
+ * The wind ceiling is the NAR / Tripoli one the Run button enforces
  * (`safetyLimits.ts`): a sweep that flew past it would be drawing ground the
  * app refuses to fly to, which is worse than drawing less ground. Headings are
  * trimmed last, against {@link MAX_SWEEP_FLIGHTS}, because a coarser compass
- * loses less than a coarser speed band does — the envelope's SHAPE comes from
+ * loses less than a coarser speed band does: the envelope's shape comes from
  * the speeds.
  */
 export function normalizeSweepSpec(spec: WindSweepSpec): WindSweepSpec {
   // NaN is the only value with no order, so it is the only one that falls back
-  // rather than clamping. An infinity DOES have an order and clamps to the end
+  // rather than clamping. An infinity does have an order and clamps to the end
   // it came from, which is the answer a reader expects: an absurdly large wind
   // is the ceiling, not still air.
   const clampInt = (v: number, lo: number, hi: number) =>
@@ -170,7 +170,7 @@ export function sweepFlightCount(spec: WindSweepSpec): number {
  * Half to one-and-a-half times what was typed, over the whole compass. The band
  * is wide because a forecast's error is a fraction of the wind rather than a
  * fixed number of m/s, and the compass is whole because the direction is the
- * thing a morning forecast is least right about — a sweep that only fanned a
+ * thing a morning forecast is least right about: a sweep that only fanned a
  * few degrees either side of the typed heading would draw an envelope whose
  * reassuring narrowness came from the assumption, not the flights.
  *
@@ -201,9 +201,9 @@ export function sweepSpeeds(spec: WindSweepSpec): number[] {
 /**
  * The headings this spec flies, degrees, centered on `baseHeadingDeg`.
  *
- * A FULL compass is the wrap case and is spaced differently: eight headings
+ * A full compass is the wrap case and is spaced differently: eight headings
  * over 360 degrees are 45 apart with nothing at both 0 and 360, where eight
- * over a 90-degree arc are spaced to land ON both ends. Treating the whole
+ * over a 90-degree arc are spaced to land on both ends. Treating the whole
  * compass like an arc would fly the same heading twice and weight it double in
  * everything computed from the landings.
  */
@@ -231,15 +231,15 @@ export function sweepPoints(spec: WindSweepSpec, baseHeadingDeg: number): SweepP
 /**
  * The surface wind a launch block describes: speed and heading at the pad.
  *
- * The GROUND layer of a multilevel profile, exactly as the safety check reads
+ * The ground layer of a multilevel profile, exactly as the safety check reads
  * it, else the single wind. This is what a sweep is centered on and scaled
  * from, because it is the only wind anybody at the field can measure.
  */
 export function surfaceWind(launch: LaunchConditions): SweepPoint {
   const level = surfaceLevel(launch);
   if (level) return { speedMs: level.speed, headingDeg: level.directionDeg };
-  // A blank wind speed is a field the user has not filled in, not still air —
-  // but this is only ever read to PROPOSE a grid or to center one, never to fly
+  // A blank wind speed is a field the user has not filled in, not still air,
+  // but this is only ever read to propose a grid or to center one, never to fly
   // anything (the run refuses an incomplete launch long before here), so a
   // blank proposes the calm-day band rather than refusing to open the panel.
   return { speedMs: launch.windAverage ?? 0, headingDeg: launch.windDirectionDeg ?? DEFAULT_HEADING_DEG };
@@ -249,16 +249,16 @@ export function surfaceWind(launch: LaunchConditions): SweepPoint {
  * The launch conditions for one cell of the grid.
  *
  * Two rules, both of which exist so a swept flight differs from the typed one
- * in the wind and NOTHING else:
+ * in the wind and nothing else:
  *
- * - Turbulence keeps its INTENSITY, not its m/s. The standard deviation is a
+ * - Turbulence keeps its intensity, not its m/s. The standard deviation is a
  *   fraction of the average everywhere else in the app (`windTurbulence.ts`,
  *   and `LevelWindModel.setSpeed` in the kernel), so holding it absolute across
  *   the sweep would fly the slowest cell as a gale and the fastest as glass.
- * - A multilevel profile is SCALED AND TURNED as a whole rather than replaced.
- *   The shear a profile describes — backing 40 degrees and doubling by 300 m —
+ * - A multilevel profile is scaled and turned as a whole rather than replaced.
+ *   The shear a profile describes (backing 40 degrees and doubling by 300 m)
  *   is a fact about the day, not about the surface wind, and a sweep that flew
- *   the swept speed at every altitude would quietly delete it.
+ *   the swept speed at every altitude would erase it.
  *
  * A still-air surface layer has no ratio to take, so every level flies the
  * swept speed instead; there is no shear to preserve in a profile whose ground

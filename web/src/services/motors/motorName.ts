@@ -23,14 +23,14 @@ export function motorName(spec: Pick<MotorSpec, 'designation' | 'code'>): string
 }
 
 /**
- * How a SEATED motor is named: its name and the delay it was seated on,
+ * How a seated motor is named: its name and the delay it was seated on,
  * `F67W-9`, or `C6-P` for a plugged one.
  *
  * The delay is half of what motor a rocket is flying - it is when the nose comes
  * off - so anywhere that names a seated motor without room to state the delay
  * separately names it this way, which is also how the desktop names it
- * (`Motor.getDesignation(delay)`). A motor CATALOG row is not seated and has no
- * delay yet, so the picker still lists a bare designation.
+ * (`Motor.getDesignation(delay)`). A motor catalog row is not seated and has no
+ * delay yet, so the picker lists a bare designation.
  */
 export function motorDesignation(spec: Pick<MotorSpec, 'designation' | 'code' | 'ejectionDelay'>): string {
   if (!spec.designation) return '';

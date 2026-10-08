@@ -12,24 +12,25 @@ import { edgeKey, meshTolerances, undirectedEdgeCounts, validateSolid } from './
 /**
  * Build the rocket's external airframe as watertight solids for 3D print / CAD.
  *
- * This does NOT reuse the 3D view's geometry: that is built for looks (open
+ * This does not reuse the 3D view's geometry: that is built for looks (open
  * lathe shells, a tip radius floored at 0.1 mm) and leaves non-manifold seams
  * when repaired. Instead each external part is generated as a closed solid of
  * revolution with true radius-0 poles and capped ends, welded so it is manifold
  * by construction. Fins are extruded planform solids seated on the body. The
  * result is meter-scale; {@link meshExport} scales it to millimeters.
  *
- * Scope: nose cones, body tubes, transitions and fin sets — the printable outer
- * mould line. Internal parts (mounts, rings, mass), motors and off-axis pods are
- * not part of the printed shell and are skipped.
+ * Scope: nose cones, body tubes, transitions and fin sets (the printable outer
+ * mold line), plus inner tubes, launch lugs and tube fin sets as hollow tubes and
+ * disc parts through {@link discSolid}. Mass components, recovery parts, motors
+ * and off-axis pods have no printable body and are skipped.
  */
 
 // Weld and degeneracy tolerances are derived per-geometry from its own
-// bounding box (see meshTolerances): a fixed absolute cut erased every
-// triangle of a heavily scaled-down design and still reported success.
+// bounding box (see meshTolerances): a fixed absolute cut would erase every
+// triangle of a heavily scaled-down design.
 const SEGMENTS = 96;
 
-/** Number of boundary (open) edges — 0 means watertight. Used by tests. */
+/** Number of edges not shared by exactly two triangles; 0 means watertight. */
 export function countBoundaryEdges(geo: THREE.BufferGeometry): number {
   const g = geo.index ? geo : mergeVertices(geo);
   const idx = g.getIndex();
@@ -58,11 +59,10 @@ export function makeWatertight(geo: THREE.BufferGeometry): THREE.BufferGeometry 
       c = idx.getX(i + 2);
     dirList.push([a, b], [b, c], [c, a]);
   }
-  // Successors keyed by START vertex, as a MULTIMAP. A vertex where two boundary
+  // Successors keyed by start vertex, as a multimap. A vertex where two boundary
   // loops meet (a self-touching planform, a figure-8 seam) is the start of more
-  // than one boundary edge; a plain Map<number,number> kept only the last and
-  // left the other loop uncapped, so the "watertight" result was not. Each edge
-  // is consumed exactly once by the walk below.
+  // than one boundary edge; a single-valued map would keep only one and leave
+  // the other loop uncapped. Each edge is consumed exactly once by the walk below.
   const outgoing = new Map<number, number[]>();
   let boundaryEdges = 0;
   for (const [u, v] of dirList) {
@@ -84,7 +84,7 @@ export function makeWatertight(geo: THREE.BufferGeometry): THREE.BufferGeometry 
    *
    * Returns false when the loop is degenerate (collinear, or nothing the ear
    * clipper can resolve). The caller does not need to react: the final
-   * countBoundaryEdges check below still fails the export, which is the honest
+   * countBoundaryEdges check below still fails the export, which is the right
    * outcome for a shell that cannot be closed.
    */
   const capLoop = (loop: number[]): boolean => {
@@ -129,7 +129,7 @@ export function makeWatertight(geo: THREE.BufferGeometry): THREE.BufferGeometry 
   // Consume one outgoing boundary edge from `u` (undefined when none remain).
   const step = (u: number): number | undefined => outgoing.get(u)?.pop();
 
-  // Walk the boundary into CLOSED loops and fan-cap each. Starting a fresh loop
+  // Walk the boundary into closed loops and cap each. Starting a fresh loop
   // from every vertex that still has an unconsumed edge handles multiple loops
   // sharing a vertex; `boundaryEdges` bounds the total work.
   const push = (u: number, v: number) => {
@@ -142,9 +142,8 @@ export function makeWatertight(geo: THREE.BufferGeometry): THREE.BufferGeometry 
     while ((outgoing.get(start)?.length ?? 0) > 0) {
       const loop: number[] = [start];
       // Every edge this attempt consumes, so a failed walk can put them back.
-      // `step` POPS, so a bare `continue` on failure loses them for good: the
-      // boundary they belong to is never capped, makeWatertight still returns
-      // normally, and meshExport labels an STL with a hole in it watertight.
+      // `step` pops, so without this a failed walk loses them for good and the
+      // boundary they belong to is never capped.
       const eaten: Array<[number, number]> = [];
       const take = (u: number): number | undefined => {
         const v = step(u);
@@ -164,7 +163,7 @@ export function makeWatertight(geo: THREE.BufferGeometry): THREE.BufferGeometry 
       }
       if (!closed || loop.length < 3) {
         for (const [u, v] of eaten) push(u, v);
-        // …and stop retrying from THIS vertex: the edges are back, so the outer
+        // …and stop retrying from this vertex: the edges are back, so the outer
         // condition still holds and we would walk the same dead end forever.
         // Another start vertex may yet close a loop through them.
         break;
@@ -172,12 +171,11 @@ export function makeWatertight(geo: THREE.BufferGeometry): THREE.BufferGeometry 
 
       // Ear-clip the loop rather than fanning it from a new apex vertex.
       //
-      // The fan used the arithmetic MEAN of the loop's vertices, which is not
-      // the polygon's centroid: for a non-convex loop it can fall outside the
-      // loop entirely, and the fan then emits overlapping triangles facing
-      // opposite ways. Nothing noticed, because a fan uses every edge exactly
-      // twice and that is the only question countBoundaryEdges asks. The
-      // winding check in validateSolid is what catches it now.
+      // The arithmetic mean of the loop's vertices is not the polygon's
+      // centroid: for a non-convex loop it can fall outside the loop entirely,
+      // and a fan from it emits overlapping triangles facing opposite ways. A
+      // fan uses every edge exactly twice, so countBoundaryEdges cannot see
+      // that; the winding check in validateSolid does.
       capLoop(loop);
     }
   }
@@ -186,8 +184,8 @@ export function makeWatertight(geo: THREE.BufferGeometry): THREE.BufferGeometry 
   out.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   out.setIndex(indices);
   out.computeVertexNormals();
-  // The function's whole contract. A boundary the walk could not resolve now
-  // fails the export (store.exportComponent catches and shows it) instead of
+  // The function's whole contract. A boundary the walk could not resolve
+  // fails the export (the store's exportComponent catches and shows it) instead of
   // shipping a hole to a slicer, where it surfaces as a part that prints wrong.
   const left = countBoundaryEdges(out);
   if (left > 0) {
@@ -198,8 +196,8 @@ export function makeWatertight(geo: THREE.BufferGeometry): THREE.BufferGeometry 
 
 /**
  * Do these two closed segments properly cross (sharing an endpoint doesn't
- * count)? Collinear overlap is deliberately not treated as a crossing — a
- * doubled-back edge is degenerate, not a bow tie, and `mergeVertices` folds it.
+ * count)? Collinear overlap is not treated as a crossing: a doubled-back edge
+ * is degenerate, not a bow tie, and `mergeVertices` folds it.
  */
 function segmentsCross(a: [number, number], b: [number, number], c: [number, number], d: [number, number]): boolean {
   const cross = (ox: number, oy: number, px: number, py: number) => ox * py - oy * px;
@@ -208,12 +206,11 @@ function segmentsCross(a: [number, number], b: [number, number], c: [number, num
   const d3 = cross(b[0] - a[0], b[1] - a[1], c[0] - a[0], c[1] - a[1]);
   const d4 = cross(b[0] - a[0], b[1] - a[1], d[0] - a[0], d[1] - a[1]);
   if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) return true;
-  // TOUCHING counts too. With strict inequalities alone, a vertex sitting
-  // exactly ON a non-adjacent edge - or two non-adjacent vertices dragged onto
-  // each other in FreeformFinEditor - was not a crossing, so a figure-8
-  // outline passed isSimplePolygon and extruded into a pinch point where four
-  // shell faces meet at one vertex. Non-manifold, and no slicer's problem to
-  // guess at.
+  // Touching counts too. With strict inequalities alone, a vertex sitting
+  // exactly on a non-adjacent edge (or two non-adjacent vertices dragged onto
+  // each other in FreeformFinEditor) is not a crossing, so a figure-8 outline
+  // would pass isSimplePolygon and extrude into a non-manifold pinch point
+  // where four shell faces meet at one vertex.
   const within = (p: [number, number], q: [number, number], r: [number, number]) =>
     Math.min(p[0], r[0]) <= q[0] &&
     q[0] <= Math.max(p[0], r[0]) &&
@@ -227,10 +224,10 @@ function segmentsCross(a: [number, number], b: [number, number], c: [number, num
 }
 
 /**
- * Is this closed outline a SIMPLE polygon — no edge crossing any non-adjacent
- * edge?
+ * Is this closed outline a simple polygon, with no edge crossing any
+ * non-adjacent edge?
  *
- * FreeformFinEditor happily lets a vertex be dragged through the opposite edge,
+ * FreeformFinEditor lets a vertex be dragged through the opposite edge,
  * and a bow-tie planform extrudes into a self-intersecting solid that no slicer
  * can make sense of. O(n²), which is nothing at fin-outline sizes.
  */
@@ -238,7 +235,7 @@ export function isSimplePolygon(pts: [number, number][]): boolean {
   const n = pts.length;
   if (n < 3) return false;
   // Two vertices at the same point pinch the outline even when no pair of
-  // EDGES crosses. Caught explicitly rather than left to the collinear cases
+  // edges crosses. Caught explicitly rather than left to the collinear cases
   // below, which depend on exact floating-point zeros.
   for (let i = 0; i < n; i++) {
     for (let j = i + 1; j < n; j++) {
@@ -284,7 +281,7 @@ function dropDegenerate(geo: THREE.BufferGeometry, areaTol = 1e-12): THREE.Buffe
 
 /**
  * Weld a freshly built solid by position and drop the triangles welding
- * collapsed. mergeVertices compares ALL attributes, and a lathe's revolution
+ * collapsed. mergeVertices compares all attributes, and a lathe's revolution
  * seam and its radius-0 poles carry different uv/normal at the same position,
  * so they only weld once uv/normal are dropped, leaving a manifold solid
  * welded by position.
@@ -319,19 +316,18 @@ function revolveSolidX(surface: [number, number][], axialOffset: number): THREE.
  * A disc / ring / short-tube solid along +X: outer radius `outerR`, optional
  * concentric bore `innerR`, axial length `length`. With no bore it is a solid
  * cylinder (a bulkhead); with a bore it is a hollow annulus (a centering ring or
- * coupler) — a closed rectangular cross-section revolved, so it stays watertight
+ * coupler): a closed rectangular cross-section revolved, so it stays watertight
  * without capping onto the axis.
  */
 export function discSolid(outerR: number, innerR: number, length: number): THREE.BufferGeometry | null {
   const len = length > 1e-6 ? length : 0.002;
-  // An INVERTED ring (ID >= OD - reachable from a malformed .ork or a bad catalog
+  // An inverted ring (ID >= OD, reachable from a malformed .ork or a bad catalog
   // row) would otherwise fall through to the solid-cylinder branch and export a
   // centering ring as a solid disc, which blocks the motor tube once printed with
   // nothing saying so. Every degenerate case in solidForNode returns null.
-  // A non-positive outer radius lathes an inside-out or on-axis solid, and the
-  // validator cannot see the inverted case: its orientation check counts
-  // DIRECTED edges, which a consistently reversed winding satisfies. Refused
-  // here, where the dimension is, rather than hoped away downstream.
+  // A non-positive outer radius lathes an inside-out or on-axis solid. It is
+  // refused here, where the dimension is, rather than left for validateSolid to
+  // report as a defect in the exported mesh.
   if (!(outerR > 1e-6)) return null;
   if (innerR > 1e-6 && innerR >= outerR - 1e-6) return null;
   const hasBore = innerR > 1e-6 && innerR < outerR - 1e-6;
@@ -356,7 +352,7 @@ export function discSolid(outerR: number, innerR: number, length: number): THREE
 }
 
 /** One fin as a flat, watertight extruded solid at the origin (planform in XY,
- *  thickness centered on Z) — ready to lay on a print bed. */
+ *  thickness centered on Z), ready to lay on a print bed. */
 function oneFinSolid(child: ComponentNode, parentRadius: number | null): THREE.BufferGeometry | null {
   const root = finRootChord(child, 0);
   const height = finSpan(child);
@@ -371,7 +367,7 @@ function oneFinSolid(child: ComponentNode, parentRadius: number | null): THREE.B
   // a solid whose faces pass through each other.
   if (child.type === 'freeformfinset' && !isSimplePolygon(freeformPoints(child))) return null;
 
-  // The outline, tab folded in, from the ONE fin-geometry module, so the printed
+  // The outline, tab folded in, from the shared fin-geometry module, so the printed
   // fin is the shape that flew. Sampling an elliptical curve here instead yields
   // a sine arch rather than the kernel's half-ellipse. See tree/finPlanform.ts.
   const contour = finCutContour(child, parentRadius);
@@ -391,30 +387,28 @@ function oneFinSolid(child: ComponentNode, parentRadius: number | null): THREE.B
 
 /**
  * The watertight solid (meters) for a single component, or null when the type
- * has no 3D-printable body. One part, built at the origin — this backs the
- * per-component STL/OBJ/GLB export.
+ * has no 3D-printable body. One part, built at the origin; this backs the
+ * per-component STL/OBJ/GLB export. Disc parts (rings, bulkheads, couplers,
+ * engine blocks) are built through {@link discSolidForNode} instead.
  */
 export function solidForNode(node: ComponentNode, parentRadius: number | null = null): THREE.BufferGeometry | null {
   return validated(buildSolid(node, parentRadius));
 }
 
 /**
- * THE choke point, so it is one function and not a line repeated per path.
+ * The single validation point for every exported solid: both `solidForNode`
+ * and `discSolidForNode` go through it.
  *
  * `countBoundaryEdges` (used inside `makeWatertight`) only asks "is every edge
- * used twice", which is satisfied by an EMPTY mesh and by a cap whose triangles
- * overlap facing opposite ways. Both shipped. Returning null makes the caller
- * report "this part can't be exported" instead of writing a file no slicer can
- * use.
+ * used twice", which is satisfied by an empty mesh and by a cap whose triangles
+ * overlap facing opposite ways. Returning null makes the caller report "this
+ * part can't be exported" instead of writing a file no slicer can use.
  *
- * It used to live inline in `solidForNode`, whose comment claimed every
- * printable solid left through there. Two paths did not: the per-component
- * export and the print sheet both called `discSolid` directly for rings,
- * bulkheads, couplers and engine blocks, so those four were the parts with no
- * validation at all. An explicit `outerRadius: 0` lathes four on-axis points,
- * `dropDegenerate` removes every triangle, and `makeWatertight` then returns
- * early on `boundaryEdges === 0` before its own throw -- a zero-triangle STL
- * that downloads reporting success.
+ * Disc parts need it as much as lathed ones: an explicit `outerRadius: 0`
+ * lathes four on-axis points, `dropDegenerate` removes every triangle, and
+ * `makeWatertight` then returns early on `boundaryEdges === 0` before its own
+ * throw, which without this check is a zero-triangle STL that downloads
+ * reporting success.
  */
 function validated(geo: THREE.BufferGeometry | null): THREE.BufferGeometry | null {
   if (!geo) return null;
@@ -425,12 +419,12 @@ function validated(geo: THREE.BufferGeometry | null): THREE.BufferGeometry | nul
 /**
  * A tube fin set's wall when the design states none.
  *
- * An APP choice, and the only one here: `ComponentFactory` never calls
+ * An app choice, and the only one here: `ComponentFactory` never calls
  * `setThickness` for a tube fin set, so the kernel keeps
  * `TubeFinSet.thickness`, which is `Double.NaN`. There is no kernel number to
  * agree with, and a NaN wall exports nothing at all, so the printable part
- * borrows the inner tube's - the nearest thing the kernel does define for a
- * small hollow tube - rather than a literal nobody can trace.
+ * borrows the inner tube's (the nearest thing the kernel does define for a
+ * small hollow tube) rather than an untraceable literal.
  */
 const TUBE_FIN_WALL = KERNEL_DEFAULTS.innertube.thickness;
 
@@ -438,9 +432,8 @@ const TUBE_FIN_WALL = KERNEL_DEFAULTS.innertube.thickness;
  * The kernel's own default for one field of one component type.
  *
  * `NaN` when the factory reads no default for it, which makes the caller's
- * `!(R > 0)` guard skip the part instead of inventing a size. That is the point:
- * three literals here disagreed with `ComponentFactory` and the export shipped
- * a part the simulation never flew.
+ * `!(R > 0)` guard skip the part instead of inventing a size, so the export
+ * never writes a part at a size the simulation did not fly.
  */
 function kernelDefault(type: ComponentNode['type'], key: string, fallback = NaN): number {
   const row = KERNEL_DEFAULTS[type] as Readonly<Record<string, number | undefined>>;
@@ -486,23 +479,21 @@ function buildSolid(node: ComponentNode, parentRadius: number | null): THREE.Buf
         surface = [...surface, [len, Math.min(aShR, ra)], [len + aShLen, Math.min(aShR, ra)]];
       return revolveSolidX(surface, 0);
     }
-    // Tubes — hollow, with their own wall thickness. (Coupler/engine block/rings
+    // Tubes: hollow, with their own wall thickness. (Coupler/engine block/rings
     // fit their parent's bore, so they go through resolveDisc, not here.)
     case 'bodytube':
     case 'innertube':
     case 'launchlug':
     case 'tubefinset': {
-      // A tube fin set legitimately carries NO outerRadius: the kernel
+      // A tube fin set legitimately carries no outerRadius: the kernel
       // auto-sizes it from the body radius and the fin count
-      // (TubeFinSet.getOuterRadius). A hard 12 mm substitute exports a 6-tube set
-      // on a 25 mm body at less than half its real diameter with no warning.
-      // Without a parent radius the size is unknowable, so skip the part rather
-      // than invent one.
-      // Per TYPE, from `KERNEL_DEFAULTS`, because one number for all three was
-      // wrong for two of them: the kernel builds an inner tube at 9.5 mm and a
-      // launch lug at 2.2 mm, and a hard 12 mm printed the lug at 5.5x its flown
-      // radius. A part that does not fit the rocket that was simulated is not a
-      // cosmetic difference in an export whose whole purpose is a physical part.
+      // (TubeFinSet.getOuterRadius). A fixed substitute would export the set at
+      // the wrong diameter with no warning, so without a parent radius the part
+      // is skipped rather than given an invented size.
+      // The other tubes default per type, from `KERNEL_DEFAULTS`: the kernel
+      // builds an inner tube at 9.5 mm and a launch lug at 2.2 mm, and a part
+      // that does not fit the rocket that was simulated defeats an export whose
+      // purpose is a physical part.
       const R =
         node.type === 'tubefinset'
           ? (numOpt(node, 'outerRadius') ?? (parentRadius != null ? tubeFinRadius(node, parentRadius) : NaN))
@@ -514,11 +505,10 @@ function buildSolid(node: ComponentNode, parentRadius: number | null): THREE.Buf
       if (!(R > 0) || !(len > 0)) return null;
       // A wall at least as thick as the radius has no bore left, and
       // `discSolid` would silently fall through to its no-bore branch and
-      // export a SOLID ROD. That is the opposite of the policy two functions
-      // up, where an inverted ring returns null precisely so a blocked bore is
-      // not shipped without saying so. Reachable from a units slip in a
-      // hand-edited .ork (thickness 0.02 against radius 0.012): printed, the
-      // part is a 24 mm rod and nothing fits inside it.
+      // export a solid rod. Same policy as discSolid's inverted-ring check: a
+      // blocked bore is not exported without saying so. Reachable from a units
+      // slip in a hand-edited .ork (thickness 0.02 against radius 0.012):
+      // printed, the part is a 24 mm rod and nothing fits inside it.
       if (!(wall < R)) return null;
       return discSolid(R, R - wall, len);
     }

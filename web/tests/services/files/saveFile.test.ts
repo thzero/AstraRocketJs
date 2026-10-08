@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { download, exportFilename, saveBlob, safeFilename } from '../../../src/services/files/saveFile';
 import { loadSettings, saveSettings } from '../../../src/services/storage/settings';
 
-// The share sheet is used ONLY where `<a download>` is known to fail: iOS or
+// The share sheet is used only where `<a download>` is known to fail: iOS or
 // iPadOS running the app as an installed PWA. Everywhere else the anchor wins,
 // because it puts the file straight in the downloads folder with no extra tap.
 
@@ -94,7 +94,7 @@ describe('saveBlob', () => {
     const nav = pose({ apple: true, standalone: true });
     nav.share.mockRejectedValueOnce(new DOMException('canceled', 'AbortError'));
     await saveBlob(blob(), 'rocket.ork');
-    // Canceling is a decision, not a failure — a surprise download would ignore it.
+    // Canceling is a decision, not a failure: a surprise download would ignore it.
     expect(clicks).toHaveLength(0);
   });
 
@@ -120,8 +120,8 @@ describe('safeFilename', () => {
   });
 
   it('falls back when a name reduces to nothing', () => {
-    // "///" sanitizes to "_", which is truthy but a useless filename — the
-    // trap that two of the three deleted copies fell into.
+    // "///" sanitizes to "_", which is truthy but a useless filename, so a
+    // truthiness check alone is not enough.
     expect(safeFilename('///')).toBe('rocket');
     expect(safeFilename('')).toBe('rocket');
   });
@@ -143,13 +143,9 @@ const flush = () => new Promise((r) => setTimeout(r, 0));
 
 describe('download', () => {
   /**
-   * There were three of these, one per module, disagreeing about argument
-   * order — `downloadText(filename, text, mime)`, `downloadBlob(blob,
-   * filename)`, `downloadFile(data, filename, mime)`. Two put the filename
-   * where the third put the payload, and because a text payload is also a
-   * `string` the compiler accepted either: importing the wrong one downloaded
-   * a file NAMED after its own contents. One signature now, filename first,
-   * pinned here.
+   * One signature, filename first, pinned here. Because a text payload is also
+   * a `string`, the compiler accepts the two swapped, and a swapped call would
+   * download a file named after its own contents.
    */
   it('takes the filename first and the payload second', async () => {
     pose({ apple: false, standalone: false });

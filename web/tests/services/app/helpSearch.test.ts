@@ -250,7 +250,7 @@ describe('markMatches', () => {
     markMatches(root, ['rod', 'clear']);
     clearMarks(root);
     expect(root.innerHTML).toBe(html);
-    // And the text is ONE node again, or a later search could not match across
+    // And the text is one node again, or a later search could not match across
     // where the last mark was.
     expect(root.querySelector('p')!.childNodes).toHaveLength(1);
   });
@@ -330,7 +330,7 @@ describe('helpIndex', () => {
   });
 
   it('skips a page the build does not have', async () => {
-    // The dev-build case: Vite answers a missing docs path with the APP's own
+    // The dev-build case: Vite answers a missing docs path with the app's own
     // shell and a 200, which is what the marker check in fetchHelpDocument is
     // for. An unmarked answer must not become an indexed page.
     serving('<div id="root"></div>');

@@ -2,21 +2,20 @@ import type { RocketTree } from '../../engine/openRocketEngine';
 import { walkNodes } from '../../tree/treeWalk';
 
 /**
- * Component dimensions a ZERO makes nonsense of.
+ * Component dimensions a zero makes nonsense of.
  *
  * Lives here rather than in the property panel because two different places
  * need the same answer: the panel, to mark the field, and the run path, to
- * refuse a design built on one. Keeping the list in the panel would have meant
- * the editor and the Run button deciding "is this valid" separately, which is
- * exactly the split that let the button and the run loop disagree about motors.
+ * refuse a design built on one. A list in the panel would leave the editor and
+ * the Run button deciding "is this valid" separately, and free to disagree.
  *
- * Unlike the launch conditions -- where a cleared field had to be told apart
- * from a typed zero, because still air and sea level are real values -- a part
- * has no meaningful "blank length". Zero IS the invalid state, so there is no
+ * Unlike the launch conditions (where a cleared field has to be told apart
+ * from a typed zero, because still air and sea level are real values), a part
+ * has no meaningful "blank length". Zero is the invalid state, so there is no
  * second state to model and the field keeps storing a number.
  *
  * Marked conservatively: only where a zero makes the part stop being that part.
- * Plenty of dimensions are legitimately zero and are deliberately absent here --
+ * Plenty of dimensions are legitimately zero and are deliberately absent here:
  * a tipChord of 0 is a delta fin, a sweep or cant of 0 is a straight one, a
  * shoulder or fin tab of 0 is simply absent, a centering ring's innerRadius of 0
  * is a solid disc, a mass component's length of 0 is a point mass, and every
@@ -46,7 +45,7 @@ export const REQUIRED_COMPONENT_FIELDS: Record<string, readonly string[]> = {
 };
 
 /**
- * Dimensions OpenRocket DERIVES when the part does not carry one, so an absent
+ * Dimensions OpenRocket derives when the part does not carry one, so an absent
  * value means automatic rather than missing.
  *
  * Inner structure takes its outer radius from whatever it sits in, and a
@@ -56,15 +55,15 @@ export const REQUIRED_COMPONENT_FIELDS: Record<string, readonly string[]> = {
  * `ComponentFactory` leaves the automatic flag on whenever the node has no
  * radius key, so absent here is a working part, not a broken one.
  *
- * A radius that IS present still has to be a real dimension: an automatic ring
+ * A radius that is present still has to be a real dimension: an automatic ring
  * and a ring explicitly sized to zero are different mistakes.
  */
 export const AUTO_COMPONENT_FIELDS: Record<string, readonly string[]> = {
-  // A tube fin set with no radius is AUTO-sized by the kernel from the body
+  // A tube fin set with no radius is auto-sized by the kernel from the body
   // radius and the fin count (TubeFinSet.getOuterRadius; ported in
-  // tree/tubefins.ts). Marking it required made the Run button refuse to fly a
-  // perfectly valid .ork that desktop OpenRocket had written, while the
-  // schematic drew the tubes at their correct size.
+  // tree/tubefins.ts). Marking it required would make the Run button refuse to
+  // fly a valid .ork that desktop OpenRocket wrote, while the schematic draws
+  // the tubes at their correct size.
   tubefinset: ['outerRadius'],
   centeringring: ['outerRadius', 'innerRadius'],
   bulkhead: ['outerRadius'],
@@ -78,7 +77,7 @@ const isAuto = (type: string, field: string, value: unknown): boolean =>
 
 /** One dimension of one part that cannot be what it currently is. */
 export interface BadDimension {
-  /** Node id, when the part has one — enough to select it in the tree. */
+  /** Node id, when the part has one; enough to select it in the tree. */
   id?: string;
   type: string;
   /** The part's own name, empty when it has none (the reader labels it). */

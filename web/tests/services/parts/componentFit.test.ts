@@ -9,7 +9,7 @@ import { fitRuleFor } from '../../../src/services/parts/componentFilter';
  * and a coupler, plus a 66 mm booster below so there is a second airframe
  * diameter in the design.
  *
- * Radii, because that is what the tree stores: the picker's whole problem was
+ * Radii, because that is what the tree stores: the picker's problem is
  * that the number a coupler has to match (the bore) is not a field at all, it is
  * `outerRadius - thickness`, doubled.
  */
@@ -49,7 +49,7 @@ describe('fitContextFor', () => {
 
   it('derives the enclosing bore from the wall, which is not a stored field', () => {
     // 27.3 mm outer radius less a 1.6 mm wall, doubled: 51.4 mm of bore. This is
-    // the number a coupler has to hit and the one the picker could not see.
+    // the number a coupler has to hit, and it is not a field of its own.
     expect(fitContextFor(tree, 'coupler')!.parentInner).toBeCloseTo(0.0514, 6);
     expect(fitContextFor(tree, 'ring')!.parentInner).toBeCloseTo(0.0514, 6);
   });
@@ -59,7 +59,7 @@ describe('fitContextFor', () => {
   });
 
   it('finds the mount a centering ring has to clear beside it, not under it', () => {
-    // The motor mount is the ring's SIBLING. Looking for it among the ring's
+    // The motor mount is the ring's sibling. Looking for it among the ring's
     // children would find nothing and silently drop the constraint.
     expect(fitContextFor(tree, 'ring')!.mountOuter).toBeCloseTo(0.029, 6);
   });
@@ -141,7 +141,7 @@ describe('fitContextFor', () => {
 /**
  * A tube with no `thickness` key still has a bore: the one the kernel builds
  * with the type's default wall (0.3 mm for a body tube). Treating it as "no
- * bore" left the picker nothing to rank a coupler against.
+ * bore" would leave the picker nothing to rank a coupler against.
  */
 describe('fitContextFor on a keyless wall', () => {
   it('derives the bore from the kernel default wall', () => {

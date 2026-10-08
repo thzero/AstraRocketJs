@@ -14,16 +14,12 @@ import { KERNEL_DEFAULTS } from '../../../src/tree/kernelDefaults';
 import type { ComponentNode, RocketTree } from '../../../src/engine/openRocketEngine';
 
 /**
- * The export framing, which was extracted to be provable and never proved.
+ * The export framing.
  *
- * `piecesBounds`, `isFittableBox`, `fitCameraToBox` and `exportCamera` all
- * carry doc comments saying they live outside the component precisely so the
- * numbers can be checked without mounting an R3F canvas ("this is where the
- * export framing is actually proven", "Pure so the numbers are provable").
- * There was no `Rocket3D.test.*` at all, and no e2e asserts the framing - so
- * the corner-by-corner fit, the degenerate-`up` nudge and the NaN-box guard
- * were subtle, regression-prone geometry with a stated test rationale and
- * nothing holding them.
+ * `piecesBounds`, `isFittableBox`, `fitCameraToBox` and `exportCamera` live
+ * outside the component so the numbers can be checked without mounting an R3F
+ * canvas. No e2e test asserts the framing, so the corner-by-corner fit, the
+ * degenerate-`up` nudge and the NaN-box guard are held here.
  */
 
 const boxOf = (min: [number, number, number], max: [number, number, number]) =>
@@ -246,7 +242,7 @@ describe('buildPieces internals', () => {
 
   it('keeps the tube when the wall is thicker than the radius, losing only the bore', () => {
     // A units slip in a hand-edited .ork. The print export returns null here on
-    // purpose (a blocked bore must not ship as a part); a VIEW that dropped the
+    // purpose (a blocked bore must not ship as a part); a view that dropped the
     // tube would just lose the rocket.
     const bad = JSON.parse(JSON.stringify(tree));
     bad.components[0].children[1].thickness = 0.02;
@@ -267,7 +263,7 @@ describe('buildPieces internals', () => {
     const [ring] = byId(pieces, 'cr');
     const d = resolveDisc(tree, 'cr')!;
     const e = extent(ring!);
-    // Outer = the tube's bore, inner = the mount it centers — the same numbers
+    // Outer = the tube's bore, inner = the mount it centers: the same numbers
     // the DXF cut sheet and the printed ring use.
     expect(e.r1).toBeCloseTo(d.outerR, 6);
     expect(e.r0).toBeCloseTo(d.innerR, 6);
@@ -287,7 +283,7 @@ describe('buildPieces internals', () => {
   });
 
   it('gives a keyless inner tube the kernel length and radius', () => {
-    // ComponentFactory, case "innertube": 70 mm by 9.5 mm. The 3D view drew 50 mm.
+    // ComponentFactory, case "innertube": 70 mm long, 9.5 mm outer radius.
     const keyless = {
       name: 'Mount',
       components: [
@@ -326,10 +322,10 @@ describe('buildPieces internals', () => {
  * Shoulders in the 3D model.
  *
  * A shoulder round-trips through `.ork`, is editable in the panel, draws in
- * the 2D schematic and is part of the printed solid. The 3D builder was the
- * one place that never read the keys, so the model stopped at the base of the
- * cone - and a shoulder lives INSIDE the tube next door, which is exactly what
- * the cutaway exists to show.
+ * the 2D schematic and is part of the printed solid, so the 3D builder has to
+ * read the keys too. Without them the model stops at the base of the cone, and a
+ * shoulder lives inside the tube next door, which is what the cutaway exists to
+ * show.
  */
 describe('buildPieces shoulders', () => {
   const noseTree = (shoulder: Record<string, number>) =>
@@ -394,7 +390,7 @@ describe('buildPieces shoulders', () => {
       ],
     } as unknown as RocketTree;
     const e = extent(byId(buildPieces(tree).pieces, 'trans')[0]!);
-    // The transition starts at x = 0.2; its fore shoulder reaches BACK into the
+    // The transition starts at x = 0.2; its fore shoulder reaches forward into the
     // tube ahead of it, and its aft shoulder past its own end.
     expect(e.x0).toBeCloseTo(0.18, 6);
     expect(e.x1).toBeCloseTo(0.265, 6);
@@ -404,8 +400,8 @@ describe('buildPieces shoulders', () => {
 /**
  * A nose cone, body tube or transition with no `length` key is laid out at the
  * kernel's length for its type (ComponentFactory: nose 70 mm, body 300 mm,
- * transition 50 mm), not at zero. Zero drew the part as nothing while the
- * engine flew it full length. An explicit 0 (the phantom tube a T-tail hangs
+ * transition 50 mm), not at zero. At zero the part would draw as nothing while
+ * the engine flies it full length. An explicit 0 (the phantom tube a T-tail hangs
  * from) is still 0.
  */
 describe('a chain part with no length key', () => {

@@ -1,12 +1,12 @@
 import { test, expect, type Page } from './base';
 
 /**
- * 2D schematic INTERACTION coverage in a real browser — the select / hover /
+ * 2D schematic interaction coverage in a real browser: the select / hover /
  * roll-drag / caliper paths that jsdom can't drive and the render e2e
- * (schematic.spec) doesn't touch. This is the safety net for decomposing the
- * renderer, whose shapes carry the interaction handlers.
+ * (schematic.spec) doesn't touch. The renderer's shapes carry the interaction
+ * handlers, so this guards them through any change to how the shapes are built.
  *
- * Drag-reposition is NOT among them: there is no such path in the renderer, and a
+ * Drag-reposition is not among them: there is no such path in the renderer, and a
  * component's position is set numerically in the property panel.
  */
 test.describe('2D schematic interaction', () => {
@@ -89,7 +89,7 @@ test.describe('2D schematic interaction', () => {
     await ready(page);
     await page.getByTitle(/Length calipers/i).click();
     const svg = schematic(page);
-    // The caliper distance is the accent-colored "<n> <unit>" label — cm by default.
+    // The caliper distance is the accent-colored "<n> <unit>" label, cm by default.
     await expect(svg.locator('text[fill="var(--accent)"]', { hasText: /cm/ }).first()).toBeVisible();
   });
 });

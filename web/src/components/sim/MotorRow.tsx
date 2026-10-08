@@ -45,10 +45,10 @@ export function MotorRow({
   onIgnitionChange?: (event: IgnitionEvent, delay: number) => void;
   /** Close the ignition edit's undo entry (event change: immediate; delay: on blur). */
   onCommit?: () => void;
-  /** This mount is on an upper stage — offer the sustainer triggers + "never". */
+  /** This mount is on an upper stage: offer the sustainer triggers + "never". */
   upperStage?: boolean;
   /**
-   * A multi-row selection is being edited, and this card is NOT part of it.
+   * A multi-row selection is being edited, and this card is not part of it.
    *
    * Not a warning about overwriting, which is what the amber marker means
    * elsewhere: a motor change only ever touches the active simulation, so the
@@ -67,9 +67,9 @@ export function MotorRow({
   // name but flag it as not-found and hide the (empty) thrust-curve view.
   const hasCurve = !!motor?.masses?.length;
   // Names the card as a landmark ("Motor", or "Motor - Inner tube 2" when a
-  // rocket has several mounts). A multi-mount design was a run of unlabeled
-  // sections to a screen reader, each holding a "Change…" button with nothing
-  // to say which tube it seats.
+  // rocket has several mounts). Without it, a multi-mount design is a run of
+  // unlabeled sections to a screen reader, each holding a "Change…" button with
+  // nothing to say which tube it seats.
   const cardLabel = title ?? t('sims.motor');
   return (
     <section aria-label={cardLabel} className={'rounded-xl bg-surface p-3 ring-1 ring-line/10'}>
@@ -129,9 +129,9 @@ export function MotorRow({
           upperStage={upperStage}
         />
       )}
-      {/* Mounted only while OPEN, so each opening starts from fresh state:
-          mounted permanently and returning null when closed, the picker kept
-          the previous motor's ejection delay across a reopen and fetched the
+      {/* Mounted only while open, so each opening starts from fresh state:
+          mounted permanently and returning null when closed, the picker would
+          keep the previous motor's ejection delay across a reopen and fetch the
           catalog on app start. */}
       {open && (
         <MotorDialog
@@ -167,7 +167,7 @@ function IgnitionControl({
 }) {
   const { t } = useTranslation();
   // Bottom/only stage: just automatic / launch. Upper stage adds the sustainer
-  // triggers + "never". Never drop the current value, though — a stale one would
+  // triggers + "never". Never drop the current value, though: a stale one would
   // otherwise blank the dropdown.
   const events: IgnitionEvent[] = [
     'automatic',
@@ -196,13 +196,10 @@ function IgnitionControl({
         <label className="flex shrink-0 items-center gap-1 text-ink-faint">
           +
           {/* `NumberInput` for the same reason the ejection delay in MotorDialog
-              is one: a raw box with `?? 0` commits a ZERO ignition delay the
+              is one: a raw box with `?? 0` would commit a zero ignition delay the
               moment the field is cleared to retype, which on an air-start is the
               upper stage lighting at separation. The draft buffer holds the empty
-              string instead, and a blank box means "no change".
-
-              `parseFloat(x) || 0` let Infinity through before that, because
-              `Infinity || 0` is Infinity. */}
+              string instead, and a blank box means "no change". */}
           <NumberInput
             min={0}
             step={0.5}

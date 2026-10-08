@@ -6,13 +6,13 @@ import { useWorkspaceStore } from '../../src/state/store';
  * A click must not be able to fail in silence.
  *
  * Every async store action catches its own failures and reports them through
- * `err`, and that convention was the only thing making a bare `onSave()` in a
- * click handler safe. It was convention ONLY, which is the whole reason
- * `no-floating-promises` was worth enabling: an action that forgets leaves a
- * button that does nothing, with every gate green.
+ * `err`, but that is a convention only, and a bare `onSave()` in a click handler
+ * is safe only while every action keeps it. That is why `no-floating-promises`
+ * is enabled: an action that forgets leaves a button that does nothing, with
+ * every gate green.
  *
- * `void onSave()` would have satisfied the linter and preserved the hazard exactly.
- * This is what was done instead, so the test is about the DIFFERENCE between the
+ * `void onSave()` would satisfy the linter and preserve the hazard exactly.
+ * `fireAction` is used instead, so the test is about the difference between the
  * two: a rejection reaches the banner.
  */
 const s = () => useWorkspaceStore.getState();

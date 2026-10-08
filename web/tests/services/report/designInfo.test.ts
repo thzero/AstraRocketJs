@@ -72,8 +72,8 @@ describe('buildDesignInfo', () => {
     expect(f['Roll Inertia (Loaded)']).toMatchObject({ unit: 'kg*m^2' });
     expect(f['CP']).toBeDefined();
     // The kernel's own figure, verbatim. (cp - cg) / length would be 29.65:
-    // right shape, wrong denominator. Pinning the value is what stops that
-    // formula coming back.
+    // right shape, wrong denominator. Pinning the value is what keeps that
+    // formula out.
     expect(f['Stability (%)']).toMatchObject({ value: '31.5', unit: '%' });
   });
 

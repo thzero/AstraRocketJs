@@ -15,7 +15,7 @@ import { AlertDialog } from './AlertDialog';
  * heading and the button pair - is {@link AlertDialog}, which it shares with the
  * work-in-progress notice.
  *
- * It renders NOTHING until there is a request, which is also what keeps the focus
+ * It renders nothing until there is a request, which is also what keeps the focus
  * trap honest: the trap's effect deps are `[active]`, so a permanently mounted
  * panel with a constant `true` runs once, finds no element, returns early and never
  * runs again, leaving the modal with no trap and no focus restore. Mounting the

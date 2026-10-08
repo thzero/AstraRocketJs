@@ -28,7 +28,7 @@ const PREFS = {
 const RESULT = { summary: { maxAltitude: 100 }, events: [], series: {} } as unknown as FlightResult;
 
 /**
- * A batch reports EVERY row that did not fly, naming each one.
+ * A batch reports every row that did not fly, naming each one.
  *
  * A per-row `set({ err })` leaves only the last message, with no row name on it,
  * and the skip line emitted once the batch drains then overwrites whatever
@@ -37,7 +37,7 @@ const RESULT = { summary: { maxAltitude: 100 }, events: [], series: {} } as unkn
  * failed rows went red in the table with no reason attached to either.
  *
  * Failures are collected into an array and emitted as one named line, the way
- * `runSims` already handles SKIPS.
+ * `runSims` handles skips.
  */
 describe('a batch where rows FAIL', () => {
   beforeEach(() => {

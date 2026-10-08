@@ -1,8 +1,8 @@
-// Pure helpers for the motor picker / detail — extracted from the components so
+// Pure helpers for the motor picker / detail, kept out of the components so
 // they're unit-testable without rendering. No React, no DOM.
 import { tubeWall } from '../design/discGeometry';
 
-// Standard motor diameters (mm) — the stops on the range slider.
+// Standard motor diameters (mm): the stops on the range slider.
 export const STD_DIAMS = [6, 13, 18, 24, 29, 38, 54, 75, 98, 150];
 export const MAX_IDX = STD_DIAMS.length - 1;
 
@@ -16,7 +16,7 @@ const FIT_TOLERANCE_MM = 1;
  * The slider stop for the largest standard diameter that fits this bore (mm).
  *
  * Which stop the "fits the mount" box pulls the diameter ceiling down to, so the
- * restriction is a thing you can SEE on the slider rather than a hidden rule.
+ * restriction is a thing you can see on the slider rather than a hidden rule.
  */
 export function fitIdx(bore: number): number {
   let i = 0;
@@ -27,9 +27,9 @@ export function fitIdx(bore: number): number {
 /**
  * The hole a motor has to go into, in millimeters.
  *
- * `maxLength` is the mount tube's own length PLUS its motor overhang, because
+ * `maxLength` is the mount tube's own length plus its motor overhang, because
  * that is how far a motor is actually allowed to reach: the app seats one at
- * `aft - motorLength + overhang` (see rocketPieces), so a 70 mm motor in a 65 mm
+ * `aft - motorLength + overhang` (see rocketPieces.ts), so a 70 mm motor in a 65 mm
  * tube with the default 6.35 mm overhang genuinely does fit, and a filter that
  * measured against the bare tube would hide a motor the rocket can fly. Absent
  * when the mount's length cannot be read, in which case only the bore is judged.
@@ -41,19 +41,11 @@ export interface MountFit {
 }
 
 /**
- * Will this motor go in that mount?
- *
- * A motor whose length the catalog never recorded is judged on bore ALONE rather
- * than hidden: every one of the bundled rows carries a length, but a motor
- * imported from an `.eng` need not, and dropping it from the list would be a
- * guess dressed up as a measurement. Both bounds carry the rounding slack above.
- */
-/**
  * The hole a motor has to go into, from the mount's own node, or null when the
  * tube does not state a diameter.
  *
  * Shared so the motor browser and the file reader judge a fit by the same
- * numbers. The LENGTH allowance is the tube PLUS its overhang, because that is
+ * numbers. The length allowance is the tube plus its overhang, because that is
  * where the app seats a motor (aft - motorLength + overhang); the bare tube
  * would refuse a motor the rocket can actually fly.
  */
@@ -72,6 +64,14 @@ export function mountFit(node: Record<string, unknown>): MountFit | null {
   };
 }
 
+/**
+ * Will this motor go in that mount?
+ *
+ * A motor whose length the catalog never recorded is judged on bore alone rather
+ * than hidden: every one of the bundled rows carries a length, but a motor
+ * imported from an `.eng` need not, and dropping it from the list would be a
+ * guess dressed up as a measurement. Both bounds carry the rounding slack above.
+ */
 export function motorFitsMount(m: { diameter: number; length?: number }, fit: MountFit): boolean {
   if (m.diameter > fit.bore + FIT_TOLERANCE_MM) return false;
   if (fit.maxLength != null && m.length != null && m.length > fit.maxLength + FIT_TOLERANCE_MM) return false;
@@ -86,18 +86,18 @@ export function motorFitsMount(m: { diameter: number; length?: number }, fit: Mo
  */
 const RASP_DROP_AT = 99;
 
-/** RockSim reads a delay at or past this AS plugged (`RockSimMotorLoader.DELAY_LIMIT`). */
+/** RockSim reads a delay at or past this as plugged (`RockSimMotorLoader.DELAY_LIMIT`). */
 const ROCKSIM_PLUGGED_AT = 90;
 
 /**
- * A motor file's delay field as the CATALOG spells it (`"4,6,10,P"`).
+ * A motor file's delay field as the catalog spells it (`"4,6,10,P"`).
  *
  * The string is the only form that can say plugged, which is why it is what
  * `parseDelays` and `offersPlugged` read and what a catalog row carries. Both
- * importers come through here, and a `.eng` that never set it arrived at the
- * picker with no delays at all.
+ * importers come through here, so an `.eng` motor reaches the picker with its
+ * delays as well.
  *
- * THE TWO FORMATS DISAGREE, so each gets its own kernel loader's rule rather
+ * The two formats disagree, so each gets its own kernel loader's rule rather
  * than one that looks reasonable for both. A big number means opposite things:
  * RockSim writes 1000 to mean plugged, while a RASP file writing 100 means
  * nothing at all and upstream throws it away. Reading the RASP one as plugged
@@ -156,15 +156,14 @@ export function parseDelays(s?: string): { delays: number[]; plugged: boolean } 
 }
 
 /**
- * Does the manufacturer list this motor as available PLUGGED (no ejection
+ * Does the manufacturer list this motor as available plugged (no ejection
  * charge)?
  *
  * What the spec says, not what is possible: any motor can be flown plugged, and
  * the picker's delay control offers exactly that on every one of them, for
  * staging and for electronically triggered recovery. So this is for the other
- * question - finding the motors BUILT without an ejection charge, which is 381
- * of the 815 bundled rows, and 374 of those have no numeric delay at all
- * (mostly reloads and hybrids).
+ * question: finding the motors built without an ejection charge, most of which
+ * have no numeric delay at all (mostly reloads and hybrids).
  */
 export function offersPlugged(m: { delays?: string }): boolean {
   return parseDelays(m.delays).plugged;

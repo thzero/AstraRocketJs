@@ -14,27 +14,26 @@ import { warmSimWorker } from '../engine/simClient';
 import { appName } from '../services/app/appInfo';
 
 /**
- * The React-side effects for the workspace store: keep the browser title in sync,
- * hydrate + autosave to browser storage, and rebuild the engine (recomputing
- * stability) whenever the design or its motors change. Mounted once, in App.
- */
-/**
  * How long the design must sit still before the engine rebuilds it. Long enough
  * to span the gap between keystrokes or slider events, short enough that the
  * figures follow a pause without a visible wait.
  */
 export const REBUILD_DEBOUNCE_MS = 150;
 
+/**
+ * The React-side effects for the workspace store: keep the browser title in sync,
+ * hydrate + autosave to browser storage, and rebuild the engine (recomputing
+ * stability) whenever the design or its motors change. Mounted once, in App.
+ */
 export function useWorkspaceEffects() {
-  // `i18n`, never `t`: `t` gets a NEW IDENTITY on every language change, and
-  // every effect below that listed it in its deps therefore re-ran on a
-  // language switch. For the hydration effect that meant re-reading and
-  // re-hydrating the workspace — and `hydrate` runs `sanitizeSims`, which nulls
-  // every sim result, so changing language silently threw away every flight the
-  // user had run (and could re-hydrate a stale design over a fresh import).
-  // The MODULE singleton (`i18nGlobal`, as store.ts already uses) rather than
-  // the hook's — react-i18next hands back a fresh binding on a language change,
-  // so depending on it reintroduces the same re-run. `i18nGlobal.t(...)` reads
+  // `i18n`, never `t`: `t` gets a new identity on every language change, and
+  // any effect below that listed it in its deps would re-run on a language
+  // switch. For the hydration effect that would mean re-reading and
+  // re-hydrating the workspace, which can hydrate a stale design over a fresh
+  // import.
+  // The module singleton (`i18nGlobal`, as store.ts uses) rather than the
+  // hook's: react-i18next hands back a fresh binding on a language change,
+  // so depending on it causes the same re-run. `i18nGlobal.t(...)` reads
   // the current language at call time, so the message is still translated
   // without the effect being language-sensitive at all.
   //
@@ -53,19 +52,19 @@ export function useWorkspaceEffects() {
   }, []);
 
   // Restore the saved workspace once, then autosave (debounced) on change.
-  // `ready` (state) gates the rebuild effect so it fires ONCE, after hydration —
+  // `ready` (state) gates the rebuild effect so it fires once, after hydration;
   // otherwise it builds the default rocket + drag sweep, then hydrate swaps in
   // the real design and it builds again (two full engine builds on every load).
   const hydrated = useRef(false);
   /**
    * Skip the autosave that a hydrate would otherwise trigger.
    *
-   * `hydrate()` replaces tree/sims/extraMotors, which re-runs the autosave
-   * effect below and schedules a write of the bytes just read — and
-   * `DesignLibrary.write` stamps `updatedAt: Date.now()`. So merely OPENING the
-   * app re-stamped the design, and the library's "most recently updated" order
-   * silently meant "most recently opened": a design you only looked at jumped
-   * above one you actually edited last week.
+   * `hydrate()` replaces tree/sims/configs, which re-runs the autosave
+   * effect below and schedules a write of the bytes just read, and
+   * `DesignLibrary.write` stamps `updatedAt: Date.now()`. Without the skip,
+   * merely opening the app would re-stamp the design, and the library's "most
+   * recently updated" order would mean "most recently opened": a design you only
+   * looked at would jump above one you actually edited last week.
    */
   const skipNextSave = useRef(false);
   const [ready, setReady] = useState(false);
@@ -74,11 +73,11 @@ export function useWorkspaceEffects() {
     getWorkspaceStore()
       .load()
       .then((w) => {
-        // Both writes belong INSIDE the guard. With them outside, StrictMode's
-        // canceled first load still flipped `ready` while the tree was still
-        // the default, so the rebuild effect built the default rocket and the
-        // second load then built again — the exact double build the `ready`
-        // gate exists to prevent.
+        // Both writes belong inside the guard. Outside it, StrictMode's
+        // canceled first load would flip `ready` while the tree was still
+        // the default, so the rebuild effect would build the default rocket and
+        // the second load build again: the double build the `ready` gate
+        // exists to prevent.
         if (!live) return;
         if (w) {
           skipNextSave.current = true;
@@ -87,15 +86,15 @@ export function useWorkspaceEffects() {
         hydrated.current = true;
         setReady(true);
       })
-      // Without this, a rejected load left `hydrated` and `ready` false FOREVER:
-      // no autosave, no unload flush, no engine rebuild, `info` null — the app
-      // sitting there with no stats and no stability badge, saving nothing, and
-      // nothing on screen to say so. Degrade to a fresh workspace that still
-      // saves, and tell the user their previous work could not be read.
+      // Without this, a rejected load would leave `hydrated` and `ready` false
+      // forever: no autosave, no unload flush, no engine rebuild, `info` null,
+      // the app sitting there with no stats and no stability badge, saving
+      // nothing, and nothing on screen to say so. Degrade to a fresh workspace
+      // that still saves, and tell the user their previous work could not be read.
       //
-      // The STORAGE WARNING slot, not `setErr`: opening the gate immediately
-      // runs the rebuild effect below, whose success path calls `setErr(null)`
-      // — so an error written here was wiped before it could ever be read. The
+      // The storage warning slot, not `setErr`: opening the gate immediately
+      // runs the rebuild effect below, whose success path calls `setErr(null)`,
+      // so an error written here would be wiped before it could be read. The
       // warning banner survives until a save succeeds, which is exactly when
       // this message stops being true.
       .catch(() => {
@@ -114,14 +113,13 @@ export function useWorkspaceEffects() {
   const activeId = useWorkspaceStore((s) => s.activeId);
   const configs = useWorkspaceStore((s) => s.configs);
   const loadedMeta = useWorkspaceStore((s) => s.loadedMeta);
-  // Every CONFIGURATION input the engine build reads: the seated motors with
-  // their ignition, AND the grounded stages (see buildRocket.buildKey). A
+  // Every configuration input the engine build reads: the seated motors with
+  // their ignition, and the grounded stages (see buildRocket.buildKey). A
   // string, because zustand v5 compares a selector's result by identity and
   // this is derived per call.
   //
-  // `seatedMotorsKey` alone was the key, and it does not mention `grounded`, so
-  // grounding a booster never rebuilt: the worker flew the sustainer while
-  // `info` still described the whole stack.
+  // A key without `grounded` would not rebuild when a booster is grounded: the
+  // worker would fly the sustainer while `info` still described the whole stack.
   const buildInputs = useWorkspaceStore((s) => buildKey(s.tree, selectConfig(s)));
   // The rebuild effect below is the app's one engine caller on the main thread,
   // so it is where "the kernel is not up yet" is handled.
@@ -130,7 +128,7 @@ export function useWorkspaceEffects() {
   useEffect(() => {
     if (!hydrated.current) return;
     if (skipNextSave.current) {
-      // The state this effect is reacting to IS what was just loaded. Writing it
+      // The state this effect is reacting to is what was just loaded. Writing it
       // back changes nothing but the timestamp. A real edit clears the flag by
       // being the next thing to run.
       skipNextSave.current = false;
@@ -147,8 +145,8 @@ export function useWorkspaceEffects() {
         .then(() => {
           useWorkspaceStore.getState().clearSaveWarning();
           // The header's save status reads this. It is the only thing that
-          // reports a save now that the File menu has no Save item, so it is
-          // set HERE, where a write actually landed, rather than anywhere that
+          // reports a save, since the File menu has no Save item, so it is
+          // set here, where a write actually landed, rather than anywhere that
           // merely asked for one.
           useWorkspaceStore.getState().markSaved();
           void requestPersistentStorage();
@@ -162,7 +160,7 @@ export function useWorkspaceEffects() {
   }, [tree, sims, configs, activeId, loadedMeta]);
 
   // IndexedDB blocked (policy, some private modes) means we are back on the 5 MB
-  // localStorage cap this move existed to escape. Say so NOW rather than letting
+  // localStorage cap. Say so now rather than letting
   // the user meet it later as an unexplained failed save mid-design.
   useEffect(
     () =>
@@ -172,10 +170,10 @@ export function useWorkspaceEffects() {
     [],
   );
 
-  // Flush any change the 500ms debounce hasn't persisted yet on page unload —
+  // Flush any change the 500ms debounce hasn't persisted yet on page unload;
   // otherwise opening a .ork and refreshing quickly would lose it.
   //
-  // The store is IndexedDB-backed and an async write CANNOT finish while the
+  // The store is IndexedDB-backed and an async write cannot finish while the
   // page tears down, so this takes the store's synchronous path (a localStorage
   // journal the next load folds back in). `visibilitychange` gets the ordinary
   // async save too: on mobile, hidden is often the last event before the tab is
@@ -186,7 +184,7 @@ export function useWorkspaceEffects() {
       if (!hydrated.current) return;
       const store = getWorkspaceStore();
       if (store.saveSync) store.saveSync(snapshot());
-      else store.save(snapshot()).catch(() => {}); // unloading — nothing to surface
+      else store.save(snapshot()).catch(() => {}); // unloading; nothing to surface
     };
     const onHidden = () => {
       if (!hydrated.current || document.visibilityState !== 'hidden') return;
@@ -206,13 +204,13 @@ export function useWorkspaceEffects() {
   }, []);
 
   // Rebuild + recompute static info whenever the design or motors change. The
-  // primary mount takes the active sim's `motor`; other mounts take their imports.
+  // motors come from the configuration the active simulation flies.
   //
-  // Keyed on `tree.components`, NOT on `tree`: every store action replaces the
-  // tree object, so keying on it rebuilt the engine and re-ran the aero sweep for
-  // a designer/comment/revision edit that cannot move a single number. Component
-  // names DO stay in this key — the engine labels its per-component rows with
-  // them, so a rename has to reach the engine.
+  // Keyed on `tree.components`, not on `tree`: every store action replaces the
+  // tree object, so keying on it would rebuild the engine and re-run the aero
+  // sweep for a designer/comment/revision edit that cannot move a single number.
+  // Component names do stay in this key: the engine labels its per-component
+  // rows with them, so a rename has to reach the engine.
   const components = tree.components;
   // Whether the design has been built since the engine came up. The first build
   // runs at once so boot shows numbers without a wait; every one after it is
@@ -220,7 +218,7 @@ export function useWorkspaceEffects() {
   const builtOnce = useRef(false);
   useEffect(() => {
     if (!ready) return; // wait for hydration so we build the real design once, not the default first
-    // And wait for the kernel, which the app no longer blocks on before mounting
+    // And wait for the kernel, which the app does not block on before mounting
     // (main.tsx). Building without one throws, and computeStaticInfo would turn
     // that into a red error banner over what is really just "not loaded yet" -
     // EngineNotice says that, and says it once. `enginePhase` is a dependency,
@@ -231,9 +229,9 @@ export function useWorkspaceEffects() {
     }
     const build = () => {
       const store = useWorkspaceStore.getState();
-      // Tree and configuration read from the STORE rather than closed over, so the
+      // Tree and configuration read from the store rather than closed over, so the
       // effect need not depend on either object to use them: `components` and
-      // `seated` are the narrow keys that say when a rebuild is owed. The handle
+      // `buildInputs` are the narrow keys that say when a rebuild is owed. The handle
       // still carries the current ignition overrides, because the configuration is
       // read here at build time.
       const res = computeStaticInfo(store.tree, selectConfig(store));

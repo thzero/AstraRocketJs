@@ -45,12 +45,11 @@ export const EVENT_PRIORITY = ['APOGEE', 'BURNOUT', 'RECOVERY_DEVICE_DEPLOYMENT'
 const DEPLOY = 'RECOVERY_DEVICE_DEPLOYMENT';
 
 /**
- * Collapse near-coincident event LABELS so they don't pile up on the flight
+ * Collapse near-coincident event labels so they don't pile up on the flight
  * chart: events whose x (px) fall within `minGap` merge, keeping the cluster's
- * highest-{@link EVENT_PRIORITY} type. A recovery deployment is the exception —
- * it ALWAYS keeps its own marker, because on a dual-deploy rocket the drogue
- * fires right at apogee and folding it into the apogee label hides it (the very
- * event people look for). Same-instant ties order non-deploys first, so an
+ * highest-{@link EVENT_PRIORITY} type. A recovery deployment is the exception:
+ * it always keeps its own marker, because on a dual-deploy rocket the drogue
+ * fires right at apogee and folding it into the apogee label would hide it. Same-instant ties order non-deploys first, so an
  * ejection charge folds into the apogee cluster while the deployment it triggers
  * still stands alone. Returns one entry per surviving label, left→right.
  */

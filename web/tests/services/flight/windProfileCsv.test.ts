@@ -76,8 +76,8 @@ describe('parseWindProfileCsv', () => {
 /**
  * A blank required cell is not a zero.
  *
- * `Number('')` is 0 and 0 passes `Number.isFinite`, so an empty altitude or
- * speed imported as a genuine 0 m/s reading at that level. The module's own
+ * `Number('')` is 0 and 0 passes `Number.isFinite`, so without a check an empty
+ * altitude or speed would import as a genuine 0 m/s reading at that level. The module's own
  * contract is that every failure throws rather than returning a short list,
  * and `stddev` is the only column where blank legitimately means "none".
  */
@@ -96,10 +96,10 @@ describe('a blank cell in a required column', () => {
 });
 
 /**
- * `altitudeagl` was accepted as a plain alias for the altitude column and its
- * meaning dropped: the levels imported as MSL, which at a 1500 m site is a
- * different wind. The result now says what the header said, as a property on
- * the array so the callers that only iterate it are untouched.
+ * `altitudeagl` is not a plain alias for the altitude column: read as MSL, the
+ * levels at a 1500 m site would be a different wind. The result says what the
+ * header said, as a property on the array so the callers that only iterate it
+ * are unaffected.
  */
 describe('the altitude reference the header names', () => {
   it('is agl for an AGL header and msl for an MSL one', () => {
@@ -117,7 +117,8 @@ describe('the altitude reference the header names', () => {
 
 /**
  * A spreadsheet quotes any header carrying a comma, space or parenthesis, so
- * `"altitude (m)"` arrived with its quotes on and matched no alias at all.
+ * `"altitude (m)"` arrives with its quotes on and has to be unquoted before it
+ * can match an alias.
  */
 describe('quoted headers and cells', () => {
   it('reads a header a spreadsheet quoted', () => {

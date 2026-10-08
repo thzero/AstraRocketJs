@@ -7,19 +7,18 @@ import { hasUsableCurve } from '../motors/motorCurve';
 import { errorMessage } from '../app/errorMessage';
 
 /**
- * A key over every CONFIGURATION input that can change the STATIC info.
+ * A key over every configuration input that can change the static info.
  *
- * `buildConfiguredRocket` reads three things off the configuration, and the
- * rebuild effect keyed on only one of them. `seatedMotorsKey` covers the motors
- * and their ignition; nothing covered `grounded`, so grounding a booster left
- * `info` describing the whole stack while the worker flew the sustainer alone.
- * Mass, CG, CP, calibers and the RASAero launch mass all came from the stale
- * handle, and the readouts and the flight described different rockets.
+ * `buildConfiguredRocket` reads three things off the configuration: the motors,
+ * their ignition (both in `seatedMotorsKey`) and the grounded stages. Without
+ * `grounded` in the key, grounding a booster would leave `info` describing the
+ * whole stack while the worker flies the sustainer alone, and the mass, CG, CP
+ * and caliber readouts would describe a different rocket from the flight.
  *
- * Sorted, because the key is about WHAT is grounded and not the order the user
+ * Sorted, because the key is about what is grounded and not the order the user
  * clicked. Combined with the tree's `components` identity by the caller.
  *
- * The configuration's deployment and separation overrides are deliberately NOT
+ * The configuration's deployment and separation overrides are deliberately not
  * here, although `configuredTree` bakes them in: they move when recovery fires
  * and when a stage lets go, which is flight timing, and change no static mass or
  * dimension. A rebuild for one of those would be a needless kernel build on
@@ -39,7 +38,7 @@ export function buildKey(tree: RocketTree, config: FlightConfig): string {
  * configuration: no drift between "what you see" (main-thread staticInfo) and
  * "what you simulate".
  *
- * Mounts are seated in TREE ORDER (`liveMotors`), which is also what drops a
+ * Mounts are seated in tree order (`liveMotors`), which is also what drops a
  * motor whose mount is gone, so the build cannot depend on the order the motors
  * were edited in. The configuration's recovery and separation overrides are
  * applied to the tree first, so when it recovers and when it stages are the
@@ -51,8 +50,8 @@ export function buildConfiguredRocket(tree: RocketTree, config: FlightConfig): O
   // which is where the kernel already reads both from.
   const r = buildRocketTree(configuredTree(tree, config));
   for (const [id, m] of liveMotors(tree, config)) {
-    // The one "usable curve" predicate (motorCurve.ts). A curve-less motor -
-    // an unresolved .ork motor, or a mount the file left empty - leaves the
+    // The one "usable curve" predicate (motorCurve.ts). A curve-less motor
+    // (an unresolved .ork motor, or a mount the file left empty) leaves the
     // mount empty rather than throwing "Too short thrust-curve"; the run gate
     // then reports "no motor" instead of the app failing to draw the rocket.
     if (!hasUsableCurve(m.spec)) continue;
@@ -60,7 +59,7 @@ export function buildConfiguredRocket(tree: RocketTree, config: FlightConfig): O
     // Skip "automatic": it is the engine's own default and needs no call.
     if (m.ignitionEvent) r.setMotorIgnitionById(id, m.ignitionEvent, m.ignitionDelay ?? 0);
   }
-  // AFTER the motors: grounding a stage refreshes the configuration's active
+  // After the motors: grounding a stage refreshes the configuration's active
   // motor list, and a motor seated later would put a grounded stage's engine
   // back into it.
   for (const stage of findStages(tree)) {
@@ -73,7 +72,7 @@ export function buildConfiguredRocket(tree: RocketTree, config: FlightConfig): O
 /**
  * Static info + the live handle it was read from, or a build/read failure.
  *
- * A failure carries the engine's own message AND, where the design explains
+ * A failure carries the engine's own message and, where the design explains
  * itself, the dimensions that are zero. The engine's message does not name a
  * part: a tube fin set with a zero length divides by its own chord for the
  * aspect ratio (`TubeFinSetCalc`), and what reaches the banner is "The number
@@ -85,8 +84,8 @@ export type StaticInfoResult = { info: StaticInfo; rocket: OpenRocketDesign } | 
 
 /**
  * Build the configured rocket and read its static info (CG / CP / stability),
- * then fill in the Mach-0.3 coast drag coefficient — a geometry property absent
- * from the static JSON — via a best-effort single-point drag sweep. This is the
+ * then fill in the Mach-0.3 coast drag coefficient (a geometry property absent
+ * from the static JSON) via a best-effort single-point drag sweep. This is the
  * pure core of the rebuild effect (useWorkspaceEffects), lifted out so the app's
  * central physics orchestration is testable and reusable: it returns the static
  * info plus the live engine handle, or an `error` message if the build/read

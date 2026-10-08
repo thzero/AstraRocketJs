@@ -3,7 +3,7 @@ import { useSyncExternalStore } from 'react';
 /**
  * The 3D views' colors, as tokens (src/index.css, `--c-scene-*`).
  *
- * three.js and a 2D canvas take a color VALUE and cannot resolve a CSS
+ * three.js and a 2D canvas take a color value and cannot resolve a CSS
  * variable, so the views read each token's current value here and redraw when
  * it changes: a theme is a class or attribute on the root element, or the
  * system's light/dark preference, and either one is watched. The token values

@@ -7,9 +7,9 @@ const motor = (o: Partial<CatalogMotor>) =>
 
 describe('keyOf', () => {
   it('separates same-name, same-bore motors that differ only by manufacturer code', () => {
-    // AeroTech F67W (White Lightning) vs F67C (Classic) — both "F67", both 29 mm,
-    // but 61 N·s vs 77 N·s. Keying without `code` collapsed them onto one row key,
-    // so they selected and check-boxed as a single motor.
+    // AeroTech F67W (White Lightning) vs F67C (Classic): both "F67", both 29 mm,
+    // but 61 N·s vs 77 N·s. Keying without `code` would collapse them onto one row
+    // key, so they would select and check-box as a single motor.
     expect(keyOf(motor({ code: 'F67W' }))).not.toBe(keyOf(motor({ code: 'F67C' })));
   });
 
@@ -37,9 +37,9 @@ describe('keyOf', () => {
 describe('the shipped motor catalog', () => {
   it('has no two motors sharing a key', async () => {
     // Read as raw text (not a JSON import) so tsc never has to typecheck a ~1.6 MB
-    // object literal. This guards the copy committed under public/data — the
-    // fallback build ships. The separately published catalog is checked by the
-    // duplicate count in sync-catalogs.yml's run summary.
+    // object literal. This guards the copy committed under public/data, which
+    // the fallback build ships. The separately published catalog is checked by
+    // `assertSane` in scripts/sync-motors.mjs before it is written.
     const mods = import.meta.glob('../../../public/data/motors.generated.json', {
       query: '?raw',
       import: 'default',

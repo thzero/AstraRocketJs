@@ -3,14 +3,14 @@ import { DOC_LOCALES, docPageFileUrl, localDocsUrlFor } from './appInfo';
 /**
  * Addressing and availability for the in-app Help dialog.
  *
- * The dialog is a second RENDERER over the Docusaurus site, not a second copy
+ * The dialog is a second renderer over the Docusaurus site, not a second copy
  * of it: the deploy builds the site into `web/public/docs` and Vite ships it
  * inside the app, so these helpers only ever resolve a page to a URL on the
  * app's own origin. Nothing here knows anything about the content.
  *
  * Everything is addressed by "page", which is a docs slug with an optional
  * anchor: `''` (the docs index), `'safety'`, `'designing-a-rocket#fins'`. That
- * is the same slug vocabulary `docPageUrl` already uses for the external links,
+ * is the same slug vocabulary `docPageUrl` uses for the external links,
  * so a UI control can name its topic once and get either.
  */
 
@@ -18,7 +18,7 @@ import { DOC_LOCALES, docPageFileUrl, localDocsUrlFor } from './appInfo';
  * The element Docusaurus mounts every page into.
  *
  * Used as proof that what came back really is a docs page. A dev server with no
- * docs in public/ answers an unknown path with the APP's index.html and a 200,
+ * docs in public/ answers an unknown path with the app's index.html and a 200,
  * so `response.ok` on its own would put the app inside its own Help dialog.
  */
 const DOCUSAURUS_MARKER = 'id="__docusaurus"';
@@ -53,11 +53,11 @@ export function helpTarget(page: string, language: string): HelpTarget {
  * One built docs page, parsed, or null when it is not in this build.
  *
  * The one place a docs file is read, so everything that reads the docs agrees on
- * what counts as one: a response that is ok AND carries the Docusaurus marker.
+ * what counts as one: a response that is ok and carries the Docusaurus marker.
  * Null covers the two ways a page can be absent, which callers answer the same
  * way (offer the docs site):
  *
- *  - a DEV build. `web/public/docs` is gitignored and only written by the
+ *  - a dev build. `web/public/docs` is gitignored and only written by the
  *    deploy job, so `npm run dev` has no docs unless `npm run docs:build` has
  *    been run. The marker check is what catches this, since Vite answers the
  *    missing path with the app's own shell rather than a 404.
@@ -112,13 +112,13 @@ export interface HelpPage {
  * Read what the dialog needs out of a page, or null when it is not in this
  * build (see {@link fetchHelpDocument} for what absent means).
  *
- * THE BUILT HTML, NOT THE LIVE FRAME, and that is the point of doing it here.
- * Docusaurus decides what to render from the window size, and the frame inside
- * the dialog is narrower than its 997px desktop breakpoint on every screen: on
- * hydration it takes the sidebar and the table of contents back OUT of the
- * document. Reading the live frame therefore worked or not depending on whether
- * hydration beat the load event, which a warm cache decides. The served HTML
- * has both, always, and it is already in hand.
+ * This reads the built HTML, not the live frame. Docusaurus decides what to
+ * render from the window size, and the frame inside the dialog is narrower than
+ * its 997px desktop breakpoint on every screen: on hydration it takes the
+ * sidebar and the table of contents out of the document. Reading the live frame
+ * would succeed or fail depending on whether hydration beat the load event,
+ * which a warm cache decides. The served HTML always has both, and it is
+ * already in hand.
  */
 export async function loadHelpPage(target: HelpTarget): Promise<HelpPage | null> {
   const doc = await fetchHelpDocument(target.fileUrl);
@@ -134,7 +134,7 @@ export async function loadHelpPage(target: HelpTarget): Promise<HelpPage | null>
  * the docs entirely (GitHub, the OpenRocket manual, the app itself).
  *
  * The dialog needs this because an in-iframe link is an ordinary absolute URL
- * into `/docs/`: followed as-is it would navigate the iframe to the DIRECTORY
+ * into `/docs/`: followed as-is it would navigate the iframe to the directory
  * form, which is the one that does not resolve offline. Turning it back into a
  * page lets the dialog re-open it as a file, so reading onward through the
  * guide keeps working with no signal.
@@ -206,16 +206,16 @@ export interface HelpContents {
  * the one-source rule: the order, the grouping and the labels are whatever
  * `sidebars.ts` says, already translated into the locale the frame is showing.
  *
- * WITH ONE CONDITION, which `sidebars.ts` carries a note about: a COLLAPSED
+ * One condition, which `sidebars.ts` carries a note about: a collapsed
  * category's children are rendered into no page at all, so the rail would be
  * missing that whole group. Every category is `collapsed: false` there for this
- * reason, and an e2e spec reaches into the last one to keep it that way.
+ * reason, and e2e/help-dialog.spec.ts reaches into the last one to keep it that way.
  */
 export function readContents(doc: Document): HelpContents {
   const pages: HelpEntry[] = [];
   for (const li of doc.querySelectorAll('.theme-doc-sidebar-menu li')) {
     const level = Number(/-level-(\d+)/.exec(li.className)?.[1] ?? 0);
-    // The category's own anchor sits in a wrapper div BEFORE any nested list,
+    // The category's own anchor sits in a wrapper div before any nested list,
     // so document order picks the right one for either kind of row.
     const anchor = li.querySelector('a[href]');
     const label = anchor?.textContent?.trim();
@@ -231,13 +231,13 @@ export function readContents(doc: Document): HelpContents {
     pages.push({ page, label, level });
   }
 
-  // The ARTICLE's own headings, not the site's table-of-contents widget.
+  // The article's own headings, not the site's table-of-contents widget.
   //
   // Docusaurus renders that widget on window size: the desktop one unmounts
   // below 997px, and the frame inside this dialog is narrower than that on
-  // every screen, so reading it gave an empty list on a page full of headings.
-  // The headings themselves are content. They carry the same ids the widget
-  // linked to, and they are there at any width and either side of hydration.
+  // every screen, so reading it would give an empty list on a page full of
+  // headings. The headings themselves are content. They carry the same ids the
+  // widget links to, and they are there at any width and either side of hydration.
   const headings: HelpHeading[] = [];
   for (const h of doc.querySelectorAll('.theme-doc-markdown h2[id], .theme-doc-markdown h3[id]')) {
     const label = headingLabel(h);

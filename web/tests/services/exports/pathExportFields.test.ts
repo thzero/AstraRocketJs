@@ -60,7 +60,7 @@ describe('path export field table', () => {
   });
 
   it('round-trips every row', () => {
-    // A row added to the table without a CHANGED value fails here, so no field
+    // A row added to the table without a changed value fails here, so no field
     // is remembered without a proof that it comes back.
     expect(Object.keys(CHANGED).sort()).toEqual(PATH_EXPORT_FIELDS.map((f) => f.option).sort());
     const opts: FlightPathExportOptions = { ...defaultExportOptions('m'), ...CHANGED, missionName: 'M1' };

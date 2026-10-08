@@ -11,7 +11,7 @@ import i18n, { LANGUAGES } from '../../src/i18n/index';
  * a 'pt' bundle that does not exist and every Portuguese browser gets English.
  * i18next's own best-match widens in both directions instead:
  *
- *   - a region we do not ship, where we DO ship its base language, falls back
+ *   - a region we do not ship, where we do ship its base language, falls back
  *     to the base bundle (es-MX → es);
  *   - a bare language, where we ship only regions of it, falls forward to the
  *     first region listed in LOCALES (pt → pt-BR).

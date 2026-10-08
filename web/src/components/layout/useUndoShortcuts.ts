@@ -8,11 +8,11 @@ import { isTextEntry } from '../common/isTextEntry';
  * is safe to call unconditionally; it goes through getState to stay
  * independent of render timing.
  *
- * Not while a text field has focus. The argument for firing anyway was that
- * edits commit on blur, but Ctrl+Z mid-edit in the Save As name box, a
- * component Name, the motor search or a custom material's name then discarded
- * the last ROCKET GEOMETRY edit instead of the characters just typed, and
- * preventDefault stopped the browser's own field undo from ever running.
+ * Not while a text field has focus. Edits commit on blur, so Ctrl+Z mid-edit in
+ * the Save As name box, a component Name, the motor search or a custom
+ * material's name would otherwise discard the last rocket geometry edit instead
+ * of the characters just typed, and preventDefault would stop the browser's own
+ * field undo from running.
  * MotorDashboard's arrow-key handler makes exactly this check.
  */
 export function useUndoShortcuts(): void {

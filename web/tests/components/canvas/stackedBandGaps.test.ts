@@ -4,14 +4,14 @@ import { stackedBands, buildLinePath, type ChartSeries } from '../../../src/comp
 /**
  * One NaN sample must not take out the whole chart.
  *
- * `stackedBands` accumulated into a running sum, so a single non-finite sample
- * put the literal string `NaN` into the path data AND poisoned every band stacked
- * above it. The browser silently drops a `<path>` whose `d` it cannot parse, so
- * the chart lost whole series with nothing said anywhere.
+ * `stackedBands` accumulates into a running sum, so an unguarded non-finite
+ * sample would put the literal string `NaN` into the path data and poison every
+ * band stacked above it. The browser silently drops a `<path>` whose `d` it
+ * cannot parse, so the chart would lose whole series with nothing said anywhere.
  *
- * Non-finite samples demonstrably occur: `sweep.nonFinite` is surfaced in the UI.
- * The sibling `buildLinePath` in the same module has handled them from the start
- * and documents why, which is the comparison these tests make.
+ * Non-finite samples do occur: `sweep.nonFinite` is surfaced in the UI. The
+ * sibling `buildLinePath` in the same module handles them too, and these tests
+ * compare the two.
  */
 const X = (m: number) => m * 100;
 const Y = (v: number) => 200 - v * 10;
@@ -31,8 +31,8 @@ describe('stackedBands survives a non-finite sample', () => {
   });
 
   it('keeps the band ABOVE the hole intact', () => {
-    // The part that made this worse than a gap in a line: `cum` carried the NaN
-    // forward, so the second series was destroyed by the first one's bad sample.
+    // Worse than a gap in a line: a running sum that carries the NaN forward
+    // would destroy the second series with the first one's bad sample.
     const bands = stackedBands([series('#f00', [1, NaN, 3, 4]), series('#0f0', [1, 1, 1, 1])], machs, X, Y);
     expect(bands).toHaveLength(2);
     expect(bands[1]!.d).not.toContain('NaN');
@@ -40,7 +40,7 @@ describe('stackedBands survives a non-finite sample', () => {
   });
 
   it('counts the unreadable sample as zero, so the stack stays where it was', () => {
-    // Not as a hole in the ARITHMETIC: the bands above are measured from this
+    // Not as a hole in the arithmetic: the bands above are measured from this
     // running sum, and they must sit at the height the readable samples put them.
     const withHole = stackedBands([series('#f00', [2, NaN, 2, 2]), series('#0f0', [1, 1, 1, 1])], machs, X, Y);
     const withZero = stackedBands([series('#f00', [2, 0, 2, 2]), series('#0f0', [1, 1, 1, 1])], machs, X, Y);
@@ -75,13 +75,13 @@ describe('stackedBands survives a non-finite sample', () => {
   it('breaks at the same sample the sibling line path breaks at', () => {
     // The two surfaces read the same sweep. If one drew through a hole the other
     // broke on, the chart would contradict itself. The counts are not identical,
-    // and should not be: a run of ONE readable sample is a point the line can
+    // and should not be: a run of one readable sample is a point the line can
     // draw and a band cannot, because a one-sample band has no area.
     const vals = [1, NaN, 3, 4];
     expect((buildLinePath(machs, vals, X, Y).match(/M/g) ?? []).length).toBe(2);
     const d = stackedBands([series('#f00', vals)], machs, X, Y).at(0)!.d;
     expect((d.match(/M/g) ?? []).length).toBe(1);
-    // And what it draws is the run AFTER the hole, not a span across it: the two
+    // And what it draws is the run after the hole, not a span across it: the two
     // x values are Mach 1 and Mach 1.5, and Mach 0 is not in there.
     const xs = [...d.matchAll(/([-\d.]+),/g)].map((m) => Number(m[1]));
     expect([...new Set(xs)].sort((a, b) => a - b)).toEqual([X(1), X(1.5)]);

@@ -14,7 +14,7 @@ vi.setConfig({ testTimeout: 60_000 });
  *
  * The frame itself cannot load here (jsdom fetches nothing a page links to), and that is
  * the point of testing this at the component level: the rail, the search box and
- * the results are all drawn by the app from the SERVED html, so everything a
+ * the results are all drawn by the app from the served html, so everything a
  * reader does to find a topic works without a rendered page. Highlighting inside
  * the frame is the one part that needs one, and it is covered against a real
  * document in helpSearch.test.ts.

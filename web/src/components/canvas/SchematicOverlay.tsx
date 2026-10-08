@@ -13,13 +13,13 @@ import {
 import { token } from '../common/colorTokens';
 
 /**
- * The decoration drawn OVER the TreeSchematic's part outlines, inside the
+ * The decoration drawn over the TreeSchematic's part outlines, inside the
  * pan/zoom group: the CG/CP station markers with their leader-line callouts
  * and the stability margin text (`StabilityOverlay`), and the accent wash +
  * name tag on the hovered part (`HoverOverlay`). Every group here is
  * `pointerEvents="none"`: the markers sit on the centerline, precisely where
  * you click to select a nose cone or body tube, and an opaque disc with no
- * handler of its own silently ate the click.
+ * handler of its own would swallow the click.
  */
 
 const STABILITY_VAR: Record<StabilityState, string> = {
@@ -48,7 +48,7 @@ export function StabilityOverlay({
   const { t } = useTranslation();
   const u = useUnits();
   // When markers are toggled off, null out the stations: this disables the
-  // on-axis symbols AND the leader-line callouts (all gated on cgX/cpX below).
+  // on-axis symbols and the leader-line callouts (all gated on cgX/cpX below).
   const cgX = info && showMarkers ? ctx.x0 + info.cg * scale : null;
   const cpX = info && showMarkers ? ctx.x0 + info.cp * scale : null;
   // The engine's own percentage, not ours: see StaticInfo.stabilityPercent. A
@@ -157,7 +157,7 @@ export function StabilityOverlay({
 }
 
 /**
- * Hover overlay (S5): a light accent wash over the hovered component's extent
+ * Hover overlay: a light accent wash over the hovered component's extent
  * plus a name tag, deliberately fainter than the solid width-2 selection
  * outline so the two stay distinguishable.
  */

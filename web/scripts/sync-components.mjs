@@ -1,7 +1,7 @@
 // Build-time extractor for OpenRocket components (what OpenRocket calls
-// "component presets"). Reads OpenRocket's own bundled `.orc` files (XML) — real
-// manufacturer parts — and writes an SI-normalized JSON catalog the app bundles
-// (like sync-motors.mjs, but from local OpenRocket data instead of the
+// "component presets"). Reads OpenRocket's own bundled `.orc` files (XML) of real
+// manufacturer parts, and writes an SI-normalized JSON catalog the app loads at
+// run time from public/data (like sync-motors.mjs, but from local OpenRocket data instead of the
 // thrustcurve API; no network).
 //
 // Brings in every kind desktop's parts library offers that the database
@@ -10,8 +10,8 @@
 // library also lists rail buttons, but this database has none.) Run manually / in CI when refreshing the catalog:
 //   node scripts/sync-components.mjs [--src <openrocket presets dir>]
 //
-// THEN RUN `npm run sync:preset-digests`. This script cannot produce the part
-// DIGEST a `.ork` needs, because OpenRocket computes it at load time rather than
+// Then run `npm run sync:preset-digests`. This script cannot produce the part
+// digest a `.ork` needs, because OpenRocket computes it at load time rather than
 // storing it in the `.orc` (see sync-preset-digests.mjs). A catalog refreshed
 // without that second step carries no digests, and every part link then stays
 // out of saved files, silently: `defaultRocketParts.test.ts` fails when that
@@ -28,7 +28,7 @@ const DEFAULT_SRC = 'D:/programming/java/openrocket/openrocket-database/orc';
 const argSrc = process.argv.indexOf('--src');
 const SRC = argSrc >= 0 ? process.argv[argSrc + 1] : process.env.OPENROCKET_PRESETS || DEFAULT_SRC;
 // public/data is served as-is (not bundled) so the catalog can be refreshed
-// without rebuilding the app — see src/services/app/remoteData.ts.
+// without rebuilding the app; see src/services/app/remoteData.ts.
 const DATA_DIR = fileURLToPath(new URL('../public/data', import.meta.url));
 const OUT = resolve(DATA_DIR, 'components.generated.json');
 
@@ -55,7 +55,7 @@ const num = (block, name) => {
 const str = (block, name) => tag(block, name)?.value ?? null;
 const materialRef = (block) => {
   let m = block.match(/<Material(\s+[^>]*)?>([^<]*)<\/Material>/)?.[2]?.trim() ?? null;
-  // Some parts reference a material by "[material:Name]" — unwrap to the name.
+  // Some parts reference a material by "[material:Name]"; unwrap to the name.
   const ref = m?.match(/^\[material:(.+)\]$/);
   return ref ? ref[1] : m;
 };
@@ -212,7 +212,7 @@ for (const f of files) {
     }
   }
 
-  // Streamer: the strip's length and width, and its SURFACE material, whose
+  // Streamer: the strip's length and width, and its surface material, whose
   // density is per square meter.
   for (const b of blocks(text, 'Streamer')) {
     const stripLength = lenM(b, 'Length');
@@ -239,8 +239,8 @@ for (const f of files) {
 const byType = components.reduce((m, p) => ((m[p.type] = (m[p.type] ?? 0) + 1), m), {});
 // Reuse the previous `generated` stamp when the parts themselves are unchanged.
 // Nothing reads the stamp, but rewriting it changes the file, which flips its
-// manifest hash (lib/dataManifest.mjs hashes the whole document) — re-busting
-// every client's cached copy of a ~1 MB catalog that did not actually change,
+// manifest hash (lib/dataManifest.mjs hashes the whole document), re-busting
+// every client's cached copy of a megabyte-scale catalog that did not change,
 // and making a no-op refresh show up as a repo diff.
 let generated = new Date().toISOString();
 if (components.length === 0) {
@@ -261,7 +261,7 @@ if (existsSync(OUT)) {
       process.exit(1);
     }
   } catch {
-    // Unreadable/corrupt previous catalog — fall through and stamp it now.
+    // Unreadable/corrupt previous catalog: fall through and stamp it now.
   }
 }
 writeFileSync(OUT, JSON.stringify({ generated, count: components.length, components }) + '\n');

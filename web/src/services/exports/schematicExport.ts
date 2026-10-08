@@ -4,19 +4,17 @@ import { appName } from '../app/appInfo.js';
 import { escapeXml } from '../files/xmlUtil.js';
 
 /**
- * 2D/3D image + model export with a data header (issue 2026-08-11a).
- * Modeled on RockSim's cert-packet exports (L3 / Tripoli Class 3 packets
- * include these), modernized: ONE true-scale SVG replaces RockSim's
- * "model" + "100% scale" pair — the width/height are physical millimeters,
- * so it prints 1:1 and still scales freely on screen — and PNG replaces the
- * bmp/xbm/xpm/pnm zoo.
+ * 2D/3D image + model export with a data header, the drawings an L3 / Tripoli
+ * Class 3 certification packet includes. The SVG is true scale (its
+ * width/height are physical millimeters, so it prints 1:1 and still scales
+ * freely on screen); raster output is PNG or JPEG.
  */
 
 export interface ExportData {
   name: string;
   info: StaticInfo | null;
   units: UnitSelection;
-  /** Full span diameter incl. fins/pods (m) — from the 2D view's measure. */
+  /** Full span diameter incl. fins/pods (m), from the 2D view's measure. */
   spanM?: number;
   withMotors: boolean;
   appVersion: string;
@@ -51,8 +49,8 @@ export function dataHeaderLines(d: ExportData): string[] {
 
 /** Light-theme values for the CSS variables the schematic markup uses
  *  (--accent = the selection outline when a component is selected;
- *  --status-* = the CP/stability-margin callout inks, S2;
- *  --launch = the loaded-motor case tint, S5). */
+ *  --status-* = the CP/stability-margin callout inks;
+ *  --launch = the loaded-motor case tint). */
 const EXPORT_VARS: [string, string][] = [
   ['var(--surface-1)', '#ffffff'],
   ['var(--text-primary)', '#20242c'],
@@ -161,12 +159,11 @@ export function schematicSvg(
 </svg>`;
 }
 
-/** Raster formats for the image exports (issue 2026-08-11b: JPG for casual
- *  users; both encode from the same white-composited canvas, so JPEG's
- *  missing alpha never shows). */
+/** Raster formats for the image exports. Both encode from the same
+ *  white-composited canvas, so JPEG's missing alpha never shows. */
 export type ImageFormat = 'png' | 'jpeg';
 export const IMAGE_FORMAT_EXT: Record<ImageFormat, string> = { png: 'png', jpeg: 'jpg' };
-/** Width presets for the resolution picker (RockSim capped far lower). */
+/** Width presets for the resolution picker. */
 export const IMAGE_WIDTHS = [1920, 3840, 7680] as const;
 const JPEG_QUALITY = 0.92;
 

@@ -9,7 +9,7 @@ import { layerClass, readExpanded, sizeClasses, writeExpanded, type DialogLayer,
  * Every dialog in the app is one of these, so the five things they all need are
  * declared once: the overlay, the panel, `useFocusTrap`, a `stopPropagation` to
  * keep a click inside from closing it, and a close button. Hand-rolled copies
- * drift - off `.dialog-panel` and so out of the phone full-bleed treatment (see
+ * drift: off `.dialog-panel` and so out of the phone full-bleed treatment (see
  * index.css), past the bottom of a short window with no maximum height, or onto
  * an `aria-label` that duplicates the visible heading instead of pointing at it.
  *
@@ -20,7 +20,7 @@ import { layerClass, readExpanded, sizeClasses, writeExpanded, type DialogLayer,
  *     tabbed dialog is this.
  *   - `pad` is one padded block for prose and short forms, where a rule under the
  *     heading would be heavier than the content.
- *   - `fill` gives the body the whole remaining height and lets IT decide what to
+ *   - `fill` gives the body the whole remaining height and lets it decide what to
  *     do with it, for a map, a chart, or two panes that scroll separately. The
  *     panel takes a definite height in that case, because a `flex-1` child of an
  *     auto-height parent collapses to nothing. Padding is the body's business
@@ -53,12 +53,12 @@ export function Dialog({
   title: string;
   /**
    * An accessible name of its own, for the rare dialog whose visible heading is
-   * CONTENT rather than a label: Help shows the title of the page you are
-   * reading, which changes as you navigate WITHIN the open dialog, and a dialog
+   * content rather than a label: Help shows the title of the page you are
+   * reading, which changes as you navigate within the open dialog, and a dialog
    * that renames itself under the user is worse than one named for its frame.
    * Everything else names itself by its heading, which is the rule this is an
-   * exception to -- not an invitation to write an `aria-label` that repeats the
-   * heading, which is the drift the shell was built to end.
+   * exception to, not an invitation to write an `aria-label` that repeats the
+   * heading.
    */
   name?: string;
   /** A small line above the title, for a qualifier the title alone loses: the
@@ -68,7 +68,7 @@ export function Dialog({
   onClose: () => void;
   size?: DialogSize;
   /**
-   * A height in pixels, for a dialog whose height must NOT follow its content:
+   * A height in pixels, for a dialog whose height must not follow its content:
    * a tabbed panel that would otherwise resize every time you switch tabs, or a
    * two-pane browser whose list needs room to be a list. Still capped by the
    * panel's max-height on a short window, and still overridden by the full-bleed
@@ -83,7 +83,7 @@ export function Dialog({
   /**
    * False while the dialog must not be dismissed by a stray click or keypress,
    * which is any moment it is doing work that closing would throw away (writing
-   * a PDF). The ✕ still closes: this suppresses the two ACCIDENTAL exits, not
+   * a PDF). The ✕ still closes: this suppresses the two accidental exits, not
    * the deliberate one, and a control that stops working mid-export would be
    * the worse answer.
    */
@@ -92,11 +92,11 @@ export function Dialog({
    * False for a dialog that should stay a centered card on a phone rather than
    * filling it: the report's print settings opens on top of an already
    * full-screen dialog, and blowing it up to full bleed reads as that dialog
-   * being REPLACED rather than something opening over it.
+   * being replaced rather than something opening over it.
    */
   fullBleed?: boolean;
   /**
-   * Controls BEFORE the title, for a dialog you navigate within rather than
+   * Controls before the title, for a dialog you navigate within rather than
    * just read: a contents toggle and a back arrow. They lead the header because
    * that is where going back belongs, and because they act on the title beside
    * them rather than on the dialog as a whole.
@@ -105,7 +105,7 @@ export function Dialog({
   /** Extra controls in the header, to the left of expand and close. */
   actions?: ReactNode;
   /**
-   * A band under the header that does NOT scroll with the body: the filter bar
+   * A band under the header that does not scroll with the body: the filter bar
    * of a list dialog. Put inside the scrolling body it slides away as soon as
    * you scroll the rows it is filtering. `scroll` layout only.
    */
@@ -116,7 +116,7 @@ export function Dialog({
   children: ReactNode;
 }) {
   const { t } = useTranslation();
-  // The trap goes on the PANEL, not the overlay: anchored on the overlay it
+  // The trap goes on the panel, not the overlay: anchored on the overlay it
   // treats the whole viewport as the dialog, and role/aria-modal land on an
   // element with no accessible name. Escape reaches only the topmost open
   // surface, so a nested dialog closing on Escape does not take the one it
@@ -133,9 +133,8 @@ export function Dialog({
   return (
     <div // eslint-disable-line jsx-a11y-x/click-events-have-key-events, jsx-a11y-x/no-static-element-interactions -- a backdrop click is the mouse twin of Escape, which the focus trap handles; the panel only stops that click
       className={`dialog-overlay fixed inset-0 ${layerClass[layer]} flex items-center justify-center bg-shade/60 p-4`}
-      // The stop is not optional: a nested dialog renders INSIDE its parent's
-      // overlay, so a bare onClose here bubbled up and dismissed both at once.
-      // One dialog had noticed and written the guard itself; the rest had not.
+      // The stop is required: a nested dialog renders inside its parent's
+      // overlay, so without it the click bubbles up and closes both.
       onClick={(e) => {
         e.stopPropagation();
         if (dismissible) onClose();
@@ -148,21 +147,19 @@ export function Dialog({
         aria-labelledby={name === undefined ? headingId : undefined}
         aria-label={name}
         className={`${fullBleed ? 'dialog-panel' : ''} flex w-full flex-col overflow-hidden rounded-xl bg-surface ring-1 ring-line/10 ${sizeClasses(size, expanded, layout === 'fill' && height === undefined)} ${height === undefined ? '' : 'h-[var(--dialog-height)]'}`}
-        // The pixel height arrives as a CUSTOM PROPERTY read by a class, not as
+        // The pixel height arrives as a custom property read by a class, not as
         // an inline `height`. Inline styles beat a stylesheet, so an inline
-        // height silently defeated the full-bleed phone rule in index.css and a
-        // 560px Settings panel floated in the middle of an 844px phone. As a
-        // class it loses to that rule, exactly as `fill`'s own height does.
+        // height would defeat the full-bleed phone rule in index.css and leave
+        // a fixed-height panel floating in the middle of a phone. As a class it
+        // loses to that rule, exactly as `fill`'s own height does.
         style={height === undefined ? undefined : ({ '--dialog-height': `${height}px` } as CSSProperties)}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between gap-2 border-b border-line/10 p-3">
           {/*
-            The title scale follows the CONTENT's density rather than the dialog:
+            The title scale follows the content's density rather than the dialog:
             a dense list wants a quiet heading, a page of prose wants a real one.
-            Three scales were in use before and which one you got depended on
-            which dialog you opened, which is drift; two, chosen by layout, is a
-            rule.
+            Two scales, chosen by layout.
           */}
           {leading}
           <div className="min-w-0 flex-1">

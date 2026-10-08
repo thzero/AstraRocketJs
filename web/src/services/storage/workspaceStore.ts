@@ -1,13 +1,13 @@
-// Persistence for the working session — the design tree plus its simulations —
+// Persistence for the working session (the design tree plus its simulations),
 // so a reload restores your work. Swap the backend at the library, which is what
 // actually owns storage:
 //
 //   import { setDesignLibrary, DesignLibrary } from './designLibrary';
 //   setDesignLibrary(new DesignLibrary(myKeyValueStore));   // a REST sync, …
 //
-// The default persists the ACTIVE design through the design library
+// The default persists the active design through the design library
 // (designLibrary.ts), which holds many designs in IndexedDB. This interface
-// stays narrow on purpose — it is only "the design being edited"; listing,
+// stays narrow on purpose: it is only "the design being edited"; listing,
 // opening, renaming and deleting designs are the library's job.
 import { getDesignLibrary, type DesignLibrary, type DesignMeta, type StoredResults } from './designLibrary';
 import type { FlightResult, RocketTree } from '../../engine/openRocketEngine';
@@ -46,11 +46,11 @@ export interface WorkspaceStore {
    *  has nothing to switch. */
   setActiveId?(id: string | null): void;
   /**
-   * The name to create under while DETACHED (`setActiveId(null)`), instead of
+   * The name to create under while detached (`setActiveId(null)`), instead of
    * the one the workspace implies.
    *
    * Import resolves a name clash with the library before it hands the rocket
-   * over (see store.ts `homeForImport`), and the answer has to survive until
+   * over (see fileSlice.ts `homeForImport`), and the answer has to survive until
    * the debounced autosave actually creates the entry. Passing it through here
    * keeps that single create in the store, rather than having the caller race
    * the autosave with a `create` of its own. Cleared by `setActiveId`.
@@ -63,7 +63,7 @@ export interface WorkspaceStore {
  * down, so `saveSync` drops the workspace into localStorage synchronously on
  * pagehide/beforeunload and the next `load()` folds it back in.
  *
- * It records WHICH design it belongs to: with a library the active design can
+ * It records which design it belongs to: with a library the active design can
  * change between sessions, and replaying a journal into the wrong one would
  * overwrite an unrelated rocket.
  */
@@ -73,14 +73,14 @@ interface Journal {
   id: string | null;
   w: Workspace;
   /**
-   * When `saveSync` wrote it (epoch ms). Absent on a journal from an older
-   * build, which is replayed as before.
+   * When `saveSync` wrote it (epoch ms). A journal without it is replayed
+   * unconditionally.
    *
-   * The unload write is a last resort, and it can LOSE the race with the
+   * The unload write is a last resort, and it can lose the race with the
    * store: the debounced async save that was already in flight at pagehide
    * can commit after the journal was written, or the same design can be saved
    * from another tab of this PWA after this one closed. Replaying the journal
-   * over that newer save rolled the design back. The next `load()` compares
+   * over that newer save would roll the design back. The next `load()` compares
    * this stamp with the index entry's `updatedAt` and skips a journal the
    * library has already moved past.
    */
@@ -88,10 +88,10 @@ interface Journal {
 }
 
 /**
- * The workspace WITHOUT its flight results.
+ * The workspace without its flight results.
  *
  * Two callers, for two reasons. The design blob is rewritten on every keystroke's
- * debounced autosave, and a result is tens of thousands of samples — they live
+ * debounced autosave, and a result is tens of thousands of samples, so they live
  * under their own key instead (see DesignLibrary.writeResults). The unload
  * journal goes to localStorage, whose whole-origin budget is ~5 MB, so results
  * must never go near it; the async save that follows a run puts them in
@@ -105,7 +105,7 @@ const withResults = (w: Workspace, results: StoredResults): Workspace => ({
   sims: w.sims.map((s) => (results[s.id] ? { ...s, result: results[s.id]! } : s)),
 });
 
-/** Just the flights, by simulation id — what gets stored under the results key. */
+/** Just the flights, by simulation id: what gets stored under the results key. */
 const resultsOf = (w: Workspace): StoredResults => {
   const out: StoredResults = {};
   for (const s of w.sims) if (s.result) out[s.id] = s.result;
@@ -143,10 +143,9 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
    * any of them actually changed.
    *
    * Identity, not contents: a result object is replaced wholesale when a run
-   * finishes and is never mutated, so `!==` is both correct and free — where
+   * finishes and is never mutated, so `!==` is both correct and free, where
    * comparing the arrays would cost as much as writing them. Without this, every
-   * keystroke's autosave would re-serialize every flight, which is the whole
-   * reason they were not being stored at all.
+   * keystroke's autosave would re-serialize every flight.
    */
   private savedResults = new Map<string, FlightResult | null>();
   /**
@@ -169,7 +168,7 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
   /**
    * Bumped by every `setActiveId`. A create that resolves after the workspace
    * has moved on (New, or a second import, during that first slow write) must
-   * NOT adopt its id: the entry it made belongs to the design that has just
+   * not adopt its id: the entry it made belongs to the design that has just
    * been replaced, and claiming it would send the new design's autosaves
    * straight over the old one.
    */
@@ -177,12 +176,11 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
   /**
    * The library's `updatedAt` for the active design as this tab last saw it.
    *
-   * THE AUTOSAVE SLOT IS SHARED. Two tabs of an installed PWA open the same
+   * The autosave slot is shared. Two tabs of an installed PWA open the same
    * design, because both open whatever was active, and each one autosaves its
-   * own copy on a 500 ms debounce. Writing unconditionally made that last
-   * writer wins: a single edit in a tab left open yesterday overwrote a day's
-   * work in the other, and once that tab closed there was nothing left to
-   * recover from. Nothing ever said so.
+   * own copy on a 500 ms debounce. Writing unconditionally would make it last
+   * writer wins: a single edit in a stale tab would silently overwrite the
+   * other tab's work. `save` compares against this and refuses instead.
    *
    * Null means this tab has no claim on the entry yet (it has not read or
    * written it), and the first write establishes one.
@@ -193,7 +191,7 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
     const lib = getDesignLibrary();
     this.activeId = await lib.activeId();
 
-    // A journal is newer than anything stored, but only for ITS design.
+    // A journal is newer than anything stored, but only for its own design.
     const journal = readJournal();
     if (journal && journal.id && journal.id === this.activeId) {
       // A journal the library has already moved past (see `Journal.t`) is
@@ -204,12 +202,12 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
         clearJournal();
         return await this.readActive(lib);
       }
-      // Validate BEFORE writing. `readJournal` only checks that the blob parses
-      // and has a `w`; a journal written by a DIFFERENT app build (this is an
+      // Validate before writing. `readJournal` only checks that the blob parses
+      // and has a `w`; a journal written by a different app build (this is an
       // installed PWA, so an older cached build is a live possibility) can parse
       // cleanly and still not be a workspace this build can open. Writing it
       // first would overwrite the real stored design with it and clear the
-      // journal, losing the design permanently — every later load would re-read
+      // journal, losing the design permanently: every later load would re-read
       // the same bad blob.
       const w = migrateWorkspace(journal.w);
       if (!w) {
@@ -224,18 +222,17 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
       // journal replay as another tab's work.
       this.lastSeenAt = (await this.metaOf(journal.id))?.updatedAt ?? null;
       // The journal carries no results (see `lean`), so they come from their own
-      // key — a reload after a run still opens on the numbers it produced.
+      // key, so a reload after a run still opens on the numbers it produced.
       return this.trackResults(withResults(w, await lib.readResults(journal.id)));
     }
-    // A journal written BEFORE the first save carries a null id, because that
-    // is what `saveSync` had to record. Both the replay test above and the
-    // staleness test below compared it to `this.activeId`, and `null !== null`
-    // is false, so such a journal was never replayed and never cleared: the
-    // work done before the first debounced autosave was lost on reload even
-    // though `saveSync` had successfully written it, and the dead blob (a
-    // whole lean workspace) squatted in the ~5 MB localStorage budget forever.
+    // A journal written before the first save carries a null id, because that
+    // is what `saveSync` had to record. The replay test above requires a set id
+    // and the staleness test below sees `null === null` as a match, so neither
+    // handles it. Without this branch the work done before the first debounced
+    // autosave would be lost on reload, and the blob (a whole lean workspace)
+    // would stay in the ~5 MB localStorage budget forever.
     //
-    // It belongs to "no design yet", so replay it by CREATING one.
+    // It belongs to "no design yet", so replay it by creating one.
     if (journal && journal.id === null && this.activeId === null) {
       const w = migrateWorkspace(journal.w);
       clearJournal();
@@ -259,17 +256,16 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
   /**
    * The active design, or null when there is genuinely nothing saved.
    *
-   * THROWS when a design is supposed to be there and cannot be read, so the
+   * Throws when a design is supposed to be there and cannot be read, so the
    * caller can tell that apart from "nothing saved". Returning null for both
-   * opens the hydration gate with the DEFAULT rocket, and 500 ms after the
-   * user's first edit the autosave writes that default over the unreadable
-   * design AT THE SAME ID. Reachable from a truncated blob, and by construction
-   * the moment a build stamps `version: 2` into a PWA whose older build is still
-   * cached.
+   * would open the hydration gate with the default rocket, and 500 ms after the
+   * user's first edit the autosave would write that default over the unreadable
+   * design at the same id. Reachable from a truncated blob, or from a blob
+   * written by a newer build while an older build is still cached in the PWA.
    *
    * `activeId()` has already filtered against the index, so a set `activeId`
    * means the library believes this design exists. Detach before throwing, so
-   * the next autosave CREATES a design instead of overwriting the unreadable
+   * the next autosave creates a design instead of overwriting the unreadable
    * one, and the user keeps whatever can still be recovered by hand.
    */
   private async readActive(lib: DesignLibrary): Promise<Workspace | null> {
@@ -332,13 +328,13 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
     // Another tab's work is not ours to throw away. Refuse rather than write
     // over an entry that has moved since this tab last saw it, and keep
     // refusing: this tab's design is still in front of the user, who can export
-    // it or reopen the design to take the other tab's version. A warning AFTER
+    // it or reopen the design to take the other tab's version. A warning after
     // the overwrite would name work that no longer exists to be rescued.
     const meta = await this.metaOf(this.activeId);
     if (this.lastSeenAt != null && meta && meta.updatedAt > this.lastSeenAt) {
       throw new Error('conflict');
     }
-    // The design is the ONE thing here that cannot be recomputed, so surface a
+    // The design is the one thing here that cannot be recomputed, so surface a
     // failed write (storage full) instead of silently dropping the user's work.
     const name = meta?.name ?? nameFor(w);
     if (!(await lib.write(this.activeId, name, leanW))) throw new Error('storage-full');
@@ -368,7 +364,7 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
     this.lastSeenAt = null;
   }
 
-  /** Name the next created design (see the interface). Call AFTER
+  /** Name the next created design (see the interface). Call after
    *  `setActiveId(null)`, which clears it. */
   setPendingName(name: string | null): void {
     this.pendingName = name?.trim() || null;
@@ -383,7 +379,7 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
         JSON.stringify({ id: this.activeId, w: lean(w), t: Date.now() } satisfies Journal),
       );
     } catch {
-      /* quota or storage blocked — nothing further we can do while unloading */
+      /* quota or storage blocked; nothing further we can do while unloading */
     }
   }
 }

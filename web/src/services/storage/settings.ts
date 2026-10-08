@@ -22,9 +22,8 @@ import { THEME_PREFS, type NonDaylightPref, type ThemePref } from '../app/theme'
  * Bounds for the component-tree column (see `Settings.treePaneWidth`).
  *
  * The minimum is where the design actions stop fitting on one row: they need
- * about 253px and the column spends 32 on padding. It was 320, when that
- * padding was 48. The maximum is judgment - past it the names have long since
- * stopped truncating.
+ * about 253px and the column spends 32 on padding. The maximum is judgment:
+ * past it the names have long since stopped truncating.
  */
 export const TREE_PANE_MIN = 300;
 export const TREE_PANE_MAX = 640;
@@ -67,20 +66,14 @@ const DEFAULT_LAUNCH: CompleteLaunch = {
   geodetic: 'spherical',
 };
 
-/**
- * App-wide user preferences (not tied to a design): 3D part-color overrides,
- * flight-path phase colors, and the default playback speed. Persisted to
- * localStorage synchronously so the very first render already has the user's
- * choices. Consumed reactively via the SettingsProvider / useSettings hook.
- */
 /** Global simulation preferences (OpenRocket's Simulation prefs), applied to every run. */
 export interface SimulationSettings {
-  /** RK4 integration step (s) — smaller is more accurate but slower. OR default 0.05. */
+  /** RK4 integration step (s); smaller is more accurate but slower. OR default 0.05. */
   timeStep: number;
-  /** Cap on simulated flight time (s) — ends a run that never lands. OR default 1200. */
+  /** Cap on simulated flight time (s); ends a run that never lands. OR default 1200. */
   maxTime: number;
   /**
-   * The most the rocket may rotate in one RK4 step, RADIANS. The stepper
+   * The most the rocket may rotate in one RK4 step, radians. The stepper
    * shortens dt to respect it, so this buys accuracy through a fast pitch-over
    * without paying for it over the whole coast. OR default: 3 degrees.
    */
@@ -92,7 +85,7 @@ export interface SimulationSettings {
   /** Auto-run an outdated simulation when its results view is opened. */
   autoRunOutdated: boolean;
   /**
-   * Recovery-deployment speed (m/s) at/above which a SINGLE-deployment recovery
+   * Recovery-deployment speed (m/s) at/above which a single-deployment recovery
    * is too fast (zippering / hardware damage). Below = green.
    *
    * Drives both the deploy-speed tile's color and the kernel's own deployment
@@ -101,7 +94,7 @@ export interface SimulationSettings {
    */
   deploymentSpeedWarn: number;
   /**
-   * Dual-deployment (a stage carrying a drogue) uses these for the MAIN instead
+   * Dual-deployment (a stage carrying a drogue) uses these for the main instead
    * of `deploymentSpeedWarn`: out too fast risks the same damage, out too slow
    * means a long descent and a long walk. OpenRocket's defaults are 100 ft/s and
    * 50 ft/s, which is where these SI values come from.
@@ -109,7 +102,7 @@ export interface SimulationSettings {
   mainHighSpeedWarn: number;
   mainLowSpeedWarn: number;
   /**
-   * Dual deployment, the DROGUE side: at apogee the rocket is barely moving, and
+   * Dual deployment, the drogue side: at apogee the rocket is barely moving, and
    * a drogue let out below this speed may never see enough airflow to inflate.
    * OpenRocket's default is 10 ft/s, hence 3.048.
    *
@@ -125,7 +118,7 @@ export interface SimulationSettings {
   /**
    * Which launch-guide clearance model to fly. Default false, OpenRocket's own.
    *
-   * OpenRocket compares the rocket's travel with the FULL rod length wherever
+   * OpenRocket compares the rocket's travel with the full rod length wherever
    * the guides sit: it computes a lug-aware effective length and never reads it
    * at the check. A lug or rail button above the rocket's aft end is therefore
    * credited with guided travel it does not have, and the rod-exit speed reads
@@ -135,7 +128,7 @@ export interface SimulationSettings {
    * guide, lug or button, leaves the rod, and the rocket is released there as
    * well as reported there.
    *
-   * A CHOICE and not a fix, because the engine is validated bit-identical to
+   * A choice and not a fix, because the engine is validated bit-identical to
    * upstream. It is also the only setting here that changes what the flight
    * does rather than what it warns about, which is why it says so in the panel.
    */
@@ -150,9 +143,14 @@ export interface RulerSides {
   right: boolean;
 }
 
+/**
+ * App-wide user preferences (not tied to a design). Persisted to localStorage
+ * synchronously so the very first render already has the user's choices.
+ * Consumed reactively via the SettingsProvider / useSettings hook.
+ */
 export interface Settings {
-  /** The unit each quantity DEFAULTS to, as set in Settings ▸ Units. The tree,
-   *  the kernel and every saved file stay SI — this is a display/entry
+  /** The unit each quantity defaults to, as set in Settings ▸ Units. The tree,
+   *  the kernel and every saved file stay SI; this is a display/entry
    *  preference only. */
   units: UnitSelection;
   /** Units changed from an inline unit chip. A separate layer over `units` so a
@@ -161,15 +159,15 @@ export interface Settings {
   /** Per-group color overrides for the 3D model (empty = built-in defaults). */
   partColors: Partial<Record<PartKey, string>>;
   /**
-   * What a NEWLY ADDED part is made of, keyed `<partType>:<materialType>`
+   * What a newly added part is made of, keyed `<partType>:<materialType>`
    * (`bodytube:bulk`, `parachute:line`). Empty means no preference.
    *
-   * The name AND the density are stored, so adding a part is synchronous and
-   * needs no lookup — and a custom material that is later edited or deleted
+   * The name and the density are stored, so adding a part is synchronous and
+   * needs no lookup, and a custom material that is later edited or deleted
    * cannot change or break what a preference means. That matches what a custom
    * material actually is in this app: a density with a name.
    *
-   * The preference is spent at CREATION: the new part carries the material
+   * The preference is spent at creation: the new part carries the material
    * outright, shows it in the panel and writes it to the `.ork`. It is
    * deliberately not resolved at simulation time the way desktop OpenRocket's
    * equivalent preference is, because that would make the same file weigh one
@@ -181,7 +179,7 @@ export interface Settings {
   /**
    * How the Aero tables shade their cells.
    *
-   * `sky` is one hue that strengthens with the value — a magnitude ramp, which
+   * `sky` is one hue that strengthens with the value, a magnitude ramp, which
    * is what the numbers are. `openrocket` is desktop OpenRocket's green-to-red
    * heat, on its own absolute Cd scale and with dark text on light cells, for
    * anyone who reads that faster because they already know it.
@@ -191,11 +189,11 @@ export interface Settings {
   playbackSpeed: number;
   /** Global simulation preferences. */
   simulation: SimulationSettings;
-  /** Default launch conditions for newly-created simulations. */
   /**
-   * What a NEW simulation is seeded from, so it is always COMPLETE: the six
-   * required launch fields can be blank on a simulation (a cleared field has
-   * to be distinguishable from a typed zero) but never here, or every future
+   * Default launch conditions: what a new simulation is seeded from, so it is
+   * always complete. The required launch fields (REQUIRED_LAUNCH_KEYS) can be
+   * blank on a simulation (a cleared field has to be distinguishable from a
+   * typed zero) but never here, or every future
    * simulation would start with a hole. The sanitizer below repairs a blank
    * back to the built-in default, and the Settings panel refuses to store one.
    */
@@ -220,7 +218,7 @@ export interface Settings {
   /**
    * Whether the results "Before you fly" card is unfolded.
    *
-   * It FOLDS rather than dismisses, and what folds away is the body, never the
+   * It folds rather than dismisses, and what folds away is the body, never the
    * heading: the card is a standing caution on every run, not a one-time
    * notice, so an acknowledgment that made it disappear for good would remove
    * the one thing it exists to do - be present at the moment a reading is
@@ -246,10 +244,10 @@ export interface Settings {
   /**
    * Width of the right-hand column, in CSS pixels.
    *
-   * ONE width for all three of them - the part editor, the simulation editor and
-   * the run's numbers. They were a matching 380 on purpose: right columns of
-   * different widths read as an accident rather than as a choice, and that stays
-   * true when the width becomes the user's. Sizing it on any tab sizes it on all
+   * One width for all three of them: the part editor, the simulation editor and
+   * the run's numbers. They match on purpose: right columns of different widths
+   * read as an accident rather than as a choice, and that stays true when the
+   * width is the user's. Sizing it on any tab sizes it on all
    * of them.
    */
   sidePaneWidth: number;
@@ -259,9 +257,9 @@ export interface Settings {
    * An airframe is 15-25x longer than it is wide, so the drawing is starved of
    * horizontal space long before it is starved of vertical: dropping the tree
    * and the property editor is worth about 750px of a 1500px window. The static
-   * statistics strip goes too - it is a footer about the design rather than part
-   * of the drawing, and it was spending 175px of height on the expand. It
-   * applies only on the tabs the center pane is actually on - on Simulations the
+   * statistics strip goes too: it is a footer about the design rather than part
+   * of the drawing, and expanded it takes height the drawing needs. It
+   * applies only on the tabs the center pane is actually on; on Simulations the
    * flag is ignored, or the simulation editor would hide with no toolbar left to
    * bring it back from.
    */
@@ -269,7 +267,7 @@ export interface Settings {
   /** Which sides of the 2D side view are framed by a measurement ruler. */
   rulers: RulerSides;
   /** Write the derived <designinfo> statistics block into saved .ork files. Off
-   *  by default, so a normal save is byte-identical to before. */
+   *  by default, so a normal save carries only the design itself. */
   saveDesignInfo: boolean;
   /**
    * Ask where to save each file, with the browser's own save dialog, where it has
@@ -341,12 +339,12 @@ export interface ReportSettings {
  * The flight-path export options that outlive one export.
  *
  * Which waypoints you want, what units you export in and what colors your stages
- * are is a working habit, so it persists. The MISSION NAME is deliberately NOT
+ * are is a working habit, so it persists. The mission name is deliberately not
  * persisted: it describes one export, and a stale value silently mislabels the
  * next file.
  *
  * The per-stage colors carry a known consequence, accepted deliberately. They
- * are keyed by the stage's INDEX in the flight data, not by name, because two
+ * are keyed by the stage's index in the flight data, not by name, because two
  * stages of one rocket can share a name and name-keying would silently make
  * them share a color. So colors restored from here land on whatever stage now
  * occupies index 0, which may be a different rocket entirely. That is the
@@ -368,7 +366,7 @@ export interface PathExportSettings {
   /** Keep every Nth path point. A positive integer. */
   pathStride?: number;
   /**
-   * Export units. ABSENT means "follow the app's distance preference", which is
+   * Export units. Absent means "follow the app's distance preference", which is
    * what a fresh install does; a stored value is an explicit choice made in the
    * dialog and outranks the app units, since the control exists to export in
    * something other than what you are looking at.
@@ -384,7 +382,7 @@ export interface PathExportSettings {
   /** Whether the KML carries the summary balloons. */
   includeDescriptions?: boolean;
   /**
-   * The language the exported FILE is written in, or '' to follow the app.
+   * The language the exported file is written in, or '' to follow the app.
    *
    * Unlike the two units above, absent and '' mean the same thing here, because
    * "follow the app" is an option the dropdown actually offers rather than a
@@ -393,7 +391,7 @@ export interface PathExportSettings {
   exportLanguage?: string;
   /**
    * Per-stage color overrides, one map per role, each keyed by stage index and
-   * valued `rrggbb`. SPARSE: only stages the user actually changed appear, so
+   * valued `rrggbb`. Sparse: only stages the user actually changed appear, so
    * an untouched install stores three empty objects, the stored form never has
    * to know how many stages exist, and a palette change later does not strand
    * saved values. A dense form would need a placeholder for "default", which
@@ -453,14 +451,13 @@ const clampPlayback = (v: unknown): number =>
     : DEFAULT_SETTINGS.playbackSpeed;
 
 /**
- * Bounds for the solver inputs, in SI, shared by BOTH surfaces that offer them.
+ * Bounds for the solver inputs, in SI, shared by both surfaces that offer them
+ * (the global row and the per-simulation override).
  *
- * `maxTime / timeStep` IS the solver's iteration count, and both ends were open
- * on the per-simulation override while the global row capped them: 1000000 s (a
- * plausible slip for 1000) at the default step asks for tens of millions of RK4
- * steps, with nothing to interrupt it. The cap existed in one of the two places
- * that can set the value, which is the drift this constant exists to stop.
- * `maxAngleStep` is in radians here, like the field it bounds.
+ * `maxTime / timeStep` is the solver's iteration count: 1000000 s (a plausible
+ * slip for 1000) at the default step asks for tens of millions of RK4 steps,
+ * with nothing to interrupt it. One constant keeps the two surfaces from
+ * drifting apart. `maxAngleStep` is in radians here, like the field it bounds.
  */
 export const SIM_BOUNDS = {
   timeStep: { min: 0.001, max: 10 },
@@ -573,10 +570,10 @@ const HEX_COLOR = /^#[0-9a-f]{3,8}$/i;
 export function loadSettings(): Settings {
   try {
     const raw = localStorage.getItem(KEY);
-    // A COPY, not the constant: callers spread and patch nested blocks of what
+    // A copy, not the constant: callers spread and patch nested blocks of what
     // this returns (`{ ...s.simulation, timeStep }`), and handing out the
-    // shared DEFAULT_SETTINGS object let one such edit rewrite the defaults
-    // every later fresh load was built from.
+    // shared DEFAULT_SETTINGS object would let one such edit rewrite the
+    // defaults every later fresh load is built from.
     if (!raw) return structuredClone(DEFAULT_SETTINGS);
     const s = JSON.parse(raw) as Partial<Settings> & { showRulers?: boolean };
     // Migrate the legacy single on/off flag → every side follows it; a saved
@@ -598,10 +595,9 @@ export function loadSettings(): Settings {
       // has no `units` at all) keeps exactly the units it was displaying.
       units: normalizeUnits(s.units),
       unitOverrides: normalizeUnitOverrides(s.unitOverrides),
-      // Filtered, not spread. These values reach a style attribute, which is
-      // exactly the reasoning the treePaneWidth clamp below already states -
-      // it just was not applied here, so any value type (an object, an array,
-      // a CSS payload) rode straight through to the renderer.
+      // Filtered, not spread. These values reach a style attribute (the same
+      // reasoning as the treePaneWidth clamp below), so any other value type
+      // (an object, an array, a CSS payload) must not ride through to the renderer.
       partColors: Object.fromEntries(
         Object.entries((s.partColors ?? {}) as Record<string, unknown>).filter(
           ([, v]) => typeof v === 'string' && HEX_COLOR.test(v),
@@ -625,7 +621,7 @@ export function loadSettings(): Settings {
         }),
       ) as Settings['defaultMaterials'],
       // The same hex filter partColors gets: these reach a style attribute
-      // and the KML/GPX exports, and the merge let any value type through.
+      // and the KML/GPX exports, so a plain merge would let any value through.
       phaseColors: (() => {
         const c = { ...DEFAULT_SETTINGS.phaseColors };
         for (const k of ['boost', 'coast', 'descent'] as const) {
@@ -645,7 +641,7 @@ export function loadSettings(): Settings {
       simulation: (() => {
         const sim = { ...DEFAULT_SETTINGS.simulation, ...(s.simulation ?? {}) };
         // A corrupt/hand-edited timeStep or maxTime ≤ 0 makes the RK4 loop
-        // (maxTime/timeStep steps) hang or NaN — clamp back to the default.
+        // (maxTime/timeStep steps) hang or NaN: clamp back to the default.
         const pos = (v: number, d: number) => (Number.isFinite(v) && v > 0 ? v : d);
         sim.timeStep = pos(sim.timeStep, DEFAULT_SETTINGS.simulation.timeStep);
         sim.maxTime = pos(sim.maxTime, DEFAULT_SETTINGS.simulation.maxTime);
@@ -656,8 +652,8 @@ export function loadSettings(): Settings {
         sim.mainHighSpeedWarn = pos(sim.mainHighSpeedWarn, DEFAULT_SETTINGS.simulation.mainHighSpeedWarn);
         sim.mainLowSpeedWarn = pos(sim.mainLowSpeedWarn, DEFAULT_SETTINGS.simulation.mainLowSpeedWarn);
         sim.drogueLowSpeedWarn = pos(sim.drogueLowSpeedWarn, DEFAULT_SETTINGS.simulation.drogueLowSpeedWarn);
-        // The rod-exit tile compares against it; a stored string or NaN made
-        // the tile's color undecidable.
+        // The rod-exit tile compares against it; a stored string or NaN would
+        // make the tile's color undecidable.
         sim.railExitVelocityMin = pos(sim.railExitVelocityMin, DEFAULT_SETTINGS.simulation.railExitVelocityMin);
         // A stored string or number here would reach the bridge, where the
         // options parser refuses anything but a boolean and takes the whole run
@@ -666,14 +662,13 @@ export function loadSettings(): Settings {
         return sim;
       })(),
       launchDefaults: (() => {
-        // Same reasoning as the `simulation` block above, which has clamped for
-        // exactly this reason: every field here reaches simConditions() and then
-        // simulate() for each NEW simulation, unchecked. A hand-edited or
-        // future-version blob putting a string, null or NaN where the engine
-        // wants a number crossed straight into the kernel.
+        // Same reasoning as the `simulation` block above: every field here
+        // reaches simConditions() and then simulate() for each new simulation.
+        // A hand-edited or future-version blob putting a string, null or NaN
+        // where the engine wants a number would cross straight into the kernel.
         //
-        // The two nullable fields are left alone: `temperatureC` and
-        // `pressureHPa` are `number | null` on purpose — null means "the ISA
+        // Null stays allowed for the two nullable fields: `temperatureC` and
+        // `pressureHPa` are `number | null` on purpose; null means "the ISA
         // standard atmosphere", which is a real answer, not a missing one.
         const l = { ...DEFAULT_SETTINGS.launchDefaults, ...(s.launchDefaults ?? {}) };
         // Split so the fallback keeps each field's own type: a required number
@@ -690,7 +685,7 @@ export function loadSettings(): Settings {
           if (!Number.isFinite(l[k])) l[k] = DEFAULT_SETTINGS.launchDefaults[k];
         }
         for (const k of ['launchRodDirectionDeg', 'windDirectionDeg'] as const) {
-          // Absent stays absent — only a PRESENT but unusable value falls back.
+          // Absent stays absent; only a present but unusable value falls back.
           if (l[k] !== undefined && !Number.isFinite(l[k])) l[k] = DEFAULT_SETTINGS.launchDefaults[k];
         }
         for (const k of ['temperatureC', 'pressureHPa'] as const) {
@@ -705,10 +700,10 @@ export function loadSettings(): Settings {
         }
         // Elements too, not just the array. Everything in this block
         // reaches simConditions() and then simulate() for each new simulation,
-        // and `Array.isArray` let a stored [{altitudeM: "x", speed: null}]
-        // walk straight into the kernel.
+        // and `Array.isArray` alone would let a stored
+        // [{altitudeM: "x", speed: null}] walk straight into the kernel.
         // `usableWindLevels` rather than a finiteness filter written out here:
-        // a stored profile carrying two levels at ONE altitude is just as
+        // a stored profile carrying two levels at one altitude is just as
         // unusable as one carrying a string, and the kernel refuses it the same
         // way. The rule lives in services/flight/windLevels, next to the run gate and
         // the .ork reader that need the same answer.
@@ -791,13 +786,12 @@ export function loadSettings(): Settings {
 /**
  * Persist the settings, reporting whether the write happened.
  *
- * REPORTS rather than swallowing, which is the convention every other store in
- * this slice was deliberately converted to (`designLibrary`,
- * `launchLocationStore`, `workspaceStore`, `motorStore` all surface a refused
- * write). A bare `catch {}` here meant a full quota silently discarded a
- * preference change: the panel showed the new value for the rest of the session
- * and the next session came up with the old one, with nothing in between to
- * explain it.
+ * Reports rather than swallowing, the same convention as the other stores
+ * (`designLibrary`, `launchLocationStore`, `workspaceStore`, `motorStore` all
+ * surface a refused write). Swallowed, a full quota would silently discard a
+ * preference change: the panel would show the new value for the rest of the
+ * session and the next session would come up with the old one, with nothing in
+ * between to explain it.
  *
  * `false` covers both causes, which the caller cannot usefully tell apart: a
  * quota refusal and storage being disabled outright both mean the preference did

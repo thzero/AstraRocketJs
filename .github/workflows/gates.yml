@@ -460,16 +460,15 @@ jobs:
     # The service worker, against real production builds: the update path, and
     # the runtime catalogs with the network off.
     #
-    # Nothing else here can see either: the dev server the Playwright suite
-    # runs against registers no worker, and vitest has no browser. The update
-    # check proves the thing a deploy depends on - a tab open on the old build
-    # is offered the new one and, on Reload, comes back on it, with no hard
-    # reload. The offline check proves the thing a LAUNCH SITE depends on, and
-    # it was added because that one was broken and silent: the catalogs are
+    # Nothing else here can see either: the Playwright suite serves one build,
+    # so it never sees a deploy, and vitest has no browser. The update check
+    # proves what a deploy depends on: a tab open on the old build is offered
+    # the new one and, on Reload, comes back on it, with no hard reload. The
+    # offline check proves what a launch site depends on: the catalogs are
     # requested with a `?v=<hash>` cache-buster, which Workbox does not strip
-    # when matching the precache, so motors, components and materials were all
-    # unreachable with no signal. Three `vite build`s plus a headless Chromium,
-    # about three minutes.
+    # when matching the precache, so a wrong precache entry leaves motors,
+    # components and materials unreachable offline with no error shown. Three
+    # `vite build`s plus a headless Chromium, about three minutes.
     needs: [reproducible]
     runs-on: ubuntu-latest
     timeout-minutes: 15

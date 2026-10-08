@@ -10,9 +10,10 @@ import { COMPONENT_DEFAULTS } from './componentDefaults';
  * "a centering ring in this body tube, around that motor mount" into an outer
  * radius, a bore and a length.
  *
- * This lives apart from its three consumers because they must agree: the DXF cut
+ * This lives apart from its consumers because they must agree: the DXF cut
  * sheet (dxfExport), the STL/3MF print solids (componentExport,
- * rocketPrintExport) and the 3D view's internals (rocketPieces). Held inside the
+ * rocketPrintExport), the 3D view's internals (rocketPieces) and the automatic
+ * radius and shoulder resolvers (autoRadius, autoShoulder). Held inside the
  * DXF writer it could only be reused by dragging the whole R12 serializer into the
  * first-paint bundle. No three.js and no writers here, so anyone can import it.
  */
@@ -69,7 +70,7 @@ export function plateOuter(node: ComponentNode, enclosing: Tube | null): number 
   return FALLBACK_RADIUS;
 }
 
-/** The motor-mount bore a centering ring centers — an inner tube among siblings. */
+/** The motor-mount bore a centering ring centers: an inner tube among siblings. */
 export function mountBore(siblings: ComponentNode[]): number | null {
   const mount = siblings.find((s) => s.type === 'innertube');
   if (!mount) return null;
@@ -102,7 +103,7 @@ export function nodeContext(
 
 /**
  * Resolved solid dimensions of a disc / ring / tube part (centering ring,
- * bulkhead, coupler, engine block), for its 3D mesh export — the same radius
+ * bulkhead, coupler, engine block), for its 3D mesh export: the same radius
  * resolution the DXF uses (explicit radii, else the parent tube's bore, else the
  * mount an inner tube provides). Returns null for any other type.
  */
@@ -115,13 +116,13 @@ export function resolveDisc(
 }
 
 /**
- * The same resolution for a caller that ALREADY has the context, because it is
+ * The same resolution for a caller that already has the context, because it is
  * walking the tree itself: the 2D schematic knows the enclosing tube and the
  * siblings by the time it draws a child, and has no tree to look a node up in.
  *
  * It exists so the sketch can size a coupler the way the cut sheet and the 3D
  * model do. Drawing every internal through `internalExtent` instead caps the
- * radius at 85% of the parent, which a coupler hits EVERY time since it fills the
+ * radius at 85% of the parent, which a coupler hits every time since it fills the
  * bore by definition, so the same part comes out one size in the sketch and
  * another everywhere else.
  */
@@ -145,22 +146,21 @@ export function discDims(
       'thickness',
       node.type === 'engineblock' ? COMPONENT_DEFAULTS.engineblock.thickness : COMPONENT_DEFAULTS.tubecoupler.thickness,
     );
-    // The coupler length comes from the table, not a bare 0.003: the kernel
-    // builds a tube coupler 50 mm long (ComponentFactory.java:314), so a coupler
-    // whose `length` key is absent was sketched, cut and printed at a
-    // SIXTEENTH of the length it flew.
+    // The fallback length comes from the shared table, which holds the kernel's
+    // own default (a tube coupler is 50 mm in ComponentFactory.java), so a
+    // coupler whose `length` key is absent is sketched, cut and printed at the
+    // length it flies.
     const length = num(
       node,
       'length',
       node.type === 'engineblock' ? COMPONENT_DEFAULTS.engineblock.length : COMPONENT_DEFAULTS.tubecoupler.length,
     );
     // A wall at least as thick as the radius leaves no bore, and `discSolid`
-    // then falls through to its NO-BORE branch and lathes a solid rod: a
-    // coupler printed as a plug, with nothing saying so. `solidMesh`'s tube
-    // branch refuses exactly this case and explains why; the disc path never
-    // got the guard, and `discDims` also feeds the DXF sheet and the 3D
-    // internals, so all three agreed on the wrong part. Reachable from a units
-    // slip in a hand-edited .ork (thickness 0.02 against radius 0.012).
+    // would then fall through to its no-bore branch and lathe a solid rod: a
+    // coupler printed as a plug, with nothing saying so. `discDims` also feeds
+    // the DXF sheet and the 3D internals, so refusing here keeps all three from
+    // agreeing on the wrong part. Reachable from a units slip in a hand-edited
+    // .ork (thickness 0.02 against radius 0.012).
     if (!(wall < outerR)) return null;
     return { outerR, innerR: outerR - wall, length };
   }
@@ -168,11 +168,11 @@ export function discDims(
 }
 
 /**
- * The bore a part offers AT ONE END: what a shoulder plugging in there has to
+ * The bore a part offers at one end: what a shoulder plugging in there has to
  * fit inside.
  *
  * Distinct from {@link tubeRadii}, which answers "what bore does this part
- * offer whatever sits inside it" and takes a transition's WIDER end, because
+ * offer whatever sits inside it" and takes a transition's wider end, because
  * a ring somewhere along it has to clear the whole thing. A shoulder does not
  * go somewhere along it; it goes in one end, and a transition's two ends are
  * different sizes. Asking the wrong one of those two questions gives a boat

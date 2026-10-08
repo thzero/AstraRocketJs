@@ -2,7 +2,7 @@ import { useSettings } from '../../state/SettingsProvider';
 import { useIsDesktop } from '../common/useMediaQuery';
 
 /**
- * Whether this window offers the component TREE: the surface for adding,
+ * Whether this window offers the component tree: the surface for adding,
  * reordering, deleting and scaling parts, and so the answer to "can a design be
  * built here, or only read, edited part by part, and flown?".
  *
@@ -11,7 +11,7 @@ import { useIsDesktop } from '../common/useMediaQuery';
  * maximize mode deliberately puts both side columns aside to give the drawing
  * the window.
  *
- * Deliberately NOT the current tab. The tree is not on screen on Simulations or
+ * Deliberately not the current tab. The tree is not on screen on Simulations or
  * Configurations either, but the design is still buildable from there, and a
  * menu entry that came and went as you moved between tabs would be churn rather
  * than a rule.

@@ -22,8 +22,8 @@ describe('trackPoints', () => {
   });
 
   /**
-   * Zero is the PAD, so substituting it for a missing sample would draw a line
-   * back to the launch point and out again — a track that reads as a flight
+   * Zero is the pad, so substituting it for a missing sample would draw a line
+   * back to the launch point and out again: a track that reads as a flight
    * that briefly teleported home.
    */
   it('drops a sample whose other half is missing, rather than calling it zero', () => {
@@ -76,7 +76,7 @@ describe('groundTrackLine', () => {
 });
 
 /**
- * The frame is SQUARE and centered on the pad. Scaling the axes independently
+ * The frame is square and centered on the pad. Scaling the axes independently
  * would bend a straight drift into a curve and make a circle of equal distance
  * read as an ellipse, which is exactly what the range rings are there to deny.
  */
@@ -111,7 +111,7 @@ describe('trackExtent', () => {
 
 describe('rangeRings', () => {
   it('steps on the 1/2/5 ladder, so the labels are numbers a person reads', () => {
-    // The step rounds UP onto the ladder, so `count` is a ceiling rather than a
+    // The step rounds up onto the ladder, so `count` is a ceiling rather than a
     // target: 275/4 is 68.75, which rounds to 100 and rings twice. Sparse is the
     // right way to be wrong here - a ring is a reference, and a map crowded with
     // them is harder to read than one with two.

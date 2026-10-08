@@ -9,7 +9,7 @@ import { listSavedParts, onSavedPartsChanged, type SavedPartEntry } from '../../
  * or deleting one from the component picker updates this list without the
  * dialog being reopened. That signal is the same one the picker uses.
  *
- * The sequence guard is the one `useLocationList` documents: the FIRST read of
+ * The sequence guard is the one `useLocationList` documents: the first read of
  * a session waits on IndexedDB opening its database, a write in the meantime
  * refreshes and resolves first, and then that first answer lands, taken before
  * anything was saved, and overwrites it with an empty list that nothing

@@ -29,7 +29,7 @@ export function MaterialSection({
 }
 
 /** Recovery devices use surface (fabric) + line (cord) materials, not the
- *  bulk material above — each feeds the device's mass. */
+ *  bulk material above; each feeds the device's mass. */
 export function RecoveryMaterialSection({
   node,
   onCommitChange,

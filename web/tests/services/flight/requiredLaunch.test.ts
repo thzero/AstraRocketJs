@@ -60,9 +60,8 @@ describe('missingRequired', () => {
       'windStdDev',
       'launchAltitudeM',
       'latitudeDeg',
-      // Longitude joined the list once the site map made a wrong one visible:
-      // it is a hole in the same place the latitude is, and 0° is the Gulf of
-      // Guinea rather than "unset".
+      // Longitude is a hole in the same place the latitude is, and 0° is the
+      // Gulf of Guinea rather than "unset".
       'longitudeDeg',
     ]);
   });

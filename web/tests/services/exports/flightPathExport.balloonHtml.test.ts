@@ -8,15 +8,15 @@ import { localeTranslator } from '../../testing/localeTranslator';
 
 /**
  * The KML balloons carry HTML, and the escaping is the subtle part of them, so
- * it is checked by actually PARSING the file rather than by matching text.
+ * it is checked by actually parsing the file rather than by matching text.
  *
  * Its own file because that needs a DOM parser, and the rest of the export
  * suite runs in the default node environment.
  *
  * The rule the parse proves: the template writes its markup pre-escaped
- * (`&lt;b&gt;`) and does NOT wrap the balloon in CDATA. Mustache escapes every
+ * (`&lt;b&gt;`) and does not wrap the balloon in CDATA. Mustache escapes every
  * substituted value, and inside a CDATA block the XML parser would not decode
- * those escapes — so a rocket named `Bill & Ted` would reach the balloon as the
+ * those escapes, so a rocket named `Bill & Ted` would reach the balloon as the
  * literal text `Bill &amp; Ted`. Pre-escaped, the markup and the value are each
  * escaped exactly once and the parser decodes them together.
  */
@@ -78,7 +78,7 @@ describe('balloon HTML', () => {
     expect(host.querySelector('b')?.textContent).toBe('Rocket:');
     expect(host.querySelectorAll('br').length).toBeGreaterThan(1);
     // The ampersand and the apostrophe come through as themselves. The angle
-    // brackets do NOT, and that is the escape-once rule working as designed
+    // brackets do not, and that is the escape-once rule working as designed
     // rather than a gap: a balloon holds HTML, so `<Excellent>` in a rocket's
     // name is an unknown element to whatever renders it. Escaping the value a
     // second time to survive that would put `&amp;` back in front of the

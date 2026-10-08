@@ -4,7 +4,7 @@ import type { WindLevel } from '../design/orkTree';
  * CSV import for a multilevel wind profile, matching OpenRocket's
  * `MultiLevelPinkNoiseWindModel.importLevelsFromCSV` convenience overload:
  * headed columns named `altitude`, `speed`, `direction` and `stddev`, in
- * METERS, METERS PER SECOND and DEGREES, with the standard deviation optional.
+ * meters, meters per second and degrees, with the standard deviation optional.
  *
  * Fixed units rather than the user's display units, deliberately and like the
  * desktop: a sounding is a file someone else produced, so the file has to say
@@ -12,8 +12,8 @@ import type { WindLevel } from '../design/orkTree';
  * showing. The dialog states them.
  *
  * Whatever the file's order, the levels come back sorted by altitude. Import
- * REPLACES the profile (the desktop clears first), so a partial parse must not
- * be applied — every failure here throws rather than returning a short list.
+ * replaces the profile (the desktop clears first), so a partial parse must not
+ * be applied: every failure here throws rather than returning a short list.
  */
 
 export class WindProfileCsvError extends Error {
@@ -39,7 +39,7 @@ const ALIASES: Record<keyof Omit<WindLevel, 'altitudeM' | 'directionDeg'> | 'alt
 /**
  * Strip one pair of surrounding double quotes (and a doubled inner quote): a
  * spreadsheet quotes any header carrying a comma, space or parenthesis, so
- * `"altitude (m)"` arrived with its quotes still on and matched nothing.
+ * `"altitude (m)"` would otherwise arrive with its quotes on and match nothing.
  */
 const unquote = (s: string) => {
   const t = s.trim();
@@ -60,8 +60,8 @@ function columnIndex(headers: string[], key: keyof typeof ALIASES): number {
 
 /**
  * The levels, plus what the altitude column said it was measured from when
- * the header named it (`altitude AGL`, `altitude MSL`). An array, not a new
- * shape: existing callers iterate it as before and can ignore `reference`.
+ * the header named it (`altitude AGL`, `altitude MSL`). Still an array, so a
+ * caller can iterate it and ignore `reference`.
  */
 export type WindProfileCsvResult = WindLevel[] & { reference?: 'msl' | 'agl' };
 
@@ -111,8 +111,8 @@ export function parseWindProfileCsv(text: string): WindProfileCsvResult {
 
     const cell = (idx: number): number => {
       const text = unquote(cells[idx]!);
-      // `Number('')` is 0, and 0 passes `Number.isFinite`, so a blank altitude
-      // or speed imported as a real 0 m/s reading at that level instead of
+      // `Number('')` is 0, and 0 passes `Number.isFinite`, so without this a
+      // blank altitude or speed would import as a real 0 reading instead of
       // failing the row. Blank is only meaningful for `stddev`, handled below.
       if (text === '') throw new WindProfileCsvError('badNumber', i + 1);
       const v = Number(text);

@@ -1,4 +1,4 @@
-// Searching, ranking and describing the component catalog — everything the
+// Searching, ranking and describing the component catalog: everything the
 // picker needs that is not a DOM concern, so the interesting half can be tested
 // without rendering a dialog.
 //
@@ -6,17 +6,17 @@
 import { lengthOf, outerDiameterOf, type Component, type ComponentType, type PickerType } from './componentDb';
 
 /**
- * How far UNDER a bore a part may be and still be a fit, in meters. A coupler is
+ * How far under a bore a part may be and still be a fit, in meters. A coupler is
  * cut undersize on purpose, and 2 mm of that is a normal glue gap; much more and
  * it rattles rather than fits.
  */
 const FIT_SLACK = 0.002;
-/** How much LARGER than the bore a part may be and still be called a fit. A
+/** How much larger than the bore a part may be and still be called a fit. A
  *  coupler never goes in oversize, but catalog numbers are nominal and round
  *  differently per manufacturer, so a few hundredths is noise, not interference. */
 const FIT_OVERSIZE = 0.0005;
 /**
- * How far apart two outer diameters may be and still CONTINUE one airframe, in
+ * How far apart two outer diameters may be and still continue one airframe, in
  * meters. Much tighter than FIT_SLACK: a coupler may be 2 mm under its tube, but
  * two tubes 2 mm apart in outer diameter are not the same tube, they are a
  * visible step in the airframe.
@@ -30,11 +30,11 @@ const MATCH_TOL = 0.0006;
  *
  * This is what makes the picker better than a flat catalog list. The part being
  * chosen almost always has to fit something that is already in the design, and
- * until now the picker was told only the component TYPE, so it could not put the
- * couplers that actually fit a 41.6 mm bore above the 236 that do not.
+ * with this the picker can put the couplers that actually fit a 41.6 mm bore
+ * above the ones that do not.
  */
 export interface FitContext {
-  /** Bore of the enclosing body: what a coupler, ring or bulkhead fits INSIDE. */
+  /** Bore of the enclosing body: what a coupler, ring or bulkhead fits inside. */
   parentInner?: number;
   /** Outer diameter of the enclosing body. */
   parentOuter?: number;
@@ -43,7 +43,7 @@ export interface FitContext {
    *  the same body tube rather than inside it. */
   mountOuter?: number;
   /** Outer diameters of the airframe already in this design, for the parts whose
-   *  job is to CONTINUE the stack rather than fit inside it. */
+   *  job is to continue the stack rather than fit inside it. */
   airframeOuter?: number[];
 }
 
@@ -63,14 +63,14 @@ type FitRule =
 export function fitRuleFor(type: PickerType, fit: FitContext | undefined): FitRule | null {
   if (!fit) return null;
   switch (type) {
-    // These live INSIDE an airframe (an engine block inside its motor tube), so
+    // These live inside an airframe (an engine block inside its motor tube), so
     // the bore is the constraint.
     case 'tubecoupler':
     case 'centeringring':
     case 'bulkhead':
     case 'engineblock':
       return fit.parentInner != null && fit.parentInner > 0 ? { kind: 'inside', target: fit.parentInner } : null;
-    // These ARE the airframe, so they continue it. The enclosing body's OD comes
+    // These are the airframe, so they continue it. The enclosing body's OD comes
     // first (a tube inside a pod matches that pod), else any airframe OD already
     // in the design.
     case 'bodytube':
@@ -81,13 +81,13 @@ export function fitRuleFor(type: PickerType, fit: FitContext | undefined): FitRu
           : (fit.airframeOuter ?? []).filter((d) => d > 0);
       return targets.length > 0 ? { kind: 'match', targets } : null;
     }
-    // A parachute's fit is about PACKED volume, which the model does not carry
-    // (see TODO: recovery-device packed length/radius). Ranking it by canopy
+    // A parachute's fit is about packed volume, which the model does not carry
+    // (no packed length or radius on a recovery device). Ranking it by canopy
     // diameter against a bore would be confidently wrong, so it abstains.
     case 'parachute':
       return null;
     // An inner tube abstains too, for the opposite reason: the constraint that
-    // decides it is the MOTOR it has to take, and the motor belongs to a
+    // decides it is the motor it has to take, and the motor belongs to a
     // simulation rather than to the tree, so nothing here knows it. Scoring its
     // outer diameter against the enclosing bore would rank a snug 51 mm sleeve
     // above the 29 mm mount that is actually wanted. The outer-diameter range
@@ -137,15 +137,15 @@ export function boreClears(p: Component, fit: FitContext | undefined): boolean {
 }
 
 /**
- * Material FAMILY rules, first match wins. Order matters: "Fiberglass, G12,
+ * Material family rules, first match wins. Order matters: "Fiberglass, G12,
  * filament wound tube, bulk" and "Carbon fiber epoxy composite" both contain
  * "fiber", and "PML glassed phenolic" is a phenolic rather than a glass.
  *
- * The catalog's raw names cannot be a filter: body tubes alone carry 39 of them,
- * including eight near-duplicate `Fiber, vulcanized, Coupler, BT-xx, bulk` rows
- * and three spellings of the same balsa density. The family is the question
- * people actually ask ("show me the fiberglass tubes"), and it collapses those 39
- * to six. Every name in the shipped catalog lands in one of these; the test
+ * The catalog's raw names cannot be a filter: body tubes alone carry dozens of
+ * them, including near-duplicate `Fiber, vulcanized, Coupler, BT-xx, bulk` rows
+ * and several spellings of the same balsa density. The family is the question
+ * people actually ask ("show me the fiberglass tubes"), and it collapses those
+ * to a handful. Every name in the shipped catalog lands in one of these; the test
  * asserts that, so a new material cannot quietly fall through.
  */
 const MATERIAL_FAMILIES: [RegExp, string][] = [
@@ -167,7 +167,7 @@ const MATERIAL_FAMILIES: [RegExp, string][] = [
  * The family a part's material belongs to, or null when it has no material at
  * all (a parachute) or the name matches no rule.
  *
- * NOT translated, deliberately. The Material column beside the facet shows the
+ * Not translated, deliberately. The Material column beside the facet shows the
  * catalog's own English names, because that is what a catalog of English-language
  * manufacturer data contains; a facet translated into the reader's language, sitting over rows reading
  * "Fiberglass, G10, bulk" would be worse than one that matches them.
@@ -181,7 +181,7 @@ export function materialFamily(p: Component): string | null {
 
 /**
  * The drag coefficient the app falls back to when the catalog omits one, which
- * it does for every parachute it ships: all 151 rows carry a null, because
+ * it does for every parachute it ships: every row carries a null, because
  * OpenRocket's preset files have no DragCoefficient for a parachute. Exported so
  * the column, its sort and `treeEdit.catalogPatch` cannot drift apart.
  */
@@ -267,10 +267,10 @@ export interface Ranked<C extends Component> {
 }
 
 /**
- * Filter, rank and sort in one pass. The result is every match, NOT a page of
+ * Filter, rank and sort in one pass. The result is every match, not a page of
  * them: capping belongs to the renderer, which has to be able to say how many it
- * is holding back. Slicing here and reporting the slice as the total makes 1088
- * body tubes read as "300 parts".
+ * is holding back. Slicing here would make the renderer report the slice as the
+ * total.
  */
 export function queryComponents<C extends Component>(
   list: C[],
@@ -296,9 +296,9 @@ export function queryComponents<C extends Component>(
   }
 
   const cmp = (a: Ranked<C>, b: Ranked<C>): number => {
-    // The user's OWN saved parts come first, under every sort and every
-    // direction. Not a preference: the picker renders a capped window (200 of
-    // 1088 body tubes) and a saved part that sorts past the cap is a part the
+    // The user's own saved parts come first, under every sort and every
+    // direction. Not a preference: the picker renders a capped window, and a
+    // saved part that sorts past the cap is a part the
     // person saved, was told was saved, and then cannot find. There are never
     // many of them, they stay ordered among themselves by the active column,
     // and the catalog below them is unaffected.
@@ -381,7 +381,7 @@ const TYPE_WORDS: Record<ComponentType, RegExp> = {
  * The catalog's descriptions are comma-separated and mostly restate the
  * geometry: "Blue Tube, 1.15"/29mm, MMT, 12" len" repeats an outer diameter the
  * row already shows, a bore it shows too, and a length in the next column over.
- * What is ONLY in the prose is the trade name ("Blue Tube") and the role
+ * What is only in the prose is the trade name ("Blue Tube") and the role
  * ("MMT", a motor mount tube rather than an airframe), and those are what people
  * actually search by. So three rules, each dropping a kind of duplicate:
  *
@@ -389,7 +389,7 @@ const TYPE_WORDS: Record<ComponentType, RegExp> = {
  *   2. a leading segment that just names the component type
  *   3. a `PN xxx` segment repeating the part number
  *
- * Everything else is kept verbatim, because the catalog is 15 manufacturers'
+ * Everything else is kept verbatim, because the catalog is many manufacturers'
  * free text and anything cleverer would be guessing.
  */
 export function describeNotes(p: Component): string {
@@ -399,9 +399,9 @@ export function describeNotes(p: Component): string {
   // after a `PN` in the prose, which an exact comparison lets straight through
   // into a column sitting right next to the first copy.
   //
-  // Split on commas as well, because 417 rows put two identifiers in the one
+  // Split on commas as well, because many rows put two identifiers in the one
   // field (`BNC-20R, 70240`, `SBT-705, 030329`) and the description's `PN` names
-  // only one of them. Comparing against the whole field missed every one.
+  // only one of them, which a comparison against the whole field would miss.
   const bare = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
   const pns = p.partNo.split(',').map(bare).filter(Boolean);
   // A nose cone's shape has a column of its own, so the word in the description
@@ -417,8 +417,8 @@ export function describeNotes(p: Component): string {
       if (pns.length > 0 && /^p\/?n[\s:]/i.test(seg)) {
         // The segment may join two codes with a slash (`PN 30400/30408`) where the
         // part-number field lists them with a comma, so each piece is checked.
-        // What is NOT dropped is a `PN` naming an identifier the part-number
-        // column does not carry: 90 rows do that, and it is the one thing in the
+        // What is not dropped is a `PN` naming an identifier the part-number
+        // column does not carry: some rows do that, and it is the one thing in the
         // segment that is real information rather than a repeat.
         const pieces = seg
           .replace(/^p\/?n[\s:]*/i, '')

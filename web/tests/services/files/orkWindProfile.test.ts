@@ -85,7 +85,7 @@ describe('multilevel wind profile round-trips through .ork', () => {
   });
 
   /**
-   * A hand-written fragment in the desktop's EXACT form. Read from a child
+   * A hand-written fragment in the desktop's exact form. Read from a child
    * <altitudereference> element or an attribute of another name, every AGL profile
    * the desktop saves comes in as MSL, which at a 1500 m site is a different wind
    * entirely.
@@ -115,10 +115,10 @@ describe('multilevel wind profile round-trips through .ork', () => {
   });
 
   /**
-   * The altitude is the level's IDENTITY to the kernel, not a quantity with a
-   * harmless zero. `?? 0` therefore did not mean "assume ground level": it put
-   * a second level on the pad, where it either displaced the real surface wind
-   * or collided with it and failed every run with the kernel's
+   * The altitude is the level's identity to the kernel, not a quantity with a
+   * harmless zero. Defaulting it to 0 would not mean "assume ground level": it
+   * would put a second level on the pad, where it would either displace the real
+   * surface wind or collide with it and fail every run with the kernel's
    * `Wind level already exists for altitude: 0.0`.
    */
   it('drops a level whose altitude the file does not give, rather than landing it on the pad', () => {
@@ -159,7 +159,7 @@ describe('multilevel wind profile round-trips through .ork', () => {
   });
 
   it('keeps writing the legacy turbulence ratio for pre-24 desktops', () => {
-    // 0.4 / 4 = 0.1, the INTENSITY rather than the m/s deviation.
+    // 0.4 / 4 = 0.1, the intensity rather than the m/s deviation.
     expect(exportOrk({ name: 'Wind', tree, launch: base })).toContain('<windturbulence>0.1</windturbulence>');
   });
 });

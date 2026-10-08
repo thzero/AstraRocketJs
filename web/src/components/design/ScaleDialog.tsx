@@ -162,7 +162,7 @@ export function ScaleDialog({ onClose }: { onClose: () => void }) {
                 onChange={onSi(
                   fu,
                   (ratio) => ratio !== null && ratio > 0 && setFactor(ratio),
-                  // The box holds a length and the dialog holds the RATIO of it
+                  // The box holds a length and the dialog holds the ratio of it
                   // to `from`, so the division is part of the conversion.
                   (si) => (from > 0 ? si / from : NaN),
                 )}

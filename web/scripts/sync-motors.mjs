@@ -1,9 +1,9 @@
 // Build-time motor catalog sync from the ThrustCurve.org API.
 //
-// Ships the full motor: factual specs (impulse, burn, mass, dimensions) AND the
+// Ships the full motor: factual specs (impulse, burn, mass, dimensions) and the
 // thrust-curve samples, plus the length + propellant weight needed to build a
-// simulatable motor. Everything is bundled so a picked motor resolves OFFLINE
-// and instantly — no runtime thrustcurve.org call.
+// simulatable motor. Everything is in the catalog file, so a picked motor
+// resolves offline and instantly, with no runtime thrustcurve.org call.
 //
 // Run manually or in CI (never inside `vite build`):  node scripts/sync-motors.mjs
 // Data © thrustcurve.org contributors and the certifying bodies (NAR/TRA/CAR).
@@ -16,7 +16,7 @@ import { collidingRowKeys } from './lib/motorRowKey.mjs';
 
 const API = 'https://www.thrustcurve.org/api/v1';
 // public/data is served as-is (not bundled) so the catalog can be refreshed
-// without rebuilding the app — see src/services/app/remoteData.ts.
+// without rebuilding the app; see src/services/app/remoteData.ts.
 const DATA_DIR = fileURLToPath(new URL('../public/data', import.meta.url));
 const OUT = resolve(DATA_DIR, 'motors.generated.json');
 
@@ -35,13 +35,13 @@ const chunk = (arr, size) =>
   Array.from({ length: Math.ceil(arr.length / size) }, (_, i) => arr.slice(i * size, i * size + size));
 
 // A motor can have several data files (cert vs user submissions, RASP/RockSim
-// formats). Bundle them ALL, best-first, so the picker can offer a choice.
+// formats). Bundle them all, best-first, so the picker can offer a choice.
 const SRC_RANK = { cert: 0, mfr: 1, user: 2 };
 const sourceLabel = (s) => ({ cert: 'Certified', mfr: 'Manufacturer', user: 'User' })[s] || s || 'Unknown';
 
 /** Fetch thrust-curve files for a batch of motorIds → Map<motorId, file[]>.
  *  `data: 'both'` also returns the raw file (base64) so we can read the loaded
- *  mass and CG straight from it — the values OpenRocket uses (see below). */
+ *  mass and CG straight from it: the values OpenRocket uses (see below). */
 async function fetchSamples(ids) {
   const out = new Map();
   const { results: files = [] } = await post('download.json', { motorIds: ids, data: 'both', maxResults: 4000 });
@@ -54,7 +54,7 @@ async function fetchSamples(ids) {
 }
 
 /**
- * Loaded mass (g) read straight from the thrust-curve FILE — RASP header
+ * Loaded mass (g) read straight from the thrust-curve file: RASP header
  * `totalWeight` (kg) or RockSim `<engine initWt>` (g). This is the mass
  * OpenRocket uses; thrustcurve.org's `totalWeightG` metadata can disagree with
  * the file (e.g. AeroTech J350W: file 651 g vs metadata 665 g), which throws off
@@ -102,15 +102,13 @@ const MAX_RESULTS = 5000;
  * that returned 200 with an empty list, or a schema change that made every
  * row fail the `totImpulseNs > 0` filter, would have gone live to every user
  * on their next open and emptied the motor picker. The app validates row
- * SHAPE, not catalog SIZE, so the floor has to be here.
+ * shape, not catalog size, so the floor has to be here.
  *
- * Row-key collisions are refused here for the same reason. The check used to
- * live in the workflow's Summary step, which printed a `> [!WARNING]`, never
- * set a non-zero exit, and ran AFTER the publish: a colliding pair reached
- * every user's motor picker with a green weekly workflow and a warning nobody
- * opens. A collision makes two distinct motors select, check and highlight as
- * one, and it is a property of the UPSTREAM data, so it is checked on every
- * sync rather than assumed.
+ * Row-key collisions are refused here for the same reason: a check that only
+ * warns, or that runs after the publish, lets a colliding pair reach every
+ * user's motor picker with a green workflow. A collision makes two distinct
+ * motors select, check and highlight as one, and it is a property of the
+ * upstream data, so it is checked on every sync rather than assumed.
  */
 async function assertSane(catalog, withCurves) {
   const problems = [];
@@ -122,7 +120,7 @@ async function assertSane(catalog, withCurves) {
     );
   if (catalog.length && withCurves / catalog.length < 0.8)
     problems.push(`only ${withCurves}/${catalog.length} motors have a bundled curve`);
-  // The shrink floor compares against WHATEVER IS ON DISK at `OUT`, and which copy
+  // The shrink floor compares against whatever is on disk at `OUT`, and which copy
   // that is differs by caller. In the weekly workflow it is the live published
   // catalog: the "Seed from the published catalogs" step clones the `data` branch
   // over this file first, precisely so the floor measures against what users are
@@ -130,8 +128,8 @@ async function assertSane(catalog, withCurves) {
   // copy, which can be months behind.
   //
   // Both are legitimate baselines, and the difference matters enough that the run
-  // says which one it used - a floor measured against a stale baseline is weaker
-  // than it looks, and nothing in the output distinguished the two cases.
+  // says which one it used: a floor measured against a stale baseline is weaker
+  // than it looks.
   try {
     const prev = JSON.parse(await readFile(OUT, 'utf8'));
     if (Array.isArray(prev) && prev.length) {
@@ -216,7 +214,7 @@ async function main() {
           samples: c.samples.map((s) => [round(s.time, 4), round(s.thrust, 3)]),
         }));
         // Loaded mass from the primary bundled file (the one the app uses by
-        // default) — matches OpenRocket; overrides the metadata mass set above.
+        // default), which matches OpenRocket; overrides the metadata mass set above.
         const fileMass = fileLoadedMassG(ranked[0].format, ranked[0].data);
         if (Number.isFinite(fileMass)) row.mass = round(fileMass, 2);
         // Real CG-vs-time from the best RockSim file, if any (else the motor

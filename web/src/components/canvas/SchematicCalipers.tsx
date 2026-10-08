@@ -11,9 +11,8 @@ import type { Ctx } from '../../tree/schematicGeometry';
 
 /**
  * Length calipers: two draggable vertical lines spanning the drawing height,
- * with the measured distance in a tag between them. A component of its own (it
- * was an IIFE inside the JSX) so the handles can be read, and reasoned about,
- * apart from the view they sit in.
+ * with the measured distance in a tag between them. A component of its own so
+ * the handles can be read, and reasoned about, apart from the view they sit in.
  */
 export function HorizontalCaliper({
   cal,
@@ -184,11 +183,9 @@ export function VerticalCaliper({
           strokeWidth="1"
           vectorEffect="non-scaling-stroke"
         />
-        {/* Wider than the horizontal caliper's 56, because the number is the same
-            and this box also carries the unit symbol. It did not: the diameter
-            read as a bare number where the length readout directly above it says
-            "48.2 mm", so sighted users got LESS than screen-reader users, who had
-            it from `aria-valuetext` all along. */}
+        {/* Wider than the horizontal caliper's 56, because this box also
+            carries the unit symbol, matching the length readout ("48.2 mm")
+            and the `aria-valuetext` screen readers hear. */}
         <rect
           x={dimX - 30}
           y={mid - 7}

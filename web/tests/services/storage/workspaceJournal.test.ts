@@ -61,12 +61,12 @@ beforeEach(() => {
 
 describe('unload journal', () => {
   // `readJournal` only checks that the blob parses and has a `w`. A journal
-  // written by a DIFFERENT app build parses cleanly and is still not a workspace
-  // this build can open — and this is an installed PWA, so an older cached build
+  // written by a different app build parses cleanly and is still not a workspace
+  // this build can open, and this is an installed PWA, so an older cached build
   // is a live possibility, not a hypothetical. The journal must be validated
-  // BEFORE it is written into the library: writing first overwrote the real
-  // stored design with the bad blob and cleared the journal, so the design was
-  // gone for good and every later load re-read the same bad blob.
+  // before it is written into the library: writing first would overwrite the real
+  // stored design with the bad blob and clear the journal, so the design would be
+  // gone for good and every later load would re-read the same bad blob.
   it('does not overwrite the stored design with a journal of the wrong shape', async () => {
     await store.save(ws('precious'));
     const loaded = await store.load(); // learn the active id
@@ -146,14 +146,14 @@ describe('unload journal', () => {
 });
 
 /**
- * A journal written BEFORE the first save carries a null id, because that is
+ * A journal written before the first save carries a null id, because that is
  * all `saveSync` has to record at that point.
  *
- * Both the replay check and the staleness check compared it to the active id,
- * and `null !== null` is false, so such a journal was never replayed AND never
- * cleared. Work done before the first debounced autosave was lost on reload
- * even though `saveSync` had written it, and the dead blob (a whole lean
- * workspace) squatted in the ~5 MB localStorage budget forever.
+ * Compared to the active id like any other journal, it would never be replayed
+ * and never cleared, because `null !== null` is false. Work done before the
+ * first debounced autosave would be lost on reload even though `saveSync` wrote
+ * it, and the dead blob (a whole lean workspace) would sit in the ~5 MB
+ * localStorage budget forever.
  */
 describe('unload journal written before the first save', () => {
   it('replays it into a NEW design instead of discarding the work', async () => {
@@ -182,7 +182,7 @@ describe('unload journal written before the first save', () => {
 
     await new LibraryWorkspaceStore().load();
 
-    // Previously it sat there forever, holding a slice of a 5 MB budget.
+    // Left in place it would sit there forever, holding a slice of a 5 MB budget.
     expect(localStorage.getItem(UNLOAD_KEY)).toBeNull();
   });
 });
@@ -190,7 +190,7 @@ describe('unload journal written before the first save', () => {
 describe('a journal older than the stored design', () => {
   // The unload write is a last resort and can lose the race: the debounced
   // async save in flight at pagehide commits after it, or another tab of the
-  // PWA saves the same design later. Replaying such a journal rolled the
+  // PWA saves the same design later. Replaying such a journal would roll the
   // design back to the older text.
   it('is dropped, not replayed over the newer save', async () => {
     await store.save(ws('newer'));
@@ -198,7 +198,7 @@ describe('a journal older than the stored design', () => {
     expect(nameOf(loaded)).toBe('newer');
     const activeId = kv.map.get(nsKey('designs:active'));
 
-    // A journal stamped a minute BEFORE that save landed.
+    // A journal stamped a minute before that save landed.
     localStorage.setItem(UNLOAD_KEY, JSON.stringify({ id: activeId, w: ws('stale-unload'), t: Date.now() - 60_000 }));
 
     expect(nameOf(await new LibraryWorkspaceStore().load())).toBe('newer');

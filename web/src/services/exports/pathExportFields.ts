@@ -8,7 +8,7 @@ import {
 import { decodeStageColors, encodeStageColors, type PathExportSettings } from '../storage/settings';
 
 /**
- * The flight-path export options that outlive one export, as ONE table that
+ * The flight-path export options that outlive one export, as one table that
  * both directions read: `hydrateExportOptions` fills the dialog from the store
  * and `persistedExportSettings` writes the dialog back. A field is remembered
  * by adding a row here, and a row cannot load without saving or save without
@@ -27,7 +27,7 @@ interface Field<O extends keyof FlightPathExportOptions, S extends keyof PathExp
   /** The dialog value from the stored one, or `fallback` where the stored one is absent or unreadable. */
   load: (stored: PathExportSettings[S], fallback: FlightPathExportOptions[O]) => FlightPathExportOptions[O];
   save: (value: FlightPathExportOptions[O]) => PathExportSettings[S];
-  /** Set on a unit field: it stays ABSENT in the store until it is an explicit choice. */
+  /** Set on a unit field: it stays absent in the store until it is an explicit choice. */
   unit?: UnitField;
 }
 
@@ -73,7 +73,7 @@ export const PATH_EXPORT_FIELDS: readonly AnyField[] = [
   field({
     option: 'waypoints',
     setting: 'waypoints',
-    // A saved EMPTY selection is a selection (the user unchecked every marker),
+    // A saved empty selection is a selection (the user unchecked every marker),
     // not an absence; only a missing or unreadable list falls back.
     load: (stored, fallback) => asWaypointKinds(stored) ?? fallback,
     save: (value) => [...value],
@@ -81,7 +81,7 @@ export const PATH_EXPORT_FIELDS: readonly AnyField[] = [
   plain('includeFlightPath'),
   plain('includeGroundTrack'),
   plain('pathStride'),
-  // The units are the interesting case - ABSENT means follow the app's distance
+  // The units differ from the rest: absent means follow the app's distance
   // preference, which is what a fresh install does, while a stored value is an
   // explicit dialog choice and outranks it.
   field({

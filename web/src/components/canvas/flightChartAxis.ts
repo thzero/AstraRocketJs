@@ -58,7 +58,7 @@ export function zoomWindow(t0: number, t1: number, factor: number, anchorT: numb
 }
 
 /**
- * The window actually shown for a saved zoom, clamped to the CURRENT flight's
+ * The window actually shown for a saved zoom, clamped to the current flight's
  * span at read time: a re-run of the same simulation can land shorter than the
  * window zoomed on the previous run, and it cannot be reset by an effect keyed on
  * the trace list, which a re-run does not change.

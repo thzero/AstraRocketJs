@@ -12,7 +12,7 @@ import { designInfoXml } from './ork/exportDesignInfo';
 import { DOC_EXTRA_KEY, ROCKET_EXTRA_KEY, passthroughOf } from './ork/passthrough';
 
 /**
- * .ork EXPORT: the document frame (declaration, <rocket> header, design
+ * .ork export: the document frame (declaration, <rocket> header, design
  * metadata, stages, simulations, design info) assembled from the block writers
  * under `ork/`. Every component element is written by the per-type table in
  * `ork/exportWriters.ts`; the flight-configuration table, the simulation block
@@ -32,15 +32,15 @@ export function exportOrk({
   const { emit } = w;
 
   emit(0, "<?xml version='1.0' encoding='utf-8'?>");
-  // The creator is the app's own name (appInfo), not a literal, which drifts from
-  // the app's actual name and names a program that does not exist.
+  // The creator is the app's own name (appInfo), not a literal, so it cannot
+  // drift from the app's actual name.
   emit(0, `<openrocket version="1.10" creator="${escapeXml(appName())}">`);
   emit(1, '<rocket>');
   emit(2, `<name>${escapeXml(name)}</name>`);
   emit(2, `<id>${uuid()}</id>`);
   emit(2, '<axialoffset method="absolute">0.0</axialoffset>');
   emit(2, '<position type="absolute">0.0</position>');
-  // Design-level metadata (Rocket configuration) — emit only what's set so an
+  // Design-level metadata (Rocket configuration): emit only what's set so an
   // untouched design stays clean; the loader keys on element name, not order.
   const metaField = (key: 'comment' | 'designer' | 'revision') => {
     const v = tree[key];
@@ -57,7 +57,7 @@ export function exportOrk({
   // desktop model); legacy flat trees wrap into one implicit stage.
   const stageNodes = asStageNodes(tree);
   // The ids, not just the count: a configuration grounds a stage by node id,
-  // and their order here IS the file's stage numbering.
+  // and their order here is the file's stage numbering.
   motorConfigurationsXml(
     w,
     2,

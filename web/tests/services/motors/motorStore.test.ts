@@ -105,9 +105,9 @@ describe('custom motors', () => {
 });
 
 describe('custom motors report refused writes', () => {
-  // `kv.set` REPORTS failure by returning false rather than throwing, and the
-  // boolean was discarded — so MotorDialog awaited the import, got a clean
-  // resolve, and re-rendered a catalog that simply did not contain the motor.
+  // `kv.set` reports failure by returning false rather than throwing. Unless the
+  // store turns that into a throw, MotorDialog awaits the import, gets a clean
+  // resolve, and re-renders a catalog that does not contain the motor.
   it('throws when an import cannot be stored', async () => {
     const kv = new FakeKv();
     const store = new KeyValueMotorStore(kv, 1000);
@@ -156,7 +156,7 @@ describe('isCustomMotor rejects what would reach the kernel broken', () => {
   });
 
   it('drops a sample that is not a {time, thrust} pair', async () => {
-    // `samples: [{}]` became `times: [undefined]` and NaN masses in the kernel.
+    // `samples: [{}]` would become `times: [undefined]` and NaN masses in the kernel.
     expect(await survives({ ...good(), samples: [{}] })).toBe(0);
     expect(await survives({ ...good(), samples: [null] })).toBe(0);
     expect(await survives({ ...good(), samples: [[0, 1]] })).toBe(0);
@@ -165,9 +165,8 @@ describe('isCustomMotor rejects what would reach the kernel broken', () => {
   it('drops a sample whose time or thrust is null', async () => {
     // Written as NaN/Infinity by whatever produced the blob; JSON.stringify
     // turns both into null on the way to storage, so null is what the store
-    // actually reads back. `typeof null === 'object'`, so the OLD per-field
-    // checks would have caught these — what did not catch them is that the old
-    // isCustomMotor never looked inside `samples` at all.
+    // actually reads back. The per-field checks on the row cannot see these;
+    // isCustomMotor has to look inside `samples` itself.
     expect(await survives({ ...good(), samples: [{ time: 0, thrust: null }] })).toBe(0);
     expect(await survives({ ...good(), samples: [{ time: null, thrust: 1 }] })).toBe(0);
     expect(await survives({ ...good(), samples: [{ time: 0 }] })).toBe(0);
@@ -184,9 +183,9 @@ describe('isCustomMotor rejects what would reach the kernel broken', () => {
   });
 
   it('drops a dimension or weight that is absent, null or not a number', async () => {
-    // NOT tested with NaN: JSON.stringify writes it as null, so a NaN can never
-    // be read back out of the store — the same reason engineBoundary.test.ts
-    // records that Infinity cannot reach the kernel. These three CAN arrive.
+    // Not tested with NaN: JSON.stringify writes it as null, so a NaN can never
+    // be read back out of the store, the same reason engineBoundary.test.ts
+    // records that Infinity cannot reach the kernel. These three can arrive.
     for (const k of ['diameter', 'length', 'totalWeightG', 'propWeightG'] as const) {
       expect(await survives({ ...good(), [k]: null }), `${k}=null`).toBe(0);
       expect(await survives({ ...good(), [k]: '18' }), `${k}="18"`).toBe(0);

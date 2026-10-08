@@ -10,14 +10,14 @@ import type { FlightResult } from '../../../src/engine/openRocketEngine';
 import 'fake-indexeddb/auto';
 
 /**
- * The storage tier's shared failure mode: SILENT DATA LOSS.
+ * The storage tier's shared failure mode: silent data loss.
  *
- * Every finding fixed here looked fine from the outside. A refused write
- * resolved cleanly, a stale copy shadowed a newer one, an index lost an entry
- * to a concurrent tab, a delete left the library pointing at bytes that were
- * gone. Nothing threw, nothing warned; the user found out a session later.
+ * Each case here looks fine from the outside: a refused write resolves cleanly,
+ * a stale copy shadows a newer one, an index loses an entry to a concurrent tab,
+ * a delete leaves the library pointing at bytes that are gone. Nothing throws,
+ * nothing warns; the user finds out a session later.
  *
- * These tests assert the OBSERVABLE contract rather than the mechanism: what
+ * These tests assert the observable contract rather than the mechanism: what
  * comes back out after a write that storage refused, and what survives two
  * writers.
  */
@@ -80,8 +80,8 @@ describe('a save refused by IndexedDB is not shadowed by the stale copy', () => 
     });
     expect(fallback.map.get('k')).toBe('v2');
 
-    // Before the fix `get` read IndexedDB first and handed back 'v1' - the
-    // save was lost with every layer above reporting success.
+    // Reading IndexedDB first would hand back 'v1': the save lost, with every
+    // layer above reporting success.
     expect(await kv.get('k')).toBe('v2');
   });
 
@@ -110,7 +110,7 @@ describe('a save refused by IndexedDB is not shadowed by the stale copy', () => 
 
 describe('the design index survives two concurrent writers', () => {
   it('keeps both designs when two tabs save at the same time', async () => {
-    // Two libraries over the SAME IndexedDB is what two tabs are.
+    // Two libraries over the same IndexedDB is what two tabs are.
     const a = new DesignLibrary(new IndexedDbKeyValueStore());
     const b = new DesignLibrary(new IndexedDbKeyValueStore());
 
@@ -152,9 +152,9 @@ describe('deleting a design never leaves the library pointing at nothing', () =>
     kv.full = true;
     expect(await lib.remove('A')).toBe(false);
 
-    // The old order deleted the blob first, so a refused index write left the
-    // library listing a design whose bytes were gone: activeId() returned it,
-    // read() returned null, and the app opened on `unreadable-design`.
+    // Deleting the blob first would let a refused index write leave the library
+    // listing a design whose bytes are gone: activeId() returns it, read()
+    // returns null, and the app opens on `unreadable-design`.
     kv.full = false;
     expect((await lib.list()).map((m) => m.id)).toEqual(['A']);
     expect(await lib.read('A')).not.toBeNull();
@@ -204,7 +204,7 @@ describe('stored flight results are shape-checked before they are trusted', () =
 
   it('drops a result whose summary went through JSON as null', async () => {
     // NaN and Infinity serialize to null, so a summary number comes back null
-    // and the first `.toFixed()` on it threw in the middle of an export.
+    // and the first `.toFixed()` on it throws in the middle of an export.
     const nan = good();
     (nan.summary as unknown as Record<string, unknown>)['maxVelocity'] = NaN;
     expect(await readBack({ s1: nan })).toEqual({});
@@ -230,11 +230,10 @@ const ws = (): Workspace =>
   }) as unknown as Workspace;
 
 /**
- * The material and template stores had the same swallowed failure the motor
- * store was already fixed for: `kv.set` reports refusal by RETURNING false,
- * and both discarded it as "best-effort (re-addable)". The dialog awaited the
- * save, got a clean resolve, and re-rendered a list without the thing the user
- * had just added.
+ * The material and template stores, like the motor store, must not swallow a
+ * refused write: `kv.set` reports refusal by returning false, and a store that
+ * discards it lets the dialog await the save, get a clean resolve, and re-render
+ * a list without the thing the user just added.
  */
 describe('custom material and template writes report a refused write', () => {
   it('throws storage-full instead of resolving cleanly', async () => {

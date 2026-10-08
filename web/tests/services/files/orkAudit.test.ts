@@ -7,10 +7,9 @@ import type { ComponentNode, RocketTree } from '../../../src/engine/openRocketEn
 import type { LaunchConditions } from '../../../src/services/design/orkTree';
 
 /**
- * Round trips for the fields a code audit found the .ork writer replacing with
- * constants, or the reader parsing three different ways. Each case is the
- * regression test for one finding; the desktop-form fixture in
- * orkDesktopFixture.test.ts is the one that would have caught them first.
+ * Round trips for fields the .ork writer must not replace with constants and
+ * the reader must parse one way. The desktop-form fixture in
+ * orkDesktopFixture.test.ts checks the same fields against OpenRocket's layout.
  */
 
 const node = (o: object) => o as unknown as ComponentNode;
@@ -199,12 +198,12 @@ describe('one finite-number parse (finding 12)', () => {
     `</subcomponents></rocket><simulations><simulation><name>x</name><conditions>${inner}</conditions></simulation></simulations></openrocket>`;
 
   /**
-   * A level whose ALTITUDE is unreadable is now dropped rather than zeroed. The
-   * other three still fall back to 0, because a still layer is a meaningful
+   * A level whose altitude is unreadable is dropped rather than zeroed. The
+   * other three fall back to 0, because a still layer is a meaningful
    * reading; an altitude is not a quantity with a harmless zero but the level's
-   * identity to the kernel, which keys its levels on it. Zeroing one put a
-   * second level on the pad, where it either displaced the real surface wind or
-   * collided with it and failed every run (see services/flight/windLevels).
+   * identity to the kernel, which keys its levels on it. Zeroing one would put a
+   * second level on the pad, where it would either displace the real surface
+   * wind or collide with it and fail every run (see services/flight/windLevels).
    */
   it('does not let Infinity through a wind level', () => {
     const bad =
@@ -285,9 +284,8 @@ describe('shared defaults (finding 15)', () => {
 
 /**
  * A centered internal part writes its placement the way the desktop savers do,
- * "0.0" (a Java double), as the desktop-written fixture's inner tube shows. The
- * inner tube and the mass component wrote it inline as "0", so a saved file
- * differed from the desktop's for no reason.
+ * "0.0" (a Java double), as the desktop-written fixture's inner tube shows, so a
+ * saved file does not differ from the desktop's for no reason.
  */
 describe('radial placement of a centered internal part', () => {
   it('is written as 0.0 for an inner tube and a mass component', () => {

@@ -20,8 +20,8 @@ import type { LaunchConditions } from '../../services/design/orkTree';
 /**
  * The controls for a wind sweep: the grid to fly, and what came of the last one.
  *
- * It lives ON the ground track rather than in the simulations table because a
- * sweep is not a simulation — it produces no row, no apogee and no flight card,
+ * It lives on the ground track rather than in the simulations table because a
+ * sweep is not a simulation: it produces no row, no apogee and no flight card,
  * only a region on the one view that can draw it. Asking for it where the
  * answer appears is also what keeps the thirty-two flights it costs legible:
  * the button is next to the picture it changes.
@@ -56,7 +56,7 @@ export function DriftSweepPanel({ simId, launch }: { simId: string; launch: Laun
   const cancelDriftSweep = useWorkspaceStore((s) => s.cancelDriftSweep);
   const clearDriftSweep = useWorkspaceStore((s) => s.clearDriftSweep);
 
-  // Seeded from the flight's OWN surface wind, so opening the panel proposes a
+  // Seeded from the flight's own surface wind, so opening the panel proposes a
   // band around the day that was typed rather than a constant somebody has to
   // retype every time.
   const [spec, setSpec] = useState<WindSweepSpec>(() => defaultSweepSpec(surfaceWind(launch).speedMs));
@@ -119,7 +119,7 @@ export function DriftSweepPanel({ simId, launch }: { simId: string; launch: Laun
   return (
     // `min-h-0` + scroll: the panel lives inside the square plot, which on a
     // phone is barely taller than the panel itself, and the box clips its
-    // overflow — without this the Run button is the part that goes missing.
+    // overflow; without this the Run button is the part that goes missing.
     <div className="min-h-0 w-60 overflow-y-auto rounded-lg bg-surface/95 p-2.5 text-ink-soft ring-1 ring-line/10">
       {/* Said here rather than only in the docs: this is the panel somebody is
           looking at when they decide how big a field they need, and the region
@@ -158,8 +158,9 @@ export function DriftSweepPanel({ simId, launch }: { simId: string; launch: Laun
         </label>
       </div>
 
-      {/* The bill, before it is run. Thirty-two flights is a real wait, and the
-          two step fields multiply — which is not obvious from two boxes. */}
+      {/* The bill, before it is run. The default thirty-two flights is a real
+          wait, and the two step fields multiply, which is not obvious from two
+          boxes. */}
       <p className="mt-2 text-[10px] text-ink-faint">{t('sweep.flights', { count: flights })}</p>
 
       <div className="mt-2 flex items-center gap-1.5">

@@ -4,10 +4,10 @@ import { renderUserTemplate, type FlightPathModel } from '../../../src/services/
 /**
  * The CSV escaper guards against spreadsheet formula injection by prefixing
  * `'` to any value that starts with `= + - @`. The pre-formatted numeric
- * fields go through the same escaper, so every western-hemisphere longitude
- * and every below-pad altitude came out as `'-80.600000`: text, not a number,
- * in every spreadsheet and in GPS Visualizer. The only CSV test used positive
- * coordinates.
+ * fields go through the same escaper, so a plain negative number must be let
+ * through: otherwise every western-hemisphere longitude and every below-pad
+ * altitude comes out as `'-80.600000`, text rather than a number, in every
+ * spreadsheet and in GPS Visualizer.
  */
 describe('CSV escaper and negative numbers', () => {
   const m = { title: '' } as unknown as FlightPathModel;

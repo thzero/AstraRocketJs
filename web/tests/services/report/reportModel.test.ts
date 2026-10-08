@@ -96,7 +96,7 @@ describe('finSetPositions', () => {
   });
   // The overhanging case: the outline reaches 0.06 aft, but the root runs
   // first.x -> last.x = 0.04, which is what the kernel flies
-  // (FreeformFinSet.length = last.x - first.x). NOT `Math.max(...xs)`.
+  // (FreeformFinSet.length = last.x - first.x), not `Math.max(...xs)`.
   it('uses a freeform fin ROOT chord, not the outline max-x, as the root length', () => {
     const s = node({
       type: 'stage',
@@ -134,7 +134,7 @@ describe('multiStageSummaries', () => {
   const info = (mass: number) => ({ mass }) as unknown as StaticInfo;
   // The rebuilt whole-rocket handle the app should end up holding after the report.
   const whole = { info: info(99), handle: {} as never };
-  /** What the caller is told when the WHOLE-rocket rebuild is the thing that fails. */
+  /** What the caller is told when the whole-rocket rebuild is the thing that fails. */
   let failures: unknown[] = [];
   const failed = (e: unknown) => failures.push(e);
   beforeEach(() => {
@@ -171,18 +171,18 @@ describe('multiStageSummaries', () => {
         failed,
       ),
     ).toThrow(/bad stage/);
-    // The regression this refactor fixes: without the finally, a throwing stage
-    // build would leave the app's live handle stranded on the last stage.
+    // Without the finally, a throwing stage build would leave the app's live
+    // handle stranded on the last stage.
     expect(restored).toEqual([whole]);
     expect(failures).toEqual([]);
   });
 
   /**
-   * The case the `finally` did NOT cover: `buildWhole()` itself throwing.
+   * The case a `finally` alone does not cover: `buildWhole()` itself throwing.
    *
-   * `restore` then never ran, so the store kept the last per-stage handle - one
-   * stage standing in for the rocket - and nothing re-triggered the rebuild
-   * effect, because its dependencies had not moved. The aero pane stayed dead
+   * If `restore` never runs, the store keeps the last per-stage handle (one
+   * stage standing in for the rocket) and nothing re-triggers the rebuild
+   * effect, because its dependencies have not moved. The aero pane stays dead
    * until an unrelated edit.
    */
   it('reports a failing whole-rocket rebuild instead of silently not restoring', () => {
@@ -229,9 +229,9 @@ describe('multiStageSummaries', () => {
 /**
  * Tube fins in the fin-position table.
  *
- * They belong here — OpenRocket's FinMarkingGuide collects TubeFinSet right
+ * They belong here: OpenRocket's FinMarkingGuide collects TubeFinSet right
  * beside FinSet, and where a tube sits along the airframe is exactly as useful
- * to mark. What is NOT theirs is a root chord: the span is the tube's length.
+ * to mark. What is not theirs is a root chord: the span is the tube's length.
  */
 describe('finSetPositions — tube fins', () => {
   const rocket = { componentInfo: () => ({ positionX: 0.42 }) };
@@ -253,7 +253,7 @@ describe('finSetPositions — tube fins', () => {
     expect(sets[0]!.name).toBe('Tube fins');
     expect(sets[0]!.topX).toBeCloseTo(0.42, 9);
     expect(sets[0]!.bottomX).toBeCloseTo(0.5, 9); // 0.42 + 0.08 length
-    // Reading through `rootChord` gave every tube fin set the 0.05 m default.
+    // Reading through `rootChord` would give every tube fin set the 0.05 m default.
     expect(sets[0]!.bottomX).not.toBeCloseTo(0.47, 6);
   });
 
@@ -265,13 +265,12 @@ describe('finSetPositions — tube fins', () => {
 });
 
 /**
- * Each stage's summary must be built with the motor in THAT stage's mount.
+ * Each stage's summary must be built with the motor in that stage's mount.
  *
- * A per-stage summary is built from a ONE-STAGE tree, and a flight configuration
+ * A per-stage summary is built from a one-stage tree, and a flight configuration
  * keys its motors by mount id, so the motors seated in that tree are exactly the
  * ones that stage's own mounts hold. Nothing pairs a motor with a mount by
- * position, which is what put the sustainer's motor in the booster back when the
- * first mount's motor was held apart from the rest.
+ * position, which could put the sustainer's motor in the booster.
  */
 describe('per-stage motors', () => {
   const tree = (id: string) =>

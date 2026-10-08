@@ -8,7 +8,7 @@ import { zoomStep, type ZoomState } from '../../tree/schematicGeometry';
  *
  * A native, non-passive listener: React's onWheel is passive, so the
  * preventDefault that keeps the page from scrolling has to be attached here.
- * Registered ONCE per element; the pointer-to-viewBox mapping is read through
+ * Registered once per element; the pointer-to-viewBox mapping is read through
  * a ref so a layout change never re-attaches the listener.
  *
  * @param toView maps a wheel event's client point to viewBox coordinates,

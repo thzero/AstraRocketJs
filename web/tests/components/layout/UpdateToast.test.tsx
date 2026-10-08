@@ -12,10 +12,10 @@ import '../../../src/i18n';
  * A `role="status"` created at the same moment as its text is not announced by
  * most screen readers: the region has to already exist in the accessibility
  * tree for an insertion into it to count as an update. Returning `null` until
- * there was something to say therefore announced NOTHING - which is the entire
- * purpose of a toast, and which looks completely correct on screen. Nothing
- * catches a regression here except an assertion that the empty region is
- * mounted, because the visible behavior is identical either way.
+ * there is something to say would therefore announce nothing, which defeats the
+ * purpose of a toast and looks completely correct on screen. Only an assertion
+ * that the empty region is mounted catches that, because the visible behavior
+ * is identical either way.
  */
 
 /** Drives the mocked `useRegisterSW` between renders. */
@@ -52,8 +52,8 @@ describe('the live region', () => {
   });
 
   it('is the SAME element once the update arrives, not a new one', () => {
-    // This is the whole fix. A region that is created together with its text
-    // is not announced; only an insertion INTO an existing region is.
+    // The point of the live region: a region that is created together with its
+    // text is not announced; only an insertion into an existing region is.
     const { rerender } = render(<UpdateToast />);
     const before = screen.getByRole('status');
 
@@ -106,7 +106,7 @@ describe('the toast itself', () => {
   });
 
   it('hides the body on Later without discarding the waiting worker', () => {
-    // "Later" snoozes; it must NOT clear needRefresh, or the same update can
+    // "Later" snoozes; it must not clear needRefresh, or the same update can
     // never be offered again this session.
     needRefresh = true;
     render(<UpdateToast />);

@@ -4,7 +4,7 @@ import { findMounts } from '../../src/services/design/treeEdit';
 import type { MotorSpec } from '../../src/engine/openRocketEngine';
 
 /**
- * Give the named simulation a flight configuration of its OWN, with `spec` in
+ * Give the named simulation a flight configuration of its own, with `spec` in
  * every mount.
  *
  * A row's motors live in the configuration it points at, and several rows can

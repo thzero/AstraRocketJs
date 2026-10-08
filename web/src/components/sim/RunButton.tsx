@@ -10,14 +10,14 @@ import { designBlocker, designBlockerText, unflyableSims, unflyableText } from '
  * Runs whatever the table has selected: the ticked rows, or the active
  * simulation when nothing is ticked (see `selectRunIds`).
  *
- * The label counts them, because "Run flight simulation" over a batch of six was
- * a lie about what the click would do.
+ * The label counts them, because "Run flight simulation" over a batch of six
+ * would misstate what the click does.
  */
 export function RunButton({ className = '' }: { className?: string }) {
   const t = useLauncherT();
   const { settings } = useSettings();
   const units = useUnits();
-  // Subscribe to the two STABLE pieces and derive the list here. Subscribing to
+  // Subscribe to the two stable pieces and derive the list here. Subscribing to
   // `selectRunIds` directly loops forever: it builds a fresh array on every
   // call, zustand compares by reference, so every render schedules another.
   const selectedIds = useWorkspaceStore((s) => s.selectedSimIds);
@@ -43,11 +43,11 @@ export function RunButton({ className = '' }: { className?: string }) {
   );
   const flyable = about.length - refused.length;
 
-  // A fault in the DESIGN stops everything: every row shares the tree, so there
+  // A fault in the design stops everything: every row shares the tree, so there
   // is no "skip the bad one and fly the rest" to fall back on. Nowhere to seat a
   // motor, or a part whose required dimension is zero.
   const design = useMemo(() => designBlocker(tree), [tree]);
-  // Otherwise the button only goes dead when NOTHING in the selection can fly.
+  // Otherwise the button only goes dead when nothing in the selection can fly.
   // Disabling a batch of twelve because one row is out of limits would refuse
   // eleven perfectly good flights; the loop already skips the bad ones, so the
   // button's job is to say which and why, not to veto the rest.
@@ -63,9 +63,9 @@ export function RunButton({ className = '' }: { className?: string }) {
   return (
     <div className={`space-y-2 ${className}`}>
       {/* While a batch is in flight this button becomes Cancel, rather than
-          going dead and saying "Simulating…". A run that hangs used to leave
-          nothing to press for the whole 30-second timeout, and the same button
-          is where anyone would look for the way out. */}
+          going dead and saying "Simulating…", so a run that hangs still
+          has something to press during the 30-second timeout. The same
+          button is where anyone would look for the way out. */}
       <button
         onClick={() => (busy ? cancelRun() : runSims(runIds, settings.simulation))}
         disabled={!busy && (!info || blocked)}

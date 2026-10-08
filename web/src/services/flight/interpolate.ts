@@ -4,22 +4,21 @@
  * and steps past missing samples gracefully. A NaN sample is missing too: the
  * kernel records stability and CP as NaN while the rocket is on the rail, and the
  * first real value lands exactly at the rail departure, so blending it with the
- * NaN before it turned the rail-exit margin into NaN. Shared by the flight-panel, drag-sweep
+ * NaN before it would make the rail-exit margin NaN. Shared by the flight-panel, drag-sweep
  * and rail-margin readouts, which all sample a curve at a hovered/target x.
  *
  * Binary search, not a linear scan. FlightChart calls this once per stage per
- * panel on EVERY pointer move, over a fine-timestep flight's six-figure sample
- * arrays; a scan from index 1 walked most of the array for any hover past the
- * boost phase. `xs` is documented sorted ascending, which is all a lower-bound
- * search needs, and it lands on the same knot the scan did: the FIRST index
- * with `x <= xs[i]`, so duplicate knots resolve identically.
+ * panel on every pointer move, over a fine-timestep flight's six-figure sample
+ * arrays. `xs` is documented sorted ascending, which is all a lower-bound
+ * search needs; it lands on the first index with `x <= xs[i]`, so duplicate
+ * knots resolve to the earliest one.
  */
 export function lerpAt(xs: readonly number[], ys: readonly (number | null)[], x: number): number | null {
   const n = xs.length;
   if (!n) return null;
   if (x <= xs[0]!) return finite(ys[0]);
-  // Indexed off `xs`, not `ys`: a `ys` longer than `xs` was returning a value
-  // from OUTSIDE the x-domain. `lerpAt([0,1],[0,10,999],5)` gave 999, not 10.
+  // Indexed off `xs`, not `ys`, so a `ys` longer than `xs` cannot return a
+  // value from outside the x-domain: `lerpAt([0,1],[0,10,999],5)` is 10.
   if (x > xs[n - 1]!) return finite(ys[n - 1]);
   // Lower bound: the smallest i in [1, n-1] with x <= xs[i].
   let lo = 1;

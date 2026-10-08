@@ -11,8 +11,8 @@ import {
 } from '../../services/design/treeEdit';
 import type { PickerType } from '../../services/parts/componentDb';
 import type { FitContext } from '../../services/parts/componentFilter';
-// Lazily loaded: it pulls in the ~740 kB component catalog (services/parts/componentDb),
-// so it splits into its own chunk fetched only when a catalog part is selected.
+// Lazily loaded: nothing needs it, or the component catalog it fetches
+// (services/parts/componentDb), until a catalog part is selected.
 const ComponentPicker = lazyNamed(() => import('./ComponentPicker'), 'ComponentPicker');
 // Lazy for the same reason and behind the same Suspense boundary: it is the
 // other half of the picker, and nothing needs either until a catalog part is
@@ -93,13 +93,13 @@ export function PropertyPanel({
   onMove?: (dir: -1 | 1) => void;
   canMoveUp?: boolean;
   canMoveDown?: boolean;
-  /** False disables Delete (e.g. the only stage — a rocket needs at least one). */
+  /** False disables Delete (e.g. the only stage: a rocket needs at least one). */
   canRemove?: boolean;
-  /** The selected node is the top stage — has nothing above it, so no separation. */
+  /** The selected node is the top stage: nothing above it, so no separation. */
   isFirstStage?: boolean;
   /** The ancestor whose override decides each value, by name (useSelectedComponent). */
   coveredBy?: Partial<Record<'mass' | 'cg' | 'cd', string>>;
-  /** Outer radius (m) of the body this part rings — tube fins only. */
+  /** Outer radius (m) of the body this part rings; tube fins only. */
   parentRadius?: number;
   /** Geometry around this part, so the catalog picker can rank what fits it. */
   fit?: FitContext;
@@ -171,9 +171,9 @@ export function PropertyPanel({
         </div>
       </div>
 
-      {/* What this part IS: what it is called, and which catalog part it came
-          from. Color used to be here too and is its own section now, below:
-          these two say what the part is, and that one says how it is drawn. */}
+      {/* What this part is: what it is called, and which catalog part it came
+          from. Color is its own section, below: these two say what the part
+          is, and that one says how it is drawn. */}
       <PropSection title={t('prop.part')}>
         <label className="flex items-center justify-between gap-3">
           <span className="text-xs text-ink-muted">{t('prop.name')}</span>
@@ -188,10 +188,10 @@ export function PropertyPanel({
         </label>
 
         {/*
-            WHICH catalog part this is, when it came from one.
+            Which catalog part this is, when it came from one.
             The link is written by the picker and carried into the `.ork`
-            (`presetRef`), and until this row existed nothing on screen said so:
-            a design built from real parts looked hand-typed. It disappears by
+            (`presetRef`); without this row a design built from real parts
+            would look hand-typed. It disappears by
             itself when an edit breaks the link, because `breaksPreset` drops the
             link with the same commit.
         */}
@@ -229,7 +229,7 @@ export function PropertyPanel({
         )}
       </PropSection>
 
-      {/* What the chosen shape IS, in OpenRocket's own words, directly under
+      {/* What the chosen shape is, in OpenRocket's own words, directly under
           the controls it describes: the shape and, where the shape uses one,
           its parameter. The desktop puts it beside those two; a one-column
           panel puts it below them. */}
@@ -241,8 +241,9 @@ export function PropertyPanel({
       ))}
 
       {/* The stub that plugs into the tube next door. It is a different piece
-          of the part from the cone or taper above it, and it was reading as
-          four more dimensions of the same shape. A transition has two, kept
+          of the part from the cone or taper above it, and under the same
+          heading it would read as four more dimensions of the same shape. A
+          transition has two, kept
           apart because each end is its own build and eight rows under one
           heading is a wall. Only one of the three renders for a given part:
           FieldSection draws nothing when the type has no field in it. */}
@@ -268,7 +269,7 @@ export function PropertyPanel({
         onCommit={onCommit}
       />
 
-      {/* The through-the-wall tab is a separate piece of the fin — four fields
+      {/* The through-the-wall tab is a separate piece of the fin: four fields
           that describe the part of it buried in the airframe, not its
           planform. Run on under the planform they read as four more
           dimensions of the same shape. */}
@@ -283,11 +284,9 @@ export function PropertyPanel({
       </FieldSection>
 
       {/* The glue bead along the fin root. Its material is rarely the fin's own
-          — epoxy on plywood — so it carries its own, beside the radius.
-          The picker used to appear only once the radius was non-zero, on the
-          theory that a material with no bead is meaningless. What that
-          actually did was hide it: you cannot find a control that is not
-          there, and the order you fill a section in is yours, not the
+          (epoxy on plywood), so it carries its own, beside the radius.
+          The picker shows at any radius: you cannot find a control that is
+          not there, and the order you fill a section in is yours, not the
           panel's. It stores fine at radius 0 and goes live the moment there
           is a bead. */}
       <FieldSection
@@ -310,8 +309,7 @@ export function PropertyPanel({
               // material back in its own category rather than the
               // PaperProducts its Cardboard fallback belongs to. It comes from
               // the picker because only the picker has the catalog in hand; a
-              // custom adhesive carries its group this way too, which the old
-              // built-ins-only lookup could not see.
+              // custom adhesive carries its group this way too.
               filletMaterialGroup: (name && group) || undefined,
             })
           }
@@ -319,8 +317,8 @@ export function PropertyPanel({
       </FieldSection>
 
       {/* Tube fins collide with each other once they are too fat, or too many,
-          for the body they ring — geometry the app could compute (tubefins.ts)
-          but never showed. Warn rather than clamp: the user may be part-way
+          for the body they ring (geometry from tubefins.ts). Warn rather than
+          clamp: the user may be part-way
           through a change, and both ways out (fewer tubes, thinner tubes) are
           theirs to pick. */}
       {node.type === 'tubefinset' && tubeFinsCollide(node, parentRadius) && (
@@ -337,16 +335,16 @@ export function PropertyPanel({
 
       {hasMaterial(node.type) && <MaterialSection node={node} onCommitChange={commitChange} />}
 
-      {/* What the tube does for a MOTOR, as against what the tube IS. Only a
+      {/* What the tube does for a motor, as against what the tube is. Only a
           body tube (two rows) and an inner tube (six, the cluster among them)
           have one; every other type renders nothing here.
 
           Below the material rather than above it, because everything above this
-          point describes the tube itself - its dimensions, then what it is made
-          of - and this is the first section about the job it has been given. A
-          body tube's motor-mount switch sitting between its wall thickness and
-          its material split the description of one object in half, and on an
-          inner tube the cluster rows pushed the material six rows down. */}
+          point describes the tube itself (its dimensions, then what it is made
+          of) and this is the first section about the job it has been given.
+          Placed between the wall thickness and the material, these rows would
+          split the description of one object in half, and on an inner tube
+          the cluster rows would push the material six rows down. */}
       <FieldSection
         node={node}
         title={t('prop.motor')}
@@ -373,7 +371,7 @@ export function PropertyPanel({
 
       {isRecoveryDevice(node.type) && (
         <>
-          {/* The deployment fields above are the DESIGN's; a flight
+          {/* The deployment fields above are the design's; a flight
               configuration may open this device at another moment. */}
           <ConfigOverrideNote node={node} />
           <RecoveryMaterialSection node={node} onCommitChange={commitChange} />
@@ -384,17 +382,17 @@ export function PropertyPanel({
           configuration may let this booster go at another moment. */}
       {(node.type === 'stage' || node.type === 'parallelstage') && <ConfigOverrideNote node={node} />}
 
-      {/* Single or dual deployment, chosen on the STAGE, which is the only place
+      {/* Single or dual deployment, chosen on the stage, which is the only place
           OpenRocket offers it. A pod set is not a stage and has no recovery
           plan of its own; a parallel stage is one and does. */}
       {(node.type === 'stage' || node.type === 'parallelstage') && <StageRecovery node={node} />}
 
-      {/* Descent sizing — canopy diameter for the descent bands + this chute's
+      {/* Descent sizing: canopy diameter for the descent bands + this chute's
           own descent rate, from the live descent mass. Parachutes only (the
           sqrt-law is diameter-based; streamers size differently). */}
       {node.type === 'parachute' && <RecoverySizingReadout node={node} onChange={onChange} onCommit={onCommit} />}
 
-      {/* Placement — only meaningful for parts nested inside a tube. */}
+      {/* Placement: only meaningful for parts nested inside a tube. */}
       {node.type !== 'stage' && !isAxial(node.type) && (
         <PlacementSection node={node} onChange={onChange} onCommit={onCommit} />
       )}
@@ -410,20 +408,19 @@ export function PropertyPanel({
           itself. */}
       <ComponentActions node={node} />
 
-      {/* Overrides are the last thing about the ROCKET on every part, without
+      {/* Overrides are the last thing about the rocket on every part, without
           exception. They are not a property of the part the way its dimensions,
           material and placement are: they are a deliberate override of what
           those add up to, reached for rarely and after the part is described.
-          Sitting in the middle, between the material and the placement, they
-          pushed the placement rows below three rows nobody was looking for. */}
+          Between the material and the placement they would push the placement
+          rows below three rows nobody is looking for. */}
       <OverridesSection node={node} onChange={onChange} onCommit={onCommit} coveredBy={coveredBy} />
 
-      {/* Notes on this part, which the desktop gives a tab of its own and we had
-          been dropping on every save. Dead last, below even the overrides: it is
-          the only field here that is about the BUILDER rather than the rocket,
-          so nothing the panel says about the part should be under it. It was
-          sitting above the material, which put a free-text box between the
-          part's dimensions and what it is made of. */}
+      {/* Notes on this part, which the desktop gives a tab of its own. Dead
+          last, below even the overrides: it is the only field here that is
+          about the builder rather than the rocket, so nothing the panel says
+          about the part should be under it, and a free-text box never sits
+          between the part's dimensions and what it is made of. */}
       <FieldSection
         node={node}
         title={t('prop.comment')}

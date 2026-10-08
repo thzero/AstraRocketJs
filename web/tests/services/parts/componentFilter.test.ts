@@ -26,7 +26,7 @@ import {
 /**
  * The shipped catalog, read off disk, so the fit rules are checked against the
  * numbers real manufacturers publish rather than against tidy invented ones.
- * The point of the ranking is that catalog diameters do NOT line up exactly:
+ * The point of the ranking is that catalog diameters do not line up exactly:
  * five couplers fit a 51.51 mm bore and they sit between 50.65 and 50.80 mm.
  */
 const catalog: Component[] = readData<{ components: unknown[] }>('components.generated.json').components.filter(
@@ -53,14 +53,14 @@ describe('the catalog this file is anchored to', () => {
 });
 
 describe('describeNotes', () => {
-  // Every expectation below is the SECOND line of a picker row. The numbers it
-  // drops are the ones the columns now carry, and what survives is the part of
+  // Every expectation below is the second line of a picker row. The numbers it
+  // drops are the ones the columns carry, and what survives is the part of
   // the description that is nowhere else.
   it('drops what the columns already say and keeps what only the prose has', () => {
     const cases: [partNo: string, desc: string, notes: string][] = [
       // Trade name and role survive; the bore/OD pair and the length do not.
       ['BT_1.15_12_MMT', 'Blue Tube, 1.15"/29mm, MMT, 12" len', 'Blue Tube · MMT'],
-      // "Centering ring" names the type, and "29mm to 38mm" IS the OD/ID columns.
+      // "Centering ring" names the type, and "29mm to 38mm" is the OD/ID columns.
       ['CR-38/29', 'Centering ring, plywood, 29mm to 38mm, .25"', 'plywood'],
       // The part number is already a column, so `PN ...` is noise.
       ['CHUTE12-N', 'Parachute, nylon, 12 in., 6 lines, PN CHUTE12-N', 'nylon · 6 lines'],
@@ -92,7 +92,7 @@ describe('describeNotes', () => {
   it('drops a part number spread across the field two different ways', () => {
     // 417 rows put two identifiers in the one part-number field, and the
     // description names them either singly (`PN BNC-20R`) or slash-joined
-    // (`PN 30400/30408`). Comparing the whole field literally missed both.
+    // (`PN 30400/30408`). Comparing the whole field literally would miss both.
     const p = byPartNo('BNC-20R, 70240');
     expect(describeNotes(p)).not.toContain('PN');
     expect(describeNotes({ ...p, partNo: '30400, 30408', desc: 'paper, PN 30400/30408' })).toBe('paper');
@@ -100,7 +100,7 @@ describe('describeNotes', () => {
 
   it('keeps a PN that names an identifier the part-number column does not carry', () => {
     // 90 rows do this, and it is the opposite of a duplicate: the description
-    // cites a DIFFERENT code, which is the only place that code appears.
+    // cites a different code, which is the only place that code appears.
     const p = byPartNo('BNC-20J');
     expect(p.desc).toContain('PN BNC-20L');
     expect(describeNotes(p)).toContain('PN BNC-20L');
@@ -144,7 +144,7 @@ describe('fitRuleFor', () => {
   it('abstains rather than guessing', () => {
     // No context at all.
     expect(fitRuleFor('tubecoupler', undefined)).toBeNull();
-    // Context that cannot answer THIS type: a bore says nothing about a tube
+    // Context that cannot answer this type: a bore says nothing about a tube
     // that continues the stack.
     expect(fitRuleFor('bodytube', { parentInner: 0.0515 })).toBeNull();
     // A parachute's fit is packed volume, which the model does not carry.
@@ -407,7 +407,7 @@ describe("the user's own saved parts", () => {
   });
 
   it('sorts ahead of the catalog under the fit ranking too', () => {
-    // A deliberately BAD fit, against a context the catalog answers exactly.
+    // A deliberately bad fit, against a context the catalog answers exactly.
     // Ranking it on merit would bury it; the rule is that your own parts are
     // never off the end of the 200-row window the picker draws.
     const fit: FitContext = { airframeOuter: [0.0258] };
@@ -446,7 +446,7 @@ describe('the catalog has no drag coefficients to filter by', () => {
 
 describe('an inner tube is served by the body tubes', () => {
   it('abstains from a fit rule, because the motor it has to take is not in the tree', () => {
-    // Not an oversight: scoring an inner tube's OUTER diameter against the
+    // Not an oversight: scoring an inner tube's outer diameter against the
     // enclosing bore would rank a snug 51 mm sleeve above the 29 mm mount wanted.
     expect(fitRuleFor('innertube', { parentInner: 0.0515112, parentOuter: 0.0546608 })).toBeNull();
   });

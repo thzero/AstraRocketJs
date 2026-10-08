@@ -9,13 +9,13 @@ import { PropSection } from './PropSection';
  * A stage's recovery plan: single deployment, or dual with one of its devices
  * acting as the drogue.
  *
- * OpenRocket's own Recovery tab on the stage dialog, and the ONLY place it lets
+ * OpenRocket's own Recovery tab on the stage dialog, and the only place it lets
  * the drogue be set. The flag is stored per device, but what it describes is the
- * stage: single deployment is no drogue, dual is exactly one. We had it as a
- * checkbox on each chute, which let a stage carry two drogues - a design the
- * desktop cannot produce and whose warnings then depend on which device the
- * kernel walks into first. Choosing here makes that unreachable, because
- * `setStageDrogue` clears the stage before it sets one.
+ * stage: single deployment is no drogue, dual is exactly one. A checkbox on each
+ * chute would let a stage carry two drogues, a design the desktop cannot produce
+ * and whose warnings then depend on which device the kernel walks into first.
+ * Choosing here makes that unreachable, because `setStageDrogue` clears the
+ * stage before it sets one.
  *
  * It changes warnings only. A drogue and a main are simulated by their own
  * diameters and deployment events; what the flag picks is which speed
@@ -35,7 +35,7 @@ export function StageRecovery({ node }: { node: ComponentNode }) {
   // option is refused rather than offered and silently ignored.
   const hasDevices = devices.length > 0;
   // What the picker shows while single deployment is selected: the device that
-  // WOULD become the drogue, so switching over is one click and not two.
+  // would become the drogue, so switching over is one click and not two.
   const picked = drogue?.id ?? devices[0]?.id ?? '';
 
   const deviceName = (d: ComponentNode) => partLabel(t, d);

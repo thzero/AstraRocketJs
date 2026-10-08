@@ -7,13 +7,12 @@ import { renderWithProviders } from '../../testing/renderWithProviders';
 type Pt = [number, number];
 
 /**
- * The freeform outline was pointer-only.
+ * The freeform outline is editable from the keyboard.
  *
- * Vertices and edge midpoints had no role, tabIndex or key handler, and the X/Y
- * inputs render ONLY once a point is selected — which only `startDrag` and
- * `insertAfter` could do, both pointer-driven. So a keyboard or screen-reader
- * user could not select a vertex, and therefore could not edit a freeform fin
- * at all.
+ * The X/Y inputs render only once a point is selected, so vertices and edge
+ * midpoints need a role, a tabIndex and key handlers of their own. With pointer
+ * selection alone (`startDrag`, `insertAfter`), a keyboard or screen-reader user
+ * could not select a vertex, and therefore could not edit a freeform fin at all.
  */
 const PTS: Pt[] = [
   [0, 0],
@@ -42,7 +41,7 @@ describe('keyboard editing', () => {
 
   it('selects a vertex on focus, which is what reveals the X/Y inputs', () => {
     show();
-    // Pointer-only selection meant these never appeared for a keyboard user.
+    // Without focus selection these would never appear for a keyboard user.
     expect(screen.queryByLabelText('X')).toBeNull();
     fireEvent.focus(vertex(2));
     expect(screen.getByLabelText('X')).toBeTruthy();
@@ -60,7 +59,7 @@ describe('keyboard editing', () => {
     const moved = (onChange.mock.calls[0]![0] as Pt[])[1]!;
     expect(moved[0]).toBeCloseTo(x, 9);
     expect(moved[1]).toBeCloseTo(y, 9);
-    // A nudge is a discrete edit, so it closes its own undo entry — unlike a
+    // A nudge is a discrete edit, so it closes its own undo entry, unlike a
     // drag, which closes one on release.
     expect(onCommit).toHaveBeenCalledTimes(1);
   });
@@ -109,10 +108,11 @@ describe('keyboard editing', () => {
 });
 
 /**
- * A drag ended only on pointerup. A touch drag the browser takes over for
- * scrolling, or a pen lifted out of range, sends pointercancel instead, so
- * the vertex stayed "held": the next move anywhere on the outline dragged it
- * and the drag's undo entry was never closed.
+ * A drag has to end on pointercancel as well as pointerup. A touch drag the
+ * browser takes over for scrolling, or a pen lifted out of range, sends
+ * pointercancel instead, and without handling it the vertex stays "held": the
+ * next move anywhere on the outline drags it and the drag's undo entry is never
+ * closed.
  */
 describe('drag cancellation', () => {
   it('ends the drag and closes its undo entry on pointercancel', () => {

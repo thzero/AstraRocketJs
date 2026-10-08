@@ -41,7 +41,7 @@ const TREE = {
   ],
 } as unknown as RocketTree;
 
-/** A loaded mass to subtract propellant from, so the ESTIMATE is computable. */
+/** A loaded mass to subtract propellant from, so the estimate is computable. */
 const INFO = { mass: 0.6, cg: 0.3, cp: 0.4, length: 0.5 } as never;
 
 /** A config with one motor, so `descentMass` has propellant to subtract. */
@@ -90,7 +90,7 @@ function seed(opts: { result?: FlightResult | null; outdated?: boolean } = {}): 
   if (!opts.outdated) {
     useWorkspaceStore.setState((st) => ({ sims: st.sims.map((x) => asFlown(st, x)) }));
   }
-  // The panel reads the ACTIVE simulation, so make sure the seeded row is it.
+  // The panel reads the active simulation, so make sure the seeded row is it.
   useWorkspaceStore.setState({ activeId: selectActive(useWorkspaceStore.getState()).id });
 }
 
@@ -143,7 +143,7 @@ describe('the descent-sizing block', () => {
     expect(body()).toMatch(/Estimated for a descent mass/);
   });
 
-  /** A run that flew a DIFFERENT chute says nothing about this one. */
+  /** A run that flew a different chute says nothing about this one. */
   it('stays an estimate for a device the run never deployed', () => {
     seed({ result: RESULT('') });
     const other = { ...CHUTE, id: 'other', name: 'Drogue' } as unknown as ComponentNode;

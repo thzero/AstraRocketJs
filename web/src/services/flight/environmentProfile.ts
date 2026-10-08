@@ -6,7 +6,7 @@ import type { FlightSeries } from '../../engine/openRocketEngine';
  * and speed of sound. Nothing here is recomputed; whatever atmosphere and wind
  * model the run used (standard, site values, a forecast) is what comes back.
  *
- * Two things follow from the data being FLOWN rather than surveyed. The profile
+ * Two things follow from the data being flown rather than surveyed. The profile
  * covers only the band of altitude the rocket reached. And every altitude is
  * passed twice, on the way up and on the way down, at different times, so the
  * wind (which is turbulent) differs between the passes while the atmosphere
@@ -52,7 +52,7 @@ export const MAX_POINTS_PER_LEG = 400;
 
 /**
  * The profile of one flight branch, or null when the series it needs are not
- * in the result (a result stored before these were recorded).
+ * in the result (a stored result that does not carry them).
  */
 export function environmentProfile(series: FlightSeries): EnvironmentProfile | null {
   const s = series as unknown as Record<string, readonly number[] | undefined>;

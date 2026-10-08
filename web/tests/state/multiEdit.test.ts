@@ -14,9 +14,9 @@ const configIdOf = (n: string) => byName(n).configId;
 const ignitionOf = (n: string) => configOf(st().configs, byName(n)).motors[mountId()]?.ignitionEvent;
 
 /**
- * Editing follows the SELECTION: a tick already means "fly these" and "delete
- * these", and now means "edit these" too. The property that makes it safe is
- * that each mutator merges into the target's OWN state, so only the field the
+ * Editing follows the selection: a tick means "fly these" and "delete these",
+ * and "edit these" too. The property that makes it safe is that each mutator
+ * merges into the target's own state, so only the field the
  * user touched moves.
  */
 describe('editing across a selection', () => {
@@ -71,7 +71,7 @@ describe('editing across a selection', () => {
   });
 
   it('moves ONLY the edited key, leaving each row its own other values', () => {
-    // The whole point. Merging `{...active.launch, ...p}` would have copied the
+    // The whole point. Merging `{...active.launch, ...p}` would copy the
     // active simulation's rod length onto the others as a side effect.
     st().setSimsSelected([byName('A').id, byName('B').id, byName('C').id]);
     st().patchLaunch({ windAverage: 42 });
@@ -101,7 +101,7 @@ describe('editing across a selection', () => {
 
   it('changes the motor for every row flying that configuration, tick or no tick', () => {
     // A motor belongs to a configuration, not to a row. A/B/C were created with
-    // the same loadout, so they fly ONE configuration and all three move: that is
+    // the same loadout, so they fly one configuration and all three move: that is
     // what sharing a setup means, and it is why the selection is not consulted.
     st().setSimsSelected([byName('A').id]);
     const D12 = { ...C6, designation: 'D12' };

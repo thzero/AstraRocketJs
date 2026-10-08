@@ -9,8 +9,8 @@ import type { ComponentNode, RocketTree } from '../../../src/engine/openRocketEn
 
 /**
  * The stage's Recovery section: OpenRocket's own tab, and the only place it lets
- * the drogue be chosen. Ours was a checkbox on each chute, which could mark two
- * in one stage.
+ * the drogue be chosen. One choice per stage means a stage can never have two
+ * drogues marked.
  */
 
 const chute = (id: string, name: string): ComponentNode =>
@@ -59,7 +59,7 @@ describe('a stage chooses single or dual deployment', () => {
     renderWithProviders(<StageRecovery node={stage()} />);
     const picker = screen.getByLabelText('Drogue device') as HTMLSelectElement;
     // A single-deployment stage has no drogue, so the picker is a readout of
-    // what WOULD become one rather than a control.
+    // what would become one rather than a control.
     expect(picker.disabled).toBe(true);
     fireEvent.click(radio('Dual deployment'));
     expect((screen.getByLabelText('Drogue device') as HTMLSelectElement).disabled).toBe(false);

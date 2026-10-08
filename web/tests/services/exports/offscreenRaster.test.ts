@@ -3,7 +3,7 @@ import { clampExportSize, flipRows } from '../../../src/services/exports/offscre
 
 /**
  * The pure half of the offscreen 3D export. The WebGL half cannot run under
- * vitest, so these are the numbers that CAN be pinned: the size the render
+ * vitest, so these are the numbers that can be pinned: the size the render
  * target is asked for, and the row order of the readback.
  */
 

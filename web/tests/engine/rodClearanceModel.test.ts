@@ -9,25 +9,25 @@ import {
 import { KERNEL_TEST_TIMEOUT_MS } from '../testing/kernelTimeout';
 
 /**
- * The two launch-guide clearance models, flown through the REAL kernel.
+ * The two launch-guide clearance models, flown through the real kernel.
  *
  * `guideAwareRodClearance` is off by default, and off means the bridge attaches
  * nothing at all, so the first case here is also the standing proof that the
  * default flight is upstream's: a design whose guide sits well above its aft end
  * reports the same departure as one with no guide whatever, because upstream
- * compares travel with the FULL rod length and never reads the lug-aware length
+ * compares travel with the full rod length and never reads the lug-aware length
  * it computes.
  *
  * On, the guided phase ends when the rocket stops being held, and a rod and a
- * rail do not hold it the same way. A LUG is a tube threaded onto the rod and
- * holds the rocket's angle by itself, so it guides until its aft END leaves the
- * rod. A BUTTON is a stud in a slot and holds nothing alone: two of them in one
+ * rail do not hold it the same way. A lug is a tube threaded onto the rod and
+ * holds the rocket's angle by itself, so it guides until its aft end leaves the
+ * rod. A button is a stud in a slot and holds nothing alone: two of them in one
  * rail are what stop the rocket pivoting, so a rail guides until the
- * SECOND-TO-LAST button station leaves it, and a single button guides not at
+ * second-to-last button station leaves it, and a single button guides not at
  * all. The cases at the end are that difference, which is invisible in the
  * numbers unless something compares them.
  *
- * Flies the real kernel, so it takes seconds rather than milliseconds - see
+ * Flies the real kernel, so it takes seconds rather than milliseconds. See
  * `testing/kernelTimeout.ts` for the cap and why it is three times the measured
  * work rather than just over it.
  */
@@ -45,7 +45,7 @@ beforeAll(async () => {
 const TUBE_LENGTH = 0.6;
 
 /**
- * A rocket with one guide mounted at the very FRONT of its body tube, so its aft
+ * A rocket with one guide mounted at the very front of its body tube, so its aft
  * edge is most of a tube length above the rocket's aft end. A guide that reaches
  * the aft end would make both models agree, which would prove nothing.
  *
@@ -86,7 +86,7 @@ const design = (guide: ComponentNode | ComponentNode[] | null): RocketTree =>
     ],
   }) as unknown as RocketTree;
 
-/** At the tube's front, weightless and drag-free: only its POSITION is the test. */
+/** At the tube's front, weightless and drag-free: only its position is the test. */
 const lug = (length: number): ComponentNode =>
   ({
     id: 'lug',
@@ -100,8 +100,8 @@ const lug = (length: number): ComponentNode =>
   }) as unknown as ComponentNode;
 
 /**
- * A button is measured across its OUTER DIAMETER, not along a length, and its
- * origin is its axial CENTER. `offset` places it down the tube and `angle`
+ * A button is measured across its outer diameter, not along a length, and its
+ * origin is its axial center. `offset` places it down the tube and `angle`
  * turns it around the body, which is what decides whether two of them are one
  * line the rail can hold.
  */
@@ -136,7 +136,7 @@ const MAX_TIME = 0.5;
 function fly(tree: RocketTree, guideAware: boolean): { speed: number; time: number } {
   const d = OpenRocketDesign.buildTree(tree);
   d.setMotorById('tube', C6);
-  // A fine step on purpose: the LAUNCHROD event lands at the END of whichever
+  // A fine step on purpose: the LAUNCHROD event lands at the end of whichever
   // step crossed the threshold, so at the default 0.05 s two departures 40 mm
   // apart fall in the same step and report the same time. 1 ms resolves them.
   //
@@ -202,12 +202,12 @@ describe('the guide-aware clearance model', () => {
 });
 
 /**
- * A RAIL NEEDS TWO POINTS OF CONTACT.
+ * A rail needs two points of contact.
  *
  * A lug is a tube on the rod and holds the rocket's angle on its own. A button
  * is a stud in a slot: with only one of them engaged the rocket is free to
  * pivot about it, so it is no longer guided however much rail is left. The
- * guided phase on a rail therefore ends when the SECOND-TO-LAST button station
+ * guided phase on a rail therefore ends when the second-to-last button station
  * leaves the rail, not the last.
  */
 describe('a rail is guided by two buttons, not one', () => {
@@ -216,8 +216,8 @@ describe('a rail is guided by two buttons, not one', () => {
 
   it('gives a single button no guided travel at all', () => {
     // One button holds nothing, so the rocket is off the rail the moment it
-    // moves. Under the old rule this reported the same departure as the lug
-    // above, which credited a pivoting rocket with most of a rod.
+    // moves. Measured to its own aft edge it would report the same departure as
+    // the lug above, crediting a pivoting rocket with most of a rod.
     const one = fly(design(button(0.08)), true);
     const upstream = fly(design(button(0.08)), false);
     expect(one.time).toBeLessThan(upstream.time);
@@ -227,8 +227,8 @@ describe('a rail is guided by two buttons, not one', () => {
 
   /**
    * A pair at the tube's front and 200 mm down it. The aft one is the last to
-   * leave; the FORWARD one is what the departure is measured to, and its aft
-   * edge is 40 mm down the tube - the same point as the 40 mm lug. So the pair
+   * leave; the forward one is what the departure is measured to, and its aft
+   * edge is 40 mm down the tube, the same point as the 40 mm lug. So the pair
    * and the lug must agree, which is also how we know the button is measured by
    * its own geometry: its origin is its center, so dropping its radius would
    * move this.
@@ -249,7 +249,7 @@ describe('a rail is guided by two buttons, not one', () => {
   });
 
   it('does not pair buttons on opposite sides of the body', () => {
-    // A rail holds ONE line. Two buttons a half turn apart are two lines of one
+    // A rail holds one line. Two buttons a half turn apart are two lines of one
     // station each, and neither can guide.
     const opposite = fly(design([button(0.08), button(0.08, 0.2, Math.PI)]), true);
     const one = fly(design(button(0.08)), true);
@@ -262,7 +262,7 @@ describe('a rail is guided by two buttons, not one', () => {
  * whichever holds it for the shorter distance.
  */
 describe('a design with both a lug and buttons', () => {
-  /** A pair far enough aft that the rail would guide LONGER than the lug does. */
+  /** A pair far enough aft that the rail would guide longer than the lug does. */
   const aftPair = () => [button(0.08, 0.3), button(0.08, 0.5)];
 
   it('takes the shorter of the two', () => {

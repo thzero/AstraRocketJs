@@ -28,7 +28,7 @@ import { DialogButton } from '../common/DialogButton';
 import { NumberInput } from '../common/NumberInput';
 
 /**
- * "Export flight path" - a port of OpenRocket's 3D-path export dialog. Renders a
+ * "Export flight path": the equivalent of OpenRocket's 3D-path export dialog. Renders a
  * button that opens a modal to pick the format (built-in KML / GPX / waypoint
  * CSV, or an imported Mustache template) and the options (which waypoints,
  * flight-path/ground-track lines, path stride, altitude/distance units), then
@@ -99,11 +99,11 @@ export function ExportDialog({
   // them - so a swatch always lines up with the branch it colors.
   const branchNames = useMemo(() => exportBranchNames(result, meta), [result, meta]);
   // Which preset the controls currently spell out, or none. Derived every
-  // render rather than remembered from the last click: a preset only SETS the
+  // render rather than remembered from the last click: a preset only sets the
   // controls, so a remembered selection would go on claiming a shape the
   // dialog had since been adjusted out of.
   const activePreset = useMemo(() => matchingPreset(opts), [opts]);
-  // The `t` the FILE is written with. Every locale is bundled at startup, so
+  // The `t` the file is written with. Every locale is bundled at startup, so
   // `getFixedT` resolves without loading anything; falling back to the app's
   // own `t` is what makes '' mean "follow the app" with no second code path.
   const exportT: Translate = useMemo(
@@ -190,7 +190,7 @@ export function ExportDialog({
             onDelete={deleteSelected}
           />
 
-          {/* Presets sit ABOVE the three sections because they reach into all
+          {/* Presets sit above the three sections because they reach into all
               three - which waypoints, whether the lines are drawn, and how it is
               all placed. They only set the controls below, never act behind
               them, so what the file will contain is always what the dialog
@@ -333,7 +333,7 @@ export function ExportDialog({
             <p className="text-[11px] leading-snug text-ink-faint">{t('pathExport.pinsNote')}</p>
           </Section>
 
-          {/* What the file SAYS, rather than where it sits - so it is neither
+          {/* What the file says, rather than where it sits - so it is neither
               Placement nor Flight path, and no preset touches it. */}
           <Section title={t('pathExport.balloons')}>
             <Check

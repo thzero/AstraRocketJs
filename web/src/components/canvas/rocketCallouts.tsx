@@ -10,7 +10,7 @@ import { Line } from '@react-three/drei';
  */
 
 /**
- * OpenRocket-style CG/CP symbol as a billboard texture — a quartered circle
+ * OpenRocket-style CG/CP symbol as a billboard texture: a quartered circle
  * (two opposite quadrants colored, two white) with a colored rim. Drawn to a
  * canvas so a <sprite> can always face the camera instead of a 3D ball.
  */
@@ -60,7 +60,7 @@ function labelTexture(text: string, color: string): { texture: THREE.CanvasTextu
   const w = Math.ceil(ctx.measureText(text).width + px * 0.3);
   const h = Math.ceil(px * 1.25);
   canvas.width = w;
-  canvas.height = h; // resizing resets the 2D context state — restyle below
+  canvas.height = h; // resizing resets the 2D context state; restyle below
   ctx.font = font;
   ctx.textBaseline = 'middle';
   ctx.lineJoin = 'round';
@@ -76,11 +76,11 @@ function labelTexture(text: string, color: string): { texture: THREE.CanvasTextu
 
 /**
  * Billboard text beside a gadget sphere. The sprite `center` shifts it in
- * SCREEN space by `gap` (world units), so every label hangs the same distance
- * from its anchor at any camera angle — a world-space offset would swing
+ * screen space by `gap` (world units), so every label hangs the same distance
+ * from its anchor at any camera angle; a world-space offset would swing
  * around with the orbit. `place` splits the three labels vertically: CG and
  * CP sit almost on one line, so hanging all three to the right piles them up
- * exactly when the margin is small — the case that matters most.
+ * exactly when the margin is small, the case that matters most.
  */
 function CalloutLabel({
   text,

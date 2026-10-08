@@ -7,8 +7,8 @@ import { colorForType, type PartPalette } from '../../services/design/partColors
 import { colorOf } from '../../tree/schematicGeometry';
 
 /**
- * The trajectory geometry behind FlightPath3D — pulled out of the component's
- * useMemo so it can be tested without a WebGL context.
+ * The trajectory geometry behind FlightPath3D, kept out of the component so
+ * it can be tested without a WebGL context.
  *
  * Everything here is pure: samples in, scene points / vertex colors / callout
  * anchors out. The component keeps the camera, the transport and the HUD.
@@ -22,7 +22,7 @@ export interface FlightScene {
   colors: [number, number, number][];
   /** The arc itself, scaled so peak altitude is 24 scene units. */
   scenePts: THREE.Vector3[];
-  /** Index of the highest sample — where the apogee marker sits. */
+  /** Index of the highest sample: where the apogee marker sits. */
   apogeeIdx: number;
   deployT: number;
   burnoutT: number;
@@ -65,10 +65,9 @@ export function buildFlightScene(result: FlightResult, phase: PhaseColors): Flig
   const s = 24 / maxA;
   const evT = (type: string) => result.events.find((e) => e.type === type)?.time;
   const bt = evT('BURNOUT') ?? 0;
-  // Fall back to the last sample TIME, not `maxA` — which is the peak ALTITUDE
-  // in meters and has no business being read as seconds. A result with no
-  // APOGEE event got apT ~ 300 for a 300 m flight, so `r.t <= apT` was true for
-  // the whole trajectory and the descent color never appeared.
+  // Fall back to the last sample time, not `maxA`, which is the peak altitude
+  // in meters: read as seconds it would make `r.t <= apT` true for the whole
+  // trajectory, and the descent color would never appear.
   const lastT = rows[rows.length - 1]?.t ?? 0;
   const apT = evT('APOGEE') ?? result.summary.timeToApogee ?? lastT;
   const dpT = evT('RECOVERY_DEVICE_DEPLOYMENT') ?? evT('EJECTION_CHARGE') ?? apT;
@@ -131,9 +130,9 @@ export function buildFlightScene(result: FlightResult, phase: PhaseColors): Flig
 /**
  * The sample index a playback fraction lands on.
  *
- * `progress` is a fraction of flight TIME, not of sample count: the sim packs
+ * `progress` is a fraction of flight time, not of sample count: the sim packs
  * most of its samples into the fast boost/coast, so index-based playback
- * crawled. This is the largest index whose time is at or before
+ * would crawl there. This is the largest index whose time is at or before
  * `progress * totalT` (index 0 when none is), found by binary search because
  * the frame loop asks every frame.
  */
@@ -178,8 +177,7 @@ const tangent = new THREE.Vector3();
  * instead of sinking half-under it.
  *
  * Writes into `out` rather than allocating: the playback loop calls this on
- * every animation frame, and the render-body version of this math allocated a
- * Vector3, a Quaternion and two clones per frame.
+ * every animation frame.
  */
 export function modelPoseAt(
   scenePts: readonly THREE.Vector3[],

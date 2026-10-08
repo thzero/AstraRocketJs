@@ -7,17 +7,17 @@ import { discDims } from '../../src/services/design/discGeometry';
 import type { ComponentNode } from '../../src/engine/openRocketEngine';
 
 /**
- * What the app substitutes for an ABSENT dimension must be what the kernel does.
+ * What the app substitutes for an absent dimension must be what the kernel does.
  *
  * `kernelDefaults.kernel.test.ts` proves the table agrees with
- * `ComponentFactory`. Nothing proved the CONSUMERS read the table, and three of
- * them did not: the printable-solid builder used a flat 12 mm outer radius for
- * every tube, where the kernel builds an inner tube at 9.5 mm and a launch lug
- * at 2.2 mm, and a 0.5 mm wall for a body tube the kernel builds at 0.3 mm. The
- * disc sketch used a bare 3 mm coupler length against the kernel's 50 mm, and
- * the report used an 80 mm tube fin length against the kernel's 100 mm.
+ * `ComponentFactory`; this proves the consumers read the table. A consumer with
+ * its own substitute builds a different part: a flat 12 mm outer radius for every
+ * tube, where the kernel builds an inner tube at 9.5 mm and a launch lug at
+ * 2.2 mm; a 0.5 mm wall for a body tube the kernel builds at 0.3 mm; a 3 mm
+ * coupler length against the kernel's 50 mm; an 80 mm tube fin length against
+ * the kernel's 100 mm.
  *
- * The consequence is specific to these consumers: they produce a PART. A launch
+ * The consequence is specific to these consumers: they produce a part. A launch
  * lug exported at 5.5 times its flown radius does not fit the rocket that was
  * simulated, and nothing in the file says the two disagree.
  *
@@ -51,7 +51,7 @@ const innerRadiusOf = (geo: THREE.BufferGeometry): number => {
 };
 
 describe('the printable solid uses the kernel default for an absent radius', () => {
-  /** A tube with its length stated and NO outerRadius or thickness. */
+  /** A tube with its length stated and no outerRadius or thickness. */
   const tube = (type: string): ComponentNode => ({ type, id: type, length: 0.05 }) as unknown as ComponentNode;
 
   it.each([
@@ -67,9 +67,9 @@ describe('the printable solid uses the kernel default for an absent radius', () 
   });
 
   it('separates the three, which one flat literal could not', () => {
-    // The point of the finding: a single 12 mm substitute made the lug 5.5x too
-    // big and the inner tube 1.26x. If they ever collapse to one number again,
-    // this fails whatever that number is.
+    // A single 12 mm substitute would make the lug 5.5x too big and the inner
+    // tube 1.26x. If they ever collapse to one number, this fails whatever that
+    // number is.
     const r = (t: string) => outerRadiusOf(solidForNode(tube(t))!);
     expect(r('innertube')).toBeLessThan(r('bodytube'));
     expect(r('launchlug')).toBeLessThan(r('innertube'));
@@ -104,8 +104,7 @@ describe('the disc sketch uses the kernel length for an absent coupler length', 
   it('sizes a tube coupler at the length the kernel builds', () => {
     const d = discDims(coupler('tubecoupler'), null, []);
     expect(d!.length).toBe(KERNEL_DEFAULTS.tubecoupler.length);
-    // The literal it replaced, named so the regression is unmistakable: 3 mm
-    // against 50 mm is a sixteenth of the part.
+    // Not a bare 3 mm: 3 mm against 50 mm is a sixteenth of the part.
     expect(d!.length).not.toBe(0.003);
   });
 
@@ -116,8 +115,8 @@ describe('the disc sketch uses the kernel length for an absent coupler length', 
   });
 
   it('exports that coupler as a solid of the same length', () => {
-    // The sketch, the cut sheet and the 3D model all read `discDims`, so they
-    // agreed on the wrong part together. One number, one length.
+    // The sketch, the cut sheet and the 3D model all read `discDims`, so a wrong
+    // length there is wrong in all three. One number, one length.
     const d = discDims(coupler('tubecoupler'), null, [])!;
     const geo = discSolidForNode(d.outerR, d.innerR, d.length);
     expect(lengthOf(geo!)).toBeCloseTo(KERNEL_DEFAULTS.tubecoupler.length, 6);

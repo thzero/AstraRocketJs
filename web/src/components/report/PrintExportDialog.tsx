@@ -15,9 +15,9 @@ import { DialogButton } from '../common/DialogButton';
  * of named objects or a zip of one file per part, and whether each part is
  * dropped onto the build plate.
  *
- * Only PRINTABLE parts are listed. A parachute or a mass component has no solid
+ * Only printable parts are listed. A parachute or a mass component has no solid
  * body, and offering it a tick box that does nothing would be a worse answer
- * than leaving it out — the per-component ⬇ button takes the same line.
+ * than leaving it out; the per-component ⬇ button takes the same line.
  */
 export function PrintExportDialog({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
@@ -26,13 +26,13 @@ export function PrintExportDialog({ onClose }: { onClose: () => void }) {
 
   const parts = useMemo(() => printableParts(tree), [tree]);
   // What the list shows, and what the file's object names become for a part
-  // with no name of its own — the same string in both places.
+  // with no name of its own: the same string in both places.
   const label = (p: (typeof parts)[number]) => partLabel(t, p);
   const [excluded, setExcluded] = useState<Set<string>>(new Set());
   const [separateFiles, setSeparateFiles] = useState(false);
   const [placeOnPlate, setPlaceOnPlate] = useState(true);
 
-  // Tracked as EXCLUSIONS, not inclusions: everything is on by default, and a
+  // Tracked as exclusions, not inclusions: everything is on by default, and a
   // design edited behind this dialog would otherwise silently drop a new part.
   const selected = parts.filter((p) => !excluded.has(p.id));
   const toggle = (id: string) =>
@@ -49,9 +49,9 @@ export function PrintExportDialog({ onClose }: { onClose: () => void }) {
       title={t('print.title')}
       onClose={onClose}
       size="lg"
-      // The intro and the options/Save row are PINNED, above and below the part
-      // list, which is the only thing here that can grow. Leaving them in the
-      // flow put the Save button below however many parts the design has.
+      // The intro and the options/Save row are pinned, above and below the part
+      // list, which is the only thing here that can grow. Left in the flow, the
+      // Save button would sit below however many parts the design has.
       toolbar={empty ? undefined : <p className="px-4 py-2 text-xs leading-snug text-ink-muted">{t('print.intro')}</p>}
       footer={
         empty ? undefined : (

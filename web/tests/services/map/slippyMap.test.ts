@@ -147,8 +147,8 @@ describe('project / unproject', () => {
   });
 
   it('takes the short way around the date line', () => {
-    // A location at 179°E, seen from a map centered at 179°W, is 2° east — just off
-    // the left edge — not 358° away and off the map entirely.
+    // A location at 179°E, seen from a map centered at 179°W, is 2° east (just off
+    // the left edge), not 358° away and off the map entirely.
     const p = project(0, 179, 0, -179, 6, 400, 300);
     expect(p.x).toBeLessThan(200);
     expect(p.x).toBeGreaterThan(-400);
@@ -171,7 +171,7 @@ describe('tile sources', () => {
   });
 
   it('asks nobody’s volunteer tile servers', () => {
-    // NOT `tile.openstreetmap.org`: those are donated, volunteer-funded machines,
+    // Not `tile.openstreetmap.org`: those are donated, volunteer-funded machines,
     // and OSM's Tile Usage Policy says third-party apps are to run their own or
     // buy from a provider. A test rather than a comment, because the easy way to
     // "fix" a blocked tile layer is to point it at them.
@@ -202,7 +202,7 @@ describe('zoomForMetersPerPixel', () => {
   /**
    * The ground track sizes itself to the flight, so its zoom is derived rather
    * than fixed the way SITE_ZOOM is. Checked against metersPerPixel itself: the
-   * chosen zoom is the NEAREST on a ladder that doubles, so neither neighbor
+   * chosen zoom is the nearest on a ladder that doubles, so neither neighbor
    * can be closer to what is being drawn.
    */
   it('lands on the zoom nearest the drawing, in either direction', () => {
@@ -244,9 +244,8 @@ describe('zoomForMetersPerPixel', () => {
 
 /**
  * Every view prints a coordinate the same way: hemisphere letters, digits in
- * the reader's locale. Six views printed a signed `toFixed` value instead, so
- * the same site read "-104.8000°" in the Environment tab and "104.8000° W" on
- * the map, with "." in a German page full of ",".
+ * the reader's locale. A signed `toFixed` value would read "-104.8000°" in one
+ * view and "104.8000° W" in another, with "." in a German page full of ",".
  */
 describe('formatLat / formatLon', () => {
   afterEach(async () => {

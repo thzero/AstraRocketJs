@@ -9,7 +9,7 @@ import type { ComponentNode, RocketTree } from '../../../src/engine/openRocketEn
 /**
  * The 3MF writer, checked against the format rather than against itself.
  *
- * There is no round trip to lean on here — nothing in the app reads 3MF — so
+ * There is no round trip to lean on here (nothing in the app reads 3MF), so
  * the file is unzipped, its model parsed as XML, and the parts a slicer
  * actually needs are asserted: the three OPC members, the declared unit, one
  * named object per part, and a triangle list whose indices are in range. A

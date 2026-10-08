@@ -3,15 +3,16 @@ import type { OrkFlightConfig } from '../orkTypes';
 import { walkNodes } from '../../../tree/treeWalk';
 
 /**
- * The honesty notes an import surfaces: what the reader PRESERVED but the
+ * The honesty notes an import surfaces: what the reader preserved but the
  * simulation does not act on, and what the file's flight configurations mean
  * for the one that was opened.
  */
 
 /**
- * Honesty notes for the two things this reader now PRESERVES but the
- * simulation does not yet act on. Saying so beats a silent discrepancy —
- * both change mass, and mass changes the stability the user is designing to.
+ * Honesty note for what this reader preserves but the simulation does not act
+ * on: repeated instances (other than pod sets and boosters). Saying so beats a
+ * silent discrepancy: instances change mass, and mass changes the stability the
+ * user is designing to.
  */
 export function modelingNotes(components: ComponentNode[]): string[] {
   const notes: string[] = [];
@@ -60,7 +61,7 @@ export function configNotes(rocketEl: Element, configs: OrkFlightConfig[]): stri
   } else if (configs.length === 0) {
     // Hand-rolled files may key <motor configid>s without declaring the configs,
     // so those configurations have no names at all. We read the first motor and
-    // drop the rest — say how many, but never a UUID (it means nothing to anyone).
+    // drop the rest; say how many, but never a UUID (it means nothing to anyone).
     const strayIds = new Set<string>();
     for (const m of Array.from(rocketEl.getElementsByTagName('motor'))) {
       const id = m.getAttribute('configid');

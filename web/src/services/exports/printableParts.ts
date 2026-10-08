@@ -3,25 +3,25 @@ import { asStageNodes } from '../design/orkTree';
 import { isPrintable } from '../files/componentFormats';
 
 /**
- * The LIGHT half of the whole-rocket print export: WHICH parts of a design can
+ * The light half of the whole-rocket print export: which parts of a design can
  * be printed, with no ability to build one.
  *
- * Deliberately free of heavy imports (no three.js meshers, no 3MF writer), the
- * way `componentFormats` is for the per-component ⬇ button, so the export
+ * Free of heavy imports (no three.js meshers, no 3MF writer), the way
+ * `componentFormats` is for the per-component ⬇ button, so the export
  * dialog can list the parts and tick them without pulling the builders in
  * behind it. `rocketPrintExport.ts` is the heavy on-demand half, reached only
- * through the dynamic import in `store.exportPrint`: a static import of it from
- * a dialog that the header mounts eagerly puts the meshers in the main bundle
- * and the dynamic import stops splitting anything.
+ * through the dynamic import in the store's `exportPrint` (state/fileSlice.ts):
+ * a static import of it from a dialog that the header mounts eagerly puts the
+ * meshers in the main bundle and the dynamic import stops splitting anything.
  */
 
 /** One entry of the export's selection tree, in the order the design has them. */
 export interface PrintablePart {
-  /** The component's node id — what a selection is keyed by. */
+  /** The component's node id, which is what a selection is keyed by. */
   id: string;
-  /** The component's OWN name, or '' when it has none. The picker falls back to
-   *  the translated type label, exactly as the component tree does — naming it
-   *  here would put i18n in a service and print "nosecone" in the dialog. */
+  /** The component's own name, or '' when it has none. The picker falls back to
+   *  the translated type label, as the component tree does; naming it here
+   *  would put i18n in a service and print "nosecone" in the dialog. */
   name: string;
   type: ComponentType;
   /** Nesting depth, so a picker can indent without re-walking the tree. */

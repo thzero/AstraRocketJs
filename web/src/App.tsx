@@ -46,7 +46,7 @@ export default function App() {
   const activeSimName = useWorkspaceStore((s) => selectActive(s).name);
   const designName = useWorkspaceStore(selectDesignName);
 
-  // The center pane backs BOTH the Design and Results tabs, and stays mounted
+  // The center pane backs both the Design and Results tabs, and stays mounted
   // across the switch: the 2D/3D canvases are expensive to build, and remounting
   // one on every tab change would re-run the engine for a design that didn't
   // change. Same reason the sim pane below is hidden rather than unmounted.
@@ -71,19 +71,19 @@ export default function App() {
   const treeRef = useRef<HTMLElement>(null);
   const summaryRef = useRef<HTMLElement>(null);
 
-  // The four right columns share ONE width, so the divider is the same control
+  // The four right columns share one width, so the divider is the same control
   // wherever it appears. The left column only exists on Design, so it only
   // reserves room there.
   // `reserve` and the CSS cap are the same rule, said twice: the splitter
   // enforces it during a drag, and CSS enforces it for a width that was stored
-  // on a wider window than this one. It counts the PANES; the dividers
+  // on a wider window than this one. It counts the panes; the dividers
   // themselves (5px each) come out of the center's share, so on the narrowest
   // window at the furthest drag the center keeps about 310 rather than exactly
   // CENTER_PANE_MIN.
   const sideReserve = (tab === 'design' ? treeW : 0) + CENTER_PANE_MIN;
 
   // Maximized: the center pane takes the window and both side columns step
-  // aside. Only where the center pane actually IS - on Simulations the flag is
+  // aside. Only where the center pane actually is: on Simulations the flag is
   // ignored, because the toolbar carrying the way back is not on that tab and
   // the simulation editor would be stranded.
   const maxed = settings.maximizeCenter && onCenter;
@@ -104,7 +104,7 @@ export default function App() {
 
   return (
     // h-full, not h-screen: the shell follows #root's height, which index.css
-    // pins to the DYNAMIC viewport on mobile. `h-screen` would re-assert 100vh
+    // pins to the dynamic viewport on mobile. `h-screen` would re-assert 100vh
     // here and put the tab bar back under the browser chrome.
     <div className="flex h-full flex-col bg-canvas text-ink-strong">
       <AppHeader />
@@ -125,24 +125,21 @@ export default function App() {
       <EngineNotice />
 
       {/*
-        One row of panes; the TAB decides which of them are in it, so each tab
+        One row of panes; the tab decides which of them are in it, so each tab
         gets the column layout it actually wants instead of all three sharing one
         fixed grid. Design is tree · canvas · properties, Simulations is a single
         full-width pane, Results is charts · summary.
 
         On a phone exactly one pane is ever visible (the side columns are
         desktop-only), so source order is the phone's order and no reordering is
-        needed. Panels read the store — no prop-drilling.
+        needed. Panels read the store, so there is no prop-drilling.
       */}
       <main className="flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
-        {/* LEFT — component tree (Design tab; desktop only).
+        {/* left: component tree (Design tab; desktop only).
 
-            User-sized, from a 360px default. It was a fixed 300, which left the
-            content 252px after two layers of padding: too narrow for + Stage,
-            + Add and Scale to share the row above the list, and tight enough
-            that a nested part's name truncated to about four characters. Those
-            layers are 16px lighter now, but a deep tree still wants more than
-            any one default can be right about, hence the splitter below. */}
+            User-sized, from a 360px default. The column has to fit + Stage, + Add
+            and Scale on the row above the list, and a deep tree wants more width
+            than any one default can be right about, hence the splitter below. */}
         <section
           ref={treeRef}
           // The width is a preference, so it is an inline style rather than a
@@ -156,7 +153,7 @@ export default function App() {
           <TreePanel />
         </section>
         {/* The divider is also the rule between the two panes, which is why the
-            column above no longer carries a border-r: two of them would read as
+            column above does not carry a border-r: two of them would read as
             a groove. Design tab only, since that is the only tab this column is
             on. */}
         {tab === 'design' && !maxed && (
@@ -176,19 +173,17 @@ export default function App() {
           />
         )}
 
-        {/* CENTER — banner + drawing + stability, or the flight charts on Results.
+        {/* CENTER: banner + drawing + stability, or the flight charts on Results.
             On mobile the Design half splits again into the Rocket and Sketch
             panes (see CenterView). */}
         <section className={`${onCenter ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col lg:h-full lg:overflow-hidden`}>
           <CenterView />
         </section>
 
-        {/* RIGHT — the selected part's properties (Design tab; `2xl` and up).
-            This column is what the tab split bought: the editor used to be
-            stacked under the tree in the left one. It wants `2xl` rather than
-            `lg` because it is the THIRD column on this tab, and at 1024, or at
-            1440, the tree and a property panel between them leave the drawing a
-            strip. Under that the editor is ComponentDialog, mounted below, and
+        {/* right: the selected part's properties (Design tab; `2xl` and up).
+            It wants `2xl` rather than `lg` because it is the third column on
+            this tab, and at 1024, or at 1440, the tree and a property panel
+            between them leave the drawing a strip. Under that the editor is ComponentDialog, mounted below, and
             this column is not rendered at all: one editor in the document,
             never two. */}
         {wide && tab === 'design' && !maxed && (
@@ -197,7 +192,7 @@ export default function App() {
           </RightColumn>
         )}
 
-        {/* CONFIGURATIONS — toolbar + the table of flight configurations. Full
+        {/* CONFIGURATIONS: toolbar + the table of flight configurations. Full
             width for the same reason the simulations table has it: the table is
             one row per setup and one column per mount, and both grow with the
             rocket. */}
@@ -207,7 +202,7 @@ export default function App() {
           <ConfigsPane />
         </section>
 
-        {/* RIGHT — the selected configuration's motors (Configurations tab;
+        {/* right: the selected configuration's motors (Configurations tab;
             desktop only). On a phone it is inline under the table instead, so a
             phone can still change a motor. */}
         {desktop && tab === 'configs' && (
@@ -216,16 +211,15 @@ export default function App() {
           </RightColumn>
         )}
 
-        {/* SIMULATIONS — toolbar + the table of runs. Its own tab, so the table
-            gets the full width rather than the 380px column the whole sim panel
-            used to be squeezed into. */}
+        {/* SIMULATIONS: toolbar + the table of runs. Its own tab, so the table
+            gets the full width rather than a side column. */}
         <section
           className={`${tab === 'sim' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col lg:h-full lg:overflow-hidden`}
         >
           <SimulationsPane />
         </section>
 
-        {/* RIGHT — the selected simulation's editor (Simulations tab; desktop
+        {/* right: the selected simulation's editor (Simulations tab; desktop
             only). On a phone it is inline under the table instead, so a phone
             can still change a motor. */}
         {desktop && tab === 'sim' && (
@@ -234,9 +228,9 @@ export default function App() {
           </RightColumn>
         )}
 
-        {/* RIGHT — the run's numbers, beside the charts they describe (Results
-            tab; desktop only — the phone puts them above the charts instead).
-            Same width as the other two right columns, because they share the
+        {/* right: the run's numbers, beside the charts they describe (Results
+            tab; desktop only; the phone puts them above the charts instead).
+            Same width as the other right columns, because they share the
             one setting: right columns of different widths read as an accident.
             The tiles are a 3-up grid, which is what SIDE_PANE_MIN protects -
             narrower and "Static margin @ rail exit" wraps onto three lines. */}
@@ -310,8 +304,8 @@ function RightColumn({ split, style, children }: { split: SideSplit; style: CSSP
 }
 
 /**
- * The divider on the left edge of a right column. The three right columns
- * (properties, sim editor, run summary) share ONE width, so this is the same
+ * The divider on the left edge of a right column. The right columns
+ * (properties, configuration editor, sim editor, run summary) share one width, so this is the same
  * control wherever it appears; only which pane it measures differs.
  *
  * A component rather than a render helper called with the ref: a function

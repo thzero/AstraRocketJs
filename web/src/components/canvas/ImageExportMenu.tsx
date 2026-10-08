@@ -4,16 +4,15 @@ import { IMAGE_WIDTHS, type ImageFormat } from '../../services/exports/schematic
 import { useMenuPopover } from '../common/useMenuPopover';
 
 /** Per-export toggles carried alongside the format/width choice. Nothing here
- *  is persisted — the picker is reopened for every export anyway. */
+ *  is persisted: the picker is reopened for every export anyway. */
 export interface ImageExportOptions {
   /** Reframe the camera so the subject fills the exported frame (3D only). */
   fit: boolean;
 }
 
 /**
- * Format × resolution picker for the 2D/3D image exports (issue 2026-08-11b:
- * JPG option + resolution choices). One trigger button, a small popover with
- * a PNG row and a JPG row of width presets. Shared by TreeSchematic (2D
+ * Format × resolution picker for the 2D/3D image exports. One trigger button,
+ * a small popover with a PNG row and a JPG row of width presets. Shared by TreeSchematic (2D
  * rasterize) and Rocket3D (hi-res re-render snapshot) so the two views offer
  * the identical picker. The 3D view additionally opts into the "fit rocket to
  * frame" toggle it needs to spend its megapixels on the rocket.
@@ -27,16 +26,15 @@ export function ImageExportMenu({
   label: string;
   title: string;
   onPick: (format: ImageFormat, widthPx: number, opts: ImageExportOptions) => void;
-  /** Show the "Fit rocket to frame" checkbox. The 2D export has no camera —
-   *  it already draws the whole rocket at identity view — so only the 3D view
+  /** Show the "Fit rocket to frame" checkbox. The 2D export has no camera (it
+   *  already draws the whole rocket at identity view), so only the 3D view
    *  opts in, and its `opts.fit` is forced false everywhere else. */
   fitOption?: boolean;
 }) {
   const { t } = useTranslation();
   const { open, toggle, close, wrapRef, triggerRef } = useMenuPopover();
-  // Default ON: an export that wastes 80 % of its pixels on background is
-  // never what was wanted, and the unchecked path is byte-for-byte the old
-  // behavior for anyone who disagrees.
+  // Default on: an export that spends most of its pixels on background is
+  // rarely what was wanted. Unchecked, the export keeps the on-screen framing.
   const [fit, setFit] = useState(true);
 
   const widthLabel = (w: number) => (w >= 7680 ? '8K' : w >= 3840 ? '4K' : 'HD');
@@ -104,7 +102,7 @@ export function ImageExportMenu({
             )),
           ])}
           {fitOption && (
-            // Spans the whole grid under the format rows — it modifies every
+            // Spans the whole grid under the format rows: it modifies every
             // button above it, so it reads as a setting, not a fourth width.
             <label
               style={{

@@ -24,13 +24,13 @@ import { radToDeg } from '../../prefs/units';
 import { token } from '../common/colorTokens';
 
 /**
- * Aft end view — the rocket seen from behind (down the +X axis). This is the
+ * Aft end view: the rocket seen from behind (down the +X axis). This is the
  * only place cluster layouts, pod rings and fin counts are visible as they
  * really are: the side views project everything onto one plane. Pure display,
  * no interaction (edit cluster layout/rotation/spacing in the motor dialog and
  * watch this update).
  *
- * Convention: +y right, +z up — matching the kernel's cross-section frame
+ * Convention: +y right, +z up, matching the kernel's cross-section frame
  * (cluster offsets and pod ring offsets are already {y,z} in that frame).
  */
 
@@ -139,8 +139,8 @@ function buildAftScene(
       if (isAssembly(type)) {
         const podRadius = resolveAssemblyRadius(child, pRadius);
         const count = countOf(child, 'instanceCount', 2);
-        // +π/2 so the ring's 0° reference is "straight up" — the same reference
-        // the fin sets use here — matching the 3D view (see the lug note below).
+        // +π/2 so the ring's 0° reference is "straight up" (the same reference
+        // the fin sets use here), matching the 3D view (see the lug note below).
         for (const off of ringInstanceOffsets(count, podRadius, Math.PI / 2 + num(child, 'angleOffset', 0))) {
           walkChain(child.children ?? [], cy + off.y, cz + off.z);
         }
@@ -203,14 +203,14 @@ function buildAftScene(
         });
         reach(cy, cz, pRadius + hgt);
       } else if (type === 'launchlug' || type === 'railbutton') {
-        // Kernel default (RailButton.java:61), so the aft view shows the
-        // button that is actually simulated. Was 0.004.
+        // Kernel default (the RailButton constructor), so the aft view shows
+        // the button that is actually simulated.
         const r =
           type === 'railbutton'
             ? num(child, 'outerDiameter', KERNEL_RAILBUTTON_OUTER_DIAMETER) / 2
             : num(child, 'outerRadius', KERNEL_DEFAULTS.launchlug.outerRadius);
         // Radial mount angle (kernel default 180°). The +π/2 is the aft view's
-        // "up = 0°" convention — the same offset the fin sets carry here — so a
+        // "up = 0°" convention (the same offset the fin sets carry here), so a
         // lug clocks consistently with the fins and with the 3D view.
         const ang = Math.PI / 2 + num(child, 'angleOffset', Math.PI);
         const rad = pRadius + r;
@@ -294,31 +294,28 @@ export function AftView({
   tree: RocketTree;
   /** Loaded motor dimensions per mount node id (real case sizes). */
   motors?: MotorDims;
-  /** Roll angle (radians) — spins the whole aft cross-section about the axis. */
+  /** Roll angle (radians): spins the whole aft cross-section about the axis. */
   roll?: number;
   /** Horizontal drag on the view spins the roll (delta radians). */
   onRoll?: (deltaRadians: number) => void;
 }) {
   const { t } = useTranslation();
-  // Zoom/pan in viewBox (meter) coordinates — same pattern as TreeSchematic
-  // (issue 2026-08-05b #13: "the user needs to be able to zoom the aft view").
+  // Zoom/pan in viewBox (meter) coordinates, the same pattern as TreeSchematic.
   const [zoom, setZoom] = useState(ZOOM_IDENTITY);
   const svgRef = useRef<SVGSVGElement | null>(null);
   const pan = useRef<{ px: number; py: number; x: number; y: number } | null>(null);
   const rollDrag = useRef<number | null>(null); // last clientX while drag-rolling
   const zoomBy = (f: number) =>
-    // About the viewBox origin — the rocket axis is always at (0,0) here.
+    // About the viewBox origin: the rocket axis is always at (0,0) here.
     setZoom((z) => zoomStep(z, 0, 0, f, WHEEL_ZOOM.max));
   /**
-   * The whole aft scene, rebuilt only when the DESIGN (or the language) changes.
+   * The whole aft scene, rebuilt only when the design (or the language) changes.
    *
-   * All of this - the hulls, the recursive walk, every cluster and fin
-   * instance - ran in the render body, while `onPointerMove` drives `onRoll`
-   * (a store write) on every pointer sample. Dragging to roll or wheel-zooming
-   * therefore re-walked the entire component tree and rebuilt every Shape per
-   * pointer event. `TreeSchematic` hit this exact problem and fixed it by
-   * memoizing `buildSchematicShapes`, with a docblock explaining why; this
-   * view never got the same treatment.
+   * `onPointerMove` drives `onRoll` (a store write) on every pointer sample, so
+   * building the hulls, the recursive walk and every cluster and fin instance
+   * in the render body would re-walk the whole component tree per pointer
+   * event while dragging to roll or wheel-zooming. `TreeSchematic` memoizes
+   * `buildSchematicShapes` for the same reason.
    *
    * Roll and zoom are applied by the SVG transform below, so neither is an
    * input here: the geometry is the same drawing turned around.
@@ -329,7 +326,7 @@ export function AftView({
   );
 
   const E = extent * 1.12;
-  const scale = 1; // viewBox is in meters — the SVG scales itself.
+  const scale = 1; // viewBox is in meters; the SVG scales itself.
   const toSvg = (v: number) => v * scale;
 
   // Wheel zoom about the pointer (shared hook). The mapping closes over the
@@ -438,10 +435,9 @@ export function AftView({
             rollDrag.current = e.clientX;
             return;
           }
-          // Capture the pan state NOW: setZoom's updater runs after this
-          // handler returns, and a pointer-up in between nulls pan.current —
-          // reading it inside the updater crashed the app (live report,
-          // "Cannot read properties of null (reading 'x')").
+          // Capture the pan state here: setZoom's updater runs after this
+          // handler returns, and a pointer-up in between nulls pan.current,
+          // so reading it inside the updater throws on null.
           const p = pan.current;
           if (!p || !svgRef.current) return;
           const { vx, vy } = toView(e.clientX, e.clientY);
@@ -466,10 +462,10 @@ export function AftView({
         </g>
       </svg>
       {/* Gated the way `SchematicControls` gates the same three. At the default
-          view both zoom-out and fit are no-ops - `zoomBy` clamps the scale at 1
-          and the view already IS `ZOOM_IDENTITY` - so they looked clickable and
-          did nothing, which is a bug here whatever the rationale. Zoom-in stops
-          at the shared ceiling for the same reason. */}
+          view both zoom-out and fit are no-ops (`zoomBy` clamps the scale at 1
+          and the view already is `ZOOM_IDENTITY`), so they are disabled rather
+          than clickable and inert. Zoom-in disables at the shared ceiling for
+          the same reason. */}
       <div className="schematic-controls">
         <button
           title={t('schematic.zoomIn')}

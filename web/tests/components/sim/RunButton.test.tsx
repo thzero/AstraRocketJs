@@ -28,13 +28,13 @@ const LAUNCH = {
 };
 
 /**
- * What the button PROMISES has to match what the run will do.
+ * What the button promises has to match what the run will do.
  *
  * Both questions go through `services/flight/runnability`. Judged on the active
  * simulation's motor alone, and only when exactly one row is selected, while the
- * safety codes block the whole batch, a twelve-row batch is refused over one bad row
- * and a batch containing an unflyable row starts with the button showing nothing
- * wrong.
+ * safety codes block the whole batch, a twelve-row batch would be refused over one
+ * bad row and a batch containing an unflyable row would start with the button
+ * showing nothing wrong.
  */
 describe('RunButton over a selection', () => {
   beforeEach(() => {

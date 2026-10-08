@@ -6,8 +6,8 @@ import { type HelpTarget, helpTarget, helpTargetFromUrl } from '../../services/a
  * it the one you are reading.
  *
  * Not zero: a heading sitting a few pixels below the top is the one you are
- * about to read, not the one you are in, and at zero the highlight flickered
- * between two rows on any slow scroll across a boundary.
+ * about to read, not the one you are in, and at zero the highlight would
+ * flicker between two rows on any slow scroll across a boundary.
  */
 const SPY_OFFSET_PX = 96;
 
@@ -16,7 +16,7 @@ const SPY_OFFSET_PX = 96;
  * it, and the heading it is scrolled to.
  *
  * `ready` is only the iframe reporting that it has finished loading `target`.
- * Like the page probe (useHelpPage) it is TAGGED with the src it describes, so
+ * Like the page probe (useHelpPage) it is tagged with the src it describes, so
  * a page change makes it stop matching instead of having to be cleared.
  *
  * `navigate` is the one way to move: an anchor on the page already showing
@@ -30,7 +30,7 @@ const ANCHOR_HOLD_MS = 10_000;
  * page loads, and one picked from the rail on the page already showing, which
  * can still be settling when the pick lands.
  *
- * The docs site can hydrate AFTER the load event when the machine is busy, and
+ * The docs site can hydrate after the load event when the machine is busy, and
  * hydrating re-renders the page: its content is replaced by a placeholder, the
  * scroll falls back to the top, and the content arrives a beat later. A single
  * jump at load is undone, so the jump is made again whenever the page's content
@@ -118,8 +118,8 @@ export function useHelpFrame(
   const ready = frame === target.src;
   // The page the frame has actually finished loading, set the moment it does.
   // `ready` is React state and reaches a callback only after the next render,
-  // so a click landing in that gap read the frame as still loading, parked its
-  // anchor for a load that had already happened, and never scrolled.
+  // so a click landing in that gap would read the frame as still loading, park
+  // its anchor for a load that had already happened, and never scroll.
   const loaded = useRef<string | null>(null);
 
   const navigate = useCallback(
@@ -147,7 +147,7 @@ export function useHelpFrame(
   );
 
   /**
-   * Links inside the rendered docs, intercepted in the CAPTURE phase so this
+   * Links inside the rendered docs, intercepted in the capture phase so this
    * gets them before the docs site's own router does.
    *
    * An in-frame link is an ordinary absolute URL into /docs/, and leaving it
@@ -166,9 +166,9 @@ export function useHelpFrame(
       const next = helpTargetFromUrl(anchor.href);
       // Both, and in the capture phase above: Docusaurus is a React router
       // inside there, and its own click handler sits on the page root. Left to
-      // bubble, that handler ran FIRST and did a client-side route change, so
-      // the dialog's title and back stack were describing a page the frame had
-      // already left.
+      // bubble, that handler would run first and do a client-side route change,
+      // leaving the dialog's title and back stack describing a page the frame
+      // had already left.
       e.preventDefault();
       e.stopPropagation();
       if (next === null) {
@@ -183,7 +183,7 @@ export function useHelpFrame(
   /**
    * Runs on every frame load, which is every page change.
    *
-   * The listener is attached to the frame's DOCUMENT, and a navigation replaces
+   * The listener is attached to the frame's document, and a navigation replaces
    * that document, so the old listener goes with it; there is nothing to
    * detach.
    */
@@ -194,7 +194,7 @@ export function useHelpFrame(
     html.setAttribute('data-astra-embed', '');
     // The app has no light mode. Docusaurus picks its theme from the system
     // preference before this runs (respectPrefersColorScheme), and on hydration
-    // its color-mode provider READS these two attributes back rather than
+    // its color-mode provider reads these two attributes back rather than
     // re-deriving them, so setting both holds the page at dark for good.
     html.setAttribute('data-theme', 'dark');
     html.setAttribute('data-theme-choice', 'dark');
@@ -235,7 +235,7 @@ export function useHelpFrame(
         });
       };
       win.addEventListener('scroll', spy, { passive: true });
-      // Once now, so a page opened ON an anchor is highlighted before it is
+      // Once now, so a page opened on an anchor is highlighted before it is
       // touched.
       spy();
       const wanted = pendingAnchor.current;
@@ -243,7 +243,7 @@ export function useHelpFrame(
       if (wanted !== null) hold(doc, win, wanted);
     }
 
-    // Nothing is READ out of the frame. The heading and the rail come from the
+    // Nothing is read out of the frame. The heading and the rail come from the
     // served HTML instead (loadHelpPage), because what this document holds
     // depends on whether hydration has run yet, which a warm cache decides. All
     // this reports is that the page is on screen and can be revealed.

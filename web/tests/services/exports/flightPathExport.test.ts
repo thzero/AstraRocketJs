@@ -73,7 +73,7 @@ const staged = {
 } as unknown as FlightResult;
 
 /**
- * A booster that let go at t=1 — the moment the middle sample was taken. Its
+ * A booster that let go at t=1, the moment the middle sample was taken. Its
  * series is a verbatim copy of the stack's, which is exactly what the real
  * engine hands over, so index 0 is the shared pad and index 1 is separation.
  */
@@ -113,7 +113,7 @@ const driftBack = {
 } as unknown as FlightResult;
 
 /**
- * A run that ended while the rocket was still in the air — what OpenRocket's
+ * A run that ended while the rocket was still in the air: what OpenRocket's
  * `BasicEventSimulationEngine` produces when it reaches the maximum simulation
  * time, and (with no events at all) when a run is aborted before a motor fires.
  */
@@ -145,7 +145,7 @@ const build = (res: FlightResult, over: Partial<ReturnType<typeof defaultExportO
 
 /**
  * `hexToRgbInt` turns the branch color picker into an exported KML color. Its twin
- * `hexToRgbTuple` in `reportPdf` covers the same bad input separately.
+ * `hexToRgbTuple` in `services/report/layout.ts` covers the same bad input separately.
  */
 describe('hexToRgbInt', () => {
   it('packs #rrggbb into one 0xRRGGBB integer', () => {
@@ -179,7 +179,7 @@ describe('hexToRgbInt', () => {
  * These fields exist so a Mustache template written for desktop OpenRocket renders
  * correctly here. Mustache resolves an unknown key to an empty string, so a missing
  * one is not an error - it is a KML with no colors and coordinates that have lost
- * their altitude. Hence the belt-and-braces checks.
+ * their altitude. Hence the redundant checks.
  */
 describe('desktop model parity', () => {
   it('gives each branch a palette color and contiguous index', () => {
@@ -199,7 +199,7 @@ describe('desktop model parity', () => {
   });
 
   it('renders every color opaque, whether defaulted or picked', () => {
-    // Alpha must not depend on HOW the color was obtained: a derived ground shade
+    // Alpha must not depend on how the color was obtained: a derived ground shade
     // at 0xd0 against a picked one at 0xff makes choosing exactly the default
     // differ from leaving it alone. A color is a value, not a value plus a
     // provenance flag.
@@ -316,7 +316,7 @@ describe('stage track start', () => {
 
   it("scans a booster's peak speed from separation, not from the pad", () => {
     // The stack's 50 m/s peak happens at t=1. A booster released at t=1 should
-    // report the fastest thing IT did afterwards, not the stack's maximum.
+    // report the fastest thing it did afterwards, not the stack's maximum.
     const slowAfter = {
       ...result,
       series: { ...result.series, velocity: [0, 50, 10] },
@@ -404,7 +404,7 @@ describe('stage colors', () => {
 
   it('a stage path color can be set on its own', () => {
     // The point of the whole design: setting one role leaves the others on
-    // THEIR defaults rather than dragging them along.
+    // their defaults rather than dragging them along.
     const b = build(staged, { branchColors: new Map([[0, 0x112233]]) }).branches[0]!;
     expect(b.pathColorKml).toBe('ff332211'); // KML is aabbggrr, so 112233 -> ff332211
     expect(b.groundColorKml).toBe('ff552dff'); // still the ground palette
@@ -440,7 +440,7 @@ describe('stage colors', () => {
   });
 
   it('each color lands on its own KML element', () => {
-    // Assert on the RENDERED bytes, with the surrounding <Style id> included.
+    // Assert on the rendered bytes, with the surrounding <Style id> included.
     // The model can be right while the template wires the wrong field into the
     // wrong element, and the pin and the path have separate tokens precisely so a
     // careless find-and-replace cannot repaint the flight path.
@@ -470,7 +470,7 @@ describe('stage colors', () => {
     expect(defaultGroundColor(0)).toBe(0xff2d55);
     expect(defaultGroundColor(10)).toBe(0xff2d55); // wraps
     expect(defaultGroundColor(-1)).toBe(0xe74c3c); // and cannot reach off the front
-    expect(defaultPinColor(3)).toBe(defaultBranchColor(3)); // pins follow the path DEFAULT
+    expect(defaultPinColor(3)).toBe(defaultBranchColor(3)); // pins follow the path default
   });
 
   it('offers the color picker exactly the branches the model will number', () => {
@@ -621,7 +621,7 @@ describe('track and waypoint altitude references', () => {
     const both = build(result, { drawShadow: true, altitudeReference: 'ground', waypointAltitudeReference: 'ground' });
     expect([both.extrudePath, both.extrudeWaypoints]).toEqual([true, true]);
 
-    // Nothing to extrude TO once a thing is lying on the terrain, and the two
+    // Nothing to extrude to once a thing is lying on the terrain, and the two
     // halves are judged separately because they have separate references.
     const mixed = build(result, {
       drawShadow: true,
@@ -645,14 +645,14 @@ describe('renderKml', () => {
     expect(kml.trimEnd().endsWith('</kml>')).toBe(true);
   });
   it('places the track in the altitude mode the model resolved', () => {
-    // The bug this pins: a template that hardcodes `absolute` draws a flight
-    // measured from a pad at 0 against SEA level, so at a launch site on real
+    // A template that hardcodes `absolute` draws a flight measured from a pad
+    // at 0 against sea level, so at a launch site on real
     // terrain most of the rocket's altitude sits underneath the ground and only
     // the top of the flight is visible in Google Earth.
     const ground = renderKml(build(result, {}, { ...launch, launchAltitudeM: 0 } as LaunchConditions));
     expect(ground).toContain('<altitudeMode>relativeToGround</altitudeMode>');
     expect(ground).not.toContain('<altitudeMode>absolute</altitudeMode>');
-    // ...while a site with a real elevation is placed absolutely, as before.
+    // ...while a site with a real elevation is placed absolutely.
     expect(kml).toContain('<altitudeMode>absolute</altitudeMode>');
     expect(kml).not.toContain('<altitudeMode>relativeToGround</altitudeMode>');
     // The ground track is clamped either way - that is what makes it a ground
@@ -666,8 +666,8 @@ describe('renderKml', () => {
     expect(k).toContain('id="flightPath0"');
     expect(k).toContain('id="flightPath1"');
     expect(k).toContain('<styleUrl>#waypoint1</styleUrl>');
-    // Two stages, two different line colors - one hardcoded red for both is
-    // what made a staged flight unreadable.
+    // Two stages, two different line colors: one red for both makes a staged
+    // flight unreadable.
     const colors = [...k.matchAll(/<LineStyle><color>([0-9a-f]{8})</g)].map((m) => m[1]);
     expect(new Set(colors).size).toBeGreaterThan(1);
     // A pin reading "Apogee" twice is ambiguous once there is more than one stage.
@@ -733,8 +733,7 @@ describe('flight summary', () => {
     expect(m.maxRange).toBe('223.6'); // hypot(100, 200) at the last sample
     expect(m.timeToApogee).toBe('1.0');
     expect(m.flightTime).toBe('2.0');
-    // The two peaks are SI whatever the distance unit is, and until now nothing
-    // in the model said so.
+    // The two peaks are SI whatever the distance unit is, and the model says so.
     expect([m.velocityUnit, m.accelerationUnit]).toEqual(['m/s', 'm/s²']);
     expect([m.launchLatitudeStr, m.launchLongitudeStr]).toEqual(['40.000000', '-105.000000']);
     expect(m.launchAltitude).toBe('1600.0');
@@ -764,7 +763,7 @@ describe('flight summary', () => {
   it('scans a separated stage range over the WHOLE branch', () => {
     // Unlike the peak-velocity waypoint, which starts at separation so a spent
     // booster reports its own peak. A range is a claim about where that
-    // airframe WENT, and it went wherever the stack took it.
+    // airframe went, and it went wherever the stack took it.
     const m = build(separated);
     expect(m.branches[1]!.maxRangeMeters).toBeCloseTo(m.branches[0]!.maxRangeMeters, 6);
   });
@@ -869,7 +868,7 @@ describe('kernel component names', () => {
 
   it('does not double a device already named for the event', () => {
     // The stage qualifier's own guard, inherited: it drops the qualifier when
-    // the LABEL already starts with it, so a device called "Ejection" gives one
+    // the label already starts with it, so a device called "Ejection" gives one
     // word rather than two. It is that direction only - a device called
     // "Ejection charge" still qualifies to "Ejection charge Ejection", which is
     // silly but is not a name anybody gives a parachute, and widening the guard
@@ -925,7 +924,7 @@ describe('kernel component names', () => {
 
   it('leaves a name the user actually typed alone', () => {
     // Only the bracket form is a key. Everything else is somebody's name for
-    // their own part, and rewriting it would be the worse bug.
+    // their own part, and rewriting it would be wrong.
     const m = build(result);
     const recovery = m.branches[0]!.waypoints.find((w) => w.type === 'recovery')!;
     expect(recovery.device).toBe('Main chute');
@@ -934,7 +933,7 @@ describe('kernel component names', () => {
 
 describe('export language', () => {
   /**
-   * Expectations are read OUT of the Spanish bundle rather than written into
+   * Expectations are read out of the Spanish bundle rather than written into
    * this file. It keeps the test about the wiring - did the export take its
    * strings from the language it was handed, and compose them in that
    * language's word order - rather than about the wording, which a translator
@@ -1002,7 +1001,7 @@ describe('KML summary balloons', () => {
   it('bolds every label, and leaves no line without one', () => {
     // A balloon is a list of one-line facts, and a wall of same-weight text is
     // not scannable. The label is bold and the value is not, including on the
-    // time line - which was the one line with no label at all.
+    // time line.
     expect(kml).toContain('&lt;b&gt;Max altitude:&lt;/b&gt; 100.0');
     expect(kml).toContain('&lt;b&gt;Time:&lt;/b&gt; T+');
     // Every line of every balloon: as many bold runs as there are lines.
@@ -1044,7 +1043,7 @@ describe('KML summary balloons', () => {
     expect(folder).toContain('Max range: 223.6 m from the pad');
     // The same fact presented the same way as in the document summary: leading
     // with the coordinate, on one line. A separate "Landing coordinates" line
-    // demoted the very thing the document leads on, and gave one file two
+    // would demote the very thing the document leads on, and give one file two
     // presentations of one fact.
     expect(folder).toContain('Landing: 40.001799, -104.998826 (lat, lon); 223.6 m at 27° from the pad; T+2.0 s');
   });
@@ -1052,11 +1051,11 @@ describe('KML summary balloons', () => {
   it('puts the point own numbers on each waypoint', () => {
     const at = kml.indexOf('<name>Apogee</name>');
     const apogee = asBalloonText(kml.slice(at, kml.indexOf('</Placemark>', at)));
-    // One notation AND one precision for one quantity: the landing lines say
+    // One notation and one precision for one quantity: the landing lines say
     // T+2.0 s, so a waypoint must not say T+1.00 s.
     expect(apogee).toContain('Time: T+1.0 s');
     expect(apogee).not.toContain('T+1.00 s');
-    // One label, two references: the same word twice down two lines was the
+    // One label, two references: the same word twice down two lines is the
     // duplication a bold label makes obvious.
     expect(apogee).toContain('Altitude: 100.0 m above the pad, 1700.0 m above sea level');
     expect(apogee).toContain('Position: 111.8 m at 27° from the pad');
@@ -1067,9 +1066,9 @@ describe('KML summary balloons', () => {
   });
 
   it('writes no Snippet', () => {
-    // An empty <Snippet> did not stop Google Earth desktop listing the
+    // An empty <Snippet> does not stop Google Earth desktop listing the
     // description under the name, and Google Earth for web rejects its maxLines
-    // form as an unsupported element. It did nothing and could only cause errors.
+    // form as an unsupported element. It does nothing and can only cause errors.
     expect(kml).not.toContain('Snippet');
   });
 
@@ -1102,7 +1101,7 @@ describe('KML summary balloons', () => {
     const k = asBalloonText(renderKml(build(result, {}, { ...launch, launchAltitudeM: 0 } as LaunchConditions)));
     expect(k).not.toContain('above sea level');
     expect(k).toContain('Launch site: 40.000000, -105.000000 (lat, lon)\n'); // no elevation clause
-    expect(k).toContain('above the pad'); // the height that IS known survives
+    expect(k).toContain('above the pad'); // the height that is known survives
   });
 
   it('leaves the configuration line out when there is no named configuration', () => {

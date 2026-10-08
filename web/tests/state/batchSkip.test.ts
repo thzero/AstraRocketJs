@@ -33,7 +33,7 @@ const RESULT = { summary: { maxAltitude: 100 }, events: [], series: {} } as unkn
  * One unflyable row must not cost the rest of the batch.
  *
  * The Run button and the run loop both ask `services/flight/runnability`, so they cannot
- * judge it differently. Judged apart - the button on the ACTIVE simulation's motor,
+ * judge it differently. Judged apart - the button on the active simulation's motor,
  * the safety codes against the whole batch - a batch is vetoed over one bad row, or
  * started with an unflyable row the button never mentions.
  */

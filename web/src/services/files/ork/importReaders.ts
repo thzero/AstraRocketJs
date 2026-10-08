@@ -80,7 +80,7 @@ const readCd = (el: Element, n: ComponentNode) => {
 
 /** Off-axis placement: <radialposition> (m) + <radialdirection> (deg → rad), only kept when non-zero. */
 const readRadial = (el: Element, n: ComponentNode) => {
-  // A DISTANCE from the axis, so floored; the direction beside it is an angle.
+  // A distance from the axis, so floored; the direction beside it is an angle.
   const radPos = nonNegTag(el, 'radialposition', 0);
   if (radPos !== 0) n['radialPosition'] = radPos;
   const radDir = numTag(el, 'radialdirection', 0);
@@ -103,8 +103,8 @@ const readNosecone: NodeReader = (_ctx, el) => {
   const shT = numTag(el, 'aftshoulderthickness', 0);
   if (shT > 0) n['shoulderThickness'] = shT;
   if (text(el, ':scope > aftshouldercapped') === 'true') n['shoulderCapped'] = true;
-  // A flipped nose cone is a tail cone. The writer emitted a hardcoded
-  // false and nothing read it, so one came back the right way round.
+  // A flipped nose cone is a tail cone; read so it keeps its orientation
+  // through a round trip.
   if (text(el, ':scope > isflipped') === 'true') n['flipped'] = true;
   return n;
 };
@@ -137,8 +137,7 @@ const readTransition: NodeReader = (_ctx, el) => {
     const th = numTag(el, `${side}shoulderthickness`, 0);
     if (th > 0) n[`${key}Thickness`] = th;
     // A capped shoulder is closed by a disc of the part's own material. Read
-    // per side: a transition has two, and only the nose cone's single flag was
-    // ever read, under a key a transition does not carry.
+    // per side, since a transition has two.
     if (text(el, `:scope > ${side}shouldercapped`) === 'true') n[`${key}Capped`] = true;
   }
   return n;
@@ -162,7 +161,7 @@ const readTrapezoidFinset: NodeReader = (_ctx, el) => {
   n['finCount'] = finCountTag(el);
   n['rootChord'] = nonNegTag(el, 'rootchord', 0.05);
   n['tipChord'] = nonNegTag(el, 'tipchord', 0.03);
-  // SIGNED, and the only fin dimension that is: a negative sweep is a
+  // Signed, and the only fin dimension that is: a negative sweep is a
   // forward-swept fin, which is a real shape the desktop draws.
   n['sweep'] = numTag(el, 'sweeplength', 0.02);
   n['height'] = nonNegTag(el, 'height', 0.03);
@@ -188,7 +187,7 @@ const readFreeformFinset: NodeReader = (_ctx, el) => {
   // whole list first. Indexing a live `children` collection is O(n) per
   // access in jsdom (so O(n^2) over the list), and a selector materializes
   // every point before the cap can slice; the sibling walk is O(cap) in
-  // every DOM. A missing x/y attribute must SKIP the point (Number(null) is
+  // every DOM. A missing x/y attribute must skip the point (Number(null) is
   // 0, which would silently drop a vertex onto the origin).
   const pts: [number, number][] = [];
   const finpoints = el.querySelector(':scope > finpoints');
@@ -237,7 +236,7 @@ const readInnertube: NodeReader = (ctx, el) => {
   n['length'] = nonNegTag(el, 'length', 0.07);
   n['outerRadius'] = nonNegTag(el, 'outerradius', 0.0095);
   n['thickness'] = nonNegTag(el, 'thickness', COMPONENT_DEFAULTS.innertube.thickness);
-  // Cluster (desktop stores rotation in DEGREES; we keep radians).
+  // Cluster (desktop stores rotation in degrees; we keep radians).
   const cluster = text(el, ':scope > clusterconfiguration');
   if (cluster && cluster !== 'single') {
     n['cluster'] = cluster;
@@ -246,10 +245,10 @@ const readInnertube: NodeReader = (ctx, el) => {
   }
   // Off-axis / split-cluster offset: desktop splits a cluster into single
   // tubes, each carrying its position as <radialposition> (meters) +
-  // <radialdirection> (DEGREES). We keep the direction in radians (like
+  // <radialdirection> (degrees). We keep the direction in radians (like
   // angleOffset) and only carry non-zero values so a centered tube stays
-  // clean. Unread, with the writer hard-writing 0.0, every off-center tube
-  // collapses onto the centerline and the next save makes it permanent.
+  // clean. Without this, every off-center tube would collapse onto the
+  // centerline and the next save would make it permanent.
   readRadial(el, n);
   // Our extension tag: the mount's physical motor-length limit.
   const mml = numTag(el, 'maxmotorlength', 0);
@@ -322,7 +321,7 @@ const readRailbutton: NodeReader = (_ctx, el) => {
   const rb = COMPONENT_DEFAULTS.railbutton;
   n['outerDiameter'] = nonNegTag(el, 'outerdiameter', rb.outerDiameter);
   // The rest of the button's geometry (RailButtonSaver.java writes all six)
-  // and its material, PASS-THROUGH like fillets: the app neither draws nor
+  // and its material, passed through like fillets: the app neither draws nor
   // simulates them, so hard-writing the desktop's constructor constants and a
   // Delrin material would bring a 1010 button sized by hand on the desktop
   // back from a save as the stock one. Only carried when they differ from the
@@ -343,8 +342,8 @@ const readRailbutton: NodeReader = (_ctx, el) => {
   return n;
 };
 
-// Our extension element (2026-08-05b #18), added for the RASAERO work —
-// the desktop warns about the unknown element and skips it. Nothing in
+// Our extension element (the camera shroud): the desktop warns about the
+// unknown element and skips it. Nothing in
 // the editor can create a fairing, so this only ever reads one back out
 // of a file this app wrote. See openRocketEngine.ts ComponentType.
 const readFairing: NodeReader = (_ctx, el) => {
@@ -373,12 +372,12 @@ const readParachute: NodeReader = (ctx, el) => {
   // the kernel needs it to tell dual deployment from single: without it every
   // flight takes the single-deployment branch.
   if (isDrogueTag(el)) n['drogue'] = true;
-  // <deploymentconfiguration> only overrides when a config was chosen —
-  // with no declarations the bare tags stay the whole story (a stray
-  // block in an undeclared file was never read, keep it that way).
+  // <deploymentconfiguration> only overrides when a config was chosen:
+  // with no declarations the bare tags are the whole story, and a stray
+  // block in an undeclared file is not read.
   readDeployment(el, n, ctx.chosenConfigId === null ? null : configScoped(ctx, el, 'deploymentconfiguration'));
   captureDeployments(ctx, el, n);
-  // Our extension tag (desktop warns-and-ignores) — spill hole diameter.
+  // Our extension tag (desktop warns-and-ignores): spill hole diameter.
   const spill = numTag(el, 'spillholediameter', 0);
   if (spill > 0) n['spillHoleDiameter'] = spill;
   return n;
@@ -412,7 +411,7 @@ const readMasscomponent: NodeReader = (_ctx, el) => {
   n['mass'] = nonNegTag(el, 'mass', 0.01);
   n['length'] = nonNegTag(el, 'packedlength', 0.02);
   n['radius'] = nonNegTag(el, 'packedradius', COMPONENT_DEFAULTS.masscomponent.radius);
-  // Preserve-through: what KIND of mass this is (altimeter, payload…).
+  // Preserve-through: what kind of mass this is (altimeter, payload…).
   // No mass/CG effect, but the desktop shows it and users set it there.
   const mct = text(el, ':scope > masscomponenttype');
   if (mct && mct !== 'masscomponent') n['massComponentType'] = mct;
@@ -449,7 +448,7 @@ const readAssembly =
       }
     }
     if (asmType === 'parallelstage') {
-      // Same separation read as a booster <stage> — the chosen config's
+      // Same separation read as a booster <stage>: the chosen config's
       // block wins over the bare defaults.
       readSeparation(configScoped(ctx, el, 'separationconfiguration') ?? el, n);
       captureSeparations(ctx, el, n);
@@ -507,8 +506,8 @@ function convertChildren(ctx: OrkImportContext, parentEl: Element, depth = 0): C
 }
 
 /**
- * EVERY stage imports (Release C) — each becomes a stage node carrying its
- * separation config (desktop writes defaults bare under <stage>).
+ * Every stage imports, each as a stage node carrying its separation config
+ * (desktop writes defaults bare under <stage>).
  */
 export function readStages(ctx: OrkImportContext, stages: Element[]): ComponentNode[] {
   return stages.map((stageEl, i) => {
@@ -520,14 +519,14 @@ export function readStages(ctx: OrkImportContext, stages: Element[]): ComponentN
     };
     // A stage can be overridden like any other component, and the writer emits
     // it, but this builds its own node rather than going through the part
-    // reader - so it was the one place an override was written and not read.
+    // reader, so it reads the overrides itself.
     readOverrides(stageEl, stage);
-    // RASAero power-on base-drag input (meters) — every stage, incl. sustainer.
+    // RASAero power-on base-drag input (meters), every stage incl. sustainer.
     const nozzle = numTag(stageEl, 'nozzleexitdiameter', NaN);
     if (!Number.isNaN(nozzle) && nozzle > 0) stage['nozzleExitDiameter'] = nozzle;
     if (i > 0) {
       // Like ignition: the chosen config's block overrides the bare defaults
-      // (24.12 writes a <separationconfiguration> for EVERY config id).
+      // (24.12 writes a <separationconfiguration> for every config id).
       readSeparation(configScoped(ctx, stageEl, 'separationconfiguration') ?? stageEl, stage);
       captureSeparations(ctx, stageEl, stage);
     }

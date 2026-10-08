@@ -51,7 +51,7 @@ describe('launchLimitViolations', () => {
   /**
    * The codes are a go/no-go call made from what you can measure at the pad.
    * Nobody is metering the wind at 500 m, so a fast layer aloft is not a reason
-   * to refuse a flight — only the ground layer is judged.
+   * to refuse a flight. Only the ground layer is judged.
    */
   it('judges the wind at the pad, not the wind aloft', () => {
     const aloft = {
@@ -115,7 +115,7 @@ describe('limitText', () => {
 });
 
 describe('surfaceLevel', () => {
-  // A profile listed top-down (a CSV, a .ork) has the wind aloft FIRST.
+  // A profile listed top-down (a CSV, a .ork) has the wind aloft first.
   const topDown = [
     { altitudeM: 3000, speed: 15, directionDeg: 270, stddev: 0 },
     { altitudeM: 500, speed: 6, directionDeg: 200, stddev: 0 },

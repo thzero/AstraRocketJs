@@ -33,8 +33,8 @@ export function unpackOrk(data: ArrayBuffer | string): OrkArchive {
   const bytes = new Uint8Array(data);
   if (bytes[0] === 0x50 && bytes[1] === 0x4b) {
     // Zip-bomb guard: a `.ork` is a zip, and fflate's unzipSync has no built-in
-    // cap — a crafted archive (huge declared size, or millions of entries)
-    // would OOM the tab. The `filter` runs per member BEFORE it inflates,
+    // cap: a crafted archive (huge declared size, or millions of entries)
+    // would OOM the tab. The `filter` runs per member before it inflates,
     // carrying the declared uncompressed `originalSize`, so we reject there.
     let entryCount = 0;
     let totalSize = 0;

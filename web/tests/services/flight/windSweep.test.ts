@@ -19,7 +19,7 @@ import type { WindLevel } from '../../../src/services/design/orkTree';
  * The grid a drift sweep flies, and the conditions each of its cells carries.
  *
  * Everything here is pure: no engine, no store. What is actually being asserted
- * is that a swept flight differs from the typed one in the wind and NOTHING
+ * is that a swept flight differs from the typed one in the wind and nothing
  * else, and that the wind it differs by is the wind the grid says it is.
  */
 
@@ -135,7 +135,7 @@ describe('the surface wind a sweep is built around', () => {
     expect(surfaceWind(base)).toEqual({ speedMs: 4, headingDeg: 90 });
   });
 
-  /** Levels are not kept sorted, so the ground layer is the LOWEST altitude. */
+  /** Levels are not kept sorted, so the ground layer is the lowest altitude. */
   it('is the lowest level of a profile, not the first one listed', () => {
     const levels: WindLevel[] = [
       { altitudeM: 900, speed: 12, directionDeg: 200, stddev: 1.2 },
@@ -163,7 +163,7 @@ describe('one cell conditions', () => {
   });
 
   /**
-   * Gustiness is a FRACTION of the wind everywhere else in the app, so holding
+   * Gustiness is a fraction of the wind everywhere else in the app, so holding
    * the deviation absolute across a sweep would fly the slow cells as gales.
    */
   it('keeps the turbulence intensity rather than the deviation', () => {

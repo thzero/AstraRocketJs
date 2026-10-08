@@ -5,7 +5,7 @@ import { DesignPropertiesDialog } from '../layout/DesignPropertiesDialog';
  * The app-wide name prompt, driven imperatively by the prompt store (see
  * {@link prompt}). Mounted once at the app root, beside ConfirmDialog.
  *
- * It renders the SAME dialog File > Save As and the library's Rename use, so
+ * It renders the same dialog File > Save As and the library's Rename use, so
  * the focus trap, the Escape handling, the select-on-open and the duplicate
  * warning are the ones already tested there rather than a second copy of them.
  * Mounted only while a request is open, which is what lets that dialog seed its

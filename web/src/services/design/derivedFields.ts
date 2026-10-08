@@ -6,9 +6,9 @@ import { num } from '../../tree/nodeProps';
  *
  * OpenRocket's config dialogs offer some dimensions two ways round, because the
  * two ways are how people actually have the figure: a trapezoid fin's sweep is
- * a LENGTH in the file and an ANGLE on a plan, and a streamer is cut to a
+ * a length in the file and an angle on a plan, and a streamer is cut to a
  * length and a width but sold and specified by its area and its aspect ratio.
- * A mass component is the same trade in the other direction - you know the lump
+ * A mass component is the same trade in the other direction: you know the lump
  * weighs 40 g, or you know it is lead.
  *
  * None of these is stored. Each is read from the keys that are, and typing one
@@ -24,7 +24,7 @@ import { num } from '../../tree/nodeProps';
  * check for one.
  */
 
-/** `TrapezoidFinSet.MAX_SWEEP_ANGLE` - 89 degrees, not 90, so the tangent is finite. */
+/** `TrapezoidFinSet.MAX_SWEEP_ANGLE`: 89 degrees, not 90, so the tangent is finite. */
 export const MAX_SWEEP_ANGLE = (89 * Math.PI) / 180;
 
 /** `MassComponent.setDensity` clamps the mass it computes to this. */
@@ -52,7 +52,7 @@ export type Derived = {
   max?: (node: ComponentNode) => number;
   /** The current value, in SI, from the keys the node does store. */
   read: (node: ComponentNode) => number;
-  /** The patch of STORED keys that a typed value means. Empty to refuse it. */
+  /** The patch of stored keys that a typed value means. Empty to refuse it. */
   write: (node: ComponentNode, v: number) => Partial<ComponentNode>;
 };
 
@@ -88,7 +88,7 @@ export const DERIVED: Record<DerivedName, Derived> = {
   },
 
   /**
-   * `Streamer.getArea`/`setArea`. Typing an area keeps the ASPECT RATIO and
+   * `Streamer.getArea`/`setArea`. Typing an area keeps the aspect ratio and
    * resizes both sides to suit, which is the point of the row: a streamer is
    * specified by how much fabric it is and how long and thin, and changing how
    * much fabric should not change how long and thin.
@@ -105,7 +105,7 @@ export const DERIVED: Record<DerivedName, Derived> = {
 
   /**
    * `Streamer.getAspectRatio`/`setAspectRatio`, length over width. Typing one
-   * keeps the AREA and re-cuts the strip, the mirror of the row above.
+   * keeps the area and re-cuts the strip, the mirror of the row above.
    *
    * A strip narrower than 0.1 mm reports 1000 rather than a division by
    * something near zero; it is upstream's own answer and it also gives the
@@ -125,7 +125,7 @@ export const DERIVED: Record<DerivedName, Derived> = {
 
   /**
    * `InnerTube.getClusterScaleAbsolute`/`setClusterScaleAbsolute`: the gap
-   * between neighboring tubes as a DISTANCE, where the stored `clusterScale` is
+   * between neighboring tubes as a distance, where the stored `clusterScale` is
    * a multiple of the tube diameter. Zero is tubes touching, negative is tubes
    * cutting into each other, which is legal and is how a tight cluster is drawn.
    *
@@ -135,7 +135,7 @@ export const DERIVED: Record<DerivedName, Derived> = {
    */
   clusterSeparation: {
     quantity: 'length',
-    // A tube can be packed INSIDE its neighbors, so this is the other signed
+    // A tube can be packed inside its neighbors, so this is the other signed
     // row. Its floor is one whole diameter in, which is where `clusterScale`
     // hits the 0 the kernel clamps it to.
     min: (node) => -num(node, 'outerRadius') * 2,
@@ -154,8 +154,8 @@ export const DERIVED: Record<DerivedName, Derived> = {
    * cylinder. Approximate, and labeled so, because the packed size is the room
    * the lump takes up rather than the lump.
    *
-   * A part with no packed volume has no density - upstream substitutes 0 for
-   * the NaN - and typing one into it is refused rather than writing a mass of 0
+   * A part with no packed volume has no density (upstream substitutes 0 for
+   * the NaN), and typing one into it is refused rather than writing a mass of 0
    * over whatever is there.
    */
   massDensity: {

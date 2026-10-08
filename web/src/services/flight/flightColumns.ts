@@ -4,18 +4,19 @@ import type { Quantity } from '../../prefs/units';
 /**
  * What a flight CSV can carry: one entry per series the run actually recorded.
  *
- * The list is built from the RESULT rather than hard-coded, because which series
+ * The list is built from the result rather than hard-coded, because which series
  * are present depends on how the simulation was run (`SimulationOptions.series`:
- * the default `summary` set, or `full`). Offering a column the file cannot fill
- * would be a menu of empty promises.
+ * the default `summary` set, or `full`). A column the file cannot fill is not
+ * offered.
  *
  * The friendly dozen come first and in a fixed order, because that is the order
- * anyone reading a flight expects; the rest follow by symbol. A column's unit
+ * anyone reading a flight expects; the rest follow in the kernel table's order,
+ * then any unnamed series. A column's unit
  * comes from the user's preference where the quantity has one, and is fixed
  * where it does not (Mach, calibers).
  */
 export interface FlightColumn {
-  /** Key into `FlightSeries` — `altitude`, `Px`, `Cd`… */
+  /** Key into `FlightSeries`: `altitude`, `Px`, `Cd`… */
   key: string;
   /** i18n key for the human name, or null when only the symbol is known. */
   labelKey: string | null;
@@ -30,7 +31,7 @@ export interface FlightColumn {
 /**
  * The series the app names, in reading order.
  *
- * Everything else a run records is still exportable — it just carries its
+ * Everything else a run records is still exportable; it just carries its
  * kernel symbol as its name, which is what the symbol means to anyone who asked
  * for the full set in the first place.
  */
@@ -53,16 +54,16 @@ const KNOWN: FlightColumn[] = [
  * The horizontal track: where the rocket was over the ground.
  *
  * Named by the kernel table below, but singled out here because it belongs in
- * the DEFAULT export - it is the only thing in the file that answers "where
- * does it land", and it was the reason the columns were added at all.
+ * the default export: it is the only thing in the file that answers "where
+ * does it land".
  */
 const TRACK_KEYS = ['Px', 'Py', 'Pl', 'θl'];
 
 /**
  * Everything else the kernel records, named as OpenRocket names it.
  *
- * Generated from `FlightDataType.java` and its `messages.properties` — symbol,
- * translated name and unit group — so a variable reads the same here as in the
+ * Generated from `FlightDataType.java` and its `messages.properties` (symbol,
+ * translated name and unit group), so a variable reads the same here as in the
  * desktop app rather than appearing as a bare "Abx". The app's own dozen are
  * excluded: they already have names and keys of their own above.
  */
@@ -134,10 +135,9 @@ const ALL: FlightColumn[] = [...KNOWN, ...KERNEL];
 
 const KNOWN_KEYS = new Set(ALL.map((c) => c.key));
 
-/** The series of one branch: the numbered one, or the top-level trajectory. */
 /**
  * Every branch a result carries, as one list. `branches` is present only once a
- * staged rocket separates, and then its [0] IS the sustainer, the same data the
+ * staged rocket separates, and then its [0] is the sustainer, the same data the
  * top-level events and series carry; a single flight is wrapped as one branch
  * named `fallbackName`. So one or the other, never both.
  */
@@ -146,6 +146,7 @@ export function flightBranches(result: FlightResult, fallbackName = ''): FlightB
   return [{ name: fallbackName, events: result.events ?? [], series: result.series }];
 }
 
+/** The series of one branch: the numbered one, or the top-level trajectory. */
 export function branchSeries(result: FlightResult, branchIndex: number): FlightSeries | undefined {
   return result.branches?.length ? result.branches[branchIndex]?.series : result.series;
 }
@@ -153,7 +154,7 @@ export function branchSeries(result: FlightResult, branchIndex: number): FlightS
 /**
  * Every column this result can fill, for the given branch.
  *
- * A key counts as present when it holds an array — an empty one included, since
+ * A key counts as present when it holds an array, an empty one included, since
  * an empty series is a recorded series with nothing in it rather than a missing
  * one, and hiding it would make the offer depend on the flight rather than on
  * the run settings.

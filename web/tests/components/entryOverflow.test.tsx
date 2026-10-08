@@ -11,17 +11,17 @@ import type { Material } from '../../src/services/materials/materialTypes';
 beforeAll(serveData);
 
 /**
- * A finite ENTRY is not a finite stored value, at a box OUTSIDE the property
- * panel — which is where this guard used to stop.
+ * A finite entry is not a finite stored value, at a box outside the property
+ * panel as well as inside it.
  *
- * It can only happen where a DISPLAY unit is larger than the SI one, because
+ * It can only happen where a display unit is larger than the SI one, because
  * that is the only direction the conversion multiplies in. The first test pins
  * which quantities those are, because the answer decides which fields are
  * exposed at all and it changes the moment a unit is added: a length is safe
  * today only because every length unit is a meter or less.
  *
- * The custom-material density is the clearest of them — `g/cm³` multiplies by a
- * thousand — and it is also the one quantity with a physical ceiling, so both
+ * The custom-material density is the clearest of them (`g/cm³` multiplies by a
+ * thousand), and it is also the one quantity with a physical ceiling, so both
  * halves of the rule are visible in one form.
  *
  * `1e306`, not `1e999`: jsdom refuses to deliver text that is not a finite
@@ -79,7 +79,7 @@ describe('a custom material density', () => {
 
   it('is refused when the conversion to SI overflows', async () => {
     const { onChange, box } = addForm();
-    // 1e306 g/cm³ is 1e309 kg/m³, which is Infinity. Before the guard that went
+    // 1e306 g/cm³ is 1e309 kg/m³, which is Infinity. Unguarded, that would go
     // into the material store and then into every part made of it.
     fireEvent.change(box(), { target: { value: '1e306' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));

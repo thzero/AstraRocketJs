@@ -6,16 +6,14 @@ import { NumberInput } from '../../../src/components/common/NumberInput';
 /**
  * Clearing a delay box to retype must not commit a delay.
  *
- * Two boxes carried a raw `<input type="number">` with `… ?? 0`, so the moment
- * the field went empty the fallback fired: `MotorDialog`'s custom ejection delay
- * stored a 0-second charge, and `MotorRow`'s ignition delay stored a 0-second
- * air-start. Both are values the kernel flies, and both were committed by the
- * ordinary act of selecting the text and pressing Backspace before typing the
- * real number.
+ * With a raw `<input type="number">` and `… ?? 0`, the fallback fires the moment
+ * the field goes empty: `MotorDialog`'s custom ejection delay would store a
+ * 0-second charge, and `MotorRow`'s ignition delay a 0-second air-start. Both are
+ * values the kernel flies, and both would be committed by the ordinary act of
+ * selecting the text and pressing Backspace before typing the real number.
  *
- * `NumberInput` exists to prevent exactly this - it holds the keystrokes in a
- * draft buffer and reports `null` for an empty field - and these were the last
- * two data-entry boxes in the app that were not using it.
+ * `NumberInput` prevents this: it holds the keystrokes in a draft buffer and
+ * reports `null` for an empty field.
  */
 afterEach(cleanup);
 

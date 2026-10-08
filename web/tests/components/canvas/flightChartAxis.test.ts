@@ -6,7 +6,7 @@ const branch = (time: number[]) => ({ series: { time } as unknown as FlightSerie
 
 describe('maxFlightTime', () => {
   it('spans every branch, not just the first', () => {
-    // A booster that lands after the sustainer still has to fit on the axis —
+    // A booster that lands after the sustainer still has to fit on the axis:
     // its descent runs on the same launch clock.
     expect(maxFlightTime([branch([0, 1, 2]), branch([0, 1, 2, 3, 9.5])], 2)).toBe(9.5);
   });
@@ -26,16 +26,14 @@ describe('maxFlightTime', () => {
   });
 
   /**
-   * The bug: this was `Math.max(flightTime, ...branches.flatMap((b) =>
-   * b.series.time))`. A long, fine-timestep, multi-stage flight puts a
-   * six-figure argument list into that call, which throws
-   * `RangeError: Maximum call stack size exceeded` — and because it ran in the
-   * render body rather than a memo, it threw on every pointer move over the
-   * chart, blanking the whole panel.
+   * Spreading every sample into `Math.max(flightTime, ...times)` fails: a long,
+   * fine-timestep, multi-stage flight puts a six-figure argument list into that
+   * call, which throws `RangeError: Maximum call stack size exceeded`. In the
+   * render path that blanks the whole chart panel.
    */
   it('handles a sample count that would overflow the call-argument stack', () => {
     const many = Array.from({ length: 300_000 }, (_, i) => i * 0.001);
-    expect(() => Math.max(1, ...many)).toThrow(RangeError); // the shape of the old code
+    expect(() => Math.max(1, ...many)).toThrow(RangeError); // the spread form overflows
     expect(maxFlightTime([branch(many)], 1)).toBeCloseTo(299.999, 6);
   });
 });

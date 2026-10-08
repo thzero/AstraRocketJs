@@ -22,7 +22,7 @@ afterEach(() => vi.restoreAllMocks());
 
 /**
  * The fin outline download is named the way every export is (exportFilename):
- * rocket, part, what it is. It was "Fin_set.csv", saying nothing about which
+ * rocket, part, what it is. A bare "Fin_set.csv" would say nothing about which
  * rocket, beside "Bertha-aero-table.csv" in the same downloads folder.
  */
 describe('FreeformFinActions', () => {

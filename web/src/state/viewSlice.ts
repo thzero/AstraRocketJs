@@ -42,7 +42,7 @@ export function showing(s: { tab: Tab; designPane: DesignPane }, view: ViewMode)
   if (s.tab === 'sim' || (s.tab === 'design' && s.designPane === 'stats')) return { view };
   return isResultView(view)
     ? { view, tab: 'results' }
-    : // Coming BACK from Results, the drawing is what shows a design view, so a
+    : // Coming back from Results, the drawing is what shows a design view, so a
       // phone lands on the Sketch pane rather than the stats it was never asked for.
       { view, tab: 'design', designPane: 'sketch' };
 }
@@ -55,8 +55,8 @@ export const createViewSlice: StateCreator<WorkspaceState, [], [], ViewSlice> = 
   roll: 0,
   resetKey: 0,
 
-  // The two below keep the mobile tab and the center-pane view in step -- see
-  // {@link showing}. Harmless at desktop widths, where the tab bar is hidden
+  // The three below keep the mobile tab and the center-pane view in step (see
+  // {@link showing}). Harmless at desktop widths, where the tab bar is hidden
   // and `tab` only decides what a later resize lands on.
   setTab: (tab) =>
     set((s) => {

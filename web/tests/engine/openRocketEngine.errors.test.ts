@@ -9,13 +9,13 @@ import {
 } from '../../src/engine/openRocketEngine';
 
 /**
- * The typed error the wrapper raises for kernel calls that CANNOT return an
+ * The typed error the wrapper raises for kernel calls that cannot return an
  * `{error}` envelope: `buildRocket`, `setMotorById`, `setMotorIgnitionById`,
  * the flag setters and `getWorstThetaDeg` (see engine-java/README.md, "What
  * the void and primitive exports do on failure").
  *
- * Stubbed on purpose. The real-kernel files assert WHAT the Java rejects; this
- * one asserts the SHAPE the wrapper gives a rejection, which does not depend
+ * Stubbed on purpose. The real-kernel files assert what the Java rejects; this
+ * one asserts the shape the wrapper gives a rejection, which does not depend
  * on the physics and must hold for a failure the kernel has never seen.
  */
 
@@ -102,7 +102,7 @@ describe('EngineCallError names the call and keeps the cause', () => {
 });
 
 describe('a stale handle is reported as StaleDesignError, never re-wrapped', () => {
-  // `callEngine` runs the handle getter INSIDE its try, so the generation
+  // `callEngine` runs the handle getter inside its try, so the generation
   // check throws where a kernel failure would. The wrapper must let that
   // typed error through untouched rather than burying it in an EngineCallError.
   it('for a void export', () => {

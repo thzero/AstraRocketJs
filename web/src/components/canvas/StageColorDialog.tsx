@@ -33,18 +33,15 @@ const ROLE_LABEL: Record<ColorRole, string> = {
  * A modal rather than inline pickers because the stage count comes from the
  * design, and a variable-length list needs room the panel does not have.
  *
- * Edits a DRAFT per role, so Cancel leaves the prior selection exactly as it
+ * Edits a draft per role, so Cancel leaves the prior selection exactly as it
  * was and only Apply commits. Reset clears the drafts back to the palettes
  * rather than writing each palette color in as an override, so a stage nobody
  * chose a color for keeps following its palette.
  *
- * The three columns are deliberately INDEPENDENT. An earlier design had ground
- * and pin follow the path swatch while they were still on their derived value
- * and stop once moved. It demos well and is bad: two swatches showing the same
- * color behave differently depending on history, nothing on screen says which
- * are still following, and setting a color to exactly the derived value gets
- * you a swatch that silently keeps moving. Changing one column here never
- * moves another.
+ * The three columns are deliberately independent. Having ground and pin follow
+ * the path swatch until moved would make two swatches showing the same color
+ * behave differently depending on history, with nothing on screen saying which
+ * are still following. Changing one column here never moves another.
  */
 export function StageColorDialog({
   names,

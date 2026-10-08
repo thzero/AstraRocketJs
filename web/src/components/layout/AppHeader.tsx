@@ -43,7 +43,7 @@ export function AppHeader() {
   return (
     // flex-wrap, not a fixed row: the title, the live save state and the action
     // group together outrun a phone's width, and a fixed row would run off the
-    // right edge and make the whole DOCUMENT scroll sideways, sliding the bottom
+    // right edge and make the whole document scroll sideways, sliding the bottom
     // tab bar out of view. Wrapping keeps every control reachable and the page
     // exactly one viewport wide, at any width and in any language.
     <header className="flex flex-wrap items-center gap-1.5 border-b border-line/10 px-4 py-3 lg:gap-1 xl:gap-2">
@@ -53,7 +53,7 @@ export function AppHeader() {
           What gives when the row runs short is elsewhere - the save status' age
           and the menu's word below 2xl, the gaps and the icon buttons' padding
           below xl - and below that the row wraps, which is
-          what it has always done on a phone. */}
+          how it fits on a phone. */}
       <span className="text-xl">🚀</span>
       <h1 className="text-base font-semibold tracking-tight">{t('app.title')}</h1>
       {/* The three static badges - version, pre-release, engine backend - in one
@@ -113,7 +113,7 @@ export function AppHeader() {
             onLaunchLocations: () => open('locations'),
             onSavedParts: () => open('parts'),
             onSettings: () => open('settings'),
-            // No argument is the docs index; Safety opens Help already ON its
+            // No argument is the docs index; Safety opens Help already on its
             // own page, which is what addressing help by slug is for.
             onHelp: () => openHelp(),
             onSafety: () => openHelp('safety'),

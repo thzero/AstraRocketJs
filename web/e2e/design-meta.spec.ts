@@ -2,7 +2,7 @@ import { test, expect, openTab, ready, runFlight } from './base';
 
 /**
  * The Rocket-configuration dialog edits `name`, `designer`, `comments`,
- * `revision` and `designType` — all round-tripped to the `.ork`, none of them
+ * `revision` and `designType`: all round-tripped to the `.ork`, none of them
  * physics.
  *
  * The store replaces the whole tree object for these edits, so neither the engine
@@ -21,7 +21,7 @@ test('the name is a control only where a design can be built', async ({ page }) 
   await ready(page);
   const edit = page.getByRole('button', { name: 'Edit rocket configuration' });
   await expect(edit).toBeVisible();
-  // Whatever this design is called; the point is that the LINE survives losing
+  // Whatever this design is called; the point is that the line survives losing
   // its control, not what the default design happens to be named.
   const title = ((await edit.textContent()) ?? '').replace('✎', '').trim();
   expect(title).not.toBe('');
@@ -32,7 +32,7 @@ test('the name is a control only where a design can be built', async ({ page }) 
   await page.keyboard.press('Escape');
   await expect(edit).toBeVisible();
 
-  // A phone. The banner is on the Rocket half, and the name is still THERE,
+  // A phone. The banner is on the Rocket half, and the name is still there,
   // just not a button: it titles the pane.
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole('button', { name: /Rocket/ }).click();

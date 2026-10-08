@@ -6,9 +6,9 @@ import { useAsyncLoad } from '../common/useAsyncLoad';
  * The motor catalog, loaded once on mount, with the loading / error / retry
  * state both motor dialogs render around it.
  *
- * On MOUNT, with no `open` guard: the dialogs that use this are mounted only
- * while open (`{open && <Dialog />}`), so mounting IS the deferral. Kept mounted
- * and returning null when closed, the dialogs would fetch the ~1.6 MB catalog
+ * On mount, with no `open` guard: the dialogs that use this are mounted only
+ * while open (`{open && <Dialog />}`), so mounting is the deferral. Kept mounted
+ * and returning null when closed, the dialogs would fetch the multi-megabyte catalog
  * (see services/app/remoteData.ts) on app start, since `return null` does not stop an
  * effect.
  *

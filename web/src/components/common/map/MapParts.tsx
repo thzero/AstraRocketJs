@@ -58,7 +58,7 @@ export function TileImg({
       // then hands it to the texture loader, which fails. Esri answers
       // `Access-Control-Allow-Origin: *`.
       crossOrigin="anonymous"
-      // No `referrerPolicy="no-referrer"`. Stripping the Referer hides WHO is
+      // No `referrerPolicy="no-referrer"`. Stripping the Referer hides who is
       // asking, which is the one thing every tile provider's usage policy wants
       // to be able to see.
       width={TILE_SIZE}

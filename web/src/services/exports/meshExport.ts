@@ -5,10 +5,10 @@ import { STLExporter } from 'three/examples/jsm/exporters/STLExporter.js';
 import { makeWatertight } from './solidMesh';
 
 /**
- * 3D mesh export (STL / OBJ / glTF-binary) of a SINGLE component's solid.
+ * 3D mesh export (STL / OBJ / glTF-binary) of a single component's solid.
  *
  * The geometry is a purpose-built watertight solid (see {@link makeWatertight}
- * and solidForNode), scaled from meters to MILLIMETERS — the unit every slicer
+ * and solidForNode), scaled from meters to millimeters, the unit every slicer
  * and CAD tool assumes (a meter-scale part would import 1000x too small). STL is
  * geometry only; OBJ and GLB also carry a neutral material.
  */
@@ -17,9 +17,8 @@ export const STL_MIME = 'model/stl';
 export const OBJ_MIME = 'model/obj';
 export const GLB_MIME = 'model/gltf-binary';
 
-/** Meters -> millimeters: the scale every slicer/CAD importer expects. */
-// Imported, not redeclared: this is the unit constant for every dimensional
-// export, and it was written out in three separate files.
+// Meters -> millimeters, the scale every slicer/CAD importer expects. Shared
+// with every other dimensional export rather than redeclared here.
 import { M_TO_MM } from '../../prefs/units';
 import { UNKNOWN_PART_COLOR } from '../design/partColors';
 import { errorMessage } from '../app/errorMessage';

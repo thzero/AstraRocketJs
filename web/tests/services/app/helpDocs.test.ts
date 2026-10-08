@@ -13,7 +13,7 @@ afterEach(() => {
 
 describe('helpTarget', () => {
   it('resolves a slug to the precached file, not the directory', () => {
-    // The directory form is the one that does NOT come back from the precache
+    // The directory form is the one that does not come back from the precache
     // (directoryIndex is off in vite.config.ts), so this difference is what
     // makes Help open with no signal.
     expect(helpTarget('safety', 'en').fileUrl).toBe(`${appBase}docs/safety/index.html`);
@@ -30,7 +30,7 @@ describe('helpTarget', () => {
     expect(target.slug).toBe('designing-a-rocket');
     expect(target.hash).toBe('#fins');
     // The anchor cannot be part of the file name, but it must survive into what
-    // the frame is pointed at, or opening help ON a topic lands at the top.
+    // the frame is pointed at, or opening help on a topic lands at the top.
     expect(target.fileUrl).toBe(`${appBase}docs/designing-a-rocket/index.html`);
     expect(target.src).toBe(`${appBase}docs/designing-a-rocket/index.html#fins`);
   });
@@ -103,7 +103,7 @@ describe('loadHelpPage', () => {
 
   it('rejects the app shell answering for a missing page', async () => {
     // This is the dev-build case: web/public/docs is gitignored, and Vite
-    // answers the missing path with the APP's index.html and a 200. Without the
+    // answers the missing path with the app's index.html and a 200. Without the
     // marker check the dialog would render the app inside its own Help dialog.
     answers('<div id="root"></div>');
     await expect(loadHelpPage(target)).resolves.toBeNull();
@@ -131,7 +131,7 @@ describe('loadHelpPage', () => {
 
   it('resolves sidebar links although a parsed document has no base URL', async () => {
     // DOMParser gives a document whose `a.href` is empty, so the reader takes
-    // the href attribute instead. If that regresses, every rail row goes
+    // the href attribute instead. Reading `a.href` would leave every rail row
     // missing.
     answers(served(SIDEBAR));
     const page = await loadHelpPage(target);
@@ -206,7 +206,7 @@ describe('readContents', () => {
   });
 
   it('reads the current page headings, with their nesting', () => {
-    // The ARTICLE's headings, not the site's table-of-contents widget: that
+    // The article's headings, not the site's table-of-contents widget: that
     // widget is rendered on window size and is absent at the width the dialog's
     // frame runs at.
     expect(read(ARTICLE).headings).toEqual([

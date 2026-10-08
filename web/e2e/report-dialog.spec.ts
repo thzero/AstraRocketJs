@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { test, expect, type Page, ready, importOrk, defined } from './base';
 
 /**
- * The Rocket Design Report dialog, over a MULTI-STAGE design because that is what
+ * The Rocket Design Report dialog, over a multi-stage design because that is what
  * re-enters the shared engine: assembleReport() builds each stage alone (which resets
  * the shared engine) and then reinstalls a rebuilt whole-rocket handle via
  * applyBuild. That hands the store fresh `info`/`rocket` object identities, so an
@@ -10,7 +10,7 @@ import { test, expect, type Page, ready, importOrk, defined } from './base';
  * again until React tears the app down with "Maximum update depth exceeded" and
  * the dialog never appears.
  *
- * The PDF test below is the only thing in the suite that EXECUTES
+ * The PDF test below is the only thing in the suite that executes
  * services/report/reportPdf.ts: the unit tests cannot reach it, because ExportDialog
  * pulls it in through a lazy `await import`.
  */
@@ -63,12 +63,12 @@ test.describe('Rocket Design Report dialog', () => {
 
     expect(dl.suggestedFilename()).toMatch(/.pdf$/);
     const bytes = await readFile(defined(await dl.path(), 'the downloaded PDF path'));
-    // A WHOLE PDF: the header, and the trailer that says the cross-reference
+    // A whole PDF: the header, and the trailer that says the cross-reference
     // table was written. A truncated stream is invisible until someone opens it.
     expect(bytes.subarray(0, 5).toString('latin1')).toBe('%PDF-');
     expect(bytes.subarray(-1024).toString('latin1')).toContain('%%EOF');
     // Every section is on by default, so this draws the side view, the summary
-    // grid, a parts table and a template page — about 40 kB. Well under that
+    // grid, a parts table and a template page, about 40 kB. Well under that
     // means sections fell out silently.
     expect(bytes.length).toBeGreaterThan(20_000);
     expect(errors).toEqual([]);
@@ -80,7 +80,7 @@ test.describe('Rocket Design Report dialog', () => {
     let dialog = page.getByRole('dialog').first();
     await expect(dialog.getByLabel('Units')).toHaveValue('current');
 
-    // Pin the document to imperial — the app itself stays metric, because an
+    // Pin the document to imperial; the app itself stays metric, because an
     // export's units are the document's choice, not a preference change.
     await dialog.getByLabel('Units').selectOption('imperial');
     await page.getByRole('button', { name: 'Close' }).first().click();
