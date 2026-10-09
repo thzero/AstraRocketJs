@@ -4,14 +4,13 @@ import { renderHook } from '@testing-library/react';
 import { useLatest } from '../../../src/components/common/useLatest';
 
 /**
- * The guard five surfaces needed and one had.
+ * The generation guard for callbacks that land after an await.
  *
  * `LaunchPanel`'s geolocation callbacks, `WindProfileDialog.importCsv`,
- * `MotorDialog`'s import and delete and `useExportTemplates.onImport` each await a
- * file read, a permission prompt or an IndexedDB round trip and then call an
- * `onChange` that writes to whatever rows are the CURRENT edit targets. A
- * geolocation prompt can sit unanswered for minutes. `MotorDialog.pick` already
- * had exactly this as a local ref; this is that, with a test.
+ * `MotorDialog`'s import, delete and pick, and `useExportTemplates.onImport` each
+ * await a file read, a permission prompt or an IndexedDB round trip and then call
+ * an `onChange` that writes to whatever rows are the current edit targets. A
+ * geolocation prompt can sit unanswered for minutes.
  */
 describe('useLatest', () => {
   it('reports a fresh claim as current', () => {
@@ -29,7 +28,7 @@ describe('useLatest', () => {
   });
 
   it('makes every outstanding claim stale on unmount', () => {
-    // The failure this closes: the dialog is gone and the result still lands.
+    // The case this covers: the dialog is gone and the result still arrives.
     const { result, unmount } = renderHook(() => useLatest());
     const mine = result.current.claim();
     expect(mine()).toBe(true);

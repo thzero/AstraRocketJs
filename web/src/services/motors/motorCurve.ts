@@ -1,15 +1,15 @@
 import type { MotorSpec } from '../../engine/openRocketEngine';
 
 /**
- * THE "does this motor carry a usable thrust curve" predicate.
+ * The single "does this motor carry a usable thrust curve" predicate.
  *
- * One predicate, matching the builder (`openRocketEngine.setMotorById`): at least
+ * It matches the builder (`openRocketEngine.setMotorById`): at least
  * {@link MIN_CURVE_SAMPLES} samples, the three arrays in lockstep, every value
  * finite.
  *
- * A threshold per module makes a one-sample motor "flyable" to the Run button,
- * empty at the mount at build time, and then a failure of the kernel's own "too
- * short thrust curve" check from some other path.
+ * Every module uses this one threshold. With a threshold per module, a one-sample
+ * motor could be "flyable" to the Run button, empty at the mount at build time,
+ * and then fail the kernel's own "too short thrust curve" check from another path.
  */
 export const MIN_CURVE_SAMPLES = 2;
 

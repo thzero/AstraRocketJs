@@ -112,7 +112,7 @@ describe('ConfigsPane', () => {
     expect(within(table()).getByRole('columnheader', { name: /Parachute|Inner tube/ })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Recovery' }));
     expect(st().configsTab).toBe('recovery');
-    // The cell says WHEN it opens, which is the whole of what this sub-tab is for.
+    // The cell says when it opens, which is the whole of what this sub-tab is for.
     expect(within(rows()[0]!).getByText(/Apogee/i)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Motors' }));
     expect(st().configsTab).toBe('motors');
@@ -128,8 +128,8 @@ describe('ConfigsPane', () => {
   it('shows a staging column per stage, separating or not', () => {
     st().setConfigsTab('separation');
     renderWithProviders(<ConfigsPane />);
-    // The default design is single-stage: one stage column, which can still be
-    // grounded even though it separates from nothing.
+    // The default design is single-stage: one stage column, even though it
+    // separates from nothing.
     expect(within(table()).getAllByRole('columnheader')).toHaveLength(3);
   });
 

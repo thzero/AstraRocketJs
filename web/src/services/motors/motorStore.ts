@@ -1,9 +1,9 @@
-// Swappable client-side store for MOTOR data — the user's imported (custom)
+// Swappable client-side store for motor data: the user's imported (custom)
 // motors and the per-motor thrustcurve caches (thrustcurve.ts). Like
-// MaterialStore this is a typed DOMAIN store: it owns the persistence POLICY
+// MaterialStore this is a typed domain store: it owns the persistence policy
 // (per-entry TTL / freshness), so an implementer of `MotorStore` can use a
-// completely different caching strategy — a backend that does its own
-// expiry, IndexedDB, etc. The default persists through a KeyValueStore.
+// completely different caching strategy (a backend that does its own
+// expiry, IndexedDB, etc.). The default persists through a KeyValueStore.
 //
 // Replace it on the client, independently of the material store:
 //   setMotorStore(new MyMotorStore())
@@ -21,14 +21,14 @@ export interface CachedEntry<T> {
 
 /**
  * A user-imported motor (from a `.eng` or `.rse` file). Unlike a catalog motor
- * — specs only, curve fetched from thrustcurve on demand — a custom motor
- * carries its OWN thrust curve, so it resolves to a MotorSpec entirely from
+ * (specs only, curve fetched from thrustcurve on demand), a custom motor
+ * carries its own thrust curve, so it resolves to a MotorSpec entirely from
  * local data with no network. It is user content: created by import, listed in
  * the picker, and removable.
  *
- * The last four fields are what `.rse` carries and RASP `.eng` cannot. They are
- * all optional, so an `.eng` motor stored before they existed still validates
- * and still resolves.
+ * The `type`, `massesG` and `cgMm` fields are what `.rse` carries and RASP
+ * `.eng` cannot. They are optional, so an `.eng` motor without them still
+ * validates and resolves.
  */
 export interface CustomMotor {
   /** Stable local id, e.g. "custom:<manufacturer>:<designation>". */
@@ -45,7 +45,7 @@ export interface CustomMotor {
   propWeightG: number;
   samples: { time: number; thrust: number }[];
   /**
-   * The delays the file lists, as the CATALOG spells them ("4,6,10,P").
+   * The delays the file lists, as the catalog spells them ("4,6,10,P").
    *
    * A string, because it is the only form that can say "plugged" and it is what
    * `motorPicker.parseDelays` and `offersPlugged` read, and what `customToRow`
@@ -54,15 +54,15 @@ export interface CustomMotor {
    * number array has nowhere to put plugged and nothing ever read one.
    */
   delayList?: string;
-  /** What the file says the motor IS. A hybrid is why `.rse` import exists. */
+  /** What the file says the motor is. A hybrid is why `.rse` import exists. */
   type?: 'SU' | 'reload' | 'hybrid';
   /**
    * Mass at each sample, in grams, parallel to `samples`.
    *
    * The real reason `.rse` is the richer format: with this the kernel flies the
-   * MEASURED mass curve, instead of one reconstructed from total impulse and a
-   * single header number (`thrustcurve.samplesToMotorSpec`, which is still the
-   * path for every motor without it).
+   * measured mass curve, instead of one reconstructed from total impulse and a
+   * single header number (`thrustcurve.samplesToMotorSpec`, which is the path
+   * for every motor without it).
    */
   massesG?: number[];
   /** Launch CG, mm from the motor's forward end. Absent → half the length. */
@@ -80,13 +80,13 @@ export interface MotorStore {
   /** Add or replace (by id) an imported motor. */
   addCustomMotor(motor: CustomMotor): Promise<void>;
   /**
-   * Add or replace a whole BATCH in one write.
+   * Add or replace a whole batch in one write.
    *
-   * A `.rse` engine database holds a manufacturer's entire range, and importing
-   * one motor at a time meant one read-modify-write per motor, each parsing and
+   * A `.rse` engine database holds a manufacturer's entire range. Importing one
+   * motor at a time would mean one read-modify-write per motor, each parsing and
    * re-serializing the whole stored array: quadratic in the import, and a failure
-   * part way through left some motors stored, some not, and an error that could
-   * not say which. One write is linear and all-or-nothing.
+   * part way through would leave some motors stored, some not, and an error that
+   * could not say which. One write is linear and all-or-nothing.
    */
   addCustomMotors(motors: readonly CustomMotor[]): Promise<void>;
   /** Remove an imported motor by id. */
@@ -106,14 +106,14 @@ interface Envelope<T> {
  * A thrust curve of at least {@link MIN_CURVE_SAMPLES} samples, every one a
  * finite `{time, thrust}`.
  *
- * Shared with thrustcurve.ts, which had the only copy of this check: custom
- * motors are the one store whose payload reaches `simulate()` without a second
- * gate, and the element shape was never looked at. `samples: [{}]` out of a
- * corrupted IndexedDB blob became `times: [undefined]` and NaN masses inside
- * the kernel. `Number.isFinite`, not `typeof === 'number'`: NaN and Infinity
- * are both numbers and neither survives the TeaVM boundary. The sample count
- * is the builder's threshold (motorCurve.ts): this accepted a single sample,
- * which the kernel then refused as "too short".
+ * Shared with thrustcurve.ts. Custom motors are the one store whose payload
+ * reaches `simulate()` without a second gate, so each element's shape is checked:
+ * `samples: [{}]` out of a corrupted IndexedDB blob would become
+ * `times: [undefined]` and NaN masses inside the kernel. `Number.isFinite`, not
+ * `typeof === 'number'`: NaN and Infinity are both numbers and neither survives
+ * the TeaVM boundary. The sample count is the builder's threshold
+ * (motorCurve.ts), so a single sample, which the kernel refuses as "too short",
+ * is rejected here.
  */
 export const isThrustSampleArray = (v: unknown): boolean =>
   Array.isArray(v) &&
@@ -129,8 +129,8 @@ function isCustomMotor(v: unknown): v is CustomMotor {
     !!m &&
     typeof m.id === 'string' &&
     typeof m.designation === 'string' &&
-    // Both were unchecked. motorDb.ts sorts on `class` with localeCompare, so a
-    // row missing it takes down the whole motor picker, not just its own entry.
+    // motorDb.ts sorts on `class` and `manufacturer` with localeCompare, so a
+    // row missing either takes down the whole motor picker, not just its own entry.
     typeof m.manufacturer === 'string' &&
     typeof m.class === 'string' &&
     Number.isFinite(m.diameter) &&
@@ -157,9 +157,9 @@ const isMassArray = (v: unknown, samples: number): boolean =>
 
 /**
  * Default MotorStore: persists through a KeyValueStore (IndexedDB by
- * default), applying a fixed-TTL freshness policy to per-motor entries and a
- * signature guard to the catalog mirror. Pass a different KeyValueStore to move
- * the bytes elsewhere, or a different `ttlMs` to tune revalidation.
+ * default), applying a fixed-TTL freshness policy to per-motor entries. Pass a
+ * different KeyValueStore to move the bytes elsewhere, or a different `ttlMs` to
+ * tune revalidation.
  */
 export class KeyValueMotorStore implements MotorStore {
   /** The imported motors: newest import first, one entry per id. */
@@ -191,7 +191,7 @@ export class KeyValueMotorStore implements MotorStore {
     try {
       await this.kv.set(key, JSON.stringify({ t: Date.now(), v: value } satisfies Envelope<T>));
     } catch {
-      // cache writes are best-effort — a failure just means the next use refetches
+      // cache writes are best-effort: a failure just means the next use refetches
     }
   }
 
@@ -218,8 +218,8 @@ export class KeyValueMotorStore implements MotorStore {
   }
 }
 
-// The active motor store. The header promised `setMotorStore` for years and
-// it did not exist; the seam is the same one the material store has.
+// The active motor store, replaceable through `setMotorStore` the same way the
+// material store is.
 let store: MotorStore = new KeyValueMotorStore();
 
 export function getMotorStore(): MotorStore {

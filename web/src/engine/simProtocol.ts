@@ -3,18 +3,18 @@ import type { FlightConfig } from '../services/flight/flightConfigs';
 
 /**
  * Shared message contract between the main thread (engine/simClient.ts) and the
- * sim worker (engine/simWorker.ts). Types only — importing this pulls no code
+ * sim worker (engine/simWorker.ts). Types only: importing this pulls no code
  * into either side, so the worker never imports the client (which would spawn a
  * nested worker) and vice-versa.
  *
  * The transport is a generic method-dispatch RPC (`{id, method, args}` →
- * `{id, ok, …}`) rather than a bespoke "simulate" message, so later phases can
- * add operations (aeroSweep, staticInfo) without touching the plumbing.
+ * `{id, ok, …}`) rather than a bespoke "simulate" message, so further
+ * operations can be added without touching the plumbing.
  *
- * The request is a DISCRIMINATED UNION on `method`, and each method names its
+ * The request is a discriminated union on `method`, and each method names its
  * result type in {@link WorkerResults}. One shape with `args: SimPayload | null`
- * and `result: unknown` instead forces a cast on both sides, and lets a new method
- * be wired up with the wrong payload without a compile error.
+ * and `result: unknown` instead would force a cast on both sides, and let a new
+ * method be wired up with the wrong payload without a compile error.
  */
 export interface SimPayload {
   tree: RocketTree;
@@ -35,7 +35,7 @@ export interface WorkerResults {
 }
 
 /** `engine` is which backend the worker should load. It is resolved on the
- *  MAIN thread (`?engine=` / localStorage), which a worker cannot read, and
+ *  main thread (`?engine=` / localStorage), which a worker cannot read, and
  *  carried on every request so the first one to arrive can start the engine. */
 export type WorkerRequest = { id: number; engine: BackendPref } & WorkerCall;
 
@@ -46,7 +46,7 @@ export type WorkerResponse<M extends WorkerMethod = WorkerMethod> =
       ok: false;
       error: string;
       /**
-       * The worker cannot serve ANY request: its engine failed to load. The
+       * The worker cannot serve any request: its engine failed to load. The
        * client terminates and replaces it rather than leaving a dead worker in
        * the pool answering every call with the same error.
        */

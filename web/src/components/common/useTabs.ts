@@ -4,7 +4,7 @@ import { useId, type KeyboardEvent } from 'react';
  * The ARIA tabs pattern for a row of tab buttons and the one panel they switch.
  *
  * A tablist promises more than `aria-selected`: each tab names the panel it
- * controls, the panel names its tab, and the row is ONE tab stop that the arrow
+ * controls, the panel names its tab, and the row is one tab stop that the arrow
  * keys move along (Home and End jump to the ends). Without those, a screen
  * reader announces tabs that lead nowhere and Tab walks every tab in turn.
  *

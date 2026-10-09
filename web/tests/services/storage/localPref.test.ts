@@ -24,9 +24,9 @@ describe('readLocalJson / writeLocalJson', () => {
 });
 
 /**
- * The motor picker's remembered filters, read through the shared guard. A stored
- * string "abc" became the manufacturer set {a, b, c}, and any two-element array,
- * strings included, passed as a diameter range.
+ * The motor picker's remembered filters, read through the shared guard. Without
+ * it, a stored string "abc" would become the manufacturer set {a, b, c}, and any
+ * two-element array, strings included, would pass as a diameter range.
  */
 describe('motor picker preferences', () => {
   beforeEach(() => localStorage.clear());

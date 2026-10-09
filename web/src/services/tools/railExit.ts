@@ -47,7 +47,7 @@ export interface RailExit {
   thrustToWeightAverage: number;
   /** Highest thrust ÷ liftoff weight. */
   thrustToWeightPeak: number;
-  /** Thrust ÷ weight at the moment it leaves the rail, as the engine reports it. */
+  /** Thrust ÷ weight at the moment it leaves the rail (the same figure the engine reports for a designed rocket). */
   thrustToWeightAtExit: number;
   /** When the thrust first exceeds the weight, s after ignition. */
   liftoffS: number;

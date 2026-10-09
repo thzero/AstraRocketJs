@@ -1,19 +1,15 @@
-import {
-  WAYPOINT_KINDS,
-  type FlightPathExportOptions,
-  type WaypointKind,
-} from '../../services/exports/flightPathExport';
+import { WAYPOINT_KINDS, type FlightPathExportOptions, type WaypointKind } from './flightPathExport';
 
 /**
- * One-click export shapes, after the three export buttons GPS DC offers. Each
- * spans all three sections of the dialog - which waypoints, whether the lines
- * are drawn, and how the result is placed - because those are the three things
- * that have to agree for a file to answer one question well.
+ * One-click export shapes. Each spans all three sections of the dialog (which
+ * waypoints, whether the lines are drawn, and how the result is placed) because
+ * those are the three things that have to agree for a file to answer one
+ * question well.
  *
  * They set the controls and nothing else. Nothing is inferred at render time, so
  * the dialog always shows what the file will contain.
  *
- * Each states its selection IN FULL, waypoints included, never a subset. A
+ * Each states its selection in full, waypoints included, never a subset. A
  * preset that sets only some of the controls is a one-way door: Landing plots
  * narrows the waypoints to the landing, and if Drift cast then leaves the
  * waypoints alone there is no way back to the other two presets as they are
@@ -26,7 +22,7 @@ export const EXPORT_PRESETS: {
   options: Partial<FlightPathExportOptions> & { waypoints: Set<WaypointKind> };
 }[] = [
   {
-    // What the rocket drifts OVER: everything flat on the terrain, and the 3D
+    // What the rocket drifts over: everything flat on the terrain, and the 3D
     // line dropped because clamped it would only trace the ground track again.
     id: 'driftCast',
     options: {
@@ -41,14 +37,14 @@ export const EXPORT_PRESETS: {
   {
     // How high it went: suspended in the air where it belongs.
     //
-    // No shadow. A plumb line under ONE pin reads as a position; a curtain
+    // No shadow. A plumb line under one pin reads as a position; a curtain
     // under the whole length of an arcing flight path is a solid wall that
     // buries the flight it is meant to explain. The checkbox stays, for the
     // case it is good at.
     //
     // This preset must state exactly what `defaultExportOptions` gives a fresh
     // dialog, or the panel opens in a shape no button claims. It is the
-    // default state AND a selected one.
+    // default state and a selected one.
     id: 'flightPath',
     options: {
       waypoints: new Set<WaypointKind>(WAYPOINT_KINDS),
@@ -76,13 +72,13 @@ export const EXPORT_PRESETS: {
 /**
  * The preset whose stated options the dialog currently matches, or null.
  *
- * The highlight has to be able to show NOTHING. A preset only sets the
+ * The highlight has to be able to show nothing. A preset only sets the
  * controls, so the moment one of them is adjusted by hand the state is no
- * preset's, and a button still claiming it would be lying about what the file
- * will contain. Clearing it - and reselecting when the controls match again -
- * is what keeps the highlight honest.
+ * preset's, and a button still highlighted would misstate what the file will
+ * contain. The highlight clears then, and returns when the controls match a
+ * preset again.
  *
- * Compared over whatever each preset STATES, read off the object rather than
+ * Compared over whatever each preset states, read off the object rather than
  * listed here, so a preset that grows a key joins the comparison with it.
  */
 export function matchingPreset(opts: FlightPathExportOptions): string | null {

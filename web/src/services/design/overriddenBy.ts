@@ -14,7 +14,7 @@ const KEYS: Record<OverrideKind, { value: string; sub: string }> = {
  * The ancestor whose override of `kind` also covers this part, or null.
  *
  * The kernel's `getMassOverriddenBy` (and its CG and CD twins): an ancestor
- * that overrides the value AND applies it to all its subcomponents decides it
+ * that overrides the value and applies it to all its subcomponents decides it
  * for everything inside it, and the outermost such ancestor wins, since its
  * value replaces the whole subtree's, inner overrides included. Desktop names
  * that ancestor on the part's override tab and locks the part's own override.
@@ -22,7 +22,7 @@ const KEYS: Record<OverrideKind, { value: string; sub: string }> = {
 export function overriddenBy(tree: RocketTree, id: string, kind: OverrideKind): ComponentNode | null {
   const { value, sub } = KEYS[kind];
   let found: ComponentNode | null = null;
-  for (let p = findParent(tree, id); p; p = p.id ? findParent(tree, p.id as string) : null) {
+  for (let p = findParent(tree, id); p; p = p.id ? findParent(tree, p.id) : null) {
     if (typeof p[value] === 'number' && p[sub] === true) found = p;
   }
   return found;

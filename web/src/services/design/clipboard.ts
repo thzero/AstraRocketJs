@@ -6,8 +6,8 @@ import { canHost, findNode, findParent, isRecoveryDevice, stageNodes, syncDerive
  * Cut, copy, paste and duplicate on the parts tree, as desktop OpenRocket's
  * Edit menu does them (RocketActions in its swing module).
  *
- * The rules are desktop's: a paste goes INSIDE the selected part when that part
- * can hold it, as its last child; otherwise right AFTER the selected part, in
+ * The rules are desktop's: a paste goes inside the selected part when that part
+ * can hold it, as its last child; otherwise right after the selected part, in
  * its parent, when the parent can hold it; otherwise nowhere. Duplicate puts the
  * copy at the end of the original's parent. What can hold what is the kernel's
  * rule (`canHost`). The design itself is the parent of the stages, so a stage
@@ -44,7 +44,7 @@ export function pastePlace(tree: RocketTree, clip: ComponentNode, selectedId: st
 /** The stage a node is in (itself, for a stage). */
 function stageOf(tree: RocketTree, id: string): ComponentNode | null {
   let node = findNode(tree, id);
-  while (node && node.type !== 'stage') node = node.id ? findParent(tree, node.id as string) : null;
+  while (node && node.type !== 'stage') node = node.id ? findParent(tree, node.id) : null;
   return node;
 }
 

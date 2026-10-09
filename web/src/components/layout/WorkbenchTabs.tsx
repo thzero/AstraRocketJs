@@ -4,14 +4,15 @@ import { useShowResultsTab } from './useShowResultsTab';
 import { taskTabs } from './tabTable';
 
 /**
- * Desktop tab strip, rendered INSIDE the header (hidden below lg, where
+ * Desktop tab strip, rendered inside the header (hidden below lg, where
  * {@link TabBar}'s bottom bar does the same job with the Design tab split in
  * two).
  *
- * Four tabs for the four things you are ever doing: changing geometry, setting
- * up the motors it flies on, managing the runs over it, reading one back. Each one owns the whole width and
- * picks its own column layout, which is what freed the right column for the
- * property editor (see App.tsx).
+ * One tab per job: changing geometry, setting up the motors it flies on,
+ * managing the runs over it, reading one back, and the tools. Results shows only
+ * while useShowResultsTab says so. Each one owns the whole width and picks its
+ * own column layout, which leaves the right column free for the property editor
+ * (see App.tsx).
  *
  * Inside the header rather than a strip below it, so the tabs cost no height: they
  * sit in the gap between the badges and the far-right controls. `self-stretch` with

@@ -48,7 +48,7 @@ const open = async (mount: { bore: number; maxLength?: number } | null) => {
 /** Which motors the list is showing, in order. */
 const listed = () => CATALOG.map((m) => m.designation).filter((d) => screen.queryByText(d) !== null);
 
-// The picker REMEMBERS the diameter range, so a test that drags the slider
+// The picker remembers the diameter range, so a test that drags the slider
 // would otherwise hand its ceiling to every test after it in this file.
 beforeEach(() => localStorage.clear());
 
@@ -89,12 +89,12 @@ describe('the motor picker filters by what fits the mount', () => {
 
   it('pulls the diameter ceiling down to the mount, and gives it back', async () => {
     /*
-     * The restriction is a thing you can SEE. Two earlier designs hid it: one
-     * seeded the ceiling from the mount on first open and saved it as if the
-     * user had chosen it, the other capped the slider's TRACK while the box was
-     * ticked - and since the readout says "Any" for a thumb at the top of its
-     * track, that made an 18 mm mount read "Any-Any" ticked and "Any-18 mm"
-     * clear, so the box appeared to do the opposite of what it says.
+     * The restriction is a thing you can see. Saving the mount's ceiling as if
+     * the user had chosen it would hide it, and so would capping the slider's
+     * track while the box is ticked: the readout says "Any" for a thumb at the
+     * top of its track, so an 18 mm mount would read "Any-Any" ticked and
+     * "Any-18 mm" clear, and the box would appear to do the opposite of what it
+     * says.
      */
     await open(MOUNT);
     const max = () => screen.getByRole('slider', { name: 'Diameter max' }) as HTMLInputElement;
@@ -114,7 +114,7 @@ describe('the motor picker filters by what fits the mount', () => {
 
   it('marks every standard motor diameter on the track', async () => {
     // The ten positions are 6, 13, 18, 24, 29, 38, 54, 75, 98 and 150 mm, and
-    // with nothing drawn the slider read as a continuous scale: there was no way
+    // with nothing drawn the slider reads as a continuous scale: there is no way
     // to aim at a size except to drag and read the number back.
     const { container } = await open(MOUNT);
     const ticks = [...container.querySelectorAll('span[title][aria-hidden]')];
@@ -142,8 +142,8 @@ describe('the motor picker filters by what fits the mount', () => {
   });
 
   it('keeps the whole track, so the slider can still be dragged past the mount', async () => {
-    // Capping the track was the other failed design: the thumb then sits at the
-    // end of its run and the readout calls that "Any".
+    // A capped track would put the thumb at the end of its run, and the readout
+    // calls that "Any".
     await open(MOUNT);
     expect(screen.getByRole('slider', { name: 'Diameter max' }).getAttribute('max')).toBe('9');
   });

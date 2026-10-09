@@ -2,8 +2,7 @@ import type { ReactNode } from 'react';
 
 /**
  * One titled block of the property panel: a rule above, the heading, then the
- * fields. One component, because the copies drifted: one heading was a div two
- * sizes and a shade apart, and one block spaced its fields tighter than the rest.
+ * fields. One component, so every block's heading and field spacing match.
  */
 export function PropSection({ title, children }: { title: ReactNode; children: ReactNode }) {
   return (

@@ -3,9 +3,9 @@ import { test, expect, ready, runFlight } from './base';
 /**
  * The 3D flight path draws its event labels ("Burnout", "Apogee") as HTML
  * overlays through drei's `<Html>`, whose default z-index range starts at
- * 16,777,271. Every dialog in the app sits at z-50 to z-70, so a label drew
- * straight through the Design Report. The labels now cap their range below
- * the dialogs; this pins that a modal really is on top of them.
+ * 16,777,271. Every dialog in the app sits at z-50 to z-70, so with the default
+ * a label draws straight through the Design Report. The labels cap their range
+ * below the dialogs; this pins that a modal really is on top of them.
  */
 test('flight-path callouts stay underneath a modal dialog', async ({ page }) => {
   await ready(page);

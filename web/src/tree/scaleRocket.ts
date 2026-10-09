@@ -6,26 +6,26 @@ import { walkNodes } from './treeWalk';
 import { roundTo } from '../services/app/numbers';
 
 /**
- * Scale a whole rocket by one factor — the "upscale/downscale a plan" workflow.
+ * Scale a whole rocket by one factor: the "upscale/downscale a plan" workflow.
  * Motor-mount snapping is left out (it needs a motor-class database); this is
  * the pure geometric scale.
  *
- * WHY A KEY LIST AND NOT A SCHEMA WALK: `ComponentNode` has an open index
+ * Why a key list and not a schema walk: `ComponentNode` has an open index
  * signature and importers write length-valued keys no schema declares (freeform
  * `points`, ring/coupler radii, shoulder thicknesses, instance separations…),
- * while some declared lengths are NOT geometry (`deployAltitude` is an altitude
+ * while some declared lengths are not geometry (`deployAltitude` is an altitude
  * AGL). So the lists below are explicit per type, and a key scales only when it
- * is ALREADY PRESENT as a number — absence is a value in this tree (an absent
- * transition radius means AUTOMATIC; freezing it to `k × default` changes the
+ * is already present as a number. Absence is a value in this tree (an absent
+ * transition radius means automatic; freezing it to `k × default` changes the
  * design).
  *
- * WHAT DOESN'T SCALE: a part sized by something OUTSIDE the rocket keeps its
- * size and only moves — a camera shroud (fairing), a rail button (preset
+ * What doesn't scale: a part sized by something outside the rocket keeps its
+ * size and only moves: a camera shroud (fairing), a rail button (preset
  * sizes). Angles, counts,
  * densities, drag coefficients, finish, motor choice, deployment/separation and
  * the pad conditions are all untouched.
  *
- * MASS: densities are left alone, so a SOLID part's mass follows its volume and
+ * Mass: densities are left alone, so a solid part's mass follows its volume and
  * goes as k³, a canopy/streamer as k² (surface), a shock cord as k (line). A
  * design carrying recovery gear is therefore not exactly similar after scaling.
  */
@@ -34,8 +34,8 @@ import { roundTo } from '../services/app/numbers';
  * Length-valued keys per component type. Present-only, multiplied by k.
  *
  * Keyed by `ComponentType`, not `string`: a type added to the union without a
- * row here is a compile error, where the open record silently scaled nothing
- * on it.
+ * row here is a compile error, where an open record would silently scale
+ * nothing on it.
  */
 const LENGTH_KEYS: Record<ComponentType, readonly string[]> = {
   nosecone: ['length', 'aftRadius', 'thickness', 'shoulderRadius', 'shoulderLength', 'shoulderThickness'],
@@ -97,13 +97,13 @@ const LENGTH_KEYS: Record<ComponentType, readonly string[]> = {
   engineblock: ['length', 'thickness', 'outerRadius'],
   // Desktop's LaunchLug scalers: outer radius, wall and length together.
   launchlug: ['length', 'outerRadius', 'thickness', 'instanceSeparation'],
-  // A rail button is a catalog part; the SPACING between a pair is an airframe span.
+  // A rail button is a catalog part; the spacing between a pair is an airframe span.
   railbutton: ['instanceSeparation'],
-  // `length` is the PACKED length (orkImport reads <packedlength> into it) and
-  // position.axialLength uses it for layout, so leaving it unscaled left a
-  // 25 mm packed chute occupying 25 mm in a doubled airframe - and anything
-  // positioned `middle` or `bottom` against it, plus the caliper snap targets
-  // built from axialLength, landed at the wrong stations.
+  // `length` is the packed length (orkImport reads <packedlength> into it) and
+  // position.axialLength uses it for layout. Left unscaled, a 25 mm packed chute
+  // would occupy 25 mm in a doubled airframe, and anything positioned `middle`
+  // or `bottom` against it, plus the caliper snap targets built from
+  // axialLength, would land at the wrong stations.
   parachute: ['length', 'diameter', 'spillHoleDiameter', 'lineLength'],
   streamer: ['length', 'stripLength', 'stripWidth'],
   shockcord: ['length', 'cordLength'],
@@ -114,7 +114,7 @@ const LENGTH_KEYS: Record<ComponentType, readonly string[]> = {
   stage: [],
 };
 
-/** Types whose own geometry is fixed hardware — they move, they do not grow. */
+/** Types whose own geometry is fixed hardware: they move, they do not grow. */
 const FIXED_SIZE: ReadonlySet<ComponentType> = new Set<ComponentType>(['fairing', 'railbutton']);
 
 /**
@@ -123,6 +123,9 @@ const FIXED_SIZE: ReadonlySet<ComponentType> = new Set<ComponentType>(['fairing'
  * override CG, these are what desktop's **Scale component offsets** governs.
  */
 const OFFSET_KEYS: ReadonlySet<string> = new Set(['radialPosition', 'radiusOffset', 'instanceSeparation']);
+
+/** What a scale covers: the design, the selected part and everything inside it, or the part alone. */
+export type ScaleScope = 'rocket' | 'subtree' | 'part';
 
 /**
  * What a scale changes besides the sizes, as desktop's Scale dialog offers it.
@@ -135,17 +138,14 @@ const OFFSET_KEYS: ReadonlySet<string> = new Set(['radialPosition', 'radiusOffse
  *
  * Both default to on, which is the whole-rocket scale.
  */
-/** What a scale covers: the design, the selected part and everything inside it, or the part alone. */
-export type ScaleScope = 'rocket' | 'subtree' | 'part';
-
 export interface ScaleOptions {
   offsets?: boolean;
   masses?: boolean;
 }
 
 /**
- * The exponent a PINNED mass scales by, per type — matching how the same part's
- * COMPUTED mass scales (densities are untouched): a solid is a volume (k³), a
+ * The exponent a pinned mass scales by, per type, matching how the same part's
+ * computed mass scales (densities are untouched): a solid is a volume (k³), a
  * canopy/streamer a surface (k²), a cord a line (k).
  *
  * Every type is listed, rather than only the exceptions over an open
@@ -202,14 +202,13 @@ export function scaleNode(n: ComponentNode, k: number, options: ScaleOptions = {
   const masses = options.masses ?? true;
   const type = n.type;
   const fixed = FIXED_SIZE.has(type);
-  // Children are left OFF, rather than carried by the spread and overwritten by
-  // whichever caller remembers to. Both callers already supply their own
-  // (`scaleRocket` walks them, `componentActions.scaleFin` reuses them), and a
-  // returned node that aliased the input's `children` array was a scaled node
-  // sharing a subtree with the unscaled one - the doc above says children are the
-  // caller's business and now the code says it too.
+  // Children are left off, rather than carried by the spread and overwritten by
+  // whichever caller remembers to. Every caller supplies its own (`scaleRocket`
+  // and `scalePart` walk or reuse them, `componentActions.scaleComponent` reuses
+  // them), and a returned node that aliased the input's `children` array would
+  // be a scaled node sharing a subtree with the unscaled one.
   const { children: _children, ...own } = n;
-  const out: ComponentNode = { ...own } as ComponentNode;
+  const out: ComponentNode = { ...own };
 
   // `?? []` survives for a persisted node whose `type` the union does not
   // know: the table is complete for the union, not for arbitrary input.
@@ -219,14 +218,14 @@ export function scaleNode(n: ComponentNode, k: number, options: ScaleOptions = {
     if (v !== undefined) out[key] = round(v * k);
   }
 
-  // A freeform fin's planform lives entirely in `points` — [x along the body,
+  // A freeform fin's planform lives entirely in `points`: [x along the body,
   // y off the surface], meters. Both coordinates scale.
   if (Array.isArray(n['points'])) {
     const pts = n['points'] as unknown[];
     out['points'] = pts.map((p) =>
       Array.isArray(p) && p.length >= 2 && typeof p[0] === 'number' && typeof p[1] === 'number'
-        ? [round((p[0] as number) * k), round((p[1] as number) * k)]
-        : // A row that is not a numeric pair is COPIED rather than passed through
+        ? [round(p[0] * k), round(p[1] * k)]
+        : // A row that is not a numeric pair is copied rather than passed through
           // by reference: it cannot be scaled, but the scaled node must not share
           // an array with the node it was scaled from. Left unscaled on purpose -
           // guessing at what a malformed vertex meant is worse than carrying it.
@@ -236,26 +235,26 @@ export function scaleNode(n: ComponentNode, k: number, options: ScaleOptions = {
     );
   }
 
-  // Pinned masses go as k^exp — but only where the geometry moved (a fixed-size
+  // Pinned masses go as k^exp, but only where the geometry moved (a fixed-size
   // part is the same physical part after scaling and weighs the same).
   if (!fixed) {
-    // Same `?? 3` reasoning as LENGTH_KEYS above: complete for the union, and
+    // Same reasoning as the `?? []` on LENGTH_KEYS above: complete for the union, and
     // a solid is the safe reading of a type it has never seen.
     const exp = MASS_EXPONENT[type] ?? 3;
     const mass = numOpt(n, 'mass');
     if (masses && mass !== undefined) out['mass'] = round(mass * k ** exp, 15);
     const override = numOpt(n, 'overrideMass');
     if (masses && offsets && override !== undefined) out['overrideMass'] = round(override * k ** exp, 15);
-    // An override CG is a station from the component's own front — a length.
+    // An override CG is a station from the component's own front: a length.
     const cg = numOpt(n, 'overrideCGX');
     if (offsets && cg !== undefined) out['overrideCGX'] = round(cg * k);
   }
 
   // Axial placement: startFromPosition is homogeneous of degree 1 in
   // (parentLength, childLength, offset), so scaling the offset alongside the
-  // lengths keeps every part at the same relative station — fixed-size parts
+  // lengths keeps every part at the same relative station, fixed-size parts
   // included (they move to their new station, same as desktop's rule).
-  // `positionOf` validates the method and the offset the way position.ts now
+  // `positionOf` validates the method and the offset the way position.ts
   // reads them, so a string offset scales to the kernel's 0 rather than being
   // carried through untouched to disagree with the layout.
   if (n.position && offsets) {
@@ -267,8 +266,8 @@ export function scaleNode(n: ComponentNode, k: number, options: ScaleOptions = {
 }
 
 /**
- * Scale the whole design by `factor`, returning a NEW tree (the input is
- * untouched). A non-positive, non-finite or 1× factor is a no-op — the same
+ * Scale the whole design by `factor`, returning a new tree (the input is
+ * untouched). A non-positive, non-finite or 1× factor is a no-op: the same
  * tree object is returned, so callers can cheaply detect "nothing to do".
  */
 export function scaleRocket(tree: RocketTree, factor: number, options: ScaleOptions = {}): RocketTree {
@@ -276,7 +275,7 @@ export function scaleRocket(tree: RocketTree, factor: number, options: ScaleOpti
   const walk = (nodes: ComponentNode[]): ComponentNode[] =>
     nodes.map((n) => {
       const scaled = scaleNode(n, factor, options);
-      return n.children ? ({ ...scaled, children: walk(n.children) } as ComponentNode) : scaled;
+      return n.children ? { ...scaled, children: walk(n.children) } : scaled;
     });
   return { ...tree, components: walk(tree.components) };
 }
@@ -298,7 +297,7 @@ export function scalePart(
   let found = false;
   const all = (n: ComponentNode): ComponentNode => {
     const scaled = scaleNode(n, factor, options);
-    return n.children ? ({ ...scaled, children: n.children.map(all) } as ComponentNode) : scaled;
+    return n.children ? { ...scaled, children: n.children.map(all) } : scaled;
   };
   const walk = (nodes: ComponentNode[]): ComponentNode[] =>
     nodes.map((n) => {
@@ -306,9 +305,9 @@ export function scalePart(
         found = true;
         if (withChildren) return all(n);
         const scaled = scaleNode(n, factor, options);
-        return n.children ? ({ ...scaled, children: n.children } as ComponentNode) : scaled;
+        return n.children ? { ...scaled, children: n.children } : scaled;
       }
-      return n.children ? ({ ...n, children: walk(n.children) } as ComponentNode) : n;
+      return n.children ? { ...n, children: walk(n.children) } : n;
     });
   const components = walk(tree.components);
   return found ? { ...tree, components } : tree;
@@ -322,7 +321,7 @@ export function hasExplicitMass(tree: RocketTree): boolean {
   return false;
 }
 
-/** The rocket's greatest body diameter (m) — what a "scale to a tube" factor divides. */
+/** The rocket's greatest body diameter (m): what a "scale to a tube" factor divides. */
 export function maxBodyDiameter(tree: RocketTree): number {
   let r = 0;
   for (const n of walkNodes(tree.components)) r = Math.max(r, chainOuterRadius(n));

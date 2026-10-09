@@ -15,13 +15,13 @@ import { SizingFigures } from '../tools/SizingFigures';
  * Descent-sizing help for a selected parachute, opened from its editor as a
  * dialog, with a button per suggested diameter that sets it on the canopy.
  *
- * An ESTIMATE, and it says so. The mass is the loaded mass less the propellant
+ * An estimate, and it says so. The mass is the loaded mass less the propellant
  * that burns off, the rate comes from the descent equation at a launch-site air
  * density of our own, and the two diameters are that equation solved backwards.
  * None of it is the kernel's, which is why it can be shown before the design has
  * ever flown and why it must not be mistaken for a result.
  *
- * Once a run HAS flown this device the mass and the rate are replaced by what the
+ * Once a run has flown this device the mass and the rate are replaced by what the
  * kernel recorded (`recoveryFlown`), and the block says which it is showing. The
  * two diameters stay an estimate throughout: "what size should I use" is a
  * question about a design, and no flight can answer it.
@@ -63,7 +63,7 @@ export function RecoverySizingReadout({
           <SizingBody
             node={node}
             onUse={(d) => {
-              onChange({ diameter: d } as Partial<ComponentNode>);
+              onChange({ diameter: d });
               onCommit?.();
             }}
           />
@@ -81,7 +81,7 @@ function SizingBody({ node, onUse }: { node: ComponentNode; onUse: (diameterM: n
   const tree = useWorkspaceStore((s) => s.tree);
   const config = useWorkspaceStore(selectConfig);
   const launch = useWorkspaceStore((s) => selectActive(s).launch);
-  // An OUTDATED run describes a design or settings that have since moved, so its
+  // An outdated run describes a design or settings that have since moved, so its
   // figures are not this device's any more; the estimate is the honest fallback.
   const result = useWorkspaceStore((s) => (selectOutdated(s) ? null : selectActive(s).result));
 
@@ -95,7 +95,7 @@ function SizingBody({ node, onUse }: { node: ComponentNode; onUse: (diameterM: n
 
   const name = typeof node.name === 'string' ? node.name : '';
   const sizing = useMemo(() => {
-    // What the run recorded for THIS device, if it flew one.
+    // What the run recorded for this device, if it flew one.
     const flown = deviceDescent(result, name);
     const mass = flown?.mass ?? descentMass(info?.mass, motorSpecs(tree, config));
     if (mass == null) return null;
@@ -108,7 +108,7 @@ function SizingBody({ node, onUse }: { node: ComponentNode; onUse: (diameterM: n
       <p className="text-xs text-ink-muted">
         {/* Three keys, not one with a conditional clause: i18next cannot
             omit a fragment, and gluing the branch name on here would not
-            translate. The branch is named only when the flight HAD more than
+            translate. The branch is named only when the flight had more than
             one, since otherwise there is nothing to distinguish. */}
         {t(
           sizing.measured ? (sizing.branch ? 'recovery.forMassRunBranch' : 'recovery.forMassRun') : 'recovery.forMass',

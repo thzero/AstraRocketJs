@@ -28,11 +28,11 @@ beforeEach(() => {
 
 describe('SettingsProvider persistence', () => {
   /**
-   * The provider seeds its state from `loadSettings()`, which NORMALIZES —
+   * The provider seeds its state from `loadSettings()`, which normalizes,
    * dropping keys it does not recognize. Writing that output straight back on
-   * mount therefore meant merely OPENING an older build permanently destroyed
-   * any preference a newer build had written, instead of leaving it untouched
-   * for the newer build to find again.
+   * mount would mean merely opening an older build permanently destroys any
+   * preference a newer build had written, instead of leaving it untouched for
+   * the newer build to find again.
    */
   it('does not write settings back on mount', () => {
     loadSettings.mockReturnValue({ ...DEFAULT_SETTINGS });
@@ -60,12 +60,11 @@ describe('SettingsProvider persistence', () => {
   });
 
   /**
-   * The first guard against the mount write was a "skip the first effect run"
-   * ref. StrictMode runs every effect's setup twice on mount and refs persist
-   * across the pair, so the second run saw the flag set and wrote anyway: the
-   * bug was back in exactly the environment developers test in (main.tsx
-   * renders under StrictMode). Persisting from the update event has no first
-   * run to skip.
+   * A "skip the first effect run" ref does not guard the mount write.
+   * StrictMode runs every effect's setup twice on mount and refs persist across
+   * the pair, so the second run sees the flag set and writes anyway, in exactly
+   * the environment developers test in (main.tsx renders under StrictMode).
+   * Persisting from the update event has no first run to skip.
    */
   it('does not write on mount under StrictMode either', () => {
     loadSettings.mockReturnValue({ ...DEFAULT_SETTINGS });

@@ -12,8 +12,8 @@ import en from '../../../src/i18n/locales/en.json';
  * The strings are vendored from the desktop's `l10n/messages*.properties`, so
  * two things matter: that the right one is picked for the part and the shape,
  * and that their markup is turned into elements rather than handed to
- * `dangerouslySetInnerHTML`. The second is why `richText` is tested on its own
- * - it is the only part of this that could ever render something it was given.
+ * `dangerouslySetInnerHTML`. The second is why `richText` is tested on its own:
+ * it is the only part of this that could ever render something it was given.
  */
 const part = (type: string, shape: string) => ({ id: 'x', type, shape }) as unknown as ComponentNode;
 

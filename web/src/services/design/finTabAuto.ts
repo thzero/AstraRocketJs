@@ -13,7 +13,7 @@ import { isPlanarFinSet } from '../../tree/tubefins';
  * A tab is a tongue on the fin root that passes through a slot in the airframe
  * and is glued to what is inside, so the fin's load goes into the motor mount
  * rather than into the tube skin. Where it can go is decided by what is already
- * in the way: it has to sit BETWEEN two centering rings, reach down to the motor
+ * in the way: it has to sit between two centering rings, reach down to the motor
  * mount tube and no further, and not run past the root chord.
  *
  * That is arithmetic nobody should do by hand, and it is the reason the desktop
@@ -22,7 +22,7 @@ import { isPlanarFinSet } from '../../tree/tubefins';
  * its six cases, because the interesting designs are the ones where a ring
  * straddles an end of the fin root.
  *
- * Returns the patch to apply, or `null` when there is nothing to compute - a fin
+ * Returns the patch to apply, or `null` when there is nothing to compute: a fin
  * set on something that is not a symmetric body, which the desktop also does
  * nothing for.
  */
@@ -85,7 +85,7 @@ function tabBetweenRings(rings: Ring[], finTop: number, finLength: number): { le
     }
   }
 
-  // The pair the tab goes between: the LAST two that qualify, walking aft.
+  // The pair the tab goes between: the last two that qualify, walking aft.
   let top: Ring | null = null;
   let bottom: Ring | null = null;
   for (const ring of merged) {
@@ -97,7 +97,7 @@ function tabBetweenRings(rings: Ring[], finTop: number, finLength: number): { le
       bottom = null;
     } else if (ringBottom(top) <= finTop) {
       if (bottom === null) {
-        // A ring in the FORWARD half of the root is a better upper bound than a
+        // A ring in the forward half of the root is a better upper bound than a
         // lower one; further aft than that and it is the lower bound.
         if (ringBottom(ring) < finTop + finLength / 2) top = ring;
         else bottom = ring;
@@ -170,7 +170,7 @@ export function autoFinTab(tree: RocketTree, id: string): Partial<ComponentNode>
   let maxTubeRadius = 0;
   let maxRingRadius = 0;
   const rings: Ring[] = [];
-  for (const child of (parent.children ?? []) as ComponentNode[]) {
+  for (const child of parent.children ?? []) {
     const top = offsetFromTop(child, parentLength);
     if (child.type === 'innertube') {
       if (!overlapsFin(top, num(child, 'length'), finTop, finLength)) continue;
@@ -193,9 +193,9 @@ export function autoFinTab(tree: RocketTree, id: string): Partial<ComponentNode>
     tabOffsetMethod: 'top',
     tabOffset: placed.offset,
     tabLength: placed.length,
-  } as Partial<ComponentNode>;
+  };
 
-  // How DEEP: down to the mount tube, from whichever end of the tab the body is
+  // How deep: down to the mount tube, from whichever end of the tab the body is
   // narrower at. On a boat tail those two differ, and cutting to the wider one
   // would put the tab through the skin.
   const front = finTop + placed.offset;

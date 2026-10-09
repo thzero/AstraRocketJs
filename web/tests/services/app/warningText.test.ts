@@ -39,7 +39,7 @@ describe('warningText', () => {
 
   it('reads a component name that is itself an untranslated key', () => {
     // A part the user never renamed keeps the kernel's default name, which is a
-    // bundle lookup too — so the sources arrive as "[Parachute.Parachute]".
+    // bundle lookup too, so the sources arrive as "[Parachute.Parachute]".
     expect(warningText('[Warning.DISCONTINUITY] (1 m/s):  "[Parachute.Parachute]"', t)).toBe(
       'Body diameter discontinuity (1 m/s): "Parachute"',
     );
@@ -55,8 +55,8 @@ describe('warningText', () => {
 
 describe('warningHelp', () => {
   // The longer "why this matters". OpenRocket explains its recovery-speed
-  // warnings; ours said only what tripped, which is a number you have to already
-  // understand in order to act on.
+  // warnings; the short text says only what tripped, which is a number you have
+  // to already understand in order to act on.
   const help = (key: string) => (key === 'warnHelp.RECOVERY_HIGH_SPEED' ? 'The shock can zipper the airframe.' : key);
 
   it('finds the explanation for a keyed message', () => {
@@ -73,7 +73,7 @@ describe('warningHelp', () => {
 
 describe('warningKeyOf', () => {
   it('reads the key from the MESSAGE, which is the one vocabulary both paths share', () => {
-    // `EngineWarning.key` is not this string — the bridge rewrites a few typed
+    // `EngineWarning.key` is not this string: the bridge rewrites a few typed
     // warnings to names of its own, and design warnings carry no key field.
     expect(warningKeyOf('[Warning.RECOVERY_MAIN_LOW_SPEED] (2 m/s)')).toBe('RECOVERY_MAIN_LOW_SPEED');
     expect(warningKeyOf('no key here')).toBeNull();
@@ -106,7 +106,7 @@ describe('componentName', () => {
 
   it('returns a name the user typed unchanged', () => {
     // Only the bracket form is a key. Rewriting somebody's own name for their
-    // own part would be the worse bug, in any language.
+    // own part would be wrong in any language.
     for (const name of ['Main chute', 'Drogue', '18" nylon', 'Chute [spare]']) {
       expect(componentName(name, inSpanish)).toBe(name);
     }

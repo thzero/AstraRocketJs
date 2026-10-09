@@ -2,7 +2,7 @@
 import { test, expect, runFlight, ready, box } from './base';
 
 /**
- * A face WIDER than the system font of whatever machine is running the test.
+ * A face wider than the system font of whatever machine is running the test.
  *
  * `system-ui` is whatever the OS supplies: Segoe UI on Windows, DejaVu Sans on a
  * Linux runner, about 12% wider for the same text at the same size. A width
@@ -19,7 +19,7 @@ import { test, expect, runFlight, ready, box } from './base';
 const WIDE_FACE = 'html, body, header, header * { font-family: Verdana, sans-serif !important; }';
 
 /**
- * The desktop workbench tabs sit IN the header, not in a strip below it.
+ * The desktop workbench tabs sit in the header, not in a strip below it.
  *
  * A row of their own costs a full line to hold two or three words while the header
  * beside them runs empty from the WASM badge to the far-right controls. Asserted
@@ -28,7 +28,7 @@ const WIDE_FACE = 'html, body, header, header * { font-family: Verdana, sans-ser
  * nothing wraps the header onto a second line.
  *
  * Desktop-only, and in its own file for that reason: it measures the header
- * at the lg breakpoint EXACTLY (1024), where the phone project's emulation
+ * at the lg breakpoint exactly (1024), where the phone project's emulation
  * (isMobile, DPR 2.625) keeps the desktop nav in the DOM but unrendered, and
  * mobile-layout.spec.ts is run by that project.
  */
@@ -39,7 +39,7 @@ test('the workbench tabs live in the header rather than a row of their own', asy
   await runFlight(page);
 
   const header = page.locator('header').first();
-  // The save status is PART of the tightest state, and it only appears once the
+  // The save status is part of the tightest state, and it only appears once the
   // debounced autosave lands - a tick or two after the run. Measured before it
   // arrives the header is lighter than the one anybody sees.
   await expect(header.getByText(/^Saved/)).toBeVisible();
@@ -62,7 +62,7 @@ test('the workbench tabs live in the header rather than a row of their own', asy
   expect((await box(page.locator('main'))).y).toBeLessThanOrEqual(h.y + h.height + 1);
 
   // One row at this width in English, in a face wider than the local one. The
-  // wordiest languages wrap here - there is not enough width at 1024 for four
+  // wordiest languages wrap here - there is not enough width at 1024 for five
   // tabs, the identity block, the save status and four controls in German - and
   // that is what the second test pins.
   expect(h.height).toBeLessThan(70);

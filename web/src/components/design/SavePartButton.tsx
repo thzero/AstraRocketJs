@@ -13,7 +13,7 @@ import { DialogButton } from '../common/DialogButton';
  * picked again from the component picker on any design (customParts.ts).
  *
  * It sits under the picker because it is the other half of the same idea: that
- * one offers 2,900 parts somebody else made, this one adds the part you made.
+ * one offers thousands of parts somebody else made, this one adds the part you made.
  * The whole node is saved, not the dimensions the picker lists it by, so the
  * cone's shoulder and the chute's lines come back with it.
  */

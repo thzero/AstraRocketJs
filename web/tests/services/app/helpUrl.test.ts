@@ -6,8 +6,8 @@ import { docPageFileUrl, docPageUrl, helpUrlFor, localDocsUrlFor, HELP_URL } fro
 const localized = (lang: string) => `${HELP_URL.replace(/\/*$/, '/')}${lang}/`;
 
 // The docs site builds a locale sub-path per language it has (/docs/es/), and an
-// untranslated page there falls back to English rather than 404ing — so sending a
-// Spanish user to the Spanish tree is always safe. A language the docs do NOT
+// untranslated page there falls back to English rather than 404ing, so sending a
+// Spanish user to the Spanish tree is always safe. A language the docs do not
 // build has no sub-path at all, so it must land on English.
 
 describe('helpUrlFor', () => {
@@ -20,7 +20,7 @@ describe('helpUrlFor', () => {
   });
 
   it('matches on the base language, so regional variants still work', () => {
-    // i18next hands us whatever the browser reports — es-MX, es-419, es-ES.
+    // i18next hands us whatever the browser reports: es-MX, es-419, es-ES.
     for (const tag of ['es-MX', 'es-419', 'es-ES', 'ES']) {
       expect(helpUrlFor(tag)).toBe(localized('es'));
     }
@@ -72,7 +72,7 @@ describe('docPageUrl', () => {
   });
 });
 
-// The docs are ALSO shipped inside the app (the deploy builds Docusaurus into
+// The docs are also shipped inside the app (the deploy builds Docusaurus into
 // web/public/docs before the app build), so the same slug has a second address
 // on the app's own origin. That copy is the one the Help dialog reads, and the
 // one that works with no network.

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { DESIGN_VIEWS, RESULT_VIEWS, isResultView, type ViewMode } from '../../state/tabs';
 import { Segmented } from '../common/Segmented';
 // Declared in state/tabs.ts (the store keeps view and tab in step); re-exported
-// here so this component's importers are unchanged.
+// here for importers that reach them through this component.
 export { isResultView, type ViewMode };
 
 /**

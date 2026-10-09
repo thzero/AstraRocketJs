@@ -9,7 +9,7 @@ import { useWorkspaceStore } from '../../state/store';
  * section: work the tab out from what is inside the airframe under the fin.
  *
  * It reads the tree rather than taking a patch callback, because the answer
- * depends on the fin's NEIGHBORS - the mount tube it has to reach and the
+ * depends on the fin's neighbors - the mount tube it has to reach and the
  * centering rings it has to fit between - which the property panel does not
  * have. See services/design/finTabAuto.ts for the rule.
  *

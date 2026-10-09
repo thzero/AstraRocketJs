@@ -5,7 +5,7 @@ import { sustainerDescentMass } from '../../services/flight/recoveryFlown';
 import { motorSpecs } from '../../services/flight/flightConfigs';
 
 /**
- * What the recovery system brings down, and whether that is an ESTIMATE.
+ * What the recovery system brings down, and whether that is an estimate.
  *
  * Estimated from the design it is loaded mass less the propellant that burns
  * off, which is arithmetic of ours and says so on the tile. Once a run has

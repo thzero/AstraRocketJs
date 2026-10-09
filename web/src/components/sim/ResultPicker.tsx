@@ -4,13 +4,13 @@ import { resultFlight } from '../../services/flight/simulations';
 import { useMenuPopover } from '../common/useMenuPopover';
 
 /**
- * Which flight the Results tab is reading — and the pane's heading.
+ * Which flight the Results tab is reading, and the pane's heading.
  *
- * It IS the heading rather than sitting beside one: a title naming the flight
- * and a dropdown showing the same name next to it said one thing twice.
+ * It is the heading rather than sitting beside one: a title naming the flight
+ * and a dropdown showing the same name next to it would say one thing twice.
  *
- * ONE RUN, ONE NAME. The choice is offered only when the LAST RUN flew more than
- * one simulation, and then it lists exactly those. Counting simulations that HAVE
+ * One run, one name. The choice is offered only when the last run flew more than
+ * one simulation, and then it lists exactly those. Counting simulations that have
  * a result is a different thing: results persist, so running one simulation after
  * having run another last week would put a dropdown on screen for a single run. An
  * `h2` either way, so the pane keeps a landmark a screen reader can jump to.
@@ -32,11 +32,11 @@ export function ResultPicker({ fallbackName }: { fallbackName: string }) {
   const setChosen = useWorkspaceStore((s) => s.setResultSimId);
   const { open, toggle, close, wrapRef, triggerRef } = useMenuPopover();
 
-  // The simulations the LAST run flew, which is what there is to choose between.
+  // The simulations the last run flew, which is what there is to choose between.
   const ran = lastRunIds
     .map((id) => sims.find((x) => x.id === id))
     .filter((x): x is NonNullable<typeof x> => !!x?.result);
-  // What the views are ACTUALLY showing, which is what the heading has to name:
+  // What the views are actually showing, which is what the heading has to name:
   // the choice when it can be honored, else the active row.
   const shown = resultFlight(sims, chosen, activeId);
   const name = shown?.name ?? sims.find((s) => s.id === activeId)?.name ?? fallbackName;

@@ -12,7 +12,7 @@ import { useWorkspaceStore } from '../../state/store';
 import type { ConfigsTab } from '../../state/tabs';
 
 /**
- * Says when a flight configuration flies THIS part differently from the fields
+ * Says when a flight configuration flies this part differently from the fields
  * above it.
  *
  * The deployment fields on a recovery device, and the separation fields on a
@@ -23,7 +23,7 @@ import type { ConfigsTab } from '../../state/tabs';
  * in two places.
  *
  * Every configuration is named, not just the one the active simulation flies,
- * because the panel belongs to the DESIGN and the question it answers is "does
+ * because the panel belongs to the design and the question it answers is "does
  * anything fly this part differently". Each name opens the tab on it.
  */
 export function ConfigOverrideNote({ node }: { node: ComponentNode }) {
@@ -66,7 +66,7 @@ function NamedConfigs({ label, configs, sub }: { label: string; configs: FlightC
           <button
             type="button"
             onClick={() => {
-              // Open the tab ON that configuration's own table, so the values
+              // Open the tab on that configuration's own table, so the values
               // this line is warning about are the ones on screen.
               setSelectedConfigId(c.id);
               setConfigsTab(sub);

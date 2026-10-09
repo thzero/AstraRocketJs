@@ -59,7 +59,7 @@ describe('design CSV', () => {
     expect(rows).toContainEqual(['Rocket', 'Length', '90', 'cm']);
     expect(rows).toContainEqual(['Rocket', 'Stability (on pad)', '3.14', 'cal']);
     // The kernel's own figure. (cp - cg) / length would be 27.4: right shape,
-    // wrong denominator. Pinning it is what stops that formula coming back.
+    // wrong denominator. Pinning it is what keeps that formula out.
     expect(rows).toContainEqual(['Rocket', 'Stability (%)', '30.9', '%']);
     expect(rows).toContainEqual(['Rocket', 'CP', '162.9', 'cm']);
     expect(rows).toContainEqual(['Rocket', 'Normal-Force Slope (CNα)', '26.42', '/rad']);
@@ -120,8 +120,8 @@ describe('design CSV', () => {
  * Every whole-rocket statistics table lists the same rows: the .ork
  * <designinfo> block, this CSV and the PDF. A finless design has no defined CP,
  * so OpenRocket omits CP, both stability rows and CNα, and a design with no
- * reference diameter has no fineness. The CSV wrote all of them (fineness as 0),
- * so it carried rows the .ork written beside it did not.
+ * reference diameter has no fineness. The CSV omits the same rows, rather than
+ * writing them (fineness as 0) where the .ork written beside it has none.
  */
 describe('design CSV rows for a finless design', () => {
   const finless = { ...info, cna: 0, refDiameter: 0 } as StaticInfo;

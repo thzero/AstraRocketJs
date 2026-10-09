@@ -14,7 +14,7 @@ export interface ConfigColumn {
  * part it configures, the way the desktop's flight-configuration panel lays it
  * out.
  *
- * Reading ACROSS a row tells you what that setup does everywhere; reading DOWN a
+ * Reading across a row tells you what that setup does everywhere; reading down a
  * column tells you what the same mount or chute does under each setup, which is
  * the comparison a staged rocket is designed around and the one a list of names
  * cannot show. The sub-tab decides what the columns are (motors, recovery).

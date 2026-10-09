@@ -7,11 +7,10 @@ import type { ComponentNode, RocketTree } from '../../../src/engine/openRocketEn
 /**
  * A design can arrive carrying a number the editor would never accept.
  *
- * The boxes clamp as you TYPE, and nothing clamped on the way IN: a `.ork`, a
- * share link, or a session autosaved by a build from before a limit existed
- * could hand the app a bulk density of 1e9 kg/m³. A 200 mm tube of that weighs
- * about 180 tonnes, so every mass, CG and stability figure on screen is
- * nonsense, and nothing said why.
+ * The boxes clamp as you type, but a `.ork`, a share link, or a session
+ * autosaved by a build without a given limit can hand the app a bulk density of
+ * 1e9 kg/m³. A 200 mm tube of that weighs about 180 metric tons, so every mass, CG
+ * and stability figure on screen would be nonsense with nothing saying why.
  */
 const tree = (density: unknown): RocketTree =>
   ({
@@ -88,7 +87,7 @@ describe('repairValues', () => {
 
 /**
  * The banner line names an unnamed part by its translated type, as every other
- * message does; it printed the raw key ("bodytube").
+ * message does, not by the raw key ("bodytube").
  */
 describe('repairedText', () => {
   it('translates the type of an unnamed part', () => {

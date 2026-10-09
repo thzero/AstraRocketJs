@@ -6,9 +6,9 @@ import { confirm, useConfirmStore } from '../../../src/state/confirmStore';
 
 /**
  * Stock jsdom reports `offsetParent === null` for every element, so
- * useFocusTrap's visibility filter saw no focusable children at all and the
- * behavior under test here (which button ends up focused) was invisible to
- * the suite. A browser gives every laid-out element an offsetParent.
+ * useFocusTrap's visibility filter sees no focusable children at all and the
+ * behavior under test here (which button ends up focused) is invisible to the
+ * suite. A browser gives every laid-out element an offsetParent.
  */
 let offsetParent: PropertyDescriptor | undefined;
 beforeEach(() => {
@@ -28,12 +28,11 @@ afterEach(() => {
 
 describe('ConfirmDialog keyboard behavior', () => {
   /**
-   * useFocusTrap moved focus to the first focusable element in DOM order from
-   * a passive effect, after React had already honored `autoFocus` in commit.
-   * Cancel comes first, so the visibly focused button was Cancel, while a
-   * window-level Enter handler called `settle(true)` for every target. A
-   * keyboard user saw the focus ring on Cancel, pressed Enter, and the
-   * destructive action went ahead.
+   * Cancel comes first in DOM order, so a focus trap that moves focus to the
+   * first focusable element after React has honored `autoFocus` would leave the
+   * focus ring on Cancel. Combined with a window-level Enter handler that
+   * settles true for every target, a keyboard user would see Cancel focused,
+   * press Enter, and the destructive action would go ahead.
    */
   it('focus lands on Confirm (the autoFocus target), not on Cancel', async () => {
     render(<ConfirmDialog />);

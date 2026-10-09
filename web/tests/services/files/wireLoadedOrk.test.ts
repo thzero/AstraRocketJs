@@ -102,9 +102,9 @@ describe('wireLoadedOrk', () => {
   });
 
   it('carries the separation overrides and the grounded stages with them', () => {
-    // All three are settings of THIS configuration. Forwarding one of the three
-    // silently reset the other two, so a staged design opened with its booster
-    // flying and its separation back on the design default.
+    // All three are settings of this configuration. Forwarding only one of the
+    // three would silently reset the other two, so a staged design would open
+    // with its booster flying and its separation back on the design default.
     const separations = { booster: { separationDelay: 2 } };
     const grounded = ['booster'];
     const w = wireLoadedOrk(loaded({ configs: [config({ separations, grounded })] }), launchDefaults);
@@ -113,7 +113,7 @@ describe('wireLoadedOrk', () => {
   });
 
   /**
-   * A mount the FILE left empty flies nothing, not a default. Seating a C6 in it
+   * A mount the file left empty flies nothing, not a default. Seating a C6 in it
    * opens a design saved without motors as a flyable rocket on motors the file
    * never named, which is what loadOrk refuses to do for a motor it cannot
    * resolve.
@@ -148,10 +148,10 @@ describe('wireLoadedOrk', () => {
 });
 
 describe('wireLoadedOrk — absolute positions', () => {
-  // `.ork` positions a component with method="absolute" in the ROCKET frame,
-  // but the editor works entirely in the parent frame. Leaving it meant the
-  // schematic, 3D view, drag handles and PDF drew the part at
-  // parentStart + offset while the engine flew it at offset.
+  // `.ork` positions a component with method="absolute" in the rocket frame,
+  // but the editor works entirely in the parent frame. Left as is, the
+  // schematic, 3D view, drag handles and PDF would draw the part at
+  // parentStart + offset while the engine flies it at offset.
   const absoluteTree = () =>
     ({
       components: [
@@ -195,7 +195,7 @@ describe('wireLoadedOrk — absolute positions', () => {
     expect(p.ork!.method).toBe('absolute');
     expect(p.ork!.offset).toBe(0.35); // verbatim, so the exporter can write it back
     // `resolved` is the computed parent-relative value (0.35 - 0.3, float noise
-    // and all). It is compared with === at export time, so it must be the SAME
+    // and all). It is compared with === at export time, so it must be the same
     // value that landed in `offset`, not a rounded one.
     expect(p.ork!.resolved).toBe(p.offset);
   });

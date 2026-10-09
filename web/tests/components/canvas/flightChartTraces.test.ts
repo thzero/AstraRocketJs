@@ -32,7 +32,7 @@ describe('buildTraces', () => {
     // Named for the stage, not the simulation: the pane heading already says
     // which simulation this is.
     expect(only!.name).toBe('Stage 1');
-    expect(only!.color).toBe('var(--c-series-1)'); // sky, the original single line
+    expect(only!.color).toBe('var(--c-series-1)'); // the first series color
   });
 
   it('gives each stage its own name and color', () => {
@@ -47,8 +47,8 @@ describe('buildTraces', () => {
   });
 
   /**
-   * The key carries the SIMULATION id, not just the branch index, so switching
-   * the picker to another flight yields a different set of keys — which is what
+   * The key carries the simulation id, not just the branch index, so switching
+   * the picker to another flight yields a different set of keys, which is what
    * makes the chart reset its trace selection instead of carrying one flight's
    * choice onto another's stages.
    */
@@ -66,7 +66,7 @@ describe('buildTraces', () => {
 /**
  * The saved panel choice.
  *
- * Which panels are open is a preference now, so it survives a reload — and a
+ * Which panels are open is a preference, so it survives a reload, and a
  * preference written by a different build can name a series this one does not
  * have. Dropping the unknown ones costs a panel; trusting them would put an
  * empty panel on screen, or blank the chart entirely.

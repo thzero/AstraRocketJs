@@ -71,7 +71,7 @@ describe('changedPrefKeys', () => {
   });
 
   /**
-   * These three live in `SimulationSettings` and are deliberately NOT here:
+   * These three live in `SimulationSettings` and are deliberately not here:
    * two are interface behavior and the third only colors the rod-exit tile.
    * Listing them would age every result for a change that cannot move a number.
    */

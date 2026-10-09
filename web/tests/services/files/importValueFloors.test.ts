@@ -7,20 +7,18 @@ import type { ComponentNode } from '../../../src/engine/openRocketEngine';
 import { MAX_FIN_POINTS } from '../../../src/services/files/ork/importLimits';
 
 /**
- * What a file is allowed to SAY, as opposed to how big it is allowed to be.
+ * What a file is allowed to say, as opposed to how big it is allowed to be.
  *
  * `orkImportHostile.test.ts` covers the size axis: the zip-bomb caps, the
- * element count, the nesting depth. This covers the value axis, which had no
- * floor at all on the `.ork` path. `numTag` returned any finite number, so a
- * negative length, radius, thickness, chord, mass or override went into the
- * tree, into the mesh, into the mass integral and into the kernel. A negative
- * length is not a small part: it is geometry that inverts, and a negative mass
- * override SUBTRACTS from the rocket, moving the CG off the airframe and taking
- * the stability margin with it.
+ * element count, the nesting depth. This covers the value axis. A bare finite
+ * check would let a negative length, radius, thickness, chord, mass or override
+ * into the tree, the mesh, the mass integral and the kernel. A negative length
+ * is not a small part: it is geometry that inverts, and a negative mass override
+ * subtracts from the rocket, moving the CG off the airframe and taking the
+ * stability margin with it.
  *
- * The `.rkt` reader already floored every dimension (`nonNeg`) and says in its
- * own comment that the handlers which do not are "an inconsistency rather than a
- * decision". This holds the two formats to the same rule.
+ * The `.rkt` reader floors every dimension (`nonNeg`), and this holds the two
+ * formats to the same rule.
  */
 
 const ork = (xml: string): ArrayBuffer => {
@@ -67,7 +65,7 @@ describe('a .ork cannot state a negative dimension', () => {
     expect(n['tipChord']).toBe(0);
     expect(n['height']).toBe(0);
     expect(n['thickness']).toBe(0);
-    // SIGNED on purpose: a negative sweep is a forward-swept fin, a real shape
+    // Signed on purpose: a negative sweep is a forward-swept fin, a real shape
     // the desktop draws. Flooring this one would silently straighten it.
     expect(n['sweep']).toBe(-0.02);
   });
@@ -147,10 +145,10 @@ describe('a .ork cannot state a negative dimension', () => {
 
 describe('a <stage active="false"/> flag addresses a stage or is dropped', () => {
   /**
-   * `Number(null)` is 0 and `Number('')` is 0, so a flag with no `number`
-   * attribute named stage 0 - the SUSTAINER - and grounded it. The reader's own
-   * doc says a flag naming a stage the file does not have is dropped rather than
-   * guessed at, which held only for a non-numeric value.
+   * `Number(null)` is 0 and `Number('')` is 0, so a naive read of a flag with no
+   * `number` attribute would name stage 0 (the sustainer) and ground it. A flag
+   * naming a stage the file does not have is dropped rather than guessed at, and
+   * a missing or empty number is no exception.
    */
   const twoStage = (flag: string) =>
     `<?xml version="1.0"?><openrocket version="1.8"><rocket><name>T</name>` +
@@ -184,11 +182,11 @@ describe('a <stage active="false"/> flag addresses a stage or is dropped', () =>
 
 describe('a RockSim <Color> is normalized or dropped', () => {
   /**
-   * It was written verbatim into the node key the schematic hands to SVG `fill`
-   * and the 3D view hands to a three.js material, where the `.ork` reader
-   * validates its three channels and builds `#rrggbb`. `orkExport.colorXml`
-   * matches `/^#?([0-9a-f]{6})$/i` and silently drops anything else, so a
-   * RockSim design converted to `.ork` lost every part color it had.
+   * The value lands in the node key the schematic hands to SVG `fill` and the 3D
+   * view hands to a three.js material, and the `.ork` reader builds `#rrggbb`
+   * for the same key. The `.ork` writer's `colorXml` matches
+   * `/^#?([0-9a-f]{6})$/i` and silently drops anything else, so a verbatim
+   * RockSim color would be lost when the design is saved as `.ork`.
    */
   const rkt = (color: string) =>
     `<?xml version="1.0" encoding="UTF-8"?><RockSimDocument><FileVersion>4</FileVersion>
@@ -208,7 +206,7 @@ describe('a RockSim <Color> is normalized or dropped', () => {
   });
 
   it('maps a basic color NAME, which is what RockSim writes', () => {
-    // These rendered before (both consumers parse CSS names) and then vanished
+    // Both consumers parse CSS names, so a raw name would render and then vanish
     // on export. Mapped rather than dropped, so the color survives the trip.
     expect(colorOf('Black')).toBe('#000000');
     expect(colorOf('red')).toBe('#ff0000');
@@ -223,9 +221,9 @@ describe('a RockSim <Color> is normalized or dropped', () => {
 
 describe('the freeform point cap bounds what is BUILT, not just what is kept', () => {
   /**
-   * `raw.split('|')` materialized every pair before the first cap test, so a
-   * crafted `<PointList>` of a few megabytes allocated millions of substrings
-   * and the cap then threw all but the first few hundred away.
+   * The cap has to apply while parsing: `raw.split('|')` would materialize every
+   * pair before the first cap test, so a crafted `<PointList>` of a few megabytes
+   * would allocate millions of substrings only to keep the first few hundred.
    */
   const rktWithPoints = (points: string) =>
     `<?xml version="1.0" encoding="UTF-8"?><RockSimDocument><FileVersion>4</FileVersion>
@@ -270,8 +268,8 @@ describe('the freeform point cap bounds what is BUILT, not just what is kept', (
 
 /**
  * A negative separation altitude reads the way a negative deployment altitude
- * does: floored to 0, in the design and in every configuration's override. The
- * design-level reader dropped it instead, so the stage fell back to 200 m while
+ * does: floored to 0, in the design and in every configuration's override.
+ * Dropping it at the design level would make the stage fall back to 200 m while
  * the configuration recorded 0 m: one file, two answers.
  */
 describe('a .ork cannot state a negative separation altitude', () => {

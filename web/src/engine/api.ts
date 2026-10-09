@@ -14,8 +14,8 @@ export type { StaticInfo, FlightResult } from './openRocketEngine';
  *
  * The 5 s delay is the one the picker itself would choose: Estes sells the C6 in
  * 0, 3, 5 and 7, and `MotorDialog.choose` takes the middle of a motor's own
- * charges rather than a fixed number. A 3 here made the one motor the app seats
- * for you the one motor it would not have picked.
+ * charges rather than a fixed number, so the motor the app seats for you matches
+ * what the picker would have chosen.
  */
 export const C6: MotorSpec = {
   designation: 'C6',

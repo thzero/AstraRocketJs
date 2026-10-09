@@ -3,11 +3,11 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 /**
- * The import path uses the BATCH write, not a loop over single adds.
+ * The import path uses the batch write, not a loop over single adds.
  *
  * Source-level, and node-env: `importCustomMotors` also refreshes the catalog over
- * the network, which a unit test has no business reaching, and the loop is the
- * defect. `lowFindings.test.ts` covers what the batch write itself does.
+ * the network, which a unit test has no business reaching, and the loop is what
+ * is being ruled out. `lowFindings.test.ts` covers what the batch write itself does.
  */
 const src = (rel: string) => readFileSync(fileURLToPath(new URL(`../../../src/${rel}`, import.meta.url)), 'utf8');
 

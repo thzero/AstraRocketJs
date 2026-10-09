@@ -1,10 +1,10 @@
 // Build-time contributor list from the GitHub REST API.
 //
-// Writes public/data/contributors.generated.json — the people credited in the
+// Writes public/data/contributors.generated.json: the people credited in the
 // About dialog. Like the motor, component and material catalogs this is a
-// BUILD ARTIFACT: generated, committed, and served from the app's own origin,
+// build artifact: generated, committed, and served from the app's own origin,
 // so the app makes no runtime call to github.com (see the privacy copy in
-// src/i18n/locales/*.json — every network call at runtime is to us).
+// src/i18n/locales/*.json).
 //
 // Avatars are inlined as data URIs for the same reason: an <img> pointing at
 // avatars.githubusercontent.com would be a third-party request from every
@@ -82,7 +82,7 @@ for (let page = 1; page <= 10; page++) {
   if (batch.length < 100) break;
 }
 
-// Drop bots (dependabot, github-actions, …) — they're not people to credit.
+// Drop bots (dependabot, github-actions, …): they're not people to credit.
 const people = raw
   .filter((c) => c.type !== 'Bot' && !/\[bot\]$/.test(c.login))
   .sort((a, b) => b.contributions - a.contributions || a.login.localeCompare(b.login));

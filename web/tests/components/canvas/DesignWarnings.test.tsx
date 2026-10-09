@@ -10,9 +10,9 @@ const setInfo = (warningTexts: string[]) =>
   useWorkspaceStore.setState({ info: { warnings: warningTexts.length, warningTexts } as StaticInfo });
 
 /**
- * Design warnings were exported by the engine and read by nothing: the field was
- * parsed into `StaticInfo` and dropped, so the app silently withheld the class of
- * warning OpenRocket shows most often.
+ * The kernel's design warnings arrive in `StaticInfo.warningTexts`, and this panel
+ * is where they are shown. They are the class of warning OpenRocket shows most
+ * often, so an unread field would hide them silently.
  */
 describe('DesignWarnings', () => {
   beforeEach(() => setInfo([]));

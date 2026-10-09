@@ -71,7 +71,7 @@ export function HelpRail({
         >
           {entry.label}
         </button>
-        {/* The page you are ON opens into its own headings, so the rail answers
+        {/* The page you are on opens into its own headings, so the rail answers
             both "what else is there" and "where in this page". Picking one goes
             through the same same-slug-scroll path a heading link inside the
             frame takes. */}

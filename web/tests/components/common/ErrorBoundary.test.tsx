@@ -5,9 +5,9 @@ import { ErrorBoundary, isChunkLoadError, LazyBoundary, lazyNamed } from '../../
 import { renderWithProviders } from '../../testing/renderWithProviders';
 
 /**
- * There was no boundary anywhere in the app, so a lazy view whose chunk had
- * gone missing (a stale Pages deploy) took the whole window down: the throw
- * came out of Suspense during render and React unmounted everything.
+ * Without a boundary, a lazy view whose chunk has gone missing (a stale Pages
+ * deploy) takes the whole window down: the throw comes out of Suspense during
+ * render and React unmounts everything.
  */
 
 const Boom = ({ error }: { error: Error }) => {
@@ -77,7 +77,7 @@ describe('isChunkLoadError', () => {
 });
 
 /**
- * A lazy view behind LazyBoundary: the boundary sits OUTSIDE the Suspense,
+ * A lazy view behind LazyBoundary: the boundary sits outside the Suspense,
  * because it is the chunk fetch that fails on a stale deploy and Suspense
  * re-throws that rejection. A failed chunk is the fallback, not a dead app.
  */

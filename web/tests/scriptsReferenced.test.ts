@@ -17,8 +17,6 @@ import { fileURLToPath } from 'node:url';
  * ordinary dead code, because these are the programs that write the catalogs the
  * live app reads, and one that has quietly stopped being called looks exactly like
  * one that is working.
- *
- * Nothing is failing today - this is a floor, not a repair.
  */
 
 const web = fileURLToPath(new URL('..', import.meta.url));
@@ -29,7 +27,7 @@ const read = (p: string) => readFileSync(p, 'utf8');
  *  the modules they import. */
 const scripts = readdirSync(`${web}scripts`).filter((f) => f.endsWith('.mjs'));
 
-/** Shared modules under `scripts/lib`, which ARE imported rather than run. */
+/** Shared modules under `scripts/lib`, which are imported rather than run. */
 const libs = readdirSync(`${web}scripts/lib`).filter((f) => f.endsWith('.mjs'));
 
 /**
@@ -50,7 +48,7 @@ describe('no orphan build script', () => {
 
   it('finds a caller for every scripts/*.mjs', () => {
     const orphans = scripts.filter((f) => {
-      // Its own file is in the haystack, so match the name as a PATH reference -
+      // Its own file is in the haystack, so match the name as a path reference -
       // `scripts/sync-motors.mjs` - rather than the bare filename, which every
       // script trivially contains in its own header comment.
       const asPath = new RegExp(`scripts/${f.replace('.', '\\.')}\\b`);
@@ -67,10 +65,8 @@ describe('no orphan build script', () => {
   });
 
   it('scans a plausible number of scripts, so an empty glob cannot pass', () => {
-    // 13 programs and 3 shared modules. It was 14 and 2: `openrocketJava.mjs` sat
-    // among the programs while being a library three of them import, which is what
-    // writing this test turned up, and `scripts/lib` is where the other two already
-    // lived.
+    // At least 13 programs and 3 shared modules (`openrocketJava.mjs`, the library
+    // several programs import, lives in `scripts/lib` with the other two).
     expect(scripts.length).toBeGreaterThanOrEqual(13);
     expect(libs.length).toBeGreaterThanOrEqual(3);
   });

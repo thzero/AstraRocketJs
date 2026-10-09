@@ -11,20 +11,19 @@ import { num, positionOf } from './nodeProps';
  */
 
 /**
- * Root chord of a freeform fin: the axial span between the FIRST and LAST
+ * Root chord of a freeform fin: the axial span between the first and last
  * points, both of which sit on the body.
  *
- * This matches the kernel exactly — `FreeformFinSet.length = last.x - first.x`.
- * It is deliberately NOT the furthest-aft point (`Math.max`): a fin whose tip
+ * This matches the kernel exactly: `FreeformFinSet.length = last.x - first.x`.
+ * It is deliberately not the furthest-aft point (`Math.max`): a fin whose tip
  * trailing corner overhangs the root reaches further aft than its root chord
  * does, and using that overhang puts a bottom- or middle-anchored fin forward
- * of its true station by exactly the overhang — so the app would draw the fin
+ * of its true station by exactly the overhang, so the app would draw the fin
  * somewhere the engine does not fly it.
  *
- * Exported because four other modules need the same number (the report
- * geometry, the fin-station table, the solid mesh and the 3D view). They each
- * had their own `Math.max` copy, and so disagreed with the schematic about
- * where one fin sits.
+ * Exported so every module that needs the number (the report geometry, the
+ * fin-station table, the solid mesh, the 3D view) agrees with the schematic
+ * about where one fin sits.
  */
 export function freeformRootChord(
   pts: [number, number][] | undefined,
@@ -40,22 +39,22 @@ export function freeformRootChord(
 /**
  * A freeform fin's outline, translated so its first point is the origin.
  *
- * This is what the kernel actually flies. `FreeformFinSet.setPoints()` — the
- * entry point our bridge uses (ComponentFactory.java:211) — does
+ * This is what the kernel actually flies. `FreeformFinSet.setPoints()`, the
+ * entry point our bridge uses (ComponentFactory, case "freeformfinset"), does
  *
  *     final CoordinateIF delta = newPoints.get(0).multiply(-1);
  *     if (IGNORE_SMALLER_THAN < delta.length2()) newPoints = translatePoints(newPoints, delta);
  *
- * translating by -p0 in BOTH axes, and it does not touch the axial offset.
+ * translating by -p0 in both axes, and it does not touch the axial offset.
  * (`clampFirstPoint()`, which additionally folds xDelta into the offset, is the
  * desktop GUI's per-point edit path, not ours.)
  *
- * The app read the raw points instead, while placing the through-the-wall TAB
- * in root-relative coordinates (`finTabSpan`, which measures from the root chord
- * rather than from the first point). The two agree only when `points[0].x === 0`, and
- * `FreeformFinEditor` lets the first vertex be dragged off it — so a fin whose
- * outline began at x = 20 mm had its tab cut 20 mm out of place on the 1:1 PDF
- * template and in the exported STL, on a part that has to pass through a slot.
+ * The through-the-wall tab is placed in root-relative coordinates (`finTabSpan`,
+ * which measures from the root chord rather than from the first point). Raw
+ * points agree with that only when `points[0].x === 0`, and `FreeformFinEditor`
+ * lets the first vertex be dragged off it, so reading raw points would cut the
+ * tab of a fin whose outline begins at x = 20 mm 20 mm out of place on the 1:1
+ * PDF template and in the exported STL, on a part that has to pass through a slot.
  */
 export function normalizeFreeformPoints(pts: [number, number][] | undefined): [number, number][] {
   const p = pts ?? [];
@@ -88,20 +87,17 @@ export function axialLength(n: ComponentNode): number {
     return num(n, 'rootChord', FIN_DEFAULTS.rootChord);
   }
   if (isAssembly(n.type)) return assemblyChainLength(n);
-  // `length` only. A recovery device's packed length arrives in it too —
-  // orkImport reads <packedlength> straight into `length` (orkImport.ts:441,
-  // 464, 479, 487) and the Java factory reads the same key back out
-  // (ComponentFactory.java:346-349) — so the `packedLength` fallback that used
-  // to sit here could never fire. Wiring packed dimensions properly (TODO.md)
-  // needs a kernel change; when it lands it gets a real key, not a dead one.
+  // `length` only. A recovery device's packed length arrives in it too:
+  // orkImport reads <packedlength> straight into `length`, and the Java
+  // factory reads the same key back out, so there is no separate
+  // `packedLength` key to fall back to.
   //
-  // The fallback is the KERNEL's per-type default, not one number for every
-  // type. It was 0.025 across the board, which is the parachute / streamer /
-  // shock-cord value: a bulkhead or centering ring that had lost its `length`
-  // was laid out at 25 mm where the engine flies 2 mm, and a tube fin set at
-  // 25 mm where it flies 100 mm. Types the factory reads no length for (a
-  // rail button, a stage) resolve to 0, which is the kernel's own
-  // RocketComponent.length initial value.
+  // The fallback is the kernel's per-type default, not one number for every
+  // type. A single 0.025 (the parachute / streamer / shock-cord value) would
+  // lay out a bulkhead or centering ring that lost its `length` at 25 mm where
+  // the engine flies 2 mm, and a tube fin set at 25 mm where it flies 100 mm.
+  // Types the factory reads no length for (a rail button, a stage) resolve to
+  // 0, which is the kernel's own RocketComponent.length initial value.
   return partLength(n);
 }
 
@@ -126,7 +122,7 @@ export function motorSeatStart(mount: ComponentNode, mountStart: number, mountLe
 }
 
 /**
- * A child's leading edge in the ROCKET frame: the parent's start plus the
+ * A child's leading edge in the rocket frame: the parent's start plus the
  * child's parent-relative start. The one reader the report geometry and the
  * schematic share, so the PDF cannot place a part where the drawing does not.
  */
@@ -143,10 +139,9 @@ export function startFromPosition(pos: ComponentPosition, childLen: number, pLen
     case 'absolute':
       return pos.offset;
     // 'after' is resolved to 'top' on load (resolveFilePositions) because it is
-    // relative to a SIBLING, which this function is not given. Reaching here
+    // relative to a sibling, which this function is not given. Reaching here
     // means an unresolved tree; the offset is the kernel's zero, so it lands at
-    // the parent's top — the same answer as before, now deliberate rather than
-    // a silent fall-through to `default`.
+    // the parent's top.
     case 'after':
     case 'top':
     default:
@@ -155,9 +150,9 @@ export function startFromPosition(pos: ComponentPosition, childLen: number, pLen
 }
 
 /**
- * Rewrites every axial position the EDITOR cannot work in — 'absolute'
- * (rocket-origin frame) and 'after' (previous-sibling frame), both of which
- * only file importers produce — into the equivalent parent-relative 'top'
+ * Rewrites every axial position the editor cannot work in ('absolute', the
+ * rocket-origin frame, and 'after', the previous-sibling frame, both of which
+ * only file importers produce) into the equivalent parent-relative 'top'
  * offset.
  * The UI edits positions in the parent frame only: leaving 'absolute' in the
  * tree makes the schematic/property panel (parent frame) disagree with the
@@ -168,7 +163,7 @@ export function resolveFilePositions(tree: RocketTree): RocketTree {
 
   const fixChildren = (parent: ComponentNode, pStart: number, pLen: number): ComponentNode => {
     if (!parent.children?.length) return parent;
-    // Aft end of the previous sibling, in the PARENT's frame — what 'after' means.
+    // Aft end of the previous sibling, in the parent's frame: what 'after' means.
     let prevEndRel = 0;
     const children = parent.children.map((child) => {
       let next = child;
@@ -179,14 +174,14 @@ export function resolveFilePositions(tree: RocketTree): RocketTree {
         changed = true;
         // AxialMethod.AFTER: the aft end of the previous sibling, or 0 for the
         // first child, and the stored offset is ignored because the kernel
-        // forces it to zero (RocketComponent.setAfter:1467-1491). We use the
-        // previous sibling rather than the previous ACTIVE one — configuration
-        // activity is not modeled here, and an inactive sibling is rare.
+        // forces it to zero (RocketComponent.setAfter). We use the previous
+        // sibling rather than the previous active one: configuration activity
+        // is not modeled here, and an inactive sibling is rare.
         const resolved = prevEndRel;
         next = {
           ...child,
           position: { method: 'top', offset: resolved, ork: { method: 'after', offset: pos.offset, resolved } },
-        } as ComponentNode;
+        };
       } else if (pos.method === 'absolute') {
         changed = true;
         const resolved = pos.offset - pStart;
@@ -198,29 +193,27 @@ export function resolveFilePositions(tree: RocketTree): RocketTree {
             offset: resolved,
             ork: { method: 'absolute', offset: pos.offset, resolved },
           },
-        } as ComponentNode;
+        };
       }
       const cLen = axialLength(next);
       const relStart = startFromPosition(positionOf(next), cLen, pLen);
       prevEndRel = relStart + cLen;
       return fixChildren(next, pStart + relStart, cLen);
     });
-    return { ...parent, children } as ComponentNode;
+    return { ...parent, children };
   };
 
   // Stages flatten into one nose-to-tail chain; chain members stack
   // sequentially (their own position field is not used for layout).
   //
-  // A stage child that is NOT a chain member — a podset, a parallel stage, a
-  // stage-level mass component — is a different animal. It does not consume
-  // axial space in the chain, but it does have its OWN length and its own
-  // position against the stage, and both were being thrown away: the walk
-  // passed `0` as the parent length and the core chain's running total as the
-  // parent start. With a parent length of 0, `startFromPosition` resolves a
-  // `middle` child to -childLen/2 — forward of the assembly's own nose — so an
-  // `after` sibling chained off a wrong station and an `absolute` child was
-  // rebased against the wrong origin. Now each one is walked with its own
-  // extent, anchored where its position actually puts it in the stage.
+  // A stage child that is not a chain member (a podset, a parallel stage, a
+  // stage-level mass component) does not consume axial space in the chain, but
+  // it does have its own length and its own position against the stage. Each
+  // one is walked with its own extent, anchored where its position puts it in
+  // the stage. Walking it with a parent length of 0 would make
+  // `startFromPosition` resolve a `middle` child to -childLen/2, forward of the
+  // assembly's own nose, so an `after` sibling would chain off a wrong station
+  // and an `absolute` child would be rebased against the wrong origin.
   let x = 0;
   const components = tree.components.map((stage) => {
     const kids = stage.type === 'stage' ? (stage.children ?? []) : [stage];
@@ -238,7 +231,7 @@ export function resolveFilePositions(tree: RocketTree): RocketTree {
       const own = axialLength(n);
       return fixChildren(n, stageStart + startFromPosition(positionOf(n), own, stageLen), own);
     });
-    return stage.type === 'stage' ? ({ ...stage, children: fixedKids } as ComponentNode) : fixedKids[0]!;
+    return stage.type === 'stage' ? { ...stage, children: fixedKids } : fixedKids[0]!;
   });
   return changed ? { ...tree, components } : tree;
 }

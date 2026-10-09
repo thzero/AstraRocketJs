@@ -4,7 +4,7 @@ import { test, expect, type Page, autosaved, openTab, runFlight } from './base';
  * Motor-picker behavioral suite. Every flow here runs against the default
  * single-mount rocket (seated C6) and asserts on DOM/behavior, not pixels, so
  * a styling tweak won't break it. All motor data is bundled, so these run fully
- * offline — no thrustcurve.org round-trips.
+ * offline, with no thrustcurve.org round-trips.
  *
  * The multi-mount "one card per motor tube" path (findMounts + setExtraMotor) is
  * covered by unit tests (treeEdit.test.ts, store); building a two-mount rocket
@@ -14,7 +14,7 @@ import { test, expect, type Page, autosaved, openTab, runFlight } from './base';
  * Selector notes: the picker's Select button only mounts once a row is
  * highlighted (before that the right pane shows the "pick a motor" hint), so its
  * absence is itself a meaningful assertion. The diameter range is two native
- * <input type=range> thumbs whose values ARE the slider indices — asserting on
+ * <input type=range> thumbs whose values are the slider indices; asserting on
  * `toHaveValue` is unambiguous where the "…mm" readout text collides with row
  * diameters.
  */
@@ -57,8 +57,8 @@ test('select-then-confirm applies the chosen motor and closes the dialog', async
   // The filter hides the pre-selected C6 (no A8 row is it), and a motor that
   // is not on screen cannot be confirmed: the Select button goes with the row
   // until a visible one is highlighted. Deterministic whether or not the
-  // catalog had seeded the C6 before the filter was typed, which is the race
-  // that made this flaky under CI.
+  // catalog had seeded the C6 before the filter was typed, which is a race
+  // under CI.
   await dialog.getByPlaceholder(/Search by code/i).fill('A8');
   await expect(select).toHaveCount(0);
 
@@ -74,7 +74,7 @@ test('select-then-confirm applies the chosen motor and closes the dialog', async
 
   // The motor card reflects the newly seated motor. Scoped to the card: the 2D
   // schematic letters the same designation onto the motor it draws, and that
-  // drawing is a tab away now.
+  // drawing is a tab away.
   await expect(page.getByRole('region', { name: /Motor/ }).first().getByText(designation)).toBeVisible();
 });
 
@@ -103,19 +103,17 @@ test('"fits the mount" pulls the diameter ceiling down to the mount, and gives i
   const fits = dialog.getByRole('checkbox', { name: /Fits the mount/ });
 
   // On by default, and naming the bore it measures against. A measurement, not
-  // a hardcoded 18: the default mount's BORE is its 18 mm outer size less two
+  // a hardcoded 18: the default mount's bore is its 18 mm outer size less two
   // walls, and what matters is that the filter names what it judges against.
   await expect(fits).toBeChecked();
   await expect(dialog.getByText(/Fits the mount \(\d+(\.\d+)? mm\)/)).toBeVisible();
 
   /*
-   * The restriction is VISIBLE on the slider. Two earlier designs hid it: one
-   * seeded the ceiling from the mount on first open and then saved it as though
-   * the user had chosen it, so a range picked for an 18 mm mount followed them
-   * to a 54 mm one; the other capped the slider's TRACK while the box was
-   * ticked, and since the readout calls a thumb at the end of its track "Any",
-   * that made the box read "Any-Any" ticked and "Any-18 mm" clear - the exact
-   * opposite of what it says.
+   * The restriction is visible on the slider: the box moves the ceiling thumb,
+   * not the track. Capping the track instead would make the box read "Any-Any"
+   * ticked (the readout calls a thumb at the end of its track "Any"), and saving
+   * the mount's ceiling as though the user chose it would carry a range picked
+   * for an 18 mm mount over to a 54 mm one.
    */
   await expect(maxThumb).toHaveValue('2'); // STD_DIAMS [6, 13, 18, …] → 18 mm
   await expect(dialog.getByText(/Any–18\.0 mm/)).toBeVisible();
@@ -156,7 +154,7 @@ test('the diameter range persists across reloads', async ({ page }) => {
 test('the picker filters by total impulse', async ({ page }) => {
   const dialog = await openPicker(page);
   // The default rocket's 18 mm mount, so the list is 18 mm motors: A through D.
-  // Waited for, not just counted: the catalog is a ~1.6 MB fetch and `count()`
+  // Waited for, not just counted: the catalog is a multi-megabyte fetch and `count()`
   // does not retry, so an immediate count is only ever the empty loading list.
   const rows = dialog.locator('ul li button[aria-pressed]');
   await expect(rows.first()).toBeVisible();
@@ -187,9 +185,9 @@ test('the manufacturer selection persists across reloads', async ({ page }) => {
   // Scoped to the <details> the manufacturers live in. Unscoped, `.first()` also
   // matches the "Fits the mount" checkbox, which sits outside it and is already
   // on screen: whenever the list has not finished opening, `.first()` resolves
-  // to THAT immediately rather than waiting, and the test ticks the wrong box.
+  // to that immediately rather than waiting, and the test ticks the wrong box.
   const firstMfr = dialog.locator('details').getByRole('checkbox').first();
-  const name = (await firstMfr.evaluate((el) => el.closest('label')?.textContent?.trim() ?? '')) as string;
+  const name = await firstMfr.evaluate((el) => el.closest('label')?.textContent?.trim() ?? '');
   await firstMfr.check();
   await expect(summary).toHaveText(name);
 
@@ -215,7 +213,7 @@ test('the motor card exposes an ignition event that persists across reloads', as
   await expect(page.getByLabel('Ignition delay (s)')).toBeVisible();
 
   // The setting rides on the flight configuration, so the workspace autosave
-  // restores it — once it has actually been written, which is what this waits for.
+  // restores it, once it has actually been written, which is what this waits for.
   await autosaved(page, '"ignitionEvent":"launch"');
   await page.reload();
   await openTab(page, 'Configurations'); // a reload lands on Design

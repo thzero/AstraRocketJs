@@ -3,9 +3,10 @@
  *
  * `Tab` is what the whole workbench is doing, and it reads the same at every
  * width: Design changes geometry, Configurations holds the motor loadouts the
- * runs fly, Simulations manages the runs over it, Results reads one back. Each tab gets its own column layout (see App.tsx).
+ * runs fly, Simulations manages the runs over it, Results reads one back, Tools holds the
+ * standalone calculators. Each tab gets its own column layout (see App.tsx).
  *
- * `DesignPane` is a PHONE concern and nothing more. The Design tab wants to show
+ * `DesignPane` is a phone concern and nothing more. The Design tab wants to show
  * the stats strip and the drawing together, which it does at lg+; a phone has
  * room for one, so below that breakpoint this picks which. Keeping it off `Tab` is
  * what lets one tab value drive both layouts: as a top-level tab it would force
@@ -32,9 +33,9 @@ export type ConfigsTab = 'motors' | 'recovery' | 'separation';
  * The toggle re-exports both.
  */
 export type ViewMode = '2d' | '3d' | 'drag' | 'flight' | 'path' | 'ground' | 'environment';
-/** Views that read the design itself — the Design tab's switch. */
+/** Views that read the design itself: the Design tab's switch. */
 export const DESIGN_VIEWS: readonly ViewMode[] = ['2d', '3d', 'drag'];
-/** Views that read a flight result — the Results tab's switch. */
+/** Views that read a flight result: the Results tab's switch. */
 export const RESULT_VIEWS: readonly ViewMode[] = ['flight', 'path', 'ground', 'environment'];
 
 /** True for a view that reads a flight result rather than the design itself. */

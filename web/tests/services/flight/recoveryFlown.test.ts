@@ -7,7 +7,7 @@ import type { FlightResult } from '../../../src/engine/openRocketEngine';
  *
  * The point of this module is that nothing in it computes: the mass and the
  * descent speed are read out of the kernel's series at the time of the kernel's
- * events. So the cases below are about WHICH sample gets read, which is the only
+ * events. So the cases below are about which sample gets read, which is the only
  * decision there is to get wrong.
  */
 
@@ -57,7 +57,7 @@ describe('deviceDescent', () => {
   });
 
   /**
-   * The settled rate, at the END of the device's own phase. Sampled at the
+   * The settled rate, at the end of the device's own phase. Sampled at the
    * opening instead it would report the speed the rocket was still slowing from:
    * -2 m/s at apogee under the drogue, which is not a descent rate.
    */

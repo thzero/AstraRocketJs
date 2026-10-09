@@ -17,17 +17,15 @@ export type { Cdx1ExportEngine } from './rasaero/engines';
 export type { MachAltTable } from './rasaero/simulation';
 
 /**
- * RASAero II (.CDX1) design EXPORT. Ported from the sibling mmrocket-sim
- * `services/rasaeroFile.ts` (proven against real RASAero II 2026-08-25: the
- * exported single-stage file opened cleanly — "Motor: J350W (AT)", Loaded Wt.
- * 5.9966 lb). Format knowledge mirrors the desktop's file/rasaero package:
- * - Geometry in INCHES (× 39.37 from meters), diameters not radii; angles
+ * RASAero II (.CDX1) design export. Format knowledge mirrors the desktop's
+ * file/rasaero package:
+ * - Geometry in inches (× 39.37 from meters), diameters not radii; angles
  *   degrees; altitudes feet; weights pounds; speeds mph; pressure in-Hg.
- * - The airframe is a FLAT part list (NoseCone/BodyTube/Transition/Booster),
+ * - The airframe is a flat part list (NoseCone/BodyTube/Transition/Booster),
  *   each with an absolute <Location>; fins nest inside their parent tube. A
- *   <Booster> element IS a lower stage.
- * - RASAero is aerodynamics-only — masses/CG live in a mandatory <Simulation>
- *   block as CUMULATIVE per-stage launch weights (only the whole-rocket loaded
+ *   <Booster> element is a lower stage.
+ * - RASAero is aerodynamics-only: masses/CG live in a mandatory <Simulation>
+ *   block as cumulative per-stage launch weights (only the whole-rocket loaded
  *   mass/CG is known here, so it fills the last stage's cell; desktop parity).
  *
  * This module is the orchestrator: the sustainer chain, boosters, recovery,
@@ -51,8 +49,8 @@ export interface Cdx1ExportInput {
   engineExport?: boolean;
   /**
    * Collects the non-fatal notes the desktop exporter would raise as warnings
-   * (a finish with no RASAero surface, say). Optional so existing callers are
-   * untouched; without it the notes are simply not kept.
+   * (a finish with no RASAero surface, say). Optional; without it the notes
+   * are not kept.
    */
   warnings?: string[];
 }

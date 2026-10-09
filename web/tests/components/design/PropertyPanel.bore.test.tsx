@@ -7,14 +7,14 @@ import { serveData } from '../../testing/serveData';
 import type { ComponentNode } from '../../../src/engine/openRocketEngine';
 
 /**
- * The tube dimensions as the panel now states them: an outer DIAMETER, an
+ * The tube dimensions as the panel states them: an outer diameter, an
  * inner diameter, and the wall between them.
  *
  * Two different translations are under test and they run opposite ways. The
  * outer diameter is a stored radius doubled for display and halved on the way
  * back in, so the box and the node hold different numbers for the same
  * dimension. The inner diameter is not stored at all: it is read from the
- * outer radius and the wall, and typing one writes the WALL, which is the only
+ * outer radius and the wall, and typing one writes the wall, which is the only
  * one of the three the `.ork` and the kernel actually carry.
  */
 const tube = (): ComponentNode =>
@@ -71,8 +71,8 @@ describe('a tube states its bore', () => {
     fireEvent.change(box('Inner diameter'), { target: { value: '5' } });
 
     // A bore wider than the tube is not a tube. Clamped at the outer diameter,
-    // which is a zero wall - already marked as degenerate on its own row -
-    // rather than a NEGATIVE one, which would flow into the mass, the mesh and
+    // which is a zero wall (already marked as degenerate on its own row),
+    // rather than a negative one, which would flow into the mass, the mesh and
     // the .ork as a number no consumer checks for.
     const patch = onChange.mock.calls[0]![0] as { thickness: number };
     expect(patch.thickness).toBeCloseTo(0, 9);
@@ -95,8 +95,7 @@ describe('a tube states its bore', () => {
  * `Transition.isClipped()` returns false outright for a shape that is not
  * clippable, so on a conical or ogive transition the clipped flag is read by
  * nothing: not the kernel, not the schematic, not the 3D build. The shape
- * parameter has been filtered this way since it was added; the clipped flag
- * arrived without the same guard.
+ * parameter is filtered the same way.
  */
 const transition = (shape: string): ComponentNode =>
   ({
@@ -129,7 +128,7 @@ describe('the clipped-profile flag', () => {
 
 /**
  * A filled part has no wall and no bore, so neither row is offered: the
- * desktop greys them out, and leaving them here would let you type a
+ * desktop grays them out, and leaving them here would let you type a
  * thickness the kernel is ignoring.
  */
 describe('the filled flag', () => {

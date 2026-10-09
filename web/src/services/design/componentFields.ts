@@ -8,16 +8,16 @@ import { KERNEL_DEPLOYMENT } from '../../tree/kernelDefaults';
  * The component field table: which properties each component type exposes,
  * what kind each is, and which ones a zero makes nonsense of.
  *
- * This is DOMAIN DATA, not presentation. It encodes the OpenRocket component
+ * This is domain data, not presentation. It encodes the OpenRocket component
  * vocabulary, the shape lists, the deploy and separation event vocabularies,
- * the unit kinds and the required-ness. It does NOT live in `PropertyPanel`: three
- * test files import it directly, and `services/design/requiredComponent` cross-checks its
- * own invariants against it, so a service would be depending on a component module
- * for the shape of its own domain.
+ * the unit kinds and the required-ness. It does not live in `PropertyPanel`:
+ * services (`treeEdit`) and tests import it directly, and it takes its required
+ * list from `services/design/requiredComponent`, so a service would otherwise be
+ * depending on a component module for the shape of its own domain.
  */
 
 /**
- * The panel sections a field can be pulled OUT of the dimension list into.
+ * The panel sections a field can be pulled out of the dimension list into.
  *
  * - `placement` is where the part goes: the angle around the body, rendered
  *   beside "Position from" and "Offset" rather than in the middle of the
@@ -31,7 +31,7 @@ import { KERNEL_DEPLOYMENT } from '../../tree/kernelDefaults';
  *   is made of, which is rarely the fin's own (epoxy on plywood).
  * - `shoulder` is the stub that plugs into the tube next door: four fields that
  *   describe a different piece of the part from the cone or taper above them,
- *   and that a transition has TWO of. `foreShoulder` and `aftShoulder` are
+ *   and that a transition has two of. `foreShoulder` and `aftShoulder` are
  *   those two, kept apart rather than run together, because eight rows under
  *   one heading is a wall and the two ends are independent builds.
  *
@@ -40,64 +40,65 @@ import { KERNEL_DEPLOYMENT } from '../../tree/kernelDefaults';
 export type PanelSection =
   'placement' | 'finTab' | 'motor' | 'fillet' | 'shoulder' | 'foreShoulder' | 'aftShoulder' | 'comment';
 
-/**
- * `diameter` means the value is STORED as a radius and EDITED as a diameter.
- *
- * The node keys mirror the `.ork` tags, which are radii in meters, and this
- * panel renders node keys straight through - so every airframe dimension read
- * as a radius while everything around it spoke diameter: the parts picker's
- * own column (`outerDiameter`, halved on apply in treeEdit.ts), the component
- * tree's row (`outerRadius * 2`), the DXF sheet's `Ø` labels, the motor
- * catalog, the rail button (which STORES a diameter), and OpenRocket itself.
- * Nobody measures a tube with a radius.
- *
- * It is a per-field flag rather than a rule about key names, because a fillet
- * radius really is a radius: it is the bead along a fin root, not a circle
- * anybody measures across. Storage does not move: the `.ork` tag, the kernel bridge and the
- * catalog all still carry radii, and only the two numbers at the edit boundary
- * are doubled and halved.
- */
-/**
- * `auto` names the node key of a flag that makes this dimension FOLLOW
- * something else, and the field read-only while it is set.
- *
- * Used by the shoulder diameters, which follow the bore of the tube they plug
- * into (see services/design/autoShoulder.ts). The stored value is still a plain
- * number - the resolver writes it - so every consumer outside this panel is
- * unaffected, and clearing the box pins whatever it currently is.
- */
 type FieldFlags = {
   /**
-   * A ZERO here is degenerate; it does NOT mean the box can be empty.
+   * A zero here is degenerate; it does not mean the box can be empty.
    *
-   * Unlike the launch conditions -- where a cleared field has to be told apart
-   * from a typed zero, because still air and sea level are real values -- a part
-   * has no meaningful "blank length". Zero IS the invalid state, so there is no
+   * Unlike the launch conditions (where a cleared field has to be told apart
+   * from a typed zero, because still air and sea level are real values), a part
+   * has no meaningful "blank length". Zero is the invalid state, so there is no
    * second state to model and the field keeps storing a number.
    *
    * Marked conservatively: only where a zero makes the part stop being that part.
-   * Plenty of dimensions here are legitimately zero and are NOT marked -- a
+   * Plenty of dimensions here are legitimately zero and are not marked: a
    * tipChord of 0 is a delta fin, a sweep or cant of 0 is a straight one, a
    * shoulder or fin tab of 0 is simply absent, and every delay and angle offset
    * starts at 0.
    */
   required?: true;
   section?: PanelSection;
+  /**
+   * The value is stored as a radius and edited as a diameter.
+   *
+   * The node keys mirror the `.ork` tags, which are radii in meters, while
+   * everything around the panel speaks diameter: the parts picker's own column
+   * (`outerDiameter`, halved on apply in treeEdit.ts), the component tree's row
+   * (`outerRadius * 2`), the DXF sheet's `Ø` labels, the motor catalog, the
+   * rail button (which stores a diameter), and OpenRocket itself. Nobody
+   * measures a tube with a radius.
+   *
+   * It is a per-field flag rather than a rule about key names, because a fillet
+   * radius really is a radius: it is the bead along a fin root, not a circle
+   * anybody measures across. Storage does not move: the `.ork` tag, the kernel
+   * bridge and the catalog all carry radii, and only the two numbers at the edit
+   * boundary are doubled and halved.
+   */
   diameter?: true;
-  /** `flag` is the node key that turns following on; `tip` names the `prop.*`
-   *  string that says WHAT is being followed, which differs per field. */
+  /**
+   * A flag that makes this dimension follow something else, and the field
+   * read-only while it is set.
+   *
+   * Used by the shoulder diameters, which follow the bore of the tube they plug
+   * into (see services/design/autoShoulder.ts), and by the radii and recovery
+   * figures the kernel resolves. The stored value is still a plain number (the
+   * resolver writes it), so every consumer outside this panel is unaffected, and
+   * clearing the box pins whatever it currently is.
+   *
+   * `flag` is the node key that turns following on; `tip` names the `prop.*`
+   * string that says what is being followed, which differs per field.
+   */
   auto?: { flag: string; tip: 'autoShoulder' | 'autoRadius' | 'autoComputed' };
 };
 
 export type Field = FieldFlags &
   (
     | { key: string; label: string; kind: 'length' } // stored m, shown in units.length
-    // A tube's BORE. Not a node key at all: it is read from the outer radius
+    // A tube's bore. Not a node key at all: it is read from the outer radius
     // and the wall, and typing one writes the wall back. See the `bore` branch
     // in DimensionFields for why the wall is the side that gives.
     | { key: string; label: string; kind: 'bore' }
     // A second door onto numbers the part already stores: a fin's sweep as an
-    // ANGLE, a streamer's area and aspect ratio, a mass component's density.
+    // angle, a streamer's area and aspect ratio, a mass component's density.
     // `key` names the row, not a node key; `derived` names the pair of
     // conversions in services/design/derivedFields.ts.
     | { key: string; label: string; kind: 'derived'; derived: DerivedName; step?: number }
@@ -108,7 +109,7 @@ export type Field = FieldFlags &
     | { key: string; label: string; kind: 'angle'; step?: number } // stored radians, shown in units.angle
     | { key: string; label: string; kind: 'bool' }
     // Free text, a paragraph rather than a line: OpenRocket gives every
-    // component a Comment tab, and ours was dropped on every save.
+    // component a Comment tab.
     | { key: string; label: string; kind: 'text' }
     | {
         key: string;
@@ -123,11 +124,11 @@ export type Field = FieldFlags &
       }
   );
 
-// The real OpenRocket shape vocabulary — matches the engine (shapeOf), the
-// drawing (shapeProfile), and the parts catalog. NOT 'elliptical'/'powerseries'.
+// The real OpenRocket shape vocabulary: matches the engine (shapeOf), the
+// drawing (shapeProfile), and the parts catalog. Not 'elliptical'/'powerseries'.
 const NOSE_SHAPES = ['ogive', 'conical', 'ellipsoid', 'power', 'parabolic', 'haack'];
 
-// Recovery-device deployment triggers — the kernel DeployEvent vocabulary
+// Recovery-device deployment triggers: the kernel DeployEvent vocabulary
 // (ComponentFactory.deployEventOf); the same strings .ork import/export use.
 // Apogee first: it is what a new part is created with and the most common
 // single-deploy trigger. A device with no event flies the kernel's default,
@@ -148,7 +149,7 @@ const MASS_COMPONENT_TYPES = [
 ];
 
 // Stage-separation triggers (SeparationEvent, ComponentFactory.separationEventOf)
-// — when a stage lets go of the one above it. Ejection first: the desktop default
+// (when a stage lets go of the one above it). Ejection first: the desktop default
 // and the low/mid-power norm (drop off on the upper stage's ejection charge).
 const SEPARATION_EVENTS = [
   'ejection',
@@ -178,19 +179,10 @@ const FIN_TABS: Field[] = [
   },
 ];
 
-// `rotation` is a fin set's BASE ROTATION: where its first fin sits around the
-// body, with the rest spaced evenly from it. It round-trips through .ork
-// (importTags.ts:182 / exportParts.ts:179) and the 3D view places every fin and
-// tube fin at it (rocketPieces.ts:141, :166), but nothing could SET it, so the
-// only way to have a fin set anywhere but 0 was to import a file that already
-// did - the same gap `cluster` had. The fin marking guide is what made it
-// matter: the guide prints where each fin goes RELATIVE to the launch lug, and
-// that relationship IS this field.
 // The glue bead along the fin root. The kernel computes its volume, mass and
-// CM (FinSet.calculateFilletVolumeCentroid) and always has; what was missing
-// was the engine bridge ever setting the radius, so a fillet the .ork carried
-// was preserved on disk and flew as nothing. TUBE fins have none: a TubeFinSet
-// is a Tube, not a FinSet, so the kernel has no fillet to give it.
+// CM (FinSet.calculateFilletVolumeCentroid) from the radius the engine bridge
+// sets. Tube fins have none: a TubeFinSet is a Tube, not a FinSet, so the
+// kernel has no fillet to give it.
 const FIN_FILLET: Field = { key: 'filletRadius', label: 'filletRadius', kind: 'length', section: 'fillet' };
 
 /** Notes on this part. Upstream puts it on `RocketComponent`, so every type has
@@ -199,8 +191,7 @@ const COMMENT: Field = { key: 'comment', label: 'comment', kind: 'text', section
 
 // The fin's section through the chord. OpenRocket's own FinSet.CrossSection,
 // which carries the volume factors 1.00 / 0.99 / 0.85 and so changes the fin's
-// mass as well as its drag. The kernel has been reading it from the tree since
-// the fin bridge was written; nothing could set it.
+// mass as well as its drag. The kernel reads it from the tree.
 const FIN_CROSS_SECTION: Field = {
   key: 'crossSection',
   label: 'crossSection',
@@ -209,8 +200,8 @@ const FIN_CROSS_SECTION: Field = {
   optI18n: 'crossSection',
 };
 
-// Off-center placement of INTERNAL structure: how far off the axis, and
-// which way round. Both round-trip through `.ork` and now reach the kernel.
+// Off-center placement of internal structure: how far off the axis, and
+// which way round. Both round-trip through `.ork` and reach the kernel.
 const RADIAL_PLACEMENT: Field[] = [
   { key: 'radialPosition', label: 'radialPosition', kind: 'length', section: 'placement' },
   { key: 'radialDirection', label: 'radialDirection', kind: 'angle', step: 15, section: 'placement' },
@@ -223,7 +214,7 @@ const LINE_INSTANCES: Field[] = [
   { key: 'instanceSeparation', label: 'instanceSeparation', kind: 'length', section: 'placement' },
 ];
 
-// A recovery device or mass object's PACKED size: the space it takes up in the
+// A recovery device or mass object's packed size: the space it takes up in the
 // airframe, and where its mass therefore sits.
 const PACKED: Field[] = [
   { key: 'length', label: 'packedLength', kind: 'length' },
@@ -239,13 +230,13 @@ const PACKED: Field[] = [
 ];
 
 /**
- * The inner diameter of a straight tube, between its outside and its wall -
+ * The inner diameter of a straight tube, between its outside and its wall:
  * the order those three read in, and the order OpenRocket puts them in.
  *
- * Every tube in the table carries an outer radius and a wall thickness and the
- * bore was derived from the pair in `discGeometry.tubeRadii`, where the DXF
- * sheet, the printed solids and the 3D cutaway all read it, and shown nowhere.
- * It is the dimension a tube is actually bought and fitted by: what slides
+ * Every tube in the table carries an outer radius and a wall thickness, and the
+ * bore is derived from the pair in `discGeometry.tubeRadii`, where the DXF
+ * sheet, the printed solids and the 3D cutaway all read it. It is the
+ * dimension a tube is actually bought and fitted by: what slides
  * into it, what it slides over, whether the motor goes in.
  *
  * Not on a nose cone or transition, whose wall follows a curved profile and
@@ -255,9 +246,14 @@ const PACKED: Field[] = [
  */
 const TUBE_BORE: Field = { key: 'innerDiameter', label: 'innerDiameter', kind: 'bore' };
 
+// `rotation` is a fin set's base rotation: where its first fin sits around the
+// body, with the rest spaced evenly from it. It round-trips through .ork
+// (importTags.ts / exportParts.ts) and the 3D view places every fin and tube fin
+// at it (rocketPieces.ts). The fin marking guide prints where each fin goes
+// relative to the launch lug, and that relationship is this field.
 const FIN_ROTATION: Field = { key: 'rotation', label: 'rotation', kind: 'angle', step: 5, section: 'placement' };
 
-// Off-axis assembly placement (PodSet / ParallelStage) — how many instances
+// Off-axis assembly placement (PodSet / ParallelStage): how many instances
 // ring the parent axis, how far off it, and where they start. radiusMethod:
 // 'relative' measures the offset as a gap from the parent surface, 'free' from
 // the parent centerline (see tree/assembly.resolveAssemblyRadius). Shared by
@@ -304,7 +300,6 @@ const DEPLOY_FIELDS: Field[] = [
   { key: 'deployDelay', label: 'deployDelay', kind: 'number', unit: 's', step: 0.5 },
 ];
 
-// `label` is an i18n key suffix under `prop.*` (resolved at render).
 /**
  * Unit-scope keys the panel uses for its own rows, beyond the type-specific
  * fields. Named here so the scope test can check no FIELDS entry reuses one.
@@ -312,10 +307,13 @@ const DEPLOY_FIELDS: Field[] = [
 export const PANEL_SCOPE_KEYS = ['overrideMass', 'overrideCGX', 'offset'] as const;
 
 /**
- * Exported for `PropertyPanel.scopes.test.ts`, which checks that no two fields
- * of a type collide on a unit scope. The scopes are strings assembled from
- * (type, key), so a duplicated key would silently make two fields share one
- * unit choice.
+ * The fields per component type, before `required` is filled in. `label` is an
+ * i18n key suffix under `prop.*` (resolved at render).
+ *
+ * `PropertyPanel.scopes.test.ts` checks (through {@link FIELDS}) that no two
+ * fields of a type collide on a unit scope. The scopes are strings assembled
+ * from (type, key), so a duplicated key would silently make two fields share
+ * one unit choice.
  */
 const RAW_FIELDS: Record<string, Field[]> = {
   // Separation only, shown for a non-first stage (see the render guard).
@@ -323,7 +321,7 @@ const RAW_FIELDS: Record<string, Field[]> = {
   nosecone: [
     { key: 'shape', label: 'shape', kind: 'select', options: NOSE_SHAPES, optI18n: 'noseShape' },
     // Only meaningful for the shapes whose profile it actually controls
-    // (ogive/power/parabolic/haack) - filtered at render by shapeUsesParameter.
+    // (ogive/power/parabolic/haack); filtered at render by shapeUsesParameter.
     { key: 'shapeParameter', label: 'shapeParameter', kind: 'number', step: 0.05 },
     { key: 'length', label: 'length', kind: 'length' },
     {
@@ -335,7 +333,7 @@ const RAW_FIELDS: Record<string, Field[]> = {
     },
     // Solid all the way through, with no bore. The desktop's Filled
     // checkbox, and `<thickness>filled</thickness>` in the file. The wall row
-    // is dropped while it is on, the way the desktop greys it out.
+    // is dropped while it is on, the way the desktop grays it out.
     { key: 'filled', label: 'filled', kind: 'bool' },
     { key: 'thickness', label: 'thickness', kind: 'length' },
     // A flipped nose cone is a tail cone: the same part turned round.
@@ -364,7 +362,7 @@ const RAW_FIELDS: Record<string, Field[]> = {
     TUBE_BORE,
     // Solid all the way through, with no bore. The desktop's Filled
     // checkbox, and `<thickness>filled</thickness>` in the file. The wall row
-    // is dropped while it is on, the way the desktop greys it out.
+    // is dropped while it is on, the way the desktop grays it out.
     { key: 'filled', label: 'filled', kind: 'bool' },
     { key: 'thickness', label: 'thickness', kind: 'length' },
     { key: 'motorMount', label: 'motorMount', kind: 'bool', section: 'motor' },
@@ -379,10 +377,9 @@ const RAW_FIELDS: Record<string, Field[]> = {
       optI18n: 'noseShape',
     },
     // Same as the nose cone: a transition offers the same four parametric
-    // shapes, `orkImport` reads <shapeparameter> into it, `orkExport` writes it
-    // back, and the mesh/report/schematic/3D view all render it - so without
-    // this row a power or haack transition had the same uneditable, frozen
-    // parameter the nose cone did. Filtered at render by shapeUsesParameter.
+    // shapes, the .ork reader and writer carry <shapeparameter>, and the
+    // mesh/report/schematic/3D view all render it. Filtered at render by
+    // shapeUsesParameter.
     { key: 'shapeParameter', label: 'shapeParameter', kind: 'number', step: 0.05 },
     { key: 'length', label: 'length', kind: 'length' },
     {
@@ -401,12 +398,12 @@ const RAW_FIELDS: Record<string, Field[]> = {
     },
     // Solid all the way through, with no bore. The desktop's Filled
     // checkbox, and `<thickness>filled</thickness>` in the file. The wall row
-    // is dropped while it is on, the way the desktop greys it out.
+    // is dropped while it is on, the way the desktop grays it out.
     { key: 'filled', label: 'filled', kind: 'bool' },
     { key: 'thickness', label: 'thickness', kind: 'length' },
     // Clipped or full profile, for the shapes where it means anything
     // (ellipsoid, power, haack). The drawing, the mesh and the kernel all read
-    // it; only a file could set it.
+    // it.
     { key: 'clipped', label: 'clipped', kind: 'bool' },
     { key: 'foreShoulderLength', label: 'foreShoulderLength', kind: 'length', section: 'foreShoulder' },
     {
@@ -417,11 +414,10 @@ const RAW_FIELDS: Record<string, Field[]> = {
       auto: { flag: 'foreShoulderAuto', tip: 'autoShoulder' },
       section: 'foreShoulder',
     },
-    // Each shoulder's own WALL, and whether its far end is closed by a disc of
-    // the part's material. Both round-tripped through `.ork` with no field to
-    // set them, and the wall was never handed to the kernel at all, so a
-    // transition's shoulders flew weighing nothing. A nose cone has carried the
-    // same two rows since it was written; this is the two-sided version.
+    // Each shoulder's own wall, and whether its far end is closed by a disc of
+    // the part's material. Both round-trip through `.ork` and reach the kernel,
+    // which weighs the shoulders from them. The nose cone has the same two rows;
+    // this is the two-sided version.
     { key: 'foreShoulderThickness', label: 'foreShoulderThickness', kind: 'length', section: 'foreShoulder' },
     { key: 'foreShoulderCapped', label: 'foreShoulderCapped', kind: 'bool', section: 'foreShoulder' },
     { key: 'aftShoulderLength', label: 'aftShoulderLength', kind: 'length', section: 'aftShoulder' },
@@ -493,10 +489,8 @@ const RAW_FIELDS: Record<string, Field[]> = {
     { key: 'thickness', label: 'thickness', kind: 'length' },
     { key: 'motorMount', label: 'motorMount', kind: 'bool', section: 'motor' },
     { key: 'motorOverhang', label: 'motorOverhang', kind: 'length', section: 'motor' },
-    // `cluster` round-trips through .ork (orkImport:366 / orkExport:466) and
-    // the 2D, aft and 3D views all draw the tube at every cluster offset — but
-    // nothing could SET it, so the only way to get a cluster was to import a
-    // file that already had one.
+    // `cluster` round-trips through .ork, and the 2D, aft and 3D views all draw
+    // the tube at every cluster offset.
     {
       key: 'cluster',
       label: 'cluster',
@@ -509,7 +503,7 @@ const RAW_FIELDS: Record<string, Field[]> = {
     // What the pattern is drawn at: the spacing between tubes, as a multiple of
     // the tube diameter, and the roll of the whole group.
     { key: 'clusterScale', label: 'clusterScale', kind: 'number', step: 0.1, section: 'motor' },
-    // The same spacing as a DISTANCE between tube walls. The desktop has one
+    // The same spacing as a distance between tube walls. The desktop has one
     // spinner and a Relative/Absolute switch over it; both rows are live here.
     {
       key: 'clusterSeparation',
@@ -582,20 +576,18 @@ const RAW_FIELDS: Record<string, Field[]> = {
     { key: 'length', label: 'length', kind: 'length' },
     { key: 'outerRadius', label: 'diameter', kind: 'length', diameter: true },
     TUBE_BORE,
-    // A lug's WALL round-trips through `.ork` (importReaders.ts:275 /
-    // exportWriters.ts:285) and sizes its printed solid, and nothing could set
-    // it - so the bore, which is the only dimension of a lug that has to be
-    // right, was whatever the file said or the 0.3 mm default. The rod has to
-    // fit through it.
+    // A lug's wall round-trips through `.ork` (importReaders.ts /
+    // exportWriters.ts) and sizes its printed solid. With the diameter it sets
+    // the bore, which is the one dimension of a lug that has to be right: the
+    // rod has to fit through it.
     { key: 'thickness', label: 'thickness', kind: 'length' },
     { key: 'angleOffset', label: 'rotation', kind: 'angle', section: 'placement' },
     ...LINE_INSTANCES,
   ],
   railbutton: [
     { key: 'outerDiameter', label: 'outerDiameter', kind: 'length' },
-    // The rest of the button: the file services have carried these since they
-    // stopped writing the desktop's constructor constants, and the kernel
-    // takes them now, so a 1010 button sized by hand weighs what it should.
+    // The rest of the button. The file services carry these and the kernel
+    // takes them, so a 1010 button sized by hand weighs what it should.
     { key: 'innerDiameter', label: 'innerDiameter', kind: 'length' },
     { key: 'height', label: 'height', kind: 'length' },
     { key: 'baseHeight', label: 'baseHeight', kind: 'length' },
@@ -609,9 +601,6 @@ const RAW_FIELDS: Record<string, Field[]> = {
     { key: 'cd', label: 'dragCoeff', kind: 'number', step: 0.05, auto: { flag: 'cdAuto', tip: 'autoComputed' } },
     { key: 'lineCount', label: 'lineCount', kind: 'count' },
     { key: 'lineLength', label: 'lineLength', kind: 'length', auto: { flag: 'lineLengthAuto', tip: 'autoComputed' } },
-    // Which half of a dual-deployment pair this is. The kernel judges the
-    // deployment speed against different thresholds depending on it, and cannot
-    // warn about dual deployment at all unless something on the stage says drogue.
     ...DEPLOY_FIELDS,
     ...PACKED,
     ...RADIAL_PLACEMENT,
@@ -632,10 +621,10 @@ const RAW_FIELDS: Record<string, Field[]> = {
     { key: 'mass', label: 'mass', kind: 'mass' },
     // The other way to say the same thing, for when you know what the lump is
     // made of rather than what it weighs. Approximate: the volume it divides by
-    // is the PACKED size, which is the room the part takes up, not the part.
+    // is the packed size, which is the room the part takes up, not the part.
     { key: 'massDensity', label: 'massDensity', kind: 'derived', derived: 'massDensity' },
-    // What the lump IS. No physics: OpenRocket uses it to name and picture the
-    // part, and it round-tripped through the file with nothing to set it.
+    // What the lump is. No physics: OpenRocket uses it to name and picture the
+    // part, and it round-trips through the file.
     {
       key: 'massComponentType',
       label: 'massComponentType',
@@ -647,8 +636,7 @@ const RAW_FIELDS: Record<string, Field[]> = {
     ...RADIAL_PLACEMENT,
   ],
   shockcord: [
-    // The cord itself, which is the whole part: this type had no editable
-    // field at all, so its length came from a file or the 0.3 m default.
+    // The cord itself, which is the whole part.
     { key: 'cordLength', label: 'cordLength', kind: 'length', auto: { flag: 'cordLengthAuto', tip: 'autoComputed' } },
     ...PACKED,
     ...RADIAL_PLACEMENT,
@@ -666,11 +654,11 @@ const RAW_FIELDS: Record<string, Field[]> = {
  * which is also what the Run button and the run loop check. One list, so the
  * editor cannot mark a field the run path ignores, or the other way round.
  *
- * A field the kernel DERIVES is never marked, even though it is required in the
+ * A field the kernel derives is never marked, even though it is required in the
  * sense that the part cannot work without one: leaving a centering ring's outer
  * radius blank means "the tube I sit in", which is a real answer and the one
  * OpenRocket writes as `auto`. A red asterisk there would demand a number the
- * design does not need, and the run path agrees - `badDimensions` skips the same
+ * design does not need, and the run path agrees: `badDimensions` skips the same
  * pairs.
  */
 export const FIELDS: Record<string, Field[]> = Object.fromEntries(

@@ -14,24 +14,24 @@ import { hexOf, parseHexColor } from '../design/colorHex';
 import { degToRad } from '../../prefs/units';
 
 /**
- * RockSim (`.rkt`) IMPORT.
+ * RockSim (`.rkt`) import.
  *
  * A TypeScript port of OpenRocket's `file/rocksim/importt/` handlers, not an
  * extraction of them. That package is SAX-based and pulls in the document,
  * appearance and warning machinery the desktop is built on; the schema it
  * encodes is small enough to read directly, and reading it here keeps the
- * importer on the same side of the engine boundary as `orkImport` — plain
+ * importer on the same side of the engine boundary as `orkImport`: plain
  * DOM, unit-testable, no kernel round trip.
  *
  * The element vocabulary, the unit factors and every enum below are taken from
  * `RockSimCommonConstants.java` and its four enums, so a future OpenRocket bump
  * can be diffed against those files.
  *
- * WHAT ROCKSIM MEASURES IN. Everything is millimeters and grams, and every
- * circular dimension is a DIAMETER where OpenRocket wants a radius — hence the
- * three divisors below. Getting one of those wrong produces a design that is
- * silently 1000x or 2x off rather than one that fails to load, which is why
- * they are named constants used everywhere rather than inline literals.
+ * Units: everything is millimeters and grams, and every circular dimension is
+ * a diameter where OpenRocket wants a radius, hence the three divisors below.
+ * Getting one of those wrong produces a design that is 1000x or 2x off rather
+ * than one that fails to load, which is why they are named constants used
+ * everywhere rather than inline literals.
  */
 
 /** mm → m. `RockSimCommonConstants.ROCKSIM_TO_OPENROCKET_LENGTH`. */
@@ -43,7 +43,7 @@ const MASS = 1000;
 /**
  * RockSim surface density → kg/m². `…_TO_OPENROCKET_SURFACE_DENSITY`.
  *
- * DIVIDED, like LENGTH, RADIUS and MASS above: the kernel's whole rocksim
+ * Divided, like LENGTH, RADIUS and MASS above: the kernel's whole rocksim
  * package converts inbound by dividing by its constant
  * (`BaseHandler.computeDensity` is `raw / type.asOpenRocket()`) and outbound by
  * multiplying (`BasePartDTO` line 181). The direction matters by a factor of a
@@ -109,17 +109,16 @@ const dia = (el: Element, name: string): number | undefined => {
 const densityType = (el: Element): number => clampCount(num(el, 'DensityType') ?? 0, 0, 2);
 
 /**
- * HTML 4.01 / CSS level 1 basic color keywords, which is the whole set of NAMES
+ * HTML 4.01 / CSS level 1 basic color keywords, which is the whole set of names
  * both an SVG `fill` and a three.js material understand without a lookup table,
  * and the set RockSim writes ("Black", "Red", ...).
  *
- * Here so the value can be NORMALIZED to the `#rrggbb` the tree's `color` key
- * means everywhere else. Carried as a name it rendered (both consumers parse
- * CSS names) and then vanished on the way out: `orkExport.colorXml` matches
- * `/^#?([0-9a-f]{6})$/i` and silently drops anything else, so a RockSim design
- * converted to `.ork` lost every part color it had.
+ * Here so the value can be normalized to the `#rrggbb` the tree's `color` key
+ * means everywhere else. A name would render (both consumers parse CSS names)
+ * but `colorXml` in `ork/exportParts.ts` only writes what `parseHexColor`
+ * accepts, so a RockSim design converted to `.ork` would lose its part colors.
  */
-// cspell:ignore grey -- a CSS color KEYWORD, not prose: CSS defines `gray` and
+// cspell:ignore grey -- a CSS color keyword, not prose: CSS defines `gray` and
 // `grey` as two spellings of one color and both are valid in an SVG `fill`, so a
 // file that says one of them has to be understood.
 const BASIC_COLORS: Record<string, string> = {
@@ -147,14 +146,13 @@ const BASIC_COLORS: Record<string, string> = {
 /**
  * A RockSim `<Color>` as the `#rrggbb` the tree means, or nothing.
  *
- * The .ork reader validates its three 0-255 channels and builds a hex string;
- * this wrote the element's text VERBATIM into the same key. So the key the
- * schematic hands to SVG `fill`, the 3D view hands to a three.js material and
- * the exporter matches against a strict hex pattern could hold any string at
- * all, and nothing downstream agreed on what to do with one.
+ * The .ork reader validates its three 0-255 channels and builds a hex string,
+ * and this does the same for the same key: the schematic hands it to SVG
+ * `fill`, the 3D view to a three.js material, and the exporter parses it as
+ * hex, so an arbitrary string there would mean something different to each.
  *
- * Accepts the three spellings a file actually carries - `#rrggbb`, a bare
- * `rrggbb`, the `#rgb` shorthand - and a basic color NAME. Anything else is
+ * Accepts the three spellings a file actually carries (`#rrggbb`, a bare
+ * `rrggbb`, the `#rgb` shorthand) and a basic color name. Anything else is
  * dropped, which leaves the part on its group color rather than on a value no
  * consumer can read.
  */
@@ -182,12 +180,12 @@ const rktColor = (raw: string | null | undefined): string | undefined => {
 const nonNeg = (v: number | undefined): number | undefined => (v === undefined ? undefined : Math.max(0, v));
 
 /**
- * The WALL a RockSim OD/ID pair describes.
+ * The wall a RockSim OD/ID pair describes.
  *
  * `BodyTube.setInnerRadius(r)` is `setThickness(getOuterRadius() - r)`, so the
- * handlers' unconditional `setInnerRadius` makes a zero ID a SOLID part rather
- * than a missing value. Treating it as missing left a solid rod, nose block or
- * engine block with the bridge's default wall and far too little mass.
+ * handlers' unconditional `setInnerRadius` makes a zero ID a solid part rather
+ * than a missing value. Treating it as missing would leave a solid rod, nose
+ * block or engine block with the bridge's default wall and far too little mass.
  */
 const wallFrom = (od: number | undefined, id: number | undefined): number | undefined =>
   od !== undefined && id !== undefined && od >= id ? od - id : undefined;
@@ -214,8 +212,8 @@ const readRadialAngle = (el: Element, n: ComponentNode, key: 'angleOffset' | 'ra
  * What every RockSim part carries: name, material, finish, the mass/CG
  * override pair and its axial placement.
  *
- * RockSim's override is ONE switch (`UseKnownCG`) over both mass and CG, and it
- * has no equivalent of OpenRocket's "apply to subcomponents" — `BaseHandler`
+ * RockSim's override is one switch (`UseKnownCG`) over both mass and CG, and it
+ * has no equivalent of OpenRocket's "apply to subcomponents": `BaseHandler`
  * explicitly clears those two flags. So a `.rkt` can only ever produce a
  * self-only override, and that is what is written here.
  */
@@ -253,7 +251,7 @@ function readCommon(el: Element, n: ComponentNode, withPosition: boolean): void 
     const offset = mm(el, 'Xb');
     if (offset !== undefined) {
       const method = LOCATION_METHODS[clampCount(num(el, 'LocationMode') ?? 0, 0, 2)]!;
-      // Only BOTTOM flips sign, exactly as `PositionDependentHandler.setLocation`
+      // Only bottom flips sign, exactly as `PositionDependentHandler.setLocation`
       // does: RockSim measures back-of-parent offsets in the other direction.
       n.position = { method, offset: method === 'bottom' ? -offset : offset };
     }
@@ -275,18 +273,17 @@ const readWall = (el: Element, n: ComponentNode): void => {
   put(n, 'thickness', mm(el, 'WallThickness'));
 };
 
-/** The shapes a shape PARAMETER means anything on (`NoseConeHandler`). */
+/** The shapes a shape parameter means anything on (`NoseConeHandler`). */
 const PARAMETERIZED_SHAPES = new Set(['power', 'parabolic', 'haack']);
 
 const readShape = (el: Element, n: ComponentNode): void => {
   const code = num(el, 'ShapeCode');
   const shape = SHAPES[clampCount(code ?? 1, 0, SHAPES.length - 1)]!;
   n['shape'] = shape;
-  // RockSim writes ShapeParameter for EVERY nose cone and transition, and
-  // `NoseConeHandler` applies it only on these three, because applying it
-  // elsewhere causes oddities in its own words. Not inert for us either: the
-  // mesh, the report, the schematic, the 3D view and the `.ork` writer all read
-  // the key.
+  // RockSim writes ShapeParameter for every nose cone and transition, and
+  // `NoseConeHandler` applies it only on these three shapes. The key is not
+  // inert here either: the mesh, the report, the schematic, the 3D view and the
+  // `.ork` writer all read it.
   if (PARAMETERIZED_SHAPES.has(shape)) put(n, 'shapeParameter', num(el, 'ShapeParameter'));
 };
 
@@ -301,24 +298,24 @@ const readMount = (el: Element, n: ComponentNode): void => {
 /**
  * The thickness a shoulder's wall and cap are made of.
  *
- * `NoseConeHandler.endHandler` and `TransitionHandler.endHandler`: a FILLED part
+ * `NoseConeHandler.endHandler` and `TransitionHandler.endHandler`: a filled part
  * has a solid shoulder, whose thickness is therefore its own radius; a hollow
- * one gives its shoulder the part's wall. Nothing set this, so the kernel's
- * `setForeShoulderLength` auto-filled the thickness from the PREVIOUS part's
- * wall - right for a hollow part by coincidence, wrong for a filled one.
+ * one gives its shoulder the part's wall. Left unset, the kernel's
+ * `setForeShoulderLength` fills the thickness from the previous part's wall,
+ * which is wrong for a filled part.
  */
 const shoulderWall = (el: Element, n: ComponentNode, shoulderRadius: number | undefined): number | undefined =>
   n['filled'] === true ? shoulderRadius : mmPos(el, 'WallThickness');
 
 /**
- * A shoulder RockSim gives a length to is CAPPED.
+ * A shoulder RockSim gives a length to is capped.
  *
  * Neither RockSim nor its handlers have a cap flag: the kernel's
  * `setForeShoulderLength` turns the cap on itself when a shoulder first gains a
  * length, and desktop never turns it off, so every `.rkt` shoulder arrives
- * capped. Said explicitly here because `ComponentFactory` sets the cap AFTER the
- * length from a key that defaults to false, which undid the kernel's own answer
- * and left the cap discs weighing nothing.
+ * capped. Set explicitly here because `ComponentFactory` sets the cap after the
+ * length from a key that defaults to false, which would undo the kernel's own
+ * answer and leave the cap discs weighing nothing.
  */
 const cappedByLength = (length: number | undefined): boolean | undefined =>
   length !== undefined && length > 0 ? true : undefined;
@@ -364,8 +361,8 @@ const readTransition = (el: Element): ComponentNode => {
 };
 
 /**
- * A `BodyTube` is an airframe tube or an INNER tube depending on `IsInsideTube`
- * — RockSim uses one element for both, and `AttachedPartsHandler` picks the
+ * A `BodyTube` is an airframe tube or an inner tube depending on `IsInsideTube`:
+ * RockSim uses one element for both, and `AttachedPartsHandler` picks the
  * OpenRocket type from that flag.
  */
 const readBodyTube = (el: Element): ComponentNode => {
@@ -386,7 +383,7 @@ const RING_TYPES: Record<number, ComponentType> = {
   0: 'centeringring',
   1: 'bulkhead',
   2: 'engineblock',
-  3: 'tubecoupler', // "Sleeve" — a coupler on the outside; nearest we have
+  3: 'tubecoupler', // "Sleeve", a coupler on the outside; nearest we have
   4: 'tubecoupler',
 };
 
@@ -412,14 +409,14 @@ const readLaunchLug = (el: Element): ComponentNode => {
   return n;
 };
 
-/** `TipShapeCode` is the fin's CROSS SECTION (`FinSetHandler.convertTipShapeCode`). */
+/** `TipShapeCode` is the fin's cross section (`FinSetHandler.convertTipShapeCode`). */
 const CROSS_SECTIONS = ['square', 'rounded', 'airfoil'] as const;
 
 /**
- * The parts only a FREEFORM fin set may be mounted on.
+ * The parts only a freeform fin set may be mounted on.
  *
  * `Transition.isCompatible` admits an internal component and a FreeformFinSet
- * and nothing else, and a NoseCone IS a Transition. So a trapezoidal or
+ * and nothing else, and a NoseCone is a Transition. So a trapezoidal or
  * elliptical fin set on either would be refused by the kernel outright, which is
  * why `FinSetHandler.endHandler` converts a trapezoid to freeform before
  * attaching it, and why an elliptical one gets the handler's "can not be
@@ -469,13 +466,13 @@ function readFinSet(ctx: RktContext, el: Element, parent?: ComponentNode): Compo
   if (cant) n['cant'] = degToRad(cant);
   readRadialAngle(el, n, 'angleOffset');
 
-  // The fin's CROSS SECTION, which is what RockSim calls a tip shape. Dropping
-  // it made every imported fin square, changing its drag and its mass.
+  // The fin's cross section, which is what RockSim calls a tip shape. Without
+  // it every imported fin would be square, with the wrong drag and mass.
   const cross = CROSS_SECTIONS[clampCount(num(el, 'TipShapeCode') ?? 0, 0, CROSS_SECTIONS.length - 1)]!;
   if (cross !== 'square') n['crossSection'] = cross;
 
   /**
-   * An AIRFOIL fin takes RockSim's own computed mass and CG.
+   * An airfoil fin takes RockSim's own computed mass and CG.
    *
    * `FinSetHandler.endHandler` overrides them even though the file asked for no
    * override, because RockSim computes one mass per fin whatever the cross
@@ -490,7 +487,7 @@ function readFinSet(ctx: RktContext, el: Element, parent?: ComponentNode): Compo
     if (calcCg !== undefined) n['overrideCGX'] = Math.max(0, calcCg);
   }
 
-  // Through-the-wall tab. RockSim measures the offset from the FRONT of the
+  // Through-the-wall tab. RockSim measures the offset from the front of the
   // fin root, which is our 'top' method, and `FinSetHandler` says so.
   const tabLength = mmPos(el, 'TabLength');
   if (tabLength !== undefined && tabLength > 0) {
@@ -498,10 +495,10 @@ function readFinSet(ctx: RktContext, el: Element, parent?: ComponentNode): Compo
     const tabDepth = mmPos(el, 'TabDepth');
     if (tabDepth !== undefined) {
       // A tab is measured from the front of the fin root, so on a body that
-      // TAPERS the depth already contains the drop from the fore radius to the
+      // tapers the depth already contains the drop from the fore radius to the
       // aft one and has to give it back. Zero on a tube, where the two are equal.
-      const foreR = typeof parent?.['foreRadius'] === 'number' ? (parent['foreRadius'] as number) : 0;
-      const aftR = typeof parent?.['aftRadius'] === 'number' ? (parent['aftRadius'] as number) : 0;
+      const foreR = typeof parent?.['foreRadius'] === 'number' ? parent['foreRadius'] : 0;
+      const aftR = typeof parent?.['aftRadius'] === 'number' ? parent['aftRadius'] : 0;
       n['tabHeight'] = Math.max(0, tabDepth - Math.max(foreR - aftR, 0));
     }
     n['tabOffset'] = mm(el, 'TabOffset') ?? 0;
@@ -515,11 +512,10 @@ function readFinSet(ctx: RktContext, el: Element, parent?: ComponentNode): Compo
  * root point. Capped like the `.ork` reader's `<finpoints>`: every renderer
  * walks the outline per fin, so an absurd list is a frozen tab.
  *
- * Scanned with `indexOf` rather than `raw.split('|')`, which is the cap working
- * the way the `.ork` reader's sibling walk already does. `split` materializes
- * EVERY pair before the first cap test, so a crafted `<PointList>` of a few
- * megabytes allocated millions of substrings and the cap then discarded all but
- * the first few hundred - the bound was on what we keep, not on what we build.
+ * Scanned with `indexOf` rather than `raw.split('|')`, so the cap bounds the
+ * work as well as the result, as the `.ork` reader's sibling walk does. `split`
+ * materializes every pair before the first cap test, so a crafted `<PointList>`
+ * of a few megabytes would allocate millions of substrings first.
  */
 function readPointList(ctx: RktContext, el: Element): [number, number][] {
   const raw = tag(el, 'PointList');
@@ -561,15 +557,15 @@ const readTubeFinSet = (el: Element): ComponentNode => {
  * RockSim states a chute or streamer material in whichever of its three density
  * kinds the material database happened to hold:
  *
- * - SURFACE is already per area, so it only changes unit.
- * - LINE is per length, but RockSim ignores the thickness for it and treats it
+ * - Surface is already per area, so it only changes unit.
+ * - Line is per length, but RockSim ignores the thickness for it and treats it
  *   as a surface density, so it converts the same way.
- * - BULK is per VOLUME, so it has to be multiplied by the material's own
- *   `Thickness` to become per area. Skipping that put a kg/m3 number in a kg/m2
- *   field: a 0.05 mm mylar streamer at 1390 kg/m3 flew at 1390 kg/m2 instead of
- *   0.0695, which is twenty thousand times its weight.
+ * - Bulk is per volume, so it has to be multiplied by the material's own
+ *   `Thickness` to become per area. Skipping that would put a kg/m3 number in a
+ *   kg/m2 field: a 0.05 mm mylar streamer at 1390 kg/m3 would fly at 1390 kg/m2
+ *   instead of 0.0695.
  * - A zero density is a RockSim bug on these two parts, and the fallback is its
- *   own computed mass over the area, which needs the same thickness for BULK.
+ *   own computed mass over the area, which needs the same thickness for bulk.
  */
 function canopyDensity(el: Element, area: number): number | undefined {
   const type = densityType(el);
@@ -587,7 +583,7 @@ function canopyDensity(el: Element, area: number): number | undefined {
 }
 
 /**
- * Move the part material onto the canopy, as `getMaterialType()` SURFACE does.
+ * Move the part material onto the canopy, since its `getMaterialType()` is SURFACE.
  *
  * `readCommon` put RockSim's `Material` and `Density` on the bulk keys, which is
  * what every other part wants; a recovery device's fabric is a surface density
@@ -603,18 +599,18 @@ function applySurfaceMaterial(n: ComponentNode, density: number | undefined): vo
 }
 
 /**
- * The radius a chute or cord is PACKED at.
+ * The radius a chute is packed at.
  *
  * RockSim has no packed size, so `ParachuteHandler` approximates one from the
  * tube the device sits in and uses it for both the radius and the length. The
  * kernel's own default is 12.5 mm, so without this a chute packed into a 54 mm
- * tube flew with its mass on a radius nobody chose.
+ * tube would carry its mass on a radius nobody chose.
  */
 function packedRadius(parent: ComponentNode | undefined, diameter: number | undefined): number | undefined {
-  const outer = typeof parent?.['outerRadius'] === 'number' ? (parent['outerRadius'] as number) : undefined;
+  const outer = typeof parent?.['outerRadius'] === 'number' ? parent['outerRadius'] : undefined;
   if (parent?.type === 'bodytube' && outer !== undefined) return outer * 0.9;
   if (parent?.type === 'innertube' && outer !== undefined) {
-    const wall = typeof parent['thickness'] === 'number' ? (parent['thickness'] as number) : 0;
+    const wall = typeof parent['thickness'] === 'number' ? parent['thickness'] : 0;
     return Math.max(0, outer - wall) * 0.9;
   }
   return diameter === undefined ? undefined : diameter * 0.025;
@@ -622,7 +618,7 @@ function packedRadius(parent: ComponentNode | undefined, diameter: number | unde
 
 const readParachute = (el: Element, parent?: ComponentNode): ComponentNode => {
   const n = base(el, 'parachute', true);
-  // NOT a radius: OpenRocket's Parachute takes a diameter, and RockSim's `Dia`
+  // Not a radius: OpenRocket's Parachute takes a diameter, and RockSim's `Dia`
   // is one, so this is the one circular field that converts by LENGTH.
   const diameter = mmPos(el, 'Dia');
   put(n, 'diameter', diameter);
@@ -667,15 +663,15 @@ const CORD_PACKED_RATIO = 100;
 /**
  * Whether a RockSim mass object is really a shock cord.
  *
- * `MassObjectHandler.inferAsShockCord`: the type code says so, OR the object is
- * at least twice its parent's length and is made of a LINE material. Its comment
- * is explicit that the type code usually does NOT say so, because of bugs in
- * RockSim's own component and material databases - so testing the code alone
- * imported most cords as mass components.
+ * `MassObjectHandler.inferAsShockCord`: the type code says so, or the object is
+ * at least twice its parent's length and is made of a line material. The type
+ * code alone is unreliable because of bugs in RockSim's own component and
+ * material databases, so testing it alone would import most cords as mass
+ * components.
  */
 const isShockCord = (el: Element, parent: ComponentNode | undefined, len: number | undefined): boolean => {
   if (num(el, 'TypeCode') === 1) return true;
-  const parentLen = typeof parent?.['length'] === 'number' ? (parent['length'] as number) : undefined;
+  const parentLen = typeof parent?.['length'] === 'number' ? parent['length'] : undefined;
   return len !== undefined && parentLen !== undefined && len >= 2 * parentLen && densityType(el) === 2;
 };
 
@@ -689,7 +685,7 @@ const readMassObject = (el: Element, parent?: ComponentNode): ComponentNode => {
     // RockSim states one length for a cord and OpenRocket wants two, so the
     // packed length is the real one over the handler's own fudge factor.
     if (len !== undefined) n['length'] = len / CORD_PACKED_RATIO;
-    // The cord's own LINE material, which `readCommon` left on the bulk keys.
+    // The cord's own line material, which `readCommon` left on the bulk keys.
     const lineDensity = typeof n.density === 'number' ? n.density : undefined;
     if (lineDensity !== undefined) {
       n['lineDensity'] = lineDensity;
@@ -711,7 +707,7 @@ const readMassObject = (el: Element, parent?: ComponentNode): ComponentNode => {
     if (mass !== undefined) n['mass'] = Math.max(0, mass / MASS);
     put(n, 'radius', dia(el, 'Dia'));
   }
-  // RockSim measures a mass object's CG from the front of its PARENT, and that
+  // RockSim measures a mass object's CG from the front of its parent, and that
   // is already carried in the object's own position, so keeping it as a CG
   // override counts it twice. `MassObjectHandler` zeroes it for exactly this
   // reason; the mass override stays, and equals the mass the object already has.
@@ -723,17 +719,17 @@ const readMassObject = (el: Element, parent?: ComponentNode): ComponentNode => {
 function coaxialBore(parent: ComponentNode | undefined): number | undefined {
   if (!parent) return undefined;
   if (!['bodytube', 'innertube', 'tubecoupler', 'engineblock'].includes(parent.type)) return undefined;
-  const outer = typeof parent['outerRadius'] === 'number' ? (parent['outerRadius'] as number) : undefined;
+  const outer = typeof parent['outerRadius'] === 'number' ? parent['outerRadius'] : undefined;
   if (outer === undefined) return undefined;
-  const wall = typeof parent['thickness'] === 'number' ? (parent['thickness'] as number) : 0;
+  const wall = typeof parent['thickness'] === 'number' ? parent['thickness'] : 0;
   return Math.max(0, outer - wall);
 }
 
 const readPod = (ctx: RktContext, el: Element): ComponentNode => {
-  // A pod that SEPARATES is a strap-on booster, not a fixed pod.
+  // A pod that separates is a strap-on booster, not a fixed pod.
   // `PodHandler.endHandler` moves the children into a ParallelStage, copies the
   // offsets and drops the podset, because a detachable or ejected RockSim pod
-  // flies its own branch. A ParallelStage IS an AxialStage for us too, so this
+  // flies its own branch. A ParallelStage is an AxialStage for us too, so this
   // is the same part with a different type.
   const separates = tag(el, 'Detachable') === '1' || tag(el, 'Removed') === '1';
   const n = base(el, separates ? 'parallelstage' : 'podset', true);
@@ -752,16 +748,16 @@ const readPod = (ctx: RktContext, el: Element): ComponentNode => {
 /**
  * Take the assembly's own roll angle off everything inside it.
  *
- * RockSim stores a pod child's angle in ABSOLUTE coordinates and OpenRocket
+ * RockSim stores a pod child's angle in absolute coordinates and OpenRocket
  * stores it relative to the assembly, so `PodHandler.subtractAngleOffset` walks
- * the descendants and subtracts. Without it every part in a pod was rotated by
- * the pod's angle twice, which moves its mass off the axis it should be on.
+ * the descendants and subtracts. Without it every part in a pod would be rotated
+ * by the pod's angle twice, which moves its mass off the axis it should be on.
  * Stops at a nested assembly, which subtracts its own.
  */
 function subtractAngleOffset(children: ComponentNode[], angle: number): void {
   for (const child of children) {
     if (typeof child['angleOffset'] === 'number') {
-      child['angleOffset'] = (child['angleOffset'] as number) - angle;
+      child['angleOffset'] = child['angleOffset'] - angle;
     }
     if (child.type !== 'podset' && child.type !== 'parallelstage' && child.children) {
       subtractAngleOffset(child.children, angle);
@@ -772,7 +768,7 @@ function subtractAngleOffset(children: ComponentNode[], angle: number): void {
 // ------------------------------------------------------------------ walk ---
 
 /**
- * `parent` is the node the part is ATTACHED to, which several handlers need: a
+ * `parent` is the node the part is attached to, which several handlers need: a
  * fin's tab depth is measured against a tapering body, a chute's packed radius
  * against the tube it is stuffed in, and a mass object is only recognized as a
  * shock cord by comparing its length with its parent's.
@@ -798,11 +794,11 @@ const READERS: Record<string, Reader> = {
  * The parts under one container, in file order.
  *
  * RockSim nests two ways at once: a stage's axial parts are direct children of
- * `StageNParts`, while everything mounted ON a part sits in that part's
+ * `StageNParts`, while everything mounted on a part sits in that part's
  * `<AttachedParts>`. Both are walked here, attached parts second, so a tube's
  * rings and fins follow it the way the tree expects.
  *
- * `SubAssembly` is TRANSPARENT: RockSim uses it to group a reusable chunk of
+ * `SubAssembly` is transparent: RockSim uses it to group a reusable chunk of
  * design, and we have no equivalent, so its contents are inlined into the
  * parent rather than dropped.
  */
@@ -841,15 +837,15 @@ function readParts(ctx: RktContext, container: Element, depth = 0, parent?: Comp
         delete node['sweep'];
         node.type = 'freeformfinset';
       } else if (node.type === 'ellipticalfinset') {
-        // What desktop does with it, in its own words. Named rather than
-        // silently dropped, because a missing fin set is not a small thing.
+        // Desktop refuses it too. Named in the notes rather than dropped
+        // silently, so the user knows the fin set is missing.
         ctx.dropped.add('an elliptical fin set on a nose cone or transition, which cannot be mounted there');
         continue;
       }
     }
     const kids = readParts(ctx, el, depth + 1, node);
     if (kids.length > 0) node.children = kids;
-    // An assembly's children carry ABSOLUTE roll angles in the file.
+    // An assembly's children carry absolute roll angles in the file.
     if (isAssembly(node.type) && node.children) {
       subtractAngleOffset(node.children, numOpt(node, 'angleOffset') ?? 0);
     }
@@ -858,12 +854,12 @@ function readParts(ctx: RktContext, container: Element, depth = 0, parent?: Comp
   return out;
 }
 
-/** Parts RockSim has and we do not — named so the banner says what was lost. */
+/** Parts RockSim has and we do not, named so the banner says what was lost. */
 const KNOWN_UNSUPPORTED = new Set(['RingTail']);
 
 // ------------------------------------------------------------------ entry ---
 
-/** RockSim numbers its stages from the NOSE DOWN: 3 is the sustainer. */
+/** RockSim numbers its stages from the nose down: 3 is the sustainer. */
 const STAGE_ELEMENTS = ['Stage3Parts', 'Stage2Parts', 'Stage1Parts'] as const;
 
 /**
@@ -891,7 +887,7 @@ export function importRkt(data: ArrayBuffer | string): OrkImportResult {
   // `StageCount` decides how many of the three blocks are real: RockSim leaves
   // the unused ones in the file, empty, and reading them anyway would add empty
   // booster stages to every single-stage design.
-  // Counted from the NOSE: `RockSimHandler` always reads Stage3Parts, takes
+  // Counted from the nose: `RockSimHandler` always reads Stage3Parts, takes
   // Stage2Parts only when the count is 2 or more and Stage1Parts only at 3. A
   // single-stage design therefore lives in Stage3Parts, not Stage1Parts.
   const stageCount = clampCount(num(design, 'StageCount') ?? 1, 1, STAGE_ELEMENTS.length);
@@ -910,10 +906,10 @@ export function importRkt(data: ArrayBuffer | string): OrkImportResult {
      * RockSim's own figure for the whole stage, as a stage-level override.
      *
      * `RockSimHandler.openElement` applies each one when it is positive, with
-     * "apply to subcomponents" ON - which RockSim has no concept of, so it is
+     * "apply to subcomponents" on. RockSim has no such concept; it is
      * upstream's way of saying the number covers the stage rather than the empty
-     * stage object. Dropping them flew every imported design at our own computed
-     * mass instead of the one its author measured.
+     * stage object. Without them every imported design would fly at our own
+     * computed mass instead of the one its author measured.
      */
     const stageMass = num(design, STAGE_MASS_ELEMENTS[i]!);
     if (stageMass !== undefined && stageMass > 0) {
@@ -939,14 +935,14 @@ export function importRkt(data: ArrayBuffer | string): OrkImportResult {
   for (const d of ctx.dropped) notes.push(`This design contains ${d}.`);
   // Said on every import, because it is the difference a user will notice first
   // and it is not a fault in the file: RockSim keeps its motor selections and
-  // launch setup with its SIMULATIONS, which are not a design.
+  // launch setup with its simulations, which are not a design.
   notes.push('RockSim motor selections and launch conditions are not imported — pick a motor to fly this design.');
 
   return {
     name,
     tree: { name, components },
     motors: {},
-    // A `.rkt` declares no flight configurations — RockSim's equivalent lives
+    // A `.rkt` declares no flight configurations; RockSim's equivalent lives
     // with its simulations. Stated as an empty table rather than omitted so
     // this result is interchangeable with `importOrk`'s everywhere downstream.
     configs: [],

@@ -1,11 +1,10 @@
 /**
- * .ork import/export for full component trees (P2.5 — all 17 editor types).
+ * .ork import/export for full component trees (every editor component type).
  *
- * XML structure/element names are taken from GOLDEN files produced by the
- * real OpenRocket 24.12 GeneralRocketSaver (engine-java/tools/GenerateOrk
- * `generate` + `kitchensink`), and exports are validated against the real
- * GeneralRocketLoader. A .ork is either a ZIP containing rocket.ork or bare
- * XML — both are accepted; export writes bare XML.
+ * XML structure/element names follow files written by OpenRocket 24.12's
+ * GeneralRocketSaver, and exports are meant to load in its GeneralRocketLoader.
+ * A .ork is either a ZIP containing rocket.ork or bare XML; both are accepted,
+ * and export writes bare XML.
  */
 
 export * from './orkTypes';

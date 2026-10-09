@@ -6,10 +6,10 @@ import { test, expect, openTab, ready, runFlight, type Page } from './base';
  * The grid math is covered in `services/flight/windSweep.test.ts`, the region math in
  * `services/flight/driftEllipse.test.ts`, the store's contract in
  * `state/driftSweep.test.ts` and the drawing in
- * `components/canvas/GroundTrack.test.tsx` — all against stubbed flights. What
+ * `components/canvas/GroundTrack.test.tsx`, all against stubbed flights. What
  * none of them can check is the thing that decides whether the feature works at
  * all: that a few dozen real trajectories through the real kernel come back with
- * DIFFERENT landings, and that the region drawn around them is bigger than the
+ * different landings, and that the region drawn around them is bigger than the
  * one flight the view was already showing.
  *
  * Deliberately a small grid. Sixteen flights is enough to have an envelope with
@@ -48,7 +48,7 @@ async function shapes(page: Page) {
   );
 }
 
-/** The largest range-ring label, in meters — the frame's own measure of itself. */
+/** The largest range-ring label, in meters: the frame's own measure of itself. */
 async function widestRing(page: Page): Promise<number> {
   return page.evaluate(() => {
     const labels = Array.from(document.querySelectorAll('svg[role="img"] text')).map((el) => el.textContent ?? '');

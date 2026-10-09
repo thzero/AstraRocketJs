@@ -4,7 +4,14 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
-const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8'));
+/** The package.json fields this config reads. */
+interface PackageInfo {
+  version: string;
+  repository?: { url?: string };
+  wiki?: { url?: string };
+  contributorsPage?: { url?: string };
+}
+const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8')) as PackageInfo;
 // The version the app reports. Overridable so scripts/check-update-flow.mjs can
 // build two distinguishable versions from one checkout and watch the service
 // worker hand one over to the other; nothing else sets it.
@@ -18,7 +25,7 @@ const repoUrl: string = (pkg.repository?.url ?? '').replace(/^git\+/, '').replac
 const helpUrl: string = process.env.HELP_URL || pkg.wiki?.url || (repoUrl ? `${repoUrl}/wiki` : '');
 
 // Where the About dialog's "contributors" heading links. Same shape as the Help
-// link: `contributorsPage.url` in package.json (NOT `contributors` — that key is
+// link: `contributorsPage.url` in package.json (not `contributors`: that key is
 // npm's own people array), else the repository's contributor graph. Build-time
 // override:
 //   CONTRIBUTORS_URL=https://example.com/team npm run build
@@ -26,7 +33,7 @@ const helpUrl: string = process.env.HELP_URL || pkg.wiki?.url || (repoUrl ? `${r
 const contributorsUrl: string =
   process.env.CONTRIBUTORS_URL ?? pkg.contributorsPage?.url ?? (repoUrl ? `${repoUrl}/graphs/contributors` : '');
 
-// WHICH OpenRocket this build is, read from engine-java/extract/UPSTREAM - the
+// Which OpenRocket this build is, read from engine-java/extract/UPSTREAM - the
 // one file that names the pinned commit and the one a bump touches. The About
 // dialog shows it so "the same physics core" has an answer a reader can check:
 // a short SHA, its date, and a link to the commit itself.
@@ -70,7 +77,7 @@ export default defineConfig({
     tailwindcss(),
     // Offline support. Everything the app needs is static (the WASM kernel runs
     // the physics in-browser; there is no backend), so it can work fully offline
-    // once cached — which matters at a launch site with no signal.
+    // once cached, which matters at a launch site with no signal.
     VitePWA({
       // 'prompt', not 'autoUpdate': a silent activate reloads the page, which would
       // interrupt an edit in progress. UpdateToast asks first.
@@ -99,10 +106,10 @@ export default defineConfig({
         // .wasm and the public/data catalogs are not in the default glob.
         //
         // The catalogs (public/data/*.generated.json, ~2.6 MB) are precached
-        // ON PURPOSE, and it is a real double: the deployed app reads them from
+        // on purpose, and it is a real double: the deployed app reads them from
         // the CDN copy on the `data` branch first (VITE_DATA_BASE in deploy.yml)
         // and the runtimeCaching rule below stores that copy too. But the CDN
-        // is tried first and the in-build copy is the FALLBACK
+        // is tried first and the in-build copy is the fallback
         // (services/app/remoteData.ts), so a runtime rule for /data/ would only
         // ever fill on a session where the CDN had already failed. Someone who
         // installs the app online and first opens the motor picker at a launch
@@ -111,20 +118,20 @@ export default defineConfig({
         // PWA (the comment on VitePWA above), so the 2.6 MB stays in the
         // precache and the CDN copy is the one that refreshes.
         // `ork` is in here for the bundled OpenRocket examples
-        // (public/examples/, see services/storage/exampleLibrary.ts). All seventeen come
+        // (public/examples/, see services/storage/exampleLibrary.ts). The set comes
         // to ~340 kB with their stored flight data stripped, which is cheap
         // enough to buy the same promise the rest of the app makes: an example
         // opens on a first offline load, not only if you happened to be online
         // when you went looking for one.
         globPatterns: ['**/*.{js,css,html,svg,png,wasm,json,ork}'],
-        // The JS engine is a ~970 kB FALLBACK backend, emitted twice (main thread
+        // The JS engine is a ~970 kB fallback backend, emitted twice (main thread
         // + sim worker). WASM-GC is the path essentially every current browser
         // takes, so precaching ~1.9 MB of unused fallback on every install is a
-        // bad trade — the runtimeCaching rule below stores it on first use, which
+        // bad trade: the runtimeCaching rule below stores it on first use, which
         // is when we learn the browser actually needs it.
         //
         // The docs site's own search index is the other one: 1.5 MB across the two
-        // locales, and the search box it feeds lives in the Docusaurus NAVBAR,
+        // locales, and the search box it feeds lives in the Docusaurus navbar,
         // which `website/src/css/custom.css` hides whenever a page is embedded in
         // the Help dialog. So precaching it would cost every install 1.5 MB for a
         // control nobody in the app can reach. It stays available to anyone reading
@@ -138,12 +145,12 @@ export default defineConfig({
         //
         // remoteData.ts appends the manifest's content hash to every catalog
         // URL so a CDN cannot serve a stale copy. manifest.json is itself
-        // precached, so with the network off the app still READS a hash and
+        // precached, so with the network off the app still reads a hash and
         // still asks for `data/motors.generated.json?v=429fee4cf0b3` - and
         // Workbox keys the precache on `data/motors.generated.json`, so the
-        // query made every one of those a miss. Offline, the request fell
-        // through every runtime rule (they cover page loads, the jsDelivr
-        // host and the engine fallback) and failed at the network: no motors,
+        // query would make every one of those a miss. Offline, the request would
+        // fall through every runtime rule (they cover page loads, the jsDelivr
+        // host and the engine fallback) and fail at the network: no motors,
         // no components, no materials, on the one device that is at a launch
         // site with no signal. Workbox's default ignores only `utm_*` and
         // `fbclid`.
@@ -156,20 +163,19 @@ export default defineConfig({
         // not touch.
         ignoreURLParametersMatching: [/^utm_/, /^fbclid$/, /^v$/],
         cleanupOutdatedCaches: true,
-        // No precache-first navigation route. With it, every page load was
-        // answered from the worker's precache, so a plain reload could NEVER
-        // show a new deploy: the page stayed on the old build until the toast
+        // No precache-first navigation route. With one, every page load would be
+        // answered from the worker's precache, so a plain reload could never
+        // show a new deploy: the page would stay on the old build until the toast
         // fired (after the CDN's ten-minute cache let the new worker through),
-        // and people learned to hard-reload instead, which is the one thing a
-        // PWA is supposed to spare them. Page loads go network-first below.
+        // and people would hard-reload instead, which is the one thing a PWA is
+        // supposed to spare them. Page loads go network-first below.
         navigateFallback: null,
         // And no directory-index mapping in the precache route. Workbox
         // registers that route before every runtime route, and with the
         // default it answers a navigation to the site root with the precached
-        // index.html itself, so the network-first rule below was never
-        // reached (the check in scripts/check-update-flow.mjs caught exactly
-        // that). The fallback below names index.html explicitly, so offline
-        // still gets the shell.
+        // index.html itself, so the network-first rule below would never be
+        // reached (scripts/check-update-flow.mjs checks for this). The fallback
+        // below names index.html explicitly, so offline still gets the shell.
         directoryIndex: '',
         runtimeCaching: [
           {
@@ -193,23 +199,23 @@ export default defineConfig({
             },
           },
           {
-            // Docs pages reached by NAVIGATION: the Help menu's "open on the
+            // Docs pages reached by navigation: the Help menu's "open on the
             // docs site" link, or a docs URL someone bookmarked or was sent.
             //
-            // Every docs page is already precached, but under its FILE key,
+            // Every docs page is already precached, but under its file key,
             // `docs/<slug>/index.html`. A navigation asks for
             // `docs/<slug>/`, and `directoryIndex` is disabled above, so
             // Workbox never tries the index.html form of it and the request
-            // went to the network and failed offline. Turning directoryIndex
+            // would go to the network and fail offline. Turning directoryIndex
             // back on is not the fix: it is one setting for the whole precache
-            // route, and the reason it is off is that it ALSO answered the
-            // app's own root from the precache, which is what stopped a plain
+            // route, and the reason it is off is that it also answers the
+            // app's own root from the precache, which would stop a plain
             // reload from ever showing a new deploy.
             //
             // So a rule of its own: network-first, and offline it serves back
             // any docs page already visited. The in-app Help dialog does not
             // rely on this at all, because it requests
-            // `docs/<slug>/index.html` directly and that IS the precache key
+            // `docs/<slug>/index.html` directly and that is the precache key
             // (services/app/helpDocs.ts). This is the fallback for reading the
             // docs outside the dialog.
             //
@@ -262,9 +268,8 @@ export default defineConfig({
             // a handful of pads, so browsing the world does not grow without
             // limit; Workbox evicts the least recently used past that.
             //
-            // It was 600 while the site map was the only surface drawing them.
-            // The ground track pulls tiles around the SAME pads, so most of
-            // what it asks for is already here, but it sizes its zoom to the
+            // The ground track pulls tiles around the same pads as the site map,
+            // so most of what it asks for is already here, but it sizes its zoom to the
             // flight rather than to SITE_ZOOM and so fills a second zoom level
             // per site. A cap that evicts a pad's imagery to make room for the
             // same pad's imagery at another zoom would break the one promise
@@ -274,12 +279,11 @@ export default defineConfig({
               /^https:\/\/server\.arcgisonline\.com\/ArcGIS\/rest\/services\/(World_Imagery|World_Street_Map)\//,
             handler: 'CacheFirst',
             options: {
-              // v2: the tiles are requested with CORS now, because the 3D
-              // ground map loads them as WebGL textures. An entry cached by an
-              // older build is opaque, and an opaque response cannot answer a
-              // CORS request - it would fail the texture and, worse, the plain
-              // `<img>` maps that now ask the same way. A new cache name
-              // retires those entries instead of poisoning the feature.
+              // v2: the tiles are requested with CORS, because the 3D ground
+              // map loads them as WebGL textures. An opaque entry, as cached
+              // without CORS, cannot answer a CORS request: it would fail the
+              // texture and the plain `<img>` maps that ask the same way. The
+              // versioned cache name keeps such entries out.
               cacheName: 'astra-map-tiles-v2',
               expiration: { maxEntries: 1200, maxAgeSeconds: 60 * 60 * 24 * 180 },
               cacheableResponse: { statuses: [0, 200] },
@@ -297,14 +301,12 @@ export default defineConfig({
     __UPSTREAM__: JSON.stringify(upstream),
   },
   // The vendored TeaVM engine (src/engine/vendor/openrocket-engine.mjs) is a
-  // large ES module, and it used to be listed under `optimizeDeps.exclude` so
-  // esbuild would not pre-bundle it. That entry was a no-op: `exclude` takes
-  // bare package specifiers (`three`, `@react-three/fiber`), and a relative
-  // source path never matches. It did not need to: the dependency optimizer
-  // only pre-bundles node_modules, and a file under src/ is served as-is by
-  // Vite's transform pipeline, so the engine was never being pre-bundled.
+  // large ES module that needs no `optimizeDeps.exclude` entry: the dependency
+  // optimizer only pre-bundles node_modules, and a file under src/ is served
+  // as-is by Vite's transform pipeline. (`exclude` takes bare package
+  // specifiers anyway, so a relative source path would never match.)
   // The sim worker (engine/simWorker.ts) is a module worker that dynamic-imports
-  // the engine, so its bundle is code-split — which needs the ES worker format
+  // the engine, so its bundle is code-split, which needs the ES worker format
   // (the default 'iife' can't code-split).
   worker: { format: 'es' },
 });

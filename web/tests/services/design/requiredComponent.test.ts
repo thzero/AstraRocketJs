@@ -26,8 +26,8 @@ const tree = (over: Record<string, unknown> = {}): RocketTree =>
                 name: 'Fins',
                 finCount: 3,
                 rootChord: 0.06,
-                tipChord: 0, // a delta fin — legitimately zero
-                sweep: 0, // unswept — legitimately zero
+                tipChord: 0, // a delta fin: legitimately zero
+                sweep: 0, // unswept: legitimately zero
                 height: 0.05,
                 thickness: 0.003,
                 ...(over.fins ?? {}),
@@ -123,8 +123,9 @@ describe('designBlocker', () => {
   });
 
   it("keeps a part's own name even when it reads like a type", () => {
-    // An unnamed part used to arrive named after its type, so the message could
-    // not tell it from a part someone had called "bodytube", and translated both.
+    // An unnamed part arrives with no name, not one copied from its type, so the
+    // message can tell it from a part someone called "bodytube" and translate
+    // only the first.
     const b = designBlocker(tree({ tube: { name: 'bodytube', outerRadius: 0 } }))!;
     expect(designBlockerText(b, t)).toContain('"bodytube"');
   });

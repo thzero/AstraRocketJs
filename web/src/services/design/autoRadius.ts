@@ -12,14 +12,14 @@ import { mapTreePreserving, type MapContext } from '../../tree/treeWalk';
  * outside.
  *
  * The desktop's rule, from `BodyTube.getAutoOuterRadius` and
- * `Transition.getForeRadius`/`getAftRadius`: take the PREVIOUS symmetric
- * component's aft radius, else the NEXT one's fore radius, and skip a neighbor
+ * `Transition.getForeRadius`/`getAftRadius`: take the previous symmetric
+ * component's aft radius, else the next one's fore radius, and skip a neighbor
  * whose own facing end is automatic, which is what stops two parts pointing at
  * each other. With nothing to follow it falls back to the kernel's default
  * radius, the same number the desktop shows.
  *
  * Stored as an explicit flag with the resolved number beside it, the same shape
- * as {@link syncAutoShoulders}, rather than as the ABSENCE of a radius, which
+ * as {@link syncAutoShoulders}, rather than as the absence of a radius, which
  * is how the `.ork` spells it. Absence would mean every one of the dozen places
  * that reads a radius to draw, mesh, export or measure has to know the rule and
  * have the chain in hand; the number is kept correct on every edit instead, and
@@ -66,10 +66,10 @@ function facingRadius(node: ComponentNode | undefined, end: 'fore' | 'aft'): num
 }
 
 /**
- * The rules that look at a part's PARENT rather than at its neighbors.
+ * The rules that look at a part's parent rather than at its neighbors.
  *
  * A ring, coupler, bulkhead or engine block fills the bore of the tube it sits
- * in, and a centering ring's own bore is the motor mount running through it -
+ * in, and a centering ring's own bore is the motor mount running through it;
  * `discDims` is that resolution, shared with the DXF sheet and the print
  * solids. A tube fin set with no diameter is sized by the kernel from the body
  * radius and the fin count (`TubeFinSet.getOuterRadius`, ported in
@@ -82,7 +82,7 @@ function parentDerived(node: ComponentNode, parent: ComponentNode | null, siblin
     if (Number.isFinite(body) && body > 0) node['outerRadius'] = tubeFinRadius(node, body);
     return;
   }
-  // A mass object's automatic PACKED radius is the room its parent gives it:
+  // A mass object's automatic packed radius is the room its parent gives it:
   // `MassObject.getMaxParentRadius`.
   if (node['radiusAuto'] === true) {
     const r =
@@ -111,7 +111,7 @@ export function syncAutoRadii(tree: RocketTree): RocketTree {
   const resolve = (n: ComponentNode, { index, siblings, parent }: MapContext): ComponentNode => {
     let node = n;
     // Rings, tube fins and packed devices take their size from what they are
-    // INSIDE, not from the part beside them, so they resolve against the
+    // inside, not from the part beside them, so they resolve against the
     // parent rather than through the neighbor rule below.
     if (node['outerRadiusAuto'] === true || node['innerRadiusAuto'] === true || node['radiusAuto'] === true) {
       const before = { outer: node['outerRadius'], inner: node['innerRadius'], r: node['radius'] };
@@ -128,7 +128,7 @@ export function syncAutoRadii(tree: RocketTree): RocketTree {
     for (const spec of AUTO[node.type] ?? []) {
       if (node[spec.flag] !== true) continue;
       // Behind first, then ahead, as the kernel does. The neighbor is read
-      // from the ORIGINAL row: a resolved radius is not a source for anyone
+      // from the original row: a resolved radius is not a source for anyone
       // else, because a neighbor that is itself automatic is skipped.
       const behind = facingRadius(siblings[index - 1], 'aft');
       const ahead = facingRadius(siblings[index + 1], 'fore');
@@ -138,12 +138,12 @@ export function syncAutoRadii(tree: RocketTree): RocketTree {
     }
     return node;
   };
-  // Pre-order: CHILDREN LAST, so each one sees a parent whose own radius is
-  // already resolved. Resolved inside-out, a disc inside an AUTOMATIC-radius
-  // coupler takes the coupler's bare default instead of its real bore (on a
-  // 3-inch airframe, a bulkhead 24.00 mm across rather than 72.2), and the
-  // schematic, the DXF and the printed template all repeat it. Every coupler
-  // the Add menu makes is automatic.
+  // Pre-order: children last, so each one sees a parent whose own radius is
+  // already resolved. Resolved inside-out, a disc inside an automatic-radius
+  // coupler would take the coupler's bare default instead of its real bore (on
+  // a 3-inch airframe, a bulkhead 24.00 mm across rather than 72.2), and the
+  // schematic, the DXF and the printed template would all repeat it. Every
+  // coupler the Add menu makes is automatic.
   const components = mapTreePreserving(tree.components, resolve, 'pre');
   return components === tree.components ? tree : { ...tree, components };
 }

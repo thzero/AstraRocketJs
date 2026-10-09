@@ -13,7 +13,7 @@ export function PrivacyDialog({ onClose }: { onClose: () => void }) {
       id="privacy"
       title={t('privacy.title')}
       onClose={onClose}
-      // It opens FROM the About dialog, so it has to sit above one.
+      // It opens from the About dialog, so it has to sit above one.
       layer="over"
       layout="pad"
       // Four paragraphs. Widening them past a readable measure would make them

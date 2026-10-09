@@ -4,7 +4,7 @@ import { test, expect, autosaved, openTab, runButton, runFlight, defined } from 
  * The Simulations tab: a table of runs over the shared design, with the selected
  * one's editor beside it.
  *
- * The behavior worth pinning is what a design edit does to a result: it FLAGS the
+ * The behavior worth pinning is what a design edit does to a result: it flags the
  * cached numbers rather than deleting them, the way OpenRocket does. Deleted, the
  * Results tab comes and goes on each keystroke and a change cannot be compared
  * against the run before it.
@@ -23,7 +23,7 @@ test('an edited design ages the results instead of destroying them', async ({ pa
   const apogee = defined(await row.textContent(), 'the simulation row text');
 
   // Change the airframe. The result now describes a rocket that no longer
-  // exists — but it is still the last thing this design flew, so it stays.
+  // exists, but it is still the last thing this design flew, so it stays.
   await openTab(page, 'Design');
   await page.locator('div[title="Body tube"]').click();
   await page.getByLabel('Length', { exact: true }).first().fill('45');
@@ -52,7 +52,7 @@ test('a second simulation is its own row, with its own motor', async ({ page }) 
   const rows = page.getByRole('row').filter({ hasText: /Simulation/ });
   await expect(rows).toHaveCount(2);
 
-  // The copy is selected, so the editor beside the table is editing IT, which is
+  // The copy is selected, so the editor beside the table is editing it, which is
   // what having both on screen at once is for.
   await expect(page.getByRole('textbox', { name: 'Rename simulation' })).toHaveValue('Simulation 1 copy');
 
@@ -69,10 +69,10 @@ test('a second simulation is its own row, with its own motor', async ({ page }) 
 test('a per-simulation option overrides the global one', async ({ page }) => {
   await openTab(page, 'Simulations');
 
-  // Empty means "follow the global value", which is the placeholder — so the
+  // Empty means "follow the global value", which is the placeholder, so the
   // field reads as the number that will actually be used.
   //
-  // By ROLE: the editor pairs the number box with a range slider carrying the
+  // By role: the editor pairs the number box with a range slider carrying the
   // same label, so `getByLabel` alone matches two controls and fails strict mode.
   const step = page.getByRole('spinbutton', { name: 'Time step' });
   await expect(step).toHaveValue('');
@@ -115,7 +115,7 @@ test('ticking a row to fly it does not move the editor to it', async ({ page }) 
   const name = page.getByRole('textbox', { name: 'Rename simulation' });
   await expect(name).toHaveValue('Simulation 1 copy');
 
-  // Tick the OTHER row: a tick says "fly this", not "edit this". `exact`,
+  // Tick the other row: a tick says "fly this", not "edit this". `exact`,
   // because "Select Simulation 1" is a substring of "Select Simulation 1 copy".
   await page.getByRole('checkbox', { name: 'Select Simulation 1', exact: true }).check();
   await expect(name).toHaveValue('Simulation 1 copy');
@@ -127,12 +127,12 @@ test('the results header names the simulation it is showing', async ({ page }) =
   await page.getByRole('textbox', { name: 'Rename simulation' }).fill('D12 sustainer');
   await runFlight(page); // lands on Results
 
-  // A design view is about the one rocket on screen; a RESULT belongs to a named
+  // A design view is about the one rocket on screen; a result belongs to a named
   // simulation, and with several of them the charts are otherwise unattributed.
   const header = page.getByRole('heading', { name: 'D12 sustainer' });
   await expect(header).toBeVisible();
 
-  // Results now survive a design edit, so the header has to say when the numbers
+  // Results survive a design edit, so the header has to say when the numbers
   // no longer describe the rocket.
   await expect(page.getByText('Outdated', { exact: true })).toHaveCount(0);
   await openTab(page, 'Design');
@@ -159,7 +159,7 @@ test('a flown row opens its own results', async ({ page }) => {
   await openTab(page, 'Simulations');
   await expect(page.getByRole('button', { name: /^View results/ })).toHaveCount(2);
 
-  // Open the SECOND row's flight: it becomes the active simulation AND what the
+  // Open the second row's flight: it becomes the active simulation and what the
   // results views show. Two simulations flew, so the heading is the picker, and
   // its visible text is the flight being shown.
   await page.getByRole('button', { name: 'View results for Second' }).click();
@@ -292,7 +292,7 @@ test('a simulation stays editable while it flies', async ({ page }) => {
   await angle.fill('12');
   await expect(angle).toHaveValue('12');
 
-  // What happens to the ANSWER of a run whose inputs changed underneath it is
+  // What happens to the answer of a run whose inputs changed underneath it is
   // pinned in `state/batchParallel.test.ts`, where the sim call is held open by
   // hand: it is dropped rather than installed over the edit. Racing the real
   // engine for that here would only make this flaky.
@@ -305,9 +305,9 @@ test('the results picker chooses which flight every results view shows', async (
   await page.getByRole('checkbox', { name: 'Select all simulations' }).check();
   await runButton(page).click();
 
-  // Running lands on Results by itself. The picker IS the pane heading — a title
-  // naming the flight plus a dropdown showing the same name beside it said one
-  // thing twice — and it appears because THIS run flew two simulations.
+  // Running lands on Results by itself. The picker is the pane heading (a title
+  // plus a dropdown showing the same name beside it would say one thing twice),
+  // and it appears because this run flew two simulations.
   const picker = page.getByRole('button', { name: /Choose which flight/ });
   await expect(picker).toBeVisible({ timeout: 30_000 });
   await expect(picker).toHaveText(/^D12/); // the active row, until told otherwise
@@ -354,8 +354,8 @@ test('the chart panels you pick are still there after a reload', async ({ page }
 });
 
 /**
- * The 3D path draws the PICKED flight, like the view under it, rather than the
- * ACTIVE simulation's own result. Keyed on the active row, adding a row after a run
+ * The 3D path draws the picked flight, like the view under it, rather than the
+ * active simulation's own result. Keyed on the active row, adding a row after a run
  * blanks the one results view that could still draw the flight, beside charts that
  * are drawing it.
  */
@@ -392,13 +392,13 @@ test('the ground track shows where the flight lands, and how far', async ({ page
 test('the CSV export asks what to write instead of just downloading', async ({ page }) => {
   await runFlight(page); // lands on Results, Flight view
 
-  // By title, not by its ⬇ CSV label: the events table grew a CSV button of its
-  // own, so the label alone now matches two buttons that write different files.
+  // By title, not by its ⬇ CSV label: the events table has a CSV button of its
+  // own, so the label alone matches two buttons that write different files.
   await page.getByTitle('Download flight data (.csv)').click();
   const dialog = page.getByRole('dialog', { name: 'Export flight data' });
   await expect(dialog).toBeVisible();
 
-  // The variable list comes from what the run RECORDED. We ask the engine for
+  // The variable list comes from what the run recorded. We ask the engine for
   // every series it has, so this is the whole set rather than a chosen dozen.
   const boxes = dialog.getByRole('checkbox');
   expect(await boxes.count()).toBeGreaterThan(30);
@@ -408,7 +408,7 @@ test('the CSV export asks what to write instead of just downloading', async ({ p
   await dialog.getByRole('button', { name: 'Select none' }).click();
   await expect(dialog.getByRole('button', { name: 'Export', exact: true })).toBeDisabled();
 
-  // `exact`: the list now carries real names, and 'Altitude above sea level'
+  // `exact`: the list carries real names, and 'Altitude above sea level'
   // is a different variable that a loose match would also hit.
   await dialog.getByRole('checkbox', { name: 'Altitude', exact: true }).check();
   const download = page.waitForEvent('download');

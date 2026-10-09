@@ -4,7 +4,7 @@ import type * as THREE from 'three';
 import type { StaticInfo } from '../../engine/openRocketEngine';
 import { useUnits } from '../../prefs/useUnits';
 import { AxisCallout } from './rocketCallouts';
-import { marginText } from './schematicGeometry';
+import { marginText } from '../../tree/schematicGeometry';
 import { CP_INK, MARGIN_INK } from './stabilityGadget';
 import { useSceneColors } from './sceneColors';
 
@@ -35,8 +35,9 @@ export function StabilityCallout({
   const { t } = useTranslation();
   const u = useUnits();
   const cal = info.stabilityCalibers;
-  // The CP row as ONE text label (proven labelTexture/CalloutLabel path), laid
-  // out left→right like the 2D: "CP · X cm   ⚠ N cal · P% — word". The tiers
+  // The CP row as one text label (the labelTexture/CalloutLabel path), laid
+  // out left→right like the 2D: "CP · X cm", then marginText's "⚠ N cal · P%"
+  // and the stability word. The tiers
   // and inks are the shared marginText / MARGIN_INK, the same text the 2D
   // overlay prints and the inks the callout gadget (stabilityGadget.ts) uses.
   const cpCallout = useMemo(() => {

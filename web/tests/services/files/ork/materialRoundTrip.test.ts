@@ -8,17 +8,17 @@ import type { MaterialRow } from '../../../../src/services/materials/materialTyp
 import type { ComponentNode, ComponentType, RocketTree } from '../../../../src/engine/openRocketEngine';
 
 // Straight off the shipped catalog rather than through the loader: the point is
-// that a material THE APP OFFERS reaches the file, so the list has to be the
+// that a material the app offers reaches the file, so the list has to be the
 // one the app downloads.
 const CATALOG = readData<MaterialRow[]>('materials.generated.json');
 const ADHESIVE_MATERIALS = CATALOG.filter((m) => m.kind === 'adhesive');
 const CORRECTED_MATERIALS = CATALOG.filter((m) => m.kind === 'corrected');
 
 /**
- * A material the app offers has to reach the FILE.
+ * A material the app offers has to reach the file.
  *
- * The densities are what the physics runs on and they were never in doubt —
- * they ride in the `density` attribute of every `<material>` element. The NAME
+ * The densities are what the physics runs on, and they ride in the `density`
+ * attribute of every `<material>` element. The name
  * is the part that can go missing, and it is the part that matters once the app
  * offers materials upstream does not have: an adhesive, or one of the corrected
  * elastic cords. Lose the name and the design still flies correctly, and the
@@ -26,9 +26,8 @@ const CORRECTED_MATERIALS = CATALOG.filter((m) => m.kind === 'corrected');
  *
  * The invariant these hold is deliberately blunt: **if `hasMaterial(type)` is
  * true, that type's material name and density survive a `.ork` round trip.**
- * The one type that failed it was `fairing`, whose material never reached the
- * kernel and had no element in the writer to be saved in; it is no longer
- * offered one (see `treeEdit.MATERIAL_TYPES`).
+ * `fairing` is not offered a material (see `treeEdit.MATERIAL_TYPES`): its
+ * material does not reach the kernel and the writer has no element for it.
  */
 
 const node = (o: object) => o as unknown as ComponentNode;

@@ -76,12 +76,12 @@ describe('parseDelays', () => {
 
 describe('offersPlugged', () => {
   it('is what the manufacturer LISTS, not what is possible', () => {
-    // 381 of the 815 bundled rows carry a P, and 374 of those have no numeric
-    // delay at all: most reloads, every hybrid.
+    // About half the bundled rows carry a P, and nearly all of those have no
+    // numeric delay at all: most reloads, every hybrid.
     expect(offersPlugged({ delays: 'P' })).toBe(true);
     expect(offersPlugged({ delays: '0,3,5,7,P' })).toBe(true);
     expect(offersPlugged({ delays: '4,6,8' })).toBe(false);
-    // Any motor can still be FLOWN plugged from the delay control; a motor with
+    // Any motor can still be flown plugged from the delay control; a motor with
     // no delay data is simply not one the maker lists that way.
     expect(offersPlugged({})).toBe(false);
   });
@@ -115,10 +115,10 @@ describe('initialThrust', () => {
 });
 
 /**
- * The bore a mount offers is its outer radius less ITS wall, as the kernel
+ * The bore a mount offers is its outer radius less its own wall, as the kernel
  * builds it: a missing thickness is the type's own default (0.5 mm for an inner
- * tube), not zero, and a NaN is not let through. A NaN bore failed every
- * comparison in motorFitsMount, so every motor "fit".
+ * tube), not zero, and a NaN is not let through. A NaN bore fails every
+ * comparison in motorFitsMount, so every motor would "fit".
  */
 describe('mountFit', () => {
   it('takes the kernel wall when the mount states none', () => {

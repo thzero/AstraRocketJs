@@ -48,7 +48,7 @@ export interface MotorConfig {
   flight: FlightRows | null;
 }
 
-/** A fin set's axial position (m) from the nose tip — root leading/trailing edge. */
+/** A fin set's axial position (m) from the nose tip: root leading/trailing edge. */
 export interface FinSetPosition {
   name: string;
   topX: number;
@@ -59,7 +59,7 @@ export interface ReportModel {
   name: string;
   stages: ComponentNode[];
   whole: Summary;
-  /** One entry per stage (a single-stage rocket's stage IS the whole rocket). */
+  /** One entry per stage (a single-stage rocket's stage is the whole rocket). */
   stageSummaries: Summary[];
   configs: MotorConfig[];
   partsByStage: { stage: string; rows: PartRow[] }[];
@@ -73,13 +73,13 @@ export function stageParts(
   const rows: PartRow[] = [];
   const walk = (node: ComponentNode, depth: number) => {
     if (node.type !== 'stage') {
-      const id = node.id as string | undefined;
+      const id = node.id;
       let mass = 0;
       if (id) {
         try {
           mass = rocket.componentInfo(id).mass;
         } catch {
-          /* a part the engine can't weigh — leave 0 */
+          /* a part the engine can't weigh: leave 0 */
         }
       }
       rows.push({
@@ -87,7 +87,7 @@ export function stageParts(
         type: node.type,
         name: (node.name as string) || '',
         material: node.materialName as string | undefined,
-        density: node.density as number | undefined,
+        density: node.density,
         length: num(node, 'length', 0),
         outerR: numOpt(node, 'outerRadius'),
         innerR: numOpt(node, 'innerRadius'),
@@ -110,7 +110,7 @@ export interface ReportBuild {
 /**
  * One static-info summary per stage for a multi-stage rocket. Each per-stage
  * build resets the shared engine, so the whole-rocket handle is rebuilt and
- * reinstalled afterwards — in a `finally`, so a stage that fails to build can't
+ * reinstalled afterwards, in a `finally`, so a stage that fails to build can't
  * leave the app's live 3D/stability handle stranded on the last stage built.
  *
  * The engine work is injected so this stays testable without the real engine:
@@ -129,14 +129,14 @@ export function multiStageSummaries(
   try {
     return stages.map((st, i) => ({ label: stageName(st, i), info: buildStage(st) }));
   } finally {
-    // The `finally` protected against a STAGE build throwing. It did not protect
-    // against `buildWhole()` itself throwing, and then `restore` never ran and
-    // the store kept pointing at the last per-stage build: a handle for one
+    // The `finally` covers a stage build throwing; this inner try covers
+    // `buildWhole()` itself throwing. Unguarded, `restore` would never run and
+    // the store would keep pointing at the last per-stage build: a handle for one
     // stage, standing in for the rocket. Nothing re-triggers the rebuild effect,
-    // because its dependencies did not change, so the aero pane stayed dead
+    // because its dependencies did not change, so the aero pane would stay dead
     // until an unrelated edit moved them.
     //
-    // Reported, never rethrown. Rethrowing from a `finally` REPLACES whatever
+    // Reported, never rethrown. Rethrowing from a `finally` replaces whatever
     // the try block threw, which would lose the stage failure that is the more
     // useful of the two. The report itself is still valid - parts and fin-set
     // positions were gathered off the live handle before any rebuild, and each
@@ -154,7 +154,7 @@ export function multiStageSummaries(
  * Assemble the report from the live design + simulations (synchronous engine
  * work).
  *
- * `install` is where the whole-rocket rebuild goes on a MULTI-STAGE design,
+ * `install` is where the whole-rocket rebuild goes on a multi-stage design,
  * whose per-stage builds reset the shared engine. It defaults to re-seating the
  * live handle through the store, which is what a caller outside React wants.
  * A caller rendering a component passes its own, because a store write during
@@ -177,7 +177,7 @@ export function assembleReport(install?: (built: ReportBuild) => void): ReportMo
   // report's own rows go into that file's <designinfo> and the design CSV.
   const stageName = stageFileName;
 
-  // Parts + fin-set positions need the live handle — gather BEFORE any rebuild.
+  // Parts + fin-set positions need the live handle: gather before any rebuild.
   const partsByStage = stageList.map((st, i) => ({
     stage: stageName(st, i),
     rows: stageParts(st, infoRocket),
@@ -189,8 +189,8 @@ export function assembleReport(install?: (built: ReportBuild) => void): ReportMo
 
   const whole: Summary = { label: name, info };
 
-  // One summary per stage. A single-stage rocket's stage IS the whole rocket, so
-  // reuse its info (no rebuild). Multiple stages build each alone — those builds
+  // One summary per stage. A single-stage rocket's stage is the whole rocket, so
+  // reuse its info (no rebuild). Multiple stages build each alone; those builds
   // reset the engine, so the app's live handle is rebuilt and restored (in a
   // finally, see multiStageSummaries) even if a stage build throws.
   let stageSummaries: Summary[];
@@ -201,12 +201,12 @@ export function assembleReport(install?: (built: ReportBuild) => void): ReportMo
       stageName,
       (st) =>
         // Each stage is built alone, and the configuration keys its motors by
-        // MOUNT ID, so a one-stage tree gets exactly the motors that stage's own
+        // mount id, so a one-stage tree gets exactly the motors that stage's own
         // mounts hold: the sustainer's motor cannot land in the booster, and a
         // stage with no mount is built empty rather than borrowing one.
-        buildConfiguredRocket({ name, components: [st] } as never, flown).staticInfo(),
+        buildConfiguredRocket({ name, components: [st] }, flown).staticInfo(),
       () => {
-        // The live handle is REPLACED by this, so it has to be configured the
+        // The live handle is replaced by this, so it has to be configured the
         // way the rebuild effect configures it - the same configuration, whose
         // ignition overrides ride along with its motors.
         const main = buildConfiguredRocket(tree, flown);
@@ -250,7 +250,7 @@ export function finSetPositions(
     // freeform → root chord, trapezoid/elliptical → rootChord, everything
     // else → length. That "everything else" is what tube fins need: they
     // are marked like any other fin set (OpenRocket's FinMarkingGuide
-    // collects TubeFinSet beside FinSet) but their axial span is the TUBE'S
+    // collects TubeFinSet beside FinSet) but their axial span is the tube's
     // length, and reading through rootChord would give every one of them a
     // 50 mm root it does not have.
     const root = axialLength(n);

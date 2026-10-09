@@ -26,13 +26,12 @@ import { polylinePath } from '../common/svgPath';
 
 /**
  * The altitude-layered wind profile, as OpenRocket's Wind Profile Editor: one
- * row per level carrying altitude, speed, direction, standard deviation AND the
+ * row per level carrying altitude, speed, direction, standard deviation and the
  * same deviation read as a turbulence percentage with its descriptive name,
  * plus the MSL/AGL reference the whole profile is measured against.
  *
- * It is a dialog rather than the launch panel's inline grid because the grid
- * could not hold the columns. That was the reason turbulence was missing here
- * while the single-wind panel had it, which is exactly backwards: a profile is
+ * It is a dialog rather than an inline grid in the launch panel because the
+ * panel cannot hold the columns, and turbulence belongs in a profile: it is
  * where per-layer gustiness has something to say.
  *
  * Mounted only while open (`{open && <WindProfileDialog />}`), so the error
@@ -141,8 +140,8 @@ export function WindProfileDialog({
 
   const levels = launch.windLevels ?? [];
   // A stable key per row. WindLevel carries no id, and keying on the index
-  // meant deleting row 1 re-labeled row 2's inputs as row 1 in place: the
-  // field being typed into suddenly held the next level's numbers. Rows are
+  // would make deleting row 1 re-label row 2's inputs as row 1 in place: the
+  // field being typed into would suddenly hold the next level's numbers. Rows are
   // added, removed and replaced only through the handlers below, which keep
   // this list aligned with `levels`; an outside change (undo, a fresh
   // profile) shows as a length mismatch and falls back to index keys.
@@ -176,10 +175,10 @@ export function WindProfileDialog({
    * Edit one level, dropping a value that is not a real number.
    *
    * The four columns convert through `onSi` (prefs/entryValue), which already
-   * refuses a value that cannot survive the conversion - 1e306 ft of altitude
-   * is Infinity meters, which reached the level, the chart, the .ork and the
-   * kernel's wind model, none of which have an answer for it. This stays as the
-   * net for the values this function is handed from somewhere OTHER than a box:
+   * refuses a value that cannot survive the conversion (1e306 ft of altitude
+   * is Infinity meters, which the level, the chart, the .ork and the kernel's
+   * wind model have no answer for). This stays as the net for the values this
+   * function is handed from somewhere other than a box:
    * `setSpeed` recomputes a level's deviation from its own turbulence ratio.
    */
   const patchLevel = (i: number, p: Partial<WindLevel>) => {
@@ -196,7 +195,7 @@ export function WindProfileDialog({
     setLevels([
       ...levels,
       {
-        // 300 m above the HIGHEST level, not above the last row: the list is not
+        // 300 m above the highest level, not above the last row: the list is not
         // sorted, so on a profile of 0/600/300 the last row's +300 lands on 600
         // and collides with an existing level.
         altitudeM: Math.max(0, ...levels.map((l) => l.altitudeM)) + 300,
@@ -228,7 +227,7 @@ export function WindProfileDialog({
       onCommit?.();
     } catch (e) {
       if (!mine()) return;
-      // Import REPLACES the profile, so a bad file must leave it untouched:
+      // Import replaces the profile, so a bad file must leave it untouched:
       // parse throws before anything is set rather than half-applying.
       setError(
         e instanceof WindProfileCsvError
@@ -244,7 +243,7 @@ export function WindProfileDialog({
       id="windProfile"
       title={t('windProfile.title')}
       onClose={onClose}
-      // Opened from the launch panel inside the simulation editor's dialog.
+      // Opened from the launch panel, which can itself sit inside the Settings dialog.
       layer="over"
       size="4xl"
       layout="pad"
@@ -285,7 +284,7 @@ export function WindProfileDialog({
                       ariaLabel={`${t('windProfile.altitude')} ${i + 1}`}
                       value={u.toUi('distance', l.altitudeM)}
                       // No `?? 0`, unlike the columns beside it: an altitude is
-                      // the level's IDENTITY to the kernel, not a quantity with
+                      // the level's identity to the kernel, not a quantity with
                       // a harmless zero, so an emptied box writes nothing
                       // rather than moving the layer down onto the pad.
                       onChange={onSi(u.plain('distance'), (si) => si !== null && patchLevel(i, { altitudeM: si }))}

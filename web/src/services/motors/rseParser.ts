@@ -1,12 +1,12 @@
 // Parser for RockSim `.rse` motor files, the XML thrust-curve format that
-// carries what RASP `.eng` cannot: the motor TYPE (so a hybrid imports as a
+// carries what RASP `.eng` cannot: the motor type (so a hybrid imports as a
 // hybrid) and the propellant mass sample by sample, rather than one header
 // number the mass curve has to be reconstructed from.
 //
-// A TypeScript PORT of OpenRocket's `file/motor/RockSimMotorLoader.java`, not
+// A TypeScript port of OpenRocket's `file/motor/RockSimMotorLoader.java`, not
 // an extraction of it, for the reason the `.rkt` design reader is one: that
 // class is SAX-based and pulls in SimpleSAX, WarningSet, MotorDigest,
-// Manufacturer and ThrustCurveMotor.Builder — the file-loading machinery the
+// Manufacturer and ThrustCurveMotor.Builder, the file-loading machinery the
 // engine extraction deliberately leaves behind. The schema is small enough to
 // read directly, and reading it here keeps both motor formats on the same side
 // of the engine boundary: plain DOM, unit-testable, no kernel round trip.
@@ -44,12 +44,11 @@ const TYPES: Record<string, NonNullable<CustomMotor['type']>> = {
 /**
  * Ceilings an untrusted `.rse` is held to.
  *
- * This parser is reached with NO file picker: `loadOrk` runs it over every
- * `.rse` member an imported `.ork` carried, and that member may be up to the
+ * This parser is reached with no file picker: `loadOrk` runs it over every
+ * `.rse` member an imported `.ork` carries, and that member may be up to the
  * archive's 64 MiB per-entry ceiling. The `.ork` reader caps fin points and
- * shroud lines for exactly this reason; the embedded-motor path capped nothing,
- * so a member with a million `<engine>` elements froze the tab while merely
- * OPENING a shared design.
+ * shroud lines for the same reason: without a cap, a member with a million
+ * `<engine>` elements would freeze the tab while merely opening a shared design.
  *
  * A manufacturer's whole range is a few hundred motors, and the longest real
  * curve is a few thousand samples.
@@ -110,10 +109,9 @@ const eq = (a: number, b: number) => Math.abs(a - b) < 0.00001;
  * The real-world quirk fixing from `AbstractMotorLoader.finalizeThrustCurve`,
  * ported case for case because each case is a shape of file that exists.
  *
- * What is NOT ported is the commented-out block upstream keeps at the end: it
+ * What is not ported is the commented-out block upstream keeps at the end: it
  * appends a zero-thrust point at the last sample's own time, which makes two
- * points share a time and then breaks the interpolation that reads them. The
- * comment there says as much, and it is left out here for the same reason.
+ * points share a time and then breaks the interpolation that reads them.
  */
 function finalizeThrustCurve(points: Point[]): Point[] {
   if (points.length === 0) return points;
@@ -127,7 +125,7 @@ function finalizeThrustCurve(points: Point[]): Point[] {
   // Two points at t=0, one zero-thrust and one not. Drop the zero.
   if (p.length > 1 && eq(p[0]!.time, 0) && eq(p[1]!.time, 0)) p.shift();
 
-  // Two adjacent points identical in BOTH time and thrust (KBA K1750 does
+  // Two adjacent points identical in both time and thrust (KBA K1750 does
   // this). Drop the second.
   for (let i = 0; i < p.length - 1; i++) {
     while (i < p.length - 1 && eq(p[i]!.time, p[i + 1]!.time) && eq(p[i]!.thrust, p[i + 1]!.thrust)) {
@@ -135,7 +133,7 @@ function finalizeThrustCurve(points: Point[]): Point[] {
     }
   }
 
-  // Two FINAL points at the same time, one of them zero thrust. Drop the zero.
+  // Two final points at the same time, one of them zero thrust. Drop the zero.
   const n = p.length - 1;
   if (n > 0 && eq(p[n - 1]!.time, p[n]!.time)) {
     if (eq(p[n - 1]!.thrust, 0)) p.splice(n - 1, 1);
@@ -164,7 +162,7 @@ function parseEngine(el: Element): CustomMotor {
   if (!(diameter > 0) || !(length > 0)) {
     throw new Error(`.rse motor ${designation} has a non-positive diameter or length.`);
   }
-  // Upstream refuses this too. Without it the rocket GAINS mass as the motor
+  // Upstream refuses this too. Without it the rocket gains mass as the motor
   // burns, which nothing downstream would report.
   if (!(propWeightG >= 0) || !(totalWeightG > 0) || propWeightG > totalWeightG) {
     throw new Error(`.rse motor ${designation} lists more propellant than total mass.`);
@@ -190,7 +188,7 @@ function parseEngine(el: Element): CustomMotor {
 
   const samples = points.map((p) => ({ time: p.time, thrust: p.thrust }));
 
-  // Mass and CG are each used only if the file gives them for EVERY point and
+  // Mass and CG are each used only if the file gives them for every point and
   // does not ask for them to be recomputed. Upstream sets the same two flags
   // from `auto-calc-mass` / `auto-calc-cg` and from any NaN in the column; a
   // half-filled column cannot be interpolated and is no better than none.
@@ -216,9 +214,9 @@ function parseEngine(el: Element): CustomMotor {
     // richer format: the mass curve is measured rather than inferred from the
     // thrust curve and one header number.
     massesG: haveMass ? points.map((p) => p.mass) : undefined,
-    // Millimeters from the motor's forward end. Only the LAUNCH value is kept:
-    // `MotorSpec.cgX` is a scalar, so a per-sample CG has nowhere to go, which
-    // is also what the bundled catalog stores for its RockSim rows.
+    // Millimeters from the motor's forward end. Only the launch value is kept:
+    // `MotorSpec.cgX` is a scalar, so a per-sample CG has nowhere to go. A
+    // bundled catalog row's CG series is likewise read only at launch.
     cgMm: haveCg ? points[0]!.cg : undefined,
     samples,
     source: 'rse',
@@ -240,7 +238,7 @@ export function parseRse(text: string): CustomMotor[] {
   const doc = parseXmlText(text, 'Not a valid .rse file (XML parse error).');
   const engineEls = doc.querySelectorAll('engine');
   if (engineEls.length === 0) throw new Error('Not a valid .rse file (no <engine> found).');
-  // Counted BEFORE the spread, so a crafted member does not materialize a
+  // Counted before the spread, so a crafted member does not materialize a
   // million-element array on the way to being refused.
   if (engineEls.length > MAX_RSE_ENGINES) {
     throw new Error(`This .rse declares more than ${MAX_RSE_ENGINES} motors (possibly malformed).`);

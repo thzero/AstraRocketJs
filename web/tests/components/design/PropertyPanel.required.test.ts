@@ -36,10 +36,10 @@ describe('required component fields', () => {
     expect(req('ellipticalfinset')).toEqual(['finCount', 'height', 'rootChord', 'thickness']);
     // A freeform fin's outline comes from its points, not from chord/height.
     expect(req('freeformfinset')).toEqual(['finCount', 'thickness']);
-    // A tube fin's radius is NOT required: left blank, the kernel auto-sizes
+    // A tube fin's radius is not required: left blank, the kernel auto-sizes
     // the tubes to touch around the body (TubeFinSet.getOuterRadius), which is
-    // what desktop OpenRocket writes for an auto set. Marking it required made
-    // the Run button refuse a valid imported design.
+    // what desktop OpenRocket writes for an auto set. Marking it required would
+    // make the Run button refuse a valid imported design.
     expect(req('tubefinset')).toEqual(['finCount', 'length', 'thickness']);
   });
 
@@ -102,7 +102,7 @@ describe('required component fields', () => {
    *
    * Blank does not mean missing on these: inner structure takes its outer radius
    * from the component it sits in, and a centering ring takes its inner radius
-   * from the motor mount through it — which is what the `.ork` spells `auto` and
+   * from the motor mount through it, which is what the `.ork` spells `auto` and
    * what `ComponentFactory` leaves the kernel to compute. Marking them would
    * demand a number the design does not need, and would put a red box on every ring
    * in an imported file: read as a missing number, `auto` gets the whole design

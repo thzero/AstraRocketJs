@@ -1,9 +1,10 @@
 import { defineConfig, devices } from '@playwright/test';
 
 /**
- * End-to-end config. Playwright auto-starts the Vite dev server on a fixed
- * port (strictPort so it fails loudly rather than drifting to 5174…), drives a
- * headless Chromium, and tears the server down when the run ends. The
+ * End-to-end config. Playwright builds the app and serves the build with
+ * `vite preview` on a fixed port (strictPort so it fails loudly rather than
+ * drifting to 5174…), drives a headless Chromium, and tears the server down
+ * when the run ends. The
  * SwiftShader flags software-render WebGL so the 3D views don't come up blank
  * on a headless/CI box with no GPU.
  */
@@ -40,20 +41,21 @@ const core = process.env.E2E_SCOPE === 'core';
 
 export default defineConfig({
   testDir: './e2e',
-  // Files spread across workers; the tests inside one file stay in order. Four
-  // locally runs the 213 tests in under 2 minutes with no failures. A GitHub
-  // runner has 4 vCPUs that also host the dev server and software-render WebGL
-  // for every browser, so CI runs two. Far more than that (16 on a 32-core box)
-  // starved the one dev server and timed out.
-  fullyParallel: false,
-  workers: process.env.CI ? 2 : 4,
+  // Every test spreads across the workers, not just every file: each test has
+  // its own browser context and storage, so none depends on another's order,
+  // and a long file (simulations-tab) does not set the floor. Against the
+  // built app, 8 workers run the suite in about a minute on a 28-core box;
+  // 12 is no faster. A GitHub runner has 4 vCPUs that also serve the app and
+  // software-render WebGL for every browser, so CI runs two.
+  fullyParallel: true,
+  workers: process.env.CI ? 2 : 8,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   // Under CI the `github` reporter annotates the PR, and the HTML report is
   // written beside it (never auto-opened: there is no browser to open it in)
   // so that a retry which passed on the second go is still visible as a flake
   // in the uploaded report. The `github` reporter alone shows only the final
-  // verdict, which is how flaky specs went unnoticed.
+  // verdict, which hides flaky specs.
   reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : 'list',
   use: {
     baseURL: 'http://localhost:5180',
@@ -64,7 +66,7 @@ export default defineConfig({
     {
       name: 'chromium',
       // Desktop width so the split-pane layout (stats footer + Simulations
-      // panel) renders — the mobile layout hides both behind tabs. Past `2xl`
+      // panel) renders; the mobile layout hides both behind tabs. Past `2xl`
       // (1536), which is what the Design tab's property column asks for: at
       // 1500 that column is a dialog instead (component-dialog.spec) and every
       // spec that drives the property editor would be driving the dialog.
@@ -77,10 +79,17 @@ export default defineConfig({
       use: { ...devices['Pixel 7'] },
     },
   ],
+  // The production build, not the dev server. The dev server compiles modules
+  // on request, so every fresh page in every worker pays for hundreds of them
+  // and the one Vite process becomes the bottleneck. The build is also what
+  // ships, with the timing that ships: the dev server's slower boot can hide
+  // ordering bugs. Built fresh each run, and never reused, so a
+  // server left on the port cannot serve an old build. The docs the Help dialog
+  // reads are copied in from public/docs by the build (npm run docs:build).
   webServer: {
-    command: 'npm run dev -- --port 5180 --strictPort',
+    command: 'npx vite build && npx vite preview --port 5180 --strictPort',
     url: 'http://localhost:5180',
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
     timeout: 120_000,
   },
 });

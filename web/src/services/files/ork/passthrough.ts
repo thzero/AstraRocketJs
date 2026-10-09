@@ -5,14 +5,14 @@ import type { ComponentNode, RocketTree } from '../../../engine/openRocketEngine
  * round trip verbatim.
  *
  * A `.ork` written by the desktop can hold things we have no model for, and they
- * sit at three levels: inside a COMPONENT (the Appearance tab's `<appearance>`
+ * sit at three levels: inside a component (the Appearance tab's `<appearance>`
  * and `<insideappearance>`), inside `<rocket>` (`<kitname>`), and beside it at
- * DOCUMENT level (`<photostudio>`, `<docprefs>`, `<datatypes>`). Reading them
- * into the app would mean building an editor for each; ignoring them meant every
- * save silently threw them away, so a design that came here for one dimension
- * went back stripped of its paint and its Photo Studio setup.
+ * document level (`<photostudio>`, `<docprefs>`, `<datatypes>`). Reading them
+ * into the app would mean building an editor for each; ignoring them would mean
+ * every save silently throws them away, so a design that came here for one
+ * dimension would go back stripped of its paint and its Photo Studio setup.
  *
- * So they are kept as RAW XML on the node and written back where they were.
+ * So they are kept as raw XML on the node and written back where they were.
  * Nothing is parsed, nothing reaches the engine, and nothing can appear in the
  * property panel, because the key is not in the `FIELDS` table. The only rule
  * this has to obey is the one below: a tag we handle ourselves must never also be
@@ -21,7 +21,7 @@ import type { ComponentNode, RocketTree } from '../../../engine/openRocketEngine
 
 /**
  * Every direct child of a component element that our own reader or writer
- * handles. Anything NOT here is opaque and gets carried.
+ * handles. Anything not here is opaque and gets carried.
  *
  * Gathered from the selectors in `importTags.ts` / `importReaders.ts` and the
  * tags emitted by `exportParts.ts` / `exportWriters.ts`. A tag missing from this
@@ -151,9 +151,9 @@ export const KNOWN_COMPONENT_TAGS: ReadonlySet<string> = new Set([
  * `referencetype` and `customreference` are here rather than carried because the
  * writer emits a `referencetype` of its own: carrying one as well would put the
  * element in the file twice. They are read and written explicitly instead, which
- * also keeps the writer off a hardcoded `maximum`: that brings a design whose
- * stability calibers were measured against a custom length back measured against
- * its widest body tube.
+ * also keeps the writer off a hardcoded `maximum`, which would bring a design
+ * whose stability calibers were measured against a custom length back measured
+ * against its widest body tube.
  */
 export const KNOWN_ROCKET_TAGS: ReadonlySet<string> = new Set([
   'name',
@@ -176,8 +176,8 @@ export const KNOWN_ROCKET_TAGS: ReadonlySet<string> = new Set([
  * Everything else at this level is a whole feature we do not have: `photostudio`
  * is the rendered-photograph setup, `docprefs` and `docmaterials` the design's
  * own preferences and material overrides, `datatypes` its custom expressions.
- * None of them is a component, so none was reachable by the component-level
- * passthrough, and all of them were dropped until this existed.
+ * None of them is a component, so the component-level passthrough cannot reach
+ * them.
  */
 export const KNOWN_DOCUMENT_TAGS: ReadonlySet<string> = new Set(['rocket', 'simulations', 'designinfo']);
 
@@ -202,12 +202,12 @@ const stripDecals = (el: Element): void => {
  * Read an element's unknown direct children, ready to be written back, or
  * `undefined` when it has none.
  *
- * Only DIRECT children: anything nested inside an element we do handle is that
+ * Only direct children: anything nested inside an element we do handle is that
  * reader's business, and anything nested inside an element we do not is carried
  * along with its parent. `known` is the set for the level being read - a
  * component, `<rocket>`, or `<openrocket>` itself.
  *
- * What was dropped is NOT reported from here. The import note is built in
+ * What was dropped is not reported from here. The import note is built in
  * `orkImport` by asking the document itself, which needs no state threaded
  * through every reader to answer the same question.
  */

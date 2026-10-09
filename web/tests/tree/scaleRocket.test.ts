@@ -87,11 +87,11 @@ describe('scaleRocket', () => {
   });
 
   it('scales a recovery device’s packed length, not just its canopy', () => {
-    // `length` on a parachute/streamer is the PACKED length - orkImport reads
+    // `length` on a parachute/streamer is the packed length - orkImport reads
     // <packedlength> straight into it - so it is the space the device needs in
     // the airframe. The shared fixture above declares no `length` on its chute,
-    // which is why the whole suite could not see whether it scaled: a 2x design
-    // kept a 25 mm packed length inside a 24 mm-bore tube.
+    // so this case states one: unscaled, a 2x design would keep a 25 mm packed
+    // length inside a 24 mm-bore tube.
     const t: RocketTree = {
       name: 'recovery',
       components: [

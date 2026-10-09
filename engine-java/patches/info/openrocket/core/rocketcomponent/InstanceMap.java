@@ -14,18 +14,17 @@ import info.openrocket.core.util.Transformation;
  */
 // PATCH(astrarrocketjs): ConcurrentHashMap -> LinkedHashMap. Two reasons:
 // (1) TeaVM's classlib needs a plain java.util map here; (2) RocketComponent
-// DOES override hashCode() (RocketComponent.java:2874) — but as id.hashCode(),
-// and `id` is a UUID.randomUUID() minted per component per run (:1331). So the
-// bucket order is freshly random on every run, not merely per-JVM-identity:
-// loading the SAME design twice in one process iterates differently. (The same
-// hashCode is why getComponentMasses re-sorts into tree order — see
-// OpenRocketEngine.getComponentMassesImpl.) The Barrowman calculators iterate
-// this map when summing per-component aerodynamic forces every simulation
-// step; a varying summation order produces ULP-level differences that
+// overrides hashCode() as id.hashCode(), and `id` is a UUID.randomUUID() minted
+// per component in RocketComponent.newID(). So the bucket order is random on
+// every run, not merely per JVM: loading the same design twice in one process
+// iterates differently. (The same hashCode is why getComponentMasses re-sorts
+// into tree order; see OpenRocketEngine.getComponentMassesImpl.) The Barrowman
+// calculators iterate this map when summing per-component aerodynamic forces
+// every simulation step; a varying summation order produces ULP-level differences that
 // chaos-amplify over a flight, making simulations nondeterministic
 // run-to-run (and JVM-vs-TeaVM differential comparison impossible).
-// LinkedHashMap iterates in insertion order — the deterministic tree-walk
-// order — identically on JVM and TeaVM. See patches/LEDGER.md.
+// LinkedHashMap iterates in insertion order (the deterministic tree-walk
+// order) identically on JVM and TeaVM. See patches/LEDGER.md.
 public class InstanceMap extends LinkedHashMap<RocketComponent, ArrayList<InstanceContext>> {
 
 	// =========== Public Functions ========================

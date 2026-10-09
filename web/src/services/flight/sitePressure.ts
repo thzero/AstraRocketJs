@@ -1,7 +1,7 @@
 /**
  * Does a typed launch pressure look like a sea-level figure?
  *
- * The launch pressure is the pressure AT the site, which is what the kernel
+ * The launch pressure is the pressure at the site, which is what the kernel
  * flies. Weather apps, airport reports and most forecasts quote pressure
  * reduced to sea level instead, and typed at a high site that figure makes the
  * air far too dense: 1013 hPa at a 1500 m field, where about 850 is usual, is

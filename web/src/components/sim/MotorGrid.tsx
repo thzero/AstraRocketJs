@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { hasCurve, type CatalogMotor } from '../../services/motors/motorDb';
 import { useUnits } from '../../prefs/useUnits';
 import { CatalogLoading, CatalogError } from '../common/CatalogLoading';
-import { keyOf } from './motorKey';
+import { keyOf } from '../../services/motors/motorKey';
 import { ALIGN, COLUMNS, heading, type Col } from './motorColumns';
 import type { MotorSort } from './useMotorSort';
 import { SortHeader } from '../common/SortHeader';
@@ -64,10 +64,10 @@ export function MotorGrid({
    * Whether the grid is the surface on screen.
    *
    * The arrow-key stepper is a `window` listener, and the dashboard keeps this
-   * grid MOUNTED while a full-width tool is open -- it only hides it with a
-   * CSS class. So pressing ArrowDown while reading the Compare pane stepped the
-   * selection and `onSelect` flipped the mode back to the detail rail, closing
-   * the comparison you had just set up.
+   * grid mounted while a full-width tool is open (it only hides it with a CSS
+   * class). Without this flag, ArrowDown while reading the Compare pane would
+   * step the selection, and `onSelect` would flip the mode back to the detail
+   * rail, closing the comparison.
    */
   active: boolean;
 }) {

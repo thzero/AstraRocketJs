@@ -4,8 +4,8 @@ import { useSyncExternalStore } from 'react';
  * Whether a CSS media query currently matches, as React state.
  *
  * Almost everything responsive in this app is a Tailwind `lg:` class, and should
- * stay that way — CSS needs no JavaScript and no re-render. This is for the one
- * case classes cannot express: a component that must exist in exactly ONE place
+ * stay that way: CSS needs no JavaScript and no re-render. This is for the one
+ * case classes cannot express: a component that must exist in exactly one place
  * in the DOM, but a different place per breakpoint.
  *
  * Rendering it twice and hiding one copy is the usual trick, and it is wrong
@@ -25,7 +25,7 @@ function useMediaQuery(query: string): boolean {
       return () => mql.removeEventListener('change', onChange);
     },
     () => window.matchMedia(query).matches,
-    // Server/prerender: no viewport to measure, so answer "not desktop" and let
+    // Server/prerender: no viewport to measure, so answer "no match" and let
     // the first client render correct it.
     () => false,
   );
@@ -40,8 +40,8 @@ export const useIsDesktop = (): boolean => useMediaQuery('(min-width: 1024px)');
  * The Design tab's property column needs the window to be this wide: it is a
  * third column beside the component tree and the drawing, and under 1536 the
  * three of them leave the drawing too little to be a drawing. An ordinary
- * laptop is on the dialog, which is the point - 1280 and 1440 are the widths
- * this is about, not only phones. Below it the component editor is a DIALOG
+ * laptop is on the dialog, which is the point: 1280 and 1440 are the widths
+ * this is about, not only phones. Below it the component editor is a dialog
  * instead (see components/design/ComponentDialog), which is why this is a
  * JavaScript query rather than a `2xl:` class: the editor has to exist in
  * exactly one of the two places, never both.

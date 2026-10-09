@@ -58,8 +58,8 @@ describe('impulseClass', () => {
   });
   /**
    * The sub-A classes are real NAR designations, not a rounding artifact:
-   * MicroMaxx is 1/4A territory and people fly it. Reporting a dash for all of
-   * them threw away what the impulse plainly says.
+   * MicroMaxx is 1/4A territory and people fly it. A dash for all of them
+   * would throw away what the impulse says.
    */
   it('names the fractional classes below A', () => {
     // NAR boundaries: 1/8A <= 0.3125, 1/4A <= 0.625, 1/2A <= 1.25, A <= 2.5.
@@ -82,17 +82,16 @@ describe('impulseClass', () => {
 });
 
 /**
- * A curve's LAST sample is part of the curve.
+ * A curve's last sample is part of the curve.
  *
- * `thrustAt` returned 0 at the final sample time, not just past it, and
- * `combineCurves` evaluates at the union of every curve's breakpoints - which
- * includes each curve's own last time. So the last trapezoid was integrated
+ * `combineCurves` evaluates at the union of every curve's breakpoints, which
+ * includes each curve's own last time. If `thrustAt` returned 0 at the final
+ * sample time rather than only past it, the last trapezoid would be integrated
  * as if the motor had already stopped.
  *
- * Most published curves end at zero thrust and never noticed. Of the 1477 in
- * the bundled catalog 6 do not, and their real error runs 0.0% to 0.4%. The
- * synthetic case below is far worse than anything shipped, which is the point:
- * it is what the code does, not what the data happens to avoid.
+ * Most published curves end at zero thrust, which hides the error; a few in the
+ * bundled catalog do not. The synthetic case below is far worse than anything
+ * shipped, so it tests what the code does, not what the data happens to avoid.
  */
 describe('thrustAt at the end of a curve', () => {
   const abrupt: Sample[] = [
@@ -135,8 +134,8 @@ describe('thrustAt at the end of a curve', () => {
       [2, 6],
     ];
     // Each curve integrates to its own trapezoid; simultaneous ignition sums.
-    // Summing at the breakpoints alone gave 10 N-s here, not 8: motor `a` ends
-    // abruptly at t=1 and was credited with a linear ramp down to t=2.
+    // Summing at the breakpoints alone would give 10 N-s here, not 8: motor `a`
+    // ends abruptly at t=1 and would be credited with a linear ramp down to t=2.
     expect(combineCurves([a, b]).totalImpulse).toBeCloseTo(impulse(a) + impulse(b), 4);
   });
 });
@@ -146,11 +145,10 @@ describe('thrustAt at the end of a curve', () => {
  *
  * Thrust curves use a duplicated time to mean a vertical edge: an instant
  * ignition spike, or a cut-off. The union of breakpoints de-duplicates those
- * times, and `thrustAt` returned the FIRST sample at a time rather than the
- * last, so a step UP read as the value before it. K543 in the bundled catalog
- * begins `[0, 0], [0, 2117]` and was summed as making no thrust at ignition:
- * 771.8 N-s reported for a 2117.3 N-s motor, a 63.5% understatement on a
- * K-class motor shown as if it were barely a J.
+ * times, so `thrustAt` has to return the last sample at a time, not the first,
+ * or a step up reads as the value before it. K543 in the bundled catalog begins
+ * `[0, 0], [0, 2117]`; read the other way, it makes no thrust at ignition and
+ * sums to 771.8 N-s instead of 2117.3 N-s.
  */
 describe('a curve with a step at a duplicated timestamp', () => {
   const stepUp: Sample[] = [
@@ -177,23 +175,23 @@ describe('a curve with a step at a duplicated timestamp', () => {
 });
 
 /**
- * The whole bundled catalog, as the ultimate check on the two fixes above.
+ * The whole bundled catalog, as the check on the two rules above.
  *
- * The previous version of this compared `combineCurves([s]).totalImpulse` to
- * `impulse(s)`, which is a tautology: `totalImpulse` IS `impulse(s)`, summed
- * over the (one) curve. It exercised nothing about resampling. What the panel
- * plots and peaks is the RESAMPLED curve, so that is what is integrated here.
+ * Comparing `combineCurves([s]).totalImpulse` to `impulse(s)` would be a
+ * tautology: `totalImpulse` is `impulse(s)`, summed over the (one) curve, and
+ * exercises nothing about resampling. What the panel plots and peaks is the
+ * resampled curve, so that is what is integrated here.
  *
  * For a curve without a duplicated timestamp the resampled curve must
  * integrate to the same total as the source: the breakpoints are the source's
  * own times, so the only permitted difference is the microsecond terminator a
- * non-zero ending gets. For the 74 curves that encode a step as two samples
+ * non-zero ending gets. For the curves that encode a step as two samples
  * at one time, the union of breakpoints has one point where the source has
  * two, so the resampled curve cannot carry the step's leading value; that is
  * why `totalImpulse` is summed from the curves and not from the samples. The
  * check on those is the one that matters for them: `thrustAt` reads the value
- * AFTER the step, so the resampled point is the later sample, not the earlier
- * one (K543 was summed at 0 N from its [0, 0], [0, 2117] start).
+ * after the step, so the resampled point is the later sample, not the earlier
+ * one (K543 starts [0, 0], [0, 2117] and must read 2117 N at t = 0).
  */
 describe('every curve in the bundled catalog', () => {
   const load = async () => {

@@ -8,13 +8,13 @@ import { updateNode } from '../../../src/services/design/treeEdit';
 import type { ComponentNode, RocketTree } from '../../../src/engine/openRocketEngine';
 
 /**
- * WHICH catalog part a component is, on screen.
+ * Which catalog part a component is, on screen.
  *
- * The picker has always written the link (`presetRef`) and the `.ork` writer has
- * always carried it, but nothing displayed it: a design built from real Estes
- * parts, the default one included, read as though every dimension had been typed
- * by hand. The desktop's own config dialog names the preset, which is the whole
- * point of picking one.
+ * The picker writes the link (`presetRef`) and the `.ork` writer carries it, so
+ * the panel shows it too: otherwise a design built from real Estes parts, the
+ * default one included, reads as though every dimension had been typed by hand.
+ * The desktop's own config dialog names the preset, which is the whole point of
+ * picking one.
  *
  * The second test is the other half of the contract: the link is only true while
  * the dimensions are the part's, so the row has to go when an edit breaks it.

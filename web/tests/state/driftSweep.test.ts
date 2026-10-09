@@ -51,7 +51,7 @@ const landed = (east: number, north: number) =>
  * A wind sweep, from the store down to the landings it keeps.
  *
  * What is being pinned here is the contract the ground track draws from: every
- * cell flies the SAME rocket under a DIFFERENT wind, the row's own result is
+ * cell flies the same rocket under a different wind, the row's own result is
  * never touched, and a part-flown grid is thrown away rather than drawn as if
  * it were whole.
  */
@@ -96,7 +96,7 @@ describe('a drift sweep', () => {
   });
 
   /**
-   * The wind is the ONLY thing that moves. Everything else differing per cell
+   * The wind is the only thing that moves. Everything else differing per cell
    * would make the spread unattributable, which is the whole value of a grid
    * over a handful of ad-hoc runs.
    */
@@ -148,7 +148,7 @@ describe('a drift sweep', () => {
 
   /**
    * A staged flight lands twice, and the two landings belong to different
-   * traces on the plan view — a spent booster comes down nowhere near the
+   * traces on the plan view: a spent booster comes down nowhere near the
    * sustainer, so merging them would draw one envelope around both.
    */
   it('files a staged flight landings under their own branches', async () => {
@@ -207,7 +207,7 @@ describe('a drift sweep', () => {
 
   /**
    * Nothing gates a second sweep on the first draining, so the stragglers of
-   * the one being replaced must not tick the new one's counter — least of all
+   * the one being replaced must not tick the new one's counter, least of all
    * when it is the same row being swept again.
    */
   it('does not let a superseded sweep count against its replacement', async () => {

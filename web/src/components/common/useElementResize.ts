@@ -4,8 +4,7 @@ import { useEffect, useLayoutEffect, useRef, type RefObject } from 'react';
  * Call `onResize` whenever the element behind `ref` changes size, with its
  * content box and the element itself. Each caller keeps its own clamp; what is
  * shared is the observer, its disconnect, and the guard for an environment with
- * no ResizeObserver at all (three of six hand-written copies lacked it, and one
- * missing guard is a crash on that browser).
+ * no ResizeObserver at all, where an unguarded call would crash.
  */
 export function useElementResize<T extends Element>(
   ref: RefObject<T | null>,

@@ -17,11 +17,11 @@ import { NumberRow } from '../common/NumberRow';
 import { SPEED_WARNINGS } from './speedWarnings';
 
 /**
- * Everything about the SELECTED simulation: its name, the flight configuration
+ * Everything about the selected simulation: its name, the flight configuration
  * it flies, the launch conditions, and its overrides of the global run
  * preferences.
  *
- * The configuration is PICKED here and edited in the Configurations tab. A
+ * The configuration is picked here and edited in the Configurations tab. A
  * loadout several simulations share cannot also be editable from one of them
  * without the two surfaces disagreeing about whether a change is about the row
  * or about the setup.
@@ -67,7 +67,7 @@ export function SimEditor() {
    * A multi-target edit is never silent: the same tick that means "fly these"
    * means "edit these", so the editor says which it is pointed at and what a
    * change will touch. It rides in the sticky band beside Run for the reason
-   * Run is sticky at all -- the fields it is warning about are further down the
+   * Run is sticky at all: the fields it is warning about are further down the
    * scroll than the warning would otherwise reach.
    */
   const banner = multi ? (
@@ -82,17 +82,17 @@ export function SimEditor() {
 
   return (
     <div className="relative p-3">
-      {/* Run heads this column, above the simulation it flies, and STAYS there.
-          Everything below it -- a motor card per mount, the launch conditions,
-          the run options -- is far taller than the column, so the one control
-          you reach for after every edit used to scroll away from you.
+      {/* Run heads this column, above the simulation it flies, and stays there.
+          Everything below it (the configuration, the launch conditions, the run
+          options) is far taller than the column, so without the sticky band the
+          one control you reach for after every edit would scroll away.
 
           Full-bleed (-mx-3 -mt-3 against the container's p-3) and opaque, so
-          the options pass BEHIND the band rather than beside it; `sticky`
-          pins to the scrolling ancestor, which is the 380px column in App.
+          the options pass behind the band rather than beside it; `sticky`
+          pins to the scrolling ancestor, which is the right column in App.
 
-          On a phone this component is inline UNDER the table, so the button
-          stays in the pane's toolbar instead - one instance either way
+          On a phone this component is inline under the table, so the button
+          stays in the pane's toolbar instead: one instance either way
           (see useMediaQuery). */}
       {desktop && (
         <div className="sticky top-0 z-10 -mx-3 -mt-3 mb-4 space-y-2 border-b border-line/10 bg-canvas p-3">
@@ -105,11 +105,10 @@ export function SimEditor() {
         {!desktop && banner}
 
         <section className="rounded-xl bg-surface p-3 ring-1 ring-line/10">
-          {/* A div, not a <label htmlFor>: this component is rendered twice (the
-              phone's inline copy and the desktop column), and a duplicated id is
-              a broken association for whichever copy loses. The input names itself
-              with aria-label instead. */}
-          {/* The one field that does NOT follow the selection: pushing a name
+          {/* A div, not a <label htmlFor>: this component mounts in two places
+              (inline on a phone, the desktop column), so the input names itself
+              with aria-label rather than depending on a fixed id. */}
+          {/* The one field that does not follow the selection: pushing a name
               across three simulations would leave three rows called the same
               thing, which is the opposite of what naming is for. */}
           <div className="mb-1 flex items-baseline gap-2 text-[10px] uppercase tracking-wide text-ink-muted">
@@ -125,7 +124,7 @@ export function SimEditor() {
           />
         </section>
 
-        {/* WHICH setup this row flies. The motors themselves are in the
+        {/* Which setup this row flies. The motors themselves are in the
             Configurations tab: one place writes a loadout, and a configuration
             several rows share cannot be quietly edited from one of them. */}
         <section className="rounded-xl bg-surface p-3 ring-1 ring-line/10">
@@ -151,7 +150,7 @@ export function SimEditor() {
           <button
             type="button"
             onClick={() => {
-              // Open the tab ON this configuration rather than wherever it was
+              // Open the tab on this configuration rather than wherever it was
               // left, so the round trip lands on the motors this row flies.
               setSelectedConfigId(config.id);
               setTab('configs');
@@ -192,7 +191,7 @@ const nearestStepIndex = (v: number): number =>
  * Per-simulation overrides of Settings › Simulation: the run options, and the
  * recovery-deployment speeds that decide when a flight raises a warning.
  *
- * Empty means "follow the global value", which is shown as the placeholder — so
+ * Empty means "follow the global value", which is shown as the placeholder, so
  * the field reads as the number that will actually be used, and clearing it is
  * how you hand the setting back. OpenRocket carries all of these per simulation
  * too; ours additionally fall through, rather than being copied at creation, so
@@ -207,12 +206,10 @@ function SimOptions({ diff }: { diff?: ReadonlySet<keyof SimPrefs> }) {
   const clearSimPrefs = useWorkspaceStore((s) => s.clearSimPrefs);
   const onCommit = useWorkspaceStore((s) => s.commitEdit);
   const g = settings.simulation;
-  // The SAME FieldUnit the global setting resolves, under the same scope key, so
+  // The same FieldUnit the global setting resolves, under the same scope key, so
   // the two surfaces for this one stored value cannot disagree about its unit.
-  // This read a hardcoded degree sign and an inline `* 180 / Math.PI`, which
-  // SettingsDialog says in its own comment it was changed away from. `angle`
-  // offers `rad`, so a user working in radians saw one surface in degrees and the
-  // other in radians, for the same number.
+  // `angle` offers `rad`, so a hardcoded degree conversion here would show a user
+  // working in radians one surface in degrees and the other in radians.
   const angle = u.at(unitScope('settings', 'maxAngleStep'), 'angle');
 
   /** What this simulation actually runs with: its overrides over the globals. */
@@ -220,7 +217,7 @@ function SimOptions({ diff }: { diff?: ReadonlySet<keyof SimPrefs> }) {
   const mixed = (k: keyof SimPrefs) => diff?.has(k) ?? false;
   const overridden = Object.keys(prefs ?? {}).length > 0;
 
-  // The four deployment thresholds are SPEEDS, so they follow the user's
+  // The four deployment thresholds are speeds, so they follow the user's
   // velocity unit both ways; the stored value stays SI. `fmt` for the
   // placeholder rather than the raw number, since the global is SI too.
   const speed = (si: number | undefined): number | null => (si == null ? null : u.toUi('velocity', si));
@@ -236,7 +233,7 @@ function SimOptions({ diff }: { diff?: ReadonlySet<keyof SimPrefs> }) {
       {/* What the kernel is actually running, stated rather than assumed, as the
           desktop states it. Fixed, not chosen: the bridge always builds a
           BarrowmanCalculator and the RK4 stepper, and the supersonic-aero
-          extensions the engine CAN carry are not wired into the web app. */}
+          extensions the engine can carry are not wired into the web app. */}
       <dl className="mb-3 space-y-1">
         <div className="flex items-baseline justify-between gap-3">
           <dt className="text-xs text-ink-muted">{t('settings.calcMethod')}</dt>
@@ -277,8 +274,8 @@ function SimOptions({ diff }: { diff?: ReadonlySet<keyof SimPrefs> }) {
           label={t('settings.maxAngleStep')}
           hint={t('settings.maxAngleStepHint')}
           unit={angle.sym}
-          // Stored in RADIANS like the kernel's field, edited in the user's angle
-          // unit through `angle` above - not in degrees by assumption.
+          // Stored in radians like the kernel's field, edited in the user's angle
+          // unit through `angle` above, not in degrees by assumption.
           mixed={mixed('maxAngleStep')}
           value={prefs?.maxAngleStep == null ? null : angle.toUi(prefs.maxAngleStep)}
           placeholder={String(angle.toUi(g.maxAngleStep))}
@@ -316,7 +313,7 @@ function SimOptions({ diff }: { diff?: ReadonlySet<keyof SimPrefs> }) {
 
       {/* The desktop's two buttons. "Reset" drops this simulation's overrides so
           every field falls back through to the global again; "Save as default"
-          pushes what it is running now INTO the globals, which is the only way
+          pushes what it is running now into the globals, which is the only way
           to make a value you arrived at here the starting point for new work. */}
       <div className="mt-3 flex gap-2">
         <button
@@ -333,9 +330,9 @@ function SimOptions({ diff }: { diff?: ReadonlySet<keyof SimPrefs> }) {
         <button
           type="button"
           onClick={() => {
-            // Saved as the globals AND dropped as overrides: leaving them behind
+            // Saved as the globals and dropped as overrides: leaving them behind
             // would pin this simulation to today's numbers, so a later change to
-            // the global would move every OTHER simulation but not this one.
+            // the global would move every other simulation but not this one.
             update({ simulation: eff });
             clearSimPrefs();
             onCommit();
@@ -348,8 +345,8 @@ function SimOptions({ diff }: { diff?: ReadonlySet<keyof SimPrefs> }) {
 
       {/* The deployment-speed thresholds, per simulation. Which one a flight uses
           depends on the stage's recovery layout: no drogue is single-deployment
-          and uses the first alone; a drogue makes it dual-deployment and the MAIN
-          is judged against the next two, the DROGUE against the last. All of them
+          and uses the first alone; a drogue makes it dual-deployment and the main
+          is judged against the next two, the drogue against the last. All of them
           reach the kernel, which is what raises the warnings shown on the Results
           tab. The last three apply only once a device is marked as a drogue. */}
       <div className="mt-3 border-t border-line/10 pt-2 text-[10px] uppercase tracking-wide text-ink-muted">

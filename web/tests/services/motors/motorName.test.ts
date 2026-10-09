@@ -24,7 +24,7 @@ describe('delayString', () => {
   });
 
   it('writes a plugged motor as P', () => {
-    // The letter on the casing, and NOT translated: a C6-P that read C6-T in
+    // The letter on the casing, and not translated: a C6-P that read C6-T in
     // another language would name a motor nobody sells.
     expect(delayString(PLUGGED_DELAY)).toBe('P');
   });

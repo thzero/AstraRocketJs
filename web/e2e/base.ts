@@ -20,13 +20,13 @@ export type WipState = 'acknowledged' | 'shown';
  * later, that some unrelated click was intercepted by `div.fixed.inset-0.z-[60]` -
  * the notice's backdrop.
  *
- * The notice is gated on a stored flag (WorkInProgressDialog.tsx:16), so this sets
+ * The notice is gated on a stored flag (see WorkInProgressDialog.tsx), so this sets
  * the flag rather than racing the button, and e2e/wip-gate.spec.ts is the one place
- * that exercises the gate itself. A spec that wants to SEE the notice asks for it:
+ * that exercises the gate itself. A spec that wants to see the notice asks for it:
  *
  *     test.use({ wip: 'shown' });
  *
- * The seed MERGES into whatever is already stored, and has to keep doing so: it
+ * The seed merges into whatever is already stored, and has to: it
  * runs on every navigation, `page.reload()` included, and a dozen specs reload
  * precisely to prove a preference survived. Overwriting the blob erases the thing
  * they assert.
@@ -91,12 +91,11 @@ export { expect };
 export type { Locator, Page } from '@playwright/test';
 
 /**
- * A diagnostic that does NOT print on a green run.
+ * A diagnostic that does not print on a green run.
  *
  * `console.log` in a spec lands in GitHub's annotation stream every time the
- * suite passes (playwright.config.ts uses the `github` reporter under CI), so
- * two dozen of them turned every successful run into a wall of numbers. A
- * Playwright annotation carries the same information into the report, where it
+ * suite passes (playwright.config.ts uses the `github` reporter under CI), which
+ * buries a successful run under numbers. A Playwright annotation carries the same information into the report, where it
  * is there when you are reading a failure and invisible when you are not.
  */
 export const note = (...parts: unknown[]): void => {
@@ -107,13 +106,12 @@ export const note = (...parts: unknown[]): void => {
 };
 
 /**
- * Wait for the DEBOUNCED autosave to reach IndexedDB, rather than guessing.
+ * Wait for the debounced autosave to reach IndexedDB, rather than guessing.
  *
- * Several specs slept 700 ms before `page.reload()` to cover a 500 ms debounce
- * plus an async IndexedDB write. That is a guess at two variable delays, and on
- * a loaded machine it loses — which is how `recovery.spec.ts` failed twice in
- * one afternoon while passing in isolation. This polls the actual store, so it
- * returns as soon as the write lands and fails loudly if it never does.
+ * A fixed sleep before `page.reload()` is a guess at two variable delays (the
+ * autosave debounce plus an async IndexedDB write), and on a loaded machine it
+ * loses. This polls the actual store, so it returns as soon as the write lands
+ * and fails loudly if it never does.
  *
  * `needle` is matched against every stored value; `atLeast` counts occurrences,
  * so "two simulations" can be expressed as a per-simulation marker seen twice.
@@ -123,7 +121,7 @@ export async function autosaved(page: Page, needle: string, atLeast = 1): Promis
     .poll(
       () =>
         page.evaluate(
-          // The prefix is passed IN: this function body is serialized and run in
+          // The prefix is passed in: this function body is serialized and run in
           // the page, where a module import does not reach.
           ([n, db]) =>
             new Promise<number>((resolve) => {
@@ -198,21 +196,19 @@ export async function runFlight(page: Page): Promise<void> {
  *
  * "L/D" is the unique fineness-tile unit in the statistics strip, so its
  * presence means the WASM kernel loaded, built the rocket and reported real
- * numbers. Every spec that clicks into the design needs that first, and the
- * goto-plus-wait pair was copied 18 times in mobile-layout.spec.ts alone, with
- * the timeout sometimes stated and sometimes left at the 5 s default.
+ * numbers. Every spec that clicks into the design needs that first, with one
+ * timeout rather than each spec choosing its own.
  *
- * 20 s: the kernel is a 2.9 MB WASM module that is compiled on first load, and
- * a cold CI runner software-rendering WebGL beside it has been seen to take
- * more than the default.
+ * 20 s: the kernel is a multi-megabyte WASM module that is compiled on first
+ * load, and a cold CI runner software-rendering WebGL beside it can take more
+ * than the 5 s default.
  */
 export async function ready(page: Page): Promise<void> {
-  // Collected for the FAILURE path only. A bare "element(s) not found" here says
-  // nothing about why the app never rendered, and there is more than one way for
-  // that to happen: main.tsx holds the React mount until initEngine settles, so
-  // an engine fetch that stalls rather than failing leaves the boot splash up
-  // and looks identical to a slow build or a thrown error. Whether the root ever
-  // mounted separates them.
+  // Collected for the failure path only. A bare "element(s) not found" here says
+  // nothing about why the numbers never appeared, and there is more than one way
+  // for that to happen: an engine fetch that stalls rather than failing looks
+  // identical to a slow build or a thrown error. The console errors, whether the
+  // root mounted, and the text on screen separate them.
   const problems: string[] = [];
   page.on('console', (m) => {
     if (m.type() === 'error') problems.push(`console.error: ${m.text()}`);
@@ -236,7 +232,7 @@ export async function ready(page: Page): Promise<void> {
 }
 
 /**
- * Import a fixture `.ork` and WAIT for the design to land.
+ * Import a fixture `.ork` and wait for the design to land.
  *
  * `setInputFiles` returns as soon as the file is handed over; the parse, the
  * tree swap and the engine rebuild are all async after that. Without a
@@ -245,10 +241,10 @@ export async function ready(page: Page): Promise<void> {
  * The Booster stage is unique to these fixtures, so its appearance in the tree
  * means the import has actually been applied.
  *
- * Waits for the engine to have run on the DEFAULT design first, so this works
+ * Waits for the engine to have run on the default design first, so this works
  * straight after `page.goto` and after `page.reload` alike.
  *
- * `clash` is for the case where the library ALREADY holds a design of this
+ * `clash` is for the case where the library already holds a design of this
  * file's name - importing the same fixture twice in one test, typically across
  * a reload. The app asks what to do with it then (see resolveNameClash), and a
  * helper that did not answer would simply time out behind the dialog.
@@ -256,7 +252,7 @@ export async function ready(page: Page): Promise<void> {
 export async function importOrk(page: Page, fixture: string, clash?: NameClash): Promise<void> {
   await expect(page.getByText('L/D', { exact: true })).toBeVisible({ timeout: 20_000 });
   // Scoped by `accept`: the header carries one hidden input per readable
-  // format (.ork and .rkt), so a bare `input[type=file]` is now ambiguous.
+  // format (.ork and .rkt), so a bare `input[type=file]` is ambiguous.
   await page.locator('input[accept=".ork"]').setInputFiles(fixture);
   if (clash) await resolveNameClash(page, clash);
   await expect(page.getByText('Booster').first()).toBeVisible({ timeout: 20_000 });
@@ -284,7 +280,7 @@ async function resolveNameClash(page: Page, choice: NameClash): Promise<void> {
 /**
  * Import a fixture `.rkt` and wait for the design to land.
  *
- * Waits on the design's NAME rather than a "Booster" row: the RockSim fixture
+ * Waits on the design's name rather than a "Booster" row: the RockSim fixture
  * is single-stage, and the tree shows a Sustainer whether or not an import
  * happened, so that is not a synchronization point.
  */
@@ -298,10 +294,10 @@ export async function importRkt(page: Page, fixture: string, designName: string,
 }
 
 /**
- * A value that the spec REQUIRES to exist, named.
+ * A value that the spec requires to exist, named.
  *
  * `noUncheckedIndexedAccess` makes every `rows[0]` and `find()` result
- * possibly-undefined, and the specs answered with `!`. A `!` that misses throws
+ * possibly-undefined. A `!` that misses throws
  * "Cannot read properties of undefined (reading 'indexOf')" from somewhere in
  * the arithmetic below it; this fails on the line that looked, and says what it
  * was looking for.
@@ -315,9 +311,9 @@ export function defined<T>(value: T | undefined | null, what: string): T {
 /**
  * `boundingBox()` that fails on the element, not later.
  *
- * Playwright returns null for an element that is not rendered, and the specs
- * followed every call with `!`; a hidden pane then failed as "Cannot read
- * properties of null (reading 'width')" a few lines down. The locator's own
+ * Playwright returns null for an element that is not rendered; with a `!` a
+ * hidden pane fails as "Cannot read properties of null (reading 'width')" a few
+ * lines down. The locator's own
  * description goes in the message, so the failure says which box was missing.
  */
 export async function box(target: Locator): Promise<{ x: number; y: number; width: number; height: number }> {
@@ -330,9 +326,9 @@ export async function box(target: Locator): Promise<{ x: number; y: number; widt
  * The table that a heading introduces.
  *
  * The aero tables carry no accessible name of their own (they are a `<table>`
- * under a `TableHead` `<h3>`, see AeroAnalysis.tsx), so the specs reached them
- * by document index: `querySelectorAll('table')[1]`, which moves every time a table
- * is added or a pane is mounted hidden. The heading IS named, and the app renders
+ * under a `TableHead` `<h3>`, see AeroComponentTables.tsx), and a document index
+ * such as `querySelectorAll('table')[1]` shifts whenever a table is added or a pane
+ * is mounted hidden. The heading is named, and the app renders
  * each table as the first one after its heading, so this selects by that
  * relationship. It is an XPath axis, not a class name, so it survives restyling.
  */

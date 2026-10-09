@@ -16,21 +16,20 @@ const show = (node: ComponentNode, extra: { parentRadius?: number } = {}) => {
 };
 
 /**
- * The two design-panel validators that shipped with no way to reach them.
+ * The two design-panel validators the panel exposes.
  *
- * `tree/cluster.ts` and `tree/tubefins.ts` both had exported, tested helpers
- * that nothing in the app called — the cluster options list and the tube-fin
- * collision limits. Each is wired into this panel now, and these tests are what
- * stop them going quiet again.
+ * `tree/cluster.ts` and `tree/tubefins.ts` export tested helpers (the cluster
+ * options list and the tube-fin collision limits). Both are wired into this
+ * panel, and these tests check that they stay reachable.
  */
 // The panel renders a MaterialPicker, which fetches the material catalog.
 beforeAll(serveData);
 
 describe('cluster selection', () => {
   /**
-   * `cluster` round-trips through .ork and every view (2D, aft, 3D) already
-   * drew the tube at each cluster offset — but nothing could SET it, so the
-   * only way to have a cluster was to import a file that already did.
+   * `cluster` round-trips through .ork and every view (2D, aft, 3D) draws the
+   * tube at each cluster offset, so the panel has to be able to set it; without
+   * this control the only way to have a cluster is to import a file that does.
    */
   it('offers every cluster pattern on a motor mount', () => {
     show({ id: 'm1', type: 'innertube', motorMount: true } as unknown as ComponentNode);
@@ -107,7 +106,7 @@ describe('tube fin collision warning', () => {
 /**
  * One name, one place. A part's angle around the body is the same kernel property
  * whatever the part is (`FinSet.getBaseRotation()` returns `getAngleOffset()`), so
- * it carries one label, in the section that answers WHERE the part goes, rather
+ * it carries one label, in the section that answers where the part goes, rather
  * than "Angle around body" on a lug and "Base rotation" on a fin set halfway down
  * the dimension list.
  */
@@ -142,14 +141,14 @@ describe('placement section', () => {
  *
  * Overrides are not a property of the part the way its dimensions, material and
  * placement are; they override what those add up to. Rendered in the middle,
- * they pushed a lug's placement rows below three rows nobody was looking for,
- * and where they fell varied by type, since a parachute has two sections
- * between them and a body tube has none.
+ * they would push a lug's placement rows below three rows nobody was looking
+ * for, and where they fell would vary by type, since a parachute has two
+ * sections between them and a body tube has none.
  *
- * Comment is the one section that is not about the part at all - it is a note
- * from the builder - so nothing the panel says about the part may be under it.
- * It used to sit above the material, which put a free-text box between the
- * part's dimensions and what it is made of.
+ * Comment is the one section that is not about the part at all (it is a note
+ * from the builder), so nothing the panel says about the part may be under it,
+ * and no free-text box sits between the part's dimensions and what it is made
+ * of.
  */
 describe('bottom of the panel', () => {
   /** A section by its heading. Comment cannot be found by text: the section and
@@ -171,12 +170,11 @@ describe('bottom of the panel', () => {
 /**
  * The automatic switch says what it is.
  *
- * It was a bare 13x13 checkbox at the right end of the row with the word only
- * in a `title`, so on a centering ring - which has one on each of its two
- * diameters - it read as two unexplained ticks, and the feature they turn on
- * was reported missing from parts that had it all along. The accessible name
- * keeps the field's own name in front of the word, so the two rows are still
- * told apart when the page is read aloud.
+ * With the word only in a `title`, a bare checkbox at the end of the row reads
+ * as an unexplained tick, and on a centering ring (which has one on each of its
+ * two diameters) as two of them. The accessible name keeps the field's own name
+ * in front of the word, so the two rows are still told apart when the page is
+ * read aloud.
  */
 describe('the automatic switch', () => {
   const switches = () =>
@@ -194,13 +192,13 @@ describe('the automatic switch', () => {
     const found = switches();
     expect(found.map((c) => c.getAttribute('aria-label'))).toEqual([...names]);
     for (const c of found) {
-      // The word is ON THE PAGE, in the switch's own label, not only in a title.
+      // The word is on the page, in the switch's own label, not only in a title.
       const worded = c.closest('label');
       expect(worded, `${type}: ${c.getAttribute('aria-label')} has no label`).not.toBeNull();
       expect(worded!.textContent?.trim()).toBe('Auto');
       // And that label binds to the switch, not to the number box beside it:
-      // one label cannot serve two controls, which is why the word could not be
-      // written at all while the row was a single <label>.
+      // one label cannot serve two controls, so the row cannot be a single
+      // <label>.
       expect(worded!.querySelectorAll('input').length).toBe(1);
     }
   });
@@ -237,7 +235,7 @@ describe('fin tab section', () => {
 });
 
 /**
- * What a tube does for a MOTOR, as against what the tube is.
+ * What a tube does for a motor, as against what the tube is.
  *
  * A body tube's "Motor mount" and "Motor overhang", and an inner tube's cluster
  * with them, are not three more dimensions of the tube and do not run on under its
@@ -267,13 +265,13 @@ describe('motor section', () => {
   });
 
   /**
-   * And it sits BELOW the material.
+   * And it sits below the material.
    *
-   * Everything above it describes the tube itself - its dimensions, then what
-   * it is made of - and this is the first section about the job the tube has
-   * been given. Between the wall thickness and the material it split the
+   * Everything above it describes the tube itself (its dimensions, then what
+   * it is made of), and this is the first section about the job the tube has
+   * been given. Between the wall thickness and the material it would split the
    * description of one object in half, and on an inner tube the six cluster
-   * rows pushed the material picker most of a screen down.
+   * rows would push the material picker most of a screen down.
    */
   it.each(['bodytube', 'innertube'])('sits below the material on a %s', (type) => {
     show({ id: 'm1', type } as unknown as ComponentNode);
@@ -288,11 +286,11 @@ describe('motor section', () => {
 
 /**
  * The name and the catalog picker are one section: they answer what the part
- * IS, as against its dimensions. They are also the only rows the panel builds
+ * is, as against its dimensions. They are also the only rows the panel builds
  * itself rather than declaring in FIELDS, so without the section they float loose
  * above everything else.
  *
- * Color is NOT one of them. It sits in Appearance, below, because it says how
+ * Color is not one of them. It sits in Appearance, below, because it says how
  * the part is drawn rather than what it is, and nothing about it reaches the
  * simulation.
  */
@@ -311,8 +309,8 @@ describe('part section', () => {
 });
 
 /**
- * Appearance: how the part is DRAWN. Second to last on every part, directly
- * above Overrides, for the same reason Overrides is last - it is read far less
+ * Appearance: how the part is drawn. Second to last on every part, directly
+ * above Overrides, for the same reason Overrides is last: it is read far less
  * often than anything describing the part.
  */
 describe('appearance section', () => {
@@ -346,11 +344,10 @@ describe('appearance section', () => {
 /**
  * Fin fillets are editable, and only offer a material once there is a bead.
  *
- * Before, nothing in the app could set one: the value round-tripped through
- * `.ork` and was scaled with the rocket, but there was no field, and the
- * engine bridge never handed it to the kernel either. See the fillet cases in
+ * The value round-trips through `.ork`, is scaled with the rocket, and the
+ * engine bridge hands it to the kernel. See the fillet cases in
  * `engine/engineBoundary.test.ts` for the half that makes this one worth
- * having — a field that changed the file and nothing else would pass here.
+ * having: a field that changed the file and nothing else would pass here.
  */
 describe('fin fillet', () => {
   const fillet = () => screen.getByText('Fillet').parentElement!;
@@ -364,7 +361,7 @@ describe('fin fillet', () => {
     const onChange = show({ id: 'f1', type: 'trapezoidfinset' } as unknown as ComponentNode);
     const box = screen.getByLabelText('Fillet radius');
     fireEvent.change(box, { target: { value: '6' } });
-    // The default length unit is cm (prefs/units.ts:187) and the tree is
+    // The default length unit is cm (prefs/units.ts) and the tree is
     // always SI, so a typed 6 has to land as 0.06 m and not as 6.
     expect(onChange).toHaveBeenCalledWith({ filletRadius: 0.06 });
   });
@@ -390,14 +387,14 @@ describe('fin fillet', () => {
  *
  * `DimensionFields` falls back to the option's own value when a select field
  * declares neither `optI18n` nor `optLabel`, and a hand-built select can simply
- * render `{m}`. Both shipped: the nose cone's Shape read `ogive / conical /
- * ellipsoid / ...` and Placement's "Position from" read `top / middle /
- * bottom / absolute`, in lower case, under capitalized and translated labels.
+ * render `{m}`. Either way the nose cone's Shape would read `ogive / conical /
+ * ellipsoid / ...` or Placement's "Position from" `top / middle / bottom /
+ * absolute`, in lower case, under capitalized and translated labels.
  *
- * `componentFields.options.test.ts` fences off the FIELDS half. It could not
- * see the second one, because that select is written out in PlacementSection
- * rather than declared anywhere. This looks at what is actually RENDERED, so it
- * covers both and anything added later.
+ * `componentFields.options.test.ts` fences off the FIELDS half. It cannot see
+ * the second, because that select is written out in PlacementSection rather
+ * than declared anywhere. This looks at what is actually rendered, so it covers
+ * both and anything added later.
  *
  * The rule is narrow on purpose: an option whose text is exactly its own value,
  * where that value is a lower case identifier. A material reads
@@ -405,7 +402,7 @@ describe('fin fillet', () => {
  * it; `ogive` and `bottom` do.
  */
 describe('dropdown options', () => {
-  /** The unit choosers, whose options are unit SYMBOLS (`in`, `ft`, `cm`) and
+  /** The unit choosers, whose options are unit symbols (`in`, `ft`, `cm`) and
    *  are lower case because that is what those units are called. It is the only
    *  titled select in the panel, and the assertion below re-checks that rather
    *  than trusting it. */
@@ -419,15 +416,15 @@ describe('dropdown options', () => {
       .map((o) => o.value);
 
   it.each(Object.keys(FIELDS))('are all labeled on a %s', (type) => {
-    // parentRadius so the nested parts render their Placement section, which is
-    // where the one this test was written for lives.
+    // parentRadius so the nested parts render their Placement section, which
+    // holds the hand-built "Position from" select.
     show({ id: 'x', type } as unknown as ComponentNode, { parentRadius: 0.013 });
     expect(rawOptions()).toEqual([]);
   });
 
   it('excludes nothing but the unit choosers', () => {
     // The filter above is the only way this test can be wrong in the quiet
-    // direction, so it is checked: a titled select that is NOT a unit chip
+    // direction, so it is checked: a titled select that is not a unit chip
     // would be skipped without anyone knowing.
     show({ id: 'n1', type: 'nosecone' } as unknown as ComponentNode, { parentRadius: 0.013 });
     const titled = [...document.querySelectorAll('select')].filter((s) => s.title);

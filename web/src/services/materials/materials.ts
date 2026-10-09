@@ -1,11 +1,11 @@
-// Materials available to the editor = the BUILT-IN catalog + the user's CUSTOM
+// Materials available to the editor = the built-in catalog + the user's custom
 // materials.
 //
 // The built-ins are a runtime file (public/data/materials.generated.json,
 // written by scripts/sync-materials.mjs) fetched on demand like the motor and
 // component catalogs, not compiled into the bundle. Custom materials persist
-// through a swappable store (materialStore.ts) — IndexedDB by default, a
-// backend service tomorrow. This layer only owns the domain rules (validation,
+// through a swappable store (materialStore.ts), IndexedDB by default or any
+// other backend. This layer only owns the domain rules (validation,
 // merging built-ins with custom) and talks to neither mechanism directly.
 import { isMaterialCatalog, type Material, type MaterialType } from './materialTypes';
 import { getMaterialStore } from './materialStore';
@@ -42,7 +42,7 @@ function loadCustom(): Promise<Material[]> {
 export const DEFAULT_CUSTOM_GROUP = 'Other';
 
 /**
- * The group older builds filed custom materials under. Still read, never
+ * A group name some stored custom materials carry. Still read, never
  * written: a material saved that way is re-homed on the way out of the store
  * rather than stranded in a group nothing else is in.
  */
@@ -66,9 +66,9 @@ export function groupsOf(materials: Material[]): string[] {
  * custom list (newest first). A blank name or non-positive density is rejected.
  *
  * `group` is where it sits in the picker. It is only a hint: a custom material
- * that SHARES A NAME with a built-in takes that built-in's group and its place
+ * that shares a name with a built-in takes that built-in's group and its place
  * in the list, because it is that material at your density rather than a second
- * material with the same name — see {@link mergeCustom}.
+ * material with the same name; see {@link mergeCustom}.
  */
 export async function addCustom(
   name: string,
@@ -90,7 +90,7 @@ export async function removeCustom(name: string, type: MaterialType): Promise<Ma
 }
 
 /**
- * Built-ins and custom materials as ONE list, in picker order.
+ * Built-ins and custom materials as one list, in picker order.
  *
  * Exported for test, and separate from the store round trip so the rule can be
  * read without one.

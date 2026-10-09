@@ -9,33 +9,31 @@ import { UNKNOWN_PART_COLOR } from '../design/partColors';
 /**
  * 3MF (3D Manufacturing Format) writer.
  *
- * WHY, beside the STL/OBJ/GLB the app already writes. STL is naked triangles:
- * no name, no color, no declared unit, one object per file. A rocket exported
- * part by part therefore arrives in the slicer as a pile of anonymous solids
- * you have to re-identify by eye. 3MF carries the part's NAME, a color, an
- * explicit unit and any number of objects in one file, and every current slicer
- * prefers it. That is the whole of the improvement, and it is most of the
- * reason to export a whole rocket at once rather than one part at a time.
+ * Why, beside STL/OBJ/GLB: STL is bare triangles, with no name, no color, no
+ * declared unit, and one object per file. A rocket exported part by part
+ * therefore arrives in the slicer as a pile of anonymous solids you have to
+ * re-identify by eye. 3MF carries the part's name, a color, an explicit unit
+ * and any number of objects in one file, which is most of the reason to export
+ * a whole rocket at once rather than one part at a time.
  *
- * WHAT IT IS. A zip holding three members: the OPC content-type map, a
- * relationship pointing at the model, and the model itself — plain XML with a
+ * The file is a zip holding three members: the OPC content-type map, a
+ * relationship pointing at the model, and the model itself (plain XML with a
  * vertex list and a triangle list per object, then a `<build>` naming which
- * objects to place and where. No compression tricks, no binary payload.
+ * objects to place and where).
  *
- * ORIENTATION IS LEFT ALONE. Our solids are built with the rocket's axis along
+ * Orientation is left alone. The solids are built with the rocket's axis along
  * X (`solidMesh.ts` lathes about Y and rotates into X), which for a tube or a
  * nose cone means lying on its side. Standing them up would be right for most
- * bodies and wrong for every fin and ring, and it would silently make the 3MF
- * geometry differ from the STL of the same part. `placeOnPlate` therefore only
- * TRANSLATES — the slicer's own lay-flat is the right tool for the rest, and it
- * is one click there.
+ * bodies and wrong for every fin and ring, and it would make the 3MF geometry
+ * differ from the STL of the same part. `placeOnPlate` therefore only
+ * translates; the slicer's own lay-flat is the right tool for the rest.
  */
 
 /** One object to write: a watertight solid, named, optionally colored. */
 export interface ThreeMfPart {
   /** Shown as the object's name in the slicer's object list. */
   name: string;
-  /** Watertight, INDEXED geometry in meters (see `makeWatertight`). */
+  /** Watertight, indexed geometry in meters (see `makeWatertight`). */
   geometry: THREE.BufferGeometry;
   /** `#rrggbb`; falls back to the neutral the other mesh exports use. */
   color?: string;
@@ -44,7 +42,7 @@ export interface ThreeMfPart {
 export interface ThreeMfOptions {
   /**
    * Translate each object so its bounding box is centered on X/Y and its lowest
-   * point sits at Z = 0 — "drop it on the bed". On by default, because a part
+   * point sits at Z = 0 ("drop it on the bed"). On by default, because a part
    * exported at its position in the rocket lands meters from the plate origin.
    */
   placeOnPlate?: boolean;
@@ -52,9 +50,12 @@ export interface ThreeMfOptions {
 
 export const THREE_MF_MIME = 'model/3mf';
 
+/** The unknown-part color as a number. The constant is valid hex, so the 0 is never used. */
+const UNKNOWN_RGB = parseHexColor(UNKNOWN_PART_COLOR) ?? 0;
+
 /** `#rgb` / `#rrggbb` → the `#RRGGBBAA` the spec's `displaycolor` wants. */
 function displayColor(color: string | undefined): string {
-  const rgb = parseHexColor(color) ?? (parseHexColor(UNKNOWN_PART_COLOR) as number);
+  const rgb = parseHexColor(color) ?? UNKNOWN_RGB;
   return `${hexOf(rgb).toUpperCase()}FF`;
 }
 
@@ -64,7 +65,7 @@ const fmt = (v: number): string => plainDecimal(v, 6, '0');
 /**
  * One object's `<mesh>`, plus the translation its build item needs.
  *
- * Meters in, MILLIMETERS out: 3MF states its unit, and every slicer and CAD
+ * Meters in, millimeters out: 3MF states its unit, and every slicer and CAD
  * tool assumes mm, so a meter-scale model would import a thousand times too
  * small. Same `M_TO_MM` the STL/OBJ/GLB path scales by.
  */

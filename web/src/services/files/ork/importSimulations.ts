@@ -23,7 +23,7 @@ export interface OrkSimulation {
  *
  * The desktop writes a <flightdata> summary for every simulation that has a
  * result, as attributes on the element, and loads any file that has one as
- * LOADED rather than not simulated, unless its status says outdated
+ * loaded rather than not simulated, unless its status says outdated
  * (SingleSimulationHandler). The summary alone is what is read here: the
  * per-sample <databranch> data, when the desktop wrote it, is not, because the
  * app re-flies a simulation for its charts.

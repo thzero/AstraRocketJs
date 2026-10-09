@@ -6,10 +6,10 @@ import { errorMessage } from '../services/app/errorMessage';
  * Where the physics kernel is, as UI state.
  *
  * The engine is a 2.3 MB WASM module (or a 1 MB JS chunk when that is not
- * available), and it used to be loaded BEFORE React mounted. That made every
- * way the download can go wrong a way the whole app can fail to appear, and the
- * worst of them is silent: a stalled fetch neither resolves nor rejects, so the
- * splash simply stayed up forever with nothing on screen and no way out.
+ * available). Loading it before React mounts would make every way the download
+ * can go wrong a way the whole app fails to appear, and the worst of them is
+ * silent: a stalled fetch neither resolves nor rejects, so a splash would stay up
+ * forever with nothing on screen and no way out.
  *
  * So the app mounts first and reads this instead. The tree, the drawing, the
  * library and every import/export path need no kernel; the static numbers and
@@ -19,7 +19,7 @@ export type EnginePhase = 'loading' | 'ready' | 'failed';
 
 /**
  * How long a load may run before the UI stops saying "loading" and offers a way
- * out. A stall never reports anything, so elapsed time is the ONLY signal that
+ * out. A stall never reports anything, so elapsed time is the only signal that
  * separates it from a slow link, and neither one can be waited out silently.
  */
 const SLOW_AFTER_MS = 15_000;

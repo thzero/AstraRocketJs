@@ -54,7 +54,7 @@ test('draws no ground imagery until it is asked for', async ({ page }) => {
 
   await showGround(page);
   await expect(attribution(page)).toBeVisible();
-  // Polled, because the attribution is rendered by turning the layer ON and the
+  // Polled, because the attribution is rendered by turning the layer on and the
   // first tile request goes out after that. A plain expect samples the array
   // once, in the gap between the two, and reads zero whenever the machine is
   // loaded enough to widen it.

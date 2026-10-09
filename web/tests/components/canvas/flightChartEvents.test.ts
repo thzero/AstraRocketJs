@@ -3,8 +3,8 @@ import { eventStripHeight, packEventLabels } from '../../../src/components/canva
 import { EVENT_ROW_H, PAD_L, PAD_R } from '../../../src/components/canvas/flightChartAxis';
 
 /**
- * The event-label row packing. It was an inline useMemo; now it is a pure
- * function, so the "never overlap" promise in its comment is held here.
+ * The event-label row packing. It is a pure function, so the "never overlap"
+ * promise in its comment is held here.
  */
 
 const width = () => 40; // every label 40 px wide, so half = 20

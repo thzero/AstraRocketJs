@@ -58,11 +58,11 @@ describe('bool', () => {
 /**
  * A count has a ceiling, not just a floor.
  *
- * Every consumer read counts as `Math.max(1, Math.round(...))` and then looped
- * that many times allocating as it went: a cloned ExtrudeGeometry per fin in
- * the 3D view, an SVG shape per fin in the schematic, a tube per instance in
- * the aft view. Typing 100000 into Fin count locked the tab, and a hostile
- * `.ork` could carry the same value. One reader now caps all eleven sites.
+ * Consumers loop over a count, allocating as they go: a cloned ExtrudeGeometry
+ * per fin in the 3D view, an SVG shape per fin in the schematic, a tube per
+ * instance in the aft view. Uncapped, typing 100000 into Fin count locks the
+ * tab, and a hostile `.ork` can carry the same value. One reader caps every
+ * site.
  */
 describe('countOf', () => {
   const n = (v: unknown) => ({ id: 'x', finCount: v }) as never;

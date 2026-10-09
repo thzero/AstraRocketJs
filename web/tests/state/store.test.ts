@@ -134,7 +134,7 @@ describe('workspace undo/redo', () => {
 
   it('undo folds an uncommitted in-flight edit into one step', () => {
     const before = len('nose');
-    s().patchSelected({ length: 0.5 }); // no commitEdit — simulates Ctrl+Z mid-edit
+    s().patchSelected({ length: 0.5 }); // no commitEdit: simulates Ctrl+Z mid-edit
     s().undo();
     expect(len('nose')).toBe(before);
     expect(s().past).toHaveLength(0);
@@ -251,7 +251,7 @@ describe('simulation undo/redo', () => {
     s().undo();
     expect(s().sims.find((x) => x.id === firstId)!.name).not.toBe('Windy day');
 
-    // Add a second sim, then delete it — undo brings it back.
+    // Add a second sim, then delete it; undo brings it back.
     s().addSim();
     const addedId = active().id;
     expect(s().sims).toHaveLength(2);
@@ -342,7 +342,7 @@ describe('mount to motor reconciliation', () => {
 });
 
 /**
- * A simulation NAMES the configuration it flies, and a configuration is SHARED:
+ * A simulation names the configuration it flies, and a configuration is shared:
  * changing its motors changes what every row flying it flies. That is the point
  * of a configuration, and it is why motors are edited in one place (the
  * Configurations tab) rather than from a row that only happens to fly them.
@@ -545,7 +545,7 @@ describe('per-configuration recovery', () => {
   });
 
   it('clears a field back to the design, and the map with it', () => {
-    // No overrides at all means NO `deployments`, which is what the builder
+    // No overrides at all means no `deployments`, which is what the builder
     // short-circuits on and what the exporter reads as "as designed".
     s().setDeployment(config().id, chuteId(), 'deployAltitude', 150);
     s().setDeployment(config().id, chuteId(), 'deployAltitude', null);
@@ -670,13 +670,13 @@ describe('simulation run guards', () => {
   });
 
   // A run that throws leaves exactly the state auto-run fires on: no result, not
-  // busy, a result view open. Without a record of the failure it retried the
-  // same failing design forever, spawning a full flight sim each time.
+  // busy, a result view open. Without a record of the failure it would retry
+  // the same failing design forever, spawning a full flight sim each time.
   it('records a failed run against the design it failed on', async () => {
     simulateMock.mockRejectedValueOnce(new Error('kernel exploded'));
     await s().runSim({} as SimPrefs);
 
-    // Named, like the skip messages already were: a failure is reported once
+    // Named, like the skip messages: a failure is reported once
     // per row so a batch cannot collapse into one anonymous line.
     expect(s().err).toBe('"Simulation 1" failed: kernel exploded');
     expect(s().simBusy).toBe(false);
@@ -739,7 +739,7 @@ describe('simulation run guards', () => {
 });
 
 /**
- * A design edit FLAGS every cached result rather than nulling it, the way
+ * A design edit flags every cached result rather than nulling it, the way
  * OpenRocket does. Nulled, the numbers a change is being compared against vanish
  * the moment it is made, the Results tab comes and goes on every keystroke, and
  * "run outdated simulations automatically" has no state it can mean.
@@ -834,7 +834,7 @@ describe('per-simulation options', () => {
     expect(active().prefs?.timeStep).toBe(0.01);
 
     s().setSimPref('timeStep', null);
-    // The KEY is removed, not stored as undefined: `prefs` is spread over the
+    // The key is removed, not stored as undefined: `prefs` is spread over the
     // globals, and an explicit undefined would shadow the global with nothing.
     // The last override going away drops the whole object.
     expect(active().prefs).toBeUndefined();
@@ -851,7 +851,7 @@ describe('per-simulation options', () => {
 });
 
 /**
- * Run flies what the TABLE has selected: the ticked rows, or the active
+ * Run flies what the table has selected: the ticked rows, or the active
  * simulation when nothing is ticked. `activeId` (what the editor points at) and
  * the tick set are deliberately different questions - ticking a row to fly it
  * must not drag the editor over to it.
@@ -895,7 +895,7 @@ describe('running a selection', () => {
   });
 
   /**
-   * Running IS asking to see the answer, so every run lands on Results - a batch
+   * Running is asking to see the answer, so every run lands on Results - a batch
    * as much as a single flight. Leaving a batch where it is, so that twelve rows
    * do not yank the user onto whichever finished last, leaves a click with nothing
    * behind it after every run.
@@ -914,9 +914,9 @@ describe('running a selection', () => {
 
   /**
    * What the last run flew, which is what the Results heading reads to choose
-   * between a plain name and a picker. Counting simulations that HAVE a result
+   * between a plain name and a picker. Counting simulations that have a result
    * is a different thing: results persist, so running one simulation after
-   * having run another put a dropdown on screen for a single run.
+   * having run another would put a dropdown on screen for a single run.
    */
   it('records the simulations THIS run flew, and points the results at them', async () => {
     await s().runSims([s().activeId], {} as SimPrefs);
@@ -1006,7 +1006,7 @@ describe('tab and view stay in step', () => {
 
   it('leaves a caller alone on a pane that shows no view at all', () => {
     // The Simulate tab and the phone's Rocket pane show stats and the run, not a
-    // view — so a view changing underneath (a result invalidated, a design
+    // view, so a view changing underneath (a result invalidated, a design
     // opened) must not drag the reader off what they chose.
     s().setDesignPane('stats');
     s().setView('flight');
@@ -1059,7 +1059,7 @@ describe('tab and view stay in step', () => {
   it('treats the design pane as a phone detail, not a tab', () => {
     // Both halves are the Design tab. Switching between them must not change
     // which view is open, and must not be reachable from another tab by
-    // accident — `setDesignPane` is how you GET to Design.
+    // accident: `setDesignPane` is how you get to Design.
     s().setView('drag');
     s().setDesignPane('stats');
     s().setDesignPane('sketch');
@@ -1080,10 +1080,10 @@ describe('storage warning', () => {
     s().setErr(null);
   });
 
-  // These shared one slot, and the rebuild effect calls setErr(null) on every
-  // successful build — which happens milliseconds after load and again on every
-  // keystroke. The warning that the user's work is no longer being saved was
-  // therefore wiped before anyone could read it.
+  // Two slots, because the rebuild effect calls setErr(null) on every successful
+  // build, which happens milliseconds after load and again on every keystroke. In
+  // one shared slot the warning that the user's work is no longer being saved
+  // would be wiped before anyone could read it.
   it('survives the rebuild effect clearing the transient error', () => {
     s().setStorageWarning('storage is full');
     s().setErr('something else went wrong');
@@ -1105,10 +1105,10 @@ describe('storage warning', () => {
 describe('openDesign is race-safe', () => {
   /**
    * Four sequential awaits, and the user can click a second design during any
-   * of them. If B's read resolved first, A's continuation then ran
-   * flushActive() — writing B's tree out under the store's current active id —
-   * and finished with setActive(A) + hydrate(A). The user clicked B last and
-   * was looking at A.
+   * of them. If B's read resolves first, A's continuation must not then run
+   * flushActive() (writing B's tree out under the store's current active id)
+   * and finish with setActive(A) + hydrate(A), leaving the user who clicked B
+   * last looking at A.
    */
   it('ignores a slow request that the user has already superseded', async () => {
     const wsFor = (name: string) => ({
@@ -1148,7 +1148,7 @@ describe('openDesign is race-safe', () => {
     releaseA();
     await pA;
 
-    // B was clicked last, so B is what is open — and A never got to call
+    // B was clicked last, so B is what is open, and A never got to call
     // setActive behind it.
     expect((s().tree as unknown as { name: string }).name).toBe('B');
     expect(active).toEqual(['B']);
@@ -1158,9 +1158,9 @@ describe('openDesign is race-safe', () => {
 /**
  * One workspace generation, bumped by everything that replaces the workspace.
  *
- * `openToken` guarded openDesign against another openDesign and nothing else,
- * so every other pairing raced: two imports, an import against a library open,
- * a Save As against either.
+ * A token that guards openDesign only against another openDesign leaves every
+ * other pairing racing: two imports, an import against a library open, a Save As
+ * against either.
  */
 describe('replacing the workspace is race-safe across actions, not just openDesign', () => {
   const orkFile = (name: string, hold?: Promise<void>): File =>
@@ -1302,8 +1302,8 @@ describe('openDesign honors a refused setActive', () => {
 /**
  * Launch conditions outside the NAR/Tripoli safety codes are not flown.
  *
- * They are simulation SETTINGS, not design, so there is nothing to preserve by
- * flying them anyway — and a number this app will not stand behind is worse than
+ * They are simulation settings, not design, so there is nothing to preserve by
+ * flying them anyway, and a number this app will not stand behind is worse than
  * no number. The fields cap what you can type; this is the guard for everything
  * that arrives another way, which in practice means an imported `.ork`.
  */
@@ -1358,7 +1358,7 @@ describe('the safety codes stop a run', () => {
 });
 
 /**
- * The workspace the store hands to persistence CARRIES its flight results.
+ * The workspace the store hands to persistence carries its flight results.
  *
  * Stripping them here would lose every run on reload. The split happens one level
  * down, in `workspaceStore.save`: the design blob stays lean and the flights go to
@@ -1397,7 +1397,7 @@ describe('what reaches storage', () => {
     } as never);
 
     // openDesign flushes the open design before it switches away, which is
-    // the remaining path that writes on demand now that File > Save is gone.
+    // the one path that writes on demand, since the File menu has no Save item.
     await s().openDesign('D');
 
     expect(save).toHaveBeenCalled();
@@ -1471,13 +1471,14 @@ describe('replacing the workspace resets the transient run state', () => {
 });
 
 /**
- * Re-importing the same .ork added an identical row to File > Open every time.
+ * Re-importing the same .ork must not add an identical row to File > Open every
+ * time.
  *
- * An import detaches the workspace store on purpose — an imported rocket is
- * its own design, not an edit to whatever was on screen — but nothing looked
- * at the NAME, so the edit-in-OpenRocket-and-reimport loop (and reopening the
- * same example) left the library holding a stack of rockets called the same
- * thing, each a real design with its own id.
+ * An import detaches the workspace store on purpose (an imported rocket is its
+ * own design, not an edit to whatever was on screen), so without a check on the
+ * name, the edit-in-OpenRocket-and-reimport loop (and reopening the same example)
+ * would leave the library holding a stack of rockets called the same thing, each a
+ * real design with its own id.
  */
 describe('importing a rocket whose name is already saved', () => {
   const orkFile = (name: string): File =>
@@ -1576,7 +1577,7 @@ describe('importing a rocket whose name is already saved', () => {
     await s().openOrkFile(orkFile('Big Bertha'));
     await autosave();
 
-    // The existing entry IS its home: pointed at, written into, not duplicated.
+    // The existing entry is its home: pointed at, written into, not duplicated.
     expect(calls.active).toEqual(['d0']);
     expect(s().activeDesignId).toBe('d0');
     expect(calls.created).toEqual([]);
@@ -1596,7 +1597,7 @@ describe('importing a rocket whose name is already saved', () => {
   });
 
   it('falls back to a suffixed name when the user cancels the name dialog', async () => {
-    // Canceling the NAME dialog cannot cancel the import: the file is parsed
+    // Canceling the name dialog cannot cancel the import: the file is parsed
     // and already on screen. The one outcome ruled out is a second row called
     // exactly the same thing.
     const calls = { active: [] as string[], created: [] as string[] };

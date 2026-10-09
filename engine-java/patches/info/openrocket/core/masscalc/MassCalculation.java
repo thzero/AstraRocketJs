@@ -264,20 +264,20 @@ public class MassCalculation {
 		double clusterIt = motorConfig.getUnitLongitudinalInertia()*instanceCount*eachMass;
 		
 		// PATCH(offaxis-roll-inertia): every instance gets its parallel-axis
-		// term, not only a multi-motor cluster. Upstream guarded this loop with
+		// term, not only a multi-motor cluster. Upstream guards this loop with
 		// `if( 1 < instanceCount )` ("more than 1 motor => not at the
 		// centerline"), but one mount can sit off the axis too: InnerTube's
 		// getInstanceOffsets() carries its radial shift at every cluster count,
-		// so a single motor in a split-cluster tube added nothing to roll
-		// inertia. clusterLocalCM sits on the mount's parent axis for every
-		// count, so the term about that axis belongs to this body and rebase()
-		// cannot add it twice. A centerline mount has the one offset (0, 0, 0)
-		// and adds exactly 0.0. See patches/LEDGER.md.
+		// so with that guard a single motor in a split-cluster tube adds nothing
+		// to roll inertia. clusterLocalCM sits on the mount's parent axis for
+		// every count, so the term about that axis belongs to this body and
+		// rebase() cannot add it twice. A centerline mount has the one offset
+		// (0, 0, 0) and adds exactly 0.0. See patches/LEDGER.md.
 		// The squared distance is summed directly, not via Math.hypot and
 		// Math.pow: JVM hypot (FDLIBM) and TeaVM's disagree by 1 ULP on about
-		// 12% of inputs (see Geo2D), and this now runs for every mount, so the
-		// JVM reference and the shipped targets could report different roll
-		// inertia for one off-axis motor. y*y + z*z is identical on all three.
+		// 12% of inputs (see Geo2D), and this runs for every mount, so the JVM
+		// reference and the shipped targets could report different roll inertia
+		// for one off-axis motor. y*y + z*z is identical on all three.
 		double clusterIr = clusterBaseIr; 
 		for( CoordinateIF coord : offsets ){
 			clusterIr += eachMass*(coord.getY()*coord.getY() + coord.getZ()*coord.getZ());

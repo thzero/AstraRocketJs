@@ -14,9 +14,9 @@ const flight = {
 
 /**
  * The landing distance reads in the flight's distance unit, the one Ground Track
- * shows the same landing in (the 'sim.apogee' scope). The Environment tab read
- * the plain distance unit instead, so once the reader set that chip to feet the
- * two views of one flight disagreed on the unit.
+ * shows the same landing in (the 'sim.apogee' scope). Reading the plain distance
+ * unit instead would make the two views of one flight disagree once that chip is
+ * set to feet.
  */
 describe('EnvironmentLanding', () => {
   beforeEach(() => localStorage.clear());
@@ -32,8 +32,8 @@ describe('EnvironmentLanding', () => {
 /**
  * The landing coordinate of a simulated flight is the kernel's own: it records
  * latitude and longitude (φ, λ) at every step with the Earth model the
- * simulation chose. The view re-projected the east/north offset with a formula
- * of its own instead, which agreed with neither the kernel nor the export.
+ * simulation chose. Re-projecting the east/north offset with a formula of the
+ * view's own would agree with neither the kernel nor the export.
  */
 describe('EnvironmentLanding coordinates', () => {
   beforeEach(() => localStorage.clear());

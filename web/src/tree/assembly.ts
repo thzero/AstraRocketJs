@@ -3,12 +3,11 @@ import { ASSEMBLY_TYPES, isChainType, type AssemblyType } from './componentKinds
 import { chainOuterRadius, num } from './nodeProps';
 
 /**
- * Geometry helpers for off-axis assemblies (PodSet / ParallelStage) — shared
- * by the 2D schematic, the 3D view, and (later) the .ork writer so all agree
- * on where a pod sits. All SI (meters, radians). Mirrors the kernel:
- * instances ring the parent axis at y = r·cosθ, z = r·sinθ (PodSet
- * getInstanceOffsets), and the RELATIVE radius is a gap from the parent
- * surface.
+ * Geometry helpers for off-axis assemblies (PodSet / ParallelStage), shared
+ * by the 2D schematic and the 3D view so both agree on where a pod sits. All SI
+ * (meters, radians). Mirrors the kernel: instances ring the parent axis at
+ * y = r·cosθ, z = r·sinθ (PodSet getInstanceOffsets), and the `relative`
+ * radius is a gap from the parent surface.
  */
 
 /**
@@ -28,15 +27,15 @@ export function assemblyBoundingRadius(pod: ComponentNode): number {
 }
 
 /**
- * Distance (m) from the PARENT centerline to the assembly's centerline.
- * - RELATIVE (default): `radiusOffset` is a GAP from the parent surface, so
+ * Distance (m) from the parent centerline to the assembly's centerline.
+ * - `relative` (default): `radiusOffset` is a gap from the parent surface, so
  *   the resolved radius = offset + parentOuterRadius + assemblyBoundingRadius
  *   (offset 0 ⇒ the pod just touches the airframe).
- * - FREE: `radiusOffset` is measured straight from the parent centerline.
+ * - `free`: `radiusOffset` is measured straight from the parent centerline.
  */
 export function resolveAssemblyRadius(pod: ComponentNode, parentOuterRadius: number): number {
   const offset = num(pod, 'radiusOffset', 0);
-  const method = typeof pod['radiusMethod'] === 'string' ? (pod['radiusMethod'] as string) : 'relative';
+  const method = typeof pod['radiusMethod'] === 'string' ? pod['radiusMethod'] : 'relative';
   if (method === 'free') return offset;
   return offset + parentOuterRadius + assemblyBoundingRadius(pod);
 }
@@ -49,7 +48,7 @@ export interface RingInstance {
 
 /**
  * The `count` instance centers around the parent axis at `radius`, spaced
- * evenly from `angleOffset` (rad). y = r·cosθ, z = r·sinθ — the kernel's
+ * evenly from `angleOffset` (rad). y = r·cosθ, z = r·sinθ, the kernel's
  * PodSet convention. The 2D view projects `y` and ignores `z`.
  */
 export function ringInstanceOffsets(count: number, radius: number, angleOffset = 0): RingInstance[] {

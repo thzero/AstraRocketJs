@@ -7,6 +7,7 @@ import {
   type SimulationOptions,
 } from '../../src/engine/openRocketEngine';
 import { simConditions } from '../../src/services/flight/simulations';
+import { airDensity } from '../../src/services/flight/recoverySizing';
 import type { AtmosphereLevel } from '../../src/services/design/orkTree';
 import { KERNEL_TEST_TIMEOUT_MS } from '../testing/kernelTimeout';
 
@@ -107,6 +108,35 @@ describe('a forecast atmosphere', () => {
     const withLow = apogee({ atmosphereLevels: levels, temperature: 308.15, pressure: 95_000 });
     const without = apogee({ atmosphereLevels: [levels[2]!], temperature: 308.15, pressure: 95_000 });
     expect(withLow).toBeCloseTo(without, 9);
+  });
+
+  /**
+   * The parachute sizing estimate reads the air at the pad from the same
+   * levels the flight flies, so its density matches the engine's at liftoff:
+   * between two levels, below the lowest one, and with no forecast at all (the
+   * standard atmosphere, which the kernel tabulates every 500 m).
+   */
+  it('gives the air density the sizing estimate uses at the pad', () => {
+    const rhoAtLiftoff = (launchAltitudeM: number, levels?: AtmosphereLevel[]): number => {
+      const d = OpenRocketDesign.buildTree(TREE);
+      d.setMotorById('tube', C6);
+      const r = d.simulate({
+        launchRodLength: 1,
+        randomSeed: 7,
+        launchAltitude: launchAltitudeM,
+        atmosphereLevels: levels ? levelsOf(levels) : undefined,
+        series: 'full',
+      });
+      return r.series['ρ']![0]!;
+    };
+    const between = column(20, 950);
+    expect(rhoAtLiftoff(1500, between)).toBeCloseTo(
+      airDensity({ launchAltitudeM: 1500, atmosphereLevels: between }),
+      6,
+    );
+    const above = column(20, 950).map((l) => ({ ...l, altitudeM: l.altitudeM + 1000 }));
+    expect(rhoAtLiftoff(500, above)).toBeCloseTo(airDensity({ launchAltitudeM: 500, atmosphereLevels: above }), 6);
+    expect(rhoAtLiftoff(2682)).toBeCloseTo(airDensity({ launchAltitudeM: 2682 }), 6);
   });
 
   it('reaches the engine from launch conditions through simConditions', () => {

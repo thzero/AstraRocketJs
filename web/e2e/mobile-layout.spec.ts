@@ -17,7 +17,7 @@ import { test, expect, type Page, note, openTab, runFlight, ready, box } from '.
  * room for a floating card inset from the edges, and a panel capped at 85vh
  * leaves strips of dimmed app above and below that look tappable and are not.
  *
- * The rule lives in ONE place (`.dialog-overlay` / `.dialog-panel` in
+ * The rule lives in one place (`.dialog-overlay` / `.dialog-panel` in
  * index.css), so this checks a dialog from each shape: a plain padded card, a
  * flex column with a footer, and one with its own fixed height.
  */
@@ -61,7 +61,7 @@ test.describe('dialogs on a phone', () => {
  * that dialog being replaced rather than something opening over it.
  */
 test.describe('short prompts', () => {
-  // This one MEASURES the work-in-progress notice, so it is the one place that
+  // This one measures the work-in-progress notice, so it is the one place that
   // opts out of the fixture's default of having it already acknowledged.
   test.use({ wip: 'shown' });
 
@@ -126,7 +126,7 @@ test('a finished run lands on the Results tab', async ({ page }) => {
 
 test('the desktop workbench splits the view families across its tabs too', async ({ page }) => {
   // The workbench is tabbed at every width, so the same rule applies here as on a
-  // phone: the tab picks the family, the switch moves within it. NOT all five views
+  // phone: the tab picks the family, the switch moves within it, not all five views
   // in one switch.
   await page.setViewportSize({ width: 1500, height: 950 });
   await ready(page);
@@ -156,8 +156,8 @@ test('the desktop workbench splits the view families across its tabs too', async
  * card being above the tiles rather than under them: what a reading is worth is
  * a thing to know before reading it. On a 320x568 phone that puts the tiles off
  * the bottom of the column until it is scrolled, so the thing worth pinning is
- * that they are REACHABLE - a caution that cost you the numbers entirely would
- * be a different bug from the one the order is solving.
+ * that they are reachable: a caution that cost you the numbers entirely would
+ * defeat the purpose of the order.
  */
 test('the Results tab leads with the safety card, and the numbers scroll up behind it', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 568 }); // the smallest phone we target
@@ -171,7 +171,7 @@ test('the Results tab leads with the safety card, and the numbers scroll up behi
     const grid = document.querySelector('main section[aria-label="Simulation results"]');
     const half = document.querySelector('main div.min-h-0.w-full.flex-1.flex-col');
     const pane = half?.parentElement;
-    // The summary column, found by what it DOES rather than by its classes: the
+    // The summary column, found by what it does rather than by its classes: the
     // nearest ancestor that actually scrolls.
     let col: HTMLElement | null = card?.parentElement ?? null;
     while (col && !(col.scrollHeight > col.clientHeight + 1 && /auto|scroll/.test(getComputedStyle(col).overflowY)))
@@ -181,7 +181,7 @@ test('the Results tab leads with the safety card, and the numbers scroll up behi
       cardTop: box(card),
       cardBottom: card ? Math.round(card.getBoundingClientRect().bottom) : null,
       summaryTop: box(grid),
-      // The column's CONTENT edge: it carries a pt-3, so its border box starts
+      // The column's content edge: it carries a pt-3, so its border box starts
       // 12px above anything inside it.
       colTop: col ? Math.round(col.getBoundingClientRect().top + parseFloat(getComputedStyle(col).paddingTop)) : null,
       colHolds: !!col && !!card && !!grid && col.contains(card) && col.contains(grid),
@@ -200,14 +200,14 @@ test('the Results tab leads with the safety card, and the numbers scroll up behi
   expect(m.summaryTop).toBeGreaterThanOrEqual(m.cardBottom!);
 
   // And the numbers are a scroll away, not gone: Apogee reaches the viewport.
-  // Scoped to the first region in DOM order — the center pane's — because the
+  // Scoped to the first region in DOM order (the center pane's), because the
   // sim editor keeps its own copy mounted behind the Simulate tab.
   const summary = page.getByRole('region', { name: 'Simulation results' }).first();
   await summary.getByText('Apogee', { exact: true }).scrollIntoViewIfNeeded();
   await expect(summary.getByText('Apogee', { exact: true })).toBeInViewport();
 
   // The column is capped rather than free to grow, so it scrolls instead of
-  // squeezing the chart it describes down to nothing (it was 91px before).
+  // squeezing the chart it describes down to nothing.
   expect(m.chartHeight).toBeGreaterThan(200);
   expect(m.chartHeight).toBeGreaterThan(m.paneHeight * 0.5);
 });

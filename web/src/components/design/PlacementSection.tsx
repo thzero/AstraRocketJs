@@ -9,7 +9,7 @@ import { FieldRow, NumberField, sectionFields } from './DimensionFields';
 import { PropSection } from './PropSection';
 
 /**
- * The property panel's placement section: WHERE a nested part sits, as
+ * The property panel's placement section: where a nested part sits, as
  * against what shape it is. Along the parent tube (the reference method and
  * the offset from it), and around it (the rotation, for the parts that have
  * one).
@@ -21,7 +21,7 @@ import { PropSection } from './PropSection';
  * `getAngleOffset()`.
  */
 
-/** Placement — only meaningful for parts nested inside a tube. */
+/** Placement: only meaningful for parts nested inside a tube. */
 export function PlacementSection({
   node,
   onChange,
@@ -36,7 +36,7 @@ export function PlacementSection({
   // The placement offset carries its own unit, like the override rows.
   const offsetScope = unitScope('prop', node.type, PANEL_SCOPE_KEYS[2]);
   const offsetUnit = u.at(offsetScope, 'length');
-  const pos = (node.position as ComponentPosition | undefined) ?? { method: 'top', offset: 0 };
+  const pos = node.position ?? { method: 'top', offset: 0 };
   // Discrete controls (select / checkbox / pickers) finish the moment they
   // change, so patch and close the undo entry in one shot.
   const commitChange = (patch: Partial<ComponentNode>) => {

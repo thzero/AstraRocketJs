@@ -43,7 +43,7 @@ import { seaLevelExcessPa } from '../../services/flight/sitePressure';
 
 /**
  * A launch-condition field in the user's chosen unit. `value`/`onChange` speak
- * the STORED convention (see SI above); `stepSi`/`minSi` are given in SI, so a
+ * the stored convention (see SI above); `stepSi`/`minSi` are given in SI, so a
  * sensible 0.5 m/s or 10 m stays sensible once it is shown in ft/s or ft.
  */
 export function QNum({
@@ -67,9 +67,9 @@ export function QNum({
   label: string;
   /**
    * Accessible name for the unit chip, when the visible label is ambiguous
-   * OUTSIDE this panel. "Length" and "Direction" read fine under their group
-   * headings, but a screen reader announces the chip on its own — and the stats
-   * strip has its own "Length", so two chips on one screen announced the same.
+   * outside this panel. "Length" and "Direction" read fine under their group
+   * headings, but a screen reader announces the chip on its own, and the stats
+   * strip has its own "Length", so two chips on one screen would announce the same.
    */
   chipLabel?: string;
   /** Names this launch field, so its unit is its own (see `unitScope`). */
@@ -85,11 +85,11 @@ export function QNum({
   hint?: string;
   /** See {@link NumberRow}. */
   caution?: string;
-  /** See {@link Num}. */
+  /** See {@link NumberRow}. */
   mixed?: boolean;
-  /** See {@link Num}. */
+  /** See {@link NumberRow}. */
   required?: boolean;
-  /** See {@link Num}. */
+  /** See {@link NumberRow}. */
   missing?: boolean;
   onChange: (v: number | null) => void;
 }) {
@@ -100,8 +100,8 @@ export function QNum({
     <NumberRow
       label={label}
       // The field's own label, not just the quantity: this panel shows three
-      // ANGLE chips (rod angle, rod direction, wind direction) and two WIND
-      // SPEED ones at once, which otherwise all announce identically.
+      // angle chips (rod angle, rod direction, wind direction) and two wind
+      // speed ones at once, which otherwise all announce identically.
       unit={<UnitChip label={chipLabel ?? label} quantity={c.q} scope={scope} />}
       step={fu.step(stepSi)}
       min={minSi !== undefined ? fu.toUi(minSi) : undefined}
@@ -113,7 +113,7 @@ export function QNum({
       required={required}
       missing={missing}
       value={value === null ? null : fu.toUi(c.toSi(value))}
-      // Two legs: the box's unit to SI, then SI to what the field is STORED
+      // Two legs: the box's unit to SI, then SI to what the field is stored
       // in (degrees, Celsius, hPa). `onSi` checks both, so neither an entry
       // that overflows on conversion nor one that overflows on the way to the
       // stored convention reaches the launch conditions.
@@ -160,7 +160,7 @@ export function LaunchPanel({
   const t = withLauncher(plainT as unknown as (key: string, options?: Record<string, unknown>) => string, launcher);
   const u = useUnits();
   /**
-   * A safety-code cap in the unit ITS OWN FIELD is shown in — resolved the way
+   * A safety-code cap in the unit its own field is shown in, resolved the way
    * QNum resolves it, chip override included. A hint that quotes the rule in a
    * different unit than the box under it is worse than no hint.
    */
@@ -193,17 +193,17 @@ export function LaunchPanel({
   const locate = useLatest();
   const [mapOpen, setMapOpen] = useState(false);
   const mixed = (k: keyof LaunchConditions) => diff?.has(k) ?? false;
-  // Empty required fields on the simulation being shown. The SETTINGS copy of
+  // Empty required fields on the simulation being shown. The Settings copy of
   // this panel never has any: it fills blanks from the previous default,
   // because a blank default would hand every future simulation a hole.
   const blank = useMemo(() => new Set<RequiredLaunchKey>(missingRequired(launch)), [launch]);
-  /** The six are ALWAYS required; `missing` is the ones currently empty. */
+  /** The six are always required; `missing` is the ones currently empty. */
   const req = (k: RequiredLaunchKey) => ({ required: true, missing: blank.has(k) });
   const levels = launch.windLevels ?? [];
   const multilevel = levels.length > 0;
 
   // Gustiness the way OpenRocket states it and the way the hobby talks about
-  // it: scatter over average, named. The STORED value is still the m/s standard
+  // it: scatter over average, named. The stored value is still the m/s standard
   // deviation, so this and the deviation field are one number seen two ways.
   // The profile's per-level equivalent lives in the Wind Profile Editor.
   // Both halves have to be present for a ratio to exist. A blank reads as 0
@@ -214,7 +214,7 @@ export function LaunchPanel({
   const intensity = turbulenceIntensity(windAvg, windSd);
 
   /**
-   * Switch wind models. Multilevel is REPRESENTED by having levels, so turning
+   * Switch wind models. Multilevel is represented by having levels, so turning
    * it on seeds one from the single wind (nothing typed is lost) and turning it
    * off drops them, which is what `simConditions` keys the engine's choice on.
    */
@@ -237,8 +237,8 @@ export function LaunchPanel({
     // Container blur closes the undo entry for whichever number field was being
     // edited (React's onBlur bubbles from the focused input).
     // No padding of its own: every caller already sits in a padded column (the
-    // sim editor, the Settings dialog body), and a second p-3 inset this panel's
-    // cards relative to their siblings. The gap matches the sim editor's, so one
+    // sim editor, the Settings dialog body), and a second p-3 would inset this
+    // panel's cards relative to their siblings. The gap matches the sim editor's, so one
     // column of cards reads as one rhythm.
     <div className="space-y-4" onBlur={onCommit}>
       <CardGroup title={t('launch.launchRod')}>
@@ -291,9 +291,9 @@ export function LaunchPanel({
             stepSi={(5 * Math.PI) / 180}
             mixed={mixed('launchRodDirectionDeg')}
             value={launch.launchRodDirectionDeg ?? DEFAULT_HEADING_DEG}
-            // Cleared is CLEARED: the box shows 90
-            // when unset, so writing 0 for an emptied field silently turned
-            // the default east into north.
+            // Cleared means unset: the box shows 90 when unset, so writing 0
+            // for an emptied field would silently turn the default east into
+            // north.
             onChange={(v) => onChange({ launchRodDirectionDeg: v ?? undefined })}
           />
         )}
@@ -328,9 +328,9 @@ export function LaunchPanel({
               setLocateErr(null);
               setLocating(true);
               // The browser's permission prompt can sit unanswered for minutes,
-              // and `onChange` writes to whatever rows are the CURRENT edit
+              // and `onChange` writes to whatever rows are the current edit
               // targets. Without this, allowing the prompt after switching
-              // simulations put the launch site on the wrong one.
+              // simulations would put the launch site on the wrong one.
               const mine = locate.claim();
               navigator.geolocation.getCurrentPosition(
                 (pos) => {
@@ -368,8 +368,8 @@ export function LaunchPanel({
         </button>
         {/* Always mounted, empty until there is something to say: a live
             region created together with its text is not announced by most
-            screen readers (see UpdateToast), so the refusal was silent to the
-            people who cannot see the amber line. */}
+            screen readers (see UpdateToast), so the refusal would be silent to
+            the people who cannot see the amber line. */}
         <p role="status" aria-live="polite" className="mt-1 text-[11px] leading-snug text-warn-400">
           {locateErr}
         </p>
@@ -414,8 +414,8 @@ export function LaunchPanel({
           field="temperature"
           kind="degC"
           // -90 to 70 degrees C, below and above any recorded air temperature.
-          // In KELVIN, because a QNum bound is SI: written as -90 and 70 they
-          // capped every entry at 70 K, about -203 degrees C.
+          // In kelvin, because a QNum bound is SI: written as -90 and 70 they
+          // would cap every entry at 70 K, about -203 degrees C.
           minSi={LAUNCH_SI.degC.toSi(LAUNCH_SITE_LIMITS.temperatureC.min)}
           maxSi={LAUNCH_SI.degC.toSi(LAUNCH_SITE_LIMITS.temperatureC.max)}
           u={u}
@@ -527,10 +527,10 @@ export function LaunchPanel({
               {...req('windAverage')}
               value={launch.windAverage}
               onChange={(v) => {
-                // Cleared is CLEARED, not 0: 0 is a real wind speed, so
+                // Cleared means unset, not 0: 0 is a real wind speed, so
                 // landing there makes emptying the field assert still air.
                 if (v == null) return onChange({ windAverage: null });
-                // OpenRocket holds the turbulence INTENSITY constant when the
+                // OpenRocket holds the turbulence intensity constant when the
                 // average moves (`PinkNoiseWindModel.setAverage`), so wind that
                 // was 15% gusty stays 15% gusty instead of quietly becoming 5%
                 // because the wind picked up. Skipped from a zero average,

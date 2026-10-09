@@ -24,8 +24,8 @@ export function useAutoRunOutdated() {
   const runSim = useWorkspaceStore((s) => s.runSim);
   const busy = useWorkspaceStore((s) => s.simBusy);
   // A run that threw leaves exactly the state auto-run fires on (no result, not
-  // busy, result view open), so without this it retried the same failing design
-  // forever -- each iteration spawning another full flight sim.
+  // busy, result view open), so without this it would retry the same failing
+  // design forever, each iteration spawning another full flight sim.
   const runFailed = useWorkspaceStore(selectRunFailed);
   // Asks "is there a design?" as a BOOLEAN, never the `info` object: an engine
   // rebuild (applyBuild) hands the store a fresh info identity, and depending on

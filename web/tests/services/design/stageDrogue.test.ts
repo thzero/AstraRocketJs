@@ -3,12 +3,11 @@ import type { ComponentNode, RocketTree } from '../../../src/engine/openRocketEn
 import { recoveryDevices, setStageDrogue } from '../../../src/services/design/treeEdit';
 
 /**
- * Dual deployment as a property of the STAGE.
+ * Dual deployment as a property of the stage.
  *
  * The flag is stored per device, but the stage owns the plan: single deployment
  * is no drogue, dual is exactly one. The invariant being tested is that a stage
- * can never hold two, which our per-device checkbox allowed and which
- * OpenRocket's own UI cannot produce.
+ * can never hold two, which OpenRocket's own UI cannot produce either.
  */
 
 const chute = (id: string, extra: Record<string, unknown> = {}): ComponentNode =>
@@ -29,7 +28,7 @@ const rocket = (): RocketTree =>
             length: 0.4,
             outerRadius: 0.026,
             thickness: 0.001,
-            // Nested a level down: the stage owns everything INSIDE it, not
+            // Nested a level down: the stage owns everything inside it, not
             // just its immediate children.
             children: [chute('main'), chute('drogue'), { id: 'cord', type: 'shockcord', cordLength: 2 }],
           },
@@ -88,8 +87,7 @@ describe('choosing the drogue', () => {
   });
 
   it('never leaves two in one stage', () => {
-    // The state the old per-device checkbox could reach. Whatever it starts as,
-    // choosing leaves exactly one.
+    // Whatever the stage starts as, choosing leaves exactly one.
     const both = setStageDrogue(setStageDrogue(rocket(), 'sustainer', 'drogue'), 'sustainer', 'main');
     expect(drogues(both, 'sustainer')).toEqual(['main']);
   });

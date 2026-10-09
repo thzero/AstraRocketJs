@@ -30,11 +30,11 @@ async function rects(page: Page) {
 }
 
 /**
- * The drift readout, checked by its SHAPE and a band rather than by its digits.
+ * The drift readout, checked by its shape and a band rather than by its digits.
  *
  * The same design in the same wind lands on 397 m or 398 m from one run to the
  * next, so an exact string fails about one run in four. Both tests here are
- * about the readout being ON SCREEN (the pane used to cut its ends off), and
+ * about the readout being on screen (not clipped at the pane's ends), and
  * neither is the place that owns the number: `driftEllipse.test.ts` and
  * `groundTrack.test.ts` do. The band is wide enough to absorb the meter that
  * moves and far too narrow to absorb a change to the design.
@@ -54,11 +54,9 @@ async function expectDrift(page: Page): Promise<void> {
 /**
  * A flight with a real drift, so the view is sized to a track rather than a dot.
  *
- * The distance the two tests below check is the DEFAULT rocket's, flown into a
- * 7 m/s wind, so it moves whenever that design does: it was 364 m until the
- * default rocket got the materials a real one is built from (polystyrene nose,
- * basswood fins), which took 3 g off it and sent it a little higher and further
- * downwind.
+ * The distance the two tests below check is the default rocket's, flown into a
+ * 7 m/s wind, so the band in `expectDrift` moves whenever that design does
+ * (its mass, materials or shape).
  */
 async function flyDownwind(page: Page): Promise<void> {
   await ready(page);
@@ -113,7 +111,7 @@ test('the tile layer covers the plot it sits under, exactly', async ({ page }) =
   expect(layer).not.toBeNull();
   expect(tiles).toBeGreaterThan(0);
 
-  // The pad is the center of BOTH, which is the whole alignment claim: the
+  // The pad is the center of both, which is the whole alignment claim: the
   // geometry is drawn in meters from the pad and the tiles are fetched around
   // the pad's coordinate, so if the two boxes are concentric and the same size,
   // a landing marker sits over the ground it landed on. A pixel of slack for

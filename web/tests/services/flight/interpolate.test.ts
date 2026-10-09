@@ -42,7 +42,7 @@ describe('lerpAt', () => {
   });
 
   it('extrapolates off the END OF THE X-DOMAIN when ys is longer than xs', () => {
-    // The regression the other cases cannot see: every one of them passes an
+    // The case the other tests cannot see: every one of them passes an
     // equal-length pair, where `ys[ys.length-1]` and `ys[xs.length-1]` are the
     // same element. Clamped off `ys`, a longer `ys` returns a value from outside
     // the x-domain entirely.
@@ -59,9 +59,8 @@ describe('lerpAt', () => {
 });
 
 /**
- * The binary-search rewrite, checked against the scan it replaced on random
- * sorted inputs. The reference is the previous implementation verbatim, so any
- * knot the search lands on differently (duplicates, null neighbors, the ends)
+ * The binary search, checked against a plain linear scan on random sorted
+ * inputs, so any knot the search lands on differently (duplicates, null neighbors, the ends)
  * shows up as a mismatch here rather than as a wrong hover readout.
  */
 describe('lerpAt binary search agrees with the linear scan', () => {

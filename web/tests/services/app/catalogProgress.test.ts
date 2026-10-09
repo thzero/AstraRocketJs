@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 
-// Progress needs a response with a REAL ReadableStream body; the stub in
+// Progress needs a response with a real ReadableStream body; the stub in
 // remoteData.test.ts deliberately has none (it exercises the res.json() path).
 
 type Chunk = string;
@@ -92,7 +92,7 @@ describe('catalog download progress', () => {
     const { fetchCatalog, subscribeCatalogProgress } = await load();
 
     await fetchCatalog('motors');
-    // The dashboard and the picker both wait on ONE memoized download; whichever
+    // The dashboard and the picker both wait on one memoized download; whichever
     // mounts second must still see a figure rather than a blank bar.
     const late: number[] = [];
     subscribeCatalogProgress('motors', (p) => late.push(p.loaded));

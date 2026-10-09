@@ -14,10 +14,10 @@ import { CheckMenu } from '../common/CheckMenu';
  * manufacturer dropdown, class chips, impulse bounds, diameter range and
  * plugged box, over the same filter state. Each dialog lays them out differently (the picker
  * stacks them, the dashboard puts them on one row), so this is a set of pieces
- * rather than one bar. Kept as two copies they drift, as the diameter readout
- * does: raw millimeters on one side, the user's unit on the other.
+ * rather than one bar. Kept as two copies they would drift, for example a
+ * diameter readout in raw millimeters on one side and the user's unit on the other.
  *
- * One piece is NOT shared: fitting the mount only means something where there is
+ * One piece is not shared: fitting the mount only means something where there is
  * a mount, which is the picker. The dashboard is a reference browser with no
  * rocket in mind.
  */
@@ -58,20 +58,18 @@ export function useMotorFilter(
   const mount = init.mount ?? null;
   /** The slider stop the mount can take, and the ceiling the box pulls down to. */
   const mountIdx = mount ? fitIdx(mount.bore) : MAX_IDX;
-  // On by default wherever there IS a mount: the picker was already hiding
-  // motors too fat for the bore, by quietly defaulting the diameter slider's
-  // top stop, which left the user with a narrowed list and nothing on screen
-  // saying why. A checkbox does the same job and admits to it.
+  // On by default wherever there is a mount. Hiding motors too fat for the bore
+  // is a visible checkbox rather than a quietly defaulted top stop on the
+  // diameter slider, so a narrowed list has something on screen saying why.
   const [fits, setFits] = useState(mount !== null);
   /**
-   * The ceiling the USER last asked for, which the mount's cap never overwrites.
+   * The ceiling the user last asked for, which the mount's cap never overwrites.
    *
    * Two states rather than one, because the slider is showing two different
    * things at different times: what the mount allows while the box is ticked,
    * and what the user chose while it is not. Holding only the displayed value
-   * meant the mount's cap got saved as though it were a preference, and the
-   * range picked for an 18 mm mount then followed the user to every other mount
-   * they ever opened.
+   * would save the mount's cap as though it were a preference, and the range
+   * picked for an 18 mm mount would then follow the user to every other mount.
    */
   const [freeHigh, setFreeHigh] = useState(() => (init.dia ?? [0, MAX_IDX])[1]);
   const [dia, setDiaRaw] = useState<[number, number]>(() => {
@@ -84,7 +82,7 @@ export function useMotorFilter(
    * Ticking pulls the diameter ceiling down to what the mount takes; clearing it
    * gives back whatever ceiling the user had, so the restriction is visible.
    *
-   * It never WIDENS a narrower choice: someone who asked for 13 mm and up did
+   * It never widens a narrower choice: someone who asked for 13 mm and up did
    * not ask for 18 mm just by ticking a box.
    */
   const setFitsAndCeiling = (on: boolean) => {
@@ -94,8 +92,8 @@ export function useMotorFilter(
   };
 
   /**
-   * A drag is always the user speaking, so it is always what gets remembered -
-   * and dragging the ceiling ABOVE what the mount takes clears the box, because
+   * A drag is always the user's choice, so it is always what gets remembered,
+   * and dragging the ceiling above what the mount takes clears the box, because
    * asking to see 38 mm motors in a 24 mm mount is asking to see past the mount.
    * Leaving the box ticked there would leave a control that moved and changed
    * nothing.
@@ -325,11 +323,11 @@ function FilterCheck({
 }
 
 /**
- * Motors the manufacturer lists as available PLUGGED, with no ejection charge.
+ * Motors the manufacturer lists as available plugged, with no ejection charge.
  *
  * What the spec says, not what is possible: the delay control offers a plugged
  * choice on every motor, because any motor can be flown that way for staging or
- * for electronically triggered recovery. This finds the ones BUILT without a
+ * for electronically triggered recovery. This finds the ones built without a
  * charge, which is most reloads and every hybrid.
  */
 export function PluggedFilter({ plugged, onChange }: { plugged: boolean; onChange: (plugged: boolean) => void }) {

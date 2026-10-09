@@ -12,9 +12,9 @@ const chip = () => screen.getByRole('combobox') as HTMLSelectElement;
 const overrides = () => (readSettings().unitOverrides ?? {}) as Record<string, string>;
 
 /**
- * The chip owns rules that live nowhere else — what it writes, and what it
- * REMOVES. Those were only ever exercised end-to-end, where a regression shows
- * up as a puzzling assertion three steps away from the cause.
+ * The chip owns rules that live nowhere else: what it writes, and what it
+ * removes. Checked here rather than only end-to-end, where a break shows up as a
+ * puzzling assertion three steps away from the cause.
  */
 describe('UnitChip', () => {
   beforeEach(() => localStorage.clear());

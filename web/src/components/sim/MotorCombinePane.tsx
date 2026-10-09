@@ -4,14 +4,14 @@ import type { CatalogMotor } from '../../services/motors/motorDb';
 import { combineCurves, impulseClass, type Sample } from '../../services/motors/motorCombine';
 import { useUnits } from '../../prefs/useUnits';
 import { SpecItem } from './MotorDetail';
-import { keyOf } from './motorKey';
+import { keyOf } from '../../services/motors/motorKey';
 import { seriesColor } from '../common/chartPalette';
 import { inUserUnit, withFixedUnit } from './motorFormat';
 import { ChartAxes, CHART_HEADROOM, chartScales, linePath, baselineArea, LegendSwatch, SeriesPath } from './chartAxes';
 import { token } from '../common/colorTokens';
 
 /**
- * The motor dashboard's COMBINE tool: the checked motors summed into one
+ * The motor dashboard's Combine tool: the checked motors summed into one
  * cluster, as the summed thrust curve (with each motor's own curve overlaid)
  * and the cluster's impulse class and totals.
  */
@@ -105,14 +105,14 @@ export function MotorCombinePane({ motors }: { motors: CatalogMotor[] }) {
           series={motors.map((m, i) => ({
             m,
             color: seriesColor(i),
-            pts: (m.curves?.[0]?.samples ?? []) as Sample[],
+            pts: m.curves?.[0]?.samples ?? [],
           }))}
         />
       )}
       <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3">
         <SpecItem label={t('dash.motors')} value={String(combined.motorCount)} />
-        {/* In the user's units, as MotorDetail's grid is; these four
-            were the only readouts in the dashboard fixed to N and N.s. */}
+        {/* In the user's units, as MotorDetail's grid is. Burn time
+            stays in seconds. */}
         <SpecItem label={t('motorDlg.totalImpulse')} value={inUserUnit(u, 'impulse', combined.totalImpulse, 1, 1)} />
         <SpecItem label={t('motorDlg.maxThrust')} value={inUserUnit(u, 'force', combined.peakThrust, 1, 1)} />
         <SpecItem label={t('motorDlg.avgThrust')} value={inUserUnit(u, 'force', combined.avgThrust, 1, 1)} />

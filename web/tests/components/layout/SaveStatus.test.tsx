@@ -6,10 +6,9 @@ import { useWorkspaceStore } from '../../../src/state/store';
 import { SaveStatus } from '../../../src/components/layout/SaveStatus';
 
 /**
- * The header's save status, which replaced the File menu's Save item.
+ * The header's save status, which stands in for a Save menu item.
  *
- * What it must never do is claim a save that did not happen — that is the
- * whole reason the item was removable in the first place, so the two silent
+ * What it must never do is claim a save that did not happen, so the two silent
  * cases matter at least as much as the text.
  */
 const set = (patch: Partial<ReturnType<typeof useWorkspaceStore.getState>>) =>
@@ -71,7 +70,7 @@ describe('SaveStatus', () => {
   });
 
   /**
-   * The storage banner says work is NOT being kept. It outlives any one write,
+   * The storage banner says work is not being kept. It outlives any one write,
    * so a "Saved" beside it would be the app contradicting itself in the same
    * header about the one thing the user cannot recompute.
    */

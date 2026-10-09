@@ -5,7 +5,7 @@ import { SI_LIMITS, clampEntry, onSi, parseEntry, siEntry } from '../../src/pref
  * The app's one rule for what a numeric data entry may store. Unit-tested
  * rather than driven through a rendered box because jsdom refuses to deliver
  * "1e999" to a `type="number"` input at all, so the overflow case can only be
- * exercised here — a rendered test of it passes for the wrong reason.
+ * exercised here; a rendered test of it passes for the wrong reason.
  */
 describe('clampEntry', () => {
   it('passes a finite number through', () => {
@@ -61,10 +61,10 @@ describe('siEntry', () => {
   });
 
   /**
-   * The reason this module exists: finite as typed, infinite once stored. The
-   * old per-site guards checked the entry and not the conversion, so this value
-   * reached the tree, the mass and the mesh, and left the `.ork` writer as
-   * `Infinity` — which the reader takes back as 0.
+   * The reason this module exists: finite as typed, infinite once stored. A guard
+   * that checks only the entry and not the conversion lets this value reach the
+   * tree, the mass and the mesh, and leave the `.ork` writer as `Infinity`, which
+   * the reader takes back as 0.
    */
   it('refuses an entry that is finite typed and infinite in SI', () => {
     expect(Number.isFinite(1e306)).toBe(true);
@@ -74,7 +74,7 @@ describe('siEntry', () => {
 
   it('applies a quantity-level SI ceiling', () => {
     expect(SI_LIMITS.density?.max).toBe(30_000);
-    // 1e6 g/cm³ is 1e9 kg/m3 — finite, and past anything real.
+    // 1e6 g/cm³ is 1e9 kg/m3: finite, and past anything real.
     expect(siEntry('density', 'g/cm³', 1e6)).toBe(30_000);
     // Osmium, the densest real material, still passes untouched.
     expect(siEntry('density', 'g/cm³', 22.59)).toBeCloseTo(22_590, 6);

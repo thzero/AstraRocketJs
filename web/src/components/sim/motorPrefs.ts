@@ -10,14 +10,6 @@ const MFRS_KEY = nsKey('motorPicker:mfrs');
 export const loadMfrs = (): Set<string> => new Set(readLocalJson(MFRS_KEY, isStringList, []));
 export const saveMfrs = (s: Set<string>): void => void writeLocalJson(MFRS_KEY, [...s]);
 
-/**
- * The diameter range [lowIdx, highIdx], remembered across sessions.
- *
- * Seeded from nothing but the user's own drags. Seeding the ceiling from the
- * mount and then storing it as a preference makes a range picked for an 18 mm
- * mount follow the user to every other mount they load; capping by the mount is
- * the fit checkbox's job instead.
- */
 const isBool = (v: unknown): v is boolean => typeof v === 'boolean';
 
 /** "Hide motors not in regular production", remembered; on until turned off, as desktop's is. */
@@ -30,6 +22,14 @@ const HIDE_SIMILAR_KEY = nsKey('motorPicker:hideSimilar');
 export const loadHideSimilar = (): boolean => readLocalJson(HIDE_SIMILAR_KEY, isBool, true);
 export const saveHideSimilar = (on: boolean): void => void writeLocalJson(HIDE_SIMILAR_KEY, on);
 
+/**
+ * The diameter range [lowIdx, highIdx], remembered across sessions.
+ *
+ * Seeded from nothing but the user's own drags. Seeding the ceiling from the
+ * mount and then storing it as a preference makes a range picked for an 18 mm
+ * mount follow the user to every other mount they load; capping by the mount is
+ * the fit checkbox's job instead.
+ */
 const DIA_KEY = nsKey('motorPicker:dia2');
 export const loadDia = (): [number, number] | null => readLocalJson<[number, number] | null>(DIA_KEY, isRange, null);
 export const saveDia = (d: [number, number]): void => void writeLocalJson(DIA_KEY, d);

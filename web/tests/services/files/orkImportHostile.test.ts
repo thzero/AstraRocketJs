@@ -7,12 +7,11 @@ import { MAX_NESTING_DEPTH } from '../../../src/services/files/ork/importLimits'
 /**
  * The untrusted-input parser, exercised with untrusted input.
  *
- * `orkImport` is ~1000 lines and the only thing in the app that parses a file
- * a stranger can hand you. It was covered only indirectly, by round-trip and
- * shape tests through `orkFile`, so the guards that exist specifically for
- * hostile input - the zip-bomb caps and the nesting-depth limit - had nothing
- * exercising them at all. A cap nobody has watched trip is a cap nobody knows
- * still works.
+ * `orkImport` is the only thing in the app that parses a file a stranger can
+ * hand you. Round-trip and shape tests through `orkFile` never reach the guards
+ * that exist specifically for hostile input (the zip-bomb caps, the nesting-depth
+ * limit, the count caps), so they are exercised here. A cap nobody has watched
+ * trip is a cap nobody knows still works.
  */
 
 /** A .ork is a zip whose `rocket.ork` entry is the XML. */
@@ -85,7 +84,7 @@ describe('the hostile-input caps actually fire', () => {
   });
 
   /**
-   * The element-COUNT vector, which the byte caps do not bound. A
+   * The element-count vector, which the byte caps do not bound. A
    * `<bodytube/>` is ~13 bytes, so the 64 MiB per-entry ceiling admits
    * millions of them from a small zip, and every one is then re-scanned per
    * declared configuration. Flat and wide, so the nesting cap never sees it.
@@ -134,14 +133,13 @@ describe('the hostile-input caps actually fire', () => {
    */
   it('refuses an entry that declares more than the cap', () => {
     // Over MAX_ARCHIVE_ENTRY_BYTES (64 MiB). The guard reads the size the
-    // central directory DECLARES, before inflating anything, so the test
+    // central directory declares, before inflating anything, so the test
     // forges that field on a tiny archive rather than deflating 65 MiB of
-    // filler: the old version did the latter and took eight seconds on the CI
-    // runner, past vitest's five-second ceiling. An earlier 60 MiB was UNDER
-    // the cap, and a bare `.toThrow()` was satisfied by the parse failing on
-    // the filler, not by the guard. Naming the message is what makes this a
-    // test of the cap; forging the size is what makes it a test of THIS zip
-    // bomb, the one that lies about how big it will inflate to.
+    // filler, which would take seconds on a CI runner. A bare `.toThrow()` could
+    // be satisfied by the parse failing for another reason, not by the guard.
+    // Naming the message is what makes this a test of the cap; forging the size
+    // is what makes it a test of this zip bomb, the one that lies about how big
+    // it will inflate to.
     const small = ork('<openrocket><rocket/></openrocket>');
     expect(() => importOrk(declaringSize(small, 65 * 1024 * 1024))).toThrow(
       '.ork archive is too large (possible zip bomb)',
@@ -150,11 +148,10 @@ describe('the hostile-input caps actually fire', () => {
 
   /**
    * The declared-configuration cap. `captureDeployments` and `configScoped`
-   * each re-scan a component's children once PER CONFIG, so the import is
+   * each re-scan a component's children once per config, so the import is
    * O(configs x components) on the main thread. A ~500 KB file declaring tens
    * of thousands of configurations against a few thousand components freezes
-   * the tab - no crash, no error, just a dead UI. This is the cap added last
-   * and the one nothing had watched trip.
+   * the tab: no crash, no error, just a dead UI.
    */
   it('caps declared motor configurations at MAX_MOTOR_CONFIGS', () => {
     const configs = Array.from(
@@ -168,7 +165,7 @@ describe('the hostile-input caps actually fire', () => {
       `</subcomponents></stage></subcomponents></rocket></openrocket>`;
     const res = importOrk(ork(xml));
     expect(res.configs).toHaveLength(256);
-    // Capped from the FRONT, in file order, so the chosen config is a real one.
+    // Capped from the front, in file order, so the chosen config is a real one.
     expect(res.configs[0]!.id).toBe('c0');
     expect(res.configs.at(-1)!.id).toBe('c255');
     expect(res.configs.some((c) => c.id === res.chosenConfigId)).toBe(true);
@@ -192,17 +189,17 @@ describe('the hostile-input caps actually fire', () => {
     for (let i = 0; i < 300; i++) entries[`f${i}.txt`] = strToU8('x'); // cap is 256
     const zipped = zipSync(entries);
     const buf = zipped.buffer.slice(zipped.byteOffset, zipped.byteOffset + zipped.byteLength) as ArrayBuffer;
-    // The archive holds no rocket document, so a bare `.toThrow()` passed with
-    // the cap removed too ("Empty .ork archive"). It has to be the cap's error.
+    // The archive holds no rocket document, so a bare `.toThrow()` would pass
+    // with the cap removed too ("Empty .ork archive"). It has to be the cap's error.
     expect(() => importOrk(buf as ArrayBuffer)).toThrow('.ork archive has too many entries');
   });
 });
 
 /**
- * File-sourced COUNTS are bounded to what the domain can mean. Every consumer
+ * File-sourced counts are bounded to what the domain can mean. Every consumer
  * loops on these (a mesh per fin, a shape per instance, a vertex per point,
  * a line's mass per line), so an unbounded count out of a crafted file is a
- * frozen tab rather than a large rocket. Nothing clamped them on the way in.
+ * frozen tab rather than a large rocket, so they are clamped on the way in.
  */
 describe('file-sourced counts are clamped to domain ceilings', () => {
   const inTube = (inner: string) =>
@@ -237,7 +234,7 @@ describe('file-sourced counts are clamped to domain ceilings', () => {
   });
 
   // 64 is the kernel's instance ceiling (ComponentFactory.MAX_INSTANCE_COUNT): a
-  // count past it imported and then failed every build.
+  // count past it would import and then fail every build.
   it('caps an instance count at 64 on rings, lugs and assemblies', () => {
     const ring = `<centeringring><name>R</name><instancecount>1000000</instancecount><length>0.002</length></centeringring>`;
     expect(first(inTube(ring), 'centeringring').instanceCount).toBe(64);
@@ -259,8 +256,8 @@ describe('file-sourced counts are clamped to domain ceilings', () => {
    * MAX_FIN_POINTS exactly as its comment claims. 430 ms idle has still been
    * seen past 5 s with the rest of the suite running beside it.
    *
-   * Scoped to this ONE case rather than the file or the config: the other
-   * fourteen here are milliseconds and have no business taking seconds.
+   * Scoped to this one case rather than the file or the config: most of the
+   * others here are milliseconds and have no business taking seconds.
    */
   it('caps a freeform outline at 10000 points', () => {
     const n = 20_000;

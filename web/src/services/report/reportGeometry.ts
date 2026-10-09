@@ -9,26 +9,25 @@ import { axialChain, axialStart, partLength } from '../../tree/position';
 import { assemblyChainLength, isAssembly, resolveAssemblyRadius, ringInstanceOffsets } from '../../tree/assembly';
 
 /**
- * Geometry for the PDF report — all in MILLIMETERS, so the PDF (built in mm)
+ * Geometry for the PDF report, all in millimeters, so the PDF (built in mm)
  * can draw templates at true 1:1 and the side view to scale. Vector only.
  */
 
 export type Pt = [number, number];
-// Imported, not redeclared: this is the unit constant for every dimensional
-// export, and it was written out in three separate files.
+// Imported, not redeclared: this is the one unit constant shared by every
+// dimensional export.
 import { M_TO_MM } from '../../prefs/units';
 import { KERNEL_DEFAULTS } from '../../tree/kernelDefaults';
 
 /** A fin's planform outline (mm), root along the bottom, tab folded in below. */
-// Not `| null`: there is no input this returns null for — every branch below
-// produces an outline, falling back to the trapezoid defaults. The nullable
-// return invited dead defensive code at the call site, which is exactly what it
-// got. Tube fins, the one fin type with no planform, are filtered out before
-// this is reached (isPlanarFinSet).
+// Not `| null`: there is no input this returns null for; every branch below
+// produces an outline, falling back to the trapezoid defaults. Tube fins, the
+// one fin type with no planform, are filtered out before this is reached
+// (isPlanarFinSet).
 export function finPlanformMm(node: ComponentNode, parentRadius: number | null = null): { pts: Pt[]; count: number } {
   const root = finRootChord(node);
   const height = finSpan(node);
-  // The outline comes from the ONE fin-geometry module (tree/finPlanform.ts), so
+  // The outline comes from the one fin-geometry module (tree/finPlanform.ts), so
   // the 1:1 cutting template, the DXF and the fin the kernel flies are the same
   // shape. Sampling an elliptical curve here instead yields a sine arch.
   const top = finPlanformPoints(node) ?? FREEFORM_FALLBACK;
@@ -56,7 +55,7 @@ export function profileMm(
 ): { w: number; h: number; pts: Pt[] } | null {
   const len = partLength(node);
   if (len <= 0) return null;
-  const clipped = typeof node['clipped'] === 'boolean' ? (node['clipped'] as boolean) : undefined;
+  const clipped = typeof node['clipped'] === 'boolean' ? node['clipped'] : undefined;
   const prof = outerProfile(nodeShape(node), numOpt(node, 'shapeParameter'), len, foreR, aftR, 80, undefined, clipped);
   const maxR = Math.max(...prof.map(([, r]) => r), aftR, foreR);
   const h = maxR * 2 * M_TO_MM;
@@ -75,7 +74,7 @@ export function profileMm(
 export function rocketSideView(tree: RocketTree): { w: number; h: number; body: Pt[]; fins: Pt[][]; pods: Pt[][] } {
   const chain = axialChain(tree);
   const fins: Pt[][] = [];
-  /** One closed silhouette per off-axis assembly INSTANCE, beside the airframe. */
+  /** One closed silhouette per off-axis assembly instance, beside the airframe. */
   const pods: Pt[][] = [];
   let maxUp = 0.001;
   let maxX = 0;
@@ -83,16 +82,16 @@ export function rocketSideView(tree: RocketTree): { w: number; h: number; body: 
   /**
    * The parent's outer radius at a station `lx` along it (meters, local).
    *
-   * A fin sits at the radius under ITS OWN FRONT, not at the parent's aft end:
+   * A fin sits at the radius under its own front, not at the parent's aft end:
    * `FinSet.getBodyRadius()` is `getFinFront().getY()`, i.e.
-   * `symmetricParent.getRadius(xFinFront)` (FinSet.java:959-972). Passing the
-   * aft radius drew a fin on a 12 to 8 mm boat tail with its root at +8 mm
-   * while the silhouette there is +12 mm: the fin root 4 mm INSIDE the airframe.
+   * `symmetricParent.getRadius(xFinFront)`. Passing the aft radius would draw a
+   * fin on a 12 to 8 mm boat tail with its root at +8 mm while the silhouette
+   * there is +12 mm: the fin root 4 mm inside the airframe.
    */
   const radiusSampler = (node: ComponentNode, foreR: number, aftR: number, len: number) => (lx: number) => {
     if (!(len > 0)) return aftR;
     const shape = nodeShape(node);
-    const clipped = typeof node['clipped'] === 'boolean' ? (node['clipped'] as boolean) : undefined;
+    const clipped = typeof node['clipped'] === 'boolean' ? node['clipped'] : undefined;
     const at = Math.max(0, Math.min(len, lx));
     // `extraX` gives the profile an exact sample at the station we asked for,
     // so this reads the true curve rather than a chord between two samples.
@@ -115,18 +114,15 @@ export function rocketSideView(tree: RocketTree): { w: number; h: number; body: 
     };
 
     if (node.type === 'tubefinset') {
-      // A tube fin IS a tube: in side view a rectangle 2*rt tall standing on the
+      // A tube fin is a tube: in side view a rectangle 2*rt tall standing on the
       // body surface and running the tube's own length. Same silhouette the 2D
       // schematic draws (schematicShapes.tsx).
       //
-      // Its span is its LENGTH. Reading a rootChord here fell back to a phantom
-      // 50 mm, which then picked the station at which the body radius was
-      // sampled, so on a boat tail the tubes were drawn floating off, or buried
-      // in, the taper.
-      // The kernel builds a tube fin set 100 mm long
-      // (ComponentFactory.java:260), and 0.08 was a literal that agreed with
-      // nothing. The span IS this number, so it also picks the station the body
-      // radius is sampled at.
+      // Its span is its length, not a rootChord (it has none), with the
+      // kernel's default when unset (ComponentFactory builds a tube fin set
+      // 100 mm long). The span also picks the station the body radius is sampled
+      // at, so a wrong span would draw the tubes floating off, or buried in, a
+      // boat tail's taper.
       const len = num(node, 'length', KERNEL_DEFAULTS.tubefinset.length);
       const s0 = axialStart(node, len, pStart, pLen);
       const R = radiusAt(s0 - pStart);
@@ -163,7 +159,7 @@ export function rocketSideView(tree: RocketTree): { w: number; h: number; body: 
 
   /**
    * Walk one nose-to-tail chain and return its top profile as `(x, radius)` in
-   * METERS, plus where it ends. Fin sets and off-axis assemblies hanging off it
+   * meters, plus where it ends. Fin sets and off-axis assemblies hanging off it
    * are emitted into the shared collectors as we go.
    *
    * `cy` is the centerline this chain is drawn about: 0 for the airframe, the
@@ -179,7 +175,7 @@ export function rocketSideView(tree: RocketTree): { w: number; h: number; body: 
 
     const revolve = (node: ComponentNode, foreR: number, aftR: number, len: number) => {
       const shape = nodeShape(node);
-      const clipped = typeof node['clipped'] === 'boolean' ? (node['clipped'] as boolean) : undefined;
+      const clipped = typeof node['clipped'] === 'boolean' ? node['clipped'] : undefined;
       for (const [px, r] of outerProfile(
         shape,
         numOpt(node, 'shapeParameter'),
@@ -221,10 +217,9 @@ export function rocketSideView(tree: RocketTree): { w: number; h: number; body: 
         const foreR = num(n, 'foreRadius', 0.012);
         const aftR = num(n, 'aftRadius', 0.009);
         revolve(n, foreR, aftR, len);
-        // Transitions host fin sets too (treeEdit.ts:137 allows trapezoid,
-        // elliptical and freeform on one) and this branch was the only one that
-        // never looked. A boat-tail-mounted fin set was silently absent from the
-        // PDF's whole-rocket side view: a finless rocket, with no warning.
+        // Transitions host fin sets too (treeEdit.canHost allows freeform fins on
+        // one), so a boat-tail-mounted fin set is drawn from here; skipping it
+        // would show a finless rocket in the side view, with no warning.
         emitChildren(n, len, radiusSampler(n, foreR, aftR, len));
         x += len;
       } else if (isAssembly(n.type)) {
@@ -246,7 +241,7 @@ export function rocketSideView(tree: RocketTree): { w: number; h: number; body: 
    * the airframe, exactly as the 2D schematic draws it (schematicShapes.tsx,
    * the `isAssembly` branch). The side view projects `y` and ignores depth `z`.
    *
-   * Without this the PDF's whole-rocket figure showed a strap-on booster
+   * Without this the PDF's whole-rocket figure would show a strap-on booster
    * cluster as a single plain tube, silently disagreeing with the screen.
    */
   function emitAssembly(

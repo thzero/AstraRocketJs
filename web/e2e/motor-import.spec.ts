@@ -26,7 +26,7 @@ test('a hybrid imports from a .rse file, which .eng could not describe', async (
   const dialog = await openPicker(page);
 
   // The catalog ships no hybrid the default rocket can fly, and RASP has no
-  // way to say "hybrid" at all — that is what this format is for.
+  // way to say "hybrid" at all; that is what this format is for.
   await dialog.locator('input[type=file]').setInputFiles('e2e/fixtures/hybrid.rse');
 
   // The import says what it did, where the motor count normally is.
@@ -41,14 +41,14 @@ test('a hybrid imports from a .rse file, which .eng could not describe', async (
   const row = dialog.getByRole('button').filter({ hasText: 'J350' });
   await expect(row.first()).toContainText('★');
 
-  // And the detail panel reads it as a HYBRID, from the file's Type attribute.
+  // And the detail panel reads it as a hybrid, from the file's Type attribute.
   await row.first().click();
   await expect(dialog.getByText('Hybrid', { exact: true }).first()).toBeVisible();
 
   // It seats like any other motor.
   await dialog.getByRole('button', { name: 'Select', exact: true }).click();
   await expect(dialog).toBeHidden();
-  // Scoped to the motor CARD: the schematic behind the Simulations tab draws
+  // Scoped to the motor card: the schematic behind the Simulations tab draws
   // the designation into an SVG label too, and that one is hidden.
   await expect(page.getByRole('button', { name: /change/i }).first()).toBeVisible();
   // A plugged motor shows "plugged" in place of a delay on the card, which is
@@ -88,8 +88,8 @@ test('a malformed motor file is refused by name, not swallowed', async ({ page }
   await dialog.locator('input[type=file]').setInputFiles({
     name: 'broken.rse',
     mimeType: 'application/xml',
-    // Well-formed XML, but it lists more propellant than the motor weighs —
-    // which would fly a rocket that GAINS mass as it burns.
+    // Well-formed XML, but it lists more propellant than the motor weighs,
+    // which would fly a rocket that gains mass as it burns.
     buffer: Buffer.from(
       `<engine-database><engine-list><engine mfg="B" code="X" dia="29" len="100" initWt="100" propWt="900">
         <data><eng-data t="0" f="0"/><eng-data t="1" f="10"/></data></engine></engine-list></engine-database>`,

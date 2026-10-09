@@ -3,8 +3,8 @@
  *
  * That specifier is synthesized by `vite-plugin-pwa`, which only runs in the
  * app build - under Vitest the import fails at resolution time, before any
- * `vi.mock` can intercept it, so `UpdateToast` could not be rendered in a test
- * at all. `vitest.config.ts` aliases the specifier here to give the resolver
+ * `vi.mock` can intercept it, so without this stub `UpdateToast` cannot be
+ * rendered in a test at all. `vitest.config.ts` aliases the specifier here to give the resolver
  * something real; a test that cares about the registration then `vi.mock`s it
  * as usual.
  *

@@ -2,22 +2,20 @@ import { type Quantity, uiToSi } from './units';
 
 /**
  * The one rule every numeric data entry in the app obeys: a value is stored
- * only if it is FINITE once every conversion has been applied, and inside the
+ * only if it is finite once every conversion has been applied, and inside the
  * bounds the field declares.
  *
  * It lives in its own module because the hazard is not the typing, it is the
- * conversion AFTER the typing. A box holds the user's unit and everything
- * behind it - the tree, the kernel, saved files, share links - holds SI, so a
- * number that is perfectly finite as typed is not a finite stored value:
- * 1e306 g/cm3 is 1e309 kg/m3, which is Infinity. That reached the node, went
- * through the mass and the mesh, and came out of the `.ork` writer as
- * `Infinity`, which the reader takes back as 0 - so the field showed a number
- * the geometry had never had.
+ * conversion after the typing. A box holds the user's unit and everything
+ * behind it (the tree, the kernel, saved files, share links) holds SI, so a
+ * number that is perfectly finite as typed can convert to a non-finite stored
+ * value: 1e306 g/cm3 is 1e309 kg/m3, which is Infinity. Stored, it would pass
+ * through the mass and the mesh and come out of the `.ork` writer as
+ * `Infinity`, which the reader takes back as 0, so the field would show a
+ * number the geometry never had.
  *
- * Every entry point calls in here rather than repeating the check, because the
- * checks that WERE repeated disagreed: the property panel refused the entry,
- * the deploy-altitude and fin-point boxes converted without looking, and the
- * motor-delay and path-stride boxes used `Number(x) || 0` - which lets
+ * Every entry point calls in here rather than repeating the check, so every
+ * box applies the same rule. A hand-rolled `Number(x) || 0`, for instance, lets
  * Infinity straight through, since `Infinity || 0` is Infinity.
  *
  * `null` is the single answer for "do not store this": the box keeps its own
@@ -26,7 +24,7 @@ import { type Quantity, uiToSi } from './units';
  */
 
 /**
- * SI bounds for quantities that have a PHYSICAL one, as opposed to a bound
+ * SI bounds for quantities that have a physical one, as opposed to a bound
  * that belongs to one field.
  *
  * A per-field `min`/`max` still applies on top and is the right place for a
@@ -51,7 +49,7 @@ export const SI_LIMITS: Partial<Record<Quantity, { min?: number; max?: number }>
 /**
  * A number that may be stored, or `null`.
  *
- * Use this for an entry that is NOT unit-converted - a count, a stride, a
+ * Use this for an entry that is not unit-converted: a count, a stride, a
  * delay in seconds, a decimal-place setting. For anything the user types in
  * their own unit, use {@link siEntry}, which applies this rule to the
  * converted value.
@@ -117,10 +115,10 @@ export interface SiConverter {
  * It settles the three cases the same way everywhere, which is the point of it
  * being here rather than spelled out at each box:
  *
- * - BLANK: `null` reaches the callback. Clearing a box is a real edit.
- * - REFUSED: the callback is not called, so the stored value is left alone and
+ * - Blank: `null` reaches the callback. Clearing a box is a real edit.
+ * - Refused: the callback is not called, so the stored value is left alone and
  *   the draft text keeps showing what was typed.
- * - otherwise: the SI value reaches the callback.
+ * - Otherwise: the SI value reaches the callback.
  *
  * A field whose blank means zero rather than "no value" says so in its own
  * callback (`(si) => patch({ key: si ?? 0 })`); that is a decision about the

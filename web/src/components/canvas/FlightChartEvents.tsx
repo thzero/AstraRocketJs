@@ -15,7 +15,7 @@ export interface EventLabel {
 }
 
 /**
- * Drop clusters outside the visible plot, then GREEDILY row-pack so labels
+ * Drop clusters outside the visible plot, then greedily row-pack so labels
  * never overlap: each takes the lowest row whose last label has cleared.
  *
  * @param labelW pixel width of a label for an event type (translated text).

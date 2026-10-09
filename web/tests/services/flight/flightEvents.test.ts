@@ -13,8 +13,8 @@ import {
 
 /**
  * The timeline join and the dynamic-pressure peak. Both are pure, so the two
- * things that could quietly go wrong — sampling the wrong series at an event
- * time, and computing q from ground speed instead of airspeed — are provable
+ * things that could quietly go wrong (sampling the wrong series at an event
+ * time, and computing q from ground speed instead of airspeed) are provable
  * without mounting the table.
  */
 
@@ -51,7 +51,7 @@ describe('dynamicPressure', () => {
 
   it('computes 0.5 * rho * v^2 from the AIRSPEED, not the ground-frame velocity', () => {
     // velocity (over the ground) is 20 m/s at t=2, but mach * Vs makes the
-    // airspeed 0.2 * 340 = 68 m/s — the wind-relative number q is a property of.
+    // airspeed 0.2 * 340 = 68 m/s: the wind-relative number q is a property of.
     const qs = dynamicPressure(series({ ρ: [1.2, 1.2, 1.2, 1.2], Vs: [340, 340, 340, 340] }))!;
     expect(qs[2]).toBeCloseTo(0.5 * 1.2 * 68 * 68, 6);
     // Using `velocity` would have given 240, which is what this guards against.
@@ -68,7 +68,7 @@ describe('dynamicPressure', () => {
 describe('maxQ', () => {
   it('returns the peak sample and the state at it', () => {
     // Density falls as it climbs while airspeed rises, so q peaks in the
-    // MIDDLE of the branch rather than at either end - which is the whole
+    // middle of the branch rather than at either end - which is the whole
     // reason max-Q is a number worth reporting.
     const s = series({ ρ: [1.2, 1.2, 0.6, 0.1], Vs: [340, 340, 340, 340] });
     const peak = maxQ(s)!;

@@ -4,7 +4,7 @@ import { test, expect, ready, importOrk, note, type Locator } from './base';
  * The 3D cutaway.
  *
  * Two things are worth holding here, and neither can be proved in a unit test.
- * The first is that the toggle is REACHABLE: the view-preset row is pinned
+ * The first is that the toggle is reachable: the view-preset row is pinned
  * top-right at z-index 2 and the quick-glance info card top-left at z-20, and
  * on a pane narrower than the two of them together the card can cover the row and
  * swallow its clicks - buttons you can see and cannot press, and every button added
@@ -14,7 +14,7 @@ import { test, expect, ready, importOrk, note, type Locator } from './base';
  * still toggles, still highlights, and draws exactly the same picture.
  */
 
-/** The canvas once it stops changing — two identical frames in a row. The view
+/** The canvas once it stops changing: two identical frames in a row. The view
  *  arrives over several frames (fit, then damped orbit), so a single early
  *  screenshot compares one animation frame against another and proves nothing. */
 async function settled(canvas: Locator): Promise<string> {

@@ -36,7 +36,7 @@ describe('unit conversion', () => {
     expect(uiToSi('temperature', '°C', 0)).toBeCloseTo(273.15, 6);
     expect(uiToSi('temperature', '°F', 32)).toBeCloseTo(273.15, 6);
     expect(siToUi('temperature', '°F', 373.15)).toBeCloseTo(212, 6);
-    // A 1 K step is a 1 °C step and a 1.8 °F step — the offset cancels.
+    // A 1 K step is a 1 °C step and a 1.8 °F step: the offset cancels.
     expect(siToUiDelta('temperature', '°C', 1)).toBeCloseTo(1, 9);
     expect(siToUiDelta('temperature', '°F', 1)).toBeCloseTo(1.8, 9);
   });
@@ -56,7 +56,7 @@ describe('unit conversion', () => {
   });
 
   it('never returns a number for an absent value', () => {
-    // The kernel emits null for NaN/Infinity, and `null / toSI` is 0 — which
+    // The kernel emits null for NaN/Infinity, and `null / toSI` is 0, which
     // would print an absent apogee as a confident zero.
     expect(fmtSi('distance', 'm', NaN)).toBe('—');
     expect(fmtSi('distance', 'm', null as unknown as number)).toBe('—');
@@ -144,7 +144,7 @@ describe('export unit choice', () => {
   const current = { ...METRIC_UNITS, length: 'in' };
 
   it('follows the app preferences for "current"', () => {
-    // Per-field chips deliberately do NOT reach an export: a document written
+    // Per-field chips deliberately do not reach an export: a document written
     // half in inches and half in centimeters because of where someone happened
     // to click is not a document anyone wants.
     expect(resolveUnitChoice('current', current)).toBe(current);
@@ -161,11 +161,8 @@ describe('export unit choice', () => {
 
 describe('presets', () => {
   it('has exactly one metric set, matching the desktop', () => {
-    // There were two once — the app's original hard-coded mm / kg·m⁻³ as the
-    // startup default against the desktop's cm / g·cm⁻³ as the preset — which
-    // left the Units tab with two buttons that both meant "metric" and
-    // disagreed about these two quantities, with nothing to explain why.
-    // METRIC_UNITS is now the only one, so Reset and the preset cannot differ.
+    // METRIC_UNITS is both the startup default and the metric preset, so Reset
+    // and the preset cannot disagree. It uses the desktop's cm and g/cm³.
     expect(METRIC_UNITS.length).toBe('cm');
     expect(METRIC_UNITS.density).toBe('g/cm³');
   });

@@ -40,10 +40,10 @@ const ADD_GROUPS: { group: string; items: ComponentType[] }[] = [
  */
 
 /**
- * The two tree walks the memos below run, at module scope. Each was a recursive
- * arrow inside its useMemo, and the compiler lint reads a closure that calls
- * itself as a missing dependency; a plain function that takes what it needs
- * has no closure to be wrong about.
+ * The two tree walks the memos below run, at module scope. The compiler lint
+ * reads a recursive arrow inside a useMemo, a closure that calls itself, as a
+ * missing dependency; a plain function that takes what it needs has no closure
+ * to be wrong about.
  */
 /** Every id-bearing node that has children (the collapsible ones), in tree order. */
 function collectBranchIds(nodes: ComponentNode[], out: string[]): string[] {
@@ -103,7 +103,7 @@ const TYPE_COLOR: Record<string, string> = {
 };
 
 // A distinct glyph per component type, colored by TYPE_COLOR so
-// the tree reads by shape AND color at a glance.
+// the tree reads by shape and color at a glance.
 const TYPE_SYMBOL: Record<string, string> = {
   stage: '≡',
   nosecone: '▲',
@@ -136,7 +136,7 @@ function detail(n: ComponentNode, t: TFunction, u: Units): string {
   if (ty === 'nosecone')
     return [typeof n.shape === 'string' ? n.shape : null, len(u, n.length)].filter(Boolean).join(' · ');
   if (isFinSet(ty)) {
-    const c = (n.finCount ?? n.count) as unknown;
+    const c = n.finCount ?? n.count;
     return typeof c === 'number' ? t('tree.fins', { count: c }) : '';
   }
   if (ty === 'parachute') {
@@ -208,9 +208,8 @@ function Row({
         onKeyDown={
           selectable
             ? (e) => {
-                // Keyboard selection: this was the ONLY way to select a part
-                // (the 2D/3D canvases are pointer-only too), so a keyboard user
-                // could reach no component at all.
+                // Keyboard selection: the 2D/3D canvases are pointer-only, so
+                // without this a keyboard user could reach no component at all.
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault();
                   onSelect(id);
@@ -259,7 +258,7 @@ function Row({
       {!isCollapsed &&
         node.children?.map((c, i) => (
           <Row
-            key={(c.id as string) ?? `${c.type}-${i}`}
+            key={c.id ?? `${c.type}-${i}`}
             node={c}
             depth={depth + 1}
             selectedId={selectedId}
@@ -407,15 +406,13 @@ export function ComponentTree({
 
   return (
     // p-2, not p-3. This card sits inside the pane's own padding, so every
-    // pixel here is the SECOND gutter on the same edge - and the one on the left
+    // pixel here is the second gutter on the same edge, and the one on the left
     // pushes the whole tree right, where it comes straight off the part names at
     // every depth.
     <section className="rounded-xl bg-surface p-2 ring-1 ring-line/10">
-      {/* Everything you DO to the design, on one row above the list: add a stage,
-          add a component to the selected part, scale the whole rocket.
-
-          They were split across the heading row and a second row below it,
-          which read as two unrelated groups and cost a row of height.
+      {/* Everything you do to the design, on one row above the list: add a stage,
+          add a component to the selected part, scale the whole rocket. One row
+          reads as one group and costs no extra height.
 
           The three plus their gaps come to about 253px, which is what sets
           TREE_PANE_MIN: below it Scale wraps to a line of its own. They still
@@ -520,10 +517,10 @@ export function ComponentTree({
           </div>
         )}
       </div>
-      {/* The rule is the tree's spine, so it keeps its 1px; the inset beside it
-          was decoration the names were paying for. */}
+      {/* The rule is the tree's spine, so it keeps its 1px; there is no inset
+          beside it, so that width goes to the names. */}
       {listOpen && (
-        <div
+        <div // eslint-disable-line jsx-a11y-x/interactive-supports-focus -- roving tabindex: the selected row is the tab stop, as in the ARIA tree pattern, so the container is not
           ref={listRef}
           role="tree"
           aria-label={t('tree.components')}

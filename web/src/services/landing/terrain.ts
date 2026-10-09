@@ -22,7 +22,7 @@ export interface TerrainGrid {
   heights: number[];
 }
 
-/** Points per side: 15 x 15 = 225 heights, three requests, about 70 m apart over a 1 km half-width. */
+/** Points per side: 15 x 15 = 225 heights, three requests, about 140 m apart over a 1 km half-width. */
 export const TERRAIN_POINTS = 15;
 
 /** The grid's corners, `halfWidthM` meters each way from the site. */

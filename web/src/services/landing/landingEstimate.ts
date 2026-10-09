@@ -86,7 +86,7 @@ export function estimateLanding(q: {
 }
 
 /**
- * The terrain around the pad, re-based so its height AT the pad is the pad's:
+ * The terrain around the pad, re-based so its height at the pad is the pad's:
  * the terrain model and a surveyed site altitude disagree by a few meters,
  * and without this a descent could end before reaching the pad's own ground.
  */

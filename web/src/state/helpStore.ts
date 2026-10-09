@@ -2,7 +2,7 @@ import { create } from 'zustand';
 
 interface HelpState {
   /**
-   * The docs page the Help dialog is open ON, or null while it is closed.
+   * The docs page the Help dialog is open on, or null while it is closed.
    * `''` is the docs index, so null and '' are different states.
    */
   page: string | null;
@@ -15,7 +15,7 @@ interface HelpState {
  * Which docs page the in-app Help dialog is showing.
  *
  * A store of its own rather than another flag in AppHeader's dialog host
- * (HeaderDialogs) because the point of in-app help is opening it ON the thing
+ * (HeaderDialogs) because the point of in-app help is opening it on the thing
  * you are looking at. The Safety card wants the Safety page and lives in the
  * results panel; a component that needs help for its own field is nowhere near
  * the header either. Threading an opener down to each of them is the prop

@@ -3,7 +3,7 @@
  *
  * By default storage is "best effort": under disk pressure the browser may evict
  * an origin's data without asking, which here would take the user's designs,
- * custom motors and materials with it (IndexedDB — see idbKeyValueStore.ts)
+ * custom motors and materials with it (IndexedDB; see idbKeyValueStore.ts)
  * along with the offline caches. `persist()` moves the origin to "persistent",
  * where data is only removed if the user removes it.
  *
@@ -26,7 +26,7 @@ export async function requestPersistentStorage(): Promise<boolean> {
     if (await navigator.storage.persisted()) return true; // already granted
     return await navigator.storage.persist();
   } catch {
-    // Denied, unsupported, or blocked by policy — the app works either way.
+    // Denied, unsupported, or blocked by policy; the app works either way.
     return false;
   }
 }

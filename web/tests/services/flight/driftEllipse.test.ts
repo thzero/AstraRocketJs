@@ -39,7 +39,7 @@ describe('the swept envelope', () => {
   });
 
   /**
-   * A point exactly ON an edge adds nothing: keeping it would put a vertex in
+   * A point exactly on an edge adds nothing: keeping it would put a vertex in
    * the middle of a straight side, which draws identically and makes the vertex
    * count useless as a test of whether the region has an area.
    */
@@ -118,7 +118,7 @@ describe('the drift ellipse', () => {
     expect(ring[0]!.east).toBeCloseTo(e.semiMajorM, 10);
     expect(ring[0]!.north).toBeCloseTo(0, 10);
     // A quarter of the way round is one semi-minor out along the minor axis,
-    // which is the major turned a quarter turn — here, due north.
+    // which is the major turned a quarter turn: here, due north.
     expect(ring[2]!.east).toBeCloseTo(0, 10);
     expect(ring[2]!.north).toBeCloseTo(e.semiMinorM, 10);
   });

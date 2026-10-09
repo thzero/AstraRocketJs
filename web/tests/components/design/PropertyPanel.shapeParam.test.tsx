@@ -7,18 +7,14 @@ import { PropertyPanel } from '../../../src/components/design/PropertyPanel';
 import type { ComponentNode } from '../../../src/engine/openRocketEngine';
 
 /**
- * The Shape parameter field, which is the newest thing in the panel and was
- * shipped with nothing testing it.
+ * The Shape parameter field.
  *
- * `shapeParameter` was READ by the mesh, the report, the schematic, the 3D
- * view and both .ork paths, and written by nothing: a power/haack/ogive nose
- * imported from a file carried a parameter that changes its whole profile,
- * that the user could see the effect of and never edit, and that a round trip
- * froze at whatever the file said. `shapeUsesParameter` and `shapeParamMax`
- * were both exported and unit-tested in `tree/shapeProfile` with zero
- * production callers - so the helpers were proven and the WIRING was not, and
- * the wiring is the whole of this feature. Neither `PropertyPanel.scopes` nor
- * `PropertyPanel.required` renders anything.
+ * `shapeParameter` is read by the mesh, the report, the schematic, the 3D view
+ * and both .ork paths, and this field is the one place that writes it: a
+ * power/haack/ogive nose carries a parameter that changes its whole profile.
+ * `shapeUsesParameter` and `shapeParamMax` are unit-tested in
+ * `tree/shapeProfile`; what is tested here is the wiring into the panel.
+ * Neither `PropertyPanel.scopes` nor `PropertyPanel.required` renders anything.
  */
 
 const LABEL = 'Shape parameter';
@@ -121,7 +117,7 @@ describe('the ceiling is the shape-dependent one the kernel enforces', () => {
 
   it('leaves an ordinary number field unbounded above', () => {
     // `paramMax` is undefined for every other key, so the clamp must not leak
-    // onto, say, Length - which would silently cap a 2 m airframe at 1 m.
+    // onto, say, Length, which would silently cap a 2 m airframe at 1 m.
     panel({ type: 'nosecone', shape: 'ogive', length: 0.1, aftRadius: 0.012 });
     expect((screen.getByRole('spinbutton', { name: 'Length' }) as HTMLInputElement).max).toBe('');
   });

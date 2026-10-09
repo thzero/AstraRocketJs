@@ -9,7 +9,7 @@ import { neutralizeFormula } from '../exports/csvCell';
 import { CSV_MIME } from '../exports/csvExport';
 
 /**
- * Design-info CSV export — the same Scope / Field / Value / Unit layout
+ * Design-info CSV export: the same Scope / Field / Value / Unit layout
  * OpenRocket writes: a Design block, the whole-Rocket summary, one block per
  * stage, then each fin set's axial position. Field names are kept as stable
  * English data identifiers (not localized); values are in the units the user

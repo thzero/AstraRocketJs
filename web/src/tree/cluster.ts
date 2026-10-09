@@ -1,9 +1,9 @@
 /**
- * Cluster layouts — an exact mirror of the kernel's ClusterConfiguration
+ * Cluster layouts: an exact mirror of the kernel's ClusterConfiguration
  * (carved info.openrocket.core.rocketcomponent.ClusterConfiguration). Unit
  * points: closest tube centers are distance 1 apart; the physical separation
  * is 2 × tubeOuterRadius × clusterScale. Used for 2D/3D drawing and motor
- * counts — the PHYSICS reads the kernel's own copy, so these only need to
+ * counts; the physics reads the kernel's own copy, so these only need to
  * match visually.
  */
 
@@ -77,9 +77,9 @@ export const CLUSTER_POINTS: Record<ClusterPattern, number[]> = {
 };
 
 /**
- * The cluster patterns, in kernel order — the dropdown's option list.
+ * The cluster patterns, in kernel order: the dropdown's option list.
  *
- * Names only: this module is geometry, and the option TEXT is the property
+ * Names only: this module is geometry, and the option text is the property
  * panel's business (it localizes it, and builds the motor count from
  * `clusterCount` rather than baking English in here).
  */
@@ -113,15 +113,15 @@ export function clusterCount(cluster: string | undefined): number {
  *     ret.add( x * cos + y * sin);
  *     ret.add(-x * sin + y * cos);
  *
- * — R(−θ). Note the signs: `x·cos − y·sin` / `x·sin + y·cos` is R(+θ), which
- * turns the drawing 2θ the wrong way — a 3-ring clocked 30° on 19 mm tubes would
+ * That is R(−θ). Note the signs: `x·cos − y·sin` / `x·sin + y·cos` is R(+θ), which
+ * turns the drawing 2θ the wrong way: a 3-ring clocked 30° on 19 mm tubes would
  * put its first tube at (−5.48, −9.50) mm where the kernel flies it at
  * (−10.97, 0). The kernel keeps its own copy, so the physics is unaffected, but
  * the 2D schematic, the 3D model and the aft view would all disagree with what is
  * being flown.
  *
  * Two things InnerTube.getClusterPoints (InnerTube.java:263-273) also does and
- * this does NOT: it rotates by `clusterRotation − radialDirection`, and it adds
+ * this does not: it rotates by `clusterRotation − radialDirection`, and it adds
  * the `radialPosition` offset. Neither is drawn app-side, so a cluster that is
  * also radially offset still draws on the axis. Anything that places the tubes
  * for real (splitting a cluster, writing one tube per motor) uses
@@ -139,8 +139,8 @@ export function clusterOffsets(
   const sin = Math.sin(clusterRotation);
   const out: { y: number; z: number }[] = [];
   for (let i = 0; i < pts.length; i += 2) {
-    // px/py, not x/y: `y: (x * cos - y * sin)` reads as a self-reference, which
-    // is how the sign error hid here in the first place.
+    // px/py, not x/y: `y: (x * cos - y * sin)` reads as a self-reference and
+    // hides a sign error.
     const px = pts[i]!;
     const py = pts[i + 1]!;
     out.push({

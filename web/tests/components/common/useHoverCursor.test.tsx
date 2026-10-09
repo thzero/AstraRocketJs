@@ -31,9 +31,9 @@ describe('useHoverCursor', () => {
   });
 
   /**
-   * The bug. Only a matching pointer-out cleared the cursor, and an R3F mesh
-   * unmounts without firing one: switching views, or an edit that rebuilds the
-   * piece list, left the whole app stuck showing a hand until the user happened
+   * An R3F mesh unmounts without firing a pointer-out, so clearing only on
+   * pointer-out is not enough: switching views, or an edit that rebuilds the
+   * piece list, would leave the whole app showing a hand until the user happened
    * to hover and leave something else.
    */
   it('clears the cursor when the canvas unmounts mid-hover', () => {

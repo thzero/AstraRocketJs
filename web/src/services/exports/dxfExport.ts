@@ -4,16 +4,16 @@ import { finCutContour, finRootChord } from '../../tree/finPlanform';
 // Shared with the .ork reader and writer, so a part that lost a tag is cut at the
 // size it was read and saved as.
 import { COMPONENT_DEFAULTS } from '../design/componentDefaults';
-// The enclosing-tube walk and the ring radius resolution moved to their own
-// module when the 3D view and the 2D schematic needed them: importing them
-// from here would have pulled the R12 serializer into the first-paint bundle.
+// The enclosing-tube walk and the ring radius resolution live in their own
+// module, shared with the 3D view and the 2D schematic: importing them from
+// here would pull the R12 serializer into the first-paint bundle.
 import { mountBore, nodeContext, plateOuter, type Tube } from '../design/discGeometry';
 
 /**
- * DXF export — the 2D CNC/laser boundary for a rocket's FLAT, plate-cut parts:
+ * DXF export: the 2D CNC/laser boundary for a rocket's flat, plate-cut parts:
  * fins (with any through-the-wall tab folded into the outline), centering
- * rings, bulkheads, couplers and engine blocks. Nose cones and body tubes are
- * not plate parts and are not offered — that is what the STL/OBJ/GLB export is
+ * rings and bulkheads. Nose cones, body tubes, couplers and engine blocks are
+ * not plate parts and are not offered; that is what the STL/OBJ/GLB export is
  * for.
  *
  * Format is AutoCAD R12 (AC1009) ASCII, the maximum-compatibility target that
@@ -30,7 +30,7 @@ import { mountBore, nodeContext, plateOuter, type Tube } from '../design/discGeo
 export const DXF_MIME = 'image/vnd.dxf';
 
 // Imported, not redeclared: this is the unit constant for every dimensional
-// export, and it was written out in three separate files.
+// export.
 import { M_TO_MM } from '../../prefs/units';
 const EPS = 1e-6;
 /** Center cross-hair arm as a fraction of the outer radius. */
@@ -75,12 +75,12 @@ function dedupe(pts: Pt[]): Pt[] {
 }
 
 function finPart(node: ComponentNode, pRadius: number): Part | null {
-  // Outline and tab both come from the ONE fin-geometry module
+  // Outline and tab both come from the one fin-geometry module
   // (tree/finPlanform.ts), so the DXF, the STL and the 1:1 PDF template are
-  // guaranteed to be the same part. `root` in particular is the KERNEL's root
-  // chord (last.x - first.x for a freeform), not the furthest-aft point: this
-  // writer was the last holdout still using Math.max, which put the tab of an
-  // overhanging freeform fin up to 20 mm out of place against the airframe slot.
+  // guaranteed to be the same part. `root` in particular is the kernel's root
+  // chord (last.x - first.x for a freeform), not the furthest-aft point: the
+  // furthest-aft point would put the tab of an overhanging freeform fin up to
+  // 20 mm out of place against the airframe slot.
   const contour = finCutContour(node, pRadius > 0 ? pRadius : null);
   if (!contour) return null;
   const root = finRootChord(node);
@@ -95,7 +95,7 @@ function finPart(node: ComponentNode, pRadius: number): Part | null {
       : node.type === 'ellipticalfinset'
         ? 'Elliptical fin'
         : 'Freeform fin';
-  // `reduce`, not a spread: `orkImport` puts no cap on <finpoints><point>
+  // `reduce`, not a spread: the .ork reader puts no cap on <finpoints><point>
   // count, and spreading a >100k-point freeform fin into Math.max dies with an
   // opaque "Maximum call stack size exceeded" instead of exporting.
   const span = outline.reduce((m, p) => (p.y > m ? p.y : m), -Infinity);
@@ -129,7 +129,7 @@ function partForNode(node: ComponentNode, enclosing: Tube | null, siblings: Comp
     case 'trapezoidfinset':
     case 'ellipticalfinset':
     case 'freeformfinset':
-      // The kernel clamps tab height to the parent's OUTER radius
+      // The kernel clamps tab height to the parent's outer radius
       // (FinSet.getMaxTabHeight); the bore is not the limit a tab breaks through.
       return finPart(node, enclosing ? enclosing.outerR : 0);
     case 'bulkhead':
@@ -139,7 +139,7 @@ function partForNode(node: ComponentNode, enclosing: Tube | null, siblings: Comp
       const bore = num(node, 'innerRadius', NaN);
       return discPart(node, outer, Number.isNaN(bore) ? mountBore(siblings) : bore, 'Centering ring');
     }
-    // Tube couplers and engine blocks are tubes, not plate — they export as 3D
+    // Tube couplers and engine blocks are tubes, not plate; they export as 3D
     // solids, not a DXF cut.
     default:
       return null;
@@ -299,9 +299,9 @@ function serialize(ents: Ent[]): string {
 }
 
 /**
- * DXF cut sheet for ONE component (fin, ring, bulkhead, coupler or engine
- * block), normalized to the origin. Returns null when the node isn't a flat
- * plate part or can't be found.
+ * DXF cut sheet for one component (fin, centering ring or bulkhead),
+ * normalized to the origin. Returns null when the node isn't a flat plate part
+ * or can't be found.
  */
 export function componentToDxf(tree: RocketTree, nodeId: string): string | null {
   const ctx = nodeContext(tree, nodeId);

@@ -62,8 +62,8 @@ describe('findParent', () => {
   });
 
   it('returns null for a top-level node and for an id that is not there', () => {
-    // Null is a real ANSWER here (a stage has no parent) as well as the "not
-    // found" result, so both are pinned — a search that conflated them would
+    // Null is a real answer here (a stage has no parent) as well as the "not
+    // found" result, so both are pinned: a search that conflated them would
     // report the last-visited node instead.
     expect(findParent(makeTree(), 's1')).toBeNull();
     expect(findParent(makeTree(), 'nope')).toBeNull();
@@ -128,7 +128,7 @@ describe('mount + type rules', () => {
       ],
     } as unknown as RocketTree;
     expect(isUpperStageMount(staged, 'm-sus')).toBe(true); // has the booster below it
-    expect(isUpperStageMount(staged, 'm-boost')).toBe(false); // bottom stage — nothing below
+    expect(isUpperStageMount(staged, 'm-boost')).toBe(false); // bottom stage: nothing below
   });
 
   it('isAxial is true only for axial body components', () => {
@@ -147,7 +147,7 @@ describe('mount + type rules', () => {
     expect(hasCatalog('nosecone')).toBe(true);
     expect(hasCatalog('trapezoidfinset')).toBe(false);
     // An inner tube can be picked even though the catalog has no such type:
-    // it reads the body tube rows, 51 of which are motor mount tubes. See
+    // it reads the body tube rows, which include motor mount tubes. See
     // componentDb.catalogTypeFor.
     expect(hasCatalog('innertube')).toBe(true);
     expect(hasMaterial('bodytube')).toBe(true);
@@ -178,15 +178,15 @@ describe('catalogPatch', () => {
   });
 
   /**
-   * Whether a cone is SOLID is the part's answer, not the last part's.
+   * Whether a cone is solid is the part's answer, not the last part's.
    *
    * The kernel reads it from the `filled` flag (`api/ComponentFactory` calls
-   * `setFilled`), and the catalog publishes it on every nose cone row: 728 of
-   * the 855 are filled and 127 are not, our own default PNC-50KA among them. So
-   * a pick that left the flag alone let whatever was there before decide, and a
-   * solid cone followed by a hollow one went on flying solid at the hollow
-   * one's dimensions. It is several times the part's real mass, at the very
-   * nose, which moves the CG and the margin with it.
+   * `setFilled`), and the catalog publishes it on every nose cone row: most are
+   * filled and some are not, the default PNC-50KA among them. A pick that left
+   * the flag alone would let whatever was there before decide, so a solid cone
+   * followed by a hollow one would fly solid at the hollow one's dimensions:
+   * several times the part's real mass, at the very nose, which moves the CG and
+   * the margin with it.
    */
   describe('a nose cone picked after another', () => {
     const cone = (filled: boolean) =>
@@ -197,8 +197,8 @@ describe('catalogPatch', () => {
     it('stops being solid when the part it replaces was', () => {
       const patch = catalogPatch(cone(false), solidNode);
       expect(patch).toMatchObject({ filled: false });
-      // And its wall is a WALL. The old node's 30 mm was the whole radius of a
-      // solid part; carried over it would keep this 25 mm cone solid.
+      // And its wall is a wall. The replaced node's 30 mm was the whole radius
+      // of a solid part; carried over it would keep this 25 mm cone solid.
       expect(patch.thickness).toBe(KERNEL_DEFAULTS.nosecone.thickness);
       expect(patch.thickness!).toBeLessThan(0.025);
     });
@@ -307,8 +307,8 @@ describe('recovery-device defaults', () => {
 
   it('streamer defaults use stripLength/stripWidth (not length/width) + Cd + apogee', () => {
     const s = defaultNode('streamer') as Record<string, unknown>;
-    // Guards the key-name bug: the editor/engine/.ork all key on stripLength/
-    // stripWidth; a regression to length/width silently drops streamer sizing.
+    // The editor, engine and .ork all key on stripLength/stripWidth; a default
+    // under length/width would silently drop streamer sizing.
     expect(s.stripLength).toBeGreaterThan(0);
     expect(s.stripWidth).toBeGreaterThan(0);
     expect(s.length).toBeUndefined();
@@ -371,7 +371,7 @@ describe('addStage', () => {
     const once = addStage(t).tree;
     const twice = addStage(once).tree;
     expect(stageNodes(twice).map((s) => s.name)).toEqual([undefined, 'Booster', 'Stage 3']);
-    expect(t.components).toHaveLength(1); // immutable — original unchanged
+    expect(t.components).toHaveLength(1); // immutable: original unchanged
   });
 });
 

@@ -30,18 +30,17 @@ describe('flightColumns', () => {
   });
 
   /**
-   * The horizontal track has to be in the DEFAULT set: it is the only thing in
-   * the file that answers "where does it land", and it is why the columns were
-   * added in the first place.
+   * The horizontal track has to be in the default set: it is the only thing in
+   * the file that answers "where does it land".
    */
   it('exports the ground track by default', () => {
     for (const k of ['Px', 'Py']) expect(DEFAULT_CSV_COLUMNS).toContain(k);
   });
 
   /**
-   * Every variable carries a NAME, in both languages.
+   * Every variable carries a name, in both languages.
    *
-   * Bare kernel symbols — "Abx", "dΦ", "ha" — are unreadable unless you already
+   * Bare kernel symbols ("Abx", "dΦ", "ha") are unreadable unless you already
    * know the symbol table. The names are generated from OpenRocket's own
    * `FlightDataType` and its message bundles, so a variable reads the same here
    * as it does in the desktop app; this catches a symbol that slipped through
@@ -60,7 +59,7 @@ describe('flightColumns', () => {
   });
 
   it('gives every column a unit or an explicit blank, never undefined both ways', () => {
-    // Mach and the coefficients are genuinely unitless; a missing unit AND a
+    // Mach and the coefficients are genuinely unitless; a missing unit and a
     // missing quantity would render as the string "undefined".
     for (const c of flightColumns(withKeys(['time', 'Cd', 'M', 'Px', 'ρ']))) {
       expect(c.quantity ?? c.unit, `${c.key} has neither`).toBeDefined();

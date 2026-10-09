@@ -50,14 +50,14 @@ export function FlightChartPanel({
   const ih = height - padT - padB;
   // A quantity-backed series scales and labels itself from the preference; the
   // rest keep their fixed unit. `factor`, not `toUi`, because this scales a
-  // whole series — none of these carry a temperature-style offset.
+  // whole series; none of these carry a temperature-style offset.
   const scale = meta.quantity ? u.factor(meta.quantity) : (meta.scale ?? 1);
   const unit = meta.quantity ? u.sym(meta.quantity) : meta.unit;
-  // Namespaced ids. These were document-global (`fc-clip-altitude`), so two
-  // charts in one document - a comparison view, or the mobile and desktop
-  // copies during a breakpoint transition - made `url(#fc-clip-altitude)`
-  // resolve to whichever rendered first, clipping one chart's panels to the
-  // other's width. TreeSchematic already uses useId() for exactly this hazard.
+  // Namespaced ids. With a fixed id, two charts in one document (a comparison
+  // view, or the mobile and desktop copies during a breakpoint transition)
+  // would make `url(#...)` resolve to whichever rendered first, clipping one
+  // chart's panels to the other's width. TreeSchematic uses useId() for the
+  // same hazard.
   const uid = useId();
   const clipId = `${uid}-clip-${meta.key}`;
   const single = branches.length === 1;
@@ -74,7 +74,7 @@ export function FlightChartPanel({
     const out: { color: string; name: string; pts: Pt[]; xs: number[]; ys: number[]; t0?: number; t1?: number }[] = [];
     for (const b of branches) {
       const time = b.series.time ?? [];
-      const raw = (b.series[meta.key] ?? []) as (number | null)[];
+      const raw = b.series[meta.key] ?? [];
       const p: Pt[] = [];
       const xa: number[] = [];
       const ya: number[] = [];
@@ -127,14 +127,14 @@ export function FlightChartPanel({
   );
 
   /**
-   * The path strings and the peak scan — the expensive half.
+   * The path strings and the peak scan: the expensive half.
    *
-   * The memo above deliberately caches the sample EXTRACTION, but `mkLine` (a
-   * toFixed pair and a string per sample) and this reduce over every `ys` sat
-   * outside it, in the render body. `hoverT` is state here and a prop of this
-   * component, so every pixel of hover rebuilt all of it for all three default
-   * panels — at the six-figure sample counts `maxFlightTime`'s own docblock
-   * describes, that is a six-figure-segment string per panel per pointer move.
+   * The memo above caches the sample extraction; this one caches `mkLine` (a
+   * toFixed pair and a string per sample) and the reduce over every `ys`.
+   * `hoverT` is a prop of this component, so in the render body all of it
+   * would be rebuilt for every panel on every pointer move, and at the
+   * six-figure sample counts `maxFlightTime`'s docblock describes that is a
+   * six-figure-segment string per panel per move.
    */
   const { paths, areaPath, peak } = useMemo(() => {
     const first = list[0];
@@ -176,7 +176,7 @@ export function FlightChartPanel({
       </div>
       <svg viewBox={`0 0 ${w} ${height}`} width="100%" height={height} preserveAspectRatio="none" className="block">
         <defs>
-          {/* Filled area only for a lone line (single stage) — colored to match
+          {/* Filled area only for a lone line (single stage), colored to match
               it; overlaid stages would muddy each other, so they're lines only. */}
           {single && (
             <linearGradient id={`${uid}-${meta.key}`} x1="0" y1="0" x2="0" y2="1">

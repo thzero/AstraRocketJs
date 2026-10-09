@@ -12,11 +12,11 @@ import { PlaceSearchDialog } from './PlaceSearchDialog';
  * Saved launch locations, at the top of the launch panel's Site group.
  *
  * The three site fields (latitude, longitude, elevation) are properties of the
- * FIELD, not of a flight, and they were the only launch inputs with no memory:
- * every new simulation meant retyping coordinates from memory, which is exactly
- * how they come out wrong. A location is those three plus a name.
+ * launch field, not of a flight. Without a saved location every new simulation
+ * means retyping coordinates from memory, which is how they come out wrong. A
+ * location is those three plus a name.
  *
- * Deliberately NOT the rod, the wind or the atmosphere. Those are conditions on
+ * It deliberately excludes the rod, the wind and the atmosphere. Those are conditions on
  * the day; a location that restored last month's wind would be worse than one that
  * restored nothing, because it would look authoritative.
  *
@@ -54,22 +54,18 @@ export function LocationPicker({
   };
 
   /**
-   * "Custom location" puts the site back to your LAUNCH DEFAULTS.
+   * "Custom location" puts the site back to your launch defaults.
    *
-   * It was inert at first: the select's value is derived from the fields, so
-   * choosing it did nothing and React snapped the dropdown straight back to the
-   * matching location. An option you can highlight but not pick reads as broken
-   * however good the reason for it.
+   * The select's value is derived from the fields, so the option has to change
+   * them; otherwise React snaps the dropdown straight back to the matching
+   * location and the option reads as broken. Clearing the fields instead would
+   * leave the map with nothing to draw and the Run button refusing, since all
+   * three are required.
    *
-   * It then cleared the three fields, which was worse in practice than it
-   * sounded: all three are required, so picking it left the map with nothing to
-   * draw, the Run button refused, and you had to type a coordinate from nothing
-   * before you could even pan to the right part of the world.
-   *
-   * Your defaults are a real place - the Kennedy Space Center as shipped, since
-   * that is what `settings.launchDefaults` holds - so the map has somewhere to
-   * open and the fields stay flyable. Read from Settings rather than hardcoded,
-   * so somebody who set their own home field gets that instead of Florida.
+   * Your defaults are a real place (the Kennedy Space Center as shipped, which
+   * is what `settings.launchDefaults` holds), so the map has somewhere to open
+   * and the fields stay flyable. Read from Settings rather than hardcoded, so
+   * somebody who set their own home field gets that instead of Florida.
    *
    * One undoable edit like any other.
    */
@@ -101,8 +97,8 @@ export function LocationPicker({
    * Compared on the numbers rather than remembered as a selection: the fields
    * can be edited directly, imported from a `.ork` or replaced by "use my
    * location", and a remembered id would keep claiming a location that is not what
-   * is on screen. Rounded to ~1 m of latitude, since a location's stored precision
-   * and a typed one need not match bit for bit.
+   * is on screen. Matched within 1e-4° (about 11 m) and 0.5 m of elevation, since a
+   * location's stored precision and a typed one need not match bit for bit.
    */
   const near = (a: number | null | undefined, b: number, eps: number) => a != null && Math.abs(a - b) < eps;
   const current = locations.find(
@@ -113,13 +109,13 @@ export function LocationPicker({
   );
 
   /**
-   * A location is a PLACE, so it cannot be captured from a half-filled site.
+   * A location is a place, so it cannot be captured from a half-filled site.
    *
    * `locationFrom` has to produce numbers, and both coordinates are required launch
-   * fields now, so saving with one blank would mint a location at 0°,0° - the Gulf
-   * of Guinea - which would then apply itself silently every time it was
-   * picked. Refusing to save is the honest answer, and the fields are already
-   * marked as the ones to fill.
+   * fields, so saving with one blank would mint a location at 0°,0° (the Gulf
+   * of Guinea), which would then apply itself silently every time it was
+   * picked. Saving is refused instead, and the fields are already marked as the
+   * ones to fill.
    */
   const savable = launch.latitudeDeg != null && launch.longitudeDeg != null;
 
@@ -136,7 +132,7 @@ export function LocationPicker({
           }}
           className="min-w-0 flex-1 rounded-md bg-raised px-2 py-1.5 text-xs text-ink ring-1 ring-line/10"
         >
-          {/* Both a STATE and a CHOICE: it is what the dropdown shows whenever
+          {/* Both a state and a choice: it is what the dropdown shows whenever
               the fields match no saved location, and picking it returns them to
               your launch defaults. */}
           <option value="">{t('location.custom')}</option>
@@ -188,7 +184,7 @@ export function LocationPicker({
           onCancel={() => setNaming(false)}
           onConfirm={(name) => {
             setNaming(false);
-            // Saving under an existing location's name UPDATES it, rather than
+            // Saving under an existing location's name updates it, rather than
             // leaving two entries a user cannot tell apart in the dropdown.
             const existing = locations.find((p) => p.name === name.trim());
             void store(async () => {

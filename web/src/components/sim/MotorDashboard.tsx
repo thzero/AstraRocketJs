@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { CatalogMotor } from '../../services/motors/motorDb';
 import { Dialog } from '../common/Dialog';
 import { MotorDetail } from './MotorDetail';
-import { keyOf } from './motorKey';
+import { keyOf } from '../../services/motors/motorKey';
 import { useCatalog } from './useCatalog';
 import {
   ClassChips,
@@ -33,12 +33,12 @@ type Mode = 'detail' | 'combine' | 'compare';
 /**
  * Standalone motor reference: a sortable, column-configurable grid of every
  * bundled motor with a detail pane (thrust curve + specs) and arrow-key
- * stepping, plus two multi-select tools over the checked motors: COMBINE (sum
- * into one cluster curve) and COMPARE (overlay their curves + specs). Read-only
+ * stepping, plus two multi-select tools over the checked motors: Combine (sum
+ * into one cluster curve) and Compare (overlay their curves + specs). Read-only
  * and offline: it inspects/compares, it doesn't seat a motor (that's the picker).
  *
  * Mounted only while open (`{open && <MotorDashboard />}`), which is what
- * defers the ~1.6 MB catalog download to the first opening.
+ * defers the motor catalog download to the first opening.
  */
 export function MotorDashboard({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
@@ -73,8 +73,8 @@ export function MotorDashboard({ onClose }: { onClose: () => void }) {
   const { sort, shown, clickHeader } = useMotorSort(filtered);
 
   // Showing a different motor starts from its best (first) curve. Beside the
-  // selection write rather than in an effect on `selected`, which rendered the
-  // new motor with the old curve index once before correcting itself.
+  // selection write rather than in an effect on `selected`, which would render
+  // the new motor with the old curve index once before correcting itself.
   const select = (m: CatalogMotor | null) => {
     setSelected(m);
     setCurveIdx(0);
@@ -126,7 +126,7 @@ export function MotorDashboard({ onClose }: { onClose: () => void }) {
       }
     >
       <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-        {/* LEFT: filters + sortable grid. min-w-0 lets this flex child shrink
+        {/* Left: filters + sortable grid. min-w-0 lets this flex child shrink
               below the table's intrinsic width so the grid scrolls internally
               instead of pushing the detail pane. Hidden while a full-width tool
               (compare/combine) is open. */}
@@ -175,7 +175,7 @@ export function MotorDashboard({ onClose }: { onClose: () => void }) {
           />
         </div>
 
-        {/* RIGHT: detail rail (narrow) or a full-width tool (compare/combine). */}
+        {/* Right: detail rail (narrow) or a full-width tool (compare/combine). */}
         <div
           className={`min-h-0 overflow-y-auto ${effMode === 'detail' ? 'w-full md:w-[440px] md:shrink-0' : 'w-full flex-1'}`}
         >

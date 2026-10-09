@@ -242,7 +242,7 @@ public abstract class RingComponent extends StructuralComponent implements BoxBo
 
 	@Override
 	public double getRotationalUnitInertia() {
-		// PATCH(offaxis-roll-inertia): the ring's own axial term PLUS the
+		// PATCH(offaxis-roll-inertia): the ring's own axial term plus the
 		// parallel-axis spread of its instances. See instanceSpreadUnitInertia()
 		// and patches/LEDGER.md.
 		final double own = ringRotationalUnitInertia(getOuterRadius(), getInnerRadius());
@@ -259,10 +259,10 @@ public abstract class RingComponent extends StructuralComponent implements BoxBo
 	 * {@link #getComponentCG()} places its mass at.
 	 * <p>
 	 * Upstream's rotational unit inertia is the ring's own (ro^2 + ri^2) / 2 and
-	 * nothing else. A single inner tube at radial position r, whose CG
-	 * getComponentCG() puts on the parent axis, missed m * r^2; a cluster, whose
-	 * CG it puts at the mean of the instance offsets, missed the spread of its
-	 * tubes about that mean.
+	 * nothing else. For a single inner tube at radial position r, whose CG
+	 * getComponentCG() puts on the parent axis, that omits m * r^2; for a cluster,
+	 * whose CG it puts at the mean of the instance offsets, it omits the spread of
+	 * its tubes about that mean.
 	 * <p>
 	 * The reference point is the one getComponentCG() already reports, so this
 	 * adds roll inertia and nothing else: no CG moves, and no pitch or yaw term
@@ -283,7 +283,7 @@ public abstract class RingComponent extends StructuralComponent implements BoxBo
 	 * it is still where getComponentCG() puts the mass.
 	 * <p>
 	 * Known residual, shared with the motor half in MassCalculation and with
-	 * upstream's own cluster motors: the term is about the ring's PARENT axis,
+	 * upstream's own cluster motors: the term is about the ring's parent axis,
 	 * so a tube offset d inside a pod set offset D is charged m * (D^2 + d^2)
 	 * and misses the 2 * m * D.d cross term.
 	 *

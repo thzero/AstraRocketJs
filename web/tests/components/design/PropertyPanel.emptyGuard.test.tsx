@@ -22,12 +22,12 @@ const render = (onChange: (p: Partial<ComponentNode>) => void) =>
   );
 
 /**
- * Emptying a REQUIRED dimension must not commit anything.
+ * Emptying a required dimension must not commit anything.
  *
- * The alternative considered was refusing to let focus leave the field, which
- * is a keyboard trap (WCAG 2.1.2) and fights anyone who clears a box in order
- * to retype it. Withholding the write gets the same guarantee -- no accidental
- * zero can reach the tree -- without taking the keyboard hostage.
+ * Refusing to let focus leave the field would be a keyboard trap (WCAG 2.1.2)
+ * and would fight anyone who clears a box in order to retype it. Withholding the
+ * write gets the same guarantee (no accidental zero can reach the tree) without
+ * taking the keyboard hostage.
  */
 // The panel renders a MaterialPicker, which fetches the material catalog.
 beforeAll(serveData);
@@ -41,7 +41,7 @@ describe('an emptied required dimension', () => {
     fireEvent.focus(diameter);
     fireEvent.change(diameter, { target: { value: '' } });
 
-    // The old behavior coerced this to 0 and handed it to the tree.
+    // Coerced to 0, an empty box would hand a zero to the tree.
     expect(onChange).not.toHaveBeenCalled();
   });
 
@@ -55,7 +55,7 @@ describe('an emptied required dimension', () => {
     fireEvent.change(diameter, { target: { value: '2' } });
 
     expect(onChange).toHaveBeenCalledTimes(1);
-    // Typed as a DIAMETER in cm, stored as a radius in meters: the box and the
+    // Typed as a diameter in cm, stored as a radius in meters: the box and the
     // node are two different numbers and the halving happens between them.
     expect(onChange.mock.calls[0]![0]).toEqual({ outerRadius: 0.01 });
   });

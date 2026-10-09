@@ -13,7 +13,7 @@ import { samplesToMotorSpec } from '../../../src/services/motors/thrustcurve';
  * as the mass the rocket flies, and nothing downstream would report a mass
  * curve that is merely plausible.
  *
- * jsdom, because the parser uses `DOMParser` — `.rse` is XML, unlike RASP's
+ * jsdom, because the parser uses `DOMParser`: `.rse` is XML, unlike RASP's
  * fixed-column text.
  */
 
@@ -30,7 +30,7 @@ ${data}
 
 const ATTRS =
   'mfg="Cesaroni" code="J350-14" Type="reloadable" dia="38" len="186" initWt="822" propWt="447" delays="6,8,10"' +
-  // Upstream reads an ABSENT auto-calc attribute as "recompute this column",
+  // Upstream reads an absent auto-calc attribute as "recompute this column",
   // so a fixture that wants its own mass and CG used has to say so. See
   // "recomputes a column when the file does not say either way" below.
   ' auto-calc-mass="0" auto-calc-cg="0"';
@@ -97,7 +97,7 @@ describe('parseRse, the header attributes', () => {
   });
 
   it('refuses more propellant than total mass, as upstream does', () => {
-    // Otherwise the rocket GAINS mass as the motor burns, and nothing
+    // Otherwise the rocket gains mass as the motor burns, and nothing
     // downstream would report it.
     expect(() => parseRse(rse(ATTRS.replace('propWt="447"', 'propWt="900"'), DATA))).toThrow(/more propellant/i);
   });
@@ -150,7 +150,7 @@ describe('parseRse, the mass and CG columns', () => {
   });
 
   it('recomputes a column when the file does not say either way', () => {
-    // Upstream's default, and a surprising one: `auto-calc-mass` ABSENT means
+    // Upstream's default, and a surprising one: `auto-calc-mass` absent means
     // recompute, not "use what is here". A file carrying an `m` column and no
     // flag has that column ignored, by OpenRocket and so by this.
     const silent = parseRse(rse(ATTRS.replace(' auto-calc-mass="0"', '').replace(' auto-calc-cg="0"', ''), DATA))[0]!;
@@ -346,8 +346,8 @@ describe('.eng import still behaves', () => {
  * Hostile `.rse`, because this parser is reached with no file picker: `loadOrk`
  * runs it over every `.rse` member an imported `.ork` carried, and that member
  * may be up to the archive's 64 MiB per-entry ceiling. The `.ork` reader caps
- * fin points and shroud lines for exactly this reason; this path capped
- * nothing, so merely OPENING a shared design could freeze the tab.
+ * fin points and shroud lines for exactly this reason; this path needs caps
+ * too, or merely opening a shared design could freeze the tab.
  */
 describe('the hostile-input caps fire', () => {
   it('refuses a file declaring more motors than MAX_RSE_ENGINES', () => {

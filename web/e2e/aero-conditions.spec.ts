@@ -22,11 +22,11 @@ const rollRow = async (page: Page) => {
  * Set one flight-condition field and wait for the sweep it triggers.
  *
  * `settled` is the reading the caller is about to assert on: this polls until it
- * CHANGES, which is the only honest signal that the re-run finished. A fixed sleep
+ * changes, which is the only reliable signal that the re-run finished. A fixed sleep
  * here would put every assertion in the file on the same guess.
  */
 const setField = async (page: Page, label: string, value: string, settled?: () => Promise<unknown>) => {
-  // By ROLE: every one of these number inputs sits beside a unit chip, and the
+  // By role: every one of these number inputs sits beside a unit chip, and the
   // chip's accessible name is built from the field's own ("Wind direction
   // unit"), so a bare getByLabel('Wind dir') matches both.
   const before = settled ? JSON.stringify(await settled()) : null;
@@ -41,10 +41,10 @@ const setField = async (page: Page, label: string, value: string, settled?: () =
 };
 
 /**
- * The flight conditions the aero sweep is flown at — angle of attack, wind
- * direction about the roll axis, and roll rate. Every sweep ran at zero for all
- * three before these were exposed, so each test here asserts the number on
- * screen actually MOVES: a control wired to nothing would look identical.
+ * The flight conditions the aero sweep is flown at: angle of attack, wind
+ * direction about the roll axis, and roll rate. Each test here asserts the number
+ * on screen actually moves, because a control wired to nothing would leave the
+ * sweep at zero for all three and look identical.
  */
 test.describe('aero flight conditions', () => {
   test('angle of attack moves the CP', async ({ page }) => {
@@ -72,7 +72,7 @@ test.describe('aero flight conditions', () => {
     expect(still, 'the fin set row of the roll table').toBeDefined();
     expect(still?.[1]).toBe(0); // damping opposes a roll rate; there is none yet
 
-    // The sweep now runs off the render path, so poll the row until it moves
+    // The sweep runs off the render path, so poll the row until it moves
     // rather than reading straight after the commit.
     await setField(page, 'Roll rate', '20', () => rollRow(page));
     const rolling = await rollRow(page);
@@ -85,7 +85,7 @@ test.describe('aero flight conditions', () => {
   test('Worst finds the wind direction where the CP sits furthest forward', async ({ page }) => {
     await page.goto('/');
     // Two fins, so the CP genuinely depends on roll angle. A symmetric three-fin
-    // set does not, and Worst correctly reports 0 for it — which would make this
+    // set does not, and Worst correctly reports 0 for it, which would make this
     // test pass without proving anything.
     await page.getByText(/Trapezoidal fin/).click();
     await setField(page, 'Fin count', '2');
@@ -101,7 +101,7 @@ test.describe('aero flight conditions', () => {
     expect(Math.max(...seen) - Math.min(...seen)).toBeGreaterThan(1); // it really varies
 
     // Worst writes the direction it found back into the field, so that is the
-    // observable — not a 500 ms guess at the sweep behind it.
+    // observable, not a timed guess at the sweep behind it.
     const dir = page.getByRole('spinbutton', { name: 'Wind dir' });
     const beforeWorst = await dir.inputValue();
     await page.getByRole('button', { name: 'Worst' }).click();

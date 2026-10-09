@@ -36,9 +36,11 @@ test('opening Results re-flies an outdated simulation when the setting is on', a
   await outdatedResult(page);
 
   await openTab(page, 'Results');
-  // The amber marker goes once the re-flown result lands. Waited for here: a run
-  // that lands while another tab is open brings the user back to Results.
+  // The amber marker gives way to Running when the re-flight starts, and
+  // Running goes once the result lands. Both are waited for here: a run that
+  // lands while another tab is open brings the user back to Results.
   await expect(page.getByText('Outdated', { exact: true })).toHaveCount(0, { timeout: 30_000 });
+  await expect(page.getByRole('status').filter({ hasText: 'Running' })).toHaveCount(0, { timeout: 30_000 });
   await openTab(page, 'Simulations');
   await expect(page.getByRole('row').filter({ hasText: 'Simulation 1' })).toContainText('Up to date');
 });

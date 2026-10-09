@@ -6,11 +6,10 @@ import { DEFAULT_SETTINGS, SIM_BOUNDS } from '../../../src/services/storage/sett
 /**
  * The solver bounds, and the reason they are a shared constant.
  *
- * `maxTime / timeStep` IS the RK4 iteration count. The global Settings row
- * capped both ends and the per-simulation override capped neither, so one of
- * the two surfaces that can set the value let `1000000` through, which asks for
- * tens of millions of steps with nothing to interrupt it. Two copies of a bound
- * is the bug; this pins that there is now one.
+ * `maxTime / timeStep` is the RK4 iteration count, so both ends need a cap on
+ * every surface that can set them. Uncapped, `1000000` asks for tens of millions
+ * of steps with nothing to interrupt it. The global Settings row and the
+ * per-simulation override read one shared bound, so the two cannot drift apart.
  */
 describe('SIM_BOUNDS', () => {
   const src = (rel: string) => readFileSync(fileURLToPath(new URL(`../../../src/${rel}`, import.meta.url)), 'utf8');
@@ -31,19 +30,19 @@ describe('SIM_BOUNDS', () => {
 
   it('is the only place either surface spells the bound', () => {
     // Both the global row and the per-simulation override must read the shared
-    // constant. A literal here is how they drifted apart in the first place.
+    // constant. A literal here would let them drift apart.
     for (const rel of ['components/layout/SettingsDialog.tsx', 'components/sim/SimEditor.tsx']) {
       const text = src(rel);
       expect(text, rel).toContain('SIM_BOUNDS');
-      // The three values the override used to be missing, as bare literals.
+      // The bounds as bare literals.
       expect(text, rel).not.toMatch(/max=\{10000\}/);
       expect(text, rel).not.toMatch(/max=\{10\}/);
     }
   });
 
   it('gives the per-simulation override the same ceiling as the global row', () => {
-    // Read from the source rather than rendered, because the failure was a
-    // MISSING prop: a render test that does not know to look for `max` passes
+    // Read from the source rather than rendered, because the failure is a
+    // missing prop: a render test that does not know to look for `max` passes
     // either way. Both rows must carry a max for all three fields.
     const editor = src('components/sim/SimEditor.tsx');
     expect((editor.match(/max=\{SIM_BOUNDS\./g) ?? []).length).toBeGreaterThanOrEqual(2);

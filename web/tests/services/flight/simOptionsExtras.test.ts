@@ -36,7 +36,7 @@ const prefs: SimPrefs = {
 
 describe('simConditions carries the options the bridge gained', () => {
   it('omits humidity entirely when it is ISA', () => {
-    // Not sent as the standard value: the bridge reads an ABSENT key as NaN and
+    // Not sent as the standard value: the bridge reads an absent key as NaN and
     // only leaves standard ISA when temperature, pressure and humidity are all
     // absent. Sending 0 would look like a deliberate bone-dry launch.
     expect(simConditions(base, prefs).relativeHumidity).toBeUndefined();

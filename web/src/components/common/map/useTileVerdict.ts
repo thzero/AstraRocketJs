@@ -6,7 +6,7 @@ import { TILE_FAILURES_OFFLINE, type Layer } from './mapStyle';
 export type TileImagery = 'unknown' | 'ok' | 'unavailable';
 
 /**
- * Whether tiles are getting through, and for WHICH source.
+ * Whether tiles are getting through, and for which source.
  *
  * Carrying the source with the verdict is what makes switching layers re-ask
  * the network: the stale verdict is simply not the current source's, so it

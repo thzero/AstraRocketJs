@@ -3,16 +3,16 @@
  *
  * Both halves of the parity harness end the same way: print a result, then
  * process.exit(). That is only safe if the bytes are already gone when exit()
- * runs, and console.log cannot promise that - to a PIPE it is synchronous on
- * Linux but ASYNCHRONOUS on Windows, so an exit() straight after it truncates
+ * runs, and console.log cannot promise that: to a pipe it is synchronous on
+ * Linux but asynchronous on Windows, so an exit() straight after it truncates
  * the last line there. fs.writeSync is a write(2) syscall on every platform,
- * which is the property that is actually wanted.
+ * which is the property that is wanted.
  *
- * The loop and the catch are not decoration. writeSync assumes a BLOCKING fd,
+ * The loop and the catch are both required. writeSync assumes a blocking fd,
  * which fd 1 is in the two places this runs (a GitHub runner hands bash a plain
  * blocking pipe, and libuv clears O_NONBLOCK on the child's fds 0-2 when
  * spawnSync forks). On a fd that is somehow non-blocking anyway, writeSync can
- * come back having written only part of the buffer, or throw EAGAIN outright -
+ * come back having written only part of the buffer, or throw EAGAIN outright,
  * and an uncaught EAGAIN here would fail a parity run that had already passed.
  * The fallback covers both, and touching process.stdout sets the fd blocking on
  * its way through, which fixes the condition as a side effect.
@@ -24,7 +24,7 @@
 import { writeSync } from 'node:fs';
 
 /**
- * The child's "I got to the end" marker, and the ONLY thing that means success.
+ * The child's "I got to the end" marker, and the only thing that means success.
  *
  * run-target.mjs cannot exit normally (see the note at the bottom of it), so it
  * leaves by SIGKILL and has no exit status to report with. It prints this as
@@ -56,7 +56,7 @@ export function writeStdoutSync(text) {
     // remainder straight back into the capture and it is lost.
     process.stdout.write(buf.subarray(written));
   } catch {
-    // stdout is gone (the reader closed, say). The EXIT CODE still carries the
+    // stdout is gone (the reader closed, say). The exit code still carries the
     // verdict, which is what CI reads; do not fail a passing run over a line of
     // log output.
   }

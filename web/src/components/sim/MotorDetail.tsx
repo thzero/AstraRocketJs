@@ -52,7 +52,7 @@ export function MotorDetail({
           // never takes the dialog down with it.
           try {
             const score = motorSimilarity(
-              finalizeSamples(curves[curveIndex]!.samples),
+              finalizeSamples(curves[curveIndex].samples),
               finalizeSamples(curves[i]!.samples),
             );
             return score === null || score < SIMILAR;
@@ -74,7 +74,7 @@ export function MotorDetail({
   const isp = ispOf(motor);
   const massFrac = massFracOf(motor);
   // ThrustCurve's URL keys on the full designation (e.g. "E26W"), not the common
-  // name ("E26") — `code` holds it when they differ.
+  // name ("E26"); `code` holds it when they differ.
   const tcUrl = `https://www.thrustcurve.org/motors/${encodeURIComponent(motor.manufacturer)}/${encodeURIComponent(motor.code || motor.designation)}/`;
 
   const g = withFixedUnit;

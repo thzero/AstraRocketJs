@@ -57,8 +57,8 @@ test('the tree column can be dragged, and keeps its width', async ({ page }) => 
 });
 
 test('the divider leaves room for the other panes, and only shows where it applies', async ({ page }) => {
-  // The narrowest desktop width. Design is TWO columns here, not three: the
-  // property panel wants `xl` and is a dialog under it (component-dialog.spec),
+  // The narrowest desktop width. Design is two columns here, not three: the
+  // property panel wants `2xl` and is a dialog under it (component-dialog.spec),
   // so the tree only has to leave the canvas its floor.
   await page.setViewportSize({ width: 1024, height: 900 });
   await ready(page);
@@ -88,8 +88,8 @@ test('the divider leaves room for the other panes, and only shows where it appli
 /**
  * The divider between the canvas and the right-hand column.
  *
- * ONE width for all three of those columns - the part editor, the simulation
- * editor and the run's numbers. They were a matching 380 on purpose, and that
+ * One width for all three of those columns: the part editor, the simulation
+ * editor and the run's numbers. They match on purpose (380 by default), and that
  * only stays true if sizing one sizes them all.
  */
 test('the side column can be dragged, and the width is shared by every tab', async ({ page }) => {
@@ -107,7 +107,7 @@ test('the side column can be dragged, and the width is shared by every tab', asy
   await expect(page.getByText('L/D', { exact: true })).toBeVisible({ timeout: 20_000 });
   expect(await width()).toBe(500);
 
-  // The pane is on the RIGHT of this divider, so the clamps are mirrored: drag
+  // The pane is on the right of this divider, so the clamps are mirrored: drag
   // toward the edge it sits against to shrink it.
   await drag(page, sep, 1595);
   expect(await width()).toBe(300);
@@ -153,8 +153,8 @@ test('clicking a divider without moving it leaves the width alone', async ({ pag
   await ready(page);
 
   // The pointer lands a pixel or two off the stored split, so committing its
-  // position on a plain click nudged the pane every time it was clicked - and
-  // did it again between the two clicks of a double-click, which ate the reset.
+  // position on a plain click would nudge the pane every time it is clicked, and
+  // again between the two clicks of a double-click, which would eat the reset.
   for (const name of [/components panel/, /side panel/]) {
     const sep = page.getByRole('separator', { name });
     const before = (await box(sep)).x;

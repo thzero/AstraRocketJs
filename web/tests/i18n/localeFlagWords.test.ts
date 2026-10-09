@@ -16,20 +16,19 @@ import ja from '../../src/i18n/locales/ja.json';
  * No British spelling in any locale's user-visible text.
  *
  * `cspell.json` holds the forbidden list and the spell gate applies it, but its
- * `files` is an ALLOWLIST whose only locale entry is `en.json`. So the nine
- * translated files, which are all user-visible UI text, sat outside it: a
- * British spelling, or an untranslated English leftover carrying one, passed
- * every gate. Demonstrated during the audit by planting one in `es.json` and
- * watching `npm run spell` report 671 files and 0 issues.
+ * `files` is an allowlist whose only locale entry is `en.json`. The nine
+ * translated files, which are all user-visible UI text, sit outside it, so a
+ * British spelling (or an untranslated English leftover carrying one) in them
+ * would pass the spell gate.
  *
- * Checked HERE rather than by widening cspell's `files`, because cspell cannot
+ * Checked here rather than by widening cspell's `files`, because cspell cannot
  * do it. Spell-checking a translation needs that language's dictionary, and the
  * `cspell` package bundles none of the nine (its `dict-java`, `dict-ruby` and
  * `dict-rust` are programming languages). Pointing it at `es.json` would flag
  * every Spanish word. The forbidden-word half needs no dictionary at all, and
  * it is the half that matters: the list is entirely British forms.
  *
- * The list is read FROM `cspell.json` rather than copied, so the two cannot
+ * The list is read from `cspell.json` rather than copied, so the two cannot
  * drift: add a word there and it is enforced in all ten locales at once.
  */
 
@@ -83,7 +82,7 @@ describe('no British spelling reaches a translated string', () => {
   }
 
   it('does not allow a word that is not actually on the list', () => {
-    // Keeps NATIVE honest: an entry for a word nobody forbids is dead weight
+    // Keeps `NATIVE` honest: an entry for a word nobody forbids is dead weight
     // that reads as a sanctioned exception.
     const forbidden = new Set(flagWords.map((w) => w.toLowerCase()));
     for (const [locale, words] of Object.entries(NATIVE)) {

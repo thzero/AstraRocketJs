@@ -8,7 +8,7 @@ import { KERNEL_TEST_TIMEOUT_MS } from '../../testing/kernelTimeout';
  *
  * The kernel refuses a self-intersecting freeform outline by name rather than
  * rolling it back to its default fin (engine-java/patches/LEDGER.md), which is
- * what the app wants everywhere a number is shown. On IMPORT that costs more than
+ * what the app wants everywhere a number is shown. On import that costs more than
  * it gains: the design that cannot be simulated is exactly the design somebody
  * needs to open in order to fix it, and this app can save such a file - the `.ork`
  * writer takes the tree, not the kernel's opinion of it. So the file opens, the tree
@@ -74,7 +74,7 @@ describe('buildForImport', () => {
     // same sentence shows up, and a user reading only the import notes should
     // know the design is open and what is blocked.
     expect(built.unbuildable).toMatch(/open so it can be fixed/);
-    // The handle is a throwaway built from a repaired copy; the TREE is not
+    // The handle is a throwaway built from a repaired copy; the tree is not
     // touched, so the outline the file stated is what the editor draws and what
     // a re-export writes.
     type Node = { type: string; children?: Node[]; points?: number[][] };

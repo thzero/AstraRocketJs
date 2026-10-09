@@ -1,6 +1,6 @@
 // Build-time generator for the material catalog.
 //
-// Writes public/data/materials.generated.json — the runtime catalog the editor
+// Writes public/data/materials.generated.json: the runtime catalog the editor
 // offers, fetched at run time like motors and components (see
 // src/services/app/remoteData.ts) rather than compiled into the JS bundle.
 //
@@ -11,7 +11,7 @@
 // keeps at the pinned ref (engine-java/.openrocket-src, gitignored). Run
 // `npm --prefix ../engine-java run extract:check` once to populate it.
 //
-// It has TWO inputs, and only one of them is a file a person edits:
+// It has two inputs, and only one of them is a file a person edits:
 //
 //   upstream   every material desktop OpenRocket ships, read straight out of
 //              its `database/Databases.java`. Never typed by hand.
@@ -23,12 +23,10 @@
 // Each output row keeps a `kind` saying which input it came from, so
 // `engine-java/extract/extract.mjs --check` can hold the upstream rows to
 // upstream and leave ours alone. The maintainer-facing fields (`source`,
-// `note`, `corrects`) stay in the hand-maintained file and are NOT shipped:
+// `note`, `corrects`) stay in the hand-maintained file and are not shipped:
 // they are for whoever edits that file, and the browser has no use for them.
 //
-// WHY THIS EXISTS. Typed by hand, the list drifts: 20 of upstream's 42 line
-// materials, missing every Kevlar 12-strand above 5/16 in, all five nylon flat
-// webbings, both rubber bands, all seven braided elastics and the Paraline. Nothing
+// Why this exists: typed by hand, the list drifts away from upstream, and nothing
 // shows it, because a missing material is just one the picker does not offer.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -86,7 +84,7 @@ for (const m of java.matchAll(MATERIAL)) {
 
 // Every call has to have been read. A regex that quietly skips a row would
 // produce a short list that looks complete, which is the exact failure this
-// script was written to end.
+// script exists to prevent.
 const calls = java.split('newMaterial(Type.').length - 1;
 if (rows.length !== calls) die(`parsed ${rows.length} materials but the file makes ${calls} newMaterial calls`);
 if (!rows.length) die(`no materials found in ${javaPath}`);
@@ -111,7 +109,7 @@ for (const r of app) {
   // that from being advice.
   if (!r.source) die(`app material ${JSON.stringify(r.name)} has no "source"`);
   if (!(r.density > 0)) die(`app material ${JSON.stringify(r.name)} has a non-positive density`);
-  // A name upstream already uses would SHADOW it in the picker, silently
+  // A name upstream already uses would shadow it in the picker, silently
   // re-weighing every design that names it. A correction gets its own name
   // (`Elastic cord, corrected (...)`) precisely so both can be read back.
   if (seen.has(key(r))) die(`app material ${JSON.stringify(r.name)} (${r.type}) collides with an upstream material`);

@@ -202,7 +202,7 @@ export function table(p: PdfPage, cols: Col[], rows: string[][], boldLast = fals
 export const q = (p: PdfPage, quantity: Quantity, si: number, digits = 1): string =>
   Number.isFinite(si) ? `${fmtNum(siToUi(quantity, p.units[quantity], si), digits)} ${p.units[quantity]}` : '—';
 
-/** The number only — for a cell that already carries the unit once. */
+/** The number only, for a cell that already carries the unit once. */
 export const qv = (p: PdfPage, quantity: Quantity, si: number, digits = 1): string =>
   fmtNum(siToUi(quantity, p.units[quantity], si), digits);
 

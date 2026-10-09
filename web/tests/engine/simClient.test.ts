@@ -41,8 +41,8 @@ beforeEach(() => {
   vi.stubGlobal(
     'Worker',
     // A regular function (not an arrow): vitest 5's spies keep the underlying
-    // implementation's (non-)constructability, and `new Worker(...)` — how the
-    // client creates it — needs a constructable stub. Returning an object from a
+    // implementation's (non-)constructability, and `new Worker(...)` (how the
+    // client creates it) needs a constructable stub. Returning an object from a
     // `new` call yields that object, so each construction hands back a FakeWorker.
     vi.fn(function () {
       const w = new FakeWorker();
@@ -66,7 +66,7 @@ const payload = {} as unknown as SimPayload;
  * Fire a sim nobody awaits.
  *
  * Every call arms a timeout, so an unsettled one left behind by a test rejects
- * the moment a LATER test advances the clock past it - surfacing as an
+ * the moment a later test advances the clock past it, surfacing as an
  * unhandled rejection in whichever test happened to be running. Swallowing here
  * keeps each test's failures its own.
  */
@@ -98,7 +98,7 @@ describe('simClient timeout', () => {
 
 /**
  * The pool is what makes a batch worth running: `simulate()` inside a worker is a
- * synchronous engine call, so four requests to ONE worker are four flights end to
+ * synchronous engine call, so four requests to one worker are four flights end to
  * end. These assert the transport spreads them.
  */
 describe('simClient pool', () => {
@@ -144,9 +144,8 @@ describe('simClient pool', () => {
   });
 
   /**
-   * The reason `killWorker` had to stop being global. With one worker it could
-   * reject everything in flight, because everything in flight was on it. One
-   * degenerate rocket must not take down three healthy flights beside it.
+   * `killWorker` acts on one slot, not the whole pool: one degenerate rocket
+   * must not take down the healthy flights running beside it.
    */
   it('a timeout kills only the worker that hung', async () => {
     withCores(3); // 2 workers
@@ -155,7 +154,7 @@ describe('simClient pool', () => {
     const healthy = simulateInWorker(payload, { timeoutMs: 1000 });
     expect(created).toHaveLength(2);
 
-    // Attached BEFORE the clock moves: the rejection lands during
+    // Attached before the clock moves: the rejection lands during
     // advanceTimers, and a promise with no handler yet at that instant is an
     // unhandled rejection even though the very next line would have awaited it.
     const rejects = expect(hung).rejects.toBeInstanceOf(SimTimeoutError);
@@ -189,7 +188,7 @@ describe('simClient pool', () => {
   it('reaps idle workers so an editing session does not sit on four engines', async () => {
     withCores(5);
     const { simulateInWorker } = await import('../../src/engine/simClient');
-    // Both in the air BEFORE either answers, so the second gets its own worker.
+    // Both in the air before either answers, so the second gets its own worker.
     // A worker that replies inside postMessage frees its slot instantly and the
     // next sim reuses it, which is correct and would test nothing here.
     const both = Promise.all([simulateInWorker(payload), simulateInWorker(payload)]);
@@ -214,7 +213,7 @@ describe('simClient pool', () => {
     await simulateInWorker(payload);
     await vi.advanceTimersByTimeAsync(30_000); // half way to the reap
     await simulateInWorker(payload);
-    await vi.advanceTimersByTimeAsync(40_000); // past the ORIGINAL deadline
+    await vi.advanceTimersByTimeAsync(40_000); // past the first run's deadline
     // The second run rearmed the timer, so the worker is still alive at 70s.
     expect(created).toHaveLength(1);
     expect(created[0]!.terminate).not.toHaveBeenCalled();
@@ -238,7 +237,7 @@ describe('simClient cancel', () => {
     const rejects = expect(waiting).rejects.toBeInstanceOf(SimCanceledError);
     ac.abort();
     await rejects;
-    // The worker serving the FIRST run is untouched: it was never the one
+    // The worker serving the first run is untouched: it was never the one
     // holding the canceled task.
     expect(created[0]!.terminate).not.toHaveBeenCalled();
 
@@ -307,7 +306,7 @@ describe('simClient worker retirement', () => {
     // Retired, not left in the pool answering every call with the same error.
     expect(created[0]!.terminate).toHaveBeenCalledOnce();
 
-    // The next call gets a NEW worker (which, here, is healthy).
+    // The next call gets a new worker (which, here, is healthy).
     FakeWorker.onPost = (self, msg) => self.reply(msg.id, { apogee: 1 });
     await expect(simulateInWorker(payload)).resolves.toEqual({ apogee: 1 });
     expect(created).toHaveLength(2);

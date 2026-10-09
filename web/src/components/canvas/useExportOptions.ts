@@ -7,7 +7,7 @@ import {
 } from '../../services/exports/flightPathExport';
 import { useUnits } from '../../prefs/useUnits';
 import { useSettings } from '../../state/SettingsProvider';
-import { hydrateExportOptions, persistedExportSettings, type UnitField } from './pathExportFields';
+import { hydrateExportOptions, persistedExportSettings, type UnitField } from '../../services/exports/pathExportFields';
 
 /**
  * Owns the flight-path export dialog's options: the state, hydrated from the
@@ -30,7 +30,7 @@ export function useExportOptions(): {
     hydrateExportOptions(defaultExportOptions(units.sym('distance')), settings.pathExport),
   );
   // Which of the two unit fields is an explicit dialog choice. A stored unit
-  // is one; so is any pick made here. Anything else stays ABSENT in the store,
+  // is one; so is any pick made here. Anything else stays absent in the store,
   // so the next open still follows the app's distance preference rather than
   // whatever unit the app happened to show the first time this dialog opened.
   const explicitUnits = useRef<Record<UnitField, boolean>>({
@@ -56,7 +56,7 @@ export function useExportOptions(): {
     setOpts(next);
     return next;
   };
-  /** Change persisted option(s): the dialog AND the store. Every handler
+  /** Change persisted option(s): the dialog and the store. Every handler
    *  in the dialog except the mission field's goes through this. */
   const change = (patch: Partial<FlightPathExportOptions>) => persist(patchOpts(patch));
   /** A unit picked in the dialog: a dialog choice, stored from now on. */

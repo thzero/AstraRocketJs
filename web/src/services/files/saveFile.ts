@@ -3,7 +3,7 @@
  *
  * One implementation, so the blob revoke timing cannot drift between exports, and
  * because the `<a download>` anchor is unreliable in one place: iOS/iPadOS running
- * the app as an INSTALLED PWA, where a blob download silently does nothing and the
+ * the app as an installed PWA, where a blob download silently does nothing and the
  * file never appears. The app is installable, so that is a real configuration.
  *
  * So: the browser's own save dialog where it has one and the user has not turned
@@ -90,7 +90,7 @@ async function pickAndSave(picker: SavePicker, blob: Blob, filename: string): Pr
 }
 
 /**
- * Save `blob` as `filename`. Resolves once handed off; never rejects — a user
+ * Save `blob` as `filename`. Resolves once handed off; never rejects: a user
  * canceling the share sheet is not an error, and a failed share falls back to
  * the anchor rather than leaving them with nothing.
  */
@@ -103,7 +103,7 @@ export async function saveBlob(blob: Blob, filename: string): Promise<void> {
         return;
       }
     } catch (e) {
-      // Canceling raises AbortError — the user chose not to save, so stop here
+      // Canceling raises AbortError: the user chose not to save, so stop here
       // rather than surprising them with a second attempt.
       if (e instanceof DOMException && e.name === 'AbortError') return;
       // Anything else (share unsupported for files, transient failure): fall through.
@@ -120,17 +120,12 @@ export async function saveText(text: string, filename: string, mime = 'text/plai
 }
 
 /**
- * Hand the user a file and don't wait for it — the one entry point every
+ * Hand the user a file and don't wait for it: the one entry point every
  * export button uses.
  *
- * There were three of these, one per module (`downloadText(filename, text,
- * mime)`, `downloadBlob(blob, filename)`, `downloadFile(data, filename,
- * mime)`), all one-liners over `saveBlob` and all disagreeing about argument
- * order. Two of the three put the filename where the other put the data, which
- * a `string` payload type-checks straight through: an import of the wrong one
- * silently downloads a file NAMED after its own contents.
- *
- * Filename first, everywhere, matching `safeFilename` beside it.
+ * Filename first, matching `safeFilename` beside it. A `string` payload
+ * type-checks in either position, so one shared argument order is what keeps a
+ * caller from downloading a file named after its own contents.
  */
 export function download(filename: string, data: BlobPart, mime = 'text/plain;charset=utf-8'): void {
   void saveBlob(data instanceof Blob ? data : new Blob([data], { type: mime }), filename);
@@ -152,7 +147,7 @@ export function safeFilename(name: string, fallback = 'rocket'): string {
  *
  * Every export in the app names its file the same way, because a downloads
  * folder is a flat list shared with everything else the browser saves there:
- * "aero-table.csv" and "flight-events.csv" say nothing about WHICH rocket, and
+ * "aero-table.csv" and "flight-events.csv" say nothing about which rocket, and
  * a second design overwrites the first. The parts, in reading order:
  *
  *   about the rocket    rocket + what it is             Bertha-design.ork
@@ -162,8 +157,8 @@ export function safeFilename(name: string, fallback = 'rocket'): string {
  *
  * A design document is not an exception to the first line: `.ork`, `.rkt` and
  * `.CDX1` are "-design", the way the report is "-report". A name says which
- * rocket AND which document, and a bare `Bertha.ork` only says which rocket.
- * Round-tripping is stable because the rocket's name comes from INSIDE the
+ * rocket and which document, and a bare `Bertha.ork` only says which rocket.
+ * Round-tripping is stable because the rocket's name comes from inside the
  * file rather than from the filename, so re-saving an opened
  * `Bertha-design.ork` gives that same name back rather than stacking suffixes.
  *

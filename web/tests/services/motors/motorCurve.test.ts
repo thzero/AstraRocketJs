@@ -9,7 +9,7 @@ import { newFlightConfig } from '../../../src/services/flight/flightConfigs';
 import { __setEngineForTests, type MotorSpec, type RocketTree } from '../../../src/engine/openRocketEngine';
 
 /**
- * ONE threshold for "this motor can fly". Decided per module (any length, >= 2,
+ * One threshold for "this motor can fly". Decided per module (any length, >= 2,
  * >= 2, > 0), a one-sample motor is flyable to the Run button and empty at the
  * mount.
  */

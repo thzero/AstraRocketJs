@@ -22,7 +22,7 @@ export interface WiredOrk {
  * Map a freshly parsed .ork onto the workspace: every configuration it declared
  * becomes a flight configuration, and each gets a simulation that flies it.
  *
- * One simulation per configuration because that is what a configuration IS on
+ * One simulation per configuration because that is what a configuration is on
  * the desktop: a way the rocket is set up to fly. Importing three and opening
  * one would leave two setups the user could see in the table and had no run to
  * put numbers against.
@@ -30,15 +30,15 @@ export interface WiredOrk {
  * Each configuration keeps the file's own id, so a save writes the same
  * `configid` back and a round trip is identity rather than a rewrite.
  *
- * Pure (no I/O): the caller supplies `launchDefaults` so this stays testable, it
- * being the .ork-import mapping most likely to regress on odd files.
+ * Pure (no I/O): the caller supplies `launchDefaults` so this mapping can be
+ * tested directly against odd files.
  */
 export function wireLoadedOrk(res: LoadedOrk, launchDefaults: LaunchConditions, simPrefs?: SimPrefs): WiredOrk {
   // `.ork` can position a component with method="absolute", which is a
-  // ROCKET-origin offset. The editor works entirely in the parent frame, so
+  // rocket-origin offset. The editor works entirely in the parent frame, so
   // leaving it means the schematic, 3D view, drag handles and PDF all draw the
-  // part at parent-start + offset while the engine flies it at offset — drawn
-  // geometry disagreeing with simulated geometry. Resolve it to the equivalent
+  // part at parent-start + offset while the engine flies it at offset, and the
+  // drawing disagrees with the simulation. Resolve it to the equivalent
   // parent-relative offset; the original is preserved on the position so
   // `orkExport` still round-trips the file byte-for-byte.
   const tree = resolveFilePositions(res.tree);
@@ -52,9 +52,9 @@ export function wireLoadedOrk(res: LoadedOrk, launchDefaults: LaunchConditions, 
     // Seeding a C6 would open a file saved without motors as a flyable rocket on
     // motors it never named.
     const reconciled = reconcileConfig(tree, config);
-    // Everything the file carried for THIS configuration, not just the
+    // Everything the file carried for this configuration, not just the
     // deployments: a separation override and a grounded stage are its settings
-    // too, and forwarding one of the three silently reset the other two.
+    // too, and leaving any of the three out resets it to the default.
     return {
       ...reconciled,
       ...(c.deployments ? { deployments: c.deployments } : {}),
@@ -65,7 +65,7 @@ export function wireLoadedOrk(res: LoadedOrk, launchDefaults: LaunchConditions, 
 
   // The file's own simulations when it has any: each with its name, the
   // configuration it flies, its launch and the summary of its result. A file
-  // with none gets one simulation per configuration, as before.
+  // with none gets one simulation per configuration.
   const sims = res.simulations?.length
     ? res.simulations.map((fs) => {
         const config = configs.find((c) => c.id === fs.configId) ?? configs[0]!;
@@ -94,10 +94,10 @@ export function wireLoadedOrk(res: LoadedOrk, launchDefaults: LaunchConditions, 
  * What to call the simulation that flies one configuration: the configuration's
  * name, else its motors, else the rocket's own name.
  *
- * The rows have to be told apart in the table, and the thing that distinguishes
- * them IS the configuration. `.ork` does name its simulations, but those names
- * are not read here, and "Simulation 1" against a three-configuration file says
- * less than the motors do.
+ * Used only for a file with no simulations of its own (a file that has them
+ * keeps their names). The rows have to be told apart in the table, and the
+ * thing that distinguishes them is the configuration; "Simulation 1" against a
+ * three-configuration file says less than the motors do.
  *
  * `taken` carries across the set, because two configurations can seat the same
  * motors and a file may name two the same.

@@ -2,10 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { outerProfile } from '../../src/tree/shapeProfile';
 
 /**
- * calculateClip()'s bisection exited only on `max - min < precision`. With a
+ * calculateClip()'s bisection exits on `max - min < precision`. With a
  * non-finite length `max - min` is NaN, NaN compares false against everything,
- * and the loop never returned: a hostile `.ork` with an absurd transition
- * length hung the tab from the schematic, the 3D view, the report and the
+ * and an unguarded loop never returns: a hostile `.ork` with an absurd transition
+ * length would hang the tab from the schematic, the 3D view, the report and the
  * mesh exporter. The Java has the same loop; its callers cannot hand it NaN.
  * Ours read a file.
  */

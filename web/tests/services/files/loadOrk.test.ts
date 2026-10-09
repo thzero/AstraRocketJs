@@ -2,16 +2,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 /**
  * A `.ork` names a motor. If we cannot produce that motor, the mount must end
- * up holding an UNRESOLVED placeholder, never a default.
+ * up holding an unresolved placeholder, never a default.
  *
- * `loadOrk` already did that when the catalog lookup MISSED, with a comment
- * saying why: "the run is blocked until the user picks a real motor, and
- * nothing silently flies a C6". But when the catalog HIT and the thrust-curve
- * download then threw, the catch only pushed a note and left the mount unset,
- * and `mountMotors` seeds a default C6 into any mount without one. So a single
- * transient thrustcurve.org failure while opening an L-motor design produced a
- * runnable simulation flying a 10 N-s C6, with the only warning buried in the
- * import notes that `settings.showImportNotes` can hide.
+ * That holds when the catalog lookup misses, and also when the catalog hits
+ * and the thrust-curve download then throws. A mount left unset there would get
+ * the default C6 that `reconcileConfig` seeds into any mount without one, so a
+ * single transient thrustcurve.org failure while opening an L-motor design
+ * would produce a runnable simulation flying a 10 N-s C6, with the only warning
+ * in import notes that `settings.showImportNotes` can hide.
  *
  * The engine, the zip parser and the catalog are all mocked: what is under
  * test is the wiring decision, not the kernel.
@@ -28,11 +26,10 @@ vi.mock('../../../src/engine/openRocketEngine', () => ({
   resetEngine: () => {},
 }));
 
-// The PARSER is stubbed, not the file format: these cover what loadOrk does
-// with an import RESULT (resolving motors, seating placeholders), and the two
-// readers behind `parseDesignFile` have tests of their own. Mocking the
-// dispatcher rather than `./orkFile` keeps that true now that loadOrk reads
-// both `.ork` and `.rkt`.
+// The parser is stubbed, not the file format: these cover what loadOrk does
+// with an import result (resolving motors, seating placeholders), and the two
+// readers behind `parseDesignFile` have tests of their own. The dispatcher is
+// mocked rather than `./orkFile` because loadOrk reads both `.ork` and `.rkt`.
 vi.mock('../../../src/services/files/designFile', () => ({
   parseDesignFile: () => ({
     tree: { name: 'Big', components: [] },
@@ -49,7 +46,7 @@ vi.mock('../../../src/services/motors/thrustcurve', () => ({
 
 vi.mock('../../../src/services/motors/motorDb', () => ({
   loadCatalog: () => Promise.resolve([]),
-  // The catalog HITS: this is the path where the designation is known and only
+  // The catalog hits: this is the path where the designation is known and only
   // the curve download fails.
   findCatalogMotor: () => ({ designation: 'K550', manufacturer: 'AeroTech', diameter: 54 }),
   matchCatalogMotor: () => ({ motor: { designation: 'K550', manufacturer: 'AeroTech', diameter: 54 } }),
@@ -70,7 +67,7 @@ describe('loadOrk when the thrust-curve download fails', () => {
     const seated = loaded.configs[0]!.motors['mount1'];
     expect(seated).toBeDefined();
     expect(seated!.spec.designation).toBe('K550');
-    // An unresolved motor carries the designation but NO curve, which is what
+    // An unresolved motor carries the designation but no curve, which is what
     // blocks the run instead of flying something the file never asked for.
     expect(seated!.spec.times).toEqual([]);
     expect(seated!.spec.thrusts).toEqual([]);

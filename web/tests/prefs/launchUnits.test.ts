@@ -5,7 +5,7 @@ import { siToUi, uiToSi, METRIC_UNITS, IMPERIAL_UNITS } from '../../src/prefs/un
 const KINDS = Object.keys(LAUNCH_SI) as LaunchUnitKind[];
 
 /**
- * Launch conditions are the one place the app stores something that is NOT SI
+ * Launch conditions are the one place the app stores something that is not SI
  * (degrees, Celsius, hPa), so every launch field crosses two conversions to
  * reach the screen. These pin the inner one.
  */
@@ -41,8 +41,8 @@ describe('launch-condition SI bridge', () => {
     expect(shown('hPa', 1013.25, IMPERIAL_UNITS)).toBeCloseTo(14.6959, 3);
     // 5 m/s is 11.1847 mph.
     expect(shown('windspeed', 5, IMPERIAL_UNITS)).toBeCloseTo(11.1847, 3);
-    // A 1 m rod is 39.3701 in… but rod length uses the `length` group, which is
-    // cm under metric — the panel is not silently meters.
+    // Rod length uses the `length` group, which is cm under metric, so a 1 m rod
+    // shows as 100: the panel is not silently meters.
     expect(shown('length', 1, METRIC_UNITS)).toBeCloseTo(100, 9);
   });
 
@@ -55,7 +55,7 @@ describe('launch-condition SI bridge', () => {
     expect(stored('degC', 68, IMPERIAL_UNITS)).toBeCloseTo(20, 6);
     // Typing 14.6959 psi must store ~1013.25 hPa.
     expect(stored('hPa', 14.6959, IMPERIAL_UNITS)).toBeCloseTo(1013.25, 1);
-    // Typing 45° must store 45 degrees — the two angle conversions cancel.
+    // Typing 45° must store 45 degrees: the two angle conversions cancel.
     expect(stored('deg', 45, METRIC_UNITS)).toBeCloseTo(45, 9);
   });
 

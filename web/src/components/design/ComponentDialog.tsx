@@ -11,14 +11,14 @@ import { useSelectedComponent } from './useSelectedComponent';
  * do not fit, so the editor opens over the drawing instead of beside it. That
  * is most laptops, not only phones.
  *
- * Mounted ONLY at those widths and only on the Design tab (see App.tsx), which
+ * Mounted only at those widths and only on the Design tab (see App.tsx), which
  * is the same rule the sim editor follows and for the same reason: the panel has
  * to exist in exactly one place in the document, because rendering it in both
  * columns and hiding one leaves two elements answering to every field's label.
  * The mount is also what resets it, so arriving on the tab opens nothing and
  * leaving closes whatever was open.
  *
- * It opens on the SELECTION rather than on the selected id. `selectionSeq`
+ * It opens on the selection rather than on the selected id. `selectionSeq`
  * counts gestures, so closing the dialog and tapping the same part again opens
  * it again; keyed on the id, that second tap would be inert, since the store
  * already holds it and nothing would change.

@@ -21,10 +21,10 @@ const TREE = {
 } as unknown as RocketTree;
 
 /**
- * Rows were `role="button"` with the fold toggle and the export button nested
- * inside, which is invalid (a button may not contain interactive content) and
- * said nothing about depth, folding or selection. A real tree carries all
- * three, and the keyboard model is unchanged.
+ * Rows are tree items, not `role="button"`: a button may not contain interactive
+ * content such as the fold toggle and the export button, and a button says
+ * nothing about depth, folding or selection. A real tree carries all three, with
+ * the same keyboard model.
  */
 describe('ComponentTree semantics', () => {
   // jsdom does not lay out, so it has no scrollIntoView; the selected row

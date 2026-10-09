@@ -15,8 +15,8 @@ import {
 /**
  * The fin marking guide's numbers, which nothing else in the app can check.
  *
- * `FinMarkingGuide.java` is in OpenRocket's SWING module, and the extraction
- * under `engine-java/src/java` is sparse to `core/src/main/java` — so unlike
+ * `FinMarkingGuide.java` is in OpenRocket's `swing` module, and the extraction
+ * under `engine-java/src/java` is sparse to `core/src/main/java`, so unlike
  * the fin planform, there is no committed Java here for a kernel test to
  * re-derive these from. This file is the substitute: each case states the
  * upstream rule it pins and, where the value is arithmetic rather than a rule,
@@ -69,7 +69,7 @@ describe('radialOrigin', () => {
 
   it('splits the widest gap so no mark lands on the seam', () => {
     // Three fins at 0/120/240 leave three equal gaps; the first one found wins
-    // and the seam sits in its middle. What matters is the mark NEAREST the
+    // and the seam sits in its middle. What matters is the mark nearest the
     // seam: it has to be half a gap away, which is as far as the design allows.
     const marks = [0, deg(120), deg(240)];
     const o = radialOrigin(marks);
@@ -105,8 +105,8 @@ describe('mountAngles', () => {
   });
 
   it('gives a lug and a rail button one mark, at the angle the .ork writer saves', () => {
-    // The 180-degree fallback is exportWriters.ts:278/291 and rocketPieces
-    // ts:203, not a number chosen here.
+    // The 180-degree fallback is the kernel default that exportWriters.ts and
+    // rocketPieces.ts also use, not a number chosen here.
     expect(mountAngles(node({ type: 'launchlug', id: 'l' }))).toEqual([Math.PI]);
     expect(mountAngles(node({ type: 'railbutton', id: 'r', angleOffset: deg(90) }))).toEqual([deg(90)]);
   });
@@ -250,7 +250,7 @@ describe('markingGuides', () => {
   });
 
   it('gives a tube with only a lug no guide, and says so', () => {
-    // Upstream's `hasFins`: this is a FIN marking guide, and a lone lug line
+    // Upstream's `hasFins`: this is a fin marking guide, and a lone lug line
     // has no fin to be square to. Upstream then drops the lug silently.
     const { guides, omitted } = markingGuides(finned([{ type: 'launchlug', id: 'l', name: 'Lug' }]));
     expect(guides).toEqual([]);
@@ -259,7 +259,7 @@ describe('markingGuides', () => {
 
   it('does not wrap a nose cone, and names what it could not mark', () => {
     // A nose cone's circumference changes along its length, so there is no one
-    // wrap to cut. Upstream attributes such a fin to the PREVIOUS body tube and
+    // wrap to cut. Upstream attributes such a fin to the previous body tube and
     // marks it at that tube's circumference, which is a wrong guide, not none.
     const t = tree(
       node({

@@ -1,17 +1,17 @@
 import { test, expect, ready, type Page } from './base';
 
 /**
- * Where the component editor IS, which depends on how wide the window is.
+ * Where the component editor is, which depends on how wide the window is.
  *
  * The Design tab wants three columns, and three of them do not fit under `2xl`:
  * the tree and a 380px property panel leave the drawing a strip. So at 1536 and
- * up the editor is the right-hand column it has always been, and under that it
+ * up the editor is the right-hand column, and under that it
  * is a dialog opened over the drawing. Never both at once - a hidden second copy
  * is still in the document, and every field in it still answers to its label.
  *
- * The band this covers is mostly LAPTOPS, not phones: 1280 and 1440 are on the
+ * The band this covers is mostly laptops, not phones: 1280 and 1440 are on the
  * dialog. The column itself is covered by component-editor.spec (which runs at
- * the project's 1600) and pane-splitter.spec; this is about the SWITCH.
+ * the project's 1600) and pane-splitter.spec; this is about the switch.
  */
 
 const editor = (page: Page) => page.getByRole('dialog', { name: 'Edit component' });
@@ -36,7 +36,7 @@ test('between lg and 2xl the editor is a dialog, and the column is gone', async 
   // One editor in the document, not a column hiding behind the dialog.
   await expect(page.getByLabel('Shoulder length')).toHaveCount(1);
 
-  // Closing leaves the part SELECTED: the dialog is how you edit it, not how
+  // Closing leaves the part selected: the dialog is how you edit it, not how
   // you hold it.
   await editor(page).getByRole('button', { name: /close/i }).click();
   await expect(editor(page)).toHaveCount(0);
@@ -57,8 +57,8 @@ test('between lg and 2xl the editor is a dialog, and the column is gone', async 
 });
 
 test('at 2xl and up it is the right-hand column, with no dialog', async ({ page }) => {
-  // A full-size laptop is still on the dialog - this is the case the move to
-  // `2xl` is about, and the one a `1280` check would have called a column.
+  // A full-size laptop is still on the dialog: 1500 is below `2xl`, so a
+  // breakpoint check at 1280 alone would miss this width.
   await page.setViewportSize({ width: 1500, height: 900 });
   await ready(page);
   await expect(columnHint(page)).toHaveCount(0);
@@ -89,7 +89,7 @@ test('a phone opens it by tapping the part in the drawing', async ({ page }) => 
     .first();
   const b = (await svg.boundingBox())!;
   // The drawing is turned a quarter turn on a portrait phone, so the airframe
-  // runs DOWN the box. The centerline is the middle of the nose cone's shape,
+  // runs down the box. The centerline is the middle of the nose cone's shape,
   // not of the box: the drawing centers between the ruler lanes that are on.
   const nose = (await svg
     .locator('title', { hasText: /^Nose cone$/ })

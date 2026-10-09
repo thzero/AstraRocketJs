@@ -3,12 +3,10 @@ import { test, expect } from './base';
 /**
  * The pre-1.0 work-in-progress gate.
  *
- * Twenty specs opened by clicking this away inside a `.catch(() => {})`, so
- * seventy-six times a run the app asserted nothing whatsoever about it: had the
- * notice stopped appearing, stopped blocking, or stopped staying dismissed,
- * every one of those calls would have carried on silently. The fixture now sets
- * the stored flag instead of clicking, which makes this file the only place the
- * gate is exercised at all — so it asserts the three things the gate is for.
+ * The shared fixture in base.ts sets the stored flag rather than clicking the
+ * notice away, which makes this file the only place the gate is exercised at
+ * all, so it asserts the three things the gate is for: the notice appears, it
+ * blocks the app, and it stays dismissed.
  */
 test.describe('work-in-progress gate', () => {
   test.use({ wip: 'shown' });
@@ -43,7 +41,7 @@ test.describe('work-in-progress gate', () => {
     await expect(page.getByText('L/D', { exact: true })).toBeVisible({ timeout: 20_000 });
 
     // The acknowledgment rides in the settings blob, so it has to survive the
-    // round trip through localStorage — not just the current page's state.
+    // round trip through localStorage, not just the current page's state.
     await page.reload();
     await expect(page.getByText('L/D', { exact: true })).toBeVisible({ timeout: 20_000 });
     await expect(page.getByRole('button', { name: 'I understand' })).toHaveCount(0);

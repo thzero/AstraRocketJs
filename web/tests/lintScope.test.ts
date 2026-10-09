@@ -5,14 +5,14 @@ import { fileURLToPath } from 'node:url';
 /**
  * What the linter is pointed at, asked of the linter itself.
  *
- * `eslint .` walked 70 GENERATED files - `public` and the 2.9 MB vendored TeaVM
- * bundle under `src/engine/vendor` - to apply zero rules to them, because every
- * config block is `files`-scoped to our own sources. Both are already excluded by
- * `.prettierignore` and by knip.
+ * Generated files (`public` and the vendored TeaVM bundle under
+ * `src/engine/vendor`) must be ignored, not merely matched by no rule. Both are
+ * already excluded by `.prettierignore` and by knip.
  *
- * Zero rules today was the hazard rather than the cost. A config block added with
- * NO `files` key is the normal way to add a project-wide rule, and the moment one
- * appears it fires on every generated file under `--max-warnings 0`.
+ * Every config block is `files`-scoped to our own sources, so those files get zero
+ * rules, but a config block added with no `files` key is the normal way to add a
+ * project-wide rule, and the moment one appears it fires on every generated file
+ * under `--max-warnings 0`.
  *
  * Driven through `ESLint.isPathIgnored` and `calculateConfigForFile`, not by
  * reading the config file as text: the question is what the resolver concludes,
@@ -50,9 +50,8 @@ describe('the generated trees are outside the linter', () => {
 
 describe('the rules that are enabled are enabled on real files', () => {
   it('resolves the type-aware promise rules for a component', async () => {
-    // T6: these never ran. `recommended` does not include them and no
-    // `projectService` was configured, so `no-floating-promises` was off
-    // everywhere - a click handler that drops a rejected promise was invisible.
+    // `recommended` does not include these, and they need `projectService` to
+    // run. Without them, a click handler that drops a rejected promise passes lint.
     const cfg = await eslint.calculateConfigForFile('src/components/layout/AppHeader.tsx');
     expect(cfg.rules?.['@typescript-eslint/no-floating-promises']).toBeTruthy();
     expect(cfg.rules?.['@typescript-eslint/no-misused-promises']).toBeTruthy();

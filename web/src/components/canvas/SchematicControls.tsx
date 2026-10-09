@@ -9,13 +9,13 @@ import {
 } from '../../services/exports/schematicExport.js';
 import { download, exportFilename } from '../../services/files/saveFile.js';
 import { ImageExportMenu } from './ImageExportMenu.js';
-import { MAX_ZOOM, ZOOM_IDENTITY, type ZoomState } from './schematicGeometry';
+import { MAX_ZOOM, ZOOM_IDENTITY, type ZoomState } from '../../tree/schematicGeometry';
 import { errorMessage } from '../../services/app/errorMessage';
 import { token } from '../common/colorTokens';
 
 /**
  * The TreeSchematic control strip: SVG / image export, the two caliper
- * toggles, fit-to-view and the zoom steps. The schematic decides WHERE the
+ * toggles, fit-to-view and the zoom steps. The schematic decides where the
  * strip renders (over the drawing or portaled into the pane header) and owns
  * the state the buttons change; this file is the buttons.
  */

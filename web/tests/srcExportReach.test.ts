@@ -3,7 +3,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 /**
- * Which `src` exports are reached ONLY from tests.
+ * Which `src` exports are reached only from tests.
  *
  * A test rather than a knip configuration, because knip cannot express it:
  *
@@ -18,7 +18,7 @@ import { fileURLToPath } from 'node:url';
  *   dependencies.
  *
  * So the rule lives here. A test-only export is not wrong in itself - a reset for
- * module state is a legitimate seam - but the SET of them should be a decision.
+ * module state is a legitimate seam - but the set of them should be a decision.
  * Left invisible this is where dead code hides: an export with a test and no
  * caller looks covered.
  */
@@ -50,7 +50,7 @@ const text = (f: string): string => {
 };
 
 /**
- * Exported VALUE names declared in a file.
+ * Exported value names declared in a file.
  *
  * Values only. A `type` or `interface` exported so a test can annotate a fixture
  * costs nothing at runtime, and knip reports unused ones separately and correctly.
@@ -79,7 +79,7 @@ const mentionedElsewhere = (files: string[], name: string, self: string): boolea
  *
  * Token matching, deliberately. A real import graph needs a parser, and the error
  * direction here is the safe one: a name mentioned in an unrelated comment reads as
- * used, so this UNDER-reports rather than crying wolf.
+ * used, so this under-reports rather than over-reports.
  */
 const testOnlyExports = (): string[] => {
   const found: string[] = [];
@@ -117,7 +117,7 @@ describe('src exports reached only from tests are a decision', () => {
   const found = testOnlyExports();
 
   it('adds none that is not in the baseline', () => {
-    // A NEW one failing here is the point. Either it has a caller and the export is
+    // A new one failing here is the point. Either it has a caller and the export is
     // real, or it does not and someone is about to ship a function with a test and
     // no user.
     expect(found.filter((e) => !BASELINE.includes(e))).toEqual([]);

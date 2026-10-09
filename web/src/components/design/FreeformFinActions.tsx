@@ -60,7 +60,7 @@ export function FreeformFinActions({ node }: { node: ComponentNode }) {
       if (!ctx) throw new FinImageError('noOutline');
       ctx.drawImage(bitmap, 0, 0);
       const points = finPointsFromImage(ctx.getImageData(0, 0, canvas.width, canvas.height));
-      apply((tree) => updateNode(tree, id, { points } as Partial<ComponentNode>));
+      apply((tree) => updateNode(tree, id, { points }));
     } catch (e) {
       // One message for both failures the user can act on: the image has no dark
       // shape on its bottom edge, or it has one the tracer cannot close.

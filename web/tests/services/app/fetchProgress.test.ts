@@ -4,7 +4,7 @@ import { readStreamWithProgress } from '../../../src/services/app/fetchProgress'
 /**
  * The size cap on a streamed response.
  *
- * `maxBytes` is checked against bytes ACTUALLY RECEIVED, so a host that omits
+ * `maxBytes` is checked against bytes actually received, so a host that omits
  * or misstates content-length cannot slip past it. The subtlety the cap exists
  * for is what happens on the way out: abandoning the reader leaves the transfer
  * in flight, which would make the cap bound the buffer we keep rather than the
@@ -47,8 +47,8 @@ describe('readStreamWithProgress', () => {
   it('CANCELS the stream when it refuses, rather than abandoning it', async () => {
     const { stream, state } = chunked(1000, 100);
     await expect(readStreamWithProgress(stream, null, () => {}, 250)).rejects.toThrow(/too large/i);
-    // The point of the finding: without the cancel the transfer stays live and
-    // the cap bounds only the buffer, not the download.
+    // Without the cancel, the transfer stays live and the cap bounds only the
+    // buffer, not the download.
     expect(state.canceled).toBe(1);
     // And it stopped pulling rather than draining the whole thing.
     expect(state.pulled).toBeLessThan(10);

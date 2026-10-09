@@ -13,8 +13,8 @@ import type { ComponentNode, RocketTree } from '../../../src/engine/openRocketEn
  *
  * The desktop's Appearance tab is the case that exists today: paint, shine and a
  * decal per part. Reading it would mean building an editor for it; ignoring it
- * meant every save threw it away, so a design that came here for one dimension
- * went back stripped of its paint. It is carried as raw XML instead.
+ * would throw it away on every save, so a design that came here for one
+ * dimension would go back stripped of its paint. It is carried as raw XML instead.
  *
  * jsdom, because the reader uses `XMLSerializer` to keep the elements.
  */
@@ -81,8 +81,8 @@ describe('appearance settings survive a round trip', () => {
 
   it('is invisible to the app: nothing but the one raw key', () => {
     const t = tube(importOrk(orkWith(APPEARANCE)).tree);
-    // No `paint`, no `shine`, no `appearance` object - the panel and the engine
-    // see exactly what they saw before.
+    // No `paint`, no `shine`, no `appearance` object: the panel and the engine
+    // see the same node they would without the passthrough.
     expect(Object.keys(t).filter((k) => /paint|shine|appearance/i.test(k))).toEqual([]);
     expect(Array.isArray(t['xmlExtra'])).toBe(true);
   });
@@ -140,7 +140,7 @@ describe('a decal, whose image we do not keep', () => {
 
 describe('the known-tag set is the whole contract', () => {
   it('claims every tag our own writer puts inside a component', () => {
-    // A tag we emit AND treat as unknown would appear twice in the file. This is
+    // A tag we emit and treat as unknown would appear twice in the file. This is
     // the drift guard: add a tag to the writer without adding it to the set and
     // this fails, rather than the output quietly doubling.
     const xml = exportOrk({
@@ -177,7 +177,7 @@ describe('the known-tag set is the whole contract', () => {
       } as unknown as RocketTree,
     });
 
-    // Exactly the contract: the DIRECT children of a component element, which is
+    // Exactly the contract: the direct children of a component element, which is
     // the only level `readPassthrough` looks at. Component type names live under
     // <subcomponents> and a motor mount's fields under <motormount>, so neither
     // is a component child and neither belongs in the set.
@@ -198,11 +198,11 @@ describe('the known-tag set is the whole contract', () => {
 /**
  * A `.ork` from the desktop can carry things we do not model at three levels, and
  * only one of them is a component. `<photostudio>` in particular sits beside
- * `<rocket>`, so the component-level pass could never see it: a saved Photo
- * Studio shot was dropped on every save until this existed.
+ * `<rocket>`, so the component-level pass can never see it: without the
+ * document-level pass a saved Photo Studio shot would be dropped on every save.
  */
 
-/** A design with `rocketExtra` inside <rocket> and `docExtra> beside it. */
+/** A design with `rocketExtra` inside <rocket> and `docExtra` beside it. */
 const docWith = (rocketExtra: string, docExtra: string): string => `<?xml version='1.0' encoding='utf-8'?>
 <openrocket version="1.9" creator="OpenRocket 24.12">
   <rocket>

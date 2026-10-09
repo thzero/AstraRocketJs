@@ -148,7 +148,7 @@ export function OverridesSection({
         onToggle={(on) =>
           onChange({
             overrideMass: on ? Math.max(num(node, 'overrideMass'), 0.01) : undefined,
-            overrideSubcomponentsMass: on ? (node.overrideSubcomponentsMass as boolean | undefined) : undefined,
+            overrideSubcomponentsMass: on ? node.overrideSubcomponentsMass : undefined,
           })
         }
         onValue={onSi(overrideMassUnit, (si) => si !== null && onChange({ overrideMass: si }))}
@@ -167,7 +167,7 @@ export function OverridesSection({
         onToggle={(on) =>
           onChange({
             overrideCGX: on ? num(node, 'overrideCGX') : undefined,
-            overrideSubcomponentsCG: on ? (node.overrideSubcomponentsCG as boolean | undefined) : undefined,
+            overrideSubcomponentsCG: on ? node.overrideSubcomponentsCG : undefined,
           })
         }
         onValue={onSi(overrideCgUnit, (si) => si !== null && onChange({ overrideCGX: si }))}
@@ -185,7 +185,7 @@ export function OverridesSection({
         onToggle={(on) =>
           onChange({
             overrideCD: on ? num(node, 'overrideCD') || 0.5 : undefined,
-            overrideSubcomponentsCD: on ? (node.overrideSubcomponentsCD as boolean | undefined) : undefined,
+            overrideSubcomponentsCD: on ? node.overrideSubcomponentsCD : undefined,
           })
         }
         onValue={(v) => onChange({ overrideCD: v })}

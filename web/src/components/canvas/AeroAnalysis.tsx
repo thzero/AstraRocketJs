@@ -17,20 +17,21 @@ import { Num } from './AeroInputs';
 import { Segmented } from '../common/Segmented';
 import { CATEGORICAL } from '../common/chartPalette';
 
-// The pure helpers moved to aeroTables.ts (where they are tested); re-exported
-// so the existing test files and any other importer keep working.
+// The pure helpers live in aeroTables.ts (where they are tested); re-exported
+// here for importers that reach them through this module.
 export { buildLinePath, heat, hsv, niceName } from './aeroTables';
 
 /**
  * Aerodynamic analysis (RASAero-style "Aero Plots"). Two panes
- * off the static design, no flight needed — it is all one `aeroSweep`.
+ * off the static design, no flight needed: it is all one `aeroSweep`.
  *
  * **Charts**: Cd vs Mach (power-off, + power-on when a nozzle exit is set), the
  * drag breakdown into friction/pressure/base, and CP vs Mach (length unit, %
- * of the airframe, or % of the aerodynamic length). A shared hover crosshair and legend readout tie all three to one Mach.
+ * of the airframe, or % of the aerodynamic length). A shared hover crosshair
+ * and legend readout tie all three to one Mach.
  *
- * **Per component**: that same Mach, tabulated per part — drag, stability
- * contribution (CN-alpha, CP, mass) and roll dynamics — the three tabs of the
+ * **Per component**: that same Mach, tabulated per part (drag, stability
+ * contribution (CN-alpha, CP, mass) and roll dynamics), the three tabs of the
  * desktop's Component Analysis dialog.
  *
  * This file is the pane: the header controls, the shared Mach state and the
@@ -52,7 +53,7 @@ export function AeroAnalysis() {
   const rocket = useWorkspaceStore((s) => s.rocket);
   const designName = useWorkspaceStore(selectDesignName);
   const info = useWorkspaceStore((s) => s.info);
-  // Which motor the POWER-ON curve belongs to.
+  // Which motor the power-on curve belongs to.
   //
   // Everything else here is geometry -- power-off Cd, the friction/pressure/base
   // split, CP, CNa, the roll coefficients -- and does not depend on the motor at
@@ -63,11 +64,11 @@ export function AeroAnalysis() {
   // equivalent of the desktop dialog's motor-configuration dropdown -- so when
   // that curve is on screen, say whose it is.
   const motorName = useWorkspaceStore((s) => primaryMotor(s.tree, selectConfig(s))?.designation);
-  // M1 by default: the overwhelming majority of hobby flights never reach Mach 1,
-  // and sweeping to M3 spent two thirds of the x axis on speeds the rocket will
-  // not see, squeezing the subsonic rise nobody could then read.
+  // M1 by default: most hobby flights never reach Mach 1, and a wider sweep
+  // spends most of the x axis on speeds the rocket will not see, squeezing the
+  // subsonic rise into a sliver.
   const [machMax, setMachMax] = useState(1);
-  // How the CP axis reads: the user's length unit, a percentage of the WHOLE
+  // How the CP axis reads: the user's length unit, a percentage of the whole
   // airframe, or a percentage of the AERODYNAMIC length. The last is the
   // denominator OpenRocket's own PercentageOfLengthUnit uses
   // (`getLengthAerodynamic`), so it is the one that matches the desktop; the
@@ -81,9 +82,8 @@ export function AeroAnalysis() {
   // switching to the tables lands on the point you were just looking at rather
   // than resetting -- the crosshair and the slider drive the same value.
   const [machPick, setMachPick] = useState(0.3);
-  // The flight conditions the whole sweep is flown at. All three default to the
-  // values every sweep used before they were exposed, so the panel opens
-  // showing exactly what it showed before.
+  // The flight conditions the whole sweep is flown at. All four default to
+  // zero: no angle of attack, wind from 0°, no roll, sea level.
   const [aoaDeg, setAoaDeg] = useState(0);
   const [thetaDeg, setThetaDeg] = useState(0);
   const [rollRate, setRollRate] = useState(0);
@@ -93,17 +93,17 @@ export function AeroAnalysis() {
   // while the next one runs, and `pending` says so in the header.
   const { sweep, pending } = useAeroSweep(rocket, { machMax, aoaDeg, thetaDeg, rollRate, altitudeM });
 
-  // The picked Mach, clamped to the sweep at READ time. Shrinking the sweep has
+  // The picked Mach, clamped to the sweep at read time. Shrinking the sweep has
   // to bring the picked Mach back with it, or the strip header prints the raw
-  // pick while the tables snap to the nearest sample that EXISTS: set Max Mach
+  // pick while the tables snap to the nearest sample that exists: set Max Mach
   // to 5, scrub to 3.0, switch back to M1, and the header reads "at Mach 3.00"
   // above three tables reading Mach 1.00. Derived rather than clamped in an
   // effect, which costs a render at the wrong value before the correction.
   const pick = Math.min(machPick, machMax);
   // The slider sticks at the last hovered Mach once the pointer leaves. The
-  // commit happens in the SETTER, on the transition to null, not in an effect
-  // watching `hoverM`: the effect version ran after every hover render and
-  // needed a ref just to notice the leave. All hover writes go through this
+  // commit happens in the setter, on the transition to null, not in an effect
+  // watching `hoverM`, which would run after every hover render and need a
+  // ref just to notice the leave. All hover writes go through this
   // one function, so its ref is the true previous value for the functional
   // form. `setHoverM` itself is never handed out.
   const lastHover = useRef<number | null>(null);
@@ -128,7 +128,7 @@ export function AeroAnalysis() {
     }
   }, [rocket]);
 
-  // Memoized so each ChartCard sees the SAME series identity across hover
+  // Memoized so each ChartCard sees the same series identity across hover
   // renders: the cards memoize their domain and paths on the series, so a fresh
   // array per render defeats that on every pointer move. `cpSeries` maps the
   // whole sweep.
@@ -216,7 +216,7 @@ export function AeroAnalysis() {
         </button>
       </div>
       {/* The conditions the sweep is flown at. Changing one re-runs it, the
-          same way Max Mach already does. */}
+          same way Max Mach does. */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-3 pb-2">
         <Num label={t('aero.aoa')} value={aoaDeg} onChange={setAoaDeg} min={0} max={20} step={0.5} unit="°" />
         <div className="flex items-center gap-1.5">
@@ -231,8 +231,8 @@ export function AeroAnalysis() {
           />
           <button
             // Wrapped like its neighbors (the sweep and componentMasses): a
-            // kernel that throws here — an older build without the method, or
-            // a degenerate design — would otherwise throw out of a React event
+            // kernel that throws here (a build without the method, or a
+            // degenerate design) would otherwise throw out of a React event
             // handler and take the whole pane down rather than leaving the
             // field alone.
             onClick={() => {
@@ -272,12 +272,10 @@ export function AeroAnalysis() {
         />
       </div>
 
-      {/* The Mach both panes report at. It used to be hidden on the Charts pane,
-          on the reasoning that the hover crosshair already picks it — but that
-          made the value pointer-only there: the legend readout was the sole way
-          to read a figure at a given Mach and nothing could reach it from the
-          keyboard. It shows on both panes now, and the crosshair still drives
-          the same state when you do use a pointer. */}
+      {/* The Mach both panes report at. Shown on the Charts pane too, so a
+          figure at a given Mach can be reached from the keyboard and not only
+          by hovering; the crosshair drives the same state when a pointer is
+          used. */}
       <div className="flex items-center gap-2 px-3 pb-2">
         <span className="shrink-0 text-[10px] text-ink-faint">{t('aero.atMach', { mach: fmtNum(pick, 2) })}</span>
         <input
@@ -285,7 +283,7 @@ export function AeroAnalysis() {
           min={machs[0] ?? 0}
           max={machs[machs.length - 1] ?? 1}
           // Step by the sweep's own sampling, so the slider can only land on a
-          // Mach that was actually computed — otherwise it reads 0.30 while
+          // Mach that was actually computed; otherwise it reads 0.30 while
           // the tables, which snap to the nearest sample, read 0.29.
           step={(machs[1] ?? 0.05) - (machs[0] ?? 0)}
           value={pick}

@@ -40,9 +40,8 @@ describe('simConditions', () => {
     expect(c.windDirection).toBeCloseTo(deg2rad(45), 9);
     expect(c.temperature).toBeCloseTo(288.15, 6);
     expect(c.pressure).toBeCloseTo(101300, 6);
-    // Every series the branch records. `summary` kept 17 of the kernel's 69 and
-    // meant the app could never plot or export the rest, having never asked for
-    // them; the flight is computed identically either way.
+    // Every series the branch records, so the app can plot and export all of
+    // them. The flight is computed identically either way.
     expect(c.series).toBe('full');
   });
 
@@ -91,7 +90,7 @@ describe('simConditions', () => {
     expect(c.timeStep).toBe(0.01);
     expect(c.maxTime).toBe(60);
 
-    // NOT undefined: an omitted key does not reach the kernel as "no seed", the
+    // Not undefined: an omitted key does not reach the kernel as "no seed", the
     // bridge defaults it to the constant 42, so every run of a turbulent-wind
     // flight would come back bit-identical.
     expect(c.randomSeed).toEqual(expect.any(Number));
@@ -105,7 +104,7 @@ describe('simConditions', () => {
   });
 
   /**
-   * The recovery-deployment thresholds reach the KERNEL, which is what raises the
+   * The recovery-deployment thresholds reach the kernel, which is what raises the
    * deployment warning. Left out, the engine runs on its own hard-coded 20 m/s, so
    * `deploymentSpeedWarn` would change what the summary paints amber and not what
    * the flight reports.

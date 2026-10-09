@@ -2,7 +2,7 @@
  * Web Mercator tile math, and the two tile sources the site map draws from.
  *
  * Hand-rolled rather than Leaflet or MapLibre. What the map has to do here is
- * narrow — show one point, let it be dragged, pan and zoom — and the libraries
+ * narrow (show one point, let it be dragged, pan and zoom), and the libraries
  * that do it bring a stylesheet, a DOM layer system and a plugin surface for
  * markers, popups, layers and controls we would never use. The projection is
  * the four formulas below; the rest is `<img>` tags at computed offsets.
@@ -36,7 +36,7 @@ export interface TileSource {
 }
 
 /**
- * Both layers come from Esri's ArcGIS tile services, and NOT from
+ * Both layers come from Esri's ArcGIS tile services, and not from
  * `tile.openstreetmap.org`.
  *
  * OSM's own tile servers are donated, volunteer-funded infrastructure, and the OSM
@@ -44,7 +44,7 @@ export interface TileSource {
  * that third-party applications are to run their own or buy from a provider. They
  * enforce it, and the layer 403s in the browser.
  *
- * Esri's street map carries OSM DATA and credits it in the attribution below, so
+ * Esri's street map carries OSM data and credits it in the attribution below, so
  * the mapping still reaches the people who made it, over a commercial CDN that is
  * provisioned for being used.
  *
@@ -101,8 +101,8 @@ export function tileYToLat(y: number, zoom: number): number {
  * A tile column wrapped into [0, 2^zoom).
  *
  * The world repeats east-west, so panning past the date line asks for column
- * -1 or 2^zoom, which no server answers. Latitude does NOT wrap — there is
- * nothing above the north pole — so rows are clamped by the caller instead.
+ * -1 or 2^zoom, which no server answers. Latitude does not wrap (there is
+ * nothing above the north pole), so rows are clamped by the caller instead.
  */
 export function wrapTileX(x: number, zoom: number): number {
   const n = 2 ** zoom;
@@ -192,7 +192,7 @@ export function visibleTiles(
     for (let tx = first.x; tx <= last.x; tx++) {
       const wrapped = wrapTileX(tx, zoom);
       out.push({
-        // Keyed on the UNWRAPPED column: two copies of the same tile are on
+        // Keyed on the unwrapped column: two copies of the same tile are on
         // screen at once when the world is narrower than the viewport, and a
         // key on the wrapped column would make React treat them as one.
         key: `${zoom}/${tx}/${ty}`,
@@ -263,12 +263,12 @@ export const SITE_ZOOM = 15;
  * drift and a 20 km one are the same picture at different scales, and the zoom
  * has to follow.
  *
- * Tile zooms are integers, so the answer is the NEAREST one - in log space,
- * since the ladder doubles at every step - and the caller scales the layer by
+ * Tile zooms are integers, so the answer is the nearest one (in log space,
+ * since the ladder doubles at every step), and the caller scales the layer by
  * the leftover fraction. Rounding up instead, to the first zoom at least as
- * detailed as the drawing, is the tempting choice and the wrong one: it puts
- * the leftover fraction in (0.5, 1], so the layer has to be laid out at up to
- * twice the box in each direction, which is up to FOUR times the tiles. Seven
+ * detailed as the drawing, puts the leftover fraction in (0.5, 1], so the
+ * layer has to be laid out at up to twice the box in each direction, which is
+ * up to four times the tiles. Seven
  * rows of seven, measured, where nearest gives three or five. Those are real
  * fetches from someone else's servers and real entries in a capped offline
  * cache, against at most a 1.41x magnification of imagery that a 2x display is

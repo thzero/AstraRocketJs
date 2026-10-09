@@ -5,21 +5,21 @@ import { uuid } from '../app/uuid';
 import { nsKey } from './storageKeys';
 
 /**
- * Swappable client-side store for the user's saved LAUNCH PADS.
+ * Swappable client-side store for the user's saved launch locations.
  *
  * A location is the place you fly from: a name, and the three site fields the
- * launch panel otherwise makes you retype every time — latitude, longitude and
+ * launch panel otherwise makes you retype every time: latitude, longitude and
  * elevation. Those three drive the atmosphere model, gravity, Coriolis and the
  * origin of every KML/GPX export, so getting them right matters and typing them
  * from memory at a field is how they go wrong.
  *
  * Deliberately the same shape as `materialStore.ts` and `templateStore.ts`: a
- * typed DOMAIN store over a `KeyValueStore` (IndexedDB by default), with the
+ * typed domain store over a `KeyValueStore` (IndexedDB by default), with the
  * seam left in place (`setLaunchLocationStore`) for a bespoke backend. No server is
- * needed or wanted — this is local data like your custom motors and materials.
+ * needed or wanted: this is local data like your custom motors and materials.
  *
- * What it deliberately does NOT hold: the rod, the wind, the atmosphere. Those
- * are conditions on the DAY, not properties of the field, and a location that
+ * What it deliberately does not hold: the rod, the wind, the atmosphere. Those
+ * are conditions on the day, not properties of the field, and a location that
  * restored last month's wind would be actively misleading.
  */
 
@@ -42,12 +42,12 @@ export interface LaunchLocationStore {
 }
 
 /**
- * The stored key still says `pads`, and has to.
+ * The stored key says `pads`, and has to.
  *
- * The feature was renamed from "launch pads" to "launch locations"; the KEY is
- * what somebody's browser already has their fields saved under, and renaming it
- * would leave that entry behind with nothing reading it - a list that silently
- * came back empty, which is exactly the failure this store exists to prevent.
+ * The key is what existing browsers have their saved locations under, and
+ * changing it would leave that entry behind with nothing reading it: a list that
+ * silently comes back empty, which is exactly the failure this store exists to
+ * prevent.
  */
 const LOCATIONS_KEY = nsKey('pads:custom');
 

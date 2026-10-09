@@ -1,6 +1,6 @@
 package info.openrocket.core.simulation;
 
-// PATCH(astrarrocketjs): removed java.nio.file.Path + the aerodynamics.lookup
+// PATCH(astrarrocketjs): omits java.nio.file.Path and the aerodynamics.lookup
 // (CSV lookup-table calculator) plumbing below. java.nio.file is absent from
 // TeaVM's classlib and the browser engine only ever uses the analytic Barrowman
 // calculator. See patches/LEDGER.md.
@@ -110,9 +110,9 @@ public class SimulationOptions implements ChangeSource, Cloneable, SimulationOpt
 	/** Drogue design: warn if main deploys BELOW this speed (m/s). Default 15.24 m/s (50 fps). */
 	private double recoveryDrogueMainLowSpeedWarning = 15.24;
 
-	// PATCH(astrarrocketjs): removed the CSV lookup-table fields (dragLookupCsvPath,
-	// stabilityLookupCsvPath, drag/stabilityLookupTable, *CsvRows) — see the import
-	// note above. Their getters/setters and clone/copyFrom handling are dropped too.
+	// PATCH(astrarrocketjs): omits upstream's CSV lookup-table fields (dragLookupCsvPath,
+	// stabilityLookupCsvPath, drag/stabilityLookupTable, *CsvRows); see the import
+	// note above. Their getters/setters and clone/copyFrom handling are omitted too.
 
 	public SimulationOptions() {
 		averageWindModel = new PinkNoiseWindModel(randomSeed);
@@ -490,9 +490,9 @@ public class SimulationOptions implements ChangeSource, Cloneable, SimulationOpt
 		fireChangeEvent();
 	}
 
-	// PATCH(astrarrocketjs): removed the CSV lookup-table getters/setters
+	// PATCH(astrarrocketjs): omits upstream's CSV lookup-table getters/setters
 	// (get/set/clear/hasDragLookup, the Stability equivalents, updateDragLookup,
-	// updateStabilityLookup, normalizePath) — see the import note. TeaVM lacks
+	// updateStabilityLookup, normalizePath); see the import note. TeaVM lacks
 	// java.nio.file and the browser engine uses only the Barrowman calculator.
 
 	public int getRandomSeed() {
@@ -563,7 +563,7 @@ public class SimulationOptions implements ChangeSource, Cloneable, SimulationOpt
 			copy.multiLevelPinkNoiseWindModel.addChangeListener(event -> copy.fireChangeEvent());
 
 			copy.windModelType = this.windModelType;
-			// PATCH(astrarrocketjs): removed lookup-table field copies (feature stripped).
+			// PATCH(astrarrocketjs): no lookup-table fields to copy (feature omitted).
 
 			return copy;
 		} catch (CloneNotSupportedException e) {
@@ -673,7 +673,7 @@ public class SimulationOptions implements ChangeSource, Cloneable, SimulationOpt
 			isChanged = true;
 		}
 
-		// PATCH(astrarrocketjs): removed lookup-table copyFrom handling (feature stripped).
+		// PATCH(astrarrocketjs): no lookup-table copyFrom handling (feature omitted).
 
 		if (this.recoverySpeedWarning != src.recoverySpeedWarning) {
 			isChanged = true;
@@ -811,7 +811,7 @@ public class SimulationOptions implements ChangeSource, Cloneable, SimulationOpt
 		conditions.setGravityModel(gravityModel);
 
 		// PATCH(astrarrocketjs): always the analytic Barrowman calculator (the CSV
-		// LookupTable calculators are stripped — TeaVM lacks java.nio.file). The
+		// LookupTable calculators are omitted because TeaVM lacks java.nio.file). The
 		// no-arg BarrowmanCalculator() constructs BarrowmanStability/DragCalculator.
 		conditions.setAerodynamicCalculator(new BarrowmanCalculator());
 		conditions.setMassCalculator(new MassCalculator());

@@ -10,23 +10,23 @@ import { ADHESIVE_GROUP } from '../../../src/services/materials/materialTypes';
 /**
  * Which materials a component is offered.
  *
- * Only ONE group is filtered, and only in one direction. Every upstream bulk
- * material is something a part can legitimately be made of — people build fins
- * from aluminum and nose cones from printed PLA — so guessing which suit which
+ * Only one group is filtered, and only in one direction. Every upstream bulk
+ * material is something a part can legitimately be made of (people build fins
+ * from aluminum and nose cones from printed PLA), so guessing which suit which
  * component would block real builds to save a little scrolling, and OpenRocket
  * does not do it either.
  *
  * Adhesives are the exception, and they cut both ways: nothing is built out of
  * glue, and a fin fillet is made of nothing else. So a structural part's list
  * has no adhesives in it and a fillet's list has only adhesives. A bead of
- * something unusual is not shut out by that — a thickened mix or a putty is a
+ * something unusual is not shut out by that: a thickened mix or a putty is a
  * custom material, and the add form asks which group it goes in.
  */
 
 /**
  * The material select, not the unit chip beside it: with a material chosen the
  * header renders a UnitChip, which is a second combobox, so `getByRole` alone
- * is ambiguous exactly when a part HAS a material.
+ * is ambiguous exactly when a part has a material.
  */
 const materialSelect = () =>
   [...document.querySelectorAll('select')].find((s) => s.querySelector('optgroup')) as HTMLSelectElement | undefined;
@@ -42,7 +42,7 @@ const optionNames = () =>
   [...(materialSelect()?.querySelectorAll('option') ?? [])].map((o) => (o.textContent ?? '').split(' · ')[0]!.trim());
 
 describe('MaterialPicker, by use', () => {
-  // The catalog is a runtime file now, so the picker fetches it; serve the real
+  // The catalog is a runtime file, so the picker fetches it; serve the real
   // one off disk rather than a fixture, since which materials are adhesives is
   // exactly what is under test.
   beforeAll(serveData);
@@ -51,7 +51,7 @@ describe('MaterialPicker, by use', () => {
     renderWithProviders(<MaterialPicker value={undefined} onChange={() => {}} />);
     expect(await groupsOf()).not.toContain(ADHESIVE_GROUP);
     expect(optionNames().some((n) => n.startsWith('Epoxy -'))).toBe(false);
-    // and still offers what a part IS made of
+    // and still offers what a part is made of
     expect(optionNames()).toContain('Plywood (birch)');
   });
 

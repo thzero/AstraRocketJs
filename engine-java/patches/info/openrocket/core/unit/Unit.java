@@ -145,7 +145,7 @@ public abstract class Unit {
 	}
 
 	private static LocaleDecimalFormats createLocaleDecimalFormats() {
-		// PATCH(astrarrocketjs): see getLocaleDecimalFormats — no Locale.Category in TeaVM.
+		// PATCH(astrarrocketjs): see getLocaleDecimalFormats; no Locale.Category in TeaVM.
 		Locale locale = Locale.getDefault();
 		DecimalFormatSymbols symbols = DecimalFormatSymbols.getInstance(locale);
 		return new LocaleDecimalFormats(locale,

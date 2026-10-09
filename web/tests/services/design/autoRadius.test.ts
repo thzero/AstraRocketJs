@@ -13,7 +13,7 @@ import { KERNEL_DEFAULTS } from '../../../src/tree/kernelDefaults';
  * The rule under test is the kernel's, from `BodyTube.getAutoOuterRadius`:
  * behind first, then ahead, skipping a neighbor whose own facing end is itself
  * automatic, which is what stops two parts pointing at each other. Getting the
- * SIDE wrong is the failure that hides, because on a plain body tube both
+ * side wrong is the failure that hides, because on a plain body tube both
  * answers are the same and only a transition tells them apart.
  */
 const stage = (children: ComponentNode[]) =>
@@ -127,9 +127,9 @@ describe('the automatic state through a file', () => {
 
   it('reads it back as automatic AND resolved', () => {
     // Resolved at import, not at the first edit: everything downstream reads a
-    // plain radius, and an unresolved one draws at a default nobody chose. That
-    // was the bug - the kernel flew the neighbor's diameter while the schematic
-    // and the 3D view drew the 12 mm fallback.
+    // plain radius, and an unresolved one draws at a default nobody chose: the
+    // kernel would fly the neighbor's diameter while the schematic and the 3D
+    // view drew the fallback.
     const back = importOrk(xml).tree;
     const bt = chainOf(back).find((n) => n.type === 'bodytube')!;
     expect(bt['outerRadiusAuto']).toBe(true);
@@ -141,7 +141,8 @@ describe('the automatic state through a file', () => {
  * The automatic values that are not diameters: a ring filling its tube, a tube
  * fin sized from the body, a packed radius taking the room its parent gives it,
  * and the three the kernel works out for itself. Each is `auto` in the file and
- * a checkbox on the desktop, and each was arriving as a silent default.
+ * a checkbox on the desktop, and each must resolve rather than arrive as a
+ * silent default.
  */
 describe('automatic values other than the neighbor rule', () => {
   const inTube = (child: ComponentNode) =>
@@ -182,14 +183,13 @@ describe('automatic values other than the neighbor rule', () => {
   });
 
   /**
-   * A disc inside an AUTOMATIC-radius coupler, which is every coupler the Add
+   * A disc inside an automatic-radius coupler, which is every coupler the Add
    * menu makes.
    *
-   * Resolving inside-out gave the child its parent's bare default rather than
-   * the bore the parent had just taken from the airframe: on a 3-inch tube a
-   * bulkhead came out 24.00 mm across instead of 72.20. That number is what the
-   * schematic drew, what the DXF cut and what the 1:1 template measured, so a
-   * part cut from it fitted nothing.
+   * The parent must resolve before the child: resolving inside-out gives the
+   * child its parent's bare default rather than the bore the parent takes from
+   * the airframe. That number is what the schematic draws, what the DXF cuts and
+   * what the 1:1 template measures.
    */
   it('fills a ring to the bore of an automatic coupler, not the coupler default', () => {
     const t = syncAutoRadii(
@@ -206,7 +206,7 @@ describe('automatic values other than the neighbor rule', () => {
     const coupler = kid(t);
     const bulkhead = (coupler.children as ComponentNode[])[0]!;
     expect(coupler['outerRadius']).toBeCloseTo(0.025, 9); // the 26 mm tube's bore
-    expect(bulkhead['outerRadius']).toBeCloseTo(0.0245, 9); // the COUPLER's bore
+    expect(bulkhead['outerRadius']).toBeCloseTo(0.0245, 9); // the coupler's bore
   });
 
   it('sizes a tube fin set from the body and the fin count', () => {
@@ -283,16 +283,14 @@ describe('the values the kernel works out, through a file', () => {
 });
 
 /**
- * A new bore-filling part starts AUTOMATIC, because that is what its kernel
+ * A new bore-filling part starts automatic, because that is what its kernel
  * constructor does.
  *
  * `TubeCoupler()`, `Bulkhead()` and `EngineBlock()` each call
  * `setOuterRadiusAutomatic(true)`; `CenteringRing()` turns on both its outer
- * radius and its inner one. The app was creating all four with the flags off
- * and a hardcoded 25 mm diameter, so a ring dropped into a 54 mm airframe
- * arrived sized for a different rocket and simulated quietly at that size until
- * somebody found the checkbox. The checkbox was there the whole time; what was
- * missing is that it starts ticked.
+ * radius and its inner one. With the flags off, a ring dropped into a 54 mm
+ * airframe would keep its default size and simulate quietly at it until someone
+ * ticked the checkbox.
  */
 describe('what a new part starts as', () => {
   it.each([
@@ -312,9 +310,8 @@ describe('what a new part starts as', () => {
   });
 
   it('resolves the new part against the tube it lands in, in the same edit', () => {
-    // `tube` takes a RADIUS: 26 mm of it, with a 1 mm wall, so the bore radius
-    // is 25 mm. The ring fills it rather than arriving at the 12.5 mm radius the
-    // old default hardcoded.
+    // `tube` takes a radius: 26 mm of it, with a 1 mm wall, so the bore radius
+    // is 25 mm. The ring fills it rather than keeping its 12.5 mm default radius.
     const host = tube('b', 0.026);
     const { tree, id } = addPart(stage([host]), 'centeringring', 'b');
     const ring = (chainOf(tree)[0]!.children as ComponentNode[])[0]!;
@@ -338,7 +335,7 @@ describe('what a new part starts as', () => {
 });
 
 /**
- * A dimension a picked part STATES pins itself.
+ * A dimension a picked part states pins itself.
  *
  * The kernel's setters do this - `RadiusRingComponent.setOuterRadius` clears
  * `outerRadiusAutomatic` - and here it is load-bearing: applied to a ring whose
@@ -346,7 +343,7 @@ describe('what a new part starts as', () => {
  * its next pass, so the picker would read as doing nothing at all.
  */
 describe('applying a catalog part', () => {
-  // 40 mm outside, deliberately NOT the 50 mm bore of the tube it lands in: a part
+  // 40 mm outside, deliberately not the 50 mm bore of the tube it lands in: a part
   // whose diameter happened to equal the resolved one would pass this whether
   // it was pinned or overwritten.
   const row = (over: Record<string, unknown>) =>

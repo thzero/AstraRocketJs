@@ -29,7 +29,7 @@ import { useHelpStore } from '../../state/helpStore';
  *
  * Help is the one exception to the flag list. It is raised from all over the
  * app (the Safety card in the results panel, and anything else that wants to
- * open help ON its own topic), so which page it is showing lives in
+ * open help on its own topic), so which page it is showing lives in
  * {@link useHelpStore} instead, and it is mounted here only because the header
  * is where the app-wide dialogs already are.
  */
@@ -70,7 +70,7 @@ export function useHeaderDialogs() {
   return { open, dialogs: <HeaderDialogs flags={flags} onClose={close} /> };
 }
 
-/* Mounted only while OPEN.
+/* Mounted only while open.
    Every one of these used to be mounted on every render of the header
    and merely `return null` when closed - which does not stop effects.
    That is what let MotorDashboard fetch the 1.6 MB motor catalog on app
@@ -98,7 +98,7 @@ function HeaderDialogs({ flags, onClose }: { flags: OpenFlags; onClose: (id: Hea
       {flags.about && <AboutDialog onClose={() => onClose('about')} />}
       {flags.privacy && <PrivacyDialog onClose={() => onClose('privacy')} />}
       {/* '' is the docs index, so the null check is not a truthiness check.
-          Keyed on the page so that opening Help again ON A DIFFERENT topic
+          Keyed on the page so that opening Help again on A different topic
           starts it over rather than leaving the previous page's back stack
           behind it. */}
       {helpPage !== null && <HelpDialog key={helpPage} page={helpPage} onClose={closeHelp} />}

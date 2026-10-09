@@ -1,13 +1,14 @@
 import { KERNEL_DEFAULTS } from '../../tree/kernelDefaults';
 
 /**
- * Fallback values the FILE services share.
+ * Fallback values the file services share.
  *
- * `orkImport` (what a missing `.ork` tag becomes), `orkExport` (what an absent node
- * key is written as) and `dxfExport` (what an absent key is cut as) read the same
- * field from here rather than each holding its own literal. Separate copies drift,
- * and a part that loses a tag on the way in then comes out a different size on the
- * way out with nothing reporting it.
+ * The `.ork` reader (what a missing tag becomes), the `.ork` writer (what an absent
+ * node key is written as) and `dxfExport` (what an absent key is cut as), along with
+ * the other readers, writers and views that need a fallback, read the same field from
+ * here rather than each holding its own literal. Separate copies drift, and a part
+ * that loses a tag on the way in then comes out a different size on the way out with
+ * nothing reporting it.
  *
  * Where the kernel has a default for the field (`kernelDefaults.ts`, verified
  * against the real engine) it is the authority and is re-exported here rather
@@ -16,9 +17,9 @@ import { KERNEL_DEFAULTS } from '../../tree/kernelDefaults';
  * and cited at each entry, so a file the desktop wrote without the tag reads
  * as the desktop would have built it.
  *
- * Scope: only fields that were duplicated across those three files. It is not
- * a catalog of every component default; `treeEdit.defaultNode` decides what
- * the editor creates and is a different question.
+ * Scope: only fields those consumers share. It is not a catalog of every
+ * component default; `treeEdit.defaultNode` decides what the editor creates
+ * and is a different question.
  */
 export const COMPONENT_DEFAULTS = {
   nosecone: {
@@ -27,15 +28,13 @@ export const COMPONENT_DEFAULTS = {
     aftRadius: KERNEL_DEFAULTS.nosecone.aftRadius,
   },
   transition: {
-    // The .ork reader and writer used 0.04 while the kernel builds 0.05
-    // (ComponentFactory.java); a transition that lost its tag was flown one
-    // length and drawn another.
+    // The kernel's length (ComponentFactory.java), so a transition that lost
+    // its tag is not flown at one length and drawn at another.
     length: KERNEL_DEFAULTS.transition.length,
     thickness: KERNEL_DEFAULTS.transition.thickness,
   },
   bodytube: {
-    // Same drift: 0.0005 in the .ork services, 0.001 in the DXF, 0.0003 in
-    // the kernel. The kernel is the authority (verified by
+    // The kernel is the authority for the wall (verified by
     // kernelDefaults.kernel.test.ts).
     thickness: KERNEL_DEFAULTS.bodytube.thickness,
   },

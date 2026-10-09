@@ -381,9 +381,9 @@ public class BarrowmanStabilityCalculator implements StabilityCalculator {
 		}
 	}
 
-	// PATCH(astrarrocketjs): field/method visibility widened for the RASAero
-	// StabilityCalculator subclass (opt-in supersonic extensions), and reflective
-	// calc construction replaced (see createCalcObject).
+	// PATCH(astrarrocketjs): protected for the RASAero StabilityCalculator
+	// subclass (opt-in supersonic extensions), and building calcs through
+	// createCalcObject rather than reflection.
 	protected void buildCalcMap(FlightConfiguration configuration) {
 		calcMap = new HashMap<>();
 
@@ -402,7 +402,7 @@ public class BarrowmanStabilityCalculator implements StabilityCalculator {
 	// "Calc"). TeaVM carries no reflection metadata, so that throws at runtime
 	// ("Suitable constructor for component ... not found"). This instanceof chain
 	// reproduces the hierarchy-walk resolution exactly (most-specific first).
-	// MUST be revisited if upstream adds new *Calc classes. Overridable so the
+	// Needs a new branch for any *Calc class upstream adds. Overridable so the
 	// RASAero subclass can bind opt-in aero flags onto the per-component calcs.
 	protected RocketComponentCalc createCalcObject(RocketComponent comp) {
 		if (comp instanceof FinSet) {

@@ -41,7 +41,7 @@ function writeFinTemplates(p: PdfPage, tree: RocketTree, finSets: ComponentNode[
   for (const n of finSets) {
     // Pass the mounting radius so the printed template's tab is clamped to
     // the depth the kernel allows, matching the DXF and the STL of the same
-    // fin. Without it a 20 mm tab on a 12 mm body printed at full depth.
+    // fin. Without it a 20 mm tab on a 12 mm body would print at full depth.
     const f = finPlanformMm(n, parentRadiusOf(tree, String(n.id)));
     // A loop, not `Math.max(...pts)`: a freeform outline is file-sourced and
     // spreading a huge one into a call overflows the stack (dxfExport.ts

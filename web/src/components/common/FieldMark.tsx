@@ -3,26 +3,26 @@ import { useTranslation } from 'react-i18next';
 /**
  * What a launch field can be saying about itself, in three levels.
  *
- * REQUIRED (a quiet asterisk, always on) says a flight cannot be computed
+ * required (a quiet asterisk, always on) says a flight cannot be computed
  * without this field. It is on whether or not the field is filled, because
- * "which of these do I actually have to fill in?" is a question you ask BEFORE
+ * "which of these do I actually have to fill in?" is a question you ask before
  * you have left one empty -- a marker that only shows up once something is
  * already wrong cannot answer it.
  *
- * MISSING (the label boxed in red) is that same field, empty. It blocks the run.
+ * missing (the label boxed in red) is that same field, empty. It blocks the run.
  *
- * DIFFERS (the label boxed in amber) is not a fault at all: the value is fine,
+ * differs (the label boxed in amber) is not a fault at all: the value is fine,
  * but the other simulations in the selection hold a different one and typing
  * here will overwrite theirs.
  *
  * Missing outranks differs when a field is both, because it is the one that
  * stops the run; the tooltip still mentions the disagreement.
  *
- * The two states box the LABEL rather than adding a worded badge beside it.
- * A badge reading "DIFFERS" said the same thing twice -- the color already
- * carried it -- while costing more width than the field name itself in a 380px
- * column. Boxing the name is free: the label was going to be drawn anyway.
- * The wording survives where it is not competing for space, in the `title` and
+ * The two states box the label rather than adding a worded badge beside it.
+ * A badge reading "DIFFERS" would say the same thing twice (the color already
+ * carries it) while costing more width than the field name itself in a 380px
+ * column. Boxing the name is free: the label is drawn anyway.
+ * The wording stays where it is not competing for space, in the `title` and
  * in a visually-hidden span, so hovering or reading the page aloud still gets
  * a sentence rather than a color.
  */
@@ -81,7 +81,7 @@ export function FieldLabel({
 }
 
 /**
- * Swap a control's resting ring for the flagged one. Applied by REPLACING
+ * Swap a control's resting ring for the flagged one. Applied by replacing
  * `ring-line/10` rather than appending, because two `ring-*` utilities in one
  * class list resolve by stylesheet order, not by which came later in the string.
  */

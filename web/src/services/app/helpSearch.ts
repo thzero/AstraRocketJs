@@ -1,21 +1,21 @@
 import { type HelpEntry, fetchHelpDocument, headingLabel, helpTarget, pageTitle } from './helpDocs';
 
 /**
- * Search across the docs that ship INSIDE the app, for the Help dialog.
+ * Search across the docs that ship inside the app, for the Help dialog.
  *
  * The published site has its own search (a Docusaurus plugin), and the dialog
  * cannot use it: the embed stylesheet hides the site's navbar, which is where
  * that plugin puts its search box, and its index is a file deliberately kept
- * OUT of the app's precache for its size. So the dialog searches the same thing
+ * out of the app's precache for its size. So the dialog searches the same thing
  * it already renders, the built pages under `docs/<slug>/index.html`.
  *
- * WHICH MAKES IT OFFLINE BY CONSTRUCTION. Those files are the exact keys the
+ * That makes it work offline by construction. Those files are the exact keys the
  * service worker precaches each page under, so an index built from them is
  * built from cache hits, with no index file to ship and nothing that can go
  * stale against the pages it describes. Nothing here is generated at build
  * time, so there is no second source to drift from the docs.
  *
- * It is built LAZILY, on the first search, because it costs one fetch per page
+ * It is built lazily, on the first search, because it costs one fetch per page
  * and most Help visits are a read rather than a hunt, and kept for the session.
  */
 
@@ -60,7 +60,7 @@ const HIT_LIMIT = 60;
 const SNIPPET_CHARS = 170;
 
 /**
- * Case- and accent-insensitive text, POSITION FOR POSITION with its input.
+ * Case- and accent-insensitive text, position for position with its input.
  *
  * A plain `normalize('NFD')` would do the folding, but it changes the string's
  * length, and the snippet and the highlighter both need an index found in the
@@ -98,7 +98,7 @@ const collapse = (s: string) => s.replace(/\s+/g, ' ').trim();
  * somewhere to land. Text under an h4 or deeper is searchable as part of the
  * section it sits in.
  *
- * Fed the document parsed from the SERVED HTML, like everything else the dialog
+ * Fed the document parsed from the served HTML, like everything else the dialog
  * reads: see the note on loadHelpPage. Here it also means the whole page is
  * indexed whether or not it has ever been rendered.
  */
@@ -112,7 +112,7 @@ export function readSections(doc: Document): HelpSection[] {
     const node = walker.currentNode;
     if (node.nodeType === Node.ELEMENT_NODE) {
       const el = node as Element;
-      // A heading OPENS a section rather than joining one. The h1 is the page
+      // A heading opens a section rather than joining one. The h1 is the page
       // title, which is indexed separately, and a heading with no id cannot be
       // linked to, so its text stays with the section it sits in.
       if ((el.tagName === 'H2' || el.tagName === 'H3') && el.id) {
@@ -219,7 +219,7 @@ export function snippetAround(text: string, tokens: string[]): string {
 }
 
 /**
- * Rank every section that holds ALL of the query's words.
+ * Rank every section that holds all of the query's words.
  *
  * All of them, not any: two words typed together are a narrowing, and a search
  * where "rod length" returns every page that says "length" is useless on a
@@ -250,7 +250,7 @@ export function searchHelp(docs: HelpDoc[], query: string, limit = HIT_LIMIT): H
           all = false;
           break;
         }
-        // A word in a heading is what the section is ABOUT; a word in the page
+        // A word in a heading is what the section is about; a word in the page
         // title is true of every section on that page, so it ranks lowest.
         score += (inHead ? 4 : 0) + (inBody ? 2 : 0) + (inTitle ? 1 : 0);
       }
@@ -287,7 +287,7 @@ export interface HelpSegment {
 }
 
 /**
- * Split text into plain runs and matched runs, for showing WHERE the match is.
+ * Split text into plain runs and matched runs, for showing where the match is.
  *
  * Folded indices line up with the original by construction (see fold), so what
  * comes back is the original's own characters, accents and case intact.

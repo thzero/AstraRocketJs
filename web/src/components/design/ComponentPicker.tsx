@@ -43,14 +43,14 @@ import { useAsyncLoad } from '../common/useAsyncLoad';
 
 /**
  * How many rows are rendered at once. There are 1088 body tubes and no
- * virtualization in the tree, so the list is capped. The footer reports the MATCH
+ * virtualization in the tree, so the list is capped. The footer reports the match
  * count and how many rows are held back, rather than printing the cap as the
  * total and making the catalog read as small.
  */
 const ROW_CAP = 200;
 
 /**
- * The catalog fetch as ONE state rather than three booleans, so `error &&
+ * The catalog fetch as one state rather than three booleans, so `error &&
  * loading` cannot coexist and every branch below is one of exactly three.
  */
 type CatalogState =
@@ -83,7 +83,7 @@ export function ComponentPicker({
   current,
   onApply,
 }: {
-  /** The NODE's type, not the catalog's: an inner tube is served by the body tube
+  /** The node's type, not the catalog's: an inner tube is served by the body tube
    *  rows (see componentDb.catalogTypeFor) but has its own fit rule. */
   type: PickerType;
   /** Geometry around the node being filled, so the parts that actually fit can
@@ -95,13 +95,12 @@ export function ComponentPicker({
 }) {
   const { t } = useTranslation();
   // The catalog is fetched at runtime (see componentDb / remoteData), so load it
-  // on mount and hold the result. Same trigger as before (this picker is itself
-  // lazy-loaded); it's just async now.
+  // on mount and hold the result.
   // A save or a delete re-runs the load (`refresh`), but the list already in
   // hand stays ready while it does, so the open dialog is not torn down and the
   // button does not flash back to "Loading" for a change the user just made in
   // the panel behind it. A failure is reported with a retry, not swallowed:
-  // swallowed, the button read "Pick (0)" as though the catalog were empty.
+  // swallowed, the button would read "Pick (0)" as though the catalog were empty.
   const version = useSyncExternalStore(onSavedPartsChanged, savedPartsVersion, savedPartsVersion);
   const rows = useAsyncLoad(() => loadRows(type), type, { refresh: version });
   const state: CatalogState = rows.loading
@@ -109,7 +108,7 @@ export function ComponentPicker({
     : rows.error !== null
       ? { status: 'error', message: rows.error }
       : { status: 'ready', all: rows.data! };
-  // Live bytes for the ~1 MB component catalog, so a slow link is legible.
+  // Live bytes for the component catalog (over 1 MB), so a slow link is legible.
   const progress = useCatalogProgress('components');
   const pct = progressPercent(progress);
   const [open, setOpen] = useState(false);
@@ -159,12 +158,12 @@ interface Col {
   /** Numbers are right-aligned and tabular so digits line up down the column. */
   num?: boolean;
   /**
-   * A FIXED width, as a Tailwind class. Required on every column but the one
+   * A fixed width, as a Tailwind class. Required on every column but the one
    * that takes up the slack, because the table is `table-fixed`.
    *
    * It has to be: with the browser's default `table-layout: auto` the widths are
    * computed from whichever rows happen to be rendered, so every keystroke in the
-   * search box relaid the whole table out and the columns visibly jumped around.
+   * search box would relay the whole table out and the columns would jump around.
    * Fixed widths mean typing narrows the list without moving anything.
    */
   w?: string;
@@ -185,13 +184,13 @@ interface Col {
 
 /**
  * The columns for a type, in order. Per type rather than one union, because the
- * fields that identify a part differ: a centering ring IS its OD/ID pair, a
+ * fields that identify a part differ: a centering ring is its OD/ID pair, a
  * parachute has a canopy diameter and a Cd and no length at all. One union would
  * mean a blank column for every field a type lacks.
  *
  * Dimension headings come from the `prop.*` namespace the property panel already
  * uses, so a part's bore is called the same thing in the picker as in the editor
- * it fills. The unit is named ONCE, in the heading, rather than after every cell.
+ * it fills. The unit is named once, in the heading, rather than after every cell.
  */
 function columnsFor(type: ComponentType, u: Units, t: (k: string) => string, ranked: boolean): Col[] {
   const len = (v: number | null | undefined) => (v == null ? '—' : u.fmt('length', v));
@@ -237,7 +236,7 @@ function columnsFor(type: ComponentType, u: Units, t: (k: string) => string, ran
       title: (r) => r.part.partNo,
     },
   ];
-  // The RAW catalog name, not the family the facet groups by: `Fiberglass, G12,
+  // The raw catalog name, not the family the facet groups by: `Fiberglass, G12,
   // filament wound tube` and `Fiberglass, G10` are both "Fiberglass" to the
   // filter and are not the same material to build with. Truncated to keep the
   // column still, with the whole name on hover.
@@ -281,7 +280,7 @@ function columnsFor(type: ComponentType, u: Units, t: (k: string) => string, ran
     w: 'w-28',
     cell: (r) => len(length(r)),
   };
-  // A ring's and a bulkhead's `length` IS its thickness; calling it "length"
+  // A ring's and a bulkhead's `length` is its thickness; calling it "length"
   // beside a 54 mm diameter reads as a 6 mm-long tube.
   const thickCol: Col = { ...lenCol, head: withUnit(t('prop.thickness')) };
 
@@ -353,7 +352,7 @@ function columnsFor(type: ComponentType, u: Units, t: (k: string) => string, ran
           w: 'w-24',
           // Every parachute the catalog ships omits its drag coefficient, so this
           // is almost always the app's own default rather than a published spec.
-          // It is shown because it IS what picking the part applies, and marked
+          // It is shown because it is what picking the part applies, and marked
           // as a default so it does not read as manufacturer data.
           cell: (r) =>
             r.part.type === 'parachute'
@@ -389,21 +388,21 @@ function PickerDialog({
   // there is no Fit column and no toggle, rather than a control that filters
   // everything away for reasons the user cannot see.
   const canFit = fitRuleFor(type, fit) != null;
-  // Fit RANKS by default; it does not hide. Defaulting the filter on looked
-  // tempting and is wrong: no nose cone in the catalog is within 0.6 mm of a
-  // 54.66 mm airframe, because manufacturers' nominal sizes cluster in families
-  // that do not line up, so a picker that hid everything else opened empty on a
-  // perfectly ordinary design. Sorting by fit puts the five couplers that suit a
+  // Fit ranks by default; it does not hide. Defaulting the filter on would be
+  // wrong: no nose cone in the catalog is within 0.6 mm of a 54.66 mm airframe,
+  // because manufacturers' nominal sizes cluster in families that do not line
+  // up, so a picker that hid everything else would open empty on a perfectly
+  // ordinary design. Sorting by fit puts the five couplers that suit a
   // 51.5 mm bore at the top of 237 and still lets an unusual build scroll past
   // them. The toggle is there for anyone who does want the hard filter.
   const [q, setQ] = useState<ComponentQuery>({ ...emptyQuery, sort: canFit ? 'fit' : 'mfr' });
   const set = (patch: Partial<ComponentQuery>) => setQ((prev) => ({ ...prev, ...patch }));
 
-  // Two names on purpose: the fit rule is the NODE's business, the columns are
+  // Two names on purpose: the fit rule is the node's business, the columns are
   // the catalog's. They differ for an inner tube, which reads body tube rows.
   const catType = catalogTypeFor(type);
   const mfrs = useMemo(() => manufacturers(all), [all]);
-  // Facets built from what is actually in THIS type's rows, so the dropdown never
+  // Facets built from what is actually in this type's rows, so the dropdown never
   // offers a value that would return nothing: body tubes have six material
   // families, bulkheads five, and they are not the same five.
   const mats = useMemo(() => materialFamilies(all), [all]);
@@ -455,7 +454,7 @@ function PickerDialog({
                   e.stopPropagation(); // the whole row applies the part
                   void remove(r.part);
                 }}
-                // Enter on the button would otherwise reach the ROW's own
+                // Enter on the button would otherwise reach the row's own
                 // key handler as well, deleting the part and applying it.
                 onKeyDown={(e) => e.stopPropagation()}
                 aria-label={t('picker.deleteSaved', { name: r.part.partNo })}
@@ -478,9 +477,9 @@ function PickerDialog({
       onClose={onClose}
       size="4xl"
       toolbar={
-        // Filters on TWO rows: free text above, facets below. One row ran to a
+        // Filters on two rows: free text above, facets below. On one row, a
         // search box, three dropdowns, two number fields, a checkbox and a
-        // button, which wrapped unpredictably and read as a wall of controls.
+        // button wrap unpredictably and read as a wall of controls.
         // Sorting is not here at all; it lives on the column headings. The rule
         // under it comes from the shell's toolbar band.
         <div className="flex flex-col gap-2 p-3">
@@ -595,8 +594,8 @@ function PickerDialog({
         </div>
       }
     >
-      {/* `table-fixed`: see Col.w. Auto layout re-measured the columns from
-          whichever rows were rendered, so they jumped on every keystroke. */}
+      {/* `table-fixed`: see Col.w. Auto layout would re-measure the columns from
+          whichever rows are rendered, so they would jump on every keystroke. */}
       <table className="w-full table-fixed border-collapse text-sm">
         <thead className="sticky top-0 z-10 bg-surface text-[11px] uppercase tracking-wide text-ink-muted">
           <tr>
@@ -624,7 +623,7 @@ function PickerDialog({
               tabIndex={0}
               role="button"
               // The one this component is already built from, marked rather than
-              // merely present: opening a list of 856 parts to find out which one
+              // merely present: opening a list of hundreds of parts to find out which one
               // you are on is not an answer.
               aria-current={r.part.partNo === current ? 'true' : undefined}
               onKeyDown={(e) => {
@@ -657,8 +656,8 @@ function PickerDialog({
             <tr>
               <td colSpan={cols.length} className="px-3 py-8 text-center text-sm text-ink-faint">
                 {t('picker.noResults')}
-                {/* The likeliest reason for an empty list is the fit filter,
-                        which is ON by default when it can judge. Name it. */}
+                {/* With the fit filter on, it is the likeliest reason for an
+                        empty list. Name it. */}
                 {q.fitsOnly && <div className="mt-1 text-xs text-ink-dim">{t('picker.fitsHint')}</div>}
               </td>
             </tr>

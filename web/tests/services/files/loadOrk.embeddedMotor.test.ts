@@ -75,7 +75,7 @@ vi.mock('../../../src/services/motors/motorDb', () => ({
 const { loadOrk } = await import('../../../src/services/files/loadOrk');
 
 // A full curve, because the seating step only hands the kernel a motor it can
-// accept: a curve-less spec is what an UNRESOLVED motor looks like, and seating
+// accept: a curve-less spec is what an unresolved motor looks like, and seating
 // one throws "Too short thrust-curve" (motorCurve.hasUsableCurve).
 const SPEC = {
   designation: 'J350',
@@ -118,8 +118,8 @@ describe('a motor the catalog does not have', () => {
     embedded.value = undefined;
     const res = await loadOrk(new ArrayBuffer(0));
     expect(customMotorToSpec).not.toHaveBeenCalled();
-    // The unresolved placeholder, exactly as before: the run gate blocks rather
-    // than a C6 flying under an L-motor design.
+    // The unresolved placeholder, as with no embedded curve support at all: the
+    // run gate blocks rather than a C6 flying under an L-motor design.
     expect(res.configs[0]!.motors['mount1']!.spec.thrusts).toEqual([]);
     expect(res.notes.join('\n')).toMatch(/pick a motor for that mount/i);
   });

@@ -153,8 +153,8 @@ describe('flightDataCsv', () => {
   });
 
   it('offers the horizontal track, in the distance unit', () => {
-    // The file carried altitude and nothing horizontal at all until these went
-    // in, which made a landing point unanswerable from the CSV.
+    // Without these columns the file carries altitude and nothing horizontal,
+    // which makes a landing point unanswerable from the CSV.
     const drifted = { ...result, series: { ...result.series, Px: [0, 30], Py: [0, -40] } } as unknown as FlightResult;
     const csv = flightDataCsv(drifted, IMPERIAL_UNITS, {
       ...opts,
@@ -203,10 +203,10 @@ describe('aeroTableCsv', () => {
 });
 
 /**
- * The events export. Where `flightDataCsv` can carry events as COMMENT lines
+ * The events export. Where `flightDataCsv` can carry events as comment lines
  * for a reader, this answers the other question: give me the events as data.
  */
-/** Split one CSV line into fields, respecting quotes — what a reader does. */
+/** Split one CSV line into fields, respecting quotes, as a reader does. */
 function fields(line: string): string[] {
   const out: string[] = [];
   let cur = '';
@@ -305,7 +305,7 @@ describe('flightEventsCsv', () => {
    * Spreadsheet formula injection. Every name column here is file-sourced:
    * `source` is the kernel's component name, straight out of an imported
    * `.ork`, and `stage` falls back to the branch name. Excel and Sheets strip
-   * the RFC-4180 quoting BEFORE evaluating, so quoting alone does not stop a
+   * the RFC-4180 quoting before evaluating, so quoting alone does not stop a
    * crafted name executing when the export is opened.
    */
   it('neutralizes a formula-triggering name rather than only quoting it', () => {

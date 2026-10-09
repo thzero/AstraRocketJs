@@ -5,9 +5,8 @@ import type { CatalogMotor } from './motorDb';
  * which is also what OpenRocket's kernel and thrustcurve.org use when they turn
  * total impulse and propellant weight into a specific impulse.
  *
- * Defined once here rather than spelled out per module. recoverySizing.ts keeps a
- * private copy for the ISA pressure ladder, which is a different formula and
- * deliberately its own.
+ * Defined once here and imported wherever the app needs g, including the ISA
+ * pressure formula in recoverySizing.ts.
  */
 export const G0 = 9.80665;
 

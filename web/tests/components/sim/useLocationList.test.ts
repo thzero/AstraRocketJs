@@ -43,11 +43,12 @@ describe('useLocationList', () => {
   });
 
   it('drops a first read that lands after a later one', async () => {
-    // The real failure: IndexedDB's initial open makes the first list() the
+    // The case this guards: IndexedDB's initial open makes the first list() the
     // slowest of the session. A location saved in the meantime refreshes and
-    // resolves first; the stale answer then lands with the empty list it read
-    // before the save, and the dropdown goes blank over a database that has
-    // the location. Nothing retries, because nothing knows it is wrong.
+    // resolves first; unguarded, the stale answer would then land with the empty
+    // list it read before the save, and the dropdown would go blank over a
+    // database that has the location. Nothing retries, because nothing knows it
+    // is wrong.
     let landFirstRead!: (locations: LaunchLocation[]) => void;
     let reads = 0;
     const store: LaunchLocationStore = {
@@ -77,7 +78,7 @@ describe('useLocationList', () => {
   });
 
   it('applies the newest read when they land in order', async () => {
-    // The guard drops a SUPERSEDED answer, not every late one: a refresh after
+    // The guard drops a superseded answer, not every late one: a refresh after
     // a delete still has to empty the list.
     let locations = [HOME];
     setLaunchLocationStore({ list: async () => locations, ...noWrites });

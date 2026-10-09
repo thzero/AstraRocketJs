@@ -10,7 +10,7 @@ import { useUnits } from '../../prefs/useUnits';
 import { Dialog } from '../common/Dialog';
 import { CatalogLoading, CatalogError } from '../common/CatalogLoading';
 import { MotorDetail } from './MotorDetail';
-import { keyOf } from './motorKey';
+import { keyOf } from '../../services/motors/motorKey';
 import { useCatalog } from './useCatalog';
 import {
   ClassChips,
@@ -61,9 +61,8 @@ function findSeated(catalog: CatalogMotor[], cur: MotorSpec): CatalogMotor | und
  * chosen motor's thrust curve via `onSelect`.
  *
  * Mounted only while open (`{open && <MotorDialog />}`), so every piece of
- * state here starts fresh per opening and nothing has to be reset on close.
- * The previous "reseed on open" effects left the last motor's ejection delay
- * on the next pick after a reopen.
+ * state here starts fresh per opening and nothing has to be reset on close, so
+ * the last motor's ejection delay cannot carry into the next opening.
  */
 export function MotorDialog({
   onClose,
@@ -117,13 +116,6 @@ export function MotorDialog({
       setCurveIdx(ci >= 0 ? ci : 0);
     },
   });
-  /**
-   * The remembered diameter range is a plain PREFERENCE, never defaulted from the
-   * mount: a top stop seeded from a 29 mm mount reads as the user's own setting
-   * and then follows them to a 54 mm mount, hiding every motor that mount exists
-   * to fly. Capping by the mount is the fit checkbox's job, which is per-mount,
-   * visible, and can be turned off.
-   */
   const usedKeys = useMemo(
     () =>
       new Set(
@@ -134,6 +126,13 @@ export function MotorDialog({
       ),
     [used, catalog],
   );
+  /**
+   * The remembered diameter range is a plain preference, never defaulted from the
+   * mount: a top stop seeded from a 29 mm mount reads as the user's own setting
+   * and then follows them to a 54 mm mount, hiding every motor that mount exists
+   * to fly. Capping by the mount is the fit checkbox's job, which is per-mount,
+   * visible, and can be turned off.
+   */
   const [filterInit] = useState(() => ({
     mfrs: loadMfrs(),
     dia: loadDia() ?? ([0, MAX_IDX] as [number, number]),
@@ -170,14 +169,13 @@ export function MotorDialog({
     saveMfrs(mfrs);
   }, [mfrs]);
   // `diaSaved`, not the displayed range: while the fit box is ticked the slider
-  // is showing the MOUNT's ceiling, and saving that would write a machine's
-  // choice into the user's preference, which is the bug this whole control
-  // replaced.
+  // is showing the mount's ceiling, and saving that would write the mount's
+  // limit into the user's own preference.
   useEffect(() => {
     saveDia(diaSaved);
   }, [diaSaved]);
 
-  // Clicking a DIFFERENT motor starts from its own defaults: the best (first)
+  // Clicking a different motor starts from its own defaults: the best (first)
   // curve, and a mid value of its own delay charges, or plugged for a
   // plugged-only motor. In the handler, not an effect keyed on the selection,
   // so the seeded values above are never stomped and never leak forward.
@@ -228,7 +226,7 @@ export function MotorDialog({
       setCatalog(catalog);
       // Reported in the dialog rather than through onError, which is the
       // simulation panel behind it: a RockSim engine-database file can hold a
-      // manufacturer whole range, and one motor landing looks exactly like
+      // manufacturer's whole range, and one motor landing looks exactly like
       // forty in a list of 800.
       const done = t('motor.importedN', { count: imported });
       setNote(failed.length ? `${done} ${t('motor.importSkipped', { files: failed.join(', ') })}` : done);
@@ -253,7 +251,7 @@ export function MotorDialog({
     }
   };
 
-  // What the dialog acts on is the highlight the user can SEE. `selected` is
+  // What the dialog acts on is the highlight the user can see. `selected` is
   // kept across filter changes so clearing a filter brings the highlight back,
   // but while the filter hides that row there is no visible highlight, and the
   // Select button must not apply a motor that is not on screen (the seated C6
@@ -276,7 +274,7 @@ export function MotorDialog({
       height={720}
     >
       <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-        {/* LEFT: filters + list + count */}
+        {/* Left: filters + list + count */}
         <div
           className={`flex min-h-0 flex-col md:w-[360px] md:shrink-0 md:border-r md:border-line/10 ${shown ? 'hidden md:flex' : 'flex'}`}
         >
@@ -316,8 +314,8 @@ export function MotorDialog({
                 much motor this is. */}
             <ImpulseRange imp={imp} onChange={setImp} />
             <DiameterRange dia={dia} onChange={setDia} />
-            {/* Both boxes on one row: two short labels, and stacked they pushed
-                the list itself another line down a 360px column. */}
+            {/* The checkboxes share one row: their labels are short, and stacked
+                they would push the list further down a 360px column. */}
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
               {fitMount && <FitsMount mount={fitMount} fits={fits} onChange={setFits} />}
               <PluggedFilter plugged={plugged} onChange={setPlugged} />
@@ -401,9 +399,9 @@ export function MotorDialog({
             {loading ? '' : (note ?? t('motor.count', { total: matches.length }))}
           </div>
         </div>
-        {/* end LEFT */}
+        {/* end left */}
 
-        {/* RIGHT: detail + apply */}
+        {/* Right: detail + apply */}
         <div className={`min-h-0 min-w-0 flex-1 flex-col ${shown ? 'flex' : 'hidden md:flex'}`}>
           {shown ? (
             <>
@@ -457,17 +455,14 @@ function DelayControl({ motor, delay, onDelay }: { motor: CatalogMotor; delay: n
       <ToggleButton active={delay >= PLUGGED_DELAY} onClick={() => onDelay(PLUGGED_DELAY)} className={chip}>
         {t('motor.plugged')}
       </ToggleButton>
-      {/* `NumberInput`, not a raw <input>: this was the one data-entry box in the
-          app that was not, and it committed a 0-second charge the moment the
-          field was CLEARED to retype - an ejection charge that fires at burnout,
-          on a motor the user was in the middle of choosing a delay for. The draft
-          buffer exists for exactly that, and a blank box now means "no change"
+      {/* `NumberInput`, not a raw <input>: a raw input would commit a 0-second
+          charge (one that fires at burnout) the moment the field is cleared to
+          retype. NumberInput's draft buffer makes a blank box mean "no change"
           until a number is typed.
 
-          Clamped at PLUGGED_DELAY rather than left open: every consumer already
-          reads a delay at or above it as plugged (`toKernelDelay`), so an absurd
-          typed number lands on the meaning it already had instead of arriving as
-          an Infinity. */}
+          Clamped at PLUGGED_DELAY rather than left open: every consumer reads a
+          delay at or above it as plugged (`toKernelDelay`), so a larger typed
+          number is stored as the one plugged value it already means. */}
       <NumberInput
         min={0}
         max={PLUGGED_DELAY}

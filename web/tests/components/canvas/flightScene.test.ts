@@ -18,7 +18,7 @@ const phase: PhaseColors = { boost: '#ff0000', coast: '#00ff00', descent: '#0000
 const RED = 0,
   GREEN = 1,
   BLUE = 2;
-/** Which channel is lit — i.e. which phase this point was colored for. */
+/** Which channel is lit, i.e. which phase this point was colored for. */
 const chan = (c: [number, number, number]) => c.indexOf(Math.max(...c));
 
 const result = (over: {
@@ -49,16 +49,16 @@ const arc = () => {
 describe('apogee time fallback', () => {
   it('uses the APOGEE event when there is one', () => {
     const s = buildFlightScene(result({ ...arc(), events: [{ type: 'APOGEE', time: 5 }] }), phase);
-    expect(chan(s.colors[4]!)).toBe(GREEN); // before apogee — coast
-    expect(chan(s.colors[6]!)).toBe(BLUE); // after — descent
+    expect(chan(s.colors[4]!)).toBe(GREEN); // before apogee: coast
+    expect(chan(s.colors[6]!)).toBe(BLUE); // after: descent
   });
 
   /**
-   * The bug: with no APOGEE event the fallback was `maxA`, the peak ALTITUDE in
-   * meters, read as a TIME in seconds. For this 300 m / 10 s flight apogee
-   * landed at t = 300 — past the end of the flight — so the descent color
-   * never appeared and, because the deployment time defaults to it, the
-   * recovery device never came out during playback either.
+   * With no APOGEE event the fallback is a time, never the peak altitude. Read
+   * as seconds, this flight's 300 m peak would put apogee at t = 300, past the
+   * end of the flight, so the descent color would never appear and, because the
+   * deployment time defaults to it, the recovery device would never come out
+   * during playback either.
    */
   it('falls back to the last sample time, not the peak altitude', () => {
     const s = buildFlightScene(result({ ...arc() }), phase);
@@ -90,10 +90,10 @@ describe('apogee time fallback', () => {
 describe('the empty-path guard', () => {
   /**
    * A kernel failure can still hand back a result object whose samples are all
-   * non-finite. Every row is then filtered out and `sp` is empty — but the
-   * callout loop indexed it with a `!` and called `.distanceTo` on undefined,
-   * throwing inside the memo, i.e. BEFORE the component's own empty-state
-   * guard could render "no path". The whole app went down.
+   * non-finite. Every row is then filtered out and `sp` is empty, so the callout
+   * loop must not index into it: a throw inside the memo happens before the
+   * component's own empty-state guard can render "no path", and takes the whole
+   * app down.
    */
   it('returns an empty scene instead of throwing when every sample is non-finite', () => {
     const s = buildFlightScene(
@@ -154,7 +154,7 @@ describe('callouts', () => {
       phase,
     );
     expect(s.callouts.filter((c) => c.time === 5)).toHaveLength(1);
-    // The deployment TIME is still reported — only its duplicate label is gone.
+    // The deployment time is still reported; only its duplicate label is gone.
     expect(s.deployT).toBe(5);
   });
 });
@@ -175,7 +175,7 @@ describe('scaling', () => {
 });
 
 describe('indexForProgress', () => {
-  /** The loop the binary search replaced, verbatim. */
+  /** A linear scan: the reference the binary search has to agree with. */
   const linear = (times: number[], progress: number) => {
     const n = times.length;
     const totalT = times[n - 1] || 1;
@@ -264,7 +264,7 @@ describe('modelPoseAt', () => {
 /**
  * The recovery device the 3D flight shows is the first one in tree order, at
  * the size the kernel flies: a streamer with no length is the kernel's 0.5 m
- * (ComponentFactory, case "streamer"), which the view drew at 0.4 m.
+ * (ComponentFactory, case "streamer").
  */
 describe('findRecovery', () => {
   const tree = (kids: object[]) =>

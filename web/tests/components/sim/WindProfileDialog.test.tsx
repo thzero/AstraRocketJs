@@ -20,11 +20,10 @@ function Host() {
 
 describe('WindProfileDialog rows', () => {
   /**
-   * Rows were keyed on their index. Removing the first level therefore did
-   * not remove its row: React reused the row for whatever level slid into
-   * index 0 and dropped the LAST row instead, so the input a user was editing
-   * suddenly held a different level's numbers and the field under the cursor
-   * changed meaning. A row now keeps its identity across a removal.
+   * A row keeps its identity across a removal. Keyed on the index, removing the
+   * first level would not remove its row: React would reuse the row for whatever
+   * level slid into index 0 and drop the last row instead, so the input a user
+   * was editing would suddenly hold a different level's numbers.
    */
   it('keeps each remaining row on its own level when an earlier one is removed', () => {
     renderWithProviders(<Host />);
@@ -57,7 +56,7 @@ describe('WindProfileDialog rows', () => {
     fireEvent.change(second, { target: { value: '0' } });
 
     expect(second.getAttribute('aria-invalid')).toBe('true');
-    // The FIRST row at that altitude is the one that gets in, so it stays clean.
+    // The first row at that altitude is the one that gets in, so it stays clean.
     expect((screen.getByLabelText('Altitude 1') as HTMLInputElement).getAttribute('aria-invalid')).toBeNull();
     expect(screen.getByRole('alert').textContent).toContain('Two levels share an altitude');
   });
@@ -74,7 +73,7 @@ describe('WindProfileDialog rows', () => {
   });
 
   /**
-   * An altitude is the level's IDENTITY to the kernel, not a quantity with a
+   * An altitude is the level's identity to the kernel, not a quantity with a
    * harmless zero. Clearing the box on the way to retyping it must not move the
    * layer down onto the pad, where it would displace the surface wind.
    */
@@ -90,7 +89,7 @@ describe('WindProfileDialog rows', () => {
   });
 
   /**
-   * `NumberInput` refuses a non-finite ENTRY, but the unit conversion can
+   * `NumberInput` refuses a non-finite entry, but the unit conversion can
    * overflow on its own: the box is in display units and the level is in SI.
    */
   it('writes nothing when the unit conversion overflows', () => {
@@ -109,9 +108,9 @@ describe('WindProfileDialog rows', () => {
   });
 
   /**
-   * A new level lands 300 m above the HIGHEST one, not above the last ROW. The
-   * list is not sorted, so on a 0/600/300 profile the last row's +300 landed on
-   * 600 and collided with a level that was already there.
+   * A new level lands 300 m above the highest one, not above the last row. The
+   * list is not sorted, so on a 0/600/300 profile the last row's +300 would land
+   * on 600 and collide with a level that is already there.
    */
   it('adds a level that cannot collide with an existing one', () => {
     const onChange = vi.fn();

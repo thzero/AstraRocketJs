@@ -2,13 +2,12 @@ import { describe, it, expect } from 'vitest';
 import { heat, hsv, niceName } from '../../../src/components/canvas/AeroAnalysis';
 
 /**
- * The cell-shading port, which claimed to reproduce OpenRocket and had nothing
- * checking it.
+ * The cell-shading port of OpenRocket's table shading.
  *
  * The `openrocket` style is a formula-for-formula port of
  * `java.awt.Color.getHSBColor` plus the desktop's absolute full-red-at-1.5 Cd
  * anchor. `aero-heat.spec.ts` can see that shading exists, but not that it
- * matches the thing the docblock says it matches - which is the entire claim.
+ * matches the desktop, so the match is checked here.
  */
 
 /** `rgb(r, g, b)` back to numbers, so the ramp can be reasoned about. */

@@ -361,9 +361,9 @@ describe('launch-lug / rail-button radial angle round-trips', () => {
   });
 
   it('preserves an off-axis mass component radial offset through export → import', () => {
-    // Regression: the writer hard-wrote radialposition 0.0 and never emitted a
-    // radialdirection, and the reader ignored both — so an off-centerline mass
-    // (ballast, altimeter) snapped back onto the axis on every save/load.
+    // Both radialposition and radialdirection have to be written and read, or an
+    // off-centerline mass (ballast, altimeter) snaps back onto the axis on every
+    // save/load.
     const withMass = {
       components: [
         {
@@ -614,9 +614,8 @@ describe('newly-editable component options round-trip', () => {
   });
 
   it('preserves each transition shoulder wall and cap, per side', () => {
-    // The walls were read and written all along; the caps were not. The writer
-    // emitted a hardcoded `false` for both sides, so a capped shoulder was
-    // dropped on the way out and could not come back - and the two sides have
+    // The caps travel with the walls: a writer that emits a fixed `false` for
+    // both sides drops a capped shoulder on the way out. The two sides also have
     // to stay apart, since the fore one here is capped and the aft one is not.
     const tr = findByType(out.tree, 'transition') as Record<string, unknown>;
     expect(tr.foreShoulderThickness).toBeCloseTo(0.0007, 6);
@@ -697,12 +696,11 @@ describe('newly-editable component options round-trip', () => {
  * OpenRocket writes that as the sentinel `auto` rather than a number, and the
  * kernel recomputes it as the design changes.
  *
- * Both halves were broken and hid each other. The importer read the radii with
- * the plain number reader, so `auto` fell through to a fallback and the ring
- * arrived with NO radius — which `badDimensions` then called a zero dimension
- * and refused to fly, with "a required dimension is zero: Centering Ring". The
- * exporter hard-wrote `auto` for every ring, so a ring sized by hand exported as
- * automatic and came back the width of its body tube.
+ * Both directions matter. Read with the plain number reader, `auto` would fall
+ * through to a fallback and the ring would arrive with no radius, which
+ * `badDimensions` calls a zero dimension and refuses to fly. Written as `auto`
+ * for every ring, a ring sized by hand would come back the width of its body
+ * tube.
  */
 describe('automatic ring radii round-trip', () => {
   const ringTree = (radii?: { outerRadius?: number; innerRadius?: number }) =>
@@ -739,7 +737,7 @@ describe('automatic ring radii round-trip', () => {
   it('reads auto back as automatic, with the size it resolves to', () => {
     const out = importOrk(exportOrk({ name: 'Auto', tree: ringTree() }));
     const ring = findByType(out.tree, 'centeringring') as Record<string, unknown>;
-    // A FLAG with the resolved number beside it, rather than an absent key.
+    // A flag with the resolved number beside it, rather than an absent key.
     // Spelling automatic as absence leaves the panel showing 0 and the drawing on
     // a fallback while the kernel uses the real bore. The flag says it follows;
     // the number is what it currently is.
@@ -750,7 +748,7 @@ describe('automatic ring radii round-trip', () => {
   });
 
   it('still writes auto on the way back out, not the number it resolved to', () => {
-    // Otherwise a ring that FOLLOWS its tube would come back pinned to
+    // Otherwise a ring that follows its tube would come back pinned to
     // whatever that tube happened to be when it was saved.
     const once = importOrk(exportOrk({ name: 'Auto', tree: ringTree() }));
     const twice = exportOrk({ name: 'Auto', tree: once.tree });
@@ -780,9 +778,8 @@ describe('automatic ring radii round-trip', () => {
 });
 
 /**
- * The fields a full audit against `DocumentConfig.java` found the writer
- * dropping, or the reader never looking at. Each one round-tripped in the file
- * or reached the kernel but not both, which is the state that looks supported
+ * Fields from `DocumentConfig.java` that have to both round-trip in the file and
+ * reach the kernel. Doing only one of the two is the state that looks supported
  * and is not.
  */
 describe('audit round trips (2026-09-27)', () => {
@@ -793,9 +790,9 @@ describe('audit round trips (2026-09-27)', () => {
         type: 'stage',
         id: 's1',
         name: 'S',
-        // A stage can be overridden like any other component. This block wrote
-        // its own name and id instead of going through the shared header, so
-        // the override flew and was dropped on the way out.
+        // A stage can be overridden like any other component, so its block has
+        // to go through the shared header, or the override flies but is dropped
+        // on the way out.
         overrideMass: 0.25,
         overrideSubcomponentsMass: true,
         children: [
@@ -917,10 +914,10 @@ describe('audit round trips (2026-09-27)', () => {
  *
  * The desktop shows which part a component is at the top of every config
  * dialog, and our picker is the same control, so the link is a fact about the
- * design. It was read nowhere and written nowhere, which is why a design that
- * came back from OpenRocket had forgotten every part it was built from.
+ * design, and a design that comes back from OpenRocket has to remember every
+ * part it was built from.
  *
- * The half that matters is the DROPPING: a link that outlives the dimensions
+ * The half that matters is the dropping: a link that outlives the dimensions
  * labels a hand-sized tube with somebody's part number.
  */
 describe('the catalog part a component came from', () => {

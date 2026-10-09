@@ -23,8 +23,8 @@ test('the drawing can take the whole window, and come back', async ({ page }) =>
   await page.getByRole('button', { name: /whole window/ }).click();
   expect(await width()).toBe(1600);
   await expect(tree).toBeHidden();
-  // The statistics strip is a footer ABOUT the design, not part of the drawing,
-  // and at full width it was taking 175px off the top of the very thing the
+  // The statistics strip is a footer about the design, not part of the drawing,
+  // and at full width it would take a band off the top of the very thing the
   // expand exists to give room to.
   await expect(stats).toBeHidden();
   // The dividers go with the columns they divide - there is nothing left to
@@ -32,8 +32,8 @@ test('the drawing can take the whole window, and come back', async ({ page }) =>
   await expect(page.getByRole('separator')).toHaveCount(0);
 
   // A layout preference like the two widths, so it survives the page. Waits on
-  // the toolbar rather than the usual `L/D`, which is INSIDE the strip that is
-  // now hidden.
+  // the toolbar rather than the usual `L/D`, which is inside the strip that is
+  // hidden.
   await page.reload();
   await expect(page.getByRole('button', { name: 'Side', exact: true })).toBeVisible({ timeout: 20_000 });
   expect(await width()).toBe(1600);
@@ -69,7 +69,7 @@ test('maximizing does not strand the simulation editor', async ({ page }) => {
   // Results shares the center pane, so it maximizes too.
   expect((await box(page.locator('main > section').nth(1))).width).toBe(1600);
 
-  // Simulations does NOT: the toggle lives in the center pane's toolbar, which
+  // Simulations does not: the toggle lives in the center pane's toolbar, which
   // is not on that tab, so honoring the flag there would hide the simulation
   // editor with no control left to bring it back.
   await openTab(page, 'Simulations');

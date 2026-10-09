@@ -34,11 +34,11 @@ describe('axialLength', () => {
 
   it('uses length, then a default, for other parts', () => {
     expect(axialLength({ type: 'bodytube', length: 0.1 })).toBeCloseTo(0.1);
-    // A recovery device's PACKED length is what `length` holds - orkImport reads
+    // A recovery device's packed length is what `length` holds - orkImport reads
     // <packedlength> into it. There is no separate `packedLength` key, so a
     // fallback on one would never fire.
     expect(axialLength({ type: 'parachute', length: 0.3 })).toBeCloseTo(0.3);
-    // The fallback is the KERNEL's per-type length, not 0.025 for every type
+    // The fallback is the kernel's per-type length, not 0.025 for every type
     // (that is the parachute / streamer / shock-cord value; a bulkhead flies
     // at 2 mm). Each value is what ComponentFactory reads, pinned by
     // kernelDefaults.kernel.test.ts against the real engine.
@@ -128,8 +128,8 @@ describe('resolveFilePositions', () => {
   it('walks an off-axis assembly with its OWN length and start, not zero and the chain total', () => {
     // A podset hangs beside the airframe: it consumes no chain length, but it
     // has its own 0.2 m body and sits 0.1 m down the stage. Its children must
-    // be resolved against THAT, not against a parent length of 0 (which put a
-    // `middle` child forward of the pod's own nose) and not against the core
+    // be resolved against that, not against a parent length of 0 (which would put
+    // a `middle` child forward of the pod's own nose) and not against the core
     // chain's running total.
     const tree: RocketTree = {
       components: [
@@ -162,16 +162,16 @@ describe('resolveFilePositions', () => {
     const pod = resolveFilePositions(tree).components[0]!.children![2]!;
     const mass = pod.children![1]!;
     // The pod's own start is 0.1 (its position against the stage), so an
-    // absolute station of 0.22 is 0.12 from the pod's fore edge. Under the old
-    // walk pStart was the chain total (0.5 by the time the pod was reached),
-    // which rebased it to -0.28: ahead of the rocket's own nose.
+    // absolute station of 0.22 is 0.12 from the pod's fore edge. Taking pStart as
+    // the chain total (0.5 by the time the pod is reached) would rebase it to
+    // -0.28: ahead of the rocket's own nose.
     expect(mass.position!.method).toBe('top');
     expect(mass.position!.offset).toBeCloseTo(0.12);
   });
 
   it('gives a middle-positioned child inside a pod a station inside the pod', () => {
-    // The symptom that started this: parent length 0 made `middle` resolve to
-    // -childLen/2, so an `after` sibling then chained off a negative station.
+    // With parent length 0, `middle` would resolve to -childLen/2, and an
+    // `after` sibling would then chain off a negative station.
     const tree: RocketTree = {
       components: [
         {
@@ -205,7 +205,7 @@ describe('resolveFilePositions', () => {
 
 describe('freeformRootChord', () => {
   // The kernel's definition: FreeformFinSet.length = last.x - first.x. Computed as
-  // Math.max(...xs) it is the same number ONLY when the aftmost point is also the
+  // Math.max(...xs) it is the same number only when the aftmost point is also the
   // root trailing corner.
   it('is the span between the first and last points, not the aftmost point', () => {
     // A swept fin whose tip trailing corner overhangs the root: root chord
@@ -217,7 +217,7 @@ describe('freeformRootChord', () => {
       [0.06, 0],
     ];
     expect(freeformRootChord(overhanging)).toBeCloseTo(0.06, 9);
-    expect(Math.max(...overhanging.map((p) => p[0]))).toBeCloseTo(0.09, 9); // what the copies returned
+    expect(Math.max(...overhanging.map((p) => p[0]))).toBeCloseTo(0.09, 9); // what Math.max over the x values returns
   });
 
   it('agrees with Math.max for an ordinary fin, which is why this went unnoticed', () => {
@@ -252,15 +252,15 @@ describe('freeformRootChord', () => {
 });
 
 /**
- * The kernel's own invariant. `FreeformFinSet.setPoints()` — the entry point
- * our bridge uses (ComponentFactory.java:211) — does
+ * The kernel's own invariant. `FreeformFinSet.setPoints()`, the entry point
+ * our bridge uses (ComponentFactory.java), does
  *
  *     final CoordinateIF delta = newPoints.get(0).multiply(-1);
  *     if (IGNORE_SMALLER_THAN < delta.length2()) newPoints = translatePoints(newPoints, delta);
  *
- * so the engine always flies an outline whose first point is the origin. The
- * app read the RAW points while placing the through-the-wall tab in
- * root-relative coordinates, and the two agree only when points[0].x === 0.
+ * so the engine always flies an outline whose first point is the origin. Raw
+ * points and a through-the-wall tab placed in root-relative coordinates agree
+ * only when points[0].x === 0.
  */
 describe('normalizeFreeformPoints', () => {
   it('leaves an outline that already starts at the origin untouched', () => {
@@ -326,8 +326,8 @@ describe('normalizeFreeformPoints', () => {
  * coupler seated after an inner tube jumps to the front of the body tube.
  *
  * The kernel's meaning (RocketComponent.setAfter:1459-1491): start at the aft
- * end of the previous sibling, offset forced to 0. NOT the `outerLength +
- * offset` the AxialMethod enum's own getAsPosition suggests — setAfter returns
+ * end of the previous sibling, offset forced to 0. Not the `outerLength +
+ * offset` the AxialMethod enum's own getAsPosition suggests: setAfter returns
  * before that code is reached.
  */
 describe('resolveFilePositions: after', () => {
@@ -357,8 +357,8 @@ describe('resolveFilePositions: after', () => {
 
   it('seats an after-positioned part at the previous sibling’s aft end', () => {
     const out = kids(resolveFilePositions(tree()));
-    // 'a' runs 0.05 → 0.12, so 'b' starts at 0.12 — not at 0, which is where
-    // the dropped position left it.
+    // 'a' runs 0.05 → 0.12, so 'b' starts at 0.12, not at 0, which is where
+    // a dropped position would leave it.
     const p = out[1]!.position as { method: string; offset: number };
     expect(p.method).toBe('top');
     expect(p.offset).toBeCloseTo(0.12, 9);
@@ -382,7 +382,7 @@ describe('resolveFilePositions: after', () => {
       ork?: { method: string; resolved: number };
     };
     expect(p.ork!.method).toBe('after');
-    // Compared with === at export time, so it must be the SAME value.
+    // Compared with === at export time, so it must be the same value.
     expect(p.ork!.resolved).toBe(p.offset);
   });
 

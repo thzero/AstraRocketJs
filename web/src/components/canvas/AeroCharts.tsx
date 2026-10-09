@@ -52,12 +52,12 @@ const chartGeom = (w: number, machMin: number, machMax: number, yMin: number, yM
  * One chart: title row, legend with the hovered readout, the SVG plot with a
  * keyboard-and-pointer crosshair.
  *
- * `hoverM` is state at the PANE level (one crosshair drives all three charts),
+ * `hoverM` is state at the pane level (one crosshair drives all three charts),
  * so every pointer move re-renders every card. The expensive part - the
  * y-domain, the stacked bands and every path string - therefore lives in
  * `ChartBody`, a memoized child whose props do not include the hover, and
  * this card recomputes only the legend readout and the crosshair line on a
- * move. Before the split all of it was rebuilt per pixel of hover.
+ * move.
  */
 export function ChartCard({
   title,
@@ -92,7 +92,7 @@ export function ChartCard({
   useElementResize(hostRef, (r) => setW(Math.max(240, r.width)));
 
   /**
-   * Arrow-key crosshair over the Mach GRID.
+   * Arrow-key crosshair over the Mach grid.
    *
    * Snaps to computed samples rather than interpolating a free position, which
    * is the same rule the Mach slider follows - a reading between samples is not
@@ -154,13 +154,13 @@ export function ChartCard({
         })}
       </div>
       {/*
-        Keyboard crosshair. setHoverM's only caller was onPointerMove on a plain
-        div, so the per-Mach values these curves carry could not be read without
-        a mouse. The arrows walk the Mach grid sample by sample (Shift for ten),
-        Home/End go to the ends, Escape drops the crosshair.
+        Keyboard crosshair, so the per-Mach values these curves carry can be
+        read without a pointer. The arrows walk the Mach grid sample by sample
+        (Shift for ten), Home/End go to the ends, Escape drops the crosshair.
       */}
-      <div
+      <div // eslint-disable-line jsx-a11y-x/no-noninteractive-element-interactions -- a focusable crosshair: the arrows move it, and the group names it without claiming a widget role it does not fit
         ref={hostRef}
+        // eslint-disable-next-line jsx-a11y-x/no-noninteractive-tabindex -- a focusable crosshair: the arrows move it, and the group names it without claiming a widget role it does not fit
         tabIndex={0}
         role="group"
         aria-label={t('aero.crosshairHint')}
@@ -224,8 +224,8 @@ const ChartBody = memo(function ChartBody({
     [series, machs, stacked, X, Y],
   );
   // A sweep that ends at 1 is ticked in fifths, so its labels need a decimal;
-  // whole Mach numbers do not. Rounding 0.2 to "0" was the axis reading
-  // "M 0.1 0 0 1 1 1".
+  // whole Mach numbers do not. With no decimals, 0.2 and 0.4 would both
+  // print as "0".
   const machDecimals = machMax <= 1 ? 1 : 0;
   const xTicks = useMemo(() => machTicks(machs[0] ?? 0.05, machMax), [machs, machMax]);
   return (

@@ -5,15 +5,14 @@ import { DATA_DIR } from '../../testing/dataDir';
 import { FIELDS, type Field } from '../../../src/services/design/componentFields';
 
 /**
- * Every option in a `select` field has to be given a LABEL.
+ * Every option in a `select` field has to be given a label.
  *
  * `DimensionFields` renders an option as `optLabel(o, t)`, else
- * `t(`${optI18n}.${o}`)`, else the raw value — and that last fallback is not a
- * default so much as an oversight with a rendering. The nose cone's Shape
- * dropdown shipped reading `ogive / conical / ellipsoid / power / parabolic /
- * haack`, in lower case, beside fields whose every other label is capitalized
- * and translated; the fin tab's reference did the same with `top / middle /
- * bottom`. Nothing failed, because a raw enum value is a perfectly good string.
+ * `t(`${optI18n}.${o}`)`, else the raw value, and that last fallback is not a
+ * default so much as an oversight with a rendering: a dropdown reading
+ * `ogive / conical / ellipsoid`, in lower case and untranslated, beside fields
+ * whose every other label is capitalized and translated. Nothing else fails,
+ * because a raw enum value is a perfectly good string.
  *
  * So the fallback is fenced off here rather than removed: it stays in the
  * renderer for a field mid-edit, and a field that reaches FIELDS without a

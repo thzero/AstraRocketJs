@@ -5,9 +5,9 @@ import { degToRad, type Quantity, siToUi, uiToSi, type UnitSymbols } from '../..
 /**
  * Flying limits from the NAR / Tripoli safety codes, in SI.
  *
- * These are about the FLIGHT, not the rocket: launch conditions are simulation
+ * These are about the flight, not the rocket: launch conditions are simulation
  * settings, so a `.ork` that carries conditions outside them is not a design to
- * be preserved as authored — it is a run this app will not fly. The import says
+ * be preserved as authored; it is a run this app will not fly. The import says
  * so and the Run button refuses until the conditions are brought inside.
  *
  * Both codes state the numbers in imperial, which is why the metric values here
@@ -18,7 +18,7 @@ import { degToRad, type Quantity, siToUi, uiToSi, type UnitSymbols } from '../..
 export const MAX_ROD_ANGLE_DEG = 20;
 
 /** No launch in winds above 20 mph. Not exported: the cap leaves this file in
- *  SI, because nothing outside it now speaks the codes' own unit. */
+ *  SI, because nothing outside it uses the codes' own unit. */
 const MAX_WIND_SPEED_MPH = 20;
 
 const MPH_TO_MS = uiToSi('windspeed', 'mph', 1);
@@ -28,18 +28,16 @@ export const MAX_WIND_SPEED_MS = MAX_WIND_SPEED_MPH * MPH_TO_MS;
 
 /**
  * Ceiling on turbulence intensity, as the percentage the fields show.
- * Ceiling on turbulence intensity, as the percentage the fields show.
  *
  * `turbulenceLevel`'s top rung is "extreme" at 25%. 100% is a scatter equal to
- * the mean wind - four times past that rung - and is where the percentage field
- * stops, so the two readings of one value cannot be driven apart by typing into
- * the one that had no bound.
+ * the mean wind (four times past that rung) and is where the percentage field
+ * stops, so the percentage and the standard deviation it stands for cannot be
+ * driven apart by typing into an unbounded field.
  *
- * The wind's STANDARD DEVIATION is bounded by `MAX_WIND_SPEED_MS` itself, not by a
- * constant of its own: the average had a cap and the scatter had none anywhere
- * between the box and the solver, and a scatter larger than the largest wind the
- * codes allow is not a wind condition. No code states a figure for it, so
- * inventing a second number would be inventing a limit.
+ * The wind's standard deviation is bounded by `MAX_WIND_SPEED_MS` itself, not by
+ * a constant of its own: a scatter larger than the largest wind the codes allow
+ * is not a wind condition. No code states a figure for it, so a second number
+ * here would be an invented limit.
  */
 export const MAX_TURBULENCE_PERCENT = 100;
 
@@ -52,11 +50,11 @@ export interface LimitViolation {
 }
 
 /**
- * The GROUND layer of a multilevel wind profile, or `undefined` when the
+ * The ground layer of a multilevel wind profile, or `undefined` when the
  * launch has no profile.
  *
  * Levels are not kept sorted (a CSV or a `.ork` can list them top-down), so the
- * surface is the LOWEST altitude, not the first entry. One reader, so the "launch
+ * surface is the lowest altitude, not the first entry. One reader, so the "launch
  * into the wind" heading and the safety code cannot be judged on two different
  * levels of the same profile.
  */
@@ -69,8 +67,8 @@ export function surfaceLevel(launch: LaunchConditions): WindLevel | undefined {
 /**
  * The wind at the pad, in m/s.
  *
- * A multilevel profile REPLACES the single wind at the engine (see
- * `simConditions`), and its GROUND layer is the one the limit is about: the
+ * A multilevel profile replaces the single wind at the engine (see
+ * `simConditions`), and its ground layer is the one the limit is about: the
  * codes are a go/no-go call made from what you can measure at the pad, and
  * nobody is metering the wind at 500 m.
  */
@@ -81,7 +79,7 @@ function surfaceWindMs(launch: LaunchConditions): number {
 /**
  * Every way a set of launch conditions falls outside the codes.
  *
- * Only the wind AT THE PAD is judged (see `surfaceWindMs`) — winds aloft are not
+ * Only the wind at the pad is judged (see `surfaceWindMs`); winds aloft are not
  * something a launch is called on, because they are not something anyone at the
  * field measures. Gust standard deviation is left alone for a related reason:
  * the codes speak about wind speed, and a mean inside the limit with gusts above

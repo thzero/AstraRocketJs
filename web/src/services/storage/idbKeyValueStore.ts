@@ -1,26 +1,27 @@
 // IndexedDB implementation of KeyValueStore.
 //
 // Why not localStorage: it is synchronous (every read and write blocks the main
-// thread) and capped near 5 MB per origin — shared by designs, custom motors and
+// thread) and capped near 5 MB per origin, shared by designs, custom motors and
 // materials, imported templates, and the thrust-curve caches. workspaceStore
-// already has a "browser storage is full" error path, which is that cap showing
-// through. IndexedDB is async and effectively uncapped, and KeyValueStore was
-// declared async from the start so this could drop in.
+// has a "browser storage is full" error path, which is that cap showing
+// through. IndexedDB is async and effectively uncapped, and KeyValueStore is
+// declared async so this drops in.
 //
-// Existing users' data is migrated LAZILY, per key, on first read: a key absent
+// Existing data is migrated lazily, per key, on first read: a key absent
 // from IndexedDB but present in localStorage is copied across and then dropped
-// from localStorage (which is the point — it frees that 5 MB budget). The copy
+// from localStorage (which is the point: it frees that 5 MB budget). The copy
 // is only deleted after the IndexedDB write is confirmed, so an interrupted
 // migration leaves the original where it was and simply retries next time.
 //
-// If IndexedDB is unavailable at all — disabled by policy, or some private
-// browsing modes — every operation falls back to localStorage so the app still
-// works, but that is NOT good enough to leave unsaid: the 5 MB cap it just
+// If IndexedDB is unavailable at all (disabled by policy, or some private
+// browsing modes), every operation falls back to localStorage so the app still
+// works, but that is not good enough to leave unsaid: the 5 MB cap it just
 // escaped will be hit again, and the user would meet it later as an unexplained
 // "storage is full" mid-edit. The first fallback flips a one-way flag and
 // notifies listeners so the UI can warn up front (see onStorageDegraded).
 import { type KeyValueStore, LocalStorageKeyValueStore } from './keyValueStore';
 import { STORAGE_PREFIX } from './storageKeys';
+import { errorMessage } from '../app/errorMessage';
 
 const DB_NAME = STORAGE_PREFIX;
 const DB_VERSION = 1;
@@ -44,9 +45,9 @@ function openDb(): Promise<IDBDatabase> {
       // A newer build in another tab is asking to upgrade the schema. Yield:
       // close this connection and forget the cached promise, so this tab
       // reconnects (at the new version) on its next operation. Without this an
-      // older tab held its connection open forever, the upgrading tab hit
-      // `onblocked` below, and THAT tab was pinned to the localStorage fallback
-      // for its whole session; the `onblocked` handler only covers the
+      // older tab would hold its connection open forever, the upgrading tab would
+      // hit `onblocked` below, and that tab would be pinned to the localStorage
+      // fallback for its whole session; the `onblocked` handler only covers the
       // upgrading side of the same handshake.
       db.onversionchange = () => {
         try {
@@ -61,10 +62,10 @@ function openDb(): Promise<IDBDatabase> {
     req.onerror = () => reject(req.error ?? new Error('indexedDB.open failed'));
     // Another tab holds an older version open; don't hang waiting for it.
     //
-    // Rejecting alone left the `open` request PENDING: when the blocking tab
-    // finally closed, `onsuccess` fired on an already-settled promise and the
-    // resulting connection was leaked with nobody holding it to `close()` -
-    // which then blocks the NEXT version upgrade in turn. Close it late, and
+    // Rejecting alone leaves the `open` request pending: when the blocking tab
+    // finally closes, `onsuccess` fires on an already-settled promise and the
+    // resulting connection leaks with nobody holding it to `close()`, which
+    // then blocks the next version upgrade in turn. Close it late, and
     // drop the cached promise so a retry can succeed rather than leaving the
     // session latched to the localStorage fallback (the "never memoize a
     // failure" intent just below).
@@ -110,7 +111,7 @@ function markDegraded(): void {
 }
 
 /**
- * Whether a failed write hit the storage QUOTA rather than IndexedDB itself
+ * Whether a failed write hit the storage quota rather than IndexedDB itself
  * being unusable.
  *
  * The two are not alike, so they are not reported alike: a full disk is a
@@ -126,12 +127,12 @@ function isQuotaError(e: unknown): boolean {
 /**
  * Run one transaction against the kv store, resolving with the request result.
  *
- * A WRITE resolves on the transaction's `complete` event, NOT on the request's
+ * A write resolves on the transaction's `complete` event, not on the request's
  * `success`. Those are different moments: `success` fires once the request has
  * been carried out inside the transaction, but the transaction can still abort
  * before it commits (a commit-time I/O error, the quota being hit, the tab
- * closing). Resolving on `success` therefore reported writes that never landed
- * — and `set()`'s boolean is what `workspaceStore.save()` keys its
+ * closing). Resolving on `success` would report writes that never landed,
+ * and `set()`'s boolean is what `workspaceStore.save()` keys its
  * "storage is full" warning off, and what `migrate()` takes as permission to
  * delete the user's only other copy from localStorage.
  *
@@ -157,14 +158,6 @@ async function tx<T>(mode: IDBTransactionMode, run: (store: IDBObjectStore) => I
 }
 
 /**
- * Read, transform and write one key inside a SINGLE readwrite transaction.
- *
- * IndexedDB transactions are atomic across connections, so this is what makes
- * a cross-tab read-modify-write safe. The get and the put are issued on the
- * same transaction with no `await` between them: awaiting anything that is not
- * an IndexedDB request lets the transaction auto-commit first.
- */
-/**
  * The caller's reducer threw inside the transaction. That is the caller's
  * bug, not a storage failure: `update()` must rethrow it as-is rather than
  * flip the storage-degraded flag and retry the same reducer on localStorage.
@@ -175,6 +168,14 @@ class ReducerError extends Error {
   }
 }
 
+/**
+ * Read, transform and write one key inside a single readwrite transaction.
+ *
+ * IndexedDB transactions are atomic across connections, so this is what makes
+ * a cross-tab read-modify-write safe. The get and the put are issued on the
+ * same transaction with no `await` between them: awaiting anything that is not
+ * an IndexedDB request lets the transaction auto-commit first.
+ */
 async function txUpdate(key: string, fn: (raw: string | null) => string | null): Promise<void> {
   const db = await openDb();
   return await new Promise<void>((resolve, reject) => {
@@ -186,21 +187,21 @@ async function txUpdate(key: string, fn: (raw: string | null) => string | null):
       try {
         next = fn((read.result as string | undefined) ?? null);
       } catch (e) {
-        // Settled BEFORE the abort event fires, so the storage-flavored
+        // Settled before the abort event fires, so the storage-flavored
         // `onabort` rejection below cannot win the race.
         reject(new ReducerError(e));
         t.abort();
         return;
       }
       // A write that throws synchronously (a DataCloneError, or a quota
-      // refusal raised at the call) keeps ITS error: settled before the abort
+      // refusal raised at the call) keeps its error: settled before the abort
       // event, so the generic "transaction aborted" below cannot replace it
       // and the caller can still tell a quota hit from a broken database.
       try {
         if (next === null) store.delete(key);
         else store.put(next, key);
       } catch (e) {
-        reject(e);
+        reject(e instanceof Error ? e : new Error(errorMessage(e)));
         t.abort();
       }
     };
@@ -211,7 +212,7 @@ async function txUpdate(key: string, fn: (raw: string | null) => string | null):
   });
 }
 
-/** Close and forget the cached connection — tests only. An open connection
+/** Close and forget the cached connection; tests only. An open connection
  *  blocks deleteDatabase(), so this must be awaited before wiping between tests. */
 export async function __resetIdbForTests(): Promise<void> {
   const pending = dbPromise;
@@ -231,17 +232,17 @@ export class IndexedDbKeyValueStore implements KeyValueStore {
    * Keys whose newest value had to go to the fallback because IndexedDB
    * refused the write.
    *
-   * Without this the two tiers silently disagreed. A QuotaExceededError aborts
-   * a write transaction but leaves READS working, so `set` fell back to
-   * localStorage and returned true, every layer above reported success, and
-   * the next `get` read IndexedDB first and served the STALE copy. The user's
-   * save was lost with no "storage full" signal anywhere — which is the exact
+   * Without this the two tiers would silently disagree. A QuotaExceededError
+   * aborts a write transaction but leaves reads working, so `set` falls back to
+   * localStorage and returns true, every layer above reports success, and the
+   * next `get` would read IndexedDB first and serve the stale copy: the user's
+   * save lost with no "storage full" signal anywhere, which is the exact
    * signal `set`'s boolean exists to carry.
    */
   private readonly fellBack = new Set<string>();
 
   async get(key: string): Promise<string | null> {
-    // A key we had to write to the fallback is NEWER there; the IndexedDB
+    // A key we had to write to the fallback is newer there; the IndexedDB
     // entry, if any, is the stale one.
     if (this.fellBack.has(key)) {
       const v = await this.fallback.get(key);
@@ -264,7 +265,7 @@ export class IndexedDbKeyValueStore implements KeyValueStore {
       this.fellBack.delete(key);
       return true;
     } catch (e) {
-      // Only an UNUSABLE IndexedDB degrades the session; a full one reports
+      // Only an unusable IndexedDB degrades the session; a full one reports
       // through the boolean below.
       if (!isQuotaError(e)) markDegraded();
       const ok = await this.fallback.set(key, value); // quota, or IndexedDB unavailable
@@ -285,7 +286,7 @@ export class IndexedDbKeyValueStore implements KeyValueStore {
       // only throw again, after warning the user about the wrong thing).
       if (e instanceof ReducerError) throw e.inner;
       if (!isQuotaError(e)) markDegraded();
-      // The fallback usually does NOT hold this key: once migrated, the value
+      // The fallback usually does not hold this key: once migrated, the value
       // lives only in IndexedDB, and a quota failure leaves reads working. A
       // reducer handed `null` would rebuild the design-library index from
       // nothing and drop every other entry, so seed it with the IndexedDB copy
@@ -302,7 +303,7 @@ export class IndexedDbKeyValueStore implements KeyValueStore {
 
   /**
    * `key` now lives in the fallback. Mark it so for this session, and drop the
-   * stale IndexedDB entry so it cannot shadow the fallback in a LATER session,
+   * stale IndexedDB entry so it cannot shadow the fallback in a later session,
    * where `fellBack` no longer exists. A delete frees space, so it can succeed
    * where the write that just failed did not; if it also fails, `fellBack`
    * still covers this session.

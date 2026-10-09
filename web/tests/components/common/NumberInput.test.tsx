@@ -8,13 +8,13 @@ import { renderWithProviders } from '../../testing/renderWithProviders';
  * Every numeric field in the app funnels through here, so this is the one
  * place worth holding to "nothing that is not a real number gets out".
  *
- * It rejected NaN and clamped to the declared bounds, but `Infinity` slipped
- * through both: `<input type="number">` accepts "1e999" as a valid
- * floating-point string, `parseFloat` returns `Infinity`, `Number.isNaN` says
- * no, and the clamp cannot help because `Infinity < min` is false and most
- * callers pass no `max` at all. It reached the node, was persisted, exported
- * to `.ork`, and read back as `0` by `num()` - so the field showed Infinity
- * while the geometry behaved as if the dimension were simply absent.
+ * A NaN check and a clamp are not enough on their own: `<input type="number">`
+ * accepts "1e999" as a valid floating-point string, `parseFloat` returns
+ * `Infinity`, `Number.isNaN` says no, and the clamp cannot help because
+ * `Infinity < min` is false and most callers pass no `max` at all. An Infinity
+ * that gets out reaches the node, is persisted, exported to `.ork`, and read back
+ * as `0` by `num()`, so the field shows Infinity while the geometry behaves as if
+ * the dimension were absent.
  */
 describe('NumberInput', () => {
   const type = (value: string, props: { min?: number; max?: number } = {}) => {
@@ -36,7 +36,7 @@ describe('NumberInput', () => {
   // The overflow cases are asserted against parseFieldValue rather than the
   // rendered input: jsdom refuses to deliver "1e999" to a type="number" field
   // at all, so a DOM test of it passes for the wrong reason. A real browser
-  // does deliver it, which is how Infinity reached the geometry.
+  // does deliver it.
   it('reports null for Infinity rather than letting it reach the geometry', () => {
     expect(parseFieldValue('1e999')).toBeNull();
     expect(parseFieldValue('-1e999')).toBeNull();
@@ -57,9 +57,9 @@ describe('NumberInput', () => {
   });
 
   /**
-   * The blurred box shows the noise-trimmed value, but focusing it seeded the
-   * draft with `String(value)`, so a unit-converted 0.1 + 0.2 turned into
-   * "0.30000000000000004" the moment the user clicked in to edit it.
+   * The blurred box shows the noise-trimmed value, and focusing it must seed the
+   * draft with that same text. Seeded with `String(value)`, a unit-converted
+   * 0.1 + 0.2 turns into "0.30000000000000004" the moment the user clicks in.
    */
   it('seeds the editing draft with the same trimmed text the box showed', () => {
     cleanup();

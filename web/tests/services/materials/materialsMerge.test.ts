@@ -11,9 +11,9 @@ import { serveData } from '../../testing/serveData';
 /**
  * How a custom material joins the list.
  *
- * NOT `[...custom, ...builtins]` with every custom material filed under a `Custom`
+ * Not `[...custom, ...builtins]` with every custom material filed under a `Custom`
  * group of its own, which has two problems. A custom material named after a built-in
- * appears TWICE, in two different groups, and which one a design picks up depends on
+ * appears twice, in two different groups, and which one a design picks up depends on
  * which the lookup finds first. And a material that is a variant of Plywood is
  * listed at the top of the picker rather than beside the plywood, because the group
  * says where it came from instead of what it is.
@@ -71,8 +71,8 @@ describe('mergeCustom', () => {
   });
 
   it('re-homes a material saved under the old Custom group', () => {
-    // Anything already in a browser from before this change. It must not be
-    // stranded in a group nothing else is in.
+    // A material stored under the `Custom` group must not be stranded in a
+    // group nothing else is in.
     const merged = mergeCustom(BUILTINS, [m('Old one', 'Custom', 800, true)]);
     expect(merged.find((x) => x.name === 'Old one')!.group).toBe(DEFAULT_CUSTOM_GROUP);
     expect(merged.some((x) => x.group === 'Custom')).toBe(false);

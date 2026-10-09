@@ -13,8 +13,8 @@ import { renderWithProviders } from '../../testing/renderWithProviders';
  * configured data host that answers with something that is not a catalog.
  *
  * An empty list is not an acceptable way to say so. It looks exactly like "this
- * app has no materials", and on a part that HAS a material the select would
- * fall back to its "not specified" option — the panel describing a design
+ * app has no materials", and on a part that has a material the select would
+ * fall back to its "not specified" option: the panel describing a design
  * wrongly, in the one control meant to describe it.
  */
 const stubFetch = (impl: () => Promise<unknown>) => vi.stubGlobal('fetch', impl);

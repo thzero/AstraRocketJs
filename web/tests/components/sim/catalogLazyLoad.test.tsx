@@ -3,22 +3,18 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderWithProviders } from '../../testing/renderWithProviders';
 
 /**
- * The motor catalog is a ~1.6 MB runtime download, and both dialogs that need
- * it say in their own comments that it is fetched lazily: "fetched only when
- * something first needs it", "the first open pays a fetch".
+ * The motor catalog is a ~1.6 MB runtime download, fetched only when a dialog
+ * that needs it opens.
  *
- * Neither was. Both components were mounted unconditionally (`AppHeader`
- * mounted MotorDashboard, every `MotorRow` mounted a MotorDialog) and only
- * `return null` when closed, which does not stop an effect from running, so
- * the catalog was fetched on app start. `fetchCatalog` memoizes, so it was one
- * download rather than many, but it was an unconditional 1.6 MB on first
- * paint - on a phone at a launch site, exactly what the deferral exists to
- * avoid.
+ * A component that is always mounted and returns `null` when closed still runs
+ * its effects, so it would fetch the catalog on app start: one download, since
+ * `fetchCatalog` memoizes, but an unconditional 1.6 MB on first paint, on a
+ * phone at a launch site, which is what the deferral exists to avoid.
  *
- * The deferral is now the mounting convention itself: a dialog is mounted
- * only while open (`{open && <Dialog />}`) and loads on mount. These tests
- * pin both halves: nothing is fetched while a dialog is closed, and one
- * opening pays exactly one fetch.
+ * The deferral is the mounting convention itself: a dialog is mounted only
+ * while open (`{open && <Dialog />}`) and loads on mount. These tests pin both
+ * halves: nothing is fetched while a dialog is closed, and one opening pays
+ * exactly one fetch.
  */
 
 const loadCatalog = vi.fn(() => Promise.resolve([]));

@@ -3,7 +3,7 @@ import { lerpAt } from './interpolate';
 import { flightBranches } from './flightColumns';
 
 /**
- * The flight as a TIMELINE: one row per event, each carrying the state of the
+ * The flight as a timeline: one row per event, each carrying the state of the
  * rocket at that instant.
  *
  * The charts mark events as a label strip (FlightChartEvents), which answers
@@ -11,7 +11,7 @@ import { flightBranches } from './flightColumns';
  * exit, rail margin, deploy speed). Neither is a list you can read down. Nothing
  * here is computed twice: `FlightResult.events` carries the kernel's full event
  * list, not just the five the chart labels, and every series needed to sample at
- * an event time is on the same branch, so this file is a JOIN, not physics.
+ * an event time is on the same branch, so this file is a join, not physics.
  *
  * The one exception is {@link maxQ}, which the kernel does not record.
  *
@@ -22,9 +22,9 @@ import { flightBranches } from './flightColumns';
 /**
  * Synthetic event type for the dynamic-pressure peak.
  *
- * Not a kernel `FlightEvent.Type` — the kernel has no such event — so it is
- * spelled in the same SCREAMING_CASE as the real ones and named the same way
- * only so the table treats one row like any other.
+ * Not a kernel `FlightEvent.Type` (the kernel has no such event). It is
+ * spelled in the same SCREAMING_CASE as the real ones only so the table treats
+ * this row like any other.
  */
 export const MAX_Q = 'MAX_Q';
 
@@ -32,13 +32,13 @@ export const MAX_Q = 'MAX_Q';
  * Event types the timeline names, to their i18n keys.
  *
  * This is deliberately wider than `EVENT_LABEL` in simReport.ts, which is the
- * set worth DRAWING on a chart: five marks on a plot is a readable plot, and
+ * set worth drawing on a chart: five marks on a plot is a readable plot, and
  * fifteen is a smear. A table has rows and no such limit, so the events a chart
  * cannot carry (rail departure, ignition, separation, tumble) are named here.
  *
  * A type absent from this map is dropped rather than shown under its raw
- * kernel name. That is on purpose for the three diagnostics — SIM_WARN,
- * SIM_ABORT and EXCEPTION — which are not moments in the flight and already
+ * kernel name. That is on purpose for the three diagnostics (SIM_WARN,
+ * SIM_ABORT and EXCEPTION), which are not moments in the flight and already
  * reach the user through FlightWarnings; and for ALTITUDE, which is an
  * internal trigger the kernel raises for altitude-fired deployment rather than
  * something that happened to the rocket.
@@ -63,7 +63,7 @@ export const EVENT_NAME: Record<string, string> = {
 export type ExtraKey = 'stability' | 'twr' | 'aoa' | 'mach' | 'q';
 
 /**
- * What each event is actually READ FOR, beyond when it happened and how high
+ * What each event is actually read for, beyond when it happened and how high
  * and fast the rocket was.
  *
  * Per type rather than as columns of one wide table: rail departure is the
@@ -73,7 +73,7 @@ export type ExtraKey = 'stability' | 'twr' | 'aoa' | 'mach' | 'q';
  * absent here simply has no extras.
  */
 export const EVENT_EXTRAS: Record<string, readonly ExtraKey[]> = {
-  // The four numbers that say whether it left the rail flying rather than
+  // The three numbers that say whether it left the rail flying rather than
   // merely leaving it: how stable, how hard it was still pushing, and how far
   // off the wind had already pitched it.
   LAUNCHROD: ['stability', 'twr', 'aoa'],
@@ -86,7 +86,7 @@ export interface EventRow {
   /**
    * Stable React key.
    *
-   * It carries the row's POSITION as well as its branch, type and time,
+   * It carries the row's position as well as its branch, type and time,
    * because those three do not identify a row: a clustered stage built from
    * separate mounts burns out once per motor, and the kernel queues each of
    * those at the same instant (BasicEventSimulationEngine:510), so two rows of
@@ -99,8 +99,8 @@ export interface EventRow {
   /** Index into the result's branches; 0 is the sustainer stack. */
   branch: number;
   /**
-   * The branch's name from the design ("Booster"). EMPTY when the engine did
-   * not name it, or when the flight never separated — the caller supplies the
+   * The branch's name from the design ("Booster"). Empty when the engine did
+   * not name it, or when the flight never separated; the caller supplies the
    * "Stage N" fallback, so this file needs no translator (the same split
    * `buildTraces` makes with its `stageLabel`).
    */
@@ -127,7 +127,7 @@ export interface MaxQPoint {
   q: number;
   altitude: number | null;
   mach: number | null;
-  /** True AIRSPEED at the peak (m/s) — see {@link dynamicPressure}. */
+  /** True airspeed at the peak (m/s); see {@link dynamicPressure}. */
   velocity: number;
 }
 
@@ -146,14 +146,14 @@ export function seriesAt(series: FlightSeries, key: string, t: number): number |
  * record what it needs.
  *
  * q is what decides whether an airframe holds together, and the kernel does not
- * record it — but it records both halves. `ρ` and `Vs` (air density and the
+ * record it, but it records both halves. `ρ` and `Vs` (air density and the
  * speed of sound) arrive with every run the app makes, because simulations.ts
- * asks for the `full` series set; a result saved back when `summary` was the
- * default has neither, which is the null case.
+ * asks for the `full` series set; a stored result recorded with the `summary`
+ * set has neither, which is the null case.
  *
- * v is `mach * Vs`, NOT the `velocity` series. `velocity` is the kernel's
+ * v is `mach * Vs`, not the `velocity` series. `velocity` is the kernel's
  * TYPE_VELOCITY_TOTAL, the rocket's speed over the ground, while Mach comes
- * from the flight conditions (AbstractSimulationStepper:457) and so is measured
+ * from the flight conditions (AbstractSimulationStepper:460) and so is measured
  * against the air the rocket is actually flying through. On a windy launch the
  * two differ, and dynamic pressure is a property of the airflow.
  */
@@ -244,7 +244,7 @@ export function maxRollRate(series: FlightSeries | undefined): number | null {
  * Max-Q: the largest sample of {@link dynamicPressure}, and where it happened.
  *
  * The sample rather than a fitted peak, because the flight is only ever known
- * at its own time steps — the same thing every other "max" in the summary is.
+ * at its own time steps, the same as every other "max" in the summary is.
  */
 export function maxQ(series: FlightSeries | undefined): MaxQPoint | null {
   const qs = dynamicPressure(series);
@@ -273,11 +273,11 @@ export function maxQ(series: FlightSeries | undefined): MaxQPoint | null {
 /**
  * The whole flight as rows, earliest first.
  *
- * EVERY branch, interleaved on the one launch clock rather than grouped per
+ * Every branch, interleaved on the one launch clock rather than grouped per
  * stage, because that is the order the flight happened in: a booster's descent
  * and landing run alongside the sustainer's coast, and reading them apart hides
- * that they overlap. The charts beside this table already draw every branch
- * (FlightChart's stage toggle), so a sustainer-only table would read as a bug.
+ * that they overlap. The charts beside this table draw every branch too
+ * (FlightChart's stage toggle), so the two agree.
  * The stage each row belongs to travels with it.
  *
  * Max-Q is inserted on branch 0 only. It is a property of the stack under

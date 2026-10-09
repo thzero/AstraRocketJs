@@ -11,14 +11,14 @@ const sims = [flown('a', 'C6', 100), flown('b', 'D12', 200), neverRun('c', 'Neve
 /**
  * Which flight the Results tab draws.
  *
- * Deliberately NOT the Simulations table's tick boxes: those answer "which rows
- * should Run fly", and sharing one control meant reading a result silently
- * re-armed the Run button, or ticking rows to fly them yanked the charts around.
+ * Deliberately not the Simulations table's tick boxes: those answer "which rows
+ * should Run fly", and with one shared control, reading a result would silently
+ * re-arm the Run button, or ticking rows to fly them would yank the charts around.
  */
 describe('resultFlight', () => {
   it('follows the active simulation when nothing has been picked', () => {
-    // The tab's behavior before the picker existed, and the right default: open
-    // Results and you are reading the row you were just working on.
+    // The right default: open Results and you are reading the row you were just
+    // working on.
     expect(resultFlight(sims, null, 'b')?.name).toBe('D12');
   });
 

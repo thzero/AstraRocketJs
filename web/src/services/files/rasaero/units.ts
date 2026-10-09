@@ -1,7 +1,7 @@
 import { plainDecimal } from '../numberText';
 
 /**
- * RASAero's units and number formatting. Geometry in INCHES (× 39.37 from
+ * RASAero's units and number formatting. Geometry in inches (× 39.37 from
  * meters), diameters not radii; angles degrees; altitudes feet; weights
  * pounds; speeds mph; pressure in-Hg.
  */

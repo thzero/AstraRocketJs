@@ -10,7 +10,7 @@ import { MIN_EXTENT_M } from '../../../src/services/flight/groundTrack';
  * cannot check: a map laid down mirrored, or rotated a quarter turn, is still a
  * convincing photograph of a field. The arc is drawn with +x east and +z north
  * (flightScene.ts), so the ground under it has to agree, and tile rows count
- * SOUTHWARD while the scene counts north.
+ * southward while the scene counts north.
  */
 
 const HOME = { lat: 39.05, lon: -104.8 };
@@ -49,7 +49,7 @@ describe('groundMapLayout', () => {
 
   /**
    * The flip that would be invisible. Tile row numbers grow southward, so the
-   * NORTHERNMOST tiles are the ones with the smallest `y` - and they have to
+   * northernmost tiles are the ones with the smallest `y`, and they have to
    * end up at the greatest +z.
    */
   it('puts northern tiles north, not south', () => {
@@ -101,7 +101,7 @@ describe('groundMapLayout', () => {
   });
 
   /**
-   * A bigger flight covers more ground at a COARSER zoom rather than fetching
+   * A bigger flight covers more ground at a coarser zoom rather than fetching
    * more tiles: the ground is covered in about the same number of texture
    * pixels however many meters wide it is.
    */

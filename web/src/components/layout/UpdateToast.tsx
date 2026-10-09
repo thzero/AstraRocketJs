@@ -13,29 +13,27 @@ import { useWorkspaceStore } from '../../state/store';
 import { useUpdateStore } from '../../state/updateStore';
 
 /**
- * "A new version is available — reload?" for the service worker.
+ * "A new version is available, reload?" for the service worker.
  *
  * The SW is registered with `registerType: 'prompt'` precisely so a deploy cannot
  * reload the page under someone mid-design. Applying the update calls
  * skipWaiting and reloads, so it has to be the user's choice.
  *
- * It also has to ASK, though, and for a long time it effectively did not. Two
- * things were missing:
+ * It also has to ask, which takes two things:
  *
- *   - Nothing ever checked. `useRegisterSW` was called with no `onRegisteredSW`,
- *     so the only time the browser looked for a new worker was on a navigation.
- *     A tab left open across a deploy - the normal way this app is used - never
- *     found out. It now polls (see UPDATE_POLL_MS), and again whenever the tab
- *     is brought back to the front or the network returns, both rate-limited.
- *   - Dismissing was permanent. `setNeedRefresh(false)` for the rest of the
- *     session, so one click and it never mentioned the update again. "Later" now
- *     snoozes, and the prompt comes back.
+ *   - Checking. Without `onRegisteredSW` the browser looks for a new worker
+ *     only on a navigation, so a tab left open across a deploy (the normal way
+ *     this app is used) never finds out. It polls (see UPDATE_POLL_MS), and
+ *     again whenever the tab is brought back to the front or the network
+ *     returns, both rate-limited.
+ *   - Coming back. `setNeedRefresh(false)` would hide the offer for the rest of
+ *     the session, so "Later" snoozes instead, and the prompt comes back.
  *
- * Deliberately NOT a modal. A modal on a deploy would interrupt an edit in
+ * Deliberately not a modal. A modal on a deploy would interrupt an edit in
  * progress, which is the exact thing `registerType: 'prompt'` exists to prevent.
  * It is a banner across the top instead, under the header with the app's other
  * banners: hard to miss, and it still lets you finish the sentence you were
- * typing. A card in a bottom corner was easy to take for part of the page.
+ * typing. A card in a bottom corner is easy to take for part of the page.
  *
  * And it finishes the job whether or not it is answered. Under `prompt` the new
  * worker activates only when the page posts SKIP_WAITING, and `clientsClaim` is
@@ -50,13 +48,13 @@ export function UpdateToast() {
   const [snoozed, setSnoozed] = useState<number | null>(null);
 
   // The registration arrives from a library callback, so it is held in state to
-  // hand it to an effect - which is what gets a cleanup. Wiring the timer and
-  // the listeners inside the callback leaked both: it has no unmount hook, and
-  // under StrictMode the whole thing runs twice in development.
+  // hand it to an effect, which is what gets a cleanup. Wiring the timer and
+  // the listeners inside the callback would leak both: it has no unmount hook,
+  // and under StrictMode the whole thing runs twice in development.
   const [swReg, setSwReg] = useState<ServiceWorkerRegistration | null>(null);
 
   /*
-   * A waiting worker, remembered independently of whether the PROMPT is still
+   * A waiting worker, remembered independently of whether the prompt is still
    * showing.
    *
    * Dismissing the toast hides the offer; it does not make the new build go
@@ -91,11 +89,11 @@ export function UpdateToast() {
    * Take the waiting worker up, then land on it.
    *
    * `updateServiceWorker(true)` posts SKIP_WAITING, and the library reloads
-   * when the new worker takes control. A tab opened on its FIRST visit has no
+   * when the new worker takes control. A tab opened on its first visit has no
    * controller (`clientsClaim` is off), so the new worker activates without
-   * ever taking control of it and nothing reloads: Reload did nothing at all.
-   * Waiting for the worker to reach `activated` covers that tab, and a worker
-   * already gone from `waiting` (another tab took it up) needs only a reload.
+   * ever taking control of it and nothing reloads. Waiting for the worker to
+   * reach `activated` covers that tab, and a worker already gone from
+   * `waiting` (another tab took it up) needs only a reload.
    */
   const apply = useCallback(() => {
     const next = swReg?.waiting;
@@ -217,13 +215,12 @@ export function UpdateToast() {
   // moment it expires, so "not snoozed" is the whole condition.
   const show = needRefresh && snoozed === null;
 
-  // The live region is ALWAYS mounted; only its contents come and go.
+  // The live region is always mounted; only its contents come and go.
   //
   // A `role="status"` created at the same moment as its text is not announced
-  // by most screen readers - the region has to exist in the DOM before
-  // content is inserted into it. Rendering `null` until there was something
-  // to say meant the toast announced nothing, which is the entire purpose of
-  // the toast.
+  // by most screen readers: the region has to exist in the DOM before
+  // content is inserted into it. Rendering `null` until there is something
+  // to say would leave the toast announcing nothing.
   return (
     <div role="status" aria-live="polite">
       {show && <UpdateToastBody onRefresh={apply} onLater={later} onDismiss={() => setNeedRefresh(false)} />}
@@ -255,13 +252,13 @@ function UpdateToastBody({
   const { t } = useTranslation();
   // Set on the click and never cleared: the page reloads out from under it.
   // Until then the new worker is activating, which takes a moment, and a
-  // button that looked untouched in that moment read as one that did nothing.
+  // button that looks untouched in that moment reads as one that did nothing.
   const [applying, setApplying] = useState(false);
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-accent-500/40 bg-accent-900/60 px-4 py-2 text-sm text-accent-50">
       <div className="min-w-0 flex-1">
         <p className="font-semibold">{t('update.available')}</p>
-        {/* Which build you are ON. The waiting worker does not tell us its own
+        {/* Which build you are on. The waiting worker does not tell us its own
             version, so this names the one being replaced rather than inventing
             the one replacing it. */}
         <p className="text-xs text-accent-200/80">{t('update.running', { version: APP_VERSION })}</p>

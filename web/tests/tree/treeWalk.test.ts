@@ -107,7 +107,7 @@ describe('mapTreePreserving', () => {
     const out = mapTreePreserving(
       sample(),
       (n, { parent }) => {
-        seen.push(`${n.id}<${parent?.id ?? '-'}:${String(parent?.['mark'] ?? '')}`);
+        seen.push(`${n.id}<${parent?.id ?? '-'}:${typeof parent?.['mark'] === 'string' ? parent['mark'] : ''}`);
         return { ...n, mark: 'm' };
       },
       'pre',

@@ -3,11 +3,11 @@ import type { Units } from '../../prefs/useUnits';
 import type { Quantity } from '../../prefs/units';
 
 /**
- * The two readout formatters the motor panels share. They were re-declared
- * as local `g` / `q` arrows in MotorDetail, MotorSpecDialog and MotorDashboard.
+ * The two readout formatters the motor panels share (MotorDetail,
+ * MotorSpecDialog and MotorCombinePane), so they format readouts the same way.
  */
 
-/** A number with a FIXED unit (seconds, a percent): "1.20 s", or a dash when absent. */
+/** A number with a fixed unit (seconds, a percent): "1.20 s", or a dash when absent. */
 export const withFixedUnit = (v: number | null | undefined, unit: string, digits = 1): string =>
   v == null || !Number.isFinite(v) ? '—' : withUnit(fmtNum(v, digits), unit);
 

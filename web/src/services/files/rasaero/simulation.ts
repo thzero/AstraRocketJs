@@ -2,7 +2,7 @@ import type { ComponentNode } from '../../../engine/openRocketEngine';
 import { escapeXml as esc } from '../xmlUtil';
 import { FT, IN, LB, fmt, type Cdx1Writer } from './units';
 import type { StageEngineSlot } from './engines';
-import { num } from '../../../tree/nodeProps';
+import { num, str } from '../../../tree/nodeProps';
 
 /** Design-level `[mach, altitude m]` conditions table (RASAero's Mach-Alt table). */
 export type MachAltTable = [number, number][];
@@ -20,11 +20,11 @@ export function writeMachAlt(w: Cdx1Writer, machAlt: MachAltTable | undefined): 
 }
 
 /**
- * Simulation block: RASAero's loader dereferences EVERY child without null
+ * Simulation block: RASAero's loader dereferences every child without null
  * checks, so its own files always carry all of these. The *Engine elements are
- * the only optional ones and must be OMITTED (not written empty) when there is
- * no motor. The per-stage weight/CG cells are CUMULATIVE — we know only the
- * whole rocket's loaded mass/CG, so only the LAST stage's cell can be filled.
+ * the only optional ones and must be omitted (not written empty) when there is
+ * no motor. The per-stage weight/CG cells are cumulative; we know only the
+ * whole rocket's loaded mass/CG, so only the last stage's cell can be filled.
  */
 export function writeSimulationList(
   w: Cdx1Writer,
@@ -41,7 +41,7 @@ export function writeSimulationList(
   const stackCg = (i: number): string => fmt((i === lastStage ? (launchCgM ?? 0) : 0) * IN);
   const stageSeparationDelay = (i: number): string => {
     const st = stagesIn[i];
-    return fmt(st && String(st['separationEvent'] ?? 'ejection') === 'burnout' ? num(st, 'separationDelay', 0) : 0);
+    return fmt(st && str(st, 'separationEvent', 'ejection') === 'burnout' ? num(st, 'separationDelay', 0) : 0);
   };
   emit('<SimulationList>');
   emit('<Simulation>');
@@ -59,6 +59,9 @@ export function writeSimulationList(
   emit(`<IncludeBooster1>${stageEngines[1] ? 'True' : 'False'}</IncludeBooster1>`);
   if (stageEngines[2]) emit(`<Booster2Engine>${esc(stageEngines[2])}</Booster2Engine>`);
   emit(`<Booster2LaunchWt>${stackWt(2)}</Booster2LaunchWt>`);
+  // `Booster2Delay`, not `Booster2SeparationDelay`: RASAero names the two
+  // boosters' separation delays differently, and desktop's
+  // RASAeroCommonConstants.BOOSTER2_SEPARATION_DELAY is this same tag.
   emit(`<Booster2Delay>${stageSeparationDelay(2)}</Booster2Delay>`);
   emit(`<Booster2CG>${stackCg(2)}</Booster2CG>`);
   emit('<Booster2NozzleDiameter>0</Booster2NozzleDiameter>');

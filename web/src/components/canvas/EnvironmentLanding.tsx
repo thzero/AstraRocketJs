@@ -72,7 +72,7 @@ export function EnvironmentLanding({ flight }: { flight: ResultFlight }) {
   const fmtM = (m: number) => fmtGroundDistance(dist, m);
   const bearing = (p: GroundPoint) => `${Math.round(bearingFromPad(p))}°`;
   // The kernel's own landing coordinate when the result carries it; a result
-  // saved before it was kept falls back to projecting the offset.
+  // without one (an older saved result) falls back to projecting the offset.
   const where = (series: FlightSeries | undefined, p: GroundPoint) => {
     const ll = landingLatLon(series) ?? offsetToLatLon(lat, lon, p);
     return formatCoord(ll.lat, ll.lon, 5);

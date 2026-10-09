@@ -8,7 +8,7 @@ import type { FlightResult, FlightSeries } from '../../../src/engine/openRocketE
 
 /**
  * The timeline as it is actually read. The row join is proved in
- * services/flight/flightEvents.test.ts; what this covers is what that join is FOR —
+ * services/flight/flightEvents.test.ts; what this covers is what that join is for:
  * that an event's own numbers land on its own row, that the extras a type is
  * read for appear only on that type, and that a stage is named only when there
  * is more than one.
@@ -36,7 +36,7 @@ const result = (over: Partial<FlightResult>): FlightResult =>
   ({ summary: {}, events: [], series: series(), ...over }) as FlightResult;
 
 /**
- * The <tr> an event's name sits in, so a value is asserted on ITS row.
+ * The <tr> an event's name sits in, so a value is asserted on its row.
  *
  * Matched on text rather than on the accessible name: dom-accessibility-api
  * trims each node's text before joining, so the spaces this table really does
@@ -90,7 +90,7 @@ describe('FlightEventsTable', () => {
         })}
       />,
     );
-    // Stability, thrust-to-weight and angle of attack: the four numbers that
+    // Stability, thrust-to-weight and angle of attack: the three numbers that
     // say whether it left the rail flying.
     expect(screen.getByText('1.80 cal · TWR 12.0 · Angle of attack 0.0°')).toBeTruthy();
     // Apogee is read for none of them, so it carries no extras line.
@@ -98,7 +98,7 @@ describe('FlightEventsTable', () => {
   });
 
   it('spaces an angle in radians from its value, as every other unit is', () => {
-    // withUnit closes up only the degree sign; "0.0rad" was the hand join.
+    // withUnit closes up only the degree sign, so radians read "0.0 rad".
     seedSettings({ units: { angle: 'rad' } });
     renderWithProviders(
       <FlightEventsTable
@@ -143,7 +143,7 @@ describe('FlightEventsTable', () => {
       />,
     );
     // Earliest first, so the booster's landing reads above the sustainer's
-    // apogee - they really did happen in that order.
+    // apogee: they really did happen in that order.
     const names = screen.getAllByRole('rowheader').map((h) => h.textContent?.replace(/\s+/g, ' ').trim());
     expect(names).toEqual(['Landing Booster', 'Apogee Sustainer']);
   });
@@ -165,7 +165,7 @@ describe('FlightEventsTable', () => {
     fireEvent.click(screen.getByRole('button', { name: /CSV/ }));
     expect(spy).toHaveBeenCalledOnce();
     const [file, body] = spy.mock.calls[0]!;
-    // Rocket, then run, then what it is - so a downloads folder stays sortable
+    // Rocket, then run, then what it is, so a downloads folder stays sortable
     // and a second design cannot overwrite the first.
     expect(file).toBe('Big_Bertha-C6_flight-flight-events.csv');
     const text = body as string;
