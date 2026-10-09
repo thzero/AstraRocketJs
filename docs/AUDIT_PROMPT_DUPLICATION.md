@@ -6,7 +6,7 @@ Paste the block below to a capable agent. Run from the repo root (`AstraRocketJs
 
 ---
 
-Audit the **`web/src`** tree of this repo (React 18 + TypeScript + Vite + zustand + three.js) for duplication and missed reuse. Do not report security, correctness, accessibility or style findings unless they are a direct consequence of duplication (two copies that disagree). `web/src/engine/vendor/` is generated TeaVM output; do not audit it.
+Audit the **`web/src`** tree of this repo (React 19 + TypeScript + Vite + zustand + three.js) for duplication and missed reuse. Do not report security, correctness, accessibility or style findings unless they are a direct consequence of duplication (two copies that disagree). `web/src/engine/vendor/` is generated TeaVM output; do not audit it.
 
 ## What counts as a finding
 
@@ -60,7 +60,7 @@ jscpd finds exact token clones only. On 2026-10-05 it found 0.64% duplicated lin
    `SEV | CATEGORY | copies (file:line for each) | what is duplicated | drift (exact differences, or "none") | proposed home (existing module or new path) and shared signature | lines removed (estimate) | risk of consolidating`
    ranked by severity, findings only, no preamble.
 
-**The cross-cutting agent** builds an inventory of every shared module that exists today (`components/common/*`, `i18n/format.ts`, `prefs/*`, `services/files/{xmlUtil,decodeText,saveFile}.ts`, `services/files/ork/numbers.ts`, `services/flight/interpolate.ts`, `services/app/*`, the `use*` hooks, and any other module imported from three or more directories), then greps the whole tree for code that reimplements each one. It also sweeps for these idioms, which tend to be hand-rolled per file:
+**The cross-cutting agent** builds an inventory of every shared module that exists today (`components/common/*`, `i18n/format.ts`, `prefs/*`, `services/files/{xmlUtil,decodeText,saveFile}.ts`, `services/files/ork/numbers.ts`, `services/flight/interpolate.ts`, `services/app/*` (including `numbers.ts` and `errorMessage.ts`), `tree/treeWalk.ts`, `services/storage/jsonListStore.ts`, `components/common/map/*`, `components/common/{MasterDetail,SortHeader}.tsx`, `components/common/chartPalette.ts`, the `use*` hooks (`useAsyncLoad`, `useMenuPopover` and the rest), and any other module imported from three or more directories), then greps the whole tree for code that reimplements each one. It also sweeps for these idioms, which tend to be hand-rolled per file:
 
 - number formatting and rounding (`toFixed`, `Math.round(x * 10 ** n)`, locale formatting outside `i18n/format.ts`), clamp, `Number.isFinite` guards with defaults, degree/radian conversion, unit conversion outside `prefs/units.ts`
 - file download (Blob, object URL, anchor click), file pick (hidden `<input type="file">`), `FileReader`, text decoding
@@ -82,13 +82,13 @@ jscpd finds exact token clones only. On 2026-10-05 it found 0.64% duplicated lin
 4. **Design, layout, common and report components** - `web/src/components/{design,layout,common,report}/*`, `web/src/App.tsx`, `web/src/main.tsx`. Weight `components/common/*` as the place things should already live: for each common component, find callers that hand-roll it instead.
 5. **File formats, exports and report services** - `web/src/services/{files,exports,report}/**`. `.ork`, `.rkt`, RASAero, DXF, CSV, 3MF, mesh and PDF writers each have their own escaping, number formatting and unit handling. Compare them, but apply the coincidental-similarity rule strictly: two formats with different specs are not duplicates just because both write XML.
 6. **Flight, motor, part and app services** - `web/src/services/{flight,landing,weather,map,tools,motors,parts,materials,app}/**`. Atmosphere, wind, interpolation, drift and landing math appear in several of these; for any physics or unit duplication, check whether the kernel already provides the figure.
-7. **State, storage, design services, tree, prefs, i18n, engine facade** - `web/src/{state,tree,prefs,i18n}/**`, `web/src/services/{storage,design}/**`, `web/src/engine/*.ts` (not `vendor/`). `state/store.ts` is about 2,100 lines; look for store actions that repeat the same clone-mutate-commit sequence, and for tree walks written more than once across `tree/`, `services/design/treeEdit.ts` and the store.
+7. **State, storage, design services, tree, prefs, i18n, engine facade** - `web/src/{state,tree,prefs,i18n}/**`, `web/src/services/{storage,design}/**`, `web/src/engine/*.ts` (not `vendor/`). `state/store.ts` is about 1,580 lines, with `state/viewSlice.ts` and `state/fileSlice.ts` beside it; look for store actions that repeat the same clone-mutate-commit sequence, and for tree walks written more than once across `tree/`, `services/design/treeEdit.ts` and the store.
 8. **Cross-cutting** - as described above.
 
 ## Codebase notes
 
 - `App` and `i18n` use default exports intentionally; everything else is named exports.
-- A previous audit already closed one round of duplicated helpers (two `Stat` components, the `finTabFront` copy, the `num()` and `round()` readers). Verify that those stayed fixed, and do not report them again unless they came back.
+- A previous audit already closed one round of duplicated helpers (two `Stat` components, the `finTabFront` copy, the `num()` and `round()` readers), and `docs/AUDIT_DUPLICATION.md` (2026-10-05) fixed D1 to D101 (D31 was not reachable; D77 leaves some items on purpose). Verify that those stayed fixed, and do not report them again unless they came back.
 - `components/common/Dialog.tsx` and `useFocusTrap.ts` are the dialog base. A dialog that does not use them is a `BYPASS` unless it has a stated reason in a comment.
 - Proposed new modules go next to their callers' layer: pure functions in `services/` or `tree/`, React in `components/common/`, hooks next to their only callers until a second directory needs them.
 

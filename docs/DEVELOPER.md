@@ -1,32 +1,32 @@
-# AstraRocketJs — Developer Guide
+# AstraRocketJs - Developer Guide
 
 > How to build the project, run it, and submit a change. Internal documentation: it assumes a
 > source checkout, so it lives in the repo rather than in the app's Help.
 
 AstraRocketJs is a monorepo: a **web app** (`web/`) and the **OpenRocket engine** (`engine-java/`) compiled to WebAssembly + JavaScript by TeaVM. This page is how to build it, run it and submit a change.
 
-- **[Architecture & internals](./ARCHITECTURE.md)** — how it all fits together: the extracted engine, the WASM/JS build pipeline and backend selection, threading (the simulation Web Worker), and the motor / material / component / `.ork` data flows.
-- **[Contributing](../CONTRIBUTING.md)** — reporting bugs, suggesting features, the maintainer tasks, translating, and the docs.
-- **[Dependencies](./DEPENDENCIES.md)** — the npm version policy, and why a package is deliberately held back from its latest (read this before "fixing" anything `npm outdated` flags).
+- **[Architecture & internals](./ARCHITECTURE.md)** - how it all fits together: the extracted engine, the WASM/JS build pipeline and backend selection, threading (the simulation Web Worker), and the motor / material / component / `.ork` data flows.
+- **[Contributing](../CONTRIBUTING.md)**: reporting bugs, suggesting features, translating, and the docs.
+- **[Dependencies](./DEPENDENCIES.md)** - the npm version policy, and why a package is deliberately held back from its latest (read this before "fixing" anything `npm outdated` flags).
 
 ## Project layout
 
 It's a monorepo with two halves:
 
-- **`web/`** — the app: **Vite + React + TypeScript + Tailwind CSS**. This is where the vast majority of contributions happen (UI, 2D/3D views, `.ork` import/export, editor, simulation setup).
+- **`web/`** - the app: **Vite + React + TypeScript + Tailwind CSS**. This is where the vast majority of contributions happen (UI, 2D/3D views, `.ork` import/export, editor, simulation setup).
   Colors come from the semantic tokens in `web/src/index.css` (`bg-surface`, `text-ink-muted`, `ring-line/10`, `text-accent-300`, `text-warn-400`), never a Tailwind palette class such as `bg-slate-800`. A color set in code (an SVG `stroke`, a gradient stop, an inline style) uses `token('name')` from `web/src/components/common/colorTokens.ts`, and the name is defined on `:root` in `index.css`. The 3D views read `scene-*` tokens through `useSceneColors()` (`web/src/components/canvas/sceneColors.ts`), because three.js and a canvas need a value rather than a variable; the schematic draws with `sch-*` tokens on screen, and `PRINT_COLORS` in `services/exports/schematicExport.ts` gives each its color in a downloaded SVG. Hex colors are kept only where the color is not the interface's: part paint, the motor flame, file formats and print output. `tests/colorTokens.test.ts` enforces all three. The themes are those tokens with other values: dark is the base `:root` block, and light and daylight are `:root[data-theme='light']` and `:root[data-theme='daylight']` blocks below it, which may only set tokens the base defines (`tests/services/app/theme.test.ts`). `services/app/theme.ts` turns the setting into the `data-theme` attribute and the `theme-color` meta; an inline script in `index.html` sets the attribute before the first paint, and `main.tsx` applies it again. A new color token needs a value in the base block, and in the light blocks when the dark value does not read on white.
-- **`engine-java/`** — OpenRocket's physics `core`, extracted and compiled by **TeaVM** to **WebAssembly + JavaScript**. The app loads the committed build (WASM by default, JS as a fallback) through the typed wrapper `web/src/engine/openRocketEngine.ts`.
+- **`engine-java/`** - OpenRocket's physics `core`, extracted and compiled by **TeaVM** to **WebAssembly + JavaScript**. The app loads the committed build (WASM by default, JS as a fallback) through the typed wrapper `web/src/engine/openRocketEngine.ts`.
 
-For the full architecture — engine build pipeline, WASM/JS backend selection, threading (the sim Web Worker), and the motor/materials/`.ork` data flows — see **[Architecture & internals](./ARCHITECTURE.md)** in the repo.
+For the full architecture - engine build pipeline, WASM/JS backend selection, threading (the sim Web Worker), and the motor/materials/`.ork` data flows - see **[Architecture & internals](./ARCHITECTURE.md)** in the repo.
 
 ## Getting started
 
 **Requirements**
 
-- **Node 22+** (npm ships with Node) — for the web app and the catalog tools.
-- **Only if you rebuild the engine:** a **JDK** (Temurin **21** is known-good; the engine targets Java 17). You don't need to install Gradle — it's bundled via the wrapper (`engine-java/gradlew`). Most contributors never need this; the built engine is committed.
+- **Node 22+** (npm ships with Node) - for the web app and the catalog tools.
+- **Only if you rebuild the engine:** a **JDK** (Temurin **21** is known-good; the engine targets Java 17). You don't need to install Gradle - it's bundled via the wrapper (`engine-java/gradlew`). Most contributors never need this; the built engine is committed.
 
-**Install** — only `web/` has npm dependencies. `engine-java/` has **no** `npm install` (it uses the bundled Gradle wrapper + plain-Node scripts):
+**Install** - only `web/` has npm dependencies. `engine-java/` has **no** `npm install` (it uses the bundled Gradle wrapper + plain-Node scripts):
 
 ```bash
 cd web
@@ -36,8 +36,8 @@ npm install
 **Run the app** (from `web/`):
 
 ```bash
-npm run dev          # dev server with hot reload — prints a local URL
-npm run build        # typecheck (tsc) + production build — must pass before a PR
+npm run dev          # dev server with hot reload - prints a local URL
+npm run build        # typecheck (tsc) + lint + production build; must pass before a PR
 npm run preview      # serve the production build locally
 npm run test         # Vitest: unit tests (.test.ts) and component tests (.test.tsx)
 npm run test:watch   # Vitest in watch mode while developing
@@ -54,13 +54,13 @@ Please **verify UI changes in a real browser**, not just that it compiles.
 
 A few house rules that keep the codebase consistent:
 
-- **All user-facing text goes through i18n.** Add keys to `web/src/i18n/locales/en.json` **and** `es.json` — never hardcode strings in components. See [Translation](../CONTRIBUTING.md#translation).
-- **Never hardcode the app name, version, or the help/docs URL.** They come from `web/src/services/app/appInfo.ts` — name from i18n, version from `package.json`, and `HELP_URL` from `package.json`'s `wiki.url` (overridable at build time with `HELP_URL=…`).
-- **Match the surrounding code** — its naming, comment density, and style.
+- **All user-facing text goes through i18n.** Add keys to `web/src/i18n/locales/en.json` **and** `es.json` - never hardcode strings in components. See [Translation](../CONTRIBUTING.md#translation).
+- **Never hardcode the app name, version, or the help/docs URL.** They come from `web/src/services/app/appInfo.ts` - name from i18n, version from `package.json`, and `HELP_URL` from `package.json`'s `wiki.url` (overridable at build time with `HELP_URL=…`).
+- **Match the surrounding code** - its naming, comment density, and style.
 
 ## Where a number comes from
 
-**The engine owns the physics. The UI reports facts known before a run and facts known after a run; it does not calculate.** The kernel is what gets validated against desktop OpenRocket, so a figure the app works out for itself is a second implementation that nothing checks. One did drift and shipped wrong.
+**The engine owns the physics. The UI reports facts known before a run and facts known after a run; it does not calculate.** The kernel is what gets validated against desktop OpenRocket, so a figure the app works out for itself is a second implementation that nothing checks.
 
 Before adding a readout, ask which side of the run it comes from. Before a run, that is the design's own values and what the kernel reports about the built rocket; after a run, it is `result.summary`, `result.events` and `result.series` sampled at an event's time with `lerpAt`. Series and events are per branch, which is the only way to be right about a separated booster.
 
@@ -73,8 +73,8 @@ Full reasoning and the exceptions: [**Who owns a number**](./ARCHITECTURE.md#who
 Most contributions don't touch the engine. If you do:
 
 - **Before patching a kernel file to change flight behavior, try a `SimulationListener` first.** The bridge can add one to `SimulationConditions`, which costs no patched file, no `DIVERGENCE.txt` re-bless, and leaves the default path byte-identical because the listener is simply not attached when the feature is off. `api/GuideClearanceListener.java` is the worked example; see [**The extracted engine**](./ARCHITECTURE.md#the-extracted-engine-engine-javasrcjava) for the hooks it relies on and the two traps.
-- **Don't edit the extracted OpenRocket sources under `engine-java/src/java/` directly** — they track OpenRocket's **unstable** branch. Necessary tweaks go through a documented override in `engine-java/patches/` (see also `engine-java/ATTRIBUTION.md`).
-- ARJ's own engine glue — the `@JSExport` facade, the component-tree builder, overrides, etc. — lives in `engine-java/src/api/`. That's fair game.
+- **Don't edit the extracted OpenRocket sources under `engine-java/src/java/` directly** - they track OpenRocket's **unstable** branch. Necessary tweaks go through a documented override in `engine-java/patches/` (see also `engine-java/ATTRIBUTION.md`).
+- ARJ's own engine glue - the `@JSExport` facade, the component-tree builder, overrides, etc. - lives in `engine-java/src/api/`. That's fair game.
 - Changing the engine requires a **JDK** (see **Requirements** above) and rebuilding **both** targets (WASM-GC is the default backend, JS the fallback):
 
   ```bash
@@ -82,16 +82,16 @@ Most contributions don't touch the engine. If you do:
   node build-engine.mjs           # builds + vendors BOTH targets (the default)
   ```
 
-- **Commit the Java change and _both_ regenerated artifacts (`.mjs` + `.wasm`) together** — they must stay in sync, or the app runs stale physics (and the two backends must match).
+- **Keep the Java change and _both_ regenerated artifacts (`.mjs` + `.wasm`) in the same PR**: they must stay in sync, or the app runs stale physics (and the two backends must match).
 
 ## Catalog tools
 
-The reference catalogs — motors and components — are **build artifacts** under `web/public/data/`, regenerated by scripts in `web/scripts/` and committed. The app fetches them at runtime rather than bundling them, so a refresh can ship without rebuilding (see **Catalog publishing** below). Run them from `web/` (they need only Node):
+The reference catalogs - motors and components - are **build artifacts** under `web/public/data/`, regenerated by scripts in `web/scripts/` and committed. The app fetches them at runtime rather than bundling them, so a refresh can ship without rebuilding (see **Catalog publishing** below). Run them from `web/` (they need only Node):
 
 ```bash
 cd web
-npm run sync:motors                  # sweep thrustcurve.org → public/data/motors.generated.json (~800 motors)
-npm run sync:components              # parse the OpenRocket-Components DB → public/data/components.generated.json (~2,900 parts)
+npm run sync:motors                  # sweep thrustcurve.org → public/data/motors.generated.json (~1,150 motors)
+npm run sync:components              # parse the OpenRocket-Components DB → public/data/components.generated.json (~3,400 parts)
 #   sync:components reads OPENROCKET_PRESETS (or --src <path-to>/openrocket-database/orc) if the DB isn't at the default local path
 npm run sync:materials               # OpenRocket's material database + ours → public/data/materials.generated.json (97 materials)
 #   reads the extractor's own .openrocket-src, or --src <openrocket checkout>. The app's OWN materials
@@ -100,7 +100,7 @@ npm run sync:materials               # OpenRocket's material database + ours →
 #   which input it came from, and `extract --check` holds the upstream rows to upstream.
 npm run sync:examples                # OpenRocket's example rockets → public/examples/ (16 designs, ~330 kB)
 #   pulls from the commit engine-java/extract/UPSTREAM pins, and strips each file's stored flight data
-#   (96% of the bytes). --src <full-openrocket-checkout> to work offline; the extractor's own sparse
+#   (90% of the bytes). --src <full-openrocket-checkout> to work offline; the extractor's own sparse
 #   .openrocket-src does NOT have them (it is limited to core/src/main/java).
 npm run sync:contributors            # GitHub contributors → public/data/contributors.generated.json (About dialog)
 #   avatars are inlined as data URIs; set GITHUB_TOKEN to avoid the 60 req/hour unauthenticated limit
@@ -112,42 +112,41 @@ Examples are the one artifact here that is **not** published to the `data` branc
 
 Catalogs no longer ride along with a deploy. `.github/workflows/sync-catalogs.yml` (weekly, plus **Run workflow**) regenerates them and pushes the JSON to an orphan **`data`** branch, which jsDelivr serves. The built app reads that branch via `VITE_DATA_BASE` (set in `deploy.yml`), so **a catalog refresh goes live without rebuilding or redeploying the app**.
 
-The copy committed under `web/public/data/` stays in the build as a fallback, used whenever the CDN is unreachable or before the `data` branch exists — so the app always works, at worst with catalogs frozen at the last deploy. Refresh that floor by running the scripts above and committing.
+The copy committed under `web/public/data/` stays in the build as a fallback, used whenever the CDN is unreachable or before the `data` branch exists - so the app always works, at worst with catalogs frozen at the last deploy. Refresh that floor by running the scripts above and committing.
 
 Run a sync locally against the published copy only if you want it current in a dev build; `sync-components.mjs` reuses the previous `generated` timestamp when the parts are unchanged, so a no-op run leaves the file (and its manifest hash) untouched.
 
-The contributor list is the exception: the Pages deploy re-runs `sync-contributors.mjs` before `npm run build`, so a newly merged contributor is credited automatically on the next deploy to `master`. That step is best-effort (`continue-on-error`) — if the GitHub API is unavailable the build falls back to the committed JSON, which is why the file stays in the repo. Run `npm run sync:contributors` locally only if you want the list current in a dev build.
-
-## Commit etiquette
-
-- Use **atomic commits**: one logical change per commit. Fixing a bug _and_ spotting a typo elsewhere? Two commits.
-- Give commits **useful names**. If there's an issue, prefix with it: `[#123] Fix stability when fins are swept aft`. The `#123` auto-links the issue.
-- A short subject plus a body explaining _why/how_ is ideal.
+The contributor list is the exception: the Pages deploy re-runs `sync-contributors.mjs` before `npm run build`, so a newly merged contributor is credited automatically on the next deploy to `master`. That step is best-effort (`continue-on-error`) - if the GitHub API is unavailable the build falls back to the committed JSON, which is why the file stays in the repo. Run `npm run sync:contributors` locally only if you want the list current in a dev build.
 
 ## Pull requests
 
 Open a PR from your branch to **`master`**. In the description:
 
-1. Which issue it addresses — e.g. "Solves #123, where …".
+1. Which issue it addresses - e.g. "Solves #123, where …".
 2. The underlying cause.
 3. How you fixed it.
 
 Make sure `npm run verify` passes (the same gate list CI runs, in the same order; CI adds coverage via `verify:ci`), and that you've checked the change in the browser. Add or update tests for any logic you touch under `web/src/services` or `web/src/engine`. Keep engine `.mjs`/`.wasm` regenerations in the same PR as their Java changes.
 
-What CI gates on the PR itself:
+What CI gates on the PR itself (`.github/workflows/gates.yml`):
 
-| Workflow         | Runs                                                                     | When                      |
-| ---------------- | ------------------------------------------------------------------------ | ------------------------- |
-| `parity`         | `npm run parity`, then a rebuild compared against the committed binaries | first                     |
-| `reproducible`   | `npm run extract:check` against the pinned OpenRocket                    | first                     |
-| `build-and-test` | `npm run verify:ci` (the `verify` list, with coverage)                   | in parallel with `parity` |
-| `e2e`            | Playwright, sharded three ways                                           | in parallel with `parity` |
+| Job              | Runs                                                                                                      | Needs                      |
+| ---------------- | --------------------------------------------------------------------------------------------------------- | -------------------------- |
+| `golden-report`  | Lists the golden values the PR moved in the job summary (informational, never fails; PRs only)            | none                       |
+| `parity`         | `npm run parity -- --expect-lines 359`, then a rebuild compared against the committed binaries            | none                       |
+| `reproducible`   | `npm run extract:check` against the pinned OpenRocket, and the pinned date matches the pinned commit      | none                       |
+| `validate`       | `validation/score.mjs --check-floors` on the classic model and on the opt-in supersonic path              | none                       |
+| `build-and-test` | `npm run verify:ci` (the `verify` list, with coverage)                                                    | `reproducible`, `validate` |
+| `e2e`            | `npm run e2e:core`, the core Playwright specs (`CORE_SPECS` in `playwright.config.ts`), in one job        | `reproducible`             |
+| `update-flow`    | `npm run e2e:update`, `npm run e2e:offline-data` and `npm run e2e:offline-help` against production builds | `reproducible`             |
 
-A push to **any branch but `master`** runs only the web gates (`dev.yml`, about six minutes: `verify:ci`, so the coverage minimums are checked on the push), so a broken test shows up on the push that broke it rather than when the PR to `master` is opened. `master` is excluded because `deploy.yml` already runs the full set there. This used to read `branches: [dev]`, which meant a push to any other branch, which is where most work happens, was checked by nothing at all; `web/tests/ciTriggers.test.ts` now fails if the trigger is narrowed back to a list of branch names.
+The full Playwright suite is not a PR gate. It runs by hand from `.github/workflows/e2e-full.yml` (**Run workflow**), sharded two ways.
 
-The Docusaurus site is **not** built on a PR. It is typechecked and built in `deploy.yml` on merge to `master`, so a broken MDX page or `sidebars.ts` shows up as a failed deploy rather than a failed PR check.
+A push to **any branch but `master`** runs only the web gates (`dev.yml`, about six minutes: `verify:ci`, so the coverage minimums are checked on the push), so a broken test shows up on the push that broke it rather than when the PR to `master` is opened. `master` is excluded because `deploy.yml` already runs the full set there. `web/tests/ciTriggers.test.ts` fails if the trigger is narrowed to a list of branch names.
 
-Those four jobs live in `.github/workflows/gates.yml`, a reusable workflow. `ci.yml` calls it on a PR and `deploy.yml` calls the same file on merge to `master`, so master is held to exactly what a PR was held to and there is only one definition to maintain. Add a gate to `gates.yml` and both get it.
+The Docusaurus site is typechecked only in `deploy.yml`, on merge to `master`. On a PR, `update-flow` builds it (`npm run docs:build`) for the offline Help check, so a broken MDX page or `sidebars.ts` fails that job; a docs type error shows up as a failed deploy.
+
+`gates.yml` is a reusable workflow. `ci.yml` calls it on a PR and `deploy.yml` calls the same file on merge to `master`, so master is held to exactly what a PR was held to and there is only one definition to maintain. Add a gate to `gates.yml` and both get it.
 
 On merge, `deploy.yml` runs those gates and only then typechecks and builds the docs, builds the app and publishes to Pages. Nothing publishes unless every gate is green.
 
@@ -159,39 +158,39 @@ On merge, `deploy.yml` runs those gates and only then typechecks and builds the 
 | **`.test.tsx`** (Vitest + React Testing Library, jsdom) | A rule that lives in a component and has no service to test instead.                         | `components/common/UnitChip.test.tsx` |
 | **`e2e/*.spec.ts`** (Playwright)                        | Whole journeys, and anything needing the real engine, layout or persistence across a reload. | `e2e/units.spec.ts`                   |
 
-Component tests render through `src/testing/renderWithProviders.tsx`, which wraps the component in the app's providers and initializes real translations — so assertions read the strings a user actually sees, and a renamed i18n key fails a test instead of showing a raw key on screen. Seed preferences with `seedSettings({ … })` before rendering and read back what a component wrote with `readSettings()`.
+Component tests render through `web/tests/testing/renderWithProviders.tsx`, which wraps the component in the app's providers and initializes real translations, so assertions read the strings a user actually sees, and a renamed i18n key fails a test instead of showing a raw key on screen. Seed preferences with `seedSettings({ … })` before rendering and read back what a component wrote with `readSettings()`.
 
-**Prefer a `.test.ts`.** If logic is hard to reach without rendering, that is usually a sign it should move into a module of its own — as the launch-condition unit bridge did (`prefs/launchUnits.ts`), which had been unreachable inside a `.tsx` and therefore untested.
+**Prefer a `.test.ts`.** If logic is hard to reach without rendering, that is usually a sign it should move into a module of its own, as the launch-condition unit bridge did (`prefs/launchUnits.ts`).
 
 ## Maintainer tasks
 
-Occasional, advanced tasks — you won't need them for a typical change.
+Occasional, advanced tasks - you won't need them for a typical change.
 
 ### Validation & fidelity tests
 
 Two harnesses guard the engine (both need Node 22+; run from the repo root):
 
 ```bash
-# 1. Parity test — proves BOTH browser engines (TeaVM WASM-GC and JS) return numbers
+# 1. Parity test - proves BOTH browser engines (TeaVM WASM-GC and JS) return numbers
 #    identical to the reference JVM. Builds a parity engine variant (-Pparity), runs the
 #    same scenarios on each, and diffs them line-by-line. Both targets by default;
 #    --js / --wasm narrow it to one.
 node engine-java/test/parity/parity.mjs
 
-# 2. Aero validation — scores the engine against wind-tunnel anchors (ARCAS /
+# 2. Aero validation - scores the engine against wind-tunnel anchors (ARCAS /
 #    Basic Finner / HB-2).
 node engine-java/validation/score.mjs               # classic Extended Barrowman
 node engine-java/validation/score.mjs --supersonic  # with the supersonic-aero model on
 node engine-java/validation/score.mjs --strict      # exit 1 on any gate-point failure
 ```
 
-From inside `engine-java/` these have shorter names: `npm run parity`, `npm run validate`, `npm run build`. Same scripts, no dependencies to install — see `engine-java/README.md`.
+From inside `engine-java/` these have shorter names: `npm run parity`, `npm run validate`, `npm run build`. Same scripts, no dependencies to install - see `engine-java/README.md`.
 
 The parity harness compiles **only** under `-Pparity`, so the shipped engine carries no test code. Run the parity test after any engine change.
 
 ### Re-extraction / upgrading OpenRocket
 
-The extracted OpenRocket sources are a committed snapshot — you only touch this when adopting a newer OpenRocket. `engine-java/extract/extract.mjs` regenerates `src/java/` from an OpenRocket source tree (repo checkout, plain source tree, or an extracted `-sources.jar`) and overlays the patches in `patches/`:
+The extracted OpenRocket sources are a committed snapshot - you only touch this when adopting a newer OpenRocket. `engine-java/extract/extract.mjs` regenerates `src/java/` from an OpenRocket source tree (repo checkout, plain source tree, or an extracted `-sources.jar`) and overlays the patches in `patches/`:
 
 ```bash
 cd engine-java

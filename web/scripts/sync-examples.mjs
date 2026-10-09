@@ -15,10 +15,11 @@
 // .openrocket-src is sparse to core/src/main/java, so it does not have these).
 //
 // What it strips. Upstream's files carry the flight data of every simulation
-// that was ever run in them: 96% of the bytes, 3.5 MB of the 3.6 MB across the
-// set. It is dead weight here: `orkImport` never reads `<flightdata>`
-// (`grep -rn flightdata src/services` is empty), because the app runs its own
-// simulations and shows its own results. Stripping it takes the set to ~340 kB,
+// that was ever run in them: 90% of the bytes, about 3.1 MB of the 3.4 MB across
+// the set. The importer reads only a simulation's result summary from
+// `<flightdata>`, and an example has no reason to open with results someone else
+// flew, so the whole element is dropped and every example opens with its
+// simulations not yet run. Stripping it takes the set to ~340 kB,
 // which is small enough to sit in the build and be precached, so examples work
 // on a first offline load like everything else. exampleLibrary.test.ts builds
 // every stripped file through the real kernel and checks mass/CG/CP.

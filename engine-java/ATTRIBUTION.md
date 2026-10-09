@@ -9,7 +9,7 @@ this engine (and AstraRocketJs as a whole) inherits that license.
 
 For what is in this directory and how it is built, see `README.md`.
 
-## Example rockets — OpenRocket
+## Example rockets: OpenRocket
 
 `web/public/examples/` holds the sixteen example `.ork` designs OpenRocket ships and opens
 from *File → Open Example*. They are **OpenRocket's own work, GPL-3.0**, taken from
@@ -18,7 +18,7 @@ from *File → Open Example*. They are **OpenRocket's own work, GPL-3.0**, taken
 
 **Modified:** each file's stored `<flightdata>` is stripped. Nothing else is changed.
 
-## Shape descriptions — OpenRocket
+## Shape descriptions: OpenRocket
 
 `web/src/i18n/locales/*.json` carries a `shapeDesc` block: the paragraph the property panel
 shows under the shape picker, explaining what an ogive, power series or clipped ellipsoid
@@ -31,12 +31,12 @@ for every language this app ships.
 misspelling in the English parabolic-series string is corrected. The `<b>`, `<i>` and `<sup>`
 markup is kept and rendered by `components/design/ShapeDescription.tsx`.
 
-## RASAero-style aerodynamics extensions — mmrocket-sim
+## RASAero-style aerodynamics extensions: mmrocket-sim
 
 Some extracted sources carry **opt-in supersonic-aerodynamics extensions that are NOT part of
 OpenRocket**: the supersonic-aero model (`supersonicAero`), the Rogers-Kbf body-fin carryover
-(`rogersKbf`), the stubby-nose subsonic pressure-drag floor (`stubbyNoseFloor`), the power-on
-base-drag term (`nozzleExitDiameter`), the RASAero fin cross-sections (`airfoilSection`), and the
+(`rogersKbf`), the stubby-nose subsonic pressure-drag floor (`stubbyNoseFloor`), the RASAero fin
+cross-sections (`airfoilSection`), and the
 wind-tunnel validation harness (`validation/`). Outside the engine, in `web/`: the **`fairing`
 component** and its `<fairing>` `.ork` extension element.
 
@@ -55,10 +55,10 @@ Two files carry that authorship whole, both under `src/shims/java/info/openrocke
 **RASAero II** (Rogers Aeroscience) is a separate program, not used or included here. These are an
 independent reimplementation of RASAero-*style* corrections built from published sources (NACA
 Reports 1307/1135, NASA TN D-4013/D-4014/D-6945, Hoerner, DATCOM) and calibrated against public
-wind-tunnel and free-flight data. The physics writeup and the diffs against stock OpenRocket are
-in `../docs/rasaero/`.
+wind-tunnel and free-flight data. `../docs/rasaero/` holds dated physics notes; their diffs
+predate the current patches (see `README.md` for the `diff -u` command that shows a patch today).
 
-## RASAero II design export — mmrocket-sim
+## RASAero II design export: mmrocket-sim
 
 The `.CDX1` design exporter in `web/` was **ported from the mmrocket-sim project's
 `services/rasaeroFile.ts`** (<https://github.com/mtnmanak/mmrocket-sim>, by Mountain Man Rockets),
@@ -72,14 +72,14 @@ site, engines, simulation, surface, units). The output was checked against real 
 
 `extract/MMROCKET-SIM` records the commit this was last reviewed against.
 
-## Two corrected elastic cord densities — mmrocket-sim
+## Two corrected elastic cord densities: mmrocket-sim
 
 `web/scripts/data/materials.app.json` carries two line materials that are not upstream OpenRocket's:
 `Elastic cord, corrected (flat 19 mm, 3/4 in)` at 0.0123 kg/m and
 `Elastic cord, corrected (flat 25 mm, 1 in)` at 0.016 kg/m.
 
 Upstream's own figures for those two widths are 0.0012 and 0.0016, which are lighter than its
-0.0043 for a 6 mm cord — a dropped digit rather than a measurement. mmrocket-sim spotted it and
+0.0043 for a 6 mm cord: a dropped digit rather than a measurement. mmrocket-sim spotted it and
 published the corrected values; both were adopted here, verified against interpolation of
 upstream's adjacent 6 mm and 12 mm entries. The wrong upstream entries are kept as well, so a
 design that names one still reads back the density it was saved with.

@@ -372,7 +372,7 @@ jobs:
               }
             '
             echo ""
-            echo "Floor: lines >= 55% (vitest.config.ts). lcov.info is in the run artifacts."
+            echo "Floor: lines >= 70% (vitest.config.ts). lcov.info is in the run artifacts."
           } >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/upload-artifact@v7

@@ -1,4 +1,4 @@
-# Patch ledger — extracted OpenRocket core
+# Patch ledger: extracted OpenRocket core
 
 Every `PATCH(...)` comment in `src/java/` points here. This is that file.
 
@@ -6,9 +6,8 @@ Entries below are dated and are a RECORD: their counts and findings were true wh
 written, and are left alone rather than restated. For what is true now, read the
 non-dated sections and `extract/DIVERGENCE.txt`.
 
-The `A`/`G`/`D`/`P` labels are finding ids from the `engine-java/` audit run against
-`docs/AUDIT_PROMPT_ENGINE.md`. That audit's report was never committed, so the ids
-are cross-references within this ledger and nothing else.
+Labels in entries dated 2026-09-19 and earlier come from an earlier audit whose report
+was never committed; later entries cite `docs/AUDIT_ENGINE.md` by name.
 
 ## How the pieces fit
 
@@ -30,14 +29,14 @@ OpenRocket's → *shim*; edit OpenRocket's class in place → *patch*.
   `src/java/` is extracted from, and it gates: `extract --check` and CI both
   read it. The RASAero-style extensions in several of these patches come from a
   SECOND upstream, mmrocket-sim (see `../ATTRIBUTION.md`), which is not
-  extracted from and gates nothing — so `extract/MMROCKET-SIM` records the
+  extracted from and gates nothing, so `extract/MMROCKET-SIM` records the
   commit those were last *reviewed* against, and what that review took and
   skipped. Without it, "what have they changed since?" has nothing to diff
   against.
 
 ## Is a patch load-bearing, or a leftover?
 
-The patch **always wins** during extraction — that is the whole mechanism. So a
+The patch **always wins** during extraction; that is the whole mechanism. So a
 stale one is not harmless: it sits there doing nothing until someone runs
 `extract`, and then it silently swaps its contents into the engine.
 
@@ -46,10 +45,10 @@ One check tells you which you have:
 | `src/java/X.java` vs upstream `X.java` | what the patch is |
 | --- | --- |
 | **differs** | **load-bearing.** The override is in the shipping engine. Deleting the patch reverts it on the next extraction. |
-| **identical** | **a leftover.** `src/java` was put back to plain OpenRocket at some point and the patch was never removed. It is not in the engine — but it would be, the moment anyone extracts. Delete it. |
+| **identical** | **a leftover.** `src/java` was put back to plain OpenRocket at some point and the patch was never removed. It is not in the engine, but it would be, the moment anyone extracts. Delete it. |
 
 Four leftovers were removed on 2026-09-16 this way (`BarrowmanCalculator`,
-`FlightConditions`, `AxialStage`, `AbstractSimulationStepper`) — their readable
+`FlightConditions`, `AxialStage`, `AbstractSimulationStepper`); their readable
 diffs remain in `docs/rasaero/diffs/`. `extract --check` now prints both lists
 on every run, so the distinction is visible instead of having to be
 reconstructed.
@@ -59,21 +58,21 @@ reconstructed.
 | File (under `info/openrocket/core/`) | Why |
 | --- | --- |
 | `aerodynamics/barrowman/FinSetCalc.java` | RASAero #4 (fin airfoil), #3 (Rogers Kbf), #1 Phase 1. |
-| `aerodynamics/barrowman/SymmetricComponentCalc.java` | RASAero #1 Phase 1 — opt-in supersonic nose/body aero. |
-| `rocketcomponent/FinSet.java` | TWO reasons. (1) `java.awt.geom.Point2D` → `core.util.Geo2D` (no AWT under TeaVM). (2) RASAero #4: a 62-line airfoil-section API at `FinSet.java:282-348` (`airfoilSection`, `airfoilLeDiamond`, `airfoilTeDiamond`, `finLeRadius`) that `FinSetCalc.java:136-139` reads in its constructor. Re-extracting this file verbatim plus the `Geo2D` line BREAKS THE FINSETCALC COMPILE - the same failure shape the 2026-09-16 reconciliation hit with `setStubbyNoseFloor`. See `docs/rasaero/diffs/`. |
+| `aerodynamics/barrowman/SymmetricComponentCalc.java` | RASAero #1 Phase 1: opt-in supersonic nose/body aero. |
+| `rocketcomponent/FinSet.java` | TWO reasons. (1) `java.awt.geom.Point2D` → `core.util.Geo2D` (no AWT under TeaVM). (2) RASAero #4: an airfoil-section API (`airfoilSection`, `airfoilLeDiamond`, `airfoilTeDiamond`, `finLeRadius`) that the `FinSetCalc` constructor reads. Re-extracting this file verbatim plus the `Geo2D` line BREAKS THE FINSETCALC COMPILE - the same failure shape the 2026-09-16 reconciliation hit with `setStubbyNoseFloor`. See `docs/rasaero/diffs/`. |
 | `rocketcomponent/FreeformFinSet.java` | TWO reasons. (1) `java.awt.geom` (`Line2D`/`Point2D`) → `core.util.Geo2D`. (2) `setPoints` RECORDS a refused outline (`isOutlineRefused`), so the bridge can refuse the build by name instead of flying the default fin - see "A refused fin outline is no longer flown as the default fin". |
 | `rocketcomponent/ComponentAssembly.java` | `Collections.emptyList()` → `new ArrayList<>()`. |
 | `rocketcomponent/FlightConfiguration.java` | `ConcurrentLinkedQueue` → `LinkedList` (TeaVM classlib gap). |
 | `rocketcomponent/FlightConfigurationId.java` | `java.util.UUID` → `core.util.LongUUID` (TeaVM's UUID has no `(long, long)` constructor, `getMostSignificantBits` or `compareTo`). |
 | `rocketcomponent/InstanceMap.java` | `ConcurrentHashMap` → `LinkedHashMap`; also makes iteration order stable. |
 | `motor/MotorConfigurationId.java` | Same `LongUUID` swap, same TeaVM gap. |
-| `simulation/BasicEventSimulationEngine.java` | `PATCH(teavm-format-g)`: `"%g"` → `"%s"` — TeaVM's `Formatter` lacks `%g`. Plus `PATCH(drogue-low-speed)`: upstream's own drogue-low-speed check, uncommented (see below). |
+| `simulation/BasicEventSimulationEngine.java` | `PATCH(teavm-format-g)`: `"%g"` → `"%s"` (TeaVM's `Formatter` lacks `%g`). Plus `PATCH(drogue-low-speed)`: upstream's own drogue-low-speed check, uncommented (see below). |
 | `util/BoundingBox.java` | Dropped `java.awt.geom.Rectangle2D`, and with it the public `update(Rectangle2D)` and `toRectangle()` (it does not use `Geo2D`). `PATCH(teavm-format-g)`: `toString()` built by concatenation, since TeaVM's `Formatter` has no `%g`. |
 | `aerodynamics/BarrowmanDragCalculator.java` | `Reflection.construct` → an `instanceof` chain (no reflection under TeaVM); `buildCalcMap` widened to `protected`; `effectiveBaseCD`/`turbulentCompressibility` seams for the RASAero shims. |
 | `aerodynamics/BarrowmanStabilityCalculator.java` | Same reflection replacement and `protected` widening, for the stability half. |
-| `simulation/SimulationOptions.java` | Dropped the `java.nio.file` lookup-table subsystem — absent from TeaVM's classlib. |
-| `unit/Unit.java` | Dropped `Locale.Category` — absent from TeaVM's classlib. |
-| `util/ArrayList.java` | `clone()` rewritten for WASM-GC (the `ClassCastException` documented at `build.gradle:81-82`). |
+| `simulation/SimulationOptions.java` | Dropped the `java.nio.file` lookup-table subsystem, absent from TeaVM's classlib. |
+| `unit/Unit.java` | Dropped `Locale.Category`, absent from TeaVM's classlib. |
+| `util/ArrayList.java` | `clone()` rewritten for WASM-GC (the `ClassCastException` documented beside the `strict` setting in `build.gradle`). |
 | `masscalc/MassCalculation.java` | `PATCH(offaxis-roll-inertia)`: a motor in a single off-axis mount gets its parallel-axis roll inertia. See "Off-axis tubes and motors carry their roll inertia". |
 | `rocketcomponent/RingComponent.java` | `PATCH(offaxis-roll-inertia)`: any off-axis ring (an inner tube alone or clustered, a coupler, an engine block) adds its instances' parallel-axis spread to its roll inertia. Same section. |
 
@@ -88,11 +87,11 @@ subclass the Barrowman drag/stability calculators and carry the opt-in
 supersonic model. `api.OpenRocketEngine.rasAeroCalculator()` wires them via
 `new BarrowmanCalculator(stab, drag)`; with every flag off the result is
 bit-identical to a stock `new BarrowmanCalculator()`. `Geo2D` is the awt-free
-2D helper the `FinSet` / `FreeformFinSet` / `BoundingBox` patches use.
+2D helper the `FinSet` / `FreeformFinSet` patches use.
 
 ---
 
-## Reproducibility — reconciled 2026-09-16
+## Reproducibility: reconciled 2026-09-16
 
 `extract --check` passes: **`src/java` is exactly `upstream(+patches)`**, and a
 full `extract --src …` run rewrites all 271 files and changes nothing. CI holds
@@ -102,14 +101,14 @@ upstream in `extract/UPSTREAM`.
 It did not pass before, and could not have: **`--check`'s exit code ignored
 drift and stale entirely** (`process.exit(missing.length ? 1 : 0)`). It returned
 1 only because of one bogus manifest entry, `util/QuaternionMultiply.java`,
-which exists in neither upstream nor `src/java` — so deleting that line, the
+which exists in neither upstream nor `src/java`, so deleting that line, the
 obvious tidy-up, would have turned the check green over 16 drifted and 13
 unmanaged files. Underneath it, a regeneration produced a tree that **did not
 compile**: `patches/SymmetricComponentCalc.java` had no `setStubbyNoseFloor`,
 which `RASAeroDragCalculator.java:86` and `OpenRocketEngine.java:492` both call.
 
 What was reconciled, all by rebuilding `patches/` and the manifest from today's
-`src/java` — **`src/java` itself was not touched**, so the compiled engine is
+`src/java`. **`src/java` itself was not touched**, so the compiled engine is
 byte-for-byte what it was:
 
 - **4 superseded patches deleted.** `BarrowmanCalculator`, `FlightConditions`,
@@ -123,11 +122,11 @@ byte-for-byte what it was:
   `InstanceMap`, `BasicEventSimulationEngine`, `BoundingBox`. Each was a
   snapshot of an *older* upstream, so it both reverted the current file and
   dropped whatever upstream had fixed since.
-- **6 hand edits given patch files** — they had `PATCH(astrarrocketjs)` markers
+- **6 hand edits given patch files**: they had `PATCH(astrarrocketjs)` markers
   in `src/java` and nothing in `patches/`, so a regeneration would have silently
   reverted them: `BarrowmanDragCalculator`, `BarrowmanStabilityCalculator`,
   `SimulationOptions`, `Unit`, `ArrayList`, and `MassComponent` (that last one
-  carried no marker at all — an unannotated semantic change where upstream's
+  carried no marker at all: an unannotated semantic change where upstream's
   `isCompatible` returns `true`/`InternalComponent` and ours returns
   `false`/no-children; **it needs a decision**, see below).
 - **13 files added to the manifest** and the bogus entry removed. They were
@@ -143,7 +142,7 @@ byte-for-byte what it was:
   fixes the build cannot run without (`java.nio.file` and `Locale.Category` are
   absent from TeaVM's classlib; the `ArrayList.clone()` rewrite is the WASM-GC
   `ClassCastException` at `build.gradle:81-82`).
-- A **new third report** — "patch(es) differ from current upstream" — closes the
+- A **new third report** ("patch(es) differ from current upstream") closes the
   structural blind spot. For a patched file, `--check` compares `src/java`
   against *the patch*, so it can never see upstream moving underneath. It never
   could, which is how this went unnoticed.
@@ -163,12 +162,12 @@ byte-for-byte what it was:
   changing, not the file drifting. Treat the older numbers as history, not as
   measurements to reconcile.
 
-### Still open — not reproducibility, but parity
+### Parity items (closed 2026-09-16)
 
-**`FinSetCalc` — adopted 2026-09-16 (upstream `e6d54d8c9`).** Upstream replaced
+**`FinSetCalc`: adopted 2026-09-16 (upstream `e6d54d8c9`).** Upstream replaced
 its own scalar fin-body interference approximation with the complete NACA Report
 1307 model. The approximation's own TODO had asked for exactly that, and we had
-deleted that TODO to put a partial version (`kWB1307`) in its place — so both
+deleted that TODO to put a partial version (`kWB1307`) in its place, so both
 sides had changed the same few lines.
 
 Resolved by the standing rule, **OpenRocket wins**: upstream's model owns the
@@ -176,24 +175,24 @@ default branch; our `supersonicAero` path is opt-in and untouched beside it.
 `NACA1307FinBodyInterference.java` is extracted verbatim (it imports only
 `MathUtil`). Upstream's wing-incidence roll factor replaces the flat `(1 + tau)`,
 and the Rogers `Kbf` carryover is now suppressed while the NACA model is active
-as well as under `supersonicAero` — the new default path already carries the
+as well as under `supersonicAero`: the new default path already carries the
 body load, so adding `Kbf` on top would double-count.
 
 Measured before and after, rebuilding both targets each time:
 
 | `validation/score.mjs` | before | after |
 | --- | --- | --- |
-| classic (flags off — what everyone runs) | 8/135 | **9/135** |
+| classic (flags off, what everyone runs) | 8/135 | **9/135** |
 | `--supersonic` (opt-in RASAero) | 61/135 | 61/135 |
 
 The default path moved one gate point closer to the published wind-tunnel
 anchors and the RASAero path did not move. Note the committed scorecards
-(2026-08-04) record 7/135 and 64/135; both are stale — the 8/61 above is a fresh
+(2026-08-04) record 7/135 and 64/135; both are stale; the 8/61 above is a fresh
 measurement of the pre-merge tree.
 
 **`MassComponent.isCompatible` needs a decision.** Ours diverges from upstream
 with no `PATCH` comment and no recorded reason. It now has a patch file, so it
-survives a regeneration — but somebody has to say whether the divergence is
+survives a regeneration, but somebody has to say whether the divergence is
 deliberate.
 
 **Both closed 2026-09-16.**
@@ -203,17 +202,16 @@ artifacts and runs `git diff --exit-code` on them. TeaVM's output here is
 byte-deterministic (verified by building each target twice), so an unchanged
 source rewrites identical bytes and the diff stays empty. It catches **both**
 directions: Java edited without running `build-engine.mjs`, and a hand-edited
-vendor file — the second verified by appending a line to the `.mjs` and watching
-the rebuild put it back. If it ever proves flaky across OS/JDK rather than
+vendor file (the second verified by appending a line to the `.mjs` and watching
+the rebuild put it back). If it ever proves flaky across OS/JDK rather than
 catching real staleness, the fallback is a source+artifact SHA-256 stamp, which
 is cheaper but cannot catch a hand-edited binary.
 
 *Physics gate.* `test/parity/golden.txt` holds the 255-line JVM reference output,
 compared on every run with the same tolerances as the cross-platform check (so a
 golden recorded on one OS does not trip on another). Regenerate deliberately with
-`node test/parity/parity.mjs --golden`, and say in the commit why the numbers
-moved. Demonstrated rather than assumed: scaling fin CNα by 0.97 still printed
-`parity ok` — both sides moved together, which is the whole problem — and the
+`node test/parity/parity.mjs --golden`, and record why the numbers moved. Demonstrated rather than assumed: scaling fin CNα by 0.97 still printed
+`parity ok` (both sides moved together, which is the whole problem) and the
 golden check failed on 60+ values. `ParityMain`'s `EXCEPTION:` lines are now a
 hard failure too, so a flight that fails identically on both platforms no longer
 reports `parity ok`.

@@ -9,7 +9,7 @@ the source before entry here.
 Scope: the `web/` package. `web/src/engine/vendor/` is generated TeaVM output
 and was not audited. `engine-java/` has its own prompt and its own report.
 
-**Status, 2026-10-03.** Every SECURITY finding (S1 to S5) and every CORRECTNESS
+**Status, 2026-10-04.** Every SECURITY finding (S1 to S5) and every CORRECTNESS
 finding at every severity (10 HIGH, 19 MED, 12 LOW) is fixed, each with a test
 proven to discriminate: the fix was reverted, the test watched to fail, and the
 fix restored. That includes the `.rkt` component cap S2 left open. Every TOOLING
@@ -17,8 +17,11 @@ finding is fixed too: T1 to T5 at HIGH, T6 to T10 at MED, and all nine
 tooling-LOW items. The dead code, the duplicated helpers, the test list, the
 `outdated` derivation, the rebuild debounce and the three god components are
 done, as are the `runSims` and `openOrkFile` extraction and the accessibility
-list. Every finding in this report is closed. What remains is the 32 findings in
-`docs/AUDIT_ENGINE.md`, which has not been touched.
+list. Every finding in this report is closed. `docs/AUDIT_ENGINE.md` is closed
+too: each of its findings is FIXED, DECIDED or CLOSED out of scope. Since then
+lint runs all of typescript-eslint `recommendedTypeChecked` plus the
+`jsx-a11y-x` accessibility lint, and `e2e/a11y.spec.ts` runs axe in the dark,
+light and daylight themes.
 
 Two MED findings in this report were closed without being worked on: C1 removed
 the duplicate `finTabFront` and the unclamped schematic tab as collateral. They
@@ -121,7 +124,8 @@ style of clear error as the depth cap. A running total rather than per-level,
 because the readers recurse.
 
 Not done: the same gap in `rktImport.readParts`. The `.rkt` reader has its own
-context type and its own depth cap, so it wants the same treatment separately.
+context type and its own depth cap, so it wants the same treatment separately
+(fixed later; see Status).
 
 ### S3. Embedded motor files are parsed without caps (MED, VERIFIED) - FIXED 2026-10-02
 

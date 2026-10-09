@@ -1,6 +1,6 @@
-# engine-java — OpenRocket physics kernel → browser WebAssembly + JavaScript
+# engine-java: OpenRocket physics kernel → browser WebAssembly + JavaScript
 
-This module turns the **OpenRocket** simulation core (`info.openrocket.core`, at the commit `extract/UPSTREAM` pins) into engine modules the web app runs entirely in the browser. It does that by **extraction** — carving the physics subset out of OpenRocket, applying a few compatibility overrides, and compiling the result with **TeaVM** to **two targets**: a **WebAssembly (WASM-GC)** module and a **JavaScript** module.
+This module turns the **OpenRocket** simulation core (`info.openrocket.core`, at the commit `extract/UPSTREAM` pins) into engine modules the web app runs entirely in the browser. It does that by **extraction**: carving the physics subset out of OpenRocket, applying a few compatibility overrides, and compiling the result with **TeaVM** to **two targets**: a **WebAssembly (WASM-GC)** module and a **JavaScript** module.
 
 The committed outputs let the web app build without a JDK:
 
@@ -9,33 +9,34 @@ The committed outputs let the web app build without a JDK:
 
 The app loads WASM-GC by default and falls back to JS; you only touch this module to change the engine itself or to upgrade OpenRocket.
 
-> Licensing & authorship: the engine is GPL-3.0 (derived from OpenRocket). The opt-in supersonic-aero (RASAero) extensions in the extracted sources are separate original work — see `ATTRIBUTION.md`.
+> Licensing & authorship: the engine is GPL-3.0 (derived from OpenRocket). The opt-in supersonic-aero (RASAero) extensions in the extracted sources are separate original work; see `ATTRIBUTION.md`.
 
 ## Layout
 
 ```
 engine-java/
-  build.gradle            TeaVM build — JS (teavm.js) + WASM-GC (teavm.wasmGC); see "Build" below
-  package.json            no deps, nothing to install — just named `npm run` entry points
+  build.gradle            TeaVM build: JS (teavm.js) + WASM-GC (teavm.wasmGC); see "Build" below
+  package.json            no deps, nothing to install, just named `npm run` entry points
   build-engine.mjs        one-step build + vendor into web/  (both targets; --js / --wasm for one)
-  extract/                  extract.mjs + manifest.txt — regenerate src/java/ from OpenRocket
+  extract/                  extract.mjs + manifest.txt: regenerate src/java/ from OpenRocket
   patches/                18 full-file OVERRIDES of OpenRocket sources (why each, in the file header)
   src/
     java/                 273 OpenRocket source files (the physics), already overridden
     shims/java/           our replacements for classes we don't extract (Guice, prefs, LongUUID, Geo2D, RASAero…)
-    jdkstubs/             java.text.Collator stand-in — the one java.* class TeaVM's JDK lacks
+    jdkstubs/             java.text.Collator stand-in, the one java.* class TeaVM's JDK lacks
     api/java/api/         the @JSExport facade the browser calls (OpenRocketEngine, …)
-  test/parity/            ParityMain.java + parity.mjs (run-target.mjs, stdout-sync.mjs) — JVM↔JS↔WASM bit-identical check
+  test/parity/            ParityMain.java + parity.mjs (run-target.mjs, stdout-sync.mjs): JVM↔JS↔WASM agreement check
   validation/             wind-tunnel aero scoring (score.mjs, anchors, fixtures)
+  reference/              differential check against pristine upstream core (npm run reference / reference:show; see its README)
 ```
 
 ## How the engine is assembled
 
-OpenRocket's full `core` is ~700 files and pulls in Guice, JAXB, GraalVM-JS, classgraph — none of which TeaVM can compile. So the engine is built from four kinds of source, in one compile:
+OpenRocket's full `core` is ~700 files and pulls in Guice, JAXB, GraalVM-JS, classgraph, none of which TeaVM can compile. So the engine is built from five kinds of source, in one compile:
 
-### 1. `src/java/` — the OpenRocket physics, extracted to a subset
+### 1. `src/java/`: the OpenRocket physics, extracted to a subset
 
-**Extraction** = copying only the 273 files the physics + simulation actually need, leaving the reflection/IO-heavy machinery (file loaders, plugin system, scripting, Swing hooks) behind. These files are **real OpenRocket source** — 255 are byte-for-byte upstream; 18 carry overrides (see `patches/`). By package:
+**Extraction** = copying only the 273 files the physics + simulation actually need, leaving the reflection/IO-heavy machinery (file loaders, plugin system, scripting, Swing hooks) behind. These files are **real OpenRocket source**: 255 are byte-for-byte upstream; 18 carry overrides (see `patches/`). By package:
 
 | files | package | what it is |
 |------:|---------|------------|
@@ -50,28 +51,28 @@ OpenRocket's full `core` is ~700 files and pulls in Guice, JAXB, GraalVM-JS, cla
 | 4 | `masscalc` | CG / mass / moment-of-inertia |
 | … | rest | logging, l10n, materials, presets, appearance, startup |
 
-### 2. `patches/` — full-file overrides of extracted sources
+### 2. `patches/`: full-file overrides of extracted sources
 
 **These are not diffs.** Each file under `patches/` is a *complete, hand-edited copy* of the OpenRocket file at the same relative path; extract writes it **instead of** the pristine upstream one. "Applying a patch" is a file-level swap, not a `git apply`. Two kinds:
 
-- **TeaVM-compat** — e.g. `UUID`→`LongUUID`, `ConcurrentHashMap`/`ConcurrentLinkedQueue`→plain collections, `String.format("%g")`→`%s`, replacing `BarrowmanCalculator`'s reflective `Class.forName(...)` calc lookup with an explicit `instanceof` chain, dropping `java.awt.geom` (`FinSet`/`FreeformFinSet` now use the `Geo2D` shim; `BoundingBox` simply loses its two `Rectangle2D` methods), and a copy-constructor `ArrayList.clone()` (WASM-GC's strict casts reject the JVM's `(ArrayList) super.clone()`).
-- **Opt-in RASAero supersonic-aero extensions** — default-off feature code (see `../docs/rasaero/` for the physics and reviewable diffs vs stock OpenRocket).
+- **TeaVM-compat**: e.g. `UUID`→`LongUUID`, `ConcurrentHashMap`/`ConcurrentLinkedQueue`→plain collections, `String.format("%g")`→`%s`, replacing `BarrowmanCalculator`'s reflective `Class.forName(...)` calc lookup with an explicit `instanceof` chain, dropping `java.awt.geom` (`FinSet`/`FreeformFinSet` now use the `Geo2D` shim; `BoundingBox` simply loses its two `Rectangle2D` methods), and a copy-constructor `ArrayList.clone()` (WASM-GC's strict casts reject the JVM's `(ArrayList) super.clone()`).
+- **Opt-in RASAero supersonic-aero extensions**: default-off feature code (`../docs/rasaero/` holds dated physics notes; their diffs predate the current patches, so use the `diff -u` command below to see what a patch changes today).
 
 To change a patch, edit the whole file under `patches/…` (it *is* the patch). To view what a patch changed vs upstream: `diff -u <openrocket-src>/…/X.java patches/…/X.java`.
 
-### 3. `src/shims/` — whole classes we provide instead of OpenRocket's
+### 3. `src/shims/`: whole classes we provide instead of OpenRocket's
 
-Where an extracted file is impractical, the upstream class is **not extracted at all** and a lean replacement lives here (it is the only provider of that fully-qualified name). Eleven files: the Guice replacement (`com.google.inject.Injector`, a one-method interface), a Guice-free `Application`, lean `Simulation`/`OpenRocketDocument`, in-memory `ApplicationPreferences`, `Databases`, `ShimRocketDescriptor`, `LongUUID`, `Geo2D` (a small awt-free 2D-geometry helper — `distance`/`segmentsIntersect`; the patched `FinSet`/`FreeformFinSet` use it instead of `java.awt.geom`), and the two RASAero calculators (`RASAeroDragCalculator`/`RASAeroStabilityCalculator`, subclasses of the Barrowman drag/stability calculators that add the opt-in supersonic model). Five of the eleven SHADOW an upstream class of the same name rather than replacing one we never extract; `extract/SHIMS.txt` records what upstream looked like when each was last reviewed.
+Where an extracted file is impractical, the upstream class is **not extracted at all** and a lean replacement lives here (it is the only provider of that fully-qualified name). Eleven files: the Guice replacement (`com.google.inject.Injector`, a one-method interface), a Guice-free `Application`, lean `Simulation`/`OpenRocketDocument`, in-memory `ApplicationPreferences`, `Databases`, `ShimRocketDescriptor`, `LongUUID`, `Geo2D` (a small awt-free 2D-geometry helper: `distance`/`segmentsIntersect`; the patched `FinSet`/`FreeformFinSet` use it instead of `java.awt.geom`), and the two RASAero calculators (`RASAeroDragCalculator`/`RASAeroStabilityCalculator`, subclasses of the Barrowman drag/stability calculators that add the opt-in supersonic model). Five of the eleven SHADOW an upstream class of the same name rather than replacing one we never extract; `extract/SHIMS.txt` records what upstream looked like when each was last reviewed.
 
-### 4. `src/jdkstubs/` — JDK classes TeaVM's class library lacks
+### 4. `src/jdkstubs/`: JDK classes TeaVM's class library lacks
 
-Just `java.text.Collator` now — the one `java.*` class the extracted physics needs that TeaVM's class library lacks (motor-name sorting). Compiled in a separate source set via `--patch-module` (JPMS forbids `java.*` in the unnamed module, and it can't mix with ordinary sources); on a real JVM the genuine JDK `Collator` wins, so it affects only the TeaVM build. (The old `java.awt.geom` stubs are gone — the kernel uses the `Geo2D` shim above.)
+Just `java.text.Collator`, the one `java.*` class the extracted physics needs that TeaVM's class library lacks (motor-name sorting). Compiled in a separate source set via `--patch-module` (JPMS forbids `java.*` in the unnamed module, and it can't mix with ordinary sources); on a real JVM the genuine JDK `Collator` wins, so it affects only the TeaVM build. (The kernel uses the `Geo2D` shim above in place of `java.awt.geom`.)
 
 **Rule of thumb:** JDK gap → *jdkstub*; provide a class instead of OpenRocket's → *shim*; edit OpenRocket's class in place → *patch*.
 
-### 5. `src/api/` — the @JSExport facade (the browser's entry point)
+### 5. `src/api/`: the @JSExport facade (the browser's entry point)
 
-`OpenRocketEngine.java` exposes handle-based static methods annotated `@JSExport` (`newRocket`, `buildRocket`, `addNoseCone`, `getStaticInfo`, `simulateJson`, …). TeaVM compiles this class as the entry point and turns those methods into the **exported functions of the engine modules** (JS and WASM). Params are primitives/arrays; results are JSON strings (the kernel ships no JSON lib). The web app never calls extracted physics directly — only this facade (through the typed `../web/src/engine/openRocketEngine.ts` wrapper). `ComponentFactory` builds rockets from a JSON tree; `JsonLite` is a tiny hand-rolled JSON parser.
+`OpenRocketEngine.java` exposes handle-based static methods annotated `@JSExport` (`newRocket`, `buildRocket`, `addNoseCone`, `getStaticInfo`, `simulateJson`, …). TeaVM compiles this class as the entry point and turns those methods into the **exported functions of the engine modules** (JS and WASM). Params are primitives/arrays; results are JSON strings (the kernel ships no JSON lib). The web app never calls extracted physics directly, only this facade (through the typed `../web/src/engine/openRocketEngine.ts` wrapper). `ComponentFactory` builds rockets from a JSON tree; `JsonLite` is a tiny hand-rolled JSON parser.
 
 #### What the void and primitive exports do on failure
 
@@ -97,25 +98,25 @@ node extract/extract.mjs --src /path/to/openrocket           # regenerate src/ja
 # (or set OPENROCKET_SRC instead of --src)
 ```
 
-Guardrails — `--check` writes nothing and **exits non-zero** on any of:
+Guardrails: `--check` writes nothing and **exits non-zero** on any of:
 
 - a manifest file missing upstream (version mismatch);
 - an extracted file that differs from `upstream(+patch)`;
 - an extracted file not in the manifest (it compiles, but a regeneration would not produce it);
-- an extracted file carrying a `PATCH(astrarrocketjs)` marker with **no** `patches/` counterpart — a regeneration would silently revert it;
+- an extracted file carrying any `PATCH(...)` marker with **no** `patches/` counterpart (a regeneration would silently revert it);
 - a patch whose divergence from upstream does not match the blessed baseline in `extract/DIVERGENCE.txt`, or that baseline being absent.
 
 A `patches/` file whose path isn't in the manifest is a hard error (it would silently never apply).
 
-**`extract/DIVERGENCE.txt` is the load-bearing guardrail**, and it is worth being precise about why. The first four bullets all rest on one invariant, `src/java == upstream + patches`. The patches are an **input** to that equation, so the invariant can never question them: edit a `patches/` file and `src/java` together and the check is green by construction, whatever you put there. `DIVERGENCE.txt` records, per patch, how many lines it differs from upstream by (a real LCS diff), and `--check` recomputes those numbers and fails on any difference. Changing a patch therefore means running `--bless` and explaining the new number in review.
+**`extract/DIVERGENCE.txt` is the load-bearing guardrail**, and it is worth being precise about why. The first four bullets all rest on one invariant, `src/java == upstream + patches`. The patches are an **input** to that equation, so the invariant can never question them: edit a `patches/` file and `src/java` together and the check is green by construction, whatever you put there. `DIVERGENCE.txt` records, per patch, how many lines it differs from upstream by (a real LCS diff), plus a sha256 of the patch and of the upstream file it replaces, and `--check` recomputes all three and fails on any change. Changing a patch therefore means running `--bless` and explaining the new number in review.
 
-Two notes on reading it. A delta of **0** means the patch is byte-identical to upstream: that is the *leftover* `patches/LEDGER.md` describes, and the answer is to delete the patch, not to bless the zero. And every patch is listed unconditionally, including zeros — the old report used a line-multiset count that silently dropped any change made purely of deletions or reorderings, which is how deleting a single `count++;` from `MathUtil.average()` could score 0 and vanish from the report while `average()` divided by zero.
+A delta of 0 fails `--check` and `--bless` refuses it; delete the patch.
 
-Comparing `src/java` to the patch also can never see upstream moving underneath, which is how `FinSetCalc` came to sit hundreds of lines behind while the check called it clean; the same per-patch numbers are what surface that on an upgrade.
+Comparing `src/java` to the patch also can never see upstream moving underneath; the per-patch numbers and upstream hashes are what surface that on an upgrade.
 
-`--check` is only meaningful against the exact upstream the extraction was made from — pinned in `extract/UPSTREAM` and enforced by the `reproducible` job in `.github/workflows/gates.yml`.
+`--check` is only meaningful against the exact upstream the extraction was made from, pinned in `extract/UPSTREAM` and enforced by the `reproducible` job in `.github/workflows/gates.yml`.
 
-**At build time nothing is applied** — `src/java/` is committed already in its final state, so Gradle just compiles it. Extraction is a deliberate step you run only on an OpenRocket upgrade (then re-audit each `patches/` file against the new upstream).
+**At build time nothing is applied**: `src/java/` is committed already in its final state, so Gradle just compiles it. Extraction is a deliberate step you run only on an OpenRocket upgrade (then re-audit each `patches/` file against the new upstream).
 
 ## Build
 
@@ -129,7 +130,7 @@ npm run build:wasm     # WASM-GC only
 npm run parity         # both targets vs the JVM reference
 npm run parity:js      # JS only          npm run parity:wasm   # WASM-GC only
 npm run parity:golden  # rewrite golden.txt (deliberate physics changes only)
-npm run validate       # aero scorecard   npm run validate:supersonic / :strict
+npm run validate       # aero scorecard   npm run validate:supersonic / :strict (fails today by design)
 npm run extract:check    # no arguments: fetches the pinned upstream itself
 npm run extract:bless    # re-record extract/DIVERGENCE.txt + SHIMS.txt
 ```
@@ -142,9 +143,6 @@ a warm `extract:check` is under half a second. The cache is keyed to the ref,
 so bumping the pin re-fetches instead of silently checking against the old
 commit. `--refresh` forces it; `--src <path>` still points at your own checkout,
 which is what CI does and what you want offline.
-
-Requiring a hand-made clone is why this gate used to run only in CI, which is
-backwards for a check whose job is catching a local edit before it lands.
 
 `--bless` and `--check` both write nothing to `src/java`. Only a bare
 `extract --src …` regenerates the tree, and on a CRLF checkout that rewrites all
@@ -162,14 +160,14 @@ node build-engine.mjs --wasm     # WASM → ../web/public/engine/openrocket-engi
 ./gradlew buildWasmGC            # WASM-GC target (teavm.wasmGC)
 ```
 
-Both targets compile from the same sources and are verified **bit-identical**. Change a Java source → rebuild **both** and commit the Java change and both regenerated artifacts (`.mjs` + `.wasm`) together.
+Both targets compile from the same sources and are checked against the JVM (tolerances under Tests below). Change a Java source → rebuild **both** artifacts (`.mjs` + `.wasm`); the parity job fails if the committed artifacts do not match the sources.
 
 Non-obvious, load-bearing settings in `build.gradle`:
 
-- **TeaVM ≥ 0.15 is required** — 0.10's JS backend inverts NaN comparisons.
+- **TeaVM ≥ 0.15 is required**: 0.10's JS backend inverts NaN comparisons.
 - **`optimization = NONE` + `fastGlobalAnalysis = true` are required** (on both `teavm.js` and `teavm.wasmGC`). TeaVM's default optimizer miscompiles this kernel (its devirtualizer inlined the wrong `getInstanceCount()` override, so fin instances collapsed 3→1 and masses zeroed; its precise analyzer pruned virtual methods reached via map-key dispatch). Do not change without a full re-verification.
-- **WASM-GC uses strict typing** — the copy-constructor `ArrayList.clone()` patch is required (its strict casts reject `(ArrayList) super.clone()`; the JS `strict=true` mode hits the same).
-- **`moduleType = ES2015`** (JS) — a real ES module with named exports (UMD got tree-shaken away).
+- **WASM-GC uses strict typing**: the copy-constructor `ArrayList.clone()` patch is required (its strict casts reject `(ArrayList) super.clone()`; the JS `strict=true` mode hits the same).
+- **`moduleType = ES2015`** (JS): a real ES module with named exports (UMD got tree-shaken away).
 - **slf4j** is replaced with `org.teavm:teavm-extras-slf4j` (real slf4j's provider discovery breaks under TeaVM).
 - The parity scenarios **ship inside the engine**, behind the facade's `runParity()` export, so the parity test runs the vendored `.mjs` and `.wasm` themselves rather than a separate harness build. The facade is the `mainClass` of every build. The cost is about 95 KB on the JS engine and 62 KB on the WASM (roughly 3%), never executed by the app; its output goes to the kernel log sink, which drops it.
 
@@ -177,5 +175,5 @@ Every build prints **"Deprecated Gradle features were used in this build, making
 
 ## Tests
 
-- **Parity test** — `node test/parity/parity.mjs`. Compiles `ParityMain` to the JVM and to BOTH TeaVM targets (JS and WASM-GC), runs the same battery of scenarios on each, and requires **bit-identical** output (sub-1e-9 ULP tolerance for JS `Math`). Both targets are checked by default because both ship, and they share the one JVM reference; `--js` / `--wasm` narrow it to one. This proves the browser build matches the reference JVM. Self-contained: it builds and vendors the engine (`build-engine.mjs`, the same step as `npm run build`), then runs the VENDORED files, the ones the app loads, through `runParity()`, against the JVM running the same scenarios. Pass `--expect-lines <n>` to also require the golden to hold exactly that many values, as CI does. It also checks every value against `test/parity/golden.txt`, so a change that moves a NUMBER is caught even when both targets still agree with each other. `npm run parity:golden` rewrites it, and is for deliberate changes only. Note the last column of each `*.info` row is the WARNING COUNT, not a physical quantity: it moves whenever the set of warnings a design raises changes, which is a legitimate golden update rather than drifted physics.
-- **Aero validation** — `node validation/score.mjs [--supersonic]`. Scores the drag/CP/CNα sweep against published wind-tunnel anchors (ARCAS, Basic Finner, HB-2). Classic Barrowman degrades above Mach 1 (CP frozen); the opt-in supersonic model closes much of that gap — which is the reason the extensions exist.
+- **Parity test**: `node test/parity/parity.mjs`. Compiles `ParityMain` to the JVM and to BOTH TeaVM targets (JS and WASM-GC), runs the same battery of scenarios on each, and requires static values to be bit-identical (1e-13 relative, for JS `Math` ULP noise) and time-integrated flight lines to agree within 5e-3 relative (5e-2 in gusty wind). Both targets are checked by default because both ship, and they share the one JVM reference; `--js` / `--wasm` narrow it to one. This proves the browser build matches the reference JVM. Self-contained: it builds and vendors the engine (`build-engine.mjs`, the same step as `npm run build`), then runs the VENDORED files, the ones the app loads, through `runParity()`, against the JVM running the same scenarios. Pass `--expect-lines <n>` to also require the golden to hold exactly that many values, as CI does. It also checks every value against `test/parity/golden.txt`, so a change that moves a NUMBER is caught even when both targets still agree with each other. `npm run parity:golden` rewrites it, and is for deliberate changes only. Note the last column of each `*.info` row is the WARNING COUNT, not a physical quantity: it moves whenever the set of warnings a design raises changes, which is a legitimate golden update rather than drifted physics.
+- **Aero validation**: `node validation/score.mjs [--supersonic]`. Scores the drag/CP/CNα sweep against published wind-tunnel anchors (ARCAS, Basic Finner, HB-2). Classic Barrowman degrades above Mach 1 (CP frozen); the opt-in supersonic model closes much of that gap, which is the reason the extensions exist.
