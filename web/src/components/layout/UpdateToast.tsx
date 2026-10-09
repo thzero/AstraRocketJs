@@ -11,6 +11,7 @@ import {
 } from '../../services/app/updateCheck';
 import { useWorkspaceStore } from '../../state/store';
 import { useUpdateStore } from '../../state/updateStore';
+import { waitingIsNewer } from '../../services/app/swBuild';
 
 /**
  * "A new version is available, reload?" for the service worker.
@@ -42,6 +43,12 @@ import { useUpdateStore } from '../../state/updateStore';
  * worker alive, or if the running build is old enough to have no prompt at all.
  * A tab left hidden long enough therefore takes the update up unasked; see
  * `readyToApplyHidden`.
+ *
+ * And it takes up only a newer build. The browser reports any differing sw.js
+ * as waiting, older included, and the CDN can serve the previous one for a
+ * while after a deploy; applying that reloads into the old build, which then
+ * finds the new one, and the page cycles. Every path that offers or applies a
+ * worker first asks it for its build id (services/app/swBuild.ts).
  */
 export function UpdateToast() {
   const lastCheck = useRef<number | null>(null);
@@ -54,8 +61,9 @@ export function UpdateToast() {
   const [swReg, setSwReg] = useState<ServiceWorkerRegistration | null>(null);
 
   /*
-   * A waiting worker, remembered independently of whether the prompt is still
-   * showing.
+   * A waiting worker that is a newer build, remembered independently of
+   * whether the prompt is still showing. Set only once the worker has said
+   * which build it is, so an older one never shows the prompt.
    *
    * Dismissing the toast hides the offer; it does not make the new build go
    * away, and `setNeedRefresh(false)` is the app forgetting the one fact it
@@ -75,9 +83,13 @@ export function UpdateToast() {
     // The worker telling us one is waiting, which is the fact the dismissal
     // below must not erase. Taken from the registration's own callback rather
     // than derived from `needRefresh`, so nothing here has to set state from a
-    // render or an effect to remember it.
+    // render or an effect to remember it. Kept only if it is a newer build; a
+    // stale copy of the previous one (see swBuild.ts) clears it.
     onNeedRefresh() {
-      setWaiting(true);
+      void navigator.serviceWorker
+        .getRegistration()
+        .then(waitingIsNewer)
+        .then(setWaiting, () => setWaiting(false));
     },
     // The library reloads only on a controller change, and only when a worker
     // already controlled the page at load. Routed through `reloadOnce` so the
@@ -95,10 +107,16 @@ export function UpdateToast() {
    * reach `activated` covers that tab, and a worker already gone from
    * `waiting` (another tab took it up) needs only a reload.
    */
-  const apply = useCallback(() => {
+  const apply = useCallback(async () => {
     const next = swReg?.waiting;
     if (swReg && !next) {
       reloadOnce();
+      return;
+    }
+    // Asked again here, not only when the prompt appeared: a stale copy of the
+    // previous build can take the waiting slot in between.
+    if (next && !(await waitingIsNewer(swReg))) {
+      setWaiting(false);
       return;
     }
     next?.addEventListener('statechange', () => next.state === 'activated' && reloadOnce());
@@ -130,7 +148,7 @@ export function UpdateToast() {
   }, [swReg]);
 
   /*
-   * The About dialog's "Check for updates": the same update() the timer calls,
+   * The menu's "Check for updates": the same update() the timer calls,
    * but waited on and answered. A worker that starts installing is followed to
    * the end, so "up to date" is never said over a download still in progress.
    * One already waiting, behind a dismissed or snoozed banner, brings the banner
@@ -152,7 +170,8 @@ export function UpdateToast() {
           settle();
         });
       }
-      if (!swReg.waiting) return 'upToDate';
+      if (!(await waitingIsNewer(swReg))) return 'upToDate';
+      setWaiting(true);
       setSnoozed(null);
       setNeedRefresh(true);
       return 'available';
@@ -190,7 +209,7 @@ export function UpdateToast() {
       timer = setInterval(() => {
         if (!readyToApplyHidden(true, hiddenSince, useWorkspaceStore.getState().simBusy, Date.now())) return;
         stop();
-        apply();
+        void apply();
       }, 5_000);
     };
     document.addEventListener('visibilitychange', onVisibility);
@@ -212,8 +231,10 @@ export function UpdateToast() {
   const later = useCallback(() => setSnoozed(snoozeUntil(Date.now())), []);
 
   // No clock read in render: the snooze effect above nulls `snoozed` the
-  // moment it expires, so "not snoozed" is the whole condition.
-  const show = needRefresh && snoozed === null;
+  // moment it expires, so "not snoozed" is the whole condition. `waiting` is
+  // the newer-build check: the library raises `needRefresh` for any waiting
+  // worker, older included.
+  const show = needRefresh && waiting && snoozed === null;
 
   // The live region is always mounted; only its contents come and go.
   //
@@ -223,7 +244,9 @@ export function UpdateToast() {
   // to say would leave the toast announcing nothing.
   return (
     <div role="status" aria-live="polite">
-      {show && <UpdateToastBody onRefresh={apply} onLater={later} onDismiss={() => setNeedRefresh(false)} />}
+      {show && (
+        <UpdateToastBody onRefresh={() => void apply()} onLater={later} onDismiss={() => setNeedRefresh(false)} />
+      )}
     </div>
   );
 }

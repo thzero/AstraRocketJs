@@ -48,7 +48,7 @@ When a new version ships, a banner appears under the header offering to **reload
 
 **Later** puts it away and brings it back in a couple of hours. The **✕** keeps the current version until you next reload, whenever suits you.
 
-**Check for updates** in the About dialog (the version number in the header) asks right away and answers either way: that you are on the latest version, or that a new one is ready, in which case the banner comes back even if you put it away.
+**Check for updates** in the app menu (top-right ☰) asks right away and answers either way: that you are on the latest version, or that a new one is ready, in which case the banner comes back even if you put it away.
 
 The app looks for a new version about every ten minutes, and again whenever you come back to the tab or your connection returns, so a tab left open all day still finds out that something shipped. A plain reload also picks up a new version directly, so you never need a hard reload; the site is served through a CDN that holds files for up to ten minutes, which is the longest a fresh deploy takes to reach you.
 

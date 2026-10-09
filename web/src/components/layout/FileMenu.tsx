@@ -2,6 +2,8 @@ import { type KeyboardEvent as ReactKeyboardEvent, type ReactNode, useEffect, us
 import { useTranslation } from 'react-i18next';
 import { useCanBuildDesign } from '../design/useCanBuildDesign';
 import { useMenuPopover } from '../common/useMenuPopover';
+import { useOnline } from '../common/useOnline';
+import { useUpdateStore } from '../../state/updateStore';
 
 /**
  * The header's file menu: the trigger button that owns the open flag and
@@ -36,6 +38,8 @@ export interface FileMenuActions {
   /** Open in-app Help on the Safety page. */
   onSafety: () => void;
   onPrivacy: () => void;
+  /** Check for a new version now, and say what came of it. */
+  onCheckUpdates: () => void;
   onAbout: () => void;
 }
 
@@ -47,6 +51,7 @@ export interface FileMenuActions {
 function MenuItem({
   sub,
   label,
+  title,
   expanded,
   disabled,
   onClick,
@@ -55,6 +60,8 @@ function MenuItem({
   sub?: boolean;
   /** Accessible name, when the visible text is too terse on its own. */
   label?: string;
+  /** Tooltip; for a disabled entry, the reason it is disabled. */
+  title?: string;
   expanded?: boolean;
   disabled?: boolean;
   onClick: () => void;
@@ -67,6 +74,7 @@ function MenuItem({
       tabIndex={-1}
       className={sub ? subItem : item}
       aria-label={label}
+      title={title}
       aria-haspopup={submenu ? 'true' : undefined}
       aria-expanded={expanded}
       disabled={disabled}
@@ -126,6 +134,8 @@ function FileMenu({
   // Read here rather than threaded in as a prop: it is a fact about the window,
   // not a decision the header is making.
   const canBuild = useCanBuildDesign();
+  const updateChecker = useUpdateStore((s) => s.checker);
+  const online = useOnline();
 
   // On open, pull focus to the first enabled item, unless focus is already
   // inside (the trigger handed it over). Once, on mount: the menu is a fresh
@@ -266,6 +276,15 @@ function FileMenu({
       <MenuItem onClick={run(actions.onSafety)}>{t('menu.safety')}</MenuItem>
       <div className="my-1 border-t border-line/10" />
       <MenuItem onClick={run(actions.onPrivacy)}>{t('about.privacy')}</MenuItem>
+      {/* Disabled where there is nothing to ask: offline, or the development
+          server, which registers no service worker. */}
+      <MenuItem
+        disabled={!updateChecker || !online}
+        title={!updateChecker ? t('update.checkUnavailable') : online ? undefined : t('common.needsConnection')}
+        onClick={run(actions.onCheckUpdates)}
+      >
+        {t('update.check')}
+      </MenuItem>
       <MenuItem onClick={run(actions.onAbout)}>{t('about.open')}</MenuItem>
     </div>
   );

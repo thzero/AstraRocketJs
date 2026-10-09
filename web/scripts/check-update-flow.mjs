@@ -18,7 +18,7 @@
 // each layer thought the page was. Two production builds plus a browser: about
 // two minutes.
 import { execFileSync, spawn } from 'node:child_process';
-import { rmSync } from 'node:fs';
+import { cpSync, rmSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from '@playwright/test';
@@ -30,6 +30,8 @@ import { chromium } from '@playwright/test';
 const WEB = fileURLToPath(new URL('..', import.meta.url));
 const VITE = resolve(WEB, 'node_modules/vite/bin/vite.js');
 const OUT = 'dist-update-check';
+// Version B's output, kept to serve again as a CDN node still holding the previous deploy.
+const OUT_B = 'dist-update-check-b';
 const PORT = 4179;
 const URL_ = `http://localhost:${PORT}/`;
 const VERSION_A = '0.0.0-update-a';
@@ -168,6 +170,7 @@ async function main() {
     });
 
     build(VERSION_B);
+    cpSync(resolve(WEB, OUT), resolve(WEB, OUT_B), { recursive: true });
 
     await step('the toast Reload takes a first-visit tab to version B', async () => {
       await firstVisit.evaluate(async () => {
@@ -214,9 +217,9 @@ async function main() {
 
     // The manual check, against a real worker: on the newest build it answers
     // "up to date", which the timer never says.
-    await step('Check for updates in About says the newest build is up to date', async () => {
-      await page.getByRole('button', { name: `v${VERSION_B}`, exact: true }).click();
-      await page.getByRole('button', { name: 'Check for updates', exact: true }).click();
+    await step('Check for updates in the menu says the newest build is up to date', async () => {
+      await page.getByRole('button', { name: 'Menu', exact: true }).click();
+      await page.getByRole('menuitem', { name: 'Check for updates', exact: true }).click();
       await page.getByText('You are running the latest version.').waitFor({ timeout: 60_000 });
       await page.keyboard.press('Escape');
     });
@@ -290,13 +293,53 @@ async function main() {
       await page.getByText(`v${VERSION_C}`, { exact: true }).waitFor({ timeout: 60_000 });
     });
 
+    // After a deploy, GitHub Pages can serve the previous sw.js from some of its
+    // nodes for minutes. The browser installs any sw.js that differs from the
+    // running one as waiting, older included, and taking it up reloads into the
+    // old build, which finds the new one again: the page cycles. Only a newer
+    // build may be offered or applied (services/app/swBuild.ts).
+    await step('a stale copy of the previous build is never offered or applied', async () => {
+      // Version B's files back on the server, page aside: a node still serving
+      // the previous deploy's sw.js and its assets.
+      cpSync(resolve(WEB, OUT_B), resolve(WEB, OUT), {
+        recursive: true,
+        force: true,
+        filter: (src) => !src.endsWith('index.html'),
+      });
+      await markDocument(page);
+      await page.evaluate(async () => {
+        const reg = await navigator.serviceWorker.getRegistration();
+        if (!reg) throw new Error('no registration');
+        await reg.update();
+      });
+      // The browser took it as an update: version B is installed and waiting.
+      await page.waitForFunction(async () => !!(await navigator.serviceWorker.getRegistration())?.waiting, null, {
+        timeout: 60_000,
+      });
+      // Hidden past the point where a newer build would be applied unasked (30 s,
+      // polled every 5 s), then back: nothing offered, nothing reloaded.
+      await page.evaluate(() => {
+        Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
+        document.dispatchEvent(new Event('visibilitychange'));
+      });
+      await new Promise((r) => setTimeout(r, 45_000));
+      if (!(await page.evaluate(() => window.__stillTheSameDocument === true))) {
+        throw new Error('the page reloaded into the older build');
+      }
+      if (await page.getByText('A new version is available.').isVisible()) {
+        throw new Error('the older build was offered as an update');
+      }
+      await page.getByText(`v${VERSION_C}`, { exact: true }).waitFor({ timeout: 10_000 });
+    });
+
     log(
-      'OK: a plain reload, the toast (on a first visit too) and a dismissed prompt all end on the new build, and offline still boots',
+      'OK: a plain reload, the toast (on a first visit too) and a dismissed prompt all end on the new build, offline still boots, and a stale older build is never taken up',
     );
   } finally {
     await browser.close();
     server.kill();
     rmSync(resolve(WEB, OUT), { recursive: true, force: true });
+    rmSync(resolve(WEB, OUT_B), { recursive: true, force: true });
   }
 }
 

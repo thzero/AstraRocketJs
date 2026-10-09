@@ -7,6 +7,7 @@ import { DesignLibraryDialog } from './DesignLibraryDialog';
 import { DesignPropertiesDialog } from './DesignPropertiesDialog';
 import { ExamplesDialog } from './ExamplesDialog';
 import { AboutDialog } from './AboutDialog';
+import { UpdateCheckDialog } from './UpdateCheckDialog';
 // Lazily loaded: it is the only eager holder of `services/report/reportModel`,
 // which `store.saveDesign` already imports dynamically to keep the report model
 // out of the main bundle. One static import from a dialog this host mounts
@@ -38,6 +39,7 @@ export type HeaderDialog =
   | 'motors'
   | 'report'
   | 'about'
+  | 'updates'
   | 'privacy'
   | 'settings'
   | 'library'
@@ -53,6 +55,7 @@ const NONE_OPEN: OpenFlags = {
   motors: false,
   report: false,
   about: false,
+  updates: false,
   privacy: false,
   settings: false,
   library: false,
@@ -96,6 +99,7 @@ function HeaderDialogs({ flags, onClose }: { flags: OpenFlags; onClose: (id: Hea
         </LazyBoundary>
       )}
       {flags.about && <AboutDialog onClose={() => onClose('about')} />}
+      {flags.updates && <UpdateCheckDialog onClose={() => onClose('updates')} />}
       {flags.privacy && <PrivacyDialog onClose={() => onClose('privacy')} />}
       {/* '' is the docs index, so the null check is not a truthiness check.
           Keyed on the page so that opening Help again on A different topic

@@ -8,6 +8,12 @@ so most entries describe getting a computation to match OpenRocket exactly.
 
 ## [Unreleased]
 
+### Changed
+- **Check for updates is in the menu.** It sits above **About** in the app menu instead of inside the About dialog. Choosing it checks right away and says what came of it in a small dialog: that you are on the latest version, that a new one is ready (the update banner comes up too), or that the check could not be made. It is grayed out offline.
+
+### Fixed
+- **An update no longer reloads the page round and round.** For a few minutes after a new version is published, the site's CDN can still hand out the previous version's service worker. The browser treated that older worker as an update too, so taking an update up could reload the page into the old version, which then found the new one again, and so on. The app now asks a waiting update which build it is and takes it up only when it is newer than the one running; an older copy is ignored. A tab still running a version from before this fix can cycle once more until it lands on this one.
+
 ## [0.2.0]
 
 Everything since 0.0.7, including the 0.1.x preview builds.
