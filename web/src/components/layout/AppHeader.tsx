@@ -118,6 +118,7 @@ export function AppHeader() {
             onHelp: () => openHelp(),
             onSafety: () => openHelp('safety'),
             onPrivacy: () => open('privacy'),
+            onCheckUpdates: () => open('updates'),
             onAbout: () => open('about'),
           }}
         />

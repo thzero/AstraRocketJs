@@ -17,6 +17,25 @@ const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 
 // worker hand one over to the other; nothing else sets it.
 const version: string = process.env.APP_VERSION_OVERRIDE || pkg.version;
 
+/**
+ * This build's id: the time it was built, so a later build always has a higher
+ * one. A browser treats any service worker script that differs from the running
+ * one as an update, older included, and the GitHub Pages CDN can serve the
+ * previous sw.js from some of its nodes for minutes after a deploy. So the page
+ * asks the waiting and active workers for their ids and takes the waiting one up
+ * only when its id is higher (services/app/swBuild.ts). The worker answers from a small
+ * script named per build, so no node can serve a stale copy of it.
+ */
+const buildId = Date.now();
+const swBuildFile = `sw-build-${buildId}.js`;
+const swBuildSource = `// Answers the page's "which build are you?" (services/app/swBuild.ts).
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'GET_BUILD' && event.ports && event.ports[0]) {
+    event.ports[0].postMessage({ build: ${buildId} });
+  }
+});
+`;
+
 // The Help/docs link. Prefer the explicit `wiki.url` in package.json; fall back to
 // the repository URL + "/wiki" (normalized: strip the "git+" prefix / ".git" suffix).
 // Single source in package.json, plus a build-time override:
@@ -75,6 +94,14 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
+    // The service worker's build-id script (see buildId above).
+    {
+      name: 'sw-build-id',
+      apply: 'build',
+      generateBundle() {
+        this.emitFile({ type: 'asset', fileName: swBuildFile, source: swBuildSource });
+      },
+    },
     // Offline support. Everything the app needs is static (the WASM kernel runs
     // the physics in-browser; there is no backend), so it can work fully offline
     // once cached, which matters at a launch site with no signal.
@@ -137,7 +164,9 @@ export default defineConfig({
         // control nobody in the app can reach. It stays available to anyone reading
         // the published site, which is who the plugin is for, and the Help dialog
         // searches the same pages its own way.
-        globIgnores: ['**/openrocket-engine-*.js', '**/search-index*.json'],
+        globIgnores: ['**/openrocket-engine-*.js', '**/search-index*.json', '**/sw-build-*.js'],
+        // Loaded by sw.js itself, so it answers which build it is (see buildId).
+        importScripts: [swBuildFile],
         // The WASM kernel alone is ~2.5 MB, over Workbox's 2 MiB default.
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
         // `?v=<hash>` has to be ignored when matching the precache, or the

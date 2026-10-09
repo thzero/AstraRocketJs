@@ -12,13 +12,14 @@ interface UpdateState {
   checker: (() => Promise<'upToDate' | 'available'>) | null;
   result: UpdateCheckResult;
   setChecker: (checker: UpdateState['checker']) => void;
-  /** Check now, for the About dialog's button; the answer lands in `result`. */
+  /** Check now, for the menu's Check for updates; the answer lands in `result`. */
   checkNow: () => Promise<void>;
 }
 
 /**
  * The manual "Check for updates", shared between the update banner, which owns
- * the service worker registration, and the About dialog, which has the button.
+ * the service worker registration, and the menu entry with its dialog
+ * (UpdateCheckDialog).
  *
  * The banner already checks on a timer and says nothing until a version is
  * waiting; this is for someone who wants an answer now, including "you are up

@@ -1,11 +1,9 @@
 import { useTranslation, Trans } from 'react-i18next';
 import { appName, APP_VERSION, CONTRIBUTORS_URL, isPreRelease, UPSTREAM } from '../../services/app/appInfo';
-import { useUpdateStore } from '../../state/updateStore';
 import { fetchCatalog } from '../../services/app/remoteData';
 import { Dialog } from '../common/Dialog';
 import { DialogButton } from '../common/DialogButton';
 import { useAsyncLoad } from '../common/useAsyncLoad';
-import { useOnline } from '../common/useOnline';
 
 interface Contributor {
   login: string;
@@ -64,7 +62,6 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
           {t('about.tagline')} · v{APP_VERSION}
         </p>
       </div>
-      <UpdateCheck />
 
       <div className="mt-4 space-y-3 text-sm leading-relaxed text-ink-soft">
         {isPreRelease() && (
@@ -175,40 +172,5 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
         </DialogButton>
       </div>
     </Dialog>
-  );
-}
-
-/**
- * Check for a new version now and say what came of it, including that this is
- * the latest, which the banner's own timer never says. Disabled where there is
- * no service worker to ask (the dev server), with the reason in its title.
- */
-function UpdateCheck() {
-  const { t } = useTranslation();
-  const checker = useUpdateStore((s) => s.checker);
-  const result = useUpdateStore((s) => s.result);
-  const checkNow = useUpdateStore((s) => s.checkNow);
-  const online = useOnline();
-  const message: Partial<Record<typeof result, string>> = {
-    checking: t('update.checking'),
-    upToDate: t('update.upToDate'),
-    available: t('update.foundNew'),
-    failed: t('update.checkFailed'),
-  };
-  return (
-    <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-      <button
-        onClick={() => void checkNow()}
-        disabled={!checker || result === 'checking' || !online}
-        title={!checker ? t('update.checkUnavailable') : online ? undefined : t('common.needsConnection')}
-        className="rounded-md bg-raised px-2.5 py-1 font-medium text-ink ring-1 ring-line/10 hover:bg-elevated disabled:opacity-40"
-      >
-        {t('update.check')}
-      </button>
-      {/* Mounted always, so the answer is announced when it lands. */}
-      <span role="status" aria-live="polite" className={result === 'failed' ? 'text-warn-300' : 'text-ink-muted'}>
-        {message[result] ?? ''}
-      </span>
-    </div>
   );
 }

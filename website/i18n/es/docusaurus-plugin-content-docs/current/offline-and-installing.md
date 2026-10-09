@@ -48,7 +48,7 @@ Cuando se publica una versión nueva, aparece un aviso bajo la cabecera que ofre
 
 **Más tarde** lo guarda y lo vuelve a mostrar al cabo de un par de horas. La **✕** mantiene la versión actual hasta que recargues, cuando te venga bien.
 
-**Buscar actualizaciones**, en el diálogo Acerca de (el número de versión de la cabecera), pregunta en el momento y responde en ambos casos: que tienes la versión más reciente, o que hay una nueva lista, y entonces el aviso vuelve aunque lo hubieras cerrado.
+**Buscar actualizaciones**, en el menú de la aplicación (☰, arriba a la derecha), pregunta en el momento y responde en ambos casos: que tienes la versión más reciente, o que hay una nueva lista, y entonces el aviso vuelve aunque lo hubieras cerrado.
 
 La aplicación busca versiones nuevas más o menos cada diez minutos, y de nuevo cada vez que vuelves a la pestaña o se restablece la conexión, así que una pestaña abierta todo el día también se entera de que se ha publicado algo. Una recarga normal también trae la versión nueva directamente, así que nunca hace falta una recarga forzada; el sitio se sirve a través de una CDN que conserva los archivos hasta diez minutos, que es lo máximo que tarda una publicación en llegarte.
 
