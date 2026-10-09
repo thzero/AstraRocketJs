@@ -792,6 +792,12 @@
     "rollRate": "Taxa de rolagem",
     "velocityAltitude": "Velocidade por altitude",
     "velocityAtAltitude": "{{velocity}} a {{altitude}}",
+    "summaryPeak": "pico de {{value}} em {{time}} s",
+    "summaryRange": "de {{min}} a {{max}}",
+    "summaryNoData": "sem dados",
+    "summaryEvents": "Eventos: {{list}}",
+    "summaryEventAt": "{{event}} em {{time}} s",
+    "summaryVelocityAltitude": "velocidade máxima de {{velocity}} a {{altitude}}",
     "expandPanel": "Mostrar só este painel",
     "showAllPanels": "Mostrar todos os painéis",
     "pickSeries": "Escolha uma grandeza para plotar.",
@@ -983,6 +989,7 @@
     "supersonicNote": "Barrowman estendido: aproximado acima de ~Mach 1,5.",
     "unavailable": "Monte um foguete válido para ver o arrasto dele.",
     "crosshairHint": "Curvas de arrasto. Foque e use as setas para mover a mira; Shift para um passo maior, Home e End para as pontas, Esc para limpar.",
+    "summaryPeakMach": "pico de {{value}} em Mach {{mach}}",
     "computing": "Calculando..."
   },
   "banner": {

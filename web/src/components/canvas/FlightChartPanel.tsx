@@ -9,6 +9,7 @@ import { PanelHover } from './FlightChartHover';
 import { polylinePath } from '../common/svgPath';
 import { PanelExpandButton } from './PanelExpandButton';
 import { token } from '../common/colorTokens';
+import { timeSeriesSummary } from './chartSummary';
 
 /**
  * Owns one small-multiple panel of the flight chart: the sample extraction
@@ -156,6 +157,13 @@ export function FlightChartPanel({
 
   const zeroInRange = lo < 0 && hi > 0;
 
+  // What a screen reader hears for this panel: its peak and when, or the span a
+  // level series covers, per shown stage (see chartSummary).
+  const summary = useMemo(
+    () => timeSeriesSummary(t, t(meta.label), unit, digits, !!meta.level, list),
+    [t, meta.label, meta.level, unit, digits, list],
+  );
+
   // Header: the hovered value of the primary (first / sustainer) stage, else the
   // peak-magnitude sample across every shown stage.
   const primary = list[0];
@@ -174,7 +182,15 @@ export function FlightChartPanel({
           {onToggleExpand && <PanelExpandButton expanded={expanded} onClick={onToggleExpand} />}
         </span>
       </div>
-      <svg viewBox={`0 0 ${w} ${height}`} width="100%" height={height} preserveAspectRatio="none" className="block">
+      <svg
+        viewBox={`0 0 ${w} ${height}`}
+        width="100%"
+        height={height}
+        preserveAspectRatio="none"
+        className="block"
+        role="img"
+        aria-label={summary}
+      >
         <defs>
           {/* Filled area only for a lone line (single stage), colored to match
               it; overlaid stages would muddy each other, so they're lines only. */}

@@ -789,6 +789,12 @@
     "rollRate": "Rollrate",
     "velocityAltitude": "Geschwindigkeit über Höhe",
     "velocityAtAltitude": "{{velocity}} auf {{altitude}}",
+    "summaryPeak": "Spitze {{value}} bei {{time}} s",
+    "summaryRange": "von {{min}} bis {{max}}",
+    "summaryNoData": "keine Daten",
+    "summaryEvents": "Ereignisse: {{list}}",
+    "summaryEventAt": "{{event}} bei {{time}} s",
+    "summaryVelocityAltitude": "Höchstgeschwindigkeit {{velocity}} auf {{altitude}}",
     "expandPanel": "Nur dieses Diagramm zeigen",
     "showAllPanels": "Alle Diagramme zeigen",
     "pickSeries": "Wählen Sie eine Messgröße zum Auftragen.",
@@ -979,6 +985,7 @@
     "supersonicNote": "Erweitertes Barrowman-Verfahren – oberhalb von etwa Mach 1,5 nur näherungsweise gültig.",
     "unavailable": "Bauen Sie eine gültige Rakete, um ihren Widerstand zu sehen.",
     "crosshairHint": "Widerstandskurven. Fokussieren und mit den Pfeiltasten das Fadenkreuz bewegen; Umschalt für größere Schritte, Pos1 und Ende für die Enden, Esc zum Zurücksetzen.",
+    "summaryPeakMach": "Spitze {{value}} bei Mach {{mach}}",
     "computing": "Wird berechnet …"
   },
   "banner": {

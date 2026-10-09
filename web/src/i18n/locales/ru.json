@@ -795,6 +795,12 @@
     "rollRate": "Скорость крена",
     "velocityAltitude": "Скорость по высоте",
     "velocityAtAltitude": "{{velocity}} на высоте {{altitude}}",
+    "summaryPeak": "пик {{value}} на {{time}} с",
+    "summaryRange": "от {{min}} до {{max}}",
+    "summaryNoData": "нет данных",
+    "summaryEvents": "События: {{list}}",
+    "summaryEventAt": "{{event}} на {{time}} с",
+    "summaryVelocityAltitude": "максимальная скорость {{velocity}} на высоте {{altitude}}",
     "expandPanel": "Показать только этот график",
     "showAllPanels": "Показать все графики",
     "pickSeries": "Выберите величину для графика.",
@@ -987,6 +993,7 @@
     "supersonicNote": "Расширенный метод Барроумана: выше числа Маха около 1,5 это приближение.",
     "unavailable": "Соберите корректную ракету, чтобы увидеть её сопротивление.",
     "crosshairHint": "Кривые сопротивления. Установите фокус и двигайте перекрестие стрелками; Shift для крупного шага, Home и End к краям, Esc для сброса.",
+    "summaryPeakMach": "пик {{value}} при числе Маха {{mach}}",
     "computing": "Вычисление..."
   },
   "banner": {

@@ -795,6 +795,12 @@
     "rollRate": "Prędkość przechylania",
     "velocityAltitude": "Prędkość względem wysokości",
     "velocityAtAltitude": "{{velocity}} na {{altitude}}",
+    "summaryPeak": "maksimum {{value}} w {{time}} s",
+    "summaryRange": "od {{min}} do {{max}}",
+    "summaryNoData": "brak danych",
+    "summaryEvents": "Zdarzenia: {{list}}",
+    "summaryEventAt": "{{event}} w {{time}} s",
+    "summaryVelocityAltitude": "prędkość maksymalna {{velocity}} na {{altitude}}",
     "expandPanel": "Pokaż tylko ten wykres",
     "showAllPanels": "Pokaż wszystkie wykresy",
     "pickSeries": "Wybierz wielkość do wykresu.",
@@ -987,6 +993,7 @@
     "supersonicNote": "Rozszerzona metoda Barrowmana: powyżej około 1,5 liczby Macha to przybliżenie.",
     "unavailable": "Zbuduj poprawną rakietę, aby zobaczyć jej opór.",
     "crosshairHint": "Krzywe oporu. Ustaw fokus i przesuwaj celownik strzałkami; Shift dla większego kroku, Home i End na końce, Esc aby wyczyścić.",
+    "summaryPeakMach": "maksimum {{value}} przy Mach {{mach}}",
     "computing": "Obliczanie..."
   },
   "banner": {

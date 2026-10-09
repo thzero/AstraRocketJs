@@ -789,6 +789,12 @@
     "rollRate": "Roll rate",
     "velocityAltitude": "Velocity vs altitude",
     "velocityAtAltitude": "{{velocity}} at {{altitude}}",
+    "summaryPeak": "peak {{value}} at {{time}} s",
+    "summaryRange": "from {{min}} to {{max}}",
+    "summaryNoData": "no data",
+    "summaryEvents": "Events: {{list}}",
+    "summaryEventAt": "{{event}} at {{time}} s",
+    "summaryVelocityAltitude": "top speed {{velocity}} at {{altitude}}",
     "expandPanel": "Show only this panel",
     "showAllPanels": "Show all panels",
     "pickSeries": "Pick a measure to plot.",
@@ -979,6 +985,7 @@
     "supersonicNote": "Extended Barrowman — approximate above ~Mach 1.5.",
     "unavailable": "Build a valid rocket to see its drag.",
     "crosshairHint": "Drag curves. Focus and use the arrow keys to move the crosshair; Shift for a larger step, Home and End for the ends, Escape to clear.",
+    "summaryPeakMach": "peak {{value}} at Mach {{mach}}",
     "computing": "Computing..."
   },
   "banner": {
