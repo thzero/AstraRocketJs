@@ -38,9 +38,6 @@ Ordered by plausibility: how much stands between the entry and a working change,
 
   Three things to decide before starting: where it lives (a row in the Motors panel, or its own pane beside Results); whether the table downloads the way the run table does (`runTableCsv` in `csvExport.ts`, which already writes these columns); and whether a row can be PROMOTED into a real simulation once you pick a winner, which is the one thing that would justify writing configurations after all, for one row rather than thirty.
 
-- **Charts described for screen readers** (from the MMRocket Sim review, 2026-10-07). Each flight chart panel, the drag charts and the ground track get a short written summary a screen reader announces: the measure, its peak and when it happened, and the events marked on it, in the reader's units. Today the charts' accessible names cover only their controls (zoom, crosshair), so the numbers in a chart reach a screen reader only through the crosshair readout. The summaries can be built from what the panels already compute (`FlightChartPanel` has the peak; `flightChartTraces` has the series), placed in each panel as visually hidden text or an `aria-describedby` target, and translated in all ten locales.
-
-
 - **Saved parts as a file** (from the MMRocket Sim review, 2026-10-07). MMRocket Sim imports and exports your own parts as CSV. **Save as part** keeps them in this browser only, so they cannot move to another device or to anyone else. Desktop OpenRocket has no in-app import or export for parts, so nothing there sets the format; if parts are ever shared as files, use desktop's `.orc` (the format of its parts database, which `scripts/sync-components.mjs` already reads), not CSV, so a file made here also loads into desktop's parts library.
 
 ### Blocked on something outside the code
@@ -63,11 +60,6 @@ Ordered by plausibility: how much stands between the entry and a working change,
   **And it is not ours to add.** This app is a UI over the engine, and what a motor weighs and where it balances are figures the kernel states. Adjusting them on the way in would make this app the thing that decides them, which is the line the project does not cross whatever the arithmetic looks like. It is the same rule that keeps CP, CG, calibers and the stability margin coming from the kernel rather than from a formula here.
 
   So: only if OpenRocket carries a motor mass AND CG override of its own. Then it is a per-mount field, the value passed through, and the usual ten translations.
-
-### Not worked up yet
-
-save to rasaero
-remove rasaero (its all wip and questionable value at this point)
 
 ## Not doing
 

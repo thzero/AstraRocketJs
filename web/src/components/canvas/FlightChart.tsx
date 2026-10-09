@@ -10,6 +10,7 @@ import { useChartZoom } from './useChartZoom';
 import { useChartCrosshair } from './useChartCrosshair';
 import { EventLabelStrip, eventStripHeight, packEventLabels } from './FlightChartEvents';
 import { FlightChartPanel } from './FlightChartPanel';
+import { eventsSummary } from './chartSummary';
 import { FlightXYPanel } from './FlightXYPanel';
 import { useElementResize } from '../common/useElementResize';
 
@@ -120,6 +121,9 @@ export function FlightChart({ flight }: { flight: ChartFlight }) {
     // (t0, t1) and the width, so listing it is both honest and sufficient.
   }, [events, X, w, t]);
   const stripH = eventStripHeight(eventLabels);
+  // The event strip in words, for a screen reader: every shown event in time
+  // order, including the ones the strip clusters or the zoom window hides.
+  const eventsText = useMemo(() => eventsSummary(t, events, (type) => t(EVENT_LABEL[type] ?? type)), [events, t]);
 
   const toggle = (k: Key) => update({ flightSeries: on.includes(k) ? on.filter((x) => x !== k) : [...on, k] });
   const activeMetas = SERIES.filter((m) => on.includes(m.key));
@@ -256,6 +260,7 @@ export function FlightChart({ flight }: { flight: ChartFlight }) {
           <p className="grid h-full place-items-center text-sm text-ink-faint">{t('flight.pickSeries')}</p>
         ) : (
           <>
+            {eventsText && <p className="sr-only">{eventsText}</p>}
             {stripH > 0 && <EventLabelStrip labels={eventLabels} w={w} stripH={stripH} t={t} />}
             {shownMetas.map((m) =>
               m.xy ? (

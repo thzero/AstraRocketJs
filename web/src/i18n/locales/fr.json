@@ -792,6 +792,12 @@
     "rollRate": "Vitesse de roulis",
     "velocityAltitude": "Vitesse selon l’altitude",
     "velocityAtAltitude": "{{velocity}} à {{altitude}}",
+    "summaryPeak": "maximum {{value}} à {{time}} s",
+    "summaryRange": "de {{min}} à {{max}}",
+    "summaryNoData": "aucune donnée",
+    "summaryEvents": "Événements : {{list}}",
+    "summaryEventAt": "{{event}} à {{time}} s",
+    "summaryVelocityAltitude": "vitesse maximale {{velocity}} à {{altitude}}",
     "expandPanel": "Afficher ce graphique seul",
     "showAllPanels": "Afficher tous les graphiques",
     "pickSeries": "Choisissez une grandeur à tracer.",
@@ -983,6 +989,7 @@
     "supersonicNote": "Barrowman étendu – approximatif au-delà d'environ Mach 1,5.",
     "unavailable": "Construisez une fusée valide pour voir sa traînée.",
     "crosshairHint": "Courbes de traînée. Placez le focus et utilisez les flèches pour déplacer le réticule ; Maj pour un pas plus grand, Origine et Fin pour les extrémités, Échap pour effacer.",
+    "summaryPeakMach": "maximum {{value}} à Mach {{mach}}",
     "computing": "Calcul en cours…"
   },
   "banner": {

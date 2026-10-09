@@ -786,6 +786,12 @@
     "rollRate": "ロールレート",
     "velocityAltitude": "高度に対する速度",
     "velocityAtAltitude": "{{altitude}}で{{velocity}}",
+    "summaryPeak": "{{time}} 秒で最大 {{value}}",
+    "summaryRange": "{{min}} から {{max}}",
+    "summaryNoData": "データなし",
+    "summaryEvents": "イベント: {{list}}",
+    "summaryEventAt": "{{time}} 秒で{{event}}",
+    "summaryVelocityAltitude": "{{altitude}}で最高速度 {{velocity}}",
     "expandPanel": "このグラフだけを表示",
     "showAllPanels": "すべてのグラフを表示",
     "pickSeries": "描画する量を選んでください。",
@@ -975,6 +981,7 @@
     "supersonicNote": "拡張バロウマン法：マッハ 1.5 程度を超えると近似になります。",
     "unavailable": "抗力を見るには有効なロケットを組み立ててください。",
     "crosshairHint": "抗力曲線。フォーカスして矢印キーで十字線を動かします。Shift で大きく移動、Home と End で両端へ、Esc で解除します。",
+    "summaryPeakMach": "マッハ {{mach}} で最大 {{value}}",
     "computing": "計算中..."
   },
   "banner": {

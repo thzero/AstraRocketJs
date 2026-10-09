@@ -792,6 +792,12 @@
     "rollRate": "Velocidad de alabeo",
     "velocityAltitude": "Velocidad frente a altitud",
     "velocityAtAltitude": "{{velocity}} a {{altitude}}",
+    "summaryPeak": "máximo {{value}} a los {{time}} s",
+    "summaryRange": "de {{min}} a {{max}}",
+    "summaryNoData": "sin datos",
+    "summaryEvents": "Eventos: {{list}}",
+    "summaryEventAt": "{{event}} a los {{time}} s",
+    "summaryVelocityAltitude": "velocidad máxima {{velocity}} a {{altitude}}",
     "expandPanel": "Mostrar solo este panel",
     "showAllPanels": "Mostrar todos los paneles",
     "pickSeries": "Elige una magnitud para graficar.",
@@ -983,6 +989,7 @@
     "supersonicNote": "Barrowman extendido — aproximado por encima de ~Mach 1.5.",
     "unavailable": "Construye un cohete válido para ver su resistencia.",
     "crosshairHint": "Curvas de resistencia. Enfoca y usa las flechas para mover la cruz; Mayús para un paso mayor, Inicio y Fin para los extremos, Escape para quitarla.",
+    "summaryPeakMach": "máximo {{value}} a Mach {{mach}}",
     "computing": "Calculando..."
   },
   "banner": {

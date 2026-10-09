@@ -213,4 +213,23 @@ test.describe('accessibility', () => {
     await page.keyboard.press('End');
     await expect(readout).not.toHaveText(atStart);
   });
+
+  /**
+   * Each chart states its numbers in words for a screen reader: a flight panel
+   * its peak and when, the flight's events in order, and a drag chart each
+   * curve's peak and its Mach number. Without these, the only way to hear a
+   * value is to walk the crosshair sample by sample.
+   */
+  test('the charts describe themselves to a screen reader', async ({ page }) => {
+    await page.goto('/');
+    await runFlight(page);
+    await page.getByRole('button', { name: 'Flight', exact: true }).click();
+    await expect(page.getByRole('img', { name: /^Altitude: peak \S+ m at [\d.]+ s$/ })).toBeVisible();
+    await expect(page.getByText(/^Events: .*Apogee at [\d.]+ s/)).toHaveCount(1);
+
+    // The drag charts are a design view, on the Design tab.
+    await openTab(page, 'Design');
+    await page.getByRole('button', { name: 'Aero', exact: true }).click();
+    await expect(page.getByRole('img', { name: /peak .* at Mach [\d.]+/ }).first()).toBeVisible();
+  });
 });

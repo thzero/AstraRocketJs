@@ -7,6 +7,7 @@ import { PAD_L, PAD_R } from './flightChartAxis';
 import type { Branch, Meta } from './flightChartTraces';
 import { polylinePath } from '../common/svgPath';
 import { PanelExpandButton } from './PanelExpandButton';
+import { velocityAltitudeSummary } from './chartSummary';
 
 /**
  * Velocity against altitude, one line per shown stage.
@@ -103,6 +104,21 @@ export function FlightXYPanel({
   const xDigits = ladderDigits(x1 - x0);
   const yDigits = ladderDigits(y1 - y0);
   const peak = lines[0]?.vel.reduce((m, v) => Math.max(m, v), 0) ?? 0;
+  // What a screen reader hears for this panel: the top speed and the altitude
+  // it was reached at, per shown stage (see chartSummary).
+  const summary = useMemo(
+    () =>
+      velocityAltitudeSummary(
+        t,
+        t(meta.label),
+        lines.map((l, i) => ({ name: branches[i]?.name ?? '', alt: l.alt, vel: l.vel })),
+        {
+          velocity: (v) => `${fmtNum(v, yDigits)} ${u.sym('velocity')}`,
+          altitude: (a) => `${fmtNum(a, xDigits)} ${u.sym('distance')}`,
+        },
+      ),
+    [t, meta.label, lines, branches, yDigits, xDigits, u],
+  );
 
   return (
     <div className="mb-2 rounded-lg bg-raised/40 ring-1 ring-line/10">
@@ -120,7 +136,15 @@ export function FlightXYPanel({
           <PanelExpandButton expanded={expanded} onClick={onToggleExpand} />
         </span>
       </div>
-      <svg viewBox={`0 0 ${w} ${height}`} width="100%" height={height} preserveAspectRatio="none" className="block">
+      <svg
+        viewBox={`0 0 ${w} ${height}`}
+        width="100%"
+        height={height}
+        preserveAspectRatio="none"
+        className="block"
+        role="img"
+        aria-label={summary}
+      >
         <defs>
           <clipPath id={`${uid}-clip`}>
             <rect x={PAD_L} y={0} width={iw} height={height} />

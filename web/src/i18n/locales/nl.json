@@ -789,6 +789,12 @@
     "rollRate": "Rolsnelheid",
     "velocityAltitude": "Snelheid tegen hoogte",
     "velocityAtAltitude": "{{velocity}} op {{altitude}}",
+    "summaryPeak": "piek {{value}} op {{time}} s",
+    "summaryRange": "van {{min}} tot {{max}}",
+    "summaryNoData": "geen gegevens",
+    "summaryEvents": "Gebeurtenissen: {{list}}",
+    "summaryEventAt": "{{event}} op {{time}} s",
+    "summaryVelocityAltitude": "topsnelheid {{velocity}} op {{altitude}}",
     "expandPanel": "Alleen deze grafiek tonen",
     "showAllPanels": "Alle grafieken tonen",
     "pickSeries": "Kies een grootheid om uit te zetten.",
@@ -979,6 +985,7 @@
     "supersonicNote": "Uitgebreide Barrowman: een benadering boven ongeveer mach 1,5.",
     "unavailable": "Bouw een geldige raket om de weerstand ervan te zien.",
     "crosshairHint": "Weerstandscurven. Focus en gebruik de pijltjestoetsen om het kruispunt te verplaatsen; Shift voor een grotere stap, Home en End voor de uiteinden, Esc om te wissen.",
+    "summaryPeakMach": "piek {{value}} bij Mach {{mach}}",
     "computing": "Rekenen..."
   },
   "banner": {

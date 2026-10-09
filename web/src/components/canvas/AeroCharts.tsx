@@ -12,6 +12,7 @@ import {
 } from './aeroTables';
 import { useElementResize } from '../common/useElementResize';
 import { token } from '../common/colorTokens';
+import { machSeriesSummary } from './chartSummary';
 
 /**
  * The AeroAnalysis chart cards: one `ChartCard` per curve set (title, legend
@@ -120,6 +121,12 @@ export function ChartCard({
   // here and handed down; the body memoizes the rest on top of it.
   const { yMin, yMax } = useMemo(() => chartDomain(series, machs, !!stacked), [series, machs, stacked]);
   const geom = useMemo(() => chartGeom(w, machMin, machMax, yMin, yMax), [w, machMin, machMax, yMin, yMax]);
+  // What a screen reader hears for this chart: each curve's peak and the Mach
+  // number it occurs at (see chartSummary).
+  const summary = useMemo(
+    () => machSeriesSummary(t, title, unit, digits, machs, series),
+    [t, title, unit, digits, machs, series],
+  );
 
   const onMove = (e: React.PointerEvent) => {
     const host = hostRef.current;
@@ -171,7 +178,14 @@ export function ChartCard({
         onBlur={() => setHoverM(null)}
         onKeyDown={onCrosshairKey}
       >
-        <svg viewBox={`0 0 ${w} ${CHART_H}`} width="100%" height={CHART_H} className="block">
+        <svg
+          viewBox={`0 0 ${w} ${CHART_H}`}
+          width="100%"
+          height={CHART_H}
+          className="block"
+          role="img"
+          aria-label={summary}
+        >
           <ChartBody geom={geom} machs={machs} machMax={machMax} series={series} stacked={!!stacked} digits={digits} />
           {hoverM != null && (
             <line
