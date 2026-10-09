@@ -32,7 +32,7 @@ async function rects(page: Page) {
 /**
  * The drift readout, checked by its shape and a band rather than by its digits.
  *
- * The same design in the same wind lands on 397 m or 398 m from one run to the
+ * The same design in the same wind lands on 431 m or 432 m from one run to the
  * next, so an exact string fails about one run in four. Both tests here are
  * about the readout being on screen (not clipped at the pane's ends), and
  * neither is the place that owns the number: `driftEllipse.test.ts` and
@@ -45,8 +45,8 @@ async function expectDrift(page: Page): Promise<void> {
   const figures = /^(\d+) m · (\d+)°$/.exec((await readout.innerText()).trim());
   expect(figures).not.toBeNull();
   const [, meters, bearing] = figures!;
-  expect(Number(meters)).toBeGreaterThanOrEqual(385);
-  expect(Number(meters)).toBeLessThanOrEqual(410);
+  expect(Number(meters)).toBeGreaterThanOrEqual(419);
+  expect(Number(meters)).toBeLessThanOrEqual(444);
   expect(Number(bearing)).toBeGreaterThanOrEqual(265);
   expect(Number(bearing)).toBeLessThanOrEqual(275);
 }

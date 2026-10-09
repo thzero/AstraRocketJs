@@ -32,6 +32,8 @@ This is why some `@types/*` entries use `~` (patch-only) rather than `^` - they 
 
 **4. `three` is `0.x` forever.** Three.js has never shipped a 1.0; it bumps the *minor* every release, and `^0.186.0` therefore means `>=0.186.0 <0.187.0` - the caret pins the release, not a major line. A Three.js upgrade is always an explicit decision.
 
+**5. `prettier` and `cspell` are pinned to an exact version.** They are the only exact pins, because each one is a gate whose verdict depends on its own version. Prettier can change its output in a patch release, so a newer copy fails `format:check` on files nobody edited, or rewrites them across the repo; Prettier's own documentation says to pin it exactly for this reason. A newer cspell ships updated dictionaries, so it can flag words the spell gate passed before. Upgrading either is its own change: bump the version, then run `npm run format` or `npm run spell` and settle the result (reformatted files, or new entries in `.cspell/project-words.txt`) together.
+
 ## Deliberate holds
 
 ### React 19.3: capped by `@react-three/fiber`

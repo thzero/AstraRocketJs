@@ -161,7 +161,7 @@ En lugar de introducir dimensiones a mano, usa los selectores contextuales **«S
 - Un **paracaídas** rellena su diámetro y su coeficiente de resistencia.
 - Una **serpentina** rellena el largo, el ancho y el material de la tira, y deja automático el coeficiente de resistencia, como hace el programa de escritorio.
 
-Son los tipos que ofrece la biblioteca de piezas de OpenRocket de escritorio, de la misma base de datos comunitaria. La biblioteca de escritorio también incluye botones de riel, que esa base de datos no tiene. Aplicar un preajuste solo rellena los campos del componente: puedes retocarlo después. El catálogo son datos de referencia incluidos (~3.400 piezas).
+Son las piezas que ofrece la biblioteca de piezas de OpenRocket de escritorio: la base de datos comunitaria y los archivos que el programa de escritorio incluye junto a ella (catálogos antiguos de fabricantes, varios fabricantes de paracaídas y los botones de riel). Un botón de riel rellena su tamaño y su masa, con el tornillo y la tuerca que lo sujetan. Aplicar un preajuste solo rellena los campos del componente: puedes retocarlo después. El catálogo (~5.200 piezas) viene con la aplicación y se actualiza cada semana a partir de los datos de OpenRocket.
 
 ### Guardar tus propias piezas {#saving-your-own-parts}
 
@@ -195,7 +195,7 @@ Todo componente estructural tiene un **material**, que el motor de física usa (
 
 Una pieza aún puede poner **Sin especificar** si viene de un diseño guardado antes de que esta aplicación los nombrara. No es una pieza sin peso: el motor recurre a esos mismos tres materiales. Elige uno de la lista y el panel deja de adivinar.
 
-Una pieza elegida del catálogo lleva el material de su fabricante, como «Balsa, bulk, BMS typical», con la densidad del fabricante. La mayoría de esos nombres no están en la lista de abajo, así que el selector muestra el material propio de la pieza bajo **De esta pieza**, con su densidad, y es con él con el que se pesa la pieza.
+Una pieza elegida del catálogo lleva el material de su fabricante, como «Balsa, bulk, BMS typical», con la densidad del fabricante. La mayoría de esos nombres no están en la lista de abajo, así que el selector muestra el material propio de la pieza bajo **De esta pieza**, con su densidad, y es con él con el que se pesa la pieza. Cuando el catálogo indica además la masa de la pieza, como hace con muchas ojivas y transiciones, la densidad es la que reparte esa masa por la pieza, así que la pieza pesa lo que dice su fabricante, como en OpenRocket de escritorio. Un paracaídas con masa indicada la toma como su anulación de masa.
 
 - **Materiales incorporados** — la lista completa de OpenRocket (volumen / superficie / línea, con sus densidades). Cada tipo tiene su propia [unidad de densidad](./settings.md#units) — el material sólido por volumen, la tela del paracaídas por superficie y la cuerda por longitud — y la densidad de un material personalizado se lee en la unidad que esté mostrándose.
 - **Materiales personalizados** — define los tuyos (nombre, densidad y a qué grupo pertenece); se guardan en tu navegador y se reutilizan en todos los diseños. Un material personalizado va **dentro de ese grupo**, marcado con una ★, y no en un grupo aparte: casi siempre es una variante de algo que ya está en la lista y se lee mejor a su lado. Si le das el **mismo nombre que a uno incorporado**, lo reemplaza con tu densidad en vez de aparecer dos veces.

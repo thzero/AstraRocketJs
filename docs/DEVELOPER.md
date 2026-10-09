@@ -91,8 +91,10 @@ The reference catalogs - motors and components - are **build artifacts** under `
 ```bash
 cd web
 npm run sync:motors                  # sweep thrustcurve.org → public/data/motors.generated.json (~1,150 motors)
-npm run sync:components              # parse the OpenRocket-Components DB → public/data/components.generated.json (~3,400 parts)
-#   sync:components reads OPENROCKET_PRESETS (or --src <path-to>/openrocket-database/orc) if the DB isn't at the default local path
+npm run sync:components              # the OpenRocket-Components DB plus the part files OpenRocket ships → public/data/components.generated.json (~5,200 parts)
+#   sync:components reads OPENROCKET_PRESETS (or --src <path-to>/openrocket-database/orc) if the DB isn't at the default local path,
+#   and the shipped files from an installed OpenRocket (or --jar <OpenRocket-24.12.jar>, or --internal <dir of .orc>)
+npm run sync:preset-digests          # after sync:components: each part's digest and stated mass, from an installed OpenRocket (or --jar <OpenRocket-24.12.jar>)
 npm run sync:materials               # OpenRocket's material database + ours → public/data/materials.generated.json (97 materials)
 #   reads the extractor's own .openrocket-src, or --src <openrocket checkout>. The app's OWN materials
 #   (adhesives, and corrections to upstream values that are wrong) are in scripts/data/materials.app.json,

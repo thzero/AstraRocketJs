@@ -433,3 +433,52 @@ describe('updateNode path-copies the spine only', () => {
     expect(next.components).toBe(t.components); // nothing to copy
   });
 });
+
+/**
+ * A rail button from the catalog, as RailButton.loadFromPreset applies it: the
+ * button's geometry, and the button, screw and nut masses together as its mass
+ * override. One that states no mass or Cd clears the overrides.
+ */
+describe('catalogPatch for a rail button', () => {
+  const row = {
+    type: 'railbutton',
+    mfr: 'Binder Design-Rail Button Supply House',
+    partNo: 'Std 1010 RB',
+    desc: 'Standard 1010 Rail Button',
+    material: 'Delrin',
+    materialDensity: 1420,
+    outerDiameter: 0.0111125,
+    innerDiameter: 0.0058039,
+    height: 0.0075565,
+    baseHeight: 0.0018542,
+    flangeHeight: 0.0018542,
+    screwHeight: 0,
+    cd: null,
+    mass: 0.002865,
+  } as const;
+
+  it('is offered by the parts picker', () => {
+    expect(hasCatalog('railbutton')).toBe(true);
+  });
+
+  it('applies the geometry and the combined mass as the override', () => {
+    expect(catalogPatch(row as never)).toMatchObject({
+      outerDiameter: 0.0111125,
+      innerDiameter: 0.0058039,
+      height: 0.0075565,
+      baseHeight: 0.0018542,
+      flangeHeight: 0.0018542,
+      screwHeight: 0,
+      overrideMass: 0.002865,
+      density: 1420,
+      materialName: 'Delrin',
+    });
+  });
+
+  it('clears the overrides for a part that states neither', () => {
+    const patch = catalogPatch({ ...row, mass: undefined } as never);
+    expect(patch.overrideMass).toBeUndefined();
+    expect(patch.overrideCD).toBeUndefined();
+    expect('overrideMass' in patch).toBe(true);
+  });
+});

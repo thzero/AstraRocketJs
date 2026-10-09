@@ -321,6 +321,7 @@ const CATALOG_TYPES: ReadonlySet<string> = new Set([
   'launchlug',
   'parachute',
   'streamer',
+  'railbutton',
 ]);
 export function hasCatalog(type: string): boolean {
   return CATALOG_TYPES.has(type);
@@ -442,6 +443,30 @@ function hollowWall(node: ComponentNode | undefined, radius: number): Partial<Co
   return wasSolid ? { thickness: KERNEL_DEFAULTS.nosecone.thickness } : {};
 }
 
+/**
+ * A shoulder a catalog part states, as `Transition.loadFromPreset` applies it:
+ * its radius and length, replacing the one that follows the neighboring tube;
+ * solid on a filled part; and with a stated wall, that wall. `side` is '' for a
+ * nose cone's one shoulder, 'fore' or 'aft' for a transition's.
+ */
+function presetShoulder(
+  side: '' | 'fore' | 'aft',
+  diameter: number | null,
+  length: number | null,
+  p: { filled?: boolean; thickness?: number | null },
+): Partial<ComponentNode> {
+  if (diameter == null) return {};
+  const key = (k: string) => (side ? `${side}${k}` : k.charAt(0).toLowerCase() + k.slice(1));
+  const radius = diameter / 2;
+  const wall = p.filled ? radius : p.thickness;
+  return {
+    [key('ShoulderAuto')]: false,
+    [key('ShoulderRadius')]: radius,
+    ...(length == null ? {} : { [key('ShoulderLength')]: length }),
+    ...(wall == null ? {} : { [key('ShoulderThickness')]: wall }),
+  };
+}
+
 /** The dimensions the chosen part states, before {@link pinStated} pins them. */
 function statedPatch(p: Component, node?: ComponentNode): Partial<ComponentNode> {
   // A saved part (customParts.ts) carries its whole node, not the handful of
@@ -457,6 +482,17 @@ function statedPatch(p: Component, node?: ComponentNode): Partial<ComponentNode>
   switch (p.type) {
     case 'nosecone': {
       const radius = p.outerDiameter / 2;
+      // NoseCone.loadFromPreset: the stated wall, else the one the part had. A
+      // part that states a mass has its density computed on the wall it states
+      // or, stating none, on a new part's (SymmetricComponent.DEFAULT_THICKNESS),
+      // so it takes that wall to weigh what the catalog says.
+      const wall = p.filled
+        ? { thickness: radius }
+        : p.thickness != null
+          ? { thickness: p.thickness }
+          : p.mass != null
+            ? { thickness: KERNEL_DEFAULTS.nosecone.thickness }
+            : hollowWall(node, radius);
       return {
         shape: p.shape,
         length: p.length,
@@ -467,7 +503,8 @@ function statedPatch(p: Component, node?: ComponentNode): Partial<ComponentNode>
         // cone followed by a hollow one would go on flying solid, at the hollow
         // one's dimensions, and the `.ork` would go on saying `<thickness>filled`.
         filled: !!p.filled,
-        ...(p.filled ? { thickness: radius } : hollowWall(node, radius)),
+        ...wall,
+        ...presetShoulder('', p.shoulderDiameter ?? null, p.shoulderLength ?? null, p),
         ...mat,
       };
     }
@@ -484,21 +521,15 @@ function statedPatch(p: Component, node?: ComponentNode): Partial<ComponentNode>
     case 'bulkhead':
       return { outerRadius: p.outerDiameter / 2, length: p.length, ...mat };
     case 'parachute':
-      return { diameter: p.diameter, cd: p.cd ?? DEFAULT_CHUTE_CD };
+      // A stated mass becomes the mass override, and a part with none clears
+      // it, as `Parachute.loadPreset` does.
+      return { diameter: p.diameter, cd: p.cd ?? DEFAULT_CHUTE_CD, overrideMass: p.mass };
     // Transition.loadFromPreset: both ends pinned, the shoulders as stated, and
     // a filled part's shoulders solid too. A stated shoulder replaces the one
     // that follows the neighboring tube.
     case 'transition': {
-      const shoulder = (side: 'fore' | 'aft', diameter: number | null, length: number | null) => {
-        if (diameter == null) return {};
-        const radius = diameter / 2;
-        return {
-          [`${side}ShoulderAuto`]: false,
-          [`${side}ShoulderRadius`]: radius,
-          ...(length == null ? {} : { [`${side}ShoulderLength`]: length }),
-          ...(p.filled ? { [`${side}ShoulderThickness`]: radius } : {}),
-        };
-      };
+      const shoulder = (side: 'fore' | 'aft', diameter: number | null, length: number | null) =>
+        presetShoulder(side, diameter, length, p);
       return {
         shape: p.shape,
         length: p.length,
@@ -519,6 +550,21 @@ function statedPatch(p: Component, node?: ComponentNode): Partial<ComponentNode>
         outerRadius: p.outerDiameter / 2,
         length: p.length,
         ...(p.innerDiameter ? { thickness: Math.max(0.0001, (p.outerDiameter - p.innerDiameter) / 2) } : {}),
+        ...mat,
+      };
+    // RailButton.loadFromPreset: the button's geometry; the button, screw and
+    // nut masses together as its mass override, and a stated drag coefficient
+    // as its drag override. A part that states neither clears them.
+    case 'railbutton':
+      return {
+        outerDiameter: p.outerDiameter,
+        height: p.height,
+        ...(p.innerDiameter != null ? { innerDiameter: p.innerDiameter } : {}),
+        ...(p.baseHeight != null ? { baseHeight: p.baseHeight } : {}),
+        ...(p.flangeHeight != null ? { flangeHeight: p.flangeHeight } : {}),
+        ...(p.screwHeight != null ? { screwHeight: p.screwHeight } : {}),
+        overrideMass: p.mass,
+        overrideCD: p.cd ?? undefined,
         ...mat,
       };
     // Streamer.loadFromPreset: the strip, its surface material, and the drag

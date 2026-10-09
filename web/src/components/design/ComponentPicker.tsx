@@ -336,6 +336,9 @@ function columnsFor(type: ComponentType, u: Units, t: (k: string) => string, ran
       ];
     case 'centeringring':
       return [...fitCol, ...ident, odCol, idCol, thickCol, material, notes];
+    // A rail button's length is its height off the airframe.
+    case 'railbutton':
+      return [...ident, odCol, idCol, { ...lenCol, head: withUnit(t('prop.height')) }, material, notes];
     case 'bulkhead':
       return [...fitCol, ...ident, odCol, thickCol, material, notes];
     case 'nosecone':
@@ -350,10 +353,9 @@ function columnsFor(type: ComponentType, u: Units, t: (k: string) => string, ran
           sort: 'cd',
           num: true,
           w: 'w-24',
-          // Every parachute the catalog ships omits its drag coefficient, so this
-          // is almost always the app's own default rather than a published spec.
-          // It is shown because it is what picking the part applies, and marked
-          // as a default so it does not read as manufacturer data.
+          // A row that omits its drag coefficient shows the app's own default,
+          // because that is what picking the part applies, marked as a default
+          // so it does not read as manufacturer data. A stated one is shown as is.
           cell: (r) =>
             r.part.type === 'parachute'
               ? r.part.cd == null

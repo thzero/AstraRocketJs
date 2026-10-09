@@ -100,6 +100,10 @@ export function fitRuleFor(type: PickerType, fit: FitContext | undefined): FitRu
     case 'launchlug':
     case 'streamer':
       return null;
+    // A rail button fits a rail, by its size class, which the design does not
+    // carry; nothing here can rank one against another.
+    case 'railbutton':
+      return null;
   }
 }
 
@@ -152,12 +156,15 @@ const MATERIAL_FAMILIES: [RegExp, string][] = [
   [/phenolic/i, 'Phenolic'],
   [/fiberglass/i, 'Fiberglass'],
   [/carbon/i, 'Carbon fiber'],
-  [/plywood/i, 'Plywood'],
+  [/plywood|\bli(?:gh)?te?\s*ply\b/i, 'Plywood'],
   [/^birch\b/i, 'Birch'],
   [/balsa/i, 'Balsa'],
-  [/paper|cardboard/i, 'Paper'],
+  [/paper|cardboard|glassine/i, 'Paper'],
   [/foam/i, 'Foam'],
-  [/mylar|polycarbonate|polyethylene|polypropylene|polystyrene|polymer|urethane|acrylic|nylon|plastic/i, 'Plastic'],
+  [
+    /mylar|polycarbonate|polyethylene|polypropylene|polystyrene|polymer|urethane|acrylic|nylon|delrin|acetal|plastic/i,
+    'Plastic',
+  ],
   [/fiber/i, 'Fiber'],
   // Launch lugs and engine blocks in metal.
   [/aluminum|brass|copper|steel|titanium/i, 'Metal'],
@@ -180,10 +187,10 @@ export function materialFamily(p: Component): string | null {
 }
 
 /**
- * The drag coefficient the app falls back to when the catalog omits one, which
- * it does for every parachute it ships: every row carries a null, because
- * OpenRocket's preset files have no DragCoefficient for a parachute. Exported so
- * the column, its sort and `treeEdit.catalogPatch` cannot drift apart.
+ * The drag coefficient the app falls back to when a parachute's row omits one.
+ * The community database omits it for every parachute; the parachute makers'
+ * files OpenRocket ships state it for theirs. Exported so the column, its sort
+ * and `treeEdit.catalogPatch` cannot drift apart.
  */
 export const DEFAULT_CHUTE_CD = 0.8;
 
@@ -373,6 +380,7 @@ const TYPE_WORDS: Record<ComponentType, RegExp> = {
   engineblock: /^engine\s*blocks?$/i,
   launchlug: /^launch\s*lugs?$/i,
   streamer: /^streamers?$/i,
+  railbutton: /^rail\s*buttons?$/i,
 };
 
 /**

@@ -55,7 +55,7 @@ function design(probe: ComponentNode): unknown {
 
 /** The length a row states, as the kernel should report it. */
 const statedLength = (p: Component): number | null =>
-  p.type === 'parachute' || p.type === 'streamer' ? null : p.length;
+  p.type === 'parachute' || p.type === 'streamer' || p.type === 'railbutton' ? null : p.length;
 
 describe('catalogPatch through the kernel', () => {
   for (const type of ['transition', 'engineblock', 'launchlug', 'streamer', 'nosecone', 'bodytube', 'centeringring'])
@@ -78,4 +78,31 @@ describe('catalogPatch through the kernel', () => {
           );
       }
     });
+});
+
+/**
+ * A catalog part that states a mass weighs that mass when it flies, as on the
+ * desktop: `ComponentPresetFactory` turns the mass of a tube, ring, bulkhead,
+ * nose cone or transition into its material's density, and
+ * `Parachute.loadPreset` takes a parachute's as its mass override. Every such
+ * row is applied through catalogPatch and built in the kernel, so a node that
+ * reaches the kernel with a different shape, wall or volume than the desktop
+ * gave the preset shows up as a different mass.
+ */
+describe('a stated catalog mass', () => {
+  it('is the mass the part flies at', async () => {
+    const engine = await loadEngine();
+    const massed = catalog.filter((p) => typeof p.mass === 'number');
+    expect(massed.length).toBeGreaterThan(100);
+    const wrong: string[] = [];
+    for (const row of massed) {
+      const probe = { ...node(row.type as ComponentType, 'probe'), ...catalogPatch(row) } as ComponentNode;
+      engine.reset();
+      const handle = engine.buildRocket(JSON.stringify(design(probe)));
+      const info = JSON.parse(engine.getComponentInfo(handle, 'probe'));
+      if (info.error || !(Math.abs(info.mass / row.mass! - 1) < 0.005))
+        wrong.push(`${row.type} ${row.mfr} ${row.partNo}: catalog ${row.mass} kg, flies ${info.mass ?? info.error}`);
+    }
+    expect(wrong).toEqual([]);
+  });
 });

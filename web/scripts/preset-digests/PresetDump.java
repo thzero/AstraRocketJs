@@ -35,7 +35,10 @@ import java.io.PrintWriter;
  * mass agree across both. So the digests are only as right as the build this is
  * pointed at, which is why the script that drives this takes that path.
  *
- * Output: one TAB-separated row per preset, `TYPE  manufacturer  partNo  digest`.
+ * Output: one TAB-separated row per preset,
+ * `TYPE  manufacturer  partNo  digest  mass  description`, the mass in
+ * kilograms and empty when the preset states none. The description is last
+ * because it is free text; tabs and line breaks in it are flattened to spaces.
  */
 public class PresetDump {
     public static void main(String[] args) throws Exception {
@@ -63,7 +66,11 @@ public class PresetDump {
                         p.getType().name(),
                         p.getManufacturer().getSimpleName(),
                         p.getPartNo(),
-                        p.getDigest()));
+                        p.getDigest(),
+                        p.has(ComponentPreset.MASS) ? Double.toString(p.get(ComponentPreset.MASS)) : "",
+                        p.has(ComponentPreset.DESCRIPTION)
+                                ? p.get(ComponentPreset.DESCRIPTION).replaceAll("[\\t\\r\\n]+", " ").trim()
+                                : ""));
                 rows++;
             }
         }

@@ -40,44 +40,105 @@
 // and the app's value is the one the desktop compares against.
 //
 // It never regenerates the catalog, only adds `digest` to rows already in it,
-// matched on manufacturer and part number. A row that build does not contain
+// matched on type, manufacturer, part number and description. The library
+// holds parts that share a part number and differ in size (a legacy file and
+// the database both list it), and the desktop tells them apart by digest, so
+// matching on the part number alone would hand one of them the other's digest.
+// A row whose description does not match falls back to type, manufacturer and
+// part number when only one part has those. A row that build does not contain
 // has any digest removed, and is otherwise left alone.
+//
+// It also carries a stated mass the way the desktop applies it, with the mass
+// read from the same loader. `ComponentPresetFactory` turns the mass of a tube,
+// ring, bulkhead, engine block, nose cone or transition into its material's
+// density (the mass spread over the part's volume), so the part weighs what the
+// catalog says. The volume is measured in the app's own engine
+// (lib/presetVolume.mjs), not taken from the desktop's density, because builds
+// disagree on it; the result replaces the row's `materialDensity`, and the mass
+// stays on the row as `mass`. `Parachute.loadPreset` instead takes the mass as
+// a mass override, which the app applies from `mass`. A streamer's mass is not
+// applied by the desktop and is not carried.
 import { readFileSync, writeFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { writeDataManifest } from './lib/dataManifest.mjs';
 import { chooseBuild, runDumper } from './lib/openrocketJava.mjs';
+import { presetVolumes } from './lib/presetVolume.mjs';
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
 const CATALOG = resolve(HERE, '../public/data/components.generated.json');
 const JAVA_SRC = resolve(HERE, 'preset-digests/PresetDump.java');
 
-/** `TYPE	manufacturer	partNo	digest` for every preset that build holds. */
+/** Catalog types whose stated mass the desktop turns into a material density. */
+const DENSITY_FROM_MASS = new Set([
+  'bodytube',
+  'launchlug',
+  'tubecoupler',
+  'centeringring',
+  'engineblock',
+  'bulkhead',
+  'nosecone',
+  'transition',
+]);
+
+/** `ComponentPreset.Type` as the catalog spells it: `NOSE_CONE` → `nosecone`. */
+const appType = (kernelType) => kernelType.toLowerCase().replace(/_/g, '');
+
+/**
+ * Digest and stated mass for every preset that build holds, findable by the
+ * full key and, where it identifies one part, by type, maker and part number.
+ */
 function dump(cp) {
-  const rows = new Map();
-  for (const [, mfr, partNo, digest] of runDumper({ cp, javaSrc: JAVA_SRC, className: 'PresetDump' })) {
-    // One row per part; the database has already resolved any duplicates.
-    const key = JSON.stringify([mfr, partNo]);
-    if (!rows.has(key)) rows.set(key, digest);
+  const exact = new Map();
+  const byPart = new Map();
+  for (const [type, mfr, partNo, digest, mass, desc = ''] of runDumper({
+    cp,
+    javaSrc: JAVA_SRC,
+    className: 'PresetDump',
+  })) {
+    const n = (v) => (v && Number.isFinite(Number(v)) && Number(v) > 0 ? Number(v) : null);
+    const preset = { digest, mass: n(mass) };
+    const key = JSON.stringify([appType(type), mfr, partNo, desc.replace(/\s+/g, ' ').trim()]);
+    if (!exact.has(key)) exact.set(key, preset);
+    const part = JSON.stringify([appType(type), mfr, partNo]);
+    byPart.set(part, byPart.has(part) ? null : preset);
   }
-  return rows;
+  return (row) =>
+    exact.get(JSON.stringify([row.type, row.mfr, row.partNo, row.desc.replace(/\s+/g, ' ').trim()])) ??
+    byPart.get(JSON.stringify([row.type, row.mfr, row.partNo])) ??
+    undefined;
 }
 
-function main() {
+async function main() {
   const { cp, label } = chooseBuild();
   console.log(`reading presets from ${label}`);
   console.log('dumping presets:');
-  const digests = dump(cp);
+  const presetFor = dump(cp);
+  const volumeOf = await presetVolumes();
 
   const catalog = JSON.parse(readFileSync(CATALOG, 'utf8'));
   const before = catalog.components.filter((c) => c.digest).length;
   let hit = 0;
+  let massed = 0;
   for (const row of catalog.components) {
-    const d = digests.get(JSON.stringify([row.mfr, row.partNo]));
-    if (d) {
-      row.digest = d;
+    const p = presetFor(row);
+    if (p?.digest) {
+      row.digest = p.digest;
       hit++;
     } else {
       delete row.digest;
+    }
+    // A rail button's mass is the button, screw and nut, which sync-components
+    // reads from the part file itself; every other stated mass is set here.
+    if (row.type !== 'railbutton') delete row.mass;
+    const volume = p?.mass && DENSITY_FROM_MASS.has(row.type) ? volumeOf(row) : null;
+    if (p?.mass && volume) {
+      row.materialDensity = p.mass / volume;
+      row.mass = p.mass;
+      massed++;
+    } else if (p?.mass && row.type === 'parachute') {
+      row.mass = p.mass;
+      massed++;
     }
   }
   // The same guard `sync-components.mjs` has, for the same reason: a run that
@@ -86,7 +147,9 @@ function main() {
     throw new Error(`refusing to write: digests fell from ${before} to ${hit}. Nothing written.`);
   }
   writeFileSync(CATALOG, `${JSON.stringify(catalog, null, 2)}\n`);
-  console.log(`digests: ${hit} of ${catalog.count} catalog rows (was ${before})`);
+  // The catalog changed, so its cache-bust hash has to as well.
+  writeDataManifest(dirname(CATALOG));
+  console.log(`digests: ${hit} of ${catalog.count} catalog rows (was ${before}); stated masses applied: ${massed}`);
 }
 
-main();
+await main();

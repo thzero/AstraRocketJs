@@ -8,8 +8,9 @@ name: Sync Catalogs
 # published here is live WITHOUT an app rebuild or a Pages deploy, as soon as the
 # CDN edge expires. The copy committed under web/public/data stays in the build
 # as a fallback for when the data host is unreachable; refresh that one by hand
-# (`npm run sync:motors && npm run sync:components`, then commit) when you want
-# the offline floor moved up — it is deliberately not touched by this workflow.
+# (`npm run sync:motors && npm run sync:components && npm run sync:preset-digests`,
+# then commit) when you want the offline floor moved up; this workflow
+# deliberately does not touch it.
 #
 # The materials and contributors files are published alongside them but are NOT
 # regenerated here: materials is held to the pinned OpenRocket source by the
@@ -114,12 +115,44 @@ jobs:
         working-directory: web
         run: npm run sync:motors
 
+      # Desktop's parts library is the database above plus the files OpenRocket
+      # ships inside its jar (legacy manufacturer files, parachute makers, rail
+      # buttons), and two things only its loader knows are added after the
+      # parts are read: each part's digest, without which a saved .ork drops its
+      # link to the part, and a stated mass, which becomes the part's density so
+      # it weighs what the catalog says. All of it comes from the OpenRocket
+      # release people use, since the digests depend on the build.
+      - uses: actions/setup-java@v6
+        if: env.TARGET != 'motors'
+        with:
+          distribution: temurin
+          java-version: '21.0.12'
+
+      - name: Download OpenRocket
+        if: env.TARGET != 'motors'
+        env:
+          OR_JAR_URL: https://github.com/openrocket/openrocket/releases/download/release-24.12/OpenRocket-24.12.jar
+          # PINNED, for the reason the database checkout above is: this job
+          # pushes to the branch the live app reads.
+          OR_JAR_SHA256: 4959b72f52f5f607941e9722abbb7b7f0c4a38ebbbf84204a329db9f31c4f897
+        run: |
+          set -euo pipefail
+          jar="$RUNNER_TEMP/OpenRocket-24.12.jar"
+          curl -fsSL -o "$jar" "$OR_JAR_URL"
+          echo "$OR_JAR_SHA256  $jar" | sha256sum -c -
+          echo "OPENROCKET_JAR=$jar" >> "$GITHUB_ENV"
+
       - name: Regenerate components
         if: env.TARGET != 'motors'
         working-directory: web
         env:
           OPENROCKET_PRESETS: ${{ github.workspace }}/.openrocket-database/orc
         run: npm run sync:components
+
+      - name: Add digests and stated masses from OpenRocket
+        if: env.TARGET != 'motors'
+        working-directory: web
+        run: npm run sync:preset-digests -- --jar "$OPENROCKET_JAR"
 
       - name: Publish to the `data` branch
         run: |

@@ -14,6 +14,13 @@ interface ComponentBase {
   partNo: string;
   desc: string;
   /**
+   * The mass the catalog states (kg), when it states one. A parachute takes it
+   * as its mass override (`Parachute.loadPreset`); every other part already
+   * has it folded into `materialDensity` (`ComponentPresetFactory`), and this
+   * is the figure the part weighs.
+   */
+  mass?: number;
+  /**
    * The three fields below are a saved part's, and absent on every catalog
    * row. They live here rather than in a row type of their own so that the
    * user's own parts are ordinary rows to the picker and to componentFilter:
@@ -49,8 +56,13 @@ export interface NoseConeComponent extends ComponentBase {
   /** OpenRocket's own checksum for this part; the `.ork` link is invalid without it. */
   digest?: string;
   filled: boolean;
+  /** The wall a hollow part states; null when it states none. */
+  thickness?: number | null;
   outerDiameter: number;
   length: number;
+  /** The aft shoulder; null when the part states none. */
+  shoulderDiameter?: number | null;
+  shoulderLength?: number | null;
 }
 
 export interface ParachuteComponent extends ComponentBase {
@@ -107,6 +119,24 @@ export interface StreamerComponent extends ComponentBase {
   stripWidth: number;
 }
 
+/**
+ * Rail button: the geometry `RailButton.loadFromPreset` reads. Its `mass` is
+ * the button, screw and nut together, which the desktop applies as the part's
+ * mass override; `cd` is a stated drag coefficient, applied as its override.
+ */
+export interface RailButtonComponent extends ComponentBase {
+  type: 'railbutton';
+  material?: string;
+  materialDensity: number;
+  outerDiameter: number;
+  innerDiameter: number | null;
+  height: number;
+  baseHeight: number | null;
+  flangeHeight: number | null;
+  screwHeight: number | null;
+  cd: number | null;
+}
+
 /** Discriminated by `type`; keeps ComponentType and componentsForType in sync. */
 interface ComponentMap {
   bodytube: BodyTubeComponent;
@@ -119,6 +149,7 @@ interface ComponentMap {
   engineblock: TubeComponent;
   launchlug: TubeComponent;
   streamer: StreamerComponent;
+  railbutton: RailButtonComponent;
 }
 
 /**
@@ -139,9 +170,10 @@ export function outerDiameterOf(p: Component): number | null {
   }
 }
 
-/** The length the picker shows and sorts by: a streamer's strip, nothing for a chute. */
+/** The length the picker shows and sorts by: a streamer's strip, a rail button's height, nothing for a chute. */
 export function lengthOf(p: Component): number | null {
   if (p.type === 'parachute') return null;
+  if (p.type === 'railbutton') return p.height;
   return p.type === 'streamer' ? p.stripLength : p.length;
 }
 
@@ -186,6 +218,7 @@ export function isComponentRow(v: unknown): v is Component {
   if (!v || typeof v !== 'object') return false;
   const r = v as Record<string, unknown>;
   if (!isStr(r.mfr) || !isStr(r.partNo) || !isStr(r.desc)) return false;
+  if (r.mass !== undefined && !isFiniteNumber(r.mass)) return false;
   switch (r.type) {
     case 'bodytube':
     case 'tubecoupler':
@@ -199,12 +232,15 @@ export function isComponentRow(v: unknown): v is Component {
         isFiniteNumber(r.length)
       );
     case 'nosecone':
+      // The wall and shoulder fields are absent from catalogs published before
+      // they were carried, which are still valid rows.
       return (
         isFiniteNumber(r.materialDensity) &&
         isStr(r.shape) &&
         typeof r.filled === 'boolean' &&
         isFiniteNumber(r.outerDiameter) &&
-        isFiniteNumber(r.length)
+        isFiniteNumber(r.length) &&
+        [r.thickness, r.shoulderDiameter, r.shoulderLength].every((v) => v === undefined || isNullableFinite(v))
       );
     case 'bulkhead':
       return (
@@ -231,6 +267,13 @@ export function isComponentRow(v: unknown): v is Component {
       );
     case 'streamer':
       return isFiniteNumber(r.materialDensity) && isFiniteNumber(r.stripLength) && isFiniteNumber(r.stripWidth);
+    case 'railbutton':
+      return (
+        isFiniteNumber(r.materialDensity) &&
+        isFiniteNumber(r.outerDiameter) &&
+        isFiniteNumber(r.height) &&
+        [r.innerDiameter, r.baseHeight, r.flangeHeight, r.screwHeight, r.cd].every(isNullableFinite)
+      );
     default:
       return false;
   }

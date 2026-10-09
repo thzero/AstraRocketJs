@@ -209,6 +209,8 @@ function describe(row: Component, u: Units, t: (k: string, o?: Record<string, un
       return `${t(`noseShape.${row.shape}`)} · ⌀ ${len(row.foreOuterDiameter)} / ${len(row.aftOuterDiameter)} · ${len(row.length)} ${sym}`;
     case 'streamer':
       return `${len(row.stripLength)} × ${len(row.stripWidth)} ${sym}`;
+    case 'railbutton':
+      return `⌀ ${len(row.outerDiameter)}${row.innerDiameter == null ? '' : ` / ${len(row.innerDiameter)}`} · ${len(row.height)} ${sym}`;
     default:
       // Tube-shaped: the bore is what a coupler or ring is, so it is named
       // even when the catalog would have left it null.
