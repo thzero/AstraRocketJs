@@ -30,21 +30,16 @@
 # upstream" report names. `extract/DIVERGENCE.txt` makes that review a gate
 # rather than a ritual: re-bless it and explain each number that moved.
 #
-# `describe` below reads release-22.02.beta.01-... because that is the nearest
-# reachable tag in this fork, not because the tree predates 24.12: see `date`,
-# which is the commit's own date (UTC). The repo is a fork, but the SHA is
-# content-bound and the same commit fetches from canonical
-# openrocket/openrocket - verified on 2026-10-04, when this SHA was the head of
-# canonical `unstable` itself, so the fork is not carrying anything of its own
-# at this point. Re-confirm that on every bump: a fork drifting ahead of - or
-# behind - canonical is invisible from inside the fork.
+# `describe` below is `git describe --tags` of the ref in canonical
+# openrocket/openrocket. The repo is a fork, but the SHA is content-bound and the
+# same commit fetches from canonical openrocket/openrocket, where it is on
+# `unstable`; GitHub serves it from the fork's network even while the fork's own
+# branches are behind. Re-confirm that on every bump: a fork drifting ahead of -
+# or behind - canonical is invisible from inside the fork.
 #
-# 2026-10-04: bumped from 98f05af97 (2026-09-21). 298 commits, mostly
-# translations. Seven extracted files moved; the one that changes results is
-# PR #3327, which adds the nozzle-exit pressure term to thrust. One golden value
-# moved (flight.mindia, the only scenario with a nozzle exit). See the
-# 2026-10-04 entry in patches/LEDGER.md.
+# What each bump changed, and every golden value it moved, is recorded in
+# patches/LEDGER.md under "Repinned to upstream".
 repo = https://github.com/thzero/openrocket.git
-ref  = b4eb02a48b0ca44b9634e323c3b5fa43bcdc6906
-date = 2026-10-03
-describe = release-22.02.beta.01-5986-gb4eb02a48
+ref  = 591c5e5f7b7377e48f2bd5e501cef25cdfbd61d8
+date = 2026-10-07
+describe = release-24.12-2312-g591c5e5f7

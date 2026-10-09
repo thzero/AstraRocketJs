@@ -6330,31 +6330,32 @@ iocs_AbstractRKSimulationStepper_calculateAcceleration = ($this, $status, $store
         $store.$accelerationData = $this.$computeAcceleration($status, $store);
     $store.$accelerationData = iocsl_SimulationListenerHelper_firePostAccelerationCalculation($status, $store.$accelerationData);
 },
-iocs_AbstractRKSimulationStepper_calculateThrust = ($this, $status, $store) => {
-    let $thrust, var$4, $activeMotorList, var$6, $currentMotorState, $area, var$9, var$10;
-    $store.$thrustCorrection = 0.0;
+iocs_AbstractRKSimulationStepper_calculateThrust = ($this, $status) => {
+    let $thrust, var$3, $activeMotorList, var$5, $currentMotorState, $area, var$8, var$9;
+    $this.$store.$thrustCorrection = 0.0;
     $thrust = iocsl_SimulationListenerHelper_firePreThrustCalculation($status);
     if (!(isNaN($thrust) ? 1 : 0))
         return $thrust;
-    var$4 = 0.0;
+    var$3 = 0.0;
     $activeMotorList = $status.$getActiveMotors();
-    var$6 = $activeMotorList.$iterator();
-    while (var$6.$hasNext()) {
-        $currentMotorState = var$6.$next();
-        var$4 = var$4 + $currentMotorState.$getThrust($status.$getSimulationTime());
+    var$5 = $activeMotorList.$iterator();
+    while (var$5.$hasNext()) {
+        $currentMotorState = var$5.$next();
+        var$3 = var$3 + $currentMotorState.$getThrust($status.$getSimulationTime());
     }
-    if (var$4 > 0.0) {
-        $area = $store.$flightConditions.$getThrustingNozzleExitArea();
+    if (var$3 > 0.0) {
+        $area = $this.$store.$flightConditions.$getThrustingNozzleExitArea();
         if ($area > 0.0) {
-            $store.$flightConditions.$getAtmosphericConditions();
-            var$9 = $store.$flightConditions;
-            $store.$thrustCorrection = $area * (101325.0 - (var$9.$getAtmosphericConditions()).$getPressure());
-            var$4 = var$4 + $store.$thrustCorrection;
+            var$8 = $this.$store;
+            $this.$store.$flightConditions.$getAtmosphericConditions();
+            var$5 = $this.$store.$flightConditions;
+            var$8.$thrustCorrection = $area * (101325.0 - (var$5.$getAtmosphericConditions()).$getPressure());
+            var$3 = var$3 + $this.$store.$thrustCorrection;
         }
     }
-    var$10 = iocsl_SimulationListenerHelper_firePostThrustCalculation($status, var$4);
-    $this.$checkNaN(var$10, $rt_s(210));
-    return var$10;
+    var$9 = iocsl_SimulationListenerHelper_firePostThrustCalculation($status, var$3);
+    $this.$checkNaN(var$9, $rt_s(210));
+    return var$9;
 },
 iocs_AbstractRKSimulationStepper_computeAcceleration = ($this, $status, $store) => {
     let $structureMassData, var$4, var$5, $dynP, $refArea, $refLength, $fN, $fSide, $forceZ, $linearAcceleration, var$13, $angularAcceleration, $projection, $rodDirection, var$17, $Cm, $Cyaw, $momX, $momY, $momZ;
@@ -6374,7 +6375,7 @@ iocs_AbstractRKSimulationStepper_computeAcceleration = ($this, $status, $store) 
     $store.$dragForce = $store.$forces.$getCDaxial() * $dynP * $refArea;
     $fN = $store.$forces.$getCN() * $dynP * $refArea;
     $fSide = $store.$forces.$getCside() * $dynP * $refArea;
-    $store.$thrustForce = $this.$calculateThrust($status, $store);
+    $store.$thrustForce = $this.$calculateThrust($status);
     $forceZ = $store.$thrustForce - $store.$dragForce;
     $linearAcceleration = new iocu_MutableCoordinate;
     var$4 =  -$fN / $store.$rocketMass.$getMass();
@@ -46872,7 +46873,7 @@ iocs_BasicEventSimulationEngine_simulateLoop = ($this, $simulationConditions) =>
     $rt_throw($e);
 },
 iocs_BasicEventSimulationEngine_handleEvents = ($this, $simulationConditions) => {
-    let $ret, var$3, var$4, var$5, $event, $state, $mount, $motorInstance, $ignitionTime, var$11, $device, $stage, $stageNo, $separationConfig, $c, $deployConfig, $motorState, var$19, $motorId, $motor, $timePoints, var$23, var$24, var$25, $point, $duration, $burnout, $delay, $boosterStage, $stageNumber, $numActiveBelow, $i, $boosterStatus, var$35, $n, $deploySpeed, $conds, $deployingStage, $deployingDevice, $stageHasDrogue, $comp, $rd, $dc, $coastStatus, $tooMuchThrust;
+    let $ret, var$3, var$4, var$5, $event, $state, $mount, $motorInstance, $ignitionTime, var$11, $device, $stage, $stageNo, $separationConfig, $c, $deployConfig, $motorState, var$19, $motorId, $motor, $timePoints, var$23, var$24, var$25, $point, $duration, $burnout, $delay, $boosterStage, $stageNumber, $numActiveBelow, $i, $boosterStatus, var$35, $n, $deploySpeed, $conds, $deployingStage, $deployingDevice, $stageHasDrogue, $comp, $rd, $dc, $coastStatus;
     $ret = 1;
     iocs_BasicEventSimulationEngine_$callClinit();
     var$3 = iocs_BasicEventSimulationEngine_log;
@@ -47089,14 +47090,14 @@ iocs_BasicEventSimulationEngine_handleEvents = ($this, $simulationConditions) =>
                             $this.$toSimulate.$push($boosterStatus);
                             iocs_BasicEventSimulationEngine_checkGeometry($this, $this.$currentStatus);
                             var$3 = iocs_BasicEventSimulationEngine_log;
-                            var$23 = $rt_createArray(jl_Object, 3);
-                            var$35 = var$23.data;
+                            var$35 = $rt_createArray(jl_Object, 3);
+                            var$23 = var$35.data;
                             var$4 = $this.$currentStatus;
-                            var$35[0] = jl_Double_toString(var$4.$getSimulationTime());
+                            var$23[0] = jl_Double_toString(var$4.$getSimulationTime());
                             var$4 = $this.$currentStatus;
-                            var$35[1] = (var$4.$getFlightDataBranch()).$getName();
-                            var$35[2] = ($boosterStatus.$getFlightDataBranch()).$getName();
-                            var$3.$info(jl_String_format($rt_s(1606), var$23));
+                            var$23[1] = (var$4.$getFlightDataBranch()).$getName();
+                            var$23[2] = ($boosterStatus.$getFlightDataBranch()).$getName();
+                            var$3.$info(jl_String_format($rt_s(1606), var$35));
                             break b;
                         case 8:
                             $this.$currentStatus.$setApogeeReached(1);
@@ -47112,13 +47113,13 @@ iocs_BasicEventSimulationEngine_handleEvents = ($this, $simulationConditions) =>
                             if (($this.$currentStatus.$getConfiguration()).$isStageActive($n)) {
                                 var$3 = $this.$currentStatus;
                                 if (!(var$3.$getDeployedRecoveryDevices()).$contains($c)) {
-                                    var$3 = ($this.$currentStatus.$getActiveMotors()).$iterator();
-                                    while (var$3.$hasNext()) {
-                                        $state = var$3.$next();
-                                        if ($state.$getThrust($this.$currentStatus.$getSimulationTime()) > 1.0E-8) {
-                                            var$4 = $this.$currentStatus;
+                                    if ($this.$currentStepper instanceof iocs_AbstractRKSimulationStepper) {
+                                        var$3 = $this.$currentStepper;
+                                        var$4 = $this.$currentStatus;
+                                        if (var$3.$calculateThrust(var$4) > 0.01) {
+                                            var$3 = $this.$currentStatus;
                                             iocl_SimulationAbort$Cause_$callClinit();
-                                            var$4.$abortSimulation(iocl_SimulationAbort$Cause_DEPLOY_UNDER_THRUST);
+                                            var$3.$abortSimulation(iocl_SimulationAbort$Cause_DEPLOY_UNDER_THRUST);
                                         }
                                     }
                                     if (!$this.$currentStatus.$isLaunchRodCleared()) {
@@ -47231,14 +47232,15 @@ iocs_BasicEventSimulationEngine_handleEvents = ($this, $simulationConditions) =>
                                 break b;
                             if ($this.$currentStatus.$isLanded())
                                 break b;
-                            var$3 = $this.$currentStatus.$getFlightDataBranch();
-                            iocs_FlightDataType_$callClinit();
-                            $tooMuchThrust = !(var$3.$getLast(iocs_FlightDataType_TYPE_THRUST_FORCE) > 0.01) ? 0 : 1;
-                            if ($tooMuchThrust) {
-                                var$3 = $this.$currentStatus;
-                                iocl_SimulationAbort$Cause_$callClinit();
-                                var$3.$abortSimulation(iocl_SimulationAbort$Cause_TUMBLE_UNDER_THRUST);
-                                break b;
+                            if ($this.$currentStepper instanceof iocs_AbstractRKSimulationStepper) {
+                                var$3 = $this.$currentStepper;
+                                var$4 = $this.$currentStatus;
+                                if (var$3.$calculateThrust(var$4) > 0.01) {
+                                    var$3 = $this.$currentStatus;
+                                    iocl_SimulationAbort$Cause_$callClinit();
+                                    var$3.$abortSimulation(iocl_SimulationAbort$Cause_TUMBLE_UNDER_THRUST);
+                                    break b;
+                                }
                             }
                             $this.$currentStepper = $this.$tumbleStepper;
                             $this.$currentStatus = $this.$currentStepper.$initialize($this.$currentStatus);
@@ -61757,7 +61759,7 @@ iocs_SimulationStepper, 0, jl_Object, [], 1537, 0, 0, 0,
 iocs_AbstractSimulationStepper, "AbstractSimulationStepper", 36, jl_Object, [iocs_SimulationStepper], 1025, [0,0,0], () => iocs_AbstractSimulationStepper_$callClinit(), ["$_init_0", $rt_wrapFunction0(iocs_AbstractSimulationStepper__init_), "$calculateFlightConditions", $rt_wrapFunction2(iocs_AbstractSimulationStepper_calculateFlightConditions), "$modelAtmosphericConditions", $rt_wrapFunction1(iocs_AbstractSimulationStepper_modelAtmosphericConditions), "$modelWindVelocity", $rt_wrapFunction1(iocs_AbstractSimulationStepper_modelWindVelocity),
 "$modelGravity", $rt_wrapFunction1(iocs_AbstractSimulationStepper_modelGravity), "$calculateStructureMass", $rt_wrapFunction1(iocs_AbstractSimulationStepper_calculateStructureMass), "$calculateMotorMass", $rt_wrapFunction1(iocs_AbstractSimulationStepper_calculateMotorMass), "$checkNaN", $rt_wrapFunction2(iocs_AbstractSimulationStepper_checkNaN), "$checkNaN0", $rt_wrapFunction2(iocs_AbstractSimulationStepper_checkNaN0), "$landedValues", $rt_wrapFunction2(iocs_AbstractSimulationStepper_landedValues)],
 iocs_AbstractRKSimulationStepper, "AbstractRKSimulationStepper", 36, iocs_AbstractSimulationStepper, [], 1025, [0,0,0], () => iocs_AbstractRKSimulationStepper_$callClinit(), ["$_init_0", $rt_wrapFunction0(iocs_AbstractRKSimulationStepper__init_), "$initialize", $rt_wrapFunction1(iocs_AbstractRKSimulationStepper_initialize), "$computeTimeStep", $rt_wrapFunction3(iocs_AbstractRKSimulationStepper_computeTimeStep), "$computeParameters", $rt_wrapFunction2(iocs_AbstractRKSimulationStepper_computeParameters), "$calculateAcceleration",
-$rt_wrapFunction2(iocs_AbstractRKSimulationStepper_calculateAcceleration), "$calculateThrust", $rt_wrapFunction2(iocs_AbstractRKSimulationStepper_calculateThrust), "$computeAcceleration", $rt_wrapFunction2(iocs_AbstractRKSimulationStepper_computeAcceleration), "$calculateForces", $rt_wrapFunction2(iocs_AbstractRKSimulationStepper_calculateForces)],
+$rt_wrapFunction2(iocs_AbstractRKSimulationStepper_calculateAcceleration), "$calculateThrust", $rt_wrapFunction1(iocs_AbstractRKSimulationStepper_calculateThrust), "$computeAcceleration", $rt_wrapFunction2(iocs_AbstractRKSimulationStepper_computeAcceleration), "$calculateForces", $rt_wrapFunction2(iocs_AbstractRKSimulationStepper_calculateForces)],
 iocs_RK4SimulationStepper, "RK4SimulationStepper", 36, iocs_AbstractRKSimulationStepper, [], 1, [0,0,0], () => iocs_RK4SimulationStepper_$callClinit(), ["$_init_0", $rt_wrapFunction0(iocs_RK4SimulationStepper__init_), "$step", $rt_wrapFunction2(iocs_RK4SimulationStepper_step)],
 jur_AbstractCharClass$LazyCategory, "AbstractCharClass$LazyCategory", 2, jur_AbstractCharClass$LazyCharClass, [], 0, [jur_AbstractCharClass,0,0], 0, ["$_init_49", $rt_wrapFunction2(jur_AbstractCharClass$LazyCategory__init_0), "$_init_50", $rt_wrapFunction3(jur_AbstractCharClass$LazyCategory__init_1), "$computeValue", $rt_wrapFunction0(jur_AbstractCharClass$LazyCategory_computeValue)],
 juf_ToDoubleFunction, 0, jl_Object, [], 1537, 0, 0, 0,

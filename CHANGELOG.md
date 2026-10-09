@@ -9,6 +9,7 @@ so most entries describe getting a computation to match OpenRocket exactly.
 ## [Unreleased]
 
 ### Changed
+- **Engine updated to OpenRocket `unstable` of 2026-10-07.** It brings OpenRocket's fix for checking thrust when a rocket starts to tumble or a recovery device deploys (OpenRocket PR #3382): the check now uses the thrust at that moment rather than the previous step's, which could be stale right at burnout or ignition. Only flights with a tumble or a deployment at that moment change; none of the reference flights moved.
 - **New fin fillets start as epoxy.** A fillet added in the editor is West System Six10 thickened epoxy (1180 kg/m³) rather than desktop OpenRocket's default, cardboard, which is not what fillets are made of. Any other adhesive can still be picked. A fillet from a `.ork` that names no material is still weighed as cardboard, as desktop reads it.
 - **A new import shows its notes.** Notes that you collapsed stay collapsed while you work on the design, but opening another file that has notes opens them again, so what it could not bring across is never just a count.
 - **Check for updates is in the menu.** It sits above **About** in the app menu instead of inside the About dialog. Choosing it checks right away and says what came of it in a small dialog: that you are on the latest version, that a new one is ready (the update banner comes up too), or that the check could not be made. It is grayed out offline.

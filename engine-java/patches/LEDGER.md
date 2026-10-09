@@ -1273,3 +1273,30 @@ replacements do not have.
   bit-identical. Re-recorded.
 - **Parity:** JS and WASM agree with the JVM on all 356 lines.
 - **Validation:** classic 9/135 and supersonic 61/135, both at their floors.
+
+## Repinned to upstream `591c5e5f7` - 2026-10-09
+
+From `b4eb02a48` (2026-10-03) to `591c5e5f7` (2026-10-07), the head of canonical
+`unstable` on the day. 49 commits. Three extracted files moved:
+
+- **`simulation/BasicEventSimulationEngine.java`** (patched) and
+  **`simulation/AbstractRKSimulationStepper.java`** (PR #3382, issue #3375).
+  The TUMBLE handler and the deploy-under-thrust check now ask the stepper for
+  the thrust at the event (`calculateThrust(status)`, which loses its
+  `DataStore` parameter) instead of reading the last recorded thrust sample,
+  which can be a step stale at burnout or ignition. Both use one threshold,
+  `UNDER_THRUST_CONDITION` (0.01 N, renamed from `THRUST_TUMBLE_CONDITION`), so
+  deploy-under-thrust moves from "any motor's curve above EPSILON" to "the
+  summed thrust above 0.01 N". The three upstream hunks applied to the patch
+  unchanged; our own lines in it are identical before and after, and the
+  divergence stays 13, re-blessed for the new upstream content.
+- **`rocketcomponent/Rocket.java`**: `copyFrom` also copies the designer,
+  revision, design type and kit name (PR #3296). Not physics.
+
+No shim or example file changed upstream in this range.
+
+- **Golden:** no value moved; all 359 lines bit-identical. No scenario has a
+  tumble or a deployment at a motor's burnout or ignition, which is the only
+  case #3382 changes.
+- **Parity:** JS and WASM agree with the JVM on all 359 lines.
+- **Validation:** classic 9/135 and supersonic 61/135, both at their floors.
