@@ -101,7 +101,7 @@ Todo lo demás puede valer cero legítimamente, y por eso no está marcado. Una 
 
 La sección **Filete** de un juego de aletas toma el radio del cordón de cola a lo largo de la raíz de la aleta y el material del que está hecho. Los dos cuentan: el volumen del filete se suma a la masa de cada aleta y su centroide tira del CG hacia atrás, igual que lo calcula OpenRocket de escritorio.
 
-El material importa porque un filete rara vez es del mismo material que la aleta. Un cordón de 6 mm en tres aletas alrededor de un tubo de 26 mm son unos 1,1 g en cartón y 2,0 g en algo con la densidad de la resina epoxi, y el CG se desplaza un par de milímetros con ello. Si dejas el material sin elegir, el cordón se pesa como cartón (680 kg/m³), que es a lo que recurren tanto el núcleo como el escritor de `.ork`. Elige uno de los [adhesivos](#adhesives), o añade el tuyo con el selector de materiales.
+El material importa porque un filete rara vez es del mismo material que la aleta. Un cordón de 6 mm en tres aletas alrededor de un tubo de 26 mm son unos 1,1 g en cartón y 2,0 g en algo con la densidad de la resina epoxi, y el CG se desplaza un par de milímetros con ello. Un filete que añades aquí empieza como pasta epoxi **RocketPoxy G5000** (1500 kg/m³), porque los filetes se hacen con epoxi; OpenRocket de escritorio lo empieza como cartón. Elige otro de los [adhesivos](#adhesives), o añade el tuyo con el selector de materiales. Un filete de un `.ork` que no nombra material se pesa como cartón (680 kg/m³), que es como lo lee el escritorio.
 
 **Los tubos como aletas no tienen filete.** Un juego de tubos como aletas es un tubo, no una aleta, así que el núcleo no tiene ningún filete que darle y la sección no aparece.
 

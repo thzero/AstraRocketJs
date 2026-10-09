@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FocusEvent, type KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import type { ComponentNode, ComponentType, RocketTree } from '../../engine/openRocketEngine';
@@ -326,6 +326,56 @@ export function ComponentTree({
     orderedIds[0] ||
     null;
 
+  /*
+   * Keep keyboard focus in the tree across an edit that rebuilds it.
+   *
+   * Cut removes the focused row, and undo or redo replaces the rows, so focus
+   * falls to the page body and the arrow keys stop working until the user tabs
+   * back in. While the tree holds focus, `ownsFocus` is set; it is cleared when
+   * focus moves deliberately elsewhere (to another element, or a click on
+   * something that takes no focus, which leaves the row still in the page).
+   * After any change to the rows, if focus was lost from the tree, it goes to
+   * the selected row, else the tab stop.
+   */
+  const ownsFocus = useRef(false);
+  const onTreeFocus = () => {
+    ownsFocus.current = true;
+  };
+  const onTreeBlur = (e: FocusEvent<HTMLDivElement>) => {
+    const to = e.relatedTarget as Node | null;
+    if (to) {
+      if (!listRef.current?.contains(to)) ownsFocus.current = false;
+      return;
+    }
+    // Nothing took focus. A row still in the page means the user clicked away;
+    // a row the edit removed means focus was lost, which the effect restores.
+    const from = e.target;
+    setTimeout(() => {
+      if (from.isConnected) ownsFocus.current = false;
+    }, 0);
+  };
+  const focusTarget = (selectedId && orderedIds.includes(selectedId) && selectedId) || tabbableId;
+  // The selection the effect last saw. Focus follows a change of selection that
+  // happens while a row has focus (undo or redo restoring one), and is left
+  // alone otherwise, so arrowing through the rows or folding a branch keeps it
+  // where the user put it.
+  const lastSelected = useRef(selectedId);
+  useEffect(() => {
+    const selectionMoved = lastSelected.current !== selectedId;
+    lastSelected.current = selectedId;
+    if (!ownsFocus.current || !focusTarget) return;
+    const active = document.activeElement;
+    const lost = !active || active === document.body;
+    const onRow = !!active && !!listRef.current?.contains(active);
+    if (!lost && !(onRow && selectionMoved)) return;
+    const row = Array.from(listRef.current?.querySelectorAll<HTMLElement>('[data-tree-row]') ?? []).find(
+      (el) => el.getAttribute('data-id') === focusTarget,
+    );
+    if (!row || row === active) return;
+    row.focus();
+    setActiveId(focusTarget);
+  }, [orderedIds, focusTarget, selectedId]);
+
   const onTreeKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     const rowEl = (e.target as HTMLElement).closest<HTMLElement>('[data-tree-row]');
     if (!rowEl || !listRef.current?.contains(rowEl)) return;
@@ -525,6 +575,8 @@ export function ComponentTree({
           role="tree"
           aria-label={t('tree.components')}
           onKeyDown={onTreeKeyDown}
+          onFocus={onTreeFocus}
+          onBlur={onTreeBlur}
           className="border-l border-line/5"
         >
           {tree.components.length ? (

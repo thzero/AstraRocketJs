@@ -24,6 +24,7 @@ import {
   setStageDrogue,
 } from '../services/design/treeEdit';
 import { canRemove, duplicateNode, pasteNode } from '../services/design/clipboard';
+import { withFilletDefault } from '../services/design/filletDefault';
 import {
   configFor,
   liveMotors,
@@ -966,9 +967,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
       commitTree(syncAutoShoulders(scaleRocket(tree, factor, options)), { selectedId: null });
     },
     setSelectedId: (selectedId) => set((s) => ({ selectedId, selectionSeq: s.selectionSeq + 1 })),
-    patchSelected: (patch) => {
+    patchSelected: (edit) => {
       const { selectedId, tree, configs } = get();
       if (!selectedId) return;
+      // A fillet added here starts as epoxy rather than desktop's Cardboard.
+      const patch = withFilletDefault(findNode(tree, selectedId), edit);
       // Nothing at all when the patch says what the node already says, the way
       // `applyTreeAction` and `setStageDrogue` below both return on an unchanged
       // tree. Without it a clamped keystroke would be a full kernel rebuild and an

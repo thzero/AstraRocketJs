@@ -101,7 +101,7 @@ Everything else may legitimately be zero, which is why it is not marked. A **tip
 
 A fin set's **Fillet** section takes the radius of the glue bead along the fin root and the material the bead is made of. Both count: the fillet's volume is added to every fin's mass and its centroid pulls the CG aft, the same way desktop OpenRocket computes it.
 
-The material matters because a fillet is rarely the fin's own. A 6 mm bead on three fins around a 26 mm tube is about 1.1 g in cardboard and 2.0 g in something epoxy-dense, and the CG moves a couple of millimeters with it. Leave the material unset and the bead is weighed as cardboard (680 kg/m³), which is what the kernel and the `.ork` writer both fall back to. Pick one of the [adhesives](#adhesives) instead, or add your own with the material picker.
+The material matters because a fillet is rarely the fin's own. A 6 mm bead on three fins around a 26 mm tube is about 1.1 g in cardboard and 2.0 g in something epoxy-dense, and the CG moves a couple of millimeters with it. A fillet you add here starts as **RocketPoxy G5000** epoxy paste (1500 kg/m³), since fillets are made of epoxy; desktop OpenRocket starts one as cardboard. Pick another of the [adhesives](#adhesives), or add your own with the material picker. A fillet from a `.ork` that names no material is weighed as cardboard (680 kg/m³), which is what desktop reads such a file as.
 
 **Tube fins have no fillet.** A tube fin set is a tube, not a fin, so the kernel has no fillet to give it and the section does not appear.
 

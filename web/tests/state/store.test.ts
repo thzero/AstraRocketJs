@@ -1563,10 +1563,13 @@ describe('importing a rocket whose name is already saved', () => {
       autoPrompt('NOT ASKED'), // neither dialog should be raised at all
     );
 
+    const before = s().importSeq;
     await s().openOrkFile(orkFile('Big Bertha'));
     await autosave();
 
     expect(calls.created).toEqual(['Big Bertha']);
+    // Counted as an import, so the banner opens its notes (LoadedBanner).
+    expect(s().importSeq).toBe(before + 1);
   });
 
   it('overwrites the saved rocket when the user says so', async () => {
@@ -1621,5 +1624,22 @@ describe('importing a rocket whose name is already saved', () => {
 
     expect(s().tree).toBe(before); // what the user had is still what they have
     expect(s().storageWarningKind).toBe('full');
+  });
+});
+
+/**
+ * A fillet added in the editor starts as epoxy paste (services/design/filletDefault.ts),
+ * through the same edit path every property field uses.
+ */
+describe('a new fin fillet', () => {
+  beforeEach(() => s().resetWorkspace());
+
+  it('is epoxy, not Cardboard', () => {
+    s().setSelectedId('fins');
+    s().patchSelected({ filletRadius: 0.004 });
+    s().commitEdit();
+    const fin = findNode(s().tree, 'fins')!;
+    expect(fin['filletMaterialName']).toBe('Epoxy - RocketPoxy G5000');
+    expect(fin['filletDensity']).toBe(1500);
   });
 });

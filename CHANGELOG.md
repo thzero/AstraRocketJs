@@ -9,9 +9,15 @@ so most entries describe getting a computation to match OpenRocket exactly.
 ## [Unreleased]
 
 ### Changed
+- **New fin fillets start as epoxy.** A fillet added in the editor is RocketPoxy G5000 epoxy paste (1500 kg/m³) rather than desktop OpenRocket's default, cardboard, which is not what fillets are made of. Any other adhesive can still be picked. A fillet from a `.ork` that names no material is still weighed as cardboard, as desktop reads it.
+- **A new import shows its notes.** Notes that you collapsed stay collapsed while you work on the design, but opening another file that has notes opens them again, so what it could not bring across is never just a count.
 - **Check for updates is in the menu.** It sits above **About** in the app menu instead of inside the About dialog. Choosing it checks right away and says what came of it in a small dialog: that you are on the latest version, that a new one is ready (the update banner comes up too), or that the check could not be made. It is grayed out offline.
 
 ### Fixed
+- **Desktop simulation extensions survive a save.** Air-start, roll control and scripting extensions, plot appearance and landing-dispersion settings in a `.ork` simulation were dropped when the design was saved. They are now kept and written back where desktop puts them, so the file opens in desktop OpenRocket with them intact. They are not run here, and the import says so.
+- **A file from a newer OpenRocket says so.** Opening a `.ork` whose format version desktop OpenRocket does not list (1.0 to 1.11) adds desktop's own note, "Unsupported document version …, attempting to read file anyway." It was read silently before.
+- **Keyboard focus stays in the parts tree.** Cutting the focused part, or undoing and redoing, dropped focus to the page, so the arrow keys did nothing until you tabbed back in. Focus now goes to the selected part, or the nearest sensible one.
+- **Warning values in your units.** A deployment-speed warning showed its speed in m/s, and the large angle of attack warning its angle in degrees, whatever units you had chosen. They now use your units.
 - **An update no longer reloads the page round and round.** For a few minutes after a new version is published, the site's CDN can still hand out the previous version's service worker. The browser treated that older worker as an update too, so taking an update up could reload the page into the old version, which then found the new one again, and so on. The app now asks a waiting update which build it is and takes it up only when it is newer than the one running; an older copy is ignored. A tab still running a version from before this fix can cycle once more until it lands on this one.
 
 ## [0.2.0]

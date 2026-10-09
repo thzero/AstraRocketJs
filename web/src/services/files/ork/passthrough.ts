@@ -181,6 +181,24 @@ export const KNOWN_ROCKET_TAGS: ReadonlySet<string> = new Set([
  */
 export const KNOWN_DOCUMENT_TAGS: ReadonlySet<string> = new Set(['rocket', 'simulations', 'designinfo']);
 
+/**
+ * Children of a `<simulation>` that our own reader or writer handles.
+ *
+ * The rest are desktop features with no counterpart here: `extension` (and the
+ * older `listener` form) is a simulation extension such as air-start, roll
+ * control or a script, `plotappearance` the plot styling, `landingdispersion`
+ * the landing-scatter settings. None of them can run or be edited here, so they
+ * are carried and written back between `<conditions>` and `<flightdata>`, where
+ * desktop's saver puts them.
+ */
+export const KNOWN_SIMULATION_TAGS: ReadonlySet<string> = new Set([
+  'name',
+  'simulator',
+  'calculator',
+  'conditions',
+  'flightdata',
+]);
+
 /** The node key the raw XML rides on. Not a `FIELDS` entry, so never editable. */
 export const EXTRA_KEY = 'xmlExtra';
 

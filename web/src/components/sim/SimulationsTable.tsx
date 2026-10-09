@@ -190,7 +190,9 @@ export function SimulationsTable({
                       Results tab; this is the pointer to it. */}
                   {!!s.result?.warnings?.length && (
                     <span
-                      title={s.result.warnings.map((w) => warningText(w.message, t)).join('\n')}
+                      title={s.result.warnings
+                        .map((w) => warningText(w.message, t, (q, si) => u.fmtSym(q, si)))
+                        .join('\n')}
                       className="shrink-0 text-[11px] text-warn-400"
                     >
                       &#9888; {s.result.warnings.length}

@@ -53,6 +53,12 @@ export interface FileSlice {
   designs: DesignMeta[];
   /** Id of the design currently being edited, or null before the first save. */
   activeDesignId: string | null;
+  /**
+   * Counts the files opened this session (`openOrkFile`). Not saved, so
+   * reopening the app on the same design does not count as an import; the import
+   * notes open for each new import that has some (LoadedBanner).
+   */
+  importSeq: number;
   refreshDesigns: () => Promise<void>;
   openDesign: (id: string) => Promise<void>;
   saveDesignAs: (name: string) => Promise<void>;
@@ -220,6 +226,7 @@ export const createFileSlice =
     return {
       designs: [],
       activeDesignId: null,
+      importSeq: 0,
 
       openOrkFile: async (file) => {
         // Three awaits before anything is written, and the file input has no busy
@@ -274,6 +281,7 @@ export const createFileSlice =
             // Null while the entry is still to be created; the overwrite path
             // already has one, and the library marks it as the open design.
             activeDesignId: home.id,
+            importSeq: get().importSeq + 1,
           });
         } catch (e) {
           if (stale()) return; // a superseded import must not post its error either
@@ -462,6 +470,7 @@ export const createFileSlice =
               launch: sim.launch,
               ...(summary ? { summary } : {}),
               status: !summary ? ('notsimulated' as const) : stale ? ('outdated' as const) : ('uptodate' as const),
+              ...(sim.xmlExtra?.length ? { xmlExtra: sim.xmlExtra } : {}),
             };
           });
           // Every configuration, each with its own motors: the file carries the

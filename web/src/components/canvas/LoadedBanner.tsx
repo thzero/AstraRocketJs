@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore } from '../../state/store';
 import { RocketConfigDialog } from '../design/RocketConfigDialog';
@@ -25,10 +25,14 @@ import { useSettings } from '../../state/SettingsProvider';
  * and that throws away the only record of them.
  *
  * Collapsed or not is a setting (`showImportNotes`), not component state: the card
- * unmounts whenever you close a design or leave the Design tab, so local state lets
- * the notes spring open again on the next import. App-wide rather than per design,
- * for the reasons on the setting itself.
+ * unmounts whenever you close a design or leave the Design tab, and the choice has
+ * to survive that. App-wide rather than per design, for the reasons on the setting
+ * itself. A new import with notes opens them again: they are news on the import
+ * that raised them, and collapsed they show only as a count.
  */
+
+/** The last import whose notes were opened, across the card's mounts this session. */
+let notesOpenedForImport = 0;
 export function LoadedBanner({
   loaded,
   onClose,
@@ -54,6 +58,13 @@ export function LoadedBanner({
   const repaired = useWorkspaceStore((s) => s.repairNotes);
   const notes = [...(loaded?.notes ?? []), ...repaired];
   const count = notes.length;
+  // Open the notes once for each new import that has any (see importSeq).
+  const importSeq = useWorkspaceStore((s) => s.importSeq);
+  useEffect(() => {
+    if (importSeq <= notesOpenedForImport || count === 0) return;
+    notesOpenedForImport = importSeq;
+    if (!open) update({ showImportNotes: true });
+  }, [importSeq, count, open, update]);
   // The tree's name is the live one: it is what the editor changes and what an
   // export writes. `loaded.name` is only the value the file arrived with.
   const name = (typeof treeName === 'string' && treeName) || loaded?.name || t('tree.rocket');

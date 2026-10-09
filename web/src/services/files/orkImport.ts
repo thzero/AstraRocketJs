@@ -77,6 +77,7 @@ export function importOrk(data: ArrayBuffer | string): OrkImportResult {
     findStages({ name, components }).map((n) => n.id as string),
   );
   const { notes, ignored } = ctx;
+  notes.push(...versionNotes(doc));
   notes.push(...ignoredNotes(ignored));
   notes.push(...modelingNotes(components));
   notes.push(...configNotes(rocketEl, configs));
@@ -112,6 +113,40 @@ export function importOrk(data: ArrayBuffer | string): OrkImportResult {
 }
 
 /**
+ * The `.ork` format versions desktop OpenRocket reads without a warning
+ * (DocumentConfig.SUPPORTED_VERSIONS). A file outside them, such as one saved
+ * by a newer OpenRocket, may carry things this reader does not know.
+ */
+const SUPPORTED_ORK_VERSIONS: ReadonlySet<string> = new Set([
+  '1.0',
+  '1.1',
+  '1.2',
+  '1.3',
+  '1.4',
+  '1.5',
+  '1.6',
+  '1.7',
+  '1.8',
+  '1.9',
+  '1.10',
+  '1.11',
+]);
+
+/**
+ * Desktop's warning for a format version outside the supported set
+ * (OpenRocketHandler), in its words: the file is still read.
+ */
+function versionNotes(doc: Document): string[] {
+  const root = doc.querySelector('openrocket');
+  const version = root?.getAttribute('version')?.trim() || null;
+  if (version !== null && SUPPORTED_ORK_VERSIONS.has(version)) return [];
+  const creator = root?.getAttribute('creator')?.trim();
+  const which = version ? ` ${version}` : '';
+  const by = creator ? ` (written using '${creator}')` : '';
+  return [`Unsupported document version${which}${by}, attempting to read file anyway.`];
+}
+
+/**
  * What the file carried that this app does not use, said out loud.
  *
  * Appearance XML is preserved (services/files/ork/passthrough.ts) and the note
@@ -133,6 +168,24 @@ function archiveNotes(doc: Document, dropped: string[]): string[] {
   if (decals) {
     out.push(
       `${decals} decal(s) were removed: their images are stored separately in the file and are not kept, so the reference would point at nothing.`,
+    );
+  }
+  const extensions = [
+    ...doc.querySelectorAll(
+      'openrocket > simulations > simulation > extension, openrocket > simulations > simulation > listener',
+    ),
+  ];
+  if (extensions.length) {
+    // The id's last segment is the extension's class name: AirStart, RollControl.
+    const names = [
+      ...new Set(
+        extensions.map(
+          (e) => (e.getAttribute('extensionid') ?? e.textContent ?? '').trim().split('.').pop() || 'unnamed',
+        ),
+      ),
+    ];
+    out.push(
+      `${extensions.length} simulation extension(s) (${names.join(', ')}) are not run here, so flights here do not include them. They are preserved, so a save keeps them.`,
     );
   }
   if (dropped.length) {

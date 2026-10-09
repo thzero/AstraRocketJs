@@ -47,6 +47,13 @@ export interface Simulation {
    */
   fileSummary?: { summary: FlightSummary; key: string | null };
   /**
+   * Parts of the `.ork` simulation this app does not model, as raw XML: desktop
+   * simulation extensions (air-start, roll control, scripts), plot appearance and
+   * landing-dispersion settings. Never run or edited here; written back on save
+   * so a round trip through this app keeps them (services/files/ork/passthrough.ts).
+   */
+  xmlExtra?: string[];
+  /**
    * What `result` was flown from, as {@link resultKey} wrote it at dispatch.
    *
    * Whether the result is outdated is derived from this ({@link isOutdated}),

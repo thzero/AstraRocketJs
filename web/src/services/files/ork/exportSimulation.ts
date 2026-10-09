@@ -61,6 +61,8 @@ function simulationXml(w: OrkWriter, depth: number, sim: OrkExportSimulation): v
   const configId = w.writeConfigs.some((c) => c.id === sim.configId) ? sim.configId : w.defaultId;
   conditionsXml(w, depth + 2, sim.launch, configId);
   emit(depth + 1, '</conditions>');
+  // What the file carried that this app does not model, where desktop writes it.
+  for (const raw of sim.xmlExtra ?? []) emit(depth + 1, raw);
   if (summary) emit(depth + 1, flightDataTag(summary));
   emit(depth, '</simulation>');
 }

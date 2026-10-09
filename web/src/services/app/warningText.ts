@@ -164,12 +164,38 @@ export function warningHelp(message: string, translate: (key: string) => string 
   return help && help !== lookup ? help : null;
 }
 
+/** Formats an SI value in the reader's units, with its symbol: `fmtSym` from useUnits. */
+export type WarningValueFormat = (quantity: 'velocity' | 'angle', si: number) => string;
+
+/**
+ * The kernel's value in a warning, as it prints it: in its default units, since
+ * TeaVM carries no preferences (Unit.toStringUnit). A speed reads "(24.6 m/s)"
+ * and an angle "(30°)"; a deployment-speed warning carries the first and the
+ * large angle of attack warning the second.
+ */
+const KERNEL_SPEED = /\((-?\d+(?:\.\d+)?) m\/s\)/g;
+const KERNEL_ANGLE = /\((-?\d+(?:\.\d+)?)°\)/g;
+
+/** The value in a warning restated in the reader's units, when a formatter is given. */
+function inReaderUnits(text: string, format: WarningValueFormat | undefined): string {
+  if (!format) return text;
+  return text
+    .replace(KERNEL_SPEED, (_m, v: string) => `(${format('velocity', Number(v))})`)
+    .replace(KERNEL_ANGLE, (_m, v: string) => `(${format('angle', (Number(v) * Math.PI) / 180)})`);
+}
+
 /**
  * @param message the kernel's message, as exported
  * @param translate i18n lookup; returns undefined/the key itself when it has no
  *   string, which is why the fallback is computed here rather than passed in
+ * @param format restates the warning's value in the reader's units; without it
+ *   the value keeps the kernel's own units
  */
-export function warningText(message: string, translate: (key: string) => string | undefined): string {
+export function warningText(
+  message: string,
+  translate: (key: string) => string | undefined,
+  format?: WarningValueFormat,
+): string {
   const m = KEY.exec(message);
   if (!m) return message; // already plain text, or a shape we do not recognize
   const key = m[1]!;
@@ -179,7 +205,10 @@ export function warningText(message: string, translate: (key: string) => string 
   // The kernel separates the text from its source components with ":  " (two
   // spaces). Normalize that wherever it falls: the value, when there is one,
   // sits between the text and the colon -- "TEXT (24.6 m/s):  "Parachute"".
-  const rest = componentName(message.slice(m[0].length).trim().replace(/:\s+/g, ': '), translate);
+  const rest = inReaderUnits(
+    componentName(message.slice(m[0].length).trim().replace(/:\s+/g, ': '), translate),
+    format,
+  );
   if (!rest) return head;
   return rest.startsWith(':') ? `${head}${rest}` : `${head} ${rest}`;
 }

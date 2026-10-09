@@ -209,6 +209,8 @@ export interface OrkExportSimulation {
    * status says outdated (SingleSimulationHandler).
    */
   status: 'uptodate' | 'outdated' | 'notsimulated';
+  /** Simulation children carried from the file this design was opened from (desktop extensions and the like). */
+  xmlExtra?: string[];
 }
 
 export interface OrkTreeExportInput {

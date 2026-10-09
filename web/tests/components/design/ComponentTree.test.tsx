@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { fireEvent, screen } from '@testing-library/react';
 import { ComponentTree } from '../../../src/components/design/ComponentTree';
 import { renderWithProviders } from '../../testing/renderWithProviders';
+import { SettingsProvider } from '../../../src/state/SettingsProvider';
 import type { RocketTree } from '../../../src/engine/openRocketEngine';
 
 const TREE = {
@@ -57,5 +58,52 @@ describe('ComponentTree semantics', () => {
     fireEvent.keyDown(stage, { key: 'ArrowLeft' });
     expect(screen.getByRole('treeitem', { name: /Sustainer/ }).getAttribute('aria-expanded')).toBe('false');
     expect(screen.queryByRole('treeitem', { name: /Nose/ })).toBeNull();
+  });
+});
+
+/**
+ * Keyboard focus stays in the tree across an edit that rebuilds it. Cut removes
+ * the focused row and undo or redo replaces the rows; without this, focus fell to
+ * the page and the arrow keys did nothing until the user tabbed back in.
+ */
+describe('ComponentTree focus across an edit', () => {
+  beforeAll(() => {
+    Element.prototype.scrollIntoView = () => {};
+  });
+  const WITHOUT_BODY = {
+    ...TREE,
+    components: [{ ...TREE.components[0]!, children: [TREE.components[0]!.children![0]!] }],
+  } as RocketTree;
+  const row = (name: RegExp) => screen.getByRole('treeitem', { name });
+  const tick = () => new Promise((r) => setTimeout(r, 0));
+  // rerender replaces the whole element, so each one carries the provider.
+  const view = (ui: React.ReactElement) => <SettingsProvider>{ui}</SettingsProvider>;
+
+  it('keeps focus on a row when the focused row is cut, and follows the selection undo restores', () => {
+    const { rerender } = renderWithProviders(<ComponentTree tree={TREE} selectedId="b1" onSelect={() => {}} />);
+    row(/Body/).focus();
+    rerender(view(<ComponentTree tree={WITHOUT_BODY} selectedId={null} onSelect={() => {}} />));
+    expect(document.activeElement?.getAttribute('role')).toBe('treeitem');
+
+    rerender(view(<ComponentTree tree={TREE} selectedId="b1" onSelect={() => {}} />));
+    expect(document.activeElement).toBe(row(/Body/));
+  });
+
+  it('leaves focus where the arrow keys put it when the selection does not change', () => {
+    const { rerender } = renderWithProviders(<ComponentTree tree={TREE} selectedId="b1" onSelect={() => {}} />);
+    row(/Body/).focus();
+    fireEvent.keyDown(row(/Body/), { key: 'ArrowUp' });
+    expect(document.activeElement).toBe(row(/Nose/));
+    rerender(view(<ComponentTree tree={{ ...TREE }} selectedId="b1" onSelect={() => {}} />));
+    expect(document.activeElement).toBe(row(/Nose/));
+  });
+
+  it('does not pull focus back after the user moved it away', async () => {
+    const { rerender } = renderWithProviders(<ComponentTree tree={TREE} selectedId="b1" onSelect={() => {}} />);
+    row(/Body/).focus();
+    row(/Body/).blur();
+    await tick();
+    rerender(view(<ComponentTree tree={WITHOUT_BODY} selectedId={null} onSelect={() => {}} />));
+    expect(document.activeElement).toBe(document.body);
   });
 });

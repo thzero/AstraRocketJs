@@ -69,7 +69,10 @@ export function wireLoadedOrk(res: LoadedOrk, launchDefaults: LaunchConditions, 
   const sims = res.simulations?.length
     ? res.simulations.map((fs) => {
         const config = configs.find((c) => c.id === fs.configId) ?? configs[0]!;
-        const sim = newSimulation(fs.name, config.id, { ...launchDefaults, ...fs.launch });
+        const sim = {
+          ...newSimulation(fs.name, config.id, { ...launchDefaults, ...fs.launch }),
+          ...(fs.xmlExtra ? { xmlExtra: fs.xmlExtra } : {}),
+        };
         if (!fs.summary) return sim;
         // Current as loaded, unless the file said otherwise or there is nothing
         // to key it against; from here on it ages the way a result does.
