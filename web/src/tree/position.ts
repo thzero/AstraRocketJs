@@ -220,10 +220,12 @@ export function resolveFilePositions(tree: RocketTree): RocketTree {
     const stageStart = x;
     // The stage's axial extent is its chain members; that is what an off-axis
     // child's own `middle`/`bottom` position is measured against.
-    const stageLen = kids.reduce((sum, n) => sum + (isChainType(n.type) ? num(n, 'length', 0) : 0), 0);
+    // partLength: a member with no length key is laid out at the kernel's
+    // length for its type, the length it is drawn and flown at.
+    const stageLen = kids.reduce((sum, n) => sum + (isChainType(n.type) ? partLength(n) : 0), 0);
     const fixedKids = kids.map((n) => {
       if (isChainType(n.type)) {
-        const len = num(n, 'length', 0);
+        const len = partLength(n);
         const fixed = fixChildren(n, x, len);
         x += len;
         return fixed;

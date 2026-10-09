@@ -20,7 +20,7 @@ const LABEL: Record<ExportFormat, string> = {
  * object (parachute, mass, lug…), so export sits only with the parts that can
  * produce one.
  */
-export function ComponentExportButton({ node }: { node: ComponentNode }) {
+export function ComponentExportButton({ node, tabIndex }: { node: ComponentNode; tabIndex?: number }) {
   const { t } = useTranslation();
   const exportComponent = useWorkspaceStore((s) => s.exportComponent);
   const { open, toggle, close, wrapRef, triggerRef } = useMenuPopover();
@@ -37,6 +37,7 @@ export function ComponentExportButton({ node }: { node: ComponentNode }) {
           e.stopPropagation(); // don't also select/deselect the row
           toggle();
         }}
+        tabIndex={tabIndex}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={t('file.export')}

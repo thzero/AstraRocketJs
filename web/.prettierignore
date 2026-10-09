@@ -7,12 +7,10 @@ package-lock.json
 # Generated, not authored. Reformatting any of them only makes the next
 # regeneration a huge diff.
 #
-# They are not all COMMITTED, which this comment used to claim of all five.
 # `public/engine` (the WASM pair) and the `public/data` catalogs are committed for
-# the static host; `public/docs` is the built Docusaurus site and is GITIGNORED
-# (.gitignore:16), produced by `npm run docs:build` into this tree for the offline
-# Help check and for the deploy. Saying it was committed sent a reader looking for
-# files that are not in the repo.
+# the static host. `public/docs` is the built Docusaurus site: gitignored, and
+# produced by `npm run docs:build` into this tree for the offline Help check and
+# for the deploy.
 public/docs
 public/engine
 public/data/*.generated.json

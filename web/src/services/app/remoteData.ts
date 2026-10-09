@@ -101,7 +101,7 @@ export function progressPercent(p: CatalogProgress | null | undefined): number |
 
 /** A non-2xx reply, with its status, so a caller can tell "not there" (404,
  *  a fact about the host) from a transient failure worth retrying. */
-export class HttpError extends Error {
+class HttpError extends Error {
   constructor(readonly status: number) {
     super(`HTTP ${status}`);
     this.name = 'HttpError';
@@ -125,15 +125,16 @@ async function fetchJson<T>(
     // whole download, and a slow link would be cut off mid-transfer.
     clearTimeout(timer);
     timer = setTimeout(() => ctrl.abort(), BODY_TIMEOUT_MS);
-    if (!res.ok) {
-      // Abort the body too: a 5xx with a large error page (or a CDN's HTML)
-      // would otherwise keep streaming into nowhere until the host closed it.
-      ctrl.abort();
-      throw new HttpError(res.status);
-    }
+    if (!res.ok) throw new HttpError(res.status);
     const len = Number(res.headers.get('content-length'));
     if (Number.isFinite(len) && len > MAX_CATALOG_BYTES) throw new Error('response too large');
     return await readJson<T>(res, onProgress);
+  } catch (e) {
+    // Any refusal aborts the body: a 5xx error page, a CDN's HTML or a reply
+    // over the size cap would otherwise keep downloading while the fallback
+    // base is tried.
+    ctrl.abort();
+    throw e;
   } finally {
     clearTimeout(timer);
   }

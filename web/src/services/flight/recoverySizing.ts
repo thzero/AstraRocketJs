@@ -83,7 +83,7 @@ export interface SizingLaunch {
  *   sea-level standard constant rather than with the ISA value for that
  *   altitude. Humidity alone switches branches.
  *
- * The second branch only differs away from sea level. At a 2,682 m field with
+ * The third branch only differs away from sea level. At a 2,682 m field with
  * 30 C typed and the pressure left blank, filling the blank from the site
  * altitude would give 0.8388 kg/m^3 where the flight flies 1.1644, and a
  * descent rate 18 % apart. At sea level the two branches agree exactly.
@@ -100,6 +100,21 @@ export function airDensity(launch?: SizingLaunch | null): number {
   // STANDARD_PRESSURE; a blank in the custom branch is filled with those.
   const t = launch.temperatureC != null ? LAUNCH_SI.degC.toSi(launch.temperatureC) : custom ? T0 : tIsa;
   const p = launch.pressureHPa != null ? LAUNCH_SI.hPa.toSi(launch.pressureHPa) : custom ? P0 : pIsa;
+  if (!(t > 0) || !(p > 0)) return RHO0;
+  return p / (R_AIR * t);
+}
+
+/**
+ * Air density (kg/m^3) at a field `siteM` m up when no flight is being sized:
+ * the standard-atmosphere pressure at that altitude with the typed temperature,
+ * or the standard temperature there when it is blank. {@link airDensity} fills
+ * a blank pressure with the sea-level constant because the flight does; a
+ * standalone tool with no pressure field means the air at the site, so typing
+ * the standard temperature leaves the density where the blank field had it.
+ */
+export function siteAirDensity(siteM: number | null, temperatureC: number | null): number {
+  const { t: tIsa, p } = isaAt(siteM ?? 0);
+  const t = temperatureC != null ? LAUNCH_SI.degC.toSi(temperatureC) : tIsa;
   if (!(t > 0) || !(p > 0)) return RHO0;
   return p / (R_AIR * t);
 }
@@ -126,8 +141,8 @@ function isaExact(h: number): { t: number; p: number } {
 
 /**
  * Standard-atmosphere temperature (K) and pressure (Pa) at `h` m, as the
- * kernel's ExtendedISAModel reads it: exact values every 500 m (geopotential
- * altitude), linear in between, and sea level at or below 0.
+ * kernel's ExtendedISAModel reads it: exact values every 500 m of geometric
+ * altitude, linear in between, and sea level at or below 0.
  */
 function isaAt(h: number): { t: number; p: number } {
   if (!(h > 0)) return isaExact(0);

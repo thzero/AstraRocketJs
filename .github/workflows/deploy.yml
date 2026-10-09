@@ -36,9 +36,8 @@ jobs:
   build:
     needs: gates
     runs-on: ubuntu-latest
-    # The web build plus both Docusaurus locales. Uncapped it inherited the
-    # 360-minute default; a hung webpack compile would have held the Pages
-    # deployment for six hours.
+    # The web build plus both Docusaurus locales. Without a cap a hung webpack
+    # compile holds the Pages deployment for the 360-minute default.
     timeout-minutes: 15
     defaults:
       run:
@@ -67,9 +66,9 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
 
       # continue-on-error hides the difference between "the API was throttled
-      # today" and "this has been broken for months" -- and nothing else ever
-      # runs this script, so the About dialog's contributor list would just
-      # quietly freeze. Say so, the way sync-catalogs.yml already does.
+      # today" and "this has been broken for months", and nothing else runs this
+      # script, so a silent failure freezes the About dialog's contributor list.
+      # Say so, the way sync-catalogs.yml does.
       - if: steps.contributors.outcome == 'failure'
         run: |
           echo "::warning title=Contributor sync failed::Deployed with the committed contributors.generated.json. If this repeats it is broken, not throttled."

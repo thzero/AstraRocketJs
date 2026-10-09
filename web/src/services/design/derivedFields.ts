@@ -155,8 +155,8 @@ export const DERIVED: Record<DerivedName, Derived> = {
    * the lump takes up rather than the lump.
    *
    * A part with no packed volume has no density (upstream substitutes 0 for
-   * the NaN), and typing one into it is refused rather than writing a mass of 0
-   * over whatever is there.
+   * the NaN), and typing one into it writes a mass of 0, as `setDensity` does:
+   * density times no volume is no mass.
    */
   massDensity: {
     quantity: 'density',

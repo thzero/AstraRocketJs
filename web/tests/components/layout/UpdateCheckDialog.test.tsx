@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { useLayoutEffect } from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
 import '../../../src/i18n';
@@ -43,5 +44,25 @@ describe('UpdateCheckDialog', () => {
     expect(screen.getByRole('status').textContent).toBe('Checking…');
     fireEvent.click(screen.getAllByRole('button', { name: 'Close' }).at(-1)!);
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('does not paint or announce the previous answer when it opens again', () => {
+    useUpdateStore.setState({ result: 'upToDate', checker: () => new Promise(() => {}) });
+    // What the first commit put in the live region, read before any effect of
+    // the dialog's own has run.
+    const seen: (string | null | undefined)[] = [];
+    function Probe() {
+      useLayoutEffect(() => {
+        seen.push(document.querySelector('[role="status"]')?.textContent);
+      }, []);
+      return null;
+    }
+    render(
+      <>
+        <UpdateCheckDialog onClose={() => {}} />
+        <Probe />
+      </>,
+    );
+    expect(seen[0]).toBe('Checking…');
   });
 });

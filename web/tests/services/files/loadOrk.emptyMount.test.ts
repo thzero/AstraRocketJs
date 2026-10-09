@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { hasThrustCurve } from '../../../src/services/flight/runnability';
+import { noteTexts } from '../../testing/importNotes';
 
 /**
  * A `.ork` whose mount carries no motor at all (as opposed to one it names
@@ -68,7 +69,7 @@ describe('loadOrk with mounts the file gave no motor', () => {
 
   it('names the empty mounts in one note that says no default will fly', async () => {
     const loaded = await loadOrk(new ArrayBuffer(0));
-    const note = loaded.notes.find((n) => /No motor in this file/.test(n));
+    const note = noteTexts(loaded.notes).find((n) => /no motor in this file/i.test(n));
     expect(note).toBeDefined();
     expect(note).toMatch(/"Body"/);
     expect(note).toMatch(/"Pod mount"/);

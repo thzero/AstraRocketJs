@@ -178,13 +178,18 @@ export function dynamicPressure(series: FlightSeries | undefined): (number | nul
  * When the rocket stops flying forward: the recovery deployment, else apogee.
  * After it the rocket tumbles under its recovery, so the aero figures (q·α,
  * stability, CP) say nothing about the airframe past this point.
+ *
+ * An ejection charge is not an end. The kernel records a booster motor's
+ * charge in the sustainer's branch at booster burnout, before separation, so
+ * on a staged flight the first charge comes before the sustainer burn; and a
+ * charge with no device to open leaves the rocket flying forward.
  */
 export function forwardFlightEnd(result: {
   events: readonly { type: string; time: number }[];
   summary?: { timeToApogee?: number };
 }): number {
   return (
-    result.events.find((e) => e.type === 'RECOVERY_DEVICE_DEPLOYMENT' || e.type === 'EJECTION_CHARGE')?.time ??
+    result.events.find((e) => e.type === 'RECOVERY_DEVICE_DEPLOYMENT')?.time ??
     result.events.find((e) => e.type === 'APOGEE')?.time ??
     result.summary?.timeToApogee ??
     Infinity

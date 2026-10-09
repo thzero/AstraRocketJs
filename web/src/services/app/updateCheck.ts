@@ -84,8 +84,9 @@ export const UPDATE_APPLY_HIDDEN_MS = 30_000;
  * mechanism exists to spare people, so an offer nobody answered is taken up on
  * their behalf, but only once doing it cannot interrupt anything.
  *
- * `busy` is a flight in the air. A reload would throw it away, and it is the
- * one thing here that keeps running while the tab is hidden.
+ * `busy` is work a reload would throw away: flights or a drift sweep in the
+ * air, which keep running while the tab is hidden, or a dialog still waiting
+ * on an answer (see `state/workInProgress`).
  */
 export function readyToApplyHidden(
   waiting: boolean,

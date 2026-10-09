@@ -192,12 +192,15 @@ export function useHelpFrame(
     if (!doc) return;
     const html = doc.documentElement;
     html.setAttribute('data-astra-embed', '');
-    // The app has no light mode. Docusaurus picks its theme from the system
-    // preference before this runs (respectPrefersColorScheme), and on hydration
-    // its color-mode provider reads these two attributes back rather than
-    // re-deriving them, so setting both holds the page at dark for good.
-    html.setAttribute('data-theme', 'dark');
-    html.setAttribute('data-theme-choice', 'dark');
+    // The docs follow the app's theme, not the system's. Docusaurus has only
+    // light and dark, so daylight shows as light. It picks its theme from the
+    // system preference before this runs (respectPrefersColorScheme), and on
+    // hydration its color-mode provider reads these two attributes back rather
+    // than re-deriving them, so setting both holds the page at the app's theme.
+    const appTheme = document.documentElement.getAttribute('data-theme');
+    const docsTheme = appTheme === 'light' || appTheme === 'daylight' ? 'light' : 'dark';
+    html.setAttribute('data-theme', docsTheme);
+    html.setAttribute('data-theme-choice', docsTheme);
     doc.addEventListener('click', onFrameClick, true);
 
     /*

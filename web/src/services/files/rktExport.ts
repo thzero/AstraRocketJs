@@ -105,11 +105,23 @@ const put = (w: Writer, d: number, name: string, v: number | undefined, scale: (
  * measured mass/CG pair, finish, and the axial placement.
  *
  * `UseKnownCG` is the single switch RockSim has where we have three overrides.
- * It is written as 1 only when the node overrides mass or CG, because setting
+ * It is written as 1 only when the node overrides mass, because setting
  * it makes RockSim stop computing both from the geometry: turning it on for a
  * part that only overrides drag would freeze its mass at whatever we wrote.
+ *
+ * `ownMass` is the part's own mass where the writer states one (a mass object
+ * carries it in KnownMass). KnownMass is written once per part, as
+ * BasePartDTO writes `getMass()`: the override when there is one, else the
+ * part's own mass.
  */
-function writeCommon(w: Writer, d: number, n: ComponentNode, withPosition: boolean, densityType = 0): void {
+function writeCommon(
+  w: Writer,
+  d: number,
+  n: ComponentNode,
+  withPosition: boolean,
+  densityType = 0,
+  ownMass?: number,
+): void {
   el(w, d, 'Name', n.name ?? '');
   const material = strOf(n, 'materialName') ?? strOf(n, 'surfaceMaterialName');
   if (material) el(w, d, 'Material', material);
@@ -126,10 +138,16 @@ function writeCommon(w: Writer, d: number, n: ComponentNode, withPosition: boole
 
   const overrideMass = numOpt(n, 'overrideMass');
   const overrideCg = numOpt(n, 'overrideCGX');
-  if (overrideMass !== undefined || overrideCg !== undefined) {
-    el(w, d, 'KnownMass', g(overrideMass ?? 0));
+  if (overrideMass !== undefined || (overrideCg !== undefined && ownMass !== undefined)) {
+    el(w, d, 'KnownMass', g(overrideMass ?? ownMass!));
     el(w, d, 'KnownCG', mm(overrideCg ?? 0));
     el(w, d, 'UseKnownCG', 1);
+  } else {
+    if (ownMass !== undefined) el(w, d, 'KnownMass', g(ownMass));
+    // The switch overrides mass and CG together, so a CG-only override needs
+    // the part's own mass in KnownMass, as BasePartDTO writes it. The app does
+    // not compute component mass, so the override is left out and named.
+    if (overrideCg !== undefined) w.skipped.add(`CG override (${n.name ?? n.type})`);
   }
 
   const finish = strOf(n, 'finish') ?? 'normal';
@@ -331,17 +349,16 @@ const writeStreamer: PartWriter = (w, d, n) => {
 const writeMassObject =
   (shockCord: boolean): PartWriter =>
   (w, d, n) => {
-    writeCommon(w, d, n, true);
+    const len = numOpt(n, 'cordLength') ?? 0;
+    // RockSim states a shock cord's mass, not its line density.
+    const ownMass = shockCord ? (numOpt(n, 'lineDensity') ?? 0) * len : (numOpt(n, 'mass') ?? 0);
+    writeCommon(w, d, n, true, 0, ownMass);
     el(w, d, 'TypeCode', shockCord ? 1 : 0);
     if (shockCord) {
-      const len = numOpt(n, 'cordLength') ?? 0;
       el(w, d, 'Len', mm(len));
-      // RockSim states a shock cord's mass, not its line density.
-      el(w, d, 'KnownMass', g((numOpt(n, 'lineDensity') ?? 0) * len));
     } else {
       put(w, d, 'Len', numOpt(n, 'length'), mm);
       put(w, d, 'Dia', numOpt(n, 'radius'), dia);
-      el(w, d, 'KnownMass', g(numOpt(n, 'mass') ?? 0));
     }
     writeRadial(w, d, n);
   };

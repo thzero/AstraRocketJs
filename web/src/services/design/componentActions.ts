@@ -45,12 +45,26 @@ const SPLITTABLE: Record<string, { count: string; angle: string }> = {
   parallelstage: { count: 'instanceCount', angle: 'angleOffset' },
 };
 
-/** Every id in this subtree replaced with a fresh one, so a copy is a new part
- *  rather than a second node claiming the same identity. */
-export function reid(node: ComponentNode): ComponentNode {
+/**
+ * Every id in this subtree replaced with a fresh one, so a copy is a new part
+ * rather than a second node claiming the same identity.
+ *
+ * `origins`, when given, collects each new id against the id it was copied
+ * from. A part's per-configuration settings (its motor, deployment and
+ * separation) are keyed by its id, and desktop's `copy()` carries them to the
+ * copy; the caller uses this map to do the same.
+ */
+export function reid(node: ComponentNode, origins?: Map<string, string>): ComponentNode {
   const out: ComponentNode = { ...node, id: uuid() };
-  if (node.children) out.children = node.children.map(reid);
+  if (origins && typeof node.id === 'string') origins.set(out.id as string, node.id);
+  if (node.children) out.children = node.children.map((c) => reid(c, origins));
   return out;
+}
+
+/** Give the first copy the original's id back, and drop the id it no longer has from `origins`. */
+function keepFirstId(copies: ComponentNode[], id: string, origins?: Map<string, string>): void {
+  if (origins && typeof copies[0]!.id === 'string') origins.delete(copies[0]!.id);
+  copies[0]!.id = id;
 }
 
 /**
@@ -124,7 +138,12 @@ export const canSplit = (node: ComponentNode | null | undefined): boolean => spl
  * override mass is divided between the copies, since it was a figure for the
  * whole set.
  */
-export function splitInstances(tree: RocketTree, id: string, baseName: string): RocketTree {
+export function splitInstances(
+  tree: RocketTree,
+  id: string,
+  baseName: string,
+  origins?: Map<string, string>,
+): RocketTree {
   const node = findNode(tree.components, id);
   const spec = node ? SPLITTABLE[node.type] : undefined;
   if (!node || !spec) return tree;
@@ -133,7 +152,7 @@ export function splitInstances(tree: RocketTree, id: string, baseName: string): 
   const angle = num(node, spec.angle, 0);
   const override = node['overrideMass'];
   const copies = Array.from({ length: count }, (_, i) => {
-    const copy = reid(node);
+    const copy = reid(node, origins);
     copy[spec.count] = 1;
     copy[spec.angle] = angle + (i * 2 * Math.PI) / count;
     copy.name = baseName + ' #' + String(i + 1);
@@ -142,7 +161,7 @@ export function splitInstances(tree: RocketTree, id: string, baseName: string): 
   });
   // The first copy keeps the original id, so whatever was selected stays
   // selected rather than the panel emptying under the button just pressed.
-  copies[0]!.id = id;
+  keepFirstId(copies, id, origins);
   return replaceInPlace(tree, id, copies);
 }
 
@@ -160,7 +179,12 @@ export const canSplitCluster = (node: ComponentNode | null | undefined): boolean
  * the warning on the desktop's own tooltip: a cluster with an engine block in it
  * becomes four tubes with four engine blocks.
  */
-export function splitCluster(tree: RocketTree, id: string, baseName: string): RocketTree {
+export function splitCluster(
+  tree: RocketTree,
+  id: string,
+  baseName: string,
+  origins?: Map<string, string>,
+): RocketTree {
   const node = findNode(tree.components, id);
   if (!node || !canSplitCluster(node)) return tree;
   // InnerTube.getClusterPoints, so a cluster that was already off-center splits
@@ -174,7 +198,7 @@ export function splitCluster(tree: RocketTree, id: string, baseName: string): Ro
     num(node, 'radialDirection', 0),
   );
   const copies = places.map((p, i) => {
-    const copy = reid(node);
+    const copy = reid(node, origins);
     copy['cluster'] = 'single';
     copy['clusterScale'] = 1;
     copy['clusterRotation'] = 0;
@@ -185,7 +209,7 @@ export function splitCluster(tree: RocketTree, id: string, baseName: string): Ro
     return copy;
   });
   if (!copies.length) return tree;
-  copies[0]!.id = id;
+  keepFirstId(copies, id, origins);
   return replaceInPlace(tree, id, copies);
 }
 

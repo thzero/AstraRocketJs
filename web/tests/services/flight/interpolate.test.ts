@@ -9,6 +9,10 @@ describe('lerpAt', () => {
     expect(lerpAt([], [], 5)).toBeNull();
   });
 
+  it('returns null for a NaN position', () => {
+    expect(lerpAt(xs, ys, NaN)).toBeNull();
+  });
+
   it('clamps below the first knot to ys[0]', () => {
     expect(lerpAt(xs, ys, -5)).toBe(0);
     expect(lerpAt(xs, ys, 0)).toBe(0); // x === xs[0]

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { AeroSweep, ComponentMass } from '../../../src/engine/openRocketEngine';
 import {
+  altitudeField,
   chartDomain,
   columnMax,
   cpDivisor,
@@ -13,6 +14,7 @@ import {
   rollRows,
   stabilityRows,
   stackedBands,
+  unitDigits,
 } from '../../../src/components/canvas/aeroTables';
 
 /** A three-sample sweep with two parts, one of them a fin set. */
@@ -228,5 +230,46 @@ describe('cpDivisor', () => {
     const cp = 0.84;
     expect((cp / cpDivisor('body', 1.2, 1.1)) * 100).toBeCloseTo(70, 6);
     expect((cp / cpDivisor('aero', 1.2, 1.1)) * 100).toBeCloseTo(76.3636, 4);
+  });
+});
+
+/**
+ * The sweep altitude box shows the altitude the sweep is flown at, in every
+ * distance unit, and steps by a valid amount.
+ */
+describe('altitudeField', () => {
+  const KM = 1 / 1000;
+  const MI = 1 / 1609.344;
+
+  it('shows 1.5 km as 1.5, and flies it at 1500 m', () => {
+    const f = altitudeField(KM);
+    expect(f.toUi(f.toSi(1.5))).toBe(1.5);
+    expect(f.toSi(1.5)).toBeCloseTo(1500, 6);
+  });
+
+  it('stores what it shows, so the box and the sweep agree', () => {
+    for (const factor of [1, 3.28084, KM, MI]) {
+      const f = altitudeField(factor);
+      const typed = 1.2345;
+      expect(f.toSi(typed) * factor).toBeCloseTo(f.toUi(f.toSi(typed)), 9);
+    }
+  });
+
+  it('never steps by zero', () => {
+    for (const factor of [1, 3.28084, 1.0936, KM, MI]) expect(altitudeField(factor).step).toBeGreaterThan(0);
+  });
+
+  it('keeps whole numbers for meters and feet', () => {
+    expect(altitudeField(1).toUi(1234.4)).toBe(1234);
+    expect(altitudeField(1).step).toBe(500);
+  });
+});
+
+describe('unitDigits', () => {
+  it('resolves 0.1 mm in every length unit', () => {
+    expect(unitDigits(1000, 1e-4)).toBe(1); // mm
+    expect(unitDigits(100, 1e-4)).toBe(2); // cm
+    expect(unitDigits(1, 1e-4)).toBe(4); // m
+    expect(unitDigits(1 / 0.0254, 1e-4)).toBe(3); // in
   });
 });

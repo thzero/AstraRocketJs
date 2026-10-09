@@ -73,12 +73,8 @@ export function useHeaderDialogs() {
   return { open, dialogs: <HeaderDialogs flags={flags} onClose={close} /> };
 }
 
-/* Mounted only while open.
-   Every one of these used to be mounted on every render of the header
-   and merely `return null` when closed - which does not stop effects.
-   That is what let MotorDashboard fetch the 1.6 MB motor catalog on app
-   start despite its own comment saying the load was deferred, and it
-   made every dialog's state outlive its own closing. */
+/* Mounted only while open: a closed dialog must run no effects
+   (MotorDashboard would fetch the motor catalog) and keep no state. */
 function HeaderDialogs({ flags, onClose }: { flags: OpenFlags; onClose: (id: HeaderDialog) => void }) {
   const { t } = useTranslation();
   const helpPage = useHelpStore((s) => s.page);

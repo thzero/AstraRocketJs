@@ -4,7 +4,6 @@ import { NumberInput } from '../common/NumberInput';
 import { useUnits } from '../../prefs/useUnits';
 import { onSi } from '../../prefs/entryValue';
 import { unitScope } from '../../prefs/units';
-import { useSettings } from '../../state/SettingsProvider';
 import { useWorkspaceStore, configOf, selectDriftSweepFor } from '../../state/store';
 import { sameSimInputs, simInputs } from '../../services/flight/simulations';
 import { MAX_WIND_SPEED_MS } from '../../services/flight/safetyLimits';
@@ -44,7 +43,6 @@ const numCls =
 export function DriftSweepPanel({ simId, launch }: { simId: string; launch: LaunchConditions }) {
   const { t } = useTranslation();
   const u = useUnits();
-  const { settings } = useSettings();
   const wind = u.at(unitScope('launch', 'speed'), 'windspeed');
 
   const mine = useWorkspaceStore((s) => selectDriftSweepFor(s, simId));
@@ -176,7 +174,7 @@ export function DriftSweepPanel({ simId, launch }: { simId: string; launch: Laun
         ) : (
           <>
             <button
-              onClick={() => void runDriftSweep(simId, spec, settings.simulation)}
+              onClick={() => void runDriftSweep(simId, spec)}
               className={`${btn} bg-accent-600 text-on-accent hover:bg-accent-500`}
             >
               {t('sweep.run')}

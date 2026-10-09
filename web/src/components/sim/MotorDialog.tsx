@@ -28,6 +28,7 @@ import { loadDia, loadMfrs, saveDia, saveMfrs } from './motorPrefs';
 import { errorMessage } from '../../services/app/errorMessage';
 import { useFilePick } from '../common/useFilePick';
 import { ToggleButton } from '../common/ToggleButton';
+import { confirm } from '../../state/confirmStore';
 
 /** The delay a motor with no delay data starts at (a common mid-range charge). */
 const DEFAULT_DELAY = 3;
@@ -239,6 +240,14 @@ export function MotorDialog({
 
   const onDelete = async (m: CatalogMotor) => {
     if (!m.id) return;
+    // An imported curve has no other copy here, and this button sits beside
+    // the row that selects the motor.
+    const ok = await confirm({
+      message: t('motor.deleteConfirm', { name: m.designation }),
+      confirmLabel: t('common.delete'),
+      danger: true,
+    });
+    if (!ok) return;
     onError(null);
     const mine = catalogWrite.claim();
     try {

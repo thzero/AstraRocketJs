@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { groundMapLayout } from '../../../src/components/canvas/FlightGroundMap';
+import * as THREE from 'three';
+import { GROUND_ROTATION, configureTileTexture, groundMapLayout } from '../../../src/components/canvas/FlightGroundMap';
+import { buildFlightScene, sceneFromEnu } from '../../../src/components/canvas/flightScene';
+import type { FlightResult } from '../../../src/engine/openRocketEngine';
 import { TILE_SIZE } from '../../../src/services/map/slippyMap';
 import { MIN_EXTENT_M } from '../../../src/services/flight/groundTrack';
 
@@ -8,7 +11,7 @@ import { MIN_EXTENT_M } from '../../../src/services/flight/groundTrack';
  *
  * This is the one part of that view worth a test and the one part a screenshot
  * cannot check: a map laid down mirrored, or rotated a quarter turn, is still a
- * convincing photograph of a field. The arc is drawn with +x east and +z north
+ * convincing photograph of a field. The arc is placed through `sceneFromEnu`
  * (flightScene.ts), so the ground under it has to agree, and tile rows count
  * southward while the scene counts north.
  */
@@ -125,5 +128,55 @@ describe('groundMapLayout', () => {
       expect(refs.length).toBeGreaterThan(0);
       expect(refs.length).toBeLessThanOrEqual(25);
     }
+  });
+});
+
+/**
+ * The scene's handedness, which neither the arc nor the tiles can check against
+ * each other: a mirrored arc over a mirrored map agrees with itself. three.js is
+ * right-handed with +y up, so east x north has to come out up; a basis with
+ * north on +z gives down, and the whole scene is drawn as its mirror image.
+ */
+describe('scene basis', () => {
+  /** The arc's scene direction for a flight that drifts along one ground axis. */
+  const drift = (px: number[], py: number[]) => {
+    const r = {
+      summary: {},
+      events: [],
+      series: { time: [0, 1], altitude: [0, 10], velocity: [0, 0], Px: px, Py: py },
+    } as unknown as FlightResult;
+    const s = buildFlightScene(r, { boost: '#f00', coast: '#0f0', descent: '#00f' });
+    const d = s.scenePts[1]!.clone().sub(s.scenePts[0]!);
+    d.y = 0;
+    return d.normalize();
+  };
+
+  it('puts the arc in a right-handed east-north-up frame', () => {
+    const east = drift([0, 100], [0, 0]);
+    const north = drift([0, 0], [0, 100]);
+    const up = new THREE.Vector3().crossVectors(east, north);
+    expect(up.y).toBeCloseTo(1, 9);
+  });
+
+  it('lays a tile’s top row (north) toward the arc’s north', () => {
+    const tex = new THREE.Texture();
+    configureTileTexture(tex);
+    // With flipY the image's top row sits at the quad's +y; without, at -y.
+    const top = new THREE.Vector3(0, tex.flipY ? 1 : -1, 0).applyEuler(new THREE.Euler(...GROUND_ROTATION));
+    const north = sceneFromEnu(0, 0, 1);
+    expect(top.distanceTo(north)).toBeCloseTo(0, 9);
+  });
+
+  it('places northern tiles where the arc puts north', () => {
+    const { refs } = layout();
+    const rows = [...new Set(refs.map((r) => r.y))].sort((a, b) => a - b);
+    const at = (row: number) => {
+      const r = refs.find((x) => x.y === row)!;
+      return sceneFromEnu(r.east, 0, r.north);
+    };
+    const toward = at(rows[0]!)
+      .sub(at(rows[rows.length - 1]!))
+      .normalize();
+    expect(toward.distanceTo(sceneFromEnu(0, 0, 1))).toBeCloseTo(0, 9);
   });
 });

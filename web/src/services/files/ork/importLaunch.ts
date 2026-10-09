@@ -51,6 +51,35 @@ export function readSimulationLaunch(simEl: Element | null): Partial<LaunchCondi
 
   readAtmosphere(condEl, launch);
 
+  readGravity(condEl, launch);
+
+  const gm = (text(condEl, ':scope > geodeticmethod') ?? '').toLowerCase();
+  if (gm) launch.geodetic = gm === 'flat' ? 'flat' : gm === 'wgs84' ? 'wgs84' : 'spherical';
+  readWeatherSource(condEl, launch);
+
+  return Object.keys(launch).length > 0 ? launch : undefined;
+}
+
+/**
+ * The gravity model, as the desktop's GravityHandler reads it:
+ * `<gravity model="wgs|constant">` with the constant in `<value>`. The bare
+ * `<gravitymodel>`/`<constantgravity>` pair is read when no `<gravity>` is
+ * present, for files written in that spelling.
+ */
+function readGravity(condEl: Element, launch: Partial<LaunchConditions>): void {
+  const el = condEl.querySelector(':scope > gravity');
+  if (el) {
+    const model = (el.getAttribute('model') ?? '').trim().toLowerCase();
+    if (model === 'constant') {
+      launch.gravityModel = 'constant';
+      const g = numTag(el, 'value', NaN);
+      if (!Number.isNaN(g)) launch.constantGravity = g;
+    } else {
+      // Desktop falls back to WGS for an unknown model.
+      launch.gravityModel = 'wgs';
+    }
+    return;
+  }
   const gravity = (text(condEl, ':scope > gravitymodel') ?? '').trim().toLowerCase();
   if (gravity === 'constant') {
     launch.gravityModel = 'constant';
@@ -59,12 +88,6 @@ export function readSimulationLaunch(simEl: Element | null): Partial<LaunchCondi
   } else if (gravity === 'wgs') {
     launch.gravityModel = 'wgs';
   }
-
-  const gm = (text(condEl, ':scope > geodeticmethod') ?? '').toLowerCase();
-  if (gm) launch.geodetic = gm === 'flat' ? 'flat' : gm === 'wgs84' ? 'wgs84' : 'spherical';
-  readWeatherSource(condEl, launch);
-
-  return Object.keys(launch).length > 0 ? launch : undefined;
 }
 
 /** This app's Weather stamp (see exportSimulation); one that does not read whole is dropped. */
@@ -100,7 +123,10 @@ function readWind(condEl: Element, launch: Partial<LaunchConditions>): void {
   const avgEl = windEls.find((w) => w.getAttribute('model') === 'average');
   let avg = avgEl ? numTag(avgEl, 'speed', NaN) : NaN;
   if (Number.isNaN(avg)) avg = numTag(condEl, 'windaverage', NaN);
-  if (!Number.isNaN(avg)) launch.windAverage = avg;
+  // The bridge sets the heading after the speed, so a negative average flies
+  // at its magnitude from the stated heading; stored that way, the field shows
+  // the wind that flies.
+  if (!Number.isNaN(avg)) launch.windAverage = Math.abs(avg);
   let sd = avgEl ? numTag(avgEl, 'standarddeviation', NaN) : NaN;
   if (Number.isNaN(sd)) {
     const turb = numTag(condEl, 'windturbulence', NaN);
@@ -125,12 +151,18 @@ function readWind(condEl: Element, launch: Partial<LaunchConditions>): void {
     // run with `Wind level already exists for altitude: 0.0`. `usableWindLevels`
     // drops it, and drops a file's own repeated altitude the same way.
     const levels = usableWindLevels(
-      Array.from(mlEl.querySelectorAll(':scope > windlevel')).map((w) => ({
-        altitudeM: finiteNum(w.getAttribute('altitude')),
-        speed: finiteNum(w.getAttribute('speed')) ?? 0,
-        directionDeg: ((finiteNum(w.getAttribute('direction')) ?? 0) * 180) / Math.PI,
-        stddev: finiteNum(w.getAttribute('standarddeviation')) ?? 0,
-      })),
+      Array.from(mlEl.querySelectorAll(':scope > windlevel')).map((w) => {
+        // A negative speed is a wind from the opposite heading, as
+        // MultiLevelPinkNoiseWindModel.addWindLevel flies it.
+        const speed = finiteNum(w.getAttribute('speed')) ?? 0;
+        const deg = ((finiteNum(w.getAttribute('direction')) ?? 0) * 180) / Math.PI;
+        return {
+          altitudeM: finiteNum(w.getAttribute('altitude')),
+          speed: Math.abs(speed),
+          directionDeg: speed < 0 ? (((deg + 180) % 360) + 360) % 360 : deg,
+          stddev: finiteNum(w.getAttribute('standarddeviation')) ?? 0,
+        };
+      }),
     );
     if (levels.length) launch.windLevels = levels;
     // MSL unless the file says AGL. The desktop carries it as an attribute on

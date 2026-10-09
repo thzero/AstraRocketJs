@@ -51,7 +51,7 @@ test.describe('aero component table', () => {
     const r = await tableRows(page, 'Drag by component');
     const header = defined(r[0], 'the drag table header row');
     const fins = defined(
-      r.find((x) => /Fin Set/.test(x[0] ?? '')),
+      r.find((x) => /fin set/i.test(x[0] ?? '')),
       'the fin set row',
     );
     const perInstance = header.indexOf('Per instance');
@@ -137,7 +137,7 @@ test.describe('aero stability table', () => {
 
     // A straight body tube carries no normal force in Barrowman, so it is left
     // out rather than shown as a row of zeros with a meaningless CP.
-    expect(parts.some((x) => /Body Tube/.test(x[0] ?? ''))).toBe(false);
+    expect(parts.some((x) => /body tube/i.test(x[0] ?? ''))).toBe(false);
   });
 });
 
@@ -154,7 +154,7 @@ test('carries the mass breakdown beside the aero figures', async ({ page }) => {
   // than as wrong numbers.
   for (const col of ['Each (g)', 'Total (g)', 'CG (cm)']) expect(head).toContain(col);
   const fins = defined(
-    r.find((x) => /Fin Set/.test(x[0] ?? '')),
+    r.find((x) => /fin set/i.test(x[0] ?? '')),
     'the fin set row',
   );
   expect(fins.some((c) => c === '—')).toBe(false);
@@ -181,7 +181,10 @@ test('always shows roll dynamics, and fills it in once the fins are canted', asy
   };
   expect(await forcingNow()).toBe(0);
 
-  await page.getByText(/Trapezoidal fin/).click();
+  await page
+    .getByRole('tree', { name: 'Components' })
+    .getByText(/Trapezoidal fin/)
+    .click();
   const cant = page.getByLabel(/cant/i).first();
   await cant.fill('');
   await cant.pressSequentially('3');
@@ -193,7 +196,7 @@ test('always shows roll dynamics, and fills it in once the fins are canted', asy
     const roll = await tableRows(page, 'Roll dynamics');
     return Number(
       defined(
-        roll.find((x) => /Fin Set/.test(x[0] ?? '')),
+        roll.find((x) => /fin set/i.test(x[0] ?? '')),
         'the fin set row',
       )[1],
     );
@@ -363,7 +366,10 @@ test('the shading switch on the legend is the same preference as Settings', asyn
  */
 test('leaves a lone fin set unshaded in the roll table', async ({ page }) => {
   await page.goto('/');
-  await page.getByText(/Trapezoidal fin/).click();
+  await page
+    .getByRole('tree', { name: 'Components' })
+    .getByText(/Trapezoidal fin/)
+    .click();
   await page.getByLabel('Cant angle').fill('3');
   await page.getByLabel('Cant angle').blur();
   await page.getByRole('button', { name: 'Aero', exact: true }).click();

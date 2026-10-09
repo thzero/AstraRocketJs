@@ -23,7 +23,7 @@ import type { ComponentNode, ComponentType } from '../../src/engine/openRocketEn
  * pod instance count in total mass.
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-explicit-any -- the TeaVM bundle is untyped */
 const loadEngine = async (): Promise<any> => {
   (globalThis as any).$rt_putStdoutCustom ??= () => {};
   (globalThis as any).$rt_putStderrCustom ??= () => {};

@@ -10,6 +10,7 @@ import type { FlightSummary } from '../../../src/engine/openRocketEngine';
 import type { LaunchConditions } from '../../../src/services/design/orkTree';
 import type { LoadedOrk } from '../../../src/services/files/loadOrk';
 import type { OrkExportSimulation } from '../../../src/services/files/orkTypes';
+import { noteTexts } from '../../testing/importNotes';
 
 /**
  * Every simulation, with its result summary, through a .ork and back.
@@ -162,7 +163,7 @@ describe('desktop simulation extensions', () => {
 
   it('reads every extension as raw XML, and says they are not run', () => {
     expect(carried.filter((x) => x.startsWith('<extension ')).length).toBe(3);
-    expect(res.notes.some((n) => /simulation extension\(s\) .* are not run here/.test(n))).toBe(true);
+    expect(noteTexts(res.notes).some((n) => /Simulation extensions are not run here/.test(n))).toBe(true);
   });
 
   it('keeps them on the simulations it opens, with or without a saved result', () => {

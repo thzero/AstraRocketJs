@@ -184,6 +184,46 @@ export class DesignLibrary {
   }
 
   /**
+   * Write a design only if its index entry has not moved past `seenAt`, the
+   * stamp the caller last saw. `seenAt` null writes unconditionally.
+   *
+   * The compare and the new stamp happen inside the one index transaction, so
+   * two tabs saving the same entry cannot both pass the check: the first to
+   * commit moves the stamp, and the second finds it moved. A check made on an
+   * earlier read, with the write some round trips later, lets both through.
+   * The stamp is claimed before the blob is written for the same reason.
+   *
+   * `updatedAt` is the stamp this call put on the entry, whenever it put one,
+   * including when the blob write after it was refused: the entry has moved,
+   * and the caller is the one that moved it. `name` is used only when the entry
+   * has none (it was removed meanwhile); a rename from the library dialog is
+   * kept.
+   */
+  async writeIfUnchanged(
+    id: string,
+    name: string,
+    w: Workspace,
+    seenAt: number | null,
+  ): Promise<{ status: 'ok' | 'conflict' | 'refused'; updatedAt?: number }> {
+    let conflict = false;
+    let updatedAt: number | undefined;
+    const claimed = await this.mutateIndex((list) => {
+      const prev = list.find((m) => m.id === id);
+      if (seenAt != null && prev && prev.updatedAt > seenAt) {
+        conflict = true;
+        return list;
+      }
+      // Strictly later than the stamp being replaced; see `write`.
+      updatedAt = Math.max(Date.now(), (prev?.updatedAt ?? 0) + 1);
+      return [{ id, name: prev?.name ?? name, updatedAt }, ...list.filter((m) => m.id !== id)];
+    });
+    if (conflict) return { status: 'conflict' };
+    if (!claimed) return { status: 'refused' };
+    if (!(await this.kv.set(designKey(id), JSON.stringify(w)))) return { status: 'refused', updatedAt };
+    return { status: 'ok', updatedAt };
+  }
+
+  /**
    * Register a new design and make it active. Returns its meta.
    *
    * Throws `storage-full` if the write is refused, rather than resolving with a

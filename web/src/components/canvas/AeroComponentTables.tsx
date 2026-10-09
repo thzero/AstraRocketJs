@@ -12,6 +12,7 @@ import {
   nearestSampleIndex,
   rollRows,
   stabilityRows,
+  unitDigits,
   type HeatStyle,
 } from './aeroTables';
 import { ToggleButton } from '../common/ToggleButton';
@@ -117,7 +118,7 @@ export function ComponentTable({ sweep, machs, mach }: { sweep: AeroSweep; machs
   // itself -- usually the fin set, and nothing else.
   const { totalCd, unattributed, hasSplit, hasInstances } = useMemo(() => dragTotals(sweep, i), [sweep, i]);
   const pct = (v: number) => (totalCd ? `${fmtNum((v / totalCd) * 100, 0)}%` : '—');
-  const rows = useMemo(() => dragRows(sweep, i), [sweep, i]);
+  const rows = useMemo(() => dragRows(sweep, i, t), [sweep, i, t]);
 
   // `number | null`: a null cell is the kernel saying this reading was not
   // finite, which must read as an em dash and not as a fabricated 0; a
@@ -285,7 +286,7 @@ export function StabilityTable({
   const massOf = useMemo(() => massIndex(masses), [masses]);
   const hasMass = masses.length > 0;
 
-  const rows = useMemo(() => stabilityRows(sweep, i, massOf), [sweep, i, massOf]);
+  const rows = useMemo(() => stabilityRows(sweep, i, massOf, t), [sweep, i, massOf, t]);
   if (!hasCna) return null;
 
   const cell = 'px-2 py-1 text-right tabular-nums';
@@ -300,6 +301,9 @@ export function StabilityTable({
   // of total CNa, so each header names what it divides by.
   const hasBodyLen = bodyLen > 0;
   const hasAeroLen = aeroLen > 0;
+  // Positions to 0.1 mm and masses to 0.1 g, in whatever unit each reads in.
+  const lenDigits = unitDigits(lengthFactor, 1e-4);
+  const massDigits = unitDigits(massFactor, 1e-4);
   const cpPctBody = (si: number) => fmtNum((si / bodyLen) * 100, 1);
   const cpPctAero = (si: number) => fmtNum((si / aeroLen) * 100, 1);
 
@@ -327,7 +331,7 @@ export function StabilityTable({
               {hasMass && <td className={cell}>&mdash;</td>}
               {hasMass && <td className={cell}>&mdash;</td>}
               {hasMass && <td className={cell}>&mdash;</td>}
-              <td className={cell}>{fmtNum((sweep.cp[i] ?? 0) * lengthFactor, 1)}</td>
+              <td className={cell}>{fmtNum((sweep.cp[i] ?? 0) * lengthFactor, lenDigits)}</td>
               {hasBodyLen && <td className={cell}>{cpPctBody(sweep.cp[i] ?? 0)}</td>}
               {hasAeroLen && <td className={cell}>{cpPctAero(sweep.cp[i] ?? 0)}</td>}
               <td className={cell} style={cnaShaded ? heat(totalCna, totalCna, 'sky') : undefined}>
@@ -338,10 +342,10 @@ export function StabilityTable({
             {rows.map((r) => (
               <tr key={r.key} className="border-b border-line/5 last:border-0">
                 <td className="px-2 py-1 text-left">{r.name}</td>
-                {hasMass && <td className={cell}>{r.mass ? fmtNum(r.mass.eachMass * massFactor, 1) : '—'}</td>}
-                {hasMass && <td className={cell}>{r.mass ? fmtNum(r.mass.mass * massFactor, 1) : '—'}</td>}
-                {hasMass && <td className={cell}>{r.mass ? fmtNum(r.mass.cg * lengthFactor, 1) : '—'}</td>}
-                <td className={cell}>{fmtNum(r.cp * lengthFactor, 1)}</td>
+                {hasMass && <td className={cell}>{r.mass ? fmtNum(r.mass.eachMass * massFactor, massDigits) : '—'}</td>}
+                {hasMass && <td className={cell}>{r.mass ? fmtNum(r.mass.mass * massFactor, massDigits) : '—'}</td>}
+                {hasMass && <td className={cell}>{r.mass ? fmtNum(r.mass.cg * lengthFactor, lenDigits) : '—'}</td>}
+                <td className={cell}>{fmtNum(r.cp * lengthFactor, lenDigits)}</td>
                 {hasBodyLen && <td className={cell}>{cpPctBody(r.cp)}</td>}
                 {hasAeroLen && <td className={cell}>{cpPctAero(r.cp)}</td>}
                 <td className={cell} style={cnaShaded ? heat(r.cna, totalCna, 'sky') : undefined}>
@@ -373,7 +377,7 @@ export function RollTable({ sweep, machs, mach }: { sweep: AeroSweep; machs: num
   const { t } = useTranslation();
   const heatStyle = useSettings().settings.aeroHeat;
   const i = useSampleAt(machs, mach);
-  const rows = useMemo(() => rollRows(sweep, i), [sweep, i]);
+  const rows = useMemo(() => rollRows(sweep, i, t), [sweep, i, t]);
   if (rows.length === 0) return null;
 
   // Shading only earns its place with something to compare against: one fin set

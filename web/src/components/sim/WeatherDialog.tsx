@@ -30,7 +30,8 @@ import { Check } from '../common/Check';
 import { useLatest } from '../common/useLatest';
 import { WhenFields } from './WhenFields';
 import { useOnline } from '../common/useOnline';
-import { fmtNum } from '../../i18n/format';
+import { fmtNum, withUnit } from '../../i18n/format';
+import { siToUi } from '../../prefs/units';
 
 /**
  * Launch conditions from an Open-Meteo forecast for a date and hour at the
@@ -46,6 +47,9 @@ import { fmtNum } from '../../i18n/format';
  * from the recorded date, hour and groups and fetches at once; Apply is still
  * the only thing that writes.
  */
+
+/** The large unit visibility reads in, by the user's distance unit: its own system's. */
+const FAR_UNIT: Record<string, string> = { m: 'km', km: 'km', ft: 'mi', yd: 'mi', mi: 'mi' };
 
 const btn =
   'rounded-md bg-raised px-3 py-1.5 text-xs font-medium text-ink-soft ring-1 ring-line/10 hover:bg-elevated disabled:opacity-50';
@@ -173,8 +177,8 @@ export function WeatherDialog({
   const alt = (m: number) => `${u.fmtSym('distance', m, 0)}`;
   // Visibility runs to tens of kilometers, so it reads in km or miles: the
   // large unit of whichever system the distance unit belongs to.
-  const imperial = ['ft', 'mi'].includes(u.sym('distance'));
-  const far = (m: number) => (imperial ? `${fmtNum(m / 1609.344, 1)} mi` : `${fmtNum(m / 1000, 1)} km`);
+  const farSym = FAR_UNIT[u.sym('distance')] ?? 'km';
+  const far = (m: number) => withUnit(fmtNum(siToUi('distance', farSym, m), 1), farSym);
 
   const describe = (g: ProposalGroup): string => {
     const p = proposal!;
@@ -238,8 +242,10 @@ export function WeatherDialog({
                 hour={hour}
                 onDate={(d) => {
                   setDate(d);
-                  // A new date is a new request; the old answer covers only its own days.
-                  if (state.kind !== 'loading') setState({ kind: 'idle' });
+                  // A new date is a new request; the old answer covers only its own
+                  // days, and one still loading would land under the new date.
+                  request.claimSignal();
+                  setState({ kind: 'idle' });
                 }}
                 onHour={setHour}
               />

@@ -190,6 +190,18 @@ function simplify(input: FinPoint[]): FinPoint[] {
 const MAX_TRACE_EDGE = 1200;
 
 /**
+ * The size an image of `width` x `height` is traced at: itself when its longest
+ * edge is within {@link MAX_TRACE_EDGE}, else reduced by a whole factor until it
+ * is. A caller holding a large photo can decode it straight to this size and
+ * never allocate a full-size canvas, which a phone browser may refuse.
+ */
+export function traceSize(width: number, height: number): { width: number; height: number } {
+  const factor = Math.ceil(Math.max(width, height) / MAX_TRACE_EDGE);
+  if (factor <= 1) return { width, height };
+  return { width: Math.max(2, Math.floor(width / factor)), height: Math.max(2, Math.floor(height / factor)) };
+}
+
+/**
  * The image sampled down to {@link MAX_TRACE_EDGE} on its longest edge, with the
  * per-axis scale back to the original.
  *
@@ -212,10 +224,8 @@ const MAX_TRACE_EDGE = 1200;
  * from a different number than the image's own scale.
  */
 function reduced(img: Pixels): { img: Pixels; sx: number; sy: number } {
-  const factor = Math.ceil(Math.max(img.width, img.height) / MAX_TRACE_EDGE);
-  if (factor <= 1) return { img, sx: 1, sy: 1 };
-  const width = Math.max(2, Math.floor(img.width / factor));
-  const height = Math.max(2, Math.floor(img.height / factor));
+  const { width, height } = traceSize(img.width, img.height);
+  if (width === img.width && height === img.height) return { img, sx: 1, sy: 1 };
   // Both endpoints included, so the first and last row and column of the reduced
   // image are the first and last of the source.
   const sx = (img.width - 1) / (width - 1);

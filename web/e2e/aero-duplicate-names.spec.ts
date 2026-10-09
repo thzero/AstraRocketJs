@@ -16,7 +16,7 @@ test('two parts sharing a name are two rows, not one merged one', async ({ page 
   // Both parts renamed to the same string. It has to be an exact collision:
   // renaming one to the other's displayed label is not enough, because an
   // untouched part reports the kernel's own "[BodyTube.BodyTube]" rather than
-  // the "Body Tube" the table shows, so renaming only one part would pass even
+  // the "Body tube" the table shows, so renaming only one part would pass even
   // with rows keyed on name.
   for (const part of ['Nose cone', 'Body tube']) {
     await page.locator(`div[title="${part}"]`).first().click();

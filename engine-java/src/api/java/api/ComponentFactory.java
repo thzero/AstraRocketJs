@@ -180,9 +180,11 @@ final class ComponentFactory {
                 // The desktop writes it as <isflipped>; without it an imported
                 // tail cone flies nose-first.
                 nose.setFlipped(bool(node, "flipped", false));
-                // Automatic base diameter: follows the component behind it.
+                // Automatic base diameter. `aftRadiusAuto` is the base wherever it
+                // sits: the aft end, or the fore end of a flipped nose cone, which
+                // then follows the component ahead of it.
                 if (bool(node, "aftRadiusAuto", false)) {
-                    nose.setAftRadiusAutomatic(true);
+                    nose.setBaseRadiusAutomatic(true);
                 }
                 c = nose;
                 break;

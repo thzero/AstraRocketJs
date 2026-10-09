@@ -3,6 +3,7 @@ import { isAssembly } from './assembly';
 import { isChainType } from './componentKinds';
 import { chainOuterRadius, numOpt, positionOf } from './nodeProps';
 import { walkNodes } from './treeWalk';
+import { partLength } from './position';
 import { roundTo } from '../services/app/numbers';
 
 /**
@@ -123,6 +124,13 @@ const FIXED_SIZE: ReadonlySet<ComponentType> = new Set<ComponentType>(['fairing'
  * override CG, these are what desktop's **Scale component offsets** governs.
  */
 const OFFSET_KEYS: ReadonlySet<string> = new Set(['radialPosition', 'radiusOffset', 'instanceSeparation']);
+
+/**
+ * The scale factor's bounds, desktop's ScaleDialog SCALE_MIN and SCALE_MAX. A
+ * factor far past them (a mistyped exponent) cubes a mass to Infinity.
+ */
+export const SCALE_MIN = 0.01;
+export const SCALE_MAX = 100;
 
 /** What a scale covers: the design, the selected part and everything inside it, or the part alone. */
 export type ScaleScope = 'rocket' | 'subtree' | 'part';
@@ -337,7 +345,8 @@ export function rocketLength(tree: RocketTree): number {
   const walk = (nodes: ComponentNode[]) => {
     for (const n of nodes) {
       if (isAssembly(n.type)) continue;
-      if (isChainType(n.type)) total += numOpt(n, 'length') ?? 0;
+      // A member with no length key is the kernel's length for its type.
+      if (isChainType(n.type)) total += partLength(n);
       walk(n.children ?? []);
     }
   };

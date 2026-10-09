@@ -8,7 +8,7 @@ vi.setConfig({ testTimeout: KERNEL_TEST_TIMEOUT_MS, hookTimeout: KERNEL_TEST_TIM
  * similar thrust curves" compares against 0.95.
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-explicit-any -- the TeaVM bundle is untyped */
 const loadEngine = async (): Promise<any> => {
   (globalThis as any).$rt_putStdoutCustom ??= () => {};
   (globalThis as any).$rt_putStderrCustom ??= () => {};

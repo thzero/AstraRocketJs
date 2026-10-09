@@ -451,12 +451,9 @@ function PickerDialog({
             r.part.custom ? (
               <button
                 onClick={(e) => {
-                  e.stopPropagation(); // the whole row applies the part
+                  e.stopPropagation(); // a click on the row applies the part
                   void remove(r.part);
                 }}
-                // Enter on the button would otherwise reach the row's own
-                // key handler as well, deleting the part and applying it.
-                onKeyDown={(e) => e.stopPropagation()}
                 aria-label={t('picker.deleteSaved', { name: r.part.partNo })}
                 className="text-danger-400 hover:text-danger-300"
               >
@@ -619,20 +616,16 @@ function PickerDialog({
               // pair it publishes, with the index to separate the duplicates
               // the catalog does contain.
               key={r.part.id ?? `${r.part.mfr}:${r.part.partNo}:${i}`}
+              // The row is what a pointer aims at; the part-number button is
+              // what a keyboard reaches and a screen reader announces. A row
+              // that is itself a button would flatten its cells and swallow
+              // the delete button inside it.
               onClick={() => onApply(r.part)}
-              tabIndex={0}
-              role="button"
               // The one this component is already built from, marked rather than
               // merely present: opening a list of hundreds of parts to find out which one
               // you are on is not an answer.
               aria-current={r.part.partNo === current ? 'true' : undefined}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  onApply(r.part);
-                }
-              }}
-              className={`cursor-pointer border-b border-line/5 hover:bg-raised focus:bg-raised focus:outline-none ${
+              className={`cursor-pointer border-b border-line/5 hover:bg-raised focus-within:bg-raised ${
                 r.part.partNo === current ? 'bg-raised font-semibold text-accent-300' : 'text-ink-soft'
               }`}
             >
@@ -647,7 +640,22 @@ function PickerDialog({
                     c.key === 'partNo' ? 'font-medium text-ink-strong' : ''
                   } ${c.key === 'notes' || c.key === 'material' ? 'text-ink-faint' : ''} ${c.hide ?? ''}`}
                 >
-                  {c.render ? c.render(r) : c.cell(r)}
+                  {c.key === 'partNo' ? (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation(); // the row's own click would apply it twice
+                        onApply(r.part);
+                      }}
+                      aria-current={r.part.partNo === current ? 'true' : undefined}
+                      className="max-w-full truncate text-left focus:outline-none focus-visible:underline"
+                    >
+                      {c.cell(r)}
+                    </button>
+                  ) : c.render ? (
+                    c.render(r)
+                  ) : (
+                    c.cell(r)
+                  )}
                 </td>
               ))}
             </tr>

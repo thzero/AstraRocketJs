@@ -393,6 +393,31 @@ describe('update() falling back to localStorage', () => {
     expect(seen).not.toContain(null);
   });
 
+  // `fellBack` is per tab. Another tab reading the key migrates it back to
+  // IndexedDB and clears the localStorage copy, so this tab's next update must
+  // not hand the reducer the fallback's null.
+  it('reads IndexedDB again once another tab has migrated the key back', async () => {
+    const local = new FakeLocal();
+    const kv = new IndexedDbKeyValueStore(local);
+    await kv.set('lib', '["a"]');
+    await abortAfterSuccess(async () => {
+      await kv.update('lib', () => '["a","b"]');
+    });
+    expect(local.map.get('lib')).toBe('["a","b"]');
+
+    // Tab B: finds nothing in IndexedDB, copies the fallback across, clears it.
+    const tabB = new IndexedDbKeyValueStore(new FakeLocal(local.map));
+    expect(await tabB.get('lib')).toBe('["a","b"]');
+    expect(local.map.has('lib')).toBe(false);
+
+    const seen: (string | null)[] = [];
+    await kv.update('lib', (raw) => {
+      seen.push(raw);
+      return raw;
+    });
+    expect(seen).toEqual(['["a","b"]']);
+  });
+
   it('rethrows a reducer that throws and does not report storage as degraded', async () => {
     const kv = new IndexedDbKeyValueStore(new FakeLocal());
     await kv.set('k', 'v');

@@ -84,13 +84,14 @@ test('a saved body tube is offered back in the picker, starred, and can be delet
   await saveSelectedAs(page, PART);
   await expect(pick).toHaveText(new RegExp(`\\(${before + 1}\\)`), { timeout: 20_000 });
 
-  // It is in the picker, marked as the user's own. Each result row is itself
-  // a button (the whole row applies the part), not a `row` in the a11y tree.
+  // It is in the picker, marked as the user's own. Each result is a table row
+  // whose part number is the button that applies it.
   await pick.click();
   const dialog = page.getByRole('dialog', { name: 'Select a part' });
   await expect(dialog).toBeVisible();
-  const row = dialog.getByRole('button').filter({ hasText: PART });
+  const row = dialog.locator('tbody tr').filter({ hasText: PART });
   await expect(row).toHaveCount(1);
+  await expect(row.getByRole('button', { name: PART, exact: true })).toHaveCount(1);
   await expect(row).toContainText('★ Bench');
 
   // And it goes away again, without the dialog closing under the user.

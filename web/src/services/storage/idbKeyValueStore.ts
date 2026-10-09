@@ -275,7 +275,13 @@ export class IndexedDbKeyValueStore implements KeyValueStore {
   }
 
   async update(key: string, fn: (raw: string | null) => string | null): Promise<boolean> {
-    if (this.fellBack.has(key)) return await this.fallback.update(key, fn);
+    if (this.fellBack.has(key)) {
+      // As in `get`: a fallback with no copy means the key has gone back to
+      // IndexedDB (another tab's read migrated it and cleared localStorage), and
+      // a reducer handed the fallback's null would rebuild the value from nothing.
+      if ((await this.fallback.get(key)) != null) return await this.fallback.update(key, fn);
+      this.fellBack.delete(key);
+    }
     try {
       await txUpdate(key, fn);
       this.fellBack.delete(key);

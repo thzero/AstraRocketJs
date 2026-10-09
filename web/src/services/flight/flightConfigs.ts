@@ -247,6 +247,37 @@ export function reconcileConfig(tree: RocketTree, config: FlightConfig): FlightC
 }
 
 /** {@link reconcileConfig} over every configuration, preserving identity. */
+/**
+ * Give each copied part the per-configuration settings of the part it was
+ * copied from: its motor, its deployment override and its separation override,
+ * in every configuration. `origins` maps each new id to its original's.
+ *
+ * Desktop's `copy()` carries a part's FlightConfigurableParameterSets with it,
+ * so a split cluster or a duplicated booster flies loaded, as the original did.
+ */
+export function carryToCopies(configs: FlightConfig[], origins: ReadonlyMap<string, string>): FlightConfig[] {
+  if (!origins.size) return configs;
+  const carry = <T>(table: Record<string, T> | undefined): Record<string, T> | undefined => {
+    if (!table) return table;
+    let out: Record<string, T> | undefined;
+    for (const [copy, original] of origins) {
+      const entry = table[original];
+      if (entry === undefined || copy in table) continue;
+      out ??= { ...table };
+      out[copy] = structuredClone(entry);
+    }
+    return out ?? table;
+  };
+  return configs.map((c) => {
+    const motors = carry(c.motors)!;
+    const deployments = carry(c.deployments);
+    const separations = carry(c.separations);
+    return motors === c.motors && deployments === c.deployments && separations === c.separations
+      ? c
+      : { ...c, motors, deployments, separations };
+  });
+}
+
 export function reconcileConfigs(tree: RocketTree, configs: FlightConfig[]): FlightConfig[] {
   let changed = false;
   const next = configs.map((c) => {
@@ -396,20 +427,28 @@ export function loadoutSignature(motors: Record<string, MountMotor>): string {
     .join('');
 }
 
+/** Whether a configuration overrides any deployment, separation or stage on the design. */
+function hasOverrides(c: FlightConfig): boolean {
+  const any = (r: Record<string, object> | undefined) => Object.values(r ?? {}).some((o) => Object.keys(o).length > 0);
+  return any(c.deployments) || any(c.separations) || (c.grounded?.length ?? 0) > 0;
+}
+
 /**
  * The configuration holding this loadout, creating one if none does.
  *
  * So a new simulation joins the configuration it would have duplicated instead
  * of minting a second identical one. Two configurations that seat the same
- * motors in the same mounts are the same flight, and a list full of
- * indistinguishable rows is a list nobody can choose from.
+ * motors in the same mounts and override nothing are the same flight, and a
+ * list full of indistinguishable rows is a list nobody can choose from. One
+ * that moves a deployment, a separation or a grounded stage is a different
+ * flight, so a fresh loadout does not join it.
  */
 export function ensureConfig(
   configs: FlightConfig[],
   motors: Record<string, MountMotor>,
 ): { configs: FlightConfig[]; id: string } {
   const sig = loadoutSignature(motors);
-  const found = configs.find((c) => loadoutSignature(c.motors) === sig);
+  const found = configs.find((c) => !hasOverrides(c) && loadoutSignature(c.motors) === sig);
   if (found) return { configs, id: found.id };
   const made = newFlightConfig(motors);
   return { configs: [...configs, made], id: made.id };

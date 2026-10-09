@@ -113,7 +113,36 @@ describe('the new launch fields round-trip through .ork', () => {
     const back = roundTrip({ ...base, gravityModel: 'constant', constantGravity: 9.81 });
     expect(back?.gravityModel).toBe('constant');
     expect(back?.constantGravity).toBeCloseTo(9.81, 12);
-    expect(exportOrk({ name: 'Opts', tree, launch: base })).not.toContain('<gravitymodel>');
+    expect(exportOrk({ name: 'Opts', tree, launch: base })).not.toContain('<gravity');
+  });
+
+  it('writes constant gravity in the desktop element (OpenRocketSaver)', () => {
+    const xml = exportOrk({ name: 'Opts', tree, launch: { ...base, gravityModel: 'constant', constantGravity: 9.81 } });
+    expect(xml).toMatch(/<gravity model="constant">\s*<value>9\.81<\/value>\s*<\/gravity>/);
+    expect(xml).not.toContain('<gravitymodel>');
+  });
+
+  it("reads a desktop file's gravity element (GravityHandler)", () => {
+    const xml = exportOrk({ name: 'Opts', tree, launch: base }).replace(
+      '</conditions>',
+      '<gravity model="constant"><value>9.7</value></gravity></conditions>',
+    );
+    const launch = importOrk(xml).launch;
+    expect(launch?.gravityModel).toBe('constant');
+    expect(launch?.constantGravity).toBeCloseTo(9.7, 12);
+    const wgs = exportOrk({ name: 'Opts', tree, launch: base }).replace(
+      '</conditions>',
+      '<gravity model="wgs"/></conditions>',
+    );
+    expect(importOrk(wgs).launch?.gravityModel).toBe('wgs');
+  });
+
+  it('still reads the bare gravitymodel pair', () => {
+    const xml = exportOrk({ name: 'Opts', tree, launch: base }).replace(
+      '</conditions>',
+      '<gravitymodel>Constant</gravitymodel><constantgravity>9.6</constantgravity></conditions>',
+    );
+    expect(importOrk(xml).launch?.constantGravity).toBeCloseTo(9.6, 12);
   });
 
   it('keeps the Earth model that was chosen', () => {

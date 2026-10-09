@@ -4,7 +4,7 @@ import { fmtNum, ladderDigits } from '../../i18n/format';
 import { useUnits } from '../../prefs/useUnits';
 import { lerpAt } from '../../services/flight/interpolate';
 import { PAD_L, PAD_R, PANEL_H } from './flightChartAxis';
-import type { Branch, Meta } from './flightChartTraces';
+import { traceScale, traceUnit, type Branch, type Meta } from './flightChartTraces';
 import { PanelHover } from './FlightChartHover';
 import { polylinePath } from '../common/svgPath';
 import { PanelExpandButton } from './PanelExpandButton';
@@ -52,8 +52,8 @@ export function FlightChartPanel({
   // A quantity-backed series scales and labels itself from the preference; the
   // rest keep their fixed unit. `factor`, not `toUi`, because this scales a
   // whole series; none of these carry a temperature-style offset.
-  const scale = meta.quantity ? u.factor(meta.quantity) : (meta.scale ?? 1);
-  const unit = meta.quantity ? u.sym(meta.quantity) : meta.unit;
+  const scale = traceScale(meta, u);
+  const unit = traceUnit(meta, u);
   // Namespaced ids. With a fixed id, two charts in one document (a comparison
   // view, or the mobile and desktop copies during a breakpoint transition)
   // would make `url(#...)` resolve to whichever rendered first, clipping one

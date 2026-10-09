@@ -1,6 +1,8 @@
 import type { CSSProperties } from 'react';
 import type { AeroSweep, ComponentMass } from '../../engine/openRocketEngine';
 import { polylinePath } from '../common/svgPath';
+import { niceStep } from '../../prefs/units';
+import { componentName, isDefaultComponentName } from '../../services/app/warningText';
 
 /**
  * The pure half of AeroAnalysis: the cell-shading formulas, the per-table row
@@ -45,14 +47,60 @@ export function heat(value: number, max: number, style: HeatStyle): CSSPropertie
   return { backgroundColor: `rgba(2, 132, 199, ${a.toFixed(3)})` };
 }
 
-/** Engine aero-component keys arrive as "[Class.Instance]"; show the user's name
- *  when set, else the CamelCase class split into words (BodyTube -> "Body Tube"). */
-export function niceName(raw: string): string {
+/** A translator, narrowed to what a component name needs. */
+type Translate = (key: string) => string;
+
+/**
+ * A component's display name. A part the user never named arrives as the
+ * kernel's bundle key ("[BodyTube.BodyTube]"); with `translate`, that reads as
+ * this app's own name for the part type in the reader's language, the name the
+ * tree and the drawings give it. Without, or for a key the app has no name
+ * for, the CamelCase class is split into words (BodyTube -> "Body Tube"). A
+ * name the user typed is returned as typed.
+ */
+export function niceName(raw: string, translate?: Translate): string {
+  if (translate && isDefaultComponentName(raw)) return componentName(raw, translate);
   const m = raw.match(/^\[?([^.\]]+)\.([^.\]]+)\]?$/);
   const cls = m?.[1] ?? raw.replace(/[[\]]/g, '');
   const inst = m?.[2];
   const base = inst && inst !== cls ? inst : cls;
   return base.replace(/([a-z0-9])([A-Z])/g, '$1 $2');
+}
+
+/**
+ * The sweep altitude box in the user's distance unit (`factor` is meters to
+ * that unit). Kilometers and miles carry two decimals: in whole units the box
+ * would read "2" over a sweep flown at 1.5 km. A typed value is stored rounded
+ * the same way, so the figure on screen is the altitude the sweep is flown at.
+ */
+export function altitudeField(factor: number): {
+  toUi: (m: number) => number;
+  toSi: (ui: number) => number;
+  max: number;
+  step: number;
+} {
+  const digits = factor < 0.01 ? 2 : 0;
+  const round = (v: number) => Number(v.toFixed(digits));
+  return {
+    toUi: (m) => round(m * factor),
+    toSi: (ui) => round(ui) / factor,
+    max: round(30_000 * factor),
+    // About 500 m a step, never zero: Math.round(500 m in miles) is 0, which
+    // is not a valid step.
+    step: digits ? niceStep(500 * factor) : Math.round(500 * factor),
+  };
+}
+
+/**
+ * Decimals that resolve `siStep` in a unit `factor` times the SI one: a column
+ * of positions to 0.1 mm reads 523.4 in mm, 0.5234 in m and 1.719 in ft. One
+ * fixed count cannot serve every unit: a CP of 0.523 m at one decimal is
+ * "0.5", and a 47 g part in kg is "0.0".
+ */
+export function unitDigits(factor: number, siStep: number): number {
+  const step = Math.abs(factor * siStep);
+  if (!(step > 0) || !Number.isFinite(step)) return 1;
+  return Math.max(0, Math.ceil(-Math.log10(step) - 1e-9));
 }
 
 /** SVG `d` for one series against Mach, skipping non-finite samples (see {@link polylinePath}). */
@@ -102,11 +150,11 @@ export interface DragRow {
 }
 
 /** Per-component drag at sample `i`, the worst offender first: that is the question. */
-export function dragRows(sweep: AeroSweep, i: number): DragRow[] {
+export function dragRows(sweep: AeroSweep, i: number, translate?: Translate): DragRow[] {
   return sweep.components
     .map((c) => ({
       key: rowKey(c),
-      name: niceName(c.name),
+      name: niceName(c.name, translate),
       instances: c.instances ?? 1,
       cdInstance: c.cdInstance?.[i],
       cd: c.cd[i] ?? 0,
@@ -153,11 +201,16 @@ export interface StabilityRow {
 
 /** Each component's share of the normal-force slope at sample `i`, largest
  *  first; a part with no normal force has no CP to report and is dropped. */
-export function stabilityRows(sweep: AeroSweep, i: number, massOf: Map<string, ComponentMass>): StabilityRow[] {
+export function stabilityRows(
+  sweep: AeroSweep,
+  i: number,
+  massOf: Map<string, ComponentMass>,
+  translate?: Translate,
+): StabilityRow[] {
   return sweep.components
     .map((c) => ({
       key: rowKey(c),
-      name: niceName(c.name),
+      name: niceName(c.name, translate),
       cna: c.cna?.[i] ?? 0,
       cp: c.cp?.[i] ?? 0,
       mass: massOf.get(rowKey(c)),
@@ -181,11 +234,11 @@ export interface RollRow {
  * roll elsewhere is not hidden. Fin sets are picked out by the kernel's class
  * name, because their numbers at rest are indistinguishable from a body tube's.
  */
-export function rollRows(sweep: AeroSweep, i: number): RollRow[] {
+export function rollRows(sweep: AeroSweep, i: number, translate?: Translate): RollRow[] {
   return sweep.components
     .map((c) => ({
       key: rowKey(c),
-      name: niceName(c.name),
+      name: niceName(c.name, translate),
       type: c.type ?? '',
       force: c.rollForce?.[i] ?? 0,
       damp: c.rollDamp?.[i] ?? 0,

@@ -13,6 +13,7 @@ import { useUnits } from '../../prefs/useUnits';
 import { onSi } from '../../prefs/entryValue';
 import { unitScope } from '../../prefs/units';
 import type { SimPrefs } from '../../services/flight/simulations';
+import { seedFromInput } from '../../services/flight/simulations';
 import { NumberRow } from '../common/NumberRow';
 import { SPEED_WARNINGS } from './speedWarnings';
 
@@ -237,11 +238,11 @@ function SimOptions({ diff }: { diff?: ReadonlySet<keyof SimPrefs> }) {
       <dl className="mb-3 space-y-1">
         <div className="flex items-baseline justify-between gap-3">
           <dt className="text-xs text-ink-muted">{t('settings.calcMethod')}</dt>
-          <dd className="text-xs text-ink-soft">Extended Barrowman</dd>
+          <dd className="text-xs text-ink-soft">{t('settings.calcMethodValue')}</dd>
         </div>
         <div className="flex items-baseline justify-between gap-3">
           <dt className="text-xs text-ink-muted">{t('settings.simMethod')}</dt>
-          <dd className="text-xs text-ink-soft">6-DOF Runge-Kutta 4</dd>
+          <dd className="text-xs text-ink-soft">{t('settings.simMethodValue')}</dd>
         </div>
       </dl>
 
@@ -296,7 +297,9 @@ function SimOptions({ diff }: { diff?: ReadonlySet<keyof SimPrefs> }) {
           aria-label={t('settings.timeStep')}
           value={nearestStepIndex(eff.timeStep)}
           onChange={(e) => setSimPref('timeStep', TIME_STEPS[Number(e.target.value)]!)}
-          onMouseUp={onCommit}
+          // Pointer, not mouse: a touch drag sends no mouseup, and an undo entry
+          // left open would merge the next unrelated edit into this one.
+          onPointerUp={onCommit}
           onKeyUp={onCommit}
           className="w-full accent-accent-500"
         />
@@ -306,7 +309,7 @@ function SimOptions({ diff }: { diff?: ReadonlySet<keyof SimPrefs> }) {
           value={prefs?.randomSeed ?? null}
           placeholder={g.randomSeed == null ? t('settings.seedAuto') : String(g.randomSeed)}
           step={1}
-          onChange={(v) => setSimPref('randomSeed', v)}
+          onChange={(v) => setSimPref('randomSeed', seedFromInput(v))}
           onCommit={onCommit}
         />
       </div>

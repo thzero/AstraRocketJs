@@ -185,6 +185,35 @@ describe('LibraryWorkspaceStore', () => {
       await expect(store.save(workspace())).resolves.toBeUndefined();
     });
 
+    // The compare is made inside the index write. Made on an earlier read, two
+    // tabs saving at once both pass it, and the last writer wins after all.
+    it('lets only one of two tabs saving at once write', async () => {
+      const other = await twoTabs();
+      const outcomes = await Promise.allSettled([
+        store.save({ ...workspace(), activeId: 'mine' }),
+        other.save({ ...workspace(), activeId: 'theirs' }),
+      ]);
+      expect(outcomes.map((o) => o.status).sort()).toEqual(['fulfilled', 'rejected']);
+    });
+
+    // The unload journal is stamped later than the other tab's save, so the next
+    // load would replay this tab's stale design over the newer work.
+    it('writes no unload journal once a save has been refused', async () => {
+      const other = await twoTabs();
+      await other.save({ ...workspace(), activeId: 'theirs' });
+      await store.save({ ...workspace(), activeId: 'mine' }).catch(() => {});
+      store.saveSync({ ...workspace(), activeId: 'mine' });
+      expect(localStorage.getItem(nsKey('designs:unload'))).toBeNull();
+      expect((await new LibraryWorkspaceStore().load())!.activeId).toBe('theirs');
+    });
+
+    // The autosave and the hidden-tab flush overlap. Run together, the second
+    // would read the first one's new stamp as another tab's.
+    it('does not refuse two overlapping saves from the same tab', async () => {
+      await store.save(workspace());
+      await expect(Promise.all([store.save(workspace()), store.save(workspace())])).resolves.toBeDefined();
+    });
+
     it('does not refuse after switching to a different design', async () => {
       // A switch drops the claim with everything else about the old entry.
       const other = await twoTabs();

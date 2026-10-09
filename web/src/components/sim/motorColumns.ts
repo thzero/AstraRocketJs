@@ -28,11 +28,10 @@ export interface Col {
   /**
    * Preference group for the column's unit. The header appends its symbol, so
    * the labels stay unitless; a column with a fixed unit (seconds, a percent)
-   * keeps it in the label instead. `siScale` lifts the catalog's own units
+   * keeps it in the label instead. Each `cell` lifts the catalog's own units
    * (mm / g, see CatalogMotor) to SI first.
    */
   quantity?: Quantity;
-  siScale?: number;
 }
 
 /** Column heading: the unitless label, plus the unit the column is shown in. */
@@ -60,7 +59,6 @@ export const COLUMNS: Col[] = [
     label: 'colDia',
     align: 'right',
     quantity: 'motorDimensions',
-    siScale: 0.001,
     cell: (m, u) => cell(u, 'motorDimensions', m.diameter, 0.001, 0),
     sortVal: (m) => m.diameter,
   },

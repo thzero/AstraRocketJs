@@ -13,12 +13,13 @@ import {
 } from '../../tree/assembly.js';
 import { clusterOffsets } from '../../tree/cluster.js';
 import { isPlanarFinSet, tubeFinRadius } from '../../tree/tubefins.js';
-import { nodeShape, outerProfile } from '../../tree/shapeProfile.js';
+import { nodeShape, outerProfile, profileEnds } from '../../tree/shapeProfile.js';
 import { colorForType, DEFAULT_PART_COLORS, type PartPalette } from '../../services/design/partColors';
 import { COMPONENT_DEFAULTS } from '../../services/design/componentDefaults';
 import { DISC_TYPES } from '../../services/files/componentFormats';
 import { resolveDisc } from '../../services/design/discGeometry';
 import { axialStart, colorOf, innerTubeExtent, internalExtent, type MotorDims } from '../../tree/schematicGeometry';
+import { transitionEnds } from './transitionEnds';
 
 /**
  * Owns the 3D geometry of the rocket: the component tree to Piece list build
@@ -398,15 +399,20 @@ export function buildPieces(
       if (n.type === 'nosecone') {
         const R = num(n, 'aftRadius', KERNEL_DEFAULTS.nosecone.aftRadius);
         const shapeName = nodeShape(n);
+        // A flipped nose cone is a tail cone: its base, and the shoulder on it,
+        // are at the fore end.
+        const flipped = n['flipped'] === true;
+        const ends = profileEnds(n);
+        const shoulder = shoulderOf(n, '');
         const pts = lathePoints(
           shapeName,
           numOpt(n, 'shapeParameter'),
           len,
-          0,
-          R,
+          ends.fore,
+          ends.aft,
           undefined,
-          undefined,
-          shoulderOf(n, ''),
+          flipped ? shoulder : undefined,
+          flipped ? undefined : shoulder,
         );
         place(
           `nose${k++}`,
@@ -452,8 +458,8 @@ export function buildPieces(
         addChildren(n, x, len, R, xform);
         x += len;
       } else if (n.type === 'transition') {
-        const rf = num(n, 'foreRadius', 0.012);
-        const ra = num(n, 'aftRadius', 0.009);
+        const at = nodes.indexOf(n);
+        const { fore: rf, aft: ra } = transitionEnds(n, nodes[at - 1], nodes[at + 1]);
         const shapeName = nodeShape(n);
         // Same lathe pattern as the nose: profile y runs fore→aft, and after
         // rotation.z = -π/2 the lathe's +Y axis points along +X (aft).

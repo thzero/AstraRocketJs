@@ -15,6 +15,7 @@ export const syncDerived = (tree: RocketTree): RocketTree => syncAutoShoulders(s
  * recompute the physics. Keeps App/PropertyPanel free of tree-walking bookkeeping.
  */
 import type { ComponentNode, ComponentType, RocketTree } from '../../engine/openRocketEngine';
+import { defaultStageName } from './orkTree';
 import type { Component } from '../parts/componentDb';
 import { DEFAULT_CHUTE_CD } from '../parts/componentFilter';
 import { KERNEL_DEFAULTS } from '../../tree/kernelDefaults.js';
@@ -577,8 +578,11 @@ export function defaultNode(type: ComponentType): ComponentNode {
     // so no design that already exists grows a shoulder it did not have.
     case 'nosecone':
       return { type, id, shape: 'ogive', length: 0.1, aftRadius: 0.013, thickness: 0.001, shoulderAuto: true };
+    // A new body tube and both ends of a new transition follow their
+    // neighbors, as desktop's `BodyTube()` and `Transition()` constructors set.
+    // The radii beside the flags are what they show until resolved.
     case 'bodytube':
-      return { type, id, length: 0.2, outerRadius: 0.013, thickness: 0.0005 };
+      return { type, id, length: 0.2, outerRadius: 0.013, outerRadiusAuto: true, thickness: 0.0005 };
     case 'transition':
       return {
         type,
@@ -586,7 +590,9 @@ export function defaultNode(type: ComponentType): ComponentNode {
         shape: 'conical',
         length: 0.05,
         foreRadius: 0.013,
+        foreRadiusAuto: true,
         aftRadius: 0.019,
+        aftRadiusAuto: true,
         thickness: 0.0005,
         foreShoulderAuto: true,
         aftShoulderAuto: true,
@@ -843,15 +849,15 @@ export function isFirstStage(tree: RocketTree, id: string): boolean {
 
 /**
  * Add a new empty stage as the bottom booster: a top-level sibling appended
- * after the existing stages. Named "Booster" for the second stage and "Stage N"
- * beyond, matching the "Sustainer" the base design ships with. Returns the new
- * tree and the new stage's id (so the caller can select it).
+ * after the existing stages, and named the way a file's unnamed stages are
+ * ({@link defaultStageName}). Returns the new tree and the new stage's id (so
+ * the caller can select it).
  */
 export function addStage(tree: RocketTree): { tree: RocketTree; id: string } {
   const node = defaultNode('stage');
   const id = node.id!;
   const count = stageNodes(tree).length;
-  node.name = count === 1 ? 'Booster' : `Stage ${count + 1}`;
+  node.name = defaultStageName(count);
   const next = clone(tree);
   next.components.push(node);
   return { tree: next, id };

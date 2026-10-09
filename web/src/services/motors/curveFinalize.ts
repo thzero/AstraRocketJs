@@ -1,3 +1,5 @@
+import { mathEquals } from './mathEquals';
+
 /**
  * A thrust curve as the kernel will take it: starting at t = 0, with every time
  * after the one before it. `ThrustCurveMotor.Builder.build()` refuses anything
@@ -19,7 +21,7 @@
  * that rides along stays against the right times.
  */
 export function finalizeCurve<P extends { time: number; thrust: number }>(input: readonly P[]): P[] {
-  const eq = (a: number, b: number) => Math.abs(a - b) < 1e-9;
+  const eq = mathEquals;
   const pts = [...input].sort((a, b) => a.time - b.time);
   if (pts.length === 0) return pts;
   if (!eq(pts[0]!.time, 0)) pts.unshift({ ...pts[0]!, time: 0, thrust: 0 });

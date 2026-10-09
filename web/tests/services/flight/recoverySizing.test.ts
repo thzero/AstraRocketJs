@@ -10,6 +10,7 @@ import {
   DROGUE_BAND,
   MAIN_BAND,
   propellantMass,
+  siteAirDensity,
 } from '../../../src/services/flight/recoverySizing';
 
 describe('recovery sizing physics', () => {
@@ -100,6 +101,17 @@ describe('launch-site air density', () => {
     const hot = airDensity({ launchAltitudeM: 0, temperatureC: 40 });
     const cool = airDensity({ launchAltitudeM: 0, temperatureC: 0 });
     expect(hot).toBeLessThan(cool);
+  });
+
+  it('reads a standalone site at its own pressure, with or without a typed temperature', () => {
+    // 2,682 m: the ISA temperature there is about -2.4 C.
+    const blank = siteAirDensity(2682, null);
+    expect(blank).toBeCloseTo(airDensity({ launchAltitudeM: 2682 }), 9);
+    expect(siteAirDensity(2682, -2.4)).toBeCloseTo(blank, 2);
+    // A typed 15 C is warmer than standard there, so the air is thinner, not
+    // the sea-level 1.225 a flight's blank pressure would give.
+    expect(siteAirDensity(2682, 15)).toBeLessThan(blank);
+    expect(siteAirDensity(null, null)).toBeCloseTo(1.225, 3);
   });
 
   it('defaults to sea-level density with no launch data', () => {

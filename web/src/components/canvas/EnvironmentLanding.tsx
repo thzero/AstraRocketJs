@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { fmtGroundDistance, useUnits } from '../../prefs/useUnits';
-import { configOf, useWorkspaceStore } from '../../state/store';
+import { configOf, selectOutdated, useWorkspaceStore } from '../../state/store';
 import { useSettings } from '../../state/SettingsProvider';
 import type { ResultFlight } from '../../services/flight/simulations';
 import {
@@ -14,7 +14,7 @@ import {
 } from '../../services/flight/groundTrack';
 import { driftEllipse } from '../../services/flight/driftEllipse';
 import { isComplete } from '../../services/flight/requiredLaunch';
-import { flyForecastHours, type HourLanding } from '../../services/flight/forecastHours';
+import { flyForecastHours, refusalKeys, type HourLanding } from '../../services/flight/forecastHours';
 import { offsetToLatLon } from '../../services/map/geodesy';
 import { readWeatherKey } from '../../services/weather/weatherKey';
 import { LandingMap } from '../tools/LandingMap';
@@ -54,6 +54,13 @@ export function EnvironmentLanding({ flight }: { flight: ResultFlight }) {
   const tree = useWorkspaceStore((s) => s.tree);
   const configs = useWorkspaceStore((s) => s.configs);
   const sim = useWorkspaceStore((s) => s.sims.find((x) => x.id === flight.id));
+  // The hours are flown with the design and the row's conditions as they are
+  // now. Against an outdated result that is a different rocket or site than
+  // the landing beside it, so the action waits for a fresh run.
+  const outdated = useWorkspaceStore((s) => {
+    const row = s.sims.find((x) => x.id === flight.id);
+    return row ? selectOutdated(s, row) : false;
+  });
   // Each state remembers the result it was for: a different flight, or a
   // re-run, is a different question, and its answer reads as not asked yet.
   const [held, setHeld] = useState<{ for: unknown; run: Run }>({ for: null, run: { kind: 'idle' } });
@@ -79,7 +86,7 @@ export function EnvironmentLanding({ flight }: { flight: ResultFlight }) {
   };
 
   const fly = async () => {
-    if (!source || !sim || !isComplete(sim.launch)) return;
+    if (!source || !sim || outdated || !isComplete(sim.launch)) return;
     const signal = request.claimSignal();
     const forResult = flight.result;
     setRun({ kind: 'running', done: 0, total: 0 }, forResult);
@@ -141,7 +148,7 @@ export function EnvironmentLanding({ flight }: { flight: ResultFlight }) {
           <div className="flex flex-wrap items-center gap-3">
             <button
               className={btn}
-              disabled={run.kind === 'running' || !sim || !online}
+              disabled={run.kind === 'running' || !sim || outdated || !online}
               title={online ? undefined : t('common.needsConnection')}
               onClick={() => void fly()}
             >
@@ -149,7 +156,9 @@ export function EnvironmentLanding({ flight }: { flight: ResultFlight }) {
                 ? t('env.landing.flying', { done: run.done, total: run.total })
                 : t('env.landing.flyHours')}
             </button>
-            <p className="text-xs text-ink-muted">{t('env.landing.flyHoursNote')}</p>
+            <p className="text-xs text-ink-muted">
+              {outdated ? t('env.landing.outdated') : t('env.landing.flyHoursNote')}
+            </p>
           </div>
           <p role="status" aria-live="polite" className="text-xs text-warn-400">
             {run.kind === 'error' ? run.message : ''}
@@ -176,11 +185,21 @@ export function EnvironmentLanding({ flight }: { flight: ResultFlight }) {
                 <tbody className="tabular-nums text-ink-strong">
                   {run.hours.map((h) => {
                     const p = h.landings[0];
+                    // An hour outside the safety codes is not flown; the row says which code.
+                    const refused = refusalKeys(h).map((k) => t(k));
                     return (
                       <tr key={h.offset} className={h.offset === 0 ? 'text-accent-300' : ''}>
                         <td>{hourLabel(h.validMs)}</td>
-                        <td>{p ? fmtM(distanceFromPad(p)) : '—'}</td>
-                        <td>{p ? bearing(p) : '—'}</td>
+                        {refused.length ? (
+                          <td colSpan={2} className="text-ink-muted">
+                            {refused.join('; ')}
+                          </td>
+                        ) : (
+                          <>
+                            <td>{p ? fmtM(distanceFromPad(p)) : '—'}</td>
+                            <td>{p ? bearing(p) : '—'}</td>
+                          </>
+                        )}
                       </tr>
                     );
                   })}

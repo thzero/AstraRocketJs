@@ -140,6 +140,18 @@ describe('ensureConfig', () => {
     expect(id).toBe(existing.id);
   });
 
+  it('does not join a configuration that overrides the design', () => {
+    const motors = { aft: { spec: spec('C6') } };
+    const overridden: FlightConfig[] = [
+      { ...newFlightConfig(motors), deployments: { chute: { deployAltitude: 150 } } },
+      { ...newFlightConfig(motors), separations: { booster: { separationDelay: 1 } } },
+      { ...newFlightConfig(motors), grounded: ['booster'] },
+    ];
+    const { configs, id } = ensureConfig(overridden, motors);
+    expect(configs).toHaveLength(4);
+    expect(overridden.map((c) => c.id)).not.toContain(id);
+  });
+
   it('adds one when nothing holds it', () => {
     const existing = newFlightConfig({ aft: { spec: spec('C6') } });
     const { configs, id } = ensureConfig([existing], { aft: { spec: spec('D12') } });

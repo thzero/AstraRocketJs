@@ -137,6 +137,8 @@ export function designBlockerText(
     fields.push(t(`part.field.${d.field}`));
     byPart.set(name, fields);
   }
-  const parts = [...byPart].map(([name, fields]) => `"${name}" (${fields.join(', ')})`).join('; ');
+  const parts = [...byPart]
+    .map(([name, fields]) => t('sim.badGeometryPart', { name, fields: fields.join(t('sim.badGeometryFieldSep')) }))
+    .join(t('sim.badGeometryPartSep'));
   return t('sim.badGeometry', { parts });
 }

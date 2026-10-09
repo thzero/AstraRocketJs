@@ -11,7 +11,7 @@ vi.mock('../../../src/engine/simClient', () => ({
   }),
 }));
 
-const { flyForecastHours } = await import('../../../src/services/flight/forecastHours');
+const { flyForecastHours, refusalKeys } = await import('../../../src/services/flight/forecastHours');
 const { HOUR_OFFSETS, resetWeatherState, setWeatherTransport } =
   await import('../../../src/services/weather/openMeteo');
 const { answer } = await import('../../testing/openMeteoFixture');
@@ -92,5 +92,40 @@ describe('flyForecastHours', () => {
       { now: () => start * 1000 },
     );
     expect(hours.map((h) => h.offset)).toEqual([-1, 0, 1, 2]);
+  });
+
+  it('does not fly an hour outside the safety codes', async () => {
+    const hours = await flyForecastHours(
+      {
+        tree: { components: [] } as never,
+        config: { id: 'c', name: null, motors: {} } as never,
+        launch: { ...launch, launchRodAngleDeg: 30 } as never,
+        source,
+        prefs: {} as never,
+      },
+      { now: () => start * 1000 },
+    );
+    expect(flown).toHaveLength(0);
+    expect(hours.map((h) => h.offset)).toEqual([...HOUR_OFFSETS]);
+    for (const h of hours) {
+      expect(h.landings).toEqual([]);
+      expect(h.outsideLimits?.[0]?.field).toBe('rodAngle');
+    }
+  });
+});
+
+describe('refusalKeys', () => {
+  it('names each safety code an hour breaks, and nothing for an hour that flew', () => {
+    const base = { offset: 0, validMs: 0, landings: [] };
+    expect(refusalKeys(base)).toEqual([]);
+    expect(
+      refusalKeys({
+        ...base,
+        outsideLimits: [
+          { field: 'windSpeed', value: 12, limit: 8.9 },
+          { field: 'rodAngle', value: 0.6, limit: 0.52 },
+        ],
+      }),
+    ).toEqual(['env.landing.overWind', 'env.landing.overRodAngle']);
   });
 });

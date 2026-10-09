@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next';
+
 // The slider thumbs sit above a custom track; each native range input is
 // transparent with only its thumb clickable, so the two overlap cleanly.
 const THUMB =
@@ -33,6 +35,7 @@ export function RangeSlider({
    */
   stops?: string[];
 }) {
+  const { t } = useTranslation();
   const pct = (i: number) => (i / (count - 1)) * 100;
   return (
     <div className="relative h-5 min-w-[120px] flex-1">
@@ -61,7 +64,7 @@ export function RangeSlider({
         max={count - 1}
         step={1}
         value={low}
-        aria-label={`${label} min`}
+        aria-label={`${label} ${t('motorDlg.min')}`}
         onChange={(e) => onChange(Math.min(Number(e.target.value), high), high)}
         className={THUMB}
         style={{ zIndex: low >= high ? 5 : 3 }}
@@ -72,7 +75,7 @@ export function RangeSlider({
         max={count - 1}
         step={1}
         value={high}
-        aria-label={`${label} max`}
+        aria-label={`${label} ${t('motorDlg.max')}`}
         onChange={(e) => onChange(low, Math.max(Number(e.target.value), low))}
         className={THUMB}
         style={{ zIndex: 4 }}

@@ -33,7 +33,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
  * unbounded path and relies on the catch, this is where it shows up.
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-explicit-any -- the TeaVM bundle is untyped */
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PUBLIC_ENGINE = join(here, '..', '..', 'public', 'engine');

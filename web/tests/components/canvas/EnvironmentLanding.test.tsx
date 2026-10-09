@@ -4,6 +4,7 @@ import { screen } from '@testing-library/react';
 import { EnvironmentLanding } from '../../../src/components/canvas/EnvironmentLanding';
 import { renderWithProviders, seedSettings } from '../../testing/renderWithProviders';
 import type { ResultFlight } from '../../../src/services/flight/simulations';
+import { useWorkspaceStore } from '../../../src/state/store';
 
 const flight = {
   id: 's1',
@@ -47,5 +48,30 @@ describe('EnvironmentLanding coordinates', () => {
     } as unknown as ResultFlight;
     renderWithProviders(<EnvironmentLanding flight={kernel} />);
     expect(screen.getByText('39.75000° N, 104.95000° W')).toBeTruthy();
+  });
+});
+
+/**
+ * "Fly the hours" flies the design and conditions as they are now. Against an
+ * outdated result that is another rocket or site than the landing it is shown
+ * beside, so the action waits for a fresh run and says why.
+ */
+describe('EnvironmentLanding forecast hours', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('waits for a fresh run when the result is outdated', () => {
+    const st = useWorkspaceStore.getState();
+    // A result with no resultKey reads as outdated against any design.
+    useWorkspaceStore.setState({
+      sims: [{ ...st.sims[0]!, id: 's1', result: {} as never, resultKey: undefined }],
+    });
+    const forecast = {
+      ...flight,
+      launch: { ...flight.launch, weatherSource: { endpoint: 'forecast', timezone: 'UTC' } },
+    } as unknown as ResultFlight;
+    renderWithProviders(<EnvironmentLanding flight={forecast} />);
+    const btn = screen.getByRole('button', { name: 'Fly the hours around this forecast' }) as HTMLButtonElement;
+    expect(btn.disabled).toBe(true);
+    expect(screen.getByText(/outdated/i)).toBeTruthy();
   });
 });

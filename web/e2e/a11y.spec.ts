@@ -16,10 +16,48 @@ async function axeViolations(page: Page, where: string): Promise<string[]> {
 }
 
 /**
- * The main screens through axe, in every theme. Contrast is the part the JSX
- * lint cannot see: it depends on the theme's tokens and the surface under the
- * text, so each theme is its own scan. The theme attribute is set directly;
- * the setting that normally sets it is covered in daylight-toggle.spec.ts.
+ * Switch the center pane to one of the tab's views and wait for it to draw.
+ * The 3D views load their renderer on demand, and axe run over the
+ * placeholder would scan text that is about to go away.
+ */
+async function openView(page: Page, name: string): Promise<void> {
+  const toggle = page.getByRole('button', { name, exact: true });
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByText('Loading 3D…')).toHaveCount(0);
+}
+
+type Screen = 'Design' | 'Configurations' | 'Simulations' | 'Results' | 'Tools';
+
+/**
+ * Every top-level tab, and on the two tabs with a view switch, every view it
+ * offers. A tab with no switch is one scan.
+ */
+const SCREENS: readonly (readonly [Screen, readonly string[]])[] = [
+  ['Design', ['2D', '3D', 'Aero']],
+  ['Configurations', []],
+  ['Simulations', []],
+  ['Results', ['Flight', '3D path', 'Ground track', 'Environment']],
+  ['Tools', []],
+];
+
+/** Open a tab and scan it, once per view when it has a view switch. */
+async function scanScreen(page: Page, tab: Screen, views: readonly string[]): Promise<string[]> {
+  await openTab(page, tab);
+  if (!views.length) return axeViolations(page, tab);
+  const found: string[] = [];
+  for (const view of views) {
+    await openView(page, view);
+    found.push(...(await axeViolations(page, `${tab} / ${view}`)));
+  }
+  return found;
+}
+
+/**
+ * Every screen through axe, in every theme. Contrast is the part the JSX lint
+ * cannot see: it depends on the theme's tokens and the surface under the text,
+ * so each theme is its own scan. The theme attribute is set directly; the
+ * setting that normally sets it is covered in daylight-toggle.spec.ts.
  */
 for (const theme of ['dark', 'light', 'daylight'] as const) {
   test(`axe finds nothing on the main screens in the ${theme} theme`, async ({ page }) => {
@@ -28,10 +66,7 @@ for (const theme of ['dark', 'light', 'daylight'] as const) {
     await page.evaluate((t) => document.documentElement.setAttribute('data-theme', t), theme);
 
     const found: string[] = [];
-    for (const tab of ['Design', 'Simulations', 'Results'] as const) {
-      await openTab(page, tab);
-      found.push(...(await axeViolations(page, tab)));
-    }
+    for (const [tab, views] of SCREENS) found.push(...(await scanScreen(page, tab, views)));
     await page.getByRole('button', { name: 'Menu' }).click();
     await page.getByRole('menuitem', { name: /Settings/i }).click();
     await expect(page.getByRole('dialog')).toBeVisible();
@@ -196,20 +231,24 @@ test.describe('accessibility', () => {
     const charts = page.getByRole('group', { name: /arrow keys to move the crosshair/i }).first();
     await expect(charts).toBeVisible();
 
-    // The time readout is a live region, so its text is what a reader hears.
-    const readout = page.locator('[aria-live="polite"]').filter({ hasText: /s$/ }).first();
+    // The announcement is a live region that speaks on a key step only, so a
+    // pointer sweep does not flood a reader; its text is what a reader hears.
+    const readout = page.locator('[role="status"][aria-live="polite"]').filter({ hasText: /\d/ }).first();
     await charts.focus();
-    const mid = defined(await readout.textContent(), 'the time readout text');
+    await page.keyboard.press('ArrowLeft');
+    await expect(readout).toHaveText(/\d/);
+    const mid = defined(await readout.textContent(), 'the crosshair announcement');
 
     // Web-first (`toHaveText` retries) rather than a one-shot `textContent()`
-    // compare: the readout is a live region that updates after the keypress,
-    // and a read taken before it would compare the text with itself.
+    // compare: the region updates after the keypress, and a read taken before
+    // it would compare the text with itself.
     await page.keyboard.press('ArrowLeft');
     await page.keyboard.press('ArrowLeft');
     await expect(readout).not.toHaveText(mid);
 
     await page.keyboard.press('Home');
-    const atStart = defined(await readout.textContent(), 'the time readout text at Home');
+    await expect(readout).not.toHaveText(mid);
+    const atStart = defined(await readout.textContent(), 'the crosshair announcement at Home');
     await page.keyboard.press('End');
     await expect(readout).not.toHaveText(atStart);
   });

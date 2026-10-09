@@ -130,6 +130,10 @@ export function OffTheRail() {
   const fmtMass = (kg: number) => `${mass.fmtSym(kg)}`;
   const ratio = (r: number) => `${fmtNum(r, 1)} : 1`;
   const warn = 'text-warn-400';
+  // An out-of-limit figure carries a word as well as the amber, so the verdict
+  // is not told by color alone.
+  const flagged = (out: boolean, text: string, word: string) =>
+    out ? <span className={warn}>{`${text} · ${word}`}</span> : text;
 
   const validTime =
     fetched.kind === 'ready'
@@ -243,33 +247,31 @@ export function OffTheRail() {
             <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-xs">
               <Stat label={t('rail.liftoffMass')}>{fmtMass(ok.liftoffMassKg)}</Stat>
               <Stat label={t('rail.twrAverage')}>
-                <span className={ok.thrustToWeightAverage < MIN_THRUST_TO_WEIGHT ? warn : undefined}>
-                  {ratio(ok.thrustToWeightAverage)}
-                </span>
+                {flagged(
+                  ok.thrustToWeightAverage < MIN_THRUST_TO_WEIGHT,
+                  ratio(ok.thrustToWeightAverage),
+                  t('limits.belowMin'),
+                )}
               </Stat>
               <Stat label={t('rail.twrPeak')}>{ratio(ok.thrustToWeightPeak)}</Stat>
               <Stat label={t('rail.twrAtExit')}>{ratio(ok.thrustToWeightAtExit)}</Stat>
               <Stat label={t('rail.exitSpeed')}>
-                <span className={ok.exitSpeedMs < minExit ? warn : undefined}>{fmtSpeed(ok.exitSpeedMs)}</span>
+                {flagged(ok.exitSpeedMs < minExit, fmtSpeed(ok.exitSpeedMs), t('limits.belowMin'))}
               </Stat>
               <Stat label={t('rail.exitTime')}>{`${fmtNum(ok.exitS, 2)} s`}</Stat>
               <Stat label={t('rail.railNeeded', { speed: fmtSpeed(minExit) })}>
-                {needed != null ? (
-                  <span className={needed > railLengthM ? warn : undefined}>{railUnit.fmtSym(needed, 2)}</span>
-                ) : (
-                  t('rail.none')
-                )}
+                {needed != null
+                  ? flagged(needed > railLengthM, railUnit.fmtSym(needed, 2), t('limits.overRail'))
+                  : t('rail.none')}
               </Stat>
               {angle != null && (
                 <Stat label={t('rail.weathercock')}>
-                  <span className={angle > WEATHERCOCK_LIMIT_DEG ? warn : undefined}>{`${fmtNum(angle, 1)}°`}</span>
+                  {flagged(angle > WEATHERCOCK_LIMIT_DEG, `${fmtNum(angle, 1)}°`, t('limits.aboveMax'))}
                 </Stat>
               )}
               {gustAngle != null && (
                 <Stat label={t('rail.weathercockGust')}>
-                  <span className={gustAngle > WEATHERCOCK_LIMIT_DEG ? warn : undefined}>
-                    {`${fmtNum(gustAngle, 1)}°`}
-                  </span>
+                  {flagged(gustAngle > WEATHERCOCK_LIMIT_DEG, `${fmtNum(gustAngle, 1)}°`, t('limits.aboveMax'))}
                 </Stat>
               )}
               <Stat label={t('rail.maxWind', { angle: WEATHERCOCK_LIMIT_DEG })}>

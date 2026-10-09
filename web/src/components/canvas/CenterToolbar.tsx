@@ -120,6 +120,7 @@ export function CenterToolbar({
                     active={rulers[side]}
                     onClick={() => toggleRulerSide(side)}
                     title={t(`view.ruler_${side}`)}
+                    label={t(`view.ruler_${side}`)}
                   >
                     {t(`view.ruler_${side}_abbr`)}
                   </ViewBtn>
@@ -138,11 +139,13 @@ export function CenterToolbar({
         {/* Desktop only: there are no side columns below lg for it to
             reclaim, so the button would be a no-op there. */}
         <span className="hidden lg:block">
+          {/* A toggle keeps one accessible name and reports its state through
+              aria-pressed; the tooltip says what the next press does. */}
           <ViewBtn
             active={maxed}
             onClick={onToggleMaxed}
             title={maxed ? t('panes.restore') : t('panes.maximize')}
-            label={maxed ? t('panes.restore') : t('panes.maximize')}
+            label={t('panes.maximize')}
           >
             <span aria-hidden>{maxed ? '⤡' : '⤢'}</span>
           </ViewBtn>

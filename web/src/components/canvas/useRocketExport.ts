@@ -34,13 +34,19 @@ export function useRocketExport(
   pieces: Piece[],
   maxR: number,
   exportData: Omit<ExportData, 'spanM'> | undefined,
+  /**
+   * Told of a failed export. The handler is awaited by nothing (the menu's
+   * onPick is void), so a rejection with nowhere to go is an unhandled one and
+   * the user sees nothing: a refused 8K encode, a canvas too large, a lost context.
+   */
+  onError?: (err: unknown) => void,
 ): (format: ImageFormat, widthPx: number, opts?: ImageExportOptions) => Promise<void> {
   // Whether the owning component is still mounted; read by the fallback's
   // restore step. Observed, never claimed: a second export does not cancel
   // the first one's restore.
   const { observe } = useLatest();
 
-  return async (format: ImageFormat, widthPx: number, opts?: ImageExportOptions) => {
+  const run = async (format: ImageFormat, widthPx: number, opts?: ImageExportOptions) => {
     const st = r3f.current;
     if (!st || !exportData) return;
     const el = st.gl.domElement;
@@ -122,6 +128,14 @@ export function useRocketExport(
         st.gl.render(st.scene, st.camera);
         st.setFrameloop('always');
       }
+    }
+  };
+
+  return async (format: ImageFormat, widthPx: number, opts?: ImageExportOptions) => {
+    try {
+      await run(format, widthPx, opts);
+    } catch (err) {
+      onError?.(err);
     }
   };
 }

@@ -27,6 +27,9 @@ const PREFS = {
   drogueLowSpeedWarn: 3.048,
 } as SimPrefs;
 
+// The runs fly the globals the store mirrors, so the mirror holds PREFS.
+beforeEach(() => st().setSimPrefs(PREFS));
+
 const RESULT = { summary: { maxAltitude: 100 }, events: [], series: {} } as unknown as FlightResult;
 
 /**
@@ -63,7 +66,7 @@ describe('a batch with an unflyable row', () => {
 
   it('flies the good row and skips the other two', async () => {
     const ids = st().sims.map((x) => x.id);
-    await st().runSims(ids, PREFS);
+    await st().runSims(ids);
 
     expect(simulateMock).toHaveBeenCalledTimes(1);
     expect(byName('Good').result).toBeTruthy();
@@ -74,10 +77,7 @@ describe('a batch with an unflyable row', () => {
   it('reports BOTH skipped rows, naming each', async () => {
     // A per-skip `set({ err })` leaves only the last message, with no row name on
     // it.
-    await st().runSims(
-      st().sims.map((x) => x.id),
-      PREFS,
-    );
+    await st().runSims(st().sims.map((x) => x.id));
     const err = st().err ?? '';
     expect(err).toContain('NoMotor');
     expect(err).toContain('TooWindy');
@@ -95,10 +95,7 @@ describe('a batch with an unflyable row', () => {
     for (const c of zeroed.components as unknown as Parameters<typeof walk>[0][]) walk(c);
     useWorkspaceStore.setState({ tree: zeroed, err: null });
 
-    await st().runSims(
-      st().sims.map((x) => x.id),
-      PREFS,
-    );
+    await st().runSims(st().sims.map((x) => x.id));
     expect(simulateMock).not.toHaveBeenCalled();
     expect(st().err ?? '').toMatch(/radius|dimension|zero/i);
 
@@ -106,13 +103,13 @@ describe('a batch with an unflyable row', () => {
   });
 
   it('still flies a lone good row when it is the only one selected', async () => {
-    await st().runSims([byName('Good').id], PREFS);
+    await st().runSims([byName('Good').id]);
     expect(simulateMock).toHaveBeenCalledTimes(1);
     expect(st().err).toBeNull();
   });
 
   it('flies nothing and says why when every selected row is unflyable', async () => {
-    await st().runSims([byName('NoMotor').id, byName('TooWindy').id], PREFS);
+    await st().runSims([byName('NoMotor').id, byName('TooWindy').id]);
     expect(simulateMock).not.toHaveBeenCalled();
     expect(st().err ?? '').toContain('NoMotor');
   });

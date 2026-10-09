@@ -1,9 +1,12 @@
 // @vitest-environment jsdom
+// cspell:ignore nicht Katalog -- German, from the de locale the test reads in
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { cleanup, fireEvent, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen } from '@testing-library/react';
+import i18n from '../../../src/i18n';
 import { LoadedBanner } from '../../../src/components/canvas/LoadedBanner';
 import { renderWithProviders, seedSettings } from '../../testing/renderWithProviders';
 import { useWorkspaceStore } from '../../../src/state/store';
+import { keyedNote } from '../../../src/services/files/importNote';
 
 /**
  * The import notes collapse to a count, and collapsed stays collapsed while you
@@ -54,5 +57,51 @@ describe('LoadedBanner import notes', () => {
     seedSettings({ showImportNotes: false });
     renderWithProviders(<LoadedBanner loaded={loaded} onClose={() => {}} />);
     expect(toggle().getAttribute('aria-expanded')).toBe('false');
+  });
+});
+
+/**
+ * A keyed note is translated when the card renders, in the language showing
+ * then, with its data interpolated as is. A plain string is what a workspace
+ * saved by an earlier build holds, and it shows exactly as stored.
+ */
+describe('LoadedBanner note text', () => {
+  const notes = {
+    name: 'Rocket',
+    notes: [keyedNote('importNote.motorNotInCatalog', { motor: 'K550W' }), 'A note saved as English text.'],
+  };
+
+  afterEach(() => act(() => void i18n.changeLanguage('en')));
+
+  it('renders a keyed note in English, with its values', () => {
+    seedSettings({ showImportNotes: true });
+    renderWithProviders(<LoadedBanner loaded={notes} onClose={() => {}} />);
+    expect(screen.getByText(/Motor "K550W" isn't in the catalog\. Pick a motor for that mount/)).toBeTruthy();
+    expect(screen.getByText(/A note saved as English text\./)).toBeTruthy();
+  });
+
+  it('renders a keyed note in the current language and a plain-string note unchanged', async () => {
+    seedSettings({ showImportNotes: true });
+    await act(() => i18n.changeLanguage('de'));
+    renderWithProviders(<LoadedBanner loaded={notes} onClose={() => {}} />);
+    expect(screen.getByText(/Motor „K550W“ ist nicht im Katalog\./)).toBeTruthy();
+    expect(screen.getByText(/A note saved as English text\./)).toBeTruthy();
+    expect(screen.queryByText(/importNote\./)).toBeNull();
+  });
+});
+
+/**
+ * The design-name button is named by the name it shows, with the action after
+ * it: a voice command that says the visible name has to reach it (WCAG 2.5.3),
+ * and a screen reader has to hear which design this is.
+ */
+describe('LoadedBanner design name', () => {
+  it('keeps the visible name in the button name, followed by the action', () => {
+    const st = useWorkspaceStore.getState();
+    useWorkspaceStore.setState({ tree: { ...st.tree, name: 'Alpha Rocket' } });
+    renderWithProviders(<LoadedBanner loaded={null} onClose={() => {}} />);
+    const btn = screen.getByRole('button', { name: /Alpha Rocket/ });
+    expect(btn.textContent).toContain('Alpha Rocket');
+    expect(screen.getByRole('button', { name: /Edit rocket configuration/ })).toBe(btn);
   });
 });

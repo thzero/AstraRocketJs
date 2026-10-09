@@ -1,10 +1,7 @@
 import { useTranslation } from 'react-i18next';
 
-import { DESIGN_VIEWS, RESULT_VIEWS, isResultView, type ViewMode } from '../../state/tabs';
+import { DESIGN_VIEWS, RESULT_VIEWS, type ViewMode } from '../../state/tabs';
 import { Segmented } from '../common/Segmented';
-// Declared in state/tabs.ts (the store keeps view and tab in step); re-exported
-// here for importers that reach them through this component.
-export { isResultView, type ViewMode };
 
 /**
  * Center-pane view switch, showing one family: 2D · 3D · Aero on the Design tab,

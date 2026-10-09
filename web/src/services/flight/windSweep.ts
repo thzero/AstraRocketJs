@@ -1,7 +1,8 @@
 import type { RocketTree } from '../../engine/openRocketEngine';
 import type { LaunchConditions, WindLevel } from '../design/orkTree';
 import type { CompleteLaunch } from './requiredLaunch';
-import { MAX_WIND_SPEED_MS, surfaceLevel } from './safetyLimits';
+import { MAX_WIND_SPEED_MS } from './safetyLimits';
+import { padLevelWind } from './windLevels';
 import { DEFAULT_HEADING_DEG, type SimInputs } from './simulations';
 import { hasIntensity, retuneStdDev } from './windTurbulence';
 import { norm360 } from './groundTrack';
@@ -142,7 +143,10 @@ export function normalizeSweepSpec(spec: WindSweepSpec): WindSweepSpec {
 
   const a = clampSpeed(spec.speedMinMs);
   const b = clampSpeed(spec.speedMaxMs);
-  const speedSteps = clampInt(spec.speedSteps, 1, MAX_SPEED_STEPS);
+  // One speed when the band has no width (both ends clamped to the ceiling, say):
+  // more steps would fly each heading again under the same wind and weight it
+  // several times over in the drift ellipse.
+  const speedSteps = a === b ? 1 : clampInt(spec.speedSteps, 1, MAX_SPEED_STEPS);
   const headingSpanDeg = Math.max(0, Math.min(360, Number.isFinite(spec.headingSpanDeg) ? spec.headingSpanDeg : 360));
   let headingSteps = clampInt(spec.headingSteps, 1, MAX_HEADING_STEPS);
   headingSteps = Math.max(1, Math.min(headingSteps, Math.floor(MAX_SWEEP_FLIGHTS / speedSteps)));
@@ -231,18 +235,20 @@ export function sweepPoints(spec: WindSweepSpec, baseHeadingDeg: number): SweepP
 /**
  * The surface wind a launch block describes: speed and heading at the pad.
  *
- * The ground layer of a multilevel profile, exactly as the safety check reads
- * it, else the single wind. This is what a sweep is centered on and scaled
- * from, because it is the only wind anybody at the field can measure.
+ * A multilevel profile read at the pad's altitude, exactly as the safety check
+ * reads it, else the single wind. This is what a sweep is centered on and
+ * scaled from, because it is the only wind anybody at the field can measure.
+ * A negative single wind flies as its magnitude from the typed heading: the
+ * bridge sets the heading after the speed, which overrides the kernel's flip.
  */
 export function surfaceWind(launch: LaunchConditions): SweepPoint {
-  const level = surfaceLevel(launch);
-  if (level) return { speedMs: level.speed, headingDeg: level.directionDeg };
+  const pad = padLevelWind(launch);
+  if (pad) return { speedMs: pad.speedMs, headingDeg: pad.headingDeg };
   // A blank wind speed is a field the user has not filled in, not still air,
   // but this is only ever read to propose a grid or to center one, never to fly
   // anything (the run refuses an incomplete launch long before here), so a
   // blank proposes the calm-day band rather than refusing to open the panel.
-  return { speedMs: launch.windAverage ?? 0, headingDeg: launch.windDirectionDeg ?? DEFAULT_HEADING_DEG };
+  return { speedMs: Math.abs(launch.windAverage ?? 0), headingDeg: launch.windDirectionDeg ?? DEFAULT_HEADING_DEG };
 }
 
 /**
@@ -267,9 +273,11 @@ export function surfaceWind(launch: LaunchConditions): SweepPoint {
 export function sweepLaunch(base: CompleteLaunch, point: SweepPoint): CompleteLaunch {
   const levels = base.windLevels;
   if (levels?.length) {
-    const surface = surfaceLevel(base)!;
-    const turn = point.headingDeg - surface.directionDeg;
-    const ratio = hasIntensity(surface.speed) ? point.speedMs / surface.speed : null;
+    // Scaling and turning every level scales and turns the blend at the pad by
+    // the same amount, so the pad flies the cell's wind exactly.
+    const surface = surfaceWind(base);
+    const turn = point.headingDeg - surface.headingDeg;
+    const ratio = hasIntensity(surface.speedMs) ? point.speedMs / surface.speedMs : null;
     const next: WindLevel[] = levels.map((l) => {
       const speed = ratio == null ? point.speedMs : l.speed * ratio;
       return {

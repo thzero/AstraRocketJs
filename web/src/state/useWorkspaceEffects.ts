@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18nGlobal from '../i18n';
 import { useWorkspaceStore, selectConfig, saveFailure, workspaceSnapshot } from './store';
+import type { RocketTree } from '../engine/openRocketEngine';
 
 import { useEngineStore } from './engineStore';
 import { getWorkspaceStore } from '../services/storage/workspaceStore';
@@ -57,16 +58,13 @@ export function useWorkspaceEffects() {
   // the real design and it builds again (two full engine builds on every load).
   const hydrated = useRef(false);
   /**
-   * Skip the autosave that a hydrate would otherwise trigger.
-   *
-   * `hydrate()` replaces tree/sims/configs, which re-runs the autosave
-   * effect below and schedules a write of the bytes just read, and
-   * `DesignLibrary.write` stamps `updatedAt: Date.now()`. Without the skip,
-   * merely opening the app would re-stamp the design, and the library's "most
-   * recently updated" order would mean "most recently opened": a design you only
-   * looked at would jump above one you actually edited last week.
+   * The store's `quietReplace` as the autosave effect last saw it. A swap that
+   * bumps it (a load, or New) re-runs the effect below, which takes the change
+   * as the signal to skip the write that swap would otherwise schedule:
+   * `DesignLibrary.write` stamps `updatedAt`, so writing a design straight back
+   * re-stamps one that was only opened.
    */
-  const skipNextSave = useRef(false);
+  const seenQuiet = useRef(useWorkspaceStore.getState().quietReplace);
   const [ready, setReady] = useState(false);
   useEffect(() => {
     let live = true;
@@ -79,10 +77,7 @@ export function useWorkspaceEffects() {
         // the second load build again: the double build the `ready` gate
         // exists to prevent.
         if (!live) return;
-        if (w) {
-          skipNextSave.current = true;
-          useWorkspaceStore.getState().hydrate(w);
-        }
+        if (w) useWorkspaceStore.getState().hydrate(w);
         hydrated.current = true;
         setReady(true);
       })
@@ -92,11 +87,9 @@ export function useWorkspaceEffects() {
       // nothing, and nothing on screen to say so. Degrade to a fresh workspace
       // that still saves, and tell the user their previous work could not be read.
       //
-      // The storage warning slot, not `setErr`: opening the gate immediately
-      // runs the rebuild effect below, whose success path calls `setErr(null)`,
-      // so an error written here would be wiped before it could be read. The
-      // warning banner survives until a save succeeds, which is exactly when
-      // this message stops being true.
+      // The storage warning slot, not `setErr`: an action error is cleared by
+      // the first edit, and this message stays true until a save succeeds,
+      // which is when the warning banner retires.
       .catch(() => {
         if (!live) return;
         hydrated.current = true;
@@ -113,6 +106,7 @@ export function useWorkspaceEffects() {
   const activeId = useWorkspaceStore((s) => s.activeId);
   const configs = useWorkspaceStore((s) => s.configs);
   const loadedMeta = useWorkspaceStore((s) => s.loadedMeta);
+  const quietReplace = useWorkspaceStore((s) => s.quietReplace);
   // Every configuration input the engine build reads: the seated motors with
   // their ignition, and the grounded stages (see buildRocket.buildKey). A
   // string, because zustand v5 compares a selector's result by identity and
@@ -126,14 +120,14 @@ export function useWorkspaceEffects() {
   const enginePhase = useEngineStore((s) => s.phase);
 
   useEffect(() => {
-    if (!hydrated.current) return;
-    if (skipNextSave.current) {
-      // The state this effect is reacting to is what was just loaded. Writing it
-      // back changes nothing but the timestamp. A real edit clears the flag by
-      // being the next thing to run.
-      skipNextSave.current = false;
+    if (seenQuiet.current !== quietReplace) {
+      // The state this effect is reacting to is what was just loaded, or a blank
+      // design nobody has touched. Writing it back changes nothing but the
+      // timestamp. A real edit is saved by being the next thing to run.
+      seenQuiet.current = quietReplace;
       return;
     }
+    if (!hydrated.current) return;
     const id = setTimeout(() => {
       getWorkspaceStore()
         .save(workspaceSnapshot({ tree, sims, configs, activeId, loadedMeta }))
@@ -157,7 +151,7 @@ export function useWorkspaceEffects() {
         });
     }, 500);
     return () => clearTimeout(id);
-  }, [tree, sims, configs, activeId, loadedMeta]);
+  }, [tree, sims, configs, activeId, loadedMeta, quietReplace]);
 
   // IndexedDB blocked (policy, some private modes) means we are back on the 5 MB
   // localStorage cap. Say so now rather than letting
@@ -216,6 +210,19 @@ export function useWorkspaceEffects() {
   // runs at once so boot shows numbers without a wait; every one after it is
   // debounced (REBUILD_DEBOUNCE_MS).
   const builtOnce = useRef(false);
+  /**
+   * The design as it stood when the standing action error was posted. A build
+   * that succeeds clears that error only for a design edited since: the edit is
+   * the user moving on from it, and a build of the same design is not.
+   */
+  const errTree = useRef<RocketTree | null>(null);
+  useEffect(
+    () =>
+      useWorkspaceStore.subscribe((st, prev) => {
+        if (st.err && st.err !== prev.err) errTree.current = st.tree;
+      }),
+    [],
+  );
   useEffect(() => {
     if (!ready) return; // wait for hydration so we build the real design once, not the default first
     // And wait for the kernel, which the app does not block on before mounting
@@ -241,14 +248,15 @@ export function useWorkspaceEffects() {
         // a zero dimension names no part ("The number NaN cannot be converted to
         // a BigInt" for a tube fin set with no length), and the Run button
         // already says which part and which field, in those words.
-        store.setErr(
+        store.setBuildErr(
           res.bad?.length
             ? designBlockerText({ kind: 'badGeometry', bad: res.bad }, i18nGlobal.t.bind(i18nGlobal))
             : res.error,
         );
       } else {
         store.applyBuild(res.info, res.rocket);
-        store.setErr(null);
+        store.setBuildErr(null);
+        if (store.err && store.tree !== errTree.current) store.setErr(null);
       }
     };
     if (!builtOnce.current) {

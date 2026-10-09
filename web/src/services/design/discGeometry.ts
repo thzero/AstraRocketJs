@@ -1,5 +1,7 @@
 import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
-import { num } from '../../tree/nodeProps';
+import { num, positionOf } from '../../tree/nodeProps';
+import { partLength, startFromPosition } from '../../tree/position';
+import { stationRadius } from '../../tree/shapeProfile';
 // Shared with the .ork reader and writer, so a part that lost a tag is sized the
 // way it was read and saved.
 import { COMPONENT_DEFAULTS } from './componentDefaults';
@@ -47,6 +49,8 @@ export function tubeRadii(node: ComponentNode): Tube | null {
   const t = node.type;
   if (t === 'bodytube' || t === 'innertube' || t === 'tubecoupler') {
     const or = num(node, 'outerRadius', NaN);
+    // A filled body tube is solid: `BodyTube.getInnerRadius` is 0.
+    if (t === 'bodytube' && node['filled'] === true && !Number.isNaN(or)) return { outerR: or, innerR: 0 };
     if (!Number.isNaN(or)) return { outerR: or, innerR: Math.max(0, or - num(node, 'thickness', TUBE_WALL[t])) };
   } else if (t === 'nosecone') {
     const ar = num(node, 'aftRadius', NaN);
@@ -76,6 +80,57 @@ export function mountBore(siblings: ComponentNode[]): number | null {
   if (!mount) return null;
   const or = num(mount, 'outerRadius', NaN);
   return Number.isNaN(or) ? null : or;
+}
+
+/** Where a child sits along its parent, from the parent's front, clamped into the parent (m). */
+function spanIn(child: ComponentNode, parent: ComponentNode): [number, number] {
+  const len = partLength(parent);
+  const start = startFromPosition(positionOf(child), partLength(child), len);
+  const clamp = (x: number) => Math.min(Math.max(x, 0), len);
+  return [clamp(start), clamp(start + partLength(child))];
+}
+
+/**
+ * The bore a part offers at one station along it: `RadialParent.getInnerRadius(x)`.
+ * A tube is one bore end to end (none when filled); a nose cone or transition
+ * is its profile at that station less its wall.
+ */
+function innerRadiusAt(parent: ComponentNode, x: number): number | null {
+  if (parent.type === 'nosecone' || parent.type === 'transition') {
+    const wall = num(parent, 'thickness', COMPONENT_DEFAULTS[parent.type].thickness);
+    return Math.max(stationRadius(parent, x) - wall, 0);
+  }
+  return tubeRadii(parent)?.innerR ?? null;
+}
+
+/**
+ * The automatic outer radius of a ring, bulkhead, coupler or engine block: the
+ * narrower of its parent's bores at the part's fore and aft faces
+ * (`RadiusRingComponent.getOuterRadius`, `ThicknessRingComponent.getOuterRadius`).
+ * Null when the parent offers no bore.
+ */
+export function boreAround(child: ComponentNode, parent: ComponentNode): number | null {
+  const [x0, x1] = spanIn(child, parent);
+  const a = innerRadiusAt(parent, x0);
+  const b = innerRadiusAt(parent, x1);
+  return a === null || b === null ? null : Math.min(a, b);
+}
+
+/**
+ * A centering ring's automatic bore: the widest inner tube beside it whose span
+ * overlaps the ring's, 0 when none does, and never wider than the ring
+ * (`CenteringRing.getInnerRadius`).
+ */
+export function ringBore(ring: ComponentNode, parent: ComponentNode, ringOuter: number): number {
+  const [r0, r1] = spanIn(ring, parent);
+  let bore = 0;
+  for (const sib of parent.children ?? []) {
+    if (sib.type !== 'innertube') continue;
+    const [t0, t1] = spanIn(sib, parent);
+    if (r1 < t0 || r0 > t1) continue;
+    bore = Math.max(bore, num(sib, 'outerRadius', 0));
+  }
+  return Math.min(bore, ringOuter);
 }
 
 /** Locate a node plus the enclosing tube + siblings its cut part needs. */

@@ -54,7 +54,9 @@ export function AppHeader() {
           and the menu's word below 2xl, the gaps and the icon buttons' padding
           below xl - and below that the row wraps, which is
           how it fits on a phone. */}
-      <span className="text-xl">🚀</span>
+      <span className="text-xl" aria-hidden="true">
+        🚀
+      </span>
       <h1 className="text-base font-semibold tracking-tight">{t('app.title')}</h1>
       {/* The three static badges - version, pre-release, engine backend - in one
           pill rather than three: three cost two extra gaps and two extra sets of

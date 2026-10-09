@@ -15,6 +15,7 @@ import {
   buildFlightScene,
   findRecovery,
   indexForProgress,
+  isBoosting,
   modelPoseAt,
   newModelPose,
   type FlightScene,
@@ -389,6 +390,7 @@ export function FlightPath3D({
           max={1}
           step={0.001}
           value={progress}
+          aria-label={t('flight.time')}
           onChange={(e) => {
             setPlaying(false);
             seek(parseFloat(e.target.value));
@@ -397,6 +399,7 @@ export function FlightPath3D({
         />
         <select
           value={speed}
+          aria-label={t('flight.playbackSpeed')}
           onChange={(e) => setSpeed(parseFloat(e.target.value))}
           className="shrink-0 rounded-md bg-raised px-1.5 py-1 text-xs text-ink ring-1 ring-line/10"
         >
@@ -480,7 +483,7 @@ function Playback({
   const camDelta = useMemo(() => new THREE.Vector3(), []);
 
   useFrame((_, dt) => {
-    const { scenePts, times, deployT, burnoutT } = scene;
+    const { scenePts, times, deployT, boostWindows: burns } = scene;
     const n = scenePts.length;
     let p = progressRef.current;
     let ended = false;
@@ -506,7 +509,7 @@ function Playback({
       model.position.copy(pose.position);
       model.quaternion.copy(pose.quaternion);
     }
-    if (flameRef.current) flameRef.current.visible = nowT < burnoutT;
+    if (flameRef.current) flameRef.current.visible = isBoosting(nowT, burns);
     const rec = recoveryRef.current;
     if (rec) {
       rec.visible = descending;
@@ -719,10 +722,15 @@ function Hud({ label, value }: { label: string; value: string }) {
   );
 }
 
-/** Legend row that doubles as the phase-color editor: click the swatch to recolor. */
+/**
+ * Legend row that doubles as the phase-color editor: click the swatch to
+ * recolor. `pointer-events-auto` because the legend box is
+ * `pointer-events-none` (it sits over the canvas and must not eat orbit drags),
+ * and that is inherited: without it the swatch is reachable only by Tab.
+ */
 function Legend({ color, label, onChange }: { color: string; label: string; onChange: (c: string) => void }) {
   return (
-    <label className="flex cursor-pointer items-center gap-1.5 text-ink-soft" title={label}>
+    <label className="pointer-events-auto flex cursor-pointer items-center gap-1.5 text-ink-soft" title={label}>
       <ColorInput
         value={color}
         onCommit={onChange}

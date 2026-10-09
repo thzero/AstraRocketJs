@@ -12,7 +12,9 @@ export function PanelExpandButton({ expanded, onClick }: { expanded: boolean; on
       onClick={onClick}
       // A press here must not start a pan or move the crosshair on the host.
       onPointerDown={(e) => e.stopPropagation()}
-      aria-pressed={expanded}
+      // The name says what a press does, so there is no aria-pressed: a
+      // toggle's state and a changing name together read as "Show all panels,
+      // pressed", which contradicts itself.
       aria-label={label}
       title={label}
       className="rounded px-1 text-[11px] leading-none text-ink-muted hover:bg-elevated hover:text-ink-strong"

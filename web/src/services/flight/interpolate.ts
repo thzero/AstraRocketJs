@@ -1,6 +1,6 @@
 /**
  * Linear interpolation of a series `ys` (index-aligned to sorted, ascending `xs`)
- * at position `x`. Clamps to the endpoints, returns null when there's no data,
+ * at position `x`. Clamps to the endpoints, returns null when there's no data or `x` is NaN,
  * and steps past missing samples gracefully. A NaN sample is missing too: the
  * kernel records stability and CP as NaN while the rocket is on the rail, and the
  * first real value lands exactly at the rail departure, so blending it with the
@@ -15,7 +15,8 @@
  */
 export function lerpAt(xs: readonly number[], ys: readonly (number | null)[], x: number): number | null {
   const n = xs.length;
-  if (!n) return null;
+  // A NaN position fails both clamps below and would search to the last span.
+  if (!n || Number.isNaN(x)) return null;
   if (x <= xs[0]!) return finite(ys[0]);
   // Indexed off `xs`, not `ys`, so a `ys` longer than `xs` cannot return a
   // value from outside the x-domain: `lerpAt([0,1],[0,10,999],5)` is 10.

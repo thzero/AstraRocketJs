@@ -975,8 +975,9 @@ describe('export language', () => {
     // the noun. A template gluing `{{name}}` onto a translated word could only
     // ever produce English word order, which is why this one is composed
     // through `t()` instead.
-    expect(asBalloonText(spanish())).toContain(`${fill(esDoc.stageLanding, { stage: 'My &lt;Rocket&gt;' })}:`);
-    expect(asBalloonText(renderKml(model()))).toContain('My &lt;Rocket&gt; landing:');
+    // A name inside a balloon is escaped for HTML and then for XML.
+    expect(asBalloonText(spanish())).toContain(`${fill(esDoc.stageLanding, { stage: 'My &amp;lt;Rocket&amp;gt;' })}:`);
+    expect(asBalloonText(renderKml(model()))).toContain('My &amp;lt;Rocket&amp;gt; landing:');
   });
 
   it('orders a distance and a bearing the way the language does', () => {
@@ -1026,7 +1027,7 @@ describe('KML summary balloons', () => {
     expect(doc).toContain('Max range: 223.6 m from the pad');
     expect(doc).toContain('Time to apogee: 1.0 s');
     expect(doc).toContain('Flight time: 2.0 s');
-    expect(doc).toContain('Rocket: My &lt;Rocket&gt;'); // labeled, like every other line
+    expect(doc).toContain('Rocket: My &amp;lt;Rocket&amp;gt;'); // labeled, like every other line
     // The landing leads with the coordinate: a distance and a bearing read the
     // map, but they do not walk you to the rocket. Semicolons between the
     // clauses, because the coordinate carries a comma of its own and an

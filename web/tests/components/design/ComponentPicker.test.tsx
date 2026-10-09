@@ -393,10 +393,16 @@ describe('ComponentPicker', () => {
     expect(onApply.mock.calls[0]![0]).toMatchObject({ partNo: 'BT_1.15_12_MMT', type: 'bodytube' });
   });
 
-  it('applies from the keyboard, so the table is not mouse-only', async () => {
+  it('applies from a real button in the part-number cell, so the table is not mouse-only', async () => {
     const { dialog, onApply } = await open('bodytube');
     fireEvent.change(within(dialog).getByLabelText(/Search parts/), { target: { value: 'BT_1.15_12_MMT' } });
-    fireEvent.keyDown(dialog.querySelector('tbody tr')!, { key: 'Enter' });
+    const first = dialog.querySelector('tbody tr')!;
+    // A plain row, so its cells keep their table semantics and a button inside
+    // it is not nested in another control.
+    expect(first.getAttribute('role')).toBeNull();
+    expect(first.hasAttribute('tabindex')).toBe(false);
+    const apply = within(first as HTMLElement).getByRole('button', { name: 'BT_1.15_12_MMT' });
+    fireEvent.click(apply);
     expect(onApply).toHaveBeenCalledTimes(1);
   });
 });

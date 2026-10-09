@@ -2,6 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { zipSync, strToU8 } from 'fflate';
 import { parseDesignFile, sniffDesignFormat } from '../../../src/services/files/designFile';
+import { MAX_IMPORT_FILE_BYTES } from '../../../src/services/files/decodeText';
 
 /**
  * The format dispatch, which is the one place a `.rkt` and a `.ork` meet.
@@ -120,5 +121,24 @@ describe('parseDesignFile', () => {
     // Rather than "missing <rocket>", which is a confusing thing to be told
     // after picking a RockSim file.
     expect(() => parseDesignFile('<html/>')).toThrow(/OpenRocket \(\.ork\) or RockSim \(\.rkt\)/);
+  });
+
+  /** A bare-XML design one byte over the cap, whose head sniffs as `root`. */
+  const oversized = (root: string): ArrayBuffer => {
+    const bytes = new Uint8Array(MAX_IMPORT_FILE_BYTES + 1).fill(0x20);
+    bytes.set(strToU8(root));
+    return bytes.buffer;
+  };
+
+  it('refuses an oversized bare-XML .ork before decoding it', () => {
+    expect(() => parseDesignFile(oversized('<openrocket version="1.10">'))).toThrow(/too large/);
+  });
+
+  it('refuses an oversized .rkt before decoding it', () => {
+    expect(() => parseDesignFile(oversized('<RockSimDocument>'))).toThrow(/too large/);
+  });
+
+  it('refuses oversized design text', () => {
+    expect(() => parseDesignFile('<openrocket>' + ' '.repeat(MAX_IMPORT_FILE_BYTES))).toThrow(/too large/);
   });
 });

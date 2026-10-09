@@ -39,6 +39,14 @@ export const MAX_INSTANCE_COUNT = 64;
 export const MAX_FIN_COUNT = 8;
 
 /**
+ * The largest fin cant either way, in radians: the kernel's own limit.
+ * `FinSet.setCantAngle` clamps to MAX_CANT_RADIANS (15 deg) and the desktop fin
+ * dialogs stop their spinner and slider there, so a larger cant is one the
+ * kernel never flies.
+ */
+export const MAX_CANT = (15 * Math.PI) / 180;
+
+/**
  * An instance count (fins, tubes, pod instances): a whole number in
  * [1, {@link MAX_INSTANCE_COUNT}].
  *

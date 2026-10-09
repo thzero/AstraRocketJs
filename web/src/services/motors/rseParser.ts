@@ -33,6 +33,7 @@ import { impulseClass } from './motorCombine';
 import { delayList } from './motorPicker';
 import { totalImpulse } from './engParser';
 import { parseXmlText } from '../files/xmlUtil';
+import { mathEquals } from './mathEquals';
 
 /** RockSim's `Type` attribute, mapped to the catalog's own vocabulary. */
 const TYPES: Record<string, NonNullable<CustomMotor['type']>> = {
@@ -102,8 +103,8 @@ function sortByTime(points: Point[]): Point[] {
   return [...points].sort((a, b) => a.time - b.time);
 }
 
-/** Upstream's `MathUtil.equals`: an absolute epsilon, not a relative one. */
-const eq = (a: number, b: number) => Math.abs(a - b) < 0.00001;
+/** Upstream's `MathUtil.equals`, relative to `b`. */
+const eq = mathEquals;
 
 /**
  * The real-world quirk fixing from `AbstractMotorLoader.finalizeThrustCurve`,
@@ -196,6 +197,12 @@ function parseEngine(el: Element): CustomMotor {
   const autoCg = !isFalse(el.getAttribute('auto-calc-cg'));
   const haveMass = !autoMass && points.every((p) => Number.isFinite(p.mass));
   const haveCg = !autoCg && points.every((p) => Number.isFinite(p.cg));
+  // A negative sample mass is refused, as ThrustCurveMotor's constructor
+  // refuses it, and as the stored-motor check (motorStore `isMassArray`) would
+  // drop the motor later without a word.
+  if (haveMass && points.some((p) => p.mass < 0)) {
+    throw new Error(`.rse motor ${designation} has a negative mass in its data.`);
+  }
 
   const type = TYPES[(el.getAttribute('Type') ?? '').trim().toLowerCase()];
 

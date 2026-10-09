@@ -30,9 +30,11 @@ const show = (points: Pt[] = PTS) => {
 const vertex = (n: number) => screen.getByLabelText(`Outline point ${n}`);
 
 describe('keyboard editing', () => {
-  it('exposes every vertex as a focusable control', () => {
+  it('exposes every movable vertex as a focusable control', () => {
     show();
-    for (let i = 1; i <= PTS.length; i++) {
+    // Point 1 is the root leading edge, fixed at the origin: a marker, not a control.
+    expect(screen.queryByLabelText('Outline point 1')).toBeNull();
+    for (let i = 2; i <= PTS.length; i++) {
       const v = vertex(i);
       expect(v.getAttribute('tabindex')).toBe('0');
       expect(v.getAttribute('role')).toBe('button');
@@ -72,11 +74,15 @@ describe('keyboard editing', () => {
 
   it('keeps the fin above the body and forward of the origin', () => {
     // The same clamp the drag path applies: x >= 0, y >= 0.
-    const { onChange } = show();
-    fireEvent.keyDown(vertex(1), { key: 'ArrowLeft' });
-    const moved = (onChange.mock.calls[0]![0] as Pt[])[0]!;
-    expect(moved[0]).toBe(0);
-    expect(moved[1]).toBe(0);
+    const { onChange } = show([
+      [0, 0],
+      [0.0005, 0.0005],
+      [0.06, 0],
+    ]);
+    fireEvent.keyDown(vertex(2), { key: 'ArrowLeft' });
+    fireEvent.keyDown(vertex(2), { key: 'ArrowDown' });
+    expect((onChange.mock.calls[0]![0] as Pt[])[1]![0]).toBe(0);
+    expect((onChange.mock.calls[1]![0] as Pt[])[1]![1]).toBe(0);
   });
 
   it('deletes the focused vertex, but never below three points', () => {
@@ -104,6 +110,49 @@ describe('keyboard editing', () => {
   it('labels the drawing itself for a screen reader', () => {
     show();
     expect(screen.getByRole('group', { name: 'Fin outline' })).toBeTruthy();
+  });
+});
+
+/**
+ * The two ends of the root stay on the body, as FreeformFinSet keeps them: the
+ * first point at the origin, the last on the body line, and neither removable.
+ */
+describe('root end points', () => {
+  const FOUR: Pt[] = [
+    [0, 0],
+    [0.02, 0.03],
+    [0.05, 0.03],
+    [0.06, 0],
+  ];
+
+  it('keeps the last point on the body when nudged up', () => {
+    const { onChange } = show(FOUR);
+    fireEvent.keyDown(vertex(4), { key: 'ArrowUp' });
+    fireEvent.keyDown(vertex(4), { key: 'ArrowRight' });
+    expect((onChange.mock.calls[0]![0] as Pt[])[3]).toEqual([0.06, 0]);
+    const moved = (onChange.mock.calls[1]![0] as Pt[])[3]!;
+    expect(moved[0]).toBeCloseTo(0.061, 9);
+    expect(moved[1]).toBe(0);
+  });
+
+  it('disables the Y box for the last point', () => {
+    show(FOUR);
+    fireEvent.focus(vertex(4));
+    expect((screen.getByLabelText('Y') as HTMLInputElement).disabled).toBe(true);
+    expect((screen.getByLabelText('X') as HTMLInputElement).disabled).toBe(false);
+  });
+
+  it('refuses to delete the last point, from the key or the button', () => {
+    const { onChange } = show(FOUR);
+    fireEvent.keyDown(vertex(4), { key: 'Delete' });
+    expect(onChange).not.toHaveBeenCalled();
+    expect((screen.getByRole('button', { name: 'Remove point' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('still deletes an interior point', () => {
+    const { onChange } = show(FOUR);
+    fireEvent.keyDown(vertex(3), { key: 'Backspace' });
+    expect((onChange.mock.calls[0]![0] as Pt[]).length).toBe(3);
   });
 });
 

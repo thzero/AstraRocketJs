@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { defaultStageName } from '../../../src/services/design/orkTree';
 import {
   findNode,
   findParent,
@@ -357,12 +358,13 @@ describe('defaultNode(stage)', () => {
 });
 
 describe('addStage', () => {
-  it('appends a new empty stage as the bottom sibling and names it "Booster"', () => {
+  it('appends a new empty stage as the bottom sibling and names it as a file names its unnamed stage', () => {
     const { tree, id } = addStage(makeTree());
     const stages = stageNodes(tree);
     expect(stages).toHaveLength(2);
     expect(stages[1]!.id).toBe(id); // appended last (the bottom booster)
-    expect(stages[1]!.name).toBe('Booster');
+    expect(stages[1]!.name).toBe(defaultStageName(1));
+    expect(stages[1]!.name).toBe('Booster 1');
     expect(stages[1]!.children ?? []).toHaveLength(0);
   });
 
@@ -370,7 +372,7 @@ describe('addStage', () => {
     const t = makeTree();
     const once = addStage(t).tree;
     const twice = addStage(once).tree;
-    expect(stageNodes(twice).map((s) => s.name)).toEqual([undefined, 'Booster', 'Stage 3']);
+    expect(stageNodes(twice).map((s) => s.name)).toEqual([undefined, 'Booster 1', 'Booster 2']);
     expect(t.components).toHaveLength(1); // immutable: original unchanged
   });
 });

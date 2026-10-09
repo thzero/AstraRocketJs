@@ -2,6 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { importRkt } from '../../../src/services/files/rktImport';
 import type { ComponentNode } from '../../../src/engine/openRocketEngine';
+import { noteTexts } from '../../testing/importNotes';
 
 /**
  * Where our `.rkt` reader has to agree with OpenRocket's own, field by field.
@@ -487,7 +488,7 @@ describe('a fin set on a nose cone or transition', () => {
       ),
     );
     expect(() => find(res.tree.components, 'F')).toThrow();
-    expect(res.notes.join(' ')).toMatch(/elliptical fin set on a nose cone or transition/i);
+    expect(noteTexts(res.notes).join(' ')).toMatch(/elliptical fin set on a nose cone or transition/i);
   });
 
   it('keeps a freeform one as it is', () => {

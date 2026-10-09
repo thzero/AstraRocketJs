@@ -1,4 +1,5 @@
 import type { WindLevel } from '../design/orkTree';
+import { norm360 } from './groundTrack';
 
 /**
  * CSV import for a multilevel wind profile, matching OpenRocket's
@@ -73,6 +74,18 @@ function altitudeReference(header: string): 'msl' | 'agl' | undefined {
   return undefined;
 }
 
+/**
+ * A number cell, read as the desktop's `extractDouble` reads it: as written,
+ * else with its last comma taken as the decimal point, so a semicolon-separated
+ * European export ("5,5") imports. NaN when neither reading is a number.
+ */
+function decimal(text: string): number {
+  const v = Number(text);
+  if (Number.isFinite(v)) return v;
+  const comma = text.lastIndexOf(',');
+  return comma < 0 ? NaN : Number(`${text.slice(0, comma)}.${text.slice(comma + 1)}`);
+}
+
 /** The separator the file uses: whichever of `,` `;` or tab the header has most of. */
 function detectSeparator(headerLine: string): string {
   const counts = [',', ';', '\t'].map((sep) => [sep, headerLine.split(sep).length - 1] as const);
@@ -115,17 +128,22 @@ export function parseWindProfileCsv(text: string): WindProfileCsvResult {
       // blank altitude or speed would import as a real 0 reading instead of
       // failing the row. Blank is only meaningful for `stddev`, handled below.
       if (text === '') throw new WindProfileCsvError('badNumber', i + 1);
-      const v = Number(text);
+      const v = decimal(text);
       if (!Number.isFinite(v)) throw new WindProfileCsvError('badNumber', i + 1);
       return v;
     };
 
     // Optional in the desktop too: a blank cell is no scatter, not a bad row.
     const sdCell = sdIdx >= 0 ? unquote(cells[sdIdx]!) : '';
+    // A negative speed is a wind from the opposite heading; the desktop import
+    // stores it that way (PinkNoiseWindModel.setAverage), so the table shows
+    // the wind the kernel flies.
+    const speed = cell(speedIdx);
+    const directionDeg = cell(dirIdx);
     levels.push({
       altitudeM: cell(altIdx),
-      speed: cell(speedIdx),
-      directionDeg: cell(dirIdx),
+      speed: Math.abs(speed),
+      directionDeg: speed < 0 ? norm360(directionDeg + 180) : directionDeg,
       stddev: sdCell === '' ? 0 : cell(sdIdx),
     });
   }

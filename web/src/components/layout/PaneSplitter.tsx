@@ -72,8 +72,8 @@ export function PaneSplitter({
   // making the reset look like it did nothing.
   const moved = useRef(false);
 
-  // The cap depends on the window, so it is read at the moment of the gesture
-  // rather than tracked: no resize listener, and it cannot go stale.
+  // `clamp` reads the window width live at the moment of the gesture, so it
+  // cannot go stale. The subscription only drives the announced aria-valuemax.
   const innerWidth = useSyncExternalStore(subscribeResize, readInnerWidth, readInnerWidth);
   const clamp = (w: number) => {
     const room = Math.max(min, Math.min(max, window.innerWidth - reserve));

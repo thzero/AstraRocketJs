@@ -250,7 +250,10 @@ export function flightEventsCsv(
   };
 
   const lines: string[] = [];
-  if (name) lines.push(`# Simulation: ${name.replace(/[\r\n]+/g, ' ')}`);
+  // The title line is a comment, not a quoted field, so a separator in the
+  // simulation name would open a second cell a spreadsheet evaluates. Comma,
+  // semicolon and tab all go: a locale that splits on `;` reads this file too.
+  if (name) lines.push(`# Simulation: ${name.replace(/[\r\n,;\t]+/g, ' ')}`);
   lines.push(
     row([
       'Time (s)',

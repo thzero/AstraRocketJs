@@ -31,6 +31,17 @@ describe('importCustomMotors with several files', () => {
     expect(added[0]).toHaveLength(2);
   });
 
+  it('names an oversized motor file as failed rather than parsing it', async () => {
+    added.length = 0;
+    const huge = eng('H1') + ' '.repeat(64 * 1024 * 1024);
+    const out = await importCustomMotors([
+      { name: 'a.eng', text: eng('A1') },
+      { name: 'huge.eng', text: huge },
+    ]);
+    expect(out.imported).toBe(1);
+    expect(out.failed).toEqual(['huge.eng']);
+  });
+
   it('reports the parser’s own error when nothing can be read', async () => {
     await expect(importCustomMotors([{ name: 'bad.eng', text: 'not a motor' }])).rejects.toThrow();
   });

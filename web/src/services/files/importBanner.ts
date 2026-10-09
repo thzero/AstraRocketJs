@@ -1,6 +1,7 @@
 import type { UnitSymbols } from '../../prefs/units';
 import type { LaunchConditions } from '../design/orkTree';
 import { launchLimitViolations, limitText } from '../flight/safetyLimits';
+import type { ImportNote } from './importNote';
 
 /**
  * The notes an imported design's banner shows: what the reader had to say about
@@ -14,11 +15,11 @@ import { launchLimitViolations, limitText } from '../flight/safetyLimits';
  * The reader's own array comes back unchanged when there is nothing to add.
  */
 export function importNotes(
-  fileNotes: string[],
+  fileNotes: ImportNote[],
   launch: LaunchConditions,
   t: (key: string, vars: Record<string, unknown>) => string,
   units: UnitSymbols,
-): string[] {
+): ImportNote[] {
   const outside = launchLimitViolations(launch);
   return outside.length ? [...fileNotes, ...outside.map((v) => limitText(v, t, units))] : fileNotes;
 }

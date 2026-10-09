@@ -67,7 +67,13 @@ export function EnvironmentView({ flight }: { flight: ResultFlight }) {
   };
 
   return (
-    <div className="h-full space-y-3 overflow-auto p-2">
+    <div
+      role="region"
+      aria-label={t('view.environment')}
+      // eslint-disable-next-line jsx-a11y-x/no-noninteractive-tabindex -- the pane scrolls and holds nothing focusable, so without a tab stop the keyboard cannot scroll it
+      tabIndex={0}
+      className="h-full space-y-3 overflow-auto p-2"
+    >
       <section className="rounded-xl bg-surface p-3 ring-1 ring-line/10">
         {/* As many columns as fit: one row on a wide screen, wrapped on a phone. */}
         <dl className="grid grid-cols-[repeat(auto-fill,minmax(7rem,1fr))] gap-x-4 gap-y-1 text-xs">
@@ -165,6 +171,7 @@ function ProfileChart({
   ascentLabel: string;
   descentLabel: string;
 }) {
+  const { t } = useTranslation();
   const all = [...legs.ascent, ...legs.descent].map((p) => x.coord(p.value));
   let [lo, hi] = x.range ?? [Math.min(...all), Math.max(...all)];
   if (!(hi > lo)) {
@@ -189,7 +196,7 @@ function ProfileChart({
 
   const loUi = x.label(lo);
   const hiUi = x.label(hi);
-  const label = `${title}: ${loUi} to ${hiUi} ${xSym}, ground to ${y.fmtSym(apogee, 0)}`;
+  const label = t('env.chartAria', { title, lo: loUi, hi: hiUi, unit: xSym, top: y.fmtSym(apogee, 0) });
 
   return (
     <figure className="rounded-xl bg-surface p-2 ring-1 ring-line/10">

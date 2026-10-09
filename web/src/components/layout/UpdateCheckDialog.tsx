@@ -1,7 +1,8 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { APP_VERSION } from '../../services/app/appInfo';
 import { useUpdateStore } from '../../state/updateStore';
+import { fireAction } from '../../state/fireAction';
 import { Dialog } from '../common/Dialog';
 import { DialogButton } from '../common/DialogButton';
 
@@ -17,11 +18,24 @@ import { DialogButton } from '../common/DialogButton';
  */
 export function UpdateCheckDialog({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
-  const result = useUpdateStore((s) => s.result);
+  const stored = useUpdateStore((s) => s.result);
   const checkNow = useUpdateStore((s) => s.checkNow);
+  // The store keeps the last answer between openings. Until this opening's
+  // check has finished, the answer shown (and announced) is "checking", never
+  // the previous one.
+  const [answered, setAnswered] = useState(false);
+  const result = answered ? stored : 'checking';
 
   useEffect(() => {
-    void checkNow();
+    let live = true;
+    fireAction(
+      checkNow().then(() => {
+        if (live) setAnswered(true);
+      }),
+    );
+    return () => {
+      live = false;
+    };
   }, [checkNow]);
 
   const message: Record<typeof result, string> = {

@@ -46,6 +46,20 @@ describe('stageParts', () => {
     expect(rows.find((r) => r.name === 'Nose')!.mass).toBeCloseTo(0.01, 9);
     expect(rows.find((r) => r.name === 'Fins')!.mass).toBeCloseTo(0.005, 9);
   });
+  it('gives a nose cone its base diameter, a transition its two ends and a tube its bore', () => {
+    const s = node({
+      type: 'stage',
+      children: [
+        node({ type: 'nosecone', name: 'N', aftRadius: 0.02 }),
+        node({ type: 'transition', name: 'T', foreRadius: 0.02, aftRadius: 0.015 }),
+        node({ type: 'bodytube', name: 'B', outerRadius: 0.015, thickness: 0.001 }),
+      ],
+    });
+    const [nose, transition, tube] = stageParts(s, rocket);
+    expect(nose!.outerR).toBeCloseTo(0.02, 12);
+    expect([transition!.foreR, transition!.aftR]).toEqual([0.02, 0.015]);
+    expect(tube!.innerR).toBeCloseTo(0.014, 12);
+  });
   it('leaves mass 0 for a part the engine cannot weigh (no id / throw)', () => {
     const s = node({ type: 'stage', children: [node({ type: 'masscomponent', name: 'Ballast' })] }); // no id
     expect(stageParts(s, rocket)[0]!.mass).toBe(0);

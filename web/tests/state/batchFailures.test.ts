@@ -25,6 +25,9 @@ const PREFS = {
   drogueLowSpeedWarn: 3.048,
 } as SimPrefs;
 
+// The runs fly the globals the store mirrors, so the mirror holds PREFS.
+beforeEach(() => st().setSimPrefs(PREFS));
+
 const RESULT = { summary: { maxAltitude: 100 }, events: [], series: {} } as unknown as FlightResult;
 
 /**
@@ -59,10 +62,7 @@ describe('a batch where rows FAIL', () => {
     // Fail all three, so a last-writer-wins report is unmistakable.
     simulateMock.mockImplementation(() => Promise.reject(new Error('kernel exploded')));
 
-    await st().runSims(
-      st().sims.map((x) => x.id),
-      PREFS,
-    );
+    await st().runSims(st().sims.map((x) => x.id));
 
     const err = st().err ?? '';
     for (const name of ['Alpha', 'Bravo', 'Charlie']) expect(err).toContain(name);
@@ -79,10 +79,7 @@ describe('a batch where rows FAIL', () => {
     // built in target order, and with Charlie skipped that is Alpha then Bravo.
     simulateMock.mockRejectedValueOnce(new Error('boom alpha')).mockResolvedValue(RESULT);
 
-    await st().runSims(
-      st().sims.map((x) => x.id),
-      PREFS,
-    );
+    await st().runSims(st().sims.map((x) => x.id));
 
     const err = st().err ?? '';
     expect(err).toContain('Alpha'); // the failure survived the skip line...
@@ -92,10 +89,7 @@ describe('a batch where rows FAIL', () => {
 
   it('says nothing when every row flies', async () => {
     simulateMock.mockResolvedValue(RESULT);
-    await st().runSims(
-      st().sims.map((x) => x.id),
-      PREFS,
-    );
+    await st().runSims(st().sims.map((x) => x.id));
     expect(st().err).toBeNull();
   });
 });

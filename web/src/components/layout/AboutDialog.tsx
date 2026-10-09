@@ -13,12 +13,17 @@ interface Contributor {
 
 // GitHub contributors, written at build time by scripts/sync-contributors.mjs
 // (avatars inlined as data URIs) and served from our own origin like the other
-// catalogs, so opening this dialog makes no call to github.com.
+/// catalogs, so opening this dialog makes no call to github.com. Each url
+// becomes a live href, so only an https link is accepted.
 const isContributors = (v: unknown): v is { contributors: Contributor[] } =>
   !!v &&
   Array.isArray((v as { contributors?: unknown }).contributors) &&
   (v as { contributors: unknown[] }).contributors.every(
-    (c) => !!c && typeof (c as Contributor).login === 'string' && typeof (c as Contributor).url === 'string',
+    (c) =>
+      !!c &&
+      typeof (c as Contributor).login === 'string' &&
+      typeof (c as Contributor).url === 'string' &&
+      /^https:\/\//.test((c as Contributor).url),
   );
 
 /** The credits list, fetched on mount. The dialog is only mounted while open
@@ -57,7 +62,9 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
           custom header: the dialog header is shared and has one shape, and
           these read as content rather than chrome. */}
       <div className="mb-4 flex items-center gap-3">
-        <span className="text-3xl">🚀</span>
+        <span aria-hidden className="text-3xl">
+          🚀
+        </span>
         <p className="text-xs text-ink-muted">
           {t('about.tagline')} · v{APP_VERSION}
         </p>

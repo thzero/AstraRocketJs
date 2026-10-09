@@ -33,6 +33,10 @@ function partRow(p: PdfPage, r: PartRow): string[] {
     r.outerR != null
       ? `Ø ${qv(p, 'length', r.outerR * 2)}${r.innerR != null ? '/' + qv(p, 'length', r.innerR * 2) : ''} ${units.length}`
       : '',
+    // A transition: its fore end, then its aft end.
+    r.foreR != null && r.aftR != null
+      ? `Ø ${qv(p, 'length', r.foreR * 2)} → ${qv(p, 'length', r.aftR * 2)} ${units.length}`
+      : '',
     r.length > 0 ? `L ${len(p, r.length)}` : '',
     r.thickness != null ? `w ${qv(p, 'length', r.thickness, 2)} ${units.length}` : '',
   ]

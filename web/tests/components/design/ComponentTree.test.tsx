@@ -62,6 +62,47 @@ describe('ComponentTree semantics', () => {
 });
 
 /**
+ * The per-row export button and its menu take their own keys. Enter on the
+ * button opens the menu instead of selecting the row, arrows inside the menu
+ * stay there, and only the tree's tab stop row puts its export button in the
+ * tab order.
+ */
+describe('ComponentTree row export button', () => {
+  beforeAll(() => {
+    Element.prototype.scrollIntoView = () => {};
+  });
+
+  it('leaves Enter and the arrow keys on the export button to the button', () => {
+    const onSelect = vi.fn();
+    renderWithProviders(<ComponentTree tree={TREE} selectedId="n1" onSelect={onSelect} />);
+    const nose = screen.getByRole('treeitem', { name: /Nose/ });
+    const exportBtn = nose.querySelector<HTMLButtonElement>('button[aria-haspopup="menu"]')!;
+    exportBtn.focus();
+    const enter = fireEvent.keyDown(exportBtn, { key: 'Enter' });
+    // Not canceled, so the browser still turns the key into the button's click.
+    expect(enter).toBe(true);
+    expect(onSelect).not.toHaveBeenCalled();
+    fireEvent.keyDown(exportBtn, { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(exportBtn);
+  });
+
+  it('puts only the tab stop row export button in the tab order', () => {
+    renderWithProviders(<ComponentTree tree={TREE} selectedId="n1" onSelect={() => {}} />);
+    const nose = screen.getByRole('treeitem', { name: /Nose/ });
+    const body = screen.getByRole('treeitem', { name: /Body/ });
+    expect(nose.querySelector('button[aria-haspopup="menu"]')!.getAttribute('tabindex')).toBe('0');
+    expect(body.querySelector('button[aria-haspopup="menu"]')!.getAttribute('tabindex')).toBe('-1');
+  });
+
+  it('keeps the Components heading in heading navigation, with the fold button inside it', () => {
+    renderWithProviders(<ComponentTree tree={TREE} onSelect={() => {}} />);
+    const heading = screen.getByRole('heading', { name: /Components/ });
+    expect(heading.querySelector('button[aria-expanded]')).not.toBeNull();
+    expect(heading.closest('button')).toBeNull();
+  });
+});
+
+/**
  * Keyboard focus stays in the tree across an edit that rebuilds it. Cut removes
  * the focused row and undo or redo replaces the rows; without this, focus fell to
  * the page and the arrow keys did nothing until the user tabbed back in.

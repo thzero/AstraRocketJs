@@ -35,7 +35,7 @@ test.beforeEach(() => {
   // would hide this spec from CI entirely.
   if (process.env.CI && !docsBuilt) {
     throw new Error(
-      'web/public/docs is not built. The e2e and update-flow jobs run `npm run docs:build`; ' +
+      'web/public/docs is not built. e2e-full.yml runs `npm run docs:build` before this spec; ' +
         'if that step was removed or failed, these tests must fail rather than skip.',
     );
   }

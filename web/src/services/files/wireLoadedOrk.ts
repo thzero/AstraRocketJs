@@ -5,6 +5,7 @@ import { newSimulation, resultKey, type Simulation, type SimPrefs } from '../fli
 import type { LoadedOrk } from './loadOrk';
 import type { LaunchConditions } from '../design/orkTree';
 import type { OrkExportMotor } from './orkFile';
+import type { ImportNote } from './importNote';
 
 /** The workspace slices a loaded .ork maps onto: the design tree, its flight
  *  configurations, one simulation per configuration, and the round-trip export
@@ -15,7 +16,7 @@ export interface WiredOrk {
   sims: Simulation[];
   /** The simulation flying the configuration the file marks default. */
   activeId: string;
-  loadedMeta: { name: string; notes: string[]; exportMotors: Record<string, OrkExportMotor> };
+  loadedMeta: { name: string; notes: ImportNote[]; exportMotors: Record<string, OrkExportMotor> };
 }
 
 /**

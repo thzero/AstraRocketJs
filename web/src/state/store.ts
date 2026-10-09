@@ -32,14 +32,15 @@ import {
   type SepOverride,
   newFlightConfig,
   primaryMotor,
-  reconcileConfig,
+  carryToCopies,
   reconcileConfigs,
   ensureConfig,
   type FlightConfig,
 } from '../services/flight/flightConfigs';
 import type { LaunchConditions } from '../services/design/orkTree';
 import type { OrkExportMotor } from '../services/files/orkFile';
-import { repairedText, repairValues, type RepairedValue } from '../services/design/repairValues';
+import type { ImportNote } from '../services/files/importNote';
+import { repairValues } from '../services/design/repairValues';
 import {
   changedPrefKeys,
   effectivePrefs,
@@ -68,37 +69,42 @@ import {
 } from '../services/flight/windSweep';
 import { loadSettings } from '../services/storage/settings';
 import { defaultMaterialPatch } from '../services/design/materialSlots';
-import {
-  unflyable,
-  unflyableText,
-  hasThrustCurve,
-  designBlocker,
-  designBlockerText,
-} from '../services/flight/runnability';
+import { unflyable, unflyableText, designBlocker, designBlockerText } from '../services/flight/runnability';
 import { landingView, planRun, runProblems } from '../services/flight/runPlan';
 import { isComplete } from '../services/flight/requiredLaunch';
-import { designNameOf } from '../services/app/appInfo';
-import { type Workspace } from '../services/storage/workspaceStore';
 import type { MotorDims } from '../tree/schematicGeometry';
 import { type ConfigsTab } from './tabs';
 import { createViewSlice, type ViewSlice } from './viewSlice';
 import { createFileSlice, type FileSlice } from './fileSlice';
-import { unitSymbols } from '../prefs/units';
 import { errorMessage } from '../services/app/errorMessage';
 import { flightBranches } from '../services/flight/flightColumns';
+import {
+  configOf,
+  defaultConfig,
+  displayUnits,
+  repairNotes,
+  selectActive,
+  type StorageWarningKind,
+} from './workspaceSelectors';
 
-/**
- * Display units for a message the store builds outside React. Read per call,
- * not once: the store outlives any one settings value, and a message quoting
- * the unit the reader had when the app booted is worse than one quoting none.
- */
-export const displayUnits = () => {
-  const s = loadSettings();
-  return unitSymbols(s.units, s.unitOverrides);
-};
+// Defined in a leaf module so fileSlice, which this file builds while it loads,
+// can import them without importing this file at run time; re-exported here for
+// everything else.
+export {
+  configOf,
+  defaultConfig,
+  displayUnits,
+  repairNotes,
+  saveFailure,
+  selectActive,
+  selectConfig,
+  selectDesignName,
+  workspaceSnapshot,
+  type StorageWarningKind,
+} from './workspaceSelectors';
 
 type Rocket = ReturnType<typeof buildRocketTree>;
-type LoadedMeta = { name: string; notes: string[]; exportMotors: Record<string, OrkExportMotor> } | null;
+type LoadedMeta = { name: string; notes: ImportNote[]; exportMotors: Record<string, OrkExportMotor> } | null;
 
 /** One undo/redo checkpoint: the whole editable workspace: the design tree (and
  *  which part was selected, so undo re-focuses what changed) plus the simulations,
@@ -127,32 +133,22 @@ type HistoryEntry = {
 /** Cap the stack so a long session can't grow memory without bound. */
 const HISTORY_LIMIT = 100;
 
-/** Each repaired value as the banner's own line. */
-export const repairNotes = (repaired: RepairedValue[]): string[] => repaired.map((r) => repairedText(r, i18n.t));
-
-/** Which condition raised `storageWarning`; only 'full' is save-clearable. */
-export type StorageWarningKind = 'full' | 'degraded' | 'loadFailed' | 'conflict';
-
-/**
- * The warning a refused save deserves, from what refused it.
- *
- * A conflict is not a storage failure: nothing is wrong with the browser, and
- * telling the user to free space would send them off fixing the wrong thing.
- * Another tab has moved the design on, and what they need to know is that this
- * tab's edits are not being kept and how to rescue them.
- */
-export const saveFailure = (e: unknown): { msg: string; kind: StorageWarningKind } =>
-  e instanceof Error && e.message === 'conflict'
-    ? { msg: i18n.t('storage.conflict'), kind: 'conflict' }
-    : { msg: i18n.t('storage.full'), kind: 'full' };
-
 export interface WorkspaceState extends ViewSlice, FileSlice {
   // --- design ---
   tree: RocketTree;
   info: StaticInfo | null;
   /** Transient failure of the thing the user just did: a bad .ork, a sim that
-   *  threw. Cleared by the next successful rebuild. */
+   *  threw. Cleared by the next successful rebuild of a design edited since. */
   err: string | null;
+  /**
+   * Why the design on screen does not build, or null. Owned by the rebuild
+   * effect (useWorkspaceEffects), which sets and clears it on every build.
+   *
+   * Apart from `err` so that a rebuild cannot wipe an action's message: the
+   * engine arriving after an import failed, or a debounced build landing just
+   * after a run reported a fault, would otherwise clear it before it was read.
+   */
+  buildErr: string | null;
   /**
    * Values a design arrived with that no value of their quantity can be, pulled
    * back to the limit on the way in (`design/repairValues`).
@@ -312,6 +308,7 @@ export interface WorkspaceState extends ViewSlice, FileSlice {
 
   // --- actions ---
   setErr: (err: string | null) => void;
+  setBuildErr: (buildErr: string | null) => void;
   /** Raise (or clear, with null) the persistent storage warning. */
   setStorageWarning: (msg: string | null, kind?: StorageWarningKind) => void;
   /** Storage refused a write: raise the clearable "storage full" warning. */
@@ -326,6 +323,19 @@ export interface WorkspaceState extends ViewSlice, FileSlice {
    * the user that saving is happening at all.
    */
   lastSavedAt: number | null;
+  /**
+   * Bumped by a workspace swap that must not autosave: loading a stored design
+   * (boot, File > Open) and starting a blank one (New, deleting the open
+   * design). The autosave effect skips the save the swap would otherwise
+   * schedule (useWorkspaceEffects).
+   *
+   * Writing a just-loaded design back changes nothing but its `updatedAt`, so
+   * the library's "most recently updated" order would mean "most recently
+   * opened". Writing an untouched blank one adds a "Rocket" row to File > Open
+   * for a design nobody made. An import is not quiet: it is its own design,
+   * and the save is what makes its library entry.
+   */
+  quietReplace: number;
   /** The autosave landed. From useWorkspaceEffects, on a successful write. */
   markSaved: () => void;
   applyBuild: (info: StaticInfo | null, rocket: Rocket | null) => void; // from the rebuild effect
@@ -359,7 +369,8 @@ export interface WorkspaceState extends ViewSlice, FileSlice {
    * cluster's spacing. One undo step, and nothing at all when the action says
    * there was nothing to do.
    */
-  applyTreeAction: (change: (tree: RocketTree) => RocketTree) => void;
+  /** `origins` collects copied parts' ids (see `reid`), so their per-configuration settings follow them. */
+  applyTreeAction: (change: (tree: RocketTree, origins: Map<string, string>) => RocketTree) => void;
   /** Dual deployment for one stage: which of its recovery devices is the
    *  drogue, or `null` for single deployment. One undo step, because it clears
    *  the rest of the stage in the same breath. */
@@ -456,27 +467,45 @@ export interface WorkspaceState extends ViewSlice, FileSlice {
   toggleSimSelected: (id: string) => void;
   /** Tick every row, or none. */
   setSimsSelected: (ids: string[]) => void;
-  /** Run the active simulation. */
-  runSim: (prefs: SimPrefs) => Promise<void>;
-  /** Run these simulations. They fly concurrently over the worker pool. */
-  runSims: (ids: string[], prefs: SimPrefs) => Promise<void>;
+  /** Run the active simulation, under the run preferences in `simPrefs`. Resolves with how it came out. */
+  runSim: () => Promise<RunOutcome>;
+  /**
+   * Run these simulations. They fly concurrently over the worker pool. Resolves
+   * with how each requested row came out, by id; an id that names no row is
+   * left out.
+   */
+  runSims: (ids: string[]) => Promise<Record<string, RunOutcome>>;
   /** Run every simulation whose result is missing or stale. */
-  runOutdated: (prefs: SimPrefs) => Promise<void>;
+  runOutdated: () => Promise<void>;
   /** Stop the batch in flight. Rows already finished keep their results. */
   cancelRun: () => void;
   /**
    * Fly a grid of wind conditions around one simulation's own, and keep where
    * each flight came down. Replaces whatever sweep was held before.
    */
-  runDriftSweep: (simId: string, spec: WindSweepSpec, prefs: SimPrefs) => Promise<void>;
+  runDriftSweep: (simId: string, spec: WindSweepSpec) => Promise<void>;
   /** Stop the sweep in flight. Nothing is kept: a part-flown grid is not a region. */
   cancelDriftSweep: () => void;
   /** Throw the held sweep away. */
   clearDriftSweep: () => void;
 }
 
-/** The active simulation (falls back to the first if the id no longer exists). */
-export const selectActive = (s: WorkspaceState): Simulation => s.sims.find((x) => x.id === s.activeId) ?? s.sims[0]!;
+/**
+ * How one row came out of a run.
+ *
+ * - `landed`: its result is installed and current.
+ * - `failed`: the flight threw or timed out, or the design is blocked.
+ * - `skipped`: refused before flying (no usable motor, launch conditions out of
+ *   bounds).
+ * - `canceled`: the user stopped the batch.
+ * - `dropped`: it flew, but the design or the row changed before it landed, so
+ *   the answer was not installed.
+ * - `busy`: another batch was already running, so nothing was started.
+ *
+ * Every outcome but `landed` leaves the row's previous result, if any, in place,
+ * so a caller that needs fresh numbers has to check for `landed`.
+ */
+export type RunOutcome = 'landed' | 'failed' | 'skipped' | 'canceled' | 'dropped' | 'busy';
 
 /**
  * The drift sweep, if it was flown for `simId`. One sweep is held workspace-wide,
@@ -485,16 +514,6 @@ export const selectActive = (s: WorkspaceState): Simulation => s.sims.find((x) =
  */
 export const selectDriftSweepFor = (s: WorkspaceState, simId: string): DriftSweep | null =>
   s.driftSweep && s.driftSweep.simId === simId ? s.driftSweep : null;
-
-/**
- * What to call this rocket: its own name, else the name of the file it was
- * imported from, else the app's default.
- *
- * The same three-step fallback (`designNameOf`) the .ork, .rkt, 3MF and RASAero
- * exports use, so every download that carries the rocket's name carries the same
- * one (see `exportFilename`).
- */
-export const selectDesignName = (s: WorkspaceState): string => designNameOf(s.tree, s.loadedMeta);
 
 /**
  * What the Run button will fly: the ticked rows, or the active simulation when
@@ -523,26 +542,18 @@ export const selectRunIds = (s: WorkspaceState): string[] =>
 const selectEditIds = (s: WorkspaceState): string[] => selectRunIds(s);
 
 /**
- * The flight configuration the active simulation flies.
- *
- * Safe to subscribe to: it hands back a stored object, so a re-render happens
- * when that configuration or the active row changes and not otherwise.
- */
-export const selectConfig = (s: WorkspaceState): FlightConfig => configFor(s.configs, selectActive(s).configId);
-
-/**
  * The configuration the Configurations tab is editing: the one it has selected,
  * else the one the active simulation flies.
  *
  * Following the active simulation is what makes arriving at the tab show the
  * setup you were just looking at, rather than an arbitrary row.
  */
-export const selectEditedConfig = (s: WorkspaceState): FlightConfig =>
-  configFor(s.configs, s.selectedConfigId ?? selectActive(s).configId);
-
-/** The configuration one given row flies (the table, the Run button). */
-export const configOf = (configs: readonly FlightConfig[], sim: Simulation): FlightConfig =>
-  configFor(configs, sim.configId);
+export const selectEditedConfig = (s: WorkspaceState): FlightConfig => {
+  // A selection whose configuration is gone (an undo of the add that made it)
+  // follows the active simulation too, rather than `configFor`'s first row.
+  const picked = s.selectedConfigId ? s.configs.find((c) => c.id === s.selectedConfigId) : undefined;
+  return picked ?? configFor(s.configs, selectActive(s).configId);
+};
 
 /**
  * Whether a row's result was flown from inputs other than the current ones: the
@@ -565,14 +576,6 @@ export const selectRunFailed = (s: WorkspaceState): boolean => {
   const run = s.simRuns[selectActive(s).id];
   return run?.phase === 'failed' && run.tree === s.tree;
 };
-
-/**
- * A motor is usable only if it carries a full thrust curve.
- *
- * Re-exported from `services/flight/runnability`, which owns the "can this row fly"
- * question so the Run button and the run loop share one answer.
- */
-export { hasThrustCurve };
 
 /**
  * Repair a persisted workspace so a stale/partial blob can't blank the app.
@@ -622,11 +625,6 @@ function sanitizeConfigs(tree: RocketTree, configs: FlightConfig[]): FlightConfi
   return reconcileConfigs(tree, safe.length ? safe : [defaultConfig(tree)]);
 }
 
-/** A configuration with the app default motor in every mount. */
-export function defaultConfig(tree: RocketTree): FlightConfig {
-  return reconcileConfig(tree, newFlightConfig());
-}
-
 /** Motor case dimensions for the 2D/3D views, one per loaded mount. */
 export function selectMotorDims(tree: RocketTree, config: FlightConfig): MotorDims {
   const m: MotorDims = {};
@@ -663,25 +661,6 @@ let batchAbort: AbortController | null = null;
  * somebody started beside it.
  */
 let sweepAbort: AbortController | null = null;
-
-/**
- * The persistable shape of the current design (what autosave, the unload flush
- * and the design library write).
- *
- * Results included. They do not go in the design blob: `workspaceStore.save`
- * splits them out to their own key and writes them only when a run has changed
- * them, so the per-keystroke autosave still only serializes the inputs.
- */
-export const workspaceSnapshot = (
-  s: Pick<WorkspaceState, 'tree' | 'sims' | 'configs' | 'activeId' | 'loadedMeta'>,
-): Workspace => ({
-  version: 2,
-  tree: s.tree,
-  sims: s.sims,
-  configs: s.configs,
-  activeId: s.activeId,
-  loadedMeta: s.loadedMeta,
-});
 
 /**
  * A copy of an override map with one key set, or removed when `value` is null.
@@ -822,11 +801,16 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
    * edit that returns the tree it was given records nothing. False when nothing
    * changed.
    */
-  const commitTree = (next: RocketTree, extra: Partial<WorkspaceState> = {}): boolean => {
+  const commitTree = (
+    next: RocketTree,
+    extra: Partial<WorkspaceState> = {},
+    origins?: ReadonlyMap<string, string>,
+  ): boolean => {
     const { tree, configs } = get();
     if (next === tree) return false;
     recordStep();
-    set({ tree: next, configs: reconcileConfigs(next, configs), ...extra });
+    const carried = origins ? carryToCopies(configs, origins) : configs;
+    set({ tree: next, configs: reconcileConfigs(next, carried), ...extra });
     return true;
   };
 
@@ -865,6 +849,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
       driftSweep: null,
       driftSweepRun: null,
       err: null,
+      buildErr: null,
+      // Notes about values repaired in the outgoing design. `hydrate` and
+      // `openOrkFile` pass their own; a new blank design has none.
+      repairNotes: [],
+      // A configuration id from the outgoing design; the tab follows the
+      // active simulation of the new one.
+      selectedConfigId: null,
       // The build, too. `info` and `rocket` describe the design on its way out,
       // and the rebuild effect only replaces them on its next run, so for one
       // frame a brand-new blank design would show the previous one's mass, CG and
@@ -888,9 +879,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
     tree: tree0,
     info: null,
     err: null,
+    buildErr: null,
     storageWarning: null,
     storageWarningKind: null,
     lastSavedAt: null,
+    quietReplace: 0,
     simRuns: {},
     resultSimId: null,
     lastRunIds: [],
@@ -916,6 +909,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
     ...createFileSlice({ replaceWorkspace, clearHistory })(set, get, api),
 
     setErr: (err) => set({ err }),
+    setBuildErr: (buildErr) => set({ buildErr }),
     setStorageWarning: (storageWarning, kind) =>
       set({ storageWarning, storageWarningKind: storageWarning ? (kind ?? null) : null }),
     warnStorageFull: () => get().setStorageWarning(i18n.t('storage.full'), 'full'),
@@ -937,7 +931,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
         legacyResultKey(x, fixed.tree, configOf(configs, x), get().simPrefs),
       );
       const activeId = sims.some((s) => s.id === w.activeId) ? w.activeId : sims[0]!.id;
-      replaceWorkspace(() => ({
+      // A stored design is a fresh document. Edits made to whatever was on
+      // screen before it arrived (the default rocket, before the boot load
+      // resolves) must not stay undoable over it.
+      clearHistory();
+      replaceWorkspace((s) => ({
+        quietReplace: s.quietReplace + 1,
         repairNotes: repairNotes(fixed.repaired),
         tree: fixed.tree,
         sims,
@@ -987,7 +986,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
     },
     // Splitting a cluster duplicates the tube it is on, mounts included, so the
     // mount topology really can change here, unlike a field edit.
-    applyTreeAction: (change) => void commitTree(change(get().tree)),
+    applyTreeAction: (change) => {
+      const origins = new Map<string, string>();
+      void commitTree(change(get().tree, origins), {}, origins);
+    },
     setStageDrogue: (stageId, deviceId) => {
       const { tree } = get();
       const next = setStageDrogue(tree, stageId, deviceId);
@@ -1018,12 +1020,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
     pasteClipboard: () => {
       const { clipboard, tree, selectedId, selectionSeq } = get();
       const done = clipboard ? pasteNode(tree, clipboard, selectedId) : null;
-      if (done) commitTree(done.tree, { selectedId: done.id, selectionSeq: selectionSeq + 1 });
+      if (done) commitTree(done.tree, { selectedId: done.id, selectionSeq: selectionSeq + 1 }, done.origins);
     },
     duplicateSelected: () => {
       const { tree, selectedId, selectionSeq } = get();
       const done = selectedId ? duplicateNode(tree, selectedId) : null;
-      if (done) commitTree(done.tree, { selectedId: done.id, selectionSeq: selectionSeq + 1 });
+      if (done) commitTree(done.tree, { selectedId: done.id, selectionSeq: selectionSeq + 1 }, done.origins);
     },
     addPartToTree: (type) => {
       const { tree, selectedId, selectionSeq } = get();
@@ -1061,6 +1063,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
       set({ past: past.slice(0, -1), future: [...future, snap()], ...restore(prev) });
     },
     redo: () => {
+      // As undo does: an in-flight edit is folded into history first. It is a
+      // new edit, so it clears the redo stack rather than being overwritten by it.
+      commitEdit();
       const { past, future } = get();
       if (!future.length) return;
       const next = future[future.length - 1]!;
@@ -1071,6 +1076,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
     setSelectedConfigId: (selectedConfigId) => set({ selectedConfigId }),
     setConfigsTab: (configsTab) => set({ configsTab }),
     setMountMotor: (configId, mountId, m) => {
+      // An unknown configuration changes nothing, so it records no undo step.
+      if (!get().configs.some((c) => c.id === configId)) return;
       recordStep();
       patchConfig(configId, (c) => ({ ...c, motors: { ...c.motors, [mountId]: { ...c.motors[mountId], spec: m } } }));
     },
@@ -1105,19 +1112,24 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
       });
     },
     setStageFlies: (configId, stageId, flies) => {
+      const s = get();
+      const current = s.configs.find((c) => c.id === configId);
+      if (!current) return;
+      const stages = findStages(s.tree).map((n) => n.id as string);
+      const grounded = new Set(current.grounded ?? []);
+      if (flies) grounded.delete(stageId);
+      else grounded.add(stageId);
+      // Something has to fly. Grounding the last one leaves the builder an empty
+      // rocket, which the kernel refuses. The checkbox of the only flying stage
+      // is disabled and says why (SeparationSection), so this is the guard a
+      // programmatic call cannot get past.
+      if (stages.every((id) => grounded.has(id))) return;
+      const next = stages.filter((id) => grounded.has(id)); // tree order, not click order
+      const before = current.grounded ?? [];
+      // Already so: no change, so no undo step.
+      if (next.length === before.length && next.every((id, i) => id === before[i])) return;
       recordStep();
-      const stages = findStages(get().tree).map((n) => n.id as string);
-      patchConfig(configId, (c) => {
-        const grounded = new Set(c.grounded ?? []);
-        if (flies) grounded.delete(stageId);
-        else grounded.add(stageId);
-        // Something has to fly. Grounding the last one leaves the builder an
-        // empty rocket, which the kernel refuses - and refusing here says so
-        // where the user can see it rather than as a failed build.
-        if (stages.every((id) => grounded.has(id))) return c;
-        const next = stages.filter((id) => grounded.has(id)); // tree order, not click order
-        return { ...c, ...(next.length ? { grounded: next } : { grounded: undefined }) };
-      });
+      patchConfig(configId, (c) => ({ ...c, ...(next.length ? { grounded: next } : { grounded: undefined }) }));
     },
     addConfig: () => {
       recordStep();
@@ -1255,7 +1267,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
       })),
     setSimsSelected: (ids) => set({ selectedSimIds: ids }),
 
-    runSim: (prefs) => get().runSims([selectActive(get()).id], prefs),
+    runSim: async () => {
+      const id = selectActive(get()).id;
+      return (await get().runSims([id]))[id] ?? 'skipped';
+    },
 
     /**
      * Fly each of these simulations.
@@ -1270,11 +1285,24 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
      * result installs itself by id, and the batch-level reporting waits for the
      * whole thing to settle.
      */
-    runSims: async (ids, prefs) => {
+    runSims: async (ids) => {
       const s = get();
+      // One batch at a time. A second one would take over `batchAbort` and the
+      // `simBusy` flag while the first is still flying: Cancel could no longer
+      // reach the first, and the app would read idle with flights in the air.
+      if (batchAbort) {
+        set({ err: i18n.t('sim.busy') });
+        return Object.fromEntries(
+          ids.filter((id) => s.sims.some((x) => x.id === id)).map((id) => [id, 'busy' as const]),
+        );
+      }
+      // The globals the store mirrors, which are also what `selectOutdated`
+      // compares each result against, so a landed result reads current.
+      const prefs = s.simPrefs;
       // What flies and what does not is decided before anything is dispatched,
       // so the queued rows all light up together rather than one at a time.
       const plan = planRun(ids, s.sims, s.tree, s.configs);
+      const outcomes: Record<string, RunOutcome> = {};
       // What we are about to fly. The awaits below can outlast the design: if the
       // user edits while the pool is busy, the answers coming back describe a
       // rocket that no longer exists, and installing them would show numbers for
@@ -1288,12 +1316,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
       }
       if (plan.blocker) {
         set({ err: designBlockerText(plan.blocker, i18n.t) });
-        return;
+        for (const id of plan.failedIds) outcomes[id] = 'failed';
+        return outcomes;
       }
       const { flying, skipped } = plan;
+      for (const u of skipped) outcomes[u.id] = 'skipped';
       if (!flying.length) {
         if (skipped.length) set({ err: runProblems(skipped, [], launcherT(), displayUnits()).join(' ') });
-        return;
+        return outcomes;
       }
       // Failures are collected and reported with the skips once the batch drains
       // (see runProblems).
@@ -1337,7 +1367,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
               // The design moved on mid-batch: this answer describes the old
               // rocket, so drop it rather than install numbers for geometry that
               // is no longer on screen. The others in flight do the same.
-              if (get().tree !== ranOn) return;
+              if (get().tree !== ranOn) {
+                outcomes[sim.id] = 'dropped';
+                return;
+              }
               // Same test for this row's own inputs. Editing a simulation's
               // launch conditions while it flies drops the answer rather than
               // locking the editor for the duration, which leaves the row where
@@ -1347,9 +1380,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
               const now = get().sims.find((x) => x.id === sim.id);
               if (!now || !sameSimInputs(flownFrom, simInputs(now, configOf(get().configs, now)))) {
                 setRun(sim.id, null);
+                outcomes[sim.id] = 'dropped';
                 return;
               }
               setRun(sim.id, null);
+              outcomes[sim.id] = 'landed';
               set((st) => ({
                 sims: st.sims.map((x) =>
                   x.id === sim.id ? { ...x, result, resultKey: flownKey, fileSummary: undefined } : x,
@@ -1361,6 +1396,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
               // error banner stays empty. Anything else is a fault.
               if (e instanceof SimCanceledError) {
                 setRun(sim.id, null);
+                outcomes[sim.id] = 'canceled';
                 return;
               }
               // A timeout means the worker was killed mid-hang; show a friendly line
@@ -1368,21 +1404,23 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
               const msg = e instanceof SimTimeoutError ? i18n.t('sim.timeout') : errorMessage(e);
               setRun(sim.id, { phase: 'failed', tree: ranOn });
               failed.push({ name: sim.name, msg });
+              outcomes[sim.id] = 'failed';
             }
           }),
         );
         // A canceled batch says nothing further: the user stopped it, so
         // neither the skip list nor a jump to the Results tab is wanted.
-        if (abort.signal.aborted) return;
+        if (abort.signal.aborted) return outcomes;
         const problems = runProblems(skipped, failed, launcherT(), displayUnits());
         if (problems.length) set({ err: problems.join(' ') });
         // Show the run. Every run, one or twelve: running is asking to see the
         // answer, and having to click over to Results afterwards is a step with
         // nothing behind it.
-        if (get().tree !== ranOn) return;
+        if (get().tree !== ranOn) return outcomes;
         const landed = flying.map((f) => f.sim.id).filter((id) => get().sims.find((x) => x.id === id)?.result);
         const show = landingView(landed, selectActive(get()).id);
         if (show) set({ ...show, view: 'flight', tab: 'results' });
+        return outcomes;
       } finally {
         // Only if no later batch has started: a run kicked off while this one
         // was unwinding owns the flag and the controller now.
@@ -1402,11 +1440,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
      * the selection would mean clearing and restoring whatever the user had
      * ticked.
      */
-    runOutdated: async (prefs) => {
+    runOutdated: async () => {
       const s = get();
       const stale = s.sims.filter((x) => !x.result || selectOutdated(s, x)).map((x) => x.id);
       if (!stale.length) return;
-      await get().runSims(stale, prefs);
+      await get().runSims(stale);
     },
 
     /**
@@ -1451,7 +1489,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
      * landings still describe a region, and the count says how many of the
      * flights asked for actually produced one.
      */
-    runDriftSweep: async (simId, spec, prefs) => {
+    runDriftSweep: async (simId, spec) => {
       const s = get();
       const blocker = designBlocker(s.tree);
       if (blocker) {
@@ -1486,7 +1524,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
       const flownFrom = simInputs(sim, config);
       // The row's own overrides win over the globals, exactly as a normal run
       // resolves them; only then is a missing seed filled in.
-      const runPrefs: SimPrefs = { ...prefs, ...sim.prefs };
+      const runPrefs = effectivePrefs(s.simPrefs, sim.prefs);
       const seed = runPrefs.randomSeed ?? freshSeed();
 
       // A sweep supersedes whatever was held: two regions on one plan view

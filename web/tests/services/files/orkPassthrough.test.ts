@@ -7,6 +7,7 @@ import {
   KNOWN_ROCKET_TAGS,
 } from '../../../src/services/files/ork/passthrough';
 import type { ComponentNode, RocketTree } from '../../../src/engine/openRocketEngine';
+import { noteTexts } from '../../testing/importNotes';
 
 /**
  * What a `.ork` carries that this app has no model for.
@@ -127,13 +128,13 @@ describe('a decal, whose image we do not keep', () => {
   });
 
   it('says so in the import notes, both halves', () => {
-    const notes = importOrk(orkWith(WITH_DECAL)).notes.join('\n');
+    const notes = noteTexts(importOrk(orkWith(WITH_DECAL)).notes).join('\n');
     expect(notes).toMatch(/appearance setting/i);
     expect(notes).toMatch(/decal/i);
   });
 
   it('says nothing for a design that carries neither', () => {
-    const notes = importOrk(orkWith('')).notes.join('\n');
+    const notes = noteTexts(importOrk(orkWith('')).notes).join('\n');
     expect(notes).not.toMatch(/appearance|decal/i);
   });
 });
@@ -259,7 +260,7 @@ describe('the levels above a component', () => {
   });
 
   it('says in the notes which whole features it has no editor for', () => {
-    const notes = importOrk(docWith('', PHOTO)).notes.join('\n');
+    const notes = noteTexts(importOrk(docWith('', PHOTO)).notes).join('\n');
     expect(notes).toMatch(/no editor for/i);
     expect(notes).toContain('photostudio');
   });
@@ -268,7 +269,7 @@ describe('the levels above a component', () => {
     const res = importOrk(docWith('', ''));
     expect(res.tree.xmlExtra).toBeUndefined();
     expect(res.tree.docExtra).toBeUndefined();
-    expect(res.notes.join('\n')).not.toMatch(/no editor for/i);
+    expect(noteTexts(res.notes).join('\n')).not.toMatch(/no editor for/i);
   });
 
   it('survives two round trips without duplicating', () => {
@@ -329,5 +330,32 @@ describe('the upper known-tag sets', () => {
     const kids = (sel: string) => Array.from(doc.querySelectorAll(sel)).map((e) => e.tagName.toLowerCase());
     expect(kids('openrocket > *').filter((t) => !KNOWN_DOCUMENT_TAGS.has(t))).toEqual([]);
     expect(kids('openrocket > rocket > *').filter((t) => !KNOWN_ROCKET_TAGS.has(t))).toEqual([]);
+  });
+});
+
+/** The same design with `extra` spliced into the stage itself. */
+const orkWithStage = (extra: string): string =>
+  orkWith('').replace('<name>Sustainer</name>', `<name>Sustainer</name>\n${extra}`);
+
+describe('a stage carries what RocketComponentSaver writes for every component', () => {
+  it('keeps a stage comment through a round trip', () => {
+    const res = importOrk(orkWithStage('        <comment>Fly on a calm day &amp; recover</comment>'));
+    expect(res.tree.components[0]!['comment']).toBe('Fly on a calm day & recover');
+    const back = importOrk(exportOrk({ name: res.name, tree: res.tree }));
+    expect(back.tree.components[0]!['comment']).toBe('Fly on a calm day & recover');
+  });
+
+  it('keeps a stage appearance, color and line style through a round trip', () => {
+    const out = roundTrip(
+      orkWithStage(
+        `${APPEARANCE}\n        <color red="10" green="20" blue="30"/>\n        <linestyle>dashed</linestyle>`,
+      ),
+    );
+    const stage = out.slice(out.indexOf('<stage>'), out.indexOf('<subcomponents>', out.indexOf('<stage>')));
+    expect(stage).toContain('<appearance>');
+    expect(stage).toContain('<shine>0.3</shine>');
+    expect(stage).toContain('<linestyle>dashed</linestyle>');
+    expect(stage).toMatch(/<color red="10" green="20" blue="30"/);
+    expect(stage.match(/<appearance>/g)).toHaveLength(1);
   });
 });

@@ -8,12 +8,15 @@ export function Stat({
   sub,
   tone = 'text-ink-strong',
   card = false,
+  status,
 }: {
   label: string;
   value: string;
   sub: React.ReactNode;
   tone?: string;
   card?: boolean;
+  /** A verdict word for a tile whose tone is a judgment, so it is not told by color alone. */
+  status?: string;
 }) {
   // The carded tiles are the rocket's static-stats strip: a dozen of them read
   // side by side, where what you are looking for matters as much as the number
@@ -33,7 +36,15 @@ export function Stat({
     <div className={`text-center ${card ? 'rounded-lg bg-raised/60 px-2 py-1.5 ring-1 ring-line/10' : ''}`}>
       <div className={`${labelClass} uppercase tracking-wide text-ink-muted`}>{label}</div>
       <div className={`${valueClass} font-semibold tabular-nums ${tone}`}>{value}</div>
-      <div className={`${subClass} text-ink-faint`}>{sub}</div>
+      <div className={`${subClass} text-ink-faint`}>
+        {sub}
+        {status && (
+          <>
+            {' · '}
+            <span className={tone}>{status}</span>
+          </>
+        )}
+      </div>
     </div>
   );
 }

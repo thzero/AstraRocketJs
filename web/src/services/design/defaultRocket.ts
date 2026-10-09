@@ -1,5 +1,6 @@
 import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
 import { defaultDesignName } from '../app/appInfo';
+import { defaultStageName } from './orkTree';
 import { defaultMaterialPatch } from './materialSlots';
 import { presetLink } from './treeEdit';
 
@@ -363,6 +364,6 @@ export function defaultRocketTree(): RocketTree {
 
   return {
     name: defaultDesignName(),
-    components: [{ type: 'stage', name: 'Sustainer', id: 's1', children: [noseNode, bodyNode] }],
+    components: [{ type: 'stage', name: defaultStageName(0), id: 's1', children: [noseNode, bodyNode] }],
   } as unknown as RocketTree;
 }

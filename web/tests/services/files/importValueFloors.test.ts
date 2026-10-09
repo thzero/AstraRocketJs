@@ -5,6 +5,7 @@ import { importOrk } from '../../../src/services/files/orkFile';
 import { importRkt } from '../../../src/services/files/rktImport';
 import type { ComponentNode } from '../../../src/engine/openRocketEngine';
 import { MAX_FIN_POINTS } from '../../../src/services/files/ork/importLimits';
+import { noteTexts } from '../../testing/importNotes';
 
 /**
  * What a file is allowed to say, as opposed to how big it is allowed to be.
@@ -180,6 +181,50 @@ describe('a <stage active="false"/> flag addresses a stage or is dropped', () =>
   });
 });
 
+describe('a .rkt cannot state a negative fin or wall dimension', () => {
+  const rkt = (parts: string) =>
+    `<?xml version="1.0" encoding="UTF-8"?><RockSimDocument><FileVersion>4</FileVersion>
+     <DesignInformation><RocketDesign><Name>C</Name><StageCount>1</StageCount><Stage3Parts>
+       ${parts}
+     </Stage3Parts></RocketDesign></DesignInformation></RockSimDocument>`;
+  const of = (xml: string, type: string) => flatten(importRkt(xml).tree.components).find((n) => n.type === type)!;
+
+  it('floors a trapezoid fin root, tip, span and thickness but keeps a negative sweep', () => {
+    const fin = of(
+      rkt(`<BodyTube><Name>B</Name><Len>300</Len><OD>24.8</OD><ID>21.6</ID><AttachedParts>
+        <FinSet><Name>F</Name><ShapeCode>0</ShapeCode><FinCount>3</FinCount><Thickness>-3</Thickness>
+          <RootChord>-50</RootChord><TipChord>-20</TipChord><SemiSpan>-40</SemiSpan><SweepDistance>-10</SweepDistance>
+        </FinSet></AttachedParts></BodyTube>`),
+      'trapezoidfinset',
+    );
+    expect(fin['thickness']).toBe(0);
+    expect(fin['rootChord']).toBe(0);
+    expect(fin['tipChord']).toBe(0);
+    expect(fin['height']).toBe(0);
+    expect(fin['sweep']).toBeCloseTo(-0.01, 12);
+  });
+
+  it('floors an elliptical fin root and span', () => {
+    const fin = of(
+      rkt(`<BodyTube><Name>B</Name><Len>300</Len><OD>24.8</OD><ID>21.6</ID><AttachedParts>
+        <FinSet><Name>F</Name><ShapeCode>1</ShapeCode><RootChord>-50</RootChord><SemiSpan>-40</SemiSpan></FinSet>
+        </AttachedParts></BodyTube>`),
+      'ellipticalfinset',
+    );
+    expect(fin['rootChord']).toBe(0);
+    expect(fin['height']).toBe(0);
+  });
+
+  it('floors a hollow nose cone wall', () => {
+    const nose = of(
+      rkt(`<NoseCone><Name>N</Name><Len>100</Len><BaseDia>24.8</BaseDia><ConstructionType>1</ConstructionType>
+        <WallThickness>-2</WallThickness></NoseCone>`),
+      'nosecone',
+    );
+    expect(nose['thickness']).toBe(0);
+  });
+});
+
 describe('a RockSim <Color> is normalized or dropped', () => {
   /**
    * The value lands in the node key the schematic hands to SVG `fill` and the 3D
@@ -254,7 +299,7 @@ describe('the freeform point cap bounds what is BUILT, not just what is kept', (
     const pts = flatten(res.tree.components).find((n) => n.type === 'freeformfinset')?.['points'] as
       [number, number][] | undefined;
     expect(pts).toHaveLength(MAX_FIN_POINTS);
-    expect(res.notes.some((n) => n.includes('points'))).toBe(true);
+    expect(noteTexts(res.notes).some((n) => n.includes('points'))).toBe(true);
   });
 
   it('skips a malformed pair without ending the scan', () => {

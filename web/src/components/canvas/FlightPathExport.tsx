@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useWorkspaceStore, selectActive, selectConfig, selectDesignName } from '../../state/store';
-import { primaryMotor } from '../../services/flight/flightConfigs';
+import { useWorkspaceStore, selectActive, selectDesignName } from '../../state/store';
+import { configFor, primaryMotor } from '../../services/flight/flightConfigs';
+import type { ResultFlight } from '../../services/flight/simulations';
 import { download as saveDownload, exportFilename } from '../../services/files/saveFile';
 import {
   buildFlightPathModel,
@@ -32,21 +33,32 @@ import { NumberInput } from '../common/NumberInput';
  * button that opens a modal to pick the format (built-in KML / GPX / waypoint
  * CSV, or an imported Mustache template) and the options (which waypoints,
  * flight-path/ground-track lines, path stride, altitude/distance units), then
- * downloads the rendered file. Self-sources the active simulation's result,
- * launch site, and design metadata from the store.
+ * downloads the rendered file. Exports `flight` when given (the flight on
+ * screen, which the Results picker can take from a row other than the active
+ * one), else the active simulation's result and launch site.
  *
  * User templates are imported `.mustache` files persisted in the template store,
  * the browser equivalent of OpenRocket's desktop `ExportTemplates` folder.
  */
 
-export function FlightPathExport({ variant = 'chip' }: { variant?: 'chip' | 'overlay' }) {
+export function FlightPathExport({
+  variant = 'chip',
+  flight,
+}: {
+  variant?: 'chip' | 'overlay';
+  /** The flight to export; absent, the active simulation's. */
+  flight?: ResultFlight | null;
+}) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
 
-  const result = useWorkspaceStore((s) => selectActive(s).result);
-  const launch = useWorkspaceStore((s) => selectActive(s).launch);
-  const simName = useWorkspaceStore((s) => selectActive(s).name);
-  const motor = useWorkspaceStore((s) => primaryMotor(s.tree, selectConfig(s)));
+  const active = useWorkspaceStore(selectActive);
+  const result = flight ? flight.result : active.result;
+  const launch = flight ? flight.launch : active.launch;
+  const simName = flight ? flight.name : active.name;
+  // The motor the exported flight's own row flies, not the active row's.
+  const configId = useWorkspaceStore((s) => (flight && s.sims.find((x) => x.id === flight.id))?.configId);
+  const motor = useWorkspaceStore((s) => primaryMotor(s.tree, configFor(s.configs, configId ?? active.configId)));
   const rocketName = useWorkspaceStore(selectDesignName);
 
   if (!result) return null;

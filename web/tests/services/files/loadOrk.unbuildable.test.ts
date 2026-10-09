@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { __setEngineForTests, type RocketTree } from '../../../src/engine/openRocketEngine';
 import { buildForImport } from '../../../src/services/files/loadOrk';
 import { KERNEL_TEST_TIMEOUT_MS } from '../../testing/kernelTimeout';
+import { noteText } from '../../testing/importNotes';
 
 /**
  * Opening a file is not flying it.
@@ -68,12 +69,12 @@ describe('buildForImport', () => {
   it('still opens a design whose fin outline the kernel refuses, and says why', () => {
     const t = tree({ points: BOWTIE });
     const built = buildForImport(t);
-    expect(built.unbuildable).toMatch(/Aft fins/);
-    expect(built.unbuildable).toMatch(/crosses or touches itself/);
+    expect(noteText(built.unbuildable!)).toMatch(/Aft fins/);
+    expect(noteText(built.unbuildable!)).toMatch(/crosses or touches itself/);
     // The note has to be usable on its own: the banner is the other place the
     // same sentence shows up, and a user reading only the import notes should
     // know the design is open and what is blocked.
-    expect(built.unbuildable).toMatch(/open so it can be fixed/);
+    expect(noteText(built.unbuildable!)).toMatch(/open so it can be fixed/);
     // The handle is a throwaway built from a repaired copy; the tree is not
     // touched, so the outline the file stated is what the editor draws and what
     // a re-export writes.

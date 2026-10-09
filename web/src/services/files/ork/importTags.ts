@@ -385,13 +385,8 @@ export function readCommon(el: Element, node: ComponentNode, withPosition: boole
   }
 }
 
-/**
- * Mass / CG / Cd overrides, and the flags that spread them over the subtree.
- *
- * Split out of `readCommon` for the stage, which builds its own node rather
- * than going through the part reader and reads its overrides through this.
- */
-export function readOverrides(el: Element, node: ComponentNode): void {
+/** Mass / CG / Cd overrides, and the flags that spread them over the subtree. */
+function readOverrides(el: Element, node: ComponentNode): void {
   // Floored, like the .rkt reader's `Math.max(0, knownMass / MASS)` and
   // `Math.max(0, knownCg)`. A negative override is not a lighter part: it
   // subtracts from the rocket's total mass, pulls the CG off the airframe and

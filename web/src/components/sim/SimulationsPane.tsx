@@ -109,7 +109,7 @@ export function SimulationsPane() {
             reuse the selection would mean clearing and restoring whatever the
             user had ticked. */}
         <ToolBtn
-          onClick={() => runOutdated(settings.simulation)}
+          onClick={() => runOutdated()}
           disabled={busy || staleCount === 0}
           title={staleCount === 0 ? t('sims.runOutdatedNone') : t('sims.runOutdated', { count: staleCount })}
         >
@@ -124,7 +124,8 @@ export function SimulationsPane() {
           disabled={!sims.some((s) => s.result || s.fileSummary)}
           title={t('sims.exportRunTable')}
         >
-          ⬇ CSV
+          <span aria-hidden>⬇ CSV</span>
+          <span className="sr-only">{t('sims.exportRunTable')}</span>
         </ToolBtn>
         {!desktop && <RunButton className="w-full" />}
       </div>

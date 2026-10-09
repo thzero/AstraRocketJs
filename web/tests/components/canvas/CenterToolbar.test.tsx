@@ -55,3 +55,29 @@ describe('CenterToolbar run state', () => {
     expect(screen.getByRole('status').textContent).toBe('Running');
   });
 });
+
+/**
+ * The toolbar's glyph and letter buttons are named for a screen reader, and a
+ * toggle keeps one name while aria-pressed carries its state.
+ */
+describe('CenterToolbar button names', () => {
+  beforeEach(() => useWorkspaceStore.setState({ tab: 'design', view: '2d' }));
+
+  it('names each ruler toggle for its side, not its letter', () => {
+    renderToolbar();
+    for (const side of ['Top', 'Bottom', 'Left', 'Right']) {
+      expect(screen.getByRole('button', { name: `${side} ruler` })).toBeTruthy();
+    }
+  });
+
+  it('keeps the maximize toggle on one name, with the state in aria-pressed', () => {
+    const name = 'Expand the drawing to the whole window';
+    const { unmount } = renderToolbar();
+    expect(screen.getByRole('button', { name }).getAttribute('aria-pressed')).toBe('false');
+    unmount();
+    renderWithProviders(
+      <CenterToolbar resultName="Simulation 1" onCtrlSlot={() => {}} maxed={true} onToggleMaxed={() => {}} />,
+    );
+    expect(screen.getByRole('button', { name }).getAttribute('aria-pressed')).toBe('true');
+  });
+});

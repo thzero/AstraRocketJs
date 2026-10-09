@@ -296,7 +296,8 @@ export function AftView({
   motors?: MotorDims;
   /** Roll angle (radians): spins the whole aft cross-section about the axis. */
   roll?: number;
-  /** Horizontal drag on the view spins the roll (delta radians). */
+  /** Horizontal drag on the fitted view spins the roll (delta radians); once
+   *  zoomed in, a drag pans instead. */
   onRoll?: (deltaRadians: number) => void;
 }) {
   const { t } = useTranslation();
@@ -417,13 +418,16 @@ export function AftView({
         role="group"
         aria-label={t('schematic.aftAria')}
         onPointerDown={(e) => {
-          // Drag rotates the roll (primary); pan only when zoomed and no onRoll.
-          if (onRoll) {
+          // At the fitted view a drag rotates the roll. Zoomed in, it pans: the
+          // roll slider still turns the rocket, and a wheel zoom about the
+          // pointer can leave the center off screen with nothing else to bring
+          // it back short of Fit.
+          if (zoom.k <= 1) {
+            if (!onRoll) return;
             rollDrag.current = e.clientX;
             (e.target as Element).setPointerCapture?.(e.pointerId);
             return;
           }
-          if (zoom.k === 1) return;
           const { vx, vy } = toView(e.clientX, e.clientY);
           pan.current = { px: vx, py: vy, x: zoom.x, y: zoom.y };
           (e.target as Element).setPointerCapture?.(e.pointerId);
@@ -448,6 +452,12 @@ export function AftView({
           rollDrag.current = null;
         }}
         onPointerLeave={() => {
+          pan.current = null;
+          rollDrag.current = null;
+        }}
+        // A touch the OS takes over ends without a pointerup; left armed, the
+        // next move would pan or roll unpressed.
+        onPointerCancel={() => {
           pan.current = null;
           rollDrag.current = null;
         }}

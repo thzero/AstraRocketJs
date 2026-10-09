@@ -1,5 +1,6 @@
 import type { FlightResult, FlightSeries } from '../../engine/openRocketEngine';
 import type { Quantity } from '../../prefs/units';
+import type { Units } from '../../prefs/useUnits';
 import { flightBranches } from '../../services/flight/flightColumns';
 import { dynamicPressure, qAlpha, rollRate } from '../../services/flight/flightEvents';
 import { token } from '../common/colorTokens';
@@ -41,6 +42,12 @@ export interface Meta {
    * stay for the handful of series (Mach, calibers) that are unitless.
    */
   quantity?: Quantity;
+  /**
+   * A second preference group the series is multiplied by, for a product of
+   * two quantities: q·α is a pressure times an angle, shown in the reader's
+   * pressure unit times their angle unit.
+   */
+  times?: Quantity;
   /** Multiply the raw SI series into display units (kg→g, m→cm, rad→deg). */
   scale?: number;
   /** Level bands (CG/CP/mass/stability) get a tight y-domain + no area fill;
@@ -81,11 +88,26 @@ export const SERIES: Meta[] = [
   { key: 'aoa', label: 'flight.aoa', unit: '°', digits: 1, scale: 180 / Math.PI, quantity: 'angle' },
   // Derived in buildTraces from what the kernel records; see flightEvents.ts.
   { key: 'dynamicPressure', label: 'flight.dynamicPressure', unit: 'Pa', digits: 0, quantity: 'pressure' },
-  // Pa·rad to kPa·°: a product of two units has no single preference to follow.
-  { key: 'qAlpha', label: 'flight.qAlpha', unit: 'kPa·°', digits: 1, scale: 180 / Math.PI / 1000, aero: true },
+  {
+    key: 'qAlpha',
+    label: 'flight.qAlpha',
+    unit: 'Pa·rad',
+    digits: 1,
+    aero: true,
+    quantity: 'pressure',
+    times: 'angle',
+  },
   { key: 'rollRate', label: 'flight.rollRate', unit: 'r/s', digits: 2, quantity: 'rollRate' },
   { key: 'velocityAltitude', label: 'flight.velocityAltitude', unit: '', digits: 0, xy: true },
 ];
+/** What a series is multiplied by to show it in the reader's units. */
+export const traceScale = (m: Meta, u: Pick<Units, 'factor'>): number =>
+  m.quantity ? u.factor(m.quantity) * (m.times ? u.factor(m.times) : 1) : (m.scale ?? 1);
+
+/** The unit a series is labeled in: the reader's, or its fixed label. */
+export const traceUnit = (m: Meta, u: Pick<Units, 'sym'>): string =>
+  m.quantity ? (m.times ? `${u.sym(m.quantity)}·${u.sym(m.times)}` : u.sym(m.quantity)) : m.unit;
+
 /** Every key the chart can draw, for validating what comes back from settings. */
 const KEYS = new Set<string>(SERIES.map((m) => m.key));
 

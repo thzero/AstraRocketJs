@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { act, screen } from '@testing-library/react';
 import { useWorkspaceStore } from '../../../src/state/store';
 import { SimSummary } from '../../../src/components/sim/SimSummary';
-import { renderWithProviders } from '../../testing/renderWithProviders';
+import { renderWithProviders, seedSettings } from '../../testing/renderWithProviders';
 import { fmtNum, ladderDigits } from '../../../src/i18n/format';
 import type { FlightResult, RocketTree } from '../../../src/engine/openRocketEngine';
 
@@ -96,5 +96,53 @@ describe('SimSummary names the launcher after the design', () => {
     act(() => useWorkspaceStore.setState({ tree: { components: [] } as unknown as RocketTree }));
     renderWithProviders(<SimSummary sim={sim([0, 0, 0], [0, 0, 0])} />);
     expect(screen.getByText('Launcher exit')).toBeTruthy();
+  });
+});
+
+/**
+ * A safety reading out of bounds says so in words, not only in amber: a
+ * color-blind or screen-reader user gets the verdict too.
+ */
+describe('SimSummary verdicts', () => {
+  const subOf = (label: RegExp) => screen.getByText(label).nextElementSibling?.nextElementSibling?.textContent;
+
+  it('names a slow launcher exit and a fast deployment', () => {
+    const flown = sim([0, 0, 0], [0, 0, 0]);
+    Object.assign(flown.summary, { launchRodVelocity: 3, deploymentVelocity: 60 });
+    renderWithProviders(<SimSummary sim={flown} />);
+    expect(subOf(/exit$/)).toContain('Below minimum');
+    expect(subOf(/^Deploy speed$/)).toContain('Too fast');
+  });
+
+  it('adds no word to a reading inside the limits', () => {
+    const flown = sim([0, 0, 0], [0, 0, 0]);
+    Object.assign(flown.summary, { launchRodVelocity: 30, deploymentVelocity: 2 });
+    renderWithProviders(<SimSummary sim={flown} />);
+    expect(subOf(/exit$/)).not.toContain('Below minimum');
+    expect(subOf(/^Deploy speed$/)).not.toContain('Too fast');
+  });
+});
+
+/**
+ * Max q·α reads in the Max q figure's pressure unit times the reader's angle
+ * unit, so the two figures beside each other are in the same pressure.
+ */
+describe('SimSummary max q·α', () => {
+  afterEach(() => localStorage.clear());
+
+  it('follows the Max q unit and the angle unit', () => {
+    seedSettings({ unitOverrides: { 'sim.maxQ': 'psi' } });
+    const flown = sim([0, 0, 0], [0, 0, 0]);
+    Object.assign(flown.series, {
+      ρ: [1.2, 1.2, 1.2],
+      Vs: [340, 340, 340],
+      mach: [0, 0.5, 0],
+      aoa: [0, 0.1, 0],
+    });
+    renderWithProviders(<SimSummary sim={flown} />);
+    // q = ½·1.2·170² = 17,340 Pa, times 0.1 rad: 1,734 Pa·rad.
+    const psiDeg = ((1734 / 6894.75729) * 180) / Math.PI;
+    expect(tile('Max q·α')).toBe(fmtNum(psiDeg, 1));
+    expect(screen.getByText('psi·°')).toBeTruthy();
   });
 });

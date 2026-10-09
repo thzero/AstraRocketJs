@@ -2,7 +2,6 @@ import { useMemo } from 'react';
 import { useLauncherT } from '../common/useLauncher';
 import { useWorkspaceStore, selectActive, configOf } from '../../state/store';
 import { primaryMotor } from '../../services/flight/flightConfigs';
-import { useSettings } from '../../state/SettingsProvider';
 import { useUnits } from '../../prefs/useUnits';
 import { designBlocker, designBlockerText, unflyableSims, unflyableText } from '../../services/flight/runnability';
 
@@ -15,7 +14,6 @@ import { designBlocker, designBlockerText, unflyableSims, unflyableText } from '
  */
 export function RunButton({ className = '' }: { className?: string }) {
   const t = useLauncherT();
-  const { settings } = useSettings();
   const units = useUnits();
   // Subscribe to the two stable pieces and derive the list here. Subscribing to
   // `selectRunIds` directly loops forever: it builds a fresh array on every
@@ -67,7 +65,7 @@ export function RunButton({ className = '' }: { className?: string }) {
           has something to press during the 30-second timeout. The same
           button is where anyone would look for the way out. */}
       <button
-        onClick={() => (busy ? cancelRun() : runSims(runIds, settings.simulation))}
+        onClick={() => (busy ? cancelRun() : runSims(runIds))}
         disabled={!busy && (!info || blocked)}
         className={`w-full rounded-lg px-4 py-2.5 text-sm font-semibold text-on-accent disabled:cursor-not-allowed disabled:opacity-50 ${
           busy ? 'bg-prominent hover:bg-prominent-hover' : 'bg-accent-600 hover:bg-accent-500'

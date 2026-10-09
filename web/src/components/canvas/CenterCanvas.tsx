@@ -127,6 +127,7 @@ export function CenterCanvas({
             onSelect={onSelect}
             showMarkers={showMarkers}
             exportData={exportData}
+            onError={setErr}
           />
         </LazyBoundary>
       ) : view === 'flight' ? (
@@ -154,7 +155,9 @@ export function CenterCanvas({
               </LazyBoundary>
               <div className="pointer-events-none absolute inset-x-0 top-5 z-10 flex justify-center">
                 <div className="pointer-events-auto">
-                  <FlightPathExport variant="overlay" />
+                  {/* The flight on screen, which the picker can take from a
+                      row other than the active one. */}
+                  <FlightPathExport variant="overlay" flight={flight} />
                 </div>
               </div>
             </>

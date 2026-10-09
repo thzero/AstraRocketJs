@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { importOrk } from '../../../src/services/files/orkFile';
+import { noteTexts } from '../../testing/importNotes';
 
 /**
  * A file in a format version desktop does not list (one saved by a newer
@@ -10,7 +11,7 @@ import { importOrk } from '../../../src/services/files/orkFile';
 const ork = (attrs: string) =>
   `<?xml version="1.0"?><openrocket ${attrs}><rocket><name>T</name><subcomponents><stage><name>S</name><subcomponents><bodytube><name>B</name><length>0.3</length><radius>0.012</radius><thickness>0.0005</thickness></bodytube></subcomponents></stage></subcomponents></rocket></openrocket>`;
 const versionNote = (attrs: string) =>
-  importOrk(ork(attrs)).notes.find((n) => n.startsWith('Unsupported document version'));
+  noteTexts(importOrk(ork(attrs)).notes).find((n) => n.startsWith('Unsupported document version'));
 
 describe('the .ork format version', () => {
   it('says nothing for a version desktop reads', () => {

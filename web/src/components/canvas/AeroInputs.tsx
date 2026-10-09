@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { NumberInput } from '../common/NumberInput';
 
 /**
@@ -50,7 +52,52 @@ export function Num({
         onChange={(v) => v !== null && onChange(v)}
         className="w-16 rounded-md bg-raised px-1.5 py-0.5 text-right text-[11px] tabular-nums text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500"
       />
-      <span className="text-[10px] text-ink-dim">{unit}</span>
+      <span className="text-[10px] text-ink-faint">{unit}</span>
     </label>
+  );
+}
+
+/**
+ * The Worst button beside the wind direction: writes the angle where the rocket
+ * is least stable into the box.
+ *
+ * The kernel call is wrapped like its neighbors (the sweep and
+ * componentMasses): one that throws (a build without the method, or a
+ * degenerate design) would otherwise throw out of a React event handler and
+ * take the whole pane down. A failure leaves the wind direction as it is and
+ * says so beside the button, so a press always has a visible outcome.
+ */
+export function WorstButton({
+  worst,
+  onWorst,
+}: {
+  /** Computes the worst wind direction (deg); null while there is no rocket. */
+  worst: (() => number) | null;
+  onWorst: (deg: number) => void;
+}) {
+  const { t } = useTranslation();
+  const [failed, setFailed] = useState(false);
+  return (
+    <>
+      <button
+        onClick={() => {
+          if (!worst) return;
+          try {
+            onWorst(worst());
+            setFailed(false);
+          } catch (e) {
+            console.error('worstThetaDeg failed', e);
+            setFailed(true);
+          }
+        }}
+        title={t('aero.worstNote')}
+        className="rounded-md bg-raised px-2 py-0.5 text-[11px] font-medium text-ink ring-1 ring-line/10 hover:bg-elevated"
+      >
+        {t('aero.worst')}
+      </button>
+      <span role="status" className="text-[10px] text-warn-400">
+        {failed ? t('aero.worstFailed') : ''}
+      </span>
+    </>
   );
 }

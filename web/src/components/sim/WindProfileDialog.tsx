@@ -149,7 +149,9 @@ export function WindProfileDialog({
   const nextId = () => rowIds.reduce((m, id) => Math.max(m, id), -1) + 1;
   const reference = launch.windAltitudeReference ?? 'msl';
   // The safety codes judge the wind at the pad, so only the ground layer carries
-  // the ceiling. Lowest altitude, not the first row: the list is not sorted.
+  // the ceiling. Lowest altitude, not the first row: the list is not sorted. It
+  // is the pad wind when the profile starts at the pad; the run gate reads the
+  // profile at the pad itself (padLevelWind).
   const surfaceLevel = levels.length
     ? levels.reduce((lowIdx, l, i) => (l.altitudeM < levels[lowIdx]!.altitudeM ? i : lowIdx), 0)
     : -1;
@@ -261,7 +263,9 @@ export function WindProfileDialog({
               <span className="w-16">
                 {t('launch.speed')} ({u.sym('windspeed')})
               </span>
-              <span className="w-14">{t('launch.direction')} (°)</span>
+              <span className="w-14">
+                {t('launch.direction')} ({u.sym('angle')})
+              </span>
               <span className="w-16">
                 {t('windProfile.deviation')} ({u.sym('windspeed')})
               </span>

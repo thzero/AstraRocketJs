@@ -73,6 +73,7 @@ const DYNAMIC_PREFIXES: string[] = [
   'settings.materialSlot.',
   'settings.themeOption.', // t(`settings.themeOption.${p}`) - the General tab's Theme choices
   'view.', // t(`view.${v}`), t(`view.ruler_${side}`) - ViewToggle, rulers
+  'schematic.tag.', // t(`schematic.tag.${type}`) - TreeSchematic's in-drawing type tags
   'pathExport.fmt.', // t(`pathExport.fmt.${f.id}`) - flight-path export formats
   'pathExport.preset.', // t(`pathExport.preset.${preset.id}`) and `${id}Note`
   'pathExport.doc.', // buildLabels() - the strings the built-in export templates write into the file

@@ -39,8 +39,19 @@ export type SceneColors = Readonly<Record<SceneToken, string>>;
 const UNRESOLVED = '#808080';
 
 let cached: { key: string; colors: SceneColors } | null = null;
+/**
+ * Whether the cached colors may be out of date. `getSnapshot` runs on every
+ * render of every subscriber (the 3D flight path renders about ten times a
+ * second while it plays), and a fresh read forces a style resolution, so the
+ * colors are re-read only after something that can change them: a change the
+ * subscription saw, a new subscription, or a stretch with no subscriber
+ * watching.
+ */
+let stale = true;
+let watchers = 0;
 
 function snapshot(): SceneColors {
+  if (cached && !stale) return cached.colors;
   const style = typeof document === 'undefined' ? null : getComputedStyle(document.documentElement);
   const values = SCENE_TOKENS.map((name) => style?.getPropertyValue(`--c-${name}`).trim() || UNRESOLVED);
   const key = values.join('|');
@@ -48,18 +59,30 @@ function snapshot(): SceneColors {
   if (cached?.key !== key) {
     cached = { key, colors: Object.fromEntries(SCENE_TOKENS.map((n, i) => [n, values[i]!])) as SceneColors };
   }
+  // Trusted only while a subscription is watching for the next change.
+  stale = watchers === 0;
   return cached.colors;
 }
 
 function subscribe(onChange: () => void): () => void {
+  watchers++;
+  // A change made before this observer existed is never delivered to it, and
+  // React reads the snapshot once more right after subscribing: re-read then.
+  stale = true;
+  const changed = () => {
+    stale = true;
+    onChange();
+  };
   const root = document.documentElement;
-  const observer = new MutationObserver(onChange);
+  const observer = new MutationObserver(changed);
   observer.observe(root, { attributes: true, attributeFilter: ['class', 'data-theme', 'style'] });
   const scheme = window.matchMedia?.('(prefers-color-scheme: dark)');
-  scheme?.addEventListener('change', onChange);
+  scheme?.addEventListener('change', changed);
   return () => {
+    watchers--;
+    if (watchers === 0) stale = true;
     observer.disconnect();
-    scheme?.removeEventListener('change', onChange);
+    scheme?.removeEventListener('change', changed);
   };
 }
 

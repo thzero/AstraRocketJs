@@ -8,18 +8,15 @@ name: Gates
 # Order: the engine jobs (parity, reproducible, validate) and the web jobs
 # (build-and-test, e2e) run IN PARALLEL, and the PR is gated on all of them.
 #
-# The web jobs used to wait for parity. The reasoning was that every app test
-# runs against the COMMITTED engine binaries in web/src/engine/vendor/ and
-# web/public/engine/, so if those are stale, a green unit suite is measuring
-# the wrong engine. That is still true, and it is still caught: parity's
-# second step rebuilds the committed binaries and fails on a diff. What the
-# ordering bought was only that the web verdict was never SHOWN before the
-# engine verdict, and it cost 20-60 minutes of parity in front of a 2-minute
-# job, so a PR touching one .tsx file waited on four TeaVM builds to learn it
-# had a type error. Both verdicts are required either way; a red parity beside
-# a green build-and-test is the same "do not merge" as before, one hour
-# sooner. The web jobs still wait on `reproducible` and `validate`, which need
-# no JDK and are seconds, not minutes.
+# The web jobs do not wait for parity. Every app test runs against the
+# COMMITTED engine binaries in web/src/engine/vendor/ and web/public/engine/,
+# so stale binaries make a green unit suite measure the wrong engine; parity's
+# second step catches that by rebuilding them and failing on a diff. Both
+# verdicts are required to merge, so a red parity beside a green
+# build-and-test is still "do not merge", and a PR touching one .tsx file
+# learns about a type error without waiting 20-60 minutes on four TeaVM
+# builds. The web jobs do wait on `reproducible` and `validate`, which need no
+# JDK and take seconds.
 #
 # Callers decide WHEN this runs; this file only says WHAT runs. It has no
 # trigger of its own and cannot be run directly.
@@ -57,21 +54,18 @@ jobs:
     # The Gradle daemon is disabled for CI inside parity.mjs / build-engine.mjs
     # (`--no-daemon` when process.env.CI), NOT here. It has to be on the command
     # line: GRADLE_OPTS is the LOWEST-precedence way to set org.gradle.daemon and
-    # engine-java/gradle.properties (daemon=true) overrides it. Setting it here
-    # was tried and the step still hung. See the note in those scripts.
-    # A backstop, not a budget. This job still runs four TeaVM builds - parity
-    # builds and vendors JS and WASM-GC, then the committed-engine check builds
-    # both targets again - plus a cold Gradle cache save. It no longer
-    # runs the JVM reference twice (see the parity step below). The cap has to
-    # clear all of that on a cold cache with room to spare; 25 did not, and
-    # canceled a job that was working.
+    # engine-java/gradle.properties (daemon=true) overrides it, so setting it
+    # here leaves the daemon running and the step hangs. See the note in those
+    # scripts.
+    # A backstop, not a budget. This job runs four TeaVM builds - parity builds
+    # and vendors JS and WASM-GC, then the committed-engine check builds both
+    # targets again - plus a cold Gradle cache save. The cap has to clear all of
+    # that on a cold cache with room to spare; 25 does not.
     #
-    # This cap is NOT the hang protection it once claimed to be, and it never
-    # was: at 60 minutes it would let a passing check hold a runner for an hour.
-    # The hangs were fixed where they happened - `--no-daemon` for the Gradle
-    # daemon, and, for the one that survived that, moving the TeaVM targets out
-    # of parity.mjs into a killable child. The cap is only a backstop against
-    # something new.
+    # This cap is not the hang protection: at 60 minutes it lets a stuck job
+    # hold a runner for an hour. Hangs are handled where they happen:
+    # `--no-daemon` for the Gradle daemon, the TeaVM targets in a killable child
+    # process, and the step-level cap on the parity step.
     timeout-minutes: 60
     defaults:
       run:
@@ -105,12 +99,10 @@ jobs:
       # running the same scenarios, modulo a small ULP tolerance on
       # transcendentals.
       #
-      # Both targets in one step, which is now the script's default: the JVM
-      # reference is the expensive half and does not depend on the TeaVM target.
-      # As two steps this computed the identical reference twice and threw one
-      # away: measured warm, the two separate runs were 19s + 11s against 10s
-      # for the single run. Each target is still reported on its own line
-      # ("parity ok [js]" / "[wasm]"), so a divergence still says which one
+      # Both targets in one step, the script's default: the JVM reference is
+      # the expensive half and does not depend on the TeaVM target, so two
+      # steps would compute it twice. Each target is reported on its own line
+      # ("parity ok [js]" / "[wasm]"), so a divergence says which one
       # diverged. `npm run parity:js` / `:wasm` narrow it when bisecting one
       # backend.
       # STEP-level cap, deliberately much tighter than the job's. Parity's real
@@ -118,18 +110,10 @@ jobs:
       # minutes it is stuck, not slow, and it should say so here rather than
       # being reported as a mysterious cancellation several minutes later.
       #
-      # This step was instrumented for one run to settle the hang that four
-      # guesses had failed to explain. It answered the narrow question - run
-      # 35267658288 printed every verdict, never reached the `echo` placed
-      # immediately after `node`, and left one orphan: `node`, not `java` - so
-      # the instrumentation is gone again.
-      #
-      # The cause was then MEASURED, on Ubuntu 26.04 / node 22.23.2 rather than
-      # guessed at from a log: a process that has instantiated the WASM-GC
-      # module can no longer exit, by any route, and its event loop stops
-      # turning. parity.mjs used to load the targets into itself. It no longer
-      # does; test/parity/run-target.mjs carries that in a process built to be
-      # killed. Nothing in this file had to change for it.
+      # A process that has instantiated the WASM-GC module cannot exit, by any
+      # route, and its event loop stops turning. So parity.mjs never loads the
+      # targets into itself: test/parity/run-target.mjs runs them in a child
+      # process built to be killed.
       # --expect-lines pins how MANY golden values are checked: without it,
       # dropping emissions from ParityMain and re-recording shrinks the physics
       # gate while it still reports "ok". Change it only with a reason.
@@ -139,10 +123,11 @@ jobs:
 
       # Were the COMMITTED binaries actually built from this source?
       #
-      # Parity above proves JS == WASM == JVM, all built fresh from src/java —
-      # it never reads the two files the app ships, so editing the Java and
-      # forgetting `build-engine.mjs` left CI green while the app ran the old
-      # physics. Hand-editing a vendor file was equally invisible.
+      # Parity above proves JS == WASM == JVM, all built fresh from src/java.
+      # It never reads the two files the app ships, so without this step,
+      # editing the Java and forgetting `build-engine.mjs` leaves CI green while
+      # the app runs the old physics, and a hand-edited vendor file is equally
+      # invisible.
       #
       # Rebuild over the committed artifacts and let git decide: TeaVM output is
       # byte-deterministic here (verified by building twice), so an unchanged
@@ -171,33 +156,31 @@ jobs:
           }
 
   # Can src/java still be REGENERATED from its declared inputs? Parity above
-  # cannot answer that — it builds from src/java and compares the two TeaVM
-  # targets, so it is blind to src/java having drifted from upstream(+patches).
-  # It had: a regeneration produced a tree that did not compile, and the one
-  # tool that checks could not fail (its exit code ignored drift entirely).
+  # cannot answer that: it builds from src/java and compares the two TeaVM
+  # targets, so it is blind to src/java having drifted from upstream(+patches),
+  # which can leave a regeneration that does not compile.
   #
   # Needs no JDK — just node and the pinned OpenRocket source.
   reproducible:
     runs-on: ubuntu-latest
-    # 15 minutes, against the 360-minute default this job used to inherit. The cap
-    # is for a HANG, not for slowness: a Playwright locator waiting on an element
-    # that never appears, a kernel build deadlocking, a fetch with no timeout of
-    # its own. Those used to sit burning runner minutes for six hours with the PR
-    # showing "in progress".
+    # 15 minutes, against the 360-minute default. The cap is for a HANG, not
+    # for slowness: a Playwright locator waiting on an element that never
+    # appears, a kernel build deadlocking, a fetch with no timeout of its own.
+    # Uncapped, those burn runner minutes for six hours with the PR showing
+    # "in progress".
     #
     # 15 and not 10 because `build-and-test` (npm ci plus `verify:ci`) runs close
-    # to 8 minutes. A cap sized just over the work is the mistake T9 records: the
-    # thing that eats the margin is runner load, which a shared runner has.
+    # to 8 minutes. A cap sized just over the work fails on runner load, which a
+    # shared runner has.
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
 
       # The ref lives in engine-java/extract/UPSTREAM and is READ from there,
-      # not copied here. It used to be written out in both places with nothing
-      # comparing them: bump one and forget the other, and either CI checks the
-      # wrong tree and blames ~200 files of "drift", or CI goes green while
-      # UPSTREAM lies and every local `extract:check` reports phantom drift.
-      # They agreed only because someone repinned both by hand.
+      # not copied here. Two copies with nothing comparing them drift: bump one
+      # and forget the other, and either CI checks the wrong tree and blames
+      # ~200 files of "drift", or CI goes green while UPSTREAM lies and every
+      # local `extract:check` reports phantom drift.
       - name: Read the pinned OpenRocket ref
         id: upstream
         run: |
@@ -250,8 +233,7 @@ jobs:
 
   # The aero scorecard, as a RATCHET.
   #
-  # This harness existed and scored the engine against published wind-tunnel
-  # anchors, and nothing ever ran it: a gate that has already failed open. It
+  # This harness scores the engine against published wind-tunnel anchors. It
   # cannot be a pass/fail gate, because the honest current score is 9/135 on the
   # classic model - so it gates on two things that ARE meaningful:
   #
@@ -310,24 +292,23 @@ jobs:
 
       - run: npm ci
 
-      # ONE list, `verify` in web/package.json, run here and locally and by
-      # dev.yml, so the gates cannot drift between them. This job used to spell
-      # the steps out, and it is what was run by hand that drifted: typecheck
-      # and lint were only reached through `npm run build`, and knip was easy
-      # to forget. What the list holds, and why each is there:
+      # ONE list, `gates` in web/package.json, run here and locally and by
+      # dev.yml, so the gates cannot drift between them. `verify` and
+      # `verify:ci` are two endings on it: a gate added to `verify` alone is
+      # not run by CI. Spelling the steps out here instead lets the hand-run
+      # list drift from this one. What the list holds, and why each is there:
       #
-      #   format:check  Formatting, gated at last. It could not be turned on
-      #                 before: with no .gitattributes, a CRLF checkout failed
-      #                 `--check` on every tracked file, so the signal was 100%
-      #                 noise. `.gitattributes` pins LF and `.prettierignore`
-      #                 excludes the generated artifacts (public/docs, the TeaVM
-      #                 output, the synced catalogs), leaving only authored code.
-      #   spell         US English, enforced. The tree had ~380 British spellings
-      #                 before this ran; cspell's en-US dictionary catches a new
-      #                 one, and cspell.json's flagWords make the common ones
-      #                 (the -our, -re and -ise forms) forbidden outright, so no
-      #                 project-words entry can quietly let one back in.
-      #   typecheck     All three tsconfig projects: src, e2e and the config files.
+      #   format:check  Formatting. `.gitattributes` pins LF, without which a
+      #                 CRLF checkout fails `--check` on every tracked file, and
+      #                 `.prettierignore` excludes the generated artifacts
+      #                 (public/docs, the TeaVM output, the synced catalogs),
+      #                 leaving only authored code.
+      #   spell         US English, enforced. cspell's en-US dictionary catches
+      #                 a British spelling, and cspell.json's flagWords make the
+      #                 common ones (the -our, -re and -ise forms) forbidden
+      #                 outright, so no project-words entry can let one in.
+      #   typecheck     All three tsconfig projects: src and tests, e2e, and the
+      #                 build config files (tsconfig.node.json).
       #   lint          ESLint, warnings included.
       #   knip          Dead exports / unimported modules. Cheap, and it only
       #                 stays useful if something runs it.
@@ -345,11 +326,10 @@ jobs:
       # 270 s of coverage instrumentation stays off the command a human types.
       - run: npm run verify:ci
 
-      # Coverage used to be emitted and seen by nobody: `text-summary` scrolled
-      # past in the log and `lcov` was written to a disk that was thrown away
-      # with the runner. The totals go on the run's summary page, where they
-      # are read without opening a log, and the per-line lcov is kept a week
-      # for whoever wants to look at a specific file.
+      # `text-summary` scrolls past in the log and `lcov` is written to a disk
+      # that is thrown away with the runner. The totals go on the run's summary
+      # page, where they are read without opening a log, and the per-line lcov
+      # is kept a week for whoever wants to look at a specific file.
       - name: Coverage totals to the job summary
         if: always()
         run: |
@@ -383,20 +363,19 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
-      # The production build is INSIDE `npm run verify` now, so there is no build
-      # step here: it used to be the only place `vite build` ran, which meant a
-      # change that typechecked and tested clean but broke the build was invisible
-      # to the push gate and to the local pre-push command. `verify` runs `vite
-      # build` directly rather than `npm run build`, because that script is
-      # `typecheck && lint && vite build` and verify has just run both.
+      # The production build is inside `npm run gates`, so there is no build
+      # step here, and the push gate and the local pre-push command both catch
+      # a change that typechecks and tests clean but breaks the build. `gates`
+      # runs `vite build` directly rather than `npm run build`, because that
+      # script is `typecheck && lint && vite build` and `gates` has just run both.
 
   # NOTE: the Docusaurus site is NOT built here. It is gated in deploy.yml
   # on merge to master, where it is built into web/public/docs anyway. The
   # trade-off is deliberate and it is real: a broken docusaurus.config.ts,
-  # sidebars.ts or MDX page is no longer caught before merge, so it surfaces as
+  # sidebars.ts or MDX page is not caught before merge, so it surfaces as
   # a RED MASTER DEPLOY rather than a red PR check, and the fix goes forward on
   # master. Accepted because docs breakage does not ship bad physics or a broken
-  # app, and a PR touching only web/ paid a full `npm ci` + Docusaurus build for
+  # app, and a PR touching only web/ would pay a full `npm ci` + Docusaurus build for
   # a risk it could not introduce.
 
   # The core end-to-end specs: the paths a broken build breaks first (the list is
@@ -495,16 +474,11 @@ jobs:
         working-directory: website
         run: npm ci
 
-      # The in-app Help dialog reads web/public/docs, which is gitignored. With
-      # it absent, help-dialog.spec.ts SKIPPED -- on every CI run there had ever
-      # been -- and the shard still reported green, so the Help dialog had no
-      # automated coverage at all. The spec now FAILS in CI when the docs are
-      # missing, so this step cannot be quietly dropped again.
-      #
-      # Paid once per shard, which is the cost of the docs being a build input
-      # rather than only a published artifact. Both locales, as the deploy
-      # builds them, because the dialog can be opened in either.
-      - name: Build the docs the Help dialog reads
+      # offline-help (the last step) needs the built docs: the in-app Help
+      # dialog reads web/public/docs, which is gitignored, and the check serves
+      # a production build with those docs precached. Both locales, as the
+      # deploy builds them, because the dialog can be opened in either.
+      - name: Build the docs offline-help checks
         run: npm run docs:build
 
       - name: Resolve Playwright version
@@ -528,7 +502,6 @@ jobs:
       - run: npm run e2e:offline-data
 
       # Help with the network off, which is the case the docs are built INTO the
-      # app for: a launch site with no signal. The script existed and no workflow
-      # ran it, so the one promise the precached docs make was unchecked while its
-      # sibling (offline DATA) was gated.
+      # app for: a launch site with no signal. It is the one promise the
+      # precached docs make, gated beside its sibling (offline DATA).
       - run: npm run e2e:offline-help

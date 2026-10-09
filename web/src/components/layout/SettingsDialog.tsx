@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useTabs } from '../common/useTabs';
 import { useTranslation } from 'react-i18next';
 import { useSettings } from '../../state/SettingsProvider';
@@ -8,7 +8,7 @@ import { NumberInput } from '../common/NumberInput';
 import { Dialog } from '../common/Dialog';
 import { DefaultMaterials } from './DefaultMaterials';
 import { LaunchPanel } from '../sim/LaunchPanel';
-import { withRequiredFrom } from '../../services/flight/requiredLaunch';
+import { withRequiredFrom, type CompleteLaunch } from '../../services/flight/requiredLaunch';
 import { IMPERIAL_UNITS, METRIC_UNITS, QUANTITIES, UNITS, unitScope } from '../../prefs/units';
 import { useUnits } from '../../prefs/useUnits';
 import { onSi } from '../../prefs/entryValue';
@@ -18,6 +18,9 @@ import { DialogButton } from '../common/DialogButton';
 import { canAskWhereToSave } from '../../services/files/saveFile';
 import { SPEED_WARNINGS } from '../sim/speedWarnings';
 import { THEME_PREFS, type ThemePref } from '../../services/app/theme';
+import { confirm } from '../../state/confirmStore';
+import { fireAction } from '../../state/fireAction';
+import { seedFromInput } from '../../services/flight/simulations';
 
 const SPEEDS = [0.25, 0.5, 1, 2, 4];
 const speedLabel = (s: number) => (s === 0.25 ? '¼×' : s === 0.5 ? '½×' : `${s}×`);
@@ -64,6 +67,15 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
     update({ phaseColors: { ...settings.phaseColors, [k]: c } });
   const setSim = (patch: Partial<SimulationSettings>) => update({ simulation: { ...settings.simulation, ...patch } });
   const overriddenFields = Object.keys(settings.unitOverrides).length;
+  // Every tab at once, and no undo: asked first.
+  const resetAll = async () => {
+    const ok = await confirm({
+      message: t('settings.resetAllConfirm'),
+      confirmLabel: t('settings.resetAll'),
+      danger: true,
+    });
+    if (ok) reset();
+  };
 
   const resetSection = () => {
     if (tab === 'general')
@@ -118,7 +130,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
               {t('settings.resetTab', { name: t(TABS.find((x) => x.key === tab)!.label) })}
             </button>
             <button
-              onClick={reset}
+              onClick={() => fireAction(resetAll())}
               className="rounded-lg bg-raised px-3 py-2 text-xs font-medium text-ink-soft ring-1 ring-line/10 hover:bg-elevated"
             >
               {t('settings.resetAll')}
@@ -154,7 +166,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
                 overridden={key in settings.partColors}
                 onChange={(c) => setPart(key, c)}
                 onReset={() => resetPart(key)}
-                resetTitle={t('settings.resetOne')}
+                resetTitle={t('settings.resetOneFor', { name: t(`settings.part.${key}`) })}
               />
             ))}
             {/* Taste, not correctness: the default is a magnitude ramp, and
@@ -343,8 +355,8 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
             <div className="pt-1 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
               {t('settings.simOptions')}
             </div>
-            <InfoRow label={t('settings.calcMethod')} value="Extended Barrowman" />
-            <InfoRow label={t('settings.simMethod')} value="6-DOF Runge-Kutta 4" />
+            <InfoRow label={t('settings.calcMethod')} value={t('settings.calcMethodValue')} />
+            <InfoRow label={t('settings.simMethod')} value={t('settings.simMethodValue')} />
             <NumRow
               label={t('settings.timeStep')}
               unit="s"
@@ -381,7 +393,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
               step={1}
               placeholder={t('settings.seedAuto')}
               value={settings.simulation.randomSeed}
-              onChange={(v) => setSim({ randomSeed: v })}
+              onChange={(v) => setSim({ randomSeed: seedFromInput(v) })}
             />
             <div className="pt-1 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
               {t('settings.warnings')}
@@ -441,22 +453,54 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
                   a required field here keeps what it had rather than storing
                   the blank, which is why no red marker ever shows up in this
                   copy of the panel. */}
-            <LaunchPanel
-              weatherKey
-              launch={settings.launchDefaults}
-              onChange={(patch) =>
-                update({
-                  launchDefaults: withRequiredFrom(
-                    { ...settings.launchDefaults, ...patch },
-                    DEFAULT_SETTINGS.launchDefaults,
-                  ),
-                })
-              }
-            />
+            <LaunchDefaults launch={settings.launchDefaults} onSave={(launchDefaults) => update({ launchDefaults })} />
           </>
         )}
       </div>
     </Dialog>
+  );
+}
+
+/**
+ * The launch defaults, held as a draft while a field is being typed in and
+ * written when the panel commits (a field's blur, or at once for a discrete
+ * control). A settings write hits storage, and a write per keystroke would also
+ * store every intermediate prefix as the default for new simulations.
+ */
+function LaunchDefaults({ launch, onSave }: { launch: CompleteLaunch; onSave: (l: CompleteLaunch) => void }) {
+  const [draft, setDraft] = useState<CompleteLaunch | null>(null);
+  const shown = draft ?? launch;
+  const pending = useRef<CompleteLaunch | null>(null);
+  const save = useRef(onSave);
+  useEffect(() => {
+    save.current = onSave;
+  });
+  const flush = () => {
+    if (!pending.current) return;
+    save.current(pending.current);
+    pending.current = null;
+    setDraft(null);
+  };
+  // Closing the dialog mid-edit unmounts the field without a blur.
+  useEffect(
+    () => () => {
+      if (pending.current) save.current(pending.current);
+    },
+    [],
+  );
+  return (
+    <LaunchPanel
+      weatherKey
+      launch={shown}
+      onChange={(patch) => {
+        // From the pending draft, not the rendered one: two patches can land
+        // before the next render.
+        const next = withRequiredFrom({ ...(pending.current ?? shown), ...patch }, DEFAULT_SETTINGS.launchDefaults);
+        pending.current = next;
+        setDraft(next);
+      }}
+      onCommit={flush}
+    />
   );
 }
 

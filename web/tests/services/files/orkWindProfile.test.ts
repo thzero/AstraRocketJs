@@ -163,3 +163,23 @@ describe('multilevel wind profile round-trips through .ork', () => {
     expect(exportOrk({ name: 'Wind', tree, launch: base })).toContain('<windturbulence>0.1</windturbulence>');
   });
 });
+
+describe('a negative wind speed in a file', () => {
+  it('reads as the wind the kernel flies', () => {
+    const back = roundTrip({
+      ...base,
+      windAverage: -3,
+      windModelType: 'multilevel',
+      windLevels: [
+        { altitudeM: 0, speed: -4, directionDeg: 90, stddev: 0 },
+        { altitudeM: 500, speed: 6, directionDeg: 45, stddev: 0 },
+      ],
+    } as LaunchConditions);
+    // The average flies at its magnitude from the stated heading.
+    expect(back?.windAverage).toBeCloseTo(3, 9);
+    // A level flies from the opposite heading (MultiLevelPinkNoiseWindModel.addWindLevel).
+    expect(back?.windLevels?.[0]?.speed).toBeCloseTo(4, 9);
+    expect(back?.windLevels?.[0]?.directionDeg).toBeCloseTo(270, 9);
+    expect(back?.windLevels?.[1]?.speed).toBeCloseTo(6, 9);
+  });
+});

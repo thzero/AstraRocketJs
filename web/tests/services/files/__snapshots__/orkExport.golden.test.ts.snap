@@ -2514,13 +2514,14 @@ exports[`golden .ork export > writes every configuration, block and component ty
         <launchlatitude>39.5</launchlatitude>
         <launchlongitude>-104.7</launchlongitude>
         <geodeticmethod>wgs84</geodeticmethod>
-        <gravitymodel>Constant</gravitymodel>
-        <constantgravity>9.8</constantgravity>
         <atmosphere model="extendedisa">
           <basetemperature>298.15</basetemperature>
           <basepressure>101325</basepressure>
           <baserelativehumidity>0.4</baserelativehumidity>
         </atmosphere>
+        <gravity model="constant">
+          <value>9.8</value>
+        </gravity>
         <timestep>0.05</timestep>
         <maxtime>1200.0</maxtime>
       </conditions>
@@ -2764,8 +2765,18 @@ exports[`golden .ork import > reads the kitchen-sink export back into the same r
   },
   "name": "Kitchen sink",
   "notes": [
-    "Motor G80: plugged (no ejection charge) — make sure recovery deploys on apogee/altitude, not the ejection charge.",
-    "2 components in this design (Centering Ring, Launch Lug) repeat as multiple instances. The file keeps every instance, but the drawing and the simulation currently show one.",
+    {
+      "key": "importNote.motorPlugged",
+      "values": {
+        "motor": "G80",
+      },
+    },
+    {
+      "key": "importNote.instanced",
+      "values": {
+        "names": "Centering Ring, Launch Lug",
+      },
+    },
   ],
   "simulations": [
     {

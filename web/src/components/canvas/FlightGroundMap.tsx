@@ -9,6 +9,7 @@ import {
   type TileRef,
   type TileSourceId,
 } from '../../services/map/slippyMap';
+import { sceneFromEnu } from './flightScene';
 
 /**
  * Aerial imagery laid on the 3D view's ground plane.
@@ -64,7 +65,8 @@ export interface GroundMapProps {
 /** One tile, and where its quad sits in the scene. */
 export interface GroundQuad extends TileRef {
   url: string;
-  /** Quad center, in scene units: +east is +x, +north is +z, as the arc uses. */
+  /** Quad center, in scene units east and north of the pad. Placed in the
+   *  scene through `sceneFromEnu`, as the arc is, so both share one basis. */
   east: number;
   north: number;
 }
@@ -74,7 +76,7 @@ export interface GroundQuad extends TileRef {
  *
  * The pad is both the tile viewport's center and the scene's origin, so a
  * tile's offset in tile pixels converts straight to meters and then to scene
- * units. Pixel y grows south while the scene's +z is north, which is the one
+ * units. Pixel y grows south while `north` grows north, which is the one
  * subtraction that runs the other way - and the one mistake here that would
  * still look like a perfectly good map.
  *
@@ -109,6 +111,22 @@ export function groundMapLayout(
       north: (half - (tile.top + TILE_SIZE / 2)) * mpp * unitsPerMeter,
     })),
   };
+}
+
+/** A tile quad laid flat: rotated -90° about x, its own +y points to -z. */
+export const GROUND_ROTATION: [number, number, number] = [-Math.PI / 2, 0, 0];
+
+/**
+ * A tile texture as the ground quad needs it.
+ *
+ * The image's top row is north. With the default `flipY` the top row maps to
+ * the quad's +y, which `GROUND_ROTATION` turns to -z, and -z is north in the
+ * scene's basis (`sceneFromEnu`), so the default is the right one. Turning the
+ * flip off would mirror the ground north for south: a map that looks entirely
+ * plausible and is wrong.
+ */
+export function configureTileTexture(tex: THREE.Texture): void {
+  tex.flipY = true;
 }
 
 export function FlightGroundMap({
@@ -154,11 +172,7 @@ export function FlightGroundMap({
             tex.dispose();
             return;
           }
-          // The image's top row is north. A plane laid flat by rotating -90°
-          // about x sends its own +y to -z (south), so the default flip would
-          // mirror the ground north for south - a map that looks entirely
-          // plausible and is wrong.
-          tex.flipY = false;
+          configureTileTexture(tex);
           tex.colorSpace = THREE.SRGBColorSpace;
           // One tile is one quad and is never minified far, so mipmaps would be
           // memory spent on levels nothing samples.
@@ -196,7 +210,7 @@ export function FlightGroundMap({
         const tex = loaded.of === layer ? loaded.texes[ref.key] : undefined;
         if (!tex) return null;
         return (
-          <mesh key={ref.key} position={[ref.east, 0, ref.north]} rotation={[-Math.PI / 2, 0, 0]}>
+          <mesh key={ref.key} position={sceneFromEnu(ref.east, 0, ref.north)} rotation={GROUND_ROTATION}>
             <planeGeometry args={[layer.quad, layer.quad]} />
             {/* Unlit, so the imagery is the color it actually is rather than
                 whatever the scene's two lights would make of it. */}

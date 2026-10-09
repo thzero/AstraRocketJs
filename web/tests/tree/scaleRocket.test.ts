@@ -274,3 +274,21 @@ describe('hasExplicitMass', () => {
     expect(hasExplicitMass(bare)).toBe(true);
   });
 });
+
+describe('rocketLength with a member that has no length', () => {
+  it('counts it at the kernel length for its type, as it is drawn and flown', () => {
+    const tree = {
+      components: [
+        {
+          type: 'stage',
+          children: [
+            { type: 'nosecone', length: 0.1 },
+            { type: 'bodytube', outerRadius: 0.02 },
+          ],
+        },
+      ],
+    } as unknown as RocketTree;
+    // KERNEL_DEFAULTS.bodytube.length is 0.3.
+    expect(rocketLength(tree)).toBeCloseTo(0.4, 12);
+  });
+});

@@ -1,7 +1,11 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { fireEvent, screen } from '@testing-library/react';
-import { forgetLandingEstimator, LandingEstimator } from '../../../src/components/tools/LandingEstimator';
+import {
+  forgetLandingEstimator,
+  LandingEstimator,
+  minutesSeconds,
+} from '../../../src/components/tools/LandingEstimator';
 import { renderWithProviders } from '../../testing/renderWithProviders';
 import { answer } from '../../testing/openMeteoFixture';
 import { resetWeatherState, setWeatherTransport } from '../../../src/services/weather/openMeteo';
@@ -57,5 +61,13 @@ describe('LandingEstimator', () => {
       screen.getByText(/^An estimate from typed descent rates\. The zone covers 135 descents: 5 forecast hours/),
     ).toBeTruthy();
     expect(screen.getByRole('link', { name: 'CC BY 4.0' })).toBeTruthy();
+  });
+});
+
+describe('the descent time', () => {
+  it('rounds to the second before splitting, so a minute never reads :60', () => {
+    expect(minutesSeconds(119.6)).toBe('2:00');
+    expect(minutesSeconds(59.5)).toBe('1:00');
+    expect(minutesSeconds(65.2)).toBe('1:05');
   });
 });

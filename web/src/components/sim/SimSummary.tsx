@@ -228,6 +228,7 @@ export function SimSummary({ sim }: { sim: FlightResult | null }) {
           // The threshold is stored in SI, so the comparison stays in SI;
           // only the number on screen changes unit.
           tone={s.launchRodVelocity >= railExitVelocityMin ? goodTone : warnTone}
+          status={s.launchRodVelocity >= railExitVelocityMin ? undefined : t('limits.belowMin')}
         />
         {railMargin != null && (
           <Stat
@@ -237,7 +238,7 @@ export function SimSummary({ sim }: { sim: FlightResult | null }) {
             sub={
               railCp != null ? (
                 <>
-                  {t('stability.caliber')} · CP {railCpUnit.fmt(railCp)}{' '}
+                  {t('stability.caliber')} · {t('flight.cp')} {railCpUnit.fmt(railCp)}{' '}
                   <UnitChip label={t('sim.railMargin')} quantity="length" scope={unitScope('sim', 'railCp')} />
                 </>
               ) : (
@@ -245,6 +246,9 @@ export function SimSummary({ sim }: { sim: FlightResult | null }) {
               )
             }
             tone={stabilityTone(railMargin)}
+            status={t(
+              railMargin >= 1 ? 'stability.stable' : railMargin >= 0 ? 'stability.marginal' : 'stability.unstable',
+            )}
           />
         )}
         {s.optimumDelay != null && <Stat card label={t('sim.optDelay')} value={fmtNum(s.optimumDelay, 1)} sub="s" />}
@@ -269,6 +273,7 @@ export function SimSummary({ sim }: { sim: FlightResult | null }) {
               />
             }
             tone={s.deploymentVelocity < deploymentSpeedWarn ? goodTone : warnTone}
+            status={s.deploymentVelocity < deploymentSpeedWarn ? undefined : t('limits.tooFast')}
           />
         )}
         {Number.isFinite(s.groundHitVelocity) && (
@@ -300,7 +305,7 @@ export function SimSummary({ sim }: { sim: FlightResult | null }) {
           value={maxSpeed.fmt(s.maxVelocity)}
           sub={<UnitChip label={t('sim.maxSpeed')} quantity="velocity" scope={unitScope('sim', 'maxSpeed')} />}
         />
-        <Stat card label={t('sim.maxMach')} value={fmtNum(s.maxMachNumber, 2)} sub="Mach" />
+        <Stat card label={t('sim.maxMach')} value={fmtNum(s.maxMachNumber, 2)} sub={t('flight.mach')} />
         {/* The number that decides whether the airframe holds together, which
             is why it sits with the other peaks rather than only in the events
             table. Both read the same figure and share the one unit scope, so
@@ -314,14 +319,15 @@ export function SimSummary({ sim }: { sim: FlightResult | null }) {
           />
         )}
         {/* The side load on the airframe scales with q·α, so it is the figure a
-            fin or a coupler is judged against. Pa·rad shown as kPa·°: a product
-            of two units has no single preference to follow. */}
+            fin or a coupler is judged against. It is shown in the Max q
+            figure's pressure unit times the reader's angle unit, so the two
+            read in the same pressure. */}
         {peakQAlpha && (
           <Stat
             card
             label={t('sim.maxQAlpha')}
-            value={fmtNum((peakQAlpha.value * 180) / Math.PI / 1000, 1)}
-            sub="kPa·°"
+            value={fmtNum(maxQUnit.toUi(peakQAlpha.value) * u.factor('angle'), 1)}
+            sub={`${maxQUnit.sym}·${u.sym('angle')}`}
           />
         )}
         {peakRoll != null && (

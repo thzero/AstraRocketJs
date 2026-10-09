@@ -9,6 +9,10 @@ import { useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
  */
 export function useChartCrosshair(t0: number, t1: number) {
   const [hoverT, setHoverT] = useState<number | null>(null);
+  // Where the keyboard last put the crosshair: what the chart's live region
+  // reads out. Pointer moves never set it, so hovering with a screen reader
+  // running does not queue an announcement per mouse sample.
+  const [keyT, setKeyT] = useState<number | null>(null);
   const clampT = (v: number) => Math.max(t0, Math.min(t1, v));
 
   /** Arrow-key crosshair. Time is continuous here, so it steps by span. */
@@ -23,13 +27,18 @@ export function useChartCrosshair(t0: number, t1: number) {
     else if (e.key === 'End') next = t1;
     else if (e.key === 'Escape') {
       setHoverT(null);
+      setKeyT(null);
       return;
     } else return;
     e.preventDefault(); // arrows would otherwise scroll the pane
     setHoverT(clampT(next));
+    setKeyT(clampT(next));
   };
   const onFocus = () => setHoverT((h) => h ?? (t0 + t1) / 2);
-  const onBlur = () => setHoverT(null);
+  const onBlur = () => {
+    setHoverT(null);
+    setKeyT(null);
+  };
 
-  return { hoverT, setHoverT, clampT, onKeyDown, onFocus, onBlur };
+  return { hoverT, keyT, setHoverT, clampT, onKeyDown, onFocus, onBlur };
 }

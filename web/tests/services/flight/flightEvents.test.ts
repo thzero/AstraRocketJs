@@ -219,4 +219,21 @@ describe('q·α and roll rate', () => {
     expect(forwardFlightEnd({ events: [], summary: { timeToApogee: 7 } })).toBe(7);
     expect(forwardFlightEnd({ events: [] })).toBe(Infinity);
   });
+
+  it('does not end forward flight at a booster charge before the sustainer burns', () => {
+    // A two-stage flight: the booster's 0 s charge lands in the sustainer
+    // branch at booster burnout, long before the sustainer's apogee.
+    const staged = {
+      events: [
+        { type: 'BURNOUT', time: 1.6 },
+        { type: 'EJECTION_CHARGE', time: 1.6 },
+        { type: 'STAGE_SEPARATION', time: 1.6 },
+        { type: 'IGNITION', time: 1.6 },
+        { type: 'APOGEE', time: 12 },
+        { type: 'RECOVERY_DEVICE_DEPLOYMENT', time: 13 },
+      ],
+    };
+    expect(forwardFlightEnd(staged)).toBe(13);
+    expect(forwardFlightEnd({ events: staged.events.slice(0, 5) })).toBe(12);
+  });
 });

@@ -497,6 +497,32 @@ describe('rocketSideView: off-axis assemblies', () => {
     }
   });
 
+  it('places a pod set attached to the stage from the axis, as the kernel does', () => {
+    // RadiusMethod.RELATIVE adds the parent radius only for a body tube parent.
+    const sv = rocketSideView({
+      name: 'stage pods',
+      components: [
+        node({
+          type: 'stage',
+          children: [
+            node({ type: 'bodytube', length: 0.4, outerRadius: CORE_R }),
+            node({
+              type: 'podset',
+              instanceCount: 2,
+              radiusOffset: 0.03,
+              children: [node({ type: 'bodytube', length: 0.2, outerRadius: POD_R })],
+            }),
+          ],
+        }),
+      ],
+    } as unknown as RocketTree);
+    const centers = sv.pods.map((p) => {
+      const ys = p.map(([, y]) => y);
+      return (Math.max(...ys) + Math.min(...ys)) / 2;
+    });
+    expect(Math.max(...centers)).toBeCloseTo((0.03 + POD_R) * 1000, 6);
+  });
+
   it('grows the drawing height to fit the boosters', () => {
     const withPods = rocketSideView(boosters());
     const bare = rocketSideView({

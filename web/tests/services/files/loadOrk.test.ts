@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { noteTexts } from '../../testing/importNotes';
 
 /**
  * A `.ork` names a motor. If we cannot produce that motor, the mount must end
@@ -76,8 +77,8 @@ describe('loadOrk when the thrust-curve download fails', () => {
   it('says so in the import notes, naming the mount as unflyable', async () => {
     fetchMotorSpec.mockRejectedValue(new Error('network down'));
     const loaded = await loadOrk(new ArrayBuffer(0));
-    expect(loaded.notes.join(' ')).toMatch(/K550/);
-    expect(loaded.notes.join(' ')).toMatch(/won't fly a default/i);
+    expect(noteTexts(loaded.notes).join(' ')).toMatch(/K550/);
+    expect(noteTexts(loaded.notes).join(' ')).toMatch(/won't fly a default/i);
   });
 
   it('still seats the real motor when the download succeeds', async () => {

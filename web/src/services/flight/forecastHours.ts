@@ -8,6 +8,7 @@ import { landingPoint, type GroundPoint } from './groundTrack';
 import type { CompleteLaunch } from './requiredLaunch';
 import { freshSeed, simConditions, type SimPrefs } from './simulations';
 import { flightBranches } from './flightColumns';
+import { launchLimitViolations, type LimitViolation } from './safetyLimits';
 
 /**
  * How a designed rocket's landing moves over the hours around the forecast its
@@ -23,10 +24,23 @@ export interface HourLanding {
   validMs: number;
   /** One landing per flight branch (stage), meters east and north of the pad. */
   landings: (GroundPoint | null)[];
+  /**
+   * How that hour's conditions fall outside the safety codes. Such an hour is
+   * not flown and has no landings, the same refusal a run and a wind sweep make.
+   */
+  outsideLimits?: LimitViolation[];
 }
 
 /**
- * Fly each hour. Hours the held forecast does not cover are left out. The
+ * Why an hour was not flown: one i18n key per safety code it breaks, empty
+ * for an hour that flew.
+ */
+export const refusalKeys = (h: HourLanding): string[] =>
+  (h.outsideLimits ?? []).map((v) => (v.field === 'windSpeed' ? 'env.landing.overWind' : 'env.landing.overRodAngle'));
+
+/**
+ * Fly each hour. Hours the held forecast does not cover are left out, and an
+ * hour outside the safety codes is listed without flying it. The
  * same random seed for every hour, so turbulence does not pass for the wind
  * changing. Throws `WeatherError` if the forecast cannot be had; rejects if
  * `signal` aborts.
@@ -74,6 +88,12 @@ export async function flyForecastHours(
         source.elevationApplied ? { launchAltitudeM: variant.elevationM } : undefined,
       );
       const { weatherSource: _source, ...launch } = { ...q.launch, ...patch } as CompleteLaunch;
+      const validMs = sample.unix * 1000;
+      const outsideLimits = launchLimitViolations(launch);
+      if (outsideLimits.length) {
+        q.onProgress?.(++done, hours.length);
+        return { offset, validMs, landings: [], outsideLimits };
+      }
       const result = await simulateInWorker(
         {
           tree: q.tree,
@@ -84,7 +104,7 @@ export async function flyForecastHours(
       );
       const branches = flightBranches(result);
       q.onProgress?.(++done, hours.length);
-      return { offset, validMs: sample.unix * 1000, landings: branches.map((b) => landingPoint(b.series)) };
+      return { offset, validMs, landings: branches.map((b) => landingPoint(b.series)) };
     }),
   );
   return out.sort((a, b) => a.offset - b.offset);

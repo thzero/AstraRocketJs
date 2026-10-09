@@ -20,7 +20,7 @@
  *   same profile the engine then flies.
  */
 import type { ComponentNode } from '../engine/openRocketEngine';
-import { KERNEL_SHAPES } from './kernelDefaults';
+import { KERNEL_DEFAULTS, KERNEL_SHAPES } from './kernelDefaults';
 import { num, numOpt } from './nodeProps';
 
 const MINFEATURE = 0.001;
@@ -256,6 +256,22 @@ export function nodeShape(node: ComponentNode): string {
 }
 
 /**
+ * A nose cone's or transition's radius at its fore and aft ends (m), the pair
+ * every profile reader passes to {@link outerProfile}.
+ *
+ * A nose cone runs from its tip to its base, and `aftRadius` holds the base.
+ * Flipped, it is a tail cone: the kernel moves the base to the fore end
+ * (`NoseCone.setFlipped`), so the profile runs from the base down to the tip.
+ */
+export function profileEnds(node: ComponentNode): { fore: number; aft: number } {
+  if (node.type === 'nosecone') {
+    const base = num(node, 'aftRadius', KERNEL_DEFAULTS.nosecone.aftRadius);
+    return node['flipped'] === true ? { fore: base, aft: 0 } : { fore: 0, aft: base };
+  }
+  return { fore: num(node, 'foreRadius'), aft: num(node, 'aftRadius') };
+}
+
+/**
  * The outer radius of a symmetric component at one station along it, in meters.
  *
  * `SymmetricComponent.getRadius(x)`: a tube is one radius end to end, a nose
@@ -273,9 +289,8 @@ export function stationRadius(node: ComponentNode, x: number): number {
   switch (node.type) {
     case 'nosecone':
     case 'transition': {
-      const foreR = node.type === 'nosecone' ? 0 : num(node, 'foreRadius');
-      const aftR = num(node, 'aftRadius');
-      if (!(length > 0)) return aftR;
+      const { fore: foreR, aft: aftR } = profileEnds(node);
+      if (!(length > 0)) return Math.max(foreR, aftR);
       const clipped = typeof node['clipped'] === 'boolean' ? node['clipped'] : undefined;
       const at = Math.max(0, Math.min(length, x));
       const pts = outerProfile(nodeShape(node), numOpt(node, 'shapeParameter'), length, foreR, aftR, 1, [at], clipped);

@@ -135,6 +135,13 @@ describe('parseRse, the mass and CG columns', () => {
     expect(m!.cgMm).toBe(93);
   });
 
+  it('refuses a negative sample mass, as ThrustCurveMotor does', () => {
+    expect(() => parseRse(rse(ATTRS, DATA.replace('m="150"', 'm="-5"')))).toThrow(/negative mass/);
+    // A recomputed column is never used, so its values do not matter.
+    const auto = ATTRS.replace('auto-calc-mass="0"', 'auto-calc-mass="1"');
+    expect(parseRse(rse(auto, DATA.replace('m="150"', 'm="-5"')))[0]!.massesG).toBeUndefined();
+  });
+
   it('drops a column the file asks to have recomputed', () => {
     const auto = parseRse(
       rse(

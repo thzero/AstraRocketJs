@@ -1,7 +1,7 @@
 import type { OrkImportResult } from './orkTypes';
 import { importOrk } from './orkFile';
 import { importRkt } from './rktImport';
-import { decodeFileText } from './decodeText';
+import { assertImportSize, decodeFileText } from './decodeText';
 
 /**
  * Which design format a file is, decided from its bytes rather than its name.
@@ -49,6 +49,8 @@ export function sniffDesignFormat(data: ArrayBuffer | string): DesignFormat | nu
  * picking a `.rkt`.
  */
 export function parseDesignFile(data: ArrayBuffer | string): OrkImportResult {
+  // Bytes are held to the cap as they are decoded; text arrives already decoded.
+  if (typeof data === 'string') assertImportSize(data.length);
   const format = sniffDesignFormat(data);
   if (format === 'rkt') return importRkt(data);
   if (format === 'ork') return importOrk(data);

@@ -177,6 +177,27 @@ describe('ExportDialog', () => {
     expect(downloadReportPdf).not.toHaveBeenCalled();
   });
 
+  // The run resolves on a timeout, a refusal or a cancel rather than rejecting,
+  // with the previous numbers still in place.
+  it.each(['failed', 'skipped', 'canceled', 'dropped', 'busy'])(
+    'writes no PDF when the simulation comes back %s',
+    async (outcome) => {
+      useWorkspaceStore.setState({ runSim: async () => outcome } as never);
+      open();
+      fireEvent.click(screen.getByRole('button', { name: 'Save as PDF' }));
+      // Busy until the save settles, so the button reads "Save as PDF" again only then.
+      await screen.findByRole('button', { name: 'Save as PDF' });
+      expect(downloadReportPdf).not.toHaveBeenCalled();
+    },
+  );
+
+  it('writes the PDF once the simulation has landed', async () => {
+    useWorkspaceStore.setState({ runSim: async () => 'landed' } as never);
+    open();
+    fireEvent.click(screen.getByRole('button', { name: 'Save as PDF' }));
+    await waitFor(() => expect(downloadReportPdf).toHaveBeenCalledTimes(1));
+  });
+
   it('does not close on the overlay or Escape while the export is running', async () => {
     // A run that never finishes keeps the dialog busy for the whole test.
     useWorkspaceStore.setState({ runSim: () => new Promise<void>(() => {}) } as never);
@@ -187,5 +208,37 @@ describe('ExportDialog', () => {
     fireEvent.click(document.querySelector('.dialog-overlay')!);
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(onClose).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * The report's background run must leave the workbench where it was: the run
+ * itself moves the view to Flight and the tab to Results.
+ */
+describe('ExportDialog background run', () => {
+  it('puts the view, the tab and the design pane back after the run', async () => {
+    useWorkspaceStore.setState({ view: '3d', tab: 'design', designPane: 'stats' } as never);
+    useWorkspaceStore.setState({
+      runSim: async () => {
+        useWorkspaceStore.setState({ view: 'flight', tab: 'results' } as never);
+        return 'landed';
+      },
+    } as never);
+    open();
+    fireEvent.click(screen.getByRole('button', { name: 'Save as PDF' }));
+    await waitFor(() => expect(downloadReportPdf).toHaveBeenCalledTimes(1));
+    const s = useWorkspaceStore.getState();
+    expect([s.view, s.tab, s.designPane]).toEqual(['3d', 'design', 'stats']);
+  });
+});
+
+/** A label binds to one control: the fill checkbox and its color are two. */
+describe('ExportDialog print settings labels', () => {
+  it('names the fill color input and keeps the fill label on the checkbox alone', () => {
+    open();
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+    const fill = screen.getByRole('checkbox', { name: 'Template fill color' });
+    expect(fill.closest('label')).toBeNull();
+    expect(screen.getByLabelText('Choose the fill color').getAttribute('type')).toBe('color');
   });
 });

@@ -7,7 +7,7 @@ import { UnitChip } from '../common/UnitChip';
 import { useUnits, type FieldUnit } from '../../prefs/useUnits';
 import { clampEntry } from '../../prefs/entryValue';
 import { unitScope, type Quantity } from '../../prefs/units';
-import { MAX_FIN_COUNT, MAX_INSTANCE_COUNT, num, str } from '../../tree/nodeProps';
+import { MAX_CANT, MAX_FIN_COUNT, MAX_INSTANCE_COUNT, num, str } from '../../tree/nodeProps';
 import { clusterCount } from '../../tree/cluster';
 import { shapeIsClippable, shapeParamMax, shapeUsesParameter } from '../../tree/shapeProfile';
 import { FIELDS, type Field, type PanelSection } from '../../services/design/componentFields';
@@ -294,14 +294,18 @@ export function FieldRow({
     onChange: (v: number) => void;
   }) => <NumberField label={label} required={f.required} onCommit={onCommit} {...props} />;
   /** The field's own stored SI number, edited in its unit with a unit chip. */
-  const inUnit = (quantity: Quantity, stepSi: number, min?: (fu: FieldUnit) => number) => {
+  const inUnit = (quantity: Quantity, stepSi: number, min?: (fu: FieldUnit) => number, maxSi?: number) => {
     const fu = u.at(scope, quantity);
     return numeric({
       unit: <UnitChip quantity={quantity} scope={scope} />,
       value: fu.toUi(num(node, f.key)),
       step: fu.step(stepSi),
       min: min?.(fu),
-      onChange: (v) => patchNumber({ [f.key]: fu.toSi(v) }),
+      max: maxSi === undefined ? undefined : fu.toUi(maxSi),
+      onChange: (v) => {
+        const si = fu.toSi(v);
+        patchNumber({ [f.key]: si === null || maxSi === undefined ? si : Math.max(-maxSi, Math.min(maxSi, si)) });
+      },
     });
   };
 
@@ -385,7 +389,11 @@ export function FieldRow({
     case 'angle':
       // Stored in radians (kernel/.ork convention), edited in the user's unit.
       // Half a turn either way, in whatever unit is selected: a fixed -180
-      // would clamp a radian entry to well inside its legal range.
+      // would clamp a radian entry to well inside its legal range. Fin cant
+      // stops at the kernel's +/-15 deg, which is where the desktop spinner stops.
+      if (f.key === 'cant') {
+        return inUnit('angle', ((f.step ?? 5) * Math.PI) / 180, (fu) => -fu.toUi(MAX_CANT), MAX_CANT);
+      }
       return inUnit('angle', ((f.step ?? 5) * Math.PI) / 180, (fu) => -fu.toUi(Math.PI));
     case 'bore': {
       // A tube's inner diameter, which is not stored: the node and the `.ork`
