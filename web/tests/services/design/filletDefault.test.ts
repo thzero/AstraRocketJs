@@ -20,7 +20,7 @@ describe('withFilletDefault', () => {
       filletDensity: DEFAULT_FILLET_MATERIAL.density,
       filletMaterialGroup: DEFAULT_FILLET_MATERIAL.group,
     });
-    expect(withFilletDefault(fin({ filletRadius: 0 }), { filletRadius: 0.005 }).filletDensity).toBe(1500);
+    expect(withFilletDefault(fin({ filletRadius: 0 }), { filletRadius: 0.005 }).filletDensity).toBe(1180);
   });
 
   it('leaves a fillet that is only being resized', () => {

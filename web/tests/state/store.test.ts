@@ -1639,7 +1639,7 @@ describe('a new fin fillet', () => {
     s().patchSelected({ filletRadius: 0.004 });
     s().commitEdit();
     const fin = findNode(s().tree, 'fins')!;
-    expect(fin['filletMaterialName']).toBe('Epoxy - RocketPoxy G5000');
-    expect(fin['filletDensity']).toBe(1500);
+    expect(fin['filletMaterialName']).toBe('Epoxy - West System Six10');
+    expect(fin['filletDensity']).toBe(1180);
   });
 });

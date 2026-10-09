@@ -9,7 +9,7 @@ so most entries describe getting a computation to match OpenRocket exactly.
 ## [Unreleased]
 
 ### Changed
-- **New fin fillets start as epoxy.** A fillet added in the editor is RocketPoxy G5000 epoxy paste (1500 kg/m³) rather than desktop OpenRocket's default, cardboard, which is not what fillets are made of. Any other adhesive can still be picked. A fillet from a `.ork` that names no material is still weighed as cardboard, as desktop reads it.
+- **New fin fillets start as epoxy.** A fillet added in the editor is West System Six10 thickened epoxy (1180 kg/m³) rather than desktop OpenRocket's default, cardboard, which is not what fillets are made of. Any other adhesive can still be picked. A fillet from a `.ork` that names no material is still weighed as cardboard, as desktop reads it.
 - **A new import shows its notes.** Notes that you collapsed stay collapsed while you work on the design, but opening another file that has notes opens them again, so what it could not bring across is never just a count.
 - **Check for updates is in the menu.** It sits above **About** in the app menu instead of inside the About dialog. Choosing it checks right away and says what came of it in a small dialog: that you are on the latest version, that a new one is ready (the update banner comes up too), or that the check could not be made. It is grayed out offline.
 

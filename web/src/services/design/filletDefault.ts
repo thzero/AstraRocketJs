@@ -1,14 +1,14 @@
 import type { ComponentNode } from '../../engine/openRocketEngine';
 
 /**
- * The material a new fin fillet is made of: an epoxy paste, which is what
- * fillets are built from. Desktop OpenRocket gives a fillet its default bulk
+ * The material a new fin fillet is made of: West System Six10, a thickened epoxy
+ * adhesive made for fillets and widely available. Desktop OpenRocket gives a fillet its default bulk
  * material, Cardboard, which no one fillets with. The material catalog's own
  * entry (`materials.generated.json`); a test holds the two equal.
  */
 export const DEFAULT_FILLET_MATERIAL = {
-  name: 'Epoxy - RocketPoxy G5000',
-  density: 1500,
+  name: 'Epoxy - West System Six10',
+  density: 1180,
   group: 'Adhesives',
 } as const;
 
