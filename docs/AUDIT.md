@@ -30,8 +30,6 @@ test that fails without it, except these:
   kernel's `NoseCone` extends `Transition`, so a nose cone does count toward a
   pod's bounding radius; the second half (the parent radius added only for a
   body tube parent) is fixed.
-- **PARTIAL.** C73: the forecast-hours action waits for a fresh run
-  when the result is outdated; the launch site is not stored with the result.
 
 **Found after the audit, all fixed, 2026-10-09.** Following up the parity gap
 on catalog part masses turned up defects in the reference data, which no slice

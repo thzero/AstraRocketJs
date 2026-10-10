@@ -40,6 +40,7 @@ so most entries describe getting a computation to match OpenRocket exactly.
 - **Desktop's names for simulation extensions.** The note on opening a file that carries desktop simulation extensions names them as desktop does (Roll Control, Java code) instead of by their internal class names.
 
 ### Fixed
+- **A flight keeps the launch site it flew from.** Editing a simulation's launch site after a run moved the site under the ground track and in the air the flight met to the new one, while the flight shown was still the old one. A result now stores the launch conditions it was flown under, and those views read them. Results saved before this change still show the current site.
 - **Desktop simulation extensions survive a save.** Air-start, roll control and scripting extensions, plot appearance and landing-dispersion settings in a `.ork` simulation were dropped when the design was saved. They are now kept and written back where desktop puts them, so the file opens in desktop OpenRocket with them intact. They are not run here, and the import says so.
 - **A file from a newer OpenRocket says so.** Opening a `.ork` whose format version desktop OpenRocket does not list (1.0 to 1.11) adds desktop's own note, "Unsupported document version …, attempting to read file anyway." It was read silently before.
 - **Keyboard focus stays in the parts tree.** Cutting the focused part, or undoing and redoing, dropped focus to the page, so the arrow keys did nothing until you tabbed back in. Focus now goes to the selected part, or the nearest sensible one.

@@ -66,6 +66,15 @@ export interface Simulation {
    */
   resultKey?: string;
   /**
+   * The launch conditions `result` was flown under, as they stood at dispatch.
+   *
+   * `launch` is the row's current conditions, which an edit moves while the
+   * result stays readable. Whatever describes the flight (the launch site under
+   * the ground track, the air the flight met) reads this. Unset on a result
+   * stored before it existed, which falls back to `launch`.
+   */
+  resultLaunch?: LaunchConditions;
+  /**
    * Per-simulation overrides of the global run preferences (Settings ›
    * Simulation). Unset keys fall through to the global value, so a workspace
    * that never sets one flies on the globals.
@@ -230,7 +239,9 @@ export function resultFlight(
 ): ResultFlight | null {
   const pick = (id: string | null): ResultFlight | null => {
     const sim = id == null ? undefined : sims.find((x) => x.id === id);
-    return sim?.result ? { id: sim.id, name: sim.name, result: sim.result, launch: sim.launch } : null;
+    return sim?.result
+      ? { id: sim.id, name: sim.name, result: sim.result, launch: sim.resultLaunch ?? sim.launch }
+      : null;
   };
   return pick(chosen) ?? pick(activeId);
 }
@@ -277,7 +288,8 @@ export function simStatus(
  * thousands of samples, so the undo history and the persisted design hold the
  * inputs only.
  */
-export const withoutResults = (sims: readonly Simulation[]): Simulation[] => sims.map((s) => ({ ...s, result: null }));
+export const withoutResults = (sims: readonly Simulation[]): Simulation[] =>
+  sims.map((s) => ({ ...s, result: null, resultLaunch: undefined }));
 
 /** Globally-unique id for a new simulation: a UUID (like OpenRocket's own ids),
  *  so ids minted after a reload can't collide with persisted ones. */

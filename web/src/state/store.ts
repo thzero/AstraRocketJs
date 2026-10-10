@@ -769,7 +769,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
       selectedId: e.selectedId,
       sims: e.sims.map((x) => {
         const held = live.get(x.id);
-        return held?.result ? { ...x, result: held.result, resultKey: held.resultKey } : x;
+        return held?.result
+          ? { ...x, result: held.result, resultKey: held.resultKey, resultLaunch: held.resultLaunch }
+          : x;
       }),
       configs: e.configs,
       activeId: e.activeId,
@@ -1387,7 +1389,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
               outcomes[sim.id] = 'landed';
               set((st) => ({
                 sims: st.sims.map((x) =>
-                  x.id === sim.id ? { ...x, result, resultKey: flownKey, fileSummary: undefined } : x,
+                  x.id === sim.id
+                    ? { ...x, result, resultKey: flownKey, resultLaunch: launch, fileSummary: undefined }
+                    : x,
                 ),
               }));
             } catch (e) {

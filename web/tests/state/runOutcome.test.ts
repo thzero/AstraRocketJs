@@ -13,6 +13,7 @@ import { SimCanceledError, SimTimeoutError, type SimCallOptions } from '../../sr
 import type { SimPayload } from '../../src/engine/simProtocol';
 import type { FlightResult } from '../../src/engine/openRocketEngine';
 import { seatMotor, CURVELESS } from '../testing/seatMotor';
+import { resultFlight, withoutResults } from '../../src/services/flight/simulations';
 
 const st = () => useWorkspaceStore.getState();
 const RESULT = { summary: { maxAltitude: 100 }, events: [], series: {} } as unknown as FlightResult;
@@ -117,5 +118,36 @@ describe('a run started while another is in flight', () => {
     const second = st().runSim();
     calls[1]!.resolve(RESULT);
     expect(await second).toBe('landed');
+  });
+});
+
+/**
+ * A result describes the launch it was flown from. Editing the row's launch
+ * after the run leaves the result readable and outdated, and the views that
+ * describe the flight (the ground track's site, the air the flight met) must
+ * still show the site it flew from, not the edited one.
+ */
+describe('the flown launch', () => {
+  it('stays with the result when the launch is edited afterward', async () => {
+    simulateMock.mockResolvedValue(RESULT);
+    const flown = selectActive(st()).launch;
+    await st().runSim();
+    const moved = { latitudeDeg: 61.25, longitudeDeg: -149.9 };
+    expect(flown.latitudeDeg).not.toBe(moved.latitudeDeg);
+    st().patchLaunch(moved);
+
+    const s = st();
+    const shown = resultFlight(s.sims, s.resultSimId, s.activeId);
+    expect(shown).not.toBeNull();
+    expect(shown!.launch.latitudeDeg).toBe(flown.latitudeDeg);
+    expect(shown!.launch.longitudeDeg).toBe(flown.longitudeDeg);
+    expect(selectActive(s).launch.latitudeDeg).toBe(moved.latitudeDeg);
+  });
+
+  it('is cleared with the result', async () => {
+    simulateMock.mockResolvedValue(RESULT);
+    await st().runSim();
+    const [cleared] = withoutResults([selectActive(st())]);
+    expect(cleared!.resultLaunch).toBeUndefined();
   });
 });
