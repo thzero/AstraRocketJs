@@ -24,6 +24,7 @@ import { sourceFor } from '../../services/weather/weatherSource';
 import { formatLat, formatLon } from '../../services/map/slippyMap';
 import { weatherErrorText } from '../../services/weather/weatherErrorText';
 import { fmtSiteTime } from '../../i18n/format';
+import { NO_VALUE } from '../../i18n/noValue';
 import { LAUNCH_SI } from '../../prefs/launchUnits';
 import { OpenMeteoCredit } from '../common/OpenMeteoCredit';
 import { Check } from '../common/Check';
@@ -195,7 +196,7 @@ export function WeatherDialog({
         return t('weather.windValue', {
           speed: wind(w.surfaceSpeed),
           from: Math.round(w.surfaceFromDeg),
-          gust: w.gust === null ? '—' : wind(w.gust),
+          gust: w.gust === null ? NO_VALUE : wind(w.gust),
           top: alt(top.altitudeM),
         });
       }

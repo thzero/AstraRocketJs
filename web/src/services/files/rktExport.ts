@@ -8,6 +8,7 @@ import { asStageNodes } from '../design/orkTree';
 import { escapeXml } from './xmlUtil';
 import { plainDecimal } from './numberText';
 import { radToDeg } from '../../prefs/units';
+import type { Keyed } from '../../i18n/keyedError';
 
 /**
  * RockSim (`.rkt`) export.
@@ -75,10 +76,18 @@ const TIP_SHAPE_CODES: Record<string, number> = { square: 0, rounded: 1, airfoil
  */
 const SURFACE_DENSITY = 1 / 10;
 
+/** Record something left out of the file, once however often it is met. */
+function skip(w: Writer, what: Keyed): void {
+  w.skipped.set(JSON.stringify(what), what);
+}
+
 interface Writer {
   emit: (depth: number, s: string) => void;
-  /** Types that had no RockSim element, named once each for the caller. */
-  skipped: Set<string>;
+  /**
+   * What had no RockSim element, once each, as keyed text the caller renders:
+   * a part type (`part.<type>`, the tree's own label) or a reason.
+   */
+  skipped: Map<string, Keyed>;
   /** Axial length (m) of the part whose children are being written. */
   parentLength: number;
   /** Station (m from the nose tip) of the front of that part. */
@@ -151,7 +160,9 @@ function writeCommon(
     // The switch overrides mass and CG together, so a CG-only override needs
     // the part's own mass in KnownMass, as BasePartDTO writes it. The app does
     // not compute component mass, so the override is left out and named.
-    if (overrideCg !== undefined) w.skipped.add(`CG override (${n.name ?? n.type})`);
+    if (overrideCg !== undefined) {
+      skip(w, { key: 'errors.rktSkip.cgOverride', values: { name: n.name || { key: `part.${n.type}` } } });
+    }
   }
 
   const finish = strOf(n, 'finish') ?? 'normal';
@@ -475,7 +486,7 @@ function writeCouplerParts(w: Writer, depth: number, coupler: ComponentNode): vo
 function writePart(w: Writer, depth: number, n: ComponentNode, at?: number): void {
   const spec = PARTS[n.type];
   if (!spec) {
-    w.skipped.add(n.type);
+    skip(w, { key: `part.${n.type}` });
     return;
   }
   const members = clusterMembers(n);
@@ -522,8 +533,8 @@ function writeChildren(w: Writer, depth: number, parent: ComponentNode, start: n
 
 export interface RktExportResult {
   xml: string;
-  /** Component types that had no RockSim element and were left out. */
-  skipped: string[];
+  /** What had no RockSim element and was left out, as keyed text to render. */
+  skipped: Keyed[];
 }
 
 /** RockSim numbers its stages from the nose down: 3 is the sustainer. */
@@ -532,7 +543,7 @@ const STAGE_ELEMENTS = ['Stage3Parts', 'Stage2Parts', 'Stage1Parts'] as const;
 /**
  * Write a design as RockSim XML.
  *
- * Returns the skipped types beside the text rather than throwing or silently
+ * Returns what was left out beside the text rather than throwing or silently
  * dropping them, so the caller can tell the user what did not make it into the
  * file they are about to hand to someone else.
  */
@@ -540,7 +551,7 @@ export function exportRkt(name: string, tree: RocketTree): RktExportResult {
   const lines: string[] = [];
   const w: Writer = {
     emit: (depth, s) => lines.push('  '.repeat(depth) + s),
-    skipped: new Set(),
+    skipped: new Map(),
     parentLength: 0,
     parentStart: 0,
   };
@@ -552,7 +563,9 @@ export function exportRkt(name: string, tree: RocketTree): RktExportResult {
   // reported by writePart like any other unrepresentable type.
   const stages = asStageNodes(tree);
   const written = Math.min(stages.length, STAGE_ELEMENTS.length);
-  if (stages.length > STAGE_ELEMENTS.length) w.skipped.add(`stage ${STAGE_ELEMENTS.length + 1} and beyond`);
+  if (stages.length > STAGE_ELEMENTS.length) {
+    skip(w, { key: 'errors.rktSkip.extraStages', values: { from: STAGE_ELEMENTS.length + 1 } });
+  }
 
   // No XML declaration. `GeneralRocketLoader` identifies a RockSim file by the
   // first eleven bytes being `<RockSimDoc` exactly (unlike its OpenRocket
@@ -586,5 +599,5 @@ export function exportRkt(name: string, tree: RocketTree): RktExportResult {
   w.emit(1, '</DesignInformation>');
   w.emit(0, '</RockSimDocument>');
 
-  return { xml: lines.join('\n') + '\n', skipped: [...w.skipped] };
+  return { xml: lines.join('\n') + '\n', skipped: [...w.skipped.values()] };
 }

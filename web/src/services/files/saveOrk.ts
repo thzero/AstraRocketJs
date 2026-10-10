@@ -2,6 +2,7 @@ import { zipSync, strToU8 } from 'fflate';
 import { exportOrk, type OrkTreeExportInput } from './orkFile';
 import { saveBlob, exportFilename } from './saveFile';
 import type { RocketTree } from '../../engine/openRocketEngine';
+import type { Keyed } from '../../i18n/keyedError';
 
 /** The bytes of a .ork: a zip holding rocket.ork and the curve of every motor outside the catalog. */
 export function orkArchive(input: OrkTreeExportInput): Uint8Array {
@@ -28,14 +29,14 @@ export function downloadOrk(input: OrkTreeExportInput): void {
 }
 
 /**
- * Export a design as a RockSim `.rkt` file, returning the component types that
- * had no RockSim element.
+ * Export a design as a RockSim `.rkt` file, returning what
+ * had no RockSim element, as keyed text.
  *
  * Plain XML, not a zip: RockSim does not archive its files. The skipped list
  * comes back to the caller rather than being swallowed, so the user is told
  * what is missing from a file they are about to hand to somebody else.
  */
-export async function downloadRkt(name: string, tree: RocketTree): Promise<string[]> {
+export async function downloadRkt(name: string, tree: RocketTree): Promise<Keyed[]> {
   const { exportRkt } = await import('./rktExport');
   const { xml, skipped } = exportRkt(name, tree);
   await saveBlob(new Blob([xml], { type: 'application/xml' }), exportFilename([name, 'design'], 'rkt'));

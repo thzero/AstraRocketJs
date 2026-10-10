@@ -5,6 +5,7 @@ import type { RocketTree } from '../../engine/openRocketEngine';
 import { useUnits } from '../../prefs/useUnits';
 import { unitScope } from '../../prefs/units';
 import { fmtNum } from '../../i18n/format';
+import { NO_VALUE } from '../../i18n/noValue';
 import { warningText } from '../../services/app/warningText';
 import { loadoutLabel, type FlightConfig } from '../../services/flight/flightConfigs';
 import { configOf } from '../../state/store';
@@ -315,7 +316,7 @@ function Td({ children, wide }: { children: React.ReactNode; wide?: boolean }) {
 function Num({ children, wide, className }: { children: React.ReactNode; wide?: boolean; className?: string }) {
   return (
     <td className={`${wide ? 'hidden lg:table-cell' : ''} px-2 py-2 text-right tabular-nums ${className ?? ''}`}>
-      {children ?? <span className="text-ink-dim">–</span>}
+      {children ?? <span className="text-ink-dim">{NO_VALUE}</span>}
     </td>
   );
 }

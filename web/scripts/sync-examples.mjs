@@ -62,7 +62,7 @@ async function fetchExamples() {
   const src = arg('src') ?? process.env.OPENROCKET_SRC;
   if (src) {
     const dir = resolve(src, EXAMPLES_PATH);
-    if (!existsSync(dir)) throw new Error(`No examples under ${dir} — is --src a full OpenRocket checkout?`);
+    if (!existsSync(dir)) throw new Error(`No examples under ${dir}. Is --src a full OpenRocket checkout?`);
     return readdirSync(dir)
       .filter((n) => n.toLowerCase().endsWith('.ork'))
       .map((name) => ({ name, bytes: new Uint8Array(readFileSync(join(dir, name))) }));

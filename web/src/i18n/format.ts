@@ -2,13 +2,14 @@
 // for every displayed number (decimal separator + grouping differ per locale:
 // "1,234.5" en-US vs "1.234,5" es-ES). Number <input> values stay canonical;
 // the browser handles their locale separator, so inputs don't use this.
+import { NO_VALUE } from './noValue';
 import i18n from './index';
 
 const cache = new Map<string, Intl.NumberFormat>();
 
 /** Format `n` with a fixed number of fraction digits in the current locale. */
 export function fmtNum(n: number, digits = 0): string {
-  if (!Number.isFinite(n)) return '—';
+  if (!Number.isFinite(n)) return NO_VALUE;
   const lng = i18n.resolvedLanguage || 'en';
   const key = `${lng}:${digits}`;
   let f = cache.get(key);
@@ -25,7 +26,7 @@ export function fmtNum(n: number, digits = 0): string {
  * fixed digits would be all leading zeros.
  */
 export function fmtSig(n: number, sig: number): string {
-  if (!Number.isFinite(n)) return '—';
+  if (!Number.isFinite(n)) return NO_VALUE;
   if (n === 0) return '0';
   const lng = i18n.resolvedLanguage || 'en';
   const tiny = Math.abs(n) < 1e-4;
@@ -54,7 +55,7 @@ export function ladderDigits(v: number): number {
  * "4.6-6.1 m/s", and a fixed decimal count gets one of those two wrong.
  */
 export function fmtUpTo(v: number, digits: number): string {
-  if (!Number.isFinite(v)) return '—';
+  if (!Number.isFinite(v)) return NO_VALUE;
   const rounded = Number(v.toFixed(digits));
   return fmtNum(rounded, (String(rounded).split('.')[1] ?? '').length);
 }
@@ -135,4 +136,13 @@ const MB = 1024 * 1024;
  */
 export function fmtMb(bytes: number): string {
   return fmtNum(bytes / MB, 1);
+}
+
+/**
+ * Items as one list in the current locale ("A, B, and C"; "A、B、C"), so a
+ * sentence that names several things does not join them with English
+ * punctuation.
+ */
+export function fmtList(items: readonly string[]): string {
+  return new Intl.ListFormat(i18n.resolvedLanguage || 'en', { type: 'conjunction' }).format(items);
 }

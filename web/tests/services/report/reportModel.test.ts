@@ -247,7 +247,7 @@ describe('multiStageSummaries', () => {
  * beside FinSet, and where a tube sits along the airframe is exactly as useful
  * to mark. What is not theirs is a root chord: the span is the tube's length.
  */
-describe('finSetPositions — tube fins', () => {
+describe('finSetPositions: tube fins', () => {
   const rocket = { componentInfo: () => ({ positionX: 0.42 }) };
   const withTubes = (over: Record<string, unknown> = {}) =>
     node({

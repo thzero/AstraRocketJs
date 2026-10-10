@@ -8,6 +8,7 @@ import { clampCount, finiteNum } from './ork/numbers';
 import { MAX_FIN_COUNT, MAX_FIN_POINTS, MAX_LINE_COUNT, checkDepth, countComponent } from './ork/importLimits';
 import { ignoredNotes } from './ork/importNotes';
 import { keyedNote, type ImportNote } from './importNote';
+import { KeyedError } from '../../i18n/keyedError';
 import type { OrkImportResult } from './orkTypes';
 import { numOpt } from '../../tree/nodeProps';
 import { trapezoidPoints } from '../../tree/finPlanform';
@@ -881,7 +882,7 @@ export function importRkt(data: ArrayBuffer | string): OrkImportResult {
   const xml = typeof data === 'string' ? data : decodeFileText(new Uint8Array(data));
   const doc = parseOrkXml(xml, '.rkt');
   const design = doc.querySelector('RockSimDocument > DesignInformation > RocketDesign');
-  if (!design) throw new Error('Not a .rkt file (missing <RocketDesign>)');
+  if (!design) throw new KeyedError('errors.file.notRkt');
 
   const name = tag(design, 'Name') ?? 'Imported rocket';
   const ctx: RktContext = { notes: [], ignored: new Set(), dropped: new Set(), nodeCount: 0 };
@@ -929,7 +930,7 @@ export function importRkt(data: ArrayBuffer | string): OrkImportResult {
   });
 
   if (components.every((s) => (s.children ?? []).length === 0)) {
-    throw new Error('No supported components found in this design.');
+    throw new KeyedError('errors.file.noComponents');
   }
 
   const notes = [...ctx.notes];

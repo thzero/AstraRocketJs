@@ -190,8 +190,9 @@ const UNAFFECTED: Record<string, string> = {
 };
 
 /**
- * Pairs known to ignore a flag they should honor, each against its finding in
- * docs/AUDIT.md. The fix removes the line.
+ * Pairs known to ignore a flag they should honor. Finding IDs are numbered per
+ * audit run, so each entry cites an ID in the current docs/AUDIT.md or states
+ * its reason in words. The fix removes the line.
  */
 const KNOWN: Record<string, string> = {};
 

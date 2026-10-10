@@ -4,6 +4,8 @@
 
 Date: 2026-10-05. Branch `test` at 09225ae. Run per `docs/AUDIT_PROMPT_DUPLICATION.md`: eight parallel review agents (seven directory slices plus one cross-cutting sweep), merged here. Every HIGH finding and every DRIFT finding tagged VERIFIED below was re-read against the source before entry.
 
+Paths are as of 09225ae.
+
 Scope: `web/src`, excluding `engine/vendor/`, tests, locale JSON and CSS.
 
 **Status, 2026-10-05.** Every finding is fixed except D31, which is not reachable, and the D77 items its entry leaves on purpose. Each fix in steps 1 and 2 has a test that was run against the unfixed code and watched to fail. See the order of attack for what each step did.

@@ -13,6 +13,7 @@ import type { FieldUnit } from '../../prefs/useUnits';
 import { partName, type ConfigColumn } from './ConfigsTable';
 import { motorDesignation } from '../../services/motors/motorName';
 import { fmtUpTo } from '../../i18n/format';
+import { NO_VALUE } from '../../i18n/noValue';
 
 /**
  * What each sub-tab of the configurations table shows: one column per mount, or
@@ -48,7 +49,7 @@ export function motorColumns(tree: RocketTree, t: TFunction): ConfigColumn[] {
     cell: (c: FlightConfig) => {
       const seated = c.motors[mt.id as string];
       const ign = seated?.ignitionEvent;
-      if (!seated?.spec.designation) return <span className="text-ink-dim">–</span>;
+      if (!seated?.spec.designation) return <span className="text-ink-dim">{NO_VALUE}</span>;
       return (
         <>
           {motorDesignation(seated.spec)}
@@ -107,7 +108,7 @@ export function separationColumns(
       // Grounded is the whole cell: what a stage that is not in the flight
       // separates on is not a fact about the flight.
       if (!stageFlies(c, id)) return <Overridden t={t}>{t('configs.grounded')}</Overridden>;
-      if (!separates.has(id)) return <span className="text-ink-dim">–</span>;
+      if (!separates.has(id)) return <span className="text-ink-dim">{NO_VALUE}</span>;
       const over = sepOverride(c, id);
       const {
         separationEvent: event,

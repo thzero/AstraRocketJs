@@ -386,7 +386,7 @@ describe('rocketSideView: tube fins draw as tubes', () => {
     expect(Math.max(...xs) - Math.min(...xs)).toBeCloseTo(80, 6); // length 0.08 m
   });
 
-  it('is a rectangle — four corners, two of them flat on the body', () => {
+  it('is a rectangle: four corners, two of them flat on the body', () => {
     const top = rocketSideView(tubeRocket()).fins[0]!;
     expect(top).toHaveLength(4);
     expect(top.filter(([, y]) => Math.abs(y - 12) < 1e-6)).toHaveLength(2); // seated on the airframe

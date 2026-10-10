@@ -2,6 +2,7 @@ import type { OrkImportResult } from './orkTypes';
 import { importOrk } from './orkFile';
 import { importRkt } from './rktImport';
 import { assertImportSize, decodeFileText } from './decodeText';
+import { KeyedError } from '../../i18n/keyedError';
 
 /**
  * Which design format a file is, decided from its bytes rather than its name.
@@ -54,5 +55,5 @@ export function parseDesignFile(data: ArrayBuffer | string): OrkImportResult {
   const format = sniffDesignFormat(data);
   if (format === 'rkt') return importRkt(data);
   if (format === 'ork') return importOrk(data);
-  throw new Error('Not a rocket design file — expected OpenRocket (.ork) or RockSim (.rkt).');
+  throw new KeyedError('errors.file.notDesign');
 }

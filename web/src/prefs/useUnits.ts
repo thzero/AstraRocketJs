@@ -1,12 +1,13 @@
 import { useMemo } from 'react';
 import { useSettings } from '../state/SettingsProvider';
 import { fmtNum, ladderDigits, withUnit } from '../i18n/format';
+import { NO_VALUE } from '../i18n/noValue';
 import { niceStep, siToUi, siToUiDelta, uiToSi, unitFor, type Quantity, type UnitSelection } from './units';
 import { siEntry } from './entryValue';
 
 /** Locale-aware formatting with a magnitude ladder when no precision is asked. */
 function format(v: number, digits?: number): string {
-  if (!Number.isFinite(v)) return '—';
+  if (!Number.isFinite(v)) return NO_VALUE;
   return fmtNum(v, digits ?? ladderDigits(v));
 }
 
@@ -121,7 +122,8 @@ export function useUnits(): Units {
   const { units, unitOverrides } = settings;
   return useMemo(() => {
     const bind = (q: Quantity, sym: string): FieldUnit => {
-      const fmt = (si: number, digits?: number) => (Number.isFinite(si) ? format(siToUi(q, sym, si), digits) : '—');
+      const fmt = (si: number, digits?: number) =>
+        Number.isFinite(si) ? format(siToUi(q, sym, si), digits) : NO_VALUE;
       return {
         sym,
         toUi: (si) => siToUi(q, sym, si),
@@ -139,9 +141,9 @@ export function useUnits(): Units {
       toUi: (q, si) => siToUi(q, units[q], si),
       fromUi: (q, ui) => uiToSi(q, units[q], ui),
       toSi: (q, ui, then) => siEntry(q, units[q], ui, then),
-      fmt: (q, si, digits) => (Number.isFinite(si) ? format(siToUi(q, units[q], si), digits) : '—'),
+      fmt: (q, si, digits) => (Number.isFinite(si) ? format(siToUi(q, units[q], si), digits) : NO_VALUE),
       fmtSym: (q, si, digits) =>
-        withUnit(Number.isFinite(si) ? format(siToUi(q, units[q], si), digits) : '—', units[q]),
+        withUnit(Number.isFinite(si) ? format(siToUi(q, units[q], si), digits) : NO_VALUE, units[q]),
       step: (q, si) => niceStep(siToUiDelta(q, units[q], si)),
       factor: (q) => siToUiDelta(q, units[q], 1),
       plain: (q) => bind(q, units[q]),

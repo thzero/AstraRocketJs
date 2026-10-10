@@ -317,7 +317,7 @@ designLibrary.ts    DesignLibrary - getDesignLibrary() / setDesignLibrary(lib)
    key per design (astrarocketjs:designs:<id>) and a small separate index of
    {id, name, updatedAt} - autosave rewrites ONE design on a 500 ms debounce, so a single
    document holding every design would be rewritten on every keystroke and grow with the
-   library. workspaceStore.ts is a narrow façade over "the design being edited".
+   library. workspaceStore.ts is a narrow facade over "the design being edited".
 
 motorStore.ts       MotorStore   - getMotorStore() / setMotorStore(store)
    readCatalog / writeCatalog (signature-guarded mirror) · readEntry / writeEntry (per-motor,

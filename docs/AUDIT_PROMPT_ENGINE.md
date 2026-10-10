@@ -284,8 +284,10 @@ Do not relay agent claims unchecked.
 - Kernel behavior that is upstream's, not ours, and not a finding: two
   automatic ends that follow each other resolve to -1 (desktop does the same);
   an automatic end following a flipped nose cone's tip, and a ring placed where
-  its parent has no bore, resolve to 0; fin sets mount only on body tubes.
-  `geometryParity.kernel.test.ts` counts the first three as unresolved parts.
+  its parent has no bore, resolve to 0. `geometryParity.kernel.test.ts` counts
+  these as unresolved parts. Freeform fin sets also mount on transitions and
+  nose cones (`Transition.isCompatible`), where the tab clamp uses the body
+  radius at the tab's own stations.
 
 **Output:** write `docs/AUDIT_ENGINE.md`. Severity emojis (🔴 correctness in
 shipped physics / 🟠 gates and build integrity / 🟡 API boundary and untrusted

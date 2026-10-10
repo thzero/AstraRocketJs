@@ -32,10 +32,11 @@ import {
 } from '../../services/parts/componentFilter';
 import { confirm } from '../../state/confirmStore';
 import { fmtNum } from '../../i18n/format';
+import { NO_VALUE } from '../../i18n/noValue';
 import { useUnits, type Units } from '../../prefs/useUnits';
 import { useCatalogProgress } from '../common/CatalogLoading';
 import { Dialog } from '../common/Dialog';
-import { errorMessage } from '../../services/app/errorMessage';
+import { errorText } from '../../i18n/keyedError';
 import { progressPercent } from '../../services/app/remoteData';
 import { SortHeader } from '../common/SortHeader';
 import { UnitBound } from '../common/UnitBound';
@@ -193,7 +194,7 @@ interface Col {
  * it fills. The unit is named once, in the heading, rather than after every cell.
  */
 function columnsFor(type: ComponentType, u: Units, t: (k: string) => string, ranked: boolean): Col[] {
-  const len = (v: number | null | undefined) => (v == null ? '—' : u.fmt('length', v));
+  const len = (v: number | null | undefined) => (v == null ? NO_VALUE : u.fmt('length', v));
   const withUnit = (label: string) => `${label} (${u.sym('length')})`;
   const od = (r: Ranked<Component>) => outerDiameterOf(r.part);
   const inner = (r: Ranked<Component>) => ('innerDiameter' in r.part ? r.part.innerDiameter : null);
@@ -245,7 +246,7 @@ function columnsFor(type: ComponentType, u: Units, t: (k: string) => string, ran
     head: t('material.title'),
     w: 'w-36',
     hide: 'hidden lg:table-cell',
-    cell: (r) => ('material' in r.part ? (r.part.material ?? '—') : '—'),
+    cell: (r) => ('material' in r.part ? (r.part.material ?? NO_VALUE) : NO_VALUE),
     title: (r) => ('material' in r.part ? (r.part.material ?? '') : ''),
   };
   // The one column with no width: it absorbs whatever the fixed ones leave.
@@ -292,7 +293,7 @@ function columnsFor(type: ComponentType, u: Units, t: (k: string) => string, ran
     head: t('prop.shape'),
     sort: 'shape',
     w: 'w-28',
-    cell: (r) => ('shape' in r.part ? t(`noseShape.${r.part.shape}`) : '—'),
+    cell: (r) => ('shape' in r.part ? t(`noseShape.${r.part.shape}`) : NO_VALUE),
   };
 
   switch (type) {
@@ -361,7 +362,7 @@ function columnsFor(type: ComponentType, u: Units, t: (k: string) => string, ran
               ? r.part.cd == null
                 ? `(${fmtNum(DEFAULT_CHUTE_CD, 2)})`
                 : fmtNum(r.part.cd, 2)
-              : '—',
+              : NO_VALUE,
           title: (r) => (r.part.type === 'parachute' && r.part.cd == null ? t('picker.cdDefault') : ''),
         },
         notes,
@@ -434,7 +435,7 @@ function PickerDialog({
       // subscribes to, so there is nothing to re-fetch here.
       await deleteCustomPart(p.id);
     } catch (e) {
-      setDelErr(errorMessage(e));
+      setDelErr(errorText(e, t));
     }
   };
   // The delete column exists only when there is something to delete, so an

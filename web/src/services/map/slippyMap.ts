@@ -10,6 +10,7 @@
  * Everything here is pure, so the projection is tested against published tile
  * numbers rather than by looking at whether the picture came out right.
  */
+import i18n from '../../i18n';
 import { fmtNum } from '../../i18n/format';
 import { degToRad } from '../../prefs/units';
 
@@ -137,11 +138,11 @@ export function formatLon(lonDeg: number, places = 4): string {
   return `${fmtNum(Math.abs(lonDeg), places)}° ${lonHemisphere(lonDeg)}`;
 }
 
-/** The hemisphere letter {@link formatLat} prints, for a field that keeps the sign. */
-export const latHemisphere = (latDeg: number): 'N' | 'S' => (latDeg < 0 ? 'S' : 'N');
+/** The hemisphere letter {@link formatLat} prints, in the UI language, for a field that keeps the sign. */
+export const latHemisphere = (latDeg: number): string => i18n.t(latDeg < 0 ? 'map.hemisphereS' : 'map.hemisphereN');
 
-/** The hemisphere letter {@link formatLon} prints. */
-export const lonHemisphere = (lonDeg: number): 'E' | 'W' => (lonDeg < 0 ? 'W' : 'E');
+/** The hemisphere letter {@link formatLon} prints, in the UI language. */
+export const lonHemisphere = (lonDeg: number): string => i18n.t(lonDeg < 0 ? 'map.hemisphereW' : 'map.hemisphereE');
 
 /** A latitude and longitude pair. */
 export function formatCoord(latDeg: number, lonDeg: number, places = 4): string {

@@ -31,7 +31,7 @@
  */
 
 import { declaredLength, readStreamWithProgress, type TransferProgress } from './fetchProgress';
-import { errorMessage } from './errorMessage';
+import { errorReason, KeyedError } from '../../i18n/keyedError';
 
 /** The copy that ships inside the build, under the deploy subpath. */
 const LOCAL_BASE = `${import.meta.env.BASE_URL}data/`;
@@ -127,7 +127,7 @@ async function fetchJson<T>(
     timer = setTimeout(() => ctrl.abort(), BODY_TIMEOUT_MS);
     if (!res.ok) throw new HttpError(res.status);
     const len = Number(res.headers.get('content-length'));
-    if (Number.isFinite(len) && len > MAX_CATALOG_BYTES) throw new Error('response too large');
+    if (Number.isFinite(len) && len > MAX_CATALOG_BYTES) throw new KeyedError('errors.remote.tooLarge');
     return await readJson<T>(res, onProgress);
   } catch (e) {
     // Any refusal aborts the body: a 5xx error page, a CDN's HTML or a reply
@@ -193,13 +193,23 @@ function manifest(base: string): Promise<Record<string, string>> {
 // next page load, when the manifest hash and this cache both start fresh.
 const catalogP = new Map<string, Promise<unknown>>();
 
+/** Each runtime catalog, and the message that says it could not be loaded. */
+const CATALOG_FAILED_KEY = {
+  motors: 'errors.remote.motors',
+  components: 'errors.remote.components',
+  materials: 'errors.remote.materials',
+  contributors: 'errors.remote.contributors',
+} as const;
+
+type CatalogName = keyof typeof CATALOG_FAILED_KEY;
+
 /**
  * Fetch and parse one runtime catalog by name (`'motors'` → `motors.generated.json`),
  * cache-busted by its manifest hash and memoized for the session. Tries each
  * configured base in order and rejects with the last failure only when every
  * base is unreachable, so the caller can surface it.
  */
-export function fetchCatalog<T>(name: string, valid?: (v: unknown) => boolean): Promise<T> {
+export function fetchCatalog<T>(name: CatalogName, valid?: (v: unknown) => boolean): Promise<T> {
   let p = catalogP.get(name) as Promise<T> | undefined;
   if (!p) {
     p = (async () => {
@@ -218,7 +228,7 @@ export function fetchCatalog<T>(name: string, valid?: (v: unknown) => boolean): 
           // the loop would return it, never try the in-build copy, and leave the
           // caller spreading a non-array. A shape mismatch is a failure of this
           // base, so treat it as one and move on.
-          if (valid && !valid(body)) throw new Error('unexpected catalog shape');
+          if (valid && !valid(body)) throw new KeyedError('errors.remote.badShape');
           return body;
         } catch (e) {
           lastErr = e; // try the next base (the in-build fallback copy)
@@ -226,7 +236,7 @@ export function fetchCatalog<T>(name: string, valid?: (v: unknown) => boolean): 
       }
       // Every base failed: drop the stale byte count so a retry starts clean.
       lastProgress.delete(name);
-      throw new Error(`Could not load the ${name} catalog (${errorMessage(lastErr)})`);
+      throw new KeyedError(CATALOG_FAILED_KEY[name], { reason: errorReason(lastErr) });
     })();
     // Don't cache a failure; let the next caller retry.
     p.catch(() => catalogP.delete(name));

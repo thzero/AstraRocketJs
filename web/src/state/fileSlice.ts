@@ -21,7 +21,8 @@ import { defaultDesignName, designNameOf } from '../services/app/appInfo';
 import { getDesignLibrary, type DesignMeta } from '../services/storage/designLibrary';
 import { getWorkspaceStore, lean, resultsOf } from '../services/storage/workspaceStore';
 import { migrateWorkspace } from '../services/storage/workspaceMigrate';
-import { errorMessage } from '../services/app/errorMessage';
+import { errorText, keyedText } from '../i18n/keyedError';
+import { fmtList } from '../i18n/format';
 import {
   configOf,
   defaultConfig,
@@ -289,7 +290,7 @@ export const createFileSlice =
           });
         } catch (e) {
           if (stale()) return; // a superseded import must not post its error either
-          set({ err: i18n.t('errors.openOrk', { reason: errorMessage(e) }) });
+          set({ err: i18n.t('errors.openOrk', { reason: errorText(e, i18n.t) }) });
         }
       },
       openExample: async (file) => {
@@ -301,7 +302,7 @@ export const createFileSlice =
           const bytes = await fetchExample(file);
           await get().openOrkFile(new Blob([bytes]));
         } catch (e) {
-          set({ err: i18n.t('errors.openExample', { reason: errorMessage(e) }) });
+          set({ err: i18n.t('errors.openExample', { reason: errorText(e, i18n.t) }) });
         }
       },
       refreshDesigns: async () => {
@@ -540,7 +541,7 @@ export const createFileSlice =
             designInfo,
           });
         } catch (e) {
-          set({ err: i18n.t('errors.saveOrk', { reason: errorMessage(e) }) });
+          set({ err: i18n.t('errors.saveOrk', { reason: errorText(e, i18n.t) }) });
         }
       },
       saveRkt: async () => {
@@ -554,10 +555,12 @@ export const createFileSlice =
           // worth having, but the user is about to hand it to somebody who will
           // not see those parts, so say so rather than let them find out.
           if (skipped.length) {
-            set({ err: i18n.t('errors.exportRktPartial', { parts: skipped.join(', ') }) });
+            set({
+              err: i18n.t('errors.exportRktPartial', { parts: fmtList(skipped.map((k) => keyedText(k, i18n.t))) }),
+            });
           }
         } catch (e) {
-          set({ err: i18n.t('errors.exportRkt', { reason: errorMessage(e) }) });
+          set({ err: i18n.t('errors.exportRkt', { reason: errorText(e, i18n.t) }) });
         }
       },
       exportPrint: async (opts) => {
@@ -569,9 +572,9 @@ export const createFileSlice =
           // A part whose geometry fails the manifold check is left out rather
           // than written as a file no slicer would accept, but silently leaving
           // it out is how somebody discovers a missing fin at the printer.
-          if (skipped.length) set({ err: i18n.t('errors.exportPrintPartial', { parts: skipped.join(', ') }) });
+          if (skipped.length) set({ err: i18n.t('errors.exportPrintPartial', { parts: fmtList(skipped) }) });
         } catch (e) {
-          set({ err: i18n.t('errors.exportPrint', { reason: errorMessage(e) }) });
+          set({ err: i18n.t('errors.exportPrint', { reason: errorText(e, i18n.t) }) });
         }
       },
       saveRasaero: async () => {
@@ -593,19 +596,19 @@ export const createFileSlice =
             launchCgM: info?.cg,
           });
         } catch (e) {
-          set({ err: i18n.t('errors.exportRasaero', { reason: errorMessage(e) }) });
+          set({ err: i18n.t('errors.exportRasaero', { reason: errorText(e, i18n.t) }) });
         }
       },
       exportComponent: async (nodeId, format) => {
         try {
           const { exportComponent } = await import('../services/files/componentExport');
-          const ok = await exportComponent(get().tree, nodeId, format, selectDesignName(get()));
+          const ok = await exportComponent(get().tree, nodeId, format, selectDesignName(get()), i18n.t);
           if (!ok) set({ err: i18n.t('errors.exportUnsupported', { format: format.toUpperCase() }) });
         } catch (e) {
           set({
             err: i18n.t('errors.exportFailed', {
               format: format.toUpperCase(),
-              reason: errorMessage(e),
+              reason: errorText(e, i18n.t),
             }),
           });
         }

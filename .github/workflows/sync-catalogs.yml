@@ -1,7 +1,7 @@
 name: Sync Catalogs
 
-# Regenerates the runtime reference catalogs — motors ("engines") from the
-# ThrustCurve.org API and components from the OpenRocket-Components database —
+# Regenerates the runtime reference catalogs (motors ("engines") from the
+# ThrustCurve.org API and components from the OpenRocket-Components database)
 # and publishes them to the orphan `data` branch.
 #
 # The app fetches these at runtime (web/src/services/app/remoteData.ts), so a refresh
@@ -16,7 +16,7 @@ name: Sync Catalogs
 # regenerated here: materials is held to the pinned OpenRocket source by the
 # extraction gate, so it changes with a commit or not at all, and contributors
 # is written by the Pages deploy. They ride along so the data branch is a whole
-# copy of public/data — a partial one would 404 for a file the manifest names,
+# copy of public/data. A partial one would 404 for a file the manifest names,
 # costing every session a wasted round trip before it fell back to the build.
 #
 # deploy.yml already points the built app at this branch via VITE_DATA_BASE,
@@ -38,7 +38,7 @@ on:
 permissions:
   contents: write
 
-# Never cancel a half-finished publish — a canceled run could leave the data
+# Never cancel a half-finished publish: a canceled run could leave the data
 # branch holding a manifest that disagrees with its catalogs.
 concurrency:
   group: sync-catalogs
@@ -69,7 +69,7 @@ jobs:
       # Start from what is CURRENTLY PUBLISHED, not from the committed fallback.
       # manifest.json carries a hash for both catalogs and is rewritten in full by
       # either sync script, so a motors-only run would otherwise republish the
-      # committed components file and its hash — silently reverting the live
+      # committed components file and its hash, silently reverting the live
       # component catalog. Seeding first makes every run a no-op for whatever it
       # did not regenerate.
       - name: Seed from the published catalogs
@@ -77,7 +77,7 @@ jobs:
           set -euo pipefail
           tmp="$(mktemp -d)"
           # Authenticated, so "clone failed" can only mean the branch does not
-          # exist yet — never a permissions failure that would silently seed from
+          # exist yet, never a permissions failure that would silently seed from
           # the (possibly stale) committed copy and republish it.
           url="https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
           if git clone --depth 1 --branch data "$url" "$tmp" 2>/dev/null; then
@@ -90,7 +90,7 @@ jobs:
             done
             echo "Seeded from the data branch."
           else
-            echo "No data branch yet — seeding from the committed copy (first run)."
+            echo "No data branch yet. Seeding from the committed copy (first run)."
           fi
 
       # The component presets come from the parts database OpenRocket builds its
@@ -187,7 +187,7 @@ jobs:
 
           git -C "$tmp" add -A
           if git -C "$tmp" diff --cached --quiet; then
-            echo "Catalogs already up to date — nothing published."
+            echo "Catalogs already up to date. Nothing published."
             echo "no_change=1" >> "$GITHUB_ENV"
             exit 0
           fi
@@ -199,7 +199,7 @@ jobs:
           set -euo pipefail
           cd "$GITHUB_WORKSPACE/web/public/data"
           {
-            echo "### Catalog sync — \`${TARGET}\`"
+            echo "### Catalog sync: \`${TARGET}\`"
             echo
             if [ "${no_change:-0}" = "1" ]; then echo "No change; the \`data\` branch was already current."; echo; fi
             echo "| Catalog | Entries | Manifest hash |"
@@ -209,7 +209,7 @@ jobs:
               const man = JSON.parse(fs.readFileSync("manifest.json", "utf8"));
               const motors = JSON.parse(fs.readFileSync("motors.generated.json", "utf8"));
               const comps = JSON.parse(fs.readFileSync("components.generated.json", "utf8"));
-              const row = (n, c, h) => `| ${n} | ${c.toLocaleString("en-US")} | \`${h ?? "—"}\` |`;
+              const row = (n, c, h) => `| ${n} | ${c.toLocaleString("en-US")} | \`${h ?? "–"}\` |`;
               console.log(row("motors", motors.length, man.motors));
               console.log(row("components", comps.count, man.components));
               const noCurve = motors.filter((m) => m.noCurve).length;

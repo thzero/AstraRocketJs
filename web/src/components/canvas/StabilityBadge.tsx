@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { fmtNum, fmtSig } from '../../i18n/format';
+import { NO_VALUE } from '../../i18n/noValue';
 import type { StaticInfo } from '../../engine/api';
 import { stabilityState, stabilityToneOf, stabilityVerdictKey } from '../../services/flight/simReport';
 import { Stat } from '../common/Stat';
@@ -120,7 +121,7 @@ export function StabilityBadge({
           <Stat
             card
             label={recoveryEstimated ? t('stats.recoveryWeightEstimated') : t('stats.recoveryWeight')}
-            value={recoveryWeight != null ? recoveryTile.fmt(recoveryWeight) : '—'}
+            value={recoveryWeight != null ? recoveryTile.fmt(recoveryWeight) : NO_VALUE}
             sub={
               recoveryWeight != null ? (
                 <UnitChip
@@ -166,7 +167,7 @@ export function StabilityBadge({
             sub={`${t('stability.caliber')} / %${padState ? ` · ${t(stabilityVerdictKey(cal))}` : ''}`}
             tone={padTone}
           />
-          <Stat card label={t('stats.cd')} value={info.cd != null ? fmtNum(info.cd, 3) : '—'} sub="Ma 0.3" />
+          <Stat card label={t('stats.cd')} value={info.cd != null ? fmtNum(info.cd, 3) : NO_VALUE} sub="Ma 0.3" />
           {/* Symbol lives in the sub: the tile label is uppercased, which would
               turn the Greek α into Α (a plain "A"). */}
           <Stat card label={t('stats.cna')} value={fmtNum(info.cna, 2)} sub="CNα · rad⁻¹" />

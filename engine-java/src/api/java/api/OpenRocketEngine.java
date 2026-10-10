@@ -1051,8 +1051,8 @@ public final class OpenRocketEngine {
      * (BarrowmanStabilityCalculator's DIAMETER_DISCONTINUITY, AIRFRAME_GAP and
      * AIRFRAME_OVERLAP checks), as desktop does in the unit its user has chosen.
      * Left at the kernel's default, centimeters, an inch user is warned only at a
-     * step several times larger than desktop in inches warns at
-     * (openrocket/openrocket#3285). Only string formatting reads this; no number
+     * step several times larger than desktop in inches warns at, because the
+     * strings round in centimeters. Only string formatting reads this; no number
      * the kernel computes depends on it. An unknown symbol keeps the unit.
      */
     @JSExport

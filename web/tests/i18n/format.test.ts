@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { fmtSig, fmtSiteTime, fmtUpTo, ladderDigits, partLabel, stageLabel, withUnit } from '../../src/i18n/format';
+import { NO_VALUE } from '../../src/i18n/noValue';
 import i18n from '../../src/i18n';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -36,8 +37,8 @@ describe('fmtUpTo', () => {
   });
 
   it('is a dash for a value that is not a number', () => {
-    expect(fmtUpTo(Number.NaN, 1)).toBe('—');
-    expect(fmtUpTo(Number.POSITIVE_INFINITY, 1)).toBe('—');
+    expect(fmtUpTo(Number.NaN, 1)).toBe(NO_VALUE);
+    expect(fmtUpTo(Number.POSITIVE_INFINITY, 1)).toBe(NO_VALUE);
   });
 });
 
@@ -132,7 +133,7 @@ describe('fmtSig', () => {
     }
     expect(fmtSig(0.0012345, 4)).toBe('0.001235');
     expect(fmtSig(0, 4)).toBe('0');
-    expect(fmtSig(Number.NaN, 4)).toBe('—');
+    expect(fmtSig(Number.NaN, 4)).toBe(NO_VALUE);
   });
 });
 

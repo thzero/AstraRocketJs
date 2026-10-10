@@ -1,16 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import en from '../../src/i18n/locales/en.json';
-import de from '../../src/i18n/locales/de.json';
-import es from '../../src/i18n/locales/es.json';
-import fr from '../../src/i18n/locales/fr.json';
-import ptBR from '../../src/i18n/locales/pt-BR.json';
-import ptPT from '../../src/i18n/locales/pt-PT.json';
-import nl from '../../src/i18n/locales/nl.json';
-import pl from '../../src/i18n/locales/pl.json';
-import ru from '../../src/i18n/locales/ru.json';
-import ja from '../../src/i18n/locales/ja.json';
+import i18n, { LANGUAGES } from '../../src/i18n';
 
 /**
  * No British spelling in any locale's user-visible text.
@@ -29,7 +20,9 @@ import ja from '../../src/i18n/locales/ja.json';
  * it is the half that matters: the list is entirely British forms.
  *
  * The list is read from `cspell.json` rather than copied, so the two cannot
- * drift: add a word there and it is enforced in all ten locales at once.
+ * drift: add a word there and it is enforced in every locale at once. The
+ * locales are read from the app's own registry (`LANGUAGES` in
+ * `src/i18n/index.ts`), so a new language is checked the day it is added.
  */
 
 /** Words on the list that are native to a given language, not British leaks. */
@@ -42,7 +35,10 @@ const NATIVE: Record<string, readonly string[]> = {
   nl: ['analyse'],
 };
 
-const LOCALES = { en, de, es, fr, 'pt-BR': ptBR, 'pt-PT': ptPT, nl, pl, ru, ja } as const;
+/** Every registered locale and the bundle the app serves for it. */
+const LOCALES = Object.fromEntries(
+  LANGUAGES.map(({ code }) => [code, i18n.getResourceBundle(code, 'translation') as unknown]),
+);
 
 const flagWords: string[] = (
   JSON.parse(readFileSync(fileURLToPath(new URL('../../../cspell.json', import.meta.url)), 'utf8')) as {
@@ -58,6 +54,11 @@ const values = (node: unknown, out: string[] = []): string[] => {
 };
 
 describe('no British spelling reaches a translated string', () => {
+  it('reads every registered locale from the app', () => {
+    expect(Object.keys(LOCALES)).toContain('en');
+    for (const [code, bundle] of Object.entries(LOCALES)) expect(bundle, code).toBeTypeOf('object');
+  });
+
   it('reads the forbidden list out of cspell.json, so there is one copy', () => {
     expect(flagWords.length).toBeGreaterThan(50);
     expect(flagWords).toContain('colour');

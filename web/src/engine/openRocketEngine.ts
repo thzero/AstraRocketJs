@@ -14,6 +14,7 @@ import './kernelLogSink.js';
 import { declaredLength, readStreamWithProgress } from '../services/app/fetchProgress';
 import { nsKey } from '../services/storage/storageKeys';
 import { errorMessage } from '../services/app/errorMessage';
+import { KeyedError } from '../i18n/keyedError';
 
 // The WASM-GC engine + its loader live in web/public/engine/ (served verbatim by
 // Vite; a .js in src/ would be run through import-analysis, which warns on the
@@ -31,16 +32,15 @@ type EngineApi = typeof import('./vendor/openrocket-engine.mjs');
 let active: EngineApi | null = null;
 let initPromise: Promise<'wasm' | 'js'> | null = null;
 
-/** The active engine; throws if initEngine() has not resolved yet. The app mounts
- *  before it has, so callers on the main thread check `engineStore.phase` rather
- *  than treating this as unreachable. */
-
 /** An error envelope's message: the bridge sends a string, and anything else is shown as JSON. */
 const envelopeText = (err: unknown): string => (typeof err === 'string' ? err : JSON.stringify(err));
 
+/** The active engine; throws if initEngine() has not resolved yet. The app mounts
+ *  before it has, so callers on the main thread check `engineStore.phase` rather
+ *  than treating this as unreachable. */
 function eng(): EngineApi {
   if (!active) {
-    throw new Error('OpenRocket engine not initialized — await initEngine() before using it.');
+    throw new KeyedError('errors.engine.notReady');
   }
   return active;
 }
@@ -68,9 +68,9 @@ export function __setEngineForTests(stub: Partial<EngineApi> | null): void {
 let engineGeneration = 0;
 
 /** A design used after the engine that built it was reset. */
-export class StaleDesignError extends Error {
+export class StaleDesignError extends KeyedError {
   constructor() {
-    super('This design was built before the engine was reset — rebuild it before use.');
+    super('errors.engine.staleDesign');
     this.name = 'StaleDesignError';
   }
 }
@@ -114,8 +114,9 @@ function callEngine<T>(operation: string, fn: () => T): T {
   try {
     return fn();
   } catch (e) {
-    // A stale handle is already a typed, meaningful error; do not bury it.
-    if (e instanceof StaleDesignError) throw e;
+    // The app's own refusals (a stale handle, an engine not loaded yet) are
+    // already typed and keyed for the user; do not bury them.
+    if (e instanceof KeyedError) throw e;
     throw new EngineCallError(operation, e);
   }
 }
@@ -289,7 +290,7 @@ async function tryLoadWasm(onStatus?: (s: EngineLoadStatus) => void): Promise<En
     if (typeof exports.buildRocket !== 'function') return null;
     return exports;
   } catch (e) {
-    console.warn('[engine] WASM-GC unavailable — using the JS engine.', e);
+    console.warn('[engine] WASM-GC unavailable, using the JS engine.', e);
     return null;
   }
 }
@@ -320,8 +321,9 @@ const LEGACY_ENGINE_PREF_KEYS = ['engine', 'astrarrocketjs:engine'] as const;
 
 /**
  * Backend preference. Default is 'auto' → try WASM-GC first, fall back to JS.
- * WASM-GC runs our OpenRocket 24.12 kernel bit-identically to JS with the
- * WASM-hostile cast in `info.openrocket.core.util.ArrayList.clone()` patched
+ * WASM-GC runs the vendored kernel (upstream OpenRocket at the commit in
+ * `engine-java/extract/UPSTREAM`, with this repo's patches) bit-identically to
+ * JS, with the WASM-hostile cast in `info.openrocket.core.util.ArrayList.clone()` patched
  * (upstream's `(ArrayList) super.clone()` throws ClassCastException under
  * WASM-GC's strict typing; see the patch in engine-java). Overrides for debugging /
  * unsupported browsers: `?engine=js` (or

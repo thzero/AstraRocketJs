@@ -95,7 +95,7 @@ export function fitCameraToBox(
   const tanHalfFov = Math.tan((fovDeg * Math.PI) / 360);
   const m = Number.isFinite(margin) && margin > 0 ? margin : 1;
   // Fit corner by corner, not extent-plus-extent. A corner sitting at
-  // camera-space (u, v, w) (w measured along `back`, i.e. towards the lens)
+  // camera-space (u, v, w) (w measured along `back`, i.e. toward the lens)
   // is in frame when m·|u| <= tan·aspect·(d − w) and m·|v| <= tan·(d − w),
   // so that one corner demands
   //     d >= max( m·|u|/(tan·aspect), m·|v|/tan ) + w

@@ -14,6 +14,7 @@ import type { CustomMotor } from './motorStore';
 import { impulseClass } from './motorCombine';
 import { trapezoidImpulse } from './motorMath';
 import { delayList } from './motorPicker';
+import { KeyedError } from '../../i18n/keyedError';
 
 /** Total impulse (Ns) of a thrust curve by the trapezoid rule. */
 export function totalImpulse(samples: { time: number; thrust: number }[]): number {
@@ -28,13 +29,11 @@ export function parseEng(text: string): CustomMotor {
     .split(/\r?\n/)
     .map((l) => l.trim())
     .filter((l) => l && !l.startsWith(';'));
-  if (lines.length < 2) throw new Error('Not a valid .eng file (no motor data found).');
+  if (lines.length < 2) throw new KeyedError('errors.motorFile.engNoData');
 
   const header = lines[0]!.split(/\s+/);
   if (header.length < 7) {
-    throw new Error(
-      'Malformed .eng header — expected: designation diameter length delays propWeight totalWeight manufacturer.',
-    );
+    throw new KeyedError('errors.motorFile.engHeader');
   }
   const [designation, diaS, lenS, delaysS, propS, totalS, ...mfr] = header;
   const diameter = Number(diaS);
@@ -42,17 +41,17 @@ export function parseEng(text: string): CustomMotor {
   const propKg = Number(propS);
   const totalKg = Number(totalS);
   if (![diameter, length, propKg, totalKg].every(Number.isFinite)) {
-    throw new Error('Malformed .eng header — non-numeric diameter/length/weight.');
+    throw new KeyedError('errors.motorFile.engHeaderNumbers');
   }
   // Finite is not enough. `samplesToMotorSpec` rejects a non-positive diameter
   // or length and a prop mass above the total, but not a negative prop mass:
   // `masses = total - prop*(impulse/totalImpulse)` then makes the rocket gain
   // mass as the motor burns.
   if (!(diameter > 0) || !(length > 0)) {
-    throw new Error('Malformed .eng header — diameter and length must be positive.');
+    throw new KeyedError('errors.motorFile.engHeaderSize');
   }
   if (!(propKg >= 0) || !(totalKg > 0) || propKg > totalKg) {
-    throw new Error('Malformed .eng header — propellant mass must be between 0 and the total mass.');
+    throw new KeyedError('errors.motorFile.engHeaderMass');
   }
 
   // Through the shared reader, which is what the catalog's delay column is and
@@ -76,11 +75,11 @@ export function parseEng(text: string): CustomMotor {
     if (fields.length >= 7) break; // the next motor in a multi-motor file
     const [t, f] = fields.map(Number);
     if (fields.length !== 2 || !Number.isFinite(t) || !Number.isFinite(f)) {
-      throw new Error(`Malformed .eng data on line ${i + 1} — expected a time and a thrust, got "${lines[i]}".`);
+      throw new KeyedError('errors.motorFile.engDataLine', { line: i + 1, text: lines[i]! });
     }
     samples.push({ time: t!, thrust: f! });
   }
-  if (samples.length < 2) throw new Error('.eng file has no thrust-curve data points.');
+  if (samples.length < 2) throw new KeyedError('errors.motorFile.engNoCurve');
 
   const manufacturer = mfr.join(' ') || 'Custom';
   return {

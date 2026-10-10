@@ -54,7 +54,7 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
-describe('fetchCatalog — no separate data host configured', () => {
+describe('fetchCatalog: no separate data host configured', () => {
   it('reads the in-build copy and cache-busts with the manifest hash', async () => {
     const seen = stubFetch({
       '/data/manifest.json': { body: { motors: 'abc123' } },
@@ -89,7 +89,7 @@ describe('fetchCatalog — no separate data host configured', () => {
   });
 });
 
-describe('fetchCatalog — separate data host configured', () => {
+describe('fetchCatalog: separate data host configured', () => {
   it('prefers the remote host and uses ITS manifest hash', async () => {
     vi.stubEnv('VITE_DATA_BASE', REMOTE);
     const seen = stubFetch({
@@ -161,7 +161,12 @@ describe('fetchCatalog — separate data host configured', () => {
     });
     const fetchCatalog = await load();
 
-    await expect(fetchCatalog('motors', Array.isArray)).rejects.toThrow(/Could not load the motors catalog/);
+    await expect(fetchCatalog('motors', Array.isArray)).rejects.toThrow(/Could not load the motor catalog/);
+    // Keyed, so the banner renders it in the UI language, reason included.
+    await expect(fetchCatalog('motors', Array.isArray)).rejects.toMatchObject({
+      key: 'errors.remote.motors',
+      values: { reason: { key: 'errors.remote.badShape' } },
+    });
   });
 
   it('rejects with the last error only when every base fails', async () => {
@@ -169,10 +174,10 @@ describe('fetchCatalog — separate data host configured', () => {
     stubFetch({});
     const fetchCatalog = await load();
 
-    await expect(fetchCatalog('motors')).rejects.toThrow(/Could not load the motors catalog/);
+    await expect(fetchCatalog('motors')).rejects.toThrow(/Could not load the motor catalog/);
   });
 
-  it('does not cache a total failure — a later call retries', async () => {
+  it('does not cache a total failure: a later call retries', async () => {
     vi.stubEnv('VITE_DATA_BASE', REMOTE);
     const routes: Record<string, Route> = {
       [`${REMOTE}manifest.json`]: { fail: true },
@@ -239,13 +244,13 @@ describe('fetchCatalog — separate data host configured', () => {
 
       // ...but it does give up at 8s.
       await vi.advanceTimersByTimeAsync(3_500);
-      await expect(caught).resolves.toMatch(/Could not load the motors catalog/);
+      await expect(caught).resolves.toMatch(/Could not load the motor catalog/);
     } finally {
       vi.useRealTimers();
     }
   });
 
-  it('lets a SLOW body finish — a 1.6 MB catalog on 3G outlasts any first-byte budget', async () => {
+  it('lets a SLOW body finish: a 1.6 MB catalog on 3G outlasts any first-byte budget', async () => {
     vi.useFakeTimers();
     try {
       // Headers land immediately; the body takes 30s, as ~1.6 MB does on a
@@ -275,7 +280,7 @@ describe('fetchCatalog — separate data host configured', () => {
 
       const caught = fetchCatalog('motors').catch((e: Error) => e.message);
       await vi.advanceTimersByTimeAsync(61_000);
-      await expect(caught).resolves.toMatch(/Could not load the motors catalog/);
+      await expect(caught).resolves.toMatch(/Could not load the motor catalog/);
     } finally {
       vi.useRealTimers();
     }

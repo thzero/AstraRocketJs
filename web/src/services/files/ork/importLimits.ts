@@ -1,3 +1,4 @@
+import { KeyedError } from '../../../i18n/keyedError';
 import { MAX_FIN_COUNT as KERNEL_MAX_FIN_COUNT, MAX_INSTANCE_COUNT } from '../../../tree/nodeProps';
 
 /**
@@ -58,13 +59,13 @@ type ImportFormat = '.ork' | '.rkt';
  */
 export function countComponent(ctx: { nodeCount: number }, format: ImportFormat): void {
   if (++ctx.nodeCount > MAX_COMPONENTS) {
-    throw new Error(`This ${format} declares too many components to open (possibly malformed).`);
+    throw new KeyedError('errors.file.tooManyComponents', { format });
   }
 }
 
 /** Refuse a walk deeper than MAX_NESTING_DEPTH before it recurses again. */
 export function checkDepth(depth: number, format: ImportFormat): void {
   if (depth > MAX_NESTING_DEPTH) {
-    throw new Error(`This ${format} is nested too deeply to open (possibly malformed).`);
+    throw new KeyedError('errors.file.tooDeep', { format });
   }
 }

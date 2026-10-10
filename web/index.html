@@ -23,7 +23,7 @@
       /* Instant paint before any JS: dark background (no white flash) plus a
          wordmark, so the first frame is not an empty page while the app's own
          bundle parses. React replaces it the moment it renders, which is now as
-         soon as the modules evaluate — the engine loads BEHIND the app (see
+         soon as the modules evaluate. The engine loads BEHIND the app (see
          main.tsx), so nothing here waits on a 2.3 MB download any more, and the
          bar sweeps rather than reporting a figure nothing updates. Progress and
          failure are the app's job now: components/layout/EngineNotice.tsx. */

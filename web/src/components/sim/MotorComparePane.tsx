@@ -107,7 +107,7 @@ export function MotorComparePane({ motors, cols }: { motors: CatalogMotor[]; col
                 </td>
                 {specCols.map((c) => (
                   <td key={c.id} className={`px-2 py-1 text-ink-soft ${ALIGN[c.align]}`}>
-                    {c.cell(m, u)}
+                    {c.cell(m, u, t)}
                   </td>
                 ))}
               </tr>

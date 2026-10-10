@@ -121,7 +121,7 @@ jobs:
       # --expect-lines pins how MANY golden values are checked: without it,
       # dropping emissions from ParityMain and re-recording shrinks the physics
       # gate while it still reports "ok". Change it only with a reason.
-      - name: Parity — JVM vs TeaVM-JS and WASM-GC
+      - name: 'Parity: JVM vs TeaVM-JS and WASM-GC'
         timeout-minutes: 20
         run: npm run parity -- --expect-lines 359
 
@@ -140,7 +140,7 @@ jobs:
       #
       # If this ever proves flaky across OS/JDK rather than catching a real
       # staleness, the fallback is a source+artifact SHA-256 stamp written by
-      # build-engine.mjs and compared here instead — cheaper, but it cannot
+      # build-engine.mjs and compared here instead. It is cheaper, but it cannot
       # catch a hand-edited binary.
       - name: The committed engine matches src/java
         timeout-minutes: 20
@@ -164,7 +164,7 @@ jobs:
   # targets, so it is blind to src/java having drifted from upstream(+patches),
   # which can leave a regeneration that does not compile.
   #
-  # Needs no JDK — just node and the pinned OpenRocket source.
+  # Needs no JDK, just node and the pinned OpenRocket source.
   reproducible:
     runs-on: ubuntu-latest
     # 15 minutes, against the 360-minute default. The cap is for a HANG, not

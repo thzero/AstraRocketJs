@@ -10,7 +10,7 @@ import { deleteCustomPart, type SavedPartEntry } from '../../services/parts/cust
 import type { Component } from '../../services/parts/componentDb';
 import { SavedPartEditor } from './SavedPartEditor';
 import { useSavedParts } from './useSavedParts';
-import { errorMessage } from '../../services/app/errorMessage';
+import { errorText } from '../../i18n/keyedError';
 
 /**
  * The parts the user saved, all of them, in one place: the list on the left,
@@ -94,7 +94,7 @@ export function SavedPartsDialog({ onClose }: { onClose: () => void }) {
       settle(null);
     } catch (err2) {
       // The store's own message: a refused write is not always "storage full".
-      setErr(errorMessage(err2));
+      setErr(errorText(err2, t));
     }
   };
 

@@ -164,9 +164,10 @@ export interface WorkspaceState extends ViewSlice, FileSlice {
    * Browser storage is not keeping the user's work (quota hit, or IndexedDB
    * blocked and we are back on the 5 MB localStorage cap).
    *
-   * A separate slot from `err`, because the rebuild effect clears `err` on every
-   * successful build (milliseconds after load, and again on every keystroke),
-   * and this warning has to outlive that.
+   * A separate slot from `err`, because `err` is cleared by switching designs
+   * and by a successful rebuild after any edit (the rebuild effect keeps it only
+   * while the tree is still the one it was raised on), and this warning has to
+   * outlive both.
    *
    * A successful save clears only the transient "full" case. `degraded` and
    * `loadFailed` are facts about this session that a later save does not undo,

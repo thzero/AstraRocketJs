@@ -7,7 +7,7 @@ import type { CustomPart } from '../../services/parts/presetStore';
 import { AppearanceSection } from './AppearanceSection';
 import { FieldRow, FieldSection, sectionFields, visibleFields } from './DimensionFields';
 import { MaterialSection, RecoveryMaterialSection } from './MaterialSection';
-import { errorMessage } from '../../services/app/errorMessage';
+import { errorText } from '../../i18n/keyedError';
 import { EditorFooter } from '../common/MasterDetail';
 import { PartMetaFields } from './PartMetaFields';
 
@@ -88,7 +88,7 @@ export function SavedPartEditor({
     } catch (e) {
       // A name another part already uses, a refused write, or geometry that no
       // longer projects to a row.
-      setErr(errorMessage(e));
+      setErr(errorText(e, t));
     } finally {
       setSaving(false);
     }

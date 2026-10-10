@@ -9,7 +9,7 @@
   "engines": {
     "node": ">=24"
   },
-  "description": "AstraRocketJs — browser UI for the OpenRocket engine",
+  "description": "AstraRocketJs: browser UI for the OpenRocket engine",
   "author": "thZero.com",
   "author_url": "https://www.thzero.com",
   "copyright": "2026",

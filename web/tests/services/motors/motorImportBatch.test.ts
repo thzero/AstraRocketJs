@@ -7,7 +7,8 @@ import { fileURLToPath } from 'node:url';
  *
  * Source-level, and node-env: `importCustomMotors` also refreshes the catalog over
  * the network, which a unit test has no business reaching, and the loop is what
- * is being ruled out. `lowFindings.test.ts` covers what the batch write itself does.
+ * is being ruled out. `storage/silentFailures.test.ts` covers what the batch write
+ * itself does.
  */
 const src = (rel: string) => readFileSync(fileURLToPath(new URL(`../../../src/${rel}`, import.meta.url)), 'utf8');
 
@@ -16,7 +17,7 @@ describe('the custom-motor import is one write', () => {
     expect(src('services/motors/motorDb.ts')).toContain('addCustomMotors(motors)');
   });
 
-  it('no longer loops a single add per motor', () => {
+  it('does not loop a single add per motor', () => {
     // The quadratic shape: one read-modify-write per motor, each parsing and
     // re-serializing the entire stored array.
     expect(src('services/motors/motorDb.ts')).not.toMatch(/for \(const m of motors\) await/);

@@ -30,7 +30,7 @@ export type ConfigsTab = 'motors' | 'recovery' | 'separation';
  * What the center pane shows. Lives here, beside `Tab`, because the store keeps the
  * two in step (`showing`, `setTab`); declared in the toggle instead, the state
  * layer would import a React component module for a type and a one-line predicate.
- * The toggle re-exports both.
+ * The toggle and its callers import them from here.
  */
 export type ViewMode = '2d' | '3d' | 'drag' | 'flight' | 'path' | 'ground' | 'environment';
 /** Views that read the design itself: the Design tab's switch. */

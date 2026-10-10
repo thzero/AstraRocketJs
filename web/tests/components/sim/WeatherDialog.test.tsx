@@ -210,7 +210,7 @@ const goOffline = () => {
 };
 
 describe('WeatherDialog offline', () => {
-  it('greys out Fetch and says why', () => {
+  it('grays out Fetch and says why', () => {
     const back = goOffline();
     try {
       open();

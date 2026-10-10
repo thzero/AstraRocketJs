@@ -2,6 +2,7 @@ import type { StaticInfo } from '../../engine/openRocketEngine';
 import { fmtSi, type UnitSelection } from '../../prefs/units.js';
 import { appName } from '../app/appInfo.js';
 import { escapeXml } from '../files/xmlUtil.js';
+import { KeyedError } from '../../i18n/keyedError';
 
 /**
  * 2D/3D image + model export with a data header, the drawings an L3 / Tripoli
@@ -18,32 +19,34 @@ export interface ExportData {
   spanM?: number;
   withMotors: boolean;
   appVersion: string;
+  /** The UI's translator: the header is written in the language the user reads. */
+  t: (key: string, options?: Record<string, unknown>) => string;
 }
 
 /** RockSim-style header block: the numbers a cert reviewer wants on the page. */
 export function dataHeaderLines(d: ExportData): string[] {
-  const u = d.units;
+  const { t, units: u } = d;
+  const length = (si: number) => `${fmtSi('length', u.length, si, 3)} ${u.length}`;
+  const mass = (si: number) => `${fmtSi('mass', u.mass, si)} ${u.mass}`;
   const lines: string[] = [d.name];
   if (d.info) {
     const i = d.info;
     const dims = [
-      `Length ${fmtSi('length', u.length, i.length, 3)} ${u.length}`,
-      `max diameter ${fmtSi('length', u.length, i.refDiameter, 3)} ${u.length}`,
-      ...(d.spanM ? [`span ${fmtSi('length', u.length, d.spanM, 3)} ${u.length}`] : []),
+      t('export.headerLength', { value: length(i.length) }),
+      t('export.headerMaxDiameter', { value: length(i.refDiameter) }),
+      ...(d.spanM ? [t('export.headerSpan', { value: length(d.spanM) })] : []),
     ];
     lines.push(dims.join(', '));
     lines.push(
       d.withMotors
-        ? `Launch mass ${fmtSi('mass', u.mass, i.mass)} ${u.mass} (dry ${fmtSi('mass', u.mass, i.massEmpty)} ${u.mass})`
-        : `Dry mass ${fmtSi('mass', u.mass, i.massEmpty)} ${u.mass} — no motors loaded`,
+        ? t('export.headerLaunchMass', { mass: mass(i.mass), dry: mass(i.massEmpty) })
+        : t('export.headerDryMass', { dry: mass(i.massEmpty) }),
     );
     lines.push(
-      `CG ${fmtSi('length', u.length, i.cg, 3)} ${u.length}, ` +
-        `CP ${fmtSi('length', u.length, i.cp, 3)} ${u.length} from nose tip, ` +
-        `margin ${i.stabilityCalibers.toFixed(2)} cal`,
+      t('export.headerBalance', { cg: length(i.cg), cp: length(i.cp), margin: i.stabilityCalibers.toFixed(2) }),
     );
   }
-  lines.push(`${appName()} v${d.appVersion} — ${new Date().toISOString().slice(0, 10)}`);
+  lines.push(`${appName()} v${d.appVersion}, ${new Date().toISOString().slice(0, 10)}`);
   return lines;
 }
 
@@ -170,7 +173,7 @@ const JPEG_QUALITY = 0.92;
 const encodeCanvas = (canvas: HTMLCanvasElement, format: ImageFormat): Promise<Blob> =>
   new Promise((resolve, reject) => {
     canvas.toBlob(
-      (b) => (b ? resolve(b) : reject(new Error('image encode failed'))),
+      (b) => (b ? resolve(b) : reject(new KeyedError('errors.export.imageEncode'))),
       `image/${format}`,
       format === 'jpeg' ? JPEG_QUALITY : undefined,
     );
@@ -195,7 +198,7 @@ export function svgToImage(svgString: string, widthPx = 3840, format: ImageForma
     };
     img.onerror = () => {
       URL.revokeObjectURL(url);
-      reject(new Error('SVG rasterize failed'));
+      reject(new KeyedError('errors.export.svgRasterize'));
     };
     img.src = url;
   });

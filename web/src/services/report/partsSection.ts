@@ -1,5 +1,6 @@
 import type { ReportModel } from './reportModel';
 import { fmtNum, partLabel } from '../../i18n/format';
+import { NO_VALUE } from '../../i18n/noValue';
 import { siToUi } from '../../prefs/units';
 import { heading, len, q, qv, sectionBreak, sub, table, type Col, type PdfPage } from './pdfPage';
 
@@ -44,7 +45,7 @@ function partRow(p: PdfPage, r: PartRow): string[] {
     .join(' · ');
   return [
     `${'  '.repeat(r.depth)}${partLabel(t, r)}`,
-    `${r.material ?? '—'}${r.density ? ` (${fmtNum(siToUi('density', units.density, r.density), 3)} ${units.density})` : ''}`,
+    `${r.material ?? NO_VALUE}${r.density ? ` (${fmtNum(siToUi('density', units.density, r.density), 3)} ${units.density})` : ''}`,
     dims,
     q(p, 'mass', r.mass, 2),
   ];

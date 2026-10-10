@@ -67,7 +67,7 @@ afterEach(() => __setEngineForTests(null));
 
 const design = () => OpenRocketDesign.buildTree({ components: [] } as unknown as RocketTree);
 
-describe('assertFiniteCurve — the motor curve', () => {
+describe('assertFiniteCurve: the motor curve', () => {
   it('names the motor when a sample is non-finite', () => {
     // TeaVM reports this as an opaque "number NaN cannot be converted to a
     // BigInt" from deep inside the compiled Java. The point of the guard is a
@@ -82,7 +82,7 @@ describe('assertFiniteCurve — the motor curve', () => {
   });
 });
 
-describe('assertFiniteCurve — the scalars', () => {
+describe('assertFiniteCurve: the scalars', () => {
   // These cross into the kernel too. thrustcurve.ts computes
   // `length: motor.length / 1000` and `cgX: … ?? motor.length / 2000`, so a
   // catalog row missing `length` makes both NaN.
@@ -176,12 +176,12 @@ describe('error envelopes', () => {
 describe('the engine must be initialized', () => {
   it('says so instead of throwing on null', () => {
     __setEngineForTests(null);
-    expect(() => design()).toThrow(/not initialized/);
+    expect(() => design()).toThrow(expect.objectContaining({ key: 'errors.engine.notReady' }));
     vi.restoreAllMocks();
   });
 });
 
-describe('assertFiniteCurve — the curve is read in lockstep', () => {
+describe('assertFiniteCurve: the curve is read in lockstep', () => {
   it('rejects arrays of differing length before the kernel indexes off the end', () => {
     expect(() => design().setMotorById('mount', motor({ masses: [0.024, 0.018] }))).toThrow(/C6.*length/i);
     expect(() => design().setMotorById('mount', motor({ thrusts: [0, 6] }))).toThrow(/C6.*length/i);

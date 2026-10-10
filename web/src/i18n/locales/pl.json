@@ -19,6 +19,105 @@
     "shrink": "Przywróć to okno do normalnego rozmiaru"
   },
   "errors": {
+    "material": {
+      "nameRequired": "Nazwa materiału jest wymagana.",
+      "densityPositive": "Gęstość musi być liczbą dodatnią."
+    },
+    "savedPart": {
+      "partNoRequired": "Numer części jest wymagany.",
+      "missingDimensions": "Tej części brakuje wymiarów, według których wybierak porządkuje części.",
+      "gone": "Ta część nie jest już zapisana.",
+      "nameTaken": "Inna zapisana część tego typu ma już tego producenta i tę nazwę."
+    },
+    "file": {
+      "notDesign": "To nie jest plik projektu rakiety. Oczekiwano OpenRocket (.ork) lub RockSim (.rkt).",
+      "notOrk": "To nie jest plik .ork (brak <rocket>).",
+      "notRkt": "To nie jest plik .rkt (brak <RocketDesign>).",
+      "noStage": "Ten plik .ork nie zawiera żadnego stopnia.",
+      "noComponents": "W tym projekcie nie znaleziono obsługiwanych komponentów.",
+      "xmlInvalid": "To nie jest prawidłowy plik {{format}} (błąd odczytu XML).",
+      "archiveTooManyEntries": "Archiwum .ork ma zbyt wiele pozycji.",
+      "archiveTooLarge": "Archiwum .ork jest zbyt duże (możliwa bomba zip).",
+      "archiveEmpty": "Archiwum .ork jest puste.",
+      "tooManyComponents": "Ten plik {{format}} deklaruje zbyt wiele komponentów, by go otworzyć (możliwe uszkodzenie).",
+      "tooDeep": "Ten plik {{format}} jest zbyt głęboko zagnieżdżony, by go otworzyć (możliwe uszkodzenie).",
+      "tooLarge": "Plik jest zbyt duży, by go otworzyć (ponad {{size}} MiB)."
+    },
+    "rasaero": {
+      "tooManyStages": "RASAero obsługuje co najwyżej {{max}} stopnie.",
+      "boosterNoTube": "Stopień „{{stage}}” nie ma rury korpusu, a rakiety pomocnicze RASAero jej wymagają.",
+      "boosterTransitions": "Rakiety pomocnicze RASAero obsługują tylko kołnierz i zwężenie ogonowe. Stopień „{{stage}}” ma inne przejścia; wyeksportuj jako .ork.",
+      "boosterFins": "RASAero dopuszcza jeden zestaw stateczników na rakietę pomocniczą. Stopień „{{stage}}” ma ich kilka; wyeksportuj jako .ork.",
+      "tubeFins": "RASAero dopuszcza jeden zestaw stateczników na rurę. Usuń pozostałe albo wyeksportuj jako .ork.",
+      "freeformFins": "Stateczniki RASAero są trapezami, a dowolny obrys „{{name}}” nie jest prostym trapezem o 3 lub 4 punktach. Uprość go albo wyeksportuj jako .ork.",
+      "ellipticalFins": "RASAero nie ma stateczników eliptycznych, więc nie można wyeksportować „{{name}}”. Użyj stateczników trapezowych albo wyeksportuj jako .ork.",
+      "tubeFinsUnsupported": "RASAero nie ma stateczników rurowych, więc nie można wyeksportować „{{name}}”. Użyj stateczników trapezowych albo wyeksportuj jako .ork.",
+      "finCount": "RASAero wymaga od 3 do 8 stateczników w zestawie (jest {{found}}). Popraw „{{name}}”.",
+      "noseShape": "RASAero nie ma kształtu stożka dziobowego „{{shape}}”. Użyj stożkowego, ostrołukowego, elipsoidalnego, Haacka lub potęgowego albo wyeksportuj jako .ork.",
+      "transitionShape": "Przejścia w RASAero muszą być stożkowe. Zmień kształt albo wyeksportuj jako .ork.",
+      "noPods": "RASAero nie ma gondoli, więc nie można wyeksportować „{{name}}”. Usuń ją albo wyeksportuj jako .ork.",
+      "noParallel": "RASAero nie ma stopni równoległych (bocznych), więc nie można wyeksportować „{{name}}”. Usuń go albo wyeksportuj jako .ork."
+    },
+    "motorFile": {
+      "engNoData": "To nie jest prawidłowy plik .eng (nie znaleziono danych silnika).",
+      "engHeader": "Nieprawidłowy nagłówek .eng. Oczekiwano: oznaczenie średnica długość opóźnienia masaPaliwa masaCałkowita producent.",
+      "engHeaderNumbers": "Nieprawidłowy nagłówek .eng: średnica, długość lub któraś z mas nie jest liczbą.",
+      "engHeaderSize": "Nieprawidłowy nagłówek .eng: średnica i długość muszą być dodatnie.",
+      "engHeaderMass": "Nieprawidłowy nagłówek .eng: masa paliwa musi mieścić się między 0 a masą całkowitą.",
+      "engDataLine": "Nieprawidłowe dane .eng w wierszu {{line}}: oczekiwano czasu i ciągu, a jest „{{text}}”.",
+      "engNoCurve": "Plik .eng nie zawiera punktów krzywej ciągu.",
+      "attrDiameter": "średnica",
+      "attrLength": "długość",
+      "attrInitialMass": "masa początkowa",
+      "attrPropellantMass": "masa paliwa",
+      "rseMissing": "Silnikowi w pliku .rse brakuje wartości: {{what}}.",
+      "rseInvalid": "Silnik w pliku .rse ma nieprawidłową wartość: {{what}} ({{raw}}).",
+      "rseNoMaker": "Silnikowi w pliku .rse brakuje producenta (mfg).",
+      "rseNoCode": "Silnikowi w pliku .rse brakuje oznaczenia (code).",
+      "rseSize": "Silnik {{motor}} w pliku .rse ma średnicę lub długość, która nie jest dodatnia.",
+      "rseMass": "Silnik {{motor}} w pliku .rse podaje więcej paliwa niż masy całkowitej.",
+      "rseTooManyPoints": "Silnik {{motor}} w pliku .rse ma ponad {{max}} punktów danych.",
+      "rseBadPoint": "Silnik {{motor}} w pliku .rse ma punkt danych bez czasu lub ciągu.",
+      "rseNoCurve": "Silnik {{motor}} w pliku .rse nie ma danych krzywej ciągu.",
+      "rseNegativeMass": "Silnik {{motor}} w pliku .rse ma w danych ujemną masę.",
+      "rseNoEngine": "To nie jest prawidłowy plik .rse (nie znaleziono <engine>).",
+      "rseTooManyMotors": "Ten plik .rse deklaruje ponad {{max}} silników (możliwe uszkodzenie)."
+    },
+    "thrustcurve": {
+      "http": "thrustcurve.org odpowiedział kodem HTTP {{status}} dla {{path}}.",
+      "tooLarge": "Odpowiedź thrustcurve.org dla {{path}} jest zbyt duża.",
+      "timeout": "Przekroczono czas oczekiwania na thrustcurve.org. Sprawdź połączenie i spróbuj ponownie.",
+      "noSamples": "Brak próbek ciągu dla {{motor}}.",
+      "noWeight": "thrustcurve.org nie podaje masy startowej ani masy paliwa dla {{motor}}, więc nie można go symulować. Wybierz inny silnik.",
+      "propOverTotal": "{{motor}} ma w katalogu więcej paliwa ({{prop}} g) niż masy startowej ({{total}} g), więc jego spalanie skończyłoby się ujemną masą. Wybierz inny silnik.",
+      "badSize": "thrustcurve.org podaje dla {{motor}} błędny rozmiar (średnica {{diameter}} mm, długość {{length}} mm), więc nie można go symulować. Wybierz inny silnik.",
+      "notFound": "Nie znaleziono {{maker}} {{motor}} w thrustcurve.org.",
+      "noData": "Brak danych krzywej ciągu dla {{motor}}.",
+      "badData": "Dane krzywej ciągu dla {{motor}} są nieprawidłowe.",
+      "importGone": "Zaimportowany silnik {{motor}} nie jest już zapisany. Zaimportuj ponownie jego plik silnika."
+    },
+    "remote": {
+      "motors": "Nie udało się wczytać katalogu silników ({{reason}}).",
+      "components": "Nie udało się wczytać katalogu komponentów ({{reason}}).",
+      "materials": "Nie udało się wczytać katalogu materiałów ({{reason}}).",
+      "contributors": "Nie udało się wczytać listy współtwórców ({{reason}}).",
+      "tooLarge": "zbyt duża odpowiedź",
+      "badShape": "nieoczekiwana struktura katalogu"
+    },
+    "export": {
+      "noPrintable": "Nie wybrano żadnych części do druku.",
+      "openSolid": "Nie udało się zamknąć tej bryły: po domknięciu pozostało otwartych krawędzi: {{edges}}.",
+      "imageEncode": "Przeglądarka nie mogła zakodować obrazu.",
+      "svgRasterize": "Przeglądarka nie mogła narysować SVG."
+    },
+    "engine": {
+      "notReady": "Silnik fizyczny OpenRocket nie skończył się jeszcze wczytywać. Poczekaj na jego wczytanie i spróbuj ponownie.",
+      "staleDesign": "Ten projekt zbudowano przed ponownym uruchomieniem silnika fizycznego. Zbuduj go ponownie przed użyciem."
+    },
+    "rktSkip": {
+      "cgOverride": "nadpisanie SC ({{name}})",
+      "extraStages": "stopień {{from}} i dalsze"
+    },
     "viewFailed": "Nie udało się załadować tego widoku.",
     "staleBuild": "Aplikacja została zaktualizowana, gdy ta karta była otwarta, więc jej część nie znajduje się już na serwerze. Odśwież, aby pobrać nową wersję.",
     "openOrk": "Nie udało się otworzyć pliku .ork: {{reason}}",
@@ -90,6 +189,17 @@
     "markingOmitted_noFins": "Bez znaczników ({{names}}): na tej rurze nie ma zestawu stateczników, więc nie ma do czego wyrównać znacznika."
   },
   "export": {
+    "dxf": {
+      "trapezoidfinset": "Statecznik trapezowy",
+      "ellipticalfinset": "Statecznik eliptyczny",
+      "freeformfinset": "Statecznik o dowolnym kształcie",
+      "bulkhead": "Przegroda",
+      "centeringring": "Pierścień centrujący",
+      "cutCount": "{{name}} (wyciąć {{qty}})",
+      "finDims": "nasada {{root}} mm | rozpiętość {{span}} mm | grubość {{stock}} mm",
+      "discDims": "Ø{{diameter}} mm",
+      "discBoreDims": "Ø{{diameter}} mm | otwór Ø{{bore}} mm"
+    },
     "title": "Raport projektu",
     "select": "Wybierz elementy do uwzględnienia:",
     "designReport": "Raport projektu",
@@ -132,7 +242,13 @@
     "pdfFailed": "Nie udało się wyeksportować pliku PDF: {{message}}",
     "csvFailed": "Nie udało się wyeksportować pliku CSV: {{message}}",
     "reportFailed": "Nie udało się złożyć raportu projektu: {{message}}",
-    "finMarkingGuide": "Szablon rozmieszczenia stateczników"
+    "finMarkingGuide": "Szablon rozmieszczenia stateczników",
+    "headerLength": "Długość {{value}}",
+    "headerMaxDiameter": "maks. średnica {{value}}",
+    "headerSpan": "rozpiętość {{value}}",
+    "headerLaunchMass": "Masa startowa {{mass}} (pusta {{dry}})",
+    "headerDryMass": "Masa pusta {{dry}}, bez załadowanych silników",
+    "headerBalance": "SC {{cg}}, SP {{cp}} od czubka stożka, zapas {{margin}} kal"
   },
   "engine": {
     "wasmTip": "Silnik fizyki: WebAssembly (szybka ścieżka)",
@@ -662,6 +778,8 @@
     "rodDirectionName_rod": "Kierunek pręta startowego",
     "windDirectionName": "Kierunek wiatru",
     "angleLimit": "Zasady bezpieczeństwa NAR i Tripoli wymagają, aby wyrzutnia odchylała się od pionu nie więcej niż {{limit}}.",
+    "angleLimit_rail": "Zasady bezpieczeństwa NAR i Tripoli wymagają, aby szyna startowa odchylała się od pionu nie więcej niż {{limit}}.",
+    "angleLimit_rod": "Zasady bezpieczeństwa NAR i Tripoli wymagają, aby pręt startowy odchylał się od pionu nie więcej niż {{limit}}.",
     "windLimit": "Zasady bezpieczeństwa NAR i Tripoli wymagają, aby nie startować przy wiatrze powyżej {{limit}}.",
     "field": {
       "launchRodLengthM": "długość prowadnicy",
@@ -1696,6 +1814,12 @@
     "LargeAOA": "Rakieta leciała pod kątem natarcia poza zakresem, w którym metoda Barrowmana obowiązuje, więc liczby aerodynamiczne w okolicy tego punktu są przybliżone. Zdarza się często przy silnym wietrze albo zaraz po powolnym zejściu z prowadnicy.",
     "LargeAOA.str1": "Rakieta leciała pod kątem natarcia poza zakresem, w którym metoda Barrowmana obowiązuje, więc liczby aerodynamiczne w okolicy tego punktu są przybliżone. Zdarza się często przy silnym wietrze albo zaraz po powolnym zejściu z prowadnicy.",
     "LargeAOA.str2": "Rakieta leciała pod kątem natarcia poza zakresem, w którym metoda Barrowmana obowiązuje, więc liczby aerodynamiczne w okolicy tego punktu są przybliżone. Zdarza się często przy silnym wietrze albo zaraz po powolnym zejściu z prowadnicy.",
+    "LargeAOA_rail": "Rakieta leciała pod kątem natarcia poza zakresem, w którym metoda Barrowmana obowiązuje, więc liczby aerodynamiczne w okolicy tego punktu są przybliżone. Zdarza się często przy silnym wietrze albo zaraz po powolnym zejściu z szyny startowej.",
+    "LargeAOA_rod": "Rakieta leciała pod kątem natarcia poza zakresem, w którym metoda Barrowmana obowiązuje, więc liczby aerodynamiczne w okolicy tego punktu są przybliżone. Zdarza się często przy silnym wietrze albo zaraz po powolnym zejściu z pręta startowego.",
+    "LargeAOA.str1_rail": "Rakieta leciała pod kątem natarcia poza zakresem, w którym metoda Barrowmana obowiązuje, więc liczby aerodynamiczne w okolicy tego punktu są przybliżone. Zdarza się często przy silnym wietrze albo zaraz po powolnym zejściu z szyny startowej.",
+    "LargeAOA.str1_rod": "Rakieta leciała pod kątem natarcia poza zakresem, w którym metoda Barrowmana obowiązuje, więc liczby aerodynamiczne w okolicy tego punktu są przybliżone. Zdarza się często przy silnym wietrze albo zaraz po powolnym zejściu z pręta startowego.",
+    "LargeAOA.str2_rail": "Rakieta leciała pod kątem natarcia poza zakresem, w którym metoda Barrowmana obowiązuje, więc liczby aerodynamiczne w okolicy tego punktu są przybliżone. Zdarza się często przy silnym wietrze albo zaraz po powolnym zejściu z szyny startowej.",
+    "LargeAOA.str2_rod": "Rakieta leciała pod kątem natarcia poza zakresem, w którym metoda Barrowmana obowiązuje, więc liczby aerodynamiczne w okolicy tego punktu są przybliżone. Zdarza się często przy silnym wietrze albo zaraz po powolnym zejściu z pręta startowego.",
     "SUPERSONIC": "Część lotu przebiega ponaddźwiękowo, a tam rozszerzona metoda Barrowmana daje tylko przybliżenie. Liczby oporu i stabilności na tym odcinku traktuj jako orientacyjne."
   },
   "windProfile": {
@@ -1728,6 +1852,7 @@
     }
   },
   "limits": {
+    "sentenceJoin": "{{first}} {{next}}",
     "belowMin": "Poniżej minimum",
     "aboveMax": "Powyżej limitu",
     "tooFast": "Za szybko",
@@ -1807,7 +1932,11 @@
     "keysView": "Strzałki przesuwają mapę, a plus i minus przybliżają.",
     "noCoords": "Podaj szerokość i długość geograficzną, aby umieścić miejsce.",
     "tooClose": "Przy takim zbliżeniu nie ma zdjęć",
-    "offline": "Bez sieci nie ma zdjęć"
+    "offline": "Bez sieci nie ma zdjęć",
+    "hemisphereN": "N",
+    "hemisphereS": "S",
+    "hemisphereE": "E",
+    "hemisphereW": "W"
   },
   "sweep": {
     "button": "Dryf",

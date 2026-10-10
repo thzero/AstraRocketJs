@@ -42,7 +42,7 @@ describe('pageFrame', () => {
   });
 });
 
-describe('templateFits — a template prints 1:1 or not at all', () => {
+describe('templateFits: a template prints 1:1 or not at all', () => {
   it('accepts one that exactly fills the drawable area', () => {
     // 186 mm across, and 273 mm down: `bottom` (285) less the top margin the
     // block starts at.
@@ -67,7 +67,7 @@ describe('templateFits — a template prints 1:1 or not at all', () => {
   });
 });
 
-describe('sideViewScale — the side view is fit-to-page, NOT 1:1', () => {
+describe('sideViewScale: the side view is fit-to-page, NOT 1:1', () => {
   it('fills the content width for a long, slender rocket', () => {
     // 1 m long, 100 mm across: the width binds at 186/1000, because the 34 mm
     // band would have allowed 0.34.
@@ -105,7 +105,7 @@ describe('sideViewOrigin', () => {
   });
 });
 
-describe('hexToRgbTuple — the template stroke and fill', () => {
+describe('hexToRgbTuple: the template stroke and fill', () => {
   it('reads six-digit hex, with or without the hash, in either case', () => {
     expect(hexToRgbTuple('#ff8800')).toEqual([255, 136, 0]);
     expect(hexToRgbTuple('ff8800')).toEqual([255, 136, 0]);
@@ -127,7 +127,7 @@ describe('hexToRgbTuple — the template stroke and fill', () => {
   });
 });
 
-describe('finSetsOf — which fin templates get printed at all', () => {
+describe('finSetsOf: which fin templates get printed at all', () => {
   const node = (o: object) => o as unknown as ComponentNode;
   const stage = node({
     type: 'stage',
@@ -154,7 +154,7 @@ describe('finSetsOf — which fin templates get printed at all', () => {
   });
 });
 
-describe('finSetsOf — tube fins have no template', () => {
+describe('finSetsOf: tube fins have no template', () => {
   const node = (o: object) => o as unknown as ComponentNode;
 
   it('skips a tube fin set while keeping the flat ones beside it', () => {

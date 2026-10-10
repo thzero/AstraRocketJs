@@ -10,6 +10,7 @@ import { readLaunchConditions } from './ork/importLaunch';
 import { readSimulations } from './ork/importSimulations';
 import { configNotes, ignoredNotes, modelingNotes } from './ork/importNotes';
 import { keyedNote, type ImportNote } from './importNote';
+import { KeyedError } from '../../i18n/keyedError';
 
 /**
  * .ork import: unpack and parse the file, pick the flight configuration to
@@ -21,7 +22,7 @@ export function importOrk(data: ArrayBuffer | string): OrkImportResult {
   const archive = unpackOrk(data);
   const doc = parseOrkXml(archive.xml);
   const rocketEl = doc.querySelector('openrocket > rocket');
-  if (!rocketEl) throw new Error('Not a .ork file (missing <rocket>)');
+  if (!rocketEl) throw new KeyedError('errors.file.notOrk');
 
   const name = text(rocketEl, ':scope > name') ?? 'Imported rocket';
   // Design-level metadata (OpenRocket's Rocket configuration), preserved so a
@@ -49,7 +50,7 @@ export function importOrk(data: ArrayBuffer | string): OrkImportResult {
   const docEl = doc.querySelector('openrocket');
   const docExtra = docEl ? readPassthrough(docEl, KNOWN_DOCUMENT_TAGS) : undefined;
   const stages = Array.from(rocketEl.querySelectorAll(':scope > subcomponents > stage'));
-  if (stages.length === 0) throw new Error('No stage found');
+  if (stages.length === 0) throw new KeyedError('errors.file.noStage');
 
   const { configEls, configs, chosenConfigId } = readFlightConfigs(rocketEl);
   const ctx: OrkImportContext = {
@@ -68,7 +69,7 @@ export function importOrk(data: ArrayBuffer | string): OrkImportResult {
   // plain radius, and an unresolved one would draw at a default nobody chose.
   const components = syncAutoRadii({ name, components: readStages(ctx, stages) }).components;
   if (components.every((s) => (s.children ?? []).length === 0)) {
-    throw new Error('No supported components found in this design.');
+    throw new KeyedError('errors.file.noComponents');
   }
   // Stage activeness, once the tree exists: the file addresses a stage by
   // number and the configurations address it by node id.
@@ -149,16 +150,6 @@ function versionNotes(doc: Document): ImportNote[] {
 }
 
 /**
- * What the file carried that this app does not use, said out loud.
- *
- * Appearance XML is preserved (services/files/ork/passthrough.ts) and the note
- * says so; a decal is the one thing that cannot survive, because its image is a
- * separate member of the archive that we do not keep.
- *
- * Counted off the document rather than reported by the readers, so no state has
- * to be threaded through every one of them to answer the same question.
- */
-/**
  * Desktop's names for the simulation extensions it ships, by class name: each
  * class's `getName()` (core/simulation/extension/example and impl). CSVSave
  * has none of its own, so desktop shows its class name, as this does for any id
@@ -181,6 +172,16 @@ function extensionName(id: string): string {
   return Object.hasOwn(EXTENSION_NAMES, cls) ? EXTENSION_NAMES[cls]! : cls;
 }
 
+/**
+ * What the file carried that this app does not use, said out loud.
+ *
+ * Appearance XML is preserved (services/files/ork/passthrough.ts) and the note
+ * says so; a decal is the one thing that cannot survive, because its image is a
+ * separate member of the archive that we do not keep.
+ *
+ * Counted off the document rather than reported by the readers, so no state has
+ * to be threaded through every one of them to answer the same question.
+ */
 function archiveNotes(doc: Document, dropped: string[]): ImportNote[] {
   const out: ImportNote[] = [];
   const appearances = doc.querySelectorAll('appearance, insideappearance').length;

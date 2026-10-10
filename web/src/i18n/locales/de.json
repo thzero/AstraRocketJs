@@ -19,6 +19,105 @@
     "shrink": "Dieses Fenster auf die normale Größe zurücksetzen"
   },
   "errors": {
+    "material": {
+      "nameRequired": "Ein Materialname ist erforderlich.",
+      "densityPositive": "Die Dichte muss eine positive Zahl sein."
+    },
+    "savedPart": {
+      "partNoRequired": "Eine Teilenummer ist erforderlich.",
+      "missingDimensions": "Diesem Teil fehlen die Maße, nach denen die Auswahl Teile auflistet.",
+      "gone": "Dieses Teil ist nicht mehr gespeichert.",
+      "nameTaken": "Ein anderes gespeichertes Teil dieses Typs verwendet bereits diesen Hersteller und Namen."
+    },
+    "file": {
+      "notDesign": "Keine Raketenkonstruktionsdatei. Erwartet wird OpenRocket (.ork) oder RockSim (.rkt).",
+      "notOrk": "Keine .ork-Datei (<rocket> fehlt).",
+      "notRkt": "Keine .rkt-Datei (<RocketDesign> fehlt).",
+      "noStage": "Diese .ork-Datei enthält keine Stufe.",
+      "noComponents": "In dieser Konstruktion wurden keine unterstützten Bauteile gefunden.",
+      "xmlInvalid": "Keine gültige {{format}}-Datei (XML-Lesefehler).",
+      "archiveTooManyEntries": "Das .ork-Archiv hat zu viele Einträge.",
+      "archiveTooLarge": "Das .ork-Archiv ist zu groß (möglicherweise eine Zip-Bombe).",
+      "archiveEmpty": "Das .ork-Archiv ist leer.",
+      "tooManyComponents": "Diese {{format}}-Datei enthält zu viele Bauteile, um sie zu öffnen (möglicherweise fehlerhaft).",
+      "tooDeep": "Diese {{format}}-Datei ist zu tief verschachtelt, um sie zu öffnen (möglicherweise fehlerhaft).",
+      "tooLarge": "Die Datei ist zu groß zum Öffnen (über {{size}} MiB)."
+    },
+    "rasaero": {
+      "tooManyStages": "RASAero unterstützt höchstens {{max}} Stufen.",
+      "boosterNoTube": "Stufe „{{stage}}“ hat kein Rumpfrohr, und RASAero-Booster brauchen eines.",
+      "boosterTransitions": "RASAero-Booster unterstützen nur eine Schulter und eine Heckverjüngung. Stufe „{{stage}}“ hat weitere Übergänge; exportieren Sie als .ork.",
+      "boosterFins": "RASAero erlaubt einen Finnensatz pro Booster. Stufe „{{stage}}“ hat mehrere; exportieren Sie als .ork.",
+      "tubeFins": "RASAero erlaubt einen Finnensatz pro Rohr. Entfernen Sie die übrigen oder exportieren Sie als .ork.",
+      "freeformFins": "RASAero-Finnen sind Trapeze, und der Freiform-Umriss von „{{name}}“ ist kein einfaches Trapez mit 3 oder 4 Punkten. Vereinfachen Sie ihn oder exportieren Sie als .ork.",
+      "ellipticalFins": "RASAero kennt keine elliptischen Finnen, daher kann „{{name}}“ nicht exportiert werden. Verwenden Sie trapezförmige Finnen oder exportieren Sie als .ork.",
+      "tubeFinsUnsupported": "RASAero kennt keine Rohrfinnen, daher kann „{{name}}“ nicht exportiert werden. Verwenden Sie trapezförmige Finnen oder exportieren Sie als .ork.",
+      "finCount": "RASAero braucht 3 bis 8 Finnen pro Satz (gefunden: {{found}}). Passen Sie „{{name}}“ an.",
+      "noseShape": "RASAero kennt die Spitzenform „{{shape}}“ nicht. Verwenden Sie konisch, Ogive, Ellipsoid, Haack oder Potenz, oder exportieren Sie als .ork.",
+      "transitionShape": "RASAero-Übergänge müssen konisch sein. Ändern Sie die Form oder exportieren Sie als .ork.",
+      "noPods": "RASAero kennt keine Pods, daher kann „{{name}}“ nicht exportiert werden. Entfernen Sie ihn oder exportieren Sie als .ork.",
+      "noParallel": "RASAero kennt keine parallelen (seitlich angebrachten) Stufen, daher kann „{{name}}“ nicht exportiert werden. Entfernen Sie sie oder exportieren Sie als .ork."
+    },
+    "motorFile": {
+      "engNoData": "Keine gültige .eng-Datei (keine Motordaten gefunden).",
+      "engHeader": "Fehlerhafte .eng-Kopfzeile. Erwartet: Bezeichnung Durchmesser Länge Verzögerungen Treibstoffmasse Gesamtmasse Hersteller.",
+      "engHeaderNumbers": "Fehlerhafte .eng-Kopfzeile: Durchmesser, Länge oder eine Masse ist keine Zahl.",
+      "engHeaderSize": "Fehlerhafte .eng-Kopfzeile: Durchmesser und Länge müssen positiv sein.",
+      "engHeaderMass": "Fehlerhafte .eng-Kopfzeile: Die Treibstoffmasse muss zwischen 0 und der Gesamtmasse liegen.",
+      "engDataLine": "Fehlerhafte .eng-Daten in Zeile {{line}}: Erwartet wurden eine Zeit und ein Schub, gefunden wurde „{{text}}“.",
+      "engNoCurve": "Die .eng-Datei enthält keine Datenpunkte für eine Schubkurve.",
+      "attrDiameter": "Durchmesser",
+      "attrLength": "Länge",
+      "attrInitialMass": "Startmasse",
+      "attrPropellantMass": "Treibstoffmasse",
+      "rseMissing": "Bei einem Motor in der .rse-Datei fehlt ein Wert: {{what}}.",
+      "rseInvalid": "Ein Motor in der .rse-Datei hat einen ungültigen Wert für {{what}} ({{raw}}).",
+      "rseNoMaker": "Bei einem Motor in der .rse-Datei fehlt der Hersteller (mfg).",
+      "rseNoCode": "Bei einem Motor in der .rse-Datei fehlt die Bezeichnung (code).",
+      "rseSize": "Motor {{motor}} in der .rse-Datei hat einen Durchmesser oder eine Länge, die nicht positiv ist.",
+      "rseMass": "Motor {{motor}} in der .rse-Datei gibt mehr Treibstoff als Gesamtmasse an.",
+      "rseTooManyPoints": "Motor {{motor}} in der .rse-Datei hat mehr als {{max}} Datenpunkte.",
+      "rseBadPoint": "Motor {{motor}} in der .rse-Datei hat einen Datenpunkt ohne Zeit oder Schub.",
+      "rseNoCurve": "Motor {{motor}} in der .rse-Datei hat keine Schubkurvendaten.",
+      "rseNegativeMass": "Motor {{motor}} in der .rse-Datei hat eine negative Masse in seinen Daten.",
+      "rseNoEngine": "Keine gültige .rse-Datei (kein <engine> gefunden).",
+      "rseTooManyMotors": "Diese .rse-Datei gibt mehr als {{max}} Motoren an (möglicherweise fehlerhaft)."
+    },
+    "thrustcurve": {
+      "http": "thrustcurve.org hat für {{path}} mit HTTP {{status}} geantwortet.",
+      "tooLarge": "Die Antwort von thrustcurve.org für {{path}} ist zu groß.",
+      "timeout": "Zeitüberschreitung bei thrustcurve.org. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
+      "noSamples": "Keine Schubwerte für {{motor}}.",
+      "noWeight": "thrustcurve.org nennt für {{motor}} weder Start- noch Treibstoffmasse, daher kann er nicht simuliert werden. Wählen Sie einen anderen Motor.",
+      "propOverTotal": "{{motor}} ist mit mehr Treibstoff ({{prop}} g) als Startmasse ({{total}} g) katalogisiert, sein Abbrand würde also bei einer negativen Masse enden. Wählen Sie einen anderen Motor.",
+      "badSize": "thrustcurve.org gibt für {{motor}} eine ungültige Größe an (Durchmesser {{diameter}} mm, Länge {{length}} mm), daher kann er nicht simuliert werden. Wählen Sie einen anderen Motor.",
+      "notFound": "{{maker}} {{motor}} wurde auf thrustcurve.org nicht gefunden.",
+      "noData": "Für {{motor}} sind keine Schubkurvendaten verfügbar.",
+      "badData": "Die Schubkurvendaten für {{motor}} sind fehlerhaft.",
+      "importGone": "Der importierte Motor {{motor}} ist nicht mehr gespeichert. Importieren Sie seine Motordatei erneut."
+    },
+    "remote": {
+      "motors": "Der Motorkatalog konnte nicht geladen werden ({{reason}}).",
+      "components": "Der Bauteilkatalog konnte nicht geladen werden ({{reason}}).",
+      "materials": "Der Materialkatalog konnte nicht geladen werden ({{reason}}).",
+      "contributors": "Die Liste der Mitwirkenden konnte nicht geladen werden ({{reason}}).",
+      "tooLarge": "Antwort zu groß",
+      "badShape": "unerwarteter Aufbau des Katalogs"
+    },
+    "export": {
+      "noPrintable": "Es wurden keine druckbaren Teile ausgewählt.",
+      "openSolid": "Dieser Körper ließ sich nicht schließen: Nach dem Verschließen bleiben {{edges}} offene Kanten.",
+      "imageEncode": "Der Browser konnte das Bild nicht kodieren.",
+      "svgRasterize": "Der Browser konnte das SVG nicht zeichnen."
+    },
+    "engine": {
+      "notReady": "Die OpenRocket-Engine ist noch nicht fertig geladen. Warten Sie, bis sie geladen ist, und versuchen Sie es dann erneut.",
+      "staleDesign": "Diese Konstruktion wurde vor dem Zurücksetzen der Engine aufgebaut. Bauen Sie sie vor der Verwendung neu auf."
+    },
+    "rktSkip": {
+      "cgOverride": "CG-Überschreibung ({{name}})",
+      "extraStages": "Stufe {{from}} und folgende"
+    },
     "viewFailed": "Diese Ansicht konnte nicht geladen werden.",
     "staleBuild": "Die App wurde aktualisiert, während dieser Tab offen war, daher liegt ein Teil davon nicht mehr auf dem Server. Laden Sie neu, um die neue Version zu erhalten.",
     "openOrk": ".ork konnte nicht geöffnet werden: {{reason}}",
@@ -90,6 +189,17 @@
     "markingOmitted_noFins": "Nicht markiert ({{names}}): Das Rohr trägt keinen Finnensatz, es gibt also nichts, woran die Markierung ausgerichtet werden könnte."
   },
   "export": {
+    "dxf": {
+      "trapezoidfinset": "Trapezfinne",
+      "ellipticalfinset": "Elliptische Finne",
+      "freeformfinset": "Freiform-Finne",
+      "bulkhead": "Schott",
+      "centeringring": "Zentrierring",
+      "cutCount": "{{name}} ({{qty}}x schneiden)",
+      "finDims": "Wurzel {{root}} mm | Spannweite {{span}} mm | Materialstärke {{stock}} mm",
+      "discDims": "Ø{{diameter}} mm",
+      "discBoreDims": "Ø{{diameter}} mm | Bohrung Ø{{bore}} mm"
+    },
     "title": "Entwurfsbericht",
     "select": "Elemente auswählen, die enthalten sein sollen:",
     "designReport": "Entwurfsbericht",
@@ -132,7 +242,13 @@
     "pdfFailed": "PDF konnte nicht exportiert werden: {{message}}",
     "csvFailed": "CSV konnte nicht exportiert werden: {{message}}",
     "reportFailed": "Der Entwurfsbericht konnte nicht erstellt werden: {{message}}",
-    "finMarkingGuide": "Markierhilfe für Finnen"
+    "finMarkingGuide": "Markierhilfe für Finnen",
+    "headerLength": "Länge {{value}}",
+    "headerMaxDiameter": "max. Durchmesser {{value}}",
+    "headerSpan": "Spannweite {{value}}",
+    "headerLaunchMass": "Startmasse {{mass}} (leer {{dry}})",
+    "headerDryMass": "Leermasse {{dry}}, keine Motoren geladen",
+    "headerBalance": "CG {{cg}}, CP {{cp}} ab Nasenspitze, Stabilitätsreserve {{margin}} Kal."
   },
   "engine": {
     "wasmTip": "Physik-Engine: WebAssembly (schneller Pfad)",
@@ -656,6 +772,8 @@
     "rodDirectionName_rod": "Richtung des Startstabs",
     "windDirectionName": "Windrichtung",
     "angleLimit": "Die Sicherheitsregeln von NAR und Tripoli verlangen eine Startvorrichtung innerhalb von {{limit}} zur Senkrechten.",
+    "angleLimit_rail": "Die Sicherheitsregeln von NAR und Tripoli verlangen eine Startschiene innerhalb von {{limit}} zur Senkrechten.",
+    "angleLimit_rod": "Die Sicherheitsregeln von NAR und Tripoli verlangen einen Startstab innerhalb von {{limit}} zur Senkrechten.",
     "windLimit": "Die Sicherheitsregeln von NAR und Tripoli verlangen, nicht bei Wind über {{limit}} zu fliegen.",
     "field": {
       "launchRodLengthM": "Länge der Startvorrichtung",
@@ -1276,20 +1394,20 @@
   },
   "shapeDesc": {
     "nosecone": {
-      "conical": "Eine konische Spitze hat ein dreieckiges Profil",
-      "ogive": "Eine ogive Spitze hat das Profil eines Kreissegments. Der Formparamter 1 erzeugt eine <b>tangentiale Ogive</b>, die einen weichen Übergang zum Körperrohr hat, Werte kleiner 1 erzeugen eine <b>sekante Ogive<b>.",
-      "ellipsoid": "Eine ellipsoide Spitze hat ein Profil einer Halbellipse mit der einer Hauptachsenlänge von 2×<i>Länge</i> und <i>Durchmesser</i>",
-      "power": "Eine Potenzreihenspitze hat das Profil <i>Radius</i> × (<i>x</i> / <i>Länge</i>)<sup><i>k</i></sup> wobei <i>k</i> der Formparameter ist. Für <i>k</i>=0.5 ist dies eine <b>parabolische</b> Spitze, für <i>k</i>=0.75 eine <b>^¾</b>, und für <i>k</i>=1 eine <b>konische</b> Spitze.",
-      "parabolic": "A parabolic series nose cone has a profile of a parabola. The shape parameter defines the segment of the parabola to utilize. The shape parameter 1.0 produces a <b>full parabola</b> which is tangent to the body tube, 0.75 produces a <b>3/4 parabola</b>, 0.5 procudes a <b>1/2 parabola</b> and 0 produces a <b>conical</b> nose cone.",
-      "haack": "The Haack series nose cones are designed to minimize drag. The shape parameter 0 produces an <b>LD-Haack</b> or <b>Von Karman</b> nose cone, which minimizes drag for fixed length and diameter, while a value of 0.333 produces an <b>LV-Haack</b> nose cone, which minimizes drag for fixed length and volume."
+      "conical": "Eine konische Spitze hat ein dreieckiges Profil.",
+      "ogive": "Eine ogivale Spitze hat das Profil eines Kreissegments. Der Formparameter 1 erzeugt eine <b>tangentiale Ogive</b>, die glatt in das Rumpfrohr übergeht, Werte kleiner als 1 erzeugen <b>sekante Ogiven</b>.",
+      "ellipsoid": "Eine ellipsoide Spitze hat das Profil einer Halbellipse mit Hauptachsen der Längen 2×<i>Länge</i> und <i>Durchmesser</i>.",
+      "power": "Eine Potenzreihenspitze hat das Profil <i>Radius</i> × (<i>x</i> / <i>Länge</i>)<sup><i>k</i></sup>, wobei <i>k</i> der Formparameter ist. Für <i>k</i>=0,5 ist dies eine <b>½-Potenz</b>- oder <b>parabolische</b> Spitze, für <i>k</i>=0,75 eine <b>¾-Potenz</b>-Spitze und für <i>k</i>=1 eine <b>konische</b> Spitze.",
+      "parabolic": "Eine parabolische Spitze hat das Profil einer Parabel. Der Formparameter legt fest, welches Segment der Parabel verwendet wird. Der Formparameter 1,0 erzeugt eine <b>volle Parabel</b>, die tangential in das Rumpfrohr übergeht, 0,75 erzeugt eine <b>3/4-Parabel</b>, 0,5 erzeugt eine <b>1/2-Parabel</b> und 0 erzeugt eine <b>konische</b> Spitze.",
+      "haack": "Die Spitzen der Haack-Reihe sind auf minimalen Widerstand ausgelegt. Der Formparameter 0 erzeugt eine <b>LD-Haack</b>- oder <b>Von-Karman</b>-Spitze, die den Widerstand bei fester Länge und festem Durchmesser minimiert, ein Wert von 0,333 erzeugt eine <b>LV-Haack</b>-Spitze, die den Widerstand bei fester Länge und festem Volumen minimiert."
     },
     "transition": {
-      "conical": "Ein konischer Übergang hat gerade Kanten",
-      "ogive": "Eine ogive Spitze hat das Profil eines Kreissegments. Der Formparamter 1 erzeugt eine <b>tangentiale Ogive</b>, die einen weichen Übergang zum Körperrohr am hinteren Ende hat, Werte kleiner 1 erzeugen eine <b>sekante Ogive<b>.",
-      "ellipsoid": "Ein ellipsoider Übergang hat das Profil einer Halbellipse mit einer Hauptachsenlänge von 2×<i>Länge</i> und <i>Durchmesser</i>. If the transition is not clipped, then the profile is extended at the center by the corresponding radius.",
-      "power": "A power series transition has a profile of <i>Radius</i> × (<i>x</i> / <i>Length</i>)<sup><i>k</i></sup> where <i>k</i> is the shape parameter. For <i>k</i>=0.5 the transition is <b>½-power</b> or <b>parabolic</b>, for <i>k</i>=0.75 a <b>¾-power</b>, and for <i>k</i>=1 <b>conical</b>.",
-      "parabolic": "A parabolic series transition has a profile of a parabola. The shape parameter defines the segment of the parabola to utilize. The shape parameter 1.0 produces a <b>full parabola</b> which is tangent to the body tube at the aft end, 0.75 produces a <b>3/4 parabola</b>, 0.5 procudes a <b>1/2 parabola</b> and 0 produces a <b>conical</b> transition.",
-      "haack": "The Haack series <i>nose cones</i> are designed to minimize drag. These transition shapes are their equivalents, but do not necessarily produce optimal drag for transitions. The shape parameter 0 produces an <b>LD-Haack</b> or <b>Von Karman</b> shape, while a value of 0.333 produces an <b>LV-Haack</b> shape."
+      "conical": "Ein konischer Übergang hat gerade Seiten.",
+      "ogive": "Ein ogivaler Übergang hat das Profil eines Kreissegments. Der Formparameter 1 erzeugt eine <b>tangentiale Ogive</b>, die am hinteren Ende glatt in das Rumpfrohr übergeht, Werte kleiner als 1 erzeugen <b>sekante Ogiven</b>.",
+      "ellipsoid": "Ein ellipsoider Übergang hat das Profil einer Halbellipse mit Hauptachsen der Längen 2×<i>Länge</i> und <i>Durchmesser</i>. Ist der Übergang nicht beschnitten, wird das Profil in der Mitte um den entsprechenden Radius verlängert.",
+      "power": "Ein Potenzreihenübergang hat das Profil <i>Radius</i> × (<i>x</i> / <i>Länge</i>)<sup><i>k</i></sup>, wobei <i>k</i> der Formparameter ist. Für <i>k</i>=0,5 ist der Übergang <b>½-Potenz</b> oder <b>parabolisch</b>, für <i>k</i>=0,75 <b>¾-Potenz</b> und für <i>k</i>=1 <b>konisch</b>.",
+      "parabolic": "Ein parabolischer Übergang hat das Profil einer Parabel. Der Formparameter legt fest, welches Segment der Parabel verwendet wird. Der Formparameter 1,0 erzeugt eine <b>volle Parabel</b>, die am hinteren Ende tangential in das Rumpfrohr übergeht, 0,75 erzeugt eine <b>3/4-Parabel</b>, 0,5 erzeugt eine <b>1/2-Parabel</b> und 0 erzeugt einen <b>konischen</b> Übergang.",
+      "haack": "Die <i>Spitzen</i> der Haack-Reihe sind auf minimalen Widerstand ausgelegt. Diese Übergangsformen sind ihre Entsprechungen, erzeugen bei Übergängen aber nicht unbedingt den geringsten Widerstand. Der Formparameter 0 erzeugt eine <b>LD-Haack</b>- oder <b>Von-Karman</b>-Form, ein Wert von 0,333 erzeugt eine <b>LV-Haack</b>-Form."
     }
   },
   "tabOffsetMethod": {
@@ -1680,6 +1798,12 @@
     "LargeAOA": "Die Rakete flog mit einem Anstellwinkel außerhalb des Bereichs, für den das Barrowman-Verfahren gilt; die aerodynamischen Werte um diesen Punkt herum sind daher nur näherungsweise gültig. Häufig bei starkem Wind oder direkt nach einem langsamen Verlassen der Startvorrichtung.",
     "LargeAOA.str1": "Die Rakete flog mit einem Anstellwinkel außerhalb des Bereichs, für den das Barrowman-Verfahren gilt; die aerodynamischen Werte um diesen Punkt herum sind daher nur näherungsweise gültig. Häufig bei starkem Wind oder direkt nach einem langsamen Verlassen der Startvorrichtung.",
     "LargeAOA.str2": "Die Rakete flog mit einem Anstellwinkel außerhalb des Bereichs, für den das Barrowman-Verfahren gilt; die aerodynamischen Werte um diesen Punkt herum sind daher nur näherungsweise gültig. Häufig bei starkem Wind oder direkt nach einem langsamen Verlassen der Startvorrichtung.",
+    "LargeAOA_rail": "Die Rakete flog mit einem Anstellwinkel außerhalb des Bereichs, für den das Barrowman-Verfahren gilt; die aerodynamischen Werte um diesen Punkt herum sind daher nur näherungsweise gültig. Häufig bei starkem Wind oder direkt nach einem langsamen Verlassen der Startschiene.",
+    "LargeAOA_rod": "Die Rakete flog mit einem Anstellwinkel außerhalb des Bereichs, für den das Barrowman-Verfahren gilt; die aerodynamischen Werte um diesen Punkt herum sind daher nur näherungsweise gültig. Häufig bei starkem Wind oder direkt nach einem langsamen Verlassen des Startstabs.",
+    "LargeAOA.str1_rail": "Die Rakete flog mit einem Anstellwinkel außerhalb des Bereichs, für den das Barrowman-Verfahren gilt; die aerodynamischen Werte um diesen Punkt herum sind daher nur näherungsweise gültig. Häufig bei starkem Wind oder direkt nach einem langsamen Verlassen der Startschiene.",
+    "LargeAOA.str1_rod": "Die Rakete flog mit einem Anstellwinkel außerhalb des Bereichs, für den das Barrowman-Verfahren gilt; die aerodynamischen Werte um diesen Punkt herum sind daher nur näherungsweise gültig. Häufig bei starkem Wind oder direkt nach einem langsamen Verlassen des Startstabs.",
+    "LargeAOA.str2_rail": "Die Rakete flog mit einem Anstellwinkel außerhalb des Bereichs, für den das Barrowman-Verfahren gilt; die aerodynamischen Werte um diesen Punkt herum sind daher nur näherungsweise gültig. Häufig bei starkem Wind oder direkt nach einem langsamen Verlassen der Startschiene.",
+    "LargeAOA.str2_rod": "Die Rakete flog mit einem Anstellwinkel außerhalb des Bereichs, für den das Barrowman-Verfahren gilt; die aerodynamischen Werte um diesen Punkt herum sind daher nur näherungsweise gültig. Häufig bei starkem Wind oder direkt nach einem langsamen Verlassen des Startstabs.",
     "SUPERSONIC": "Ein Teil des Flugs verläuft im Überschall, wo das erweiterte Barrowman-Verfahren nur eine Näherung ist. Betrachten Sie die Widerstands- und Stabilitätswerte in diesem Bereich als Anhaltspunkt."
   },
   "windProfile": {
@@ -1712,6 +1836,7 @@
     }
   },
   "limits": {
+    "sentenceJoin": "{{first}} {{next}}",
     "belowMin": "Unter dem Minimum",
     "aboveMax": "Über dem Grenzwert",
     "tooFast": "Zu schnell",
@@ -1789,7 +1914,11 @@
     "keysView": "Pfeiltasten verschieben die Karte, Plus und Minus zoomen.",
     "noCoords": "Geben Sie Breite und Länge ein, um den Ort zu platzieren.",
     "tooClose": "Keine Bilddaten in dieser Vergrößerung",
-    "offline": "Offline keine Bilddaten"
+    "offline": "Offline keine Bilddaten",
+    "hemisphereN": "N",
+    "hemisphereS": "S",
+    "hemisphereE": "O",
+    "hemisphereW": "W"
   },
   "sweep": {
     "button": "Abdrift",

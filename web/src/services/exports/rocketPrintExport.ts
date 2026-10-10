@@ -9,6 +9,7 @@ import { printableParts } from './printableParts';
 import { colorForType } from '../design/partColors';
 import { buildThreeMf, THREE_MF_MIME, type ThreeMfPart } from './threeMf';
 import { exportFilename, saveBlob, safeFilename } from '../files/saveFile';
+import { KeyedError } from '../../i18n/keyedError';
 
 /**
  * Whole-rocket 3MF export.
@@ -113,7 +114,7 @@ export async function downloadRocket3mf(
     });
   }
 
-  if (built.length === 0) throw new Error('No printable parts were selected.');
+  if (built.length === 0) throw new KeyedError('errors.export.noPrintable');
 
   if (!separateFiles) {
     const bytes = buildThreeMf(

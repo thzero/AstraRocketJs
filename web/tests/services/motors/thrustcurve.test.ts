@@ -100,7 +100,7 @@ describe('samplesToMotorSpec', () => {
         ],
         0,
       ),
-    ).toThrow(/no loaded\/propellant weight/i);
+    ).toThrow(expect.objectContaining({ key: 'errors.thrustcurve.noWeight', values: { motor: 'C6' } }));
   });
 
   it('throws when propellant exceeds loaded mass (negative burnout mass)', () => {
@@ -117,7 +117,7 @@ describe('samplesToMotorSpec', () => {
   });
 });
 
-describe('fetchMotorSpec — bundled catalog motor (offline path)', () => {
+describe('fetchMotorSpec: bundled catalog motor (offline path)', () => {
   const bundled = {
     designation: 'C6',
     manufacturer: 'Estes',
@@ -140,7 +140,7 @@ describe('fetchMotorSpec — bundled catalog motor (offline path)', () => {
     ],
   } as unknown as CatalogMotor;
 
-  it('builds a MotorSpec entirely from bundled data — no thrustcurve.org fetch', async () => {
+  it('builds a MotorSpec entirely from bundled data: no thrustcurve.org fetch', async () => {
     const spec = await fetchMotorSpec(bundled, 5);
     expect(spec.designation).toBe('C6');
     expect(spec.diameter).toBeCloseTo(0.018, 9); // mm → m

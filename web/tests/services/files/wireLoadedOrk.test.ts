@@ -147,7 +147,7 @@ describe('wireLoadedOrk', () => {
   });
 });
 
-describe('wireLoadedOrk — absolute positions', () => {
+describe('wireLoadedOrk: absolute positions', () => {
   // `.ork` positions a component with method="absolute" in the rocket frame,
   // but the editor works entirely in the parent frame. Left as is, the
   // schematic, 3D view, drag handles and PDF would draw the part at

@@ -134,7 +134,9 @@ const typeLabel = (type: string, t: TFunction): string => t(`part.${type}`, { de
 function detail(n: ComponentNode, t: TFunction, u: Units): string {
   const ty = n.type;
   if (ty === 'nosecone')
-    return [typeof n.shape === 'string' ? n.shape : null, len(u, n.length)].filter(Boolean).join(' · ');
+    return [typeof n.shape === 'string' ? t(`noseShape.${n.shape}`, { defaultValue: n.shape }) : null, len(u, n.length)]
+      .filter(Boolean)
+      .join(' · ');
   if (isFinSet(ty)) {
     const c = n.finCount ?? n.count;
     return typeof c === 'number' ? t('tree.fins', { count: c }) : '';

@@ -40,7 +40,7 @@ const xmlFor = (tree: RocketTree) => exportOrk({ name: 'Rocket', tree } as never
  * are meant to be byte-stable, so the original is kept on the position and the
  * exporter restores it.
  */
-describe('exportOrk — imported absolute positions', () => {
+describe('exportOrk: imported absolute positions', () => {
   const load = (tree: RocketTree) =>
     wireLoadedOrk(
       {

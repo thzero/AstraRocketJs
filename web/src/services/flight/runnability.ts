@@ -8,7 +8,7 @@ import { findMounts } from '../design/treeEdit';
 import { duplicateAltitudeRows } from './windLevels';
 import { hasUsableCurve } from '../motors/motorCurve';
 import type { RocketTree } from '../../engine/openRocketEngine';
-import { partLabel } from '../../i18n/format';
+import { fmtList, partLabel } from '../../i18n/format';
 
 /**
  * Why a given simulation cannot be flown, asked in one place so the Run button
@@ -94,11 +94,14 @@ export function unflyableText(
   if (u.reason.kind === 'incomplete') {
     // Named, so the message points at the fields to go and fill rather than
     // just asserting that something is wrong somewhere.
-    const fields = u.reason.missing.map((k) => t(`launch.field.${k}`)).join(', ');
+    const fields = fmtList(u.reason.missing.map((k) => t(`launch.field.${k}`)));
     return t('sim.incomplete', { name: u.name, fields });
   }
   if (u.reason.kind === 'windProfile') return t('sim.windProfile', { name: u.name });
-  return `${t('limits.refused', { name: u.name })} ${u.reason.violations.map((v) => limitText(v, t, units)).join(' ')}`;
+  // Sentence after sentence through a key, since not every language spaces them.
+  return u.reason.violations
+    .map((v) => limitText(v, t, units))
+    .reduce((text, next) => t('limits.sentenceJoin', { first: text, next }), t('limits.refused', { name: u.name }));
 }
 
 /**

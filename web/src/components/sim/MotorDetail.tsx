@@ -1,12 +1,13 @@
 import { useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { fmtNum } from '../../i18n/format';
+import { NO_VALUE } from '../../i18n/noValue';
 import { useUnits } from '../../prefs/useUnits';
 import type { CatalogMotor } from '../../services/motors/motorDb';
 import { initialThrust } from '../../services/motors/motorPicker';
 import { avgThrustOf, ispOf, massFracOf } from '../../services/motors/motorMath';
 import { ChartAxes, CHART_HEADROOM, chartScales, linePath, baselineArea, LegendSwatch, peakOf } from './chartAxes';
-import { inUserUnit, withFixedUnit } from './motorFormat';
+import { inUserUnit, motorTypeLabel, withFixedUnit } from './motorFormat';
 import { token } from '../common/colorTokens';
 import { motorSimilarity } from '../../engine/openRocketEngine';
 import { loadHideSimilar, saveHideSimilar } from './motorPrefs';
@@ -14,8 +15,6 @@ import { finalizeSamples } from '../../services/motors/curveFinalize';
 
 /** Desktop's threshold for "Hide very similar thrust curves" (MOTOR_SIMILARITY_THRESHOLD). */
 const SIMILAR = 0.95;
-
-const TYPE_KEY: Record<string, string> = { SU: 'typeSU', reload: 'typeReload', hybrid: 'typeHybrid' };
 
 /** Detail panel for a catalog motor: manufacturer/class header, thrust-curve
  *  chart, and the spec grid. Reads only bundled data (no fetch). */
@@ -101,7 +100,7 @@ export function MotorDetail({
             {t('motorDlg.commonName')} {motor.designation} ·{' '}
           </>
         )}
-        {motor.type ? t(`motorDlg.${TYPE_KEY[motor.type] ?? ''}`, { defaultValue: motor.type }) : ''}
+        {motor.type ? motorTypeLabel(motor.type, t) : ''}
       </div>
       <a
         href={tcUrl}
@@ -152,11 +151,8 @@ export function MotorDetail({
 
       <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4">
         <SpecItem label={t('motorDlg.commonName')} value={motor.designation} />
-        <SpecItem
-          label={t('motorDlg.motorType')}
-          value={motor.type ? t(`motorDlg.${TYPE_KEY[motor.type] ?? ''}`, { defaultValue: motor.type }) : '—'}
-        />
-        <SpecItem label={t('motorDlg.delays')} value={motor.delays ?? '—'} />
+        <SpecItem label={t('motorDlg.motorType')} value={motor.type ? motorTypeLabel(motor.type, t) : NO_VALUE} />
+        <SpecItem label={t('motorDlg.delays')} value={motor.delays ?? NO_VALUE} />
         <SpecItem label={t('prop.diameter')} value={q('motorDimensions', motor.diameter, 0.001)} />
         <SpecItem label={t('prop.length')} value={q('motorDimensions', motor.length, 0.001)} />
         <SpecItem label={t('motorDlg.totalWeight')} value={q('mass', motor.mass, 0.001)} />
@@ -169,9 +165,9 @@ export function MotorDetail({
         <SpecItem label={t('motorDlg.isp') + '*'} value={g(isp, 's', 0)} />
         <SpecItem
           label={t('motorDlg.massFraction') + '*'}
-          value={Number.isFinite(massFrac) ? `${fmtNum(massFrac, 0)}%` : '—'}
+          value={Number.isFinite(massFrac) ? `${fmtNum(massFrac, 0)}%` : NO_VALUE}
         />
-        <SpecItem label={t('motorDlg.propType')} value={motor.propInfo ?? '—'} />
+        <SpecItem label={t('motorDlg.propType')} value={motor.propInfo ?? NO_VALUE} />
         <SpecItem label={t('motorDlg.sparky')} value={t(motor.sparky ? 'motorDlg.yes' : 'motorDlg.no')} />
       </dl>
       <p className="mt-2 text-[11px] leading-snug text-ink-faint">{t('motorDlg.calcNote')}</p>

@@ -1,6 +1,7 @@
 import type { ComponentNode } from '../../../engine/openRocketEngine';
 import { IN, fmt, type Cdx1Writer } from './units';
-import { finXml } from './sustainer';
+import { finXml, partName } from './sustainer';
+import { KeyedError } from '../../../i18n/keyedError';
 import { num } from '../../../tree/nodeProps';
 import { isFinSet } from '../../../tree/tubefins';
 
@@ -16,7 +17,7 @@ export function writeBoosters(w: Cdx1Writer, stagesIn: ComponentNode[]): void {
     const kids = st.children ?? [];
     const tubes = kids.filter((c) => c.type === 'bodytube');
     if (tubes.length === 0) {
-      throw new Error(`Stage "${st.name}" has no body tube — RASAero boosters need one.`);
+      throw new KeyedError('errors.rasaero.boosterNoTube', { stage: partName(st) });
     }
     const bodyLen = tubes.reduce((s, t) => s + num(t, 'length', 0.1), 0);
     const externals = kids.filter((c) => c.type === 'bodytube' || c.type === 'transition');
@@ -30,15 +31,13 @@ export function writeBoosters(w: Cdx1Writer, stagesIn: ComponentNode[]): void {
         : null;
     const extraTrans = kids.filter((c) => c.type === 'transition' && c !== shoulder && c !== boattail);
     if (extraTrans.length > 0) {
-      throw new Error(
-        `RASAero boosters support only a shoulder and a boat tail — stage "${st.name}" has other transitions; export as .ork.`,
-      );
+      throw new KeyedError('errors.rasaero.boosterTransitions', { stage: partName(st) });
     }
     const shoulderLen = shoulder ? num(shoulder, 'length', 0) : 0;
     const btLen = boattail ? num(boattail, 'length', 0) : 0;
     const finParents = kids.filter((c) => (c.children ?? []).some((k) => isFinSet(k.type)));
     if (finParents.length > 1) {
-      throw new Error(`RASAero allows ONE fin set per booster — stage "${st.name}" has several; export as .ork.`);
+      throw new KeyedError('errors.rasaero.boosterFins', { stage: partName(st) });
     }
     emit('<Booster>');
     emit('<PartType>Booster</PartType>');

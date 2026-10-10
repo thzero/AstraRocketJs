@@ -1,5 +1,6 @@
 import { useWorkspaceStore } from './store';
-import { errorMessage } from '../services/app/errorMessage';
+import i18n from '../i18n';
+import { errorText } from '../i18n/keyedError';
 
 /**
  * Fire an async store action from an event handler, and report a rejection it
@@ -21,6 +22,6 @@ import { errorMessage } from '../services/app/errorMessage';
 export function fireAction(result: Promise<unknown> | void): void {
   if (!result) return;
   result.catch((e: unknown) => {
-    useWorkspaceStore.getState().setErr(errorMessage(e));
+    useWorkspaceStore.getState().setErr(errorText(e, i18n.t));
   });
 }

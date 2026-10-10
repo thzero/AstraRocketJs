@@ -120,14 +120,14 @@ describe('design metadata (Rocket configuration) round-trip', () => {
     name: 'Meta Rocket',
     designer: 'Ada Lovelace',
     comment: 'Best F motor.\nTwo 2-56 nylon screws → 42.8 lb shear.',
-    revision: 'v3 — moved the CP forward',
+    revision: 'v3: moved the CP forward',
     designType: 'upscale_kit',
   };
   const xml = exportOrk({ name: withMeta.name!, tree: withMeta, configs: loaded(mountId) });
 
   it('emits the metadata elements (only what is set)', () => {
     expect(xml).toContain('<designer>Ada Lovelace</designer>');
-    expect(xml).toContain('<revision>v3 — moved the CP forward</revision>');
+    expect(xml).toContain('<revision>v3: moved the CP forward</revision>');
     expect(xml).toContain('<designtype>upscale_kit</designtype>');
     expect(xml).toContain('Best F motor.'); // comment body present
   });
@@ -136,7 +136,7 @@ describe('design metadata (Rocket configuration) round-trip', () => {
     const res = importOrk(xml);
     expect(res.tree.designer).toBe('Ada Lovelace');
     expect(res.tree.comment).toContain('42.8 lb shear');
-    expect(res.tree.revision).toBe('v3 — moved the CP forward');
+    expect(res.tree.revision).toBe('v3: moved the CP forward');
     expect(res.tree.designType).toBe('upscale_kit');
   });
 
@@ -159,7 +159,7 @@ describe('design metadata (Rocket configuration) round-trip', () => {
 describe('optional <designinfo> block', () => {
   const { tree, mountId } = specToTree(spec);
 
-  it('is absent by default — a normal save is unchanged', () => {
+  it('is absent by default: a normal save is unchanged', () => {
     expect(exportOrk({ name: 'X', tree, configs: loaded(mountId) })).not.toContain('<designinfo>');
   });
 
@@ -259,7 +259,7 @@ describe('launch-lug / rail-button radial angle round-trips', () => {
     expect(pod2!.angleOffset).toBeCloseTo(Math.PI / 2, 6);
   });
 
-  it('loads a multi-stage (axial) design — both stages present', () => {
+  it('loads a multi-stage (axial) design: both stages present', () => {
     const tube = '<bodytube><length>0.2</length><radius>0.013</radius><thickness>0.0005</thickness></bodytube>';
     const twoStage =
       '<openrocket><rocket><name>Two</name><subcomponents>' +
@@ -783,7 +783,7 @@ describe('automatic ring radii round-trip', () => {
  * reach the kernel. Doing only one of the two is the state that looks supported
  * and is not.
  */
-describe('audit round trips (2026-09-27)', () => {
+describe('DocumentConfig fields round-trip and reach the kernel', () => {
   const tree = {
     name: 'Audit',
     components: [

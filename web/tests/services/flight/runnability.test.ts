@@ -1,4 +1,5 @@
-import { describe, it, expect } from 'vitest';
+import { afterEach, describe, it, expect } from 'vitest';
+import i18n from '../../../src/i18n';
 import { hasThrustCurve, unflyable, unflyableSims, unflyableText } from '../../../src/services/flight/runnability';
 import { MAX_ROD_ANGLE_DEG, MAX_WIND_SPEED_MS } from '../../../src/services/flight/safetyLimits';
 import { METRIC_UNITS, unitSymbols } from '../../../src/prefs/units';
@@ -176,5 +177,44 @@ describe('unflyableText', () => {
     const msg = unflyableText(bad!, t, units);
     expect(msg).toContain('limits.refused');
     expect(msg).toContain('limits.wind');
+  });
+});
+
+describe('unflyableText joins its parts in the UI language', () => {
+  afterEach(async () => {
+    await i18n.changeLanguage('en');
+  });
+
+  it('lists the missing fields with the language list punctuation', async () => {
+    await i18n.changeLanguage('de');
+    const [bad] = gateAll([
+      sim('Half', { launch: { ...launch, launchRodLengthM: null, latitudeDeg: null, longitudeDeg: null } }),
+    ]);
+    const fields = new Intl.ListFormat('de', { type: 'conjunction' }).format(
+      (bad!.reason as { missing: string[] }).missing.map((k) => i18n.t(`launch.field.${k}`)),
+    );
+    expect(unflyableText(bad!, i18n.t, units)).toBe(i18n.t('sim.incomplete', { name: 'Half', fields }));
+    expect(fields).toContain(' und ');
+  });
+
+  it('runs the broken limits on without a space in Japanese', async () => {
+    await i18n.changeLanguage('ja');
+    const [bad] = gateAll([
+      sim('風', {
+        launch: { ...launch, windAverage: MAX_WIND_SPEED_MS + 5, launchRodAngleDeg: MAX_ROD_ANGLE_DEG + 5 },
+      }),
+    ]);
+    const msg = unflyableText(bad!, i18n.t, units);
+    const refused = i18n.t('limits.refused', { name: '風' });
+    expect(msg.startsWith(refused)).toBe(true);
+    // Sentences in Japanese end with 。 and the next starts straight after it.
+    expect(msg).not.toContain('。 ');
+    expect(msg.length).toBeGreaterThan(refused.length);
+  });
+
+  it('spaces them in English', async () => {
+    const [bad] = gateAll([sim('Windy', { launch: { ...launch, windAverage: MAX_WIND_SPEED_MS + 5 } })]);
+    const msg = unflyableText(bad!, i18n.t, units);
+    expect(msg).toMatch(/safety codes\. Wind speed/);
   });
 });

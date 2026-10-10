@@ -1,4 +1,5 @@
 import { MAX_ARCHIVE_ENTRY_BYTES } from './ork/importLimits';
+import { KeyedError } from '../../i18n/keyedError';
 
 /**
  * The largest imported file the app decodes, the same ceiling a zipped `.ork`
@@ -10,7 +11,7 @@ export const MAX_IMPORT_FILE_BYTES = MAX_ARCHIVE_ENTRY_BYTES;
 /** Throws when an imported file is over {@link MAX_IMPORT_FILE_BYTES}. */
 export function assertImportSize(size: number): void {
   if (size > MAX_IMPORT_FILE_BYTES) {
-    throw new Error(`File is too large to open (over ${MAX_IMPORT_FILE_BYTES / (1024 * 1024)} MiB).`);
+    throw new KeyedError('errors.file.tooLarge', { size: MAX_IMPORT_FILE_BYTES / (1024 * 1024) });
   }
 }
 

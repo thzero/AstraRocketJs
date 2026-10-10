@@ -11,18 +11,23 @@ export function freshId(): string {
 
 /**
  * Tree components as a stage-node list. A flat tree (no explicit stages) is
- * wrapped into one implicit Sustainer stage; already-staged trees pass through.
+ * wrapped into one implicit first stage, named by {@link defaultStageName};
+ * already-staged trees pass through.
  */
 export function asStageNodes(tree: RocketTree): ComponentNode[] {
   return tree.components.every((c) => c.type === 'stage')
     ? tree.components
-    : [{ type: 'stage', name: 'Sustainer', children: tree.components }];
+    : [{ type: 'stage', name: defaultStageName(0), children: tree.components }];
 }
 
 /**
  * The name a file gives an unnamed stage: "Sustainer" for the first, "Booster n"
- * after it, as the `.ork` and `.rkt` readers and the `.ork` writer name them.
- * File text, not a display label (that is `stageLabel` in i18n/format.ts).
+ * after it, as the `.ork` and `.rkt` readers, the writers and a new design name
+ * them. File text, not a display label (that is `stageLabel` in
+ * i18n/format.ts), but in the UI language: desktop OpenRocket names a new
+ * design's stage from its own translations (`BasicFrame.StageName.Sustainer`)
+ * and writes that name into the file, so a design made in German says so in
+ * German either way.
  */
 export const defaultStageName = (i: number): string =>
   i === 0 ? i18n.t('stageName.sustainer') : i18n.t('stageName.booster', { n: i });

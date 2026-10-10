@@ -2,6 +2,7 @@ import { unzipSync } from 'fflate';
 import { decodeFileText } from '../decodeText';
 import { parseXmlText } from '../xmlUtil';
 import { MAX_ARCHIVE_ENTRIES, MAX_ARCHIVE_ENTRY_BYTES, MAX_ARCHIVE_TOTAL_BYTES } from './importLimits';
+import { KeyedError } from '../../../i18n/keyedError';
 
 /**
  * Getting from the bytes of a `.ork` to a parsed document: a zip holding the
@@ -40,17 +41,17 @@ export function unpackOrk(data: ArrayBuffer | string): OrkArchive {
     let totalSize = 0;
     const entries = unzipSync(bytes, {
       filter: (file) => {
-        if (++entryCount > MAX_ARCHIVE_ENTRIES) throw new Error('.ork archive has too many entries');
+        if (++entryCount > MAX_ARCHIVE_ENTRIES) throw new KeyedError('errors.file.archiveTooManyEntries');
         totalSize += file.originalSize;
         if (file.originalSize > MAX_ARCHIVE_ENTRY_BYTES || totalSize > MAX_ARCHIVE_TOTAL_BYTES) {
-          throw new Error('.ork archive is too large (possible zip bomb)');
+          throw new KeyedError('errors.file.archiveTooLarge');
         }
         return true;
       },
     });
     const names = Object.keys(entries);
     const entryName = names.find((n) => n.endsWith('.ork')) ?? names[0];
-    if (!entryName) throw new Error('Empty .ork archive');
+    if (!entryName) throw new KeyedError('errors.file.archiveEmpty');
     const motorFiles: string[] = [];
     const dropped: string[] = [];
     for (const name of names) {
@@ -72,5 +73,5 @@ export function parseOrkXml(xml: string, format: '.ork' | '.rkt' = '.ork'): Docu
   // OpenRocket writes a single-quoted XML declaration; some parsers reject it.
   if (xml.charCodeAt(0) === 0xfeff) xml = xml.slice(1); // strip optional BOM
   xml = xml.replace(/^\s*<\?xml[^?]*\?>/, '');
-  return parseXmlText(xml, `Not a valid ${format} file (XML parse error)`);
+  return parseXmlText(xml, format);
 }

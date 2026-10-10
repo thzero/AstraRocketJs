@@ -188,7 +188,7 @@ describe('calculateClip (via the clipped profile)', () => {
     for (let i = 1; i < pts.length; i++) expect(pts[i]![1]).toBeGreaterThanOrEqual(pts[i - 1]![1]);
   });
 
-  it('a nose cone (foreR 0) is never clipped — clipLength is 0 by definition', () => {
+  it('a nose cone (foreR 0) is never clipped: clipLength is 0 by definition', () => {
     // r1 == 0 short-circuits the search: the profile is the shape itself.
     for (const shape of CLIPPABLE) {
       const p = shapeParamDefault(shape);

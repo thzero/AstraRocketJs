@@ -6,7 +6,7 @@ import { OverrideCard, OverrideNumber, OverrideSelect } from './OverrideFields';
 import { useUnits } from '../../prefs/useUnits';
 import { onSi } from '../../prefs/entryValue';
 import { unitScope } from '../../prefs/units';
-import { partLabel } from '../../i18n/format';
+import { fmtUpTo, partLabel } from '../../i18n/format';
 
 /** The kernel's DeployEvent vocabulary, in the order the property panel offers it. */
 const DEPLOY_EVENTS = ['apogee', 'ejection', 'altitude', 'launch', 'never'] as const;
@@ -76,7 +76,7 @@ export function DeploymentSection({ config, device }: { config: FlightConfig; de
         name={name}
         label={t('prop.deployDelay')}
         value={over?.deployDelay ?? null}
-        placeholder={String(design.deployDelay)}
+        placeholder={fmtUpTo(design.deployDelay, 2)}
         step={0.5}
         min={0}
         unit="s"

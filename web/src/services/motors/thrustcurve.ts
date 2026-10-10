@@ -6,6 +6,7 @@ import { getMotorStore, isThrustSampleArray, type CustomMotor } from './motorSto
 import { declaredLength, readStreamWithProgress } from '../app/fetchProgress';
 import { nsKey } from '../storage/storageKeys';
 import { finalizeCurve } from './curveFinalize';
+import { KeyedError } from '../../i18n/keyedError';
 
 /**
  * thrustcurve.org API v1 client (CORS-enabled; verified reflective
@@ -69,9 +70,9 @@ async function post<T>(path: string, body: unknown): Promise<T> {
     });
     clearTimeout(timer);
     timer = setTimeout(expire, BODY_TIMEOUT_MS);
-    if (!res.ok) throw new Error(`thrustcurve.org ${path} → HTTP ${res.status}`);
+    if (!res.ok) throw new KeyedError('errors.thrustcurve.http', { path, status: res.status });
     const len = Number(res.headers.get('content-length'));
-    if (Number.isFinite(len) && len > MAX_RESPONSE_BYTES) throw new Error(`thrustcurve.org ${path} response too large`);
+    if (Number.isFinite(len) && len > MAX_RESPONSE_BYTES) throw new KeyedError('errors.thrustcurve.tooLarge', { path });
     // Awaited, not returned: `finally` runs at the `return` statement, so
     // returning the unawaited promise would clear the abort timer before the
     // body is read, and a host that sent headers and then stalled would hang the
@@ -89,7 +90,7 @@ async function post<T>(path: string, body: unknown): Promise<T> {
       // gone and a bug report shows only the friendly text. Assigned after
       // construction because the ErrorOptions form is ES2022 and the tsconfig
       // lib is ES2020.
-      const err = new Error('thrustcurve.org timed out - check your connection and try again.');
+      const err = new KeyedError('errors.thrustcurve.timeout');
       (err as { cause?: unknown }).cause = e;
       throw err;
     }
@@ -132,7 +133,7 @@ export function samplesToMotorSpec(
   // loaded mass) rather than shifting the whole column by one.
   const measured = massSamples?.length === samples.length ? massSamples : undefined;
   if (samples.length === 0) {
-    throw new Error(`No thrust samples for ${motor.designation}`);
+    throw new KeyedError('errors.thrustcurve.noSamples', { motor: motor.designation });
   }
   // Into the shape the kernel takes: from t = 0, one thrust per time (curveFinalize).
   const pts = finalizeCurve(samples.map((s, i) => ({ ...s, mass: measured?.[i] })));
@@ -143,26 +144,24 @@ export function samplesToMotorSpec(
   // kernel, where TeaVM throws a raw "cannot be converted to a BigInt" and the
   // whole design blanks. Refuse with something a rocketeer can act on.
   if (!Number.isFinite(motor.totalWeightG) || !Number.isFinite(motor.propWeightG)) {
-    throw new Error(
-      `thrustcurve.org publishes no loaded/propellant weight for ${motor.designation}, ` +
-        'so it cannot be simulated. Pick another motor.',
-    );
+    throw new KeyedError('errors.thrustcurve.noWeight', { motor: motor.designation });
   }
   if (motor.propWeightG > motor.totalWeightG) {
-    throw new Error(
-      `${motor.designation} is cataloged with more propellant (${motor.propWeightG} g) than ` +
-        `loaded mass (${motor.totalWeightG} g), so its burn would end at a negative mass. ` +
-        'Pick another motor.',
-    );
+    throw new KeyedError('errors.thrustcurve.propOverTotal', {
+      motor: motor.designation,
+      prop: motor.propWeightG,
+      total: motor.totalWeightG,
+    });
   }
   // diameter/length feed kernel geometry (÷1000 → m); a malformed/compromised
   // catalog entry with a non-finite or non-positive size would NaN/blank the design.
   const badSize = (v: number) => !Number.isFinite(v) || v <= 0;
   if (badSize(motor.diameter) || badSize(motor.length)) {
-    throw new Error(
-      `thrustcurve.org gives ${motor.designation} a bad size ` +
-        `(diameter ${motor.diameter} mm, length ${motor.length} mm), so it can't be simulated. Pick another motor.`,
-    );
+    throw new KeyedError('errors.thrustcurve.badSize', {
+      motor: motor.designation,
+      diameter: motor.diameter,
+      length: motor.length,
+    });
   }
 
   const totalMass = motor.totalWeightG / 1000;
@@ -242,7 +241,7 @@ async function resolveTcMotor(cat: CatalogMotor): Promise<TcMotor> {
     const hit = pick(Array.isArray(results) ? results.filter(isTcMotor) : []);
     if (hit) return hit;
   }
-  throw new Error(`Could not find ${cat.manufacturer} ${cat.designation} on thrustcurve.org`);
+  throw new KeyedError('errors.thrustcurve.notFound', { maker: cat.manufacturer, motor: cat.designation });
 }
 
 // Per-motor entries (curve, metadata, resolved spec) revalidate on the
@@ -322,7 +321,7 @@ async function fetchSamplesCached(motor: TcMotor, cat: CatalogMotor): Promise<Tc
     const file = files.find((f) => f.format === 'RASP' && f.samples?.length) ?? files.find((f) => f.samples?.length);
     if (!file?.samples) {
       if (cached) return cached.value;
-      throw new Error(`No thrust-curve data available for ${cat.designation}`);
+      throw new KeyedError('errors.thrustcurve.noData', { motor: cat.designation });
     }
     // Validate the network path with the same guard the cache read uses
     // (`isSampleArray`). Otherwise a garbled or hostile download.json carrying
@@ -332,7 +331,7 @@ async function fetchSamplesCached(motor: TcMotor, cat: CatalogMotor): Promise<Tc
     // "cannot be converted to a BigInt" blank design.
     if (!isSampleArray(file.samples)) {
       if (cached) return cached.value;
-      throw new Error(`Thrust-curve data for ${cat.designation} is malformed`);
+      throw new KeyedError('errors.thrustcurve.badData', { motor: cat.designation });
     }
     await getMotorStore().writeEntry(key, file.samples);
     return file.samples;
@@ -361,7 +360,7 @@ async function buildMotorSpec(cat: CatalogMotor, ejectionDelay: number, curveInd
     const id = cat.id;
     const cm = (await getMotorStore().listCustomMotors()).find((m) => m.id === id);
     if (!cm) {
-      throw new Error(`Imported motor ${cat.designation} is no longer stored — re-import its motor file.`);
+      throw new KeyedError('errors.thrustcurve.importGone', { motor: cat.designation });
     }
     return customMotorToSpec(cm, ejectionDelay);
   }

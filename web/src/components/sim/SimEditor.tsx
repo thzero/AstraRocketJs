@@ -15,6 +15,7 @@ import { unitScope } from '../../prefs/units';
 import type { SimPrefs } from '../../services/flight/simulations';
 import { seedFromInput } from '../../services/flight/simulations';
 import { NumberRow } from '../common/NumberRow';
+import { fmtUpTo } from '../../i18n/format';
 import { SPEED_WARNINGS } from './speedWarnings';
 
 /**
@@ -252,7 +253,7 @@ function SimOptions({ diff }: { diff?: ReadonlySet<keyof SimPrefs> }) {
           unit="s"
           mixed={mixed('timeStep')}
           value={prefs?.timeStep ?? null}
-          placeholder={String(g.timeStep)}
+          placeholder={fmtUpTo(g.timeStep, 4)}
           step={0.01}
           min={SIM_BOUNDS.timeStep.min}
           max={SIM_BOUNDS.timeStep.max}
@@ -264,7 +265,7 @@ function SimOptions({ diff }: { diff?: ReadonlySet<keyof SimPrefs> }) {
           unit="s"
           mixed={mixed('maxTime')}
           value={prefs?.maxTime ?? null}
-          placeholder={String(g.maxTime)}
+          placeholder={fmtUpTo(g.maxTime, 1)}
           step={60}
           min={SIM_BOUNDS.maxTime.min}
           max={SIM_BOUNDS.maxTime.max}
@@ -279,7 +280,7 @@ function SimOptions({ diff }: { diff?: ReadonlySet<keyof SimPrefs> }) {
           // unit through `angle` above, not in degrees by assumption.
           mixed={mixed('maxAngleStep')}
           value={prefs?.maxAngleStep == null ? null : angle.toUi(prefs.maxAngleStep)}
-          placeholder={String(angle.toUi(g.maxAngleStep))}
+          placeholder={fmtUpTo(angle.toUi(g.maxAngleStep), 3)}
           step={angle.step((0.5 * Math.PI) / 180)}
           min={angle.toUi(SIM_BOUNDS.maxAngleStep.min)}
           max={angle.toUi(SIM_BOUNDS.maxAngleStep.max)}

@@ -344,7 +344,7 @@ describe('isSimplePolygon', () => {
     ).toBe(true);
   });
 
-  it('rejects a bow tie — the shape FreeformFinEditor lets you drag into', () => {
+  it('rejects a bow tie, the shape FreeformFinEditor lets you drag into', () => {
     expect(
       isSimplePolygon([
         [0, 0],

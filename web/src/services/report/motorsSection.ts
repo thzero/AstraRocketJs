@@ -1,5 +1,6 @@
 import type { ReportModel } from './reportModel';
 import { fmtNum } from '../../i18n/format';
+import { NO_VALUE } from '../../i18n/noValue';
 import { g, heading, kvGrid, q, qv, sectionBreak, sub, table, type Col, type PdfPage } from './pdfPage';
 
 type MotorConfig = ReportModel['configs'][number];
@@ -28,7 +29,7 @@ function writeFlightSummary(p: PdfPage, flight: NonNullable<MotorConfig['flight'
     [t('report.timeToApogee'), `${fmtNum(flight.timeToApogee, 1)} s`],
     [t('report.velOffRod'), q(p, 'velocity', flight.launchRodVelocity)],
     [t('report.maxVel'), q(p, 'velocity', flight.maxVelocity, 0)],
-    [t('report.velDeploy'), flight.deploymentVelocity != null ? q(p, 'velocity', flight.deploymentVelocity) : '—'],
+    [t('report.velDeploy'), flight.deploymentVelocity != null ? q(p, 'velocity', flight.deploymentVelocity) : NO_VALUE],
     [t('report.landingVel'), q(p, 'velocity', flight.groundHitVelocity)],
   ]);
 }

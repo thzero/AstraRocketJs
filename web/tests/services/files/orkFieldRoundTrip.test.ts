@@ -50,7 +50,7 @@ const base: LaunchConditions = {
   pressureHPa: null,
 };
 
-describe('launch fields the app edits (finding 2)', () => {
+describe('launch fields the app edits', () => {
   const launch: LaunchConditions = {
     ...base,
     launchIntoWind: true,
@@ -87,7 +87,7 @@ describe('launch fields the app edits (finding 2)', () => {
   });
 });
 
-describe('recovery packed size (finding 3)', () => {
+describe('recovery packed size', () => {
   const tree = wrap([
     node({ type: 'parachute', id: 'c', diameter: 0.4, length: 0.06, radius: 0.02 }),
     node({ type: 'streamer', id: 's', length: 0.045, radius: 0.015 }),
@@ -122,7 +122,7 @@ describe('recovery packed size (finding 3)', () => {
   });
 });
 
-describe('rail button geometry and material (finding 4)', () => {
+describe('rail button geometry and material', () => {
   const tree = wrap([
     node({
       type: 'railbutton',
@@ -178,7 +178,7 @@ describe('rail button geometry and material (finding 4)', () => {
   });
 });
 
-describe('fin set angle (finding 11)', () => {
+describe('fin set angle', () => {
   it('writes the same degrees in <angleoffset> and <rotation>, as RocketComponentSaver does', () => {
     const tree = wrap([node({ type: 'trapezoidfinset', id: 'f', rotation: Math.PI / 4 })]);
     const xml = exportOrk({ name: 'F', tree });
@@ -191,7 +191,7 @@ describe('fin set angle (finding 11)', () => {
   });
 });
 
-describe('one finite-number parse (finding 12)', () => {
+describe('one finite-number parse', () => {
   const sim = (inner: string) =>
     `<openrocket><rocket><name>N</name><subcomponents><stage><name>S</name><subcomponents>` +
     `<bodytube><name>B</name><length>0.3</length><radius>0.012</radius></bodytube></subcomponents></stage>` +
@@ -243,7 +243,7 @@ describe('one finite-number parse (finding 12)', () => {
   });
 });
 
-describe('creator attribute (finding 14)', () => {
+describe('creator attribute', () => {
   it('names this app, not a program that does not exist', () => {
     const xml = exportOrk({ name: 'C', tree: wrap([]) });
     expect(xml).toMatch(/<openrocket version="1\.10" creator="AstraRocketJs">/);
@@ -251,7 +251,7 @@ describe('creator attribute (finding 14)', () => {
   });
 });
 
-describe('shared defaults (finding 15)', () => {
+describe('shared defaults', () => {
   const bare = (tag: string, inner = '') =>
     `<openrocket><rocket><name>N</name><subcomponents><stage><name>S</name><subcomponents>` +
     `<bodytube><name>B</name><length>0.3</length><radius>0.012</radius><subcomponents>` +

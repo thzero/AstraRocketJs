@@ -172,7 +172,7 @@ describe('isCustomMotor rejects what would reach the kernel broken', () => {
     expect(await survives({ ...good(), samples: [{ time: 0 }] })).toBe(0);
   });
 
-  it('drops a row with no class — motorDb sorts on it and would throw', async () => {
+  it('drops a row with no class: motorDb sorts on it and would throw', async () => {
     const { class: _drop, ...noClass } = good();
     expect(await survives(noClass)).toBe(0);
   });

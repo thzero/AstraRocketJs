@@ -14,6 +14,7 @@ import {
 } from '../../services/flight/environmentProfile';
 import { formatLat, formatLon } from '../../services/map/slippyMap';
 import { fmtSiteTime } from '../../i18n/format';
+import { NO_VALUE } from '../../i18n/noValue';
 import { radToDeg } from '../../prefs/units';
 import { norm360 } from '../../services/flight/groundTrack';
 import { polylinePath } from '../common/svgPath';
@@ -43,7 +44,7 @@ const PAD: EnvironmentQuantity[] = ['temperature', 'pressure', 'density', 'speed
 /** Four significant figures in the field's unit: air density reads 1.225 kg/m³ and 0.001225 g/cm³ alike. */
 function sig4(fu: FieldUnit, si: number): string {
   const ui = fu.toUi(si);
-  if (!Number.isFinite(ui)) return '—';
+  if (!Number.isFinite(ui)) return NO_VALUE;
   if (ui === 0) return `${fu.fmtSym(si, 0)}`;
   const mag = Math.floor(Math.log10(Math.abs(ui)));
   return `${fu.fmtSym(si, Math.max(0, 3 - mag))}`;
@@ -63,7 +64,7 @@ export function EnvironmentView({ flight }: { flight: ResultFlight }) {
   const show = (q: EnvironmentQuantity, si: number) => {
     if (q !== 'windDirection') return sig4(unit(q), si);
     // Still air has no direction; the recorded angle of a zero vector is not one.
-    return env.pad.windSpeed < CALM_MS ? '—' : `${Math.round(compass(si))}°`;
+    return env.pad.windSpeed < CALM_MS ? NO_VALUE : `${Math.round(compass(si))}°`;
   };
 
   return (
@@ -115,8 +116,8 @@ export function EnvironmentView({ flight }: { flight: ResultFlight }) {
 }
 
 /** A latitude or longitude as the launch panel holds it, to the 4 decimals (about 10 m) it is entered to. */
-const latText = (v: number | null) => (v == null ? '—' : formatLat(v));
-const lonText = (v: number | null) => (v == null ? '—' : formatLon(v));
+const latText = (v: number | null) => (v == null ? NO_VALUE : formatLat(v));
+const lonText = (v: number | null) => (v == null ? NO_VALUE : formatLon(v));
 
 /** Radians as compass degrees, 0 to 360. */
 const compass = (rad: number) => norm360(radToDeg(rad));

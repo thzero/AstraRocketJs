@@ -523,7 +523,7 @@ describe('managing configurations', () => {
     expect(s().sims.every((x) => isStale(x))).toBe(true); // they fly something else now
   });
 
-  it('points one row at another configuration, ageing only that row', () => {
+  it('points one row at another configuration, aging only that row', () => {
     s().addSim();
     const second = s().activeId;
     s().addConfig();

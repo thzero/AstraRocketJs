@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSettings } from '../../state/SettingsProvider';
 import { fmtNum } from '../../i18n/format';
+import { NO_VALUE } from '../../i18n/noValue';
 import type { ComponentMass, AeroSweep } from '../../engine/openRocketEngine';
 import {
   columnMax,
@@ -117,14 +118,14 @@ export function ComponentTable({ sweep, machs, mach }: { sweep: AeroSweep; machs
   // column is only worth having when something actually has more than one of
   // itself -- usually the fin set, and nothing else.
   const { totalCd, unattributed, hasSplit, hasInstances } = useMemo(() => dragTotals(sweep, i), [sweep, i]);
-  const pct = (v: number) => (totalCd ? `${fmtNum((v / totalCd) * 100, 0)}%` : '—');
+  const pct = (v: number) => (totalCd ? `${fmtNum((v / totalCd) * 100, 0)}%` : NO_VALUE);
   const rows = useMemo(() => dragRows(sweep, i, t), [sweep, i, t]);
 
   // `number | null`: a null cell is the kernel saying this reading was not
   // finite, which must read as an em dash and not as a fabricated 0; a
   // component that genuinely makes no drag reports 0 and means it. `v == null`
   // catches both null and undefined.
-  const num = (v: number | null | undefined, digits = 3) => (v == null ? '—' : fmtNum(v, digits));
+  const num = (v: number | null | undefined, digits = 3) => (v == null ? NO_VALUE : fmtNum(v, digits));
   const cell = 'px-2 py-1 text-right tabular-nums';
   const head = 'px-2 py-1 text-right font-medium';
 
@@ -169,7 +170,7 @@ export function ComponentTable({ sweep, machs, mach }: { sweep: AeroSweep; machs
                   {num(sweep.powerOff.friction[i])}
                 </td>
               )}
-              {hasInstances && <td className={cell}>—</td>}
+              {hasInstances && <td className={cell}>{NO_VALUE}</td>}
               <td className={cell} style={heat(totalCd, totalCd, heatStyle)}>
                 {num(totalCd)}
               </td>
@@ -207,10 +208,10 @@ export function ComponentTable({ sweep, machs, mach }: { sweep: AeroSweep; machs
             {unattributed > 1e-6 && (
               <tr className="border-t border-line/10 text-ink-faint">
                 <td className="px-2 py-1 text-left italic">{t('aero.unattributed')}</td>
-                {hasSplit && <td className={cell}>—</td>}
-                {hasSplit && <td className={cell}>—</td>}
-                {hasSplit && <td className={cell}>—</td>}
-                {hasInstances && <td className={cell}>—</td>}
+                {hasSplit && <td className={cell}>{NO_VALUE}</td>}
+                {hasSplit && <td className={cell}>{NO_VALUE}</td>}
+                {hasSplit && <td className={cell}>{NO_VALUE}</td>}
+                {hasInstances && <td className={cell}>{NO_VALUE}</td>}
                 <td className={cell}>{num(unattributed)}</td>
                 <td className={cell}>{pct(unattributed)}</td>
               </tr>
@@ -291,7 +292,7 @@ export function StabilityTable({
 
   const cell = 'px-2 py-1 text-right tabular-nums';
   const head = 'px-2 py-1 text-right font-medium';
-  const pct = (v: number) => (totalCna ? `${fmtNum((v / totalCna) * 100, 0)}%` : '—');
+  const pct = (v: number) => (totalCna ? `${fmtNum((v / totalCna) * 100, 0)}%` : NO_VALUE);
   // CP as a percentage, over either length, the same two the CP vs Mach chart
   // offers. `% body` is the whole airframe ("how far along the rocket in front
   // of me"); `% length` is the AERODYNAMIC length, which is what the desktop's
@@ -342,9 +343,13 @@ export function StabilityTable({
             {rows.map((r) => (
               <tr key={r.key} className="border-b border-line/5 last:border-0">
                 <td className="px-2 py-1 text-left">{r.name}</td>
-                {hasMass && <td className={cell}>{r.mass ? fmtNum(r.mass.eachMass * massFactor, massDigits) : '—'}</td>}
-                {hasMass && <td className={cell}>{r.mass ? fmtNum(r.mass.mass * massFactor, massDigits) : '—'}</td>}
-                {hasMass && <td className={cell}>{r.mass ? fmtNum(r.mass.cg * lengthFactor, lenDigits) : '—'}</td>}
+                {hasMass && (
+                  <td className={cell}>{r.mass ? fmtNum(r.mass.eachMass * massFactor, massDigits) : NO_VALUE}</td>
+                )}
+                {hasMass && (
+                  <td className={cell}>{r.mass ? fmtNum(r.mass.mass * massFactor, massDigits) : NO_VALUE}</td>
+                )}
+                {hasMass && <td className={cell}>{r.mass ? fmtNum(r.mass.cg * lengthFactor, lenDigits) : NO_VALUE}</td>}
                 <td className={cell}>{fmtNum(r.cp * lengthFactor, lenDigits)}</td>
                 {hasBodyLen && <td className={cell}>{cpPctBody(r.cp)}</td>}
                 {hasAeroLen && <td className={cell}>{cpPctAero(r.cp)}</td>}

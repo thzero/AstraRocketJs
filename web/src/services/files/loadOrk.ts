@@ -21,7 +21,7 @@ import { motorFitsMount, mountFit } from '../motors/motorPicker';
 import { hasUsableCurve } from '../motors/motorCurve';
 import { uuid } from '../app/uuid';
 import { type DeployOverride, type MountMotor, type SepOverride } from '../flight/flightConfigs';
-import { errorMessage } from '../app/errorMessage';
+import { errorReason } from '../../i18n/keyedError';
 import { roundTo } from '../app/numbers';
 import { rseDigest } from './ork/embeddedMotors';
 import { keyedNote, type ImportNote } from './importNote';
@@ -212,7 +212,7 @@ export function buildForImport(tree: RocketTree): { design: OpenRocketDesign; un
   try {
     return { design: OpenRocketDesign.buildTree(tree) };
   } catch (e) {
-    const reason = errorMessage(e);
+    const reason = errorReason(e);
     let repaired;
     try {
       repaired = OpenRocketDesign.buildTree(withoutFreeformOutlines(tree));
@@ -345,7 +345,7 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
       // transient thrustcurve.org failure while opening an L-motor design would
       // produce a runnable simulation flying a 10 N-s C6, with the only warning
       // buried in the import notes that settings.showImportNotes can hide.
-      notes.push(keyedNote('importNote.motorFetchFailed', { motor: ref.designation, reason: errorMessage(e) }));
+      notes.push(keyedNote('importNote.motorFetchFailed', { motor: ref.designation, reason: errorReason(e) }));
       return unresolvedMotor(ref);
     }
   };

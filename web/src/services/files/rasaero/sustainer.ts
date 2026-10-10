@@ -7,6 +7,10 @@ import { num, str } from '../../../tree/nodeProps';
 import { trapezoidDims } from '../../../tree/finPlanform';
 import { isFinSet } from '../../../tree/tubefins';
 import { isAssembly } from '../../../tree/assembly';
+import { KeyedError, type Keyed } from '../../../i18n/keyedError';
+
+/** A part as an export refusal names it: its own name, else its translated type. */
+export const partName = (node: ComponentNode): string | Keyed => node.name || { key: `part.${node.type}` };
 
 /**
  * The sustainer's flat part chain (NoseCone / BodyTube / Transition, each
@@ -58,22 +62,25 @@ export function finXml(w: Cdx1Writer, parent: ComponentNode): void {
   const finSets = (parent.children ?? []).filter((c) => isFinSet(c.type));
   if (finSets.length === 0) return;
   if (finSets.length > 1) {
-    throw new Error('RASAero allows ONE fin set per tube — remove extras or export as .ork.');
+    throw new KeyedError('errors.rasaero.tubeFins');
   }
   const fin = finSets[0]!;
   const plan = finPlanform(fin);
   if (!plan) {
     // Never drop fins silently: an aero program with no fins is a radically
     // different rocket.
-    throw new Error(
+    throw new KeyedError(
       fin.type === 'freeformfinset'
-        ? `RASAero fins are trapezoids — the freeform outline of “${fin.name ?? 'Fins'}” isn't a simple 3/4-point trapezoid. Simplify it or export as .ork.`
-        : `RASAero has no ${fin.type === 'ellipticalfinset' ? 'elliptical' : 'tube'} fins — “${fin.name ?? 'Fins'}” can't be exported. Use trapezoid fins or export as .ork.`,
+        ? 'errors.rasaero.freeformFins'
+        : fin.type === 'ellipticalfinset'
+          ? 'errors.rasaero.ellipticalFins'
+          : 'errors.rasaero.tubeFinsUnsupported',
+      { name: partName(fin) },
     );
   }
   const count = Math.round(num(fin, 'finCount', 3));
   if (count < FIN_MIN || count > FIN_MAX) {
-    throw new Error(`RASAero needs 3–8 fins per set (found ${count}). Adjust "${fin.name ?? 'Fins'}".`);
+    throw new KeyedError('errors.rasaero.finCount', { found: count, name: partName(fin) });
   }
   const pos = fin.position ?? { method: 'bottom', offset: 0 };
   // Convert any position method to a bottom-referenced offset.
@@ -123,10 +130,7 @@ function noseXml(w: Cdx1Writer, node: ComponentNode): void {
   else if (shape === 'power') {
     rasShape = 'Power Law';
     powerLaw = Number.isNaN(param) ? 0.5 : param;
-  } else
-    throw new Error(
-      `RASAero has no "${shape}" nose shape — use conical/ogive/ellipsoid/haack/power, or export as .ork.`,
-    );
+  } else throw new KeyedError('errors.rasaero.noseShape', { shape: { key: `noseShape.${shape}` } });
   const len = num(node, 'length', 0.07);
   emit('<NoseCone>');
   emit('<PartType>NoseCone</PartType>');
@@ -173,7 +177,7 @@ function tubeXml(w: Cdx1Writer, node: ComponentNode): void {
 function transitionXml(w: Cdx1Writer, node: ComponentNode): void {
   const { emit } = w;
   if (nodeShape(node) !== 'conical') {
-    throw new Error('RASAero transitions must be conical — change the shape or export as .ork.');
+    throw new KeyedError('errors.rasaero.transitionShape');
   }
   const len = num(node, 'length', 0.04);
   emit('<Transition>');
@@ -199,9 +203,9 @@ export function writeSustainerChain(w: Cdx1Writer, sustainer: ComponentNode): vo
       // strap-on booster is external aerodynamics RASAero's flat part list
       // cannot hold, and a file that quietly omits it describes a different
       // rocket (the desktop refuses these too, RASAeroExport.error33).
-      throw new Error(
-        `RASAero has no ${node.type === 'podset' ? 'pods' : 'parallel (strap-on) stages'}: "${node.name ?? node.type}" can't be exported. Remove it or export as .ork.`,
-      );
+      throw new KeyedError(node.type === 'podset' ? 'errors.rasaero.noPods' : 'errors.rasaero.noParallel', {
+        name: partName(node),
+      });
     }
     // internals/others have no RASAero representation: silently external-only
   }

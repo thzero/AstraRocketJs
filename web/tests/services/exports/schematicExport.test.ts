@@ -3,6 +3,7 @@ import { dataHeaderLines, type ExportData } from '../../../src/services/exports/
 import { METRIC_UNITS } from '../../../src/prefs/units';
 import { appName } from '../../../src/services/app/appInfo';
 import type { StaticInfo } from '../../../src/engine/openRocketEngine';
+import i18n from '../../../src/i18n';
 
 const info = {
   length: 0.6,
@@ -20,6 +21,7 @@ const data = (over: Partial<ExportData> = {}): ExportData => ({
   units: { ...METRIC_UNITS, length: 'm', mass: 'g' },
   withMotors: true,
   appVersion: '9.9.9',
+  t: (key, options) => i18n.t(key, options),
   ...over,
 });
 
@@ -28,7 +30,7 @@ describe('dataHeaderLines', () => {
     const lines = dataHeaderLines(data({ info: null }));
     expect(lines[0]).toBe('My Rocket');
     expect(lines).toHaveLength(2);
-    expect(lines[1]).toMatch(/v9\.9\.9 — \d{4}-\d{2}-\d{2}$/);
+    expect(lines[1]).toMatch(/v9\.9\.9, \d{4}-\d{2}-\d{2}$/);
   });
 
   it('names the app the way every other export does', () => {

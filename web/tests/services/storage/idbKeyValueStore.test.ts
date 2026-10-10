@@ -216,7 +216,7 @@ describe('when IndexedDB is unavailable', () => {
     boom.mockRestore();
   });
 
-  it('recovers on a later call — a transient open error is not memoized', async () => {
+  it('recovers on a later call: a transient open error is not memoized', async () => {
     const kv = new IndexedDbKeyValueStore(new FakeLocal());
     const boom = vi.spyOn(indexedDB, 'open').mockImplementationOnce(() => {
       throw new Error('transient');

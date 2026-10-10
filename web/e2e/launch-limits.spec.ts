@@ -33,7 +33,7 @@ test('an imported .ork outside the limits is flagged and refused', async ({ page
   // a bare "cannot run". The regex has to match the wording this path produces:
   // a design rejected for a zero dimension (every centering ring importing with no
   // radius, say) never reaches the launch check at all, which masks the assertion.
-  const notice = page.getByText(/was not run .* launch conditions are outside the safety codes/);
+  const notice = page.getByText(/was not run: its launch conditions are outside the safety codes/);
   await expect(notice).toBeVisible();
   await expect(notice).toContainText('above the 20° the NAR and Tripoli safety codes allow');
   await expect(notice).toContainText('above the 8.9 m/s the NAR and Tripoli safety codes allow');

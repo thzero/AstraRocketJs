@@ -34,6 +34,7 @@ import { delayList } from './motorPicker';
 import { totalImpulse } from './engParser';
 import { parseXmlText } from '../files/xmlUtil';
 import { mathEquals } from './mathEquals';
+import { KeyedError } from '../../i18n/keyedError';
 
 /** RockSim's `Type` attribute, mapped to the catalog's own vocabulary. */
 const TYPES: Record<string, NonNullable<CustomMotor['type']>> = {
@@ -76,12 +77,12 @@ export function removeDelay(designation: string): string {
   return /-([0-9]+|[pP])$/.test(designation) ? designation.slice(0, designation.lastIndexOf('-')) : designation;
 }
 
-/** A required numeric attribute, in the file's own units. */
-function num(el: Element, name: string, what: string): number {
+/** A required numeric attribute, in the file's own units. `whatKey` is the i18n key a refusal names it by. */
+function num(el: Element, name: string, whatKey: string): number {
   const raw = el.getAttribute(name);
-  if (raw === null) throw new Error(`.rse motor is missing its ${what}.`);
+  if (raw === null) throw new KeyedError('errors.motorFile.rseMissing', { what: { key: whatKey } });
   const v = Number(raw);
-  if (!Number.isFinite(v)) throw new Error(`.rse motor has an invalid ${what} (${raw}).`);
+  if (!Number.isFinite(v)) throw new KeyedError('errors.motorFile.rseInvalid', { what: { key: whatKey }, raw });
   return v;
 }
 
@@ -147,31 +148,31 @@ function finalizeThrustCurve(points: Point[]): Point[] {
 /** One `<engine>` element as a stored custom motor. */
 function parseEngine(el: Element): CustomMotor {
   const manufacturer = el.getAttribute('mfg')?.trim();
-  if (!manufacturer) throw new Error('.rse motor is missing its manufacturer (mfg).');
+  if (!manufacturer) throw new KeyedError('errors.motorFile.rseNoMaker');
   const code = el.getAttribute('code')?.trim();
-  if (!code) throw new Error('.rse motor is missing its designation (code).');
+  if (!code) throw new KeyedError('errors.motorFile.rseNoCode');
   const designation = removeDelay(code);
 
   // The file's units are the ones this app stores: mm and grams. Upstream
   // divides all four by 1000 because the kernel is SI; `CustomMotor` is not,
   // and `samplesToMotorSpec` does that conversion at the engine boundary.
-  const diameter = num(el, 'dia', 'diameter');
-  const length = num(el, 'len', 'length');
-  const totalWeightG = num(el, 'initWt', 'initial mass');
-  const propWeightG = num(el, 'propWt', 'propellant mass');
+  const diameter = num(el, 'dia', 'errors.motorFile.attrDiameter');
+  const length = num(el, 'len', 'errors.motorFile.attrLength');
+  const totalWeightG = num(el, 'initWt', 'errors.motorFile.attrInitialMass');
+  const propWeightG = num(el, 'propWt', 'errors.motorFile.attrPropellantMass');
 
   if (!(diameter > 0) || !(length > 0)) {
-    throw new Error(`.rse motor ${designation} has a non-positive diameter or length.`);
+    throw new KeyedError('errors.motorFile.rseSize', { motor: designation });
   }
   // Upstream refuses this too. Without it the rocket gains mass as the motor
   // burns, which nothing downstream would report.
   if (!(propWeightG >= 0) || !(totalWeightG > 0) || propWeightG > totalWeightG) {
-    throw new Error(`.rse motor ${designation} lists more propellant than total mass.`);
+    throw new KeyedError('errors.motorFile.rseMass', { motor: designation });
   }
 
   const sampleEls = el.querySelectorAll('data > eng-data');
   if (sampleEls.length > MAX_RSE_SAMPLES) {
-    throw new Error(`.rse motor ${designation} has more than ${MAX_RSE_SAMPLES} data points.`);
+    throw new KeyedError('errors.motorFile.rseTooManyPoints', { motor: designation, max: MAX_RSE_SAMPLES });
   }
   const rows: Point[] = [...sampleEls].map((d) => ({
     time: optNum(d, 't'),
@@ -181,11 +182,11 @@ function parseEngine(el: Element): CustomMotor {
   }));
   for (const r of rows) {
     if (!Number.isFinite(r.time) || !Number.isFinite(r.thrust)) {
-      throw new Error(`.rse motor ${designation} has a data point with no time or thrust.`);
+      throw new KeyedError('errors.motorFile.rseBadPoint', { motor: designation });
     }
   }
   const points = finalizeThrustCurve(sortByTime(rows));
-  if (points.length < 2) throw new Error(`.rse motor ${designation} has no thrust-curve data.`);
+  if (points.length < 2) throw new KeyedError('errors.motorFile.rseNoCurve', { motor: designation });
 
   const samples = points.map((p) => ({ time: p.time, thrust: p.thrust }));
 
@@ -201,7 +202,7 @@ function parseEngine(el: Element): CustomMotor {
   // refuses it, and as the stored-motor check (motorStore `isMassArray`) would
   // drop the motor later without a word.
   if (haveMass && points.some((p) => p.mass < 0)) {
-    throw new Error(`.rse motor ${designation} has a negative mass in its data.`);
+    throw new KeyedError('errors.motorFile.rseNegativeMass', { motor: designation });
   }
 
   const type = TYPES[(el.getAttribute('Type') ?? '').trim().toLowerCase()];
@@ -242,13 +243,13 @@ const isFalse = (v: string | null) => v === '0' || v?.toLowerCase() === 'false';
  * header block that the format gives no way to name.
  */
 export function parseRse(text: string): CustomMotor[] {
-  const doc = parseXmlText(text, 'Not a valid .rse file (XML parse error).');
+  const doc = parseXmlText(text, '.rse');
   const engineEls = doc.querySelectorAll('engine');
-  if (engineEls.length === 0) throw new Error('Not a valid .rse file (no <engine> found).');
+  if (engineEls.length === 0) throw new KeyedError('errors.motorFile.rseNoEngine');
   // Counted before the spread, so a crafted member does not materialize a
   // million-element array on the way to being refused.
   if (engineEls.length > MAX_RSE_ENGINES) {
-    throw new Error(`This .rse declares more than ${MAX_RSE_ENGINES} motors (possibly malformed).`);
+    throw new KeyedError('errors.motorFile.rseTooManyMotors', { max: MAX_RSE_ENGINES });
   }
   return [...engineEls].map(parseEngine);
 }

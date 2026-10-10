@@ -8,6 +8,7 @@ import { nodeShape, outerProfile } from '../../tree/shapeProfile';
 import { tubeFinRadius } from '../../tree/tubefins';
 import { FIN_DEFAULTS, KERNEL_DEFAULTS } from '../../tree/kernelDefaults';
 import { edgeKey, meshTolerances, undirectedEdgeCounts, validateSolid } from './meshValidate';
+import { KeyedError } from '../../i18n/keyedError';
 
 /**
  * Build the rocket's external airframe as watertight solids for 3D print / CAD.
@@ -189,7 +190,7 @@ export function makeWatertight(geo: THREE.BufferGeometry): THREE.BufferGeometry 
   // shipping a hole to a slicer, where it surfaces as a part that prints wrong.
   const left = countBoundaryEdges(out);
   if (left > 0) {
-    throw new Error(`Could not close this solid: ${left} open edge(s) remain after capping.`);
+    throw new KeyedError('errors.export.openSolid', { edges: left });
   }
   return out;
 }

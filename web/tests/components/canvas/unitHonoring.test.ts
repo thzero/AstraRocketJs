@@ -52,7 +52,7 @@ describe('the map wheel does not scroll the form under it', () => {
     expect(text()).toContain('e.preventDefault()');
   });
 
-  it('no longer uses the React prop that cannot prevent the default', () => {
+  it('does not use the React prop that cannot prevent the default', () => {
     expect(text()).not.toMatch(/onWheel=\{/);
   });
 });

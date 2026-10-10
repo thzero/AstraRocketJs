@@ -2,8 +2,8 @@ name: Deploy
 
 # The master pipeline: the full gate set, then the Pages publish.
 #
-# The gates are the SAME jobs a PR runs — gates.yml, called from both here and
-# ci.yml. They are not duplicated: GitHub has no cross-workflow ordering, so
+# The gates are the SAME jobs a PR runs (gates.yml, called from both here and
+# ci.yml). They are not duplicated: GitHub has no cross-workflow ordering, so
 # "run ci.yml first, then deploy" is not expressible between two files, but a
 # reusable workflow (`workflow_call`) shares the job definitions without needing
 # it. Nothing publishes until every one of them is green.
@@ -84,7 +84,7 @@ jobs:
         run: npm ci
 
       # The docs gate lives HERE, not in gates.yml: the Docusaurus site is not
-      # built on a PR at all. This typecheck is part of that gate — without
+      # built on a PR at all. This typecheck is part of that gate. Without
       # it, website/'s `typecheck` script would be run by nothing again.
       - name: Typecheck docs
         working-directory: website
@@ -95,7 +95,7 @@ jobs:
         run: npx docusaurus build --out-dir "$GITHUB_WORKSPACE/web/public/docs"
         env:
           DOCS_BASE_URL: /${{ github.event.repository.name }}/docs/
-      # Serve from https://<user>.github.io/<repo>/ — base must be /<repo>/.
+      # Serve from https://<user>.github.io/<repo>/, so base must be /<repo>/.
       - run: npm run build
         env:
           PAGES_BASE: /${{ github.event.repository.name }}/
@@ -105,7 +105,7 @@ jobs:
           # the fallback for when the CDN is unreachable.
           #
           # Safe before the `data` branch exists: jsDelivr 404s a missing branch in
-          # ~0.4s (measured — as fast as it serves a real file), and the catalogs are
+          # ~0.4s (measured: as fast as it serves a real file), and the catalogs are
           # fetched when a picker first opens, not at page load. So until the first
           # sync runs this costs ~0.4s on first open and then falls back.
           VITE_DATA_BASE: https://cdn.jsdelivr.net/gh/${{ github.repository }}@data/

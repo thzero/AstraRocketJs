@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useLauncherT } from '../common/useLauncher';
 import { fmtNum, stageLabel } from '../../i18n/format';
+import { NO_VALUE } from '../../i18n/noValue';
 import type { FlightResult } from '../../engine/api';
 import { CSV_MIME, flightEventsCsv } from '../../services/exports/csvExport';
 import { EVENT_EXTRAS, EVENT_NAME, eventRows, type EventRow, type ExtraKey } from '../../services/flight/flightEvents';
@@ -166,8 +167,8 @@ export function FlightEventsTable({
                   )}
                 </th>
                 <td className={NUM}>{fmtNum(r.time, 2)}</td>
-                <td className={NUM}>{r.altitude != null ? alt.fmt(r.altitude) : '—'}</td>
-                <td className={NUM}>{r.velocity != null ? spd.fmt(r.velocity, 1) : '—'}</td>
+                <td className={NUM}>{r.altitude != null ? alt.fmt(r.altitude) : NO_VALUE}</td>
+                <td className={NUM}>{r.velocity != null ? spd.fmt(r.velocity, 1) : NO_VALUE}</td>
               </tr>
               <tr>
                 <td colSpan={4} className="p-0">

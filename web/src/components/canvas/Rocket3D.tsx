@@ -19,7 +19,7 @@ import { useRocketExport, type R3fHandles } from './useRocketExport';
 import { CG_INK, CP_INK } from './stabilityGadget';
 import { token } from '../common/colorTokens';
 import { useSceneColors } from './sceneColors';
-import { errorMessage } from '../../services/app/errorMessage';
+import { errorText } from '../../i18n/keyedError';
 
 // The geometry build and the export framing live in their own modules; the
 // flight path view and Rocket3D.test.ts import them through this one.
@@ -80,7 +80,7 @@ export function Rocket3D({
   // Hi-res snapshot: the same scene rendered offscreen at
   // the export width, with the on-screen path as the fallback.
   const snapshot = useRocketExport(r3f, pieces, maxR, exportData, (e) =>
-    onError?.(t('export.imageFailed', { message: errorMessage(e) })),
+    onError?.(t('export.imageFailed', { message: errorText(e, t) })),
   );
   const center = totalLen / 2;
   const camDist = Math.max(totalLen * 1.1, maxR * 6, 0.25);
@@ -147,9 +147,10 @@ export function Rocket3D({
           />
         </div>
       )}
-      {/* Default to top-right so the quick-glance info card can sit top-left in
-          the same spot as the 2D view. In image-export contexts the 📷 menu owns
-          the top-right, so fall back to top-left there (no info card is shown). */}
+      {/* Top-right, clear of the info card the caller pins top-left. When the
+          📷 menu is shown (`exportData` given) it takes the top-right and this
+          row moves top-left; the caller hangs the info card below the row
+          there, so the two do not overlap. */}
       <div
         style={{
           position: 'absolute',
@@ -231,9 +232,8 @@ export function Rocket3D({
               exactly like the 2D markers. `transparent` puts them in the
               transparent queue after the see-through shell, or the shell
               would wash over them. */}
-            {/* The axis balls are drawn at a fraction of the shared size rule
-              (see AxisCallout), since full-size balls overwhelm small rockets;
-              the gadget keeps the full size rule. */}
+            {/* The axis balls are drawn at half of markerRadius (see
+              AxisCallout), since full-size balls overwhelm small rockets. */}
             {showMarkers && info && Number.isFinite(info.cg) && (
               <AxisCallout
                 x={info.cg}

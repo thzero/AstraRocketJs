@@ -262,6 +262,11 @@ describe('formatLat / formatLon', () => {
     expect(formatCoord(39.05, -104.8, 3)).toBe('39,050° N, 104,800° W');
   });
 
+  it('writes the hemisphere letters in the reader language', async () => {
+    await i18n.changeLanguage('es');
+    expect(formatCoord(39.05, -104.8, 3)).toBe('39,050° N, 104,800° O');
+  });
+
   it('is the only way a view prints a coordinate', () => {
     const src = resolve(__dirname, '../../../src');
     const offenders: string[] = [];

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import type { ComponentNode, RocketTree } from '../../../src/engine/openRocketEngine';
-import { exportCdx1 } from '../../../src/services/files/rasaeroExport';
+import type { ComponentNode, RocketTree } from '../../../../src/engine/openRocketEngine';
+import { exportCdx1 } from '../../../../src/services/files/rasaeroExport';
 
 /**
  * Golden output of the .CDX1 writer, covering the sustainer, booster, recovery,

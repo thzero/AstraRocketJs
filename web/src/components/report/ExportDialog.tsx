@@ -12,7 +12,7 @@ import { isPlanarFinSet } from '../../tree/tubefins';
 import { markingGuides } from '../../services/report/markingGuide';
 import type { ComponentNode } from '../../engine/openRocketEngine';
 import { stageLabel } from '../../i18n/format';
-import { errorMessage } from '../../services/app/errorMessage';
+import { errorText } from '../../i18n/keyedError';
 import { Check } from '../common/Check';
 import { ColorInput } from '../common/ColorInput';
 import { DialogButton } from '../common/DialogButton';
@@ -97,7 +97,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
     try {
       return { model: assembleReport((built) => (rebuilt = built)), error: null, rebuilt };
     } catch (e) {
-      return { model: null, error: errorMessage(e), rebuilt };
+      return { model: null, error: errorText(e, t), rebuilt };
     }
   });
   const model = initial.model;
@@ -185,7 +185,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
           // Reported, not swallowed: swallowing writes the PDF with the
           // previous run's numbers, unmarked. The user asked for fresh data, so
           // say why there is none and write nothing.
-          useWorkspaceStore.getState().setErr(t('export.simFailed', { message: errorMessage(e) }));
+          useWorkspaceStore.getState().setErr(t('export.simFailed', { message: errorText(e, t) }));
           return;
         } finally {
           useWorkspaceStore.setState({ view: prevView, tab: prevTab, designPane: prevPane });
@@ -214,7 +214,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
       );
       onClose();
     } catch (e) {
-      useWorkspaceStore.getState().setErr(t('export.pdfFailed', { message: errorMessage(e) }));
+      useWorkspaceStore.getState().setErr(t('export.pdfFailed', { message: errorText(e, t) }));
     } finally {
       setBusy(false);
     }
@@ -228,7 +228,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
       downloadComponentCsv(assembleReport() ?? model, exportUnits, (type) => t(`part.${type}`));
       onClose();
     } catch (e) {
-      useWorkspaceStore.getState().setErr(t('export.csvFailed', { message: errorMessage(e) }));
+      useWorkspaceStore.getState().setErr(t('export.csvFailed', { message: errorText(e, t) }));
     }
   };
 
@@ -239,7 +239,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
       downloadDesignCsv(assembleReport() ?? model, exportUnits);
       onClose();
     } catch (e) {
-      useWorkspaceStore.getState().setErr(t('export.csvFailed', { message: errorMessage(e) }));
+      useWorkspaceStore.getState().setErr(t('export.csvFailed', { message: errorText(e, t) }));
     }
   };
 

@@ -65,7 +65,7 @@ describe('ComponentTree semantics', () => {
 /**
  * ＋ Add offers every part the selected part may hold, as desktop OpenRocket's
  * component panel does. A type the tree accepts but the list leaves out can only
- * arrive by import, which is how rail buttons and shock cords went missing.
+ * arrive by import, so the list is checked against every type a body tube holds.
  */
 describe('ComponentTree add list', () => {
   beforeAll(() => {

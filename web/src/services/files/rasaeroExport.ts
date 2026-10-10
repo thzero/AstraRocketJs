@@ -10,6 +10,7 @@ import { writeSustainerChain } from './rasaero/sustainer';
 import { writeBoosters } from './rasaero/booster';
 import { writeRecovery } from './rasaero/recovery';
 import { writeLaunchSite } from './rasaero/launchSite';
+import { KeyedError } from '../../i18n/keyedError';
 import { writeMachAlt, writeSimulationList, type MachAltTable } from './rasaero/simulation';
 
 export { rasaeroSurface, RASAERO_SURFACE_DEFAULT } from './rasaero/surface';
@@ -67,7 +68,7 @@ export function exportCdx1({
   warnings,
 }: Cdx1ExportInput): string {
   const stagesIn = asStageNodes(tree);
-  if (stagesIn.length > 3) throw new Error('RASAero supports at most 3 stages.');
+  if (stagesIn.length > 3) throw new KeyedError('errors.rasaero.tooManyStages', { max: 3 });
 
   const slots = stageEngineSlots(stagesIn, motors, engineExport ?? CDX1_ENGINE_EXPORT);
   const w = createCdx1Writer();

@@ -10,6 +10,7 @@
 import { isMaterialCatalog, type Material, type MaterialType } from './materialTypes';
 import { getMaterialStore } from './materialStore';
 import { fetchCatalog } from '../app/remoteData';
+import { KeyedError } from '../../i18n/keyedError';
 
 /**
  * The built-in table, fetched once per session.
@@ -77,8 +78,8 @@ export async function addCustom(
   group: string = DEFAULT_CUSTOM_GROUP,
 ): Promise<Material[]> {
   const trimmed = name.trim();
-  if (!trimmed) throw new Error('Material name is required');
-  if (!Number.isFinite(density) || density <= 0) throw new Error('Density must be a positive number');
+  if (!trimmed) throw new KeyedError('errors.material.nameRequired');
+  if (!Number.isFinite(density) || density <= 0) throw new KeyedError('errors.material.densityPositive');
   await getMaterialStore().add({ name: trimmed, type, density, group: group || DEFAULT_CUSTOM_GROUP, custom: true });
   return getMaterialStore().list();
 }

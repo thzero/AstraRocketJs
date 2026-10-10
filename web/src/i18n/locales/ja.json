@@ -19,6 +19,105 @@
     "shrink": "このダイアログを元の大きさに戻す"
   },
   "errors": {
+    "material": {
+      "nameRequired": "材料名を入力してください。",
+      "densityPositive": "密度は正の数にしてください。"
+    },
+    "savedPart": {
+      "partNoRequired": "部品番号を入力してください。",
+      "missingDimensions": "この部品には、ピッカーが部品を並べるのに使う寸法がありません。",
+      "gone": "その部品はもう保存されていません。",
+      "nameTaken": "この種類の別の保存済み部品が、すでにそのメーカーと名前を使っています。"
+    },
+    "file": {
+      "notDesign": "ロケット設計ファイルではありません。OpenRocket (.ork) または RockSim (.rkt) のファイルを選んでください。",
+      "notOrk": ".ork ファイルではありません（<rocket> がありません）。",
+      "notRkt": ".rkt ファイルではありません（<RocketDesign> がありません）。",
+      "noStage": "この .ork には段がありません。",
+      "noComponents": "この設計には対応している部品がありません。",
+      "xmlInvalid": "有効な {{format}} ファイルではありません（XML の解析エラー）。",
+      "archiveTooManyEntries": ".ork アーカイブの項目が多すぎます。",
+      "archiveTooLarge": ".ork アーカイブが大きすぎます（zip 爆弾の可能性があります）。",
+      "archiveEmpty": ".ork アーカイブが空です。",
+      "tooManyComponents": "この {{format}} は部品数が多すぎるため開けません（壊れている可能性があります）。",
+      "tooDeep": "この {{format}} は入れ子が深すぎるため開けません（壊れている可能性があります）。",
+      "tooLarge": "ファイルが大きすぎるため開けません（{{size}} MiB 超）。"
+    },
+    "rasaero": {
+      "tooManyStages": "RASAero が扱える段は最大 {{max}} 段です。",
+      "boosterNoTube": "段「{{stage}}」にはボディチューブがありませんが、RASAero のブースターには必要です。",
+      "boosterTransitions": "RASAero のブースターはショルダーとボートテールしか扱えません。段「{{stage}}」にはほかのトランジションがあります。.ork でエクスポートしてください。",
+      "boosterFins": "RASAero ではブースター 1 つにつきフィンセットは 1 つだけです。段「{{stage}}」には複数あります。.ork でエクスポートしてください。",
+      "tubeFins": "RASAero ではチューブ 1 本につきフィンセットは 1 つだけです。余分なものを削除するか、.ork でエクスポートしてください。",
+      "freeformFins": "RASAero のフィンは台形ですが、「{{name}}」の自由形状の輪郭は 3 点または 4 点の単純な台形ではありません。形を単純にするか、.ork でエクスポートしてください。",
+      "ellipticalFins": "RASAero には楕円フィンがないため、「{{name}}」はエクスポートできません。台形フィンを使うか、.ork でエクスポートしてください。",
+      "tubeFinsUnsupported": "RASAero にはチューブフィンがないため、「{{name}}」はエクスポートできません。台形フィンを使うか、.ork でエクスポートしてください。",
+      "finCount": "RASAero ではフィンセットあたり 3〜8 枚のフィンが必要です（現在 {{found}} 枚）。「{{name}}」を調整してください。",
+      "noseShape": "RASAero には「{{shape}}」のノーズ形状がありません。円錐、オジーブ、楕円体、Haack、べき乗のいずれかを使うか、.ork でエクスポートしてください。",
+      "transitionShape": "RASAero のトランジションは円錐形でなければなりません。形状を変えるか、.ork でエクスポートしてください。",
+      "noPods": "RASAero にはポッドがないため、「{{name}}」はエクスポートできません。削除するか、.ork でエクスポートしてください。",
+      "noParallel": "RASAero には並列（ストラップオン）段がないため、「{{name}}」はエクスポートできません。削除するか、.ork でエクスポートしてください。"
+    },
+    "motorFile": {
+      "engNoData": "有効な .eng ファイルではありません（モーターのデータがありません）。",
+      "engHeader": ".eng のヘッダーが不正です。必要な項目：名称 直径 長さ 遅延 推進剤質量 全質量 メーカー。",
+      "engHeaderNumbers": ".eng のヘッダーが不正です：直径、長さ、または質量が数値ではありません。",
+      "engHeaderSize": ".eng のヘッダーが不正です：直径と長さは正の値にしてください。",
+      "engHeaderMass": ".eng のヘッダーが不正です：推進剤質量は 0 から全質量までの値にしてください。",
+      "engDataLine": ".eng の {{line}} 行目のデータが不正です：時間と推力が必要ですが、「{{text}}」でした。",
+      "engNoCurve": ".eng ファイルに推力曲線のデータ点がありません。",
+      "attrDiameter": "直径",
+      "attrLength": "長さ",
+      "attrInitialMass": "初期質量",
+      "attrPropellantMass": "推進剤質量",
+      "rseMissing": ".rse ファイルのモーターに値がありません：{{what}}。",
+      "rseInvalid": ".rse ファイルのモーターの値が不正です：{{what}}（{{raw}}）。",
+      "rseNoMaker": ".rse ファイルのモーターにメーカー (mfg) がありません。",
+      "rseNoCode": ".rse ファイルのモーターに名称 (code) がありません。",
+      "rseSize": ".rse ファイルのモーター {{motor}} の直径または長さが正の値ではありません。",
+      "rseMass": ".rse ファイルのモーター {{motor}} は、推進剤が全質量より多くなっています。",
+      "rseTooManyPoints": ".rse ファイルのモーター {{motor}} のデータ点が {{max}} を超えています。",
+      "rseBadPoint": ".rse ファイルのモーター {{motor}} に、時間または推力のないデータ点があります。",
+      "rseNoCurve": ".rse ファイルのモーター {{motor}} に推力曲線のデータがありません。",
+      "rseNegativeMass": ".rse ファイルのモーター {{motor}} のデータに負の質量があります。",
+      "rseNoEngine": "有効な .rse ファイルではありません（<engine> がありません）。",
+      "rseTooManyMotors": "この .rse は {{max}} 個を超えるモーターを宣言しています（壊れている可能性があります）。"
+    },
+    "thrustcurve": {
+      "http": "thrustcurve.org が {{path}} に対して HTTP {{status}} を返しました。",
+      "tooLarge": "{{path}} に対する thrustcurve.org の応答が大きすぎます。",
+      "timeout": "thrustcurve.org からの応答がありませんでした。通信を確認して、もう一度お試しください。",
+      "noSamples": "{{motor}} の推力データがありません。",
+      "noWeight": "thrustcurve.org には {{motor}} の装填質量も推進剤質量も公開されていないため、シミュレーションできません。別のモーターを選んでください。",
+      "propOverTotal": "{{motor}} はカタログ上、推進剤 ({{prop}} g) が装填質量 ({{total}} g) より多いため、燃焼の終わりに質量が負になります。別のモーターを選んでください。",
+      "badSize": "thrustcurve.org にある {{motor}} の寸法が不正です（直径 {{diameter}} mm、長さ {{length}} mm）。シミュレーションできないので、別のモーターを選んでください。",
+      "notFound": "thrustcurve.org に {{maker}} {{motor}} が見つかりませんでした。",
+      "noData": "{{motor}} の推力曲線データがありません。",
+      "badData": "{{motor}} の推力曲線データが不正です。",
+      "importGone": "インポートしたモーター {{motor}} はもう保存されていません。モーターファイルをもう一度インポートしてください。"
+    },
+    "remote": {
+      "motors": "モーターカタログを読み込めませんでした（{{reason}}）。",
+      "components": "部品カタログを読み込めませんでした（{{reason}}）。",
+      "materials": "材料カタログを読み込めませんでした（{{reason}}）。",
+      "contributors": "貢献者の一覧を読み込めませんでした（{{reason}}）。",
+      "tooLarge": "応答が大きすぎます",
+      "badShape": "カタログの形式が想定と異なります"
+    },
+    "export": {
+      "noPrintable": "印刷できる部品が選択されていません。",
+      "openSolid": "この立体を閉じられませんでした：ふさいだ後も {{edges}} 本の開いた辺が残っています。",
+      "imageEncode": "ブラウザーが画像をエンコードできませんでした。",
+      "svgRasterize": "ブラウザーが SVG を描画できませんでした。"
+    },
+    "engine": {
+      "notReady": "OpenRocket の物理エンジンの読み込みがまだ終わっていません。読み込みが終わってから、もう一度お試しください。",
+      "staleDesign": "この設計は物理エンジンのリセット前に構築されたものです。使う前に構築し直してください。"
+    },
+    "rktSkip": {
+      "cgOverride": "CG の上書き（{{name}}）",
+      "extraStages": "{{from}} 段目以降"
+    },
     "viewFailed": "このビューを読み込めませんでした。",
     "staleBuild": "このタブを開いている間にアプリが更新されたため、一部がサーバー上にありません。再読み込みして新しいビルドを取得してください。",
     "openOrk": ".ork を開けませんでした：{{reason}}",
@@ -90,6 +189,17 @@
     "markingOmitted_noFins": "記入対象外（{{names}}）：このチューブにはフィンセットがないため、印の基準にできるものがありません。"
   },
   "export": {
+    "dxf": {
+      "trapezoidfinset": "台形フィン",
+      "ellipticalfinset": "楕円フィン",
+      "freeformfinset": "自由形状フィン",
+      "bulkhead": "バルクヘッド",
+      "centeringring": "センタリングリング",
+      "cutCount": "{{name}}（{{qty}} 枚切り出し）",
+      "finDims": "翼根 {{root}} mm | 翼幅 {{span}} mm | 板厚 {{stock}} mm",
+      "discDims": "Ø{{diameter}} mm",
+      "discBoreDims": "Ø{{diameter}} mm | 穴 Ø{{bore}} mm"
+    },
     "title": "設計レポート",
     "select": "含める項目を選択：",
     "designReport": "設計レポート",
@@ -132,7 +242,13 @@
     "pdfFailed": "PDF をエクスポートできませんでした：{{message}}",
     "csvFailed": "CSV をエクスポートできませんでした：{{message}}",
     "reportFailed": "設計レポートを組み立てられませんでした：{{message}}",
-    "finMarkingGuide": "フィン位置の記入ガイド"
+    "finMarkingGuide": "フィン位置の記入ガイド",
+    "headerLength": "全長 {{value}}",
+    "headerMaxDiameter": "最大直径 {{value}}",
+    "headerSpan": "スパン {{value}}",
+    "headerLaunchMass": "発射時質量 {{mass}}（空 {{dry}}）",
+    "headerDryMass": "空質量 {{dry}}、モーター未搭載",
+    "headerBalance": "CG {{cg}}、CP {{cp}}（ノーズ先端から）、安定余裕 {{margin}} cal"
   },
   "engine": {
     "wasmTip": "物理エンジン：WebAssembly（高速版）",
@@ -653,6 +769,8 @@
     "rodDirectionName_rod": "発射ロッドの方向",
     "windDirectionName": "風向",
     "angleLimit": "NAR と Tripoli の安全規定では、発射装置を鉛直から {{limit}} 以内にすることが求められています。",
+    "angleLimit_rail": "NAR と Tripoli の安全規定では、発射レールを鉛直から {{limit}} 以内にすることが求められています。",
+    "angleLimit_rod": "NAR と Tripoli の安全規定では、発射ロッドを鉛直から {{limit}} 以内にすることが求められています。",
     "windLimit": "NAR と Tripoli の安全規定では、風速が {{limit}} を超えるときは飛ばさないよう求められています。",
     "field": {
       "launchRodLengthM": "ランチャーの長さ",
@@ -1274,7 +1392,7 @@
       "conical": "円錐形ノーズコーンは三角形の断面をしている",
       "ogive": "オジーブのノーズコーンは円の一部分の輪郭をしている。形状係数が1では<b>接線オジーブ</b>が作られ、これはボディチューブとなめらかに接続される。1以下では<b>割線オジーブ</b>が作られる",
       "ellipsoid": "楕円体のノーズコーンは楕円を半分にした輪郭をしていて軸の長さは2×<i>長さ</i>と<i>直径</i>",
-      "power": "Power seriesのノーズコーンは <i>半径</i> × (<i>x</i> / <i>長さ</i>)<sup><i>k</i></sup> ここで<i>k</i>は形状係数。 <i>k</i>",
+      "power": "べき乗シリーズのノーズコーンは <i>半径</i> × (<i>x</i> / <i>長さ</i>)<sup><i>k</i></sup> の輪郭をしている。ここで<i>k</i>は形状係数。<i>k</i>=0.5では<b>½乗</b>または<b>放物線</b>ノーズコーン、<i>k</i>=0.75では<b>¾乗</b>、<i>k</i>=1では<b>円錐形</b>ノーズコーンになる。",
       "parabolic": "Parabolic seriesのノーズコーンは放物線の輪郭をしている。形状係数は放物線の一部分を利用して定義している。形状係数1.0では<b>放物線の全部</b>でこれはボディチューブになめらかに繋がる、0.75では<b>放物線の3/4</b>、0.5では<b>放物線の1/2</b>そして0では <b>円錐形</b>ノーズコーンになる。",
       "haack": "Haack seriesのノーズコーンは抗力が最小になるように設計されている。形状係数0では<b>LD-Haack</b>または<b>Von Karman</b>と呼ばれるノーズコーンになる、これは一定の長さと直径においては最小の抗力になる。形状係数0.333では<b>LV-Haack</b>ノーズコーンになる。これは一定の長さと容積では最小の抗力になる。"
     },
@@ -1282,7 +1400,7 @@
       "conical": "円錐形トランジションの側面は直線的",
       "ogive": "オジーブのタンジェントは円の一部分の輪郭をしている。形状係数が1では<b>接線オジーブ</b>が作られ、これはボディチューブとなめらかに接続される。1以下では<b>割線オジーブ</b>が作られる",
       "ellipsoid": "楕円体のトランジションは楕円を半分にした輪郭をしていて軸の長さは2×<i>長さ</i>と<i>直径</i>。トランジションがクリップされていなかったら一致する半径まで拡張される",
-      "power": "Power seriesのトランジションは <i>半径</i> × (<i>x</i> / <i>長さ</i>)<sup><i>k</i></sup> ここで<i>k</i>は形状係数。 <i>k</i>",
+      "power": "べき乗シリーズのトランジションは <i>半径</i> × (<i>x</i> / <i>長さ</i>)<sup><i>k</i></sup> の輪郭をしている。ここで<i>k</i>は形状係数。<i>k</i>=0.5では<b>½乗</b>または<b>放物線</b>、<i>k</i>=0.75では<b>¾乗</b>、<i>k</i>=1では<b>円錐形</b>のトランジションになる。",
       "parabolic": "Parabolic seriesのトランジションは放物線の輪郭をしている。形状係数は放物線の一部分を利用して定義している。形状係数1.0では<b>放物線の全部</b>でこれはボディチューブになめらかに繋がる、0.75では<b>放物線の3/4</b>、0.5では<b>放物線の1/2</b>そして0では <b>円錐形</b>トランジションになる。",
       "haack": "Haack seriesのノーズコーンは抗力が最小になるように設計されている。トランジションでも形状は同等であるが、必ずしもトランジションの最適な抗力になるとは限らない。形状係数0では<b>LD-Haack</b>または<b>Von Karman</b>と呼ばれる形状になる。形状係数0.333では<b>LV-Haack</b>形状になる。"
     }
@@ -1672,6 +1790,12 @@
     "LargeAOA": "バロウマン法が成り立つ範囲を超えた迎角で飛行したため、その付近の空力の数値は近似です。強風のときや、ランチャーをゆっくり離れた直後によく起こります。",
     "LargeAOA.str1": "バロウマン法が成り立つ範囲を超えた迎角で飛行したため、その付近の空力の数値は近似です。強風のときや、ランチャーをゆっくり離れた直後によく起こります。",
     "LargeAOA.str2": "バロウマン法が成り立つ範囲を超えた迎角で飛行したため、その付近の空力の数値は近似です。強風のときや、ランチャーをゆっくり離れた直後によく起こります。",
+    "LargeAOA_rail": "バロウマン法が成り立つ範囲を超えた迎角で飛行したため、その付近の空力の数値は近似です。強風のときや、レールをゆっくり離れた直後によく起こります。",
+    "LargeAOA_rod": "バロウマン法が成り立つ範囲を超えた迎角で飛行したため、その付近の空力の数値は近似です。強風のときや、ロッドをゆっくり離れた直後によく起こります。",
+    "LargeAOA.str1_rail": "バロウマン法が成り立つ範囲を超えた迎角で飛行したため、その付近の空力の数値は近似です。強風のときや、レールをゆっくり離れた直後によく起こります。",
+    "LargeAOA.str1_rod": "バロウマン法が成り立つ範囲を超えた迎角で飛行したため、その付近の空力の数値は近似です。強風のときや、ロッドをゆっくり離れた直後によく起こります。",
+    "LargeAOA.str2_rail": "バロウマン法が成り立つ範囲を超えた迎角で飛行したため、その付近の空力の数値は近似です。強風のときや、レールをゆっくり離れた直後によく起こります。",
+    "LargeAOA.str2_rod": "バロウマン法が成り立つ範囲を超えた迎角で飛行したため、その付近の空力の数値は近似です。強風のときや、ロッドをゆっくり離れた直後によく起こります。",
     "SUPERSONIC": "飛行の一部が超音速で、その領域では拡張バロウマン法は近似になります。その区間の抗力と安定性の数値は目安として扱ってください。"
   },
   "windProfile": {
@@ -1704,6 +1828,7 @@
     }
   },
   "limits": {
+    "sentenceJoin": "{{first}}{{next}}",
     "belowMin": "最小値未満",
     "aboveMax": "上限超過",
     "tooFast": "速すぎます",
@@ -1780,7 +1905,11 @@
     "keysView": "矢印キーで地図を移動、プラスとマイナスでズームします。",
     "noCoords": "場所を置くには緯度と経度を入力してください。",
     "tooClose": "この拡大率の画像はありません",
-    "offline": "オフラインでは画像を表示できません"
+    "offline": "オフラインでは画像を表示できません",
+    "hemisphereN": "北",
+    "hemisphereS": "南",
+    "hemisphereE": "東",
+    "hemisphereW": "西"
   },
   "sweep": {
     "button": "ドリフト",

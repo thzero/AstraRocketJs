@@ -36,7 +36,7 @@ function resolveRepo() {
   if (i >= 0 && process.argv[i + 1]) return process.argv[i + 1];
   const url = PKG.repository?.url ?? '';
   const m = url.match(/github\.com[/:]([^/]+\/[^/]+?)(?:\.git)?$/);
-  if (!m) throw new Error(`Cannot derive owner/repo from package.json repository.url ("${url}") — pass --repo`);
+  if (!m) throw new Error(`Cannot derive owner/repo from package.json repository.url ("${url}"); pass --repo`);
   return m[1];
 }
 
@@ -53,7 +53,7 @@ const headers = {
 async function api(path) {
   const res = await fetch(`https://api.github.com${path}`, { headers });
   if (!res.ok) {
-    const hint = res.status === 403 && !TOKEN ? ' (rate limited — set GITHUB_TOKEN)' : '';
+    const hint = res.status === 403 && !TOKEN ? ' (rate limited, set GITHUB_TOKEN)' : '';
     throw new Error(`GET ${path} → HTTP ${res.status}${hint}`);
   }
   return res.json();

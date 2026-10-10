@@ -4,13 +4,14 @@
  * aggregate performance of a cluster. No React/DOM, so it is unit-tested directly.
  */
 
+import { NO_VALUE } from '../../i18n/noValue';
 import { trapezoidImpulse } from './motorMath';
 
 export type Sample = [number, number]; // [time s, thrust N]
 
 /**
  * Thrust (N) at time `t` by linear interpolation; 0 before the first sample and
- * after the last (a burnt-out motor contributes nothing).
+ * after the last (a burned-out motor contributes nothing).
  *
  * At the final sample the curve still has whatever thrust that sample states.
  * Returning 0 there would drop the last trapezoid for any curve that ends
@@ -119,9 +120,9 @@ const SUB_A_CLASSES = ['1/8A', '1/4A', '1/2A'];
  * a motor gets the same class everywhere.
  */
 export function impulseClass(ns: number): string {
-  if (!Number.isFinite(ns) || ns <= 0) return '—';
+  if (!Number.isFinite(ns) || ns <= 0) return NO_VALUE;
   const n = Math.ceil(Math.log2(ns / 2.5)) + 1;
   if (n > 15) return 'O';
   if (n >= 1) return String.fromCharCode(64 + n);
-  return SUB_A_CLASSES[n + 2] ?? '—';
+  return SUB_A_CLASSES[n + 2] ?? NO_VALUE;
 }

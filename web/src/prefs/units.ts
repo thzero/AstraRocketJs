@@ -1,3 +1,5 @@
+import { NO_VALUE } from '../i18n/noValue';
+
 /** Meters to millimeters. The unit constant for every dimensional export. */
 export const M_TO_MM = 1000;
 
@@ -328,7 +330,7 @@ export function niceStep(x: number): number {
  * (see prefs/useUnits), so this stays usable from non-React export code.
  */
 export function fmtSi(quantity: Quantity, symbol: string, si: number, digits?: number): string {
-  if (si === null || si === undefined || !Number.isFinite(si)) return '—';
+  if (si === null || si === undefined || !Number.isFinite(si)) return NO_VALUE;
   const v = siToUi(quantity, symbol, si);
   if (digits !== undefined) return String(Number(v.toFixed(digits)));
   const a = Math.abs(v);

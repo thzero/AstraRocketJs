@@ -7,7 +7,7 @@ import { OverrideCard, overrideFieldLabel, OverrideNumber, OverrideRow, Override
 import { useUnits } from '../../prefs/useUnits';
 import { onSi } from '../../prefs/entryValue';
 import { unitScope } from '../../prefs/units';
-import { partLabel } from '../../i18n/format';
+import { fmtUpTo, partLabel } from '../../i18n/format';
 
 /**
  * The kernel's SeparationEvent vocabulary, in the order the property panel
@@ -101,7 +101,7 @@ export function SeparationSection({
             name={name}
             label={t('prop.separationDelay')}
             value={over?.separationDelay ?? null}
-            placeholder={String(design.separationDelay)}
+            placeholder={fmtUpTo(design.separationDelay, 2)}
             step={0.5}
             min={0}
             unit="s"

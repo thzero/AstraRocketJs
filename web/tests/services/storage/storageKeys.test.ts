@@ -43,8 +43,9 @@ const ALLOWED = new Set([
   'web/scripts/check-update-flow.mjs',
   // Documents that describe the namespace.
   'docs/ARCHITECTURE.md',
-  // This test, and the audit and changelog that mention the prefix.
+  // This test, and the changelog that mentions the prefix.
   'web/tests/services/storage/storageKeys.test.ts',
+  // Written by each audit run, which may quote the prefix.
   'docs/AUDIT.md',
   'CHANGELOG.md',
 ]);

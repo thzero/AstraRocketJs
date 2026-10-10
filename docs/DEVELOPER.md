@@ -90,16 +90,16 @@ The reference catalogs - motors and components - are **build artifacts** under `
 
 ```bash
 cd web
-npm run sync:motors                  # sweep thrustcurve.org → public/data/motors.generated.json (~1,150 motors)
-npm run sync:all                     # every step below, in order, stopping at the first failure
+npm run sync:all                     # every step below, in this order, stopping at the first failure
 npm run sync:database                # clone or update the community parts database into web/openrocket-database (gitignored)
+npm run sync:motors                  # sweep thrustcurve.org → public/data/motors.generated.json (~1,150 motors)
+npm run sync:motor-digests           # after sync:motors: OpenRocket's motor digests (needs a JDK and the OpenRocket jar, as sync:preset-digests does)
 npm run sync:components              # the OpenRocket-Components DB plus the part files OpenRocket ships → public/data/components.generated.json (~5,200 parts)
 #   reads OPENROCKET_PRESETS (or --src <path-to>/openrocket-database/orc) if the DB isn't at the default local path,
 #   and the files under datafiles/components/internal in the OpenRocket jar: --jar <OpenRocket-24.12.jar>,
 #   OPENROCKET_JAR, or an installed OpenRocket (or --internal <dir of .orc>)
 npm run sync:preset-digests          # after sync:components: each part's digest and stated mass (needs a JDK)
 #   runs scripts/preset-digests/PresetDump.java against --jar <OpenRocket-24.12.jar> or an installed OpenRocket
-npm run sync:motor-digests           # after sync:motors: OpenRocket's motor digests, the same way (needs a JDK)
 npm run sync:materials               # OpenRocket's material database + ours → public/data/materials.generated.json (97 materials)
 #   reads the extractor's own .openrocket-src, or --src <openrocket checkout>. The app's OWN materials
 #   (adhesives, and corrections to upstream values that are wrong) are in scripts/data/materials.app.json,
@@ -178,7 +178,7 @@ Component tests render through `web/tests/testing/renderWithProviders.tsx`, whic
 - `tree/geometryFlags.test.ts` toggles every shape flag (flipped, filled, clipped) under every reader (station radius, schematic, report side view, PDF template, printable solid, 3D view). Each pair has to react, or it is listed in `UNAFFECTED` with the reason the reader cannot see the flag.
 - `services/parts/catalogPatch.kernel.test.ts` ("a stated catalog mass") builds every catalog row that states a mass and requires it to fly within 0.5% of that mass.
 
-The `KNOWN` lists in the first two are empty; a pair that goes in one names its finding. `tests/testing/kernelGeometry.ts` is the shared helper, reading the kernel's geometry through the bridge's `getComponentGeometry`.
+The `KNOWN` lists in the first two are empty. Finding IDs are numbered per audit run and `docs/AUDIT.md` is replaced each run, so an entry cites an ID in the current `docs/AUDIT.md` or states its reason in words. `tests/testing/kernelGeometry.ts` is the shared helper, reading the kernel's geometry through the bridge's `getComponentGeometry`.
 
 **Prefer a `.test.ts`.** If logic is hard to reach without rendering, that is usually a sign it should move into a module of its own, as the launch-condition unit bridge did (`prefs/launchUnits.ts`).
 

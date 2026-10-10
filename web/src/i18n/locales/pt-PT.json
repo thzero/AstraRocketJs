@@ -19,6 +19,105 @@
     "shrink": "Devolver esta janela ao tamanho normal"
   },
   "errors": {
+    "material": {
+      "nameRequired": "O nome do material é obrigatório.",
+      "densityPositive": "A massa volúmica tem de ser um número positivo."
+    },
+    "savedPart": {
+      "partNoRequired": "A referência da peça é obrigatória.",
+      "missingDimensions": "Faltam a esta peça as dimensões pelas quais o seletor ordena as peças.",
+      "gone": "Essa peça já não está guardada.",
+      "nameTaken": "Outra peça guardada deste tipo já usa esse fabricante e esse nome."
+    },
+    "file": {
+      "notDesign": "Não é um ficheiro de projeto de foguete. Esperava-se OpenRocket (.ork) ou RockSim (.rkt).",
+      "notOrk": "Não é um ficheiro .ork (falta <rocket>).",
+      "notRkt": "Não é um ficheiro .rkt (falta <RocketDesign>).",
+      "noStage": "Este .ork não tem nenhum andar.",
+      "noComponents": "Não foram encontrados componentes suportados neste projeto.",
+      "xmlInvalid": "Não é um ficheiro {{format}} válido (erro ao ler o XML).",
+      "archiveTooManyEntries": "O arquivo .ork tem demasiadas entradas.",
+      "archiveTooLarge": "O arquivo .ork é demasiado grande (possível bomba zip).",
+      "archiveEmpty": "O arquivo .ork está vazio.",
+      "tooManyComponents": "Este {{format}} declara demasiados componentes para ser aberto (pode estar danificado).",
+      "tooDeep": "Este {{format}} está demasiado aninhado para ser aberto (pode estar danificado).",
+      "tooLarge": "O ficheiro é demasiado grande para ser aberto (mais de {{size}} MiB)."
+    },
+    "rasaero": {
+      "tooManyStages": "O RASAero suporta no máximo {{max}} andares.",
+      "boosterNoTube": "O andar \"{{stage}}\" não tem tubo do corpo, e os propulsores auxiliares do RASAero precisam de um.",
+      "boosterTransitions": "Os propulsores auxiliares do RASAero só suportam um ombro e um estreitamento traseiro. O andar \"{{stage}}\" tem outras transições; exporte como .ork.",
+      "boosterFins": "O RASAero permite um conjunto de aletas por propulsor auxiliar. O andar \"{{stage}}\" tem vários; exporte como .ork.",
+      "tubeFins": "O RASAero permite um conjunto de aletas por tubo. Remova os restantes ou exporte como .ork.",
+      "freeformFins": "As aletas do RASAero são trapézios, e o contorno livre de \"{{name}}\" não é um trapézio simples de 3 ou 4 pontos. Simplifique-o ou exporte como .ork.",
+      "ellipticalFins": "O RASAero não tem aletas elípticas, pelo que \"{{name}}\" não pode ser exportado. Use aletas trapezoidais ou exporte como .ork.",
+      "tubeFinsUnsupported": "O RASAero não tem aletas tubulares, pelo que \"{{name}}\" não pode ser exportado. Use aletas trapezoidais ou exporte como .ork.",
+      "finCount": "O RASAero precisa de 3 a 8 aletas por conjunto ({{found}} encontradas). Ajuste \"{{name}}\".",
+      "noseShape": "O RASAero não tem a forma de ogiva \"{{shape}}\". Use cónica, ogival, elipsoide, Haack ou potência, ou exporte como .ork.",
+      "transitionShape": "As transições do RASAero têm de ser cónicas. Mude a forma ou exporte como .ork.",
+      "noPods": "O RASAero não tem pods, pelo que \"{{name}}\" não pode ser exportado. Remova-o ou exporte como .ork.",
+      "noParallel": "O RASAero não tem andares paralelos (laterais), pelo que \"{{name}}\" não pode ser exportado. Remova-o ou exporte como .ork."
+    },
+    "motorFile": {
+      "engNoData": "Não é um ficheiro .eng válido (não foram encontrados dados do motor).",
+      "engHeader": "Cabeçalho .eng mal formado. Esperado: designação diâmetro comprimento retardos massaPropelente massaTotal fabricante.",
+      "engHeaderNumbers": "Cabeçalho .eng mal formado: o diâmetro, o comprimento ou uma massa não é um número.",
+      "engHeaderSize": "Cabeçalho .eng mal formado: o diâmetro e o comprimento têm de ser positivos.",
+      "engHeaderMass": "Cabeçalho .eng mal formado: a massa de propelente tem de estar entre 0 e a massa total.",
+      "engDataLine": "Dados .eng mal formados na linha {{line}}: esperava-se um tempo e uma impulsão, mas há \"{{text}}\".",
+      "engNoCurve": "O ficheiro .eng não tem pontos da curva de impulsão.",
+      "attrDiameter": "diâmetro",
+      "attrLength": "comprimento",
+      "attrInitialMass": "massa inicial",
+      "attrPropellantMass": "massa de propelente",
+      "rseMissing": "Falta um valor a um motor do ficheiro .rse: {{what}}.",
+      "rseInvalid": "Um motor do ficheiro .rse tem um valor inválido de {{what}} ({{raw}}).",
+      "rseNoMaker": "Falta o fabricante (mfg) a um motor do ficheiro .rse.",
+      "rseNoCode": "Falta a designação (code) a um motor do ficheiro .rse.",
+      "rseSize": "O motor {{motor}} do ficheiro .rse tem um diâmetro ou comprimento que não é positivo.",
+      "rseMass": "O motor {{motor}} do ficheiro .rse indica mais propelente do que massa total.",
+      "rseTooManyPoints": "O motor {{motor}} do ficheiro .rse tem mais de {{max}} pontos de dados.",
+      "rseBadPoint": "O motor {{motor}} do ficheiro .rse tem um ponto de dados sem tempo ou sem impulsão.",
+      "rseNoCurve": "O motor {{motor}} do ficheiro .rse não tem dados de curva de impulsão.",
+      "rseNegativeMass": "O motor {{motor}} do ficheiro .rse tem uma massa negativa nos dados.",
+      "rseNoEngine": "Não é um ficheiro .rse válido (não foi encontrado <engine>).",
+      "rseTooManyMotors": "Este .rse declara mais de {{max}} motores (pode estar danificado)."
+    },
+    "thrustcurve": {
+      "http": "O thrustcurve.org respondeu HTTP {{status}} para {{path}}.",
+      "tooLarge": "A resposta do thrustcurve.org para {{path}} é demasiado grande.",
+      "timeout": "O thrustcurve.org não respondeu a tempo. Verifique a sua ligação e tente novamente.",
+      "noSamples": "Não há amostras de impulsão para {{motor}}.",
+      "noWeight": "O thrustcurve.org não publica a massa carregada nem a de propelente de {{motor}}, pelo que não pode ser simulado. Escolha outro motor.",
+      "propOverTotal": "{{motor}} consta do catálogo com mais propelente ({{prop}} g) do que massa carregada ({{total}} g), pelo que a sua combustão terminaria com massa negativa. Escolha outro motor.",
+      "badSize": "O thrustcurve.org atribui a {{motor}} um tamanho incorreto (diâmetro {{diameter}} mm, comprimento {{length}} mm), pelo que não pode ser simulado. Escolha outro motor.",
+      "notFound": "Não foi possível encontrar {{maker}} {{motor}} no thrustcurve.org.",
+      "noData": "Não há dados de curva de impulsão disponíveis para {{motor}}.",
+      "badData": "Os dados de curva de impulsão de {{motor}} estão mal formados.",
+      "importGone": "O motor importado {{motor}} já não está guardado. Importe novamente o respetivo ficheiro de motor."
+    },
+    "remote": {
+      "motors": "Não foi possível carregar o catálogo de motores ({{reason}}).",
+      "components": "Não foi possível carregar o catálogo de componentes ({{reason}}).",
+      "materials": "Não foi possível carregar o catálogo de materiais ({{reason}}).",
+      "contributors": "Não foi possível carregar a lista de colaboradores ({{reason}}).",
+      "tooLarge": "resposta demasiado grande",
+      "badShape": "estrutura de catálogo inesperada"
+    },
+    "export": {
+      "noPrintable": "Não foi selecionada nenhuma peça imprimível.",
+      "openSolid": "Não foi possível fechar este sólido: ficam {{edges}} arestas abertas depois do fecho.",
+      "imageEncode": "O navegador não conseguiu codificar a imagem.",
+      "svgRasterize": "O navegador não conseguiu desenhar o SVG."
+    },
+    "engine": {
+      "notReady": "O motor de física do OpenRocket ainda não acabou de carregar. Aguarde que carregue e tente novamente.",
+      "staleDesign": "Este projeto foi construído antes de o motor de física ser reiniciado. Construa-o novamente antes de o usar."
+    },
+    "rktSkip": {
+      "cgOverride": "substituição do CG ({{name}})",
+      "extraStages": "andar {{from}} e seguintes"
+    },
     "viewFailed": "Não foi possível carregar esta vista.",
     "staleBuild": "A aplicação foi atualizada enquanto este separador estava aberto, pelo que parte dela já não está no servidor. Recarregue para obter a nova versão.",
     "openOrk": "Não foi possível abrir o .ork: {{reason}}",
@@ -90,6 +189,17 @@
     "markingOmitted_noFins": "Sem marcação ({{names}}): o tubo não tem conjunto de aletas, pelo que não há nada nele para alinhar a marca."
   },
   "export": {
+    "dxf": {
+      "trapezoidfinset": "Aleta trapezoidal",
+      "ellipticalfinset": "Aleta elíptica",
+      "freeformfinset": "Aleta de forma livre",
+      "bulkhead": "Antepara",
+      "centeringring": "Anel de centragem",
+      "cutCount": "{{name}} (cortar {{qty}})",
+      "finDims": "raiz {{root}} mm | envergadura {{span}} mm | espessura {{stock}} mm",
+      "discDims": "Ø{{diameter}} mm",
+      "discBoreDims": "Ø{{diameter}} mm | furo Ø{{bore}} mm"
+    },
     "title": "Relatório do projeto",
     "select": "Selecione os elementos a incluir:",
     "designReport": "Relatório do projeto",
@@ -132,7 +242,13 @@
     "pdfFailed": "Não foi possível exportar o PDF: {{message}}",
     "csvFailed": "Não foi possível exportar o CSV: {{message}}",
     "reportFailed": "Não foi possível montar o relatório do projeto: {{message}}",
-    "finMarkingGuide": "Guia de marcação das aletas"
+    "finMarkingGuide": "Guia de marcação das aletas",
+    "headerLength": "Comprimento {{value}}",
+    "headerMaxDiameter": "diâmetro máx. {{value}}",
+    "headerSpan": "envergadura {{value}}",
+    "headerLaunchMass": "Massa de lançamento {{mass}} (vazia {{dry}})",
+    "headerDryMass": "Massa vazia {{dry}}, sem motores carregados",
+    "headerBalance": "CG {{cg}}, CP {{cp}} a partir da ponta da ogiva, margem {{margin}} cal"
   },
   "engine": {
     "wasmTip": "Motor de física: WebAssembly (via rápida)",
@@ -659,6 +775,8 @@
     "rodDirectionName_rod": "Direção da haste de lançamento",
     "windDirectionName": "Direção do vento",
     "angleLimit": "Os códigos de segurança da NAR e da Tripoli exigem um lançador a menos de {{limit}} da vertical.",
+    "angleLimit_rail": "Os códigos de segurança da NAR e da Tripoli exigem uma calha de lançamento a menos de {{limit}} da vertical.",
+    "angleLimit_rod": "Os códigos de segurança da NAR e da Tripoli exigem uma haste de lançamento a menos de {{limit}} da vertical.",
     "windLimit": "Os códigos de segurança da NAR e da Tripoli pedem que não voe com vento acima de {{limit}}.",
     "field": {
       "launchRodLengthM": "comprimento da guia",
@@ -969,7 +1087,7 @@
     "nonFinite_one": "Esta composição está incompleta: não foi possível calcular {{count}} leitura.",
     "nonFinite_many": "Esta composição está incompleta: não foi possível calcular {{count}} leituras.",
     "nonFinite_other": "Esta composição está incompleta: não foi possível calcular {{count}} leituras.",
-    "aoa": "AoA",
+    "aoa": "Âng. ataque",
     "windDirection": "Dir. do vento",
     "rollRate": "Taxa de rolamento",
     "altitude": "Altitude",
@@ -1283,17 +1401,17 @@
     "nosecone": {
       "conical": "Uma ogiva cônica tem um perfil de um triângulo.",
       "ogive": "Uma ogiva cônica tem um perfil que é um segmento de um círculo. O valor do parâmetro de forma 1 produz uma <b>ogiva tangente</b>, que tem uma transição suave para o tubo do foguete, valores menores do que 1 produzem<b>ogivas secantes</b>.",
-      "ellipsoid": "Uma ogiva elipsoidal tem o perfil de mia-elipse com o comprimento do eixo maior 2×<i>Comprimento</i> and <i>Diâmetro</i>.",
-      "power": "Uma ogiva tipo série de potência tem o perfil de <i>Raio</i> × (<i>x</i> / <i>Comprimento</i>)<sup><i>k</i></sup> onde<i>k</i> é o parâmetro de forma. Para <i>k</i>=0.5 é uma <b>½-power</b> ou ogiva <b>parabólica,</b> para <i>k</i>=0.75 a <b>¾-power</b>, e para<i>k</i>=1 uma ogiva <b>cônica</b>.",
-      "parabolic": "Uma ogiva tipo parabólica tem o perfil de uma parábola. O parâmetro de forma define o segmento da parábola a ser utilizado. O parâmetro de forma 1.0 produz uma <b>parábola inteira</b> tangenciando o corpo do foguete, 0.75 produz <b>3/4 de parábola</b>, 0.5 produz <b>1/2 parábola</b> e 0 produz uma ogica <b>cônica</b>.",
+      "ellipsoid": "Uma ogiva elipsoidal tem o perfil de meia elipse com eixos principais de comprimento 2×<i>Comprimento</i> e <i>Diâmetro</i>.",
+      "power": "Uma ogiva tipo série de potência tem o perfil de <i>Raio</i> × (<i>x</i> / <i>Comprimento</i>)<sup><i>k</i></sup> onde <i>k</i> é o parâmetro de forma. Para <i>k</i>=0.5 é uma ogiva de <b>potência ½</b> ou <b>parabólica</b>, para <i>k</i>=0.75 uma de <b>potência ¾</b>, e para <i>k</i>=1 uma ogiva <b>cônica</b>.",
+      "parabolic": "Uma ogiva tipo parabólica tem o perfil de uma parábola. O parâmetro de forma define o segmento da parábola a ser utilizado. O parâmetro de forma 1.0 produz uma <b>parábola inteira</b> tangenciando o corpo do foguete, 0.75 produz <b>3/4 de parábola</b>, 0.5 produz <b>1/2 parábola</b> e 0 produz uma ogiva <b>cônica</b>.",
       "haack": "Uma ogiva série de Haack é projetada para diminuir o arrasto. O parâmetro de forma 0.0 produz uma ogiva <b>LD-Haack</b> ou <b>Von Karman</b>, que minimiza o arrasto para comprimento e diâmetro fixos, enquanto um valor de 0.333 produz uma ogiva <b>LV-Haack</b>, que minimiza o arrasto para comprimento e volume fixos."
     },
     "transition": {
       "conical": "Uma transição cônica tem lados retos.",
       "ogive": "Uma ogiva de transição tem um perfil que é um segmento de um círculo. O valor do parâmetro de forma 1 produz uma <b>ogiva tangente</b>, que tem uma transição suave para o tubo do foguete, valores menores do que 1 produzem <b>ogivas secantes</b>.",
       "ellipsoid": "Uma elipsoide de transição tem um perfil que é uma meia elipse com o eixo maior de comprimento 2×<i>Comprimento</i> e<i>Diâmetro</i>. Se a transição não for grampeado, o perfil da transição é estendido ao centro do raio corrspondente.",
-      "power": "Ums transição série de potências tem o perfil de <i>Raio</i> × (<i>x</i> / <i>Comprimento</i>)<sup><i>k</i></sup> onde <i>k</i> é o parâmetro de forma. Para <i>k</i>=0.5 a transição é <b>½-power</b> ou <b>parabólica</b>, para <i>k</i>=0.75 a <b>¾-power</b>, e para <i>k</i>=1 <b>cônica</b>.",
-      "parabolic": "Uma transição tipo parabólica tem o perfil de uma parábola. O parâmetro de forma define o segmento da parábola a ser utilizado. O parâmetro de forma 1.0 produz uma <b>parábola inteira</b> tangenciando o corpo do foguete, 0.75 produz <b>3/4 de parábola</b>, 0.5 produz <b>1/2 parábola</b> e 0 produz uma ogica <b>cônica</b>.",
+      "power": "Uma transição série de potências tem o perfil de <i>Raio</i> × (<i>x</i> / <i>Comprimento</i>)<sup><i>k</i></sup> onde <i>k</i> é o parâmetro de forma. Para <i>k</i>=0.5 a transição é de <b>potência ½</b> ou <b>parabólica</b>, para <i>k</i>=0.75 de <b>potência ¾</b>, e para <i>k</i>=1 <b>cônica</b>.",
+      "parabolic": "Uma transição tipo parabólica tem o perfil de uma parábola. O parâmetro de forma define o segmento da parábola a ser utilizado. O parâmetro de forma 1.0 produz uma <b>parábola inteira</b> tangenciando o corpo do foguete, 0.75 produz <b>3/4 de parábola</b>, 0.5 produz <b>1/2 parábola</b> e 0 produz uma transição <b>cônica</b>.",
       "haack": "As <i>ogivas</i> série de Haack são projetadas para diminuir o arrasto. Essas formas de transição são equivalentes, mas não necessáriamente produzem uma melhoria no arrasto. O parâmetro de forma 0.0 produz uma ogiva <b>LD-Haack</b> ou <b>Von Karman</b>, enquanto um valor de 0.333 produz uma ogiva <b>LV-Haack</b>."
     }
   },
@@ -1688,6 +1806,12 @@
     "LargeAOA": "O foguetão voou com um ângulo de ataque fora do intervalo em que o método de Barrowman é válido, pelo que os números aerodinâmicos em torno desse ponto são aproximados. Frequente com vento forte ou logo depois de uma saída lenta da guia.",
     "LargeAOA.str1": "O foguetão voou com um ângulo de ataque fora do intervalo em que o método de Barrowman é válido, pelo que os números aerodinâmicos em torno desse ponto são aproximados. Frequente com vento forte ou logo depois de uma saída lenta da guia.",
     "LargeAOA.str2": "O foguetão voou com um ângulo de ataque fora do intervalo em que o método de Barrowman é válido, pelo que os números aerodinâmicos em torno desse ponto são aproximados. Frequente com vento forte ou logo depois de uma saída lenta da guia.",
+    "LargeAOA_rail": "O foguetão voou com um ângulo de ataque fora do intervalo em que o método de Barrowman é válido, pelo que os números aerodinâmicos em torno desse ponto são aproximados. Frequente com vento forte ou logo depois de uma saída lenta da calha.",
+    "LargeAOA_rod": "O foguetão voou com um ângulo de ataque fora do intervalo em que o método de Barrowman é válido, pelo que os números aerodinâmicos em torno desse ponto são aproximados. Frequente com vento forte ou logo depois de uma saída lenta da haste.",
+    "LargeAOA.str1_rail": "O foguetão voou com um ângulo de ataque fora do intervalo em que o método de Barrowman é válido, pelo que os números aerodinâmicos em torno desse ponto são aproximados. Frequente com vento forte ou logo depois de uma saída lenta da calha.",
+    "LargeAOA.str1_rod": "O foguetão voou com um ângulo de ataque fora do intervalo em que o método de Barrowman é válido, pelo que os números aerodinâmicos em torno desse ponto são aproximados. Frequente com vento forte ou logo depois de uma saída lenta da haste.",
+    "LargeAOA.str2_rail": "O foguetão voou com um ângulo de ataque fora do intervalo em que o método de Barrowman é válido, pelo que os números aerodinâmicos em torno desse ponto são aproximados. Frequente com vento forte ou logo depois de uma saída lenta da calha.",
+    "LargeAOA.str2_rod": "O foguetão voou com um ângulo de ataque fora do intervalo em que o método de Barrowman é válido, pelo que os números aerodinâmicos em torno desse ponto são aproximados. Frequente com vento forte ou logo depois de uma saída lenta da haste.",
     "SUPERSONIC": "Parte do voo é supersónica, e aí o método de Barrowman estendido é uma aproximação. Trate os números de resistência e de estabilidade nessa região como indicativos."
   },
   "windProfile": {
@@ -1720,6 +1844,7 @@
     }
   },
   "limits": {
+    "sentenceJoin": "{{first}} {{next}}",
     "belowMin": "Abaixo do mínimo",
     "aboveMax": "Acima do limite",
     "tooFast": "Demasiado rápido",
@@ -1798,7 +1923,11 @@
     "keysView": "As setas movem o mapa, e mais e menos aplicam zoom.",
     "noCoords": "Introduza uma latitude e uma longitude para colocar o local.",
     "tooClose": "Sem imagens a esta aproximação",
-    "offline": "Sem imagens sem ligação"
+    "offline": "Sem imagens sem ligação",
+    "hemisphereN": "N",
+    "hemisphereS": "S",
+    "hemisphereE": "E",
+    "hemisphereW": "O"
   },
   "sweep": {
     "button": "Deriva",

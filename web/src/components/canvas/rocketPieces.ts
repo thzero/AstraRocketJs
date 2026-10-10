@@ -499,7 +499,7 @@ export function buildPieces(
   return { pieces, totalLen: Math.max(totalLen, 0.05), maxR };
 }
 
-/** One size rule for the on-axis marker spheres and the callout gadget. */
+/** The size rule for the on-axis CG and CP markers; AxisCallout scales its sprite and label from it. */
 export const markerRadius = (totalLen: number, maxR: number): number => Math.max(totalLen * 0.015, maxR * 0.35);
 
 /**

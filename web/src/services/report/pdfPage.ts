@@ -2,6 +2,7 @@ import type { jsPDF } from 'jspdf';
 import type { StaticInfo } from '../../engine/openRocketEngine';
 import type { Pt } from './reportGeometry';
 import { fmtNum, fmtSig } from '../../i18n/format';
+import { NO_VALUE } from '../../i18n/noValue';
 import { siToUi, type Quantity, type UnitSelection } from '../../prefs/units';
 import { hexToRgbTuple, pageFrame } from './layout';
 import type { ReportOptions } from './options';
@@ -200,7 +201,7 @@ export function table(p: PdfPage, cols: Col[], rows: string[][], boldLast = fals
 
 /** An SI value in the user's unit, with its symbol. */
 export const q = (p: PdfPage, quantity: Quantity, si: number, digits = 1): string =>
-  Number.isFinite(si) ? `${fmtNum(siToUi(quantity, p.units[quantity], si), digits)} ${p.units[quantity]}` : '—';
+  Number.isFinite(si) ? `${fmtNum(siToUi(quantity, p.units[quantity], si), digits)} ${p.units[quantity]}` : NO_VALUE;
 
 /** The number only, for a cell that already carries the unit once. */
 export const qv = (p: PdfPage, quantity: Quantity, si: number, digits = 1): string =>

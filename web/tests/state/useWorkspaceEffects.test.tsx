@@ -335,7 +335,7 @@ describe('what triggers a rebuild', () => {
     expect(s().sims.every((x) => !isStale(x))).toBe(true);
   });
 
-  it('renaming a part rebuilds — the engine labels its rows with the name', async () => {
+  it('renaming a part rebuilds: the engine labels its rows with the name', async () => {
     await mount();
     computeStaticInfo.mockClear();
 

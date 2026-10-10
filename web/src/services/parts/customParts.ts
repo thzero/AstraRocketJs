@@ -11,6 +11,7 @@
 import type { ComponentNode } from '../../engine/openRocketEngine';
 import { catalogTypeFor, isComponentRow, type Component, type ComponentType, type PickerType } from './componentDb';
 import { getPresetStore, type CustomPart } from './presetStore';
+import { KeyedError } from '../../i18n/keyedError';
 
 /** What the manufacturer column says when the user names no maker. */
 export const DEFAULT_CUSTOM_MFR = 'Custom';
@@ -241,7 +242,7 @@ export interface PartMeta {
 /** Trimmed, with the two rules that apply wherever a part is written. */
 function cleanMeta(meta: PartMeta): PartMeta {
   const partNo = meta.partNo.trim();
-  if (!partNo) throw new Error('A part number is required');
+  if (!partNo) throw new KeyedError('errors.savedPart.partNoRequired');
   return { mfr: meta.mfr.trim() || DEFAULT_CUSTOM_MFR, partNo, desc: meta.desc.trim() };
 }
 
@@ -252,7 +253,7 @@ function newPartId(): string {
 
 /** The one write path: gate on the projection, store, announce. */
 async function write(part: CustomPart): Promise<CustomPart> {
-  if (!customPartToRow(part)) throw new Error('This part is missing the dimensions the picker lists parts by');
+  if (!customPartToRow(part)) throw new KeyedError('errors.savedPart.missingDimensions');
   await getPresetStore().add(part);
   bump();
   return part;
@@ -271,11 +272,11 @@ export async function updateCustomPart(id: string, meta: PartMeta, node: Partial
   const clean = cleanMeta(meta);
   const saved = await getPresetStore().list();
   const current = saved.find((p) => p.id === id);
-  if (!current) throw new Error('That part is no longer saved');
+  if (!current) throw new KeyedError('errors.savedPart.gone');
   const clash = saved.some(
     (p) => p.id !== id && p.type === current.type && p.mfr === clean.mfr && p.partNo === clean.partNo,
   );
-  if (clash) throw new Error('Another saved part of this type already uses that maker and name');
+  if (clash) throw new KeyedError('errors.savedPart.nameTaken');
   return write({ ...current, ...clean, node });
 }
 

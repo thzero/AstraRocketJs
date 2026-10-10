@@ -180,7 +180,7 @@ describe('findCatalogMotor', () => {
  * impulse figure. Without reading past the number, such a motor matches
  * nothing at all and the mount opens empty.
  */
-describe('findCatalogMotor — a leading impulse number', () => {
+describe('findCatalogMotor: a leading impulse number', () => {
   const cat: CatalogMotor[] = [
     {
       designation: 'J530',
@@ -220,7 +220,7 @@ describe('findCatalogMotor — a leading impulse number', () => {
  * `26E31-15A`. Dropping only one trailing segment leaves `26-E31-WH`, which is
  * neither, so the motor would match nothing and the mount would open empty.
  */
-describe('findCatalogMotor — a name in several hyphenated parts', () => {
+describe('findCatalogMotor: a name in several hyphenated parts', () => {
   const cat: CatalogMotor[] = [
     {
       designation: 'E31',
@@ -277,7 +277,7 @@ describe('findCatalogMotor — a name in several hyphenated parts', () => {
   });
 });
 
-describe('findCatalogMotor — full .ork designations vs short catalog names', () => {
+describe('findCatalogMotor: full .ork designations vs short catalog names', () => {
   // Catalog keys the short designation; the full name lives in `code`, exactly
   // as the bundled motors.generated.json does.
   const cat: CatalogMotor[] = [
@@ -430,7 +430,7 @@ describe('loadCatalog with a malformed row', () => {
  * which: otherwise an `I170-P` filed under Kosdon loads Cesaroni's I170 in
  * silence.
  */
-describe('matchCatalogMotor — how sure the match is', () => {
+describe('matchCatalogMotor: how sure the match is', () => {
   const cat: CatalogMotor[] = [
     { designation: 'C6', manufacturer: 'Estes', class: 'C', diameter: 18, impulse: 1, burn: 1, mass: 1 },
     { designation: 'I170', manufacturer: 'Cesaroni', class: 'I', diameter: 38, impulse: 1, burn: 1, mass: 1 },

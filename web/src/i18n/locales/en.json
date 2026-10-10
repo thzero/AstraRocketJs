@@ -19,6 +19,105 @@
     "shrink": "Return this dialog to its normal size"
   },
   "errors": {
+    "material": {
+      "nameRequired": "A material name is required.",
+      "densityPositive": "Density must be a positive number."
+    },
+    "savedPart": {
+      "partNoRequired": "A part number is required.",
+      "missingDimensions": "This part is missing the dimensions the picker lists parts by.",
+      "gone": "That part is no longer saved.",
+      "nameTaken": "Another saved part of this type already uses that maker and name."
+    },
+    "file": {
+      "notDesign": "Not a rocket design file. Expected OpenRocket (.ork) or RockSim (.rkt).",
+      "notOrk": "Not a .ork file (missing <rocket>).",
+      "notRkt": "Not a .rkt file (missing <RocketDesign>).",
+      "noStage": "This .ork has no stage.",
+      "noComponents": "No supported components found in this design.",
+      "xmlInvalid": "Not a valid {{format}} file (XML parse error).",
+      "archiveTooManyEntries": "The .ork archive has too many entries.",
+      "archiveTooLarge": "The .ork archive is too large (possible zip bomb).",
+      "archiveEmpty": "The .ork archive is empty.",
+      "tooManyComponents": "This {{format}} declares too many components to open (possibly malformed).",
+      "tooDeep": "This {{format}} is nested too deeply to open (possibly malformed).",
+      "tooLarge": "The file is too large to open (over {{size}} MiB)."
+    },
+    "rasaero": {
+      "tooManyStages": "RASAero supports at most {{max}} stages.",
+      "boosterNoTube": "Stage \"{{stage}}\" has no body tube, and RASAero boosters need one.",
+      "boosterTransitions": "RASAero boosters support only a shoulder and a boat tail. Stage \"{{stage}}\" has other transitions; export as .ork.",
+      "boosterFins": "RASAero allows one fin set per booster. Stage \"{{stage}}\" has several; export as .ork.",
+      "tubeFins": "RASAero allows one fin set per tube. Remove the extras or export as .ork.",
+      "freeformFins": "RASAero fins are trapezoids, and the freeform outline of \"{{name}}\" is not a simple 3- or 4-point trapezoid. Simplify it or export as .ork.",
+      "ellipticalFins": "RASAero has no elliptical fins, so \"{{name}}\" can't be exported. Use trapezoidal fins or export as .ork.",
+      "tubeFinsUnsupported": "RASAero has no tube fins, so \"{{name}}\" can't be exported. Use trapezoidal fins or export as .ork.",
+      "finCount": "RASAero needs 3 to 8 fins per set (found {{found}}). Adjust \"{{name}}\".",
+      "noseShape": "RASAero has no \"{{shape}}\" nose shape. Use conical, ogive, ellipsoid, Haack or power, or export as .ork.",
+      "transitionShape": "RASAero transitions must be conical. Change the shape or export as .ork.",
+      "noPods": "RASAero has no pods, so \"{{name}}\" can't be exported. Remove it or export as .ork.",
+      "noParallel": "RASAero has no parallel (strap-on) stages, so \"{{name}}\" can't be exported. Remove it or export as .ork."
+    },
+    "motorFile": {
+      "engNoData": "Not a valid .eng file (no motor data found).",
+      "engHeader": "Malformed .eng header. Expected: designation diameter length delays propWeight totalWeight manufacturer.",
+      "engHeaderNumbers": "Malformed .eng header: the diameter, the length or a weight is not a number.",
+      "engHeaderSize": "Malformed .eng header: diameter and length must be positive.",
+      "engHeaderMass": "Malformed .eng header: propellant mass must be between 0 and the total mass.",
+      "engDataLine": "Malformed .eng data on line {{line}}: expected a time and a thrust, got \"{{text}}\".",
+      "engNoCurve": "The .eng file has no thrust-curve data points.",
+      "attrDiameter": "diameter",
+      "attrLength": "length",
+      "attrInitialMass": "initial mass",
+      "attrPropellantMass": "propellant mass",
+      "rseMissing": "A motor in the .rse file is missing its {{what}}.",
+      "rseInvalid": "A motor in the .rse file has an invalid {{what}} ({{raw}}).",
+      "rseNoMaker": "A motor in the .rse file is missing its manufacturer (mfg).",
+      "rseNoCode": "A motor in the .rse file is missing its designation (code).",
+      "rseSize": "Motor {{motor}} in the .rse file has a non-positive diameter or length.",
+      "rseMass": "Motor {{motor}} in the .rse file lists more propellant than total mass.",
+      "rseTooManyPoints": "Motor {{motor}} in the .rse file has more than {{max}} data points.",
+      "rseBadPoint": "Motor {{motor}} in the .rse file has a data point with no time or thrust.",
+      "rseNoCurve": "Motor {{motor}} in the .rse file has no thrust-curve data.",
+      "rseNegativeMass": "Motor {{motor}} in the .rse file has a negative mass in its data.",
+      "rseNoEngine": "Not a valid .rse file (no <engine> found).",
+      "rseTooManyMotors": "This .rse declares more than {{max}} motors (possibly malformed)."
+    },
+    "thrustcurve": {
+      "http": "thrustcurve.org answered HTTP {{status}} for {{path}}.",
+      "tooLarge": "The thrustcurve.org reply for {{path}} is too large.",
+      "timeout": "thrustcurve.org timed out. Check your connection and try again.",
+      "noSamples": "No thrust samples for {{motor}}.",
+      "noWeight": "thrustcurve.org publishes no loaded or propellant weight for {{motor}}, so it cannot be simulated. Pick another motor.",
+      "propOverTotal": "{{motor}} is cataloged with more propellant ({{prop}} g) than loaded mass ({{total}} g), so its burn would end at a negative mass. Pick another motor.",
+      "badSize": "thrustcurve.org gives {{motor}} a bad size (diameter {{diameter}} mm, length {{length}} mm), so it can't be simulated. Pick another motor.",
+      "notFound": "Could not find {{maker}} {{motor}} on thrustcurve.org.",
+      "noData": "No thrust-curve data available for {{motor}}.",
+      "badData": "Thrust-curve data for {{motor}} is malformed.",
+      "importGone": "Imported motor {{motor}} is no longer stored. Import its motor file again."
+    },
+    "remote": {
+      "motors": "Could not load the motor catalog ({{reason}}).",
+      "components": "Could not load the component catalog ({{reason}}).",
+      "materials": "Could not load the material catalog ({{reason}}).",
+      "contributors": "Could not load the contributor list ({{reason}}).",
+      "tooLarge": "response too large",
+      "badShape": "unexpected catalog shape"
+    },
+    "export": {
+      "noPrintable": "No printable parts were selected.",
+      "openSolid": "Could not close this solid: {{edges}} open edges remain after capping.",
+      "imageEncode": "The browser could not encode the image.",
+      "svgRasterize": "The browser could not draw the SVG."
+    },
+    "engine": {
+      "notReady": "The OpenRocket engine has not finished loading. Wait for it to load, then try again.",
+      "staleDesign": "This design was built before the engine was reset. Rebuild it before use."
+    },
+    "rktSkip": {
+      "cgOverride": "CG override ({{name}})",
+      "extraStages": "stage {{from}} and beyond"
+    },
     "viewFailed": "This view could not be loaded.",
     "staleBuild": "The app was updated while this tab was open, so part of it is no longer on the server. Reload to get the new build.",
     "openOrk": "Could not open .ork: {{reason}}",
@@ -79,17 +178,28 @@
     "finSet": "Fin set",
     "noseCone": "Nose cone",
     "transition": "Transition",
-    "tooLarge": "{{w}}×{{h}} mm — too large to print 1:1 on one page.",
+    "tooLarge": "{{w}}×{{h}} mm: too large to print 1:1 on one page.",
     "bodyTube": "Body tube",
     "markingGuide": "Fin marking guide (1:1)",
     "markingGuideHint": "Print at 100% / actual size (no page scaling), check the ruler, then cut out each strip, wrap it around its body tube with the ends butted together (not overlapped) and mark through the arrows. Rule a line along the tube through each pair of marks: that is where the part goes.",
-    "markingStrip": "{{name}} — wrap {{c}} mm",
-    "markingPart": "Piece {{k}} of {{n}} — tape end to end, in order",
+    "markingStrip": "{{name}}: wrap {{c}} mm",
+    "markingPart": "Piece {{k}} of {{n}}: tape end to end, in order",
     "markingFore": "Fore",
     "markingOmitted_noWrap": "Not marked ({{names}}): mounted on a nose cone or transition, whose circumference changes along its length, so there is no single wrap to mark.",
     "markingOmitted_noFins": "Not marked ({{names}}): the tube carries no fin set, so there is nothing on it to square the mark against."
   },
   "export": {
+    "dxf": {
+      "trapezoidfinset": "Trapezoidal fin",
+      "ellipticalfinset": "Elliptical fin",
+      "freeformfinset": "Freeform fin",
+      "bulkhead": "Bulkhead",
+      "centeringring": "Centering ring",
+      "cutCount": "{{name}} (cut {{qty}})",
+      "finDims": "root {{root}} mm | span {{span}} mm | stock {{stock}} mm",
+      "discDims": "Ø{{diameter}} mm",
+      "discBoreDims": "Ø{{diameter}} mm | bore Ø{{bore}} mm"
+    },
     "title": "Design Report",
     "select": "Select elements to include:",
     "designReport": "Design Report",
@@ -105,7 +215,7 @@
     "units_current": "My default units",
     "units_metric": "Metric",
     "units_imperial": "Imperial",
-    "unitsNote": "Applies to the PDF and the CSV. “My default units” means Settings ▸ Units, not any unit you set on a single field. 1:1 templates and the printed scale bar stay in mm/cm — they measure the page.",
+    "unitsNote": "Applies to the PDF and the CSV. “My default units” means Settings ▸ Units, not any unit you set on a single field. 1:1 templates and the printed scale bar stay in mm/cm, because they measure the page.",
     "saveCsv": "Save as CSV",
     "savePartsCsv": "Save parts as CSV",
     "printSettings": "Print settings",
@@ -132,7 +242,13 @@
     "pdfFailed": "Could not export PDF: {{message}}",
     "csvFailed": "Could not export CSV: {{message}}",
     "reportFailed": "Could not assemble the design report: {{message}}",
-    "finMarkingGuide": "Fin marking guide"
+    "finMarkingGuide": "Fin marking guide",
+    "headerLength": "Length {{value}}",
+    "headerMaxDiameter": "max diameter {{value}}",
+    "headerSpan": "span {{value}}",
+    "headerLaunchMass": "Launch mass {{mass}} (dry {{dry}})",
+    "headerDryMass": "Dry mass {{dry}}, no motors loaded",
+    "headerBalance": "CG {{cg}}, CP {{cp}} from nose tip, margin {{margin}} cal"
   },
   "engine": {
     "wasmTip": "Physics engine: WebAssembly (fast path)",
@@ -144,10 +260,10 @@
   "about": {
     "open": "About",
     "tagline": "A lightweight web UI for the OpenRocket engine",
-    "body": "{{name}} is a fast, mobile-friendly app for designing and simulating model rockets. It runs the real OpenRocket physics engine — compiled to WASM and JavaScript — entirely in your browser, so there's nothing to install and nothing leaves your device.",
+    "body": "{{name}} is a fast, mobile-friendly app for designing and simulating model rockets. It runs the real OpenRocket physics engine (compiled to WASM and JavaScript) entirely in your browser, so there's nothing to install and nothing leaves your device.",
     "ork": "Full OpenRocket (.ork) support: open, edit, and save your designs round-trip.",
     "scope": "It's a streamlined interface over the same trusted simulation core, focused on the essentials: live CG / CP / stability, 2D & 3D views, and flight simulation. If you need more of its capabilities, please refer to <orLink>OpenRocket</orLink>.",
-    "wip": "⚠️ Work in progress (pre-1.0) — features may be incomplete, change, or break.",
+    "wip": "⚠️ Work in progress (pre-1.0): features may be incomplete, change, or break.",
     "contributors": "Built by these contributors:",
     "contributorsAll": "See all contributors on GitHub",
     "credits": "Physics by OpenRocket (GPL-3.0), compiled to WASM and JavaScript with TeaVM.",
@@ -158,7 +274,7 @@
   "privacy": {
     "title": "Privacy Policy",
     "intro": "{{name}} runs entirely in your browser. There are no accounts, no tracking, no analytics, and no ads.",
-    "storage": "Your designs, simulations, preferences, and any custom materials or motors are saved in your browser's local storage, on your device — never sent to us or anyone else. Clearing your browser data (or using New) removes them.",
+    "storage": "Your designs, simulations, preferences, and any custom materials or motors are saved in your browser's local storage, on your device, and are never sent to us or anyone else. Clearing your browser data (or using New) removes them.",
     "network": "The app downloads its motor and component catalogs from a public content-delivery network, and when you pick a motor it may fetch that motor's thrust-curve data from a public motor database; both are cached locally and subject to those providers' terms. Otherwise the app makes no network calls with your data.",
     "hosting": "Whoever hosts the app may keep standard web-server access logs (such as IP address and timestamp), as any website does. The app itself collects nothing.",
     "close": "Close",
@@ -190,7 +306,7 @@
     "cgByTip": "The CG of this component is determined by the CG override value of {{name}}",
     "cdBy": "Cd overridden by {{name}}",
     "cdByTip": "The Cd of this component is determined by the Cd override value of {{name}}",
-    "cpNote": "CP is computed from the shape and isn't directly overridable — mass, CG and drag are."
+    "cpNote": "CP is computed from the shape and isn't directly overridable. Mass, CG and drag are."
   },
   "file": {
     "openLibrary": "Open…",
@@ -248,7 +364,7 @@
     "offsetsTip": "Also scale where parts sit: their positions, radial offsets and spacing, and override CGs",
     "factor": "Scale by",
     "becomes": "becomes",
-    "massNote": "Solid parts keep their material, so their mass goes as the cube (~{{cube}}×). Recovery fabric scales by area, not volume, so the design is no longer exactly similar — re-check the parachute size and that the motor still fits its mount.",
+    "massNote": "Solid parts keep their material, so their mass goes as the cube (~{{cube}}×). Recovery fabric scales by area, not volume, so the design is no longer exactly similar. Re-check the parachute size and that the motor still fits its mount.",
     "noAirframe": "This design has no body tube, nose cone or transition to measure, so there's nothing to scale from. Add an airframe first.",
     "apply": "Scale to {{pct}}%"
   },
@@ -265,7 +381,7 @@
   },
   "units": {
     "chipTitle": "Change the unit for this field",
-    "chipOverridden": "This field only — your default is {{unit}}. Pick it again to follow the default.",
+    "chipOverridden": "This field only: your default is {{unit}}. Pick it again to follow the default.",
     "ariaFor": "{{quantity}} unit",
     "ariaForOverridden": "{{quantity}} unit, set for this field",
     "q": {
@@ -327,7 +443,7 @@
     "randomSeed": "Random seed",
     "seedAuto": "auto",
     "generalNote": "App-wide preferences, saved on this device.",
-    "unitsNote": "Units are a display and entry preference only — designs are always stored in SI.",
+    "unitsNote": "Units are a display and entry preference only. Designs are always stored in SI.",
     "unitsMetric": "Metric defaults",
     "unitsClearFields_one": "Reset {{count}} field back to these units",
     "unitsClearFields_other": "Reset {{count}} fields back to these units",
@@ -368,8 +484,8 @@
     "guideAwareRodClearance": "Guide-aware launcher clearance",
     "guideAwareRodClearanceHint": "OpenRocket keeps the rocket guided for the launcher's full length, wherever its launch lugs or rail buttons sit. On, a lug guides until its aft end leaves the rod, while a rail needs two buttons and guides only until the second-to-last of them leaves it, so a single button gives no guided travel at all. Usually a little sooner off the launcher, and a slightly lower exit velocity. Off matches OpenRocket.",
     "deploySpeedWarnHint": "Single deployment (no drogue): above this speed, opening the parachute risks zippering the airframe or tearing the canopy.",
-    "mainHighSpeedWarnHint": "Dual deployment: above this the MAIN is coming out too fast — usually a drogue too small to slow the rocket, or a main set to deploy too high.",
-    "mainLowSpeedWarnHint": "Dual deployment: below this the main opens while the rocket is barely descending, which normally means it deployed near apogee — a slow, drifty descent from full altitude.",
+    "mainHighSpeedWarnHint": "Dual deployment: above this the MAIN is coming out too fast. That usually means a drogue too small to slow the rocket, or a main set to deploy too high.",
+    "mainLowSpeedWarnHint": "Dual deployment: below this the main opens while the rocket is barely descending, which normally means it deployed near apogee: a slow, drifty descent from full altitude.",
     "drogueLowSpeedWarnHint": "Dual deployment: below this the drogue comes out too slowly at apogee to inflate properly. Applies only to a stage carrying a chute or streamer marked as a drogue.",
     "materialsNote": "What a newly added part is made of. The material is written onto the part when you add it, so it shows in the panel and travels with the design. Parts already in the rocket are not changed.",
     "materialSlot": {
@@ -378,7 +494,7 @@
       "streamer_surface": "Streamer",
       "shockcord_line": "Shock cord"
     },
-    "materialNoDefault": "No default — leave the part unset"
+    "materialNoDefault": "No default: leave the part unset"
   },
   "config": {
     "title": "Rocket configuration",
@@ -459,12 +575,12 @@
     "cutaway": "Cutaway",
     "cutawayTitle": "Open the airframe along the centerline to show what is inside",
     "roll": "Roll {{deg}}",
-    "rollHint": "Roll — spin the fins about the axis (or drag the drawing)",
+    "rollHint": "Roll: spin the fins about the axis (or drag the drawing)",
     "rollAria": "Roll angle (degrees)",
     "loading3d": "Loading 3D…",
     "reset3dTitle": "Re-fit the current view (zoom/orbit back to the default framing)",
     "sideTitle": "Straight-on side profile",
-    "aftTitle": "From behind — clusters and fin count as they really sit",
+    "aftTitle": "From behind: clusters and fin count as they really sit",
     "dragHint": "drag to rotate · scroll to zoom",
     "markers": "CG / CP",
     "markersTitle": "Show CG / CP / stability markers",
@@ -530,7 +646,7 @@
     "noMotorNamed": "\"{{name}}\" has no usable motor.",
     "incomplete": "\"{{name}}\" is missing: {{fields}}.",
     "windProfile": "\"{{name}}\" has two wind levels at the same altitude.",
-    "badGeometry": "Fix the design first — a required dimension is zero: {{parts}}.",
+    "badGeometry": "Fix the design first. A required dimension is zero: {{parts}}.",
     "badGeometryPart": "\"{{name}}\" ({{fields}})",
     "badGeometryFieldSep": ", ",
     "badGeometryPartSep": "; ",
@@ -656,6 +772,8 @@
     "rodDirectionName_rod": "Launch rod direction",
     "windDirectionName": "Wind direction",
     "angleLimit": "The NAR and Tripoli safety codes ask for a launcher within {{limit}} of vertical.",
+    "angleLimit_rail": "The NAR and Tripoli safety codes ask for a launch rail within {{limit}} of vertical.",
+    "angleLimit_rod": "The NAR and Tripoli safety codes ask for a launch rod within {{limit}} of vertical.",
     "windLimit": "The NAR and Tripoli safety codes ask you not to fly in winds above {{limit}}.",
     "field": {
       "launchRodLengthM": "launcher length",
@@ -854,7 +972,7 @@
       "waypoints-csv": "Waypoint CSV"
     },
     "presets": "Presets",
-    "presetsNote": "Each sets the waypoints, the lines and the placement together — a starting point you can then adjust.",
+    "presetsNote": "Each sets the waypoints, the lines and the placement together, as a starting point you can then adjust.",
     "waypoints": "Waypoints",
     "wp": {
       "pad": "Pad",
@@ -873,12 +991,12 @@
     "placement": "Placement",
     "trackAltitude": "Track altitude from",
     "waypointAltitude": "Waypoint altitude from",
-    "altitudeReferenceNote": "Automatic uses sea level when the launch site has a real altitude set, and the ground when it is still 0. Clamped lays the track flat on the terrain — the one to pick when the question is what the rocket drifts over.",
+    "altitudeReferenceNote": "Automatic uses sea level when the launch site has a real altitude set, and the ground when it is still 0. Clamped lays the track flat on the terrain, the one to pick when the question is what the rocket drifts over.",
     "drawShadow": "Draw shadow down to the ground",
     "shadowNote": "Adds a curtain under the track and a plumb line under each pin, so you can read where a point in the air sits on the map. Nothing to draw once it is clamped.",
     "preset": {
       "driftCast": "Drift cast",
-      "driftCastNote": "Everything flat on the terrain, ground track only — for reading the hazards under the drift.",
+      "driftCastNote": "Everything flat on the terrain, ground track only, for reading the hazards under the drift.",
       "flightPath": "Flight path",
       "flightPathNote": "The flight suspended in the air where it belongs, with the ground track under it.",
       "landing": "Landing plots",
@@ -906,7 +1024,7 @@
     "descriptionsNote": "Google Earth shows a balloon when you click a feature: the flight's numbers on the document, the stage's range and landing on its folder, and the time, altitude, range and bearing on each waypoint. Turn them off for a file the descriptions would only get in the way of.",
     "language": "Language",
     "languageSameAsApp": "Same as the app",
-    "languageNote": "The language the FILE is written in — the waypoint names, the track names and the balloons. Like the units beside it, it belongs to the file rather than to the app: a KML going to somebody else may want their language whatever you are reading the app in. Text in an imported template is whatever its author wrote.",
+    "languageNote": "The language the FILE is written in: the waypoint names, the track names and the balloons. Like the units beside it, it belongs to the file rather than to the app: a KML going to somebody else may want their language whatever you are reading the app in. Text in an imported template is whatever its author wrote.",
     "units": "Units and language",
     "altitude": "Altitude",
     "distance": "Distance",
@@ -937,7 +1055,7 @@
     },
     "mission": "Mission",
     "missionPlaceholder": "e.g. Sod Blaster L1",
-    "missionNote": "Prefixed to the document, folder and track names, so several exports opened together in Google Earth can be told apart. It is not saved between exports — a stale one would quietly mislabel the next file.",
+    "missionNote": "Prefixed to the document, folder and track names, so several exports opened together in Google Earth can be told apart. It is not saved between exports, because a stale one would quietly mislabel the next file.",
     "labelWaypointsWithMission": "Prefix the waypoint names too",
     "missionMarkersNote": "Off by default: a near-vertical flight stacks its markers into a few pixels, and longer names only make that worse. Worth turning on when two flights’ markers sit on top of each other.",
     "noPosition": "The launch latitude and longitude are both zero, so the exported track is placed at the Kennedy Space Center instead. Set them on the Launch panel to put it where you actually fly. Your design is unchanged either way.",
@@ -996,7 +1114,7 @@
     "base": "Base",
     "pctBody": "% body",
     "pctLength": "% length",
-    "supersonicNote": "Extended Barrowman — approximate above ~Mach 1.5.",
+    "supersonicNote": "Extended Barrowman, approximate above ~Mach 1.5.",
     "unavailable": "Build a valid rocket to see its drag.",
     "crosshairHint": "Drag curves. Focus and use the arrow keys to move the crosshair; Shift for a larger step, Home and End for the ends, Escape to clear.",
     "summaryPeakMach": "peak {{value}} at Mach {{mach}}",
@@ -1332,12 +1450,12 @@
       "tubecoupler": "TC",
       "innertube": "IT"
     },
-    "calipersH": "Length calipers — drag the two vertical lines to measure (snaps to edges)",
-    "calipersV": "Diameter calipers — drag the two horizontal lines to measure a span",
-    "zoomIn": "Zoom in — or scroll on the drawing; drag to pan",
+    "calipersH": "Length calipers: drag the two vertical lines to measure (snaps to edges)",
+    "calipersV": "Diameter calipers: drag the two horizontal lines to measure a span",
+    "zoomIn": "Zoom in, or scroll on the drawing; drag to pan",
     "zoomOut": "Zoom out",
     "fit": "Fit to view",
-    "aftAria": "Aft end view — looking at the rocket from behind; drag to rotate, wheel to zoom",
+    "aftAria": "Aft end view: looking at the rocket from behind; drag to rotate, wheel to zoom",
     "sideAria": "Rocket side view with CG and CP markers; wheel to zoom, drag background to pan",
     "caliperH": "Horizontal caliper handle {{end}}",
     "caliperV": "Vertical caliper handle {{end}}"
@@ -1398,7 +1516,7 @@
     "clear": "Clear",
     "selectedN": "{{n}} motors selected",
     "noCurve": "no curve",
-    "noCurveTip": "No thrust curve — can't compare or combine.",
+    "noCurveTip": "No thrust curve, so it can't be compared or combined.",
     "compareDesc": "Overlay their thrust curves and compare specs side by side.",
     "combineDesc": "Sum them into one cluster: a combined thrust curve + total impulse.",
     "clearSel": "Clear selection",
@@ -1452,7 +1570,7 @@
     "default": "automatic",
     "defaultOption": "Not specified",
     "loadFailed": "The material list could not be loaded. Check your connection and reopen this panel.",
-    "defaultHint": "No material assigned — the part is weighed with a built-in density: cardboard for solid parts, ripstop nylon for canopies, elastic cord for lines.",
+    "defaultHint": "No material assigned. The part is weighed with a built-in density: cardboard for solid parts, ripstop nylon for canopies, elastic cord for lines.",
     "thisPart": "From this part",
     "addCustom": "＋ Add custom…",
     "namePlaceholder": "Name (e.g. G10 fiberglass)",
@@ -1506,8 +1624,8 @@
     "notRun": "not run",
     "motor": "Motor",
     "changeMotor": "Change…",
-    "noMotor": "No motor — choose one",
-    "motorNotFound": "Not in the catalog — choose a motor",
+    "noMotor": "No motor: choose one",
+    "motorNotFound": "Not in the catalog: choose a motor",
     "viewCurve": "Thrust curve",
     "delay": "Delay",
     "ignition": "Ignition",
@@ -1574,8 +1692,8 @@
     "curve": "Curve",
     "commonName": "Common name",
     "viewOnTc": "View on ThrustCurve.org",
-    "noCurve": "No thrust curve bundled for this motor — it will be fetched when selected.",
-    "noBundledCurve": "No bundled thrust curve — fetched from thrustcurve.org when selected.",
+    "noCurve": "No thrust curve bundled for this motor. It will be fetched when selected.",
+    "noBundledCurve": "No bundled thrust curve. It is fetched from thrustcurve.org when selected.",
     "motorType": "Motor type",
     "delays": "Delays",
     "totalWeight": "Total weight",
@@ -1632,9 +1750,9 @@
     "checkUnavailable": "Updates are checked in the installed app, not on the development server."
   },
   "storage": {
-    "full": "Could not save your work — browser storage is full. Export your design to keep it.",
+    "full": "Could not save your work: browser storage is full. Export your design to keep it.",
     "degraded": "Your browser is blocking its database, so the app has fallen back to a much smaller storage area (about 5 MB) and saving may fail as your design grows. Private browsing is the usual cause. Export anything you want to keep.",
-    "loadFailed": "Your saved design could not be read. Starting fresh — new work will still be saved.",
+    "loadFailed": "Your saved design could not be read. Starting fresh. New work will still be saved.",
     "conflict": "This design was changed in another tab, so your edits here are not being saved. Export them to keep them, or reopen the design from My Rockets to load the other tab's version."
   },
   "library": {
@@ -1669,7 +1787,7 @@
   },
   "warnHelp": {
     "RECOVERY_HIGH_SPEED": "The recovery device opened while the rocket was still moving fast. The shock loads the airframe and the canopy at once: it can zipper the body tube, tear the chute or pull the shroud lines out. Deploy nearer apogee, or fly dual-deployment with a drogue and a lower main.",
-    "RECOVERY_MAIN_HIGH_SPEED": "On a dual-deployment flight the main should open slowly, already under drogue. This one opened fast enough to risk the same zippering and canopy damage — usually a drogue that is too small to slow the rocket, or a main set to deploy too high.",
+    "RECOVERY_MAIN_HIGH_SPEED": "On a dual-deployment flight the main should open slowly, already under drogue. This one opened fast enough to risk the same zippering and canopy damage. The usual cause is a drogue that is too small to slow the rocket, or a main set to deploy too high.",
     "RECOVERY_MAIN_LOW_SPEED": "The main opened while the rocket was barely descending, which normally means it deployed at or close to apogee. Nothing breaks, but the point of dual deployment is lost: the rocket floats down from full altitude and drifts a long way downwind.",
     "RECOVERY_DROGUE_LOW_SPEED": "The drogue opened while the rocket was barely moving, so it does little to stabilize the descent. Usually a drogue deployed well before apogee.",
     "RECOVERY_LAUNCH_ROD": "A recovery device deployed while the rocket was still on the launcher. Check the ejection delay and the deployment settings: as simulated, the flight ends at the pad.",
@@ -1680,6 +1798,12 @@
     "LargeAOA": "The rocket flew at an angle of attack outside the range the Barrowman method is valid for, so the aerodynamic numbers around that point are approximate. Common in strong wind or just after a slow exit from the launcher.",
     "LargeAOA.str1": "The rocket flew at an angle of attack outside the range the Barrowman method is valid for, so the aerodynamic numbers around that point are approximate. Common in strong wind or just after a slow exit from the launcher.",
     "LargeAOA.str2": "The rocket flew at an angle of attack outside the range the Barrowman method is valid for, so the aerodynamic numbers around that point are approximate. Common in strong wind or just after a slow exit from the launcher.",
+    "LargeAOA_rail": "The rocket flew at an angle of attack outside the range the Barrowman method is valid for, so the aerodynamic numbers around that point are approximate. Common in strong wind or just after a slow exit from the rail.",
+    "LargeAOA_rod": "The rocket flew at an angle of attack outside the range the Barrowman method is valid for, so the aerodynamic numbers around that point are approximate. Common in strong wind or just after a slow exit from the rod.",
+    "LargeAOA.str1_rail": "The rocket flew at an angle of attack outside the range the Barrowman method is valid for, so the aerodynamic numbers around that point are approximate. Common in strong wind or just after a slow exit from the rail.",
+    "LargeAOA.str1_rod": "The rocket flew at an angle of attack outside the range the Barrowman method is valid for, so the aerodynamic numbers around that point are approximate. Common in strong wind or just after a slow exit from the rod.",
+    "LargeAOA.str2_rail": "The rocket flew at an angle of attack outside the range the Barrowman method is valid for, so the aerodynamic numbers around that point are approximate. Common in strong wind or just after a slow exit from the rail.",
+    "LargeAOA.str2_rod": "The rocket flew at an angle of attack outside the range the Barrowman method is valid for, so the aerodynamic numbers around that point are approximate. Common in strong wind or just after a slow exit from the rod.",
     "SUPERSONIC": "Part of the flight is supersonic, where the extended Barrowman method is an approximation. Treat the drag and stability figures through that region as indicative."
   },
   "windProfile": {
@@ -1712,6 +1836,7 @@
     }
   },
   "limits": {
+    "sentenceJoin": "{{first}} {{next}}",
     "belowMin": "Below minimum",
     "aboveMax": "Over the limit",
     "tooFast": "Too fast",
@@ -1720,7 +1845,7 @@
     "rodAngle_rail": "Launch rail angle is {{value}} from vertical, above the {{limit}} the NAR and Tripoli safety codes allow.",
     "rodAngle_rod": "Launch rod angle is {{value}} from vertical, above the {{limit}} the NAR and Tripoli safety codes allow.",
     "wind": "Wind speed is {{value}}, above the {{limit}} the NAR and Tripoli safety codes allow.",
-    "refused": "\"{{name}}\" was not run — its launch conditions are outside the safety codes."
+    "refused": "\"{{name}}\" was not run: its launch conditions are outside the safety codes."
   },
   "panes": {
     "resizeTree": "Resize the components panel",
@@ -1734,7 +1859,7 @@
     "nothing": "Nothing in this design has a printable solid.",
     "separateFiles": "One file per part (a .zip)",
     "placeOnPlate": "Place each part on the build plate",
-    "orientationNote": "Parts keep the orientation they have in the rocket — the axis runs along X, so bodies arrive lying down. Use your slicer’s lay-flat or rotate to stand them up.",
+    "orientationNote": "Parts keep the orientation they have in the rocket. The axis runs along X, so bodies arrive lying down. Use your slicer’s lay-flat or rotate to stand them up.",
     "count_one": "{{count}} part selected",
     "count_other": "{{count}} parts selected",
     "save": "Save 3MF"
@@ -1760,14 +1885,14 @@
     "save": "Save this location",
     "manage": "Manage saved locations",
     "deleteConfirm": "Delete the saved location “{{name}}”? This cannot be undone.",
-    "saveFailed": "That location could not be saved — your browser storage may be full or blocked.",
+    "saveFailed": "That location could not be saved. Your browser storage may be full or blocked.",
     "menu": "Launch Locations",
     "apply": "Use this location for the current simulation",
     "empty": "No saved locations yet. Save one from the Launch site card on the Simulations tab, so you do not have to retype a field’s coordinates.",
     "new": "New location",
     "name": "Name",
     "duplicateName": "Another location already has this name.",
-    "needsSite": "Enter a latitude and longitude first — a launch location is a place, and half of one would save as 0°, 0°.",
+    "needsSite": "Enter a latitude and longitude first. A launch location is a place, and half of one would save as 0°, 0°.",
     "pickHint": "Select a location on the left to edit it, or add a new one.",
     "discardConfirm": "Discard the changes to this location?",
     "back": "Back to the list",
@@ -1789,7 +1914,11 @@
     "keysView": "Arrow keys move the map, and plus and minus zoom.",
     "noCoords": "Enter a latitude and longitude to place the location.",
     "tooClose": "No imagery this close in",
-    "offline": "No imagery offline"
+    "offline": "No imagery offline",
+    "hemisphereN": "N",
+    "hemisphereS": "S",
+    "hemisphereE": "E",
+    "hemisphereW": "W"
   },
   "sweep": {
     "button": "Drift",

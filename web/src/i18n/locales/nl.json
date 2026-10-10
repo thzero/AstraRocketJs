@@ -19,6 +19,105 @@
     "shrink": "Dit venster weer op normale grootte zetten"
   },
   "errors": {
+    "material": {
+      "nameRequired": "Een materiaalnaam is verplicht.",
+      "densityPositive": "De dichtheid moet een positief getal zijn."
+    },
+    "savedPart": {
+      "partNoRequired": "Een onderdeelnummer is verplicht.",
+      "missingDimensions": "Dit onderdeel mist de afmetingen waarop de kiezer onderdelen rangschikt.",
+      "gone": "Dat onderdeel is niet meer opgeslagen.",
+      "nameTaken": "Een ander opgeslagen onderdeel van dit type gebruikt die fabrikant en naam al."
+    },
+    "file": {
+      "notDesign": "Geen raketontwerpbestand. Verwacht wordt OpenRocket (.ork) of RockSim (.rkt).",
+      "notOrk": "Geen .ork-bestand (<rocket> ontbreekt).",
+      "notRkt": "Geen .rkt-bestand (<RocketDesign> ontbreekt).",
+      "noStage": "Dit .ork-bestand heeft geen trap.",
+      "noComponents": "Er zijn geen ondersteunde onderdelen in dit ontwerp gevonden.",
+      "xmlInvalid": "Geen geldig {{format}}-bestand (fout bij het lezen van de XML).",
+      "archiveTooManyEntries": "Het .ork-archief heeft te veel items.",
+      "archiveTooLarge": "Het .ork-archief is te groot (mogelijk een zipbom).",
+      "archiveEmpty": "Het .ork-archief is leeg.",
+      "tooManyComponents": "Dit {{format}}-bestand bevat te veel onderdelen om te openen (mogelijk beschadigd).",
+      "tooDeep": "Dit {{format}}-bestand is te diep genest om te openen (mogelijk beschadigd).",
+      "tooLarge": "Het bestand is te groot om te openen (meer dan {{size}} MiB)."
+    },
+    "rasaero": {
+      "tooManyStages": "RASAero ondersteunt hoogstens {{max}} trappen.",
+      "boosterNoTube": "Trap \"{{stage}}\" heeft geen rompbuis, en RASAero-boosters hebben er een nodig.",
+      "boosterTransitions": "RASAero-boosters ondersteunen alleen een schouder en een staartvernauwing. Trap \"{{stage}}\" heeft nog andere overgangen; exporteer als .ork.",
+      "boosterFins": "RASAero staat één vinnenset per booster toe. Trap \"{{stage}}\" heeft er meerdere; exporteer als .ork.",
+      "tubeFins": "RASAero staat één vinnenset per buis toe. Verwijder de overige of exporteer als .ork.",
+      "freeformFins": "RASAero-vinnen zijn trapeziums, en de vrije vorm van \"{{name}}\" is geen eenvoudig trapezium met 3 of 4 punten. Vereenvoudig de vorm of exporteer als .ork.",
+      "ellipticalFins": "RASAero kent geen elliptische vinnen, dus \"{{name}}\" kan niet worden geëxporteerd. Gebruik trapeziumvormige vinnen of exporteer als .ork.",
+      "tubeFinsUnsupported": "RASAero kent geen buisvinnen, dus \"{{name}}\" kan niet worden geëxporteerd. Gebruik trapeziumvormige vinnen of exporteer als .ork.",
+      "finCount": "RASAero heeft 3 tot 8 vinnen per set nodig ({{found}} gevonden). Pas \"{{name}}\" aan.",
+      "noseShape": "RASAero kent de neuskegelvorm \"{{shape}}\" niet. Gebruik conisch, ogief, ellipsoïde, Haack of macht, of exporteer als .ork.",
+      "transitionShape": "RASAero-overgangen moeten conisch zijn. Wijzig de vorm of exporteer als .ork.",
+      "noPods": "RASAero kent geen pods, dus \"{{name}}\" kan niet worden geëxporteerd. Verwijder het of exporteer als .ork.",
+      "noParallel": "RASAero kent geen parallelle (zijdelings bevestigde) trappen, dus \"{{name}}\" kan niet worden geëxporteerd. Verwijder het of exporteer als .ork."
+    },
+    "motorFile": {
+      "engNoData": "Geen geldig .eng-bestand (geen motorgegevens gevonden).",
+      "engHeader": "Ongeldige .eng-kopregel. Verwacht: aanduiding diameter lengte vertragingen stuwstofmassa totaalmassa fabrikant.",
+      "engHeaderNumbers": "Ongeldige .eng-kopregel: de diameter, de lengte of een massa is geen getal.",
+      "engHeaderSize": "Ongeldige .eng-kopregel: diameter en lengte moeten positief zijn.",
+      "engHeaderMass": "Ongeldige .eng-kopregel: de stuwstofmassa moet tussen 0 en de totale massa liggen.",
+      "engDataLine": "Ongeldige .eng-gegevens op regel {{line}}: een tijd en een stuwkracht verwacht, maar \"{{text}}\" gevonden.",
+      "engNoCurve": "Het .eng-bestand bevat geen meetpunten van de stuwkrachtcurve.",
+      "attrDiameter": "diameter",
+      "attrLength": "lengte",
+      "attrInitialMass": "beginmassa",
+      "attrPropellantMass": "stuwstofmassa",
+      "rseMissing": "Bij een motor in het .rse-bestand ontbreekt een waarde: {{what}}.",
+      "rseInvalid": "Een motor in het .rse-bestand heeft een ongeldige waarde voor {{what}} ({{raw}}).",
+      "rseNoMaker": "Bij een motor in het .rse-bestand ontbreekt de fabrikant (mfg).",
+      "rseNoCode": "Bij een motor in het .rse-bestand ontbreekt de aanduiding (code).",
+      "rseSize": "Motor {{motor}} in het .rse-bestand heeft een diameter of lengte die niet positief is.",
+      "rseMass": "Motor {{motor}} in het .rse-bestand vermeldt meer stuwstof dan totale massa.",
+      "rseTooManyPoints": "Motor {{motor}} in het .rse-bestand heeft meer dan {{max}} meetpunten.",
+      "rseBadPoint": "Motor {{motor}} in het .rse-bestand heeft een meetpunt zonder tijd of stuwkracht.",
+      "rseNoCurve": "Motor {{motor}} in het .rse-bestand heeft geen stuwkrachtcurve.",
+      "rseNegativeMass": "Motor {{motor}} in het .rse-bestand heeft een negatieve massa in zijn gegevens.",
+      "rseNoEngine": "Geen geldig .rse-bestand (geen <engine> gevonden).",
+      "rseTooManyMotors": "Dit .rse-bestand vermeldt meer dan {{max}} motoren (mogelijk beschadigd)."
+    },
+    "thrustcurve": {
+      "http": "thrustcurve.org antwoordde met HTTP {{status}} voor {{path}}.",
+      "tooLarge": "Het antwoord van thrustcurve.org voor {{path}} is te groot.",
+      "timeout": "thrustcurve.org reageerde niet op tijd. Controleer je verbinding en probeer het opnieuw.",
+      "noSamples": "Geen stuwkrachtwaarden voor {{motor}}.",
+      "noWeight": "thrustcurve.org publiceert geen geladen massa of stuwstofmassa voor {{motor}}, dus deze kan niet worden gesimuleerd. Kies een andere motor.",
+      "propOverTotal": "{{motor}} staat in de catalogus met meer stuwstof ({{prop}} g) dan geladen massa ({{total}} g), dus de verbranding zou eindigen bij een negatieve massa. Kies een andere motor.",
+      "badSize": "thrustcurve.org geeft {{motor}} een onjuiste maat (diameter {{diameter}} mm, lengte {{length}} mm), dus deze kan niet worden gesimuleerd. Kies een andere motor.",
+      "notFound": "{{maker}} {{motor}} is niet gevonden op thrustcurve.org.",
+      "noData": "Geen stuwkrachtcurve beschikbaar voor {{motor}}.",
+      "badData": "De stuwkrachtcurve van {{motor}} is ongeldig.",
+      "importGone": "De geïmporteerde motor {{motor}} is niet meer opgeslagen. Importeer het motorbestand opnieuw."
+    },
+    "remote": {
+      "motors": "Kon de motorcatalogus niet laden ({{reason}}).",
+      "components": "Kon de onderdelencatalogus niet laden ({{reason}}).",
+      "materials": "Kon de materialencatalogus niet laden ({{reason}}).",
+      "contributors": "Kon de lijst met bijdragers niet laden ({{reason}}).",
+      "tooLarge": "antwoord te groot",
+      "badShape": "onverwachte opbouw van de catalogus"
+    },
+    "export": {
+      "noPrintable": "Er zijn geen printbare onderdelen geselecteerd.",
+      "openSolid": "Kon dit lichaam niet sluiten: na het dichten blijven {{edges}} open randen over.",
+      "imageEncode": "De browser kon de afbeelding niet coderen.",
+      "svgRasterize": "De browser kon de SVG niet tekenen."
+    },
+    "engine": {
+      "notReady": "De OpenRocket-natuurkundemotor is nog niet klaar met laden. Wacht tot hij geladen is en probeer het dan opnieuw.",
+      "staleDesign": "Dit ontwerp is opgebouwd voordat de natuurkundemotor opnieuw werd gestart. Bouw het opnieuw op voordat je het gebruikt."
+    },
+    "rktSkip": {
+      "cgOverride": "CG-overschrijving ({{name}})",
+      "extraStages": "trap {{from}} en verder"
+    },
     "viewFailed": "Deze weergave kon niet worden geladen.",
     "staleBuild": "De app is bijgewerkt terwijl dit tabblad open stond, dus een deel staat niet meer op de server. Herlaad om de nieuwe versie te krijgen.",
     "openOrk": "Kon het .ork-bestand niet openen: {{reason}}",
@@ -90,6 +189,17 @@
     "markingOmitted_noFins": "Niet afgetekend ({{names}}): de buis draagt geen vinnenset, dus er is niets op om de streep tegen uit te lijnen."
   },
   "export": {
+    "dxf": {
+      "trapezoidfinset": "Trapeziumvormige vin",
+      "ellipticalfinset": "Elliptische vin",
+      "freeformfinset": "Vrije-vormvin",
+      "bulkhead": "Schot",
+      "centeringring": "Centreerring",
+      "cutCount": "{{name}} ({{qty}}x snijden)",
+      "finDims": "wortel {{root}} mm | spanwijdte {{span}} mm | plaatdikte {{stock}} mm",
+      "discDims": "Ø{{diameter}} mm",
+      "discBoreDims": "Ø{{diameter}} mm | boring Ø{{bore}} mm"
+    },
     "title": "Ontwerprapport",
     "select": "Kies welke onderdelen meegaan:",
     "designReport": "Ontwerprapport",
@@ -132,7 +242,13 @@
     "pdfFailed": "Kon de PDF niet exporteren: {{message}}",
     "csvFailed": "Kon de CSV niet exporteren: {{message}}",
     "reportFailed": "Kon het ontwerprapport niet samenstellen: {{message}}",
-    "finMarkingGuide": "Aftekenhulp voor vinnen"
+    "finMarkingGuide": "Aftekenhulp voor vinnen",
+    "headerLength": "Lengte {{value}}",
+    "headerMaxDiameter": "max. diameter {{value}}",
+    "headerSpan": "spanwijdte {{value}}",
+    "headerLaunchMass": "Startmassa {{mass}} (leeg {{dry}})",
+    "headerDryMass": "Leegmassa {{dry}}, geen motoren geladen",
+    "headerBalance": "CG {{cg}}, CP {{cp}} vanaf de neuspunt, marge {{margin}} kal"
   },
   "engine": {
     "wasmTip": "Fysicamotor: WebAssembly (snelle route)",
@@ -656,6 +772,8 @@
     "rodDirectionName_rod": "Richting van de lanceerstang",
     "windDirectionName": "Windrichting",
     "angleLimit": "De veiligheidsvoorschriften van NAR en Tripoli vragen om een lanceerinrichting binnen {{limit}} van verticaal.",
+    "angleLimit_rail": "De veiligheidsvoorschriften van NAR en Tripoli vragen om een lanceerrail binnen {{limit}} van verticaal.",
+    "angleLimit_rod": "De veiligheidsvoorschriften van NAR en Tripoli vragen om een lanceerstang binnen {{limit}} van verticaal.",
     "windLimit": "De veiligheidsvoorschriften van NAR en Tripoli vragen je niet te vliegen bij wind boven {{limit}}.",
     "field": {
       "launchRodLengthM": "lengte van de lanceerinrichting",
@@ -1278,17 +1396,17 @@
     "nosecone": {
       "conical": "Een kegelvormige neuskegel heeft het profiel van een driehoek.",
       "ogive": "Een ogieve neuskegel heeft een profiel dat een segment is van een cirkel. De vormparameterwaarde 1 geeft een <b>rakende ogieve</b>, die een vloeiende overgang heeft naar de rompbuis, waarden kleiner dan 1 geven <b>secanse ogieven</b>.",
-      "ellipsoid": "Een ellipsoidale neuskegel heeft een profiel van een halve ellips met hoofdassen van lengtes 2&maal;<i>Lengte</i> en <i>Diameter</i>.",
-      "power": "Een neuskegel uit de vermogensreeks heeft een profiel van <i>Radius</i> &maal; (<i>x</i> / <i>Lengte</i>)<sup><i>k</i></sup> waar <i>k</i> de vormparameter is. Voor <i>k</i>=0.5 is dit een <b>½-macht</b> of <b>parabolische</b> neuskegel, voor <i>k</i>=0.75 a <b>¾-macht</b>, en voor <i>k</i>=1 a <b>kegelvormige</b> neuskegel.",
+      "ellipsoid": "Een ellipsoidale neuskegel heeft een profiel van een halve ellips met hoofdassen van lengtes 2×<i>Lengte</i> en <i>Diameter</i>.",
+      "power": "Een neuskegel uit de vermogensreeks heeft een profiel van <i>Radius</i> × (<i>x</i> / <i>Lengte</i>)<sup><i>k</i></sup> waar <i>k</i> de vormparameter is. Voor <i>k</i>=0.5 is dit een <b>½-macht</b> of <b>parabolische</b> neuskegel, voor <i>k</i>=0.75 een <b>¾-macht</b>, en voor <i>k</i>=1 een <b>kegelvormige</b> neuskegel.",
       "parabolic": "Een neuskegel uit de parabolische reeks heeft een profiel van een parabool. De vormparameter bepaalt het te gebruiken segment van de parabool. De vormparameter 1.0 levert een <b>volledige parabool</b> op die raakt aan de rompbuis, 0.75 levert een <b>3/4 parabool</b> op, 0.5 levert een <b>1/2 parabool</b> op en 0 levert een <b>conische</b> neuskegel op.",
       "haack": "De neuskegels van de Haack-serie zijn ontworpen om de luchtweerstand te minimaliseren. De vormparameter 0 geeft een <b>LD-Haack</b> of <b>Von Karman</b> neuskegel, die de luchtweerstand minimaliseert bij een vaste lengte en diameter, terwijl een waarde van 0,333 een <b>LV-Haack</b> neuskegel geeft, die de luchtweerstand minimaliseert bij een vaste lengte en volume."
     },
     "transition": {
       "conical": "Een kegelvormige transitie heeft rechte zijden.",
       "ogive": "Een ogieve transitie heeft een profiel dat een segment is van een cirkel. De vormparameterwaarde 1 geeft een <b>rakende ogieve</b>, die een vloeiende overgang heeft naar de rompbuis, waarden kleiner dan 1 geven <b>secanse ogieven</b>.",
-      "ellipsoid": "Een ellipsoidale overgang heeft een profiel van een halve ellips met hoofdassen van lengtes 2&maal;<i>Lengte</i> en <i>Diameter</i>. Als de overgang niet wordt afgeknipt, dan wordt het profiel in het midden verlengd met de bijbehorende straal.",
-      "power": "Een transitie uit de vermogensreeks heeft een profiel van <i>Radius</i> &maal; (<i>x</i> / <i>Lengte</i>)<sup><i>k</i></sup> waar <i>k</i> de vormparameter is. Voor <i>k</i>=0.5 is dit een <b>½-macht</b> of <b>parabolische</b> neuskegel, voor <i>k</i>=0.75 a <b>¾-macht</b>, en voor <i>k</i>=1 a <b>kegelvormige</b> transitie.",
-      "parabolic": "Een transitire uit de parabolische reeks heeft een profiel van een parabool. De vormparameter bepaalt het te gebruiken segment van de parabool. De vormparameter 1.0 levert een <b>volledige parabool</b> op die de rompbuis aan het achtereinde raakt, 0,75 levert een <b>3/4 parabool</b> op, 0.5 levert een <b>1/2 parabool</b> op en 0 levert een <b>conische</b> transitie op.",
+      "ellipsoid": "Een ellipsoidale overgang heeft een profiel van een halve ellips met hoofdassen van lengtes 2×<i>Lengte</i> en <i>Diameter</i>. Als de overgang niet wordt afgeknipt, dan wordt het profiel in het midden verlengd met de bijbehorende straal.",
+      "power": "Een transitie uit de vermogensreeks heeft een profiel van <i>Radius</i> × (<i>x</i> / <i>Lengte</i>)<sup><i>k</i></sup> waar <i>k</i> de vormparameter is. Voor <i>k</i>=0.5 is dit een <b>½-macht</b> of <b>parabolische</b> transitie, voor <i>k</i>=0.75 een <b>¾-macht</b>, en voor <i>k</i>=1 een <b>kegelvormige</b> transitie.",
+      "parabolic": "Een transitie uit de parabolische reeks heeft een profiel van een parabool. De vormparameter bepaalt het te gebruiken segment van de parabool. De vormparameter 1.0 levert een <b>volledige parabool</b> op die de rompbuis aan het achtereinde raakt, 0,75 levert een <b>3/4 parabool</b> op, 0.5 levert een <b>1/2 parabool</b> op en 0 levert een <b>conische</b> transitie op.",
       "haack": "De Haack-serie <i>neuskegels</i> zijn ontworpen om de luchtweerstand te minimaliseren. Deze overgangsvormen zijn hun equivalent, maar produceren niet noodzakelijk een optimale luchtweerstand voor overgangen. De vormparameter 0 produceert een <b>LD-Haack</b> of <b>Von Karman</b> vorm, terwijl een waarde van 0,333 een <b>LV-Haack</b> vorm produceert."
     }
   },
@@ -1680,6 +1798,12 @@
     "LargeAOA": "De raket vloog met een invalshoek buiten het bereik waarvoor de methode van Barrowman geldt, dus de aerodynamische getallen rond dat punt zijn een benadering. Gebruikelijk bij harde wind of net na een langzaam verlaten van de lanceerinrichting.",
     "LargeAOA.str1": "De raket vloog met een invalshoek buiten het bereik waarvoor de methode van Barrowman geldt, dus de aerodynamische getallen rond dat punt zijn een benadering. Gebruikelijk bij harde wind of net na een langzaam verlaten van de lanceerinrichting.",
     "LargeAOA.str2": "De raket vloog met een invalshoek buiten het bereik waarvoor de methode van Barrowman geldt, dus de aerodynamische getallen rond dat punt zijn een benadering. Gebruikelijk bij harde wind of net na een langzaam verlaten van de lanceerinrichting.",
+    "LargeAOA_rail": "De raket vloog met een invalshoek buiten het bereik waarvoor de methode van Barrowman geldt, dus de aerodynamische getallen rond dat punt zijn een benadering. Gebruikelijk bij harde wind of net na een langzaam verlaten van de lanceerrail.",
+    "LargeAOA_rod": "De raket vloog met een invalshoek buiten het bereik waarvoor de methode van Barrowman geldt, dus de aerodynamische getallen rond dat punt zijn een benadering. Gebruikelijk bij harde wind of net na een langzaam verlaten van de lanceerstang.",
+    "LargeAOA.str1_rail": "De raket vloog met een invalshoek buiten het bereik waarvoor de methode van Barrowman geldt, dus de aerodynamische getallen rond dat punt zijn een benadering. Gebruikelijk bij harde wind of net na een langzaam verlaten van de lanceerrail.",
+    "LargeAOA.str1_rod": "De raket vloog met een invalshoek buiten het bereik waarvoor de methode van Barrowman geldt, dus de aerodynamische getallen rond dat punt zijn een benadering. Gebruikelijk bij harde wind of net na een langzaam verlaten van de lanceerstang.",
+    "LargeAOA.str2_rail": "De raket vloog met een invalshoek buiten het bereik waarvoor de methode van Barrowman geldt, dus de aerodynamische getallen rond dat punt zijn een benadering. Gebruikelijk bij harde wind of net na een langzaam verlaten van de lanceerrail.",
+    "LargeAOA.str2_rod": "De raket vloog met een invalshoek buiten het bereik waarvoor de methode van Barrowman geldt, dus de aerodynamische getallen rond dat punt zijn een benadering. Gebruikelijk bij harde wind of net na een langzaam verlaten van de lanceerstang.",
     "SUPERSONIC": "Een deel van de vlucht is supersoon, en daar is de uitgebreide methode van Barrowman een benadering. Beschouw de weerstand- en stabiliteitscijfers in dat gebied als indicatief."
   },
   "windProfile": {
@@ -1712,6 +1836,7 @@
     }
   },
   "limits": {
+    "sentenceJoin": "{{first}} {{next}}",
     "belowMin": "Onder het minimum",
     "aboveMax": "Boven de limiet",
     "tooFast": "Te snel",
@@ -1789,7 +1914,11 @@
     "keysView": "Pijltoetsen verschuiven de kaart, en plus en min zoomen.",
     "noCoords": "Voer een breedte- en lengtegraad in om de locatie te plaatsen.",
     "tooClose": "Geen beeld op deze zoom",
-    "offline": "Geen beeld offline"
+    "offline": "Geen beeld offline",
+    "hemisphereN": "N",
+    "hemisphereS": "Z",
+    "hemisphereE": "O",
+    "hemisphereW": "W"
   },
   "sweep": {
     "button": "Drift",

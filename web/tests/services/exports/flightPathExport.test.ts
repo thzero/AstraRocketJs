@@ -520,7 +520,7 @@ describe('buildFlightPathModel', () => {
     expect(w.find((x) => x.type === 'maxvelocity')!.timeStr).toBe('1.00');
   });
 
-  it('honours the waypoint selection', () => {
+  it('honors the waypoint selection', () => {
     const opts = defaultExportOptions();
     opts.waypoints = new Set<WaypointKind>(['apogee']);
     const m = buildFlightPathModel(result, launch, { simName: 'S', rocketName: 'R', motorName: 'C6' }, opts, label);

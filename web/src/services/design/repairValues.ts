@@ -37,8 +37,8 @@ export function repairedText(r: RepairedValue, t: (key: string, opts?: Record<st
  * from outside does not pass through them. A `.ork`, a share link, or a session
  * autosaved before a limit existed can carry a bulk density of 1e9 kg/m³, and
  * without this the app would fly it: a 200 mm tube of that weighs about 180
- * tonnes, every mass, CG and stability figure on screen is nonsense, and nothing
- * says why.
+ * metric tons, every mass, CG and stability figure on screen is nonsense, and
+ * nothing says why.
  *
  * Only quantities with a physical ceiling are touched. A per-field limit is a
  * different thing (it belongs to the field, not to a design arriving from

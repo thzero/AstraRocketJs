@@ -9,6 +9,7 @@ import { makeWatertight } from '../exports/solidMesh';
 import { componentToDxf, DXF_MIME } from '../exports/dxfExport';
 import type { ExportFormat } from './componentFormats';
 import { solidFor } from '../exports/rocketPrintExport';
+import type { Translate } from '../../i18n/keyedError';
 
 /**
  * The heavy half of per-component export: the dispatch that builds + downloads
@@ -18,12 +19,17 @@ import { solidFor } from '../exports/rocketPrintExport';
  * module, imported by the tree's export button.
  */
 
-/** Build and download one component in the given format. Returns false on a no-op. */
+/**
+ * Build and download one component in the given format. Returns false on a
+ * no-op. `t` writes the labels a DXF cut sheet carries; without one they are in
+ * English.
+ */
 export async function exportComponent(
   tree: RocketTree,
   nodeId: string,
   format: ExportFormat,
   rocketName: string = designNameOf(tree, null),
+  t?: Translate,
 ): Promise<boolean> {
   const node = findNode(tree, nodeId);
   if (!node) return false;
@@ -32,7 +38,7 @@ export async function exportComponent(
   const name = (ext: string) => exportFilename([rocketName, node.name || node.type], ext, 'part');
 
   if (format === 'dxf') {
-    const dxf = componentToDxf(tree, nodeId);
+    const dxf = componentToDxf(tree, nodeId, t);
     if (dxf === null) return false;
     download(name('dxf'), dxf, DXF_MIME);
     return true;

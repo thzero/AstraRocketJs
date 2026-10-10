@@ -66,7 +66,7 @@ describe('calloutLayout', () => {
   });
 
   it('clamps the margin label inside the viewBox width', () => {
-    const out = calloutLayout(10, 590, 150, 40, 600, 320, '2.5 cal · 15% — ok');
+    const out = calloutLayout(10, 590, 150, 40, 600, 320, '2.5 cal · 15% (ok)');
     expect(out.margin).not.toBeNull();
     expect(out.margin!.x).toBeGreaterThanOrEqual(0);
     expect(out.margin!.x).toBeLessThanOrEqual(600);

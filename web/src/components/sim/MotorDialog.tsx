@@ -25,7 +25,8 @@ import {
 } from './MotorFilterBar';
 import { readFileText } from '../../services/files/decodeText';
 import { loadDia, loadMfrs, saveDia, saveMfrs } from './motorPrefs';
-import { errorMessage } from '../../services/app/errorMessage';
+import { errorText } from '../../i18n/keyedError';
+import { fmtList } from '../../i18n/format';
 import { useFilePick } from '../common/useFilePick';
 import { ToggleButton } from '../common/ToggleButton';
 import { confirm } from '../../state/confirmStore';
@@ -201,7 +202,7 @@ export function MotorDialog({
       onClose();
     } catch (e) {
       if (!mine()) return;
-      onError(errorMessage(e));
+      onError(errorText(e, t));
     } finally {
       if (mine()) setLoadingKey(null);
     }
@@ -230,10 +231,10 @@ export function MotorDialog({
       // manufacturer's whole range, and one motor landing looks exactly like
       // forty in a list of 800.
       const done = t('motor.importedN', { count: imported });
-      setNote(failed.length ? `${done} ${t('motor.importSkipped', { files: failed.join(', ') })}` : done);
+      setNote(failed.length ? `${done} ${t('motor.importSkipped', { files: fmtList(failed) })}` : done);
     } catch (err) {
       if (!mine()) return;
-      onError(errorMessage(err));
+      onError(errorText(err, t));
     }
   };
   const motorFile = useFilePick({ accept: '.eng,.ENG,.rse,.RSE', onFiles: (f) => void onImport(f) });
@@ -256,7 +257,7 @@ export function MotorDialog({
       setCatalog(catalog);
     } catch (err) {
       if (!mine()) return;
-      onError(errorMessage(err));
+      onError(errorText(err, t));
     }
   };
 

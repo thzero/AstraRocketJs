@@ -1,4 +1,6 @@
-import { describe, it, expect } from 'vitest';
+import { afterEach, describe, it, expect } from 'vitest';
+import i18n from '../../../src/i18n';
+import de from '../../../src/i18n/locales/de.json';
 import type { RocketTree } from '../../../src/engine/openRocketEngine';
 import { componentToDxf } from '../../../src/services/exports/dxfExport';
 import { resolveDisc } from '../../../src/services/design/discGeometry';
@@ -172,5 +174,45 @@ describe('resolveDisc uses the shared component defaults', () => {
   it('gives a bulkhead and a ring with no length the kernel default, same as the .ork reader', () => {
     expect(resolveDisc(bare, 'bh')!.length).toBe(COMPONENT_DEFAULTS.bulkhead.length);
     expect(resolveDisc(bare, 'cr')!.length).toBe(COMPONENT_DEFAULTS.centeringring.length);
+  });
+});
+
+describe('the text layer', () => {
+  /** Every TEXT entity's string, in order. */
+  const texts = (dxf: string) =>
+    pairs(dxf)
+      .map(([c, v], i, a) => (c === '0' && v === 'TEXT' ? a.slice(i, i + 7).find(([cc]) => cc === '1')?.[1] : null))
+      .filter((s): s is string => typeof s === 'string');
+
+  afterEach(async () => {
+    await i18n.changeLanguage('en');
+  });
+
+  it('labels a part in English when the caller passes no translator', () => {
+    expect(texts(componentToDxf(tree, 'fins')!)).toEqual([
+      'Trapezoidal fin (cut 4)',
+      'root 60.0 mm | span 40.0 mm | stock 3.0 mm',
+    ]);
+  });
+
+  it("writes the caller's language, accents folded to ASCII", async () => {
+    await i18n.changeLanguage('fr');
+    const fold = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '');
+    const [name, dims] = texts(componentToDxf(tree, 'fins', i18n.t)!);
+    const finName = i18n.t('export.dxf.cutCount', { name: i18n.t('export.dxf.trapezoidfinset'), qty: 4 });
+    const finDims = i18n.t('export.dxf.finDims', { root: '60.0', span: '40.0', stock: '3.0' });
+    expect(finName).not.toBe(fold(finName)); // the French has accents to fold
+    expect(name).toBe(fold(finName));
+    expect(dims).toBe(fold(finDims));
+    expect(`${name}${dims}`).toMatch(/^[\x20-\x7e]+$/);
+    await i18n.changeLanguage('de');
+    expect(texts(componentToDxf(tree, 'bh', i18n.t)!)[0]).toBe(de.export.dxf.bulkhead);
+  });
+
+  it('falls back to English for a line with no ASCII form, rather than question marks', async () => {
+    await i18n.changeLanguage('ru');
+    const lines = texts(componentToDxf(tree, 'cr', i18n.t)!);
+    expect(lines[0]).toBe('Centering ring');
+    expect(lines.join('\n')).not.toContain('?');
   });
 });

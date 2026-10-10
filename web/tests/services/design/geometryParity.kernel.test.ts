@@ -191,7 +191,9 @@ function generate(seed: number): RocketTree {
     };
     wall(node);
     // Nothing goes inside a filled part: it has no bore to size a part from.
-    // No fins: the kernel mounts fin sets only on body tubes.
+    // No fins here: the generator builds fin sets only on body tubes. The kernel
+    // also mounts a freeform fin set on a nose cone or transition
+    // (Transition.isCompatible), a case this generator does not cover.
     node['children'] = !node['filled'] && chance(0.4) ? internals(aft, len, false) : [];
     return node as unknown as ComponentNode;
   };
@@ -224,7 +226,8 @@ function generate(seed: number): RocketTree {
       aftRadiusAuto: chance(0.4),
     };
     wall(node);
-    // No fins: the kernel mounts fin sets only on body tubes.
+    // No fins here, as on the nose cone: freeform fin sets on a transition are
+    // not generated.
     node['children'] = !node['filled'] && chance(0.4) ? internals(Math.max(fore, aft), len, false) : [];
     return node as unknown as ComponentNode;
   };
@@ -242,8 +245,9 @@ function generate(seed: number): RocketTree {
 }
 
 /**
- * Rules known to disagree with the kernel, each against its finding in
- * docs/AUDIT.md. A rule not listed here fails the test, and so does a listed
+ * Rules known to disagree with the kernel. Finding IDs are numbered per audit
+ * run, so each entry cites an ID in the current docs/AUDIT.md or states its
+ * reason in words. A rule not listed here fails the test, and so does a listed
  * rule that no longer disagrees: the fix removes its line.
  */
 const KNOWN: Record<string, string> = {};

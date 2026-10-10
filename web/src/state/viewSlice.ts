@@ -55,9 +55,9 @@ export const createViewSlice: StateCreator<WorkspaceState, [], [], ViewSlice> = 
   roll: 0,
   resetKey: 0,
 
-  // The three below keep the mobile tab and the center-pane view in step (see
-  // {@link showing}). Harmless at desktop widths, where the tab bar is hidden
-  // and `tab` only decides what a later resize lands on.
+  // The three below keep the tab and the center-pane view in step (see
+  // {@link showing}). `tab` is the page at every width: the header's tab strip
+  // on desktop, the bottom tab bar on a phone.
   setTab: (tab) =>
     set((s) => {
       if (tab === 'results') return { tab, view: isResultView(s.view) ? s.view : 'flight' };

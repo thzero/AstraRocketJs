@@ -405,7 +405,7 @@ export function marginText(
   if (!state || pct == null || !Number.isFinite(pct)) return null;
   return {
     state,
-    text: `${STABILITY_GLYPH[state]} ${fmtNum(cal, 2)} ${t('stability.caliber')} · ${fmtNum(pct, 1)}% — ${t(STABILITY_WORD[state])}`,
+    text: `${STABILITY_GLYPH[state]} ${fmtNum(cal, 2)} ${t('stability.caliber')} · ${fmtNum(pct, 1)}% (${t(STABILITY_WORD[state])})`,
   };
 }
 

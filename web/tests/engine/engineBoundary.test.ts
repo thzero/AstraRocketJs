@@ -411,7 +411,7 @@ describe('every enum name is read, and an unknown one is refused', () => {
     expect(() => builds('nose', { finish: 'glossy' })).toThrow(/surface finish/);
   });
 
-  it('reads the upstream names it used to drop', () => {
+  it('reads the upstream names a desktop file can carry', () => {
     // A desktop file's lower-stage-separation chute, OpenRocket's mirror and
     // optimum finishes, and the after position all build.
     // Mapped, not just accepted: a mirror finish is smoother than a normal one,
@@ -604,7 +604,7 @@ describe('the aero sweep does not fabricate zeros', () => {
     }
   });
 
-  it('sums the component CDs back to the rocket total — the invariant a swallowed NaN broke', () => {
+  it('sums the component CDs back to the rocket total, the invariant a swallowed NaN broke', () => {
     const sweep = build().aeroSweep({ machMin: 0.2, machMax: 0.2, machStep: 0.1 });
     const parts = sweep.components.reduce((a, c) => a + (c.cd[0] ?? 0), 0);
     expect(parts).toBeCloseTo(sweep.powerOff.total[0]!, 6);
@@ -1135,7 +1135,7 @@ const withPart = (part: Record<string, unknown>) =>
 
 const dryMass = (tree: RocketTree) => OpenRocketDesign.buildTree(tree).staticInfo().massEmpty;
 
-describe('the audit gaps reach the kernel', () => {
+describe('part fields the bridge forwards reach the kernel', () => {
   it('weighs a rail button at its own geometry, not the kernel default', () => {
     const stock = dryMass(withPart({ id: 'rb', type: 'railbutton', outerDiameter: 0.0097 }));
     const tall = dryMass(

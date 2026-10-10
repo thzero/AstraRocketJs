@@ -155,7 +155,7 @@ export function MotorGrid({
                       className={`px-2 py-1.5 ${ALIGN[c.align]} ${c.always ? 'font-medium text-ink-strong' : 'text-ink-soft'}`}
                     >
                       {c.always && m.custom && <span className="mr-1 text-warn-400">★</span>}
-                      {c.cell(m, u)}
+                      {c.cell(m, u, t)}
                       {c.always && !hasCurve(m) && (
                         <span className="ml-1.5 rounded bg-elevated px-1 py-0.5 text-[9px] font-normal uppercase tracking-wide text-ink-muted">
                           {t('dash.noCurve')}

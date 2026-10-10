@@ -130,7 +130,7 @@ describe('elliptical fin planform vs EllipticalFinSet.java', () => {
     }
   });
 
-  it('pins the station that three audits walked past', () => {
+  it('pins an interior station to the closed form', () => {
     // Closed form at x = 5 mm on a 50 x 30 mm fin: y = h*sqrt(1 - (2x/root - 1)^2) = 18.0 mm.
     // A sine arch gives 9.27 mm here. If this ever reads ~9.3, a consumer has
     // grown its own sampler.

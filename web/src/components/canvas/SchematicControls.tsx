@@ -10,7 +10,7 @@ import {
 import { download, exportFilename } from '../../services/files/saveFile.js';
 import { ImageExportMenu } from './ImageExportMenu.js';
 import { MAX_ZOOM, ZOOM_IDENTITY, type ZoomState } from '../../tree/schematicGeometry';
-import { errorMessage } from '../../services/app/errorMessage';
+import { errorText } from '../../i18n/keyedError';
 import { token } from '../common/colorTokens';
 
 /**
@@ -79,7 +79,7 @@ export function SchematicControls({
                   SVG_MIME,
                 );
               } catch (e) {
-                onError?.(t('export.svgFailed', { message: errorMessage(e) }));
+                onError?.(t('export.svgFailed', { message: errorText(e, t) }));
               }
             }}
           >
@@ -98,7 +98,7 @@ export function SchematicControls({
                   await svgToImage(svg, widthPx, format),
                 );
               } catch (e) {
-                onError?.(t('export.imageFailed', { message: errorMessage(e) }));
+                onError?.(t('export.imageFailed', { message: errorText(e, t) }));
               }
             }}
           />

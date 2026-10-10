@@ -9,7 +9,8 @@ import { axialLength } from '../../tree/position';
 import { walkNodes } from '../../tree/treeWalk';
 import { designNameOf } from '../app/appInfo';
 import { stageFileName } from '../design/orkTree';
-import { errorMessage } from '../app/errorMessage';
+import i18n from '../../i18n';
+import { errorText } from '../../i18n/keyedError';
 
 /** The full data model for the rocket report (SI). Pure data; the PDF formats it. */
 
@@ -237,7 +238,7 @@ export function assembleReport(install?: (built: ReportBuild) => void): ReportMo
         // the rocket. The stats and the aero pane then show their "not built"
         // state, which is true, and the next design edit rebuilds.
         s.applyBuild(null, null);
-        s.setErr(errorMessage(e));
+        s.setErr(errorText(e, i18n.t));
       },
     );
   } else {

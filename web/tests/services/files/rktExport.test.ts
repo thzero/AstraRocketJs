@@ -201,7 +201,8 @@ describe('exportRkt', () => {
         { type: 'stage', id: 's', children: [{ type: 'railbutton', id: 'rb' } as ComponentNode] },
       ] as ComponentNode[],
     });
-    expect(s).toContain('railbutton');
+    // Structured, so the banner renders it with the tree's own type label.
+    expect(s).toEqual([{ key: 'part.railbutton' }]);
   });
 
   it('has nothing to skip for a design made only of shared types', () => {
@@ -367,7 +368,7 @@ describe('exportRkt, multi-stage', () => {
  * block. The angles are written in degrees here, which is this writer's one
  * deliberate departure from the format; the places are the same ones.
  */
-describe('exportRkt — a clustered motor mount', () => {
+describe('exportRkt: a clustered motor mount', () => {
   const mount = (cluster: string): ComponentNode =>
     ({
       type: 'innertube',
@@ -477,7 +478,7 @@ describe('exportRkt — a clustered motor mount', () => {
   });
 });
 
-describe('exportRkt — off-axis placement, as desktop writes it', () => {
+describe('exportRkt: off-axis placement, as desktop writes it', () => {
   // BasePartDTO writes RadialLoc/RadialAngle for a RingComponent and
   // MassObjectDTO for a mass component or shock cord. ParachuteDTO and
   // StreamerDTO write neither. RadialAngle is degrees, our one deliberate
@@ -583,7 +584,7 @@ describe('mass and CG overrides through the one UseKnownCG switch', () => {
     expect(out).not.toContain('<UseKnownCG>1</UseKnownCG>');
     expect(importRkt(out).tree.components[0]!.children![0]!['overrideMass']).toBeUndefined();
     // The CG override is reported as not exported rather than lost quietly.
-    expect(s).toContain('CG override (Airframe)');
+    expect(s).toEqual([{ key: 'errors.rktSkip.cgOverride', values: { name: 'Airframe' } }]);
   });
 
   it('writes KnownMass once on a mass component that also overrides its mass', () => {

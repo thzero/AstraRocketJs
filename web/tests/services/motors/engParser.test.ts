@@ -160,7 +160,9 @@ TD20 24 90 4-6 0.02 0.05 Test
   });
 
   it('throws on non-numeric dimensions', () => {
-    expect(() => parseEng('C6 xx 70 0-3 0.01 0.02 Estes\n0 0\n1 0')).toThrow(/non-numeric/i);
+    expect(() => parseEng('C6 xx 70 0-3 0.01 0.02 Estes\n0 0\n1 0')).toThrow(
+      expect.objectContaining({ key: 'errors.motorFile.engHeaderNumbers' }),
+    );
   });
 
   it('throws when there are fewer than two thrust samples', () => {

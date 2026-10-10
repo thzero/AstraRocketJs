@@ -9,7 +9,7 @@ The UI is **responsive**: the workbench has five tabs (Design · Configurations 
 ## Highlights
 
 **Real OpenRocket physics, fast, in the browser**
-- The actual OpenRocket core (extended Barrowman aerodynamics, mass/CG, RK4/RK6 flight), compiled to **WebAssembly** (JavaScript fallback) via TeaVM - validated **bit-identical** to upstream OpenRocket.
+- The actual OpenRocket core (extended Barrowman aerodynamics, mass/CG, RK4/RK6 flight), compiled to **WebAssembly** (JavaScript fallback) via TeaVM. The kernel is upstream OpenRocket at a pinned commit with a small set of patches (`engine-java/patches`), and parity tests check that the browser builds return numbers identical to the same kernel run on the JVM.
 - Flight simulations run in a **Web Worker**, off the main thread, so the UI stays responsive during a run.
 
 **Design & analyze**
@@ -70,7 +70,7 @@ Contributions are very welcome - code, bug reports, translations, docs, and more
 
 ## Status
 
-Engine: working, validated bit-identical against upstream OpenRocket (JVM↔JS, and WASM↔JS). UI: actively developed - component-tree editor, stability, 2D/3D views, motor picker, `.ork` import/export, and flight simulation with charts (run off the main thread in a Web Worker to keep the UI responsive).
+Engine: working. Parity tests check that the TeaVM JavaScript and WASM-GC builds return numbers identical to the same patched kernel on the JVM. UI: actively developed - component-tree editor, stability, 2D/3D views, motor picker, `.ork` import/export, and flight simulation with charts (run off the main thread in a Web Worker to keep the UI responsive).
 
 ## Safety and disclaimer
 

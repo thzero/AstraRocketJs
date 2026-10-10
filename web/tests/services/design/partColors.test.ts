@@ -36,7 +36,7 @@ describe('colorForType', () => {
     expect(colorForType('shockcord')).toBe(DEFAULT_PART_COLORS.streamer);
   });
 
-  it('honours a supplied palette', () => {
+  it('honors a supplied palette', () => {
     const palette = mergePalette({ body: '#abcdef' });
     expect(colorForType('bodytube', palette)).toBe('#abcdef');
   });

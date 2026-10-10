@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { NO_VALUE } from '../../../src/i18n/noValue';
 import { describe, expect, it } from 'vitest';
 import { screen, within } from '@testing-library/react';
 import { EnvironmentView } from '../../../src/components/canvas/EnvironmentView';
@@ -65,7 +66,7 @@ describe('EnvironmentView', () => {
       />,
     );
     const pad = within(document.querySelector('dl')!);
-    expect(pad.getByText('Wind direction').nextSibling?.textContent).toBe('—');
+    expect(pad.getByText('Wind direction').nextSibling?.textContent).toBe(NO_VALUE);
     expect(pad.getByText('Wind speed').nextSibling?.textContent).toBe('0 m/s');
     expect(pad.getByText('Site elevation').nextSibling?.textContent).toBe('0 m');
   });

@@ -78,7 +78,7 @@ describe('RunButton over a selection', () => {
     expect(screen.getByText(/Skipping/i)).toBeTruthy();
   });
 
-  it('names an unflyable row in a batch, which it used to ignore entirely', () => {
+  it('names an unflyable row in a batch', () => {
     st().setSimsSelected([byName('Good').id, byName('NoMotor').id]);
     renderWithProviders(<RunButton />);
     expect(screen.getByText(/NoMotor/)).toBeTruthy();

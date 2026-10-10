@@ -22,6 +22,7 @@ import { formatCoord } from '../../services/map/slippyMap';
 import { unitScope } from '../../prefs/units';
 import { weatherErrorText } from '../../services/weather/weatherErrorText';
 import { fmtSiteTime } from '../../i18n/format';
+import { NO_VALUE } from '../../i18n/noValue';
 import { type FlightSeries } from '../../engine/openRocketEngine';
 import { useLatest } from '../common/useLatest';
 import { TermRow } from '../common/TermRow';
@@ -196,8 +197,8 @@ export function EnvironmentLanding({ flight }: { flight: ResultFlight }) {
                           </td>
                         ) : (
                           <>
-                            <td>{p ? fmtM(distanceFromPad(p)) : '—'}</td>
-                            <td>{p ? bearing(p) : '—'}</td>
+                            <td>{p ? fmtM(distanceFromPad(p)) : NO_VALUE}</td>
+                            <td>{p ? bearing(p) : NO_VALUE}</td>
                           </>
                         )}
                       </tr>
