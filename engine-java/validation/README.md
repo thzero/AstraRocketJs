@@ -24,20 +24,16 @@ by design. CI gates on the ratchet in `floors.json` instead.
 
 ## Scoreboard
 
-The current anchors have 135 gate points. The Phase 1 to 4 scorecards are historical, scored against the earlier 137-gate anchors.
+The current anchors have 135 gate points.
 
-The two current scorecards were regenerated on 2026-10-04 from the committed
+The two scorecards were regenerated on 2026-10-04 from the committed
 engine and match a live run row for row. Regenerate them after any engine
 rebuild (see below).
 
 | Model | Gate points | Scorecard |
 |---|---|---|
 | Classic Extended Barrowman | **9/135 (6.7%)** | `scorecard-classic.md` |
-| + Phase 1 (supersonic CP/CNα) | 52/137 historical | `scorecard-phase1-2026-08-04.md` |
-| + Phase 2 (drag fidelity) | 68/137 historical | `scorecard-phase2-2026-08-04.md` |
-| + Phase 3 (fin airfoil sections) | 65/137 historical | `scorecard-phase3-2026-08-04.md` |
-| + Phase 4 (hypersonic corrections) | 65/137 historical | `scorecard-phase4-2026-08-04.md` |
-| Supersonic model, current anchors | **61/135 (45.2%)** | `scorecard-supersonic.md` |
+| Supersonic model | **61/135 (45.2%)** | `scorecard-supersonic.md` |
 
 Scoring conditions: Basic Finner scores at α = 2° (its free-flight fits ride
 at finite yaw; see the `_aoaNote` in anchors.json); everything else at α = 0.
@@ -68,8 +64,6 @@ node validation/score.mjs --supersonic > validation/scorecard-supersonic.md
 - `scorecard-classic.md`: the current classic Extended Barrowman scorecard
   (flag off): **9/135 gate points**
 - `scorecard-supersonic.md`: the current supersonic-model scorecard: **61/135**
-- `scorecard-phase1-2026-08-04.md` to `scorecard-phase4-2026-08-04.md`: the
-  historical phase scorecards, against the 137-gate anchors
 
 ## Baseline reading (why almost everything fails, and why that's fine)
 
