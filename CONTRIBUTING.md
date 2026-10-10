@@ -12,7 +12,7 @@ By participating you agree to our **[Code of Conduct](CODE_OF_CONDUCT.md)** - be
 
 If you'd like to take an issue, **comment on it first** ("I'd like to work on this") so two people don't duplicate effort.
 
-Building and running the project - project layout, install, the engine, the catalog tools, commits, pull requests and tests - is the **[Developer Guide](docs/DEVELOPER.md)**.
+Building and running the project - project layout, install, the engine, the catalog tools, pull requests and tests - is the **[Developer Guide](docs/DEVELOPER.md)**.
 
 ## Testing
 
@@ -44,7 +44,7 @@ To add or update a translation:
 
 The developer reference is the **[Developer Guide](docs/DEVELOPER.md)** for building and submitting, and **[Architecture & internals](docs/ARCHITECTURE.md)** for how the app fits together.
 
-The user guide is a **Docusaurus site under `website/`**, published alongside the app by the Pages deploy. English pages are `website/docs/*.md`; Spanish lives in `website/i18n/es/docusaurus-plugin-content-docs/current/` under the same filenames, and any page without a Spanish copy falls back to English rather than 404ing.
+The user guide is a **Docusaurus site under `website/`**, published alongside the app by the Pages deploy. English pages are `website/docs/*.md`; Spanish lives in `website/i18n/es/docusaurus-plugin-content-docs/current/` under the same filenames. A new page needs its Spanish copy in the same change: the Spanish build shows an untranslated page's English text but resolves its relative links against the Spanish tree, so those links fail the build, and the error names the English file. A new sidebar category also needs its `sidebar.docs.category.<Label>` entry in `website/i18n/es/docusaurus-plugin-content-docs/current.json`.
 
 ```bash
 cd website

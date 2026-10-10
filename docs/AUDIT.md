@@ -33,6 +33,23 @@ test that fails without it, except these:
 - **PARTIAL.** C73: the forecast-hours action waits for a fresh run
   when the result is outdated; the launch site is not stored with the result.
 
+**Found after the audit, all fixed, 2026-10-09.** Following up the parity gap
+on catalog part masses turned up defects in the reference data, which no slice
+of this audit covered; `docs/AUDIT_PROMPT.md` now has a slice for it (slice 6).
+The published `data` branch catalog, which the deployed app reads first, had no
+part digests and was weeks stale, because the scheduled workflow never ran the
+digest step. The catalog held only the community database, not the files
+desktop OpenRocket ships beside it (about 1,800 parts, rail buttons among
+them). Digests were matched on manufacturer and part number alone, so parts
+that share a part number could carry each other's. One file's material
+densities leaked into another file's parts. A stated part mass was ignored,
+and nose cones lost their stated wall and shoulder. Each refresh changed the
+catalog's hash with no data change. The motor catalog carried no motor digests
+at all, for the same reason as the parts, so a saved `.ork` left desktop
+OpenRocket to pick among motors that share a name, and both digest steps wrote
+indented JSON that more than doubled what browsers download. The fixes and their tests are in the
+CHANGELOG under Unreleased.
+
 Two tests now check the geometry findings mechanically, and both have no known
 failures left: `web/tests/services/design/geometryParity.kernel.test.ts`
 compares every automatic radius, bore, profile and fin tab limit over 200

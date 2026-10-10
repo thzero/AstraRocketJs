@@ -58,9 +58,10 @@
 // stays on the row as `mass`. `Parachute.loadPreset` instead takes the mass as
 // a mass override, which the app applies from `mass`. A streamer's mass is not
 // applied by the desktop and is not carried.
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { PREVIOUS_CATALOG } from './lib/catalogStamp.mjs';
 import { writeDataManifest } from './lib/dataManifest.mjs';
 import { chooseBuild, runDumper } from './lib/openrocketJava.mjs';
 import { presetVolumes } from './lib/presetVolume.mjs';
@@ -146,7 +147,18 @@ async function main() {
   if (hit < before) {
     throw new Error(`refusing to write: digests fell from ${before} to ${hit}. Nothing written.`);
   }
-  writeFileSync(CATALOG, `${JSON.stringify(catalog, null, 2)}\n`);
+  // Unchanged parts keep the previous stamp (lib/catalogStamp.mjs).
+  if (existsSync(PREVIOUS_CATALOG)) {
+    try {
+      const prev = JSON.parse(readFileSync(PREVIOUS_CATALOG, 'utf8'));
+      if (JSON.stringify(prev.components) === JSON.stringify(catalog.components)) catalog.generated = prev.generated;
+    } finally {
+      rmSync(PREVIOUS_CATALOG, { force: true });
+    }
+  }
+  // Compact, as sync-components writes it: browsers download this file and keep
+  // it for offline use, and indentation would more than double its size.
+  writeFileSync(CATALOG, `${JSON.stringify(catalog)}\n`);
   // The catalog changed, so its cache-bust hash has to as well.
   writeDataManifest(dirname(CATALOG));
   console.log(`digests: ${hit} of ${catalog.count} catalog rows (was ${before}); stated masses applied: ${massed}`);

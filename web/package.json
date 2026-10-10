@@ -46,6 +46,8 @@
     "build:inc": "library-cli --updateversion --pi --silent && prettier --write --log-level warn package.json",
     "gen:icons": "node scripts/gen-icons.mjs",
     "sync:motors": "node scripts/sync-motors.mjs",
+    "sync:all": "npm run sync:database && npm run sync:motors && npm run sync:motor-digests && npm run sync:components && npm run sync:preset-digests && npm run sync:materials && npm run sync:examples && npm run sync:contributors",
+    "sync:database": "node scripts/fetch-parts-database.mjs",
     "sync:components": "node scripts/sync-components.mjs",
     "sync:materials": "node scripts/sync-materials.mjs",
     "sync:examples": "node scripts/sync-examples.mjs",

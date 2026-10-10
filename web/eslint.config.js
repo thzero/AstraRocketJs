@@ -18,7 +18,15 @@ export default tseslint.config(
     // normal way to add a project-wide rule, and it would fire on all of them
     // under `--max-warnings 0`: a gate failure nobody will read as "the generated
     // bundle is not our code".
-    ignores: ['dist', 'coverage', 'playwright-report', 'test-results', 'public', 'src/engine/vendor'],
+    ignores: [
+      'dist',
+      'coverage',
+      'playwright-report',
+      'test-results',
+      'public',
+      'src/engine/vendor',
+      'openrocket-database',
+    ],
   },
   {
     // The build/sync scripts and this config itself are plain ESM .js/.mjs, which

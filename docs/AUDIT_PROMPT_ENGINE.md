@@ -17,10 +17,10 @@ Read `engine-java/README.md` and `engine-java/patches/LEDGER.md` first: they exp
 | ------------------------------------------------------------------------------------------------ | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src/java/`                                                                                      | 273 files, ~55k lines | **No, with one exception.** The other 255 files are verbatim upstream. Do not report style, complexity, or design findings against them. The exception: if you find a genuine defect that materially affects THIS app, report it as `UPSTREAM` severity-tagged, with the note that the fix belongs in a patch or upstream, never as an in-place edit to `src/java`. |
 | `patches/`                                                                                       | 18 files, 10.4k lines | **Yes. This is the main event.**                                                                                                                                                                                                                                                                                                                           |
-| `src/api/`                                                                                       | 5 files, ~3.8k lines  | **Yes.** The `@JSExport` facade the browser calls.                                                                                                                                                                                                                                                                                                         |
+| `src/api/`                                                                                       | 5 files, ~3.9k lines  | **Yes.** The `@JSExport` facade the browser calls.                                                                                                                                                                                                                                                                                                         |
 | `src/shims/java/`                                                                                | 11 files, ~850 lines  | **Yes.**                                                                                                                                                                                                                                                                                                                                                   |
 | `src/jdkstubs/`                                                                                  | 1 file, 187 lines     | **Yes**, briefly.                                                                                                                                                                                                                                                                                                                                          |
-| `extract/`, `test/parity/`, `validation/`, `build.gradle`, `build-engine.mjs`, `gradle-exec.mjs` | ~2,000 lines          | **Yes.**                                                                                                                                                                                                                                                                                                                                                   |
+| `extract/`, `test/parity/`, `validation/`, `build.gradle`, `build-engine.mjs`, `gradle-exec.mjs` | ~3,400 lines          | **Yes.**                                                                                                                                                                                                                                                                                                                                                   |
 | `web/src/engine/vendor/`, `web/public/engine/`                                                   | generated             | **No.** Compiler output.                                                                                                                                                                                                                                                                                                                                   |
 | `.gradle/`, `build/`                                                                             | generated             | **No.**                                                                                                                                                                                                                                                                                                                                                    |
 
@@ -118,7 +118,7 @@ check for more.
 
 ### 2. `src/api/` - the `@JSExport` facade
 
-`OpenRocketEngine.java` (1,989 lines), `ComponentFactory.java` (1,062),
+`OpenRocketEngine.java` (2,064 lines), `ComponentFactory.java` (1,064),
 `JsonLite.java` (352), `AtmosphereProfile.java` (130) and
 `GuideClearanceListener.java` (284). This is the entire trust boundary between
 the browser and the kernel, and the only code here that the app calls directly.
@@ -150,6 +150,20 @@ the browser and the kernel, and the only code here that the app calls directly.
   against `web/src/tree/schema.ts`, `nodeProps.ts` and `kernelDefaults.ts` and flag divergence: two
   sides of one boundary with different opinions about a default is a real bug
   class.
+- **Automatic radii in `ComponentFactory`.** A nose cone's `aftRadiusAuto` is
+  its base wherever the base sits: on a flipped nose cone (a tail cone) the
+  base is the fore end, and the factory sets it with `setBaseRadiusAutomatic`,
+  so it follows the part ahead. A transition end with no radius in the JSON is
+  automatic, not zero. Check both against `NoseCone` / `Transition`, and against
+  `web/src/services/design/autoRadius.ts`, which resolves the same rules on the
+  app side.
+- **`getComponentGeometry(handle, id)`** returns what the kernel resolved for
+  one part: its fore and aft radii, outer and inner radius, an outer and inner
+  profile sampled at fixed stations, a fin set's `maxTabHeight` and a mass
+  object's radius. `web/tests/testing/kernelGeometry.ts` reads it, and
+  `geometryParity.kernel.test.ts` holds the app's own geometry to it. Confirm
+  each field is the kernel getter it claims to be, read after the build, and
+  that a component type it skips is one the app does not resolve itself.
 - Exception behavior across the JS boundary: what does a thrown Java exception
   look like to the caller in each of the two targets, and is it the same?
 
@@ -267,6 +281,11 @@ Do not relay agent claims unchecked.
 - Four leftover patches were removed on 2026-09-16 (`BarrowmanCalculator`,
   `FlightConditions`, `AxialStage`, `AbstractSimulationStepper`); their diffs
   remain under `docs/rasaero/diffs/`. Do not report those as missing.
+- Kernel behavior that is upstream's, not ours, and not a finding: two
+  automatic ends that follow each other resolve to -1 (desktop does the same);
+  an automatic end following a flipped nose cone's tip, and a ring placed where
+  its parent has no bore, resolve to 0; fin sets mount only on body tubes.
+  `geometryParity.kernel.test.ts` counts the first three as unresolved parts.
 
 **Output:** write `docs/AUDIT_ENGINE.md`. Severity emojis (🔴 correctness in
 shipped physics / 🟠 gates and build integrity / 🟡 API boundary and untrusted

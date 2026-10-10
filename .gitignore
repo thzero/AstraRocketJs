@@ -5,6 +5,9 @@ engine-java/build/
 
 # Node / Vite (web)
 web/node_modules/
+# The community parts database, cloned by `npm run sync:database`: a repository
+# of its own, made again by that script rather than committed here.
+web/openrocket-database/
 web/dist/
 *.local
 

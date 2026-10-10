@@ -31,11 +31,13 @@ import { fileURLToPath } from 'node:url';
 import { unzipSync } from 'fflate';
 import { writeDataManifest } from './lib/dataManifest.mjs';
 import { installedJar } from './lib/openrocketJava.mjs';
+import { PREVIOUS_CATALOG } from './lib/catalogStamp.mjs';
 
 // Source: the OpenRocket-Components DB (dbcook/openrocket-database), the
-// community-maintained parts database OpenRocket's component data comes from.
-// Override with --src / OPENROCKET_PRESETS to point at another `.orc` tree.
-const DEFAULT_SRC = 'D:/programming/java/openrocket/openrocket-database/orc';
+// community-maintained parts database OpenRocket's component data comes from,
+// cloned into web/openrocket-database by `npm run sync:database`. Override with
+// --src / OPENROCKET_PRESETS to point at another `.orc` tree.
+const DEFAULT_SRC = fileURLToPath(new URL('../openrocket-database/orc', import.meta.url));
 const arg = (name) => {
   const i = process.argv.indexOf(`--${name}`);
   return i >= 0 ? process.argv[i + 1] : undefined;
@@ -345,6 +347,10 @@ if (components.length === 0) {
 if (existsSync(OUT)) {
   try {
     const prev = JSON.parse(readFileSync(OUT, 'utf8'));
+    // sync-preset-digests runs next and adds fields this script cannot know, so
+    // the catalog it finishes, not this one, is what gets compared with the
+    // previous one. It reads the previous stamp and parts from here.
+    writeFileSync(PREVIOUS_CATALOG, JSON.stringify({ generated: prev.generated, components: prev.components }));
     if (JSON.stringify(prev.components) === JSON.stringify(components)) generated = prev.generated;
     else if (Array.isArray(prev.components) && components.length < 0.9 * prev.components.length) {
       console.error(

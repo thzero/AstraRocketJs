@@ -3,6 +3,8 @@ coverage
 playwright-report
 test-results
 package-lock.json
+# The cloned parts database (npm run sync:database): another project's files.
+openrocket-database
 
 # Generated, not authored. Reformatting any of them only makes the next
 # regeneration a huge diff.

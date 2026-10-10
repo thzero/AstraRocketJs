@@ -40,8 +40,9 @@
 // catalog is refreshed. It never regenerates the catalog, only adds `digests` to
 // rows already in it.
 import { readFileSync, writeFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { writeDataManifest } from './lib/dataManifest.mjs';
 import { chooseBuild, runDumper } from './lib/openrocketJava.mjs';
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
@@ -170,7 +171,11 @@ function main() {
   if (hit < before) {
     throw new Error(`refusing to write: motors with digests fell from ${before} to ${hit}. Nothing written.`);
   }
-  writeFileSync(CATALOG, `${JSON.stringify(catalog, null, 2)}\n`);
+  // Compact, as sync-motors writes it: browsers download this file and keep it
+  // for offline use, and indentation would triple its size.
+  writeFileSync(CATALOG, `${JSON.stringify(catalog)}\n`);
+  // The catalog changed, so its cache-bust hash has to as well.
+  writeDataManifest(dirname(CATALOG));
   console.log(
     `digests: ${hit} of ${catalog.length} catalog motors (was ${before}), ${ambiguous} needing the delay to choose`,
   );
