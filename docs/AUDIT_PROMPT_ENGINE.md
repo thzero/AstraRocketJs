@@ -178,7 +178,7 @@ shim and the real class is invisible at compile time and wrong at runtime.
   Barrowman calculators through the `effectiveBaseCD` / `turbulentCompressibility`
   seams those patches widened. The kernel RASAero aero model is not maintained
   work (the app keeps only the RASAero `.CDX1` export, on the `web/` side), and
-  `docs/AUDIT_ENGINE.md` closed its physics findings (P2, P3, P7, P8, G13) as out
+  the 2026-10-01 engine audit closed its physics findings (P2, P3, P7, P8, G13) as out
   of scope. Do not report findings against them.
 - `Geo2D`: as in slice 1, its two methods stand in for `java.awt.geom` and are
   consumed by fin geometry.
