@@ -120,6 +120,41 @@ describe('deviceDescent', () => {
     expect(deviceDescent(r as unknown as FlightResult, 'Main')?.rate).toBeCloseTo(5.5, 12);
   });
 
+  /**
+   * A main set a tenth of a second behind the drogue opens with it: reading the
+   * drogue's rate when the main came out would be reading free fall.
+   */
+  it('takes devices that open within a fifth of a second as one step', () => {
+    const r = single() as unknown as { events: { type: string; time: number; source?: string }[] };
+    r.events = [
+      { type: 'APOGEE', time: 5 },
+      { type: 'RECOVERY_DEVICE_DEPLOYMENT', time: 5.001, source: 'Drogue' },
+      { type: 'RECOVERY_DEVICE_DEPLOYMENT', time: 5.1, source: 'Main' },
+      { type: 'GROUND_HIT', time: 25 },
+    ];
+    expect(deviceDescent(r as unknown as FlightResult, 'Drogue')?.rate).toBeCloseTo(5.5, 12);
+    expect(deviceDescent(r as unknown as FlightResult, 'Main')?.rate).toBeCloseTo(5.5, 12);
+  });
+
+  /** A charge on the ground raises its event, but nothing descends under it. */
+  it('reads nothing for a device that opened after landing', () => {
+    const r = single() as unknown as { events: { type: string; time: number; source?: string }[] };
+    r.events = [
+      { type: 'APOGEE', time: 5 },
+      { type: 'GROUND_HIT', time: 20 },
+      { type: 'RECOVERY_DEVICE_DEPLOYMENT', time: 22, source: 'Main' },
+    ];
+    expect(deviceDescent(r as unknown as FlightResult, 'Main')).toBeNull();
+    expect(sustainerDescentMass(r as unknown as FlightResult)).toBeNull();
+  });
+
+  /** In a wind the total speed carries the drift; the descent is the vertical part. */
+  it('reads the vertical speed when the run recorded it', () => {
+    const r = single() as unknown as { series: Record<string, number[]> };
+    r.series = { ...r.series, Vz: [0, -2, -18, -17, -5.2, -5] };
+    expect(deviceDescent(r as unknown as FlightResult, 'Main')?.rate).toBeCloseTo(5, 12);
+  });
+
   /** Falls back to the last sample when the flight recorded no end to the phase. */
   it('uses the last sample when nothing ends the phase', () => {
     const r = single() as unknown as { events: { type: string; time: number; source?: string }[] };

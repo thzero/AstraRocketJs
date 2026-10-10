@@ -9,28 +9,20 @@ name: Dev
 # `test`, a `fix/...` or a `spike/...` branch needs the gate as much as `dev`
 # does, and a named list leaves every unnamed branch unchecked.
 #
-# master is excluded because deploy.yml already runs the full gate set there,
-# and a branch with a PR open deliberately runs both this and ci.yml: two
-# minutes of duplicate web checks is worth not having to reason about which
-# branches have PRs.
+# master is excluded because deploy.yml already runs the full gate set there.
+# A branch with a PR open runs both this and ci.yml.
 #
 # Tag pushes do not trigger this: a branch filter of either kind confines the
 # `push` event to branches.
 #
-# Only the web gates: `npm run gates` (the one shared list in web/package.json,
-# the same list a developer runs locally through `verify`) plus the unit suite,
-# so the two cannot drift. No Java toolchain, no parity (20-60 min) and no e2e
-# (~4 min sharded) - those stay in gates.yml, which the PR still has to pass.
-#
-# `verify:ci` rather than `verify`: both are `gates` plus the suite, but this one
-# runs the suite WITH coverage so the floors in vitest.config.ts are enforced on every push rather
-# than only on a PR. That is the expensive half - about 335 s against 65 s - which
-# is exactly why it lives here and not in `verify`, the command a developer types
-# before pushing.
+# The gate set from gates.yml, the same jobs a PR and master run, so a push
+# finds an e2e failure before the PR does. Parity is left to the PR and master.
+# golden-report skips itself here: it compares against a PR's base branch, and
+# a push has none.
 #
 # Cancels the previous run on the same ref: a second push while the first is
-# still installing makes the first run's verdict about a commit nobody will
-# look at.
+# still running makes the first run's verdict about a commit nobody will look
+# at.
 
 on:
   push:
@@ -43,30 +35,27 @@ concurrency:
   group: dev-${{ github.ref }}
   cancel-in-progress: true
 
-# The name stays `Dev` because branch protection requires `Dev / verify`. The
-# check GitHub reports is "<workflow name> / <job id>", so renaming the workflow
-# silently breaks that rule. Rename it together with the protection settings,
-# not before.
-
 jobs:
+  gates:
+    uses: ./.github/workflows/gates.yml
+    with:
+      parity: false
+
+  # Branch protection requires `Dev / verify`. The check GitHub reports is
+  # "<workflow name> / <job id>", so renaming the workflow or this job silently
+  # breaks that rule. Change it together with the protection settings.
+  #
+  # `always()` and an explicit result check: a job skipped because a job it
+  # needs failed reports as skipped, and a skipped required check counts as
+  # passing.
   verify:
+    needs: gates
+    if: always()
     runs-on: ubuntu-latest
-    # `verify:ci` plus `npm ci` is about 6 min, so 10 would leave under a third
-    # of the budget spare. A backstop only: if it is still going at fifteen
-    # minutes something is hung, not slow.
-    timeout-minutes: 15
-    defaults:
-      run:
-        working-directory: web
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: web/package-lock.json
-
-      - run: npm ci
-
-      - run: npm run verify:ci
+      - if: needs.gates.result != 'success'
+        run: |
+          echo "::error::A gate did not pass: ${{ needs.gates.result }}"
+          exit 1
+      - run: echo "Every gate passed."

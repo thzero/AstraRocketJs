@@ -2,6 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { unzipSync } from 'fflate';
 import { exportOrk, importOrk } from '../../../src/services/files/orkFile';
 import { wireLoadedOrk } from '../../../src/services/files/wireLoadedOrk';
 import { defaultRocketTree } from '../../../src/services/design/defaultRocket';
@@ -164,6 +165,20 @@ describe('desktop simulation extensions', () => {
   it('reads every extension as raw XML, and says they are not run', () => {
     expect(carried.filter((x) => x.startsWith('<extension ')).length).toBe(3);
     expect(noteTexts(res.notes).some((n) => /Simulation extensions are not run here/.test(n))).toBe(true);
+  });
+
+  it('names them as desktop does, and an unknown id as it stands', () => {
+    const note = noteTexts(res.notes).find((n) => /Simulation extensions are not run here/.test(n))!;
+    expect(note).toContain('Air-start');
+    expect(note).not.toMatch(/AirStart|RollControl/);
+    // An id from the file that names an Object.prototype member reads as itself.
+    const odd = importOrk(
+      new TextDecoder()
+        .decode(Object.values(unzipSync(new Uint8Array(example)))[0])
+        .replace(/extensionid="[^"]*"/, 'extensionid="constructor"'),
+    );
+    expect(noteTexts(odd.notes).join(' ')).toContain('constructor');
+    expect(noteTexts(odd.notes).join(' ')).not.toContain('native code');
   });
 
   it('keeps them on the simulations it opens, with or without a saved result', () => {

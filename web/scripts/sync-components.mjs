@@ -33,8 +33,8 @@ import { writeDataManifest } from './lib/dataManifest.mjs';
 import { installedJar } from './lib/openrocketJava.mjs';
 import { PREVIOUS_CATALOG } from './lib/catalogStamp.mjs';
 
-// Source: the OpenRocket-Components DB (dbcook/openrocket-database), the
-// community-maintained parts database OpenRocket's component data comes from,
+// Source: the OpenRocket-Components DB (openrocket/openrocket-database), the
+// parts database OpenRocket builds its own library from,
 // cloned into web/openrocket-database by `npm run sync:database`. Override with
 // --src / OPENROCKET_PRESETS to point at another `.orc` tree.
 const DEFAULT_SRC = fileURLToPath(new URL('../openrocket-database/orc', import.meta.url));

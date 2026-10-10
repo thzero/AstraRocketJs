@@ -16,8 +16,27 @@ import { flightBranches } from './flightColumns';
 /** The one deployment event type the kernel raises for a recovery device. */
 const DEPLOYMENT = 'RECOVERY_DEVICE_DEPLOYMENT';
 
-/** Events that end a device's descent phase: the next chute out, or the ground. */
-const PHASE_END = new Set([DEPLOYMENT, 'GROUND_HIT']);
+/** The kernel's landing event. */
+const GROUND_HIT = 'GROUND_HIT';
+
+/**
+ * Devices that open this close together (s) open as one: two chutes on one
+ * event, or a main set a breath behind the drogue, come out within it. A
+ * deployment at apogee is queued 1 ms after the apogee event, and a delay of a
+ * tenth of a second is the finest a design is usually given, so neither is a
+ * step of its own that a descent could settle in.
+ */
+const TOGETHER_S = 0.2;
+
+/**
+ * The deployments a branch's descent is measured from: those before it landed.
+ * A charge that fires on the ground still raises its event (the kernel adds the
+ * EventAfterLanding warning for it), but nothing descends under it.
+ */
+function airborneDeployments(events: readonly { type: string; time: number; source?: string }[]) {
+  const landed = events.find((e) => e.type === GROUND_HIT)?.time ?? Infinity;
+  return events.filter((e) => e.type === DEPLOYMENT && e.time < landed);
+}
 
 export interface DeviceDescent {
   /**
@@ -41,10 +60,12 @@ export interface DeviceDescent {
    * The settled descent speed under it (m/s), or null when the run did not
    * record one.
    *
-   * Read at the end of the device's own phase (the next deployment, or the
-   * ground), because that is where the descent under this device has settled.
-   * Read immediately after it opened would report the speed it was still
-   * slowing from.
+   * Read at the end of the device's own phase (the next deployment that is not
+   * part of its own opening, or the ground), because that is where the descent
+   * under this device has settled. Read immediately after it opened would report
+   * the speed it was still slowing from. It is the vertical speed when the run
+   * recorded it, so a wind does not count as descent, and the total speed
+   * otherwise.
    */
   rate: number | null;
 }
@@ -62,18 +83,23 @@ export function deviceDescent(result: FlightResult | null | undefined, deviceNam
   if (!result || !deviceName) return null;
   for (const branch of flightBranches(result)) {
     const events = branch.events ?? [];
-    const i = events.findIndex((e) => e.type === DEPLOYMENT && e.source === deviceName);
-    if (i < 0) continue;
-    const opened = events[i]!;
+    const deployments = airborneDeployments(events);
+    const opened = deployments.find((e) => e.source === deviceName);
+    if (!opened) continue;
     const mass = seriesAt(branch.series, 'mass', opened.time);
     if (mass == null || !(mass > 0)) return null;
-    // The phase ends at the next chute or the ground; failing both, at the last
-    // sample the run recorded. A device that opens at the same instant (two
-    // chutes on one charge) shares this phase rather than ending it.
-    const next = events.slice(i + 1).find((e) => PHASE_END.has(e.type) && e.time > opened.time);
+    // The devices that opened with this one open as one step: its phase starts
+    // at the step's first opening and ends at the next deployment past it, or
+    // the ground; failing both, at the last sample the run recorded.
+    const stepStart = deployments.find((e) => opened.time - e.time < TOGETHER_S && e.time <= opened.time)!.time;
+    const next = events.find(
+      (e) =>
+        (e.type === GROUND_HIT && e.time > opened.time) || (e.type === DEPLOYMENT && e.time >= stepStart + TOGETHER_S),
+    );
     const times = branch.series.time ?? [];
     const endsAt = next?.time ?? times[times.length - 1];
-    const rate = endsAt == null ? null : seriesAt(branch.series, 'velocity', endsAt);
+    const vertical = Array.isArray(branch.series['Vz']) ? 'Vz' : 'velocity';
+    const rate = endsAt == null ? null : seriesAt(branch.series, vertical, endsAt);
     return {
       branch: branch.name,
       time: opened.time,
@@ -98,7 +124,7 @@ export function sustainerDescentMass(result: FlightResult | null | undefined): n
   if (!result) return null;
   const branch = flightBranches(result)[0];
   if (!branch) return null;
-  const opened = (branch.events ?? []).find((e) => e.type === DEPLOYMENT);
+  const opened = airborneDeployments(branch.events ?? [])[0];
   if (!opened) return null;
   const mass = seriesAt(branch.series, 'mass', opened.time);
   return mass != null && mass > 0 ? mass : null;

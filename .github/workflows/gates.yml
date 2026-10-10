@@ -1,9 +1,9 @@
 name: Gates
 
-# The gate set, called by BOTH ci.yml (on a PR) and deploy.yml (on merge to
-# master). One definition, two callers — a reusable workflow (`workflow_call`)
-# is how GitHub shares jobs, and it is the only way to avoid keeping two copies
-# of this in sync by hand.
+# The gate set, called by ci.yml (on a PR), dev.yml (on a push to any other
+# branch) and deploy.yml (on merge to master). One definition, three callers: a
+# reusable workflow (`workflow_call`) is how GitHub shares jobs, and it is the
+# only way to avoid keeping copies of this in sync by hand.
 #
 # Order: the engine jobs (parity, reproducible, validate) and the web jobs
 # (build-and-test, e2e) run IN PARALLEL, and the PR is gated on all of them.
@@ -13,16 +13,19 @@ name: Gates
 # so stale binaries make a green unit suite measure the wrong engine; parity's
 # second step catches that by rebuilding them and failing on a diff. Both
 # verdicts are required to merge, so a red parity beside a green
-# build-and-test is still "do not merge", and a PR touching one .tsx file
-# learns about a type error without waiting 20-60 minutes on four TeaVM
-# builds. The web jobs do wait on `reproducible` and `validate`, which need no
-# JDK and take seconds.
+# build-and-test is still "do not merge". The web jobs do wait on
+# `reproducible` and `validate`, which need no JDK and take seconds.
 #
 # Callers decide WHEN this runs; this file only says WHAT runs. It has no
-# trigger of its own and cannot be run directly.
+# trigger of its own and cannot be run directly. A caller can turn parity off
+# with `parity: false`; a PR and master always run it.
 
 on:
   workflow_call:
+    inputs:
+      parity:
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -50,6 +53,7 @@ jobs:
         run: node test/parity/golden-guard.mjs "${{ github.base_ref }}"
 
   parity:
+    if: inputs.parity
     runs-on: ubuntu-latest
     # The Gradle daemon is disabled for CI inside parity.mjs / build-engine.mjs
     # (`--no-daemon` when process.env.CI), NOT here. It has to be on the command
@@ -292,8 +296,8 @@ jobs:
 
       - run: npm ci
 
-      # ONE list, `gates` in web/package.json, run here and locally and by
-      # dev.yml, so the gates cannot drift between them. `verify` and
+      # ONE list, `gates` in web/package.json, run here and locally, so the
+      # gates cannot drift between them. `verify` and
       # `verify:ci` are two endings on it: a gate added to `verify` alone is
       # not run by CI. Spelling the steps out here instead lets the hand-run
       # list drift from this one. What the list holds, and why each is there:
