@@ -41,10 +41,17 @@ describe('CI trigger coverage', () => {
     expect(wf('ci.yml')).toContain('uses: ./.github/workflows/gates.yml');
   });
 
-  it('runs the same verify list a developer runs locally', () => {
-    // The point of dev.yml being `npm run verify` and not its own list: the two
-    // cannot drift. If this ever needs its own steps, the drift is the finding.
-    expect(wf('dev.yml')).toContain('npm run verify');
+  it('runs the same gate set on a branch push as on a pull request', () => {
+    // dev.yml calls gates.yml rather than listing its own steps, so a push and a
+    // PR cannot drift. If this ever needs its own steps, the drift is the finding.
+    expect(wf('dev.yml')).toContain('uses: ./.github/workflows/gates.yml');
+  });
+
+  it('runs parity on every pull request and master push', () => {
+    // dev.yml turns parity off; the two callers that gate a merge and a deploy
+    // must not.
+    expect(wf('ci.yml')).not.toMatch(/parity:\s*false/);
+    expect(wf('deploy.yml')).not.toMatch(/parity:\s*false/);
   });
 });
 

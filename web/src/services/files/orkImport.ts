@@ -158,6 +158,29 @@ function versionNotes(doc: Document): ImportNote[] {
  * Counted off the document rather than reported by the readers, so no state has
  * to be threaded through every one of them to answer the same question.
  */
+/**
+ * Desktop's names for the simulation extensions it ships, by class name: each
+ * class's `getName()` (core/simulation/extension/example and impl). CSVSave
+ * has none of its own, so desktop shows its class name, as this does for any id
+ * not listed here.
+ */
+const EXTENSION_NAMES: Readonly<Record<string, string>> = {
+  AirStart: 'Air-start',
+  RollControl: 'Roll Control',
+  StopSimulation: 'Stop Simulation',
+  PrintSimulation: 'Print Simulation Values',
+  DampingMoment: 'Damping moment coefficient (Cdm) (built-in)',
+  JavaCode: 'Java code',
+  ScriptingExtension: 'script',
+};
+
+/** An extension's name as desktop shows it, from its id's last segment. */
+function extensionName(id: string): string {
+  const cls = id.trim().split('.').pop() || 'unnamed';
+  // Own keys only: the id comes from the file, and "constructor" must not read Object.prototype.
+  return Object.hasOwn(EXTENSION_NAMES, cls) ? EXTENSION_NAMES[cls]! : cls;
+}
+
 function archiveNotes(doc: Document, dropped: string[]): ImportNote[] {
   const out: ImportNote[] = [];
   const appearances = doc.querySelectorAll('appearance, insideappearance').length;
@@ -174,13 +197,8 @@ function archiveNotes(doc: Document, dropped: string[]): ImportNote[] {
     ),
   ];
   if (extensions.length) {
-    // The id's last segment is the extension's class name: AirStart, RollControl.
     const names = [
-      ...new Set(
-        extensions.map(
-          (e) => (e.getAttribute('extensionid') ?? e.textContent ?? '').trim().split('.').pop() || 'unnamed',
-        ),
-      ),
+      ...new Set(extensions.map((e) => extensionName(e.getAttribute('extensionid') ?? e.textContent ?? ''))),
     ];
     out.push(keyedNote('importNote.extensions', { names: names.join(', ') }));
   }

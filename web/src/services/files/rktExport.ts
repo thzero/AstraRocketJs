@@ -1,7 +1,9 @@
 import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
 import { clusterCount, clusterPoints } from '../../tree/cluster';
-import { numOpt } from '../../tree/nodeProps';
-import { axialLength } from '../../tree/position';
+import { isChainType } from '../../tree/componentKinds';
+import { numOpt, positionOf } from '../../tree/nodeProps';
+import { axialLength, partLength, startFromPosition } from '../../tree/position';
+import { isAssembly } from '../../tree/assembly';
 import { asStageNodes } from '../design/orkTree';
 import { escapeXml } from './xmlUtil';
 import { plainDecimal } from './numberText';
@@ -79,6 +81,8 @@ interface Writer {
   skipped: Set<string>;
   /** Axial length (m) of the part whose children are being written. */
   parentLength: number;
+  /** Station (m from the nose tip) of the front of that part. */
+  parentStart: number;
 }
 
 // --------------------------------------------------------------- helpers ---
@@ -430,8 +434,45 @@ function clusterMembers(n: ComponentNode): ComponentNode[] {
   }));
 }
 
-/** One part and, in `<AttachedParts>`, everything mounted on it. */
-function writePart(w: Writer, depth: number, n: ComponentNode): void {
+/** Station (m from the nose tip) of a part's front, placed in the current parent. */
+function stationOf(w: Writer, n: ComponentNode): number {
+  const pos = positionOf(n);
+  return pos.method === 'absolute'
+    ? pos.offset
+    : w.parentStart + startFromPosition(pos, axialLength(n), w.parentLength);
+}
+
+/**
+ * A tube coupler's own parts, written beside it in its parent's attached parts.
+ *
+ * Desktop's RingHandler reads nothing nested in a `<Ring>`, so parts left
+ * inside the coupler (an e-bay's bulkheads, sled, altimeter) are lost with
+ * their mass when desktop opens the file. Desktop's own writer
+ * (TubeCouplerDTO) puts each child into the coupler's parent right after the
+ * coupler, switched to AxialMethod.ABSOLUTE, so it goes out as LocationMode 1
+ * with Xb at its station from the nose tip. A coupler inside a coupler goes
+ * into the same parent the same way, and its parts are placed from its own
+ * station.
+ */
+function writeCouplerParts(w: Writer, depth: number, coupler: ComponentNode): void {
+  const outer = { length: w.parentLength, start: w.parentStart };
+  const start = stationOf(w, coupler);
+  const placed = (coupler.children ?? []).map((kid): ComponentNode => {
+    w.parentLength = axialLength(coupler);
+    w.parentStart = start;
+    return { ...kid, position: { method: 'absolute', offset: stationOf(w, kid) } };
+  });
+  w.parentLength = outer.length;
+  w.parentStart = outer.start;
+  for (const kid of placed) writePart(w, depth, kid);
+}
+
+/**
+ * One part and, in `<AttachedParts>`, everything mounted on it. A tube
+ * coupler's parts follow it instead (writeCouplerParts). `at` is the part's
+ * station when its place comes from the body chain rather than its position.
+ */
+function writePart(w: Writer, depth: number, n: ComponentNode, at?: number): void {
   const spec = PARTS[n.type];
   if (!spec) {
     w.skipped.add(n.type);
@@ -439,21 +480,42 @@ function writePart(w: Writer, depth: number, n: ComponentNode): void {
   }
   const members = clusterMembers(n);
   if (members.length > 1) {
-    for (const member of members) writePart(w, depth, member);
+    for (const member of members) writePart(w, depth, member, at);
     return;
   }
   w.emit(depth, `<${spec.tag}>`);
   spec.write(w, depth + 1, n);
   const kids = n.children ?? [];
-  if (kids.length > 0) {
+  const coupler = n.type === 'tubecoupler';
+  if (kids.length > 0 && !coupler) {
     w.emit(depth + 1, '<AttachedParts>');
-    const outer = w.parentLength;
-    w.parentLength = axialLength(n);
-    for (const kid of kids) writePart(w, depth + 2, kid);
-    w.parentLength = outer;
+    writeChildren(w, depth + 2, n, at ?? stationOf(w, n));
     w.emit(depth + 1, '</AttachedParts>');
   }
   w.emit(depth, `</${spec.tag}>`);
+  if (kids.length > 0 && coupler) writeCouplerParts(w, depth, n);
+}
+
+/**
+ * A stage's or an assembly's children, or any part's attached parts, with the
+ * parent's front at station `start`. Body components in a stage or a pod stack
+ * nose to tail, whatever their position field says, as resolveFilePositions
+ * lays them out.
+ */
+function writeChildren(w: Writer, depth: number, parent: ComponentNode, start: number): void {
+  const outer = { length: w.parentLength, start: w.parentStart };
+  w.parentStart = start;
+  w.parentLength = axialLength(parent);
+  const chained = parent.type === 'stage' || isAssembly(parent.type);
+  let x = start;
+  for (const kid of parent.children ?? []) {
+    if (chained && isChainType(kid.type)) {
+      writePart(w, depth, kid, x);
+      x += partLength(kid);
+    } else writePart(w, depth, kid);
+  }
+  w.parentLength = outer.length;
+  w.parentStart = outer.start;
 }
 
 // ----------------------------------------------------------------- entry ---
@@ -480,7 +542,10 @@ export function exportRkt(name: string, tree: RocketTree): RktExportResult {
     emit: (depth, s) => lines.push('  '.repeat(depth) + s),
     skipped: new Set(),
     parentLength: 0,
+    parentStart: 0,
   };
+  // Station of the current stage's front: stages stack nose to tail.
+  let stageStart = 0;
 
   // RockSim reads at most three stages, nose-first. A design with more loses
   // the extras; a `parallelstage` is not a RockSim concept at all and is
@@ -512,9 +577,9 @@ export function exportRkt(name: string, tree: RocketTree): RktExportResult {
       return;
     }
     w.emit(3, `<${elName}>`);
-    w.parentLength = stage ? axialLength(stage) : 0;
-    for (const kid of kids) writePart(w, 4, kid);
+    writeChildren(w, 4, stage!, stageStart);
     w.emit(3, `</${elName}>`);
+    stageStart += kids.reduce((sum, n) => sum + (isChainType(n.type) ? partLength(n) : 0), 0);
   });
 
   w.emit(2, '</RocketDesign>');
