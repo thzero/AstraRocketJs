@@ -8,8 +8,8 @@ AstraRocketJs ejecuta **el propio núcleo de física de OpenRocket**: la aerodin
 
 OpenRocket empezó como la tesis de máster de **Sampo Niskanen** en la Universidad Tecnológica de Helsinki. La tesis se amplió y actualizó después hasta convertirse en la documentación técnica de OpenRocket, que es la descripción autorizada de los modelos que usa el simulador: aerodinámica de Barrowman y Barrowman extendido, composición de la resistencia, cálculo de masa y momentos de inercia, la simulación de vuelo y sus integradores, y la recuperación.
 
-- **[Documentación técnica de OpenRocket](https://github.com/openrocket/openrocket/releases/download/OpenRocket_technical_documentation-v13.05/OpenRocket_technical_documentation-v13.05.pdf)** (2013-05-10, PDF ~1,2 MB) — el documento actual; empieza aquí.
-- **[Development of an Open Source model rocket simulation software](https://github.com/openrocket/openrocket/releases/download/Development_of_an_Open_Source_model_rocket_simulation-thesis-v20090520/Development_of_an_Open_Source_model_rocket_simulation-thesis-v20090520.pdf)** (tesis de máster, 2009-05-20, PDF ~1,3 MB) — el trabajo original del que surgió la documentación.
+- **[Documentación técnica de OpenRocket](https://github.com/openrocket/openrocket/releases/download/OpenRocket_technical_documentation-v13.05/OpenRocket_technical_documentation-v13.05.pdf)** (2013-05-10, PDF ~1,2 MB): el documento actual; empieza aquí.
+- **[Development of an Open Source model rocket simulation software](https://github.com/openrocket/openrocket/releases/download/Development_of_an_Open_Source_model_rocket_simulation-thesis-v20090520/Development_of_an_Open_Source_model_rocket_simulation-thesis-v20090520.pdf)** (tesis de máster, 2009-05-20, PDF ~1,3 MB): el trabajo original del que surgió la documentación.
 
 Ambos están enlazados desde la [página de documentación](https://openrocket.info/documentation.html) de OpenRocket.
 
@@ -17,7 +17,7 @@ Ambos están enlazados desde la [página de documentación](https://openrocket.i
 
 ## Documentación de uso {#user-documentation}
 
-- **[Guía de usuario de OpenRocket](https://openrocket.readthedocs.io)** — el manual de la aplicación de escritorio. Buena parte describe funciones de escritorio que AstraRocketJs no tiene, pero las secciones sobre diseño del cohete, estabilidad y parámetros de simulación se aplican al mismo motor subyacente.
+- **[Guía de usuario de OpenRocket](https://openrocket.readthedocs.io)**: el manual de la aplicación de escritorio. Buena parte describe funciones de escritorio que AstraRocketJs no tiene, pero las secciones sobre diseño del cohete, estabilidad y parámetros de simulación se aplican al mismo motor subyacente.
 
 ## Recursos de cohetería {#rocketry-resources}
 
@@ -27,6 +27,6 @@ La **[página de recursos del wiki](https://github.com/openrocket/openrocket/wik
 
 Una cosa es nuestra y no de OpenRocket, y se documenta aquí:
 
-- **[Arquitectura e interioridades](https://github.com/thzero/AstraRocketJs/blob/HEAD/docs/ARCHITECTURE.md)** — qué partes del núcleo de OpenRocket se extrajeron, la compilación con TeaVM a WebAssembly y JavaScript, y el puñado de parches de compatibilidad aplicados al núcleo.
+- **[Arquitectura e interioridades](https://github.com/thzero/AstraRocketJs/blob/HEAD/docs/ARCHITECTURE.md)**: qué partes del núcleo de OpenRocket se extrajeron, la compilación con TeaVM a WebAssembly y JavaScript, y el puñado de parches de compatibilidad aplicados al núcleo.
 
 AstraRocketJs es un proyecto independiente y no está afiliado a OpenRocket.

@@ -10,18 +10,18 @@ En un teléfono las vistas de diseño viven en la pestaña **Croquis** y las de 
 
 Una vista lateral a escala del cohete con los marcadores de **CG** (▲) y **CP** (●) y el margen de estabilidad indicado.
 
-- **Calibres** — herramientas de medición que se arrastran. El calibre horizontal mide la distancia entre dos líneas verticales (longitudes); el vertical mide en transversal (diámetros y envergaduras). Las líneas se **ajustan** a los bordes de los componentes.
-- **Reglas** — un marco de medición alrededor del dibujo, con un **interruptor por lado** (arriba / abajo / izquierda / derecha) junto a los botones de CG/CP e Información.
+- **Calibres**: herramientas de medición que se arrastran. El calibre horizontal mide la distancia entre dos líneas verticales (longitudes); el vertical mide en transversal (diámetros y envergaduras). Las líneas se **ajustan** a los bordes de los componentes.
+- **Reglas**: un marco de medición alrededor del dibujo, con un **interruptor por lado** (arriba / abajo / izquierda / derecha) junto a los botones de CG/CP e Información.
 - **Zoom y desplazamiento**: los botones +/− o la rueda para acercar. Con el dibujo ampliado, arrastra para desplazarte.
 - **Giro**: con el encuadre ajustado, arrastrar el dibujo hacia los lados gira el cohete sobre su eje longitudinal, para ver los juegos de aletas de canto o de frente. El deslizador del borde izquierdo hace lo mismo con cualquier zoom.
-- **Lateral / Posterior** — cambia entre el perfil lateral y una vista posterior (de frente); **Restablecer** recupera el encuadre por defecto.
+- **Lateral / Posterior**: cambia entre el perfil lateral y una vista posterior (de frente); **Restablecer** recupera el encuadre por defecto.
 
 ## Interruptores de vista (2D y 3D) {#view-toggles-2d-and-3d}
 
 Dos botones de la barra controlan lo que se superpone en las vistas **2D** y **3D**:
 
-- **CG / CP** — muestra u oculta los marcadores de **CG / CP / estabilidad** y sus etiquetas.
-- **Información** — muestra u oculta la tarjeta de vistazo rápido con **longitud · masa · CG · CP · estabilidad** en la esquina superior izquierda (el mismo resumen que la [franja de estadísticas](#reading-the-stats-strip), útil en un teléfono, donde la franja está en la otra pestaña).
+- **CG / CP**: muestra u oculta los marcadores de **CG / CP / estabilidad** y sus etiquetas.
+- **Información**: muestra u oculta la tarjeta de vistazo rápido con **longitud · masa · CG · CP · estabilidad** en la esquina superior izquierda (el mismo resumen que la [franja de estadísticas](#reading-the-stats-strip), útil en un teléfono, donde la franja está en la otra pestaña).
 
 ## Modelo 3D {#3d-model}
 
@@ -36,24 +36,24 @@ Un modelo 3D interactivo del cohete: órbita a su alrededor para inspeccionar la
 
 Resistencia y estabilidad frente al número de Mach, para analizar el comportamiento a alta velocidad:
 
-- **Cd frente a Mach** — coeficiente de resistencia total en todo el rango de Mach. Aparece una segunda curva **con motor** solo si alguna etapa declara un diámetro de salida de tobera (una propiedad del `.ork` importado; no hay campo para ella en el editor). Es la única cifra de este panel que depende del motor —todo lo demás es geometría—, así que la barra indica para qué motor se calculó: el que tenga cargado la simulación activa.
-- **Desglose de la resistencia** — contribuciones de fricción, presión y base, apiladas. Para el mismo desglose *por pieza*, consulta la pestaña **Por componente** de abajo.
-- **CP frente a Mach** — cómo se desplaza el centro de presión con la velocidad. Los botones de la esquina de la tarjeta eligen cómo se lee el eje: tu **unidad de longitud**, **% cuerpo** (un porcentaje de la longitud total del fuselaje, que es hasta dónde del cohete estás mirando) o **% longitud** (un porcentaje de la longitud *aerodinámica*, que es la cifra que da OpenRocket de escritorio). Los dos porcentajes difieren en cualquier diseño que lleve algo fuera de la envolvente aerodinámica: un botón de riel que sobresale, un cordón de choque, una masa de cola; por eso se ofrecen ambos en vez de elegir uno por ti. Una lectura sin longitud por la que dividir no se ofrece en absoluto.
+- **Cd frente a Mach**: coeficiente de resistencia total en todo el rango de Mach. Aparece una segunda curva **con motor** solo si alguna etapa declara un diámetro de salida de tobera (una propiedad del `.ork` importado; no hay campo para ella en el editor). Es la única cifra de este panel que depende del motor (todo lo demás es geometría), así que la barra indica para qué motor se calculó: el que tenga cargado la simulación activa.
+- **Desglose de la resistencia**: contribuciones de fricción, presión y base, apiladas. Para el mismo desglose *por pieza*, consulta la pestaña **Por componente** de abajo.
+- **CP frente a Mach**: cómo se desplaza el centro de presión con la velocidad. Los botones de la esquina de la tarjeta eligen cómo se lee el eje: tu **unidad de longitud**, **% cuerpo** (un porcentaje de la longitud total del fuselaje, que es hasta dónde del cohete estás mirando) o **% longitud** (un porcentaje de la longitud *aerodinámica*, que es la cifra que da OpenRocket de escritorio). Los dos porcentajes difieren en cualquier diseño que lleve algo fuera de la envolvente aerodinámica: un botón de riel que sobresale, un cordón de choque, una masa de cola; por eso se ofrecen ambos en vez de elegir uno por ti. Una lectura sin longitud por la que dividir no se ofrece en absoluto.
 
 Una fila de **condiciones de vuelo** define con qué se calcula todo el barrido:
 
-- **AoA** — ángulo de ataque en grados. En 0 el cohete vuela recto; al subirlo, el CP se desplaza.
-- **Dir. viento** — la dirección del viento alrededor del eje de alabeo. **Peor** la fija en el ángulo donde el CP de este cohete queda más adelantado, es decir, donde es *menos* estable: la pregunta de seguridad «¿es estable en cualquier orientación?». En un cohete simétrico de tres aletas el CP no depende de este ángulo y **Peor** devuelve 0; en un diseño de dos aletas o asimétrico importa mucho.
-- **Vel. alabeo** — en rad/s. El *amortiguamiento* de alabeo se opone a un alabeo existente, así que esa columna es cero hasta que defines uno.
-- **Altitud** — la altitud a la que se calcula todo el barrido, en tu unidad de altitud. El aire a esa altura fija el número de Reynolds y con él la fricción; 0 es el nivel del mar.
+- **AoA**: ángulo de ataque en grados. En 0 el cohete vuela recto; al subirlo, el CP se desplaza.
+- **Dir. viento**: la dirección del viento alrededor del eje de alabeo. **Peor** la fija en el ángulo donde el CP de este cohete queda más adelantado, es decir, donde es *menos* estable: la pregunta de seguridad «¿es estable en cualquier orientación?». En un cohete simétrico de tres aletas el CP no depende de este ángulo y **Peor** devuelve 0; en un diseño de dos aletas o asimétrico importa mucho.
+- **Vel. alabeo**: en rad/s. El *amortiguamiento* de alabeo se opone a un alabeo existente, así que esa columna es cero hasta que defines uno.
+- **Altitud**: la altitud a la que se calcula todo el barrido, en tu unidad de altitud. El aire a esa altura fija el número de Reynolds y con él la fricción; 0 es el nivel del mar.
 
 Un conmutador **Gráficas / Por componente** elige qué muestra el panel: las tres curvas o las tablas de abajo. Las tablas informan para un único Mach: en la pestaña **Gráficas** lo elige la retícula del cursor, y en **Por componente** lo hace un deslizador que solo se detiene en los Mach que el barrido calculó de verdad. Ambos comparten el mismo valor, así que al cambiar de pestaña aterrizas en el punto que estabas mirando.
 
 **Resistencia por componente** tabula la resistencia de cada pieza para ese Mach, dividida en **presión / base / fricción**: las mismas cifras que OpenRocket de escritorio muestra en *Component Analysis ▸ Drag characteristics*. Las filas se ordenan de mayor a menor y suman el total del cohete. Las celdas se **sombrean en proporción a su valor**, de modo que las piezas que más resistencia cuestan destacan sin tener que leer todos los números, con la escala debajo de la tabla. Hay dos estilos, que se cambian con los botones junto a la leyenda (o desde **Ajustes ▸ Colores**: es una sola preferencia, así que se define desde cualquiera de los dos sitios y se conserva): *Por magnitud* (el predeterminado) es un solo color que se intensifica con el valor, escalado respecto al mayor de la tabla; *Por calor* es el verde-rojo del escritorio en su propia escala fija de 0 a 1,5 Cd, con texto oscuro sobre celdas claras, para quien lo lea más rápido por costumbre. *Por calor* sombrea solo esta tabla de resistencia: su escala es absoluta de Cd, y ni el CNα ni los coeficientes de alabeo están en ella, así que esas tablas quedan sin sombrear con esa opción (el escritorio colorea solo su pestaña de resistencia por el mismo motivo).
 
-Una pieza que existe más de una vez —normalmente un juego de aletas— tiene además una columna **Por unidad** que indica `0,251 × 3`: la resistencia de una aleta y cuántas hay. La columna **Cd** es siempre el total de todas.
+Una pieza que existe más de una vez (normalmente un juego de aletas) tiene además una columna **Por unidad** que indica `0,251 × 3`: la resistencia de una aleta y cuántas hay. La columna **Cd** es siempre el total de todas.
 
-**Contribución a la estabilidad** es la tabla complementaria, y la que responde a *por qué el CP está donde está*: el **CNα** de cada pieza (su parte de la pendiente de fuerza normal del cohete) y su propio **CP**. El juego de aletas suele aportar la gran mayoría del CNα —eso es lo que mantiene el CP hacia atrás—, mientras que el cono aporta un par de unidades que tiran de él hacia delante. El CP del cohete es la media de las filas ponderada por CNα. Las piezas que no generan fuerza normal, como un tubo recto, se omiten en vez de aparecer como ceros. Cada fila lleva además la **masa** de la pieza —una unidad, todas las unidades y el CG del conjunto—, de modo que las dos mitades de una cuestión de estabilidad quedan juntas. El CP se da de tres maneras: en tu **unidad de longitud**, como **CP (% body)** sobre la longitud total del fuselaje y como **CP (% length)** sobre la longitud aerodinámica, que son los mismos dos porcentajes que ofrece la gráfica de CP frente a Mach. No hay que confundir ninguno de los dos con la columna **%** del extremo derecho, que es la parte del CNα del cohete que aporta la pieza, no una posición.
+**Contribución a la estabilidad** es la tabla complementaria, y la que responde a *por qué el CP está donde está*: el **CNα** de cada pieza (su parte de la pendiente de fuerza normal del cohete) y su propio **CP**. El juego de aletas suele aportar la gran mayoría del CNα (eso es lo que mantiene el CP hacia atrás), mientras que el cono aporta un par de unidades que tiran de él hacia delante. El CP del cohete es la media de las filas ponderada por CNα. Las piezas que no generan fuerza normal, como un tubo recto, se omiten en vez de aparecer como ceros. Cada fila lleva además la **masa** de la pieza (una unidad, todas las unidades y el CG del conjunto), de modo que las dos mitades de una cuestión de estabilidad quedan juntas. El CP se da de tres maneras: en tu **unidad de longitud**, como **CP (% body)** sobre la longitud total del fuselaje y como **CP (% length)** sobre la longitud aerodinámica, que son los mismos dos porcentajes que ofrece la gráfica de CP frente a Mach. No hay que confundir ninguno de los dos con la columna **%** del extremo derecho, que es la parte del CNα del cohete que aporta la pieza, no una posición.
 
 **Dinámica de alabeo** lista todos los juegos de aletas con sus coeficientes de **forzamiento** y **amortiguamiento** de alabeo. Ambos son cero en un cohete que ni está calado ni gira: esa es la respuesta correcta, no una tabla que falta. Da un **ángulo de calaje** a un juego de aletas y el forzamiento sube; es el único sitio de la aplicación que confirma que ese calaje hace lo que pretendías. El amortiguamiento se opone a un alabeo existente, así que necesita el control **Vel. alabeo** de arriba.
 
@@ -69,7 +69,7 @@ Un panel de **gráficas de vuelo** a lo largo del tiempo: altitud, velocidad, ac
 
 No son las casillas de la pestaña Simulaciones a propósito: esas dicen qué debe volar **Ejecutar**, que es una pregunta distinta de qué estás leyendo.
 
-**Cohetes por etapas** — cuando un vuelo se separa en más de una etapa, aparece un **selector de etapas** sobre las gráficas. Cada etapa seleccionada se dibuja con su propia línea de color —el ascenso, descenso y aterrizaje propios de un propulsor agotado— compartiendo la escala de cada gráfica, y con la lectura al pasar el cursor y los marcadores de eventos cubriendo todas las etapas mostradas. Deselecciona una etapa para centrarte en el resto.
+**Cohetes por etapas**: cuando un vuelo se separa en más de una etapa, aparece un **selector de etapas** sobre las gráficas. Cada etapa seleccionada se dibuja con su propia línea de color (el ascenso, descenso y aterrizaje propios de un propulsor agotado) compartiendo la escala de cada gráfica, y con la lectura al pasar el cursor y los marcadores de eventos cubriendo todas las etapas mostradas. Deselecciona una etapa para centrarte en el resto.
 
 ## Traza en tierra (tras una simulación) {#ground-track-after-a-simulation}
 
@@ -123,7 +123,7 @@ La **trayectoria del vuelo en 3D**: el recorrido del cohete por el espacio, incl
 
 El **plano del suelo puede llevar las mismas imágenes aéreas**, colocadas en las coordenadas del campo de lanzamiento, de modo que la trayectoria se arquea sobre el campo real y no sobre una rejilla vacía. Los mismos botones **Ninguna · Satélite · Callejero** están arriba a la izquierda, empiezan en **Ninguna** y comparten su elección con la traza en tierra y con el mapa del campo de lanzamiento. La imagen cubre algo más allá de lo más lejos que llegó el cohete desde la rampa, no el plano entero, para que un vuelo de trescientos metros no descargue un kilómetro de paisaje a cada lado; la rejilla de referencia continúa más allá de su borde.
 
-Un botón **⬇ Exportar** guarda la trayectoria para herramientas cartográficas —**KML** (Google Earth), **GPX** o un **CSV de puntos de paso**— con opciones sobre qué puntos y líneas incluir, y soporte para tus propias plantillas. Consulta [Archivos y exportaciones](./files-and-exports.md#exporting-the-flight-path-kml--gpx--csv).
+Un botón **⬇ Exportar** guarda la trayectoria para herramientas cartográficas (**KML** (Google Earth), **GPX** o un **CSV de puntos de paso**) con opciones sobre qué puntos y líneas incluir, y soporte para tus propias plantillas. Consulta [Archivos y exportaciones](./files-and-exports.md#exporting-the-flight-path-kml--gpx--csv).
 
 ### Reproducir el vuelo {#playing-the-flight-back}
 
@@ -160,10 +160,10 @@ La franja inferior resume el diseño actual como una cuadrícula de fichas (se p
 - **Longitud**, **diámetro máximo** y **relación de finura** (longitud / diámetro).
 - **Masa** y **CG**, cada uno mostrado **vacío / cargado** (en seco y con el motor) en una sola ficha.
 - **CP** (centro de presión).
-- **Peso de recuperación** — la masa de descenso (masa cargada menos el propelente que se quema). Se muestra cuando hay un motor cargado; es la masa que el paracaídas baja realmente. El recuadro indica **Masa (Recuperación, est.)** mientras esa cifra es la estimación propia de la aplicación a partir del diseño, y quita la marca cuando una simulación ha desplegado un dispositivo de recuperación y la masa del propio motor la ha sustituido.
-- **Estabilidad** — en **calibres** (en la rampa) y como **% de la longitud**.
-- **Coef. de resistencia** — el coeficiente de resistencia en planeo (sin empuje) a Mach 0,3.
-- **Pendiente de fuerza normal** — CNα (por radián), la pendiente del coeficiente de fuerza normal de Barrowman a Mach 0,3.
+- **Peso de recuperación**: la masa de descenso (masa cargada menos el propelente que se quema). Se muestra cuando hay un motor cargado; es la masa que el paracaídas baja realmente. El recuadro indica **Masa (Recuperación, est.)** mientras esa cifra es la estimación propia de la aplicación a partir del diseño, y quita la marca cuando una simulación ha desplegado un dispositivo de recuperación y la masa del propio motor la ha sustituido.
+- **Estabilidad**: en **calibres** (en la rampa) y como **% de la longitud**.
+- **Coef. de resistencia**: el coeficiente de resistencia en planeo (sin empuje) a Mach 0,3.
+- **Pendiente de fuerza normal**: CNα (por radián), la pendiente del coeficiente de fuerza normal de Barrowman a Mach 0,3.
 - **Momento de inercia** en **cabeceo** y **balanceo** (cargado), en kg·m².
 
 Una estabilidad de aproximadamente **1–2 calibres** es el rango sano habitual; la ficha de estabilidad se colorea para señalar diseños poco o demasiado estables.

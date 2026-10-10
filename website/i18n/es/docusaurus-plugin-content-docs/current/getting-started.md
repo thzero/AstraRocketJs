@@ -6,7 +6,7 @@ sidebar_position: 5
 
 AstraRocketJs se ejecuta en tu navegador: **no hay nada que instalar**. Abre **[https://thzero.github.io/AstraRocketJs/](https://thzero.github.io/AstraRocketJs/)** y ya está. Funciona en ordenador y en móvil; solo necesitas un navegador moderno (Chrome, Firefox, Safari, Edge).
 
-Tras esa primera visita sigue funcionando **sin conexión**, así que puedes diseñar y simular en el campo de vuelo aunque no haya cobertura, y tu navegador te ofrecerá **instalarla** junto a tus demás aplicaciones — consulta **[Sin conexión e instalación](./offline-and-installing.md)**.
+Tras esa primera visita sigue funcionando **sin conexión**, así que puedes diseñar y simular en el campo de vuelo aunque no haya cobertura, y tu navegador te ofrecerá **instalarla** junto a tus demás aplicaciones: consulta **[Sin conexión e instalación](./offline-and-installing.md)**.
 
 Al cargar verás una breve pantalla de inicio mientras se carga el motor de física, y después un cohete de ejemplo. La cabecera muestra una pequeña insignia **`WASM`** o **`JS`** que indica qué motor se ha cargado (WebAssembly es el rápido por defecto; JavaScript es la alternativa).
 
@@ -30,8 +30,8 @@ El botón **⤢** del extremo derecho de la barra de la vista del cohete le da a
 
 En un **teléfono** las mismas áreas pasan a ser pestañas en la parte inferior, porque no hay sitio para mostrarlas una al lado de otra:
 
-- **Cohete** — el aviso del diseño cargado y la franja de estadísticas.
-- **Croquis** — la vista del cohete y su barra de herramientas (2D · 3D · Aero). Las vistas 2D y 3D se giran un cuarto de vuelta cuando sostienes el teléfono en vertical, para que el cohete recorra el lado largo de la pantalla en vez de quedar aplastado en su anchura; gira el teléfono y vuelven a su posición. Los diálogos también ocupan toda la pantalla allí.
+- **Cohete**: el aviso del diseño cargado y la franja de estadísticas.
+- **Croquis**: la vista del cohete y su barra de herramientas (2D · 3D · Aero). Las vistas 2D y 3D se giran un cuarto de vuelta cuando sostienes el teléfono en vertical, para que el cohete recorra el lado largo de la pantalla en vez de quedar aplastado en su anchura; gira el teléfono y vuelven a su posición. Los diálogos también ocupan toda la pantalla allí.
 - **Config.**: las configuraciones de vuelo.
 - **Simular**: configuración de vuelo, configuración del lanzamiento, **Ejecutar** y el resumen de resultados.
 - **Resultados**: los números de la ejecución (apogeo, salida del raíl o de la varilla, velocidad máxima, aterrizaje, alcance …) con las gráficas de vuelo y la trayectoria 3D debajo. Aparece en cuanto una simulación ha producido un resultado, y al terminar una ejecución te lleva directamente allí.
@@ -49,7 +49,7 @@ La barra superior tiene **deshacer / rehacer**, un botón **☀** que cambia al 
 2. **Edita los componentes** en el panel izquierdo: selecciona una pieza y ajusta sus dimensiones; la vista 2D y las estadísticas de estabilidad se actualizan en vivo. Consulta [Diseñar un cohete](./designing-a-rocket.md).
 3. **Elige un motor** en la pestaña **Configuraciones**. Consulta [Motores](./motors.md).
 4. **Define las condiciones de lanzamiento** y pulsa **Simular vuelo**. Consulta [Ejecutar una simulación](./running-a-simulation.md).
-5. **Explora los resultados** — el apogeo y las demás fichas, además de las vistas de Vuelo y Trayectoria 3D. Consulta [Vistas y análisis](./views-and-analysis.md).
+5. **Explora los resultados**: el apogeo y las demás fichas, además de las vistas de Vuelo y Trayectoria 3D. Consulta [Vistas y análisis](./views-and-analysis.md).
 6. Tu cohete **se guarda solo mientras trabajas**, y menú → **Abrir…** cambia entre cohetes guardados. Para conservar una copia en tu disco o abrirlo en OpenRocket de escritorio, usa menú → **Exportar → OpenRocket**. Consulta [Archivos y exportaciones](./files-and-exports.md).
 
 ## Cohetes de ejemplo {#example-rockets}

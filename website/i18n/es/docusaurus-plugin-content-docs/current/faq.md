@@ -32,7 +32,7 @@ Sí. **Ajustes ▸ Unidades** tiene un botón de **Valores imperiales**, y puede
 Las unidades solo afectan a lo que se muestra y se escribe: tu diseño se guarda siempre en SI, así que cambiar de unidades nunca modifica un cohete ni cómo se escribe un archivo `.ork`. Consulta **[Ajustes](./settings.md#units)**.
 
 ### ¿Funciona sin conexión?
-Sí. Tras la primera visita, la aplicación conserva en tu dispositivo tanto la propia aplicación como el motor de física y los dos catálogos, así que se abre y ejecuta una simulación completa sin conexión — útil en un campo de vuelo sin cobertura. Tu navegador también te ofrecerá **instalarla**. Consulta **[Sin conexión e instalación](./offline-and-installing.md)**.
+Sí. Tras la primera visita, la aplicación conserva en tu dispositivo tanto la propia aplicación como el motor de física y los dos catálogos, así que se abre y ejecuta una simulación completa sin conexión: útil en un campo de vuelo sin cobertura. Tu navegador también te ofrecerá **instalarla**. Consulta **[Sin conexión e instalación](./offline-and-installing.md)**.
 
 ### ¿Qué es la insignia `WASM` / `JS` de la cabecera?
 Indica qué motor se ha cargado: **WASM** (WebAssembly, el rápido por defecto) o **JS** (JavaScript, la alternativa para navegadores sin soporte de WASM). Ambos producen resultados idénticos.

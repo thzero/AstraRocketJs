@@ -10,7 +10,7 @@ Un cohete es un árbol de componentes, de la ojiva a la cola, agrupados en etapa
 
 Para añadir una pieza, selecciona la pieza en la que va y elígela en la lista **＋ Añadir** de la fila que hay encima del árbol. La lista está agrupada en Cuerpo, Aletas, Interior, Recuperación, Otros y Ensamblaje, y solo ofrece las piezas que la seleccionada puede contener.
 
-Las ramas con hijos se **pliegan** con sus galones **▾ / ▸** (o pliega y despliega todo desde la cabecera), y puedes **plegar la lista de componentes entera** —su cabecera mantiene a la vista la pieza seleccionada— para dar más espacio al editor de propiedades en un diseño alto. Al eliminar una pieza (el botón **Eliminar** de sus propiedades) se te pide confirmación.
+Las ramas con hijos se **pliegan** con sus galones **▾ / ▸** (o pliega y despliega todo desde la cabecera), y puedes **plegar la lista de componentes entera** (su cabecera mantiene a la vista la pieza seleccionada) para dar más espacio al editor de propiedades en un diseño alto. Al eliminar una pieza (el botón **Eliminar** de sus propiedades) se te pide confirmación.
 
 ### Cortar, copiar, pegar y duplicar {#cut-copy-paste-and-duplicate}
 
@@ -23,15 +23,15 @@ Los botones ✂ ⧉ ⎘ ❐ a la derecha de la cabecera del árbol cortan, copia
 
 Lo que cortaste o copiaste sigue disponible al cambiar de diseño, así que una pieza puede pasar de un diseño a otro. Cada pegado o duplicado es un solo paso de deshacer.
 
-El árbol se recorre por completo con el teclado: entra con **Tab**, después **↑ / ↓** (y **Inicio / Fin**) se mueven entre piezas, **← / →** pliegan o despliegan una rama, y **Intro / Espacio** selecciona — así un árbol largo es una sola parada de tabulación, no una por pieza.
+El árbol se recorre por completo con el teclado: entra con **Tab**, después **↑ / ↓** (y **Inicio / Fin**) se mueven entre piezas, **← / →** pliegan o despliegan una rama, y **Intro / Espacio** selecciona: así un árbol largo es una sola parada de tabulación, no una por pieza.
 
 Los componentes admitidos incluyen:
 
-- **Componentes del cuerpo** — ojiva, tubo, transición (hombro/cola de bote).
-- **Aletas** — trapezoidales, elípticas, de forma libre y aletas tubulares.
-- **Estructura interior** — tubo interior (soporte del motor), anillos de centrado, mamparos, acopladores, topes de motor.
-- **Recuperación** — paracaídas, cinta, cordón de choque.
-- **Masa y exterior** — componente de masa, guía de lanzamiento, botón de raíl, carenados y cápsulas.
+- **Componentes del cuerpo**: ojiva, tubo, transición (hombro/cola de bote).
+- **Aletas**: trapezoidales, elípticas, de forma libre y aletas tubulares.
+- **Estructura interior**: tubo interior (soporte del motor), anillos de centrado, mamparos, acopladores, topes de motor.
+- **Recuperación**: paracaídas, cinta, cordón de choque.
+- **Masa y exterior**: componente de masa, guía de lanzamiento, botón de raíl, carenados y cápsulas.
 
 Cada pieza expone las dimensiones y opciones que el motor de física necesita (longitudes, diámetros, espesor, geometría de aletas, etc.). La edición está amortiguada: el modelo se reconstruye y las estadísticas se refrescan mientras escribes o arrastras.
 
@@ -142,7 +142,7 @@ Un cohete puede tener más de una etapa. **＋ Etapa** (en la fila que hay encim
 
 También puedes añadir **cápsulas** (podsets) y propulsores en **paralelo** (adosados) como conjuntos. Tras un vuelo por etapas, las **[gráficas de vuelo](./views-and-analysis.md#flight-after-a-simulation)** dibujan la trayectoria propia de cada etapa.
 
-> Los vuelos por etapas se **simulan** como ramas independientes —cada propulsor agotado vuela, despliega y aterriza por su cuenta— y la masa, el CG y la estabilidad estáticos coinciden con OpenRocket de escritorio. La *trayectoria de vuelo* también se comprueba contra OpenRocket original sin modificar: secuencias de eventos idénticas en cada rama y apogeos que coinciden con una tolerancia relativa de 1e-5.
+> Los vuelos por etapas se **simulan** como ramas independientes (cada propulsor agotado vuela, despliega y aterriza por su cuenta) y la masa, el CG y la estabilidad estáticos coinciden con OpenRocket de escritorio. La *trayectoria de vuelo* también se comprueba contra OpenRocket original sin modificar: secuencias de eventos idénticas en cada rama y apogeos que coinciden con una tolerancia relativa de 1e-5.
 
 ## Deshacer / rehacer {#undo--redo}
 
@@ -210,8 +210,8 @@ Una pieza aún puede poner **Sin especificar** si viene de un diseño guardado a
 
 Una pieza elegida del catálogo lleva el material de su fabricante, como «Balsa, bulk, BMS typical», con la densidad del fabricante. La mayoría de esos nombres no están en la lista de abajo, así que el selector muestra el material propio de la pieza bajo **De esta pieza**, con su densidad, y es con él con el que se pesa la pieza. Cuando el catálogo indica además la masa de la pieza, como hace con muchas ojivas y transiciones, la densidad es la que reparte esa masa por la pieza, así que la pieza pesa lo que dice su fabricante, como en OpenRocket de escritorio. Un paracaídas con masa indicada la toma como su anulación de masa.
 
-- **Materiales incorporados** — la lista completa de OpenRocket (volumen / superficie / línea, con sus densidades). Cada tipo tiene su propia [unidad de densidad](./settings.md#units) — el material sólido por volumen, la tela del paracaídas por superficie y la cuerda por longitud — y la densidad de un material personalizado se lee en la unidad que esté mostrándose.
-- **Materiales personalizados** — define los tuyos (nombre, densidad y a qué grupo pertenece); se guardan en tu navegador y se reutilizan en todos los diseños. Un material personalizado va **dentro de ese grupo**, marcado con una ★, y no en un grupo aparte: casi siempre es una variante de algo que ya está en la lista y se lee mejor a su lado. Si le das el **mismo nombre que a uno incorporado**, lo reemplaza con tu densidad en vez de aparecer dos veces.
+- **Materiales incorporados**: la lista completa de OpenRocket (volumen / superficie / línea, con sus densidades). Cada tipo tiene su propia [unidad de densidad](./settings.md#units) (el material sólido por volumen, la tela del paracaídas por superficie y la cuerda por longitud) y la densidad de un material personalizado se lee en la unidad que esté mostrándose.
+- **Materiales personalizados**: define los tuyos (nombre, densidad y a qué grupo pertenece); se guardan en tu navegador y se reutilizan en todos los diseños. Un material personalizado va **dentro de ese grupo**, marcado con una ★, y no en un grupo aparte: casi siempre es una variante de algo que ya está en la lista y se lee mejor a su lado. Si le das el **mismo nombre que a uno incorporado**, lo reemplaza con tu densidad en vez de aparecer dos veces.
 
 > Nota: el **nombre y la densidad** de un material sobreviven al viaje de ida y vuelta por `.ork`, incluso los de un material que esta aplicación tiene y OpenRocket de escritorio no. Lo que no viaja es su pertenencia a tu lista personalizada; ver las [preguntas frecuentes](./faq.md).
 

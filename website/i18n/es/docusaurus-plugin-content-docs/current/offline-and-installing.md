@@ -2,7 +2,7 @@
 title: "Sin conexión e instalación"
 sidebar_position: 7
 ---
-AstraRocketJs funciona **sin conexión a internet** una vez que la has abierto, y se puede **instalar** para que quede junto a tus demás aplicaciones. No hace falta configurar nada —la primera visita se encarga—, pero esto es lo que puedes esperar.
+AstraRocketJs funciona **sin conexión a internet** una vez que la has abierto, y se puede **instalar** para que quede junto a tus demás aplicaciones. No hace falta configurar nada (la primera visita se encarga), pero esto es lo que puedes esperar.
 
 ## Por qué puede funcionar sin conexión {#why-it-can-work-offline}
 

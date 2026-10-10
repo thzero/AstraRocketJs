@@ -62,7 +62,7 @@ Las unidades pertenecen **al navegador donde las configuras**, no a un diseño n
 
 ### Sombreado de las tablas aerodinámicas {#aero-table-shading}
 
-**Colores ▸ Sombreado de las tablas aerodinámicas** elige cómo tiñen sus celdas las tablas por componente de [Aero](./views-and-analysis.md). *Por magnitud* es un solo color que se intensifica con el valor, escalado respecto al mayor de la tabla. *Por calor* reproduce exactamente el verde-rojo de OpenRocket de escritorio: su fórmula, su escala fija de 0 a 1,5 Cd y texto oscuro sobre celdas claras. Ninguno es más correcto; elige el que leas más rápido. *Por calor* se aplica solo a la tabla de **resistencia**: su escala es absoluta de Cd, y ni el CNα ni los coeficientes de alabeo están en ella —un CNα de 15 en unas aletas se saturaría en el mismo rojo que el 2 de una ojiva y no diría nada—, así que esas tablas quedan sin sombrear con esta opción, igual que OpenRocket de escritorio solo colorea su pestaña de resistencia. El mismo conmutador está junto a la leyenda bajo la tabla, así que puedes cambiarlo sin salir de la vista.
+**Colores ▸ Sombreado de las tablas aerodinámicas** elige cómo tiñen sus celdas las tablas por componente de [Aero](./views-and-analysis.md). *Por magnitud* es un solo color que se intensifica con el valor, escalado respecto al mayor de la tabla. *Por calor* reproduce exactamente el verde-rojo de OpenRocket de escritorio: su fórmula, su escala fija de 0 a 1,5 Cd y texto oscuro sobre celdas claras. Ninguno es más correcto; elige el que leas más rápido. *Por calor* se aplica solo a la tabla de **resistencia**: su escala es absoluta de Cd, y ni el CNα ni los coeficientes de alabeo están en ella (un CNα de 15 en unas aletas se saturaría en el mismo rojo que el 2 de una ojiva y no diría nada), así que esas tablas quedan sin sombrear con esta opción, igual que OpenRocket de escritorio solo colorea su pestaña de resistencia. El mismo conmutador está junto a la leyenda bajo la tabla, así que puedes cambiarlo sin salir de la vista.
 
 ### Lo que las unidades no cambian
 
@@ -96,16 +96,16 @@ No hay fila para los filetes de las aletas. Un filete que añadas empieza como W
 
 ## Valores por defecto de la simulación {#simulation-defaults}
 
-Estos valores inicializan cada nueva simulación (aún puedes ajustar las condiciones de lanzamiento de cada una — consulta [Ejecutar una simulación](./running-a-simulation.md)):
+Estos valores inicializan cada nueva simulación (aún puedes ajustar las condiciones de lanzamiento de cada una: consulta [Ejecutar una simulación](./running-a-simulation.md)):
 
-- **Confirmar el borrado de simulaciones** — pregunta antes de eliminar una simulación. Activado por defecto, porque una simulación borrada se lleva sus resultados con ella.
+- **Confirmar el borrado de simulaciones**: pregunta antes de eliminar una simulación. Activado por defecto, porque una simulación borrada se lleva sus resultados con ella.
 - **Ejecutar automáticamente las simulaciones desactualizadas**: cuando la pestaña Resultados muestra una simulación que nunca se ha ejecutado o cuyo resultado está desactualizado, la ejecuta. Desactivado por defecto.
 
-- **Paso de tiempo** — el tamaño de paso del integrador. Más pequeño es más preciso pero más lento.
-- **Tiempo máx. de sim.** — un límite de seguridad sobre el tiempo de vuelo simulado, que corta una ejecución que nunca aterriza.
-- **Paso angular máximo** — lo máximo que el cohete puede girar en un paso de integración. Más pequeño es más preciso en un cabeceo rápido, y más lento.
-- **Semilla aleatoria** — fija la aleatoriedad del viento y la turbulencia para que una simulación sea reproducible; déjala sin definir para obtener resultados variados.
-- **Método de cálculo** y **método de simulación** — se muestran como referencia, no se eligen: todo vuelo usa aerodinámica de Barrowman extendido con un integrador Runge-Kutta 4 de 6 grados de libertad.
+- **Paso de tiempo**: el tamaño de paso del integrador. Más pequeño es más preciso pero más lento.
+- **Tiempo máx. de sim.**: un límite de seguridad sobre el tiempo de vuelo simulado, que corta una ejecución que nunca aterriza.
+- **Paso angular máximo**: lo máximo que el cohete puede girar en un paso de integración. Más pequeño es más preciso en un cabeceo rápido, y más lento.
+- **Semilla aleatoria**: fija la aleatoriedad del viento y la turbulencia para que una simulación sea reproducible; déjala sin definir para obtener resultados variados.
+- **Método de cálculo** y **método de simulación**: se muestran como referencia, no se eligen: todo vuelo usa aerodinámica de Barrowman extendido con un integrador Runge-Kutta 4 de 6 grados de libertad.
 
 Cada simulación puede sobrescribir cualquiera de estos valores. Una sobrescritura **vacía** no está ausente: significa *seguir el valor global*, y el campo muestra ese valor global como marcador de posición. Por eso las opciones de ejecución nunca bloquean un vuelo: siempre hay un valor por defecto debajo. **Restablecer valores predeterminados** borra las sobrescrituras de una simulación; **Guardar como predeterminado** lleva lo que esa simulación usa ahora a estos valores globales.
 
@@ -127,7 +127,7 @@ Al final de la tarjeta Atmósfera de la pestaña Lanzamiento hay un campo para u
 
 ## Reproducción {#playback}
 
-- **Velocidad predeterminada** — la velocidad a la que empieza a reproducirse la trayectoria de vuelo 3D, de 0,25× a 4×. Es un punto de partida, no un bloqueo: el control de velocidad de la vista cambia la reproducción actual sin tocar este ajuste.
+- **Velocidad predeterminada**: la velocidad a la que empieza a reproducirse la trayectoria de vuelo 3D, de 0,25× a 4×. Es un punto de partida, no un bloqueo: el control de velocidad de la vista cambia la reproducción actual sin tocar este ajuste.
 
 ## Boceto {#sketch}
 
@@ -140,13 +140,13 @@ Valores predeterminados para la vista 2D. También puedes alternarlos en la prop
 
 Cinco umbrales, en las unidades que hayas elegido para la velocidad. Colorean las fichas de resultados *y* llegan al motor de vuelo, así que deciden qué avisos informa una simulación y no solo cómo se pintan los números.
 
-- **Velocidad mínima de salida de la guía** — por debajo de esto las aletas reciben muy poco flujo de aire para gobernar el cohete, así que puede orientarse hacia el viento o volverse inestable al salir de la guía. La ficha de salida de la guía está en verde a partir de este valor y avisa por debajo.
-- **Aviso de velocidad de apertura por encima de** — despliegue simple (sin drogue): por encima de esta velocidad, abrir el paracaídas arriesga rasgar el fuselaje o desgarrar la vela.
+- **Velocidad mínima de salida de la guía**: por debajo de esto las aletas reciben muy poco flujo de aire para gobernar el cohete, así que puede orientarse hacia el viento o volverse inestable al salir de la guía. La ficha de salida de la guía está en verde a partir de este valor y avisa por debajo.
+- **Aviso de velocidad de apertura por encima de**: despliegue simple (sin drogue): por encima de esta velocidad, abrir el paracaídas arriesga rasgar el fuselaje o desgarrar la vela.
 
 Los tres últimos solo se aplican al **despliegue dual** (una etapa que lleva un drogue), donde se juzgan el principal y el drogue en lugar del umbral simple anterior:
 
-- **Velocidad de apertura del principal (máx.)** — por encima de esto el principal sale demasiado rápido, normalmente por un drogue demasiado pequeño para frenar el cohete, o por un principal configurado para abrirse demasiado alto.
-- **Velocidad de apertura del principal (mín.)** — por debajo de esto el principal se abre cuando el cohete apenas desciende, lo que normalmente significa que se desplegó cerca del apogeo: un descenso lento y con mucha deriva desde toda la altitud.
+- **Velocidad de apertura del principal (máx.)**: por encima de esto el principal sale demasiado rápido, normalmente por un drogue demasiado pequeño para frenar el cohete, o por un principal configurado para abrirse demasiado alto.
+- **Velocidad de apertura del principal (mín.)**: por debajo de esto el principal se abre cuando el cohete apenas desciende, lo que normalmente significa que se desplegó cerca del apogeo: un descenso lento y con mucha deriva desde toda la altitud.
 - **Velocidad de apertura del drogue (mín.)**: por debajo de esto el drogue sale demasiado lento en el apogeo para inflarse correctamente.
 
 Los tres dependen de que el cohete diga qué paracaídas es cuál. Marca **Piloto (despliegue dual)** en el paracaídas o la cinta que se abre en el apogeo y el vuelo se juzga como despliegue dual; déjalo sin marcar y toda la etapa es despliegue simple, juzgada solo contra **Aviso de velocidad de apertura por encima de**.
@@ -159,7 +159,7 @@ Al cambiar cualquiera de ellos, todas las simulaciones que ya se han ejecutado s
 
 Todo lo anterior decide cuándo *avisa* un vuelo. Esto cambia lo que hace el vuelo.
 
-- **Salida según las guías** — desactivado por defecto, que es el comportamiento propio de OpenRocket: el cohete permanece en el riel durante toda su longitud, estén donde estén las guías de lanzamiento o los botones de riel. OpenRocket calcula una longitud que tiene en cuenta las guías y luego no la usa, así que una guía montada por encima de la cola del cohete recibe un recorrido guiado que no tiene, y los botones de riel no se consideran en absoluto.
+- **Salida según las guías**: desactivado por defecto, que es el comportamiento propio de OpenRocket: el cohete permanece en el riel durante toda su longitud, estén donde estén las guías de lanzamiento o los botones de riel. OpenRocket calcula una longitud que tiene en cuenta las guías y luego no la usa, así que una guía montada por encima de la cola del cohete recibe un recorrido guiado que no tiene, y los botones de riel no se consideran en absoluto.
 
   Al activarlo, la fase guiada termina según una regla para cada tipo de guía. Una anilla de lanzamiento guía hasta que su extremo posterior sale de la varilla. Un raíl necesita dos botones de raíl y solo guía hasta que sale el penúltimo, así que un único botón de raíl no da ningún recorrido guiado. El cohete se libera en ese momento además de informarse allí, así que cambia el vuelo en sí, no solo el número. Espera que el cohete salga algo antes y con una velocidad de salida algo menor. Un diseño sin ninguna guía es una torre de lanzamiento y vuela igual en ambos casos.
 

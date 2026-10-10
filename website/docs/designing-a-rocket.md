@@ -2,7 +2,7 @@
 title: "Designing a Rocket"
 sidebar_position: 8
 ---
-The **Components** panel (left on desktop) holds your rocket's component tree. As you add and edit parts, the 2D view and the **stability stats** (bottom strip) update live — so you always see the effect of a change on CG, CP, and stability.
+The **Components** panel (left on desktop) holds your rocket's component tree. As you add and edit parts, the 2D view and the **stability stats** (bottom strip) update live: so you always see the effect of a change on CG, CP, and stability.
 
 ## The component tree
 
@@ -10,7 +10,7 @@ A rocket is a tree of components, nose-to-tail, grouped into stages. Select any 
 
 To add a part, select the part it goes in and pick it from the **＋ Add** list in the row above the tree. The list is grouped as Body, Fins, Inner, Recovery, Other and Assembly, and offers only the parts the selected one can hold.
 
-Branches with children **fold** at their **▾ / ▸** chevrons (or fold/unfold everything from the header), and you can **collapse the whole component list** — its header keeps the selected part in view — to give the property editor more room on a tall design. Deleting a part (the **Delete** button in its properties) asks you to confirm first.
+Branches with children **fold** at their **▾ / ▸** chevrons (or fold/unfold everything from the header), and you can **collapse the whole component list**: its header keeps the selected part in view: to give the property editor more room on a tall design. Deleting a part (the **Delete** button in its properties) asks you to confirm first.
 
 ### Cut, copy, paste and duplicate
 
@@ -23,17 +23,17 @@ The ✂ ⧉ ⎘ ❐ buttons at the right of the tree's header cut, copy, paste a
 
 What was cut or copied stays available while you switch designs, so a part can move from one design to another. Each paste or duplicate is one undo step.
 
-The tree is fully keyboard-navigable: **Tab** into it, then **↑ / ↓** (and **Home / End**) move between parts, **← / →** collapse or expand a branch, and **Enter / Space** selects — so a long tree is a single tab stop, not one per part.
+The tree is fully keyboard-navigable: **Tab** into it, then **↑ / ↓** (and **Home / End**) move between parts, **← / →** collapse or expand a branch, and **Enter / Space** selects: so a long tree is a single tab stop, not one per part.
 
 Supported components include:
 
-- **Body components** — nose cone, body tube, transition (shoulder/boattail).
-- **Fins** — trapezoidal, elliptical, free-form, and tube fins.
-- **Inner structure** — inner tube (motor mount), centering rings, bulkheads, couplers, engine blocks.
-- **Recovery** — parachute, streamer, shock cord.
-- **Mass & external** — mass component, launch lug, rail button, fairing/pods.
+- **Body components**: nose cone, body tube, transition (shoulder/boattail).
+- **Fins**: trapezoidal, elliptical, free-form, and tube fins.
+- **Inner structure**: inner tube (motor mount), centering rings, bulkheads, couplers, engine blocks.
+- **Recovery**: parachute, streamer, shock cord.
+- **Mass & external**: mass component, launch lug, rail button, fairing/pods.
 
-Each part exposes the dimensions and options the engine needs (lengths, radii, thickness, fin geometry, etc.). Editing is debounced — the model rebuilds and the stats refresh as you type/drag.
+Each part exposes the dimensions and options the engine needs (lengths, radii, thickness, fin geometry, etc.). Editing is debounced: the model rebuilds and the stats refresh as you type/drag.
 
 ### Dual deployment
 
@@ -43,7 +43,7 @@ It is not only a label. The simulation judges a deployment differently depending
 
 ### What goes inside a mass component
 
-A mass component is not only a lump of ballast — it can hold inner structure of its own, so an altimeter bay or a payload sled can be modeled as the sled plus the rings, bulkheads, hardware and recovery gear nested inside it. Add parts to it the same way as to a body tube.
+A mass component is not only a lump of ballast: it can hold inner structure of its own, so an altimeter bay or a payload sled can be modeled as the sled plus the rings, bulkheads, hardware and recovery gear nested inside it. Add parts to it the same way as to a body tube.
 
 ## How dimensions are stated
 
@@ -65,13 +65,13 @@ Leave a shoulder's thickness blank and OpenRocket fills it from the part's own w
 
 ## Required dimensions
 
-Some dimensions define what a part *is*. A body tube with no diameter is not a narrow tube, it is nothing — so those fields are marked, and a design that is missing one cannot be flown.
+Some dimensions define what a part *is*. A body tube with no diameter is not a narrow tube, it is nothing: so those fields are marked, and a design that is missing one cannot be flown.
 
 A required field carries a small red **\*** after its label, always, whether or not it is filled. That is there so you can see what a part needs *before* you have left anything blank.
 
 If a required dimension is **zero**, the field escalates: the label is boxed in red and the input gets a red outline. The tooltip says why.
 
-**You cannot leave one empty by accident.** Clearing the box shows it empty while you type, but nothing is written — tab away and the previous value is still there. (Focus is never trapped; you can always leave the field.) Typing an explicit **0** *is* stored, because that is a deliberate statement rather than a slip, and it is flagged and refused rather than silently flown.
+**You cannot leave one empty by accident.** Clearing the box shows it empty while you type, but nothing is written: tab away and the previous value is still there. (Focus is never trapped; you can always leave the field.) Typing an explicit **0** *is* stored, because that is a deliberate statement rather than a slip, and it is flagged and refused rather than silently flown.
 
 ### Which dimensions are required
 
@@ -98,7 +98,7 @@ If a required dimension is **zero**, the field escalates: the label is boxed in 
 
 **Airframe diameters can be automatic too.** A new body tube and both ends of a new transition arrive with **Auto** ticked, and a nose cone's base has the same checkbox. An automatic diameter follows the part next to it along the airframe, through other automatic tubes and across stages, so a tube added between two others matches them. With nothing to follow, it is 50 mm, as in desktop OpenRocket. A tube fin set's tube diameter can also be **Auto**, which sizes the tubes to touch each other around the body.
 
-Everything else may legitimately be zero, which is why it is not marked. A **tip chord** of 0 is a delta fin; **sweep** or **cant** of 0 is a straight one; a **shoulder** or **fin tab** of 0 is simply absent; **motor overhang** 0 is flush; a centering ring's **inner diameter** of 0 is a solid disc; a mass component's **length** of 0 is a point mass; and every **delay** and **angle offset** starts at 0. A stage has no required fields at all — its settings are triggers and delays.
+Everything else may legitimately be zero, which is why it is not marked. A **tip chord** of 0 is a delta fin; **sweep** or **cant** of 0 is a straight one; a **shoulder** or **fin tab** of 0 is simply absent; **motor overhang** 0 is flush; a centering ring's **inner diameter** of 0 is a solid disc; a mass component's **length** of 0 is a point mass; and every **delay** and **angle offset** starts at 0. A stage has no required fields at all: its settings are triggers and delays.
 
 
 ## Fin fillets {#fin-fillets}
@@ -141,11 +141,11 @@ A rocket can have more than one stage. **＋ Stage** (in the row above the compo
 
 You can also add **pods** (podsets) and **parallel** (strap-on) boosters as assemblies. After a staged flight, the **[Flight charts](./views-and-analysis.md#flight-after-a-simulation)** plot each stage's own trajectory.
 
-> Staged flights **simulate** as independent branches — each spent booster flies, deploys, and lands on its own — and static mass / CG / stability match desktop OpenRocket. The flown trajectory is checked against unmodified upstream OpenRocket as well: identical event sequences on every branch, and apogee agreeing to 1e-5 relative.
+> Staged flights **simulate** as independent branches (each spent booster flies, deploys, and lands on its own) and static mass / CG / stability match desktop OpenRocket. The flown trajectory is checked against unmodified upstream OpenRocket as well: identical event sequences on every branch, and apogee agreeing to 1e-5 relative.
 
 ## Undo / redo
 
-Every edit is undoable. Use the **↶ / ↷** buttons in the top bar, or `Ctrl/⌘+Z` to undo and `Ctrl+Shift+Z` (or `Ctrl+Y`) to redo. One interaction is one step — a whole slider drag or a typed value undoes in a single press, not character by character.
+Every edit is undoable. Use the **↶ / ↷** buttons in the top bar, or `Ctrl/⌘+Z` to undo and `Ctrl+Shift+Z` (or `Ctrl+Y`) to redo. One interaction is one step: a whole slider drag or a typed value undoes in a single press, not character by character.
 
 Undo/redo covers the **whole workspace** on one timeline: adding, removing, moving, and editing components, **and** simulation changes (motor, ignition, launch conditions, and adding/renaming/deleting simulations). It restores your selection too, so you land back on the part that changed. Opening a `.ork` or starting a new design clears the history (a fresh document has nothing to undo across). Undo restores your *inputs*; flight results stay readable and show as **Outdated** until you run them again.
 
@@ -162,7 +162,7 @@ For the entire rocket, a live summary shows the before → after length and diam
 
 It multiplies every length, diameter, wall thickness, fin planform (freeform points included), shoulder, tab, fillet, chute and streamer size, and cord length, and with offsets on, every position. It deliberately does **not** scale angles, fin/instance counts, material densities, drag coefficients, finish, motor choice, or launch settings; fixed-size hardware (rail buttons) keeps its size and just moves to its new station. A launch lug scales like any other tube, bore included, as on the desktop.
 
-Solid parts keep their material, so their mass grows as the **cube** of the factor. Recovery fabric doesn't — a canopy scales with its area — so a scaled design is no longer exactly similar and its stability shifts slightly; re-check the parachute size and that the motor still fits its mount. The whole scale lands as a **single undo step** (`Ctrl/⌘+Z`).
+Solid parts keep their material, so their mass grows as the **cube** of the factor. Recovery fabric doesn't (a canopy scales with its area) so a scaled design is no longer exactly similar and its stability shifts slightly; re-check the parachute size and that the motor still fits its mount. The whole scale lands as a **single undo step** (`Ctrl/⌘+Z`).
 
 ## Selecting parts from a catalog
 
@@ -209,10 +209,10 @@ A part can still read **Not specified** if it came from a design saved before th
 
 A part picked from the catalog carries its maker's material, such as "Balsa, bulk, BMS typical", at the maker's density. Most of those names are not in the list below, so the picker shows the part's own material under **From this part**, with its density, and that is what the part is weighed with. When the catalog also states the part's mass, as it does for many nose cones and transitions, the density is the one that spreads that mass over the part, so the part weighs what its maker says, as it does in desktop OpenRocket. A parachute with a stated mass takes it as its mass override instead.
 
-- **Built-in materials** — OpenRocket's full list (bulk / surface / line, with densities). Each kind has its own [density unit](./settings.md#units) — bulk stock by volume, parachute fabric by area, cord by length — and a custom material's density is read in whichever unit is shown.
-- **Custom materials** — define your own (name, density and which group it belongs in); they're saved in your browser and reusable across designs. A custom material sits **in that group**, marked with a ★, rather than in a group of its own: it is usually a variant of something already in the list, and it reads better beside it. Give one the **same name as a built-in** and it replaces that entry at your density instead of appearing twice.
+- **Built-in materials**: OpenRocket's full list (bulk / surface / line, with densities). Each kind has its own [density unit](./settings.md#units) (bulk stock by volume, parachute fabric by area, cord by length) and a custom material's density is read in whichever unit is shown.
+- **Custom materials**: define your own (name, density and which group it belongs in); they're saved in your browser and reusable across designs. A custom material sits **in that group**, marked with a ★, rather than in a group of its own: it is usually a variant of something already in the list, and it reads better beside it. Give one the **same name as a built-in** and it replaces that entry at your density instead of appearing twice.
 
-> Note: a material's **name and density** both survive a `.ork` round-trip, including for a material this app has and desktop OpenRocket does not. What does not travel is its membership of your own custom list — see the [FAQ](./faq.md).
+> Note: a material's **name and density** both survive a `.ork` round-trip, including for a material this app has and desktop OpenRocket does not. What does not travel is its membership of your own custom list: see the [FAQ](./faq.md).
 
 The material list is **OpenRocket's own**: all 32 bulk, 8 surface and 42 line materials, with the same names, densities and groups. The app adds the two things below.
 

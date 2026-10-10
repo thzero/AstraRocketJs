@@ -2,7 +2,7 @@
 title: "Offline use & installing"
 sidebar_position: 7
 ---
-AstraRocketJs works with **no internet connection** once you've opened it, and can be **installed** so it sits alongside your other apps. Nothing is required to set this up — the first visit does it — but here's what to expect.
+AstraRocketJs works with **no internet connection** once you've opened it, and can be **installed** so it sits alongside your other apps. Nothing is required to set this up (the first visit does it) but here's what to expect.
 
 ## Why it can work offline
 
@@ -20,13 +20,13 @@ On your first visit the browser quietly stores, in the background:
 
 About 16 MB in total. You don't need to do anything to trigger it: just let the first load finish.
 
-The motor catalog carries each motor's **thrust curve** with it, so simulating offline works for motors you've never opened before — 1,063 of the 1,156 motors. The remaining 93 have no published curve to bundle; the picker marks them, and they need a connection to fetch one from thrustcurve.org (cached once you do).
+The motor catalog carries each motor's **thrust curve** with it, so simulating offline works for motors you've never opened before: 1,063 of the 1,156 motors. The remaining 93 have no published curve to bundle; the picker marks them, and they need a connection to fetch one from thrustcurve.org (cached once you do).
 
-**Map imagery is the exception.** It is fetched as you look at it rather than downloaded up front, and the tiles you have viewed are kept — so a field you checked at home still draws at the launch with no signal. Ground you have never viewed cannot be drawn offline: the launch-site map falls back to a coordinate grid, and the ground track and 3D path to their plain plots, which carry the measurements anyway.
+**Map imagery is the exception.** It is fetched as you look at it rather than downloaded up front, and the tiles you have viewed are kept: so a field you checked at home still draws at the launch with no signal. Ground you have never viewed cannot be drawn offline: the launch-site map falls back to a coordinate grid, and the ground track and 3D path to their plain plots, which carry the measurements anyway.
 
 **Weather needs a connection.** [Weather from Open-Meteo](./running-a-simulation.md#weather) is fetched when you ask for it and is not stored offline. What you applied stays in the simulation.
 
-**Your designs were always local.** Your library of saved rockets, custom motors and materials, and your settings live in your browser's storage on your device — that hasn't changed and never depended on a connection.
+**Your designs were always local.** Your library of saved rockets, custom motors and materials, and your settings live in your browser's storage on your device: that hasn't changed and never depended on a connection.
 
 ## Installing it
 
@@ -39,7 +39,7 @@ Your browser will offer to install the app. Where to find it:
 | **Desktop (Chrome / Edge)** | The install icon in the address bar, or Menu → *Install AstraRocketJs* |
 | **Desktop (Safari)** | File → *Add to Dock* |
 
-Installing gives it its own icon and its own window, without browser tabs and address bar. It's the same app either way — installing doesn't unlock anything, and offline works whether or not you install.
+Installing gives it its own icon and its own window, without browser tabs and address bar. It's the same app either way: installing doesn't unlock anything, and offline works whether or not you install.
 
 > **Firefox** doesn't offer installation on the desktop. Offline still works there; you just open it as a normal tab or bookmark.
 
@@ -59,6 +59,6 @@ While you are offline, the buttons that need a connection are grayed out and say
 
 ## Clearing it
 
-Clearing your browser's site data for AstraRocketJs removes the offline copy — and, importantly, **also removes your saved designs, custom motors, and materials**, since those live in the same browser storage. Export anything you want to keep as `.ork` first — into a synced folder (iCloud Drive, OneDrive, Google Drive, Dropbox) it doubles as a backup you can reopen anywhere (see **[Files & Exports](./files-and-exports.md)**).
+Clearing your browser's site data for AstraRocketJs removes the offline copy: and, importantly, **also removes your saved designs, custom motors, and materials**, since those live in the same browser storage. Export anything you want to keep as `.ork` first: into a synced folder (iCloud Drive, OneDrive, Google Drive, Dropbox) it doubles as a backup you can reopen anywhere (see **[Files & Exports](./files-and-exports.md)**).
 
 If you installed the app, uninstall it the way you'd remove any other app on your device.

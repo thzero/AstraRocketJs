@@ -5,14 +5,14 @@ slug: /
 ---
 ## What is AstraRocketJs?
 
-**AstraRocketJs** is a browser-based app for designing model rockets and simulating their flights. It's a lightweight, mobile-friendly interface built on top of the **real OpenRocket physics engine** — the same trusted simulation core used by the OpenRocket desktop program, compiled to run directly in your web browser.
+**AstraRocketJs** is a browser-based app for designing model rockets and simulating their flights. It's a lightweight, mobile-friendly interface built on top of the **real OpenRocket physics engine**: the same trusted simulation core used by the OpenRocket desktop program, compiled to run directly in your web browser.
 
 There are two things you do with it:
 
-- **Design** — build a rocket from components (nose cone, body tubes, fins, motor mount, recovery, …) and watch its **center of gravity, center of pressure, and stability** update live as you edit.
-- **Simulate** — pick a motor, set your launch conditions, and run a full flight simulation. See apogee, max velocity/acceleration, and the whole flight profile as charts and a 3D trajectory.
+- **Design**: build a rocket from components (nose cone, body tubes, fins, motor mount, recovery, …) and watch its **center of gravity, center of pressure, and stability** update live as you edit.
+- **Simulate**: pick a motor, set your launch conditions, and run a full flight simulation. See apogee, max velocity/acceleration, and the whole flight profile as charts and a 3D trajectory.
 
-Everything runs **on your device**. There's no server, no account, and nothing is uploaded — your `.ork` designs are files on your own disk.
+Everything runs **on your device**. There's no server, no account, and nothing is uploaded: your `.ork` designs are files on your own disk.
 
 ## How it relates to OpenRocket
 
@@ -20,16 +20,16 @@ AstraRocketJs is **not** a re-creation of OpenRocket's desktop app. It's a strea
 
 - The aerodynamics (Extended Barrowman), mass/CG, and flight integration (RK4) are OpenRocket's own code, compiled to WebAssembly (with a JavaScript fallback).
 - It opens and saves standard **`.ork`** files, so designs move both ways between AstraRocketJs and desktop OpenRocket.
-- It deliberately covers **the essentials** — live stability, 2D/3D views, motors, materials, parts, and flight simulation — rather than every desktop feature.
+- It deliberately covers **the essentials**: live stability, 2D/3D views, motors, materials, parts, and flight simulation: rather than every desktop feature.
 
 For the underlying physics models, the [OpenRocket documentation](https://openrocket.readthedocs.io) is the reference. AstraRocketJs is an independent project and is not affiliated with OpenRocket.
 
 ## How this wiki is organized
 
-- **Introduction** — this page, [Features](./features.md), and the [FAQ](./faq.md).
-- **Getting Started** — [open the app and make your first rocket](./getting-started.md), and the [Settings](./settings.md).
-- **User Guide** — designing, motors, the views, simulating, files/exports, and [Safety](./safety.md).
-- **Appendix** — dated feature maps against [OpenRocket](./comparison-openrocket.md), [ZenRockets](./comparison-zenrockets.md) and [mmrocket-sim](./comparison-mmrocket-sim.md), including what each of them does that this does not.
+- **Introduction**: this page, [Features](./features.md), and the [FAQ](./faq.md).
+- **Getting Started**: [open the app and make your first rocket](./getting-started.md), and the [Settings](./settings.md).
+- **User Guide**: designing, motors, the views, simulating, files/exports, and [Safety](./safety.md).
+- **Appendix**: dated feature maps against [OpenRocket](./comparison-openrocket.md), [ZenRockets](./comparison-zenrockets.md) and [mmrocket-sim](./comparison-mmrocket-sim.md), including what each of them does that this does not.
 
 :::warning Before you fly
 
