@@ -11,6 +11,7 @@ import type { WorkerRequest, WorkerResponse } from '../../src/engine/simProtocol
 const engine = vi.hoisted(() => ({
   initEngine: vi.fn(),
   resetEngine: vi.fn(),
+  setKernelLengthUnit: vi.fn(),
 }));
 vi.mock('../../src/engine/openRocketEngine', () => engine);
 vi.mock('../../src/services/design/buildRocket', () => ({
@@ -41,8 +42,9 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-const send = (req: Omit<WorkerRequest, 'engine'> & { engine?: WorkerRequest['engine'] }) =>
-  g.onmessage!({ data: { engine: 'auto', ...req } as WorkerRequest });
+const send = (
+  req: Omit<WorkerRequest, 'engine' | 'lengthUnit'> & { engine?: WorkerRequest['engine']; lengthUnit?: string },
+) => g.onmessage!({ data: { engine: 'auto', lengthUnit: 'cm', ...req } as WorkerRequest });
 
 describe('simWorker', () => {
   it("answers ping once the engine is up, passing the main thread's backend preference through", async () => {

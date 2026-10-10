@@ -15,7 +15,7 @@
  * timeout can terminate exactly the worker that hung, rejecting one call rather
  * than every call in flight (see {@link killWorker}).
  */
-import { backendPref } from './openRocketEngine';
+import { backendPref, kernelLengthUnit } from './openRocketEngine';
 import type { SimPayload, WorkerCall, WorkerMethod, WorkerRequest, WorkerResponse, WorkerResults } from './simProtocol';
 
 /** Hard ceiling for a single worker call. A flight sim is normally well under a
@@ -223,7 +223,12 @@ function dispatch(slot: Slot, task: Queued): void {
   // The backend preference rides on every request (a worker cannot read the
   // page's `?engine=` or localStorage); the worker's first request starts its
   // engine with it.
-  slot.worker.postMessage({ id, engine: backendPref(), ...task.call } satisfies WorkerRequest);
+  slot.worker.postMessage({
+    id,
+    engine: backendPref(),
+    lengthUnit: kernelLengthUnit(),
+    ...task.call,
+  } satisfies WorkerRequest);
 }
 
 /**

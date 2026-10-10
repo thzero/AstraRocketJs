@@ -371,14 +371,20 @@ export function initEngine(onStatus?: (s: EngineLoadStatus) => void, pref?: Back
     initPromise = (async () => {
       const wasm = (pref ?? backendPref()) === 'js' ? null : await tryLoadWasm(onStatus);
       if (wasm) {
-        if (mine === initAttempt) active = wasm;
+        if (mine === initAttempt) {
+          active = wasm;
+          active.setLengthUnit(lengthUnit);
+        }
         return 'wasm';
       }
       // The JS build is a dynamic import, so the bundler owns the fetch and there
       // are no byte counts to report; just name the step.
       onStatus?.({ phase: 'downloading', loaded: 0, total: null });
       const js = await loadJsEngine();
-      if (mine === initAttempt) active = js;
+      if (mine === initAttempt) {
+        active = js;
+        active.setLengthUnit(lengthUnit);
+      }
       onStatus?.({ phase: 'starting' });
       return 'js';
     })();
@@ -1385,6 +1391,26 @@ export function sanitizeSeries(series: FlightSeries): FlightSeries {
     }
   }
   return series;
+}
+
+/** The kernel's display length unit; centimeters until the app says otherwise. */
+let lengthUnit = 'cm';
+
+/**
+ * Set the length unit the kernel formats in, which decides when it warns about
+ * an airframe diameter step, gap or overlap: it compares the two values as text
+ * in this unit, as desktop does in its user's unit (`setLengthUnit` on the
+ * bridge). Kept here and applied to an engine as it loads, so the setting holds
+ * whichever engine is running. Formatting only: no computed number reads it.
+ */
+export function setKernelLengthUnit(symbol: string): void {
+  lengthUnit = symbol;
+  active?.setLengthUnit(symbol);
+}
+
+/** The length unit the kernel formats in, carried to the sim workers. */
+export function kernelLengthUnit(): string {
+  return lengthUnit;
 }
 
 /**

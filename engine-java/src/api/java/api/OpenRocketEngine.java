@@ -1031,6 +1031,27 @@ public final class OpenRocketEngine {
     }
 
     /**
+     * The length unit the user works in ("mm", "cm", "m", "in" or "ft").
+     *
+     * The kernel decides an airframe diameter step, gap or overlap by comparing
+     * the two values as display strings in this unit
+     * (BarrowmanStabilityCalculator's DIAMETER_DISCONTINUITY, AIRFRAME_GAP and
+     * AIRFRAME_OVERLAP checks), as desktop does in the unit its user has chosen.
+     * Left at the kernel's default, centimeters, an inch user is warned only at a
+     * step several times larger than desktop in inches warns at
+     * (openrocket/openrocket#3285). Only string formatting reads this; no number
+     * the kernel computes depends on it. An unknown symbol keeps the unit.
+     */
+    @JSExport
+    public static void setLengthUnit(String symbol) {
+        try {
+            info.openrocket.core.unit.UnitGroup.UNITS_LENGTH.setDefaultUnit(symbol);
+        } catch (IllegalArgumentException e) {
+            // Keep the current unit.
+        }
+    }
+
+    /**
      * The pressure of OpenRocket's standard atmosphere at an altitude, in Pa.
      *
      * For the launch panel's check on a typed pressure: weather sources quote

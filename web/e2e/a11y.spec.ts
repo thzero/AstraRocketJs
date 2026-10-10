@@ -58,21 +58,35 @@ async function scanScreen(page: Page, tab: Screen, views: readonly string[]): Pr
  * cannot see: it depends on the theme's tokens and the surface under the text,
  * so each theme is its own scan. The theme attribute is set directly; the
  * setting that normally sets it is covered in daylight-toggle.spec.ts.
+ *
+ * One test per theme and screen, so the scans spread across the workers. An
+ * axe pass over a screen with a live WebGL canvas takes several seconds on a
+ * CI runner software-rendering it, and a tab with a view switch is up to four
+ * passes, after the engine boot and a flight run.
  */
 for (const theme of ['dark', 'light', 'daylight'] as const) {
-  test(`axe finds nothing on the main screens in the ${theme} theme`, async ({ page }) => {
-    await ready(page);
-    await runFlight(page);
-    await page.evaluate((t) => document.documentElement.setAttribute('data-theme', t), theme);
+  test.describe(`axe in the ${theme} theme`, () => {
+    test.beforeEach(async ({ page }) => {
+      test.setTimeout(120_000);
+      await ready(page);
+      await runFlight(page);
+      await page.evaluate((t) => document.documentElement.setAttribute('data-theme', t), theme);
+    });
 
-    const found: string[] = [];
-    for (const [tab, views] of SCREENS) found.push(...(await scanScreen(page, tab, views)));
-    await page.getByRole('button', { name: 'Menu' }).click();
-    await page.getByRole('menuitem', { name: /Settings/i }).click();
-    await expect(page.getByRole('dialog')).toBeVisible();
-    found.push(...(await axeViolations(page, 'Settings')));
+    for (const [tab, views] of SCREENS) {
+      test(`finds nothing on ${tab}`, async ({ page }) => {
+        const found = await scanScreen(page, tab, views);
+        expect(found, found.join('\n')).toEqual([]);
+      });
+    }
 
-    expect(found, found.join('\n')).toEqual([]);
+    test('finds nothing on Settings', async ({ page }) => {
+      await page.getByRole('button', { name: 'Menu' }).click();
+      await page.getByRole('menuitem', { name: /Settings/i }).click();
+      await expect(page.getByRole('dialog')).toBeVisible();
+      const found = await axeViolations(page, 'Settings');
+      expect(found, found.join('\n')).toEqual([]);
+    });
   });
 }
 
