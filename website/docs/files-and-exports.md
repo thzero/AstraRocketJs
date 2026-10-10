@@ -6,7 +6,7 @@ sidebar_position: 13
 
 AstraRocketJs reads and writes standard **OpenRocket `.ork`** files, so designs move both ways between it and desktop OpenRocket.
 
-- **Import** (menu → Import → OpenRocket) loads an existing `.ork` at full fidelity: stages, transitions, couplers, rings, bulkheads, and more, not just the simple editor layout. A banner notes anything that couldn't be fully resolved (e.g. an unknown motor). The imported rocket becomes its own entry in your saved designs. If one of your saved rockets already has that name (which is what happens when you tweak a design in OpenRocket and import it again), the app asks whether to **overwrite** it or **keep both**, and offers a free name for the new one.
+- **Import** (menu → Import → OpenRocket) loads an existing `.ork` at full fidelity: stages, transitions, couplers, rings, bulkheads, and more, not just the simple editor layout. A banner notes anything that couldn't be fully resolved (e.g. an unknown motor). A file whose format version is outside 1.0 to 1.11 gets desktop's own note, "Unsupported document version …, attempting to read file anyway.", and is read anyway. Desktop simulation extensions (air-start, roll control, scripting), plot settings and landing-dispersion settings are not run here, but they are kept, so a save writes them back. The imported rocket becomes its own entry in your saved designs. If one of your saved rockets already has that name (which is what happens when you tweak a design in OpenRocket and import it again), the app asks whether to **overwrite** it or **keep both**, and offers a free name for the new one.
 - **Examples** (menu → Import → Examples) opens one of the [example rockets](./getting-started.md#example-rockets) that ship with the app. It is an import like any other, so what you get is your own unsaved copy, including the question above if you have opened that example before.
 - **Export** (menu → Export → OpenRocket) writes the current design back to a `.ork` file on your device.
 
@@ -18,13 +18,12 @@ A round-trip through export and import is verified to preserve the physics (mass
 
 RockSim designs open and save too, from **menu → Import → RockSim** and **menu → Export → RockSim**. The reader also works off the file's contents rather than its name, so a `.rkt` picked in the OpenRocket dialog still opens.
 
-What comes across: nose cones, body tubes and transitions; inner tubes and motor mounts; centering rings, bulkheads, engine blocks and couplers; trapezoidal, elliptical and freeform fin sets with their cant, rotation and through-the-wall tabs; tube fins; launch lugs; parachutes and streamers; mass objects and shock cords; external pods; and up to three stages. Dimensions, materials, finishes, placement and measured mass/CG come with them.
+What comes across: nose cones, body tubes and transitions; inner tubes and motor mounts; centering rings, bulkheads, engine blocks and couplers; trapezoidal, elliptical and freeform fin sets with their cant, rotation and through-the-wall tabs; tube fins; launch lugs; parachutes and streamers; mass objects and shock cords; external pods (a detachable pod comes in as a parallel stage, which flies its own branch); and up to three stages. Dimensions, materials, finishes, placement and measured mass/CG come with them.
 
 What does not:
 
 - **Motors and launch conditions.** RockSim keeps those with its *simulations*, which are a separate object from the design, so an imported rocket arrives with no motor loaded and an exported one leaves without yours. Pick a motor after importing.
 - **Ring tails**, which have no equivalent here.
-- **Detachable pods**, which import as fixed: the design still flies, with the pod attached the whole way.
 - **Subassemblies**, whose contents are merged into the design rather than kept as a group.
 
 Going the other way, RockSim has no element for **rail buttons** or **parallel (strap-on) stages**. Those are left out of the file, and the app tells you which parts were dropped rather than letting you find out when somebody else opens it.
@@ -54,7 +53,7 @@ The app keeps a library of your rockets in the browser, so you can work on sever
 
 ## Exporting to RASAero II (`.CDX1`)
 
-**Menu → Export → RASAero II (.CDX1)** writes the design as a RASAero II `.CDX1` file, so you can open it in **[RASAero II](https://www.rasaero.com/)** for its own aerodynamic and flight analysis.
+**Menu → Export → RASAero II** writes the design as a RASAero II `.CDX1` file, so you can open it in **[RASAero II](https://www.rasaero.com/)** for its own aerodynamic and flight analysis.
 
 RASAero models only the **external aerodynamic shape**, so the export carries the airframe (nose cone, body tubes, transitions / boat tails, fins, and launch lugs) plus the loaded **weight and CG** (written into RASAero's simulation block). Internal parts with no aerodynamic effect (centering rings, bulkheads, shock cords, engine blocks) are dropped; parachutes become RASAero recovery entries. Dimensions are converted to RASAero's units (inches, pounds, feet, °F).
 
@@ -91,7 +90,7 @@ Notes on the 3D geometry:
 
 ## Rocket design report (PDF / CSV)
 
-**Menu → Rocket Design Report** opens a **Print or export** dialog to produce a full design report, with the same content as OpenRocket's printout.
+**Menu → Rocket Design Report** opens the **Design Report** dialog to produce a full design report, with the same content as OpenRocket's printout.
 
 Tick the elements to include:
 

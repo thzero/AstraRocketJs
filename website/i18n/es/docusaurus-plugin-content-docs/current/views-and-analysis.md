@@ -2,7 +2,7 @@
 title: "Vistas y análisis"
 sidebar_position: 11
 ---
-La barra de herramientas del panel central cambia entre vistas. **2D**, **3D** y **Aero** están siempre disponibles; **Vuelo** y **Trayectoria 3D** aparecen en cuanto ejecutas una simulación.
+La barra de herramientas del panel central cambia entre vistas, y cada pestaña tiene las suyas. La pestaña **Diseño** tiene **2D**, **3D** y **Aero**. La pestaña **Resultados**, que aparece en cuanto una simulación ha producido un resultado, tiene **Vuelo**, **Ruta 3D**, **Traza en tierra** y **Entorno**.
 
 En un teléfono las vistas de diseño viven en la pestaña **Croquis** y las de vuelo en **Resultados**, que aparece en cuanto una ejecución ha producido uno; elegir cualquiera desde la barra de herramientas te lleva a su pestaña. La barra gira junto con el dibujo, de modo que siempre queda en el lado largo de la pantalla. Consulta [Primeros pasos](./getting-started.md#the-layout).
 
@@ -12,8 +12,8 @@ Una vista lateral a escala del cohete con los marcadores de **CG** (▲) y **CP*
 
 - **Calibres** — herramientas de medición que se arrastran. El calibre horizontal mide la distancia entre dos líneas verticales (longitudes); el vertical mide en transversal (diámetros y envergaduras). Las líneas se **ajustan** a los bordes de los componentes.
 - **Reglas** — un marco de medición alrededor del dibujo, con un **interruptor por lado** (arriba / abajo / izquierda / derecha) junto a los botones de CG/CP e Información.
-- **Zoom y desplazamiento** — los botones +/− o la rueda para acercar, arrastrar para desplazar.
-- **Giro** — el deslizador lateral gira el cohete sobre su eje longitudinal, para ver los juegos de aletas de canto o de frente.
+- **Zoom y desplazamiento**: los botones +/− o la rueda para acercar. Con el dibujo ampliado, arrastra para desplazarte.
+- **Giro**: con el encuadre ajustado, arrastrar el dibujo hacia los lados gira el cohete sobre su eje longitudinal, para ver los juegos de aletas de canto o de frente. El deslizador del borde izquierdo hace lo mismo con cualquier zoom.
 - **Lateral / Posterior** — cambia entre el perfil lateral y una vista posterior (de frente); **Restablecer** recupera el encuadre por defecto.
 
 ## Interruptores de vista (2D y 3D) {#view-toggles-2d-and-3d}
@@ -26,6 +26,11 @@ Dos botones de la barra controlan lo que se superpone en las vistas **2D** y **3
 ## Modelo 3D {#3d-model}
 
 Un modelo 3D interactivo del cohete: órbita a su alrededor para inspeccionar la geometría desde cualquier ángulo.
+
+- **⟲ Restablecer** reajusta la vista actual.
+- **Lateral** y **Trasera** llevan la cámara al perfil lateral o detrás del cohete, donde los clústeres y el número de aletas se ven como están realmente.
+- **Sección** abre el fuselaje por el eje central para mostrar las piezas internas.
+- **📷 Imagen** guarda la vista actual como PNG o JPG con el ancho que elijas, con los datos del diseño. Gira antes el modelo hasta el ángulo que quieras.
 
 ## Aerodinámica (Aero) {#aerodynamics-aero}
 
@@ -60,7 +65,7 @@ Puedes exportar estos datos como **CSV** (consulta [Archivos y exportaciones](./
 
 Un panel de **gráficas de vuelo** a lo largo del tiempo: altitud, velocidad, aceleración, Mach, empuje, resistencia, masa, estabilidad, CP, CG y ángulo de ataque, además de la **presión dinámica**, **q·α** (la presión dinámica por el ángulo de ataque, que es lo que sigue la carga lateral sobre aletas y acopladores) y la **velocidad de alabeo**. Los eventos del vuelo (fin de combustión, apogeo, apertura, aterrizaje) están marcados, lo que responde *cuándo*; la tabla **[Eventos de vuelo](./running-a-simulation.md#flight-events)** del panel de Resultados lee esos mismos eventos como una lista, cada uno con el estado del cohete en ese instante. Elige qué magnitudes se muestran desde la barra de fichas, pasa el cursor para obtener una retícula sincronizada y la lectura de valores en todas las gráficas, y amplía o desplaza el eje temporal (los botones +/−, arrastrando, o con Ctrl / pellizco). **Las magnitudes que elijas se recuerdan**: abre empuje y masa una vez y seguirán abiertas la próxima vez, en este diseño y en cualquier otro. **Velocidad frente a altitud** traza el ascenso y el descenso frente a la altitud en lugar del tiempo; no se amplía con el eje temporal, y el instante de la retícula aparece como un punto sobre la curva. El **⤢** de la esquina de una gráfica la muestra sola a toda la altura del panel, y **⤡** devuelve las demás.
 
-**Elegir qué vuelo** — si ejecutas una sola simulación, el título del panel es simplemente su nombre. Si ejecutas varias a la vez, el título se convierte en un **selector** con esas mismas: púlsalo y elige el vuelo que quieres leer. Uno cada vez, y la elección gobierna las tres vistas de resultados — las gráficas, la traza en tierra y la trayectoria 3D —, así que al cambiar ves el mismo vuelo lo mires como lo mires.
+**Elegir qué vuelo**: si ejecutas una sola simulación, el título del panel es simplemente su nombre. Si ejecutas varias a la vez, el título se convierte en un **selector** con esas mismas: púlsalo y elige el vuelo que quieres leer. Uno cada vez, y la elección gobierna las cuatro vistas de resultados (las gráficas, la [traza en tierra](#ground-track-after-a-simulation), la trayectoria 3D y el [entorno](#environment-after-a-simulation)), así que al cambiar ves el mismo vuelo lo mires como lo mires.
 
 No son las casillas de la pestaña Simulaciones a propósito: esas dicen qué debe volar **Ejecutar**, que es una pregunta distinta de qué estás leyendo.
 
@@ -124,6 +129,8 @@ Un botón **⬇ Exportar** guarda la trayectoria para herramientas cartográfica
 
 La trayectoria 3D reproduce el vuelo en lugar de solo dibujarlo. **▶ Reproducir vuelo** inicia una cuenta atrás (5, 4, 3, 2, 1) y despega; volver a pulsar durante la cuenta atrás la cancela, y durante el vuelo lo pausa. Arrastra la **línea de tiempo** para ir a cualquier instante y elige una **velocidad** de 0,25× a 4×. La velocidad se refiere al tiempo real, no al simulado, así que el impulso no termina antes de que lo veas.
 
+Junto al botón de reproducir, **⟲** (**Reiniciar al lanzamiento**) detiene la reproducción y vuelve al despegue, **⟳** (**Repetir reproducción**) vuelve a empezar el vuelo cada vez que termina, y **⊙ Seguir** mantiene la cámara sobre el cohete mientras vuela.
+
 La velocidad con la que arranca una reproducción viene de **[Ajustes ▸ Reproducción](./settings.md#playback)**.
 
 ## Entorno (tras una simulación) {#environment-after-a-simulation}
@@ -141,6 +148,8 @@ Las gráficas cubren solo las alturas que alcanzó el vuelo. Los valores usan tu
 Debajo de las gráficas, **Aterrizaje** da dónde bajó cada etapa: su latitud y longitud, y su distancia y rumbo desde la plataforma.
 
 Cuando las condiciones de lanzamiento vienen de un [pronóstico de Open-Meteo](./running-a-simulation.md#weather), **Volar las horas alrededor de este pronóstico** vuela este diseño de nuevo bajo el pronóstico de cada hora, desde dos antes hasta dos después. Todos estos vuelos usan la misma semilla aleatoria, así que solo cambia el tiempo entre ellos. Usan el pronóstico tal como está ahora, que puede haber cambiado desde que se aplicó. Después, un mapa muestra la trayectoria del vuelo desde arriba, un punto donde aterrizó el vuelo de cada hora y la elipse 2σ alrededor de ellos, y una tabla da el aterrizaje de cada hora.
+
+Una hora cuyo viento o ángulo de lanzamiento supera el límite de seguridad no se vuela, igual que una ejecución, y su fila indica cuál. Cuando el resultado de la simulación está desactualizado, el botón se desactiva hasta que vuelvas a ejecutar la simulación, para que las horas se vuelen con el cohete y el sitio actuales.
 
 Sin un pronóstico, la sección explica cómo obtenerlo. Para un cohete no diseñado aquí, el [estimador de aterrizaje](./tools.md#landing-estimator) de la pestaña Herramientas da una estimación a partir de velocidades de descenso escritas.
 

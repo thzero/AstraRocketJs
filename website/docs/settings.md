@@ -13,14 +13,15 @@ Every quantity has its own unit, set on the **Units** tab. **Metric defaults** a
 | Component dimensions | lengths, diameters, thicknesses, CG / CP, the 2D rulers | cm | in |
 | Motor dimensions | a motor's own diameter and length | mm | in |
 | Altitude / distance | apogee, downrange, deployment altitudes, launch-site altitude | m | ft |
+| Area | a streamer's strip area | cm² | in² |
 | Mass | component and rocket masses | g | oz |
 | Velocity | rail exit, max speed, deployment and landing speeds | m/s | ft/s |
 | Wind speed | launch-condition wind and gusts | m/s | mph |
 | Acceleration | max acceleration | m/s² | ft/s² |
 | Angle | fin and launch-rod angles, wind direction | ° | ° |
 | Density (bulk) | solid materials, by volume | g/cm³ | oz/in³ |
-| Density (fabric) | parachute and streamer material, by area | kg/m² | oz/yd² |
-| Density (cord) | shock cord and shroud lines, by length | kg/m | oz/ft |
+| Density (fabric) | parachute and streamer material, by area | g/m² | oz/ft² |
+| Density (cord) | shock cord and shroud lines, by length | g/m | oz/ft |
 | Temperature | launch-site air temperature | °C | °F |
 | Pressure | launch-site air pressure | hPa | psi |
 | Thrust / force | motor thrust | N | lbf |
@@ -73,6 +74,14 @@ Units are a **display and entry** preference. Your design is always stored in SI
 - Unitless figures don't move either: stability in calibers or % of length, drag coefficients, Mach, CNα, times in seconds.
 - Motor mount and filter diameters stay in mm, since 18 mm / 24 mm / 29 mm are effectively motor **names**.
 
+## Colors
+
+The **Colors** tab holds three settings:
+
+- **Part colors (3D model)**: the color each kind of part is drawn in on the 3D model. Each row has its own reset.
+- **Flight-path phase colors**: the colors of the **Boost**, **Coast** and **Descent** segments of the 3D flight path.
+- **Aero table shading**: see [above](#aero-table-shading).
+
 ## Materials {#materials}
 
 What a **newly added part** is made of. A row per material slot — the fourteen structural part types, plus a parachute's canopy and shroud lines, a streamer and a shock cord, because a part can carry more than one kind of material at once.
@@ -81,13 +90,16 @@ The choice is spent when you add the part: the material is written onto it there
 
 That is deliberately not how desktop OpenRocket's equivalent preference works. Desktop leaves the part unset and applies your preference when it computes mass, which means the same file weighs one thing on the machine that made it and another on the machine you sent it to. Here what you chose is in the file.
 
-Custom materials can be defaults too, and so can the adhesives. Leave a row on **Automatic** and that part type keeps getting the built-in density (cardboard for solid parts, ripstop nylon for canopies, elastic cord for lines).
+Custom materials can be defaults too, and so can the adhesives. The first option in each row's list sets no default for that slot, and the part type keeps getting the stock material named above.
+
+There is no row for fin fillets. A fillet you add starts as West System Six10, a thickened epoxy; a fillet in a file that names no material reads as Cardboard, as desktop OpenRocket reads it.
 
 ## Simulation defaults
 
 These seed each new simulation's run (you can still tune per-simulation launch conditions — see [Running a Simulation](./running-a-simulation.md)):
 
 - **Confirm deletion of simulations** — ask before removing a simulation. On by default, because a deleted simulation takes its results with it.
+- **Run outdated simulations automatically**: when the Results tab shows a simulation that has never run or whose result is outdated, run it. Off by default.
 
 - **Time step** — the integrator step size. Smaller is more accurate but slower.
 - **Max sim time** — a safety cap on simulated flight time, which ends a run that never lands.
@@ -97,11 +109,15 @@ These seed each new simulation's run (you can still tune per-simulation launch c
 
 Each simulation can override any of these. An override left **empty** is not missing — it means *follow the global*, and the field shows the global value as its placeholder. That is why run options never block a flight: there is always a default underneath. **Reset to default** clears a simulation's overrides; **Save as default** pushes what it is currently running into these globals.
 
+## Launch
+
+The **Launch** tab holds the launch conditions a new simulation starts from, in the same cards as a simulation's own launch panel (see [Running a Simulation](./running-a-simulation.md)). Changing them does not touch simulations that already exist; edit those in their own launch panel.
+
 ### Required launch conditions
 
-Six launch fields have no sensible default, so they cannot be left blank: **rod length**, **rod angle**, **wind speed**, **wind standard deviation**, **site altitude** and **latitude**. They are marked with a red **\*** wherever they appear, and behave exactly like a component's [required dimensions](./designing-a-rocket.md#required-dimensions) — clearing one writes nothing, and a simulation missing one is named and skipped rather than flown.
+Seven launch fields have no sensible default, so they cannot be left blank: **rod length**, **rod angle**, **wind speed**, **wind standard deviation**, **site altitude**, **latitude** and **longitude**. They are marked with a red **\*** wherever they appear, and behave exactly like a component's [required dimensions](./designing-a-rocket.md#required-dimensions): clearing one writes nothing, and a simulation missing one is named and skipped rather than flown.
 
-Note these six are *required*, not *non-zero*: still air, no gusts, sea level, the equator and a rod straight up are all real settings, and all of them are zero. Only rod length has to be positive in practice.
+Note these seven are *required*, not *non-zero*: still air, no gusts, sea level, the equator, the prime meridian and a rod straight up are all real settings, and all of them are zero. Only rod length has to be positive in practice.
 
 In this dialog the same fields can never end up blank at all — they seed every new simulation, so clearing one here simply keeps the value it had.
 
@@ -112,6 +128,13 @@ At the bottom of the Atmosphere card on the Launch tab is a field for an Open-Me
 ## Playback {#playback}
 
 - **Default speed** — the speed the 3D flight path starts playing at, from 0.25× to 4×. It is a starting point, not a lock: the speed control in the view changes the current playback without touching this.
+
+## Sketch
+
+Defaults for the 2D view. You can also toggle these on the view itself.
+
+- **Center of gravity / pressure**: show the CG and CP markers.
+- **Rulers**: one switch per side (top, bottom, left, right).
 
 ## Safety warnings
 
@@ -138,7 +161,7 @@ Everything above decides when a flight *warns*. This one changes what the flight
 
 - **Guide-aware launcher clearance**: off by default, which is OpenRocket's own behavior: the rocket stays on the launcher for its full length wherever its launch lugs or rail buttons sit. OpenRocket works out a guide-aware length and then never uses it, so a guide mounted above the rocket's aft end is credited with guided travel it does not have, and rail buttons are not considered at all.
 
-  Turn it on and the guided phase ends when the aft-most guide leaves the rod, lug or rail button alike. The rocket is released at that moment as well as reported there, so the flight itself changes, not just the number. Expect the rail-exit velocity to come out a little lower: a rail button usually sits 10 to 20 cm above the tail, which on a 1.8 m rail is roughly 8% less guided travel. A design with no guide at all is a tower launcher and flies identically either way.
+  Turn it on and the guided phase ends by a rule for each kind of guide. A launch lug guides until its aft end leaves the rod. A rail needs two rail buttons and guides only until the second-to-last button leaves it, so a single rail button gives no guided travel at all. The rocket is released at that moment as well as reported there, so the flight itself changes, not just the number. Expect the rocket to leave a little sooner and the exit velocity to come out a little lower. A design with no guide at all is a tower launcher and flies identically either way.
 
   It is a setting rather than a correction because the engine is checked against desktop OpenRocket flight for flight. Left off, a run matches OpenRocket exactly.
 
@@ -150,4 +173,4 @@ Everything above decides when a flight *warns*. This one changes what the flight
 
 ## Reset
 
-Two buttons sit at the bottom of the dialog: **Reset ‹tab›** puts back just the tab you are on (so **Reset Units** touches units and nothing else), and **Reset all** returns every setting on every tab to its default.
+Two buttons sit at the bottom of the dialog: **Reset ‹tab›** puts back just the tab you are on (so **Reset Units** touches units and nothing else), and **Reset all** returns every setting on every tab to its default. Reset all asks first, since it cannot be undone.

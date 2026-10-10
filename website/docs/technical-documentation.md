@@ -25,7 +25,7 @@ OpenRocket's **[Resources wiki page](https://github.com/openrocket/openrocket/wi
 
 ## What is specific to AstraRocketJs
 
-Two things are ours rather than OpenRocket's, and are documented here:
+One thing is ours rather than OpenRocket's, and is documented here:
 
 - **[Architecture & internals](https://github.com/thzero/AstraRocketJs/blob/HEAD/docs/ARCHITECTURE.md)** — which parts of the OpenRocket core were extracted, the TeaVM compilation to WebAssembly and JavaScript, and the handful of compatibility patches applied to the kernel.
 

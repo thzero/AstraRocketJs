@@ -118,7 +118,7 @@ check for more.
 
 ### 2. `src/api/` - the `@JSExport` facade
 
-`OpenRocketEngine.java` (2,064 lines), `ComponentFactory.java` (1,064),
+`OpenRocketEngine.java` (2,085 lines), `ComponentFactory.java` (1,064),
 `JsonLite.java` (352), `AtmosphereProfile.java` (130) and
 `GuideClearanceListener.java` (284). This is the entire trust boundary between
 the browser and the kernel, and the only code here that the app calls directly.

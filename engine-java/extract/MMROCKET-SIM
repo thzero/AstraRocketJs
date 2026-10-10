@@ -80,8 +80,33 @@
 # Applicable, and not done in this pass. This bridge builds the multi-level
 # model through upstream's unseeded overload, so a flight with turbulent wind
 # levels is not reproducible run to run; the single-level path here has been
-# seeded from `randomSeed` since it was written.
+# seeded from `randomSeed` since it was written. Since done: the bridge seeds
+# the multi-level model after its levels are in place (OpenRocketEngine.java,
+# where it builds `MultiLevelPinkNoiseWindModel`).
+#
+# 2026-09-30 to 2026-10-10: reviewed 76d8035 through e9d0c9b6 (v0.171,
+# 2026-10-09) in six windows, one per pull: c035db3, 67530a3, ed94414, 72fd5a7,
+# 37e46cd8, e9d0c9b6.
+#
+# TAKEN: guide-aware launch rod clearance, as an opt-in setting built on a
+# simulation listener (api/GuideClearanceListener.java), not a kernel patch, so
+# the patched-file count did not move. Their bridge's `setLengthUnit`, so the
+# kernel's airframe step warnings compare sizes in the user's length unit.
+#
+# NO ENGINE CHANGE NEEDED: the ed94414 and 72fd5a7 windows touched no
+# engine-java file. In 37e46cd8 (46 engine-java files) their ports of upstream
+# fixes were already in our pin, except OpenRocket PR #3382, which arrived with
+# the 2026-10-07 pin bump. Their consistent CP above 20 degrees angle of attack
+# is their own ruling, not upstream's, and is not taken.
+#
+# APP-SIDE, FOUND IN THEIR COMMITS AND FIXED HERE: a tube coupler's inner parts
+# in a `.rkt` export; recovery devices that open within 0.2 s counted as one
+# descent step; a deployment after landing ignored by the descent readout;
+# desktop's display names for simulation extensions.
+#
+# OPEN: their SEMROC BTC-20BB [R] mass correction (a971add0, the maker's
+# 0.82 oz against the database's 0.21 oz). Our catalog still carries 0.21 oz.
 repo    = https://github.com/mtnmanak/mmrocket-sim.git
-ref     = 76d8035871d80971d636b57b39101ad4388abd9d
-version = 0.142
-dated   = 2026-09-24
+ref     = e9d0c9b6628bdb526fbcb23b398be212842530da
+version = 0.171
+dated   = 2026-10-09

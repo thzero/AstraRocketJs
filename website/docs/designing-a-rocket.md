@@ -8,6 +8,8 @@ The **Components** panel (left on desktop) holds your rocket's component tree. A
 
 A rocket is a tree of components, nose-to-tail, grouped into stages. Select any part (in the tree **or** by clicking it in the 2D view) to edit its properties.
 
+To add a part, select the part it goes in and pick it from the **＋ Add** list in the row above the tree. The list is grouped as Body, Fins, Inner, Recovery, Other and Assembly, and offers only the parts the selected one can hold.
+
 Branches with children **fold** at their **▾ / ▸** chevrons (or fold/unfold everything from the header), and you can **collapse the whole component list** — its header keeps the selected part in view — to give the property editor more room on a tall design. Deleting a part (the **Delete** button in its properties) asks you to confirm first.
 
 ### Cut, copy, paste and duplicate
@@ -35,9 +37,9 @@ Each part exposes the dimensions and options the engine needs (lengths, radii, t
 
 ### Dual deployment
 
-A parachute or streamer carries a **Drogue (dual deployment)** tick. Tick it on the device that opens at apogee and the flight is flown as dual deployment: a small drogue first to bring the rocket down under control, then the main lower down.
+A stage's editor has a **Recovery deployment type**: **Single deployment** or **Dual deployment**. Choose **Dual deployment** and pick the parachute or streamer that opens at apogee as the **Drogue device**, and the stage is treated as dual deployment: a small drogue first to bring the rocket down under control, then the main lower down. A stage has at most one drogue.
 
-It is not only a label. The simulation judges a deployment differently depending on it, and warns on the main coming out too fast or too slow, and on a drogue too slow at apogee to inflate, against the thresholds in **[Settings ▸ Safety warnings](./settings.md#safety-warnings)**. Leave every device clear and the whole stage is single deployment, judged against the one threshold instead.
+It is not only a label. The simulation judges a deployment differently depending on it, and warns on the main coming out too fast or too slow, and on a drogue too slow at apogee to inflate, against the thresholds in **[Settings ▸ Safety warnings](./settings.md#safety-warnings)**. With **Single deployment** the whole stage is judged against the one threshold instead.
 
 ### What goes inside a mass component
 
@@ -92,7 +94,9 @@ If a required dimension is **zero**, the field escalates: the label is boxed in 
 | Mass component | mass |
 | Pod set / parallel stage | instance count |
 
-**Diameters that fill their parent are left blank.** A coupler, engine block, centering ring or bulkhead takes its outer diameter from whatever it sits in, and a centering ring takes its inner diameter from the motor mount running through it, so leaving those empty is a real answer rather than a gap — it is what `.ork` files call *auto*, and the value follows along when you resize the tube. In the editor it is the small checkbox beside the field, and a new coupler, engine block, centering ring or bulkhead arrives with it ticked, so the part is the right size for the airframe you dropped it into before you touch it. Untick it, or pick a part from the catalog, and the number you give is used instead. A centering ring with no motor mount beside it has an inner diameter of zero, which is a solid disc: that is what desktop OpenRocket gives too. An inner tube is the exception to all of it: it *is* the motor mount, so its size is the thing being stated.
+**Diameters that fill their parent are left blank.** A coupler, engine block, centering ring or bulkhead takes its outer diameter from whatever it sits in, and a centering ring takes its inner diameter from the motor mount running through it, so leaving those empty is a real answer rather than a gap: it is what `.ork` files call *auto*, and the value follows along when you resize the tube. In the editor it is the small checkbox beside the field, and a new coupler, engine block, centering ring or bulkhead arrives with it ticked, so the part is the right size for the airframe you dropped it into before you touch it. Untick it, or pick a part from the catalog, and the number you give is used instead. A centering ring with no motor tube running through it has an inner diameter of zero, which is a solid disc: that is what desktop OpenRocket gives too. An inner tube is the exception to all of it: it *is* the motor mount, so its size is the thing being stated.
+
+**Airframe diameters can be automatic too.** A new body tube and both ends of a new transition arrive with **Auto** ticked, and a nose cone's base has the same checkbox. An automatic diameter follows the part next to it along the airframe, through other automatic tubes and across stages, so a tube added between two others matches them. With nothing to follow, it is 50 mm, as in desktop OpenRocket. A tube fin set's tube diameter can also be **Auto**, which sizes the tubes to touch each other around the body.
 
 Everything else may legitimately be zero, which is why it is not marked. A **tip chord** of 0 is a delta fin; **sweep** or **cant** of 0 is a straight one; a **shoulder** or **fin tab** of 0 is simply absent; **motor overhang** 0 is flush; a centering ring's **inner diameter** of 0 is a solid disc; a mass component's **length** of 0 is a point mass; and every **delay** and **angle offset** starts at 0. A stage has no required fields at all — its settings are triggers and delays.
 
@@ -114,18 +118,26 @@ A **freeform** fin set is shaped point by point instead of from a trapezoid's di
 
 - **Drag an amber point** to move it.
 - **Tap a blue midpoint** on an edge to insert a point there.
-- **Select a point** to delete it, or to type its exact coordinates.
+- **Select a point** to delete it, or to type its exact coordinates. The first and last points, the two ends of the root, cannot be deleted.
 
 The axes are the fin's own: **X runs along the body**, from the front of the root to the back, and **Y is height above the body surface**. The root edge closes the outline along Y = 0, so you shape the leading edge, the tip and the trailing edge, not the root.
+
+Below the outline:
+
+- **Scale fin** takes a factor, and **Apply** scales the outline, the wall, the tab and the fillet together.
+- **Import from image** traces the outline from a picture. Use a solid dark shape on a light background, touching the bottom edge, which becomes the root. One pixel is one millimeter, so scale the fin afterward.
+- **Export CSV** downloads the points.
+
+A trapezoidal or elliptical fin set has a **Convert to freeform** button, which rebuilds it as a freeform outline with the same shape.
 
 The outline drives the real thing, not just the drawing: mass, CG and the aerodynamics all follow it, and [scaling the whole rocket](#scaling-the-whole-rocket) moves the points with everything else. It round-trips through `.ork` and RockSim files.
 
 ## Staging (multi-stage rockets)
 
-A rocket can have more than one stage. **+ Stage** (in the Components panel header) appends a **booster** below the current bottom stage; its parts (body, fins, motor mount, recovery) are built and edited exactly like the sustainer's. Select a **stage** node to set how it leaves the stack:
+A rocket can have more than one stage. **＋ Stage** (in the row above the component list) appends a **booster** below the current bottom stage; its parts (body, fins, motor mount, recovery) are built and edited exactly like the sustainer's. Select a **stage** node to set how it leaves the stack:
 
-- **Separation** — the event that releases the booster: at **ignition**, **burnout**, **ejection**, **apogee**, an **altitude** (ascending/descending), or **never**. A stage set to *never* stays attached and comes down with the stage above it. An optional **delay** or **altitude** refines the trigger.
-- **Upper-stage ignition** — an upper stage's motor lights on the booster's **burnout** or **ejection charge** (or **never**); set this on the motor card (see **[Motors](./motors.md)**).
+- **Stage separation**: the event that releases the booster: **Upper-stage ejection charge**, **Upper-stage burnout**, **Launch**, **Upper-stage ignition**, **Next-stage ignition**, **Apogee**, **Altitude (ascending)**, **Altitude (descending)** or **Never**. A stage set to **Never** stays attached and comes down with the stage above it. An optional **delay** or **altitude** refines the trigger.
+- **Ignition**: an upper stage's motor lights on **Ejection of stage below** or **Burnout of stage below** (or **Never**). This is set on the motor card on the Configurations tab (see **[Flight Configurations](./flight-configurations.md#motors)**).
 
 You can also add **pods** (podsets) and **parallel** (strap-on) boosters as assemblies. After a staged flight, the **[Flight charts](./views-and-analysis.md#flight-after-a-simulation)** plot each stage's own trajectory.
 
@@ -135,20 +147,20 @@ You can also add **pods** (podsets) and **parallel** (strap-on) boosters as asse
 
 Every edit is undoable. Use the **↶ / ↷** buttons in the top bar, or `Ctrl/⌘+Z` to undo and `Ctrl+Shift+Z` (or `Ctrl+Y`) to redo. One interaction is one step — a whole slider drag or a typed value undoes in a single press, not character by character.
 
-Undo/redo covers the **whole workspace** on one timeline: adding, removing, moving, and editing components, **and** simulation changes (motor, ignition, launch conditions, and adding/renaming/deleting simulations). It restores your selection too, so you land back on the part that changed. Opening a `.ork` or starting a new design clears the history (a fresh document has nothing to undo across). Undo restores your *inputs*; cached flight results are cleared, so re-run to see the flight.
+Undo/redo covers the **whole workspace** on one timeline: adding, removing, moving, and editing components, **and** simulation changes (motor, ignition, launch conditions, and adding/renaming/deleting simulations). It restores your selection too, so you land back on the part that changed. Opening a `.ork` or starting a new design clears the history (a fresh document has nothing to undo across). Undo restores your *inputs*; flight results stay readable and show as **Outdated** until you run them again.
 
 ## Scaling the whole rocket
 
-The **⤢ Scale** button (next to the rocket's name in the Components panel) resizes the design by one factor — the "build this plan at half size" or "upscale to a bigger tube" workflow. It is desktop OpenRocket's Scale dialog:
+The **⤢ Scale** button (in the row above the component list, beside **＋ Stage** and **＋ Add**) resizes the design by one factor: the "build this plan at half size" or "upscale to a bigger tube" workflow. It is desktop OpenRocket's Scale dialog:
 
 - **Scale**: the **Entire rocket**, the **Selection and all subcomponents**, or **Only selected component**. With a part other than a stage selected, it starts on that part and what is inside it.
-- **Scale by** a factor (with 0.5× / 2× shortcuts), or **Scale from** one length **to** another and the factor follows. "From" starts at the selected part's diameter (or its length, for a part with no diameter), or the widest body with nothing selected, so you can scale straight to the tube you're building in.
+- **Scale by** a factor (with 0.5× / 2× shortcuts), or **Scale from** one length **to** another and the factor follows. "From" starts at the selected part's diameter (the larger end, on a nose cone or transition), a fin set's root chord, a pod set's or booster's radial offset, or the length of any other part, or the widest body with nothing selected, so you can scale straight to the tube you're building in. The factor goes up to 100. If "From" starts at zero, the **to** box waits until you give **Scale from** a size.
 - **Update explicit mass values**: mass components and mass overrides scale too. Off when the design has neither.
 - **Scale component offsets**: positions scale too (axial and radial offsets, spacing between instances, override CGs). Off, parts keep their stations and only change size. It starts off for **Only selected component**, where the usual intent is a bigger part in the same place, and on otherwise.
 
 For the entire rocket, a live summary shows the before → after length and diameter.
 
-It multiplies every length, diameter, wall thickness, fin planform (freeform points included), shoulder, tab, fillet, chute and streamer size, and cord length, and with offsets on, every position. It deliberately does **not** scale angles, fin/instance counts, material densities, drag coefficients, finish, motor choice, or launch settings; fixed-size hardware (camera shrouds, rail buttons) keeps its size and just moves to its new station. A launch lug scales like any other tube, bore included, as on the desktop.
+It multiplies every length, diameter, wall thickness, fin planform (freeform points included), shoulder, tab, fillet, chute and streamer size, and cord length, and with offsets on, every position. It deliberately does **not** scale angles, fin/instance counts, material densities, drag coefficients, finish, motor choice, or launch settings; fixed-size hardware (rail buttons) keeps its size and just moves to its new station. A launch lug scales like any other tube, bore included, as on the desktop.
 
 Solid parts keep their material, so their mass grows as the **cube** of the factor. Recovery fabric doesn't — a canopy scales with its area — so a scaled design is no longer exactly similar and its stability shifts slightly; re-check the parachute size and that the motor still fits its mount. The whole scale lands as a **single undo step** (`Ctrl/⌘+Z`).
 

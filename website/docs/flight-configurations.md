@@ -24,7 +24,7 @@ Below the desktop breakpoint the part columns drop away and the editor moves und
 One card per motor mount, aft to nose. **Change…** opens the [motor picker](./motors.md), 📈 shows the seated motor's thrust curve, and **Ignition** sets when that motor lights:
 
 - **Automatic** is the low and mid-power pattern: the launch stage lights at launch, an upper stage on the ejection charge of the stage below.
-- **Launch**, **Upper-stage ejection**, **Upper-stage burnout** and **Never**, each with a delay in seconds, are what an electronically-timed sustainer or an air-start needs. The sustainer triggers only appear on a mount that has a stage below it, since nothing else can fire them.
+- **Launch**, **Ejection of stage below**, **Burnout of stage below** and **Never**, each with a delay in seconds (except **Never**), are what an electronically-timed sustainer or an air-start needs. **Launch** is offered on every mount. **Ejection of stage below**, **Burnout of stage below** and **Never** only appear on a mount that has a stage below it, since nothing else can fire them.
 
 Editing a motor here changes it for **every** simulation flying this configuration. That is what sharing a setup means, and it is why motors are edited here and nowhere else: two surfaces writing the same loadout under different rules is how they come to disagree.
 

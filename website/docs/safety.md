@@ -16,7 +16,7 @@ The physics is OpenRocket's own core, compiled to run in your browser and valida
 
 - **Aerodynamics** by the Extended Barrowman method, giving CP, drag and stability.
 - **Mass and CG** from each part's geometry times its material density, plus any [overrides](#before-you-fly) you enter.
-- **Flight** as rigid-body motion integrated with RK4/RK6, driven by the real thrust curve of the motor you picked.
+- **Flight** as rigid-body motion integrated with RK4, driven by the real thrust curve of the motor you picked.
 - **Atmosphere** as the ISA standard model, or your own temperature and pressure, with a WGS or constant gravity model and a flat, spherical or WGS84 earth.
 - **Wind** as either a single average with a gust standard deviation, or a multi-level profile that changes with altitude, both carrying pink-noise turbulence.
 

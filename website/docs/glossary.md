@@ -59,11 +59,15 @@ Use the search box at the top of this site, or the search in the app's **Help** 
 
 ## C
 
+**CAD, 3D printing and cut files**: Geometry exported for building: a mesh for printing, solids for CAD, and flat outlines for cutting fins, rings and bulkheads. *In the app:* the geometry exports.
+
 **Caliber** — One body diameter, used as the unit for stability margin. Two calibers of margin means the CP sits two body diameters behind the CG. *In the app:* the stability readouts, which also offer a percentage of length.
 
 **Canopy** — The fabric part of a parachute, as opposed to its lines. *In the app:* the parachute's **Diameter** is its canopy diameter.
 
 **Cant angle** — A fin tilted about its own root, which spins the rocket up in flight. *In the app:* **Cant** on a fin set.
+
+**Capped shoulder**: A shoulder closed off by a disc, which adds mass. *In the app:* the **Shoulder capped** checkbox. See **Shoulder**.
 
 **Cd (drag coefficient)** — Drag expressed independently of size and speed, so shapes can be compared. *In the app:* the `Cd` column, the drag-coefficient tile, and each recovery device's own **Cd**.
 
@@ -90,6 +94,8 @@ Use the search box at the top of this site, or the search in the app's **Help** 
 **Cross-section** — The shape of a fin seen edge-on: square, rounded or airfoil. It changes drag, and it changes mass. *In the app:* **Cross-section** on a fin set.
 
 ## D
+
+**Damping ratio**: How quickly an oscillation of the rocket dies out on its own. *In the app:* the `ζ` and `ωn` columns.
 
 **Delay** — A pause between one event and what it triggers. *In the app:* **Ejection delay** on a motor, **Ignition delay** on a stage, **Separation delay** between stages, and **Deploy delay** on a recovery device.
 
@@ -185,9 +191,13 @@ Use the search box at the top of this site, or the search in the app's **Help** 
 
 **Lateral** — Sideways, across the flight path. *In the app:* the `Al`, `Vl`, `Pl` and `θl` columns, which give lateral acceleration, velocity, distance and direction.
 
+**Latitude and longitude**: The launch site's coordinates, and the rocket's position over the ground during a flight. *In the app:* **Latitude** and **Longitude** in the launch site card and the **Launch Locations** editor, and the `φ` and `λ` columns.
+
 **Launch guide** — Whatever holds the rocket straight until it is fast enough for its fins to work: a **rod** through launch lugs, or a **rail** engaging rail buttons. *In the app:* **Rod length** and **Rod angle** in the launch conditions.
 
 **Launch lug** — A small tube on the airframe that slides over a launch rod.
+
+**Launch site altitude**: The launch site's height above sea level, which sets the standard air you fly in when temperature and pressure are left blank. *In the app:* **Altitude** in the launch conditions. See **ISA**.
 
 **Length** — The nose-to-tail span of every active part, including internal ones. Compare **Aerodynamic length**.
 
@@ -223,7 +233,7 @@ Use the search box at the top of this site, or the search in the app's **Help** 
 
 **Nose cone** — The rocket's front, shaped to cut drag. Its **profile** is the curve of its outline. See **Ogive**, **Haack**, **Shape parameter**.
 
-**Nozzle** — The motor's throat and bell, which accelerate the exhaust. *In the app:* the motor's own nozzle diameter, used for the thrust model.
+**Nozzle**: The motor's throat and bell, which accelerate the exhaust. *In the app:* a stage's nozzle exit diameter, when a `.ork` file sets one, lowers the base drag while the motor burns, and the Aero view then shows a power-on drag curve.
 
 **Lift / normal force** — The aerodynamic force across the rocket's axis, which is what makes it weathercock or correct. Its coefficient is `Cn`, and the slope of that against angle of attack is CNα.
 
@@ -275,6 +285,8 @@ Use the search box at the top of this site, or the search in the app's **Help** 
 
 **Reference area / reference length** — The area and length the aerodynamic coefficients are expressed against, both taken from the body diameter. *In the app:* the `Ar` and `Lr` columns. Reference length is not the same as **Aerodynamic length**.
 
+**Report export**: The printable summary of a design and its runs. *In the app:* **Rocket Design Report** in the menu.
+
 **Reynolds number** — A measure of how a flow behaves at a given size and speed, which is what decides how much of the drag is skin friction. *In the app:* the `R` column of a flight-data export.
 
 **RK4** — Fourth-order Runge-Kutta, the integration scheme the flight simulator steps with. See **Integration**.
@@ -301,7 +313,7 @@ Use the search box at the top of this site, or the search in the app's **Help** 
 
 **Shock cord** — The line joining a rocket's sections so they stay together after ejection. *In the app:* **Shock cord**, with a cord length and a line density.
 
-**Shoulder** — The stepped-down end of a nose cone or transition that plugs into the tube behind it. A **capped** shoulder is closed off by a disc, which adds mass. *In the app:* shoulder radius, length, thickness and **Capped**.
+**Shoulder**: The stepped-down end of a nose cone or transition that plugs into the tube behind it. A **capped** shoulder is closed off by a disc, which adds mass. *In the app:* shoulder radius, length, thickness and **Shoulder capped**.
 
 **Shroud lines** — The cords from a canopy to the rocket. *In the app:* **Line count**, **Line length** and the line material on a parachute.
 
@@ -384,9 +396,15 @@ Use the search box at the top of this site, or the search in the app's **Help** 
 | `.ork` | OpenRocket's own design file. The app's primary format, read and written. |
 | `.rkt` | RockSim's design file, read and written. Neither side is lossless; both say what they could not carry. |
 | `.CDX1` | RASAero II's design file, written only. |
-| `.csv` | Flight data, the events table and the run table, for a spreadsheet. |
-| `.stl`, `.3mf`, `.obj` | Geometry for 3D printing and CAD. |
-| `.svg`, `.pdf` | Cut files and the printable marking guide. |
+| `.csv` | Flight data, drag tables, the events table and the run table, and the design report's summary and parts list, for a spreadsheet. |
+| `.eng`, `.rse` | Motor files (RASP and RockSim), read only, for a motor the catalog does not carry. |
+| `.stl`, `.3mf`, `.obj`, `.glb` | Geometry for 3D printing and CAD. |
+| `.zip` | The whole rocket's printable parts, one file per part, when the 3MF export is set to do so. |
+| `.dxf` | 2D cut sheets for fins, centering rings and bulkheads. |
+| `.pdf` | The design report, with its 1:1 templates and the fin marking guide. |
+| `.svg`, `.png`, `.jpg` | The 2D schematic as a drawing or an image. |
+| `.kml`, `.gpx` | The flight path, for Google Earth and GPS tools. Waypoints also go to `.csv`. |
+| `.mustache` | A flight-path export template, imported or downloaded. |
 
 ## Symbols in plots and downloads
 

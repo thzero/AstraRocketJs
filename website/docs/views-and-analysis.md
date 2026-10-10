@@ -2,7 +2,7 @@
 title: "Views & Analysis"
 sidebar_position: 11
 ---
-The center pane's toolbar switches between views. **2D**, **3D**, and **Aero** are always available; **Flight** and **3D path** appear once you've run a simulation.
+The center pane's toolbar switches between views, and each tab has its own set. The **Design** tab has **2D**, **3D** and **Aero**. The **Results** tab, which appears once a simulation has produced a result, has **Flight**, **3D path**, **Ground track** and **Environment**.
 
 On a phone the design views live on the **Sketch** tab and the flight views on **Results**, which appears once a run has produced one; picking either from the toolbar takes you to its tab. The toolbar turns with the drawing so it always sits along the long edge of the screen. See [Getting Started](./getting-started.md#the-layout).
 
@@ -12,8 +12,8 @@ A to-scale side view of the rocket with **CG** (▲) and **CP** (●) markers an
 
 - **Calipers** — drag-to-measure tools. The horizontal caliper measures the distance between two vertical lines (lengths); the vertical caliper measures across (diameters / spans). Lines **snap** to component edges.
 - **Rulers** — a measurement frame around the drawing, with a **toggle per side** (top / bottom / left / right) next to the CG/CP and Info buttons.
-- **Zoom / pan** — the +/− buttons or scroll to zoom, drag to pan.
-- **Roll** — the side slider spins the rocket about its long axis, so you can see fin sets edge-on or broadside.
+- **Zoom / pan**: the +/− buttons or scroll to zoom. Once zoomed in, drag to pan.
+- **Roll**: at the fitted view, a sideways drag on the drawing spins the rocket about its long axis, so you can see fin sets edge-on or broadside. The slider along the left edge does the same at any zoom.
 - **Side / Aft** — switch between the side profile and an aft (head-on) view; **Reset** restores the default framing.
 
 ## View toggles (2D and 3D)
@@ -25,7 +25,12 @@ Two toolbar buttons control what's overlaid on the **2D** and **3D** views:
 
 ## 3D model
 
-An interactive 3D model of the rocket — orbit to inspect the geometry from any angle.
+An interactive 3D model of the rocket: orbit to inspect the geometry from any angle.
+
+- **⟲ Reset** re-fits the current view.
+- **Side** and **Aft** move the camera to the side profile or behind the rocket, where clusters and the fin count show as they sit.
+- **Cutaway** opens the airframe along the centerline to show the internal parts.
+- **📷 Image** saves the current view as PNG or JPG at a width you choose, with the design data. Turn the model to the angle you want first.
 
 ## Aerodynamics (Aero)
 
@@ -60,7 +65,7 @@ You can export these as **CSV** (see [Files & Exports](./files-and-exports.md)).
 
 A panel of **flight charts** over time: altitude, velocity, acceleration, Mach, thrust, drag, mass, stability, CP, CG and angle of attack, plus **dynamic pressure**, **q·α** (dynamic pressure times the angle of attack, which the side load on fins and couplers follows) and **roll rate**. Flight events (burnout, apogee, deployment, landing) are marked, which answers *when*; the **[Flight events](./running-a-simulation.md#flight-events)** table on the Results pane reads the same events down a list, each with the state of the rocket at that instant. Toggle which measures show from the chip bar, hover for a synchronized crosshair and value readout across every chart, and zoom / pan the time axis (the +/− buttons, drag, or Ctrl / pinch-scroll). **The measures you pick are remembered** — open thrust and mass once and they are still open next time, in this design and any other. **Velocity vs altitude** plots the climb and the descent against altitude instead of time; it does not zoom with the time axis, and the crosshair's moment shows as a dot on the curve. The **⤢** in a chart's corner shows that chart alone at the full height of the pane, and **⤡** brings the others back.
 
-**Choosing which flight** — run one simulation and the pane's title is simply its name. Run several at once and the title becomes a **picker** listing exactly those: click it and choose the flight to read. One at a time, and the choice governs all three results views — the charts, the [ground track](#ground-track-after-a-simulation) and the 3D path — so switching shows you the same flight whichever way you are looking at it.
+**Choosing which flight**: run one simulation and the pane's title is simply its name. Run several at once and the title becomes a **picker** listing exactly those: click it and choose the flight to read. One at a time, and the choice governs all four results views (the charts, the [ground track](#ground-track-after-a-simulation), the 3D path and the [environment](#environment-after-a-simulation)), so switching shows you the same flight whichever way you are looking at it.
 
 It is deliberately not the Simulations tab's tick boxes: those say what **Run** should fly, which is a different question from what you are reading.
 
@@ -124,6 +129,8 @@ An **⬇ Export** button saves the flight path for mapping tools — **KML** (Go
 
 The 3D path replays the flight rather than only drawing it. **▶ Play flight** starts a T-minus countdown (5, 4, 3, 2, 1) and then launches; clicking again during the countdown cancels it, and during the flight pauses. Drag the **timeline** to scrub to any moment, and pick a **speed** from 0.25× to 4×. Speed is about wall-clock time, not simulated time, so the boost is not over before you have seen it.
 
+Beside the play button, **⟲** (**Reset to launch**) stops playback and returns to liftoff, **⟳** (**Loop playback**) starts the flight again each time it ends, and **⊙ Follow** keeps the camera on the rocket as it flies.
+
 The speed a run starts at comes from **[Settings ▸ Playback](./settings.md#playback)**.
 
 ## Environment (after a simulation) {#environment-after-a-simulation}
@@ -141,6 +148,8 @@ The charts cover only the altitudes the flight reached. Values use your units, a
 Under the charts, **Landing** gives where each stage came down: its latitude and longitude, and its distance and bearing from the pad.
 
 When the launch conditions came from an [Open-Meteo forecast](./running-a-simulation.md#weather), **Fly the hours around this forecast** flies this design again under the forecast for each hour from two before to two after. Every one of these flights uses the same random seed, so only the weather differs between them. They use the forecast as it stands now, which may have changed since it was applied. A map then shows the flight's path from above, a dot where each hour's flight landed and the 2σ ellipse around them, and a table lists each hour's landing.
+
+An hour whose wind or launch angle is over the safety limit is not flown, the same as a run, and its row says which. When the simulation's result is outdated, the button is disabled until you run the simulation again, so the hours are flown for the rocket and site as they are now.
 
 Without a forecast, the section says how to get one. For a rocket not designed here, the [landing estimator](./tools.md#landing-estimator) on the Tools tab gives an estimate from typed descent rates.
 

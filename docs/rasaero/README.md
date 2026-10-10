@@ -12,7 +12,7 @@ document pulls the physics and the code out on their own so they can be reviewed
   24.12** (`info.openrocket.core.*`). 7 files, ~705 added lines.
 - **Everything is default-OFF / input-gated** — with the flag off (or the input absent) every
   number is bit-identical to stock OpenRocket. Proven two ways: the JVM↔JS parity test
-  (`engine-java/test/parity/parity.mjs`, 258 assertions) and the classic-mode validation scorecard.
+  (`engine-java/test/parity/parity.mjs`, 359 golden values) and the classic-mode validation scorecard.
 
 Authorship of these extensions is recorded in `engine-java/ATTRIBUTION.md`.
 
@@ -205,8 +205,8 @@ short/long, Basic Finner, HB-2), with per-dataset tolerances from the sources' s
 
 | model | gate points within tolerance |
 |---|---|
-| classic Extended Barrowman (flag off) | **7 / 135** — supersonic CP frozen, as expected |
-| supersonic-aero model (flag on) | **64 / 135** |
+| classic Extended Barrowman (flag off) | **9 / 135**: supersonic CP frozen, as expected |
+| supersonic-aero model (flag on) | **61 / 135** |
 
 The classic-off failure is the *point*: it quantifies where stock OpenRocket is wrong above Mach 1.
 
@@ -224,9 +224,9 @@ The classic-off failure is the *point*: it quantifies where stock OpenRocket is 
 ## Notes for upstreaming to OpenRocket
 
 - **Feature vs. TeaVM-compat.** These 7 diffs are almost entirely feature code. The **only**
-  TeaVM-specific change is in `BarrowmanCalculator`: `createCalcObject()` replaces
-  `Reflection.construct(BARROWMAN_PACKAGE, comp, "Calc", comp)` with an explicit `instanceof`
-  chain (TeaVM has no `Class.forName`). OpenRocket does not need that — it can keep the reflective
+  TeaVM-specific change is in the `BarrowmanDragCalculator` and `BarrowmanStabilityCalculator`
+  patches: they replace `Reflection.construct(BARROWMAN_PACKAGE, comp, "Calc", comp)` with an
+  explicit `instanceof` chain (TeaVM has no `Class.forName`). OpenRocket does not need that: it can keep the reflective
   construction and thread the `supersonicAero`/`rogersKbf` flags onto the calc objects another way
   (e.g. after construction, or via the existing map). Everything else ports as-is.
 - **Guards.** Every path is behind a flag or a zero-default input; classic behavior is

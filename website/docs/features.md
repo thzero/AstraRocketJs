@@ -3,7 +3,7 @@ title: "Features"
 sidebar_position: 2
 ---
 ## Physics
-- Runs OpenRocket's **real physics core** — Extended Barrowman aerodynamics, mass/CG, and RK4/RK6 flight.
+- Runs OpenRocket's **real physics core**: Extended Barrowman aerodynamics, mass/CG, and RK4 flight.
 - Flight simulations run in a **Web Worker**, off the main thread, so the interface stays responsive during a run.
 
 ## Design & analysis
@@ -12,10 +12,10 @@ sidebar_position: 2
 - **Freeform fins** — shape a fin outline point by point: drag the amber vertices, tap a blue edge midpoint to add one, and select a point to delete it or type exact coordinates. See **[Designing a Rocket](./designing-a-rocket.md#freeform-fins)**.
 - **Mass, CG and drag overrides** — replace a part's computed mass, CG or drag coefficient with a measured one, each with an "apply to all subcomponents" toggle, matching OpenRocket. See **[Safety](./safety.md)**.
 - **Parachute descent sizing**: **Descent sizing…** in a parachute's editor shows the descent rate it gives against the main and drogue bands, and the diameter for each band or a rate of your own, from the descent mass and launch-site air density. A **Use** button sets that diameter on the canopy. The same sizing works without a design on the **[Tools](./tools.md#parachute-sizing)** tab.
-- **Scale the whole rocket** by a factor or to a target body diameter, in one undoable step — every length, diameter, wall, fin planform and position, with fixed-size hardware (rail buttons, camera shrouds, lug bores) left alone.
+- **Scale the whole rocket** by a factor or to a target body diameter, in one undoable step: every length, diameter, wall, fin planform and position, with fixed-size hardware (rail buttons, lug bores) left alone.
 - **Undo / redo** across the whole workspace — component add / remove / edit **and** simulation changes (motor, ignition, launch conditions, add/rename/delete sim) on one timeline, with `Ctrl/⌘+Z` and `Ctrl+Shift+Z` (or the toolbar arrows). One edit = one step, even for a slider drag.
 - **2D schematic** with drag-to-measure **calipers**, length + cross-section rulers, zoom/pan, roll (spin), and an aft (head-on) view.
-- **3D model** view, and a **3D flight path** after a simulation. The **CG / CP** markers and a quick-glance **length · mass · CG · CP · stability** card can be toggled on both the 2D and 3D views. The 3D path **plays back**: a T-minus countdown, then play / pause, a timeline you can scrub, and speeds from 0.25× to 4× (the default is in **[Settings](./settings.md#playback)**).
+- **3D model** view, with a **Cutaway** button that opens the airframe along the centerline to show what is inside, and a **3D flight path** after a simulation. The **CG / CP** markers and a quick-glance **length · mass · CG · CP · stability** card can be toggled on both the 2D and 3D views. The 3D path **plays back**: a T-minus countdown, then play / pause, a timeline you can scrub, and speeds from 0.25× to 4× (the default is in **[Settings](./settings.md#playback)**).
 - **Aerodynamic analysis view**: a **Charts** pane — Cd vs Mach, the drag breakdown (friction / pressure / base) and CP vs Mach — and a **Per component** pane that tabulates, at one Mach, each part's **drag** split into pressure / base / friction, its **stability contribution** (mass, CNα and its own CP) and every fin set's **roll forcing / damping**: the figures desktop OpenRocket shows in *Component Analysis*. Cells are shaded in proportion to their value. The whole sweep is flown at a chosen **angle of attack, wind direction and roll rate**, and **Worst** sets the wind direction to the angle where the CP sits furthest forward — where the rocket is least stable.
 - **Motor Dashboard** — every motor in the catalog in one sortable table, to compare thrust, impulse, burn time and mass before committing to one.
 - Multiple named **simulations**, each with a full launch setup (rod, site, atmosphere, multi-level wind, earth model).
@@ -35,7 +35,7 @@ sidebar_position: 2
 - **RockSim `.rkt` import and export** — designs move both ways with RockSim too: bodies, fins (including freeform and tube fins), inner structure, recovery, mass objects and pods, across up to three stages. Motors and launch conditions stay behind, because RockSim keeps those with its simulations rather than its designs. See **[Files & Exports](./files-and-exports.md#rocksim-rkt)**.
 - **Motor picker** with real **thrust curves** from [thrustcurve.org](https://www.thrustcurve.org) (~1,150 motors), downloaded once and cached for offline use. Filter by engine code, impulse class, manufacturer(s), and a **diameter range** that defaults to the motor-mount bore; selections are remembered.
 - Pick from a motor's **multiple thrust curves** (the chosen one is what the engine simulates), set the **ejection delay** from the motor's own charges or a manual value, or **plug** any motor. A per-motor card shows the curve and delay, with a **thrust-curve popup**; multi-mount rockets get **one card per motor tube**. Plus **`.eng` (RASP) and `.rse` (RockSim) import** — the latter for hybrids, and for the measured mass curve RASP cannot carry.
-- OpenRocket **materials** (built-in + your own) and a **component-preset** catalog (~2,900 real Estes / Apogee / LOC / … parts). **Save a part you built** and it joins that picker on every design, whole: geometry, material, finish and all.
+- OpenRocket **materials** (built-in + your own) and a **component-preset** catalog (~5,200 real Estes / Apogee / LOC / … parts). **Save a part you built** and it joins that picker on every design, whole: geometry, material, finish and all.
 - **Exports**:
   - **Rocket design report** to **PDF** — summary, parts detail, motors, 1:1 fin / nose / transition templates, and wrap-around fin marking guides. The design summary alone goes to **CSV**.
   - **RASAero II (`.CDX1`)** for aero analysis.
@@ -48,7 +48,7 @@ sidebar_position: 2
 - **Weather from Open-Meteo**: fill a simulation's launch conditions from a forecast for a chosen date and hour: temperature, pressure, humidity, a wind profile up to about 24 km, and the atmosphere aloft, which the engine flies in place of the standard atmosphere. Each value can be ticked or left, the simulation records which forecast it used, and **Refresh** fetches it again. The requests name neither the app nor its site. See **[Running a Simulation](./running-a-simulation.md#weather)**.
 
 ## Platform
-- **Client-only** — no server, no accounts, nothing uploaded. A working copy of your design persists in the browser (so a refresh won't lose it); the design itself is a `.ork` file on your disk.
+- **Client-only**: no server, no accounts, nothing uploaded. Your designs autosave to a library in the browser (so a refresh won't lose them), and **Import** and **Export** move them to and from `.ork` files on your disk.
 - **Responsive** — a desktop workbench of five tabs (Design · Configurations · Simulations · Results · Tools), each laid out the way its own job needs, with draggable dividers, remembered pane widths and a button that gives the drawing the whole window. On a phone it becomes tabs along the bottom (Rocket · Sketch · Config · Simulate, plus **Results** once a run has produced one, and **Tools**), where the rocket views turn a quarter turn so the airframe runs down the long edge of the screen and dialogs fill it.
 - **Your choice of units** — metric or imperial presets, or a unit per quantity (component and motor dimensions, altitude, mass, velocity, wind, acceleration, angle, density, temperature, pressure, thrust, impulse). The unit beside any value is also a picker for that one field. Designs stay SI, so switching never edits a rocket. See **[Settings](./settings.md#units)**.
 - Launch conditions are held to the **NAR / Tripoli** flying limits (rod within 20° of vertical, surface wind at or below 20 mph) and a run outside them is refused rather than flown. See the **[Safety](./safety.md)** page.

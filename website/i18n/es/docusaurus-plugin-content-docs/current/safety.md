@@ -16,7 +16,7 @@ La física es el propio núcleo de OpenRocket, compilado para ejecutarse en tu n
 
 - La **aerodinámica** por el método Barrowman extendido, que da el CP, la resistencia y la estabilidad.
 - La **masa y el CG** a partir de la geometría de cada pieza por la densidad de su material, más cualquier [invalidación](#before-you-fly) que introduzcas.
-- El **vuelo** como movimiento de cuerpo rígido integrado con RK4/RK6, gobernado por la curva de empuje real del motor que elegiste.
+- El **vuelo** como movimiento de cuerpo rígido integrado con RK4, gobernado por la curva de empuje real del motor que elegiste.
 - La **atmósfera** como el modelo estándar ISA, o con tu propia temperatura y presión, con un modelo de gravedad WGS o constante y una Tierra plana, esférica o WGS84.
 - El **viento** como una media única con una desviación estándar de ráfagas, o como un perfil multinivel que cambia con la altitud, ambos con turbulencia de ruido rosa.
 

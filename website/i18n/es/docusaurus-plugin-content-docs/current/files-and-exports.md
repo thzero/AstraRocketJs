@@ -6,7 +6,7 @@ sidebar_position: 13
 
 AstraRocketJs lee y escribe archivos **`.ork` de OpenRocket** estándar, así que los diseños viajan en ambos sentidos entre esta aplicación y OpenRocket de escritorio.
 
-- **Importar** (menú → Importar → OpenRocket) carga un `.ork` existente con total fidelidad: etapas, transiciones, acopladores, anillos, mamparos y más, no solo la disposición sencilla del editor. Un aviso señala lo que no se haya podido resolver del todo (por ejemplo, un motor desconocido). El cohete importado pasa a ser su propia entrada en tus diseños guardados. Si uno de tus cohetes guardados ya tiene ese nombre — que es lo que ocurre cuando retocas un diseño en OpenRocket y vuelves a importarlo — la aplicación pregunta si quieres **sobrescribirlo** o **conservar ambos**, y propone un nombre libre para el nuevo.
+- **Importar** (menú → Importar → OpenRocket) carga un `.ork` existente con total fidelidad: etapas, transiciones, acopladores, anillos, mamparos y más, no solo la disposición sencilla del editor. Un aviso señala lo que no se haya podido resolver del todo (por ejemplo, un motor desconocido). Un archivo cuya versión de formato está fuera de 1.0 a 1.11 recibe la propia nota del escritorio, «Versión de documento no compatible …, se intentará leer el archivo de todos modos.», y se lee igualmente. Las extensiones de simulación del escritorio (encendido en el aire, control de alabeo, scripting), los ajustes de gráfica y los ajustes de dispersión del aterrizaje no se ejecutan aquí, pero se conservan, así que al guardar se vuelven a escribir. El cohete importado pasa a ser su propia entrada en tus diseños guardados. Si uno de tus cohetes guardados ya tiene ese nombre, que es lo que ocurre cuando retocas un diseño en OpenRocket y vuelves a importarlo: la aplicación pregunta si quieres **sobrescribirlo** o **conservar ambos**, y propone un nombre libre para el nuevo.
 - **Ejemplos** (menú → Importar → Ejemplos) abre uno de los [cohetes de ejemplo](./getting-started.md#example-rockets) que acompañan a la aplicación. Es una importación como cualquier otra, así que lo que obtienes es tu propia copia sin guardar, incluida la pregunta anterior si ya habías abierto ese ejemplo antes.
 - **Exportar** (menú → Exportar → OpenRocket) escribe el diseño actual en un archivo `.ork` de tu dispositivo.
 
@@ -18,13 +18,12 @@ Se ha verificado que un viaje de ida y vuelta por exportación e importación co
 
 Los diseños de RockSim también se abren y se guardan, desde **menú → Importar → RockSim** y **menú → Exportar → RockSim**. El lector se guía por el contenido del archivo y no por su nombre, así que un `.rkt` elegido en el diálogo de OpenRocket también se abre.
 
-Lo que sí viaja: ojivas, tubos y transiciones; tubos interiores y soportes de motor; anillos de centrado, mamparos, topes de motor y acopladores; juegos de aletas trapezoidales, elípticas y de forma libre con su inclinación, su giro y sus lengüetas pasantes; aletas tubulares; guías de lanzamiento; paracaídas y cintas; objetos de masa y cuerdas de choque; pods externos; y hasta tres etapas. Con ellos van las dimensiones, los materiales, los acabados, la colocación y la masa y el CG medidos.
+Lo que sí viaja: ojivas, tubos y transiciones; tubos interiores y soportes de motor; anillos de centrado, mamparos, topes de motor y acopladores; juegos de aletas trapezoidales, elípticas y de forma libre con su inclinación, su giro y sus lengüetas pasantes; aletas tubulares; guías de lanzamiento; paracaídas y cintas; objetos de masa y cuerdas de choque; pods externos (un pod desmontable entra como etapa en paralelo, que vuela su propia rama); y hasta tres etapas. Con ellos van las dimensiones, los materiales, los acabados, la colocación y la masa y el CG medidos.
 
 Lo que no:
 
 - **Los motores y las condiciones de lanzamiento.** RockSim los guarda con sus *simulaciones*, que son un objeto distinto del diseño, así que un cohete importado llega sin motor y uno exportado sale sin el tuyo. Elige un motor después de importar.
 - **Las colas anulares (ring tails)**, que aquí no tienen equivalente.
-- **Los pods desmontables**, que se importan como fijos: el diseño vuela igual, con el pod puesto todo el trayecto.
 - **Los subconjuntos**, cuyo contenido se fusiona en el diseño en lugar de mantenerse como grupo.
 
 En el otro sentido, RockSim no tiene elemento para los **botones de raíl** ni para las **etapas en paralelo**. Esas piezas se quedan fuera del archivo, y la aplicación te dice cuáles se han omitido en lugar de dejar que lo descubra quien lo abra.
@@ -54,7 +53,7 @@ La aplicación mantiene una biblioteca de tus cohetes en el navegador, así que 
 
 ## Exportar a RASAero II (`.CDX1`) {#exporting-to-rasaero-ii-cdx1}
 
-**Menú → Exportar → RASAero II (.CDX1)** escribe el diseño como un archivo `.CDX1` de RASAero II, para que puedas abrirlo en **[RASAero II](https://www.rasaero.com/)** y hacer su propio análisis aerodinámico y de vuelo.
+**Menú → Exportar → RASAero II** escribe el diseño como un archivo `.CDX1` de RASAero II, para que puedas abrirlo en **[RASAero II](https://www.rasaero.com/)** y hacer su propio análisis aerodinámico y de vuelo.
 
 RASAero modela únicamente la **forma aerodinámica exterior**, así que la exportación lleva el fuselaje —ojiva, tubos, transiciones y colas de bote, aletas y guías de lanzamiento— además del **peso y el CG** cargados (escritos en el bloque de simulación de RASAero). Las piezas internas sin efecto aerodinámico (anillos de centrado, mamparos, cordones de choque, topes de motor) se descartan; los paracaídas se convierten en entradas de recuperación de RASAero. Las dimensiones se convierten a las unidades de RASAero (pulgadas, libras, pies, °F).
 
@@ -91,7 +90,7 @@ Notas sobre la geometría 3D:
 
 ## Informe de diseño del cohete (PDF / CSV) {#rocket-design-report-pdf--csv}
 
-**Menú → Informe de diseño del cohete** abre un diálogo de **Imprimir o exportar** para producir un informe de diseño completo, con el mismo contenido que la impresión de OpenRocket.
+**Menú → Informe del cohete (PDF)** abre un diálogo de **Imprimir o exportar** para producir un informe de diseño completo, con el mismo contenido que la impresión de OpenRocket.
 
 Marca los elementos que quieras incluir:
 
@@ -152,6 +151,10 @@ El nombre del cohete es el suyo propio si se lo has puesto y, si no, el del arch
 
 Los **datos de vuelo y de resistencia** se pueden exportar como **CSV** para usarlos en una hoja de cálculo o en tu propio análisis. Las columnas están en [las unidades que hayas elegido](./settings.md#units) y cada encabezado indica la unidad que lleva, así que el archivo se explica solo; los números usan siempre `.` como separador decimal, sea cual sea el idioma de la aplicación:
 
+- **Datos de vuelo**: el historial temporal simulado (desde la vista de Vuelo).
+- **Tabla de resistencia**: los datos de Cd, desglose y CP frente a Mach (desde la vista Aero).
+- **Eventos de vuelo**: la tabla de eventos, una fila por evento, desde el botón **CSV** de la tabla [Eventos de vuelo](./running-a-simulation.md#flight-events). Donde la tabla en pantalla guarda los extras de cada evento en una línea debajo, el archivo da a cada uno su propia columna: estabilidad, relación empuje-peso, ángulo de ataque, Mach y presión dinámica, más el componente de origen y la etapa. La mayoría de las filas deja la mayoría de esas columnas en blanco, que es la forma honesta: solo la fila de salida de rampa tiene relación empuje-peso, y una celda vacía dice que no la tiene, no que valga cero. Es distinto de los datos de vuelo de arriba, que ya pueden llevar los eventos como líneas de comentario: un comentario es para quien lee, y esto son los eventos como datos.
+
 ### Elegir qué va en el CSV de vuelo
 
 El botón **CSV** de la vista de vuelo abre un diálogo de exportación en lugar de descargar directamente:
@@ -162,10 +165,6 @@ El botón **CSV** de la vista de vuelo abre un diálogo de exportación en lugar
 - **Etapa a exportar** — en un vuelo por etapas, qué rama escribir.
 
 Tus elecciones se recuerdan para la siguiente exportación.
-
-- **Datos de vuelo** — el historial temporal simulado (desde la vista de Vuelo).
-- **Tabla de resistencia** — los datos de Cd, desglose y CP frente a Mach (desde la vista Aero).
-- **Eventos de vuelo** — la tabla de eventos, una fila por evento, desde el botón **CSV** de la tabla [Eventos de vuelo](./running-a-simulation.md#flight-events). Donde la tabla en pantalla guarda los extras de cada evento en una línea debajo, el archivo da a cada uno su propia columna: estabilidad, relación empuje-peso, ángulo de ataque, Mach y presión dinámica, más el componente de origen y la etapa. La mayoría de las filas deja la mayoría de esas columnas en blanco, que es la forma honesta: solo la fila de salida de rampa tiene relación empuje-peso, y una celda vacía dice que no la tiene, no que valga cero. Es distinto de los datos de vuelo de arriba, que ya pueden llevar los eventos como líneas de comentario: un comentario es para quien lee, y esto son los eventos como datos.
 
 ## Exportar la trayectoria de vuelo (KML / GPX / CSV) {#exporting-the-flight-path-kml--gpx--csv}
 

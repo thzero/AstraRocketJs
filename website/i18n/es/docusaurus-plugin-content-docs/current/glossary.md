@@ -23,7 +23,7 @@ Usa el buscador de la parte superior de este sitio, o el buscador del diálogo *
 
 **Aleta libre** — Una aleta cuyo contorno dibujas punto por punto en lugar de elegir un trapecio o una elipse. *En la aplicación:* el editor de aletas libres, que también importa un contorno desde una imagen.
 
-**Altitud del campo de vuelo** — La altura del lugar de lanzamiento sobre el nivel del mar, que fija el aire estándar con el que vuelas si dejas la temperatura y la presión en blanco. Ver **ISA**.
+**Altitud del campo de vuelo**: La altura del lugar de lanzamiento sobre el nivel del mar, que fija el aire estándar con el que vuelas si dejas la temperatura y la presión en blanco. *En la aplicación:* **Altitud** en las condiciones de lanzamiento. Ver **ISA**.
 
 **Ángulo de ataque (AoA, α)** — El ángulo entre hacia dónde apunta el cohete y hacia dónde va. *En la aplicación:* la columna `α` y el aviso de ángulo de ataque grande, que salta cuando un vuelo sale del rango en el que la aerodinámica es válida.
 
@@ -147,7 +147,7 @@ Usa el buscador de la parte superior de este sitio, o el buscador del diálogo *
 
 **Evento de vuelo** — Algo que el motor registra en un instante: despegue, salida de la guía, fin de combustión, apogeo, despliegue, separación, impacto. *En la aplicación:* la tabla de eventos y los marcadores de las gráficas.
 
-**Exportación del informe** — El resumen imprimible de un diseño y sus ejecuciones. *En la aplicación:* el diálogo de exportación.
+**Exportación del informe**: El resumen imprimible de un diseño y sus ejecuciones. *En la aplicación:* **Informe del cohete (PDF)** en el menú.
 
 ## F
 
@@ -161,6 +161,8 @@ Usa el buscador de la parte superior de este sitio, o el buscador del diálogo *
 
 **Fuerza normal (sustentación)** — La fuerza aerodinámica perpendicular al eje del cohete, que es la que le hace orientarse al viento o corregir. Su coeficiente es `Cn`, y la pendiente de este frente al ángulo de ataque es CNα.
 
+**Fuselaje**: El cuerpo exterior del cohete: los tubos, el morro y las transiciones sobre los que realmente fluye el aire, frente a lo que va dentro de ellos.
+
 ## G
 
 **Guía de lanzamiento** — Lo que mantiene recto al cohete hasta que va lo bastante rápido para que sus aletas funcionen: una **varilla** a través de guías, o un **riel** que engancha botones de riel. *En la aplicación:* **Longitud de la rampa** y **Ángulo de la rampa** en las condiciones de lanzamiento.
@@ -171,13 +173,13 @@ Usa el buscador de la parte superior de este sitio, o el buscador del diálogo *
 
 **Haack (Von Kármán)** — Un perfil de morro deducido para minimizar el arrastre con una longitud y un volumen dados; las formas LV-Haack y LD-Haack están en los extremos de un parámetro de forma. *En la aplicación:* una **Forma** de morro, con **Parámetro de forma**.
 
-**Hombro** — El extremo escalonado de un morro o una transición que se enchufa en el tubo de detrás. Un hombro **tapado** se cierra con un disco, lo que añade masa. *En la aplicación:* radio, longitud y espesor del hombro, y **Tapado**.
+**Hombro**: El extremo escalonado de un morro o una transición que se enchufa en el tubo de detrás. Un hombro **tapado** se cierra con un disco, lo que añade masa. *En la aplicación:* radio, longitud y espesor del hombro, y **Hombro tapado**.
 
-**Hombro tapado** — Un hombro cerrado por un disco, que añade masa. *En la aplicación:* la casilla **Tapado**. Ver **Hombro**.
+**Hombro tapado**: Un hombro cerrado por un disco, que añade masa. *En la aplicación:* la casilla **Hombro tapado**. Ver **Hombro**.
 
 ## I
 
-**Impresión 3D, CAD y archivos de corte** — Geometría exportada para fabricar: malla para impresión, sólidos para CAD, y contornos planos para cortar aletas y plantillas. *En la aplicación:* las exportaciones de geometría.
+**Impresión 3D, CAD y archivos de corte**: Geometría exportada para fabricar: malla para impresión, sólidos para CAD, y contornos planos para cortar aletas, anillos y mamparos. *En la aplicación:* las exportaciones de geometría.
 
 **Impulso** — El empuje multiplicado por el tiempo que dura, en newton-segundo: el empujón total que da un motor. Los motores se agrupan en **clases de impulso** (A, B, C y siguientes), cada una el doble de la anterior. *En la aplicación:* el explorador de motores y la fila **Impulso total** del informe.
 
@@ -203,7 +205,7 @@ Usa el buscador de la parte superior de este sitio, o el buscador del diálogo *
 
 **Lateral** — De costado, atravesado a la trayectoria. *En la aplicación:* las columnas `Al`, `Vl`, `Pl` y `θl`, que dan la aceleración, la velocidad, la distancia y la dirección laterales.
 
-**Latitud y longitud** — Las coordenadas del campo de vuelo. *En la aplicación:* las columnas `φ` y `λ`, y el editor de lugares de lanzamiento.
+**Latitud y longitud**: Las coordenadas del campo de vuelo, y la posición del cohete sobre el suelo durante un vuelo. *En la aplicación:* **Latitud** y **Longitud** en la tarjeta del sitio de lanzamiento y en el editor de **Ubicaciones de lanzamiento**, y las columnas `φ` y `λ`.
 
 **Longitud** — La envergadura de morro a cola de todas las piezas activas, incluidas las internas. Compárese con **Longitud aerodinámica**.
 
@@ -263,11 +265,15 @@ Usa el buscador de la parte superior de este sitio, o el buscador del diálogo *
 
 **Paso de tiempo** — Lo grande que es la porción de tiempo que toma el integrador. Más pequeño es más preciso y más lento; el integrador lo acorta aún más cuando el cohete gira rápido. *En la aplicación:* Ajustes ▸ Simulación ▸ **Paso de tiempo**, y la columna `dt`. Ver **Integración**.
 
+**Perfil alar**: Una sección de aleta redondeada en el borde de ataque y afilada en el de salida, con menos arrastre que un borde cuadrado. *En la aplicación:* **Sección** en un juego de aletas, junto a cuadrada y redondeada. Ver **Corte transversal**.
+
 **Pieza de masa** — Una pieza que solo es masa: lastre, un altímetro, una batería, una carga útil. *En la aplicación:* **Pieza de masa**, con un tipo que nombra lo que es.
 
 **Presión del aire** — La presión en el campo de vuelo, no la del nivel del mar. *En la aplicación:* **Presión** en las condiciones de lanzamiento; déjala en blanco para el aire estándar de la altitud de tu campo.
 
 **Presión dinámica (q, q máx.)** — La presión del flujo de aire, ½ρV². Es lo que decide si un fuselaje resiste, y su máximo es la q máx.
+
+**Propulsor / sostenedor**: En un cohete por etapas, la etapa que se enciende primero y se desprende / la etapa que sigue. *En la aplicación:* los nombres de las etapas, y la rama de vuelo propia de cada propulsor tras separarse. Ver **Rama de simulación**.
 
 ## R
 
@@ -331,6 +337,8 @@ Usa el buscador de la parte superior de este sitio, o el buscador del diálogo *
 
 **Tira de estadísticas** — La fila de recuadros bajo las vistas del diseño: longitud, diámetro, relación de finura, masa vacía y cargada, CG, CP, masa de recuperación, estabilidad, coeficiente de arrastre y los momentos de inercia. Todas sus cifras vienen del motor mientras editas, salvo las marcadas como estimación. Ver **Estimación**.
 
+**Tobera**: La garganta y la campana del motor, que aceleran los gases de escape. *En la aplicación:* el diámetro de salida de la tobera de una etapa, cuando un archivo `.ork` lo define, reduce el arrastre de base mientras el motor empuja, y la vista Aero muestra entonces una curva de arrastre con motor.
+
 **Transición** — Una pieza cuyo diámetro cambia de un extremo al otro, uniendo tubos de tamaños distintos. Una que se estrecha en la cola es una **cola de bote**.
 
 **Traza sobre el terreno** — El recorrido que el vuelo hizo sobre el suelo, dibujado en un mapa del campo de vuelo. Ver **Envolvente de deriva**.
@@ -378,6 +386,7 @@ Usa el buscador de la parte superior de este sitio, o el buscador del diálogo *
 ## W
 
 **WASM-GC / respaldo en JS** — Las dos formas en que se distribuye el motor. WebAssembly es la vía rápida que toma prácticamente todo navegador actual; la compilación en JavaScript es el respaldo para el resto. *En la aplicación:* la cabecera dice cuál está en uso.
+
 ## Tipos de archivo
 
 | Tipo | Qué es |
@@ -385,9 +394,15 @@ Usa el buscador de la parte superior de este sitio, o el buscador del diálogo *
 | `.ork` | El archivo de diseño propio de OpenRocket. El formato principal de la aplicación, que lee y escribe. |
 | `.rkt` | El archivo de diseño de RockSim, que lee y escribe. Ninguno de los dos lados conserva todo; ambos dicen qué no pudieron traer. |
 | `.CDX1` | El archivo de diseño de RASAero II, solo escritura. |
-| `.csv` | Datos de vuelo, la tabla de eventos y la tabla de ejecuciones, para una hoja de cálculo. |
-| `.stl`, `.3mf`, `.obj` | Geometría para impresión 3D y CAD. |
-| `.svg`, `.pdf` | Archivos de corte y la guía de marcado imprimible. |
+| `.csv` | Datos de vuelo, tablas de resistencia, la tabla de eventos y la tabla de ejecuciones, y el resumen y la lista de piezas del informe de diseño, para una hoja de cálculo. |
+| `.eng`, `.rse` | Archivos de motor (RASP y RockSim), solo lectura, para un motor que el catálogo no trae. |
+| `.stl`, `.3mf`, `.obj`, `.glb` | Geometría para impresión 3D y CAD. |
+| `.zip` | Las piezas imprimibles del cohete entero, un archivo por pieza, cuando la exportación 3MF está configurada así. |
+| `.dxf` | Hojas de corte 2D para aletas, anillos de centrado y mamparos. |
+| `.pdf` | El informe de diseño, con sus plantillas 1:1 y la guía de marcado de aletas. |
+| `.svg`, `.png`, `.jpg` | El esquema 2D como dibujo o como imagen. |
+| `.kml`, `.gpx` | La trayectoria del vuelo, para Google Earth y herramientas GPS. Los waypoints también van a `.csv`. |
+| `.mustache` | Una plantilla de exportación de la trayectoria, importada o descargada. |
 
 ## Símbolos de las gráficas y las descargas
 

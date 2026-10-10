@@ -2,7 +2,13 @@
 title: "Running a Simulation"
 sidebar_position: 12
 ---
-Simulations live in the right-hand panel. A simulation is a [flight configuration](./flight-configurations.md) — the motors, the recovery and the staging — flown under a set of launch conditions, so what a row carries of its own is its name, the configuration it flies, the conditions and the last result. You can keep **several named simulations** for one design (e.g. different motors or launch sites), **duplicate** one as a starting point, and delete them. The red **Delete simulation** button (next to the current simulation's name) removes it after a confirmation; the workspace always keeps at least one, so it's disabled when only one remains.
+Simulations live on the **Simulations** tab: a table with one row per simulation. On a wide screen the selected simulation's editor sits in a column to the right of the table; on a phone it sits under the table. A simulation is a [flight configuration](./flight-configurations.md) (the motors, the recovery and the staging) flown under a set of launch conditions, so what a row carries of its own is its name, the configuration it flies, the conditions and the last result. You can keep **several named simulations** for one design (e.g. different motors or launch sites), **duplicate** one as a starting point, and delete them. The toolbar above the table holds **＋ New**, **Duplicate simulation** and the red **Delete simulation**, which removes the current simulation. It asks first when **Confirm deletion of simulations** is on in [Settings ▸ Simulation](./settings.md#simulation-defaults), which it is by default. The workspace always keeps at least one simulation, so Delete is disabled when only one remains.
+
+**Run outdated (N)** in the toolbar flies every simulation that has never run or whose result is outdated; N is how many that is. It ignores the tick boxes, and it is disabled when every simulation is up to date.
+
+A row that has a result ends in a 📊 button, **View results**, which opens the Results tab on that simulation.
+
+The tick boxes choose which rows **Run** flies, and also which rows the editor changes. With more than one ticked, the editor says *Editing N selected simulations*, and a field you change is set on all of them. Names and motors stay per simulation. A field where the ticked simulations differ says so, and changing it sets them all to the new value.
 
 **⬇ CSV** in the toolbar downloads the **run table**: every simulation as one row, with its configuration, motors, status and results (apogee, speeds, times, Max-Q, max q·α and max roll rate) in your units. A simulation that has not flown is listed with its figures blank, and an outdated one is marked as such, since its figures describe the design before your latest edits.
 
@@ -20,7 +26,7 @@ Each simulation has its own launch configuration, grouped into cards:
 - **Launch site** — altitude, latitude, and longitude, plus [saved locations](#saved-locations) and a [map](#the-map).
 - **Atmosphere** — ISA standard, or override temperature, pressure and humidity, or fill them and the wind from a [weather forecast](#weather). **Pressure** is the pressure *at the site*, not the sea-level figure weather apps and airport reports usually give. A typed pressure well above the standard pressure for the site's elevation gets an amber note under the field saying so, since that is what a sea-level figure looks like at a high field. The note never blocks a run: the value may be right.
 - **Wind** — average speed, gusts (standard deviation), and direction; or a **multi-level** wind profile that varies with altitude.
-- **Earth model** — flat, spherical, or WGS84 (affects long/high flights).
+- **Earth model**: flat, spherical, or WGS84 (affects long/high flights), and **Gravity**: WGS84 or **Constant**. Constant takes a **g** value.
 
 New simulations start from your global [Settings](./settings.md) defaults.
 
@@ -79,7 +85,7 @@ The forecast atmosphere is this app's addition. Desktop OpenRocket uses the ISA 
 
 ## Run it
 
-Press **Run flight simulation**. The flight runs in a background **Web Worker**, so the interface stays responsive — a spinner shows while it computes (typically well under a second). When it finishes, the **Flight** and **3D path** views unlock and the results appear.
+Press **Run flight simulation**. The flight runs in a background **Web Worker**, so the interface stays responsive: a spinner shows while it computes (typically well under a second). When it finishes, the **Results** tab opens with its **Flight**, **3D path**, **Ground track** and **Environment** views (see [Views & Analysis](./views-and-analysis.md)).
 
 ### When a run is refused
 
@@ -95,7 +101,7 @@ Two kinds of problem, which behave differently:
 **Faults in one simulation** only skip that row. Select six and run them: the good ones fly, and the button tells you which are being left out and why.
 
 - **No usable motor** — nothing loaded on the primary mount, or an imported `.ork` whose motor could not be matched to a thrust curve.
-- **A required launch field is blank** — rod length, rod angle, wind speed, wind standard deviation, site altitude or latitude. These have no sensible default, so a blank one is named rather than guessed at.
+- **A required launch field is blank**: rod length, rod angle, wind speed, wind standard deviation, site altitude, latitude or longitude. These have no sensible default, so a blank one is named rather than guessed at.
 - **Launch conditions outside the safety codes** — rod more than 20° from vertical, or surface wind above 20 mph. See [Safety limits](#safety-limits) below.
 
 The button only goes dead when *nothing* selected can fly. Otherwise it stays live, counts the rows that will actually run, and names the ones it is skipping — one bad row never costs you the other eleven.
@@ -128,6 +134,7 @@ Click its heading to fold the explanation away. Folding asks you to acknowledge 
 Under it, results are shown as tiles, in roughly chronological flight order, including:
 
 - **Rail-exit velocity** (flagged if below your safety minimum)
+- **Static margin @ rail exit** (**@ rod exit** or **@ launcher exit**, after the design's guides): the stability margin in calibers at the moment the rocket leaves the guide, with the CP at that moment, marked stable, marginal or unstable. The stats strip's stability figure is for the rocket on the pad; this one uses the real speed and the partly burned motor.
 - **Optimum delay** and **time to apogee**
 - **Apogee** (max altitude) and **max velocity / acceleration / Mach**
 - **Deployment speed** (flagged if above your warning threshold; green when safely low). On a [dual-deployment](./designing-a-rocket.md#dual-deployment) design the flight engine judges the main and the drogue against their own thresholds instead, and reports a warning for each.
@@ -154,4 +161,4 @@ For the full time-history, open the **[Flight and 3D-path views](./views-and-ana
 
 ## Editing invalidates results
 
-Changing the design clears each simulation's cached result (the physics no longer matches) — just press **Run** again. The same applies to **undo/redo**: it restores your design and simulation *inputs*, but not cached flight results, so re-run to see the flight.
+Changing the design does not delete a simulation's result. The numbers stay readable, and the simulation is marked **Outdated** in the table and on the Results tab, because they no longer describe the rocket. Press **Run** (or **Run outdated**) to bring them up to date. **Undo/redo** restores your design and simulation *inputs* and keeps the current results; a result reads as outdated unless the restored inputs are the ones it was flown with.

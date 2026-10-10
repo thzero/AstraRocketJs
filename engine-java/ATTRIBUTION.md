@@ -65,8 +65,8 @@ The `.CDX1` design exporter in `web/` was **ported from the mmrocket-sim project
 and is incorporated here **under GPL-3.0** like the rest of their work above. It is the app-side
 writer only: no engine code and no aerodynamics, just the file format.
 
-**Modified:** the single module was split into an orchestrator, `web/src/services/rasaeroExport.ts`,
-and the per-block writers under `web/src/services/rasaero/` (sustainer, booster, recovery, launch
+**Modified:** the single module was split into an orchestrator, `web/src/services/files/rasaeroExport.ts`,
+and the per-block writers under `web/src/services/files/rasaero/` (sustainer, booster, recovery, launch
 site, engines, simulation, surface, units). The output was checked against real RASAero II on
 2026-08-25.
 

@@ -3,7 +3,7 @@
 > The npm version policy, and why a package is deliberately held back from its latest.
 > Read this before "fixing" anything `npm outdated` flags.
 
-Only `web/` has npm dependencies (`engine-java/` uses the bundled Gradle wrapper). This page records the **version policy** and, more importantly, **why a package is deliberately not on its latest version** - so the next person to run `npm outdated` doesn't re-litigate a decision, or "fix" a pin that exists for a reason.
+This page covers `web/`. `website/` (the Help site) has its own `package.json`, and `engine-java/` uses the bundled Gradle wrapper. This page records the **version policy** and, more importantly, **why a package is deliberately not on its latest version** - so the next person to run `npm outdated` doesn't re-litigate a decision, or "fix" a pin that exists for a reason.
 
 _Last audited: **2026-10-09**._
 

@@ -2,7 +2,7 @@
 title: "Tools"
 sidebar_position: 12.5
 ---
-The **Tools** tab holds quick answers that need no design: where a rocket lands, how it leaves the rail, and what size parachute it needs. They suit a rocket you have not modeled, or a quick check at the field. On narrower screens the tab shows as 🧰, and on a phone it is on the bottom bar. Pick a tool from the row of tabs at the top. Each one keeps its inputs and its last result while you switch tools or tabs, until the page is reloaded.
+The **Tools** tab holds quick answers that need no design: where a rocket lands, how it leaves the rail, and what size parachute it needs. They suit a rocket you have not modeled, or a quick check at the field. On a phone it is **🧰 Tools** on the bottom bar. Pick a tool from the row of tabs at the top. Each one keeps its inputs and its last result while you switch tools or tabs, until the page is reloaded.
 
 Every tool here is an estimate, and says so. A rocket designed here gets better answers from its own simulation.
 
@@ -60,7 +60,7 @@ How a rocket leaves the rail on a given motor: its thrust to weight, the speed i
 
 - **Motor.** **Choose…** opens the same motor picker as a simulation, with the whole catalog and any motors you have imported. The motor's thrust curve and its mass as it burns come from there.
 - **Rocket mass without the motor.** The motor's loaded mass is added to it.
-- **Launch rod length.**
+- **Launch rail length.**
 - **Wind speed.** Type it, or open **Wind from a forecast**, pick a site, date and hour, and press **Get the forecast wind** to fill it from Open-Meteo's wind at 10 m. The gusts for that hour are used too.
 
 ### How it works {#how-it-works-rail}

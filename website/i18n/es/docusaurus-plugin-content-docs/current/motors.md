@@ -6,7 +6,10 @@ Un motor se asigna al **soporte de motor** (tubo interior) del cohete. Los motor
 
 ## El selector de motores
 
-El selector busca en un catálogo incluido de **~1.150 motores reales** de [thrustcurve.org](https://www.thrustcurve.org): filtra por fabricante, diámetro, clase de impulso y designación. Al seleccionar un motor se muestran sus dimensiones y su impulso total.
+El selector busca en un catálogo incluido de **~1.150 motores reales** de [thrustcurve.org](https://www.thrustcurve.org): filtra por fabricante, diámetro, clase de impulso, impulso total (un mínimo y un máximo, ambos opcionales) y designación. Al seleccionar un motor se muestran sus dimensiones y su impulso total.
+
+- **Cabe en el soporte**: solo los motores que caben en este soporte, por su diámetro interior y la longitud disponible, incluido el saliente del motor. La etiqueta muestra el diámetro interior. Está activado por defecto cuando el selector se abre para un soporte; desactívalo para ver todo el catálogo.
+- **Taponado**: solo los motores que el fabricante ofrece sin carga de eyección, para separación de etapas o recuperación electrónica. Cualquier motor se puede volar taponado desde el control de retardo (consulta [Retardo de eyección](#ejection-delay)).
 
 Tres filtros más funcionan como en el selector de motores de OpenRocket de escritorio:
 
@@ -17,7 +20,7 @@ Tres filtros más funcionan como en el selector de motores de OpenRocket de escr
 - El **catálogo** (las especificaciones de cada motor) viene con la aplicación, así que no hace falta ninguna consulta para explorarlo.
 - La **curva de empuje** viene incluida en el catálogo para la mayoría de los motores, así que elegir uno se resuelve al instante y funciona sin conexión. Los motores sin curva publicada se señalan en el selector; su curva se descarga de thrustcurve.org la primera vez que los eliges y luego se guarda en caché (se revalida de vez en cuando y recurre a la copia en caché si la descarga falla).
 
-## Retardo de eyección
+## Retardo de eyección {#ejection-delay}
 
 Cuando un motor ofrece varios retardos de eyección, elige el que vas a volar (o la opción **taponado** para motores usados sin carga de eyección). El retardo alimenta el momento de apertura de la recuperación en la simulación.
 

@@ -18,7 +18,7 @@ Todo se ejecuta **en tu dispositivo**. No hay servidor, no hay cuentas y no se s
 
 AstraRocketJs **no** es una recreación de la aplicación de escritorio de OpenRocket. Es una interfaz web simplificada sobre el **mismo núcleo de física**:
 
-- La aerodinámica (Barrowman extendido), la masa y el CG, y la integración del vuelo (RK4/RK6) son el propio código de OpenRocket, compilado a WebAssembly (con JavaScript como alternativa).
+- La aerodinámica (Barrowman extendido), la masa y el CG, y la integración del vuelo (RK4) son el propio código de OpenRocket, compilado a WebAssembly (con JavaScript como alternativa).
 - Abre y guarda archivos **`.ork`** estándar, así que los diseños viajan en ambos sentidos entre AstraRocketJs y OpenRocket de escritorio.
 - Cubre deliberadamente **lo esencial** — estabilidad en vivo, vistas 2D/3D, motores, materiales, piezas y simulación de vuelo — en lugar de todas las funciones del escritorio.
 

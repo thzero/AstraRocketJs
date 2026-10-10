@@ -24,9 +24,9 @@ For the full architecture - engine build pipeline, WASM/JS backend selection, th
 **Requirements**
 
 - **Node 24+** (npm ships with Node) - for the web app and the catalog tools.
-- **Only if you rebuild the engine or refresh the parts catalog:** a **JDK** (Temurin **21** is known-good; the engine targets Java 17). You don't need to install Gradle - it's bundled via the wrapper (`engine-java/gradlew`). The catalog's digest step (`sync:preset-digests`) compiles a small Java program against the OpenRocket jar. Most contributors never need this; the built engine and the catalogs are committed.
+- **Only if you rebuild the engine or refresh the parts catalog:** a **JDK** (the engine builds with Temurin **21**; CI pins 21.0.12). You don't need to install Gradle - it's bundled via the wrapper (`engine-java/gradlew`). The catalog's digest step (`sync:preset-digests`) compiles a small Java program against the OpenRocket jar. Most contributors never need this; the built engine and the catalogs are committed.
 
-**Install** - only `web/` has npm dependencies. `engine-java/` has **no** `npm install` (it uses the bundled Gradle wrapper + plain-Node scripts):
+**Install** - `web/` and `website/` (the Help site, which `npm run docs:build` builds) have npm dependencies. `engine-java/` has **no** `npm install` (it uses the bundled Gradle wrapper + plain-Node scripts):
 
 ```bash
 cd web
@@ -153,11 +153,11 @@ What CI gates on the PR itself (`.github/workflows/gates.yml`):
 
 The full Playwright suite is not a PR gate. It runs by hand from `.github/workflows/e2e-full.yml` (**Run workflow**), sharded two ways.
 
-A push to **any branch but `master`** runs only the web gates (`dev.yml`, about six minutes: `verify:ci`, so the coverage minimums are checked on the push), so a broken test shows up on the push that broke it rather than when the PR to `master` is opened. `master` is excluded because `deploy.yml` already runs the full set there. `web/tests/ciTriggers.test.ts` fails if the trigger is narrowed to a list of branch names.
+A push to **any branch but `master`** runs every `gates.yml` job except `parity` (`dev.yml`, with `parity: false`), then a `verify` job that fails if any gate failed; branch protection requires `Dev / verify`. A broken test shows up on the push that broke it rather than when the PR to `master` is opened. `master` is excluded because `deploy.yml` already runs the full set there. `web/tests/ciTriggers.test.ts` fails if the trigger is narrowed to a list of branch names.
 
 The Docusaurus site is typechecked only in `deploy.yml`, on merge to `master`. On a PR, `update-flow` builds it (`npm run docs:build`) for the offline Help check, so a broken MDX page or `sidebars.ts` fails that job; a docs type error shows up as a failed deploy.
 
-`gates.yml` is a reusable workflow. `ci.yml` calls it on a PR and `deploy.yml` calls the same file on merge to `master`, so master is held to exactly what a PR was held to and there is only one definition to maintain. Add a gate to `gates.yml` and both get it.
+`gates.yml` is a reusable workflow. `ci.yml` calls it on a PR, `dev.yml` on a push to any other branch (without `parity`), and `deploy.yml` on merge to `master`, so master is held to exactly what a PR was held to and there is only one definition to maintain. Add a gate to `gates.yml` and all three get it.
 
 On merge, `deploy.yml` runs those gates and only then typechecks and builds the docs, builds the app and publishes to Pages. Nothing publishes unless every gate is green.
 

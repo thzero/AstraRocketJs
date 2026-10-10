@@ -2,7 +2,13 @@
 title: "Ejecutar una simulación"
 sidebar_position: 12
 ---
-Las simulaciones están en el panel de la derecha. Una simulación es una [configuración de vuelo](./flight-configurations.md) —los motores, la recuperación y las etapas— volada bajo unas condiciones de lanzamiento, así que lo que cada fila lleva de propio es su nombre, la configuración que vuela, las condiciones y el último resultado. Puedes mantener **varias simulaciones con nombre** para un mismo diseño (por ejemplo, distintos motores o campos de vuelo), **duplicar** una como punto de partida y eliminarlas. El botón rojo **Eliminar simulación** (junto al nombre de la simulación actual) la borra tras una confirmación; el espacio de trabajo siempre conserva al menos una, así que se desactiva cuando solo queda una.
+Las simulaciones están en la pestaña **Simulaciones**: una tabla con una fila por simulación. En una pantalla ancha, el editor de la simulación seleccionada ocupa una columna a la derecha de la tabla; en un teléfono queda debajo de la tabla. Una simulación es una [configuración de vuelo](./flight-configurations.md) (los motores, la recuperación y las etapas) volada bajo unas condiciones de lanzamiento, así que lo que cada fila lleva de propio es su nombre, la configuración que vuela, las condiciones y el último resultado. Puedes mantener **varias simulaciones con nombre** para un mismo diseño (por ejemplo, distintos motores o campos de vuelo), **duplicar** una como punto de partida y eliminarlas. La barra de herramientas sobre la tabla tiene **＋ Nueva**, **Duplicar simulación** y el botón rojo **Eliminar simulación**, que borra la simulación actual. Pregunta antes si **Confirmar la eliminación de simulaciones** está activado en [Ajustes ▸ Simulación](./settings.md#simulation-defaults), y lo está por defecto. El espacio de trabajo siempre conserva al menos una simulación, así que Eliminar se desactiva cuando solo queda una.
+
+**Ejecutar desactualizadas (N)**, en la barra de herramientas, vuela todas las simulaciones que nunca se han ejecutado o cuyo resultado está desactualizado; N es cuántas son. No tiene en cuenta las casillas, y se desactiva cuando todas las simulaciones están al día.
+
+Una fila que tiene resultado termina en un botón 📊, **Ver resultados**, que abre la pestaña Resultados con esa simulación.
+
+Las casillas eligen qué filas vuela **Simular**, y también qué filas cambia el editor. Con más de una marcada, el editor indica *Editando N simulaciones seleccionadas*, y el campo que cambies se aplica a todas. Los nombres y los motores son de cada simulación. Un campo en el que las simulaciones marcadas difieren lo indica, y cambiarlo les da a todas el valor nuevo.
 
 **⬇ CSV**, en la barra de herramientas, descarga la **tabla de simulaciones**: cada simulación en una fila, con su configuración, motores, estado y resultados (apogeo, velocidades, tiempos, Max-Q, q·α máx. y alabeo máx.) en tus unidades. Una simulación que no ha volado aparece con las cifras en blanco, y una desactualizada aparece marcada como tal, porque sus cifras describen el diseño anterior a tus últimos cambios.
 
@@ -20,7 +26,7 @@ Cada simulación tiene su propia configuración de lanzamiento, agrupada en tarj
 - **Campo de vuelo** — altitud, latitud y longitud, además de las [ubicaciones guardadas](#saved-locations) y un [mapa](#the-map).
 - **Atmósfera** — estándar ISA, o temperatura, presión y humedad personalizadas, o rellenarlas junto con el viento a partir de un [pronóstico del tiempo](#weather). La **presión** es la presión *en el sitio*, no la cifra reducida al nivel del mar que suelen dar las aplicaciones del tiempo y los partes de aeropuerto. Una presión escrita muy por encima de la presión estándar para la altitud del sitio muestra una nota en ámbar bajo el campo que lo indica, porque así se ve una cifra a nivel del mar en un campo alto. La nota nunca impide simular: el valor puede ser correcto.
 - **Viento** — velocidad media, rachas (desviación estándar) y dirección; o un perfil de viento **multinivel** que varía con la altitud.
-- **Modelo terrestre** — plano, esférico o WGS84 (afecta a los vuelos largos o muy altos).
+- **Modelo de Tierra**: plana, esférica o WGS84 (afecta a los vuelos largos o muy altos), y **Gravedad**: WGS84 o **Constante**. Constante pide un valor de **g**.
 
 Las simulaciones nuevas parten de los valores por defecto de tus [Ajustes](./settings.md) globales.
 
@@ -79,7 +85,7 @@ La atmósfera pronosticada es un añadido de esta aplicación. OpenRocket de esc
 
 ## Ejecútala
 
-Pulsa **Simular vuelo**. El vuelo se calcula en un **Web Worker** en segundo plano, así que la interfaz sigue respondiendo: se muestra un indicador mientras calcula (normalmente bastante menos de un segundo). Al terminar, se desbloquean las vistas de **Vuelo** y **Trayectoria 3D** y aparecen los resultados.
+Pulsa **Simular vuelo**. El vuelo se calcula en un **Web Worker** en segundo plano, así que la interfaz sigue respondiendo: se muestra un indicador mientras calcula (normalmente bastante menos de un segundo). Al terminar, se abre la pestaña **Resultados** con sus vistas de **Vuelo**, **Ruta 3D**, **Traza en tierra** y **Entorno** (consulta [Vistas y análisis](./views-and-analysis.md)).
 
 ### Cuándo se rechaza una ejecución {#when-a-run-is-refused}
 
@@ -95,7 +101,7 @@ Hay dos tipos de problema, y se comportan de forma distinta:
 **Los fallos de una simulación** solo descartan esa fila. Selecciona seis y ejecútalas: las buenas vuelan, y el botón te dice cuáles se quedan fuera y por qué.
 
 - **Sin motor utilizable** — no hay nada cargado en el soporte principal, o un `.ork` importado cuyo motor no se pudo emparejar con una curva de empuje.
-- **Un campo de lanzamiento obligatorio está en blanco** — longitud de la guía, ángulo de la guía, velocidad del viento, desviación estándar del viento, altitud del sitio o latitud. No tienen un valor por defecto razonable, así que se nombran en lugar de adivinarse.
+- **Un campo de lanzamiento obligatorio está en blanco**: longitud de la guía, ángulo de la guía, velocidad del viento, desviación estándar del viento, altitud del sitio, latitud o longitud. No tienen un valor por defecto razonable, así que se nombran en lugar de adivinarse.
 - **Condiciones de lanzamiento fuera de los códigos de seguridad** — guía a más de 20° de la vertical, o viento en superficie por encima de 20 mph. Consulta [Límites de seguridad](#safety-limits) más abajo.
 
 El botón solo se desactiva cuando *nada* de lo seleccionado puede volar. Si no, sigue activo, cuenta las filas que realmente se van a ejecutar y nombra las que omite: una fila mala nunca te cuesta las otras once.
@@ -126,6 +132,7 @@ Pulsa su encabezado para plegar la explicación. Plegarla te pide confirmar que 
 Debajo, los resultados se muestran como fichas, en orden aproximadamente cronológico del vuelo, e incluyen:
 
 - **Velocidad de salida del raíl** (marcada si está por debajo de tu mínimo de seguridad)
+- **Margen estático al salir del raíl** (**de la varilla** o **de la guía**, según las guías del diseño): el margen de estabilidad en calibres en el momento en que el cohete sale de la guía, con el CP en ese momento, marcado como estable, marginal o inestable. La estabilidad de la franja de estadísticas es la del cohete en la rampa; esta usa la velocidad real y el motor parcialmente quemado.
 - **Retardo óptimo** y **tiempo hasta el apogeo**
 - **Apogeo** (altitud máxima) y **velocidad / aceleración / Mach máximos**
 - **Velocidad de apertura** (marcada si supera tu umbral de aviso; en verde cuando es suficientemente baja). En un diseño de [despliegue dual](./designing-a-rocket.md#despliegue-dual) el motor de vuelo juzga el principal y el piloto contra sus propios umbrales, y devuelve un aviso por cada uno.
@@ -146,10 +153,10 @@ Se nombra cada evento que levanta el motor, no solo los cinco que etiquetan las 
 
 Una **apertura de recuperación** nombra el paracaídas que se disparó, así que un drogue de doble apertura se distingue del principal, y una etapa con racimo obtiene una fila por motor en vez de una por etapa. En un vuelo por etapas todas están en la misma tabla, etiquetadas e intercaladas en el mismo reloj de lanzamiento, porque ese es el orden en que ocurrió el vuelo: un propulsor gastado baja mientras el sustentador sigue en ascenso libre.
 
-El botón **CSV** escribe la tabla como archivo. Consulta **[Archivos y exportaciones](./files-and-exports.md)**.
+El botón **CSV** escribe la tabla como archivo. Consulta **[Archivos y exportaciones](./files-and-exports.md#exporting-data)**.
 
 Para el historial temporal completo, abre las **[vistas de Vuelo y Trayectoria 3D](./views-and-analysis.md)**. Para guardar los números, consulta **[Archivos y exportaciones](./files-and-exports.md)**.
 
 ## Editar invalida los resultados
 
-Cambiar el diseño borra el resultado guardado de cada simulación (la física ya no coincide): solo tienes que pulsar **Simular** otra vez. Lo mismo ocurre con **deshacer/rehacer**: restaura tu diseño y los *datos de entrada* de la simulación, pero no los resultados de vuelo guardados, así que vuelve a simular para ver el vuelo.
+Cambiar el diseño no borra el resultado de una simulación. Los números siguen pudiéndose leer, y la simulación se marca como **Desactualizado** en la tabla y en la pestaña Resultados, porque ya no describen el cohete. Pulsa **Simular** (o **Ejecutar desactualizadas**) para ponerlos al día. **Deshacer/rehacer** restaura tu diseño y los *datos de entrada* de la simulación y conserva los resultados actuales; un resultado aparece como desactualizado salvo que los datos restaurados sean con los que se voló.

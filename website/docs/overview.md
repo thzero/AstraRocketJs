@@ -18,7 +18,7 @@ Everything runs **on your device**. There's no server, no account, and nothing i
 
 AstraRocketJs is **not** a re-creation of OpenRocket's desktop app. It's a streamlined web interface over the **same physics core**:
 
-- The aerodynamics (Extended Barrowman), mass/CG, and flight integration (RK4/RK6) are OpenRocket's own code, compiled to WebAssembly (with a JavaScript fallback).
+- The aerodynamics (Extended Barrowman), mass/CG, and flight integration (RK4) are OpenRocket's own code, compiled to WebAssembly (with a JavaScript fallback).
 - It opens and saves standard **`.ork`** files, so designs move both ways between AstraRocketJs and desktop OpenRocket.
 - It deliberately covers **the essentials** — live stability, 2D/3D views, motors, materials, parts, and flight simulation — rather than every desktop feature.
 

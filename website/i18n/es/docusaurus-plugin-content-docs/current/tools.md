@@ -2,7 +2,7 @@
 title: "Herramientas"
 sidebar_position: 12.5
 ---
-La pestaña **Herramientas** reúne respuestas rápidas que no necesitan un diseño: dónde aterriza un cohete, cómo sale del raíl y qué tamaño de paracaídas necesita. Sirven para un cohete que no has modelado o para una comprobación rápida en el campo. En pantallas más estrechas la pestaña se muestra como 🧰, y en un teléfono está en la barra inferior. Elige una herramienta en la fila de pestañas de arriba. Cada una conserva sus datos y su último resultado al cambiar de herramienta o de pestaña, hasta que se recarga la página.
+La pestaña **Herramientas** reúne respuestas rápidas que no necesitan un diseño: dónde aterriza un cohete, cómo sale del raíl y qué tamaño de paracaídas necesita. Sirven para un cohete que no has modelado o para una comprobación rápida en el campo. En un teléfono es **🧰 Herramientas** en la barra inferior. Elige una herramienta en la fila de pestañas de arriba. Cada una conserva sus datos y su último resultado al cambiar de herramienta o de pestaña, hasta que se recarga la página.
 
 Todas las herramientas de aquí son estimaciones, y lo indican. Un cohete diseñado aquí obtiene mejores respuestas de su propia simulación.
 
@@ -60,7 +60,7 @@ Cómo sale un cohete del raíl con un motor dado: su relación empuje-peso, la v
 
 - **Motor.** **Elegir…** abre el mismo selector de motores que una simulación, con todo el catálogo y los motores que hayas importado. La curva de empuje del motor y su masa mientras se quema vienen de ahí.
 - **Masa del cohete sin el motor.** Se le suma la masa cargada del motor.
-- **Longitud de la guía.**
+- **Longitud del raíl.**
 - **Velocidad del viento.** Escríbela, o abre **Viento de un pronóstico**, elige un sitio, una fecha y una hora, y pulsa **Obtener el viento pronosticado** para rellenarla con el viento a 10 m de Open-Meteo. También se usan las rachas de esa hora.
 
 ### Cómo funciona {#how-it-works-rail}
