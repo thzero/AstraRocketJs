@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useState } from 'react';
 import { fireEvent, screen, waitFor, act } from '@testing-library/react';
 import { renderWithProviders } from '../../testing/renderWithProviders';
+import { useConfirmStore } from '../../../src/state/confirmStore';
 import type { CatalogMotor } from '../../../src/services/motors/motorDb';
 import type { MotorSpec } from '../../../src/engine/openRocketEngine';
 
@@ -28,9 +29,11 @@ const X: CatalogMotor = {
 const Y: CatalogMotor = { ...X, designation: 'Y', delays: '3,5,8' };
 
 const loadCatalog = vi.fn(() => Promise.resolve([X, Y]));
+const deleteCustomMotor = vi.fn(async (_id: string) => [X, Y]);
 vi.mock('../../../src/services/motors/motorDb', async (orig) => ({
   ...(await orig<Record<string, unknown>>()),
   loadCatalog: () => loadCatalog(),
+  deleteCustomMotor: (id: string) => deleteCustomMotor(id),
 }));
 const fetchMotorSpec = vi.fn<(m: CatalogMotor, delay: number) => Promise<MotorSpec>>();
 vi.mock('../../../src/services/motors/thrustcurve', () => ({
@@ -163,5 +166,24 @@ describe('MotorDialog', () => {
     expect(screen.queryByRole('button', { name: /^Select$/ })).toBeNull();
     fireEvent.change(search, { target: { value: '' } });
     expect(screen.getByRole('button', { name: /^Select$/ })).toBeTruthy();
+  });
+});
+
+describe('MotorDialog deleting an imported motor', () => {
+  it('asks first, and keeps the motor when the answer is no', async () => {
+    const Z: CatalogMotor = { ...X, designation: 'Z', custom: true, id: 'z1' };
+    loadCatalog.mockImplementationOnce(() => Promise.resolve([Z, X]));
+    renderWithProviders(<Host current={null} onSelect={() => {}} />);
+    openPicker();
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete imported motor Z' }));
+    await waitFor(() => expect(useConfirmStore.getState().request?.danger).toBe(true));
+    act(() => useConfirmStore.getState().settle(false));
+    await new Promise((r) => setTimeout(r, 10));
+    expect(deleteCustomMotor).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete imported motor Z' }));
+    await waitFor(() => expect(useConfirmStore.getState().request).not.toBeNull());
+    act(() => useConfirmStore.getState().settle(true));
+    await waitFor(() => expect(deleteCustomMotor).toHaveBeenCalledWith('z1'));
   });
 });

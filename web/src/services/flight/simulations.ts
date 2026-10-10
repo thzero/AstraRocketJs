@@ -6,11 +6,13 @@ import type { FlightResult, RocketTree, FlightSummary } from '../../engine/openR
 import type { FlightConfig } from './flightConfigs';
 import type { LaunchConditions } from '../design/orkTree';
 import type { CompleteLaunch } from './requiredLaunch';
-import { surfaceLevel } from './safetyLimits';
 import { uuid } from '../app/uuid';
 import { degToRad } from '../../prefs/units';
 import { LAUNCH_SI } from '../../prefs/launchUnits';
 import { stableJson } from '../app/stableJson';
+import { padLevelWind } from './windLevels';
+import { walkNodes } from '../../tree/treeWalk';
+import { isRecoveryDevice } from '../design/treeEdit';
 
 /**
  * The default compass heading (degrees) for the launch rod and the wind: due
@@ -46,6 +48,13 @@ export interface Simulation {
    * The first run of this simulation replaces it.
    */
   fileSummary?: { summary: FlightSummary; key: string | null };
+  /**
+   * Parts of the `.ork` simulation this app does not model, as raw XML: desktop
+   * simulation extensions (air-start, roll control, scripts), plot appearance and
+   * landing-dispersion settings. Never run or edited here; written back on save
+   * so a round trip through this app keeps them (services/files/ork/passthrough.ts).
+   */
+  xmlExtra?: string[];
   /**
    * What `result` was flown from, as {@link resultKey} wrote it at dispatch.
    *
@@ -125,6 +134,9 @@ const treeKeys = new WeakMap<RocketTree, string>();
  * `designer`, `comment`, `revision` and `designType`, which are round-tripped to
  * the `.ork` and touch no physics, and every node carries a `name` that is a
  * label. So typing a designer name or renaming a part leaves results current.
+ * Recovery devices are the exception: a run names the device each deployment
+ * came from, and the Recovery readout finds its figures by that name, so a
+ * renamed device ages the result rather than silently losing them.
  *
  * Everything else is treated as flight-bearing, including fields we may not know
  * about (`ComponentNode` has an open index signature). That is the safe
@@ -134,11 +146,18 @@ const treeKeys = new WeakMap<RocketTree, string>();
 export function flightKey(tree: RocketTree): string {
   let key = treeKeys.get(tree);
   if (key === undefined) {
-    key = stableJson(tree.components, PART_NAME);
+    const deviceNames = [...walkNodes(tree.components)].filter((n) => isRecoveryDevice(n.type)).map((n) => n.name);
+    key = stableJson([tree.components, deviceNames], PART_NAME);
     treeKeys.set(tree, key);
   }
   return key;
 }
+
+/** The last key per simulation object, with the inputs it was computed from. */
+const resultKeys = new WeakMap<
+  Simulation,
+  { tree: RocketTree; config: FlightConfig; globals: SimPrefs; key: string }
+>();
 
 /**
  * Everything one row's flight is computed from, as one comparable string: the
@@ -147,6 +166,17 @@ export function flightKey(tree: RocketTree): string {
  * unaffected by the global one moving, because its override is what it reads.
  */
 export function resultKey(tree: RocketTree, config: FlightConfig, sim: Simulation, globals: SimPrefs): string {
+  // Every store update asks every row whether it is outdated, and the key
+  // serializes the configuration's thrust curves. The inputs are replaced, never
+  // mutated, so the same four objects always give the same key.
+  const hit = resultKeys.get(sim);
+  if (hit && hit.tree === tree && hit.config === config && hit.globals === globals) return hit.key;
+  const key = computeResultKey(tree, config, sim, globals);
+  resultKeys.set(sim, { tree, config, globals, key });
+  return key;
+}
+
+function computeResultKey(tree: RocketTree, config: FlightConfig, sim: Simulation, globals: SimPrefs): string {
   const { id: _id, name: _name, ...flown } = config;
   const prefs = effectivePrefs(globals, sim.prefs);
   // Where the weather came from describes the launch; it is not flown.
@@ -346,6 +376,16 @@ export function changedPrefKeys(before: SimPrefs, after: SimPrefs): (keyof SimPr
 export const freshSeed = (): number => Math.floor(Math.random() * 2 ** 32) - 2 ** 31;
 
 /**
+ * A typed seed as the seed the bridge flies. Its `(int)` cast truncates toward
+ * zero and saturates at the int range, so 3.7 flies as 3 and 1e12 as
+ * 2147483647; normalizing on entry keeps the field showing the seed flown.
+ */
+export function seedFromInput(v: number | null): number | null {
+  if (v == null || Number.isNaN(v)) return null;
+  return Math.max(-(2 ** 31), Math.min(2 ** 31 - 1, Math.trunc(v)));
+}
+
+/**
  * Map UI launch conditions (+ global sim prefs) to the engine's simulate()
  * options (radians, kelvin, Pa).
  *
@@ -357,11 +397,11 @@ export const freshSeed = (): number => Math.floor(Math.random() * 2 ** 32) - 2 *
  * for a blank (a `v ?? 0` coercion would turn "cleared" into a real zero).
  */
 export function simConditions(launch: CompleteLaunch, prefs?: SimPrefs) {
-  // "Launch into the wind" aims the rod at the surface wind heading, overriding
-  // the manual rod direction. Multilevel wind: the surface level is the lowest
-  // altitude (safetyLimits.surfaceLevel), not `windLevels[0]`: levels are not
-  // kept sorted, so a top-down profile would aim the rod at the wind aloft.
-  const windDirDeg = surfaceLevel(launch)?.directionDeg ?? launch.windDirectionDeg ?? DEFAULT_HEADING_DEG;
+  // "Launch into the wind" aims the rod at the wind heading at the pad,
+  // overriding the manual rod direction. Multilevel wind: the profile read at
+  // the pad's altitude (windLevels.padLevelWind), as upstream's
+  // SimulationOptions.getLaunchRodDirection does.
+  const windDirDeg = padLevelWind(launch)?.headingDeg ?? launch.windDirectionDeg ?? DEFAULT_HEADING_DEG;
   const rodDirDeg = launch.launchIntoWind ? windDirDeg : (launch.launchRodDirectionDeg ?? DEFAULT_HEADING_DEG);
   return {
     launchRodLength: launch.launchRodLengthM,

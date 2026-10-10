@@ -113,3 +113,33 @@ describe('componentsForType filters rows through the guard', () => {
     vi.doUnmock('../../src/services/app/remoteData');
   });
 });
+
+describe('isComponentRow with the stated mass and the nose cone wall and shoulder', () => {
+  const nose = {
+    type: 'nosecone',
+    mfr: 'Estes',
+    partNo: 'PNC-50K',
+    desc: 'Nose cone',
+    materialDensity: 1050,
+    shape: 'ogive',
+    filled: false,
+    outerDiameter: 0.0247,
+    length: 0.0667,
+  };
+
+  it('accepts a nose cone row published before the wall and shoulder were carried', () => {
+    expect(isComponentRow(nose)).toBe(true);
+  });
+
+  it('accepts the wall, the shoulder and a stated mass', () => {
+    expect(
+      isComponentRow({ ...nose, thickness: 0.0016, shoulderDiameter: 0.0241, shoulderLength: 0.0127, mass: 0.0065 }),
+    ).toBe(true);
+    expect(isComponentRow({ ...nose, thickness: null, shoulderDiameter: null, shoulderLength: null })).toBe(true);
+  });
+
+  it('refuses a mass or a shoulder that is not a number', () => {
+    expect(isComponentRow({ ...nose, mass: '6 g' })).toBe(false);
+    expect(isComponentRow({ ...nose, shoulderDiameter: 'wide' })).toBe(false);
+  });
+});

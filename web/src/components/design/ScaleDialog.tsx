@@ -7,10 +7,19 @@ import { UnitChip } from '../common/UnitChip';
 import { useUnits } from '../../prefs/useUnits';
 import { onSi } from '../../prefs/entryValue';
 import { unitScope } from '../../prefs/units';
-import { hasExplicitMass, maxBodyDiameter, rocketLength, type ScaleScope } from '../../tree/scaleRocket';
+import {
+  SCALE_MAX,
+  SCALE_MIN,
+  hasExplicitMass,
+  maxBodyDiameter,
+  rocketLength,
+  type ScaleScope,
+} from '../../tree/scaleRocket';
 import { findNode } from '../../services/design/treeEdit';
 import { isChainType } from '../../tree/componentKinds';
 import { num } from '../../tree/nodeProps';
+import { finRootChord } from '../../tree/finPlanform';
+import { isPlanarFinSet } from '../../tree/tubefins';
 import type { ComponentNode } from '../../engine/openRocketEngine';
 import { fmtNum } from '../../i18n/format';
 import { DialogButton } from '../common/DialogButton';
@@ -27,6 +36,9 @@ function initialSize(node: ComponentNode | null, widest: number): number {
     return ends.length ? Math.max(...ends) * 2 : widest;
   }
   if (node.type === 'podset' || node.type === 'parallelstage') return num(node, 'radiusOffset');
+  // `FinSet.getLength()` is the root chord, which a fin set stores as
+  // `rootChord` or, on a freeform fin, as its outline.
+  if (isPlanarFinSet(node.type)) return finRootChord(node);
   return num(node, 'length');
 }
 
@@ -74,7 +86,12 @@ export function ScaleDialog({ onClose }: { onClose: () => void }) {
   const [offsets, setOffsets] = useState(what !== 'part');
 
   const pct = fmtNum(factor * 100, 0);
-  const usable = Number.isFinite(factor) && factor > 0 && factor !== 1 && (what !== 'rocket' || baseD > 0);
+  const usable =
+    Number.isFinite(factor) &&
+    factor >= SCALE_MIN &&
+    factor <= SCALE_MAX &&
+    factor !== 1 &&
+    (what !== 'rocket' || baseD > 0);
   const apply = () => {
     if (!usable) return;
     scaleDesign(factor, what, { masses: masses && explicitMass, offsets });
@@ -127,9 +144,10 @@ export function ScaleDialog({ onClose }: { onClose: () => void }) {
               <NumberInput
                 ariaLabel={t('scale.factor')}
                 value={factor}
-                onChange={(v) => v !== null && v > 0 && setFactor(v)}
+                onChange={(v) => v !== null && v >= SCALE_MIN && v <= SCALE_MAX && setFactor(v)}
                 step={0.05}
-                min={0.01}
+                min={SCALE_MIN}
+                max={SCALE_MAX}
                 className={input}
               />
               <span className="text-xs tabular-nums text-ink-faint">× · {pct}%</span>
@@ -159,9 +177,12 @@ export function ScaleDialog({ onClose }: { onClose: () => void }) {
               <NumberInput
                 ariaLabel={t('scale.toLabel')}
                 value={fu.toUi(from * factor)}
+                // Nothing to divide by until `from` has a size: the box waits
+                // for one rather than refusing every entry.
+                disabled={from <= 0}
                 onChange={onSi(
                   fu,
-                  (ratio) => ratio !== null && ratio > 0 && setFactor(ratio),
+                  (ratio) => ratio !== null && ratio >= SCALE_MIN && ratio <= SCALE_MAX && setFactor(ratio),
                   // The box holds a length and the dialog holds the ratio of it
                   // to `from`, so the division is part of the conversion.
                   (si) => (from > 0 ? si / from : NaN),

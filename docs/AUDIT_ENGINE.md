@@ -6,13 +6,16 @@ Date: 2026-10-01. Branch `test` at b610c12. Run per `docs/AUDIT_PROMPT_ENGINE.md
 six parallel review agents over the auditable surface, with the pinned upstream
 obtained and every patch file diffed against it.
 
+Status 2026-10-09: all findings FIXED or DECIDED except P2, P3, P7, P8 and G13, CLOSED out of scope (the opt-in RASAero aero model is not maintained; RASAero is export-only).
+
 Companion to `docs/AUDIT.md`, which covers `web/`.
 
 ## Method, and why the diff numbers matter
 
 The pinned upstream was cloned: `thzero/openrocket` at
-`98f05af97bfbcd570bf2098307c23e0075beef4b`, the exact ref in
-`engine-java/extract/UPSTREAM`, sparse checkout of `core/src/main/java`, 788
+`98f05af97bfbcd570bf2098307c23e0075beef4b`, the ref pinned in
+`engine-java/extract/UPSTREAM` at the time (since repinned; see
+`engine-java/patches/LEDGER.md`), sparse checkout of `core/src/main/java`, 788
 files. **No patch finding in this report is unverified inference.**
 
 One mechanical point that governs every number below. Upstream files are CRLF and
@@ -23,7 +26,9 @@ consistent here: `extract.mjs` applies its `norm()` at every comparison, and
 `.gitattributes` (`* text=auto eol=lf`) absorbs the rest. Not a finding, but the
 first thing to get right.
 
-## What is actually verified, stated plainly
+## What is actually verified, stated plainly (as of 2026-10-01)
+
+Today (2026-10-09): `golden.txt` holds 359 values. Against it, static lines must match exactly and integrated flight lines within 3e-3 relative (3e-2 for the gusty-wind lines).
 
 `parity` verifies that the same Java compiles to a JVM run, a TeaVM-JS module and
 a TeaVM-WASM-GC module that agree to within ULP noise. That is a compiler-fidelity
@@ -289,6 +294,8 @@ Latent today, and the reason is itself a finding: `Rocket.setPerfectFinish` is
 called nowhere in `src/java`, `src/api` or `test`, so `isPerfectFinish()` is
 permanently false. That is a desktop divergence in its own right, a real `.ork` and
 desktop setting that never takes effect here.
+
+Status 2026-10-09: still unwired (`setPerfectFinish` is called nowhere in `src/api`), and the app has no field for it.
 
 Fix: seam the partial-laminar branch too, or document that the fade is
 turbulent-only; separately, wire `perfectFinish` through the facade.
@@ -1163,7 +1170,8 @@ the patches are in better shape than the gates that are supposed to protect them
 **Step 8 is CLOSED, out of scope:** P2, P3, P7, P8 and G13 are defects in the opt-in
 supersonic aero model, which nothing in the app enables. RASAero matters to this
 project only as an export format (`.CDX1`), so its kernel aero model is not
-maintained work. Step 10 (documentation) remains.
+maintained work. Step 10 (documentation) is done except the RASAero
+documentation items, closed out of scope (see the Status, 2026-10-04 block above).
 
 **Steps 1 to 5 are DONE (2026-10-04):** G2, G3, B2, P1, B1, B3 and G6, each marked
 FIXED above with what was measured. The engine was rebuilt and the rebuild is

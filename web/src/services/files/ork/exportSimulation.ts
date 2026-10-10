@@ -61,6 +61,8 @@ function simulationXml(w: OrkWriter, depth: number, sim: OrkExportSimulation): v
   const configId = w.writeConfigs.some((c) => c.id === sim.configId) ? sim.configId : w.defaultId;
   conditionsXml(w, depth + 2, sim.launch, configId);
   emit(depth + 1, '</conditions>');
+  // What the file carried that this app does not model, where desktop writes it.
+  for (const raw of sim.xmlExtra ?? []) emit(depth + 1, raw);
   if (summary) emit(depth + 1, flightDataTag(summary));
   emit(depth, '</simulation>');
 }
@@ -106,13 +108,15 @@ function conditionsXml(w: OrkWriter, depth: number, launch: LaunchConditions, co
   // Degrees; the desktop's preference default when the site was never set.
   emit(depth, `<launchlongitude>${launch.longitudeDeg ?? -80.6}</launchlongitude>`);
   emit(depth, `<geodeticmethod>${launch.geodetic ?? 'spherical'}</geodeticmethod>`);
-  // Gravity: only written when it is not the default, so a file that never
+  atmosphereXml(w, depth, launch);
+  // Gravity in OpenRocketSaver's element, after the atmosphere as the desktop
+  // writes it. Only written when it is not the default, so a file that never
   // touched it round-trips unchanged.
   if (launch.gravityModel === 'constant') {
-    emit(depth, '<gravitymodel>Constant</gravitymodel>');
-    emit(depth, `<constantgravity>${launch.constantGravity ?? G0}</constantgravity>`);
+    emit(depth, '<gravity model="constant">');
+    emit(depth + 1, `<value>${launch.constantGravity ?? G0}</value>`);
+    emit(depth, '</gravity>');
   }
-  atmosphereXml(w, depth, launch);
   weatherSourceXml(w, depth, launch);
   // RK4SimulationStepper recommended defaults (the desktop's own values).
   emit(depth, '<timestep>0.05</timestep>');

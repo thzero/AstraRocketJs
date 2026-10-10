@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import type { ComponentNode } from '../../engine/openRocketEngine';
 import { designSeparation, type FlightConfig, sepOverride, stageFlies } from '../../services/flight/flightConfigs';
 import { useWorkspaceStore } from '../../state/store';
+import { findStages } from '../../services/design/treeEdit';
 import { OverrideCard, overrideFieldLabel, OverrideNumber, OverrideRow, OverrideSelect } from './OverrideFields';
 import { useUnits } from '../../prefs/useUnits';
 import { onSi } from '../../prefs/entryValue';
@@ -51,6 +52,10 @@ export function SeparationSection({
 
   const id = stage.id as string;
   const flies = stageFlies(config, id);
+  // Something has to fly, so the only stage still flying cannot be grounded.
+  const onlyFlying = useWorkspaceStore(
+    (s) => flies && findStages(s.tree).every((n) => n.id === id || !stageFlies(config, n.id as string)),
+  );
   const over = sepOverride(config, id);
   const design = designSeparation(stage);
   const baseEvent = design.separationEvent;
@@ -68,6 +73,8 @@ export function SeparationSection({
           type="checkbox"
           checked={flies}
           aria-label={overrideFieldLabel(name, t('configs.flies'))}
+          disabled={onlyFlying}
+          title={onlyFlying ? t('configs.lastFlyingStage') : undefined}
           onChange={(e) => setStageFlies(config.id, id, e.target.checked)}
           className="accent-accent-500"
         />

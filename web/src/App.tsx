@@ -39,6 +39,7 @@ export default function App() {
   const { t } = useTranslation();
   const tab = useWorkspaceStore((s) => s.tab);
   const err = useWorkspaceStore((s) => s.err);
+  const buildErr = useWorkspaceStore((s) => s.buildErr);
   const storageWarning = useWorkspaceStore((s) => s.storageWarning);
   const result = useWorkspaceStore((s) => selectActive(s).result);
   // Titles the CSV the events table writes, so a file on disk says which run it
@@ -118,7 +119,20 @@ export default function App() {
           {storageWarning}
         </p>
       )}
-      {err && <p className="border-b border-danger-500/30 bg-danger-950/60 px-4 py-2 text-sm text-danger-300">{err}</p>}
+      {/* The design not building, and the last action failing, are two facts
+          and can both stand; a run refused for the same fault the build reports
+          says it once. `role="alert"`, so a failure is announced and not only
+          painted. */}
+      {buildErr && (
+        <p role="alert" className="border-b border-danger-500/30 bg-danger-950/60 px-4 py-2 text-sm text-danger-300">
+          {buildErr}
+        </p>
+      )}
+      {err && err !== buildErr && (
+        <p role="alert" className="border-b border-danger-500/30 bg-danger-950/60 px-4 py-2 text-sm text-danger-300">
+          {err}
+        </p>
+      )}
       {/* Third banner, and the one that outranks both: without the kernel there
           are no numbers to be wrong about. It renders nothing once the engine is
           up, which is the ordinary case within a second or two of first paint. */}

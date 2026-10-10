@@ -1,10 +1,9 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import type { ComponentNode, RocketTree } from '../../../src/engine/openRocketEngine';
-import { syncAutoRadii } from '../../../src/services/design/autoRadius';
+import { KERNEL_AUTO_RADIUS, syncAutoRadii } from '../../../src/services/design/autoRadius';
 import { addPart, catalogPatch, defaultNode, updateNode } from '../../../src/services/design/treeEdit';
 import { importOrk, exportOrk } from '../../../src/services/files/orkFile';
-import { KERNEL_DEFAULTS } from '../../../src/tree/kernelDefaults';
 
 /**
  * Automatic diameters: OpenRocket's Automatic checkbox, where a part takes the
@@ -83,21 +82,108 @@ describe('syncAutoRadii', () => {
     expect(tr['aftRadius']).toBeCloseTo(0.014, 9);
   });
 
-  it('will not follow a neighbor that is itself automatic', () => {
-    // Two tubes both on auto: the second must not copy the first's resolved
-    // guess, or one of them silently defines the other.
+  it('falls back to the kernel default radius when two automatic tubes only have each other', () => {
+    // BodyTube.getAutoOuterRadius skips a neighbor that is sizing from this
+    // tube, and with nothing left takes SymmetricComponent.DEFAULT_RADIUS.
     const t = syncAutoRadii(
       stage([
         { type: 'bodytube', id: 'a', length: 0.3, outerRadiusAuto: true } as unknown as ComponentNode,
         { type: 'bodytube', id: 'b', length: 0.3, outerRadiusAuto: true } as unknown as ComponentNode,
       ]),
     );
-    for (const n of chainOf(t)) expect(n['outerRadius']).toBeCloseTo(KERNEL_DEFAULTS.bodytube.outerRadius, 9);
+    for (const n of chainOf(t)) expect(n['outerRadius']).toBeCloseTo(KERNEL_AUTO_RADIUS, 12);
+    expect(KERNEL_AUTO_RADIUS).toBe(0.025);
+  });
+
+  it('chains through an automatic tube to the part beyond it', () => {
+    // BodyTube.getFrontAutoRadius passes the question on when the tube is automatic.
+    const t = syncAutoRadii(
+      stage([
+        { type: 'nosecone', id: 'n', length: 0.1, aftRadius: 0.031 } as unknown as ComponentNode,
+        { type: 'bodytube', id: 'a', length: 0.3, outerRadiusAuto: true } as unknown as ComponentNode,
+        { type: 'bodytube', id: 'b', length: 0.3, outerRadiusAuto: true } as unknown as ComponentNode,
+      ]),
+    );
+    expect(chainOf(t)[1]!['outerRadius']).toBeCloseTo(0.031, 12);
+    expect(chainOf(t)[2]!['outerRadius']).toBeCloseTo(0.031, 12);
+  });
+
+  it('treats a transition end with no radius as automatic, as the bridge builds it', () => {
+    // ComponentFactory sets an absent transition radius automatic.
+    const t = syncAutoRadii(
+      stage([
+        tube('a', 0.02),
+        { type: 'transition', id: 'tr', length: 0.05 } as unknown as ComponentNode,
+        tube('b', 0.03),
+      ]),
+    );
+    const tr = chainOf(t)[1]!;
+    expect(tr['foreRadius']).toBeCloseTo(0.02, 12);
+    expect(tr['aftRadius']).toBeCloseTo(0.03, 12);
+    expect(tr['foreRadiusAuto']).toBe(true);
+    expect(tr['aftRadiusAuto']).toBe(true);
+  });
+
+  it('follows the part across a stage boundary', () => {
+    // getNextSymmetricComponent walks into the next stage.
+    const t = {
+      name: 'T',
+      components: [
+        {
+          type: 'stage',
+          name: 'S',
+          children: [
+            {
+              type: 'transition',
+              id: 'tr',
+              length: 0.05,
+              foreRadius: 0.02,
+              aftRadius: 0.01,
+              aftRadiusAuto: true,
+            },
+          ],
+        },
+        { type: 'stage', name: 'B', children: [tube('booster', 0.033)] },
+      ],
+    } as unknown as RocketTree;
+    expect(chainOf(syncAutoRadii(t))[0]!['aftRadius']).toBeCloseTo(0.033, 12);
+  });
+
+  it('sizes a flipped nose cone base from the part ahead of it', () => {
+    // A flipped nose cone is a tail cone: its base is the fore end.
+    const t = syncAutoRadii(
+      stage([
+        { type: 'nosecone', id: 'n', length: 0.1, aftRadius: 0.02 } as unknown as ComponentNode,
+        tube('b', 0.027),
+        {
+          type: 'nosecone',
+          id: 'tail',
+          length: 0.05,
+          aftRadius: 0.01,
+          aftRadiusAuto: true,
+          flipped: true,
+        } as unknown as ComponentNode,
+      ]),
+    );
+    expect(chainOf(t)[2]!['aftRadius']).toBeCloseTo(0.027, 12);
   });
 
   it('touches nothing without the flag', () => {
     const before = stage([tube('a', 0.026), tube('b', 0.014)]);
     expect(syncAutoRadii(before)).toBe(before);
+  });
+
+  it('sizes a body tube or transition added from the menu to the part ahead of it', () => {
+    // Desktop's BodyTube() and Transition() constructors start automatic.
+    const nose = { type: 'nosecone', id: 'n', length: 0.15, aftRadius: 0.027 } as unknown as ComponentNode;
+    const design = {
+      name: 'T',
+      components: [{ type: 'stage', id: 's', name: 'S', children: [nose] }],
+    } as unknown as RocketTree;
+    let t = addPart(design, 'bodytube', null).tree;
+    expect(chainOf(t)[1]!['outerRadius']).toBeCloseTo(0.027, 12);
+    t = addPart(t, 'transition', null).tree;
+    expect(chainOf(t)[2]!['foreRadius']).toBeCloseTo(0.027, 12);
   });
 
   it('follows the neighbor through an edit', () => {
@@ -219,9 +305,26 @@ describe('automatic values other than the neighbor rule', () => {
         outerRadiusAuto: true,
       } as unknown as ComponentNode),
     );
-    // Six tubes ringing a 26 mm body: the kernel's own auto-size, not a default.
-    expect(kid(t)['outerRadius']).toBeGreaterThan(0);
-    expect(kid(t)['outerRadius']).toBeLessThan(0.026);
+    // TubeFinSet.getTouchingRadius: R·sin(π/n) / (1 − sin(π/n)). For six
+    // tubes sin(π/6) is 1/2, so each tube is exactly the body's radius.
+    expect(kid(t)['outerRadius']).toBeCloseTo(0.026, 12);
+  });
+
+  it('resizes an automatic tube fin set when the body changes', () => {
+    const fins = {
+      type: 'tubefinset',
+      id: 'tf',
+      finCount: 6,
+      length: 0.1,
+      outerRadiusAuto: true,
+    } as unknown as ComponentNode;
+    const first = syncAutoRadii(inTube(fins));
+    // The resolved radius is now stored on the node, as it is after any edit.
+    const stored = kid(first);
+    expect(stored['outerRadius']).toBeCloseTo(0.026, 12);
+    const wider = inTube(stored);
+    wider.components[0]!.children![0]!['outerRadius'] = 0.04;
+    expect(kid(syncAutoRadii(wider))['outerRadius']).toBeCloseTo(0.04, 12);
   });
 });
 
@@ -325,12 +428,48 @@ describe('what a new part starts as', () => {
   it('follows the mount when there is one', () => {
     const host = { ...tube('b', 0.026), children: [] as ComponentNode[] } as unknown as ComponentNode;
     host.children = [
-      { type: 'innertube', id: 'mt', length: 0.07, outerRadius: 0.0095, motorMount: true } as unknown as ComponentNode,
+      {
+        type: 'innertube',
+        id: 'mt',
+        length: 0.07,
+        outerRadius: 0.0095,
+        motorMount: true,
+        // Where the Add menu puts a mount: flush with the tube's aft end.
+        position: { method: 'bottom', offset: 0 },
+      } as unknown as ComponentNode,
     ];
     const { tree } = addPart(stage([host]), 'centeringring', 'b');
     const kids = chainOf(tree)[0]!.children as ComponentNode[];
     const ring = kids.find((n) => n.type === 'centeringring')!;
     expect(ring['innerRadius']).toBeCloseTo(0.0095, 9);
+  });
+
+  it('is a solid disc where no mount runs through it, and takes the widest mount that does', () => {
+    // CenteringRing.getInnerRadius: the widest InnerTube whose span overlaps the ring, else 0.
+    const mount = (id: string, r: number, at: number) =>
+      ({
+        type: 'innertube',
+        id,
+        length: 0.07,
+        outerRadius: r,
+        position: { method: 'top', offset: at },
+      }) as unknown as ComponentNode;
+    const ring = (id: string, at: number) =>
+      ({
+        type: 'centeringring',
+        id,
+        length: 0.005,
+        outerRadiusAuto: true,
+        innerRadiusAuto: true,
+        position: { method: 'top', offset: at },
+      }) as unknown as ComponentNode;
+    const host = {
+      ...tube('b', 0.026),
+      children: [mount('small', 0.006, 0), mount('wide', 0.0095, 0.03), ring('stop', 0.2), ring('both', 0.05)],
+    } as unknown as ComponentNode;
+    const kids = chainOf(syncAutoRadii(stage([host])))[0]!.children as ComponentNode[];
+    expect(kids.find((n) => n.id === 'stop')!['innerRadius']).toBe(0);
+    expect(kids.find((n) => n.id === 'both')!['innerRadius']).toBeCloseTo(0.0095, 12);
   });
 });
 

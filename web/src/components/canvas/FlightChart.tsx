@@ -1,16 +1,26 @@
 import { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { fmtNum, stageLabel } from '../../i18n/format';
+import { fmtNum, ladderDigits, stageLabel } from '../../i18n/format';
+import { useUnits } from '../../prefs/useUnits';
+import { lerpAt } from '../../services/flight/interpolate';
 import { EVENT_LABEL, clusterEventLabels } from '../../services/flight/simReport';
 import { FlightCsvDialog } from '../sim/FlightCsvDialog';
 import { useSettings } from '../../state/SettingsProvider';
 import { PAD_L, PAD_R, PANEL_H, maxFlightTime } from './flightChartAxis';
-import { SERIES, buildTraces, visibleSeries, type ChartFlight, type Key } from './flightChartTraces';
+import {
+  SERIES,
+  buildTraces,
+  traceScale,
+  traceUnit,
+  visibleSeries,
+  type ChartFlight,
+  type Key,
+} from './flightChartTraces';
 import { useChartZoom } from './useChartZoom';
 import { useChartCrosshair } from './useChartCrosshair';
 import { EventLabelStrip, eventStripHeight, packEventLabels } from './FlightChartEvents';
 import { FlightChartPanel } from './FlightChartPanel';
-import { eventsSummary } from './chartSummary';
+import { crosshairReadout, eventsSummary } from './chartSummary';
 import { FlightXYPanel } from './FlightXYPanel';
 import { useElementResize } from '../common/useElementResize';
 
@@ -36,6 +46,7 @@ export { maxFlightTime } from './flightChartAxis';
  */
 export function FlightChart({ flight }: { flight: ChartFlight }) {
   const { t } = useTranslation();
+  const u = useUnits();
   // Which panels are open, remembered between visits (services/storage/settings.ts).
   // Component state seeded from a constant would have anyone who works with
   // thrust or mass re-ticking them on every visit to the Results tab.
@@ -136,6 +147,31 @@ export function FlightChart({ flight }: { flight: ChartFlight }) {
   const panelH = solo ? soloH : PANEL_H;
   const toggleExpand = (k: Key) => setExpanded(solo === k ? null : k);
 
+  // The live region's text: the time the keyboard moved to and each shown
+  // panel's primary-stage value there, the figures its header reads. Only key
+  // steps change it (see useChartCrosshair), so a mouse hover stays quiet.
+  const { keyT } = crosshair;
+  const primary = selectedBranches[0];
+  const announcement =
+    keyT == null || !primary
+      ? ''
+      : crosshairReadout(
+          `${t('flight.time')} ${fmtNum(keyT, 2)} s`,
+          shownMetas
+            .filter((m) => !m.xy && !(m.aero && keyT > clipT))
+            .map((m) => {
+              const scale = traceScale(m, u);
+              const raw = lerpAt(primary.series.time ?? [], primary.series[m.key] ?? [], keyT);
+              const value = raw == null ? null : raw * scale;
+              return {
+                label: t(m.label),
+                value,
+                digits: m.quantity ? ladderDigits(value ?? 0) : m.digits,
+                unit: traceUnit(m, u),
+              };
+            }),
+        );
+
   // Pointer: drag pans (only when zoomed in); otherwise it drives the hover crosshair.
   const onDown = (e: React.PointerEvent) => {
     if (zoomCtl.startPan(e)) setHoverT(null);
@@ -153,8 +189,11 @@ export function FlightChart({ flight }: { flight: ChartFlight }) {
       <div className="flex items-center justify-between gap-2 px-3 pt-3">
         <h2 className="text-xs font-semibold uppercase tracking-wide text-ink-muted">{t('flight.title')}</h2>
         <div className="flex items-center gap-2">
-          <span className="text-xs tabular-nums text-ink-muted" aria-live="polite">
+          <span className="text-xs tabular-nums text-ink-muted">
             {t('flight.time')} {fmtNum(hoverT ?? maxT, hoverT != null ? 2 : 1)} s
+          </span>
+          <span className="sr-only" role="status" aria-live="polite">
+            {announcement}
           </span>
           <div className="flex items-center gap-1">
             <button
@@ -187,9 +226,10 @@ export function FlightChart({ flight }: { flight: ChartFlight }) {
           <button
             onClick={() => setCsvOpen(true)}
             title={t('flight.exportCsv')}
+            aria-label={t('flight.exportCsv')}
             className="rounded-md bg-raised px-2 py-1 text-[11px] font-medium text-ink ring-1 ring-line/10 hover:bg-elevated"
           >
-            ⬇ CSV
+            <span aria-hidden>⬇</span> CSV
           </button>
         </div>
       </div>
@@ -235,8 +275,9 @@ export function FlightChart({ flight }: { flight: ChartFlight }) {
       {/*
         Focusable, so every number these charts carry can be reached without a
         pointer: the arrows step the crosshair, Shift for a coarse step,
-        Home/End for the ends, Escape to drop it. The readout above is a live
-        region, so the value is announced as it moves.
+        Home/End for the ends, Escape to drop it. Each key step is announced
+        through the live region in the header: the time and every shown
+        panel's value.
       */}
       <div // eslint-disable-line jsx-a11y-x/no-noninteractive-element-interactions -- a focusable crosshair: the arrows move it, and the group names it without claiming a widget role it does not fit
         ref={hostRef}

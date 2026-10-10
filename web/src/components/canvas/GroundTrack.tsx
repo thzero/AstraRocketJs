@@ -314,10 +314,12 @@ export function GroundTrack({
         aria-label={t('flight.groundTrackReadout')}
         className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 px-3 pb-1"
       >
-        {drawn.map((l, i) => {
+        {drawn.map((l) => {
           // The stage's own region, when a sweep has been flown. The branch
-          // index is the trace's position, which is how `buildTraces` keys them.
-          const region = regions.find((r) => r.branch === i);
+          // index is the trace's position in `lines`, which is how
+          // `buildTraces` keys them; `drawn` skips any track too short to draw,
+          // so its own index can name another stage.
+          const region = regions.find((r) => r.branch === lines.indexOf(l));
           return (
             <span key={l.key} className="flex items-center gap-1.5 text-[11px] text-ink-soft">
               <span className="inline-block h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: l.color }} />

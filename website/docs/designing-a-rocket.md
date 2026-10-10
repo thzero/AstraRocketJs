@@ -101,7 +101,7 @@ Everything else may legitimately be zero, which is why it is not marked. A **tip
 
 A fin set's **Fillet** section takes the radius of the glue bead along the fin root and the material the bead is made of. Both count: the fillet's volume is added to every fin's mass and its centroid pulls the CG aft, the same way desktop OpenRocket computes it.
 
-The material matters because a fillet is rarely the fin's own. A 6 mm bead on three fins around a 26 mm tube is about 1.1 g in cardboard and 2.0 g in something epoxy-dense, and the CG moves a couple of millimeters with it. Leave the material unset and the bead is weighed as cardboard (680 kg/m³), which is what the kernel and the `.ork` writer both fall back to. Pick one of the [adhesives](#adhesives) instead, or add your own with the material picker.
+The material matters because a fillet is rarely the fin's own. A 6 mm bead on three fins around a 26 mm tube is about 1.1 g in cardboard and 2.0 g in something epoxy-dense, and the CG moves a couple of millimeters with it. A fillet you add here starts as **West System Six10** thickened epoxy (1180 kg/m³), since fillets are made of epoxy; desktop OpenRocket starts one as cardboard. Pick another of the [adhesives](#adhesives), or add your own with the material picker. A fillet from a `.ork` that names no material is weighed as cardboard (680 kg/m³), which is what desktop reads such a file as.
 
 **Tube fins have no fillet.** A tube fin set is a tube, not a fin, so the kernel has no fillet to give it and the section does not appear.
 
@@ -159,8 +159,9 @@ Instead of dialing in dimensions by hand, use the contextual **"Select a part…
 - **Nose cones, body tubes, inner tubes, transitions, tube couplers, centering rings, bulkheads, engine blocks and launch lugs** prefill their geometry and material. A transition brings both ends and both shoulders.
 - A **parachute** prefills its diameter and drag coefficient.
 - A **streamer** prefills its strip length, width and material, and leaves the drag coefficient automatic, as desktop does.
+- A **rail button** prefills its size, and its mass with the screw and nut that hold it.
 
-These are the kinds desktop OpenRocket's parts library offers, from the same community parts database. Desktop's library also lists rail buttons, which that database does not carry. Applying a preset just fills in the component's fields — you can tweak it afterward. The catalog is bundled reference data (~3,400 parts); nothing is fetched at runtime.
+These are the parts desktop OpenRocket's parts library offers: the community parts database, and the files desktop ships beside it (older manufacturer catalogs, several parachute makers and the rail buttons). Applying a preset just fills in the component's fields, and you can tweak it afterward. The catalog (~5,200 parts) comes with the app and is refreshed from OpenRocket's data each week.
 
 ### Saving your own parts
 
@@ -194,7 +195,7 @@ Every structural component has a **material**, which the engine uses (by its **d
 
 A part can still read **Not specified** if it came from a design saved before this app named them. It is not a weightless part: the engine falls back to the same three materials. Pick one from the list and the panel stops guessing.
 
-A part picked from the catalog carries its maker's material, such as "Balsa, bulk, BMS typical", at the maker's density. Most of those names are not in the list below, so the picker shows the part's own material under **From this part**, with its density, and that is what the part is weighed with.
+A part picked from the catalog carries its maker's material, such as "Balsa, bulk, BMS typical", at the maker's density. Most of those names are not in the list below, so the picker shows the part's own material under **From this part**, with its density, and that is what the part is weighed with. When the catalog also states the part's mass, as it does for many nose cones and transitions, the density is the one that spreads that mass over the part, so the part weighs what its maker says, as it does in desktop OpenRocket. A parachute with a stated mass takes it as its mass override instead.
 
 - **Built-in materials** — OpenRocket's full list (bulk / surface / line, with densities). Each kind has its own [density unit](./settings.md#units) — bulk stock by volume, parachute fabric by area, cord by length — and a custom material's density is read in whichever unit is shown.
 - **Custom materials** — define your own (name, density and which group it belongs in); they're saved in your browser and reusable across designs. A custom material sits **in that group**, marked with a ★, rather than in a group of its own: it is usually a variant of something already in the list, and it reads better beside it. Give one the **same name as a built-in** and it replaces that entry at your density instead of appearing twice.

@@ -24,6 +24,7 @@ import { type DeployOverride, type MountMotor, type SepOverride } from '../fligh
 import { errorMessage } from '../app/errorMessage';
 import { roundTo } from '../app/numbers';
 import { rseDigest } from './ork/embeddedMotors';
+import { keyedNote, type ImportNote } from './importNote';
 
 /** One of the file's flight configurations, with its motors resolved. */
 export interface LoadedConfig {
@@ -48,8 +49,8 @@ export interface LoadedOrk {
   name: string;
   design: OpenRocketDesign;
   info: StaticInfo;
-  /** Human-readable notes: unsupported components, unresolved motors, etc. */
-  notes: string[];
+  /** Notes for the banner: unsupported components, unresolved motors, etc. */
+  notes: ImportNote[];
   /** The parsed tree + motors, kept so the design can be re-exported (round-trip). */
   tree: RocketTree;
   motors: Record<string, OrkExportMotor>;
@@ -76,7 +77,7 @@ export interface LoadedOrk {
    * design: read neither. The app does not (it rebuilds from `tree`), and the
    * rebuild refuses in the same place, which is what the user needs to see.
    */
-  unbuildable?: string;
+  unbuildable?: ImportNote;
 }
 
 const IGNITION_EVENTS: ReadonlySet<string> = new Set(['automatic', 'launch', 'ejectioncharge', 'burnout', 'never']);
@@ -162,7 +163,7 @@ function mountMotor(ref: OrkMotorRef, spec: MotorSpec): MountMotor {
  */
 function embeddedCurves(
   files: string[] | undefined,
-  notes: string[],
+  notes: ImportNote[],
 ): { byName: Map<string, CustomMotor>; byDigest: Map<string, CustomMotor> } {
   const byName = new Map<string, CustomMotor>();
   const byDigest = new Map<string, CustomMotor>();
@@ -178,7 +179,7 @@ function embeddedCurves(
       const digest = motors.length === 1 ? rseDigest(text) : null;
       if (digest) byDigest.set(digest, motors[0]!);
     } catch {
-      notes.push('A thrust curve stored in the file could not be read and was skipped.');
+      notes.push(keyedNote('importNote.embeddedCurveUnreadable'));
     }
   }
   return { byName, byDigest };
@@ -207,7 +208,7 @@ function embeddedCurves(
  * and the app's rebuild hits the same refusal a moment later, so the reason
  * appears in the banner as well, in the same words, for as long as it is true.
  */
-export function buildForImport(tree: RocketTree): { design: OpenRocketDesign; unbuildable?: string } {
+export function buildForImport(tree: RocketTree): { design: OpenRocketDesign; unbuildable?: ImportNote } {
   try {
     return { design: OpenRocketDesign.buildTree(tree) };
   } catch (e) {
@@ -220,7 +221,7 @@ export function buildForImport(tree: RocketTree): { design: OpenRocketDesign; un
     }
     return {
       design: repaired,
-      unbuildable: `${reason} The design is open so it can be fixed; nothing will simulate until it is.`,
+      unbuildable: keyedNote('importNote.unbuildable', { reason }),
     };
   }
 }
@@ -246,7 +247,10 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
   const built = buildForImport(res.tree);
   const design = built.design;
 
-  const notes = [...(res.notes ?? []), ...(res.ignored ?? []).map((i) => `Skipped unsupported: ${i}`)];
+  const notes: ImportNote[] = [
+    ...(res.notes ?? []),
+    ...(res.ignored ?? []).map((name) => keyedNote('importNote.skippedUnsupported', { name })),
+  ];
   if (built.unbuildable) notes.push(built.unbuildable);
 
   const catalog = await loadCatalog();
@@ -281,14 +285,8 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
    * at all (see `resolveOnce`), so the maker doubt never reaches here.
    */
   const noteDoubt = (ref: OrkMotorRef, cat: CatalogMotor, doubt: MotorMatchDoubt): void => {
-    const got = `${cat.manufacturer} ${cat.designation}`;
-    const asked = `"${ref.designation}"`;
-    const check = 'check it before flying.';
-    if (doubt === 'shortened') {
-      notes.push(`Motor ${asked} is not a name the catalog carries. Loaded the closest, ${got} - ${check}`);
-    } else {
-      notes.push(`Motor ${asked} matches more than one motor in the catalog. Loaded ${got} - ${check}`);
-    }
+    const values = { motor: ref.designation, loaded: `${cat.manufacturer} ${cat.designation}` };
+    notes.push(keyedNote(doubt === 'shortened' ? 'importNote.motorShortened' : 'importNote.motorAmbiguous', values));
   };
 
   const resolveOnce = async (ref: OrkMotorRef): Promise<MotorSpec> => {
@@ -314,7 +312,7 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
       // Before giving up: the file may carry the curve itself.
       const curve = own();
       if (curve) {
-        notes.push(`Motor "${ref.designation}" isn't in the catalog — using the thrust curve stored in the file.`);
+        notes.push(keyedNote('importNote.motorFileCurve', { motor: ref.designation }));
         return customMotorToSpec(curve, ref.delay);
       }
       // Keep the designation as an unresolved (curve-less) motor rather than a
@@ -322,8 +320,12 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
       // the user picks a real motor, and nothing silently flies a C6.
       notes.push(
         otherMaker
-          ? `Motor "${ref.designation}" is filed under ${ref.manufacturer} in this file, and the catalog has no motor of theirs by that name (only ${match.motor.manufacturer}'s). Pick a motor for that mount (it won't fly a default).`
-          : `Motor "${ref.designation}" isn't in the catalog — pick a motor for that mount (it won't fly a default).`,
+          ? keyedNote('importNote.motorOtherMaker', {
+              motor: ref.designation,
+              maker: ref.manufacturer,
+              catalogMaker: match.motor.manufacturer,
+            })
+          : keyedNote('importNote.motorNotInCatalog', { motor: ref.designation }),
       );
       return unresolvedMotor(ref);
     }
@@ -334,7 +336,7 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
       // cost a design the curve it was carrying all along.
       const curve = own();
       if (curve) {
-        notes.push(`Motor "${ref.designation}" could not be fetched — using the thrust curve stored in the file.`);
+        notes.push(keyedNote('importNote.motorFetchFileCurve', { motor: ref.designation }));
         return customMotorToSpec(curve, ref.delay);
       }
       // Seat the unresolved motor, as the `!cat` branch above does.
@@ -343,9 +345,7 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
       // transient thrustcurve.org failure while opening an L-motor design would
       // produce a runnable simulation flying a 10 N-s C6, with the only warning
       // buried in the import notes that settings.showImportNotes can hide.
-      notes.push(
-        `Motor "${ref.designation}": ${errorMessage(e)} - pick a motor for that mount (it won't fly a default).`,
-      );
+      notes.push(keyedNote('importNote.motorFetchFailed', { motor: ref.designation, reason: errorMessage(e) }));
       return unresolvedMotor(ref);
     }
   };
@@ -393,12 +393,22 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
     const key = `${mountId}|${spec.designation}`;
     if (misfits.has(key)) return;
     misfits.add(key);
-    const where = `"${(node!.name as string) || node!.type}"`;
+    const mount = (node!.name as string) || node!.type;
     const tooWide = motor.diameter > fit.bore;
     notes.push(
       tooWide
-        ? `Motor "${spec.designation}" is ${round1(motor.diameter)} mm and mount ${where} takes ${round1(fit.bore)} mm, so it does not fit. Seated as the file names it - check it before flying.`
-        : `Motor "${spec.designation}" is ${round1(motor.length ?? 0)} mm long and mount ${where} holds ${round1(fit.maxLength ?? 0)} mm, so it does not fit. Seated as the file names it - check it before flying.`,
+        ? keyedNote('importNote.motorTooWide', {
+            motor: spec.designation,
+            mount,
+            diameter: round1(motor.diameter),
+            bore: round1(fit.bore),
+          })
+        : keyedNote('importNote.motorTooLong', {
+            motor: spec.designation,
+            mount,
+            length: round1(motor.length ?? 0),
+            maxLength: round1(fit.maxLength ?? 0),
+          }),
     );
   };
 
@@ -431,9 +441,7 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
     const named = emptyMounts.filter((m) => !chosen.motors[m.id as string]?.spec.designation);
     if (named.length) {
       const names = named.map((m) => `"${m.name ?? m.type}"`).join(', ');
-      notes.push(
-        `No motor in this file for ${named.length === 1 ? 'mount' : 'mounts'} ${names} - pick one before flying (it won't fly a default).`,
-      );
+      notes.push(keyedNote('importNote.mountsWithoutMotor', { mounts: names }));
     }
   }
 

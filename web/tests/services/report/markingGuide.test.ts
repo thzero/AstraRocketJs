@@ -225,6 +225,13 @@ describe('markingGuides', () => {
     expect(m.rootChordMm).toBeCloseTo(60, 9);
   });
 
+  it('marks a cant past the kernel limit at the limit the kernel flies', () => {
+    const { guides } = markingGuides(
+      finned([{ type: 'trapezoidfinset', id: 'f', finCount: 3, rootChord: 0.06, cant: deg(40) }]),
+    );
+    expect(guides[0]!.marks[0]!.cant).toBeCloseTo(deg(15), 12);
+  });
+
   it('measures a freeform fin root from its outline, not a rootChord key', () => {
     const { guides } = markingGuides(
       finned([

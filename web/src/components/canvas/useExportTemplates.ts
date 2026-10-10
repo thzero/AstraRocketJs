@@ -27,12 +27,17 @@ export function useExportTemplates() {
   // and this dialog can close under either.
   const storeWrite = useLatest();
 
+  // The opening listing takes a token like the writes do: an import that lands
+  // first sets a list with the new template in it, and a slower opening
+  // listing must not overwrite that with one that lacks it.
+  const claimWrite = storeWrite.claim;
   useEffect(() => {
+    const mine = claimWrite();
     store
       .list()
-      .then(setTemplates)
-      .catch(() => setTemplates([]));
-  }, [store]);
+      .then((listed) => mine() && setTemplates(listed))
+      .catch(() => mine() && setTemplates([]));
+  }, [store, claimWrite]);
 
   // Resolve the current selection to either a built-in format or a user template.
   const resolved = useMemo(() => {

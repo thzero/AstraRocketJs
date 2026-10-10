@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore } from '../../state/store';
 import { RocketConfigDialog } from '../design/RocketConfigDialog';
 import { useCanBuildDesign } from '../design/useCanBuildDesign';
 import { useSettings } from '../../state/SettingsProvider';
+import { importNoteText, type ImportNote } from '../../services/files/importNote';
 
 /**
  * The design card at the head of the center pane: the rocket's name, the ✎ that
@@ -25,16 +26,20 @@ import { useSettings } from '../../state/SettingsProvider';
  * and that throws away the only record of them.
  *
  * Collapsed or not is a setting (`showImportNotes`), not component state: the card
- * unmounts whenever you close a design or leave the Design tab, so local state lets
- * the notes spring open again on the next import. App-wide rather than per design,
- * for the reasons on the setting itself.
+ * unmounts whenever you close a design or leave the Design tab, and the choice has
+ * to survive that. App-wide rather than per design, for the reasons on the setting
+ * itself. A new import with notes opens them again: they are news on the import
+ * that raised them, and collapsed they show only as a count.
  */
+
+/** The last import whose notes were opened, across the card's mounts this session. */
+let notesOpenedForImport = 0;
 export function LoadedBanner({
   loaded,
   onClose,
 }: {
   /** Import metadata, or null for a design that did not come from a file. */
-  loaded: { name: string; notes: string[] } | null;
+  loaded: { name: string; notes: ImportNote[] } | null;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
@@ -52,8 +57,15 @@ export function LoadedBanner({
   // came from. A design that came from nowhere - a restored session - still
   // gets the card when there is something to report.
   const repaired = useWorkspaceStore((s) => s.repairNotes);
-  const notes = [...(loaded?.notes ?? []), ...repaired];
+  const notes: ImportNote[] = [...(loaded?.notes ?? []), ...repaired];
   const count = notes.length;
+  // Open the notes once for each new import that has any (see importSeq).
+  const importSeq = useWorkspaceStore((s) => s.importSeq);
+  useEffect(() => {
+    if (importSeq <= notesOpenedForImport || count === 0) return;
+    notesOpenedForImport = importSeq;
+    if (!open) update({ showImportNotes: true });
+  }, [importSeq, count, open, update]);
   // The tree's name is the live one: it is what the editor changes and what an
   // export writes. `loaded.name` is only the value the file arrived with.
   const name = (typeof treeName === 'string' && treeName) || loaded?.name || t('tree.rocket');
@@ -75,7 +87,6 @@ export function LoadedBanner({
           {canEditMeta ? (
             <button
               onClick={() => setConfigOpen(true)}
-              aria-label={t('config.edit')}
               title={t('config.edit')}
               className={`group flex min-w-0 items-center gap-1.5 rounded px-1 py-0.5 text-left font-semibold text-accent-400 hover:bg-raised/60 focus:bg-raised focus:outline-none focus:ring-1 focus:ring-accent-500 ${
                 loaded ? 'text-lg' : 'text-sm'
@@ -85,6 +96,9 @@ export function LoadedBanner({
               <span aria-hidden className="shrink-0 text-xs text-ink-faint group-hover:text-accent-300">
                 ✎
               </span>
+              {/* The action after the visible name, not in place of it: a voice
+                  command that says the design's name has to reach this button. */}
+              <span className="sr-only"> {t('config.edit')}</span>
             </button>
           ) : (
             <div className={`min-w-0 truncate px-1 py-0.5 font-semibold text-ink ${loaded ? 'text-lg' : 'text-sm'}`}>
@@ -122,7 +136,7 @@ export function LoadedBanner({
       {count > 0 && open && (
         <ul className="mt-2 space-y-1 text-xs text-warn-400/90">
           {notes.map((n, i) => (
-            <li key={i}>⚠ {n}</li>
+            <li key={i}>⚠ {importNoteText(n, t)}</li>
           ))}
         </ul>
       )}

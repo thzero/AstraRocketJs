@@ -105,6 +105,29 @@ describe('resolveFilePositions', () => {
     expect(it.position!.offset).toBeCloseTo(0.05);
   });
 
+  it('lays out a member with no length at the kernel length for its type', () => {
+    // The nose has no length key: it is 0.07 m in the kernel (KERNEL_DEFAULTS.nosecone).
+    const tree: RocketTree = {
+      components: [
+        {
+          id: 's1',
+          type: 'stage',
+          children: [
+            { id: 'nc', type: 'nosecone' },
+            {
+              id: 'bt',
+              type: 'bodytube',
+              length: 0.2,
+              children: [{ id: 'it', type: 'innertube', length: 0.05, position: { method: 'absolute', offset: 0.15 } }],
+            },
+          ],
+        },
+      ],
+    };
+    const it = resolveFilePositions(tree).components[0]!.children![1]!.children![0]!;
+    expect(it.position!.offset).toBeCloseTo(0.15 - KERNEL_DEFAULTS.nosecone.length, 12);
+  });
+
   it('returns the same tree object when there is nothing absolute to fix', () => {
     const tree: RocketTree = {
       components: [

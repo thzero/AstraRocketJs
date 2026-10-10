@@ -9,17 +9,13 @@ import { exportFilename } from '../../services/files/saveFile';
 import { download } from '../../services/files/saveFile';
 import type { ComponentMass } from '../../engine/openRocketEngine';
 import type { ChartSeries, CpMode } from './aeroTables';
-import { cpDivisor, cpModesFor } from './aeroTables';
+import { altitudeField, cpDivisor, cpModesFor } from './aeroTables';
 import { useAeroSweep } from './useAeroSweep';
 import { ChartCard } from './AeroCharts';
 import { ComponentTable, RollTable, StabilityTable } from './AeroComponentTables';
-import { Num } from './AeroInputs';
+import { Num, WorstButton } from './AeroInputs';
 import { Segmented } from '../common/Segmented';
 import { CATEGORICAL } from '../common/chartPalette';
-
-// The pure helpers live in aeroTables.ts (where they are tested); re-exported
-// here for importers that reach them through this module.
-export { buildLinePath, heat, hsv, niceName } from './aeroTables';
 
 /**
  * Aerodynamic analysis (RASAero-style "Aero Plots"). Two panes
@@ -183,6 +179,7 @@ export function AeroAnalysis() {
 
   const machs = sweep.machs;
   const machMin = machs[0] ?? 0.05;
+  const altField = altitudeField(u.factor('distance'));
 
   return (
     <div className="flex h-full flex-col rounded-xl bg-surface ring-1 ring-line/10" aria-busy={pending}>
@@ -210,9 +207,10 @@ export function AeroAnalysis() {
             download(exportFilename([designName, 'aero-table'], 'csv'), aeroTableCsv(sweep, u.all), CSV_MIME)
           }
           title={t('aero.exportCsv')}
+          aria-label={t('aero.exportCsv')}
           className="rounded-md bg-raised px-2 py-1 text-[11px] font-medium text-ink ring-1 ring-line/10 hover:bg-elevated"
         >
-          ⬇ CSV
+          <span aria-hidden>⬇</span> CSV
         </button>
       </div>
       {/* The conditions the sweep is flown at. Changing one re-runs it, the
@@ -229,26 +227,10 @@ export function AeroAnalysis() {
             step={5}
             unit="°"
           />
-          <button
-            // Wrapped like its neighbors (the sweep and componentMasses): a
-            // kernel that throws here (a build without the method, or a
-            // degenerate design) would otherwise throw out of a React event
-            // handler and take the whole pane down rather than leaving the
-            // field alone.
-            onClick={() => {
-              if (!rocket) return;
-              try {
-                setThetaDeg(Math.round(rocket.worstThetaDeg(pick, aoaDeg) * 10) / 10);
-              } catch (e) {
-                // Leave the wind direction as it is, but say why.
-                console.error('worstThetaDeg failed', e);
-              }
-            }}
-            title={t('aero.worstNote')}
-            className="rounded-md bg-raised px-2 py-0.5 text-[11px] font-medium text-ink ring-1 ring-line/10 hover:bg-elevated"
-          >
-            {t('aero.worst')}
-          </button>
+          <WorstButton
+            worst={rocket ? () => Math.round(rocket.worstThetaDeg(pick, aoaDeg) * 10) / 10 : null}
+            onWorst={setThetaDeg}
+          />
         </div>
         <Num
           label={t('aero.rollRate')}
@@ -263,11 +245,11 @@ export function AeroAnalysis() {
             where the standard atmosphere still has air worth sweeping. */}
         <Num
           label={t('aero.altitude')}
-          value={Math.round(altitudeM * u.factor('distance'))}
-          onChange={(v) => setAltitudeM(v / u.factor('distance'))}
+          value={altField.toUi(altitudeM)}
+          onChange={(v) => setAltitudeM(altField.toSi(v))}
           min={0}
-          max={Math.round(30_000 * u.factor('distance'))}
-          step={Math.round(500 * u.factor('distance'))}
+          max={altField.max}
+          step={altField.step}
           unit={u.sym('distance')}
         />
       </div>

@@ -147,6 +147,7 @@ ERESOLVE
 Español
 evts
 extendedisa
+extensionid
 EXTMAX
 EXTMIN
 façade
@@ -254,6 +255,7 @@ kitchensink
 kitname
 KOSDON
 Kutta
+landingdispersion
 languagedetector
 launchaltitude
 launchintowind
@@ -370,6 +372,7 @@ placemark
 planarfin
 planform
 planforms
+plotappearance
 plottable
 podset
 podsets
@@ -559,3 +562,14 @@ zenrockets
 zoomable
 Русский
 Сохранено
+absb
+commercialkit
+clonekit
+upscalekit
+downscalekit
+modifiedkit
+kitbash
+uncomputable
+octo
+Spherachutes
+Rocketman

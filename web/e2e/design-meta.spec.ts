@@ -23,7 +23,8 @@ test('the name is a control only where a design can be built', async ({ page }) 
   await expect(edit).toBeVisible();
   // Whatever this design is called; the point is that the line survives losing
   // its control, not what the default design happens to be named.
-  const title = ((await edit.textContent()) ?? '').replace('✎', '').trim();
+  // The visible name; the button's accessible name adds the action after it.
+  const title = ((await edit.textContent()) ?? '').replace('✎', '').replace('Edit rocket configuration', '').trim();
   expect(title).not.toBe('');
 
   // Maximized: the side columns step aside, the tree with them.

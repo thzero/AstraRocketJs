@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import { SCENE_TOKENS, useSceneColors } from '../../../src/components/canvas/sceneColors';
 
@@ -22,6 +22,14 @@ describe('useSceneColors', () => {
     const first = result.current;
     rerender();
     expect(result.current).toBe(first);
+  });
+
+  it('does not resolve styles again on a render where nothing changed', () => {
+    const { rerender } = renderHook(() => useSceneColors());
+    const spy = vi.spyOn(window, 'getComputedStyle');
+    for (let i = 0; i < 10; i++) rerender();
+    expect(spy).not.toHaveBeenCalled();
+    spy.mockRestore();
   });
 
   it('picks up a theme change on the root element', async () => {

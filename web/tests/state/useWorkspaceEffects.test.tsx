@@ -455,7 +455,7 @@ describe('what triggers a rebuild', () => {
     settleRebuild();
 
     expect(s().info).toBeNull();
-    expect(s().err).toBe('fin tab longer than the root chord');
+    expect(s().buildErr).toBe('fin tab longer than the root chord');
   });
 
   it('waits for the kernel, and builds the moment it arrives', async () => {
@@ -469,6 +469,7 @@ describe('what triggers a rebuild', () => {
     // message about nothing the user can act on.
     expect(computeStaticInfo).not.toHaveBeenCalled();
     expect(s().info).toBeNull();
+    expect(s().buildErr).toBeNull();
     expect(s().err).toBeNull();
 
     await act(async () => {
@@ -478,6 +479,31 @@ describe('what triggers a rebuild', () => {
 
     expect(computeStaticInfo).toHaveBeenCalledTimes(1);
     expect(s().info).not.toBeNull();
+  });
+
+  // The engine can arrive after an import has already failed. Building the
+  // same design must not wipe that message before it is read.
+  it('keeps an action error through a build of the same design', async () => {
+    useEngineStore.setState({ phase: 'loading', backend: null });
+    await mount();
+    act(() => s().setErr('Could not open that file'));
+    await act(async () => {
+      useEngineStore.setState({ phase: 'ready', backend: 'wasm' });
+      await Promise.resolve();
+    });
+    expect(computeStaticInfo).toHaveBeenCalledTimes(1);
+    expect(s().err).toBe('Could not open that file');
+  });
+
+  it('clears an action error once the design is edited and builds', async () => {
+    await mount();
+    act(() => s().setErr('Could not open that file'));
+    act(() => {
+      s().setSelectedId(s().tree.components[0]!.id as string);
+      s().patchSelected({ length: 0.3 });
+    });
+    settleRebuild();
+    expect(s().err).toBeNull();
   });
 
   it('builds again after a retry that swaps the engine underneath it', async () => {
@@ -523,6 +549,53 @@ describe('a hydrate does not re-stamp the design', () => {
     load.mockResolvedValue(saved());
     await mount();
     save.mockClear();
+
+    act(() => s().addPartToTree('bodytube'));
+    await act(async () => {
+      vi.advanceTimersByTime(500);
+      await Promise.resolve();
+    });
+    expect(save).toHaveBeenCalledTimes(1);
+  });
+
+  // File > Open is the same hydrate, after boot. Its own flush of the design
+  // being left is the one write it makes.
+  it('writes nothing after opening a library design', async () => {
+    await mount();
+    const original = getDesignLibrary();
+    setDesignLibrary({
+      read: async () => saved(),
+      setActive: async () => true,
+      list: async () => [],
+      activeId: async () => 'lib-1',
+    } as unknown as DesignLibrary);
+    try {
+      await act(async () => {
+        await s().openDesign('lib-1');
+      });
+    } finally {
+      setDesignLibrary(original);
+    }
+    expect(s().tree.name).toBe('Restored');
+    save.mockClear();
+    await act(async () => {
+      vi.advanceTimersByTime(2000);
+      await Promise.resolve();
+    });
+    expect(save).not.toHaveBeenCalled();
+  });
+
+  // An untouched blank design is not worth a library entry; the first edit is.
+  it('writes nothing after New until the first edit', async () => {
+    load.mockResolvedValue(saved());
+    await mount();
+    act(() => s().resetWorkspace());
+    save.mockClear();
+    await act(async () => {
+      vi.advanceTimersByTime(2000);
+      await Promise.resolve();
+    });
+    expect(save).not.toHaveBeenCalled();
 
     act(() => s().addPartToTree('bodytube'));
     await act(async () => {

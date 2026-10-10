@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { heat, hsv, niceName } from '../../../src/components/canvas/AeroAnalysis';
+import { heat, hsv, niceName } from '../../../src/components/canvas/aeroTables';
 
 /**
  * The cell-shading port of OpenRocket's table shading.

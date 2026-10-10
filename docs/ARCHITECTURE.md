@@ -1,4 +1,4 @@
-# AstraRocketJs — Architecture & internals
+# AstraRocketJs - Architecture & internals
 
 
 > The developer/architecture reference: the extracted engine, the WASM/JS build pipeline and backend
@@ -12,14 +12,14 @@
 
 AstraRocketJs runs the **OpenRocket physics kernel** in the browser, compiled to **WebAssembly** (with a **JavaScript fallback**). It's a monorepo:
 
-- `engine-java/` — the OpenRocket physics core (from its **unstable** branch), extracted + minimally patched for TeaVM, compiled to **two** targets: a WebAssembly (WASM-GC) module and a JavaScript module (GPL-3.0; see `engine-java/ATTRIBUTION.md`).
-- `web/` — the responsive UI: Vite + React + TypeScript + Tailwind CSS. Consumes the engine through a typed wrapper (`web/src/engine/openRocketEngine.ts`), which picks the backend at load and shows which one is active in the header.
+- `engine-java/` - the OpenRocket physics core (from its **unstable** branch), extracted + minimally patched for TeaVM, compiled to **two** targets: a WebAssembly (WASM-GC) module and a JavaScript module (GPL-3.0; see `engine-java/ATTRIBUTION.md`).
+- `web/` - the responsive UI: Vite + React + TypeScript + Tailwind CSS. Consumes the engine through a typed wrapper (`web/src/engine/openRocketEngine.ts`), which picks the backend at load and shows which one is active in the header.
 
 ## The extracted engine (`engine-java/src/java/`)
 
-OpenRocket's full `core` module is ~700 Java files and pulls in Guice, JAXB, GraalVM-JS and classgraph — none of which TeaVM (the Java→JavaScript/WASM compiler) can handle. **Extraction** is a one-time copy of just the ~270 files the physics and simulation actually need, leaving behind all the reflection-heavy machinery (file loaders, plugin system, scripting, GUI hooks).
+OpenRocket's full `core` module is ~700 Java files and pulls in Guice, JAXB, GraalVM-JS and classgraph - none of which TeaVM (the Java→JavaScript/WASM compiler) can handle. **Extraction** is a one-time copy of just the ~270 files the physics and simulation actually need, leaving behind all the reflection-heavy machinery (file loaders, plugin system, scripting, GUI hooks).
 
-`src/java/` tracks OpenRocket's **unstable** branch, with the TeaVM-compatibility overrides in `patches/` applied on top (`UUID`→`LongUUID`, one concurrent map swapped for a plain one, a reflection-free aerodynamic calculator lookup, and a copy-constructor `ArrayList.clone()` that WASM-GC's strict casts require). **This is the engine** — when the UI calls `staticInfo()` or `simulate()`, this is the code that runs. Don't edit extracted files directly; changes go through a documented override in `patches/` (only when upgrading the upstream OpenRocket version), which also means re-blessing `engine-java/extract/DIVERGENCE.txt`.
+`src/java/` tracks OpenRocket's **unstable** branch, with the 18 overrides in `patches/` applied on top, each listed with its reason in `patches/LEDGER.md`. Most are TeaVM compatibility (`UUID`→`LongUUID`, concurrent collections swapped for plain ones, a reflection-free aerodynamic calculator lookup, `java.awt.geom` replaced by `Geo2D`, and a copy-constructor `ArrayList.clone()` that WASM-GC's strict casts require); the rest are the opt-in RASAero-style aero extensions and a few behavior changes (upstream's drogue low-speed check, off-axis roll inertia, a refused freeform fin outline recorded so the bridge can refuse the build). **This is the engine** - when the UI calls `staticInfo()` or `simulate()`, this is the code that runs. Don't edit extracted files directly; changes go through a documented override in `patches/`, which also means re-blessing `engine-java/extract/DIVERGENCE.txt`.
 
 **Before patching a kernel file to change flight behavior, check whether a `SimulationListener` can do it.** `SimulationConditions.getSimulationListenerList()` is a public mutable list the `src/api/` bridge populates, cloned per flight branch, and the engine fires hooks throughout its step loop. A listener costs no patched file, no re-bless, and leaves the default path byte-identical, because it is simply not attached when the feature is off.
 
@@ -33,21 +33,21 @@ Extracted sources by area:
 |------:|---------|------------|
 | 73 | `rocketcomponent` | rocket model: nose cone, body tube, fins, stages, motor mounts, flight configs |
 | 60 | `util` | math/geometry helpers (Coordinate, quaternions, interpolation) |
-| 41 | `simulation` | flight simulator: RK4/RK6 integrators, steppers, tumble detection, flight events/data |
-| 18 | `aerodynamics` | Extended Barrowman + RASAero CP / drag / stability (force breakdown) |
+| 42 | `simulation` | flight simulator: RK4/RK6 integrators, steppers, tumble detection, flight events/data |
+| 19 | `aerodynamics` | Extended Barrowman + RASAero CP / drag / stability (force breakdown) |
 | 16 | `unit` | unit system (SI internally) |
 | 12 | `models` | atmosphere (ISA), gravity models, wind |
 | 10 | `motor` | thrust-curve motor model |
 | 4 | `masscalc` | CG / mass / moment-of-inertia |
 | … | rest | logging, i18n, materials, presets, appearance |
 
-(~270 kernel files under `src/java/`, plus `src/shims/`, `src/jdkstubs/` and the `src/api/` facade — 286 Java files total.)
+(~270 kernel files under `src/java/`, plus `src/shims/`, `src/jdkstubs/` and the `src/api/` facade: 290 Java files total.)
 
 ## Who owns a number
 
 **The engine owns the physics. The UI reports facts known before a run and facts known after a run; it does not calculate.**
 
-This is the rule that keeps the app honest about what it is. The kernel is the thing being validated against desktop OpenRocket, so any figure the app works out for itself is a second implementation that nothing checks and that drifts the moment the kernel moves. It has happened: a stability margin computed app-side as `((cp - cg) / length) * 100` was the right shape over the wrong denominator, because OpenRocket divides by the AERODYNAMIC length and `length` bounds every component including the ones with no aerodynamic effect. CP, CG, calibers and the percentage margin all come from the kernel now.
+This is the rule that keeps the app honest about what it is. The kernel is the thing being validated against desktop OpenRocket, so any figure the app works out for itself is a second implementation that nothing checks and that drifts the moment the kernel moves. CP, CG, calibers and the percentage margin all come from the kernel: the percentage margin divides by the aerodynamic length, which is not the length that bounds every component.
 
 So for any readout, the question is which side of the run it comes from:
 
@@ -55,6 +55,12 @@ So for any readout, the question is which side of the run it comes from:
 - **After a run** they are the flight's own record: `result.summary`, `result.events`, and `result.series` sampled at an event's time. `services/flight/interpolate.ts` (`lerpAt`) is the reader, and the kernel itself derives `launchRodVelocity` the same way.
 
 Series and events are **per branch**. A staged flight splits into one branch per descending piece, and that is the only way to be right about a separated booster: it comes down on its own with its own mass, so any whole-design figure is the stack's and neither piece's.
+
+### Geometry the app resolves itself
+
+The schematic, the 3D view, the report, the printable solids and the cut sheets draw without waiting on a kernel call, so the app resolves some geometry itself, and each piece is a port of a Java rule. `services/design/autoRadius.ts` ports the kernel's automatic radius rules (`BodyTube.getAutoOuterRadius`, a transition's automatic ends, `getFrontAutoRadius` / `getRearAutoRadius`, the crossing into the next stage, and `KERNEL_AUTO_RADIUS`, 0.025 m, when nothing is found); a transition end with no radius is automatic, as `ComponentFactory` builds it. `services/design/discGeometry.ts` gives a disc or ring the bore at its own faces (`boreAround`), and a centering ring the widest inner tube it overlaps (`ringBore`). `tree/shapeProfile.profileEnds` is a nose cone's or transition's two end radii, and every reader that places a profile uses it; a flipped nose cone is a tail cone with its base forward.
+
+None of these is trusted on its own say-so. The bridge's `getComponentGeometry` returns what the kernel resolved for a part (its radii, inner radius, a sampled outer and inner profile, a fin set's maximum tab height, a mass object's radius), and `geometryParity.kernel.test.ts` compares the app's numbers with it over 200 generated designs. `tree/geometryFlags.test.ts` checks that every shape flag reaches every reader, and `catalogPatch.kernel.test.ts` that every catalog part with a stated mass flies at that mass. Three results are kernel behavior, not app defects: two automatic ends that follow each other resolve to -1 (desktop does the same), and an end following a flipped cone's tip, or a ring where the parent has no bore, resolves to 0. The parity test counts those parts as unresolved rather than as disagreements.
 
 ### Estimates
 
@@ -65,7 +71,7 @@ An app-side estimate is allowed, as a **design aid only**, and only if both of t
 
 The worked example is the parachute panel's **Descent sizing** block and the **Mass (Recovery)** stats tile. `services/flight/recoverySizing.ts` estimates a descent mass (loaded mass less the propellant that burns off), a descent rate (the descent equation at an air density the app models itself) and the two canopy diameters that would hit the main and drogue bands. None of that is the kernel's, which is why it can be shown before the design has ever flown.
 
-`services/flight/recoveryFlown.ts` is the other half: it reads what a run recorded for a named recovery device — the mass series at its deployment event, and the velocity at the END of its descent phase (the next chute, or the ground) where the rate has settled. The readout switches to those figures and says so, naming the branch when the flight had more than one. An **outdated** run falls back to the estimate rather than quoting a rocket that has since moved.
+`services/flight/recoveryFlown.ts` is the other half: it reads what a run recorded for a named recovery device - the mass series at its deployment event, and the velocity at the END of its descent phase (the next chute, or the ground) where the rate has settled. The readout switches to those figures and says so, naming the branch when the flight had more than one. An **outdated** run falls back to the estimate rather than quoting a rocket that has since moved.
 
 The two suggested diameters stay an estimate permanently and are marked as one, because *what size should I use* is a question about a design that has not flown and no simulation answers it. The marker goes on a readout's **label**, never in place of a unit chip: that chip is the control that sets the readout's unit, and a marker is not worth a control.
 
@@ -77,22 +83,28 @@ The two suggested diameters stay an estimate permanently and are marked as one, 
    - WASM → `web/public/engine/openrocket-engine.wasm` (+ its `*.wasm-runtime.js`)
 3. `web/` imports them through the typed `openRocketEngine.ts` wrapper; React never touches the raw modules.
 
-**Backend selection.** `initEngine()` loads **WASM-GC by default** (faster) and falls back to the **JS** build when the browser lacks WASM support or a load fails. Both are loaded **dynamically** (a separate chunk / fetch), so only one is ever downloaded, never both. Override with `?engine=js` / `?engine=wasm` (or `localStorage.setItem('engine', …)`); the header badge shows which is live. The two backends are verified **bit-identical**.
+**Backend selection.** `initEngine()` loads **WASM-GC by default** (faster) and falls back to the **JS** build when the browser lacks WASM support or a load fails. Both are loaded **dynamically** (a separate chunk / fetch), so only one is ever downloaded, never both. Override with `?engine=js` / `?engine=wasm` (or `localStorage.setItem('astrarocketjs:engine', …)`); the header badge shows which is live. The two backends are verified **bit-identical**.
 
-TeaVM requires `optimization = NONE` + `fastGlobalAnalysis = true` (see `engine-java/build.gradle`) — its default optimizer miscompiles the kernel (zeroes masses / collapses fin instances). WASM-GC additionally needs the copy-constructor `ArrayList.clone()` patch (its strict casts reject the JVM's `(ArrayList) super.clone()`).
+TeaVM requires `optimization = NONE` + `fastGlobalAnalysis = true` (see `engine-java/build.gradle`) - its default optimizer miscompiles the kernel (zeroes masses / collapses fin instances). WASM-GC additionally needs the copy-constructor `ArrayList.clone()` patch (its strict casts reject the JVM's `(ArrayList) super.clone()`).
 
-**Threading.** The **interactive** engine calls — live CG/CP/stability on every edit (`staticInfo`), the aero sweep (`getAeroSweep`), component info — run **synchronously on the main thread** (they're fast, ~ms, and want to be instant). The **flight simulation** (`simulate`, ~500 ms) runs in a **Web Worker** with its own engine instance, so a run never freezes the UI (`engine/simClient.ts` + `engine/simWorker.ts`; the worker builds the identical rocket via the shared `services/design/buildRocket.ts`). Running several simulations is a **pool** of those workers, up to one per core less one and capped at four, so a batch flies several at a time rather than one after another; the rest queue, and idle workers are reaped. `simulate()` inside a worker is a synchronous engine call, so one request per worker is what lets a hung simulation be killed on its own without disturbing the others.
+**Threading.** The **interactive** engine calls - live CG/CP/stability on every edit (`staticInfo`), the aero sweep (`getAeroSweep`), component info - run **synchronously on the main thread** (they're fast, ~ms, and want to be instant). The **flight simulation** (`simulate`, ~500 ms) runs in a **Web Worker** with its own engine instance, so a run never freezes the UI (`engine/simClient.ts` + `engine/simWorker.ts`; the worker builds the identical rocket via the shared `services/design/buildRocket.ts`). Running several simulations is a **pool** of those workers, up to one per core less one and capped at four, so a batch flies several at a time rather than one after another; the rest queue, and idle workers are reaped. `simulate()` inside a worker is a synchronous engine call, so one request per worker is what lets a hung simulation be killed on its own without disturbing the others.
+
+**App state.** The app has one Zustand store, `useWorkspaceStore` in `web/src/state/store.ts`, composed of slices. `store.ts` is the editing core: the design tree, the simulations and flight configurations, and undo history. `state/viewSlice.ts` holds navigation (which tab and pane are open, the center view, the schematic's controls), which is not part of the design and is not in undo history. `state/fileSlice.ts` holds opening, importing and exporting designs, including `openOrkFile`, `openExample` and `homeForImport`. `state/workspaceSelectors.ts` holds the store's pure helpers and selectors (`selectActive`, `selectConfig`, `selectDesignName`), outside `store.ts` because `fileSlice` reads them while `store.ts` is still loading. `state/workInProgress.ts` answers whether a reload now would interrupt something: a batch of flights, a drift sweep, or a dialog waiting on an answer.
+
+The store holds the run preferences as `simPrefs`, copied from Settings, and `runSim` / `runSims` read them from there. Each run resolves with an outcome per simulation (`landed`, `failed`, `skipped`, `canceled`, `dropped` or `busy`), and a second batch while one is flying is refused with `sim.busy`. `hydrate` and `resetWorkspace` bump a `quietReplace` counter so the autosave skips the save that follows a swap, and why the design does not build is `buildErr`, kept apart from `err` (the failure of the last action) so a rebuild cannot clear a message before it is read.
 
 ## Offline & installability (PWA)
 
-Everything the app needs is static — the WASM kernel runs the physics in-browser and there is no backend — so it can work with no connection at all. `vite-plugin-pwa` (configured in `web/vite.config.ts`) emits a service worker that precaches the app shell, the WASM engine and both catalogs (~7.8 MB), plus a web app manifest that makes it installable. Page loads themselves go network-first with the precached shell as the offline fallback, so a plain reload picks up a new deploy as soon as the CDN serves it, without waiting for the update prompt; the GitHub Pages CDN caches every file for ten minutes, so that is the floor on how fast a deploy can reach anyone.
+Everything the app needs is static (the WASM kernel runs the physics in-browser and there is no backend), so it can work with no connection at all. `vite-plugin-pwa` (configured in `web/vite.config.ts`) emits a service worker that precaches the app shell, the WASM engine, the catalogs (motors, components, materials) and the example rockets (about 12 MB, plus the built docs), plus a web app manifest that makes it installable. Page loads themselves go network-first with the precached shell as the offline fallback, so a plain reload picks up a new deploy as soon as the CDN serves it, without waiting for the update prompt; the GitHub Pages CDN caches every file for ten minutes, so that is the floor on how fast a deploy can reach anyone.
 
 Two deliberate exclusions and additions:
 
-- The **JS fallback engine** (~970 kB, emitted twice — main thread and sim worker) is kept *out* of the precache and runtime-cached on first use instead. WASM-GC is the path essentially every current browser takes, so precaching ~1.9 MB of unused fallback on every install is a bad trade.
-- The **`data`-branch catalogs** get a `StaleWhileRevalidate` rule, so they render instantly from cache and refresh in the background — which is how a weekly catalog refresh reaches an installed copy.
+- The **JS fallback engine** (~1.1 MB, emitted twice - main thread and sim worker) is kept *out* of the precache and runtime-cached on first use instead. WASM-GC is the path essentially every current browser takes, so precaching ~2.2 MB of unused fallback on every install is a bad trade.
+- The **`data`-branch catalogs** get a `StaleWhileRevalidate` rule, so they render instantly from cache and refresh in the background - which is how a weekly catalog refresh reaches an installed copy.
 
 The worker is registered with `registerType: 'prompt'`, not `autoUpdate`: a silent activation reloads the page, which would interrupt an edit in progress. `components/layout/UpdateToast.tsx` asks instead. A waiting worker activates only when the page posts `SKIP_WAITING`, so an offer that is never answered would hold the tab on the old build for the life of the tab; the toast therefore applies the update itself once the tab has been hidden for `UPDATE_APPLY_HIDDEN_MS` with no simulation in flight.
+
+A waiting worker is taken up only when its build id is newer than the active worker's (`services/app/swBuild.ts`). A browser reports any changed `sw.js` as an update, older included, and the Pages CDN can serve the previous one for a few minutes after a deploy. `vite.config.ts` stamps each build with its build time and emits `sw-build-<id>.js`, which `sw.js` imports (`importScripts`) and which answers the page's request for the build id. **Check for updates** is in the app menu (`components/layout/UpdateCheckDialog.tsx`).
 
 Icons are generated from `web/public/favicon.svg` by `npm run gen:icons` (rerun after changing the favicon). The maskable variant is inset to the ~80% safe zone because launchers crop to a circle or squircle and would otherwise clip the fins.
 
@@ -106,20 +118,20 @@ The contents rail, the page headings and the search index are all read out of th
 
 **Two searches, because there are two places to search from.**
 
-- The published site uses `@easyops-cn/docusaurus-search-local`, whose index is built with the site and fetched with a `?_=<hash>` of the sources behind it, so a deploy cannot be answered from a cached old index. That hash is what `docsDir` is for in this plugin and nothing else, which is why it lists `i18n` as well: the default is the English sources alone, so a Spanish-only change did not move it. That index is kept out of the app precache (`globIgnores` in `web/vite.config.ts`): it is about 1.5 MB, and the dialog could not use the plugin anyway, because the embed stylesheet hides the navbar its search box lives in.
+- The published site uses `@easyops-cn/docusaurus-search-local`, whose index is built with the site and fetched with a `?_=<hash>` of the sources behind it, so a deploy cannot be answered from a cached old index. That hash is what `docsDir` is for in this plugin and nothing else, which is why it lists `i18n` as well: the default is the English sources alone, so a Spanish-only change would not move it. That index is kept out of the app precache (`globIgnores` in `web/vite.config.ts`): it is about 1 MB per language, and the dialog could not use the plugin anyway, because the embed stylesheet hides the navbar its search box lives in.
 - The dialog searches the built pages themselves (`services/app/helpSearch.ts`). The first search fetches every page the rail lists, splits each at its `h2`/`h3` anchors, and keeps that for the session. A section matches only if *every* word typed appears in it, ranked heading over body over page title, and opening a result marks the words in the frame and scrolls to the first one. Because it reads the same precached files the frame renders, it works offline with nothing extra shipped and no index that can drift from the pages it describes.
 
 ## Motor data & thrust-curve caching
 
 Motors come from [thrustcurve.org](https://www.thrustcurve.org), in two tiers that keep recurring API load to essentially one scheduled job:
 
-1. **Catalog (generated, fetched at runtime).** `web/scripts/sync-motors.mjs` sweeps thrustcurve for every motor, in production or not (out-of-production ones marked `oop`), and writes the specs — and their bundled thrust curves — to `web/public/data/motors.generated.json` (~1,150 motors). `public/data` is copied verbatim into the build rather than compiled into the JS bundle, and `services/app/remoteData.ts` fetches it on first use. `.github/workflows/sync-catalogs.yml` runs the sweep weekly and publishes the result to the orphan `data` branch, which the deployed app reads over jsDelivr (`VITE_DATA_BASE`), so a refresh needs no rebuild; the committed copy is the fallback when that host is unreachable. To regenerate locally:
+1. **Catalog (generated, fetched at runtime).** `web/scripts/sync-motors.mjs` sweeps thrustcurve for every motor, in production or not (out-of-production ones marked `oop`), and writes the specs - and their bundled thrust curves - to `web/public/data/motors.generated.json` (~1,150 motors). `public/data` is copied verbatim into the build rather than compiled into the JS bundle, and `services/app/remoteData.ts` fetches it on first use. `.github/workflows/sync-catalogs.yml` runs the sweep weekly and publishes the result to the orphan `data` branch, which the deployed app reads over jsDelivr (`VITE_DATA_BASE`), so a refresh needs no rebuild; the committed copy is the fallback when that host is unreachable. To regenerate locally:
 
    ```bash
    cd web && npm run sync:motors            # regenerate the committed fallback catalog
    ```
 
-   The catalog is **not** mirrored to `localStorage` — it now ships its thrust curves, which is far too large for that — but it is memoized for the session and cache-busted by the content hash in `public/data/manifest.json`. thrustcurve.org itself is never called for the catalog at runtime.
+   The catalog is **not** mirrored to `localStorage` - it ships its thrust curves, which is far too large for that - but it is memoized for the session and cache-busted by the content hash in `public/data/manifest.json`. thrustcurve.org itself is never called for the catalog at runtime.
 
 2. **Thrust curves.** The sweep bundles each motor's curve samples into the catalog (1,063 of 1,156; the rest are flagged `noCurve`, having none published), so a picked motor builds its `MotorSpec` with **no runtime call**. Only a `noCurve` motor falls through to `web/src/services/motors/thrustcurve.ts`, which resolves it (`search.json`), pulls its curve (`download.json`) and builds the spec (trapezoidal impulse → per-sample mass). Those fetches are cached through the `MotorStore` (IndexedDB):
 
@@ -129,59 +141,61 @@ Motors come from [thrustcurve.org](https://www.thrustcurve.org), in two tiers th
    | `tc:v1:samples:<motorId>` | the thrust curve | after the TTL |
    | `tc:v1:motor:<mfr>:<desig>:<delay>` | the built `MotorSpec` | after the TTL |
 
-   Curves are **not immutable** (contributors revise the sample files), so the per-motor caches carry a **90-day TTL** (`CACHE_TTL_MS` in `thrustcurve.ts`) and revalidate **lazily, stale-while-revalidate**: a re-fetch happens only for a motor the user picks *again* *after* its cache has aged out, and a failed refresh falls back to the stale curve (offline-safe). Bump `CACHE_VERSION` to invalidate every per-motor cache at once.
+   Curves are **not immutable** (contributors revise the sample files), so the per-motor caches carry a **90-day TTL** (`DEFAULT_TTL_MS` in `motorStore.ts`) and revalidate **lazily, stale-while-revalidate**: a re-fetch happens only for a motor the user picks *again* *after* its cache has aged out, and a failed refresh falls back to the stale curve (offline-safe). Bump `CACHE_VERSION` to invalidate every per-motor cache at once.
 
-   **Imported motors.** A user can import a `.eng` (RASP) or `.rse` (RockSim) file — each carries its own thrust curve, so neither needs a thrustcurve lookup: `engParser.ts` / `rseParser.ts` parse them, the `MotorStore` persists the result (`motors:custom`), `loadCatalog()` merges it into the picker (flagged, deletable), and `fetchMotorSpec` builds its `MotorSpec` from the stored samples. `motorDb.importCustomMotors` picks the parser from the file's bytes rather than its extension, the way `designFile.ts` does for `.ork`/`.rkt`. This is user content, symmetric to custom materials.
+   **Imported motors.** A user can import a `.eng` (RASP) or `.rse` (RockSim) file - each carries its own thrust curve, so neither needs a thrustcurve lookup: `engParser.ts` / `rseParser.ts` parse them, the `MotorStore` persists the result (`motors:custom`), `loadCatalog()` merges it into the picker (flagged, deletable), and `fetchMotorSpec` builds its `MotorSpec` from the stored samples. `motorDb.importCustomMotors` picks the parser from the file's bytes rather than its extension, the way `designFile.ts` does for `.ork`/`.rkt`. This is user content, symmetric to custom materials.
 
-   **`.rse` is the richer of the two**, and `rseParser.ts` is a TypeScript PORT of `file/motor/RockSimMotorLoader.java`, not an extraction of it, for the reason the `.rkt` reader is one: that class is SAX-based and pulls in SimpleSAX, WarningSet, MotorDigest, Manufacturer and ThrustCurveMotor.Builder, which is the file-loading machinery the extraction leaves behind. What the format adds over RASP is the motor TYPE (a hybrid imports as a hybrid), a delay list that can say *plugged*, the real launch CG, and a per-sample mass column — so `samplesToMotorSpec` flies the measured mass curve instead of reconstructing one from cumulative impulse. Three upstream pieces are deliberately not ported, each documented at the top of the file: `MotorDigest` (nothing here de-duplicates motors across files), manufacturer-based type inference (no `Manufacturer` table on this side), and `AbstractMotorLoader.calculateMass` — that last one because `samplesToMotorSpec` already does the identical arithmetic for every motor without a mass column, which `rseParser.test.ts` holds the two to.
+   **`.rse` is the richer of the two**, and `rseParser.ts` is a TypeScript PORT of `file/motor/RockSimMotorLoader.java`, not an extraction of it, for the reason the `.rkt` reader is one: that class is SAX-based and pulls in SimpleSAX, WarningSet, MotorDigest, Manufacturer and ThrustCurveMotor.Builder, which is the file-loading machinery the extraction leaves behind. What the format adds over RASP is the motor TYPE (a hybrid imports as a hybrid), a delay list that can say *plugged*, the real launch CG, and a per-sample mass column - so `samplesToMotorSpec` flies the measured mass curve instead of reconstructing one from cumulative impulse. Three upstream pieces are deliberately not ported, each documented at the top of the file: `MotorDigest` (nothing here de-duplicates motors across files), manufacturer-based type inference (no `Manufacturer` table on this side), and `AbstractMotorLoader.calculateMass` - that last one because `samplesToMotorSpec` already does the identical arithmetic for every motor without a mass column, which `rseParser.test.ts` holds the two to.
 
-   The catalog mirror, per-motor entries, and imported motors all persist through the swappable **`MotorStore`** (`web/src/services/motors/motorStore.ts`; default `KeyValueMotorStore` over IndexedDB), which owns the freshness policy (catalog signature, per-entry TTL). Replace it with `setMotorStore(...)` to move motor data elsewhere — see **Where user data lives** below.
+   The catalog mirror, per-motor entries, and imported motors all persist through the swappable **`MotorStore`** (`web/src/services/motors/motorStore.ts`; default `KeyValueMotorStore` over IndexedDB), which owns the freshness policy (catalog signature, per-entry TTL). Replace it with `setMotorStore(...)` to move motor data elsewhere - see **Where user data lives** below.
 
 ## Materials
 
 Unlike motors, materials are **not** an external feed, but they are shipped the same way: a generated file under `public/data/`, fetched at run time rather than compiled into the bundle. Nothing in `src/` holds a material.
 
-- **Built-ins** — `public/data/materials.generated.json` (97 entries: bulk / surface / line, with densities and groups), written by `web/scripts/sync-materials.mjs` from two inputs. Rows marked `upstream` are OpenRocket's own list, read straight out of its `Databases.java` and held to it by `engine-java/extract/extract.mjs --check`; the rest come from the hand-maintained `web/scripts/data/materials.app.json`, which carries the adhesives (upstream has none, and a fin fillet is made of nothing else) and corrections to upstream values that are wrong. Each of ours cites the document its density came from. The editor's material picker fetches the merged file; the engine reproduces OpenRocket's mass/CG because it applies a material by its **density**.
-- **Custom materials** — user-defined (name + density + group), persisted under `materials:custom`, merged into the picker by `services/materials/materials.mergeCustom` (a custom material replaces a built-in of the same name in place, and otherwise joins the group it names), and reusable across designs. The kernel accepts any density directly, so a custom material is just a named density. `services/materials/materials.ts` owns the domain rules; `materialStore.ts` is a typed store that sits on top of the shared key-value store (below).
+- **Built-ins** - `public/data/materials.generated.json` (97 entries: bulk / surface / line, with densities and groups), written by `web/scripts/sync-materials.mjs` from two inputs. Rows marked `upstream` are OpenRocket's own list, read straight out of its `Databases.java` and held to it by `engine-java/extract/extract.mjs --check`; the rest come from the hand-maintained `web/scripts/data/materials.app.json`, which carries the adhesives (upstream has none, and a fin fillet is made of nothing else) and corrections to upstream values that are wrong. Each of ours cites the document its density came from. The editor's material picker fetches the merged file; the engine reproduces OpenRocket's mass/CG because it applies a material by its **density**.
+- **Custom materials** - user-defined (name + density + group), persisted under `materials:custom`, merged into the picker by `services/materials/materials.mergeCustom` (a custom material replaces a built-in of the same name in place, and otherwise joins the group it names), and reusable across designs. The kernel accepts any density directly, so a custom material is just a named density. `services/materials/materials.ts` owns the domain rules; `materialStore.ts` is a typed store that sits on top of the shared key-value store (below).
 
-The material selection is applied to the kernel as a density override (`materialDensity`), so the **physics is exact** — mass/CG match OpenRocket regardless. Material **names** round-trip through `.ork` as well, including names upstream does not have, so a design still says what it is built out of when it is reopened here or on the desktop (`services/files/ork/materialRoundTrip.test.ts` is what holds that). A material's density is carried in the file, so the engine shim never needs the table.
+The material selection is applied to the kernel as a density override (`materialDensity`), so the **physics is exact** - mass/CG match OpenRocket regardless. Material **names** round-trip through `.ork` as well, including names upstream does not have, so a design still says what it is built out of when it is reopened here or on the desktop (`web/tests/services/files/ork/materialRoundTrip.test.ts` is what holds that). A material's density is carried in the file, so the engine shim never needs the table.
 
 Because the catalog is a download it can fail to arrive. The picker says so rather than rendering an empty list, and keeps naming the material the part already has: an empty list and a lost name both read as "this part has no material", and neither is true.
 
 ## Components
 
-Real manufacturer parts (Estes/Apogee/LOC/BlueTube/…), extracted from the **OpenRocket-Components DB** ([`dbcook/openrocket-database`](https://github.com/dbcook/openrocket-database)) — the community-maintained `.orc` parts database OpenRocket's component data comes from — the third and last reference catalog (after motors and materials). (OpenRocket calls these "component presets"; here it's just the components catalog, symmetric with motors.)
+Real manufacturer parts (Estes/Apogee/LOC/BlueTube/…), the third and last reference catalog (after motors and materials). It is the parts library desktop OpenRocket offers, read from the same two sources: the **OpenRocket-Components DB** ([`dbcook/openrocket-database`](https://github.com/dbcook/openrocket-database)), the community-maintained `.orc` parts database, and the **internal** `.orc` files OpenRocket ships inside its jar under `datafiles/components/internal` (the legacy manufacturer files, several parachute makers and `RailButton_Database.orc`). (OpenRocket calls these "component presets"; here it's just the components catalog, symmetric with motors.)
 
-- **`web/scripts/sync-components.mjs`** reads the `.orc` XML, resolves each part's material to a density, normalizes units to SI, and writes **`web/public/data/components.generated.json`** (~2,940 parts, six types: body tubes, nose cones, parachutes, tube couplers, centering rings, bulkheads). Point `OPENROCKET_PRESETS` (or `--src`) at a checkout of the components DB's `orc/` dir; the default is a local clone. Generating it needs no network, and neither does the CI job beyond cloning that database.
+- **`web/scripts/sync-components.mjs`** reads both sets of `.orc` XML, resolves each part's material to a density (from the part's own file first, then across all files), normalizes units to SI, and writes **`web/public/data/components.generated.json`** (~5,200 parts, eleven types: body tubes, nose cones, transitions, tube couplers, centering rings, bulkheads, engine blocks, launch lugs, rail buttons, parachutes and streamers). Only rows identical in every field are dropped: desktop keeps parts that share a part number and tells them apart by digest. A nose cone row carries its wall and shoulder; a rail button row carries its diameters, heights, drag coefficient and mass. The database comes from `OPENROCKET_PRESETS` (or `--src`), and the internal files from the OpenRocket jar (`--jar`, `OPENROCKET_JAR` or an installed OpenRocket) or a directory of them (`--internal`).
+- **`web/scripts/sync-preset-digests.mjs`** runs next. It compiles `scripts/preset-digests/PresetDump.java` against the OpenRocket release jar and asks the desktop's own loader for each part's **digest** (without one, a saved `.ork` drops its link to the part) and its **stated mass**. A stated mass becomes the row's `materialDensity`, the mass divided by the part's volume, so the part weighs what the catalog says. The volume is measured in the app's own engine (`scripts/lib/presetVolume.mjs`) rather than taken from the desktop's density, because OpenRocket builds disagree on a preset's volume. A parachute's stated mass becomes its mass override; a rail button's override is the button, screw and nut masses, and its stated drag coefficient its drag override. `presetVolume.mjs` repeats the geometry `catalogPatch` (`services/design/treeEdit.ts`) gives a row, because a script cannot import the TypeScript; `catalogPatch.kernel.test.ts` ("a stated catalog mass") builds every row with a mass through `catalogPatch` in the kernel and requires it to fly within 0.5% of that mass, which fails if the two drift apart.
 
-  **To refresh the catalog** (pick up new parts from the community DB):
+  **To refresh the catalog** (needs a JDK for the second step; see [Catalog tools](./DEVELOPER.md#catalog-tools)):
 
   ```bash
   git -C <path-to>/openrocket-database pull      # update the .orc source
-  cd web && node scripts/sync-components.mjs      # regenerate components.generated.json
-  #   …or:  node scripts/sync-components.mjs --src <path-to>/openrocket-database/orc
+  cd web && npm run sync:components -- --src <path-to>/openrocket-database/orc --jar <OpenRocket-24.12.jar>
+  npm run sync:preset-digests -- --jar <OpenRocket-24.12.jar>
   ```
 - **`web/src/services/parts/componentDb.ts`** loads it (a discriminated union by `type`) and filters.
-- **UI:** contextual **"Select a part…"** pickers in the editor — nose cone and body tube prefill their geometry + material; a **Recovery** group's parachute picker prefills diameter + Cd. Applying a part is pure app-side (it fills the `RocketSpec`); the engine is unchanged.
-- **Saved parts** — a component the user built, persisted under `parts:custom` through the swappable **`PresetStore`** (`services/parts/presetStore.ts`), the fourth store of the same shape as motors, materials and templates. Unlike a catalog row, which publishes a handful of dimensions, a saved part holds the **whole node**: `services/parts/customParts.ts` strips only what identifies the node it came from (`id`, `type`, `name`, `position`, `children`) and keeps the rest, so a cone's shoulder, a chute's lines, a tube's motor mount and the part's color all come back. `customParts` also projects each saved part down to a `Component` row (the inverse of `treeEdit.catalogPatch`, held to the catalog's own `isComponentRow`), so the picker searches, facets, fit-ranks and sorts one list rather than two; `catalogPatch` then applies the carried node instead of the per-type map. Saved parts sort ahead of the catalog under every column, because the picker draws a capped 200-row window and a part you saved must never fall off the end of it. Flagged with a ★ and deletable, like an imported motor.
-- **The manage view** — `components/design/SavedPartsDialog.tsx`, reached from the menu beside the motor dashboard and the saved launch locations, for the reason those two exist: the picker only renders for a selected node of a matching type (`treeEdit.hasCatalog`), so it cannot show a saved bulkhead on a design that has none. It reads `customParts.listSavedParts`, which differs from `customRowsForType` in one way: a part that no longer projects to a row is kept, with a null row, because the only list you can delete from must not hide the parts the picker already drops.
-- **Editing** — the dialog is master-detail (`layout="fill"`, list left at 300px, detail right), the shape the motor picker already uses, including its phone rule: one pane at a time under `md`, with a back control in the detail. `SavedPartEditor.tsx` composes the property panel's OWN pieces (`visibleFields` / `FieldRow`, `MaterialSection`, `AppearanceSection`), which is possible because all of them take a node and an `onChange` and nothing else; `RecoverySizingReadout` is the single store-coupled section and is the one it leaves out. A saved part's `id` is therefore opaque and stable (`custom:<base36 time>:<random>`) rather than the `custom:<type>:<mfr>:<partNo>` it started as: an id that encoded the label made a rename inexpressible, since it produced a different id and so copied the part instead of moving it. The label is what `saveCustomPart` now matches on for "saving again under the same maker and name replaces it", and `updateCustomPart` keeps the id, refusing a label another part of the same type already holds.
+- **UI:** contextual **"Select a part…"** pickers in the editor for every type with a catalog (`treeEdit.hasCatalog`; an inner tube picks from the body tube rows). `treeEdit.catalogPatch` turns a row into node fields: geometry, material and density, a nose cone's or transition's shoulders (`presetShoulder`, as `Transition.loadFromPreset` applies them), a parachute's diameter, Cd and mass override, a rail button's dimensions and its mass and drag overrides. Applying a part is pure app-side; the engine is unchanged.
+- **The default design** is built from catalog rows (`DEFAULT_PRESETS` in `services/design/defaultRocket.ts`). Its nose cone, Estes PNC-50KA, takes the row's stated wall and shoulder and the density that spreads its stated 3.7 g over its volume, so it weighs what a picked PNC-50KA weighs.
+- **Saved parts** - a component the user built, persisted under `parts:custom` through the swappable **`PresetStore`** (`services/parts/presetStore.ts`), the fourth store of the same shape as motors, materials and templates. Unlike a catalog row, which publishes a handful of dimensions, a saved part holds the **whole node**: `services/parts/customParts.ts` strips only what identifies the node it came from (`id`, `type`, `name`, `position`, `children`) and keeps the rest, so a cone's shoulder, a chute's lines, a tube's motor mount and the part's color all come back. `customParts` also projects each saved part down to a `Component` row (the inverse of `treeEdit.catalogPatch`, held to the catalog's own `isComponentRow`), so the picker searches, facets, fit-ranks and sorts one list rather than two; `catalogPatch` then applies the carried node instead of the per-type map. Saved parts sort ahead of the catalog under every column, because the picker draws a capped 200-row window and a part you saved must never fall off the end of it. Flagged with a ★ and deletable, like an imported motor.
+- **The manage view** - `components/design/SavedPartsDialog.tsx`, reached from the menu beside the motor dashboard and the saved launch locations, for the reason those two exist: the picker only renders for a selected node of a matching type (`treeEdit.hasCatalog`), so it cannot show a saved bulkhead on a design that has none. It reads `customParts.listSavedParts`, which differs from `customRowsForType` in one way: a part that no longer projects to a row is kept, with a null row, because the only list you can delete from must not hide the parts the picker already drops.
+- **Editing** - the dialog is master-detail (`layout="fill"`, list left at 300px, detail right), the shape the motor picker already uses, including its phone rule: one pane at a time under `md`, with a back control in the detail. `SavedPartEditor.tsx` composes the property panel's OWN pieces (`visibleFields` / `FieldRow`, `MaterialSection`, `AppearanceSection`), which is possible because all of them take a node and an `onChange` and nothing else; `RecoverySizingReadout` is the single store-coupled section and is the one it leaves out. A saved part's `id` is therefore opaque and stable (`custom:<base36 time>:<random>`): an id that encoded the label would make a rename inexpressible, since a new label would produce a different id and so copy the part instead of moving it. The label is what `saveCustomPart` matches on for "saving again under the same maker and name replaces it", and `updateCustomPart` keeps the id, refusing a label another part of the same type already holds.
 
-Like the motor catalog, it is a generated file under `public/data/` fetched on first use (see above) rather than compiled into the bundle, so it costs nothing until a picker is opened — and it is published to the `data` branch on the same weekly schedule.
+Like the motor catalog, it is a generated file under `public/data/` fetched on first use (see above) rather than compiled into the bundle, so it costs nothing until a picker is opened - and it is published to the `data` branch on the same weekly schedule.
 
 ## RockSim (`.rkt`) I/O
 
-Read by `services/files/rktImport.ts` and written by `services/files/rktExport.ts` — a TypeScript PORT of OpenRocket's `file/rocksim/` package, not an extraction of it. That package is SAX-based and pulls in the desktop's document, appearance and warning machinery; the schema it encodes is small enough to read directly, and reading it here keeps both directions on the same side of the engine boundary as the `.ork` pair: plain DOM, unit-testable, no kernel round trip. The element vocabulary, the unit factors and the four enums are transcribed from `RockSimCommonConstants.java` and its siblings, so an upstream bump can be diffed against those files.
+Read by `services/files/rktImport.ts` and written by `services/files/rktExport.ts` - a TypeScript PORT of OpenRocket's `file/rocksim/` package, not an extraction of it. That package is SAX-based and pulls in the desktop's document, appearance and warning machinery; the schema it encodes is small enough to read directly, and reading it here keeps both directions on the same side of the engine boundary as the `.ork` pair: plain DOM, unit-testable, no kernel round trip. The element vocabulary, the unit factors and the four enums are transcribed from `RockSimCommonConstants.java` and its siblings, so an upstream bump can be diffed against those files.
 
 **The specification is the handlers, not the element names.** `file/rocksim/importt/` (twenty of them) and `file/rocksim/export/` (the DTOs) are what a `.rkt` question is answered by; `RockSimCommonConstants.java` only names the tags. A dozen handlers do something the format alone gives no hint of, and reading the tag instead of the handler is how the reader came to be wrong about mass in four separate ways. Examples, each pinned by a case in `web/tests/services/files/rktDesktopParity.test.ts` that names its handler: a zero `<ID>` means a SOLID part, because `setInnerRadius` is `setThickness(outer - r)`; a recovery device's density may arrive in any of RockSim's three kinds and a BULK one only becomes areal once multiplied by the fabric's `Thickness`; a mass object's stated CG is measured from its parent's front and is already in its position, so it must be thrown away; most shock cords do not say they are shock cords; a fin set on a nose cone or transition must be converted to freeform or `addChild` refuses it outright; and a detachable pod is a strap-on booster.
 
-Three conversions run through everything, and getting one wrong yields a design that is silently 2x or 1000x off rather than one that fails to load: RockSim is **millimeters** and **grams**, and every circular dimension in the file is a **diameter**. The exceptions are documented at their call sites — a parachute's `Dia` really is a diameter on both sides, and `ShroudLineMassPerMM` is kg/m despite its name.
+Three conversions run through everything, and getting one wrong yields a design that is silently 2x or 1000x off rather than one that fails to load: RockSim is **millimeters** and **grams**, and every circular dimension in the file is a **diameter**. The exceptions are documented at their call sites - a parachute's `Dia` really is a diameter on both sides, and `ShroudLineMassPerMM` is kg/m despite its name.
 
 **The package converts inbound by DIVIDING by its constant and outbound by multiplying**, and that direction is load-bearing: `ROCKSIM_TO_OPENROCKET_SURFACE_DENSITY` is `1/10`, so a surface density comes in at ten times the file's number and goes out at a tenth. Having those two swapped is a hundredfold error in each direction that cancels on a round trip, so a reader test and a writer test can agree with each other and with nothing else.
 
 **One deliberate divergence:** every RockSim `RadialAngle` and `CantAngle` is degrees, and our nodes hold radians. The desktop importer feeds those degrees straight into `setAngleOffset`, `setRadialDirection` and `setBaseRotation`, all of which are radians, and its exporter writes radians back into the degrees field. We convert in both directions at all six sites, so an imported design differs from desktop's wherever a part carries a roll angle. Do not "align" these to upstream.
 
-`services/files/designFile.ts` picks the reader from the file's bytes (a zip is a `.ork`; otherwise the root element decides), so `loadOrk` has one path for both formats and everything downstream — the notes banner, the safety-limit check, the unsaved-copy semantics — is shared rather than duplicated per format. The header carries one hidden file input per format, differing only in `accept`.
+`services/files/designFile.ts` picks the reader from the file's bytes (a zip is a `.ork`; otherwise the root element decides), so `loadOrk` has one path for both formats and everything downstream - the notes banner, the safety-limit check, the unsaved-copy semantics - is shared rather than duplicated per format. The header carries one hidden file input per format, differing only in `accept`.
 
 Neither side is lossless in general, and both say so: RockSim has ring tails, detachable pods and subassemblies we do not, and we have rail buttons and parallel stages it does not. The importer collects those into the loaded-design notes; the exporter returns the skipped types to the caller, which surfaces them rather than letting a user discover the gap when somebody else opens the file.
 
@@ -189,20 +203,20 @@ Neither side is lossless in general, and both say so: RockSim has ring tails, de
 
 The sixteen designs OpenRocket ships and opens from *File → Open Example*, bundled with the app under `web/public/examples/` and listed by a generated `examples.generated.json`.
 
-`web/scripts/sync-examples.mjs` (`npm run sync:examples`) pulls them from the **same commit `engine-java/extract/UPSTREAM` pins for the engine**, so an example can never demonstrate a feature the bundled kernel does not have. It also **strips each file's stored `<flightdata>`**: 90% of the bytes — 2.9 MB of the 3.3 MB across the set — and dead weight here, because `orkImport` never reads it (the app runs its own simulations). Stripped, the set is ~330 kB. Designs, appearances, decals and embedded thrust curves are untouched.
+`web/scripts/sync-examples.mjs` (`npm run sync:examples`) pulls them from the **same commit `engine-java/extract/UPSTREAM` pins for the engine**, so an example can never demonstrate a feature the bundled kernel does not have. It also **strips each file's stored `<flightdata>`**: 90% of the bytes - 2.9 MB of the 3.3 MB across the set - and dead weight here, because `orkImport` never reads it (the app runs its own simulations). Stripped, the set is ~330 kB. Designs, appearances, decals and embedded thrust curves are untouched.
 
 Deliberately **`public/examples/`, not `public/data/`**. The catalogs under `public/data` are refreshed weekly by `sync-catalogs.yml` and served from the `data` branch, because they change without the app; examples change only when the app is rebuilt against a newer OpenRocket. They are precached instead (`ork` is in the PWA's `globPatterns`), so an example opens on a first offline load.
 
-`services/storage/exampleLibrary.ts` fetches the index and one file's bytes; `store.openExample` hands those bytes to **`openOrkFile`**, so an example takes the identical path a picked file does — the same notes banner, the same safety-limit check, the same unsaved-copy semantics, the same question when its name is already in the library, and no second code path. Reached from **Import → Examples**, and from the second tab of the design library.
+`services/storage/exampleLibrary.ts` fetches the index and one file's bytes; `openExample` (`state/fileSlice.ts`) hands those bytes to **`openOrkFile`**, so an example takes the identical path a picked file does: the same notes banner, the same safety-limit check, the same unsaved-copy semantics, the same question when its name is already in the library, and no second code path. Reached from **Import → Examples**, and from the second tab of the design library.
 
-`src/services/storage/exampleLibrary.test.ts` imports and builds **every** example through the real kernel and resolves its motors against the committed catalog, so neither the strip nor an upstream bump can quietly ship a broken one.
+`web/tests/services/storage/exampleLibrary.test.ts` imports and builds **every** example through the real kernel and resolves its motors against the committed catalog, so neither the strip nor an upstream bump can quietly ship a broken one.
 
 ## Geometry export (3D print / CAD / cut files)
 
 Every printable output starts at `services/exports/solidMesh.ts`, which builds a **watertight solid** per component and is the choke point that refuses one it cannot make manifold (`solidForNode` returns null rather than writing a file no slicer accepts). From there:
 
 - `services/exports/meshExport.ts` wraps three.js's STL / OBJ / glTF exporters, scaling meters → **millimeters** (`M_TO_MM`) because that is the unit every slicer and CAD tool assumes.
-- `services/exports/threeMf.ts` writes **3MF** directly — it is a zip of three XML members (OPC content types, a relationship, and the model), not a three.js exporter, so it reads the geometry's vertex and index buffers itself. 3MF is the only one of the four that carries the part's **name**, a **color** and the **declared unit**, which is what makes a whole-rocket export useful rather than a pile of anonymous solids.
+- `services/exports/threeMf.ts` writes **3MF** directly - it is a zip of three XML members (OPC content types, a relationship, and the model), not a three.js exporter, so it reads the geometry's vertex and index buffers itself. 3MF is the only one of the four that carries the part's **name**, a **color** and the **declared unit**, which is what makes a whole-rocket export useful rather than a pile of anonymous solids.
 - `services/exports/dxfExport.ts` writes the flat outline of a plate-cut part.
 - `services/files/componentFormats.ts` says which formats a component type offers (the tree's ⬇ button asks it, and it is deliberately free of heavy imports); `services/files/componentExport.ts` is the on-demand chunk that actually builds and downloads one part.
 - `services/exports/rocketPrintExport.ts` is the whole-rocket path: it walks the design for printable parts, builds each solid by the same two routes `componentExport` uses (a disc/ring needs its parent tube's bore resolved), and writes either one 3MF of named objects or a zip of one file per part.
@@ -223,37 +237,38 @@ That one path is what the main thread and the sim worker both take (`services/de
 
 **Numbering.** The kernel numbers stages in the order they are added, which is a pre-order walk over `stage` and `parallelstage` nodes, so a parallel booster nested in an early stage shifts every stage after it. `treeEdit.findStages` is that walk, and it is what the `.ork`'s `<stage number="n" active="…">` flags are keyed by; the facade itself takes a component id rather than a number, so nothing downstream has to reproduce the rule.
 
+**Copies.** A part's per-configuration settings (its motor, its deployment override and its separation override) are keyed by its id, and desktop's `copy()` carries them with the part, so a duplicated booster or a split cluster flies loaded. `componentActions.reid(node, origins)` gives a copied subtree fresh ids and records each new id against its original's; the store's `commitTree(next, extra, origins)` passes that map to `flightConfigs.carryToCopies`, which gives each copy its original's settings in every configuration.
+
 **Persistence.** Configurations live in the workspace (`version: 2`), not in each simulation. `services/storage/workspaceMigrate.ts` lifts a version-1 workspace by minting a configuration per distinct loadout, deduped, so twelve rows that flew the same motors arrive as one setup rather than twelve copies of it.
 
 ## When a saved result goes stale
 
-A run's numbers are kept and the row is marked **outdated** rather than thrown away, so a design edit ages a flight instead of destroying it. Four inputs decide what a flight computes, and **each needs its own trigger** — there is no single choke point, so a new input needs a new one:
+A run's numbers are kept and the row reads **outdated** rather than being thrown away, so a design edit ages a flight instead of destroying it, as OpenRocket does.
 
-| input | what ages the result |
-|-------|----------------------|
-| the design tree | the watcher in `state/useWorkspaceEffects.ts`, calling `markOutdated` |
-| a simulation's own inputs (launch conditions, per-row overrides, chosen config) | `patchTargets` in `state/store.ts` |
-| a flight configuration (motor, ignition, deployment, separation, nozzle, stage active) | `patchConfig`, which ages the rows using that config |
-| the global run preferences in Settings ▸ Simulation | the settings watcher in `useWorkspaceEffects.ts`, calling `markPrefsOutdated` |
+Outdated is **derived, never stored**. When a run is dispatched, the row records `resultKey` (`services/flight/simulations.ts`): one comparable string over everything the flight is computed from. `isOutdated` compares it with the key of the current inputs, so there is no trigger to forget, an edit undone back to the flown value reads current again, and the comparison survives a reload. The key covers four inputs:
 
-Results are **persisted** (`workspaceStore` splits them out to their own storage key), so a missing trigger does not merely mislead for a session: the row still claims to be current after a reload.
+| input | in the key as |
+|-------|---------------|
+| the design tree | `flightKey(tree)`: every component, less the root's descriptive fields and part names (a renamed recovery device still counts, because a run names the device each deployment came from) |
+| the flight configuration (motor, ignition, deployment, separation, stage active) | the configuration less its id and name |
+| the simulation's launch conditions | `launch`, less where the weather came from |
+| the run preferences in Settings ▸ Simulation | `effectivePrefs`: the row's own overrides over the globals, read in `SIM_PREF_KEYS` order |
 
-`SimPrefs` is the authoritative list of settings a flight reads, and `SIM_PREF_KEYS` names them at runtime with a compile-time exhaustiveness check — adding a key to the type without listing it fails the build and the error names the missing key. `SimulationSettings` is a superset: `confirmDelete` and `autoRunOutdated` are interface behavior and `railExitVelocityMin` only colors the rod-exit tile, so none of the three can move a number and listing them would age every result for nothing.
+**A new flight input has to go into `resultKey`**, or a change to it never ages a result. Results are **persisted** (`workspaceStore` splits them out to their own storage key), so a missing input does not merely mislead for a session: the row still claims to be current after a reload. A summary read from a `.ork` (`fileSummary`) carries a key and ages the same way. A row saved with a stored `outdated` flag instead of a key takes the key of the inputs it loads with if the flag said current, and none if it said outdated (`legacyResultKey` in `state/store.ts`).
 
-Two traps in the settings watcher. Compare **key by key**, because the settings store hands out a new `simulation` object on every unrelated change in it, so comparing identity would age every result the moment somebody switched a unit or a part color. And a row that **overrides** the changed key is unaffected — its override wins at run time — so `markPrefsOutdated` takes the changed keys and skips those rows.
-
-The design watcher additionally needs its hydration guard: restoring a design is not editing it, and without the guard every restored result was aged on boot and, with `autoRunOutdated` on, immediately re-flown.
+`SimPrefs` is the authoritative list of settings a flight reads, and `SIM_PREF_KEYS` names them at runtime with a compile-time exhaustiveness check - adding a key to the type without listing it fails the build and the error names the missing key. `SimulationSettings` is a superset: `confirmDelete` and `autoRunOutdated` are interface behavior and `railExitVelocityMin` only colors the rod-exit tile, so none of the three can move a number and listing them would age every result for nothing. The store takes a new `simPrefs` only when a flight-affecting key changed (`changedPrefKeys` compares key by key), because the settings store hands out a new `simulation` object on every unrelated change in it.
 
 ## Opening `.ork` files
 
-**Open .ork** loads an existing OpenRocket design at **full fidelity** — any design the engine's component-tree API supports (stages, transitions, couplers, rings, bulkheads…), not just the fixed editor layout:
+**Open .ork** loads an existing OpenRocket design at **full fidelity** - any design the engine's component-tree API supports (stages, transitions, couplers, rings, bulkheads…), not just the fixed editor layout:
 
 ```
 .ork (zip)  →  orkFile.importOrk()  →  RocketTree  →  OpenRocketDesign.buildTree()  →  staticInfo() / simulate()
 ```
 
-- **`web/src/services/files/orkFile.ts`** unzips with `fflate` and parses the OpenRocket XML with `DOMParser`. No Java loader, no network — OpenRocket's own `.ork` loader lives in *core* (`core/.../file/openrocket`), but parsing in JS is far lighter than dragging it through TeaVM.
-- **`web/src/services/files/loadOrk.ts`** orchestrates: `importOrk` → `buildTree` → resolve EVERY flight configuration's motors against our catalog (`findCatalogMotor` → `fetchMotorSpec`, one resolution per distinct motor however many configurations use it) → `staticInfo` on the one the file marks default. `wireLoadedOrk` then turns each configuration into a `FlightConfig`, keeping the file's own `configid`, with a simulation to fly it. Unresolved motors / unsupported components surface as notes on the loaded-design banner.
+- **`web/src/services/files/orkFile.ts`** re-exports the reader (`orkImport.ts`) and the writer (`orkExport.ts`); the reader unzips with `fflate` (`ork/importUnpack.ts`, with a zip-bomb guard) and parses the OpenRocket XML with `DOMParser`. No Java loader, no network - OpenRocket's own `.ork` loader lives in *core* (`core/.../file/openrocket`), but parsing in JS is far lighter than dragging it through TeaVM.
+- **`web/src/services/files/loadOrk.ts`** orchestrates: `parseDesignFile` (either format, `designFile.ts`) → `buildForImport` → resolve EVERY flight configuration's motors against our catalog (`matchCatalogMotor` → `fetchMotorSpec`, one resolution per distinct motor however many configurations use it, falling back to a curve the file embeds) → `staticInfo` on the one the file marks default. `wireLoadedOrk` then turns each configuration into a `FlightConfig`, keeping the file's own `configid`, with a simulation to fly it. Unresolved motors / unsupported components surface as notes on the loaded-design banner.
+- **Import notes are keyed** (`services/files/importNote.ts`). An `ImportNote` is either `{ key, values? }`, naming an `importNote.*` translation (present in all ten locales) and the data it interpolates, or a plain string, which is final text: a repair note the app translated when it made it, or a note a workspace saved by an older build already holds. The `.ork` and `.rkt` importers emit keyed notes, and `LoadedBanner` renders each with `importNoteText(n, t)`, so a note reads in the language the app is showing now, not the one it had when the file was opened.
 
 **Save .ork** exports the current design (`orkFile.exportOrk` → zipped with `fflate` → downloaded via `web/src/services/files/saveOrk.ts`), with every flight configuration it holds: a file that came in with three goes out with three, each writing its own motors, its own `<deploymentconfiguration>` and `<separationconfiguration>` blocks and its own stage flags. Export → re-import is verified **bit-identical** (same mass/CG/CP/stability), and the files re-open in desktop OpenRocket.
 
@@ -265,7 +280,7 @@ A launch location is a named site: `latitudeDeg`, `longitudeDeg` and `launchAlti
 
 - `LocationPicker.tsx` (top of the launch panel's Site group) writes through the panel's own `onChange` / `onCommit`, so applying a location is an ordinary undoable edit.
 - `LocationsDialog.tsx` is the list. It applies through `patchLaunch`, so one component serves both the panel's ⚙ and **menu → Launch locations**, where no site field is on screen.
-- `LocationEditDialog.tsx` edits in full and creates from nothing. Its `min` / `max` are the store's ranges, so `NumberInput` clamps what `isLocation` would reject.
+- `LocationEditor.tsx`, shown inside `LocationsDialog`, edits in full and creates from nothing. Its `min` / `max` are the store's ranges, so `NumberInput` clamps what `isLocation` would reject.
 - `useLocationList.ts` numbers its reads and drops a superseded answer, because the session's first IndexedDB `list()` is the slowest and would otherwise overwrite a newer one.
 
 Which location is current is derived by comparing the numbers, not by remembering an id: the fields can change by import, by geolocation or by hand.
@@ -291,33 +306,41 @@ Which location is current is derived by comparing the numbers, not by rememberin
 
 ## Where user data lives (swappable stores)
 
-Client-side user data lives behind **independently swappable, typed domain stores** — one each for motors, materials and saved parts — so any of them can be replaced with a different implementation without touching the services or the UI:
+Client-side user data lives behind **independently swappable, typed domain stores** (one each for designs, motors, materials, saved parts, launch locations and export templates) so any of them can be replaced with a different implementation without touching the services or the UI:
 
 ```
-keyValueStore.ts    KeyValueStore (get/set/remove) + LocalStorageKeyValueStore  — the interface
-idbKeyValueStore.ts IndexedDbKeyValueStore — the DEFAULT backend for every store
+keyValueStore.ts    KeyValueStore (get/set/remove) + LocalStorageKeyValueStore  - the interface
+idbKeyValueStore.ts IndexedDbKeyValueStore - the DEFAULT backend for every store
 
-designLibrary.ts    DesignLibrary — getDesignLibrary() / setDesignLibrary(lib)
+designLibrary.ts    DesignLibrary - getDesignLibrary() / setDesignLibrary(lib)
    list / read / write / create / rename / remove, plus the active-design pointer. One
    key per design (astrarocketjs:designs:<id>) and a small separate index of
-   {id, name, updatedAt} — autosave rewrites ONE design on a 500 ms debounce, so a single
+   {id, name, updatedAt} - autosave rewrites ONE design on a 500 ms debounce, so a single
    document holding every design would be rewritten on every keystroke and grow with the
    library. workspaceStore.ts is a narrow façade over "the design being edited".
 
-motorStore.ts       MotorStore   — getMotorStore() / setMotorStore(store)
+motorStore.ts       MotorStore   - getMotorStore() / setMotorStore(store)
    readCatalog / writeCatalog (signature-guarded mirror) · readEntry / writeEntry (per-motor,
    TTL/freshness). Default KeyValueMotorStore persists via a KeyValueStore; used by motorDb.ts +
    thrustcurve.ts, which keep only key naming and the fetch/refresh logic.
 
-materialStore.ts    MaterialStore — getMaterialStore() / setMaterialStore(store)
+materialStore.ts    MaterialStore - getMaterialStore() / setMaterialStore(store)
    list / add / remove Material. Default KeyValueMaterialStore persists via a KeyValueStore;
    materials.ts owns the domain rules (validation, merging built-ins with custom).
 
-presetStore.ts      PresetStore  — getPresetStore() / setPresetStore(store)
-   list / add / remove CustomPart — the components the user saved for reuse, each holding a
+presetStore.ts      PresetStore  - getPresetStore() / setPresetStore(store)
+   list / add / remove CustomPart - the components the user saved for reuse, each holding a
    whole node rather than a catalog row's dimensions. Default KeyValuePresetStore persists via
    a KeyValueStore; customParts.ts owns the domain rules (what is saved, the projection to a
    picker row, the change signal the picker subscribes to).
+
+launchLocationStore.ts  LaunchLocationStore: getLaunchLocationStore() / setLaunchLocationStore(store)
+   list / save / remove LaunchLocation. Default KeyValueLaunchLocationStore persists via a
+   KeyValueStore; see Saved launch locations.
+
+templateStore.ts    TemplateStore: getTemplateStore() / setTemplateStore(store)   (services/exports/)
+   list / add / remove UserTemplate, the flight-path export templates (Mustache) the user
+   imported. Default KeyValueTemplateStore persists via a KeyValueStore.
 ```
 
 All of them default to persisting through an **`IndexedDbKeyValueStore`**, and their interfaces are async so a different implementation (a backend, a shared store) fits without reshaping callers. To replace one on the client, implement its interface and swap it:
@@ -336,9 +359,9 @@ Swapping one does not affect the others.
 
 ### Why IndexedDB, and the two places localStorage remains
 
-localStorage is synchronous — every read and write blocks the main thread — and capped near **5 MB per origin**, shared across designs, custom motors and materials, imported templates and the thrust-curve caches. `workspaceStore.save()` throwing `storage-full` is that cap showing through. IndexedDB is async and effectively uncapped.
+localStorage is synchronous - every read and write blocks the main thread - and capped near **5 MB per origin**, shared across designs, custom motors and materials, imported templates and the thrust-curve caches. `workspaceStore.save()` throwing `storage-full` is that cap showing through. IndexedDB is async and effectively uncapped.
 
-Existing data migrates **lazily, per key, on first read**: a key absent from IndexedDB but present in localStorage is copied across, and the original is deleted only once the write is confirmed — an interrupted migration retries next load rather than destroying the only copy. If IndexedDB is unavailable (blocked by policy, some private modes), every operation transparently falls back to localStorage, so the app degrades to its previous behavior rather than losing storage.
+Existing data migrates **lazily, per key, on first read**: a key absent from IndexedDB but present in localStorage is copied across, and the original is deleted only once the write is confirmed - an interrupted migration retries next load rather than destroying the only copy. If IndexedDB is unavailable (blocked by policy, some private modes), every operation transparently falls back to localStorage, so the app degrades to its previous behavior rather than losing storage.
 
 `designLibrary.ts` makes designs addressable, and folds a pre-library single-blob workspace in as the first entry on first use, named after its imported `.ork` if it had one. The unload journal records **which** design it belongs to, because replaying it into whatever happens to be open would overwrite an unrelated rocket.
 
@@ -346,26 +369,28 @@ Existing data migrates **lazily, per key, on first read**: a key absent from Ind
 
 Two rules keep the library from filling up with copies of the same rocket. Both failures look identical from the File > Open list, and neither is recoverable by the user.
 
-**An import is detached, and named before it lands.** `openOrkFile` calls `setActiveId(null)`, so the next autosave creates an entry: an imported rocket is its own design, not an edit to whatever was on screen. `store.ts`'s `homeForImport` resolves a name clash **before** `replaceWorkspace`, offering either to overwrite the existing entry or to name this one (the next free `… (2)` is suggested). It has to run before the swap, or the 500 ms debounce fires while the dialog is open and creates the very entry being asked about. The answer reaches the autosave through `WorkspaceStore.setPendingName`, so there is exactly one `create`, made by the autosave, rather than the caller racing it with a second. The dialog is `state/promptStore.ts` plus `components/common/PromptDialog.tsx`, the promise-based sibling of `confirmStore`, for a store that needs an answer mid-action and cannot render.
+**An import is detached, and named before it lands.** `openOrkFile` calls `setActiveId(null)`, so the next autosave creates an entry: an imported rocket is its own design, not an edit to whatever was on screen. `homeForImport` in `state/fileSlice.ts` resolves a name clash **before** `replaceWorkspace`, offering either to overwrite the existing entry or to name this one (the next free `… (2)` is suggested). It has to run before the swap, or the 500 ms debounce fires while the dialog is open and creates the very entry being asked about. The answer reaches the autosave through `WorkspaceStore.setPendingName`, so there is exactly one `create`, made by the autosave, rather than the caller racing it with a second. The dialog is `state/promptStore.ts` plus `components/common/PromptDialog.tsx`, the promise-based sibling of `confirmStore`, for a store that needs an answer mid-action and cannot render.
 
 **Only one create can be in flight.** Overlapping saves share a single `create` in `LibraryWorkspaceStore.save`, and a create that resolves after the workspace has been replaced does not adopt its id. The window is wide enough to matter: the debounce is 500 ms, the first IndexedDB create is the slowest write the app makes, and the `visibilitychange` flush saves outside the debounce entirely. `DesignLibrary.create` also rolls back when its active-pointer write is refused, since a half-done create leaves the design indexed while the caller still has no active id.
+
+**Two tabs on one design do not overwrite each other.** Both open whatever design was active, and each autosaves its own copy. A tab's saves to the active entry run one after another (`LibraryWorkspaceStore` chains them), and each goes through `DesignLibrary.writeIfUnchanged`, which writes only if the entry's `updatedAt` has not moved past the stamp this tab last saw; the compare and the new stamp happen inside one index transaction, so two tabs cannot both pass. A tab that finds the entry moved refuses to save, keeps refusing, and skips its unload journal, so the other tab's newer work survives.
 
 There is no **File > Save**: editing autosaves on the debounce, and unload writes the journal. `components/layout/SaveStatus.tsx` reports the last write from `lastSavedAt`, which `useWorkspaceEffects` sets on the save's own success path rather than where a save was requested, so a refused write cannot claim one.
 
 Two things stay on localStorage deliberately:
 
-- **Settings** (`settings.ts`) are read **synchronously** so the very first render already has the user's units and preferences — an async read would flash defaults.
+- **Settings** (`settings.ts`) are read **synchronously** so the very first render already has the user's units and preferences - an async read would flash defaults.
 - **The unload journal.** An IndexedDB write cannot complete while the page is tearing down, so `WorkspaceStore.saveSync()` writes the workspace to localStorage on `pagehide`/`beforeunload` and the next `load()` folds it back in (it is by definition the newest copy) and clears it. Without this, an edit made inside the 500 ms autosave debounce would be lost on a quick refresh. A `visibilitychange → hidden` handler also fires the ordinary async save, which on mobile is often the last chance before the tab is discarded.
 
-Small UI preferences (dashboard columns, picker filters) also stay on localStorage — they are tiny, and a synchronous read keeps the first paint correct.
+Small UI preferences (dashboard columns, picker filters) also stay on localStorage - they are tiny, and a synchronous read keeps the first paint correct.
 
 ## Units
 
-The engine, the component tree and every saved file are **pure SI / radians**. Units are a display-and-entry concern that lives only at the UI edge — a unit that leaks inward is how upstream OpenRocket got bugs like #2475, and `.ork` round-trips have to stay byte-stable.
+The engine, the component tree and every saved file are **pure SI / radians**. Units are a display-and-entry concern that lives only at the UI edge - a unit that leaks inward is how upstream OpenRocket got bugs like #2475, and `.ork` round-trips have to stay byte-stable.
 
-- **`web/src/prefs/units.ts`** — the unit groups (mirroring the desktop's `UnitGroup`), their SI factors, and the pure conversion functions. The convention matches the desktop: `si = (ui + offset) * toSI`, with `offset` used only by temperature. `siToUiDelta` converts a *difference* rather than a reading, so a 1 K spinner step is 1 °C and not −272.15.
-- **`web/src/prefs/useUnits.ts`** — the React hook everything that puts a number on screen goes through: `sym / toUi / fromUi / fmt / step / factor` for the preference-level units, plus `at(scope, quantity)` for one field's own. `at` is a plain function rather than its own hook because fields are rendered in loops. `fmt` is locale-aware (it routes through `i18n/format`); `units.ts`'s own `fmtSi` stays plain ASCII for export code, which runs outside React and must not depend on the active language.
-- **`web/src/components/common/UnitChip.tsx`** — the unit printed beside a value, as a picker for that field.
+- **`web/src/prefs/units.ts`** - the unit groups (mirroring the desktop's `UnitGroup`), their SI factors, and the pure conversion functions. The convention matches the desktop: `si = (ui + offset) * toSI`, with `offset` used only by temperature. `siToUiDelta` converts a *difference* rather than a reading, so a 1 K spinner step is 1 °C and not −272.15.
+- **`web/src/prefs/useUnits.ts`** - the React hook everything that puts a number on screen goes through: `sym / toUi / fromUi / fmt / step / factor` for the preference-level units, plus `at(scope, quantity)` for one field's own. `at` is a plain function rather than its own hook because fields are rendered in loops. `fmt` is locale-aware (it routes through `i18n/format`); `units.ts`'s own `fmtSi` stays plain ASCII for export code, which runs outside React and must not depend on the active language.
+- **`web/src/components/common/UnitChip.tsx`** - the unit printed beside a value, as a picker for that field.
 
 Two layers, both persisted in `settings.ts`, resolved by `unitFor(units, unitOverrides, quantity, scope)`:
 
@@ -380,11 +405,11 @@ Stored symbols are validated at read time, in `unitFor`, against the quantity th
 
 Three rules keep the two layers from getting stuck: picking the preference back from a chip **removes** the override rather than storing a matching one (so the field resumes following the preference); the Metric / Imperial presets **clear every override**, or they would leave stranded fields on top of the preset; and the Units tab surfaces a **Reset N fields** button whenever any exist, since a per-field choice is otherwise hard to find again.
 
-Orphaned keys are **not** pruned. A scope only exists while its field renders, so nothing can enumerate the live set at load time, and a renamed field key simply leaves an entry nothing reads (`unitFor` falls back for it). That is a deliberate non-feature: the map tops out in the low tens of entries at a few dozen bytes each, so a reaper would cost more code than the bytes it reclaims. `PropertyPanel.scopes.test.ts` guards the failure that would actually matter — two fields of one component type colliding on a key, which would silently make them share a unit.
+Orphaned keys are **not** pruned. A scope only exists while its field renders, so nothing can enumerate the live set at load time, and a renamed field key simply leaves an entry nothing reads (`unitFor` falls back for it). That is a deliberate non-feature: the map tops out in the low tens of entries at a few dozen bytes each, so a reaper would cost more code than the bytes it reclaims. `PropertyPanel.scopes.test.ts` guards the failure that would actually matter - two fields of one component type colliding on a key, which would silently make them share a unit.
 
-Exports deliberately do not see the per-field layer — a document half in inches and half in centimeters because of where someone clicked is not one anyone wants. The report dialog picks `current` (the preferences), `metric` or `imperial` through `resolveUnitChoice`.
+Exports deliberately do not see the per-field layer - a document half in inches and half in centimeters because of where someone clicked is not one anyone wants. The report dialog picks `current` (the preferences), `metric` or `imperial` through `resolveUnitChoice`.
 
-Values stored in a non-SI convention convert at their own boundary and nowhere else — `LaunchConditions` (degrees, °C, hPa) in `LaunchPanel`, and the motor catalog (mm, g) in the motor components.
+Values stored in a non-SI convention convert at their own boundary and nowhere else - `LaunchConditions` (degrees, °C, hPa) in `LaunchPanel`, and the motor catalog (mm, g) in the motor components.
 
 ## Attribution & license
 

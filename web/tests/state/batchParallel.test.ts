@@ -88,10 +88,7 @@ describe('a batch over the worker pool', () => {
   });
 
   it('submits every row at once instead of one after another', async () => {
-    const run = st().runSims(
-      st().sims.map((x) => x.id),
-      PREFS,
-    );
+    const run = st().runSims(st().sims.map((x) => x.id));
     // All three are submitted before any flight comes back.
     expect(simulateMock).toHaveBeenCalledTimes(3);
 
@@ -102,10 +99,7 @@ describe('a batch over the worker pool', () => {
   });
 
   it('marks rows queued, then running as each reaches a worker', async () => {
-    const run = st().runSims(
-      st().sims.map((x) => x.id),
-      PREFS,
-    );
+    const run = st().runSims(st().sims.map((x) => x.id));
     // All three are submitted, so all three are queued; none has been handed to
     // a worker yet. Queued and running stop being the same instant once there
     // is a pool, which is the distinction the table's dot needs.
@@ -122,10 +116,7 @@ describe('a batch over the worker pool', () => {
   });
 
   it('installs each result by id, whatever order they land in', async () => {
-    const run = st().runSims(
-      st().sims.map((x) => x.id),
-      PREFS,
-    );
+    const run = st().runSims(st().sims.map((x) => x.id));
     // Out of order on purpose: with a pool the fastest flight finishes first,
     // and nothing may depend on submission order.
     calls[2]!.resolve(result(3));
@@ -138,10 +129,7 @@ describe('a batch over the worker pool', () => {
   });
 
   it('one failure marks its own row and leaves the rest of the batch alone', async () => {
-    const run = st().runSims(
-      st().sims.map((x) => x.id),
-      PREFS,
-    );
+    const run = st().runSims(st().sims.map((x) => x.id));
     calls[1]!.reject(new Error('degenerate geometry'));
     calls[0]!.resolve(result(1));
     calls[2]!.resolve(result(3));
@@ -157,10 +145,7 @@ describe('a batch over the worker pool', () => {
 
   it('drops every answer when the design changes mid-batch', async () => {
     const ranOn = st().tree;
-    const run = st().runSims(
-      st().sims.map((x) => x.id),
-      PREFS,
-    );
+    const run = st().runSims(st().sims.map((x) => x.id));
     // An edit while the pool is busy: the answers still coming back describe a
     // rocket that is no longer on screen.
     useWorkspaceStore.setState({ tree: structuredClone(ranOn) });
@@ -171,10 +156,7 @@ describe('a batch over the worker pool', () => {
   });
 
   it('clears the busy flag once the whole batch has settled, not the first row', async () => {
-    const run = st().runSims(
-      st().sims.map((x) => x.id),
-      PREFS,
-    );
+    const run = st().runSims(st().sims.map((x) => x.id));
     expect(st().simBusy).toBe(true);
     calls[0]!.resolve(result(1));
     await Promise.resolve();
@@ -219,10 +201,7 @@ describe('canceling a batch', () => {
   });
 
   it('keeps what already landed and clears the rest', async () => {
-    const run = st().runSims(
-      st().sims.map((x) => x.id),
-      PREFS,
-    );
+    const run = st().runSims(st().sims.map((x) => x.id));
     calls[0]!.resolve(result(42));
     await Promise.resolve();
 
@@ -237,10 +216,7 @@ describe('canceling a batch', () => {
   });
 
   it('does not mark a canceled row as failed', async () => {
-    const run = st().runSims(
-      st().sims.map((x) => x.id),
-      PREFS,
-    );
+    const run = st().runSims(st().sims.map((x) => x.id));
     st().cancelRun();
     await run;
     // The user stopped it; that is not a fault, so no red dot and no banner.
@@ -249,11 +225,11 @@ describe('canceling a batch', () => {
   });
 
   it('a later run is unaffected by an earlier cancel', async () => {
-    const first = st().runSims([byName('A').id], PREFS);
+    const first = st().runSims([byName('A').id]);
     st().cancelRun();
     await first;
 
-    const second = st().runSims([byName('A').id], PREFS);
+    const second = st().runSims([byName('A').id]);
     calls[calls.length - 1]!.resolve(result(7));
     await second;
     expect(byName('A').result?.summary.maxAltitude).toBe(7);
@@ -282,7 +258,7 @@ describe('running everything outdated', () => {
   });
 
   it('flies the stale and the never-flown, and leaves the current one alone', async () => {
-    await st().runOutdated(PREFS);
+    await st().runOutdated();
     expect(simulateMock).toHaveBeenCalledTimes(2);
     expect(byName('Stale').result?.summary.maxAltitude).toBe(50);
     expect(byName('NeverFlown').result?.summary.maxAltitude).toBe(50);
@@ -293,7 +269,7 @@ describe('running everything outdated', () => {
     // "Bring this workspace up to date" is a different question from "fly these
     // rows", so a selection must not narrow it.
     st().setSimsSelected([byName('Fresh').id]);
-    await st().runOutdated(PREFS);
+    await st().runOutdated();
     expect(simulateMock).toHaveBeenCalledTimes(2);
   });
 
@@ -302,7 +278,7 @@ describe('running everything outdated', () => {
       sims: st().sims.map((x) => ({ ...x, result: result(1) })),
     });
     useWorkspaceStore.setState((s) => ({ sims: s.sims.map((x) => asFlown(s, x)) }));
-    await st().runOutdated(PREFS);
+    await st().runOutdated();
     expect(simulateMock).not.toHaveBeenCalled();
     expect(st().simBusy).toBe(false);
   });
@@ -344,7 +320,7 @@ describe('a simulation edited while it is in the air', () => {
 
   it('drops the answer when its launch conditions changed underneath it', async () => {
     const target = byName('A').id;
-    const run = st().runSims([target], PREFS);
+    const run = st().runSims([target]);
 
     // Edit the row that is flying. `patchLaunch` hits the active simulation, so
     // point the editor at it first.
@@ -363,7 +339,7 @@ describe('a simulation edited while it is in the air', () => {
 
   it('keeps the answer when the edit landed on a DIFFERENT simulation', async () => {
     const target = byName('A').id;
-    const run = st().runSims([target], PREFS);
+    const run = st().runSims([target]);
 
     st().setActiveId(byName('B').id);
     st().patchLaunch({ windAverage: 7 });
@@ -378,7 +354,7 @@ describe('a simulation edited while it is in the air', () => {
 
   it('drops it for a motor swap too, not just launch conditions', async () => {
     const target = byName('A').id;
-    const run = st().runSims([target], PREFS);
+    const run = st().runSims([target]);
 
     st().setActiveId(target);
     st().setMountMotor(byName('A').configId, mountId(), { ...C6, designation: 'D12' });
@@ -389,7 +365,7 @@ describe('a simulation edited while it is in the air', () => {
   });
 
   it('installs normally when nothing is touched', async () => {
-    const run = st().runSims([byName('A').id], PREFS);
+    const run = st().runSims([byName('A').id]);
     calls[0]!.resolve(result(77));
     await run;
     expect(byName('A').result?.summary.maxAltitude).toBe(77);

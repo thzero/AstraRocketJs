@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { fmtNum } from '../../i18n/format';
 import { useUnits } from '../../prefs/useUnits';
@@ -202,12 +202,15 @@ export function ThrustChart({ samples, avg, burn }: { samples: [number, number][
   const line = linePath(samples, X, Y);
   const area = baselineArea(samples, X, Y, tMax);
   const peak = peakOf(samples);
+  // Per instance: `url(#id)` resolves to the first match in the document, so a
+  // second chart sharing a fixed id would paint with the first one's gradient.
+  const fillId = `thrustFill${useId()}`;
 
   return (
     <div className="mt-2">
       <svg viewBox={`0 0 ${W} ${H}`} width="100%" className="block">
         <defs>
-          <linearGradient id="thrustFill" x1="0" y1="0" x2="0" y2="1">
+          <linearGradient id={fillId} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={token('thrust')} stopOpacity="0.45" />
             <stop offset="100%" stopColor={token('thrust')} stopOpacity="0.04" />
           </linearGradient>
@@ -217,7 +220,7 @@ export function ThrustChart({ samples, avg, burn }: { samples: [number, number][
           <rect x={X(0)} y={PT} width={X(0.5) - X(0)} height={H - PT - PB} fill={token('thrust-band')} opacity="0.06" />
         )}
         <ChartAxes dims={dims} tMax={tMax} fMax={fMax} X={X} Y={Y} fScale={u.factor('force')} />
-        <path d={area} fill="url(#thrustFill)" />
+        <path d={area} fill={`url(#${fillId})`} />
         <line
           x1={PL}
           y1={Y(avg)}

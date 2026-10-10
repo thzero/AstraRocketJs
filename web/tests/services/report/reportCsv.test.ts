@@ -55,6 +55,19 @@ describe('design CSV', () => {
     expect(rows).toContainEqual(['Design', 'Stages', '2', '']);
   });
 
+  it.each([
+    ['commercial_kit', 'Commercial Kit'],
+    ['clonekit', 'Clone of Commercial Kit'],
+    ['kit_bash', 'Kit Bash of Commercial Kits'],
+    ['homebrew', 'homebrew'],
+  ])('names the design type %s the way the desktop does', (designType, label) => {
+    const typed = buildDesignCsv({ ...model, designType }, METRIC_UNITS)
+      .trimEnd()
+      .split('\r\n')
+      .map((l) => l.split(','));
+    expect(typed).toContainEqual(['Design', 'Design Type', label, '']);
+  });
+
   it('has the Rocket summary in the chosen units with dot decimals', () => {
     expect(rows).toContainEqual(['Rocket', 'Length', '90', 'cm']);
     expect(rows).toContainEqual(['Rocket', 'Stability (on pad)', '3.14', 'cal']);
@@ -195,7 +208,7 @@ describe('buildComponentCsv', () => {
   it('writes one row per part, in the chosen units, the header naming them', () => {
     const [head, nose] = csv();
     expect(head).toBe(
-      'Stage,Depth,Type,Name,Material,Density (g/cm³),Length (cm),Outer diameter (cm),Inner diameter (cm),Thickness (cm),Mass (g)',
+      'Stage,Depth,Type,Name,Material,Density (g/cm³),Length (cm),Outer diameter (cm),Inner diameter (cm),Fore diameter (cm),Aft diameter (cm),Thickness (cm),Mass (g)',
     );
     const cells = nose!.split(',');
     expect(cells.slice(0, 5)).toEqual(['Sustainer', '0', 'Nose cone', 'Nose', 'Polystyrene']);
@@ -203,6 +216,24 @@ describe('buildComponentCsv', () => {
     expect(Number(cells[7])).toBeCloseTo(2.5, 6);
     // A figure the part does not have is blank.
     expect(cells[8]).toBe('');
+  });
+
+  it("writes a transition's two ends in their own columns", () => {
+    const withTransition: ReportModel = {
+      ...parts,
+      partsByStage: [
+        {
+          stage: 'Sustainer',
+          rows: [{ depth: 0, type: 'transition', name: 'T', length: 0.05, foreR: 0.02, aftR: 0.0125, mass: 0.01 }],
+        },
+      ],
+    };
+    const [, row] = buildComponentCsv(withTransition, METRIC_UNITS, (type) => type)
+      .trimEnd()
+      .split('\r\n');
+    const cells = row!.split(',');
+    expect(Number(cells[9])).toBeCloseTo(4, 6);
+    expect(Number(cells[10])).toBeCloseTo(2.5, 6);
   });
 
   it('keeps a part name from becoming a spreadsheet formula', () => {

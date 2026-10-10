@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { buildTraces, visibleSeries, type ChartFlight } from '../../../src/components/canvas/FlightChart';
+import { SERIES, traceScale, traceUnit } from '../../../src/components/canvas/flightChartTraces';
 import type { FlightResult, FlightSeries } from '../../../src/engine/openRocketEngine';
 
 const series = (time: number[]) => ({ time, altitude: time.map((t) => t) }) as unknown as FlightSeries;
@@ -131,5 +132,20 @@ describe('the derived panels', () => {
       'rollRate',
       'velocityAltitude',
     ]);
+  });
+});
+
+/**
+ * q·α is a pressure times an angle, so its panel reads in the reader's pressure
+ * unit times their angle unit rather than a fixed kPa·°.
+ */
+describe('a product series', () => {
+  it('takes its scale and label from both preferences', () => {
+    const qa = SERIES.find((m) => m.key === 'qAlpha')!;
+    const factors: Record<string, number> = { pressure: 1 / 6894.75729, angle: 180 / Math.PI };
+    const symbols: Record<string, string> = { pressure: 'psi', angle: '°' };
+    const u = { factor: (q: string) => factors[q]!, sym: (q: string) => symbols[q]! };
+    expect(traceScale(qa, u as never)).toBeCloseTo(180 / Math.PI / 6894.75729, 12);
+    expect(traceUnit(qa, u as never)).toBe('psi·°');
   });
 });

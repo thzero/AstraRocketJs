@@ -131,7 +131,7 @@ Debajo, los resultados se muestran como fichas, en orden aproximadamente cronol�
 - **Velocidad de apertura** (marcada si supera tu umbral de aviso; en verde cuando es suficientemente baja). En un diseño de [despliegue dual](./designing-a-rocket.md#despliegue-dual) el motor de vuelo juzga el principal y el piloto contra sus propios umbrales, y devuelve un aviso por cada uno.
 - **Velocidad de aterrizaje**, **tiempo de vuelo** y **distancia recorrida**
 - **Max-Q**, el pico de presión dinámica del impulso. El motor no lo registra, así que se deriva de la densidad del aire y la velocidad del sonido que la simulación ya lleva; es el número que decide si el fuselaje aguanta. Un resultado guardado antes de que las simulaciones conservaran el conjunto completo de series no tiene densidad del aire almacenada, y no informa Max-Q en vez de un cero que parecería una respuesta.
-- **q·α máx.**, el mayor producto de presión dinámica por ángulo de ataque mientras el cohete aún vuela hacia delante (hasta la apertura, si no hasta el apogeo), en kPa·°. La carga lateral sobre aletas y acopladores lo sigue. Se deriva igual que Max-Q.
+- **q·α máx.**, el mayor producto de presión dinámica por ángulo de ataque mientras el cohete aún vuela hacia delante (hasta la apertura, si no hasta el apogeo), en la unidad de presión de la q máx. por tu unidad de ángulo (por ejemplo kPa·° o psi·°). La carga lateral sobre aletas y acopladores lo sigue. Se deriva igual que Max-Q.
 - **Alabeo máx.**, lo más rápido que giró el cohete durante el vuelo, leído de la serie de velocidad de alabeo del motor de simulación.
 
 ### Eventos de vuelo {#flight-events}

@@ -3,8 +3,8 @@ name: CI
 # The PR gate. Triggered by `pull_request` ONLY — opening a PR, and every push
 # to a branch that has one open. There is deliberately no `push` trigger: work
 # on a branch with no PR is not gated here, and master is handled by deploy.yml.
-# One trigger means no double-firing, which is why this file no longer needs the
-# `guard` job it used to carry.
+# One trigger means no double-firing, so no job here has to detect and skip a
+# duplicate run.
 #
 # A `pull_request` run tests the MERGE of head into base, not the branch tip.
 #

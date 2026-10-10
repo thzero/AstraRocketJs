@@ -49,8 +49,10 @@ export function StabilityOverlay({
   const u = useUnits();
   // When markers are toggled off, null out the stations: this disables the
   // on-axis symbols and the leader-line callouts (all gated on cgX/cpX below).
-  const cgX = info && showMarkers ? ctx.x0 + info.cg * scale : null;
-  const cpX = info && showMarkers ? ctx.x0 + info.cp * scale : null;
+  // A station the kernel could not compute (NaN) is not drawn: its circles and
+  // leader lines would be written at cx="NaN".
+  const cgX = info && showMarkers && Number.isFinite(info.cg) ? ctx.x0 + info.cg * scale : null;
+  const cpX = info && showMarkers && Number.isFinite(info.cp) ? ctx.x0 + info.cp * scale : null;
   // The engine's own percentage, not ours: see StaticInfo.stabilityPercent. A
   // zero-length design has none, so it gets no margin text either.
   const margin = info ? marginText(info.stabilityCalibers, info.stabilityPercent, t) : null;

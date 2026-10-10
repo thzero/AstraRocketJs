@@ -1,7 +1,7 @@
 import { rememberedSlot, useRemembered } from './remembered';
 import { useTranslation } from 'react-i18next';
 import { useUnits } from '../../prefs/useUnits';
-import { airDensity } from '../../services/flight/recoverySizing';
+import { siteAirDensity } from '../../services/flight/recoverySizing';
 import { LAUNCH_SITE_LIMITS } from '../../services/storage/launchLocationStore';
 import { QNum } from '../sim/LaunchPanel';
 import { SizingFigures } from './SizingFigures';
@@ -38,7 +38,7 @@ export function ParachuteTool() {
   const [siteM, setSiteM] = useRemembered(remembered, 'siteM', 0);
   const [temperatureC, setTemperatureC] = useRemembered(remembered, 'temperatureC', null);
 
-  const rho = airDensity({ launchAltitudeM: siteM, temperatureC });
+  const rho = siteAirDensity(siteM, temperatureC);
   const ready = massKg != null && massKg > 0 && cd != null && cd > 0;
 
   return (

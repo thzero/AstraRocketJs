@@ -5,6 +5,9 @@ engine-java/build/
 
 # Node / Vite (web)
 web/node_modules/
+# The community parts database, cloned by `npm run sync:database`: a repository
+# of its own, made again by that script rather than committed here.
+web/openrocket-database/
 web/dist/
 *.local
 
@@ -12,7 +15,7 @@ web/dist/
 website/node_modules/
 website/build/
 website/.docusaurus/
-# Docs built into the app for precaching (see deploy-pages.yml)
+# Docs built into the app for precaching (see deploy.yml)
 web/public/docs/
 
 # Playwright (web e2e) — test output + downloaded browsers, never the specs/config
@@ -21,7 +24,7 @@ web/playwright-report/
 web/blob-report/
 web/.playwright/
 
-# NOTE: web/src/engine/vendor/orkengine.mjs IS committed — it's the built engine
+# NOTE: web/src/engine/vendor/openrocket-engine.mjs IS committed — it's the built engine
 # artifact so the web app builds without a JDK (regenerate via engine-java).
 
 # NOTE: web/public/engine/openrocket-engine.wasm (+ its .wasm-runtime.js) ARE
@@ -40,8 +43,8 @@ Thumbs.db
 
 # Unanchored: `npx` at the repo root creates a bare node_modules/ (there is no
 # root package.json), and vitest rewrites node_modules/.vite/**/results.json on
-# every local run — three build artifacts were tracked because only the web/ and
-# website/ paths were listed, so the tree went dirty after every `npm test`.
+# every local run. With only the web/ and website/ paths listed, those show up as
+# changes after every `npm test`.
 node_modules/
 test-results/
 web/coverage/

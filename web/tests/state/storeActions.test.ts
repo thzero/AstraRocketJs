@@ -97,6 +97,20 @@ describe('saveDesignAs when storage refuses the write', () => {
     expect(list.map((m) => m.name)).toEqual(['Keeper']);
     expect(s().storageWarning).toBeNull();
   });
+
+  // The flights live under their own key, as every autosave writes them. In the
+  // design blob they would be rewritten on every keystroke, and on the
+  // localStorage fallback they can refuse the whole write.
+  it('writes the flights under the results key, not into the design blob', async () => {
+    const result = { summary: { maxAltitude: 321 }, events: [], series: {} };
+    useWorkspaceStore.setState({ sims: s().sims.map((x) => ({ ...x, result: result as never })) });
+    await s().saveDesignAs('With flights');
+    const [meta] = await new DesignLibrary(kv).list();
+    const blob = [...kv.map.entries()].find(([k]) => k.endsWith(`designs:${meta!.id}`))![1];
+    expect(blob).not.toContain('321');
+    const stored = [...kv.map.entries()].find(([k]) => k.endsWith(`designs:${meta!.id}:results`));
+    expect(stored?.[1]).toContain('321');
+  });
 });
 
 describe('deleteDesign', () => {

@@ -144,3 +144,13 @@ describe('WindProfileDialog rows', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('WindProfileDialog direction header', () => {
+  it('names the angle unit the cells are shown in', () => {
+    seedSettings({ units: { angle: 'rad' } });
+    renderWithProviders(<Host />);
+    expect(screen.getByText(/\(rad\)$/)).toBeTruthy();
+    expect(screen.queryByText(/\(°\)$/)).toBeNull();
+    localStorage.clear();
+  });
+});

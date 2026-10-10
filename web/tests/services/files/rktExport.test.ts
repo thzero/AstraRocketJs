@@ -561,3 +561,58 @@ describe('exportRkt — off-axis placement, as desktop writes it', () => {
     expect(part?.['radialPosition']).toBeUndefined();
   });
 });
+
+describe('mass and CG overrides through the one UseKnownCG switch', () => {
+  /** A one-stage design holding just `part`. */
+  const only = (part: ComponentNode) =>
+    exportRkt('x', {
+      name: 'x',
+      components: [{ type: 'stage', id: 's', name: 'Sustainer', children: [part] }] as ComponentNode[],
+    });
+
+  it('does not write an override mass of 0 for a part that overrides only its CG', () => {
+    const { xml: out, skipped: s } = only({
+      type: 'bodytube',
+      id: 'b',
+      name: 'Airframe',
+      length: 0.3,
+      outerRadius: 0.0124,
+      thickness: 0.0004,
+      overrideCGX: 0.1,
+    } as ComponentNode);
+    expect(out).not.toContain('<UseKnownCG>1</UseKnownCG>');
+    expect(importRkt(out).tree.components[0]!.children![0]!['overrideMass']).toBeUndefined();
+    // The CG override is reported as not exported rather than lost quietly.
+    expect(s).toContain('CG override (Airframe)');
+  });
+
+  it('writes KnownMass once on a mass component that also overrides its mass', () => {
+    const { xml: out } = only({
+      type: 'masscomponent',
+      id: 'm',
+      name: 'Altimeter',
+      length: 0.03,
+      radius: 0.01,
+      mass: 0.02,
+      overrideMass: 0.05,
+    } as ComponentNode);
+    const block = out.slice(out.indexOf('<MassObject>'), out.indexOf('</MassObject>'));
+    expect(block.match(/<KnownMass>/g)).toHaveLength(1);
+    // BasePartDTO writes getMass(), which is the override when there is one.
+    expect(block).toContain('<KnownMass>50</KnownMass>');
+    expect(importRkt(out).tree.components[0]!.children![0]!['overrideMass']).toBeCloseTo(0.05, 12);
+  });
+
+  it('writes KnownMass once on a shock cord that overrides its mass', () => {
+    const { xml: out } = only({
+      type: 'shockcord',
+      id: 'c',
+      name: 'Cord',
+      cordLength: 1,
+      lineDensity: 0.006,
+      overrideMass: 0.01,
+    } as ComponentNode);
+    const block = out.slice(out.indexOf('<MassObject>'), out.indexOf('</MassObject>'));
+    expect(block.match(/<KnownMass>/g)).toHaveLength(1);
+  });
+});

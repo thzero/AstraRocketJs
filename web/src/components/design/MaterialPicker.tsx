@@ -15,6 +15,7 @@ import { unitScope, type Quantity } from '../../prefs/units';
 import { errorMessage } from '../../services/app/errorMessage';
 import { useAsyncLoad } from '../common/useAsyncLoad';
 import { useLatest } from '../common/useLatest';
+import { confirm } from '../../state/confirmStore';
 
 /**
  * Each material kind measures a different density, so each has its own
@@ -191,6 +192,13 @@ export function MaterialPicker({
 
   const deleteCurrentCustom = async () => {
     if (!current?.custom) return;
+    // A custom material is typed in by hand and has no other copy.
+    const ok = await confirm({
+      message: t('material.deleteConfirm', { name: current.name }),
+      confirmLabel: t('common.delete'),
+      danger: true,
+    });
+    if (!ok) return;
     const live = observe();
     try {
       await removeCustom(current.name, type);
@@ -202,9 +210,17 @@ export function MaterialPicker({
       return; // the material is still there; do not tell the user otherwise
     }
     setDelErr(null);
-    const next = await materialsForType(type);
+    // The material is gone either way, so the part is cleared either way; a
+    // list that cannot be reloaded (the catalog fetch offline) is said here
+    // rather than left as an unhandled rejection from the click.
+    let next: typeof mats | undefined;
+    try {
+      next = await materialsForType(type);
+    } catch (e) {
+      if (live()) setDelErr(errorMessage(e));
+    }
     if (!live()) return; // selecting another component unmounts this
-    setMats(next);
+    if (next) setMats(next);
     onChange(undefined, 0);
   };
 
@@ -234,6 +250,7 @@ export function MaterialPicker({
       <select
         value={current ? current.name : own ? own.name : '__default__'}
         onChange={(e) => handleSelect(e.target.value)}
+        aria-label={label ?? t('material.title')}
         className="w-full rounded-lg bg-canvas px-2 py-2 text-sm text-ink-strong ring-1 ring-line/10"
       >
         <option value="__default__">{unsetLabel ?? t('material.defaultOption')}</option>

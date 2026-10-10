@@ -200,7 +200,7 @@ export function PropertyPanel({
             <span className="text-xs text-ink-muted">{t('prop.catalogPart')}</span>
             <span
               className="w-40 truncate text-right text-sm text-ink"
-              title={`${catalogPart.manufacturer} ${catalogPart.partNo}`}
+              title={[catalogPart.manufacturer, catalogPart.partNo].filter(Boolean).join(' ')}
             >
               {catalogPart.partNo}
               <span className="block truncate text-[10px] text-ink-faint">{catalogPart.manufacturer}</span>

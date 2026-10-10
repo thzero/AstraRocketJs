@@ -133,7 +133,7 @@ const NOSE_SHAPES = ['ogive', 'conical', 'ellipsoid', 'power', 'parabolic', 'haa
 // Apogee first: it is what a new part is created with and the most common
 // single-deploy trigger. A device with no event flies the kernel's default,
 // which the field names as its fallback.
-const DEPLOY_EVENTS = ['apogee', 'ejection', 'altitude', 'launch', 'never'];
+const DEPLOY_EVENTS = ['apogee', 'ejection', 'altitude', 'launch', 'lower_stage_separation', 'never'];
 
 // What a mass component represents (MassComponent.MassComponentType). Naming
 // only, no physics, and the same strings the .ork carries.

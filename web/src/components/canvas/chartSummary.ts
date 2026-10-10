@@ -43,6 +43,21 @@ export function rangeOf(ys: readonly number[]): { min: number; max: number } | n
 
 const withUnit = (v: number, digits: number, unit: string) => `${fmtNum(v, digits)}${unit ? ` ${unit}` : ''}`;
 
+/**
+ * What a chart's live region says when the keyboard moves its crosshair: where
+ * the crosshair is, then each series' value there ("Altitude 312 m, Velocity
+ * 48 m/s"). A series with no value at that point is left out.
+ */
+export function crosshairReadout(
+  at: string,
+  items: readonly { label: string; value: number | null; digits: number; unit: string }[],
+): string {
+  const values = items.flatMap((it) =>
+    it.value != null && Number.isFinite(it.value) ? [`${it.label} ${withUnit(it.value, it.digits, it.unit)}`] : [],
+  );
+  return values.length ? `${at}: ${values.join(', ')}` : at;
+}
+
 /** "Booster: …" when there are several stages, the bare part when there is one. */
 const perStage = (stages: readonly SummaryStage[], part: (s: SummaryStage) => string): string =>
   stages.length === 1 ? part(stages[0]!) : stages.map((s) => `${s.name}: ${part(s)}`).join('; ');

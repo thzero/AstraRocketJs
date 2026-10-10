@@ -122,3 +122,29 @@ describe('componentName', () => {
     expect(missing).toEqual([]);
   });
 });
+
+/**
+ * The kernel prints a warning's value in its own default units, because TeaVM
+ * carries no preferences, so a deployment speed always arrives in m/s and an
+ * angle in degrees. Given the reader's formatter, the value is restated in the
+ * units they chose.
+ */
+describe('warningText, in the reader units', () => {
+  // Feet per second and radians, so the conversion is visible in the result.
+  const format = (q: 'velocity' | 'angle', si: number) =>
+    q === 'velocity' ? `${(si / 0.3048).toFixed(1)} ft/s` : `${si.toFixed(3)} rad`;
+
+  it('restates a speed', () => {
+    expect(warningText('[Warning.DISCONTINUITY] (24.6 m/s):  "Parachute"', t, format)).toBe(
+      'Body diameter discontinuity (80.7 ft/s): "Parachute"',
+    );
+  });
+
+  it('restates an angle, given in degrees', () => {
+    expect(warningText('[Warning.LargeAOA.str2] (30°)', t, format)).toBe('Large AOA (0.524 rad)');
+  });
+
+  it('keeps the kernel units when no formatter is given', () => {
+    expect(warningText('[Warning.LargeAOA.str2] (30°)', t)).toBe('Large AOA (30°)');
+  });
+});

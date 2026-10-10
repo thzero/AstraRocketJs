@@ -66,6 +66,32 @@ describe('waitingIsNewer', () => {
     expect(await waitingIsNewer(reg(worker({ build: 500 }), worker({ build: 1000 })))).toBe(false);
   });
 
+  // A current active worker slow to wake misses the first question. Taking it
+  // for a pre-feature build would let a stale older copy in the waiting slot in.
+  it('asks a silent active worker again before taking it for an old build', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    let asked = 0;
+    const slow = {
+      postMessage: (_msg: unknown, ports: MessagePort[]) => {
+        if (++asked > 1) ports[0]!.postMessage({ build: 1000 });
+      },
+    } as unknown as ServiceWorker;
+    const pending = waitingIsNewer(reg(worker({ build: 500 }), slow));
+    // The waiting worker's answer arrives over the real message channel first.
+    await new Promise((r) => setImmediate(r));
+    await vi.advanceTimersByTimeAsync(3_000);
+    await vi.waitFor(() => expect(asked).toBe(2));
+    expect(await pending).toBe(false);
+    expect(asked).toBe(2);
+  });
+
+  it('still takes up a newer build over an active worker that never answers', async () => {
+    vi.useFakeTimers();
+    const pending = waitingIsNewer(reg(worker({ build: 2000 }), worker()));
+    await vi.advanceTimersByTimeAsync(6_000);
+    expect(await pending).toBe(true);
+  });
+
   it('is false with nothing waiting', async () => {
     expect(await waitingIsNewer(reg(null, worker({ build: 1000 })))).toBe(false);
     expect(await waitingIsNewer(null)).toBe(false);

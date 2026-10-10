@@ -83,6 +83,15 @@ describe('normalizing a spec', () => {
     expect(s.speedMaxMs).toBe(MAX_WIND_SPEED_MS);
   });
 
+  it('flies one speed when the band has no width', () => {
+    // Both ends past the ceiling clamp to it: four steps would fly each heading
+    // four times under one wind.
+    const s = normalizeSweepSpec({ ...spec(), speedMinMs: 30, speedMaxMs: 40, speedSteps: 4 });
+    expect(s.speedSteps).toBe(1);
+    expect(sweepSpeeds(s)).toEqual([MAX_WIND_SPEED_MS]);
+    expect(sweepFlightCount({ ...spec(), speedMinMs: 5, speedMaxMs: 5, speedSteps: 4 })).toBe(4);
+  });
+
   it('swaps a band typed backwards rather than rejecting it', () => {
     const s = normalizeSweepSpec({ ...spec(), speedMinMs: 8, speedMaxMs: 3 });
     expect([s.speedMinMs, s.speedMaxMs]).toEqual([3, 8]);
@@ -141,7 +150,23 @@ describe('the surface wind a sweep is built around', () => {
       { altitudeM: 900, speed: 12, directionDeg: 200, stddev: 1.2 },
       { altitudeM: 0, speed: 5, directionDeg: 180, stddev: 0.5 },
     ];
-    expect(surfaceWind({ ...base, windLevels: levels })).toEqual({ speedMs: 5, headingDeg: 180 });
+    expect(surfaceWind({ ...base, windAltitudeReference: 'agl', windLevels: levels })).toEqual({
+      speedMs: 5,
+      headingDeg: 180,
+    });
+  });
+
+  it('is the profile at the field altitude for an MSL sounding', () => {
+    // The 1500 m field is past the top of this sea-level-based sounding.
+    const levels: WindLevel[] = [
+      { altitudeM: 900, speed: 12, directionDeg: 200, stddev: 1.2 },
+      { altitudeM: 0, speed: 5, directionDeg: 180, stddev: 0.5 },
+    ];
+    expect(surfaceWind({ ...base, windLevels: levels })).toEqual({ speedMs: 12, headingDeg: 200 });
+  });
+
+  it('reads a negative single wind as its magnitude', () => {
+    expect(surfaceWind({ ...base, windAverage: -6 })).toEqual({ speedMs: 6, headingDeg: 90 });
   });
 
   it('reads a blank wind as calm rather than as a number', () => {
@@ -181,7 +206,15 @@ describe('one cell conditions', () => {
       { altitudeM: 0, speed: 4, directionDeg: 180, stddev: 0.4 },
       { altitudeM: 600, speed: 8, directionDeg: 220, stddev: 0.8 },
     ];
-    const profiled: CompleteLaunch = { ...base, windLevels: levels };
+    const profiled: CompleteLaunch = { ...base, windAltitudeReference: 'agl', windLevels: levels };
+
+    it('flies the cell wind at the pad when the pad sits between levels', () => {
+      const between: CompleteLaunch = { ...base, launchAltitudeM: 300, windLevels: levels };
+      const out = sweepLaunch(between, { speedMs: 7, headingDeg: 30 });
+      const pad = surfaceWind(out);
+      expect(pad.speedMs).toBeCloseTo(7, 9);
+      expect(pad.headingDeg).toBeCloseTo(30, 9);
+    });
 
     /**
      * The shear is a fact about the day, not about the surface wind. A sweep

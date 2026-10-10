@@ -2,6 +2,7 @@ import type { FlightSummary } from '../../../engine/openRocketEngine';
 import type { LaunchConditions } from '../../design/orkTree';
 import { xmlText as text } from '../xmlUtil';
 import { readSimulationLaunch } from './importLaunch';
+import { KNOWN_SIMULATION_TAGS, readPassthrough } from './passthrough';
 
 /**
  * One <simulation> as a file carries it: its name, the configuration it flies,
@@ -16,6 +17,8 @@ export interface OrkSimulation {
   summary?: FlightSummary;
   /** The file says the result was out of date when it was saved. */
   outdated: boolean;
+  /** Children this app does not model (desktop extensions and the like), as raw XML; see passthrough.ts. */
+  xmlExtra?: string[];
 }
 
 /**
@@ -32,12 +35,14 @@ export function readSimulations(doc: Document): OrkSimulation[] {
   return [...doc.querySelectorAll('openrocket > simulations > simulation')].map((el, i) => {
     const flight = el.querySelector(':scope > flightdata');
     const launch = readSimulationLaunch(el);
+    const xmlExtra = readPassthrough(el, KNOWN_SIMULATION_TAGS);
     return {
       name: (text(el, ':scope > name') ?? '').trim() || `Simulation ${i + 1}`,
       configId: (text(el, ':scope > conditions > configid') ?? '').trim() || null,
       ...(launch ? { launch } : {}),
       ...(flight ? { summary: summaryOf(flight) } : {}),
       outdated: (el.getAttribute('status') ?? '').trim().toLowerCase() === 'outdated',
+      ...(xmlExtra ? { xmlExtra } : {}),
     };
   });
 }

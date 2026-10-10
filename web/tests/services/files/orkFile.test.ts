@@ -13,6 +13,7 @@ import { writeWeatherKey } from '../../../src/services/weather/weatherKey';
 import { sourceStatus } from '../../../src/services/weather/weatherSource';
 import { badDimensions } from '../../../src/services/design/requiredComponent';
 import { updateNode } from '../../../src/services/design/treeEdit';
+import { noteTexts } from '../../testing/importNotes';
 
 const spec = {
   noseCone: { length: 0.1, aftRadius: 0.013, thickness: 0.001 },
@@ -101,14 +102,14 @@ describe('exportOrk → importOrk round-trip', () => {
     expect(xml).toContain('<delay>3</delay>');
     const res = importOrk(xml.replace('<delay>3</delay>', replacement));
     expect(res.motor?.delay).toBe(PLUGGED_DELAY);
-    expect(res.notes.join('\n')).toContain('the file gives no readable delay');
+    expect(noteTexts(res.notes).join('\n')).toContain('the file gives no readable delay');
   });
 
   it('keeps a stated delay and a stated "none"', () => {
     expect(importOrk(xml).motor?.delay).toBe(3);
     const res = importOrk(xml.replace('<delay>3</delay>', '<delay>none</delay>'));
     expect(res.motor?.delay).toBe(PLUGGED_DELAY);
-    expect(res.notes.join('\n')).not.toContain('the file gives no readable delay');
+    expect(noteTexts(res.notes).join('\n')).not.toContain('the file gives no readable delay');
   });
 });
 

@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, screen } from '@testing-library/react';
 import { renderWithProviders } from '../../testing/renderWithProviders';
@@ -24,5 +25,32 @@ describe('ColorInput', () => {
     el.value = '#445566';
     fireEvent.blur(el);
     expect(onCommit).toHaveBeenCalledWith('#445566');
+  });
+
+  it('commits every pick, not only the first, when the value round-trips through state', () => {
+    const onCommit = vi.fn();
+    function Saved() {
+      const [color, setColor] = useState('#000000');
+      return (
+        <ColorInput
+          value={color}
+          onCommit={(c) => {
+            onCommit(c);
+            setColor(c);
+          }}
+          ariaLabel="Fill"
+        />
+      );
+    }
+    renderWithProviders(<Saved />);
+    fireEvent.change(screen.getByLabelText('Fill'), { target: { value: '#111111' } });
+    fireEvent.change(screen.getByLabelText('Fill'), { target: { value: '#222222' } });
+    expect(onCommit.mock.calls.map((c) => c[0])).toEqual(['#111111', '#222222']);
+  });
+
+  it('shows a value changed from elsewhere', () => {
+    const { rerender } = renderWithProviders(<ColorInput value="#000000" onCommit={() => {}} ariaLabel="Fill" />);
+    rerender(<ColorInput value="#abcdef" onCommit={() => {}} ariaLabel="Fill" />);
+    expect((screen.getByLabelText('Fill') as HTMLInputElement).value).toBe('#abcdef');
   });
 });

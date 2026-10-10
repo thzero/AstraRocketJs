@@ -107,6 +107,19 @@ describe('deviceDescent', () => {
     expect(deviceDescent(r as unknown as FlightResult, 'Drogue')).toBeNull();
   });
 
+  /** Two chutes on one charge open at the same instant; neither ends the other's phase. */
+  it('reads the settled rate for devices that open together', () => {
+    const r = single() as unknown as { events: { type: string; time: number; source?: string }[] };
+    r.events = [
+      { type: 'APOGEE', time: 5 },
+      { type: 'RECOVERY_DEVICE_DEPLOYMENT', time: 5, source: 'Drogue' },
+      { type: 'RECOVERY_DEVICE_DEPLOYMENT', time: 5, source: 'Main' },
+      { type: 'GROUND_HIT', time: 25 },
+    ];
+    expect(deviceDescent(r as unknown as FlightResult, 'Drogue')?.rate).toBeCloseTo(5.5, 12);
+    expect(deviceDescent(r as unknown as FlightResult, 'Main')?.rate).toBeCloseTo(5.5, 12);
+  });
+
   /** Falls back to the last sample when the flight recorded no end to the phase. */
   it('uses the last sample when nothing ends the phase', () => {
     const r = single() as unknown as { events: { type: string; time: number; source?: string }[] };

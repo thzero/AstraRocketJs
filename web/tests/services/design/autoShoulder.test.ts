@@ -129,3 +129,24 @@ describe('syncAutoShoulders', () => {
     expect(defaultNode('bodytube')['shoulderAuto']).toBeUndefined();
   });
 });
+
+describe('a tail cone', () => {
+  it('plugs its shoulder into the part ahead of it', () => {
+    // A flipped nose cone's base, and its shoulder, face forward.
+    const t = syncAutoShoulders(
+      stage([
+        tube('b', 0.02, 0.001),
+        {
+          type: 'nosecone',
+          id: 'tail',
+          length: 0.05,
+          aftRadius: 0.02,
+          flipped: true,
+          shoulderAuto: true,
+          shoulderLength: 0.02,
+        } as unknown as ComponentNode,
+      ]),
+    );
+    expect(chainOf(t)[1]!['shoulderRadius']).toBeCloseTo(0.019, 12);
+  });
+});

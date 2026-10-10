@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { exportOrk, importOrk } from '../../../src/services/files/orkFile';
 import { wireLoadedOrk } from '../../../src/services/files/wireLoadedOrk';
 import { defaultRocketTree } from '../../../src/services/design/defaultRocket';
@@ -8,6 +10,7 @@ import type { FlightSummary } from '../../../src/engine/openRocketEngine';
 import type { LaunchConditions } from '../../../src/services/design/orkTree';
 import type { LoadedOrk } from '../../../src/services/files/loadOrk';
 import type { OrkExportSimulation } from '../../../src/services/files/orkTypes';
+import { noteTexts } from '../../testing/importNotes';
 
 /**
  * Every simulation, with its result summary, through a .ork and back.
@@ -144,5 +147,45 @@ describe('opening a file with simulations', () => {
     const w = wireLoadedOrk({ ...loaded, simulations: undefined }, launch, prefs);
     expect(w.sims.map((s) => s.configId)).toEqual(['cfg-c6', 'cfg-d12']);
     expect(w.sims.every((s) => !s.fileSummary)).toBe(true);
+  });
+});
+
+/**
+ * Desktop simulation extensions (air-start, roll control, scripts) cannot run
+ * here, but a design opened and saved here must not lose them: the file goes
+ * back to desktop with them intact, and the import says they were not run.
+ * Read from desktop's own example file.
+ */
+describe('desktop simulation extensions', () => {
+  const example = readFileSync(resolve(__dirname, '../../../public/examples/simulation-extensions.ork'));
+  const res = importOrk(example.buffer.slice(example.byteOffset, example.byteOffset + example.byteLength));
+  const carried = res.simulations!.flatMap((s) => s.xmlExtra ?? []);
+
+  it('reads every extension as raw XML, and says they are not run', () => {
+    expect(carried.filter((x) => x.startsWith('<extension ')).length).toBe(3);
+    expect(noteTexts(res.notes).some((n) => /Simulation extensions are not run here/.test(n))).toBe(true);
+  });
+
+  it('keeps them on the simulations it opens, with or without a saved result', () => {
+    const loaded = {
+      ...res,
+      motors: {},
+      configs: configs.map((c) => ({ ...c, motors: {} })),
+      chosenConfigId: 'cfg-c6',
+    } as unknown as LoadedOrk;
+    const w = wireLoadedOrk(loaded, launch, { timeStep: 0.05 } as SimPrefs);
+    expect(w.sims.flatMap((s) => s.xmlExtra ?? [])).toEqual(carried);
+  });
+
+  it('writes them back unchanged, after the conditions and before the flight data', () => {
+    const xml = write([
+      { name: 'With extension', configId: 'cfg-c6', launch, summary, status: 'uptodate', xmlExtra: carried },
+    ]);
+    for (const raw of carried) expect(xml).toContain(raw);
+    const at = xml.indexOf(carried[0]!);
+    expect(at).toBeGreaterThan(xml.indexOf('</conditions>'));
+    expect(at).toBeLessThan(xml.indexOf('<flightdata'));
+    // And they read back the same, so a second round trip keeps them too.
+    expect(importOrk(xml).simulations![0]!.xmlExtra).toEqual(carried);
   });
 });

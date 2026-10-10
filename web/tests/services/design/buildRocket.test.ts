@@ -128,6 +128,14 @@ describe('flightKey', () => {
     expect(flightKey(renamed)).toBe(flightKey(design()));
   });
 
+  it('changes for a recovery device rename, which the run reports figures under', () => {
+    const withChute = (name: string): RocketTree => ({
+      ...design(),
+      components: [{ type: 'parachute', id: 'p1', name, diameter: 0.3 }],
+    });
+    expect(flightKey(withChute('Drogue'))).not.toBe(flightKey(withChute('Main')));
+  });
+
   it('changes for anything that can move a number', () => {
     const base = flightKey(design());
 

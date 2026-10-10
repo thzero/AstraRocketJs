@@ -844,6 +844,81 @@ public final class OpenRocketEngine {
         return sb.append('}').toString();
     }
 
+    /** Stations along a symmetric component at which its profile is sampled. */
+    private static final int PROFILE_SAMPLES = 11;
+
+    /**
+     * The kernel's resolved geometry for a buildRocket() id: every radius after
+     * the automatic rules have run, and a symmetric component's outer and inner
+     * profile sampled at evenly spaced stations from its front.
+     *
+     * The app resolves the same radii itself to draw, mesh and export before a
+     * run, so this is what those copies are tested against. Keys a component
+     * does not have are left out.
+     */
+    @JSExport
+    public static String getComponentGeometry(int rocketHandle, String componentId) {
+        try {
+            return getComponentGeometryImpl(rocketHandle, componentId);
+        } catch (RuntimeException e) {
+            return errorJson(e);
+        }
+    }
+
+    private static String getComponentGeometryImpl(int rocketHandle, String componentId) {
+        RocketCtx ctx = get(rocketHandle, RocketCtx.class, "a rocket");
+        RocketComponent c = ctx.ids.get(componentId);
+        if (c == null) {
+            throw new IllegalArgumentException("Unknown component id: '" + componentId + "'");
+        }
+        StringBuilder sb = new StringBuilder("{");
+        num(sb, "length", c.getLength());
+        if (c instanceof info.openrocket.core.rocketcomponent.SymmetricComponent) {
+            info.openrocket.core.rocketcomponent.SymmetricComponent s =
+                    (info.openrocket.core.rocketcomponent.SymmetricComponent) c;
+            sb.append(',');
+            num(sb, "foreRadius", s.getForeRadius()).append(',');
+            num(sb, "aftRadius", s.getAftRadius()).append(',');
+            double[] outer = new double[PROFILE_SAMPLES];
+            double[] inner = new double[PROFILE_SAMPLES];
+            for (int i = 0; i < PROFILE_SAMPLES; i++) {
+                double x = s.getLength() * i / (PROFILE_SAMPLES - 1);
+                outer[i] = s.getRadius(x);
+                inner[i] = s.getInnerRadius(x);
+            }
+            sb.append("\"profile\":");
+            nums(sb, outer).append(",\"innerProfile\":");
+            nums(sb, inner);
+        }
+        if (c instanceof BodyTube) {
+            sb.append(',');
+            num(sb, "outerRadius", ((BodyTube) c).getOuterRadius()).append(',');
+            num(sb, "innerRadius", ((BodyTube) c).getInnerRadius());
+        }
+        if (c instanceof info.openrocket.core.rocketcomponent.RingComponent) {
+            info.openrocket.core.rocketcomponent.RingComponent r =
+                    (info.openrocket.core.rocketcomponent.RingComponent) c;
+            sb.append(',');
+            num(sb, "outerRadius", r.getOuterRadius()).append(',');
+            num(sb, "innerRadius", r.getInnerRadius());
+        }
+        if (c instanceof info.openrocket.core.rocketcomponent.TubeFinSet) {
+            info.openrocket.core.rocketcomponent.TubeFinSet t = (info.openrocket.core.rocketcomponent.TubeFinSet) c;
+            sb.append(',');
+            num(sb, "outerRadius", t.getOuterRadius()).append(',');
+            num(sb, "innerRadius", t.getInnerRadius());
+        }
+        if (c instanceof info.openrocket.core.rocketcomponent.FinSet) {
+            sb.append(',');
+            num(sb, "maxTabHeight", ((info.openrocket.core.rocketcomponent.FinSet) c).getMaxTabHeight());
+        }
+        if (c instanceof info.openrocket.core.rocketcomponent.MassObject) {
+            sb.append(',');
+            num(sb, "radius", ((info.openrocket.core.rocketcomponent.MassObject) c).getRadius());
+        }
+        return sb.append('}').toString();
+    }
+
     /**
      * Per-component mass breakdown: each instance's mass, the aggregate mass of
      * all instances, and the aggregate CG.

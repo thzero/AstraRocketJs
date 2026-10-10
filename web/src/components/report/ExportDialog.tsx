@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18n from '../../i18n';
 import { useWorkspaceStore } from '../../state/store';
@@ -171,11 +171,16 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
     setBusy(true);
     try {
       if (sel.updateSimData) {
-        // runSim flips the view to Flight on completion; the report is a
-        // background refresh, so put the view back where the user had it.
-        const prevView = useWorkspaceStore.getState().view;
+        // runSim flips the view to Flight and the tab to Results on completion;
+        // the report is a background refresh, so put both back where the user
+        // had them, with the design pane the view switch would otherwise move.
+        const { view: prevView, tab: prevTab, designPane: prevPane } = useWorkspaceStore.getState();
         try {
-          await runSim(settings.simulation);
+          // The run resolves rather than rejects on a failure, a refusal, a
+          // timeout or a cancel, and leaves the previous numbers in place. Only a
+          // landed run means the report has fresh data; anything else writes
+          // nothing, and the run has already said why in the error banner.
+          if ((await runSim()) !== 'landed') return;
         } catch (e) {
           // Reported, not swallowed: swallowing writes the PDF with the
           // previous run's numbers, unmarked. The user asked for fresh data, so
@@ -183,7 +188,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
           useWorkspaceStore.getState().setErr(t('export.simFailed', { message: errorMessage(e) }));
           return;
         } finally {
-          useWorkspaceStore.getState().setView(prevView);
+          useWorkspaceStore.setState({ view: prevView, tab: prevTab, designPane: prevPane });
         }
       }
       const fresh = assembleReport() ?? model;
@@ -277,6 +282,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
   );
 
   const check = 'accent-accent-500';
+  const fillId = useId();
   const row = 'flex items-center gap-2 py-0.5 text-sm text-ink';
 
   return (
@@ -415,10 +421,13 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
         >
           <>
             <div className="space-y-3">
-              <label className="flex items-center justify-between gap-3 text-sm text-ink-soft">
-                {t('export.fill')}
+              {/* A row, not one big <label>: the color is a second control, and a
+                  label may only bind to one. */}
+              <div className="flex items-center justify-between gap-3 text-sm text-ink-soft">
+                <label htmlFor={fillId}>{t('export.fill')}</label>
                 <span className="flex items-center gap-2">
                   <input
+                    id={fillId}
                     type="checkbox"
                     className={check}
                     checked={!!settings.report.templateFill}
@@ -435,10 +444,11 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
                     disabled={!settings.report.templateFill}
                     value={settings.report.templateFill || '#e5e7eb'}
                     onCommit={(c) => update({ report: { ...settings.report, templateFill: c } })}
+                    ariaLabel={t('export.fillColor')}
                     className="h-7 w-10 cursor-pointer rounded-md border border-line/10 bg-raised p-0.5 disabled:opacity-40"
                   />
                 </span>
-              </label>
+              </div>
               <label className="flex items-center justify-between gap-3 text-sm text-ink-soft">
                 {t('export.border')}
                 <ColorInput
@@ -454,8 +464,8 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
                   onChange={(e) => update({ report: { ...settings.report, paper: e.target.value as 'letter' | 'a4' } })}
                   className="rounded-md bg-raised px-2 py-1 text-sm text-ink-strong ring-1 ring-line/10"
                 >
-                  <option value="letter">Letter</option>
-                  <option value="a4">A4</option>
+                  <option value="letter">{t('export.paperLetter')}</option>
+                  <option value="a4">{t('export.paperA4')}</option>
                 </select>
               </label>
               <label className="flex items-center justify-between gap-3 text-sm text-ink-soft">

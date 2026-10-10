@@ -71,6 +71,15 @@ export const AUTO_COMPONENT_FIELDS: Record<string, readonly string[]> = {
   tubecoupler: ['outerRadius'],
 };
 
+/**
+ * A filled nose cone, body tube or transition is solid: `setFilled` makes the
+ * kernel ignore the wall, and the `.ork` writes `<thickness>filled</thickness>`
+ * with no number. Its wall is not a dimension it needs.
+ */
+const FILLED_TYPES: ReadonlySet<string> = new Set(['nosecone', 'bodytube', 'transition']);
+const isFilledWall = (n: { type: string; filled?: unknown }, field: string): boolean =>
+  field === 'thickness' && n.filled === true && FILLED_TYPES.has(n.type);
+
 /** True when this field may legitimately be absent because the kernel derives it. */
 const isAuto = (type: string, field: string, value: unknown): boolean =>
   value == null && (AUTO_COMPONENT_FIELDS[type]?.includes(field) ?? false);
@@ -96,7 +105,7 @@ export function badDimensions(tree: RocketTree): BadDimension[] {
   const out: BadDimension[] = [];
   for (const n of walkNodes(tree.components ?? [])) {
     for (const field of REQUIRED_COMPONENT_FIELDS[n.type] ?? []) {
-      if (isAuto(n.type, field, n[field])) continue;
+      if (isAuto(n.type, field, n[field]) || isFilledWall(n, field)) continue;
       if (!isDimension(n[field])) {
         out.push({ id: n.id, type: n.type, name: typeof n.name === 'string' ? n.name : '', field });
       }

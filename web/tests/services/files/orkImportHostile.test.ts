@@ -184,6 +184,24 @@ describe('the hostile-input caps actually fire', () => {
     expect(importOrk(ork(xml)).configs).toHaveLength(12);
   });
 
+  it('keeps one configuration for a repeated configid, as the desktop does', () => {
+    const configs =
+      `<motorconfiguration configid="a"><name>First</name></motorconfiguration>` +
+      `<motorconfiguration configid="b"/>` +
+      `<motorconfiguration configid="a" default="true"><name>Renamed</name></motorconfiguration>`;
+    const xml =
+      `<?xml version="1.0"?><openrocket version="1.8"><rocket><name>T</name>${configs}` +
+      `<subcomponents><stage><name>S</name><subcomponents>` +
+      `<bodytube><name>Body</name><length>0.3</length><radius>0.012</radius></bodytube>` +
+      `</subcomponents></stage></subcomponents></rocket></openrocket>`;
+    const res = importOrk(ork(xml));
+    expect(res.configs.map((c) => c.id)).toEqual(['a', 'b']);
+    // createFlightConfiguration hands back the existing one: the later name
+    // and default flag land on it.
+    expect(res.configs[0]!.name).toBe('Renamed');
+    expect(res.chosenConfigId).toBe('a');
+  });
+
   it('refuses a zip with more entries than the cap allows', () => {
     const entries: Record<string, Uint8Array> = {};
     for (let i = 0; i < 300; i++) entries[`f${i}.txt`] = strToU8('x'); // cap is 256

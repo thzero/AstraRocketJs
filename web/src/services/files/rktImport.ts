@@ -1,11 +1,13 @@
 import { decodeFileText } from './decodeText';
 import type { ComponentNode, ComponentType } from '../../engine/openRocketEngine';
+import { syncAutoRadii } from '../design/autoRadius';
 import { defaultStageName, freshId } from '../design/orkTree';
 import { xmlText as text } from './xmlUtil';
 import { parseOrkXml } from './ork/importUnpack';
 import { clampCount, finiteNum } from './ork/numbers';
 import { MAX_FIN_COUNT, MAX_FIN_POINTS, MAX_LINE_COUNT, checkDepth, countComponent } from './ork/importLimits';
 import { ignoredNotes } from './ork/importNotes';
+import { keyedNote, type ImportNote } from './importNote';
 import type { OrkImportResult } from './orkTypes';
 import { numOpt } from '../../tree/nodeProps';
 import { trapezoidPoints } from '../../tree/finPlanform';
@@ -69,9 +71,9 @@ const LOCATION_METHODS = ['top', 'absolute', 'bottom'] as const;
 const DENSITY_DIVISORS = [1, SURFACE_DENSITY, 1];
 
 interface RktContext {
-  notes: string[];
+  notes: ImportNote[];
   ignored: Set<string>;
-  /** Tags we understand but deliberately do not carry, named once each. */
+  /** Things we understand but deliberately do not carry, named once each by their `importNote.*` key. */
   dropped: Set<string>;
   /** Components read so far, against MAX_COMPONENTS. Mutable on purpose:
    *  the readers recurse, so the ceiling has to be one running total
@@ -270,7 +272,7 @@ const readWall = (el: Element, n: ComponentNode): void => {
     n['filled'] = true;
     return;
   }
-  put(n, 'thickness', mm(el, 'WallThickness'));
+  put(n, 'thickness', mmPos(el, 'WallThickness'));
 };
 
 /** The shapes a shape parameter means anything on (`NoseConeHandler`). */
@@ -447,16 +449,16 @@ function readFinSet(ctx: RktContext, el: Element, parent?: ComponentNode): Compo
   const type: ComponentType = shape === 1 ? 'ellipticalfinset' : shape === 2 ? 'freeformfinset' : 'trapezoidfinset';
   const n = base(el, type, true);
   n['finCount'] = clampCount(num(el, 'FinCount') ?? 3, 1, MAX_FIN_COUNT);
-  put(n, 'thickness', mm(el, 'Thickness'));
+  put(n, 'thickness', mmPos(el, 'Thickness'));
 
   if (type === 'trapezoidfinset') {
-    put(n, 'rootChord', mm(el, 'RootChord'));
-    put(n, 'tipChord', mm(el, 'TipChord'));
-    put(n, 'height', mm(el, 'SemiSpan'));
+    put(n, 'rootChord', mmPos(el, 'RootChord'));
+    put(n, 'tipChord', mmPos(el, 'TipChord'));
+    put(n, 'height', mmPos(el, 'SemiSpan'));
     put(n, 'sweep', mm(el, 'SweepDistance'));
   } else if (type === 'ellipticalfinset') {
-    put(n, 'rootChord', mm(el, 'RootChord'));
-    put(n, 'height', mm(el, 'SemiSpan'));
+    put(n, 'rootChord', mmPos(el, 'RootChord'));
+    put(n, 'height', mmPos(el, 'SemiSpan'));
   } else {
     const pts = readPointList(ctx, el);
     if (pts.length >= 3) n['points'] = pts;
@@ -524,7 +526,7 @@ function readPointList(ctx: RktContext, el: Element): [number, number][] {
   let at = 0;
   while (at <= raw.length) {
     if (out.length >= MAX_FIN_POINTS) {
-      ctx.notes.push(`A freeform fin had more than ${MAX_FIN_POINTS} points; the rest were dropped.`);
+      ctx.notes.push(keyedNote('importNote.finPointsCapped', { max: MAX_FIN_POINTS }));
       break;
     }
     const bar = raw.indexOf('|', at);
@@ -740,7 +742,7 @@ const readPod = (ctx: RktContext, el: Element): ComponentNode => {
   if (tag(el, 'Removed') === '1') {
     // Upstream marks the stage inactive in the selected configuration. A `.rkt`
     // declares no configurations for us to deactivate, so it is said instead.
-    ctx.dropped.add('a pod already ejected in RockSim (imported as an active booster)');
+    ctx.dropped.add('importNote.rktEjectedPod');
   }
   return n;
 };
@@ -811,7 +813,7 @@ function readParts(ctx: RktContext, container: Element, depth = 0, parent?: Comp
       continue;
     }
     if (el.tagName === 'SubAssembly') {
-      ctx.dropped.add('a subassembly (its parts were merged into the design)');
+      ctx.dropped.add('importNote.rktSubassembly');
       out.push(...readParts(ctx, el, depth + 1, parent));
       continue;
     }
@@ -839,7 +841,7 @@ function readParts(ctx: RktContext, container: Element, depth = 0, parent?: Comp
       } else if (node.type === 'ellipticalfinset') {
         // Desktop refuses it too. Named in the notes rather than dropped
         // silently, so the user knows the fin set is missing.
-        ctx.dropped.add('an elliptical fin set on a nose cone or transition, which cannot be mounted there');
+        ctx.dropped.add('importNote.rktEllipticalOnBody');
         continue;
       }
     }
@@ -932,15 +934,17 @@ export function importRkt(data: ArrayBuffer | string): OrkImportResult {
 
   const notes = [...ctx.notes];
   notes.push(...ignoredNotes(ctx.ignored));
-  for (const d of ctx.dropped) notes.push(`This design contains ${d}.`);
+  for (const d of ctx.dropped) notes.push(keyedNote(d));
   // Said on every import, because it is the difference a user will notice first
   // and it is not a fault in the file: RockSim keeps its motor selections and
   // launch setup with its simulations, which are not a design.
-  notes.push('RockSim motor selections and launch conditions are not imported — pick a motor to fly this design.');
+  notes.push(keyedNote('importNote.rocksimNoMotors'));
 
   return {
     name,
-    tree: { name, components },
+    // Automatic radii resolved on load, as importOrk does, so every reader
+    // sees a number and the kernel and the drawing agree on it.
+    tree: syncAutoRadii({ name, components }),
     motors: {},
     // A `.rkt` declares no flight configurations; RockSim's equivalent lives
     // with its simulations. Stated as an empty table rather than omitted so

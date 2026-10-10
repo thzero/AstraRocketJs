@@ -69,8 +69,6 @@ const config: Config = {
   // comparison appendices render in both locales.
   customFields: { upstream, appVersion: version },
 
-  // A broken internal link should fail the build, not ship — the old wiki had no
-  // such check, which is how stale page references survived.
   // Emit /faq/ rather than /faq, so every page is a directory with its own
   // index.html. That file name is what makes Help work offline: the app's Help
   // dialog asks for `docs/faq/index.html`, which is exactly the key the service
@@ -84,6 +82,8 @@ const config: Config = {
   // index.html. A runtimeCaching rule there covers that path for pages already
   // visited.
   trailingSlash: true,
+  // A broken internal link fails the build rather than shipping a dead page
+  // reference. Broken anchors only warn (the Docusaurus default).
   onBrokenLinks: 'throw',
   markdown: { hooks: { onBrokenMarkdownLinks: 'throw' } },
 

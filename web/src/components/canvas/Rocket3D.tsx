@@ -19,6 +19,7 @@ import { useRocketExport, type R3fHandles } from './useRocketExport';
 import { CG_INK, CP_INK } from './stabilityGadget';
 import { token } from '../common/colorTokens';
 import { useSceneColors } from './sceneColors';
+import { errorMessage } from '../../services/app/errorMessage';
 
 // The geometry build and the export framing live in their own modules; the
 // flight path view and Rocket3D.test.ts import them through this one.
@@ -52,6 +53,7 @@ export function Rocket3D({
   selectedId,
   onSelect,
   showMarkers = true,
+  onError,
 }: {
   tree: RocketTree;
   info: StaticInfo | null;
@@ -65,6 +67,8 @@ export function Rocket3D({
   /** Two-way selection sync with the component tree / 2D schematic. */
   selectedId?: string | null;
   onSelect?: (id: string) => void;
+  /** Reports an image export failure to the caller's note channel. */
+  onError?: (message: string) => void;
 }) {
   const { t } = useTranslation();
   const u = useUnits();
@@ -75,7 +79,9 @@ export function Rocket3D({
 
   // Hi-res snapshot: the same scene rendered offscreen at
   // the export width, with the on-screen path as the fallback.
-  const snapshot = useRocketExport(r3f, pieces, maxR, exportData);
+  const snapshot = useRocketExport(r3f, pieces, maxR, exportData, (e) =>
+    onError?.(t('export.imageFailed', { message: errorMessage(e) })),
+  );
   const center = totalLen / 2;
   const camDist = Math.max(totalLen * 1.1, maxR * 6, 0.25);
   const markerR = markerRadius(totalLen, maxR);
@@ -160,6 +166,7 @@ export function Rocket3D({
         <button
           className="file-btn"
           style={presetStyle(preset === 'side')}
+          aria-pressed={preset === 'side'}
           title={t('view.sideTitle')}
           onClick={() => showView('side')}
         >
@@ -168,6 +175,7 @@ export function Rocket3D({
         <button
           className="file-btn"
           style={presetStyle(preset === 'aft')}
+          aria-pressed={preset === 'aft'}
           title={t('view.aftTitle')}
           onClick={() => showView('aft')}
         >

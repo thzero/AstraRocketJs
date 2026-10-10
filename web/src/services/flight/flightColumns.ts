@@ -40,7 +40,7 @@ const KNOWN: FlightColumn[] = [
   { key: 'altitude', labelKey: 'flight.altitude', quantity: 'distance' },
   { key: 'velocity', labelKey: 'flight.velocity', quantity: 'velocity' },
   { key: 'acceleration', labelKey: 'flight.acceleration', quantity: 'acceleration' },
-  { key: 'mass', labelKey: 'flight.mass', unit: 'g', scale: 1000 },
+  { key: 'mass', labelKey: 'flight.mass', quantity: 'mass' },
   { key: 'thrust', labelKey: 'flight.thrust', quantity: 'force' },
   { key: 'drag', labelKey: 'flight.drag', quantity: 'force' },
   { key: 'mach', labelKey: 'flight.mach', unit: '' },
@@ -65,7 +65,8 @@ const TRACK_KEYS = ['Px', 'Py', 'Pl', 'θl'];
  * Generated from `FlightDataType.java` and its `messages.properties` (symbol,
  * translated name and unit group), so a variable reads the same here as in the
  * desktop app rather than appearing as a bare "Abx". The app's own dozen are
- * excluded: they already have names and keys of their own above.
+ * excluded: the bridge sends them under the names above (thrust, not Ft; aoa,
+ * not α), and never sends the computation time (tc).
  */
 const KERNEL: FlightColumn[] = [
   { key: 'ha', labelKey: 'flightVar.ha', quantity: 'distance' },
@@ -84,7 +85,6 @@ const KERNEL: FlightColumn[] = [
   { key: 'Al', labelKey: 'flightVar.Al', quantity: 'acceleration' },
   { key: 'φ', labelKey: 'flightVar.φ', unit: '° N' },
   { key: 'λ', labelKey: 'flightVar.λ', unit: '° E' },
-  { key: 'α', labelKey: 'flightVar.α', quantity: 'angle' },
   { key: 'dΦ', labelKey: 'flightVar.dΦ', unit: 'r/s' },
   { key: 'dθ', labelKey: 'flightVar.dθ', unit: 'r/s' },
   { key: 'dΨ', labelKey: 'flightVar.dΨ', unit: 'r/s' },
@@ -97,7 +97,7 @@ const KERNEL: FlightColumn[] = [
   { key: 'ζ', labelKey: 'flightVar.ζ', unit: '' },
   { key: 'ωn', labelKey: 'flightVar.ωn', unit: 'r/s' },
   { key: 'R', labelKey: 'flightVar.R', unit: '' },
-  { key: 'Ft', labelKey: 'flightVar.Ft', quantity: 'force' },
+  { key: 'Fta', labelKey: 'flightVar.Fta', quantity: 'force' },
   { key: 'Twr', labelKey: 'flightVar.Twr', unit: '' },
   { key: 'Cd', labelKey: 'flightVar.Cd', unit: '' },
   { key: 'Cdf', labelKey: 'flightVar.Cdf', unit: '' },
@@ -127,7 +127,6 @@ const KERNEL: FlightColumn[] = [
   { key: 'ρ', labelKey: 'flightVar.ρ', quantity: 'density' },
   { key: 'Vs', labelKey: 'flightVar.Vs', quantity: 'velocity' },
   { key: 'dt', labelKey: 'flightVar.dt', unit: 's' },
-  { key: 'tc', labelKey: 'flightVar.tc', unit: 'ms' },
 ];
 
 /** Every column, ours first so a flight reads in the order people expect. */

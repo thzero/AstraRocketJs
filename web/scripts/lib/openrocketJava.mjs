@@ -86,7 +86,7 @@ function cachedJars() {
  * that is not there is skipped, and finding none is reported by the caller.
  */
 // Not exported either: `chooseBuild` is its only caller.
-function installedJar() {
+export function installedJar() {
   const roots = [
     'C:/Program Files/OpenRocket/jar',
     'C:/Program Files (x86)/OpenRocket/jar',

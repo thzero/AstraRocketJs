@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { WeatherDialog } from '../../../src/components/sim/WeatherDialog';
-import { renderWithProviders } from '../../testing/renderWithProviders';
+import { renderWithProviders, seedSettings } from '../../testing/renderWithProviders';
 import { answer } from '../../testing/openMeteoFixture';
 import { resetWeatherState, setWeatherTransport, ymdInZone } from '../../../src/services/weather/openMeteo';
 import { writeWeatherKey } from '../../../src/services/weather/weatherKey';
@@ -133,6 +133,38 @@ describe('WeatherDialog', () => {
     expect((screen.getByLabelText('Hour (site time)') as HTMLSelectElement).value).toBe('9');
     expect((screen.getByRole('checkbox', { name: 'Wind' }) as HTMLInputElement).checked).toBe(true);
     expect((screen.getByRole('checkbox', { name: 'Temperature' }) as HTMLInputElement).checked).toBe(false);
+  });
+
+  it('reads visibility in the large unit of the distance unit system', async () => {
+    seedSettings({ units: { distance: 'yd' } });
+    try {
+      open();
+      await fetchIt();
+      // 24,140 m: yards are imperial, so miles.
+      expect(screen.getByText('Visibility').nextElementSibling?.textContent).toBe('15.0 mi');
+    } finally {
+      localStorage.clear();
+    }
+  });
+
+  it('drops a request still loading when the date changes', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    setWeatherTransport((async (url: string) => {
+      await gate;
+      const body = url.includes('/v1/elevation') ? { elevation: [1510] } : answer(1500, { start, hours: 96 });
+      return new Response(JSON.stringify(body), { status: 200 });
+    }) as typeof fetch);
+    open();
+    fireEvent.click(screen.getByRole('button', { name: 'Fetch' }));
+    expect(screen.getByRole('button', { name: 'Fetching…' })).toBeTruthy();
+    const next = ymdInZone(Date.now() + 2 * 86_400_000, 'America/Denver');
+    fireEvent.change(screen.getByLabelText('Date'), { target: { value: next } });
+    release();
+    await new Promise((r) => setTimeout(r, 30));
+    // The old date's answer does not land under the new date.
+    expect(screen.queryByText('Atmosphere aloft')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Fetch' })).toBeTruthy();
   });
 
   it('says when an answer is reused, and Fetch fresh asks Open-Meteo again', async () => {

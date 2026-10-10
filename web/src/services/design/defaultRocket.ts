@@ -1,5 +1,6 @@
 import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
 import { defaultDesignName } from '../app/appInfo';
+import { defaultStageName } from './orkTree';
 import { defaultMaterialPatch } from './materialSlots';
 import { presetLink } from './treeEdit';
 
@@ -57,6 +58,11 @@ export interface PresetRow {
   diameter?: number;
   materialDensity?: number;
   material?: string;
+  thickness?: number;
+  shoulderDiameter?: number;
+  shoulderLength?: number;
+  /** The mass the catalog states (kg); the density above spreads it over the part. */
+  mass?: number;
 }
 
 /**
@@ -76,7 +82,9 @@ export const DEFAULT_PRESETS = {
    * are, and the kernel reads any base-to-tube step as a discontinuity: the first
    * design anybody opens would come with a warning on it.
    *
-   * The catalog states no wall thickness for a plastic cone: see NOSE_WALL.
+   * The row states the cone's wall, its shoulder and its mass, 3.7 g. The
+   * density is the one that spreads that mass over the part's volume, so the
+   * cone weighs what Estes says it does, as a part picked from the catalog does.
    */
   nose: {
     partNo: 'PNC-50KA',
@@ -84,7 +92,11 @@ export const DEFAULT_PRESETS = {
     digest: 'b3b5899ebbb48c4ec80bae00d72280a9',
     outerDiameter: 0.024790399999999997,
     length: 0.06985,
-    materialDensity: 1050,
+    thickness: 0.0015748,
+    shoulderDiameter: 0.02413,
+    shoulderLength: 0.0127,
+    mass: 0.003685438003,
+    materialDensity: 551.5669231021728,
     material: 'Polystyrene, cast, bulk',
   },
   /** The airframe: 18 in of BT-50, the length Estes sells tube stock in. */
@@ -128,27 +140,6 @@ export const DEFAULT_PRESETS = {
     diameter: 0.30479999999999996,
   },
 } as const satisfies Record<string, PresetRow>;
-
-/**
- * The nose cone's wall, which the catalog row does not state.
- *
- * Its `filled` flag is false and it publishes no inner diameter, so the picker
- * applies no thickness either and the node keeps whatever it had. 1.3 mm is a
- * typical injection-molded cone of this size, and it is our number rather than
- * Estes'; it is the only dimension in this design that is.
- */
-const NOSE_WALL = 0.0013;
-
-/**
- * The shoulder that plugs the cone into the tube.
- *
- * Also not in the catalog row, and not optional either: without it the cone is a
- * shape balanced on the end of a tube, and the app's own nose-cone editor has a
- * shoulder section that would read as empty on the first design anybody opens.
- * 19 mm is the usual 3/4 in engagement. Left uncapped because a molded cone is
- * open at its base; capping it would add a disc the real part does not have.
- */
-const SHOULDER_LENGTH = 0.019;
 
 /**
  * The fin set: the app's own swept planform, scaled to this airframe.
@@ -255,11 +246,13 @@ export function defaultRocketTree(): RocketTree {
     length: nose.length,
     aftRadius: nose.outerDiameter / 2,
     aftRadiusAuto: false,
-    thickness: NOSE_WALL,
-    shoulderLength: SHOULDER_LENGTH,
-    // The tube's bore, which is what the shoulder has to fit.
-    shoulderRadius: body.innerDiameter / 2,
-    shoulderThickness: NOSE_WALL,
+    // The wall and the shoulder the row states, as the catalog picker applies
+    // them (`Transition.loadFromPreset`): the shoulder takes the cone's wall.
+    // Left uncapped because a molded cone is open at its base.
+    thickness: nose.thickness,
+    shoulderLength: nose.shoulderLength,
+    shoulderRadius: nose.shoulderDiameter / 2,
+    shoulderThickness: nose.thickness,
   } as unknown as ComponentNode;
 
   const bodyNode: ComponentNode = {
@@ -363,6 +356,6 @@ export function defaultRocketTree(): RocketTree {
 
   return {
     name: defaultDesignName(),
-    components: [{ type: 'stage', name: 'Sustainer', id: 's1', children: [noseNode, bodyNode] }],
+    components: [{ type: 'stage', name: defaultStageName(0), id: 's1', children: [noseNode, bodyNode] }],
   } as unknown as RocketTree;
 }

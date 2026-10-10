@@ -1,17 +1,19 @@
 {
-  // The build's OWN config files, which were in no tsc project at all.
+  // The build's own config files: vite.config.ts, vitest.config.ts,
+  // playwright.config.ts and eslint.config.js decide what ships (PWA workbox
+  // globs, __APP_VERSION__, worker format, base path, shard and worker counts).
   //
-  // `tsconfig.json` is include:["src"] and `tsconfig.e2e.json` is
-  // include:["e2e"], and `npm run typecheck` is exactly those two. So
-  // vite.config.ts, vitest.config.ts, playwright.config.ts and
-  // eslint.config.js - the files that decide what ships (PWA workbox globs,
-  // __APP_VERSION__, worker format, base path, shard and worker counts) - were
-  // typechecked by nothing, and a type error in one surfaced only at runtime.
-  // ESLint does lint them, but with no type-aware rules.
+  // `npm run typecheck` runs three projects: `tsconfig.json` (src and tests),
+  // `tsconfig.e2e.json` (the Playwright specs) and this one. A file in none of
+  // them is typechecked by nothing. `allowJs` and `checkJs` are what bring
+  // eslint.config.js in; without them tsc drops a .js include without a warning.
+  // ESLint lints these files too, but with no type-aware rules.
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "composite": false,
     "noEmit": true,
+    "allowJs": true,
+    "checkJs": true,
     "types": ["node"],
     "lib": ["ES2023"],
     "moduleResolution": "bundler",

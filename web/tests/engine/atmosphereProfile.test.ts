@@ -139,6 +139,51 @@ describe('a forecast atmosphere', () => {
     expect(rhoAtLiftoff(2682)).toBeCloseTo(airDensity({ launchAltitudeM: 2682 }), 6);
   });
 
+  /**
+   * The site values away from sea level, where a blank is filled with the
+   * sea-level standard constant rather than the ISA value for the altitude,
+   * and where site temperature and pressure together anchor a forecast.
+   *
+   * The custom model is read through the kernel's 500 m table, so between grid
+   * points the pad value sits about 0.03 % off the anchor the estimate uses.
+   * Three places still separate the branches: filling a blank from the site
+   * altitude instead moves the density by tens of percent.
+   */
+  it('gives the air density the sizing estimate uses with site values set', () => {
+    const rhoAtLiftoff = (launchAltitudeM: number, site: SimulationOptions, levels?: AtmosphereLevel[]): number => {
+      const d = OpenRocketDesign.buildTree(TREE);
+      d.setMotorById('tube', C6);
+      const r = d.simulate({
+        launchRodLength: 1,
+        randomSeed: 7,
+        launchAltitude: launchAltitudeM,
+        atmosphereLevels: levels ? levelsOf(levels) : undefined,
+        series: 'full',
+        ...site,
+      });
+      return r.series['ρ']![0]!;
+    };
+    expect(rhoAtLiftoff(2682, { temperature: 303.15 })).toBeCloseTo(
+      airDensity({ launchAltitudeM: 2682, temperatureC: 30 }),
+      3,
+    );
+    expect(rhoAtLiftoff(2682, { pressure: 74_000 })).toBeCloseTo(
+      airDensity({ launchAltitudeM: 2682, pressureHPa: 740 }),
+      3,
+    );
+    // Dry air, so the kernel's humidity term leaves the gas constant alone and
+    // only the branch changes.
+    expect(rhoAtLiftoff(2682, { relativeHumidity: 0 })).toBeCloseTo(
+      airDensity({ launchAltitudeM: 2682, relativeHumidity: 0 }),
+      3,
+    );
+    const levels = column(20, 950).map((l) => ({ ...l, altitudeM: l.altitudeM + 2000 }));
+    expect(rhoAtLiftoff(2682, { temperature: 288.15, pressure: 72_000 }, levels)).toBeCloseTo(
+      airDensity({ launchAltitudeM: 2682, temperatureC: 15, pressureHPa: 720, atmosphereLevels: levels }),
+      6,
+    );
+  });
+
   it('reaches the engine from launch conditions through simConditions', () => {
     const launch = {
       launchRodLengthM: 1,

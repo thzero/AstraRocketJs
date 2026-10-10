@@ -15,6 +15,7 @@ import { withoutResults, type Simulation } from '../flight/simulations';
 import type { FlightConfig } from '../flight/flightConfigs';
 import { migrateWorkspace } from './workspaceMigrate';
 import type { OrkExportMotor } from '../files/orkFile';
+import type { ImportNote } from '../files/importNote';
 import { nsKey } from './storageKeys';
 import { designNameOf } from '../app/appInfo';
 
@@ -33,7 +34,7 @@ export interface Workspace {
   configs: FlightConfig[];
   activeId: string;
   /** Imported-.ork source metadata (banner + round-trip export), or null. */
-  loadedMeta: { name: string; notes: string[]; exportMotors: Record<string, OrkExportMotor> } | null;
+  loadedMeta: { name: string; notes: ImportNote[]; exportMotors: Record<string, OrkExportMotor> } | null;
 }
 
 export interface WorkspaceStore {
@@ -90,14 +91,15 @@ interface Journal {
 /**
  * The workspace without its flight results.
  *
- * Two callers, for two reasons. The design blob is rewritten on every keystroke's
- * debounced autosave, and a result is tens of thousands of samples, so they live
- * under their own key instead (see DesignLibrary.writeResults). The unload
+ * Every write of a design blob goes through this, Save As included (fileSlice).
+ * The design blob is rewritten on every keystroke's debounced autosave, and a
+ * result is tens of thousands of samples, so they live under their own key
+ * instead (see DesignLibrary.writeResults). The unload
  * journal goes to localStorage, whose whole-origin budget is ~5 MB, so results
  * must never go near it; the async save that follows a run puts them in
  * IndexedDB within the debounce, so the journal loses nothing that matters.
  */
-const lean = (w: Workspace): Workspace => ({ ...w, sims: withoutResults(w.sims) });
+export const lean = (w: Workspace): Workspace => ({ ...w, sims: withoutResults(w.sims) });
 
 /** Re-attach stored flights to the simulations that produced them. */
 const withResults = (w: Workspace, results: StoredResults): Workspace => ({
@@ -106,7 +108,7 @@ const withResults = (w: Workspace, results: StoredResults): Workspace => ({
 });
 
 /** Just the flights, by simulation id: what gets stored under the results key. */
-const resultsOf = (w: Workspace): StoredResults => {
+export const resultsOf = (w: Workspace): StoredResults => {
   const out: StoredResults = {};
   for (const s of w.sims) if (s.result) out[s.id] = s.result;
   return out;
@@ -186,6 +188,15 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
    * written it), and the first write establishes one.
    */
   private lastSeenAt: number | null = null;
+  /**
+   * True once a save has been refused because another tab moved the entry on.
+   *
+   * `saveSync` reads it. The unload journal is stamped with the time it was
+   * written, which is later than the other tab's save, so the next load would
+   * replay this tab's stale design over that newer work: the exact overwrite
+   * the refusal exists to prevent. Cleared by `setActiveId`.
+   */
+  private conflicted = false;
 
   async load(): Promise<Workspace | null> {
     const lib = getDesignLibrary();
@@ -299,8 +310,18 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
     return (await this.metaOf(id))?.name ?? null;
   }
 
+  /**
+   * The write into the active entry that is in flight, which the next one
+   * waits for. Two saves from this tab overlap easily (the debounced autosave
+   * and the `visibilitychange` flush), and run together both would compare
+   * against the same stamp: the first to commit moves it, and the second reads
+   * this tab's own write as another tab's.
+   */
+  private writing: Promise<unknown> = Promise.resolve();
+
   async save(w: Workspace): Promise<void> {
     const lib = getDesignLibrary();
+    const gen = this.gen;
     const leanW = lean(w);
     // Wait out a create already in flight instead of starting a second one
     // (see `creating`). A failure is ignored here so this save can retry it
@@ -309,7 +330,6 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
     // First save of a session that started with no library entry (a fresh
     // browser, or everything deleted) creates the design rather than dropping it.
     if (!this.activeId) {
-      const gen = this.gen;
       const p = lib.create(this.pendingName || nameFor(w), leanW);
       this.creating = p;
       let meta: DesignMeta;
@@ -325,21 +345,39 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
       await this.saveResults(lib, meta.id, w);
       return;
     }
+    // The entry this workspace belongs to, as of the call: a switch while this
+    // save waits its turn points the store at a design these bytes are not.
+    const id = this.activeId;
+    const run = this.writing.then(() => this.writeEntry(lib, id, w, leanW, gen));
+    this.writing = run.catch(() => {});
+    await run;
+  }
+
+  private async writeEntry(lib: DesignLibrary, id: string, w: Workspace, leanW: Workspace, gen: number) {
     // Another tab's work is not ours to throw away. Refuse rather than write
     // over an entry that has moved since this tab last saw it, and keep
     // refusing: this tab's design is still in front of the user, who can export
     // it or reopen the design to take the other tab's version. A warning after
-    // the overwrite would name work that no longer exists to be rescued.
-    const meta = await this.metaOf(this.activeId);
-    if (this.lastSeenAt != null && meta && meta.updatedAt > this.lastSeenAt) {
+    // the overwrite would name work that no longer exists to be rescued. The
+    // compare is made inside the index write (`writeIfUnchanged`), so two tabs
+    // cannot both pass it.
+    const mine = gen === this.gen;
+    const res = await lib.writeIfUnchanged(id, nameFor(w), leanW, mine ? this.lastSeenAt : null);
+    if (gen !== this.gen) {
+      // The store has moved to another design, so nothing learned here is
+      // about its entry. The flights still go with the design they belong to.
+      if (res.status === 'ok') await lib.writeResults(id, resultsOf(w)).catch(() => false);
+      return;
+    }
+    if (res.updatedAt != null) this.lastSeenAt = res.updatedAt;
+    if (res.status === 'conflict') {
+      this.conflicted = true;
       throw new Error('conflict');
     }
     // The design is the one thing here that cannot be recomputed, so surface a
     // failed write (storage full) instead of silently dropping the user's work.
-    const name = meta?.name ?? nameFor(w);
-    if (!(await lib.write(this.activeId, name, leanW))) throw new Error('storage-full');
-    this.lastSeenAt = (await this.metaOf(this.activeId))?.updatedAt ?? Date.now();
-    await this.saveResults(lib, this.activeId, w);
+    if (res.status === 'refused') throw new Error('storage-full');
+    await this.saveResults(lib, id, w);
   }
 
   /**
@@ -362,6 +400,7 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
     // write no longer applies to the one we are about to make.
     this.savedResults = new Map();
     this.lastSeenAt = null;
+    this.conflicted = false;
   }
 
   /** Name the next created design (see the interface). Call after
@@ -373,6 +412,8 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
   /** Synchronous unload write. Best-effort: if it does not fit (the blob is
    *  bigger than localStorage allows) the debounced async save is all there is. */
   saveSync(w: Workspace): void {
+    // Another tab owns the newer copy (see `conflicted`).
+    if (this.conflicted) return;
     try {
       localStorage.setItem(
         UNLOAD_KEY,

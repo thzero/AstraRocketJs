@@ -17,8 +17,9 @@ import { localeTranslator } from '../../testing/localeTranslator';
  * (`&lt;b&gt;`) and does not wrap the balloon in CDATA. Mustache escapes every
  * substituted value, and inside a CDATA block the XML parser would not decode
  * those escapes, so a rocket named `Bill & Ted` would reach the balloon as the
- * literal text `Bill &amp; Ted`. Pre-escaped, the markup and the value are each
- * escaped exactly once and the parser decodes them together.
+ * literal text `Bill &amp; Ted`. Pre-escaped, the markup decodes to the tags
+ * it means. A value is escaped twice, for HTML and then for XML, because the
+ * decoded description is HTML: a name stays text in the balloon.
  */
 
 const NAME = `Bill & Ted's <Excellent> Rocket`;
@@ -54,19 +55,16 @@ const kml = () =>
   );
 
 describe('balloon HTML', () => {
-  it('parses as XML, with the name and the markup each escaped exactly once', () => {
+  it('parses as XML, with the markup decoded to tags and the name still HTML-escaped', () => {
     const doc = new DOMParser().parseFromString(kml(), 'application/xml');
     // A `]]>` in a name would have closed a CDATA block early; an unescaped
     // `&` would break the document outright. Either shows up here.
     expect(doc.querySelector('parsererror')).toBeNull();
 
     const description = doc.getElementsByTagName('description')[0]!.textContent!;
-    // The parser hands back the HTML the template meant...
-    expect(description.startsWith(`<b>Rocket:</b> ${NAME}<br/>`)).toBe(true);
-    // ...and the name the user typed, not a screenful of character entities.
-    expect(description).toContain(NAME);
-    expect(description).not.toContain('&amp;');
-    expect(description).not.toContain('&lt;');
+    // The parser hands back the HTML the template meant, with the name as
+    // HTML text: one more decode, by the balloon, gives the name the user typed.
+    expect(description.startsWith(`<b>Rocket:</b> Bill &amp; Ted's &lt;Excellent&gt; Rocket<br/>`)).toBe(true);
   });
 
   it('renders as the intended elements once the balloon HTML is parsed', () => {
@@ -77,13 +75,34 @@ describe('balloon HTML', () => {
     // because the reader sees the characters `<b>` and `<br/>`.
     expect(host.querySelector('b')?.textContent).toBe('Rocket:');
     expect(host.querySelectorAll('br').length).toBeGreaterThan(1);
-    // The ampersand and the apostrophe come through as themselves. The angle
-    // brackets do not, and that is the escape-once rule working as designed
-    // rather than a gap: a balloon holds HTML, so `<Excellent>` in a rocket's
-    // name is an unknown element to whatever renders it. Escaping the value a
-    // second time to survive that would put `&amp;` back in front of the
-    // reader for every name that merely contains an ampersand, which is the
-    // far commoner case.
-    expect(host.textContent).toContain(`Rocket: Bill & Ted's`);
+    // The whole name comes through as the reader typed it, angle brackets
+    // included: they are text in the balloon, not an element.
+    expect(host.textContent).toContain(`Rocket: ${NAME}`);
+    expect(host.querySelector('Excellent')).toBeNull();
+  });
+
+  it('keeps markup in a file-sourced name out of every balloon', () => {
+    const evil = '<img src=x onerror=alert(1)>';
+    const text = renderKml(
+      buildFlightPathModel(
+        result,
+        launch,
+        { simName: 'Sim 1', rocketName: evil, motorName: 'C6' },
+        defaultExportOptions(),
+        localeTranslator(en),
+      ),
+    );
+    const doc = new DOMParser().parseFromString(text, 'application/xml');
+    expect(doc.querySelector('parsererror')).toBeNull();
+    for (const d of doc.getElementsByTagName('description')) {
+      const host = document.createElement('div');
+      host.innerHTML = d.textContent!;
+      expect(host.querySelector('img')).toBeNull();
+    }
+    const host = document.createElement('div');
+    host.innerHTML = doc.getElementsByTagName('description')[0]!.textContent!;
+    expect(host.textContent).toContain(evil);
+    // The document name is not HTML, so it is escaped once.
+    expect(doc.getElementsByTagName('name')[0]!.textContent).not.toContain('&lt;');
   });
 });

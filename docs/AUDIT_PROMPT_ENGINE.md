@@ -2,7 +2,7 @@
 
 Companion to `docs/AUDIT_PROMPT.md`, which audits `web/` and explicitly puts the kernel out of scope. This one covers the other side of that boundary.
 
-It is a different kind of audit, and the difference is the whole point. Of ~68,000 lines under `engine-java/`, about 55,000 are byte-for-byte OpenRocket that must not be "improved": changing them breaks the extraction's reproducibility gate and forks us from upstream. The auditable surface is the ~13,000 lines where a human hand touched the physics, plus the build and the gates. A prompt that does not say this precisely will get back a report full of findings against OpenRocket.
+It is a different kind of audit, and the difference is the whole point. Most of `engine-java/` is byte-for-byte OpenRocket that must not be "improved": changing it breaks the extraction's reproducibility gate and forks us from upstream. The auditable surface is where a human hand touched the physics (the patches, the bridge in `src/api`, the shims and the JDK stub), plus the build and the gates. A prompt that does not say this precisely will get back a report full of findings against OpenRocket.
 
 Paste the block below to a capable agent. Run from the repo root (`AstraRocketJs/`); all paths are repo-root-relative.
 
@@ -15,12 +15,12 @@ Read `engine-java/README.md` and `engine-java/patches/LEDGER.md` first: they exp
 
 | Path                                                                                             | Size                  | Audit it?                                                                                                                                                                                                                                                                                                                                                  |
 | ------------------------------------------------------------------------------------------------ | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/java/`                                                                                      | 272 files, ~55k lines | **No, with one exception.** ~256 files are verbatim upstream. Do not report style, complexity, or design findings against them. The exception: if you find a genuine defect that materially affects THIS app, report it as `UPSTREAM` severity-tagged, with the note that the fix belongs in a patch or upstream, never as an in-place edit to `src/java`. |
-| `patches/`                                                                                       | 16 files, ~9.5k lines | **Yes. This is the main event.**                                                                                                                                                                                                                                                                                                                           |
-| `src/api/`                                                                                       | 3 files, ~2.5k lines  | **Yes.** The `@JSExport` facade the browser calls.                                                                                                                                                                                                                                                                                                         |
-| `src/shims/java/`                                                                                | 12 files, ~780 lines  | **Yes.**                                                                                                                                                                                                                                                                                                                                                   |
-| `src/jdkstubs/`                                                                                  | 1 file, 55 lines      | **Yes**, briefly.                                                                                                                                                                                                                                                                                                                                          |
-| `extract/`, `test/parity/`, `validation/`, `build.gradle`, `build-engine.mjs`, `gradle-exec.mjs` | ~1,000 lines          | **Yes.**                                                                                                                                                                                                                                                                                                                                                   |
+| `src/java/`                                                                                      | 273 files, ~55k lines | **No, with one exception.** The other 255 files are verbatim upstream. Do not report style, complexity, or design findings against them. The exception: if you find a genuine defect that materially affects THIS app, report it as `UPSTREAM` severity-tagged, with the note that the fix belongs in a patch or upstream, never as an in-place edit to `src/java`. |
+| `patches/`                                                                                       | 18 files, 10.4k lines | **Yes. This is the main event.**                                                                                                                                                                                                                                                                                                                           |
+| `src/api/`                                                                                       | 5 files, ~3.9k lines  | **Yes.** The `@JSExport` facade the browser calls.                                                                                                                                                                                                                                                                                                         |
+| `src/shims/java/`                                                                                | 11 files, ~850 lines  | **Yes.**                                                                                                                                                                                                                                                                                                                                                   |
+| `src/jdkstubs/`                                                                                  | 1 file, 187 lines     | **Yes**, briefly.                                                                                                                                                                                                                                                                                                                                          |
+| `extract/`, `test/parity/`, `validation/`, `build.gradle`, `build-engine.mjs`, `gradle-exec.mjs` | ~3,400 lines          | **Yes.**                                                                                                                                                                                                                                                                                                                                                   |
 | `web/src/engine/vendor/`, `web/public/engine/`                                                   | generated             | **No.** Compiler output.                                                                                                                                                                                                                                                                                                                                   |
 | `.gradle/`, `build/`                                                                             | generated             | **No.**                                                                                                                                                                                                                                                                                                                                                    |
 
@@ -52,7 +52,7 @@ The same trap is laid differently here, and it is laid by a **green gate**:
   that equation, so it can never question them.
 
 Between them these two gates read as "the engine is verified." What is actually
-unverified is the 9,500 lines under `patches/`, which is precisely where
+unverified is the 10,400 lines under `patches/`, which is precisely where
 someone hand-edited physics.
 
 **So: get the pinned upstream and diff against it.** Read
@@ -65,7 +65,7 @@ version difference as if it were tampering.
 
 ## Slices
 
-### 1. `patches/` - the 16 hand-edited OpenRocket files
+### 1. `patches/` - the 18 hand-edited OpenRocket files
 
 The highest-value slice in the module. For **every** file under `patches/`,
 diff it against the pristine upstream file at the same relative path and
@@ -100,8 +100,7 @@ where a behavior change hides best:
   **exhaustive** over the component types the app can build, and does it order
   subclasses before superclasses? A missing or misordered branch silently
   selects the wrong aerodynamic calculator for a component type.
-- `Geo2D` replacing `java.awt.geom` in `FinSet`, `FreeformFinSet`,
-  `BoundingBox`: compare `distance` and `segmentsIntersect` against
+- `Geo2D` replacing `java.awt.geom` in `FinSet` and `FreeformFinSet`: compare `distance` and `segmentsIntersect` against
   `Line2D`/`Point2D` semantics, including the endpoint-touching and collinear
   cases, which `Line2D.linesIntersect` defines specifically.
 - `LongUUID` replacing `java.util.UUID` in two id classes: `equals`/`hashCode`/
@@ -109,8 +108,8 @@ where a behavior change hides best:
 - `PATCH(drogue-low-speed)` in `BasicEventSimulationEngine`, which the ledger
   describes as uncommenting upstream's own check. Confirm that is what it is.
 
-Cross-checks: every `PATCH(...)` marker in `src/java` (there are 28) should
-resolve to an entry in `patches/LEDGER.md`, and every one of the 16 patch files
+Cross-checks: every `PATCH(...)` marker in `src/java` (there are 34) should
+resolve to an entry in `patches/LEDGER.md`, and every one of the 18 patch files
 should be **load-bearing** by the ledger's own test (`src/java/X.java` differs
 from upstream `X.java`). A patch identical to upstream is a leftover that does
 nothing until someone runs `extract`, at which point it silently swaps itself
@@ -119,9 +118,10 @@ check for more.
 
 ### 2. `src/api/` - the `@JSExport` facade
 
-`OpenRocketEngine.java` (1,578 lines), `ComponentFactory.java` (725),
-`JsonLite.java` (195). This is the entire trust boundary between the browser and
-the kernel, and the only code here that the app calls directly.
+`OpenRocketEngine.java` (2,064 lines), `ComponentFactory.java` (1,064),
+`JsonLite.java` (352), `AtmosphereProfile.java` (130) and
+`GuideClearanceListener.java` (284). This is the entire trust boundary between
+the browser and the kernel, and the only code here that the app calls directly.
 
 - **`JsonLite` is a hand-rolled JSON parser** that consumes strings originating
   in the browser, which in turn originate in `.ork` files a stranger can send.
@@ -129,7 +129,7 @@ the kernel, and the only code here that the app calls directly.
   malformed-input behavior, numeric parsing of `NaN`/`Infinity`/exponent
   overflow/leading zeros, unterminated strings, escape and surrogate handling,
   duplicate keys, and what it returns versus throws. Compare its behavior to
-  the caps `web/src/services/files/orkImport.ts` already applies on its own side, and
+  the caps `web/src/services/files/ork/importLimits.ts` already applies on its own side, and
   say which side is actually enforcing what.
 - **Results are JSON strings built by hand** (the kernel ships no JSON lib).
   Hunt the serialization side: a `NaN` or `Infinity` emitted into JSON is not
@@ -147,26 +147,39 @@ the kernel, and the only code here that the app calls directly.
   out-of-range fields silently defaulted into physics, unknown component types,
   nesting depth, instance/cluster counts with no cap, and any place a value
   from the file reaches a constructor without validation. Compare its defaults
-  against `web/src/tree/schema.ts` and `nodeProps.ts` and flag divergence: two
+  against `web/src/tree/schema.ts`, `nodeProps.ts` and `kernelDefaults.ts` and flag divergence: two
   sides of one boundary with different opinions about a default is a real bug
   class.
+- **Automatic radii in `ComponentFactory`.** A nose cone's `aftRadiusAuto` is
+  its base wherever the base sits: on a flipped nose cone (a tail cone) the
+  base is the fore end, and the factory sets it with `setBaseRadiusAutomatic`,
+  so it follows the part ahead. A transition end with no radius in the JSON is
+  automatic, not zero. Check both against `NoseCone` / `Transition`, and against
+  `web/src/services/design/autoRadius.ts`, which resolves the same rules on the
+  app side.
+- **`getComponentGeometry(handle, id)`** returns what the kernel resolved for
+  one part: its fore and aft radii, outer and inner radius, an outer and inner
+  profile sampled at fixed stations, a fin set's `maxTabHeight` and a mass
+  object's radius. `web/tests/testing/kernelGeometry.ts` reads it, and
+  `geometryParity.kernel.test.ts` holds the app's own geometry to it. Confirm
+  each field is the kernel getter it claims to be, read after the build, and
+  that a component type it skips is one the app does not resolve itself.
 - Exception behavior across the JS boundary: what does a thrown Java exception
   look like to the caller in each of the two targets, and is it the same?
 
 ### 3. `src/shims/java/` and `src/jdkstubs/`
 
-Twelve shims and one JDK stub. Each shim is the **only** provider of a
+Eleven shims and one JDK stub. Each shim is the **only** provider of a
 fully-qualified name that upstream also defines, so a semantic gap between the
 shim and the real class is invisible at compile time and wrong at runtime.
 
-- **`RASAeroDragCalculator` and `RASAeroStabilityCalculator` are the exception
-  to everything above**: original work, not OpenRocket, subclassing the patched
+- **`RASAeroDragCalculator` and `RASAeroStabilityCalculator` are out of
+  scope.** They are original work, not OpenRocket, subclassing the patched
   Barrowman calculators through the `effectiveBaseCD` / `turbulentCompressibility`
-  seams those patches widened. Audit them as ordinary new physics code: NaN and
-  divide-by-zero at Mach 0 and at the transonic boundary, `sqrt` of negative,
-  `acos`/`asin` outside [-1,1], discontinuities at the regime joins, and
-  whether the seams are honored or bypassed. Check against
-  `docs/rasaero/`.
+  seams those patches widened. The kernel RASAero aero model is not maintained
+  work (the app keeps only the RASAero `.CDX1` export, on the `web/` side), and
+  `docs/AUDIT_ENGINE.md` closed its physics findings (P2, P3, P7, P8, G13) as out
+  of scope. Do not report findings against them.
 - `Geo2D`: as in slice 1, its two methods stand in for `java.awt.geom` and are
   consumed by fin geometry.
 - `LongUUID`: contract as above, plus whether ids are stable across a
@@ -177,9 +190,8 @@ shim and the real class is invisible at compile time and wrong at runtime.
 - `Simulation` and `OpenRocketDocument` are described as "lean". Lean in what
   respect, and does anything in the extracted physics depend on what was left
   out?
-- `com.google.inject.Inject` is an inert annotation and `Injector` a
-  one-method interface. Confirm nothing extracted actually depends on injection
-  semantics.
+- `com.google.inject.Injector` is a one-method interface. Confirm nothing
+  extracted actually depends on injection semantics.
 - `java.text.Collator` stub: it affects motor-name sort order under TeaVM only,
   so the real JVM and the browser can sort differently. Does anything downstream
   depend on that order, and does `parity` see it?
@@ -189,15 +201,18 @@ shim and the real class is invisible at compile time and wrong at runtime.
 `build.gradle`, `build-engine.mjs`, `gradle-exec.mjs`, `extract/extract.mjs`,
 `extract/manifest.txt`, `extract/UPSTREAM`, `gradle.properties`.
 
-- **`extract --check` failure conditions.** It counts `missing + drift + stale +
-unpatched` as problems. The `behind` list ("N patch(es) differ from current
-  upstream") is a `console.warn` and does **not** fail the check. Is that the
-  intended policy? A patch that has drifted from upstream is exactly the
-  condition an upgrade needs to surface loudly. The file's own comments say a
-  single bogus manifest entry once made the check go green over 16 drifted and
-  13 unmanaged files; verify that class of hole is really closed for all four
-  counters.
-- `manifest.txt` has 272 entries against 272 files in `src/java`. Verify the
+- **`extract --check` failure conditions.** It counts missing, drifted, stale
+  and unpatched files as problems, and also unblessed patches, leftover patches
+  (identical to upstream), a missing `DIVERGENCE.txt` baseline, shims whose
+  upstream class moved since review (`SHIMS.txt`) or a missing shim baseline,
+  and drift in the app's upstream material rows. `extract/DIVERGENCE.txt` pins
+  each patch's line delta plus a sha256 of the patch and of the upstream file it
+  replaces, so any byte change to a patch fails the check until it is
+  re-recorded with `npm run extract:bless` (which refuses to bless a leftover).
+  Verify that every counter fails the check, that a bless cannot hide a change
+  the LEDGER does not explain, and that no single bad manifest entry can turn
+  the check green.
+- `manifest.txt` has 273 entries against 273 files in `src/java`. Verify the
   correspondence is exact in both directions.
 - Determinism of the two builds: does the same source produce byte-identical
   vendored output on a second run and on a different machine? The `parity` job
@@ -206,11 +221,7 @@ unpatched` as problems. The `behind` list ("N patch(es) differ from current
   mode, and any flag that could make the two targets differ in floating-point
   behavior. `-Pparity` builds a variant - confirm the variant that gets
   compared is the variant that ships.
-- **`engine-java/extract/UPSTREAM` says CI pins the ref in
-  `.github/workflows/engine.yml`. That file does not exist**; the `parity` and
-  `reproducible` jobs live in `.github/workflows/gates.yml`. Verify and report.
-  Check at the same time that the ref hardcoded in `gates.yml` still matches
-  the one in `UPSTREAM`, because nothing enforces that they agree.
+- Confirm `gates.yml` still reads the ref from `extract/UPSTREAM`.
 
 ### 5. The gates themselves: `test/parity/` and `validation/`
 
@@ -222,20 +233,19 @@ gate's scope covers what it says it covers.
   one-flag way to make a genuine regression disappear. Is there anything that
   makes a golden rewrite visible in review? Should there be?
 - The golden comparison runs against the JVM output only, with tolerance. What
-  tolerance, and is it loose enough to hide a real change? 255 golden lines
+  tolerance, and is it loose enough to hide a real change? 359 golden lines
   covering which physics - is the coverage representative, or does it stop at
   the atmosphere model?
 - `parity.mjs`, `run-target.mjs`, `stdout-sync.mjs`: what happens on a target
   that crashes, hangs, or produces no output at all? Does the comparison fail,
   or can an empty result compare equal? `TARGET_COMPLETE` and the stdout
   synchronization are load-bearing here.
-- **`validation/` is stale by its own admission.** The README says the committed
-  `.md` scorecards are 2026-08-04 snapshots, that the engine has moved under
-  them, and that classic Extended Barrowman now scores "9/135 (6.7%) - file says
-  7/135". Nothing in CI runs `npm run validate`. Assess: is the harness still
-  correct, is `--strict` usable as a gate, and what would it take to put it in
-  `gates.yml`? A scoring harness nobody runs is a gate that has already failed
-  open.
+- **`validation/` is a ratchet in CI.** The `validate` job in `gates.yml` runs
+  `score.mjs --check-floors` on both models, which reads
+  `validation/floors.json`: the gated set must be exactly 135 points with the
+  recorded `gateHash`, and the score must not drop below 9/135 (classic) or
+  61/135 (supersonic). Check that the floors and the gated-set hash still hold
+  and that the job still runs both models.
 - `validation/anchors.json` and the fixtures: does `score.mjs` validate their
   shape, or trust them?
 
@@ -271,6 +281,11 @@ Do not relay agent claims unchecked.
 - Four leftover patches were removed on 2026-09-16 (`BarrowmanCalculator`,
   `FlightConditions`, `AxialStage`, `AbstractSimulationStepper`); their diffs
   remain under `docs/rasaero/diffs/`. Do not report those as missing.
+- Kernel behavior that is upstream's, not ours, and not a finding: two
+  automatic ends that follow each other resolve to -1 (desktop does the same);
+  an automatic end following a flipped nose cone's tip, and a ring placed where
+  its parent has no bore, resolve to 0; fin sets mount only on body tubes.
+  `geometryParity.kernel.test.ts` counts the first three as unresolved parts.
 
 **Output:** write `docs/AUDIT_ENGINE.md`. Severity emojis (🔴 correctness in
 shipped physics / 🟠 gates and build integrity / 🟡 API boundary and untrusted

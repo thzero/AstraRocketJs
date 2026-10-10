@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { readFileText } from '../../../src/services/files/decodeText';
+import { MAX_IMPORT_FILE_BYTES, readFileText } from '../../../src/services/files/decodeText';
 
 /** UTF-16LE with its byte order mark, as Windows tools write it. */
 const utf16le = (s: string): Blob => {
@@ -13,6 +13,19 @@ const utf16le = (s: string): Blob => {
 };
 
 describe('readFileText', () => {
+  it('refuses a file over the import cap without reading it', async () => {
+    let read = false;
+    const huge = {
+      size: MAX_IMPORT_FILE_BYTES + 1,
+      arrayBuffer: async () => {
+        read = true;
+        return new ArrayBuffer(0);
+      },
+    } as unknown as Blob;
+    await expect(readFileText(huge)).rejects.toThrow(/too large/);
+    expect(read).toBe(false);
+  });
+
   it('reads a UTF-16 file as its characters, not with a NUL between each', async () => {
     expect(await readFileText(utf16le('; C6 motor'))).toBe('; C6 motor');
   });

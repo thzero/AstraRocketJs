@@ -14,8 +14,9 @@ import {
   selectConfig,
   configOf,
   selectRunIds,
-  hasThrustCurve,
   selectRunFailed,
+  selectEditedConfig,
+  workspaceSnapshot,
 } from '../../src/state/store';
 import { C6 } from '../../src/engine/api';
 import { setDesignLibrary } from '../../src/services/storage/designLibrary';
@@ -32,7 +33,7 @@ import {
 import { seatMotor, CURVELESS } from '../testing/seatMotor';
 import { asFlown, isStale } from '../testing/flown';
 import type { FlightResult } from '../../src/engine/openRocketEngine';
-import type { SimPrefs } from '../../src/services/flight/simulations';
+import { hasThrustCurve } from '../../src/services/flight/runnability';
 
 // The undo/redo history is pure JSON bookkeeping over the design tree (the React
 // rebuild effect isn't involved), so we exercise the store actions directly.
@@ -198,6 +199,26 @@ describe('simulation undo/redo', () => {
     expect(s().past).toHaveLength(1);
     s().undo();
     expect(seated().designation).toBe(before);
+  });
+
+  it('records no step for a motor change on a configuration that is not there', () => {
+    s().setMountMotor('no-such-config', mountId(), { ...C6, designation: 'Z99' });
+    expect(s().past).toHaveLength(0);
+  });
+
+  // An edit still in flight is folded into history first, as undo does, so redo
+  // cannot overwrite it with a snapshot from before it.
+  it('redo keeps an edit that is still in flight', () => {
+    s().patchLaunch({ windAverage: 3 });
+    s().commitEdit();
+    s().undo();
+    expect(s().future).toHaveLength(1);
+    s().patchLaunch({ windAverage: 7 }); // not committed yet
+    s().redo();
+    expect(active().launch.windAverage).toBe(7);
+    s().commitEdit();
+    s().undo();
+    expect(active().launch.windAverage).not.toBe(7);
   });
 
   it('coalesces a launch edit and undoes it in one step', () => {
@@ -648,6 +669,19 @@ describe('per-configuration stage activeness', () => {
     expect(config().grounded).toEqual([booster]); // something has to fly
   });
 
+  // A refused or already-so change is not an edit: an empty undo step would make
+  // Undo do nothing visible and throw away the redo stack.
+  it('records no undo step when it changes nothing', () => {
+    const [sustainer, booster] = stageIds();
+    const id = config().id;
+    s().setStageFlies(id, booster!, false);
+    const depth = s().past.length;
+    s().setStageFlies(id, sustainer!, false); // refused: the last one flying
+    s().setStageFlies(id, booster!, false); // already grounded
+    s().setStageFlies(id, sustainer!, true); // already flying
+    expect(s().past.length).toBe(depth);
+  });
+
   it('ages every flight flown on the configuration that changed', () => {
     const [, booster] = stageIds();
     useWorkspaceStore.setState((st) => ({
@@ -674,7 +708,7 @@ describe('simulation run guards', () => {
   // the same failing design forever, spawning a full flight sim each time.
   it('records a failed run against the design it failed on', async () => {
     simulateMock.mockRejectedValueOnce(new Error('kernel exploded'));
-    await s().runSim({} as SimPrefs);
+    await s().runSim();
 
     // Named, like the skip messages: a failure is reported once
     // per row so a batch cannot collapse into one anonymous line.
@@ -685,7 +719,7 @@ describe('simulation run guards', () => {
 
   it('lets the retry happen again once the design changes', async () => {
     simulateMock.mockRejectedValueOnce(new Error('kernel exploded'));
-    await s().runSim({} as SimPrefs);
+    await s().runSim();
     expect(selectRunFailed(s())).toBe(true);
 
     // Any edit replaces the tree, so the record no longer matches and auto-run
@@ -701,7 +735,7 @@ describe('simulation run guards', () => {
     let release!: (r: unknown) => void;
     simulateMock.mockImplementationOnce(() => new Promise((res) => (release = res)));
 
-    const running = s().runSim({} as SimPrefs);
+    const running = s().runSim();
     // The user edits mid-flight.
     s().setSelectedId('nose');
     s().patchSelected({ length: 0.3 });
@@ -717,7 +751,7 @@ describe('simulation run guards', () => {
     s().setSelectedId('mount');
     s().removeSelected();
     expect(findMounts(s().tree)).toHaveLength(0);
-    await s().runSim({} as SimPrefs);
+    await s().runSim();
     expect(s().err).toBeTruthy(); // a reason was surfaced
     expect(s().simBusy).toBe(false); // never entered the running state
     expect(active().result).toBeNull();
@@ -728,7 +762,7 @@ describe('simulation run guards', () => {
   it('records a blocked design as a failed run, until the design changes', async () => {
     s().setSelectedId('mount');
     s().removeSelected();
-    await s().runSim({} as SimPrefs);
+    await s().runSim();
     expect(simulateMock).not.toHaveBeenCalled();
     expect(selectRunFailed(s())).toBe(true);
 
@@ -793,7 +827,7 @@ describe('results age instead of being destroyed', () => {
     simulateMock.mockResolvedValueOnce({ summary: { maxAltitude: 300 } } as unknown as FlightResult);
     // The globals the app passes are the ones the store mirrors; the key records
     // what the run actually flew with.
-    await s().runSim(s().simPrefs);
+    await s().runSim();
     expect(isStale(active())).toBe(false);
   });
 
@@ -843,7 +877,8 @@ describe('per-simulation options', () => {
   it('wins over the global preference on a run', async () => {
     s().setSimPref('timeStep', 0.01);
     simulateMock.mockResolvedValueOnce({ summary: {} } as unknown as FlightResult);
-    await s().runSim({ timeStep: 0.05, maxTime: 1200, randomSeed: null } as SimPrefs);
+    s().setSimPrefs({ ...s().simPrefs, timeStep: 0.05, maxTime: 1200, randomSeed: null });
+    await s().runSim();
 
     expect(simulateMock.mock.calls[0]![0].options.timeStep).toBe(0.01);
     expect(simulateMock.mock.calls[0]![0].options.maxTime).toBe(1200); // untouched key falls through
@@ -875,7 +910,7 @@ describe('running a selection', () => {
     s().setSimsSelected(ids);
     expect(selectRunIds(s())).toEqual(ids);
 
-    await s().runSims(selectRunIds(s()), {} as SimPrefs);
+    await s().runSims(selectRunIds(s()));
 
     expect(simulateMock).toHaveBeenCalledTimes(2);
     expect(s().sims.every((x) => !!x.result)).toBe(true);
@@ -887,7 +922,7 @@ describe('running a selection', () => {
     s().renameSim(first!.id, 'First');
     s().setSimsSelected([first!.id, second!.id]);
 
-    await s().runSims(selectRunIds(s()), {} as SimPrefs);
+    await s().runSims(selectRunIds(s()));
 
     // Two calls, each carrying the launch conditions of the sim it was for.
     const launches = simulateMock.mock.calls.map((c) => c[0].options.launchRodLength);
@@ -901,14 +936,14 @@ describe('running a selection', () => {
    * behind it after every run.
    */
   it('shows the run, one flight or a batch', async () => {
-    await s().runSims([s().activeId], {} as SimPrefs);
+    await s().runSims([s().activeId]);
     expect(s().tab).toBe('results');
     expect(s().view).toBe('flight');
 
     s().setTab('design');
     s().addSim();
     s().setSimsSelected(s().sims.map((x) => x.id));
-    await s().runSims(selectRunIds(s()), {} as SimPrefs);
+    await s().runSims(selectRunIds(s()));
     expect(s().tab).toBe('results');
   });
 
@@ -919,25 +954,25 @@ describe('running a selection', () => {
    * having run another would put a dropdown on screen for a single run.
    */
   it('records the simulations THIS run flew, and points the results at them', async () => {
-    await s().runSims([s().activeId], {} as SimPrefs);
+    await s().runSims([s().activeId]);
     expect(s().lastRunIds).toEqual([s().activeId]);
     expect(s().resultSimId).toBe(s().activeId);
 
     s().addSim();
     const both = s().sims.map((x) => x.id);
-    await s().runSims(both, {} as SimPrefs);
+    await s().runSims(both);
     expect(s().lastRunIds).toEqual(both);
 
     // Back to one: the earlier run's rows still have results, but they are not
     // what this run flew.
-    await s().runSims([both[0]!], {} as SimPrefs);
+    await s().runSims([both[0]!]);
     expect(s().lastRunIds).toEqual([both[0]]);
   });
 
   it('drops a deleted simulation from the last run', async () => {
     s().addSim();
     const both = s().sims.map((x) => x.id);
-    await s().runSims(both, {} as SimPrefs);
+    await s().runSims(both);
     s().deleteSim(both[1]!);
     // Otherwise the picker would keep offering a row that no longer exists.
     expect(s().lastRunIds).toEqual([both[0]]);
@@ -950,7 +985,7 @@ describe('running a selection', () => {
     // abandon the rest of the batch.
     seatMotor(first!.name, CURVELESS);
 
-    await s().runSims([first!.id, second!.id], {} as SimPrefs);
+    await s().runSims([first!.id, second!.id]);
 
     expect(simulateMock).toHaveBeenCalledTimes(1); // only the flyable one
     expect(s().sims.find((x) => x.id === second!.id)!.result).not.toBeNull();
@@ -1134,6 +1169,7 @@ describe('openDesign is race-safe', () => {
         return wsFor(id) as never;
       },
       write: async () => true,
+      writeIfUnchanged: async () => ({ status: 'ok', updatedAt: 1 }),
       create: async () => ({ id: 'X', name: 'X', updatedAt: 0 }),
       rename: async () => true,
       remove: async () => true,
@@ -1271,6 +1307,7 @@ describe('openDesign honors a refused setActive', () => {
         loadedMeta: null,
       }),
       write: async () => true,
+      writeIfUnchanged: async () => ({ status: 'ok', updatedAt: 1 }),
       create: async () => ({ id: 'n', name: 'n', updatedAt: 0 }),
       rename: async () => true,
       remove: async () => true,
@@ -1288,6 +1325,7 @@ describe('openDesign honors a refused setActive', () => {
       activeId: async () => null,
       read: async () => ({ version: 1, tree: { components: 'nope' }, sims: [], activeId: 'x', loadedMeta: null }),
       write: async () => true,
+      writeIfUnchanged: async () => ({ status: 'ok', updatedAt: 1 }),
       create: async () => ({ id: 'n', name: 'n', updatedAt: 0 }),
       rename: async () => true,
       remove: async () => true,
@@ -1316,7 +1354,7 @@ describe('the safety codes stop a run', () => {
 
   it('refuses a simulation whose rod angle is outside the code', async () => {
     s().patchLaunch({ launchRodAngleDeg: 35 });
-    await s().runSim({} as SimPrefs);
+    await s().runSim();
 
     expect(simulateMock).not.toHaveBeenCalled();
     expect(s().err).toContain('35');
@@ -1326,7 +1364,7 @@ describe('the safety codes stop a run', () => {
 
   it('refuses a simulation whose wind is outside the code', async () => {
     s().patchLaunch({ windAverage: 20 }); // 20 m/s is about 45 mph
-    await s().runSim({} as SimPrefs);
+    await s().runSim();
     expect(simulateMock).not.toHaveBeenCalled();
     expect(s().err).toBeTruthy();
   });
@@ -1338,7 +1376,7 @@ describe('the safety codes stop a run', () => {
       sims: st.sims.map((x) => (x.id === first!.id ? { ...x, launch: { ...x.launch, launchRodAngleDeg: 35 } } : x)),
     }));
 
-    await s().runSims([first!.id, second!.id], {} as SimPrefs);
+    await s().runSims([first!.id, second!.id]);
 
     expect(simulateMock).toHaveBeenCalledTimes(1); // only the legal one flew
     expect(s().sims.find((x) => x.id === second!.id)!.result).not.toBeNull();
@@ -1348,11 +1386,11 @@ describe('the safety codes stop a run', () => {
 
   it('runs once the conditions are brought back inside', async () => {
     s().patchLaunch({ launchRodAngleDeg: 35 });
-    await s().runSim({} as SimPrefs);
+    await s().runSim();
     expect(simulateMock).not.toHaveBeenCalled();
 
     s().patchLaunch({ launchRodAngleDeg: 10 });
-    await s().runSim({} as SimPrefs);
+    await s().runSim();
     expect(simulateMock).toHaveBeenCalledTimes(1);
   });
 });
@@ -1388,6 +1426,7 @@ describe('what reaches storage', () => {
           loadedMeta: null,
         }) as never,
       write: async () => true,
+      writeIfUnchanged: async () => ({ status: 'ok', updatedAt: 1 }),
       readResults: async () => ({}),
       writeResults: async () => true,
       create: async () => ({ id: 'D', name: 'D', updatedAt: 0 }),
@@ -1518,6 +1557,7 @@ describe('importing a rocket whose name is already saved', () => {
       activeId: async () => null,
       read: async () => null,
       write: async () => true,
+      writeIfUnchanged: async () => ({ status: 'ok', updatedAt: 1 }),
       writeResults: async () => true,
       readResults: async () => ({}),
       create: async (name: string) => {
@@ -1563,10 +1603,13 @@ describe('importing a rocket whose name is already saved', () => {
       autoPrompt('NOT ASKED'), // neither dialog should be raised at all
     );
 
+    const before = s().importSeq;
     await s().openOrkFile(orkFile('Big Bertha'));
     await autosave();
 
     expect(calls.created).toEqual(['Big Bertha']);
+    // Counted as an import, so the banner opens its notes (LoadedBanner).
+    expect(s().importSeq).toBe(before + 1);
   });
 
   it('overwrites the saved rocket when the user says so', async () => {
@@ -1621,5 +1664,70 @@ describe('importing a rocket whose name is already saved', () => {
 
     expect(s().tree).toBe(before); // what the user had is still what they have
     expect(s().storageWarningKind).toBe('full');
+  });
+});
+
+/**
+ * A fillet added in the editor starts as epoxy paste (services/design/filletDefault.ts),
+ * through the same edit path every property field uses.
+ */
+describe('a new fin fillet', () => {
+  beforeEach(() => s().resetWorkspace());
+
+  it('is epoxy, not Cardboard', () => {
+    s().setSelectedId('fins');
+    s().patchSelected({ filletRadius: 0.004 });
+    s().commitEdit();
+    const fin = findNode(s().tree, 'fins')!;
+    expect(fin['filletMaterialName']).toBe('Epoxy - West System Six10');
+    expect(fin['filletDensity']).toBe(1180);
+  });
+});
+
+/**
+ * What a whole-workspace swap (New, open, boot load) must not carry over from
+ * the design on its way out.
+ */
+describe('replacing the workspace', () => {
+  beforeEach(() => s().resetWorkspace());
+
+  it('drops the previous design repair notes on New', () => {
+    useWorkspaceStore.setState({ repairNotes: ['Nose cone: density clamped'] });
+    s().resetWorkspace();
+    expect(s().repairNotes).toEqual([]);
+  });
+
+  it('drops the configuration the tab had selected', () => {
+    s().addConfig();
+    expect(s().selectedConfigId).not.toBeNull();
+    s().resetWorkspace();
+    expect(s().selectedConfigId).toBeNull();
+  });
+
+  it('starts a loaded design with nothing to undo', () => {
+    const stored = workspaceSnapshot(s());
+    s().setSelectedId('nose');
+    s().patchSelected({ length: 0.2 });
+    s().commitEdit();
+    expect(s().past.length).toBeGreaterThan(0);
+    s().hydrate(stored);
+    expect(s().past).toHaveLength(0);
+    expect(s().future).toHaveLength(0);
+  });
+});
+
+describe('the configuration the tab edits', () => {
+  beforeEach(() => s().resetWorkspace());
+
+  // Undoing the add that made the selected configuration leaves an id that
+  // names nothing; the tab follows the active simulation, as its doc says.
+  it('follows the active simulation when its selection is gone', () => {
+    s().addConfig();
+    const flown = s().selectedConfigId!;
+    s().setSimConfig(s().activeId, flown);
+    s().addConfig();
+    s().undo();
+    expect(s().configs.some((c) => c.id === s().selectedConfigId)).toBe(false);
+    expect(selectEditedConfig(s()).id).toBe(flown);
   });
 });

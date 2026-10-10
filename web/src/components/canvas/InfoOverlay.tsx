@@ -15,7 +15,8 @@ export function InfoOverlay({ info }: { info: StaticInfo | null }) {
   const u = useUnits();
   if (!info) return null;
   const cal = info.stabilityCalibers;
-  const state = stabilityState(cal) ?? 'under';
+  // A margin the kernel could not compute has no band: neutral and no glyph.
+  const state = stabilityState(cal);
   // Margin as a fraction of overall length: the same figure the stat tiles and
   // the CP callout carry, so the quick-glance card isn't missing a data item.
   // The engine's own figure, not ours: see StaticInfo.stabilityPercent.
@@ -27,8 +28,9 @@ export function InfoOverlay({ info }: { info: StaticInfo | null }) {
     [t('stability.cp'), `${u.fmtSym('length', info.cp)}`],
     [
       t('stability.onPad'),
-      <span className={stabilityToneOf(state)}>
-        {STABILITY_GLYPH[state]} {fmtNum(cal, 2)} {t('stability.caliber')} · {fmtNum(pct, 1)}%
+      <span className={state ? stabilityToneOf(state) : 'text-ink-muted'}>
+        {state && `${STABILITY_GLYPH[state]} `}
+        {fmtNum(cal, 2)} {t('stability.caliber')} · {fmtNum(pct, 1)}%
       </span>,
     ],
   ];

@@ -33,6 +33,13 @@ export function ColorInput({
   useLayoutEffect(() => {
     latest.current = { value, onCommit };
   });
+  // Uncontrolled, re-seeded when the stored value changes from elsewhere. The
+  // same element is kept, not remounted, so the native listener below stays
+  // attached for every later pick.
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (el && el.value !== value) el.value = value;
+  }, [value]);
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -47,8 +54,6 @@ export function ColorInput({
       ref={ref}
       id={id}
       type="color"
-      // Uncontrolled, re-seeded when the stored value changes from elsewhere.
-      key={value}
       defaultValue={value}
       disabled={disabled}
       aria-label={ariaLabel}

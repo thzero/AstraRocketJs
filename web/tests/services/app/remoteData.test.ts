@@ -435,4 +435,23 @@ describe('manifest failures', () => {
     expect(signals[1]!.aborted).toBe(true);
     expect(signals[0]!.aborted).toBe(false);
   });
+
+  it('aborts the body of a reply whose declared size is over the cap', async () => {
+    const signals: AbortSignal[] = [];
+    vi.stubGlobal('fetch', (url: string, init?: RequestInit) => {
+      signals.push(init!.signal!);
+      const path = url.split('?')[0]!;
+      const huge = path !== '/data/manifest.json';
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        headers: { get: (h: string) => (huge && h === 'content-length' ? String(1024 * 1024 * 1024) : null) },
+        json: () => Promise.resolve({}),
+      } as unknown as Response);
+    });
+    const fetchCatalog = await load();
+    await expect(fetchCatalog('motors')).rejects.toThrow(/too large/);
+    expect(signals[1]!.aborted).toBe(true);
+    expect(signals[0]!.aborted).toBe(false);
+  });
 });

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FocusEvent, type KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import type { ComponentNode, ComponentType, RocketTree } from '../../engine/openRocketEngine';
@@ -210,6 +210,9 @@ function Row({
             ? (e) => {
                 // Keyboard selection: the 2D/3D canvases are pointer-only, so
                 // without this a keyboard user could reach no component at all.
+                // Keys on the row's own controls (the export button and its
+                // menu) are theirs: selecting here would cancel their click.
+                if (e.target !== e.currentTarget) return;
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault();
                   onSelect(id);
@@ -252,7 +255,9 @@ function Row({
         )}
         <div className="ml-auto flex shrink-0 items-center gap-1 pl-2">
           {det && <span className="text-[11px] tabular-nums text-ink-faint">{det}</span>}
-          <ComponentExportButton node={node} />
+          {/* Tabbable only on the tree's tab stop row, so the tree stays one
+              stop plus the export button of the row it is on. */}
+          <ComponentExportButton node={node} tabIndex={selectable && id === tabbableId ? 0 : -1} />
         </div>
       </div>
       {!isCollapsed &&
@@ -326,9 +331,62 @@ export function ComponentTree({
     orderedIds[0] ||
     null;
 
+  /*
+   * Keep keyboard focus in the tree across an edit that rebuilds it.
+   *
+   * Cut removes the focused row, and undo or redo replaces the rows, so focus
+   * falls to the page body and the arrow keys stop working until the user tabs
+   * back in. While the tree holds focus, `ownsFocus` is set; it is cleared when
+   * focus moves deliberately elsewhere (to another element, or a click on
+   * something that takes no focus, which leaves the row still in the page).
+   * After any change to the rows, if focus was lost from the tree, it goes to
+   * the selected row, else the tab stop.
+   */
+  const ownsFocus = useRef(false);
+  const onTreeFocus = () => {
+    ownsFocus.current = true;
+  };
+  const onTreeBlur = (e: FocusEvent<HTMLDivElement>) => {
+    const to = e.relatedTarget as Node | null;
+    if (to) {
+      if (!listRef.current?.contains(to)) ownsFocus.current = false;
+      return;
+    }
+    // Nothing took focus. A row still in the page means the user clicked away;
+    // a row the edit removed means focus was lost, which the effect restores.
+    const from = e.target;
+    setTimeout(() => {
+      if (from.isConnected) ownsFocus.current = false;
+    }, 0);
+  };
+  const focusTarget = (selectedId && orderedIds.includes(selectedId) && selectedId) || tabbableId;
+  // The selection the effect last saw. Focus follows a change of selection that
+  // happens while a row has focus (undo or redo restoring one), and is left
+  // alone otherwise, so arrowing through the rows or folding a branch keeps it
+  // where the user put it.
+  const lastSelected = useRef(selectedId);
+  useEffect(() => {
+    const selectionMoved = lastSelected.current !== selectedId;
+    lastSelected.current = selectedId;
+    if (!ownsFocus.current || !focusTarget) return;
+    const active = document.activeElement;
+    const lost = !active || active === document.body;
+    const onRow = !!active && !!listRef.current?.contains(active);
+    if (!lost && !(onRow && selectionMoved)) return;
+    const row = Array.from(listRef.current?.querySelectorAll<HTMLElement>('[data-tree-row]') ?? []).find(
+      (el) => el.getAttribute('data-id') === focusTarget,
+    );
+    if (!row || row === active) return;
+    row.focus();
+    setActiveId(focusTarget);
+  }, [orderedIds, focusTarget, selectedId]);
+
   const onTreeKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     const rowEl = (e.target as HTMLElement).closest<HTMLElement>('[data-tree-row]');
     if (!rowEl || !listRef.current?.contains(rowEl)) return;
+    // Only the row itself navigates: arrows pressed inside a row's export menu
+    // belong to that menu.
+    if (e.target !== rowEl) return;
     // Desktop's Edit shortcuts, on the selected part, while a row has focus.
     // Scoped to the tree so text fields keep their own copy and paste, and
     // Ctrl+D here duplicates rather than bookmarking the page.
@@ -467,21 +525,27 @@ export function ComponentTree({
         </div>
       )}
       <div className="mb-2 flex min-w-0 items-center gap-1.5">
-        {/* Fold the whole tree list; the header (and this toggle) stay put. */}
-        <button
-          onClick={() => setListOpen((o) => !o)}
-          aria-expanded={listOpen}
-          title={listOpen ? t('tree.collapseTree') : t('tree.expandTree')}
-          className="flex min-w-0 items-center gap-1.5 rounded px-1 py-0.5 hover:bg-raised"
-        >
-          <span className="text-base leading-none text-accent-400">{listOpen ? '▾' : '▸'}</span>
-          <h2 className="shrink-0 text-xs font-semibold uppercase tracking-wide text-ink-muted">
-            {t('tree.components')}
-          </h2>
-          {!listOpen && selectedName && (
-            <span className="truncate text-xs font-medium text-accent-300">· {selectedName}</span>
-          )}
-        </button>
+        {/* Fold the whole tree list; the header (and this toggle) stay put.
+            The button sits inside the heading, as in the disclosure pattern: a
+            heading inside a button is flattened into the button's name. */}
+        <h2 className="flex min-w-0">
+          <button
+            onClick={() => setListOpen((o) => !o)}
+            aria-expanded={listOpen}
+            title={listOpen ? t('tree.collapseTree') : t('tree.expandTree')}
+            className="flex min-w-0 items-center gap-1.5 rounded px-1 py-0.5 hover:bg-raised"
+          >
+            <span className="text-base leading-none text-accent-400" aria-hidden="true">
+              {listOpen ? '▾' : '▸'}
+            </span>
+            <span className="shrink-0 text-xs font-semibold uppercase tracking-wide text-ink-muted">
+              {t('tree.components')}
+            </span>
+            {!listOpen && selectedName && (
+              <span className="truncate text-xs font-medium text-accent-300">· {selectedName}</span>
+            )}
+          </button>
+        </h2>
         {listOpen && branchIds.length > 0 && (
           <button
             onClick={toggleAll}
@@ -525,6 +589,8 @@ export function ComponentTree({
           role="tree"
           aria-label={t('tree.components')}
           onKeyDown={onTreeKeyDown}
+          onFocus={onTreeFocus}
+          onBlur={onTreeBlur}
           className="border-l border-line/5"
         >
           {tree.components.length ? (

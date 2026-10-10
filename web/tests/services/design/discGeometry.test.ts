@@ -51,6 +51,14 @@ describe('discDims', () => {
 });
 
 describe('tubeRadii', () => {
+  it('offers no bore inside a filled body tube', () => {
+    // BodyTube.getInnerRadius is 0 when the tube is filled.
+    expect(tubeRadii(node({ type: 'bodytube', outerRadius: 0.012, thickness: 0.001, filled: true }))).toEqual({
+      outerR: 0.012,
+      innerR: 0,
+    });
+  });
+
   it('reports the bore a tube offers from its own wall', () => {
     const t = tubeRadii(node({ type: 'bodytube', outerRadius: 0.012, thickness: 0.001 }));
     expect(t).toMatchObject({ outerR: 0.012 });

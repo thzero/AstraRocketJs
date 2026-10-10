@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { noteTexts } from '../../testing/importNotes';
 
 /**
  * A `.ork` names a motor, and the name is all the catalog is searched by.
@@ -123,7 +124,7 @@ describe('a motor the file names for a mount it does not go in', () => {
 
   it('says it does not fit, naming both diameters', async () => {
     fetchMotorSpec.mockResolvedValue(spec(0.054, 0.3));
-    const notes = (await loadOrk(new ArrayBuffer(0))).notes.join(' ');
+    const notes = noteTexts((await loadOrk(new ArrayBuffer(0))).notes).join(' ');
     expect(notes).toMatch(/54 mm/);
     expect(notes).toMatch(/38 mm/);
     expect(notes).toMatch(/Motor tube/);
@@ -132,7 +133,7 @@ describe('a motor the file names for a mount it does not go in', () => {
 
   it('says nothing about a motor that fits', async () => {
     fetchMotorSpec.mockResolvedValue(spec(0.038, 0.3));
-    const notes = (await loadOrk(new ArrayBuffer(0))).notes.join(' ');
+    const notes = noteTexts((await loadOrk(new ArrayBuffer(0))).notes).join(' ');
     expect(notes).not.toMatch(/does not fit/i);
   });
 
@@ -140,7 +141,7 @@ describe('a motor the file names for a mount it does not go in', () => {
     // 1 m of motor in 300 mm of tube. Length is the other half of a fit, and
     // the browser judges both.
     fetchMotorSpec.mockResolvedValue(spec(0.038, 1.0));
-    const notes = (await loadOrk(new ArrayBuffer(0))).notes.join(' ');
+    const notes = noteTexts((await loadOrk(new ArrayBuffer(0))).notes).join(' ');
     expect(notes).toMatch(/1000 mm long/);
     expect(notes).toMatch(/300 mm/);
   });
@@ -150,7 +151,7 @@ describe('a motor the file names for a mount it does not go in', () => {
     // one thing to go and fix, the way an unresolvable motor already is.
     fetchMotorSpec.mockResolvedValue(spec(0.054, 0.3));
     const loaded = await loadOrk(new ArrayBuffer(0));
-    expect(loaded.notes.filter((n) => /does not fit/i.test(n))).toHaveLength(1);
+    expect(noteTexts(loaded.notes).filter((n) => /does not fit/i.test(n))).toHaveLength(1);
   });
 });
 
@@ -176,7 +177,7 @@ describe('a motor the file did not confirm', () => {
     expect(fetchMotorSpec).not.toHaveBeenCalled();
     const seated = loaded.configs[0]!.motors['mount1']!.spec;
     expect(seated.times).toHaveLength(0); // unresolved: it will not fly a stand-in
-    const notes = loaded.notes.join(' ');
+    const notes = noteTexts(loaded.notes).join(' ');
     expect(notes).toMatch(/filed under Cesaroni/);
     expect(notes).toMatch(/pick a motor for that mount/i);
   });
@@ -192,16 +193,16 @@ describe('a motor the file did not confirm', () => {
 
   it('says the name was not one the catalog carries', async () => {
     doubt.value = 'shortened';
-    expect((await loadOrk(new ArrayBuffer(0))).notes.join(' ')).toMatch(/closest/i);
+    expect(noteTexts((await loadOrk(new ArrayBuffer(0))).notes).join(' ')).toMatch(/closest/i);
   });
 
   it('says when more than one motor matched', async () => {
     doubt.value = 'several';
-    expect((await loadOrk(new ArrayBuffer(0))).notes.join(' ')).toMatch(/more than one/i);
+    expect(noteTexts((await loadOrk(new ArrayBuffer(0))).notes).join(' ')).toMatch(/more than one/i);
   });
 
   it('says nothing when the file named the motor outright', async () => {
-    const notes = (await loadOrk(new ArrayBuffer(0))).notes.join(' ');
+    const notes = noteTexts((await loadOrk(new ArrayBuffer(0))).notes).join(' ');
     expect(notes).not.toMatch(/check it before flying/i);
   });
 });

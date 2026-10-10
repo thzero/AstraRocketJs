@@ -1,4 +1,4 @@
-import { type KeyboardEvent as ReactKeyboardEvent, type ReactNode, useEffect, useRef, useState } from 'react';
+import { type KeyboardEvent as ReactKeyboardEvent, type ReactNode, useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useCanBuildDesign } from '../design/useCanBuildDesign';
 import { useMenuPopover } from '../common/useMenuPopover';
@@ -12,10 +12,11 @@ import { useUpdateStore } from '../../state/updateStore';
  */
 
 const item =
-  'flex w-full items-center px-3 py-2 text-left text-xs font-medium text-ink hover:bg-elevated disabled:cursor-not-allowed disabled:text-ink-dim disabled:hover:bg-transparent';
+  'flex w-full items-center px-3 py-2 text-left text-xs font-medium text-ink hover:bg-elevated aria-disabled:cursor-not-allowed aria-disabled:text-ink-dim aria-disabled:hover:bg-transparent';
 // Indented row style for the Import / Export format entries.
 const subItem =
-  'flex w-full items-center py-2 pl-8 pr-3 text-left text-xs font-medium text-ink hover:bg-elevated disabled:cursor-not-allowed disabled:text-ink-dim disabled:hover:bg-transparent';
+  'flex w-full items-center py-2 pl-8 pr-3 text-left text-xs font-medium text-ink hover:bg-elevated aria-disabled:cursor-not-allowed aria-disabled:text-ink-dim aria-disabled:hover:bg-transparent';
+const separator = <div role="separator" className="my-1 border-t border-line/10" />;
 
 export interface FileMenuActions {
   onNew: () => void;
@@ -68,6 +69,11 @@ function MenuItem({
   children: ReactNode;
 }) {
   const submenu = expanded !== undefined;
+  // aria-disabled rather than `disabled`: a disabled menu item stays in the
+  // arrow-key order, so the reason it is disabled can be reached and heard,
+  // not only hovered.
+  const reasonId = useId();
+  const reason = disabled && title ? title : undefined;
   return (
     <button
       role="menuitem"
@@ -77,9 +83,17 @@ function MenuItem({
       title={title}
       aria-haspopup={submenu ? 'true' : undefined}
       aria-expanded={expanded}
-      disabled={disabled}
-      onClick={onClick}
+      aria-disabled={disabled || undefined}
+      aria-describedby={reason ? reasonId : undefined}
+      onClick={disabled ? undefined : onClick}
     >
+      {/* Hidden, so it stays out of the item's name; a description may still
+          reference hidden text. */}
+      {reason && (
+        <span id={reasonId} hidden>
+          {reason}
+        </span>
+      )}
       {submenu ? (
         <>
           <span className="flex-1">{children}</span>
@@ -144,12 +158,13 @@ function FileMenu({
     const menu = menuRef.current;
     if (!menu || menu.contains(document.activeElement)) return;
     Array.from(menu.querySelectorAll<HTMLElement>('[role="menuitem"]'))
-      .find((el) => !el.hasAttribute('disabled'))
+      .find((el) => el.getAttribute('aria-disabled') !== 'true')
       ?.focus();
   }, []);
 
-  // Arrow-key roving among the enabled, visible menu items; Escape closes and
-  // returns focus to the trigger; Tab closes and lets focus move on naturally.
+  // Arrow-key roving among the visible menu items, disabled ones included so
+  // their reason can be heard; Escape closes and returns focus to the trigger;
+  // Tab closes and lets focus move on naturally.
   const onMenuKey = (e: ReactKeyboardEvent<HTMLDivElement>) => {
     const menu = menuRef.current;
     if (!menu) return;
@@ -164,7 +179,7 @@ function FileMenu({
     }
     if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Home' && e.key !== 'End') return;
     e.preventDefault();
-    const items = Array.from(menu.querySelectorAll<HTMLElement>('[role="menuitem"]:not([disabled])')).filter(
+    const items = Array.from(menu.querySelectorAll<HTMLElement>('[role="menuitem"]')).filter(
       (el) => el.offsetParent !== null,
     );
     if (items.length === 0) return;
@@ -198,7 +213,7 @@ function FileMenu({
       <MenuItem disabled={!canSave} onClick={run(actions.onSaveAs)}>
         {t('file.saveAs')}
       </MenuItem>
-      <div className="my-1 border-t border-line/10" />
+      {separator}
       <MenuItem expanded={importOpen} onClick={() => setImportOpen((o) => !o)}>
         {t('file.import')}
       </MenuItem>
@@ -246,7 +261,7 @@ function FileMenu({
       <MenuItem disabled={!canSave} onClick={run(actions.onReport)}>
         {t('file.report')}
       </MenuItem>
-      <div className="my-1 border-t border-line/10" />
+      {separator}
       <MenuItem onClick={run(actions.onMotors)}>{t('dash.menu')}</MenuItem>
       {/* Beside the motor dashboard, which is the same kind of entry: a place
           to see and manage a library of your own that is otherwise only
@@ -263,7 +278,7 @@ function FileMenu({
           editor stays, so a part already in the rocket can still be sized from
           the catalog, and parts are still saved from there. */}
       {canBuild && <MenuItem onClick={run(actions.onSavedParts)}>{t('picker.savedManage')}</MenuItem>}
-      <div className="my-1 border-t border-line/10" />
+      {separator}
       <MenuItem onClick={run(actions.onSettings)}>{t('settings.title')}</MenuItem>
       {/* Buttons, not links: these open the in-app Help dialog over the design
           you are holding rather than sending you to another tab, which is what
@@ -274,7 +289,7 @@ function FileMenu({
           worth, and what to check on the real rocket, is the one doc a user
           should not have to go looking for. */}
       <MenuItem onClick={run(actions.onSafety)}>{t('menu.safety')}</MenuItem>
-      <div className="my-1 border-t border-line/10" />
+      {separator}
       <MenuItem onClick={run(actions.onPrivacy)}>{t('about.privacy')}</MenuItem>
       {/* Disabled where there is nothing to ask: offline, or the development
           server, which registers no service worker. */}

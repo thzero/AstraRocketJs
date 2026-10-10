@@ -6,7 +6,7 @@ Date: 2026-10-05. Branch `test` at 09225ae. Run per `docs/AUDIT_PROMPT_DUPLICATI
 
 Scope: `web/src`, excluding `engine/vendor/`, tests, locale JSON and CSS.
 
-**Status, 2026-10-05.** Step 1 of the order of attack is done: D1, D2, D6, D7, D8, D22, D23, D28, D29 and D45 are fixed, each with a test that was run against the unfixed code and watched to fail. D7 moved the kernel's `getClusterPoints` rule into `tree/cluster.ts` (`clusterPoints`), so the `.rkt` writer and `splitCluster` now share one copy. D31 turned out not to be reachable (see its entry). Step 2 is done too: D3, D4, D5, D67 and D30 (in part), each with a test watched to fail first. Step 3 is done: D9, D10, D13, D14, D15, D17, D20, D24, D25, D32 and D72. Step 4 is done: D11, D12, D21, D35, D36, D42 and D57. Step 5 is done: D16 (resolved through the kernel's own coordinates), D18, D26, D27, D41, D49, D73 to D76, D78 to D80, and D77 in part.
+**Status, 2026-10-05.** Every finding is fixed except D31, which is not reachable, and the D77 items its entry leaves on purpose. Each fix in steps 1 and 2 has a test that was run against the unfixed code and watched to fail. See the order of attack for what each step did.
 
 ## How to read this
 

@@ -14,6 +14,46 @@ import { colorOf } from '../../tree/schematicGeometry';
  * anchors out. The component keeps the camera, the transport and the HUD.
  */
 
+/**
+ * Meters east, up and north of the pad as a three.js position. The kernel's Px
+ * is east and Py north (FlightDataType TYPE_POSITION_X / TYPE_POSITION_Y, and
+ * the geodetic step adds Y to latitude). three.js is right-handed with +y up,
+ * so with east on +x, north is -z: north on +z draws the whole scene as its
+ * mirror image, a northeast drift curling the wrong way.
+ */
+export function sceneFromEnu(east: number, up: number, north: number): THREE.Vector3 {
+  return new THREE.Vector3(east, up, -north);
+}
+
+/**
+ * The motor burns in one branch's events, as [start, end] times.
+ *
+ * Each BURNOUT closes the burn its latest IGNITION opened. A burnout with no
+ * open burn extends the previous window (a cluster's motors burning out at
+ * different times), or, before any ignition, opens at 0. A staged flight's
+ * main branch carries the booster's burnout first and the sustainer's later,
+ * so reading the first BURNOUT alone would end the boost at staging.
+ */
+export function boostWindows(events: readonly { type: string; time: number }[]): [number, number][] {
+  const out: [number, number][] = [];
+  let start: number | null = null;
+  for (const e of [...events].sort((a, b) => a.time - b.time)) {
+    if (e.type === 'IGNITION') {
+      start ??= e.time;
+    } else if (e.type === 'BURNOUT') {
+      if (start != null) out.push([start, e.time]);
+      else if (out.length) out[out.length - 1]![1] = Math.max(out[out.length - 1]![1], e.time);
+      else out.push([0, e.time]);
+      start = null;
+    }
+  }
+  return out;
+}
+
+/** Whether `t` falls inside any burn window. */
+export const isBoosting = (t: number, windows: readonly [number, number][]): boolean =>
+  windows.some(([a, b]) => t >= a && t < b);
+
 /** Boost / coast / descent arc colors, from Settings. */
 export type PhaseColors = { boost: string; coast: string; descent: string };
 
@@ -25,7 +65,12 @@ export interface FlightScene {
   /** Index of the highest sample: where the apogee marker sits. */
   apogeeIdx: number;
   deployT: number;
-  burnoutT: number;
+  /**
+   * The motor burns as [start, end] times: an ignition to the burnout that
+   * ends it. A staged flight has one per stage, with the coast between them
+   * outside every window, so the boost color and the flame follow each burn.
+   */
+  boostWindows: [number, number][];
   times: number[];
   alts: number[];
   vels: number[];
@@ -47,15 +92,15 @@ export function buildFlightScene(result: FlightResult, phase: PhaseColors): Flig
   const vel = result.series.velocity ?? [];
   const px = result.series.Px ?? [];
   const py = result.series.Py ?? [];
-  const rows: { t: number; a: number; v: number; x: number; z: number }[] = [];
+  const rows: { t: number; a: number; v: number; east: number; north: number }[] = [];
   for (let i = 0; i < time.length; i++) {
     if (!Number.isFinite(time[i]) || !Number.isFinite(alt[i])) continue;
     rows.push({
       t: time[i]!,
       a: alt[i]!,
       v: Number.isFinite(vel[i]) ? vel[i]! : 0,
-      x: Number(px[i]) || 0,
-      z: Number(py[i]) || 0,
+      east: Number(px[i]) || 0,
+      north: Number(py[i]) || 0,
     });
   }
   // Loop, don't spread: a long/fine-timestep flight has tens of thousands of
@@ -64,16 +109,17 @@ export function buildFlightScene(result: FlightResult, phase: PhaseColors): Flig
   for (const r of rows) if (r.a > maxA) maxA = r.a;
   const s = 24 / maxA;
   const evT = (type: string) => result.events.find((e) => e.type === type)?.time;
-  const bt = evT('BURNOUT') ?? 0;
+  const burns = boostWindows(result.events);
+  const lastBurnout = burns[burns.length - 1]?.[1];
   // Fall back to the last sample time, not `maxA`, which is the peak altitude
   // in meters: read as seconds it would make `r.t <= apT` true for the whole
   // trajectory, and the descent color would never appear.
   const lastT = rows[rows.length - 1]?.t ?? 0;
   const apT = evT('APOGEE') ?? result.summary.timeToApogee ?? lastT;
   const dpT = evT('RECOVERY_DEVICE_DEPLOYMENT') ?? evT('EJECTION_CHARGE') ?? apT;
-  const sp = rows.map((r) => new THREE.Vector3(r.x * s, r.a * s, r.z * s));
+  const sp = rows.map((r) => sceneFromEnu(r.east * s, r.a * s, r.north * s));
   const cols = rows.map((r): [number, number, number] => {
-    const c = new THREE.Color(r.t < bt ? phase.boost : r.t <= apT ? phase.coast : phase.descent);
+    const c = new THREE.Color(isBoosting(r.t, burns) ? phase.boost : r.t <= apT ? phase.coast : phase.descent);
     return [c.r, c.g, c.b];
   });
   let ai = 0;
@@ -94,7 +140,7 @@ export function buildFlightScene(result: FlightResult, phase: PhaseColors): Flig
   };
   // Dedup callouts by proximity in time; keep the most significant.
   const wanted: [string, number | undefined][] = [
-    ['BURNOUT', evT('BURNOUT')],
+    ['BURNOUT', lastBurnout],
     ['APOGEE', apT],
     ['RECOVERY_DEVICE_DEPLOYMENT', evT('RECOVERY_DEVICE_DEPLOYMENT') ?? evT('EJECTION_CHARGE')],
     ['GROUND_HIT', evT('GROUND_HIT') ?? rows[rows.length - 1]?.t],
@@ -118,7 +164,7 @@ export function buildFlightScene(result: FlightResult, phase: PhaseColors): Flig
     scenePts: sp,
     apogeeIdx: ai,
     deployT: dpT,
-    burnoutT: bt,
+    boostWindows: burns,
     times: rows.map((r) => r.t),
     alts: rows.map((r) => r.a),
     vels: rows.map((r) => r.v),

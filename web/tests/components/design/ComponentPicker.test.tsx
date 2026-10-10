@@ -9,7 +9,7 @@ import type { FitContext } from '../../../src/services/parts/componentFilter';
 
 /**
  * The picker over the real catalog (`serveData`), because what it has to handle
- * is volume: 1088 body tubes in one narrow column, 237 couplers with no way to
+ * is volume: 1496 body tubes in one narrow column, 332 couplers with no way to
  * ask which of them fit the tube you are holding. A test against six invented
  * rows would not exercise any of it.
  */
@@ -111,7 +111,7 @@ describe('ComponentPicker', () => {
       // cap, which would read as though the catalog held 200 parts.
       const { dialog } = await open('bodytube');
       expect(rows(dialog).length).toBe(200);
-      expect(footer(dialog)).toMatch(/Showing 200 of 1[,. ]?088/);
+      expect(footer(dialog)).toMatch(/Showing 200 of 1[,. ]?496/);
     });
   });
 
@@ -124,7 +124,7 @@ describe('ComponentPicker', () => {
       // the match tolerance of a 54.66 mm airframe.
       const { dialog } = await open('tubecoupler', insideTube);
       expect(rows(dialog).length).toBe(200); // still the whole catalog, capped
-      expect(footer(dialog)).toMatch(/Showing 200 of 237/);
+      expect(footer(dialog)).toMatch(/Showing 200 of 332/);
       // The ones that fit lead, best first, and the gaps ascend.
       const fits = rows(dialog)
         .map((r) => r[0])
@@ -145,7 +145,7 @@ describe('ComponentPicker', () => {
       fireEvent.click(within(dialog).getByLabelText('Fits here'));
       const n = rows(dialog).length;
       expect(n).toBeGreaterThan(0);
-      expect(n).toBeLessThan(12); // 237 couplers, a handful fit a 51.5 mm bore
+      expect(n).toBeLessThan(12); // 332 couplers, a handful fit a 51.5 mm bore
       expect(footer(dialog)).toMatch(new RegExp(`${n} parts?`));
       for (const r of rows(dialog)) expect(r[0]).not.toBe('');
     });
@@ -331,13 +331,17 @@ describe('ComponentPicker', () => {
   });
 
   it('marks a drag coefficient the catalog did not publish as a default', async () => {
-    // Every parachute the catalog ships omits its Cd, so a bare "0.80" would read
-    // as a manufacturer spec. It is still shown, because it is what picking applies.
+    // A row that omits its Cd shows the default it applies in brackets, so a bare
+    // "0.80" would not read as a manufacturer spec; a stated Cd is shown as is.
     const { dialog } = await open('parachute');
-    const cds = rows(dialog).map((r) => r[3]);
-    expect(cds.every((c) => c === '(0.80)')).toBe(true);
-    const cell = [...dialog.querySelectorAll('tbody tr')[0]!.querySelectorAll('td')][3]!;
-    expect(cell.getAttribute('title')).toContain('does not publish');
+    const cells = [...dialog.querySelectorAll('tbody tr')].map((tr) => [...tr.querySelectorAll('td')][3]!);
+    const defaulted = cells.filter((c) => c.textContent === '(0.80)');
+    expect(defaulted.length).toBeGreaterThan(0);
+    for (const c of defaulted) expect(c.getAttribute('title')).toContain('does not publish');
+    for (const c of cells.filter((c) => c.textContent !== '(0.80)')) {
+      expect(c.textContent).toMatch(/^\d+\.\d{2}$/);
+      expect(c.getAttribute('title') ?? '').toBe('');
+    }
   });
 
   it('puts the filters on two rows with the way out on the right', async () => {
@@ -393,10 +397,16 @@ describe('ComponentPicker', () => {
     expect(onApply.mock.calls[0]![0]).toMatchObject({ partNo: 'BT_1.15_12_MMT', type: 'bodytube' });
   });
 
-  it('applies from the keyboard, so the table is not mouse-only', async () => {
+  it('applies from a real button in the part-number cell, so the table is not mouse-only', async () => {
     const { dialog, onApply } = await open('bodytube');
     fireEvent.change(within(dialog).getByLabelText(/Search parts/), { target: { value: 'BT_1.15_12_MMT' } });
-    fireEvent.keyDown(dialog.querySelector('tbody tr')!, { key: 'Enter' });
+    const first = dialog.querySelector('tbody tr')!;
+    // A plain row, so its cells keep their table semantics and a button inside
+    // it is not nested in another control.
+    expect(first.getAttribute('role')).toBeNull();
+    expect(first.hasAttribute('tabindex')).toBe(false);
+    const apply = within(first as HTMLElement).getByRole('button', { name: 'BT_1.15_12_MMT' });
+    fireEvent.click(apply);
     expect(onApply).toHaveBeenCalledTimes(1);
   });
 });

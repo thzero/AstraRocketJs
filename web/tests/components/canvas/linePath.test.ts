@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildLinePath } from '../../../src/components/canvas/AeroAnalysis';
+import { buildLinePath } from '../../../src/components/canvas/aeroTables';
 
 // Identity scales keep the assertions about the path structure, not arithmetic.
 const X = (m: number) => m;

@@ -4,6 +4,7 @@ import type { OrkMotorRef, OrkFlightConfig } from '../orkTypes';
 import { nonNegTag, numTag, readDeploymentTags, readSeparationTags } from './importTags';
 import { MAX_MOTOR_CONFIGS } from './importLimits';
 import { finiteNum } from './numbers';
+import { keyedNote, type ImportNote } from '../importNote';
 
 /**
  * Flight configurations on the way in: the rocket-level declaration table,
@@ -15,7 +16,7 @@ import { finiteNum } from './numbers';
 export interface OrkImportContext {
   configs: OrkFlightConfig[];
   chosenConfigId: string | null;
-  notes: string[];
+  notes: ImportNote[];
   ignored: Set<string>;
   /** Every mount's motor for the chosen configuration, keyed by node id. */
   motors: Record<string, OrkMotorRef>;
@@ -43,17 +44,24 @@ export function readFlightConfigs(rocketEl: Element): {
   chosenConfigId: string | null;
 } {
   const configEls = Array.from(rocketEl.querySelectorAll(':scope > motorconfiguration')).slice(0, MAX_MOTOR_CONFIGS);
-  const configs: OrkFlightConfig[] = configEls
-    .map((c) => ({
-      id: c.getAttribute('configid') ?? '',
-      name: text(c, ':scope > name'),
-      isDefault: c.getAttribute('default') === 'true',
-      motors: {},
-      deployments: {},
-      separations: {},
-      grounded: [],
-    }))
-    .filter((c) => c.id !== '');
+  // One configuration per id, as the desktop's createFlightConfiguration
+  // returns the existing one for a repeated id: a later non-blank name
+  // replaces the earlier one, and either block can mark it the default.
+  const byId = new Map<string, OrkFlightConfig>();
+  for (const c of configEls) {
+    const id = c.getAttribute('configid') ?? '';
+    if (id === '') continue;
+    const name = text(c, ':scope > name');
+    const isDefault = c.getAttribute('default') === 'true';
+    const seen = byId.get(id);
+    if (seen) {
+      if (name?.trim()) seen.name = name;
+      seen.isDefault ||= isDefault;
+      continue;
+    }
+    byId.set(id, { id, name, isDefault, motors: {}, deployments: {}, separations: {}, grounded: [] });
+  }
+  const configs = [...byId.values()];
   const chosenConfigId = configs.find((c) => c.isDefault)?.id ?? configs[0]?.id ?? null;
   return { configEls, configs, chosenConfigId };
 }
@@ -113,7 +121,7 @@ export function readStageActiveness(configEls: Element[], configs: OrkFlightConf
       const num = finiteNum(flag.getAttribute('number'));
       if (num === undefined) continue;
       const id = stageIds[num];
-      if (id) config.grounded.push(id);
+      if (id && !config.grounded.includes(id)) config.grounded.push(id);
     }
   }
 }
@@ -200,9 +208,9 @@ export function readMotor(ctx: OrkImportContext, el: Element, node: ComponentNod
   // (desktop writes defaults bare, overrides in <ignitionconfiguration>).
   const ref = resolveRef(motorEl, configScoped(ctx, mountEl, 'ignitionconfiguration') ?? mountEl);
   if (ref.delay >= PLUGGED_DELAY) {
-    const unstated = text(motorEl, ':scope > delay') !== 'none' ? ' (the file gives no readable delay)' : '';
+    const unstated = text(motorEl, ':scope > delay') !== 'none';
     ctx.notes.push(
-      `Motor ${ref.designation}: plugged (no ejection charge)${unstated} — make sure recovery deploys on apogee/altitude, not the ejection charge.`,
+      keyedNote(unstated ? 'importNote.motorPluggedNoDelay' : 'importNote.motorPlugged', { motor: ref.designation }),
     );
   }
   if (node.id) {

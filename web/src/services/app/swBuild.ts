@@ -44,9 +44,17 @@ export function isNewerBuild(waiting: number | null, active: number | null): boo
   return active === null || waiting > active;
 }
 
-/** Whether the registration has a waiting worker that is a newer build than its active one. */
+/**
+ * Whether the registration has a waiting worker that is a newer build than its active one.
+ *
+ * An active worker that misses the first question is asked once more before it
+ * is taken for a build from before the question existed. A current worker slow
+ * to wake would otherwise count as pre-feature, and with a stale previous build
+ * in the waiting slot (the CDN case above) the page would take the older one up.
+ */
 export async function waitingIsNewer(reg: ServiceWorkerRegistration | null | undefined): Promise<boolean> {
   if (!reg?.waiting) return false;
-  const [waiting, active] = await Promise.all([askBuild(reg.waiting), reg.active ? askBuild(reg.active) : null]);
+  const [waiting, first] = await Promise.all([askBuild(reg.waiting), reg.active ? askBuild(reg.active) : null]);
+  const active = first === null && waiting !== null && reg.active ? await askBuild(reg.active) : first;
   return isNewerBuild(waiting, active);
 }

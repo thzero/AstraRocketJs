@@ -84,3 +84,23 @@ describe('select fields', () => {
     expect(lower).toEqual([]);
   });
 });
+
+/**
+ * The Deploy-at select offers every event the kernel can deploy on, read from
+ * the Java enum itself, so a value a desktop file carries always has an option
+ * to show it and a new design can choose it.
+ */
+describe('the deploy event options', () => {
+  it('cover every DeploymentConfiguration.DeployEvent', () => {
+    const java = readFileSync(
+      join(process.cwd(), '../engine-java/src/java/info/openrocket/core/rocketcomponent/DeploymentConfiguration.java'),
+      'utf8',
+    );
+    const body = java.slice(java.indexOf('enum DeployEvent'));
+    const kernel = [...body.matchAll(/^\t\t([A-Z_]+)\(/gm)].map((m) => m[1]!.toLowerCase());
+    expect(kernel.length).toBeGreaterThan(4);
+    const field = FIELDS['parachute']!.find((f: Field) => f.key === 'deployEvent')!;
+    const options = 'options' in field ? (field.options ?? []) : [];
+    expect([...options].sort()).toEqual([...kernel].sort());
+  });
+});

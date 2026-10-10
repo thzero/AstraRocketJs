@@ -16,6 +16,7 @@ import { fetchCatalog } from '../app/remoteData';
 import { PLUGGED_DELAY } from '../../engine/openRocketEngine';
 import { keyOf } from './motorKey';
 import { errorMessage } from '../app/errorMessage';
+import { assertImportSize } from '../files/decodeText';
 
 /** One catalog row: the sync utility's schema, plus optional custom-motor tags. */
 export interface CatalogMotor {
@@ -195,6 +196,7 @@ export async function importCustomMotors(
   let firstError: Error | null = null;
   for (const { name, text } of files) {
     try {
+      assertImportSize(text.length);
       motors.push(...(text.trimStart().startsWith('<') ? parseRse(text) : [parseEng(text)]));
     } catch (err) {
       failed.push(name);

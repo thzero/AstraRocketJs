@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import {
   launchLimitViolations,
   limitText,
-  surfaceLevel,
   MAX_ROD_ANGLE_DEG,
   MAX_ROD_ANGLE_RAD,
   MAX_WIND_SPEED_MS,
@@ -114,7 +113,7 @@ describe('limitText', () => {
   });
 });
 
-describe('surfaceLevel', () => {
+describe('the wind judged at the pad', () => {
   // A profile listed top-down (a CSV, a .ork) has the wind aloft first.
   const topDown = [
     { altitudeM: 3000, speed: 15, directionDeg: 270, stddev: 0 },
@@ -122,17 +121,32 @@ describe('surfaceLevel', () => {
     { altitudeM: 0, speed: 2, directionDeg: 90, stddev: 0 },
   ];
 
-  it('is the lowest altitude, not the first entry', () => {
-    expect(surfaceLevel({ ...base, windLevels: topDown })).toEqual(topDown[2]);
-  });
-
-  it('is undefined without a profile', () => {
-    expect(surfaceLevel(base)).toBeUndefined();
-    expect(surfaceLevel({ ...base, windLevels: [] })).toBeUndefined();
-  });
-
-  it('is what the safety code judges the wind on', () => {
+  it('reads the lowest altitude, not the first entry', () => {
     // 15 m/s aloft is over the limit; 2 m/s at the pad is not.
     expect(launchLimitViolations({ ...base, windLevels: topDown })).toEqual([]);
+  });
+
+  it('judges a negative speed by its magnitude, as the kernel flies it', () => {
+    expect(launchLimitViolations({ ...base, windAverage: -40 })[0]).toMatchObject({ field: 'windSpeed', value: 40 });
+    const reversed = [{ altitudeM: 0, speed: -40, directionDeg: 90, stddev: 0 }];
+    expect(launchLimitViolations({ ...base, windLevels: reversed })[0]).toMatchObject({
+      field: 'windSpeed',
+      value: 40,
+    });
+  });
+
+  it('reads an MSL profile at the field altitude, not at its lowest level', () => {
+    // Calm at sea level, 20 m/s at 3000 m MSL: a 1500 m field sits in 10 m/s.
+    const sounding = [
+      { altitudeM: 0, speed: 0, directionDeg: 90, stddev: 0 },
+      { altitudeM: 3000, speed: 20, directionDeg: 90, stddev: 0 },
+    ];
+    const v = launchLimitViolations({ ...base, launchAltitudeM: 1500, windLevels: sounding })[0]!;
+    expect(v.field).toBe('windSpeed');
+    expect(v.value).toBeCloseTo(10, 10);
+    // The same numbers measured from the ground put the pad in the calm.
+    expect(
+      launchLimitViolations({ ...base, launchAltitudeM: 1500, windLevels: sounding, windAltitudeReference: 'agl' }),
+    ).toEqual([]);
   });
 });

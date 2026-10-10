@@ -349,6 +349,32 @@ describe('appearance section', () => {
  * `engine/engineBoundary.test.ts` for the half that makes this one worth
  * having: a field that changed the file and nothing else would pass here.
  */
+describe('catalog part', () => {
+  it('names a preset with no manufacturer by its part number alone', () => {
+    show({ id: 'b1', type: 'bodytube', preset: { partNo: 'BT-50' } } as unknown as ComponentNode);
+    const part = screen.getByText('BT-50');
+    expect(part.getAttribute('title')).toBe('BT-50');
+    cleanup();
+  });
+});
+
+describe('fin cant', () => {
+  it.each(['trapezoidfinset', 'ellipticalfinset', 'freeformfinset'])(
+    'stops %s at the kernel limit of 15 degrees either way',
+    (type) => {
+      const onChange = show({ id: 'f1', type } as unknown as ComponentNode);
+      const box = screen.getByLabelText('Cant angle');
+      fireEvent.change(box, { target: { value: '40' } });
+      const last = onChange.mock.calls.at(-1)![0] as { cant: number };
+      expect(last.cant).toBeCloseTo((15 * Math.PI) / 180, 12);
+      fireEvent.change(box, { target: { value: '-40' } });
+      const neg = onChange.mock.calls.at(-1)![0] as { cant: number };
+      expect(neg.cant).toBeCloseTo((-15 * Math.PI) / 180, 12);
+      cleanup();
+    },
+  );
+});
+
 describe('fin fillet', () => {
   const fillet = () => screen.getByText('Fillet').parentElement!;
 

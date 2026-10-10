@@ -90,7 +90,7 @@ export function ImageExportMenu({
                 key={`${fmt}-${w}`}
                 role="menuitem"
                 className="file-btn"
-                title={`${w} px wide`}
+                title={t('export.pxWide', { width: w })}
                 aria-label={`${formatName(fmt)} ${widthLabel(w)}, ${w} px`}
                 onClick={() => {
                   close();

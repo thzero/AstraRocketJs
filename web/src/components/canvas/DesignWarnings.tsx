@@ -1,4 +1,5 @@
 import { useLauncherT } from '../common/useLauncher';
+import { useUnits } from '../../prefs/useUnits';
 import { useWorkspaceStore } from '../../state/store';
 import { warningText } from '../../services/app/warningText';
 
@@ -16,6 +17,7 @@ import { warningText } from '../../services/app/warningText';
  */
 export function DesignWarnings() {
   const t = useLauncherT();
+  const u = useUnits();
   const texts = useWorkspaceStore((s) => s.info?.warningTexts);
   if (!texts?.length) return null;
 
@@ -31,7 +33,7 @@ export function DesignWarnings() {
         {texts.map((text, i) => (
           <li key={`${text}-${i}`} className="flex gap-2 text-xs text-warn-200">
             <span aria-hidden>⚠</span>
-            <span className="min-w-0">{warningText(text, t)}</span>
+            <span className="min-w-0">{warningText(text, t, (q, si) => u.fmtSym(q, si))}</span>
           </li>
         ))}
       </ul>

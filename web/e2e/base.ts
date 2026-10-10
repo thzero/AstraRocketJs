@@ -152,7 +152,7 @@ export async function autosaved(page: Page, needle: string, atLeast = 1): Promis
 }
 
 /**
- * Open a workbench tab (Design · Simulations · Results).
+ * Open a workbench tab (Design · Configurations · Simulations · Results · Tools).
  *
  * The workbench is tabbed at every width, so the design editor, the simulation
  * controls and the flight charts are not all on screen at once. A spec that edits a
@@ -163,7 +163,7 @@ export async function autosaved(page: Page, needle: string, atLeast = 1): Promis
  */
 export async function openTab(
   page: Page,
-  name: 'Design' | 'Configurations' | 'Simulations' | 'Results',
+  name: 'Design' | 'Configurations' | 'Simulations' | 'Results' | 'Tools',
 ): Promise<void> {
   await page.getByRole('navigation', { name: 'Workbench' }).getByRole('button', { name, exact: true }).click();
 }

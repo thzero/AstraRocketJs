@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useWorkspaceStore, selectActive, selectRunFailed, selectOutdated } from '../../state/store';
 import { fireAction } from '../../state/fireAction';
 import { useSettings } from '../../state/SettingsProvider';
-import { isResultView } from './ViewToggle';
+import { isResultView } from '../../state/tabs';
 
 /**
  * Optionally auto-run an outdated (never-run/stale) sim when a results view opens.
@@ -13,6 +13,7 @@ import { isResultView } from './ViewToggle';
  */
 export function useAutoRunOutdated() {
   const { settings } = useSettings();
+  const autoRun = settings.simulation.autoRunOutdated;
   const view = useWorkspaceStore((s) => s.view);
   // The center pane stays mounted, hidden, behind the Configurations and
   // Simulations tabs, and `view` keeps the last result view there. Without the
@@ -35,16 +36,8 @@ export function useAutoRunOutdated() {
   // aged one, which is what the setting says.
   const needsRun = !result || !!outdated;
   useEffect(() => {
-    if (
-      settings.simulation.autoRunOutdated &&
-      onResults &&
-      isResultView(view) &&
-      needsRun &&
-      hasDesign &&
-      !busy &&
-      !runFailed
-    ) {
-      fireAction(runSim(settings.simulation));
+    if (autoRun && onResults && isResultView(view) && needsRun && hasDesign && !busy && !runFailed) {
+      fireAction(runSim());
     }
-  }, [onResults, view, needsRun, hasDesign, busy, runFailed, settings.simulation, runSim]);
+  }, [onResults, view, needsRun, hasDesign, busy, runFailed, autoRun, runSim]);
 }

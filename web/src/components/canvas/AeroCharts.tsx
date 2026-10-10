@@ -12,7 +12,7 @@ import {
 } from './aeroTables';
 import { useElementResize } from '../common/useElementResize';
 import { token } from '../common/colorTokens';
-import { machSeriesSummary } from './chartSummary';
+import { crosshairReadout, machSeriesSummary } from './chartSummary';
 
 /**
  * The AeroAnalysis chart cards: one `ChartCard` per curve set (title, legend
@@ -93,6 +93,13 @@ export function ChartCard({
   useElementResize(hostRef, (r) => setW(Math.max(240, r.width)));
 
   /**
+   * The Mach the keyboard last moved the crosshair to, for the live region.
+   * Only key steps set it: a pointer move would send a polite announcement per
+   * mouse sample to anyone with a screen reader running.
+   */
+  const [keyM, setKeyM] = useState<number | null>(null);
+
+  /**
    * Arrow-key crosshair over the Mach grid.
    *
    * Snaps to computed samples rather than interpolating a free position, which
@@ -110,11 +117,21 @@ export function ChartCard({
     else if (e.key === 'End') i = machs.length - 1;
     else if (e.key === 'Escape') {
       setHoverM(null);
+      setKeyM(null);
       return;
     } else return;
     e.preventDefault();
     setHoverM(machs[i]!);
+    setKeyM(machs[i]!);
   };
+
+  const announcement =
+    keyM == null
+      ? ''
+      : crosshairReadout(
+          t('aero.crosshairAt', { mach: fmtNum(keyM, 2) }),
+          series.map((se) => ({ label: se.name, value: lerpAt(machs, se.values, keyM), digits, unit })),
+        );
 
   // The y-domain is the one derived value the overlay needs (to place the
   // crosshair through the same scale the body drew with), so it is computed
@@ -175,7 +192,10 @@ export function ChartCard({
         onPointerMove={onMove}
         onPointerLeave={() => setHoverM(null)}
         onFocus={() => setHoverM((m) => m ?? machs[Math.floor(machs.length / 2)] ?? null)}
-        onBlur={() => setHoverM(null)}
+        onBlur={() => {
+          setHoverM(null);
+          setKeyM(null);
+        }}
         onKeyDown={onCrosshairKey}
       >
         <svg
@@ -200,6 +220,9 @@ export function ChartCard({
           )}
         </svg>
       </div>
+      <p className="sr-only" role="status" aria-live="polite">
+        {announcement}
+      </p>
       {note && <p className="px-2 pb-1.5 text-[9px] text-ink-faint">{note}</p>}
     </div>
   );

@@ -3,6 +3,7 @@ import type { OrkSimulation } from './ork/importSimulations';
 import { type MotorSpec, type RocketTree } from '../../engine/openRocketEngine';
 import { type LaunchConditions } from '../design/orkTree';
 import type { EmbeddedMotorFile } from './ork/embeddedMotors';
+import type { ImportNote } from './importNote';
 
 export interface OrkMotorRef {
   designation: string;
@@ -28,7 +29,7 @@ export interface OrkTreeImportResult {
   /** Every mount's motor, keyed by the mount's editor node id. */
   motors: Record<string, OrkMotorRef>;
   ignored: string[];
-  notes: string[];
+  notes: ImportNote[];
   /**
    * Launch conditions from the file's first <simulation>'s <conditions>:
    * only the fields the file actually carried (temperature/pressure are set
@@ -209,6 +210,8 @@ export interface OrkExportSimulation {
    * status says outdated (SingleSimulationHandler).
    */
   status: 'uptodate' | 'outdated' | 'notsimulated';
+  /** Simulation children carried from the file this design was opened from (desktop extensions and the like). */
+  xmlExtra?: string[];
 }
 
 export interface OrkTreeExportInput {

@@ -1,4 +1,4 @@
-import { test, expect, openTab, ready, runButton, runFlight, importOrk } from './base';
+import { test, expect, openTab, ready, runButton, runFlight, importOrk, autosaved } from './base';
 
 /**
  * The NAR / Tripoli flying limits, on the path that can get around the fields.
@@ -73,7 +73,7 @@ test('the import notes fold away, and the name is not repeated', async ({ page }
   await expect(page.getByRole('button', { name: 'Edit rocket configuration' })).toHaveCount(1);
 });
 
-test('folded notes are remembered, across a reload and across designs', async ({ page }) => {
+test('folded notes stay folded across a reload, and a new import opens them', async ({ page }) => {
   await page.goto('/');
   await importOrk(page, 'e2e/fixtures/out-of-limits.ork');
 
@@ -85,23 +85,22 @@ test('folded notes are remembered, across a reload and across designs', async ({
 
   // Folded is a preference, so it outlives the card. Local state would be dropped
   // every time the card unmounts, and it unmounts on every tab change, every
-  // Close and every reload.
-  //
-  // Asserted by importing again rather than by leaning on the reloaded design:
-  // a fresh import is the case that matters (the notes must not spring open for
-  // the next file either, which is what "not per rocket" means), and it does not
-  // depend on the autosave debounce having beaten the reload.
+  // Close and every reload. Reopening the app on the same design is not a new
+  // import, so the notes stay folded.
+  await autosaved(page, 'Launcher angle is 35');
   await page.reload();
-  // The first import is saved by now (debounce or unload journal), so the same
-  // file's name clashes with it; overwrite, which keeps this about the notes.
-  await importOrk(page, 'e2e/fixtures/out-of-limits.ork', 'overwrite');
-
-  await expect(toggle).toBeVisible();
+  await expect(toggle).toBeVisible({ timeout: 20_000 });
   await expect(note).toHaveCount(0);
+
+  // A new import with notes opens them: they are news on the import that raised
+  // them. The first import is saved, so the same file's name clashes with it;
+  // overwrite, which keeps this about the notes.
+  await importOrk(page, 'e2e/fixtures/out-of-limits.ork', 'overwrite');
+  await expect(note).toBeVisible();
 
   // Still a toggle, not a one-way door.
   await toggle.click();
-  await expect(note).toBeVisible();
+  await expect(note).toHaveCount(0);
 });
 
 /**

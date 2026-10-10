@@ -8,8 +8,9 @@ name: Sync Catalogs
 # published here is live WITHOUT an app rebuild or a Pages deploy, as soon as the
 # CDN edge expires. The copy committed under web/public/data stays in the build
 # as a fallback for when the data host is unreachable; refresh that one by hand
-# (`npm run sync:motors && npm run sync:components`, then commit) when you want
-# the offline floor moved up — it is deliberately not touched by this workflow.
+# (`npm run sync:motors && npm run sync:motor-digests && npm run sync:components &&
+# npm run sync:preset-digests`, then commit) when you want the offline floor moved up; this workflow
+# deliberately does not touch it.
 #
 # The materials and contributors files are published alongside them but are NOT
 # regenerated here: materials is held to the pinned OpenRocket source by the
@@ -47,8 +48,8 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     # This job holds `contents: write` against the `data` branch the live app
-    # reads, and it fetches from an upstream API. Uncapped, a hung fetch sat on a
-    # write token for the 360-minute default.
+    # reads, and it fetches from an upstream API. Without a cap a hung fetch sits
+    # on a write token for the 360-minute default.
     timeout-minutes: 15
     env:
       TARGET: ${{ inputs.target || 'both' }}
@@ -106,13 +107,46 @@ jobs:
           # pulls whatever landed upstream since the last run. Not an RCE path
           # (the sync scripts are data-only parsing: no eval, no child_process,
           # no dynamic import), but the pin is free. Bump it deliberately, after
-          # looking at what changed.
+          # looking at what changed, together with REF in
+          # web/scripts/fetch-parts-database.mjs.
           ref: 772db251b5cb989ac1a0bca4921dcf91d3bc54de # master @ 2024-03-18
+
+      # Both catalogs need the OpenRocket release people use. A motor's digest
+      # names which of the desktop's same-named entries a saved .ork means (Estes
+      # C6 is three), and without it the desktop picks one arbitrarily. Desktop's
+      # parts library is the database above plus the files OpenRocket ships
+      # inside its jar (legacy manufacturer files, parachute makers, rail
+      # buttons), and each part's digest, without which a saved .ork drops its
+      # link to the part, and a stated mass, which becomes the part's density so
+      # it weighs what the catalog says, come from its loader. The digests
+      # depend on the build.
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21.0.12'
+
+      - name: Download OpenRocket
+        env:
+          OR_JAR_URL: https://github.com/openrocket/openrocket/releases/download/release-24.12/OpenRocket-24.12.jar
+          # PINNED, for the reason the database checkout above is: this job
+          # pushes to the branch the live app reads.
+          OR_JAR_SHA256: 4959b72f52f5f607941e9722abbb7b7f0c4a38ebbbf84204a329db9f31c4f897
+        run: |
+          set -euo pipefail
+          jar="$RUNNER_TEMP/OpenRocket-24.12.jar"
+          curl -fsSL -o "$jar" "$OR_JAR_URL"
+          echo "$OR_JAR_SHA256  $jar" | sha256sum -c -
+          echo "OPENROCKET_JAR=$jar" >> "$GITHUB_ENV"
 
       - name: Regenerate motors
         if: env.TARGET != 'components'
         working-directory: web
         run: npm run sync:motors
+
+      - name: Add motor digests from OpenRocket
+        if: env.TARGET != 'components'
+        working-directory: web
+        run: npm run sync:motor-digests -- --jar "$OPENROCKET_JAR"
 
       - name: Regenerate components
         if: env.TARGET != 'motors'
@@ -120,6 +154,11 @@ jobs:
         env:
           OPENROCKET_PRESETS: ${{ github.workspace }}/.openrocket-database/orc
         run: npm run sync:components
+
+      - name: Add digests and stated masses from OpenRocket
+        if: env.TARGET != 'motors'
+        working-directory: web
+        run: npm run sync:preset-digests -- --jar "$OPENROCKET_JAR"
 
       - name: Publish to the `data` branch
         run: |
@@ -175,10 +214,9 @@ jobs:
               const noCurve = motors.filter((m) => m.noCurve).length;
               console.log("");
               console.log(`${noCurve.toLocaleString("en-US")} motors have no bundled thrust curve.`);
-              // Row-key collisions are NOT reported here any more. This step runs
-              // after the publish and only ever printed a warning, so a colliding
-              // pair reached every user with a green workflow. `assertSane` in
-              // sync-motors.mjs now refuses to write the catalog at all, which
-              // fails the sync step above and publishes nothing.
+              // Row-key collisions are not reported here: this step runs after
+              // the publish, so a warning would come too late. `assertSane` in
+              // sync-motors.mjs refuses to write a colliding catalog, which fails
+              // the sync step above and publishes nothing.
             '
           } >> "$GITHUB_STEP_SUMMARY"

@@ -1,7 +1,7 @@
 import { nsKey } from '../../../src/services/storage/storageKeys';
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest';
-import { loadSettings, saveSettings, DEFAULT_SETTINGS } from '../../../src/services/storage/settings';
+import { loadSettings, saveSettings, DEFAULT_SETTINGS, SIM_BOUNDS } from '../../../src/services/storage/settings';
 import {
   MATERIAL_SLOTS,
   defaultMaterialKey,
@@ -23,6 +23,16 @@ describe('loadSettings', () => {
     expect(s.simulation.timeStep).toBe(0.1); // overridden
     expect(s.simulation.maxTime).toBe(DEFAULT_SETTINGS.simulation.maxTime); // default kept
     expect(s.simulation.confirmDelete).toBe(DEFAULT_SETTINGS.simulation.confirmDelete);
+  });
+
+  // A stored blob never passed through the Settings fields, and a maxTime of a
+  // million is a run nothing can interrupt.
+  it('clamps the solver settings into the range the Settings fields accept', () => {
+    localStorage.setItem(KEY, JSON.stringify({ simulation: { timeStep: 1e-9, maxTime: 1e6, maxAngleStep: 3 } }));
+    const s = loadSettings().simulation;
+    expect(s.timeStep).toBe(SIM_BOUNDS.timeStep.min);
+    expect(s.maxTime).toBe(SIM_BOUNDS.maxTime.max);
+    expect(s.maxAngleStep).toBe(SIM_BOUNDS.maxAngleStep.max);
   });
 
   it('deep-merges partial phase colors', () => {

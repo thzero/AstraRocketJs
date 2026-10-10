@@ -56,12 +56,23 @@ function* walk(nodes: ComponentNode[]): Generator<ComponentNode> {
 }
 
 /**
+ * A pasted or duplicated part: the new tree, the copy's id, and each new id
+ * against the id it was copied from (see `reid`).
+ */
+export interface PastedCopy {
+  tree: RocketTree;
+  id: string;
+  origins: Map<string, string>;
+}
+
+/**
  * Put a fresh-id copy of `clip` at `place`. A stage holds at most one drogue
  * (see `setStageDrogue`), so a copy that would make a second one lands as a
  * plain recovery device.
  */
-function insertCopy(tree: RocketTree, clip: ComponentNode, place: PastePlace): { tree: RocketTree; id: string } {
-  const copy = reid(structuredClone(clip));
+function insertCopy(tree: RocketTree, clip: ComponentNode, place: PastePlace): PastedCopy {
+  const origins = new Map<string, string>();
+  const copy = reid(structuredClone(clip), origins);
   const next = structuredClone(tree);
   const siblings = place.parentId ? (findNode(next, place.parentId)!.children ??= []) : next.components;
   siblings.splice(place.index, 0, copy);
@@ -73,21 +84,17 @@ function insertCopy(tree: RocketTree, clip: ComponentNode, place: PastePlace): {
     if (drogues.some((n) => !copied.has(n)))
       for (const n of drogues) if (copied.has(n)) delete (n as Record<string, unknown>)['drogue'];
   }
-  return { tree: syncDerived(next), id };
+  return { tree: syncDerived(next), id, origins };
 }
 
 /** Paste `clip` at the selection, or null when it has nowhere to go. */
-export function pasteNode(
-  tree: RocketTree,
-  clip: ComponentNode,
-  selectedId: string | null,
-): { tree: RocketTree; id: string } | null {
+export function pasteNode(tree: RocketTree, clip: ComponentNode, selectedId: string | null): PastedCopy | null {
   const place = pastePlace(tree, clip, selectedId);
   return place ? insertCopy(tree, clip, place) : null;
 }
 
 /** A copy of `id` at the end of its parent's children, or null if it is not in the tree. */
-export function duplicateNode(tree: RocketTree, id: string): { tree: RocketTree; id: string } | null {
+export function duplicateNode(tree: RocketTree, id: string): PastedCopy | null {
   const node = findNode(tree, id);
   if (!node) return null;
   const parent = findParent(tree, id);

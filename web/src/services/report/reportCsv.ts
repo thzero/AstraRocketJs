@@ -69,6 +69,26 @@ function summaryRows(info: StaticInfo, units: UnitSelection): [string, string, s
   return staticInfoRows(info).map(({ key, field, value }) => [field, ...cellFor(key, value)]);
 }
 
+/**
+ * The desktop's label for each design type (core messages.properties,
+ * `DesignType.*`), keyed by the token with its underscores removed, which is
+ * how the desktop stores it and how this app's tokens compare to it. This file
+ * is English throughout, so the label is too.
+ */
+const DESIGN_TYPE_LABEL: Record<string, string> = {
+  original: 'Original Design/Other',
+  commercialkit: 'Commercial Kit',
+  clonekit: 'Clone of Commercial Kit',
+  upscalekit: 'Upscale of Commercial Kit',
+  downscalekit: 'Downscale of Commercial Kit',
+  modifiedkit: 'Modification of a Commercial Kit',
+  kitbash: 'Kit Bash of Commercial Kits',
+};
+
+/** A design type token as the desktop names it; an unknown token is shown as it is. */
+const designTypeLabel = (token: string | undefined): string =>
+  token ? (DESIGN_TYPE_LABEL[token.toLowerCase().replace(/_/g, '')] ?? token) : DESIGN_TYPE_LABEL['original']!;
+
 /** The full design-info CSV as a string. */
 export function buildDesignCsv(model: ReportModel, units: UnitSelection): string {
   const lines: string[] = ['Scope,Field,Value,Unit'];
@@ -76,7 +96,7 @@ export function buildDesignCsv(model: ReportModel, units: UnitSelection): string
     lines.push([scope, field, value, unit].map(cell).join(','));
 
   push('Design', 'Name', model.name, '');
-  push('Design', 'Design Type', 'Original Design/Other', '');
+  push('Design', 'Design Type', designTypeLabel(model.designType), '');
   push('Design', 'Stages', String(model.stages.length), '');
 
   for (const [field, value, unit] of summaryRows(model.whole.info, units)) push('Rocket', field, value, unit);
@@ -119,6 +139,8 @@ export function buildComponentCsv(
       `Length (${units.length})`,
       `Outer diameter (${units.length})`,
       `Inner diameter (${units.length})`,
+      `Fore diameter (${units.length})`,
+      `Aft diameter (${units.length})`,
       `Thickness (${units.length})`,
       `Mass (${units.mass})`,
     ].join(','),
@@ -138,6 +160,8 @@ export function buildComponentCsv(
           len(p.length),
           dia(p.outerR),
           dia(p.innerR),
+          dia(p.foreR),
+          dia(p.aftR),
           len(p.thickness),
           fmtSi('mass', units.mass, p.mass, 3),
         ].join(','),

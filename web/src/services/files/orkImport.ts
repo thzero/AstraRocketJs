@@ -9,6 +9,7 @@ import { KNOWN_DOCUMENT_TAGS, KNOWN_ROCKET_TAGS, readPassthrough } from './ork/p
 import { readLaunchConditions } from './ork/importLaunch';
 import { readSimulations } from './ork/importSimulations';
 import { configNotes, ignoredNotes, modelingNotes } from './ork/importNotes';
+import { keyedNote, type ImportNote } from './importNote';
 
 /**
  * .ork import: unpack and parse the file, pick the flight configuration to
@@ -77,6 +78,7 @@ export function importOrk(data: ArrayBuffer | string): OrkImportResult {
     findStages({ name, components }).map((n) => n.id as string),
   );
   const { notes, ignored } = ctx;
+  notes.push(...versionNotes(doc));
   notes.push(...ignoredNotes(ignored));
   notes.push(...modelingNotes(components));
   notes.push(...configNotes(rocketEl, configs));
@@ -112,6 +114,41 @@ export function importOrk(data: ArrayBuffer | string): OrkImportResult {
 }
 
 /**
+ * The `.ork` format versions desktop OpenRocket reads without a warning
+ * (DocumentConfig.SUPPORTED_VERSIONS). A file outside them, such as one saved
+ * by a newer OpenRocket, may carry things this reader does not know.
+ */
+const SUPPORTED_ORK_VERSIONS: ReadonlySet<string> = new Set([
+  '1.0',
+  '1.1',
+  '1.2',
+  '1.3',
+  '1.4',
+  '1.5',
+  '1.6',
+  '1.7',
+  '1.8',
+  '1.9',
+  '1.10',
+  '1.11',
+]);
+
+/**
+ * Desktop's warning for a format version outside the supported set
+ * (OpenRocketHandler), in its words: the file is still read.
+ */
+function versionNotes(doc: Document): ImportNote[] {
+  const root = doc.querySelector('openrocket');
+  const version = root?.getAttribute('version')?.trim() || null;
+  if (version !== null && SUPPORTED_ORK_VERSIONS.has(version)) return [];
+  const creator = root?.getAttribute('creator')?.trim();
+  if (version && creator) return [keyedNote('importNote.versionUnsupportedBy', { version, creator })];
+  if (version) return [keyedNote('importNote.versionUnsupported', { version })];
+  if (creator) return [keyedNote('importNote.versionMissingBy', { creator })];
+  return [keyedNote('importNote.versionMissing')];
+}
+
+/**
  * What the file carried that this app does not use, said out loud.
  *
  * Appearance XML is preserved (services/files/ork/passthrough.ts) and the note
@@ -121,29 +158,43 @@ export function importOrk(data: ArrayBuffer | string): OrkImportResult {
  * Counted off the document rather than reported by the readers, so no state has
  * to be threaded through every one of them to answer the same question.
  */
-function archiveNotes(doc: Document, dropped: string[]): string[] {
-  const out: string[] = [];
+function archiveNotes(doc: Document, dropped: string[]): ImportNote[] {
+  const out: ImportNote[] = [];
   const appearances = doc.querySelectorAll('appearance, insideappearance').length;
   const decals = doc.querySelectorAll('decal').length;
   if (appearances) {
-    out.push(
-      `${appearances} part appearance setting(s) are not used here (this app draws the part color only). They are preserved, so a save keeps them.`,
-    );
+    out.push(keyedNote('importNote.appearances', { total: appearances }));
   }
   if (decals) {
-    out.push(
-      `${decals} decal(s) were removed: their images are stored separately in the file and are not kept, so the reference would point at nothing.`,
-    );
+    out.push(keyedNote('importNote.decals', { total: decals }));
+  }
+  const extensions = [
+    ...doc.querySelectorAll(
+      'openrocket > simulations > simulation > extension, openrocket > simulations > simulation > listener',
+    ),
+  ];
+  if (extensions.length) {
+    // The id's last segment is the extension's class name: AirStart, RollControl.
+    const names = [
+      ...new Set(
+        extensions.map(
+          (e) => (e.getAttribute('extensionid') ?? e.textContent ?? '').trim().split('.').pop() || 'unnamed',
+        ),
+      ),
+    ];
+    out.push(keyedNote('importNote.extensions', { names: names.join(', ') }));
   }
   if (dropped.length) {
-    out.push(`Not read from the file: ${dropped.slice(0, 6).join(', ')}${dropped.length > 6 ? ', …' : ''}.`);
+    out.push(
+      keyedNote('importNote.notRead', { items: `${dropped.slice(0, 6).join(', ')}${dropped.length > 6 ? ', …' : ''}` }),
+    );
   }
   // Whole features rather than fields, so they are named: someone who set a
   // Photo Studio shot in the desktop should know this app does not show it and
   // does not discard it either.
   const docLevel = ['photostudio', 'docprefs', 'datatypes'].filter((t) => doc.querySelector(`openrocket > ${t}`));
   if (docLevel.length) {
-    out.push(`This app has no editor for: ${docLevel.join(', ')}. They are preserved, so a save keeps them.`);
+    out.push(keyedNote('importNote.noEditor', { items: docLevel.join(', ') }));
   }
   return out;
 }

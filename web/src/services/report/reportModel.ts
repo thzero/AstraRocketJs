@@ -22,8 +22,26 @@ export interface PartRow {
   length: number;
   outerR?: number;
   innerR?: number;
+  /** A transition's two ends, which it carries instead of one outer radius. */
+  foreR?: number;
+  aftR?: number;
   thickness?: number;
   mass: number;
+}
+
+/**
+ * The radii a part's row shows, per type: a nose cone's base, a transition's
+ * fore and aft ends, and a tube's bore from its outside and wall, since a tube
+ * stores a thickness rather than an inner radius.
+ */
+function rowRadii(node: ComponentNode): Pick<PartRow, 'outerR' | 'innerR' | 'foreR' | 'aftR'> {
+  if (node.type === 'nosecone') return { outerR: numOpt(node, 'aftRadius') };
+  if (node.type === 'transition') return { foreR: numOpt(node, 'foreRadius'), aftR: numOpt(node, 'aftRadius') };
+  const outerR = numOpt(node, 'outerRadius');
+  const thickness = numOpt(node, 'thickness');
+  const innerR =
+    numOpt(node, 'innerRadius') ?? (outerR != null && thickness != null ? Math.max(0, outerR - thickness) : undefined);
+  return { outerR, innerR };
 }
 
 export interface Summary {
@@ -57,6 +75,8 @@ export interface FinSetPosition {
 
 export interface ReportModel {
   name: string;
+  /** The design type token as stored (`original`, `commercial_kit`, ...), when the design names one. */
+  designType?: string;
   stages: ComponentNode[];
   whole: Summary;
   /** One entry per stage (a single-stage rocket's stage is the whole rocket). */
@@ -89,8 +109,7 @@ export function stageParts(
         material: node.materialName as string | undefined,
         density: node.density,
         length: num(node, 'length', 0),
-        outerR: numOpt(node, 'outerRadius'),
-        innerR: numOpt(node, 'innerRadius'),
+        ...rowRadii(node),
         thickness: numOpt(node, 'thickness'),
         mass,
       });
@@ -235,7 +254,16 @@ export function assembleReport(install?: (built: ReportBuild) => void): ReportMo
     };
   });
 
-  return { name, stages: stageList, whole, stageSummaries, configs, partsByStage, finSetsByStage };
+  return {
+    name,
+    designType: tree.designType,
+    stages: stageList,
+    whole,
+    stageSummaries,
+    configs,
+    partsByStage,
+    finSetsByStage,
+  };
 }
 
 /** Each fin set in a stage, with its root's axial span from the nose (m). */

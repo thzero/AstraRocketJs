@@ -39,6 +39,7 @@ vi.mock('virtual:pwa-register/react', () => ({
 }));
 
 const { UpdateToast } = await import('../../../src/components/layout/UpdateToast');
+const { useWorkspaceStore } = await import('../../../src/state/store');
 
 /** A waiting worker that reports `build` when asked which build it is. */
 const workerOf = (build: number) =>
@@ -173,5 +174,41 @@ describe('only a newer build', () => {
     expect(screen.getByRole('button', { name: 'Reload' })).toBeTruthy();
     await offer(OLDER);
     expect(screen.queryByRole('button', { name: 'Reload' })).toBeNull();
+  });
+});
+
+/**
+ * The hidden-tab apply waits for anything a reload would throw away, not only
+ * a batch of flights: a drift sweep keeps flying while the tab is hidden, and
+ * an import can be waiting on its name-clash dialog.
+ */
+describe('applying while the tab is hidden', () => {
+  const hide = () => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
+    document.dispatchEvent(new Event('visibilitychange'));
+  };
+
+  afterEach(() => {
+    vi.useRealTimers();
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
+    useWorkspaceStore.setState({ simBusy: false, driftSweepRun: null });
+  });
+
+  it('holds off while a drift sweep flies, and applies once it lands', async () => {
+    render(<UpdateToast />);
+    await offer(NEWER);
+    vi.useFakeTimers();
+    useWorkspaceStore.setState({ driftSweepRun: { simId: 's', done: 0, total: 4 } });
+    hide();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000);
+    });
+    expect(updateServiceWorker).not.toHaveBeenCalled();
+
+    useWorkspaceStore.setState({ driftSweepRun: null });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(6_000);
+    });
+    expect(updateServiceWorker).toHaveBeenCalledWith(true);
   });
 });

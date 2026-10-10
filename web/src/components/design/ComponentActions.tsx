@@ -57,7 +57,7 @@ export function ComponentActions({ node }: { node: ComponentNode }) {
       label: t(`prop.${splitLabel}`),
       title: canSplit(node) ? t('prop.splitTip', { n: splitCount(node) }) : t('prop.splitNoneTip'),
       enabled: canSplit(node),
-      run: () => apply((tree) => splitInstances(tree, id, baseName)),
+      run: () => apply((tree, origins) => splitInstances(tree, id, baseName, origins)),
     });
   }
   if (node.type === 'innertube') {
@@ -66,7 +66,7 @@ export function ComponentActions({ node }: { node: ComponentNode }) {
       label: t('prop.splitCluster'),
       title: canSplitCluster(node) ? t('prop.splitClusterTip') : t('prop.splitNoneTip'),
       enabled: canSplitCluster(node),
-      run: () => apply((tree) => splitCluster(tree, id, baseName)),
+      run: () => apply((tree, origins) => splitCluster(tree, id, baseName, origins)),
     });
     buttons.push({
       key: 'resetCluster',

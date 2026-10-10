@@ -7,6 +7,7 @@ import { launcherKind, withLauncher } from '../services/design/launcher';
 import type { DesignInfo } from '../services/files/orkTypes';
 import { buildExportMotorMap, fillMotorDigests } from '../services/motors/exportMotors';
 import { repairValues } from '../services/design/repairValues';
+import { computeStaticInfo } from '../services/design/buildRocket';
 import { wireLoadedOrk } from '../services/files/wireLoadedOrk';
 // Static, not the lazy import the neighboring .ork paths use: this is a fetch
 // wrapper with no heavy dependencies, and the library dialog imports it
@@ -18,7 +19,7 @@ import { loadSettings } from '../services/storage/settings';
 import { importNotes } from '../services/files/importBanner';
 import { defaultDesignName, designNameOf } from '../services/app/appInfo';
 import { getDesignLibrary, type DesignMeta } from '../services/storage/designLibrary';
-import { getWorkspaceStore } from '../services/storage/workspaceStore';
+import { getWorkspaceStore, lean, resultsOf } from '../services/storage/workspaceStore';
 import { migrateWorkspace } from '../services/storage/workspaceMigrate';
 import { errorMessage } from '../services/app/errorMessage';
 import {
@@ -31,15 +32,17 @@ import {
   selectConfig,
   selectDesignName,
   workspaceSnapshot,
-  type WorkspaceState,
-} from './store';
+} from './workspaceSelectors';
+import type { WorkspaceState } from './store';
 import { showing } from './viewSlice';
 
 /**
  * Opening, saving and exporting designs, and the design library.
  *
- * The values imported from './store' are read only inside actions, never at
- * module load: store.ts imports this file, so at load time they do not exist yet.
+ * Nothing is imported from './store' at run time, only its types: store.ts
+ * imports this file and calls `createFileSlice` while it is still loading, so a
+ * value read from it here would not exist yet. The helpers it needs live in
+ * './workspaceSelectors'.
  */
 export interface FileSlice {
   /** Open a `.ork`. A `Blob` rather than a `File` so a bundled example, which
@@ -53,13 +56,20 @@ export interface FileSlice {
   designs: DesignMeta[];
   /** Id of the design currently being edited, or null before the first save. */
   activeDesignId: string | null;
+  /**
+   * Counts the files opened this session (`openOrkFile`). Not saved, so
+   * reopening the app on the same design does not count as an import; the import
+   * notes open for each new import that has some (LoadedBanner).
+   */
+  importSeq: number;
   refreshDesigns: () => Promise<void>;
   openDesign: (id: string) => Promise<void>;
   saveDesignAs: (name: string) => Promise<void>;
   renameDesign: (id: string, name: string) => Promise<void>;
   deleteDesign: (id: string) => Promise<void>;
   // These are implemented `async` and typed to return the promise, so callers
-  // and tests can await them. The `void`-calling sites in AppHeader keep their `void`.
+  // and tests can await them. AppHeader calls them through `fireAction`, which
+  // reports a rejection rather than dropping it.
   newWorkspace: () => Promise<void>;
   saveOrk: () => Promise<void>;
   /** Write the design as a RockSim `.rkt`. */
@@ -220,6 +230,7 @@ export const createFileSlice =
     return {
       designs: [],
       activeDesignId: null,
+      importSeq: 0,
 
       openOrkFile: async (file) => {
         // Three awaits before anything is written, and the file input has no busy
@@ -274,6 +285,7 @@ export const createFileSlice =
             // Null while the entry is still to be created; the overwrite path
             // already has one, and the library marks it as the open design.
             activeDesignId: home.id,
+            importSeq: get().importSeq + 1,
           });
         } catch (e) {
           if (stale()) return; // a superseded import must not post its error either
@@ -358,14 +370,22 @@ export const createFileSlice =
         // in flight, pointing the library at the new entry would leave the user
         // looking at one design with another one active.
         const stale = observeWorkspace();
+        const lib = getDesignLibrary();
+        const snapshot = workspaceSnapshot(s);
         let meta;
         try {
-          meta = await getDesignLibrary().create(name.trim() || i18n.t('library.untitled'), workspaceSnapshot(s));
+          // Without the flights, which live under their own key: in the design
+          // blob they would be rewritten by every autosave, and on the 5 MB
+          // localStorage fallback they can refuse the whole write.
+          meta = await lib.create(name.trim() || i18n.t('library.untitled'), lean(snapshot));
         } catch {
           if (stale()) return;
           get().warnStorageFull();
           return;
         }
+        // Best-effort, like every results write: a flight can be flown again,
+        // so a refusal here does not fail the save.
+        await lib.writeResults(meta.id, resultsOf(snapshot)).catch(() => false);
         if (stale()) return;
         getWorkspaceStore().setActiveId?.(meta.id);
         await get().refreshDesigns();
@@ -412,6 +432,7 @@ export const createFileSlice =
         // this blank design straight over the rocket the user just had open.
         getWorkspaceStore().setActiveId?.(null);
         replaceWorkspace((s) => ({
+          quietReplace: s.quietReplace + 1,
           activeDesignId: null,
           tree,
           loadedMeta: null,
@@ -433,7 +454,20 @@ export const createFileSlice =
       },
       saveOrk: async () => {
         try {
-          // One vintage of the design, captured before the first await.
+          // `replaced` covers the case where the workspace is no longer the
+          // design the user asked to save at all.
+          const replaced = observeWorkspace();
+          // The derived-statistics block, only when the user opted in (off by
+          // default, so a normal save stays byte-identical). Built from the same
+          // report model the PDF export uses; both are lazily imported (also
+          // avoids a static store → reportModel → store import cycle). Loaded
+          // ahead of the snapshot below, so the report is assembled in the same
+          // synchronous stretch as the snapshot: it reads the live store, and
+          // read after an await it could describe a design edited since.
+          const reportMods = loadSettings().saveDesignInfo
+            ? await Promise.all([import('../services/report/reportModel'), import('../services/report/designInfo')])
+            : null;
+          // One vintage of the design, captured before the next await.
           //
           // Reading any part of it after the catalog fetch would mix vintages:
           // saving while the motor catalog was still loading and then editing would
@@ -441,9 +475,7 @@ export const createFileSlice =
           // inconsistent in a way neither surface shows.
           //
           // The whole snapshot, not a `stale()` bail, because a save should write
-          // the design as it was when the user asked for it. `replaced` covers the
-          // other case, where the workspace is no longer this design at all.
-          const replaced = observeWorkspace();
+          // the design as it was when the user asked for it.
           const { tree, loadedMeta } = get();
           const activeConfigId = selectConfig(get()).id;
           const launch = selectActive(get()).launch;
@@ -453,6 +485,18 @@ export const createFileSlice =
           // uptodate, one the design has moved past is outdated, and a simulation
           // with neither is not simulated.
           const { sims: simSnapshot, simPrefs: prefsSnapshot } = get();
+          let designInfo: DesignInfo | undefined;
+          if (reportMods) {
+            const [{ assembleReport }, { buildDesignInfo }] = reportMods;
+            // Not built yet (a design just loaded, or the engine still arriving):
+            // build it now rather than leave out a block the user asked for.
+            if (!get().info) {
+              const built = computeStaticInfo(tree, selectConfig(get()));
+              if (!('error' in built)) get().applyBuild(built.info, built.rocket);
+            }
+            const report = assembleReport();
+            if (report) designInfo = buildDesignInfo(report);
+          }
           const simulations = simSnapshot.map((sim) => {
             const summary = sim.result?.summary ?? sim.fileSummary?.summary;
             const stale = isOutdated(sim, tree, configOf(configSnapshot, sim), prefsSnapshot);
@@ -462,6 +506,7 @@ export const createFileSlice =
               launch: sim.launch,
               ...(summary ? { summary } : {}),
               status: !summary ? ('notsimulated' as const) : stale ? ('outdated' as const) : ('uptodate' as const),
+              ...(sim.xmlExtra?.length ? { xmlExtra: sim.xmlExtra } : {}),
             };
           });
           // Every configuration, each with its own motors: the file carries the
@@ -480,19 +525,6 @@ export const createFileSlice =
               grounded: c.grounded,
             })),
           );
-          // Derived-statistics block, only when the user opted in (off by default,
-          // so a normal save stays byte-identical). Built from the same report model
-          // the PDF export uses; both are lazily imported (also avoids a static
-          // store → reportModel → store import cycle).
-          let designInfo: DesignInfo | undefined;
-          if (loadSettings().saveDesignInfo) {
-            const [{ assembleReport }, { buildDesignInfo }] = await Promise.all([
-              import('../services/report/reportModel'),
-              import('../services/report/designInfo'),
-            ]);
-            const report = assembleReport();
-            if (report) designInfo = buildDesignInfo(report);
-          }
           // The .ork writer is a lazily-imported chunk, only needed on save.
           const { downloadOrk } = await import('../services/files/saveOrk');
           // A different design is open now: writing this one would hand the user a

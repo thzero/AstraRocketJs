@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTabs } from '../common/useTabs';
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore } from '../../state/store';
+import { fireAction } from '../../state/fireAction';
 import { confirm } from '../../state/confirmStore';
 import { Dialog } from '../common/Dialog';
 import { DesignPropertiesDialog } from './DesignPropertiesDialog';
@@ -95,7 +96,7 @@ export function DesignLibraryDialog({ onClose }: { onClose: () => void }) {
                 <li key={d.id} className="flex items-center gap-2 px-4 py-2.5">
                   <button
                     onClick={() => {
-                      void openDesign(d.id);
+                      fireAction(openDesign(d.id));
                       onClose();
                     }}
                     className="flex-1 text-left"
@@ -112,12 +113,14 @@ export function DesignLibraryDialog({ onClose }: { onClose: () => void }) {
                   </button>
                   <button
                     onClick={() => setRenaming({ id: d.id, name: d.name })}
+                    aria-label={t('library.renameNamed', { name: d.name })}
                     className="rounded px-2 py-1 text-xs text-ink-muted hover:text-ink"
                   >
                     {t('library.rename')}
                   </button>
                   <button
-                    onClick={() => void askDelete(d.id, d.name)}
+                    onClick={() => fireAction(askDelete(d.id, d.name))}
+                    aria-label={t('library.deleteNamed', { name: d.name })}
                     className="rounded px-2 py-1 text-xs text-ink-muted hover:text-danger-300"
                   >
                     {t('common.delete')}
@@ -137,7 +140,7 @@ export function DesignLibraryDialog({ onClose }: { onClose: () => void }) {
           takenNames={designs.filter((d) => d.id !== renaming.id).map((d) => d.name)}
           onCancel={() => setRenaming(null)}
           onConfirm={(name) => {
-            void renameDesign(renaming.id, name);
+            fireAction(renameDesign(renaming.id, name));
             setRenaming(null);
           }}
         />

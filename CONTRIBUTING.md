@@ -2,17 +2,17 @@
 
 Code, bug reports, feature ideas, translations and docs are all welcome.
 
-- **Report a bug or request a feature** — open a [GitHub issue](https://github.com/thzero/AstraRocketJs/issues/new/choose); the templates will guide you.
-- **Build and run the project** — [Developer Guide](docs/DEVELOPER.md).
-- **How it all fits together** — [Architecture & internals](docs/ARCHITECTURE.md).
+- **Report a bug or request a feature** - open a [GitHub issue](https://github.com/thzero/AstraRocketJs/issues/new/choose); the templates will guide you.
+- **Build and run the project** - [Developer Guide](docs/DEVELOPER.md).
+- **How it all fits together** - [Architecture & internals](docs/ARCHITECTURE.md).
 
-AstraRocketJs is a **lightweight web UI over the real OpenRocket engine** — the physics is OpenRocket's, compiled to WebAssembly + JavaScript; the app around it is ours. Most contributions live in the web app. (To save keystrokes, we'll abbreviate the project as **ARJ**.)
+AstraRocketJs is a **lightweight web UI over the real OpenRocket engine** - the physics is OpenRocket's, compiled to WebAssembly + JavaScript; the app around it is ours. Most contributions live in the web app. (To save keystrokes, we'll abbreviate the project as **ARJ**.)
 
-By participating you agree to our **[Code of Conduct](CODE_OF_CONDUCT.md)** — be kind and constructive.
+By participating you agree to our **[Code of Conduct](CODE_OF_CONDUCT.md)** - be kind and constructive.
 
 If you'd like to take an issue, **comment on it first** ("I'd like to work on this") so two people don't duplicate effort.
 
-Building and running the project — project layout, install, the engine, the catalog tools, commits, pull requests and tests — is the **[Developer Guide](docs/DEVELOPER.md)**.
+Building and running the project - project layout, install, the engine, the catalog tools, pull requests and tests - is the **[Developer Guide](docs/DEVELOPER.md)**.
 
 ## Testing
 
@@ -23,36 +23,36 @@ Open a GitHub issue with a short, specific title (prefix it with **[Bug]**). Ple
 - What you **expected** to happen, and what happened **instead**.
 - The **steps** to reproduce it.
 - Your **browser + OS** (e.g. "Chrome 120 on Windows 11") and the **ARJ version** (next to the title in the header, or under **Menu → About**).
-- If it's tied to a specific design, attach the **`.ork` file** — usually the fastest path to a fix.
+- If it's tied to a specific design, attach the **`.ork` file** - usually the fastest path to a fix.
 
 A screenshot or screen recording helps a lot.
 
 ### Suggesting new features
 
-Open an issue prefixed with **[Feature Request]**. Explain the behavior you'd like and why it matters. Keep in mind ARJ is intentionally a _focused_ interface, not a full re-creation of OpenRocket's desktop app — features that fit that scope are the easiest sell.
+Open an issue prefixed with **[Feature Request]**. Explain the behavior you'd like and why it matters. Keep in mind ARJ is intentionally a _focused_ interface, not a full re-creation of OpenRocket's desktop app - features that fit that scope are the easiest sell.
 
 ## Translation
 
-ARJ is multilingual. Translations live in `web/src/i18n/locales/<lang>.json` (currently `en` and `es`, with English as the source of truth). As features land, new English keys sometimes get added before other languages catch up — translators fill those gaps.
+ARJ is multilingual. Translations live in `web/src/i18n/locales/<lang>.json`. Ten locales ship: `en`, `de`, `es`, `fr`, `ja`, `nl`, `pl`, `pt-BR`, `pt-PT` and `ru`, with English as the source of truth. A new English key has to land in every locale file, or `web/tests/i18n/locales.test.ts` fails.
 
 To add or update a translation:
 
 - Copy the structure of `en.json` and translate the values (keep the keys and any `{{placeholders}}` intact).
-- To add a **new language**, add its `<lang>.json` and register it in `web/src/i18n/index.ts`.
+- To add a **new language**, add its `<lang>.json` and a row in `LOCALES` in `web/src/i18n/index.ts`, plus the test lists that name every locale: `LOCALES` in `locales.test.ts`, `componentFields.options.test.ts`, the expected option list in `FlightPathExport.test.tsx`, and the language's native name in `.cspell/project-words.txt` when cspell does not know the word.
 
 ## Documentation
 
 The developer reference is the **[Developer Guide](docs/DEVELOPER.md)** for building and submitting, and **[Architecture & internals](docs/ARCHITECTURE.md)** for how the app fits together.
 
-These docs are a **Docusaurus site under `website/`**, published alongside the app by the Pages deploy. English pages are `website/docs/*.md`; Spanish lives in `website/i18n/es/docusaurus-plugin-content-docs/current/` under the same filenames, and any page without a Spanish copy falls back to English rather than 404ing.
+The user guide is a **Docusaurus site under `website/`**, published alongside the app by the Pages deploy. English pages are `website/docs/*.md`; Spanish lives in `website/i18n/es/docusaurus-plugin-content-docs/current/` under the same filenames. A new page needs its Spanish copy in the same change: the Spanish build shows an untranslated page's English text but resolves its relative links against the Spanish tree, so those links fail the build, and the error names the English file. A new sidebar category also needs its `sidebar.docs.category.<Label>` entry in `website/i18n/es/docusaurus-plugin-content-docs/current.json`.
 
 ```bash
 cd website
 npm install
-npm start      # build both languages and serve them — the language toggle works
+npm start      # build both languages and serve them - the language toggle works
 npm run dev    # English only, with hot reload (Docusaurus serves one locale at a time)
 ```
 
-If your change affects behavior — or the architecture — that contributors or users should know about, update the relevant page in the same PR (or note it so a maintainer can). The build fails on a broken internal link or anchor, so a stale cross-reference cannot ship.
+If your change affects behavior, or the architecture, that contributors or users should know about, update the relevant page in the same PR (or note it so a maintainer can). The build fails on a broken internal link. A broken anchor only prints a warning, so check the build output for one.
 
-> When you translate a heading, pin it to the English anchor — `## Vuelo (tras una simulación) {#flight-after-a-simulation}`. Otherwise links from pages that are still English break.
+> When you translate a heading, pin it to the English anchor - `## Vuelo (tras una simulación) {#flight-after-a-simulation}`. Otherwise links from pages that are still English break.

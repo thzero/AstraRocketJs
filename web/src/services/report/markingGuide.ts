@@ -1,6 +1,6 @@
 import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
 import { KERNEL_DEFAULTS } from '../../tree/kernelDefaults';
-import { countOf, num } from '../../tree/nodeProps';
+import { MAX_CANT, countOf, num } from '../../tree/nodeProps';
 import { finRootChord } from '../../tree/finPlanform';
 import { isFinSet, isPlanarFinSet } from '../../tree/tubefins';
 
@@ -229,7 +229,9 @@ function buildGuide(tube: ComponentNode, angular: ComponentNode[]): MarkingGuide
       // radialOrigin + TWO_PI -> circumference.
       const posMm = (zeroTwoPi(angle - origin) / TWO_PI) * circumferenceMm;
       const planar = isPlanarFinSet(String(node.type));
-      const cant = planar ? num(node, 'cant', 0) : 0;
+      // Clamped as the kernel clamps it: an imported cant past the limit is
+      // flown at the limit, so the guide marks that angle.
+      const cant = planar ? Math.max(-MAX_CANT, Math.min(MAX_CANT, num(node, 'cant', 0))) : 0;
       return {
         posMm,
         name: String(node.name ?? ''),

@@ -68,8 +68,9 @@ export function deviceDescent(result: FlightResult | null | undefined, deviceNam
     const mass = seriesAt(branch.series, 'mass', opened.time);
     if (mass == null || !(mass > 0)) return null;
     // The phase ends at the next chute or the ground; failing both, at the last
-    // sample the run recorded.
-    const next = events.slice(i + 1).find((e) => PHASE_END.has(e.type));
+    // sample the run recorded. A device that opens at the same instant (two
+    // chutes on one charge) shares this phase rather than ending it.
+    const next = events.slice(i + 1).find((e) => PHASE_END.has(e.type) && e.time > opened.time);
     const times = branch.series.time ?? [];
     const endsAt = next?.time ?? times[times.length - 1];
     const rate = endsAt == null ? null : seriesAt(branch.series, 'velocity', endsAt);

@@ -38,7 +38,8 @@ function OverrideRow({
   value: number;
   step: number;
   onToggle: (on: boolean) => void;
-  onValue: (v: number) => void;
+  /** `null` while the box is empty: a cleared box is not a typed 0. */
+  onValue: (v: number | null) => void;
   onCommit?: () => void;
   subLabel: string;
   sub: boolean;
@@ -68,7 +69,7 @@ function OverrideRow({
           <NumberInput
             ariaLabel={label}
             value={Number.isFinite(value) ? value : 0}
-            onChange={(v) => onValue(v ?? 0)}
+            onChange={onValue}
             onCommit={onCommit}
             disabled={!enabled || locked}
             step={step}
@@ -188,7 +189,7 @@ export function OverridesSection({
             overrideSubcomponentsCD: on ? node.overrideSubcomponentsCD : undefined,
           })
         }
-        onValue={(v) => onChange({ overrideCD: v })}
+        onValue={(v) => v !== null && onChange({ overrideCD: v })}
         onCommit={onCommit}
         subLabel={t('override.applyAll')}
         sub={node.overrideSubcomponentsCD === true}

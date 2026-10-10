@@ -5,8 +5,9 @@ import { NumberInput } from '../common/NumberInput';
 import { useUnits } from '../../prefs/useUnits';
 import { unitScope } from '../../prefs/units';
 import { freeformPoints } from '../../tree/position';
+import { SCALE_MAX } from '../../tree/scaleRocket';
 import { scaleComponent } from '../../services/design/componentActions';
-import { FinImageError, finPointsCsv, finPointsFromImage } from '../../services/design/finImage';
+import { FinImageError, finPointsCsv, finPointsFromImage, traceSize } from '../../services/design/finImage';
 import { download, exportFilename } from '../../services/files/saveFile';
 import { CSV_MIME } from '../../services/exports/csvExport';
 import { partLabel } from '../../i18n/format';
@@ -52,14 +53,45 @@ export function FreeformFinActions({ node }: { node: ComponentNode }) {
   const importImage = async (file: File) => {
     setError(null);
     try {
-      const bitmap = await createImageBitmap(file);
-      const canvas = document.createElement('canvas');
-      canvas.width = bitmap.width;
-      canvas.height = bitmap.height;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) throw new FinImageError('noOutline');
-      ctx.drawImage(bitmap, 0, 0);
-      const points = finPointsFromImage(ctx.getImageData(0, 0, canvas.width, canvas.height));
+      // Resized to the tracing size before it reaches a canvas: a full-size
+      // canvas for a phone photo can pass the browser's canvas area limit and
+      // come back unusable. Nearest-neighbor, for the reason finImage samples
+      // that way: the next step is a luma threshold. Each bitmap is closed as
+      // soon as it is drawn, since a decoded photo is hundreds of megabytes.
+      const full = await createImageBitmap(file);
+      // Read before any close: a closed bitmap reports a size of 0 x 0.
+      const { width: fullW, height: fullH } = full;
+      const size = traceSize(fullW, fullH);
+      let bitmap = full;
+      if (size.width !== fullW || size.height !== fullH) {
+        try {
+          bitmap = await createImageBitmap(full, {
+            resizeWidth: size.width,
+            resizeHeight: size.height,
+            resizeQuality: 'pixelated',
+          });
+        } finally {
+          full.close();
+        }
+      }
+      // One traced pixel is this many source pixels, and one source pixel is
+      // one millimeter.
+      const sx = fullW / size.width;
+      const sy = fullH / size.height;
+      let pixels: ImageData;
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = bitmap.width;
+        canvas.height = bitmap.height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) throw new FinImageError('noOutline');
+        ctx.drawImage(bitmap, 0, 0);
+        pixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      } finally {
+        bitmap.close();
+      }
+      const traced = finPointsFromImage(pixels);
+      const points = sx === 1 && sy === 1 ? traced : traced.map(([x, y]) => [x * sx, y * sy] as [number, number]);
       apply((tree) => updateNode(tree, id, { points }));
     } catch (e) {
       // One message for both failures the user can act on: the image has no dark
@@ -78,6 +110,7 @@ export function FreeformFinActions({ node }: { node: ComponentNode }) {
             onChange={(v) => setFactor(v ?? 1)}
             step={0.1}
             min={0}
+            max={SCALE_MAX}
             ariaLabel={t('freeform.scaleFactor')}
             className="w-16 rounded bg-raised px-1.5 py-0.5 text-right tabular-nums text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500"
           />

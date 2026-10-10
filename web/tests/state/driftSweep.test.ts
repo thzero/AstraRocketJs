@@ -30,6 +30,9 @@ const PREFS = {
   drogueLowSpeedWarn: 3.048,
 } as SimPrefs;
 
+// The runs fly the globals the store mirrors, so the mirror holds PREFS.
+beforeEach(() => st().setSimPrefs(PREFS));
+
 /** A 2 x 2 grid: four flights, which is enough to have a region and stay readable. */
 const SPEC: WindSweepSpec = normalizeSweepSpec({
   speedMinMs: 2,
@@ -81,7 +84,7 @@ describe('a drift sweep', () => {
 
   const simId = () => st().sims[0]!.id;
   const start = (spec = SPEC) => {
-    const done = st().runDriftSweep(simId(), spec, PREFS);
+    const done = st().runDriftSweep(simId(), spec);
     return done;
   };
 

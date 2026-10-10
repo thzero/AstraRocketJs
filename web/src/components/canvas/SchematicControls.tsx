@@ -79,7 +79,7 @@ export function SchematicControls({
                   SVG_MIME,
                 );
               } catch (e) {
-                onError?.(`SVG export failed: ${errorMessage(e)}`);
+                onError?.(t('export.svgFailed', { message: errorMessage(e) }));
               }
             }}
           >

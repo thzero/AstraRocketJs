@@ -9,7 +9,7 @@ import {
   UPDATE_SNOOZE_MS,
   readyToApplyHidden,
 } from '../../services/app/updateCheck';
-import { useWorkspaceStore } from '../../state/store';
+import { workInProgress } from '../../state/workInProgress';
 import { useUpdateStore } from '../../state/updateStore';
 import { waitingIsNewer } from '../../services/app/swBuild';
 
@@ -188,10 +188,11 @@ export function UpdateToast() {
    * whole mechanism exists to spare people. So once the tab has been hidden
    * long enough for a reload to cost nothing, it is taken up unasked.
    *
-   * `simBusy` is read at the moment it fires rather than subscribed to: a
-   * flight in the air is the one thing that keeps running while the tab is
-   * hidden, and re-running this effect every time it changes would restart the
-   * clock on a batch finishing.
+   * Whether anything is in progress (`workInProgress`: flights or a sweep in
+   * the air, a dialog waiting on an answer) is read at the moment it fires
+   * rather than subscribed to: flights keep running while the tab is hidden,
+   * and re-running this effect every time one finished would restart the
+   * clock.
    */
   useEffect(() => {
     if (!waiting) return;
@@ -207,7 +208,7 @@ export function UpdateToast() {
       // Polled rather than a single timeout: if a flight is still in the air
       // when the wait is up, this has to come back to it rather than give up.
       timer = setInterval(() => {
-        if (!readyToApplyHidden(true, hiddenSince, useWorkspaceStore.getState().simBusy, Date.now())) return;
+        if (!readyToApplyHidden(true, hiddenSince, workInProgress(), Date.now())) return;
         stop();
         void apply();
       }, 5_000);

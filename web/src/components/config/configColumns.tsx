@@ -12,6 +12,7 @@ import { findMounts, findRecoveryDevices, findSeparators, findStages } from '../
 import type { FieldUnit } from '../../prefs/useUnits';
 import { partName, type ConfigColumn } from './ConfigsTable';
 import { motorDesignation } from '../../services/motors/motorName';
+import { fmtUpTo } from '../../i18n/format';
 
 /**
  * What each sub-tab of the configurations table shows: one column per mount, or
@@ -23,10 +24,22 @@ import { motorDesignation } from '../../services/motors/motorName';
  * rather than the design's.
  */
 
-/** A value this configuration overrides, called out against the ones it inherits. */
-function Overridden({ children }: { children: React.ReactNode }) {
-  return <span className="text-warn-300/90">{children}</span>;
+/**
+ * A value this configuration overrides, called out against the ones it inherits:
+ * by color, a mark and a word for a screen reader, so the cue is not color alone.
+ */
+function Overridden({ children, t }: { children: React.ReactNode; t: TFunction }) {
+  return (
+    <span className="text-warn-300/90" title={t('configs.overridden')}>
+      {children}
+      <sup aria-hidden>*</sup>
+      <span className="sr-only"> {t('configs.overridden')}</span>
+    </span>
+  );
 }
+
+/** A delay as the cells print it, in the reader's locale: "+1.5s". */
+const delayText = (s: number) => ` +${fmtUpTo(s, 3)}s`;
 
 export function motorColumns(tree: RocketTree, t: TFunction): ConfigColumn[] {
   return findMounts(tree).map((mt, i) => ({
@@ -43,10 +56,10 @@ export function motorColumns(tree: RocketTree, t: TFunction): ConfigColumn[] {
               cell is noise, and the one cell that air-starts is the thing worth
               seeing here. */}
           {ign && ign !== 'automatic' && (
-            <Overridden>
+            <Overridden t={t}>
               {' '}
               {t(`ignition.${ign}`)}
-              {seated.ignitionDelay ? ` +${seated.ignitionDelay}s` : ''}
+              {seated.ignitionDelay ? delayText(seated.ignitionDelay) : ''}
             </Overridden>
           )}
         </>
@@ -70,9 +83,9 @@ export function recoveryColumns(
       // The altitude is only read by the altitude trigger, so printing it beside
       // "apogee" would be printing a number the flight never uses.
       const text = `${t(`deployEvent.${event}`)}${event === 'altitude' ? ` ${u.fmtSym(altitude)}` : ''}${
-        delay ? ` +${delay}s` : ''
+        delay ? delayText(delay) : ''
       }`;
-      return over ? <Overridden>{text}</Overridden> : text;
+      return over ? <Overridden t={t}>{text}</Overridden> : text;
     },
   }));
 }
@@ -93,7 +106,7 @@ export function separationColumns(
       const id = stage.id as string;
       // Grounded is the whole cell: what a stage that is not in the flight
       // separates on is not a fact about the flight.
-      if (!stageFlies(c, id)) return <Overridden>{t('configs.grounded')}</Overridden>;
+      if (!stageFlies(c, id)) return <Overridden t={t}>{t('configs.grounded')}</Overridden>;
       if (!separates.has(id)) return <span className="text-ink-dim">–</span>;
       const over = sepOverride(c, id);
       const {
@@ -106,8 +119,8 @@ export function separationColumns(
       // beside "ejection" would be printing a number the flight never uses.
       const text = `${t(`separationEvent.${event}`)}${
         event.startsWith('altitude') ? ` ${u.fmtSym(altitude)}` : ''
-      }${delay ? ` +${delay}s` : ''}`;
-      return over ? <Overridden>{text}</Overridden> : text;
+      }${delay ? delayText(delay) : ''}`;
+      return over ? <Overridden t={t}>{text}</Overridden> : text;
     },
   }));
 }

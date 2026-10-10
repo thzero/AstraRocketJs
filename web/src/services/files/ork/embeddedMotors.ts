@@ -1,5 +1,6 @@
 import type { MotorSpec } from '../../../engine/openRocketEngine';
 import { motorDigest } from '../../motors/motorDigest';
+import { mathEquals } from '../../motors/mathEquals';
 import { escapeXml } from '../xmlUtil';
 
 /**
@@ -27,7 +28,7 @@ interface Row {
 }
 
 /** `MathUtil.equals` with its default epsilon. */
-const same = (a: number, b: number) => Math.abs(a - b) <= 0.00000001;
+const same = mathEquals;
 
 /**
  * The cleanup `AbstractMotorLoader.finalizeThrustCurve` applies to a loaded

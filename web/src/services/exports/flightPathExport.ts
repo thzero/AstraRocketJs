@@ -1282,18 +1282,19 @@ export interface ExportFormat {
 // decode those escapes, so a rocket named `Bill & Ted` would reach the balloon
 // as the literal text `Bill &amp; Ted`. A CDATA block is breakable too: a name
 // containing `]]>` would close it early and produce an invalid document.
-// Pre-escaping makes the two consistent: the template's own markup and the
-// values are each escaped exactly once, the parser decodes them together, and
-// the balloon gets the HTML the template meant and the name the user typed.
-// The degree sign is a literal UTF-8 character rather than `&deg;` for the same
-// reason: one layer of entity decoding, not two.
+// A balloon is HTML after the XML decode, so a value inside one is escaped
+// twice: `{{#htmlBalloon}}` escapes for HTML and then for XML, and the viewer
+// shows `<img src=x>` in a rocket's name as text rather than running it as
+// markup. The template's own markup is escaped once, so it decodes to the tags
+// it means. The degree sign is a literal UTF-8 character rather than `&deg;`:
+// one layer of entity decoding for the markup, not two.
 const KML_TEMPLATE_SOURCE = `<?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2">
 	<Document>
 		<name>{{title}}</name>
 		<open>1</open>
 {{#includeDescriptions}}
-		<description>&lt;b&gt;{{labels.rocket}}:&lt;/b&gt; {{rocketName}}&lt;br/&gt;
+		<description>{{#htmlBalloon}}&lt;b&gt;{{labels.rocket}}:&lt;/b&gt; {{rocketName}}&lt;br/&gt;
 {{#configuration}}&lt;b&gt;{{labels.configuration}}:&lt;/b&gt; {{configuration}}&lt;br/&gt;
 {{/configuration}}&lt;b&gt;{{labels.launchSite}}:&lt;/b&gt; {{launchLatitudeStr}}, {{launchLongitudeStr}} {{labels.latLon}}{{#launchAltitudeMeters}}, {{launchAltitude}} {{altitudeUnit}} {{labels.aboveSeaLevel}}{{/launchAltitudeMeters}}&lt;br/&gt;
 &lt;b&gt;{{labels.maxAltitude}}:&lt;/b&gt; {{maxAltitude}} {{altitudeUnit}}&lt;br/&gt;
@@ -1303,7 +1304,7 @@ const KML_TEMPLATE_SOURCE = `<?xml version="1.0" encoding="UTF-8"?>
 {{#timeToApogee}}&lt;b&gt;{{labels.timeToApogee}}:&lt;/b&gt; {{timeToApogee}} s&lt;br/&gt;
 {{/timeToApogee}}{{#flightTime}}&lt;b&gt;{{labels.flightTime}}:&lt;/b&gt; {{flightTime}} s&lt;br/&gt;
 {{/flightTime}}{{#branches}}{{#hasLanding}}&lt;b&gt;{{landingHeading}}:&lt;/b&gt; {{landingLatitudeStr}}, {{landingLongitudeStr}} {{labels.latLon}}; {{landingText}} {{labels.fromThePad}}; T+{{landingTime}} s&lt;br/&gt;
-{{/hasLanding}}{{/branches}}</description>
+{{/hasLanding}}{{/branches}}{{/htmlBalloon}}</description>
 {{/includeDescriptions}}
 {{#branches}}
 		<Style id="flightPath{{index}}"><LineStyle><color>{{pathColorKml}}</color><width>3</width></LineStyle></Style>
@@ -1327,19 +1328,19 @@ const KML_TEMPLATE_SOURCE = `<?xml version="1.0" encoding="UTF-8"?>
 		<Folder>
 			<name>{{name}}</name>
 {{#includeDescriptions}}
-			<description>&lt;b&gt;{{labels.maxRange}}:&lt;/b&gt; {{maxRange}} {{distanceUnit}} {{labels.fromThePad}}&lt;br/&gt;
+			<description>{{#htmlBalloon}}&lt;b&gt;{{labels.maxRange}}:&lt;/b&gt; {{maxRange}} {{distanceUnit}} {{labels.fromThePad}}&lt;br/&gt;
 {{#hasLanding}}&lt;b&gt;{{labels.landing}}:&lt;/b&gt; {{landingLatitudeStr}}, {{landingLongitudeStr}} {{labels.latLon}}; {{landingText}} {{labels.fromThePad}}; T+{{landingTime}} s&lt;br/&gt;
-{{/hasLanding}}</description>
+{{/hasLanding}}{{/htmlBalloon}}</description>
 {{/includeDescriptions}}
 {{#waypoints}}
 			<Placemark>
 				<name>{{qualifiedLabel}}</name>
 {{#includeDescriptions}}
-				<description>&lt;b&gt;{{labels.time}}:&lt;/b&gt; T+{{timeText}} s&lt;br/&gt;
+				<description>{{#htmlBalloon}}&lt;b&gt;{{labels.time}}:&lt;/b&gt; T+{{timeText}} s&lt;br/&gt;
 &lt;b&gt;{{labels.altitude}}:&lt;/b&gt; {{altitude}} {{altitudeUnit}} {{labels.abovePad}}{{#launchAltitudeMeters}}, {{altitudeMsl}} {{altitudeUnit}} {{labels.aboveSeaLevel}}{{/launchAltitudeMeters}}&lt;br/&gt;
 &lt;b&gt;{{labels.position}}:&lt;/b&gt; {{rangeText}} {{labels.fromThePad}}&lt;br/&gt;
 &lt;b&gt;{{labels.coordinates}}:&lt;/b&gt; {{latitudeStr}}, {{longitudeStr}} {{labels.latLon}}{{#device}}&lt;br/&gt;
-&lt;b&gt;{{labels.device}}:&lt;/b&gt; {{device}}{{/device}}</description>
+&lt;b&gt;{{labels.device}}:&lt;/b&gt; {{device}}{{/device}}{{/htmlBalloon}}</description>
 {{/includeDescriptions}}
 {{#waypointStyled}}				<styleUrl>#waypoint{{index}}</styleUrl>
 {{/waypointStyled}}
@@ -1528,9 +1529,21 @@ export function renderUserTemplate(source: string, extension: string, model: Fli
   // Mustache.escape is a module-level hook; set it for this synchronous render
   // and restore it so concurrent callers/formats are unaffected.
   const previous = Mustache.escape;
-  Mustache.escape = escaperFor(extension);
+  const escape = escaperFor(extension);
+  Mustache.escape = escape;
+  // `{{#htmlBalloon}}...{{/htmlBalloon}}` marks text that a viewer reads as
+  // HTML after decoding the file once, as a KML <description> is: values inside
+  // it are escaped for HTML first, so a name cannot become markup.
+  const htmlBalloon = () => (text: string, render: (t: string) => string) => {
+    Mustache.escape = (raw: string) => escape(escapeXml(raw));
+    try {
+      return render(text);
+    } finally {
+      Mustache.escape = escape;
+    }
+  };
   try {
-    return Mustache.render(source, model);
+    return Mustache.render(source, { ...model, htmlBalloon });
   } finally {
     Mustache.escape = previous;
   }

@@ -1,4 +1,5 @@
 import { useLauncherT } from '../common/useLauncher';
+import { useUnits } from '../../prefs/useUnits';
 import type { FlightResult } from '../../engine/api';
 import { warningText, warningHelp } from '../../services/app/warningText';
 import { WARNING_ROW, WARNING_TONE } from './warningTone';
@@ -12,6 +13,7 @@ import { WARNING_ROW, WARNING_TONE } from './warningTone';
  */
 export function FlightWarnings({ sim }: { sim: FlightResult | null }) {
   const t = useLauncherT();
+  const u = useUnits();
   const warnings = sim?.warnings ?? [];
   if (!sim || !warnings.length) return null;
 
@@ -33,7 +35,7 @@ export function FlightWarnings({ sim }: { sim: FlightResult | null }) {
             >
               <span aria-hidden>⚠</span>
               <span className="min-w-0">
-                <span className="font-medium">{warningText(w.message, t)}</span>
+                <span className="font-medium">{warningText(w.message, t, (q, si) => u.fmtSym(q, si))}</span>
                 {help && <span className="mt-1 block font-normal leading-snug">{help}</span>}
               </span>
             </li>

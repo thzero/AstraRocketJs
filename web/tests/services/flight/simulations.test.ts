@@ -142,8 +142,18 @@ describe('launch into the wind with a multilevel profile', () => {
   it('aims the rod at the SURFACE level (lowest altitude), not windLevels[0]', () => {
     // Listed top-down, the first entry is the wind aloft; the rod must not be
     // aimed at it while the safety code judges the wind at the pad.
-    const c = simConditions({ ...base, launchIntoWind: true, windLevels: topDown });
+    const c = simConditions({ ...base, launchAltitudeM: 0, launchIntoWind: true, windLevels: topDown });
     expect(c.launchRodDirection).toBeCloseTo(deg2rad(135), 9);
+  });
+
+  it('aims by the wind interpolated at the pad altitude, as getLaunchRodDirection does', () => {
+    // North at sea level, east at 2000 m MSL: a 1000 m field has a north-east wind.
+    const sounding = [
+      { altitudeM: 0, speed: 6, directionDeg: 0, stddev: 0 },
+      { altitudeM: 2000, speed: 6, directionDeg: 90, stddev: 0 },
+    ];
+    const c = simConditions({ ...base, launchAltitudeM: 1000, launchIntoWind: true, windLevels: sounding });
+    expect(c.launchRodDirection).toBeCloseTo(deg2rad(45), 9);
   });
 
   it('falls back to the single wind heading, then the default, with no profile', () => {

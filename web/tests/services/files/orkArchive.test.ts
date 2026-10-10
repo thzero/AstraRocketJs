@@ -4,6 +4,7 @@ import { zipSync, strToU8 } from 'fflate';
 import { unpackOrk } from '../../../src/services/files/ork/importUnpack';
 import { importOrk } from '../../../src/services/files/orkFile';
 import { parseRse } from '../../../src/services/motors/rseParser';
+import { noteTexts } from '../../testing/importNotes';
 
 /**
  * The members of a `.ork` archive other than its XML.
@@ -107,11 +108,11 @@ describe('what the import result carries', () => {
 
   it('names a dropped member in the notes', () => {
     const res = importOrk(archive({ 'rocket.ork': XML, 'decals/flames.png': 'x' }));
-    expect(res.notes.join('\n')).toContain('decals/flames.png');
+    expect(noteTexts(res.notes).join('\n')).toContain('decals/flames.png');
   });
 
   it('says nothing about the thumbnail, which is regenerated anyway', () => {
     const res = importOrk(archive({ 'rocket.ork': XML, 'preview.png': 'x' }));
-    expect(res.notes.join('\n')).not.toContain('preview.png');
+    expect(noteTexts(res.notes).join('\n')).not.toContain('preview.png');
   });
 });

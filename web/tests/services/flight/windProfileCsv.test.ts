@@ -30,6 +30,24 @@ describe('parseWindProfileCsv', () => {
     expect(parseWindProfileCsv(csv('altitude\tspeed\tdirection', '0\t4\t90'))[0]!.speed).toBe(4);
   });
 
+  it('reads a decimal comma in a semicolon-separated file, as the desktop does', () => {
+    expect(parseWindProfileCsv(csv('altitude;speed;direction;stddev', '100;5,5;270;0,5'))[0]).toEqual({
+      altitudeM: 100,
+      speed: 5.5,
+      directionDeg: 270,
+      stddev: 0.5,
+    });
+  });
+
+  it('stores a negative speed as the wind from the opposite heading', () => {
+    expect(parseWindProfileCsv(csv('altitude,speed,direction', '0,-4,270'))[0]).toEqual({
+      altitudeM: 0,
+      speed: 4,
+      directionDeg: 90,
+      stddev: 0,
+    });
+  });
+
   it('accepts the header spellings a sounding actually ships with', () => {
     const levels = parseWindProfileCsv(csv('Altitude MSL,Wind Speed,Heading,Std_Dev', '0,4,90,0.4'));
     expect(levels[0]).toEqual({ altitudeM: 0, speed: 4, directionDeg: 90, stddev: 0.4 });

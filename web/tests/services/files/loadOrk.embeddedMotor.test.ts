@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { MotorSpec } from '../../../src/engine/openRocketEngine';
+import { noteTexts } from '../../testing/importNotes';
 
 /**
  * A `.ork` brings the thrust curve of every motor it uses, so the file opens on an
@@ -111,7 +112,7 @@ describe('a motor the catalog does not have', () => {
 
   it('says in the notes that the file supplied the curve', async () => {
     const res = await loadOrk(new ArrayBuffer(0));
-    expect(res.notes.join('\n')).toMatch(/using the thrust curve stored in the file/i);
+    expect(noteTexts(res.notes).join('\n')).toMatch(/the thrust curve stored in the file is used/i);
   });
 
   it('still refuses to fly a default when the file carried no curve', async () => {
@@ -121,7 +122,7 @@ describe('a motor the catalog does not have', () => {
     // The unresolved placeholder, as with no embedded curve support at all: the
     // run gate blocks rather than a C6 flying under an L-motor design.
     expect(res.configs[0]!.motors['mount1']!.spec.thrusts).toEqual([]);
-    expect(res.notes.join('\n')).toMatch(/pick a motor for that mount/i);
+    expect(noteTexts(res.notes).join('\n')).toMatch(/pick a motor for that mount/i);
   });
 });
 
@@ -134,7 +135,7 @@ describe('a motor the catalog has but cannot fetch', () => {
   it('falls back to the file’s own curve rather than a placeholder', async () => {
     const res = await loadOrk(new ArrayBuffer(0));
     expect(res.configs[0]!.motors['mount1']!.spec).toBe(SPEC);
-    expect(res.notes.join('\n')).toMatch(/could not be fetched/i);
+    expect(noteTexts(res.notes).join('\n')).toMatch(/could not be fetched/i);
   });
 
   it('keeps the placeholder when there is no embedded curve to fall back to', async () => {

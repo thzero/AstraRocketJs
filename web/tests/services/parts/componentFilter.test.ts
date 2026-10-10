@@ -432,15 +432,16 @@ describe("the user's own saved parts", () => {
   });
 });
 
-describe('the catalog has no drag coefficients to filter by', () => {
-  it('ships a null Cd for every parachute, which is why there is no Cd facet', () => {
-    // OpenRocket's preset files carry no DragCoefficient for a parachute, so all
-    // 151 rows are null and the picker applies its own default. A Cd filter would
-    // offer exactly one value and narrow nothing; this is the assertion that says
-    // so, and that will fail the day upstream starts publishing them.
+describe('parachute drag coefficients', () => {
+  it('are stated by some makers and left to the default by the rest', () => {
+    // The community database states no DragCoefficient for a parachute; the
+    // parachute makers' files OpenRocket ships state one for theirs. Both kinds
+    // are in the catalog, which is why the picker marks the default it applies.
     const chutes = ofType('parachute');
     expect(chutes.length).toBeGreaterThan(100);
-    expect(chutes.filter((p) => p.cd != null)).toEqual([]);
+    expect(chutes.some((p) => p.cd != null)).toBe(true);
+    expect(chutes.some((p) => p.cd == null)).toBe(true);
+    for (const p of chutes) if (p.cd != null) expect(p.cd).toBeGreaterThan(0);
   });
 });
 

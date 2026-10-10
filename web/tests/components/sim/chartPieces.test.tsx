@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { render } from '@testing-library/react';
 import { LegendSwatch, SeriesPath, peakOf } from '../../../src/components/sim/chartAxes';
 import { CATEGORICAL, seriesColor } from '../../../src/components/common/chartPalette';
-import '../../testing/renderWithProviders';
+import { renderWithProviders } from '../../testing/renderWithProviders';
 
 const X = (t: number) => t * 10;
 const Y = (f: number) => 100 - f;
@@ -70,5 +70,31 @@ describe('seriesColor', () => {
     expect(seriesColor(0)).toBe(CATEGORICAL[0]);
     expect(seriesColor(5)).toBe(CATEGORICAL[5]);
     expect(seriesColor(6)).toBe('var(--c-ink-muted)');
+  });
+});
+
+/**
+ * `url(#id)` resolves to the first match in the document, so two thrust charts
+ * on screen at once must not share a gradient id.
+ */
+describe('ThrustChart', () => {
+  it('gives each instance its own fill gradient', async () => {
+    const { ThrustChart } = await import('../../../src/components/sim/MotorDetail');
+    const samples: [number, number][] = [
+      [0, 0],
+      [0.5, 10],
+      [1, 0],
+    ];
+    const { container } = renderWithProviders(
+      <>
+        <ThrustChart samples={samples} avg={5} burn={1} />
+        <ThrustChart samples={samples} avg={5} burn={1} />
+      </>,
+    );
+    const ids = [...container.querySelectorAll('linearGradient')].map((g) => g.id);
+    expect(ids).toHaveLength(2);
+    expect(new Set(ids).size).toBe(2);
+    const fills = [...container.querySelectorAll('path[fill^="url("]')].map((p) => p.getAttribute('fill'));
+    expect(fills).toEqual(ids.map((id) => `url(#${id})`));
   });
 });

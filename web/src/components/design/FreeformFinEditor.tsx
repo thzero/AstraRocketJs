@@ -63,9 +63,17 @@ export function FreeformFinEditor({
     return new DOMPoint(e.clientX, e.clientY).matrixTransform(ctm.inverse());
   };
 
+  const last = pts.length - 1;
+  // The first point is the root leading edge and the last the root trailing
+  // edge, the two ends of the root on the body. FreeformFinSet keeps the first
+  // at the origin (setPoints translates the outline there) and snaps the last
+  // onto the body (clampLastPoint), and removePoint refuses either one.
+  const fixedEnd = (i: number) => i === 0 || i === last;
   // Fin stays above the body (y ≥ 0) and forward of the origin (x ≥ 0).
-  const setPoint = (i: number, x: number, y: number) =>
-    onChange(pts.map((p, j) => (j === i ? ([Math.max(0, x), Math.max(0, y)] as Pt) : p)));
+  const setPoint = (i: number, x: number, y: number) => {
+    if (i === 0) return;
+    onChange(pts.map((p, j) => (j === i ? ([Math.max(0, x), i === last ? 0 : Math.max(0, y)] as Pt) : p)));
+  };
 
   const onMove = (e: React.PointerEvent) => {
     if (dragging.current == null) return;
@@ -102,7 +110,7 @@ export function FreeformFinEditor({
     onCommit?.();
   };
   const removeSel = () => {
-    if (sel == null || pts.length <= 3) return;
+    if (sel == null || pts.length <= 3 || fixedEnd(sel)) return;
     onChange(pts.filter((_, j) => j !== sel));
     setSel(null);
     onCommit?.();
@@ -136,7 +144,7 @@ export function FreeformFinEditor({
     if (e.key === 'Delete' || e.key === 'Backspace') {
       e.preventDefault();
       setSel(i);
-      if (pts.length > 3) {
+      if (pts.length > 3 && !fixedEnd(i)) {
         onChange(pts.filter((_, j) => j !== i));
         setSel(null);
         onCommit?.();
@@ -153,7 +161,7 @@ export function FreeformFinEditor({
         <span className="text-xs text-ink-muted">{t('freeform.outline')}</span>
         <button
           onClick={removeSel}
-          disabled={sel == null || pts.length <= 3}
+          disabled={sel == null || pts.length <= 3 || fixedEnd(sel)}
           className="rounded bg-raised px-2 py-1 text-xs text-ink-soft hover:bg-elevated disabled:opacity-40"
         >
           {t('freeform.removePoint')}
@@ -206,25 +214,38 @@ export function FreeformFinEditor({
             />
           );
         })}
-        {/* vertices: drag to move */}
-        {pts.map((p, i) => (
-          <circle
-            key={`v-${i}`}
-            cx={sx(p[0])}
-            cy={sy(p[1])}
-            r="5.5"
-            strokeWidth="1.5"
-            role="button"
-            tabIndex={0}
-            aria-label={t('freeform.vertex', { n: i + 1 })}
-            className={`cursor-grab stroke-surface focus:outline-none focus:ring-2 focus:ring-accent-400 ${
-              sel === i ? 'fill-warn-300' : 'fill-warn-500'
-            }`}
-            onPointerDown={startDrag(i)}
-            onFocus={() => setSel(i)}
-            onKeyDown={onVertexKey(i)}
-          />
-        ))}
+        {/* vertices: drag to move. The root leading edge is the outline's
+            origin and is drawn as a fixed marker, not a control. */}
+        {pts.map((p, i) =>
+          i === 0 ? (
+            <circle
+              key="v-0"
+              cx={sx(p[0])}
+              cy={sy(p[1])}
+              r="4"
+              strokeWidth="1.5"
+              aria-hidden="true"
+              className="fill-surface stroke-warn-500"
+            />
+          ) : (
+            <circle
+              key={`v-${i}`}
+              cx={sx(p[0])}
+              cy={sy(p[1])}
+              r="5.5"
+              strokeWidth="1.5"
+              role="button"
+              tabIndex={0}
+              aria-label={t('freeform.vertex', { n: i + 1 })}
+              className={`cursor-grab stroke-surface focus:outline-none focus:ring-2 focus:ring-accent-400 ${
+                sel === i ? 'fill-warn-300' : 'fill-warn-500'
+              }`}
+              onPointerDown={startDrag(i)}
+              onFocus={() => setSel(i)}
+              onKeyDown={onVertexKey(i)}
+            />
+          ),
+        )}
       </svg>
 
       {selPt && (
@@ -252,6 +273,7 @@ export function FreeformFinEditor({
               value={ptY.toUi(selPt[1])}
               onChange={onSi(ptY, (si) => si !== null && setPoint(sel!, selPt[0], si))}
               onCommit={onCommit}
+              disabled={sel === last}
               step={ptY.step(0.001)}
               ariaLabel="Y"
               className="w-16 rounded bg-raised px-1.5 py-0.5 text-right tabular-nums text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500"

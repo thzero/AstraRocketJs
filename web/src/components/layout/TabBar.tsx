@@ -64,13 +64,18 @@ function TabButton({
   return (
     <button
       onClick={onClick}
-      // Which tab you are on is announced (`aria-current`), not shown by color
-      // alone, which a screen reader cannot announce and a low-vision user
-      // cannot rely on.
+      // Which tab you are on is announced (`aria-current`) and drawn with a bar
+      // and a heavier label, not shown by color alone, which a screen reader
+      // cannot announce and a low-vision user cannot rely on.
       aria-current={active ? 'page' : undefined}
-      className={`flex flex-1 flex-col items-center gap-0.5 py-3 text-xs ${active ? 'text-accent-400' : 'text-ink-muted'}`}
+      className={`flex flex-1 flex-col items-center gap-0.5 border-t-2 py-3 text-xs ${
+        active ? 'border-accent-400 font-semibold text-accent-400' : 'border-transparent text-ink-muted'
+      }`}
     >
-      <span className="text-lg">{icon}</span>
+      {/* Decorative: the label names the tab. */}
+      <span className="text-lg" aria-hidden="true">
+        {icon}
+      </span>
       {label}
     </button>
   );

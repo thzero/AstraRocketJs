@@ -2,6 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { importRkt } from '../../../src/services/files/rktImport';
 import type { ComponentNode } from '../../../src/engine/openRocketEngine';
+import { noteTexts } from '../../testing/importNotes';
 
 /**
  * A `.rkt` in RockSim's own layout, written element for element from
@@ -296,8 +297,8 @@ describe('importRkt', () => {
 
   it('names what it could not bring across, and what never transfers', () => {
     expect(res.ignored).toContain('RingTail');
-    expect(res.notes.join(' ')).toContain('RingTail');
-    expect(res.notes.join(' ')).toMatch(/motor selections and launch conditions are not imported/i);
+    expect(noteTexts(res.notes).join(' ')).toContain('RingTail');
+    expect(noteTexts(res.notes).join(' ')).toMatch(/motor selections and launch conditions are not imported/i);
   });
 
   it('refuses a file that is not a RockSim design', () => {

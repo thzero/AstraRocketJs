@@ -39,6 +39,14 @@ const SHOULDERS: Record<string, readonly { auto: string; radius: string; side: -
 };
 
 /**
+ * A flipped nose cone is a tail cone: its base, and the shoulder on it, face
+ * forward into the part ahead (`NoseCone.setFlipped` moves the aft shoulder
+ * to the fore end).
+ */
+const sideOf = (node: ComponentNode, side: -1 | 1): -1 | 1 =>
+  node.type === 'nosecone' && node['flipped'] === true ? -1 : side;
+
+/**
  * Resolve every auto shoulder in the tree against its current neighbor.
  *
  * Runs after each tree edit (see treeEdit), so widening a body tube updates the
@@ -53,8 +61,8 @@ export function syncAutoShoulders(tree: RocketTree): RocketTree {
       if (node[s.auto] !== true) continue;
       // The neighbor is read from the original row: a shoulder never changes
       // the bore it is measured against, so there is no ordering to get wrong.
-      const neighbor = siblings[index + s.side];
-      const bore = neighbor ? boreAt(neighbor, s.side === -1 ? 'aft' : 'fore') : null;
+      const neighbor = siblings[index + sideOf(node, s.side)];
+      const bore = neighbor ? boreAt(neighbor, sideOf(node, s.side) === -1 ? 'aft' : 'fore') : null;
       // No neighbor yet, or one with no bore to plug: leave the stored value
       // alone rather than zeroing a shoulder somebody typed. Adding the tube
       // later fills it in on that edit.

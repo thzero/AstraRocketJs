@@ -2,7 +2,7 @@ import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
 import { countOf, num, numOpt } from '../../tree/nodeProps';
 import { isFinSet, tubeFinRadius } from '../../tree/tubefins';
 import { FREEFORM_FALLBACK, finPlanformPoints, finRootChord, finSpan, finTabSpan } from '../../tree/finPlanform';
-import { nodeShape, outerProfile } from '../../tree/shapeProfile';
+import { nodeShape, outerProfile, profileEnds } from '../../tree/shapeProfile';
 // From the tree module: a service must not reach into a canvas component for
 // half its geometry. `schematicGeometry.axialStart` is the same formula.
 import { axialChain, axialStart, partLength } from '../../tree/position';
@@ -203,9 +203,10 @@ export function rocketSideView(tree: RocketTree): { w: number; h: number; body: 
     for (const n of nodes) {
       const len = partLength(n);
       if (n.type === 'nosecone') {
-        const R = num(n, 'aftRadius', KERNEL_DEFAULTS.nosecone.aftRadius);
-        revolve(n, 0, R, len);
-        emitChildren(n, len, radiusSampler(n, 0, R, len));
+        // A flipped nose cone is a tail cone: its base is the fore end.
+        const { fore: foreR, aft: aftR } = profileEnds(n);
+        revolve(n, foreR, aftR, len);
+        emitChildren(n, len, radiusSampler(n, foreR, aftR, len));
         x += len;
       } else if (n.type === 'bodytube') {
         const R = num(n, 'outerRadius', KERNEL_DEFAULTS.bodytube.outerRadius);
@@ -227,9 +228,10 @@ export function rocketSideView(tree: RocketTree): { w: number; h: number; body: 
       }
     }
 
-    // A pod attached directly to the stage hangs off the widest body radius on
-    // the chain, since there is no single symmetric parent to sample.
-    for (const pod of deferred) emitAssembly(pod, xStart, x - xStart, () => chainMaxR, cy);
+    // A pod attached directly to the stage is placed from the axis: the
+    // kernel's relative radius adds the parent's radius only for a body tube
+    // parent (RadiusMethod.RELATIVE), and a stage is not one.
+    for (const pod of deferred) emitAssembly(pod, xStart, x - xStart, () => 0, cy);
 
     maxUp = Math.max(maxUp, Math.abs(cy) + chainMaxR);
     maxX = Math.max(maxX, x);

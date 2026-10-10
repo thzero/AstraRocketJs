@@ -1,3 +1,4 @@
+import i18n from '../../i18n';
 import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
 
 let counter = 1;
@@ -23,7 +24,8 @@ export function asStageNodes(tree: RocketTree): ComponentNode[] {
  * after it, as the `.ork` and `.rkt` readers and the `.ork` writer name them.
  * File text, not a display label (that is `stageLabel` in i18n/format.ts).
  */
-export const defaultStageName = (i: number): string => (i === 0 ? 'Sustainer' : `Booster ${i}`);
+export const defaultStageName = (i: number): string =>
+  i === 0 ? i18n.t('stageName.sustainer') : i18n.t('stageName.booster', { n: i });
 
 /** A stage's name as a file states it: its own, else {@link defaultStageName}. */
 export const stageFileName = (st: ComponentNode, i: number): string =>

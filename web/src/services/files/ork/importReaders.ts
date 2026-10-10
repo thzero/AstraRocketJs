@@ -23,7 +23,6 @@ import {
   readSeparation,
   readAutoValue,
   readSoftMaterial,
-  readOverrides,
 } from './importTags';
 import {
   captureDeployments,
@@ -517,10 +516,11 @@ export function readStages(ctx: OrkImportContext, stages: Element[]): ComponentN
       id: freshId(),
       name: text(stageEl, ':scope > name') ?? defaultStageName(i),
     };
-    // A stage can be overridden like any other component, and the writer emits
-    // it, but this builds its own node rather than going through the part
-    // reader, so it reads the overrides itself.
-    readOverrides(stageEl, stage);
+    // What every component carries (comment, line style, color, overrides and
+    // the appearance kept as passthrough), as RocketComponentSaver writes it
+    // for a stage too. A stage has no axial position of its own.
+    readCommon(stageEl, stage, false);
+    stage.name = text(stageEl, ':scope > name') ?? defaultStageName(i);
     // RASAero power-on base-drag input (meters), every stage incl. sustainer.
     const nozzle = numTag(stageEl, 'nozzleexitdiameter', NaN);
     if (!Number.isNaN(nozzle) && nozzle > 0) stage['nozzleExitDiameter'] = nozzle;

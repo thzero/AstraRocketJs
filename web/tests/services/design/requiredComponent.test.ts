@@ -62,6 +62,22 @@ describe('isDimension', () => {
 });
 
 describe('badDimensions', () => {
+  it('needs no wall on a filled part, which the kernel builds solid', () => {
+    expect(badDimensions(tree({ tube: { filled: true, thickness: undefined } }))).toEqual([]);
+    const nose = { id: 'n', type: 'nosecone', length: 0.1, aftRadius: 0.013, filled: true };
+    const tail = { id: 't', type: 'transition', length: 0.05, foreRadius: 0.013, aftRadius: 0.01, filled: true };
+    expect(badDimensions({ components: [nose, tail] } as unknown as RocketTree)).toEqual([]);
+  });
+
+  it('still needs every other dimension of a filled part, and the wall of a hollow one', () => {
+    expect(
+      badDimensions(tree({ tube: { filled: true, thickness: undefined, length: 0 } })).map((b) => b.field),
+    ).toEqual(['length']);
+    expect(badDimensions(tree({ tube: { filled: false, thickness: undefined } })).map((b) => b.field)).toEqual([
+      'thickness',
+    ]);
+  });
+
   it('finds nothing in a healthy design', () => {
     expect(badDimensions(tree())).toEqual([]);
   });
@@ -127,7 +143,7 @@ describe('designBlocker', () => {
     // message can tell it from a part someone called "bodytube" and translate
     // only the first.
     const b = designBlocker(tree({ tube: { name: 'bodytube', outerRadius: 0 } }))!;
-    expect(designBlockerText(b, t)).toContain('"bodytube"');
+    expect(designBlockerText(b, t)).toContain('name=bodytube,');
   });
 
   it('names each part once, listing all of its bad dimensions together', () => {
@@ -135,10 +151,10 @@ describe('designBlocker', () => {
     const b = designBlocker(tree({ tube: { outerRadius: 0, thickness: 0 } }))!;
     const msg = designBlockerText(b, t);
     expect(msg).toContain('sim.badGeometry');
-    expect(msg).toContain('"Body tube"');
+    expect(msg).toContain('sim.badGeometryPart(name=Body tube,');
     expect(msg).toContain('part.field.outerRadius');
     expect(msg).toContain('part.field.thickness');
     // The part is named once, not repeated per field.
-    expect(msg.match(/"Body tube"/g)).toHaveLength(1);
+    expect(msg.match(/Body tube/g)).toHaveLength(1);
   });
 });

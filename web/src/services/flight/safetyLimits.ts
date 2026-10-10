@@ -1,4 +1,5 @@
-import type { LaunchConditions, WindLevel } from '../design/orkTree';
+import type { LaunchConditions } from '../design/orkTree';
+import { padLevelWind } from './windLevels';
 import { fmtUpTo, ladderDigits, withUnit } from '../../i18n/format';
 import { degToRad, type Quantity, siToUi, uiToSi, type UnitSymbols } from '../../prefs/units';
 
@@ -50,30 +51,16 @@ export interface LimitViolation {
 }
 
 /**
- * The ground layer of a multilevel wind profile, or `undefined` when the
- * launch has no profile.
- *
- * Levels are not kept sorted (a CSV or a `.ork` can list them top-down), so the
- * surface is the lowest altitude, not the first entry. One reader, so the "launch
- * into the wind" heading and the safety code cannot be judged on two different
- * levels of the same profile.
- */
-export function surfaceLevel(launch: LaunchConditions): WindLevel | undefined {
-  const levels = launch.windLevels ?? [];
-  if (!levels.length) return undefined;
-  return levels.reduce((low, l) => (l.altitudeM < low.altitudeM ? l : low), levels[0]!);
-}
-
-/**
  * The wind at the pad, in m/s.
  *
  * A multilevel profile replaces the single wind at the engine (see
- * `simConditions`), and its ground layer is the one the limit is about: the
- * codes are a go/no-go call made from what you can measure at the pad, and
- * nobody is metering the wind at 500 m.
+ * `simConditions`), and its wind at the pad is the one the limit is about (see
+ * `padLevelWind`): the codes are a go/no-go call made from what you can measure
+ * at the pad, and nobody is metering the wind at 500 m. A negative speed flies
+ * as its magnitude, so it is judged as one.
  */
 function surfaceWindMs(launch: LaunchConditions): number {
-  return surfaceLevel(launch)?.speed ?? launch.windAverage ?? 0;
+  return padLevelWind(launch)?.speedMs ?? Math.abs(launch.windAverage ?? 0);
 }
 
 /**

@@ -145,9 +145,12 @@ export function LocationEditor({
         className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4"
         // On the wrapper rather than the panel, which the shell owns. Keydown
         // bubbles from whichever field is being typed into, so this still
-        // catches Enter anywhere in the form.
+        // catches Enter anywhere in the form. Only from a field: Enter on a
+        // button is that button's, and Enter on the map is a pick it has
+        // already handled, which would otherwise save the coordinates from
+        // before it.
         onKeyDown={(e) => {
-          if (e.key === 'Enter') {
+          if (e.key === 'Enter' && !e.defaultPrevented && e.target instanceof HTMLInputElement) {
             e.preventDefault();
             submit();
           }

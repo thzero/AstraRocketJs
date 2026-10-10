@@ -95,8 +95,10 @@ export function TreeSchematic({
   /** Roll angle (radians) about the rocket's long axis: spins the fin sets so
    *  each fin projects by cos(roll + i·2π/N), like OpenRocket's rotation. */
   roll?: number;
-  /** When set, a horizontal drag on the drawing spins the roll (delta radians)
-   *  instead of panning, so the user can drag to rotate the rocket. */
+  /** When set, a horizontal drag on the drawing at the fitted view spins the
+   *  roll (delta radians), so the user can drag to rotate the rocket. Once
+   *  zoomed in, a drag pans instead: the roll slider still turns the rocket,
+   *  and nothing else can bring a part outside the view into it. */
   onRoll?: (deltaRadians: number) => void;
   /** When set, the drawing's control buttons (calipers, zoom, export) render into
    *  this element (a slot in the pane header) instead of over the drawing. */
@@ -239,8 +241,9 @@ export function TreeSchematic({
         p.active = true;
         e.currentTarget.setPointerCapture?.(e.pointerId);
       }
-      // Drag-to-roll: horizontal motion spins the fins (~1 turn per width).
-      if (onRoll) {
+      // Drag-to-roll at the fitted view: horizontal motion spins the fins
+      // (~1 turn per width). Zoomed in, the drag pans (see `onRoll`).
+      if (onRoll && zoom.k <= 1) {
         const r = svgRef.current?.getBoundingClientRect();
         const width = r && r.width ? r.width : 400;
         onRoll((dx / width) * 2 * Math.PI);
@@ -286,6 +289,8 @@ export function TreeSchematic({
   // Unnamed parts print the tree panel's translated type name, not the schema's
   // English label, so the hover tag and <title> read the same as the tree.
   const partName = useCallback((n: { type: string }) => t(`part.${n.type}`), [t]);
+  // The internal parts' type tags are drawing text, carried into the exports.
+  const typeTag = useCallback((type: string) => t(`schematic.tag.${type}`), [t]);
   // The whole SVG scene: every part outline, wire, clip path and clip def.
   // Memoized so unrelated state changes in this component (caliper drag,
   // ruler toggle, tooltip, pan) and parent re-renders do not rebuild it for
@@ -308,8 +313,9 @@ export function TreeSchematic({
         onSelect,
         setHoverId,
         partName,
+        typeTag,
       }),
-    [chain, ctx, scale, w, h, roll, uid, motors, selectedId, onSelect, partName],
+    [chain, ctx, scale, w, h, roll, uid, motors, selectedId, onSelect, partName, typeTag],
   );
   // The hovered part's extent, resolved from the memoized map (see above).
   const hovered = hoverId ? extents.get(hoverId) : undefined;
@@ -409,6 +415,9 @@ export function TreeSchematic({
         onPointerMove={onMove}
         onPointerUp={endDrag}
         onPointerLeave={endDrag}
+        // A touch the OS takes over (a system gesture, a scroll) ends without a
+        // pointerup; left armed, the next move would pan or roll unpressed.
+        onPointerCancel={endDrag}
       >
         <defs>
           {/* Bulkhead fill: the engineering-drawing diagonal hatch. */}
@@ -497,11 +506,7 @@ export function TreeSchematic({
           />
         )}
       </svg>
-      {/* Vertical is read-mostly: no zoom to fit-reset, and the SVG/image
-          exports assume the horizontal drawing (identity view transform), so
-          the whole strip hides rather than export a sideways page. */}
-      {controls &&
-        (controlsSlot ? createPortal(controls, controlsSlot) : <div className="schematic-controls">{controls}</div>)}
+      {controlsSlot ? createPortal(controls, controlsSlot) : <div className="schematic-controls">{controls}</div>}
     </div>
   );
 }

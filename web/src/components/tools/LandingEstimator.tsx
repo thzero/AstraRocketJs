@@ -51,6 +51,12 @@ export function forgetLandingEstimator(): void {
   remembered.forget();
 }
 
+/** A duration as m:ss, rounded to the whole second before it is split. */
+export function minutesSeconds(s: number): string {
+  const total = Math.round(s);
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
+}
+
 export function LandingEstimator() {
   const { t } = useTranslation();
   const online = useOnline();
@@ -124,8 +130,6 @@ export function LandingEstimator() {
   const run = state.kind === 'ready' ? state.run : null;
   const e = run?.estimate;
   const validTime = run ? fmtSiteTime(run.validUnix * 1000, run.answer.timezone) : '';
-  const minutes = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`;
-
   return (
     <div className="grid gap-4 lg:grid-cols-[22rem_minmax(0,1fr)]">
       <div className="space-y-4">
@@ -254,7 +258,7 @@ export function LandingEstimator() {
               </TermRow>
               <TermRow label={t('landing.distance')}>{fmtM(e.nominal.distanceM)}</TermRow>
               <TermRow label={t('landing.bearing')}>{`${Math.round(e.nominal.bearingDeg)}°`}</TermRow>
-              <TermRow label={t('landing.descentTime')}>{minutes(e.nominal.timeS)}</TermRow>
+              <TermRow label={t('landing.descentTime')}>{minutesSeconds(e.nominal.timeS)}</TermRow>
               <TermRow label={t('landing.zone')}>
                 {e.ellipse
                   ? `${fmtM(2 * e.ellipse.semiMajorM)} × ${fmtM(2 * e.ellipse.semiMinorM)}`

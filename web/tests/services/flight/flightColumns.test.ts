@@ -48,7 +48,7 @@ describe('flightColumns', () => {
    */
   it('names every column it can offer, in English and Spanish', () => {
     // A result carrying every key the table knows about.
-    const all = flightColumns(withKeys(DEFAULT_CSV_COLUMNS.concat(['ha', 'Vz', 'Abx', 'dΦ', 'Cdf', 'ρ', 'tc'])));
+    const all = flightColumns(withKeys(DEFAULT_CSV_COLUMNS.concat(['ha', 'Vz', 'Abx', 'dΦ', 'Cdf', 'ρ', 'Fta'])));
     expect(all.length).toBeGreaterThan(15);
     for (const c of all) {
       expect(c.labelKey, `${c.key} has no label key`).toBeTruthy();
@@ -56,6 +56,15 @@ describe('flightColumns', () => {
       expect(strings(en, ns!)[key!], `en is missing ${c.labelKey}`).toBeTruthy();
       expect(strings(es, ns!)[key!], `es is missing ${c.labelKey}`).toBeTruthy();
     }
+  });
+
+  it('names and scales the thrust pressure correction the full set carries', () => {
+    const [fta] = flightColumns(withKeys(['Fta']));
+    expect(fta).toEqual({ key: 'Fta', labelKey: 'flightVar.Fta', quantity: 'force' });
+  });
+
+  it('puts the mass in the reader mass unit, as it does the propellant mass', () => {
+    expect(flightColumns(withKeys(['mass', 'mp'])).map((c) => c.quantity)).toEqual(['mass', 'mass']);
   });
 
   it('gives every column a unit or an explicit blank, never undefined both ways', () => {

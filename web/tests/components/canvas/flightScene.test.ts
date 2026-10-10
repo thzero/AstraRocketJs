@@ -8,7 +8,7 @@ import {
   type PhaseColors,
 } from '../../../src/components/canvas/flightScene';
 import type { FlightResult, RocketTree } from '../../../src/engine/openRocketEngine';
-import { findRecovery } from '../../../src/components/canvas/flightScene';
+import { boostWindows, findRecovery } from '../../../src/components/canvas/flightScene';
 import { mergePalette } from '../../../src/services/design/partColors';
 import { KERNEL_DEFAULTS } from '../../../src/tree/kernelDefaults';
 
@@ -138,7 +138,7 @@ describe('callouts', () => {
       phase,
     );
     expect(s.callouts.map((c) => c.type)).toEqual(['BURNOUT', 'APOGEE', 'GROUND_HIT']);
-    expect(s.burnoutT).toBe(2);
+    expect(s.boostWindows).toEqual([[0, 2]]);
   });
 
   it('drops a label that would sit on top of another', () => {
@@ -284,5 +284,62 @@ describe('findRecovery', () => {
       mergePalette({}),
     );
     expect(r).toMatchObject({ kind: 'parachute', diameter: 0.6 });
+  });
+});
+
+/**
+ * A staged flight's main branch carries the booster's burnout first and the
+ * sustainer's after it. The boost color and the flame follow each burn, with
+ * the coast between them colored as coast.
+ */
+describe('boost windows', () => {
+  it('pairs each ignition with the burnout that ends it', () => {
+    expect(
+      boostWindows([
+        { type: 'IGNITION', time: 0 },
+        { type: 'BURNOUT', time: 1.5 },
+        { type: 'STAGE_SEPARATION', time: 1.6 },
+        { type: 'IGNITION', time: 2 },
+        { type: 'BURNOUT', time: 4 },
+        { type: 'APOGEE', time: 9 },
+      ]),
+    ).toEqual([
+      [0, 1.5],
+      [2, 4],
+    ]);
+  });
+
+  it('holds a cluster burning out at different times in one window', () => {
+    expect(
+      boostWindows([
+        { type: 'IGNITION', time: 0 },
+        { type: 'IGNITION', time: 0 },
+        { type: 'BURNOUT', time: 1.8 },
+        { type: 'BURNOUT', time: 2.1 },
+      ]),
+    ).toEqual([[0, 2.1]]);
+  });
+
+  it('colors the sustainer burn as boost and the coast before it as coast', () => {
+    const time = Array.from({ length: 11 }, (_, i) => i);
+    const altitude = time.map((t) => 300 - 3 * (t - 10) ** 2);
+    const s = buildFlightScene(
+      result({
+        time,
+        altitude,
+        events: [
+          { type: 'IGNITION', time: 0 },
+          { type: 'BURNOUT', time: 2 },
+          { type: 'IGNITION', time: 4 },
+          { type: 'BURNOUT', time: 6 },
+          { type: 'APOGEE', time: 10 },
+        ],
+      }),
+      phase,
+    );
+    expect(chan(s.colors[1]!)).toBe(RED); // booster burn
+    expect(chan(s.colors[3]!)).toBe(GREEN); // coast between the stages
+    expect(chan(s.colors[5]!)).toBe(RED); // sustainer burn
+    expect(chan(s.colors[8]!)).toBe(GREEN); // coast to apogee
   });
 });

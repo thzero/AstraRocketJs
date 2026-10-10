@@ -133,7 +133,7 @@ Under it, results are shown as tiles, in roughly chronological flight order, inc
 - **Deployment speed** (flagged if above your warning threshold; green when safely low). On a [dual-deployment](./designing-a-rocket.md#dual-deployment) design the flight engine judges the main and the drogue against their own thresholds instead, and reports a warning for each.
 - **Landing speed**, **flight time**, and **downrange** distance
 - **Max-Q**, the peak dynamic pressure of the boost. The engine does not record it, so it is derived from the air density and speed of sound the run already carries; it is the number that decides whether the airframe holds together. A result saved before simulations kept the full series set has no air density stored, and reports no Max-Q rather than a zero that would look like an answer.
-- **Max q·α**, the largest dynamic pressure times angle of attack while the rocket still flies forward (up to deployment, else apogee), in kPa·°. The side load on fins and couplers follows it. Derived the same way as Max-Q.
+- **Max q·α**, the largest dynamic pressure times angle of attack while the rocket still flies forward (up to deployment, else apogee), in the Max q pressure unit times your angle unit (kPa·° or psi·°, for example). The side load on fins and couplers follows it. Derived the same way as Max-Q.
 - **Max roll rate**, the fastest the rocket rolled during the flight, read from the engine's roll rate series.
 
 ### Flight events

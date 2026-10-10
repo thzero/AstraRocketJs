@@ -113,6 +113,31 @@ describe('LocationEditor, the map', () => {
   });
 });
 
+describe('LocationEditor, Enter', () => {
+  it('saves from a field', () => {
+    const { onSave } = render(HOME);
+    fireEvent.keyDown(field('Latitude'), { key: 'Enter' });
+    expect(onSave).toHaveBeenCalledWith(HOME);
+  });
+
+  it('leaves Enter on a button to the button', () => {
+    const { onSave } = render(HOME);
+    const zoomIn = screen.getByRole('button', { name: 'Zoom in' });
+    expect(fireEvent.keyDown(zoomIn, { key: 'Enter' })).toBe(true); // not prevented
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it('picks the map center on Enter without saving the coordinates from before', () => {
+    const { onSave } = render(HOME);
+    const map = screen.getByRole('group', { name: /Launch site map/ });
+    // Pan east, so the center is somewhere other than the saved location.
+    fireEvent.keyDown(map, { key: 'ArrowRight' });
+    fireEvent.keyDown(map, { key: 'Enter' });
+    expect(field('Longitude').value).not.toBe('-104.8');
+    expect(onSave).not.toHaveBeenCalled();
+  });
+});
+
 describe('LocationEditor, creating', () => {
   it('starts empty and refuses to save until it is a real place', () => {
     const { onSave } = render(null);

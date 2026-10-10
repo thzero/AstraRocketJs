@@ -647,6 +647,12 @@ export function loadSettings(): Settings {
         sim.maxTime = pos(sim.maxTime, DEFAULT_SETTINGS.simulation.maxTime);
         // Zero or negative would make the stepper's dt go to zero or flip sign.
         sim.maxAngleStep = pos(sim.maxAngleStep, DEFAULT_SETTINGS.simulation.maxAngleStep);
+        // And into the range the Settings fields accept: a run of maxTime 1e6
+        // cannot be interrupted, and a stored blob never passed through those
+        // fields.
+        for (const k of ['timeStep', 'maxTime', 'maxAngleStep'] as const) {
+          sim[k] = Math.min(SIM_BOUNDS[k].max, Math.max(SIM_BOUNDS[k].min, sim[k]));
+        }
         // These reach the kernel too, so the same guard applies.
         sim.deploymentSpeedWarn = pos(sim.deploymentSpeedWarn, DEFAULT_SETTINGS.simulation.deploymentSpeedWarn);
         sim.mainHighSpeedWarn = pos(sim.mainHighSpeedWarn, DEFAULT_SETTINGS.simulation.mainHighSpeedWarn);

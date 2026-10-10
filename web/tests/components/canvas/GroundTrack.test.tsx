@@ -289,6 +289,31 @@ describe('GroundTrack drift region', () => {
     expect(biggest(labels())).toBeGreaterThan(biggest(withoutSweep));
   });
 
+  /**
+   * A stage whose track is too short to draw is left out of the readout, and
+   * the stages after it must still be matched to their own sweep.
+   */
+  it('reads each stage band from its own branch when an earlier track is too short to draw', () => {
+    const staged = {
+      ...flight(),
+      result: {
+        summary: {},
+        events: [],
+        series: { time: [0], altitude: [0], Px: [0], Py: [0] },
+        branches: [
+          { name: 'Sustainer', events: [], series: { time: [0], altitude: [0], Px: [0], Py: [0] } },
+          { name: 'Booster', events: [], series: flight().result.series },
+        ],
+      },
+    } as unknown as ChartFlight;
+    const booster = sweep('sim-1');
+    useWorkspaceStore.setState({
+      driftSweep: { ...booster, landings: booster.landings.map((l) => ({ ...l, branch: 1 })) },
+    });
+    renderWithProviders(<GroundTrack flight={staged} {...HOME} />);
+    expect(screen.getByText('Booster').parentElement!.textContent).toContain('(566–566 m)');
+  });
+
   it('reads out the swept range band beside the flown one', () => {
     useWorkspaceStore.setState({ driftSweep: sweep('sim-1') });
     renderWithProviders(<GroundTrack flight={flight()} {...HOME} />);

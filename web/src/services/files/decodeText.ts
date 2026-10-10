@@ -1,3 +1,19 @@
+import { MAX_ARCHIVE_ENTRY_BYTES } from './ork/importLimits';
+
+/**
+ * The largest imported file the app decodes, the same ceiling a zipped `.ork`
+ * member is held to. DOMParser and the line splitters run on the main thread,
+ * so a multi-hundred-MB design or motor file would freeze the tab.
+ */
+export const MAX_IMPORT_FILE_BYTES = MAX_ARCHIVE_ENTRY_BYTES;
+
+/** Throws when an imported file is over {@link MAX_IMPORT_FILE_BYTES}. */
+export function assertImportSize(size: number): void {
+  if (size > MAX_IMPORT_FILE_BYTES) {
+    throw new Error(`File is too large to open (over ${MAX_IMPORT_FILE_BYTES / (1024 * 1024)} MiB).`);
+  }
+}
+
 /**
  * An imported file's bytes as text, in whatever encoding it was written in.
  *
@@ -24,6 +40,7 @@ function encodingOf(bytes: Uint8Array): string {
 
 /** Decode an imported file, honoring a UTF-16 mark or shape. */
 export function decodeFileText(bytes: Uint8Array): string {
+  assertImportSize(bytes.byteLength);
   return new TextDecoder(encodingOf(bytes)).decode(bytes);
 }
 
@@ -34,5 +51,6 @@ export function decodeFileText(bytes: Uint8Array): string {
  * reads through this instead.
  */
 export async function readFileText(file: Blob): Promise<string> {
+  assertImportSize(file.size);
   return decodeFileText(new Uint8Array(await file.arrayBuffer()));
 }

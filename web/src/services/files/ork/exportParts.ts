@@ -151,7 +151,7 @@ function colorXml(w: OrkWriter, depth: number, node: ComponentNode): void {
 }
 
 // Mass/CG/Cd overrides, exactly as the desktop RocketComponentSaver writes them.
-export function overrides(w: OrkWriter, depth: number, node: ComponentNode): void {
+function overrides(w: OrkWriter, depth: number, node: ComponentNode): void {
   const sub = (key: string) => (node[key] === true ? 'true' : 'false');
   if (typeof node['overrideMass'] === 'number') {
     w.emit(depth, `<overridemass>${node['overrideMass']}</overridemass>`);

@@ -1,5 +1,6 @@
 import type { ComponentNode } from '../../engine/openRocketEngine';
 import { FREEFORM_FALLBACK, finPlanformPoints, finRootChord, finSpan, finTabSpan } from '../../tree/finPlanform';
+import { profileEnds } from '../../tree/shapeProfile';
 import { countOf, num, str } from '../../tree/nodeProps';
 import { KERNEL_DEFAULTS, KERNEL_RAILBUTTON_OUTER_DIAMETER } from '../../tree/kernelDefaults.js';
 import { clusterOffsets } from '../../tree/cluster.js';
@@ -10,6 +11,7 @@ import { DISC_TYPES } from '../../services/files/componentFormats.js';
 import { discDims, tubeRadii } from '../../services/design/discGeometry.js';
 import { assemblyChainLength, isAssembly, resolveAssemblyRadius, ringInstanceOffsets } from '../../tree/assembly.js';
 import { token } from '../common/colorTokens';
+import { transitionEnds } from './transitionEnds';
 import {
   axialStart,
   colorOf,
@@ -57,6 +59,9 @@ export interface SchematicShapesCfg {
   /** Display name for an unnamed part (the tree panel's translated type name).
    *  Absent = the untranslated schema label. */
   partName?: (n: ComponentNode) => string;
+  /** The short in-drawing tag for an internal part type (`schematic.tag.<type>`).
+   *  Absent = the untranslated English tag. */
+  typeTag?: (type: string) => string;
 }
 
 /** What the scene knows about one component's drawn footprint, keyed by node
@@ -710,7 +715,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
                 fill={fillOf(child, style.stroke)}
                 style={{ pointerEvents: 'none', textTransform: 'uppercase', letterSpacing: '0.04em' }}
               >
-                {style.tag}
+                {cfg.typeTag?.(child.type) ?? style.tag}
               </text>,
             );
           }
@@ -769,18 +774,23 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
       const len = partLength(n);
       if (n.type === 'nosecone') {
         const r = num(n, 'aftRadius', KERNEL_DEFAULTS.nosecone.aftRadius);
+        // A flipped nose cone is a tail cone: its base, and the shoulder on it,
+        // are at the fore end.
+        const flipped = n['flipped'] === true;
+        const ends = profileEnds(n);
         noteHover(n, ctx.x0 + cx * scale, baseY - r * scale, ctx.x0 + (cx + len) * scale, baseY + r * scale);
         shapes.push(
           <path
             key={key++}
-            d={profilePath(ctx, n, cx, len, 0, r, baseY)}
+            d={profilePath(ctx, n, cx, len, ends.fore, ends.aft, baseY)}
             fill={fillOf(n, token('sch-shell'))}
             stroke={selStroke(n, token('sch-line'))}
             strokeWidth={selWidth(n)}
             {...clickable(n)}
           />,
         );
-        shoulderRect(n, cx + len, num(n, 'shoulderLength', 0), num(n, 'shoulderRadius', 0), baseY);
+        const shLen = num(n, 'shoulderLength', 0);
+        shoulderRect(n, flipped ? cx - shLen : cx + len, shLen, num(n, 'shoulderRadius', 0), baseY);
         renderChildren(n, cx, len, r, baseY);
         cx += len;
       } else if (n.type === 'bodytube') {
@@ -815,8 +825,8 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
         renderChildren(n, cx, len, r, baseY);
         cx += len;
       } else if (n.type === 'transition') {
-        const rf = num(n, 'foreRadius', 0.012);
-        const ra = num(n, 'aftRadius', 0.009);
+        const at = nodes.indexOf(n);
+        const { fore: rf, aft: ra } = transitionEnds(n, nodes[at - 1], nodes[at + 1]);
         noteHover(
           n,
           ctx.x0 + cx * scale,

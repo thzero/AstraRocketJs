@@ -47,8 +47,11 @@ export function StabilityBadge({
   const cpTile = u.at(unitScope('stats', 'cp'), 'length');
   if (!info) return null;
   const cal = info.stabilityCalibers;
-  // Colored by band, as the drawing and the info card beside it are.
-  const padTone = stabilityToneOf(stabilityState(cal) ?? 'under');
+  // Colored by band, as the drawing and the info card beside it are. A margin
+  // the kernel could not compute has no band: neutral, with no verdict, rather
+  // than an "Unstable" the kernel never said.
+  const padState = stabilityState(cal);
+  const padTone = padState ? stabilityToneOf(padState) : 'text-ink-muted';
   // The engine's own figure, not ours: see StaticInfo.stabilityPercent.
   const pct = info.stabilityPercent;
   // Moments of inertia span orders of magnitude (roll ~1e-5, pitch ~1e-3 kg·m²);
@@ -160,7 +163,7 @@ export function StabilityBadge({
             card
             label={t('stability.onPad')}
             value={`${fmtNum(cal, 2)} / ${fmtNum(pct, 1)}`}
-            sub={`${t('stability.caliber')} / % · ${t(stabilityVerdictKey(cal))}`}
+            sub={`${t('stability.caliber')} / %${padState ? ` · ${t(stabilityVerdictKey(cal))}` : ''}`}
             tone={padTone}
           />
           <Stat card label={t('stats.cd')} value={info.cd != null ? fmtNum(info.cd, 3) : '—'} sub="Ma 0.3" />

@@ -1,12 +1,10 @@
 {
-  // The Playwright specs. They were invisible to `tsc --noEmit` because the main
-  // project only includes `src`, so genuine `noUncheckedIndexedAccess` errors
-  // sat in the specs while the build reported clean — the kind that throws the
-  // moment a selector misses.
+  // The Playwright specs. The main project includes `src` and `tests` only, so
+  // without this project a `noUncheckedIndexedAccess` error in a spec is caught
+  // by no gate and throws the moment a selector misses.
   //
-  // `@types/node` is a devDependency now: a spec that reads a downloaded file
-  // off disk (image-export.spec.ts) needs it, and it is what would let this
-  // project widen to the *.config.ts files later.
+  // `@types/node` is here because a spec that reads a downloaded file off disk
+  // (image-export.spec.ts) needs it.
   //
   // DOM stays in `lib` because code inside `page.evaluate()` runs in the
   // browser; Playwright types those callbacks itself.

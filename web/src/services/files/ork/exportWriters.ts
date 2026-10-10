@@ -2,7 +2,6 @@ import type { ComponentNode, ComponentType } from '../../../engine/openRocketEng
 import { nodeShape, shapeIsClippable } from '../../../tree/shapeProfile';
 import { num, str } from '../../../tree/nodeProps';
 import { escapeXml } from '../xmlUtil';
-import { uuid } from '../../app/uuid';
 import { COMPONENT_DEFAULTS } from '../../design/componentDefaults';
 import type { OrkWriter } from './exportWriter';
 import { mountConfigs, motorMountXml } from './exportMotorConfigs';
@@ -16,7 +15,6 @@ import {
   finTabsXml,
   header,
   material,
-  overrides,
   packedRadiusXml,
   packedXml,
   position,
@@ -450,13 +448,11 @@ function emitNode(w: OrkWriter, node: ComponentNode, depth: number): void {
 export function stageXml(w: OrkWriter, depth: number, st: ComponentNode, i: number): void {
   const { emit } = w;
   emit(depth, '<stage>');
-  emit(depth + 1, `<name>${escapeXml(stageFileName(st, i))}</name>`);
-  emit(depth + 1, `<id>${uuid()}</id>`);
-  // A stage can be overridden like any other component, and the kernel applies
-  // it. This block writes its own name and id rather than going through
-  // `header()`, which is where every other component picks the overrides up,
-  // so it writes them itself or a stage-level override would be lost on save.
-  overrides(w, depth + 1, st);
+  // RocketComponentSaver.addParams, as for every other component: the comment,
+  // line style, color, overrides and carried appearance all belong to a stage
+  // too. Only the name differs, since a stage the user never named is written
+  // under its positional default.
+  header(w, depth + 1, { ...st, name: stageFileName(st, i) }, '');
   // RASAero power-on base-drag input (meters, no conversion). Non-standard
   // element (OpenRocket desktop ignores it); only emitted when set > 0 so a
   // plain design round-trips exactly. Applies to every stage incl. sustainer.

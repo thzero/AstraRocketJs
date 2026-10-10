@@ -189,12 +189,27 @@ export function SimulationsTable({
                       status dot on its own cannot say. The detail is on the
                       Results tab; this is the pointer to it. */}
                   {!!s.result?.warnings?.length && (
-                    <span
-                      title={s.result.warnings.map((w) => warningText(w.message, t)).join('\n')}
-                      className="shrink-0 text-[11px] text-warn-400"
+                    // A button, so keyboard and touch users can reach the
+                    // warnings too: it opens the Results tab that lists them,
+                    // and a screen reader hears them from the description.
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation(); // the row click only selects; this navigates
+                        onOpenResults(s.id);
+                      }}
+                      title={s.result.warnings
+                        .map((w) => warningText(w.message, t, (q, si) => u.fmtSym(q, si)))
+                        .join('\n')}
+                      aria-label={t('sim.warnings', { count: s.result.warnings.length })}
+                      aria-describedby={`sim-warnings-${s.id}`}
+                      className="shrink-0 rounded text-[11px] text-warn-400 focus:outline-none focus:ring-1 focus:ring-accent-500"
                     >
-                      &#9888; {s.result.warnings.length}
-                    </span>
+                      <span aria-hidden>&#9888; {s.result.warnings.length}</span>
+                      <span id={`sim-warnings-${s.id}`} className="sr-only">
+                        {s.result.warnings.map((w) => warningText(w.message, t, (q, si) => u.fmtSym(q, si))).join('\n')}
+                      </span>
+                    </button>
                   )}
                 </span>
               </Td>
