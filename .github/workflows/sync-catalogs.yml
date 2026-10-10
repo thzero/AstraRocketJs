@@ -93,14 +93,15 @@ jobs:
             echo "No data branch yet — seeding from the committed copy (first run)."
           fi
 
-      # The component presets come from the community parts DB that OpenRocket's
-      # own component data is built from. sync-components.mjs defaults to a local
-      # path, so point it at this checkout via OPENROCKET_PRESETS.
+      # The component presets come from the parts database OpenRocket builds its
+      # own library from (its core/resources-src/datafiles submodule), at the
+      # commit that submodule pins. sync-components.mjs defaults to a local path,
+      # so point it at this checkout via OPENROCKET_PRESETS.
       - name: Check out the OpenRocket components database
         if: env.TARGET != 'motors'
         uses: actions/checkout@v7
         with:
-          repository: dbcook/openrocket-database
+          repository: openrocket/openrocket-database
           path: .openrocket-database
           # PINNED. This job holds contents: write and pushes to the data branch
           # the live app reads, so a third-party ref must not float -- master
@@ -109,7 +110,7 @@ jobs:
           # no dynamic import), but the pin is free. Bump it deliberately, after
           # looking at what changed, together with REF in
           # web/scripts/fetch-parts-database.mjs.
-          ref: 772db251b5cb989ac1a0bca4921dcf91d3bc54de # master @ 2024-03-18
+          ref: 1512874ace50917e25ccf7d7df1f616b5f39a8b5 # master @ 2025-07-27
 
       # Both catalogs need the OpenRocket release people use. A motor's digest
       # names which of the desktop's same-named entries a saved .ork means (Estes
