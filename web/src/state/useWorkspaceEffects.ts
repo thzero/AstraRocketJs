@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18nGlobal from '../i18n';
 import { useWorkspaceStore, selectConfig, saveFailure, workspaceSnapshot } from './store';
-import type { RocketTree } from '../engine/openRocketEngine';
+import { setKernelLengthUnit, type RocketTree } from '../engine/openRocketEngine';
 
 import { useEngineStore } from './engineStore';
 import { getWorkspaceStore } from '../services/storage/workspaceStore';
@@ -118,6 +118,9 @@ export function useWorkspaceEffects() {
   // The rebuild effect below is the app's one engine caller on the main thread,
   // so it is where "the kernel is not up yet" is handled.
   const enginePhase = useEngineStore((s) => s.phase);
+  // The kernel decides and words its airframe-step warnings in this unit
+  // (setKernelLengthUnit), so a change of unit rebuilds the design.
+  const lengthUnit = useSettings().settings.units.length;
 
   useEffect(() => {
     if (seenQuiet.current !== quietReplace) {
@@ -235,6 +238,7 @@ export function useWorkspaceEffects() {
       return;
     }
     const build = () => {
+      setKernelLengthUnit(lengthUnit);
       const store = useWorkspaceStore.getState();
       // Tree and configuration read from the store rather than closed over, so the
       // effect need not depend on either object to use them: `components` and
@@ -270,7 +274,7 @@ export function useWorkspaceEffects() {
     // lands, `info` and `rocket` describe the design as it was before the burst.
     const id = setTimeout(build, REBUILD_DEBOUNCE_MS);
     return () => clearTimeout(id);
-  }, [ready, enginePhase, components, buildInputs]);
+  }, [ready, enginePhase, components, buildInputs, lengthUnit]);
 
   /**
    * Mirror the global run preferences into the store, which compares each result

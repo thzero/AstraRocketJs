@@ -6,7 +6,7 @@
  * the posted tree and runs it. The kernel's per-flight INFO logging goes to this
  * worker's log sink (kernelLogSink, imported transitively), off the main console.
  */
-import { initEngine, resetEngine } from './openRocketEngine';
+import { initEngine, resetEngine, setKernelLengthUnit } from './openRocketEngine';
 import { buildConfiguredRocket } from '../services/design/buildRocket';
 import type { WorkerRequest, WorkerResponse } from './simProtocol';
 import { errorMessage } from '../services/app/errorMessage';
@@ -53,6 +53,8 @@ ctx.onmessage = async (e: MessageEvent<WorkerRequest>) => {
         // Narrowed by the discriminated union, not cast: `req.args` is a
         // SimPayload here and nothing else.
         const { tree, config, options } = req.args;
+        // The flight's airframe-step warnings, in the unit the app shows.
+        setKernelLengthUnit(req.lengthUnit);
         // This worker only ever holds sim rockets; clear prior handles so the
         // engine's handle registry doesn't grow across runs.
         resetEngine();

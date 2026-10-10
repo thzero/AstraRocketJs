@@ -36,8 +36,10 @@ export interface WorkerResults {
 
 /** `engine` is which backend the worker should load. It is resolved on the
  *  main thread (`?engine=` / localStorage), which a worker cannot read, and
- *  carried on every request so the first one to arrive can start the engine. */
-export type WorkerRequest = { id: number; engine: BackendPref } & WorkerCall;
+ *  carried on every request so the first one to arrive can start the engine.
+ *  `lengthUnit` is the user's length unit, which the kernel's airframe-step
+ *  warnings are worded and decided in (`setKernelLengthUnit`). */
+export type WorkerRequest = { id: number; engine: BackendPref; lengthUnit: string } & WorkerCall;
 
 export type WorkerResponse<M extends WorkerMethod = WorkerMethod> =
   | { id: number; ok: true; result: WorkerResults[M] }
