@@ -311,7 +311,7 @@ Use the search box at the top of this site, or the search in the app's **Help** 
 
 **Shape parameter**: The number that picks a variant within a nose or transition profile family, for power, parabolic and Haack shapes. It has no meaning on the others. *In the app:* **Shape parameter**, shown only where it applies.
 
-**Shock cord**: The line joining a rocket's sections so they stay together after ejection. *In the app:* **Shock cord**, with a cord length and a line density.
+**Shock cord**: The line joining a rocket's sections so they stay together after ejection. *In the app:* **Shock cord**, with a cord length and a line density. A new one is on **Auto**, as on desktop: the engine makes the cord three times the rocket's length, and the box shows that figure.
 
 **Shoulder**: The stepped-down end of a nose cone or transition that plugs into the tube behind it. A **capped** shoulder is closed off by a disc, which adds mass. *In the app:* shoulder radius, length, thickness and **Shoulder capped**.
 

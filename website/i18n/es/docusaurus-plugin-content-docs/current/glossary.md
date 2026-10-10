@@ -87,7 +87,7 @@ Usa el buscador de la parte superior de este sitio, o el buscador del diálogo *
 
 **Configuración de vuelo**: Una combinación con nombre de motores, encendido y opciones de despliegue para el mismo diseño, para mantener varios montajes en paralelo. *En la aplicación:* el selector de configuración.
 
-**Cordón de choque**: La cuerda que une las secciones del cohete para que sigan juntas tras la eyección. *En la aplicación:* **Cordón de choque**, con una longitud de cordón y una densidad lineal.
+**Cordón de choque**: La cuerda que une las secciones del cohete para que sigan juntas tras la eyección. *En la aplicación:* **Cordón de choque**, con una longitud de cordón y una densidad lineal. Uno nuevo está en **Auto**, como en el escritorio: el motor hace el cordón tres veces la longitud del cohete, y la casilla muestra esa cifra.
 
 **Cordones de suspensión**: Las cuerdas que van de la cúpula al cohete. *En la aplicación:* **Número de cordones**, **Longitud de cordón** y el material de los cordones en un paracaídas.
 

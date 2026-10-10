@@ -6,6 +6,7 @@ import { renderWithProviders } from '../../testing/renderWithProviders';
 import { serveData } from '../../testing/serveData';
 import type { ComponentNode } from '../../../src/engine/openRocketEngine';
 import { FIELDS } from '../../../src/services/design/componentFields';
+import { useWorkspaceStore, type WorkspaceState } from '../../../src/state/store';
 
 const show = (node: ComponentNode, extra: { parentRadius?: number } = {}) => {
   const onChange = vi.fn();
@@ -456,5 +457,40 @@ describe('dropdown options', () => {
     const titled = [...document.querySelectorAll('select')].filter((s) => s.title);
     expect(titled.length).toBeGreaterThan(0);
     for (const s of titled) expect(isUnitChip(s), `titled select: ${s.title}`).toBe(true);
+  });
+});
+
+/**
+ * A length only the kernel resolves. A shock cord on Auto is three times the
+ * rocket's length, and the node keeps whatever number it last stored, so the
+ * box shows the kernel's figure from the live build, and turning Auto off keeps
+ * that figure rather than jumping back to the stored one.
+ */
+describe('a kernel-resolved automatic length', () => {
+  const RESOLVED = 1.8;
+  const cordBox = () => screen.getByRole('spinbutton', { name: 'Cord length' }) as HTMLInputElement;
+
+  it('shows the kernel figure while on Auto, and keeps it when Auto is turned off', () => {
+    useWorkspaceStore.setState({
+      rocket: { componentInfo: () => ({ cordLength: RESOLVED }) } as unknown as WorkspaceState['rocket'],
+    });
+    try {
+      // What the box reads for the resolved length typed in by hand, in whatever unit is on.
+      show({ id: 'sc', type: 'shockcord', cordLength: RESOLVED } as unknown as ComponentNode);
+      const typed = cordBox().value;
+      cleanup();
+
+      const onChange = show({
+        id: 'sc',
+        type: 'shockcord',
+        cordLength: 0.3,
+        cordLengthAuto: true,
+      } as unknown as ComponentNode);
+      expect(cordBox().value).toBe(typed);
+      fireEvent.click(screen.getByRole('checkbox', { name: 'Cord length: Auto' }));
+      expect(onChange).toHaveBeenCalledWith({ cordLengthAuto: false, cordLength: RESOLVED });
+    } finally {
+      useWorkspaceStore.setState({ rocket: null });
+    }
   });
 });

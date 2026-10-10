@@ -912,6 +912,10 @@ export interface ComponentInfo {
   cgX: number;
   /** Absolute position of the component's front from the nose tip (m). */
   positionX: number;
+  /** A shock cord's cord length as the kernel resolves it, automatic or not (m). */
+  cordLength?: number;
+  /** A parachute's shroud line length as the kernel resolves it, automatic or not (m). */
+  lineLength?: number;
 }
 
 /** One row of the per-component mass breakdown, in SI. */

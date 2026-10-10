@@ -5,6 +5,7 @@ import { ComponentTree } from '../../../src/components/design/ComponentTree';
 import { renderWithProviders } from '../../testing/renderWithProviders';
 import { SettingsProvider } from '../../../src/state/SettingsProvider';
 import type { RocketTree } from '../../../src/engine/openRocketEngine';
+import { allowedChildren } from '../../../src/services/design/treeEdit';
 
 const TREE = {
   name: 'Test',
@@ -58,6 +59,42 @@ describe('ComponentTree semantics', () => {
     fireEvent.keyDown(stage, { key: 'ArrowLeft' });
     expect(screen.getByRole('treeitem', { name: /Sustainer/ }).getAttribute('aria-expanded')).toBe('false');
     expect(screen.queryByRole('treeitem', { name: /Nose/ })).toBeNull();
+  });
+});
+
+/**
+ * ＋ Add offers every part the selected part may hold, as desktop OpenRocket's
+ * component panel does. A type the tree accepts but the list leaves out can only
+ * arrive by import, which is how rail buttons and shock cords went missing.
+ */
+describe('ComponentTree add list', () => {
+  beforeAll(() => {
+    Element.prototype.scrollIntoView = () => {};
+  });
+
+  /** Accepted under a body tube but not offered, each with the reason. */
+  const NOT_OFFERED: Record<string, string> = {
+    fairing: 'not an OpenRocket component: a file-only part the kernel builds as a mass component',
+  };
+
+  it('offers every part a body tube may hold', () => {
+    const onAdd = vi.fn();
+    renderWithProviders(<ComponentTree tree={TREE} selectedId="b1" onSelect={() => {}} onAdd={onAdd} />);
+    const offered = screen
+      .getAllByRole('option')
+      .map((o) => (o as HTMLOptionElement).value)
+      .filter(Boolean);
+    const expected = allowedChildren('bodytube').filter((type) => !(type in NOT_OFFERED));
+    expect([...offered].sort()).toEqual([...expected].sort());
+  });
+
+  it('adds a rail button and a shock cord', () => {
+    const onAdd = vi.fn();
+    renderWithProviders(<ComponentTree tree={TREE} selectedId="b1" onSelect={() => {}} onAdd={onAdd} />);
+    const select = screen.getByRole('option', { name: 'Rail button' }).closest('select')!;
+    fireEvent.change(select, { target: { value: 'railbutton' } });
+    fireEvent.change(select, { target: { value: 'shockcord' } });
+    expect(onAdd.mock.calls).toEqual([['railbutton'], ['shockcord']]);
   });
 });
 

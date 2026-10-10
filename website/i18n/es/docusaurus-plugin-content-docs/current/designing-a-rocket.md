@@ -31,7 +31,7 @@ Los componentes admitidos incluyen:
 - **Aletas**: trapezoidales, elípticas, de forma libre y aletas tubulares.
 - **Estructura interior**: tubo interior (soporte del motor), anillos de centrado, mamparos, acopladores, topes de motor.
 - **Recuperación**: paracaídas, cinta, cordón de choque.
-- **Masa y exterior**: componente de masa, guía de lanzamiento, botón de raíl, carenados y cápsulas.
+- **Masa y exterior**: componente de masa, guía de lanzamiento, botón de raíl, cápsulas y propulsores.
 
 Cada pieza expone las dimensiones y opciones que el motor de física necesita (longitudes, diámetros, espesor, geometría de aletas, etc.). La edición está amortiguada: el modelo se reconstruye y las estadísticas se refrescan mientras escribes o arrastras.
 
@@ -140,7 +140,7 @@ Un cohete puede tener más de una etapa. **＋ Etapa** (en la fila que hay encim
 - **Separación de etapa**: el evento que libera el propulsor: **Carga de eyección de la etapa superior**, **Fin de combustión de la etapa superior**, **Lanzamiento**, **Encendido de la etapa superior**, **Encendido de la siguiente etapa**, **Apogeo**, **Altitud (ascendiendo)**, **Altitud (descendiendo)** o **Nunca**. Una etapa configurada como **Nunca** permanece unida y baja con la etapa superior. Un **retardo** o una **altitud** opcionales afinan el disparo.
 - **Encendido**: el motor de una etapa superior se enciende con **Eyección de la etapa inferior** o **Fin de combustión de la etapa inferior** (o **Nunca**). Esto se define en la tarjeta del motor, en la pestaña Configuraciones (consulta **[Configuraciones de vuelo](./flight-configurations.md#motors)**).
 
-También puedes añadir **cápsulas** (podsets) y propulsores en **paralelo** (adosados) como conjuntos. Tras un vuelo por etapas, las **[gráficas de vuelo](./views-and-analysis.md#flight-after-a-simulation)** dibujan la trayectoria propia de cada etapa.
+Con un tubo de fuselaje seleccionado, **＋ Añadir ▸ Ensamblaje** añade una **Cápsula** o un **Propulsor** (una etapa paralela, adosada). Cada uno empieza con un tubo de fuselaje sobre el que construir, y un propulsor empieza con dos copias, como en el escritorio. Tras un vuelo por etapas, las **[gráficas de vuelo](./views-and-analysis.md#flight-after-a-simulation)** dibujan la trayectoria propia de cada etapa.
 
 > Los vuelos por etapas se **simulan** como ramas independientes (cada propulsor agotado vuela, despliega y aterriza por su cuenta) y la masa, el CG y la estabilidad estáticos coinciden con OpenRocket de escritorio. La *trayectoria de vuelo* también se comprueba contra OpenRocket original sin modificar: secuencias de eventos idénticas en cada rama y apogeos que coinciden con una tolerancia relativa de 1e-5.
 

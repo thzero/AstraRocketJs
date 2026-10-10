@@ -38,6 +38,7 @@ import info.openrocket.core.rocketcomponent.InnerTube;
 import info.openrocket.core.rocketcomponent.MotorMount;
 import info.openrocket.core.rocketcomponent.NoseCone;
 import info.openrocket.core.rocketcomponent.Parachute;
+import info.openrocket.core.rocketcomponent.ShockCord;
 import info.openrocket.core.rocketcomponent.Rocket;
 import info.openrocket.core.rocketcomponent.RocketComponent;
 import info.openrocket.core.rocketcomponent.StageSeparationConfiguration;
@@ -817,6 +818,11 @@ public final class OpenRocketEngine {
      * aware; a fin set's mass covers all its fins), subtree mass including
      * children, CG from the component's own front, and the component's
      * absolute position from the rocket nose (first instance).
+     *
+     * Plus the lengths the kernel resolves for itself when a part leaves them
+     * automatic: a shock cord's cord (three times the rocket's length) and a
+     * parachute's shroud lines. The editor shows these while the box is on Auto,
+     * since the number stored on the node is not what flies.
      */
     @JSExport
     public static String getComponentInfo(int rocketHandle, String componentId) {
@@ -841,6 +847,13 @@ public final class OpenRocketEngine {
         num(sb, "sectionMass", c.getSectionMass()).append(',');
         num(sb, "cgX", c.getCG().getX()).append(',');
         num(sb, "positionX", absX);
+        if (c instanceof ShockCord) {
+            sb.append(',');
+            num(sb, "cordLength", ((ShockCord) c).getCordLength());
+        } else if (c instanceof Parachute) {
+            sb.append(',');
+            num(sb, "lineLength", ((Parachute) c).getLineLength());
+        }
         return sb.append('}').toString();
     }
 

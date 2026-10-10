@@ -13,6 +13,28 @@ import { shapeIsClippable, shapeParamMax, shapeUsesParameter } from '../../tree/
 import { FIELDS, type Field, type PanelSection } from '../../services/design/componentFields';
 import { DERIVED } from '../../services/design/derivedFields';
 import { PropSection } from './PropSection';
+import { useWorkspaceStore } from '../../state/store';
+
+/**
+ * Automatic lengths only the kernel knows: a shock cord's cord follows the
+ * rocket's length and a parachute's lines follow its canopy, and neither is
+ * written back to the node. `componentInfo` reports each under the field's key.
+ */
+const KERNEL_AUTO_KEYS: ReadonlySet<string> = new Set(['cordLength', 'lineLength']);
+
+/** The kernel's value for an automatic field it resolves itself, while the field is on Auto. */
+function useKernelAutoValue(node: ComponentNode, f: Field): number | undefined {
+  const rocket = useWorkspaceStore((s) => s.rocket);
+  if (!f.auto || node[f.auto.flag] !== true || !KERNEL_AUTO_KEYS.has(f.key)) return undefined;
+  if (!rocket || typeof node.id !== 'string') return undefined;
+  try {
+    const v = (rocket.componentInfo(node.id) as unknown as Record<string, unknown>)[f.key];
+    return typeof v === 'number' && Number.isFinite(v) ? v : undefined;
+  } catch {
+    // A part the live build does not hold yet (the rebuild trails the edit).
+    return undefined;
+  }
+}
 
 /**
  * The property panel's per-type shape and dimension fields: the numeric row
@@ -243,6 +265,7 @@ export function FieldRow({
 }) {
   const { t } = useTranslation();
   const u = useUnits();
+  const kernelAuto = useKernelAutoValue(node, f);
   const label = t(`prop.${f.label}`);
   // One scope per field of this component type: every body tube is the
   // same Length field on the same card, so selecting another must not
@@ -280,7 +303,13 @@ export function FieldRow({
             on: node[f.auto.flag] === true,
             label: `${label}: ${t('prop.auto')}`,
             title: t(`prop.${f.auto.tip}`),
-            onToggle: (on: boolean) => commitChange({ [f.auto!.flag]: on }),
+            // Turning Auto off keeps the length it was showing, as desktop does.
+            onToggle: (on: boolean) =>
+              commitChange(
+                on || kernelAuto === undefined
+                  ? { [f.auto!.flag]: on }
+                  : { [f.auto!.flag]: false, [f.key]: kernelAuto },
+              ),
           },
         }
       : {};
@@ -472,7 +501,7 @@ export function FieldRow({
       // fills the number in the same edit; clearing it pins whatever it now is.
       return numeric({
         unit: <UnitChip quantity="length" scope={scope} />,
-        value: fu.toUi(k * num(node, f.key)),
+        value: fu.toUi(k * (kernelAuto ?? num(node, f.key))),
         step: fu.step(0.0005),
         ...autoProp(),
         onChange: (v) => patchNumber({ [f.key]: fu.toSi(v, (si) => si / k) }),

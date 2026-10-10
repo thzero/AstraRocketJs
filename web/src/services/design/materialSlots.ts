@@ -1,4 +1,5 @@
 import { KERNEL_MATERIALS } from '../../tree/kernelDefaults';
+import { COMPONENT_DEFAULTS } from './componentDefaults';
 import { isMaterialType, type MaterialType } from '../materials/materialTypes';
 
 /**
@@ -72,10 +73,29 @@ export function parseDefaultMaterialKey(key: string): { part: string; material: 
 }
 
 /**
+ * A part whose Java constructor sets its own material rather than taking the
+ * preference default: `RailButton()` is Delrin, not Cardboard
+ * (rocketcomponent/RailButton.java). The kernel flies an unset rail button as
+ * Delrin, so that is what a new one is stamped with.
+ */
+const KERNEL_PART_MATERIALS: Record<
+  string,
+  Partial<Record<MaterialType, { name: string; density: number; group: string }>>
+> = {
+  railbutton: {
+    bulk: {
+      name: COMPONENT_DEFAULTS.railbutton.materialName,
+      density: COMPONENT_DEFAULTS.railbutton.materialDensity,
+      group: COMPONENT_DEFAULTS.railbutton.materialGroup,
+    },
+  },
+};
+
+/**
  * What to stamp onto a newly added part of `partType`: the user's per-part-type
  * default (Settings ▸ Materials) where they have set one, and otherwise the
  * material the kernel would weigh the part with anyway
- * ({@link KERNEL_MATERIALS}).
+ * ({@link KERNEL_MATERIALS}, or the part's own in {@link KERNEL_PART_MATERIALS}).
  *
  * The preference is spent here, at creation, rather than resolved later: the
  * part ends up carrying a real material that shows in the panel and is written
@@ -84,9 +104,9 @@ export function parseDefaultMaterialKey(key: string): { part: string; material: 
  * on the machine that made it and another on the machine it was sent to.
  *
  * The kernel fallback is why a new part does not read "Not specified". An unset
- * material is not a lighter part: the kernel flies it as cardboard, ripstop
- * nylon or elastic cord, and the `.ork` writer fills the same three materials
- * in. Stamping it here makes the panel say what the simulation is using before
+ * material is not a lighter part: the kernel flies it as cardboard (a rail button
+ * as Delrin), ripstop nylon or elastic cord, and the `.ork` writer fills the same
+ * materials in. Stamping it here makes the panel say what the simulation is using before
  * the save rather than after it, which is also what the desktop shows: every
  * OpenRocket component is constructed with one of these, so its own dropdown
  * never has an empty state to explain.
@@ -103,12 +123,13 @@ export function defaultMaterialPatch(
     if (part !== partType) continue;
     const keys = MATERIAL_KEYS[material];
     const chosen = defaults[defaultMaterialKey(partType, material)];
-    patch[keys.name] = chosen ? chosen.name : KERNEL_MATERIALS[material].name;
-    patch[keys.density] = chosen ? chosen.density : KERNEL_MATERIALS[material].density;
+    const kernel = KERNEL_PART_MATERIALS[partType]?.[material] ?? KERNEL_MATERIALS[material];
+    patch[keys.name] = chosen ? chosen.name : kernel.name;
+    patch[keys.density] = chosen ? chosen.density : kernel.density;
     // The group only rides along on the kernel's own material, whose `.ork`
     // database string is known here. A material the user picked carries no
     // group through the settings, the same as one picked in the panel.
-    if (keys.group && !chosen) patch[keys.group] = KERNEL_MATERIALS[material].group;
+    if (keys.group && !chosen) patch[keys.group] = kernel.group;
   }
   return patch;
 }

@@ -31,7 +31,7 @@ Supported components include:
 - **Fins**: trapezoidal, elliptical, free-form, and tube fins.
 - **Inner structure**: inner tube (motor mount), centering rings, bulkheads, couplers, engine blocks.
 - **Recovery**: parachute, streamer, shock cord.
-- **Mass & external**: mass component, launch lug, rail button, fairing/pods.
+- **Mass & external**: mass component, launch lug, rail button, pods and boosters.
 
 Each part exposes the dimensions and options the engine needs (lengths, radii, thickness, fin geometry, etc.). Editing is debounced: the model rebuilds and the stats refresh as you type/drag.
 
@@ -139,7 +139,7 @@ A rocket can have more than one stage. **＋ Stage** (in the row above the compo
 - **Stage separation**: the event that releases the booster: **Upper-stage ejection charge**, **Upper-stage burnout**, **Launch**, **Upper-stage ignition**, **Next-stage ignition**, **Apogee**, **Altitude (ascending)**, **Altitude (descending)** or **Never**. A stage set to **Never** stays attached and comes down with the stage above it. An optional **delay** or **altitude** refines the trigger.
 - **Ignition**: an upper stage's motor lights on **Ejection of stage below** or **Burnout of stage below** (or **Never**). This is set on the motor card on the Configurations tab (see **[Flight Configurations](./flight-configurations.md#motors)**).
 
-You can also add **pods** (podsets) and **parallel** (strap-on) boosters as assemblies. After a staged flight, the **[Flight charts](./views-and-analysis.md#flight-after-a-simulation)** plot each stage's own trajectory.
+With a body tube selected, **＋ Add ▸ Assembly** adds a **Pod** or a **Booster** (a parallel, strap-on stage). Each starts with one body tube to build on, and a booster starts as two copies, as on desktop. After a staged flight, the **[Flight charts](./views-and-analysis.md#flight-after-a-simulation)** plot each stage's own trajectory.
 
 > Staged flights **simulate** as independent branches (each spent booster flies, deploys, and lands on its own) and static mass / CG / stability match desktop OpenRocket. The flown trajectory is checked against unmodified upstream OpenRocket as well: identical event sequences on every branch, and apogee agreeing to 1e-5 relative.
 

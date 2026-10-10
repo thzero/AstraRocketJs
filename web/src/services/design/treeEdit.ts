@@ -19,6 +19,7 @@ import { defaultStageName } from './orkTree';
 import type { Component } from '../parts/componentDb';
 import { DEFAULT_CHUTE_CD } from '../parts/componentFilter';
 import { KERNEL_DEFAULTS } from '../../tree/kernelDefaults.js';
+import { COMPONENT_DEFAULTS } from './componentDefaults.js';
 import { isChainType } from '../../tree/componentKinds';
 import { uuid } from '../app/uuid';
 // Every mutator here ends by resolving the radii and shoulders that follow a
@@ -804,15 +805,34 @@ export function defaultNode(type: ComponentType): ComponentNode {
         radius: KERNEL_DEFAULTS.masscomponent.radius,
         position: { method: 'top', offset: 0 },
       };
-    // The kernel's own diameter, stated on the node. A bare `{ type, id }` would
-    // fly and save at the kernel's 9.7 mm but be drawn at 4 mm.
+    // Desktop's RailButton() dimensions, stated on the node. A bare `{ type, id }`
+    // would fly and save at the kernel's 9.7 mm but be drawn at 4 mm, and the
+    // panel would show the other five dimensions blank.
     case 'railbutton':
       return {
         type,
         id,
-        outerDiameter: KERNEL_DEFAULTS.railbutton.outerDiameter,
+        outerDiameter: COMPONENT_DEFAULTS.railbutton.outerDiameter,
+        innerDiameter: COMPONENT_DEFAULTS.railbutton.innerDiameter,
+        height: COMPONENT_DEFAULTS.railbutton.height,
+        baseHeight: COMPONENT_DEFAULTS.railbutton.baseHeight,
+        flangeHeight: COMPONENT_DEFAULTS.railbutton.flangeHeight,
+        screwHeight: COMPONENT_DEFAULTS.railbutton.screwHeight,
         angleOffset: Math.PI,
         position: { method: 'middle', offset: 0 },
+      };
+    // On Auto, as `ShockCord()` starts: the kernel sizes the cord from the
+    // rocket's length and the panel shows its figure. The stored length is what
+    // the cord keeps if Auto is turned off before a build reports one. Packed
+    // like a chute, at the top of its parent.
+    case 'shockcord':
+      return {
+        type,
+        id,
+        cordLength: KERNEL_DEFAULTS.shockcord.cordLength,
+        cordLengthAuto: true,
+        length: KERNEL_DEFAULTS.shockcord.length,
+        position: { method: 'top', offset: 0.02 },
       };
     // An external pod: a mini body chain riding alongside the airframe. Seeded
     // with one slim body tube so it's visible and immediately editable.
@@ -826,6 +846,24 @@ export function defaultNode(type: ComponentType): ComponentNode {
         type,
         id,
         instanceCount: 1,
+        radiusOffset: 0,
+        radiusMethod: 'relative',
+        angleOffset: 0,
+        position: { method: 'bottom', offset: 0 },
+        children: [body],
+      };
+    }
+    // A strap-on booster: a parallel stage beside its parent tube, two of them
+    // as `ParallelStage()` starts. Seeded with one body tube like a pod, so it
+    // is visible and has something to add fins and a motor mount to.
+    case 'parallelstage': {
+      const body = defaultNode('bodytube');
+      body.length = 0.2;
+      body.outerRadius = 0.009;
+      return {
+        type,
+        id,
+        instanceCount: KERNEL_DEFAULTS.parallelstage.instanceCount,
         radiusOffset: 0,
         radiusMethod: 'relative',
         angleOffset: 0,
