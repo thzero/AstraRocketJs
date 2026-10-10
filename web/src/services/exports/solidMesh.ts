@@ -4,7 +4,7 @@ import type { ComponentNode } from '../../engine/openRocketEngine';
 import { num, numOpt } from '../../tree/nodeProps';
 import { finCutContour, finRootChord, finSpan } from '../../tree/finPlanform';
 import { freeformPoints, partLength } from '../../tree/position';
-import { nodeShape, outerProfile } from '../../tree/shapeProfile';
+import { nodeShape, outerProfile, profileEnds } from '../../tree/shapeProfile';
 import { tubeFinRadius } from '../../tree/tubefins';
 import { FIN_DEFAULTS, KERNEL_DEFAULTS } from '../../tree/kernelDefaults';
 import { edgeKey, meshTolerances, undirectedEdgeCounts, validateSolid } from './meshValidate';
@@ -465,8 +465,7 @@ function buildSolid(node: ComponentNode, parentRadius: number | null): THREE.Buf
       return revolveSolidX(surface, 0);
     }
     case 'transition': {
-      const rf = num(node, 'foreRadius', 0.012);
-      const ra = num(node, 'aftRadius', 0.009);
+      const { fore: rf, aft: ra } = profileEnds(node);
       if (!(len > 0) || !(Math.max(rf, ra) > 0)) return null; // degenerate → no solid
       const shape = nodeShape(node);
       const clipped = typeof node['clipped'] === 'boolean' ? node['clipped'] : undefined;

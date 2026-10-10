@@ -1,9 +1,9 @@
 import { nsKey } from '../../../src/services/storage/storageKeys';
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { LibraryWorkspaceStore, type Workspace } from '../../../src/services/storage/workspaceStore';
 import { DesignLibrary, setDesignLibrary } from '../../../src/services/storage/designLibrary';
-import type { KeyValueStore } from '../../../src/services/storage/keyValueStore';
+import { LocalStorageKeyValueStore, type KeyValueStore } from '../../../src/services/storage/keyValueStore';
 
 // The unload journal exists because the store is IndexedDB-backed: an async
 // write cannot complete while the page tears down, so `saveSync` puts the
@@ -223,5 +223,104 @@ describe('a journal older than the stored design', () => {
     store.saveSync(ws('x'));
     const j = JSON.parse(localStorage.getItem(UNLOAD_KEY)!) as { t?: number };
     expect(j.t).toBeGreaterThanOrEqual(before);
+  });
+});
+
+/**
+ * Two tabs of the PWA open the same design. The one left behind writes its
+ * journal at unload whether or not it ever tried to save, and that write is
+ * later than the other tab's save. Replaying it on the next load would put the
+ * stale design over the newer one with no edit made in the stale tab.
+ *
+ * Run against both tiers: the index the writer is recorded on lives in
+ * IndexedDB normally and in localStorage (beside the journal) when IndexedDB
+ * is blocked.
+ */
+describe.each([
+  ['IndexedDB', () => new FakeKv() as KeyValueStore],
+  ['localStorage', () => new LocalStorageKeyValueStore() as KeyValueStore],
+])('a stale tab’s unload journal (%s tier)', (_tier, makeKv) => {
+  let tabA: LibraryWorkspaceStore;
+  let tabB: LibraryWorkspaceStore;
+  let id: string;
+  // A real gap between the steps: two saves inside one millisecond push the
+  // stamp past the clock, which would hide a journal stamped by wall time.
+  const later = () => vi.setSystemTime(Date.now() + 1000);
+  afterEach(() => vi.useRealTimers());
+  beforeEach(async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+    localStorage.clear();
+    lib = new DesignLibrary(makeKv());
+    setDesignLibrary(lib);
+    await new LibraryWorkspaceStore().save(ws('original'));
+    id = (await lib.activeId())!;
+    tabA = new LibraryWorkspaceStore();
+    tabB = new LibraryWorkspaceStore();
+    expect(nameOf(await tabA.load())).toBe('original');
+    expect(nameOf(await tabB.load())).toBe('original');
+  });
+
+  it('is not replayed over a newer save from the other tab (pagehide)', async () => {
+    later();
+    await tabB.save(ws('newer-from-b'));
+    later();
+    tabA.saveSync(ws('original'));
+
+    expect(nameOf(await new LibraryWorkspaceStore().load())).toBe('newer-from-b');
+    expect(nameOf(await lib.read(id))).toBe('newer-from-b');
+    expect(localStorage.getItem(UNLOAD_KEY)).toBeNull();
+  });
+
+  it('is not replayed over it when the tab is hidden (save and journal together)', async () => {
+    later();
+    await tabB.save(ws('newer-from-b'));
+    // `onHidden` starts the async save and writes the journal at once.
+    later();
+    const saving = tabA.save(ws('original'));
+    tabA.saveSync(ws('original'));
+    await expect(saving).rejects.toThrow('conflict');
+
+    expect(nameOf(await new LibraryWorkspaceStore().load())).toBe('newer-from-b');
+  });
+
+  it('is not replayed over a save the other tab makes after it', async () => {
+    later();
+    tabA.saveSync(ws('stale-a'));
+    later();
+    await tabB.save(ws('newer-from-b'));
+
+    expect(nameOf(await new LibraryWorkspaceStore().load())).toBe('newer-from-b');
+  });
+
+  it('is still replayed for a single tab with unsaved edits', async () => {
+    later();
+    tabA.saveSync(ws('unsaved-in-a'));
+
+    expect(nameOf(await new LibraryWorkspaceStore().load())).toBe('unsaved-in-a');
+    expect(nameOf(await lib.read(id))).toBe('unsaved-in-a');
+  });
+
+  it('is replayed when the tab’s own save commits after it', async () => {
+    // The debounced save in flight at pagehide lands after the journal, with
+    // the edits made since still only in the journal.
+    later();
+    const saving = tabA.save(ws('debounced'));
+    tabA.saveSync(ws('typed-after-the-debounce'));
+    later();
+    await saving;
+
+    expect(nameOf(await new LibraryWorkspaceStore().load())).toBe('typed-after-the-debounce');
+  });
+
+  it('is replayed after the tab’s own earlier saves', async () => {
+    later();
+    await tabA.save(ws('saved-by-a'));
+    later();
+    await tabA.save(ws('saved-again'));
+    later();
+    tabA.saveSync(ws('unsaved-in-a'));
+
+    expect(nameOf(await new LibraryWorkspaceStore().load())).toBe('unsaved-in-a');
   });
 });

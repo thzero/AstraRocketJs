@@ -27,6 +27,14 @@ describe('assemblyChainLength', () => {
   it('is zero with no chain members', () => {
     expect(assemblyChainLength(pod([]))).toBe(0);
   });
+
+  it('counts a member with no length at the length the bridge builds it with', () => {
+    // ComponentFactory gives a body tube with no length 0.3 m and a nose cone
+    // 0.07 m; the pod's chain is that long in the kernel, not zero.
+    const p = pod([{ type: 'nosecone' }, { type: 'bodytube', length: 0.1 }]);
+    expect(assemblyChainLength(p)).toBeCloseTo(0.07 + 0.1, 12);
+    expect(assemblyChainLength(pod([{ type: 'bodytube' }]))).toBeCloseTo(0.3, 12);
+  });
 });
 
 describe('assemblyBoundingRadius', () => {

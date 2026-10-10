@@ -1,5 +1,8 @@
 import type { ComponentType } from '../engine/openRocketEngine';
 
+/** `SymmetricComponent.DEFAULT_RADIUS`: what an automatic end with nothing to follow takes (m). */
+export const KERNEL_AUTO_RADIUS = 0.025;
+
 /**
  * The kernel's own defaults, in one place.
  *

@@ -40,6 +40,7 @@
       "archiveTooLarge": "The .ork archive is too large (possible zip bomb).",
       "archiveEmpty": "The .ork archive is empty.",
       "tooManyComponents": "This {{format}} declares too many components to open (possibly malformed).",
+      "tooManySimulations": "This .ork declares too many simulations to open (possibly malformed).",
       "tooDeep": "This {{format}} is nested too deeply to open (possibly malformed).",
       "tooLarge": "The file is too large to open (over {{size}} MiB)."
     },

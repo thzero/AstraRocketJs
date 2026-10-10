@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { zipSync, strToU8 } from 'fflate';
 import { importOrk } from '../../../src/services/files/orkFile';
-import { MAX_NESTING_DEPTH } from '../../../src/services/files/ork/importLimits';
+import { MAX_NESTING_DEPTH, MAX_SIMULATIONS } from '../../../src/services/files/ork/importLimits';
 
 /**
  * The untrusted-input parser, exercised with untrusted input.
@@ -97,6 +97,23 @@ describe('the hostile-input caps actually fire', () => {
     const many = '<bodytube><name>b</name><length>0.1</length><radius>0.01</radius></bodytube>'.repeat(10_050);
     expect(() => importOrk(ork(wrap(many)))).toThrow(/too many components/i);
   }, 60_000);
+
+  // A <simulation/> is 13 bytes, so the byte caps admit millions of them, and
+  // each one becomes a workspace row.
+  const withSims = (n: number) =>
+    ork(
+      `<?xml version="1.0"?><openrocket version="1.8"><rocket><name>T</name><subcomponents><stage><name>S</name><subcomponents>` +
+        `<bodytube><name>b</name><length>0.1</length><radius>0.01</radius></bodytube></subcomponents></stage></subcomponents></rocket>` +
+        `<simulations>${'<simulation/>'.repeat(n)}</simulations></openrocket>`,
+    );
+
+  it('refuses more simulations than MAX_SIMULATIONS with a clear error', () => {
+    expect(() => importOrk(withSims(MAX_SIMULATIONS + 1))).toThrow(/too many simulations/i);
+  });
+
+  it('still opens a file with as many simulations as the cap allows', () => {
+    expect(importOrk(withSims(MAX_SIMULATIONS)).simulations).toHaveLength(MAX_SIMULATIONS);
+  });
 
   it('still accepts a component count a real design could plausibly use', () => {
     const many = '<bodytube><name>b</name><length>0.1</length><radius>0.01</radius></bodytube>'.repeat(200);

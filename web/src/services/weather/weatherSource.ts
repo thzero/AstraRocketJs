@@ -123,7 +123,7 @@ export function isWeatherSource(x: unknown): x is WeatherSource {
     typeof s['fetchedAt'] === 'string' &&
     !Number.isNaN(Date.parse(s['fetchedAt'])) &&
     Array.isArray(s['groups']) &&
-    (s['groups'] as unknown[]).every((g) => typeof g === 'string' && g in GROUP_FIELDS) &&
+    (s['groups'] as unknown[]).every((g) => typeof g === 'string' && Object.hasOwn(GROUP_FIELDS, g)) &&
     typeof s['elevationApplied'] === 'boolean'
   );
 }

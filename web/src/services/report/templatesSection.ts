@@ -1,6 +1,7 @@
 import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
 import { finPlanformMm, profileMm, type Pt } from './reportGeometry';
 import { parentRadiusOf } from '../../tree/finPlanform';
+import { profileEnds } from '../../tree/shapeProfile';
 import { num } from '../../tree/nodeProps';
 import { KERNEL_DEFAULTS } from '../../tree/kernelDefaults';
 import { fmtNum } from '../../i18n/format';
@@ -32,7 +33,8 @@ export function writeTemplatesSection(
     if (prof) template(p, (n.name as string) || t('report.noseCone'), prof.pts, prof.w, prof.h);
   }
   for (const n of transitions) {
-    const prof = profileMm(n, num(n, 'foreRadius', 0.012), num(n, 'aftRadius', 0.009));
+    const { fore, aft } = profileEnds(n);
+    const prof = profileMm(n, fore, aft);
     if (prof) template(p, (n.name as string) || t('report.transition'), prof.pts, prof.w, prof.h);
   }
 }

@@ -1,5 +1,12 @@
 import type { ComponentNode } from '../../engine/openRocketEngine';
-import { FREEFORM_FALLBACK, finPlanformPoints, finRootChord, finSpan, finTabSpan } from '../../tree/finPlanform';
+import {
+  FREEFORM_FALLBACK,
+  finPlanformPoints,
+  finRootChord,
+  finSpan,
+  finTabLimit,
+  finTabSpan,
+} from '../../tree/finPlanform';
 import { profileEnds } from '../../tree/shapeProfile';
 import { countOf, num, str } from '../../tree/nodeProps';
 import { KERNEL_DEFAULTS, KERNEL_RAILBUTTON_OUTER_DIAMETER } from '../../tree/kernelDefaults.js';
@@ -299,11 +306,12 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
       const renderTab = (finStart: number, finLen: number, p: number) => {
         // Through `finTabSpan`, not a local read of tabHeight/tabLength: it
         // clamps the tab into [0, rootChord] and its height into the parent
-        // radius. A tab longer than its root chord (a state the app warns
-        // about) is clamped the same way the DXF, the STL and the 1:1 PDF
-        // template clamp it, so the drawing and the part you cut are the same
-        // part.
-        const tab = finTabSpan(child, finLen, pRadius);
+        // radius at the tab's two ends (`finTabLimit`), which on a nose cone or
+        // transition is not the radius the fin is drawn on. A tab longer than
+        // its root chord (a state the app warns about) is clamped the same way
+        // the DXF, the STL and the 1:1 PDF template clamp it, so the drawing and
+        // the part you cut are the same part.
+        const tab = finTabSpan(child, finLen, finTabLimit(child, parent) ?? pRadius);
         if (!tab) return;
         const front = finStart + tab.x0;
         const tabLen = tab.x1 - tab.x0;

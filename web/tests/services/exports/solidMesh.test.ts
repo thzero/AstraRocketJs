@@ -469,3 +469,16 @@ describe('a keyless chain part as a printable solid', () => {
     expect(b.max.x - b.min.x).toBeCloseTo(KERNEL_DEFAULTS.nosecone.length, 6);
   });
 });
+
+describe('a transition with no end radii on record', () => {
+  // The bridge makes such an end automatic, and with nothing to follow the
+  // kernel gives it SymmetricComponent.DEFAULT_RADIUS (0.025 m). The printed
+  // part is that cylinder, not a cone between two invented sizes.
+  it('is meshed at the kernel radius at both ends', () => {
+    const geo = solidForNode({ type: 'transition', length: 0.05, thickness: 0.002 } as unknown as ComponentNode)!;
+    geo.computeBoundingBox();
+    const box = geo.boundingBox!;
+    expect(box.max.y).toBeCloseTo(0.025, 6);
+    expect(box.max.z).toBeCloseTo(0.025, 6);
+  });
+});

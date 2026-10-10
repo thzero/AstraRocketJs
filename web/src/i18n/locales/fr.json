@@ -40,6 +40,7 @@
       "archiveTooLarge": "L'archive .ork est trop volumineuse (bombe zip possible).",
       "archiveEmpty": "L'archive .ork est vide.",
       "tooManyComponents": "Ce {{format}} déclare trop de composants pour être ouvert (peut-être corrompu).",
+      "tooManySimulations": "Ce .ork déclare trop de simulations pour être ouvert (peut-être corrompu).",
       "tooDeep": "Ce {{format}} est trop profondément imbriqué pour être ouvert (peut-être corrompu).",
       "tooLarge": "Le fichier est trop volumineux pour être ouvert (plus de {{size}} Mio)."
     },

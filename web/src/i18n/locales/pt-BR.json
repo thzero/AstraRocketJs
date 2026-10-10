@@ -40,6 +40,7 @@
       "archiveTooLarge": "O arquivo compactado .ork é grande demais (possível bomba zip).",
       "archiveEmpty": "O arquivo compactado .ork está vazio.",
       "tooManyComponents": "Este {{format}} declara componentes demais para ser aberto (talvez esteja corrompido).",
+      "tooManySimulations": "Este .ork declara simulações demais para ser aberto (talvez esteja corrompido).",
       "tooDeep": "Este {{format}} tem aninhamento profundo demais para ser aberto (talvez esteja corrompido).",
       "tooLarge": "O arquivo é grande demais para ser aberto (mais de {{size}} MiB)."
     },

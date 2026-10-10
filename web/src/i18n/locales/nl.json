@@ -40,6 +40,7 @@
       "archiveTooLarge": "Het .ork-archief is te groot (mogelijk een zipbom).",
       "archiveEmpty": "Het .ork-archief is leeg.",
       "tooManyComponents": "Dit {{format}}-bestand bevat te veel onderdelen om te openen (mogelijk beschadigd).",
+      "tooManySimulations": "Dit .ork-bestand bevat te veel simulaties om te openen (mogelijk beschadigd).",
       "tooDeep": "Dit {{format}}-bestand is te diep genest om te openen (mogelijk beschadigd).",
       "tooLarge": "Het bestand is te groot om te openen (meer dan {{size}} MiB)."
     },

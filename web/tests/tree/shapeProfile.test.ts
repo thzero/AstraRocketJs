@@ -8,6 +8,7 @@ import {
   outerProfile,
   nodeShape,
   stationRadius,
+  profileEnds,
 } from '../../src/tree/shapeProfile';
 import { KERNEL_SHAPES } from '../../src/tree/kernelDefaults';
 import type { ComponentNode } from '../../src/engine/openRocketEngine';
@@ -269,5 +270,15 @@ describe('a node with no shape key', () => {
   it('gives a keyless nose cone the radius of an ogive at a station', () => {
     expect(stationRadius(nose(), 0.05)).toBeCloseTo(stationRadius(nose('ogive'), 0.05), 12);
     expect(stationRadius(nose(), 0.05)).not.toBeCloseTo(stationRadius(nose('conical'), 0.05), 6);
+  });
+});
+
+describe('profileEnds for a transition with no radius on record', () => {
+  it('reads each missing end as SymmetricComponent.DEFAULT_RADIUS, 0.025 m', () => {
+    expect(profileEnds({ type: 'transition' } as unknown as ComponentNode)).toEqual({ fore: 0.025, aft: 0.025 });
+    expect(profileEnds({ type: 'transition', foreRadius: 0.01 } as unknown as ComponentNode)).toEqual({
+      fore: 0.01,
+      aft: 0.025,
+    });
   });
 });

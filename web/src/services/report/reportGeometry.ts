@@ -215,8 +215,7 @@ export function rocketSideView(tree: RocketTree): { w: number; h: number; body: 
         emitChildren(n, len, () => R);
         x += len;
       } else if (n.type === 'transition') {
-        const foreR = num(n, 'foreRadius', 0.012);
-        const aftR = num(n, 'aftRadius', 0.009);
+        const { fore: foreR, aft: aftR } = profileEnds(n);
         revolve(n, foreR, aftR, len);
         // Transitions host fin sets too (treeEdit.canHost allows freeform fins on
         // one), so a boat-tail-mounted fin set is drawn from here; skipping it

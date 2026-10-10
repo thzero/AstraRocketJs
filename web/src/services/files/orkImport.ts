@@ -63,6 +63,10 @@ export function importOrk(data: ArrayBuffer | string): OrkImportResult {
     nodeCount: 0,
   };
 
+  // Read first: it refuses a file with more simulations than the cap before
+  // any other pass walks them.
+  const simulations = readSimulations(doc);
+
   // A file spells an automatic diameter as `auto`, which the readers turn into
   // a flag. Resolve it here rather than waiting for the first edit: everything
   // downstream of an import (the drawing, the mesh, the exports) reads a
@@ -86,7 +90,6 @@ export function importOrk(data: ArrayBuffer | string): OrkImportResult {
   notes.push(...archiveNotes(doc, archive.dropped));
 
   const launch = readLaunchConditions(doc);
-  const simulations = readSimulations(doc);
 
   return {
     name,

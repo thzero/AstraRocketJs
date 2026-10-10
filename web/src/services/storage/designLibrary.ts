@@ -39,6 +39,15 @@ export interface DesignMeta {
   name: string;
   /** Epoch ms of the last save; the library lists most-recent first. */
   updatedAt: number;
+  /**
+   * The tab that made the last save, when the save named one.
+   *
+   * An unload journal is replayed over a moved entry only when its own tab is
+   * the one that moved it (see `workspaceStore`). Absent on entries written
+   * before it existed and on writes that name no tab (Save As, the legacy
+   * migration), which read as "some other tab".
+   */
+  writer?: string;
 }
 
 const isMeta = (v: unknown): v is DesignMeta => {
@@ -161,7 +170,7 @@ export class DesignLibrary {
   }
 
   /** Write a design and stamp its index entry. Returns false if storage refused. */
-  async write(id: string, name: string, w: Workspace): Promise<boolean> {
+  async write(id: string, name: string, w: Workspace, writer?: string): Promise<boolean> {
     if (!(await this.kv.set(designKey(id), JSON.stringify(w)))) return false;
     // The index write counts too, even though the design itself is stored:
     // `activeId()` filters against this index, so a design missing from it is
@@ -174,12 +183,13 @@ export class DesignLibrary {
     // Two writes inside the same millisecond leave the stamp unchanged, and the
     // stamp is what tells a second tab that the entry moved under it
     // (`workspaceStore.save`) and what tells a reload that the library has
-    // passed an unload journal (`Journal.t`). A tie reads as "nothing happened",
-    // which is the one answer that is never true after a write.
+    // passed an unload journal (`Journal` in workspaceStore). A tie reads as
+    // "nothing happened", which is the one answer that is never true after a
+    // write.
     return await this.mutateIndex((list) => {
       const prev = list.find((m) => m.id === id);
       const updatedAt = Math.max(Date.now(), (prev?.updatedAt ?? 0) + 1);
-      return [{ id, name, updatedAt }, ...list.filter((m) => m.id !== id)];
+      return [{ id, name, updatedAt, ...(writer ? { writer } : {}) }, ...list.filter((m) => m.id !== id)];
     });
   }
 
@@ -197,13 +207,14 @@ export class DesignLibrary {
    * including when the blob write after it was refused: the entry has moved,
    * and the caller is the one that moved it. `name` is used only when the entry
    * has none (it was removed meanwhile); a rename from the library dialog is
-   * kept.
+   * kept. `writer` names the tab making the save (see `DesignMeta.writer`).
    */
   async writeIfUnchanged(
     id: string,
     name: string,
     w: Workspace,
     seenAt: number | null,
+    writer?: string,
   ): Promise<{ status: 'ok' | 'conflict' | 'refused'; updatedAt?: number }> {
     let conflict = false;
     let updatedAt: number | undefined;
@@ -215,7 +226,8 @@ export class DesignLibrary {
       }
       // Strictly later than the stamp being replaced; see `write`.
       updatedAt = Math.max(Date.now(), (prev?.updatedAt ?? 0) + 1);
-      return [{ id, name: prev?.name ?? name, updatedAt }, ...list.filter((m) => m.id !== id)];
+      const entry: DesignMeta = { id, name: prev?.name ?? name, updatedAt, ...(writer ? { writer } : {}) };
+      return [entry, ...list.filter((m) => m.id !== id)];
     });
     if (conflict) return { status: 'conflict' };
     if (!claimed) return { status: 'refused' };
@@ -230,9 +242,9 @@ export class DesignLibrary {
    * fabricated meta for a design that was never stored. This is the path taken
    * by the first save of a session, when there is no other copy yet.
    */
-  async create(name: string, w: Workspace): Promise<DesignMeta> {
+  async create(name: string, w: Workspace, writer?: string): Promise<DesignMeta> {
     const id = freshId();
-    if (!(await this.write(id, name, w))) throw new Error('storage-full');
+    if (!(await this.write(id, name, w, writer))) throw new Error('storage-full');
     // Same rule for the pointer: a design that is written and indexed but not
     // active works for this session and then the next launch opens the
     // previous one, with the user's new rocket sitting in the library list.

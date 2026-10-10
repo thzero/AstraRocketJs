@@ -842,6 +842,10 @@ export function defaultNode(type: ComponentType): ComponentNode {
       const body = defaultNode('bodytube');
       body.length = 0.12;
       body.outerRadius = 0.009;
+      // A fixed radius: a new body tube is automatic, and an automatic tube with
+      // nothing ahead of it or behind it in its own chain resolves to the
+      // kernel's 25 mm, which is no longer slim.
+      body.outerRadiusAuto = false;
       return {
         type,
         id,
@@ -860,6 +864,10 @@ export function defaultNode(type: ComponentType): ComponentNode {
       const body = defaultNode('bodytube');
       body.length = 0.2;
       body.outerRadius = 0.009;
+      // A fixed radius: a new body tube is automatic, and an automatic tube with
+      // nothing ahead of it or behind it in its own chain resolves to the
+      // kernel's 25 mm, which is no longer slim.
+      body.outerRadiusAuto = false;
       return {
         type,
         id,

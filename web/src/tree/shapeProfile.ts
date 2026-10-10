@@ -20,7 +20,7 @@
  *   same profile the engine then flies.
  */
 import type { ComponentNode } from '../engine/openRocketEngine';
-import { KERNEL_DEFAULTS, KERNEL_SHAPES } from './kernelDefaults';
+import { KERNEL_AUTO_RADIUS, KERNEL_DEFAULTS, KERNEL_SHAPES } from './kernelDefaults';
 import { num, numOpt } from './nodeProps';
 
 const MINFEATURE = 0.001;
@@ -262,13 +262,20 @@ export function nodeShape(node: ComponentNode): string {
  * A nose cone runs from its tip to its base, and `aftRadius` holds the base.
  * Flipped, it is a tail cone: the kernel moves the base to the fore end
  * (`NoseCone.setFlipped`), so the profile runs from the base down to the tip.
+ *
+ * A transition end with no radius on record is automatic to the bridge, and
+ * `syncAutoRadii` writes the resolved radius onto it, so a missing one is a
+ * tree that has not been through it. With no neighbors in hand this reads it as
+ * the kernel does an automatic end with nothing to follow:
+ * `SymmetricComponent.DEFAULT_RADIUS`. The drawings, which have the chain,
+ * follow the neighbor first (`transitionEnds`).
  */
 export function profileEnds(node: ComponentNode): { fore: number; aft: number } {
   if (node.type === 'nosecone') {
     const base = num(node, 'aftRadius', KERNEL_DEFAULTS.nosecone.aftRadius);
     return node['flipped'] === true ? { fore: base, aft: 0 } : { fore: 0, aft: base };
   }
-  return { fore: num(node, 'foreRadius'), aft: num(node, 'aftRadius') };
+  return { fore: num(node, 'foreRadius', KERNEL_AUTO_RADIUS), aft: num(node, 'aftRadius', KERNEL_AUTO_RADIUS) };
 }
 
 /**

@@ -482,3 +482,18 @@ describe('catalogPatch for a rail button', () => {
     expect('overrideMass' in patch).toBe(true);
   });
 });
+
+describe('a new pod set or parallel stage', () => {
+  // The seed tube is slim on purpose. A new body tube is automatic, and an
+  // automatic tube with no neighbor in its own chain resolves to the kernel's
+  // SymmetricComponent.DEFAULT_RADIUS (25 mm), so the seed has to be fixed.
+  for (const type of ['podset', 'parallelstage'] as const) {
+    it(`keeps the ${type} seed tube at 9 mm radius once added`, () => {
+      const { tree, id } = addPart(makeTree(), type, 'b1');
+      const tube = findNode(tree, id)!.children![0]!;
+      expect(tube.type).toBe('bodytube');
+      expect(tube['outerRadiusAuto']).toBe(false);
+      expect(tube['outerRadius']).toBe(0.009);
+    });
+  }
+});

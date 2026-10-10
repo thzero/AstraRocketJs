@@ -23,7 +23,9 @@ vi.setConfig({ testTimeout: KERNEL_TEST_TIMEOUT_MS, hookTimeout: KERNEL_TEST_TIM
  * The designs are generated from a fixed seed so a failure reproduces: the
  * report names the seed and the part. They cover the flags that change a
  * part's geometry (`filled`, `flipped` and each automatic flag), two stages,
- * and parts inside tubes, nose cones and transitions.
+ * parts inside tubes, nose cones and transitions, and tabbed fin sets on every
+ * body that takes one: trapezoidal on body tubes, freeform on nose cones
+ * (flipped or not) and transitions.
  */
 
 const DESIGNS = 200;
@@ -172,6 +174,46 @@ function generate(seed: number): RocketTree {
     ];
   };
 
+  /**
+   * A freeform fin set, the one fin set a nose cone or transition takes
+   * (`Transition.isCompatible`). Its tab is deeper than any body here, so the
+   * kernel's limit, the parent radius at the tab's two ends, decides its depth.
+   *
+   * Drawn from a stream of its own, so the airframe of every seed is the same
+   * design with or without these fins.
+   */
+  const fr = rng(seed + 0x9e3779b9);
+  const fChance = (p: number) => fr() < p;
+  const fBetween = (lo: number, hi: number) => lo + fr() * (hi - lo);
+  const fPick = <T>(xs: readonly T[]): T => xs[Math.floor(fr() * xs.length)]!;
+  const freeformFins = (len: number): ComponentNode[] => {
+    if (!fChance(0.6)) return [];
+    const chord = Math.round(fBetween(0.3, 0.9) * len * 1e4) / 1e4;
+    const tabLength = Math.round(chord * fBetween(0.2, 0.9) * 1e4) / 1e4;
+    return [
+      {
+        type: 'freeformfinset',
+        id: id('freeformfinset'),
+        finCount: 3,
+        points: [
+          [0, 0],
+          [Math.round(chord * fBetween(0.1, 0.6) * 1e4) / 1e4, Math.round(fBetween(0.01, 0.05) * 1e4) / 1e4],
+          [chord, 0],
+        ],
+        thickness: 0.003,
+        tabHeight: 0.2,
+        tabLength,
+        tabOffsetMethod: fPick(['top', 'middle', 'bottom']),
+        tabOffset: Math.round(fBetween(-0.2, 0.2) * (chord - tabLength) * 1e5) / 1e5,
+        position: fPick([
+          { method: 'top', offset: Math.round(fBetween(0, len - chord) * 1e4) / 1e4 },
+          { method: 'bottom', offset: 0 },
+          { method: 'middle', offset: 0 },
+        ]),
+      } as unknown as ComponentNode,
+    ];
+  };
+
   const wall = (node: Record<string, unknown>) => {
     if (chance(0.2)) node['filled'] = true;
     else node['thickness'] = Math.round(between(0.0005, 0.003) * 1e5) / 1e5;
@@ -190,11 +232,9 @@ function generate(seed: number): RocketTree {
       flipped: chance(0.2),
     };
     wall(node);
-    // Nothing goes inside a filled part: it has no bore to size a part from.
-    // No fins here: the generator builds fin sets only on body tubes. The kernel
-    // also mounts a freeform fin set on a nose cone or transition
-    // (Transition.isCompatible), a case this generator does not cover.
-    node['children'] = !node['filled'] && chance(0.4) ? internals(aft, len, false) : [];
+    // Nothing goes inside a filled part: it has no bore to size a part from. A
+    // fin set mounts outside, so a filled cone still takes one.
+    node['children'] = [...freeformFins(len), ...(!node['filled'] && chance(0.4) ? internals(aft, len, false) : [])];
     return node as unknown as ComponentNode;
   };
   const tube = (): ComponentNode => {
@@ -226,9 +266,10 @@ function generate(seed: number): RocketTree {
       aftRadiusAuto: chance(0.4),
     };
     wall(node);
-    // No fins here, as on the nose cone: freeform fin sets on a transition are
-    // not generated.
-    node['children'] = !node['filled'] && chance(0.4) ? internals(Math.max(fore, aft), len, false) : [];
+    node['children'] = [
+      ...freeformFins(len),
+      ...(!node['filled'] && chance(0.4) ? internals(Math.max(fore, aft), len, false) : []),
+    ];
     return node as unknown as ComponentNode;
   };
   const axial = () => (chance(0.65) ? tube() : transition());
@@ -244,6 +285,598 @@ function generate(seed: number): RocketTree {
   return { components: stages } as unknown as RocketTree;
 }
 
+const ASSEMBLY_DESIGNS = 200;
+
+/**
+ * Airframes with pod sets and side boosters, from a stream of their own so
+ * the designs {@link generate} builds stay the same.
+ *
+ * An automatic tube's neighbor can sit across an assembly: the kernel counts a
+ * pod set or booster on the airframe's axis (coaxial, or at zero radius) as in
+ * line with it, lets a pod's first part follow the tube it hangs on, and lets
+ * a flush pod's last part stand in for that tube; deciding whether a pod is in
+ * line reads the tube it stands on. So the assemblies here hang on automatic
+ * and fixed tubes, hold automatic tubes, transitions and cones, take every
+ * radial method at a gap, at zero and at the parent's surface, sit flush at
+ * either end or partway along, come in one to three copies, and hold parts that
+ * read a tube during the build or after it (fin sets, couplers, launch lugs).
+ */
+function generateAssemblies(seed: number): RocketTree {
+  const r = rng(seed + 0x5bd1e995);
+  const chance = (p: number) => r() < p;
+  const between = (lo: number, hi: number) => lo + r() * (hi - lo);
+  const pick = <T>(xs: readonly T[]): T => xs[Math.floor(r() * xs.length)]!;
+  let n = 0;
+  const id = (type: string) => `${type}${++n}`;
+  const round = (v: number) => Math.round(v * 1e4) / 1e4;
+  const radius = () => round(between(0.01, 0.05));
+  const at = { method: 'top', offset: 0 };
+  type Part = Record<string, unknown>;
+
+  const assembly = (depth: number, parentLen: number, parentR: number, parentAuto: boolean): Part => {
+    const radiusMethod = pick(['relative', 'relative', 'surface', 'free', 'free', 'coaxial']);
+    // Zero radius on purpose half the time: that is what puts a pod in line.
+    const radiusOffset =
+      radiusMethod === 'free'
+        ? pick([0, 0, 0.04])
+        : radiusMethod === 'relative' && !parentAuto && chance(0.4)
+          ? -parentR
+          : pick([0, 0.01]);
+    const children = chain(depth + 1, 1 + Math.floor(r() * 3));
+    const len = children.reduce((s, c) => s + (c['length'] as number), 0);
+    return {
+      type: chance(0.6) ? 'podset' : 'parallelstage',
+      id: id('assembly'),
+      instanceCount: 1 + Math.floor(r() * 3),
+      radiusMethod,
+      radiusOffset,
+      angleOffset: 0,
+      position: pick([
+        { method: 'bottom', offset: 0 },
+        { method: 'bottom', offset: 0 },
+        { method: 'top', offset: 0 },
+        { method: 'top', offset: 0 },
+        { method: 'middle', offset: 0 },
+        { method: 'top', offset: round(r() * parentLen) },
+        { method: 'bottom', offset: -round(r() * parentLen) },
+        { method: 'top', offset: -round(r() * len) },
+      ]),
+      children,
+    };
+  };
+  const inside = (depth: number, len: number, outer: number, auto: boolean): Part[] => {
+    const kids: Part[] = [];
+    if (chance(0.25)) {
+      kids.push({
+        type: 'trapezoidfinset',
+        id: id('trapezoidfinset'),
+        finCount: 3,
+        rootChord: 0.05,
+        tipChord: 0.03,
+        sweep: 0.01,
+        height: 0.05,
+        thickness: 0.003,
+        ...(chance(0.5) ? { tabHeight: 0.2, tabLength: 0.02, tabOffsetMethod: 'middle', tabOffset: 0 } : {}),
+        position: at,
+      });
+    }
+    if (chance(0.2)) {
+      kids.push({
+        type: 'tubecoupler',
+        id: id('tubecoupler'),
+        length: 0.05,
+        thickness: 0.001,
+        outerRadiusAuto: true,
+        outerRadius: 0.01,
+        position: at,
+      });
+    }
+    if (chance(0.15)) {
+      kids.push({
+        type: 'launchlug',
+        id: id('launchlug'),
+        length: 0.05,
+        outerRadius: 0.003,
+        thickness: 0.0003,
+        position: at,
+      });
+    }
+    const count = depth === 0 ? (chance(0.6) ? 1 + Math.floor(r() * 2) : 0) : depth === 1 && chance(0.15) ? 1 : 0;
+    for (let i = 0; i < count; i++) {
+      kids.splice(Math.floor(r() * (kids.length + 1)), 0, assembly(depth, len, outer, auto));
+    }
+    return kids;
+  };
+  const part = (depth: number): Part => {
+    const x = r();
+    if (x < 0.65) {
+      const outerRadius = radius();
+      const outerRadiusAuto = chance(0.6);
+      const length = round(between(0.1, 0.4));
+      return {
+        type: 'bodytube',
+        id: id('bodytube'),
+        length,
+        outerRadius,
+        outerRadiusAuto,
+        thickness: 0.001,
+        children: inside(depth, length, outerRadius, outerRadiusAuto),
+      };
+    }
+    if (x < 0.88) {
+      return {
+        type: 'transition',
+        id: id('transition'),
+        shape: 'conical',
+        length: 0.05,
+        foreRadius: radius(),
+        aftRadius: radius(),
+        foreRadiusAuto: chance(0.4),
+        aftRadiusAuto: chance(0.4),
+        thickness: 0.001,
+      };
+    }
+    return {
+      type: 'nosecone',
+      id: id('nosecone'),
+      shape: 'ogive',
+      length: 0.1,
+      aftRadius: radius(),
+      aftRadiusAuto: chance(0.5),
+      flipped: depth > 0 ? chance(0.5) : true,
+      thickness: 0.002,
+    };
+  };
+  const chain = (depth: number, k: number): Part[] => Array.from({ length: k }, () => part(depth));
+
+  const sustainer: Part[] = [
+    {
+      type: 'nosecone',
+      id: id('nosecone'),
+      shape: 'ogive',
+      length: 0.1,
+      aftRadius: radius(),
+      aftRadiusAuto: chance(0.5),
+      thickness: 0.002,
+    },
+    ...chain(0, 1 + Math.floor(r() * 4)),
+  ];
+  const stages: Part[] = [{ type: 'stage', id: id('stage'), children: sustainer }];
+  if (chance(0.4)) stages.push({ type: 'stage', id: id('stage'), children: chain(0, 1 + Math.floor(r() * 3)) });
+  return { components: stages } as unknown as RocketTree;
+}
+
+/**
+ * Hand-built airframes whose automatic tube radii depend on the order the
+ * kernel evaluates them in.
+ *
+ * An automatic body tube remembers the neighbor it last took its radius from
+ * (`BodyTube.refComp`), and a neighbor skips a tube that remembers it
+ * (`usesPreviousCompAutomatic`, `usesNextCompAutomatic`). A tube evaluated while
+ * the rocket is still being built remembers the part ahead of it, because
+ * nothing behind it is attached yet; the passes after the build, and the first
+ * read, start from that. The generated designs reach these chains only by
+ * chance, so each case is listed here: a run of automatic tubes between an
+ * automatic end and a fixed one, with and without the parts that evaluate a
+ * tube during the build (an automatic coupler, a tabbed fin set) or after it (a
+ * fin set, a launch lug), across a stage boundary, behind an automatic
+ * transition end, and against a flipped nose cone.
+ *
+ * The pod chains cover the neighbor search across assemblies
+ * (`getPreviousSymmetricComponent`, `getNextSymmetricComponent`): a pod on the
+ * airframe's axis is in line with it and one off it is not; a pod's first
+ * tube follows the tube it hangs on, or the part ahead of that tube when the
+ * pod starts flush with it; a pod flush with either end of its tube stands in
+ * for that tube when its own end part is wider; a pod placed against an
+ * automatic tube reads that tube on every pass of the active-instance walk;
+ * and the walk visits a pod's parts once per copy.
+ */
+const CHAIN_DESIGNS: Record<string, () => RocketTree> = (() => {
+  type Part = Record<string, unknown>;
+  const stages = (...rows: Part[][]) =>
+    ({
+      components: rows.map((children, k) => ({ type: 'stage', id: `stage${k}`, children })),
+    }) as unknown as RocketTree;
+  const nose = (id: string, aftRadius: number, extra: Part = {}): Part => ({
+    type: 'nosecone',
+    id,
+    shape: 'ogive',
+    length: 0.1,
+    aftRadius,
+    thickness: 0.002,
+    ...extra,
+  });
+  const tube = (id: string, outerRadius: number): Part => ({
+    type: 'bodytube',
+    id,
+    length: 0.3,
+    outerRadius,
+    thickness: 0.001,
+  });
+  const auto = (id: string, children: Part[] = []): Part => ({ ...tube(id, 0.02), outerRadiusAuto: true, children });
+  const transition = (id: string, extra: Part): Part => ({
+    type: 'transition',
+    id,
+    shape: 'conical',
+    length: 0.05,
+    foreRadius: 0.03,
+    aftRadius: 0.01,
+    thickness: 0.001,
+    ...extra,
+  });
+  const at = { method: 'top', offset: 0 };
+  const coupler = (id: string): Part => ({
+    type: 'tubecoupler',
+    id,
+    length: 0.05,
+    thickness: 0.001,
+    outerRadius: 0.01,
+    outerRadiusAuto: true,
+    position: at,
+  });
+  const fins = (id: string, tabbed: boolean): Part => ({
+    type: 'trapezoidfinset',
+    id,
+    finCount: 3,
+    rootChord: 0.05,
+    tipChord: 0.03,
+    sweep: 0.01,
+    height: 0.05,
+    thickness: 0.003,
+    ...(tabbed ? { tabHeight: 0.2, tabLength: 0.02, tabOffsetMethod: 'middle', tabOffset: 0 } : {}),
+    position: at,
+  });
+  const lug = (id: string): Part => ({
+    type: 'launchlug',
+    id,
+    length: 0.05,
+    outerRadius: 0.003,
+    thickness: 0.0003,
+    position: at,
+  });
+  const autoNose = () => nose('nose', 0.02, { aftRadiusAuto: true });
+  const hung = (id: string, outerRadius: number, children: Part[]): Part => ({ ...tube(id, outerRadius), children });
+  const short = (part: Part): Part => ({ ...part, length: 0.1 });
+  const pod = (
+    id: string,
+    radiusMethod: string,
+    radiusOffset: number,
+    method: string,
+    children: Part[],
+    extra: Part = {},
+  ) => ({
+    type: 'podset',
+    id,
+    instanceCount: 2,
+    radiusMethod,
+    radiusOffset,
+    angleOffset: 0,
+    position: { method, offset: 0 },
+    children,
+    ...extra,
+  });
+  // Off the axis, and FREE, so nothing but the walk evaluates the pod's tubes:
+  // nine passes settle a run of twelve from the back only as far as the third
+  // tube, and three copies give each tube three times as many evaluations.
+  const podRun = (instanceCount: number): Part =>
+    pod(
+      'pod',
+      'free',
+      0.05,
+      'bottom',
+      [
+        nose('pn', 0.01, { aftRadiusAuto: true }),
+        ...Array.from({ length: 12 }, (_, i) => short(auto(`t${i}`, [coupler(`c${i}`), fins(`f${i}`, false)]))),
+        short(tube('end', 0.0237)),
+      ],
+      { instanceCount },
+    );
+  return {
+    // The design that first showed it: an automatic nose cone base, two
+    // automatic tubes, the second holding an automatic coupler, then a fixed
+    // 23.7 mm tube in the next stage. The kernel gives the first tube 25 mm.
+    'generated airframe, two automatic tubes between an automatic base and the next stage': () =>
+      ({
+        components: [
+          {
+            type: 'stage',
+            id: 'stage11',
+            children: [
+              {
+                ...nose('nosecone1', 0.0129, { aftRadiusAuto: true }),
+                shape: 'haack',
+                length: 0.1294,
+                thickness: 0.00191,
+                children: [
+                  {
+                    type: 'freeformfinset',
+                    id: 'freeformfinset2',
+                    finCount: 3,
+                    points: [
+                      [0, 0],
+                      [0.0229, 0.0343],
+                      [0.0961, 0],
+                    ],
+                    thickness: 0.003,
+                    tabHeight: 0.2,
+                    tabLength: 0.0444,
+                    tabOffsetMethod: 'middle',
+                    tabOffset: 0.00719,
+                    position: { method: 'top', offset: 0.0022 },
+                  },
+                ],
+              },
+              {
+                type: 'bodytube',
+                id: 'bodytube3',
+                length: 0.4988,
+                outerRadius: 0.0255,
+                outerRadiusAuto: true,
+                thickness: 0.00256,
+                children: [
+                  {
+                    type: 'innertube',
+                    id: 'innertube4',
+                    length: 0.1673,
+                    outerRadius: 0.0092,
+                    thickness: 0.0005,
+                    position: { method: 'top', offset: 0.2965 },
+                  },
+                  {
+                    type: 'centeringring',
+                    id: 'centeringring5',
+                    length: 0.005,
+                    outerRadiusAuto: true,
+                    innerRadiusAuto: true,
+                    outerRadius: 0.02295,
+                    innerRadius: 0.00765,
+                    position: { method: 'top', offset: 0.0101 },
+                  },
+                ],
+              },
+              {
+                type: 'bodytube',
+                id: 'bodytube6',
+                length: 0.1054,
+                outerRadius: 0.0165,
+                outerRadiusAuto: true,
+                thickness: 0.00268,
+                children: [
+                  {
+                    type: 'innertube',
+                    id: 'innertube7',
+                    length: 0.0834,
+                    outerRadius: 0.005,
+                    thickness: 0.0005,
+                    position: { method: 'top', offset: 0.0123 },
+                  },
+                  {
+                    type: 'centeringring',
+                    id: 'centeringring8',
+                    length: 0.005,
+                    outerRadiusAuto: true,
+                    innerRadiusAuto: false,
+                    outerRadius: 0.01485,
+                    innerRadius: 0.00495,
+                    position: { method: 'top', offset: 0.019 },
+                  },
+                  {
+                    type: 'bulkhead',
+                    id: 'bulkhead9',
+                    length: 0.004,
+                    outerRadiusAuto: true,
+                    outerRadius: 0.01485,
+                    position: { method: 'top', offset: 0.0796 },
+                  },
+                  {
+                    type: 'tubecoupler',
+                    id: 'tubecoupler10',
+                    length: 0.0316,
+                    thickness: 0.001,
+                    outerRadiusAuto: true,
+                    outerRadius: 0.01485,
+                    position: { method: 'top', offset: 0.0797 },
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            type: 'stage',
+            id: 'stage21',
+            children: [
+              {
+                type: 'bodytube',
+                id: 'bodytube12',
+                length: 0.2223,
+                outerRadius: 0.0237,
+                thickness: 0.00171,
+                children: [
+                  {
+                    type: 'parachute',
+                    id: 'parachute13',
+                    diameter: 0.5,
+                    cd: 0.8,
+                    length: 0.03,
+                    radiusAuto: true,
+                    radius: 0.01185,
+                    position: { method: 'top', offset: 0.1344 },
+                  },
+                ],
+              },
+              {
+                type: 'bodytube',
+                id: 'bodytube14',
+                length: 0.2537,
+                outerRadius: 0.0474,
+                outerRadiusAuto: true,
+                thickness: 0.0018,
+                children: [
+                  {
+                    ...fins('trapezoidfinset15', true),
+                    rootChord: 0.1622,
+                    tipChord: 0.0811,
+                    sweep: 0.04866,
+                    tabLength: 0.0773,
+                    tabOffsetMethod: 'top',
+                    position: { method: 'top', offset: 0.0616 },
+                  },
+                  {
+                    type: 'innertube',
+                    id: 'innertube16',
+                    length: 0.0842,
+                    outerRadius: 0.0145,
+                    thickness: 0.0005,
+                    position: { method: 'top', offset: 0.1571 },
+                    children: [
+                      {
+                        type: 'engineblock',
+                        id: 'engineblock17',
+                        length: 0.005,
+                        thickness: 0.002,
+                        outerRadiusAuto: true,
+                        outerRadius: 0.01305,
+                        position: at,
+                      },
+                    ],
+                  },
+                  {
+                    type: 'bulkhead',
+                    id: 'bulkhead18',
+                    length: 0.004,
+                    outerRadiusAuto: true,
+                    outerRadius: 0.04266,
+                    position: { method: 'top', offset: 0.0423 },
+                  },
+                  {
+                    type: 'tubecoupler',
+                    id: 'tubecoupler19',
+                    length: 0.0761,
+                    thickness: 0.001,
+                    outerRadiusAuto: true,
+                    outerRadius: 0.04266,
+                    position: { method: 'top', offset: 0.0959 },
+                  },
+                  {
+                    type: 'tubefinset',
+                    id: 'tubefinset20',
+                    finCount: 7,
+                    length: 0.08,
+                    thickness: 0.0005,
+                    outerRadiusAuto: true,
+                    outerRadius: 0.0237,
+                    position: { method: 'bottom', offset: 0 },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      }) as unknown as RocketTree,
+    'two automatic tubes': () => stages([auto('a'), auto('b')]),
+    'fixed nose, two automatic tubes': () => stages([nose('nose', 0.031), auto('a'), auto('b')]),
+    'fixed tube, automatic tube, automatic tube with a coupler': () =>
+      stages([tube('a', 0.03), auto('b'), auto('c', [coupler('cp')])]),
+    'automatic base, two automatic tubes, fixed tube in the next stage': () =>
+      stages([autoNose(), auto('a'), auto('b')], [tube('c', 0.0237)]),
+    'the same, the second tube holding a coupler': () =>
+      stages([autoNose(), auto('a'), auto('b', [coupler('cp')])], [tube('c', 0.0237)]),
+    'the same, the second tube holding tabbed fins': () =>
+      stages([autoNose(), auto('a'), auto('b', [fins('f', true)])], [tube('c', 0.0237)]),
+    'the same, the second tube holding a coupler and a launch lug': () =>
+      stages([autoNose(), auto('a'), auto('b', [coupler('cp'), lug('l')])], [tube('c', 0.0237)]),
+    'two automatic tubes, the second holding a coupler, fixed tube in the next stage': () =>
+      stages([auto('a'), auto('b', [coupler('cp')])], [tube('c', 0.0237)]),
+    'automatic base, three automatic tubes each holding a coupler, fixed tube': () =>
+      stages([
+        autoNose(),
+        auto('a', [coupler('c1')]),
+        auto('b', [coupler('c2')]),
+        auto('c', [coupler('c3')]),
+        tube('d', 0.0237),
+      ]),
+    'automatic base, twelve automatic tubes each holding a coupler and fins, fixed tube': () =>
+      stages([
+        autoNose(),
+        ...Array.from({ length: 12 }, (_, i) => auto(`t${i}`, [coupler(`c${i}`), fins(`f${i}`, false)])),
+        tube('end', 0.0237),
+      ]),
+    'transition with an automatic aft end, two automatic tubes, fixed tube': () =>
+      stages([
+        nose('nose', 0.03),
+        transition('tr', { aftRadiusAuto: true }),
+        auto('a'),
+        auto('b', [coupler('cp')]),
+        tube('c', 0.0237),
+      ]),
+    'transition automatic at both ends, automatic tube, fixed tube': () =>
+      stages([
+        nose('nose', 0.03),
+        transition('tr', { foreRadiusAuto: true, aftRadiusAuto: true }),
+        auto('a', [coupler('cp')]),
+        tube('c', 0.0237),
+      ]),
+    'automatic base, two automatic tubes, flipped nose cone': () =>
+      stages([autoNose(), auto('a'), auto('b', [coupler('cp')]), nose('tail', 0.015, { flipped: true })]),
+    'fixed nose, automatic tube, flipped nose cone with an automatic base': () =>
+      stages([nose('nose', 0.03), auto('a'), nose('tail', 0.02, { aftRadiusAuto: true, flipped: true })]),
+    'coaxial pod at the bottom of a tube: its automatic tube follows that tube': () =>
+      stages([nose('nose', 0.03), hung('a', 0.02, [pod('pod', 'coaxial', 0, 'bottom', [short(auto('p'))])])]),
+    'pod at zero radius at the top of a tube: its automatic tube follows the part ahead of that tube': () =>
+      stages([nose('nose', 0.03), hung('a', 0.02, [pod('pod', 'free', 0, 'top', [short(auto('p'))])])]),
+    'pod placed against a tube at minus its radius: in line, as a coaxial one': () =>
+      stages([nose('nose', 0.03), hung('a', 0.02, [pod('pod', 'relative', -0.02, 'bottom', [short(auto('p'))])])]),
+    'pod off the axis: its automatic tube has nothing to follow': () =>
+      stages([nose('nose', 0.03), hung('a', 0.02, [pod('pod', 'relative', 0, 'bottom', [short(auto('p'))])])]),
+    'pod flush with the aft end of a tube: its wider last tube is the neighbor of the tube behind': () =>
+      stages([
+        nose('nose', 0.03),
+        hung('a', 0.02, [pod('pod', 'coaxial', 0, 'bottom', [short(tube('q', 0.035))])]),
+        auto('b'),
+      ]),
+    'pod flush with the fore end of a tube: its wider first tube is the neighbor of the tube ahead': () =>
+      stages([autoNose(), auto('a'), hung('b', 0.02, [pod('pod', 'coaxial', 0, 'top', [short(tube('q', 0.035))])])]),
+    'pod partway along a tube: the tube itself is the neighbor': () =>
+      stages([
+        nose('nose', 0.03),
+        hung('a', 0.02, [pod('pod', 'coaxial', 0, 'middle', [short(tube('q', 0.035))])]),
+        auto('b'),
+      ]),
+    'pod placed against an automatic tube, which it reads on every pass': () =>
+      stages(
+        [auto('a')],
+        [auto('b', [pod('pod', 'surface', 0, 'top', [short(tube('p', 0.01))], { instanceCount: 3 })])],
+        [tube('c', 0.0423)],
+      ),
+    'automatic tubes in a pod on an automatic tube, whose in-line check reads that tube': () =>
+      stages(
+        [
+          autoNose(),
+          auto('a', [pod('pod', 'relative', 0, 'bottom', [short(auto('p')), short(auto('p2', [coupler('cp')]))])]),
+          auto('b', [coupler('cb')]),
+        ],
+        [tube('c', 0.0237)],
+      ),
+    'booster on an automatic tube, with a launch lug on the booster tube': () =>
+      stages(
+        [
+          autoNose(),
+          auto('a', [
+            {
+              ...pod('booster', 'surface', 0, 'bottom', [short(auto('p', [lug('l')])), short(tube('q', 0.01))]),
+              type: 'parallelstage',
+            },
+          ]),
+          auto('b', [coupler('cb')]),
+        ],
+        [tube('c', 0.0237)],
+      ),
+    'twelve automatic tubes in a pod of one': () => stages([nose('nose', 0.03), hung('a', 0.02, [podRun(1)])]),
+    'twelve automatic tubes in a pod of three, each copy visited': () =>
+      stages([nose('nose', 0.03), hung('a', 0.02, [podRun(3)])]),
+  };
+})();
+
 /**
  * Rules known to disagree with the kernel. Finding IDs are numbered per audit
  * run, so each entry cites an ID in the current docs/AUDIT.md or states its
@@ -255,7 +888,8 @@ const KNOWN: Record<string, string> = {};
 /** One disagreement, grouped by the rule that produced it. */
 interface Miss {
   rule: string;
-  seed: number;
+  /** The design: its seed, or its name in CHAIN_DESIGNS. */
+  design: string;
   part: string;
   app: number | string;
   kernel: number | string;
@@ -288,10 +922,10 @@ function unresolvedIn(node: ComponentNode, k: KernelGeometry): boolean {
 
 /** Compare one resolved design with the kernel's geometry for it. */
 function compare(
-  seed: number,
+  design: string,
   tree: RocketTree,
   kernel: Map<string, KernelGeometry>,
-): { misses: Miss[]; unresolved: number } {
+): { misses: Miss[]; unresolved: number; checked: Map<string, number> } {
   const misses: Miss[] = [];
   // A part whose own radius disagrees, or that the kernel left unresolved:
   // whatever sits inside it is sized from the wrong number, so it is not
@@ -300,10 +934,12 @@ function compare(
   let unresolved = 0;
   const noSize = new Set<string>();
   let id = '';
+  const checked = new Map<string, number>();
   const check = (rule: string, app: unknown, k: number | undefined) => {
+    checked.set(rule, (checked.get(rule) ?? 0) + 1);
     const a = typeof app === 'number' ? app : NaN;
     if (!close(a, k)) {
-      misses.push({ rule, seed, part: id, app: a, kernel: k ?? 'none' });
+      misses.push({ rule, design, part: id, app: a, kernel: k ?? 'none' });
       skip.add(id);
     }
   };
@@ -377,8 +1013,11 @@ function compare(
         check('tube fin automatic radius', node['outerRadius'], k.outerRadius);
         break;
       case 'trapezoidfinset':
-        check(`fin tab depth limit${inside}`, parentRadiusOf(tree, id), k.maxTabHeight);
+      case 'freeformfinset': {
+        const where = parent?.['flipped'] === true ? ' in a flipped nosecone' : inside;
+        check(`fin tab depth limit${where}`, parentRadiusOf(tree, id), k.maxTabHeight);
         break;
+      }
       case 'parachute':
         check(`parachute automatic packed radius${inside}`, node['radius'], k.radius);
         break;
@@ -392,7 +1031,7 @@ function compare(
         const kr = k.profile[i] ?? undefined;
         const ar = stationRadius(node, x);
         if (!(typeof kr === 'number' && Math.abs(ar - kr) <= PROFILE_TOL)) {
-          misses.push({ rule, seed, part: `${id} at x=${x.toFixed(4)}`, app: ar, kernel: kr ?? 'none' });
+          misses.push({ rule, design, part: `${id} at x=${x.toFixed(4)}`, app: ar, kernel: kr ?? 'none' });
           break;
         }
       }
@@ -405,26 +1044,26 @@ function compare(
     const flag = node?.['filled'] === true ? 'filled ' : '';
     misses.push({
       rule: `run blocked on a ${flag}${bad.type} (${bad.field})`,
-      seed,
+      design,
       part: bad.id ?? bad.type,
       app: 'blocked',
       kernel: 'builds',
     });
   }
-  return { misses, unresolved };
+  return { misses, unresolved, checked };
 }
 
 /** One line per rule: how many designs it failed on, and the first example. */
-function report(misses: Miss[]): string[] {
+function report(misses: Miss[], designs: number): string[] {
   const byRule = new Map<string, Miss[]>();
   for (const m of misses) byRule.set(m.rule, [...(byRule.get(m.rule) ?? []), m]);
   return [...byRule.entries()]
     .filter(([rule]) => !(rule in KNOWN))
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([rule, ms]) => {
-      const seeds = new Set(ms.map((m) => m.seed)).size;
+      const failed = new Set(ms.map((m) => m.design)).size;
       const e = ms[0]!;
-      return `${rule}: ${seeds} of ${DESIGNS} designs; e.g. seed ${e.seed}, ${e.part}: app ${e.app}, kernel ${e.kernel}`;
+      return `${rule}: ${failed} of ${designs} designs; e.g. ${e.design}, ${e.part}: app ${e.app}, kernel ${e.kernel}`;
     });
 }
 
@@ -433,17 +1072,61 @@ describe('app geometry matches the kernel', () => {
     const engine = await loadEngine();
     const misses: Miss[] = [];
     let unresolved = 0;
+    const checked = new Map<string, number>();
     for (let seed = 1; seed <= DESIGNS; seed++) {
       const tree = syncAutoRadii(generate(seed));
-      const r = compare(seed, tree, kernelGeometry(engine, tree));
+      const r = compare(`seed ${seed}`, tree, kernelGeometry(engine, tree));
       misses.push(...r.misses);
       unresolved += r.unresolved;
+      for (const [rule, count] of r.checked) checked.set(rule, (checked.get(rule) ?? 0) + count);
     }
-    expect(report(misses)).toEqual([]);
+    // The tab limit on a tapered parent is checked on every parent that takes
+    // a fin set, so a generator change that stops building them fails here.
+    for (const rule of [
+      'fin tab depth limit in a bodytube',
+      'fin tab depth limit in a nosecone',
+      'fin tab depth limit in a flipped nosecone',
+      'fin tab depth limit in a transition',
+    ]) {
+      expect(checked.get(rule) ?? 0, rule).toBeGreaterThan(5);
+    }
+    expect(report(misses, DESIGNS)).toEqual([]);
     const failing = new Set(misses.map((m) => m.rule));
     expect(Object.keys(KNOWN).filter((rule) => !failing.has(rule))).toEqual([]);
     // Most parts resolve; a generator that produced mostly unresolved pairs
     // would leave this test checking nothing.
     expect(unresolved).toBeLessThan(DESIGNS);
+  });
+
+  it(`over ${ASSEMBLY_DESIGNS} generated designs with pod sets and boosters`, async () => {
+    const engine = await loadEngine();
+    const misses: Miss[] = [];
+    let unresolved = 0;
+    const checked = new Map<string, number>();
+    for (let seed = 1; seed <= ASSEMBLY_DESIGNS; seed++) {
+      const tree = syncAutoRadii(generateAssemblies(seed));
+      const r = compare(`assembly seed ${seed}`, tree, kernelGeometry(engine, tree));
+      misses.push(...r.misses);
+      unresolved += r.unresolved;
+      for (const [rule, count] of r.checked) checked.set(rule, (checked.get(rule) ?? 0) + count);
+    }
+    expect(report(misses, ASSEMBLY_DESIGNS)).toEqual([]);
+    expect(checked.get('body tube automatic radius') ?? 0).toBeGreaterThan(300);
+    expect(unresolved).toBeLessThan(ASSEMBLY_DESIGNS);
+  });
+
+  it(`over ${Object.keys(CHAIN_DESIGNS).length} hand-built chains of automatic tubes`, async () => {
+    const engine = await loadEngine();
+    const misses: Miss[] = [];
+    let tubes = 0;
+    for (const [name, build] of Object.entries(CHAIN_DESIGNS)) {
+      const tree = syncAutoRadii(build());
+      const r = compare(name, tree, kernelGeometry(engine, tree));
+      misses.push(...r.misses);
+      expect(r.unresolved, name).toBe(0);
+      tubes += r.checked.get('body tube automatic radius') ?? 0;
+    }
+    expect(report(misses, Object.keys(CHAIN_DESIGNS).length)).toEqual([]);
+    expect(tubes).toBeGreaterThan(30);
   });
 });

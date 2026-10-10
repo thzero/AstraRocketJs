@@ -224,6 +224,10 @@ describe('through-the-wall tab vs FinSet.java', () => {
     expect(src).toContain('double maxTabHeight = getMaxTabHeight();');
     expect(src).toContain('this.tabHeight = Math.min(this.tabHeight, maxTabHeight);');
     expect(src).toContain('return MathUtil.min(radiusFront, radiusTrailing);');
+    // The limit is read at the tab's own two stations, which finTabLimit ports.
+    expect(src).toContain('return sym.getRadius(finFront.getX() + xLead);');
+    expect(src).toContain('return sym.getRadius(finFront.getX() + xTrail);');
+    expect(src).toContain('return tabPosition + tabLength;');
   });
 
   it('never cuts a tab deeper than the body radius', () => {

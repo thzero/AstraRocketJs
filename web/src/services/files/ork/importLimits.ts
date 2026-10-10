@@ -48,6 +48,11 @@ export const MAX_FIN_POINTS = 10_000;
 // The largest real designs are a few hundred parts.
 const MAX_COMPONENTS = 10_000;
 export const MAX_LINE_COUNT = 100;
+// Simulations in one .ork. The byte caps do not bound this either: a
+// `<simulation/>` is 13 bytes, and each one is read (its launch conditions and
+// passthrough XML) and becomes a row in the workspace, the table and storage.
+// Desktop designs carry a handful; a few hundred is already unusual.
+export const MAX_SIMULATIONS = 1000;
 
 /** The file extension an over-limit error names. */
 type ImportFormat = '.ork' | '.rkt';

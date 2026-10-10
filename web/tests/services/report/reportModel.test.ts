@@ -60,6 +60,26 @@ describe('stageParts', () => {
     expect([transition!.foreR, transition!.aftR]).toEqual([0.02, 0.015]);
     expect(tube!.innerR).toBeCloseTo(0.014, 12);
   });
+  it('lists no bore or wall for a filled tube, which flies solid', () => {
+    const s = node({
+      type: 'stage',
+      children: [node({ type: 'bodytube', name: 'Rod', outerRadius: 0.01, thickness: 0.001, filled: true })],
+    });
+    const [rod] = stageParts(s, rocket);
+    expect(rod!.outerR).toBeCloseTo(0.01, 12);
+    expect(rod!.innerR).toBeUndefined();
+    expect(rod!.thickness).toBeUndefined();
+  });
+  it('gives a fin set its root chord as its length, and its span', () => {
+    const fins = rows.find((r) => r.type === 'trapezoidfinset')!;
+    expect(fins.length).toBeCloseTo(0.05, 12);
+    // No height on record: the span is the bridge's 0.03 m default.
+    expect(fins.span).toBeCloseTo(0.03, 12);
+  });
+  it('gives a part with no length the length the bridge builds it with, not 0', () => {
+    const s = node({ type: 'stage', children: [node({ type: 'bodytube', name: 'B', outerRadius: 0.012 })] });
+    expect(stageParts(s, rocket)[0]!.length).toBeCloseTo(0.3, 12);
+  });
   it('leaves mass 0 for a part the engine cannot weigh (no id / throw)', () => {
     const s = node({ type: 'stage', children: [node({ type: 'masscomponent', name: 'Ballast' })] }); // no id
     expect(stageParts(s, rocket)[0]!.mass).toBe(0);

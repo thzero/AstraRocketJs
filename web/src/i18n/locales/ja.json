@@ -40,6 +40,7 @@
       "archiveTooLarge": ".ork アーカイブが大きすぎます（zip 爆弾の可能性があります）。",
       "archiveEmpty": ".ork アーカイブが空です。",
       "tooManyComponents": "この {{format}} は部品数が多すぎるため開けません（壊れている可能性があります）。",
+      "tooManySimulations": "この .ork はシミュレーション数が多すぎるため開けません（壊れている可能性があります）。",
       "tooDeep": "この {{format}} は入れ子が深すぎるため開けません（壊れている可能性があります）。",
       "tooLarge": "ファイルが大きすぎるため開けません（{{size}} MiB 超）。"
     },

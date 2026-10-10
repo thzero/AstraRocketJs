@@ -23,7 +23,7 @@
  *    tell.
  */
 
-import { anonymousGet } from './anonymousFetch';
+import { AnonymousFetchError, anonymousGet } from './anonymousFetch';
 import { isFiniteNumber, roundTo } from '../app/numbers';
 
 // --------------------------------------------------------------- endpoints
@@ -517,6 +517,7 @@ async function getJson(url: string, o: FetchOpts): Promise<{ status: number; jso
     return { status, json };
   } catch (err) {
     if (err instanceof WeatherError) throw err;
+    if (err instanceof AnonymousFetchError && err.kind === 'tooLarge') throw new WeatherError('shape', 'too large');
     if (ctl.signal.aborted) throw new WeatherError(ctl.signal.reason === 'timeout' ? 'timeout' : 'aborted');
     throw new WeatherError('offline');
   } finally {

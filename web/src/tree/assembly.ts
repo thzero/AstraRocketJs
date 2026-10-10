@@ -1,5 +1,6 @@
 import type { ComponentNode } from '../engine/openRocketEngine';
 import { ASSEMBLY_TYPES, isChainType, type AssemblyType } from './componentKinds';
+import { kernelLength } from './kernelDefaults';
 import { chainOuterRadius, num } from './nodeProps';
 
 /**
@@ -13,10 +14,14 @@ import { chainOuterRadius, num } from './nodeProps';
 /**
  * Total axial length of the assembly's own body chain (m): its chain members
  * (a mini nose→body→transition stack), per the one `CHAIN_TYPES` table in
- * componentKinds.ts rather than a local copy of it.
+ * componentKinds.ts rather than a local copy of it. A member with no `length`
+ * counts at the kernel's default for its type, as `partLength` reads it
+ * (position.ts imports this module, so the rule is repeated here).
  */
 export function assemblyChainLength(pod: ComponentNode): number {
-  return (pod.children ?? []).filter((c) => isChainType(c.type)).reduce((s, c) => s + num(c, 'length', 0), 0);
+  return (pod.children ?? [])
+    .filter((c) => isChainType(c.type))
+    .reduce((s, c) => s + num(c, 'length', kernelLength(c.type) ?? 0), 0);
 }
 
 /** Largest outer radius among the assembly's own body chain (m). */

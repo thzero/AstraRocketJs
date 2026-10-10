@@ -4,7 +4,7 @@ import type { ComponentNode, RocketTree } from '../../../src/engine/openRocketEn
 import { transitionEnds } from '../../../src/components/canvas/transitionEnds';
 import { buildSchematicShapes } from '../../../src/components/canvas/schematicShapes';
 import { buildPieces } from '../../../src/components/canvas/rocketPieces';
-import { KERNEL_AUTO_RADIUS } from '../../../src/services/design/autoRadius';
+import { KERNEL_AUTO_RADIUS } from '../../../src/tree/kernelDefaults';
 
 /**
  * A transition end with no radius on record is drawn the way the kernel builds

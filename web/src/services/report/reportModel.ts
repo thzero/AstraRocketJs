@@ -3,8 +3,9 @@ import { useWorkspaceStore, selectConfig, configOf } from '../../state/store';
 import { buildConfiguredRocket } from '../design/buildRocket';
 import { motorSpecs } from '../flight/flightConfigs';
 import { motorStats, type MotorStats } from './rocketReport';
-import { num, numOpt } from '../../tree/nodeProps';
-import { isFinSet } from '../../tree/tubefins';
+import { numOpt } from '../../tree/nodeProps';
+import { isFinSet, isPlanarFinSet } from '../../tree/tubefins';
+import { finSpan } from '../../tree/finPlanform';
 import { axialLength } from '../../tree/position';
 import { walkNodes } from '../../tree/treeWalk';
 import { designNameOf } from '../app/appInfo';
@@ -27,18 +28,21 @@ export interface PartRow {
   foreR?: number;
   aftR?: number;
   thickness?: number;
+  /** A planar fin set's span, root to tip. Its root chord is `length`. */
+  span?: number;
   mass: number;
 }
 
 /**
  * The radii a part's row shows, per type: a nose cone's base, a transition's
  * fore and aft ends, and a tube's bore from its outside and wall, since a tube
- * stores a thickness rather than an inner radius.
+ * stores a thickness rather than an inner radius. A filled part has no bore.
  */
 function rowRadii(node: ComponentNode): Pick<PartRow, 'outerR' | 'innerR' | 'foreR' | 'aftR'> {
   if (node.type === 'nosecone') return { outerR: numOpt(node, 'aftRadius') };
   if (node.type === 'transition') return { foreR: numOpt(node, 'foreRadius'), aftR: numOpt(node, 'aftRadius') };
   const outerR = numOpt(node, 'outerRadius');
+  if (node['filled'] === true) return { outerR };
   const thickness = numOpt(node, 'thickness');
   const innerR =
     numOpt(node, 'innerRadius') ?? (outerR != null && thickness != null ? Math.max(0, outerR - thickness) : undefined);
@@ -109,9 +113,13 @@ export function stageParts(
         name: (node.name as string) || '',
         material: node.materialName as string | undefined,
         density: node.density,
-        length: num(node, 'length', 0),
+        // A fin set's root chord, and the kernel's default for a part with no
+        // length on record, rather than 0.
+        length: axialLength(node),
         ...rowRadii(node),
-        thickness: numOpt(node, 'thickness'),
+        // A filled part is solid: the stored wall is not what flies.
+        thickness: node['filled'] === true ? undefined : numOpt(node, 'thickness'),
+        ...(isPlanarFinSet(node.type) ? { span: finSpan(node) } : {}),
         mass,
       });
     }

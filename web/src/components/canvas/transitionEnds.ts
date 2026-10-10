@@ -1,6 +1,6 @@
 import type { ComponentNode } from '../../engine/openRocketEngine';
 import { numOpt } from '../../tree/nodeProps';
-import { KERNEL_AUTO_RADIUS } from '../../services/design/autoRadius';
+import { KERNEL_AUTO_RADIUS } from '../../tree/kernelDefaults';
 
 /**
  * A transition's two end radii as the kernel builds them, for the 2D and 3D

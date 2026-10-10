@@ -3,6 +3,8 @@ import type { LaunchConditions } from '../../design/orkTree';
 import { xmlText as text } from '../xmlUtil';
 import { readSimulationLaunch } from './importLaunch';
 import { KNOWN_SIMULATION_TAGS, readPassthrough } from './passthrough';
+import { KeyedError } from '../../../i18n/keyedError';
+import { MAX_SIMULATIONS } from './importLimits';
 
 /**
  * One <simulation> as a file carries it: its name, the configuration it flies,
@@ -32,7 +34,11 @@ export interface OrkSimulation {
  * app re-flies a simulation for its charts.
  */
 export function readSimulations(doc: Document): OrkSimulation[] {
-  return [...doc.querySelectorAll('openrocket > simulations > simulation')].map((el, i) => {
+  const els = doc.querySelectorAll('openrocket > simulations > simulation');
+  // Counted before any is read: reading one costs DOM passes, and the count is
+  // what a crafted file inflates.
+  if (els.length > MAX_SIMULATIONS) throw new KeyedError('errors.file.tooManySimulations');
+  return [...els].map((el, i) => {
     const flight = el.querySelector(':scope > flightdata');
     const launch = readSimulationLaunch(el);
     const xmlExtra = readPassthrough(el, KNOWN_SIMULATION_TAGS);

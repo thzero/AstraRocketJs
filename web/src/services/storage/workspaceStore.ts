@@ -70,23 +70,48 @@ export interface WorkspaceStore {
  */
 const UNLOAD_KEY = nsKey('designs:unload');
 
+/**
+ * The journal is replayed only over the version its edits derive from.
+ *
+ * The unload write is a last resort, and the entry can move on without it:
+ * another tab of this PWA saves the same design, before this tab unloads or
+ * after. The journal's write time says nothing about that, because a stale tab
+ * that never tried to save still writes its journal at unload, later than the
+ * other tab's save. So the journal records `base`, the entry's `updatedAt` as
+ * this tab last saw it, and `tab`, the tab that wrote it. The next `load()`
+ * replays it when the entry has not moved past `base`, or when the entry's last
+ * writer is the journal's own tab (its debounced save, in flight at pagehide,
+ * can commit after the journal and is not newer work).
+ *
+ * A journal with no `base` (written before this tab had read or written the
+ * entry, or by an older build) falls back to `t`: dropped when the entry was
+ * saved after the journal was written. That is the same claim this tab's next
+ * save would make, which writes unconditionally until it holds a stamp. A
+ * journal with neither is replayed, as the build that wrote it intended.
+ */
 interface Journal {
   id: string | null;
   w: Workspace;
-  /**
-   * When `saveSync` wrote it (epoch ms). A journal without it is replayed
-   * unconditionally.
-   *
-   * The unload write is a last resort, and it can lose the race with the
-   * store: the debounced async save that was already in flight at pagehide
-   * can commit after the journal was written, or the same design can be saved
-   * from another tab of this PWA after this one closed. Replaying the journal
-   * over that newer save would roll the design back. The next `load()` compares
-   * this stamp with the index entry's `updatedAt` and skips a journal the
-   * library has already moved past.
-   */
+  /** The entry's `updatedAt` as the writing tab last saw it, or null. */
+  base?: number | null;
+  /** The writing tab (see `DesignMeta.writer`). */
+  tab?: string;
+  /** When `saveSync` wrote it (epoch ms). */
   t?: number;
 }
+
+/** True when replaying `j` cannot roll back a save made by another tab. */
+function journalIsCurrent(j: Journal, meta: DesignMeta | null): boolean {
+  if (!meta) return true;
+  if (j.tab && meta.writer === j.tab) return true;
+  // Strictly newer drops it: a tie means the entry is the one the tab saw.
+  if (typeof j.base === 'number') return meta.updatedAt <= j.base;
+  if (typeof j.t === 'number') return meta.updatedAt <= j.t;
+  return true;
+}
+
+/** Per-tab, per-page-load: a reload is a new writer, and its journal names the old one. */
+const freshTabId = () => `t${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
 
 /**
  * The workspace without its flight results.
@@ -191,12 +216,13 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
   /**
    * True once a save has been refused because another tab moved the entry on.
    *
-   * `saveSync` reads it. The unload journal is stamped with the time it was
-   * written, which is later than the other tab's save, so the next load would
-   * replay this tab's stale design over that newer work: the exact overwrite
-   * the refusal exists to prevent. Cleared by `setActiveId`.
+   * `saveSync` reads it and writes no journal: this tab's design is known to be
+   * stale, and the next load would drop it anyway (see `Journal`), so writing it
+   * only spends the localStorage budget. Cleared by `setActiveId`.
    */
   private conflicted = false;
+  /** This tab's name on the saves it makes (see `DesignMeta.writer`). */
+  private readonly tab = freshTabId();
 
   async load(): Promise<Workspace | null> {
     const lib = getDesignLibrary();
@@ -205,11 +231,9 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
     // A journal is newer than anything stored, but only for its own design.
     const journal = readJournal();
     if (journal && journal.id && journal.id === this.activeId) {
-      // A journal the library has already moved past (see `Journal.t`) is
-      // dropped rather than replayed over the newer save. Strictly newer: a
-      // tie within the same millisecond keeps the journal, the safe direction.
-      const meta = await this.metaOf(journal.id);
-      if (typeof journal.t === 'number' && meta && meta.updatedAt > journal.t) {
+      // A journal another tab's save has moved past (see `Journal`) is dropped
+      // rather than replayed over the newer work.
+      if (!journalIsCurrent(journal, await this.metaOf(journal.id))) {
         clearJournal();
         return await this.readActive(lib);
       }
@@ -225,7 +249,7 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
         clearJournal();
         return await this.readActive(lib);
       }
-      if (await lib.write(journal.id, (await this.nameOf(journal.id)) ?? nameFor(w), w)) {
+      if (await lib.write(journal.id, (await this.nameOf(journal.id)) ?? nameFor(w), w, this.tab)) {
         clearJournal();
       }
       // This tab has just written the entry, so the claim it holds on it is the
@@ -249,7 +273,7 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
       clearJournal();
       if (w) {
         try {
-          const meta = await lib.create(nameFor(w), w);
+          const meta = await lib.create(nameFor(w), w, this.tab);
           this.activeId = meta.id;
           return this.trackResults(w);
         } catch {
@@ -330,7 +354,7 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
     // First save of a session that started with no library entry (a fresh
     // browser, or everything deleted) creates the design rather than dropping it.
     if (!this.activeId) {
-      const p = lib.create(this.pendingName || nameFor(w), leanW);
+      const p = lib.create(this.pendingName || nameFor(w), leanW, this.tab);
       this.creating = p;
       let meta: DesignMeta;
       try {
@@ -362,7 +386,7 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
     // compare is made inside the index write (`writeIfUnchanged`), so two tabs
     // cannot both pass it.
     const mine = gen === this.gen;
-    const res = await lib.writeIfUnchanged(id, nameFor(w), leanW, mine ? this.lastSeenAt : null);
+    const res = await lib.writeIfUnchanged(id, nameFor(w), leanW, mine ? this.lastSeenAt : null, this.tab);
     if (gen !== this.gen) {
       // The store has moved to another design, so nothing learned here is
       // about its entry. The flights still go with the design they belong to.
@@ -417,7 +441,13 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
     try {
       localStorage.setItem(
         UNLOAD_KEY,
-        JSON.stringify({ id: this.activeId, w: lean(w), t: Date.now() } satisfies Journal),
+        JSON.stringify({
+          id: this.activeId,
+          w: lean(w),
+          base: this.lastSeenAt,
+          tab: this.tab,
+          t: Date.now(),
+        } satisfies Journal),
       );
     } catch {
       /* quota or storage blocked; nothing further we can do while unloading */

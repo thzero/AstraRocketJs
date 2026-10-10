@@ -1,7 +1,9 @@
 import type { ComponentNode, RocketTree } from '../engine/openRocketEngine';
-import { num } from './nodeProps';
+import { num, positionOf } from './nodeProps';
 import { findWithParent } from './treeWalk';
-import { freeformPoints, freeformRootChord } from './position';
+import { axialLength, freeformPoints, freeformRootChord, partLength, startFromPosition } from './position';
+import { stationRadius } from './shapeProfile';
+import { isPlanarFinSet } from './tubefins';
 import { FIN_DEFAULTS, KERNEL_BODYTUBE_OUTER_RADIUS } from './kernelDefaults';
 
 /**
@@ -210,25 +212,26 @@ export function finSpan(node: ComponentNode): number {
  * The through-the-wall tab, in the fin's own root-relative coordinates, or
  * `null` when there is no tab to cut.
  *
- * `height` is clamped to the parent's radius because the kernel clamps it:
- * `FinSet.setTabHeight()` applies `min(tabHeight, getMaxTabHeight())`, and
- * `getMaxTabHeight()` is `min(parentFrontRadius, parentTrailingRadius)`. A tab
- * taller than the body radius would pass through the airframe's axis and out
- * the other side.
+ * `height` is clamped to the depth the kernel allows: `FinSet.setTabHeight()`
+ * applies `min(tabHeight, getMaxTabHeight())`, the body radius at the tab's
+ * two ends (see {@link finTabLimit}). A tab taller than that would pass through
+ * the airframe's axis and out the other side. A limit of zero or less leaves no
+ * tab, as in the kernel.
  *
  * Clamped here rather than in each writer, so the DXF, the STL and the 1:1 PDF
  * template cannot cut a 20 mm tab on a 12 mm-radius body to three different
  * depths.
  *
- * @param parentRadius body radius at the fin, or a non-positive value / `null`
- *   when the caller genuinely has no parent (then no clamp is applied).
+ * @param parentRadius the tab depth limit from {@link parentRadiusOf} or
+ *   {@link finTabLimit}, or `null` when the caller genuinely has no parent
+ *   (then no clamp is applied).
  */
 export function finTabSpan(
   node: ComponentNode,
   rootChord: number,
   parentRadius: number | null,
 ): { x0: number; x1: number; height: number } | null {
-  const maxH = parentRadius != null && parentRadius > 0 ? parentRadius : Infinity;
+  const maxH = parentRadius != null && Number.isFinite(parentRadius) ? parentRadius : Infinity;
   const height = Math.min(num(node, 'tabHeight', 0), maxH);
   const length = num(node, 'tabLength', 0);
   if (!(height > 0) || !(length > 0)) return null;
@@ -239,17 +242,23 @@ export function finTabSpan(
 }
 
 /**
- * The tab's leading edge in root-relative coordinates (`FinSet.getTabFrontEdge()`
- * via `AxialMethod.getAsPosition`).
+ * The tab's leading edge in root-relative coordinates: `FinSet.getTabFrontEdge()`,
+ * the `tabPosition` that `AxialMethod.getAsPosition(tabOffset, tabLength,
+ * length)` sets. Not clamped into the root chord: the kernel reads the parent
+ * radius at this station as it stands.
  *
  * Lives here rather than in `schematicGeometry` so that a consumer computing a
  * tab never has to reach into a canvas module for half of it.
  */
 function finTabFrontEdge(node: ComponentNode, rootChord: number): number {
-  const offset = num(node, 'tabOffset', 0);
-  const tabLen = num(node, 'tabLength', 0);
   const method = typeof node['tabOffsetMethod'] === 'string' ? node['tabOffsetMethod'] : 'middle';
-  if (method === 'top') return offset;
+  return tabPosition(num(node, 'tabOffset', 0), num(node, 'tabLength', 0), rootChord, method);
+}
+
+/** `AxialMethod.getAsPosition(offset, tabLength, rootChord)` for one tab offset method. */
+function tabPosition(offset: number, tabLen: number, rootChord: number, method: string): number {
+  if (method === 'top' || method === 'absolute') return offset;
+  if (method === 'after') return rootChord + offset;
   if (method === 'bottom') return offset + (rootChord - tabLen);
   return offset + (rootChord - tabLen) / 2;
 }
@@ -268,13 +277,12 @@ export function finCutContour(node: ComponentNode, parentRadius: number | null):
 }
 
 /**
- * The radius (m) of the body a fin set is mounted on, or `null` when the fin
- * has no symmetric parent.
+ * The radius (m) a fin set's tab is clamped to, or `null` when the part has no
+ * symmetric parent.
  *
- * This is what {@link finTabSpan} clamps against. The kernel takes
- * `min(getParentFrontRadius(), getParentTrailingRadius())`, so a tapered
- * parent contributes its narrower end: that is the station where a tab of the
- * full height would break through first.
+ * For a planar fin set this is {@link finTabLimit}, the limit {@link finTabSpan}
+ * clamps against. For any other child it is the body tube radius, which a tube
+ * fin set (mounted only on a body tube) sizes its automatic tubes from.
  *
  * Provided here, beside the clamp that consumes it, so that no exporter has to
  * invent its own answer; exporters that each pick a radius would cut the same
@@ -284,24 +292,45 @@ export function parentRadiusOf(tree: RocketTree, nodeId: string): number | null 
   // Searched below each top-level node, which is never itself the fin.
   for (const stage of tree.components) {
     const hit = findWithParent(stage.children ?? [], nodeId, stage);
-    if (hit) return hit.parent ? symmetricRadius(hit.parent) : null;
+    if (!hit) continue;
+    if (!hit.parent) return null;
+    if (isPlanarFinSet(hit.node.type)) return finTabLimit(hit.node, hit.parent);
+    return hit.parent.type === 'bodytube' ? bodyTubeRadius(hit.parent) : null;
   }
   return null;
 }
 
-/** The mounting radius of a symmetric body component, or `null` if it is not one. */
-function symmetricRadius(node: ComponentNode): number | null {
+/**
+ * The deepest tab the kernel allows on this fin set, `FinSet.getMaxTabHeight()`:
+ * the smaller of the parent's radius at the tab's front edge and at its
+ * trailing edge. Each station is measured from the parent's fore end as the
+ * fin's own front (`getFinFront()`, its axial position in the parent) plus the
+ * tab edge (`getTabFrontEdge()`, `getTabTrailingEdge()`), and read through
+ * `SymmetricComponent.getRadius(x)`.
+ *
+ * On a body tube both stations read the same radius. On a transition or a nose
+ * cone, where a freeform fin set also mounts (`Transition.isCompatible`), they
+ * differ, and the narrower one bounds the tab. `stationRadius` clamps a station
+ * into the part as `Transition.getRadius` does and puts a flipped nose cone's
+ * base at its fore end.
+ *
+ * Meaningful for a fin set that carries a tab: without one the bridge leaves
+ * the kernel's initial tab in place, and nothing here cuts a tab to clamp.
+ * `null` when the parent is not a symmetric body.
+ */
+export function finTabLimit(fin: ComponentNode, parent: ComponentNode): number | null {
+  if (parent.type === 'bodytube') return bodyTubeRadius(parent);
+  if (parent.type !== 'nosecone' && parent.type !== 'transition') return null;
+  const lead = finTabFrontEdge(fin, finRootChord(fin));
+  const trail = lead + num(fin, 'tabLength', 0);
+  const finFront = startFromPosition(positionOf(fin), axialLength(fin), partLength(parent));
+  return Math.min(stationRadius(parent, finFront + lead), stationRadius(parent, finFront + trail));
+}
+
+/** A body tube's radius, the same at every station (`BodyTube.getRadius(x)`). */
+function bodyTubeRadius(node: ComponentNode): number {
   // 0.012 is the kernel's body-tube default (ComponentFactory bodytube
   // outerRadius), so a radius-less tube clamps the tab the way it is flown. Note
   // it is a radius: FIN_DEFAULTS.rootChord is a chord and does not belong here.
-  if (node.type === 'bodytube') return num(node, 'outerRadius', KERNEL_BODYTUBE_OUTER_RADIUS) || null;
-  if (node.type === 'nosecone') return num(node, 'aftRadius', 0) || null;
-  if (node.type === 'transition') {
-    // The kernel's min(front, trailing): the narrow end bounds the tab.
-    const fore = num(node, 'foreRadius', 0);
-    const aft = num(node, 'aftRadius', 0);
-    const r = Math.min(fore || Infinity, aft || Infinity);
-    return Number.isFinite(r) && r > 0 ? r : null;
-  }
-  return null;
+  return num(node, 'outerRadius', KERNEL_BODYTUBE_OUTER_RADIUS);
 }
