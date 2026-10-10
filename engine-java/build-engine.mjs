@@ -13,7 +13,7 @@
  * is why the default is both: rebuilding only JS refreshes the fallback, leaves the .wasm stale, and
  * the browser goes on running the old physics with nothing to see. Build one alone only when you
  * know why you want to.
- * Needs a JDK (JAVA_HOME, or whatever the Gradle wrapper resolves) and Node 22+.
+ * Needs a JDK (JAVA_HOME, or whatever the Gradle wrapper resolves) and Node 24+.
  *
  *   node build-engine.mjs             # build + vendor both engines (default)
  *   node build-engine.mjs --js        # JS only

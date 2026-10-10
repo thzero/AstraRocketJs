@@ -55,9 +55,9 @@ React 19.4 falls outside that ceiling, so `react` and `react-dom` take patch rel
 
 **Unblocked when:** a stable `@react-three/fiber` widens that peer range. All four packages then move together, in one install.
 
-### `@types/node` on `^22`
+### `@types/node` on `^24`
 
-CI and the documented minimum run Node 22, so `@types/node` stays on the 22 line, per policy #2.
+CI and the documented minimum run Node 24, so `@types/node` stays on the 24 line, per policy #2.
 
 ## Re-checking a hold
 

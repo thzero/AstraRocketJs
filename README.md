@@ -42,7 +42,7 @@ The UI is **responsive**: the workbench has five tabs (Design · Configurations 
 
 Just want to use it? Open **<https://thzero.github.io/AstraRocketJs/>** - that's the current `master` build, deployed to GitHub Pages.
 
-To run it locally you need only **Node 22+** - no JDK (it uses a committed engine build):
+To run it locally you need only **Node 24+** - no JDK (it uses a committed engine build):
 
 ```bash
 cd web && npm install && npm run dev

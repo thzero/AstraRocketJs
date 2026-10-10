@@ -23,7 +23,7 @@ For the full architecture - engine build pipeline, WASM/JS backend selection, th
 
 **Requirements**
 
-- **Node 22+** (npm ships with Node) - for the web app and the catalog tools.
+- **Node 24+** (npm ships with Node) - for the web app and the catalog tools.
 - **Only if you rebuild the engine or refresh the parts catalog:** a **JDK** (Temurin **21** is known-good; the engine targets Java 17). You don't need to install Gradle - it's bundled via the wrapper (`engine-java/gradlew`). The catalog's digest step (`sync:preset-digests`) compiles a small Java program against the OpenRocket jar. Most contributors never need this; the built engine and the catalogs are committed.
 
 **Install** - only `web/` has npm dependencies. `engine-java/` has **no** `npm install` (it uses the bundled Gradle wrapper + plain-Node scripts):
@@ -188,7 +188,7 @@ Occasional, advanced tasks - you won't need them for a typical change.
 
 ### Validation & fidelity tests
 
-Two harnesses guard the engine (both need Node 22+; run from the repo root):
+Two harnesses guard the engine (both need Node 24+; run from the repo root):
 
 ```bash
 # 1. Parity test - proves BOTH browser engines (TeaVM WASM-GC and JS) return numbers

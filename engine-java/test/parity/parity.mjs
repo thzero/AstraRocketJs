@@ -14,7 +14,7 @@
  * Self-contained: builds and vendors the engine (build-engine.mjs, the same step as `npm run
  * build`), then runs the vendored .mjs and .wasm (the exact files the app loads) through their
  * runParity() export, against the JVM running the same scenarios. Needs a JDK (JAVA_HOME, or
- * whatever the Gradle wrapper already resolves) and Node 22+.
+ * whatever the Gradle wrapper already resolves) and Node 24+.
  *
  *   node test/parity/parity.mjs           # both targets vs one JVM reference (default)
  *   node test/parity/parity.mjs --js      # TeaVM-JS only
