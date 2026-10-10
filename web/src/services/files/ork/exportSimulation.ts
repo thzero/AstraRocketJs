@@ -150,9 +150,11 @@ function windXml(w: OrkWriter, depth: number, launch: LaunchConditions): void {
   if (levels.length) {
     // The altitude reference is an attribute of <wind>, as OpenRocketSaver
     // writes it and importt/WindHandler reads it. As a child element the
-    // desktop never looks at it, so an AGL profile saved here would open there
-    // as MSL.
-    emit(depth, `<wind model="multilevel" altituderef="${(launch.windAltitudeReference ?? 'msl').toUpperCase()}">`);
+    // desktop never looks at it. The value is lower case: the desktop writes
+    // enumToXMLName and reads through DocumentConfig.findEnum, which matches
+    // only the lower-case name, so "MSL" or "AGL" reads as no reference, flies
+    // as AGL, and fails the desktop's next save.
+    emit(depth, `<wind model="multilevel" altituderef="${launch.windAltitudeReference ?? 'msl'}">`);
     for (const l of levels) {
       // Attributes, not child elements, and direction in radians like the
       // average block's <direction>.

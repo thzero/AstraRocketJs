@@ -39,10 +39,11 @@
 // Nothing here is part of the app build; this is a data step, run when the motor
 // catalog is refreshed. It never regenerates the catalog, only adds `digests` to
 // rows already in it.
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { writeDataManifest } from './lib/dataManifest.mjs';
+import { motorProblems, PREVIOUS_MOTOR_DIGESTS } from './lib/digestCoverage.mjs';
 import { chooseBuild, runDumper } from './lib/openrocketJava.mjs';
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
@@ -153,7 +154,17 @@ function main() {
   const index = dump(cp);
 
   const catalog = JSON.parse(readFileSync(CATALOG, 'utf8'));
-  const before = catalog.filter((m) => m.digests).length;
+  // sync-motors has just rewritten the catalog without digests, so the count to
+  // hold to is the one it left from the catalog before; run on its own, this
+  // step compares against the catalog as it finds it.
+  let before = catalog.filter((m) => m.digests).length;
+  if (existsSync(PREVIOUS_MOTOR_DIGESTS)) {
+    try {
+      before = Math.max(before, JSON.parse(readFileSync(PREVIOUS_MOTOR_DIGESTS, 'utf8')).digests ?? 0);
+    } finally {
+      rmSync(PREVIOUS_MOTOR_DIGESTS, { force: true });
+    }
+  }
   let hit = 0;
   let ambiguous = 0;
   for (const row of catalog) {
@@ -166,11 +177,14 @@ function main() {
       delete row.digests;
     }
   }
-  // The same guard the other sync steps have, for the same reason: a run that
-  // silently loses coverage is a broken classpath, not a smaller database.
+  // A run that silently loses coverage is a broken classpath, not a smaller
+  // database: refuse a drop from the previous catalog, and a catalog under the
+  // floor however it got there.
   if (hit < before) {
     throw new Error(`refusing to write: motors with digests fell from ${before} to ${hit}. Nothing written.`);
   }
+  const problems = motorProblems(catalog);
+  if (problems.length) throw new Error(`refusing to write: ${problems.join('; ')}. Nothing written.`);
   // Compact, as sync-motors writes it: browsers download this file and keep it
   // for offline use, and indentation would triple its size.
   writeFileSync(CATALOG, `${JSON.stringify(catalog)}\n`);

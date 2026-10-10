@@ -1,6 +1,6 @@
 import { useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useWorkspaceStore, selectActive, selectDesignName } from './state/store';
+import { useWorkspaceStore, selectDesignName, selectShownSim } from './state/store';
 import { useWorkspaceEffects } from './state/useWorkspaceEffects';
 import { AppHeader } from './components/layout/AppHeader';
 import { CenterView } from './components/canvas/CenterView';
@@ -41,10 +41,12 @@ export default function App() {
   const err = useWorkspaceStore((s) => s.err);
   const buildErr = useWorkspaceStore((s) => s.buildErr);
   const storageWarning = useWorkspaceStore((s) => s.storageWarning);
-  const result = useWorkspaceStore((s) => selectActive(s).result);
+  // The flight the Results tab shows, the one the charts beside these numbers
+  // draw: picked in the Results picker, else the active simulation.
+  const result = useWorkspaceStore((s) => selectShownSim(s).result ?? null);
   // Titles the CSV the events table writes, so a file on disk says which run it
   // came from rather than only "flight-events.csv".
-  const activeSimName = useWorkspaceStore((s) => selectActive(s).name);
+  const shownSimName = useWorkspaceStore((s) => selectShownSim(s).name);
   const designName = useWorkspaceStore(selectDesignName);
 
   // The center pane backs both the Design and Results tabs, and stays mounted
@@ -266,7 +268,7 @@ export default function App() {
             {/* Under the tiles, not above: the tiles are the verdict on the
                 flight and the timeline is how it got there. The column
                 scrolls, which is what a table of a dozen-odd rows needs. */}
-            <FlightEventsTable sim={result} simName={activeSimName} designName={designName} />
+            <FlightEventsTable sim={result} simName={shownSimName} designName={designName} />
           </div>
         </section>
         {/* Tools: work that stands apart from the open design, such as the

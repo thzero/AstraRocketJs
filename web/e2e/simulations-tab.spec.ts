@@ -326,6 +326,44 @@ test('the results picker chooses which flight every results view shows', async (
   await expect(page.getByRole('button', { name: /Choose which flight/ })).toHaveText(/^Simulation 1/);
 });
 
+test('the numbers beside the charts follow the picked flight', async ({ page }) => {
+  await openTab(page, 'Simulations');
+  await page.getByRole('button', { name: 'Duplicate simulation' }).click();
+  await page.getByRole('textbox', { name: 'Rename simulation' }).fill('Tilted');
+  // A tilted rod flies lower, so the two flights have different apogees.
+  await page.getByRole('spinbutton', { name: 'Angle', exact: true }).fill('15');
+  await page.getByRole('checkbox', { name: 'Select all simulations' }).check();
+  await runButton(page).click();
+  const picker = page.getByRole('button', { name: /Choose which flight/ });
+  await expect(picker).toBeVisible({ timeout: 30_000 });
+
+  // Each row's apogee as the simulations table reports it.
+  await openTab(page, 'Simulations');
+  const apogeeOf = async (name: string) =>
+    (await page
+      .getByRole('row', { name: new RegExp(`^Select ${name} `) })
+      .getByRole('cell')
+      .nth(4)
+      .textContent())!.trim();
+  const tilted = await apogeeOf('Tilted');
+  const upright = await apogeeOf('Simulation 1');
+  expect(tilted).not.toBe(upright);
+
+  // The tile in the Results column reads the flight the picker shows, which is
+  // not the active row once another flight is picked.
+  await openTab(page, 'Results');
+  const tile = page
+    .getByRole('region', { name: 'Results' })
+    .getByText('Apogee', { exact: true })
+    .locator('xpath=following-sibling::div[1]');
+  await expect(picker).toHaveText(/^Tilted/);
+  await expect(tile).toHaveText(tilted);
+  await picker.click();
+  await page.getByRole('menuitemradio', { name: 'Simulation 1' }).click();
+  await expect(picker).toHaveText(/^Simulation 1/);
+  await expect(tile).toHaveText(upright);
+});
+
 test('one flown simulation gets a plain heading, not a picker', async ({ page }) => {
   await runFlight(page); // lands on Results
   // Nothing to choose between, so the heading is just a heading.

@@ -13,6 +13,7 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { writeDataManifest } from './lib/dataManifest.mjs';
 import { collidingRowKeys } from './lib/motorRowKey.mjs';
+import { motorCoverage, PREVIOUS_MOTOR_DIGESTS } from './lib/digestCoverage.mjs';
 
 const API = 'https://www.thrustcurve.org/api/v1';
 // public/data is served as-is (not bundled) so the catalog can be refreshed
@@ -234,6 +235,15 @@ async function main() {
   const withCurves = catalog.filter((m) => m.curves).length;
   const noCurve = catalog.filter((m) => m.noCurve);
   await assertSane(catalog, withCurves);
+  // This rewrite drops every digest, which sync-motor-digests adds back. Leave
+  // it the count the previous catalog had, so its guard compares against that
+  // and not against the zero it finds here.
+  try {
+    const prev = JSON.parse(await readFile(OUT, 'utf8'));
+    if (Array.isArray(prev)) await writeFile(PREVIOUS_MOTOR_DIGESTS, JSON.stringify(motorCoverage(prev)));
+  } catch {
+    // No readable previous catalog: the digest step falls back to its floor.
+  }
   await writeFile(OUT, JSON.stringify(catalog, null, 0) + '\n');
   writeDataManifest(DATA_DIR); // refresh the cache-bust hashes
   console.log(

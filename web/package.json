@@ -37,6 +37,7 @@
     "docs:build": "node scripts/build-docs.mjs",
     "sync:preset-digests": "node scripts/sync-preset-digests.mjs",
     "sync:motor-digests": "node scripts/sync-motor-digests.mjs",
+    "check:digests": "node scripts/check-catalog-digests.mjs",
     "check:ork": "node scripts/check-ork-opens.mjs",
     "e2e": "playwright test",
     "e2e:core": "node scripts/e2e-core.mjs",

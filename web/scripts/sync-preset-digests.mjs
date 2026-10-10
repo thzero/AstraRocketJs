@@ -63,6 +63,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PREVIOUS_CATALOG } from './lib/catalogStamp.mjs';
 import { writeDataManifest } from './lib/dataManifest.mjs';
+import { partProblems } from './lib/digestCoverage.mjs';
 import { chooseBuild, runDumper } from './lib/openrocketJava.mjs';
 import { presetVolumes } from './lib/presetVolume.mjs';
 
@@ -118,7 +119,15 @@ async function main() {
   const volumeOf = await presetVolumes();
 
   const catalog = JSON.parse(readFileSync(CATALOG, 'utf8'));
-  const before = catalog.components.filter((c) => c.digest).length;
+  // sync-components has just rewritten the catalog without digests, so the
+  // count to hold to is the previous catalog's, which it left in
+  // PREVIOUS_CATALOG; run on its own, this step compares against the catalog as
+  // it finds it.
+  const previous = existsSync(PREVIOUS_CATALOG) ? JSON.parse(readFileSync(PREVIOUS_CATALOG, 'utf8')) : null;
+  const before = Math.max(
+    catalog.components.filter((c) => c.digest).length,
+    (previous?.components ?? []).filter((c) => c.digest).length,
+  );
   let hit = 0;
   let massed = 0;
   for (const row of catalog.components) {
@@ -142,20 +151,19 @@ async function main() {
       massed++;
     }
   }
-  // The same guard `sync-components.mjs` has, for the same reason: a run that
-  // silently loses coverage is a broken classpath, not a smaller database.
+  // A run that silently loses coverage is a broken classpath, not a smaller
+  // database: refuse a drop from the previous catalog, and a catalog under the
+  // floor however it got there.
   if (hit < before) {
     throw new Error(`refusing to write: digests fell from ${before} to ${hit}. Nothing written.`);
   }
+  const problems = partProblems(catalog.components);
+  if (problems.length) throw new Error(`refusing to write: ${problems.join('; ')}. Nothing written.`);
   // Unchanged parts keep the previous stamp (lib/catalogStamp.mjs).
-  if (existsSync(PREVIOUS_CATALOG)) {
-    try {
-      const prev = JSON.parse(readFileSync(PREVIOUS_CATALOG, 'utf8'));
-      if (JSON.stringify(prev.components) === JSON.stringify(catalog.components)) catalog.generated = prev.generated;
-    } finally {
-      rmSync(PREVIOUS_CATALOG, { force: true });
-    }
+  if (previous && JSON.stringify(previous.components) === JSON.stringify(catalog.components)) {
+    catalog.generated = previous.generated;
   }
+  rmSync(PREVIOUS_CATALOG, { force: true });
   // Compact, as sync-components writes it: browsers download this file and keep
   // it for offline use, and indentation would more than double its size.
   writeFileSync(CATALOG, `${JSON.stringify(catalog)}\n`);

@@ -45,6 +45,18 @@ export const saveFailure = (e: unknown): { msg: string; kind: StorageWarningKind
 export const selectActive = (s: WorkspaceState): Simulation => s.sims.find((x) => x.id === s.activeId) ?? s.sims[0]!;
 
 /**
+ * The simulation the Results tab shows: the one picked in the Results picker
+ * while it has a result, else the active one. The same rule as
+ * `resultFlight`, as a selector that returns the stored simulation, so the
+ * tiles, warnings and events beside the charts describe the flight the charts
+ * draw.
+ */
+export const selectShownSim = (s: WorkspaceState): Simulation => {
+  const chosen = s.resultSimId == null ? undefined : s.sims.find((x) => x.id === s.resultSimId);
+  return chosen?.result ? chosen : selectActive(s);
+};
+
+/**
  * What to call this rocket: its own name, else the name of the file it was
  * imported from, else the app's default.
  *

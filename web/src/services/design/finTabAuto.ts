@@ -1,7 +1,7 @@
 import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
 import { finRootChord } from '../../tree/finPlanform';
 import { num, positionOf } from '../../tree/nodeProps';
-import { startFromPosition } from '../../tree/position';
+import { axialLength, partLength, startFromPosition } from '../../tree/position';
 import { stationRadius } from '../../tree/shapeProfile';
 import { findWithParent } from '../../tree/treeWalk';
 import { isChainType } from '../../tree/componentKinds';
@@ -39,9 +39,13 @@ type Ring = {
 
 const ringBottom = (r: Ring): number => r.top + r.thickness;
 
-/** Where a child's fore end sits, measured from its parent's fore end. */
+/**
+ * Where a child's fore end sits, measured from its parent's fore end. A fin set
+ * has no `length`: its axial extent is the root chord, which a `bottom` or
+ * `middle` placement needs to find the leading edge.
+ */
 function offsetFromTop(child: ComponentNode, parentLength: number): number {
-  return startFromPosition(positionOf(child), num(child, 'length'), parentLength);
+  return startFromPosition(positionOf(child), axialLength(child), parentLength);
 }
 
 /**
@@ -173,11 +177,11 @@ export function autoFinTab(tree: RocketTree, id: string): Partial<ComponentNode>
   for (const child of parent.children ?? []) {
     const top = offsetFromTop(child, parentLength);
     if (child.type === 'innertube') {
-      if (!overlapsFin(top, num(child, 'length'), finTop, finLength)) continue;
+      if (!overlapsFin(top, partLength(child), finTop, finLength)) continue;
       maxTubeRadius = Math.max(maxTubeRadius, num(child, 'outerRadius'));
     } else if (child.type === 'centeringring') {
       maxRingRadius = Math.max(maxRingRadius, num(child, 'outerRadius'));
-      rings.push({ top, thickness: num(child, 'length'), outerRadius: num(child, 'outerRadius') });
+      rings.push({ top, thickness: partLength(child), outerRadius: num(child, 'outerRadius') });
     }
   }
   // A ring no wider than the mount tube is not an obstruction: the tab clears it

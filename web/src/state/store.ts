@@ -99,6 +99,7 @@ export {
   selectActive,
   selectConfig,
   selectDesignName,
+  selectShownSim,
   workspaceSnapshot,
   type StorageWarningKind,
 } from './workspaceSelectors';

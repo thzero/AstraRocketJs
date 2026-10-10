@@ -2505,7 +2505,7 @@ exports[`golden .ork export > writes every configuration, block and component ty
           <direction>3.141592653589793</direction>
           <standarddeviation>0.6</standarddeviation>
         </wind>
-        <wind model="multilevel" altituderef="AGL">
+        <wind model="multilevel" altituderef="agl">
           <windlevel altitude="0" speed="2" direction="1.5707963267948966" standarddeviation="0.2"/>
           <windlevel altitude="500" speed="6" direction="2.356194490192345" standarddeviation="0.5"/>
         </wind>

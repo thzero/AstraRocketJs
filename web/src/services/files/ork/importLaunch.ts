@@ -167,10 +167,10 @@ function readWind(condEl: Element, launch: Partial<LaunchConditions>): void {
     if (levels.length) launch.windLevels = levels;
     // MSL unless the file says AGL. The desktop carries it as an attribute on
     // the <wind> element (OpenRocketSaver writes
-    // <wind model="multilevel" altituderef="AGL">, importt/WindHandler
+    // <wind model="multilevel" altituderef="agl">, importt/WindHandler
     // reads attributes.get("altituderef")), so that is what is read here, or
-    // every AGL profile the desktop saves comes in as MSL. The other spellings
-    // stay accepted for files older builds of this app wrote.
+    // every AGL profile the desktop saves comes in as MSL. Upper case and the
+    // other spellings stay accepted for files older builds of this app wrote.
     const ref = (
       mlEl.getAttribute('altituderef') ??
       text(mlEl, ':scope > altitudereference') ??

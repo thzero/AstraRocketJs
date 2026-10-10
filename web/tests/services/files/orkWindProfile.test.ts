@@ -44,7 +44,7 @@ describe('multilevel wind profile round-trips through .ork', () => {
     const xml = exportOrk({ name: 'Wind', tree, launch: profile });
     // The altitude reference rides on the element as an attribute, the only
     // place the desktop reads it (OpenRocketSaver.java:367, WindHandler.java:25).
-    expect(xml).toContain('<wind model="multilevel" altituderef="AGL">');
+    expect(xml).toContain('<wind model="multilevel" altituderef="agl">');
     expect(xml).not.toContain('<altitudereference>');
     expect(xml).toContain('<windmodeltype>Multilevel</windmodeltype>');
     // The average block stays as the fallback for a reader without multilevel.
@@ -78,7 +78,7 @@ describe('multilevel wind profile round-trips through .ork', () => {
   });
 
   it('reads a file that omits the attribute as MSL', () => {
-    const xml = exportOrk({ name: 'Wind', tree, launch: profile }).replace(/ altituderef="AGL"/, '');
+    const xml = exportOrk({ name: 'Wind', tree, launch: profile }).replace(/ altituderef="agl"/, '');
     // Absent means MSL to the kernel, and an absent value reaches the bridge
     // and the editor as exactly that.
     expect(importOrk(xml).launch?.windAltitudeReference).toBeUndefined();
@@ -101,14 +101,15 @@ describe('multilevel wind profile round-trips through .ork', () => {
       `<windlevel altitude="0.0" speed="2.0" direction="1.5707963267948966" standarddeviation="0.2"/>` +
       `<windlevel altitude="500.0" speed="6.0" direction="2.0943951023931953" standarddeviation="1.2"/>` +
       `</wind><windmodeltype>MultiLevel</windmodeltype><atmosphere model="isa"/></conditions></simulation></simulations></openrocket>`;
-    expect(importOrk(desktop('AGL')).launch?.windAltitudeReference).toBe('agl');
-    expect(importOrk(desktop('MSL')).launch?.windAltitudeReference).toBe('msl');
-    expect(importOrk(desktop('AGL')).launch?.windLevels).toHaveLength(2);
+    // The desktop writes the lower-case enum name (OpenRocketSaver.enumToXMLName).
+    expect(importOrk(desktop('agl')).launch?.windAltitudeReference).toBe('agl');
+    expect(importOrk(desktop('msl')).launch?.windAltitudeReference).toBe('msl');
+    expect(importOrk(desktop('agl')).launch?.windLevels).toHaveLength(2);
   });
 
   it('still reads the child element this app wrote before it matched the desktop', () => {
     const xml = exportOrk({ name: 'Wind', tree, launch: profile }).replace(
-      ' altituderef="AGL">',
+      ' altituderef="agl">',
       '><altitudereference>AGL</altitudereference>',
     );
     expect(importOrk(xml).launch?.windAltitudeReference).toBe('agl');
@@ -127,7 +128,7 @@ describe('multilevel wind profile round-trips through .ork', () => {
       `<subcomponents><bodytube><name>B</name><length>0.3</length><radius>0.012</radius></bodytube></subcomponents>` +
       `</stage></subcomponents></rocket><simulations><simulation status="notsimulated"><name>Simulation 1</name>` +
       `<simulator>RK4Simulator</simulator><calculator>BarrowmanCalculator</calculator><conditions>` +
-      `<wind model="multilevel" altituderef="MSL">${levels}</wind>` +
+      `<wind model="multilevel" altituderef="msl">${levels}</wind>` +
       `<windmodeltype>MultiLevel</windmodeltype><atmosphere model="isa"/></conditions></simulation></simulations></openrocket>`;
 
     const missing = importOrk(
