@@ -6,7 +6,18 @@ import { num } from '../../tree/nodeProps';
 import { KERNEL_DEFAULTS } from '../../tree/kernelDefaults';
 import { fmtNum } from '../../i18n/format';
 import { pageFrame, templateFits } from './layout';
-import { ensure, fillPolygon, heading, paragraph, sectionBreak, sub, writeRuler, type PdfPage } from './pdfPage';
+import {
+  drawText,
+  ensure,
+  fillPolygon,
+  heading,
+  paragraph,
+  sectionBreak,
+  setStyle,
+  sub,
+  writeRuler,
+  type PdfPage,
+} from './pdfPage';
 
 /**
  * The 1:1 templates: the hint and the printed scale bar, then a cutting
@@ -59,14 +70,11 @@ function writeFinTemplates(p: PdfPage, tree: RocketTree, finSets: ComponentNode[
 }
 
 function template(p: PdfPage, label: string, pts: Pt[], w: number, h: number): void {
-  const { doc, t, M } = p;
+  const { t, M } = p;
   sub(p, label, 9);
   if (!templateFits(w, h, pageFrame(p.PW, p.PH))) {
-    doc
-      .setFont('helvetica', 'italic')
-      .setFontSize(8)
-      .setTextColor(120)
-      .text(t('report.tooLarge', { w: fmtNum(w, 0), h: fmtNum(h, 0) }), M, p.y + 3);
+    setStyle(p, 'italic').setFontSize(8).setTextColor(120);
+    drawText(p, t('report.tooLarge', { w: fmtNum(w, 0), h: fmtNum(h, 0) }), M, p.y + 3);
     p.y += 6;
     return;
   }

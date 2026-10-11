@@ -9,6 +9,7 @@ import {
   resolveFilePositions,
 } from '../../src/tree/position';
 import { KERNEL_DEFAULTS } from '../../src/tree/kernelDefaults';
+import { axialFrameOf } from '../../src/tree/axialRebase';
 
 describe('axialLength', () => {
   it('uses the furthest point x for a freeform fin set', () => {
@@ -67,20 +68,24 @@ describe('axialLength', () => {
 describe('startFromPosition', () => {
   const pLen = 0.2,
     cLen = 0.05;
-  it('top / absolute are the offset itself', () => {
-    expect(startFromPosition({ method: 'top', offset: 0.02 }, cLen, pLen)).toBeCloseTo(0.02);
-    expect(startFromPosition({ method: 'absolute', offset: 0.02 }, cLen, pLen)).toBeCloseTo(0.02);
+  it('top is the offset itself', () => {
+    expect(startFromPosition({ method: 'top', offset: 0.02 }, cLen, pLen, 0.3)).toBeCloseTo(0.02);
+  });
+  // RocketComponent.setAxialOffset: an ABSOLUTE offset less the parent's first location.
+  it('absolute is measured from the nose tip, so the parent start comes off it', () => {
+    expect(startFromPosition({ method: 'absolute', offset: 0.32 }, cLen, pLen, 0.3)).toBeCloseTo(0.02);
+    expect(startFromPosition({ method: 'absolute', offset: 0.02 }, cLen, pLen, 0)).toBeCloseTo(0.02);
   });
   it('middle centers the child then adds the offset', () => {
-    expect(startFromPosition({ method: 'middle', offset: 0 }, cLen, pLen)).toBeCloseTo(0.075);
+    expect(startFromPosition({ method: 'middle', offset: 0 }, cLen, pLen, 0.3)).toBeCloseTo(0.075);
   });
   it('bottom aligns the trailing edges then adds the offset', () => {
-    expect(startFromPosition({ method: 'bottom', offset: 0 }, cLen, pLen)).toBeCloseTo(0.15);
+    expect(startFromPosition({ method: 'bottom', offset: 0 }, cLen, pLen, 0.3)).toBeCloseTo(0.15);
   });
 });
 
 describe('resolveFilePositions', () => {
-  it('rewrites an absolute child into the equivalent parent-relative top offset', () => {
+  it('keeps an absolute child as the file wrote it, measured from the nose tip', () => {
     const tree: RocketTree = {
       components: [
         {
@@ -99,10 +104,9 @@ describe('resolveFilePositions', () => {
       ],
     };
     const out = resolveFilePositions(tree);
-    const it = out.components[0]!.children![1]!.children![0]!;
-    // bodytube starts at x=0.1 (after the 0.1 nose), so 0.15 absolute ⇒ 0.05 from the tube's fore edge
-    expect(it.position!.method).toBe('top');
-    expect(it.position!.offset).toBeCloseTo(0.05);
+    expect(out).toBe(tree);
+    // The bodytube starts at x=0.1 (after the 0.1 nose); the part is at 0.15 from the tip.
+    expect(axialFrameOf(out, 'it')!.start).toBeCloseTo(0.15, 12);
   });
 
   it('lays out a member with no length at the kernel length for its type', () => {
@@ -124,11 +128,11 @@ describe('resolveFilePositions', () => {
         },
       ],
     };
-    const it = resolveFilePositions(tree).components[0]!.children![1]!.children![0]!;
-    expect(it.position!.offset).toBeCloseTo(0.15 - KERNEL_DEFAULTS.nosecone.length, 12);
+    expect(axialFrameOf(tree, 'bt')!.start).toBeCloseTo(KERNEL_DEFAULTS.nosecone.length, 12);
+    expect(axialFrameOf(tree, 'it')!.start).toBeCloseTo(0.15, 12);
   });
 
-  it('returns the same tree object when there is nothing absolute to fix', () => {
+  it('returns the same tree object when there is nothing to resolve', () => {
     const tree: RocketTree = {
       components: [
         {
@@ -175,6 +179,7 @@ describe('resolveFilePositions', () => {
                   length: 0.02,
                   position: { method: 'absolute', offset: 0.22 },
                 },
+                { type: 'masscomponent', id: 'pa', length: 0.01, position: { method: 'after', offset: 0 } },
               ],
             },
           ],
@@ -183,13 +188,16 @@ describe('resolveFilePositions', () => {
     } as unknown as RocketTree;
 
     const pod = resolveFilePositions(tree).components[0]!.children![2]!;
-    const mass = pod.children![1]!;
+    const [, mass, after] = pod.children!;
     // The pod's own start is 0.1 (its position against the stage), so an
-    // absolute station of 0.22 is 0.12 from the pod's fore edge. Taking pStart as
-    // the chain total (0.5 by the time the pod is reached) would rebase it to
-    // -0.28: ahead of the rocket's own nose.
-    expect(mass.position!.method).toBe('top');
-    expect(mass.position!.offset).toBeCloseTo(0.12);
+    // absolute station of 0.22 is 0.12 from the pod's fore edge, and the part
+    // after it starts at 0.14. Taking pStart as the chain total (0.5 by the
+    // time the pod is reached) would put the absolute part at -0.28: ahead of
+    // the rocket's own nose.
+    expect(mass!.position).toEqual({ method: 'absolute', offset: 0.22 });
+    expect(after!.position!.method).toBe('top');
+    expect(after!.position!.offset).toBeCloseTo(0.14, 12);
+    expect(axialFrameOf(tree, 'pm')!.start).toBeCloseTo(0.22, 12);
   });
 
   it('gives a middle-positioned child inside a pod a station inside the pod', () => {

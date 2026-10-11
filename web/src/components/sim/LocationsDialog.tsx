@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useWorkspaceStore } from '../../state/store';
+import { selectRunIds, useWorkspaceStore } from '../../state/store';
 import { confirm } from '../../state/confirmStore';
 import { MasterDetail, MasterRow, MasterStatus, useGuardedSelection } from '../common/MasterDetail';
 import { Dialog } from '../common/Dialog';
@@ -27,12 +27,18 @@ import { formatCoord } from '../../services/map/slippyMap';
  * modal per location makes each one a separate errand. It also gives the map
  * room to be useful.
  *
- * Applying from here targets the active simulation, which is what `patchLaunch`
- * patches: the same single undoable edit the dropdown makes.
+ * Applying from here goes through `patchLaunch`, the same single undoable edit
+ * the dropdown makes, so it writes to every ticked simulation (the active one
+ * when none is ticked). The dialog also opens from the menu, away from the
+ * editor's "editing N simulations" banner, so the button names the count when
+ * it is more than one.
  */
 export function LocationsDialog({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
   const patchLaunch = useWorkspaceStore((s) => s.patchLaunch);
+  const commitEdit = useWorkspaceStore((s) => s.commitEdit);
+  // A count, not the id list: `selectRunIds` builds a fresh array per call.
+  const applyCount = useWorkspaceStore((s) => selectRunIds(s).length);
   // The launch panel's own altitude unit and scope, so this list reads in feet
   // for somebody who works in feet rather than always in meters.
   const altUnit = useUnits().at(unitScope('launch', 'altitude'), LAUNCH_SI.distance.q);
@@ -97,6 +103,8 @@ export function LocationsDialog({ onClose }: { onClose: () => void }) {
       longitudeDeg: location.longitudeDeg,
       launchAltitudeM: location.launchAltitudeM,
     });
+    // One click, one undo step: closed here so the next edit starts its own.
+    commitEdit();
     onClose();
   };
 
@@ -145,7 +153,8 @@ export function LocationsDialog({ onClose }: { onClose: () => void }) {
                       {/* Plain coordinates: the row that lets you tell two
                           fields both called "the club field" apart. */}
                       <span className="block text-xs tabular-nums text-ink-faint">
-                        {formatCoord(p.latitudeDeg, p.longitudeDeg)} · {altUnit.fmt(p.launchAltitudeM, 0)} {altUnit.sym}
+                        {formatCoord(p.latitudeDeg, p.longitudeDeg)}
+                        {p.launchAltitudeM !== null && ` · ${altUnit.fmt(p.launchAltitudeM, 0)} ${altUnit.sym}`}
                       </span>
                     </MasterRow>
                   </li>
@@ -164,6 +173,7 @@ export function LocationsDialog({ onClose }: { onClose: () => void }) {
               onSave={(location) => void save(location)}
               onDelete={selected ? () => void remove(selected) : undefined}
               onApply={selected ? () => apply(selected) : undefined}
+              applyCount={applyCount}
               onBack={() => void select(null)}
             />
           }

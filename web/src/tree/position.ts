@@ -125,19 +125,31 @@ export function motorSeatStart(mount: ComponentNode, mountStart: number, mountLe
  * A child's leading edge in the rocket frame: the parent's start plus the
  * child's parent-relative start. The one reader the report geometry and the
  * schematic share, so the PDF cannot place a part where the drawing does not.
+ *
+ * `pStart` is the parent's leading edge in the rocket frame, which an
+ * `absolute` child is measured against.
  */
 export function axialStart(child: ComponentNode, childLen: number, pStart: number, pLen: number): number {
-  return pStart + startFromPosition(positionOf(child), childLen, pLen);
+  return pStart + startFromPosition(positionOf(child), childLen, pLen, pStart);
 }
 
-export function startFromPosition(pos: ComponentPosition, childLen: number, pLen: number): number {
+/**
+ * A child's leading edge measured from its parent's leading edge.
+ *
+ * `pStart` is the parent's leading edge in the rocket frame. Only `absolute`
+ * reads it: the kernel measures that offset from the rocket's origin, the nose
+ * tip (`RocketComponent.setAxialOffset` stores `offset` less the parent's first
+ * location, `getComponentLocations()[0].getX()`), so the part stays put however
+ * its parent moves.
+ */
+export function startFromPosition(pos: ComponentPosition, childLen: number, pLen: number, pStart: number): number {
   switch (pos.method) {
     case 'middle':
       return (pLen - childLen) / 2 + pos.offset;
     case 'bottom':
       return pLen - childLen + pos.offset;
     case 'absolute':
-      return pos.offset;
+      return pos.offset - pStart;
     // 'after' is resolved to 'top' on load (resolveFilePositions) because it is
     // relative to a sibling, which this function is not given. Reaching here
     // means an unresolved tree; the offset is the kernel's zero, so it lands at
@@ -150,13 +162,15 @@ export function startFromPosition(pos: ComponentPosition, childLen: number, pLen
 }
 
 /**
- * Rewrites every axial position the editor cannot work in ('absolute', the
- * rocket-origin frame, and 'after', the previous-sibling frame, both of which
- * only file importers produce) into the equivalent parent-relative 'top'
- * offset.
- * The UI edits positions in the parent frame only: leaving 'absolute' in the
- * tree makes the schematic/property panel (parent frame) disagree with the
- * engine (rocket frame), so geometry drawn ≠ geometry simulated.
+ * Rewrites every 'after' position, which only file importers produce, into the
+ * equivalent parent-relative 'top' offset.
+ *
+ * 'after' is measured from the previous sibling, which no reader of a single
+ * part is given, so leaving it in the tree would put the part at its parent's
+ * top in every drawing while the engine flies it behind its sibling.
+ * 'absolute' stays as the file wrote it: every reader resolves it against the
+ * parent's rocket-frame start (`startFromPosition`), the editor offers it, and
+ * the part keeps its station when its parent moves, as it does in the desktop.
  */
 export function resolveFilePositions(tree: RocketTree): RocketTree {
   let changed = false;
@@ -182,21 +196,9 @@ export function resolveFilePositions(tree: RocketTree): RocketTree {
           ...child,
           position: { method: 'top', offset: resolved, ork: { method: 'after', offset: pos.offset, resolved } },
         };
-      } else if (pos.method === 'absolute') {
-        changed = true;
-        const resolved = pos.offset - pStart;
-        // Keep what the file said so the exporter can write it back unchanged.
-        next = {
-          ...child,
-          position: {
-            method: 'top',
-            offset: resolved,
-            ork: { method: 'absolute', offset: pos.offset, resolved },
-          },
-        };
       }
       const cLen = axialLength(next);
-      const relStart = startFromPosition(positionOf(next), cLen, pLen);
+      const relStart = startFromPosition(positionOf(next), cLen, pLen, pStart);
       prevEndRel = relStart + cLen;
       return fixChildren(next, pStart + relStart, cLen);
     });
@@ -212,8 +214,7 @@ export function resolveFilePositions(tree: RocketTree): RocketTree {
   // one is walked with its own extent, anchored where its position puts it in
   // the stage. Walking it with a parent length of 0 would make
   // `startFromPosition` resolve a `middle` child to -childLen/2, forward of the
-  // assembly's own nose, so an `after` sibling would chain off a wrong station
-  // and an `absolute` child would be rebased against the wrong origin.
+  // assembly's own nose, so an `after` sibling would chain off a wrong station.
   let x = 0;
   const components = tree.components.map((stage) => {
     const kids = stage.type === 'stage' ? (stage.children ?? []) : [stage];
@@ -231,7 +232,7 @@ export function resolveFilePositions(tree: RocketTree): RocketTree {
         return fixed;
       }
       const own = axialLength(n);
-      return fixChildren(n, stageStart + startFromPosition(positionOf(n), own, stageLen), own);
+      return fixChildren(n, axialStart(n, own, stageStart, stageLen), own);
     });
     return stage.type === 'stage' ? { ...stage, children: fixedKids } : fixedKids[0]!;
   });

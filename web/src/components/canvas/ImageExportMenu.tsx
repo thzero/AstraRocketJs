@@ -32,7 +32,7 @@ export function ImageExportMenu({
   fitOption?: boolean;
 }) {
   const { t } = useTranslation();
-  const { open, toggle, close, wrapRef, triggerRef } = useMenuPopover();
+  const { open, toggle, closeAndRestore, wrapRef, triggerRef } = useMenuPopover();
   // Default on: an export that spends most of its pixels on background is
   // rarely what was wanted. Unchecked, the export keeps the on-screen framing.
   const [fit, setFit] = useState(true);
@@ -93,7 +93,8 @@ export function ImageExportMenu({
                 title={t('export.pxWide', { width: w })}
                 aria-label={`${formatName(fmt)} ${widthLabel(w)}, ${w} px`}
                 onClick={() => {
-                  close();
+                  // Back to the trigger: the item holding focus unmounts.
+                  closeAndRestore();
                   onPick(fmt, w, { fit: !!fitOption && fit });
                 }}
               >

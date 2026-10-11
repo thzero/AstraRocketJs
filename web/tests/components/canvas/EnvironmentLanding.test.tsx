@@ -1,10 +1,17 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it } from 'vitest';
-import { screen } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
+
+const flyForecastHours = vi.hoisted(() => vi.fn(async () => []));
+vi.mock('../../../src/services/flight/forecastHours', async (orig) => ({
+  ...(await orig<typeof import('../../../src/services/flight/forecastHours')>()),
+  flyForecastHours,
+}));
+
 import { EnvironmentLanding } from '../../../src/components/canvas/EnvironmentLanding';
 import { renderWithProviders, seedSettings } from '../../testing/renderWithProviders';
-import type { ResultFlight } from '../../../src/services/flight/simulations';
-import { useWorkspaceStore } from '../../../src/state/store';
+import { resultKey, type ResultFlight } from '../../../src/services/flight/simulations';
+import { configOf, useWorkspaceStore } from '../../../src/state/store';
 
 const flight = {
   id: 's1',
@@ -73,5 +80,32 @@ describe('EnvironmentLanding forecast hours', () => {
     const btn = screen.getByRole('button', { name: 'Fly the hours around this forecast' }) as HTMLButtonElement;
     expect(btn.disabled).toBe(true);
     expect(screen.getByText(/outdated/i)).toBeTruthy();
+  });
+});
+
+/**
+ * The hours fly with the preferences a run reads, the length unit among them:
+ * the worker decides airframe-step warnings in it.
+ */
+describe('EnvironmentLanding forecast hours preferences', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('flies with the length unit a run uses', async () => {
+    flyForecastHours.mockClear();
+    const st = useWorkspaceStore.getState();
+    const simPrefs = { ...st.simPrefs, lengthUnit: 'in' };
+    const weatherSource = { endpoint: 'forecast', timezone: 'UTC' };
+    const sim = { ...st.sims[0]!, id: 's1', launch: { ...st.sims[0]!.launch, weatherSource } } as never;
+    const key = resultKey(st.tree, configOf(st.configs, sim), sim, simPrefs);
+    useWorkspaceStore.setState({ simPrefs, sims: [{ ...(sim as object), result: {}, resultKey: key } as never] });
+    const forecast = {
+      ...flight,
+      launch: { ...flight.launch, weatherSource },
+    } as unknown as ResultFlight;
+    renderWithProviders(<EnvironmentLanding flight={forecast} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Fly the hours around this forecast' }));
+    await waitFor(() => expect(flyForecastHours).toHaveBeenCalledTimes(1));
+    const [q] = flyForecastHours.mock.calls[0] as unknown as [{ prefs: { lengthUnit?: string } }];
+    expect(q.prefs.lengthUnit).toBe('in');
   });
 });

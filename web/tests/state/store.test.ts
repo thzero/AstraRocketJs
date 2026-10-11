@@ -484,6 +484,30 @@ describe('managing configurations', () => {
     expect(s().selectedConfigId).toBe(s().configs[1]!.id);
   });
 
+  it('copies the deployment, separation and grounded overrides with the motors', () => {
+    // Desktop's copy runs copyFlightConfiguration on every configurable
+    // component, so recovery and staging come along with the motors.
+    const src = config();
+    useWorkspaceStore.setState({
+      configs: [
+        {
+          ...src,
+          deployments: { chute: { deployAltitude: 150 } },
+          separations: { booster: { separationDelay: 1 } },
+          grounded: ['booster'],
+        },
+      ],
+    });
+    s().copyConfig(src.id);
+    const copy = s().configs[1]!;
+    expect(copy.deployments).toEqual({ chute: { deployAltitude: 150 } });
+    expect(copy.separations).toEqual({ booster: { separationDelay: 1 } });
+    expect(copy.grounded).toEqual(['booster']);
+    // Copies, not shared references: editing one must not edit the other.
+    expect(copy.grounded).not.toBe(s().configs[0]!.grounded);
+    expect(copy.deployments).not.toBe(s().configs[0]!.deployments);
+  });
+
   it('names a copy after a NAMED source, and leaves an unnamed one unnamed', () => {
     // An unnamed configuration is labeled by its motors, so "Estes C6 copy"
     // would name a thing nobody named.
@@ -1729,5 +1753,89 @@ describe('the configuration the tab edits', () => {
     s().undo();
     expect(s().configs.some((c) => c.id === s().selectedConfigId)).toBe(false);
     expect(selectEditedConfig(s()).id).toBe(flown);
+  });
+});
+
+/**
+ * `loadOrk` resets the engine before it builds the imported design, which voids
+ * the open design's live handle. An import that then fails, or that the user
+ * abandons, leaves that design on screen, so the store asks for it to be built
+ * again (`rebuildSeq`, read by the rebuild effect).
+ */
+describe('an import that does not replace the design', () => {
+  const orkFile = (name: string): File =>
+    ({
+      name: `${name}.ork`,
+      arrayBuffer: async () => new TextEncoder().encode(name).buffer,
+    }) as unknown as File;
+
+  beforeEach(() => {
+    s().resetWorkspace();
+  });
+  afterEach(() => {
+    vi.doUnmock('../../src/services/files/loadOrk');
+  });
+
+  it('asks for a rebuild when the import fails', async () => {
+    vi.doMock('../../src/services/files/loadOrk', () => ({
+      loadOrk: async () => {
+        throw new Error('corrupt zip');
+      },
+    }));
+    const tree = s().tree;
+    const before = s().rebuildSeq;
+    await s().openOrkFile(orkFile('BAD'));
+    expect(s().tree).toBe(tree);
+    expect(s().rebuildSeq).toBe(before + 1);
+  });
+
+  it('asks for a rebuild when the import is abandoned', async () => {
+    vi.doMock('../../src/services/files/loadOrk', () => ({
+      loadOrk: async () => ({
+        name: 'Taken',
+        notes: [],
+        tree: { name: 'Taken', components: [] },
+        motors: {},
+        configs: [{ id: 'cfg-1', name: null, motors: {} }],
+        chosenConfigId: 'cfg-1',
+      }),
+    }));
+    // A name clash, overwrite chosen, and the library refuses the pointer
+    // write: the import stops with the previous design still open.
+    setDesignLibrary({
+      list: async () => [{ id: 'd0', name: 'Taken', updatedAt: 0 }],
+      activeId: async () => null,
+      setActive: async () => false,
+    } as never);
+    const stop = useConfirmStore.subscribe((st) => {
+      if (st.request) useConfirmStore.getState().settle(true);
+    });
+    try {
+      const tree = s().tree;
+      const before = s().rebuildSeq;
+      await s().openOrkFile(orkFile('Taken'));
+      expect(s().tree).toBe(tree);
+      expect(s().rebuildSeq).toBe(before + 1);
+    } finally {
+      stop();
+    }
+  });
+
+  it('does not ask for one when the import lands: the new design builds itself', async () => {
+    vi.doMock('../../src/services/files/loadOrk', () => ({
+      loadOrk: async () => ({
+        name: 'Fresh',
+        notes: [],
+        tree: { name: 'Fresh', components: [] },
+        motors: {},
+        configs: [{ id: 'cfg-1', name: null, motors: {} }],
+        chosenConfigId: 'cfg-1',
+      }),
+    }));
+    setDesignLibrary({ list: async () => [], activeId: async () => null } as never);
+    const before = s().rebuildSeq;
+    await s().openOrkFile(orkFile('Fresh'));
+    expect((s().tree as unknown as { name: string }).name).toBe('Fresh');
+    expect(s().rebuildSeq).toBe(before);
   });
 });

@@ -164,6 +164,17 @@ export function samplesToMotorSpec(
     });
   }
 
+  // ThrustCurveMotor.Builder.build() refuses a negative thrust and a CG
+  // outside the motor, and the bridge builds every seated motor through it.
+  // Refused here with the motor named rather than as a raw kernel message.
+  if (pts.some((p) => p.thrust < 0)) {
+    throw new KeyedError('errors.thrustcurve.negativeThrust', { motor: motor.designation });
+  }
+  const cgX = cgSamples?.[0]?.[1] ?? motor.length / 2000;
+  if (!Number.isFinite(cgX) || cgX < 0 || cgX > motor.length / 1000) {
+    throw new KeyedError('errors.thrustcurve.badCg', { motor: motor.designation, length: motor.length });
+  }
+
   const totalMass = motor.totalWeightG / 1000;
   const propMass = motor.propWeightG / 1000;
 
@@ -191,7 +202,7 @@ export function samplesToMotorSpec(
     // Real launch CG from the file (m from nose) when the sync bundled it, else
     // mid-length, matching OpenRocket, which reads CG from the RockSim file and
     // falls back to half-length for RASP-only motors.
-    cgX: cgSamples?.[0]?.[1] ?? motor.length / 2000,
+    cgX,
     ejectionDelay,
   };
 }

@@ -8,6 +8,7 @@ import { mountConfigs, motorMountXml } from './exportMotorConfigs';
 import {
   airfoilXml,
   autoRadius,
+  deployEventXml,
   deploymentConfigs,
   filletXml,
   finAngleXml,
@@ -85,7 +86,7 @@ const recoveryHead = (w: OrkWriter, node: ComponentNode, d: number, fallback: st
   // after the material and omits it for a main, so a round-tripped file stays
   // byte-comparable with one the desktop wrote.
   if (node['drogue'] === true) w.emit(d, '<isdrogue>true</isdrogue>');
-  w.emit(d, `<deployevent>${escapeXml(str(node, 'deployEvent', 'ejection'))}</deployevent>`);
+  w.emit(d, `<deployevent>${escapeXml(deployEventXml(str(node, 'deployEvent', 'ejection')))}</deployevent>`);
   w.emit(d, `<deployaltitude>${num(node, 'deployAltitude', 200)}</deployaltitude>`);
   w.emit(d, `<deploydelay>${num(node, 'deployDelay', 0)}</deploydelay>`);
   deploymentConfigs(w, d, node);

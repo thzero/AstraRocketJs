@@ -2,6 +2,7 @@ import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
 import { finRootChord } from '../../tree/finPlanform';
 import { num, positionOf } from '../../tree/nodeProps';
 import { axialLength, partLength, startFromPosition } from '../../tree/position';
+import { parentStartOf } from '../../tree/axialRebase';
 import { stationRadius } from '../../tree/shapeProfile';
 import { findWithParent } from '../../tree/treeWalk';
 import { isChainType } from '../../tree/componentKinds';
@@ -42,10 +43,11 @@ const ringBottom = (r: Ring): number => r.top + r.thickness;
 /**
  * Where a child's fore end sits, measured from its parent's fore end. A fin set
  * has no `length`: its axial extent is the root chord, which a `bottom` or
- * `middle` placement needs to find the leading edge.
+ * `middle` placement needs to find the leading edge. `parentStart` is the
+ * parent's rocket-frame start, which an `absolute` child is measured against.
  */
-function offsetFromTop(child: ComponentNode, parentLength: number): number {
-  return startFromPosition(positionOf(child), axialLength(child), parentLength);
+function offsetFromTop(child: ComponentNode, parentLength: number, parentStart: number): number {
+  return startFromPosition(positionOf(child), axialLength(child), parentLength, parentStart);
 }
 
 /**
@@ -166,8 +168,9 @@ export function autoFinTab(tree: RocketTree, id: string): Partial<ComponentNode>
   if (!canAutoFinTab(node, parent) || !parent) return null;
 
   const parentLength = num(parent, 'length');
+  const parentStart = parentStartOf(tree, parent);
   const finLength = finRootChord(node);
-  const finTop = offsetFromTop(node, parentLength);
+  const finTop = offsetFromTop(node, parentLength, parentStart);
 
   // What is inside the body under the fin. A mount tube sets how deep the tab
   // can go; the rings set where along the root it can sit.
@@ -175,7 +178,7 @@ export function autoFinTab(tree: RocketTree, id: string): Partial<ComponentNode>
   let maxRingRadius = 0;
   const rings: Ring[] = [];
   for (const child of parent.children ?? []) {
-    const top = offsetFromTop(child, parentLength);
+    const top = offsetFromTop(child, parentLength, parentStart);
     if (child.type === 'innertube') {
       if (!overlapsFin(top, partLength(child), finTop, finLength)) continue;
       maxTubeRadius = Math.max(maxTubeRadius, num(child, 'outerRadius'));

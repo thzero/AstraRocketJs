@@ -212,6 +212,57 @@ describe('ExportDialog', () => {
 });
 
 /**
+ * Cancel and the close button end the export: the run the save is waiting on is
+ * stopped, and nothing downloads once it settles.
+ */
+describe('ExportDialog cancel', () => {
+  it.each(['Cancel', 'Close'])('%s stops the run and writes no PDF', async (name) => {
+    let finish: (outcome: string) => void = () => {};
+    const cancelRun = vi.fn();
+    useWorkspaceStore.setState({
+      runSim: () => new Promise<string>((resolve) => (finish = resolve)),
+      cancelRun,
+    } as never);
+    const onClose = open();
+    fireEvent.click(screen.getByRole('button', { name: 'Save as PDF' }));
+    await screen.findByRole('button', { name: 'Loading…' });
+
+    fireEvent.click(screen.getAllByRole('button', { name })[0]!);
+    expect(onClose).toHaveBeenCalled();
+    expect(cancelRun).toHaveBeenCalledTimes(1);
+
+    // A run that lands anyway, after the close, still writes nothing.
+    finish('landed');
+    await screen.findByRole('button', { name: 'Save as PDF' });
+    expect(downloadReportPdf).not.toHaveBeenCalled();
+  });
+
+  /**
+   * The writer waits once more of its own, on the font fetch, after the dialog
+   * has handed over. It asks `canceled` after that wait, so the hook has to read
+   * the dialog's live state rather than be left out.
+   */
+  it('a close during the font fetch reaches the writer', async () => {
+    let hooks: { canceled?: () => boolean } = {};
+    let fontsLoaded: () => void = () => {};
+    downloadReportPdf.mockImplementation(async (...args: unknown[]) => {
+      hooks = (args[5] ?? {}) as typeof hooks;
+      await new Promise<void>((resolve) => (fontsLoaded = resolve));
+    });
+    useWorkspaceStore.setState({ runSim: async () => 'landed' } as never);
+    const onClose = open();
+    fireEvent.click(screen.getByRole('button', { name: 'Save as PDF' }));
+    await waitFor(() => expect(downloadReportPdf).toHaveBeenCalledTimes(1));
+    expect(hooks.canceled?.()).toBe(false);
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Cancel' })[0]!);
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(hooks.canceled?.()).toBe(true);
+    fontsLoaded();
+  });
+});
+
+/**
  * The report's background run must leave the workbench where it was: the run
  * itself moves the view to Flight and the tab to Results.
  */

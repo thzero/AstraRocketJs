@@ -16,7 +16,15 @@
  * than every call in flight (see {@link killWorker}).
  */
 import { backendPref, kernelLengthUnit } from './openRocketEngine';
-import type { SimPayload, WorkerCall, WorkerMethod, WorkerRequest, WorkerResponse, WorkerResults } from './simProtocol';
+import type {
+  SimPayload,
+  WorkerCall,
+  WorkerMethod,
+  WorkerReady,
+  WorkerRequest,
+  WorkerResponse,
+  WorkerResults,
+} from './simProtocol';
 
 /** Hard ceiling for a single worker call. A flight sim is normally well under a
  *  second; if the engine hangs (degenerate geometry, an integrator that never
@@ -26,8 +34,19 @@ import type { SimPayload, WorkerCall, WorkerMethod, WorkerRequest, WorkerRespons
  *
  *  It starts when the call reaches a worker, not when it is queued: behind a
  *  full pool a request can wait several flights for its turn, and timing that
- *  wait out would punish a healthy batch for being busy. */
+ *  wait out would punish a healthy batch for being busy. On a cold worker it
+ *  starts when the worker's engine has loaded (see {@link LOAD_TIMEOUT_MS}). */
 const SIM_TIMEOUT_MS = 30_000;
+
+/**
+ * Ceiling on a cold worker's engine load, timed from the moment a call reaches
+ * it. The call's own timeout starts only once the worker reports its engine
+ * ready, so a slow load is not charged to the flight, while a load that never
+ * finishes still fails the call rather than holding the slot forever.
+ * Generous, because a cold WASM load on a slow phone is legitimately tens of
+ * seconds.
+ */
+const LOAD_TIMEOUT_MS = 120_000;
 
 /**
  * How long an idle worker is kept before it is terminated.
@@ -76,12 +95,16 @@ interface Pending {
   resolve: (v: unknown) => void;
   reject: (e: Error) => void;
   timer: ReturnType<typeof setTimeout> | undefined;
+  /** The call's own ceiling, armed once the worker's engine is ready. */
+  timeoutMs: number | undefined;
 }
 
 /** A pooled worker and the single call it is currently serving, if any. */
 interface Slot {
   worker: Worker;
   busy: Pending | null;
+  /** The worker has reported its engine loaded ({@link WorkerReady}). */
+  ready: boolean;
   /** Fires IDLE_REAP_MS after this slot last went idle; cleared when it is used. */
   reaper: ReturnType<typeof setTimeout> | undefined;
 }
@@ -125,9 +148,21 @@ function poolLimit(): number {
 function spawn(): Slot {
   // Vite compiles this to a hashed worker chunk via the new URL(...) form.
   const worker = new Worker(new URL('./simWorker.ts', import.meta.url), { type: 'module' });
-  const slot: Slot = { worker, busy: null, reaper: undefined };
-  worker.onmessage = (e: MessageEvent<WorkerResponse>) => {
-    const msg = e.data;
+  const slot: Slot = { worker, busy: null, ready: false, reaper: undefined };
+  worker.onmessage = (e: MessageEvent<WorkerResponse | WorkerReady>) => {
+    const data = e.data;
+    if ('ready' in data) {
+      // The load is over: the call being served now gets its own ceiling,
+      // from this moment rather than from dispatch.
+      slot.ready = true;
+      const busy = slot.busy;
+      if (busy) {
+        clearTimeout(busy.timer);
+        busy.timer = armTimeout(slot, busy.timeoutMs);
+      }
+      return;
+    }
+    const msg = data;
     const p = slot.busy;
     // Not ours, or a straggler from a call that already timed out. Either way
     // there is nothing to settle; dropping it must not free the slot, which may
@@ -201,7 +236,20 @@ function release(slot: Slot): void {
   (slot.reaper as unknown as { unref?: () => void }).unref?.();
 }
 
-/** Hand `task` to `slot` and start its timeout. */
+/**
+ * Kill `slot`'s worker after `ms`. On timeout the worker is hung mid-call and
+ * cannot be interrupted, so it is terminated; that rejects its call via
+ * killWorker. No ceiling (undefined or not positive) arms nothing.
+ */
+function armTimeout(slot: Slot, ms: number | undefined): ReturnType<typeof setTimeout> | undefined {
+  return ms && ms > 0 ? setTimeout(() => killWorker(slot, new SimTimeoutError()), ms) : undefined;
+}
+
+/**
+ * Hand `task` to `slot` and start its timeout: the call's own on a worker
+ * whose engine is up, the load ceiling on one still loading. The call's own
+ * timeout replaces the load ceiling when the worker reports ready.
+ */
 function dispatch(slot: Slot, task: Queued): void {
   clearTimeout(slot.reaper);
   slot.reaper = undefined;
@@ -210,12 +258,8 @@ function dispatch(slot: Slot, task: Queued): void {
     id,
     resolve: task.resolve,
     reject: task.reject,
-    // On timeout the worker is hung mid-call and cannot be interrupted, so kill
-    // it; that rejects this call via killWorker.
-    timer:
-      task.timeoutMs && task.timeoutMs > 0
-        ? setTimeout(() => killWorker(slot, new SimTimeoutError()), task.timeoutMs)
-        : undefined,
+    timeoutMs: task.timeoutMs,
+    timer: armTimeout(slot, slot.ready || !task.timeoutMs ? task.timeoutMs : Math.max(LOAD_TIMEOUT_MS, task.timeoutMs)),
   };
   slot.busy = pending;
   task.slot = slot;
@@ -343,10 +387,9 @@ function call<M extends WorkerMethod>(
  * loaded (a WASM fetch + compile), so a stalled fetch behind a captive portal
  * or a wedged service worker would otherwise hold the slot `busy` forever: on
  * a two-core machine the pool is one slot, and every later sim would sit in
- * "queued" with nothing to time it out. Generous, because a cold WASM load on a slow
- * phone is legitimately tens of seconds.
+ * "queued" with nothing to time it out.
  */
-const WARM_TIMEOUT_MS = 120_000;
+const WARM_TIMEOUT_MS = LOAD_TIMEOUT_MS;
 
 /** Spawn + warm a worker (loads its engine) so the first sim isn't delayed. */
 export function warmSimWorker(): void {

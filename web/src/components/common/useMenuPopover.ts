@@ -4,7 +4,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
  * The open state of a menu button and its popover. While open, a pointer
  * press outside `wrapRef` closes it, and Escape closes it and returns focus to
  * `triggerRef`: focus left on the body makes a popover a dead end, since Tab
- * restarts from the top of the document.
+ * restarts from the top of the document. A menu item that closes the menu
+ * uses `closeAndRestore` for the same reason: closing unmounts the focused
+ * item.
  *
  * Escape is taken in the capture phase and marked handled (`defaultPrevented`),
  * so a window listener that also answers Escape, such as leaving the maximized
@@ -36,5 +38,9 @@ export function useMenuPopover<T extends HTMLElement = HTMLButtonElement>() {
 
   const toggle = useCallback(() => setOpen((v) => !v), []);
   const close = useCallback(() => setOpen(false), []);
-  return { open, toggle, close, wrapRef, triggerRef };
+  const closeAndRestore = useCallback(() => {
+    setOpen(false);
+    triggerRef.current?.focus();
+  }, []);
+  return { open, toggle, close, closeAndRestore, wrapRef, triggerRef };
 }

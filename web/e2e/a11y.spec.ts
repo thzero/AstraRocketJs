@@ -1,18 +1,54 @@
-import AxeBuilder from '@axe-core/playwright';
-import { test, expect, runFlight, defined, ready, openTab, type Page } from './base';
+import { test, expect, defined, runFlight, ready, openTab, type Page } from './base';
+import { axeViolations, THEMES } from './axe';
+import { answer } from '../tests/testing/openMeteoFixture';
+import {
+  DESIGN_VIEWS,
+  RESULT_VIEWS,
+  type AeroPane,
+  type ConfigsTab,
+  type Tool,
+  type TwoDView,
+  type ViewMode,
+} from '../src/state/tabs';
+import type { HeaderDialog, LibraryTab, SettingsTab } from '../src/components/layout/dialogKeys';
 
-/** What axe found on the page as it is, one line per element, WCAG 2.1 A and AA. */
-async function axeViolations(page: Page, where: string): Promise<string[]> {
-  const result = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
-  return result.violations.flatMap((v) =>
-    v.nodes.map((n) => {
-      const colors = n.any[0]?.data as { fgColor?: string; bgColor?: string; contrastRatio?: number } | undefined;
-      const detail = colors?.contrastRatio
-        ? ` (${colors.fgColor} on ${colors.bgColor}, ${colors.contrastRatio}:1)`
-        : '';
-      return `${where}: ${v.id}${detail} at ${n.target.join(' ')}`;
-    }),
-  );
+/*
+ * The names of every view, keyed by the type the app switches on. A view the
+ * app gains is a new member of one of these unions, and a record that lacks
+ * it fails the typecheck rather than leaving a gap in the scan.
+ */
+
+const VIEW: Record<ViewMode, string> = {
+  '2d': '2D',
+  '3d': '3D',
+  drag: 'Aero',
+  flight: 'Flight',
+  path: '3D path',
+  ground: 'Ground track',
+  environment: 'Environment',
+};
+const TWO_D: Record<TwoDView, string> = { side: 'Side', aft: 'Aft' };
+const AERO_PANE: Record<AeroPane, string> = { charts: 'Charts', components: 'Per component' };
+const CONFIGS: Record<ConfigsTab, string> = { motors: 'Motors', recovery: 'Recovery', separation: 'Staging' };
+const TOOLS: Record<Tool, string> = { landing: 'Landing estimator', rail: 'Off the rail', chute: 'Parachute sizing' };
+const SETTINGS: Record<SettingsTab, string> = {
+  general: 'General',
+  units: 'Units',
+  colors: 'Colors',
+  materials: 'Materials',
+  playback: 'Playback',
+  sketch: 'Sketch',
+  sim: 'Simulation',
+  launch: 'Launch',
+};
+const LIBRARY: Record<LibraryTab, string> = { mine: 'My rockets', examples: 'Examples' };
+
+const keys = <K extends string>(r: Record<K, unknown>): K[] => Object.keys(r) as K[];
+
+/** One scan: what to open. A view that reads a flight result runs one first. */
+interface Scan {
+  name: string;
+  open: (page: Page) => Promise<void>;
 }
 
 /**
@@ -20,73 +56,284 @@ async function axeViolations(page: Page, where: string): Promise<string[]> {
  * The 3D views load their renderer on demand, and axe run over the
  * placeholder would scan text that is about to go away.
  */
-async function openView(page: Page, name: string): Promise<void> {
-  const toggle = page.getByRole('button', { name, exact: true });
-  await toggle.click();
-  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+async function openView(page: Page, view: ViewMode): Promise<void> {
+  await press(page, VIEW[view]);
   await expect(page.getByText('Loading 3D…')).toHaveCount(0);
 }
 
-type Screen = 'Design' | 'Configurations' | 'Simulations' | 'Results' | 'Tools';
+/** Press a toggle button by its exact name and wait for it to report pressed. */
+async function press(page: Page, name: string): Promise<void> {
+  const toggle = page.getByRole('button', { name, exact: true });
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+}
 
-/**
- * Every top-level tab, and on the two tabs with a view switch, every view it
- * offers. A tab with no switch is one scan.
- */
-const SCREENS: readonly (readonly [Screen, readonly string[]])[] = [
-  ['Design', ['2D', '3D', 'Aero']],
-  ['Configurations', []],
-  ['Simulations', []],
-  ['Results', ['Flight', '3D path', 'Ground track', 'Environment']],
-  ['Tools', []],
+/** Open the Aero view and wait for the sweep, so axe reads the charts rather than "Computing…". */
+async function openAero(page: Page): Promise<void> {
+  await openTab(page, 'Design');
+  await openView(page, 'drag');
+  await expect(page.getByRole('img', { name: /peak .* at Mach/ }).first()).toBeVisible({ timeout: 20_000 });
+}
+
+/** Choose a menu entry, expanding its submenu first when it has one. */
+async function menu(page: Page, item: string, parent?: 'Import' | 'Export'): Promise<void> {
+  await page.getByRole('button', { name: 'Menu' }).click();
+  if (parent) await page.getByRole('menuitem', { name: parent, exact: true }).click();
+  await page.getByRole('menuitem', { name: item }).click();
+}
+
+/** The open dialog, once it is on screen. */
+async function dialogOpen(page: Page, name?: string) {
+  const dialog = name ? page.getByRole('dialog', { name }) : page.getByRole('dialog');
+  await expect(dialog).toBeVisible();
+  return dialog;
+}
+
+/** Open a dialog from the menu and wait for it. */
+const fromMenu =
+  (item: string, parent?: 'Import' | 'Export') =>
+  async (page: Page): Promise<void> => {
+    await menu(page, item, parent);
+    await dialogOpen(page);
+  };
+
+/** The motor dashboard with two motors checked, which is what Compare and Combine work on. */
+async function dashboardWithTwo(page: Page) {
+  await menu(page, 'Motor Dashboard');
+  const dialog = await dialogOpen(page);
+  const boxes = dialog.locator('tbody input[type="checkbox"]');
+  await boxes.nth(0).check();
+  await boxes.nth(1).check();
+  return dialog;
+}
+
+/** Answer Open-Meteo locally, as weather.spec.ts does, so nothing leaves the machine. */
+async function answerOpenMeteo(page: Page): Promise<void> {
+  await page.route(/open-meteo\.com/, async (route) => {
+    const url = route.request().url();
+    const elevation = Number(new URL(url).searchParams.get('elevation') ?? 0);
+    const body = url.includes('/v1/elevation')
+      ? { elevation: [elevation] }
+      : answer(elevation, { start: Math.floor(Date.now() / 1000 / 3600) * 3600 - 24 * 3600, hours: 96 });
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      headers: { 'access-control-allow-origin': '*' },
+      body: JSON.stringify(body),
+    });
+  });
+}
+
+/** Every workbench screen: each tab, each view of its view switch, and each sub-tab or pane inside one. */
+const SCREENS: Scan[] = [
+  ...keys(TWO_D).map((side): Scan => ({
+    name: `Design / 2D / ${TWO_D[side]}`,
+    open: async (page) => {
+      await openTab(page, 'Design');
+      await openView(page, '2d');
+      await press(page, TWO_D[side]);
+    },
+  })),
+  ...DESIGN_VIEWS.filter((v) => v !== '2d' && v !== 'drag').map((view): Scan => ({
+    name: `Design / ${VIEW[view]}`,
+    open: async (page) => {
+      await openTab(page, 'Design');
+      await openView(page, view);
+    },
+  })),
+  ...keys(AERO_PANE)
+    .filter((pane) => pane !== 'components')
+    .map((pane): Scan => ({
+      name: `Design / Aero / ${AERO_PANE[pane]}`,
+      open: async (page) => {
+        await openAero(page);
+        await press(page, AERO_PANE[pane]);
+      },
+    })),
+  // The per-component tables shade their cells, and each shading is a
+  // different ramp under the same text, so the pane is scanned once per shading.
+  ...['By magnitude', 'By heat'].map((shading): Scan => ({
+    name: `Design / Aero / Per component, ${shading}`,
+    open: async (page) => {
+      await openAero(page);
+      await press(page, AERO_PANE.components);
+      await press(page, shading);
+    },
+  })),
+  ...keys(CONFIGS).map((sub): Scan => ({
+    name: `Configurations / ${CONFIGS[sub]}`,
+    open: async (page) => {
+      await openTab(page, 'Configurations');
+      const toggle = page
+        .getByRole('navigation', { name: 'Flight configurations' })
+        .getByRole('button', { name: CONFIGS[sub], exact: true });
+      await toggle.click();
+      await expect(toggle).toHaveAttribute('aria-current', 'true');
+    },
+  })),
+  {
+    name: 'Simulations',
+    open: async (page) => {
+      await runFlight(page);
+      await openTab(page, 'Simulations');
+    },
+  },
+  ...RESULT_VIEWS.map((view): Scan => ({
+    name: `Results / ${VIEW[view]}`,
+    open: async (page) => {
+      await runFlight(page);
+      await openTab(page, 'Results');
+      await openView(page, view);
+    },
+  })),
+  ...keys(TOOLS).map((tool): Scan => ({
+    name: `Tools / ${TOOLS[tool]}`,
+    open: async (page) => {
+      await openTab(page, 'Tools');
+      const tab = page.getByRole('tab', { name: TOOLS[tool], exact: true });
+      await tab.click();
+      await expect(tab).toHaveAttribute('aria-selected', 'true');
+    },
+  })),
 ];
 
-/** Open a tab and scan it, once per view when it has a view switch. */
-async function scanScreen(page: Page, tab: Screen, views: readonly string[]): Promise<string[]> {
-  await openTab(page, tab);
-  if (!views.length) return axeViolations(page, tab);
-  const found: string[] = [];
-  for (const view of views) {
-    await openView(page, view);
-    found.push(...(await axeViolations(page, `${tab} / ${view}`)));
-  }
-  return found;
+/** Open a tabbed dialog from the menu on one of its tabs. */
+async function dialogTab(page: Page, item: string, tab: string): Promise<void> {
+  await menu(page, item);
+  const dialog = await dialogOpen(page);
+  const button = dialog.getByRole('tab', { name: tab, exact: true });
+  await button.click();
+  await expect(button).toHaveAttribute('aria-selected', 'true');
 }
 
 /**
- * Every screen through axe, in every theme. Contrast is the part the JSX lint
+ * The dialogs the menu raises, keyed by the header's own list of them, so a
+ * dialog added there has to be added here. The tabbed ones and the motor
+ * dashboard are scanned per tab and per pane in DIALOGS.
+ */
+const HEADER_DIALOGS: Record<Exclude<HeaderDialog, 'settings' | 'library' | 'motors'>, Scan['open']> = {
+  report: fromMenu('Rocket Design Report'),
+  about: fromMenu('About'),
+  privacy: fromMenu('Privacy'),
+  updates: fromMenu('Check for updates'),
+  examples: fromMenu('Import an example rocket', 'Import'),
+  print: fromMenu('Export printable parts as 3MF', 'Export'),
+  locations: fromMenu('Launch Locations'),
+  parts: fromMenu('My Parts'),
+  saveAs: fromMenu('Save As…'),
+};
+
+/** Every dialog: the menu's, each tab and pane of the tabbed ones, and those raised from inside a tab. */
+const DIALOGS: Scan[] = [
+  ...keys(SETTINGS).map((tab): Scan => ({
+    name: `Settings / ${SETTINGS[tab]}`,
+    open: (page) => dialogTab(page, 'Settings', SETTINGS[tab]),
+  })),
+  ...keys(LIBRARY).map((tab): Scan => ({
+    name: `Open / ${LIBRARY[tab]}`,
+    open: (page) => dialogTab(page, 'Open…', LIBRARY[tab]),
+  })),
+  ...keys(HEADER_DIALOGS).map((id): Scan => ({ name: `Menu / ${id}`, open: HEADER_DIALOGS[id] })),
+  {
+    name: 'Motor Dashboard / detail',
+    open: async (page) => {
+      await menu(page, 'Motor Dashboard');
+      const dialog = await dialogOpen(page);
+      // A motor with a curve: the grid draws before the catalog lands, and a
+      // row clicked before then is replaced under the click.
+      await dialog.getByPlaceholder(/Search by code/i).fill('C6');
+      const row = dialog.locator('tbody tr').first();
+      await expect(row).toContainText('C6');
+      await row.click();
+      await expect(dialog.getByText('View on ThrustCurve.org')).toBeVisible();
+    },
+  },
+  {
+    name: 'Motor Dashboard / Compare',
+    open: async (page) => {
+      const dialog = await dashboardWithTwo(page);
+      await dialog.getByRole('button', { name: /Compare \(/ }).click();
+      await expect(dialog.getByRole('button', { name: /Back to list/ })).toBeVisible();
+    },
+  },
+  {
+    name: 'Motor Dashboard / Combine',
+    open: async (page) => {
+      const dialog = await dashboardWithTwo(page);
+      await dialog.getByRole('button', { name: /Combine \(/ }).click();
+      await expect(dialog.getByText('Combined cluster')).toBeVisible();
+    },
+  },
+  { name: 'Help', open: fromMenu('Help') },
+  { name: 'Safety', open: fromMenu('Safety') },
+  {
+    name: 'Motor picker',
+    open: async (page) => {
+      await openTab(page, 'Configurations');
+      await page
+        .getByRole('button', { name: /change/i })
+        .first()
+        .click();
+      const dialog = await dialogOpen(page);
+      await expect(dialog.getByRole('button', { name: 'Select', exact: true })).toBeVisible();
+    },
+  },
+  {
+    name: 'Component picker',
+    open: async (page) => {
+      await openTab(page, 'Design');
+      await page.locator('div[title="Body tube"]').click();
+      const pick = page.getByRole('button', { name: /^Select part…/ });
+      await expect(pick).toBeEnabled({ timeout: 20_000 });
+      await pick.click();
+      const dialog = await dialogOpen(page, 'Select a part');
+      await expect(dialog.locator('tbody tr').first()).toBeVisible();
+    },
+  },
+  {
+    name: 'Wind profile',
+    open: async (page) => {
+      await openTab(page, 'Simulations');
+      await page.getByRole('radio', { name: 'Multi-level' }).check();
+      await page.getByRole('button', { name: 'Edit wind profile…' }).click();
+      await dialogOpen(page);
+    },
+  },
+  {
+    name: 'Weather',
+    open: async (page) => {
+      await answerOpenMeteo(page);
+      await openTab(page, 'Simulations');
+      await page.getByRole('button', { name: 'Get weather…' }).click();
+      await page.getByRole('button', { name: 'Fetch', exact: true }).click();
+      await expect(page.getByText('Atmosphere aloft')).toBeVisible();
+    },
+  },
+];
+
+/**
+ * Every view through axe, in every theme. Contrast is the part the JSX lint
  * cannot see: it depends on the theme's tokens and the surface under the text,
  * so each theme is its own scan. The theme attribute is set directly; the
  * setting that normally sets it is covered in daylight-toggle.spec.ts.
  *
- * One test per theme and screen, so the scans spread across the workers. An
+ * One test per theme and view, so the scans spread across the workers. An
  * axe pass over a screen with a live WebGL canvas takes several seconds on a
- * CI runner software-rendering it, and a tab with a view switch is up to four
- * passes, after the engine boot and a flight run.
+ * CI runner software-rendering it, after the engine boot and, for a view that
+ * reads a result, a flight run.
  */
-for (const theme of ['dark', 'light', 'daylight'] as const) {
+for (const theme of THEMES) {
   test.describe(`axe in the ${theme} theme`, () => {
-    test.beforeEach(async ({ page }) => {
-      test.setTimeout(120_000);
-      await ready(page);
-      await runFlight(page);
-      await page.evaluate((t) => document.documentElement.setAttribute('data-theme', t), theme);
-    });
-
-    for (const [tab, views] of SCREENS) {
-      test(`finds nothing on ${tab}`, async ({ page }) => {
-        const found = await scanScreen(page, tab, views);
+    for (const scan of [...SCREENS, ...DIALOGS]) {
+      test(`finds nothing on ${scan.name}`, async ({ page }) => {
+        test.setTimeout(90_000);
+        await ready(page);
+        await page.evaluate((t) => document.documentElement.setAttribute('data-theme', t), theme);
+        await scan.open(page);
+        const found = await axeViolations(page, scan.name);
         expect(found, found.join('\n')).toEqual([]);
       });
     }
-
-    test('finds nothing on Settings', async ({ page }) => {
-      await page.getByRole('button', { name: 'Menu' }).click();
-      await page.getByRole('menuitem', { name: /Settings/i }).click();
-      await expect(page.getByRole('dialog')).toBeVisible();
-      const found = await axeViolations(page, 'Settings');
-      expect(found, found.join('\n')).toEqual([]);
-    });
   });
 }
 

@@ -88,6 +88,13 @@ type FieldFlags = {
    * string that says what is being followed, which differs per field.
    */
   auto?: { flag: string; tip: 'autoShoulder' | 'autoRadius' | 'autoComputed' };
+  /**
+   * A length that may be negative, bounded on both sides by the part's own
+   * axial length (a fin set's root chord). The fin tab offset is one: the
+   * kernel takes any offset (FinSet.setTabOffset), and from the default middle
+   * reference a tab ahead of the root's middle is a negative one.
+   */
+  signedWithinLength?: true;
 };
 
 export type Field = FieldFlags &
@@ -129,11 +136,13 @@ export type Field = FieldFlags &
 const NOSE_SHAPES = ['ogive', 'conical', 'ellipsoid', 'power', 'parabolic', 'haack'];
 
 // Recovery-device deployment triggers: the kernel DeployEvent vocabulary
-// (ComponentFactory.deployEventOf); the same strings .ork import/export use.
-// Apogee first: it is what a new part is created with and the most common
-// single-deploy trigger. A device with no event flies the kernel's default,
-// which the field names as its fallback.
-const DEPLOY_EVENTS = ['apogee', 'ejection', 'altitude', 'launch', 'lower_stage_separation', 'never'];
+// (ComponentFactory.deployEventOf). The .ork file spells them with the
+// underscores removed (OpenRocketSaver.enumToXMLName); the .ork reader and
+// writer map at that boundary. Apogee first: it is what a new part is created
+// with and the most common single-deploy trigger. A device with no event flies
+// the kernel's default, which the field names as its fallback. The
+// per-configuration deployment override offers this same list.
+export const DEPLOY_EVENTS = ['apogee', 'ejection', 'altitude', 'launch', 'lower_stage_separation', 'never'];
 
 // What a mass component represents (MassComponent.MassComponentType). Naming
 // only, no physics, and the same strings the .ork carries.
@@ -168,12 +177,15 @@ const SEPARATION_EVENTS = [
 const FIN_TABS: Field[] = [
   { key: 'tabLength', label: 'tabLength', kind: 'length', section: 'finTab' },
   { key: 'tabHeight', label: 'tabHeight', kind: 'length', section: 'finTab' },
-  { key: 'tabOffset', label: 'tabOffset', kind: 'length', section: 'finTab' },
+  { key: 'tabOffset', label: 'tabOffset', kind: 'length', section: 'finTab', signedWithinLength: true },
   {
     key: 'tabOffsetMethod',
     label: 'tabOffsetMethod',
     kind: 'select',
     options: ['top', 'middle', 'bottom'],
+    // Unset reads as the kernel's default (FinSet.tabOffsetMethod), which the
+    // bridge also falls back to.
+    fallback: 'middle',
     optI18n: 'tabOffsetMethod',
     section: 'finTab',
   },

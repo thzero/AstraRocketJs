@@ -106,6 +106,23 @@ describe('fetchCatalog: separate data host configured', () => {
     expect(seen.some((u) => u.startsWith('/data/'))).toBe(false);
   });
 
+  // The data host is refreshed by the catalog sync, which regenerates neither
+  // file; a deploy refreshes the build's copy, which is the newer one.
+  for (const name of ['materials', 'contributors'] as const)
+    it(`reads ${name} from the build, never from the data host`, async () => {
+      vi.stubEnv('VITE_DATA_BASE', REMOTE);
+      const seen = stubFetch({
+        [`${REMOTE}manifest.json`]: { body: { [name]: 'old' } },
+        [`${REMOTE}${name}.generated.json`]: { body: ['published'] },
+        '/data/manifest.json': { body: { [name]: 'new' } },
+        [`/data/${name}.generated.json`]: { body: ['deployed'] },
+      });
+      const fetchCatalog = await load();
+
+      await expect(fetchCatalog(name)).resolves.toEqual(['deployed']);
+      expect(seen).toEqual(['/data/manifest.json', `/data/${name}.generated.json?v=new`]);
+    });
+
   it('falls back to the in-build copy when the host is unreachable', async () => {
     vi.stubEnv('VITE_DATA_BASE', REMOTE);
     const seen = stubFetch({

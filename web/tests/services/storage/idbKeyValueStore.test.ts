@@ -469,3 +469,103 @@ describe('a QuotaExceededError is not a degraded IndexedDB', () => {
     boom.mockRestore();
   });
 });
+
+/**
+ * A connection the browser closes on its own (storage cleared in settings, a
+ * lost connection after the app goes to the background) must not stay cached:
+ * every transaction on it throws, and the session would sit on the fallback.
+ */
+describe('a connection closed underneath the store', () => {
+  /** Hands back each connection the store opens. */
+  const captureConnections = () => {
+    const opened: IDBDatabase[] = [];
+    // eslint-disable-next-line @typescript-eslint/unbound-method -- saved to wrap; called back with .apply(indexedDB, ...)
+    const realOpen = indexedDB.open;
+    const spy = vi.spyOn(indexedDB, 'open').mockImplementation((...args: Parameters<typeof realOpen>) => {
+      const req = realOpen.apply(indexedDB, args);
+      req.addEventListener('success', () => opened.push(req.result));
+      return req;
+    });
+    return { opened, restore: () => spy.mockRestore() };
+  };
+
+  it('reopens after a close event instead of falling back', async () => {
+    const { opened, restore } = captureConnections();
+    try {
+      await __resetIdbForTests();
+      const local = new FakeLocal();
+      const kv = new IndexedDbKeyValueStore(local);
+      await kv.set('warm', 'up');
+      expect(opened).toHaveLength(1);
+      const db = opened[0]!;
+      db.close();
+      db.onclose?.(new Event('close'));
+
+      expect(await kv.set('k', 'v')).toBe(true);
+      expect(local.map.has('k')).toBe(false); // in IndexedDB, not the fallback
+      expect(opened).toHaveLength(2);
+      expect(degraded()).toBe(false);
+    } finally {
+      restore();
+    }
+  });
+
+  it('reopens when the closed handle is still cached with no close event', async () => {
+    const { opened, restore } = captureConnections();
+    try {
+      await __resetIdbForTests();
+      const local = new FakeLocal();
+      const kv = new IndexedDbKeyValueStore(local);
+      await kv.set('lib', '["a"]');
+      opened[0]!.close();
+
+      expect(await kv.update('lib', (raw) => raw + '!')).toBe(true);
+      expect(await kv.get('lib')).toBe('["a"]!');
+      expect(local.map.size).toBe(0);
+      expect(degraded()).toBe(false);
+    } finally {
+      restore();
+    }
+  });
+
+  it('a later session reads the fallback copy over an IndexedDB entry the demote could not delete', async () => {
+    // IndexedDB still holds the old value; the newer write went to the
+    // fallback and the delete of the stale entry failed with it.
+    const kv = new IndexedDbKeyValueStore(new FakeLocal());
+    await kv.set('k', 'old');
+    const local = new FakeLocal();
+    local.map.set('k', 'new');
+
+    await __resetIdbForTests();
+    const next = new IndexedDbKeyValueStore(new FakeLocal(local.map));
+    expect(await next.get('k')).toBe('new');
+    // Moved into IndexedDB, so the two tiers agree again.
+    expect(local.map.has('k')).toBe(false);
+    await __resetIdbForTests();
+    expect(await new IndexedDbKeyValueStore(new FakeLocal()).get('k')).toBe('new');
+  });
+
+  it('an update in a later session hands the reducer the fallback copy', async () => {
+    const kv = new IndexedDbKeyValueStore(new FakeLocal());
+    await kv.set('lib', '["old"]');
+    const local = new FakeLocal();
+    local.map.set('lib', '["new"]');
+
+    await __resetIdbForTests();
+    const next = new IndexedDbKeyValueStore(local);
+    const seen: (string | null)[] = [];
+    await next.update('lib', (raw) => {
+      seen.push(raw);
+      return raw;
+    });
+    expect(seen).toEqual(['["new"]']);
+  });
+
+  it('a successful write clears an older fallback copy', async () => {
+    const local = new FakeLocal();
+    local.map.set('k', 'older');
+    const kv = new IndexedDbKeyValueStore(local);
+    expect(await kv.set('k', 'newest')).toBe(true);
+    expect(local.map.has('k')).toBe(false);
+  });
+});

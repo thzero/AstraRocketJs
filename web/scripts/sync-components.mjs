@@ -144,6 +144,9 @@ const push = (p) => {
   seen.add(k);
   components.push(p);
 };
+// The part number is trimmed here, and the desktop keeps trailing spaces;
+// sync-preset-digests gives a row it matches the desktop's own spelling, which
+// is the string a saved `.ork` has to carry for the desktop to find the part.
 const common = (b) => ({
   mfr: str(b, 'Manufacturer') || '?',
   partNo: str(b, 'PartNumber') || '',
@@ -201,6 +204,8 @@ for (const { name: f, text } of sources) {
     });
   }
 
+  // The canopy only. Its lines, packed size and materials are what the
+  // desktop's loader resolves, and sync-preset-digests adds them from there.
   for (const b of blocks(text, 'Parachute')) {
     const diameter = lenM(b, 'Diameter');
     if (!diameter) continue;

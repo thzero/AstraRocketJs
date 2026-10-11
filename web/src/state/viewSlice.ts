@@ -1,5 +1,5 @@
 import type { StateCreator } from 'zustand';
-import { isResultView, type Tab, type DesignPane, type ViewMode } from './tabs';
+import { isResultView, type Tab, type DesignPane, type TwoDView, type ViewMode } from './tabs';
 import type { WorkspaceState } from './store';
 
 /**
@@ -12,7 +12,7 @@ export interface ViewSlice {
   /** Which half of the Design tab a phone shows; ignored at lg+, where both do. */
   designPane: DesignPane;
   view: ViewMode;
-  twoD: 'side' | 'aft';
+  twoD: TwoDView;
   roll: number; // 2D fin-spin, radians, kept in [0, 2π)
   resetKey: number; // bump to remount the 2D schematic
 
@@ -20,7 +20,7 @@ export interface ViewSlice {
   /** Open the Design tab on one of its two phone panes (see {@link DesignPane}). */
   setDesignPane: (pane: DesignPane) => void;
   setView: (view: ViewMode) => void;
-  setTwoD: (v: 'side' | 'aft') => void;
+  setTwoD: (v: TwoDView) => void;
   setRoll: (roll: number) => void;
   rollBy: (d: number) => void;
   resetView: () => void;

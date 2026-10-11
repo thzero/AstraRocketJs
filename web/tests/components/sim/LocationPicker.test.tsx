@@ -97,6 +97,18 @@ describe('LocationPicker', () => {
     expect(onCommit).toHaveBeenCalled();
   });
 
+  /**
+   * A location saved with no elevation (a tool site left to the terrain model)
+   * applies a blank elevation, not sea level and not the previous site's.
+   */
+  it('applies an unknown elevation as blank and recognizes it on screen', async () => {
+    setLaunchLocationStore(memoryStore([{ ...HOME, id: 'club', name: 'Club field', launchAltitudeM: null }]));
+    const { onChange } = render();
+    await waitFor(() => screen.getByRole('option', { name: 'Club field' }));
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'club' } });
+    expect(onChange).toHaveBeenCalledWith({ latitudeDeg: 39.05, longitudeDeg: -104.8, launchAltitudeM: null });
+  });
+
   it('returns the site to the launch defaults when Custom location is picked', async () => {
     // The select's value is derived from the fields, so the option has to change
     // the fields or it is inert: React would put the matching location straight

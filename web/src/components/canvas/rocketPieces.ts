@@ -36,10 +36,10 @@ const nodeColor = (n: ComponentNode, palette: PartPalette): string => colorOf(n,
  *  packed recovery gear and mass objects. `DISC_TYPES` are the made parts. */
 const PACKED_TYPES = new Set(['parachute', 'streamer', 'shockcord', 'masscomponent']);
 
-// Axial placement is the shared `schematicGeometry.axialStart`, not a copy: for
-// the `absolute` method the 2D view and the kernel add the parent's start to
-// `pos.offset`, so a second implementation puts an absolutely positioned child in
-// a different place in 3D than in 2D.
+// Axial placement is the shared `position.axialStart`, not a copy: an
+// `absolute` child is measured from the nose tip, as the kernel measures it, so
+// a second implementation puts an absolutely positioned child in a different
+// place in 3D than in 2D.
 
 /** A shoulder: the reduced-diameter stub that plugs into the tube next door. */
 interface Shoulder {
@@ -341,8 +341,8 @@ export function buildPieces(
         for (const off of ringInstanceOffsets(count, podRadius, angleOffset)) {
           const m = new THREE.Matrix4()
             .makeRotationX(off.angle)
-            .multiply(new THREE.Matrix4().makeTranslation(podStart, podRadius, 0));
-          addChain(podChain, xform ? new THREE.Matrix4().copy(xform).multiply(m) : m);
+            .multiply(new THREE.Matrix4().makeTranslation(0, podRadius, 0));
+          addChain(podChain, xform ? new THREE.Matrix4().copy(xform).multiply(m) : m, podStart);
         }
       } else if (DISC_TYPES.has(child.type)) {
         // Centering rings, couplers, bulkheads and engine blocks, at the
@@ -388,11 +388,12 @@ export function buildPieces(
     }
   };
 
-  // Builds an axial nose→tail chain in its local frame; `xform` (when present)
-  // is baked into every piece to place an off-axis pod instance. Returns the
-  // chain's axial length.
-  const addChain = (nodes: ComponentNode[], xform?: THREE.Matrix4): number => {
-    let x = 0;
+  // Builds an axial nose→tail chain from rocket-frame station `x0`; `xform`
+  // (when present) is baked into every piece to place an off-axis pod instance,
+  // and only turns and lifts it, so every station stays in the rocket frame an
+  // `absolute` child is measured in. Returns the station the chain ends at.
+  const addChain = (nodes: ComponentNode[], xform?: THREE.Matrix4, x0 = 0): number => {
+    let x = x0;
     for (const n of nodes) {
       curId = n.id;
       const len = partLength(n);
@@ -429,17 +430,11 @@ export function buildPieces(
       } else if (n.type === 'bodytube') {
         const R = num(n, 'outerRadius', KERNEL_DEFAULTS.bodytube.outerRadius);
         // Hollow: the wall the part list already carries, revolved, so a
-        // cutaway shows a wall and a bore instead of a solid rod.
-        const wall = num(n, 'thickness', COMPONENT_DEFAULTS.bodytube.thickness);
-        place(
-          `body${k++}`,
-          annulusGeometry(R, R - wall, len),
-          nodeColor(n, palette),
-          [x, 0, 0],
-          undefined,
-          xform,
-          true,
-        );
+        // cutaway shows a wall and a bore instead of a solid rod. A filled tube
+        // is the solid rod the kernel flies (BodyTube.setFilled), whatever wall
+        // thickness it still carries.
+        const bore = n['filled'] === true ? 0 : R - num(n, 'thickness', COMPONENT_DEFAULTS.bodytube.thickness);
+        place(`body${k++}`, annulusGeometry(R, bore, len), nodeColor(n, palette), [x, 0, 0], undefined, xform, true);
         maxR = Math.max(maxR, R);
         // Min-diameter mount: a motor loaded directly in this body tube.
         const tubeMotor = n.id ? motors?.[n.id] : undefined;

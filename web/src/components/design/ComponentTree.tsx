@@ -256,7 +256,9 @@ function Row({
           </span>
         )}
         <div className="ml-auto flex shrink-0 items-center gap-1 pl-2">
-          {det && <span className="text-[11px] tabular-nums text-ink-faint">{det}</span>}
+          {det && (
+            <span className={`text-[11px] tabular-nums ${selected ? 'text-ink-muted' : 'text-ink-faint'}`}>{det}</span>
+          )}
           {/* Tabbable only on the tree's tab stop row, so the tree stays one
               stop plus the export button of the row it is on. */}
           <ComponentExportButton node={node} tabIndex={selectable && id === tabbableId ? 0 : -1} />

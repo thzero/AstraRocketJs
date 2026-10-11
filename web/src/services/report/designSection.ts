@@ -2,7 +2,18 @@ import type { RocketTree } from '../../engine/openRocketEngine';
 import type { ReportModel } from './reportModel';
 import { rocketSideView } from './reportGeometry';
 import { pageFrame, sideViewOrigin, sideViewScale } from './layout';
-import { ensure, fillScaled, heading, kvGrid, sectionBreak, sub, summaryRows, type PdfPage } from './pdfPage';
+import {
+  drawText,
+  ensure,
+  fillScaled,
+  heading,
+  kvGrid,
+  sectionBreak,
+  setStyle,
+  sub,
+  summaryRows,
+  type PdfPage,
+} from './pdfPage';
 
 /**
  * The design report: the title, the fit-to-page side view, the rocket's
@@ -37,18 +48,12 @@ function writeSideView(p: PdfPage, tree: RocketTree): void {
 }
 
 function writeDesignHeader(p: PdfPage, model: ReportModel): void {
-  const { doc, M, t } = p;
-  doc
-    .setFont('helvetica', 'bold')
-    .setFontSize(16)
-    .setTextColor(20)
-    .text(model.name, M, p.y + 4);
+  const { M, t } = p;
+  setStyle(p, 'bold').setFontSize(16).setTextColor(20);
+  drawText(p, model.name, M, p.y + 4);
   p.y += 6;
-  doc
-    .setFont('helvetica', 'normal')
-    .setFontSize(9)
-    .setTextColor(90)
-    .text(`${t('report.stages')}: ${model.stages.length}`, M, p.y + 2);
+  setStyle(p, 'normal').setFontSize(9).setTextColor(90);
+  drawText(p, `${t('report.stages')}: ${model.stages.length}`, M, p.y + 2);
   p.y += 6;
 }
 

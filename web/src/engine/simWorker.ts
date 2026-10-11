@@ -8,7 +8,7 @@
  */
 import { initEngine, resetEngine, setKernelLengthUnit } from './openRocketEngine';
 import { buildConfiguredRocket } from '../services/design/buildRocket';
-import type { WorkerRequest, WorkerResponse } from './simProtocol';
+import type { WorkerReady, WorkerRequest, WorkerResponse } from './simProtocol';
 import { errorMessage } from '../services/app/errorMessage';
 
 const ctx = self as unknown as DedicatedWorkerGlobalScope;
@@ -34,7 +34,9 @@ ctx.onmessage = async (e: MessageEvent<WorkerRequest>) => {
   const id = req.id;
   const reply = (r: WorkerResponse) => ctx.postMessage(r);
   ready ??= initEngine(undefined, req.engine).then(
-    () => undefined,
+    () => {
+      ctx.postMessage({ ready: true } satisfies WorkerReady);
+    },
     (err: unknown) => {
       fatal = `sim worker engine failed to load: ${errorMessage(err)}`;
     },
@@ -52,9 +54,9 @@ ctx.onmessage = async (e: MessageEvent<WorkerRequest>) => {
       case 'simulate': {
         // Narrowed by the discriminated union, not cast: `req.args` is a
         // SimPayload here and nothing else.
-        const { tree, config, options } = req.args;
+        const { tree, config, options, lengthUnit } = req.args;
         // The flight's airframe-step warnings, in the unit the app shows.
-        setKernelLengthUnit(req.lengthUnit);
+        setKernelLengthUnit(lengthUnit ?? req.lengthUnit);
         // This worker only ever holds sim rockets; clear prior handles so the
         // engine's handle registry doesn't grow across runs.
         resetEngine();

@@ -157,7 +157,7 @@ export function MotorGrid({
                       {c.always && m.custom && <span className="mr-1 text-warn-400">★</span>}
                       {c.cell(m, u, t)}
                       {c.always && !hasCurve(m) && (
-                        <span className="ml-1.5 rounded bg-elevated px-1 py-0.5 text-[9px] font-normal uppercase tracking-wide text-ink-muted">
+                        <span className="ml-1.5 rounded bg-elevated px-1 py-0.5 text-[9px] font-normal uppercase tracking-wide text-ink-soft">
                           {t('dash.noCurve')}
                         </span>
                       )}

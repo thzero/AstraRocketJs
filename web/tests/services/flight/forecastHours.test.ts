@@ -94,6 +94,23 @@ describe('flyForecastHours', () => {
     expect(hours.map((h) => h.offset)).toEqual([-1, 0, 1, 2]);
   });
 
+  // The worker decides airframe-step warnings in this unit; it must arrive with
+  // each flight rather than be whatever the main thread last built with.
+  it("sends the user's length unit with each flight", async () => {
+    await flyForecastHours(
+      {
+        tree: { components: [] } as never,
+        config: { id: 'c', name: null, motors: {} } as never,
+        launch: launch as never,
+        source,
+        prefs: { lengthUnit: 'in' } as never,
+      },
+      { now: () => start * 1000 },
+    );
+    expect(flown).toHaveLength(5);
+    expect(flown.map((p) => p.lengthUnit)).toEqual(['in', 'in', 'in', 'in', 'in']);
+  });
+
   it('does not fly an hour outside the safety codes', async () => {
     const hours = await flyForecastHours(
       {

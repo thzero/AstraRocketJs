@@ -1,10 +1,11 @@
 // Build-time contributor list from the GitHub REST API.
 //
 // Writes public/data/contributors.generated.json: the people credited in the
-// About dialog. Like the motor, component and material catalogs this is a
-// build artifact: generated, committed, and served from the app's own origin,
-// so the app makes no runtime call to github.com (see the privacy copy in
-// src/i18n/locales/*.json).
+// About dialog. It is a build artifact: generated, committed, and served from
+// the app's own origin, so the app makes no runtime call to github.com (see the
+// privacy copy in src/i18n/locales/*.json). Unlike the motor and component
+// catalogs it is never read from the `data` branch (src/services/app/remoteData.ts),
+// so the copy a deploy builds is the one users get.
 //
 // Avatars are inlined as data URIs for the same reason: an <img> pointing at
 // avatars.githubusercontent.com would be a third-party request from every

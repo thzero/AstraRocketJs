@@ -172,6 +172,21 @@ describe('isCustomMotor rejects what would reach the kernel broken', () => {
     expect(await survives({ ...good(), samples: [{ time: 0 }] })).toBe(0);
   });
 
+  it('drops a negative thrust and a launch CG outside the motor, which ThrustCurveMotor refuses', async () => {
+    expect(
+      await survives({
+        ...good(),
+        samples: [
+          { time: 0, thrust: 0 },
+          { time: 1, thrust: -1 },
+        ],
+      }),
+    ).toBe(0);
+    expect(await survives({ ...good(), cgMm: -1 })).toBe(0);
+    expect(await survives({ ...good(), cgMm: 71 })).toBe(0);
+    expect(await survives({ ...good(), cgMm: 70 })).toBe(1);
+  });
+
   it('drops a row with no class: motorDb sorts on it and would throw', async () => {
     const { class: _drop, ...noClass } = good();
     expect(await survives(noClass)).toBe(0);

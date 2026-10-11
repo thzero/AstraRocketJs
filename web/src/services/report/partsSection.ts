@@ -2,7 +2,7 @@ import type { ReportModel } from './reportModel';
 import { fmtNum, partLabel } from '../../i18n/format';
 import { NO_VALUE } from '../../i18n/noValue';
 import { siToUi } from '../../prefs/units';
-import { heading, len, q, qv, sectionBreak, sub, table, type Col, type PdfPage } from './pdfPage';
+import { heading, len, q, qv, sectionBreak, sub, table, type Col, type PdfPage, type T } from './pdfPage';
 
 type PartRow = ReportModel['partsByStage'][number]['rows'][number];
 
@@ -11,12 +11,7 @@ export function writePartsSection(p: PdfPage, partsStages: ReportModel['partsByS
   const { t, CW, opts } = p;
   sectionBreak(p);
   heading(p, t('report.partsDetail'));
-  const cols: Col[] = [
-    { title: t('report.part'), w: CW * 0.3 },
-    { title: t('report.material'), w: CW * 0.25 },
-    { title: t('report.dimensions'), w: CW * 0.32 },
-    { title: t('report.mass'), w: CW * 0.13, align: 'right' },
-  ];
+  const cols = partColumns(t, CW);
   const toRow = (r: PartRow) => partRow(p, r);
   if (opts.showByStage) {
     for (const st of partsStages) {
@@ -26,6 +21,16 @@ export function writePartsSection(p: PdfPage, partsStages: ReportModel['partsByS
   } else {
     table(p, cols, partsStages.flatMap((st) => st.rows).map(toRow));
   }
+}
+
+/** The components table's columns, across a content width of `w` millimeters. */
+export function partColumns(t: T, w: number): Col[] {
+  return [
+    { title: t('report.part'), w: w * 0.3 },
+    { title: t('report.material'), w: w * 0.25 },
+    { title: t('report.dimensions'), w: w * 0.32 },
+    { title: t('report.mass'), w: w * 0.13, align: 'right' },
+  ];
 }
 
 function partRow(p: PdfPage, r: PartRow): string[] {

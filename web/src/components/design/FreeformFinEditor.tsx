@@ -102,9 +102,14 @@ export function FreeformFinEditor({
     }
   };
 
+  // The closing edge (last point back to the first) is the root on the body,
+  // not part of the outline: FreeformFinSet.addPoint refuses an index past the
+  // root trailing edge, and a point there would become the new trailing edge
+  // at half the root's length.
   const insertAfter = (i: number) => {
+    if (i >= last) return;
     const a = pts[i]!,
-      b = pts[(i + 1) % pts.length]!;
+      b = pts[i + 1]!;
     onChange([...pts.slice(0, i + 1), [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2] as Pt, ...pts.slice(i + 1)]);
     setSel(i + 1);
     onCommit?.();
@@ -189,9 +194,10 @@ export function FreeformFinEditor({
           stroke={token('warn-400')}
           strokeWidth="1.5"
         />
-        {/* edge midpoints: click to insert a vertex */}
-        {pts.map((p, i) => {
-          const b = pts[(i + 1) % pts.length]!;
+        {/* edge midpoints: click to insert a vertex. None on the closing root
+            edge, where the kernel takes no point (see insertAfter). */}
+        {pts.slice(0, last).map((p, i) => {
+          const b = pts[i + 1]!;
           return (
             <circle
               key={`add-${i}`}

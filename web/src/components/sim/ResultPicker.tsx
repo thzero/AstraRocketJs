@@ -30,7 +30,7 @@ export function ResultPicker({ fallbackName }: { fallbackName: string }) {
   const chosen = useWorkspaceStore((s) => s.resultSimId);
   const lastRunIds = useWorkspaceStore((s) => s.lastRunIds);
   const setChosen = useWorkspaceStore((s) => s.setResultSimId);
-  const { open, toggle, close, wrapRef, triggerRef } = useMenuPopover();
+  const { open, toggle, closeAndRestore, wrapRef, triggerRef } = useMenuPopover();
 
   // The simulations the last run flew, which is what there is to choose between.
   const ran = lastRunIds
@@ -79,7 +79,7 @@ export function ResultPicker({ fallbackName }: { fallbackName: string }) {
                 aria-checked={on}
                 onClick={() => {
                   setChosen(s.id);
-                  close();
+                  closeAndRestore();
                 }}
                 className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs hover:bg-raised ${
                   on ? 'text-accent-200' : 'text-ink'

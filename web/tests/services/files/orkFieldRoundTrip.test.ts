@@ -122,6 +122,50 @@ describe('recovery packed size', () => {
   });
 });
 
+describe('mass component automatic packed radius', () => {
+  // MassObjectSaver writes `auto <radius>` for any mass object whose radius
+  // follows its tube, and MassObjectHandler reads the marker back as the flag.
+  // A 13 mm tube with a 1 mm wall: the automatic radius is its 12 mm bore.
+  const tree = {
+    components: [
+      node({
+        type: 'stage',
+        id: 's1',
+        children: [
+          node({
+            type: 'bodytube',
+            id: 'body',
+            length: 0.3,
+            outerRadius: 0.013,
+            thickness: 0.001,
+            children: [
+              node({ type: 'masscomponent', id: 'm', mass: 0.05, length: 0.03, radius: 0.012, radiusAuto: true }),
+            ],
+          }),
+        ],
+      }),
+    ],
+  } as unknown as RocketTree;
+  const xml = exportOrk({ name: 'M', tree });
+
+  it('writes the marker and the value', () => {
+    expect(xml).toContain('<packedradius>auto 0.012</packedradius>');
+  });
+
+  it('reads the marker back as the automatic flag beside the value', () => {
+    const m = findByType(importOrk(xml).tree, 'masscomponent')!;
+    expect(m['radiusAuto']).toBe(true);
+    expect(m['radius']).toBeCloseTo(0.012, 12);
+  });
+
+  it('reads a plain radius as fixed', () => {
+    const fixed = exportOrk({ name: 'M', tree: wrap([node({ type: 'masscomponent', id: 'm', radius: 0.01 })]) });
+    const m = findByType(importOrk(fixed).tree, 'masscomponent')!;
+    expect(m['radiusAuto']).toBeUndefined();
+    expect(m['radius']).toBe(0.01);
+  });
+});
+
 describe('rail button geometry and material', () => {
   const tree = wrap([
     node({

@@ -386,3 +386,24 @@ describe('the hostile-input caps fire', () => {
     expect(() => parseRse(rse(ATTRS, rows))).not.toThrow();
   });
 });
+
+describe('parseRse refuses what ThrustCurveMotor.Builder.build() refuses', () => {
+  it('a negative thrust', () => {
+    expect(() => parseRse(rse(ATTRS, DATA.replace('f="380"', 'f="-380"')))).toThrow(
+      expect.objectContaining({ key: 'errors.motorFile.rseNegativeThrust', values: { motor: 'J350' } }),
+    );
+  });
+
+  it('a CG before the start or past the end of the motor', () => {
+    for (const cg of ['-1', '187']) {
+      expect(() => parseRse(rse(ATTRS, DATA.replace('cg="90"', `cg="${cg}"`)))).toThrow(
+        expect.objectContaining({ key: 'errors.motorFile.rseCgOutside', values: { motor: 'J350', length: 186 } }),
+      );
+    }
+  });
+
+  it('ignores a CG column the file asks to have recomputed', () => {
+    const auto = ATTRS.replace('auto-calc-cg="0"', 'auto-calc-cg="1"');
+    expect(parseRse(rse(auto, DATA.replace('cg="90"', 'cg="500"')))[0]!.cgMm).toBeUndefined();
+  });
+});

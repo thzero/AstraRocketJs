@@ -91,7 +91,7 @@ export function MotorCombinePane({ motors }: { motors: CatalogMotor[] }) {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-3">
-      <div className="text-[11px] font-semibold uppercase tracking-wider text-warn-400/90">{t('dash.combined')}</div>
+      <div className="text-[11px] font-semibold uppercase tracking-wider text-warn-300">{t('dash.combined')}</div>
       <div className="mt-1 flex items-center gap-2">
         <span className="rounded bg-ok-500/15 px-1.5 py-0.5 text-xs font-semibold text-ok-300">
           {impulseClass(combined.totalImpulse)}

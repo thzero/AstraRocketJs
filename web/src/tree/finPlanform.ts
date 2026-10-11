@@ -1,6 +1,7 @@
 import type { ComponentNode, RocketTree } from '../engine/openRocketEngine';
 import { num, positionOf } from './nodeProps';
 import { findWithParent } from './treeWalk';
+import { parentStartOf } from './axialRebase';
 import { axialLength, freeformPoints, freeformRootChord, partLength, startFromPosition } from './position';
 import { stationRadius } from './shapeProfile';
 import { isPlanarFinSet } from './tubefins';
@@ -294,7 +295,7 @@ export function parentRadiusOf(tree: RocketTree, nodeId: string): number | null 
     const hit = findWithParent(stage.children ?? [], nodeId, stage);
     if (!hit) continue;
     if (!hit.parent) return null;
-    if (isPlanarFinSet(hit.node.type)) return finTabLimit(hit.node, hit.parent);
+    if (isPlanarFinSet(hit.node.type)) return finTabLimit(hit.node, hit.parent, parentStartOf(tree, hit.parent));
     return hit.parent.type === 'bodytube' ? bodyTubeRadius(hit.parent) : null;
   }
   return null;
@@ -317,13 +318,16 @@ export function parentRadiusOf(tree: RocketTree, nodeId: string): number | null 
  * Meaningful for a fin set that carries a tab: without one the bridge leaves
  * the kernel's initial tab in place, and nothing here cuts a tab to clamp.
  * `null` when the parent is not a symmetric body.
+ *
+ * `parentStart` is the parent's leading edge in the rocket frame, which an
+ * `absolute` fin set is placed against.
  */
-export function finTabLimit(fin: ComponentNode, parent: ComponentNode): number | null {
+export function finTabLimit(fin: ComponentNode, parent: ComponentNode, parentStart: number): number | null {
   if (parent.type === 'bodytube') return bodyTubeRadius(parent);
   if (parent.type !== 'nosecone' && parent.type !== 'transition') return null;
   const lead = finTabFrontEdge(fin, finRootChord(fin));
   const trail = lead + num(fin, 'tabLength', 0);
-  const finFront = startFromPosition(positionOf(fin), axialLength(fin), partLength(parent));
+  const finFront = startFromPosition(positionOf(fin), axialLength(fin), partLength(parent), parentStart);
   return Math.min(stationRadius(parent, finFront + lead), stationRadius(parent, finFront + trail));
 }
 

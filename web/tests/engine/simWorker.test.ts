@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { WorkerRequest, WorkerResponse } from '../../src/engine/simProtocol';
+import type { WorkerReady, WorkerRequest, WorkerResponse } from '../../src/engine/simProtocol';
 
 /**
  * The worker's message loop, driven directly: `self` is the module's
@@ -19,21 +19,28 @@ vi.mock('../../src/services/design/buildRocket', () => ({
 }));
 
 const posted: WorkerResponse[] = [];
+/** The unprompted engine-ready notices, kept apart from the replies. */
+const readies: WorkerReady[] = [];
 /** The stand-in for DedicatedWorkerGlobalScope the module installs its handler on. */
 const g: {
   onmessage: ((e: { data: WorkerRequest }) => Promise<void>) | null;
-  postMessage: (m: WorkerResponse) => void;
+  postMessage: (m: WorkerResponse | WorkerReady) => void;
 } = {
   onmessage: null,
-  postMessage: (m) => posted.push(m),
+  postMessage: (m) => {
+    if ('ready' in m) readies.push(m);
+    else posted.push(m);
+  },
 };
 
 beforeEach(async () => {
   posted.length = 0;
+  readies.length = 0;
   g.onmessage = null;
   vi.stubGlobal('self', g);
   engine.initEngine.mockReset();
   engine.resetEngine.mockReset();
+  engine.setKernelLengthUnit.mockReset();
   vi.resetModules();
   await import('../../src/engine/simWorker');
 });
@@ -98,5 +105,26 @@ describe('simWorker', () => {
     });
     await send({ id: 3, method: 'simulate', args: {} as never });
     expect(posted).toEqual([{ id: 3, ok: false, error: 'bad geometry' }]);
+  });
+
+  it('says once that its engine is ready, so the client can start the call timeout from there', async () => {
+    engine.initEngine.mockResolvedValue('js');
+    await send({ id: 1, method: 'ping', args: null });
+    await send({ id: 2, method: 'ping', args: null });
+    expect(readies).toEqual([{ ready: true }]);
+  });
+
+  it('does not say ready when the engine failed to load', async () => {
+    engine.initEngine.mockRejectedValue(new Error('no engine'));
+    await send({ id: 1, method: 'ping', args: null });
+    expect(readies).toEqual([]);
+  });
+
+  it("flies in the unit the flight carries, not the main thread's", async () => {
+    engine.initEngine.mockResolvedValue('js');
+    await send({ id: 1, method: 'simulate', args: { lengthUnit: 'in' } as never, lengthUnit: 'cm' });
+    expect(engine.setKernelLengthUnit).toHaveBeenCalledWith('in');
+    await send({ id: 2, method: 'simulate', args: {} as never, lengthUnit: 'cm' });
+    expect(engine.setKernelLengthUnit).toHaveBeenLastCalledWith('cm');
   });
 });

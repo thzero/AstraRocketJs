@@ -3,12 +3,17 @@ import com.google.inject.Injector;
 import com.google.inject.Module;
 import info.openrocket.core.database.ComponentPresetDatabase;
 import info.openrocket.core.database.ComponentPresetDatabaseLoader;
+import info.openrocket.core.material.Material;
 import info.openrocket.core.plugin.PluginModule;
 import info.openrocket.core.preset.ComponentPreset;
+import info.openrocket.core.preset.TypedKey;
+import info.openrocket.core.rocketcomponent.Parachute;
 import info.openrocket.core.startup.Application;
 import info.openrocket.core.startup.CoreModule;
 
 import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Dump every component preset an OpenRocket build holds, with the digest that
@@ -36,11 +41,35 @@ import java.io.PrintWriter;
  * pointed at, which is why the script that drives this takes that path.
  *
  * Output: one TAB-separated row per preset,
- * `TYPE  manufacturer  partNo  digest  mass  description`, the mass in
- * kilograms and empty when the preset states none. The description is last
- * because it is free text; tabs and line breaks in it are flattened to spaces.
+ *
+ *   TYPE  names  partNo  digest  mass  geometry  parachute  description
+ *
+ * - names: every name the maker goes by (`Manufacturer.getAllNames()`), joined
+ *   by `|`. The desktop folds aliases into one maker ("LOC Precision" and "LOC"
+ *   are both "LOC/Precision") and finds a part by any of them.
+ * - partNo: exactly as the desktop holds it, trailing spaces included, because
+ *   `ComponentPresetDatabase.find` compares it with `equals`.
+ * - mass: kilograms, empty when the preset states none.
+ * - geometry: `Key=value` pairs joined by `;`, every stated size in meters, so
+ *   parts that share a maker, part number and description can be told apart.
+ * - parachute: empty for any other type; otherwise what `Parachute.loadFromPreset`
+ *   leaves on a new parachute, as `Key=value` pairs joined by `;` (see
+ *   {@link #parachute}).
+ * - description: last because it is free text; tabs and line breaks in it are
+ *   flattened to spaces.
  */
 public class PresetDump {
+    /** The sizes a catalog row also states, by the preset key that holds them. */
+    private static final List<TypedKey<Double>> GEOMETRY = List.of(
+            ComponentPreset.OUTER_DIAMETER,
+            ComponentPreset.INNER_DIAMETER,
+            ComponentPreset.LENGTH,
+            ComponentPreset.DIAMETER,
+            ComponentPreset.FORE_OUTER_DIAMETER,
+            ComponentPreset.AFT_OUTER_DIAMETER,
+            ComponentPreset.WIDTH,
+            ComponentPreset.HEIGHT);
+
     public static void main(String[] args) throws Exception {
         if (args.length < 1) {
             System.err.println("usage: PresetDump <out.tsv>");
@@ -64,16 +93,65 @@ public class PresetDump {
             for (ComponentPreset p : db.listAll()) {
                 out.println(String.join("\t",
                         p.getType().name(),
-                        p.getManufacturer().getSimpleName(),
+                        String.join("|", new ArrayList<>(p.getManufacturer().getAllNames())),
                         p.getPartNo(),
                         p.getDigest(),
                         p.has(ComponentPreset.MASS) ? Double.toString(p.get(ComponentPreset.MASS)) : "",
+                        geometry(p),
+                        p.getType() == ComponentPreset.Type.PARACHUTE ? parachute(p) : "",
                         p.has(ComponentPreset.DESCRIPTION)
-                                ? p.get(ComponentPreset.DESCRIPTION).replaceAll("[\\t\\r\\n]+", " ").trim()
+                                ? flat(p.get(ComponentPreset.DESCRIPTION))
                                 : ""));
                 rows++;
             }
         }
         System.out.println("presets=" + rows);
+    }
+
+    private static String flat(String s) {
+        return s.replaceAll("[\\t\\r\\n]+", " ").trim();
+    }
+
+    private static String geometry(ComponentPreset p) {
+        List<String> out = new ArrayList<>();
+        for (TypedKey<Double> k : GEOMETRY) {
+            if (p.has(k)) out.add(k.getName() + "=" + p.get(k));
+        }
+        return String.join(";", out);
+    }
+
+    /**
+     * What `Parachute.loadFromPreset` applies, read back from a parachute it was
+     * applied to: the line count and length, the packed length and diameter it
+     * sets only when the preset states them, the canopy and line materials it
+     * takes from the preset (absent when it falls back to the default), and the
+     * mass the desktop then gives the canopy and lines. Material names are
+     * flattened the way the description is, and never hold `;` or `=`.
+     */
+    private static String parachute(ComponentPreset p) {
+        Parachute chute = new Parachute();
+        chute.loadPreset(p);
+        List<String> out = new ArrayList<>();
+        out.add("LineCount=" + chute.getLineCount());
+        out.add("LineLength=" + chute.getLineLength());
+        if (p.has(ComponentPreset.PACKED_LENGTH) && p.get(ComponentPreset.PACKED_LENGTH) > 0) {
+            out.add("PackedLength=" + p.get(ComponentPreset.PACKED_LENGTH));
+        }
+        if (p.has(ComponentPreset.PACKED_DIAMETER) && p.get(ComponentPreset.PACKED_DIAMETER) > 0) {
+            out.add("PackedDiameter=" + p.get(ComponentPreset.PACKED_DIAMETER));
+        }
+        if (p.has(ComponentPreset.MATERIAL) && chute.getMaterial() == p.get(ComponentPreset.MATERIAL)) {
+            material(out, "Material", chute.getMaterial());
+        }
+        if (p.has(ComponentPreset.LINE_MATERIAL) && chute.getLineMaterial() == p.get(ComponentPreset.LINE_MATERIAL)) {
+            material(out, "LineMaterial", chute.getLineMaterial());
+        }
+        out.add("ComponentMass=" + chute.getComponentMass());
+        return String.join(";", out);
+    }
+
+    private static void material(List<String> out, String key, Material m) {
+        out.add(key + "=" + flat(m.getName()).replaceAll("[;=]", " "));
+        out.add(key + "Density=" + m.getDensity());
     }
 }

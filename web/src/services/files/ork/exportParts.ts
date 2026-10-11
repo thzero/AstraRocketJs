@@ -82,9 +82,9 @@ export function position(
   dflt: ComponentPosition['method'] = 'top',
 ): void {
   const pos = node.position ?? { method: dflt, offset: 0 };
-  // An imported `absolute` position was rewritten to the parent frame on load
+  // A position rewritten to the parent frame on load keeps what the file said
   // (see ComponentPosition.ork). Write the original back so a round-trip is
-  // byte-stable -- but only while the user has not moved the part, in which
+  // byte-stable, but only while the user has not moved the part, in which
   // case the current parent-relative position is the truthful one.
   const src = pos.ork && pos.method === 'top' && pos.ork.resolved === pos.offset ? pos.ork : pos;
   w.emit(depth, `<axialoffset method="${src.method}">${src.offset}</axialoffset>`);
@@ -185,6 +185,14 @@ export function airfoilXml(w: OrkWriter, depth: number, node: ComponentNode): vo
 }
 
 /**
+ * A deploy event as the .ork spells it: the kernel enum name lower-cased with
+ * the underscores removed (OpenRocketSaver.enumToXMLName), the only form
+ * DocumentConfig.findEnum matches. The underscored spelling reads on the desktop
+ * as an invalid parameter, and the device keeps its default event.
+ */
+export const deployEventXml = (ev: string): string => ev.replace(/_/g, '');
+
+/**
  * Per-configuration recovery deployment: when this device opens under each
  * configuration.
  *
@@ -206,7 +214,8 @@ export function deploymentConfigs(w: OrkWriter, depth: number, node: ComponentNo
       c.deployments === null ? designDeployment(node) : node.id ? (c.deployments[node.id] ?? {}) : {};
     if (Object.keys(o).length === 0) continue;
     w.emit(depth, `<deploymentconfiguration configid="${escapeXml(c.id)}">`);
-    if (o.deployEvent !== undefined) w.emit(depth + 1, `<deployevent>${escapeXml(o.deployEvent)}</deployevent>`);
+    if (o.deployEvent !== undefined)
+      w.emit(depth + 1, `<deployevent>${escapeXml(deployEventXml(o.deployEvent))}</deployevent>`);
     if (o.deployAltitude !== undefined) w.emit(depth + 1, `<deployaltitude>${o.deployAltitude}</deployaltitude>`);
     if (o.deployDelay !== undefined) w.emit(depth + 1, `<deploydelay>${o.deployDelay}</deploydelay>`);
     w.emit(depth, '</deploymentconfiguration>');

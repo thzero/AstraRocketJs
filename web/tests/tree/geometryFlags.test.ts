@@ -156,11 +156,14 @@ const TUBE: ComponentNode = {
   thickness: 0.001,
 } as unknown as ComponentNode;
 
+// The Filled checkbox leaves the wall thickness on the part, so each `filled`
+// toggle keeps it: a reader that reads the thickness and ignores the flag must
+// show up here as not reacting.
 const FLAGS: Flag[] = [
   { name: 'flipped nose cone', part: NOSE, on: { flipped: true } },
-  { name: 'filled nose cone', part: NOSE, on: { filled: true, thickness: undefined } },
-  { name: 'filled transition', part: TRANSITION, on: { filled: true, thickness: undefined } },
-  { name: 'filled body tube', part: TUBE, on: { filled: true, thickness: undefined } },
+  { name: 'filled nose cone', part: NOSE, on: { filled: true } },
+  { name: 'filled transition', part: TRANSITION, on: { filled: true } },
+  { name: 'filled body tube', part: TUBE, on: { filled: true } },
   { name: 'unclipped transition', part: TRANSITION, on: { clipped: false } },
 ];
 
@@ -224,4 +227,27 @@ describe('every shape flag reaches every reader', () => {
       });
     }
   }
+});
+
+describe('a filled body tube has no bore', () => {
+  /** The smallest distance of any vertex from the rocket axis (+X). */
+  const minRadius = (geo: THREE.BufferGeometry | null | undefined): number => {
+    const p = geo!.getAttribute('position');
+    let min = Infinity;
+    for (let i = 0; i < p.count; i++) min = Math.min(min, Math.hypot(p.getY(i), p.getZ(i)));
+    return min;
+  };
+  const filled = { ...TUBE, filled: true } as ComponentNode;
+  const bore = (TUBE['outerRadius'] as number) - (TUBE['thickness'] as number);
+  const view = (part: ComponentNode) => buildPieces(design(part)).pieces.find((p) => p.id === part.id)?.geometry;
+
+  it('prints as a solid rod, with the wall thickness still on the part', () => {
+    expect(minRadius(solidForNode(TUBE))).toBeCloseTo(bore, 7);
+    expect(minRadius(solidForNode(filled))).toBeCloseTo(0, 7);
+  });
+
+  it('draws in the 3D view as a solid rod', () => {
+    expect(minRadius(view(TUBE))).toBeCloseTo(bore, 7);
+    expect(minRadius(view(filled))).toBeCloseTo(0, 7);
+  });
 });

@@ -14,9 +14,19 @@ class FakeWorker {
   posts: { id: number; engine?: string; method?: string }[] = [];
   // Set per-test: how this worker answers a postMessage (default: never).
   static onPost: (self: FakeWorker, msg: { id: number }) => void = () => {};
+  /** Set per-test: hold back the engine-ready notice, as a worker still loading does. */
+  static cold = false;
+  private loaded = false;
   postMessage(msg: { id: number }) {
     this.posts.push(msg);
+    // The real worker loads its engine on the first request and says so.
+    if (!FakeWorker.cold && !this.loaded) this.ready();
     FakeWorker.onPost(this, msg);
+  }
+  /** Report the engine loaded, as the real worker does once, unprompted. */
+  ready() {
+    this.loaded = true;
+    this.onmessage?.({ data: { ready: true } } as MessageEvent);
   }
   /** Answer a request this worker is holding, as the real worker would. */
   reply(id: number, result: unknown = { ok: true }) {
@@ -38,6 +48,7 @@ function withCores(n: number) {
 beforeEach(() => {
   created.length = 0;
   FakeWorker.onPost = () => {}; // a hung worker: never replies
+  FakeWorker.cold = false;
   vi.stubGlobal(
     'Worker',
     // A regular function (not an arrow): vitest 5's spies keep the underlying
@@ -334,5 +345,66 @@ describe('simClient worker retirement', () => {
     fire(() => simulateInWorker(payload));
     // In this process there is no `?engine=` and no localStorage override: auto.
     expect(created[0]!.posts.map((p) => [p.method, p.engine])).toEqual([['ping', 'auto']]);
+  });
+});
+
+/**
+ * A cold worker answers only after its own engine load, which on a slow phone
+ * is tens of seconds. That wait is not the flight's: the call's timeout runs
+ * from the worker's ready notice, with a separate ceiling on the load itself.
+ */
+describe('a call on a cold worker', () => {
+  it('times the flight from the engine being ready, not from dispatch', async () => {
+    FakeWorker.cold = true;
+    const { simulateInWorker } = await import('../../src/engine/simClient');
+    const p = simulateInWorker(payload, { timeoutMs: 1000 });
+    let settled = false;
+    void p.then(
+      () => (settled = true),
+      () => (settled = true),
+    );
+    // Loading for far longer than the flight's own timeout.
+    await vi.advanceTimersByTimeAsync(20_000);
+    expect(settled).toBe(false);
+    expect(created[0]!.terminate).not.toHaveBeenCalled();
+    created[0]!.ready();
+    await vi.advanceTimersByTimeAsync(999);
+    created[0]!.reply(created[0]!.posts[0]!.id, { apogee: 7 });
+    await expect(p).resolves.toEqual({ apogee: 7 });
+  });
+
+  it('still times out a flight that hangs after the load', async () => {
+    FakeWorker.cold = true;
+    const { simulateInWorker, SimTimeoutError } = await import('../../src/engine/simClient');
+    const p = simulateInWorker(payload, { timeoutMs: 1000 });
+    const rejects = expect(p).rejects.toBeInstanceOf(SimTimeoutError);
+    await vi.advanceTimersByTimeAsync(5000);
+    created[0]!.ready();
+    await vi.advanceTimersByTimeAsync(1000);
+    await rejects;
+    expect(created[0]!.terminate).toHaveBeenCalledOnce();
+  });
+
+  it('fails a load that never finishes at the load ceiling', async () => {
+    FakeWorker.cold = true;
+    const { simulateInWorker, SimTimeoutError } = await import('../../src/engine/simClient');
+    const p = simulateInWorker(payload, { timeoutMs: 1000 });
+    const rejects = expect(p).rejects.toBeInstanceOf(SimTimeoutError);
+    await vi.advanceTimersByTimeAsync(119_999);
+    expect(created[0]!.terminate).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    await rejects;
+    expect(created[0]!.terminate).toHaveBeenCalledOnce();
+  });
+
+  it('gives a warm worker only the call timeout', async () => {
+    const { simulateInWorker, SimTimeoutError } = await import('../../src/engine/simClient');
+    fire(() => simulateInWorker(payload, { timeoutMs: 1000 }).then(() => undefined));
+    created[0]!.reply(created[0]!.posts[0]!.id);
+    await vi.advanceTimersByTimeAsync(0);
+    const p = simulateInWorker(payload, { timeoutMs: 1000 });
+    const rejects = expect(p).rejects.toBeInstanceOf(SimTimeoutError);
+    await vi.advanceTimersByTimeAsync(1000);
+    await rejects;
   });
 });

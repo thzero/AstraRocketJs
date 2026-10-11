@@ -77,6 +77,9 @@ export function parseEng(text: string): CustomMotor {
     if (fields.length !== 2 || !Number.isFinite(t) || !Number.isFinite(f)) {
       throw new KeyedError('errors.motorFile.engDataLine', { line: i + 1, text: lines[i]! });
     }
+    // ThrustCurveMotor refuses a negative thrust, and the bridge builds every
+    // seated motor through it, so the file is refused here as desktop drops it.
+    if (f! < 0) throw new KeyedError('errors.motorFile.engNegativeThrust', { motor: designation!, line: i + 1 });
     samples.push({ time: t!, thrust: f! });
   }
   if (samples.length < 2) throw new KeyedError('errors.motorFile.engNoCurve');

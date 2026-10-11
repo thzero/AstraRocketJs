@@ -111,6 +111,7 @@ const BASELINE = [
   'src/services/app/helpSearch.ts#resetHelpIndex',
   'src/services/weather/openMeteo.ts#resetWeatherState',
   'src/services/weather/openMeteo.ts#setWeatherTransport',
+  'src/services/report/reportFonts.ts#resetReportFontsForTests',
 ];
 
 describe('src exports reached only from tests are a decision', () => {

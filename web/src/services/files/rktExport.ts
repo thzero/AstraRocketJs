@@ -447,10 +447,7 @@ function clusterMembers(n: ComponentNode): ComponentNode[] {
 
 /** Station (m from the nose tip) of a part's front, placed in the current parent. */
 function stationOf(w: Writer, n: ComponentNode): number {
-  const pos = positionOf(n);
-  return pos.method === 'absolute'
-    ? pos.offset
-    : w.parentStart + startFromPosition(pos, axialLength(n), w.parentLength);
+  return w.parentStart + startFromPosition(positionOf(n), axialLength(n), w.parentLength, w.parentStart);
 }
 
 /**
@@ -539,6 +536,8 @@ export interface RktExportResult {
 
 /** RockSim numbers its stages from the nose down: 3 is the sustainer. */
 const STAGE_ELEMENTS = ['Stage3Parts', 'Stage2Parts', 'Stage1Parts'] as const;
+const STAGE_MASS_ELEMENTS = ['Stage3Mass', 'Stage2Mass', 'Stage1Mass'] as const;
+const STAGE_CG_ELEMENTS = ['Stage3CG', 'Stage2CGAlone', 'Stage1CGAlone'] as const;
 
 /**
  * Write a design as RockSim XML.
@@ -579,6 +578,23 @@ export function exportRkt(name: string, tree: RocketTree): RktExportResult {
   w.emit(2, '<RocketDesign>');
   w.emit(3, `<Name>${escapeXml(name)}</Name>`);
   w.emit(3, `<StageCount>${written}</StageCount>`);
+  // Each stage's mass and CG override, on the design as `StageDTO` writes them:
+  // grams and millimeters, nose down, with `UseKnownMass` set when any stage
+  // states a mass. The sustainer's CG tag is `Stage3CG` and the boosters' are
+  // `...CGAlone`, the names `RockSimHandler` reads back.
+  let knownMass = false;
+  stages.slice(0, written).forEach((stage, i) => {
+    const mass = numOpt(stage, 'overrideMass');
+    if (mass !== undefined) {
+      el(w, 3, STAGE_MASS_ELEMENTS[i]!, g(mass));
+      knownMass = true;
+    }
+  });
+  stages.slice(0, written).forEach((stage, i) => {
+    const cg = numOpt(stage, 'overrideCGX');
+    if (cg !== undefined) el(w, 3, STAGE_CG_ELEMENTS[i]!, mm(cg));
+  });
+  if (knownMass) el(w, 3, 'UseKnownMass', 1);
 
   STAGE_ELEMENTS.forEach((elName, i) => {
     const stage = i < written ? stages[i] : undefined;

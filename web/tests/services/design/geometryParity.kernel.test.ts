@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { ComponentNode, RocketTree } from '../../../src/engine/openRocketEngine';
-import { syncAutoRadii } from '../../../src/services/design/autoRadius';
+import { syncDerived } from '../../../src/services/design/treeEdit';
+import { axialFrames, rebasePosition } from '../../../src/tree/axialRebase';
+import { axialLength } from '../../../src/tree/position';
+import { positionOf } from '../../../src/tree/nodeProps';
 import { badDimensions } from '../../../src/services/design/requiredComponent';
 import { stationRadius } from '../../../src/tree/shapeProfile';
 import { parentRadiusOf } from '../../../src/tree/finPlanform';
@@ -25,7 +28,10 @@ vi.setConfig({ testTimeout: KERNEL_TEST_TIMEOUT_MS, hookTimeout: KERNEL_TEST_TIM
  * part's geometry (`filled`, `flipped` and each automatic flag), two stages,
  * parts inside tubes, nose cones and transitions, and tabbed fin sets on every
  * body that takes one: trapezoidal on body tubes, freeform on nose cones
- * (flipped or not) and transitions.
+ * (flipped or not) and transitions. Launch lugs, rail buttons, mass
+ * components, shoulders and clustered mounts ride on top ({@link withExtras}),
+ * and some parts are placed `absolute` ({@link withAbsolutes}), so each part's
+ * station from the nose tip is compared as well as its size.
  */
 
 const DESIGNS = 200;
@@ -283,6 +289,125 @@ function generate(seed: number): RocketTree {
     stages.push({ type: 'stage', id: id('stage'), children: booster } as unknown as ComponentNode);
   }
   return { components: stages } as unknown as RocketTree;
+}
+
+/**
+ * The parts the airframe generators leave out, added to a generated design
+ * from a stream of their own, so each seed's airframe stays the same design.
+ *
+ * Each one reaches a number the comparison reads. A launch lug and a rail
+ * button read the tube they stand on after every change
+ * (`LaunchLug.componentChanged`, `RailButton.componentChanged`), which moves
+ * an automatic tube's evaluation order; a mass component with an automatic
+ * radius fills the room its parent gives it (`MassObject.getMaxParentRadius`);
+ * a clustered mount still bounds the centering ring bore beside it by its own
+ * radius (`CenteringRing.getInnerRadius`); and every one of them has a station
+ * from the nose tip. A shoulder changes none of the radii or profiles
+ * `getComponentGeometry` reports, so it is here to show that it moves none of
+ * them: automatic shoulders follow the bore next door (`syncAutoShoulders`).
+ */
+function withExtras(tree: RocketTree, seed: number): RocketTree {
+  const r = rng(seed + 0x2545f491);
+  const chance = (p: number) => r() < p;
+  const between = (lo: number, hi: number) => lo + r() * (hi - lo);
+  const pick = <T>(xs: readonly T[]): T => xs[Math.floor(r() * xs.length)]!;
+  const round = (v: number) => Math.round(v * 1e4) / 1e4;
+  let n = 0;
+  const id = (type: string) => `${type}x${++n}`;
+  const along = (len: number, partLen: number) =>
+    pick([
+      { method: 'top', offset: round(between(0, Math.max(len - partLen, 0))) },
+      { method: 'bottom', offset: -round(between(0, Math.max(len - partLen, 0))) },
+      { method: 'middle', offset: 0 },
+    ]);
+  const visit = (node: ComponentNode): ComponentNode => {
+    const kids = (node.children ?? []).map(visit);
+    const out: Record<string, unknown> = { ...node };
+    const len = (node['length'] as number | undefined) ?? 0;
+    const filled = node['filled'] === true;
+    if (node.type === 'innertube' && chance(0.4)) {
+      out['cluster'] = pick(['double', '3-ring', '4-ring']);
+      out['clusterScale'] = round(between(1, 1.5));
+    }
+    if (node.type === 'bodytube') {
+      if (chance(0.3)) {
+        const lugLen = round(between(0.02, 0.06));
+        kids.push({
+          type: 'launchlug',
+          id: id('launchlug'),
+          length: lugLen,
+          outerRadius: 0.003,
+          thickness: 0.0003,
+          position: along(len, lugLen),
+        } as unknown as ComponentNode);
+      }
+      if (chance(0.3)) {
+        kids.push({
+          type: 'railbutton',
+          id: id('railbutton'),
+          outerDiameter: 0.0097,
+          instanceCount: 2,
+          instanceSeparation: round(between(0.02, 0.1)),
+          position: { method: 'top', offset: round(between(0, len * 0.5)) },
+        } as unknown as ComponentNode);
+      }
+    }
+    if ((node.type === 'bodytube' || node.type === 'nosecone' || node.type === 'transition') && !filled) {
+      if (chance(0.35)) {
+        const massLen = round(between(0.01, Math.max(0.011, len * 0.4)));
+        kids.push({
+          type: 'masscomponent',
+          id: id('masscomponent'),
+          mass: 0.05,
+          length: massLen,
+          radiusAuto: true,
+          radius: 0.005,
+          position: along(len, massLen),
+        } as unknown as ComponentNode);
+      }
+    }
+    // A shoulder plugs into the tube next door: automatic, or a size of its own.
+    const shoulder = (prefix: string, autoKey: string) => {
+      if (!chance(0.4)) return;
+      out[`${prefix}Length`] = round(between(0.01, 0.05));
+      out[`${prefix}Thickness`] = 0.001;
+      out[`${prefix}Radius`] = round(between(0.008, 0.04));
+      if (chance(0.5)) out[autoKey] = true;
+    };
+    if (node.type === 'nosecone') shoulder('shoulder', 'shoulderAuto');
+    if (node.type === 'transition') {
+      shoulder('foreShoulder', 'foreShoulderAuto');
+      shoulder('aftShoulder', 'aftShoulderAuto');
+    }
+    if (kids.length) out['children'] = kids;
+    return out as unknown as ComponentNode;
+  };
+  return { ...tree, components: tree.components.map(visit) };
+}
+
+/**
+ * Some placed parts re-expressed as `absolute`, from a stream of their own:
+ * the same station measured from the nose tip, as the editor's method switch
+ * writes it (`rebasePosition`). Every reader has to place them where the
+ * kernel does, which measures them from the rocket's origin whatever the
+ * parent (`RocketComponent.setAxialOffset`), so a reader that takes the offset
+ * from the parent's front puts a ring at the wrong bore, a tab against the
+ * wrong radius and the part at the wrong station.
+ */
+function withAbsolutes(tree: RocketTree, seed: number): RocketTree {
+  const r = rng(seed + 0x68e31da4);
+  const frames = axialFrames(tree);
+  const visit = (node: ComponentNode, parent: ComponentNode | null): ComponentNode => {
+    const children = node.children?.map((c) => visit(c, node));
+    const frame = parent?.id ? frames.get(parent.id) : undefined;
+    const placed = node.position && frame && r() < 0.35;
+    return {
+      ...node,
+      ...(children ? { children } : {}),
+      ...(placed ? { position: rebasePosition(positionOf(node), 'absolute', axialLength(node), frame) } : {}),
+    };
+  };
+  return { ...tree, components: tree.components.map((c) => visit(c, null)) };
 }
 
 const ASSEMBLY_DESIGNS = 200;
@@ -935,6 +1060,7 @@ function compare(
   const noSize = new Set<string>();
   let id = '';
   const checked = new Map<string, number>();
+  const frames = axialFrames(tree);
   const check = (rule: string, app: unknown, k: number | undefined) => {
     checked.set(rule, (checked.get(rule) ?? 0) + 1);
     const a = typeof app === 'number' ? app : NaN;
@@ -1021,6 +1147,19 @@ function compare(
       case 'parachute':
         check(`parachute automatic packed radius${inside}`, node['radius'], k.radius);
         break;
+      case 'masscomponent':
+        check(`mass component automatic packed radius${inside}`, node['radius'], k.radius);
+        break;
+    }
+    // Where the part starts, from the nose tip: what every drawing, export and
+    // report places it by. Lengths alone decide it, so it is checked whatever
+    // the part's size did.
+    if (k.positionX !== undefined) {
+      const absolute = positionOf(node).method === 'absolute' && node.position !== undefined;
+      const rule = `${node.type} station${absolute ? ', placed absolute' : ''}${inside}`;
+      checked.set(rule, (checked.get(rule) ?? 0) + 1);
+      const start = frames.get(id)?.start;
+      if (!close(start, k.positionX)) misses.push({ rule, design, part: id, app: start ?? NaN, kernel: k.positionX });
     }
     // The profile every drawing, mesh and report reads, station by station.
     if ((node.type === 'nosecone' || node.type === 'transition') && k.profile && !skip.has(id)) {
@@ -1074,19 +1213,29 @@ describe('app geometry matches the kernel', () => {
     let unresolved = 0;
     const checked = new Map<string, number>();
     for (let seed = 1; seed <= DESIGNS; seed++) {
-      const tree = syncAutoRadii(generate(seed));
+      const tree = syncDerived(withAbsolutes(withExtras(generate(seed), seed), seed));
       const r = compare(`seed ${seed}`, tree, kernelGeometry(engine, tree));
       misses.push(...r.misses);
       unresolved += r.unresolved;
       for (const [rule, count] of r.checked) checked.set(rule, (checked.get(rule) ?? 0) + count);
     }
     // The tab limit on a tapered parent is checked on every parent that takes
-    // a fin set, so a generator change that stops building them fails here.
+    // a fin set, and the added parts and the absolute placements reach the
+    // rules they are there for, so a generator change that stops building them
+    // fails here.
     for (const rule of [
       'fin tab depth limit in a bodytube',
       'fin tab depth limit in a nosecone',
       'fin tab depth limit in a flipped nosecone',
       'fin tab depth limit in a transition',
+      'launchlug station in a bodytube',
+      'railbutton station in a bodytube',
+      'mass component automatic packed radius in a bodytube',
+      'mass component automatic packed radius in a nosecone',
+      'mass component automatic packed radius in a transition',
+      'centeringring station, placed absolute in a transition',
+      'freeformfinset station, placed absolute in a nosecone',
+      'engineblock station, placed absolute in a innertube',
     ]) {
       expect(checked.get(rule) ?? 0, rule).toBeGreaterThan(5);
     }
@@ -1104,7 +1253,7 @@ describe('app geometry matches the kernel', () => {
     let unresolved = 0;
     const checked = new Map<string, number>();
     for (let seed = 1; seed <= ASSEMBLY_DESIGNS; seed++) {
-      const tree = syncAutoRadii(generateAssemblies(seed));
+      const tree = syncDerived(withAbsolutes(withExtras(generateAssemblies(seed), seed), seed));
       const r = compare(`assembly seed ${seed}`, tree, kernelGeometry(engine, tree));
       misses.push(...r.misses);
       unresolved += r.unresolved;
@@ -1112,6 +1261,13 @@ describe('app geometry matches the kernel', () => {
     }
     expect(report(misses, ASSEMBLY_DESIGNS)).toEqual([]);
     expect(checked.get('body tube automatic radius') ?? 0).toBeGreaterThan(300);
+    for (const rule of [
+      'bodytube station in a podset',
+      'podset station, placed absolute in a bodytube',
+      'parallelstage station, placed absolute in a bodytube',
+    ]) {
+      expect(checked.get(rule) ?? 0, rule).toBeGreaterThan(5);
+    }
     expect(unresolved).toBeLessThan(ASSEMBLY_DESIGNS);
   });
 
@@ -1120,7 +1276,7 @@ describe('app geometry matches the kernel', () => {
     const misses: Miss[] = [];
     let tubes = 0;
     for (const [name, build] of Object.entries(CHAIN_DESIGNS)) {
-      const tree = syncAutoRadii(build());
+      const tree = syncDerived(build());
       const r = compare(name, tree, kernelGeometry(engine, tree));
       misses.push(...r.misses);
       expect(r.unresolved, name).toBe(0);

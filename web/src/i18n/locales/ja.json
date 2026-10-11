@@ -67,6 +67,7 @@
       "engHeaderMass": ".eng のヘッダーが不正です：推進剤質量は 0 から全質量までの値にしてください。",
       "engDataLine": ".eng の {{line}} 行目のデータが不正です：時間と推力が必要ですが、「{{text}}」でした。",
       "engNoCurve": ".eng ファイルに推力曲線のデータ点がありません。",
+      "engNegativeThrust": ".eng ファイルのモーター {{motor}} は {{line}} 行目の推力が負です。",
       "attrDiameter": "直径",
       "attrLength": "長さ",
       "attrInitialMass": "初期質量",
@@ -81,6 +82,8 @@
       "rseBadPoint": ".rse ファイルのモーター {{motor}} に、時間または推力のないデータ点があります。",
       "rseNoCurve": ".rse ファイルのモーター {{motor}} に推力曲線のデータがありません。",
       "rseNegativeMass": ".rse ファイルのモーター {{motor}} のデータに負の質量があります。",
+      "rseNegativeThrust": ".rse ファイルのモーター {{motor}} のデータに負の推力があります。",
+      "rseCgOutside": ".rse ファイルのモーター {{motor}} の重心がモーターの外にあります（0〜{{length}} mm）。",
       "rseNoEngine": "有効な .rse ファイルではありません（<engine> がありません）。",
       "rseTooManyMotors": "この .rse は {{max}} 個を超えるモーターを宣言しています（壊れている可能性があります）。"
     },
@@ -92,6 +95,8 @@
       "noWeight": "thrustcurve.org には {{motor}} の装填質量も推進剤質量も公開されていないため、シミュレーションできません。別のモーターを選んでください。",
       "propOverTotal": "{{motor}} はカタログ上、推進剤 ({{prop}} g) が装填質量 ({{total}} g) より多いため、燃焼の終わりに質量が負になります。別のモーターを選んでください。",
       "badSize": "thrustcurve.org にある {{motor}} の寸法が不正です（直径 {{diameter}} mm、長さ {{length}} mm）。シミュレーションできないので、別のモーターを選んでください。",
+      "negativeThrust": "{{motor}} の推力曲線データに負の推力があります。シミュレーションできないので、別のモーターを選んでください。",
+      "badCg": "{{motor}} の重心がモーターの外にあります（0〜{{length}} mm）。シミュレーションできないので、別のモーターを選んでください。",
       "notFound": "thrustcurve.org に {{maker}} {{motor}} が見つかりませんでした。",
       "noData": "{{motor}} の推力曲線データがありません。",
       "badData": "{{motor}} の推力曲線データが不正です。",
@@ -109,6 +114,7 @@
       "noPrintable": "印刷できる部品が選択されていません。",
       "openSolid": "この立体を閉じられませんでした：ふさいだ後も {{edges}} 本の開いた辺が残っています。",
       "imageEncode": "ブラウザーが画像をエンコードできませんでした。",
+      "imageTooLarge": "画像がこのブラウザーには大きすぎます。より小さい幅を選んでください。",
       "svgRasterize": "ブラウザーが SVG を描画できませんでした。"
     },
     "engine": {
@@ -180,6 +186,7 @@
     "noseCone": "ノーズコーン",
     "transition": "トランジション",
     "tooLarge": "{{w}}×{{h}} mm、1 ページに 1:1 で印刷するには大きすぎます。",
+    "fontFallback": "レポート用フォントを読み込めなかったため、この PDF の一部の文字は「?」として印刷されています。オンラインになってから再度エクスポートしてください。",
     "bodyTube": "ボディチューブ",
     "markingGuide": "フィン位置の記入ガイド（1:1）",
     "markingGuideHint": "100% / 実寸（ページの拡大縮小なし）で印刷し、定規で確認したうえで各帯を切り取り、端どうしを突き合わせて（重ねずに）ボディチューブに巻き付け、矢印の位置に印を付けます。各組の印を通る線をチューブに沿って引いてください。そこが部品の位置です。",
@@ -1146,6 +1153,7 @@
     "rktEjectedPod": "この設計には、RockSim ですでに切り離されたポッドが含まれています（作動中のブースターとしてインポートしました）。",
     "rktSubassembly": "この設計にはサブアセンブリが含まれています（その部品は設計に統合しました）。",
     "rktEllipticalOnBody": "この設計には、ノーズコーンまたはトランジションに付いた楕円フィンセットが含まれていますが、そこには取り付けられません。",
+    "rktIncompatible": "ファイルが指定する位置に取り付けられない部品を除外しました: {{parent}} 上の {{part}}。",
     "rocksimNoMotors": "RockSim のモーター選択と打ち上げ条件はインポートしません。この設計を飛ばすにはモーターを選んでください。",
     "embeddedCurveUnreadable": "ファイルに格納された推力曲線を読み込めなかったため、スキップしました。",
     "unbuildable": "{{reason}} 修正できるように設計を開いています。修正されるまでシミュレーションはできません。",
@@ -1561,6 +1569,7 @@
     "canopy": "キャノピーの材料",
     "strip": "ストリーマーの材料",
     "lines": "シュラウドラインの材料",
+    "cord": "ショックコードの材料",
     "default": "自動",
     "defaultOption": "指定なし",
     "loadFailed": "材料の一覧を読み込めませんでした。通信を確認して、このパネルをもう一度開いてください。",
@@ -1833,6 +1842,7 @@
     "belowMin": "最小値未満",
     "aboveMax": "上限超過",
     "tooFast": "速すぎます",
+    "tooSlow": "遅すぎます",
     "overRail": "レールより長い",
     "rodAngle": "ランチャーの角度は鉛直から {{value}} で、NAR と Tripoli の安全規定が認める {{limit}} を超えています。",
     "rodAngle_rail": "発射レールの角度は鉛直から {{value}} で、NAR と Tripoli の安全規定が認める {{limit}} を超えています。",
@@ -1889,6 +1899,7 @@
     "discardConfirm": "この場所の変更を破棄しますか。",
     "back": "一覧に戻る",
     "use": "使用",
+    "useMany_other": "{{count}} 件のシミュレーションに使用",
     "applyNeedsSave": "この場所を使う前に、変更を保存するか破棄してください。"
   },
   "map": {

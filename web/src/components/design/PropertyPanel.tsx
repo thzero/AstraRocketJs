@@ -27,7 +27,7 @@ import { useUnits } from '../../prefs/useUnits';
 import { num } from '../../tree/nodeProps';
 import { tubeFinMaxCount, tubeFinMaxRadius } from '../../tree/tubefins';
 import { FieldRow, FieldSection, sectionFields, visibleFields } from './DimensionFields';
-import { MaterialSection, RecoveryMaterialSection } from './MaterialSection';
+import { CordMaterialSection, MaterialSection, RecoveryMaterialSection } from './MaterialSection';
 import { StageRecovery } from './StageRecovery';
 import { ComponentActions } from './ComponentActions';
 import { AutoFinTabButton } from './AutoFinTabButton';
@@ -334,6 +334,7 @@ export function PropertyPanel({
       )}
 
       {hasMaterial(node.type) && <MaterialSection node={node} onCommitChange={commitChange} />}
+      {node.type === 'shockcord' && <CordMaterialSection node={node} onCommitChange={commitChange} />}
 
       {/* What the tube does for a motor, as against what the tube is. Only a
           body tube (two rows) and an inner tube (six, the cluster among them)

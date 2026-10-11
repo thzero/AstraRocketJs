@@ -1,4 +1,4 @@
-import { useEffect, useId, useLayoutEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18n from '../../i18n';
 import { useWorkspaceStore } from '../../state/store';
@@ -52,7 +52,8 @@ const hasType = (nodes: ComponentNode[], pred: (t: string) => boolean): boolean 
  * a value that changes throws the selection away whenever `open` goes false,
  * which dismissing the print-settings popover does.
  *
- * Assembling a multi-stage report builds each stage alone, which resets the
+ * Assembling a report builds rockets of its own (each stage of a multi-stage
+ * design, each motor configuration other than the one flown), which resets the
  * shared engine, so the whole rocket is rebuilt afterwards. Installing that
  * rebuild is a store write, and this dialog cannot make it from the initializer
  * without updating every other store subscriber mid-render, so it takes the
@@ -72,6 +73,23 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
   const tree = useWorkspaceStore((s) => s.tree);
   const runSim = useWorkspaceStore((s) => s.runSim);
 
+  // Set once the dialog is dismissed. A save in flight checks it after every
+  // await and writes nothing once it is set; closing also stops the run it is
+  // waiting on, so the dialog going away is the end of the export.
+  const canceled = useRef(false);
+  const running = useRef(false);
+  useEffect(() => {
+    canceled.current = false;
+    return () => {
+      canceled.current = true;
+    };
+  }, []);
+  const close = () => {
+    canceled.current = true;
+    if (running.current) useWorkspaceStore.getState().cancelRun();
+    onClose();
+  };
+
   const hasNoses = useMemo(() => hasType(tree.components, (ty) => ty === 'nosecone'), [tree]);
   const hasTransitions = useMemo(() => hasType(tree.components, (ty) => ty === 'transition'), [tree]);
   // The real rule, not a re-derived one: a marking guide needs a body tube
@@ -79,17 +97,18 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
   // Asking it means the checkbox cannot offer a guide the report would not draw.
   const hasMarkingGuides = useMemo(() => markingGuides(tree).guides.length > 0, [tree]);
 
-  // Per-stage builds run the real engine; a design it chokes on must leave the
+  // The report's own builds run the real engine; a design it chokes on must leave the
   // dialog standing with its "no design" message, not take the app down. The
   // failure is remembered here and reported below, so the initializer stays a
   // pure computation.
   //
-  // `rebuilt` is the whole-rocket build a multi-stage report leaves behind, for
-  // the effect below to install. Assembling per-stage summaries resets the
-  // shared engine, and `assembleReport` would otherwise re-seat the live handle
-  // through the store from inside this initializer: a store write during render,
-  // which updates every other subscriber mid-render (React: "Cannot update a
-  // component (`DesignWarnings`) while rendering a different component").
+  // `rebuilt` is the whole-rocket build the report's own builds (per stage, per
+  // configuration) leave behind, for the effect below to install. Those builds
+  // reset the shared engine, and `assembleReport` would otherwise re-seat the
+  // live handle through the store from inside this initializer: a store write
+  // during render, which updates every other subscriber mid-render (React:
+  // "Cannot update a component (`DesignWarnings`) while rendering a different
+  // component").
   const [initial] = useState<{ model: ReportModel | null; error: string | null; rebuilt: ReportBuild | null }>(() => {
     const { info, rocket } = useWorkspaceStore.getState();
     if (!info || !rocket) return { model: null, error: null, rebuilt: null };
@@ -180,6 +199,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
           // timeout or a cancel, and leaves the previous numbers in place. Only a
           // landed run means the report has fresh data; anything else writes
           // nothing, and the run has already said why in the error banner.
+          running.current = true;
           if ((await runSim()) !== 'landed') return;
         } catch (e) {
           // Reported, not swallowed: swallowing writes the PDF with the
@@ -188,11 +208,17 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
           useWorkspaceStore.getState().setErr(t('export.simFailed', { message: errorText(e, t) }));
           return;
         } finally {
+          running.current = false;
           useWorkspaceStore.setState({ view: prevView, tab: prevTab, designPane: prevPane });
         }
       }
+      if (canceled.current) return;
       const fresh = assembleReport() ?? model;
-      const { downloadReportPdf } = await import('../../services/report/reportPdf');
+      // jsPDF is loaded here rather than first inside the writer, so the last
+      // check below comes after every wait: from there to the download is
+      // synchronous work that a close cannot interleave with.
+      const [{ downloadReportPdf }] = await Promise.all([import('../../services/report/reportPdf'), import('jspdf')]);
+      if (canceled.current) return;
       await downloadReportPdf(
         fresh,
         tree,
@@ -211,9 +237,12 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
           templateStroke: settings.report.templateStroke,
         },
         exportUnits,
+        // The font fetch is a wait of its own; a close during it saves nothing.
+        { canceled: () => canceled.current },
       );
       onClose();
     } catch (e) {
+      if (canceled.current) return;
       useWorkspaceStore.getState().setErr(t('export.pdfFailed', { message: errorText(e, t) }));
     } finally {
       setBusy(false);
@@ -255,7 +284,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
       </button>
       <div className="flex gap-2">
         <button
-          onClick={onClose}
+          onClick={close}
           className="rounded-md bg-raised px-3 py-2 text-sm text-ink-soft ring-1 ring-line/10 hover:bg-elevated"
         >
           {t('common.cancel')}
@@ -290,12 +319,12 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
       <Dialog
         id="reportExport"
         title={t('export.title')}
-        onClose={onClose}
+        onClose={close}
         size="md"
-        // Nothing dismisses this while the PDF is being written: unmounting
-        // mid-export drops the run's result and the "Loading" state with it. The
-        // ✕ still works, because a close button that stops responding is worse
-        // than an interrupted export.
+        // The overlay and Escape do not dismiss this while the PDF is being
+        // written, so a stray click cannot end the export. Cancel and the ✕
+        // still work, and they stop it: the run is canceled and nothing is
+        // downloaded.
         dismissible={!busy}
         footer={sel && model ? actionRow : undefined}
       >

@@ -163,3 +163,16 @@ describe('launch into the wind with a multilevel profile', () => {
     expect(DEFAULT_HEADING_DEG).toBe(90);
   });
 });
+
+/**
+ * The kernel's `SimulationOptions` setter clamps the maximum angle step to 1 to
+ * 20 degrees, but the bridge sets it on `SimulationConditions`, which does not.
+ * A step outside that range flies a flight the desktop never can.
+ */
+describe('simConditions max angle step', () => {
+  it('flies the step inside the kernel range', () => {
+    expect(simConditions(base, { ...PREFS, maxAngleStep: deg2rad(0.05) }).maxAngleStep).toBeCloseTo(deg2rad(1));
+    expect(simConditions(base, { ...PREFS, maxAngleStep: deg2rad(30) }).maxAngleStep).toBeCloseTo(deg2rad(20));
+    expect(simConditions(base, PREFS).maxAngleStep).toBeCloseTo(deg2rad(3));
+  });
+});

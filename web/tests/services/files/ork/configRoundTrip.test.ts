@@ -180,3 +180,74 @@ describe('per-configuration deployment through a .ork', () => {
     expect(back.configs[0]!.deployments[chuteId(back.tree)]).toMatchObject({ deployAltitude: 150 });
   });
 });
+
+describe('the lower stage separation deploy event at the .ork boundary', () => {
+  // DocumentConfig.findEnum matches the enum name lower-cased with the
+  // underscores removed, and RecoveryDeviceSaver writes it that way.
+  const lss = (deployments: Record<string, { deployEvent: string }>) => [
+    { id: 'cfg-a', name: 'As designed', motors: {} },
+    { id: 'cfg-b', name: 'Staged', motors: {}, deployments },
+  ];
+  const staged = (event: string) =>
+    ({
+      ...tree,
+      components: [
+        node({
+          ...tree.components[0],
+          children: [
+            tree.components[0]!.children![0],
+            node({
+              ...tree.components[0]!.children![1],
+              children: [node({ ...tree.components[0]!.children![1]!.children![0], deployEvent: event })],
+            }),
+          ],
+        }),
+      ],
+    }) as unknown as RocketTree;
+
+  it('writes the desktop spelling for the design value and a configuration override', () => {
+    const xml = exportOrk({
+      name: 'Dual',
+      tree: staged('lower_stage_separation'),
+      configs: lss({ main: { deployEvent: 'lower_stage_separation' } }),
+      activeConfigId: 'cfg-a',
+    });
+    expect(xml).toContain('<deployevent>lowerstageseparation</deployevent>');
+    expect(xml).toMatch(
+      /<deploymentconfiguration configid="cfg-b">\s*<deployevent>lowerstageseparation<\/deployevent>/,
+    );
+    expect(xml).not.toContain('lower_stage_separation');
+  });
+
+  /** The design written by this app, with every deploy event spelled `event`. */
+  const respelled = (event: string) =>
+    exportOrk({ name: 'Dual', tree: staged('apogee'), configs, activeConfigId: 'cfg-a' }).replaceAll(
+      '<deployevent>apogee</deployevent>',
+      `<deployevent>${event}</deployevent>`,
+    );
+  const chuteNode = (t: RocketTree): ComponentNode => {
+    const id = chuteId(t);
+    const stack = [...t.components];
+    while (stack.length) {
+      const n = stack.pop()!;
+      if (n.id === id) return n;
+      if (n.children) stack.push(...n.children);
+    }
+    throw new Error('no parachute');
+  };
+
+  it('reads the desktop spelling into the app event, on the design and per configuration', () => {
+    const res = importOrk(respelled('lowerstageseparation'));
+    const chute = chuteId(res.tree);
+    expect(chuteNode(res.tree)['deployEvent']).toBe('lower_stage_separation');
+    // cfg-a's <deploymentconfiguration> block carries the re-spelled event too.
+    expect(res.configs.find((c) => c.id === 'cfg-a')!.deployments[chute]).toMatchObject({
+      deployEvent: 'lower_stage_separation',
+    });
+  });
+
+  it('still reads the underscored spelling older saves from this app wrote', () => {
+    const res = importOrk(respelled('lower_stage_separation'));
+    expect(chuteNode(res.tree)['deployEvent']).toBe('lower_stage_separation');
+  });
+});

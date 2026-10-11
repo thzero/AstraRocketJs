@@ -46,7 +46,7 @@ function HeatLegend({ max, unit, style }: { max: number; unit: string; style: He
   // which: the row set's own largest, or OpenRocket's fixed full-red-at-1.5.
   const top = style === 'openrocket' ? 1.5 : max;
   return (
-    <div className="flex flex-wrap items-center gap-1.5 px-1 pt-1.5 text-[10px] text-ink-dim">
+    <div className="flex flex-wrap items-center gap-1.5 px-1 pt-1.5 text-[10px] text-ink-faint">
       <span>{style === 'openrocket' ? t('aero.absolute') : t('aero.share')}</span>
       <HeatRamp top={top} style={style} />
       <span className="tabular-nums">

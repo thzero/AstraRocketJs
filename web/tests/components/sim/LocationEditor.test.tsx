@@ -154,13 +154,12 @@ describe('LocationEditor, creating', () => {
     expect(save().disabled).toBe(false);
 
     fireEvent.click(save());
-    // Elevation defaults to sea level, which is a real answer for a coastal
-    // field rather than a guess.
+    // A blank elevation is saved as unknown rather than guessed as sea level.
     expect(onSave.mock.calls[0]![0]).toMatchObject({
       name: 'New field',
       latitudeDeg: 51.5,
       longitudeDeg: -0.12,
-      launchAltitudeM: 0,
+      launchAltitudeM: null,
     });
     expect(onSave.mock.calls[0]![0].id).toMatch(/[0-9a-f-]{8,}/);
   });
@@ -212,5 +211,15 @@ describe('LocationEditor, the unsaved-edit guard', () => {
     expect((screen.getByRole('textbox') as HTMLInputElement).value).toBe('Home field');
     expect(field('Latitude').value).toBe('39.05');
     expect(save().disabled).toBe(true);
+  });
+});
+
+/** A blank elevation is unknown, not sea level. */
+describe('LocationEditor, elevation', () => {
+  it('saves a cleared elevation as unknown', () => {
+    const { onSave } = render(HOME);
+    fireEvent.change(field('Altitude'), { target: { value: '' } });
+    fireEvent.click(save());
+    expect(onSave.mock.calls[0]![0].launchAltitudeM).toBeNull();
   });
 });

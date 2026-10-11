@@ -287,6 +287,14 @@ describe('loadSettings validates what reaches styles, jsPDF and the CSV writer',
     expect(c.flightEvents).toBe(false);
   });
 
+  it('reads a stored backslash-t separator as the tab character', () => {
+    localStorage.setItem(KEY, JSON.stringify({ flightCsv: { separator: '\\t' } }));
+    expect(loadSettings().flightCsv.separator).toBe('\t');
+    // Any other separator is kept as written.
+    localStorage.setItem(KEY, JSON.stringify({ flightCsv: { separator: ';' } }));
+    expect(loadSettings().flightCsv.separator).toBe(';');
+  });
+
   it('clamps railExitVelocityMin like the other simulation thresholds', () => {
     for (const raw of ['"fast"', '0', '-3', 'null']) {
       localStorage.setItem(KEY, `{"simulation":{"railExitVelocityMin":${raw}}}`);

@@ -22,6 +22,7 @@ import { MotorDashboard } from '../sim/MotorDashboard';
 import { LocationsDialog } from '../sim/LocationsDialog';
 import { SavedPartsDialog } from '../design/SavedPartsDialog';
 import { useHelpStore } from '../../state/helpStore';
+import type { HeaderDialog } from './dialogKeys';
 
 /**
  * The header's dialog host: the open flag of every dialog the bar and its
@@ -34,20 +35,6 @@ import { useHelpStore } from '../../state/helpStore';
  * {@link useHelpStore} instead, and it is mounted here only because the header
  * is where the app-wide dialogs already are.
  */
-
-export type HeaderDialog =
-  | 'motors'
-  | 'report'
-  | 'about'
-  | 'updates'
-  | 'privacy'
-  | 'settings'
-  | 'library'
-  | 'examples'
-  | 'print'
-  | 'locations'
-  | 'parts'
-  | 'saveAs';
 
 type OpenFlags = Record<HeaderDialog, boolean>;
 

@@ -1,9 +1,10 @@
-import type { ComponentNode } from '../../../engine/openRocketEngine';
+import type { ComponentNode, ComponentPosition } from '../../../engine/openRocketEngine';
 import { COMPONENT_DEFAULTS } from '../../design/componentDefaults';
 import { nodeShape } from '../../../tree/shapeProfile';
 import { IN, fmt, type Cdx1Writer } from './units';
 import { SECTION_TO_AIRFOIL } from './surface';
-import { num, str } from '../../../tree/nodeProps';
+import { num, positionOf, str } from '../../../tree/nodeProps';
+import { startFromPosition } from '../../../tree/position';
 import { trapezoidDims } from '../../../tree/finPlanform';
 import { isFinSet } from '../../../tree/tubefins';
 import { isAssembly } from '../../../tree/assembly';
@@ -56,8 +57,12 @@ function finPlanform(fin: ComponentNode): { root: number; tip: number; sweep: nu
   return null;
 }
 
-/** The one fin set under `parent`, as a <Fin> block; nothing when it has none. */
-export function finXml(w: Cdx1Writer, parent: ComponentNode): void {
+/**
+ * The one fin set under `parent`, as a <Fin> block; nothing when it has none.
+ * `parentStart` is where the parent starts from the nose tip, which an
+ * `absolute` fin set is measured from.
+ */
+export function finXml(w: Cdx1Writer, parent: ComponentNode, parentStart: number): void {
   const { emit } = w;
   const finSets = (parent.children ?? []).filter((c) => isFinSet(c.type));
   if (finSets.length === 0) return;
@@ -82,17 +87,11 @@ export function finXml(w: Cdx1Writer, parent: ComponentNode): void {
   if (count < FIN_MIN || count > FIN_MAX) {
     throw new KeyedError('errors.rasaero.finCount', { found: count, name: partName(fin) });
   }
-  const pos = fin.position ?? { method: 'bottom', offset: 0 };
-  // Convert any position method to a bottom-referenced offset.
+  const pos: ComponentPosition = fin.position ? positionOf(fin) : { method: 'bottom', offset: 0 };
+  // Convert any position method to a bottom-referenced offset: the fin's front
+  // from the tube's top, less the gap the root leaves to the tube's bottom.
   const tubeLen = num(parent, 'length', 0);
-  const bottomOffset =
-    pos.method === 'bottom'
-      ? pos.offset
-      : pos.method === 'top'
-        ? pos.offset + plan.root - tubeLen
-        : pos.method === 'middle'
-          ? pos.offset + (plan.root - tubeLen) / 2
-          : 0; // 'absolute' has no tube-relative meaning here
+  const bottomOffset = startFromPosition(pos, plan.root, tubeLen, parentStart) + plan.root - tubeLen;
   // Fin Location = front edge from the tube bottom (inches).
   const locIn = (plan.root - bottomOffset) * IN;
   const cs = str(fin, 'crossSection', 'square');
@@ -169,7 +168,7 @@ function tubeXml(w: Cdx1Writer, node: ComponentNode): void {
   emit('<BoattailRearDiameter>0</BoattailRearDiameter>');
   emit('<BoattailOffset>0</BoattailOffset>');
   emit('<Overhang>0</Overhang>');
-  finXml(w, node);
+  finXml(w, node, w.locM);
   emit('</BodyTube>');
   w.locM += len;
 }
@@ -187,7 +186,7 @@ function transitionXml(w: Cdx1Writer, node: ComponentNode): void {
   emit(`<RearDiameter>${fmt(num(node, 'aftRadius', 0.009) * 2 * IN)}</RearDiameter>`);
   emit(`<Location>${fmt(w.locM * IN)}</Location>`);
   emit('<Color>Black</Color>');
-  finXml(w, node); // RASAero transitions/boat tails carry fins too
+  finXml(w, node, w.locM); // RASAero transitions/boat tails carry fins too
   emit('</Transition>');
   w.locM += len;
 }

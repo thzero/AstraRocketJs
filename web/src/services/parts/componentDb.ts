@@ -65,11 +65,28 @@ export interface NoseConeComponent extends ComponentBase {
   shoulderLength?: number | null;
 }
 
+/**
+ * Parachute: the canopy, and what `Parachute.loadFromPreset` also applies. The
+ * fields after `cd` are absent from catalogs published before they were
+ * carried, and from a part the desktop library does not hold; a part without
+ * one takes a new parachute's value for it.
+ */
 export interface ParachuteComponent extends ComponentBase {
   type: 'parachute';
   diameter: number;
   /** Drag coefficient; null when the file omits it (apply a default). */
   cd: number | null;
+  lineCount?: number;
+  lineLength?: number;
+  /** Packed size, each only where the part states it. */
+  packedLength?: number;
+  packedDiameter?: number;
+  /** The canopy's surface material (density per square meter). */
+  material?: string;
+  materialDensity?: number;
+  /** The shroud lines' material (density per meter). */
+  lineMaterial?: string;
+  lineMaterialDensity?: number;
 }
 
 /** Tube coupler, centering ring, engine block or launch lug: a tube (OD/ID/length). */
@@ -250,7 +267,14 @@ export function isComponentRow(v: unknown): v is Component {
         typeof r.filled === 'boolean'
       );
     case 'parachute':
-      return isFiniteNumber(r.diameter) && isNullableFinite(r.cd);
+      return (
+        isFiniteNumber(r.diameter) &&
+        isNullableFinite(r.cd) &&
+        [r.lineCount, r.lineLength, r.packedLength, r.packedDiameter, r.materialDensity, r.lineMaterialDensity].every(
+          (v) => v === undefined || isFiniteNumber(v),
+        ) &&
+        [r.material, r.lineMaterial].every((v) => v === undefined || isStr(v))
+      );
     case 'transition':
       return (
         isFiniteNumber(r.materialDensity) &&

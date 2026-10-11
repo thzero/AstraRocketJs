@@ -84,6 +84,7 @@ import {
   displayUnits,
   repairNotes,
   selectActive,
+  simPrefsOf,
   type StorageWarningKind,
 } from './workspaceSelectors';
 
@@ -908,7 +909,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
     activeId: sim0.id,
     selectedSimIds: [],
     simBusy: false,
-    simPrefs: loadSettings().simulation,
+    simPrefs: simPrefsOf(loadSettings()),
     ...createViewSlice(set, get, api),
     ...createFileSlice({ replaceWorkspace, clearHistory })(set, get, api),
 
@@ -1151,10 +1152,17 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
       recordStep();
       // Named copies say so; an unnamed one stays unnamed, because its label is
       // its motor list and "Estes C6 copy" would name a thing nobody named.
-      const copy = newFlightConfig(
+      const copy: FlightConfig = newFlightConfig(
         { ...src.motors },
         src.name === null ? null : i18n.t('configs.copyName', { name: src.name }),
       );
+      // Everything else the configuration overrides comes along too, as
+      // desktop's copy runs copyFlightConfiguration on every configurable
+      // component: a copy made to vary the motor must not quietly differ in
+      // recovery or staging.
+      if (src.deployments) copy.deployments = { ...src.deployments };
+      if (src.separations) copy.separations = { ...src.separations };
+      if (src.grounded) copy.grounded = [...src.grounded];
       const next = [...s.configs];
       next.splice(s.configs.findIndex((c) => c.id === id) + 1, 0, copy);
       set({ configs: next, selectedConfigId: copy.id });
@@ -1363,6 +1371,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
                   // The sim's own overrides win over the global preferences; unset keys
                   // fall through, so a workspace that never touches them runs on the globals.
                   options: simConditions(launch, effectivePrefs(prefs, sim.prefs)),
+                  // Sent with each flight: the worker's unit must not depend on
+                  // whether the main-thread build has caught up.
+                  lengthUnit: effectivePrefs(prefs, sim.prefs).lengthUnit,
                 },
                 // Queued and running are different states once there is a pool:
                 // the client says when this one actually reached a worker.
@@ -1372,6 +1383,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
               // rocket, so drop it rather than install numbers for geometry that
               // is no longer on screen. The others in flight do the same.
               if (get().tree !== ranOn) {
+                setRun(sim.id, null);
                 outcomes[sim.id] = 'dropped';
                 return;
               }
@@ -1555,6 +1567,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
                     ...simConditions(sweepLaunch(launch, point), { ...runPrefs, randomSeed: seed }),
                     series: 'summary',
                   },
+                  lengthUnit: runPrefs.lengthUnit,
                 },
                 { signal: abort.signal },
               );

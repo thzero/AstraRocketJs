@@ -4,6 +4,8 @@ import { finXml, partName } from './sustainer';
 import { KeyedError } from '../../../i18n/keyedError';
 import { num } from '../../../tree/nodeProps';
 import { isFinSet } from '../../../tree/tubefins';
+import { isChainType } from '../../../tree/componentKinds';
+import { partLength } from '../../../tree/position';
 
 /**
  * Boosters (each lower stage) as <Booster> elements. A leading widening
@@ -58,7 +60,11 @@ export function writeBoosters(w: Cdx1Writer, stagesIn: ComponentNode[]): void {
     emit('<NozzleExitDiameter>0</NozzleExitDiameter>');
     emit(`<BoattailLength>${fmt(btLen * IN)}</BoattailLength>`);
     emit(`<BoattailRearDiameter>${fmt(boattail ? num(boattail, 'aftRadius', 0) * 2 * IN : 0)}</BoattailRearDiameter>`);
-    finXml(w, finParents[0] ?? tubes[0]!);
+    const finParent = finParents[0] ?? tubes[0]!;
+    // Where the fin set's part starts from the nose tip: the stage's start plus
+    // the parts ahead of it in the stage.
+    const ahead = kids.slice(0, kids.indexOf(finParent)).filter((c) => isChainType(c.type));
+    finXml(w, finParent, w.locM + ahead.reduce((s, c) => s + partLength(c), 0));
     emit('</Booster>');
     w.locM += shoulderLen + bodyLen + btLen;
   }

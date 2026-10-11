@@ -53,6 +53,30 @@ describe('SiteMap', () => {
     expect(screen.getByText('39.0500° N, 104.8000° W')).toBeTruthy();
   });
 
+  /**
+   * On a touch screen the page must not take the drag: without `touch-action:
+   * none` a one-finger drag scrolls the page and the browser cancels the pointer.
+   */
+  it('keeps touch drags for itself', () => {
+    renderWithProviders(<SiteMap {...HOME} onPick={vi.fn()} />);
+    expect(screen.getByRole('group', { name: /Launch site map/ }).className).toContain('touch-none');
+  });
+
+  it('does not move the location when a second finger lands and lifts', () => {
+    const onPick = vi.fn();
+    renderWithProviders(<SiteMap {...HOME} onPick={onPick} />);
+    const map = screen.getByRole('group', { name: /Launch site map/ });
+    fireEvent.pointerDown(map, { pointerId: 1, clientX: 160, clientY: 128 });
+    fireEvent.pointerDown(map, { pointerId: 2, clientX: 200, clientY: 128 });
+    fireEvent.pointerUp(map, { pointerId: 2, clientX: 200, clientY: 128 });
+    fireEvent.pointerUp(map, { pointerId: 1, clientX: 160, clientY: 128 });
+    expect(onPick).not.toHaveBeenCalled();
+    // And the next lone tap still picks.
+    fireEvent.pointerDown(map, { pointerId: 3, clientX: 160, clientY: 128 });
+    fireEvent.pointerUp(map, { pointerId: 3, clientX: 160, clientY: 128 });
+    expect(onPick).toHaveBeenCalledWith(39.05, -104.8);
+  });
+
   it('says what to do when there is no coordinate yet', () => {
     renderWithProviders(<SiteMap latitudeDeg={null} longitudeDeg={null} />);
     expect(screen.getByText(/Enter a latitude and longitude/i)).toBeTruthy();

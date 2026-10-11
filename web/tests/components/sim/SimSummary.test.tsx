@@ -124,6 +124,54 @@ describe('SimSummary verdicts', () => {
 });
 
 /**
+ * The deployment tile agrees with the kernel: it judges against the shown
+ * simulation's own threshold, and for a dual-deployment main against the main's
+ * pair, which is what the kernel's warnings are raised from.
+ */
+describe('SimSummary deployment threshold', () => {
+  const before = useWorkspaceStore.getState();
+  afterEach(() => act(() => useWorkspaceStore.setState({ sims: before.sims, activeId: before.activeId })));
+  const subOf = (label: RegExp) => screen.getByText(label).nextElementSibling?.nextElementSibling?.textContent;
+
+  const show = (flown: FlightResult, prefs?: Record<string, number>) =>
+    act(() =>
+      useWorkspaceStore.setState({
+        sims: [{ id: 'x', name: 'X', configId: 'c', launch: {}, result: flown, prefs }],
+        activeId: 'x',
+        resultSimId: null,
+      } as never),
+    );
+
+  it("reads the simulation's override, not the global", () => {
+    const flown = sim([0, 0, 0], [0, 0, 0]);
+    Object.assign(flown.summary, { deploymentVelocity: 15 });
+    show(flown, { deploymentSpeedWarn: 10 });
+    renderWithProviders(<SimSummary sim={flown} />);
+    expect(subOf(/^Deploy speed$/)).toContain('Too fast');
+  });
+
+  it('takes the verdict from the kernel warnings when the flight has them', () => {
+    // 25 m/s is over the 20 m/s single-deployment default, but a dual-deployment
+    // main is judged against its own pair, and the kernel raised nothing.
+    const quiet = sim([0, 0, 0], [0, 0, 0]);
+    Object.assign(quiet, { warnings: [] });
+    Object.assign(quiet.summary, { deploymentVelocity: 25 });
+    show(quiet);
+    renderWithProviders(<SimSummary sim={quiet} />);
+    expect(subOf(/^Deploy speed$/)).not.toContain('Too fast');
+  });
+
+  it('says a dual-deployment main opened too slow', () => {
+    const slow = sim([0, 0, 0], [0, 0, 0]);
+    Object.assign(slow, { warnings: [{ key: 'RECOVERY_MAIN_LOW_SPEED', message: '' }] });
+    Object.assign(slow.summary, { deploymentVelocity: 5 });
+    show(slow);
+    renderWithProviders(<SimSummary sim={slow} />);
+    expect(subOf(/^Deploy speed$/)).toContain('Too slow');
+  });
+});
+
+/**
  * Max q·α reads in the Max q figure's pressure unit times the reader's angle
  * unit, so the two figures beside each other are in the same pressure.
  */

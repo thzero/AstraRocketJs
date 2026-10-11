@@ -8,12 +8,12 @@ vi.mock('../../src/engine/simClient', async (orig) => ({
   simulateInWorker: simulateMock,
 }));
 
-import { useWorkspaceStore, selectActive } from '../../src/state/store';
+import { useWorkspaceStore, selectActive, configOf } from '../../src/state/store';
 import { SimCanceledError, SimTimeoutError, type SimCallOptions } from '../../src/engine/simClient';
 import type { SimPayload } from '../../src/engine/simProtocol';
 import type { FlightResult } from '../../src/engine/openRocketEngine';
 import { seatMotor, CURVELESS } from '../testing/seatMotor';
-import { resultFlight, withoutResults } from '../../src/services/flight/simulations';
+import { isOutdated, resultFlight, withoutResults } from '../../src/services/flight/simulations';
 
 const st = () => useWorkspaceStore.getState();
 const RESULT = { summary: { maxAltitude: 100 }, events: [], series: {} } as unknown as FlightResult;
@@ -66,6 +66,20 @@ describe('run outcomes', () => {
     st().patchSelected({ length: 0.3 });
     release(RESULT);
     expect(await running).toBe('dropped');
+    // The row goes back to idle; left queued it would read as in flight forever.
+    expect(st().simRuns[selectActive(st()).id]).toBeUndefined();
+  });
+
+  it('sends the length unit with each flight, and a unit switch ages the result', async () => {
+    simulateMock.mockResolvedValue(RESULT);
+    st().setSimPrefs({ ...st().simPrefs, lengthUnit: 'in' });
+    await st().runSim();
+    expect((simulateMock.mock.calls[0]![0] as SimPayload).lengthUnit).toBe('in');
+    const sim = () => selectActive(st());
+    const outdated = () => isOutdated(sim(), st().tree, configOf(st().configs, sim()), st().simPrefs);
+    expect(outdated()).toBe(false);
+    st().setSimPrefs({ ...st().simPrefs, lengthUnit: 'mm' });
+    expect(outdated()).toBe(true);
   });
 
   it('flies the preferences the store mirrors', async () => {

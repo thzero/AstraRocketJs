@@ -588,20 +588,32 @@ describe('mass and CG overrides through the one UseKnownCG switch', () => {
   });
 
   it('writes KnownMass once on a mass component that also overrides its mass', () => {
+    // Inside a body tube, the only place a stage holds a mass object.
     const { xml: out } = only({
-      type: 'masscomponent',
-      id: 'm',
-      name: 'Altimeter',
-      length: 0.03,
-      radius: 0.01,
-      mass: 0.02,
-      overrideMass: 0.05,
-    } as ComponentNode);
+      type: 'bodytube',
+      id: 'b',
+      name: 'Airframe',
+      length: 0.3,
+      outerRadius: 0.0124,
+      thickness: 0.0004,
+      children: [
+        {
+          type: 'masscomponent',
+          id: 'm',
+          name: 'Altimeter',
+          length: 0.03,
+          radius: 0.01,
+          mass: 0.02,
+          overrideMass: 0.05,
+        },
+      ],
+    } as unknown as ComponentNode);
     const block = out.slice(out.indexOf('<MassObject>'), out.indexOf('</MassObject>'));
     expect(block.match(/<KnownMass>/g)).toHaveLength(1);
     // BasePartDTO writes getMass(), which is the override when there is one.
     expect(block).toContain('<KnownMass>50</KnownMass>');
-    expect(importRkt(out).tree.components[0]!.children![0]!['overrideMass']).toBeCloseTo(0.05, 12);
+    const mass = importRkt(out).tree.components[0]!.children![0]!.children![0]!;
+    expect(mass['overrideMass']).toBeCloseTo(0.05, 12);
   });
 
   it('writes KnownMass once on a shock cord that overrides its mass', () => {
@@ -615,5 +627,63 @@ describe('mass and CG overrides through the one UseKnownCG switch', () => {
     } as ComponentNode);
     const block = out.slice(out.indexOf('<MassObject>'), out.indexOf('</MassObject>'));
     expect(block.match(/<KnownMass>/g)).toHaveLength(1);
+  });
+});
+
+describe('stage mass and CG overrides', () => {
+  // StageDTO writes a mass-overridden stage's mass in grams on the design as
+  // StageNMass with UseKnownMass=1, and its override CG in millimeters as
+  // Stage3CG for the sustainer and StageNCGAlone for a booster.
+  const tree = {
+    name: 'Two stage',
+    components: [
+      {
+        type: 'stage',
+        id: 's',
+        name: 'Sustainer',
+        overrideMass: 0.1425,
+        overrideSubcomponentsMass: true,
+        overrideCGX: 0.21,
+        overrideSubcomponentsCG: true,
+        children: [{ type: 'bodytube', id: 'u', name: 'Upper', length: 0.3, outerRadius: 0.0124, thickness: 0.0004 }],
+      },
+      {
+        type: 'stage',
+        id: 'b',
+        name: 'Booster',
+        overrideMass: 0.08,
+        overrideSubcomponentsMass: true,
+        overrideCGX: 0.12,
+        overrideSubcomponentsCG: true,
+        children: [{ type: 'bodytube', id: 'l', name: 'Lower', length: 0.25, outerRadius: 0.0124, thickness: 0.0004 }],
+      },
+    ],
+  } as unknown as RocketTree;
+  const { xml: out, skipped } = exportRkt('Two stage', tree);
+
+  it('writes them on the design, under the names RockSimHandler reads', () => {
+    expect(out).toContain('<Stage3Mass>142.5</Stage3Mass>');
+    expect(out).toContain('<Stage2Mass>80</Stage2Mass>');
+    expect(out).toContain('<Stage3CG>210</Stage3CG>');
+    expect(out).toContain('<Stage2CGAlone>120</Stage2CGAlone>');
+    expect(out).toContain('<UseKnownMass>1</UseKnownMass>');
+    expect(out).not.toContain('Stage1Mass');
+    expect(skipped).toEqual([]);
+  });
+
+  it('reads back as the same stage overrides', () => {
+    const [sustainer, booster] = importRkt(out).tree.components;
+    expect(sustainer!['overrideMass']).toBeCloseTo(0.1425, 12);
+    expect(sustainer!['overrideCGX']).toBeCloseTo(0.21, 12);
+    expect(booster!['overrideMass']).toBeCloseTo(0.08, 12);
+    expect(booster!['overrideCGX']).toBeCloseTo(0.12, 12);
+  });
+
+  it('writes none for a stage that overrides nothing', () => {
+    const plain = exportRkt('One', {
+      name: 'One',
+      components: [{ type: 'stage', id: 's', children: [tree.components[0]!.children![0]!] }],
+    } as unknown as RocketTree).xml;
+    expect(plain).not.toMatch(/Stage\dMass|Stage3CG|UseKnownMass/);
   });
 });

@@ -16,9 +16,9 @@ export const syncDerived = (tree: RocketTree): RocketTree => syncAutoShoulders(s
  */
 import type { ComponentNode, ComponentType, RocketTree } from '../../engine/openRocketEngine';
 import { defaultStageName } from './orkTree';
-import type { Component } from '../parts/componentDb';
+import type { Component, ParachuteComponent } from '../parts/componentDb';
 import { DEFAULT_CHUTE_CD } from '../parts/componentFilter';
-import { KERNEL_DEFAULTS } from '../../tree/kernelDefaults.js';
+import { KERNEL_DEFAULTS, KERNEL_MATERIALS } from '../../tree/kernelDefaults.js';
 import { COMPONENT_DEFAULTS } from './componentDefaults.js';
 import { isChainType } from '../../tree/componentKinds';
 import { uuid } from '../app/uuid';
@@ -468,6 +468,37 @@ function presetShoulder(
   };
 }
 
+/** A new parachute's shroud line count, `Parachute.DEFAULT_LINE_COUNT`. */
+const DEFAULT_LINE_COUNT = 6;
+
+/**
+ * A catalog parachute as `Parachute.loadFromPreset` applies it. Everything the
+ * part leaves unstated goes back to a new parachute's value rather than keeping
+ * the replaced part's: the drag coefficient to automatic, six lines of 0.3 m,
+ * the default canopy and line materials, and no mass override. The packed
+ * length and diameter are set only where stated, and with both stated the
+ * packed radius follows the parent's bore.
+ */
+function parachutePatch(p: ParachuteComponent): Partial<ComponentNode> {
+  const packedLength = p.packedLength ?? null;
+  const packedDiameter = p.packedDiameter ?? null;
+  return {
+    diameter: p.diameter,
+    cd: p.cd ?? DEFAULT_CHUTE_CD,
+    cdAuto: p.cd == null,
+    lineCount: p.lineCount ?? DEFAULT_LINE_COUNT,
+    lineLength: p.lineLength ?? KERNEL_DEFAULTS.parachute.lineLength,
+    lineLengthAuto: false,
+    surfaceMaterialName: p.material ?? KERNEL_MATERIALS.surface.name,
+    surfaceDensity: p.materialDensity ?? KERNEL_MATERIALS.surface.density,
+    lineMaterialName: p.lineMaterial ?? KERNEL_MATERIALS.line.name,
+    lineDensity: p.lineMaterialDensity ?? KERNEL_MATERIALS.line.density,
+    ...(packedLength != null ? { length: packedLength } : {}),
+    ...(packedDiameter != null ? { radius: packedDiameter / 2, radiusAuto: packedLength != null } : {}),
+    overrideMass: p.mass != null && p.mass > 0 ? p.mass : undefined,
+  };
+}
+
 /** The dimensions the chosen part states, before {@link pinStated} pins them. */
 function statedPatch(p: Component, node?: ComponentNode): Partial<ComponentNode> {
   // A saved part (customParts.ts) carries its whole node, not the handful of
@@ -522,9 +553,7 @@ function statedPatch(p: Component, node?: ComponentNode): Partial<ComponentNode>
     case 'bulkhead':
       return { outerRadius: p.outerDiameter / 2, length: p.length, ...mat };
     case 'parachute':
-      // A stated mass becomes the mass override, and a part with none clears
-      // it, as `Parachute.loadPreset` does.
-      return { diameter: p.diameter, cd: p.cd ?? DEFAULT_CHUTE_CD, overrideMass: p.mass };
+      return parachutePatch(p);
     // Transition.loadFromPreset: both ends pinned, the shoulders as stated, and
     // a filled part's shoulders solid too. A stated shoulder replaces the one
     // that follows the neighboring tube.

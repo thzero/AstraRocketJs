@@ -5,8 +5,8 @@ import i18n from '../i18n';
 import type { RocketTree } from '../engine/openRocketEngine';
 import { configFor, newFlightConfig, reconcileConfig, type FlightConfig } from '../services/flight/flightConfigs';
 import { repairedText, type RepairedValue } from '../services/design/repairValues';
-import type { Simulation } from '../services/flight/simulations';
-import { loadSettings } from '../services/storage/settings';
+import type { Simulation, SimPrefs } from '../services/flight/simulations';
+import { loadSettings, type Settings } from '../services/storage/settings';
 import type { Workspace } from '../services/storage/workspaceStore';
 import { designNameOf } from '../services/app/appInfo';
 import { unitSymbols } from '../prefs/units';
@@ -21,6 +21,14 @@ export const displayUnits = () => {
   const s = loadSettings();
   return unitSymbols(s.units, s.unitOverrides);
 };
+
+/**
+ * The global run preferences the store holds: the simulation settings plus the
+ * length unit, which the kernel's airframe-step warnings are decided in. Read
+ * from settings rather than from the kernel's current unit, which only the
+ * main-thread build sets and which lags while that build is pending or failed.
+ */
+export const simPrefsOf = (s: Settings): SimPrefs => ({ ...s.simulation, lengthUnit: s.units.length });
 
 /** Each repaired value as the banner's own line. */
 export const repairNotes = (repaired: RepairedValue[]): string[] => repaired.map((r) => repairedText(r, i18n.t));

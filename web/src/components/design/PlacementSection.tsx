@@ -7,6 +7,10 @@ import { unitScope } from '../../prefs/units';
 import { PANEL_SCOPE_KEYS } from '../../services/design/componentFields';
 import { FieldRow, NumberField, sectionFields } from './DimensionFields';
 import { PropSection } from './PropSection';
+import { useWorkspaceStore } from '../../state/store';
+import { findParent } from '../../services/design/treeEdit';
+import { axialFrameOf, rebasePosition } from '../../tree/axialRebase';
+import { axialLength } from '../../tree/position';
 
 /**
  * The property panel's placement section: where a nested part sits, as
@@ -46,15 +50,24 @@ export function PlacementSection({
 
   const rotations = sectionFields(node, 'placement');
 
+  // A new reference keeps the part where it is, as the kernel's
+  // setAxialMethod does: the offset is re-measured, not carried over.
+  const changeMethod = (method: ComponentPosition['method']) => {
+    const tree = useWorkspaceStore.getState().tree;
+    const parent = node.id ? findParent(tree, node.id) : null;
+    const frame = parent?.id ? axialFrameOf(tree, parent.id) : null;
+    commitChange({
+      position: frame ? rebasePosition(pos, method, axialLength(node), frame) : { ...pos, method },
+    });
+  };
+
   return (
     <PropSection title={t('prop.placement')}>
       <label className="flex items-center justify-between gap-3">
         <span className="text-xs text-ink-muted">{t('prop.positionFrom')}</span>
         <select
           value={pos.method}
-          onChange={(e) =>
-            commitChange({ position: { ...pos, method: e.target.value as ComponentPosition['method'] } })
-          }
+          onChange={(e) => changeMethod(e.target.value as ComponentPosition['method'])}
           className="w-32 rounded-md bg-raised px-2 py-1 text-sm text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500"
         >
           {(['top', 'middle', 'bottom', 'absolute'] as const).map((m) => (

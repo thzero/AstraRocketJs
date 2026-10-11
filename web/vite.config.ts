@@ -284,6 +284,24 @@ export default defineConfig({
             },
           },
           {
+            // The PDF report's Unicode fonts (public/fonts, ~2.5 MB in all; see
+            // services/report/reportFonts.ts). Not in the precache glob: most
+            // reports are WinAnsi text and never ask for them, and the JP pair
+            // alone is 2.3 MB. A report that needs one fetches it once and this
+            // keeps it, so the same report works at the field. A report that
+            // needs a font never fetched prints in Helvetica and says so.
+            //
+            // Cache-first and never revalidated, so the cache name carries a
+            // version: bump it whenever a file in public/fonts changes.
+            urlPattern: /\/fonts\/[\w-]+\.ttf$/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'astra-report-fonts-v1',
+              expiration: { maxEntries: 8 },
+              cacheableResponse: { statuses: [200] },
+            },
+          },
+          {
             // Map tiles: the launch-site map (components/sim/SiteMap.tsx) and
             // the ground track's imagery (components/canvas/GroundTrack.tsx).
             //

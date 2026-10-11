@@ -327,12 +327,15 @@ describe('a mass object', () => {
 });
 
 describe('a pod', () => {
+  // On a body tube: a stage's own parts are only nose cones, body tubes and
+  // transitions (StageHandler), so a pod rides in a tube's attached parts.
   const pod = (extra: string): ComponentNode[] =>
     parts(
-      `<ExternalPod><Name>P</Name><RadialLoc>30</RadialLoc><RadialAngle>90</RadialAngle>${extra}
-      <AttachedParts><BodyTube><Name>Pod tube</Name><Len>100</Len><OD>18</OD><ID>17</ID></BodyTube>
-      <LaunchLug><Name>Pod lug</Name><Len>20</Len><OD>5</OD><ID>4</ID><RadialAngle>120</RadialAngle></LaunchLug>
-      </AttachedParts></ExternalPod>`,
+      `<BodyTube><Name>Air</Name><Len>300</Len><OD>24</OD><ID>23</ID><AttachedParts>
+      <ExternalPod><Name>P</Name><RadialLoc>30</RadialLoc><RadialAngle>90</RadialAngle>${extra}
+      <AttachedParts><BodyTube><Name>Pod tube</Name><Len>100</Len><OD>18</OD><ID>17</ID>
+      <AttachedParts><LaunchLug><Name>Pod lug</Name><Len>20</Len><OD>5</OD><ID>4</ID><RadialAngle>120</RadialAngle></LaunchLug></AttachedParts>
+      </BodyTube></AttachedParts></ExternalPod></AttachedParts></BodyTube>`,
     );
 
   /**
@@ -553,5 +556,57 @@ describe('a tube fin set', () => {
   it('clamps the tube count to the kernel fin limit', () => {
     expect(tubes(12)['finCount']).toBe(8);
     expect(tubes(6)['finCount']).toBe(6);
+  });
+});
+
+describe('a part goes where its container puts it', () => {
+  /**
+   * The handler that opens a `BodyTube` decides its type, not `IsInsideTube`:
+   * `StageHandler` builds a BodyTube, and `AttachedPartsHandler` builds an
+   * InnerTube unless its parent is a pod.
+   */
+  it('reads a stage-level tube as a body tube whatever IsInsideTube says', () => {
+    const tube = find(
+      parts('<BodyTube><Name>Air</Name><Len>300</Len><OD>24</OD><ID>23</ID><IsInsideTube>1</IsInsideTube></BodyTube>'),
+      'Air',
+    );
+    expect(tube.type).toBe('bodytube');
+  });
+
+  it('reads a tube attached to a tube as an inner tube whatever IsInsideTube says', () => {
+    const list = parts(
+      `<BodyTube><Name>Air</Name><Len>300</Len><OD>24</OD><ID>23</ID><AttachedParts>
+      <BodyTube><Name>Mount</Name><Len>70</Len><OD>18.7</OD><ID>18</ID><IsInsideTube>0</IsInsideTube></BodyTube>
+      </AttachedParts></BodyTube>`,
+    );
+    expect(find(list, 'Mount').type).toBe('innertube');
+  });
+
+  /**
+   * `BaseHandler.isCompatible`: a part its parent cannot hold is left out with
+   * a warning ("can not be attached to ..., ignoring component") and the rest
+   * of the design opens.
+   */
+  it('leaves out a part its parent cannot hold, says so, and opens the rest', () => {
+    const res = importRkt(
+      doc(`<NoseCone><Name>Nose</Name><Len>100</Len><BaseDia>24</BaseDia><AttachedParts>
+      <LaunchLug><Name>Lug</Name><Len>20</Len><OD>5</OD><ID>4</ID></LaunchLug>
+      </AttachedParts></NoseCone>
+      <BodyTube><Name>Air</Name><Len>300</Len><OD>24</OD><ID>23</ID></BodyTube>`),
+    );
+    const list = res.tree.components[0]!.children ?? [];
+    expect(() => find(list, 'Lug')).toThrow();
+    expect(find(list, 'Nose').children ?? []).toEqual([]);
+    expect(find(list, 'Air').type).toBe('bodytube');
+    expect(noteTexts(res.notes).some((t) => t.includes('Launch lug') && t.includes('Nose cone'))).toBe(true);
+  });
+
+  it('leaves out a part the stage itself cannot hold', () => {
+    const res = importRkt(
+      doc(`<BodyTube><Name>Air</Name><Len>300</Len><OD>24</OD><ID>23</ID></BodyTube>
+      <Parachute><Name>Chute</Name><Dia>300</Dia></Parachute>`),
+    );
+    expect(() => find(res.tree.components, 'Chute')).toThrow();
+    expect(noteTexts(res.notes).some((t) => t.includes('Parachute') && t.includes('Stage'))).toBe(true);
   });
 });

@@ -1,7 +1,7 @@
 import { nsKey } from './storageKeys';
 import type { PartKey } from '../design/partColors';
 import type { CompleteLaunch } from '../flight/requiredLaunch';
-import { DEFAULT_HEADING_DEG } from '../flight/simulations';
+import { DEFAULT_HEADING_DEG, MAX_ANGLE_STEP_RANGE } from '../flight/simulations';
 import { defaultCsvFormat } from '../flight/flightColumns';
 import { usableWindLevels } from '../flight/windLevels';
 import { usableAtmosphereLevels } from '../flight/atmosphereLevels';
@@ -457,12 +457,13 @@ const clampPlayback = (v: unknown): number =>
  * `maxTime / timeStep` is the solver's iteration count: 1000000 s (a plausible
  * slip for 1000) at the default step asks for tens of millions of RK4 steps,
  * with nothing to interrupt it. One constant keeps the two surfaces from
- * drifting apart. `maxAngleStep` is in radians here, like the field it bounds.
+ * drifting apart. `maxAngleStep` is in radians here, like the field it bounds,
+ * and is the range the kernel flies.
  */
 export const SIM_BOUNDS = {
   timeStep: { min: 0.001, max: 10 },
   maxTime: { min: 1, max: 10_000 },
-  maxAngleStep: { min: (0.05 * Math.PI) / 180, max: (30 * Math.PI) / 180 },
+  maxAngleStep: MAX_ANGLE_STEP_RANGE,
 } as const;
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -774,6 +775,9 @@ export function loadSettings(): Settings {
         // outside 0..100 and would take the whole export down with it.
         c.decimals = Number.isFinite(c.decimals) ? Math.min(Math.max(Math.round(c.decimals), 0), 12) : 3;
         if (typeof c.separator !== 'string' || !c.separator) c.separator = ',';
+        // A stored two-character backslash-t names the tab character; written
+        // verbatim it would put every value in one spreadsheet column.
+        if (c.separator === '\\t') c.separator = '\t';
         if (typeof c.commentChar !== 'string' || !c.commentChar) c.commentChar = '#';
         // The flags drive `if (opts.flightEvents)` branches in the writer; a
         // stored "false" string is truthy there.

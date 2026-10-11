@@ -99,7 +99,7 @@ function stations(tree: RocketTree): Map<string, number> {
       if (chained && isChainType(kid.type)) {
         at = x;
         x += partLength(kid);
-      } else at = start + startFromPosition(positionOf(kid), axialLength(kid), pLen);
+      } else at = start + startFromPosition(positionOf(kid), axialLength(kid), pLen, start);
       out.set(kid.name ?? kid.type, at);
       walk(kid, at, false);
     }

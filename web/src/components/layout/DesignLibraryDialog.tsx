@@ -7,8 +7,7 @@ import { confirm } from '../../state/confirmStore';
 import { Dialog } from '../common/Dialog';
 import { DesignPropertiesDialog } from './DesignPropertiesDialog';
 import { ExampleList } from './ExamplesDialog';
-
-const LIBRARY_TABS = ['mine', 'examples'] as const;
+import { LIBRARY_TABS, type LibraryTab } from './dialogKeys';
 
 /**
  * The saved-designs library ("My Rockets"), and the bundled examples beside it.
@@ -36,7 +35,7 @@ export function DesignLibraryDialog({ onClose }: { onClose: () => void }) {
   // effect, which re-subscribes harmlessly.
 
   const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null);
-  const [tab, setTab] = useState<'mine' | 'examples'>('mine');
+  const [tab, setTab] = useState<LibraryTab>('mine');
   const tabs = useTabs(LIBRARY_TABS, tab, setTab);
 
   useEffect(() => {

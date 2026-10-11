@@ -188,6 +188,12 @@ function parseEngine(el: Element): CustomMotor {
   const points = finalizeThrustCurve(sortByTime(rows));
   if (points.length < 2) throw new KeyedError('errors.motorFile.rseNoCurve', { motor: designation });
 
+  // ThrustCurveMotor refuses both of these, and the bridge builds every
+  // seated motor through it, so the file is refused here as desktop drops it.
+  if (points.some((p) => p.thrust < 0)) {
+    throw new KeyedError('errors.motorFile.rseNegativeThrust', { motor: designation });
+  }
+
   const samples = points.map((p) => ({ time: p.time, thrust: p.thrust }));
 
   // Mass and CG are each used only if the file gives them for every point and
@@ -203,6 +209,9 @@ function parseEngine(el: Element): CustomMotor {
   // drop the motor later without a word.
   if (haveMass && points.some((p) => p.mass < 0)) {
     throw new KeyedError('errors.motorFile.rseNegativeMass', { motor: designation });
+  }
+  if (haveCg && points.some((p) => p.cg < 0 || p.cg > length)) {
+    throw new KeyedError('errors.motorFile.rseCgOutside', { motor: designation, length });
   }
 
   const type = TYPES[(el.getAttribute('Type') ?? '').trim().toLowerCase()];

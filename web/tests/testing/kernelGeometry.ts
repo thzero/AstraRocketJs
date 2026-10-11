@@ -20,6 +20,8 @@ export interface KernelGeometry {
   innerRadius?: number;
   maxTabHeight?: number;
   radius?: number;
+  /** The front of the part's first copy from the nose tip (`getComponentInfo`). */
+  positionX?: number;
 }
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- the TeaVM bundle is untyped */
@@ -60,6 +62,14 @@ export function kernelGeometry(engine: any, tree: RocketTree): Map<string, Kerne
     };
     if (json.error) throw new Error(`${id}: ${json.error}`);
     out.set(id, json);
+  }
+  // Read after every geometry read: those reads are what settle an automatic
+  // tube, in tree order, and reading anything else between them would change
+  // the order the kernel evaluates them in.
+  for (const [id, geometry] of out) {
+    const info = JSON.parse(engine.getComponentInfo(handle, id) as string) as { positionX?: number; error?: string };
+    if (info.error) throw new Error(`${id}: ${info.error}`);
+    geometry.positionX = info.positionX;
   }
   return out;
 }

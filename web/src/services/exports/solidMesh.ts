@@ -504,6 +504,11 @@ function buildSolid(node: ComponentNode, parentRadius: number | null): THREE.Buf
       // still reads as "watertight"; return null so it's skipped from export
       // rather than handed over as a hollow non-solid (matches nose/transition/fin).
       if (!(R > 0) || !(len > 0)) return null;
+      // A filled body tube flies as a solid rod (BodyTube.setFilled), whatever
+      // wall thickness the part still carries, so it prints as one. Nose cones
+      // and transitions, the other filled-capable parts, are already printed as
+      // solids of revolution.
+      if (node.type === 'bodytube' && node['filled'] === true) return discSolid(R, 0, len);
       // A wall at least as thick as the radius has no bore left, and
       // `discSolid` would silently fall through to its no-bore branch and
       // export a solid rod. Same policy as discSolid's inverted-ring check: a

@@ -16,6 +16,7 @@ import { ComponentTable, RollTable, StabilityTable } from './AeroComponentTables
 import { Num, WorstButton } from './AeroInputs';
 import { Segmented } from '../common/Segmented';
 import { CATEGORICAL } from '../common/chartPalette';
+import type { AeroPane } from '../../state/tabs';
 
 /**
  * Aerodynamic analysis (RASAero-style "Aero Plots"). Two panes
@@ -73,7 +74,7 @@ export function AeroAnalysis() {
   // being chosen for the user.
   const [cpModeSel, setCpMode] = useState<CpMode>('len');
   const [hoverM, setHoverM] = useState<number | null>(null);
-  const [pane, setPane] = useState<'charts' | 'components'>('charts');
+  const [pane, setPane] = useState<AeroPane>('charts');
   // The Mach the tables report at. Hovering a chart parks it there too, so
   // switching to the tables lands on the point you were just looking at rather
   // than resetting -- the crosshair and the slider drive the same value.

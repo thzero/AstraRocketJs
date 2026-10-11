@@ -77,18 +77,15 @@ export default defineConfig({
       // The tests and their scaffolding live outside src, and coverage only
       // includes src, so neither needs excluding.
       exclude: ['src/engine/vendor/**', 'src/**/*.d.ts'],
-      // Measured 2026-10-02 (`npm run verify:ci`, 3490 tests in 263 files): lines
-      // 74.85%, statements 73.55%, branches 66.52%, functions 66%.
-      //
-      // Each minimum is about five points under its measurement: enough to absorb
-      // the ordinary wobble of a refactor that moves code between files, and
-      // little enough that deleting a tested module still fails. Twenty points of
-      // slack would let roughly a fifth of the suite be deleted and still pass.
+      // Each minimum is five points under its measurement (`npm run
+      // test:coverage`), rounded down to a whole number: enough to absorb the
+      // ordinary wobble of a refactor that moves code between files, and little
+      // enough that deleting a tested module still fails.
       //
       // Branches and functions are enforced as well as lines. A number nothing enforces is
       // decoration, and these two are where coverage actually erodes: a new `if`
       // with no test for its other side moves branches and leaves lines alone.
-      thresholds: { lines: 70, branches: 62, functions: 61, statements: 69 },
+      thresholds: { lines: 80, branches: 71, functions: 74, statements: 79 },
     },
   },
 });

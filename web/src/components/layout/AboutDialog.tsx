@@ -85,7 +85,7 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
                   href="https://openrocket.info"
                   target="_blank"
                   rel="noreferrer"
-                  className="text-accent-400 hover:underline"
+                  className="text-accent-400 underline"
                 />
               ),
             }}
@@ -155,7 +155,7 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
                   href={UPSTREAM.commitUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-accent-400 hover:underline"
+                  className="text-accent-400 underline"
                 />
               ),
             }}

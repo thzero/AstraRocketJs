@@ -42,9 +42,7 @@ export function MotorComparePane({ motors, cols }: { motors: CatalogMotor[]; col
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-3">
-      <div className="text-[11px] font-semibold uppercase tracking-wider text-warn-400/90">
-        {t('dash.compareTitle')}
-      </div>
+      <div className="text-[11px] font-semibold uppercase tracking-wider text-warn-300">{t('dash.compareTitle')}</div>
       <h3 className="mt-1 text-lg font-bold text-ink-strong">{t('dash.compareN', { n: motors.length })}</h3>
 
       {series.length >= 1 ? (

@@ -89,7 +89,7 @@ export function MotorDetail({
           ← {t('motorDlg.backToList')}
         </button>
       )}
-      <div className="text-[11px] font-semibold uppercase tracking-wider text-warn-400/90">{motor.manufacturer}</div>
+      <div className="text-[11px] font-semibold uppercase tracking-wider text-warn-300">{motor.manufacturer}</div>
       <div className="mt-1 flex items-center gap-2">
         <span className="rounded bg-ok-500/15 px-1.5 py-0.5 text-xs font-semibold text-ok-300">{motor.class}</span>
         <h3 className="text-2xl font-bold text-ink-strong">{title}</h3>

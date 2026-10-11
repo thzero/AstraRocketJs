@@ -3,6 +3,8 @@ import en from '../../../src/i18n/locales/en.json';
 import es from '../../../src/i18n/locales/es.json';
 import { DEFAULT_CSV_COLUMNS, flightBranches, flightColumns } from '../../../src/services/flight/flightColumns';
 import type { FlightResult } from '../../../src/engine/openRocketEngine';
+import { flightDataCsv } from '../../../src/services/exports/csvExport';
+import { METRIC_UNITS } from '../../../src/prefs/units';
 
 /** A result carrying exactly these series keys. */
 const withKeys = (keys: string[]) =>
@@ -65,6 +67,31 @@ describe('flightColumns', () => {
 
   it('puts the mass in the reader mass unit, as it does the propellant mass', () => {
     expect(flightColumns(withKeys(['mass', 'mp'])).map((c) => c.quantity)).toEqual(['mass', 'mass']);
+  });
+
+  /**
+   * The kernel records the body rates and the natural frequency in rad/s, and
+   * `r/s` in OpenRocket's unit list is revolutions per second, so the column
+   * takes the roll-rate unit group and is converted with it.
+   */
+  it('puts the angular rates in the reader roll-rate unit, converted from rad/s', () => {
+    const keys = ['dΦ', 'dθ', 'dΨ', 'ωn'];
+    expect(flightColumns(withKeys(keys)).map((c) => c.quantity)).toEqual(keys.map(() => 'rollRate'));
+
+    const r = { series: { time: [0, 1], dΦ: [0, 2 * Math.PI] } } as unknown as FlightResult;
+    const bare = { fieldDescriptions: false, simDescription: false, flightEvents: false, decimals: 3 };
+    const name = (c: { key: string }) => c.key;
+    const revs = flightDataCsv(r, METRIC_UNITS, { ...bare, columns: ['time', 'dΦ'], columnName: name }).split('\r\n');
+    expect(revs[0]).toBe('time (s),dΦ (r/s)');
+    expect(revs[2]).toBe('1.000,1.000');
+
+    const rads = flightDataCsv(
+      r,
+      { ...METRIC_UNITS, rollRate: 'rad/s' },
+      { ...bare, columns: ['time', 'dΦ'], columnName: name },
+    ).split('\r\n');
+    expect(rads[0]).toBe('time (s),dΦ (rad/s)');
+    expect(rads[2]).toBe(`1.000,${(2 * Math.PI).toFixed(3)}`);
   });
 
   it('gives every column a unit or an explicit blank, never undefined both ways', () => {

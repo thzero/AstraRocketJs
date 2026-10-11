@@ -255,14 +255,70 @@ describe('catalogPatch', () => {
   });
 
   it('defaults parachute Cd to 0.8 when the catalog omits it', () => {
-    expect(catalogPatch({ type: 'parachute', diameter: 0.3, cd: null } as unknown as Component)).toEqual({
+    expect(catalogPatch({ type: 'parachute', diameter: 0.3, cd: null } as unknown as Component)).toMatchObject({
       diameter: 0.3,
       cd: 0.8,
+      cdAuto: true,
     });
-    expect(catalogPatch({ type: 'parachute', diameter: 0.3, cd: 1.5 } as unknown as Component)).toEqual({
+    expect(catalogPatch({ type: 'parachute', diameter: 0.3, cd: 1.5 } as unknown as Component)).toMatchObject({
       diameter: 0.3,
       cd: 1.5,
+      cdAuto: false,
     });
+  });
+
+  // Parachute.loadFromPreset: lines, materials and packed size from the part.
+  it('applies the lines, materials and packed size a parachute row states', () => {
+    const patch = catalogPatch({
+      type: 'parachute',
+      diameter: 0.6,
+      cd: 0.99,
+      lineCount: 10,
+      lineLength: 0.7,
+      packedLength: 0.058,
+      packedDiameter: 0.05,
+      material: 'Ripstop nylon, lightweight, 3 mil',
+      materialDensity: 0.0357,
+      lineMaterial: 'Spectra #200',
+      lineMaterialDensity: 0.00066,
+      mass: 0.035,
+    } as unknown as Component);
+    expect(patch).toMatchObject({
+      lineCount: 10,
+      lineLength: 0.7,
+      lineLengthAuto: false,
+      surfaceMaterialName: 'Ripstop nylon, lightweight, 3 mil',
+      surfaceDensity: 0.0357,
+      lineMaterialName: 'Spectra #200',
+      lineDensity: 0.00066,
+      length: 0.058,
+      radius: 0.025,
+      // Both packed sizes stated: the radius follows the bore, as on the desktop.
+      radiusAuto: true,
+      overrideMass: 0.035,
+    });
+  });
+
+  it('resets what a parachute row leaves out to the values of a new parachute', () => {
+    const patch = catalogPatch({
+      type: 'parachute',
+      diameter: 0.3,
+      cd: null,
+      packedDiameter: 0.04,
+      mass: 0,
+    } as unknown as Component);
+    expect(patch).toMatchObject({
+      lineCount: 6,
+      lineLength: 0.3,
+      surfaceMaterialName: 'Ripstop nylon',
+      lineMaterialName: 'Elastic cord (round 2 mm, 1/16 in)',
+      radius: 0.02,
+      radiusAuto: false,
+    });
+    // A zero mass is no mass: no override, rather than a weightless canopy.
+    expect(patch['overrideMass']).toBeUndefined();
+    // No packed length stated, so the part keeps the one it had.
+    expect(patch).not.toHaveProperty('length');
   });
 
   it('omits material fields when the part has no density', () => {

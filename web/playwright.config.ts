@@ -14,7 +14,15 @@ import { defineConfig, devices } from '@playwright/test';
 // project adds is the rest of a phone: touch events, a 2.6x device pixel
 // ratio, `isMobile` viewport handling and a mobile user agent. The pane
 // dividers and maximize specs are desktop-only by design and are not here.
-const MOBILE_SPECS = ['**/layout-overflow.spec.ts', '**/sketch-rotation.spec.ts', '**/mobile-layout.spec.ts'];
+// The phone accessibility scan is the exception the other way: it takes its
+// viewport from this project and the desktop one ignores it, since
+// a11y.spec.ts scans the same views at desktop width.
+const MOBILE_SPECS = [
+  '**/layout-overflow.spec.ts',
+  '**/sketch-rotation.spec.ts',
+  '**/mobile-layout.spec.ts',
+  '**/a11y-phone.spec.ts',
+];
 
 // The specs every pull request and master push runs (`npm run e2e:core`): the
 // paths a broken build breaks first. The app boots with and without the engine,
@@ -34,6 +42,7 @@ const CORE_SPECS = [
   '**/auto-run.spec.ts',
   '**/units.spec.ts',
   '**/a11y.spec.ts',
+  '**/a11y-phone.spec.ts',
   '**/layout-overflow.spec.ts',
   '**/mobile-layout.spec.ts',
 ];
@@ -71,6 +80,7 @@ export default defineConfig({
       // 1500 that column is a dialog instead (component-dialog.spec) and every
       // spec that drives the property editor would be driving the dialog.
       ...(core ? { testMatch: CORE_SPECS } : {}),
+      testIgnore: '**/a11y-phone.spec.ts',
       use: { ...devices['Desktop Chrome'], viewport: { width: 1600, height: 950 } },
     },
     {

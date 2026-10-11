@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18nGlobal from '../i18n';
 import { useWorkspaceStore, selectConfig, saveFailure, workspaceSnapshot } from './store';
+import { simPrefsOf } from './workspaceSelectors';
 import { setKernelLengthUnit, type RocketTree } from '../engine/openRocketEngine';
 
 import { useEngineStore } from './engineStore';
@@ -121,6 +122,9 @@ export function useWorkspaceEffects() {
   // The kernel decides and words its airframe-step warnings in this unit
   // (setKernelLengthUnit), so a change of unit rebuilds the design.
   const lengthUnit = useSettings().settings.units.length;
+  // An abandoned or failed import can reset the engine under the open design
+  // (fileSlice `rebuildSeq`); its handle is void until this builds it again.
+  const rebuildSeq = useWorkspaceStore((s) => s.rebuildSeq);
 
   useEffect(() => {
     if (seenQuiet.current !== quietReplace) {
@@ -274,7 +278,7 @@ export function useWorkspaceEffects() {
     // lands, `info` and `rocket` describe the design as it was before the burst.
     const id = setTimeout(build, REBUILD_DEBOUNCE_MS);
     return () => clearTimeout(id);
-  }, [ready, enginePhase, components, buildInputs, lengthUnit]);
+  }, [ready, enginePhase, components, buildInputs, lengthUnit, rebuildSeq]);
 
   /**
    * Mirror the global run preferences into the store, which compares each result
@@ -283,8 +287,7 @@ export function useWorkspaceEffects() {
    * `simulation` object on every unrelated change in it, such as a unit switch.
    */
   const { settings } = useSettings();
-  const simPrefs = settings.simulation;
   useEffect(() => {
-    useWorkspaceStore.getState().setSimPrefs(simPrefs);
-  }, [simPrefs]);
+    useWorkspaceStore.getState().setSimPrefs(simPrefsOf(settings));
+  }, [settings]);
 }

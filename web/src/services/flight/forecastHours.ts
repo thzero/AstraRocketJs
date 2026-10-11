@@ -99,6 +99,9 @@ export async function flyForecastHours(
           tree: q.tree,
           config: q.config,
           options: { ...simConditions(launch, { ...q.prefs, randomSeed: seed }), series: 'summary' },
+          // Sent with each flight, as a run sends it: the worker's unit must not
+          // depend on whether the main-thread build has caught up.
+          lengthUnit: q.prefs.lengthUnit,
         },
         { signal: o.signal },
       );

@@ -12,6 +12,9 @@ import { confirm } from '../../state/confirmStore';
 import { useHelpStore } from '../../state/helpStore';
 import { Stat } from '../common/Stat';
 import { WARNING_TONE } from './warningTone';
+import { deploymentVerdict } from './speedWarnings';
+import { selectShownSim, useWorkspaceStore } from '../../state/store';
+import { effectivePrefs, type SimPrefs } from '../../services/flight/simulations';
 
 /**
  * What the numbers below are and are not, as a card of its own above them.
@@ -180,9 +183,18 @@ export function SimSummary({ sim }: { sim: FlightResult | null }) {
   // No fixed digits on these tiles: the ladder's precision follows the size of
   // the number in the reader's unit, and is what the simulations table shows.
   const { settings } = useSettings();
-  const { deploymentSpeedWarn, railExitVelocityMin } = settings.simulation;
+  const { railExitVelocityMin } = settings.simulation;
+  // The deployment threshold is per simulation: the shown flight's own
+  // override over the global, which is what the kernel judged it against.
+  const ownPrefs = useWorkspaceStore((st): Partial<SimPrefs> | undefined => {
+    const shown = selectShownSim(st);
+    return shown.result === sim ? shown.prefs : undefined;
+  });
+  const { deploymentSpeedWarn } = effectivePrefs(settings.simulation, ownPrefs);
   const s = sim?.summary;
-  // Safe-if-green thresholds (global settings): fast off the rail, gentle at deploy.
+  const deployVerdict =
+    s?.deploymentVelocity != null ? deploymentVerdict(s.deploymentVelocity, sim?.warnings, deploymentSpeedWarn) : null;
+  // Safe-if-green thresholds: fast off the rail (global setting), gentle at deploy.
   const goodTone = 'text-ok-400',
     warnTone = 'text-warn-400';
   // Static margin at the instant the rocket clears the rod/rail: the
@@ -272,8 +284,14 @@ export function SimSummary({ sim }: { sim: FlightResult | null }) {
                 scope={unitScope('sim', 'deployVelocity')}
               />
             }
-            tone={s.deploymentVelocity < deploymentSpeedWarn ? goodTone : warnTone}
-            status={s.deploymentVelocity < deploymentSpeedWarn ? undefined : t('limits.tooFast')}
+            tone={deployVerdict ? warnTone : goodTone}
+            status={
+              deployVerdict === 'tooSlow'
+                ? t('limits.tooSlow')
+                : deployVerdict === 'tooFast'
+                  ? t('limits.tooFast')
+                  : undefined
+            }
           />
         )}
         {Number.isFinite(s.groundHitVelocity) && (

@@ -13,7 +13,7 @@ import { useUnits } from '../../prefs/useUnits';
 import { onSi } from '../../prefs/entryValue';
 import { unitScope } from '../../prefs/units';
 import type { SimPrefs } from '../../services/flight/simulations';
-import { seedFromInput } from '../../services/flight/simulations';
+import { clampMaxAngleStep, seedFromInput } from '../../services/flight/simulations';
 import { NumberRow } from '../common/NumberRow';
 import { fmtUpTo } from '../../i18n/format';
 import { SPEED_WARNINGS } from './speedWarnings';
@@ -279,7 +279,9 @@ function SimOptions({ diff }: { diff?: ReadonlySet<keyof SimPrefs> }) {
           // Stored in radians like the kernel's field, edited in the user's angle
           // unit through `angle` above, not in degrees by assumption.
           mixed={mixed('maxAngleStep')}
-          value={prefs?.maxAngleStep == null ? null : angle.toUi(prefs.maxAngleStep)}
+          // Shown as flown: an override saved outside the kernel's range reads
+          // as the value the run is clamped to.
+          value={prefs?.maxAngleStep == null ? null : angle.toUi(clampMaxAngleStep(prefs.maxAngleStep))}
           placeholder={fmtUpTo(angle.toUi(g.maxAngleStep), 3)}
           step={angle.step((0.5 * Math.PI) / 180)}
           min={angle.toUi(SIM_BOUNDS.maxAngleStep.min)}

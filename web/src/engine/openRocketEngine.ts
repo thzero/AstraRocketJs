@@ -713,26 +713,25 @@ export interface ComponentPosition {
    * of the previous sibling, with the offset forced to 0
    * (RocketComponent.setAfter), not the `outerLength + offset`
    * the enum's own getAsPosition suggests, which that path never reaches.
-   * Sibling-relative, so like `absolute` it is resolved into the parent frame
-   * on load; see resolveFilePositions.
+   * Sibling-relative, so it is resolved into the parent frame on load; see
+   * resolveFilePositions.
+   *
+   * `absolute` is measured from the rocket's origin, the nose tip, whatever the
+   * parent; every reader resolves it through the parent's rocket-frame start
+   * (`startFromPosition`).
    */
   method: 'top' | 'middle' | 'bottom' | 'absolute' | 'after';
   /** meters, per the method's convention */
   offset: number;
   /**
-   * What the imported `.ork` actually said, when it said `absolute`.
-   *
-   * `absolute` is a rocket-origin offset, but the editor (schematic, property
-   * panel, drag handles) works purely in the parent frame, so an imported
-   * absolute position is rewritten to the equivalent `top` offset on load;
-   * otherwise the app draws the part somewhere the engine does not fly it.
+   * What the imported `.ork` actually said, when a position was rewritten on
+   * load: an `after` resolved to the equivalent `top` offset, `resolved`.
    *
    * Rewriting it would also change what we write back out, and `.ork` round-trips
    * are meant to be byte-stable. So the original is kept here and `orkExport`
-   * restores it, as long as `resolved` still matches the current offset (i.e. the
-   * user has not moved the part since importing).
-   *
-   * `absolute` and `after` are the two file-only methods; both resolve to 'top'.
+   * restores it, as long as `resolved` still matches the current offset (the
+   * part has not been moved since). A stored design can carry an `absolute` one
+   * too, which is restored the same way.
    */
   ork?: { method: 'absolute' | 'after'; offset: number; resolved: number };
 }

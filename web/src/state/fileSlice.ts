@@ -63,6 +63,12 @@ export interface FileSlice {
    * notes open for each new import that has some (LoadedBanner).
    */
   importSeq: number;
+  /**
+   * Bumped when an import that reset the engine did not replace the design (it
+   * failed, or the user abandoned it). The reset voided the open design's live
+   * handle, so the rebuild effect (useWorkspaceEffects) builds it again.
+   */
+  rebuildSeq: number;
   refreshDesigns: () => Promise<void>;
   openDesign: (id: string) => Promise<void>;
   saveDesignAs: (name: string) => Promise<void>;
@@ -232,17 +238,22 @@ export const createFileSlice =
       designs: [],
       activeDesignId: null,
       importSeq: 0,
+      rebuildSeq: 0,
 
       openOrkFile: async (file) => {
         // Three awaits before anything is written, and the file input has no busy
         // gate, so a second import (or a library open) can land in between.
         const stale = claimWorkspace();
+        // Whether `loadOrk` has run (which can reset the engine) without the
+        // workspace being replaced by its result.
+        let engineTouched = false;
         try {
           // The .ork parser (fflate + XML importer) is a lazily-imported chunk:
           // it isn't part of first paint, only of opening a file.
           const bytes = await file.arrayBuffer();
           if (stale()) return;
           const { loadOrk } = await import('../services/files/loadOrk');
+          engineTouched = true;
           const res = await loadOrk(bytes);
           if (stale()) return;
           const { tree, configs, sims, activeId, loadedMeta } = wireLoadedOrk(
@@ -288,9 +299,14 @@ export const createFileSlice =
             activeDesignId: home.id,
             importSeq: get().importSeq + 1,
           });
+          engineTouched = false;
         } catch (e) {
           if (stale()) return; // a superseded import must not post its error either
           set({ err: i18n.t('errors.openOrk', { reason: errorText(e, i18n.t) }) });
+        } finally {
+          // Failed or abandoned after the engine may have been reset: the design
+          // still on screen holds a voided handle until it is built again.
+          if (engineTouched) set({ rebuildSeq: get().rebuildSeq + 1 });
         }
       },
       openExample: async (file) => {

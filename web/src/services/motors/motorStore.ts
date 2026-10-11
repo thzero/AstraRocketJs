@@ -120,7 +120,9 @@ export const isThrustSampleArray = (v: unknown): boolean =>
   v.length >= MIN_CURVE_SAMPLES &&
   v.every((s) => {
     const p = s as { time?: unknown; thrust?: unknown } | null;
-    return !!p && Number.isFinite(p.time) && Number.isFinite(p.thrust);
+    // A negative thrust is refused by ThrustCurveMotor, which builds every
+    // seated motor, so a stored curve carrying one could never fly.
+    return !!p && Number.isFinite(p.time) && Number.isFinite(p.thrust) && (p.thrust as number) >= 0;
   });
 
 function isCustomMotor(v: unknown): v is CustomMotor {
@@ -139,7 +141,8 @@ function isCustomMotor(v: unknown): v is CustomMotor {
     Number.isFinite(m.propWeightG) &&
     isThrustSampleArray(m.samples) &&
     isMassArray(m.massesG, m.samples.length) &&
-    (m.cgMm === undefined || Number.isFinite(m.cgMm))
+    // The launch CG lies within the motor, as ThrustCurveMotor requires.
+    (m.cgMm === undefined || (Number.isFinite(m.cgMm) && m.cgMm >= 0 && m.cgMm <= m.length))
   );
 }
 

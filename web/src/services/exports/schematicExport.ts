@@ -179,22 +179,39 @@ const encodeCanvas = (canvas: HTMLCanvasElement, format: ImageFormat): Promise<B
     );
   });
 
-/** Rasterize an SVG string at the given pixel width. */
+/**
+ * Rasterize an SVG string at the given pixel width.
+ *
+ * A canvas past the browser's size limit (Safari stops near 16.7 Mpx, and the
+ * widest preset on a short, wide-finned rocket passes it) has no 2D context, and
+ * a browser may also throw while allocating it. Either way the promise rejects
+ * with a keyed error the caller shows, and the object URL is released on every
+ * path.
+ */
 export function svgToImage(svgString: string, widthPx = 3840, format: ImageFormat = 'png'): Promise<Blob> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(new Blob([svgString], { type: 'image/svg+xml' }));
     const img = new Image();
     img.onload = () => {
-      const ratio = img.naturalHeight / Math.max(1, img.naturalWidth);
-      const canvas = document.createElement('canvas');
-      canvas.width = widthPx;
-      canvas.height = Math.round(widthPx * ratio);
-      const c = canvas.getContext('2d')!;
-      c.fillStyle = '#ffffff';
-      c.fillRect(0, 0, canvas.width, canvas.height);
-      c.drawImage(img, 0, 0, canvas.width, canvas.height);
-      URL.revokeObjectURL(url);
-      encodeCanvas(canvas, format).then(resolve, reject);
+      try {
+        const ratio = img.naturalHeight / Math.max(1, img.naturalWidth);
+        const canvas = document.createElement('canvas');
+        canvas.width = widthPx;
+        canvas.height = Math.round(widthPx * ratio);
+        const c = canvas.getContext('2d');
+        if (!c) {
+          reject(new KeyedError('errors.export.imageTooLarge'));
+          return;
+        }
+        c.fillStyle = '#ffffff';
+        c.fillRect(0, 0, canvas.width, canvas.height);
+        c.drawImage(img, 0, 0, canvas.width, canvas.height);
+        encodeCanvas(canvas, format).then(resolve, reject);
+      } catch {
+        reject(new KeyedError('errors.export.imageTooLarge'));
+      } finally {
+        URL.revokeObjectURL(url);
+      }
     };
     img.onerror = () => {
       URL.revokeObjectURL(url);

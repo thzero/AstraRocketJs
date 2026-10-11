@@ -13,6 +13,7 @@ import {
   numTag,
   readAirfoil,
   readAngleAroundBody,
+  readAutoPackedRadius,
   readCommon,
   readDeployment,
   readFinRotation,
@@ -409,7 +410,9 @@ const readMasscomponent: NodeReader = (_ctx, el) => {
   const n = base(el, 'masscomponent', true);
   n['mass'] = nonNegTag(el, 'mass', 0.01);
   n['length'] = nonNegTag(el, 'packedlength', 0.02);
-  n['radius'] = nonNegTag(el, 'packedradius', COMPONENT_DEFAULTS.masscomponent.radius);
+  n['radius'] = COMPONENT_DEFAULTS.masscomponent.radius;
+  if (!readAutoPackedRadius(el, n))
+    n['radius'] = nonNegTag(el, 'packedradius', COMPONENT_DEFAULTS.masscomponent.radius);
   // Preserve-through: what kind of mass this is (altimeter, payload…).
   // No mass/CG effect, but the desktop shows it and users set it there.
   const mct = text(el, ':scope > masscomponenttype');

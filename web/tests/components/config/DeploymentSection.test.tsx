@@ -18,4 +18,21 @@ describe('DeploymentSection', () => {
     const altitude = screen.getByRole('spinbutton', { name: /Main - .*altitude/i }) as HTMLInputElement;
     expect(altitude.placeholder).toMatch(/^200/);
   });
+
+  it('offers every deploy event the design field offers, lower stage separation included', () => {
+    // DeployEvent in the kernel defines LOWER_STAGE_SEPARATION, and an imported
+    // override with it has to show as itself, not as "As designed".
+    const device = { type: 'parachute', id: 'chute', name: 'Main', deployEvent: 'apogee' } as ComponentNode;
+    const config = {
+      id: 'c',
+      name: null,
+      motors: {},
+      deployments: { chute: { deployEvent: 'lower_stage_separation' } },
+    } as unknown as FlightConfig;
+    renderWithProviders(<DeploymentSection config={config} device={device} />);
+    const select = screen.getByRole('combobox', { name: /Main/ }) as HTMLSelectElement;
+    const values = [...select.options].map((o) => o.value).filter(Boolean);
+    expect(values).toEqual(['apogee', 'ejection', 'altitude', 'launch', 'lower_stage_separation', 'never']);
+    expect(select.value).toBe('lower_stage_separation');
+  });
 });

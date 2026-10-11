@@ -134,7 +134,7 @@ export function LoadedBanner({
         </div>
       </div>
       {count > 0 && open && (
-        <ul className="mt-2 space-y-1 text-xs text-warn-400/90">
+        <ul className="mt-2 space-y-1 text-xs text-warn-300">
           {notes.map((n, i) => (
             <li key={i}>⚠ {importNoteText(n, t)}</li>
           ))}

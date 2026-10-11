@@ -22,6 +22,17 @@ import { isRecoveryDevice } from '../design/treeEdit';
  */
 export const DEFAULT_HEADING_DEG = 90;
 
+/**
+ * The maximum angle step the kernel flies, in radians: 1 to 20 degrees, the
+ * clamp in `SimulationOptions.setMaximumStepAngle`. The bridge sets the step on
+ * `SimulationConditions`, which has no clamp, so the range is applied here.
+ */
+export const MAX_ANGLE_STEP_RANGE = { min: Math.PI / 180, max: (20 * Math.PI) / 180 } as const;
+
+/** A maximum angle step brought into {@link MAX_ANGLE_STEP_RANGE}. */
+export const clampMaxAngleStep = (rad: number): number =>
+  Math.min(MAX_ANGLE_STEP_RANGE.max, Math.max(MAX_ANGLE_STEP_RANGE.min, rad));
+
 export interface Simulation {
   id: string;
   name: string;
@@ -326,6 +337,14 @@ export interface SimPrefs {
    * control for it, and a design does not carry one.
    */
   guideAwareRodClearance: boolean;
+  /**
+   * The user's length unit. The kernel decides its airframe diameter-step, gap
+   * and overlap warnings by comparing lengths as text in this unit, and those
+   * warnings land in the flight, so a unit switch changes what a run records.
+   * Optional because `settings.simulation` does not hold it; the store's copy
+   * always does (`simPrefsOf`).
+   */
+  lengthUnit?: string;
 }
 
 /**
@@ -352,6 +371,7 @@ export const SIM_PREF_KEYS = [
   'mainLowSpeedWarn',
   'drogueLowSpeedWarn',
   'guideAwareRodClearance',
+  'lengthUnit',
 ] as const satisfies readonly (keyof SimPrefs)[];
 
 /** Compile-time proof that {@link SIM_PREF_KEYS} names every `SimPrefs` key. */
@@ -367,7 +387,7 @@ void _exhaustive;
  *
  * Compared key by key rather than by identity, because the settings object is
  * rebuilt on every unrelated change in the same store: switching a unit or a
- * part color hands out a new `simulation` object holding the same nine numbers,
+ * part color hands out a new `simulation` object holding the same values,
  * and treating that as an edit would age every result on screen.
  */
 export function changedPrefKeys(before: SimPrefs, after: SimPrefs): (keyof SimPrefs)[] {
@@ -432,7 +452,8 @@ export function simConditions(launch: CompleteLaunch, prefs?: SimPrefs) {
     geodetic: launch.geodetic,
     gravityModel: launch.gravityModel,
     constantGravity: launch.constantGravity,
-    maxAngleStep: prefs?.maxAngleStep,
+    // A stored override or an older save can hold a step the kernel never flies.
+    maxAngleStep: prefs?.maxAngleStep == null ? undefined : clampMaxAngleStep(prefs.maxAngleStep),
     launchAltitude: launch.launchAltitudeM,
     launchLatitude: launch.latitudeDeg,
     launchLongitude: launch.longitudeDeg,

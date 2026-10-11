@@ -5,6 +5,7 @@ import { tubeFinRadius } from '../../tree/tubefins';
 import { DISC_TYPES } from '../files/componentFormats';
 import { boreAround, ringBore, tubeRadii } from './discGeometry';
 import { mapTreePreserving, type MapContext } from '../../tree/treeWalk';
+import { axialFrames } from '../../tree/axialRebase';
 import { isPlanarFinSet } from '../../tree/tubefins';
 
 /**
@@ -104,9 +105,14 @@ const AXIAL = new Set<string>(['top', 'middle', 'bottom', 'after', 'absolute']);
 const MASS_OBJECTS = new Set(['parachute', 'streamer', 'shockcord', 'masscomponent']);
 const RING_PARTS = new Set(['centeringring', 'bulkhead', 'tubecoupler', 'engineblock']);
 
-/** `AxialMethod.getAsPosition`. ABSOLUTE is taken as measured from the parent's fore end. */
-function asPosition(method: Axial, offset: number, inner: number, outer: number): number {
+/**
+ * `AxialMethod.getAsPosition`, and for ABSOLUTE `RocketComponent.setAxialOffset`:
+ * the offset less the parent's first location, `parentStart`.
+ */
+function asPosition(method: Axial, offset: number, inner: number, outer: number, parentStart: number): number {
   switch (method) {
+    case 'absolute':
+      return offset - parentStart;
     case 'middle':
       return offset + (outer - inner) / 2;
     case 'bottom':
@@ -277,6 +283,9 @@ function resolveAxial(components: ComponentNode[], out: Map<ComponentNode, Patch
 
   const lengthOf = (p: Part): number => p.length;
   const parentLength = (p: Part): number => (p.parent && p.parent.type !== 'rocket' ? lengthOf(p.parent) : 0);
+  /** A part's front from the rocket's origin: `getComponentLocations()[0].getX()`. */
+  const frontOf = (p: Part): number => (p.parent ? frontOf(p.parent) + p.x : 0);
+  const parentFront = (p: Part): number => (p.parent ? frontOf(p.parent) : 0);
   /** `RocketComponent.getAxialOffset(TOP)` and `(BOTTOM)`; a pod set snaps a near-zero offset to zero. */
   const offsetTop = (p: Part): number => {
     const v = p.x;
@@ -563,7 +572,7 @@ function resolveAxial(components: ComponentNode[], out: Map<ComponentNode, Patch
         // applyAssembly: setRadiusMethod reads the radius through the
         // default method, RELATIVE, which adds the parent tube's.
         if (p.ring) {
-          p.x = n.position ? snap(asPosition(p.method, p.offset, 0, lengthOf(parent))) : 0;
+          p.x = n.position ? snap(asPosition(p.method, p.offset, 0, lengthOf(parent), frontOf(parent))) : 0;
           if (p.radiusMethod !== 'relative' && parent.tube) outerRadius(parent);
         }
         // applyFinTabs: setTabHeight clamps to FinSet.getMaxTabHeight, which
@@ -614,10 +623,10 @@ function resolveAxial(components: ComponentNode[], out: Map<ComponentNode, Patch
       // ComponentAssembly.updateBounds, then its own place, then its parts'.
       p.length = p.kids.filter((k) => k.method === 'after').reduce((s, k) => s + lengthOf(k), 0);
       if (p.method === 'after') setAfter(p);
-      else p.x = snap(asPosition(p.method, p.offset, lengthOf(p), parentLength(p)));
+      else p.x = snap(asPosition(p.method, p.offset, lengthOf(p), parentLength(p), parentFront(p)));
       for (const k of p.kids) if (k.method === 'after') setAfter(k);
     } else if (p.method === 'after') setAfter(p);
-    else p.x = snap(asPosition(p.method, p.offset, lengthOf(p), parentLength(p)));
+    else p.x = snap(asPosition(p.method, p.offset, lengthOf(p), parentLength(p), parentFront(p)));
   };
   const changed = (p: Part): void => {
     located.delete(p);
@@ -731,7 +740,7 @@ function resolveAxial(components: ComponentNode[], out: Map<ComponentNode, Patch
  * radius and the fin count (`TubeFinSet.getOuterRadius`, ported in
  * tree/tubefins.ts).
  */
-function parentDerived(node: ComponentNode, parent: ComponentNode | null): void {
+function parentDerived(node: ComponentNode, parent: ComponentNode | null, parentStart: number): void {
   if (!parent) return;
   if (node.type === 'tubefinset' && node['outerRadiusAuto'] === true) {
     const body = num(parent, 'outerRadius', NaN);
@@ -754,13 +763,13 @@ function parentDerived(node: ComponentNode, parent: ComponentNode | null): void 
   }
   if (!DISC_TYPES.has(node.type)) return;
   if (node['outerRadiusAuto'] === true) {
-    const outer = boreAround(node, parent);
+    const outer = boreAround(node, parent, parentStart);
     // Zero where the parent has no bore there, as at a nose cone's tip: the
     // kernel's answer, which the pre-run check then reports.
     if (outer !== null) node['outerRadius'] = outer;
   }
   if (node.type === 'centeringring' && node['innerRadiusAuto'] === true) {
-    node['innerRadius'] = ringBore(node, parent, num(node, 'outerRadius', 0));
+    node['innerRadius'] = ringBore(node, parent, num(node, 'outerRadius', 0), parentStart);
   }
 }
 
@@ -776,6 +785,9 @@ export function syncAutoRadii(tree: RocketTree): RocketTree {
   // everything sized from a parent, pre-order below.
   const axial = new Map<ComponentNode, Patch>();
   resolveAxial(tree.components, axial);
+  // Where each part starts, for the parts placed `absolute` (from the nose tip).
+  // Lengths alone decide it, and resolving radii changes none.
+  const frames = axialFrames(tree);
   const resolve = (n: ComponentNode, { parent }: MapContext): ComponentNode => {
     let node = n;
     // Rings, tube fins and packed devices take their size from what they are
@@ -784,7 +796,7 @@ export function syncAutoRadii(tree: RocketTree): RocketTree {
     if (node['outerRadiusAuto'] === true || node['innerRadiusAuto'] === true || node['radiusAuto'] === true) {
       const before = { outer: node['outerRadius'], inner: node['innerRadius'], r: node['radius'] };
       const draft = { ...node };
-      parentDerived(draft, parent);
+      parentDerived(draft, parent, (parent?.id ? frames.get(parent.id)?.start : undefined) ?? 0);
       if (
         draft['outerRadius'] !== before.outer ||
         draft['innerRadius'] !== before.inner ||

@@ -138,6 +138,13 @@ export function SiteMap({
   // Pan, and the click that is not a pan. One pointer, captured, so a drag that
   // leaves the box keeps working until the button comes up.
   const drag = useRef<{ id: number; x: number; y: number; view: View; moved: number } | null>(null);
+  // Pointers down on the map. A second finger ends the gesture: a two-finger
+  // touch is not a pan of one of them, and the finger that lifts last must not
+  // read as a tap that moves the site.
+  const down = useRef(new Set<number>());
+  const release = (e: React.PointerEvent) => {
+    down.current.delete(e.pointerId);
+  };
 
   const localPoint = (e: { clientX: number; clientY: number }) => {
     const r = hostRef.current?.getBoundingClientRect();
@@ -157,6 +164,11 @@ export function SiteMap({
     // Captured on the box, not on `e.target`: the target is usually a tile,
     // and a tile unmounts as soon as the drag pans or zooms past it, which
     // drops the capture mid-gesture.
+    down.current.add(e.pointerId);
+    if (down.current.size > 1) {
+      drag.current = null;
+      return;
+    }
     e.currentTarget.setPointerCapture?.(e.pointerId);
     drag.current = { id: e.pointerId, x: e.clientX, y: e.clientY, view, moved: 0 };
   };
@@ -212,6 +224,7 @@ export function SiteMap({
   };
 
   const onPointerUp = (e: React.PointerEvent) => {
+    release(e);
     const d = drag.current;
     drag.current = null;
     if (!d || d.id !== e.pointerId) return;
@@ -274,15 +287,20 @@ export function SiteMap({
         // `active:` rather than a class chosen from the drag ref: whether a
         // pointer is down is the browser's business, and reading a ref while
         // rendering is how a component ends up not re-rendering when it moves.
+        // `touch-none` while the map pans: otherwise a touch drag scrolls the
+        // page, and the browser cancels the pointer before the map can move.
         className={`group relative min-h-0 flex-1 overflow-hidden rounded-lg bg-raised ring-1 ring-line/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 ${
           imagery === 'unavailable'
             ? 'cursor-default'
-            : `${onPick ? 'cursor-crosshair' : 'cursor-grab'} active:cursor-grabbing`
+            : `touch-none ${onPick ? 'cursor-crosshair' : 'cursor-grab'} active:cursor-grabbing`
         }`}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
-        onPointerCancel={() => (drag.current = null)}
+        onPointerCancel={(e) => {
+          release(e);
+          drag.current = null;
+        }}
       >
         {imagery === 'unavailable' ? (
           <Graticule latitudeDeg={latitudeDeg} longitudeDeg={longitudeDeg} width={size.w} height={size.h} />

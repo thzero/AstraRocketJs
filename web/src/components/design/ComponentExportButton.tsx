@@ -23,7 +23,7 @@ const LABEL: Record<ExportFormat, string> = {
 export function ComponentExportButton({ node, tabIndex }: { node: ComponentNode; tabIndex?: number }) {
   const { t } = useTranslation();
   const exportComponent = useWorkspaceStore((s) => s.exportComponent);
-  const { open, toggle, close, wrapRef, triggerRef } = useMenuPopover();
+  const { open, toggle, closeAndRestore, wrapRef, triggerRef } = useMenuPopover();
 
   const formats = componentFormats(node.type);
   const id = node.id;
@@ -57,7 +57,7 @@ export function ComponentExportButton({ node, tabIndex }: { node: ComponentNode;
               role="menuitem"
               onClick={(e) => {
                 e.stopPropagation();
-                close();
+                closeAndRestore();
                 fireAction(exportComponent(id, f));
               }}
               className="flex w-full items-center px-3 py-1.5 text-left text-xs font-medium text-ink hover:bg-elevated"

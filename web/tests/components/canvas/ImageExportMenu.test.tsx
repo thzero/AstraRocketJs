@@ -92,3 +92,19 @@ describe('a keyboard user can get back out', () => {
     expect(screen.queryByRole('menu')).not.toBeNull();
   });
 });
+
+/**
+ * Choosing a width closes the menu and unmounts the focused item. Focus goes
+ * back to the trigger, or a keyboard export ends on `<body>`.
+ */
+describe('focus after a choice', () => {
+  it('returns to the trigger', () => {
+    const { trigger, onPick } = open();
+    const item = screen.getAllByRole('menuitem')[0]!;
+    item.focus();
+    fireEvent.click(item);
+    expect(onPick).toHaveBeenCalled();
+    expect(screen.queryByRole('menu')).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+  });
+});

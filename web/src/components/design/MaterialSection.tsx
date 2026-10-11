@@ -59,3 +59,26 @@ export function RecoveryMaterialSection({
     </div>
   );
 }
+
+/** A shock cord's line material, which the kernel weighs the cord by, as the
+ *  desktop shock cord dialog offers it. */
+export function CordMaterialSection({
+  node,
+  onCommitChange,
+}: {
+  node: ComponentNode;
+  onCommitChange: (patch: Partial<ComponentNode>) => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <div className="border-t border-line/5 pt-3">
+      <MaterialPicker
+        type="line"
+        label={t('material.cord')}
+        value={typeof node.lineMaterialName === 'string' ? node.lineMaterialName : undefined}
+        density={typeof node.lineDensity === 'number' ? node.lineDensity : undefined}
+        onChange={(name, d) => onCommitChange({ lineMaterialName: name, lineDensity: d || undefined })}
+      />
+    </div>
+  );
+}

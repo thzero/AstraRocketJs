@@ -13,6 +13,7 @@ import type { OrkImportResult } from './orkTypes';
 import { numOpt } from '../../tree/nodeProps';
 import { trapezoidPoints } from '../../tree/finPlanform';
 import { isAssembly } from '../../tree/assembly';
+import { canHost } from '../design/treeEdit';
 import { hexOf, parseHexColor } from '../design/colorHex';
 import { degToRad } from '../../prefs/units';
 
@@ -76,6 +77,8 @@ interface RktContext {
   ignored: Set<string>;
   /** Things we understand but deliberately do not carry, named once each by their `importNote.*` key. */
   dropped: Set<string>;
+  /** Part and parent type pairs already named in a note, so each is said once. */
+  incompatible: Set<string>;
   /** Components read so far, against MAX_COMPONENTS. Mutable on purpose:
    *  the readers recurse, so the ceiling has to be one running total
    *  rather than a per-level one. */
@@ -364,12 +367,14 @@ const readTransition = (el: Element): ComponentNode => {
 };
 
 /**
- * A `BodyTube` is an airframe tube or an inner tube depending on `IsInsideTube`:
- * RockSim uses one element for both, and `AttachedPartsHandler` picks the
- * OpenRocket type from that flag.
+ * A `BodyTube` is an airframe tube or an inner tube depending on where it sits,
+ * not on `IsInsideTube`: RockSim uses one element for both, and the desktop
+ * handler that opens it decides. A stage's parts (`StageHandler`) and a pod's
+ * (`PodHandler`, and `AttachedPartsHandler` under a pod) build a BodyTube; a
+ * tube in any other part's attached parts builds an InnerTube.
  */
-const readBodyTube = (el: Element): ComponentNode => {
-  const inner = tag(el, 'IsInsideTube') === '1';
+const readBodyTube = (el: Element, parent: ComponentNode | undefined): ComponentNode => {
+  const inner = parent !== undefined && !isAssembly(parent.type);
   const n = base(el, inner ? 'innertube' : 'bodytube', inner);
   put(n, 'length', mmPos(el, 'Len'));
   readTubeWall(el, n);
@@ -780,7 +785,7 @@ type Reader = (ctx: RktContext, el: Element, parent?: ComponentNode) => Componen
 
 const READERS: Record<string, Reader> = {
   NoseCone: (_c, el) => readNoseCone(el),
-  BodyTube: (_c, el) => readBodyTube(el),
+  BodyTube: (_c, el, parent) => readBodyTube(el, parent),
   Transition: (_c, el) => readTransition(el),
   Ring: (_c, el) => readRing(el),
   LaunchLug: (_c, el) => readLaunchLug(el),
@@ -846,6 +851,23 @@ function readParts(ctx: RktContext, container: Element, depth = 0, parent?: Comp
         continue;
       }
     }
+    // `BaseHandler.isCompatible`: a part its parent cannot hold is left out
+    // with a warning, and the rest of the file still opens. Kept, it would make
+    // the kernel's `addChild` throw and the whole design fail to build.
+    const parentType = parent?.type ?? 'stage';
+    if (!canHost(parentType, node.type)) {
+      const pair = `${node.type}|${parentType}`;
+      if (!ctx.incompatible.has(pair)) {
+        ctx.incompatible.add(pair);
+        ctx.notes.push(
+          keyedNote('importNote.rktIncompatible', {
+            part: { key: `part.${node.type}` },
+            parent: { key: `part.${parentType}` },
+          }),
+        );
+      }
+      continue;
+    }
     const kids = readParts(ctx, el, depth + 1, node);
     if (kids.length > 0) node.children = kids;
     // An assembly's children carry absolute roll angles in the file.
@@ -885,7 +907,7 @@ export function importRkt(data: ArrayBuffer | string): OrkImportResult {
   if (!design) throw new KeyedError('errors.file.notRkt');
 
   const name = tag(design, 'Name') ?? 'Imported rocket';
-  const ctx: RktContext = { notes: [], ignored: new Set(), dropped: new Set(), nodeCount: 0 };
+  const ctx: RktContext = { notes: [], ignored: new Set(), dropped: new Set(), incompatible: new Set(), nodeCount: 0 };
 
   // `StageCount` decides how many of the three blocks are real: RockSim leaves
   // the unused ones in the file, empty, and reading them anyway would add empty

@@ -311,7 +311,7 @@ describe('materialFamily', () => {
   });
 
   it('has no family for a part that carries no material', () => {
-    expect(materialFamily(byPartNo('CHUTE12-N'))).toBeNull();
+    expect(materialFamily({ ...byPartNo('CHUTE12-N'), material: undefined } as Component)).toBeNull();
   });
 });
 

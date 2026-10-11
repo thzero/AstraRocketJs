@@ -311,7 +311,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
         // its root chord (a state the app warns about) is clamped the same way
         // the DXF, the STL and the 1:1 PDF template clamp it, so the drawing and
         // the part you cut are the same part.
-        const tab = finTabSpan(child, finLen, finTabLimit(child, parent) ?? pRadius);
+        const tab = finTabSpan(child, finLen, finTabLimit(child, parent, pStart) ?? pRadius);
         if (!tab) return;
         const front = finStart + tab.x0;
         const tabLen = tab.x1 - tab.x0;

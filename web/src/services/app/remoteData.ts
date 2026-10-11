@@ -16,7 +16,9 @@
  * .github/workflows/sync-catalogs.yml) and refreshing a catalog needs no app
  * build and no Pages deploy at all, just a push to that branch. Left unset it
  * resolves to the in-build copy, which is what dev, preview and an unconfigured
- * build use.
+ * build use. It serves the motors and components only: that branch is
+ * refreshed by the catalog sync, which does not regenerate the materials or the
+ * contributors, so those two are always read from the build.
  *
  * The in-build copy is always kept as a fallback and tried second, so an
  * unreachable or not-yet-created data host degrades to a catalog frozen at the
@@ -204,6 +206,18 @@ const CATALOG_FAILED_KEY = {
 type CatalogName = keyof typeof CATALOG_FAILED_KEY;
 
 /**
+ * Catalogs read from the build's own copy only, never from the data host. The
+ * scheduled sync regenerates motors and components and nothing else: the
+ * materials change with the code, and the contributors are refreshed by each
+ * deploy. A copy on the data host is only as new as the last sync run, so
+ * reading it first would serve an older file than the build carries.
+ */
+const BUILD_ONLY: ReadonlySet<CatalogName> = new Set(['materials', 'contributors']);
+
+/** The bases to try for one catalog, in order. */
+const basesFor = (name: CatalogName): readonly string[] => (BUILD_ONLY.has(name) ? [LOCAL_BASE] : BASES);
+
+/**
  * Fetch and parse one runtime catalog by name (`'motors'` → `motors.generated.json`),
  * cache-busted by its manifest hash and memoized for the session. Tries each
  * configured base in order and rejects with the last failure only when every
@@ -214,7 +228,7 @@ export function fetchCatalog<T>(name: CatalogName, valid?: (v: unknown) => boole
   if (!p) {
     p = (async () => {
       let lastErr: unknown;
-      for (const base of BASES) {
+      for (const base of basesFor(name)) {
         try {
           const hash = (await manifest(base))[name];
           const body = await fetchJson<T>(

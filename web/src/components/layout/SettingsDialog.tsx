@@ -21,12 +21,12 @@ import { THEME_PREFS, type ThemePref } from '../../services/app/theme';
 import { confirm } from '../../state/confirmStore';
 import { fireAction } from '../../state/fireAction';
 import { seedFromInput } from '../../services/flight/simulations';
+import type { SettingsTab } from './dialogKeys';
 
 const SPEEDS = [0.25, 0.5, 1, 2, 4];
 const speedLabel = (s: number) => (s === 0.25 ? '¼×' : s === 0.5 ? '½×' : `${s}×`);
 
-type TabKey = 'general' | 'units' | 'colors' | 'materials' | 'playback' | 'sketch' | 'sim' | 'launch';
-const TABS: { key: TabKey; label: string }[] = [
+const TABS: { key: SettingsTab; label: string }[] = [
   { key: 'general', label: 'settings.tabGeneral' },
   { key: 'units', label: 'settings.tabUnits' },
   { key: 'colors', label: 'settings.tabColors' },
@@ -46,7 +46,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
   const { settings, update, reset } = useSettings();
   const u = useUnits();
-  const [tab, setTab] = useState<TabKey>('general');
+  const [tab, setTab] = useState<SettingsTab>('general');
   const tabs = useTabs(
     TABS.map((x) => x.key),
     tab,

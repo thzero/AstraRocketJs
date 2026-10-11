@@ -164,9 +164,7 @@ export function Dialog({
           {leading}
           <div className="min-w-0 flex-1">
             {eyebrow && (
-              <div className="truncate text-[11px] font-semibold uppercase tracking-wider text-warn-400/90">
-                {eyebrow}
-              </div>
+              <div className="truncate text-[11px] font-semibold uppercase tracking-wider text-warn-300">{eyebrow}</div>
             )}
             <h2
               id={headingId}

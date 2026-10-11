@@ -21,6 +21,13 @@ export interface SimPayload {
   /** The flight configuration to seat: one motor per mount, with its ignition. */
   config: FlightConfig;
   options: SimulationOptions;
+  /**
+   * The length unit this flight's airframe-step warnings are decided in
+   * (`setKernelLengthUnit`). Carried per flight so the worker never relies on
+   * the main thread's unit, which only its own build updates. Absent, the
+   * request's `lengthUnit` applies.
+   */
+  lengthUnit?: string;
 }
 
 /** One call, without its correlation id: the method and its typed arguments. */
@@ -40,6 +47,15 @@ export interface WorkerResults {
  *  `lengthUnit` is the user's length unit, which the kernel's airframe-step
  *  warnings are worded and decided in (`setKernelLengthUnit`). */
 export type WorkerRequest = { id: number; engine: BackendPref; lengthUnit: string } & WorkerCall;
+
+/**
+ * Posted once, unprompted, when the worker's engine has loaded. A call's own
+ * timeout runs from here: before it, the worker is loading rather than flying,
+ * and a cold WASM load on a slow phone takes tens of seconds.
+ */
+export interface WorkerReady {
+  ready: true;
+}
 
 export type WorkerResponse<M extends WorkerMethod = WorkerMethod> =
   | { id: number; ok: true; result: WorkerResults[M] }

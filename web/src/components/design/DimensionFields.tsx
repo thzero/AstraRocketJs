@@ -13,6 +13,8 @@ import { shapeIsClippable, shapeParamMax, shapeUsesParameter } from '../../tree/
 import { FIELDS, type Field, type PanelSection } from '../../services/design/componentFields';
 import { DERIVED } from '../../services/design/derivedFields';
 import { PropSection } from './PropSection';
+import { rebaseTabOffset } from '../../tree/axialRebase';
+import { axialLength } from '../../tree/position';
 import { useWorkspaceStore } from '../../state/store';
 
 /**
@@ -346,7 +348,13 @@ export function FieldRow({
           <span className="text-xs text-ink-muted">{label}</span>
           <select
             value={cur}
-            onChange={(e) => commitChange({ [f.key]: e.target.value })}
+            // A new tab reference keeps the tab where it is, as the kernel's
+            // FinSet.setTabOffsetMethod does.
+            onChange={(e) =>
+              commitChange(
+                f.key === 'tabOffsetMethod' ? rebaseTabOffset(node, e.target.value) : { [f.key]: e.target.value },
+              )
+            }
             className="w-32 rounded-md bg-raised px-2 py-1 text-sm text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500"
           >
             {f.options.map((o) => (
@@ -496,6 +504,7 @@ export function FieldRow({
       // the doubling lives here, at the edit boundary, and nowhere else.
       const fu = u.at(scope, 'length');
       const k = f.diameter ? 2 : 1;
+      const span = f.signedWithinLength ? fu.toUi(axialLength(node)) : undefined;
       // `auto`: the value follows something else (a shoulder follows the bore of
       // the tube it plugs into). Ticking it commits at once and the resolver
       // fills the number in the same edit; clearing it pins whatever it now is.
@@ -503,6 +512,7 @@ export function FieldRow({
         unit: <UnitChip quantity="length" scope={scope} />,
         value: fu.toUi(k * (kernelAuto ?? num(node, f.key))),
         step: fu.step(0.0005),
+        ...(span === undefined ? {} : { min: -span, max: span }),
         ...autoProp(),
         onChange: (v) => patchNumber({ [f.key]: fu.toSi(v, (si) => si / k) }),
       });

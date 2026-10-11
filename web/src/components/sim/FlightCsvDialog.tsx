@@ -38,7 +38,10 @@ export function FlightCsvDialog({
   const u = useUnits();
   const designName = useWorkspaceStore(selectDesignName);
   const { settings, update } = useSettings();
-  const saved = settings.flightCsv;
+  // A stored two-character backslash-t names the tab character; written
+  // verbatim it would put every value in one spreadsheet column.
+  const saved =
+    settings.flightCsv.separator === '\\t' ? { ...settings.flightCsv, separator: '\t' } : settings.flightCsv;
 
   const branches = result.branches ?? [];
   const [branchIndex, setBranchIndex] = useState(0);
@@ -148,7 +151,7 @@ export function FlightCsvDialog({
                 >
                   <option value=",">,</option>
                   <option value=";">;</option>
-                  <option value="\t">{t('csv.tab')}</option>
+                  <option value={'\t'}>{t('csv.tab')}</option>
                   <option value=" ">{t('csv.space')}</option>
                 </select>
               </div>

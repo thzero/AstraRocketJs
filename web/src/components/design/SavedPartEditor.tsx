@@ -6,7 +6,7 @@ import { updateCustomPart, type PartMeta } from '../../services/parts/customPart
 import type { CustomPart } from '../../services/parts/presetStore';
 import { AppearanceSection } from './AppearanceSection';
 import { FieldRow, FieldSection, sectionFields, visibleFields } from './DimensionFields';
-import { MaterialSection, RecoveryMaterialSection } from './MaterialSection';
+import { CordMaterialSection, MaterialSection, RecoveryMaterialSection } from './MaterialSection';
 import { errorText } from '../../i18n/keyedError';
 import { EditorFooter } from '../common/MasterDetail';
 import { PartMetaFields } from './PartMetaFields';
@@ -125,6 +125,7 @@ export function SavedPartEditor({
 
           {hasMaterial(node.type) && <MaterialSection node={node} onCommitChange={change} />}
           {isRecoveryDevice(node.type) && <RecoveryMaterialSection node={node} onCommitChange={change} />}
+          {node.type === 'shockcord' && <CordMaterialSection node={node} onCommitChange={change} />}
           <AppearanceSection node={node} onChange={change} onCommitChange={change} />
         </div>
       </div>

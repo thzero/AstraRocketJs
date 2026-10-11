@@ -368,7 +368,7 @@ export function MotorDialog({
                         <span className="ml-2 text-xs text-ink-faint">{m.manufacturer}</span>
                         {!m.custom && !hasCurve(m) && (
                           <span
-                            className="ml-2 rounded bg-elevated px-1 py-0.5 text-[9px] uppercase tracking-wide text-ink-muted"
+                            className="ml-2 rounded bg-elevated px-1 py-0.5 text-[9px] uppercase tracking-wide text-ink-soft"
                             title={t('motorDlg.noBundledCurve')}
                           >
                             {t('dash.noCurve')}

@@ -130,13 +130,22 @@ describe('locationFrom', () => {
     expect(p).toMatchObject({ latitudeDeg: 12.5, longitudeDeg: -1.25, launchAltitudeM: 300 });
   });
 
-  it('still produces a complete location from a half-filled site', () => {
-    // A `LaunchLocation` is a place, so every field has to be a number. The zeroes are a
-    // last resort rather than a default: both coordinates are required launch
-    // fields and `LocationPicker` disables its save button while either is blank,
-    // so a location at 0,0 is not reachable from the panel. Altitude genuinely does
-    // default to sea level, which is a real answer for a coastal field.
-    const p = locationFrom('Bare', { latitudeDeg: null, longitudeDeg: null, launchAltitudeM: null });
-    expect(p).toMatchObject({ latitudeDeg: 0, longitudeDeg: 0, launchAltitudeM: 0 });
+  it('still produces a place from a half-filled site', () => {
+    // The coordinate zeroes are a last resort rather than a default: both are
+    // required launch fields and `LocationPicker` disables its save button while
+    // either is blank, so a location at 0,0 is not reachable from the panel.
+    const p = locationFrom('Bare', { latitudeDeg: null, longitudeDeg: null, launchAltitudeM: 300 });
+    expect(p).toMatchObject({ latitudeDeg: 0, longitudeDeg: 0, launchAltitudeM: 300 });
+  });
+
+  /**
+   * A tool's site leaves a blank elevation to the terrain model. Saved as 0, a
+   * 1,400 m field would later set a simulation's launch altitude to sea level.
+   */
+  it('keeps an unknown elevation unknown', async () => {
+    const p = locationFrom('Club field', { latitudeDeg: 40, longitudeDeg: -105, launchAltitudeM: null });
+    expect(p.launchAltitudeM).toBeNull();
+    await store.save(p);
+    expect((await store.list())[0]!.launchAltitudeM).toBeNull();
   });
 });

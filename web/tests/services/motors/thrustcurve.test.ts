@@ -117,6 +117,35 @@ describe('samplesToMotorSpec', () => {
   });
 });
 
+describe('samplesToMotorSpec refuses what ThrustCurveMotor.Builder.build() refuses', () => {
+  it('a negative thrust sample', () => {
+    expect(() =>
+      samplesToMotorSpec(
+        motor(),
+        [
+          { time: 0, thrust: 0 },
+          { time: 0.5, thrust: -3 },
+          { time: 1, thrust: 0 },
+        ],
+        0,
+      ),
+    ).toThrow(expect.objectContaining({ key: 'errors.thrustcurve.negativeThrust', values: { motor: 'C6' } }));
+  });
+
+  it('a launch CG outside [0, length]', () => {
+    const samples = [
+      { time: 0, thrust: 1 },
+      { time: 1, thrust: 1 },
+    ];
+    for (const cg of [-0.001, 0.071]) {
+      expect(() => samplesToMotorSpec(motor(), samples, 0, [[0, cg]])).toThrow(
+        expect.objectContaining({ key: 'errors.thrustcurve.badCg', values: { motor: 'C6', length: 70 } }),
+      );
+    }
+    expect(samplesToMotorSpec(motor(), samples, 0, [[0, 0.07]]).cgX).toBe(0.07);
+  });
+});
+
 describe('fetchMotorSpec: bundled catalog motor (offline path)', () => {
   const bundled = {
     designation: 'C6',

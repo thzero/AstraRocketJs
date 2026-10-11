@@ -7,9 +7,8 @@ import { useUnits } from '../../prefs/useUnits';
 import { onSi } from '../../prefs/entryValue';
 import { unitScope } from '../../prefs/units';
 import { fmtUpTo, partLabel } from '../../i18n/format';
-
-/** The kernel's DeployEvent vocabulary, in the order the property panel offers it. */
-const DEPLOY_EVENTS = ['apogee', 'ejection', 'altitude', 'launch', 'never'] as const;
+// The design field's list, so the override offers every event the part can.
+import { DEPLOY_EVENTS } from '../../services/design/componentFields';
 
 /**
  * When one recovery device opens under this configuration.

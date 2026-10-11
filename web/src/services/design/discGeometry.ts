@@ -82,10 +82,14 @@ export function mountBore(siblings: ComponentNode[]): number | null {
   return Number.isNaN(or) ? null : or;
 }
 
-/** Where a child sits along its parent, from the parent's front, clamped into the parent (m). */
-function spanIn(child: ComponentNode, parent: ComponentNode): [number, number] {
+/**
+ * Where a child sits along its parent, from the parent's front, clamped into
+ * the parent (m). `parentStart` is the parent's rocket-frame start, which an
+ * `absolute` child is measured against.
+ */
+function spanIn(child: ComponentNode, parent: ComponentNode, parentStart: number): [number, number] {
   const len = partLength(parent);
-  const start = startFromPosition(positionOf(child), partLength(child), len);
+  const start = startFromPosition(positionOf(child), partLength(child), len, parentStart);
   const clamp = (x: number) => Math.min(Math.max(x, 0), len);
   return [clamp(start), clamp(start + partLength(child))];
 }
@@ -107,10 +111,11 @@ function innerRadiusAt(parent: ComponentNode, x: number): number | null {
  * The automatic outer radius of a ring, bulkhead, coupler or engine block: the
  * narrower of its parent's bores at the part's fore and aft faces
  * (`RadiusRingComponent.getOuterRadius`, `ThicknessRingComponent.getOuterRadius`).
- * Null when the parent offers no bore.
+ * Null when the parent offers no bore. `parentStart` is the parent's
+ * rocket-frame start, which an `absolute` part is measured against.
  */
-export function boreAround(child: ComponentNode, parent: ComponentNode): number | null {
-  const [x0, x1] = spanIn(child, parent);
+export function boreAround(child: ComponentNode, parent: ComponentNode, parentStart: number): number | null {
+  const [x0, x1] = spanIn(child, parent, parentStart);
   const a = innerRadiusAt(parent, x0);
   const b = innerRadiusAt(parent, x1);
   return a === null || b === null ? null : Math.min(a, b);
@@ -121,12 +126,12 @@ export function boreAround(child: ComponentNode, parent: ComponentNode): number 
  * overlaps the ring's, 0 when none does, and never wider than the ring
  * (`CenteringRing.getInnerRadius`).
  */
-export function ringBore(ring: ComponentNode, parent: ComponentNode, ringOuter: number): number {
-  const [r0, r1] = spanIn(ring, parent);
+export function ringBore(ring: ComponentNode, parent: ComponentNode, ringOuter: number, parentStart: number): number {
+  const [r0, r1] = spanIn(ring, parent, parentStart);
   let bore = 0;
   for (const sib of parent.children ?? []) {
     if (sib.type !== 'innertube') continue;
-    const [t0, t1] = spanIn(sib, parent);
+    const [t0, t1] = spanIn(sib, parent, parentStart);
     if (r1 < t0 || r0 > t1) continue;
     bore = Math.max(bore, num(sib, 'outerRadius', 0));
   }

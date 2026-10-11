@@ -426,3 +426,79 @@ describe('a chain part with no length key', () => {
     expect(body.x0).toBeCloseTo(KERNEL_DEFAULTS.nosecone.length, 6);
   });
 });
+
+/**
+ * An `absolute` part is measured from the nose tip, whatever holds it. Inside a
+ * pod the pod's own parts are drawn in a turned and lifted copy of the rocket
+ * frame, so the station of a part in its second tube still has to come out at
+ * that offset (the kernel's station, pinned in axialAbsolute.kernel.test.ts).
+ */
+describe('buildPieces absolute placement', () => {
+  const podded = {
+    name: 'Pod',
+    components: [
+      {
+        type: 'stage',
+        name: 'S',
+        children: [
+          { type: 'nosecone', id: 'nose', length: 0.1, aftRadius: 0.013 },
+          {
+            type: 'bodytube',
+            id: 'body',
+            length: 0.5,
+            outerRadius: 0.013,
+            thickness: 0.001,
+            children: [
+              {
+                type: 'bulkhead',
+                id: 'bh',
+                length: 0.004,
+                outerRadius: 0.012,
+                position: { method: 'absolute', offset: 0.45 },
+              },
+              {
+                type: 'podset',
+                id: 'pod',
+                instanceCount: 2,
+                radiusOffset: 0.01,
+                position: { method: 'top', offset: 0.1 },
+                children: [
+                  { type: 'nosecone', id: 'podNose', length: 0.05, aftRadius: 0.008 },
+                  {
+                    type: 'bodytube',
+                    id: 'podTube',
+                    length: 0.2,
+                    outerRadius: 0.008,
+                    thickness: 0.001,
+                    children: [
+                      {
+                        type: 'bulkhead',
+                        id: 'podBh',
+                        length: 0.004,
+                        outerRadius: 0.007,
+                        position: { method: 'absolute', offset: 0.32 },
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  } as unknown as RocketTree;
+
+  it('puts an absolute part at its station from the nose tip', () => {
+    const { pieces } = buildPieces(podded);
+    expect(extent(byId(pieces, 'bh')[0]!).x0).toBeCloseTo(0.45, 6);
+  });
+
+  it('does so inside a pod as well, every copy', () => {
+    const copies = byId(buildPieces(podded).pieces, 'podBh');
+    expect(copies).toHaveLength(2);
+    for (const c of copies) expect(extent(c).x0).toBeCloseTo(0.32, 6);
+    // The pod's own tube still starts behind its nose, 0.2 + 0.05 from the tip.
+    for (const c of byId(buildPieces(podded).pieces, 'podTube')) expect(extent(c).x0).toBeCloseTo(0.25, 6);
+  });
+});

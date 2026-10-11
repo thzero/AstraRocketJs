@@ -238,7 +238,7 @@ describe('importRkt', () => {
     expect(byName(stage.children, 'Lug').position).toEqual({ method: 'top', offset: 0.1 });
   });
 
-  it('tells an inner tube from an airframe tube by IsInsideTube', () => {
+  it('reads a tube in the attached parts of another tube as an inner tube', () => {
     const mount = byName(stage.children, 'Motor mount');
     expect(mount.type).toBe('innertube');
     expect(mount['motorMount']).toBe(true);

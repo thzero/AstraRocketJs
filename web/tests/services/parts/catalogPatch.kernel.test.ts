@@ -2,7 +2,8 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { catalogPatch, defaultNode } from '../../../src/services/design/treeEdit';
-import { isComponentRow, type Component } from '../../../src/services/parts/componentDb';
+import { isComponentRow, type Component, type ParachuteComponent } from '../../../src/services/parts/componentDb';
+import { KERNEL_MATERIALS } from '../../../src/tree/kernelDefaults';
 import type { ComponentNode, ComponentType } from '../../../src/engine/openRocketEngine';
 import { KERNEL_TEST_TIMEOUT_MS } from '../../testing/kernelTimeout';
 
@@ -102,6 +103,37 @@ describe('a stated catalog mass', () => {
       const info = JSON.parse(engine.getComponentInfo(handle, 'probe'));
       if (info.error || !(Math.abs(info.mass / row.mass! - 1) < 0.005))
         wrong.push(`${row.type} ${row.mfr} ${row.partNo}: catalog ${row.mass} kg, flies ${info.mass ?? info.error}`);
+    }
+    expect(wrong).toEqual([]);
+  });
+});
+
+/**
+ * A catalog parachute with no stated mass weighs what the desktop gives it:
+ * `Parachute.loadFromPreset` applies the part's line count and length and its
+ * canopy and line materials, so the canopy's area in its material plus the
+ * lines in theirs is the mass desktop flies. A row that loses any of those on
+ * the way to the kernel weighs a new parachute's lines or nylon instead.
+ */
+describe('a catalog parachute', () => {
+  it('flies at the mass of its own canopy and lines', async () => {
+    const engine = await loadEngine();
+    const chutes = catalog.filter((p): p is ParachuteComponent => p.type === 'parachute' && p.mass == null);
+    expect(chutes.length).toBeGreaterThan(100);
+    // Every field the desktop applies is carried, or the rows test nothing.
+    expect(chutes.every((p) => p.lineCount != null && p.lineLength != null)).toBe(true);
+    const wrong: string[] = [];
+    for (const row of chutes) {
+      const probe = { ...node('parachute', 'probe'), ...catalogPatch(row) } as ComponentNode;
+      engine.reset();
+      const handle = engine.buildRocket(JSON.stringify(design(probe)));
+      const info = JSON.parse(engine.getComponentInfo(handle, 'probe'));
+      // Parachute.getComponentMass: the canopy's area in its material, plus the lines in theirs.
+      const canopy = ((Math.PI * row.diameter ** 2) / 4) * (row.materialDensity ?? KERNEL_MATERIALS.surface.density);
+      const lines = row.lineCount! * row.lineLength! * (row.lineMaterialDensity ?? KERNEL_MATERIALS.line.density);
+      const expected = canopy + lines;
+      if (info.error || !(Math.abs(info.mass / expected - 1) < 0.005))
+        wrong.push(`${row.mfr} ${row.partNo}: expected ${expected} kg, flies ${info.mass ?? info.error}`);
     }
     expect(wrong).toEqual([]);
   });

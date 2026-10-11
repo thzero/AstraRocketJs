@@ -198,3 +198,11 @@ describe('a .eng header that is finite but impossible', () => {
     expect(() => parseEng(eng('0.5', '1.0', '54', '-10'))).toThrow(/diameter|length/i);
   });
 });
+
+describe('parseEng refuses what ThrustCurveMotor.Builder.build() refuses', () => {
+  it('a negative thrust, naming the motor and the line', () => {
+    expect(() => parseEng(ENG.replace('0.5 20', '0.5 -20'))).toThrow(
+      expect.objectContaining({ key: 'errors.motorFile.engNegativeThrust', values: { motor: 'TC10', line: 3 } }),
+    );
+  });
+});

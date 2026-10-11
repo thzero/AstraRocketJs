@@ -370,6 +370,16 @@ describe('what triggers a rebuild', () => {
     expect(built.components[0]!.length).toBe(0.24);
   });
 
+  it('rebuilds the open design when an import that reset the engine did not replace it', async () => {
+    // The reset voided the open design's handle; nothing about the design
+    // itself changed, so only the store's request can bring it back.
+    await mount();
+    computeStaticInfo.mockClear();
+    act(() => useWorkspaceStore.setState((st) => ({ rebuildSeq: st.rebuildSeq + 1 })));
+    settleRebuild();
+    expect(computeStaticInfo).toHaveBeenCalledTimes(1);
+  });
+
   it('builds the first time at once, without waiting out the debounce', async () => {
     await mount();
     expect(computeStaticInfo).toHaveBeenCalledTimes(1);

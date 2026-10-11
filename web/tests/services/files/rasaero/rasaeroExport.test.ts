@@ -75,6 +75,19 @@ describe('exportCdx1', () => {
     expect(xml).toContain('</SimulationList>');
   });
 
+  // An absolute station is from the nose tip: 0.1 of nose plus the 0.254 tube,
+  // less the 0.0508 root, is the same fin set flush with the tube's aft end.
+  it('places an absolute fin set by its station from the nose tip', () => {
+    const at = (position: object): string => {
+      const t = structuredClone(tree);
+      t.components[0]!.children![1]!.children![0]!.position = position as never;
+      const out = exportCdx1({ tree: t, name: 'Test Bird' });
+      return /<Fin>[\s\S]*?<Location>([^<]*)<\/Location>/.exec(out)![1]!;
+    };
+    expect(at({ method: 'absolute', offset: 0.1 + 0.254 - 0.0508 })).toBe(at({ method: 'bottom', offset: 0 }));
+    expect(at({ method: 'absolute', offset: 0.1 })).toBe(at({ method: 'top', offset: 0 }));
+  });
+
   it('rejects a design RASAero cannot represent (tube fins)', () => {
     const bad: RocketTree = {
       components: [

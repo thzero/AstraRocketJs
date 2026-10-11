@@ -2,8 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { fmtGroundDistance, useUnits } from '../../prefs/useUnits';
 import { configOf, selectOutdated, useWorkspaceStore } from '../../state/store';
-import { useSettings } from '../../state/SettingsProvider';
-import type { ResultFlight } from '../../services/flight/simulations';
+import { effectivePrefs, type ResultFlight } from '../../services/flight/simulations';
 import {
   type GroundPoint,
   bearingFromPad,
@@ -51,7 +50,7 @@ export function EnvironmentLanding({ flight }: { flight: ResultFlight }) {
   const u = useUnits();
   // The flight's distance unit, as Ground Track reads this same landing.
   const dist = u.at(unitScope('sim', 'apogee'), 'distance');
-  const { settings } = useSettings();
+  const simPrefs = useWorkspaceStore((s) => s.simPrefs);
   const tree = useWorkspaceStore((s) => s.tree);
   const configs = useWorkspaceStore((s) => s.configs);
   const sim = useWorkspaceStore((s) => s.sims.find((x) => x.id === flight.id));
@@ -98,7 +97,9 @@ export function EnvironmentLanding({ flight }: { flight: ResultFlight }) {
           config: configOf(configs, sim),
           launch: sim.launch,
           source,
-          prefs: { ...settings.simulation, ...sim.prefs },
+          // What a run reads, the length unit included, and what `outdated`
+          // above compares the result against.
+          prefs: effectivePrefs(simPrefs, sim.prefs),
           apiKey: readWeatherKey(),
           onProgress: (done, total) => {
             if (!signal.aborted) setRun({ kind: 'running', done, total }, forResult);

@@ -55,3 +55,19 @@ describe('the time-step slider', () => {
     }
   });
 });
+
+/** The override field offers the range the kernel flies: 1 to 20 degrees. */
+describe('the max angle step override', () => {
+  it('is bounded to the kernel range', () => {
+    renderWithProviders(<SimEditor />);
+    const field = screen.getByLabelText('Max angle step') as HTMLInputElement;
+    expect(Number(field.min)).toBeCloseTo(1);
+    expect(Number(field.max)).toBeCloseTo(20);
+  });
+
+  it('shows a stored out-of-range override as the step the run flies', () => {
+    act(() => st().setSimPref('maxAngleStep', (0.05 * Math.PI) / 180));
+    renderWithProviders(<SimEditor />);
+    expect(Number((screen.getByLabelText('Max angle step') as HTMLInputElement).value)).toBeCloseTo(1);
+  });
+});

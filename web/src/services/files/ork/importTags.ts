@@ -9,6 +9,7 @@ import type { OrkDeployOverride, OrkSepOverride } from '../orkTypes';
 import { hexOf } from '../../design/colorHex';
 import { degToRad } from '../../../prefs/units';
 import { KERNEL_DEPLOYMENT, KERNEL_SEPARATION } from '../../../tree/kernelDefaults';
+import { DEPLOY_EVENTS } from '../../design/componentFields';
 
 /**
  * Readers for the individual .ork elements more than one component carries:
@@ -79,6 +80,21 @@ export function finCountTag(el: Element, fallback: number = COMPONENT_DEFAULTS.f
 }
 
 /**
+ * `<packedradius>auto 0.0125</packedradius>` is how MassObjectSaver writes an
+ * automatic packed radius for any mass object: the marker and the value it
+ * worked out. Sets the flag, and the value when it is a usable one; false when
+ * the radius is not automatic.
+ */
+export function readAutoPackedRadius(el: Element, node: ComponentNode): boolean {
+  const raw = text(el, ':scope > packedradius')?.trim() ?? '';
+  if (!raw.toLowerCase().startsWith('auto')) return false;
+  node['radiusAuto'] = true;
+  const v = Number(raw.slice(4).trim());
+  if (Number.isFinite(v) && v > 0) node['radius'] = v;
+  return true;
+}
+
+/**
  * A recovery device's packed size: <packedlength> as `length` and
  * <packedradius> as `radius`. Both are MassObject's own length and radius
  * upstream, which is why those are the names, and `radius` is the key the
@@ -89,15 +105,7 @@ export function finCountTag(el: Element, fallback: number = COMPONENT_DEFAULTS.f
  */
 export function readPackedSize(el: Element, node: ComponentNode): void {
   node['length'] = nonNegTag(el, 'packedlength', COMPONENT_DEFAULTS.recovery.packedLength);
-  // `<packedradius>auto 0.0125</packedradius>` is how MassObjectSaver writes an
-  // automatic packed radius: the marker and the value it worked out.
-  const raw = text(el, ':scope > packedradius')?.trim() ?? '';
-  if (raw.toLowerCase().startsWith('auto')) {
-    node['radiusAuto'] = true;
-    const v = Number(raw.slice(4).trim());
-    if (Number.isFinite(v) && v > 0) node['radius'] = v;
-    return;
-  }
+  if (readAutoPackedRadius(el, node)) return;
   const r = numTag(el, 'packedradius', NaN);
   if (r >= 0 && r !== COMPONENT_DEFAULTS.recovery.packedRadius) node['radius'] = r;
 }
@@ -259,6 +267,17 @@ export function readDeployment(el: Element, node: ComponentNode, configEl: Eleme
 }
 
 /**
+ * A file's deploy event in the app's vocabulary. The desktop writes the enum
+ * name lower-cased with the underscores removed and matches it the same way on
+ * read (DocumentConfig.findEnum), so `lowerstageseparation` and the underscored
+ * spelling name the one event. A token no event matches stays as written.
+ */
+function deployEventOfXml(token: string): string {
+  const key = token.trim().toLowerCase().replace(/_/g, '');
+  return DEPLOY_EVENTS.find((ev) => ev.replace(/_/g, '') === key) ?? token;
+}
+
+/**
  * The deployment tags one element states, and only those, the same way for the
  * design and for each configuration's override. Altitude and delay are floored:
  * a negative deploy altitude never fires the kernel's altitude trigger, and the
@@ -267,7 +286,7 @@ export function readDeployment(el: Element, node: ComponentNode, configEl: Eleme
 export function readDeploymentTags(src: Element): OrkDeployOverride {
   const o: OrkDeployOverride = {};
   const event = text(src, ':scope > deployevent');
-  if (event) o.deployEvent = event;
+  if (event) o.deployEvent = deployEventOfXml(event);
   if (text(src, ':scope > deployaltitude') !== null)
     o.deployAltitude = nonNegTag(src, 'deployaltitude', KERNEL_DEPLOYMENT.deployAltitude);
   if (text(src, ':scope > deploydelay') !== null)

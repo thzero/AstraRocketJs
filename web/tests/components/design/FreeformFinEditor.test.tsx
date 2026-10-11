@@ -149,6 +149,17 @@ describe('root end points', () => {
     expect((screen.getByRole('button', { name: 'Remove point' }) as HTMLButtonElement).disabled).toBe(true);
   });
 
+  /**
+   * The closing edge, from the root trailing edge back to the origin, is the
+   * root on the body. FreeformFinSet.addPoint refuses a point there, and one
+   * appended would become the trailing edge at half the root's length.
+   */
+  it('offers no insert on the closing root edge', () => {
+    show(FOUR);
+    expect(screen.getByLabelText('Insert a point after 3')).toBeTruthy();
+    expect(screen.queryByLabelText('Insert a point after 4')).toBeNull();
+  });
+
   it('still deletes an interior point', () => {
     const { onChange } = show(FOUR);
     fireEvent.keyDown(vertex(3), { key: 'Backspace' });

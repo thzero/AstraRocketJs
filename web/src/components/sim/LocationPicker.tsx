@@ -44,6 +44,9 @@ export function LocationPicker({
   const { locations: loaded, refresh } = useLocationList();
   const locations = loaded ?? [];
 
+  // A location with no known elevation leaves the elevation blank: a tool then
+  // takes the terrain model's, and a simulation asks for it before it runs.
+  // Keeping the previous site's elevation would fly the wrong air unannounced.
   const apply = (location: LaunchLocation) => {
     onChange({
       latitudeDeg: location.latitudeDeg,
@@ -101,11 +104,13 @@ export function LocationPicker({
    * location's stored precision and a typed one need not match bit for bit.
    */
   const near = (a: number | null | undefined, b: number, eps: number) => a != null && Math.abs(a - b) < eps;
+  // A location with no elevation matches a blank one, and only that.
+  const sameAlt = (a: number | null | undefined, b: number | null) => (b === null ? a == null : near(a, b, 0.5));
   const current = locations.find(
     (p) =>
       near(launch.latitudeDeg, p.latitudeDeg, 1e-4) &&
       near(launch.longitudeDeg, p.longitudeDeg, 1e-4) &&
-      near(launch.launchAltitudeM, p.launchAltitudeM, 0.5),
+      sameAlt(launch.launchAltitudeM, p.launchAltitudeM),
   );
 
   /**

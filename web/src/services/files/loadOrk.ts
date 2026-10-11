@@ -239,11 +239,14 @@ function withoutFreeformOutlines(tree: RocketTree): RocketTree {
 }
 
 export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
-  resetEngine(); // free the previous design's handles
   // Either format, chosen from the bytes (designFile.ts). Everything below is
   // format-agnostic: it works off the import result, and a `.rkt` simply
   // arrives with no motors and no flight configurations to resolve.
   const res = parseDesignFile(buffer);
+  // Free the previous design's handles, only once the file has parsed: a reset
+  // voids the open design's live handle, and a file that will not parse leaves
+  // that design on screen. A failure from here on is rebuilt by the caller.
+  resetEngine();
   const built = buildForImport(res.tree);
   const design = built.design;
 
