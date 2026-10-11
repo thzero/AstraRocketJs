@@ -580,15 +580,16 @@ export const selectOutdated = (s: WorkspaceState, sim: Simulation = selectActive
   isOutdated(sim, s.tree, configOf(s.configs, sim), s.simPrefs);
 
 /**
- * True when the active sim's last run threw on the design that is still loaded.
+ * True when a sim's last run (the active one by default) threw on the design
+ * that is still loaded.
  *
  * Self-expiring by construction: it compares the recorded tree against the
  * current one, so any edit makes it false again and a retry is allowed:
  * auto-run must not retry a configuration it already knows fails, but it must
  * try again the moment the user changes something.
  */
-export const selectRunFailed = (s: WorkspaceState): boolean => {
-  const run = s.simRuns[selectActive(s).id];
+export const selectRunFailed = (s: WorkspaceState, sim: Simulation = selectActive(s)): boolean => {
+  const run = s.simRuns[sim.id];
   return run?.phase === 'failed' && run.tree === s.tree;
 };
 

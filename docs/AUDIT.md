@@ -84,8 +84,9 @@ and engine parity passes on both targets with the golden unchanged.
 - **C5.** The flight CSV converts offset units per value.
 - **C6 and C29.** `parseEng` returns every motor in the file, and both
   parsers and the stored curve check refuse a negative sample time.
-- **C10.** The Outdated chip follows the shown flight. Which row auto-run
-  flies is still an owner decision.
+- **C10.** The Outdated chip and auto-run both follow the shown flight:
+  auto-run re-flies the row the chip marks outdated.
+  `useAutoRunOutdated.test.tsx` covers both directions.
 - **C12 and C13.** A place pick writes the elevation or `null`, and the
   Weather dialog asks for an elevation instead of fetching for 0 m.
 - **T1.** The parity generator builds elliptical and freeform fins on body
@@ -406,5 +407,3 @@ Every fix lands with a test that fails without it.
   to send an identifying `User-Agent`.
 - Whether the 20 degree launch angle limit applies to model rockets, or 30
   as in the NAR model code (R11).
-- Which row auto-run flies when the Results picker shows another flight
-  (C10).
