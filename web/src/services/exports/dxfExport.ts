@@ -1,6 +1,6 @@
 import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
 import { num } from '../../tree/nodeProps';
-import { finCutContour, finRootChord, parentRadiusOf } from '../../tree/finPlanform';
+import { finCutContour, finMountOf, finRootPoints, type FinParent } from '../../tree/finPlanform';
 // Shared with the .ork reader and writer, so a part that lost a tag is cut at the
 // size it was read and saved as.
 import { COMPONENT_DEFAULTS } from '../design/componentDefaults';
@@ -91,21 +91,29 @@ function dedupe(pts: Pt[]): Pt[] {
   return out;
 }
 
-function finPart(node: ComponentNode, tabLimit: number | null, l: LabelText): Part | null {
+function finPart(node: ComponentNode, parent: FinParent, l: LabelText): Part | null {
   // Outline and tab both come from the one fin-geometry module
   // (tree/finPlanform.ts), so the DXF, the STL and the 1:1 PDF template are
   // guaranteed to be the same part. `root` in particular is the kernel's root
   // chord (last.x - first.x for a freeform), not the furthest-aft point: the
   // furthest-aft point would put the tab of an overhanging freeform fin up to
   // 20 mm out of place against the airframe slot.
-  const contour = finCutContour(node, tabLimit);
+  const contour = finCutContour(node, parent);
   if (!contour) return null;
-  const root = finRootChord(node);
   const outline = dedupe(contour.map(([x, y]) => ({ x, y })));
   if (outline.length < 3) return null;
   const ents: Ent[] = [{ kind: 'poly', layer: 'CUT', pts: outline }];
-  // Root-chord reference mark on y = 0.
-  ents.push({ kind: 'line', layer: 'REFERENCE', a: { x: 0, y: 0 }, b: { x: root, y: 0 } });
+  // Root-chord reference mark from the root's front to its trailing end: on
+  // y = 0 on a body tube, and across the taper on a nose cone or transition.
+  const rootPts = finRootPoints(node, parent);
+  const rootEnd = rootPts[rootPts.length - 1]!;
+  const root = rootEnd[0] - rootPts[0]![0];
+  ents.push({
+    kind: 'line',
+    layer: 'REFERENCE',
+    a: { x: rootPts[0]![0], y: rootPts[0]![1] },
+    b: { x: rootEnd[0], y: rootEnd[1] },
+  });
   const label = l(
     node.type === 'trapezoidfinset'
       ? 'export.dxf.trapezoidfinset'
@@ -152,7 +160,7 @@ function partForNode(
   node: ComponentNode,
   enclosing: Tube | null,
   siblings: ComponentNode[],
-  tabLimit: number | null,
+  finParent: FinParent,
   l: LabelText,
 ): Part | null {
   switch (node.type) {
@@ -162,7 +170,7 @@ function partForNode(
       // The kernel clamps tab height to the parent's outer radius at the tab's
       // two ends (FinSet.getMaxTabHeight); the bore is not the limit a tab
       // breaks through.
-      return finPart(node, tabLimit, l);
+      return finPart(node, finParent, l);
     case 'bulkhead':
       return discPart(node, plateOuter(node, enclosing), null, l('export.dxf.bulkhead'), l);
     case 'centeringring': {
@@ -352,7 +360,7 @@ function serialize(ents: Ent[]): string {
 export function componentToDxf(tree: RocketTree, nodeId: string, t: Translate = englishText): string | null {
   const ctx = nodeContext(tree, nodeId);
   if (!ctx) return null;
-  const part = partForNode(ctx.node, ctx.enclosing, ctx.siblings, parentRadiusOf(tree, nodeId), labelText(t));
+  const part = partForNode(ctx.node, ctx.enclosing, ctx.siblings, finMountOf(tree, nodeId), labelText(t));
   if (!part) return null;
   const b = bounds(part.ents);
   return serialize(translate(part.ents, -b.minX, -b.minY));

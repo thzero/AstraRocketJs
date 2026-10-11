@@ -1,14 +1,19 @@
-import { isValidElement, type ReactNode } from 'react';
+import { isValidElement, type ReactElement, type ReactNode } from 'react';
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import type { ComponentNode, RocketTree } from '../../src/engine/openRocketEngine';
 import { buildSchematicShapes } from '../../src/components/canvas/schematicShapes';
 import { buildPieces } from '../../src/components/canvas/rocketPieces';
+import { buildAftScene } from '../../src/components/canvas/AftView';
+import type { TFunction } from 'i18next';
 import { solidForNode } from '../../src/services/exports/solidMesh';
 import { rocketSideView } from '../../src/services/report/reportGeometry';
 import { writeTemplatesSection } from '../../src/services/report/templatesSection';
 import type { PdfPage } from '../../src/services/report/pdfPage';
 import { stationRadius } from '../../src/tree/shapeProfile';
+import { finCutContour, finMountOf } from '../../src/tree/finPlanform';
+import { solidFor } from '../../src/services/exports/rocketPrintExport';
+import { componentToDxf } from '../../src/services/exports/dxfExport';
 
 /**
  * Every flag that changes a part's shape, against every reader that draws,
@@ -223,6 +228,123 @@ describe('every shape flag reaches every reader', () => {
       const expected = !(pair in UNAFFECTED || pair in KNOWN);
       it(`${pair}: ${expected ? 'reacts' : (UNAFFECTED[pair] ?? `ignored, ${KNOWN[pair]}`)}`, () => {
         const changed = JSON.stringify(read(design(off), off)) !== JSON.stringify(read(design(on), on));
+        expect(changed).toBe(expected);
+      });
+    }
+  }
+});
+
+/**
+ * A fin set standing on the flagged part, against every reader that places,
+ * draws or cuts a fin. A fin's root runs along its parent's profile and its tab
+ * starts at the body surface (`FinSet.getRootPoints`, `getTabPoints`), so a
+ * flag that changes the parent's profile changes the fin each reader outputs.
+ *
+ * The fin's tab is shallower than the body, so a reader that only clamps the
+ * tab to the parent's radius, and otherwise cuts a flat root, does not react.
+ */
+const FIN: ComponentNode = {
+  type: 'freeformfinset',
+  id: 'fins',
+  finCount: 3,
+  thickness: 0.003,
+  points: [
+    [0, 0],
+    [0.015, 0.02],
+    [0.04, 0],
+  ],
+  tabHeight: 0.004,
+  tabLength: 0.02,
+  tabOffsetMethod: 'middle',
+  tabOffset: 0,
+  position: { method: 'top', offset: 0.01 },
+} as unknown as ComponentNode;
+
+/** Every node of the design with the fin set, so a reader can find it by id. */
+const finIn = (tree: RocketTree): ComponentNode => {
+  const walk = (nodes: ComponentNode[]): ComponentNode | undefined => {
+    for (const n of nodes) {
+      if (n.id === FIN.id) return n;
+      const hit = walk(n.children ?? []);
+      if (hit) return hit;
+    }
+    return undefined;
+  };
+  return walk(tree.components)!;
+};
+
+/** The 2D schematic of a design's first stage, at 1 px per mm. */
+const schematicOf = (tree: RocketTree) =>
+  buildSchematicShapes({
+    chain: tree.components[0]!.children ?? [],
+    ctx: { scale: 1000, cy: 200, x0: 0 },
+    scale: 1000,
+    w: 800,
+    h: 400,
+    roll: 0,
+    uid: 't',
+    setHoverId: () => {},
+  });
+
+/** The `points` of every polygon in a rendered SVG list: the fins and their tabs. */
+const polygonPoints = (nodes: ReactNode[]): unknown[] =>
+  nodes
+    .filter((n): n is ReactElement<{ points: unknown }> => isValidElement(n) && n.type === 'polygon')
+    .map((n) => n.props.points);
+
+/**
+ * Readers of one fin set: every reader that places, draws or cuts it, each
+ * returning only that fin's geometry.
+ */
+const FIN_READERS: Record<string, Reader> = {
+  'schematic fins': (tree) => {
+    const { shapes, overlay, extents } = schematicOf(tree);
+    return round([polygonPoints([...shapes, ...overlay]), extents.get(String(FIN.id))?.box]);
+  },
+  '3D view fins': (tree) =>
+    buildPieces(tree)
+      .pieces.filter((p) => p.id === FIN.id)
+      .map((p) => positions(p.geometry)),
+  'aft view fins': (tree) =>
+    round(
+      buildAftScene(tree.components, undefined, ((k: string) => k) as unknown as TFunction)
+        .outer.filter((s) => s.key.startsWith(`${String(FIN.id)}:`))
+        .map((s) => (s.kind === 'fin' ? [s.from, s.to] : null)),
+    ),
+  'fin cut contour': (tree) => round(finCutContour(finIn(tree), finMountOf(tree, String(FIN.id)))),
+  'fin printable solid': (tree) => positions(solidFor(tree, finIn(tree))),
+  'fin DXF': (tree) => componentToDxf(tree, String(FIN.id)),
+  'fin template': (tree) => {
+    const { page, calls } = recordingPage();
+    writeTemplatesSection(page, tree, [finIn(tree)], [], []);
+    return calls;
+  },
+  'report side view fins': (tree) => round(rocketSideView(tree).fins),
+};
+
+const FIN_FLAGS: Flag[] = [
+  { name: 'fins on a flipped nose cone', part: { ...NOSE, children: [FIN] } as ComponentNode, on: { flipped: true } },
+  {
+    name: 'fins on an unclipped transition',
+    part: { ...TRANSITION, children: [FIN] } as ComponentNode,
+    on: { clipped: false },
+  },
+];
+
+/** Fin pairs where the reader cannot see the flag, with why. */
+const FIN_UNAFFECTED: Record<string, string> = {};
+
+describe('every shape flag on the part a fin set stands on reaches every fin reader', () => {
+  for (const flag of FIN_FLAGS) {
+    const off = flag.part;
+    const on = { ...flag.part, ...flag.on } as ComponentNode;
+    for (const [reader, read] of Object.entries(FIN_READERS)) {
+      const pair = `${flag.name} / ${reader}`;
+      const expected = !(pair in FIN_UNAFFECTED);
+      it(`${pair}: ${expected ? 'reacts' : FIN_UNAFFECTED[pair]}`, () => {
+        const before = read(design(off), off);
+        expect(before).not.toBeNull();
+        const changed = JSON.stringify(before) !== JSON.stringify(read(design(on), on));
         expect(changed).toBe(expected);
       });
     }

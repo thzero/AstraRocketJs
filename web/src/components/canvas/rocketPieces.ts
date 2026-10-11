@@ -3,10 +3,20 @@ import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
 import { countOf, num, numOpt } from '../../tree/nodeProps';
 import { axialChain, motorSeatStart, partLength } from '../../tree/position';
 import { FIN_DEFAULTS, KERNEL_DEFAULTS, KERNEL_RAILBUTTON_OUTER_DIAMETER } from '../../tree/kernelDefaults';
-import { FREEFORM_FALLBACK, finPlanformPoints, finRootChord, finSpan } from '../../tree/finPlanform';
+import {
+  FREEFORM_FALLBACK,
+  bodyRadiusAt,
+  finMount,
+  finPointsWithRoot,
+  finRootChord,
+  finSpan,
+  mountRadius,
+  type FinParent,
+} from '../../tree/finPlanform';
 import {
   assemblyBoundingRadius,
   assemblyChainLength,
+  assemblyParentRadius,
   isAssembly,
   resolveAssemblyRadius,
   ringInstanceOffsets,
@@ -195,18 +205,30 @@ export function buildPieces(
     pieces.push({ key, id: curId, geometry: g, color, ...flags });
   };
 
-  const addFins = (child: ComponentNode, pStart: number, pLen: number, pRadius: number, xform?: THREE.Matrix4) => {
+  const addFins = (
+    child: ComponentNode,
+    parent: ComponentNode,
+    pStart: number,
+    pLen: number,
+    pRadius: number,
+    xform?: THREE.Matrix4,
+  ) => {
     const count = countOf(child, 'finCount', 3);
-    const root = finRootChord(child);
     const height = finSpan(child);
     const thickness = num(child, 'thickness', FIN_DEFAULTS.thickness);
-    const start = axialStart(child, root, pStart, pLen);
-    maxR = Math.max(maxR, pRadius + height);
+    // The fin stands on the body radius under its own front
+    // (`FinSet.getFinFront`), not on the parent's widest radius.
+    const fp: FinParent = finMount(child, parent, pStart) ?? pRadius;
+    const R = mountRadius(fp) ?? pRadius;
+    const start = typeof fp === 'number' ? axialStart(child, finRootChord(child), pStart, pLen) : pStart + fp.front;
+    maxR = Math.max(maxR, R + height);
 
     // The outline comes from the one fin-geometry module (tree/finPlanform.ts),
-    // so the ellipse is the kernel's half-ellipse and root/height are measured
-    // from the same points that are drawn.
-    const outline = finPlanformPoints(child) ?? FREEFORM_FALLBACK;
+    // so the ellipse is the kernel's half-ellipse, root/height are measured
+    // from the same points that are drawn, and the root closes along the
+    // parent's own profile (`getFinPointsWithRoot`), in the fin's frame: x from
+    // the fin front, y from R.
+    const outline = finPointsWithRoot(child, fp) ?? FREEFORM_FALLBACK;
     // A planform needs three points to enclose anything. A degenerate one (a
     // freeform set whose points were cleared) must not reach `outline[0]!`, which
     // throws out of the geometry build and takes the whole view down.
@@ -224,7 +246,7 @@ export function buildPieces(
     for (const { angle } of ringInstanceOffsets(count, 0, num(child, 'rotation', 0))) {
       // Fin lies in the XY plane, root on the surface (+Y), then rotate about X.
       const g = geo.clone();
-      g.translate(start, pRadius, 0);
+      g.translate(start, R, 0);
       g.applyMatrix4(new THREE.Matrix4().makeRotationX(angle));
       if (xform) g.applyMatrix4(xform); // off-axis pod instance
       pieces.push({ key: `fin${k++}`, id: child.id, geometry: g, color: nodeColor(child, palette) });
@@ -232,19 +254,30 @@ export function buildPieces(
     geo.dispose();
   };
 
+  /**
+   * Builds `parent`'s children. `pRadius` is the parent's largest radius, which
+   * sizes packed parts inside it; a part on the outside stands on the body
+   * radius at its own station (`bodyRadiusAt`), which on a nose cone or
+   * transition is not that radius.
+   */
   const addChildren = (parent: ComponentNode, pStart: number, pLen: number, pRadius: number, xform?: THREE.Matrix4) => {
+    /** The parent's outer radius under the rocket-frame station `x`. */
+    const surfaceAt = (x: number): number => bodyRadiusAt(parent, x - pStart) ?? pRadius;
     for (const child of parent.children ?? []) {
       curId = child.id;
       if (isPlanarFinSet(child.type)) {
-        addFins(child, pStart, pLen, pRadius, xform);
+        addFins(child, parent, pStart, pLen, pRadius, xform);
       } else if (child.type === 'tubefinset') {
         // Ring of open tubes around the body, each tangent to the surface.
         const count = countOf(child, 'finCount', 6);
+        // It stands on the body radius at its own front
+        // (`TubeFinSet.getBodyRadius`), which sizes an automatic tube too.
         const len = num(child, 'length', KERNEL_DEFAULTS.tubefinset.length);
-        const rt = tubeFinRadius(child, pRadius);
-        const wall = Math.min(num(child, 'thickness', 0.0005), rt * 0.45);
         const start = axialStart(child, len, pStart, pLen);
-        maxR = Math.max(maxR, pRadius + 2 * rt);
+        const R = surfaceAt(start);
+        const rt = tubeFinRadius(child, R);
+        const wall = Math.min(num(child, 'thickness', 0.0005), rt * 0.45);
+        maxR = Math.max(maxR, R + 2 * rt);
         for (const { angle } of ringInstanceOffsets(count, 0, num(child, 'rotation', 0))) {
           // Open tube: an annulus extruded along the body axis.
           const ring = new THREE.Shape();
@@ -256,7 +289,7 @@ export function buildPieces(
           // Extrude runs along +Z; rotate so the tube runs along +X (body axis),
           // then lift to the surface (+Y) and spin about X for the ring position.
           geo.rotateY(Math.PI / 2);
-          geo.translate(start, pRadius + rt, 0);
+          geo.translate(start, R + rt, 0);
           geo.applyMatrix4(new THREE.Matrix4().makeRotationX(angle));
           if (xform) geo.applyMatrix4(xform);
           pieces.push({ key: `tubefin${k++}`, id: child.id, geometry: geo, color: nodeColor(child, palette) });
@@ -267,24 +300,19 @@ export function buildPieces(
         const wid = num(child, 'width', KERNEL_DEFAULTS.fairing.width);
         const hgt = num(child, 'height', KERNEL_DEFAULTS.fairing.height);
         const start = axialStart(child, len, pStart, pLen);
-        maxR = Math.max(maxR, pRadius + hgt);
+        const R = surfaceAt(start);
+        maxR = Math.max(maxR, R + hgt);
         const geo = new THREE.BoxGeometry(len, hgt, wid);
-        place(
-          `fairing${k++}`,
-          geo,
-          nodeColor(child, palette),
-          [start + len / 2, pRadius + hgt / 2, 0],
-          [0, 0, 0],
-          xform,
-        );
+        place(`fairing${k++}`, geo, nodeColor(child, palette), [start + len / 2, R + hgt / 2, 0], [0, 0, 0], xform);
       } else if (child.type === 'launchlug') {
         const len = num(child, 'length', KERNEL_DEFAULTS.launchlug.length);
         const r = num(child, 'outerRadius', KERNEL_DEFAULTS.launchlug.outerRadius);
         // Ride around the body at the radial mount angle (kernel default 180°),
         // staying axial. y = R·cosθ, z = R·sinθ, the pod/cluster convention.
+        // It stands on the body radius at its own station.
         const ang = num(child, 'angleOffset', Math.PI);
-        const rad = pRadius + r;
         const start = axialStart(child, len, pStart, pLen);
+        const rad = surfaceAt(start) + r;
         const geo = new THREE.CylinderGeometry(r, r, len, 16);
         place(
           `lug${k++}`,
@@ -300,9 +328,10 @@ export function buildPieces(
         // from the surface at its radial mount angle (kernel default 180°).
         const dia = num(child, 'outerDiameter', KERNEL_RAILBUTTON_OUTER_DIAMETER);
         const ang = num(child, 'angleOffset', Math.PI);
-        const rad = pRadius + dia / 2;
         const start = axialStart(child, dia, pStart, pLen);
-        maxR = Math.max(maxR, pRadius + dia);
+        const R = surfaceAt(start);
+        const rad = R + dia / 2;
+        maxR = Math.max(maxR, R + dia);
         place(
           `button${k++}`,
           new THREE.CylinderGeometry(dia / 2, dia / 2, dia, 16),
@@ -352,7 +381,7 @@ export function buildPieces(
         // fin to a mini-rocket). Nested pods compose transforms.
         const podChain = child.children ?? [];
         const podLen = assemblyChainLength(child);
-        const podRadius = resolveAssemblyRadius(child, pRadius);
+        const podRadius = resolveAssemblyRadius(child, assemblyParentRadius(parent));
         const podStart = axialStart(child, podLen, pStart, pLen);
         const count = countOf(child, 'instanceCount', 2);
         const angleOffset = num(child, 'angleOffset', 0);

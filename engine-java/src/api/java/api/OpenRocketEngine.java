@@ -352,6 +352,20 @@ public final class OpenRocketEngine {
         }
 
         rocket.enableEvents();
+        // After enableEvents, which places every part along its parent: a fin
+        // set placed by its middle or bottom stands at its true station only
+        // from then on, and the tab clamp reads the body radius there.
+        if (staged) {
+            for (Object o : topLevel) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> stageNode = (Map<String, Object>) o;
+                ComponentFactory.settleFinTabs(stageNode, ctx.ids);
+            }
+        } else {
+            Map<String, Object> rootNode = new java.util.LinkedHashMap<>();
+            rootNode.put("children", tree.get("components"));
+            ComponentFactory.settleFinTabs(rootNode, ctx.ids);
+        }
         return register(ctx);
     }
 
@@ -922,12 +936,31 @@ public final class OpenRocketEngine {
             num(sb, "innerRadius", t.getInnerRadius());
         }
         if (c instanceof info.openrocket.core.rocketcomponent.FinSet) {
+            info.openrocket.core.rocketcomponent.FinSet f = (info.openrocket.core.rocketcomponent.FinSet) c;
             sb.append(',');
-            num(sb, "maxTabHeight", ((info.openrocket.core.rocketcomponent.FinSet) c).getMaxTabHeight());
+            num(sb, "maxTabHeight", f.getMaxTabHeight());
+            // The outline the kernel flies and desktop's cut exports draw, in the
+            // fin's own frame (x from the fin front, y from the body surface there).
+            sb.append(",\"finPoints\":");
+            points(sb, f.getFinPoints());
+            sb.append(",\"rootPoints\":");
+            points(sb, f.getRootPoints());
+            if (f.hasTab()) {
+                sb.append(",\"tabPoints\":");
+                points(sb, f.getTabPoints());
+            }
         }
         if (c instanceof info.openrocket.core.rocketcomponent.MassObject) {
             sb.append(',');
             num(sb, "radius", ((info.openrocket.core.rocketcomponent.MassObject) c).getRadius());
+        }
+        if (c instanceof ComponentAssembly
+                && c instanceof info.openrocket.core.rocketcomponent.position.RadiusPositionable) {
+            info.openrocket.core.rocketcomponent.position.RadiusPositionable p =
+                    (info.openrocket.core.rocketcomponent.position.RadiusPositionable) c;
+            // The distance of each copy's axis from its parent's, as getInstanceOffsets places it.
+            sb.append(',');
+            num(sb, "instanceRadius", p.getRadiusMethod().getRadius(c.getParent(), c, p.getRadiusOffset()));
         }
         return sb.append('}').toString();
     }
@@ -1497,6 +1530,16 @@ public final class OpenRocketEngine {
         sb.append(",\"base\":");
         nums(sb, base);
         sb.append('}');
+    }
+
+    /** Each point's x and y as a [x, y] pair; a non-finite value is written as null. */
+    private static StringBuilder points(StringBuilder sb, CoordinateIF[] values) {
+        sb.append('[');
+        for (int i = 0; i < values.length; i++) {
+            if (i > 0) sb.append(',');
+            nums(sb, new double[] { values[i].getX(), values[i].getY() });
+        }
+        return sb.append(']');
     }
 
     private static StringBuilder nums(StringBuilder sb, double[] values) {

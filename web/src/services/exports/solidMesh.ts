@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { ComponentNode } from '../../engine/openRocketEngine';
 import { num, numOpt } from '../../tree/nodeProps';
-import { finCutContour, finRootChord, finSpan } from '../../tree/finPlanform';
+import { finCutContour, finRootChord, finSpan, mountRadius, type FinParent } from '../../tree/finPlanform';
 import { freeformPoints, partLength } from '../../tree/position';
 import { nodeShape, outerProfile, profileEnds } from '../../tree/shapeProfile';
 import { tubeFinRadius } from '../../tree/tubefins';
@@ -354,7 +354,7 @@ export function discSolid(outerR: number, innerR: number, length: number): THREE
 
 /** One fin as a flat, watertight extruded solid at the origin (planform in XY,
  *  thickness centered on Z), ready to lay on a print bed. */
-function oneFinSolid(child: ComponentNode, parentRadius: number | null): THREE.BufferGeometry | null {
+function oneFinSolid(child: ComponentNode, parent: FinParent): THREE.BufferGeometry | null {
   const root = finRootChord(child, 0);
   const height = finSpan(child);
   const thickness = num(child, 'thickness', FIN_DEFAULTS.thickness);
@@ -371,7 +371,7 @@ function oneFinSolid(child: ComponentNode, parentRadius: number | null): THREE.B
   // The outline, tab folded in, from the shared fin-geometry module, so the printed
   // fin is the shape that flew. Sampling an elliptical curve here instead yields
   // a sine arch rather than the kernel's half-ellipse. See tree/finPlanform.ts.
-  const contour = finCutContour(child, parentRadius);
+  const contour = finCutContour(child, parent);
   if (!contour || contour.length < 3) return null;
 
   const shape = new THREE.Shape();
@@ -392,8 +392,8 @@ function oneFinSolid(child: ComponentNode, parentRadius: number | null): THREE.B
  * per-component STL/OBJ/GLB export. Disc parts (rings, bulkheads, couplers,
  * engine blocks) are built through {@link discSolidForNode} instead.
  */
-export function solidForNode(node: ComponentNode, parentRadius: number | null = null): THREE.BufferGeometry | null {
-  return validated(buildSolid(node, parentRadius));
+export function solidForNode(node: ComponentNode, parent: FinParent = null): THREE.BufferGeometry | null {
+  return validated(buildSolid(node, parent));
 }
 
 /**
@@ -450,7 +450,8 @@ export function discSolidForNode(outerR: number, innerR: number, length: number)
   return validated(discSolid(outerR, innerR, length));
 }
 
-function buildSolid(node: ComponentNode, parentRadius: number | null): THREE.BufferGeometry | null {
+function buildSolid(node: ComponentNode, parent: FinParent): THREE.BufferGeometry | null {
+  const parentRadius = mountRadius(parent);
   const len = partLength(node);
   switch (node.type) {
     case 'nosecone': {
@@ -521,7 +522,7 @@ function buildSolid(node: ComponentNode, parentRadius: number | null): THREE.Buf
     case 'trapezoidfinset':
     case 'ellipticalfinset':
     case 'freeformfinset':
-      return oneFinSolid(node, parentRadius);
+      return oneFinSolid(node, parent);
     default:
       return null;
   }

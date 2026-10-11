@@ -88,6 +88,31 @@ and engine parity passes on both targets with the golden unchanged.
   flies is still an owner decision.
 - **C12 and C13.** A place pick writes the elevation or `null`, and the
   Weather dialog asks for an elevation instead of fetching for 0 m.
+- **T1.** The parity generator builds elliptical and freeform fins on body
+  tubes, every tab offset method, cant, `shapeParameter`, `clipped` both
+  ways, tube fins with an explicit count or radius, streamers and shock cords,
+  and compares each fin's root, outline and tab points, the cut contour, the
+  pod and booster radial distance and the packed size against the kernel. The
+  bridge reports `finPoints`, `rootPoints`, `tabPoints` and `instanceRadius`.
+  The wider generator found four more disagreements, all fixed: the bridge
+  clamped fin tabs before automatic radii and fin stations settled
+  (`settleFinTabs` reapplies them after the build), the app pulled a tab back
+  onto the root where the kernel does not, a freeform interior point inside
+  the body was not raised to the surface (`clampInteriorPoint`), and
+  `resolveAssemblyRadius` read `coaxial` and `surface` as `relative`. A
+  streamer or parachute with no `cd` was blocked by the pre-run check, where
+  the kernel flies it with automatic CD.
+- **C1.** One rule in `tree/finPlanform.ts` (`finMount`, `bodyRadiusAt`,
+  `finRootPoints`, `finOutlinePoints`, `finTabPoints`, `finCutContour`)
+  follows `FinSet.getRootPoints`, `getTabPoints` and
+  `FreeformFinSet.getFinPoints`. The 2D, 3D and aft views, the printable
+  solid, the DXF, the 1:1 template and the PDF side view all read it, and
+  every child of a nose cone or transition sits at the body radius of its
+  own station; pods take `assemblyParentRadius`. `finPlanform.kernel.test.ts`
+  has a closed-form fin on a conical transition, `geometryFlags.test.ts`
+  checks eight fin readers against fins on a flipped nose cone and an
+  unclipped transition, and `taperedParent.test.ts` checks the three views.
+  Engine parity passes with the golden unchanged.
 
 ## How to read the verification tags
 

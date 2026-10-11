@@ -1,6 +1,6 @@
 import type { ComponentNode } from '../engine/openRocketEngine';
 import { ASSEMBLY_TYPES, isChainType, type AssemblyType } from './componentKinds';
-import { kernelLength } from './kernelDefaults';
+import { KERNEL_BODYTUBE_OUTER_RADIUS, kernelLength } from './kernelDefaults';
 import { chainOuterRadius, num } from './nodeProps';
 
 /**
@@ -32,17 +32,36 @@ export function assemblyBoundingRadius(pod: ComponentNode): number {
 }
 
 /**
- * Distance (m) from the parent centerline to the assembly's centerline.
+ * Distance (m) from the parent centerline to the assembly's centerline,
+ * `RadiusMethod.getRadius`:
  * - `relative` (default): `radiusOffset` is a gap from the parent surface, so
  *   the resolved radius = offset + parentOuterRadius + assemblyBoundingRadius
  *   (offset 0 ⇒ the pod just touches the airframe).
+ * - `surface`: touching the parent surface, whatever the offset:
+ *   parentOuterRadius + assemblyBoundingRadius.
  * - `free`: `radiusOffset` is measured straight from the parent centerline.
+ * - `coaxial`: on the parent's axis, 0.
+ *
+ * `parentOuterRadius` is the parent's radius when the parent is a body tube
+ * and 0 for any other parent: the kernel adds a parent's radius only for a
+ * `BodyTube` ({@link assemblyParentRadius}).
  */
 export function resolveAssemblyRadius(pod: ComponentNode, parentOuterRadius: number): number {
   const offset = num(pod, 'radiusOffset', 0);
   const method = typeof pod['radiusMethod'] === 'string' ? pod['radiusMethod'] : 'relative';
   if (method === 'free') return offset;
+  if (method === 'coaxial') return 0;
+  if (method === 'surface') return parentOuterRadius + assemblyBoundingRadius(pod);
   return offset + parentOuterRadius + assemblyBoundingRadius(pod);
+}
+
+/**
+ * The parent radius an assembly is placed against: a body tube's outer
+ * radius, and 0 for a stage, nose cone, transition or anything else, which
+ * `RadiusMethod` does not add (it reads `BodyTube.getOuterRadius` only).
+ */
+export function assemblyParentRadius(parent: ComponentNode | null | undefined): number {
+  return parent?.type === 'bodytube' ? num(parent, 'outerRadius', KERNEL_BODYTUBE_OUTER_RADIUS) : 0;
 }
 
 export interface RingInstance {

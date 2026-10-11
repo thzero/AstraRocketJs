@@ -4,10 +4,18 @@ import type { TFunction } from 'i18next';
 import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
 import { anyOuterRadius, countOf, num } from '../../tree/nodeProps';
 import { FIN_DEFAULTS, KERNEL_DEFAULTS, KERNEL_RAILBUTTON_OUTER_DIAMETER } from '../../tree/kernelDefaults.js';
-import { finSpan } from '../../tree/finPlanform.js';
+import { bodyRadiusAt, finMount, finSpan, mountRadius } from '../../tree/finPlanform.js';
 import { clusterOffsets } from '../../tree/cluster.js';
 import { isPlanarFinSet, tubeFinRadius } from '../../tree/tubefins.js';
-import { isAssembly, resolveAssemblyRadius, ringInstanceOffsets } from '../../tree/assembly.js';
+import {
+  assemblyChainLength,
+  assemblyParentRadius,
+  isAssembly,
+  resolveAssemblyRadius,
+  ringInstanceOffsets,
+} from '../../tree/assembly.js';
+import { isChainType } from '../../tree/componentKinds.js';
+import { axialStart, partLength } from '../../tree/position.js';
 import {
   colorOf,
   innerTubeExtent,
@@ -74,7 +82,7 @@ type Shape =
  * calls itself as a missing memo dependency. Given the same tree, motors
  * and translator it returns the same drawing, which is what the memo keys on.
  */
-function buildAftScene(
+export function buildAftScene(
   components: ComponentNode[],
   motors: MotorDims | undefined,
   t: TFunction,
@@ -104,13 +112,20 @@ function buildAftScene(
   });
 
   // The entry point first, the per-child walk after it: function
-  // declarations, so the mutual recursion reads top-down.
-  function walkChain(nodes: ComponentNode[], cy: number, cz: number) {
+  // declarations, so the mutual recursion reads top-down. The walk carries
+  // each part's rocket-frame station from `x0`, because a part on a nose cone
+  // or transition stands on the body radius at its own station, and returns
+  // the station the chain ends at.
+  function walkChain(nodes: ComponentNode[], cy: number, cz: number, x0: number): number {
+    let x = x0;
     for (const n of nodes) {
       if (n.type === 'stage') {
-        walkChain(n.children ?? [], cy, cz);
+        x = walkChain(n.children ?? [], cy, cz, x);
         continue;
       }
+      const len = isChainType(n.type) ? partLength(n) : 0;
+      const start = x;
+      x += len;
       const r = anyOuterRadius(n);
       if (r <= 0) continue;
       hulls.push({
@@ -130,24 +145,39 @@ function buildAftScene(
         const motor = n.id ? motors?.[n.id] : undefined;
         if (motor) inner.push(motorShape(n, 0, cy, cz, motor.diameter));
       }
-      walkChildren(n, r, cy, cz);
+      walkChildren(n, r, cy, cz, start, len);
     }
+    return x;
   }
 
-  function walkChildren(parent: ComponentNode, pRadius: number, cy: number, cz: number) {
+  /**
+   * `parent`'s children. `pRadius` is the parent's largest radius, which sizes
+   * the internal parts inside it; a part on the outside stands on the body
+   * radius at its own station (`bodyRadiusAt`), which on a nose cone or
+   * transition is not that radius. `pStart` and `pLen` place the parent in the
+   * rocket frame.
+   */
+  function walkChildren(parent: ComponentNode, pRadius: number, cy: number, cz: number, pStart: number, pLen: number) {
+    /** The body radius under a child of length `len` at its own station. */
+    const surfaceUnder = (child: ComponentNode, len: number): number =>
+      bodyRadiusAt(parent, axialStart(child, len, pStart, pLen) - pStart) ?? pRadius;
     for (const child of parent.children ?? []) {
       const type = child.type;
       if (isAssembly(type)) {
-        const podRadius = resolveAssemblyRadius(child, pRadius);
+        const podRadius = resolveAssemblyRadius(child, assemblyParentRadius(parent));
+        const podStart = axialStart(child, assemblyChainLength(child), pStart, pLen);
         const count = countOf(child, 'instanceCount', 2);
         // +π/2 so the ring's 0° reference is "straight up" (the same reference
         // the fin sets use here), matching the 3D view (see the lug note below).
         for (const off of ringInstanceOffsets(count, podRadius, Math.PI / 2 + num(child, 'angleOffset', 0))) {
-          walkChain(child.children ?? [], cy + off.y, cz + off.z);
+          walkChain(child.children ?? [], cy + off.y, cz + off.z, podStart);
         }
       } else if (isPlanarFinSet(type)) {
         const count = countOf(child, 'finCount', 3);
         const span = finSpan(child);
+        // The fin stands on the body radius under its own front
+        // (`FinSet.getBodyRadius`), not on the parent's widest radius.
+        const R = mountRadius(finMount(child, parent, pStart)) ?? pRadius;
         const thick = num(child, 'thickness', FIN_DEFAULTS.thickness);
         // First fin straight up (desktop rear-view convention) plus the set's
         // own rotation about the body axis.
@@ -159,19 +189,22 @@ function buildAftScene(
             y: cy,
             z: cz,
             angle,
-            from: pRadius,
-            to: pRadius + span,
+            from: R,
+            to: R + span,
             thick,
             fill: colorOf(child, token('sch-part')),
             stroke: token('sch-line'),
             title: `${nameOf(child)} ×${count}`,
           });
         }
-        reach(cy, cz, pRadius + span);
+        reach(cy, cz, R + span);
       } else if (type === 'tubefinset') {
+        // The ring stands on the body radius at its own front
+        // (`TubeFinSet.getBodyRadius`), which sizes an automatic tube too.
         const count = countOf(child, 'finCount', 6);
-        const rt = tubeFinRadius(child, pRadius);
-        const ring = ringInstanceOffsets(count, pRadius + rt, Math.PI / 2 + num(child, 'rotation', 0));
+        const R = surfaceUnder(child, num(child, 'length', KERNEL_DEFAULTS.tubefinset.length));
+        const rt = tubeFinRadius(child, R);
+        const ring = ringInstanceOffsets(count, R + rt, Math.PI / 2 + num(child, 'rotation', 0));
         for (const [i, off] of ring.entries()) {
           outer.push({
             kind: 'circle',
@@ -184,25 +217,26 @@ function buildAftScene(
             title: `${nameOf(child)} ×${count}`,
           });
         }
-        reach(cy, cz, pRadius + 2 * rt);
+        reach(cy, cz, R + 2 * rt);
       } else if (type === 'fairing') {
         // Shroud cross-section at the top (radial angle not modeled).
         const wid = num(child, 'width', KERNEL_DEFAULTS.fairing.width);
         const hgt = num(child, 'height', KERNEL_DEFAULTS.fairing.height);
+        const R = surfaceUnder(child, num(child, 'length', KERNEL_DEFAULTS.fairing.length));
         outer.push({
           kind: 'fin',
           key: keyOf(child, 0),
           y: cy,
           z: cz,
           angle: Math.PI / 2,
-          from: pRadius,
-          to: pRadius + hgt,
+          from: R,
+          to: R + hgt,
           thick: wid,
           fill: colorOf(child, token('sch-part-light')),
           stroke: token('sch-line'),
           title: nameOf(child),
         });
-        reach(cy, cz, pRadius + hgt);
+        reach(cy, cz, R + hgt);
       } else if (type === 'launchlug' || type === 'railbutton') {
         // Kernel default (the RailButton constructor), so the aft view shows
         // the button that is actually simulated.
@@ -214,7 +248,12 @@ function buildAftScene(
         // "up = 0°" convention (the same offset the fin sets carry here), so a
         // lug clocks consistently with the fins and with the 3D view.
         const ang = Math.PI / 2 + num(child, 'angleOffset', Math.PI);
-        const rad = pRadius + r;
+        // It stands on the body radius at its own station.
+        const R = surfaceUnder(
+          child,
+          type === 'railbutton' ? 2 * r : num(child, 'length', KERNEL_DEFAULTS.launchlug.length),
+        );
+        const rad = R + r;
         outer.push({
           kind: 'circle',
           key: keyOf(child, 0),
@@ -225,9 +264,9 @@ function buildAftScene(
           stroke: token('sch-line'),
           title: nameOf(child),
         });
-        reach(cy, cz, pRadius + 2 * r);
+        reach(cy, cz, R + 2 * r);
       } else if (type === 'innertube') {
-        const r = innerTubeExtent(child).radius;
+        const { length: tubeLen, radius: r } = innerTubeExtent(child);
         const offs = clusterOffsets(
           child['cluster'] as string | undefined,
           r,
@@ -253,7 +292,7 @@ function buildAftScene(
           if (motor) inner.push(motorShape(child, i, cy + off.y, cz + off.z, motor.diameter));
           reach(cy + off.y, cz + off.z, r);
         });
-        walkChildren(child, r, cy, cz);
+        walkChildren(child, r, cy, cz, axialStart(child, tubeLen, pStart, pLen), tubeLen);
       } else if (DISC_TYPES.has(type)) {
         // Sized as the side view, the 3D model and the cut sheet size it: its own
         // radii, else the bore of the tube it sits in, with a ring's bore taken
@@ -279,7 +318,7 @@ function buildAftScene(
     }
   }
 
-  walkChain(components, 0, 0);
+  walkChain(components, 0, 0, 0);
 
   // Big circles first so nested ones stay visible.
   hulls.sort((a, b) => (b.kind === 'circle' ? b.r : 0) - (a.kind === 'circle' ? a.r : 0));

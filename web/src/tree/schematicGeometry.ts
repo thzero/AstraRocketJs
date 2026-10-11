@@ -7,7 +7,7 @@ import { nodeShape, outerProfile } from './shapeProfile.js';
 import { isFinSet, tubeFinRadius } from './tubefins.js';
 import { isChainType } from './componentKinds.js';
 import { KERNEL_DEFAULTS, KERNEL_MASSCOMPONENT_RADIUS } from './kernelDefaults.js';
-import { assemblyBoundingRadius, isAssembly, resolveAssemblyRadius } from './assembly.js';
+import { assemblyBoundingRadius, assemblyParentRadius, isAssembly, resolveAssemblyRadius } from './assembly.js';
 import { stabilityState, type StabilityState } from '../services/flight/simReport.js';
 import { fmtNum } from '../i18n/format';
 
@@ -246,20 +246,22 @@ export function computeSchematicLayout(
 
   // Vertical half-extent (m): the core body + fins, plus any off-axis pod's
   // reach (its centerline radius + its own body + its fins) so pods don't clip.
+  // A pod's centerline radius counts its parent's radius only when that parent
+  // is a body tube (`assemblyParentRadius`), as the kernel places it.
   let vHalf = maxR + finH;
-  const scanRadial = (nodes: ComponentNode[], parentR: number) => {
+  const scanRadial = (nodes: ComponentNode[], parent: ComponentNode | null) => {
     for (const n of nodes) {
       if (isAssembly(n.type)) {
         const podFin = Math.max(0, ...collectFinSpans(n.children ?? [], assemblyBoundingRadius(n)));
-        vHalf = Math.max(vHalf, resolveAssemblyRadius(n, parentR) + assemblyBoundingRadius(n) + podFin);
-        scanRadial(n.children ?? [], assemblyBoundingRadius(n));
-      } else {
-        const r = anyOuterRadius(n) || parentR;
-        scanRadial(n.children ?? [], r);
+        vHalf = Math.max(
+          vHalf,
+          resolveAssemblyRadius(n, assemblyParentRadius(parent)) + assemblyBoundingRadius(n) + podFin,
+        );
       }
+      scanRadial(n.children ?? [], n);
     }
   };
-  scanRadial(chain, maxR);
+  scanRadial(chain, null);
 
   // Caliper snap targets: axial component + child edges (horizontal), and radial
   // magnitudes: each component's radius, the body, the full span (vertical).

@@ -314,10 +314,7 @@ export function profileEnds(node: ComponentNode): { fore: number; aft: number } 
  * with no `length` on record is the length the bridge builds it at.
  *
  * `extraX` gives the profile an exact sample at the station asked for, so this
- * reads the true curve rather than a chord between two even samples. Note
- * `reportGeometry` keeps its own copy of the same call: it already has the pair
- * of radii in hand from its walk, and would have to look them up again to use
- * this.
+ * reads the true curve rather than a chord between two even samples.
  */
 export function stationRadius(node: ComponentNode, x: number): number {
   const length = partLength(node);

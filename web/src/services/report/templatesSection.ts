@@ -1,6 +1,6 @@
 import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
 import { finPlanformMm, profileMm, type Pt } from './reportGeometry';
-import { parentRadiusOf } from '../../tree/finPlanform';
+import { finMountOf } from '../../tree/finPlanform';
 import { profileEnds } from '../../tree/shapeProfile';
 import { num } from '../../tree/nodeProps';
 import { KERNEL_DEFAULTS } from '../../tree/kernelDefaults';
@@ -52,10 +52,11 @@ export function writeTemplatesSection(
 
 function writeFinTemplates(p: PdfPage, tree: RocketTree, finSets: ComponentNode[]): void {
   for (const n of finSets) {
-    // Pass the mounting radius so the printed template's tab is clamped to
-    // the depth the kernel allows, matching the DXF and the STL of the same
-    // fin. Without it a 20 mm tab on a 12 mm body would print at full depth.
-    const f = finPlanformMm(n, parentRadiusOf(tree, String(n.id)));
+    // Pass where the fin stands so the printed template's root follows its
+    // parent and its tab is clamped to the depth the kernel allows, matching
+    // the DXF and the STL of the same fin. Without it a 20 mm tab on a 12 mm
+    // body would print at full depth.
+    const f = finPlanformMm(n, finMountOf(tree, String(n.id)));
     // A loop, not `Math.max(...pts)`: a freeform outline is file-sourced and
     // spreading a huge one into a call overflows the stack (dxfExport.ts
     // avoids the same thing the same way).

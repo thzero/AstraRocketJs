@@ -1,11 +1,14 @@
 import type { ComponentNode } from '../../engine/openRocketEngine';
 import {
   FREEFORM_FALLBACK,
-  finPlanformPoints,
+  bodyRadiusAt,
+  finMount,
+  finPointsWithRoot,
   finRootChord,
   finSpan,
-  finTabLimit,
-  finTabSpan,
+  finTabPoints,
+  mountRadius,
+  type FinParent,
 } from '../../tree/finPlanform';
 import { profileEnds } from '../../tree/shapeProfile';
 import { countOf, num, str } from '../../tree/nodeProps';
@@ -16,7 +19,13 @@ import { DISPLAY_NAME } from '../../tree/schema.js';
 import { motorSeatStart, partLength } from '../../tree/position.js';
 import { DISC_TYPES } from '../../services/files/componentFormats.js';
 import { discDims, tubeRadii } from '../../services/design/discGeometry.js';
-import { assemblyChainLength, isAssembly, resolveAssemblyRadius, ringInstanceOffsets } from '../../tree/assembly.js';
+import {
+  assemblyChainLength,
+  assemblyParentRadius,
+  isAssembly,
+  resolveAssemblyRadius,
+  ringInstanceOffsets,
+} from '../../tree/assembly.js';
 import { token } from '../common/colorTokens';
 import { chainWithKernelEnds } from '../../services/design/autoRadius.js';
 import {
@@ -142,8 +151,9 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
 
   // One clip per (centerline, body radius): everything outside the airframe
   // band, as two rects. Cuts a far fin's fill at the tube wall (a fin behind the
-  // body has its root hidden). Memoised so a shared band reuses one def.
+  // body has its root hidden). Memoized so a shared band reuses one def.
   const clipDefs: React.ReactNode[] = [];
+  const FAR = 1e4; // certainly covers the drawing; lives inside the view transform
   const airframeClips = new Map<string, string>();
   const airframeClip = (baseY: number, pRadius: number): string => {
     const top = baseY - pRadius * ctx.scale;
@@ -153,11 +163,34 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
     if (seen) return seen;
     const id = `${uid}-outside-${airframeClips.size}`;
     airframeClips.set(memo, id);
-    const FAR = 1e4; // certainly covers the drawing; lives inside the view transform
     clipDefs.push(
       <clipPath key={id} id={id}>
         <rect x={-FAR} y={-FAR} width={2 * FAR} height={FAR + top} />
         <rect x={-FAR} y={bottom} width={2 * FAR} height={FAR} />
+      </clipPath>,
+    );
+    return id;
+  };
+
+  /**
+   * The clip a far child of `parent` is cut with at the parent's wall. A body
+   * tube's wall is one radius, so it is the band above; a nose cone's or a
+   * transition's is its own profile, so the clip is everything outside that
+   * outline, and a fin root running down a taper is hidden where the body
+   * covers it.
+   */
+  const profileClips = new Map<string, string>();
+  const wallClip = (parent: ComponentNode, pStart: number, pLen: number, pRadius: number, baseY: number): string => {
+    if (parent.type !== 'nosecone' && parent.type !== 'transition') return airframeClip(baseY, pRadius);
+    const { fore, aft } = profileEnds(parent);
+    const outline = profilePath(ctx, parent, pStart, pLen, fore, aft, baseY);
+    const seen = profileClips.get(outline);
+    if (seen) return seen;
+    const id = `${uid}-outside-profile-${profileClips.size}`;
+    profileClips.set(outline, id);
+    clipDefs.push(
+      <clipPath key={id} id={id}>
+        <path clipRule="evenodd" d={`M ${-FAR} ${-FAR} H ${FAR} V ${FAR} H ${-FAR} Z ${outline}`} />
       </clipPath>,
     );
     return id;
@@ -282,7 +315,15 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
     return out;
   };
 
+  /**
+   * Draws `parent`'s children. `pRadius` is the parent's largest radius, which
+   * sizes the internal parts inside it; a part on the outside stands on the
+   * body radius at its own station (`bodyRadiusAt`), which on a nose cone or
+   * transition is not that radius.
+   */
   const renderChildren = (parent: ComponentNode, pStart: number, pLen: number, pRadius: number, baseY: number) => {
+    /** The parent's outer radius under the rocket-frame station `x`. */
+    const surfaceAt = (x: number): number => bodyRadiusAt(parent, x - pStart) ?? pRadius;
     for (const child of parent.children ?? []) {
       const t = child.type;
       // Off-axis assembly: draw its whole chain once per ring instance at the
@@ -292,7 +333,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
       if (isAssembly(t)) {
         const podChain = child.children ?? [];
         const podLen = assemblyChainLength(child);
-        const podRadius = resolveAssemblyRadius(child, pRadius);
+        const podRadius = resolveAssemblyRadius(child, assemblyParentRadius(parent));
         const podStart = axialStart(child, podLen, pStart, pLen);
         const count = countOf(child, 'instanceCount', 2);
         for (const off of ringInstanceOffsets(count, podRadius, num(child, 'angleOffset', 0) + roll)) {
@@ -303,132 +344,140 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
       const grab = {
         ...clickable(child),
       };
-      // Through-the-wall fin tab: dashed rect from the body surface inward,
-      // foreshortened with the fin instance `p` it belongs to.
-      const renderTab = (finStart: number, finLen: number, p: number) => {
-        // Through `finTabSpan`, not a local read of tabHeight/tabLength: it
-        // clamps the tab into [0, rootChord] and its height into the parent
-        // radius at the tab's two ends (`finTabLimit`), which on a nose cone or
-        // transition is not the radius the fin is drawn on. A tab longer than
-        // its root chord (a state the app warns about) is clamped the same way
-        // the DXF, the STL and the 1:1 PDF template clamp it, so the drawing and
-        // the part you cut are the same part.
-        const tab = finTabSpan(child, finLen, finTabLimit(child, parent, pStart) ?? pRadius);
+      // Through-the-wall fin tab, foreshortened with the fin instance `p` it
+      // belongs to. `tab` is `finTabPoints` in the fin's own frame (x from the
+      // fin front, y from the body radius `R` under it): down from the body
+      // surface at its front edge, along its bottom, up to the surface at its
+      // trailing edge. Its depth is clamped to the parent radius at its two
+      // ends and its span stands where the kernel puts it, so the drawing and
+      // the part the DXF, the STL and the 1:1 PDF template cut are one part.
+      // On a body tube both ends sit on one radius and it is a rect; on a
+      // nose cone or transition its top follows the surface.
+      const renderTab = (finStart: number, R: number, tab: [number, number][] | null, p: number) => {
         if (!tab) return;
-        const front = finStart + tab.x0;
-        const tabLen = tab.x1 - tab.x0;
-        const yInner = baseY - (pRadius - tab.height) * p * ctx.scale;
-        const ySurface = baseY - pRadius * p * ctx.scale;
-        const hPx = Math.abs(yInner - ySurface);
+        const [front, bottomFront, , trail] = tab as [
+          [number, number],
+          [number, number],
+          [number, number],
+          [number, number],
+        ];
+        const px = (x: number) => ctx.x0 + (finStart + x) * ctx.scale;
+        const py = (y: number) => baseY - (R + y) * p * ctx.scale;
+        const ink = {
+          fill: wire ? 'none' : fillOf(child, token('sch-part')),
+          fillOpacity: wire ? undefined : '0.35',
+          stroke: token('sch-line'),
+          strokeWidth: '1',
+          strokeDasharray: '3 2',
+          style: { pointerEvents: 'none' } as React.CSSProperties,
+        };
+        const ys = [py(front[1]), py(bottomFront[1]), py(trail[1])];
+        const hPx = Math.max(...ys) - Math.min(...ys);
         if (wire && hPx < 0.5) return;
+        if (front[1] === trail[1]) {
+          const yInner = py(bottomFront[1]);
+          const ySurface = py(front[1]);
+          (wire ? wires : shapes).push(
+            <rect
+              key={key++}
+              x={px(front[0])}
+              y={Math.min(yInner, ySurface)}
+              width={Math.max(2, (trail[0] - front[0]) * ctx.scale)}
+              height={wire ? hPx : Math.max(1.5, hPx)}
+              {...ink}
+            />,
+          );
+          return;
+        }
         (wire ? wires : shapes).push(
-          <rect
-            key={key++}
-            x={ctx.x0 + front * ctx.scale}
-            y={Math.min(yInner, ySurface)}
-            width={Math.max(2, tabLen * ctx.scale)}
-            height={wire ? hPx : Math.max(1.5, hPx)}
-            fill={wire ? 'none' : fillOf(child, token('sch-part'))}
-            fillOpacity={wire ? undefined : '0.35'}
-            stroke={token('sch-line')}
-            strokeWidth="1"
-            strokeDasharray="3 2"
-            style={{ pointerEvents: 'none' }}
-          />,
+          <polygon key={key++} points={tab.map(([x, y]) => `${px(x)},${py(y)}`).join(' ')} {...ink} />,
         );
       };
       if (t === 'freeformfinset' || t === 'trapezoidfinset' || t === 'ellipticalfinset') {
-        // one branch for all three planar fin types, and the outline comes from
-        // `finPlanformPoints` -- the module that owns it -- rather than from
-        // dimensions re-assembled here.
+        // One branch for all three planar fin types. The outline, its root and
+        // its tab come from tree/finPlanform, the module that owns them, rather
+        // than from dimensions re-assembled here: the kernel's tip collapse (a
+        // tip chord at or below 0.0001 m is a triangle), its root floor, its
+        // 31-point ellipse and a root that runs along a tapered parent are all
+        // applied there. At schematic scale the 31-point polygon and a smooth
+        // arc are indistinguishable, and the polygon is what the 3D view, the
+        // STL, the DXF and the PDF template draw, so the drawing is the part
+        // that gets cut.
         //
-        // Building the shapes from `rootChord`/`tipChord`/`sweep`/`height`
-        // here would skip the two rules the kernel applies: the tip collapse (a
-        // tip chord at or below 0.0001 m is a triangle, not a trapezoid with a
-        // zero-length tip edge) and the `Math.max(root, MIN_ROOT)` floor.
-        //
-        // The ellipse is the kernel's own 31-point outline rather than a
-        // smooth arc. At schematic scale the two are indistinguishable, and the
-        // polygon is what the 3D view, the STL, the DXF and the PDF template
-        // all draw -- so the drawing is the part that gets cut, which an
-        // idealized arc could not promise.
-        const outline = finPlanformPoints(child) ?? FREEFORM_FALLBACK;
-        {
-          // Root chord (first→last point, where the outline meets the body)
-          // positions the fin and its tab: the same measure the engine uses,
-          // from the one module that owns it (tree/finPlanform), so this view
-          // cannot drift from the mesh, the PDF and the DXF. The furthest-aft
-          // outline point (aftX) can sit behind the
-          // root when the tip trailing corner overhangs; it only widens the
-          // drawn shape and its hover/hit box, and must not move the fin forward.
-          const chord = finRootChord(child);
-          const aftX = Math.max(...outline.map((pt) => pt[0]));
-          const start = axialStart(child, chord, pStart, pLen);
-          const ymax = finSpan(child);
-          const reach = pRadius + ymax;
-          const projections = finFactors(child);
-          noteHoverFins(
-            child,
-            ctx.x0 + start * ctx.scale,
-            ctx.x0 + (start + aftX) * ctx.scale,
-            baseY,
-            reach,
-            pRadius,
-            projections,
+        // The fin stands on the body radius under its own front
+        // (`FinSet.getFinFront`), not on the parent's widest radius, and its
+        // outline closes along the parent's profile (`getFinPointsWithRoot`).
+        const fp: FinParent = finMount(child, parent, pStart) ?? pRadius;
+        const R = mountRadius(fp) ?? pRadius;
+        const outline = finPointsWithRoot(child, fp) ?? FREEFORM_FALLBACK;
+        const tab = finTabPoints(child, fp);
+        // The furthest-aft outline point (aftX) can sit behind the root when
+        // the tip trailing corner overhangs; it only widens the drawn shape and
+        // its hover/hit box, and does not move the fin.
+        const chord = finRootChord(child);
+        const aftX = Math.max(...outline.map((pt) => pt[0]));
+        const start = typeof fp === 'number' ? axialStart(child, chord, pStart, pLen) : pStart + fp.front;
+        const ymax = finSpan(child);
+        const reach = R + ymax;
+        const projections = finFactors(child);
+        noteHoverFins(
+          child,
+          ctx.x0 + start * ctx.scale,
+          ctx.x0 + (start + aftX) * ctx.scale,
+          baseY,
+          reach,
+          R,
+          projections,
+        );
+        const clip = wallClip(parent, pStart, pLen, pRadius, baseY);
+        for (const { p, near } of projections) {
+          const ptsStr = outline
+            .map(([px, py]) => `${ctx.x0 + (start + px) * ctx.scale},${baseY - (R + py) * p * ctx.scale}`)
+            .join(' ');
+          // Rolled: an outline over the body, every instance, including one
+          // lying flat inside the airframe (the one you follow round).
+          if (wire) {
+            pushWire(child, grab, clip, (extra) => <polygon key={key++} points={ptsStr} {...extra} />);
+            renderTab(start, R, tab, p);
+            continue;
+          }
+          const body = (
+            <polygon
+              key={key++}
+              points={ptsStr}
+              clipPath={near ? undefined : `url(#${clip})`}
+              fill={fillOf(child, token('sch-part'))}
+              stroke={selStroke(child, token('sch-line'))}
+              strokeWidth={selWidth(child)}
+              {...grab}
+            />
           );
-          const clip = airframeClip(baseY, pRadius);
-          for (const { p, near } of projections) {
-            const ptsStr = outline
-              .map(([px, py]) => `${ctx.x0 + (start + px) * ctx.scale},${baseY - (pRadius + py) * p * ctx.scale}`)
-              .join(' ');
-            // Rolled: an outline over the body, every instance, including one
-            // lying flat inside the airframe (the one you follow round).
-            if (wire) {
-              pushWire(child, grab, clip, (extra) => <polygon key={key++} points={ptsStr} {...extra} />);
-              renderTab(start, chord, p);
-              continue;
-            }
-            const body = (
-              <polygon
-                key={key++}
-                points={ptsStr}
-                clipPath={near ? undefined : `url(#${clip})`}
-                fill={fillOf(child, token('sch-part'))}
-                stroke={selStroke(child, token('sch-line'))}
-                strokeWidth={selWidth(child)}
-                {...grab}
-              />
-            );
-            // Only fins that poke past the airframe are drawn: an edge-on blade
-            // (reach·|p| ≤ pRadius) is hidden behind the body, not a bar down
-            // the centerline. Near ones go in the overlay (on top); far ones
-            // under the hull, their root cut at the wall by the clip.
-            if (reach * Math.abs(p) > pRadius) {
-              (near ? overlay : shapes).push(body);
-              renderTab(start, chord, p);
-            }
+          // Only fins that poke past the airframe are drawn: an edge-on blade
+          // (reach·|p| ≤ R) is hidden behind the body, not a bar down the
+          // centerline. Near ones go in the overlay (on top); far ones under
+          // the hull, their root cut at the wall by the clip.
+          if (reach * Math.abs(p) > R) {
+            (near ? overlay : shapes).push(body);
+            renderTab(start, R, tab, p);
           }
         }
       } else if (t === 'tubefinset') {
         // Side view: every tube of the ring at its projected height. A tube runs
         // parallel to the axis, so roll doesn't squash its 2·rt silhouette; only
-        // its center moves, to (pRadius + rt)·cos θ. Tubes whose silhouette falls
-        // entirely inside the airframe are hidden behind it and dropped.
+        // its center moves, to (R + rt)·cos θ. Tubes whose silhouette falls
+        // entirely inside the airframe are hidden behind it and dropped. The
+        // ring stands on the body radius R at its own front
+        // (`TubeFinSet.getBodyRadius`), which sizes an automatic tube too.
         const len = num(child, 'length', KERNEL_DEFAULTS.tubefinset.length);
-        const rt = tubeFinRadius(child, pRadius);
         const start = axialStart(child, len, pStart, pLen);
+        const R = surfaceAt(start);
+        const rt = tubeFinRadius(child, R);
         const X = ctx.x0 + start * ctx.scale;
-        noteHover(
-          child,
-          X,
-          baseY - (pRadius + 2 * rt) * ctx.scale,
-          X + len * ctx.scale,
-          baseY + (pRadius + 2 * rt) * ctx.scale,
-        );
+        noteHover(child, X, baseY - (R + 2 * rt) * ctx.scale, X + len * ctx.scale, baseY + (R + 2 * rt) * ctx.scale);
         const tubes = finFactors(child, 6);
-        const tubeClip = airframeClip(baseY, pRadius);
+        const tubeClip = wallClip(parent, pStart, pLen, pRadius, baseY);
         for (const { p, near } of tubes) {
-          const yc = baseY - (pRadius + rt) * p * ctx.scale;
+          const yc = baseY - (R + rt) * p * ctx.scale;
           const half = rt * ctx.scale;
           const w2 = Math.max(2, len * ctx.scale);
           if (wire) {
@@ -451,7 +500,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
             continue;
           }
           const cut = near ? undefined : `url(#${tubeClip})`;
-          if ((pRadius + rt) * Math.abs(p) + rt > pRadius) {
+          if ((R + rt) * Math.abs(p) + rt > R) {
             const into = near ? overlay : shapes;
             into.push(
               <rect
@@ -491,7 +540,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
         const fshape = str(child, 'fairingShape', 'halfround');
         const start = axialStart(child, len, pStart, pLen);
         const X = ctx.x0 + start * ctx.scale;
-        const y0 = baseY - pRadius * ctx.scale;
+        const y0 = baseY - surfaceAt(start) * ctx.scale;
         const yh = y0 - hgt * ctx.scale;
         const Xe = X + len * ctx.scale;
         noteHover(child, X, yh, Xe, y0);
@@ -543,9 +592,11 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
         // Project the radial mount angle onto the side profile: 0° stands at full
         // height above the tube, ±90° is edge-on (foreshortens away), 180° sits
         // below. Vertical offset = radius·cos(angle) (kernel default 180°).
+        // It stands on the body radius at its own station.
         const c = Math.cos(num(child, 'angleOffset', Math.PI));
-        const yInner = baseY - pRadius * c * ctx.scale;
-        const yOuter = baseY - (pRadius + 2 * r) * c * ctx.scale;
+        const R = surfaceAt(start);
+        const yInner = baseY - R * c * ctx.scale;
+        const yOuter = baseY - (R + 2 * r) * c * ctx.scale;
         const yTop = Math.min(yInner, yOuter);
         const h = Math.max(1, Math.abs(yOuter - yInner));
         noteHover(child, ctx.x0 + start * ctx.scale, yTop, ctx.x0 + (start + len) * ctx.scale, yTop + h);

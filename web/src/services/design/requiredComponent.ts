@@ -65,6 +65,11 @@ export const AUTO_COMPONENT_FIELDS: Record<string, readonly string[]> = {
   // fly a valid .ork that desktop OpenRocket wrote, while the schematic draws
   // the tubes at their correct size.
   tubefinset: ['outerRadius'],
+  // A recovery device with no drag coefficient flies the kernel's automatic
+  // one (`RecoveryDevice.cdAutomatic`, on until a coefficient is set), which is
+  // what an .ork's `<cd>auto</cd>` reads as.
+  parachute: ['cd'],
+  streamer: ['cd'],
   centeringring: ['outerRadius', 'innerRadius'],
   bulkhead: ['outerRadius'],
   engineblock: ['outerRadius'],

@@ -210,18 +210,38 @@ describe('freeform fin: root positions, outline draws', () => {
     expect(Math.max(...out.pts.map((p) => p[0]))).toBeCloseTo(90, 6);
   });
 
-  it('clamps the fin tab to the ROOT, not to the overhang', () => {
+  it('centers the fin tab on the ROOT, not on the overhang', () => {
     const fin = {
       type: 'freeformfinset',
       points: overhang,
       tabHeight: 0.004,
-      tabLength: 0.2, // longer than the fin: must clamp
+      tabLength: 0.02,
+      tabOffsetMethod: 'middle',
     } as unknown as ComponentNode;
     const out = finPlanformMm(fin)!;
     const tabXs = out.pts.slice(overhang.length).map((p) => p[0]);
     expect(tabXs.length).toBeGreaterThan(0);
-    // 60 mm, the real root: a tab running to 90 mm would hang off the airframe.
-    expect(Math.max(...tabXs)).toBeCloseTo(60, 6);
+    // Centered on the 60 mm root, 20 to 40 mm. Measured on the 90 mm overhang
+    // it would run 35 to 55 mm, off the slot cut for it.
+    expect(Math.min(...tabXs)).toBeCloseTo(20, 6);
+    expect(Math.max(...tabXs)).toBeCloseTo(40, 6);
+  });
+
+  it('places a tab longer than the root where the kernel does, not clamped into it', () => {
+    // `FinSet.getTabPoints` reads `getTabFrontEdge()`, `tabPosition`, as it
+    // stands: a 200 mm tab centered on the 60 mm root runs from -70 to 130 mm.
+    const fin = {
+      type: 'freeformfinset',
+      points: overhang,
+      tabHeight: 0.004,
+      tabLength: 0.2,
+      tabOffsetMethod: 'middle',
+    } as unknown as ComponentNode;
+    const tabXs = finPlanformMm(fin)!
+      .pts.slice(overhang.length)
+      .map((p) => p[0]);
+    expect(Math.min(...tabXs)).toBeCloseTo(-70, 6);
+    expect(Math.max(...tabXs)).toBeCloseTo(130, 6);
   });
 
   it('anchors a bottom-mounted fin by its root but still draws the overhang', () => {
@@ -306,17 +326,48 @@ describe('rocketSideView: fins on a transition', () => {
   /**
    * The root closes along the parent (`FinSet.getRootPoints`), so at the
    * trailing edge it sits on the taper: 12 - 4 * 30 / 50 = 9.6 mm, not at the
-   * 12 mm under the fin front.
+   * 12 mm under the fin front. Along a cone the kernel draws the root as one
+   * straight segment, so the outline ends on the taper and closes straight to
+   * the leading corner.
    */
   it('runs the root along the taper to the trailing edge', () => {
     const fin = rocketSideView(withBoatTailFins).fins[0]!;
     const atTrail = fin.filter(([x, y]) => Math.abs(x - 230) < 1e-6 && y < 11);
     expect(atTrail.length).toBeGreaterThan(0);
     expect(atTrail[0]![1]).toBeCloseTo(12 - (4 * 30) / 50, 6);
-    // Every root point between the corners lies on the cone.
-    const root = fin.filter(([x, y]) => x > 200 && x < 230 && y <= 12 - (4 * (x - 200)) / 50 + 1e-9);
-    for (const [x, y] of root) expect(y).toBeCloseTo(12 - (4 * (x - 200)) / 50, 6);
-    expect(root.length).toBeGreaterThan(0);
+    expect(fin[0]![0]).toBeCloseTo(200, 6);
+    expect(fin[0]![1]).toBeCloseTo(12, 6);
+    expect(fin[fin.length - 1]![0]).toBeCloseTo(230, 6);
+  });
+
+  it('runs the root along a curved taper station by station', () => {
+    // An ogive boat tail: the kernel samples the root every 2.5 mm, and each
+    // sample sits on the profile drawn for the transition itself.
+    const ogive = {
+      components: [
+        { type: 'bodytube', length: 0.2, outerRadius: 0.012 },
+        {
+          type: 'transition',
+          shape: 'ogive',
+          length: 0.05,
+          foreRadius: 0.012,
+          aftRadius: 0.008,
+          children: [{ type: 'trapezoidfinset', rootChord: 0.03, tipChord: 0.02, sweep: 0.01, height: 0.02 }],
+        },
+      ],
+    } as unknown as RocketTree;
+    const view = rocketSideView(ogive);
+    const fin = view.fins[0]!;
+    const root = fin.filter(([x, y]) => x > 200 + 1e-6 && x < 230 - 1e-6 && y < 12.5);
+    expect(root.length).toBeGreaterThan(5);
+    const profile = view.body.filter(([x, y]) => x >= 200 && x <= 250 && y > 0);
+    for (const [x, y] of root) {
+      // Between the two profile samples either side of x, as the curve passes.
+      const ahead = profile.filter(([px]) => px <= x).at(-1)!;
+      const behind = profile.find(([px]) => px >= x)!;
+      expect(y).toBeLessThanOrEqual(Math.max(ahead[1], behind[1]) + 1e-6);
+      expect(y).toBeGreaterThanOrEqual(Math.min(ahead[1], behind[1]) - 1e-6);
+    }
   });
 
   it("snaps a freeform fin's last point onto the taper, as FreeformFinSet.clampLastPoint does", () => {

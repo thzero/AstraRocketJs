@@ -19,6 +19,20 @@ export interface KernelGeometry {
   outerRadius?: number;
   innerRadius?: number;
   maxTabHeight?: number;
+  /**
+   * A fin set's outline (`FinSet.getFinPoints`), its root along the parent
+   * (`getRootPoints`) and its tab (`getTabPoints`, present only when the fin set
+   * has one), each as `[x, y]` in the fin's own frame: x from the fin front, y
+   * from the body surface there.
+   */
+  finPoints?: [number | null, number | null][];
+  rootPoints?: [number | null, number | null][];
+  tabPoints?: [number | null, number | null][];
+  /**
+   * A pod set's or booster's distance from its parent's axis
+   * (`RadiusMethod.getRadius`), read in tree order right after its parent.
+   */
+  instanceRadius?: number;
   radius?: number;
   /** The front of the part's first copy from the nose tip (`getComponentInfo`). */
   positionX?: number;

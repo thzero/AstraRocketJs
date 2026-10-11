@@ -1,6 +1,6 @@
 import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
 import { asStageNodes } from '../design/orkTree';
-import { parentRadiusOf } from '../../tree/finPlanform';
+import { finMountOf } from '../../tree/finPlanform';
 import { findNode } from '../../tree/treeWalk';
 import { discSolidForNode, makeWatertight, solidForNode } from './solidMesh';
 import { resolveDisc } from '../design/discGeometry';
@@ -69,7 +69,7 @@ export function solidFor(tree: RocketTree, node: ComponentNode): ReturnType<type
     const d = resolveDisc(tree, id);
     return d ? discSolidForNode(d.outerR, d.innerR, d.length) : null;
   }
-  return solidForNode(node, parentRadiusOf(tree, id));
+  return solidForNode(node, finMountOf(tree, id));
 }
 
 /** A part by id, searched below the stages (a stage itself is never a part). */

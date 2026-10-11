@@ -8,9 +8,17 @@ import { axialFrames, rebasePosition } from '../../../src/tree/axialRebase';
 import { axialChain, axialLength } from '../../../src/tree/position';
 import { positionOf } from '../../../src/tree/nodeProps';
 import { badDimensions } from '../../../src/services/design/requiredComponent';
-import { profileEnds, stationRadius } from '../../../src/tree/shapeProfile';
+import { profileEnds, shapeParamMax, shapeUsesParameter, stationRadius } from '../../../src/tree/shapeProfile';
 import { chainWithKernelEnds, withKernelEnds } from '../../../src/services/design/autoRadius';
-import { parentRadiusOf } from '../../../src/tree/finPlanform';
+import {
+  finCutContour,
+  finMountOf,
+  finOutlinePoints,
+  finRootPoints,
+  finTabPoints,
+  parentRadiusOf,
+} from '../../../src/tree/finPlanform';
+import { assemblyParentRadius, resolveAssemblyRadius } from '../../../src/tree/assembly';
 import { KERNEL_TEST_TIMEOUT_MS } from '../../testing/kernelTimeout';
 import { kernelGeometry, loadEngine, walkTree, type KernelGeometry } from '../../testing/kernelGeometry';
 
@@ -29,13 +37,19 @@ vi.setConfig({ testTimeout: KERNEL_TEST_TIMEOUT_MS, hookTimeout: KERNEL_TEST_TIM
  *
  * The designs are generated from a fixed seed so a failure reproduces: the
  * report names the seed and the part. They cover the flags that change a
- * part's geometry (`filled`, `flipped` and each automatic flag), two stages,
- * parts inside tubes, nose cones and transitions, and tabbed fin sets on every
- * body that takes one: trapezoidal on body tubes, freeform on nose cones
- * (flipped or not) and transitions. Launch lugs, rail buttons, mass
- * components, shoulders and clustered mounts ride on top ({@link withExtras}),
- * and some parts are placed `absolute` ({@link withAbsolutes}), so each part's
- * station from the nose tip is compared as well as its size.
+ * part's geometry (`filled`, `flipped`, `clipped`, a non-default shape
+ * parameter and each automatic flag), two stages, parts inside tubes, nose
+ * cones and transitions, and fin sets on every body that takes one:
+ * trapezoidal, elliptical and freeform on body tubes, freeform on nose cones
+ * (flipped or not) and transitions, with tabs offset by each method and some
+ * canted. Each fin set's root, outline and tab are compared point by point
+ * with the kernel's, and so is the contour they make. Tube fin sets with an
+ * explicit count or radius, streamers, shock cords, launch lugs, rail buttons,
+ * mass components, shoulders and clustered mounts ride on top
+ * ({@link withExtras}), some parts are placed `absolute`
+ * ({@link withAbsolutes}), so each part's station from the nose tip is
+ * compared as well as its size, and each pod set's or booster's distance from
+ * its parent's axis is compared too.
  */
 
 const DESIGNS = 200;
@@ -70,6 +84,51 @@ function generate(seed: number): RocketTree {
   let n = 0;
   const id = (type: string) => `${type}${++n}`;
   const radius = () => Math.round(between(0.01, 0.05) * 1e4) / 1e4;
+
+  /**
+   * Variety the airframe stream never draws: shape parameters, unclipped
+   * profiles, every planar fin type with an offset tab or cant, tube fin sets
+   * with an explicit count or radius, streamers and shock cords. Drawn from a
+   * stream of its own, so the airframe of every seed is the same design.
+   */
+  const vr = rng(seed + 0x7f4a7c15);
+  const vChance = (p: number) => vr() < p;
+  const vBetween = (lo: number, hi: number) => lo + vr() * (hi - lo);
+  const vPick = <T>(xs: readonly T[]): T => xs[Math.floor(vr() * xs.length)]!;
+  const round4 = (v: number) => Math.round(v * 1e4) / 1e4;
+  /**
+   * A cant angle (rad) whose root offsets stay on the body: the kernel bends a
+   * canted root down to the surface (`FinSet.getFinCantYOffset`) and has no
+   * answer where half the chord, turned by the cant, reaches past the radius.
+   */
+  const cantFor = (chord: number, minRadius: number): number => {
+    if (!vChance(0.35)) return 0;
+    const cant = round4(vBetween(0.01, 0.08)) * (vChance(0.5) ? 1 : -1);
+    return (chord / 2) * Math.sin(Math.abs(cant)) < minRadius * 0.9 ? cant : 0;
+  };
+  /** The profile shape keys a user can set: a non-default parameter and the clip flag. */
+  const shapeExtras = (node: Record<string, unknown>) => {
+    const shape = node['shape'] as string;
+    if (shapeUsesParameter(shape) && vChance(0.6)) node['shapeParameter'] = round4(vBetween(0, shapeParamMax(shape)));
+    // Set on shapes that cannot clip too, where the kernel ignores it.
+    if (vChance(0.5)) node['clipped'] = vChance(0.5);
+  };
+  /** A tab at each offset method, offset within the root chord, or no tab. */
+  const tab = (chord: number): Record<string, unknown> => {
+    if (vChance(0.15)) return { tabHeight: 0, tabLength: 0 };
+    const tabLength = round4(chord * vBetween(0.2, 0.9));
+    const method = vPick(['top', 'middle', 'bottom']);
+    const room = chord - tabLength;
+    const offset =
+      method === 'top' ? vBetween(0, room) : method === 'bottom' ? -vBetween(0, room) : vBetween(-room / 2, room / 2);
+    return {
+      // Deeper than any body here half the time, so the kernel's limit decides it.
+      tabHeight: vChance(0.5) ? 0.2 : round4(vBetween(0.002, 0.008)),
+      tabLength,
+      tabOffsetMethod: method,
+      tabOffset: Math.round(offset * 0.95 * 1e5) / 1e5,
+    };
+  };
 
   /** Parts that sit inside an airframe part of outer radius `outer` and length `len`. */
   const internals = (outer: number, len: number, inTube: boolean): ComponentNode[] => {
@@ -147,39 +206,96 @@ function generate(seed: number): RocketTree {
       } as unknown as ComponentNode);
     }
     if (inTube && chance(0.3)) {
+      const finCount = Math.floor(between(3, 9));
+      // Fewer than three tubes size to the body radius (`TubeFinSet.getOuterRadius`).
+      const explicitCount = vChance(0.5);
+      const explicitRadius = vChance(0.35);
       kids.push({
         type: 'tubefinset',
         id: id('tubefinset'),
-        finCount: Math.floor(between(3, 9)),
+        finCount: explicitCount ? vPick([1, 2, 3, 4, 6, 8]) : finCount,
         length: 0.08,
         thickness: 0.0005,
-        outerRadiusAuto: true,
-        outerRadius: outer * 0.5,
+        outerRadiusAuto: !explicitRadius,
+        outerRadius: explicitRadius ? round4(outer * vBetween(0.2, 0.6)) : outer * 0.5,
         position: { method: 'bottom', offset: 0 },
+      } as unknown as ComponentNode);
+    }
+    if (vChance(0.3)) {
+      kids.push({
+        type: 'streamer',
+        id: id('streamer'),
+        length: 0.03,
+        stripLength: 0.5,
+        stripWidth: 0.05,
+        radiusAuto: true,
+        radius: outer * 0.5,
+        position: { method: 'top', offset: round4(vBetween(0, len * 0.8)) },
+      } as unknown as ComponentNode);
+    }
+    if (vChance(0.3)) {
+      kids.push({
+        type: 'shockcord',
+        id: id('shockcord'),
+        length: 0.02,
+        cordLength: 0.5,
+        radiusAuto: true,
+        radius: outer * 0.4,
+        position: { method: 'top', offset: round4(vBetween(0, len * 0.8)) },
       } as unknown as ComponentNode);
     }
     return kids;
   };
 
-  /** A fin set with a tab deeper than any body here, so the kernel's tab limit decides its depth. */
-  const fins = (len: number): ComponentNode[] => {
+  /**
+   * A fin set on a body tube: trapezoidal, elliptical or freeform, with a tab
+   * offset by each method, and canted some of the time.
+   */
+  const fins = (len: number, outer: number): ComponentNode[] => {
     if (!chance(0.5)) return [];
     const chord = Math.round(between(0.3, 0.9) * len * 1e4) / 1e4;
+    const tabLength = Math.round(chord * between(0.2, 0.9) * 1e4) / 1e4;
+    const tabOffsetMethod = pick(['top', 'middle', 'bottom']);
+    const position = { method: 'top', offset: Math.round(between(0, len - chord) * 1e4) / 1e4 };
+    const type = vPick(['trapezoidfinset', 'trapezoidfinset', 'ellipticalfinset', 'freeformfinset']);
+    const common = {
+      id: id(type),
+      finCount: vPick([3, 4]),
+      thickness: 0.003,
+      tabHeight: 0.2,
+      tabLength,
+      tabOffsetMethod,
+      tabOffset: 0,
+      ...(vChance(0.6) ? tab(chord) : {}),
+      cant: cantFor(chord, outer),
+      position,
+    };
+    if (type === 'ellipticalfinset') {
+      return [{ type, ...common, rootChord: chord, height: 0.05 } as unknown as ComponentNode];
+    }
+    if (type === 'freeformfinset') {
+      return [
+        {
+          type,
+          ...common,
+          points: [
+            [0, 0],
+            [round4(chord * vBetween(0.1, 0.4)), round4(vBetween(0.02, 0.05))],
+            [round4(chord * vBetween(0.5, 0.9)), round4(vBetween(0.01, 0.04))],
+            // A trailing point off the root, which the kernel moves onto it.
+            [chord, vChance(0.4) ? round4(vBetween(0.001, 0.005)) : 0],
+          ],
+        } as unknown as ComponentNode,
+      ];
+    }
     return [
       {
-        type: 'trapezoidfinset',
-        id: id('trapezoidfinset'),
-        finCount: 3,
+        type,
+        ...common,
         rootChord: chord,
         tipChord: chord * 0.5,
         sweep: chord * 0.3,
         height: 0.05,
-        thickness: 0.003,
-        tabHeight: 0.2,
-        tabLength: Math.round(chord * between(0.2, 0.9) * 1e4) / 1e4,
-        tabOffsetMethod: pick(['top', 'middle', 'bottom']),
-        tabOffset: 0,
-        position: { method: 'top', offset: Math.round(between(0, len - chord) * 1e4) / 1e4 },
       } as unknown as ComponentNode,
     ];
   };
@@ -196,7 +312,7 @@ function generate(seed: number): RocketTree {
   const fChance = (p: number) => fr() < p;
   const fBetween = (lo: number, hi: number) => lo + fr() * (hi - lo);
   const fPick = <T>(xs: readonly T[]): T => xs[Math.floor(fr() * xs.length)]!;
-  const freeformFins = (len: number): ComponentNode[] => {
+  const freeformFins = (len: number, minRadius: number): ComponentNode[] => {
     if (!fChance(0.6)) return [];
     const chord = Math.round(fBetween(0.3, 0.9) * len * 1e4) / 1e4;
     const tabLength = Math.round(chord * fBetween(0.2, 0.9) * 1e4) / 1e4;
@@ -208,8 +324,9 @@ function generate(seed: number): RocketTree {
         points: [
           [0, 0],
           [Math.round(chord * fBetween(0.1, 0.6) * 1e4) / 1e4, Math.round(fBetween(0.01, 0.05) * 1e4) / 1e4],
-          [chord, 0],
+          [chord, vChance(0.3) ? round4(vBetween(0.001, 0.005)) : 0],
         ],
+        cant: minRadius > 0 ? cantFor(chord, minRadius) : 0,
         thickness: 0.003,
         tabHeight: 0.2,
         tabLength,
@@ -242,9 +359,11 @@ function generate(seed: number): RocketTree {
       flipped: chance(0.2),
     };
     wall(node);
+    shapeExtras(node);
     // Nothing goes inside a filled part: it has no bore to size a part from. A
-    // fin set mounts outside, so a filled cone still takes one.
-    node['children'] = [...freeformFins(len), ...(!node['filled'] && chance(0.4) ? internals(aft, len, false) : [])];
+    // fin set mounts outside, so a filled cone still takes one. A cone's tip has
+    // no radius to bend a canted root onto.
+    node['children'] = [...freeformFins(len, 0), ...(!node['filled'] && chance(0.4) ? internals(aft, len, false) : [])];
     return node as unknown as ComponentNode;
   };
   const tube = (): ComponentNode => {
@@ -258,7 +377,7 @@ function generate(seed: number): RocketTree {
       outerRadiusAuto: chance(0.4),
     };
     wall(node);
-    node['children'] = [...fins(len), ...(node['filled'] ? [] : internals(outer, len, true))];
+    node['children'] = [...fins(len, outer), ...(node['filled'] ? [] : internals(outer, len, true))];
     return node as unknown as ComponentNode;
   };
   const transition = (): ComponentNode => {
@@ -276,8 +395,9 @@ function generate(seed: number): RocketTree {
       aftRadiusAuto: chance(0.4),
     };
     wall(node);
+    shapeExtras(node);
     node['children'] = [
-      ...freeformFins(len),
+      ...freeformFins(len, Math.min(fore, aft)),
       ...(!node['filled'] && chance(0.4) ? internals(Math.max(fore, aft), len, false) : []),
     ];
     return node as unknown as ComponentNode;
@@ -1014,6 +1134,68 @@ const CHAIN_DESIGNS: Record<string, () => RocketTree> = (() => {
  */
 const KNOWN: Record<string, string> = {};
 
+type Pt = [number, number];
+
+/** Drop each point that repeats the one before it, and a last point that repeats the first. */
+function dedupe(pts: Pt[]): Pt[] {
+  const same = (a: Pt, b: Pt) => Math.abs(a[0] - b[0]) <= 1e-12 && Math.abs(a[1] - b[1]) <= 1e-12;
+  const out: Pt[] = [];
+  for (const p of pts) if (!out.length || !same(out[out.length - 1]!, p)) out.push(p);
+  while (out.length > 1 && same(out[0]!, out[out.length - 1]!)) out.pop();
+  return out;
+}
+
+/**
+ * The cut outline of one fin, assembled from the kernel's own three pieces:
+ * the outline (`FinSet.getFinPoints`), then the root along the parent
+ * (`getRootPoints`) walked from the trailing edge forward, with the tab
+ * (`getTabPoints`) cut in where the root passes it. Root points inside the tab
+ * span are left out, as `getTabPointsWithRoot` leaves them out.
+ */
+function kernelCutOutline(k: KernelGeometry): Pt[] | null {
+  const pts = (xs: [number | null, number | null][] | undefined): Pt[] | null =>
+    xs && xs.every(([x, y]) => typeof x === 'number' && typeof y === 'number') ? (xs as Pt[]) : null;
+  const fin = pts(k.finPoints);
+  const root = pts(k.rootPoints);
+  if (!fin || !root) return null;
+  const back = [...root].reverse();
+  const tab = k.tabPoints ? pts(k.tabPoints) : undefined;
+  if (tab === null) return null;
+  if (!tab) return dedupe([...fin, ...back]);
+  const x0 = tab[0]![0];
+  const x1 = tab[3]![0];
+  return dedupe([
+    ...fin,
+    ...back.filter(([x]) => x > x1),
+    tab[3]!,
+    tab[2]!,
+    tab[1]!,
+    tab[0]!,
+    ...back.filter(([x]) => x < x0),
+  ]);
+}
+
+/** The first point where two outlines part by more than `tol`, or null when they match. */
+function outlineMiss(app: Pt[] | null, kernel: Pt[] | null, tol: number): string | null {
+  if (!app || !kernel) return `app ${app ? app.length : 'none'} points, kernel ${kernel ? kernel.length : 'none'}`;
+  if (app.length !== kernel.length) return `${app.length} points against ${kernel.length}`;
+  for (let i = 0; i < app.length; i++) {
+    const [ax, ay] = app[i]!;
+    const [kx, ky] = kernel[i]!;
+    if (!(Math.abs(ax - kx) <= tol && Math.abs(ay - ky) <= tol)) {
+      return `point ${i}: app (${ax.toFixed(6)}, ${ay.toFixed(6)}), kernel (${kx.toFixed(6)}, ${ky.toFixed(6)})`;
+    }
+  }
+  return null;
+}
+
+/** True when the part's profile is clipped, whose clip point both sides find by iteration. */
+const clippedProfile = (node: ComponentNode | null): boolean =>
+  !!node &&
+  (node.type === 'transition' || node.type === 'nosecone') &&
+  node['clipped'] !== false &&
+  ['ellipsoid', 'power', 'haack'].includes(String(node['shape']));
+
 /** One disagreement, grouped by the rule that produced it. */
 interface Miss {
   rule: string;
@@ -1149,24 +1331,82 @@ function compare(
       case 'engineblock':
         check(`engine block automatic outer radius${inside}`, node['outerRadius'], k.outerRadius);
         break;
-      case 'tubefinset':
-        check('tube fin automatic radius', node['outerRadius'], k.outerRadius);
+      case 'tubefinset': {
+        const few = Number(node['finCount']) < 3 ? ', fewer than 3' : '';
+        check(
+          auto('outerRadiusAuto') ? `tube fin automatic radius${few}` : 'tube fin radius',
+          node['outerRadius'],
+          k.outerRadius,
+        );
         break;
+      }
       case 'trapezoidfinset':
+      case 'ellipticalfinset':
       case 'freeformfinset': {
         const where = parent?.['flipped'] === true ? ' in a flipped nosecone' : inside;
         check(`fin tab depth limit${where}`, parentRadiusOf(tree, id), k.maxTabHeight);
+        // Each piece the kernel builds a fin from, then the outline the STL, the
+        // DXF and the 1:1 template cut, against the one the kernel flies.
+        const tol = clippedProfile(parent) ? PROFILE_TOL : TOL;
+        const mount = finMountOf(tree, id);
+        const canted = typeof node['cant'] === 'number' && node['cant'] !== 0 ? ', canted' : '';
+        const pieces: [string, Pt[] | null, KernelGeometry['finPoints']][] = [
+          [`${node.type} root points${canted}${where}`, finRootPoints(node, mount), k.rootPoints],
+          [`${node.type} outline points${canted}${where}`, finOutlinePoints(node, mount), k.finPoints],
+          [`${node.type} tab points${where}`, finTabPoints(node, mount), k.tabPoints],
+        ];
+        for (const [rule, app, kernelPts] of pieces) {
+          if (!app && !kernelPts) continue;
+          checked.set(rule, (checked.get(rule) ?? 0) + 1);
+          const miss = outlineMiss(app, (kernelPts as Pt[] | undefined) ?? null, tol);
+          if (miss) misses.push({ rule, design, part: `${id}, ${miss}`, app: 'points', kernel: 'points' });
+        }
+        const rule = `${node.type} cut outline${where}`;
+        checked.set(rule, (checked.get(rule) ?? 0) + 1);
+        const app = finCutContour(node, mount);
+        const miss = outlineMiss(app ? dedupe(app) : null, kernelCutOutline(k), tol);
+        if (miss) misses.push({ rule, design, part: `${id}, ${miss}`, app: 'outline', kernel: 'outline' });
+        break;
+      }
+      case 'podset':
+      case 'parallelstage': {
+        // A pod's distance takes in its widest part, so one the kernel leaves
+        // unresolved gives it no usable answer.
+        const held = (node.children ?? []).some((c) => {
+          const kc = kernel.get(c.id ?? '');
+          return kc !== undefined && unresolvedIn(c, kc);
+        });
+        if (held) break;
+        const parentR = assemblyParentRadius(parent);
+        const method = typeof node['radiusMethod'] === 'string' ? node['radiusMethod'] : 'relative';
+        check(
+          `${node.type} radial distance, ${method}${inside}`,
+          resolveAssemblyRadius(node, parentR),
+          k.instanceRadius,
+        );
         break;
       }
       case 'parachute':
         check(`parachute automatic packed radius${inside}`, node['radius'], k.radius);
         break;
+      case 'streamer':
+        check(`streamer automatic packed radius${inside}`, node['radius'], k.radius);
+        break;
+      case 'shockcord':
+        check(`shock cord automatic packed radius${inside}`, node['radius'], k.radius);
+        break;
       case 'masscomponent':
         check(`mass component automatic packed radius${inside}`, node['radius'], k.radius);
         break;
     }
-    if ((node.type === 'parachute' || node.type === 'masscomponent') && auto('radiusAuto') && !skip.has(id)) {
-      const label = node.type === 'parachute' ? 'parachute' : 'mass component';
+    const packed: Record<string, string> = {
+      parachute: 'parachute',
+      masscomponent: 'mass component',
+      streamer: 'streamer',
+      shockcord: 'shock cord',
+    };
+    if (node.type in packed && auto('radiusAuto') && !skip.has(id)) {
+      const label = packed[node.type]!;
       check(`${label} automatic packed length${inside}`, node['length'], k.settledLength);
       const s = stored?.get(id);
       if (s) check(`${label} automatic packed length from the stored size${inside}`, node['length'], s.settledLength);
@@ -1174,7 +1414,11 @@ function compare(
     // Where the part starts, from the nose tip: what every drawing, export and
     // report places it by. Lengths alone decide it, so it is checked whatever
     // the part's size did.
-    if (k.positionX !== undefined) {
+    // A canted fin set's kernel position is its first fin's root front after
+    // the cant turns the fin about its root's midpoint (`FinSet.getInstanceOffsets`),
+    // which is not a station along the axis.
+    const canted = typeof node['cant'] === 'number' && node['cant'] !== 0;
+    if (k.positionX !== undefined && !canted) {
       const absolute = positionOf(node).method === 'absolute' && node.position !== undefined;
       const rule = `${node.type} station${absolute ? ', placed absolute' : ''}${inside}`;
       checked.set(rule, (checked.get(rule) ?? 0) + 1);
@@ -1262,6 +1506,29 @@ describe('app geometry matches the kernel', () => {
       'centeringring station, placed absolute in a transition',
       'freeformfinset station, placed absolute in a nosecone',
       'engineblock station, placed absolute in a innertube',
+      'trapezoidfinset cut outline in a bodytube',
+      'ellipticalfinset cut outline in a bodytube',
+      'freeformfinset cut outline in a bodytube',
+      'freeformfinset cut outline in a nosecone',
+      'freeformfinset cut outline in a flipped nosecone',
+      'freeformfinset cut outline in a transition',
+      'trapezoidfinset root points, canted in a bodytube',
+      'ellipticalfinset root points, canted in a bodytube',
+      'freeformfinset root points, canted in a bodytube',
+      'freeformfinset root points, canted in a transition',
+      'freeformfinset outline points in a nosecone',
+      'freeformfinset outline points in a transition',
+      'trapezoidfinset tab points in a bodytube',
+      'freeformfinset tab points in a nosecone',
+      'freeformfinset tab points in a flipped nosecone',
+      'freeformfinset tab points in a transition',
+      'tube fin automatic radius',
+      'tube fin automatic radius, fewer than 3',
+      'tube fin radius',
+      'streamer automatic packed radius in a bodytube',
+      'streamer automatic packed length from the stored size in a bodytube',
+      'shock cord automatic packed radius in a bodytube',
+      'shock cord automatic packed length from the stored size in a bodytube',
     ]) {
       expect(checked.get(rule) ?? 0, rule).toBeGreaterThan(5);
     }
@@ -1291,6 +1558,12 @@ describe('app geometry matches the kernel', () => {
       'bodytube station in a podset',
       'podset station, placed absolute in a bodytube',
       'parallelstage station, placed absolute in a bodytube',
+      'podset radial distance, relative in a bodytube',
+      'podset radial distance, free in a bodytube',
+      'podset radial distance, surface in a bodytube',
+      'podset radial distance, coaxial in a bodytube',
+      'parallelstage radial distance, relative in a bodytube',
+      'parallelstage radial distance, free in a bodytube',
     ]) {
       expect(checked.get(rule) ?? 0, rule).toBeGreaterThan(5);
     }

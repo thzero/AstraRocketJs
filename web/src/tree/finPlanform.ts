@@ -3,8 +3,8 @@ import { num, positionOf } from './nodeProps';
 import { findWithParent } from './treeWalk';
 import { parentStartOf } from './axialRebase';
 import { axialLength, freeformPoints, freeformRootChord, partLength, startFromPosition } from './position';
-import { stationRadius } from './shapeProfile';
-import { isPlanarFinSet } from './tubefins';
+import { nodeShape, stationRadius } from './shapeProfile';
+import { isFinSet, isPlanarFinSet } from './tubefins';
 import { FIN_DEFAULTS, KERNEL_BODYTUBE_OUTER_RADIUS } from './kernelDefaults';
 
 /**
@@ -26,6 +26,21 @@ import { FIN_DEFAULTS, KERNEL_BODYTUBE_OUTER_RADIUS } from './kernelDefaults';
  * `finPlanform.kernel.test.ts` re-derives every formula here straight from the
  * committed Java under `engine-java/src/java` and fails if either side drifts,
  * so a kernel bump cannot silently desync the port.
+ *
+ * ## A fin on its parent
+ *
+ * A fin's root is not a straight line at y = 0. The kernel stands the fin on
+ * the body radius under its front (`FinSet.getFinFront`) and runs the root
+ * along the parent's own profile from there (`FinSet.getRootPoints`); every
+ * planar fin's first and last outline points sit on that root
+ * (`getFinPoints`); and the tab starts at the body surface at each of its own
+ * stations (`getTabPoints`). On a body tube the root is flat and these reduce
+ * to the planform; on a nose cone or transition they do not. A
+ * {@link FinMount} carries what those methods read from the parent, and
+ * {@link finMountOf} / {@link finMount} build one. Every reader that places,
+ * draws or cuts a planar fin takes its root, outline and tab from here:
+ * {@link finRootPoints}, {@link finOutlinePoints}, {@link finTabPoints},
+ * {@link finPointsWithRoot} (a drawing) and {@link finCutContour} (a cut).
  */
 
 /**
@@ -199,8 +214,10 @@ export function finSpan(node: ComponentNode): number {
 }
 
 /**
- * The through-the-wall tab, in the fin's own root-relative coordinates, or
- * `null` when there is no tab to cut.
+ * The through-the-wall tab's span along the root and its depth, in the fin's
+ * own root-relative coordinates, or `null` when there is no tab to cut. The
+ * tab's outline, which on a tapered parent starts at the body surface at each
+ * end rather than at y = 0, is {@link finTabPoints}.
  *
  * `height` is clamped to the depth the kernel allows: `FinSet.setTabHeight()`
  * applies `min(tabHeight, getMaxTabHeight())`, the body radius at the tab's
@@ -211,6 +228,11 @@ export function finSpan(node: ComponentNode): number {
  * Clamped here rather than in each writer, so the DXF, the STL and the 1:1 PDF
  * template cannot cut a 20 mm tab on a 12 mm-radius body to three different
  * depths.
+ *
+ * The span is where the tab stands, `getTabFrontEdge()` to
+ * `getTabTrailingEdge()`, not clamped into the root chord: the kernel never
+ * moves a tab back onto the root, so one offset past the fin's front or
+ * trailing edge flies and is exported where it stands.
  *
  * @param parentRadius the tab depth limit from {@link parentRadiusOf} or
  *   {@link finTabLimit}, or `null` when the caller genuinely has no parent
@@ -225,9 +247,9 @@ export function finTabSpan(
   const height = Math.min(num(node, 'tabHeight', 0), maxH);
   const length = num(node, 'tabLength', 0);
   if (!(height > 0) || !(length > 0)) return null;
-  const x0 = Math.max(0, Math.min(rootChord, finTabFrontEdge(node, rootChord)));
-  const x1 = Math.max(0, Math.min(rootChord, x0 + length));
-  if (!(x1 - x0 > 1e-9)) return null;
+  const x0 = finTabFrontEdge(node, rootChord);
+  const x1 = x0 + length;
+  if (!(x1 - x0 > 1e-9) || !Number.isFinite(x0)) return null;
   return { x0, x1, height };
 }
 
@@ -253,17 +275,304 @@ function tabPosition(offset: number, tabLen: number, rootChord: number, method: 
   return offset + (rootChord - tabLen) / 2;
 }
 
+/** A point in a fin's own frame: x from the fin front, y from the body surface under it (m). */
+type Pt = [number, number];
+
 /**
- * The closed cut contour for one fin: planform plus tab, ready to extrude, cut
- * or print. Walks the top edge leading→trailing, then back along the root,
- * dipping down for the tab. `null` when there is nothing printable.
+ * What a planar fin set reads from the body it stands on.
+ *
+ * The kernel's `FinSet` asks its `SymmetricComponent` parent for the radius at
+ * a station (`getRadius(x)`) and for the parent's length, and stands at
+ * `getFinFront().getX()` along it. Built by {@link finMount} or
+ * {@link finMountOf}.
  */
-export function finCutContour(node: ComponentNode, parentRadius: number | null): [number, number][] | null {
-  const top = finPlanformPoints(node);
+export interface FinMount {
+  /**
+   * The parent's outer radius (m) at a station `x` measured from its fore end,
+   * as `SymmetricComponent.getRadius(x)` reads it: a station outside the part
+   * reads the nearer end.
+   */
+  radiusAt: (x: number) => number;
+  /** The parent's length (m). */
+  length: number;
+  /** The fin's front, measured from the parent's fore end (m). */
+  front: number;
+  /**
+   * True when the parent is a nose cone or transition whose profile is not a
+   * cone. The kernel samples a root along such a parent every 2.5 mm, and along
+   * a cone or a tube draws it as one straight segment.
+   */
+  curved: boolean;
+}
+
+/**
+ * A fin's parent as a reader may hold it: a mount, a body tube radius (the
+ * parent is a tube of that radius), or `null` when there is no parent (a flat
+ * root and no limit on the tab).
+ */
+export type FinParent = FinMount | number | null;
+
+/** `FinSet.MAX_ROOT_DIVISIONS`: the most intervals a root is sampled at. */
+const MAX_ROOT_DIVISIONS = 100;
+/** `getMountPoints`'s sampling step along a curved parent or under a canted fin (m). */
+const ROOT_STEP = 0.0025;
+/** `MathUtil.EPSILON`. */
+const EPSILON = 1e-8;
+
+/** The same point to within float noise. */
+const samePoint = (a: Pt, b: Pt): boolean => Math.abs(a[0] - b[0]) <= 1e-12 && Math.abs(a[1] - b[1]) <= 1e-12;
+
+/**
+ * The outer radius (m) of a fin's parent at a station `x` from its fore end,
+ * `SymmetricComponent.getRadius(x)`: a body tube is one radius end to end, a
+ * nose cone or transition follows its profile (a flipped nose cone's base is
+ * its fore end). `null` for a parent that is not a symmetric body.
+ *
+ * This is the radius a child stands on at its own station. A view that places
+ * a fin set on a nose cone or transition reads it at the fin's front
+ * (`mount.radiusAt(mount.front)`), not at the parent's widest end.
+ */
+export function bodyRadiusAt(parent: ComponentNode, x: number): number | null {
+  if (parent.type === 'bodytube') return bodyTubeRadius(parent);
+  if (parent.type === 'nosecone' || parent.type === 'transition') return stationRadius(parent, x);
+  return null;
+}
+
+/**
+ * Where a fin set stands on `parent`, or `null` when the parent is not a
+ * symmetric body.
+ *
+ * `parentStart` is the parent's leading edge in the rocket frame, which an
+ * `absolute` fin set is placed against (`parentStartOf`).
+ */
+export function finMount(fin: ComponentNode, parent: ComponentNode, parentStart: number): FinMount | null {
+  if (bodyRadiusAt(parent, 0) === null) return null;
+  const length = partLength(parent);
+  return {
+    radiusAt: (x) => bodyRadiusAt(parent, x) ?? 0,
+    length,
+    front: startFromPosition(positionOf(fin), axialLength(fin), length, parentStart),
+    curved: parent.type !== 'bodytube' && nodeShape(parent) !== 'conical',
+  };
+}
+
+/**
+ * Where the fin set `nodeId` stands, read from the tree, or `null` when it is
+ * not a fin set or its parent is not a symmetric body. The cut readers (the
+ * STL, the DXF, the 1:1 template) pass this to {@link finCutContour}.
+ */
+export function finMountOf(tree: RocketTree, nodeId: string): FinMount | null {
+  // Searched below each top-level node, which is never itself the fin.
+  for (const stage of tree.components) {
+    const hit = findWithParent(stage.children ?? [], nodeId, stage);
+    if (!hit) continue;
+    if (!hit.parent || !isFinSet(hit.node.type)) return null;
+    return finMount(hit.node, hit.parent, parentStartOf(tree, hit.parent));
+  }
+  return null;
+}
+
+/** The mount a {@link FinParent} stands for, and whether its tab is clamped. */
+function resolveMount(parent: FinParent): { mount: FinMount; clamp: boolean } {
+  if (parent !== null && typeof parent === 'object') return { mount: parent, clamp: true };
+  const finite = typeof parent === 'number' && Number.isFinite(parent);
+  const r = finite ? parent : 0;
+  return { mount: { radiusAt: () => r, length: Infinity, front: 0, curved: false }, clamp: finite };
+}
+
+/** The body radius (m) under a fin set's front, or `null` without a parent. */
+export function mountRadius(parent: FinParent): number | null {
+  if (parent === null) return null;
+  return typeof parent === 'number' ? parent : parent.radiusAt(parent.front);
+}
+
+/** `MathUtil.equals(a, 0)`. */
+const isZero = (a: number): boolean => Math.abs(a) < EPSILON / 2;
+
+/**
+ * `FinSet.getFinCantYOffset`: how far a canted fin's root drops at the station
+ * `xCurr` to stay on the body, with the fin turned about its root's midpoint.
+ * Where the turned root reaches past the radius the kernel leaves the root
+ * where it is, and that holds on both sides of the midpoint here.
+ */
+function cantYOffset(mount: FinMount, cant: number, xStart: number, xEnd: number, xCurr: number): number {
+  const L = mount.length;
+  if (isZero(cant) || (xStart > L && xEnd > L) || (xStart < 0 && xEnd < 0)) return 0;
+  const x = Math.min(Math.max(xCurr, 0), L);
+  const xCenter = (xStart + xEnd) / 2;
+  const dx = x - xCenter;
+  const r = mount.radiusAt(xCenter + dx * Math.abs(Math.cos(cant)));
+  const dz = Math.abs(Math.sin(cant)) * dx;
+  if (Math.abs(dz) >= r) return 0;
+  return -(r - Math.sqrt(r * r - dz * dz));
+}
+
+/**
+ * The fin's root along its parent, `FinSet.getRootPoints()`: from the fin
+ * front to its trailing edge, in the fin's own frame (x from the fin front, y
+ * from the body surface there). A flat pair on a body tube; on a nose cone or
+ * transition the root follows the profile, sampled as `getMountPoints` samples
+ * it, and a canted fin's root drops to stay on the body.
+ */
+export function finRootPoints(fin: ComponentNode, parent: FinParent): Pt[] {
+  const { mount } = resolveMount(parent);
+  const xStart = mount.front;
+  const len = finRootChord(fin);
+  const xEnd = xStart + len;
+  const cant = num(fin, 'cant', 0);
+  // The interval as the kernel takes it, end less start: a root of 40 mm at a
+  // 40.05 mm station spans 40.000000000000004 mm there, which is 17 steps of
+  // 2.5 mm, not 16.
+  const interval = xEnd - xStart;
+  const divisions = !isZero(cant) || mount.curved ? Math.min(MAX_ROOT_DIVISIONS, Math.ceil(interval / ROOT_STEP)) : 1;
+  const step = interval / divisions;
+  const points: Pt[] = [];
+  // Stepped by repeated addition, as the kernel steps it, so each station is
+  // the kernel's to the last bit.
+  let x = xStart;
+  for (let i = 0; i < divisions + 1; i++) {
+    points.push([x, mount.radiusAt(x) + cantYOffset(mount, cant, xStart, xEnd, x)]);
+    x += step;
+  }
+  // A root that starts ahead of the parent or runs past its end takes a point
+  // at that end, so the root turns the corner there.
+  const insertAt = (at: number, y: number) => {
+    if (points.some(([px]) => Math.abs(px - at) < EPSILON)) return;
+    let i = 0;
+    while (i < points.length && points[i]![0] < at) i++;
+    points.splice(i, 0, [at, y]);
+  };
+  if (xStart < 0 && xEnd > 0) insertAt(0, points[0]![1]);
+  if (xEnd > mount.length && xStart < mount.length) insertAt(mount.length, points[points.length - 1]![1]);
+  const last = points[points.length - 1]!;
+  if (Math.abs(last[0] - mount.length) < EPSILON) last[0] = mount.length;
+  const yFront = mount.radiusAt(xStart);
+  if (Math.abs(xStart) + Math.abs(yFront) <= EPSILON) return points;
+  return points.map(([px, py]) => [px - xStart, py - yFront]);
+}
+
+/**
+ * The outline the kernel flies, `getFinPoints()`: the planform with its first
+ * and last points moved onto the ends of the root ({@link finRootPoints}). On
+ * a body tube the planform's ends already lie there, so this is the planform.
+ * A freeform point between the ends that lies inside the parent is raised to
+ * its surface, as `FreeformFinSet.clampInteriorPoint` raises it. `null` when
+ * the planform is degenerate.
+ */
+export function finOutlinePoints(fin: ComponentNode, parent: FinParent): Pt[] | null {
+  const top = finPlanformPoints(fin);
   if (!top) return null;
-  const tab = finTabSpan(node, finRootChord(node), parentRadius);
-  if (!tab) return top;
-  return [...top, [tab.x1, 0], [tab.x1, -tab.height], [tab.x0, -tab.height], [tab.x0, 0]];
+  const root = finRootPoints(fin, parent);
+  const out = top.map(([x, y]): Pt => [x, y]);
+  const { mount, clamp } = resolveMount(parent);
+  if (fin.type === 'freeformfinset' && clamp) {
+    const yFin = mount.radiusAt(mount.front);
+    for (let i = 1; i < out.length - 1; i++) {
+      const [x, y] = out[i]!;
+      if (x < -mount.front || x > -mount.front + mount.length) continue;
+      const yBody = mount.radiusAt(x + mount.front) - yFin;
+      if (yBody > y) out[i] = [x, yBody];
+    }
+  }
+  // An end already on the root to within float noise keeps its own value: the
+  // root's trailing station is (front + root) - front, a last-bit rounding of
+  // the root chord that would otherwise move every flat-rooted fin.
+  const onto = (i: number, p: Pt) => {
+    if (!samePoint(out[i]!, p)) out[i] = [p[0], p[1]];
+  };
+  if (root.length > 1) {
+    onto(0, root[0]!);
+    onto(out.length - 1, root[root.length - 1]!);
+  }
+  return out;
+}
+
+/**
+ * The tab, `FinSet.getTabPoints()`: down from the body surface at its front
+ * station, along its bottom, and up to the body surface at its trailing
+ * station, in the fin's own frame. Its bottom is the tab depth below the
+ * shallower of the two surface points. `null` when there is no tab to cut.
+ */
+export function finTabPoints(fin: ComponentNode, parent: FinParent): Pt[] | null {
+  const { mount, clamp } = resolveMount(parent);
+  const tab = finTabSpan(fin, finRootChord(fin), clamp ? mountTabLimit(fin, mount) : null);
+  if (!tab) return null;
+  const yFin = mount.radiusAt(mount.front);
+  const yFront = mount.radiusAt(mount.front + tab.x0) - yFin;
+  const yTrail = mount.radiusAt(mount.front + tab.x1) - yFin;
+  const yBottom = Math.min(yFront, yTrail) - tab.height;
+  return [
+    [tab.x0, yFront],
+    [tab.x0, yBottom],
+    [tab.x1, yBottom],
+    [tab.x1, yTrail],
+  ];
+}
+
+/**
+ * Append root points to an outline, each unless it repeats the point before
+ * it, and drop a last one that closes back onto the outline's first point.
+ */
+function appendRoot(out: Pt[], pts: readonly Pt[]): void {
+  const before = out.length;
+  for (const p of pts) if (!samePoint(out[out.length - 1]!, p)) out.push(p);
+  if (out.length > before && samePoint(out[0]!, out[out.length - 1]!)) out.pop();
+}
+
+/**
+ * A fin's closed outline for drawing, `getFinPointsWithRoot()`: the outline
+ * ({@link finOutlinePoints}), then back along the root to the front, in the
+ * fin's own frame. To place it, add the fin's front station to x and the body
+ * radius under that front (`mount.radiusAt(mount.front)`) to y. Points the root
+ * shares with the outline are not repeated. `null` when the planform is
+ * degenerate.
+ */
+export function finPointsWithRoot(fin: ComponentNode, parent: FinParent): Pt[] | null {
+  const outline = finOutlinePoints(fin, parent);
+  if (!outline) return null;
+  const out = [...outline];
+  appendRoot(out, [...finRootPoints(fin, parent)].reverse());
+  return out;
+}
+
+/**
+ * The closed cut contour for one fin: outline plus tab, ready to extrude, cut
+ * or print, in the fin's own frame. Walks the outline from the leading to the
+ * trailing edge, then back along the root ({@link finRootPoints}), dipping down
+ * for the tab ({@link finTabPoints}) where the root passes it; root points
+ * inside the tab span are left out, as `FinSet.getTabPointsWithRoot` leaves
+ * them out. A tab wholly ahead of the fin or wholly behind it is left off,
+ * as `FinSet.generateContinuousFinAndTabShape` leaves it off: it does not join
+ * the fin. `null` when there is nothing printable.
+ *
+ * `parent` is the fin's {@link FinMount} ({@link finMountOf}), a body tube
+ * radius, or `null` for no parent (a flat root and an unclamped tab).
+ */
+export function finCutContour(node: ComponentNode, parent: FinParent): Pt[] | null {
+  const outline = finOutlinePoints(node, parent);
+  if (!outline) return null;
+  const back = [...finRootPoints(node, parent)].reverse();
+  const len = finRootChord(node);
+  const points = finTabPoints(node, parent);
+  const beyond = points && ((points[0]![0] > len && points[3]![0] > len) || (points[0]![0] < 0 && points[3]![0] < 0));
+  const tab = beyond ? null : points;
+  const out = [...outline];
+  if (!tab) {
+    appendRoot(out, back);
+    return out;
+  }
+  const x0 = tab[0]![0];
+  const x1 = tab[3]![0];
+  appendRoot(
+    out,
+    back.filter(([x]) => x > x1),
+  );
+  out.push(tab[3]!, tab[2]!, tab[1]!, tab[0]!);
+  appendRoot(
+    out,
+    back.filter(([x]) => x < x0),
+  );
+  return out;
 }
 
 /**
@@ -311,13 +620,16 @@ export function parentRadiusOf(tree: RocketTree, nodeId: string): number | null 
  * `parentStart` is the parent's leading edge in the rocket frame, which an
  * `absolute` fin set is placed against.
  */
-export function finTabLimit(fin: ComponentNode, parent: ComponentNode, parentStart: number): number | null {
-  if (parent.type === 'bodytube') return bodyTubeRadius(parent);
-  if (parent.type !== 'nosecone' && parent.type !== 'transition') return null;
+function finTabLimit(fin: ComponentNode, parent: ComponentNode, parentStart: number): number | null {
+  const mount = finMount(fin, parent, parentStart);
+  return mount ? mountTabLimit(fin, mount) : null;
+}
+
+/** {@link finTabLimit} for a fin already placed on its parent. */
+function mountTabLimit(fin: ComponentNode, mount: FinMount): number {
   const lead = finTabFrontEdge(fin, finRootChord(fin));
   const trail = lead + num(fin, 'tabLength', 0);
-  const finFront = startFromPosition(positionOf(fin), axialLength(fin), partLength(parent), parentStart);
-  return Math.min(stationRadius(parent, finFront + lead), stationRadius(parent, finFront + trail));
+  return Math.min(mount.radiusAt(mount.front + lead), mount.radiusAt(mount.front + trail));
 }
 
 /** A body tube's radius, the same at every station (`BodyTube.getRadius(x)`). */

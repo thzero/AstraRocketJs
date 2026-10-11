@@ -2,11 +2,17 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import type { ComponentNode } from '../../src/engine/openRocketEngine';
+import type { RocketTree } from '../../src/engine/openRocketEngine';
 import {
   KERNEL_ELLIPSE_POINTS,
   ellipticalFinPoints,
   finCutContour,
+  finMountOf,
+  finOutlinePoints,
+  finPointsWithRoot,
+  finRootPoints,
   finSpan,
+  finTabPoints,
   finTabSpan,
   trapezoidFinPoints,
 } from '../../src/tree/finPlanform';
@@ -250,6 +256,220 @@ describe('through-the-wall tab vs FinSet.java', () => {
 });
 
 /**
+ * A fin on a tapered parent, against `FinSet.getRootPoints`, `getFinPoints`,
+ * `getTabPoints` and `getFinCantYOffset`.
+ *
+ * Expected values are written out from the Java below, never read back from
+ * the module under test.
+ */
+describe('a fin on its parent vs FinSet.java and FreeformFinSet.java', () => {
+  const finSet = javaSource('rocketcomponent/FinSet.java');
+  const freeform = javaSource('rocketcomponent/FreeformFinSet.java');
+
+  it('is generated from the formulas the port was written against', () => {
+    // getRootPoints: the parent's profile from the fin front, relative to it.
+    expect(finSet).toContain(
+      'return getMountPoints(finLead.getX(), xFinEnd, -finLead.getX(), -finLead.getY(), maximumBodyDivisionCount);',
+    );
+    // One straight segment unless the fin is canted or the parent is a curved transition.
+    expect(finSet).toContain(
+      'if ((!MathUtil.equals(getCantAngle(), 0)) || (parent instanceof Transition && ((Transition)parent).getShapeType() != Shape.CONICAL)) {',
+    );
+    expect(finSet).toContain('final double xWidth = 0.0025;');
+    expect(finSet).toContain('divisionCount = (int) Math.ceil(intervalLength / xWidth);');
+    expect(finSet).toContain('private static final int MAX_ROOT_DIVISIONS = 100;');
+    expect(finSet).toContain('double yCurr = parent.getRadius(xCurr);');
+    // getTabPoints: the tab starts at the body surface at each of its stations.
+    expect(finSet).toContain('yTabFront = body.getRadius(finFront.getX() + xTabFront) - finFront.getY();');
+    expect(finSet).toContain('yTabTrail = body.getRadius(finFront.getX() + xTabTrail) - finFront.getY();');
+    expect(finSet).toContain('yTabBottom = MathUtil.min(yTabFront, yTabTrail) - tabHeight;');
+    // getFinCantYOffset.
+    expect(finSet).toContain('final double xCurr_rot = xCenter + dx * Math.abs(Math.cos(cantAngle));');
+    expect(finSet).toContain('final double dz = Math.abs(Math.sin(cantAngle)) * dx;');
+    expect(finSet).toContain('dy = radius_rot - Math.sqrt(Math.pow(radius_rot, 2) - Math.pow(dz, 2));');
+    // FreeformFinSet.getFinPoints moves the end points onto the root.
+    expect(freeform).toContain(
+      'finPoints[finPoints.length - 1] = finPoints[finPoints.length - 1].setX(rootPoints[rootPoints.length - 1].getX()).setY(rootPoints[rootPoints.length - 1].getY());',
+    );
+    expect(freeform).toContain('if (yBody > yPrior) { points.set(index, points.get(index).setY(yBody)); }');
+  });
+
+  /**
+   * A conical transition 100 mm long, 25 mm radius at the fore end and 15 mm
+   * aft. `Transition.getRadius` with r1 > r2 measures from the small end,
+   * x' = L - x, and the conical shape adds (r2 - r1) x' / L to the small
+   * radius: R(x) = 0.015 + 0.010 (0.1 - x) / 0.1 = 0.025 - 0.1 x.
+   *
+   * The freeform fin's front is 30 mm down it, a 40 mm root, with a tab from
+   * 10 mm to 30 mm along the root, 20 mm deep as asked.
+   */
+  const R = (x: number) => 0.025 - 0.1 * x;
+  const transition = {
+    type: 'transition',
+    id: 'boattail',
+    shape: 'conical',
+    length: 0.1,
+    foreRadius: 0.025,
+    aftRadius: 0.015,
+    thickness: 0.002,
+  };
+  const fin = node({
+    type: 'freeformfinset',
+    id: 'fins',
+    finCount: 3,
+    thickness: 0.003,
+    points: [
+      [0, 0],
+      [0.02, 0.03],
+      [0.04, 0],
+    ],
+    tabHeight: 0.02,
+    tabLength: 0.02,
+    tabOffsetMethod: 'top',
+    tabOffset: 0.01,
+    position: { method: 'top', offset: 0.03 },
+  });
+  const tree = {
+    components: [
+      {
+        type: 'stage',
+        id: 'stage',
+        children: [
+          { type: 'nosecone', id: 'nose', shape: 'ogive', length: 0.1, aftRadius: 0.025, thickness: 0.002 },
+          { type: 'bodytube', id: 'tube', length: 0.3, outerRadius: 0.025, thickness: 0.001 },
+          { ...transition, children: [fin] },
+        ],
+      },
+    ],
+  } as unknown as RocketTree;
+  const mount = finMountOf(tree, 'fins')!;
+  const front = 0.03;
+  const yFin = R(front); // 0.022
+
+  it('stands on the radius under its own front', () => {
+    expect(mount.front).toBeCloseTo(front, 12);
+    expect(mount.radiusAt(mount.front)).toBeCloseTo(0.022, 12);
+  });
+
+  it('runs its root along the taper (getRootPoints)', () => {
+    // A cone is one straight segment, from the fin front to its trailing edge.
+    const root = finRootPoints(fin, mount);
+    expect(root).toHaveLength(2);
+    expect(root[0]![0]).toBeCloseTo(0, 12);
+    expect(root[0]![1]).toBeCloseTo(0, 12);
+    expect(root[1]![0]).toBeCloseTo(0.04, 12);
+    expect(root[1]![1]).toBeCloseTo(R(front + 0.04) - yFin, 12); // -0.004
+    expect(root[1]![1]).toBeCloseTo(-0.004, 12);
+  });
+
+  it('moves the outline end points onto the root (getFinPoints)', () => {
+    const outline = finOutlinePoints(fin, mount)!;
+    expect(outline[0]).toEqual([0, 0]);
+    // The interior point stands clear of the body and stays where it is.
+    expect(outline[1]![0]).toBeCloseTo(0.02, 12);
+    expect(outline[1]![1]).toBeCloseTo(0.03, 12);
+    // The trailing point is moved down onto the taper, 4 mm below the front.
+    expect(outline[2]![0]).toBeCloseTo(0.04, 12);
+    expect(outline[2]![1]).toBeCloseTo(-0.004, 12);
+  });
+
+  it('starts the tab at the body surface at each of its stations (getTabPoints)', () => {
+    // getMaxTabHeight: min(R(0.04), R(0.06)) = min(0.021, 0.019) = 0.019, so
+    // the 20 mm tab is cut 19 mm deep.
+    const yFront = R(front + 0.01) - yFin; // -0.001
+    const yTrail = R(front + 0.03) - yFin; // -0.003
+    const yBottom = Math.min(yFront, yTrail) - Math.min(0.02, Math.min(R(front + 0.01), R(front + 0.03))); // -0.022
+    const tab = finTabPoints(fin, mount)!;
+    const expected = [
+      [0.01, yFront],
+      [0.01, yBottom],
+      [0.03, yBottom],
+      [0.03, yTrail],
+    ];
+    expect(tab).toHaveLength(4);
+    tab.forEach(([x, y], i) => {
+      expect(x).toBeCloseTo(expected[i]![0]!, 12);
+      expect(y).toBeCloseTo(expected[i]![1]!, 12);
+    });
+    expect(yFront).toBeCloseTo(-0.001, 12);
+    expect(yTrail).toBeCloseTo(-0.003, 12);
+    expect(yBottom).toBeCloseTo(-0.022, 12);
+  });
+
+  it('cuts the outline, the root and the tab as one closed contour', () => {
+    // Outline, then back along the root from the trailing edge: the tab's
+    // trailing side up from its bottom, along it, and up its front side to the
+    // body; the root's front point is the outline's first, so it is not repeated.
+    const expected = [
+      [0, 0],
+      [0.02, 0.03],
+      [0.04, -0.004],
+      [0.03, -0.003],
+      [0.03, -0.022],
+      [0.01, -0.022],
+      [0.01, -0.001],
+    ];
+    const contour = finCutContour(fin, mount)!;
+    expect(contour).toHaveLength(expected.length);
+    contour.forEach(([x, y], i) => {
+      expect(x).toBeCloseTo(expected[i]![0]!, 12);
+      expect(y).toBeCloseTo(expected[i]![1]!, 12);
+    });
+    // A flat root at the front radius would leave the trailing edge 4 mm off
+    // the taper and the tab's trailing side 3 mm shallower.
+    expect(contour.some(([x, y]) => Math.abs(x - 0.04) < 1e-12 && Math.abs(y) < 1e-12)).toBe(false);
+  });
+
+  it('draws the same root it cuts', () => {
+    const drawn = finPointsWithRoot(fin, mount)!;
+    expect(drawn).toHaveLength(3);
+    expect(drawn[2]![1]).toBeCloseTo(-0.004, 12);
+  });
+
+  it('prints the same part on the 1:1 template', () => {
+    const contour = finCutContour(fin, mount)!;
+    const template = finPlanformMm(fin, mount);
+    const height = finSpan(fin);
+    expect(template.pts).toHaveLength(contour.length);
+    template.pts.forEach(([x, y], i) => {
+      expect(x / 1000).toBeCloseTo(contour[i]![0], 9);
+      expect(height - y / 1000).toBeCloseTo(contour[i]![1], 9);
+    });
+  });
+
+  it('bends a canted fin root down onto a body tube (getFinCantYOffset)', () => {
+    // A 50 mm root on a 20 mm body tube, canted 0.1 rad: the root is sampled
+    // every 2.5 mm, and at each station the fin, turned about its root's
+    // midpoint, reaches dz = |sin(cant)| dx sideways, so the root drops
+    // dy = r - sqrt(r^2 - dz^2) to stay on the tube.
+    const r = 0.02;
+    const cant = 0.1;
+    const canted = node({ type: 'trapezoidfinset', rootChord: 0.05, tipChord: 0.02, sweep: 0.02, height: 0.04, cant });
+    const tubeMount = { radiusAt: () => r, length: 0.3, front: 0.1, curved: false };
+    const root = finRootPoints(canted, tubeMount);
+    const drop = (x: number) => {
+      const dz = Math.abs(Math.sin(cant)) * (x - 0.025);
+      return -(r - Math.sqrt(r * r - dz * dz));
+    };
+    // getMountPoints: ceil(interval / 2.5 mm) intervals, the interval taken as
+    // end less start along the tube.
+    expect(root).toHaveLength(Math.ceil((0.1 + 0.05 - 0.1) / 0.0025) + 1);
+    expect(root[0]![0]).toBeCloseTo(0, 12);
+    expect(root[root.length - 1]![0]).toBeCloseTo(0.05, 12);
+    for (const [x, y] of root) expect(y, `station ${x}`).toBeCloseTo(drop(x), 12);
+    // The midpoint does not move; every other station drops.
+    expect(Math.min(...root.map(([, y]) => Math.abs(y)))).toBeLessThan(1e-6);
+    expect(root.filter(([, y]) => y < -1e-9).length).toBeGreaterThan(root.length - 3);
+    // 10 mm along, 15 mm ahead of the midpoint: dz = 1.4975 mm, a 0.05613 mm drop.
+    expect(drop(0.01)).toBeCloseTo(-0.0000561, 7);
+    // The outline's ends are the root's, so they drop with it.
+    const outline = finOutlinePoints(canted, tubeMount)!;
+    expect(outline[0]![1]).toBeCloseTo(drop(0), 12);
+    expect(outline[outline.length - 1]![1]).toBeCloseTo(drop(0.05), 12);
+  });
+});
+
+/**
  * The recurrence guard.
  *
  * Nothing else stops a consumer from growing its own sampler, and each new copy
@@ -286,7 +506,7 @@ describe('no module grows its own fin sampler', () => {
    * the same module does not count: those are dimensions, and a consumer can
    * hold every dimension and still draw its own curve.
    */
-  const SHARED_OUTLINE = /finPlanformPoints|finCutContour|finPlanformMm/;
+  const SHARED_OUTLINE = /finPlanformPoints|finCutContour|finPlanformMm|finPointsWithRoot|finOutlinePoints/;
 
   /**
    * The modules that draw or cut a fin. Each must take its outline from

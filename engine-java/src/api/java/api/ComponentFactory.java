@@ -956,6 +956,29 @@ final class ComponentFactory {
     }
 
     /**
+     * Fin tab depths against the settled body radius. setTabHeight() clamps to
+     * the parent radius at the moment it is called, and while the rocket is
+     * being built an automatic tube's radius follows whatever is attached so
+     * far, and a fin set placed by its middle or bottom has not yet been moved to
+     * its station; the clamp is never revisited after either settles. So once
+     * the rocket is built and its parts placed, each tab's requested depth is
+     * applied again, in tree order, and clamps against the radius the design
+     * flies with.
+     */
+    static void settleFinTabs(Map<String, Object> node, Map<String, RocketComponent> idIndex) {
+        for (Map<String, Object> kid : JsonLite.objList(node, "children")) {
+            String id = str(kid, "id", null);
+            RocketComponent c = id == null ? null : idIndex.get(id);
+            // Keyed on the depth asked for: a clamp during the build can have
+            // zeroed a tab that the settled radius has room for.
+            if (c instanceof FinSet && dbl(kid, "tabHeight", 0) > 0 && dbl(kid, "tabLength", 0) > 0) {
+                ((FinSet) c).setTabHeight(dbl(kid, "tabHeight", 0));
+            }
+            settleFinTabs(kid, idIndex);
+        }
+    }
+
+    /**
      * PodSet / ParallelStage placement. Must run after parent.addChild(child):
      * setRadiusMethod/setAxialMethod read getParent() and NPE with no parent.
      * Radial uses offset/gap semantics (setRadiusMethod + setRadiusOffset), never
