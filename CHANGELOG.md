@@ -9,6 +9,8 @@ so most entries describe getting a computation to match OpenRocket exactly.
 ## [Unreleased]
 
 ### Changed
+- **CI runs only the web gates.** Pull requests and branch pushes run `build-and-test` (now `npm run verify`, without coverage), `e2e` and `update-flow`, and the master deploy builds and publishes without rerunning them. The engine checks (parity, the committed engine rebuild, the extraction check, the aero scorecards), coverage and the desktop file check are no longer CI jobs: `npm run audit` in `engine-java/` and `npm run audit` in `web/` run them, one command each.
+- **Two more gates.** `npm run dupes` (jscpd) fails on copied code above a size floor in `web/src`, and a unit test fails on change history, ticket tags, audit IDs and dates in code comments and test titles. Both run in `npm run verify`.
 - **`npm run check:ork` also checks `.rkt` files.** Desktop OpenRocket reads RockSim files through the same loader, so the check opens every exported `.rkt` sample too and fails on a rocket that comes back with no components.
 - **Node 24.** Development, CI and the docs build now need Node 24 or later, up from 22. `@types/node` follows to the 24 line, and both `web/` and `website/` declare it in `engines`.
 - **Engine updated to OpenRocket `unstable` of 2026-10-07.** It brings OpenRocket's fix for checking thrust when a rocket starts to tumble or a recovery device deploys (OpenRocket PR #3382): the check now uses the thrust at that moment rather than the previous step's, which could be stale right at burnout or ignition. Only flights with a tumble or a deployment at that moment change; none of the reference flights moved.

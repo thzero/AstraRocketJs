@@ -114,7 +114,7 @@ A delta of 0 fails `--check` and `--bless` refuses it; delete the patch.
 
 Comparing `src/java` to the patch also can never see upstream moving underneath; the per-patch numbers and upstream hashes are what surface that on an upgrade.
 
-`--check` is only meaningful against the exact upstream the extraction was made from, pinned in `extract/UPSTREAM` and enforced by the `reproducible` job in `.github/workflows/gates.yml`.
+`--check` is only meaningful against the exact upstream the extraction was made from, pinned in `extract/UPSTREAM`. CI does not run it; `npm run audit` does.
 
 **At build time nothing is applied**: `src/java/` is committed already in its final state, so Gradle just compiles it. Extraction is a deliberate step you run only on an OpenRocket upgrade (then re-audit each `patches/` file against the new upstream).
 
@@ -124,6 +124,7 @@ There is a `package.json` here with no dependencies and nothing to install. It e
 the Node helper scripts named entry points, so `npm run parity` works the way it does in `web/`:
 
 ```bash
+npm run audit          # every engine check CI does not run, in order, stopping at the first failure
 npm run build          # both targets, vendored into ../web/   (= node build-engine.mjs)
 npm run build:js       # JS only
 npm run build:wasm     # WASM-GC only
@@ -160,7 +161,7 @@ node build-engine.mjs --wasm     # WASM → ../web/public/engine/openrocket-engi
 ./gradlew buildWasmGC            # WASM-GC target (teavm.wasmGC)
 ```
 
-Both targets compile from the same sources and are checked against the JVM (tolerances under Tests below). Change a Java source → rebuild **both** artifacts (`.mjs` + `.wasm`); the parity job fails if the committed artifacts do not match the sources.
+Both targets compile from the same sources and are checked against the JVM (tolerances under Tests below). Change a Java source → rebuild **both** artifacts (`.mjs` + `.wasm`); `npm run audit` rebuilds them and fails if the committed artifacts differ. CI does not, so run it before pushing an engine change.
 
 Non-obvious, load-bearing settings in `build.gradle`:
 

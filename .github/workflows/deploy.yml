@@ -1,15 +1,10 @@
 name: Deploy
 
-# The master pipeline: the full gate set, then the Pages publish.
+# The master pipeline: build the docs and the app, then publish to Pages.
 #
-# The gates are the SAME jobs a PR runs (gates.yml, called from both here and
-# ci.yml). They are not duplicated: GitHub has no cross-workflow ordering, so
-# "run ci.yml first, then deploy" is not expressible between two files, but a
-# reusable workflow (`workflow_call`) shares the job definitions without needing
-# it. Nothing publishes until every one of them is green.
-#
-# ci.yml is `pull_request`-only and this file is master-push-only, so the two
-# never fire on the same event.
+# No gates here: master is reached by merged pull requests, and ci.yml already
+# ran the gate set (gates.yml) on each one's merge result. A direct push to
+# master, or a PR merged after master moved, publishes without that check.
 #
 # Publishes web/dist to GitHub Pages.
 # ONE-TIME SETUP: repo Settings → Pages → Source = "GitHub Actions".
@@ -30,11 +25,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  gates:
-    uses: ./.github/workflows/gates.yml
-
   build:
-    needs: gates
     runs-on: ubuntu-latest
     # The web build plus both Docusaurus locales. Without a cap a hung webpack
     # compile holds the Pages deployment for the 360-minute default.

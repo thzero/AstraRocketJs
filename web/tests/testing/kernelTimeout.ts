@@ -14,10 +14,6 @@
  * load (another vitest process, a coverage run, a shared CI runner) easily takes
  * more than that. The cap has to be sized to the variance, not to the work.
  *
- * A timeout here is not a flaky test in isolation either: vitest writes no
- * `coverage-summary.json` when the suite fails, so `gates.yml` falls into its
- * "the suite did not finish" branch and the run reports no coverage at all.
- *
  * ## Why this number
  *
  * Three times the slowest measured file. A timeout exists to catch a hang, and

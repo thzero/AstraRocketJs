@@ -45,13 +45,27 @@ npm run test         # Vitest: unit tests (.test.ts) and component tests (.test.
 npm run test:watch   # Vitest in watch mode while developing
 npm run e2e          # Playwright end-to-end tests against a fresh production build on port 5180
                      # (run `npx playwright install chromium` once first; nothing installs the browser for you)
+npm run dupes        # jscpd copy-paste check over src (see below); part of verify
 npm run verify       # the pre-push gate: format, spell, typecheck, lint, knip,
-                     # the production build, and the unit suite. ~100 s.
+                     # dupes, the production build, and the unit suite. ~100 s.
 npm run verify:ci    # the same list, but the suite runs WITH coverage and fails if
                      # it drops below the minimum percentages in vitest.config.ts
                      # (lines 82, statements 81, branches 74, functions 76).
+                     # Not run by CI; `npm run audit` runs it.
+npm run audit        # every web check CI does not run: coverage, then the files
+                     # the app saves opened in desktop OpenRocket, then the Java
+                     # helpers compiled (needs a JDK and the pinned OpenRocket;
+                     # pass --jar <OpenRocket.jar> if it is not installed).
                      # ~350 s, which is why CI runs this one and you run the other.
 ```
+
+`npm run dupes` runs jscpd with `web/.jscpd.json`. It scans the TypeScript and TSX under `web/src` and fails on any repeated block of at least 45 tokens and 5 lines (the reported duplication threshold is 0%), so a copied helper, formula, parser step or option list fails the gate before the two copies can drift apart. Below that size, the repeats are JSX table and chart boilerplate. What it leaves out, and why:
+
+- `web/tests`: fixtures and parallel test cases repeat by design, and a scan of them reports hundreds of clones.
+- `src/engine/vendor` (generated) and `*.d.ts` (declarations mirror the engine's parallel signatures and hold no logic).
+- Import blocks (`ignorePattern`): two files importing the same modules is not duplicated logic.
+
+When it fails, move the shared code into one function, component, type or constant and call it from both places. When the repeat is structure that should stay separate (two charts drawing their series at different weights, say), wrap one copy in `// jscpd:ignore-start` and `// jscpd:ignore-end` (`{/* jscpd:ignore-start */}` inside JSX) with a one-line reason on the start marker.
 
 Please **verify UI changes in a real browser**, not just that it compiles.
 
@@ -60,6 +74,8 @@ A few house rules that keep the codebase consistent:
 - **All user-facing text goes through i18n.** Add keys to `web/src/i18n/locales/en.json` **and** every other locale file (`web/tests/i18n/locales.test.ts` fails otherwise) - never hardcode strings in components. See [Translation](../CONTRIBUTING.md#translation).
 - **Never hardcode the app name, version, or the help/docs URL.** They come from `web/src/services/app/appInfo.ts` - name from i18n, version from `package.json`, and `HELP_URL` from `package.json`'s `wiki.url` (overridable at build time with `HELP_URL=…`).
 - **Match the surrounding code** - its naming, comment density, and style.
+- **No em dash (U+2014).** Prose takes a colon, comma, period or parentheses. `web/tests/noEmDash.test.ts` fails on the character or its HTML entity anywhere in the project's own text; its header lists what it scans.
+- **Comments and test titles state the present constraint.** A comment says what holds and why; a test title says what it guards, not the bug it came from. No change history, issue or PR tags, audit finding IDs, dates or named people. `web/tests/commentsStateTheConstraint.test.ts` scans comments and `describe`/`it`/`test` titles in `web/src` (not `src/engine/vendor`), `web/tests`, `web/e2e`, `web/scripts` and `engine-java/src/api` for issue references (`#123`, `PR #12`, `issue 12`, `openrocket#123`), audit IDs (`finding 12`, an ID beside the word audit or finding), ISO dates, and history phrases such as "until now", "previously", "used to be" and "we now". String literals and Markdown are not scanned. A line that needs one of these for a present-tense reason goes in the test's `ALLOWED` list with that reason.
 
 ## Where a number comes from
 
@@ -149,29 +165,27 @@ Open a PR from your branch to **`master`**. In the description:
 2. The underlying cause.
 3. How you fixed it.
 
-Make sure `npm run verify` passes (the same gate list CI runs, in the same order; CI adds coverage via `verify:ci`), and that you've checked the change in the browser. Add or update tests for any logic you touch under `web/src/services` or `web/src/engine`. Keep engine `.mjs`/`.wasm` regenerations in the same PR as their Java changes.
+Make sure `npm run verify` passes (the same gate list CI runs, in the same order), and that you've checked the change in the browser. Add or update tests for any logic you touch under `web/src/services` or `web/src/engine`. Keep engine `.mjs`/`.wasm` regenerations in the same PR as their Java changes.
 
 What CI gates on the PR itself (`.github/workflows/gates.yml`):
 
-| Job              | Runs                                                                                                      | Needs                      |
-| ---------------- | --------------------------------------------------------------------------------------------------------- | -------------------------- |
-| `golden-report`  | Lists the golden values the PR moved in the job summary (informational, never fails; PRs only)            | none                       |
-| `parity`         | `npm run parity -- --expect-lines 359`, then a rebuild compared against the committed binaries            | none                       |
-| `reproducible`   | `npm run extract:check` against the pinned OpenRocket, and the pinned date matches the pinned commit      | none                       |
-| `validate`       | `validation/score.mjs --check-floors` on the classic model and on the opt-in supersonic path              | none                       |
-| `build-and-test` | `npm run verify:ci` (the `verify` list, with coverage)                                                    | `reproducible`, `validate` |
-| `e2e`            | `npm run e2e:core`, the core Playwright specs (`CORE_SPECS` in `playwright.config.ts`), in one job        | `reproducible`             |
-| `update-flow`    | `npm run e2e:update`, `npm run e2e:offline-data` and `npm run e2e:offline-help` against production builds | `reproducible`             |
+| Job              | Runs                                                                                                      |
+| ---------------- | --------------------------------------------------------------------------------------------------------- |
+| `build-and-test` | `npm run verify` (the gate list and the unit suite, without coverage)                                     |
+| `e2e`            | `npm run e2e:core`, the core Playwright specs (`CORE_SPECS` in `playwright.config.ts`), in one job        |
+| `update-flow`    | `npm run e2e:update`, `npm run e2e:offline-data` and `npm run e2e:offline-help` against production builds |
+
+The engine checks are not CI gates. After a change under `engine-java/` or to the vendored engine, run `npm run audit` in `engine-java/` (needs a JDK): parity, a rebuild that fails if the committed engine binaries differ, the extraction check, the pinned upstream date, and the aero scorecards. It stops at the first failure and names the step.
 
 The full Playwright suite is not a PR gate. It runs by hand from `.github/workflows/e2e-full.yml` (**Run workflow**), sharded two ways.
 
-A push to **any branch but `master`** runs every `gates.yml` job except `parity` (`dev.yml`, with `parity: false`), then a `verify` job that fails if any gate failed; branch protection requires `Dev / verify`. A broken test shows up on the push that broke it rather than when the PR to `master` is opened. `master` is excluded because `deploy.yml` already runs the full set there. `web/tests/ciTriggers.test.ts` fails if the trigger is narrowed to a list of branch names.
+A push to **any branch but `master`** runs every `gates.yml` job (`dev.yml`), then a `verify` job that fails if any gate failed; branch protection requires `Dev / verify`. A broken test shows up on the push that broke it rather than when the PR to `master` is opened. `master` is excluded because it is reached through a PR, which `ci.yml` gates. `web/tests/ciTriggers.test.ts` fails if the trigger is narrowed to a list of branch names.
 
 The Docusaurus site is typechecked in `e2e` (`npm run typecheck` in `website/`), and `e2e` and `update-flow` both build it (`npm run docs:build`) for the Help checks, so a docs type error, a broken MDX page or a broken `sidebars.ts` fails the PR.
 
-`gates.yml` is a reusable workflow. `ci.yml` calls it on a PR, `dev.yml` on a push to any other branch (without `parity`), and `deploy.yml` on merge to `master`, so master is held to exactly what a PR was held to and there is only one definition to maintain. Add a gate to `gates.yml` and all three get it.
+`gates.yml` is a reusable workflow. `ci.yml` calls it on a PR and `dev.yml` on a push to any other branch, so there is only one definition to maintain. Add a gate to `gates.yml` and both get it.
 
-On merge, `deploy.yml` runs those gates and only then builds the docs, builds the app and publishes to Pages. Nothing publishes unless every gate is green.
+On merge, `deploy.yml` builds the docs and the app and publishes to Pages. It runs no gates of its own: the PR's run of `ci.yml` tested the merge result. A direct push to `master`, or a PR merged after `master` moved, publishes without that check.
 
 ## Which kind of test
 

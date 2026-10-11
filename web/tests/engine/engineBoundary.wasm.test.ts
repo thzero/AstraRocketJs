@@ -294,7 +294,7 @@ describe('the shipped build computes what the JS build computes', () => {
    * flight, and a tolerance would pass on turbulence that merely landed nearby.
    * Cross-target equality is deliberately not asserted here; turbulence
    * compounds a ULP difference over a whole trajectory, and bit-for-bit
-   * JS/WASM agreement is what the parity gate is for.
+   * JS/WASM agreement is what the parity check is for.
    */
   it('gives one turbulent wind profile the same flight twice at one seed', () => {
     const fly = (randomSeed: number) => {

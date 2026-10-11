@@ -2,23 +2,21 @@ name: Dev
 
 # The push gate for day-to-day work on EVERY branch but master.
 #
-# ci.yml is `pull_request`-only and deploy.yml is master-push-only, so without
+# ci.yml is `pull_request`-only, so without
 # this a push with no PR open is checked by nothing until someone opens the PR.
 #
 # `branches-ignore: [master]` rather than a list of branch names: work on a
 # `test`, a `fix/...` or a `spike/...` branch needs the gate as much as `dev`
 # does, and a named list leaves every unnamed branch unchecked.
 #
-# master is excluded because deploy.yml already runs the full gate set there.
+# master is excluded because it is reached through a PR, which ci.yml gates.
 # A branch with a PR open runs both this and ci.yml.
 #
 # Tag pushes do not trigger this: a branch filter of either kind confines the
 # `push` event to branches.
 #
 # The gate set from gates.yml, the same jobs a PR and master run, so a push
-# finds an e2e failure before the PR does. Parity is left to the PR and master.
-# golden-report skips itself here: it compares against a PR's base branch, and
-# a push has none.
+# finds an e2e failure before the PR does.
 #
 # Cancels the previous run on the same ref: a second push while the first is
 # still running makes the first run's verdict about a commit nobody will look
@@ -38,8 +36,6 @@ concurrency:
 jobs:
   gates:
     uses: ./.github/workflows/gates.yml
-    with:
-      parity: false
 
   # Branch protection requires `Dev / verify`. The check GitHub reports is
   # "<workflow name> / <job id>", so renaming the workflow or this job silently

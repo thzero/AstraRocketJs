@@ -60,8 +60,8 @@ export default defineConfig({
     // started taking seconds is noticed where it is written. Files that fly the
     // kernel still set KERNEL_TEST_TIMEOUT_MS, which is longer.
     ...(process.env.CI ? { testTimeout: 60_000, hookTimeout: 60_000 } : {}),
-    // Reported and enforced. `npm run verify:ci` (what the gates workflow runs,
-    // for the PR, dev-push and deploy workflows that call it) fails
+    // Reported and enforced by `npm run audit`, `verify:ci` and `test:coverage`,
+    // which are run by hand (CI runs `verify`), and fail
     // below these minimums; `npm run verify` and `npm test` do not collect coverage
     // at all and are unaffected, which is why instrumentation stays off the command
     // a developer types before pushing.

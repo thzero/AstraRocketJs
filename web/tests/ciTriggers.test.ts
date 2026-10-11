@@ -5,9 +5,10 @@ import { fileURLToPath } from 'node:url';
 /**
  * Which pushes are checked at all.
  *
- * The three workflows divide the work by trigger, and between them they have to
- * leave no commit unchecked: `ci.yml` is `pull_request`-only, `deploy.yml` is
- * master-push-only, so `dev.yml` has to cover a push to every other branch. With
+ * The two gate workflows divide the work by trigger, and between them they have
+ * to leave no branch push unchecked: `ci.yml` is `pull_request`-only and master
+ * is reached through a pull request, so `dev.yml` has to cover a push to every
+ * other branch. With
  * a branch allowlist there, a push to an unlisted branch runs no format, spell,
  * typecheck, lint, knip or unit-test gate at all.
  *
@@ -29,13 +30,6 @@ describe('CI trigger coverage', () => {
     expect(dev).not.toMatch(/push:\s*\n\s*branches:/);
   });
 
-  it('leaves master to the deploy workflow, which runs the full gates', () => {
-    // master is the one branch dev.yml may skip, and only because deploy.yml
-    // covers it with more than dev.yml would.
-    expect(wf('deploy.yml')).toMatch(/push:\s*\n\s*branches:\s*\[master\]/);
-    expect(wf('deploy.yml')).toContain('uses: ./.github/workflows/gates.yml');
-  });
-
   it('keeps the full gate set on every pull request', () => {
     expect(wf('ci.yml')).toMatch(/on:\s*\n\s*pull_request:/);
     expect(wf('ci.yml')).toContain('uses: ./.github/workflows/gates.yml');
@@ -45,13 +39,6 @@ describe('CI trigger coverage', () => {
     // dev.yml calls gates.yml rather than listing its own steps, so a push and a
     // PR cannot drift. If this ever needs its own steps, the drift is the finding.
     expect(wf('dev.yml')).toContain('uses: ./.github/workflows/gates.yml');
-  });
-
-  it('runs parity on every pull request and master push', () => {
-    // dev.yml turns parity off; the two callers that gate a merge and a deploy
-    // must not.
-    expect(wf('ci.yml')).not.toMatch(/parity:\s*false/);
-    expect(wf('deploy.yml')).not.toMatch(/parity:\s*false/);
   });
 });
 

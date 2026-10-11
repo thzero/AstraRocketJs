@@ -3,11 +3,9 @@
 # `extract --check` is only meaningful against this exact tree: a different
 # upstream reports drift that is really just a version difference.
 #
-# THIS FILE IS THE ONLY COPY OF THE REF. The `reproducible` job in
-# .github/workflows/gates.yml reads it (its "Read the pinned OpenRocket ref"
-# step seds `repo` and `ref` out of here and checks that out), so a bump lands
-# in one place. Two copies with nothing comparing them can drift apart, so do
-# not reintroduce a second one.
+# THIS FILE IS THE ONLY COPY OF THE REF. `npm run audit` (engine-java/audit.mjs)
+# reads `ref` and `date` from here, so a bump lands in one place. Two copies
+# with nothing comparing them can drift apart, so do not reintroduce a second one.
 #
 # Everything that NAMES the pinned build reads it from here too, so none of them
 # can drift from the tree that was actually extracted:
@@ -20,10 +18,10 @@
 # The last two are why `date` exists as a FIELD and not just as prose in this
 # header: "which OpenRocket is this?" is a question a reader of the docs asks,
 # and answering it from a hand-typed string somewhere else would be one more
-# copy of a SHA that should only ever have one. Bump `date` with `ref`; the
-# `reproducible` job checks it against the commit it checked out, so a bump that
-# updates one and forgets the other fails there rather than quietly shipping a
-# wrong date to every reader.
+# copy of a SHA that should only ever have one. Bump `date` with `ref`;
+# `npm run audit` checks it against the pinned commit, so a bump that updates
+# one and forgets the other fails there rather than quietly shipping a wrong
+# date to every reader.
 #
 # Adopting a newer OpenRocket means bumping the ref below, re-running the
 # extraction, and reviewing every line the "patch(es) differ from current
