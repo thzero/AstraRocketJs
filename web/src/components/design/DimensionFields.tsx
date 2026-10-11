@@ -159,6 +159,14 @@ export function FieldSection({
   );
 }
 
+/** What a property panel section edits: the part, and the panel's patch and commit handlers. */
+export interface NodeEditProps {
+  node: ComponentNode;
+  onChange: (patch: Partial<ComponentNode>) => void;
+  /** Closes the undo entry the edits since the last commit opened. */
+  onCommit?: () => void;
+}
+
 /**
  * The stub that plugs into the tube next door. It is a different piece of the
  * part from the cone or taper above it, and under the same heading it would
@@ -167,15 +175,7 @@ export function FieldSection({
  * a wall. Only one of the three renders for a given part: FieldSection draws
  * nothing when the type has no field in it.
  */
-export function ShoulderSections({
-  node,
-  onChange,
-  onCommit,
-}: {
-  node: ComponentNode;
-  onChange: (patch: Partial<ComponentNode>) => void;
-  onCommit?: () => void;
-}) {
+export function ShoulderSections({ node, onChange, onCommit }: NodeEditProps) {
   const { t } = useTranslation();
   return (
     <>
@@ -316,17 +316,7 @@ function selectPatch(node: ComponentNode, key: string, value: string): Partial<C
  * switch lives here, rather than as inline branches in the panel's render loop,
  * so the panel body reads as a list of rows.
  */
-export function FieldRow({
-  node,
-  field: f,
-  onChange,
-  onCommit,
-}: {
-  node: ComponentNode;
-  field: Field;
-  onChange: (patch: Partial<ComponentNode>) => void;
-  onCommit?: () => void;
-}) {
+export function FieldRow({ node, field: f, onChange, onCommit }: NodeEditProps & { field: Field }) {
   const { t } = useTranslation();
   const u = useUnits();
   const kernelAuto = useKernelAutoValue(node, f);

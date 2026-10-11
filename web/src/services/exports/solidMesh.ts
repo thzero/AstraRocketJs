@@ -7,7 +7,7 @@ import { freeformPoints, partLength } from '../../tree/position';
 import { nodeShape, outerProfile, profileEnds } from '../../tree/shapeProfile';
 import { tubeFinRadius } from '../../tree/tubefins';
 import { FIN_DEFAULTS, KERNEL_DEFAULTS } from '../../tree/kernelDefaults';
-import { edgeKey, meshTolerances, undirectedEdgeCounts, validateSolid } from './meshValidate';
+import { directedEdges, edgeKey, meshTolerances, undirectedEdgeCounts, validateSolid } from './meshValidate';
 import { KeyedError } from '../../i18n/keyedError';
 
 /**
@@ -53,13 +53,7 @@ export function makeWatertight(geo: THREE.BufferGeometry): THREE.BufferGeometry 
   // Directed boundary edges (a→b): an undirected edge used by exactly one
   // triangle, keeping the direction it had there so the caps wind to match.
   const undirected = undirectedEdgeCounts(idx);
-  const dirList: Array<[number, number]> = [];
-  for (let i = 0; i < idx.count; i += 3) {
-    const a = idx.getX(i),
-      b = idx.getX(i + 1),
-      c = idx.getX(i + 2);
-    dirList.push([a, b], [b, c], [c, a]);
-  }
+  const dirList = directedEdges(idx);
   // Successors keyed by start vertex, as a multimap. A vertex where two boundary
   // loops meet (a self-touching planform, a figure-8 seam) is the start of more
   // than one boundary edge; a single-valued map would keep only one and leave

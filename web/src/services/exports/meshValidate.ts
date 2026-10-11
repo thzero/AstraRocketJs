@@ -42,21 +42,24 @@ export interface MeshIssue {
 /** Undirected key for an edge between two vertex indices. */
 export const edgeKey = (a: number, b: number): string => (a < b ? `${a}_${b}` : `${b}_${a}`);
 
-/** How many triangles of an indexed triangle list use each undirected edge. */
-export function undirectedEdgeCounts(idx: THREE.BufferAttribute): Map<string, number> {
-  const count = new Map<string, number>();
+/** Every triangle's three edges of an indexed triangle list, each in its triangle's winding order. */
+export function directedEdges(idx: THREE.BufferAttribute): Array<[number, number]> {
+  const edges: Array<[number, number]> = [];
   for (let i = 0; i < idx.count; i += 3) {
     const a = idx.getX(i),
       b = idx.getX(i + 1),
       c = idx.getX(i + 2);
-    for (const [u, v] of [
-      [a, b],
-      [b, c],
-      [c, a],
-    ] as const) {
-      const k = edgeKey(u, v);
-      count.set(k, (count.get(k) ?? 0) + 1);
-    }
+    edges.push([a, b], [b, c], [c, a]);
+  }
+  return edges;
+}
+
+/** How many triangles of an indexed triangle list use each undirected edge. */
+export function undirectedEdgeCounts(idx: THREE.BufferAttribute): Map<string, number> {
+  const count = new Map<string, number>();
+  for (const [u, v] of directedEdges(idx)) {
+    const k = edgeKey(u, v);
+    count.set(k, (count.get(k) ?? 0) + 1);
   }
   return count;
 }

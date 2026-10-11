@@ -22,30 +22,18 @@ import { findMounts } from '../design/treeEdit';
 import { motorFitsMount, mountFit } from '../motors/motorPicker';
 import { hasUsableCurve } from '../motors/motorCurve';
 import { uuid } from '../app/uuid';
-import { type DeployOverride, type MountMotor, type SepOverride } from '../flight/flightConfigs';
+import { type FlightConfig, type MountMotor } from '../flight/flightConfigs';
 import { errorReason } from '../../i18n/keyedError';
 import { roundTo } from '../app/numbers';
 import { rseDigest } from './ork/embeddedMotors';
 import { keyedNote, type ImportNote } from './importNote';
 
-/** One of the file's flight configurations, with its motors resolved. */
-interface LoadedConfig {
-  /** The file's own `configid`, kept so a round trip is identity. */
-  id: string;
-  name: string | null;
-  motors: Record<string, MountMotor>;
-  /** What this configuration said about recovery deployment (carried, not edited). */
-  deployments?: Record<string, DeployOverride>;
-  /**
-   * ...and about staging, and about which stages stay on the pad. Carried for
-   * the same reason the deployments are: a configuration that says
-   * `<stage number="1" active="false"/>` or carries a
-   * `<separationconfiguration>` must keep it, or `saveOrk` writes the setting
-   * back as absent and the file loses it.
-   */
-  separations?: Record<string, SepOverride>;
-  grounded?: string[];
-}
+/**
+ * One of the file's flight configurations, with its motors resolved: the same
+ * shape the store keeps, so the deployments, separations and grounded stages a
+ * file carries reach `saveOrk` again and the file keeps them.
+ */
+type LoadedConfig = FlightConfig;
 
 export interface LoadedOrk {
   name: string;

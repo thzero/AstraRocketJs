@@ -883,7 +883,7 @@ describe('DocumentConfig fields round-trip and reach the kernel', () => {
     expect(get('masscomponent').radialDirection).toBeCloseTo(1.2, 6);
   });
 
-  it('keeps a shock cord, which had no editable field until now', () => {
+  it('keeps a shock cord length and radius', () => {
     expect(get('shockcord').cordLength).toBeCloseTo(2.5, 9);
     expect(get('shockcord').radius).toBeCloseTo(0.008, 9);
   });

@@ -1127,10 +1127,9 @@ const CHAIN_DESIGNS: Record<string, () => RocketTree> = (() => {
 })();
 
 /**
- * Rules known to disagree with the kernel. Finding IDs are numbered per audit
- * run, so each entry cites an ID in the current docs/AUDIT.md or states its
- * reason in words. A rule not listed here fails the test, and so does a listed
- * rule that no longer disagrees: the fix removes its line.
+ * Rules known to disagree with the kernel. Each entry states its reason in
+ * words. A rule not listed here fails the test, and so does a listed rule that
+ * no longer disagrees: the fix removes its line.
  */
 const KNOWN: Record<string, string> = {};
 

@@ -1,0 +1,273 @@
+import { describe, it, expect } from 'vitest';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
+/**
+ * Code comments and test titles state the present constraint. A comment says
+ * what holds and why; a test title says what it guards. Neither narrates how
+ * the code got here: no change history, issue or PR tags, audit finding IDs,
+ * dates or named people. The scan covers:
+ * - comments (`//`, `/* *\/` and JSDoc) in the `.ts`, `.tsx`, `.js`, `.mjs` and
+ *   `.css` files under `web/src`, `web/tests`, `web/e2e` and `web/scripts`, and
+ *   in the Java under `engine-java/src/api`;
+ * - the first string argument of `describe`, `it` and `test` (and their chained
+ *   forms such as `test.describe` or `it.skip`) in the same files.
+ *
+ * String literals are not searched: they are user text or data, and a date or
+ * a `#` in one is a value, not a note. Markdown is not searched either. The
+ * vendored TeaVM bundle under `src/engine/vendor` is generated and skipped.
+ *
+ * The patterns trade recall for precision: each one has no hit in the tree that
+ * is not history. A phrase that also reads naturally as present state (such as
+ * a value that a field stops holding) is left out rather than allowlisted.
+ *
+ * The patterns live in regex literals, which the scanner skips, so this file
+ * does not match itself.
+ */
+
+const PATTERNS: { name: string; re: RegExp }[] = [
+  // `#123` as a reference, not `#1` in a list or a quoted `'#123456'` color.
+  { name: 'issue reference', re: /(?<![\w&'"`#/:])#\d{2,}(?![\w-])/ },
+  { name: 'PR reference', re: /\bPR #?\d+\b/ },
+  { name: 'issue reference', re: /\bissues? #?\d+\b/i },
+  { name: 'upstream issue', re: /\bopenrocket#\d+\b/i },
+  { name: 'audit finding', re: /\bfindings? #?\d+\b/i },
+  // A bare `K12` is a motor designation; only an ID beside audit/finding counts.
+  { name: 'audit finding', re: /\b(?:audit|finding)s?\b[^.\n]{0,20}?\b[A-Z]{1,3}-?\d{1,3}\b/i },
+  { name: 'audit finding', re: /\b[A-Z]{1,3}-?\d{1,3}\b\)?\s+(?:audit|finding)\b/ },
+  { name: 'date', re: /\b20\d\d-[01]\d-[0-3]\d\b/ },
+  {
+    name: 'history',
+    re: /\b(?:until now|previously|as of now|was (?:changed|fixed)|after the fix|regression from|before this change|we now|now fixed|used to be|(?:this|it|we|that) used to)\b/i,
+  },
+];
+
+/**
+ * Lines that legitimately need a pattern: `file` is the path from the repo
+ * root, `text` a substring of the comment or title line, and `reason` why the
+ * words are not history (a quote of upstream, a step in a state machine).
+ * An entry that matches nothing fails, so the list cannot go stale.
+ */
+const ALLOWED: { file: string; text: string; reason: string }[] = [];
+
+// Forward slashes on every platform, so the path tests below read the same on Windows.
+const slashed = (url: URL): string => fileURLToPath(url).replace(/\\/g, '/');
+const web = slashed(new URL('..', import.meta.url));
+const repo = slashed(new URL('../..', import.meta.url));
+
+/** Trees that are generated, never edited by hand. */
+const skipped = ['/src/engine/vendor'];
+const isCode = (path: string): boolean => /\.(?:[cm]?[jt]sx?|java|css)$/.test(path);
+
+const walk = (dir: string, out: string[] = []): string[] => {
+  for (const entry of readdirSync(dir)) {
+    if (entry === 'node_modules') continue;
+    const full = `${dir}/${entry}`;
+    if (skipped.some((tail) => full.endsWith(tail))) continue;
+    if (statSync(full).isDirectory()) walk(full, out);
+    else if (isCode(full)) out.push(full);
+  }
+  return out;
+};
+
+const files = [
+  ...walk(`${web}src`),
+  ...walk(`${web}tests`),
+  ...walk(`${web}e2e`),
+  ...walk(`${web}scripts`),
+  ...walk(`${repo}engine-java/src/api`),
+];
+
+interface Line {
+  kind: 'comment' | 'title';
+  line: number;
+  text: string;
+}
+
+/** A `/` here starts a regex literal rather than a division. */
+const REGEX_BEFORE = /(?:^|[(,=:[!&|?{};+\-*%<>~^]|\breturn|\btypeof|\bcase|\bof|\bin)\s*$/;
+/** A string here is a test title. */
+const TITLE_BEFORE = /\b(?:describe|it|test)(?:\.\w+)*\(\s*$/;
+
+/**
+ * The comment lines and test-title lines of one source file. A small lexer:
+ * strings, template literals and regex literals are stepped over so that a
+ * `//` inside one is not a comment. A quote left open by JSX text ends at the
+ * line break, so a stray apostrophe costs at most the rest of its line.
+ */
+const scan = (src: string, path: string): Line[] => {
+  const out: Line[] = [];
+  const java = path.endsWith('.java');
+  const css = path.endsWith('.css');
+  const push = (kind: Line['kind'], from: number, text: string) =>
+    text.split('\n').forEach((t, k) => out.push({ kind, line: from + k, text: t }));
+  const lines = (s: string) => (s.match(/\n/g) ?? []).length;
+  const n = src.length;
+  let i = 0;
+  let line = 1;
+  while (i < n) {
+    const c = src[i];
+    if (c === '\n') {
+      line++;
+      i++;
+    } else if (c === '/' && src[i + 1] === '/' && !css) {
+      const end = src.indexOf('\n', i);
+      const e = end < 0 ? n : end;
+      push('comment', line, src.slice(i + 2, e));
+      i = e;
+    } else if (c === '/' && src[i + 1] === '*') {
+      const end = src.indexOf('*/', i + 2);
+      const e = end < 0 ? n : end;
+      const text = src.slice(i + 2, e);
+      push('comment', line, text);
+      line += lines(text);
+      i = e + 2;
+    } else if (css) {
+      i++;
+    } else if (java && src.startsWith('"""', i)) {
+      const end = src.indexOf('"""', i + 3);
+      const e = end < 0 ? n : end;
+      line += lines(src.slice(i, e));
+      i = e + 3;
+    } else if (c === '"' || c === "'" || (c === '`' && !java)) {
+      const before = src.slice(Math.max(0, i - 80), i);
+      const from = line;
+      let j = i + 1;
+      let text = '';
+      let depth = 0;
+      while (j < n) {
+        const d = src[j];
+        if (d === '\\') {
+          if (src[j + 1] === '\n') line++;
+          text += src.slice(j, j + 2);
+          j += 2;
+          continue;
+        }
+        if (d === '\n') {
+          if (c !== '`') break;
+          line++;
+        }
+        if (c === '`' && d === '{' && (depth > 0 || src[j - 1] === '$')) depth++;
+        else if (depth > 0 && d === '}') depth--;
+        else if (d === c && depth === 0) {
+          j++;
+          break;
+        }
+        text += d;
+        j++;
+      }
+      if (TITLE_BEFORE.test(before)) push('title', from, text);
+      i = j;
+    } else if (c === '/' && !java && REGEX_BEFORE.test(src.slice(Math.max(0, i - 20), i))) {
+      let j = i + 1;
+      let inClass = false;
+      while (j < n && src[j] !== '\n') {
+        const d = src[j];
+        if (d === '\\') {
+          j += 2;
+          continue;
+        }
+        j++;
+        if (d === '[') inClass = true;
+        else if (d === ']') inClass = false;
+        else if (d === '/' && !inClass) break;
+      }
+      i = j;
+    } else {
+      i++;
+    }
+  }
+  return out;
+};
+
+const firstMatch = (text: string): string | undefined => PATTERNS.find((p) => p.re.test(text))?.name;
+
+/** Every `file:line [kind] pattern: text` that narrates instead of stating. */
+const hits = (paths: string[], allowed = ALLOWED): string[] => {
+  const found: string[] = [];
+  for (const path of paths) {
+    const file = path.slice(repo.length);
+    for (const { kind, line, text } of scan(readFileSync(path, 'utf8'), path)) {
+      const name = firstMatch(text);
+      if (!name) continue;
+      if (allowed.some((a) => a.file === file && text.includes(a.text))) continue;
+      found.push(`${file}:${line} [${kind}] ${name}: ${text.trim()}`);
+    }
+  }
+  return found;
+};
+
+describe('comments and test titles state the constraint', () => {
+  it('scans the trees it claims to', () => {
+    expect(files.some((f) => f.endsWith('/web/src/main.tsx'))).toBe(true);
+    expect(files.some((f) => f.endsWith('/web/tests/noEmDash.test.ts'))).toBe(true);
+    expect(files.some((f) => f.includes('/web/e2e/'))).toBe(true);
+    expect(files.some((f) => f.includes('/web/scripts/'))).toBe(true);
+    expect(files.some((f) => f.endsWith('/engine-java/src/api/java/api/OpenRocketEngine.java'))).toBe(true);
+    expect(files.some((f) => f.includes('/src/engine/vendor/'))).toBe(false);
+    expect(files.some((f) => f.endsWith('.md'))).toBe(false);
+  });
+
+  it('reads comments and titles, and steps over strings and regex literals', () => {
+    const src = [
+      "const url = 'https://example.com/a'; // a comment",
+      'const re = /\\/\\/ not a comment/;',
+      "describe('a title', () => {});",
+      'test.describe(`another ${1} title`, () => {});',
+      "label('not a title');",
+      '/** a',
+      ' * block */',
+    ].join('\n');
+    expect(scan(src, '/a.ts')).toEqual([
+      { kind: 'comment', line: 1, text: ' a comment' },
+      { kind: 'title', line: 3, text: 'a title' },
+      { kind: 'title', line: 4, text: 'another ${1} title' },
+      { kind: 'comment', line: 6, text: '* a' },
+      { kind: 'comment', line: 7, text: ' * block ' },
+    ]);
+  });
+
+  it('flags the shapes it is for', () => {
+    for (const text of [
+      'see #1234',
+      'from PR #56',
+      'tracked in issue 78',
+      'upstream openrocket#2345',
+      'per finding 12',
+      'audit item K12',
+      'K12 finding',
+      'written 2026-01-02',
+      'this used to throw',
+      'until now it did not',
+      'previously this read the cache',
+    ]) {
+      expect(firstMatch(text), text).toBeDefined();
+    }
+  });
+
+  it('leaves colors, list numbers and motor designations alone', () => {
+    for (const text of [
+      "a '#123456' color",
+      'stroked #7a786f',
+      'names (#1, #2)',
+      'an Estes C6 and a D12 on a K550',
+      'the id it no longer has',
+      'a stable id, used to remember the dialog',
+    ]) {
+      expect(firstMatch(text), text).toBeUndefined();
+    }
+  });
+
+  it('keeps no allowlist entry that matches nothing', () => {
+    for (const entry of ALLOWED) {
+      expect(
+        hits(files, []).some((h) => h.startsWith(`${entry.file}:`) && h.includes(entry.text)),
+        entry.file,
+      ).toBe(true);
+    }
+  });
+
+  it('finds no history in scope', () => {
+    expect(hits(files)).toEqual([]);
+  });
+});

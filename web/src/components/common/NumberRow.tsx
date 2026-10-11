@@ -2,6 +2,27 @@ import type { ReactNode } from 'react';
 import { FieldLabel, markRing } from './FieldMark';
 import { NumberInput } from './NumberInput';
 
+/** The row's placeholder, its notes and markers, and its change handler: what a
+ *  wrapper around {@link NumberRow} passes through unchanged. */
+export interface NumberRowMarks {
+  placeholder?: string;
+  /** Why the field stops where it does. Rendered under the row. */
+  hint?: string;
+  /** A value that is allowed but probably wrong. Rendered under the row, in amber. */
+  caution?: string;
+  /**
+   * The simulations being edited together do not agree on this field. The box
+   * shows the active one's value, so without the marker a bulk edit would
+   * flatten the others' values with nothing on screen to say so.
+   */
+  mixed?: boolean;
+  /** A launch field a flight cannot be computed without. Marked always. */
+  required?: boolean;
+  /** ...and it is currently empty, which blocks the run. */
+  missing?: boolean;
+  onChange: (v: number | null) => void;
+}
+
 /**
  * A labeled number field: label (with the required, missing and mixed markers),
  * the input, its unit, and an optional hint under the row. The one row the
@@ -30,25 +51,9 @@ export function NumberRow({
   min?: number;
   /** NumberInput clamps against this; without it a field is unbounded above. */
   max?: number;
-  placeholder?: string;
-  /** Why the field stops where it does. Rendered under the row. */
-  hint?: string;
-  /** A value that is allowed but probably wrong. Rendered under the row, in amber. */
-  caution?: string;
-  /**
-   * The simulations being edited together do not agree on this field. The box
-   * shows the active one's value, so without the marker a bulk edit would
-   * flatten the others' values with nothing on screen to say so.
-   */
-  mixed?: boolean;
-  /** A launch field a flight cannot be computed without. Marked always. */
-  required?: boolean;
-  /** ...and it is currently empty, which blocks the run. */
-  missing?: boolean;
-  onChange: (v: number | null) => void;
   /** Blur: closes the undo entry a run of live edits opened. */
   onCommit?: () => void;
-}) {
+} & NumberRowMarks) {
   if (hint || caution) {
     return (
       <div>

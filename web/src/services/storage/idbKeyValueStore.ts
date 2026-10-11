@@ -156,6 +156,12 @@ async function begin(mode: IDBTransactionMode): Promise<IDBTransaction> {
   }
 }
 
+/** Rejects when the transaction aborts or fails, with its own error when it has one. */
+function rejectOnTxFailure(t: IDBTransaction, reject: (e: Error) => void): void {
+  t.onabort = () => reject(t.error ?? new Error('IndexedDB transaction aborted'));
+  t.onerror = () => reject(t.error ?? new Error('IndexedDB transaction failed'));
+}
+
 /**
  * Run one transaction against the kv store, resolving with the request result.
  *
@@ -183,8 +189,7 @@ async function tx<T>(mode: IDBTransactionMode, run: (store: IDBObjectStore) => I
     req.onerror = () => reject(req.error ?? new Error('IndexedDB request failed'));
     // Durability for writes: only a committed transaction counts.
     t.oncomplete = () => resolve(result);
-    t.onabort = () => reject(t.error ?? new Error('IndexedDB transaction aborted'));
-    t.onerror = () => reject(t.error ?? new Error('IndexedDB transaction failed'));
+    rejectOnTxFailure(t, reject);
   });
 }
 
@@ -237,8 +242,7 @@ async function txUpdate(key: string, fn: (raw: string | null) => string | null):
     };
     read.onerror = () => reject(read.error ?? new Error('IndexedDB read failed'));
     t.oncomplete = () => resolve();
-    t.onabort = () => reject(t.error ?? new Error('IndexedDB transaction aborted'));
-    t.onerror = () => reject(t.error ?? new Error('IndexedDB transaction failed'));
+    rejectOnTxFailure(t, reject);
   });
 }
 

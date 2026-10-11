@@ -157,6 +157,14 @@ const writeTransition: NodeWriter = (w, node, d) => {
   }
 };
 
+// A part writes `<motormount>` when it is flagged as a mount or when any
+// configuration loads a motor into it.
+const mountXml: NodeWriter = (w, node, d) => {
+  if (node['motorMount'] === true || mountConfigs(w, node.id).length > 0) {
+    motorMountXml(w, d, node.id, num(node, 'motorOverhang', 0));
+  }
+};
+
 const writeBodytube: NodeWriter = (w, node, d) => {
   header(w, d, node, 'Body Tube');
   finishXml(w, d, node);
@@ -169,9 +177,7 @@ const writeBodytube: NodeWriter = (w, node, d) => {
     w.emit(d, '<caseairframe>true</caseairframe>');
   }
   // Min-diameter: the body tube itself is the motor mount.
-  if (node['motorMount'] === true || mountConfigs(w, node.id).length > 0) {
-    motorMountXml(w, d, node.id, num(node, 'motorOverhang', 0));
-  }
+  mountXml(w, node, d);
 };
 
 const writeTrapezoidFinset: NodeWriter = (w, node, d) => {
@@ -234,9 +240,7 @@ const writeInnertube: NodeWriter = (w, node, d) => {
     // motor-length limit travels with the design.
     w.emit(d, `<maxmotorlength>${node['maxMotorLength']}</maxmotorlength>`);
   }
-  if (node['motorMount'] === true || mountConfigs(w, node.id).length > 0) {
-    motorMountXml(w, d, node.id, num(node, 'motorOverhang', 0));
-  }
+  mountXml(w, node, d);
 };
 
 const writeTubecoupler: NodeWriter = (w, node, d) => {

@@ -1559,14 +1559,14 @@ describe('replacing the workspace resets the transient run state', () => {
     expect(s().activeId).toBe(snapshot.activeId); // and it did install the snapshot
   });
 
-  it('hydrate keeps a stored result the old flag called outdated reading outdated', () => {
+  it('hydrate keeps a stored result marked `outdated: true` reading outdated', () => {
     s().resetWorkspace();
     const sims = s().sims.map((x) => ({ ...x, result: { summary: {} } as never, outdated: true }));
     s().hydrate({ tree: s().tree, sims, configs: s().configs, activeId: s().activeId, loadedMeta: null } as never);
     expect(isStale(active())).toBe(true);
   });
 
-  it('hydrate keys a stored result the old flag called current to the inputs it loads with', () => {
+  it('hydrate keys a stored result marked `outdated: false` to the inputs it loads with', () => {
     s().resetWorkspace();
     const sims = s().sims.map((x) => ({ ...x, result: { summary: {} } as never, outdated: false }));
     s().hydrate({ tree: s().tree, sims, configs: s().configs, activeId: s().activeId, loadedMeta: null } as never);

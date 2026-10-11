@@ -346,13 +346,24 @@ function resolveAxial(components: ComponentNode[], out: Map<ComponentNode, Patch
     return true;
   };
 
-  /** `getPreviousSymmetricComponent` (SymmetricComponent.java:611-668). */
-  const previous = (self: Part): Part | null => {
+  /**
+   * Where the neighbor walks start: the part's parent, the parent's parent,
+   * the parent's index among its siblings, and the index `step` from the
+   * part's own. Null when the part is not two levels down.
+   */
+  const placeOf = (self: Part, step: -1 | 1) => {
     const parent = self.parent;
     const grand = parent?.parent;
     if (!parent || !grand) return null;
-    let i = grand.kids.indexOf(parent);
-    let j = parent.kids.indexOf(self) - 1;
+    return { parent, grand, i: grand.kids.indexOf(parent), j: parent.kids.indexOf(self) + step };
+  };
+
+  /** `getPreviousSymmetricComponent` (SymmetricComponent.java:611-668). */
+  const previous = (self: Part): Part | null => {
+    const place = placeOf(self, -1);
+    if (!place) return null;
+    const { parent, grand } = place;
+    let { i, j } = place;
     while (i >= 0) {
       const at = grand.kids[i]!;
       if (at.assembly) {
@@ -399,11 +410,10 @@ function resolveAxial(components: ComponentNode[], out: Map<ComponentNode, Patch
 
   /** `getNextSymmetricComponent` (SymmetricComponent.java:736-790). */
   const next = (self: Part): Part | null => {
-    const parent = self.parent;
-    const grand = parent?.parent;
-    if (!parent || !grand) return null;
-    let i = grand.kids.indexOf(parent);
-    let j = parent.kids.indexOf(self) + 1;
+    const place = placeOf(self, 1);
+    if (!place) return null;
+    const { parent, grand } = place;
+    let { i, j } = place;
     for (; i < grand.kids.length; i++, j = 0) {
       const at = grand.kids[i]!;
       if (!at.assembly) continue;

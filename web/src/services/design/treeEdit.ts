@@ -549,8 +549,12 @@ function statedPatch(p: Component, node?: ComponentNode): Partial<ComponentNode>
         ...mat,
       };
     }
+    // BodyTube and ThicknessRingComponent.loadFromPreset: the outer radius, and
+    // the wall the two diameters leave.
     case 'bodytube':
     case 'tubecoupler':
+    case 'engineblock':
+    case 'launchlug':
       return {
         outerRadius: p.outerDiameter / 2,
         length: p.length,
@@ -590,16 +594,6 @@ function statedPatch(p: Component, node?: ComponentNode): Partial<ComponentNode>
         ...mat,
       };
     }
-    // ThicknessRingComponent.loadFromPreset: the outer radius, and the wall the
-    // two diameters leave.
-    case 'engineblock':
-    case 'launchlug':
-      return {
-        outerRadius: p.outerDiameter / 2,
-        length: p.length,
-        ...(p.innerDiameter ? { thickness: Math.max(0.0001, (p.outerDiameter - p.innerDiameter) / 2) } : {}),
-        ...mat,
-      };
     // RailButton.loadFromPreset: the button's geometry; the button, screw and
     // nut masses together as its mass override, and a stated positive drag
     // coefficient as its drag override. An override the part does not state is

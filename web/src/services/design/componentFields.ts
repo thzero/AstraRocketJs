@@ -265,6 +265,8 @@ const PACKED: Field[] = [
  * `innerRadius` is a stored dimension of its own rather than a consequence of
  * a wall.
  */
+const TUBE_BORE: Field = { key: 'innerDiameter', label: 'innerDiameter', kind: 'bore' };
+
 /**
  * One rail button length. Every one has a nonzero kernel default an absent key
  * flies as, and four are clamped against each other by the kernel's setters.
@@ -277,7 +279,30 @@ const railButtonLength = (key: keyof typeof RAIL_BUTTON_FALLBACK): Field => ({
   ...(RAIL_BUTTON_BOUNDS[key] ? { bounds: RAIL_BUTTON_BOUNDS[key] } : {}),
 });
 
-const TUBE_BORE: Field = { key: 'innerDiameter', label: 'innerDiameter', kind: 'bore' };
+const LENGTH: Field = { key: 'length', label: 'length', kind: 'length' };
+const WALL: Field = { key: 'thickness', label: 'thickness', kind: 'length' };
+
+// Solid all the way through, with no bore. The desktop's Filled checkbox, and
+// `<thickness>filled</thickness>` in the file. The wall row is dropped while it
+// is on, the way the desktop grays it out.
+const FILLED: Field = { key: 'filled', label: 'filled', kind: 'bool' };
+
+// A tube's outside diameter, automatic when it follows the part it fits.
+const OUTER_DIAMETER: Field = {
+  key: 'outerRadius',
+  label: 'diameter',
+  kind: 'length',
+  diameter: true,
+  auto: { flag: 'outerRadiusAuto', tip: 'autoRadius' },
+};
+
+// A straight tube with a wall: length, outside, bore and wall, in that order.
+const TUBE_WALL: Field[] = [LENGTH, OUTER_DIAMETER, TUBE_BORE, WALL];
+
+const MOTOR_MOUNT: Field[] = [
+  { key: 'motorMount', label: 'motorMount', kind: 'bool', section: 'motor' },
+  { key: 'motorOverhang', label: 'motorOverhang', kind: 'length', section: 'motor' },
+];
 
 // `rotation` is a fin set's base rotation: where its first fin sits around the
 // body, with the rest spaced evenly from it. It round-trips through .ork
@@ -285,6 +310,17 @@ const TUBE_BORE: Field = { key: 'innerDiameter', label: 'innerDiameter', kind: '
 // at it (rocketPieces.ts). The fin marking guide prints where each fin goes
 // relative to the launch lug, and that relationship is this field.
 const FIN_ROTATION: Field = { key: 'rotation', label: 'rotation', kind: 'angle', step: 5, section: 'placement' };
+
+// What every planar fin set has after its outline: the fin's wall, cant and
+// section, where the set sits, the root fillet and the tab.
+const PLANAR_FIN: Field[] = [
+  WALL,
+  { key: 'cant', label: 'cant', kind: 'angle', step: 0.5 },
+  FIN_CROSS_SECTION,
+  FIN_ROTATION,
+  FIN_FILLET,
+  ...FIN_TABS,
+];
 
 // Off-axis assembly placement (PodSet / ParallelStage): how many instances
 // ring the parent axis, how far off it, and where they start. radiusMethod:
@@ -364,11 +400,8 @@ const RAW_FIELDS: Record<string, Field[]> = {
       diameter: true,
       auto: { flag: 'aftRadiusAuto', tip: 'autoRadius' },
     },
-    // Solid all the way through, with no bore. The desktop's Filled
-    // checkbox, and `<thickness>filled</thickness>` in the file. The wall row
-    // is dropped while it is on, the way the desktop grays it out.
-    { key: 'filled', label: 'filled', kind: 'bool' },
-    { key: 'thickness', label: 'thickness', kind: 'length' },
+    FILLED,
+    WALL,
     // A flipped nose cone is a tail cone: the same part turned round.
     { key: 'flipped', label: 'flipped', kind: 'bool' },
     { key: 'shoulderLength', label: 'shoulderLength', kind: 'length', section: 'shoulder' },
@@ -383,24 +416,7 @@ const RAW_FIELDS: Record<string, Field[]> = {
     { key: 'shoulderThickness', label: 'shoulderThickness', kind: 'length', section: 'shoulder' },
     { key: 'shoulderCapped', label: 'shoulderCapped', kind: 'bool', section: 'shoulder' },
   ],
-  bodytube: [
-    { key: 'length', label: 'length', kind: 'length' },
-    {
-      key: 'outerRadius',
-      label: 'diameter',
-      kind: 'length',
-      diameter: true,
-      auto: { flag: 'outerRadiusAuto', tip: 'autoRadius' },
-    },
-    TUBE_BORE,
-    // Solid all the way through, with no bore. The desktop's Filled
-    // checkbox, and `<thickness>filled</thickness>` in the file. The wall row
-    // is dropped while it is on, the way the desktop grays it out.
-    { key: 'filled', label: 'filled', kind: 'bool' },
-    { key: 'thickness', label: 'thickness', kind: 'length' },
-    { key: 'motorMount', label: 'motorMount', kind: 'bool', section: 'motor' },
-    { key: 'motorOverhang', label: 'motorOverhang', kind: 'length', section: 'motor' },
-  ],
+  bodytube: [LENGTH, OUTER_DIAMETER, TUBE_BORE, FILLED, WALL, ...MOTOR_MOUNT],
   transition: [
     {
       key: 'shape',
@@ -429,11 +445,8 @@ const RAW_FIELDS: Record<string, Field[]> = {
       diameter: true,
       auto: { flag: 'aftRadiusAuto', tip: 'autoRadius' },
     },
-    // Solid all the way through, with no bore. The desktop's Filled
-    // checkbox, and `<thickness>filled</thickness>` in the file. The wall row
-    // is dropped while it is on, the way the desktop grays it out.
-    { key: 'filled', label: 'filled', kind: 'bool' },
-    { key: 'thickness', label: 'thickness', kind: 'length' },
+    FILLED,
+    WALL,
     // Clipped or full profile, for the shapes where it means anything
     // (ellipsoid, power, haack). The drawing, the mesh and the kernel all read
     // it.
@@ -474,33 +487,15 @@ const RAW_FIELDS: Record<string, Field[]> = {
     // which is the one row here where a minus sign is meaningful.
     { key: 'sweepAngle', label: 'sweepAngle', kind: 'derived', derived: 'sweepAngle', step: 5 },
     { key: 'height', label: 'height', kind: 'length' },
-    { key: 'thickness', label: 'thickness', kind: 'length' },
-    { key: 'cant', label: 'cant', kind: 'angle', step: 0.5 },
-    FIN_CROSS_SECTION,
-    FIN_ROTATION,
-    FIN_FILLET,
-    ...FIN_TABS,
+    ...PLANAR_FIN,
   ],
   ellipticalfinset: [
     { key: 'finCount', label: 'finCount', kind: 'count' },
     { key: 'rootChord', label: 'rootChord', kind: 'length' },
     { key: 'height', label: 'height', kind: 'length' },
-    { key: 'thickness', label: 'thickness', kind: 'length' },
-    { key: 'cant', label: 'cant', kind: 'angle', step: 0.5 },
-    FIN_CROSS_SECTION,
-    FIN_ROTATION,
-    FIN_FILLET,
-    ...FIN_TABS,
+    ...PLANAR_FIN,
   ],
-  freeformfinset: [
-    { key: 'finCount', label: 'finCount', kind: 'count' },
-    { key: 'thickness', label: 'thickness', kind: 'length' },
-    { key: 'cant', label: 'cant', kind: 'angle', step: 0.5 },
-    FIN_CROSS_SECTION,
-    FIN_ROTATION,
-    FIN_FILLET,
-    ...FIN_TABS,
-  ],
+  freeformfinset: [{ key: 'finCount', label: 'finCount', kind: 'count' }, ...PLANAR_FIN],
   tubefinset: [
     { key: 'finCount', label: 'tubeCount', kind: 'count' },
     { key: 'length', label: 'length', kind: 'length' },
@@ -516,12 +511,11 @@ const RAW_FIELDS: Record<string, Field[]> = {
     FIN_ROTATION,
   ],
   innertube: [
-    { key: 'length', label: 'length', kind: 'length' },
+    LENGTH,
     { key: 'outerRadius', label: 'diameter', kind: 'length', diameter: true },
     TUBE_BORE,
-    { key: 'thickness', label: 'thickness', kind: 'length' },
-    { key: 'motorMount', label: 'motorMount', kind: 'bool', section: 'motor' },
-    { key: 'motorOverhang', label: 'motorOverhang', kind: 'length', section: 'motor' },
+    WALL,
+    ...MOTOR_MOUNT,
     // `cluster` round-trips through .ork, and the 2D, aft and 3D views all draw
     // the tube at every cluster offset.
     {
@@ -548,19 +542,7 @@ const RAW_FIELDS: Record<string, Field[]> = {
     { key: 'clusterRotation', label: 'clusterRotation', kind: 'angle', step: 15, section: 'motor' },
     ...RADIAL_PLACEMENT,
   ],
-  tubecoupler: [
-    { key: 'length', label: 'length', kind: 'length' },
-    {
-      key: 'outerRadius',
-      label: 'diameter',
-      kind: 'length',
-      diameter: true,
-      auto: { flag: 'outerRadiusAuto', tip: 'autoRadius' },
-    },
-    TUBE_BORE,
-    { key: 'thickness', label: 'thickness', kind: 'length' },
-    ...RADIAL_PLACEMENT,
-  ],
+  tubecoupler: [...TUBE_WALL, ...RADIAL_PLACEMENT],
   centeringring: [
     { key: 'length', label: 'thickness', kind: 'length' },
     {
@@ -584,29 +566,11 @@ const RAW_FIELDS: Record<string, Field[]> = {
   ],
   bulkhead: [
     { key: 'length', label: 'thickness', kind: 'length' },
-    {
-      key: 'outerRadius',
-      label: 'diameter',
-      kind: 'length',
-      diameter: true,
-      auto: { flag: 'outerRadiusAuto', tip: 'autoRadius' },
-    },
+    OUTER_DIAMETER,
     ...LINE_INSTANCES,
     ...RADIAL_PLACEMENT,
   ],
-  engineblock: [
-    { key: 'length', label: 'length', kind: 'length' },
-    {
-      key: 'outerRadius',
-      label: 'diameter',
-      kind: 'length',
-      diameter: true,
-      auto: { flag: 'outerRadiusAuto', tip: 'autoRadius' },
-    },
-    TUBE_BORE,
-    { key: 'thickness', label: 'thickness', kind: 'length' },
-    ...RADIAL_PLACEMENT,
-  ],
+  engineblock: [...TUBE_WALL, ...RADIAL_PLACEMENT],
   launchlug: [
     { key: 'length', label: 'length', kind: 'length' },
     { key: 'outerRadius', label: 'diameter', kind: 'length', diameter: true },

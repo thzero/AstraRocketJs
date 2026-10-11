@@ -37,6 +37,27 @@ export function MaterialSection({
   );
 }
 
+/** The line material a parachute's shroud lines or a shock cord is weighed by. */
+function LineMaterialPicker({
+  label,
+  node,
+  onCommitChange,
+}: {
+  label: string;
+  node: ComponentNode;
+  onCommitChange: (patch: Partial<ComponentNode>) => void;
+}) {
+  return (
+    <MaterialPicker
+      type="line"
+      label={label}
+      value={typeof node.lineMaterialName === 'string' ? node.lineMaterialName : undefined}
+      density={typeof node.lineDensity === 'number' ? node.lineDensity : undefined}
+      onChange={(name, d) => onCommitChange({ lineMaterialName: name, lineDensity: d || undefined })}
+    />
+  );
+}
+
 /** Recovery devices use surface (fabric) + line (cord) materials, not the
  *  bulk material above; each feeds the device's mass. */
 export function RecoveryMaterialSection({
@@ -57,13 +78,7 @@ export function RecoveryMaterialSection({
         onChange={(name, d) => onCommitChange({ surfaceMaterialName: name, surfaceDensity: d || undefined })}
       />
       {node.type === 'parachute' && (
-        <MaterialPicker
-          type="line"
-          label={t('material.lines')}
-          value={typeof node.lineMaterialName === 'string' ? node.lineMaterialName : undefined}
-          density={typeof node.lineDensity === 'number' ? node.lineDensity : undefined}
-          onChange={(name, d) => onCommitChange({ lineMaterialName: name, lineDensity: d || undefined })}
-        />
+        <LineMaterialPicker label={t('material.lines')} node={node} onCommitChange={onCommitChange} />
       )}
     </div>
   );
@@ -81,13 +96,7 @@ export function CordMaterialSection({
   const { t } = useTranslation();
   return (
     <div className="border-t border-line/5 pt-3">
-      <MaterialPicker
-        type="line"
-        label={t('material.cord')}
-        value={typeof node.lineMaterialName === 'string' ? node.lineMaterialName : undefined}
-        density={typeof node.lineDensity === 'number' ? node.lineDensity : undefined}
-        onChange={(name, d) => onCommitChange({ lineMaterialName: name, lineDensity: d || undefined })}
-      />
+      <LineMaterialPicker label={t('material.cord')} node={node} onCommitChange={onCommitChange} />
     </div>
   );
 }

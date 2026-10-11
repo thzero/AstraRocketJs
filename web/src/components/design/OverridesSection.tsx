@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { ComponentNode } from '../../engine/openRocketEngine';
 import { NumberInput } from '../common/NumberInput';
 import { UnitChip } from '../common/UnitChip';
 import { useUnits } from '../../prefs/useUnits';
@@ -9,6 +8,7 @@ import { unitScope } from '../../prefs/units';
 import { num } from '../../tree/nodeProps';
 import { PANEL_SCOPE_KEYS } from '../../services/design/componentFields';
 import { PropSection } from './PropSection';
+import type { NodeEditProps } from './DimensionFields';
 
 /**
  * The property panel's override section: the mass / CG / CD overrides
@@ -117,10 +117,7 @@ export function OverridesSection({
   onChange,
   onCommit,
   coveredBy = {},
-}: {
-  node: ComponentNode;
-  onChange: (patch: Partial<ComponentNode>) => void;
-  onCommit?: () => void;
+}: NodeEditProps & {
   /** The ancestor whose override decides each value, by name. */
   coveredBy?: Partial<Record<'mass' | 'cg' | 'cd', string>>;
 }) {

@@ -7,7 +7,7 @@ import { panelDigits, panelSeries, traceScale, traceUnit, type Branch, type Meta
 import { PanelHover, hoverValue } from './FlightChartHover';
 import { NO_VALUE } from '../../i18n/noValue';
 import { polylinePath } from '../common/svgPath';
-import { PanelExpandButton } from './PanelExpandButton';
+import { ChartPanelFrame } from './ChartPanelFrame';
 import { token } from '../common/colorTokens';
 import { timeSeriesSummary } from './chartSummary';
 
@@ -128,10 +128,10 @@ export function FlightChartPanel({
   const shown = showsPeak ? peak : primary ? hoverValue(primary, hoverT) : null;
 
   return (
-    <div className="mb-2 rounded-lg bg-raised/40 ring-1 ring-line/10">
-      <div className="flex items-baseline justify-between px-2 pt-1.5">
-        <span className="text-[10px] font-semibold uppercase tracking-wide text-ink-muted">{t(meta.label)}</span>
-        <span className="flex items-baseline gap-2">
+    <ChartPanelFrame
+      title={t(meta.label)}
+      reading={
+        <>
           {showsPeak && <span className="text-[10px] text-ink-faint">{t('flight.peakTag')}</span>}
           <span className="text-xs font-semibold tabular-nums text-ink-strong">
             {shown == null ? (
@@ -143,80 +143,75 @@ export function FlightChartPanel({
               </>
             )}
           </span>
-          {onToggleExpand && <PanelExpandButton expanded={expanded} onClick={onToggleExpand} />}
-        </span>
-      </div>
-      <svg
-        viewBox={`0 0 ${w} ${height}`}
-        width="100%"
-        height={height}
-        preserveAspectRatio="none"
-        className="block"
-        role="img"
-        aria-label={summary}
-      >
-        <defs>
-          {/* Filled area only for a lone line (single stage), colored to match
+        </>
+      }
+      expanded={expanded}
+      onToggleExpand={onToggleExpand}
+      w={w}
+      height={height}
+      summary={summary}
+    >
+      <defs>
+        {/* Filled area only for a lone line (single stage), colored to match
               it; overlaid stages would muddy each other, so they're lines only. */}
-          {single && (
-            <linearGradient id={`${uid}-${meta.key}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={primary?.color ?? token('series-1')} stopOpacity="0.25" />
-              <stop offset="100%" stopColor={primary?.color ?? token('series-1')} stopOpacity="0" />
-            </linearGradient>
-          )}
-          {/* Clip everything time-mapped to the plot area, so zoomed-out-of-window
+        {single && (
+          <linearGradient id={`${uid}-${meta.key}`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={primary?.color ?? token('series-1')} stopOpacity="0.25" />
+            <stop offset="100%" stopColor={primary?.color ?? token('series-1')} stopOpacity="0" />
+          </linearGradient>
+        )}
+        {/* Clip everything time-mapped to the plot area, so zoomed-out-of-window
               points don't spill over the y-axis labels / panel edges. */}
-          <clipPath id={clipId}>
-            <rect x={PAD_L} y={0} width={Math.max(0, w - PAD_L - PAD_R)} height={height} />
-          </clipPath>
-        </defs>
-        {zeroInRange && <line x1={PAD_L} y1={Y(0)} x2={w - PAD_R} y2={Y(0)} className="stroke-line/15" />}
-        <g clipPath={`url(#${clipId})`}>
-          {events.map((e, i) => (
-            <line
+        <clipPath id={clipId}>
+          <rect x={PAD_L} y={0} width={Math.max(0, w - PAD_L - PAD_R)} height={height} />
+        </clipPath>
+      </defs>
+      {zeroInRange && <line x1={PAD_L} y1={Y(0)} x2={w - PAD_R} y2={Y(0)} className="stroke-line/15" />}
+      <g clipPath={`url(#${clipId})`}>
+        {events.map((e, i) => (
+          <line
+            key={i}
+            x1={X(e.time)}
+            y1={padT}
+            x2={X(e.time)}
+            y2={height - padB}
+            className="stroke-warn-400/25"
+            strokeDasharray="3 2"
+            vectorEffect="non-scaling-stroke"
+          />
+        ))}
+        {single && !meta.level && areaPath && <path d={areaPath} fill={`url(#${uid}-${meta.key})`} />}
+        {list.map((s, i) =>
+          paths[i] ? (
+            <path
               key={i}
-              x1={X(e.time)}
-              y1={padT}
-              x2={X(e.time)}
-              y2={height - padB}
-              className="stroke-warn-400/25"
-              strokeDasharray="3 2"
+              d={paths[i]}
+              fill="none"
+              stroke={s.color}
+              strokeWidth={1.75}
               vectorEffect="non-scaling-stroke"
             />
-          ))}
-          {single && !meta.level && areaPath && <path d={areaPath} fill={`url(#${uid}-${meta.key})`} />}
-          {list.map((s, i) =>
-            paths[i] ? (
-              <path
-                key={i}
-                d={paths[i]}
-                fill="none"
-                stroke={s.color}
-                strokeWidth={1.75}
-                vectorEffect="non-scaling-stroke"
-              />
-            ) : null,
-          )}
-          {hoverT != null && (
-            <PanelHover
-              hoverT={hoverT}
-              list={list}
-              X={X}
-              Y={Y}
-              top={padT}
-              bottom={height - padB}
-              single={single}
-              digits={digits}
-            />
-          )}
-        </g>
-        <text x={PAD_L - 4} y={padT + 7} textAnchor="end" className="fill-ink-faint text-[9px] tabular-nums">
-          {fmtNum(hi, digits)}
-        </text>
-        <text x={PAD_L - 4} y={height - padB} textAnchor="end" className="fill-ink-faint text-[9px] tabular-nums">
-          {fmtNum(lo, digits)}
-        </text>
-      </svg>
-    </div>
+          ) : null,
+        )}
+        {hoverT != null && (
+          <PanelHover
+            hoverT={hoverT}
+            list={list}
+            X={X}
+            Y={Y}
+            top={padT}
+            bottom={height - padB}
+            single={single}
+            digits={digits}
+          />
+        )}
+      </g>
+      <text x={PAD_L - 4} y={padT + 7} textAnchor="end" className="fill-ink-faint text-[9px] tabular-nums">
+        {fmtNum(hi, digits)}
+      </text>
+      <text x={PAD_L - 4} y={height - padB} textAnchor="end" className="fill-ink-faint text-[9px] tabular-nums">
+        {fmtNum(lo, digits)}
+      </text>
+    </ChartPanelFrame>
   );
 }

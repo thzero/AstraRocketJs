@@ -437,6 +437,19 @@ export function buildPieces(
   // and only turns and lifts it, so every station stays in the rocket frame an
   // `absolute` child is measured in. Returns the station the chain ends at.
   const addChain = (nodes: ComponentNode[], xform?: THREE.Matrix4, x0 = 0): number => {
+    // A revolved profile from station `at`: after rotation.z = -π/2 the lathe's
+    // +Y axis points along +X (aft), so a profile running fore→aft lies along
+    // the body.
+    const placeLathe = (name: string, pts: THREE.Vector2[], n: ComponentNode, at: number) =>
+      place(
+        name,
+        new THREE.LatheGeometry(pts, 48),
+        nodeColor(n, palette),
+        [at, 0, 0],
+        [0, 0, -Math.PI / 2],
+        xform,
+        true,
+      );
     let x = x0;
     for (const n of nodes) {
       curId = n.id;
@@ -459,15 +472,7 @@ export function buildPieces(
           flipped ? shoulder : undefined,
           flipped ? undefined : shoulder,
         );
-        place(
-          `nose${k++}`,
-          new THREE.LatheGeometry(pts, 48),
-          nodeColor(n, palette),
-          [x, 0, 0],
-          [0, 0, -Math.PI / 2],
-          xform,
-          true,
-        );
+        placeLathe(`nose${k++}`, pts, n, x);
         maxR = Math.max(maxR, R);
         addChildren(n, x, len, R, xform);
         x += len;
@@ -513,15 +518,7 @@ export function buildPieces(
           shoulderOf(n, 'fore'),
           shoulderOf(n, 'aft'),
         );
-        place(
-          `trans${k++}`,
-          new THREE.LatheGeometry(pts, 48),
-          nodeColor(n, palette),
-          [x, 0, 0],
-          [0, 0, -Math.PI / 2],
-          xform,
-          true,
-        );
+        placeLathe(`trans${k++}`, pts, n, x);
         maxR = Math.max(maxR, rf, ra);
         addChildren(n, x, len, Math.max(rf, ra), xform);
         x += len;

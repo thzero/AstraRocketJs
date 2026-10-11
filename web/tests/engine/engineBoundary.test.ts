@@ -169,7 +169,7 @@ describe('the stability margin comes from the kernel, in both units', () => {
     expect(info.stabilityPercent).toBeCloseTo((margin / info.lengthAerodynamic) * 100, 6);
   });
 
-  it('is NOT the old figure, which divided by the whole rocket', () => {
+  it('is NOT the margin over the whole length, which overhang inflates', () => {
     // Dividing by 0.34 m instead of 0.30 m understates the margin by about 12%
     // on a design as ordinary as a motor with overhang.
     const info = OpenRocketDesign.buildTree(OVERHANG).staticInfo();

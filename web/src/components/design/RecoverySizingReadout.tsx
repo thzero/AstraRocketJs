@@ -10,6 +10,7 @@ import { deviceDescent } from '../../services/flight/recoveryFlown';
 import { airDensity, descentMass } from '../../services/flight/recoverySizing';
 import { Dialog } from '../common/Dialog';
 import { SizingFigures } from '../tools/SizingFigures';
+import type { NodeEditProps } from './DimensionFields';
 
 /**
  * Descent-sizing help for a selected parachute, opened from its editor as a
@@ -31,15 +32,7 @@ import { SizingFigures } from '../tools/SizingFigures';
  *
  * Reads the workspace store directly so PropertyPanel needn't thread it through.
  */
-export function RecoverySizingReadout({
-  node,
-  onChange,
-  onCommit,
-}: {
-  node: ComponentNode;
-  onChange: (patch: Partial<ComponentNode>) => void;
-  onCommit?: () => void;
-}) {
+export function RecoverySizingReadout({ node, onChange, onCommit }: NodeEditProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   return (

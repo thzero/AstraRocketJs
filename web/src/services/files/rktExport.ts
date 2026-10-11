@@ -283,11 +283,16 @@ const writeRing: PartWriter = (w, d, n) => {
   writeRadial(w, d, n);
 };
 
-const writeLaunchLug: PartWriter = (w, d, n) => {
-  writeCommon(w, d, n, true);
+/** A tube on the outside of the airframe: its length, its wall, and where round the body it sits. */
+const writeSurfaceTube: PartWriter = (w, d, n) => {
   put(w, d, 'Len', numOpt(n, 'length'), mm);
   writeTubeWall(w, d, n);
   writeRadialAngle(w, d, numOpt(n, 'angleOffset'));
+};
+
+const writeLaunchLug: PartWriter = (w, d, n) => {
+  writeCommon(w, d, n, true);
+  writeSurfaceTube(w, d, n);
 };
 
 const FIN_SHAPE_CODES: Record<string, number> = { trapezoidfinset: 0, ellipticalfinset: 1, freeformfinset: 2 };
@@ -331,9 +336,7 @@ const writeFinSet: PartWriter = (w, d, n) => {
 const writeTubeFinSet: PartWriter = (w, d, n) => {
   writeCommon(w, d, n, true);
   el(w, d, 'TubeCount', numOpt(n, 'finCount') ?? 6);
-  put(w, d, 'Len', numOpt(n, 'length'), mm);
-  writeTubeWall(w, d, n);
-  writeRadialAngle(w, d, numOpt(n, 'angleOffset'));
+  writeSurfaceTube(w, d, n);
 };
 
 const writeParachute: PartWriter = (w, d, n) => {

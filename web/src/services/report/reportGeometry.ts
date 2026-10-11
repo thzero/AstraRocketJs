@@ -201,24 +201,19 @@ export function rocketSideView(tree: RocketTree): { w: number; h: number; body: 
 
     for (const n of nodes) {
       const len = partLength(n);
-      if (n.type === 'nosecone') {
+      if (n.type === 'nosecone' || n.type === 'transition') {
         // A flipped nose cone is a tail cone: its base is the fore end.
         const { fore: foreR, aft: aftR } = profileEnds(n);
         revolve(n, foreR, aftR, len);
+        // Transitions host fin sets too (treeEdit.canHost allows freeform fins on
+        // one), so a boat-tail-mounted fin set is drawn from here; skipping it
+        // would show a finless rocket in the side view, with no warning.
         emitChildren(n, len, radiusSampler(n));
         x += len;
       } else if (n.type === 'bodytube') {
         const R = num(n, 'outerRadius', KERNEL_DEFAULTS.bodytube.outerRadius);
         profile.push([x, R], [x + len, R]);
         chainMaxR = Math.max(chainMaxR, R);
-        emitChildren(n, len, radiusSampler(n));
-        x += len;
-      } else if (n.type === 'transition') {
-        const { fore: foreR, aft: aftR } = profileEnds(n);
-        revolve(n, foreR, aftR, len);
-        // Transitions host fin sets too (treeEdit.canHost allows freeform fins on
-        // one), so a boat-tail-mounted fin set is drawn from here; skipping it
-        // would show a finless rocket in the side view, with no warning.
         emitChildren(n, len, radiusSampler(n));
         x += len;
       }

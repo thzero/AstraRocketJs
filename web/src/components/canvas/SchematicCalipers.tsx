@@ -9,6 +9,17 @@ import type { Ctx } from '../../tree/schematicGeometry';
  * positions and the drag/key handlers; this file owns how a caliper looks.
  */
 
+/** What both calipers take from the schematic: the two ends, the drawing's
+ *  frame, and the handlers that move an end. */
+interface CaliperProps {
+  cal: { a: number; b: number };
+  ctx: Ctx;
+  scale: number;
+  totalLen: number;
+  onDragStart: (end: 'a' | 'b') => (e: React.PointerEvent) => void;
+  onKey: (end: 'a' | 'b') => (e: React.KeyboardEvent) => void;
+}
+
 /**
  * Length calipers: two draggable vertical lines spanning the drawing height,
  * with the measured distance in a tag between them. A component of its own so
@@ -23,16 +34,7 @@ export function HorizontalCaliper({
   totalLen,
   onDragStart,
   onKey,
-}: {
-  cal: { a: number; b: number };
-  ctx: Ctx;
-  scale: number;
-  h: number;
-  rBot: number;
-  totalLen: number;
-  onDragStart: (end: 'a' | 'b') => (e: React.PointerEvent) => void;
-  onKey: (end: 'a' | 'b') => (e: React.KeyboardEvent) => void;
-}) {
+}: CaliperProps & { h: number; rBot: number }) {
   const { t } = useTranslation();
   const u = useUnits();
   const ax = ctx.x0 + cal.a * scale,
@@ -117,15 +119,7 @@ export function VerticalCaliper({
   vHalf,
   onDragStart,
   onKey,
-}: {
-  cal: { a: number; b: number };
-  ctx: Ctx;
-  scale: number;
-  totalLen: number;
-  vHalf: number;
-  onDragStart: (end: 'a' | 'b') => (e: React.PointerEvent) => void;
-  onKey: (end: 'a' | 'b') => (e: React.KeyboardEvent) => void;
-}) {
+}: CaliperProps & { vHalf: number }) {
   const { t } = useTranslation();
   const u = useUnits();
   const ay = ctx.cy - cal.a * scale,

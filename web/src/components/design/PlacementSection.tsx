@@ -5,7 +5,7 @@ import { useUnits } from '../../prefs/useUnits';
 import { onSi } from '../../prefs/entryValue';
 import { unitScope } from '../../prefs/units';
 import { PANEL_SCOPE_KEYS } from '../../services/design/componentFields';
-import { FieldRow, NumberField, sectionFields } from './DimensionFields';
+import { FieldRow, NumberField, sectionFields, type NodeEditProps } from './DimensionFields';
 import { PropSection } from './PropSection';
 import { useWorkspaceStore } from '../../state/store';
 import { findParent } from '../../services/design/treeEdit';
@@ -26,15 +26,7 @@ import { axialLength } from '../../tree/position';
  */
 
 /** Placement: only meaningful for parts nested inside a tube. */
-export function PlacementSection({
-  node,
-  onChange,
-  onCommit,
-}: {
-  node: ComponentNode;
-  onChange: (patch: Partial<ComponentNode>) => void;
-  onCommit?: () => void;
-}) {
+export function PlacementSection({ node, onChange, onCommit }: NodeEditProps) {
   const { t } = useTranslation();
   const u = useUnits();
   // The placement offset carries its own unit, like the override rows.

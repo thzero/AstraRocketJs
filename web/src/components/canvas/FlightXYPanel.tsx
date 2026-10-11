@@ -6,7 +6,7 @@ import { hoverValue } from './FlightChartHover';
 import { PAD_L, PAD_R } from './flightChartAxis';
 import type { Branch, Meta } from './flightChartTraces';
 import { polylinePath } from '../common/svgPath';
-import { PanelExpandButton } from './PanelExpandButton';
+import { ChartPanelFrame } from './ChartPanelFrame';
 import { velocityAltitudeSummary } from './chartSummary';
 
 /**
@@ -127,65 +127,58 @@ export function FlightXYPanel({
   );
 
   return (
-    <div className="mb-2 rounded-lg bg-raised/40 ring-1 ring-line/10">
-      <div className="flex items-baseline justify-between gap-2 px-2 pt-1.5">
-        <span className="text-[10px] font-semibold uppercase tracking-wide text-ink-muted">{t(meta.label)}</span>
-        <span className="flex items-baseline gap-2">
-          <span className="text-xs font-semibold tabular-nums text-ink-strong">
-            {head && head.v != null && head.a != null
-              ? t('flight.velocityAtAltitude', {
-                  velocity: `${fmtNum(head.v, yDigits)} ${u.sym('velocity')}`,
-                  altitude: `${fmtNum(head.a, xDigits)} ${u.sym('distance')}`,
-                })
-              : `${fmtNum(peak, yDigits)} ${u.sym('velocity')}`}
-          </span>
-          <PanelExpandButton expanded={expanded} onClick={onToggleExpand} />
+    <ChartPanelFrame
+      title={t(meta.label)}
+      reading={
+        <span className="text-xs font-semibold tabular-nums text-ink-strong">
+          {head && head.v != null && head.a != null
+            ? t('flight.velocityAtAltitude', {
+                velocity: `${fmtNum(head.v, yDigits)} ${u.sym('velocity')}`,
+                altitude: `${fmtNum(head.a, xDigits)} ${u.sym('distance')}`,
+              })
+            : `${fmtNum(peak, yDigits)} ${u.sym('velocity')}`}
         </span>
-      </div>
-      <svg
-        viewBox={`0 0 ${w} ${height}`}
-        width="100%"
-        height={height}
-        preserveAspectRatio="none"
-        className="block"
-        role="img"
-        aria-label={summary}
-      >
-        <defs>
-          <clipPath id={`${uid}-clip`}>
-            <rect x={PAD_L} y={0} width={iw} height={height} />
-          </clipPath>
-        </defs>
-        <g clipPath={`url(#${uid}-clip)`}>
-          {lines.map((l, i) =>
-            paths[i] ? (
-              <path
-                key={i}
-                d={paths[i]}
-                fill="none"
-                stroke={l.color}
-                strokeWidth={1.75}
-                vectorEffect="non-scaling-stroke"
-              />
-            ) : null,
-          )}
-          {hovered.map(({ l, a, v }, i) =>
-            a != null && v != null ? <circle key={i} cx={X(a)} cy={Y(v)} r={3} fill={l.color} /> : null,
-          )}
-        </g>
-        <text x={PAD_L - 4} y={padT + 7} textAnchor="end" className="fill-ink-faint text-[9px] tabular-nums">
-          {fmtNum(y1, yDigits)}
-        </text>
-        <text x={PAD_L - 4} y={height - padB} textAnchor="end" className="fill-ink-faint text-[9px] tabular-nums">
-          {fmtNum(y0, yDigits)}
-        </text>
-        <text x={PAD_L} y={height - 3} className="fill-ink-faint text-[9px] tabular-nums">
-          {fmtNum(x0, xDigits)}
-        </text>
-        <text x={w - PAD_R} y={height - 3} textAnchor="end" className="fill-ink-faint text-[9px] tabular-nums">
-          {`${fmtNum(x1, xDigits)} ${u.sym('distance')}`}
-        </text>
-      </svg>
-    </div>
+      }
+      expanded={expanded}
+      onToggleExpand={onToggleExpand}
+      w={w}
+      height={height}
+      summary={summary}
+    >
+      <defs>
+        <clipPath id={`${uid}-clip`}>
+          <rect x={PAD_L} y={0} width={iw} height={height} />
+        </clipPath>
+      </defs>
+      <g clipPath={`url(#${uid}-clip)`}>
+        {lines.map((l, i) =>
+          paths[i] ? (
+            <path
+              key={i}
+              d={paths[i]}
+              fill="none"
+              stroke={l.color}
+              strokeWidth={1.75}
+              vectorEffect="non-scaling-stroke"
+            />
+          ) : null,
+        )}
+        {hovered.map(({ l, a, v }, i) =>
+          a != null && v != null ? <circle key={i} cx={X(a)} cy={Y(v)} r={3} fill={l.color} /> : null,
+        )}
+      </g>
+      <text x={PAD_L - 4} y={padT + 7} textAnchor="end" className="fill-ink-faint text-[9px] tabular-nums">
+        {fmtNum(y1, yDigits)}
+      </text>
+      <text x={PAD_L - 4} y={height - padB} textAnchor="end" className="fill-ink-faint text-[9px] tabular-nums">
+        {fmtNum(y0, yDigits)}
+      </text>
+      <text x={PAD_L} y={height - 3} className="fill-ink-faint text-[9px] tabular-nums">
+        {fmtNum(x0, xDigits)}
+      </text>
+      <text x={w - PAD_R} y={height - 3} textAnchor="end" className="fill-ink-faint text-[9px] tabular-nums">
+        {`${fmtNum(x1, xDigits)} ${u.sym('distance')}`}
+      </text>
+    </ChartPanelFrame>
   );
 }

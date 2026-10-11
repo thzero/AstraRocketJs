@@ -27,7 +27,7 @@ import { LAUNCH_SITE_LIMITS } from '../../services/storage/launchLocationStore';
 import { SiteMapDialog } from './SiteMapDialog';
 import { useLatest } from '../common/useLatest';
 import { DEFAULT_HEADING_DEG } from '../../services/flight/simulations';
-import { NumberRow } from '../common/NumberRow';
+import { NumberRow, type NumberRowMarks } from '../common/NumberRow';
 import { CardGroup } from '../common/CardGroup';
 import { LatLonRows } from './LatLonRows';
 import { withLauncher, type LauncherKind } from '../../services/design/launcher';
@@ -82,18 +82,7 @@ export function QNum({
   minSi?: number;
   /** Upper bound in SI, converted like `minSi` so it holds in any unit. */
   maxSi?: number;
-  placeholder?: string;
-  hint?: string;
-  /** See {@link NumberRow}. */
-  caution?: string;
-  /** See {@link NumberRow}. */
-  mixed?: boolean;
-  /** See {@link NumberRow}. */
-  required?: boolean;
-  /** See {@link NumberRow}. */
-  missing?: boolean;
-  onChange: (v: number | null) => void;
-}) {
+} & NumberRowMarks) {
   const c = LAUNCH_SI[kind];
   const scope = unitScope('launch', field);
   const fu = u.at(scope, c.q);

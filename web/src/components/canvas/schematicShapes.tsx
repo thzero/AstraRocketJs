@@ -827,6 +827,29 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
     );
   };
 
+  // A revolved part's outline from station `cx`, hoverable out to radius `r`.
+  const profileShape = (
+    n: ComponentNode,
+    cx: number,
+    len: number,
+    fore: number,
+    aft: number,
+    r: number,
+    baseY: number,
+  ) => {
+    noteHover(n, ctx.x0 + cx * scale, baseY - r * scale, ctx.x0 + (cx + len) * scale, baseY + r * scale);
+    shapes.push(
+      <path
+        key={key++}
+        d={profilePath(ctx, n, cx, len, fore, aft, baseY)}
+        fill={fillOf(n, token('sch-shell'))}
+        stroke={selStroke(n, token('sch-line'))}
+        strokeWidth={selWidth(n)}
+        {...clickable(n)}
+      />,
+    );
+  };
+
   // Draws an axial nose→tail chain with its centerline at screen `baseY`
   // (ctx.cy for the core rocket; offset for each off-axis pod instance).
   const renderChain = (nodes: ComponentNode[], xStart: number, baseY: number) => {
@@ -839,17 +862,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
         // are at the fore end.
         const flipped = n['flipped'] === true;
         const ends = profileEnds(n);
-        noteHover(n, ctx.x0 + cx * scale, baseY - r * scale, ctx.x0 + (cx + len) * scale, baseY + r * scale);
-        shapes.push(
-          <path
-            key={key++}
-            d={profilePath(ctx, n, cx, len, ends.fore, ends.aft, baseY)}
-            fill={fillOf(n, token('sch-shell'))}
-            stroke={selStroke(n, token('sch-line'))}
-            strokeWidth={selWidth(n)}
-            {...clickable(n)}
-          />,
-        );
+        profileShape(n, cx, len, ends.fore, ends.aft, r, baseY);
         const shLen = num(n, 'shoulderLength', 0);
         shoulderRect(n, flipped ? cx - shLen : cx + len, shLen, num(n, 'shoulderRadius', 0), baseY);
         renderChildren(n, cx, len, r, baseY);
@@ -887,23 +900,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
         cx += len;
       } else if (n.type === 'transition') {
         const { fore: rf, aft: ra } = profileEnds(n);
-        noteHover(
-          n,
-          ctx.x0 + cx * scale,
-          baseY - Math.max(rf, ra) * scale,
-          ctx.x0 + (cx + len) * scale,
-          baseY + Math.max(rf, ra) * scale,
-        );
-        shapes.push(
-          <path
-            key={key++}
-            d={profilePath(ctx, n, cx, len, rf, ra, baseY)}
-            fill={fillOf(n, token('sch-shell'))}
-            stroke={selStroke(n, token('sch-line'))}
-            strokeWidth={selWidth(n)}
-            {...clickable(n)}
-          />,
-        );
+        profileShape(n, cx, len, rf, ra, Math.max(rf, ra), baseY);
         const fsl = num(n, 'foreShoulderLength', 0);
         shoulderRect(n, cx - fsl, fsl, num(n, 'foreShoulderRadius', 0), baseY);
         shoulderRect(n, cx + len, num(n, 'aftShoulderLength', 0), num(n, 'aftShoulderRadius', 0), baseY);

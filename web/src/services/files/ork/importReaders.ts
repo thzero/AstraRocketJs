@@ -157,6 +157,15 @@ const readBodytube: NodeReader = (ctx, el) => {
   return n;
 };
 
+/** What every planar fin set has after its outline: wall, cant, section, tab and rotation. */
+function readPlanarFin(el: Element, n: ComponentNode): void {
+  n['thickness'] = nonNegTag(el, 'thickness', COMPONENT_DEFAULTS.finset.thickness);
+  readCant(el, n);
+  readAirfoil(el, n);
+  readFinTabs(el, n);
+  readFinRotation(el, n);
+}
+
 const readTrapezoidFinset: NodeReader = (_ctx, el) => {
   const n = base(el, 'trapezoidfinset', true);
   n['finCount'] = finCountTag(el);
@@ -166,22 +175,14 @@ const readTrapezoidFinset: NodeReader = (_ctx, el) => {
   // forward-swept fin, which is a real shape the desktop draws.
   n['sweep'] = numTag(el, 'sweeplength', 0.02);
   n['height'] = nonNegTag(el, 'height', 0.03);
-  n['thickness'] = nonNegTag(el, 'thickness', COMPONENT_DEFAULTS.finset.thickness);
-  readCant(el, n);
-  readAirfoil(el, n);
-  readFinTabs(el, n);
-  readFinRotation(el, n);
+  readPlanarFin(el, n);
   return n;
 };
 
 const readFreeformFinset: NodeReader = (_ctx, el) => {
   const n = base(el, 'freeformfinset', true);
   n['finCount'] = finCountTag(el);
-  n['thickness'] = nonNegTag(el, 'thickness', COMPONENT_DEFAULTS.finset.thickness);
-  readCant(el, n);
-  readAirfoil(el, n);
-  readFinTabs(el, n);
-  readFinRotation(el, n);
+  readPlanarFin(el, n);
   // Capped: every renderer walks the outline per fin, so a crafted file
   // with a million <point>s is a frozen tab. A real freeform fin has tens.
   // Walked by sibling links and stopped at the cap, rather than selecting the
@@ -211,11 +212,7 @@ const readEllipticalFinset: NodeReader = (_ctx, el) => {
   n['finCount'] = finCountTag(el);
   n['rootChord'] = nonNegTag(el, 'rootchord', 0.05);
   n['height'] = nonNegTag(el, 'height', 0.03);
-  n['thickness'] = nonNegTag(el, 'thickness', COMPONENT_DEFAULTS.finset.thickness);
-  readCant(el, n);
-  readAirfoil(el, n);
-  readFinTabs(el, n);
-  readFinRotation(el, n);
+  readPlanarFin(el, n);
   return n;
 };
 
@@ -369,6 +366,19 @@ const readFairing: NodeReader = (_ctx, el) => {
   return n;
 };
 
+/** A recovery device's role and when it comes out. */
+function readRecoveryDeployment(ctx: OrkImportContext, el: Element, n: ComponentNode): void {
+  // Drogue or main. The desktop writes <isdrogue> only when it is true, and
+  // the kernel needs it to tell dual deployment from single: without it every
+  // flight takes the single-deployment branch.
+  if (isDrogueTag(el)) n['drogue'] = true;
+  // <deploymentconfiguration> only overrides when a config was chosen:
+  // with no declarations the bare tags are the whole story, and a stray
+  // block in an undeclared file is not read.
+  readDeployment(el, n, ctx.chosenConfigId === null ? null : configScoped(ctx, el, 'deploymentconfiguration'));
+  captureDeployments(ctx, el, n);
+}
+
 const readParachute: NodeReader = (ctx, el) => {
   const n = base(el, 'parachute', true);
   readPackedSize(el, n);
@@ -380,15 +390,7 @@ const readParachute: NodeReader = (ctx, el) => {
   if (!readAutoValue(el, n, 'linelength', 'lineLengthAuto')) n['lineLength'] = nonNegTag(el, 'linelength', 0.3);
   readSoftMaterial(el, n, 'surface', 'surfaceDensity', 'surfaceMaterialName');
   readSoftMaterial(el, n, 'line', 'lineDensity', 'lineMaterialName', ':scope > linematerial');
-  // Drogue or main. The desktop writes <isdrogue> only when it is true, and
-  // the kernel needs it to tell dual deployment from single: without it every
-  // flight takes the single-deployment branch.
-  if (isDrogueTag(el)) n['drogue'] = true;
-  // <deploymentconfiguration> only overrides when a config was chosen:
-  // with no declarations the bare tags are the whole story, and a stray
-  // block in an undeclared file is not read.
-  readDeployment(el, n, ctx.chosenConfigId === null ? null : configScoped(ctx, el, 'deploymentconfiguration'));
-  captureDeployments(ctx, el, n);
+  readRecoveryDeployment(ctx, el, n);
   // Our extension tag (desktop warns-and-ignores): spill hole diameter.
   const spill = numTag(el, 'spillholediameter', 0);
   if (spill > 0) n['spillHoleDiameter'] = spill;
@@ -403,9 +405,7 @@ const readStreamer: NodeReader = (ctx, el) => {
   n['stripWidth'] = nonNegTag(el, 'stripwidth', 0.05);
   readCd(el, n);
   readSoftMaterial(el, n, 'surface', 'surfaceDensity', 'surfaceMaterialName');
-  if (isDrogueTag(el)) n['drogue'] = true;
-  readDeployment(el, n, ctx.chosenConfigId === null ? null : configScoped(ctx, el, 'deploymentconfiguration'));
-  captureDeployments(ctx, el, n);
+  readRecoveryDeployment(ctx, el, n);
   return n;
 };
 

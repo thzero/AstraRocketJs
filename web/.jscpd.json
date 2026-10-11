@@ -1,0 +1,13 @@
+{
+  "path": ["src"],
+  "format": ["typescript", "tsx"],
+  "ignore": ["**/engine/vendor/**", "**/*.d.ts"],
+  "ignorePattern": ["(?m)^import [^;]+;"],
+  "minTokens": 45,
+  "minLines": 5,
+  "threshold": 0,
+  "exitCode": 1,
+  "failOnEmpty": true,
+  "reporters": ["console"],
+  "noTips": true
+}

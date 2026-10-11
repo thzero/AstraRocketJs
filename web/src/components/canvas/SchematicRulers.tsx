@@ -49,7 +49,7 @@ export function LengthRuler({
       <line x1={x0} y1={baseY} x2={x1} y2={baseY} className="stroke-line/55" />
       {minorMarks.map((m, i) => {
         const x = ctxX0 + m * scale;
-        const medium = Math.abs(((((m / rulerStep) % 1) + 1) % 1) - 0.5) < 0.02;
+        const medium = isHalfStep(m, rulerStep);
         return (
           <line
             key={`n${i}`}
@@ -77,6 +77,11 @@ export function LengthRuler({
       </text>
     </g>
   );
+}
+
+/** A minor mark halfway between two labeled majors, drawn longer than the rest. */
+function isHalfStep(m: number, rulerStep: number): boolean {
+  return Math.abs(((((m / rulerStep) % 1) + 1) % 1) - 0.5) < 0.02;
 }
 
 /**
@@ -122,7 +127,7 @@ export function RadialRuler({
       <line x1={baseX} y1={frameTopY} x2={baseX} y2={frameBotY} className="stroke-line/55" />
       {minorTicks.map((m, i) => {
         const y = vTop + m * scale;
-        const medium = Math.abs(((((m / rulerStep) % 1) + 1) % 1) - 0.5) < 0.02;
+        const medium = isHalfStep(m, rulerStep);
         return (
           <line
             key={`n${i}`}

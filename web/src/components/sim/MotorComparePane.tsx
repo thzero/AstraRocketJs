@@ -56,6 +56,7 @@ export function MotorComparePane({ motors, cols }: { motors: CatalogMotor[]; col
             aria-label={t('dash.compareChartAria', { names: fmtList(series.map((s) => s.m.designation)) })}
           >
             <ChartAxes dims={dims} tMax={tMax} fMax={fMax} X={X} Y={Y} fScale={u.factor('force')} />
+            {/* jscpd:ignore-start -- the combine chart's series props, at this chart's own weights and label sizes */}
             {series.map((s) => (
               <SeriesPath
                 key={keyOf(s.m)}
@@ -69,6 +70,7 @@ export function MotorComparePane({ motors, cols }: { motors: CatalogMotor[]; col
                 labelClass="text-[9px] font-semibold"
               />
             ))}
+            {/* jscpd:ignore-end */}
           </svg>
           {/* Legend: identity is never color alone. */}
           <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-ink-soft">
