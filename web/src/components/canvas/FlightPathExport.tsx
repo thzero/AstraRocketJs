@@ -111,7 +111,7 @@ export function ExportDialog({
   const staged = (result.branches?.length ?? 0) > 1;
   // The stages that will actually get a track, in the order the model numbers
   // them - so a swatch always lines up with the branch it colors.
-  const branchNames = useMemo(() => exportBranchNames(result, meta), [result, meta]);
+  const branchNames = useMemo(() => exportBranchNames(result, meta, t), [result, meta, t]);
   // Which preset the controls currently spell out, or none. Derived every
   // render rather than remembered from the last click: a preset only sets the
   // controls, so a remembered selection would go on claiming a shape the

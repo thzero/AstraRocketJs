@@ -133,7 +133,9 @@ export async function downloadRocket3mf(
   for (const b of built) {
     // Two parts can legitimately share a name ("Centering ring" twice), and a
     // zip entry cannot: the second would silently replace the first.
-    let entry = safeFilename(b.part.name, b.part.name || 'part');
+    // The fallback is fixed text: `safeFilename` returns it as is, and a part
+    // name with no letter or digit (`../..`) must not become an entry name.
+    let entry = safeFilename(b.part.name, 'part');
     let n = 2;
     while (used.has(entry)) entry = `${safeFilename(b.part.name, 'part')}-${n++}`;
     used.add(entry);

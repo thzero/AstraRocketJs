@@ -105,8 +105,16 @@ describe('AlertDialog', () => {
       b.unmount();
 
       const c = open();
+      fireEvent.pointerDown(backdrop(c.dialog));
       fireEvent.click(backdrop(c.dialog));
       expect(c.onCancel).toHaveBeenCalledTimes(1);
+    });
+
+    it('is not a press that started in the panel and ended on the backdrop', () => {
+      const { dialog, onCancel } = open();
+      fireEvent.pointerDown(dialog);
+      fireEvent.click(backdrop(dialog));
+      expect(onCancel).not.toHaveBeenCalled();
     });
 
     it('takes its own label when one is given', () => {
@@ -121,6 +129,7 @@ describe('AlertDialog', () => {
       const { dialog, onConfirm } = open({ onCancel: undefined });
       expect(within(dialog).queryByText('Cancel')).toBeNull();
       fireEvent.keyDown(window, { key: 'Escape' });
+      fireEvent.pointerDown(backdrop(dialog));
       fireEvent.click(backdrop(dialog));
       expect(onConfirm).not.toHaveBeenCalled();
     });

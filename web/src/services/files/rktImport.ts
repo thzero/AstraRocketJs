@@ -1,3 +1,4 @@
+import i18n from '../../i18n';
 import { decodeFileText } from './decodeText';
 import type { ComponentNode, ComponentType } from '../../engine/openRocketEngine';
 import { syncAutoRadii } from '../design/autoRadius';
@@ -906,7 +907,7 @@ export function importRkt(data: ArrayBuffer | string): OrkImportResult {
   const design = doc.querySelector('RockSimDocument > DesignInformation > RocketDesign');
   if (!design) throw new KeyedError('errors.file.notRkt');
 
-  const name = tag(design, 'Name') ?? 'Imported rocket';
+  const name = tag(design, 'Name') ?? i18n.t('library.untitled');
   const ctx: RktContext = { notes: [], ignored: new Set(), dropped: new Set(), incompatible: new Set(), nodeCount: 0 };
 
   // `StageCount` decides how many of the three blocks are real: RockSim leaves

@@ -1,5 +1,5 @@
 import type { ComponentNode, OpenRocketDesign, RocketTree, StaticInfo } from '../../engine/openRocketEngine';
-import { useWorkspaceStore, selectConfig, configOf } from '../../state/store';
+import { useWorkspaceStore, selectConfig, selectOutdated, configOf } from '../../state/store';
 import { buildConfiguredRocket, buildKey } from '../design/buildRocket';
 import { findStages } from '../design/treeEdit';
 import { liveMotors, type FlightConfig } from '../flight/flightConfigs';
@@ -79,11 +79,19 @@ export interface MotorConfig {
   name: string;
   motors: ConfigMotor[];
   flight: FlightRows | null;
+  /**
+   * The flight was flown from inputs other than the current ones (the design,
+   * its configuration, the launch or the run preferences), so its figures do
+   * not describe the design the rest of the report does.
+   */
+  outdated?: boolean;
 }
 
 /** A fin set's axial position (m) from the nose tip: root leading/trailing edge. */
 export interface FinSetPosition {
-  name: string;
+  /** The fin set's own name; absent when it has none, and a writer names it by `type`. */
+  name?: string;
+  type: string;
   topX: number;
   bottomX: number;
 }
@@ -334,6 +342,7 @@ export function assembleReport(install?: (built: ReportBuild) => void): ReportMo
           name: sim.name,
           motors: configMotors(tree, config, build, buildKey(tree, config) === flownKey ? info.mass : undefined),
           flight: sim.result ? sim.result.summary : null,
+          outdated: sim.result ? selectOutdated(s, sim) : false,
         };
       });
       return { stageSummaries, configs };
@@ -386,7 +395,8 @@ export function finSetPositions(
     const root = axialLength(n);
     try {
       const topX = rocket.componentInfo(n.id).positionX;
-      out.push({ name: (n.name as string) || 'Fin set', topX, bottomX: topX + root });
+      const own = typeof n.name === 'string' ? n.name.trim() : '';
+      out.push({ ...(own ? { name: own } : {}), type: String(n.type), topX, bottomX: topX + root });
     } catch {
       /* skip a fin set the engine can't locate */
     }

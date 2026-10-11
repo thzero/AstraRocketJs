@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { migrateWorkspace } from '../../../src/services/storage/workspaceMigrate';
+import { flightKey } from '../../../src/services/flight/simulations';
 import type { ComponentNode, MotorSpec, RocketTree } from '../../../src/engine/openRocketEngine';
 import type { Workspace } from '../../../src/services/storage/workspaceStore';
 
@@ -25,6 +26,20 @@ describe('migrateWorkspace', () => {
     expect(migrateWorkspace(null)).toBeNull();
     expect(migrateWorkspace({ version: 1, tree: { components: 'nope' }, sims: [simV1()] })).toBeNull();
     expect(migrateWorkspace({ version: 1, tree, sims: [] })).toBeNull();
+  });
+
+  // Every reader after this one dereferences each entry, so a null entry has to
+  // be refused here rather than throw later in the load.
+  it('refuses a blob whose simulations, configurations or components are not objects', () => {
+    expect(migrateWorkspace(v1({ sims: [simV1(), null] }))).toBeNull();
+    expect(migrateWorkspace(v1({ sims: [{ ...simV1(), id: 7 }] }))).toBeNull();
+    expect(migrateWorkspace(v1({ tree: { components: [null] } }))).toBeNull();
+    expect(migrateWorkspace(v1({ tree: { components: [node({ type: 'bodytube', children: [null] })] } }))).toBeNull();
+    expect(migrateWorkspace(v1({ tree: null }))).toBeNull();
+    const w2 = { ...v1(), version: 2, sims: [{ id: 'a', configId: 'c1' }] };
+    expect(migrateWorkspace({ ...w2, configs: [null] })).toBeNull();
+    expect(migrateWorkspace({ ...w2, configs: [{ name: 'no id' }] })).toBeNull();
+    expect(migrateWorkspace({ ...w2, configs: [{ id: 'c1', motors: {} }] })).not.toBeNull();
   });
 
   it('refuses a version this build does not know, rather than half-reading it', () => {
@@ -119,5 +134,75 @@ describe('migrateWorkspace', () => {
     expect(w.configs).toHaveLength(1);
     expect(w.configs[0]!.motors).toEqual({});
     expect(w.sims[0]!.configId).toBe(w.configs[0]!.id);
+  });
+});
+
+/**
+ * A stored design can hold a rail button or centering ring whose linked
+ * dimensions disagree (saved before the panel held them in the kernel's
+ * range). Loading holds them as the kernel builds them, so the panel shows
+ * what flies, and a result flown from the stored design stays current.
+ */
+describe('migrateWorkspace linked dimensions', () => {
+  const stored = (parts: object[]) =>
+    ({
+      version: 2,
+      tree: {
+        components: [
+          node({
+            type: 'stage',
+            id: 's',
+            children: [node({ type: 'bodytube', id: 'b', outerRadius: 0.03, children: parts.map(node) })],
+          }),
+        ],
+      },
+      sims: [{ id: 'a', name: 'A', configId: 'c1', launch: {}, result: null }],
+      configs: [{ id: 'c1', name: null, motors: {} }],
+      activeId: 'a',
+      loadedMeta: null,
+    }) as unknown as Workspace;
+  const part = (w: Workspace | null, id: string) =>
+    (w!.tree.components[0]!.children![0]!.children as ComponentNode[]).find((n) => n.id === id)!;
+
+  it('settles a rail button and a fixed ring the way the bridge builds them', () => {
+    const w = migrateWorkspace(
+      stored([
+        {
+          type: 'railbutton',
+          id: 'rb',
+          outerDiameter: 0.006,
+          innerDiameter: 0.008,
+          height: 0.01,
+          baseHeight: 0.009,
+          flangeHeight: 0.002,
+        },
+        { type: 'centeringring', id: 'cr', outerRadius: 0.01, innerRadius: 0.015 },
+      ]),
+    );
+    expect(part(w, 'rb')).toMatchObject({ innerDiameter: 0.006, height: 0.01, baseHeight: 0.009 });
+    expect(part(w, 'rb')['flangeHeight']).toBeCloseTo(0.001, 15);
+    expect(part(w, 'cr')).toMatchObject({ outerRadius: 0.015, innerRadius: 0.015 });
+  });
+
+  it('leaves an automatic ring outer radius to follow the bore, as the kernel does', () => {
+    const w = stored([
+      { type: 'centeringring', id: 'cr', outerRadiusAuto: true, outerRadius: 0.01, innerRadius: 0.015 },
+    ]);
+    expect(migrateWorkspace(w)).toBe(w);
+  });
+
+  it('returns a consistent workspace as the same object', () => {
+    const w = stored([
+      { type: 'railbutton', id: 'rb', outerDiameter: 0.01, height: 0.003, baseHeight: 0, flangeHeight: 0 },
+      { type: 'centeringring', id: 'cr', outerRadius: 0.02, innerRadius: 0.01 },
+    ]);
+    expect(migrateWorkspace(w)).toBe(w);
+  });
+
+  it('keys the settled design as the stored one, so its results do not age', () => {
+    const w = stored([{ type: 'railbutton', id: 'rb', height: 0.01, baseHeight: 0.009, flangeHeight: 0.002 }]);
+    const settled = migrateWorkspace(w)!;
+    expect(settled.tree).not.toBe(w.tree);
+    expect(flightKey(settled.tree)).toBe(flightKey(w.tree));
   });
 });

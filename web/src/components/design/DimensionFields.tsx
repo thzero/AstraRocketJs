@@ -12,6 +12,7 @@ import { clusterCount } from '../../tree/cluster';
 import { shapeIsClippable, shapeParamMax, shapeSelect, shapeUsesParameter } from '../../tree/shapeProfile';
 import { FIELDS, type Field, type PanelSection } from '../../services/design/componentFields';
 import { DERIVED } from '../../services/design/derivedFields';
+import { clampToBounds } from '../../services/design/linkedDimensions';
 import { PropSection } from './PropSection';
 import { rebaseTabOffset } from '../../tree/axialRebase';
 import { axialLength } from '../../tree/position';
@@ -155,6 +156,46 @@ export function FieldSection({
       ))}
       {children}
     </PropSection>
+  );
+}
+
+/**
+ * The stub that plugs into the tube next door. It is a different piece of the
+ * part from the cone or taper above it, and under the same heading it would
+ * read as four more dimensions of the same shape. A transition has two, kept
+ * apart because each end is its own build and eight rows under one heading is
+ * a wall. Only one of the three renders for a given part: FieldSection draws
+ * nothing when the type has no field in it.
+ */
+export function ShoulderSections({
+  node,
+  onChange,
+  onCommit,
+}: {
+  node: ComponentNode;
+  onChange: (patch: Partial<ComponentNode>) => void;
+  onCommit?: () => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <>
+      {(
+        [
+          ['shoulder', t('prop.shoulder')],
+          ['foreShoulder', t('prop.foreShoulder')],
+          ['aftShoulder', t('prop.aftShoulder')],
+        ] as const
+      ).map(([section, title]) => (
+        <FieldSection
+          key={section}
+          node={node}
+          title={title}
+          fields={sectionFields(node, section)}
+          onChange={onChange}
+          onCommit={onCommit}
+        />
+      ))}
+    </>
   );
 }
 
@@ -526,16 +567,31 @@ export function FieldRow({
       const fu = u.at(scope, 'length');
       const k = f.diameter ? 2 : 1;
       const span = f.signedWithinLength ? fu.toUi(axialLength(node)) : undefined;
+      // `bounds`: the range the kernel's setter holds this value in, given the
+      // rest of the part. The box stops there, and so does the stored value, so
+      // the panel never shows a figure the kernel would fly as another.
+      const lo = f.bounds?.min?.(node);
+      const hi = f.bounds?.max?.(node);
+      const range =
+        span !== undefined
+          ? { min: -span, max: span }
+          : {
+              ...(lo === undefined ? {} : { min: fu.toUi(k * lo) }),
+              ...(hi === undefined ? {} : { max: fu.toUi(k * hi) }),
+            };
       // `auto`: the value follows something else (a shoulder follows the bore of
       // the tube it plugs into). Ticking it commits at once and the resolver
       // fills the number in the same edit; clearing it pins whatever it now is.
       return numeric({
         unit: <UnitChip quantity="length" scope={scope} />,
-        value: fu.toUi(k * (kernelAuto ?? num(node, f.key))),
+        value: fu.toUi(k * (kernelAuto ?? num(node, f.key, f.whenAbsent))),
         step: fu.step(0.0005),
-        ...(span === undefined ? {} : { min: -span, max: span }),
+        ...range,
         ...autoProp(),
-        onChange: (v) => patchNumber({ [f.key]: fu.toSi(v, (si) => si / k) }),
+        onChange: (v) => {
+          const si = fu.toSi(v, (s) => s / k);
+          patchNumber({ [f.key]: si === null ? si : clampToBounds(node, f.bounds, si) });
+        },
       });
     }
   }

@@ -9,22 +9,30 @@ import { serveData } from '../../testing/serveData';
 vi.setConfig({ testTimeout: KERNEL_TEST_TIMEOUT_MS, hookTimeout: KERNEL_TEST_TIMEOUT_MS });
 
 /**
- * The `.ork` files the app saves, through the store's own save path, for the
- * default design and every bundled example opened and saved again.
+ * The `.ork` and `.rkt` files the app saves, through the store's own save
+ * paths, for the default design and every bundled example opened and saved
+ * again.
  *
  * Each file is checked here for what this side can see. With ORK_SAMPLES_DIR
  * set, the files are also written there, so `npm run check:ork` can open them
  * in the pinned desktop OpenRocket: the gates workflow does that, because only
- * the desktop can say whether it accepts what the writer emits.
+ * the desktop can say whether it accepts what the writers emit. The desktop's
+ * GeneralRocketLoader reads a RockSim file as well as its own.
  */
 
-const saved = vi.hoisted(() => ({ archives: [] as Uint8Array[] }));
+const saved = vi.hoisted(() => ({ archives: [] as Uint8Array[], rkt: [] as string[] }));
 vi.mock('../../../src/services/files/saveOrk', async (orig) => {
   const real = await orig<typeof import('../../../src/services/files/saveOrk')>();
   return {
     ...real,
     downloadOrk: (input: Parameters<typeof real.orkArchive>[0]) => {
       saved.archives.push(real.orkArchive(input));
+    },
+    downloadRkt: async (...[name, tree]: Parameters<typeof real.downloadRkt>) => {
+      const { exportRkt } = await import('../../../src/services/files/rktExport');
+      const { xml, skipped } = exportRkt(name, tree);
+      saved.rkt.push(xml);
+      return skipped;
     },
   };
 });
@@ -54,6 +62,21 @@ async function save(): Promise<Uint8Array> {
   return saved.archives[0]!;
 }
 
+/** Save the open design the way File > Export > RockSim does, returning the XML. */
+async function saveRkt(): Promise<string> {
+  saved.rkt.length = 0;
+  await s().saveRkt();
+  expect(saved.rkt).toHaveLength(1);
+  return saved.rkt[0]!;
+}
+
+function checkRkt(name: string, xml: string): void {
+  const doc = new DOMParser().parseFromString(xml, 'text/xml');
+  expect(doc.querySelector('parsererror'), name).toBeNull();
+  expect(doc.documentElement.tagName, name).toBe('RockSimDocument');
+  if (OUT) writeFileSync(join(OUT, name), xml);
+}
+
 function check(name: string, archive: Uint8Array): void {
   const xml = strFromU8(unzipSync(archive)['rocket.ork']!);
   const doc = new DOMParser().parseFromString(xml, 'text/xml');
@@ -80,6 +103,7 @@ describe('.ork files the app saves', () => {
     s().resetWorkspace();
     expect(s().err).toBeNull();
     check('default-design.ork', await save());
+    checkRkt('default-design.rkt', await saveRkt());
   });
 
   it.each(readdirSync(EXAMPLES).filter((f) => f.endsWith('.ork')))(
@@ -88,6 +112,7 @@ describe('.ork files the app saves', () => {
       await s().openOrkFile(new Blob([readFileSync(join(EXAMPLES, f))]));
       expect(s().err).toBeNull();
       check(f, await save());
+      checkRkt(f.replace(/\.ork$/, '.rkt'), await saveRkt());
     },
   );
 });

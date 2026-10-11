@@ -208,11 +208,22 @@ export function WindProfileDialog({
     ]);
   };
 
+  // The edited level's speed and deviation as they stood before its speed box
+  // was edited, cleared on blur. The box reports every keystroke, and desktop's
+  // `setAverage` only sees the committed value, so the turbulence is carried
+  // from where the edit started: retuning from the previous keystroke would
+  // pass through the "0" of "0.5" and leave the layer with no turbulence.
+  const [speedEditBase, setSpeedEditBase] = useState<{ row: number; speed: number; stddev: number } | null>(null);
   const setSpeed = (i: number, speed: number) => {
     const l = levels[i]!;
+    let base = speedEditBase;
+    if (base?.row !== i) {
+      base = { row: i, speed: l.speed, stddev: l.stddev };
+      setSpeedEditBase(base);
+    }
     // As `LevelWindModel.setSpeed` does (it delegates to `setAverage`): the
     // layer's turbulence stays the fraction it was rather than the m/s it was.
-    patchLevel(i, { speed, stddev: retuneStdDev(l.speed, l.stddev, speed) });
+    patchLevel(i, { speed, stddev: retuneStdDev(base.speed, base.stddev, speed) });
   };
 
   const importCsv = async (file: File) => {
@@ -253,7 +264,12 @@ export function WindProfileDialog({
       {/* The commit-on-blur sits on a wrapper rather than the panel the shell
           owns. Blur bubbles (React's onBlur is focusout), so every field inside
           still commits when it is left. */}
-      <div onBlur={onCommit}>
+      <div
+        onBlur={() => {
+          setSpeedEditBase(null);
+          onCommit?.();
+        }}
+      >
         <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_280px]">
           <div className="min-w-0">
             <div className="flex gap-1 px-1 pb-1 text-[10px] uppercase tracking-wide text-ink-faint">
@@ -287,7 +303,7 @@ export function WindProfileDialog({
                       min={0}
                       ariaLabel={`${t('windProfile.altitude')} ${i + 1}`}
                       value={u.toUi('distance', l.altitudeM)}
-                      // No `?? 0`, unlike the columns beside it: an altitude is
+                      // No `?? 0`, unlike the direction and deviation columns: an altitude is
                       // the level's identity to the kernel, not a quantity with
                       // a harmless zero, so an emptied box writes nothing
                       // rather than moving the layer down onto the pad.
@@ -305,7 +321,10 @@ export function WindProfileDialog({
                       max={i === surfaceLevel ? u.toUi('windspeed', MAX_WIND_SPEED_MS) : undefined}
                       ariaLabel={`${t('launch.speed')} ${i + 1}`}
                       value={u.toUi('windspeed', l.speed)}
-                      onChange={onSi(u.plain('windspeed'), (si) => setSpeed(i, si ?? 0))}
+                      // A cleared box writes nothing, as the altitude column:
+                      // the next keystroke sets the speed, and a 0 here would
+                      // read as still air rather than an edit in progress.
+                      onChange={onSi(u.plain('windspeed'), (si) => si !== null && setSpeed(i, si))}
                       className={`${cell} w-16`}
                     />
                     <NumberInput

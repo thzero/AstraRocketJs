@@ -7,7 +7,7 @@ import {
   type FlightColumn,
 } from '../flight/flightColumns';
 import { forwardFlightEnd, maxQ, maxQAlpha, maxRollRate, type EventRow } from '../flight/flightEvents';
-import type { LauncherKind } from '../design/launcher';
+import { withLauncher, type LauncherKind } from '../design/launcher';
 import { siToUi, siToUiDelta, type Quantity, type UnitSelection } from '../../prefs/units';
 import { plainDecimal } from '../files/numberText';
 import { csvField, csvQuoted, neutralizeFormula } from './csvCell';
@@ -32,6 +32,12 @@ const cell = (v: number | null | undefined, digits?: number): string => {
 const mul = (v: number | null | undefined, f: number): number | null =>
   v == null || !Number.isFinite(v) ? null : v * f;
 const row = (cells: (string | number)[]): string => cells.join(',');
+
+/** Resolves an i18n key, as the caller's `t` does. */
+export type CsvTranslate = (key: string, vars?: Record<string, unknown>) => string;
+
+/** A translated column title with the unit its cells carry. */
+const titled = (title: string, unit?: string): string => csvField(unit ? `${title} (${unit})` : title);
 
 /** A column's SI→display multiplier and the symbol its header should name. */
 const col = (units: UnitSelection, q: Quantity): { f: number; sym: string } => ({
@@ -59,9 +65,12 @@ export interface FlightCsvOptions {
   exponential: boolean;
   /** A comment naming the simulation and the design it flew. */
   simDescription: boolean;
-  /** A comment listing each column and the unit it carries. */
+  /**
+   * The column names with their units, as one commented line above the data:
+   * the file's only header, as on desktop.
+   */
   fieldDescriptions: boolean;
-  /** A comment per flight event, with its time. */
+  /** A comment per flight event, placed among the data rows at its time. */
   flightEvents: boolean;
   /** What marks a comment line. */
   commentChar: string;
@@ -93,6 +102,11 @@ function value(v: number | null | undefined, o: FlightCsvOptions): string {
 /**
  * Per-timestep flight data, in the user's units, with the columns and format the
  * caller asked for.
+ *
+ * The layout is OpenRocket's CSV export: the simulation comments, a bare comment
+ * line, the field names as one commented line, then the data rows with each
+ * event comment among them at its time. A script written for a desktop export
+ * reads this file the same way.
  *
  * `name` titles the simulation-description comment; it is passed in because this
  * service has no view of the workspace.
@@ -141,32 +155,42 @@ export function flightDataCsv(
 
   const lines: string[] = [];
   const comment = (text: string) => lines.push(`${o.commentChar} ${text}`);
+  const n = series?.['time']?.length ?? 0;
 
   if (o.simDescription && name) comment(`Simulation: ${clean(name)}`);
   if (o.simDescription && branch?.name) comment(`Stage: ${clean(branch.name)}`);
+  if (o.simDescription) comment(`${n} data points written for ${cols.length} variables.`);
+  // The field names are the one header the file has, and only on request: a
+  // commented line, so a reader that skips comments reads data from the top.
+  if (o.simDescription && o.fieldDescriptions) lines.push(o.commentChar);
   if (o.fieldDescriptions) {
-    for (const c of cols) {
-      const u = unitOf(c);
-      comment(`${clean(o.columnName(c))}${u ? ` (${u})` : ''}`);
-    }
-  }
-  if (o.flightEvents) {
-    for (const e of branch?.events ?? r.events ?? []) {
-      comment(`Event ${e.type} at t=${e.time.toFixed(3)} s`);
-    }
+    comment(
+      cols
+        .map((c) => {
+          const u = unitOf(c);
+          return clean(o.columnName(c)) + (u ? ` (${u})` : '');
+        })
+        .join(sep),
+    );
   }
 
-  lines.push(
-    cols
-      .map((c) => {
-        const u = unitOf(c);
-        return clean(o.columnName(c)) + (u ? ` (${u})` : '');
-      })
-      .join(sep),
-  );
+  // Events in time order, each written just before the first sample at or after
+  // it, and any past the last sample after the data. Without a time series
+  // there is nothing to place them against, so they lead the data.
+  const events = o.flightEvents ? [...(branch?.events ?? r.events ?? [])].sort((a, b) => a.time - b.time) : [];
+  const time = series?.['time'];
+  let next = 0;
+  const eventsUpTo = (t: number) => {
+    while (next < events.length && events[next]!.time <= t) {
+      const e = events[next++]!;
+      comment(`Event ${e.type} occurred at t=${plainDecimal(e.time, 3)} seconds`);
+    }
+  };
+  if (!time) eventsUpTo(Infinity);
 
-  const n = series?.['time']?.length ?? 0;
   for (let i = 0; i < n; i++) {
+    const t = time?.[i];
+    if (t != null && Number.isFinite(t)) eventsUpTo(t);
     lines.push(
       cols
         .map((c, j) => {
@@ -176,6 +200,7 @@ export function flightDataCsv(
         .join(sep),
     );
   }
+  eventsUpTo(Infinity);
   return lines.join(EOL) + EOL;
 }
 
@@ -230,8 +255,9 @@ export function aeroTableCsv(d: AeroSweep, units: UnitSelection): string {
  * rows leave most of those columns blank, which is the honest shape: only the
  * rail-departure row has a thrust-to-weight, and a blank cell says so.
  *
- * `eventName` and `stageName` are passed in for the reason `columnName` is
- * above: both are translated, and this service has no translator. `stageName`
+ * `t`, `eventName` and `stageName` are passed in for the reason `columnName` is
+ * above: the headers and the cells are translated, and this service has no
+ * translator, so a file is in one language throughout. `stageName`
  * also owns the "Stage 2" fallback for a branch the engine did not name, which
  * is the same split `buildTraces` and the table itself make.
  *
@@ -242,6 +268,7 @@ export function aeroTableCsv(d: AeroSweep, units: UnitSelection): string {
 export function flightEventsCsv(
   rows: readonly EventRow[],
   units: UnitSelection,
+  t: CsvTranslate,
   eventName: (row: EventRow) => string,
   stageName: (row: EventRow) => string,
   name?: string,
@@ -267,20 +294,20 @@ export function flightEventsCsv(
   // The title line is a comment, not a quoted field, so a separator in the
   // simulation name would open a second cell a spreadsheet evaluates. Comma,
   // semicolon and tab all go: a locale that splits on `;` reads this file too.
-  if (name) lines.push(`# Simulation: ${name.replace(/[\r\n,;\t]+/g, ' ')}`);
+  if (name) lines.push(`# ${t('csv.head.simulationLine', { name }).replace(/[\r\n,;\t]+/g, ' ')}`);
   lines.push(
     row([
-      'Time (s)',
-      'Event',
-      'Source',
-      'Stage',
-      `Altitude (${dist.sym})`,
-      `Velocity (${vel.sym})`,
-      'Stability (cal)',
-      'Thrust/weight',
-      `Angle of attack (${ang.sym})`,
-      'Mach',
-      `Dynamic pressure (${pres.sym})`,
+      titled(t('csv.head.time'), 's'),
+      titled(t('csv.head.event')),
+      titled(t('csv.head.source')),
+      titled(t('csv.head.stage')),
+      titled(t('csv.head.altitude'), dist.sym),
+      titled(t('csv.head.velocity'), vel.sym),
+      titled(t('csv.head.stability'), 'cal'),
+      titled(t('csv.head.thrustWeight')),
+      titled(t('csv.head.aoa'), ang.sym),
+      titled(t('csv.head.mach')),
+      titled(t('csv.head.dynamicPressure'), pres.sym),
     ]),
   );
   for (const r of rows) {
@@ -323,13 +350,17 @@ export interface RunTableRow {
  * shows and the peaks the summary adds, in the user's units, each header naming
  * its unit. A row that has never flown keeps its name and leaves the figures
  * blank rather than being dropped, so the file lists every simulation.
+ *
+ * `t` translates the headers, as the caller translates the status cells; the
+ * exit column names the launcher the way the design does (`withLauncher`).
  */
 export function runTableCsv(
   rows: readonly RunTableRow[],
   units: UnitSelection,
+  t: CsvTranslate,
   launcher: LauncherKind | null = null,
 ): string {
-  const exit = launcher === 'rail' ? 'Rail' : launcher === 'rod' ? 'Rod' : 'Launcher';
+  const lt = withLauncher(t, launcher);
   const dist = col(units, 'distance');
   const vel = col(units, 'velocity');
   const acc = col(units, 'acceleration');
@@ -340,23 +371,23 @@ export function runTableCsv(
   const text = (v: string): string => csvQuoted(v.replace(/[\r\n]+/g, ' '));
   const lines = [
     row([
-      'Simulation',
-      'Configuration',
-      'Motors',
-      'Status',
-      `Apogee (${dist.sym})`,
-      `Max velocity (${vel.sym})`,
-      `Max acceleration (${acc.sym})`,
-      'Max Mach',
-      `${exit} exit velocity (${vel.sym})`,
-      'Time to apogee (s)',
-      'Flight time (s)',
-      `Deployment velocity (${vel.sym})`,
-      `Landing velocity (${vel.sym})`,
-      'Optimum delay (s)',
-      `Max dynamic pressure (${pres.sym})`,
-      'Max q·alpha (kPa·deg)',
-      `Max roll rate (${roll.sym})`,
+      titled(t('csv.head.simulation')),
+      titled(t('csv.head.configuration')),
+      titled(t('csv.head.motors')),
+      titled(t('csv.head.status')),
+      titled(t('csv.head.apogee'), dist.sym),
+      titled(t('csv.head.maxVelocity'), vel.sym),
+      titled(t('csv.head.maxAcceleration'), acc.sym),
+      titled(t('csv.head.maxMach')),
+      titled(lt('csv.head.exitVelocity'), vel.sym),
+      titled(t('csv.head.timeToApogee'), 's'),
+      titled(t('csv.head.flightTime'), 's'),
+      titled(t('csv.head.deploymentVelocity'), vel.sym),
+      titled(t('csv.head.landingVelocity'), vel.sym),
+      titled(t('csv.head.optimumDelay'), 's'),
+      titled(t('csv.head.maxQ'), pres.sym),
+      titled(t('csv.head.maxQAlpha'), 'kPa·deg'),
+      titled(t('csv.head.maxRollRate'), roll.sym),
     ]),
   ];
   for (const r of rows) {

@@ -1,19 +1,12 @@
-import { test, expect, ready, type Page } from './base';
-import { axeViolations, THEMES } from './axe';
-import {
-  DESIGN_VIEWS,
-  RESULT_VIEWS,
-  TOOLS,
-  type ConfigsTab,
-  type Tab,
-  type Tool,
-  type ViewMode,
-} from '../src/state/tabs';
+import { test, expect, defined, ready, type Page } from './base';
+import { AERO_PANE, axeViolations, CONFIGS, press, THEMES, TOOL, TWO_D, VIEW } from './axe';
+import { eachEditor } from './editors';
+import { DESIGN_VIEWS, RESULT_VIEWS, TOOLS, type ConfigsTab, type Tab, type ViewMode } from '../src/state/tabs';
 import { taskTabs } from '../src/components/layout/tabTable';
 
 /**
  * The phone layout through axe, in every theme: each button of the bottom tab
- * bar, and each view, sub-tab and tool behind it. The phone shows one pane at
+ * bar, each view, sub-tab and tool behind it, and the editor of every part type. The phone shows one pane at
  * a time and moves the editors under the tables, so its screens are not the
  * desktop's screens rearranged, and its contrast and names are scanned here.
  *
@@ -29,17 +22,6 @@ const BAR: Record<Exclude<Tab, 'design'>, string> = {
   results: 'Results',
   tools: 'Tools',
 };
-const VIEW: Record<ViewMode, string> = {
-  '2d': '2D',
-  '3d': '3D',
-  drag: 'Aero',
-  flight: 'Flight',
-  path: '3D path',
-  ground: 'Ground track',
-  environment: 'Environment',
-};
-const CONFIGS: Record<ConfigsTab, string> = { motors: 'Motors', recovery: 'Recovery', separation: 'Staging' };
-const TOOL: Record<Tool, string> = { landing: 'Landing estimator', rail: 'Off the rail', chute: 'Parachute sizing' };
 
 /** Tap a button of the bottom bar. */
 async function tap(page: Page, label: string): Promise<void> {
@@ -48,27 +30,34 @@ async function tap(page: Page, label: string): Promise<void> {
   await expect(button).toHaveAttribute('aria-current', 'page');
 }
 
-/** Press a toggle button by its exact name and wait for it to report pressed. */
-async function press(page: Page, name: string): Promise<void> {
-  const toggle = page.getByRole('button', { name, exact: true });
-  await toggle.click();
-  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
-}
+/** The panes inside a view that has a switch of its own: the 2D sides and the Aero panes. */
+const PANES: Partial<Record<ViewMode, Record<string, string>>> = {
+  '2d': TWO_D,
+  drag: AERO_PANE,
+};
 
-/** Each view of a view switch, scanned in turn. */
+/** Each view of a view switch, and each pane inside one, scanned in turn. */
 async function scanViews(page: Page, where: string, views: readonly ViewMode[]): Promise<string[]> {
   const found: string[] = [];
   for (const view of views) {
     await press(page, VIEW[view]);
     await expect(page.getByText('Loading 3D…')).toHaveCount(0);
     if (view === 'drag') await expect(page.getByRole('img', { name: /peak .* at Mach/ }).first()).toBeVisible();
-    found.push(...(await axeViolations(page, `${where} / ${VIEW[view]}`)));
+    const panes = PANES[view];
+    if (!panes) {
+      found.push(...(await axeViolations(page, `${where} / ${VIEW[view]}`)));
+      continue;
+    }
+    for (const pane of Object.values(panes)) {
+      await press(page, pane);
+      found.push(...(await axeViolations(page, `${where} / ${VIEW[view]} / ${pane}`)));
+    }
   }
   return found;
 }
 
 /** What each bar button opens onto, scanned once per view, sub-tab or tool it offers. */
-const SCREENS: { name: string; scan: (page: Page) => Promise<string[]> }[] = [
+const SCREENS: { name: string; scan: (page: Page) => Promise<string[]>; timeout?: number }[] = [
   {
     name: 'Rocket',
     scan: async (page) => {
@@ -111,6 +100,31 @@ const SCREENS: { name: string; scan: (page: Page) => Promise<string[]> }[] = [
     },
   })),
   {
+    // The editor of every part type. On a phone it is a full-screen dialog over
+    // the drawing. The phone has no tree, and the drawing does not reach every
+    // part, so each part is chosen at a width that shows the tree, which also
+    // opens the editor as a dialog, and the dialog is scanned at the phone's.
+    name: 'Part editors',
+    timeout: 300_000,
+    scan: async (page) => {
+      const phone = defined(page.viewportSize(), 'the phone viewport');
+      const laptop = { width: 1200, height: 900 };
+      const found: string[] = [];
+      await page.setViewportSize(laptop);
+      await eachEditor(
+        page,
+        async (name) => {
+          await page.setViewportSize(phone);
+          await expect(page.getByRole('dialog', { name: 'Edit component' })).toBeVisible();
+          found.push(...(await axeViolations(page, name)));
+          await page.setViewportSize(laptop);
+        },
+        { dialog: true },
+      );
+      return found;
+    },
+  },
+  {
     name: 'Menu and Settings',
     scan: async (page) => {
       await page.getByRole('button', { name: 'Menu' }).click();
@@ -127,7 +141,7 @@ for (const theme of THEMES) {
   test.describe(`axe on a phone in the ${theme} theme`, () => {
     for (const screen of SCREENS) {
       test(`finds nothing on ${screen.name}`, async ({ page }) => {
-        test.setTimeout(120_000);
+        test.setTimeout(screen.timeout ?? 120_000);
         await ready(page);
         // A run first: Results shows on the bar only once there is a flight to read.
         await page.getByRole('navigation', { name: 'Workbench' }).getByRole('button', { name: 'Simulate' }).click();

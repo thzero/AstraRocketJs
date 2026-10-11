@@ -103,11 +103,24 @@ export function progressPercent(p: CatalogProgress | null | undefined): number |
 
 /** A non-2xx reply, with its status, so a caller can tell "not there" (404,
  *  a fact about the host) from a transient failure worth retrying. */
-class HttpError extends Error {
+export class HttpError extends KeyedError {
   constructor(readonly status: number) {
-    super(`HTTP ${status}`);
+    super('errors.remote.http', { status });
     this.name = 'HttpError';
   }
+}
+
+/**
+ * A failed `fetch` as a keyed reason. The browser's own text for a timeout
+ * ("signal is aborted without reason") or a refused connection ("Failed to
+ * fetch") is English whatever language the app shows, and it would land inside
+ * a translated sentence.
+ */
+export function fetchFailure(e: unknown, timedOut: boolean): KeyedError {
+  if (e instanceof KeyedError) return e;
+  if (timedOut) return new KeyedError('errors.remote.timeout');
+  if (e instanceof SyntaxError) return new KeyedError('errors.remote.badShape');
+  return new KeyedError('errors.remote.network');
 }
 
 /** fetch + JSON with staged abort timeouts and a size cap, so a hung or
@@ -119,14 +132,19 @@ async function fetchJson<T>(
   onProgress?: (p: CatalogProgress) => void,
 ): Promise<T> {
   const ctrl = new AbortController();
-  let timer = setTimeout(() => ctrl.abort(), ttfbMs);
+  let timedOut = false;
+  const expire = () => {
+    timedOut = true;
+    ctrl.abort();
+  };
+  let timer = setTimeout(expire, ttfbMs);
   try {
     const res = await fetch(url, { ...opts, signal: ctrl.signal });
     // Headers are in, so the host is alive: swap the first-byte budget for the
     // body one. Without this the first-byte budget would also have to cover the
     // whole download, and a slow link would be cut off mid-transfer.
     clearTimeout(timer);
-    timer = setTimeout(() => ctrl.abort(), BODY_TIMEOUT_MS);
+    timer = setTimeout(expire, BODY_TIMEOUT_MS);
     if (!res.ok) throw new HttpError(res.status);
     const len = Number(res.headers.get('content-length'));
     if (Number.isFinite(len) && len > MAX_CATALOG_BYTES) throw new KeyedError('errors.remote.tooLarge');
@@ -136,7 +154,7 @@ async function fetchJson<T>(
     // over the size cap would otherwise keep downloading while the fallback
     // base is tried.
     ctrl.abort();
-    throw e;
+    throw fetchFailure(e, timedOut);
   } finally {
     clearTimeout(timer);
   }
@@ -166,6 +184,22 @@ function reportProgress(name: string, p: CatalogProgress): void {
   for (const cb of progressListeners.get(name) ?? []) cb(p);
 }
 
+/**
+ * A manifest body as the map it must be: an object whose values are hashes.
+ *
+ * Anything else is read as no manifest at all, so the catalog is still fetched
+ * from this host without a cache-buster, rather than a `null` body making
+ * `manifest(base)[name]` throw and every catalog on the host fall through to the
+ * in-build copy without a word. A non-string value is dropped, so it never
+ * reaches `?v=`.
+ */
+export function manifestEntries(body: unknown): Record<string, string> {
+  if (typeof body !== 'object' || body === null || Array.isArray(body)) return {};
+  const out: Record<string, string> = {};
+  for (const [name, hash] of Object.entries(body)) if (typeof hash === 'string' && hash) out[name] = hash;
+  return out;
+}
+
 // One in-flight/settled manifest promise per base; the fallback base is only
 // ever fetched if the primary one actually fails.
 const manifestP = new Map<string, Promise<Record<string, string>>>();
@@ -179,7 +213,8 @@ function manifest(base: string): Promise<Record<string, string>> {
     // failure (network down, timeout, 5xx) is not: caching `{}` from one of
     // those would pin every later catalog fetch this session to "no buster", so a
     // catalog replaced on the host would keep being served from the browser cache.
-    p = fetchJson<Record<string, string>>(`${base}manifest.json`, ttfbFor(base), { cache: 'no-cache' }).catch(
+    p = fetchJson<unknown>(`${base}manifest.json`, ttfbFor(base), { cache: 'no-cache' }).then(
+      manifestEntries,
       (e: unknown) => {
         if (!(e instanceof HttpError && e.status === 404)) manifestP.delete(base);
         return {};
@@ -232,7 +267,7 @@ export function fetchCatalog<T>(name: CatalogName, valid?: (v: unknown) => boole
         try {
           const hash = (await manifest(base))[name];
           const body = await fetchJson<T>(
-            `${base}${name}.generated.json` + (hash ? `?v=${hash}` : ''),
+            `${base}${name}.generated.json` + (hash ? `?v=${encodeURIComponent(hash)}` : ''),
             ttfbFor(base),
             undefined,
             (p) => reportProgress(name, p),

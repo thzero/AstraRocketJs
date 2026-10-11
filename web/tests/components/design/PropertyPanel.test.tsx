@@ -519,3 +519,69 @@ describe('a kernel-resolved automatic length', () => {
     }
   });
 });
+
+/**
+ * The kernel clamps a rail button's heights and bore, and a centering ring's
+ * radii, against each other. The panel holds each value inside the same range,
+ * so what it shows and stores is what flies (linkedDimensions.kernel.test.ts
+ * checks the ranges against the kernel itself).
+ */
+describe('linked dimensions', () => {
+  const box = (name: string) => screen.getByRole('spinbutton', { name }) as HTMLInputElement;
+  const type = (input: HTMLInputElement, v: number) => {
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: String(v) } });
+  };
+
+  it('stops a rail button base at the height left by the flange', () => {
+    const onChange = show({
+      id: 'rb',
+      type: 'railbutton',
+      outerDiameter: 0.01,
+      innerDiameter: 0.006,
+      height: 0.01,
+      baseHeight: 0.002,
+      flangeHeight: 0.002,
+    } as unknown as ComponentNode);
+    const base = box('Base height');
+    expect(Number(base.max)).toBeCloseTo(Number(box('Height').value) * 0.8, 9);
+    type(base, Number(box('Height').value) * 10);
+    expect(onChange).toHaveBeenLastCalledWith({ baseHeight: 0.008 });
+  });
+
+  it('keeps a rail button height at least its base and flange', () => {
+    const onChange = show({
+      id: 'rb',
+      type: 'railbutton',
+      height: 0.01,
+      baseHeight: 0.003,
+      flangeHeight: 0.002,
+    } as unknown as ComponentNode);
+    type(box('Height'), 0);
+    expect(onChange).toHaveBeenLastCalledWith({ height: 0.005 });
+  });
+
+  it('keeps a rail button bore inside its outer diameter', () => {
+    const onChange = show({ id: 'rb', type: 'railbutton', outerDiameter: 0.01 } as unknown as ComponentNode);
+    type(box('Inner diameter'), Number(box('Outer diameter').value) * 2);
+    expect(onChange).toHaveBeenLastCalledWith({ innerDiameter: 0.01 });
+  });
+
+  it('shows the dimensions a rail button flies at when the node leaves them out', () => {
+    show({ id: 'rb', type: 'railbutton' } as unknown as ComponentNode);
+    // RailButton(): outer diameter and total height are both 9.7 mm.
+    expect(Number(box('Height').value)).toBeGreaterThan(0);
+    expect(box('Height').value).toBe(box('Outer diameter').value);
+  });
+
+  it('keeps a centering ring bore inside its outer diameter', () => {
+    const onChange = show({
+      id: 'cr',
+      type: 'centeringring',
+      outerRadius: 0.02,
+      innerRadius: 0.01,
+    } as unknown as ComponentNode);
+    type(box('Inner diameter'), Number(box('Outer diameter').value) * 3);
+    expect(onChange).toHaveBeenLastCalledWith({ innerRadius: 0.02 });
+  });
+});

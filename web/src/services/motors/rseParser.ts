@@ -33,7 +33,7 @@ import { impulseClass } from './motorCombine';
 import { delayList } from './motorPicker';
 import { totalImpulse } from './engParser';
 import { parseXmlText } from '../files/xmlUtil';
-import { mathEquals } from './mathEquals';
+import { MAX_CURVE_SAMPLES, finalizeCurve } from './curveFinalize';
 import { KeyedError } from '../../i18n/keyedError';
 
 /** RockSim's `Type` attribute, mapped to the catalog's own vocabulary. */
@@ -52,13 +52,12 @@ const TYPES: Record<string, NonNullable<CustomMotor['type']>> = {
  * shroud lines for the same reason: without a cap, a member with a million
  * `<engine>` elements would freeze the tab while merely opening a shared design.
  *
- * A manufacturer's whole range is a few hundred motors, and the longest real
- * curve is a few thousand samples.
+ * A manufacturer's whole range is a few hundred motors. The per-motor sample
+ * ceiling is `MAX_CURVE_SAMPLES`, shared with the `.eng` reader.
  */
 export const MAX_RSE_ENGINES = 2000;
-export const MAX_RSE_SAMPLES = 20_000;
 
-/** One `<eng-data>` row, before the quirk fixing below. */
+/** One `<eng-data>` row, before `finalizeCurve` fixes the curve's quirks. */
 interface Point {
   time: number;
   thrust: number;
@@ -81,68 +80,18 @@ export function removeDelay(designation: string): string {
 function num(el: Element, name: string, whatKey: string): number {
   const raw = el.getAttribute(name);
   if (raw === null) throw new KeyedError('errors.motorFile.rseMissing', { what: { key: whatKey } });
-  const v = Number(raw);
+  // `Number('')` is 0, where upstream's `Double.parseDouble` refuses a blank.
+  const v = raw.trim() === '' ? NaN : Number(raw);
   if (!Number.isFinite(v)) throw new KeyedError('errors.motorFile.rseInvalid', { what: { key: whatKey }, raw });
   return v;
 }
 
-/** An optional numeric attribute; NaN when absent or unparseable, as upstream. */
+/** An optional numeric attribute; NaN when absent, blank or unparseable, as upstream. */
 function optNum(el: Element, name: string): number {
   const raw = el.getAttribute(name);
-  if (raw === null) return NaN;
+  if (raw === null || raw.trim() === '') return NaN;
   const v = Number(raw);
   return Number.isFinite(v) ? v : NaN;
-}
-
-/**
- * Sort by time, carrying the other columns along.
- *
- * Upstream's `sortLists`, which exists because the samples are not guaranteed
- * ordered. A plain stable sort of the rows does the same job.
- */
-function sortByTime(points: Point[]): Point[] {
-  return [...points].sort((a, b) => a.time - b.time);
-}
-
-/** Upstream's `MathUtil.equals`, relative to `b`. */
-const eq = mathEquals;
-
-/**
- * The real-world quirk fixing from `AbstractMotorLoader.finalizeThrustCurve`,
- * ported case for case because each case is a shape of file that exists.
- *
- * What is not ported is the commented-out block upstream keeps at the end: it
- * appends a zero-thrust point at the last sample's own time, which makes two
- * points share a time and then breaks the interpolation that reads them.
- */
-function finalizeThrustCurve(points: Point[]): Point[] {
-  if (points.length === 0) return points;
-  const p = [...points];
-
-  // No datapoint at t=0: put one there. A nonzero thrust at t=0 is an error in
-  // the file, but not one worth refusing it over, and a second zero-thrust
-  // point at the same time would be the duplicate-time problem below.
-  if (!eq(p[0]!.time, 0)) p.unshift({ ...p[0]!, time: 0, thrust: 0 });
-
-  // Two points at t=0, one zero-thrust and one not. Drop the zero.
-  if (p.length > 1 && eq(p[0]!.time, 0) && eq(p[1]!.time, 0)) p.shift();
-
-  // Two adjacent points identical in both time and thrust (KBA K1750 does
-  // this). Drop the second.
-  for (let i = 0; i < p.length - 1; i++) {
-    while (i < p.length - 1 && eq(p[i]!.time, p[i + 1]!.time) && eq(p[i]!.thrust, p[i + 1]!.thrust)) {
-      p.splice(i, 1);
-    }
-  }
-
-  // Two final points at the same time, one of them zero thrust. Drop the zero.
-  const n = p.length - 1;
-  if (n > 0 && eq(p[n - 1]!.time, p[n]!.time)) {
-    if (eq(p[n - 1]!.thrust, 0)) p.splice(n - 1, 1);
-    else if (eq(p[n]!.thrust, 0)) p.splice(n, 1);
-  }
-
-  return p;
 }
 
 /** One `<engine>` element as a stored custom motor. */
@@ -171,8 +120,8 @@ function parseEngine(el: Element): CustomMotor {
   }
 
   const sampleEls = el.querySelectorAll('data > eng-data');
-  if (sampleEls.length > MAX_RSE_SAMPLES) {
-    throw new KeyedError('errors.motorFile.rseTooManyPoints', { motor: designation, max: MAX_RSE_SAMPLES });
+  if (sampleEls.length > MAX_CURVE_SAMPLES) {
+    throw new KeyedError('errors.motorFile.rseTooManyPoints', { motor: designation, max: MAX_CURVE_SAMPLES });
   }
   const rows: Point[] = [...sampleEls].map((d) => ({
     time: optNum(d, 't'),
@@ -189,7 +138,7 @@ function parseEngine(el: Element): CustomMotor {
     // every seated motor through it, so the file is refused here.
     if (r.time < 0) throw new KeyedError('errors.motorFile.rseNegativeTime', { motor: designation });
   }
-  const points = finalizeThrustCurve(sortByTime(rows));
+  const points = finalizeCurve(rows);
   if (points.length < 2) throw new KeyedError('errors.motorFile.rseNoCurve', { motor: designation });
 
   // ThrustCurveMotor refuses both of these, and the bridge builds every

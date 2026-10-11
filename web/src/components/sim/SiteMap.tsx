@@ -368,7 +368,7 @@ export function SiteMap({
                 onClick={() => setView((v) => ({ ...v, lat: latitudeDeg, lon: longitudeDeg }))}
                 className="absolute bottom-1 left-1 rounded-md bg-surface/80 px-2 py-1 text-[11px] text-ink ring-1 ring-shade/40 hover:bg-raised"
               >
-                ◎ {t('map.recenter')}
+                <span aria-hidden="true">◎</span> {t('map.recenter')}
               </button>
             )}
             <MapCredit>{tiles.attribution}</MapCredit>

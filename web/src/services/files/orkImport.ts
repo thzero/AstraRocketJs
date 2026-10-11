@@ -1,3 +1,5 @@
+import { fmtList } from '../../i18n/format';
+import i18n from '../../i18n';
 import { xmlText as text } from './xmlUtil';
 import { syncAutoRadii } from '../design/autoRadius';
 import { findStages } from '../design/treeEdit';
@@ -24,7 +26,9 @@ export function importOrk(data: ArrayBuffer | string): OrkImportResult {
   const rocketEl = doc.querySelector('openrocket > rocket');
   if (!rocketEl) throw new KeyedError('errors.file.notOrk');
 
-  const name = text(rocketEl, ':scope > name') ?? 'Imported rocket';
+  // A file that names no rocket opens under the app's name for an unnamed one,
+  // in the UI language.
+  const name = text(rocketEl, ':scope > name') ?? i18n.t('library.untitled');
   // Design-level metadata (OpenRocket's Rocket configuration), preserved so a
   // round-trip export doesn't drop the designer / comments / revision.
   const designer = text(rocketEl, ':scope > designer') ?? undefined;
@@ -204,11 +208,11 @@ function archiveNotes(doc: Document, dropped: string[]): ImportNote[] {
     const names = [
       ...new Set(extensions.map((e) => extensionName(e.getAttribute('extensionid') ?? e.textContent ?? ''))),
     ];
-    out.push(keyedNote('importNote.extensions', { names: names.join(', ') }));
+    out.push(keyedNote('importNote.extensions', { names: fmtList(names) }));
   }
   if (dropped.length) {
     out.push(
-      keyedNote('importNote.notRead', { items: `${dropped.slice(0, 6).join(', ')}${dropped.length > 6 ? ', …' : ''}` }),
+      keyedNote('importNote.notRead', { items: `${fmtList(dropped.slice(0, 6))}${dropped.length > 6 ? ' …' : ''}` }),
     );
   }
   // Whole features rather than fields, so they are named: someone who set a
@@ -216,7 +220,7 @@ function archiveNotes(doc: Document, dropped: string[]): ImportNote[] {
   // does not discard it either.
   const docLevel = ['photostudio', 'docprefs', 'datatypes'].filter((t) => doc.querySelector(`openrocket > ${t}`));
   if (docLevel.length) {
-    out.push(keyedNote('importNote.noEditor', { items: docLevel.join(', ') }));
+    out.push(keyedNote('importNote.noEditor', { items: fmtList(docLevel) }));
   }
   return out;
 }

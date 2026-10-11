@@ -484,23 +484,22 @@ final class ComponentFactory {
                 rb.setAngleOffset(dbl(node, "angleOffset", Math.PI));
                 // The rest of the button's geometry. Each absent key keeps the
                 // kernel default, so a hand-sized 1010 rail button needs these
-                // for its mass to be right. Total height first: the kernel
-                // clamps the flange and base against it.
-                double rbH = dbl(node, "height", Double.NaN);
-                if (!Double.isNaN(rbH)) {
-                    rb.setTotalHeight(rbH);
-                }
+                // for its mass to be right. The setters clamp the total height
+                // against the base and flange and those two against the total,
+                // so the base and flange are cleared before the total is set:
+                // a button whose heights agree then builds exactly as stated,
+                // whatever the constructor's heights were.
+                double rbH = dbl(node, "height", rb.getTotalHeight());
+                double rbBase = dbl(node, "baseHeight", rb.getBaseHeight());
+                double rbFlange = dbl(node, "flangeHeight", rb.getFlangeHeight());
+                rb.setBaseHeight(0);
+                rb.setFlangeHeight(0);
+                rb.setTotalHeight(rbH);
+                rb.setBaseHeight(rbBase);
+                rb.setFlangeHeight(rbFlange);
                 double rbId = dbl(node, "innerDiameter", Double.NaN);
                 if (!Double.isNaN(rbId)) {
                     rb.setInnerDiameter(rbId);
-                }
-                double rbBase = dbl(node, "baseHeight", Double.NaN);
-                if (!Double.isNaN(rbBase)) {
-                    rb.setBaseHeight(rbBase);
-                }
-                double rbFlange = dbl(node, "flangeHeight", Double.NaN);
-                if (!Double.isNaN(rbFlange)) {
-                    rb.setFlangeHeight(rbFlange);
                 }
                 double rbScrew = dbl(node, "screwHeight", Double.NaN);
                 if (!Double.isNaN(rbScrew)) {

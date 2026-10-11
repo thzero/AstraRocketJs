@@ -5,6 +5,8 @@ import { buildComponentCsv, buildDesignCsv } from '../../../src/services/report/
 import { METRIC_UNITS, IMPERIAL_UNITS } from '../../../src/prefs/units';
 import { summaryRows, type PdfPage } from '../../../src/services/report/pdfPage';
 import i18n from '../../../src/i18n';
+import es from '../../../src/i18n/locales/es.json';
+import { NO_VALUE } from '../../../src/i18n/noValue';
 
 const info = {
   length: 0.9,
@@ -35,7 +37,9 @@ const model: ReportModel = {
   ],
   configs: [],
   partsByStage: [],
-  finSetsByStage: [{ stage: 'Sustainer', sets: [{ name: 'Fin set', topX: 1.118, bottomX: 1.271 }] }],
+  finSetsByStage: [
+    { stage: 'Sustainer', sets: [{ name: 'Fin set', type: 'trapezoidfinset', topX: 1.118, bottomX: 1.271 }] },
+  ],
 };
 
 describe('design CSV', () => {
@@ -247,5 +251,66 @@ describe('buildComponentCsv', () => {
   it('keeps a part name from becoming a spreadsheet formula', () => {
     const tube = csv()[2]!;
     expect(tube).toContain("'=HYPERLINK");
+  });
+
+  it('leaves a figure the kernel could not give blank', () => {
+    const bad: ReportModel = {
+      ...parts,
+      partsByStage: [
+        { stage: 'S', rows: [{ depth: 0, type: 'bodytube', name: 'B', length: NaN, density: Infinity, mass: NaN }] },
+      ],
+    };
+    const [, row] = buildComponentCsv(bad, METRIC_UNITS, (type) => type)
+      .trimEnd()
+      .split('\r\n');
+    const cells = row!.split(',');
+    expect([cells[5], cells[6], cells[12]]).toEqual(['', '', '']);
+  });
+});
+
+describe('design CSV with figures the kernel could not give', () => {
+  it('writes them as blank cells, never the no-value glyph', () => {
+    const nan = { ...info, length: NaN, mass: NaN, rollInertia: NaN } as StaticInfo;
+    const out = buildDesignCsv(
+      {
+        ...model,
+        whole: { label: 'R', info: nan },
+        finSetsByStage: [{ stage: 'S', sets: [{ name: 'F', type: 'trapezoidfinset', topX: NaN, bottomX: 1 }] }],
+      },
+      METRIC_UNITS,
+    );
+    const r = out.split('\r\n').map((l) => l.split(','));
+    expect(r).toContainEqual(['Rocket', 'Length', '', 'cm']);
+    expect(r).toContainEqual(['Rocket', 'Roll Inertia (Loaded)', '', 'kg·m²']);
+    expect(r).toContainEqual(['S', 'Fin set: Nose to top of fin root', '', 'cm']);
+    expect(out).not.toContain(NO_VALUE);
+  });
+});
+
+describe('design CSV fin-set fields for unnamed fin sets', () => {
+  it('names each by its type in the UI language, inside the English field', async () => {
+    await i18n.changeLanguage('es');
+    try {
+      const out = buildDesignCsv(
+        {
+          ...model,
+          finSetsByStage: [
+            {
+              stage: 'Sustainer',
+              sets: [
+                { type: 'trapezoidfinset', topX: 1, bottomX: 1.1 },
+                { type: 'tubefinset', topX: 0.5, bottomX: 0.6 },
+              ],
+            },
+          ],
+        },
+        METRIC_UNITS,
+      );
+      const fields = out.split('\r\n').map((l) => l.split(',')[1]);
+      expect(fields).toContain(`${es.part.trapezoidfinset}: Nose to top of fin root`);
+      expect(fields).toContain(`${es.part.tubefinset}: Nose to top of fin root`);
+    } finally {
+      await i18n.changeLanguage('en');
+    }
   });
 });

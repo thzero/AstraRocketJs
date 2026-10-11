@@ -1,4 +1,4 @@
-import { type KeyboardEvent as ReactKeyboardEvent, type ReactNode, useEffect, useId, useRef, useState } from 'react';
+import { type KeyboardEvent as ReactKeyboardEvent, type ReactNode, type RefObject, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useCanBuildDesign } from '../design/useCanBuildDesign';
 import { useMenuPopover } from '../common/useMenuPopover';
@@ -17,6 +17,9 @@ const item =
 const subItem =
   'flex w-full items-center py-2 pl-8 pr-3 text-left text-xs font-medium text-ink hover:bg-elevated aria-disabled:cursor-not-allowed aria-disabled:text-ink-dim aria-disabled:hover:bg-transparent';
 const separator = <div role="separator" className="my-1 border-t border-line/10" />;
+
+/** The items the arrow keys reach: the ones laid out, disabled ones included so their reason can be heard. */
+const laidOut = (el: HTMLElement): boolean => el.offsetParent !== null;
 
 export interface FileMenuActions {
   onNew: () => void;
@@ -126,23 +129,24 @@ function MenuItem({
  *
  * Every item is `tabIndex={-1}` in the JSX, rather than assigned imperatively
  * whenever a sub-item appears, so the arrow keys drive navigation and Tab leaves
- * the menu.
+ * the menu. The keyboard model (focus on open, arrows, Home and End, Tab and
+ * Escape) is the button's `useMenuPopover`.
  */
 function FileMenu({
   canSave,
   onClose,
-  onEscape,
+  menuRef,
+  onMenuKeyDown,
   actions,
 }: {
   canSave: boolean;
-  /** Close the menu (an item was chosen, or Tab moved on). */
+  /** Close the menu (an item was chosen). */
   onClose: () => void;
-  /** Escape: close and return focus to the trigger. */
-  onEscape: () => void;
+  menuRef: RefObject<HTMLDivElement | null>;
+  onMenuKeyDown: (e: ReactKeyboardEvent<HTMLElement>) => void;
   actions: FileMenuActions;
 }) {
   const { t } = useTranslation();
-  const menuRef = useRef<HTMLDivElement>(null);
   const [exportOpen, setExportOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   // Read here rather than threaded in as a prop: it is a fact about the window,
@@ -150,50 +154,6 @@ function FileMenu({
   const canBuild = useCanBuildDesign();
   const updateChecker = useUpdateStore((s) => s.checker);
   const online = useOnline();
-
-  // On open, pull focus to the first enabled item, unless focus is already
-  // inside (the trigger handed it over). Once, on mount: the menu is a fresh
-  // instance per opening.
-  useEffect(() => {
-    const menu = menuRef.current;
-    if (!menu || menu.contains(document.activeElement)) return;
-    Array.from(menu.querySelectorAll<HTMLElement>('[role="menuitem"]'))
-      .find((el) => el.getAttribute('aria-disabled') !== 'true')
-      ?.focus();
-  }, []);
-
-  // Arrow-key roving among the visible menu items, disabled ones included so
-  // their reason can be heard; Escape closes and returns focus to the trigger;
-  // Tab closes and lets focus move on naturally.
-  const onMenuKey = (e: ReactKeyboardEvent<HTMLDivElement>) => {
-    const menu = menuRef.current;
-    if (!menu) return;
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      onEscape();
-      return;
-    }
-    if (e.key === 'Tab') {
-      onClose(); // no preventDefault: focus proceeds out of the menu
-      return;
-    }
-    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Home' && e.key !== 'End') return;
-    e.preventDefault();
-    const items = Array.from(menu.querySelectorAll<HTMLElement>('[role="menuitem"]')).filter(
-      (el) => el.offsetParent !== null,
-    );
-    if (items.length === 0) return;
-    const i = items.indexOf(document.activeElement as HTMLElement);
-    const to =
-      e.key === 'Home'
-        ? 0
-        : e.key === 'End'
-          ? items.length - 1
-          : e.key === 'ArrowDown'
-            ? (i + 1) % items.length
-            : (i - 1 + items.length) % items.length;
-    items[to]?.focus();
-  };
 
   /** Close the menu, then run the action. */
   const run = (action: () => void) => () => {
@@ -205,7 +165,7 @@ function FileMenu({
     <div // eslint-disable-line jsx-a11y-x/interactive-supports-focus -- roving tabindex: focus moves to the items, as in the ARIA menu pattern, so the container is not
       ref={menuRef}
       role="menu"
-      onKeyDown={onMenuKey}
+      onKeyDown={onMenuKeyDown}
       className="absolute right-0 z-50 mt-1 w-44 overflow-hidden rounded-lg bg-raised py-1 shadow-xl ring-1 ring-line/10"
     >
       <MenuItem onClick={run(actions.onNew)}>{t('file.new')}</MenuItem>
@@ -308,12 +268,22 @@ function FileMenu({
 /** The menu-button: the trigger plus the menu it opens, closed on outside click. */
 export function FileMenuButton({ canSave, actions }: { canSave: boolean; actions: FileMenuActions }) {
   const { t } = useTranslation();
-  const { open: menuOpen, toggle, close, wrapRef: menuRef, triggerRef: menuBtnRef } = useMenuPopover();
+  const {
+    open: menuOpen,
+    toggle,
+    close,
+    wrapRef,
+    triggerRef,
+    menuRef,
+    onMenuKeyDown,
+  } = useMenuPopover({
+    shown: laidOut,
+  });
 
   return (
-    <div className="relative" ref={menuRef}>
+    <div className="relative" ref={wrapRef}>
       <button
-        ref={menuBtnRef}
+        ref={triggerRef}
         onClick={toggle}
         aria-haspopup="menu"
         aria-expanded={menuOpen}
@@ -325,15 +295,7 @@ export function FileMenuButton({ canSave, actions }: { canSave: boolean; actions
         <span aria-hidden>☰</span> <span className="hidden 2xl:inline">{t('menu.open')}</span>
       </button>
       {menuOpen && (
-        <FileMenu
-          canSave={canSave}
-          onClose={close}
-          onEscape={() => {
-            close();
-            menuBtnRef.current?.focus();
-          }}
-          actions={actions}
-        />
+        <FileMenu canSave={canSave} onClose={close} menuRef={menuRef} onMenuKeyDown={onMenuKeyDown} actions={actions} />
       )}
     </div>
   );

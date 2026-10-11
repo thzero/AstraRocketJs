@@ -477,3 +477,64 @@ describe('manifest failures', () => {
     expect(signals[0]!.aborted).toBe(false);
   });
 });
+
+describe('a manifest of the wrong shape', () => {
+  it('still reads the catalog from that host, with no buster, rather than skipping it', async () => {
+    vi.stubEnv('VITE_DATA_BASE', REMOTE);
+    const seen = stubFetch({
+      [`${REMOTE}manifest.json`]: { body: null },
+      [`${REMOTE}motors.generated.json`]: { body: ['remote'] },
+      '/data/manifest.json': { body: {} },
+      '/data/motors.generated.json': { body: ['local'] },
+    });
+    const fetchCatalog = await load();
+
+    await expect(fetchCatalog('motors')).resolves.toEqual(['remote']);
+    expect(seen).toEqual([`${REMOTE}manifest.json`, `${REMOTE}motors.generated.json`]);
+  });
+
+  it('drops a hash that is not a string instead of putting it in ?v=', async () => {
+    const seen = stubFetch({
+      '/data/manifest.json': { body: { motors: { evil: 1 }, components: 'ok1' } },
+      '/data/motors.generated.json': { body: [] },
+    });
+    const fetchCatalog = await load();
+    await fetchCatalog('motors');
+    expect(seen).toEqual(['/data/manifest.json', '/data/motors.generated.json']);
+  });
+});
+
+describe('a failed fetch is a keyed reason, never the browser text', () => {
+  const reasonOf = async (p: Promise<unknown>) => {
+    const e = (await p.then(
+      () => null,
+      (err: unknown) => err,
+    )) as { values?: { reason?: unknown } } | null;
+    return e?.values?.reason;
+  };
+
+  it('keys an HTTP failure by its status', async () => {
+    stubFetch({ '/data/manifest.json': { status: 404 }, '/data/motors.generated.json': { status: 503 } });
+    const fetchCatalog = await load();
+    expect(await reasonOf(fetchCatalog('motors'))).toEqual({ key: 'errors.remote.http', values: { status: 503 } });
+  });
+
+  it('keys a refused connection', async () => {
+    stubFetch({});
+    const fetchCatalog = await load();
+    expect(await reasonOf(fetchCatalog('motors'))).toEqual({ key: 'errors.remote.network' });
+  });
+
+  it('keys a timeout rather than passing on the abort text', async () => {
+    vi.useFakeTimers();
+    try {
+      stubFetch({ '/data/manifest.json': { status: 404 }, '/data/motors.generated.json': { hang: true } });
+      const fetchCatalog = await load();
+      const reason = reasonOf(fetchCatalog('motors'));
+      await vi.advanceTimersByTimeAsync(10_000);
+      expect(await reason).toEqual({ key: 'errors.remote.timeout' });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

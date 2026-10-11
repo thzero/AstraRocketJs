@@ -29,8 +29,38 @@ import { useOnline } from '../common/useOnline';
  */
 
 type Recovery = 'single' | 'dual';
+
+/**
+ * What an estimate was computed from. A result is drawn over the site it was
+ * computed for, not whatever the site fields hold now, and it is marked out of
+ * date when any of these no longer match the form.
+ */
+interface EstimateInputs {
+  latitudeDeg: number;
+  longitudeDeg: number;
+  padElevationM: number | null;
+  date: string;
+  hour: number;
+  plan: DescentPlan;
+}
+
+const sameInputs = (a: EstimateInputs, b: EstimateInputs | null): boolean =>
+  b !== null &&
+  a.latitudeDeg === b.latitudeDeg &&
+  a.longitudeDeg === b.longitudeDeg &&
+  a.padElevationM === b.padElevationM &&
+  a.date === b.date &&
+  a.hour === b.hour &&
+  a.plan.apogeeAglM === b.plan.apogeeAglM &&
+  a.plan.firstRateMs === b.plan.firstRateMs &&
+  a.plan.main?.rateMs === b.plan.main?.rateMs &&
+  a.plan.main?.aglM === b.plan.main?.aglM;
+
 type State =
-  { kind: 'idle' } | { kind: 'loading' } | { kind: 'error'; message: string } | { kind: 'ready'; run: LandingRun };
+  | { kind: 'idle' }
+  | { kind: 'loading' }
+  | { kind: 'error'; message: string }
+  | { kind: 'ready'; run: LandingRun; inputs: EstimateInputs };
 
 interface Remembered {
   site: ToolSite;
@@ -93,30 +123,33 @@ export function LandingEstimator() {
         : { apogeeAglM: apogee, firstRateMs: firstRate }
       : null;
   const hasSite = site.latitudeDeg != null && site.longitudeDeg != null;
-  const ready = hasSite && plan !== null && /^\d{4}-\d{2}-\d{2}$/.test(date);
+  // The form as an estimate request, or null while anything it needs is missing.
+  const inputs: EstimateInputs | null =
+    site.latitudeDeg != null && site.longitudeDeg != null && plan !== null && /^\d{4}-\d{2}-\d{2}$/.test(date)
+      ? {
+          latitudeDeg: site.latitudeDeg,
+          longitudeDeg: site.longitudeDeg,
+          padElevationM: site.launchAltitudeM,
+          date,
+          hour,
+          plan,
+        }
+      : null;
+  const ready = inputs !== null;
 
   const errorText = (err: unknown): string => weatherErrorText(err, t);
 
   const estimate = async () => {
-    if (!ready || !plan) return;
+    if (!inputs) return;
+    const asked = inputs;
     const signal = request.claimSignal();
     setState({ kind: 'loading' });
     try {
-      const run = await runLandingEstimate(
-        {
-          latitudeDeg: site.latitudeDeg!,
-          longitudeDeg: site.longitudeDeg!,
-          padElevationM: site.launchAltitudeM,
-          date,
-          hour,
-          today: todayYmd(),
-          plan,
-          apiKey: readWeatherKey(),
-        },
-        { signal },
-      );
+      const run = await runLandingEstimate({ ...asked, today: todayYmd(), apiKey: readWeatherKey() }, { signal });
       if (signal.aborted) return;
-      setState(run === 'noHour' ? { kind: 'error', message: t('weather.noHour') } : { kind: 'ready', run });
+      setState(
+        run === 'noHour' ? { kind: 'error', message: t('weather.noHour') } : { kind: 'ready', run, inputs: asked },
+      );
       // On a phone the result is below the form, out of sight of the button.
       if (run !== 'noHour') requestAnimationFrame(() => resultRef.current?.scrollIntoView?.({ block: 'nearest' }));
     } catch (err) {
@@ -127,8 +160,10 @@ export function LandingEstimator() {
 
   const dist = u.plain('distance');
   const fmtM = (m: number) => fmtGroundDistance(dist, m);
-  const run = state.kind === 'ready' ? state.run : null;
+  const ran = state.kind === 'ready' ? state : null;
+  const run = ran?.run ?? null;
   const e = run?.estimate;
+  const outdated = ran !== null && !sameInputs(ran.inputs, inputs);
   const validTime = run ? fmtSiteTime(run.validUnix * 1000, run.answer.timezone) : '';
   return (
     <div className="grid gap-4 lg:grid-cols-[22rem_minmax(0,1fr)]">
@@ -241,11 +276,12 @@ export function LandingEstimator() {
       </div>
 
       <div ref={resultRef} className="min-w-0 space-y-3">
-        {run && e ? (
+        {ran && run && e ? (
           <>
+            {outdated && <p className="text-xs text-warn-400">{t('landing.outdated')}</p>}
             <LandingMap
-              latitudeDeg={site.latitudeDeg!}
-              longitudeDeg={site.longitudeDeg!}
+              latitudeDeg={ran.inputs.latitudeDeg}
+              longitudeDeg={ran.inputs.longitudeDeg}
               path={e.nominal.path}
               landing={e.nominal.landing}
               samples={e.samples}

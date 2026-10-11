@@ -53,6 +53,12 @@ export const MAX_LINE_COUNT = 100;
 // passthrough XML) and becomes a row in the workspace, the table and storage.
 // Desktop designs carry a handful; a few hundred is already unusual.
 export const MAX_SIMULATIONS = 1000;
+// Unrecognized elements carried as raw XML on one element (a component,
+// `<rocket>`, a simulation). The byte caps do not bound this: `<x/>` is 4
+// bytes, and each one is cloned, serialized, stored on the node, persisted and
+// written back on every save. Desktop writes a handful (appearance, a newer
+// version's tags).
+export const MAX_PASSTHROUGH = 1000;
 
 /** The file extension an over-limit error names. */
 type ImportFormat = '.ork' | '.rkt';

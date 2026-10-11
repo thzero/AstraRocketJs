@@ -15,6 +15,8 @@ import { fmtMb } from '../../i18n/format';
  * never finishes - no error, no progress, no end - so after
  * `engineStore.SLOW_AFTER_MS` the banner stops pretending to wait and offers
  * the retry, which is the only thing that can recover it short of a reload.
+ * When the JS build is the only backend a retry cannot recover it, so the
+ * banner offers the reload instead.
  */
 export function EngineNotice() {
   const { t } = useTranslation();
@@ -22,6 +24,9 @@ export function EngineNotice() {
   const status = useEngineStore((s) => s.status);
   const slow = useEngineStore((s) => s.slow);
   const retry = useEngineStore((s) => s.retry);
+  const reload = useEngineStore((s) => s.reload);
+  // A retry that cannot recover this load is not offered; a reload is.
+  const needsReload = useEngineStore((s) => s.needsReload);
 
   if (phase === 'ready') return null;
 
@@ -75,10 +80,10 @@ export function EngineNotice() {
       {stuck && (
         <button
           type="button"
-          onClick={retry}
+          onClick={needsReload ? reload : retry}
           className="ml-auto rounded-md bg-warn-500/15 px-2 py-1 text-xs font-medium text-warn-100 ring-1 ring-warn-400/30 hover:bg-warn-500/25"
         >
-          {t('engine.retry')}
+          {needsReload ? t('engine.reload') : t('engine.retry')}
         </button>
       )}
     </div>

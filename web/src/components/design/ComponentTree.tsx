@@ -251,7 +251,7 @@ function Row({
         </span>
         <span className={`truncate text-sm ${selected ? 'text-accent-200' : 'text-ink'}`}>{name}</span>
         {isMount && (
-          <span className="shrink-0 rounded bg-accent-500/15 px-1 text-[10px] font-medium text-accent-300">
+          <span className="shrink-0 rounded bg-accent-500/15 px-1 text-[10px] font-medium text-accent-200">
             {t('tree.motorTag')}
           </span>
         )}

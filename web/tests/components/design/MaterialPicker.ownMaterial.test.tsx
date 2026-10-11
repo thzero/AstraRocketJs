@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { MaterialPicker } from '../../../src/components/design/MaterialPicker';
 import { renderWithProviders } from '../../testing/renderWithProviders';
 import { setMaterialStore } from '../../../src/services/materials/materialStore';
@@ -40,5 +40,18 @@ describe('a material the list does not hold', () => {
     await waitFor(() => expect(select.options.length).toBeGreaterThan(3));
     expect(select.value).toBe('__default__');
     expect(screen.getByText(/No material assigned/)).toBeTruthy();
+  });
+});
+
+describe('adding a custom material', () => {
+  beforeAll(serveData);
+  beforeEach(() => setMaterialStore({ list: async () => [], add: async () => {}, remove: async () => {} }));
+
+  it('names its name box for a screen reader, not only by placeholder', async () => {
+    renderWithProviders(<MaterialPicker onChange={vi.fn()} />);
+    const select = materialSelect();
+    await waitFor(() => expect(select.options.length).toBeGreaterThan(3));
+    fireEvent.change(select, { target: { value: '__add__' } });
+    expect(screen.getByRole('textbox', { name: /^Name/ })).toBeTruthy();
   });
 });

@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import type { RocketTree } from '../../../../src/engine/openRocketEngine';
-import { exportCdx1 } from '../../../../src/services/files/rasaeroExport';
-import { rasaeroSurface, RASAERO_SURFACE_DEFAULT } from '../../../../src/services/files/rasaero/surface';
+import type { RocketTree } from '../../../src/engine/openRocketEngine';
+import { exportCdx1 } from '../../../src/services/files/rasaeroExport';
+import { rasaeroSurface, RASAERO_SURFACE_DEFAULT } from '../../../src/services/files/rasaero/surface';
 
 // A 1-inch-diameter rocket with clean-inch geometry so the meter→inch (×39.37)
 // conversions land on round numbers the assertions can pin exactly.

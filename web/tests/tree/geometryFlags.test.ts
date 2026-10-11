@@ -11,7 +11,10 @@ import { rocketSideView } from '../../src/services/report/reportGeometry';
 import { writeTemplatesSection } from '../../src/services/report/templatesSection';
 import type { PdfPage } from '../../src/services/report/pdfPage';
 import { stationRadius } from '../../src/tree/shapeProfile';
-import { finCutContour, finMountOf } from '../../src/tree/finPlanform';
+import { finCutContour, finMountOf, parentRadiusOf } from '../../src/tree/finPlanform';
+import { boreAt, tubeRadii } from '../../src/services/design/discGeometry';
+import { autoFinTab } from '../../src/services/design/finTabAuto';
+import { stageParts } from '../../src/services/report/reportModel';
 import { solidFor } from '../../src/services/exports/rocketPrintExport';
 import { componentToDxf } from '../../src/services/exports/dxfExport';
 
@@ -127,13 +130,20 @@ const READERS: Record<string, Reader> = {
     buildPieces(tree)
       .pieces.filter((p) => p.id === node.id)
       .map((p) => positions(p.geometry)),
+  'disc geometry': (_tree, node) => round([tubeRadii(node), boreAt(node, 'fore'), boreAt(node, 'aft')]),
+  'PDF parts table': (tree, node) =>
+    round(stageParts(tree.components[0]!, { componentInfo: () => ({ mass: 0 }) }).filter((r) => r.type === node.type)),
 };
 
-/** A flag, the part it is toggled on, and the value it is toggled to. */
+/**
+ * A flag, the part it is toggled on, and the value it is toggled to. `like`
+ * names the single flag whose `UNAFFECTED` reasons hold for a combination too.
+ */
 interface Flag {
   name: string;
   part: ComponentNode;
   on: Record<string, unknown>;
+  like?: string;
 }
 
 const NOSE: ComponentNode = {
@@ -170,6 +180,32 @@ const FLAGS: Flag[] = [
   { name: 'filled transition', part: TRANSITION, on: { filled: true } },
   { name: 'filled body tube', part: TUBE, on: { filled: true } },
   { name: 'unclipped transition', part: TRANSITION, on: { clipped: false } },
+  // One flag toggled with another already set: a reader that handles each
+  // alone can still let one mask the other.
+  {
+    name: 'flipped filled nose cone',
+    part: { ...NOSE, filled: true } as ComponentNode,
+    on: { flipped: true },
+    like: 'flipped nose cone',
+  },
+  {
+    name: 'filled flipped nose cone',
+    part: { ...NOSE, flipped: true } as ComponentNode,
+    on: { filled: true },
+    like: 'filled nose cone',
+  },
+  {
+    name: 'unclipped filled transition',
+    part: { ...TRANSITION, filled: true } as ComponentNode,
+    on: { clipped: false },
+    like: 'unclipped transition',
+  },
+  {
+    name: 'filled unclipped transition',
+    part: { ...TRANSITION, clipped: false } as ComponentNode,
+    on: { filled: true },
+    like: 'filled transition',
+  },
 ];
 
 /**
@@ -195,6 +231,10 @@ const UNAFFECTED: Record<string, string> = {
   'filled nose cone / 3D view': 'drawn as its outer surface',
   'filled transition / printable solid': 'printed as a solid of revolution, wall or not',
   'filled transition / 3D view': 'drawn as its outer surface',
+  'flipped nose cone / PDF parts table': 'lists the base radius and the length, which turning the part round keeps',
+  'unclipped transition / disc geometry': 'the ends and the wall, which clipping does not change',
+  'unclipped transition / PDF parts table': 'lists the ends and the length, which clipping does not change',
+  'flipped filled nose cone / disc geometry': 'a filled part has no bore at either end',
 };
 
 /**
@@ -222,11 +262,12 @@ describe('every shape flag reaches every reader', () => {
     const on = { ...flag.part, ...flag.on } as ComponentNode;
     for (const [reader, read] of Object.entries(READERS)) {
       const pair = `${flag.name} / ${reader}`;
+      const reason = UNAFFECTED[pair] ?? (flag.like ? UNAFFECTED[`${flag.like} / ${reader}`] : undefined);
       // Listed as unaffected: the reader must still not react, or the reason
       // no longer holds. Listed as known: still ignored until the fix, which
       // removes the line. Otherwise the reader has to react.
-      const expected = !(pair in UNAFFECTED || pair in KNOWN);
-      it(`${pair}: ${expected ? 'reacts' : (UNAFFECTED[pair] ?? `ignored, ${KNOWN[pair]}`)}`, () => {
+      const expected = reason === undefined && !(pair in KNOWN);
+      it(`${pair}: ${expected ? 'reacts' : (reason ?? `ignored, ${KNOWN[pair]}`)}`, () => {
         const changed = JSON.stringify(read(design(off), off)) !== JSON.stringify(read(design(on), on));
         expect(changed).toBe(expected);
       });
@@ -320,6 +361,8 @@ const FIN_READERS: Record<string, Reader> = {
     return calls;
   },
   'report side view fins': (tree) => round(rocketSideView(tree).fins),
+  'fin tab limit': (tree) => round(parentRadiusOf(tree, String(FIN.id))),
+  'fin tab auto': (tree) => round(autoFinTab(tree, String(FIN.id))),
 };
 
 const FIN_FLAGS: Flag[] = [

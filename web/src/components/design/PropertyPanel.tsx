@@ -26,7 +26,7 @@ import { ConfigOverrideNote } from './ConfigOverrideNote';
 import { useUnits } from '../../prefs/useUnits';
 import { num } from '../../tree/nodeProps';
 import { tubeFinMaxCount, tubeFinMaxRadius } from '../../tree/tubefins';
-import { FieldRow, FieldSection, sectionFields, visibleFields } from './DimensionFields';
+import { FieldRow, FieldSection, ShoulderSections, sectionFields, visibleFields } from './DimensionFields';
 import { CordMaterialSection, MaterialSection, RecoveryMaterialSection } from './MaterialSection';
 import { StageRecovery } from './StageRecovery';
 import { ComponentActions } from './ComponentActions';
@@ -215,7 +215,7 @@ export function PropertyPanel({
               <ComponentPicker
                 type={node.type as PickerType}
                 fit={fit}
-                current={catalogPart?.partNo}
+                current={catalogPart}
                 // The link goes in with the dimensions: the desktop shows which
                 // catalog part a component is, and drops the link as soon as a
                 // dimension moves (see treeEdit.breaksPreset).
@@ -240,34 +240,9 @@ export function PropertyPanel({
         </Fragment>
       ))}
 
-      {/* The stub that plugs into the tube next door. It is a different piece
-          of the part from the cone or taper above it, and under the same
-          heading it would read as four more dimensions of the same shape. A
-          transition has two, kept
-          apart because each end is its own build and eight rows under one
-          heading is a wall. Only one of the three renders for a given part:
-          FieldSection draws nothing when the type has no field in it. */}
-      <FieldSection
-        node={node}
-        title={t('prop.shoulder')}
-        fields={sectionFields(node, 'shoulder')}
-        onChange={onChange}
-        onCommit={onCommit}
-      />
-      <FieldSection
-        node={node}
-        title={t('prop.foreShoulder')}
-        fields={sectionFields(node, 'foreShoulder')}
-        onChange={onChange}
-        onCommit={onCommit}
-      />
-      <FieldSection
-        node={node}
-        title={t('prop.aftShoulder')}
-        fields={sectionFields(node, 'aftShoulder')}
-        onChange={onChange}
-        onCommit={onCommit}
-      />
+      {/* The stub that plugs into the tube next door, a section of its own
+          (or two, on a transition). */}
+      <ShoulderSections node={node} onChange={onChange} onCommit={onCommit} />
 
       {/* The through-the-wall tab is a separate piece of the fin: four fields
           that describe the part of it buried in the airframe, not its

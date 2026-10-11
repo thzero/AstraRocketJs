@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it } from 'vitest';
-import { act, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { act, fireEvent, screen } from '@testing-library/react';
 import { EngineNotice } from '../../../src/components/layout/EngineNotice';
 import { useEngineStore } from '../../../src/state/engineStore';
 import { renderWithProviders } from '../../testing/renderWithProviders';
@@ -42,5 +42,19 @@ describe('EngineNotice', () => {
     renderWithProviders(<EngineNotice />);
     expect(screen.getByRole('status').textContent).toBe(`${i18n.t('engine.slow')} ${i18n.t('engine.needsIt')}`);
     expect(screen.getByRole('button')).toBeTruthy();
+  });
+
+  // Retry cannot recover a load whose only backend is the JS chunk, so the
+  // banner offers the reload that can, rather than a button that does nothing.
+  it('offers a reload instead of a retry when a retry cannot recover the load', () => {
+    const retry = vi.fn();
+    const reload = vi.fn();
+    act(() =>
+      useEngineStore.setState({ phase: 'failed', slow: false, status: null, needsReload: true, retry, reload }),
+    );
+    renderWithProviders(<EngineNotice />);
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('engine.reload') }));
+    expect(reload).toHaveBeenCalledOnce();
+    expect(retry).not.toHaveBeenCalled();
   });
 });

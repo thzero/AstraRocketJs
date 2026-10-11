@@ -1,10 +1,13 @@
 import type { StaticInfo } from '../../engine/openRocketEngine';
 import type { ReportModel } from './reportModel';
 import type { DesignInfo, DesignFinSet, DesignStat, DesignStatGroup } from '../files/orkTypes';
+import i18n from '../../i18n';
+import { partLabel } from '../../i18n/format';
 
 // Builds the optional <designinfo> block from the report model (whole-rocket +
-// per-stage static info and fin-set positions). Pure data (type-only imports),
-// so it has no runtime dependency on the engine or store and is easy to test.
+// per-stage static info and fin-set positions). Pure data apart from naming an
+// unnamed fin set, so it has no runtime dependency on the engine or store and
+// is easy to test.
 
 /** The Mach number the coast drag coefficient is sampled at (matches the store's
  *  single-point drag sweep that fills StaticInfo.cd). */
@@ -133,14 +136,17 @@ export function buildDesignInfo(report: ReportModel): DesignInfo {
   const finsets: DesignFinSet[] = [];
   report.finSetsByStage.forEach((grp, stageNumber) => {
     const counts = new Map<string, number>();
-    for (const set of grp.sets) counts.set(set.name, (counts.get(set.name) ?? 0) + 1);
+    // An unnamed fin set is named by its type, as a new part is in the UI.
+    const labelOf = (set: (typeof grp.sets)[number]) => partLabel(i18n.t, set);
+    for (const set of grp.sets) counts.set(labelOf(set), (counts.get(labelOf(set)) ?? 0) + 1);
     const seen = new Map<string, number>();
     for (const set of grp.sets) {
-      let name = set.name;
-      if ((counts.get(set.name) ?? 0) > 1) {
-        const n = (seen.get(set.name) ?? 0) + 1;
-        seen.set(set.name, n);
-        name = `${set.name} #${n}`;
+      const label = labelOf(set);
+      let name = label;
+      if ((counts.get(label) ?? 0) > 1) {
+        const n = (seen.get(label) ?? 0) + 1;
+        seen.set(label, n);
+        name = `${label} #${n}`;
       }
       finsets.push({ stageNumber, stage: grp.stage, name, topX: set.topX, bottomX: set.bottomX });
     }

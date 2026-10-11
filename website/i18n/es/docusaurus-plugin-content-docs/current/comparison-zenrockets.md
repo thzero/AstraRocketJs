@@ -12,7 +12,7 @@ Escrito el **2026-09-23**, comparando **AstraRocketJs <AppVersion />** (motor co
 
 :::
 
-## No son el mismo tipo de herramienta
+## No son el mismo tipo de herramienta {#they-are-not-the-same-kind-of-tool}
 
 Lo primero que conviene saber es que no comparten motor de física.
 
@@ -22,9 +22,9 @@ Así que el mismo cohete, el mismo motor y las mismas condiciones no darán nece
 
 Lo segundo es la forma del producto. ZenRockets es un servicio con cuenta: los diseños son "privados por defecto, con enlaces públicos para compartir y clonar", con paneles para cohetes, motores, vuelos, preajustes y materiales, y previsiones meteorológicas en vivo por vuelo. AstraRocketJs se ejecuta solo en el cliente: sin cuenta, sin servidor, sin subir nada, y sigue funcionando con la red apagada.
 
-## Lo que tiene ZenRockets y esta aplicación no
+## Lo que tiene ZenRockets y esta aplicación no {#what-zenrockets-has-and-this-does-not}
 
-Esta es la tabla útil. Cada fila dice en qué punto estamos y, cuando lo hay, el motivo.
+Cada fila dice en qué punto está la función aquí y, cuando lo hay, el motivo.
 
 | Función de ZenRockets | Situación aquí, y por qué |
 | --- | --- |
@@ -39,11 +39,11 @@ Esta es la tabla útil. Cada fila dice en qué punto estamos y, cuando lo hay, e
 | **Perfiles de atmósfera resueltos**: lo que la simulación voló realmente, como viento, presión y temperatura frente a la altitud, más las condiciones en la rampa | Sí. Tras una simulación, la vista **Entorno** muestra el aire que encontró el vuelo: las condiciones en el lanzamiento, y la velocidad y la dirección del viento, la temperatura y la presión frente a la altura en la subida y en la bajada. Consulta [Vistas y análisis](./views-and-analysis.md#environment-after-a-simulation). |
 | **Previsiones meteorológicas en vivo de varios modelos, y campos de lanzamiento reales con consulta de elevación** | En gran parte. **Obtener el tiempo…** rellena las condiciones de lanzamiento de una simulación con un pronóstico de [Open-Meteo](./running-a-simulation.md#weather) para una fecha y una hora elegidas: temperatura, presión, humedad, un perfil de viento y la atmósfera en altura, y ofrece la altitud del terreno de Open-Meteo cuando difiere de la del sitio. Usa la combinación de modelos que Open-Meteo elige para el lugar, en lugar de dejarte comparar modelos uno junto a otro. Las ubicaciones guardadas con mapa de satélite y clic para fijar coordenadas cubren los campos de lanzamiento. |
 | **Imágenes de mapa bajo la trayectoria** | Sí, cuando se piden. La traza en tierra puede dibujarse sobre imágenes de satélite o de callejero del campo de lanzamiento, y el plano del suelo de la trayectoria 3D toma las mismas imágenes bajo el vuelo. Ambas empiezan desnudas y no descargan nada hasta que pides el terreno. |
-| **Suma de masas y aislamiento de etapa en el árbol de piezas**: un interruptor que cambia cada fila entre su propia masa y la de todo su subárbol, y un recálculo de masa, CG, CP y estabilidad para una sola etapa | No disponible. El aislamiento de etapa es el que más duele: es como se comprueba si un propulsor agotado es estable en su propio descenso, que es la pregunta que más necesita hacerse un diseño multietapa. Ambos son vistas de solo lectura sobre datos que la aplicación ya tiene. |
+| **Suma de masas y aislamiento de etapa en el árbol de piezas**: un interruptor que cambia cada fila entre su propia masa y la de todo su subárbol, y un recálculo de masa, CG, CP y estabilidad para una sola etapa | No disponible. El aislamiento de etapa es como se comprueba si un propulsor agotado es estable en su propio descenso, algo que importa en cualquier diseño multietapa. Ambos son vistas de solo lectura sobre datos que la aplicación ya tiene. |
 | **Enlaces para compartir, clonado y paneles** | No disponible, por diseño. No hay cuenta ni servidor que aloje un enlace. Los diseños son archivos en tu disco, así que compartir uno significa enviar el `.ork`. |
-| **Plan de precios** | Gratis, ¡y el código es libre y GPL! |
+| **Plan de precios** | Gratis. El código es abierto, con licencia GPL 3.0. |
 
-## Lo que tiene esta aplicación y ZenRockets no
+## Lo que tiene esta aplicación y ZenRockets no {#what-this-has-and-zenrockets-does-not}
 
 Contrastado con su documentación en la fecha indicada arriba.
 
@@ -55,10 +55,10 @@ Contrastado con su documentación en la fecha indicada arriba.
 | **Funcionar del todo sin conexión, sin subir nada** | La aplicación, el motor y ambos catálogos se quedan en tu dispositivo tras la primera visita, y no hay cuenta. Un servicio que necesita sesión y una descarga de previsión es otra propuesta muy distinta en un campo sin cobertura. |
 | **Análisis de componentes** | Resistencia por pieza desglosada en presión, base y fricción, la contribución de cada pieza a la estabilidad y su propio CP, y el forzado y amortiguamiento de alabeo de cada juego de aletas, a lo largo de un barrido de Mach con ángulo de ataque, dirección de viento y velocidad de alabeo elegidos, con un ajuste **Peor caso** que busca el ángulo de viento en el que el CP queda más adelantado. |
 | **Todo lo que puedes sacar de ella** | Un informe de diseño completo en PDF con plantillas 1:1 de aletas, ojivas y transiciones; hojas de corte DXF; STL, OBJ, GLB y 3MF por pieza más 3MF del cohete entero; RASAero II `.CDX1`; datos de vuelo y tablas de resistencia en CSV; la trayectoria en KML, GPX o CSV de waypoints con plantillas propias; y el esquema en SVG, PNG o JPG. Su exportación documentada es 3MF. |
-| **Límites NAR / Tripoli, aplicados** | Una simulación con la rampa a más de 20 grados de la vertical o con viento en superficie por encima de 20 mph se rechaza en lugar de volarse. Su validación previa al vuelo produce errores, avisos y alertas; no es lo mismo que negarse a volar. |
+| **Límites NAR / Tripoli, aplicados** | Una simulación con el raíl o la varilla a más de 30 grados de la vertical en un cohete modelo o de 20 grados en uno de alta potencia, o con viento en superficie por encima de 20 mph se rechaza en lugar de volarse. Su validación previa al vuelo produce errores, avisos y alertas; no es lo mismo que negarse a volar. |
 | **Multilingüe** | |
 | **Gratis** | |
 
-## Para qué usar cada uno
+## Para qué usar cada uno {#what-to-use-which-for}
 
 Si quieres diseñar el motor además del cohete, o traer el registro de tu altímetro junto a la predicción, ZenRockets hace cosas que esta aplicación no hace en absoluto. Si quieres los números de OpenRocket en concreto, archivos que salgan en el formato en el que entraron, o una aplicación que funcione con la red apagada, usa esta.

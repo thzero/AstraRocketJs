@@ -159,7 +159,7 @@ export function StabilityBadge({
           <Stat
             card
             label={t('stats.fineness')}
-            value={fmtNum(info.refDiameter > 0 ? info.length / info.refDiameter : 0, 1)}
+            value={info.refDiameter > 0 ? fmtNum(info.length / info.refDiameter, 1) : NO_VALUE}
             sub="L/D"
           />
           {/* One card, both conventions for the same margin: calibers and % of

@@ -56,7 +56,6 @@ const ROW_CAP = 200;
  */
 type CatalogState =
   { status: 'loading' } | { status: 'error'; message: string } | { status: 'ready'; all: Component[] };
-/** A fetch that finished, filed under the type and attempt it answers. */
 
 /**
  * The rows for a node type: the user's own saved parts (customParts.ts) first,
@@ -78,6 +77,23 @@ async function loadRows(type: PickerType): Promise<Component[]> {
  * "fits here" filter; the caller maps the chosen Component onto its target node
  * (see catalogPatch).
  */
+/** A catalog link as `presetRef` records it on a node. */
+export interface CurrentPart {
+  manufacturer?: string;
+  partNo?: string;
+}
+
+const sameText = (a: string | undefined, b: string | undefined): boolean =>
+  a != null && b != null && a.trim().toLowerCase() === b.trim().toLowerCase();
+
+/**
+ * Whether a row is the part a component is linked to. Part numbers are unique
+ * only within a manufacturer, so both have to match.
+ */
+function isCurrent(part: Pick<Component, 'mfr' | 'partNo'>, current: CurrentPart | undefined): boolean {
+  return current != null && sameText(part.partNo, current.partNo) && sameText(part.mfr, current.manufacturer);
+}
+
 export function ComponentPicker({
   type,
   fit,
@@ -91,7 +107,7 @@ export function ComponentPicker({
    *  be ranked first. Absent is fine: the fit control then says so. */
   fit?: FitContext;
   /** The part this component is already linked to, so the list can mark it. */
-  current?: string;
+  current?: CurrentPart;
   onApply: (p: Component) => void;
 }) {
   const { t } = useTranslation();
@@ -381,7 +397,7 @@ function PickerDialog({
   type: PickerType;
   all: Component[];
   fit?: FitContext;
-  current?: string;
+  current?: CurrentPart;
   onApply: (p: Component) => void;
   onClose: () => void;
 }) {
@@ -627,9 +643,9 @@ function PickerDialog({
               // The one this component is already built from, marked rather than
               // merely present: opening a list of hundreds of parts to find out which one
               // you are on is not an answer.
-              aria-current={r.part.partNo === current ? 'true' : undefined}
+              aria-current={isCurrent(r.part, current) ? 'true' : undefined}
               className={`cursor-pointer border-b border-line/5 hover:bg-raised focus-within:bg-raised ${
-                r.part.partNo === current ? 'bg-raised font-semibold text-accent-300' : 'text-ink-soft'
+                isCurrent(r.part, current) ? 'bg-raised font-semibold text-accent-300' : 'text-ink-soft'
               }`}
             >
               {cols.map((c) => (
@@ -649,7 +665,7 @@ function PickerDialog({
                         e.stopPropagation(); // the row's own click would apply it twice
                         onApply(r.part);
                       }}
-                      aria-current={r.part.partNo === current ? 'true' : undefined}
+                      aria-current={isCurrent(r.part, current) ? 'true' : undefined}
                       className="max-w-full truncate text-left focus:outline-none focus-visible:underline"
                     >
                       {c.cell(r)}

@@ -35,13 +35,13 @@ Los componentes admitidos incluyen:
 
 Cada pieza expone las dimensiones y opciones que el motor de física necesita (longitudes, diámetros, espesor, geometría de aletas, etc.). La edición está amortiguada: el modelo se reconstruye y las estadísticas se refrescan mientras escribes o arrastras.
 
-### Despliegue dual
+### Despliegue dual {#dual-deployment}
 
 El editor de una etapa tiene un **Tipo de despliegue de recuperación**: **Despliegue único** o **Despliegue dual**. Elige **Despliegue dual** y escoge como **Dispositivo piloto** el paracaídas o la cinta que se abre en el apogeo, y la etapa se trata como despliegue dual: primero un piloto pequeño que baja el cohete de forma controlada y después el principal, más abajo. Una etapa tiene como mucho un piloto.
 
-No es solo una etiqueta. La simulación juzga cada apertura de forma distinta según esa elección, y avisa si el principal sale demasiado rápido o demasiado lento, y si el piloto sale demasiado lento en el apogeo para inflarse, según los umbrales de **[Ajustes ▸ Avisos de seguridad](./settings.md#avisos-de-seguridad)**. Con **Despliegue único**, toda la etapa se juzga contra un único umbral.
+No es solo una etiqueta. La simulación juzga cada apertura de forma distinta según esa elección, y avisa si el principal sale demasiado rápido o demasiado lento, y si el piloto sale demasiado lento en el apogeo para inflarse, según los umbrales de **[Ajustes ▸ Simulación ▸ Avisos de seguridad](./settings.md#safety-warnings)**. Con **Despliegue único**, toda la etapa se juzga contra un único umbral.
 
-### Qué cabe dentro de un componente de masa
+### Qué cabe dentro de un componente de masa {#what-goes-inside-a-mass-component}
 
 Un componente de masa no es solo un lastre: puede contener estructura interior propia, así que una bahía de altímetro o una bandeja de carga útil se modela como la bandeja más los anillos, mamparos, electrónica y equipo de recuperación anidados dentro. Se le añaden piezas igual que a un tubo de cuerpo.
 
@@ -51,7 +51,7 @@ Un componente de masa no es solo un lastre: puede contener estructura interior p
 
 **Un tubo también declara su interior.** Los tubos de fuselaje, los tubos interiores, los acopladores, los topes de motor, las aletas tubulares y las guías de lanzamiento muestran un **diámetro interior** entre el diámetro exterior y el espesor de pared. No es un cuarto número independiente: un tubo tiene un exterior y una pared, y el interior es lo que dejan los dos. Por eso escribir un diámetro interior cambia la **pared** y deja el diámetro exterior intacto, porque el exterior de un tubo suele venir decidido por aquello en lo que tiene que encajar. Un interior más ancho que el propio tubo se limita a una pared de cero, nunca a una negativa.
 
-Así las preguntas de ajuste son directas. ¿Entra el motor? Compara el diámetro del motor con el diámetro interior del soporte. ¿Encaja el acoplador en el tubo? Su diámetro exterior contra el diámetro interior del tubo. ¿Pasará la varilla por la guía? El diámetro interior de la guía, que hasta ahora era el que trajera el archivo, porque no existía ningún campo para la pared de una guía.
+Así las preguntas de ajuste son directas. ¿Entra el motor? Compara el diámetro del motor con el diámetro interior del soporte. ¿Encaja el acoplador en el tubo? Su diámetro exterior contra el diámetro interior del tubo. ¿Pasará la varilla por la guía? El diámetro interior de la guía.
 
 **Un encaje puede seguir al tubo en el que entra.** Junto a cada diámetro de encaje, en una ojiva y en los dos extremos de una transición, hay un interruptor. Con él activado, el diámetro es el diámetro interior de la pieza contigua - la de abajo en una ojiva, la de arriba y la de abajo en una transición - y se mantiene así: aumenta el espesor de pared del tubo y el encaje que entra en él lo sigue en la misma pulsación. Mientras está activado la casilla es solo lectura, y al desactivarlo se fija el número que hubiera en ese momento.
 
@@ -206,7 +206,7 @@ Los dos **diámetros** sugeridos siguen siendo estimaciones en todos los casos, 
 
 Todo componente estructural tiene un **material**, que el motor de física usa (por su **densidad**) para calcular la masa y el CG. Una pieza que añades lleva uno desde que existe: el que hayas puesto en [Ajustes ▸ Materiales](./settings.md#materials), o si no el material de serie con el que el motor la pesaría de todos modos: **Cardboard** para una pieza maciza, **Ripstop nylon** para una tela, **Elastic cord** para las cuerdas y el cordón de choque. Son los propios valores por defecto de OpenRocket, los mismos con los que construye cada componente nuevo.
 
-Una pieza aún puede poner **Sin especificar** si viene de un diseño guardado antes de que esta aplicación los nombrara. No es una pieza sin peso: el motor recurre a esos mismos tres materiales. Elige uno de la lista y el panel deja de adivinar.
+Una pieza aún puede poner **Sin especificar** si su diseño no nombra ningún material. No es una pieza sin peso: el motor recurre a esos mismos tres materiales. Elige uno de la lista y el panel deja de adivinar.
 
 Una pieza elegida del catálogo lleva el material de su fabricante, como «Balsa, bulk, BMS typical», con la densidad del fabricante. La mayoría de esos nombres no están en la lista de abajo, así que el selector muestra el material propio de la pieza bajo **De esta pieza**, con su densidad, y es con él con el que se pesa la pieza. Cuando el catálogo indica además la masa de la pieza, como hace con muchas ojivas y transiciones, la densidad es la que reparte esa masa por la pieza, así que la pieza pesa lo que dice su fabricante, como en OpenRocket de escritorio. Un paracaídas con masa indicada la toma como su anulación de masa.
 

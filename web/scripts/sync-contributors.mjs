@@ -16,8 +16,9 @@
 //   node scripts/sync-contributors.mjs --repo owner/name   # override the repo
 //
 // The Pages deploy (.github/workflows/deploy.yml) runs this before the
-// build, as a best-effort step: the output file is only written once every
-// fetch has succeeded, so a failure here leaves the committed JSON in place.
+// build, as a best-effort step: a failed contributor-list fetch exits before
+// writing, so the committed JSON stays in place. A failed avatar fetch does not:
+// that person is written with no avatar and the dialog shows an initial.
 //
 // Unauthenticated the GitHub API allows 60 requests/hour per IP; set
 // GITHUB_TOKEN (CI: `${{ github.token }}`) to lift that to 5,000.

@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import type { Simulation, SimPrefs, SimStatus, SimRun } from '../../services/flight/simulations';
-import { isOutdated, simStatus } from '../../services/flight/simulations';
+import { isOutdated, simStatus, simStatusLabel } from '../../services/flight/simulations';
 import type { RocketTree } from '../../engine/openRocketEngine';
 import { useUnits } from '../../prefs/useUnits';
 import { unitScope } from '../../prefs/units';
@@ -93,16 +93,6 @@ export function SimulationsTable({
   const allTicked = sims.length > 0 && selectedIds.length === sims.length;
   const someTicked = selectedIds.length > 0 && !allTicked;
 
-  const statusLabel: Record<SimStatus, string> = {
-    upToDate: t('sims.statusUpToDate'),
-    outdated: t('sims.statusOutdated'),
-    queued: t('sims.statusQueued'),
-    running: t('sims.statusRunning'),
-    failed: t('sims.statusFailed'),
-    notRun: t('sims.notRun'),
-    fromFile: t('sims.statusFromFile'),
-  };
-
   return (
     <table className="w-full border-collapse text-sm">
       <thead>
@@ -185,7 +175,7 @@ export function SimulationsTable({
               <Td>
                 <span className="flex items-center gap-1.5">
                   <span className={`size-2 shrink-0 rounded-full ${TONE[status]}`} aria-hidden />
-                  <span className="text-[11px] text-ink-muted">{statusLabel[status]}</span>
+                  <span className="text-[11px] text-ink-muted">{simStatusLabel(status, t)}</span>
                   {/* A run can be current and have flagged something, which the
                       status dot on its own cannot say. The detail is on the
                       Results tab; this is the pointer to it. */}

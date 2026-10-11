@@ -48,7 +48,7 @@ export interface BodyTubeComponent extends ComponentBase {
   length: number;
 }
 
-export interface NoseConeComponent extends ComponentBase {
+interface NoseConeComponent extends ComponentBase {
   type: 'nosecone';
   material?: string;
   materialDensity: number;
@@ -100,7 +100,7 @@ export interface TubeComponent extends ComponentBase {
 }
 
 /** Bulkhead: a (usually solid) disc. Inner structural part. */
-export interface BulkHeadComponent extends ComponentBase {
+interface BulkHeadComponent extends ComponentBase {
   type: 'bulkhead';
   material?: string;
   materialDensity: number;
@@ -110,7 +110,7 @@ export interface BulkHeadComponent extends ComponentBase {
 }
 
 /** Transition: both ends and both shoulders, as Transition.loadFromPreset reads them. */
-export interface TransitionComponent extends ComponentBase {
+interface TransitionComponent extends ComponentBase {
   type: 'transition';
   material?: string;
   materialDensity: number;
@@ -128,7 +128,7 @@ export interface TransitionComponent extends ComponentBase {
 }
 
 /** Streamer: a strip, whose material is a surface one (density per square meter). */
-export interface StreamerComponent extends ComponentBase {
+interface StreamerComponent extends ComponentBase {
   type: 'streamer';
   material?: string;
   materialDensity: number;
@@ -141,7 +141,7 @@ export interface StreamerComponent extends ComponentBase {
  * the button, screw and nut together, which the desktop applies as the part's
  * mass override; `cd` is a stated drag coefficient, applied as its override.
  */
-export interface RailButtonComponent extends ComponentBase {
+interface RailButtonComponent extends ComponentBase {
   type: 'railbutton';
   material?: string;
   materialDensity: number;
@@ -222,6 +222,30 @@ interface ComponentCatalog {
 const isStr = (v: unknown): v is string => typeof v === 'string';
 /** `innerDiameter` / `cd` are `number | null` in the sync's schema. */
 const isNullableFinite = (v: unknown): boolean => v === null || isFiniteNumber(v);
+/** A size the part cannot be built without: a zero would make a zero-volume part. */
+const isPositive = (v: unknown): boolean => isFiniteNumber(v) && v > 0;
+/** A size that may be zero (no wall, no shoulder, no density on file) but never negative. */
+const isNonNegative = (v: unknown): boolean => isFiniteNumber(v) && v >= 0;
+const isNullableNonNegative = (v: unknown): boolean => v === null || isNonNegative(v);
+/** An optional size: absent, null, or not negative. */
+const isOptionalSize = (v: unknown): boolean => v === undefined || isNullableNonNegative(v);
+
+/**
+ * Every shape the editor can build. Keyed by the type, so a new `NoseShape`
+ * fails the build here until it is listed; an unknown one would otherwise fall
+ * back to a different shape without a word.
+ */
+const KNOWN_SHAPES: ReadonlySet<string> = new Set(
+  Object.keys({
+    ogive: true,
+    conical: true,
+    ellipsoid: true,
+    power: true,
+    parabolic: true,
+    haack: true,
+  } satisfies Record<NoseShape, true>),
+);
+const isShape = (v: unknown): boolean => typeof v === 'string' && KNOWN_SHAPES.has(v);
 
 /**
  * One catalog row this build can hand to the editor, checked per type.
@@ -229,13 +253,15 @@ const isNullableFinite = (v: unknown): boolean => v === null || isFiniteNumber(v
  * The rows go straight into `treeEdit.catalogPatch`, which divides
  * `outerDiameter` by two and subtracts `innerDiameter` from it; a row missing
  * either would put a NaN radius in the design with no error. Each type
- * requires exactly the fields its `catalogPatch` case reads.
+ * requires exactly the fields its `catalogPatch` case reads, every size it
+ * builds from positive (a zero diameter is a zero-volume part that only shows
+ * as wrong once applied), and a shape the editor knows.
  */
 export function isComponentRow(v: unknown): v is Component {
   if (!v || typeof v !== 'object') return false;
   const r = v as Record<string, unknown>;
   if (!isStr(r.mfr) || !isStr(r.partNo) || !isStr(r.desc)) return false;
-  if (r.mass !== undefined && !isFiniteNumber(r.mass)) return false;
+  if (r.mass !== undefined && !isNonNegative(r.mass)) return false;
   switch (r.type) {
     case 'bodytube':
     case 'tubecoupler':
@@ -243,60 +269,63 @@ export function isComponentRow(v: unknown): v is Component {
     case 'engineblock':
     case 'launchlug':
       return (
-        isFiniteNumber(r.materialDensity) &&
-        isFiniteNumber(r.outerDiameter) &&
-        isNullableFinite(r.innerDiameter) &&
-        isFiniteNumber(r.length)
+        isNonNegative(r.materialDensity) &&
+        isPositive(r.outerDiameter) &&
+        isNullableNonNegative(r.innerDiameter) &&
+        isPositive(r.length)
       );
     case 'nosecone':
       // The wall and shoulder fields are absent from catalogs published before
       // they were carried, which are still valid rows.
       return (
-        isFiniteNumber(r.materialDensity) &&
-        isStr(r.shape) &&
+        isNonNegative(r.materialDensity) &&
+        isShape(r.shape) &&
         typeof r.filled === 'boolean' &&
-        isFiniteNumber(r.outerDiameter) &&
-        isFiniteNumber(r.length) &&
-        [r.thickness, r.shoulderDiameter, r.shoulderLength].every((v) => v === undefined || isNullableFinite(v))
+        isPositive(r.outerDiameter) &&
+        isPositive(r.length) &&
+        [r.thickness, r.shoulderDiameter, r.shoulderLength].every(isOptionalSize)
       );
     case 'bulkhead':
       return (
-        isFiniteNumber(r.materialDensity) &&
-        isFiniteNumber(r.outerDiameter) &&
-        isFiniteNumber(r.length) &&
+        isNonNegative(r.materialDensity) &&
+        isPositive(r.outerDiameter) &&
+        isPositive(r.length) &&
         typeof r.filled === 'boolean'
       );
     case 'parachute':
       return (
-        isFiniteNumber(r.diameter) &&
+        isPositive(r.diameter) &&
         isNullableFinite(r.cd) &&
         [r.lineCount, r.lineLength, r.packedLength, r.packedDiameter, r.materialDensity, r.lineMaterialDensity].every(
-          (v) => v === undefined || isFiniteNumber(v),
+          (v) => v === undefined || isNonNegative(v),
         ) &&
         [r.material, r.lineMaterial].every((v) => v === undefined || isStr(v))
       );
     case 'transition':
       return (
-        isFiniteNumber(r.materialDensity) &&
-        isStr(r.shape) &&
+        isNonNegative(r.materialDensity) &&
+        isShape(r.shape) &&
         typeof r.filled === 'boolean' &&
-        isNullableFinite(r.thickness) &&
-        isFiniteNumber(r.length) &&
-        isFiniteNumber(r.foreOuterDiameter) &&
-        isNullableFinite(r.foreShoulderDiameter) &&
-        isNullableFinite(r.foreShoulderLength) &&
-        isFiniteNumber(r.aftOuterDiameter) &&
-        isNullableFinite(r.aftShoulderDiameter) &&
-        isNullableFinite(r.aftShoulderLength)
+        isNullableNonNegative(r.thickness) &&
+        isPositive(r.length) &&
+        // One end may close to a point, as a tail cone does; not both.
+        isNonNegative(r.foreOuterDiameter) &&
+        isNonNegative(r.aftOuterDiameter) &&
+        (isPositive(r.foreOuterDiameter) || isPositive(r.aftOuterDiameter)) &&
+        isNullableNonNegative(r.foreShoulderDiameter) &&
+        isNullableNonNegative(r.foreShoulderLength) &&
+        isNullableNonNegative(r.aftShoulderDiameter) &&
+        isNullableNonNegative(r.aftShoulderLength)
       );
     case 'streamer':
-      return isFiniteNumber(r.materialDensity) && isFiniteNumber(r.stripLength) && isFiniteNumber(r.stripWidth);
+      return isNonNegative(r.materialDensity) && isPositive(r.stripLength) && isPositive(r.stripWidth);
     case 'railbutton':
       return (
-        isFiniteNumber(r.materialDensity) &&
-        isFiniteNumber(r.outerDiameter) &&
-        isFiniteNumber(r.height) &&
-        [r.innerDiameter, r.baseHeight, r.flangeHeight, r.screwHeight, r.cd].every(isNullableFinite)
+        isNonNegative(r.materialDensity) &&
+        isPositive(r.outerDiameter) &&
+        isPositive(r.height) &&
+        [r.innerDiameter, r.baseHeight, r.flangeHeight, r.screwHeight].every(isNullableNonNegative) &&
+        isNullableFinite(r.cd)
       );
     default:
       return false;

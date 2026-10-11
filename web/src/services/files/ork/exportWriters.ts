@@ -33,7 +33,7 @@ import { stageFileName } from '../../design/orkTree';
  */
 
 /** Writes the body of a node's element at `d`, the depth just inside its tag. */
-export type NodeWriter = (w: OrkWriter, node: ComponentNode, d: number) => void;
+type NodeWriter = (w: OrkWriter, node: ComponentNode, d: number) => void;
 
 const finCountXml = (w: OrkWriter, d: number, node: ComponentNode, fb: number) => {
   w.emit(d, `<instancecount>${num(node, 'finCount', fb)}</instancecount>`);

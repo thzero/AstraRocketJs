@@ -26,7 +26,7 @@ const CORRECTED_MATERIALS = CATALOG.filter((m) => m.kind === 'corrected');
  *
  * The invariant these hold is deliberately blunt: **if `hasMaterial(type)` is
  * true, that type's material name and density survive a `.ork` round trip.**
- * `fairing` is not offered a material (see `treeEdit.MATERIAL_TYPES`): its
+ * `fairing` is not offered a material (see `hasMaterial` in `treeEdit.ts`): its
  * material does not reach the kernel and the writer has no element for it.
  */
 

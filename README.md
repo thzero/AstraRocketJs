@@ -2,7 +2,7 @@
 
 **▶ [Launch the app](https://thzero.github.io/AstraRocketJs/)** - runs in your browser, nothing to install. Works **offline** once loaded, and can be installed to your home screen or desktop if you want it there.
 
-A **lightweight, browser-based UI for the OpenRocket engine** - not a full re-creation of OpenRocket's desktop app, but a fast, mobile-friendly interface over the same trusted physics, with **full OpenRocket (.ork) support** (open, edit, save round-trip). Design a rocket, watch its CG/CP/stability update live, and run a full flight simulation - entirely in the browser, with nothing to install and nothing uploaded.
+A **lightweight, browser-based UI for the OpenRocket engine** - not a full re-creation of OpenRocket's desktop app, but a fast, mobile-friendly interface over the same physics, with **full OpenRocket (.ork) support** (open, edit, save round-trip). Design a rocket, watch its CG/CP/stability update live, and run a full flight simulation - entirely in the browser, with nothing to install and nothing uploaded.
 
 The UI is **responsive**: the workbench has five tabs (Design · Configurations · Simulations · Results · Tools, with **Results** shown once a run has produced one), each with its own column layout on desktop. On a phone the tabs move to a bottom bar and Design splits into **Rocket** and **Sketch**, with the rocket views turned a quarter turn so the airframe runs down the screen's long edge. The rocket view switches between a **2D schematic**, a **3D model**, an **aerodynamics** view, and, after a simulation, **flight charts** and a **3D flight path**.
 

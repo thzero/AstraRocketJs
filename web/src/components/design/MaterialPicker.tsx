@@ -292,6 +292,7 @@ export function MaterialPicker({
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder={t('material.namePlaceholder')}
+            aria-label={t('material.namePlaceholder')}
             className="w-full rounded bg-surface px-2 py-1.5 text-sm ring-1 ring-line/10 placeholder:text-ink-faint"
           />
           <label className="flex items-center justify-between gap-2 text-xs text-ink-muted">

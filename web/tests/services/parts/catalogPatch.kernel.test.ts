@@ -6,6 +6,7 @@ import { isComponentRow, type Component, type ParachuteComponent } from '../../.
 import { KERNEL_MATERIALS } from '../../../src/tree/kernelDefaults';
 import type { ComponentNode, ComponentType } from '../../../src/engine/openRocketEngine';
 import { KERNEL_TEST_TIMEOUT_MS } from '../../testing/kernelTimeout';
+import { loadEngine } from '../../testing/kernelGeometry';
 
 vi.setConfig({ testTimeout: KERNEL_TEST_TIMEOUT_MS, hookTimeout: KERNEL_TEST_TIMEOUT_MS });
 
@@ -18,13 +19,6 @@ vi.setConfig({ testTimeout: KERNEL_TEST_TIMEOUT_MS, hookTimeout: KERNEL_TEST_TIM
  * reading back the length the kernel gives the part catches that, and a
  * positive mass says the material reached it too.
  */
-
-/* eslint-disable @typescript-eslint/no-explicit-any -- the TeaVM bundle is untyped */
-const loadEngine = async (): Promise<any> => {
-  (globalThis as any).$rt_putStdoutCustom ??= () => {};
-  (globalThis as any).$rt_putStderrCustom ??= () => {};
-  return import('../../../src/engine/vendor/openrocket-engine.mjs' as string);
-};
 
 const catalog = (
   JSON.parse(readFileSync(join(__dirname, '../../../public/data/components.generated.json'), 'utf8')) as {
@@ -136,5 +130,61 @@ describe('a catalog parachute', () => {
         wrong.push(`${row.mfr} ${row.partNo}: expected ${expected} kg, flies ${info.mass ?? info.error}`);
     }
     expect(wrong).toEqual([]);
+  });
+});
+
+const JAVA_ROOT = join(__dirname, '../../../../engine-java/src/java/info/openrocket/core/rocketcomponent/');
+/** Java source with runs of whitespace collapsed, so the guards survive reformatting. */
+const javaSource = (file: string): string => readFileSync(join(JAVA_ROOT, file), 'utf8').replace(/\s+/g, ' ');
+
+/**
+ * A recovery part picked from the catalog, against `Streamer.loadFromPreset`,
+ * `RecoveryDevice.loadFromPreset` and `Parachute.loadFromPreset`.
+ */
+describe('a picked recovery part', () => {
+  it('is generated from the rules the patch was written against', () => {
+    expect(javaSource('Streamer.java')).toContain('this.length = this.stripWidth;');
+    expect(javaSource('RecoveryDevice.java')).toContain('} else { this.material = defaultMaterial; }');
+    expect(javaSource('Parachute.java')).toContain(
+      'if (size > 0) { this.name = preset.get(ComponentPreset.DESCRIPTION); } else { this.name = getComponentName(); }',
+    );
+  });
+
+  it('packs a streamer to its strip width, whatever the part before it had', async () => {
+    const engine = await loadEngine();
+    for (const row of sample('streamer')) {
+      if (row.type !== 'streamer') throw new Error('sample returned another type');
+      const probe = { ...node('streamer', 'probe', { length: 0.37 }), ...catalogPatch(row) } as ComponentNode;
+      engine.reset();
+      const info = JSON.parse(engine.getComponentInfo(engine.buildRocket(JSON.stringify(design(probe))), 'probe'));
+      expect(info.length, `${row.mfr} ${row.partNo}`).toBeCloseTo(row.stripWidth, 9);
+    }
+  });
+
+  it('gives a streamer that states no material the kernel default, not the previous one', async () => {
+    const engine = await loadEngine();
+    const strip = { stripLength: 1, stripWidth: 0.1 };
+    const bare = { ...node('streamer', 'probe'), ...strip } as Record<string, unknown>;
+    delete bare['surfaceMaterialName'];
+    delete bare['surfaceDensity'];
+    engine.reset();
+    const fresh = JSON.parse(
+      engine.getComponentInfo(engine.buildRocket(JSON.stringify(design(bare as never))), 'probe'),
+    );
+    const row = { type: 'streamer', mfr: 'X', partNo: 'Y', desc: '', materialDensity: 0, ...strip } as Component;
+    const probe = {
+      ...node('streamer', 'probe', { surfaceMaterialName: 'Heavy', surfaceDensity: 0.5 }),
+      ...catalogPatch(row),
+    } as ComponentNode;
+    engine.reset();
+    const picked = JSON.parse(engine.getComponentInfo(engine.buildRocket(JSON.stringify(design(probe))), 'probe'));
+    expect(picked.mass).toBeCloseTo(fresh.mass, 9);
+  });
+
+  it('names a parachute after the description it states', () => {
+    const row = catalog.find((p): p is ParachuteComponent => p.type === 'parachute' && p.desc.length > 0)!;
+    expect(catalogPatch(row, node('parachute', 'probe', { name: 'Main' }))['name']).toBe(row.desc);
+    // An empty description falls back to the type's own name.
+    expect(catalogPatch({ ...row, desc: '' }, node('parachute', 'probe', { name: 'Main' }))['name']).toBeUndefined();
   });
 });

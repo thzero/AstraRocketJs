@@ -321,7 +321,10 @@ function revolveSolidX(surface: [number, number][], axialOffset: number): THREE.
  * without capping onto the axis.
  */
 export function discSolid(outerR: number, innerR: number, length: number): THREE.BufferGeometry | null {
-  const len = length > 1e-6 ? length : 0.002;
+  // A part with no length flew as nothing, so it exports as nothing rather than
+  // as a disc of some made-up thickness.
+  if (!(length > 1e-6)) return null;
+  const len = length;
   // An inverted ring (ID >= OD, reachable from a malformed .ork or a bad catalog
   // row) would otherwise fall through to the solid-cylinder branch and export a
   // centering ring as a solid disc, which blocks the motor tube once printed with

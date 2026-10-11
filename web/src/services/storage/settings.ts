@@ -1,7 +1,7 @@
 import { nsKey } from './storageKeys';
 import type { PartKey } from '../design/partColors';
 import type { CompleteLaunch } from '../flight/requiredLaunch';
-import { DEFAULT_HEADING_DEG, MAX_ANGLE_STEP_RANGE } from '../flight/simulations';
+import { DEFAULT_HEADING_DEG, MAX_ANGLE_STEP_RANGE, seedFromInput } from '../flight/simulations';
 import { defaultCsvFormat } from '../flight/flightColumns';
 import { usableWindLevels } from '../flight/windLevels';
 import { usableAtmosphereLevels } from '../flight/atmosphereLevels';
@@ -136,7 +136,7 @@ export interface SimulationSettings {
 }
 
 /** Which sides of the 2D side view carry a measurement ruler. */
-export interface RulerSides {
+interface RulerSides {
   top: boolean;
   bottom: boolean;
   left: boolean;
@@ -666,6 +666,14 @@ export function loadSettings(): Settings {
         // options parser refuses anything but a boolean and takes the whole run
         // down rather than the one key.
         sim.guideAwareRodClearance = sim.guideAwareRodClearance === true;
+        // The bridge reads the seed as a number and fails every run on anything
+        // else, so a stored string falls back to a random seed, and a number is
+        // held to the integer range the Settings field allows.
+        const seed: unknown = sim.randomSeed;
+        sim.randomSeed = typeof seed === 'number' && Number.isFinite(seed) ? seedFromInput(seed) : null;
+        const flag = (v: unknown, d: boolean) => (typeof v === 'boolean' ? v : d);
+        sim.confirmDelete = flag(sim.confirmDelete, DEFAULT_SETTINGS.simulation.confirmDelete);
+        sim.autoRunOutdated = flag(sim.autoRunOutdated, DEFAULT_SETTINGS.simulation.autoRunOutdated);
         return sim;
       })(),
       launchDefaults: (() => {

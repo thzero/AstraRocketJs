@@ -81,10 +81,10 @@ describe('flightColumns', () => {
     expect(flightColumns(withKeys(keys)).map((c) => c.quantity)).toEqual(keys.map(() => 'rollRate'));
 
     const r = { series: { time: [0, 1], dΦ: [0, 2 * Math.PI] } } as unknown as FlightResult;
-    const bare = { fieldDescriptions: false, simDescription: false, flightEvents: false, decimals: 3 };
+    const bare = { fieldDescriptions: true, simDescription: false, flightEvents: false, decimals: 3 };
     const name = (c: { key: string }) => c.key;
     const revs = flightDataCsv(r, METRIC_UNITS, { ...bare, columns: ['time', 'dΦ'], columnName: name }).split('\r\n');
-    expect(revs[0]).toBe('time (s),dΦ (r/s)');
+    expect(revs[0]).toBe('# time (s),dΦ (r/s)');
     expect(revs[2]).toBe('1.000,1.000');
 
     const rads = flightDataCsv(
@@ -92,7 +92,7 @@ describe('flightColumns', () => {
       { ...METRIC_UNITS, rollRate: 'rad/s' },
       { ...bare, columns: ['time', 'dΦ'], columnName: name },
     ).split('\r\n');
-    expect(rads[0]).toBe('time (s),dΦ (rad/s)');
+    expect(rads[0]).toBe('# time (s),dΦ (rad/s)');
     expect(rads[2]).toBe(`1.000,${(2 * Math.PI).toFixed(3)}`);
   });
 

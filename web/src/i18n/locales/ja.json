@@ -41,6 +41,7 @@
       "archiveEmpty": ".ork アーカイブが空です。",
       "tooManyComponents": "この {{format}} は部品数が多すぎるため開けません（壊れている可能性があります）。",
       "tooManySimulations": "この .ork はシミュレーション数が多すぎるため開けません（壊れている可能性があります）。",
+      "tooManyUnknownElements": "この .ork は認識できない要素が多すぎるため開けません（壊れている可能性があります）。",
       "tooManyConfigs": "この .ork は飛行構成の数が多すぎるため開けません（壊れている可能性があります）。",
       "tooDeep": "この {{format}} は入れ子が深すぎるため開けません（壊れている可能性があります）。",
       "tooLarge": "ファイルが大きすぎるため開けません（{{size}} MiB 超）。"
@@ -72,6 +73,7 @@
       "engHeaderMass": ".eng のヘッダーが不正です：推進剤質量は 0 から全質量までの値にしてください。",
       "engDataLine": ".eng の {{line}} 行目のデータが不正です：時間と推力が必要ですが、「{{text}}」でした。",
       "engNoCurve": ".eng ファイルに推力曲線のデータ点がありません。",
+      "engTooManyPoints": ".eng ファイルのモーター {{motor}} のデータ点が {{max}} を超えています。",
       "engNegativeThrust": ".eng ファイルのモーター {{motor}} は {{line}} 行目の推力が負です。",
       "engNegativeTime": ".eng ファイルのモーター {{motor}} は {{line}} 行目の時間が負です。",
       "attrDiameter": "直径",
@@ -128,7 +130,11 @@
       "materials": "材料カタログを読み込めませんでした（{{reason}}）。",
       "contributors": "貢献者の一覧を読み込めませんでした（{{reason}}）。",
       "tooLarge": "応答が大きすぎます",
-      "badShape": "カタログの形式が想定と異なります"
+      "badShape": "カタログの形式が想定と異なります",
+      "http": "サーバーから HTTP {{status}}",
+      "timeout": "サーバーが時間内に応答しませんでした",
+      "network": "サーバーに接続できません",
+      "noExamples": "サンプルの索引にサンプルがありません"
     },
     "export": {
       "noPrintable": "印刷できる部品が選択されていません。",
@@ -175,6 +181,8 @@
     "noDesign": "エクスポートできる有効な設計がありません。",
     "stages": "段数",
     "length": "全長",
+    "dimLength": "長さ {{value}}",
+    "dimWall": "肉厚 {{value}}",
     "maxDiameter": "最大直径",
     "massEmpty": "質量（空）",
     "massLoaded": "質量（搭載時）",
@@ -219,6 +227,8 @@
     "transition": "トランジション",
     "tooLarge": "{{w}}×{{h}} mm、1 ページに 1:1 で印刷するには大きすぎます。",
     "fontFallback": "レポート用フォントを読み込めなかったため、この PDF の一部の文字は「?」として印刷されています。オンラインになってから再度エクスポートしてください。",
+    "scriptUncovered": "この PDF の一部の文字はレポート用フォントが対応していない文字体系のため、「?」として印刷されています。",
+    "outdatedFlight": "古い結果: この結果は設計またはシミュレーション設定が最後に変更される前のものです。最新の値を得るにはシミュレーションを再実行してください。",
     "bodyTube": "ボディチューブ",
     "markingGuide": "フィン位置の記入ガイド（1:1）",
     "markingGuideHint": "100% / 実寸（ページの拡大縮小なし）で印刷し、定規で確認したうえで各帯を切り取り、端どうしを突き合わせて（重ねずに）ボディチューブに巻き付け、矢印の位置に印を付けます。各組の印を通る線をチューブに沿って引いてください。そこが部品の位置です。",
@@ -297,7 +307,8 @@
     "jsTip": "物理エンジン：JavaScript（代替版）",
     "slow": "物理エンジンの読み込みにいつもより時間がかかっています。",
     "needsIt": "設計ツールはエンジンなしでも使えます。数値とシミュレーションには必要です。",
-    "retry": "再試行"
+    "retry": "再試行",
+    "reload": "ページを再読み込み"
   },
   "about": {
     "open": "このアプリについて",
@@ -536,7 +547,8 @@
       "streamer_surface": "ストリーマー",
       "shockcord_line": "ショックコード"
     },
-    "materialNoDefault": "既定なし：部品を未設定のままにする"
+    "materialNoDefault": "既定なし：部品を未設定のままにする",
+    "timeStepScale": "時間刻み（粗いから細かいへ）"
   },
   "config": {
     "title": "ロケットの構成",
@@ -811,9 +823,15 @@
     "rodDirectionName_rail": "発射レールの方向",
     "rodDirectionName_rod": "発射ロッドの方向",
     "windDirectionName": "風向",
-    "angleLimit": "NAR と Tripoli の安全規定では、発射装置を鉛直から {{limit}} 以内にすることが求められています。",
-    "angleLimit_rail": "NAR と Tripoli の安全規定では、発射レールを鉛直から {{limit}} 以内にすることが求められています。",
-    "angleLimit_rod": "NAR と Tripoli の安全規定では、発射ロッドを鉛直から {{limit}} 以内にすることが求められています。",
+    "angleLimitModel": "モデルロケットとして NAR モデルロケット安全規定に従います。同規定では、発射装置を鉛直から {{limit}} 以内にすることが求められています。",
+    "angleLimitModel_rail": "モデルロケットとして NAR モデルロケット安全規定に従います。同規定では、発射レールを鉛直から {{limit}} 以内にすることが求められています。",
+    "angleLimitModel_rod": "モデルロケットとして NAR モデルロケット安全規定に従います。同規定では、発射ロッドを鉛直から {{limit}} 以内にすることが求められています。",
+    "angleLimitHighPower": "ハイパワーロケットとして NAR と Tripoli のハイパワー安全規定に従います。同規定では、発射装置を鉛直から {{limit}} 以内にすることが求められています。",
+    "angleLimitHighPower_rail": "ハイパワーロケットとして NAR と Tripoli のハイパワー安全規定に従います。同規定では、発射レールを鉛直から {{limit}} 以内にすることが求められています。",
+    "angleLimitHighPower_rod": "ハイパワーロケットとして NAR と Tripoli のハイパワー安全規定に従います。同規定では、発射ロッドを鉛直から {{limit}} 以内にすることが求められています。",
+    "angleLimitEither": "NAR モデルロケット安全規定では発射装置を鉛直から {{model}} 以内に、NAR と Tripoli のハイパワー規定では {{highPower}} 以内にすることが求められています。",
+    "angleLimitEither_rail": "NAR モデルロケット安全規定では発射レールを鉛直から {{model}} 以内に、NAR と Tripoli のハイパワー規定では {{highPower}} 以内にすることが求められています。",
+    "angleLimitEither_rod": "NAR モデルロケット安全規定では発射ロッドを鉛直から {{model}} 以内に、NAR と Tripoli のハイパワー規定では {{highPower}} 以内にすることが求められています。",
     "windLimit": "NAR と Tripoli の安全規定では、風速が {{limit}} を超えるときは飛ばさないよう求められています。",
     "field": {
       "launchRodLengthM": "ランチャーの長さ",
@@ -852,7 +870,40 @@
     "flightEvents": "飛行イベントを含める",
     "commentChar": "コメント文字",
     "stage": "エクスポートする段",
-    "export": "エクスポート"
+    "export": "エクスポート",
+    "head": {
+      "simulationLine": "シミュレーション: {{name}}",
+      "time": "時間",
+      "event": "イベント",
+      "source": "発生元",
+      "stage": "段",
+      "altitude": "高度",
+      "velocity": "速度",
+      "stability": "安定性",
+      "thrustWeight": "推力重量比",
+      "aoa": "迎角",
+      "mach": "マッハ数",
+      "dynamicPressure": "動圧",
+      "simulation": "シミュレーション",
+      "configuration": "構成",
+      "motors": "モーター",
+      "status": "状態",
+      "apogee": "アポジー",
+      "maxVelocity": "最大速度",
+      "maxAcceleration": "最大加速度",
+      "maxMach": "最大マッハ数",
+      "exitVelocity": "ランチャー離脱時の速度",
+      "exitVelocity_rail": "レール離脱時の速度",
+      "exitVelocity_rod": "ロッド離脱時の速度",
+      "timeToApogee": "アポジーまでの時間",
+      "flightTime": "飛行時間",
+      "deploymentVelocity": "展開時の速度",
+      "landingVelocity": "着地速度",
+      "optimumDelay": "最適な遅延",
+      "maxQ": "最大動圧",
+      "maxQAlpha": "最大 q·alpha",
+      "maxRollRate": "最大ロールレート"
+    }
   },
   "flightVar": {
     "ha": "海面からの高度",
@@ -991,7 +1042,8 @@
     "events": "飛行イベント",
     "event": "イベント",
     "twr": "推力重量比",
-    "eventsCsv": "飛行イベントをダウンロード（.csv）"
+    "eventsCsv": "飛行イベントをダウンロード（.csv）",
+    "peakTag": "ピーク"
   },
   "pathExport": {
     "open": "飛行経路をエクスポート（KML / GPX / CSV）",
@@ -1092,7 +1144,8 @@
       "flightPath": "飛行経路",
       "groundTrack": "地上軌跡",
       "distanceBearing": "{{distance}} {{unit}}、方位 {{bearing}}",
-      "stageLanding": "{{stage}} の着地"
+      "stageLanding": "{{stage}} の着地",
+      "flight": "飛行"
     },
     "mission": "ミッション",
     "missionPlaceholder": "例：Sod Blaster L1",
@@ -1105,7 +1158,10 @@
     "cancel": "キャンセル",
     "colorRolePath": "経路",
     "colorRoleGround": "地上",
-    "colorRolePin": "ピン"
+    "colorRolePin": "ピン",
+    "importSaveError": "このブラウザーにテンプレートを保存できませんでした。",
+    "deleteError": "テンプレートを削除できませんでした。",
+    "deleteConfirm": "このブラウザーからテンプレート「{{name}}」を削除しますか？"
   },
   "aero": {
     "unattributed": "特定の部品に割り当てられないもの",
@@ -1173,7 +1229,6 @@
     "versionUnsupported": "サポートされていないドキュメントバージョン {{version}} です。それでもファイルの読み込みを試みます。",
     "versionMissingBy": "サポートされていないドキュメントバージョンです（'{{creator}}' で作成）。それでもファイルの読み込みを試みます。",
     "versionMissing": "サポートされていないドキュメントバージョンです。それでもファイルの読み込みを試みます。",
-    "ignored": "未対応の部品を無視しました：{{names}}。",
     "skippedUnsupported": "未対応のためスキップ：{{name}}",
     "instanced": "複数のインスタンスとして繰り返される部品：{{names}}。シミュレーションはすべてのインスタンスを計算に含めますが、図面には現在 1 つだけ表示されます。",
     "configsNoMotors": "ファイルには {{total}} 個の飛行構成が宣言されていますが、インポートできるモーターは含まれていませんでした。",
@@ -1879,9 +1934,12 @@
     "tooFast": "速すぎます",
     "tooSlow": "遅すぎます",
     "overRail": "レールより長い",
-    "rodAngle": "ランチャーの角度は鉛直から {{value}} で、NAR と Tripoli の安全規定が認める {{limit}} を超えています。",
-    "rodAngle_rail": "発射レールの角度は鉛直から {{value}} で、NAR と Tripoli の安全規定が認める {{limit}} を超えています。",
-    "rodAngle_rod": "発射ロッドの角度は鉛直から {{value}} で、NAR と Tripoli の安全規定が認める {{limit}} を超えています。",
+    "rodAngleModel": "ランチャーの角度は鉛直から {{value}} で、NAR モデルロケット安全規定が認める {{limit}} を超えています。",
+    "rodAngleModel_rail": "発射レールの角度は鉛直から {{value}} で、NAR モデルロケット安全規定が認める {{limit}} を超えています。",
+    "rodAngleModel_rod": "発射ロッドの角度は鉛直から {{value}} で、NAR モデルロケット安全規定が認める {{limit}} を超えています。",
+    "rodAngleHighPower": "ランチャーの角度は鉛直から {{value}} で、NAR と Tripoli の安全規定がハイパワーロケットに認める {{limit}} を超えています。",
+    "rodAngleHighPower_rail": "発射レールの角度は鉛直から {{value}} で、NAR と Tripoli の安全規定がハイパワーロケットに認める {{limit}} を超えています。",
+    "rodAngleHighPower_rod": "発射ロッドの角度は鉛直から {{value}} で、NAR と Tripoli の安全規定がハイパワーロケットに認める {{limit}} を超えています。",
     "wind": "風速が {{value}} で、NAR と Tripoli の安全規定が認める {{limit}} を超えています。",
     "refused": "「{{name}}」は実行しませんでした。打ち上げ条件が安全規定の範囲外です。"
   },
@@ -1975,7 +2033,8 @@
     "landed": "{{asked}} 回のうち {{flown}} 回が着地しました。",
     "stale": "このスイープを実行したあとで設計が変わっています。",
     "noLandings": "この風のスイープでは着地が発生しませんでした。",
-    "spread": "{{from}}–{{to}}"
+    "spread": "{{from}}–{{to}}",
+    "flown": "スイープ実行済み"
   },
   "crossSection": {
     "square": "角型",
@@ -2035,8 +2094,8 @@
       "badKey": "Open-Meteo は「設定、打ち上げ」の API キーを受け付けませんでした。 打ち上げ条件は変更されていません。",
       "quota": "Open-Meteo の無料枠を使い切りました。後でもう一度試すか、「設定、打ち上げ」で API キーを追加してください。 打ち上げ条件は変更されていません。",
       "http": "Open-Meteo がエラーを返しました({{detail}})。 打ち上げ条件は変更されていません。",
-      "shape": "Open-Meteo の応答を読み取れませんでした({{detail}})。 打ち上げ条件は変更されていません。",
-      "units": "Open-Meteo がアプリの読めない単位で応答しました({{detail}})。 打ち上げ条件は変更されていません。",
+      "shape": "Open-Meteo の応答を読み取れませんでした。 打ち上げ条件は変更されていません。",
+      "units": "Open-Meteo がアプリの読めない単位で応答しました。 打ち上げ条件は変更されていません。",
       "noData": "Open-Meteo にはこの場所のその日付のデータがありません。 打ち上げ条件は変更されていません。"
     },
     "keyLabel": "Open-Meteo API キー",
@@ -2119,6 +2178,7 @@
     "estimateNote": "入力した降下速度による推定です。範囲は {{descents}} 回の降下を含みます:予報 {{hours}} 時間分、風速 ±20%、風向 ±15°、降下速度 ±10%。",
     "flatGround": "地形の形状を取得できなかったため、発射台と同じ高さの平らな地面に着地するものとしています。",
     "surfaceWindOnly": "この日付の Open-Meteo の記録には地表付近の風しかないため、降下全体がその風で流されます。",
+    "outdated": "この推定の後に発射地点、日付、時刻、最高到達点または降下速度が変更されました。更新するには「着地点を推定」を押してください。",
     "mapLabel": "上から見た着地点の推定。発射台から {{distance}} の地点に着地"
   },
   "tools": {

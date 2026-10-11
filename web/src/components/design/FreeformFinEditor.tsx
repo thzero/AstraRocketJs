@@ -212,7 +212,8 @@ export function FreeformFinEditor({
               role="button"
               tabIndex={0}
               aria-label={t('freeform.insertAfter', { n: i + 1 })}
-              className="cursor-pointer fill-accent-500/60 hover:fill-accent-400 focus:outline-none focus:ring-2 focus:ring-accent-400"
+              // Focus is a stroke: an SVG shape draws no box-shadow ring.
+              className="cursor-pointer fill-accent-500/60 hover:fill-accent-400 focus:outline-none focus-visible:stroke-ink-strong focus-visible:stroke-2"
               onPointerDown={(e) => {
                 e.stopPropagation();
                 insertAfter(i);
@@ -248,7 +249,7 @@ export function FreeformFinEditor({
               role="button"
               tabIndex={0}
               aria-label={t('freeform.vertex', { n: i + 1 })}
-              className={`cursor-grab stroke-surface focus:outline-none focus:ring-2 focus:ring-accent-400 ${
+              className={`cursor-grab stroke-surface focus:outline-none focus-visible:stroke-ink-strong focus-visible:stroke-[2.5] ${
                 sel === i ? 'fill-warn-300' : 'fill-warn-500'
               }`}
               onPointerDown={startDrag(i)}

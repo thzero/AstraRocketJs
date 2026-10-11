@@ -14,13 +14,13 @@ Esta página es más corta que las otras dos a propósito: la documentación pú
 
 :::
 
-## Esta no es una comparación entre desconocidos
+## Esta no es una comparación entre desconocidos {#this-is-not-an-arms-length-comparison}
 
 mmrocket-sim, de Mountain Man Rockets, es el pariente más cercano que tiene AstraRocketJs. Ambos son aplicaciones de navegador que ejecutan el núcleo real de OpenRocket, compilado desde Java con TeaVM, sin instalación y con soporte sin conexión. Llegaron a esa forma de manera independiente, y se solapan mucho más de lo que cualquiera de los dos se solapa con un programa de escritorio.
 
 El tema de mmrocket-sim es la **aerodinámica supersónica al estilo RASAero**: las correcciones que necesita el modelo de Barrowman extendido de OpenRocket por encima de Mach 1,5 aproximadamente, calibradas con datos publicados de túnel de viento y de vuelo libre.
 
-## Lo que sí se puede comparar con pruebas
+## Lo que sí se puede comparar con pruebas {#what-can-be-compared}
 
 | | AstraRocketJs | mmrocket-sim |
 | --- | --- | --- |

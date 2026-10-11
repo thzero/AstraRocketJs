@@ -2,21 +2,27 @@ import type { LaunchConditions } from '../design/orkTree';
 import { padLevelWind } from './windLevels';
 import { fmtUpTo, ladderDigits, withUnit } from '../../i18n/format';
 import { degToRad, type Quantity, siToUi, uiToSi, type UnitSymbols } from '../../prefs/units';
+import type { PowerClass } from './powerClass';
 
 /**
- * Flying limits from the NAR / Tripoli safety codes, in SI.
+ * Flying limits from the NAR and Tripoli safety codes, in SI.
  *
  * These are about the flight, not the rocket: launch conditions are simulation
  * settings, so a `.ork` that carries conditions outside them is not a design to
  * be preserved as authored; it is a run this app will not fly. The import says
  * so and the Run button refuses until the conditions are brought inside.
  *
- * Both codes state the numbers in imperial, which is why the metric values here
+ * The codes state the numbers in imperial, which is why the metric values here
  * are exact conversions rather than round figures.
+ *
+ * The launcher angle depends on which code the rocket flies under (see
+ * `powerClass`): the NAR Model Rocket Safety Code allows a launcher within 30
+ * degrees of vertical, and the NAR High Power Rocket Safety Code and Tripoli's
+ * within 20. The wind limit is the same 20 mph in both.
  */
 
-/** Launcher pointed within 20 degrees of vertical. */
-export const MAX_ROD_ANGLE_DEG = 20;
+/** Launcher pointed within this many degrees of vertical, by the code that applies. */
+export const MAX_ROD_ANGLE_DEG: Record<PowerClass, number> = { model: 30, highPower: 20 };
 
 /** No launch in winds above 20 mph. Not exported: the cap leaves this file in
  *  SI, because nothing outside it uses the codes' own unit. */
@@ -24,7 +30,10 @@ const MAX_WIND_SPEED_MPH = 20;
 
 const MPH_TO_MS = uiToSi('windspeed', 'mph', 1);
 
-export const MAX_ROD_ANGLE_RAD = degToRad(MAX_ROD_ANGLE_DEG);
+export const MAX_ROD_ANGLE_RAD: Record<PowerClass, number> = {
+  model: degToRad(MAX_ROD_ANGLE_DEG.model),
+  highPower: degToRad(MAX_ROD_ANGLE_DEG.highPower),
+};
 export const MAX_WIND_SPEED_MS = MAX_WIND_SPEED_MPH * MPH_TO_MS;
 
 /**
@@ -48,6 +57,8 @@ export interface LimitViolation {
   value: number;
   /** The cap, same unit. */
   limit: number;
+  /** The class the cap was taken for, which names the code that sets it. */
+  powerClass: PowerClass;
 }
 
 /**
@@ -64,7 +75,8 @@ function surfaceWindMs(launch: LaunchConditions): number {
 }
 
 /**
- * Every way a set of launch conditions falls outside the codes.
+ * Every way a set of launch conditions falls outside the codes, for a rocket
+ * of class `cls`.
  *
  * Only the wind at the pad is judged (see `surfaceWindMs`); winds aloft are not
  * something a launch is called on, because they are not something anyone at the
@@ -72,17 +84,17 @@ function surfaceWindMs(launch: LaunchConditions): number {
  * the codes speak about wind speed, and a mean inside the limit with gusts above
  * it is a judgment call this is not equipped to make.
  */
-export function launchLimitViolations(launch: LaunchConditions): LimitViolation[] {
+export function launchLimitViolations(launch: LaunchConditions, cls: PowerClass): LimitViolation[] {
   const out: LimitViolation[] = [];
 
   const angle = Math.abs(launch.launchRodAngleDeg ?? 0);
-  if (angle > MAX_ROD_ANGLE_DEG) {
-    out.push({ field: 'rodAngle', value: degToRad(angle), limit: MAX_ROD_ANGLE_RAD });
+  if (angle > MAX_ROD_ANGLE_DEG[cls]) {
+    out.push({ field: 'rodAngle', value: degToRad(angle), limit: MAX_ROD_ANGLE_RAD[cls], powerClass: cls });
   }
 
   const wind = surfaceWindMs(launch);
   if (wind > MAX_WIND_SPEED_MS) {
-    out.push({ field: 'windSpeed', value: wind, limit: MAX_WIND_SPEED_MS });
+    out.push({ field: 'windSpeed', value: wind, limit: MAX_WIND_SPEED_MS, powerClass: cls });
   }
 
   return out;
@@ -91,7 +103,7 @@ export function launchLimitViolations(launch: LaunchConditions): LimitViolation[
 /**
  * One violation as a sentence, in the units the reader has selected.
  *
- * Both codes state their numbers in imperial. Quoted that way the figure matches
+ * The codes state their numbers in imperial. Quoted that way the figure matches
  * the source but puts "20 mph" in front of a reader whose every other readout is
  * m/s, leaving them to convert a rule before they can act on it. So both the
  * offending value and the cap are converted, and the symbol travels with each
@@ -112,7 +124,13 @@ export function limitText(
   // accuracies, when the second is exact.
   const digits = ladderDigits(Math.max(Math.abs(ui(v.value)), Math.abs(ui(v.limit))));
   const show = (si: number) => withUnit(fmtUpTo(ui(si), digits), sym);
-  return t(v.field === 'rodAngle' ? 'limits.rodAngle' : 'limits.wind', {
+  const key =
+    v.field === 'windSpeed'
+      ? 'limits.wind'
+      : v.powerClass === 'model'
+        ? 'limits.rodAngleModel'
+        : 'limits.rodAngleHighPower';
+  return t(key, {
     value: show(v.value),
     limit: show(v.limit),
   });

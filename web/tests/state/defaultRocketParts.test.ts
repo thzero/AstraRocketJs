@@ -28,12 +28,18 @@ type PartRow = {
   mfr: string;
   partNo: string;
   digest?: string;
+  desc?: string;
   material?: string;
   materialDensity?: number;
   outerDiameter?: number;
   innerDiameter?: number;
   length?: number;
   diameter?: number;
+  cd?: number | null;
+  lineCount?: number;
+  lineLength?: number;
+  lineMaterial?: string;
+  lineMaterialDensity?: number;
 };
 
 // From disk rather than fetched: this is about what ships in the catalogs, and
@@ -59,6 +65,12 @@ describe('the default rocket is built from catalog parts', () => {
       'diameter',
       'materialDensity',
       'material',
+      'desc',
+      'cd',
+      'lineCount',
+      'lineLength',
+      'lineMaterial',
+      'lineMaterialDensity',
     ] as const) {
       const claimed = (preset as Record<string, unknown>)[key];
       if (claimed === undefined) continue;
@@ -127,10 +139,20 @@ describe('the default rocket is built from catalog parts', () => {
     expect(part('nose')['shoulderLength']).toBeGreaterThan(0);
   });
 
-  it('gives the parachute its canopy and its lines', () => {
+  it('gives the parachute the canopy and lines its catalog row states', () => {
+    // As a pick of the row gives them (`Parachute.loadFromPreset`): the canopy
+    // film, the lines and their thread, and an automatic Cd for a row with none.
+    const found = row(DEFAULT_PRESETS.chute.partNo)!;
     const chute = part('chute');
-    expect(chute['surfaceMaterialName']).toBe(KERNEL_MATERIALS.surface.name);
-    expect(chute['lineMaterialName']).toBe(KERNEL_MATERIALS.line.name);
+    expect(chute['surfaceMaterialName']).toBe(found.material);
+    expect(chute['surfaceDensity']).toBe(found.materialDensity);
+    expect(chute['lineMaterialName']).toBe(found.lineMaterial);
+    expect(chute['lineDensity']).toBe(found.lineMaterialDensity);
+    expect(chute['lineCount']).toBe(found.lineCount);
+    expect(chute['lineLength']).toBe(found.lineLength);
+    expect(chute['diameter']).toBe(found.diameter);
+    expect(chute['cdAuto']).toBe(found.cd == null);
+    expect(found.material).not.toBe(KERNEL_MATERIALS.surface.name);
   });
 
   it.each(Object.entries(DEFAULT_PRESETS).filter(([, preset]) => 'digest' in preset))(

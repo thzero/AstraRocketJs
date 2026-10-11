@@ -1,6 +1,7 @@
 import type { MotorSpec } from '../../engine/openRocketEngine';
 import type { Simulation } from './simulations';
 import { launchLimitViolations, limitText, type LimitViolation } from './safetyLimits';
+import type { PowerClass } from './powerClass';
 import type { UnitSymbols } from '../../prefs/units';
 import { missingRequired, type RequiredLaunchKey } from './requiredLaunch';
 import { badDimensions, type BadDimension } from '../design/requiredComponent';
@@ -41,16 +42,18 @@ export interface Unflyable {
 }
 
 /**
- * Why this one simulation cannot fly, or null when it can.
+ * Why this one simulation cannot fly, or null when it can. `cls` is the class
+ * of the rocket its configuration flies (`configPowerClass`), which decides the
+ * launcher angle the codes allow.
  *
  * Motor first: a row with no usable motor cannot fly whatever its launch
  * conditions say, and reporting the conditions of a rocket that has no engine
  * would be noise.
  */
-export function unflyable(sim: Simulation, motor: MotorSpec | undefined): UnflyableReason | null {
+export function unflyable(sim: Simulation, motor: MotorSpec | undefined, cls: PowerClass): UnflyableReason | null {
   if (!hasThrustCurve(motor)) return { kind: 'noMotor' };
   // Before the safety codes, because a code is judged on these numbers: a blank
-  // rod angle is not "within 20 degrees of vertical", it is nothing to judge.
+  // rod angle is not "within so many degrees of vertical", it is nothing to judge.
   const missing = missingRequired(sim.launch);
   if (missing.length) return { kind: 'incomplete', missing };
   // Before the limits for the same reason: the codes are judged on the surface
@@ -59,20 +62,25 @@ export function unflyable(sim: Simulation, motor: MotorSpec | undefined): Unflya
   // simulate failed: Wind level already exists for altitude: 0.0`, which names
   // the kernel's internals for something the profile editor let the user type.
   if (duplicateAltitudeRows(sim.launch.windLevels ?? []).length) return { kind: 'windProfile' };
-  const violations = launchLimitViolations(sim.launch);
+  const violations = launchLimitViolations(sim.launch, cls);
   return violations.length ? { kind: 'limits', violations } : null;
 }
 
 /**
  * Every simulation in `sims` that cannot fly, in the order given.
  *
- * `motorOf` resolves the row's own flight configuration, because two rows can
- * fly different configurations and the motor is what the first check is about.
+ * `motorOf` and `classOf` resolve the row's own flight configuration, because
+ * two rows can fly different configurations, and the motor and the rocket's
+ * class are what the checks are about.
  */
-export function unflyableSims(sims: Simulation[], motorOf: (sim: Simulation) => MotorSpec | undefined): Unflyable[] {
+export function unflyableSims(
+  sims: Simulation[],
+  motorOf: (sim: Simulation) => MotorSpec | undefined,
+  classOf: (sim: Simulation) => PowerClass,
+): Unflyable[] {
   const out: Unflyable[] = [];
   for (const sim of sims) {
-    const reason = unflyable(sim, motorOf(sim));
+    const reason = unflyable(sim, motorOf(sim), classOf(sim));
     if (reason) out.push({ id: sim.id, name: sim.name, reason });
   }
   return out;

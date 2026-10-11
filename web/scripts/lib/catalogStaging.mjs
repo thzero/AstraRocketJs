@@ -12,15 +12,38 @@
 //
 // A staged catalog left by a digest step that failed is read by the next run of
 // that step, which is the retry. The next run of the first step replaces it.
+//
+// The OS temp directory is shared by every checkout and worktree on the
+// machine, so each staged name carries a hash of the checkout it belongs to. A
+// digest step run in one checkout never reads a catalog another one staged.
+import { createHash } from 'node:crypto';
 import { renameSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+/** The `web` folder of this checkout. */
+const CHECKOUT = fileURLToPath(new URL('../..', import.meta.url));
+
+/**
+ * Where `catalog` ("components" or "motors") is staged for the checkout whose
+ * `web` folder is `checkout`. The path is resolved, and case-folded on Windows,
+ * whose paths ignore case, so one checkout reached two ways stages to one file.
+ */
+export function stagedPath(catalog, checkout = CHECKOUT) {
+  const path = resolve(checkout);
+  const key = createHash('sha256')
+    .update(process.platform === 'win32' ? path.toLowerCase() : path)
+    .digest('hex')
+    .slice(0, 12);
+  return join(tmpdir(), `astrarocketjs-${key}-${catalog}.staged.json`);
+}
 
 /** The parts catalog sync-components built, before its digests. */
-export const STAGED_COMPONENTS = join(tmpdir(), 'astrarocketjs-components.staged.json');
+export const STAGED_COMPONENTS = stagedPath('components');
 
 /** The motor catalog sync-motors built, before its digests. */
-export const STAGED_MOTORS = join(tmpdir(), 'astrarocketjs-motors.staged.json');
+export const STAGED_MOTORS = stagedPath('motors');
 
 /**
  * Write `text` to `path` in one step: into a file beside it, then renamed over

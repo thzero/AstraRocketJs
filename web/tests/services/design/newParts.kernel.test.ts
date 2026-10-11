@@ -3,6 +3,10 @@ import { defaultNode } from '../../../src/services/design/treeEdit';
 import { defaultMaterialPatch } from '../../../src/services/design/materialSlots';
 import type { ComponentNode, ComponentType } from '../../../src/engine/openRocketEngine';
 import { KERNEL_TEST_TIMEOUT_MS } from '../../testing/kernelTimeout';
+import { loadEngine } from '../../testing/kernelGeometry';
+
+/** The TeaVM bundle, which is untyped. */
+type Engine = Awaited<ReturnType<typeof loadEngine>>;
 
 vi.setConfig({ testTimeout: KERNEL_TEST_TIMEOUT_MS, hookTimeout: KERNEL_TEST_TIMEOUT_MS });
 
@@ -15,13 +19,6 @@ vi.setConfig({ testTimeout: KERNEL_TEST_TIMEOUT_MS, hookTimeout: KERNEL_TEST_TIM
  * drifts from the constructor (a rail button stamped Cardboard when
  * `RailButton()` is Delrin) would show and save one part and fly another.
  */
-
-/* eslint-disable @typescript-eslint/no-explicit-any -- the TeaVM bundle is untyped */
-const loadEngine = async (): Promise<any> => {
-  (globalThis as any).$rt_putStdoutCustom ??= () => {};
-  (globalThis as any).$rt_putStderrCustom ??= () => {};
-  return import('../../../src/engine/vendor/openrocket-engine.mjs' as string);
-};
 
 const seeded = (type: ComponentType): ComponentNode =>
   ({ ...defaultNode(type), ...defaultMaterialPatch(type, {}), id: 'probe' }) as ComponentNode;
@@ -41,7 +38,7 @@ const design = (probe: ComponentNode, tubeLength = 0.5): unknown => ({
 });
 
 /** The probe's componentInfo in a fresh build. */
-const infoOf = (engine: any, tree: unknown): Record<string, number | string | undefined> => {
+const infoOf = (engine: Engine, tree: unknown): Record<string, number | string | undefined> => {
   engine.reset();
   const handle = engine.buildRocket(JSON.stringify(tree));
   const info = JSON.parse(engine.getComponentInfo(handle, 'probe'));

@@ -38,7 +38,7 @@ export interface OrkMotorRef {
   ignitionDelay?: number;
 }
 
-export interface OrkTreeImportResult {
+interface OrkTreeImportResult {
   name: string;
   tree: RocketTree;
   /** First motor found (legacy callers). */
@@ -192,7 +192,7 @@ export interface DesignInfo {
 }
 
 /** One flight configuration to write, with its stable id from import. */
-export interface OrkExportConfig {
+interface OrkExportConfig {
   id: string;
   /** Written as <name> only when non-null (desktop writes renamed configs only). */
   name: string | null;

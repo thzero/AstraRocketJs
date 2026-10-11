@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { svgToImage } from '../../../src/services/exports/schematicExport';
+import { snapshotWithHeader, svgToImage } from '../../../src/services/exports/schematicExport';
+import { pixelsToCanvas } from '../../../src/services/exports/offscreenRaster';
 import { KeyedError } from '../../../src/i18n/keyedError';
 
 /**
@@ -49,5 +50,37 @@ describe('svgToImage on a canvas the browser will not allocate', () => {
     const err = await svgToImage('<svg xmlns="http://www.w3.org/2000/svg"/>', 7680).catch((e: unknown) => e);
     expect((err as KeyedError).key).toBe('errors.export.imageTooLarge');
     expect(revoke).toHaveBeenCalledWith('blob:svg');
+  });
+});
+
+describe('the 3D compose step past the canvas limit', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const data = {
+    name: 'R',
+    info: null,
+    withMotors: false,
+    appVersion: '1',
+    t: (k: string) => k,
+  } as unknown as Parameters<typeof snapshotWithHeader>[1];
+
+  it('rejects with the keyed error when the composed canvas has no 2D context', async () => {
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);
+    const frame = Object.assign(document.createElement('canvas'), { width: 7680, height: 4320 });
+    const err = await snapshotWithHeader(frame, data).catch((e: unknown) => e);
+    expect((err as KeyedError).key).toBe('errors.export.imageTooLarge');
+  });
+
+  it('throws the keyed error from the readback canvas the same way', () => {
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);
+    let err: unknown;
+    try {
+      pixelsToCanvas(new Uint8Array(4), 1, 1);
+    } catch (e) {
+      err = e;
+    }
+    expect((err as KeyedError).key).toBe('errors.export.imageTooLarge');
   });
 });

@@ -1,14 +1,4 @@
 /**
- * Both derived-value passes, in the order they depend on each other: an
- * automatic diameter moves a tube's bore, and a shoulder follows that bore.
- *
- * Exported because it is the one choke point for it: any module that rewrites
- * the tree ends with this, or the values that follow a neighbor go stale until
- * some unrelated edit happens to fix them.
- */
-export const syncDerived = (tree: RocketTree): RocketTree => syncAutoShoulders(syncAutoRadii(tree));
-
-/**
  * Pure, immutable helpers for editing a component tree (add / update / remove
  * nodes) plus sensible defaults for new parts. Each op returns a fresh tree so
  * React state updates cleanly; the caller rebuilds the engine design from it to
@@ -18,6 +8,7 @@ import type { ComponentNode, ComponentType, RocketTree } from '../../engine/open
 import { defaultStageName } from './orkTree';
 import type { Component, ParachuteComponent } from '../parts/componentDb';
 import { DEFAULT_CHUTE_CD } from '../parts/componentFilter';
+import { presetNode } from '../parts/customParts';
 import { KERNEL_DEFAULTS, KERNEL_MATERIALS } from '../../tree/kernelDefaults.js';
 import { COMPONENT_DEFAULTS } from './componentDefaults.js';
 import { isChainType } from '../../tree/componentKinds';
@@ -31,6 +22,16 @@ import { syncAutoRadii } from './autoRadius';
 import { FIELDS } from './componentFields';
 import { findNode as findNodeIn, findSiblings, findWithParent, walkNodes } from '../../tree/treeWalk';
 import { shapeChange } from '../../tree/shapeProfile';
+
+/**
+ * Both derived-value passes, in the order they depend on each other: an
+ * automatic diameter moves a tube's bore, and a shoulder follows that bore.
+ *
+ * Exported because it is the one choke point for it: any module that rewrites
+ * the tree ends with this, or the values that follow a neighbor go stale until
+ * some unrelated edit happens to fix them.
+ */
+export const syncDerived = (tree: RocketTree): RocketTree => syncAutoShoulders(syncAutoRadii(tree));
 
 /**
  * A unique id for a new node.
@@ -476,8 +477,9 @@ const DEFAULT_LINE_COUNT = 6;
 /**
  * A catalog parachute as `Parachute.loadFromPreset` applies it. Everything the
  * part leaves unstated goes back to a new parachute's value rather than keeping
- * the replaced part's: the drag coefficient to automatic, six lines of 0.3 m,
- * the default canopy and line materials, and no mass override. The packed
+ * the replaced part's: the name to the type's own, the drag coefficient to
+ * automatic, six lines of 0.3 m, the default canopy and line materials, and no
+ * mass override. A stated description becomes the part's name. The packed
  * length and diameter are set only where stated, and with both stated the
  * packed radius follows the parent's bore. The stated pair is written as is:
  * `syncAutoRadii` then resizes it to the bore at the volume the pair packs.
@@ -486,6 +488,7 @@ function parachutePatch(p: ParachuteComponent): Partial<ComponentNode> {
   const packedLength = p.packedLength ?? null;
   const packedDiameter = p.packedDiameter ?? null;
   return {
+    name: p.desc ? p.desc : undefined,
     diameter: p.diameter,
     cd: p.cd ?? DEFAULT_CHUTE_CD,
     cdAuto: p.cd == null,
@@ -508,8 +511,11 @@ function statedPatch(p: Component, node?: ComponentNode): Partial<ComponentNode>
   // dimensions a catalog row publishes, and applying only the switch below
   // would drop the nose cone's shoulder, the parachute's lines, the tube's
   // motor mount and the part's color: everything the user saved it for.
-  // Copied, so the stored object cannot be mutated through the tree.
-  if (p.custom && p.patch) return { ...p.patch };
+  // Copied, so the stored object cannot be mutated through the tree, and
+  // without the keys a saved part never keeps: a stored entry is read back
+  // from the browser's storage, and an id, type or children in it would
+  // duplicate an id or turn the node into another part.
+  if (p.custom && p.patch) return presetNode(p.patch);
   const mat =
     'materialDensity' in p && p.materialDensity
       ? { density: p.materialDensity, materialName: (p as { material?: string }).material }
@@ -610,13 +616,18 @@ function statedPatch(p: Component, node?: ComponentNode): Partial<ComponentNode>
         ...(p.cd != null && p.cd > 0 ? { overrideCD: p.cd } : {}),
         ...mat,
       };
-    // Streamer.loadFromPreset: the strip, its surface material, and the drag
-    // coefficient left for the kernel to work out from them.
+    // Streamer.loadFromPreset: the strip, its surface material (the default
+    // one when the part states none, `RecoveryDevice.loadFromPreset`), the drag
+    // coefficient left for the kernel to work out from them, and the packed
+    // length set to the strip width.
     case 'streamer':
       return {
         stripLength: p.stripLength,
         stripWidth: p.stripWidth,
-        ...(p.materialDensity ? { surfaceMaterialName: p.material, surfaceDensity: p.materialDensity } : {}),
+        length: p.stripWidth,
+        ...(p.materialDensity
+          ? { surfaceMaterialName: p.material, surfaceDensity: p.materialDensity }
+          : { surfaceMaterialName: KERNEL_MATERIALS.surface.name, surfaceDensity: KERNEL_MATERIALS.surface.density }),
         cdAuto: true,
       };
   }

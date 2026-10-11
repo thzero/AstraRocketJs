@@ -6,7 +6,15 @@ import { useUnits } from '../../prefs/useUnits';
 import type { CatalogMotor } from '../../services/motors/motorDb';
 import { initialThrust } from '../../services/motors/motorPicker';
 import { avgThrustOf, ispOf, massFracOf } from '../../services/motors/motorMath';
-import { ChartAxes, CHART_HEADROOM, chartScales, linePath, baselineArea, LegendSwatch, peakOf } from './chartAxes';
+import {
+  ChartAxes,
+  CHART_HEADROOM,
+  chartScales,
+  linePath,
+  baselineArea,
+  LegendSwatch,
+  highestSample,
+} from './chartAxes';
 import { inUserUnit, motorTypeLabel, withFixedUnit } from './motorFormat';
 import { token } from '../common/colorTokens';
 import { motorSimilarity } from '../../engine/openRocketEngine';
@@ -86,7 +94,7 @@ export function MotorDetail({
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-3">
       {onBack && (
         <button onClick={onBack} className="mb-2 self-start text-xs text-accent-400 hover:underline md:hidden">
-          ← {t('motorDlg.backToList')}
+          <span aria-hidden="true">←</span> {t('motorDlg.backToList')}
         </button>
       )}
       <div className="text-[11px] font-semibold uppercase tracking-wider text-warn-300">{motor.manufacturer}</div>
@@ -102,14 +110,17 @@ export function MotorDetail({
         )}
         {motor.type ? motorTypeLabel(motor.type, t) : ''}
       </div>
-      <a
-        href={tcUrl}
-        target="_blank"
-        rel="noreferrer"
-        className="mt-1 self-start text-sm text-accent-400 hover:underline"
-      >
-        {t('motorDlg.viewOnTc')} ↗
-      </a>
+      {/* An imported curve has no ThrustCurve page to link to. */}
+      {!motor.custom && (
+        <a
+          href={tcUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-1 self-start text-sm text-accent-400 hover:underline"
+        >
+          {t('motorDlg.viewOnTc')} <span aria-hidden="true">↗</span>
+        </a>
+      )}
 
       {motor.oop && <p className="mt-1 text-xs font-medium text-warn-300">{t('motorDlg.oop')}</p>}
 
@@ -197,7 +208,7 @@ export function ThrustChart({ samples, avg, burn }: { samples: [number, number][
   const { X, Y } = chartScales(dims, tMax, fMax);
   const line = linePath(samples, X, Y);
   const area = baselineArea(samples, X, Y, tMax);
-  const peak = peakOf(samples);
+  const peak = highestSample(samples);
   // Per instance: `url(#id)` resolves to the first match in the document, so a
   // second chart sharing a fixed id would paint with the first one's gradient.
   const fillId = `thrustFill${useId()}`;

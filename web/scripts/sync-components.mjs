@@ -33,7 +33,7 @@ import { resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { unzipSync } from 'fflate';
 import { STAGED_COMPONENTS } from './lib/catalogStaging.mjs';
-import { installedJar } from './lib/openrocketJava.mjs';
+import { installedJar, runDumper } from './lib/openrocketJava.mjs';
 import { checkJar, RELEASE, UNPINNED } from './lib/openrocketRelease.mjs';
 
 // Source: the OpenRocket-Components DB (openrocket/openrocket-database), the
@@ -107,7 +107,7 @@ function jarFiles(entries, prefix) {
  */
 function shippedFiles() {
   const dir = arg('internal') ?? process.env.OPENROCKET_INTERNAL_PRESETS;
-  if (dir) return { internal: orcFiles(dir), database: null };
+  if (dir) return { internal: orcFiles(dir), database: null, jar: null };
   const jar = arg('jar') ?? process.env.OPENROCKET_JAR ?? installedJar();
   if (!jar) {
     console.error(`No OpenRocket jar for the internal part files. Pass --jar <OpenRocket-${RELEASE}.jar>.`);
@@ -120,6 +120,7 @@ function shippedFiles() {
   return {
     internal: jarFiles(entries, 'datafiles/components/internal/'),
     database: jarFiles(entries, 'datafiles/components/database/'),
+    jar,
   };
 }
 
@@ -153,14 +154,31 @@ const sources = [...database, ...shipped.internal];
 /**
  * Bulk, surface and line densities of desktop's built-in materials, which a
  * part falls back to when its own file does not define its material. Read from
- * the material catalog's upstream rows (sync-materials.mjs), which come from
- * the same `Databases` class.
+ * the release jar's own `Databases` (preset-digests/MaterialDump.java), not
+ * from the material catalog: that catalog comes from the source tree the engine
+ * is extracted from, which has materials the release does not, and a part
+ * naming one of those weighs nothing on desktop.
+ *
+ * With `--internal` there is no jar, so the material catalog's upstream rows
+ * stand in, with a warning.
  */
-const builtInDensity = new Map(
-  JSON.parse(readFileSync(resolve(DATA_DIR, 'materials.generated.json'), 'utf8'))
+function builtInMaterials() {
+  if (shipped.jar) {
+    const rows = runDumper({
+      cp: shipped.jar,
+      javaSrc: fileURLToPath(new URL('./preset-digests/MaterialDump.java', import.meta.url)),
+      className: 'MaterialDump',
+    });
+    return rows.map(([type, name, density]) => [`${type}\u0000${name.toLowerCase()}`, Number(density)]);
+  }
+  console.warn(
+    `No OpenRocket jar, so built-in materials come from materials.generated.json, not the ${RELEASE} release.`,
+  );
+  return JSON.parse(readFileSync(resolve(DATA_DIR, 'materials.generated.json'), 'utf8'))
     .filter((m) => m.kind === 'upstream')
-    .map((m) => [`${m.type.toUpperCase()}\u0000${m.name.toLowerCase()}`, m.density]),
-);
+    .map((m) => [`${m.type.toUpperCase()}\u0000${m.name.toLowerCase()}`, m.density]);
+}
+const builtInDensity = new Map(builtInMaterials());
 
 // Pass 1: each file's own materials, by type and name. A part looks its
 // material up the way `BaseComponentDTO.find` does: in its own file first (the

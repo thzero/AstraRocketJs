@@ -5,6 +5,7 @@ import { renderWithProviders } from '../../testing/renderWithProviders';
 import { SeparationSection } from '../../../src/components/config/SeparationSection';
 import { useWorkspaceStore, selectConfig } from '../../../src/state/store';
 import { findStages } from '../../../src/services/design/treeEdit';
+import { SEPARATION_EVENTS } from '../../../src/services/design/componentFields';
 
 const st = () => useWorkspaceStore.getState();
 
@@ -37,5 +38,23 @@ describe('SeparationSection flies checkbox', () => {
     expect(box.checked).toBe(true);
     expect(box.disabled).toBe(true);
     expect(box.title).toMatch(/at least one stage/i);
+  });
+});
+
+/** The override offers the property panel's own list of separation events. */
+describe('SeparationSection event override', () => {
+  beforeEach(() => {
+    st().resetWorkspace();
+    st().addStageToTree();
+  });
+
+  it('lists every separation event the property panel offers', () => {
+    const stage = findStages(st().tree)[1]!;
+    renderWithProviders(<SeparationSection config={selectConfig(st())} stage={stage} separates />);
+    const select = screen
+      .getAllByRole('combobox')
+      .find((s) => [...(s as HTMLSelectElement).options].some((o) => o.value === 'ejection')) as HTMLSelectElement;
+    const offered = [...select.options].map((o) => o.value).filter((v) => v !== '');
+    expect(offered).toEqual([...SEPARATION_EVENTS]);
   });
 });

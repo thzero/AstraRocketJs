@@ -10,6 +10,10 @@ import type { ReportModel } from '../../../src/services/report/reportModel';
 import type { AeroSweep, FlightResult, StaticInfo } from '../../../src/engine/openRocketEngine';
 import type { EventRow } from '../../../src/services/flight/flightEvents';
 import { METRIC_UNITS } from '../../../src/prefs/units';
+import en from '../../../src/i18n/locales/en.json';
+import { localeTranslator } from '../../testing/localeTranslator';
+
+const tEn = localeTranslator(en);
 
 /**
  * Spreadsheet formula injection, checked the way a spreadsheet reads the file
@@ -140,7 +144,7 @@ describe('flightDataCsv', () => {
             columns: ['time', 'altitude'],
             separator: sep,
             simDescription: false,
-            fieldDescriptions: false,
+            fieldDescriptions: true,
             flightEvents: false,
             decimals: 2,
             exponential,
@@ -202,6 +206,7 @@ describe('flightEventsCsv', () => {
     const csv = flightEventsCsv(
       [{ ...row, source: bad }],
       METRIC_UNITS,
+      tEn,
       () => bad,
       () => bad,
       bad,
@@ -213,6 +218,7 @@ describe('flightEventsCsv', () => {
     const csv = flightEventsCsv(
       [{ ...row, source: 'Chute "A", main' }],
       METRIC_UNITS,
+      tEn,
       () => 'E',
       () => 'S',
     );
@@ -224,6 +230,7 @@ describe('flightEventsCsv', () => {
       flightEventsCsv(
         [row],
         METRIC_UNITS,
+        tEn,
         () => 'E',
         () => 'S',
       ).split('\r\n')[1]!,
@@ -241,17 +248,25 @@ describe('runTableCsv', () => {
   } as unknown as FlightResult;
 
   it.each(PAYLOADS)('leaves no live cell for the names %j', (bad) => {
-    const csv = runTableCsv([{ name: bad, configuration: bad, motors: bad, status: bad, result: flown }], METRIC_UNITS);
+    const csv = runTableCsv(
+      [{ name: bad, configuration: bad, motors: bad, status: bad, result: flown }],
+      METRIC_UNITS,
+      tEn,
+    );
     expect(liveCellsBySplit(csv, READER_SPLITS)).toEqual({});
   });
 
   it('round-trips a name with quotes', () => {
-    const csv = runTableCsv([{ name: 'The "Big" one', configuration: '', motors: '', status: '' }], METRIC_UNITS);
+    const csv = runTableCsv([{ name: 'The "Big" one', configuration: '', motors: '', status: '' }], METRIC_UNITS, tEn);
     expect(fields(csv.split('\r\n')[1]!)[0]).toBe('The "Big" one');
   });
 
   it('writes negative and exponential figures unchanged', () => {
-    const csv = runTableCsv([{ name: 'A', configuration: '', motors: '', status: '', result: flown }], METRIC_UNITS);
+    const csv = runTableCsv(
+      [{ name: 'A', configuration: '', motors: '', status: '', result: flown }],
+      METRIC_UNITS,
+      tEn,
+    );
     const cells = fields(csv.split('\r\n')[1]!);
     expect(cells[4]).toBe('-2');
     expect(cells[5]).toBe('-0.5');
@@ -291,8 +306,8 @@ describe('design and component CSV', () => {
       {
         stage: bad,
         sets: [
-          { name: bad, topX: 1.1, bottomX: 1.2 },
-          { name: bad, topX: -0.1, bottomX: 1.2 },
+          { name: bad, type: 'trapezoidfinset', topX: 1.1, bottomX: 1.2 },
+          { name: bad, type: 'trapezoidfinset', topX: -0.1, bottomX: 1.2 },
         ],
       },
     ],

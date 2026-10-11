@@ -41,6 +41,7 @@
       "archiveEmpty": "O arquivo compactado .ork está vazio.",
       "tooManyComponents": "Este {{format}} declara componentes demais para ser aberto (talvez esteja corrompido).",
       "tooManySimulations": "Este .ork declara simulações demais para ser aberto (talvez esteja corrompido).",
+      "tooManyUnknownElements": "Este .ork traz elementos não reconhecidos demais para ser aberto (talvez esteja corrompido).",
       "tooManyConfigs": "Este .ork declara configurações de voo demais para ser aberto (talvez esteja corrompido).",
       "tooDeep": "Este {{format}} tem aninhamento profundo demais para ser aberto (talvez esteja corrompido).",
       "tooLarge": "O arquivo é grande demais para ser aberto (mais de {{size}} MiB)."
@@ -72,6 +73,7 @@
       "engHeaderMass": "Cabeçalho .eng malformado: a massa de propelente deve estar entre 0 e a massa total.",
       "engDataLine": "Dados .eng malformados na linha {{line}}: era esperado um tempo e um empuxo, mas há \"{{text}}\".",
       "engNoCurve": "O arquivo .eng não tem pontos da curva de empuxo.",
+      "engTooManyPoints": "O motor {{motor}} do arquivo .eng tem mais de {{max}} pontos de dados.",
       "engNegativeThrust": "O motor {{motor}} do arquivo .eng tem empuxo negativo na linha {{line}}.",
       "engNegativeTime": "O motor {{motor}} do arquivo .eng tem um tempo negativo na linha {{line}}.",
       "attrDiameter": "diâmetro",
@@ -128,7 +130,11 @@
       "materials": "Não foi possível carregar o catálogo de materiais ({{reason}}).",
       "contributors": "Não foi possível carregar a lista de colaboradores ({{reason}}).",
       "tooLarge": "resposta grande demais",
-      "badShape": "estrutura de catálogo inesperada"
+      "badShape": "estrutura de catálogo inesperada",
+      "http": "HTTP {{status}} do servidor",
+      "timeout": "o servidor não respondeu a tempo",
+      "network": "não foi possível contatar o servidor",
+      "noExamples": "o índice de exemplos não lista nenhum exemplo"
     },
     "export": {
       "noPrintable": "Nenhuma peça imprimível foi selecionada.",
@@ -175,6 +181,8 @@
     "noDesign": "Nenhum projeto válido para exportar.",
     "stages": "Estágios",
     "length": "Comprimento",
+    "dimLength": "compr. {{value}}",
+    "dimWall": "parede {{value}}",
     "maxDiameter": "Diâmetro máx.",
     "massEmpty": "Massa (vazio)",
     "massLoaded": "Massa (carregado)",
@@ -219,6 +227,8 @@
     "transition": "Transição",
     "tooLarge": "{{w}}×{{h}} mm, grande demais para imprimir 1:1 em uma página.",
     "fontFallback": "Não foi possível carregar a fonte do relatório, então alguns caracteres deste PDF aparecem como \"?\". Exporte-o novamente quando estiver online.",
+    "scriptUncovered": "Alguns caracteres deste PDF são de uma escrita que as fontes do relatório não cobrem, então aparecem como \"?\".",
+    "outdatedFlight": "Desatualizado: estes resultados foram obtidos antes da última alteração do projeto ou das configurações de simulação. Execute a simulação novamente para obter valores atuais.",
     "bodyTube": "Tubo do corpo",
     "markingGuide": "Guia de marcação das aletas (1:1)",
     "markingGuideHint": "Imprima em 100% / tamanho real (sem ajuste de página), confira a régua, recorte cada tira, enrole-a no tubo do corpo com as pontas encostadas (sem sobrepor) e marque através das setas. Trace uma linha ao longo do tubo passando por cada par de marcas: é ali que a peça vai.",
@@ -297,7 +307,8 @@
     "jsTip": "Motor de física: JavaScript (alternativa)",
     "slow": "O motor de física está demorando mais que o normal para carregar.",
     "needsIt": "As ferramentas de projeto funcionam sem ele; os números e as simulações precisam dele.",
-    "retry": "Tentar de novo"
+    "retry": "Tentar de novo",
+    "reload": "Recarregar a página"
   },
   "about": {
     "open": "Sobre",
@@ -538,7 +549,8 @@
       "streamer_surface": "Fita",
       "shockcord_line": "Cordão de choque"
     },
-    "materialNoDefault": "Sem padrão: deixar a peça sem definir"
+    "materialNoDefault": "Sem padrão: deixar a peça sem definir",
+    "timeStepScale": "Passo de tempo, do grosso ao fino"
   },
   "config": {
     "title": "Configuração do foguete",
@@ -817,9 +829,15 @@
     "rodDirectionName_rail": "Direção do trilho de lançamento",
     "rodDirectionName_rod": "Direção da haste de lançamento",
     "windDirectionName": "Direção do vento",
-    "angleLimit": "Os códigos de segurança da NAR e da Tripoli pedem um lançador a até {{limit}} da vertical.",
-    "angleLimit_rail": "Os códigos de segurança da NAR e da Tripoli pedem um trilho de lançamento a até {{limit}} da vertical.",
-    "angleLimit_rod": "Os códigos de segurança da NAR e da Tripoli pedem uma haste de lançamento a até {{limit}} da vertical.",
+    "angleLimitModel": "Como foguete-modelo, voa sob o código de segurança de foguetes-modelo da NAR, que pede um lançador a até {{limit}} da vertical.",
+    "angleLimitModel_rail": "Como foguete-modelo, voa sob o código de segurança de foguetes-modelo da NAR, que pede um trilho de lançamento a até {{limit}} da vertical.",
+    "angleLimitModel_rod": "Como foguete-modelo, voa sob o código de segurança de foguetes-modelo da NAR, que pede uma haste de lançamento a até {{limit}} da vertical.",
+    "angleLimitHighPower": "Como foguete de alta potência, voa sob os códigos de segurança de alta potência da NAR e da Tripoli, que pedem um lançador a até {{limit}} da vertical.",
+    "angleLimitHighPower_rail": "Como foguete de alta potência, voa sob os códigos de segurança de alta potência da NAR e da Tripoli, que pedem um trilho de lançamento a até {{limit}} da vertical.",
+    "angleLimitHighPower_rod": "Como foguete de alta potência, voa sob os códigos de segurança de alta potência da NAR e da Tripoli, que pedem uma haste de lançamento a até {{limit}} da vertical.",
+    "angleLimitEither": "O código de segurança de foguetes-modelo da NAR pede um lançador a até {{model}} da vertical, e os códigos de alta potência da NAR e da Tripoli, a até {{highPower}}.",
+    "angleLimitEither_rail": "O código de segurança de foguetes-modelo da NAR pede um trilho de lançamento a até {{model}} da vertical, e os códigos de alta potência da NAR e da Tripoli, a até {{highPower}}.",
+    "angleLimitEither_rod": "O código de segurança de foguetes-modelo da NAR pede uma haste de lançamento a até {{model}} da vertical, e os códigos de alta potência da NAR e da Tripoli, a até {{highPower}}.",
     "windLimit": "Os códigos de segurança da NAR e da Tripoli pedem que você não voe com vento acima de {{limit}}.",
     "field": {
       "launchRodLengthM": "comprimento da guia",
@@ -858,7 +876,40 @@
     "flightEvents": "Incluir os eventos de voo",
     "commentChar": "Caractere de comentário",
     "stage": "Estágio a exportar",
-    "export": "Exportar"
+    "export": "Exportar",
+    "head": {
+      "simulationLine": "Simulação: {{name}}",
+      "time": "Tempo",
+      "event": "Evento",
+      "source": "Origem",
+      "stage": "Estágio",
+      "altitude": "Altitude",
+      "velocity": "Velocidade",
+      "stability": "Estabilidade",
+      "thrustWeight": "Empuxo/peso",
+      "aoa": "Ângulo de ataque",
+      "mach": "Mach",
+      "dynamicPressure": "Pressão dinâmica",
+      "simulation": "Simulação",
+      "configuration": "Configuração",
+      "motors": "Motores",
+      "status": "Estado",
+      "apogee": "Apogeu",
+      "maxVelocity": "Velocidade máxima",
+      "maxAcceleration": "Aceleração máxima",
+      "maxMach": "Mach máx.",
+      "exitVelocity": "Velocidade ao sair da guia",
+      "exitVelocity_rail": "Velocidade ao sair do trilho",
+      "exitVelocity_rod": "Velocidade ao sair da haste",
+      "timeToApogee": "Tempo até o apogeu",
+      "flightTime": "Tempo de voo",
+      "deploymentVelocity": "Velocidade na abertura",
+      "landingVelocity": "Velocidade de pouso",
+      "optimumDelay": "Retardo ideal",
+      "maxQ": "Pressão dinâmica máxima",
+      "maxQAlpha": "q·alfa máx.",
+      "maxRollRate": "Rolagem máx."
+    }
   },
   "flightVar": {
     "ha": "Altitude acima do nível do mar",
@@ -997,7 +1048,8 @@
     "events": "Eventos de voo",
     "event": "Evento",
     "twr": "Empuxo/peso",
-    "eventsCsv": "Baixar os eventos de voo (.csv)"
+    "eventsCsv": "Baixar os eventos de voo (.csv)",
+    "peakTag": "pico"
   },
   "pathExport": {
     "open": "Exportar a trajetória de voo (KML / GPX / CSV)",
@@ -1098,7 +1150,8 @@
       "flightPath": "trajetória de voo",
       "groundTrack": "traço no solo",
       "distanceBearing": "{{distance}} {{unit}} a {{bearing}}",
-      "stageLanding": "Pouso do {{stage}}"
+      "stageLanding": "Pouso do {{stage}}",
+      "flight": "Voo"
     },
     "mission": "Missão",
     "missionPlaceholder": "ex.: Sod Blaster L1",
@@ -1111,7 +1164,10 @@
     "cancel": "Cancelar",
     "colorRolePath": "Trajetória",
     "colorRoleGround": "Solo",
-    "colorRolePin": "Marcador"
+    "colorRolePin": "Marcador",
+    "importSaveError": "Não foi possível salvar esse modelo neste navegador.",
+    "deleteError": "Não foi possível excluir esse modelo.",
+    "deleteConfirm": "Excluir o modelo “{{name}}” deste navegador?"
   },
   "aero": {
     "unattributed": "Não atribuído a um componente",
@@ -1183,7 +1239,6 @@
     "versionUnsupported": "Versão de documento não suportada {{version}}, tentando ler o arquivo mesmo assim.",
     "versionMissingBy": "Versão de documento não suportada (escrito com '{{creator}}'), tentando ler o arquivo mesmo assim.",
     "versionMissing": "Versão de documento não suportada, tentando ler o arquivo mesmo assim.",
-    "ignored": "Componentes não suportados ignorados: {{names}}.",
     "skippedUnsupported": "Ignorado por não ser suportado: {{name}}",
     "instanced": "Componentes que se repetem em várias instâncias: {{names}}. A simulação considera todas as instâncias, mas o desenho mostra só uma por enquanto.",
     "configsNoMotors": "O arquivo declara {{total}} configurações de voo, mas não trazia motores para importar.",
@@ -1443,7 +1498,7 @@
   "shapeDesc": {
     "nosecone": {
       "conical": "Uma ogiva cônica tem um perfil de um triângulo.",
-      "ogive": "Uma ogiva cônica tem um perfil que é um segmento de um círculo. O valor do parâmetro de forma 1 produz uma <b>ogiva tangente</b>, que tem uma transição suave para o tubo do foguete, valores menores do que 1 produzem<b>ogivas secantes</b>.",
+      "ogive": "Uma ogiva cônica tem um perfil que é um segmento de um círculo. O valor do parâmetro de forma 1 produz uma <b>ogiva tangente</b>, que tem uma transição suave para o tubo do foguete, valores menores do que 1 produzem <b>ogivas secantes</b>.",
       "ellipsoid": "Uma ogiva elipsoidal tem o perfil de meia elipse com eixos principais de comprimento 2×<i>Comprimento</i> e <i>Diâmetro</i>.",
       "power": "Uma ogiva tipo série de potência tem o perfil de <i>Raio</i> × (<i>x</i> / <i>Comprimento</i>)<sup><i>k</i></sup> onde <i>k</i> é o parâmetro de forma. Para <i>k</i>=0.5 é uma ogiva de <b>potência ½</b> ou <b>parabólica</b>, para <i>k</i>=0.75 uma de <b>potência ¾</b>, e para <i>k</i>=1 uma ogiva <b>cônica</b>.",
       "parabolic": "Uma ogiva tipo parabólica tem o perfil de uma parábola. O parâmetro de forma define o segmento da parábola a ser utilizado. O parâmetro de forma 1.0 produz uma <b>parábola inteira</b> tangenciando o corpo do foguete, 0.75 produz <b>3/4 de parábola</b>, 0.5 produz <b>1/2 parábola</b> e 0 produz uma ogiva <b>cônica</b>.",
@@ -1452,7 +1507,7 @@
     "transition": {
       "conical": "Uma transição cônica tem lados retos.",
       "ogive": "Uma ogiva de transição tem um perfil que é um segmento de um círculo. O valor do parâmetro de forma 1 produz uma <b>ogiva tangente</b>, que tem uma transição suave para o tubo do foguete, valores menores do que 1 produzem <b>ogivas secantes</b>.",
-      "ellipsoid": "Uma elipsoide de transição tem um perfil que é uma meia elipse com o eixo maior de comprimento 2×<i>Comprimento</i> e<i>Diâmetro</i>. Se a transição não for grampeado, o perfil da transição é estendido ao centro do raio corrspondente.",
+      "ellipsoid": "Uma elipsoide de transição tem um perfil que é uma meia elipse com o eixo maior de comprimento 2×<i>Comprimento</i> e <i>Diâmetro</i>. Se a transição não for recortada, o perfil da transição é estendido ao centro do raio correspondente.",
       "power": "Uma transição série de potências tem o perfil de <i>Raio</i> × (<i>x</i> / <i>Comprimento</i>)<sup><i>k</i></sup> onde <i>k</i> é o parâmetro de forma. Para <i>k</i>=0.5 a transição é de <b>potência ½</b> ou <b>parabólica</b>, para <i>k</i>=0.75 de <b>potência ¾</b>, e para <i>k</i>=1 <b>cônica</b>.",
       "parabolic": "Uma transição tipo parabólica tem o perfil de uma parábola. O parâmetro de forma define o segmento da parábola a ser utilizado. O parâmetro de forma 1.0 produz uma <b>parábola inteira</b> tangenciando o corpo do foguete, 0.75 produz <b>3/4 de parábola</b>, 0.5 produz <b>1/2 parábola</b> e 0 produz uma transição <b>cônica</b>.",
       "haack": "As <i>ogivas</i> série de Haack são projetadas para diminuir o arrasto. Essas formas de transição são equivalentes, mas não necessáriamente produzem uma melhoria no arrasto. O parâmetro de forma 0.0 produz uma ogiva <b>LD-Haack</b> ou <b>Von Karman</b>, enquanto um valor de 0.333 produz uma ogiva <b>LV-Haack</b>."
@@ -1895,9 +1950,12 @@
     "tooFast": "Rápido demais",
     "tooSlow": "Lento demais",
     "overRail": "Mais longo que o trilho",
-    "rodAngle": "O ângulo da guia de lançamento é {{value}} da vertical, acima dos {{limit}} que os códigos de segurança da NAR e da Tripoli permitem.",
-    "rodAngle_rail": "O ângulo do trilho de lançamento é {{value}} da vertical, acima dos {{limit}} que os códigos de segurança da NAR e da Tripoli permitem.",
-    "rodAngle_rod": "O ângulo da haste de lançamento é {{value}} da vertical, acima dos {{limit}} que os códigos de segurança da NAR e da Tripoli permitem.",
+    "rodAngleModel": "O ângulo da guia de lançamento é {{value}} da vertical, acima dos {{limit}} que o código de segurança de foguetes-modelo da NAR permite.",
+    "rodAngleModel_rail": "O ângulo do trilho de lançamento é {{value}} da vertical, acima dos {{limit}} que o código de segurança de foguetes-modelo da NAR permite.",
+    "rodAngleModel_rod": "O ângulo da haste de lançamento é {{value}} da vertical, acima dos {{limit}} que o código de segurança de foguetes-modelo da NAR permite.",
+    "rodAngleHighPower": "O ângulo da guia de lançamento é {{value}} da vertical, acima dos {{limit}} que os códigos de segurança da NAR e da Tripoli permitem a um foguete de alta potência.",
+    "rodAngleHighPower_rail": "O ângulo do trilho de lançamento é {{value}} da vertical, acima dos {{limit}} que os códigos de segurança da NAR e da Tripoli permitem a um foguete de alta potência.",
+    "rodAngleHighPower_rod": "O ângulo da haste de lançamento é {{value}} da vertical, acima dos {{limit}} que os códigos de segurança da NAR e da Tripoli permitem a um foguete de alta potência.",
     "wind": "A velocidade do vento é {{value}}, acima dos {{limit}} que os códigos de segurança da NAR e da Tripoli permitem.",
     "refused": "\"{{name}}\" não foi rodada: as condições de lançamento dela estão fora dos códigos de segurança."
   },
@@ -1995,7 +2053,8 @@
     "landed": "{{flown}} de {{asked}} voos pousaram.",
     "stale": "O projeto mudou desde que esta varredura foi voada.",
     "noLandings": "A varredura de vento não produziu pousos.",
-    "spread": "{{from}}–{{to}}"
+    "spread": "{{from}}–{{to}}",
+    "flown": "varredura feita"
   },
   "crossSection": {
     "square": "Quadrada",
@@ -2055,8 +2114,8 @@
       "badKey": "O Open-Meteo não aceitou a chave de API em Configurações, Lançamento. Suas condições de lançamento não foram alteradas.",
       "quota": "O limite gratuito do Open-Meteo acabou por enquanto. Tente mais tarde ou adicione uma chave de API em Configurações, Lançamento. Suas condições de lançamento não foram alteradas.",
       "http": "O Open-Meteo respondeu com um erro ({{detail}}). Suas condições de lançamento não foram alteradas.",
-      "shape": "Não foi possível ler a resposta do Open-Meteo ({{detail}}). Suas condições de lançamento não foram alteradas.",
-      "units": "O Open-Meteo respondeu em unidades que o app não lê ({{detail}}). Suas condições de lançamento não foram alteradas.",
+      "shape": "Não foi possível ler a resposta do Open-Meteo. Suas condições de lançamento não foram alteradas.",
+      "units": "O Open-Meteo respondeu em unidades que o app não lê. Suas condições de lançamento não foram alteradas.",
       "noData": "O Open-Meteo não tem dados para essa data aqui. Suas condições de lançamento não foram alteradas."
     },
     "keyLabel": "Chave de API do Open-Meteo",
@@ -2139,6 +2198,7 @@
     "estimateNote": "Uma estimativa a partir de velocidades de descida digitadas. A zona cobre {{descents}} descidas: {{hours}} horas da previsão, velocidade do vento 20% para mais e para menos, direção 15° para cada lado e velocidade de descida 10% para mais e para menos.",
     "flatGround": "Não foi possível obter a forma do terreno, então o pouso é em solo plano na altura da plataforma.",
     "surfaceWindOnly": "O registro do Open-Meteo para esta data tem só o vento perto do solo, então toda a descida deriva com ele.",
+    "outdated": "O local, a data, a hora, o apogeu ou as velocidades de descida mudaram desde esta estimativa. Clique em Estimar pouso para atualizá-la.",
     "mapLabel": "Estimativa de pouso vista de cima, pouso a {{distance}} da plataforma"
   },
   "tools": {

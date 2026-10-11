@@ -150,12 +150,21 @@ export function download(filename: string, data: BlobPart, mime = 'text/plain;ch
 /**
  * Strip characters a filesystem will not take, keeping a usable fallback.
  *
- * Requires something alphanumeric to survive: a name made only of separators
+ * Letters and digits of any script survive, so a Cyrillic or Japanese design
+ * name still names its file. Everything else but `.`, `_` and `-` becomes `_`:
+ * whitespace, path separators, the characters Windows reserves (`<>:"/\|?*`)
+ * and controls. Leading dots go, so a name never makes a hidden file or a `..`
+ * segment.
+ *
+ * Requires a letter or digit to survive: a name made only of separators
  * ("///") collapses to "_", which is truthy but a useless filename.
  */
 export function safeFilename(name: string, fallback = 'rocket'): string {
-  const cleaned = (name ?? '').trim().replace(/[^a-z0-9._-]+/gi, '_');
-  return /[a-z0-9]/i.test(cleaned) ? cleaned : fallback;
+  const cleaned = (name ?? '')
+    .trim()
+    .replace(/[^\p{L}\p{M}\p{N}._-]+/gu, '_')
+    .replace(/^\.+/, '');
+  return /[\p{L}\p{N}]/u.test(cleaned) ? cleaned : fallback;
 }
 
 /**
@@ -168,8 +177,8 @@ export function safeFilename(name: string, fallback = 'rocket'): string {
  *
  *   about the rocket    rocket + what it is             Bertha-design.ork
  *                                                       Bertha-aero-table.csv
- *   about a simulation  rocket + sim + what it is       Bertha-C6 flight-flight-events.csv
- *   a printable part    rocket + component              Bertha-Nose cone.stl
+ *   about a simulation  rocket + sim + what it is       Bertha-C6_flight-flight-events.csv
+ *   a printable part    rocket + component              Bertha-Nose_cone.stl
  *
  * A design document is not an exception to the first line: `.ork`, `.rkt` and
  * `.CDX1` are "-design", the way the report is "-report". A name says which

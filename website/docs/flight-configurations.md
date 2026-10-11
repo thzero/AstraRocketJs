@@ -8,7 +8,7 @@ This is OpenRocket's own model, and it is what makes "the same rocket on a C6 an
 
 ## The table
 
-One row per configuration, one column per part it configures. Reading across a row tells you what that setup does everywhere; reading down a column tells you what the same mount or chute does under each setup, which is the comparison a staged or clustered rocket is designed around.
+One row per configuration, one column per part it configures. The **Motors**, **Recovery** and **Staging** tabs above the table choose which parts the columns show; each has its own section below. Reading across a row tells you what that setup does everywhere; reading down a column tells you what the same mount or chute does under each setup, which is the comparison a staged or clustered rocket is designed around.
 
 - **New** adds a configuration with the default motors, even when an identical setup is already there: two configurations that seat the same motors are a choice, not an accident.
 - **Copy** duplicates the selected one, motors and all, and puts the copy next to it. A named configuration's copy says so; an unnamed one stays unnamed, because its label is its motor list.

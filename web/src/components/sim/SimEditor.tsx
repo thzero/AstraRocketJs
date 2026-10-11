@@ -2,7 +2,8 @@ import { useId, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore, selectActive, selectConfig } from '../../state/store';
 import { launchDiffKeys, prefDiffKeys } from '../../services/flight/simDiff';
-import { loadoutLabel } from '../../services/flight/flightConfigs';
+import { configFor, loadoutLabel } from '../../services/flight/flightConfigs';
+import { configPowerClass } from '../../services/flight/powerClass';
 import { useSettings } from '../../state/SettingsProvider';
 import { SIM_BOUNDS } from '../../services/storage/settings';
 import { RunButton } from './RunButton';
@@ -64,6 +65,14 @@ export function SimEditor() {
   // that is not on screen. Only meaningful for a real multi-selection.
   const launchDiff = useMemo(() => launchDiffKeys(targets), [targets]);
   const prefDiff = useMemo(() => prefDiffKeys(targets), [targets]);
+
+  // The class of rocket the targets fly, which sets the launcher angle the
+  // codes allow; null when the targets fly both classes.
+  const dryMass = useWorkspaceStore((s) => s.info?.massEmpty);
+  const powerClass = useMemo(() => {
+    const classes = new Set(targets.map((x) => configPowerClass(tree, configFor(configs, x.configId), dryMass)));
+    return classes.size === 1 ? [...classes][0]! : null;
+  }, [targets, tree, configs, dryMass]);
 
   /**
    * A multi-target edit is never silent: the same tick that means "fly these"
@@ -170,6 +179,7 @@ export function SimEditor() {
           diff={launchDiff}
           weather
           launcher={launcher}
+          powerClass={powerClass}
         />
         <SimOptions diff={prefDiff} targets={targets} />
       </div>
@@ -304,7 +314,7 @@ function SimOptions({ diff, targets }: { diff?: ReadonlySet<keyof SimPrefs>; tar
           min={0}
           max={TIME_STEPS.length - 1}
           step={1}
-          aria-label={t('settings.timeStep')}
+          aria-label={t('settings.timeStepScale')}
           value={nearestStepIndex(eff.timeStep)}
           onChange={(e) => setSimPref('timeStep', TIME_STEPS[Number(e.target.value)]!)}
           // Pointer, not mouse: a touch drag sends no mouseup, and an undo entry

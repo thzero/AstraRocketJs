@@ -41,6 +41,7 @@
       "archiveEmpty": "El archivo comprimido .ork está vacío.",
       "tooManyComponents": "Este {{format}} declara demasiados componentes para abrirlo (posiblemente esté dañado).",
       "tooManySimulations": "Este .ork declara demasiadas simulaciones para abrirlo (posiblemente esté dañado).",
+      "tooManyUnknownElements": "Este .ork lleva demasiados elementos no reconocidos para abrirlo (posiblemente esté dañado).",
       "tooManyConfigs": "Este .ork declara demasiadas configuraciones de vuelo para abrirlo (posiblemente esté dañado).",
       "tooDeep": "Este {{format}} tiene un anidamiento demasiado profundo para abrirlo (posiblemente esté dañado).",
       "tooLarge": "El archivo es demasiado grande para abrirlo (más de {{size}} MiB)."
@@ -72,6 +73,7 @@
       "engHeaderMass": "Encabezado .eng mal formado: la masa de propelente debe estar entre 0 y la masa total.",
       "engDataLine": "Datos .eng mal formados en la línea {{line}}: se esperaba un tiempo y un empuje, pero hay «{{text}}».",
       "engNoCurve": "El archivo .eng no tiene puntos de datos de la curva de empuje.",
+      "engTooManyPoints": "El motor {{motor}} del archivo .eng tiene más de {{max}} puntos de datos.",
       "engNegativeThrust": "El motor {{motor}} del archivo .eng tiene un empuje negativo en la línea {{line}}.",
       "engNegativeTime": "El motor {{motor}} del archivo .eng tiene un tiempo negativo en la línea {{line}}.",
       "attrDiameter": "diámetro",
@@ -128,7 +130,11 @@
       "materials": "No se pudo cargar el catálogo de materiales ({{reason}}).",
       "contributors": "No se pudo cargar la lista de colaboradores ({{reason}}).",
       "tooLarge": "respuesta demasiado grande",
-      "badShape": "estructura del catálogo inesperada"
+      "badShape": "estructura del catálogo inesperada",
+      "http": "HTTP {{status}} del servidor",
+      "timeout": "el servidor no respondió a tiempo",
+      "network": "no se pudo contactar con el servidor",
+      "noExamples": "el índice de ejemplos no contiene ejemplos"
     },
     "export": {
       "noPrintable": "No se seleccionó ninguna pieza imprimible.",
@@ -175,6 +181,8 @@
     "noDesign": "No hay un diseño válido para exportar.",
     "stages": "Etapas",
     "length": "Longitud",
+    "dimLength": "long. {{value}}",
+    "dimWall": "pared {{value}}",
     "maxDiameter": "Diámetro máx.",
     "massEmpty": "Masa (vacío)",
     "massLoaded": "Masa (cargado)",
@@ -219,6 +227,8 @@
     "transition": "Transición",
     "tooLarge": "{{w}}×{{h}} mm — demasiado grande para imprimir 1:1 en una página.",
     "fontFallback": "No se pudo cargar la fuente del informe, así que algunos caracteres de este PDF aparecen como «?». Vuelve a exportarlo cuando tengas conexión.",
+    "scriptUncovered": "Algunos caracteres de este PDF pertenecen a una escritura que las fuentes del informe no incluyen, así que aparecen como «?».",
+    "outdatedFlight": "Desactualizado: estos resultados se obtuvieron antes del último cambio del diseño o de sus ajustes de simulación. Vuelve a ejecutar la simulación para obtener cifras actuales.",
     "bodyTube": "Tubo del cuerpo",
     "markingGuide": "Guía de marcado de aletas (1:1)",
     "markingGuideHint": "Imprime al 100% / tamaño real (sin escalado), verifica la regla, luego recorta cada tira, envuélvela alrededor de su tubo con los extremos a tope (sin superponer) y marca a través de las flechas. Traza una línea a lo largo del tubo por cada par de marcas: ahí va la pieza.",
@@ -297,7 +307,8 @@
     "jsTip": "Motor de física: JavaScript (alternativa)",
     "slow": "El motor de física está tardando más de lo habitual en cargarse.",
     "needsIt": "Las herramientas de diseño funcionan sin él; los números y las simulaciones lo necesitan.",
-    "retry": "Reintentar"
+    "retry": "Reintentar",
+    "reload": "Recargar la página"
   },
   "about": {
     "open": "Acerca de",
@@ -538,7 +549,8 @@
       "streamer_surface": "Cinta",
       "shockcord_line": "Cordón de choque"
     },
-    "materialNoDefault": "Sin predeterminado — dejar la pieza sin asignar"
+    "materialNoDefault": "Sin predeterminado — dejar la pieza sin asignar",
+    "timeStepScale": "Paso de tiempo, de grueso a fino"
   },
   "config": {
     "title": "Configuración del cohete",
@@ -817,9 +829,15 @@
     "rodDirectionName_rail": "Dirección del raíl",
     "rodDirectionName_rod": "Dirección de la varilla",
     "windDirectionName": "Dirección del viento",
-    "angleLimit": "Los códigos de seguridad de NAR y Tripoli piden una rampa a menos de {{limit}} de la vertical.",
-    "angleLimit_rail": "Los códigos de seguridad de NAR y Tripoli piden un raíl a menos de {{limit}} de la vertical.",
-    "angleLimit_rod": "Los códigos de seguridad de NAR y Tripoli piden una varilla a menos de {{limit}} de la vertical.",
+    "angleLimitModel": "Como cohete modelo, vuela bajo el código de seguridad de cohetes modelo de NAR, que pide una rampa a menos de {{limit}} de la vertical.",
+    "angleLimitModel_rail": "Como cohete modelo, vuela bajo el código de seguridad de cohetes modelo de NAR, que pide un raíl a menos de {{limit}} de la vertical.",
+    "angleLimitModel_rod": "Como cohete modelo, vuela bajo el código de seguridad de cohetes modelo de NAR, que pide una varilla a menos de {{limit}} de la vertical.",
+    "angleLimitHighPower": "Como cohete de alta potencia, vuela bajo los códigos de seguridad de alta potencia de NAR y Tripoli, que piden una rampa a menos de {{limit}} de la vertical.",
+    "angleLimitHighPower_rail": "Como cohete de alta potencia, vuela bajo los códigos de seguridad de alta potencia de NAR y Tripoli, que piden un raíl a menos de {{limit}} de la vertical.",
+    "angleLimitHighPower_rod": "Como cohete de alta potencia, vuela bajo los códigos de seguridad de alta potencia de NAR y Tripoli, que piden una varilla a menos de {{limit}} de la vertical.",
+    "angleLimitEither": "El código de seguridad de cohetes modelo de NAR pide una rampa a menos de {{model}} de la vertical, y los códigos de alta potencia de NAR y Tripoli, a menos de {{highPower}}.",
+    "angleLimitEither_rail": "El código de seguridad de cohetes modelo de NAR pide un raíl a menos de {{model}} de la vertical, y los códigos de alta potencia de NAR y Tripoli, a menos de {{highPower}}.",
+    "angleLimitEither_rod": "El código de seguridad de cohetes modelo de NAR pide una varilla a menos de {{model}} de la vertical, y los códigos de alta potencia de NAR y Tripoli, a menos de {{highPower}}.",
     "windLimit": "Los códigos de seguridad de NAR y Tripoli piden no volar con viento por encima de {{limit}}.",
     "field": {
       "launchRodLengthM": "longitud de la guía",
@@ -858,7 +876,40 @@
     "flightEvents": "Incluir los eventos del vuelo",
     "commentChar": "Carácter de comentario",
     "stage": "Etapa a exportar",
-    "export": "Exportar"
+    "export": "Exportar",
+    "head": {
+      "simulationLine": "Simulación: {{name}}",
+      "time": "Tiempo",
+      "event": "Evento",
+      "source": "Origen",
+      "stage": "Etapa",
+      "altitude": "Altitud",
+      "velocity": "Velocidad",
+      "stability": "Estabilidad",
+      "thrustWeight": "Empuje/peso",
+      "aoa": "Ángulo de ataque",
+      "mach": "Mach",
+      "dynamicPressure": "Presión dinámica",
+      "simulation": "Simulación",
+      "configuration": "Configuración",
+      "motors": "Motores",
+      "status": "Estado",
+      "apogee": "Apogeo",
+      "maxVelocity": "Velocidad máxima",
+      "maxAcceleration": "Aceleración máxima",
+      "maxMach": "Mach máx.",
+      "exitVelocity": "Velocidad al salir de la guía",
+      "exitVelocity_rail": "Velocidad al salir del raíl",
+      "exitVelocity_rod": "Velocidad al salir de la varilla",
+      "timeToApogee": "Tiempo hasta el apogeo",
+      "flightTime": "Tiempo de vuelo",
+      "deploymentVelocity": "Velocidad al despliegue",
+      "landingVelocity": "Velocidad de aterrizaje",
+      "optimumDelay": "Retardo óptimo",
+      "maxQ": "Presión dinámica máxima",
+      "maxQAlpha": "q·alfa máx.",
+      "maxRollRate": "Alabeo máx."
+    }
   },
   "flightVar": {
     "ha": "Altitud sobre el nivel del mar",
@@ -997,7 +1048,8 @@
     "events": "Eventos de vuelo",
     "event": "Evento",
     "twr": "TWR",
-    "eventsCsv": "Descargar eventos de vuelo (.csv)"
+    "eventsCsv": "Descargar eventos de vuelo (.csv)",
+    "peakTag": "pico"
   },
   "pathExport": {
     "open": "Exportar trayectoria de vuelo (KML / GPX / CSV)",
@@ -1098,7 +1150,8 @@
       "flightPath": "trayectoria de vuelo",
       "groundTrack": "traza en el suelo",
       "distanceBearing": "{{distance}} {{unit}} a {{bearing}}",
-      "stageLanding": "Aterrizaje de {{stage}}"
+      "stageLanding": "Aterrizaje de {{stage}}",
+      "flight": "Vuelo"
     },
     "mission": "Misión",
     "missionPlaceholder": "p. ej. Sod Blaster N1",
@@ -1111,7 +1164,10 @@
     "cancel": "Cancelar",
     "colorRolePath": "Trayecto",
     "colorRoleGround": "Suelo",
-    "colorRolePin": "Marcador"
+    "colorRolePin": "Marcador",
+    "importSaveError": "No se pudo guardar esa plantilla en este navegador.",
+    "deleteError": "No se pudo eliminar esa plantilla.",
+    "deleteConfirm": "¿Eliminar la plantilla «{{name}}» de este navegador?"
   },
   "aero": {
     "unattributed": "No atribuido a un componente",
@@ -1183,7 +1239,6 @@
     "versionUnsupported": "Versión de documento no compatible {{version}}, se intentará leer el archivo de todos modos.",
     "versionMissingBy": "Versión de documento no compatible (escrito con '{{creator}}'), se intentará leer el archivo de todos modos.",
     "versionMissing": "Versión de documento no compatible, se intentará leer el archivo de todos modos.",
-    "ignored": "Se ignoraron componentes no compatibles: {{names}}.",
     "skippedUnsupported": "Omitido por no ser compatible: {{name}}",
     "instanced": "Componentes que se repiten en varias instancias: {{names}}. La simulación cuenta todas las instancias, pero el dibujo muestra por ahora solo una.",
     "configsNoMotors": "El archivo declara {{total}} configuraciones de vuelo, pero no traía motores que importar.",
@@ -1895,9 +1950,12 @@
     "tooFast": "Demasiado rápido",
     "tooSlow": "Demasiado lento",
     "overRail": "Más largo que el raíl",
-    "rodAngle": "El ángulo de la guía es de {{value}} respecto a la vertical, por encima de los {{limit}} que permiten los códigos de seguridad de NAR y Tripoli.",
-    "rodAngle_rail": "El ángulo del raíl es de {{value}} respecto a la vertical, por encima de los {{limit}} que permiten los códigos de seguridad de NAR y Tripoli.",
-    "rodAngle_rod": "El ángulo de la varilla es de {{value}} respecto a la vertical, por encima de los {{limit}} que permiten los códigos de seguridad de NAR y Tripoli.",
+    "rodAngleModel": "El ángulo de la guía es de {{value}} respecto a la vertical, por encima de los {{limit}} que permite el código de seguridad de cohetes modelo de NAR.",
+    "rodAngleModel_rail": "El ángulo del raíl es de {{value}} respecto a la vertical, por encima de los {{limit}} que permite el código de seguridad de cohetes modelo de NAR.",
+    "rodAngleModel_rod": "El ángulo de la varilla es de {{value}} respecto a la vertical, por encima de los {{limit}} que permite el código de seguridad de cohetes modelo de NAR.",
+    "rodAngleHighPower": "El ángulo de la guía es de {{value}} respecto a la vertical, por encima de los {{limit}} que los códigos de seguridad de NAR y Tripoli permiten a un cohete de alta potencia.",
+    "rodAngleHighPower_rail": "El ángulo del raíl es de {{value}} respecto a la vertical, por encima de los {{limit}} que los códigos de seguridad de NAR y Tripoli permiten a un cohete de alta potencia.",
+    "rodAngleHighPower_rod": "El ángulo de la varilla es de {{value}} respecto a la vertical, por encima de los {{limit}} que los códigos de seguridad de NAR y Tripoli permiten a un cohete de alta potencia.",
     "wind": "La velocidad del viento es de {{value}}, por encima de los {{limit}} que permiten los códigos de seguridad de NAR y Tripoli.",
     "refused": "\"{{name}}\" no se ejecutó: sus condiciones de lanzamiento están fuera de los códigos de seguridad."
   },
@@ -1995,7 +2053,8 @@
     "landed": "Aterrizaron {{flown}} de {{asked}} vuelos.",
     "stale": "El diseño ha cambiado desde que se ejecutó este barrido.",
     "noLandings": "El barrido de viento no produjo ningún aterrizaje.",
-    "spread": "{{from}}–{{to}}"
+    "spread": "{{from}}–{{to}}",
+    "flown": "barrido realizado"
   },
   "crossSection": {
     "square": "Cuadrada",
@@ -2055,8 +2114,8 @@
       "badKey": "Open-Meteo no aceptó la clave de API de Ajustes, Lanzamiento. Tus condiciones de lanzamiento no han cambiado.",
       "quota": "El límite gratuito de Open-Meteo está agotado por ahora. Inténtalo más tarde o añade una clave de API en Ajustes, Lanzamiento. Tus condiciones de lanzamiento no han cambiado.",
       "http": "Open-Meteo respondió con un error ({{detail}}). Tus condiciones de lanzamiento no han cambiado.",
-      "shape": "No se pudo leer la respuesta de Open-Meteo ({{detail}}). Tus condiciones de lanzamiento no han cambiado.",
-      "units": "Open-Meteo respondió en unidades que la aplicación no lee ({{detail}}). Tus condiciones de lanzamiento no han cambiado.",
+      "shape": "No se pudo leer la respuesta de Open-Meteo. Tus condiciones de lanzamiento no han cambiado.",
+      "units": "Open-Meteo respondió en unidades que la aplicación no lee. Tus condiciones de lanzamiento no han cambiado.",
       "noData": "Open-Meteo no tiene datos para esa fecha aquí. Tus condiciones de lanzamiento no han cambiado."
     },
     "keyLabel": "Clave de API de Open-Meteo",
@@ -2139,6 +2198,7 @@
     "estimateNote": "Una estimación a partir de velocidades de descenso escritas. La zona cubre {{descents}} descensos: {{hours}} horas del pronóstico, la velocidad del viento un 20% arriba y abajo, la dirección 15° a cada lado y la velocidad de descenso un 10% arriba y abajo.",
     "flatGround": "No se pudo obtener la forma del terreno, así que el aterrizaje es sobre suelo llano a la altura de la plataforma.",
     "surfaceWindOnly": "El registro de Open-Meteo para esta fecha solo tiene el viento cerca del suelo, así que todo el descenso deriva con él.",
+    "outdated": "El sitio, la fecha, la hora, el apogeo o las velocidades de descenso han cambiado desde esta estimación. Pulsa Estimar aterrizaje para actualizarla.",
     "mapLabel": "Estimación de aterrizaje vista desde arriba, aterrizaje a {{distance}} de la plataforma"
   },
   "tools": {

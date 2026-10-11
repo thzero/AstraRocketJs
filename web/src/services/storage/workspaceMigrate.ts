@@ -12,6 +12,7 @@
  * (services/flight/flightConfigs.ts).
  */
 import { findMounts } from '../design/treeEdit';
+import { settleLinkedDimensions } from '../design/linkedDimensions';
 import { loadoutSignature, newFlightConfig, type FlightConfig, type MountMotor } from '../flight/flightConfigs';
 import type { Simulation } from '../flight/simulations';
 import type { Workspace } from './workspaceStore';
@@ -41,15 +42,21 @@ interface WorkspaceV1 extends Omit<Workspace, 'version' | 'sims' | 'configs'> {
  * build (an installed PWA can have an older one cached) must be refused rather
  * than half-read. The caller decides what a refusal means - the boot path
  * detaches rather than overwriting the design it could not read.
+ *
+ * The elements are checked too, not just the arrays: a `null` simulation,
+ * configuration or component passes an array check and then throws in the
+ * readers that dereference every entry (re-attaching flights, `hydrate`), after
+ * the boot path has already taken its claim on the stored design.
  */
 export function migrateWorkspace(w: unknown): Workspace | null {
   const c = w as Partial<Workspace> | Partial<WorkspaceV1> | null;
   if (
     !c ||
-    !c.tree ||
-    !Array.isArray((c.tree as { components?: unknown }).components) ||
+    !isRecord(c.tree) ||
+    !isComponentList((c.tree as { components?: unknown }).components) ||
     !Array.isArray(c.sims) ||
-    c.sims.length === 0
+    c.sims.length === 0 ||
+    !c.sims.every(hasStringId)
   ) {
     return null;
   }
@@ -57,10 +64,31 @@ export function migrateWorkspace(w: unknown): Workspace | null {
     const v2 = c as Workspace;
     // `configs` is what every simulation's motors now live in, so a v2 blob
     // without one is not a v2 workspace.
-    return Array.isArray(v2.configs) && v2.configs.length > 0 ? v2 : null;
+    return Array.isArray(v2.configs) && v2.configs.length > 0 && v2.configs.every(hasStringId) ? settled(v2) : null;
   }
-  if (c.version === 1) return fromV1(c as WorkspaceV1);
+  if (c.version === 1) return settled(fromV1(c as WorkspaceV1));
   return null;
+}
+
+/**
+ * The workspace with its rail buttons and centering rings held as the kernel
+ * builds them, so the panel shows what flies. A design whose linked dimensions
+ * already agree comes back as the same object.
+ */
+function settled(w: Workspace): Workspace {
+  const tree = settleLinkedDimensions(w.tree);
+  return tree === w.tree ? w : { ...w, tree };
+}
+
+/** A plain object, not null and not an array. */
+const isRecord = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
+
+/** A simulation or configuration: an object carrying its id. */
+const hasStringId = (v: unknown): boolean => isRecord(v) && typeof v.id === 'string';
+
+/** Components are objects, and a component's `children`, when present, are components too. */
+function isComponentList(v: unknown): boolean {
+  return Array.isArray(v) && v.every((n) => isRecord(n) && (n.children === undefined || isComponentList(n.children)));
 }
 
 /**

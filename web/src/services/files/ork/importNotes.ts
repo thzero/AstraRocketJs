@@ -1,3 +1,5 @@
+import { fmtList, partLabel } from '../../../i18n/format';
+import i18n from '../../../i18n';
 import type { ComponentNode } from '../../../engine/openRocketEngine';
 import type { OrkFlightConfig } from '../orkTypes';
 import { walkNodes } from '../../../tree/treeWalk';
@@ -27,16 +29,19 @@ export function modelingNotes(components: ComponentNode[]): ImportNote[] {
   if (instanced.length > 0) {
     notes.push(
       keyedNote('importNote.instanced', {
-        names: [...new Set(instanced.map((nd) => nd.name ?? nd.type))].join(', '),
+        names: fmtList([...new Set(instanced.map((nd) => partLabel(i18n.t, nd)))]),
       }),
     );
   }
   return notes;
 }
 
-/** The one note naming the component tags a reader skipped, if it skipped any. */
+/**
+ * One note per component tag a reader skipped. The readers are the only source
+ * of these notes; the loader passes them through without adding its own.
+ */
 export function ignoredNotes(ignored: Set<string>): ImportNote[] {
-  return ignored.size ? [keyedNote('importNote.ignored', { names: [...ignored].join(', ') })] : [];
+  return [...ignored].map((name) => keyedNote('importNote.skippedUnsupported', { name }));
 }
 
 /**

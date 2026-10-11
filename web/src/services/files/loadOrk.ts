@@ -1,3 +1,5 @@
+import { fmtList, partLabel } from '../../i18n/format';
+import i18n from '../../i18n';
 import type { OrkSimulation } from './ork/importSimulations';
 import {
   OpenRocketDesign,
@@ -27,7 +29,7 @@ import { rseDigest } from './ork/embeddedMotors';
 import { keyedNote, type ImportNote } from './importNote';
 
 /** One of the file's flight configurations, with its motors resolved. */
-export interface LoadedConfig {
+interface LoadedConfig {
   /** The file's own `configid`, kept so a round trip is identity. */
   id: string;
   name: string | null;
@@ -250,10 +252,8 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
   const built = buildForImport(res.tree);
   const design = built.design;
 
-  const notes: ImportNote[] = [
-    ...(res.notes ?? []),
-    ...(res.ignored ?? []).map((name) => keyedNote('importNote.skippedUnsupported', { name })),
-  ];
+  // The readers already name every tag they skipped (`res.ignored`) in `res.notes`.
+  const notes: ImportNote[] = [...(res.notes ?? [])];
   if (built.unbuildable) notes.push(built.unbuildable);
 
   const catalog = await loadCatalog();
@@ -445,7 +445,7 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
   if (emptyMounts.length) {
     const named = emptyMounts.filter((m) => !chosen.motors[m.id as string]?.spec.designation);
     if (named.length) {
-      const names = named.map((m) => `"${m.name ?? m.type}"`).join(', ');
+      const names = fmtList(named.map((m) => `"${partLabel(i18n.t, m)}"`));
       notes.push(keyedNote('importNote.mountsWithoutMotor', { mounts: names }));
     }
   }

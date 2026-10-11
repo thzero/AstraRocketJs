@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { samplesToMotorSpec, fetchMotorSpec, isCachedMotorSpec } from '../../../src/services/motors/thrustcurve';
+import { PLUGGED_DELAY } from '../../../src/engine/openRocketEngine';
 import type { CatalogMotor } from '../../../src/services/motors/motorDb';
 import { getMotorStore } from '../../../src/services/motors/motorStore';
 
@@ -483,6 +484,21 @@ describe('isCachedMotorSpec', () => {
     expect(isCachedMotorSpec({ ...good, times: [] })).toBe(false);
     expect(isCachedMotorSpec(null)).toBe(false);
     expect(isCachedMotorSpec('C6')).toBe(false);
+  });
+
+  it('rejects a spec samplesToMotorSpec could not have built', () => {
+    // Each would otherwise be served from the cache and fail the build with a
+    // raw kernel message instead of being refetched.
+    expect(isCachedMotorSpec({ ...good, thrusts: [0, -1, 0] })).toBe(false);
+    expect(isCachedMotorSpec({ ...good, diameter: 0 })).toBe(false);
+    expect(isCachedMotorSpec({ ...good, length: Number.NaN })).toBe(false);
+    expect(isCachedMotorSpec({ ...good, cgX: 0.08 })).toBe(false);
+    expect(isCachedMotorSpec({ ...good, cgX: -0.01 })).toBe(false);
+    expect(isCachedMotorSpec({ ...good, cgX: undefined })).toBe(false);
+    expect(isCachedMotorSpec({ ...good, ejectionDelay: null })).toBe(false);
+    expect(isCachedMotorSpec({ ...good, ejectionDelay: -2 })).toBe(false);
+    // A plugged motor's stored delay is a number like any other.
+    expect(isCachedMotorSpec({ ...good, ejectionDelay: PLUGGED_DELAY })).toBe(true);
   });
 });
 

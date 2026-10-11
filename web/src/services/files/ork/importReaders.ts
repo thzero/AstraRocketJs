@@ -3,6 +3,7 @@ import { defaultStageName, freshId } from '../../design/orkTree';
 import { shapeParamDefault } from '../../../tree/shapeProfile';
 import { xmlText as text } from '../xmlUtil';
 import { COMPONENT_DEFAULTS } from '../../design/componentDefaults';
+import { RAIL_BUTTON_FALLBACK, settleRailButtonLoad, settleRingOuterLoad } from '../../design/linkedDimensions';
 import { clampCount, finiteNum } from './numbers';
 import { MAX_ASSEMBLY_INSTANCES, MAX_FIN_POINTS, MAX_LINE_COUNT, checkDepth, countComponent } from './importLimits';
 import {
@@ -41,7 +42,7 @@ import { degToRad } from '../../../prefs/units';
  */
 
 /** Builds the node for one element (its children are read by the caller). */
-export type NodeReader = (ctx: OrkImportContext, el: Element) => ComponentNode;
+type NodeReader = (ctx: OrkImportContext, el: Element) => ComponentNode;
 
 const base = (el: Element, type: ComponentType, withPosition: boolean): ComponentNode => {
   const node: ComponentNode = { type, id: freshId() };
@@ -274,10 +275,12 @@ const readCenteringring: NodeReader = (_ctx, el) => {
   readRadial(el, n);
   const cor = autoRadiusTag(el, 'outerradius');
   if (cor === undefined) n['outerRadiusAuto'] = true;
-  if (cor !== undefined) n['outerRadius'] = cor;
   const cir = autoRadiusTag(el, 'innerradius');
   if (cir === undefined) n['innerRadiusAuto'] = true;
   if (cir !== undefined) n['innerRadius'] = cir;
+  // The inner radius's setter raises the outer to meet it, as the desktop
+  // loader runs it.
+  if (cor !== undefined) n['outerRadius'] = cir === undefined ? cor : settleRingOuterLoad(cor, cir);
   readInstances(el, n);
   return n;
 };
@@ -319,13 +322,17 @@ const readLaunchlug: NodeReader = (_ctx, el) => {
 const readRailbutton: NodeReader = (_ctx, el) => {
   const n = base(el, 'railbutton', true);
   const rb = COMPONENT_DEFAULTS.railbutton;
-  n['outerDiameter'] = nonNegTag(el, 'outerdiameter', rb.outerDiameter);
   // The rest of the button's geometry (RailButtonSaver.java writes all six)
-  // and its material, passed through like fillets: the app neither draws nor
-  // simulates them, so hard-writing the desktop's constructor constants and a
-  // Delrin material would bring a 1010 button sized by hand on the desktop
-  // back from a save as the stock one. Only carried when they differ from the
-  // defaults the writer falls back to, so an untouched design stays clean.
+  // and its material. The kernel bridge flies them; the writer falls back to
+  // the desktop's constructor constants only when the node carries none, so
+  // hard-writing those constants and a Delrin material would bring a 1010
+  // button sized by hand on the desktop back from a save as the stock one. The setters clamp the heights and bore
+  // against each other as they load, so a pair that disagrees arrives as the
+  // desktop holds it. Only carried when they differ from the defaults the
+  // writer falls back to, so an untouched design stays clean.
+  const read: Partial<Record<keyof typeof RAIL_BUTTON_FALLBACK, number>> = {
+    outerDiameter: nonNegTag(el, 'outerdiameter', rb.outerDiameter),
+  };
   for (const [tag, key] of [
     ['innerdiameter', 'innerDiameter'],
     ['height', 'height'],
@@ -334,7 +341,12 @@ const readRailbutton: NodeReader = (_ctx, el) => {
     ['screwheight', 'screwHeight'],
   ] as const) {
     const v = numTag(el, tag, NaN);
-    if (v >= 0 && v !== rb[key]) n[key] = v;
+    if (v >= 0) read[key] = v;
+  }
+  const settled = settleRailButtonLoad(read);
+  n['outerDiameter'] = settled.outerDiameter;
+  for (const key of ['innerDiameter', 'height', 'baseHeight', 'flangeHeight', 'screwHeight'] as const) {
+    if (settled[key] !== rb[key]) n[key] = settled[key];
   }
   readMaterialGroup(el, n);
   n['angleOffset'] = readAngleAroundBody(el);
@@ -451,8 +463,8 @@ const readAssembly =
     }
     if (asmType === 'parallelstage') {
       // Same separation read as a booster <stage>: the chosen config's
-      // block wins over the bare defaults.
-      readSeparation(configScoped(ctx, el, 'separationconfiguration') ?? el, n);
+      // block overrides the bare defaults field by field.
+      readSeparation(el, n, configScoped(ctx, el, 'separationconfiguration'));
       captureSeparations(ctx, el, n);
     }
     return n;
@@ -529,8 +541,9 @@ export function readStages(ctx: OrkImportContext, stages: Element[]): ComponentN
     if (!Number.isNaN(nozzle) && nozzle > 0) stage['nozzleExitDiameter'] = nozzle;
     if (i > 0) {
       // Like ignition: the chosen config's block overrides the bare defaults
-      // (24.12 writes a <separationconfiguration> for every config id).
-      readSeparation(configScoped(ctx, stageEl, 'separationconfiguration') ?? stageEl, stage);
+      // field by field (24.12 writes a <separationconfiguration> for every
+      // config id).
+      readSeparation(stageEl, stage, configScoped(ctx, stageEl, 'separationconfiguration'));
       captureSeparations(ctx, stageEl, stage);
     }
     const kids = convertChildren(ctx, stageEl);

@@ -3,6 +3,7 @@ import { AUTO_COMPONENT_FIELDS, REQUIRED_COMPONENT_FIELDS } from './requiredComp
 import { CLUSTER_OPTIONS, clusterCount } from '../../tree/cluster';
 import type { DerivedName } from './derivedFields';
 import { KERNEL_DEPLOYMENT } from '../../tree/kernelDefaults';
+import { RAIL_BUTTON_BOUNDS, RAIL_BUTTON_FALLBACK, RING_BOUNDS, type DimensionBounds } from './linkedDimensions';
 
 /**
  * The component field table: which properties each component type exposes,
@@ -95,6 +96,13 @@ type FieldFlags = {
    * reference a tab ahead of the root's middle is a negative one.
    */
   signedWithinLength?: true;
+  /**
+   * The range the kernel's setter holds this value in, from the rest of the
+   * part, in the node's own units. See services/design/linkedDimensions.ts.
+   */
+  bounds?: DimensionBounds;
+  /** What an absent key flies as, when that is not zero. */
+  whenAbsent?: number;
 };
 
 export type Field = FieldFlags &
@@ -160,7 +168,8 @@ const MASS_COMPONENT_TYPES = [
 // Stage-separation triggers (SeparationEvent, ComponentFactory.separationEventOf)
 // (when a stage lets go of the one above it). Ejection first: the desktop default
 // and the low/mid-power norm (drop off on the upper stage's ejection charge).
-const SEPARATION_EVENTS = [
+// The per-configuration separation override offers this same list.
+export const SEPARATION_EVENTS = [
   'ejection',
   'burnout',
   'launch',
@@ -256,6 +265,18 @@ const PACKED: Field[] = [
  * `innerRadius` is a stored dimension of its own rather than a consequence of
  * a wall.
  */
+/**
+ * One rail button length. Every one has a nonzero kernel default an absent key
+ * flies as, and four are clamped against each other by the kernel's setters.
+ */
+const railButtonLength = (key: keyof typeof RAIL_BUTTON_FALLBACK): Field => ({
+  key,
+  label: key,
+  kind: 'length',
+  whenAbsent: RAIL_BUTTON_FALLBACK[key],
+  ...(RAIL_BUTTON_BOUNDS[key] ? { bounds: RAIL_BUTTON_BOUNDS[key] } : {}),
+});
+
 const TUBE_BORE: Field = { key: 'innerDiameter', label: 'innerDiameter', kind: 'bore' };
 
 // `rotation` is a fin set's base rotation: where its first fin sits around the
@@ -548,6 +569,7 @@ const RAW_FIELDS: Record<string, Field[]> = {
       kind: 'length',
       diameter: true,
       auto: { flag: 'outerRadiusAuto', tip: 'autoRadius' },
+      bounds: RING_BOUNDS.outerRadius,
     },
     {
       key: 'innerRadius',
@@ -555,6 +577,7 @@ const RAW_FIELDS: Record<string, Field[]> = {
       kind: 'length',
       diameter: true,
       auto: { flag: 'innerRadiusAuto', tip: 'autoRadius' },
+      bounds: RING_BOUNDS.innerRadius,
     },
     ...LINE_INSTANCES,
     ...RADIAL_PLACEMENT,
@@ -597,14 +620,14 @@ const RAW_FIELDS: Record<string, Field[]> = {
     ...LINE_INSTANCES,
   ],
   railbutton: [
-    { key: 'outerDiameter', label: 'outerDiameter', kind: 'length' },
+    railButtonLength('outerDiameter'),
     // The rest of the button. The file services carry these and the kernel
     // takes them, so a 1010 button sized by hand weighs what it should.
-    { key: 'innerDiameter', label: 'innerDiameter', kind: 'length' },
-    { key: 'height', label: 'height', kind: 'length' },
-    { key: 'baseHeight', label: 'baseHeight', kind: 'length' },
-    { key: 'flangeHeight', label: 'flangeHeight', kind: 'length' },
-    { key: 'screwHeight', label: 'screwHeight', kind: 'length' },
+    railButtonLength('innerDiameter'),
+    railButtonLength('height'),
+    railButtonLength('baseHeight'),
+    railButtonLength('flangeHeight'),
+    railButtonLength('screwHeight'),
     { key: 'angleOffset', label: 'rotation', kind: 'angle', section: 'placement' },
     ...LINE_INSTANCES,
   ],

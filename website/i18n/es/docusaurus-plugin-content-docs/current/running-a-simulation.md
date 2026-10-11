@@ -12,13 +12,13 @@ Las casillas eligen qué filas vuela **Simular**, y también qué filas cambia e
 
 **⬇ CSV**, en la barra de herramientas, descarga la **tabla de simulaciones**: cada simulación en una fila, con su configuración, motores, estado y resultados (apogeo, velocidades, tiempos, Max-Q, q·α máx. y alabeo máx.) en tus unidades. Una simulación que no ha volado aparece con las cifras en blanco, y una desactualizada aparece marcada como tal, porque sus cifras describen el diseño anterior a tus últimos cambios.
 
-## Elige qué vuela
+## Elige qué vuela {#pick-what-it-flies}
 
 La columna **Configuración** de la tabla, y el selector en la parte superior del editor, eligen qué [configuración de vuelo](./flight-configurations.md) vuela esa fila; los motores que lleva se detallan debajo. **Editar motores…** abre la pestaña Configuraciones en esa configuración.
 
 Varias filas pueden volar la misma configuración, que es justo para lo que están: cambia un motor una vez y todos los vuelos que la usan quedan marcados para volver a ejecutarse. Dos filas que deban diferir en el motor quieren dos configuraciones, una para cada una.
 
-## Configura el lanzamiento
+## Configura el lanzamiento {#set-up-the-launch}
 
 Cada simulación tiene su propia configuración de lanzamiento, agrupada en tarjetas:
 
@@ -83,13 +83,13 @@ Después, la tarjeta Atmósfera indica de dónde salieron los valores, por ejemp
 
 La atmósfera pronosticada es un añadido de esta aplicación. OpenRocket de escritorio usa el estándar ISA por encima del sitio, y un `.ork` guardado aquí lleva los niveles como una extensión que OpenRocket de escritorio ignora.
 
-## Ejecútala
+## Ejecútala {#run-it}
 
 Pulsa **Simular vuelo**. El vuelo se calcula en un **Web Worker** en segundo plano, así que la interfaz sigue respondiendo: se muestra un indicador mientras calcula (normalmente bastante menos de un segundo). Al terminar, se abre la pestaña **Resultados** con sus vistas de **Vuelo**, **Ruta 3D**, **Traza en tierra** y **Entorno** (consulta [Vistas y análisis](./views-and-analysis.md)).
 
 ### Cuándo se rechaza una ejecución {#when-a-run-is-refused}
 
-AstraRocketJs prefiere no darte ningún número antes que uno equivocado con buena pinta, así que un vuelo que no se puede calcular con honestidad no se vuela. El botón de simular explica el motivo y nombra la pieza, el campo o la simulación culpable.
+Un vuelo que no se puede calcular correctamente no se vuela. El botón de simular explica el motivo y nombra la pieza, el campo o la simulación culpable.
 
 Hay dos tipos de problema, y se comportan de forma distinta:
 
@@ -102,18 +102,20 @@ Hay dos tipos de problema, y se comportan de forma distinta:
 
 - **Sin motor utilizable**: no hay nada cargado en el soporte principal, o un `.ork` importado cuyo motor no se pudo emparejar con una curva de empuje.
 - **Un campo de lanzamiento obligatorio está en blanco**: longitud de la guía, ángulo de la guía, velocidad del viento, desviación estándar del viento, altitud del sitio, latitud o longitud. No tienen un valor por defecto razonable, así que se nombran en lugar de adivinarse.
-- **Condiciones de lanzamiento fuera de los códigos de seguridad**: guía a más de 20° de la vertical, o viento en superficie por encima de 20 mph. Consulta [Límites de seguridad](#safety-limits) más abajo.
+- **Condiciones de lanzamiento fuera de los códigos de seguridad**: guía a más de 30° de la vertical en un cohete modelo o a más de 20° en uno de alta potencia, o viento en superficie por encima de 20 mph. Consulta [Límites de seguridad](#safety-limits) más abajo.
 
-El botón solo se desactiva cuando *nada* de lo seleccionado puede volar. Si no, sigue activo, cuenta las filas que realmente se van a ejecutar y nombra las que omite: una fila mala nunca te cuesta las otras once.
+El botón solo se desactiva cuando *nada* de lo seleccionado puede volar. Si no, sigue activo, cuenta las filas que realmente se van a ejecutar y nombra las que omite. Una fila que no puede volar no detiene a las demás.
 
 ### Límites de seguridad {#safety-limits}
 
 Las condiciones de lanzamiento se contrastan con los códigos de seguridad de la **NAR** y **Tripoli**, y por eso dos campos no admiten valores más allá de ellos:
 
-- **Ángulo de la guía de lanzamiento**: dentro de **20°** de la vertical.
+- **Ángulo de la guía de lanzamiento**: dentro de **30°** de la vertical en un cohete modelo, y dentro de **20°** en un cohete de alta potencia.
 - **Velocidad del viento**: igual o inferior a **20 mph** (32 km/h).
 
-Ambos códigos los expresan en unidades imperiales, así que las cifras métricas que muestra la aplicación son conversiones exactas y no números redondos. Los campos se recortan mientras escribes, y un archivo `.ork` que llegue fuera de estos límites aparece en el aviso de importación en lugar de volarse sin más.
+Qué ángulo se aplica depende de la configuración de vuelo que vuela la simulación. Es de alta potencia cuando algún motor tiene más de 160 N·s de impulso total o más de 80 N de empuje medio, cuando los motores juntos suman más de 320 N·s o más de 125 g de propulsante, o cuando el cohete pesa más de 1500 g al despegar; si no, es un cohete modelo. La indicación bajo el campo del ángulo dice qué código se aplica. En Ajustes, donde los valores por defecto sirven para todas las configuraciones, el campo se detiene en 30° y la indicación da los dos límites.
+
+Los códigos los expresan en unidades imperiales, así que las cifras métricas que muestra la aplicación son conversiones exactas y no números redondos. Los campos se recortan mientras escribes, y un archivo `.ork` que llegue fuera de estos límites aparece en el aviso de importación en lugar de volarse sin más.
 
 Solo se juzga el viento **en la rampa**. En un perfil multinivel es la capa del suelo; los vientos en altura no son algo por lo que se cancele un lanzamiento, porque no son algo que nadie mida en el campo de vuelo. La desviación estándar de las ráfagas tampoco se comprueba a propósito: los códigos hablan de velocidad del viento, y una media dentro del límite con ráfagas por encima es un juicio que la aplicación no está en condiciones de hacer.
 
@@ -121,7 +123,7 @@ Son límites de vuelo, no de modelado. Tratan de si el lanzamiento debería ocur
 
 Estas dos comprobaciones son además las *únicas* reglas de seguridad que la aplicación impone. Qué modela y qué no modela la simulación, y qué verificar en el cohete real antes de volarlo, está en [Seguridad](./safety.md).
 
-## Interpreta los resultados
+## Interpreta los resultados {#read-the-results}
 
 Al ejecutar se abre la pestaña **Resultados** con el vuelo que acabas de ejecutar: una simulación o un lote, porque ejecutar es pedir ver la respuesta.
 
@@ -135,9 +137,9 @@ Debajo, los resultados se muestran como fichas, en orden aproximadamente cronol�
 - **Margen estático al salir del raíl** (**de la varilla** o **de la guía**, según las guías del diseño): el margen de estabilidad en calibres en el momento en que el cohete sale de la guía, con el CP en ese momento, marcado como estable, marginal o inestable. La estabilidad de la franja de estadísticas es la del cohete en la rampa; esta usa la velocidad real y el motor parcialmente quemado.
 - **Retardo óptimo** y **tiempo hasta el apogeo**
 - **Apogeo** (altitud máxima) y **velocidad / aceleración / Mach máximos**
-- **Velocidad de apertura** (marcada si supera tu umbral de aviso; en verde cuando es suficientemente baja). En un diseño de [despliegue dual](./designing-a-rocket.md#despliegue-dual) el motor de vuelo juzga el principal y el piloto contra sus propios umbrales, y devuelve un aviso por cada uno.
+- **Velocidad de apertura** (marcada si supera tu umbral de aviso; en verde cuando es suficientemente baja). En un diseño de [despliegue dual](./designing-a-rocket.md#dual-deployment) el motor de vuelo juzga el principal y el piloto contra sus propios umbrales, y devuelve un aviso por cada uno.
 - **Velocidad de aterrizaje**, **tiempo de vuelo** y **distancia recorrida**
-- **Max-Q**, el pico de presión dinámica del impulso. El motor no lo registra, así que se deriva de la densidad del aire y la velocidad del sonido que la simulación ya lleva; es el número que decide si el fuselaje aguanta. Un resultado guardado antes de que las simulaciones conservaran el conjunto completo de series no tiene densidad del aire almacenada, y no informa Max-Q en vez de un cero que parecería una respuesta.
+- **Max-Q**, el pico de presión dinámica del impulso. El motor no lo registra, así que se deriva de la densidad del aire y la velocidad del sonido que la simulación ya lleva; es la carga máxima que tiene que soportar el fuselaje. Un resultado sin densidad del aire almacenada no informa Max-Q en vez de dar un cero.
 - **q·α máx.**, el mayor producto de presión dinámica por ángulo de ataque mientras el cohete aún vuela hacia delante (hasta la apertura, si no hasta el apogeo), en la unidad de presión de la q máx. por tu unidad de ángulo (por ejemplo kPa·° o psi·°). La carga lateral sobre aletas y acopladores lo sigue. Se deriva igual que Max-Q.
 - **Alabeo máx.**, lo más rápido que giró el cohete durante el vuelo, leído de la serie de velocidad de alabeo del motor de simulación.
 
@@ -145,7 +147,7 @@ Debajo, los resultados se muestran como fichas, en orden aproximadamente cronol�
 
 Bajo las fichas, la tabla **Eventos de vuelo** es el vuelo como una lista que se lee de arriba abajo: una fila por evento, con el momento en que ocurrió y el estado del cohete en ese instante. Las gráficas marcan los mismos eventos como etiquetas, lo que responde *cuándo* y nada más.
 
-Se nombra cada evento que levanta el motor, no solo los cinco que etiquetan las gráficas, así que la salida de rampa, la ignición, la separación de etapa y el volteo aparecen aquí por primera vez. Cada fila lleva la **altitud** y la **velocidad** de su instante, en las unidades que elijas desde los encabezados de columna, y las filas por las que se lee algo más lo llevan en una línea propia:
+Se nombra cada evento que levanta el motor, no solo los cinco que etiquetan las gráficas, incluidos la salida de rampa, la ignición, la separación de etapa y el volteo, que las gráficas no etiquetan. Cada fila lleva la **altitud** y la **velocidad** de su instante, en las unidades que elijas desde los encabezados de columna, y las filas por las que se lee algo más lo llevan en una línea propia:
 
 - La **salida del raíl** (o de la varilla o de la guía, según las guías del diseño) da el margen estático, la relación empuje-peso y el ángulo de ataque con los que salió.
 - El **fin de empuje** da su Mach.
@@ -157,6 +159,6 @@ El botón **CSV** escribe la tabla como archivo. Consulta **[Archivos y exportac
 
 Para el historial temporal completo, abre las **[vistas de Vuelo y Trayectoria 3D](./views-and-analysis.md)**. Para guardar los números, consulta **[Archivos y exportaciones](./files-and-exports.md)**.
 
-## Editar invalida los resultados
+## Editar invalida los resultados {#editing-invalidates-results}
 
 Cambiar el diseño no borra el resultado de una simulación. Los números siguen pudiéndose leer, y la simulación se marca como **Desactualizado** en la tabla y en la pestaña Resultados, porque ya no describen el cohete. Pulsa **Simular** (o **Ejecutar desactualizadas**) para ponerlos al día. **Deshacer/rehacer** restaura tu diseño y los *datos de entrada* de la simulación y conserva los resultados actuales; un resultado aparece como desactualizado salvo que los datos restaurados sean con los que se voló.

@@ -321,6 +321,26 @@ describe('catalogPatch', () => {
     expect(patch).not.toHaveProperty('length');
   });
 
+  it('applies a saved part without the keys a saved part never keeps', () => {
+    // A stored entry from storage can carry anything; applying its id, type,
+    // name, position or children would duplicate an id or change the part.
+    const patch = catalogPatch({
+      type: 'bodytube',
+      custom: true,
+      patch: {
+        id: 'stale',
+        type: 'nosecone',
+        name: 'Old name',
+        position: { method: 'top', offset: 0.1 },
+        children: [{ id: 'kid', type: 'finset' }],
+        outerRadius: 0.02,
+        length: 0.3,
+      },
+    } as unknown as Component);
+    expect(patch).toMatchObject({ outerRadius: 0.02, length: 0.3 });
+    for (const key of ['id', 'type', 'name', 'position', 'children']) expect(patch).not.toHaveProperty(key);
+  });
+
   it('omits material fields when the part has no density', () => {
     const patch = catalogPatch({ type: 'bulkhead', outerDiameter: 0.05, length: 0.003 } as unknown as Component);
     expect(patch).not.toHaveProperty('density');

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
-import { MAX_RSE_ENGINES, MAX_RSE_SAMPLES, parseRse, removeDelay } from '../../../src/services/motors/rseParser';
+import { MAX_RSE_ENGINES, parseRse, removeDelay } from '../../../src/services/motors/rseParser';
+import { MAX_CURVE_SAMPLES } from '../../../src/services/motors/curveFinalize';
 import { parseEng, totalImpulse } from '../../../src/services/motors/engParser';
 import { samplesToMotorSpec } from '../../../src/services/motors/thrustcurve';
 
@@ -367,8 +368,8 @@ describe('the hostile-input caps fire', () => {
     expect(() => parseRse(xml)).toThrow(/more than .* motors/i);
   });
 
-  it('refuses one motor with more data points than MAX_RSE_SAMPLES', () => {
-    const rows = '<eng-data t="0" f="1" m="50" cg="50"/>'.repeat(MAX_RSE_SAMPLES + 10);
+  it('refuses one motor with more data points than MAX_CURVE_SAMPLES', () => {
+    const rows = '<eng-data t="0" f="1" m="50" cg="50"/>'.repeat(MAX_CURVE_SAMPLES + 10);
     expect(() => parseRse(rse(ATTRS, rows))).toThrow(/more than .* data points/i);
   });
 
@@ -413,5 +414,41 @@ describe('parseRse refuses what ThrustCurveMotor.Builder.build() refuses', () =>
   it('ignores a CG column the file asks to have recomputed', () => {
     const auto = ATTRS.replace('auto-calc-cg="0"', 'auto-calc-cg="1"');
     expect(parseRse(rse(auto, DATA.replace('cg="90"', 'cg="500"')))[0]!.cgMm).toBeUndefined();
+  });
+});
+
+describe('a blank attribute', () => {
+  // `Number('')` is 0. Upstream's `Double.parseDouble("")` throws: a blank
+  // header value refuses the file, and a blank sample value reads as missing.
+  it('refuses a blank header value rather than reading it as zero', () => {
+    expect(() => parseRse(rse(ATTRS.replace('propWt="447"', 'propWt=""'), DATA))).toThrow(/propellant/i);
+    expect(() => parseRse(rse(ATTRS.replace('dia="38"', 'dia=" "'), DATA))).toThrow(/diameter/i);
+  });
+
+  it('refuses a blank time or thrust', () => {
+    expect(() => parseRse(rse(ATTRS, DATA.replace('t="0.5"', 't=""')))).toThrow();
+    expect(() => parseRse(rse(ATTRS, DATA.replace('f="400"', 'f=""')))).toThrow();
+  });
+
+  it('reads a blank mass or CG as absent, so the column is not used', () => {
+    const [m] = parseRse(rse(ATTRS, DATA.replace('m="300"', 'm=""').replace('cg="90"', 'cg=""')));
+    expect(m!.massesG).toBeUndefined();
+    expect(m!.cgMm).toBeUndefined();
+  });
+});
+
+describe('the curve is finished by the one shared rule set', () => {
+  it('keeps one thrust per instant, the later one, as the flown curve does', () => {
+    const data = `      <eng-data t="0" f="0" m="447" cg="93"/>
+      <eng-data t="0.5" f="400" m="300" cg="90"/>
+      <eng-data t="0.5" f="200" m="300" cg="90"/>
+      <eng-data t="1.5" f="0" m="0" cg="85"/>`;
+    const [m] = parseRse(rse(ATTRS, data));
+    expect(m!.samples).toEqual([
+      { time: 0, thrust: 0 },
+      { time: 0.5, thrust: 200 },
+      { time: 1.5, thrust: 0 },
+    ]);
+    expect(m!.massesG).toEqual([447, 300, 0]);
   });
 });

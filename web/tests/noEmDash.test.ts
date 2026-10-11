@@ -23,10 +23,20 @@ import { fileURLToPath } from 'node:url';
  * - `web/package-lock.json`, and the `node_modules`, `build` and `.docusaurus`
  *   output trees.
  *
- * This file names the character only as an escape, so it does not match itself.
+ * The character written as an HTML entity (named, decimal or hex) counts too:
+ * JSX and Markdown render it as the character. In Markdown an entity inside a
+ * code span is shown as written, so code spans are not searched for it.
+ *
+ * This file names the character only as an escape and the entity only as a
+ * pattern, so it does not match itself.
  */
 
 const EM_DASH = '\u2014';
+const EM_DASH_ENTITY = /&(?:mdash|#0*8212|#x0*2014);/i;
+
+/** The line as it renders the entity: a Markdown code span shows it literally. */
+const searchable = (path: string, line: string): string =>
+  /\.mdx?$/.test(path) ? line.replace(/`[^`\n]*`/g, '') : line;
 
 // Forward slashes on every platform, so the path tests below read the same on Windows.
 const slashed = (url: URL): string => fileURLToPath(url).replace(/\\/g, '/');
@@ -85,7 +95,9 @@ const hits = (paths: string[]): string[] => {
     if (bytes.includes(0)) continue;
     const lines = bytes.toString('utf8').split('\n');
     lines.forEach((line, i) => {
-      if (line.includes(EM_DASH)) found.push(`${path.slice(repo.length)}:${i + 1}`);
+      if (line.includes(EM_DASH) || EM_DASH_ENTITY.test(searchable(path, line))) {
+        found.push(`${path.slice(repo.length)}:${i + 1}`);
+      }
     });
   }
   return found;
@@ -107,6 +119,16 @@ describe('the em dash', () => {
     expect(files.some((f) => f.endsWith('/web/vitest.config.ts'))).toBe(true);
     expect(files.some((f) => f.endsWith('/.gitattributes'))).toBe(true);
     expect(files.some((f) => f.endsWith('/CODE_OF_CONDUCT.md'))).toBe(true);
+  });
+
+  it('is caught written as an entity, outside a Markdown code span', () => {
+    const amp = '&';
+    for (const e of [`${amp}mdash;`, `${amp}#8212;`, `${amp}#x2014;`, `${amp}#X2014;`]) {
+      expect(EM_DASH_ENTITY.test(searchable('/a.tsx', `<td>${e}</td>`))).toBe(true);
+      expect(EM_DASH_ENTITY.test(searchable('/a.md', `a ${e} b`))).toBe(true);
+      expect(EM_DASH_ENTITY.test(searchable('/a.md', `a \`${e}\` b`))).toBe(false);
+    }
+    expect(EM_DASH_ENTITY.test(`${amp}ndash;`)).toBe(false);
   });
 
   it('appears nowhere in scope', () => {

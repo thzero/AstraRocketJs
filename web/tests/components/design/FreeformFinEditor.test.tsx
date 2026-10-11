@@ -198,3 +198,20 @@ describe('drag cancellation', () => {
     expect(onCommit).toHaveBeenCalledTimes(1);
   });
 });
+
+/**
+ * An SVG shape renders no box-shadow, so a Tailwind ring on a marker shows
+ * nothing. Keyboard focus has to be drawn as a stroke.
+ */
+describe('keyboard focus on the outline markers', () => {
+  it('is drawn with a stroke, not a ring', () => {
+    show();
+    const markers = [...document.querySelectorAll('circle[role="button"]')];
+    expect(markers.length).toBeGreaterThan(2);
+    for (const m of markers) {
+      const cls = m.getAttribute('class') ?? '';
+      expect(cls).toMatch(/focus-visible:stroke-ink-strong/);
+      expect(cls).not.toMatch(/ring/);
+    }
+  });
+});

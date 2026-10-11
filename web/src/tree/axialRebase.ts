@@ -2,6 +2,7 @@ import type { ComponentNode, ComponentPosition, RocketTree } from '../engine/ope
 import { isAssembly } from './assembly';
 import { isChainType } from './componentKinds';
 import { num } from './nodeProps';
+import { tabOffsetAt, tabPosition } from './finPlanform';
 import { axialLength, axialStart, partLength, startFromPosition } from './position';
 
 /**
@@ -109,10 +110,6 @@ export function rebasePosition(
   return { method, offset };
 }
 
-/** A tab offset method's `AxialMethod.getAsPosition(offset, tabLength, rootChord)`. */
-const tabFront = (method: string, offset: number, tabLen: number, root: number): number =>
-  method === 'bottom' ? offset + (root - tabLen) : method === 'middle' ? offset + (root - tabLen) / 2 : offset;
-
 /**
  * The patch that switches a fin set's tab reference to `method` and keeps the
  * tab where it is, as `FinSet.setTabOffsetMethod` does. An unset method is the
@@ -122,8 +119,6 @@ export function rebaseTabOffset(node: ComponentNode, method: string): Partial<Co
   const from = typeof node['tabOffsetMethod'] === 'string' ? node['tabOffsetMethod'] : 'middle';
   const tabLen = num(node, 'tabLength', 0);
   const root = axialLength(node);
-  const front = tabFront(from, num(node, 'tabOffset', 0), tabLen, root);
-  const offset =
-    method === 'bottom' ? front - (root - tabLen) : method === 'middle' ? front - (root - tabLen) / 2 : front;
-  return { tabOffsetMethod: method, tabOffset: offset };
+  const front = tabPosition(num(node, 'tabOffset', 0), tabLen, root, from);
+  return { tabOffsetMethod: method, tabOffset: tabOffsetAt(front, tabLen, root, method) };
 }

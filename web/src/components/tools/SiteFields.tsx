@@ -66,7 +66,7 @@ export function SiteFields({
         />
       )}
       <button className={`${toolBtn} w-full`} onClick={() => setMapOpen(true)}>
-        🗺 {t('map.show')}
+        <span aria-hidden="true">🗺</span> {t('map.show')}
       </button>
       {mapOpen && (
         <SiteMapDialog

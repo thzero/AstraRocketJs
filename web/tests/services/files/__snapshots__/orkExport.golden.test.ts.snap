@@ -2622,6 +2622,8 @@ exports[`golden .ork import > reads the kitchen-sink export back into the same r
         },
         "c20": {
           "deployAltitude": 120,
+          "deployDelay": 0,
+          "deployEvent": "altitude",
         },
         "c21": {
           "deployAltitude": 200,
@@ -2782,7 +2784,7 @@ exports[`golden .ork import > reads the kitchen-sink export back into the same r
     {
       "key": "importNote.instanced",
       "values": {
-        "names": "Centering Ring, Launch Lug",
+        "names": "Centering Ring and Launch Lug",
       },
     },
   ],

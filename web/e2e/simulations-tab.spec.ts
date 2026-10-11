@@ -215,11 +215,13 @@ test('a flight survives a reload', async ({ page }) => {
 test('launch conditions stop at the NAR/Tripoli limits', async ({ page }) => {
   await openTab(page, 'Simulations');
 
-  // Launcher within 20 degrees of vertical.
+  // Launcher within 30 degrees of vertical: the default design flies a C6,
+  // which makes it a model rocket under the NAR Model Rocket Safety Code.
   const angle = page.getByLabel('Angle', { exact: true });
+  await expect(page.getByText(/As a model rocket, this flies under the NAR Model Rocket Safety Code/)).toBeVisible();
   await angle.fill('45');
   await angle.blur();
-  expect(Number(await angle.inputValue())).toBeCloseTo(20, 6);
+  expect(Number(await angle.inputValue())).toBeCloseTo(30, 6);
 
   // No flying in winds above 20 mph. Metric by default, so 8.94 m/s.
   const wind = page.getByLabel('Speed', { exact: true });

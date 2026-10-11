@@ -22,7 +22,16 @@ export function MaterialSection({
       <MaterialPicker
         value={typeof node.materialName === 'string' ? node.materialName : undefined}
         density={typeof node.density === 'number' ? node.density : undefined}
-        onChange={(name, d) => onCommitChange({ materialName: name, density: d || undefined })}
+        onChange={(name, d, group) =>
+          onCommitChange({
+            materialName: name,
+            density: d || undefined,
+            // The catalog group rides along, as the fillet picker's does, so
+            // the .ork writer files the material under its own category rather
+            // than the one the part's previous material belonged to.
+            materialGroup: (name && group) || undefined,
+          })
+        }
       />
     </div>
   );

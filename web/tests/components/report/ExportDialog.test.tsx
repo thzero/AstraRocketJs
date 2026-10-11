@@ -83,6 +83,7 @@ describe('ExportDialog', () => {
     const pop = settingsPopover();
     expect(pop).toBeTruthy();
 
+    fireEvent.pointerDown(settingsBackdrop());
     fireEvent.click(settingsBackdrop());
     expect(settingsPopover()).toBeNull(); // the popover went away
     expect(onClose).not.toHaveBeenCalled(); // the dialog did not
@@ -156,7 +157,9 @@ describe('ExportDialog', () => {
 
   it('closes on the overlay itself, and on Escape', () => {
     const onClose = open();
-    fireEvent.click(document.querySelector('.dialog-overlay')!);
+    const overlay = document.querySelector('.dialog-overlay')!;
+    fireEvent.pointerDown(overlay);
+    fireEvent.click(overlay);
     expect(onClose).toHaveBeenCalledTimes(1);
 
     fireEvent.keyDown(window, { key: 'Escape' });
@@ -205,7 +208,9 @@ describe('ExportDialog', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save as PDF' }));
     await screen.findByRole('button', { name: 'Loading…' });
 
-    fireEvent.click(document.querySelector('.dialog-overlay')!);
+    const overlay = document.querySelector('.dialog-overlay')!;
+    fireEvent.pointerDown(overlay);
+    fireEvent.click(overlay);
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(onClose).not.toHaveBeenCalled();
   });

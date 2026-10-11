@@ -6,7 +6,7 @@ AstraRocketJs funciona **sin conexión a internet** una vez que la has abierto, 
 
 ## Por qué puede funcionar sin conexión {#why-it-can-work-offline}
 
-La física no se ejecuta en un servidor. El motor de OpenRocket está compilado a WebAssembly y se ejecuta dentro de tu navegador, así que una vez que la aplicación y sus datos están en tu dispositivo no queda nada a lo que llamar. Eso hace que el uso sin conexión sea realmente útil: puedes diseñar, editar y ejecutar simulaciones de vuelo completas en un campo de vuelo sin cobertura.
+La física no se ejecuta en un servidor. El motor de OpenRocket está compilado a WebAssembly y se ejecuta dentro de tu navegador, así que una vez que la aplicación y sus datos están en tu dispositivo no queda nada a lo que llamar. Así puedes diseñar, editar y ejecutar simulaciones de vuelo completas en un campo de vuelo sin cobertura.
 
 ## Qué se guarda para el uso sin conexión {#what-gets-saved-for-offline-use}
 
@@ -26,7 +26,7 @@ El catálogo de motores lleva consigo la **curva de empuje** de cada motor, así
 
 **El tiempo necesita conexión.** [El tiempo de Open-Meteo](./running-a-simulation.md#weather) se consulta cuando lo pides y no se guarda para usarlo sin conexión. Lo que hayas aplicado se queda en la simulación.
 
-**Tus diseños siempre fueron locales.** Tu biblioteca de cohetes guardados, tus motores y materiales personalizados y tus ajustes viven en el almacenamiento de tu navegador, en tu dispositivo: eso no ha cambiado y nunca dependió de una conexión.
+**Tus diseños son locales.** Tu biblioteca de cohetes guardados, tus motores y materiales personalizados y tus ajustes viven en el almacenamiento de tu navegador, en tu dispositivo, y nunca dependen de una conexión.
 
 ## Cómo instalarla {#installing-it}
 
@@ -55,10 +55,10 @@ La aplicación busca versiones nuevas más o menos cada diez minutos, y de nuevo
 
 Los catálogos de motores y componentes se actualizan aparte de la propia aplicación, en segundo plano, así que los motores nuevos te llegan sin necesidad de actualizarla.
 
-Sin conexión, los botones que la necesitan aparecen atenuados y lo indican al señalarlos: consultar el tiempo, buscar un lugar por nombre, la estimación del aterrizaje, volar las horas del pronóstico y buscar actualizaciones. Todo lo demás funciona como siempre.
+Sin conexión, los botones que la necesitan aparecen atenuados y lo indican al señalarlos: consultar el tiempo, obtener el viento pronosticado en Salida del raíl, buscar un lugar por nombre, la estimación del aterrizaje, volar las horas del pronóstico y buscar actualizaciones. Todo lo demás funciona como siempre.
 
 ## Cómo borrarla {#clearing-it}
 
-Borrar los datos del sitio de AstraRocketJs en tu navegador elimina la copia sin conexión y, lo que es más importante, **también elimina tus cohetes guardados, tus motores y tus materiales personalizados**, porque viven en el mismo almacenamiento del navegador. Exporta antes como `.ork` todo lo que quieras conservar: en una carpeta sincronizada (iCloud Drive, OneDrive, Google Drive, Dropbox) sirve además como copia de seguridad que puedes reabrir en cualquier sitio (consulta **[Archivos y exportaciones](./files-and-exports.md)**).
+Borrar los datos del sitio de AstraRocketJs en tu navegador elimina la copia sin conexión y **también elimina tus cohetes guardados, tus motores y tus materiales personalizados**, porque viven en el mismo almacenamiento del navegador. Exporta antes como `.ork` todo lo que quieras conservar. Guardado en una carpeta sincronizada (iCloud Drive, OneDrive, Google Drive, Dropbox), sirve además como copia de seguridad que puedes reabrir en cualquier sitio (consulta **[Archivos y exportaciones](./files-and-exports.md)**).
 
 Si instalaste la aplicación, desinstálala como quitarías cualquier otra aplicación de tu dispositivo.

@@ -1,3 +1,4 @@
+// cspell:ignore cmap -- jsPDF's name for a TrueType font's character map
 import type { jsPDF } from 'jspdf';
 import type { StaticInfo } from '../../engine/openRocketEngine';
 import type { Pt } from './reportGeometry';
@@ -55,6 +56,8 @@ export interface PdfPage {
   needs: Set<UnicodeScript>;
   /** Some text had a character with no Helvetica stand-in and no font to draw it. */
   lost: boolean;
+  /** Some text had a character the registered Unicode font has no glyph for. */
+  uncovered: boolean;
 }
 
 export function createPdfPage(
@@ -83,6 +86,7 @@ export function createPdfPage(
     fonts,
     needs: new Set(),
     lost: false,
+    uncovered: false,
   };
 }
 
@@ -110,18 +114,46 @@ function winAnsi(p: PdfPage, s: string): string {
   return out.text;
 }
 
+/** The character map of the font set on the document, when it is an embedded TTF. */
+function codeMapOf(doc: jsPDF): Record<number, number> | null {
+  const font = doc.getFont() as { metadata?: { cmap?: { unicode?: { codeMap?: Record<number, number> } } } };
+  return font.metadata?.cmap?.unicode?.codeMap ?? null;
+}
+
+/**
+ * A run as the Unicode font set on the document writes it: a character the
+ * font has no glyph for (a script neither family carries, or an emoji) becomes
+ * `?`, and is noted, instead of printing as an empty box.
+ */
+function covered(p: PdfPage, s: string): string {
+  const map = codeMapOf(p.doc);
+  if (!map) return s;
+  let out = '';
+  for (const ch of s) {
+    const c = ch.codePointAt(0)!;
+    if (c < 0x20 || (c <= 0xffff && map[c])) {
+      out += ch;
+      continue;
+    }
+    out += '?';
+    p.uncovered = true;
+  }
+  return out;
+}
+
 /**
  * Run `draw` with the font this text needs set on the document, and put
  * Helvetica back after. The Unicode families have no italic, so an italic run
  * takes the upright face. `draw` is handed what to use for each string: the
- * string itself, or its Helvetica stand-in.
+ * string with each character the Unicode font lacks replaced by `?`, or its Helvetica
+ * stand-in.
  */
 function inFont<R>(p: PdfPage, s: string, draw: (fit: (s: string) => string) => R): R {
   const family = unicodeFamily(p, s);
   if (!family) return draw((x) => winAnsi(p, x));
   p.doc.setFont(family, p.style === 'bold' ? 'bold' : 'normal');
   try {
-    return draw((x) => x);
+    return draw((x) => covered(p, x));
   } finally {
     p.doc.setFont('helvetica', p.style);
   }

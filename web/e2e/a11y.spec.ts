@@ -1,36 +1,16 @@
-import { test, expect, defined, runFlight, ready, openTab, type Page } from './base';
-import { axeViolations, THEMES } from './axe';
+import { test, expect, defined, runFlight, ready, openTab, type Page, type WipState } from './base';
+import { AERO_PANE, axeViolations, CONFIGS, press, THEMES, TOOL, TWO_D, VIEW } from './axe';
+import { DIALOG_SURFACES, type DialogSurface } from './dialogSurfaces';
+import { eachEditor } from './editors';
 import { answer } from '../tests/testing/openMeteoFixture';
-import {
-  DESIGN_VIEWS,
-  RESULT_VIEWS,
-  type AeroPane,
-  type ConfigsTab,
-  type Tool,
-  type TwoDView,
-  type ViewMode,
-} from '../src/state/tabs';
+import { DESIGN_VIEWS, RESULT_VIEWS, type ViewMode } from '../src/state/tabs';
 import type { HeaderDialog, LibraryTab, SettingsTab } from '../src/components/layout/dialogKeys';
 
 /*
- * The names of every view, keyed by the type the app switches on. A view the
- * app gains is a new member of one of these unions, and a record that lacks
- * it fails the typecheck rather than leaving a gap in the scan.
+ * The names of every dialog tab, keyed by the type the app switches on, as the
+ * view names in axe.ts are.
  */
 
-const VIEW: Record<ViewMode, string> = {
-  '2d': '2D',
-  '3d': '3D',
-  drag: 'Aero',
-  flight: 'Flight',
-  path: '3D path',
-  ground: 'Ground track',
-  environment: 'Environment',
-};
-const TWO_D: Record<TwoDView, string> = { side: 'Side', aft: 'Aft' };
-const AERO_PANE: Record<AeroPane, string> = { charts: 'Charts', components: 'Per component' };
-const CONFIGS: Record<ConfigsTab, string> = { motors: 'Motors', recovery: 'Recovery', separation: 'Staging' };
-const TOOLS: Record<Tool, string> = { landing: 'Landing estimator', rail: 'Off the rail', chute: 'Parachute sizing' };
 const SETTINGS: Record<SettingsTab, string> = {
   general: 'General',
   units: 'Units',
@@ -49,6 +29,8 @@ const keys = <K extends string>(r: Record<K, unknown>): K[] => Object.keys(r) as
 interface Scan {
   name: string;
   open: (page: Page) => Promise<void>;
+  /** The work-in-progress notice, for the one scan that is of the notice. */
+  wip?: WipState;
 }
 
 /**
@@ -59,13 +41,6 @@ interface Scan {
 async function openView(page: Page, view: ViewMode): Promise<void> {
   await press(page, VIEW[view]);
   await expect(page.getByText('Loading 3D…')).toHaveCount(0);
-}
-
-/** Press a toggle button by its exact name and wait for it to report pressed. */
-async function press(page: Page, name: string): Promise<void> {
-  const toggle = page.getByRole('button', { name, exact: true });
-  await toggle.click();
-  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
 }
 
 /** Open the Aero view and wait for the sweep, so axe reads the charts rather than "Computing…". */
@@ -186,11 +161,11 @@ const SCREENS: Scan[] = [
       await openView(page, view);
     },
   })),
-  ...keys(TOOLS).map((tool): Scan => ({
-    name: `Tools / ${TOOLS[tool]}`,
+  ...keys(TOOL).map((tool): Scan => ({
+    name: `Tools / ${TOOL[tool]}`,
     open: async (page) => {
       await openTab(page, 'Tools');
-      const tab = page.getByRole('tab', { name: TOOLS[tool], exact: true });
+      const tab = page.getByRole('tab', { name: TOOL[tool], exact: true });
       await tab.click();
       await expect(tab).toHaveAttribute('aria-selected', 'true');
     },
@@ -209,7 +184,7 @@ async function dialogTab(page: Page, item: string, tab: string): Promise<void> {
 /**
  * The dialogs the menu raises, keyed by the header's own list of them, so a
  * dialog added there has to be added here. The tabbed ones and the motor
- * dashboard are scanned per tab and per pane in DIALOGS.
+ * dashboard are scanned per tab and per pane in DIALOG_SCANS.
  */
 const HEADER_DIALOGS: Record<Exclude<HeaderDialog, 'settings' | 'library' | 'motors'>, Scan['open']> = {
   report: fromMenu('Rocket Design Report'),
@@ -223,93 +198,300 @@ const HEADER_DIALOGS: Record<Exclude<HeaderDialog, 'settings' | 'library' | 'mot
   saveAs: fromMenu('Save As…'),
 };
 
-/** Every dialog: the menu's, each tab and pane of the tabbed ones, and those raised from inside a tab. */
-const DIALOGS: Scan[] = [
-  ...keys(SETTINGS).map((tab): Scan => ({
+/** A menu dialog's scan, under the name the header's list gives it. */
+const header = (id: keyof typeof HEADER_DIALOGS): Scan => ({ name: `Menu / ${id}`, open: HEADER_DIALOGS[id] });
+
+/** Open the Results tab on one of its views, after a flight to show. */
+async function resultView(page: Page, view: ViewMode): Promise<void> {
+  await runFlight(page);
+  await openTab(page, 'Results');
+  await openView(page, view);
+}
+
+/** Select a part by its row in the tree. */
+async function selectPart(page: Page, name: string): Promise<void> {
+  await openTab(page, 'Design');
+  await page.getByRole('tree', { name: 'Components' }).locator(`[title="${name}"]`).first().click();
+}
+
+/** The flight path export dialog, over the 3D path view. */
+async function pathExport(page: Page) {
+  await resultView(page, 'path');
+  await page.getByTitle('Export flight path (KML / GPX / CSV)').click();
+  return dialogOpen(page, 'Export flight path');
+}
+
+/**
+ * Every dialog, keyed by the component that renders it (dialogSurfaces.ts,
+ * which a unit test holds to the source), so a dialog the app gains fails the
+ * typecheck until it is scanned here. Each is opened the way a user opens it:
+ * from the menu, on each tab and pane of the tabbed ones, and from inside a
+ * tab, a part's editor or another dialog.
+ */
+const DIALOG_SCANS: Record<DialogSurface, Scan[]> = {
+  SettingsDialog: keys(SETTINGS).map((tab): Scan => ({
     name: `Settings / ${SETTINGS[tab]}`,
     open: (page) => dialogTab(page, 'Settings', SETTINGS[tab]),
   })),
-  ...keys(LIBRARY).map((tab): Scan => ({
+  DesignLibraryDialog: keys(LIBRARY).map((tab): Scan => ({
     name: `Open / ${LIBRARY[tab]}`,
     open: (page) => dialogTab(page, 'Open…', LIBRARY[tab]),
   })),
-  ...keys(HEADER_DIALOGS).map((id): Scan => ({ name: `Menu / ${id}`, open: HEADER_DIALOGS[id] })),
-  {
-    name: 'Motor Dashboard / detail',
-    open: async (page) => {
-      await menu(page, 'Motor Dashboard');
-      const dialog = await dialogOpen(page);
-      // A motor with a curve: the grid draws before the catalog lands, and a
-      // row clicked before then is replaced under the click.
-      await dialog.getByPlaceholder(/Search by code/i).fill('C6');
-      const row = dialog.locator('tbody tr').first();
-      await expect(row).toContainText('C6');
-      await row.click();
-      await expect(dialog.getByText('View on ThrustCurve.org')).toBeVisible();
+  ExportDialog: [
+    header('report'),
+    {
+      name: 'Report / print settings',
+      open: async (page) => {
+        await HEADER_DIALOGS.report(page);
+        await page.getByRole('button', { name: 'Settings', exact: true }).click();
+        await dialogOpen(page, 'Print settings');
+      },
     },
-  },
-  {
-    name: 'Motor Dashboard / Compare',
-    open: async (page) => {
-      const dialog = await dashboardWithTwo(page);
-      await dialog.getByRole('button', { name: /Compare \(/ }).click();
-      await expect(dialog.getByRole('button', { name: /Back to list/ })).toBeVisible();
+  ],
+  AboutDialog: [header('about')],
+  PrivacyDialog: [header('privacy')],
+  UpdateCheckDialog: [header('updates')],
+  ExamplesDialog: [header('examples')],
+  PrintExportDialog: [header('print')],
+  LocationsDialog: [header('locations')],
+  SavedPartsDialog: [header('parts')],
+  DesignPropertiesDialog: [header('saveAs')],
+  MotorDashboard: [
+    {
+      name: 'Motor Dashboard / detail',
+      open: async (page) => {
+        await menu(page, 'Motor Dashboard');
+        const dialog = await dialogOpen(page);
+        // A motor with a curve: the grid draws before the catalog lands, and a
+        // row clicked before then is replaced under the click.
+        await dialog.getByPlaceholder(/Search by code/i).fill('C6');
+        const row = dialog.locator('tbody tr').first();
+        await expect(row).toContainText('C6');
+        await row.click();
+        await expect(dialog.getByText('View on ThrustCurve.org')).toBeVisible();
+      },
     },
-  },
-  {
-    name: 'Motor Dashboard / Combine',
-    open: async (page) => {
-      const dialog = await dashboardWithTwo(page);
-      await dialog.getByRole('button', { name: /Combine \(/ }).click();
-      await expect(dialog.getByText('Combined cluster')).toBeVisible();
+    {
+      name: 'Motor Dashboard / Compare',
+      open: async (page) => {
+        const dialog = await dashboardWithTwo(page);
+        await dialog.getByRole('button', { name: /Compare \(/ }).click();
+        await expect(dialog.getByRole('button', { name: /Back to list/ })).toBeVisible();
+      },
     },
-  },
-  { name: 'Help', open: fromMenu('Help') },
-  { name: 'Safety', open: fromMenu('Safety') },
-  {
-    name: 'Motor picker',
-    open: async (page) => {
-      await openTab(page, 'Configurations');
-      await page
-        .getByRole('button', { name: /change/i })
-        .first()
-        .click();
-      const dialog = await dialogOpen(page);
-      await expect(dialog.getByRole('button', { name: 'Select', exact: true })).toBeVisible();
+    {
+      name: 'Motor Dashboard / Combine',
+      open: async (page) => {
+        const dialog = await dashboardWithTwo(page);
+        await dialog.getByRole('button', { name: /Combine \(/ }).click();
+        await expect(dialog.getByText('Combined cluster')).toBeVisible();
+      },
     },
-  },
-  {
-    name: 'Component picker',
-    open: async (page) => {
-      await openTab(page, 'Design');
-      await page.locator('div[title="Body tube"]').click();
-      const pick = page.getByRole('button', { name: /^Select part…/ });
-      await expect(pick).toBeEnabled({ timeout: 20_000 });
-      await pick.click();
-      const dialog = await dialogOpen(page, 'Select a part');
-      await expect(dialog.locator('tbody tr').first()).toBeVisible();
+  ],
+  HelpDialog: [
+    { name: 'Help', open: fromMenu('Help') },
+    { name: 'Safety', open: fromMenu('Safety') },
+  ],
+  MotorDialog: [
+    {
+      name: 'Motor picker',
+      open: async (page) => {
+        await openTab(page, 'Configurations');
+        await page
+          .getByRole('button', { name: /change/i })
+          .first()
+          .click();
+        const dialog = await dialogOpen(page);
+        await expect(dialog.getByRole('button', { name: 'Select', exact: true })).toBeVisible();
+      },
     },
-  },
-  {
-    name: 'Wind profile',
-    open: async (page) => {
-      await openTab(page, 'Simulations');
-      await page.getByRole('radio', { name: 'Multi-level' }).check();
-      await page.getByRole('button', { name: 'Edit wind profile…' }).click();
-      await dialogOpen(page);
+  ],
+  MotorSpecDialog: [
+    {
+      name: 'Motor thrust curve',
+      open: async (page) => {
+        await openTab(page, 'Configurations');
+        await page.getByRole('button', { name: 'Thrust curve', exact: true }).first().click();
+        await dialogOpen(page);
+      },
     },
-  },
-  {
-    name: 'Weather',
-    open: async (page) => {
-      await answerOpenMeteo(page);
-      await openTab(page, 'Simulations');
-      await page.getByRole('button', { name: 'Get weather…' }).click();
-      await page.getByRole('button', { name: 'Fetch', exact: true }).click();
-      await expect(page.getByText('Atmosphere aloft')).toBeVisible();
+  ],
+  ComponentPicker: [
+    {
+      name: 'Component picker',
+      open: async (page) => {
+        await selectPart(page, 'Body tube');
+        const pick = page.getByRole('button', { name: /^Select part…/ });
+        await expect(pick).toBeEnabled({ timeout: 20_000 });
+        await pick.click();
+        const dialog = await dialogOpen(page, 'Select a part');
+        await expect(dialog.locator('tbody tr').first()).toBeVisible();
+      },
     },
-  },
-];
+  ],
+  SavePartButton: [
+    {
+      name: 'Save as part',
+      open: async (page) => {
+        await selectPart(page, 'Body tube');
+        await page.getByRole('button', { name: 'Save as part' }).click();
+        await dialogOpen(page, 'Save as a reusable part');
+      },
+    },
+  ],
+  RecoverySizingReadout: [
+    {
+      name: 'Descent sizing',
+      open: async (page) => {
+        await selectPart(page, 'Parachute');
+        await page.getByRole('button', { name: 'Descent sizing…' }).click();
+        await dialogOpen(page, 'Descent sizing');
+      },
+    },
+  ],
+  // Under `2xl`, a laptop's width, the part editor is a dialog over the drawing.
+  ComponentDialog: [
+    {
+      name: 'Component editor',
+      open: async (page) => {
+        await page.setViewportSize({ width: 1200, height: 900 });
+        await selectPart(page, 'Nose cone');
+        await dialogOpen(page, 'Edit component');
+      },
+    },
+  ],
+  RocketConfigDialog: [
+    {
+      name: 'Rocket configuration',
+      open: async (page) => {
+        await openTab(page, 'Design');
+        await page.getByRole('button', { name: 'Edit rocket configuration' }).click();
+        await dialogOpen(page, 'Rocket configuration');
+      },
+    },
+  ],
+  ScaleDialog: [
+    {
+      name: 'Scale',
+      open: async (page) => {
+        await openTab(page, 'Design');
+        await page.getByRole('button', { name: /Scale/ }).first().click();
+        await dialogOpen(page, 'Scale rocket');
+      },
+    },
+  ],
+  WindProfileDialog: [
+    {
+      name: 'Wind profile',
+      open: async (page) => {
+        await openTab(page, 'Simulations');
+        await page.getByRole('radio', { name: 'Multi-level' }).check();
+        await page.getByRole('button', { name: 'Edit wind profile…' }).click();
+        await dialogOpen(page);
+      },
+    },
+  ],
+  WeatherDialog: [
+    {
+      name: 'Weather',
+      open: async (page) => {
+        await answerOpenMeteo(page);
+        await openTab(page, 'Simulations');
+        await page.getByRole('button', { name: 'Get weather…' }).click();
+        await page.getByRole('button', { name: 'Fetch', exact: true }).click();
+        await expect(page.getByText('Atmosphere aloft')).toBeVisible();
+      },
+    },
+  ],
+  PlaceSearchDialog: [
+    {
+      name: 'Find a place',
+      open: async (page) => {
+        // Coordinates, so the one lookup is the elevation, answered locally.
+        await answerOpenMeteo(page);
+        await openTab(page, 'Simulations');
+        await page.getByRole('button', { name: 'Find a place' }).first().click();
+        const dialog = await dialogOpen(page);
+        const field = dialog.getByRole('textbox');
+        await field.fill('39.05, -104.8');
+        await field.press('Enter');
+        await expect(dialog.getByRole('listitem').getByRole('button')).toBeEnabled();
+      },
+    },
+  ],
+  SiteMapDialog: [
+    {
+      name: 'Launch site map',
+      open: async (page) => {
+        await openTab(page, 'Simulations');
+        await page.getByLabel('Latitude', { exact: true }).fill('39.05');
+        await page.getByLabel('Longitude', { exact: true }).fill('-104.8');
+        // Off the number field first, so the coordinates commit.
+        await page.getByText('LAUNCH SITE').click();
+        await page.getByRole('button', { name: 'Show on map' }).click();
+        const dialog = await dialogOpen(page, 'Launch site');
+        await expect(dialog.locator('img').first()).toBeVisible();
+      },
+    },
+  ],
+  FlightCsvDialog: [
+    {
+      name: 'Flight data CSV',
+      open: async (page) => {
+        await resultView(page, 'flight');
+        await page.getByRole('button', { name: 'Download flight data (.csv)' }).first().click();
+        await dialogOpen(page);
+      },
+    },
+  ],
+  FlightPathExport: [
+    {
+      name: 'Flight path export',
+      open: async (page) => {
+        await pathExport(page);
+      },
+    },
+  ],
+  StageColorDialog: [
+    {
+      name: 'Flight path export / stage colors',
+      open: async (page) => {
+        const dialog = await pathExport(page);
+        await dialog.getByRole('button', { name: 'Stage colors…' }).click();
+        await dialogOpen(page, 'Stage colors');
+      },
+    },
+  ],
+  ConfirmDialog: [
+    {
+      name: 'Confirm',
+      open: async (page) => {
+        await menu(page, 'Settings');
+        const settings = await dialogOpen(page);
+        await settings.getByRole('button', { name: 'Reset all' }).click();
+        await expect(page.getByRole('alertdialog')).toBeVisible();
+      },
+    },
+  ],
+  WorkInProgressDialog: [
+    {
+      name: 'Work in progress',
+      wip: 'shown',
+      open: async (page) => {
+        await expect(page.getByRole('alertdialog')).toBeVisible();
+      },
+    },
+  ],
+};
+
+// A component with two dialogs needs two scans, and a menu dialog its own.
+for (const id of keys(DIALOG_SCANS)) {
+  if (DIALOG_SCANS[id].length < DIALOG_SURFACES[id]) throw new Error(`${id} renders more dialogs than are scanned`);
+}
+const DIALOGS: Scan[] = keys(DIALOG_SCANS).flatMap((id) => DIALOG_SCANS[id]);
+for (const id of keys(HEADER_DIALOGS)) {
+  if (!DIALOGS.some((d) => d.name === `Menu / ${id}`)) throw new Error(`the menu's ${id} dialog is not scanned`);
+}
 
 /**
  * Every view through axe, in every theme. Contrast is the part the JSX lint
@@ -320,20 +502,36 @@ const DIALOGS: Scan[] = [
  * One test per theme and view, so the scans spread across the workers. An
  * axe pass over a screen with a live WebGL canvas takes several seconds on a
  * CI runner software-rendering it, after the engine boot and, for a view that
- * reads a result, a flight run.
+ * reads a result, a flight run. The part editors are one test per theme: one
+ * page load, each part selected in turn.
  */
 for (const theme of THEMES) {
   test.describe(`axe in the ${theme} theme`, () => {
     for (const scan of [...SCREENS, ...DIALOGS]) {
-      test(`finds nothing on ${scan.name}`, async ({ page }) => {
-        test.setTimeout(90_000);
-        await ready(page);
-        await page.evaluate((t) => document.documentElement.setAttribute('data-theme', t), theme);
-        await scan.open(page);
-        const found = await axeViolations(page, scan.name);
-        expect(found, found.join('\n')).toEqual([]);
+      test.describe(() => {
+        if (scan.wip) test.use({ wip: scan.wip });
+
+        test(`finds nothing on ${scan.name}`, async ({ page }) => {
+          test.setTimeout(90_000);
+          await ready(page);
+          await page.evaluate((t) => document.documentElement.setAttribute('data-theme', t), theme);
+          await scan.open(page);
+          const found = await axeViolations(page, scan.name);
+          expect(found, found.join('\n')).toEqual([]);
+        });
       });
     }
+
+    test('finds nothing on any part editor', async ({ page }) => {
+      test.setTimeout(240_000);
+      await ready(page);
+      await page.evaluate((t) => document.documentElement.setAttribute('data-theme', t), theme);
+      const found: string[] = [];
+      await eachEditor(page, async (name) => {
+        found.push(...(await axeViolations(page, name)));
+      });
+      expect(found, found.join('\n')).toEqual([]);
+    });
   });
 }
 

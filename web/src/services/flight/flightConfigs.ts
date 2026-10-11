@@ -246,7 +246,6 @@ export function reconcileConfig(tree: RocketTree, config: FlightConfig): FlightC
     : config;
 }
 
-/** {@link reconcileConfig} over every configuration, preserving identity. */
 /**
  * Give each copied part the per-configuration settings of the part it was
  * copied from: its motor, its deployment override and its separation override,
@@ -278,6 +277,7 @@ export function carryToCopies(configs: FlightConfig[], origins: ReadonlyMap<stri
   });
 }
 
+/** {@link reconcileConfig} over every configuration, preserving identity. */
 export function reconcileConfigs(tree: RocketTree, configs: FlightConfig[]): FlightConfig[] {
   let changed = false;
   const next = configs.map((c) => {

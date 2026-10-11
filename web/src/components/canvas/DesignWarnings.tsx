@@ -26,7 +26,7 @@ export function DesignWarnings() {
       aria-label={t('design.warnings', { count: texts.length })}
       className="mx-3 mb-2 rounded-xl bg-warn-500/10 p-3 ring-1 ring-warn-400/30"
     >
-      <div className="mb-1.5 text-[10px] uppercase tracking-wide text-warn-300/80">
+      <div className="mb-1.5 text-[10px] uppercase tracking-wide text-warn-200">
         {t('design.warnings', { count: texts.length })}
       </div>
       <ul className="space-y-1">

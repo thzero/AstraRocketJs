@@ -18,6 +18,14 @@ describe('weatherErrorText', () => {
     expect(weatherErrorText(new Error('x'), t, 'env.landing.failed')).toBe('env.landing.failed');
   });
 
+  // The app's own notes on a malformed answer are English; they stay in the
+  // error message for the logs and never reach a translated sentence.
+  it('keeps the app-built detail of a malformed answer out of the user text', () => {
+    expect(weatherErrorText(new WeatherError('shape', 'no hourly data'), t)).toBe('weather.error.shape');
+    expect(weatherErrorText(new WeatherError('units', 'temperature_2m in °F'), t)).toBe('weather.error.units');
+    expect(weatherErrorText(new WeatherError('http', '502'), t)).toBe('weather.error.http(502)');
+  });
+
   it('is the only place the date refusals are worded', () => {
     const src = resolve(__dirname, '../../../src');
     const offenders: string[] = [];

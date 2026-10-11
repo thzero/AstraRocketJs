@@ -2,7 +2,6 @@ import { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { fmtNum, stageLabel } from '../../i18n/format';
 import { useUnits } from '../../prefs/useUnits';
-import { lerpAt } from '../../services/flight/interpolate';
 import { EVENT_LABEL, clusterEventLabels } from '../../services/flight/simReport';
 import { FlightCsvDialog } from '../sim/FlightCsvDialog';
 import { useSettings } from '../../state/SettingsProvider';
@@ -17,7 +16,9 @@ import {
   visibleSeries,
   type ChartFlight,
   type Key,
+  type PanelLine,
 } from './flightChartTraces';
+import { hoverValue } from './FlightChartHover';
 import { useChartZoom } from './useChartZoom';
 import { useChartCrosshair } from './useChartCrosshair';
 import { EventLabelStrip, eventStripHeight, packEventLabels } from './FlightChartEvents';
@@ -157,13 +158,13 @@ export function FlightChart({ flight }: { flight: ChartFlight }) {
   // only once the keyboard has moved the crosshair, since a pointer never
   // writes the live region.
   const announcing = keyT != null;
-  const panelDigitsOf = useMemo(() => {
-    const out = new Map<Key, number>();
+  const panelOf = useMemo(() => {
+    const out = new Map<Key, { digits: number; primary: PanelLine | undefined }>();
     if (!announcing) return out;
     for (const m of SERIES) {
       if (m.xy || !on.includes(m.key)) continue;
-      const { lo, hi } = panelSeries(selectedBranches, m, traceScale(m, u), clipT);
-      out.set(m.key, panelDigits(m, lo, hi));
+      const { list, lo, hi } = panelSeries(selectedBranches, m, traceScale(m, u), clipT);
+      out.set(m.key, { digits: panelDigits(m, lo, hi), primary: list[0] });
     }
     return out;
   }, [announcing, on, selectedBranches, u, clipT]);
@@ -175,13 +176,12 @@ export function FlightChart({ flight }: { flight: ChartFlight }) {
           shownMetas
             .filter((m) => !m.xy && !(m.aero && keyT > clipT))
             .map((m) => {
-              const scale = traceScale(m, u);
-              const raw = lerpAt(primary.series.time ?? [], primary.series[m.key] ?? [], keyT);
-              const value = raw == null ? null : raw * scale;
+              // The header's own figure: none outside the primary stage's span.
+              const panel = panelOf.get(m.key);
               return {
                 label: t(m.label),
-                value,
-                digits: panelDigitsOf.get(m.key) ?? m.digits,
+                value: panel?.primary ? hoverValue(panel.primary, keyT) : null,
+                digits: panel?.digits ?? m.digits,
                 unit: traceUnit(m, u),
               };
             }),

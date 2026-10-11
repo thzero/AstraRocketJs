@@ -13,7 +13,7 @@ import { MAX_FIN_POINTS, MAX_NESTING_DEPTH } from '../../src/services/files/ork/
  * The real kernel, not a stub.
  *
  * A test that stubs the engine asserts what the facade hands it: the right seam
- * for marshalling, and useless for the thing these tests cover, which is what
+ * for marshaling, and useless for the thing these tests cover, which is what
  * the Java does when handed something bad. The `parsed.error` checks on the JS
  * side only work if the kernel answers with an `{"error": ...}` envelope rather
  * than throwing out of TeaVM as an opaque JS exception from inside a 2.9 MB
@@ -653,7 +653,7 @@ describe('component masses are ordered, not shuffled', () => {
 
 /**
  * Three options the bridge could hardcode, proved against the real kernel rather
- * than at the marshalling seam. An option the Java ignores looks exactly like a
+ * than at the marshaling seam. An option the Java ignores looks exactly like a
  * working one from the JS side, so each case asserts the flight actually moved.
  */
 describe('the bridge passes these options through to the physics', () => {

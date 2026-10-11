@@ -239,6 +239,12 @@ describe('solid mesher (per component)', () => {
     expect(discSolid(0.012, 0.02, 0.003)).toBeNull();
   });
 
+  it('refuses a zero-length disc rather than inventing a thickness for it', () => {
+    expect(discSolid(0.012, 0, 0)).toBeNull();
+    expect(discSolid(0.012, 0.0095, 1e-7)).toBeNull();
+    expect(discSolidForNode(0.012, 0, 0)).toBeNull();
+  });
+
   it('a solid disc (bulkhead) is watertight and manifold', () => {
     const g = discSolid(0.012, 0, 0.003);
     expect(g).not.toBeNull();
@@ -437,12 +443,10 @@ describe('discSolidForNode applies the same validation as solidForNode', () => {
     expect(discSolidForNode(0, 0, 0.003)).toBeNull();
   });
 
-  it('substitutes a nominal length for a missing one, on purpose', () => {
-    // Not a degenerate case: `discSolid` reads a length at or below 1e-6 as
-    // "not stated" and uses 2 mm, so a ring whose length the file omitted is
-    // still exportable. Pinned so the guard above is not later widened into
-    // refusing it.
-    expect(discSolidForNode(0.012, 0.008, 0)).not.toBeNull();
+  it('refuses a zero length, which the simulation flew as no part', () => {
+    // A missing `length` key is resolved to the kernel's default before this
+    // point (discGeometry), so a zero here is a stated zero.
+    expect(discSolidForNode(0.012, 0.008, 0)).toBeNull();
   });
 
   it('agrees with discSolid wherever discSolid already refused', () => {

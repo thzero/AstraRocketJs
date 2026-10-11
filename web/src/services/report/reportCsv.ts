@@ -1,12 +1,14 @@
 import type { StaticInfo } from '../../engine/openRocketEngine';
 import type { ReportModel } from './reportModel';
 import { exportFilename, saveText } from '../files/saveFile';
-import { fmtSi, type UnitSelection } from '../../prefs/units';
+import { fmtSi, type Quantity, type UnitSelection } from '../../prefs/units';
 import { plainDecimal } from '../files/numberText';
 import { sig4, staticInfoRows } from './designInfo';
 import { type StatKey } from './designInfo';
 import { csvField } from '../exports/csvCell';
 import { CSV_MIME } from '../exports/csvExport';
+import i18n from '../../i18n';
+import { partLabel } from '../../i18n/format';
 
 /**
  * Design-info CSV export: the same Scope / Field / Value / Unit layout
@@ -19,6 +21,13 @@ import { CSV_MIME } from '../exports/csvExport';
 
 /** Number → clean string with a fixed max decimals and a '.' decimal point. */
 const round = (v: number, d: number): string => plainDecimal(v, d);
+
+/**
+ * An SI figure in the chosen unit, to three decimals. A figure the kernel could
+ * not give is a blank cell, as in every CSV the app writes, never the UI's
+ * no-value glyph in a numeric column.
+ */
+const fig = (q: Quantity, symbol: string, si: number): string => (Number.isFinite(si) ? fmtSi(q, symbol, si, 3) : '');
 
 /**
  * RFC-4180 cell, with spreadsheet formula injection neutralized by the rule
@@ -38,10 +47,10 @@ const cell = (s: string): string => csvField(s);
 
 /** [field, value, unit] rows for one summary, in the user's units. */
 function summaryRows(info: StaticInfo, units: UnitSelection): [string, string, string][] {
-  // `fmtSi`, not the locale-aware formatter: this is a data file, and its
+  // `fig`, not the locale-aware formatter: this is a data file, and its
   // decimal separator must not move with the UI language.
-  const len = (si: number): [string, string] => [fmtSi('length', units.length, si, 3), units.length];
-  const mass = (si: number): [string, string] => [fmtSi('mass', units.mass, si, 3), units.mass];
+  const len = (si: number): [string, string] => [fig('length', units.length, si), units.length];
+  const mass = (si: number): [string, string] => [fig('mass', units.mass, si), units.mass];
   const cellFor = (key: StatKey, v: number): [string, string] => {
     switch (key) {
       case 'massEmpty':
@@ -61,7 +70,7 @@ function summaryRows(info: StaticInfo, units: UnitSelection): [string, string, s
       case 'rollInertia':
         // Significant figures, not fixed decimals: a small rocket's roll inertia
         // is around 1e-7 kg·m², which six decimals would write as 0.
-        return [sig4(v), 'kg·m²'];
+        return [Number.isFinite(v) ? sig4(v) : '', 'kg·m²'];
       default:
         return len(v);
     }
@@ -106,9 +115,11 @@ export function buildDesignCsv(model: ReportModel, units: UnitSelection): string
 
   for (const st of model.finSetsByStage) {
     for (const s of st.sets) {
-      const label = st.sets.length > 1 ? `${s.name}: ` : 'Fin set: ';
-      push(st.stage, `${label}Nose to top of fin root`, fmtSi('length', units.length, s.topX, 3), units.length);
-      push(st.stage, `${label}Nose to bottom of fin root`, fmtSi('length', units.length, s.bottomX, 3), units.length);
+      // The field stays an English identifier; the part's name in it is the
+      // part's own, or its type's name for an unnamed one.
+      const label = st.sets.length > 1 ? `${partLabel(i18n.t, s)}: ` : 'Fin set: ';
+      push(st.stage, `${label}Nose to top of fin root`, fig('length', units.length, s.topX), units.length);
+      push(st.stage, `${label}Nose to bottom of fin root`, fig('length', units.length, s.bottomX), units.length);
     }
   }
 
@@ -146,7 +157,7 @@ export function buildComponentCsv(
       `Mass (${units.mass})`,
     ].join(','),
   ];
-  const len = (m: number | undefined) => (m == null ? '' : fmtSi('length', units.length, m, 3));
+  const len = (m: number | undefined) => (m == null ? '' : fig('length', units.length, m));
   const dia = (r: number | undefined) => (r == null ? '' : len(2 * r));
   for (const st of model.partsByStage) {
     for (const p of st.rows) {
@@ -157,14 +168,14 @@ export function buildComponentCsv(
           cell(partName(p.type)),
           cell(p.name),
           cell(p.material ?? ''),
-          p.density == null ? '' : fmtSi('density', units.density, p.density, 3),
+          p.density == null ? '' : fig('density', units.density, p.density),
           len(p.length),
           dia(p.outerR),
           dia(p.innerR),
           dia(p.foreR),
           dia(p.aftR),
           len(p.thickness),
-          fmtSi('mass', units.mass, p.mass, 3),
+          fig('mass', units.mass, p.mass),
         ].join(','),
       );
     }

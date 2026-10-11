@@ -62,6 +62,7 @@ describe('flyForecastHours', () => {
         launch: launch as never,
         source,
         prefs: { randomSeed: 42 } as never,
+        powerClass: 'model',
       },
       { now: () => start * 1000 },
     );
@@ -88,6 +89,7 @@ describe('flyForecastHours', () => {
         launch: { ...launch, weatherSource: early } as never,
         source: early,
         prefs: {} as never,
+        powerClass: 'model',
       },
       { now: () => start * 1000 },
     );
@@ -104,6 +106,7 @@ describe('flyForecastHours', () => {
         launch: launch as never,
         source,
         prefs: { lengthUnit: 'in' } as never,
+        powerClass: 'model',
       },
       { now: () => start * 1000 },
     );
@@ -116,9 +119,10 @@ describe('flyForecastHours', () => {
       {
         tree: { components: [] } as never,
         config: { id: 'c', name: null, motors: {} } as never,
-        launch: { ...launch, launchRodAngleDeg: 30 } as never,
+        launch: { ...launch, launchRodAngleDeg: 25 } as never,
         source,
         prefs: {} as never,
+        powerClass: 'highPower',
       },
       { now: () => start * 1000 },
     );
@@ -131,6 +135,56 @@ describe('flyForecastHours', () => {
   });
 });
 
+describe('flyForecastHours and the class of rocket', () => {
+  it('flies a model rocket at 25 degrees, inside its code', async () => {
+    const hours = await flyForecastHours(
+      {
+        tree: { components: [] } as never,
+        config: { id: 'c', name: null, motors: {} } as never,
+        launch: { ...launch, launchRodAngleDeg: 25 } as never,
+        source,
+        prefs: {} as never,
+        powerClass: 'model',
+      },
+      { now: () => start * 1000 },
+    );
+    expect(flown).toHaveLength(5);
+    expect(hours.every((h) => !h.outsideLimits)).toBe(true);
+  });
+});
+
+describe('flyForecastHours when one hour fails', () => {
+  it('cancels the flights still running, and rejects with that failure', async () => {
+    const { simulateInWorker } = await import('../../../src/engine/simClient');
+    const signals: AbortSignal[] = [];
+    vi.mocked(simulateInWorker).mockImplementation((payload, opts) => {
+      flown.push(payload);
+      const signal = opts?.signal;
+      if (signal) signals.push(signal);
+      if (flown.length === 1) return Promise.reject(new Error('hour failed'));
+      // The others hold their worker until canceled.
+      return new Promise((_resolve, reject) => {
+        signal?.addEventListener('abort', () => reject(new Error('canceled')), { once: true });
+      });
+    });
+    await expect(
+      flyForecastHours(
+        {
+          tree: { components: [] } as never,
+          config: { id: 'c', name: null, motors: {} } as never,
+          launch: launch as never,
+          source,
+          prefs: {} as never,
+          powerClass: 'model',
+        },
+        { now: () => start * 1000 },
+      ),
+    ).rejects.toThrow('hour failed');
+    expect(signals).toHaveLength(5);
+    expect(signals.every((sig) => sig.aborted)).toBe(true);
+  });
+});
+
 describe('refusalKeys', () => {
   it('names each safety code an hour breaks, and nothing for an hour that flew', () => {
     const base = { offset: 0, validMs: 0, landings: [] };
@@ -139,8 +193,8 @@ describe('refusalKeys', () => {
       refusalKeys({
         ...base,
         outsideLimits: [
-          { field: 'windSpeed', value: 12, limit: 8.9 },
-          { field: 'rodAngle', value: 0.6, limit: 0.52 },
+          { field: 'windSpeed', value: 12, limit: 8.9, powerClass: 'model' },
+          { field: 'rodAngle', value: 0.6, limit: 0.52, powerClass: 'model' },
         ],
       }),
     ).toEqual(['env.landing.overWind', 'env.landing.overRodAngle']);

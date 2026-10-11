@@ -12,7 +12,7 @@ Escrito el **2026-09-29**, comparando **AstraRocketJs <AppVersion />** (motor co
 
 :::
 
-## Lo único que no es una diferencia
+## Lo único que no es una diferencia {#the-one-thing-that-is-not-a-difference}
 
 La [Descripción general](./overview.md) dice que AstraRocketJs cubre "lo esencial en lugar de todas las funciones del escritorio".
 
@@ -20,7 +20,7 @@ La aerodinámica, el cálculo de masa y CG, y la integración del vuelo son **el
 
 Todo lo que sigue trata, por tanto, del **programa que rodea al motor**: qué puedes crear, qué puedes mirar y qué puedes sacar de ahí.
 
-## Lo que tiene OpenRocket de escritorio y esta aplicación no
+## Lo que tiene OpenRocket de escritorio y esta aplicación no {#what-desktop-openrocket-has-and-this-does-not}
 
 | Función del escritorio | Situación aquí, y por qué |
 | --- | --- |
@@ -33,7 +33,7 @@ Todo lo que sigue trata, por tanto, del **programa que rodea al motor**: qué pu
 | **Impresión** | Distinta forma. OpenRocket imprime desde un diálogo de impresión; aquí el informe de diseño se escribe como un **PDF** que luego imprimes, y sus plantillas son 1:1. |
 | **Idiomas** | OpenRocket se distribuye en más idiomas que esta aplicación. |
 
-## Lo que tiene esta aplicación y OpenRocket de escritorio no
+## Lo que tiene esta aplicación y OpenRocket de escritorio no {#what-this-has-and-desktop-openrocket-does-not}
 
 | Función | Notas |
 | --- | --- |
@@ -54,11 +54,11 @@ Todo lo que sigue trata, por tanto, del **programa que rodea al motor**: qué pu
 | **Estimador de aterrizaje** | Una herramienta que no necesita un diseño: un sitio, una hora del pronóstico, un apogeo y unas velocidades de descenso dan un aterrizaje sobre el suelo real y una zona de aterrizaje 2σ. Consulta [Herramientas](./tools.md#landing-estimator). |
 | **Comprobación de la salida del raíl** | Una herramienta que no necesita un diseño: un motor del catálogo, la masa del cohete y la longitud del raíl dan la relación empuje-peso, la velocidad de salida del raíl y el ángulo de veleteo con un viento escrito o pronosticado. Consulta [Herramientas](./tools.md#off-the-rail). |
 | **Dimensionado del descenso en paracaídas** | Elige una vela y mira la velocidad de descenso que da frente a las bandas de principal y piloto, y el diámetro necesario para alcanzar cada una o una velocidad propia, con un botón para aplicarlo. También en la pestaña Herramientas, sin diseño. |
-| **Límites NAR / Tripoli, aplicados** | La rampa se mantiene dentro de 20 grados respecto a la vertical y el viento en superficie en 20 mph o menos, y una simulación fuera de eso se **rechaza** en lugar de volarse. Cada conjunto de resultados lleva una tarjeta "Antes de volar". Consulta [Seguridad](./safety.md). |
+| **Límites NAR / Tripoli, aplicados** | El raíl o la varilla de lanzamiento se mantiene dentro de 30 grados respecto a la vertical en un cohete modelo y de 20 grados en uno de alta potencia, y el viento en superficie en 20 mph o menos, y una simulación fuera de eso se **rechaza** en lugar de volarse. Cada conjunto de resultados lleva una tarjeta "Antes de volar". Consulta [Seguridad](./safety.md). |
 | **Deshacer que también cubre las simulaciones** | Las ediciones de componentes y los cambios de simulación (motor, encendido, condiciones de lanzamiento, añadir o borrar una simulación) están en una única línea temporal. |
 | **Un selector de unidades en cada valor** | La unidad impresa junto a cualquier número es también un control para ese campo concreto, además de los perfiles métrico e imperial. Consulta [Ajustes](./settings.md#units). |
 | **Nada que guardar y nada que se suba** | La edición se guarda sola, la barra superior dice cuándo se escribió por última vez, y no hay servidor ni cuentas. |
 
-## Para qué usar cada uno
+## Para qué usar cada uno {#what-to-use-which-for}
 
 Si necesitas optimización, expresiones personalizadas, extensiones de simulación, renderizados fotorrealistas, usa el programa de escritorio. Si quieres los mismos números en el móvil y en el campo, sin instalar nada y sin red, usa este. Los archivos viajan en ambos sentidos, así que no es una elección definitiva.

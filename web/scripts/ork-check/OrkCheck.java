@@ -18,7 +18,8 @@ import info.openrocket.core.startup.CoreModule;
 import java.io.File;
 
 /**
- * Open a `.ork` in a real OpenRocket and print what it made of it.
+ * Open a `.ork` or a RockSim `.rkt` in a real OpenRocket and print what it made
+ * of it. GeneralRocketLoader picks the reader from the file's contents.
  *
  * The only check that asks the thing we are trying to satisfy. Our own tests can
  * prove the writer puts a part link or a motor digest in the file; they cannot
@@ -43,7 +44,7 @@ public class OrkCheck {
 
     public static void main(String[] args) throws Exception {
         if (args.length < 1) {
-            System.err.println("usage: OrkCheck <file.ork> [...]");
+            System.err.println("usage: OrkCheck <file.ork|file.rkt> [...]");
             System.exit(2);
         }
         com.google.inject.Module wiring = new AbstractModule() {
@@ -63,6 +64,20 @@ public class OrkCheck {
             System.out.println("== " + path);
             GeneralRocketLoader loader = new GeneralRocketLoader(new File(path));
             OpenRocketDocument doc = loader.load();
+            // A reader that understood none of the parts can still finish with
+            // no warnings, so a rocket with nothing but stages fails too.
+            int parts = 0;
+            for (RocketComponent c : doc.getRocket()) {
+                if (!(c instanceof info.openrocket.core.rocketcomponent.Rocket)
+                        && !(c instanceof info.openrocket.core.rocketcomponent.AxialStage)) {
+                    parts++;
+                }
+            }
+            System.out.println("  " + parts + " components");
+            if (parts == 0) {
+                System.out.println("  FAILED: no components");
+                failed++;
+            }
             for (RocketComponent c : doc.getRocket()) {
                 if (c.getPresetComponent() != null) {
                     System.out.println("  part  " + c.getName() + " -> "

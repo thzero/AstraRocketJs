@@ -28,7 +28,7 @@ Every quantity has its own unit, set on the **Units** tab. **Metric defaults** a
 | Impulse | total impulse | N·s | lbf·s |
 | Roll rate | the flight's roll rate | r/s | r/s |
 
-A fresh install starts on the **metric defaults**, and that is exactly what the reset buttons restore too: there is only one metric set, so nothing can surprise you with a different "metric".
+A fresh install starts on the **metric defaults**, and the reset buttons restore the same set.
 
 Everything follows your choice: the property fields you type into, the component tree, the stats strip, the 2D rulers and calipers, the 3D callouts, the flight and drag charts, the motor browser, and the PDF and CSV exports (which name the unit they used, and can be pinned to metric or imperial of their own: see [Files & Exports](./files-and-exports.md)).
 
@@ -96,7 +96,7 @@ There is no row for fin fillets. A fillet you add starts as West System Six10, a
 
 ## Simulation defaults
 
-These seed each new simulation's run (you can still tune per-simulation launch conditions: see [Running a Simulation](./running-a-simulation.md)):
+These are on the **Simulation** tab, and seed each new simulation's run (you can still tune per-simulation launch conditions: see [Running a Simulation](./running-a-simulation.md)):
 
 - **Confirm deletion of simulations**: ask before removing a simulation. On by default, because a deleted simulation takes its results with it.
 - **Run outdated simulations automatically**: when the Results tab shows a simulation that has never run or whose result is outdated, run it. Off by default.
@@ -138,7 +138,7 @@ Defaults for the 2D view. You can also toggle these on the view itself.
 
 ## Safety warnings
 
-Five thresholds, in the units you have chosen for velocity. They color the result tiles *and* reach the flight engine, so they decide which warnings a run reports rather than only how the numbers are painted.
+Also on the **Simulation** tab: five thresholds, in the units you have chosen for velocity. They color the result tiles *and* reach the flight engine, so they decide which warnings a run reports rather than only how the numbers are painted.
 
 - **Min launcher-exit velocity**: below this the fins have too little airflow to steer, so the rocket can weathercock into the wind or go unstable as it leaves the launcher. The launcher-exit tile is green at or above this and warns below it.
 - **Deploy-speed warning above**: single deployment (no drogue): above this speed, opening the parachute risks zippering the airframe or tearing the canopy.
@@ -149,7 +149,7 @@ The last three apply only to **dual deployment** (a stage carrying a drogue), wh
 - **Main deploy speed (min)**: below this the main opens while the rocket is barely descending, which normally means it deployed near apogee: a slow, drifty descent from full altitude.
 - **Drogue deploy speed (min)**: below this the drogue comes out too slowly at apogee to inflate properly.
 
-All three depend on the rocket saying which chute is which. Tick **Drogue (dual deployment)** on the parachute or streamer that opens at apogee, and the flight is judged as dual deployment. Leave it clear and the whole stage is single deployment, judged against **Deploy-speed warning above** alone.
+All three depend on the rocket saying which chute is which. That is set on the stage: choose **Dual deployment** under **Recovery deployment type** and pick the parachute or streamer that opens at apogee as the **Drogue device**, and the flight is judged as dual deployment. With **Single deployment** the whole stage is judged against **Deploy-speed warning above** alone.
 
 Each of these can also be overridden per simulation, in the simulation's own options.
 
@@ -157,7 +157,7 @@ Changing any of them marks every simulation that has already run as **outdated**
 
 ## Flight model
 
-Everything above decides when a flight *warns*. This one changes what the flight does.
+Also on the **Simulation** tab. Everything above decides when a flight *warns*. This one changes what the flight does.
 
 - **Guide-aware launcher clearance**: off by default, which is OpenRocket's own behavior: the rocket stays on the launcher for its full length wherever its launch lugs or rail buttons sit. OpenRocket works out a guide-aware length and then never uses it, so a guide mounted above the rocket's aft end is credited with guided travel it does not have, and rail buttons are not considered at all.
 

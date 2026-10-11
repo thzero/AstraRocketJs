@@ -17,6 +17,7 @@ import {
   trapezoidFinPoints,
 } from '../../src/tree/finPlanform';
 import { tubeFinRadius } from '../../src/tree/tubefins';
+import { FREEFORM_SNAP_LARGER_THAN, axialLength, freeformPoints } from '../../src/tree/position';
 import { finPlanformMm } from '../../src/services/report/reportGeometry';
 
 /**
@@ -221,6 +222,53 @@ describe('tube-fin auto radius vs TubeFinSet.java', () => {
     const n = node({ type: 'tubefinset', finCount: 6, outerRadius: 0.011 });
     expect(tubeFinRadius(n, 0.025)).toBe(0.011);
   });
+
+  it('keeps a stored radius the way setOuterRadius stores it', () => {
+    // setOuterRadius turns the automatic size off and keeps max(r, 0), so a
+    // stored zero is a zero-size tube, not the touching radius.
+    expect(src).toContain('this.autoRadius = false; this.outerRadius = Math.max(radius, 0);');
+    const setOuterRadius = (radius: number): number => Math.max(radius, 0);
+    for (const r of [0, -0.004, 0.003]) {
+      const n = node({ type: 'tubefinset', finCount: 6, outerRadius: r });
+      expect(tubeFinRadius(n, 0.025)).toBe(setOuterRadius(r));
+    }
+  });
+});
+
+describe('freeform outline vs FreeformFinSet.setPoints', () => {
+  const src = javaSource('rocketcomponent/FreeformFinSet.java');
+
+  it('is generated from the rules the port was written against', () => {
+    expect(src).toContain('private static final double IGNORE_SMALLER_THAN = 1.0e-12;');
+    expect(src).toContain('public static final double SNAP_LARGER_THAN = 2.5;');
+    expect(src).toContain(
+      'final CoordinateIF delta = newPoints.get(0).multiply(-1); if (IGNORE_SMALLER_THAN < delta.length2()) { newPoints = translatePoints(newPoints, delta); }',
+    );
+    expect(src).toContain(
+      'if (p.getX() > SNAP_LARGER_THAN) { newPoints.set(i, p.setX(SNAP_LARGER_THAN)); } if (p.getY() > SNAP_LARGER_THAN) { newPoints.set(i, p.setY(SNAP_LARGER_THAN)); }',
+    );
+  });
+
+  it('translates to the first point, then snaps each coordinate past 2.5 m', () => {
+    // setPoints, transcribed: translate by -p0, then cap x and y at SNAP_LARGER_THAN.
+    const setPoints = (pts: [number, number][]): [number, number][] => {
+      const [x0, y0] = pts[0]!;
+      return pts
+        .map(([x, y]): [number, number] => [x - x0, y - y0])
+        .map(([x, y]) => [Math.min(x, 2.5), Math.min(y, 2.5)]);
+    };
+    expect(FREEFORM_SNAP_LARGER_THAN).toBe(2.5);
+    const raw: [number, number][] = [
+      [0.1, 0],
+      [1.5, 3.2],
+      [3.4, 0],
+    ];
+    const n = node({ type: 'freeformfinset', points: raw });
+    expect(freeformPoints(n)).toEqual(setPoints(raw));
+    // The span and the root chord the fin is placed by are the snapped ones.
+    expect(finSpan(n)).toBe(2.5);
+    expect(axialLength(n)).toBeCloseTo(2.5, 12);
+  });
 });
 
 describe('through-the-wall tab vs FinSet.java', () => {
@@ -245,6 +293,50 @@ describe('through-the-wall tab vs FinSet.java', () => {
     expect(finTabSpan(n, 0.05, 0.03)?.height).toBeCloseTo(0.02, 12);
     // No parent radius known -> no clamp, rather than a silent zero.
     expect(finTabSpan(n, 0.05, null)?.height).toBeCloseTo(0.02, 12);
+  });
+
+  /**
+   * The tab's front edge for every offset method: `FinSet.getTabFrontEdge()`,
+   * the `tabPosition` that `AxialMethod.getAsPosition(tabOffset, tabLength,
+   * length)` sets, transcribed per method from AxialMethod.java.
+   */
+  it('places the tab by every AxialMethod the bridge accepts', () => {
+    const axial = javaSource('rocketcomponent/position/AxialMethod.java');
+    // ABSOLUTE and TOP, AFTER, MIDDLE, BOTTOM, in source order.
+    expect(axial).toContain(
+      'public double getAsPosition(double offset, double innerLength, double outerLength) { return offset; }',
+    );
+    expect(axial).toContain(
+      'public double getAsPosition(double offset, double innerLength, double outerLength) { return outerLength + offset; }',
+    );
+    expect(axial).toContain('return offset + (outerLength - innerLength) / 2;');
+    expect(axial).toContain('return offset + (outerLength - innerLength);');
+    expect(src).toContain('this.tabPosition = this.tabOffsetMethod.getAsPosition(tabOffset, tabLength, length);');
+    const getAsPosition: Record<string, (offset: number, inner: number, outer: number) => number> = {
+      absolute: (offset) => offset,
+      after: (offset, _inner, outer) => outer + offset,
+      top: (offset) => offset,
+      middle: (offset, inner, outer) => offset + (outer - inner) / 2,
+      bottom: (offset, inner, outer) => offset + (outer - inner),
+    };
+    const rootChord = 0.06;
+    const tabLength = 0.02;
+    for (const [method, position] of Object.entries(getAsPosition)) {
+      for (const tabOffset of [-0.01, 0, 0.005]) {
+        const n = node({
+          type: 'trapezoidfinset',
+          rootChord,
+          tabHeight: 0.004,
+          tabLength,
+          tabOffsetMethod: method,
+          tabOffset,
+        });
+        expect(finTabSpan(n, rootChord, null)?.x0, `${method} @ ${tabOffset}`).toBeCloseTo(
+          position(tabOffset, tabLength, rootChord),
+          12,
+        );
+      }
+    }
   });
 
   it('returns null rather than a degenerate tab', () => {

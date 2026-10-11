@@ -100,7 +100,7 @@ export function AppHeader() {
             onOpenLibrary: () => open('library'),
             onSaveAs: () => {
               // Names of existing designs drive the duplicate warning.
-              void refreshDesigns();
+              fireAction(refreshDesigns());
               open('saveAs');
             },
             onImportOrk: ork.pick,

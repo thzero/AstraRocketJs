@@ -2,7 +2,7 @@
 //
 //   npm run sync:motor-digests                      the installed OpenRocket
 //   npm run sync:motor-digests -- --jar <path.jar>   a particular release
-//   npm run sync:motor-digests -- --or <checkout>    a built source tree
+//   npm run sync:motor-digests -- --or <checkout>    a built source tree, with OPENROCKET_UNPINNED=1
 //
 // What the digest is for. A `.ork` names a motor by manufacturer, designation,
 // diameter and length, and the desktop's database holds several entries behind
@@ -43,12 +43,13 @@
 // It reads the catalog sync-motors staged (lib/catalogStaging.mjs), or, with
 // none staged, the catalog in public/data, and writes the finished catalog to
 // public/data.
-import { existsSync, readFileSync, rmSync } from 'node:fs';
+import { appendFileSync, existsSync, readFileSync, rmSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { STAGED_MOTORS, writeFileAtomic } from './lib/catalogStaging.mjs';
 import { writeDataManifest } from './lib/dataManifest.mjs';
-import { motorProblems } from './lib/digestCoverage.mjs';
+import { digestChanges, goneSection, motorProblems } from './lib/digestCoverage.mjs';
+import { motorRowKey } from './lib/motorRowKey.mjs';
 import { chooseBuild, runDumper } from './lib/openrocketJava.mjs';
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
@@ -152,6 +153,9 @@ function entriesFor(index, row) {
     }));
 }
 
+/** A motor's row key and whether it carries a digest, for `digestChanges`. */
+const digestState = (m) => ({ key: motorRowKey(m), digested: Boolean(m.digests?.length) });
+
 function main() {
   const { cp, label } = chooseBuild();
   console.log(`reading motors from ${label}`);
@@ -164,10 +168,10 @@ function main() {
   const catalog = staged ? JSON.parse(readFileSync(STAGED_MOTORS, 'utf8')) : previous;
   if (!catalog) throw new Error(`nothing to add digests to: no ${STAGED_MOTORS} and no ${CATALOG}`);
   console.log(`catalog: ${staged ? 'staged by sync-motors' : CATALOG}`);
-  const before = Math.max(
-    catalog.filter((m) => m.digests).length,
-    Array.isArray(previous) ? previous.filter((m) => m.digests).length : 0,
-  );
+  // Taken before the loop below, which edits `catalog`, and `catalog` is
+  // `previous` itself when nothing is staged.
+  const baseline = (Array.isArray(previous) ? previous : catalog).map(digestState);
+  const before = baseline.filter((m) => m.digested).length;
   let hit = 0;
   let ambiguous = 0;
   for (const row of catalog) {
@@ -180,11 +184,20 @@ function main() {
       delete row.digests;
     }
   }
-  // A run that silently loses coverage is a broken classpath, not a smaller
-  // database: refuse a drop from the previous catalog, and a catalog under the
-  // floor however it got there.
-  if (hit < before) {
-    throw new Error(`refusing to write: motors with digests fell from ${before} to ${hit}. Nothing written.`);
+  // A motor that kept its row and lost its digest is a broken classpath or a
+  // changed matcher: refuse it, and a catalog under the floor however it got
+  // there. A motor thrustcurve.org deleted or merged took its digest with it,
+  // which is reported and not refused.
+  const { lost, gone } = digestChanges(baseline, catalog.map(digestState));
+  const goneText = goneSection('Motors', gone);
+  if (goneText) {
+    console.log(goneText);
+    if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${goneText}\n`);
+  }
+  if (lost.length) {
+    throw new Error(
+      `refusing to write: ${lost.length} motors still in the catalog lost their digests (${lost.join(', ')}). Nothing written.`,
+    );
   }
   const problems = motorProblems(catalog);
   if (problems.length) throw new Error(`refusing to write: ${problems.join('; ')}. Nothing written.`);

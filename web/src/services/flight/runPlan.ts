@@ -1,6 +1,7 @@
 import type { RocketTree } from '../../engine/openRocketEngine';
 import type { UnitSymbols } from '../../prefs/units';
 import { configFor, primaryMotor, type FlightConfig } from './flightConfigs';
+import { configPowerClass } from './powerClass';
 import { isComplete, type CompleteLaunch } from './requiredLaunch';
 import { designBlocker, unflyable, unflyableText, type DesignBlocker, type Unflyable } from './runnability';
 import type { Simulation } from './simulations';
@@ -33,18 +34,21 @@ export interface RunPlan {
  *
  * Otherwise each row is judged on its own, by the same `unflyable` the Run
  * button reads (services/flight/runnability). A row with no usable motor, or with
- * launch conditions outside the NAR/Tripoli codes, is skipped: those are
+ * launch conditions outside the NAR/Tripoli codes for the class of rocket its
+ * configuration flies, is skipped: those are
  * simulation settings rather than design, so there is nothing to preserve by
  * flying them, and a number this app will not stand behind is worse than no
  * number. One bad row never abandons the rest.
  *
- * Ids that name no row are dropped.
+ * Ids that name no row are dropped. `dryMassKg` is the engine's mass of the
+ * rocket without motors (`StaticInfo.massEmpty`), or null before it has one.
  */
 export function planRun(
   ids: readonly string[],
   sims: readonly Simulation[],
   tree: RocketTree,
   configs: readonly FlightConfig[],
+  dryMassKg: number | null | undefined,
 ): RunPlan {
   const rows = ids.flatMap((id) => sims.filter((x) => x.id === id).slice(0, 1));
   const blocker = designBlocker(tree);
@@ -53,7 +57,8 @@ export function planRun(
   const flying: RunPlan['flying'] = [];
   const skipped: Unflyable[] = [];
   for (const sim of rows) {
-    const reason = unflyable(sim, primaryMotor(tree, configFor(configs, sim.configId)));
+    const config = configFor(configs, sim.configId);
+    const reason = unflyable(sim, primaryMotor(tree, config), configPowerClass(tree, config, dryMassKg));
     if (reason) {
       skipped.push({ id: sim.id, name: sim.name, reason });
       continue;

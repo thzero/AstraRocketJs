@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { fireAction } from '../../src/state/fireAction';
 import { useWorkspaceStore } from '../../src/state/store';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 
 /**
  * A click must not be able to fail in silence.
@@ -59,5 +61,41 @@ describe('fireAction', () => {
     fireAction(rejected);
     await expect(rejected.catch((e: unknown) => (e as Error).message)).resolves.toBe('handled');
     expect(s().err).toBe('handled');
+  });
+});
+
+/**
+ * No component fires an async store action with `void`, which drops a rejection
+ * the action forgot to catch. Every action declared `=> Promise<...>` on the
+ * store is looked up by the local name a component binds it to.
+ */
+describe('async store actions in components', () => {
+  it('go through fireAction, never void', () => {
+    const src = resolve(__dirname, '../../src');
+    const stateFiles = ['state/store.ts', 'state/fileSlice.ts', 'state/viewSlice.ts'];
+    const asyncActions = new Set(
+      stateFiles.flatMap((f) =>
+        [...readFileSync(join(src, f), 'utf8').matchAll(/^\s+(\w+): \([^)]*\) => Promise</gm)].map((m) => m[1]!),
+      ),
+    );
+    expect(asyncActions.has('refreshDesigns')).toBe(true);
+    const offenders: string[] = [];
+    const walk = (dir: string) => {
+      for (const entry of readdirSync(dir)) {
+        const path = join(dir, entry);
+        if (statSync(path).isDirectory()) walk(path);
+        else if (/\.tsx?$/.test(entry)) {
+          const text = readFileSync(path, 'utf8');
+          const bound = new Map(
+            [...text.matchAll(/const (\w+) = useWorkspaceStore\(\(s\) => s\.(\w+)\)/g)].map((m) => [m[1]!, m[2]!]),
+          );
+          for (const m of text.matchAll(/\bvoid (\w+)\(/g)) {
+            if (asyncActions.has(bound.get(m[1]!) ?? '')) offenders.push(`${entry}: void ${m[1]!}(`);
+          }
+        }
+      }
+    };
+    walk(join(src, 'components'));
+    expect(offenders).toEqual([]);
   });
 });

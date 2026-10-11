@@ -13,7 +13,7 @@ Use the search box at the top of this site, or the search in the app's **Help** 
 
 **Aerodynamic length**: The nose-to-tail span of the rocket's *external* parts. *In the app:* it is the denominator behind stability shown as a percentage of length, and behind the **% length** reading of CP vs Mach and the **CP (% length)** column of the stability table. It differs from the **Length** tile whenever an internal part, such as a motor tube, reaches past the airframe.
 
-**Aft / fore**: Toward the tail / toward the nose, whichever way the rocket points. *In the app:* field labels such as **Fore radius**, **Aft shoulder** and **Motor overhang**. Moving the CP aft raises the stability margin; moving the CG aft lowers it.
+**Aft / fore**: Toward the tail / toward the nose, whichever way the rocket points. *In the app:* field labels such as **Fore diameter**, **Aft shoulder** and **Motor overhang**. Moving the CP aft raises the stability margin; moving the CG aft lowers it.
 
 **Aft view**: The rocket seen end-on from behind, so a fin count, a clock angle or a motor cluster shows as it really sits. *In the app:* the **Aft** button beside **2D** and **3D**.
 
@@ -33,9 +33,9 @@ Use the search box at the top of this site, or the search in the app's **Help** 
 
 **Aspect ratio**: A fin's span against its chord: high is long and narrow, low is short and stubby. *In the app:* a derived field on a fin set.
 
-**Axial / radial**: Along the rocket's axis / out from it. *In the app:* axial placement is **Position from** and **Offset**; radial placement is **Radial position** and **Radial direction**.
+**Axial / radial**: Along the rocket's axis / out from it. *In the app:* axial placement is **Position from** and **Offset**; radial placement is **Radial offset** and **Radial direction**.
 
-**Azimuth / zenith**: Compass heading / angle from straight up. *In the app:* the `Φ` and `Θ` columns; the rod's aim uses the same pair.
+**Azimuth / zenith**: Compass heading / angle from straight up. *In the app:* the `Φ` and `Θ` columns; the launch guide's aim uses the same pair.
 
 ## B
 
@@ -43,13 +43,13 @@ Use the search box at the top of this site, or the search in the app's **Help** 
 
 **Ballistic descent**: Coming down with no recovery device deployed. *In the app:* a flight with no device, or one where deployment never fired, lands at a ballistic speed; the ground-hit velocity says how hard.
 
-**Boattail**: A transition at the tail that narrows toward the rear, reducing base drag. *In the app:* a **Transition** whose aft radius is smaller than its fore radius.
+**Boattail**: A transition at the tail that narrows toward the rear, reducing base drag. *In the app:* a **Transition** whose **Aft diameter** is smaller than its **Fore diameter**.
 
 **Body tube**: A straight tube of constant diameter: the main airframe section. *In the app:* **Body tube** in the component tree.
 
 **Booster / sustainer**: In a staged rocket, the stage that lights first and drops away / the stage that carries on. *In the app:* stage names, and each booster's own flight branch after it separates. See **Simulation branch**.
 
-**Bore**: The inside diameter of a tube. *In the app:* the **Bore** field, which is the pair of the outer diameter and the wall: typing a bore writes the wall back and leaves the outside where it is.
+**Bore**: The inside diameter of a tube. *In the app:* the **Inner diameter** field, which is paired with the outer diameter and the wall: typing an inner diameter writes the wall back and leaves the outside where it is.
 
 **Bulkhead**: A solid disc closing off a tube, used to take an ejection load or seal a bay.
 
@@ -65,11 +65,11 @@ Use the search box at the top of this site, or the search in the app's **Help** 
 
 **Canopy**: The fabric part of a parachute, as opposed to its lines. *In the app:* the parachute's **Diameter** is its canopy diameter.
 
-**Cant angle**: A fin tilted about its own root, which spins the rocket up in flight. *In the app:* **Cant** on a fin set.
+**Cant angle**: A fin tilted about its own root, which spins the rocket up in flight. *In the app:* **Cant angle** on a fin set.
 
 **Capped shoulder**: A shoulder closed off by a disc, which adds mass. *In the app:* the **Shoulder capped** checkbox. See **Shoulder**.
 
-**Cd (drag coefficient)**: Drag expressed independently of size and speed, so shapes can be compared. *In the app:* the `Cd` column, the drag-coefficient tile, and each recovery device's own **Cd**.
+**Cd (drag coefficient)**: Drag expressed independently of size and speed, so shapes can be compared. *In the app:* the `Cd` column, the drag-coefficient tile, and each recovery device's own **Drag coeff**.
 
 **Cd override**: Replacing a part's computed drag coefficient with one you supply. *In the app:* the **Overrides** section. See **Override**.
 
@@ -97,9 +97,9 @@ Use the search box at the top of this site, or the search in the app's **Help** 
 
 **Damping ratio**: How quickly an oscillation of the rocket dies out on its own. *In the app:* the `ζ` and `ωn` columns.
 
-**Delay**: A pause between one event and what it triggers. *In the app:* **Ejection delay** on a motor, **Ignition delay** on a stage, **Separation delay** between stages, and **Deploy delay** on a recovery device.
+**Delay**: A pause between one event and what it triggers. *In the app:* the **Delay** of a motor's ejection charge, the delay after a motor's **Ignition** event, **Separation delay** between stages, and **Deploy delay** on a recovery device.
 
-**Deployment**: A recovery device opening. Its **trigger** is what opens it: apogee, an altitude on the way down, a motor's ejection charge, or a stage event. *In the app:* the **Deployment** section, and the `RECOVERY_DEVICE_DEPLOYMENT` flight event, which names the device that opened.
+**Deployment**: A recovery device opening. Its **trigger** is what opens it: apogee, an altitude on the way down, a motor's ejection charge, or a stage event. *In the app:* **Deploy at** on a recovery device, and the `RECOVERY_DEVICE_DEPLOYMENT` flight event, which names the device that opened.
 
 **Deployment velocity (opening speed)**: How fast the rocket was moving when a device opened. Too fast risks a zippered tube or a torn canopy. *In the app:* the **Deploy speed** tile and the deployment-speed warnings. See **Zippering**.
 
@@ -109,15 +109,15 @@ Use the search box at the top of this site, or the search in the app's **Help** 
 
 **Drift**: How far downwind the rocket lands from the pad. *In the app:* the ground track, the drift readout, and the **Drift sweep**.
 
-**Drift ellipse**: The area repeated runs land in, drawn on the ground track, which is a more honest answer than a single point when wind is random.
+**Drift ellipse**: The area repeated runs land in, drawn on the ground track. When the wind is random it shows the spread that a single landing point hides.
 
 **Drift sweep**: Flying the same design across a band of wind speeds to see how landing distance grows. *In the app:* the **Drift sweep** panel.
 
-**Drogue**: A small chute deployed at apogee to bring the rocket down fast but stable, before the main opens lower. *In the app:* tick **Drogue** on the device that opens at apogee; without it the stage is judged as single deployment. See **Dual deployment**.
+**Drogue**: A small chute deployed at apogee to bring the rocket down fast but stable, before the main opens lower. *In the app:* on the stage, choose **Dual deployment** under **Recovery deployment type** and pick the device that opens at apogee as the **Drogue device**. With **Single deployment** the stage has no drogue. See **Dual deployment**.
 
-**Dry mass (empty mass)**: The rocket with no motor at all. *In the app:* the **Mass (empty)** tile.
+**Dry mass (empty mass)**: The rocket with no motor at all. *In the app:* the first figure of the **Mass** tile (*empty / loaded*), and **Mass (empty)** in the design report.
 
-**Dual deployment**: Two-stage recovery: a drogue at apogee, a main lower down, to cut drift without landing hard. *In the app:* mark one device as the drogue; the main is then judged against its own speed limits.
+**Dual deployment**: Two-stage recovery: a drogue at apogee, a main lower down, to cut drift without landing hard. *In the app:* choose **Dual deployment** under the stage's **Recovery deployment type** and pick the **Drogue device**; the main is then judged against its own speed limits.
 
 **Dynamic pressure (q, max Q)**: The pressure of the airflow, ½ρV². It is what decides whether an airframe holds together, and its peak is max Q.
 
@@ -139,7 +139,7 @@ Use the search box at the top of this site, or the search in the app's **Help** 
 
 **Fin set**: A group of identical fins spaced around the body. *In the app:* trapezoidal, elliptical and freeform fin sets, each with a fin count.
 
-**Fin tab (through-the-wall tab)**: The part of a fin that passes through the airframe wall to anchor inside it. *In the app:* **Tab length**, **Tab height** and **Tab offset** on a fin set.
+**Fin tab (through-the-wall tab)**: The part of a fin that passes through the airframe wall to anchor inside it. *In the app:* **Fin tab length**, **Fin tab height** and **Fin tab offset** on a fin set.
 
 **Fineness ratio**: Overall length divided by maximum diameter. A low number is stubby, a high number is a needle. *In the app:* a stats tile.
 
@@ -161,7 +161,7 @@ Use the search box at the top of this site, or the search in the app's **Help** 
 
 **Ground-hit velocity**: How fast the rocket was descending when it landed. *In the app:* the landing-speed readout.
 
-**Guide-aware launcher clearance**: An optional flight model in which the rocket leaves the launcher when its aft-most launch lug or rail button does, rather than after the launcher's full length. Off by default, which matches OpenRocket. On, the rail-exit velocity usually reads a little lower. *In the app:* Settings ▸ Simulation ▸ Flight model.
+**Guide-aware launcher clearance**: An optional flight model in which the rocket is released from the launch guide when its aft-most launch lug, or its second-to-last rail button, leaves the guide, rather than after the guide's full length. Off by default, which matches OpenRocket. On, the rail-exit velocity usually reads a little lower. *In the app:* Settings ▸ Simulation ▸ Flight model.
 
 ## H
 
@@ -193,7 +193,7 @@ Use the search box at the top of this site, or the search in the app's **Help** 
 
 **Latitude and longitude**: The launch site's coordinates, and the rocket's position over the ground during a flight. *In the app:* **Latitude** and **Longitude** in the launch site card and the **Launch Locations** editor, and the `φ` and `λ` columns.
 
-**Launch guide**: Whatever holds the rocket straight until it is fast enough for its fins to work: a **rod** through launch lugs, or a **rail** engaging rail buttons. *In the app:* **Rod length** and **Rod angle** in the launch conditions.
+**Launch guide**: Whatever holds the rocket straight until it is fast enough for its fins to work: a **rod** through launch lugs, or a **rail** engaging rail buttons. *In the app:* **Length** and **Angle** in the launch conditions, under a heading named after the design's guides: **Launch rail** for rail buttons, **Launch rod** for launch lugs, and **Launcher** for a design with neither or both.
 
 **Launch lug**: A small tube on the airframe that slides over a launch rod.
 
@@ -201,7 +201,7 @@ Use the search box at the top of this site, or the search in the app's **Help** 
 
 **Length**: The nose-to-tail span of every active part, including internal ones. Compare **Aerodynamic length**.
 
-**Loaded mass (pad mass)**: The rocket ready to fly, motor and all. *In the app:* the **Mass (loaded)** tile.
+**Loaded mass (pad mass)**: The rocket ready to fly, motor and all. *In the app:* the second figure of the **Mass** tile (*empty / loaded*), and **Mass (loaded)** in the design report.
 
 ## M
 
@@ -241,7 +241,7 @@ Use the search box at the top of this site, or the search in the app's **Help** 
 
 **Ogive**: A nose profile whose outline is an arc. A **tangent** ogive meets the body smoothly; a **secant** ogive meets it at an angle. *In the app:* a nose-cone **Shape**.
 
-**Offline install**: The app installs to your device and runs with no network, including this documentation and the bundled example designs. That is the point of it: a launch site rarely has signal. *In the app:* the install prompt in your browser, and **Help**, which reads offline from the first install onward.
+**Offline install**: The app installs to your device and runs with no network, including this documentation and the bundled example designs. A launch site often has no signal. *In the app:* the install prompt in your browser, and **Help**, which reads offline from the first install onward.
 
 **Offset**: How far a part sits from the reference its **Position from** names: the top or bottom of its parent, the middle, or an absolute distance from the nose.
 
@@ -259,7 +259,7 @@ Use the search box at the top of this site, or the search in the app's **Help** 
 
 **Packed length / packed diameter**: The space a recovery device takes up folded in the airframe, as opposed to the size of its canopy. *In the app:* fields on the device.
 
-**Parallel stage (strap-on booster)**: A booster mounted alongside the rocket rather than below it, which separates and flies its own branch. *In the app:* **Parallel stage**.
+**Parallel stage (strap-on booster)**: A booster mounted alongside the rocket rather than below it, which separates and flies its own branch. *In the app:* **Booster** in the component tree.
 
 **Payload**: Whatever the rocket carries that is not there to make it fly: an altimeter, a camera, an egg.
 
@@ -269,13 +269,17 @@ Use the search box at the top of this site, or the search in the app's **Help** 
 
 **Plugged motor**: A motor with no ejection charge, for a rocket that deploys electronically. *In the app:* the **Plugged** delay option.
 
-**Pod set**: A group of external pods carried alongside the airframe, each able to hold its own parts. *In the app:* **Pod set**.
+**Pod set**: A group of external pods carried alongside the airframe, each able to hold its own parts. *In the app:* **Pod** in the component tree.
 
 **Propellant mass**: How much of a motor's mass burns away. *In the app:* the difference between a motor's loaded and burnout mass, which is what recovery weight subtracts.
 
 ## R
 
 **Rail button**: A small stud on the airframe that runs in a launch rail's slot, the usual alternative to launch lugs on larger rockets.
+
+**Rail or rod aim**: Which compass direction the launch guide leans toward. *In the app:* **Direction** in the launch conditions, or tick **Always launch into the wind** and the guide follows the surface wind, which is the usual practice and what the weathercocking figures assume. See **Weathercocking**.
+
+**Rail or rod angle**: How far the launch guide is tilted from vertical. *In the app:* **Angle** in the launch conditions, with **Direction** for which way it leans, or **Always launch into the wind** to aim it automatically.
 
 **Rail-exit velocity**: How fast the rocket is moving as it leaves the launch guide. Too slow and the fins have too little airflow to steer, so it can weathercock or go unstable. *In the app:* the **Rail exit**, **Rod exit** or **Launcher exit** tile, named after the design's guides, judged against a minimum you set. See **Guide-aware launcher clearance**.
 
@@ -293,10 +297,6 @@ Use the search box at the top of this site, or the search in the app's **Help** 
 
 **RockSim**: Another rocket simulator, whose `.rkt` design files the app reads and writes.
 
-**Rod aim**: Which compass direction the launch guide leans toward. *In the app:* **Rod direction**, or tick **Launch into wind** and the rod follows the surface wind, which is the usual practice and what the weathercocking figures assume. See **Weathercocking**.
-
-**Rod angle**: How far the launch guide is tilted from vertical. *In the app:* **Rod angle**, with **Rod direction** for which way it leans, or **Launch into wind** to aim it automatically.
-
 **Roll rate**: How fast the rocket is spinning about its long axis. *In the app:* the `dΦ` column. A cant angle drives it up.
 
 ## S
@@ -313,9 +313,9 @@ Use the search box at the top of this site, or the search in the app's **Help** 
 
 **Shock cord**: The line joining a rocket's sections so they stay together after ejection. *In the app:* **Shock cord**, with a cord length and a line density. A new one is on **Auto**, as on desktop: the engine makes the cord three times the rocket's length, and the box shows that figure.
 
-**Shoulder**: The stepped-down end of a nose cone or transition that plugs into the tube behind it. A **capped** shoulder is closed off by a disc, which adds mass. *In the app:* shoulder radius, length, thickness and **Shoulder capped**.
+**Shoulder**: The stepped-down end of a nose cone or transition that plugs into the tube behind it. A **capped** shoulder is closed off by a disc, which adds mass. *In the app:* **Shoulder diameter**, **Shoulder length**, **Shoulder thickness** and **Shoulder capped**.
 
-**Shroud lines**: The cords from a canopy to the rocket. *In the app:* **Line count**, **Line length** and the line material on a parachute.
+**Shroud lines**: The cords from a canopy to the rocket. *In the app:* **Shroud lines**, **Line length** and **Shroud line material** on a parachute.
 
 **SI units**: Meters, kilograms, seconds. Everything the app stores, the engine computes with, and every saved file holds is SI; the units you choose change only what is shown and typed. See **Units**.
 
@@ -329,7 +329,7 @@ Use the search box at the top of this site, or the search in the app's **Help** 
 
 **Speed of sound**: How fast sound travels in the air the rocket is in, which falls as air gets colder. It sets what Mach number a given speed is. *In the app:* the `Vs` column.
 
-**Spill hole**: A vent in the middle of a canopy, which lets it descend faster and more stably. *In the app:* **Spill hole diameter**, carried in the design.
+**Spill hole**: A vent in the middle of a canopy, which lets it descend faster and more stably. *In the app:* there is no field for it; a spill hole diameter read from a `.ork` file is kept and written back when the design is saved.
 
 **Stability margin**: How far the CP sits behind the CG, in **calibers** or as a percentage of length. Positive means the rocket tends to fly straight; too little and it is twitchy, too much and it weathercocks hard. *In the app:* the stability tile and badge, computed by the engine.
 
@@ -341,7 +341,7 @@ Use the search box at the top of this site, or the search in the app's **Help** 
 
 **Streamer**: A ribbon used instead of a chute for a fast, drifting descent on small rockets. *In the app:* **Streamer**, sized by strip length and width.
 
-**Surface finish**: How rough a part's surface is, which changes skin-friction drag. *In the app:* **Finish** on an external part.
+**Surface finish**: How rough a part's surface is, which changes skin-friction drag. *In the app:* there is no field for it; a finish read from a `.ork` file is flown and written back when the design is saved.
 
 **Sweep**: How far a fin's tip sits back from its root. The **sweep angle** is the same thing as an angle. *In the app:* **Sweep** and **Sweep angle** on a fin set, which follow each other.
 
@@ -355,7 +355,7 @@ Use the search box at the top of this site, or the search in the app's **Help** 
 
 **thrustcurve.org**: The public database of measured motor thrust curves the app’s motor catalog is built from. *In the app:* the motor browser, and the curve a simulation actually flies.
 
-**Thrust-to-weight ratio**: Thrust divided by the rocket's weight at liftoff. Below about 5:1 a rocket leaves the pad sluggishly. *In the app:* the **T:W** tile and the `Twr` column.
+**Thrust-to-weight ratio**: Thrust divided by the rocket's weight at liftoff. Below about 5:1 a rocket leaves the pad sluggishly. *In the app:* the **Thrust:weight** column of the design report's motor table, and the `Twr` column.
 
 **Time step**: How large a slice of time the integrator takes. Smaller is more accurate and slower; the stepper shortens it further when the rocket is rotating fast. *In the app:* Settings ▸ Simulation ▸ **Time step**, and the `dt` column. See **Integration**.
 

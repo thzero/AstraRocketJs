@@ -2,8 +2,7 @@ import type { Config } from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
 import { readFileSync } from 'node:fs';
 
-// The app version, read from the app itself. The old wiki needed a script to
-// stamp this into Markdown; here the config can just read it.
+// Reads the app version from web/package.json.
 const { version } = JSON.parse(readFileSync(new URL('../web/package.json', import.meta.url), 'utf-8'));
 
 // WHICH OpenRocket the engine is, read the same way from the one file that
@@ -87,8 +86,7 @@ const config: Config = {
   onBrokenLinks: 'throw',
   markdown: { hooks: { onBrokenMarkdownLinks: 'throw' } },
 
-  // Untranslated Spanish pages fall back to English rather than 404ing, which is
-  // the whole reason for moving off the wiki.
+  // Untranslated Spanish pages fall back to English rather than 404ing.
   i18n: {
     defaultLocale: 'en',
     locales: ['en', 'es'],

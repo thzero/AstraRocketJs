@@ -34,7 +34,7 @@ export const DEFAULT_CUSTOM_MFR = 'Custom';
 const NOT_SAVED: ReadonlySet<string> = new Set(['id', 'type', 'name', 'position', 'children']);
 
 /** What of a node gets saved: everything but its identity and where it sits. */
-export function presetNode(node: ComponentNode): Partial<ComponentNode> {
+export function presetNode(node: Partial<ComponentNode>): Partial<ComponentNode> {
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(node)) if (!NOT_SAVED.has(k) && v !== undefined) out[k] = v;
   return out;

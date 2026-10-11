@@ -15,6 +15,12 @@ import { readExpanded, sizeClasses, writeExpanded } from '../../../src/component
  * instead.
  */
 
+/** A press that starts and ends on the element, as a backdrop click is. */
+const press = (el: Element) => {
+  fireEvent.pointerDown(el);
+  fireEvent.click(el);
+};
+
 const open = (props: Partial<Parameters<typeof Dialog>[0]> = {}) => {
   const onClose = vi.fn();
   const r = renderWithProviders(
@@ -59,8 +65,17 @@ describe('Dialog', () => {
       const { container, dialog, onClose } = open();
       fireEvent.click(within(dialog).getByText('body'));
       expect(onClose).not.toHaveBeenCalled();
-      fireEvent.click(container.querySelector('.dialog-overlay')!);
+      press(container.querySelector('.dialog-overlay')!);
       expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('stays open when a press that started in the panel ends on the backdrop', () => {
+      // A text selection dragged out of the panel fires its click on the
+      // backdrop, the nearest common ancestor.
+      const { container, dialog, onClose } = open();
+      fireEvent.pointerDown(within(dialog).getByText('body'));
+      fireEvent.click(container.querySelector('.dialog-overlay')!);
+      expect(onClose).not.toHaveBeenCalled();
     });
 
     it('closes on Escape and on the close button', () => {
@@ -85,7 +100,7 @@ describe('Dialog', () => {
           </Dialog>
         </div>,
       );
-      fireEvent.click(r.container.querySelector('.dialog-overlay')!);
+      press(r.container.querySelector('.dialog-overlay')!);
       expect(outer).not.toHaveBeenCalled();
     });
 
@@ -291,7 +306,7 @@ describe('Dialog', () => {
 
     // And a click on the top one's backdrop does not reach the one behind it.
     const overlays = r.container.querySelectorAll('.dialog-overlay');
-    fireEvent.click(overlays[overlays.length - 1]!);
+    press(overlays[overlays.length - 1]!);
     expect(under).not.toHaveBeenCalled();
   });
 

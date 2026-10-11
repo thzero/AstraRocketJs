@@ -41,6 +41,7 @@
       "archiveEmpty": "Archiwum .ork jest puste.",
       "tooManyComponents": "Ten plik {{format}} deklaruje zbyt wiele komponentów, by go otworzyć (możliwe uszkodzenie).",
       "tooManySimulations": "Ten plik .ork deklaruje zbyt wiele symulacji, by go otworzyć (możliwe uszkodzenie).",
+      "tooManyUnknownElements": "Ten plik .ork zawiera zbyt wiele nierozpoznanych elementów, by go otworzyć (możliwe uszkodzenie).",
       "tooManyConfigs": "Ten plik .ork deklaruje zbyt wiele konfiguracji lotu, by go otworzyć (możliwe uszkodzenie).",
       "tooDeep": "Ten plik {{format}} jest zbyt głęboko zagnieżdżony, by go otworzyć (możliwe uszkodzenie).",
       "tooLarge": "Plik jest zbyt duży, by go otworzyć (ponad {{size}} MiB)."
@@ -72,6 +73,7 @@
       "engHeaderMass": "Nieprawidłowy nagłówek .eng: masa paliwa musi mieścić się między 0 a masą całkowitą.",
       "engDataLine": "Nieprawidłowe dane .eng w wierszu {{line}}: oczekiwano czasu i ciągu, a jest „{{text}}”.",
       "engNoCurve": "Plik .eng nie zawiera punktów krzywej ciągu.",
+      "engTooManyPoints": "Silnik {{motor}} w pliku .eng ma ponad {{max}} punktów danych.",
       "engNegativeThrust": "Silnik {{motor}} w pliku .eng ma ujemny ciąg w wierszu {{line}}.",
       "engNegativeTime": "Silnik {{motor}} w pliku .eng ma ujemny czas w wierszu {{line}}.",
       "attrDiameter": "średnica",
@@ -128,7 +130,11 @@
       "materials": "Nie udało się wczytać katalogu materiałów ({{reason}}).",
       "contributors": "Nie udało się wczytać listy współtwórców ({{reason}}).",
       "tooLarge": "zbyt duża odpowiedź",
-      "badShape": "nieoczekiwana struktura katalogu"
+      "badShape": "nieoczekiwana struktura katalogu",
+      "http": "HTTP {{status}} z serwera",
+      "timeout": "serwer nie odpowiedział na czas",
+      "network": "nie można połączyć się z serwerem",
+      "noExamples": "indeks przykładów nie zawiera przykładów"
     },
     "export": {
       "noPrintable": "Nie wybrano żadnych części do druku.",
@@ -175,6 +181,8 @@
     "noDesign": "Brak poprawnego projektu do wyeksportowania.",
     "stages": "Stopnie",
     "length": "Długość",
+    "dimLength": "dł. {{value}}",
+    "dimWall": "ścianka {{value}}",
     "maxDiameter": "Maks. średnica",
     "massEmpty": "Masa (pusta)",
     "massLoaded": "Masa (z paliwem)",
@@ -219,6 +227,8 @@
     "transition": "Przejście",
     "tooLarge": "{{w}}×{{h}} mm, za duże, aby wydrukować w skali 1:1 na jednej stronie.",
     "fontFallback": "Nie udało się wczytać czcionki raportu, więc niektóre znaki w tym pliku PDF są wydrukowane jako „?”. Wyeksportuj go ponownie, gdy będziesz online.",
+    "scriptUncovered": "Niektóre znaki w tym pliku PDF należą do pisma, którego czcionki raportu nie obejmują, więc są wydrukowane jako „?”.",
+    "outdatedFlight": "Nieaktualne: te wyniki uzyskano przed ostatnią zmianą projektu lub ustawień symulacji. Uruchom symulację ponownie, aby uzyskać aktualne wartości.",
     "bodyTube": "Rura korpusu",
     "markingGuide": "Szablon rozmieszczenia stateczników (1:1)",
     "markingGuideHint": "Drukuj w skali 100% / w rozmiarze rzeczywistym (bez dopasowania do strony), sprawdź linijkę, wytnij każdy pasek, owiń go wokół rury korpusu, łącząc końce na styk (bez zakładki), i zaznacz miejsca przy strzałkach. Przez każdą parę znaczników poprowadź linię wzdłuż rury: tam trafia część.",
@@ -297,7 +307,8 @@
     "jsTip": "Silnik fizyki: JavaScript (wariant zapasowy)",
     "slow": "Silnik fizyczny ładuje się dłużej niż zwykle.",
     "needsIt": "Narzędzia projektowe działają bez niego; wyniki i symulacje go wymagają.",
-    "retry": "Spróbuj ponownie"
+    "retry": "Spróbuj ponownie",
+    "reload": "Odśwież stronę"
   },
   "about": {
     "open": "O programie",
@@ -539,7 +550,8 @@
       "streamer_surface": "Wstążka",
       "shockcord_line": "Linka amortyzująca"
     },
-    "materialNoDefault": "Brak domyślnego: zostaw część bez materiału"
+    "materialNoDefault": "Brak domyślnego: zostaw część bez materiału",
+    "timeStepScale": "Krok czasowy, od zgrubnego do dokładnego"
   },
   "config": {
     "title": "Konfiguracja rakiety",
@@ -820,9 +832,15 @@
     "rodDirectionName_rail": "Kierunek szyny startowej",
     "rodDirectionName_rod": "Kierunek pręta startowego",
     "windDirectionName": "Kierunek wiatru",
-    "angleLimit": "Zasady bezpieczeństwa NAR i Tripoli wymagają, aby wyrzutnia odchylała się od pionu nie więcej niż {{limit}}.",
-    "angleLimit_rail": "Zasady bezpieczeństwa NAR i Tripoli wymagają, aby szyna startowa odchylała się od pionu nie więcej niż {{limit}}.",
-    "angleLimit_rod": "Zasady bezpieczeństwa NAR i Tripoli wymagają, aby pręt startowy odchylał się od pionu nie więcej niż {{limit}}.",
+    "angleLimitModel": "Jako rakieta modelarska lata według zasad bezpieczeństwa NAR dla rakiet modelarskich, które wymagają, aby wyrzutnia odchylała się od pionu nie więcej niż {{limit}}.",
+    "angleLimitModel_rail": "Jako rakieta modelarska lata według zasad bezpieczeństwa NAR dla rakiet modelarskich, które wymagają, aby szyna startowa odchylała się od pionu nie więcej niż {{limit}}.",
+    "angleLimitModel_rod": "Jako rakieta modelarska lata według zasad bezpieczeństwa NAR dla rakiet modelarskich, które wymagają, aby pręt startowy odchylał się od pionu nie więcej niż {{limit}}.",
+    "angleLimitHighPower": "Jako rakieta dużej mocy lata według zasad bezpieczeństwa NAR i Tripoli dla rakiet dużej mocy, które wymagają, aby wyrzutnia odchylała się od pionu nie więcej niż {{limit}}.",
+    "angleLimitHighPower_rail": "Jako rakieta dużej mocy lata według zasad bezpieczeństwa NAR i Tripoli dla rakiet dużej mocy, które wymagają, aby szyna startowa odchylała się od pionu nie więcej niż {{limit}}.",
+    "angleLimitHighPower_rod": "Jako rakieta dużej mocy lata według zasad bezpieczeństwa NAR i Tripoli dla rakiet dużej mocy, które wymagają, aby pręt startowy odchylał się od pionu nie więcej niż {{limit}}.",
+    "angleLimitEither": "Zasady NAR dla rakiet modelarskich wymagają, aby wyrzutnia odchylała się od pionu nie więcej niż {{model}}, a zasady NAR i Tripoli dla rakiet dużej mocy nie więcej niż {{highPower}}.",
+    "angleLimitEither_rail": "Zasady NAR dla rakiet modelarskich wymagają, aby szyna startowa odchylała się od pionu nie więcej niż {{model}}, a zasady NAR i Tripoli dla rakiet dużej mocy nie więcej niż {{highPower}}.",
+    "angleLimitEither_rod": "Zasady NAR dla rakiet modelarskich wymagają, aby pręt startowy odchylał się od pionu nie więcej niż {{model}}, a zasady NAR i Tripoli dla rakiet dużej mocy nie więcej niż {{highPower}}.",
     "windLimit": "Zasady bezpieczeństwa NAR i Tripoli wymagają, aby nie startować przy wiatrze powyżej {{limit}}.",
     "field": {
       "launchRodLengthM": "długość prowadnicy",
@@ -861,7 +879,40 @@
     "flightEvents": "Dołącz zdarzenia lotu",
     "commentChar": "Znak komentarza",
     "stage": "Stopień do wyeksportowania",
-    "export": "Eksportuj"
+    "export": "Eksportuj",
+    "head": {
+      "simulationLine": "Symulacja: {{name}}",
+      "time": "Czas",
+      "event": "Zdarzenie",
+      "source": "Źródło",
+      "stage": "Stopień",
+      "altitude": "Wysokość",
+      "velocity": "Prędkość",
+      "stability": "Stateczność",
+      "thrustWeight": "Ciąg/ciężar",
+      "aoa": "Kąt natarcia",
+      "mach": "Liczba Macha",
+      "dynamicPressure": "Ciśnienie dynamiczne",
+      "simulation": "Symulacja",
+      "configuration": "Konfiguracja",
+      "motors": "Silniki",
+      "status": "Stan",
+      "apogee": "Apogeum",
+      "maxVelocity": "Maks. prędkość",
+      "maxAcceleration": "Maks. przyspieszenie",
+      "maxMach": "Maks. liczba Macha",
+      "exitVelocity": "Prędkość przy zejściu z prowadnicy",
+      "exitVelocity_rail": "Prędkość przy zejściu z szyny",
+      "exitVelocity_rod": "Prędkość przy zejściu z pręta",
+      "timeToApogee": "Czas do apogeum",
+      "flightTime": "Czas lotu",
+      "deploymentVelocity": "Prędkość przy otwarciu",
+      "landingVelocity": "Prędkość lądowania",
+      "optimumDelay": "Optymalne opóźnienie",
+      "maxQ": "Maks. ciśnienie dynamiczne",
+      "maxQAlpha": "Maks. q·alfa",
+      "maxRollRate": "Maks. prędkość przechylania"
+    }
   },
   "flightVar": {
     "ha": "Wysokość nad poziomem morza",
@@ -1000,7 +1051,8 @@
     "events": "Zdarzenia lotu",
     "event": "Zdarzenie",
     "twr": "Ciąg/masa",
-    "eventsCsv": "Pobierz zdarzenia lotu (.csv)"
+    "eventsCsv": "Pobierz zdarzenia lotu (.csv)",
+    "peakTag": "szczyt"
   },
   "pathExport": {
     "open": "Eksport toru lotu (KML / GPX / CSV)",
@@ -1101,7 +1153,8 @@
       "flightPath": "tor lotu",
       "groundTrack": "ślad na ziemi",
       "distanceBearing": "{{distance}} {{unit}} na azymucie {{bearing}}",
-      "stageLanding": "Lądowanie: {{stage}}"
+      "stageLanding": "Lądowanie: {{stage}}",
+      "flight": "Lot"
     },
     "mission": "Misja",
     "missionPlaceholder": "np. Sod Blaster L1",
@@ -1114,7 +1167,10 @@
     "cancel": "Anuluj",
     "colorRolePath": "Tor",
     "colorRoleGround": "Ziemia",
-    "colorRolePin": "Pinezka"
+    "colorRolePin": "Pinezka",
+    "importSaveError": "Nie można zapisać tego szablonu w tej przeglądarce.",
+    "deleteError": "Nie można usunąć tego szablonu.",
+    "deleteConfirm": "Usunąć szablon „{{name}}” z tej przeglądarki?"
   },
   "aero": {
     "unattributed": "Nieprzypisane do pojedynczej części",
@@ -1188,7 +1244,6 @@
     "versionUnsupported": "Nieobsługiwana wersja dokumentu {{version}}, próba odczytu pliku mimo to.",
     "versionMissingBy": "Nieobsługiwana wersja dokumentu (zapisany w '{{creator}}'), próba odczytu pliku mimo to.",
     "versionMissing": "Nieobsługiwana wersja dokumentu, próba odczytu pliku mimo to.",
-    "ignored": "Pominięto nieobsługiwane elementy: {{names}}.",
     "skippedUnsupported": "Pominięto jako nieobsługiwane: {{name}}",
     "instanced": "Elementy powtórzone w wielu egzemplarzach: {{names}}. Symulacja uwzględnia każdy egzemplarz, ale rysunek pokazuje na razie jeden.",
     "configsNoMotors": "Liczba konfiguracji lotu zadeklarowanych w pliku: {{total}}, ale plik nie zawierał silników do zaimportowania.",
@@ -1450,15 +1505,15 @@
       "conical": "Głowica stożkowa ma przekrój w kształcie trójkąta.",
       "ogive": "Głowica w kształcie ostrołuku ma przekrój będący fragmentem okręgu. Wartość parametru kształtu równa 1 tworzy <b>ostrołuk styczny</b>, który zapewnia gładkie połączenie głowicy z korpusem rakiety. Wartości poniżej 1 tworzą <b>ostrołuki sieczne</b>.",
       "ellipsoid": "Głowica elipsoidalna ma przekrój w kształcie półelipsy o osiach głównych o długości 2×<i>długość</i> i <i>średnica</i>.",
-      "power": "Głowica serii potęgowej ma przekrój w kształcie: <i>promień</i> × (<i>x</i> / <i>długość</i>)<sup><i>k</i></sup> gdzie<i>k</i> jest parametrem kształtu. Dla <i>k</i> równego 0,5 mamy potęgę o stopniu 1/2, co nam daje głowicę paraboliczną. Dla <i>k</i> wynoszącego 0,75 dostajemy potęgę stopnia 3/4, zaś dla k wynoszącego 1 otrzymujemy głowicę stożkową.",
-      "parabolic": "Głowica paraboliczna ma przekrój w kształcie paraboli. Parametr kształtu określa odcinek paraboli, który zostanie użyty. Wartość parametru kształtu równa 1 tworzy <b>pełną parabolę</b>, która jest styczna do korpusu rakiety, 0,75 tworzy <b> 3/4 paraboli</b>, 0,5 tworzy <b>1/2 paraboli</b> oraz 0 tworzy głowicę <b>stożkową</b>rakiety.",
+      "power": "Głowica serii potęgowej ma przekrój w kształcie: <i>promień</i> × (<i>x</i> / <i>długość</i>)<sup><i>k</i></sup> gdzie <i>k</i> jest parametrem kształtu. Dla <i>k</i> równego 0,5 jest to głowica <b>potęgi ½</b>, czyli <b>paraboliczna</b>, dla <i>k</i> równego 0,75 głowica <b>potęgi ¾</b>, a dla <i>k</i> równego 1 głowica <b>stożkowa</b>.",
+      "parabolic": "Głowica paraboliczna ma przekrój w kształcie paraboli. Parametr kształtu określa odcinek paraboli, który zostanie użyty. Wartość parametru kształtu równa 1 tworzy <b>pełną parabolę</b>, która jest styczna do korpusu rakiety, 0,75 tworzy <b> 3/4 paraboli</b>, 0,5 tworzy <b>1/2 paraboli</b> oraz 0 tworzy głowicę <b>stożkową</b>.",
       "haack": "Seria głowic Haacka została tak zaprojektowana, aby osiągnąć minimalny opór. Wartość parametru kształtu równa 0 tworzy głowicę <b>LD-Haack</b> lub <b>Von Karman</b>, która minimalizuje opór przy ustalonej długości i średnicy głowicy. Wartość parametru kształtu równa 0.333 tworzy głowicę <b>LV-Haack</b> która minimalizuje opór przy ustalonej długości i objętości głowicy."
     },
     "transition": {
       "conical": "Stożkowa talia przejściowa ma proste boki.",
-      "ogive": "Talia przejściowa w kształcie ostrołuku ma przekrój będący fragmentem okręgu.",
+      "ogive": "Talia przejściowa w kształcie ostrołuku ma przekrój będący fragmentem okręgu. Wartość parametru kształtu równa 1 tworzy <b>ostrołuk styczny</b>, który zapewnia gładkie połączenie z korpusem rakiety na tylnym końcu. Wartości poniżej 1 tworzą <b>ostrołuki sieczne</b>.",
       "ellipsoid": "Elipsoidalna talia przejściowa ma przekrój w kształcie półelipsy o osiach głównych o długości 2×<i>długość</i> i <i>średnica</i>. Jeżeli talia przejściowa nie jest przycięta, to środek przekroju jest wybrzuszony przez promień tworzący.",
-      "power": "Talia przejściowa serii potęgowej ma przekrój w kształcie: <i>promień</i> × (<i>x</i> / <i>długość</i>)<sup><i>k</i></sup> gdzie<i>k</i> jest parametrem kształtu. Dla <i>k</i> równego 0,5 mamy potęgę o stopniu 1/2, co nam daje paraboliczną talię orzejściową. Dla <i>k</i> wynoszącego 0,75 dostajemy potęgę stopnia 3/4, zaś dla k wynoszącego 1 otrzymujemy stożkową talię przejściową.",
+      "power": "Talia przejściowa serii potęgowej ma przekrój w kształcie: <i>promień</i> × (<i>x</i> / <i>długość</i>)<sup><i>k</i></sup> gdzie <i>k</i> jest parametrem kształtu. Dla <i>k</i> równego 0,5 talia przejściowa jest <b>potęgi ½</b>, czyli <b>paraboliczna</b>, dla <i>k</i> równego 0,75 <b>potęgi ¾</b>, a dla <i>k</i> równego 1 <b>stożkowa</b>.",
       "parabolic": "Talia przejściowa paraboliczna ma przekrój w kształcie paraboli. Parametr kształtu określa odcinek paraboli, który zostanie użyty. Wartość parametru kształtu równa 1 tworzy <b>pełną parabole</b>, która jest styczna do tylnego końca, 0,75 tworzy <b> 3/4 paraboli</b>, 0,5 tworzy <b>1/2 paraboli</b> oraz 0 tworzy <b>stożkową</b> talię przejściową",
       "haack": "Seria <i>głowic</i> Haacka została tak zaprojektowana, aby osiągnąć minimalny opór. Talie przejściowe zaprojektowane według tej metody mają podobny kształt, ale niekoniecznie zapewniają optymalny opór talii przejściowej. Wartość parametru kształtu równa 0 tworzy kształt <b>LD-Haack</b> lub <b>Von Karman</b>, zaś wartość równa 0,333 tworzy kształt <b>LV-Haack</b>."
     }
@@ -1903,9 +1958,12 @@
     "tooFast": "Za szybko",
     "tooSlow": "Za wolno",
     "overRail": "Dłuższa niż prowadnica",
-    "rodAngle": "Prowadnica startowa jest odchylona od pionu o {{value}}, a zasady bezpieczeństwa NAR i Tripoli dopuszczają najwyżej {{limit}}.",
-    "rodAngle_rail": "Szyna startowa jest odchylona od pionu o {{value}}, a zasady bezpieczeństwa NAR i Tripoli dopuszczają najwyżej {{limit}}.",
-    "rodAngle_rod": "Pręt startowy jest odchylony od pionu o {{value}}, a zasady bezpieczeństwa NAR i Tripoli dopuszczają najwyżej {{limit}}.",
+    "rodAngleModel": "Prowadnica startowa jest odchylona od pionu o {{value}}, a zasady bezpieczeństwa NAR dla rakiet modelarskich dopuszczają najwyżej {{limit}}.",
+    "rodAngleModel_rail": "Szyna startowa jest odchylona od pionu o {{value}}, a zasady bezpieczeństwa NAR dla rakiet modelarskich dopuszczają najwyżej {{limit}}.",
+    "rodAngleModel_rod": "Pręt startowy jest odchylony od pionu o {{value}}, a zasady bezpieczeństwa NAR dla rakiet modelarskich dopuszczają najwyżej {{limit}}.",
+    "rodAngleHighPower": "Prowadnica startowa jest odchylona od pionu o {{value}}, a zasady bezpieczeństwa NAR i Tripoli dopuszczają dla rakiety dużej mocy najwyżej {{limit}}.",
+    "rodAngleHighPower_rail": "Szyna startowa jest odchylona od pionu o {{value}}, a zasady bezpieczeństwa NAR i Tripoli dopuszczają dla rakiety dużej mocy najwyżej {{limit}}.",
+    "rodAngleHighPower_rod": "Pręt startowy jest odchylony od pionu o {{value}}, a zasady bezpieczeństwa NAR i Tripoli dopuszczają dla rakiety dużej mocy najwyżej {{limit}}.",
     "wind": "Prędkość wiatru wynosi {{value}}, a zasady bezpieczeństwa NAR i Tripoli dopuszczają najwyżej {{limit}}.",
     "refused": "„{{name}}” nie została wykonana: jej warunki startu wychodzą poza zasady bezpieczeństwa."
   },
@@ -2005,7 +2063,8 @@
     "landed": "Wylądowało {{flown}} z {{asked}} lotów.",
     "stale": "Od tej analizy projekt się zmienił.",
     "noLandings": "Analiza wiatru nie dała ani jednego lądowania.",
-    "spread": "{{from}}–{{to}}"
+    "spread": "{{from}}–{{to}}",
+    "flown": "analiza wykonana"
   },
   "crossSection": {
     "square": "Prostokątny",
@@ -2065,8 +2124,8 @@
       "badKey": "Open-Meteo nie przyjęło klucza API z Ustawień, Start. Twoje warunki startu nie zostały zmienione.",
       "quota": "Darmowy limit Open-Meteo jest na razie wyczerpany. Spróbuj później lub dodaj klucz API w Ustawieniach, Start. Twoje warunki startu nie zostały zmienione.",
       "http": "Open-Meteo odpowiedziało błędem ({{detail}}). Twoje warunki startu nie zostały zmienione.",
-      "shape": "Nie udało się odczytać odpowiedzi Open-Meteo ({{detail}}). Twoje warunki startu nie zostały zmienione.",
-      "units": "Open-Meteo odpowiedziało w jednostkach, których aplikacja nie odczytuje ({{detail}}). Twoje warunki startu nie zostały zmienione.",
+      "shape": "Nie udało się odczytać odpowiedzi Open-Meteo. Twoje warunki startu nie zostały zmienione.",
+      "units": "Open-Meteo odpowiedziało w jednostkach, których aplikacja nie odczytuje. Twoje warunki startu nie zostały zmienione.",
       "noData": "Open-Meteo nie ma tu danych dla tej daty. Twoje warunki startu nie zostały zmienione."
     },
     "keyLabel": "Klucz API Open-Meteo",
@@ -2149,6 +2208,7 @@
     "estimateNote": "Szacunek na podstawie wpisanych prędkości opadania. Strefa obejmuje {{descents}} opadań: {{hours}} godzin prognozy, prędkość wiatru 20% w górę i w dół, kierunek 15° w każdą stronę i prędkość opadania 10% w górę i w dół.",
     "flatGround": "Nie udało się pobrać kształtu terenu, więc lądowanie jest na płaskim terenie na wysokości stanowiska.",
     "surfaceWindOnly": "Archiwum Open-Meteo dla tej daty ma tylko wiatr przy ziemi, więc całe opadanie dryfuje z nim.",
+    "outdated": "Miejsce, data, godzina, apogeum lub prędkości opadania zmieniły się od tego oszacowania. Naciśnij Oszacuj lądowanie, aby je odświeżyć.",
     "mapLabel": "Szacowane lądowanie z góry, lądowanie {{distance}} od stanowiska"
   },
   "tools": {

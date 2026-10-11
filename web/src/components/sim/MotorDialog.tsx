@@ -23,7 +23,6 @@ import {
   UsedFilter,
   useMotorFilter,
 } from './MotorFilterBar';
-import { readFileText } from '../../services/files/decodeText';
 import { loadDia, loadMfrs, saveDia, saveMfrs } from './motorPrefs';
 import { errorText } from '../../i18n/keyedError';
 import { listWriteErrorText } from '../../services/storage/jsonListStore';
@@ -224,8 +223,7 @@ export function MotorDialog({
     // a closed dialog, or behind a second import, is discarded.
     const mine = catalogWrite.claim();
     try {
-      const texts = await Promise.all(files.map(async (f) => ({ name: f.name, text: await readFileText(f) })));
-      const { catalog, imported, failed } = await importCustomMotors(texts);
+      const { catalog, imported, failed } = await importCustomMotors(files.map((f) => ({ name: f.name, blob: f })));
       if (!mine()) return;
       setCatalog(catalog);
       // Reported in the dialog rather than through onError, which is the
@@ -297,6 +295,7 @@ export function MotorDialog({
                 onChange={(e) => setText(e.target.value)}
                 autoFocus
                 placeholder={t('motorDlg.searchCode')}
+                aria-label={t('motorDlg.searchCode')}
                 className="min-w-0 flex-1 rounded-lg bg-canvas px-3 py-2 text-sm text-ink-strong ring-1 ring-line/10 placeholder:text-ink-faint focus:outline-none focus:ring-accent-500"
               />
               <button

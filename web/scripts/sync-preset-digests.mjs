@@ -2,7 +2,7 @@
 //
 //   npm run sync:preset-digests                     the installed OpenRocket
 //   npm run sync:preset-digests -- --jar <path.jar>  a particular release
-//   npm run sync:preset-digests -- --or <checkout>   a built source tree
+//   npm run sync:preset-digests -- --or <checkout>   a built source tree, with OPENROCKET_UNPINNED=1
 //
 // What a digest is for. A `.ork` names a catalog part with
 // `<preset type=… manufacturer=… partno=… digest=…/>`, and the digest is how the
@@ -27,8 +27,9 @@
 // the 24.12 release says b3b5899e… and the 26.xx source tree says d1a20a7d…,
 // while the parts with no stated mass agree across both. A digest from the wrong
 // build is a digest the desktop rejects, so `--jar` (a release, the usual case)
-// is preferred over `--or` (a built source checkout, which also needs its test
-// classes for the preferences bindings).
+// is the one to commit from. `--or` (a built source checkout, which also needs
+// its test classes for the preferences bindings) runs only with
+// OPENROCKET_UNPINNED=1, and what it writes is not for committing.
 //
 // Nothing here is part of the app build; this is a data step, run when the
 // catalog is refreshed.
@@ -74,12 +75,12 @@
 // its canopy: the line count and length, the packed length and diameter, and
 // the canopy and line materials as the desktop resolved them, so a part with
 // no stated mass weighs what the desktop gives it.
-import { existsSync, readFileSync, rmSync } from 'node:fs';
+import { appendFileSync, existsSync, readFileSync, rmSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { STAGED_COMPONENTS, writeFileAtomic } from './lib/catalogStaging.mjs';
 import { writeDataManifest } from './lib/dataManifest.mjs';
-import { partProblems } from './lib/digestCoverage.mjs';
+import { digestChanges, goneSection, partProblems } from './lib/digestCoverage.mjs';
 import { chooseBuild, runDumper } from './lib/openrocketJava.mjs';
 import { presetVolumes } from './lib/presetVolume.mjs';
 
@@ -254,6 +255,9 @@ function dump(cp) {
   return { holds, presetFor };
 }
 
+/** A part's row key and whether it carries a digest, for `digestChanges`. */
+const digestState = (row) => ({ key: `${row.type}|${row.mfr}|${row.partNo.trim()}`, digested: Boolean(row.digest) });
+
 async function main() {
   const { cp, label } = chooseBuild();
   console.log(`reading presets from ${label}`);
@@ -268,10 +272,8 @@ async function main() {
   const catalog = staged ? JSON.parse(readFileSync(STAGED_COMPONENTS, 'utf8')) : structuredClone(previous);
   if (!catalog) throw new Error(`nothing to add digests to: no ${STAGED_COMPONENTS} and no ${CATALOG}`);
   console.log(`catalog: ${staged ? `staged by sync-components (${catalog.generated})` : CATALOG}`);
-  const before = Math.max(
-    catalog.components.filter((c) => c.digest).length,
-    (previous?.components ?? []).filter((c) => c.digest).length,
-  );
+  const baseline = (previous?.components ?? catalog.components).map(digestState);
+  const before = baseline.filter((c) => c.digested).length;
 
   const absent = catalog.components.filter((row) => !holds(row));
   if (absent.length) {
@@ -309,11 +311,20 @@ async function main() {
       massed++;
     }
   }
-  // A run that silently loses coverage is a broken classpath, not a smaller
-  // database: refuse a drop from the previous catalog, and a catalog under the
-  // floor however it got there.
-  if (hit < before) {
-    throw new Error(`refusing to write: digests fell from ${before} to ${hit}. Nothing written.`);
+  // A part that kept its row and lost its digest is a broken classpath or a
+  // changed matcher: refuse it, and a catalog under the floor however it got
+  // there. A part the database dropped took its digest with it, which is
+  // reported and not refused.
+  const { lost, gone } = digestChanges(baseline, catalog.components.map(digestState));
+  const goneText = goneSection('Parts', gone);
+  if (goneText) {
+    console.log(goneText);
+    if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${goneText}\n`);
+  }
+  if (lost.length) {
+    throw new Error(
+      `refusing to write: ${lost.length} parts still in the catalog lost their digests (${lost.join(', ')}). Nothing written.`,
+    );
   }
   const problems = partProblems(catalog.components);
   if (problems.length) throw new Error(`refusing to write: ${problems.join('; ')}. Nothing written.`);

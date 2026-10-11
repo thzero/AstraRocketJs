@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { KERNEL_TEST_TIMEOUT_MS } from '../testing/kernelTimeout';
+import { loadEngine } from '../testing/kernelGeometry';
 
 vi.setConfig({ testTimeout: KERNEL_TEST_TIMEOUT_MS, hookTimeout: KERNEL_TEST_TIMEOUT_MS });
 
@@ -7,13 +8,6 @@ vi.setConfig({ testTimeout: KERNEL_TEST_TIMEOUT_MS, hookTimeout: KERNEL_TEST_TIM
  * The kernel's MotorCorrelation through the bridge: what desktop's "Hide very
  * similar thrust curves" compares against 0.95.
  */
-
-/* eslint-disable @typescript-eslint/no-explicit-any -- the TeaVM bundle is untyped */
-const loadEngine = async (): Promise<any> => {
-  (globalThis as any).$rt_putStdoutCustom ??= () => {};
-  (globalThis as any).$rt_putStderrCustom ??= () => {};
-  return import('../../src/engine/vendor/openrocket-engine.mjs' as string);
-};
 
 const times = [0, 0.1, 0.5, 1, 1.2];
 const thrust = [0, 20, 15, 10, 0];

@@ -1,3 +1,4 @@
+import i18n from '../../i18n';
 import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
 import { clusterCount, clusterPoints } from '../../tree/cluster';
 import { isChainType } from '../../tree/componentKinds';
@@ -439,7 +440,9 @@ function clusterMembers(n: ComponentNode): ComponentNode[] {
   );
   return places.map((p, i) => ({
     ...n,
-    name: `${n.name ?? 'Mount'} #${i + 1}`,
+    // Desktop's InnerBodyTubeDTO names each member `<name> #<n>`; a mount with
+    // no name of its own takes its type's name, as a new desktop part does.
+    name: `${n.name ?? i18n.t('part.innertube')} #${i + 1}`,
     cluster: 'single',
     ...p,
   }));

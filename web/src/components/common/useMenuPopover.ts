@@ -25,7 +25,15 @@ const MENU_ITEMS = '[role="menuitem"], [role="menuitemradio"], [role="menuitemch
  * handles stop at the menu, so a host that answers arrows itself (a tree row)
  * does not act on them too.
  */
-export function useMenuPopover<T extends HTMLElement = HTMLButtonElement>() {
+export function useMenuPopover<T extends HTMLElement = HTMLButtonElement>({
+  shown,
+}: {
+  /**
+   * Which items the arrows can reach, for a menu that keeps some of its items
+   * mounted but not displayed. Every item, by default.
+   */
+  shown?: (item: HTMLElement) => boolean;
+} = {}) {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<T>(null);
@@ -57,31 +65,35 @@ export function useMenuPopover<T extends HTMLElement = HTMLButtonElement>() {
     menu.querySelector<HTMLElement>(MENU_ITEMS)?.focus();
   }, [open]);
 
-  const onMenuKeyDown = useCallback((e: ReactKeyboardEvent<HTMLElement>) => {
-    const menu = menuRef.current;
-    if (!menu) return;
-    if (e.key === 'Tab') {
-      setOpen(false); // no preventDefault: focus proceeds out of the menu
-      return;
-    }
-    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Home' && e.key !== 'End') return;
-    e.preventDefault();
-    e.stopPropagation();
-    const items = Array.from(menu.querySelectorAll<HTMLElement>(MENU_ITEMS));
-    if (items.length === 0) return;
-    const i = items.indexOf(document.activeElement as HTMLElement);
-    const to =
-      e.key === 'Home'
-        ? 0
-        : e.key === 'End'
-          ? items.length - 1
-          : e.key === 'ArrowDown'
-            ? (i + 1) % items.length
-            : i < 0
-              ? items.length - 1
-              : (i - 1 + items.length) % items.length;
-    items[to]?.focus();
-  }, []);
+  const onMenuKeyDown = useCallback(
+    (e: ReactKeyboardEvent<HTMLElement>) => {
+      const menu = menuRef.current;
+      if (!menu) return;
+      if (e.key === 'Tab') {
+        setOpen(false); // no preventDefault: focus proceeds out of the menu
+        return;
+      }
+      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Home' && e.key !== 'End') return;
+      e.preventDefault();
+      e.stopPropagation();
+      const all = Array.from(menu.querySelectorAll<HTMLElement>(MENU_ITEMS));
+      const items = shown ? all.filter(shown) : all;
+      if (items.length === 0) return;
+      const i = items.indexOf(document.activeElement as HTMLElement);
+      const to =
+        e.key === 'Home'
+          ? 0
+          : e.key === 'End'
+            ? items.length - 1
+            : e.key === 'ArrowDown'
+              ? (i + 1) % items.length
+              : i < 0
+                ? items.length - 1
+                : (i - 1 + items.length) % items.length;
+      items[to]?.focus();
+    },
+    [shown],
+  );
 
   const toggle = useCallback(() => setOpen((v) => !v), []);
   const close = useCallback(() => setOpen(false), []);

@@ -1,4 +1,4 @@
-import { fmtNum } from '../../i18n/format';
+import { fmtList, fmtNum } from '../../i18n/format';
 
 /**
  * The written summaries the charts give a screen reader: what a chart shows,
@@ -55,12 +55,12 @@ export function crosshairReadout(
   const values = items.flatMap((it) =>
     it.value != null && Number.isFinite(it.value) ? [`${it.label} ${withUnit(it.value, it.digits, it.unit)}`] : [],
   );
-  return values.length ? `${at}: ${values.join(', ')}` : at;
+  return values.length ? `${at}: ${fmtList(values)}` : at;
 }
 
 /** "Booster: …" when there are several stages, the bare part when there is one. */
 const perStage = (stages: readonly SummaryStage[], part: (s: SummaryStage) => string): string =>
-  stages.length === 1 ? part(stages[0]!) : stages.map((s) => `${s.name}: ${part(s)}`).join('; ');
+  stages.length === 1 ? part(stages[0]!) : fmtList(stages.map((s) => `${s.name}: ${part(s)}`));
 
 /**
  * A flight panel against time. A flow series (altitude, velocity, thrust) is
@@ -109,7 +109,7 @@ export function eventsSummary(
     seen.add(key);
     items.push(t('flight.summaryEventAt', { event: eventLabel(e.type), time }));
   }
-  return items.length ? t('flight.summaryEvents', { list: items.join(', ') }) : null;
+  return items.length ? t('flight.summaryEvents', { list: fmtList(items) }) : null;
 }
 
 /** The velocity-over-altitude panel: the top speed and the altitude it was reached at. */
@@ -125,7 +125,7 @@ export function velocityAltitudeSummary(
       ? t('flight.summaryVelocityAltitude', { velocity: fmt.velocity(p.value), altitude: fmt.altitude(p.at) })
       : t('flight.summaryNoData');
   };
-  const list = stages.length === 1 ? part(stages[0]!) : stages.map((s) => `${s.name}: ${part(s)}`).join('; ');
+  const list = stages.length === 1 ? part(stages[0]!) : fmtList(stages.map((s) => `${s.name}: ${part(s)}`));
   return `${label}: ${list}`;
 }
 
@@ -153,5 +153,5 @@ export function machSeriesSummary(
       : t('flight.summaryNoData');
     return series.length === 1 ? text : `${se.name}: ${text}`;
   });
-  return `${title}: ${parts.join('; ')}`;
+  return `${title}: ${fmtList(parts)}`;
 }

@@ -5,6 +5,7 @@ import { EXPORT_FORMATS } from '../../services/exports/flightPathExport';
 import { getTemplateStore, parseTemplateFilename, type UserTemplate } from '../../services/exports/templateStore';
 import { useLatest } from '../common/useLatest';
 import { readFileText } from '../../services/files/decodeText';
+import { confirm } from '../../state/confirmStore';
 
 /** Prefixes a user template's id in the format select, so it cannot collide with a built-in's. */
 export const USER_PREFIX = 'user:';
@@ -54,13 +55,19 @@ export function useExportTemplates() {
 
   const onImport = async (file: File) => {
     const mine = storeWrite.claim();
+    let source: string;
     try {
-      const source = await readFileText(file);
-      if (!mine()) return;
-      if (!source.trim()) {
-        setError(t('pathExport.importEmpty'));
-        return;
-      }
+      source = await readFileText(file);
+    } catch {
+      if (mine()) setError(t('pathExport.importError'));
+      return;
+    }
+    if (!mine()) return;
+    if (!source.trim()) {
+      setError(t('pathExport.importEmpty'));
+      return;
+    }
+    try {
       const { id, name, ext } = parseTemplateFilename(file.name);
       await store.add({ id, name, ext, source });
       const listed = await store.list();
@@ -73,13 +80,21 @@ export function useExportTemplates() {
       setSelected(`${USER_PREFIX}${id}`);
       setError(null);
     } catch {
+      // The file was read; the template store refused the write.
       if (!mine()) return;
-      setError(t('pathExport.importError'));
+      setError(t('pathExport.importSaveError'));
     }
   };
 
   const deleteSelected = async () => {
     if (!selectedUser) return;
+    // The template store may hold the only copy of the template.
+    const ok = await confirm({
+      message: t('pathExport.deleteConfirm', { name: selectedUser.name }),
+      confirmLabel: t('common.delete'),
+      danger: true,
+    });
+    if (!ok) return;
     const mine = storeWrite.claim();
     try {
       await store.remove(selectedUser.id);
@@ -93,7 +108,7 @@ export function useExportTemplates() {
       if (!mine()) return;
       // The template store reports a refused write rather than resolving cleanly
       // on one, so this can throw.
-      setError(t('storage.full'));
+      setError(t('pathExport.deleteError'));
       return;
     }
     setSelected(EXPORT_FORMATS[0]!.id);

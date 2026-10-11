@@ -5,6 +5,7 @@ import { fmtDegrees, useUnits } from '../../prefs/useUnits';
 import { onSi } from '../../prefs/entryValue';
 import { unitScope } from '../../prefs/units';
 import { useWorkspaceStore, configOf, selectDriftSweepFor } from '../../state/store';
+import { fireAction } from '../../state/fireAction';
 import { sameSimInputs, simInputs } from '../../services/flight/simulations';
 import { MAX_WIND_SPEED_MS } from '../../services/flight/safetyLimits';
 import {
@@ -174,7 +175,7 @@ export function DriftSweepPanel({ simId, launch }: { simId: string; launch: Laun
         ) : (
           <>
             <button
-              onClick={() => void runDriftSweep(simId, spec)}
+              onClick={() => fireAction(runDriftSweep(simId, spec))}
               className={`${btn} bg-accent-600 text-on-accent hover:bg-accent-500`}
             >
               {t('sweep.run')}

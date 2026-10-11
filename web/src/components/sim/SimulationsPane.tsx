@@ -7,7 +7,7 @@ import { SimEditor } from './SimEditor';
 import { RunButton } from './RunButton';
 import { useIsDesktop } from '../common/useMediaQuery';
 import { ToolBtn } from '../common/ToolBtn';
-import { isOutdated, simStatus, type SimStatus } from '../../services/flight/simulations';
+import { isOutdated, simStatus, simStatusLabel } from '../../services/flight/simulations';
 import { loadoutLabel } from '../../services/flight/flightConfigs';
 import { configOf, selectDesignName } from '../../state/store';
 import { useUnits } from '../../prefs/useUnits';
@@ -58,15 +58,6 @@ export function SimulationsPane() {
    * status is the table's own, so an outdated row says so in the file too.
    */
   const exportRunTable = () => {
-    const statusText: Record<SimStatus, string> = {
-      upToDate: t('sims.statusUpToDate'),
-      outdated: t('sims.statusOutdated'),
-      queued: t('sims.statusQueued'),
-      running: t('sims.statusRunning'),
-      failed: t('sims.statusFailed'),
-      notRun: t('sims.notRun'),
-      fromFile: t('sims.statusFromFile'),
-    };
     const rows = sims.map((s) => {
       const cfg = configOf(configs, s);
       const motors = loadoutLabel(tree, cfg);
@@ -74,12 +65,16 @@ export function SimulationsPane() {
         name: s.name,
         configuration: cfg.name || motors || t('configs.noMotors'),
         motors,
-        status: statusText[simStatus(s, simRuns, tree, isOutdated(s, tree, cfg, simPrefs))],
+        status: simStatusLabel(simStatus(s, simRuns, tree, isOutdated(s, tree, cfg, simPrefs)), t),
         result: s.result,
         fileSummary: s.fileSummary?.summary,
       };
     });
-    download(exportFilename([designName, 'run-table'], 'csv'), runTableCsv(rows, u.all, launcherKind(tree)), CSV_MIME);
+    download(
+      exportFilename([designName, 'run-table'], 'csv'),
+      runTableCsv(rows, u.all, t, launcherKind(tree)),
+      CSV_MIME,
+    );
   };
 
   const onDelete = async () => {

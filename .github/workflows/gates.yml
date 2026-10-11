@@ -42,11 +42,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
 
@@ -77,11 +77,11 @@ jobs:
       run:
         working-directory: engine-java
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # 21 is the toolchain build.gradle pins. TeaVM compiles the bytecode
       # rather than running it, so the level only has to satisfy both ends.
-      - uses: actions/setup-java@v6
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           distribution: temurin
           # Exact, not floating. The byte-diff step below requires the whole
@@ -89,11 +89,11 @@ jobs:
           # unrelated PR with an unreadable binary diff.
           java-version: '21.0.12'
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
 
-      - uses: gradle/actions/setup-gradle@v6
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
 
       # No `npm ci` above, deliberately: engine-java/package.json declares no
       # dependencies. It exists only to name these entry points, so `npm run`
@@ -179,11 +179,12 @@ jobs:
           echo "$sha  $jar" | sha256sum -c -
           find scripts -name '*.java' -print0 | xargs -0 javac -cp "$jar" -d "$RUNNER_TEMP/java-helpers"
 
-      # The .ork files the app saves (the default design and every bundled
-      # example, opened and saved through the store), opened in the pinned
-      # desktop release with the jar the step above downloaded and checked. The
-      # unit suite can see what the writer emits; only the desktop can say it
-      # accepts it, and check:ork fails on any warning its loader raises.
+      # The .ork and .rkt files the app saves (the default design and every
+      # bundled example, opened and saved through the store), opened in the
+      # pinned desktop release with the jar the step above downloaded and
+      # checked. The unit suite can see what the writers emit; only the desktop
+      # can say it accepts it, and check:ork fails on any warning its loader
+      # raises.
       - name: Files the app saves open cleanly in the pinned OpenRocket
         timeout-minutes: 10
         working-directory: web
@@ -191,7 +192,7 @@ jobs:
           set -euo pipefail
           npm ci
           ORK_SAMPLES_DIR="$RUNNER_TEMP/ork-samples" npx vitest run tests/services/files/orkDesktopSamples.test.ts
-          npm run check:ork -- --jar "$RUNNER_TEMP/openrocket-release.jar" "$RUNNER_TEMP"/ork-samples/*.ork
+          npm run check:ork -- --jar "$RUNNER_TEMP/openrocket-release.jar" "$RUNNER_TEMP"/ork-samples/*.ork "$RUNNER_TEMP"/ork-samples/*.rkt
 
   # Can src/java still be REGENERATED from its declared inputs? Parity above
   # cannot answer that: it builds from src/java and compares the two TeaVM
@@ -209,7 +210,7 @@ jobs:
     # cap leaves room for a slow shared runner.
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # The ref lives in engine-java/extract/UPSTREAM and is READ from there,
       # not copied here. Two copies with nothing comparing them drift: bump one
@@ -227,7 +228,7 @@ jobs:
           cat "$GITHUB_OUTPUT"
 
       - name: Check out the pinned OpenRocket source
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: ${{ steps.upstream.outputs.repo }}
           ref: ${{ steps.upstream.outputs.ref }}
@@ -258,7 +259,7 @@ jobs:
           fi
           echo "date = $want matches the pinned commit."
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
 
@@ -294,9 +295,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15 # a few seconds of work; the cap is for a hang
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
 
@@ -319,9 +320,9 @@ jobs:
       run:
         working-directory: web
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
           cache: npm
@@ -392,7 +393,7 @@ jobs:
             echo "Floors: vitest.config.ts coverage.thresholds. lcov.info is in the run artifacts."
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: coverage-lcov
@@ -406,10 +407,10 @@ jobs:
       # runs `vite build` directly rather than `npm run build`, because that
       # script is `typecheck && lint && vite build` and `gates` has just run both.
 
-  # The Docusaurus site is built on every run of these gates: e2e and
-  # update-flow both run `npm run docs:build` for the Help checks, so a broken
-  # docusaurus.config.ts, sidebars.ts or MDX page fails the pull request there.
-  # The docs site's own `typecheck` runs only in deploy.yml, on merge to master.
+  # The Docusaurus site is built and typechecked on every run of these gates:
+  # e2e and update-flow both run `npm run docs:build` for the Help checks, and
+  # e2e runs the site's `typecheck`, so a broken docusaurus.config.ts,
+  # sidebars.ts or MDX page fails the pull request there.
 
   # The core end-to-end specs: the paths a broken build breaks first (the list is
   # CORE_SPECS in web/playwright.config.ts). Every pull request and master push
@@ -425,9 +426,9 @@ jobs:
       run:
         working-directory: web
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
           cache: npm
@@ -443,6 +444,12 @@ jobs:
         working-directory: website
         run: npm ci
 
+      # The docs build does not typecheck, so a type error in the site's
+      # config, sidebars or components builds clean without this.
+      - name: Typecheck the docs site
+        working-directory: website
+        run: npm run typecheck
+
       # The accessibility scans of the Help and Safety dialogs read the docs
       # from web/public/docs, which is gitignored; without a build the frame is
       # empty and the scan checks nothing.
@@ -455,7 +462,7 @@ jobs:
         id: pw
         run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/cache@v6
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
@@ -475,7 +482,7 @@ jobs:
       # The HTML report, with the trace of any retried spec in it. A spec that
       # failed and then passed on its retry is a flake, and the report is the
       # only place that says so: the job is green.
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: failure()
         with:
           name: playwright-report-core
@@ -502,9 +509,9 @@ jobs:
       run:
         working-directory: web
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
           cache: npm
@@ -516,7 +523,6 @@ jobs:
 
       - run: npm ci
 
-
       - name: Install the docs site's dependencies
         working-directory: website
         run: npm ci
@@ -525,14 +531,14 @@ jobs:
       # dialog reads web/public/docs, which is gitignored, and the check serves
       # a production build with those docs precached. Both locales, as the
       # deploy builds them, because the dialog can be opened in either.
-      - name: Build the docs offline-help checks
+      - name: Build the docs the offline-help check reads
         run: npm run docs:build
 
       - name: Resolve Playwright version
         id: pw
         run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/cache@v6
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright

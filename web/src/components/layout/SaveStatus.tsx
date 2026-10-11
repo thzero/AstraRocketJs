@@ -63,7 +63,11 @@ export function SaveStatus() {
       })}
       className="text-[10px] font-medium text-ink-faint"
     >
-      {withAge ? t('save.saved', { when }) : t('save.savedShort')}
+      {/* The live text is the word alone. The age changes on every tick, and
+          in the live text it would re-announce the status every 30 s while
+          the user works. */}
+      <span aria-hidden="true">{withAge ? t('save.saved', { when }) : t('save.savedShort')}</span>
+      <span className="sr-only">{t('save.savedShort')}</span>
     </span>
   );
 }

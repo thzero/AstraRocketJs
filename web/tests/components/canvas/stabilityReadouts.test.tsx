@@ -6,6 +6,7 @@ import { StabilityBadge } from '../../../src/components/canvas/StabilityBadge';
 import { InfoOverlay } from '../../../src/components/canvas/InfoOverlay';
 import { StabilityOverlay } from '../../../src/components/canvas/SchematicOverlay';
 import { renderWithProviders } from '../../testing/renderWithProviders';
+import { NO_VALUE } from '../../../src/i18n/noValue';
 
 /**
  * A figure the kernel could not compute is shown as missing, never as a
@@ -89,5 +90,14 @@ describe('the collapsed stability margin', () => {
     const toggle = screen.getByRole('button');
     expect(toggle.querySelector('.sr-only')).toBeNull();
     expect(toggle.textContent).not.toMatch(/[⚠△✓]/);
+  });
+});
+
+describe('fineness with no reference diameter', () => {
+  it('shows the no-value glyph, not a computed 0.0', () => {
+    renderWithProviders(<StabilityBadge info={info({ refDiameter: 0 })} expanded onToggle={() => {}} />);
+    const tile = screen.getByText('L/D').parentElement!;
+    expect(tile.textContent).toContain(NO_VALUE);
+    expect(tile.textContent).not.toContain('0.0');
   });
 });

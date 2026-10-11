@@ -31,7 +31,7 @@ describe('SIM_BOUNDS', () => {
   it('is the only place either surface spells the bound', () => {
     // Both the global row and the per-simulation override must read the shared
     // constant. A literal here would let them drift apart.
-    for (const rel of ['components/layout/SettingsDialog.tsx', 'components/sim/SimEditor.tsx']) {
+    for (const rel of ['components/layout/SettingsTabs.tsx', 'components/sim/SimEditor.tsx']) {
       const text = src(rel);
       expect(text, rel).toContain('SIM_BOUNDS');
       // The bounds as bare literals.

@@ -38,8 +38,20 @@ import { useOnline } from '../common/useOnline';
  * gets these from the engine, on its rail departure event.
  */
 
+/** The site, time and wind field a fetched forecast belongs to. */
+interface FetchedFor {
+  latitudeDeg: number;
+  longitudeDeg: number;
+  date: string;
+  hour: number;
+  windMs: number;
+}
+
 type Fetch =
-  { kind: 'idle' } | { kind: 'loading' } | { kind: 'error'; message: string } | { kind: 'ready'; wind: SurfaceWind };
+  | { kind: 'idle' }
+  | { kind: 'loading' }
+  | { kind: 'error'; message: string }
+  | { kind: 'ready'; wind: SurfaceWind; for: FetchedFor };
 
 interface Remembered {
   motor: MotorSpec | null;
@@ -81,14 +93,15 @@ export function OffTheRail() {
   const request = useLatest();
 
   const getWind = async () => {
-    if (site.latitudeDeg == null || site.longitudeDeg == null) return;
+    const { latitudeDeg, longitudeDeg } = site;
+    if (latitudeDeg == null || longitudeDeg == null) return;
     const signal = request.claimSignal();
     setFetched({ kind: 'loading' });
     try {
       const wind = await fetchSurfaceWind(
         {
-          latitudeDeg: site.latitudeDeg,
-          longitudeDeg: site.longitudeDeg,
+          latitudeDeg,
+          longitudeDeg,
           date,
           hour,
           today: todayYmd(),
@@ -101,8 +114,9 @@ export function OffTheRail() {
         setFetched({ kind: 'error', message: t('weather.noHour') });
         return;
       }
-      setFetched({ kind: 'ready', wind });
-      setWindMs(roundTo(wind.speedMs, 1));
+      const speed = roundTo(wind.speedMs, 1);
+      setFetched({ kind: 'ready', wind, for: { latitudeDeg, longitudeDeg, date, hour, windMs: speed } });
+      setWindMs(speed);
     } catch (err) {
       if (signal.aborted) return;
       setFetched({ kind: 'error', message: weatherErrorText(err, t) });
@@ -117,10 +131,19 @@ export function OffTheRail() {
   const needed = ready && ok ? railNeededM(motor, dryMassKg, minExit) : null;
   const railUnit = u.at(unitScope('launch', 'railLength'), 'length');
   const angle = ok && windMs != null ? weathercockDeg(windMs, ok.exitSpeedMs) : null;
-  const gustAngle =
-    ok && fetched.kind === 'ready' && fetched.wind.gustMs != null
-      ? weathercockDeg(fetched.wind.gustMs, ok.exitSpeedMs)
+  // A forecast counts only while the site, time and wind field still hold what
+  // it was fetched for; after any of them changes, its gust belongs to another
+  // place, time or wind.
+  const forecast =
+    fetched.kind === 'ready' &&
+    fetched.for?.latitudeDeg === site.latitudeDeg &&
+    fetched.for.longitudeDeg === site.longitudeDeg &&
+    fetched.for.date === date &&
+    fetched.for.hour === hour &&
+    fetched.for.windMs === windMs
+      ? fetched.wind
       : null;
+  const gustAngle = ok && forecast?.gustMs != null ? weathercockDeg(forecast.gustMs, ok.exitSpeedMs) : null;
 
   const speed = u.plain('velocity');
   const wind = u.plain('windspeed');
@@ -135,10 +158,7 @@ export function OffTheRail() {
   const flagged = (out: boolean, text: string, word: string) =>
     out ? <span className={warn}>{`${text} · ${word}`}</span> : text;
 
-  const validTime =
-    fetched.kind === 'ready'
-      ? fmtSiteTime(fetched.wind.validUnix * 1000, fetched.wind.answer.timezone, { year: false })
-      : '';
+  const validTime = forecast ? fmtSiteTime(forecast.validUnix * 1000, forecast.answer.timezone, { year: false }) : '';
 
   return (
     <div className="grid gap-4 lg:grid-cols-[22rem_minmax(0,28rem)]">
@@ -226,12 +246,12 @@ export function OffTheRail() {
                   {fetched.message}
                 </p>
               )}
-              {fetched.kind === 'ready' && (
+              {forecast && (
                 <>
                   <p className="text-xs text-ink-muted">
-                    {t(fetched.wind.gustMs != null ? 'rail.forecastWindGust' : 'rail.forecastWind', {
-                      wind: fmtWind(fetched.wind.speedMs),
-                      gust: fetched.wind.gustMs != null ? fmtWind(fetched.wind.gustMs) : '',
+                    {t(forecast.gustMs != null ? 'rail.forecastWindGust' : 'rail.forecastWind', {
+                      wind: fmtWind(forecast.speedMs),
+                      gust: forecast.gustMs != null ? fmtWind(forecast.gustMs) : '',
                       when: validTime,
                     })}
                   </p>

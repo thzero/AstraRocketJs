@@ -1,6 +1,7 @@
 import type { UnitSymbols } from '../../prefs/units';
 import type { LaunchConditions } from '../design/orkTree';
 import { launchLimitViolations, limitText } from '../flight/safetyLimits';
+import type { PowerClass } from '../flight/powerClass';
 import type { ImportNote } from './importNote';
 
 /**
@@ -10,16 +11,26 @@ import type { ImportNote } from './importNote';
  * Launch conditions are simulation settings, so a file carrying them outside the
  * codes is flagged on the way in rather than silently flown; the run refuses too
  * (see runPlan). Every simulation an import makes shares the file's launch
- * conditions, so one check answers for all of them.
+ * conditions, but each flies a configuration whose class sets the launcher
+ * angle allowed, so the conditions are judged once per class in `classes`
+ * (the classes of the configurations the import's simulations fly), and a
+ * sentence two classes share is said once.
  *
  * The reader's own array comes back unchanged when there is nothing to add.
  */
 export function importNotes(
   fileNotes: ImportNote[],
   launch: LaunchConditions,
+  classes: readonly PowerClass[],
   t: (key: string, vars: Record<string, unknown>) => string,
   units: UnitSymbols,
 ): ImportNote[] {
-  const outside = launchLimitViolations(launch);
-  return outside.length ? [...fileNotes, ...outside.map((v) => limitText(v, t, units))] : fileNotes;
+  const order: PowerClass[] = ['model', 'highPower'];
+  const texts = new Set(
+    order
+      .filter((c) => classes.includes(c))
+      .flatMap((c) => launchLimitViolations(launch, c))
+      .map((v) => limitText(v, t, units)),
+  );
+  return texts.size ? [...fileNotes, ...texts] : fileNotes;
 }

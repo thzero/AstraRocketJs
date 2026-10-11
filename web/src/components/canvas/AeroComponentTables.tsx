@@ -122,7 +122,7 @@ export function ComponentTable({ sweep, machs, mach }: { sweep: AeroSweep; machs
   const rows = useMemo(() => dragRows(sweep, i, t), [sweep, i, t]);
 
   // `number | null`: a null cell is the kernel saying this reading was not
-  // finite, which must read as an em dash and not as a fabricated 0; a
+  // finite, which must read as the no-value glyph and not as a fabricated 0; a
   // component that genuinely makes no drag reports 0 and means it. `v == null`
   // catches both null and undefined.
   const num = (v: number | null | undefined, digits = 3) => (v == null ? NO_VALUE : fmtNum(v, digits));
@@ -134,7 +134,7 @@ export function ComponentTable({ sweep, machs, mach }: { sweep: AeroSweep; machs
       <TableHead title={t('aero.dragByComponent')} mach={machs[i] ?? 0} />
       {!!sweep.nonFinite && (
         // The kernel met a reading it could not compute. Those cells come back
-        // null and print as an em dash, but a column sum coerces null to 0, so
+        // null and print as the no-value glyph, but a column sum coerces null to 0, so
         // without this notice the breakdown would silently stop adding up to
         // the rocket totals above it.
         <p className="px-2 pb-1 text-[11px] text-warn-400">{t('aero.nonFinite', { count: sweep.nonFinite })}</p>
@@ -329,9 +329,9 @@ export function StabilityTable({
           <tbody>
             <tr className="border-b border-line/10 font-semibold text-ink-strong">
               <td className="px-2 py-1 text-left">{t('aero.wholeRocket')}</td>
-              {hasMass && <td className={cell}>&mdash;</td>}
-              {hasMass && <td className={cell}>&mdash;</td>}
-              {hasMass && <td className={cell}>&mdash;</td>}
+              {hasMass && <td className={cell}>{NO_VALUE}</td>}
+              {hasMass && <td className={cell}>{NO_VALUE}</td>}
+              {hasMass && <td className={cell}>{NO_VALUE}</td>}
               <td className={cell}>{fmtNum((sweep.cp[i] ?? 0) * lengthFactor, lenDigits)}</td>
               {hasBodyLen && <td className={cell}>{cpPctBody(sweep.cp[i] ?? 0)}</td>}
               {hasAeroLen && <td className={cell}>{cpPctAero(sweep.cp[i] ?? 0)}</td>}

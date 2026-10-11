@@ -954,6 +954,16 @@ public final class OpenRocketEngine {
             sb.append(',');
             num(sb, "radius", ((info.openrocket.core.rocketcomponent.MassObject) c).getRadius());
         }
+        if (c instanceof info.openrocket.core.rocketcomponent.RailButton) {
+            // The button's linked dimensions, after its setters have clamped them.
+            info.openrocket.core.rocketcomponent.RailButton b = (info.openrocket.core.rocketcomponent.RailButton) c;
+            sb.append(',');
+            num(sb, "outerDiameter", b.getOuterDiameter()).append(',');
+            num(sb, "innerDiameter", b.getInnerDiameter()).append(',');
+            num(sb, "totalHeight", b.getTotalHeight()).append(',');
+            num(sb, "baseHeight", b.getBaseHeight()).append(',');
+            num(sb, "flangeHeight", b.getFlangeHeight());
+        }
         if (c instanceof ComponentAssembly
                 && c instanceof info.openrocket.core.rocketcomponent.position.RadiusPositionable) {
             info.openrocket.core.rocketcomponent.position.RadiusPositionable p =

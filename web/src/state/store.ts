@@ -70,6 +70,7 @@ import {
 import { loadSettings } from '../services/storage/settings';
 import { defaultMaterialPatch } from '../services/design/materialSlots';
 import { unflyable, unflyableText, designBlocker, designBlockerText } from '../services/flight/runnability';
+import { configPowerClass } from '../services/flight/powerClass';
 import { landingView, planRun, runProblems } from '../services/flight/runPlan';
 import { isComplete } from '../services/flight/requiredLaunch';
 import type { MotorDims } from '../tree/schematicGeometry';
@@ -606,7 +607,7 @@ function sanitizeSims(sims: Simulation[], configs: FlightConfig[]): Simulation[]
   const known = new Set(configs.map((c) => c.id));
   const fallback = configs[0]!.id;
   const safe = (Array.isArray(sims) ? sims : []).filter((s) => s && typeof s.id === 'string');
-  if (!safe.length) return [newSimulation('Simulation 1', fallback, launchDefaults)];
+  if (!safe.length) return [newSimulation(i18n.t('sims.untitled', { n: 1 }), fallback, launchDefaults)];
   return safe.map((s) => ({
     ...s,
     launch: { ...launchDefaults, ...(s.launch ?? {}) },
@@ -738,6 +739,23 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
    * else - two surfaces writing the same loadout under different rules is how
    * they come to disagree.
    */
+  /**
+   * Whether two motor specs are the same motor: every field equal, the curve
+   * arrays sample by sample. A catalog pick builds a new object each time, so
+   * reference equality would call every reseat a change.
+   */
+  const sameMotorSpec = (a: MotorSpec, b: MotorSpec): boolean => {
+    const keys = new Set([...Object.keys(a), ...Object.keys(b)] as (keyof MotorSpec)[]);
+    for (const k of keys) {
+      const x = a[k];
+      const y = b[k];
+      if (Array.isArray(x) && Array.isArray(y)) {
+        if (x.length !== y.length || x.some((v, i) => v !== y[i])) return false;
+      } else if (x !== y) return false;
+    }
+    return true;
+  };
+
   const patchConfig = (configId: string, mutate: (c: FlightConfig) => FlightConfig) => {
     set((s) => {
       const current = s.configs.find((c) => c.id === configId);
@@ -898,7 +916,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
   // finds no simulation at all has nothing to fall back to.
   const tree0 = defaultRocketTree();
   const config0 = defaultConfig(tree0);
-  const sim0 = newSimulation('Simulation 1', config0.id, loadSettings().launchDefaults);
+  const sim0 = newSimulation(i18n.t('sims.untitled', { n: 1 }), config0.id, loadSettings().launchDefaults);
 
   return {
     tree: tree0,
@@ -1113,12 +1131,20 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
     setSelectedConfigId: (selectedConfigId) => set({ selectedConfigId }),
     setConfigsTab: (configsTab) => set({ configsTab }),
     setMountMotor: (configId, mountId, m) => {
-      // An unknown configuration changes nothing, so it records no undo step.
-      if (!get().configs.some((c) => c.id === configId)) return;
+      // An unknown configuration, or the motor already in the mount, changes
+      // nothing, so it records no undo step and leaves redo alone.
+      const current = get().configs.find((c) => c.id === configId);
+      if (!current) return;
+      const seated = current.motors[mountId];
+      if (seated && sameMotorSpec(seated.spec, m)) return;
       recordStep();
       patchConfig(configId, (c) => ({ ...c, motors: { ...c.motors, [mountId]: { ...c.motors[mountId], spec: m } } }));
     },
     setMountIgnition: (configId, mountId, event, delay) => {
+      // No motor in that mount, or the timing it already has: nothing to
+      // record, so no transaction is opened.
+      const seated = get().configs.find((c) => c.id === configId)?.motors[mountId];
+      if (!seated || ((seated.ignitionEvent ?? 'automatic') === event && (seated.ignitionDelay ?? 0) === delay)) return;
       beginEdit();
       patchConfig(configId, (c) => {
         const seated = c.motors[mountId];
@@ -1368,7 +1394,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
       const prefs = s.simPrefs;
       // What flies and what does not is decided before anything is dispatched,
       // so the queued rows all light up together rather than one at a time.
-      const plan = planRun(ids, s.sims, s.tree, s.configs);
+      const plan = planRun(ids, s.sims, s.tree, s.configs, s.info?.massEmpty);
       const outcomes: Record<string, RunOutcome> = {};
       // What we are about to fly. The awaits below can outlast the design: if the
       // user edits while the pool is busy, the answers coming back describe a
@@ -1576,7 +1602,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
       // behind, and every cell of the grid would be refused individually
       // anyway.
       const config = configOf(s.configs, sim);
-      const reason = unflyable(sim, primaryMotor(s.tree, config));
+      const reason = unflyable(sim, primaryMotor(s.tree, config), configPowerClass(s.tree, config, s.info?.massEmpty));
       if (reason) {
         set({ err: unflyableText({ id: sim.id, name: sim.name, reason }, launcherT(), displayUnits()) });
         return;

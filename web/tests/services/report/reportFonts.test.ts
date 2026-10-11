@@ -1,4 +1,4 @@
-// cspell:ignore Rakieta Zólw łśćżęąńź Żółw Ракета -- Polish and Russian report text the test draws
+// cspell:ignore Rakieta Zólw łśćżęąńź Żółw Ракета Fusée 로켓 -- Polish and Russian report text the test draws
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -154,8 +154,10 @@ describe('report fonts', () => {
   });
 
   it('draws a Japanese report in Noto Sans JP alone, Latin runs included', async () => {
-    await downloadReportPdf(model('ロケット'), tree, tFor(ja), opts, METRIC_UNITS, { fetch: serveFonts });
+    const notice = vi.fn();
+    await downloadReportPdf(model('ロケット'), tree, tFor(ja), opts, METRIC_UNITS, { fetch: serveFonts, notice });
     expect(fetched.sort()).toEqual(['/fonts/NotoSansJP-Bold.ttf', '/fonts/NotoSansJP-Regular.ttf']);
+    expect(notice).not.toHaveBeenCalled();
     expect(runs.find((r) => r.text === ja.report.title)!.font).toBe('NotoSansJP');
     expect(runs.find((r) => r.text === 'ロケット')!.font).toBe('NotoSansJP');
     expect(await pdfText()).toMatch(/\/BaseFont \/NotoSansJP/);
@@ -206,6 +208,28 @@ describe('report fonts', () => {
     expect(notice).not.toHaveBeenCalled();
   });
 
+  it('writes a French grouped number in Helvetica offline, its narrow space as a no-break space', async () => {
+    const notice = vi.fn();
+    const t = (key: string, o?: Record<string, unknown>) => tFor(en)(key, o).replace('α', 'a');
+    // fr groups thousands with U+202F; U+2009 and U+2007 group the same way elsewhere.
+    await downloadReportPdf(model('Fusée 1\u202f234 2\u20093 4\u20075'), tree, t, opts, METRIC_UNITS, {
+      fetch: offline,
+      notice,
+    });
+    expect(fetched).toEqual([]);
+    expect(runs.map((r) => r.text)).toContain('Fusée 1\u00a0234 2\u00a03 4\u00a05');
+    expect(notice).not.toHaveBeenCalled();
+  });
+
+  it('prints a script neither font covers as "?" and says so', async () => {
+    const notice = vi.fn();
+    // Hangul is not CJK to the router and Noto Sans has no glyph for it.
+    await downloadReportPdf(model('Ракета 로켓'), tree, tFor(ru), opts, METRIC_UNITS, { fetch: serveFonts, notice });
+    const name = runs.find((r) => r.text.startsWith('Ракета'))!;
+    expect(name).toEqual({ font: 'NotoSans', text: 'Ракета ??' });
+    expect(notice).toHaveBeenCalledWith(ru.report.scriptUncovered);
+  });
+
   it('saves nothing when the export is abandoned while a font is fetched', async () => {
     let canceled = false;
     const slow = (url: string) => {
@@ -233,6 +257,11 @@ describe('toWinAnsi', () => {
     expect(toWinAnsi('“a” – b…')).toEqual({ text: '\u0093a\u0094 \u0096 b\u0085', lost: false });
     expect(toWinAnsi('Żółw')).toEqual({ text: 'Zólw', lost: false });
     expect(toWinAnsi('Ж')).toEqual({ text: '?', lost: true });
+  });
+
+  it('writes the narrow, thin and figure spaces as the no-break space', () => {
+    expect(scriptOf('1\u202f234')).toBeNull();
+    expect(toWinAnsi('1\u202f234 5\u20096 7\u20078')).toEqual({ text: '1\u00a0234 5\u00a06 7\u00a08', lost: false });
   });
 });
 

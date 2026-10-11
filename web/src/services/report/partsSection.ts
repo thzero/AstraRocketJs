@@ -43,9 +43,9 @@ function partRow(p: PdfPage, r: PartRow): string[] {
     r.foreR != null && r.aftR != null
       ? `Ø ${qv(p, 'length', r.foreR * 2)} → ${qv(p, 'length', r.aftR * 2)} ${units.length}`
       : '',
-    r.length > 0 ? `L ${len(p, r.length)}` : '',
+    r.length > 0 ? t('report.dimLength', { value: len(p, r.length) }) : '',
     r.span != null && r.span > 0 ? t('export.headerSpan', { value: len(p, r.span) }) : '',
-    r.thickness != null ? `w ${qv(p, 'length', r.thickness, 2)} ${units.length}` : '',
+    r.thickness != null ? t('report.dimWall', { value: `${qv(p, 'length', r.thickness, 2)} ${units.length}` }) : '',
   ]
     .filter(Boolean)
     .join(' · ');

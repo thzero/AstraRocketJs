@@ -147,3 +147,17 @@ describe('ringBore past the parent end', () => {
     expect(ringBore(p.children![0]!, p, 0.019, 0)).toBe(0.009);
   });
 });
+
+describe('boreAt on a nose cone', () => {
+  // NoseCone.getBaseRadius: `isFlipped ? getForeRadius() : getAftRadius()`. The
+  // base is the open end; the tip, radius 0, offers nothing.
+  const cone = (flipped: boolean) =>
+    ({ type: 'nosecone', id: 'n', aftRadius: 0.025, thickness: 0.002, flipped }) as unknown as ComponentNode;
+
+  it('is open at the base, which a flipped cone has at its fore end', () => {
+    expect(boreAt(cone(false), 'aft')).toBeCloseTo(0.023, 12);
+    expect(boreAt(cone(false), 'fore')).toBeNull();
+    expect(boreAt(cone(true), 'fore')).toBeCloseTo(0.023, 12);
+    expect(boreAt(cone(true), 'aft')).toBeNull();
+  });
+});

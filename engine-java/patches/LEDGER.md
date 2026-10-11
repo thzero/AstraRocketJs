@@ -114,7 +114,7 @@ byte-for-byte what it was:
 
 - **4 superseded patches deleted.** `BarrowmanCalculator`, `FlightConditions`,
   `AxialStage`, `AbstractSimulationStepper` were byte-identical to upstream in
-  `src/java`: the override had already been retired in favour of the RASAero
+  `src/java`: the override had already been retired in favor of the RASAero
   shims and upstream's own `MotorConfiguration.nozzleExitDiameter`. Keeping the
   patch file meant a re-extraction would have reintroduced the superseded
   design.
@@ -1095,7 +1095,7 @@ outlines are indistinguishable from having sent no outline.
   repeated point, the unnamed fallback, a valid outline still building at its own
   length, a good outline building after a refused one, and the table above as an
   assertion: a refused outline must NOT return the default fin's length.
-  `web/tests/services/loadOrk.unbuildable.test.ts` covers the import, including
+  `web/tests/services/files/loadOrk.unbuildable.test.ts` covers the import, including
   that a failure the repair cannot reach rethrows the original error.
 - **Divergence:** `extract/DIVERGENCE.txt` 39 → 66 lines for this file.
 - **Artifact:** both targets rebuilt, JS and WASM-GC, which are a matched pair

@@ -14,6 +14,7 @@ import {
 import { driftEllipse } from '../../services/flight/driftEllipse';
 import { isComplete } from '../../services/flight/requiredLaunch';
 import { flyForecastHours, refusalKeys, type HourLanding } from '../../services/flight/forecastHours';
+import { configPowerClass } from '../../services/flight/powerClass';
 import { offsetToLatLon } from '../../services/map/geodesy';
 import { readWeatherKey } from '../../services/weather/weatherKey';
 import { LandingMap } from '../tools/LandingMap';
@@ -53,6 +54,7 @@ export function EnvironmentLanding({ flight }: { flight: ResultFlight }) {
   const simPrefs = useWorkspaceStore((s) => s.simPrefs);
   const tree = useWorkspaceStore((s) => s.tree);
   const configs = useWorkspaceStore((s) => s.configs);
+  const dryMass = useWorkspaceStore((s) => s.info?.massEmpty);
   const sim = useWorkspaceStore((s) => s.sims.find((x) => x.id === flight.id));
   // The hours are flown with the design and the row's conditions as they are
   // now. Against an outdated result that is a different rocket or site than
@@ -91,10 +93,12 @@ export function EnvironmentLanding({ flight }: { flight: ResultFlight }) {
     const forResult = flight.result;
     setRun({ kind: 'running', done: 0, total: 0 }, forResult);
     try {
+      const config = configOf(configs, sim);
       const hours = await flyForecastHours(
         {
           tree,
-          config: configOf(configs, sim),
+          config,
+          powerClass: configPowerClass(tree, config, dryMass),
           launch: sim.launch,
           source,
           // What a run reads, the length unit included, and what `outdated`

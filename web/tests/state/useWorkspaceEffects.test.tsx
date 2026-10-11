@@ -16,9 +16,10 @@ import { act, cleanup } from '@testing-library/react';
 const load = vi.hoisted(() => vi.fn());
 const save = vi.hoisted(() => vi.fn());
 const saveSync = vi.hoisted(() => vi.fn());
+const setActiveId = vi.hoisted(() => vi.fn());
 vi.mock('../../src/services/storage/workspaceStore', async (orig) => ({
   ...(await orig<typeof import('../../src/services/storage/workspaceStore')>()),
-  getWorkspaceStore: () => ({ load, save, saveSync }),
+  getWorkspaceStore: () => ({ load, save, saveSync, setActiveId }),
 }));
 
 const computeStaticInfo = vi.hoisted(() => vi.fn());
@@ -73,6 +74,7 @@ beforeEach(() => {
   load.mockReset().mockResolvedValue(null);
   save.mockReset().mockResolvedValue(undefined);
   saveSync.mockReset();
+  setActiveId.mockReset();
   computeStaticInfo.mockReset().mockReturnValue({ info: { length: 1 }, rocket: {} });
   // The rebuild effect waits on the kernel, because the app mounts before it is
   // loaded. Every test here but the gating one is about what the rebuild does
@@ -158,6 +160,18 @@ describe('hydration', () => {
       await Promise.resolve();
     });
     expect(save).toHaveBeenCalled();
+  });
+
+  // The store read the design and holds its claim on it; `hydrate` is what
+  // failed. Left attached, the first edit would autosave the default rocket
+  // over the stored design.
+  it('detaches the store when the loaded design fails to hydrate', async () => {
+    load.mockResolvedValue({ ...saved(), tree: null });
+    await mount();
+
+    expect(s().storageWarningKind).toBe('loadFailed');
+    expect(s().tree.name).not.toBe('Restored');
+    expect(setActiveId).toHaveBeenCalledWith(null);
   });
 });
 

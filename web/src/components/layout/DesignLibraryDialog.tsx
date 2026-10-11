@@ -39,7 +39,7 @@ export function DesignLibraryDialog({ onClose }: { onClose: () => void }) {
   const tabs = useTabs(LIBRARY_TABS, tab, setTab);
 
   useEffect(() => {
-    void refresh();
+    fireAction(refresh());
   }, [refresh]);
 
   // The saved-at stamp in the app's language, not the browser's: otherwise a

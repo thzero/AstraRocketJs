@@ -24,7 +24,7 @@ The second thing is the shape of the product. ZenRockets is an account-backed se
 
 ## What ZenRockets has, and this does not
 
-This is the useful table. Each row says where we stand and, where there is one, the reason.
+Each row says where the feature stands here and, where there is one, the reason.
 
 | ZenRockets feature | Where it stands here, and why |
 | --- | --- |
@@ -39,9 +39,9 @@ This is the useful table. Each row says where we stand and, where there is one, 
 | **Resolved atmosphere profiles**: what the simulation actually flew, as wind, pressure and temperature against altitude, plus the conditions at the pad | Yes. After a simulation, the **Environment** view shows the air the flight met: the conditions at launch, and wind speed, wind direction, temperature and pressure against altitude for the way up and the way down. See [Views & Analysis](./views-and-analysis.md#environment-after-a-simulation). |
 | **Live weather forecasts from multiple models, and real launch sites with elevation lookup** | Mostly. **Get weather…** fills a simulation's launch conditions from an [Open-Meteo](./running-a-simulation.md#weather) forecast for a chosen date and hour: temperature, pressure, humidity, a wind profile and the atmosphere aloft, and offers Open-Meteo's terrain elevation when it differs from the site's. It uses Open-Meteo's own blend of models for the location rather than letting you compare models side by side. Saved locations with satellite imagery and click-to-set coordinates cover the launch sites. |
 | **Map imagery under the trajectory** | Yes, on request. The ground track can be drawn over satellite or street imagery of the launch site, and the 3D path's ground plane takes the same imagery under the trajectory. Both start bare and fetch nothing until you ask for the ground. |
-| **Mass rollup and stage isolation in the parts tree**: a toggle flipping each row between its own mass and its whole subtree's, and recomputing mass, CG, CP and stability for one stage alone | Not available. Stage isolation is the one that stings: it is how you check whether a spent booster is stable on its own way down, which is the question a multi-stage design most needs to ask. Both are read-only views over data the app already has. |
+| **Mass rollup and stage isolation in the parts tree**: a toggle flipping each row between its own mass and its whole subtree's, and recomputing mass, CG, CP and stability for one stage alone | Not available. Stage isolation is how you check whether a spent booster is stable on its own way down, which matters on any multi-stage design. Both are read-only views over data the app already has. |
 | **Share links, cloning and dashboards** | Not available, by design. There is no account and no server to host a link. Designs are files on your disk, so sharing one means sending the `.ork`. |
-| **Pricing plan** | Free, and source is free and GPL! |
+| **Pricing plan** | Free. The source is open under the GPL 3.0 license. |
 
 ## What this has, and ZenRockets does not
 
@@ -55,7 +55,7 @@ Read against their documentation on the date above.
 | **Working fully offline, with nothing uploaded** | The app, the engine and both catalogs are kept on your device after the first visit, and there is no account. A service that needs a session and a forecast fetch is a different proposition at a field with no signal. |
 | **Component Analysis** | Per-component drag split into pressure, base and friction, each part's stability contribution and its own CP, and every fin set's roll forcing and damping, over a Mach sweep at a chosen angle of attack, wind direction and roll rate, with a **Worst** setting that finds the wind angle where the CP sits furthest forward. |
 | **Everything you can get out of it** | A full design report as PDF with 1:1 fin, nose and transition templates; DXF cut sheets; per-part STL, OBJ, GLB and 3MF plus whole-rocket 3MF; RASAero II `.CDX1`; flight data and drag tables as CSV; the flight path as KML, GPX or waypoint CSV with custom templates; the schematic as SVG, PNG or JPG. Their documented export is 3MF. |
-| **NAR / Tripoli limits, enforced** | A run with the rod past 20 degrees from vertical or surface wind above 20 mph is refused rather than flown. Their pre-flight validation produces errors, warnings and alerts; it is not the same thing as declining to fly. |
+| **NAR / Tripoli limits, enforced** | A run with the rail or rod past 30 degrees from vertical for a model rocket or 20 degrees for a high power rocket, or with surface wind above 20 mph is refused rather than flown. Their pre-flight validation produces errors, warnings and alerts; it is not the same thing as declining to fly. |
 | **Multilingual** | |
 | **Free** | |
 

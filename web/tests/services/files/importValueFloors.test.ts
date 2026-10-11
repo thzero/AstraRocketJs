@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { zipSync, strToU8 } from 'fflate';
-import { importOrk } from '../../../src/services/files/orkFile';
+import { importOrk, exportOrk } from '../../../src/services/files/orkFile';
 import { importRkt } from '../../../src/services/files/rktImport';
 import type { ComponentNode } from '../../../src/engine/openRocketEngine';
 import { MAX_FIN_POINTS } from '../../../src/services/files/ork/importLimits';
@@ -100,18 +100,42 @@ describe('a .ork cannot state a negative dimension', () => {
     expect(n['radius']).toBe(0);
   });
 
-  it('drops a negative mass, CG or Cd override rather than flooring it', () => {
+  it('drops a negative mass or CG override rather than flooring it', () => {
     // Dropped, not zeroed: an override of zero is a real instruction ("this part
     // weighs nothing"), and a file that states nonsense asked for no override.
     const n = nodeOfType(
       `<bodytube><name>B</name><length>0.3</length><radius>0.012</radius>
-         <overridemass>-0.5</overridemass><overridecg>-0.1</overridecg><overridecd>-1</overridecd>
+         <overridemass>-0.5</overridemass><overridecg>-0.1</overridecg>
        </bodytube>`,
       'bodytube',
     );
     expect(n['overrideMass']).toBeUndefined();
     expect(n['overrideCGX']).toBeUndefined();
-    expect(n['overrideCD']).toBeUndefined();
+  });
+
+  it('keeps a negative Cd override, which RocketComponent.setOverrideCD accepts', () => {
+    // The desktop setter does not clamp and its dialog takes any value: a
+    // negative Cd offsets drag the rest of the design adds.
+    const n = nodeOfType(
+      '<bodytube><name>B</name><length>0.3</length><radius>0.012</radius><overridecd>-0.25</overridecd></bodytube>',
+      'bodytube',
+    );
+    expect(n['overrideCD']).toBe(-0.25);
+    const again = flatten(
+      importOrk(
+        exportOrk({
+          name: 'RT',
+          tree: importOrk(
+            ork(
+              wrap(
+                '<bodytube><name>B</name><length>0.3</length><radius>0.012</radius><overridecd>-0.25</overridecd></bodytube>',
+              ),
+            ),
+          ).tree,
+        }),
+      ).tree.components,
+    ).find((c) => c.type === 'bodytube');
+    expect(again?.['overrideCD']).toBe(-0.25);
   });
 
   it('keeps a zero override, which is a real instruction', () => {

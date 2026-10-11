@@ -1,13 +1,29 @@
 import type { ReportModel } from './reportModel';
 import { fmtNum } from '../../i18n/format';
 import { NO_VALUE } from '../../i18n/noValue';
-import { g, heading, kvGrid, q, qv, sectionBreak, sub, table, type Col, type PdfPage, type T } from './pdfPage';
+import {
+  ensure,
+  g,
+  heading,
+  kvGrid,
+  paragraph,
+  q,
+  qv,
+  sectionBreak,
+  sub,
+  table,
+  type Col,
+  type PdfPage,
+  type T,
+} from './pdfPage';
 
 type MotorConfig = ReportModel['configs'][number];
 
 /**
  * The motors section: one block per configuration that carries motors, with
- * its simulation results (when it flew) and its motor table.
+ * its simulation results (when it flew) and its motor table. Results flown
+ * from an earlier state of the design say so above their figures, since the
+ * thrust-to-weight beside them is the current design's.
  */
 export function writeMotorsSection(p: PdfPage, model: ReportModel): void {
   sectionBreak(p);
@@ -15,7 +31,13 @@ export function writeMotorsSection(p: PdfPage, model: ReportModel): void {
   for (const c of model.configs) {
     if (!c.motors.length) continue;
     sub(p, c.name);
-    if (c.flight) writeFlightSummary(p, c.flight);
+    if (c.flight) {
+      if (c.outdated) {
+        ensure(p, 8);
+        paragraph(p, p.t('report.outdatedFlight'), 'italic', 60);
+      }
+      writeFlightSummary(p, c.flight);
+    }
     writeMotorTable(p, c);
   }
 }

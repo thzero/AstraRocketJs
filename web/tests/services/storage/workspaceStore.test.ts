@@ -2,7 +2,7 @@ import { nsKey } from '../../../src/services/storage/storageKeys';
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest';
 import { LibraryWorkspaceStore, type Workspace } from '../../../src/services/storage/workspaceStore';
-import { DesignLibrary, setDesignLibrary } from '../../../src/services/storage/designLibrary';
+import { DesignLibrary, getDesignLibrary, setDesignLibrary } from '../../../src/services/storage/designLibrary';
 import type { KeyValueStore } from '../../../src/services/storage/keyValueStore';
 import { defaultDesignName } from '../../../src/services/app/appInfo';
 
@@ -383,6 +383,12 @@ describe('LibraryWorkspaceStore', () => {
     ['no tree', JSON.stringify({ version: 1, sims: [{ id: 'x' }] })],
     ['a non-array tree.components', JSON.stringify({ version: 1, tree: {}, sims: [{ id: 's1' }] })],
     ['no sims', JSON.stringify({ version: 1, tree: { components: [] }, sims: [] })],
+    ['a null simulation', JSON.stringify({ version: 1, tree: { components: [] }, sims: [{ id: 's1' }, null] })],
+    [
+      'a null configuration',
+      JSON.stringify({ version: 2, tree: { components: [] }, sims: [{ id: 's1' }], configs: [null] }),
+    ],
+    ['a null component', JSON.stringify({ version: 1, tree: { components: [null] }, sims: [{ id: 's1' }] })],
   ])('throws rather than silently starting fresh over a design that is %s', async (_what, blob) => {
     await store.save(workspace());
     kv.map.set(designKey(kv), blob);
@@ -408,6 +414,23 @@ describe('LibraryWorkspaceStore', () => {
         k.startsWith(nsKey('designs:')) && !k.endsWith(':index') && !k.endsWith(':active') && !k.endsWith(':results'),
     );
     expect(keys).toHaveLength(2);
+  });
+
+  // The claim on the entry is taken only once the read has fully succeeded. A
+  // read that fails after the blob parsed (the flights, here) must leave the
+  // store detached too, or the next save writes over the design with a stamp
+  // that matches.
+  it('detaches when the read fails after the blob has parsed', async () => {
+    await store.save(workspace());
+    const originalKey = designKey(kv);
+    const original = kv.map.get(originalKey);
+    const lib = getDesignLibrary();
+    lib.readResults = () => Promise.reject(new Error('results unreadable'));
+
+    const fresh = new LibraryWorkspaceStore();
+    await expect(fresh.load()).rejects.toThrow(/results unreadable/);
+    await fresh.save({ ...workspace(), tree: { components: [{ type: 'nosecone', id: 'other' }] } } as Workspace);
+    expect(kv.map.get(originalKey)).toBe(original);
   });
 
   it('returns null, without throwing, when there is genuinely nothing saved', async () => {

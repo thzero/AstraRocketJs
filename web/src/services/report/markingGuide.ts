@@ -49,7 +49,7 @@ export const PAPER_THICKNESS_M = 0.0001;
 export const GUIDE_WIDTH_MM = 76.2;
 
 /** One mark on a strip: where a single fin, tube, lug or button goes. */
-export interface GuideMark {
+interface GuideMark {
   /** Distance from the seam edge, along the wrap (mm). */
   posMm: number;
   /** The component's own name; '' falls back to its type in the drawing. */
@@ -74,9 +74,9 @@ export interface MarkingGuide {
 }
 
 /** Why an angular part carries no mark, so the drawing can say so rather than drop it. */
-export type OmitReason = 'noWrap' | 'noFins';
+type OmitReason = 'noWrap' | 'noFins';
 
-export interface OmittedPart {
+interface OmittedPart {
   name: string;
   type: string;
   reason: OmitReason;

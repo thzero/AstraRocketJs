@@ -2,7 +2,7 @@
 title: "Primeros pasos"
 sidebar_position: 5
 ---
-## Abre la aplicación
+## Abre la aplicación {#open-the-app}
 
 AstraRocketJs se ejecuta en tu navegador: **no hay nada que instalar**. Abre **[https://thzero.github.io/AstraRocketJs/](https://thzero.github.io/AstraRocketJs/)** y ya está. Funciona en ordenador y en móvil; solo necesitas un navegador moderno (Chrome, Firefox, Safari, Edge).
 
@@ -43,7 +43,7 @@ La barra superior tiene **deshacer / rehacer**, un botón **☀** que cambia al 
 
 **Ayuda** abre esta guía dentro de la aplicación en lugar de llevarte a un sitio web, y la guía completa se incluye con la aplicación, así que se lee en un campo de vuelo sin cobertura. Su panel de contenido enumera todas las páginas y los apartados de la que estás leyendo, y el cuadro que hay encima de esa lista las busca todas a la vez: elige un resultado y la página se abre con tus palabras resaltadas.
 
-## Tu primer cohete
+## Tu primer cohete {#your-first-rocket}
 
 1. **Empieza con el cohete por defecto**, o usa **Nuevo** (menú) para uno en blanco, o **Importa** un archivo `.ork` existente. También hay **[cohetes de ejemplo](#example-rockets)** incluidos, que son la forma más rápida de ver lo que puede hacer la aplicación.
 2. **Edita los componentes** en el panel izquierdo: selecciona una pieza y ajusta sus dimensiones; la vista 2D y las estadísticas de estabilidad se actualizan en vivo. Consulta [Diseñar un cohete](./designing-a-rocket.md).
@@ -60,6 +60,6 @@ La misma lista es también la segunda pestaña de menú → **Abrir…**, junto 
 
 Abrir uno se comporta igual que importar un `.ork`: obtienes tu propia copia sin guardar, así que puedes desmontar un ejemplo sin tocar el original. Si abres el mismo ejemplo una segunda vez, la aplicación pregunta si quieres sobrescribir la copia que ya tienes o conservar ambas, de modo que la biblioteca no se llena de cohetes con el mismo nombre. Los ejemplos forman parte de la aplicación, así que funcionan sin conexión como todo lo demás.
 
-## Dónde viven tus datos
+## Dónde viven tus datos {#where-your-data-lives}
 
 Tus cohetes se guardan **en este navegador, en este dispositivo**, automáticamente mientras los editas, y menú → **Abrir…** los lista en **Mis cohetes**. No hay Guardar: **Guardar como…** guarda el diseño allí con el nombre que le des. Tus motores personalizados, tus piezas guardadas, tus materiales, tus lugares de lanzamiento guardados y tus [ajustes](./settings.md) también se guardan en el navegador. Exporta un `.ork` para conservar una copia en tu disco, llevarla a otro equipo o compartirla. No se sube nada a ningún sitio.

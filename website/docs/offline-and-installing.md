@@ -6,7 +6,7 @@ AstraRocketJs works with **no internet connection** once you've opened it, and c
 
 ## Why it can work offline
 
-The physics isn't running on a server. OpenRocket's engine is compiled to WebAssembly and runs inside your browser, so once the app and its data are on your device there's nothing left to call out to. That makes the offline case genuinely useful: you can design, edit, and run full flight simulations at a launch site with no signal.
+The physics isn't running on a server. OpenRocket's engine is compiled to WebAssembly and runs inside your browser, so once the app and its data are on your device there's nothing left to call out to. So you can design, edit, and run full flight simulations at a launch site with no signal.
 
 ## What gets saved for offline use
 
@@ -26,7 +26,7 @@ The motor catalog carries each motor's **thrust curve** with it, so simulating o
 
 **Weather needs a connection.** [Weather from Open-Meteo](./running-a-simulation.md#weather) is fetched when you ask for it and is not stored offline. What you applied stays in the simulation.
 
-**Your designs were always local.** Your library of saved rockets, custom motors and materials, and your settings live in your browser's storage on your device: that hasn't changed and never depended on a connection.
+**Your designs are local.** Your library of saved rockets, custom motors and materials, and your settings live in your browser's storage on your device and never depend on a connection.
 
 ## Installing it
 
@@ -55,10 +55,10 @@ The app looks for a new version about every ten minutes, and again whenever you 
 
 Motor and component catalogs refresh separately from the app itself, in the background, so new motors reach you without an app update.
 
-While you are offline, the buttons that need a connection are grayed out and say so when you point at them: fetching weather, a place search by name, the landing estimate, flying the forecast hours and checking for updates. Everything else works as usual.
+While you are offline, the buttons that need a connection are grayed out and say so when you point at them: fetching weather, fetching the forecast wind in Off the rail, a place search by name, the landing estimate, flying the forecast hours and checking for updates. Everything else works as usual.
 
 ## Clearing it
 
-Clearing your browser's site data for AstraRocketJs removes the offline copy: and, importantly, **also removes your saved designs, custom motors, and materials**, since those live in the same browser storage. Export anything you want to keep as `.ork` first: into a synced folder (iCloud Drive, OneDrive, Google Drive, Dropbox) it doubles as a backup you can reopen anywhere (see **[Files & Exports](./files-and-exports.md)**).
+Clearing your browser's site data for AstraRocketJs removes the offline copy and **also removes your saved designs, custom motors, and materials**, since those live in the same browser storage. Export anything you want to keep as `.ork` first. Saved into a synced folder (iCloud Drive, OneDrive, Google Drive, Dropbox), it doubles as a backup you can reopen anywhere (see **[Files & Exports](./files-and-exports.md)**).
 
 If you installed the app, uninstall it the way you'd remove any other app on your device.

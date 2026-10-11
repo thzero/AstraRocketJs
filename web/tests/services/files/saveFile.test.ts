@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+// cspell:ignore Ракета Fusée रॉकेट -- non-Latin design names the filename keeps
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { download, exportFilename, saveBlob, saveText, safeFilename } from '../../../src/services/files/saveFile';
 import { parseWindProfileCsv } from '../../../src/services/flight/windProfileCsv';
@@ -136,6 +137,23 @@ describe('safeFilename', () => {
 
   it('keeps dots, so an extension a caller already added survives', () => {
     expect(safeFilename('v1.2 draft')).toBe('v1.2_draft');
+  });
+
+  it('keeps letters and digits of any script', () => {
+    expect(safeFilename('Ракета')).toBe('Ракета');
+    expect(safeFilename('ロケット 2')).toBe('ロケット_2');
+    expect(safeFilename('Fusée-Ω')).toBe('Fusée-Ω');
+    // A combining mark is part of its letter.
+    expect(safeFilename('रॉकेट')).toBe('रॉकेट');
+  });
+
+  it('still strips separators, Windows-reserved characters, controls and leading dots', () => {
+    expect(safeFilename('../Ракета')).toBe('_Ракета');
+    expect(safeFilename('..\\ロケット')).toBe('_ロケット');
+    expect(safeFilename('a<b>c:d"e|f?g*h')).toBe('a_b_c_d_e_f_g_h');
+    expect(safeFilename('x\u0000\u001fy')).toBe('x_y');
+    expect(safeFilename('.hidden')).toBe('hidden');
+    expect(safeFilename('../..', 'part')).toBe('part');
   });
 });
 

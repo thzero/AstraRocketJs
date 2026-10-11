@@ -59,6 +59,22 @@ describe('dataHeaderLines', () => {
     expect(dry.some((l) => l.includes('Dry mass') && l.includes('no motors loaded'))).toBe(true);
   });
 
+  it('writes the margin and joins the dimensions in the UI language', async () => {
+    await i18n.changeLanguage('de');
+    try {
+      const lines = dataHeaderLines(data({ spanM: 0.1 }));
+      // German decimals take a comma, like the lengths beside the margin.
+      expect(lines.some((l) => l.includes(' 1,23 '))).toBe(true);
+      expect(lines.some((l) => l.includes('1.23'))).toBe(false);
+      // Three dimensions as one German list: "A, B und C".
+      expect(lines.some((l) => / und /.test(l) && l.includes(i18n.t('export.headerSpan', { value: '' }).trim()))).toBe(
+        true,
+      );
+    } finally {
+      await i18n.changeLanguage('en');
+    }
+  });
+
   it('adds a span line only when spanM is given', () => {
     expect(dataHeaderLines(data()).some((l) => l.includes('span'))).toBe(false);
     expect(dataHeaderLines(data({ spanM: 0.1 })).some((l) => l.includes('span'))).toBe(true);

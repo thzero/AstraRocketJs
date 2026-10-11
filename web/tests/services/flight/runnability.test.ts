@@ -9,6 +9,7 @@ const units = unitSymbols(METRIC_UNITS, {});
 import type { Simulation } from '../../../src/services/flight/simulations';
 import type { MotorSpec } from '../../../src/engine/openRocketEngine';
 import type { LaunchConditions } from '../../../src/services/design/orkTree';
+import type { PowerClass } from '../../../src/services/flight/powerClass';
 
 const launch: LaunchConditions = {
   launchRodLengthM: 1,
@@ -36,8 +37,13 @@ type Row = Simulation & { motor?: MotorSpec };
 const sim = (name: string, over: Partial<Row> = {}): Row =>
   ({ id: name, name, motor: CURVE, launch, result: null, ...over }) as unknown as Row;
 
-const gate = (s: Row) => unflyable(s, s.motor);
-const gateAll = (rows: Row[]) => unflyableSims(rows, (r) => (r as Row).motor);
+const gate = (s: Row, cls: PowerClass = 'highPower') => unflyable(s, s.motor, cls);
+const gateAll = (rows: Row[]) =>
+  unflyableSims(
+    rows,
+    (r) => (r as Row).motor,
+    () => 'highPower',
+  );
 
 const t = (key: string, vars?: Record<string, unknown>) =>
   `${key}${
@@ -125,8 +131,17 @@ describe('unflyable', () => {
     expect(gate(zeros)).toBeNull();
   });
 
+  it('judges the launcher angle by the class the configuration flies', () => {
+    const tilted = sim('x', { launch: { ...launch, launchRodAngleDeg: 25 } });
+    expect(gate(tilted, 'model')).toBeNull();
+    expect(gate(tilted, 'highPower')).toMatchObject({
+      kind: 'limits',
+      violations: [{ field: 'rodAngle', powerClass: 'highPower' }],
+    });
+  });
+
   it('checks completeness BEFORE the safety codes', () => {
-    // A blank rod angle is not "within 20 degrees of vertical"; it is nothing
+    // A blank rod angle is not "within so many degrees of vertical"; it is nothing
     // to judge, so the missing field is the useful thing to report.
     const r = gate(sim('x', { launch: { ...launch, launchRodAngleDeg: null, windAverage: 99 } }));
     expect(r?.kind).toBe('incomplete');
@@ -135,7 +150,7 @@ describe('unflyable', () => {
   it('reports the missing motor FIRST, since conditions are moot without one', () => {
     const both = sim('x', {
       motor: { designation: 'M' } as never,
-      launch: { ...launch, launchRodAngleDeg: MAX_ROD_ANGLE_DEG + 10 },
+      launch: { ...launch, launchRodAngleDeg: MAX_ROD_ANGLE_DEG.highPower + 10 },
     });
     expect(gate(both)?.kind).toBe('noMotor');
   });
@@ -201,7 +216,7 @@ describe('unflyableText joins its parts in the UI language', () => {
     await i18n.changeLanguage('ja');
     const [bad] = gateAll([
       sim('風', {
-        launch: { ...launch, windAverage: MAX_WIND_SPEED_MS + 5, launchRodAngleDeg: MAX_ROD_ANGLE_DEG + 5 },
+        launch: { ...launch, windAverage: MAX_WIND_SPEED_MS + 5, launchRodAngleDeg: MAX_ROD_ANGLE_DEG.highPower + 5 },
       }),
     ]);
     const msg = unflyableText(bad!, i18n.t, units);

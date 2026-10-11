@@ -41,6 +41,7 @@
       "archiveEmpty": "L'archive .ork est vide.",
       "tooManyComponents": "Ce {{format}} déclare trop de composants pour être ouvert (peut-être corrompu).",
       "tooManySimulations": "Ce .ork déclare trop de simulations pour être ouvert (peut-être corrompu).",
+      "tooManyUnknownElements": "Ce .ork contient trop d'éléments non reconnus pour être ouvert (peut-être corrompu).",
       "tooManyConfigs": "Ce .ork déclare trop de configurations de vol pour être ouvert (peut-être corrompu).",
       "tooDeep": "Ce {{format}} est trop profondément imbriqué pour être ouvert (peut-être corrompu).",
       "tooLarge": "Le fichier est trop volumineux pour être ouvert (plus de {{size}} Mio)."
@@ -72,6 +73,7 @@
       "engHeaderMass": "En-tête .eng mal formé : la masse de propergol doit être comprise entre 0 et la masse totale.",
       "engDataLine": "Données .eng mal formées à la ligne {{line}} : un temps et une poussée étaient attendus, mais la ligne contient « {{text}} ».",
       "engNoCurve": "Le fichier .eng ne contient aucun point de courbe de poussée.",
+      "engTooManyPoints": "Le moteur {{motor}} du fichier .eng a plus de {{max}} points de données.",
       "engNegativeThrust": "Le moteur {{motor}} du fichier .eng a une poussée négative à la ligne {{line}}.",
       "engNegativeTime": "Le moteur {{motor}} du fichier .eng a un temps négatif à la ligne {{line}}.",
       "attrDiameter": "diamètre",
@@ -128,7 +130,11 @@
       "materials": "Le catalogue de matériaux n'a pas pu être chargé ({{reason}}).",
       "contributors": "La liste des contributeurs n'a pas pu être chargée ({{reason}}).",
       "tooLarge": "réponse trop volumineuse",
-      "badShape": "structure de catalogue inattendue"
+      "badShape": "structure de catalogue inattendue",
+      "http": "HTTP {{status}} du serveur",
+      "timeout": "le serveur n’a pas répondu à temps",
+      "network": "le serveur est injoignable",
+      "noExamples": "l’index des exemples ne contient aucun exemple"
     },
     "export": {
       "noPrintable": "Aucune pièce imprimable n'a été sélectionnée.",
@@ -175,6 +181,8 @@
     "noDesign": "Aucune conception valide à exporter.",
     "stages": "Étages",
     "length": "Longueur",
+    "dimLength": "long. {{value}}",
+    "dimWall": "paroi {{value}}",
     "maxDiameter": "Diamètre max.",
     "massEmpty": "Masse (à vide)",
     "massLoaded": "Masse (en charge)",
@@ -219,6 +227,8 @@
     "transition": "Transition",
     "tooLarge": "{{w}}×{{h}} mm – trop grand pour une impression 1:1 sur une seule page.",
     "fontFallback": "La police du rapport n'a pas pu être chargée, donc certains caractères de ce PDF apparaissent sous la forme « ? ». Exportez-le de nouveau une fois en ligne.",
+    "scriptUncovered": "Certains caractères de ce PDF appartiennent à une écriture que les polices du rapport ne couvrent pas, donc ils apparaissent sous la forme « ? ».",
+    "outdatedFlight": "Obsolète : ces résultats ont été obtenus avant la dernière modification de la conception ou de ses paramètres de simulation. Relancez la simulation pour obtenir des valeurs à jour.",
     "bodyTube": "Tube de corps",
     "markingGuide": "Guide de marquage des ailerons (1:1)",
     "markingGuideHint": "Imprimer à 100 % / taille réelle (sans mise à l'échelle de la page), vérifier la règle, puis découper chaque bande, l'enrouler autour de son tube de corps en aboutant les extrémités (sans les superposer) et marquer à travers les flèches. Tracer une ligne le long du tube passant par chaque paire de repères : c'est là que va la pièce.",
@@ -297,7 +307,8 @@
     "jsTip": "Moteur physique : JavaScript (solution de repli)",
     "slow": "Le moteur physique met plus de temps que d’habitude à charger.",
     "needsIt": "Les outils de conception fonctionnent sans lui ; les valeurs et les simulations en ont besoin.",
-    "retry": "Réessayer"
+    "retry": "Réessayer",
+    "reload": "Recharger la page"
   },
   "about": {
     "open": "À propos",
@@ -538,7 +549,8 @@
       "streamer_surface": "Banderole",
       "shockcord_line": "Cordon de choc"
     },
-    "materialNoDefault": "Aucun défaut – laisser la pièce sans matériau"
+    "materialNoDefault": "Aucun défaut – laisser la pièce sans matériau",
+    "timeStepScale": "Pas de temps, du plus grossier au plus fin"
   },
   "config": {
     "title": "Configuration de la fusée",
@@ -817,9 +829,15 @@
     "rodDirectionName_rail": "Direction du rail",
     "rodDirectionName_rod": "Direction de la tige",
     "windDirectionName": "Direction du vent",
-    "angleLimit": "Les codes de sécurité NAR et Tripoli exigent une rampe à moins de {{limit}} de la verticale.",
-    "angleLimit_rail": "Les codes de sécurité NAR et Tripoli exigent un rail à moins de {{limit}} de la verticale.",
-    "angleLimit_rod": "Les codes de sécurité NAR et Tripoli exigent une tige à moins de {{limit}} de la verticale.",
+    "angleLimitModel": "En tant que fusée modèle, elle vole selon le code de sécurité des fusées modèles de la NAR, qui exige une rampe à moins de {{limit}} de la verticale.",
+    "angleLimitModel_rail": "En tant que fusée modèle, elle vole selon le code de sécurité des fusées modèles de la NAR, qui exige un rail à moins de {{limit}} de la verticale.",
+    "angleLimitModel_rod": "En tant que fusée modèle, elle vole selon le code de sécurité des fusées modèles de la NAR, qui exige une tige à moins de {{limit}} de la verticale.",
+    "angleLimitHighPower": "En tant que fusée de forte puissance, elle vole selon les codes de sécurité forte puissance de la NAR et de Tripoli, qui exigent une rampe à moins de {{limit}} de la verticale.",
+    "angleLimitHighPower_rail": "En tant que fusée de forte puissance, elle vole selon les codes de sécurité forte puissance de la NAR et de Tripoli, qui exigent un rail à moins de {{limit}} de la verticale.",
+    "angleLimitHighPower_rod": "En tant que fusée de forte puissance, elle vole selon les codes de sécurité forte puissance de la NAR et de Tripoli, qui exigent une tige à moins de {{limit}} de la verticale.",
+    "angleLimitEither": "Le code de sécurité des fusées modèles de la NAR exige une rampe à moins de {{model}} de la verticale, et les codes forte puissance de la NAR et de Tripoli à moins de {{highPower}}.",
+    "angleLimitEither_rail": "Le code de sécurité des fusées modèles de la NAR exige un rail à moins de {{model}} de la verticale, et les codes forte puissance de la NAR et de Tripoli à moins de {{highPower}}.",
+    "angleLimitEither_rod": "Le code de sécurité des fusées modèles de la NAR exige une tige à moins de {{model}} de la verticale, et les codes forte puissance de la NAR et de Tripoli à moins de {{highPower}}.",
     "windLimit": "Les codes de sécurité NAR et Tripoli demandent de ne pas voler par vent supérieur à {{limit}}.",
     "field": {
       "launchRodLengthM": "longueur de rampe",
@@ -858,7 +876,40 @@
     "flightEvents": "Inclure les événements de vol",
     "commentChar": "Caractère de commentaire",
     "stage": "Étage à exporter",
-    "export": "Exporter"
+    "export": "Exporter",
+    "head": {
+      "simulationLine": "Simulation : {{name}}",
+      "time": "Temps",
+      "event": "Événement",
+      "source": "Source",
+      "stage": "Étage",
+      "altitude": "Altitude",
+      "velocity": "Vitesse",
+      "stability": "Stabilité",
+      "thrustWeight": "Poussée/poids",
+      "aoa": "Angle d'attaque",
+      "mach": "Mach",
+      "dynamicPressure": "Pression dynamique",
+      "simulation": "Simulation",
+      "configuration": "Configuration",
+      "motors": "Moteurs",
+      "status": "État",
+      "apogee": "Apogée",
+      "maxVelocity": "Vitesse max.",
+      "maxAcceleration": "Accélération max.",
+      "maxMach": "Mach max.",
+      "exitVelocity": "Vitesse en sortie de rampe",
+      "exitVelocity_rail": "Vitesse en sortie du rail",
+      "exitVelocity_rod": "Vitesse en sortie de la tige",
+      "timeToApogee": "Temps jusqu'à l'apogée",
+      "flightTime": "Durée de vol",
+      "deploymentVelocity": "Vitesse au déploiement",
+      "landingVelocity": "Vitesse d'atterrissage",
+      "optimumDelay": "Délai optimal",
+      "maxQ": "Pression dynamique max.",
+      "maxQAlpha": "q·alpha max.",
+      "maxRollRate": "Roulis max."
+    }
   },
   "flightVar": {
     "ha": "Altitude au-dessus du niveau de la mer",
@@ -997,7 +1048,8 @@
     "events": "Événements de vol",
     "event": "Événement",
     "twr": "TWR",
-    "eventsCsv": "Télécharger les événements de vol (.csv)"
+    "eventsCsv": "Télécharger les événements de vol (.csv)",
+    "peakTag": "pic"
   },
   "pathExport": {
     "open": "Exporter la trajectoire (KML / GPX / CSV)",
@@ -1098,7 +1150,8 @@
       "flightPath": "trajectoire",
       "groundTrack": "trace au sol",
       "distanceBearing": "{{distance}} {{unit}} à {{bearing}}",
-      "stageLanding": "Chute de {{stage}}"
+      "stageLanding": "Chute de {{stage}}",
+      "flight": "Vol"
     },
     "mission": "Mission",
     "missionPlaceholder": "p. ex. Sod Blaster L1",
@@ -1111,7 +1164,10 @@
     "cancel": "Annuler",
     "colorRolePath": "Trajectoire",
     "colorRoleGround": "Sol",
-    "colorRolePin": "Repère"
+    "colorRolePin": "Repère",
+    "importSaveError": "Impossible d’enregistrer ce modèle dans ce navigateur.",
+    "deleteError": "Impossible de supprimer ce modèle.",
+    "deleteConfirm": "Supprimer le modèle « {{name}} » de ce navigateur ?"
   },
   "aero": {
     "unattributed": "Non attribué à un composant",
@@ -1183,7 +1239,6 @@
     "versionUnsupported": "Version de document non prise en charge {{version}}, tentative de lecture du fichier malgré tout.",
     "versionMissingBy": "Version de document non prise en charge (écrit avec '{{creator}}'), tentative de lecture du fichier malgré tout.",
     "versionMissing": "Version de document non prise en charge, tentative de lecture du fichier malgré tout.",
-    "ignored": "Composants non pris en charge ignorés : {{names}}.",
     "skippedUnsupported": "Ignoré, non pris en charge : {{name}}",
     "instanced": "Composants répétés en plusieurs instances : {{names}}. La simulation compte chaque instance, mais le dessin n'en montre actuellement qu'une.",
     "configsNoMotors": "Le fichier déclare {{total}} configurations de vol mais ne contenait aucun moteur à importer.",
@@ -1895,9 +1950,12 @@
     "tooFast": "Trop rapide",
     "tooSlow": "Trop lent",
     "overRail": "Plus long que le rail",
-    "rodAngle": "L'angle de la rampe est de {{value}} par rapport à la verticale, au-delà des {{limit}} autorisés par les codes de sécurité NAR et Tripoli.",
-    "rodAngle_rail": "L'angle du rail est de {{value}} par rapport à la verticale, au-delà des {{limit}} autorisés par les codes de sécurité NAR et Tripoli.",
-    "rodAngle_rod": "L'angle de la tige est de {{value}} par rapport à la verticale, au-delà des {{limit}} autorisés par les codes de sécurité NAR et Tripoli.",
+    "rodAngleModel": "L'angle de la rampe est de {{value}} par rapport à la verticale, au-delà des {{limit}} autorisés par le code de sécurité des fusées modèles de la NAR.",
+    "rodAngleModel_rail": "L'angle du rail est de {{value}} par rapport à la verticale, au-delà des {{limit}} autorisés par le code de sécurité des fusées modèles de la NAR.",
+    "rodAngleModel_rod": "L'angle de la tige est de {{value}} par rapport à la verticale, au-delà des {{limit}} autorisés par le code de sécurité des fusées modèles de la NAR.",
+    "rodAngleHighPower": "L'angle de la rampe est de {{value}} par rapport à la verticale, au-delà des {{limit}} que les codes de sécurité NAR et Tripoli autorisent pour une fusée de forte puissance.",
+    "rodAngleHighPower_rail": "L'angle du rail est de {{value}} par rapport à la verticale, au-delà des {{limit}} que les codes de sécurité NAR et Tripoli autorisent pour une fusée de forte puissance.",
+    "rodAngleHighPower_rod": "L'angle de la tige est de {{value}} par rapport à la verticale, au-delà des {{limit}} que les codes de sécurité NAR et Tripoli autorisent pour une fusée de forte puissance.",
     "wind": "La vitesse du vent est de {{value}}, au-delà des {{limit}} autorisés par les codes de sécurité NAR et Tripoli.",
     "refused": "« {{name}} » n'a pas été lancée – ses conditions de lancement sortent des codes de sécurité."
   },
@@ -1995,7 +2053,8 @@
     "landed": "{{flown}} vols sur {{asked}} ont atterri.",
     "stale": "La conception a changé depuis que ce balayage a été effectué.",
     "noLandings": "Le balayage de vent n'a produit aucun atterrissage.",
-    "spread": "{{from}}–{{to}}"
+    "spread": "{{from}}–{{to}}",
+    "flown": "balayage effectué"
   },
   "crossSection": {
     "square": "Carrée",
@@ -2055,8 +2114,8 @@
       "badKey": "Open-Meteo n’a pas accepté la clé d’API des Paramètres, Lancement. Vos conditions de lancement sont inchangées.",
       "quota": "Le quota gratuit d’Open-Meteo est épuisé pour le moment. Réessayez plus tard ou ajoutez une clé d’API dans Paramètres, Lancement. Vos conditions de lancement sont inchangées.",
       "http": "Open-Meteo a répondu par une erreur ({{detail}}). Vos conditions de lancement sont inchangées.",
-      "shape": "La réponse d’Open-Meteo n’a pas pu être lue ({{detail}}). Vos conditions de lancement sont inchangées.",
-      "units": "Open-Meteo a répondu dans des unités que l’application ne lit pas ({{detail}}). Vos conditions de lancement sont inchangées.",
+      "shape": "La réponse d’Open-Meteo n’a pas pu être lue. Vos conditions de lancement sont inchangées.",
+      "units": "Open-Meteo a répondu dans des unités que l’application ne lit pas. Vos conditions de lancement sont inchangées.",
       "noData": "Open-Meteo n’a pas de données pour cette date ici. Vos conditions de lancement sont inchangées."
     },
     "keyLabel": "Clé d’API Open-Meteo",
@@ -2139,6 +2198,7 @@
     "estimateNote": "Une estimation à partir de vitesses de descente saisies. La zone couvre {{descents}} descentes : {{hours}} heures de prévision, la vitesse du vent à 20% près, la direction à 15° près et la vitesse de descente à 10% près.",
     "flatGround": "La forme du terrain n’a pas pu être récupérée, l’atterrissage se fait donc sur un sol plat à la hauteur du pas de tir.",
     "surfaceWindOnly": "L'historique d'Open-Meteo pour cette date n'a que le vent près du sol, donc toute la descente dérive avec lui.",
+    "outdated": "Le site, la date, l’heure, l’apogée ou les vitesses de descente ont changé depuis cette estimation. Appuyez sur Estimer l’atterrissage pour la mettre à jour.",
     "mapLabel": "Estimation d’atterrissage vue d’en haut, atterrissage à {{distance}} du pas de tir"
   },
   "tools": {

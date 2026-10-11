@@ -3,6 +3,7 @@ import { fmtSi, type UnitSelection } from '../../prefs/units.js';
 import { appName } from '../app/appInfo.js';
 import { escapeXml } from '../files/xmlUtil.js';
 import { KeyedError } from '../../i18n/keyedError';
+import { fmtList, fmtNum } from '../../i18n/format';
 import { staticInfoRows } from '../report/designInfo';
 
 /**
@@ -37,7 +38,7 @@ export function dataHeaderLines(d: ExportData): string[] {
       t('export.headerMaxDiameter', { value: length(i.refDiameter) }),
       ...(d.spanM ? [t('export.headerSpan', { value: length(d.spanM) })] : []),
     ];
-    lines.push(dims.join(', '));
+    lines.push(fmtList(dims));
     lines.push(
       d.withMotors
         ? t('export.headerLaunchMass', { mass: mass(i.mass), dry: mass(i.massEmpty) })
@@ -48,7 +49,7 @@ export function dataHeaderLines(d: ExportData): string[] {
     const hasCp = staticInfoRows(i).some((r) => r.key === 'cp');
     lines.push(
       hasCp
-        ? t('export.headerBalance', { cg: length(i.cg), cp: length(i.cp), margin: i.stabilityCalibers.toFixed(2) })
+        ? t('export.headerBalance', { cg: length(i.cg), cp: length(i.cp), margin: fmtNum(i.stabilityCalibers, 2) })
         : t('export.headerCg', { cg: length(i.cg) }),
     );
   }
@@ -232,7 +233,8 @@ export function svgToImage(svgString: string, widthPx = 3840, format: ImageForma
  * `glCanvas` is any canvas holding the rendered frame at export size: the
  * offscreen 2D canvas the render-target capture produces, or, on the
  * fallback path, the live WebGL canvas (which then needs
- * preserveDrawingBuffer for drawImage to see the frame).
+ * preserveDrawingBuffer for drawImage to see the frame). A composed canvas past
+ * the browser's size limit rejects with the same keyed error `svgToImage` gives.
  */
 export function snapshotWithHeader(
   glCanvas: HTMLCanvasElement,
@@ -246,9 +248,15 @@ export function snapshotWithHeader(
   const headerH = lineH * (lines.length + 1);
 
   const canvas = document.createElement('canvas');
-  canvas.width = w;
-  canvas.height = headerH + glCanvas.height;
-  const c = canvas.getContext('2d')!;
+  let c: CanvasRenderingContext2D | null;
+  try {
+    canvas.width = w;
+    canvas.height = headerH + glCanvas.height;
+    c = canvas.getContext('2d');
+  } catch {
+    c = null;
+  }
+  if (!c) return Promise.reject(new KeyedError('errors.export.imageTooLarge'));
   c.fillStyle = '#ffffff';
   c.fillRect(0, 0, canvas.width, canvas.height);
   c.fillStyle = '#20242c';

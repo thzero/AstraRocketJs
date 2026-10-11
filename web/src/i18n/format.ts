@@ -100,7 +100,9 @@ export function partLabel(
  * read as the viewer's. `year: false` drops the year; `timeOnly` gives just the
  * hour and minute (a table of hours on one known day). A zone the browser does
  * not know (it comes from Open-Meteo and from a saved weather source) falls back
- * to the viewer's clock rather than throwing in the middle of a render.
+ * to the viewer's clock rather than throwing in the middle of a render. An
+ * instant that is not a date (a malformed stored value) reads as no value, for
+ * the same reason.
  */
 export function fmtSiteTime(
   at: string | number | Date,
@@ -120,6 +122,7 @@ export function fmtSiteTime(
         timeZoneName: 'short',
       };
   const date = new Date(at);
+  if (Number.isNaN(date.getTime())) return NO_VALUE;
   try {
     return new Intl.DateTimeFormat(lng, { ...fields, timeZone }).format(date);
   } catch {

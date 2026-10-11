@@ -55,7 +55,7 @@ A part that exists more than once (a fin set, most often) also gets a **Per inst
 
 **Stability contribution** is the companion table, and the one that answers *why the CP is where it is*: each part's **CNα** (its share of the rocket's normal-force slope) and its own **CP**. The fin set usually carries the great majority of the CNα (that is what holds the CP aft) while the nose cone contributes a couple of units pulling it forward. The rocket's CP is the CNα-weighted mean of the rows. Parts that carry no normal force, such as a straight body tube, are left out rather than listed as zeros. Each row also carries the part's **mass**: one instance, all instances, and the CG of the set: so the two halves of a stability question sit side by side. The CP is given three ways: in your **length unit**, as **CP (% body)** over the overall airframe length, and as **CP (% length)** over the aerodynamic length, which are the same two percentages the CP vs Mach chart offers. Do not confuse either with the **%** column at the far right, which is the part's share of the rocket's CNα, not a position.
 
-**Roll dynamics** lists every fin set with its **roll forcing** and **roll damping** coefficients. Both read zero on a rocket that is neither canted nor rolling: that is the honest answer, not a missing table. Give a fin set a **cant angle** and the forcing coefficient comes up; it is the one place in the app that confirms a cant is doing what you intended. Damping opposes an existing roll, so it needs the **Roll rate** control above.
+**Roll dynamics** lists every fin set with its **roll forcing** and **roll damping** coefficients. Both read zero on a rocket that is neither canted nor rolling: that is the correct value, not a missing table. Give a fin set a **cant angle** and the forcing coefficient comes up, which shows the cant at work. Damping opposes an existing roll, so it needs the **Roll rate** control above.
 
 **Max Mach** sets how far the sweep runs: **M1** (the default: most hobby rockets never go supersonic, and a wider sweep squeezes the subsonic part of the curve into the left edge), or **M2 / M3 / M5** for one that does.
 
@@ -73,9 +73,9 @@ It is deliberately not the Simulations tab's tick boxes: those say what **Run** 
 
 ## Ground track (after a simulation)
 
-The flight seen from **directly above**: where the rocket went over the ground, with height thrown away. The 3D path answers *how did it fly*; this answers *where does it come down, and how far from the pad*: which on a breezy day is the difference between a walk and a search.
+The flight seen from **directly above**: where the rocket went over the ground, with height thrown away. The 3D path answers *how did it fly*; this answers *where does it come down, and how far from the pad*.
 
-North is up, the pad is at the center, and both axes share one scale, so the picture is read like a map of the field you are standing on. **Range rings** carry the measurement, labeled in your distance unit, and each track ends in a ring at its landing point. Underneath, every track reports **how far** and **which bearing**: the two numbers you actually walk on.
+North is up, the pad is at the center, and both axes share one scale, so the picture is read like a map of the field you are standing on. **Range rings** carry the measurement, labeled in your distance unit, and each track ends in a ring at its landing point. Underneath, every track reports **how far** and **which bearing** it landed from the pad.
 
 It draws the same traces the flight charts do, so a staged flight shows each stage's own descent: a spent booster usually lands somewhere quite different from the sustainer.
 
@@ -85,17 +85,17 @@ The track can be drawn over **aerial imagery of the field you flew from**, at th
 
 **None · Satellite · Street** in the corner chooses the layer. It starts on **None**, and nothing is fetched until you ask for the ground: the rings and the numbers are the measurement and they do not depend on a picture, so opening Results is not a reason to go and get one. Which layer you pick is shared with the [launch-site map](./running-a-simulation.md#the-map), and turning the ground on or off carries between this view and the 3D path for the session, because it is one question about how you want to read the ground rather than a setting per view.
 
-The zoom follows the flight: a 200 m drift draws closer in than a 5 km one. The view never zooms closer than about **100 m across**, however short the flight: still air lands a rocket a few centimeters from the pad, and a picture of that much grass is no picture at all. So a landing on the pad reads as a dot on the pad, which is the truth about it.
+The zoom follows the flight: a 200 m drift draws closer in than a 5 km one. The view never zooms closer than about **100 m across**, however short the flight: still air lands a rocket a few centimeters from the pad, so a landing on the pad reads as a dot on the pad.
 
 Tiles are the same ones the launch-site map uses and are cached the same way, so a field you checked at home still draws with no signal. Somewhere you have never viewed draws without them, which is the plain plot and still a correct measurement: the range rings do not depend on the picture. The provider's credit sits in the corner whenever imagery is showing, as its terms require.
 
-To take the same thing outside the app, the [flight-path export](./files-and-exports.md) writes it as KML or GPX for Google Earth, and the flight CSV now carries **East** and **North** columns beside altitude.
+To take the same thing outside the app, the [flight-path export](./files-and-exports.md) writes it as KML or GPX for Google Earth, and the flight CSV has **East** and **North** columns beside altitude.
 
 ### The drift region (a wind sweep) {#the-drift-region-a-wind-sweep}
 
 :::warning Experimental
 
-New, and less settled than the rest of this page. Each flight in a sweep goes through the same validated kernel as any other simulation, so the individual landings are as good as the app's flight results generally are: but the **region drawn around them has not been checked against a real recovery**, and the shape of the controls, the default grid and the two-sigma choice are all likely to change.
+Each flight in a sweep goes through the same kernel as any other simulation, so the individual landings are as good as the app's flight results generally are. The **region drawn around them has not been checked against a real recovery**.
 
 Read it as a planning aid: how big a field this wants, and roughly which way the walk goes. It is not a range-safety clearance, and it is not a substitute for the [safety checks](./safety.md) or for looking at the actual field.
 
@@ -115,7 +115,7 @@ The readout under the plot gains the **range band** for each stage (the nearest 
 
 Everything but the wind is held exactly as the simulation has it: the same design, motor, ignition, rod, site and run settings, and one turbulence seed across the whole grid. That is what makes the spread attributable to the wind rather than to a dozen things moving at once, and it is why the same sweep run twice draws the same region. The speed band is capped by the same [safety-code limit](./safety.md) the Run button enforces, so a sweep never draws ground the app will not fly to.
 
-A sweep belongs to the flight it was built around, and only one is held at a time: pick a different flight and the region is not drawn. Edit the design, the motor or the launch conditions afterwards and the region stays up with a note saying it is older than what is on screen: the landings are still the honest answer for the rocket that flew them. **Clear** removes it. Nothing about a sweep is saved with the design.
+A sweep belongs to the flight it was built around, and only one is held at a time: pick a different flight and the region is not drawn. Edit the design, the motor or the launch conditions afterward and the region stays up with a note saying it is older than what is on screen: the landings still describe the rocket that flew them. **Clear** removes it. Nothing about a sweep is saved with the design.
 
 ## 3D path (after a simulation)
 
@@ -123,7 +123,7 @@ The flight **trajectory in 3D**: the rocket's path through space, including drif
 
 The **ground plane can carry the same aerial imagery**, laid at the launch site's coordinates so the trajectory arcs over the real field rather than over an empty grid. The same **None · Satellite · Street** buttons sit at the top left, starting on **None** and sharing their choice with the ground track and the launch-site map. The imagery covers a little past the furthest the rocket got from the pad rather than the whole plane, so a three-hundred-meter flight does not fetch a kilometer of scenery either side; the reference grid carries on beyond its edge.
 
-An **⬇ Export** button saves the flight path for mapping tools: **KML** (Google Earth), **GPX**, or a **waypoint CSV**: with options for which waypoints and lines to include, and support for your own templates. See [Files & Exports](./files-and-exports.md#exporting-the-flight-path-kml--gpx--csv).
+An **⬇ Export** button saves the flight path for mapping tools: **KML** (Google Earth), **GPX**, or a **waypoint CSV**, with options for which waypoints and lines to include, and support for your own templates. See [Files & Exports](./files-and-exports.md#exporting-the-flight-path-kml--gpx--csv).
 
 ### Playing the flight back
 

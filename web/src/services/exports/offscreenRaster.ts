@@ -1,3 +1,5 @@
+import { KeyedError } from '../../i18n/keyedError';
+
 /**
  * Owns the pure arithmetic of the offscreen 3D image export: the export-size
  * clamp against the renderer's texture limit, and the bottom-up row copy that
@@ -64,7 +66,8 @@ export function flipRows(pixels: Uint8Array | Uint8ClampedArray, width: number, 
  * A 2D canvas holding a WebGL readback, the right way up. This is the only
  * DOM touch on the export path before the header/encode step, and the canvas
  * it returns is an ordinary HTMLCanvasElement, so `snapshotWithHeader` draws
- * it the same way it draws a live WebGL canvas.
+ * it the same way it draws a live WebGL canvas. A canvas past the browser's
+ * size limit has no 2D context and throws the keyed `imageTooLarge` error.
  */
 export function pixelsToCanvas(
   pixels: Uint8Array | Uint8ClampedArray,
@@ -72,10 +75,15 @@ export function pixelsToCanvas(
   height: number,
 ): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('pixelsToCanvas: 2D canvas context unavailable');
+  let ctx: CanvasRenderingContext2D | null;
+  try {
+    canvas.width = width;
+    canvas.height = height;
+    ctx = canvas.getContext('2d');
+  } catch {
+    ctx = null;
+  }
+  if (!ctx) throw new KeyedError('errors.export.imageTooLarge');
   const image = ctx.createImageData(width, height);
   image.data.set(flipRows(pixels, width, height));
   ctx.putImageData(image, 0, 0);

@@ -1,17 +1,17 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
 import { render } from '@testing-library/react';
-import { LegendSwatch, SeriesPath, peakOf } from '../../../src/components/sim/chartAxes';
+import { LegendSwatch, SeriesPath, highestSample } from '../../../src/components/sim/chartAxes';
 import { CATEGORICAL, seriesColor } from '../../../src/components/common/chartPalette';
 import { renderWithProviders } from '../../testing/renderWithProviders';
 
 const X = (t: number) => t * 10;
 const Y = (f: number) => 100 - f;
 
-describe('peakOf', () => {
+describe('highestSample', () => {
   it('takes the first of the tallest samples', () => {
     expect(
-      peakOf([
+      highestSample([
         [0, 1],
         [1, 5],
         [2, 5],

@@ -157,6 +157,11 @@ describe('fmtSiteTime', () => {
     expect(fmtSiteTime(at, 'Not/AZone')).toMatch(/2026/);
   });
 
+  it('reads a malformed stored instant as no value instead of throwing', () => {
+    expect(fmtSiteTime('not a date', 'America/Denver')).toBe(NO_VALUE);
+    expect(fmtSiteTime('not a date', 'Not/AZone')).toBe(NO_VALUE);
+  });
+
   it('leaves out the year or the date when asked', () => {
     expect(fmtSiteTime(at, 'UTC', { year: false })).not.toMatch(/2026/);
     expect(fmtSiteTime(at, 'UTC', { timeOnly: true })).toMatch(/^18:30$|^06:30 PM$/);

@@ -15,6 +15,7 @@ import type { CustomMotor } from './motorStore';
 import { impulseClass } from './motorCombine';
 import { trapezoidImpulse } from './motorMath';
 import { removeDelay } from './rseParser';
+import { MAX_CURVE_SAMPLES } from './curveFinalize';
 import { delayList } from './motorPicker';
 import { KeyedError } from '../../i18n/keyedError';
 
@@ -116,6 +117,11 @@ function parseMotor(lines: readonly Line[], at: number): { motor: CustomMotor; n
     // desktop drops it.
     if (f! < 0) throw new KeyedError('errors.motorFile.engNegativeThrust', { motor: designation, line: line.no });
     if (t! < 0) throw new KeyedError('errors.motorFile.engNegativeTime', { motor: designation, line: line.no });
+    // The ceiling `.rse` is held to, counted as the lines are read so a huge
+    // file is refused before its samples are all in memory.
+    if (samples.length >= MAX_CURVE_SAMPLES) {
+      throw new KeyedError('errors.motorFile.engTooManyPoints', { motor: designation, max: MAX_CURVE_SAMPLES });
+    }
     samples.push({ time: t!, thrust: f! });
   }
   if (samples.length < 2) throw new KeyedError('errors.motorFile.engNoCurve');

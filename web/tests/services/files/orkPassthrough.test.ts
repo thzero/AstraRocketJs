@@ -8,6 +8,7 @@ import {
 } from '../../../src/services/files/ork/passthrough';
 import type { ComponentNode, RocketTree } from '../../../src/engine/openRocketEngine';
 import { noteTexts } from '../../testing/importNotes';
+import { MAX_PASSTHROUGH } from '../../../src/services/files/ork/importLimits';
 
 /**
  * What a `.ork` carries that this app has no model for.
@@ -357,5 +358,22 @@ describe('a stage carries what RocketComponentSaver writes for every component',
     expect(stage).toContain('<linestyle>dashed</linestyle>');
     expect(stage).toMatch(/<color red="10" green="20" blue="30"/);
     expect(stage.match(/<appearance>/g)).toHaveLength(1);
+  });
+});
+
+describe('the unrecognized elements one element can carry are bounded', () => {
+  // `<x/>` is four bytes, so the byte caps alone let one part carry millions,
+  // each stored, persisted and written back on every save.
+  const many = (n: number): string => '<x/>'.repeat(n);
+
+  it('keeps every one up to the ceiling', () => {
+    const t = tube(importOrk(orkWith(many(MAX_PASSTHROUGH))).tree);
+    expect(t['xmlExtra']).toHaveLength(MAX_PASSTHROUGH);
+  });
+
+  it('refuses the file past it with a keyed error', () => {
+    expect(() => importOrk(orkWith(many(MAX_PASSTHROUGH + 1)))).toThrow(
+      expect.objectContaining({ key: 'errors.file.tooManyUnknownElements' }),
+    );
   });
 });

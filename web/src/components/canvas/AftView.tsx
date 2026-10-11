@@ -35,9 +35,10 @@ import { token } from '../common/colorTokens';
 /**
  * Aft end view: the rocket seen from behind (down the +X axis). This is the
  * only place cluster layouts, pod rings and fin counts are visible as they
- * really are: the side views project everything onto one plane. Pure display,
- * no interaction (edit cluster layout/rotation/spacing in the motor dialog and
- * watch this update).
+ * really are: the side views project everything onto one plane. It edits
+ * nothing in the design: the wheel zooms, a drag at the fitted view rolls it,
+ * and zoomed in a drag or the arrow keys pan it (edit cluster layout/rotation/spacing in the motor
+ * dialog and watch this update).
  *
  * Convention: +y right, +z up, matching the kernel's cross-section frame
  * (cluster offsets and pod ring offsets are already {y,z} in that frame).

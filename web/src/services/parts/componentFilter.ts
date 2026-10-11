@@ -81,9 +81,9 @@ export function fitRuleFor(type: PickerType, fit: FitContext | undefined): FitRu
           : (fit.airframeOuter ?? []).filter((d) => d > 0);
       return targets.length > 0 ? { kind: 'match', targets } : null;
     }
-    // A parachute's fit is about packed volume, which the model does not carry
-    // (no packed length or radius on a recovery device). Ranking it by canopy
-    // diameter against a bore would be confidently wrong, so it abstains.
+    // A parachute's fit is about packed volume, not canopy diameter. Ranking it
+    // by canopy diameter against a bore would be confidently wrong, so it
+    // abstains.
     case 'parachute':
       return null;
     // An inner tube abstains too, for the opposite reason: the constraint that

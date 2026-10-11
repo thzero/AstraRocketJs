@@ -13,7 +13,7 @@
 
 /** Every material type, in one list: the type, the catalog check and the saved
  *  default-material keys all read it. */
-export const MATERIAL_TYPES = ['bulk', 'surface', 'line'] as const;
+const MATERIAL_TYPES = ['bulk', 'surface', 'line'] as const;
 
 export type MaterialType = (typeof MATERIAL_TYPES)[number];
 
@@ -47,7 +47,7 @@ export interface Material {
  * OpenRocket's own `Databases.java` and leave ours alone. The app itself does
  * not read it: a material is a name and a density whoever wrote it down.
  */
-export type MaterialKind = 'upstream' | 'adhesive' | 'corrected';
+type MaterialKind = 'upstream' | 'adhesive' | 'corrected';
 
 /** A row of the runtime catalog, as sync-materials.mjs writes it. */
 export interface MaterialRow {

@@ -55,7 +55,7 @@ Una pieza que existe más de una vez (normalmente un juego de aletas) tiene adem
 
 **Contribución a la estabilidad** es la tabla complementaria, y la que responde a *por qué el CP está donde está*: el **CNα** de cada pieza (su parte de la pendiente de fuerza normal del cohete) y su propio **CP**. El juego de aletas suele aportar la gran mayoría del CNα (eso es lo que mantiene el CP hacia atrás), mientras que el cono aporta un par de unidades que tiran de él hacia delante. El CP del cohete es la media de las filas ponderada por CNα. Las piezas que no generan fuerza normal, como un tubo recto, se omiten en vez de aparecer como ceros. Cada fila lleva además la **masa** de la pieza (una unidad, todas las unidades y el CG del conjunto), de modo que las dos mitades de una cuestión de estabilidad quedan juntas. El CP se da de tres maneras: en tu **unidad de longitud**, como **CP (% body)** sobre la longitud total del fuselaje y como **CP (% length)** sobre la longitud aerodinámica, que son los mismos dos porcentajes que ofrece la gráfica de CP frente a Mach. No hay que confundir ninguno de los dos con la columna **%** del extremo derecho, que es la parte del CNα del cohete que aporta la pieza, no una posición.
 
-**Dinámica de alabeo** lista todos los juegos de aletas con sus coeficientes de **forzamiento** y **amortiguamiento** de alabeo. Ambos son cero en un cohete que ni está calado ni gira: esa es la respuesta correcta, no una tabla que falta. Da un **ángulo de calaje** a un juego de aletas y el forzamiento sube; es el único sitio de la aplicación que confirma que ese calaje hace lo que pretendías. El amortiguamiento se opone a un alabeo existente, así que necesita el control **Vel. alabeo** de arriba.
+**Dinámica de alabeo** lista todos los juegos de aletas con sus coeficientes de **forzamiento** y **amortiguamiento** de alabeo. Ambos son cero en un cohete que ni está calado ni gira: esa es la respuesta correcta, no una tabla que falta. Da un **ángulo de calaje** a un juego de aletas y el forzamiento sube, lo que muestra el efecto del calaje. El amortiguamiento se opone a un alabeo existente, así que necesita el control **Vel. alabeo** de arriba.
 
 **Mach máximo** define hasta dónde llega el barrido: **M1** (el valor por defecto; la mayoría de los cohetes de afición nunca llegan a supersónico, y un barrido más amplio aplasta la parte subsónica de la curva contra el borde izquierdo) o **M2 / M3 / M5** para uno que sí lo haga.
 
@@ -73,9 +73,9 @@ No son las casillas de la pestaña Simulaciones a propósito: esas dicen qué de
 
 ## Traza en tierra (tras una simulación) {#ground-track-after-a-simulation}
 
-El vuelo visto **desde arriba**: por dónde pasó el cohete sobre el terreno, descartando la altura. La trayectoria 3D responde a *cómo voló*; esta responde a *dónde cae y a qué distancia de la rampa*, que en un día con viento es la diferencia entre un paseo y una búsqueda.
+El vuelo visto **desde arriba**: por dónde pasó el cohete sobre el terreno, descartando la altura. La trayectoria 3D responde a *cómo voló*; esta responde a *dónde cae y a qué distancia de la rampa*.
 
-El norte va arriba, la rampa está en el centro y ambos ejes comparten escala, así que el dibujo se lee como un mapa del campo en el que estás. Los **anillos de distancia** aportan la medida, etiquetados en tu unidad de distancia, y cada traza termina en un anillo sobre su punto de aterrizaje. Debajo, cada traza indica **a qué distancia** y **en qué rumbo**: los dos números con los que realmente caminas.
+El norte va arriba, la rampa está en el centro y ambos ejes comparten escala, así que el dibujo se lee como un mapa del campo en el que estás. Los **anillos de distancia** aportan la medida, etiquetados en tu unidad de distancia, y cada traza termina en un anillo sobre su punto de aterrizaje. Debajo, cada traza indica **a qué distancia** y **en qué rumbo** aterrizó respecto a la rampa.
 
 Dibuja las mismas trazas que las gráficas de vuelo, así que un vuelo por etapas muestra el descenso propio de cada una: un propulsor agotado suele caer bastante lejos del sustentador.
 
@@ -85,17 +85,17 @@ La traza puede dibujarse sobre **imágenes aéreas del campo desde el que volast
 
 **Ninguna · Satélite · Callejero** en la esquina elige la capa. Empieza en **Ninguna**, y no se descarga nada hasta que pides el terreno: los anillos y los números son la medida y no dependen de una foto, así que abrir Resultados no es motivo para ir a buscarla. Qué capa eliges se comparte con el [mapa del campo de lanzamiento](./running-a-simulation.md#the-map), y encender o apagar el terreno se mantiene entre esta vista y la trayectoria 3D durante la sesión, porque es una sola pregunta sobre cómo quieres leer el terreno y no un ajuste por vista.
 
-El zoom sigue al vuelo: una deriva de 200 m se dibuja más cerca que una de 5 km. La vista nunca se acerca más de unos **100 m de lado**, por corto que sea el vuelo: con aire en calma el cohete aterriza a unos centímetros de la rampa, y una imagen de esa cantidad de hierba no es ninguna imagen. Así, un aterrizaje sobre la rampa se lee como un punto sobre la rampa, que es la verdad.
+El zoom sigue al vuelo: una deriva de 200 m se dibuja más cerca que una de 5 km. La vista nunca se acerca más de unos **100 m de lado**, por corto que sea el vuelo: con aire en calma el cohete aterriza a unos centímetros de la rampa, así que un aterrizaje sobre la rampa se lee como un punto sobre la rampa.
 
 Las teselas son las mismas que usa el mapa del campo de lanzamiento y se guardan igual, así que un campo que consultaste en casa se sigue dibujando sin cobertura. Un lugar que nunca has visto se dibuja sin ellas, es decir, el gráfico limpio y una medida igual de correcta: los anillos de distancia no dependen de la imagen. El crédito del proveedor aparece en la esquina siempre que se muestran imágenes, como exigen sus condiciones.
 
-Para llevarte lo mismo fuera de la aplicación, la [exportación de trayectoria](./files-and-exports.md) lo escribe como KML o GPX para Google Earth, y el CSV del vuelo ahora incluye columnas **Este** y **Norte** junto a la altitud.
+Para llevarte lo mismo fuera de la aplicación, la [exportación de trayectoria](./files-and-exports.md) lo escribe como KML o GPX para Google Earth, y el CSV del vuelo incluye columnas **Este** y **Norte** junto a la altitud.
 
 ### La región de deriva (un barrido de viento) {#the-drift-region-a-wind-sweep}
 
 :::warning Experimental
 
-Es nuevo y está menos asentado que el resto de esta página. Cada vuelo de un barrido pasa por el mismo núcleo validado que cualquier otra simulación, así que los aterrizajes individuales son tan buenos como lo son en general los resultados de vuelo de la aplicación, pero la **región dibujada a su alrededor no se ha contrastado con una recuperación real**, y es probable que cambien tanto la forma de los controles como la rejilla por defecto y la elección de dos desviaciones típicas.
+Cada vuelo de un barrido pasa por el mismo núcleo que cualquier otra simulación, así que los aterrizajes individuales son tan buenos como lo son en general los resultados de vuelo de la aplicación. La **región dibujada a su alrededor no se ha contrastado con una recuperación real**.
 
 Léelo como una ayuda para planificar: qué tamaño de campo pide esto y hacia dónde va el paseo, más o menos. No es una autorización de seguridad de campo, ni sustituye a las [comprobaciones de seguridad](./safety.md) ni a mirar el campo real.
 
@@ -115,7 +115,7 @@ La lectura bajo el gráfico añade la **banda de distancias** de cada etapa (el 
 
 Todo salvo el viento se mantiene tal y como lo tiene la simulación: el mismo diseño, motor, ignición, rampa, emplazamiento y ajustes de ejecución, y una sola semilla de turbulencia para toda la rejilla. Eso es lo que hace que la dispersión sea atribuible al viento y no a una docena de cosas moviéndose a la vez, y por eso el mismo barrido ejecutado dos veces dibuja la misma región. La banda de velocidad está limitada por el mismo [límite del código de seguridad](./safety.md) que aplica el botón Ejecutar, así que un barrido nunca dibuja terreno al que la aplicación no volará.
 
-Un barrido pertenece al vuelo sobre el que se construyó, y solo se guarda uno a la vez: elige otro vuelo y la región no se dibuja. Si después editas el diseño, el motor o las condiciones de lanzamiento, la región sigue en pantalla con un aviso de que es anterior a lo que se muestra: los aterrizajes siguen siendo la respuesta honesta para el cohete que los voló. **Borrar** la elimina. Nada de un barrido se guarda con el diseño.
+Un barrido pertenece al vuelo sobre el que se construyó, y solo se guarda uno a la vez: elige otro vuelo y la región no se dibuja. Si después editas el diseño, el motor o las condiciones de lanzamiento, la región sigue en pantalla con un aviso de que es anterior a lo que se muestra: los aterrizajes siguen describiendo el cohete que los voló. **Borrar** la elimina. Nada de un barrido se guarda con el diseño.
 
 ## Trayectoria 3D (tras una simulación) {#3d-path-after-a-simulation}
 

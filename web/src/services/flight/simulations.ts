@@ -13,6 +13,7 @@ import { stableJson } from '../app/stableJson';
 import { padLevelWind } from './windLevels';
 import { walkNodes } from '../../tree/treeWalk';
 import { isRecoveryDevice } from '../design/treeEdit';
+import { settleLinkedDimensions } from '../design/linkedDimensions';
 
 /**
  * The default compass heading (degrees) for the launch rod and the wind: due
@@ -167,7 +168,9 @@ export function flightKey(tree: RocketTree): string {
   let key = treeKeys.get(tree);
   if (key === undefined) {
     const deviceNames = [...walkNodes(tree.components)].filter((n) => isRecoveryDevice(n.type)).map((n) => n.name);
-    key = stableJson([tree.components, deviceNames], PART_NAME);
+    // Linked dimensions as the kernel builds them: a stored rail button or ring
+    // the load path settles flies the same before and after, so it keys the same.
+    key = stableJson([settleLinkedDimensions(tree).components, deviceNames], PART_NAME);
     treeKeys.set(tree, key);
   }
   return key;
@@ -292,6 +295,25 @@ export function simStatus(
   if (run?.phase === 'failed' && run.tree === tree) return 'failed';
   if (!sim.result) return sim.fileSummary ? (outdated ? 'outdated' : 'fromFile') : 'notRun';
   return outdated ? 'outdated' : 'upToDate';
+}
+
+/** The i18n key each status reads as. */
+const SIM_STATUS_KEY: Record<SimStatus, string> = {
+  upToDate: 'sims.statusUpToDate',
+  outdated: 'sims.statusOutdated',
+  queued: 'sims.statusQueued',
+  running: 'sims.statusRunning',
+  failed: 'sims.statusFailed',
+  notRun: 'sims.notRun',
+  fromFile: 'sims.statusFromFile',
+};
+
+/**
+ * A status as the reader sees it: the one wording the simulations table and
+ * the run-table CSV share, so the file and the table cannot disagree.
+ */
+export function simStatusLabel(status: SimStatus, t: (key: string) => string): string {
+  return t(SIM_STATUS_KEY[status]);
 }
 
 /**

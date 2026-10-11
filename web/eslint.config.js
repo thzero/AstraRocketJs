@@ -54,7 +54,9 @@ export default tseslint.config(
       // for src+tests, `tsconfig.e2e.json` for the Playwright specs, and
       // `tsconfig.node.json` for the config files that decide what ships. Under the
       // service, every e2e spec and every root config fails to parse with "was not
-      // found by the project service". These are the same three `npm run typecheck` runs.
+      // found by the project service". `npm run typecheck` runs these three and
+      // `tsconfig.app.json`, which is src alone without node's types: every file
+      // it holds is already in `tsconfig.json`, so linting needs nothing from it.
       parserOptions: {
         project: ['./tsconfig.json', './tsconfig.e2e.json', './tsconfig.node.json'],
         tsconfigRootDir: import.meta.dirname,

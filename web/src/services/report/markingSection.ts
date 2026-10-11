@@ -1,5 +1,5 @@
 import type { jsPDF } from 'jspdf';
-import { fmtNum, partLabel } from '../../i18n/format';
+import { fmtList, fmtNum, partLabel } from '../../i18n/format';
 import { hexToRgbTuple } from './layout';
 import { drawText, ensure, heading, paragraph, sectionBreak, setStyle, writeRuler, type PdfPage } from './pdfPage';
 import { GUIDE_WIDTH_MM, cutPoints, type MarkingGuide, type MarkingGuideSet } from './markingGuide';
@@ -123,7 +123,7 @@ function writeOmitted(p: PdfPage, set: MarkingGuideSet): void {
   for (const reason of ['noWrap', 'noFins'] as const) {
     const parts = set.omitted.filter((o) => o.reason === reason);
     if (!parts.length) continue;
-    const names = parts.map((o) => partLabel(t, o)).join(', ');
+    const names = fmtList(parts.map((o) => partLabel(t, o)));
     ensure(p, 10);
     paragraph(p, t(OMIT_KEY[reason], { names }), 'italic', 120);
   }

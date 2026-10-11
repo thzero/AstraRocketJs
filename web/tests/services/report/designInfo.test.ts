@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import type { StaticInfo } from '../../../src/engine/openRocketEngine';
 import type { ReportModel } from '../../../src/services/report/reportModel';
 import { sig4, buildDesignInfo } from '../../../src/services/report/designInfo';
+import i18n from '../../../src/i18n';
+import es from '../../../src/i18n/locales/es.json';
 
 describe('sig4 (4 significant figures, plain decimal)', () => {
   it('rounds and strips trailing zeros', () => {
@@ -120,9 +122,9 @@ describe('buildDesignInfo', () => {
           {
             stage: 'Sustainer',
             sets: [
-              { name: 'Fins', topX: 0.35, bottomX: 0.4 },
-              { name: 'Fins', topX: 0.35, bottomX: 0.4 },
-              { name: 'Solo', topX: 0.1, bottomX: 0.15 },
+              { name: 'Fins', type: 'trapezoidfinset', topX: 0.35, bottomX: 0.4 },
+              { name: 'Fins', type: 'trapezoidfinset', topX: 0.35, bottomX: 0.4 },
+              { name: 'Solo', type: 'trapezoidfinset', topX: 0.1, bottomX: 0.15 },
             ],
           },
         ],
@@ -130,5 +132,34 @@ describe('buildDesignInfo', () => {
     );
     expect(di.finsets.map((f) => f.name)).toEqual(['Fins #1', 'Fins #2', 'Solo']); // unique name kept as-is
     expect(di.finsets[0]).toMatchObject({ stageNumber: 0, stage: 'Sustainer', topX: 0.35, bottomX: 0.4 });
+  });
+
+  it('names an unnamed fin set by its type in the UI language, and numbers repeats', async () => {
+    await i18n.changeLanguage('es');
+    try {
+      const di = buildDesignInfo(
+        report({
+          whole: { label: 'R', info: info({}) },
+          stageSummaries: [{ label: 'R', info: info({}) }],
+          finSetsByStage: [
+            {
+              stage: 'Sustainer',
+              sets: [
+                { type: 'trapezoidfinset', topX: 0.35, bottomX: 0.4 },
+                { type: 'trapezoidfinset', topX: 0.35, bottomX: 0.4 },
+                { type: 'ellipticalfinset', topX: 0.1, bottomX: 0.15 },
+              ],
+            },
+          ],
+        }),
+      );
+      expect(di.finsets.map((f) => f.name)).toEqual([
+        `${es.part.trapezoidfinset} #1`,
+        `${es.part.trapezoidfinset} #2`,
+        es.part.ellipticalfinset,
+      ]);
+    } finally {
+      await i18n.changeLanguage('en');
+    }
   });
 });

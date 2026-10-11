@@ -149,7 +149,8 @@ export function useFocusTrap<T extends HTMLElement>(active: boolean, { onEscape 
   useEffect(() => {
     if (!active || !onEscape) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
+      // Spent already: a menu or popover inside the surface closed on it.
+      if (e.key !== 'Escape' || e.defaultPrevented) return;
       // Not mine to answer: something is open on top of me. A panel that never
       // received the ref cannot be placed in the stack, so it still answers.
       const panel = ref.current;

@@ -92,8 +92,13 @@ export function useWorkspaceEffects() {
       // The storage warning slot, not `setErr`: an action error is cleared by
       // the first edit, and this message stays true until a save succeeds,
       // which is when the warning banner retires.
+      // Detached first: the store can still hold the design that failed to
+      // open (the read succeeded and `hydrate` threw), and the first edit would
+      // autosave the default rocket over it. Detached, that edit creates a new
+      // design and the unreadable one stays in the library.
       .catch(() => {
         if (!live) return;
+        getWorkspaceStore().setActiveId?.(null);
         hydrated.current = true;
         setReady(true);
         useWorkspaceStore.getState().setStorageWarning(i18nGlobal.t('storage.loadFailed'), 'loadFailed');
@@ -109,8 +114,9 @@ export function useWorkspaceEffects() {
   const configs = useWorkspaceStore((s) => s.configs);
   const loadedMeta = useWorkspaceStore((s) => s.loadedMeta);
   const quietReplace = useWorkspaceStore((s) => s.quietReplace);
-  // Every configuration input the engine build reads: the seated motors with
-  // their ignition, and the grounded stages (see buildRocket.buildKey). A
+  // The configuration inputs that owe a rebuild: the seated motors and the
+  // grounded stages (see buildRocket.buildKey). Ignition is left out; only the
+  // worker's build reads it. A
   // string, because zustand v5 compares a selector's result by identity and
   // this is derived per call.
   //
@@ -247,9 +253,9 @@ export function useWorkspaceEffects() {
       const store = useWorkspaceStore.getState();
       // Tree and configuration read from the store rather than closed over, so the
       // effect need not depend on either object to use them: `components` and
-      // `buildInputs` are the narrow keys that say when a rebuild is owed. The handle
-      // still carries the current ignition overrides, because the configuration is
-      // read here at build time.
+      // `buildInputs` are the narrow keys that say when a rebuild is owed. Ignition is
+      // not in those keys, so an ignition edit alone does not rebuild and this
+      // handle keeps the ignition of its last build; the worker reads it per flight.
       const res = computeStaticInfo(store.tree, selectConfig(store));
       if ('error' in res) {
         store.applyBuild(null, null);

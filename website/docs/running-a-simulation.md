@@ -89,7 +89,7 @@ Press **Run flight simulation**. The flight runs in a background **Web Worker**,
 
 ### When a run is refused
 
-AstraRocketJs would rather give you no number than a plausible-looking wrong one, so a flight that cannot be computed honestly is not flown. The Run button says why, naming the part, field or simulation at fault.
+A flight that cannot be computed correctly is not flown. The Run button says why, naming the part, field or simulation at fault.
 
 Two kinds of problem, which behave differently:
 
@@ -102,18 +102,20 @@ Two kinds of problem, which behave differently:
 
 - **No usable motor**: nothing loaded on the primary mount, or an imported `.ork` whose motor could not be matched to a thrust curve.
 - **A required launch field is blank**: rod length, rod angle, wind speed, wind standard deviation, site altitude, latitude or longitude. These have no sensible default, so a blank one is named rather than guessed at.
-- **Launch conditions outside the safety codes**: rod more than 20° from vertical, or surface wind above 20 mph. See [Safety limits](#safety-limits) below.
+- **Launch conditions outside the safety codes**: rod more than 30° from vertical for a model rocket or 20° for a high power one, or surface wind above 20 mph. See [Safety limits](#safety-limits) below.
 
-The button only goes dead when *nothing* selected can fly. Otherwise it stays live, counts the rows that will actually run, and names the ones it is skipping: one bad row never costs you the other eleven.
+The button only goes dead when *nothing* selected can fly. Otherwise it stays live, counts the rows that will actually run, and names the ones it is skipping. A row that cannot fly does not stop the others.
 
 ### Safety limits
 
 Launch conditions are checked against the **NAR** and **Tripoli** safety codes, which is why two fields refuse to go past them:
 
-- **Launch rod angle**: within **20°** of vertical.
+- **Launch rod angle**: within **30°** of vertical for a model rocket, and within **20°** for a high power rocket.
 - **Wind speed**: at or below **20 mph** (32 km/h).
 
-Both codes state these in imperial, so the metric figures the app shows are exact conversions rather than round numbers. The fields clamp as you type, and a `.ork` file that arrives outside them is listed in the import banner rather than quietly flown.
+Which angle applies depends on the flight configuration the simulation flies. It is high power when any motor has more than 160 N·s of total impulse or more than 80 N of average thrust, when the motors together hold more than 320 N·s or more than 125 g of propellant, or when the rocket weighs more than 1,500 g at liftoff; otherwise it is a model rocket. The hint under the angle field says which code applies. In Settings, where the defaults serve every configuration, the field stops at 30° and the hint states both limits.
+
+The codes state these in imperial, so the metric figures the app shows are exact conversions rather than round numbers. The fields clamp as you type, and a `.ork` file that arrives outside them is listed in the import banner rather than quietly flown.
 
 Only the wind **at the pad** is judged. On a multi-level profile that is the ground layer; winds aloft are not something a launch is called on, because they are not something anyone at the field measures. Gust standard deviation is deliberately not checked either: the codes speak about wind speed, and a mean inside the limit with gusts above it is a judgment call the app is not equipped to make.
 
@@ -139,7 +141,7 @@ Under it, results are shown as tiles, in roughly chronological flight order, inc
 - **Apogee** (max altitude) and **max velocity / acceleration / Mach**
 - **Deployment speed** (flagged if above your warning threshold; green when safely low). On a [dual-deployment](./designing-a-rocket.md#dual-deployment) design the flight engine judges the main and the drogue against their own thresholds instead, and reports a warning for each.
 - **Landing speed**, **flight time**, and **downrange** distance
-- **Max-Q**, the peak dynamic pressure of the boost. The engine does not record it, so it is derived from the air density and speed of sound the run already carries; it is the number that decides whether the airframe holds together. A result saved before simulations kept the full series set has no air density stored, and reports no Max-Q rather than a zero that would look like an answer.
+- **Max-Q**, the peak dynamic pressure of the boost. The engine does not record it, so it is derived from the air density and speed of sound the run already carries; it is the peak load the airframe has to withstand. A result with no stored air density reports no Max-Q rather than a zero.
 - **Max q·α**, the largest dynamic pressure times angle of attack while the rocket still flies forward (up to deployment, else apogee), in the Max q pressure unit times your angle unit (kPa·° or psi·°, for example). The side load on fins and couplers follows it. Derived the same way as Max-Q.
 - **Max roll rate**, the fastest the rocket rolled during the flight, read from the engine's roll rate series.
 
@@ -147,7 +149,7 @@ Under it, results are shown as tiles, in roughly chronological flight order, inc
 
 Under the tiles, the **Flight events** table is the flight as a list you can read down: one row per event, with the time it happened and the state of the rocket at that instant. The charts mark the same events as labels, which answers *when* and nothing else.
 
-Every event the engine raises is named, not just the five the charts label, so rail departure, ignition, stage separation and tumble appear here for the first time. Each row carries the **altitude** and **speed** at its instant, in units you set from the column headers, and the rows that are read for more carry it on a line of their own:
+Every event the engine raises is named, not just the five the charts label, including rail departure, ignition, stage separation and tumble, which the charts do not label. Each row carries the **altitude** and **speed** at its instant, in units you set from the column headers, and the rows that are read for more carry it on a line of their own:
 
 - **Rail departure** (or rod or launcher departure, after the design's guides) gives the static margin, thrust-to-weight and angle of attack it left with.
 - **Burnout** gives its Mach.

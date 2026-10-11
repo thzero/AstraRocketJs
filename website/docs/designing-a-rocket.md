@@ -2,7 +2,7 @@
 title: "Designing a Rocket"
 sidebar_position: 8
 ---
-The **Components** panel (left on desktop) holds your rocket's component tree. As you add and edit parts, the 2D view and the **stability stats** (bottom strip) update live: so you always see the effect of a change on CG, CP, and stability.
+The **Components** panel (left on desktop) holds your rocket's component tree. As you add and edit parts, the 2D view and the **stability stats** (bottom strip) update live, so you always see the effect of a change on CG, CP, and stability.
 
 ## The component tree
 
@@ -10,7 +10,7 @@ A rocket is a tree of components, nose-to-tail, grouped into stages. Select any 
 
 To add a part, select the part it goes in and pick it from the **＋ Add** list in the row above the tree. The list is grouped as Body, Fins, Inner, Recovery, Other and Assembly, and offers only the parts the selected one can hold.
 
-Branches with children **fold** at their **▾ / ▸** chevrons (or fold/unfold everything from the header), and you can **collapse the whole component list**: its header keeps the selected part in view: to give the property editor more room on a tall design. Deleting a part (the **Delete** button in its properties) asks you to confirm first.
+Branches with children **fold** at their **▾ / ▸** chevrons (or fold/unfold everything from the header), and you can **collapse the whole component list** (its header keeps the selected part in view) to give the property editor more room on a tall design. Deleting a part (the **Delete** button in its properties) asks you to confirm first.
 
 ### Cut, copy, paste and duplicate
 
@@ -39,7 +39,7 @@ Each part exposes the dimensions and options the engine needs (lengths, radii, t
 
 A stage's editor has a **Recovery deployment type**: **Single deployment** or **Dual deployment**. Choose **Dual deployment** and pick the parachute or streamer that opens at apogee as the **Drogue device**, and the stage is treated as dual deployment: a small drogue first to bring the rocket down under control, then the main lower down. A stage has at most one drogue.
 
-It is not only a label. The simulation judges a deployment differently depending on it, and warns on the main coming out too fast or too slow, and on a drogue too slow at apogee to inflate, against the thresholds in **[Settings ▸ Safety warnings](./settings.md#safety-warnings)**. With **Single deployment** the whole stage is judged against the one threshold instead.
+It is not only a label. The simulation judges a deployment differently depending on it, and warns on the main coming out too fast or too slow, and on a drogue too slow at apogee to inflate, against the thresholds in **[Settings ▸ Simulation ▸ Safety warnings](./settings.md#safety-warnings)**. With **Single deployment** the whole stage is judged against the one threshold instead.
 
 ### What goes inside a mass component
 
@@ -51,7 +51,7 @@ A mass component is not only a lump of ballast: it can hold inner structure of i
 
 **A tube also states its bore.** Body tubes, inner tubes, couplers, engine blocks, tube fins and launch lugs show an **inner diameter** between the outer diameter and the wall thickness. It is not a fourth independent number: a tube has an outside and a wall, and the bore is what the two leave. Typing a bore therefore changes the **wall**, and leaves the outer diameter alone, because the outside of a tube is usually decided by what it has to slide into. A bore wider than the tube itself is clamped to a wall of zero rather than a negative one.
 
-That makes the fit questions direct ones. Does the motor go in? Compare the motor's diameter to the mount's inner diameter. Does the coupler fit the tube? Its outer diameter against the tube's inner diameter. Will the rod clear the lug? The lug's inner diameter, which until now was whatever the file happened to carry, since there was no field for a lug's wall at all.
+That makes the fit questions direct ones. Does the motor go in? Compare the motor's diameter to the mount's inner diameter. Does the coupler fit the tube? Its outer diameter against the tube's inner diameter. Will the rod clear the lug? The lug's inner diameter.
 
 **A shoulder can follow the tube it plugs into.** Beside each shoulder diameter, on a nose cone and on both ends of a transition, is a switch. With it on, the diameter is the bore of the part next door - the one below a nose cone, above and below a transition - and it stays that way: widen the tube's wall and the stub that goes into it follows in the same keystroke. The box is a readout while the switch is on, and turning the switch off pins whatever the number currently is.
 
@@ -205,7 +205,7 @@ The two suggested **diameters** stay estimates whatever happens, and are marked 
 
 Every structural component has a **material**, which the engine uses (by its **density**) to compute mass and CG. A part you add carries one from the moment it exists: whatever you set in [Settings ▸ Materials](./settings.md#materials), or else the stock material the engine would weigh it with anyway: **Cardboard** for a solid part, **Ripstop nylon** for a canopy, **Elastic cord** for shroud lines and shock cord. Those are OpenRocket's own defaults, the same ones it builds every new component with.
 
-A part can still read **Not specified** if it came from a design saved before this app named them. It is not a weightless part: the engine falls back to the same three materials. Pick one from the list and the panel stops guessing.
+A part can still read **Not specified** if its design names no material. It is not a weightless part: the engine falls back to the same three materials. Pick one from the list and the panel stops guessing.
 
 A part picked from the catalog carries its maker's material, such as "Balsa, bulk, BMS typical", at the maker's density. Most of those names are not in the list below, so the picker shows the part's own material under **From this part**, with its density, and that is what the part is weighed with. When the catalog also states the part's mass, as it does for many nose cones and transitions, the density is the one that spreads that mass over the part, so the part weighs what its maker says, as it does in desktop OpenRocket. A parachute with a stated mass takes it as its mass override instead.
 

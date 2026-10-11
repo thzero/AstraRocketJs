@@ -8,7 +8,7 @@ AstraRocketJs es una herramienta de diseño y simulación. No es una autoridad e
 
 Toda cifra que produce la aplicación es **educativa y especulativa**. Responde a la pregunta "qué haría este modelo bajo estas suposiciones". No es una predicción, ni una evaluación de seguridad, ni un certificado de aptitud para el vuelo.
 
-Trata el apogeo, el margen de estabilidad, la velocidad de apertura, la velocidad de descenso y la distancia de aterrizaje como estimaciones *contra las que* diseñar, y luego verifícalas con el cohete que realmente construiste y con el campo en el que realmente estás. Un margen calculado a partir de un plano es el margen de un plano.
+Trata el apogeo, el margen de estabilidad, la velocidad de apertura, la velocidad de descenso y la distancia de aterrizaje como estimaciones *contra las que* diseñar, y luego verifícalas con el cohete que realmente construiste y con el campo en el que realmente estás.
 
 ## Qué hace el modelo {#what-the-model-does}
 
@@ -20,7 +20,7 @@ La física es el propio núcleo de OpenRocket, compilado para ejecutarse en tu n
 - La **atmósfera** como el modelo estándar ISA, o con tu propia temperatura y presión, con un modelo de gravedad WGS o constante y una Tierra plana, esférica o WGS84.
 - El **viento** como una media única con una desviación estándar de ráfagas, o como un perfil multinivel que cambia con la altitud, ambos con turbulencia de ruido rosa.
 
-La aplicación también muestra los avisos de vuelo del propio núcleo: apertura a alta velocidad, un principal que se abre demasiado rápido o demasiado lento, un piloto sin principal, ausencia de sistema de recuperación, una apertura estando aún en la guía, un ángulo de ataque grande, y vuelo supersónico donde el método aerodinámico pasa a ser aproximado. Léelos: son el modelo diciéndote que no está cómodo.
+La aplicación también muestra los avisos de vuelo del propio núcleo: apertura a alta velocidad, un principal que se abre demasiado rápido o demasiado lento, un piloto sin principal, ausencia de sistema de recuperación, una apertura estando aún en la guía, un ángulo de ataque grande, y vuelo supersónico donde el método aerodinámico pasa a ser aproximado. Léelos.
 
 ## Qué no sabe el modelo {#what-the-model-does-not-know}
 
@@ -37,7 +37,7 @@ Ser explícito sobre las carencias es más útil que una advertencia genérica:
 
 El panel de resultados encabeza sus números con una tarjeta **Antes de volar** que lleva la versión corta de esta página. Se pliega: pulsa su encabezado y la explicación se recoge, aunque antes te pide confirmar que has leído las notas, porque el pliegue se recuerda y ese clic es la última vez que se ofrecen en este navegador. El encabezado nunca se pliega, así que el aviso sigue sobre los números elijas lo que elijas.
 
-Lo más valioso que puedes hacer es dejar de simular un plano y empezar a simular el cohete que tienes sobre la mesa:
+El paso más útil es simular el cohete tal como está construido y no tal como está dibujado:
 
 1. **Pesa el cohete terminado**, listo para volar pero sin el motor. Selecciona su etapa en el editor de componentes (en un cohete de una sola etapa esa es la totalidad), activa la **invalidación de masa** e introduce la cifra medida con "aplicar a todos los subcomponentes" activado.
 2. **Encuentra el punto de equilibrio.** Equilibra el cohete sobre el canto de una regla, mide desde la punta de la ojiva e introdúcelo como **invalidación del CG**.
@@ -52,8 +52,10 @@ La sección de invalidaciones ofrece masa, CG y coeficiente de resistencia, cada
 
 Dos condiciones de lanzamiento se contrastan con los códigos de seguridad de la **NAR** y **Tripoli**, y la aplicación se niega a volar una simulación fuera de ellos en lugar de darte un número que no está dispuesta a respaldar:
 
-- **Ángulo de la guía de lanzamiento** dentro de **20 grados** de la vertical.
+- **Ángulo de la guía de lanzamiento** dentro de **30 grados** de la vertical para un cohete modelo (el código de seguridad de cohetes modelo de la NAR), y dentro de **20 grados** para un cohete de alta potencia (el código de seguridad de alta potencia de la NAR y el de Tripoli).
 - **Viento en superficie** igual o inferior a **20 mph** (32 km/h).
+
+La aplicación considera de alta potencia la configuración de vuelo de una simulación cuando algún motor tiene más de 160 N·s de impulso total (H en adelante) o más de 80 N de empuje medio, cuando todos sus motores juntos suman más de 320 N·s o más de 125 g de propulsante, o cuando el cohete pesa más de 1500 g al despegar. Todo lo demás es un cohete modelo.
 
 Solo se juzga el viento en la rampa, y las ráfagas deliberadamente no se comprueban. El razonamiento, y qué ocurre con un archivo `.ork` que llega fuera de los límites, está en [Ejecutar una simulación](./running-a-simulation.md#safety-limits).
 

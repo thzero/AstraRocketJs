@@ -41,6 +41,7 @@
       "archiveEmpty": "Das .ork-Archiv ist leer.",
       "tooManyComponents": "Diese {{format}}-Datei enthält zu viele Bauteile, um sie zu öffnen (möglicherweise fehlerhaft).",
       "tooManySimulations": "Diese .ork-Datei enthält zu viele Simulationen, um sie zu öffnen (möglicherweise fehlerhaft).",
+      "tooManyUnknownElements": "Diese .ork-Datei enthält zu viele unbekannte Elemente, um sie zu öffnen (möglicherweise fehlerhaft).",
       "tooManyConfigs": "Diese .ork-Datei enthält zu viele Flugkonfigurationen, um sie zu öffnen (möglicherweise fehlerhaft).",
       "tooDeep": "Diese {{format}}-Datei ist zu tief verschachtelt, um sie zu öffnen (möglicherweise fehlerhaft).",
       "tooLarge": "Die Datei ist zu groß zum Öffnen (über {{size}} MiB)."
@@ -72,6 +73,7 @@
       "engHeaderMass": "Fehlerhafte .eng-Kopfzeile: Die Treibstoffmasse muss zwischen 0 und der Gesamtmasse liegen.",
       "engDataLine": "Fehlerhafte .eng-Daten in Zeile {{line}}: Erwartet wurden eine Zeit und ein Schub, gefunden wurde „{{text}}“.",
       "engNoCurve": "Die .eng-Datei enthält keine Datenpunkte für eine Schubkurve.",
+      "engTooManyPoints": "Motor {{motor}} in der .eng-Datei hat mehr als {{max}} Datenpunkte.",
       "engNegativeThrust": "Motor {{motor}} in der .eng-Datei hat in Zeile {{line}} einen negativen Schub.",
       "engNegativeTime": "Motor {{motor}} in der .eng-Datei hat in Zeile {{line}} eine negative Zeit.",
       "attrDiameter": "Durchmesser",
@@ -128,7 +130,11 @@
       "materials": "Der Materialkatalog konnte nicht geladen werden ({{reason}}).",
       "contributors": "Die Liste der Mitwirkenden konnte nicht geladen werden ({{reason}}).",
       "tooLarge": "Antwort zu groß",
-      "badShape": "unerwarteter Aufbau des Katalogs"
+      "badShape": "unerwarteter Aufbau des Katalogs",
+      "http": "HTTP {{status}} vom Server",
+      "timeout": "der Server hat nicht rechtzeitig geantwortet",
+      "network": "der Server ist nicht erreichbar",
+      "noExamples": "der Beispielindex enthält keine Beispiele"
     },
     "export": {
       "noPrintable": "Es wurden keine druckbaren Teile ausgewählt.",
@@ -175,6 +181,8 @@
     "noDesign": "Kein gültiger Entwurf zum Exportieren.",
     "stages": "Stufen",
     "length": "Länge",
+    "dimLength": "Länge {{value}}",
+    "dimWall": "Wand {{value}}",
     "maxDiameter": "Max. Durchmesser",
     "massEmpty": "Masse (leer)",
     "massLoaded": "Masse (startfertig)",
@@ -219,6 +227,8 @@
     "transition": "Übergang",
     "tooLarge": "{{w}}×{{h}} mm – zu groß für einen 1:1-Druck auf einer Seite.",
     "fontFallback": "Die Schrift für den Bericht konnte nicht geladen werden, daher sind einige Zeichen in diesem PDF als „?“ gedruckt. Exportieren Sie ihn erneut, sobald Sie online sind.",
+    "scriptUncovered": "Einige Zeichen in diesem PDF gehören zu einer Schrift, die die Berichtsschriften nicht abdecken, daher sind sie als „?“ gedruckt.",
+    "outdatedFlight": "Veraltet: Diese Ergebnisse wurden vor der letzten Änderung des Entwurfs oder seiner Simulationseinstellungen erflogen. Führen Sie die Simulation erneut aus, um aktuelle Werte zu erhalten.",
     "bodyTube": "Rumpfrohr",
     "markingGuide": "Markierhilfe für Finnen (1:1)",
     "markingGuideHint": "Mit 100 % / Originalgröße drucken (keine Seitenskalierung), das Lineal prüfen, dann jeden Streifen ausschneiden, stumpf (ohne Überlappung) um sein Rumpfrohr legen und durch die Pfeile markieren. Durch jedes Markierungspaar eine Linie längs des Rohrs ziehen: dort sitzt das Bauteil.",
@@ -297,7 +307,8 @@
     "jsTip": "Physik-Engine: JavaScript (Rückfallebene)",
     "slow": "Die Physik-Engine lädt länger als gewöhnlich.",
     "needsIt": "Die Konstruktionswerkzeuge funktionieren auch ohne sie; die Kennwerte und die Simulationen brauchen sie.",
-    "retry": "Erneut versuchen"
+    "retry": "Erneut versuchen",
+    "reload": "Seite neu laden"
   },
   "about": {
     "open": "Über",
@@ -537,7 +548,8 @@
       "streamer_surface": "Flatterband",
       "shockcord_line": "Schockschnur"
     },
-    "materialNoDefault": "Kein Standard – Bauteil ohne Material lassen"
+    "materialNoDefault": "Kein Standard – Bauteil ohne Material lassen",
+    "timeStepScale": "Zeitschritt, grob bis fein"
   },
   "config": {
     "title": "Raketenkonfiguration",
@@ -814,9 +826,15 @@
     "rodDirectionName_rail": "Richtung der Startschiene",
     "rodDirectionName_rod": "Richtung des Startstabs",
     "windDirectionName": "Windrichtung",
-    "angleLimit": "Die Sicherheitsregeln von NAR und Tripoli verlangen eine Startvorrichtung innerhalb von {{limit}} zur Senkrechten.",
-    "angleLimit_rail": "Die Sicherheitsregeln von NAR und Tripoli verlangen eine Startschiene innerhalb von {{limit}} zur Senkrechten.",
-    "angleLimit_rod": "Die Sicherheitsregeln von NAR und Tripoli verlangen einen Startstab innerhalb von {{limit}} zur Senkrechten.",
+    "angleLimitModel": "Als Modellrakete fliegt sie nach dem NAR Model Rocket Safety Code, der eine Startvorrichtung innerhalb von {{limit}} zur Senkrechten verlangt.",
+    "angleLimitModel_rail": "Als Modellrakete fliegt sie nach dem NAR Model Rocket Safety Code, der eine Startschiene innerhalb von {{limit}} zur Senkrechten verlangt.",
+    "angleLimitModel_rod": "Als Modellrakete fliegt sie nach dem NAR Model Rocket Safety Code, der einen Startstab innerhalb von {{limit}} zur Senkrechten verlangt.",
+    "angleLimitHighPower": "Als High-Power-Rakete fliegt sie nach den High-Power-Sicherheitsregeln von NAR und Tripoli, die eine Startvorrichtung innerhalb von {{limit}} zur Senkrechten verlangen.",
+    "angleLimitHighPower_rail": "Als High-Power-Rakete fliegt sie nach den High-Power-Sicherheitsregeln von NAR und Tripoli, die eine Startschiene innerhalb von {{limit}} zur Senkrechten verlangen.",
+    "angleLimitHighPower_rod": "Als High-Power-Rakete fliegt sie nach den High-Power-Sicherheitsregeln von NAR und Tripoli, die einen Startstab innerhalb von {{limit}} zur Senkrechten verlangen.",
+    "angleLimitEither": "Der NAR Model Rocket Safety Code verlangt eine Startvorrichtung innerhalb von {{model}} zur Senkrechten, die High-Power-Regeln von NAR und Tripoli innerhalb von {{highPower}}.",
+    "angleLimitEither_rail": "Der NAR Model Rocket Safety Code verlangt eine Startschiene innerhalb von {{model}} zur Senkrechten, die High-Power-Regeln von NAR und Tripoli innerhalb von {{highPower}}.",
+    "angleLimitEither_rod": "Der NAR Model Rocket Safety Code verlangt einen Startstab innerhalb von {{model}} zur Senkrechten, die High-Power-Regeln von NAR und Tripoli innerhalb von {{highPower}}.",
     "windLimit": "Die Sicherheitsregeln von NAR und Tripoli verlangen, nicht bei Wind über {{limit}} zu fliegen.",
     "field": {
       "launchRodLengthM": "Länge der Startvorrichtung",
@@ -855,7 +873,40 @@
     "flightEvents": "Flugereignisse einschließen",
     "commentChar": "Kommentarzeichen",
     "stage": "Zu exportierende Stufe",
-    "export": "Exportieren"
+    "export": "Exportieren",
+    "head": {
+      "simulationLine": "Simulation: {{name}}",
+      "time": "Zeit",
+      "event": "Ereignis",
+      "source": "Quelle",
+      "stage": "Stufe",
+      "altitude": "Höhe",
+      "velocity": "Geschwindigkeit",
+      "stability": "Stabilität",
+      "thrustWeight": "Schub/Gewicht",
+      "aoa": "Anstellwinkel",
+      "mach": "Mach",
+      "dynamicPressure": "Staudruck",
+      "simulation": "Simulation",
+      "configuration": "Konfiguration",
+      "motors": "Motoren",
+      "status": "Status",
+      "apogee": "Apogäum",
+      "maxVelocity": "Max. Geschwindigkeit",
+      "maxAcceleration": "Max. Beschleunigung",
+      "maxMach": "Max. Mach",
+      "exitVelocity": "Geschwindigkeit beim Verlassen der Startvorrichtung",
+      "exitVelocity_rail": "Geschwindigkeit am Schienenende",
+      "exitVelocity_rod": "Geschwindigkeit am Stabende",
+      "timeToApogee": "Zeit bis Apogäum",
+      "flightTime": "Flugzeit",
+      "deploymentVelocity": "Geschwindigkeit beim Auswurf",
+      "landingVelocity": "Landegeschwindigkeit",
+      "optimumDelay": "Optimale Verzögerung",
+      "maxQ": "Max. Staudruck",
+      "maxQAlpha": "Max. q·alpha",
+      "maxRollRate": "Max. Rollrate"
+    }
   },
   "flightVar": {
     "ha": "Höhe über dem Meeresspiegel",
@@ -994,7 +1045,8 @@
     "events": "Flugereignisse",
     "event": "Ereignis",
     "twr": "TWR",
-    "eventsCsv": "Flugereignisse herunterladen (.csv)"
+    "eventsCsv": "Flugereignisse herunterladen (.csv)",
+    "peakTag": "Spitze"
   },
   "pathExport": {
     "open": "Flugbahn exportieren (KML / GPX / CSV)",
@@ -1095,7 +1147,8 @@
       "flightPath": "Flugbahn",
       "groundTrack": "Bodenspur",
       "distanceBearing": "{{distance}} {{unit}} bei {{bearing}}",
-      "stageLanding": "Landung {{stage}}"
+      "stageLanding": "Landung {{stage}}",
+      "flight": "Flug"
     },
     "mission": "Mission",
     "missionPlaceholder": "z. B. Sod Blaster L1",
@@ -1108,7 +1161,10 @@
     "cancel": "Abbrechen",
     "colorRolePath": "Bahn",
     "colorRoleGround": "Boden",
-    "colorRolePin": "Nadel"
+    "colorRolePin": "Nadel",
+    "importSaveError": "Diese Vorlage konnte in diesem Browser nicht gespeichert werden.",
+    "deleteError": "Diese Vorlage konnte nicht gelöscht werden.",
+    "deleteConfirm": "Die Vorlage „{{name}}“ aus diesem Browser löschen?"
   },
   "aero": {
     "unattributed": "Keinem Bauteil zugeordnet",
@@ -1178,7 +1234,6 @@
     "versionUnsupported": "Nicht unterstützte Dokumentversion {{version}}, die Datei wird trotzdem gelesen.",
     "versionMissingBy": "Nicht unterstützte Dokumentversion (geschrieben mit '{{creator}}'), die Datei wird trotzdem gelesen.",
     "versionMissing": "Nicht unterstützte Dokumentversion, die Datei wird trotzdem gelesen.",
-    "ignored": "Nicht unterstützte Bauteile ignoriert: {{names}}.",
     "skippedUnsupported": "Nicht unterstützt, übersprungen: {{name}}",
     "instanced": "Bauteile, die sich als mehrere Exemplare wiederholen: {{names}}. Die Simulation berücksichtigt jedes Exemplar, die Zeichnung zeigt derzeit aber nur eines.",
     "configsNoMotors": "Die Datei deklariert {{total}} Flugkonfigurationen, enthielt aber keine Motoren zum Importieren.",
@@ -1887,9 +1942,12 @@
     "tooFast": "Zu schnell",
     "tooSlow": "Zu langsam",
     "overRail": "Länger als die Schiene",
-    "rodAngle": "Der Winkel der Startvorrichtung beträgt {{value}} zur Senkrechten, mehr als die {{limit}}, die die Sicherheitsregeln von NAR und Tripoli zulassen.",
-    "rodAngle_rail": "Der Winkel der Startschiene beträgt {{value}} zur Senkrechten, mehr als die {{limit}}, die die Sicherheitsregeln von NAR und Tripoli zulassen.",
-    "rodAngle_rod": "Der Winkel des Startstabs beträgt {{value}} zur Senkrechten, mehr als die {{limit}}, die die Sicherheitsregeln von NAR und Tripoli zulassen.",
+    "rodAngleModel": "Der Winkel der Startvorrichtung beträgt {{value}} zur Senkrechten, mehr als die {{limit}}, die der NAR Model Rocket Safety Code zulässt.",
+    "rodAngleModel_rail": "Der Winkel der Startschiene beträgt {{value}} zur Senkrechten, mehr als die {{limit}}, die der NAR Model Rocket Safety Code zulässt.",
+    "rodAngleModel_rod": "Der Winkel des Startstabs beträgt {{value}} zur Senkrechten, mehr als die {{limit}}, die der NAR Model Rocket Safety Code zulässt.",
+    "rodAngleHighPower": "Der Winkel der Startvorrichtung beträgt {{value}} zur Senkrechten, mehr als die {{limit}}, die die Sicherheitsregeln von NAR und Tripoli für eine High-Power-Rakete zulassen.",
+    "rodAngleHighPower_rail": "Der Winkel der Startschiene beträgt {{value}} zur Senkrechten, mehr als die {{limit}}, die die Sicherheitsregeln von NAR und Tripoli für eine High-Power-Rakete zulassen.",
+    "rodAngleHighPower_rod": "Der Winkel des Startstabs beträgt {{value}} zur Senkrechten, mehr als die {{limit}}, die die Sicherheitsregeln von NAR und Tripoli für eine High-Power-Rakete zulassen.",
     "wind": "Die Windgeschwindigkeit beträgt {{value}} – mehr als die {{limit}}, die die Sicherheitsregeln von NAR und Tripoli zulassen.",
     "refused": "„{{name}}“ wurde nicht ausgeführt – die Startbedingungen liegen außerhalb der Sicherheitsregeln."
   },
@@ -1985,7 +2043,8 @@
     "landed": "{{flown}} von {{asked}} Flügen sind gelandet.",
     "stale": "Der Entwurf hat sich geändert, seit diese Analyse geflogen wurde.",
     "noLandings": "Die Windanalyse ergab keine Landungen.",
-    "spread": "{{from}}–{{to}}"
+    "spread": "{{from}}–{{to}}",
+    "flown": "Analyse durchgeführt"
   },
   "crossSection": {
     "square": "Rechteckig",
@@ -2045,8 +2104,8 @@
       "badKey": "Open-Meteo hat den API-Schlüssel aus Einstellungen, Start nicht akzeptiert. Ihre Startbedingungen sind unverändert.",
       "quota": "Das kostenlose Kontingent von Open-Meteo ist vorerst aufgebraucht. Versuchen Sie es später erneut oder hinterlegen Sie einen API-Schlüssel unter Einstellungen, Start. Ihre Startbedingungen sind unverändert.",
       "http": "Open-Meteo hat mit einem Fehler geantwortet ({{detail}}). Ihre Startbedingungen sind unverändert.",
-      "shape": "Die Antwort von Open-Meteo konnte nicht gelesen werden ({{detail}}). Ihre Startbedingungen sind unverändert.",
-      "units": "Open-Meteo hat in Einheiten geantwortet, die die App nicht liest ({{detail}}). Ihre Startbedingungen sind unverändert.",
+      "shape": "Die Antwort von Open-Meteo konnte nicht gelesen werden. Ihre Startbedingungen sind unverändert.",
+      "units": "Open-Meteo hat in Einheiten geantwortet, die die App nicht liest. Ihre Startbedingungen sind unverändert.",
       "noData": "Open-Meteo hat für dieses Datum hier keine Daten. Ihre Startbedingungen sind unverändert."
     },
     "keyLabel": "Open-Meteo-API-Schlüssel",
@@ -2129,6 +2188,7 @@
     "estimateNote": "Eine Schätzung aus eingegebenen Sinkgeschwindigkeiten. Die Zone umfasst {{descents}} Abstiege: {{hours}} Vorhersagestunden, Windgeschwindigkeit 20% nach oben und unten, Richtung 15° zu jeder Seite und Sinkgeschwindigkeit 10% nach oben und unten.",
     "flatGround": "Die Geländeform konnte nicht abgerufen werden, daher landet die Rakete auf ebenem Boden in Höhe des Startplatzes.",
     "surfaceWindOnly": "Die Open-Meteo-Aufzeichnung für dieses Datum enthält nur den Wind in Bodennähe, daher treibt der ganze Abstieg mit ihm.",
+    "outdated": "Startplatz, Datum, Stunde, Apogäum oder Sinkraten haben sich seit dieser Schätzung geändert. Auf Landung schätzen klicken, um sie zu aktualisieren.",
     "mapLabel": "Landeschätzung von oben, Landung {{distance}} vom Startplatz"
   },
   "tools": {

@@ -210,10 +210,15 @@ describe('LocationPicker', () => {
       remove: async () => undefined,
     });
     render();
+    // The live region is there, empty, before the refusal: one created with its
+    // text is not announced by most screen readers.
+    const region = screen.getByRole('status');
+    expect(region.textContent).toBe('');
     fireEvent.click(screen.getByRole('button', { name: 'Save this location' }));
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Nowhere' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-    await waitFor(() => expect(screen.getByText(/could not be saved/i)).toBeTruthy());
+    await waitFor(() => expect(region.textContent).toMatch(/could not be saved/i));
+    expect(screen.getByRole('status')).toBe(region);
   });
 
   it('manages saved locations: the list shows their coordinates', async () => {

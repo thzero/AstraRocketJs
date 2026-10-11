@@ -27,6 +27,16 @@ const PARTNER: Record<string, Record<string, unknown>> = {
   clipped: { shape: 'ellipsoid' },
 };
 
+/**
+ * Probe values for fields the generic ones cannot reach. A rail button's height
+ * loads before its base and flange, so the setter clamps it against the
+ * constructor's 2 mm each (as the desktop loader does): a height under 4 mm
+ * does not survive a reopen on either side.
+ */
+const VALUES: Record<string, unknown[]> = {
+  'railbutton.height': [0.0131],
+};
+
 /** Two values per field, so a field stuck at either default still fails. */
 const valuesFor = (f: Field, i: number): unknown[] => {
   switch (f.kind) {
@@ -78,7 +88,7 @@ describe('every Design tab field round-trips through .ork', () => {
     .filter(([type]) => type !== 'stage')
     .flatMap(([type, fields]) =>
       fields.flatMap((f, i) =>
-        valuesFor(f, i).map((v) => ({
+        (VALUES[`${type}.${f.key}`] ?? valuesFor(f, i)).map((v) => ({
           name: `${type}.${f.key} = ${String(v)}`,
           type,
           key: f.key,

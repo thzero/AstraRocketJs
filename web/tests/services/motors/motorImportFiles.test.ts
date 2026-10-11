@@ -42,6 +42,19 @@ describe('importCustomMotors with several files', () => {
     expect(out.failed).toEqual(['huge.eng']);
   });
 
+  it('names a picked file too large to read and imports the rest', async () => {
+    added.length = 0;
+    const fits = new Blob([eng('A1')]);
+    // Only the size is read before the refusal, so no bytes need to exist.
+    const huge = { size: 1024 * 1024 * 1024, arrayBuffer: () => Promise.reject(new Error('unread')) } as Blob;
+    const out = await importCustomMotors([
+      { name: 'a.eng', blob: fits },
+      { name: 'huge.eng', blob: huge },
+    ]);
+    expect(out.imported).toBe(1);
+    expect(out.failed).toEqual(['huge.eng']);
+  });
+
   it('reports the parser’s own error when nothing can be read', async () => {
     await expect(importCustomMotors([{ name: 'bad.eng', text: 'not a motor' }])).rejects.toThrow();
   });

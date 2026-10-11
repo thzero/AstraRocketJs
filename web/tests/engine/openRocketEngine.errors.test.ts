@@ -27,7 +27,6 @@ const stubApi = (over: Record<string, unknown> = {}) => ({
   reset: () => undefined,
   setMotorById: () => undefined,
   setMotorIgnitionById: () => undefined,
-  setRogersModifiedBarrowman: () => undefined,
   getWorstThetaDeg: () => 0,
   getStaticInfo: () => JSON.stringify({ length: 1 }),
   ...over,
@@ -113,7 +112,7 @@ describe('a stale handle is reported as StaleDesignError, never re-wrapped', () 
     resetEngine();
     let caught: unknown;
     try {
-      design.setRogersModifiedBarrowman(true);
+      design.setMotorIgnitionById('mount', 'launch', 1);
     } catch (e) {
       caught = e;
     }

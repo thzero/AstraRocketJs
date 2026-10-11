@@ -5,7 +5,8 @@ import { hasMaterial, isRecoveryDevice } from '../../services/design/treeEdit';
 import { updateCustomPart, type PartMeta } from '../../services/parts/customParts';
 import type { CustomPart } from '../../services/parts/presetStore';
 import { AppearanceSection } from './AppearanceSection';
-import { FieldRow, FieldSection, sectionFields, visibleFields } from './DimensionFields';
+import { FieldRow, FieldSection, ShoulderSections, sectionFields, visibleFields } from './DimensionFields';
+import { OverridesSection } from './OverridesSection';
 import { CordMaterialSection, MaterialSection, RecoveryMaterialSection } from './MaterialSection';
 import { errorText } from '../../i18n/keyedError';
 import { EditorFooter } from '../common/MasterDetail';
@@ -16,7 +17,8 @@ import { PartMetaFields } from './PartMetaFields';
  * what it is.
  *
  * Built out of the property panel's own pieces (`visibleFields` / `FieldRow`,
- * the material and appearance sections) rather than a second set of inputs, so
+ * the shoulder, material, appearance and override sections) rather than a
+ * second set of inputs, so
  * a saved body tube is edited with the same fields, the same units and the
  * same validation as a body tube in a design. All of those take a node and an
  * onChange and nothing else, which is what makes this possible at all.
@@ -119,14 +121,20 @@ export function SavedPartEditor({
             <FieldRow key={f.key} node={node} field={f} onChange={change} />
           ))}
 
-          {/* A body tube's motor-mount pair, a fin tab, a fillet: the same
-              sections the panel groups them into, for the same reason. */}
+          {/* A cone's or transition's shoulders and a body tube's motor-mount
+              pair: the same sections the panel groups them into, for the same
+              reason. */}
+          <ShoulderSections node={node} onChange={change} />
           <FieldSection node={node} title={t('prop.motor')} fields={sectionFields(node, 'motor')} onChange={change} />
 
           {hasMaterial(node.type) && <MaterialSection node={node} onCommitChange={change} />}
           {isRecoveryDevice(node.type) && <RecoveryMaterialSection node={node} onCommitChange={change} />}
           {node.type === 'shockcord' && <CordMaterialSection node={node} onCommitChange={change} />}
           <AppearanceSection node={node} onCommitChange={change} />
+          {/* Applying the part writes these onto the part it fills, so they
+              are edited here like everything else it carries. No ancestor can
+              decide them: a saved part has none. */}
+          <OverridesSection node={node} onChange={change} />
         </div>
       </div>
 

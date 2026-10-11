@@ -16,7 +16,7 @@ import { fetchCatalog } from '../app/remoteData';
 import { PLUGGED_DELAY } from '../../engine/openRocketEngine';
 import { keyOf } from './motorKey';
 import { errorMessage } from '../app/errorMessage';
-import { assertImportSize } from '../files/decodeText';
+import { assertImportSize, readFileText } from '../files/decodeText';
 
 /** One catalog row: the sync utility's schema, plus optional custom-motor tags. */
 export interface CatalogMotor {
@@ -203,6 +203,9 @@ export async function loadCatalog(): Promise<CatalogMotor[]> {
   return [...custom, ...bundled];
 }
 
+/** One motor file to import: already-read text, or a picked file still to read. */
+export type MotorFileInput = { name: string; text: string } | { name: string; blob: Blob };
+
 /**
  * Parse a motor file, store what it holds, and return the refreshed catalog.
  *
@@ -216,16 +219,19 @@ export async function loadCatalog(): Promise<CatalogMotor[]> {
  * be indistinguishable from importing one.
  */
 export async function importCustomMotors(
-  files: { name: string; text: string }[],
+  files: readonly MotorFileInput[],
 ): Promise<{ catalog: CatalogMotor[]; imported: number; failed: string[] }> {
   // Several files at once, the way desktop loads a whole folder of thrust
   // curves. A file that cannot be read is named and skipped rather than
-  // stopping the rest.
+  // stopping the rest, so a picked file is read here, inside the per-file
+  // `try`: one oversized or unreadable file then costs only itself.
   const motors: CustomMotor[] = [];
   const failed: string[] = [];
   let firstError: Error | null = null;
-  for (const { name, text } of files) {
+  for (const f of files) {
+    const { name } = f;
     try {
+      const text = 'blob' in f ? await readFileText(f.blob) : f.text;
       assertImportSize(text.length);
       motors.push(...(text.trimStart().startsWith('<') ? parseRse(text) : parseEng(text)));
     } catch (err) {

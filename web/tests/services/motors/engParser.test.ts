@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { offersPlugged, parseDelays } from '../../../src/services/motors/motorPicker';
 import { parseEng, totalImpulse } from '../../../src/services/motors/engParser';
+import { MAX_CURVE_SAMPLES } from '../../../src/services/motors/curveFinalize';
 
 const ENG = `; a comment
 ; another comment
@@ -264,5 +265,20 @@ describe('parseEng designation', () => {
     expect(parseEng(ENG.replace('TC10 24', 'C6-P 24'))[0]!.designation).toBe('C6');
     // A dash that is not a delay stays.
     expect(parseEng(ENG.replace('TC10 24', 'G-WIZ 24'))[0]!.designation).toBe('G-WIZ');
+  });
+});
+
+describe('the sample ceiling', () => {
+  // The one `.rse` is held to: every sample lands in the stored custom-motor
+  // blob, which is parsed on every picker open and `.ork` save.
+  const eng = (n: number) =>
+    'X1 24 70 0 0.010 0.025 Test\n' + Array.from({ length: n }, (_, i) => `${i * 0.001} 10`).join('\n') + '\n';
+
+  it('refuses a motor with more data points than MAX_CURVE_SAMPLES', () => {
+    expect(() => parseEng(eng(MAX_CURVE_SAMPLES + 1))).toThrow(/more than .* data points/i);
+  });
+
+  it('accepts a curve at the ceiling', () => {
+    expect(parseEng(eng(MAX_CURVE_SAMPLES))[0]!.samples).toHaveLength(MAX_CURVE_SAMPLES);
   });
 });

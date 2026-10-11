@@ -35,7 +35,8 @@ export * from './layout';
  * drawn again with it, so a report in Latin-1 fetches nothing. When the font
  * cannot be fetched, the Helvetica copy is saved, with ASCII stand-ins where
  * there are obvious ones, and `notice` says when some text could not be
- * printed at all.
+ * printed at all. A character neither Unicode font has a glyph for (Hangul,
+ * Arabic, an emoji) prints as `?`, and `notice` says that too.
  */
 
 export interface ReportPdfHooks {
@@ -76,7 +77,9 @@ export async function downloadReportPdf(
     if (hooks.canceled?.()) return;
     if (Object.keys(fonts).length) page = draw(fonts);
   }
-  if (page.lost) (hooks.notice ?? appNotice)(t('report.fontFallback'));
+  const notice = hooks.notice ?? appNotice;
+  if (page.lost) notice(t('report.fontFallback'));
+  else if (page.uncovered) notice(t('report.scriptUncovered'));
   // saveBlob, not jsPDF's doc.save(): that uses its own `<a download>` click,
   // which silently does nothing on iOS/iPadOS installed as a PWA (see the
   // saveFile.ts header). Every export in the app routes through saveBlob.

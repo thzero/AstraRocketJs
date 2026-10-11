@@ -2,15 +2,21 @@ import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.Module;
 import info.openrocket.core.database.ComponentPresetDatabase;
-import info.openrocket.core.database.ComponentPresetDatabaseLoader;
+import info.openrocket.core.file.iterator.DirectoryIterator;
+import info.openrocket.core.file.iterator.FileIterator;
+import info.openrocket.core.gui.util.SimpleFileFilter;
 import info.openrocket.core.material.Material;
 import info.openrocket.core.plugin.PluginModule;
 import info.openrocket.core.preset.ComponentPreset;
 import info.openrocket.core.preset.TypedKey;
+import info.openrocket.core.preset.xml.OpenRocketComponentLoader;
 import info.openrocket.core.rocketcomponent.Parachute;
 import info.openrocket.core.startup.Application;
 import info.openrocket.core.startup.CoreModule;
+import info.openrocket.core.util.Pair;
 
+import java.io.File;
+import java.io.InputStream;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.List;
@@ -70,23 +76,38 @@ public class PresetDump {
             ComponentPreset.WIDTH,
             ComponentPreset.HEIGHT);
 
+    /** Where the release jar keeps its `.orc` files. */
+    private static final String SYSTEM_PRESET_DIR = "datafiles/components";
+
     public static void main(String[] args) throws Exception {
         if (args.length < 1) {
             System.err.println("usage: PresetDump <out.tsv>");
             System.exit(2);
         }
         // The application's own module, so the material database and preferences
-        // are the ones the app boots with. The preset loader is driven directly
-        // rather than through `Application.getComponentPresetDao()`, which is not
-        // bound in every release.
+        // are the ones the app boots with. Under CoreModule the user's own
+        // materials are an empty set, so the material database is the release's.
         CoreModule core = new CoreModule();
         Module plugins = new PluginModule();
         Injector injector = Guice.createInjector(core, plugins);
         Application.setInjector(injector);
 
-        ComponentPresetDatabaseLoader loader = new ComponentPresetDatabaseLoader();
-        loader.startLoading();
-        ComponentPresetDatabase db = loader.getDatabase();
+        // Only the presets the release ships. `ComponentPresetDatabaseLoader`
+        // also reads the user's own `.orc` files from the desktop's component
+        // directory, and a row matched to one of those would carry a digest no
+        // other desktop has. This is that loader's system pass, step for step.
+        ComponentPresetDatabase db = new ComponentPresetDatabase();
+        FileIterator files = DirectoryIterator.findDirectory(SYSTEM_PRESET_DIR, new SimpleFileFilter("", false, "orc"));
+        if (files == null) {
+            System.err.println("no " + SYSTEM_PRESET_DIR + " on the class path");
+            System.exit(1);
+        }
+        while (files.hasNext()) {
+            Pair<File, InputStream> f = files.next();
+            try (InputStream in = f.getV()) {
+                db.addAll(new OpenRocketComponentLoader().load(in, f.getU().getName()));
+            }
+        }
 
         int rows = 0;
         try (PrintWriter out = new PrintWriter(args[0], "UTF-8")) {

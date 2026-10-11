@@ -527,7 +527,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
               </button>
               <button
                 onClick={() => setShowSettings(false)}
-                className="rounded-md bg-accent-500 px-4 py-1.5 text-sm font-medium text-on-accent hover:bg-accent-400"
+                className="rounded-md bg-accent-600 px-4 py-1.5 text-sm font-medium text-on-accent hover:bg-accent-500"
               >
                 {t('common.close')}
               </button>

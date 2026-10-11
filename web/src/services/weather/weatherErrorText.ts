@@ -6,6 +6,13 @@ type Translate = (key: string, opts?: Record<string, unknown>) => string;
 const DATE_REFUSALS = new Set(['tooFarAhead', 'tooEarly', 'badDate']);
 
 /**
+ * The kinds whose detail is Open-Meteo's own words or status, quoted to the
+ * user as they came. Every other detail is an English note built here, which
+ * stays in the error message for the logs and out of the translated text.
+ */
+const QUOTED_DETAIL = new Set(['refused', 'http']);
+
+/**
  * What to tell the user when a weather request fails: a refused date in its own
  * words, any other WeatherError by kind, and anything else by `fallbackKey`
  * (offline, unless the caller's own work could have failed too). One copy, so no
@@ -16,5 +23,7 @@ export function weatherErrorText(err: unknown, t: Translate, fallbackKey = 'weat
   if (err.kind === 'refused' && err.detail && DATE_REFUSALS.has(err.detail)) {
     return t(`weather.dateRefusal.${err.detail}`);
   }
-  return t(`weather.error.${err.kind}`, { detail: err.detail ?? '' });
+  return QUOTED_DETAIL.has(err.kind)
+    ? t(`weather.error.${err.kind}`, { detail: err.detail ?? '' })
+    : t(`weather.error.${err.kind}`);
 }

@@ -96,8 +96,9 @@ export function captureDeployments(ctx: OrkImportContext, el: Element, node: Com
     // the round-trip safe: on save the bare defaults are rewritten from the
     // configuration the user opened, so a config that recorded nothing would
     // inherit the opened configuration's values instead.
-    // The same reader as the design's own, floors included.
-    const o = readDeploymentTags(block ?? el);
+    // The same reader as the design's own, floors included, and the same
+    // merge: the block's fields over the bare defaults.
+    const o = { ...readDeploymentTags(el), ...(block ? readDeploymentTags(block) : {}) };
     if (Object.keys(o).length > 0 && node.id) c.deployments[node.id] = o;
   }
 }
@@ -142,7 +143,7 @@ export function captureSeparations(ctx: OrkImportContext, el: Element, node: Com
     const block = Array.from(el.children).find(
       (x) => x.tagName === 'separationconfiguration' && x.getAttribute('configid') === c.id,
     );
-    const o = readSeparationTags(block ?? el);
+    const o = { ...readSeparationTags(el), ...(block ? readSeparationTags(block) : {}) };
     if (Object.keys(o).length > 0 && node.id) c.separations[node.id] = o;
   }
 }
@@ -174,7 +175,13 @@ export function readMotor(ctx: OrkImportContext, el: Element, node: ComponentNod
   // ejection charge): the desktop writes the literal string "none"
   // (Motor.PLUGGED_DELAY). Represent as the JSON-safe PLUGGED_DELAY sentinel,
   // which the engine maps to +Inf ("never fires") at the kernel boundary.
-  const resolveRef = (motorEl: Element, igEl: Element): OrkMotorRef => {
+  // Ignition: the bare tags on <motormount> are the defaults, and a
+  // configuration's <ignitionconfiguration> overrides them field by field.
+  const ignitionEvent = (igEl: Element | undefined): string | undefined =>
+    (igEl && text(igEl, ':scope > ignitionevent')) ?? text(mountEl, ':scope > ignitionevent') ?? undefined;
+  const ignitionDelay = (igEl: Element | undefined): number =>
+    nonNegTag(igEl && text(igEl, ':scope > ignitiondelay') !== null ? igEl : mountEl, 'ignitiondelay', 0);
+  const resolveRef = (motorEl: Element, igEl: Element | undefined): OrkMotorRef => {
     // Carried through rather than used: the motor is resolved from our own
     // catalog, but a design saved again should still name the desktop entry the
     // file named, including for a motor we could not resolve. Absent stays
@@ -188,8 +195,8 @@ export function readMotor(ctx: OrkImportContext, el: Element, node: ComponentNod
       length: nonNegTag(motorEl, 'length', 0.07),
       delay: readDelay(motorEl),
       mountId: node.id,
-      ignitionEvent: text(igEl, ':scope > ignitionevent') ?? undefined,
-      ignitionDelay: nonNegTag(igEl, 'ignitiondelay', 0),
+      ignitionEvent: ignitionEvent(igEl),
+      ignitionDelay: ignitionDelay(igEl),
     };
   };
   // Every declared configuration's motor rides along as a preset
@@ -201,15 +208,15 @@ export function readMotor(ctx: OrkImportContext, el: Element, node: ComponentNod
         Array.from(mountEl.children).find((c) => c.tagName === tag && c.getAttribute('configid') === cfg.id);
       const cfgMotorEl = byId('motor');
       if (!cfgMotorEl) continue; // no motor for this config here: empty
-      cfg.motors[node.id] = resolveRef(cfgMotorEl, byId('ignitionconfiguration') ?? mountEl);
+      cfg.motors[node.id] = resolveRef(cfgMotorEl, byId('ignitionconfiguration'));
     }
   }
   // A mount with no motor for the chosen configuration imports empty.
   const motorEl = configScoped(ctx, mountEl, 'motor');
   if (!motorEl) return;
-  // Ignition: the chosen config's block wins over the bare default
-  // (desktop writes defaults bare, overrides in <ignitionconfiguration>).
-  const ref = resolveRef(motorEl, configScoped(ctx, mountEl, 'ignitionconfiguration') ?? mountEl);
+  // Ignition: the chosen config's block over the bare defaults (desktop writes
+  // defaults bare, overrides in <ignitionconfiguration>).
+  const ref = resolveRef(motorEl, configScoped(ctx, mountEl, 'ignitionconfiguration') ?? undefined);
   if (ref.delay >= PLUGGED_DELAY) {
     const unstated = text(motorEl, ':scope > delay') !== 'none';
     ctx.notes.push(

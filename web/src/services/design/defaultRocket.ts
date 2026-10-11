@@ -1,8 +1,10 @@
+// cspell:ignore HDPE -- a catalog material name, matched as written
 import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
 import { defaultDesignName } from '../app/appInfo';
 import { defaultStageName } from './orkTree';
 import { defaultMaterialPatch } from './materialSlots';
-import { presetLink } from './treeEdit';
+import { catalogPatch, presetLink } from './treeEdit';
+import type { ParachuteComponent } from '../parts/componentDb';
 
 /**
  * The design the app opens with: a classic Estes-class sport model, built out of
@@ -63,6 +65,13 @@ export interface PresetRow {
   shoulderLength?: number;
   /** The mass the catalog states (kg); the density above spreads it over the part. */
   mass?: number;
+  /** A parachute row's description, drag coefficient, shroud lines and their material. */
+  desc?: string;
+  cd?: number | null;
+  lineCount?: number;
+  lineLength?: number;
+  lineMaterial?: string;
+  lineMaterialDensity?: number;
 }
 
 /**
@@ -132,12 +141,23 @@ export const DEFAULT_PRESETS = {
     materialDensity: 657,
     material: 'Fiber, bulk',
   },
-  /** 12 in plastic canopy, which is what a BT-50 model of this mass comes down on. */
+  /**
+   * 12 in plastic canopy, which is what a BT-50 model of this mass comes down on.
+   * The row states its canopy film, its lines and their thread, and no Cd.
+   */
   chute: {
     partNo: 'PK-12, 2263',
     type: 'parachute',
     digest: 'e38b3873b4c5e66b9f07aaa094cb1ff8',
+    desc: 'Parachute kit, plastic, 12 in., PN 2263',
     diameter: 0.30479999999999996,
+    cd: null,
+    lineCount: 6,
+    lineLength: 0.30479999999999996,
+    material: 'Polyethylene film, HDPE, 1.0 mil, bare',
+    materialDensity: 0.0235,
+    lineMaterial: 'Carpet Thread',
+    lineMaterialDensity: 0.00033,
   },
 } as const satisfies Record<string, PresetRow>;
 
@@ -213,6 +233,19 @@ function tube(row: PresetRow): Record<string, unknown> {
   };
 }
 
+/**
+ * The canopy, its lines and their materials as `catalogPatch` applies the row
+ * (`Parachute.loadFromPreset`), with the preset link. The tree names it by its
+ * type, as it names every other part of this design.
+ */
+function chuteNode(): Record<string, unknown> {
+  const row = DEFAULT_PRESETS.chute;
+  const part: ParachuteComponent = { ...row, mfr: 'Estes' };
+  const patch = catalogPatch(part);
+  delete patch.name;
+  return { ...patch, preset: presetLink(row.type, 'Estes', row.partNo, row.digest) };
+}
+
 /** One centering ring, positioned by the caller. */
 function ring(id: string, position: { method: string; offset: number }): ComponentNode {
   const row = DEFAULT_PRESETS.ring;
@@ -236,7 +269,7 @@ function ring(id: string, position: { method: string; offset: number }): Compone
  * mutates the one it holds.
  */
 export function defaultRocketTree(): RocketTree {
-  const { nose, body, mount, chute } = DEFAULT_PRESETS;
+  const { nose, body, mount } = DEFAULT_PRESETS;
 
   const noseNode: ComponentNode = {
     type: 'nosecone',
@@ -304,21 +337,12 @@ export function defaultRocketTree(): RocketTree {
       {
         type: 'parachute',
         id: 'chute',
-        ...fromPreset(chute),
-        diameter: chute.diameter,
-        // The row states no Cd, which is the catalog's usual answer for a
-        // canopy; 0.8 is the kernel's own figure for a flat sheet chute.
-        cd: 0.8,
-        lineCount: 6,
-        lineLength: 0.3,
+        ...chuteNode(),
         // At apogee, which is what the editor defaults to, so the panel and the
         // engine agree rather than the kernel falling back to ejection.
         deployEvent: 'apogee',
         deployAltitude: 200,
         deployDelay: 0,
-        // Two slots: the canopy is a surface material and the shroud lines a
-        // line material, and both feed the chute's mass.
-        ...defaultMaterialPatch('parachute', {}),
         position: { method: 'top', offset: PACK.chute },
       },
       {

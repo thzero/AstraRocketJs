@@ -35,6 +35,23 @@ describe('loadSettings', () => {
     expect(s.maxAngleStep).toBe(SIM_BOUNDS.maxAngleStep.max);
   });
 
+  // The bridge reads the seed as a number, so a stored string fails every run
+  // until the seed is retyped.
+  it('falls back for a seed or a flag of the wrong type, and keeps a usable one', () => {
+    const sim = (simulation: unknown) => {
+      localStorage.setItem(KEY, JSON.stringify({ simulation }));
+      return loadSettings().simulation;
+    };
+    const bad = sim({ randomSeed: 'abc', confirmDelete: 'no', autoRunOutdated: 1 });
+    expect(bad.randomSeed).toBeNull();
+    expect(bad.confirmDelete).toBe(DEFAULT_SETTINGS.simulation.confirmDelete);
+    expect(bad.autoRunOutdated).toBe(DEFAULT_SETTINGS.simulation.autoRunOutdated);
+    expect(sim({ randomSeed: 1.7 }).randomSeed).toBe(1);
+    expect(sim({ randomSeed: 2 ** 40 }).randomSeed).toBe(2 ** 31 - 1);
+    const good = sim({ randomSeed: 42, confirmDelete: false, autoRunOutdated: true });
+    expect(good).toMatchObject({ randomSeed: 42, confirmDelete: false, autoRunOutdated: true });
+  });
+
   it('deep-merges partial phase colors', () => {
     localStorage.setItem(KEY, JSON.stringify({ phaseColors: { boost: '#000000' } }));
     const s = loadSettings();

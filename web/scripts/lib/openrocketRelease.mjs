@@ -10,8 +10,8 @@
 // inside its jar, and sync-components refuses a database whose files differ
 // from the jar's copy, so the commit cannot move the catalog off the release.
 //
-// OPENROCKET_UNPINNED=1 lets a different jar through with a warning, for
-// trying another build locally. Its digests are not the release's, so a
+// OPENROCKET_UNPINNED=1 lets a different jar, or a built source tree, through
+// with a warning, for trying another build locally. Its digests are not the release's, so a
 // catalog made that way is not one to commit or publish.
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -40,5 +40,25 @@ export function checkJar(jar) {
     return;
   }
   console.error(`${msg}\nPass --jar <OpenRocket-${RELEASE}.jar>, from ${PIN.jar.url}.`);
+  process.exit(2);
+}
+
+/**
+ * Exit unless OPENROCKET_UNPINNED=1 lets a built source tree through. A source
+ * tree is never the pinned release: a part whose `.orc` row states a mass gets
+ * its material from that tree's material database, so its digest differs from
+ * the one desktop users' OpenRocket computes.
+ */
+export function checkSourceTree(dir) {
+  const msg = `${dir} is a source tree, not the OpenRocket ${RELEASE} release jar, so its digests are not the release's.`;
+  if (UNPINNED) {
+    console.warn(`${msg}
+OPENROCKET_UNPINNED=1: using it anyway. Do not commit or publish what this run writes.`);
+    return;
+  }
+  console.error(
+    `${msg}
+Pass --jar <OpenRocket-${RELEASE}.jar>, from ${PIN.jar.url}, or set OPENROCKET_UNPINNED=1 to try it anyway.`,
+  );
   process.exit(2);
 }

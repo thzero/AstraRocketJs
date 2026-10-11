@@ -206,6 +206,27 @@ describe('simulation undo/redo', () => {
     expect(s().past).toHaveLength(0);
   });
 
+  it('records no step and keeps redo when the same motor is seated again', () => {
+    s().setMountMotor(config().id, mountId(), { ...C6, designation: 'Z99' });
+    s().undo();
+    expect(s().future).toHaveLength(1);
+    const again = seated();
+    s().setMountMotor(config().id, mountId(), { ...again, times: [...again.times] });
+    expect(s().past).toHaveLength(0);
+    expect(s().future).toHaveLength(1);
+  });
+
+  it('records no step for ignition timing the mount already has', () => {
+    s().setMountIgnition(config().id, mountId(), 'automatic', 0);
+    s().commitEdit();
+    expect(s().past).toHaveLength(0);
+    s().setMountIgnition(config().id, mountId(), 'burnout', 1);
+    s().commitEdit();
+    s().setMountIgnition(config().id, mountId(), 'burnout', 1);
+    s().commitEdit();
+    expect(s().past).toHaveLength(1);
+  });
+
   // An edit still in flight is folded into history first, as undo does, so redo
   // cannot overwrite it with a snapshot from before it.
   it('redo keeps an edit that is still in flight', () => {
@@ -1324,6 +1345,20 @@ describe('replacing the workspace is race-safe across actions, not just openDesi
     await pending;
 
     expect((s().tree as unknown as { name?: string }).name).not.toBe('IMPORTED');
+  });
+});
+
+describe('openOrkFile refuses an oversized file before reading it', () => {
+  it('posts the size error without loading the bytes', async () => {
+    s().resetWorkspace();
+    const arrayBuffer = vi.fn(async () => new ArrayBuffer(0));
+    // 4 GiB: past any design file the app reads, and more than a tab can hold.
+    const huge = { name: 'huge.ork', size: 2 ** 32, arrayBuffer } as unknown as File;
+
+    await s().openOrkFile(huge);
+
+    expect(arrayBuffer).not.toHaveBeenCalled();
+    expect(s().err).toMatch(/too large/);
   });
 });
 

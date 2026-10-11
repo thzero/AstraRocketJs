@@ -9,6 +9,8 @@ import {
   velocityAltitudeSummary,
 } from '../../../src/components/canvas/chartSummary';
 import { localeTranslator } from '../../testing/localeTranslator';
+import i18n from '../../../src/i18n';
+import ja from '../../../src/i18n/locales/ja.json';
 import en from '../../../src/i18n/locales/en.json';
 import de from '../../../src/i18n/locales/de.json';
 
@@ -49,7 +51,7 @@ describe('timeSeriesSummary', () => {
   it('names each stage when there are several', () => {
     const booster = { name: 'Booster', xs: [0, 2, 3], ys: [0, 80, 120] };
     expect(timeSeriesSummary(t, 'Altitude', 'm', 0, false, [climb, booster])).toBe(
-      'Altitude: Sustainer: peak 312 m at 6.1 s; Booster: peak 120 m at 3.0 s',
+      'Altitude: Sustainer: peak 312 m at 6.1 s and Booster: peak 120 m at 3.0 s',
     );
   });
 
@@ -74,7 +76,7 @@ describe('eventsSummary', () => {
       { type: 'BURNOUT', time: 1.9 },
       { type: 'LAUNCH', time: 0 },
     ];
-    expect(eventsSummary(t, events, label)).toBe('Events: launch at 0.0 s, burnout at 1.9 s, apogee at 6.1 s');
+    expect(eventsSummary(t, events, label)).toBe('Events: launch at 0.0 s, burnout at 1.9 s, and apogee at 6.1 s');
   });
 
   it('gives nothing for no events', () => {
@@ -101,7 +103,7 @@ describe('machSeriesSummary', () => {
       { name: 'Base', values: [0.12, 0.13, 0.15, 0.2] },
     ];
     expect(machSeriesSummary(t, 'Cd vs Mach', 'Cd', 3, machs, series)).toBe(
-      'Cd vs Mach: Total: peak 0.610 Cd at Mach 0.90; Base: peak 0.200 Cd at Mach 1.10',
+      'Cd vs Mach: Total: peak 0.610 Cd at Mach 0.90 and Base: peak 0.200 Cd at Mach 1.10',
     );
   });
 
@@ -109,5 +111,25 @@ describe('machSeriesSummary', () => {
     expect(machSeriesSummary(t, 'CP', '%', 1, machs, [{ name: 'CP', values: [60, 61, 64, 70] }])).toBe(
       'CP: peak 70.0 % at Mach 1.10',
     );
+  });
+});
+
+describe('lists in a summary follow the UI language', () => {
+  it('joins events with the Japanese list separator, not an English comma', async () => {
+    await i18n.changeLanguage('ja');
+    try {
+      const out = eventsSummary(
+        localeTranslator(ja),
+        [
+          { type: 'launch', time: 0 },
+          { type: 'apogee', time: 6.1 },
+        ],
+        (k) => k,
+      )!;
+      expect(out).toContain('、');
+      expect(out).not.toContain(', ');
+    } finally {
+      await i18n.changeLanguage('en');
+    }
   });
 });

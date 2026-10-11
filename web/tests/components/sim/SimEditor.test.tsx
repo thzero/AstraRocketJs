@@ -54,6 +54,14 @@ describe('the time-step slider', () => {
       act(() => useWorkspaceStore.setState({ commitEdit: real }));
     }
   });
+
+  it('has a name of its own, apart from the time step box', () => {
+    renderWithProviders(<SimEditor />);
+    const slider = screen.getByRole('slider');
+    const box = screen.getByRole('spinbutton', { name: 'Time step' });
+    expect(slider.getAttribute('aria-label')).not.toBe(box.getAttribute('aria-label') ?? 'Time step');
+    expect(screen.getAllByLabelText('Time step')).toEqual([box]);
+  });
 });
 
 /** The override field offers the range the kernel flies: 1 to 20 degrees. */

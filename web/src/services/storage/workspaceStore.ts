@@ -9,7 +9,7 @@
 // (designLibrary.ts), which holds many designs in IndexedDB. This interface
 // stays narrow on purpose: it is only "the design being edited"; listing,
 // opening, renaming and deleting designs are the library's job.
-import { getDesignLibrary, type DesignLibrary, type DesignMeta, type StoredResults } from './designLibrary';
+import { freshId, getDesignLibrary, type DesignLibrary, type DesignMeta, type StoredResults } from './designLibrary';
 import type { FlightResult, RocketTree } from '../../engine/openRocketEngine';
 import { withoutResults, type Simulation } from '../flight/simulations';
 import type { FlightConfig } from '../flight/flightConfigs';
@@ -98,6 +98,14 @@ interface Journal {
   tab?: string;
   /** When `saveSync` wrote it (epoch ms). */
   t?: number;
+  /**
+   * With a null `id`: the entry the writing tab's first create makes. The
+   * create can land after the journal or not at all, and only this tells the
+   * two apart on the next load.
+   */
+  createId?: string;
+  /** With a null `id`: the name that create uses (see `setPendingName`). */
+  name?: string;
 }
 
 /** True when replaying `j` cannot roll back a save made by another tab. */
@@ -193,6 +201,12 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
   /** See `setPendingName`. */
   private pendingName: string | null = null;
   /**
+   * The id the next create uses while detached, chosen before the create so the
+   * unload journal can name the entry the create is making (see `Journal`).
+   * Cleared by `setActiveId`, so a new detached design gets an id of its own.
+   */
+  private createId: string | null = null;
+  /**
    * Bumped by every `setActiveId`. A create that resolves after the workspace
    * has moved on (New, or a second import, during that first slow write) must
    * not adopt its id: the entry it made belongs to the design that has just
@@ -240,7 +254,7 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
   async load(): Promise<Workspace | null> {
     const lib = getDesignLibrary();
     // A journal is newer than anything stored, but only for its own design.
-    const journal = readJournal();
+    let journal = readJournal();
     try {
       this.activeId = await lib.activeIdChecked();
     } catch {
@@ -254,7 +268,15 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
       const w = journal ? migrateWorkspace(journal.w) : null;
       if (!w) return null;
       this.journalHeld = true;
+      if (journal!.id === null) this.adoptCreate(journal!);
       return this.trackResults(w);
+    }
+
+    // A detached tab's journal names the entry its first create makes. Once that
+    // create has landed, the journal belongs to the entry like any other and
+    // follows the same rules (another tab's later save still wins).
+    if (journal && journal.id === null && journal.createId && (await this.metaOf(journal.createId))) {
+      journal = { ...journal, id: journal.createId };
     }
 
     if (journal && journal.id && journal.id === this.activeId) {
@@ -294,22 +316,31 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
     // autosave would be lost on reload, and the blob (a whole lean workspace)
     // would stay in the ~5 MB localStorage budget forever.
     //
-    // It belongs to "no design yet", so replay it by creating one.
-    if (journal && journal.id === null && this.activeId === null) {
+    // It belongs to "no design yet", so replay it by creating one, whatever the
+    // library's active pointer says. New and import detach this store without
+    // moving the pointer, so a reload inside the autosave debounce finds the
+    // previous design still active, and the journal is the only copy of the new
+    // one. A journal with no `createId` (an older build) cannot tell whether its
+    // create landed, so it replays only when nothing is active.
+    if (journal && journal.id === null && (journal.createId || this.activeId === null)) {
       const w = migrateWorkspace(journal.w);
       if (!w) {
         clearJournal();
         return await this.readActive(lib);
       }
+      this.adoptCreate(journal);
       try {
-        const meta = await lib.create(nameFor(w), w, this.tab);
+        const meta = await lib.create(journal.name || nameFor(w), w, this.tab, this.nextCreateId());
         clearJournal();
+        this.createId = null;
+        this.pendingName = null;
         this.activeId = meta.id;
         this.lastSeenAt = meta.updatedAt;
       } catch {
         // Storage refused it (full, the failure the journal exists for). The
-        // journal is the only copy, so it stays, and its work is what opens;
-        // the next save tries the create again.
+        // journal is the only copy, so it stays, and its work is what opens
+        // detached; the next save tries the same create again.
+        this.activeId = null;
       }
       return this.trackResults(w);
     }
@@ -334,20 +365,39 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
    * means the library believes this design exists. Detach before throwing, so
    * the next autosave creates a design instead of overwriting the unreadable
    * one, and the user keeps whatever can still be recovered by hand.
+   *
+   * The claim (`lastSeenAt`) is taken only once the whole read has succeeded,
+   * for the same reason: a claim on a design that then fails to open lets the
+   * first autosave through `writeIfUnchanged` with a matching stamp. A caller
+   * whose own step fails after this (`hydrate`) detaches the store itself.
    */
   private async readActive(lib: DesignLibrary): Promise<Workspace | null> {
-    if (!this.activeId) return null;
-    // The stamp before the blob: a save in another tab claims the stamp before
-    // it writes the blob and stamps again after, so a stamp read first is never
-    // newer than the blob read after it (see `DesignLibrary.writeIfUnchanged`).
-    const seenAt = (await this.metaOf(this.activeId))?.updatedAt ?? null;
-    const w = migrateWorkspace(await lib.read(this.activeId));
-    if (!w) {
+    const id = this.activeId;
+    if (!id) return null;
+    try {
+      // The stamp before the blob: a save in another tab claims the stamp before
+      // it writes the blob and stamps again after, so a stamp read first is never
+      // newer than the blob read after it (see `DesignLibrary.writeIfUnchanged`).
+      const seenAt = (await this.metaOf(id))?.updatedAt ?? null;
+      const w = migrateWorkspace(await lib.read(id));
+      if (!w) throw new Error('unreadable-design');
+      const full = withResults(w, await lib.readResults(id));
+      this.lastSeenAt = seenAt;
+      return this.trackResults(full);
+    } catch (e) {
       this.activeId = null;
-      throw new Error('unreadable-design');
+      throw e;
     }
-    this.lastSeenAt = seenAt;
-    return this.trackResults(withResults(w, await lib.readResults(this.activeId)));
+  }
+
+  /** Take over a detached journal's pending create, so a retry makes the same entry. */
+  private adoptCreate(j: Journal): void {
+    if (j.createId) this.createId = j.createId;
+    if (j.name) this.pendingName = j.name;
+  }
+
+  private nextCreateId(): string {
+    return (this.createId ??= freshId());
   }
 
   /** Record what is on disk, so the next save knows whether to rewrite it. */
@@ -391,7 +441,7 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
     // First save of a session that started with no library entry (a fresh
     // browser, or everything deleted) creates the design rather than dropping it.
     if (!this.activeId) {
-      const p = lib.create(this.pendingName || nameFor(w), leanW, this.tab);
+      const p = lib.create(this.pendingName || nameFor(w), leanW, this.tab, this.nextCreateId());
       this.creating = p;
       let meta: DesignMeta;
       try {
@@ -401,6 +451,7 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
       }
       if (gen !== this.gen) return; // the workspace moved on; that entry is the old one's
       this.pendingName = null;
+      this.createId = null;
       this.activeId = meta.id;
       this.lastSeenAt = meta.updatedAt;
       this.journalHeld = false;
@@ -481,6 +532,7 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
     this.gen++; // void any create still in flight for the workspace being replaced
     this.activeId = id;
     this.pendingName = null; // it named the design being switched away from
+    this.createId = null;
     // A different design has different flights; what we know about the last
     // write no longer applies to the one we are about to make.
     this.savedResults = new Map();
@@ -501,6 +553,7 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
     if (this.conflicted) return;
     // The journal from boot is the only copy of earlier work (see `journalHeld`).
     if (this.journalHeld) return;
+    const detached = this.activeId === null;
     try {
       localStorage.setItem(
         UNLOAD_KEY,
@@ -510,6 +563,8 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
           base: this.lastSeenAt,
           tab: this.tab,
           t: Date.now(),
+          ...(detached ? { createId: this.nextCreateId() } : {}),
+          ...(detached && this.pendingName ? { name: this.pendingName } : {}),
         } satisfies Journal),
       );
     } catch {

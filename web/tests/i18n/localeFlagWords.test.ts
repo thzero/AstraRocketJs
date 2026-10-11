@@ -27,8 +27,10 @@ import i18n, { LANGUAGES } from '../../src/i18n';
 
 /** Words on the list that are native to a given language, not British leaks. */
 const NATIVE: Record<string, readonly string[]> = {
-  // All six are ordinary French.
-  fr: ['analyse', 'catalogue', 'catalogues', 'centre', 'fibre', 'stabiliser'],
+  // All nine are ordinary French.
+  fr: ['analyse', 'catalogue', 'catalogues', 'centre', 'fibre', 'minimise', 'stabiliser', 'utilise', 'visualisation'],
+  // `calibre` is the Spanish word for caliber.
+  es: ['calibre'],
   // `Analyse` is a German noun.
   de: ['analyse'],
   // ...and a Dutch one.

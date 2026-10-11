@@ -41,12 +41,14 @@ export function writeTemplatesSection(
   writeFinTemplates(p, tree, finSets);
   for (const n of noses) {
     const prof = profileMm(n, 0, num(n, 'aftRadius', KERNEL_DEFAULTS.nosecone.aftRadius));
-    if (prof) template(p, (n.name as string) || t('report.noseCone'), prof.pts, prof.w, prof.h);
+    if (prof)
+      template(p, (n.name as string) || t('report.noseCone'), prof.pts, { minX: 0, minY: 0, w: prof.w, h: prof.h });
   }
   for (const n of transitions) {
     const { fore, aft } = profileEnds(n);
     const prof = profileMm(n, fore, aft);
-    if (prof) template(p, (n.name as string) || t('report.transition'), prof.pts, prof.w, prof.h);
+    if (prof)
+      template(p, (n.name as string) || t('report.transition'), prof.pts, { minX: 0, minY: 0, w: prof.w, h: prof.h });
   }
 }
 
@@ -57,21 +59,45 @@ function writeFinTemplates(p: PdfPage, tree: RocketTree, finSets: ComponentNode[
     // the DXF and the STL of the same fin. Without it a 20 mm tab on a 12 mm
     // body would print at full depth.
     const f = finPlanformMm(n, finMountOf(tree, String(n.id)));
-    // A loop, not `Math.max(...pts)`: a freeform outline is file-sourced and
-    // spreading a huge one into a call overflows the stack (dxfExport.ts
-    // avoids the same thing the same way).
-    let w = -Infinity;
-    let h = -Infinity;
-    for (const pt of f.pts) {
-      if (pt[0] > w) w = pt[0];
-      if (pt[1] > h) h = pt[1];
-    }
-    template(p, `${(n.name as string) || p.t('report.finSet')} × ${f.count}`, f.pts, w, h);
+    template(p, `${(n.name as string) || p.t('report.finSet')} × ${f.count}`, f.pts, outlineBox(f.pts));
   }
 }
 
-function template(p: PdfPage, label: string, pts: Pt[], w: number, h: number): void {
+/** The box a template drawing occupies, in its own millimeters. */
+interface TemplateBox {
+  minX: number;
+  minY: number;
+  w: number;
+  h: number;
+}
+
+/**
+ * The bounds of a fin outline, on both sides of its origin. A forward-swept fin
+ * puts its tip ahead of the root's leading edge (negative x), and a root along
+ * a taper or a tab can reach past either end of the span, so neither edge of
+ * the drawing is known to be zero.
+ *
+ * A loop, not `Math.max(...pts)`: a freeform outline is file-sourced and
+ * spreading a huge one into a call overflows the stack (dxfExport.ts avoids
+ * the same thing the same way).
+ */
+function outlineBox(pts: Pt[]): TemplateBox {
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const [x, y] of pts) {
+    if (x < minX) minX = x;
+    if (x > maxX) maxX = x;
+    if (y < minY) minY = y;
+    if (y > maxY) maxY = y;
+  }
+  return { minX, minY, w: maxX - minX, h: maxY - minY };
+}
+
+function template(p: PdfPage, label: string, pts: Pt[], box: TemplateBox): void {
   const { t, M } = p;
+  const { minX, minY, w, h } = box;
   sub(p, label, 9);
   if (!templateFits(w, h, pageFrame(p.PW, p.PH))) {
     setStyle(p, 'italic').setFontSize(8).setTextColor(120);
@@ -80,6 +106,7 @@ function template(p: PdfPage, label: string, pts: Pt[], w: number, h: number): v
     return;
   }
   ensure(p, h + 6);
-  fillPolygon(p, pts, M, p.y);
+  // The drawing's left and top edges land on the margin and the cursor.
+  fillPolygon(p, pts, M - minX, p.y - minY);
   p.y += h + 6;
 }

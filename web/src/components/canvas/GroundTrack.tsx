@@ -243,6 +243,15 @@ export function GroundTrack({
                   }`}
                 >
                   {t('sweep.button')}
+                  {/* A flown sweep fills the button even while it is closed, so
+                      it carries a mark and words as well as the color. */}
+                  {mine && (
+                    <>
+                      {' '}
+                      <span aria-hidden>●</span>
+                      <span className="sr-only">{`(${t('sweep.flown')})`}</span>
+                    </>
+                  )}
                 </button>
                 {sweepOpen && <DriftSweepPanel simId={flight.id} launch={launch} />}
               </div>

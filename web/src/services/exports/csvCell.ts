@@ -13,8 +13,10 @@
  * a comma locale on `,`, whatever the file used, and a tab splits too. Each of
  * `,` `;` and tab inside a value can therefore open a new cell that no quoting
  * protects, so a trigger after one of them (spaces allowed between) gets the
- * `'` as well. The separators themselves are kept rather than stripped: a name
- * like `Booster, lower` stays readable, and the quoting in {@link csvField}
+ * `'` as well. CR and LF count too: a writer that leaves a field unquoted
+ * (a user CSV template) turns either into a new row, whose first cell is
+ * whatever follows. The separators themselves are kept rather than stripped:
+ * a name like `Booster, lower` stays readable, and the quoting in {@link csvField}
  * keeps it one field for a reader that does honor the file's separator.
  *
  * A value that is a whole number, negatives and exponents included, is written
@@ -24,8 +26,8 @@
  */
 const NUMBER = /^-?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/i;
 
-/** A trigger after an in-value separator, with any spaces between. */
-const EMBEDDED_TRIGGER = /([,;\t] *)(?=[=+\-@\t\r])/g;
+/** A trigger after an in-value separator or line break, with any spaces between. */
+const EMBEDDED_TRIGGER = /([,;\t\r\n] *)(?=[=+\-@\t\r])/g;
 
 /** A trigger at the very start of the value, with any spaces before it. */
 const LEADING_TRIGGER = /^ *[=+\-@\t\r]/;

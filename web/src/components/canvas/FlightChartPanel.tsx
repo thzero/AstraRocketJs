@@ -5,6 +5,7 @@ import { useUnits } from '../../prefs/useUnits';
 import { PAD_L, PAD_R, PANEL_H } from './flightChartAxis';
 import { panelDigits, panelSeries, traceScale, traceUnit, type Branch, type Meta } from './flightChartTraces';
 import { PanelHover, hoverValue } from './FlightChartHover';
+import { NO_VALUE } from '../../i18n/noValue';
 import { polylinePath } from '../common/svgPath';
 import { PanelExpandButton } from './PanelExpandButton';
 import { token } from '../common/colorTokens';
@@ -118,20 +119,29 @@ export function FlightChartPanel({
     [t, meta.label, meta.level, unit, digits, list],
   );
 
-  // Header: the hovered value of the primary (first / sustainer) stage, else the
-  // peak-magnitude sample across every shown stage.
+  // Header: with a crosshair, the primary (first / sustainer) stage's value
+  // there, or no value outside that stage's span; with none, the
+  // peak-magnitude sample across every shown stage, tagged as the peak so it
+  // never reads as a value at a time.
   const primary = list[0];
-  const hvPrimary = primary && hoverT != null ? hoverValue(primary, hoverT) : null;
-  const shown = hvPrimary ?? peak;
+  const showsPeak = hoverT == null;
+  const shown = showsPeak ? peak : primary ? hoverValue(primary, hoverT) : null;
 
   return (
     <div className="mb-2 rounded-lg bg-raised/40 ring-1 ring-line/10">
       <div className="flex items-baseline justify-between px-2 pt-1.5">
         <span className="text-[10px] font-semibold uppercase tracking-wide text-ink-muted">{t(meta.label)}</span>
         <span className="flex items-baseline gap-2">
+          {showsPeak && <span className="text-[10px] text-ink-faint">{t('flight.peakTag')}</span>}
           <span className="text-xs font-semibold tabular-nums text-ink-strong">
-            {fmtNum(shown, digits)}
-            {unit && <span className="ml-0.5 text-[10px] text-ink-faint">{unit}</span>}
+            {shown == null ? (
+              NO_VALUE
+            ) : (
+              <>
+                {fmtNum(shown, digits)}
+                {unit && <span className="ml-0.5 text-[10px] text-ink-faint">{unit}</span>}
+              </>
+            )}
           </span>
           {onToggleExpand && <PanelExpandButton expanded={expanded} onClick={onToggleExpand} />}
         </span>

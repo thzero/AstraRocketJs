@@ -161,9 +161,9 @@ function parseEnvelope<T>(operation: string, raw: string, expectArray = false): 
  * This one is not retryable the way the WASM urls are (see `attemptUrl`): the
  * specifier has to stay static for the bundler to emit the chunk, so a retry
  * re-imports the same url and the module registry hands back the same pending
- * entry if the first fetch stalled. A retry therefore recovers a stalled WASM
- * load, which is the path a browser that has WASM-GC always takes, and not a
- * stalled fallback on a browser that does not.
+ * or failed entry. A retry therefore recovers a WASM load, which is the path a
+ * browser that has WASM-GC always takes, and not the fallback on a browser that
+ * does not; {@link engineRetryCanRecover} tells the UI which case it is in.
  */
 async function loadJsEngine(): Promise<EngineApi> {
   return await import('./vendor/openrocket-engine.mjs');
@@ -177,13 +177,50 @@ async function loadJsEngine(): Promise<EngineApi> {
  * request, so re-running a runtime load whose fetch has stalled attaches
  * straight back to the stall and issues no new request at all. The first attempt is left unadorned so
  * the ordinary path keeps a plain, cacheable url.
+ *
+ * The service worker's precache must ignore the `retry` parameter
+ * (`ignoreURLParametersMatching` in vite.config.ts). Offline, the precache is the
+ * only copy of the engine, and a key that carries the query would miss it, so a
+ * retry would fail where the first attempt worked. Answering from Cache Storage
+ * is not the coalesced network fetch the new url exists to avoid.
  */
+export function retryUrl(url: string, attempt: number): string {
+  return attempt === 0 ? url : `${url}${url.includes('?') ? '&' : '?'}retry=${attempt}`;
+}
+
 function attemptUrl(url: string): string {
-  return initAttempt === 0 ? url : `${url}${url.includes('?') ? '&' : '?'}retry=${initAttempt}`;
+  return retryUrl(url, initAttempt);
+}
+
+/**
+ * How long the WASM download may go without receiving anything before it is
+ * abandoned for the JS build. A stalled fetch never settles, so without a
+ * ceiling a proxy that holds `.wasm` leaves the app with no engine although the
+ * JS chunk would load. Counted from the last byte rather than the start, so a
+ * slow link that is still moving is not cut off.
+ */
+export const WASM_STALL_MS = 20_000;
+
+/** An abort signal that fires once `ms` pass without a {@link StallWatch.poke}. */
+interface StallWatch {
+  signal: AbortSignal;
+  poke(): void;
+  stop(): void;
+}
+
+function stallWatch(ms: number): StallWatch {
+  const ctl = new AbortController();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const poke = () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => ctl.abort(new Error(`WASM download stalled for ${ms} ms`)), ms);
+  };
+  poke();
+  return { signal: ctl.signal, poke, stop: () => clearTimeout(timer) };
 }
 
 /** Load the WASM-GC runtime once (it installs globalThis.TeaVM.wasmGC). */
-function loadWasmRuntime(): Promise<void> {
+function loadWasmRuntime(signal: AbortSignal): Promise<void> {
   const g = globalThis as unknown as { TeaVM?: { wasmGC?: unknown } };
   if (g.TeaVM?.wasmGC) return Promise.resolve();
   // In a Worker there's no `document`, so we can't inject a <script>, and Vite
@@ -193,7 +230,7 @@ function loadWasmRuntime(): Promise<void> {
   // no eval, and blob URLs aren't behind Vite's /public wall. Lets WASM also run
   // inside the sim worker; on any failure tryLoadWasm falls the worker back to JS.
   if (typeof document === 'undefined') {
-    return fetch(attemptUrl(WASM_RUNTIME_URL))
+    return fetch(attemptUrl(WASM_RUNTIME_URL), { signal })
       .then((r) => {
         if (!r.ok) throw new Error(`WASM-GC runtime fetch failed (${r.status})`);
         return r.text();
@@ -208,6 +245,9 @@ function loadWasmRuntime(): Promise<void> {
       });
   }
   return new Promise<void>((resolve, reject) => {
+    // A <script> cannot be aborted, so a stall rejects the wait instead.
+    if (signal.aborted) return reject(signal.reason as Error);
+    signal.addEventListener('abort', () => reject(signal.reason as Error), { once: true });
     const s = document.createElement('script');
     s.src = attemptUrl(WASM_RUNTIME_URL);
     s.onload = () => resolve();
@@ -253,14 +293,21 @@ function installKernelConsole(imports: Record<string, unknown>): void {
  *  no measurable progress but is a large part of the wait on a slow device. */
 export type EngineLoadStatus = { phase: 'downloading'; loaded: number; total: number | null } | { phase: 'starting' };
 
-async function tryLoadWasm(onStatus?: (s: EngineLoadStatus) => void): Promise<EngineApi | null> {
+/**
+ * The WASM backend, or why there is none. `unsupported` means this browser
+ * cannot run it, so a retry would end on the JS build again; `null` is a load
+ * that failed or stalled, which a retry with a new url can recover.
+ */
+async function tryLoadWasm(onStatus?: (s: EngineLoadStatus) => void): Promise<EngineApi | 'unsupported' | null> {
+  if (typeof WebAssembly !== 'object' || typeof WebAssembly.compileStreaming !== 'function') {
+    return 'unsupported';
+  }
+  const watch = stallWatch(WASM_STALL_MS);
   try {
-    if (typeof WebAssembly !== 'object' || typeof WebAssembly.compileStreaming !== 'function') {
-      return null;
-    }
     // Load the runtime IIFE (a <script> tag, or a Blob import in a worker); it
     // installs globalThis.TeaVM.wasmGC.
-    await loadWasmRuntime();
+    await loadWasmRuntime(watch.signal);
+    watch.poke();
     const wasmGC = (
       globalThis as unknown as {
         TeaVM?: { wasmGC?: { load(src: ArrayBuffer, options?: unknown): Promise<{ exports: unknown }> } };
@@ -271,28 +318,55 @@ async function tryLoadWasm(onStatus?: (s: EngineLoadStatus) => void): Promise<En
     // takes the WebAssembly.compile(bytes) path, sidestepping the runtime's
     // Node-vs-browser (fs vs fetch) detection entirely. installImports rewires
     // the kernel's console output into the shared log sink (see above).
-    const res = await fetch(attemptUrl(WASM_URL));
+    const res = await fetch(attemptUrl(WASM_URL), { signal: watch.signal });
     if (!res.ok) return null;
+    watch.poke();
     // Stream it so the boot splash can show real bytes: this is several
     // megabytes, the largest thing the app fetches, and on a slow link it is most of the wait.
     const streamed = res.body
-      ? await readStreamWithProgress(res.body, declaredLength(res), (p) => onStatus?.({ phase: 'downloading', ...p }))
+      ? await readStreamWithProgress(res.body, declaredLength(res), (p) => {
+          watch.poke();
+          onStatus?.({ phase: 'downloading', ...p });
+        })
       : null;
     // `.buffer` is typed ArrayBufferLike (it could be shared in general), but
     // readStreamWithProgress always allocates a plain ArrayBuffer.
     const bytes = streamed ? (streamed.buffer as ArrayBuffer) : await res.arrayBuffer();
+    // Compiling is not a network wait, so the stall ceiling ends here.
+    watch.stop();
     // Bytes are in; compiling and instantiating is the remaining (unmeasurable)
     // step, and it is slow enough on modest hardware to be worth naming.
     onStatus?.({ phase: 'starting' });
     const teavm = await wasmGC.load(bytes, { installImports: installKernelConsole });
     const exports = teavm.exports as EngineApi;
     // The @JSExport facade must be callable across the WASM↔JS boundary.
-    if (typeof exports.buildRocket !== 'function') return null;
+    if (typeof exports.buildRocket !== 'function') return 'unsupported';
     return exports;
   } catch (e) {
     console.warn('[engine] WASM-GC unavailable, using the JS engine.', e);
-    return null;
+    // A module this browser cannot compile or link (no WASM-GC) fails the same
+    // way on every attempt.
+    return e instanceof WebAssembly.CompileError || e instanceof WebAssembly.LinkError ? 'unsupported' : null;
+  } finally {
+    watch.stop();
   }
+}
+
+/**
+ * True once WASM is ruled out for this page (forced off, or the browser cannot
+ * run it), which leaves the JS chunk as the only backend. Stays set: neither
+ * reason changes without a reload.
+ */
+let jsOnly = false;
+
+/**
+ * Whether {@link resetEngineInit} followed by {@link initEngine} can recover a
+ * load that failed or stalled. False when the JS chunk is the only backend: its
+ * import url is fixed (see {@link loadJsEngine}), so only a page reload asks for
+ * it again.
+ */
+export function engineRetryCanRecover(): boolean {
+  return !jsOnly;
 }
 
 export type BackendPref = 'wasm' | 'js' | 'auto';
@@ -371,8 +445,9 @@ export function initEngine(onStatus?: (s: EngineLoadStatus) => void, pref?: Back
   if (!initPromise) {
     const mine = initAttempt;
     initPromise = (async () => {
-      const wasm = (pref ?? backendPref()) === 'js' ? null : await tryLoadWasm(onStatus);
-      if (wasm) {
+      const wasm = (pref ?? backendPref()) === 'js' ? 'unsupported' : await tryLoadWasm(onStatus);
+      if (wasm === 'unsupported') jsOnly = true;
+      else if (wasm) {
         if (mine === initAttempt) {
           active = wasm;
           active.setLengthUnit(lengthUnit);
@@ -1220,27 +1295,6 @@ export class OpenRocketDesign {
       throw new EngineCallError('setMotorIgnitionById', new Error(`delayS must be finite, got ${delayS}`));
     }
     callEngine('setMotorIgnitionById', () => eng().setMotorIgnitionById(this.handle, componentId, event, delayS));
-  }
-
-  /**
-   * Enable the opt-in "Rogers Modified Barrowman" body-in-presence-of-fins
-   * interference (Kbf). Affects both the reported static CP/stability and the
-   * flight sim. Call before {@link staticInfo}/{@link simulate}. Off by default;
-   * off ⇒ classic Barrowman (bit-identical to upstream).
-   */
-  setRogersModifiedBarrowman(enabled: boolean): void {
-    callEngine('setRogersModifiedBarrowman', () => eng().setRogersModifiedBarrowman(this.handle, enabled));
-  }
-
-  /**
-   * Enable the opt-in supersonic aerodynamics model: corrected supersonic fin
-   * normal force, exact NACA-1307 body-fin interference, and Mach-dependent nose
-   * CNα, so CP moves with Mach above M1 instead of collapsing forward. Affects staticInfo, simulate and aeroSweep.
-   * Off by default; off ⇒ classic Extended Barrowman (bit-identical).
-   * Validated against the wind-tunnel anchor suite in engine-java/validation/.
-   */
-  setSupersonicAero(enabled: boolean): void {
-    callEngine('setSupersonicAero', () => eng().setSupersonicAero(this.handle, enabled));
   }
 
   /** Length, mass, CG/CP, stability margin, computed at Mach 0.3, AoA 0. */

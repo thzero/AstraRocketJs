@@ -1,6 +1,7 @@
 import { useId, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useFocusTrap } from './useFocusTrap';
+import { useBackdropDismiss } from './useBackdropDismiss';
 import { layerClass, widthClass, type DialogLayer, type DialogSize } from './dialogSize';
 import { DialogButton } from './DialogButton';
 
@@ -65,16 +66,16 @@ export function AlertDialog({
   // swallows it there rather than letting it through to whatever is underneath
   // (useFocusTrap), so no window-level listener is needed here.
   const panelRef = useFocusTrap<HTMLDivElement>(true, onCancel ? { onEscape: onCancel } : {});
+  const backdrop = useBackdropDismiss(onCancel);
   const titleId = useId();
   const messageId = useId();
 
   return (
-    <div // eslint-disable-line jsx-a11y-x/click-events-have-key-events, jsx-a11y-x/no-static-element-interactions -- a backdrop click is the mouse twin of Escape, which the focus trap handles; the panel only stops that click
+    <div
+      // A backdrop press is the mouse twin of Escape, which the focus trap
+      // handles (useBackdropDismiss).
       className={`fixed inset-0 ${layerClass[layer]} grid place-items-center bg-shade/60 p-4`}
-      onClick={(e) => {
-        e.stopPropagation();
-        onCancel?.();
-      }}
+      {...backdrop}
     >
       <div // eslint-disable-line jsx-a11y-x/click-events-have-key-events, jsx-a11y-x/no-noninteractive-element-interactions -- a backdrop click is the mouse twin of Escape, which the focus trap handles; the panel only stops that click
         ref={panelRef}

@@ -5,7 +5,7 @@ import { componentName, isDefaultComponentName } from '../app/warningText';
 import { hexOf, parseHexColor } from '../design/colorHex';
 import { neutralizeFormula } from './csvCell';
 import { siToUi } from '../../prefs/units';
-import { withUnit } from '../../i18n/format';
+import { stageLabel, withUnit } from '../../i18n/format';
 import { CSV_MIME } from './csvExport';
 import { escapeXml } from '../files/xmlUtil';
 import { offsetToLatLon } from '../map/geodesy';
@@ -447,7 +447,7 @@ function qualifyLabel(qualifier: string, label: string, qualify: boolean): strin
 // Model (format-agnostic, mirrors FlightPathModel)
 // ---------------------------------------------------------------------------
 
-export interface FlightPathWaypoint {
+interface FlightPathWaypoint {
   type: WaypointKind;
   label: string;
   device: string;
@@ -495,7 +495,7 @@ export interface FlightPathWaypoint {
   branchName: string;
 }
 
-export interface FlightPathPoint {
+interface FlightPathPoint {
   latitude: number;
   longitude: number;
   /** Altitude above sea level, in meters. GPX elevations are defined this way. */
@@ -509,7 +509,7 @@ export interface FlightPathPoint {
   altitude: string;
 }
 
-export interface FlightPathBranch {
+interface FlightPathBranch {
   name: string;
   /** Zero-based position in `model.branches`, for building unique style ids. */
   index: number;
@@ -737,13 +737,20 @@ const series = (s: FlightSeries, key: string): (number | null)[] | undefined => 
 
 /**
  * Staged flights carry per-branch data (branch 0 = the sustainer stack); a
- * single flight is exported as one synthetic branch from the top-level series.
+ * single flight is exported as one synthetic branch from the top-level series,
+ * named after the rocket, the simulation or, failing both, the translated
+ * "Flight". A branch is named as every other view names a stage, so an unnamed
+ * stage reads "Stage n" in folders, tracks and qualified waypoints.
  */
 function rawBranchesOf(
   result: FlightResult,
   meta: FlightPathMeta,
+  t: Translate,
 ): { name: string; events: FlightEvent[]; series: FlightSeries }[] {
-  return flightBranches(result, meta.rocketName || meta.simName || 'Flight');
+  return flightBranches(result, meta.rocketName || meta.simName || t('pathExport.doc.flight')).map((b, i) => ({
+    ...b,
+    name: stageLabel(t, i, b.name),
+  }));
 }
 
 /**
@@ -763,8 +770,8 @@ function usableSeries(s: FlightSeries): { time: (number | null)[]; alt: (number 
  * order their `index` will be assigned: what the stage-color picker offers a
  * swatch for. Unprefixed: it names the stage, not the file.
  */
-export function exportBranchNames(result: FlightResult, meta: FlightPathMeta): string[] {
-  return rawBranchesOf(result, meta)
+export function exportBranchNames(result: FlightResult, meta: FlightPathMeta, t: Translate): string[] {
+  return rawBranchesOf(result, meta, t)
     .filter((b) => usableSeries(b.series) !== null)
     .map((b) => b.name);
 }
@@ -857,7 +864,7 @@ export function buildFlightPathModel(
     branches: [],
   };
 
-  const rawBranches = rawBranchesOf(result, meta);
+  const rawBranches = rawBranchesOf(result, meta, t);
 
   // Only a staged flight needs its waypoints qualified; see `qualifyLabel`.
   const qualify = rawBranches.length > 1;

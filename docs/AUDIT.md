@@ -89,6 +89,67 @@ and engine parity passes on both targets with the golden unchanged.
   `useAutoRunOutdated.test.tsx` covers both directions.
 - **C12 and C13.** A place pick writes the elevation or `null`, and the
   Weather dialog asks for an elevation instead of fetching for 0 m.
+- **C7.** A detached design takes its library id before its first create,
+  and a journal written before the create replays under that id whatever the
+  active pointer says, so a reload inside the autosave debounce keeps a new or
+  imported design. Two tabs keep the existing journal rules.
+- **C8.** `migrateWorkspace` refuses a simulation, configuration or component
+  that is not an object, `readActive` claims a design only after its read
+  succeeds, and a failed boot load detaches the store.
+- **C9.** The precache ignores the `retry` query, so the engine Retry is
+  served offline; `retryUrl.test.ts` reads the rule from `vite.config.ts`.
+- **C11.** Wind speed retunes the turbulence from the value held when typing
+  began, in the launch panel and the profile editor, and a cleared speed box
+  writes nothing.
+- **C14.** The landing estimate keeps the inputs it ran on, draws the map
+  there, and marks itself out of date when the inputs change.
+- **C15.** Rail button heights and diameters and ring radii carry the kernel
+  setters' bounds in the panel, on `.ork` import (in desktop's load order) and
+  on workspace load. The bridge clears base and flange before setting the
+  height, so a consistent button flies as designed, and
+  `getComponentGeometry` reports rail button dimensions;
+  `linkedDimensions.kernel.test.ts` checks every case against the kernel.
+- **C16.** The My Parts editor shows a saved part's shoulders and overrides
+  through the same sections the property panel uses.
+- **C17.** The 1:1 template sizes and fits on the outline's full extent, so a
+  forward-swept fin stays on the page or gets the too-large note.
+- **A1 and A2.** `e2e/dialogSurfaces.ts` lists every component that renders
+  a dialog, `tests/dialogSurfaces.test.ts` checks the list against `src`, and
+  `a11y.spec.ts` keys its dialog scans by that list, so a new dialog fails the
+  typecheck until it is scanned. `e2e/editors.ts` scans the property panel
+  with each part type selected, on desktop and phone. 213 scans pass in the
+  three themes. The new scans found four contrast failures, fixed in the
+  components and the light theme's warning and danger tokens.
+- **K4 to K9.** The user docs and their Spanish twins describe dual
+  deployment as chosen on the stage, the guide-aware release at the aft-most
+  lug or the second-to-last rail button, and every "In the app" label as the
+  locale string; launcher wording follows the design. 56 Spanish headings are
+  pinned to their English anchors. The marketing and changelog phrasing is
+  gone, the safety thresholds are at Settings ▸ Simulation ▸ Safety warnings,
+  and the NAR and Tripoli limits name the rail or rod. Both languages build
+  with no broken links or anchors.
+- **Every remaining LOW finding** is FIXED, each behavioral fix with a test
+  that fails without it, except T12, which was already done: S1, S3 to S5;
+  C18 to C28, C30 to C47 and C49 to C53 (C48 and C29 were fixed earlier); R4
+  to R11; A3 to A13; T3 to T21; K10 to K39; D1 to D4. Changes worth knowing:
+  - R9: the default rocket's parachute is its catalog part (HDPE film canopy,
+    carpet thread lines), so the default design is lighter and drifts
+    farther; the ground-track e2e band moved from 431 m to 508 m with it.
+  - R11: the launch angle limit is 30 degrees for a model rocket and 20 for
+    high power (`services/flight/powerClass.ts`): a motor over 160 N·s or
+    80 N average thrust, more than 320 N·s or 125 g of propellant installed,
+    or more than 1,500 g at liftoff, per the NAR codes.
+  - T13 found one more defect, fixed: `boreAt` ignored a flipped nose cone.
+  - T3: `check:ork` opens exported `.rkt` files in desktop OpenRocket as well.
+  - K20 widened the spell gate; K18 taught the em dash gate the HTML entity
+    forms.
+  - The `SymmetricComponentCalc` patch comment was respelled and
+    `DIVERGENCE.txt` re-blessed.
+- **S2.** A separate-files 3MF entry falls back to `part` when the part name
+  has no letter or digit; `rocketPrintExport.test.ts` exports parts named
+  `../..` and `:*` and reads the zip's entry names.
+- **R3.** The digest guards compare rows present in both catalogs; a row gone
+  upstream is listed in the job summary instead of failing the run.
 - **T1.** The parity generator builds elliptical and freeform fins on body
   tubes, every tab offset method, cant, `shapeParameter`, `clipped` both
   ways, tube fins with an explicit count or radius, streamers and shock cords,

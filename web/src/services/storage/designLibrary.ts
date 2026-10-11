@@ -100,7 +100,7 @@ function isFlightResult(v: unknown): v is FlightResult {
 }
 
 /** Short, collision-free enough for a per-browser library. */
-const freshId = () => `d${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+export const freshId = () => `d${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 
 export class DesignLibrary {
   constructor(private readonly kv: KeyValueStore = new IndexedDbKeyValueStore()) {}
@@ -274,9 +274,13 @@ export class DesignLibrary {
    * Throws `storage-full` if the write is refused, rather than resolving with a
    * fabricated meta for a design that was never stored. This is the path taken
    * by the first save of a session, when there is no other copy yet.
+   *
+   * `id` is the entry to create, chosen by the caller ahead of the write so an
+   * unload journal can name it before it exists (see `workspaceStore`). Creating
+   * an id that is already stored rewrites that entry, so a repeated create of
+   * the same id leaves one design, not two.
    */
-  async create(name: string, w: Workspace, writer?: string): Promise<DesignMeta> {
-    const id = freshId();
+  async create(name: string, w: Workspace, writer?: string, id: string = freshId()): Promise<DesignMeta> {
     if (!(await this.write(id, name, w, writer))) throw new Error('storage-full');
     // Same rule for the pointer: a design that is written and indexed but not
     // active works for this session and then the next launch opens the

@@ -1,5 +1,7 @@
 // cspell:ignore randomseed recoveryspeedwarning droguelowspeedwarning Lowspeedwarning recoverydroguemainhighspeedwarning recoverydroguemainlowspeedwarning -- OpenRocket .ork element names
 import type { ComponentNode, RocketTree } from '../../../engine/openRocketEngine';
+import { KeyedError } from '../../../i18n/keyedError';
+import { MAX_PASSTHROUGH } from './importLimits';
 
 /**
  * Elements of a component that this app does not understand, carried through a
@@ -288,6 +290,7 @@ export function readPassthrough(el: Element, known: ReadonlySet<string> = KNOWN_
   const serializer = new XMLSerializer();
   for (const child of Array.from(el.children)) {
     if (known.has(child.tagName.toLowerCase())) continue;
+    if (xml.length === MAX_PASSTHROUGH) throw new KeyedError('errors.file.tooManyUnknownElements');
     // Cloned before editing: the caller's document is still being read, and a
     // reader that runs after this one would otherwise see a modified tree.
     const copy = child.cloneNode(true) as Element;

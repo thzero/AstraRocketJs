@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { LANGUAGES } from '../../i18n';
+import { fireAction } from '../../state/fireAction';
 
 /** Header language dropdown (react-i18next). */
 export function LanguageSwitcher() {
@@ -43,7 +44,7 @@ export function LanguageSwitcher() {
       </span>
       <select
         value={i18n.resolvedLanguage}
-        onChange={(e) => i18n.changeLanguage(e.target.value)}
+        onChange={(e) => fireAction(i18n.changeLanguage(e.target.value))}
         aria-label={t('lang.label')}
         title={t('lang.label')}
         className="absolute inset-0 h-full w-full appearance-none truncate rounded-lg bg-raised pr-7 pl-2 text-xs font-medium text-ink ring-1 ring-line/10 focus:ring-accent-500 focus:outline-none"

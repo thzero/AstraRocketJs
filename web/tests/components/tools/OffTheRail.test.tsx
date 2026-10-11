@@ -26,3 +26,29 @@ describe('OffTheRail wind fetch', () => {
     expect(await screen.findByRole('alert')).toBeTruthy();
   });
 });
+
+/** A forecast belongs to the site, time and wind it was fetched for. */
+describe('OffTheRail forecast line', () => {
+  it('clears when the wind field changes after the fetch', async () => {
+    fetchSurfaceWind.mockResolvedValue({
+      speedMs: 5,
+      gustMs: 9,
+      validUnix: 1_700_000_000,
+      answer: { timezone: 'UTC' },
+    });
+    renderWithProviders(<OffTheRail />);
+    fireEvent.click(screen.getByRole('button', { name: 'Get the forecast wind' }));
+    expect(await screen.findByText(/gusting to/)).toBeTruthy();
+    const wind = screen.getByRole('spinbutton', { name: /Wind speed/ });
+    fireEvent.change(wind, { target: { value: '12' } });
+    fireEvent.blur(wind);
+    expect(screen.queryByText(/gusting to/)).toBeNull();
+  });
+});
+
+describe('OffTheRail site fields', () => {
+  it('name the map button by its words, not its glyph', () => {
+    renderWithProviders(<OffTheRail />);
+    expect(screen.getByRole('button', { name: 'Show on map' })).toBeTruthy();
+  });
+});

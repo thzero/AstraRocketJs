@@ -22,7 +22,7 @@ import * as THREE from 'three';
  * the sizes involved.
  */
 
-export type MeshIssueKind =
+type MeshIssueKind =
   | 'empty'
   | 'non-finite'
   | 'degenerate-triangle'

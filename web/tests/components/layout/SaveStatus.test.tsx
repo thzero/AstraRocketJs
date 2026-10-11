@@ -33,6 +33,10 @@ const stubWidth = (isWide: boolean): void => {
   })) as unknown as typeof window.matchMedia;
 };
 
+/** What the header shows, and what the live region says. */
+const shown = () => screen.getByRole('status').querySelector('[aria-hidden="true"]')!.textContent;
+const spoken = () => screen.getByRole('status').querySelector('.sr-only')!.textContent;
+
 describe('SaveStatus', () => {
   beforeEach(() => {
     stubWidth(true);
@@ -49,7 +53,7 @@ describe('SaveStatus', () => {
   it('reports a save that just landed', () => {
     renderWithProviders(<SaveStatus />);
     set({ lastSavedAt: Date.now() });
-    expect(screen.getByRole('status').textContent).toBe('Saved just now');
+    expect(shown()).toBe('Saved just now');
   });
 
   it('says the word without the age below 2xl', () => {
@@ -57,7 +61,7 @@ describe('SaveStatus', () => {
     renderWithProviders(<SaveStatus />);
     set({ lastSavedAt: Date.now() });
     // The word, and nothing about when: the exact time stays in the tooltip.
-    expect(screen.getByRole('status').textContent).toBe('Saved');
+    expect(shown()).toBe('Saved');
     expect(screen.getByRole('status').title).toMatch(/Last saved at/);
   });
 
@@ -66,7 +70,15 @@ describe('SaveStatus', () => {
     set({ lastSavedAt: Date.now() });
 
     act(() => void vi.advanceTimersByTime(6 * 60_000));
-    expect(screen.getByRole('status').textContent).toBe('Saved 6 minutes ago');
+    expect(shown()).toBe('Saved 6 minutes ago');
+  });
+
+  it('keeps the age out of the live text, so a tick does not re-announce it', () => {
+    renderWithProviders(<SaveStatus />);
+    set({ lastSavedAt: Date.now() });
+    expect(spoken()).toBe('Saved');
+    act(() => void vi.advanceTimersByTime(6 * 60_000));
+    expect(spoken()).toBe('Saved');
   });
 
   /**

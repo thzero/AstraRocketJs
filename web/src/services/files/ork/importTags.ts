@@ -205,14 +205,14 @@ export function readAirfoil(el: Element, node: ComponentNode): void {
 }
 
 /**
- * Fin fillets, pass-through only.
+ * Fin fillets.
  *
  * OpenRocket's FinSetSaver writes <filletradius>/<filletmaterial> for every fin
- * set and counts the fillet volume toward fin mass. This app's kernel bridge does
- * not model fillets, so the values are carried rather than recomputed: hard-writing
- * `<filletradius>0.0</filletradius>` and a Cardboard material would delete a
- * desktop design's 6 mm epoxy fillets from the user's own file on save. The mass is
- * still not counted, which the import note says.
+ * set and counts the fillet volume toward fin mass. The values are read onto the
+ * node so the kernel bridge flies them (radius and material density) and a save
+ * writes them back: hard-writing `<filletradius>0.0</filletradius>` and a
+ * Cardboard material would delete a desktop design's 6 mm epoxy fillets from the
+ * user's own file.
  */
 function readFillet(el: Element, node: ComponentNode): void {
   const r = numTag(el, 'filletradius', 0);
@@ -311,13 +311,15 @@ export function readSeparationTags(src: Element): OrkSepOverride {
 }
 
 /**
- * Stage separation (a lower <stage> or a strap-on <parallelstage>), read off
- * `sepEl`: the chosen config's <separationconfiguration> when there is one,
- * else the element itself carrying the bare defaults. Only values that differ
- * from the desktop defaults are kept, so an untouched stage stays clean.
+ * Stage separation (a lower <stage> or a strap-on <parallelstage>): the bare
+ * tags on `el` are the defaults, and the chosen config's
+ * <separationconfiguration> overrides them per field, as the desktop handler
+ * clones the default and applies only the fields the block carries. Only values
+ * that differ from the desktop defaults are kept, so an untouched stage stays
+ * clean.
  */
-export function readSeparation(sepEl: Element, node: ComponentNode): void {
-  const o = readSeparationTags(sepEl);
+export function readSeparation(el: Element, node: ComponentNode, configEl: Element | null = null): void {
+  const o = { ...readSeparationTags(el), ...(configEl ? readSeparationTags(configEl) : {}) };
   if (o.separationEvent && o.separationEvent !== KERNEL_SEPARATION.separationEvent)
     node['separationEvent'] = o.separationEvent;
   if (o.separationDelay !== undefined && o.separationDelay !== KERNEL_SEPARATION.separationDelay)
@@ -411,17 +413,19 @@ export function readCommon(el: Element, node: ComponentNode, withPosition: boole
 
 /** Mass / CG / Cd overrides, and the flags that spread them over the subtree. */
 function readOverrides(el: Element, node: ComponentNode): void {
-  // Floored, like the .rkt reader's `Math.max(0, knownMass / MASS)` and
-  // `Math.max(0, knownCg)`. A negative override is not a lighter part: it
-  // subtracts from the rocket's total mass, pulls the CG off the airframe and
-  // takes the stability margin with it, and the override is by definition the
-  // figure that wins over everything computed.
+  // Mass and CG are floored, like the .rkt reader's
+  // `Math.max(0, knownMass / MASS)` and `Math.max(0, knownCg)`. A negative mass
+  // override is not a lighter part: it subtracts from the rocket's total mass,
+  // pulls the CG off the airframe and takes the stability margin with it, and
+  // the override is by definition the figure that wins over everything computed.
   const om = numTag(el, 'overridemass', NaN);
   if (om >= 0) node['overrideMass'] = om;
   const ocg = numTag(el, 'overridecg', NaN);
   if (ocg >= 0) node['overrideCGX'] = ocg;
+  // The Cd override takes any finite value, as `setOverrideCD` and the desktop
+  // dialog do: a negative figure offsets drag the rest of the design adds.
   const ocd = numTag(el, 'overridecd', NaN);
-  if (ocd >= 0) node['overrideCD'] = ocd;
+  if (Number.isFinite(ocd)) node['overrideCD'] = ocd;
   // "Override for all subcomponents": per-quantity flags (24.x format);
   // legacy files carry a single <overridesubcomponents> covering all.
   const legacyAll = text(el, ':scope > overridesubcomponents') === 'true';

@@ -9,6 +9,7 @@ import { FlightXYPanel } from '../../../src/components/canvas/FlightXYPanel';
 import { SERIES, type Branch } from '../../../src/components/canvas/flightChartTraces';
 import { renderWithProviders, seedSettings } from '../../testing/renderWithProviders';
 import type { FlightSeries } from '../../../src/engine/openRocketEngine';
+import { NO_VALUE } from '../../../src/i18n/noValue';
 
 /**
  * What the flight chart's readouts say: the header and the live region agree,
@@ -49,6 +50,24 @@ describe('the live region', () => {
   });
 });
 
+describe('the live region past the primary stage’s data', () => {
+  it('reads no value where the panel header shows none', () => {
+    seedSettings({ flightSeries: ['velocity', 'altitude'] });
+    const ended = {
+      ...flight,
+      result: {
+        ...flight.result,
+        series: { ...flight.result.series, velocity: [0, 80, 0, -30, null] },
+      },
+    } as unknown as ChartFlight;
+    renderWithProviders(<FlightChart flight={ended} />);
+    fireEvent.keyDown(screen.getByRole('group', { name: /Flight charts/ }), { key: 'End' });
+    const text = screen.getByRole('status').textContent ?? '';
+    expect(text).toMatch(/Altitude/);
+    expect(text).not.toMatch(/Velocity/);
+  });
+});
+
 describe('a stage reports only inside its own flight', () => {
   // The primary stage lands at t = 2 while the other flies on to t = 4.
   const branches = [
@@ -56,21 +75,30 @@ describe('a stage reports only inside its own flight', () => {
     branch('booster', { time: [0, 1, 2, 3, 4], altitude: [0, 4, 6, 3, 0], velocity: [0, 2, 1, 0, 0] }),
   ];
 
-  it('the panel header falls back to the peak past the primary stage’s landing', () => {
-    const { container } = renderWithProviders(
+  const panel = (hoverT: number | null) =>
+    renderWithProviders(
       <FlightChartPanel
         meta={meta('altitude')}
         branches={branches}
         w={400}
         X={(t) => t * 100}
-        hoverT={3}
+        hoverT={hoverT}
         clipT={4}
         events={[]}
       />,
-    );
-    const head = container.querySelector('.text-ink-strong')!.textContent ?? '';
-    // The peak (10), not the clamped landing value (5).
+    ).container;
+
+  it('the panel header shows no value past the primary stage’s landing', () => {
+    const head = panel(3).querySelector('.text-ink-strong')!.textContent ?? '';
+    // Neither the peak (10) nor the clamped landing value (5).
+    expect(head).toBe(NO_VALUE);
+    expect(screen.queryByText('peak')).toBeNull();
+  });
+
+  it('the panel header names the peak when there is no crosshair', () => {
+    const head = panel(null).querySelector('.text-ink-strong')!.textContent ?? '';
     expect(head).toMatch(/^10/);
+    expect(screen.getByText('peak')).toBeTruthy();
   });
 
   it('the velocity-altitude panel draws no dot for a stage already down', () => {

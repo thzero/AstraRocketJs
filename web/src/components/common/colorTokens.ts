@@ -4,8 +4,8 @@
  * The browser resolves it, so it follows the token wherever the token goes.
  *
  * Not for three.js or a canvas, which take a color value and cannot resolve a
- * variable; the 3D views keep their own fixed colors (their scene is the same
- * in any theme, see canvas/stabilityGadget). Nor for anything drawn into an SVG
+ * variable; the 3D views read the tokens as values through useSceneColors
+ * (canvas/sceneColors). Nor for anything drawn into an SVG
  * the user downloads, which has no stylesheet to resolve it against (see
  * services/exports/schematicExport).
  */

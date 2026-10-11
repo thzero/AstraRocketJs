@@ -132,7 +132,7 @@ describe('wireLoadedOrk', () => {
   it('is blocked by the run gate until a motor is picked', () => {
     const empty = { spec: spec('') };
     const w = wireLoadedOrk(loaded({ configs: [config({ motors: { primary: empty, pod: empty } })] }), launchDefaults);
-    expect(unflyable(w.sims[0]!, primaryMotor(w.tree, w.configs[0]!))).toEqual({ kind: 'noMotor' });
+    expect(unflyable(w.sims[0]!, primaryMotor(w.tree, w.configs[0]!), 'model')).toEqual({ kind: 'noMotor' });
   });
 
   it('drops a motor whose mount no longer exists in the tree', () => {

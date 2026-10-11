@@ -65,6 +65,14 @@ describe('csvField', () => {
   });
 });
 
+describe('neutralizeFormula after a line break', () => {
+  it('neutralizes a trigger that an unquoted CR or LF would start a row with', () => {
+    expect(neutralizeFormula('x\n=HYPERLINK("u")')).toBe(`x\n'=HYPERLINK("u")`);
+    expect(neutralizeFormula('x\r\n @1')).toBe("x\r\n '@1");
+    expect(neutralizeFormula('x\r+1')).toBe("x\r'+1");
+  });
+});
+
 describe('csvQuoted', () => {
   it('always quotes and neutralizes', () => {
     expect(csvQuoted('Booster')).toBe('"Booster"');

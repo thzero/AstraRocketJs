@@ -1,3 +1,4 @@
+import i18n from '../../../i18n';
 import type { FlightSummary } from '../../../engine/openRocketEngine';
 import type { LaunchConditions } from '../../design/orkTree';
 import { xmlText as text } from '../xmlUtil';
@@ -55,7 +56,7 @@ export function readSimulations(doc: Document): OrkSimulation[] {
     ];
     const xmlExtra = carried.length ? carried : undefined;
     return {
-      name: (text(el, ':scope > name') ?? '').trim() || `Simulation ${i + 1}`,
+      name: (text(el, ':scope > name') ?? '').trim() || i18n.t('sims.untitled', { n: i + 1 }),
       configId: (text(el, ':scope > conditions > configid') ?? '').trim() || null,
       ...(launch ? { launch } : {}),
       ...(flight ? { summary: summaryOf(flight) } : {}),

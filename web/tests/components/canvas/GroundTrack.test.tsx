@@ -261,6 +261,18 @@ describe('GroundTrack drift region', () => {
     expect(dots).toHaveLength(4);
   });
 
+  it('says a sweep is flown on the closed Drift button, not by its fill alone', () => {
+    useWorkspaceStore.setState({ driftSweep: sweep('sim-1') });
+    renderWithProviders(<GroundTrack flight={flight()} {...HOME} />);
+    expect(screen.getByRole('button', { name: 'Drift (sweep flown)', expanded: false })).toBeTruthy();
+  });
+
+  it('names the Drift button plainly when no sweep is flown', () => {
+    useWorkspaceStore.setState({ driftSweep: sweep('some-other-sim') });
+    renderWithProviders(<GroundTrack flight={flight()} {...HOME} />);
+    expect(screen.getByRole('button', { name: 'Drift' })).toBeTruthy();
+  });
+
   /**
    * A sweep is held one at a time, workspace-wide. Drawing another row's
    * landings over this one's track would be a picture of two different flights.
@@ -331,7 +343,7 @@ describe('GroundTrack drift region', () => {
     // that has moved since.
     useWorkspaceStore.setState({ driftSweep: sweep('sim-1') });
     const { unmount } = renderWithProviders(<GroundTrack flight={flight()} {...HOME} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Drift' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Drift/ }));
     expect(screen.queryByText(/design has changed/i)).toBeNull();
     unmount();
 
@@ -341,7 +353,7 @@ describe('GroundTrack drift region', () => {
     // them, and re-flying a few dozen sims to get the picture back is not a
     // price to pay for a fin tweak.
     expect(shapes()).toHaveLength(2);
-    fireEvent.click(screen.getByRole('button', { name: 'Drift' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Drift/ }));
     expect(screen.getByText(/design has changed/i)).toBeTruthy();
   });
 

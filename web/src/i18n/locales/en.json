@@ -41,6 +41,7 @@
       "archiveEmpty": "The .ork archive is empty.",
       "tooManyComponents": "This {{format}} declares too many components to open (possibly malformed).",
       "tooManySimulations": "This .ork declares too many simulations to open (possibly malformed).",
+      "tooManyUnknownElements": "This .ork carries too many unrecognized elements to open (possibly malformed).",
       "tooManyConfigs": "This .ork declares too many flight configurations to open (possibly malformed).",
       "tooDeep": "This {{format}} is nested too deeply to open (possibly malformed).",
       "tooLarge": "The file is too large to open (over {{size}} MiB)."
@@ -72,6 +73,7 @@
       "engHeaderMass": "Malformed .eng header: propellant mass must be between 0 and the total mass.",
       "engDataLine": "Malformed .eng data on line {{line}}: expected a time and a thrust, got \"{{text}}\".",
       "engNoCurve": "The .eng file has no thrust-curve data points.",
+      "engTooManyPoints": "Motor {{motor}} in the .eng file has more than {{max}} data points.",
       "engNegativeThrust": "Motor {{motor}} in the .eng file has a negative thrust on line {{line}}.",
       "engNegativeTime": "Motor {{motor}} in the .eng file has a negative time on line {{line}}.",
       "attrDiameter": "diameter",
@@ -128,7 +130,11 @@
       "materials": "Could not load the material catalog ({{reason}}).",
       "contributors": "Could not load the contributor list ({{reason}}).",
       "tooLarge": "response too large",
-      "badShape": "unexpected catalog shape"
+      "badShape": "unexpected catalog shape",
+      "http": "HTTP {{status}} from the server",
+      "timeout": "the server did not answer in time",
+      "network": "the server could not be reached",
+      "noExamples": "the example index lists no examples"
     },
     "export": {
       "noPrintable": "No printable parts were selected.",
@@ -175,6 +181,8 @@
     "noDesign": "No valid design to export.",
     "stages": "Stages",
     "length": "Length",
+    "dimLength": "L {{value}}",
+    "dimWall": "w {{value}}",
     "maxDiameter": "Max diameter",
     "massEmpty": "Mass (empty)",
     "massLoaded": "Mass (loaded)",
@@ -219,6 +227,8 @@
     "transition": "Transition",
     "tooLarge": "{{w}}×{{h}} mm: too large to print 1:1 on one page.",
     "fontFallback": "The report font could not be loaded, so some characters in this PDF are printed as \"?\". Export it again once you are online.",
+    "scriptUncovered": "Some characters in this PDF are in a script the report fonts do not cover, so they are printed as \"?\".",
+    "outdatedFlight": "Outdated: these results were flown before the design or its simulation settings last changed. Run the simulation again for current figures.",
     "bodyTube": "Body tube",
     "markingGuide": "Fin marking guide (1:1)",
     "markingGuideHint": "Print at 100% / actual size (no page scaling), check the ruler, then cut out each strip, wrap it around its body tube with the ends butted together (not overlapped) and mark through the arrows. Rule a line along the tube through each pair of marks: that is where the part goes.",
@@ -297,7 +307,8 @@
     "jsTip": "Physics engine: JavaScript (fallback)",
     "slow": "The physics engine is taking longer than usual to load.",
     "needsIt": "The design tools work without it; the numbers and the simulations need it.",
-    "retry": "Retry"
+    "retry": "Retry",
+    "reload": "Reload page"
   },
   "about": {
     "open": "About",
@@ -537,7 +548,8 @@
       "streamer_surface": "Streamer",
       "shockcord_line": "Shock cord"
     },
-    "materialNoDefault": "No default: leave the part unset"
+    "materialNoDefault": "No default: leave the part unset",
+    "timeStepScale": "Time step, coarse to fine"
   },
   "config": {
     "title": "Rocket configuration",
@@ -814,9 +826,15 @@
     "rodDirectionName_rail": "Launch rail direction",
     "rodDirectionName_rod": "Launch rod direction",
     "windDirectionName": "Wind direction",
-    "angleLimit": "The NAR and Tripoli safety codes ask for a launcher within {{limit}} of vertical.",
-    "angleLimit_rail": "The NAR and Tripoli safety codes ask for a launch rail within {{limit}} of vertical.",
-    "angleLimit_rod": "The NAR and Tripoli safety codes ask for a launch rod within {{limit}} of vertical.",
+    "angleLimitModel": "As a model rocket, this flies under the NAR Model Rocket Safety Code, which asks for a launcher within {{limit}} of vertical.",
+    "angleLimitModel_rail": "As a model rocket, this flies under the NAR Model Rocket Safety Code, which asks for a launch rail within {{limit}} of vertical.",
+    "angleLimitModel_rod": "As a model rocket, this flies under the NAR Model Rocket Safety Code, which asks for a launch rod within {{limit}} of vertical.",
+    "angleLimitHighPower": "As a high power rocket, this flies under the NAR and Tripoli high power safety codes, which ask for a launcher within {{limit}} of vertical.",
+    "angleLimitHighPower_rail": "As a high power rocket, this flies under the NAR and Tripoli high power safety codes, which ask for a launch rail within {{limit}} of vertical.",
+    "angleLimitHighPower_rod": "As a high power rocket, this flies under the NAR and Tripoli high power safety codes, which ask for a launch rod within {{limit}} of vertical.",
+    "angleLimitEither": "The NAR Model Rocket Safety Code asks for a launcher within {{model}} of vertical, and the NAR and Tripoli high power codes within {{highPower}}.",
+    "angleLimitEither_rail": "The NAR Model Rocket Safety Code asks for a launch rail within {{model}} of vertical, and the NAR and Tripoli high power codes within {{highPower}}.",
+    "angleLimitEither_rod": "The NAR Model Rocket Safety Code asks for a launch rod within {{model}} of vertical, and the NAR and Tripoli high power codes within {{highPower}}.",
     "windLimit": "The NAR and Tripoli safety codes ask you not to fly in winds above {{limit}}.",
     "field": {
       "launchRodLengthM": "launcher length",
@@ -855,7 +873,40 @@
     "flightEvents": "Include flight events",
     "commentChar": "Comment character",
     "stage": "Stage to export",
-    "export": "Export"
+    "export": "Export",
+    "head": {
+      "simulationLine": "Simulation: {{name}}",
+      "time": "Time",
+      "event": "Event",
+      "source": "Source",
+      "stage": "Stage",
+      "altitude": "Altitude",
+      "velocity": "Velocity",
+      "stability": "Stability",
+      "thrustWeight": "Thrust/weight",
+      "aoa": "Angle of attack",
+      "mach": "Mach",
+      "dynamicPressure": "Dynamic pressure",
+      "simulation": "Simulation",
+      "configuration": "Configuration",
+      "motors": "Motors",
+      "status": "Status",
+      "apogee": "Apogee",
+      "maxVelocity": "Max velocity",
+      "maxAcceleration": "Max acceleration",
+      "maxMach": "Max Mach",
+      "exitVelocity": "Launcher exit velocity",
+      "exitVelocity_rail": "Rail exit velocity",
+      "exitVelocity_rod": "Rod exit velocity",
+      "timeToApogee": "Time to apogee",
+      "flightTime": "Flight time",
+      "deploymentVelocity": "Deployment velocity",
+      "landingVelocity": "Landing velocity",
+      "optimumDelay": "Optimum delay",
+      "maxQ": "Max dynamic pressure",
+      "maxQAlpha": "Max q·alpha",
+      "maxRollRate": "Max roll rate"
+    }
   },
   "flightVar": {
     "ha": "Altitude above sea level",
@@ -994,7 +1045,8 @@
     "events": "Flight events",
     "event": "Event",
     "twr": "TWR",
-    "eventsCsv": "Download flight events (.csv)"
+    "eventsCsv": "Download flight events (.csv)",
+    "peakTag": "peak"
   },
   "pathExport": {
     "open": "Export flight path (KML / GPX / CSV)",
@@ -1095,7 +1147,8 @@
       "flightPath": "flight path",
       "groundTrack": "ground track",
       "distanceBearing": "{{distance}} {{unit}} at {{bearing}}",
-      "stageLanding": "{{stage}} landing"
+      "stageLanding": "{{stage}} landing",
+      "flight": "Flight"
     },
     "mission": "Mission",
     "missionPlaceholder": "e.g. Sod Blaster L1",
@@ -1108,7 +1161,10 @@
     "cancel": "Cancel",
     "colorRolePath": "Path",
     "colorRoleGround": "Ground",
-    "colorRolePin": "Pin"
+    "colorRolePin": "Pin",
+    "importSaveError": "Could not save that template in this browser.",
+    "deleteError": "Could not delete that template.",
+    "deleteConfirm": "Delete the template “{{name}}” from this browser?"
   },
   "aero": {
     "unattributed": "Not attributed to a component",
@@ -1178,7 +1234,6 @@
     "versionUnsupported": "Unsupported document version {{version}}, attempting to read file anyway.",
     "versionMissingBy": "Unsupported document version (written using '{{creator}}'), attempting to read file anyway.",
     "versionMissing": "Unsupported document version, attempting to read file anyway.",
-    "ignored": "Ignored unsupported components: {{names}}.",
     "skippedUnsupported": "Skipped unsupported: {{name}}",
     "instanced": "Components that repeat as multiple instances: {{names}}. The simulation counts every instance, but the drawing currently shows one.",
     "configsNoMotors": "The file declares {{total}} flight configurations but carried no motors to import.",
@@ -1887,9 +1942,12 @@
     "tooFast": "Too fast",
     "tooSlow": "Too slow",
     "overRail": "Longer than the rail",
-    "rodAngle": "Launcher angle is {{value}} from vertical, above the {{limit}} the NAR and Tripoli safety codes allow.",
-    "rodAngle_rail": "Launch rail angle is {{value}} from vertical, above the {{limit}} the NAR and Tripoli safety codes allow.",
-    "rodAngle_rod": "Launch rod angle is {{value}} from vertical, above the {{limit}} the NAR and Tripoli safety codes allow.",
+    "rodAngleModel": "Launcher angle is {{value}} from vertical, above the {{limit}} the NAR Model Rocket Safety Code allows.",
+    "rodAngleModel_rail": "Launch rail angle is {{value}} from vertical, above the {{limit}} the NAR Model Rocket Safety Code allows.",
+    "rodAngleModel_rod": "Launch rod angle is {{value}} from vertical, above the {{limit}} the NAR Model Rocket Safety Code allows.",
+    "rodAngleHighPower": "Launcher angle is {{value}} from vertical, above the {{limit}} the NAR and Tripoli safety codes allow a high power rocket.",
+    "rodAngleHighPower_rail": "Launch rail angle is {{value}} from vertical, above the {{limit}} the NAR and Tripoli safety codes allow a high power rocket.",
+    "rodAngleHighPower_rod": "Launch rod angle is {{value}} from vertical, above the {{limit}} the NAR and Tripoli safety codes allow a high power rocket.",
     "wind": "Wind speed is {{value}}, above the {{limit}} the NAR and Tripoli safety codes allow.",
     "refused": "\"{{name}}\" was not run: its launch conditions are outside the safety codes."
   },
@@ -1985,7 +2043,8 @@
     "landed": "{{flown}} of {{asked}} flights landed.",
     "stale": "The design has changed since this sweep was flown.",
     "noLandings": "The wind sweep produced no landings.",
-    "spread": "{{from}}–{{to}}"
+    "spread": "{{from}}–{{to}}",
+    "flown": "sweep flown"
   },
   "crossSection": {
     "square": "Square",
@@ -2045,8 +2104,8 @@
       "badKey": "Open-Meteo did not accept the API key in Settings, Launch. Your launch conditions are unchanged.",
       "quota": "Open-Meteo’s free limit is used up for now. Try again later, or add an API key in Settings, Launch. Your launch conditions are unchanged.",
       "http": "Open-Meteo answered with an error ({{detail}}). Your launch conditions are unchanged.",
-      "shape": "Open-Meteo’s answer could not be read ({{detail}}). Your launch conditions are unchanged.",
-      "units": "Open-Meteo answered in units the app does not read ({{detail}}). Your launch conditions are unchanged.",
+      "shape": "Open-Meteo’s answer could not be read. Your launch conditions are unchanged.",
+      "units": "Open-Meteo answered in units the app does not read. Your launch conditions are unchanged.",
       "noData": "Open-Meteo has no data for that date here. Your launch conditions are unchanged."
     },
     "keyLabel": "Open-Meteo API key",
@@ -2129,6 +2188,7 @@
     "estimateNote": "An estimate from typed descent rates. The zone covers {{descents}} descents: {{hours}} forecast hours, wind speed 20% either way, direction 15° either way, and descent rate 10% either way.",
     "flatGround": "The ground's shape could not be fetched, so the landing is on flat ground at the pad's height.",
     "surfaceWindOnly": "Open-Meteo's record for this date has only the wind near the ground, so the whole descent drifts on it.",
+    "outdated": "The site, date, hour, apogee or descent rates have changed since this estimate. Press Estimate landing to update it.",
     "mapLabel": "Landing estimate seen from above, landing {{distance}} from the pad"
   },
   "tools": {

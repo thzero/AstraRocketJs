@@ -268,11 +268,19 @@ function finTabFrontEdge(node: ComponentNode, rootChord: number): number {
 }
 
 /** `AxialMethod.getAsPosition(offset, tabLength, rootChord)` for one tab offset method. */
-function tabPosition(offset: number, tabLen: number, rootChord: number, method: string): number {
+export function tabPosition(offset: number, tabLen: number, rootChord: number, method: string): number {
   if (method === 'top' || method === 'absolute') return offset;
   if (method === 'after') return rootChord + offset;
   if (method === 'bottom') return offset + (rootChord - tabLen);
   return offset + (rootChord - tabLen) / 2;
+}
+
+/** `AxialMethod.getAsOffset(position, tabLength, rootChord)`: the inverse of {@link tabPosition}. */
+export function tabOffsetAt(position: number, tabLen: number, rootChord: number, method: string): number {
+  if (method === 'top' || method === 'absolute') return position;
+  if (method === 'after') return position - rootChord;
+  if (method === 'bottom') return position + (tabLen - rootChord);
+  return position + (tabLen - rootChord) / 2;
 }
 
 /** A point in a fin's own frame: x from the fin front, y from the body surface under it (m). */

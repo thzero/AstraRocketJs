@@ -477,8 +477,24 @@ describe('stage colors', () => {
     // The picker keys its swatches by index, so a disagreement here would paint
     // a stage the color of the one beside it.
     const meta = { simName: 'Sim 1', rocketName: 'My <Rocket>', motorName: 'C6' };
-    expect(exportBranchNames(staged, meta)).toEqual(build(staged).branches.map((b) => b.name));
-    expect(exportBranchNames(result, meta)).toEqual(['My <Rocket>']);
+    expect(exportBranchNames(staged, meta, label)).toEqual(build(staged).branches.map((b) => b.name));
+    expect(exportBranchNames(result, meta, label)).toEqual(['My <Rocket>']);
+  });
+
+  it('names an unnamed stage as every view does, and an unnamed flight in the export language', () => {
+    const unnamed = {
+      ...staged,
+      branches: [staged.branches![0]!, { ...staged.branches![1]!, name: '  ' }],
+    } as unknown as FlightResult;
+    const meta = { simName: 'Sim 1', rocketName: 'My <Rocket>', motorName: 'C6' };
+    expect(exportBranchNames(unnamed, meta, label)).toEqual(['Sustainer', 'Stage 2']);
+    const kml = renderKml(build(unnamed));
+    expect(kml).toContain('<name>Stage 2</name>');
+    expect(kml).not.toContain('<name></name>');
+    const es_ = localeTranslator(es);
+    expect(exportBranchNames(result, { simName: '', rocketName: '', motorName: '' }, es_)).toEqual([
+      es.pathExport.doc.flight,
+    ]);
   });
 });
 

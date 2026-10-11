@@ -28,11 +28,11 @@ Cada magnitud tiene su propia unidad, configurable en la pestaña **Unidades**. 
 | Impulso | impulso total | N·s | lbf·s |
 | Velocidad de alabeo | la velocidad de alabeo del vuelo | r/s | r/s |
 
-Una instalación nueva arranca con los **valores métricos**, y eso es exactamente lo que restauran también los botones de restablecer: solo hay un conjunto métrico, así que nada puede sorprenderte con un «métrico» distinto.
+Una instalación nueva arranca con los **valores métricos**, y los botones de restablecer restauran ese mismo conjunto.
 
 Todo sigue tu elección: los campos donde escribes, el árbol de componentes, la tira de estadísticas, las reglas y los calibres del 2D, las anotaciones del 3D, las gráficas de vuelo y de resistencia, el explorador de motores y las exportaciones a PDF y CSV (que indican la unidad utilizada y pueden fijarse en métricas o imperiales por su cuenta; consulta [Archivos y exportaciones](./files-and-exports.md)).
 
-### Cambiar la unidad de un solo campo
+### Cambiar la unidad de un solo campo {#changing-a-unit-on-one-field}
 
 La unidad impresa junto a un valor también es un selector: haz clic y elige otra. Eso cambia **ese campo y nada más**: si pones la *Longitud* de una ojiva en pulgadas, su *Espesor*, el árbol de componentes, las reglas y la tira de estadísticas siguen en tu unidad por defecto. El cambio se mantiene al recargar.
 
@@ -52,7 +52,7 @@ Como una elección por campo vive en un solo campo, es fácil olvidar dónde la 
 
 Una elección por campo se *borra* en vez de reescribirse, así que el campo vuelve a **seguir** tus valores por defecto: si cambias uno más adelante, el campo lo sigue.
 
-### Dónde viven tus elecciones de unidades
+### Dónde viven tus elecciones de unidades {#where-your-unit-choices-live}
 
 Las unidades pertenecen **al navegador donde las configuras**, no a un diseño ni a un archivo. En la práctica:
 
@@ -64,7 +64,7 @@ Las unidades pertenecen **al navegador donde las configuras**, no a un diseño n
 
 **Colores ▸ Sombreado de las tablas aerodinámicas** elige cómo tiñen sus celdas las tablas por componente de [Aero](./views-and-analysis.md). *Por magnitud* es un solo color que se intensifica con el valor, escalado respecto al mayor de la tabla. *Por calor* reproduce exactamente el verde-rojo de OpenRocket de escritorio: su fórmula, su escala fija de 0 a 1,5 Cd y texto oscuro sobre celdas claras. Ninguno es más correcto; elige el que leas más rápido. *Por calor* se aplica solo a la tabla de **resistencia**: su escala es absoluta de Cd, y ni el CNα ni los coeficientes de alabeo están en ella (un CNα de 15 en unas aletas se saturaría en el mismo rojo que el 2 de una ojiva y no diría nada), así que esas tablas quedan sin sombrear con esta opción, igual que OpenRocket de escritorio solo colorea su pestaña de resistencia. El mismo conmutador está junto a la leyenda bajo la tabla, así que puedes cambiarlo sin salir de la vista.
 
-### Lo que las unidades no cambian
+### Lo que las unidades no cambian {#what-units-dont-change}
 
 Las unidades son una preferencia de **visualización y entrada**. Tu diseño se guarda siempre en SI, así que cambiar de unidades nunca modifica un cohete ni vuelve a guardar un archivo:
 
@@ -96,7 +96,7 @@ No hay fila para los filetes de las aletas. Un filete que añadas empieza como W
 
 ## Valores por defecto de la simulación {#simulation-defaults}
 
-Estos valores inicializan cada nueva simulación (aún puedes ajustar las condiciones de lanzamiento de cada una: consulta [Ejecutar una simulación](./running-a-simulation.md)):
+Estos valores están en la pestaña **Simulación** e inicializan cada nueva simulación (aún puedes ajustar las condiciones de lanzamiento de cada una: consulta [Ejecutar una simulación](./running-a-simulation.md)):
 
 - **Confirmar el borrado de simulaciones**: pregunta antes de eliminar una simulación. Activado por defecto, porque una simulación borrada se lleva sus resultados con ella.
 - **Ejecutar automáticamente las simulaciones desactualizadas**: cuando la pestaña Resultados muestra una simulación que nunca se ha ejecutado o cuyo resultado está desactualizado, la ejecuta. Desactivado por defecto.
@@ -136,28 +136,28 @@ Valores predeterminados para la vista 2D. También puedes alternarlos en la prop
 - **Centro de gravedad / presión**: muestra los marcadores de CG y CP.
 - **Reglas**: un interruptor por lado (arriba, abajo, izquierda, derecha).
 
-## Avisos de seguridad
+## Avisos de seguridad {#safety-warnings}
 
-Cinco umbrales, en las unidades que hayas elegido para la velocidad. Colorean las fichas de resultados *y* llegan al motor de vuelo, así que deciden qué avisos informa una simulación y no solo cómo se pintan los números.
+También en la pestaña **Simulación**: cinco umbrales, en las unidades que hayas elegido para la velocidad. Colorean las fichas de resultados *y* llegan al motor de vuelo, así que deciden qué avisos informa una simulación y no solo cómo se pintan los números.
 
 - **Velocidad mínima de salida de la guía**: por debajo de esto las aletas reciben muy poco flujo de aire para gobernar el cohete, así que puede orientarse hacia el viento o volverse inestable al salir de la guía. La ficha de salida de la guía está en verde a partir de este valor y avisa por debajo.
-- **Aviso de velocidad de apertura por encima de**: despliegue simple (sin drogue): por encima de esta velocidad, abrir el paracaídas arriesga rasgar el fuselaje o desgarrar la vela.
+- **Aviso de vel. de despliegue sobre**: despliegue simple (sin piloto): por encima de esta velocidad, abrir el paracaídas arriesga rasgar el fuselaje o desgarrar la vela.
 
-Los tres últimos solo se aplican al **despliegue dual** (una etapa que lleva un drogue), donde se juzgan el principal y el drogue en lugar del umbral simple anterior:
+Los tres últimos solo se aplican al **despliegue dual** (una etapa que lleva un piloto), donde se juzgan el principal y el piloto en lugar del umbral simple anterior:
 
-- **Velocidad de apertura del principal (máx.)**: por encima de esto el principal sale demasiado rápido, normalmente por un drogue demasiado pequeño para frenar el cohete, o por un principal configurado para abrirse demasiado alto.
-- **Velocidad de apertura del principal (mín.)**: por debajo de esto el principal se abre cuando el cohete apenas desciende, lo que normalmente significa que se desplegó cerca del apogeo: un descenso lento y con mucha deriva desde toda la altitud.
-- **Velocidad de apertura del drogue (mín.)**: por debajo de esto el drogue sale demasiado lento en el apogeo para inflarse correctamente.
+- **Velocidad de apertura del principal (máx)**: por encima de esto el principal sale demasiado rápido, normalmente por un piloto demasiado pequeño para frenar el cohete, o por un principal configurado para abrirse demasiado alto.
+- **Velocidad de apertura del principal (mín)**: por debajo de esto el principal se abre cuando el cohete apenas desciende, lo que normalmente significa que se desplegó cerca del apogeo: un descenso lento y con mucha deriva desde toda la altitud.
+- **Velocidad de apertura del piloto (mín)**: por debajo de esto el piloto sale demasiado lento en el apogeo para inflarse correctamente.
 
-Los tres dependen de que el cohete diga qué paracaídas es cuál. Marca **Piloto (despliegue dual)** en el paracaídas o la cinta que se abre en el apogeo y el vuelo se juzga como despliegue dual; déjalo sin marcar y toda la etapa es despliegue simple, juzgada solo contra **Aviso de velocidad de apertura por encima de**.
+Los tres dependen de que el cohete diga qué paracaídas es cuál. Eso se elige en la etapa: marca **Despliegue dual** en **Tipo de despliegue de recuperación** y escoge como **Dispositivo piloto** el paracaídas o la cinta que se abre en el apogeo, y el vuelo se juzga como despliegue dual. Con **Despliegue único**, toda la etapa se juzga solo contra **Aviso de vel. de despliegue sobre**.
 
 Cada uno de estos también se puede sobrescribir por simulación, en las opciones de esa simulación.
 
 Al cambiar cualquiera de ellos, todas las simulaciones que ya se han ejecutado se marcan como **desactualizadas**, de modo que un resultado guardado nunca afirma describir unos ajustes con los que no se voló. Una simulación que fija el ajuste por su cuenta no se toca, porque su propio valor sigue aplicándose. Vuelve a ejecutarla para actualizar los números.
 
-## Modelo de vuelo
+## Modelo de vuelo {#flight-model}
 
-Todo lo anterior decide cuándo *avisa* un vuelo. Esto cambia lo que hace el vuelo.
+También en la pestaña **Simulación**. Todo lo anterior decide cuándo *avisa* un vuelo. Esto cambia lo que hace el vuelo.
 
 - **Salida según las guías**: desactivado por defecto, que es el comportamiento propio de OpenRocket: el cohete permanece en el riel durante toda su longitud, estén donde estén las guías de lanzamiento o los botones de riel. OpenRocket calcula una longitud que tiene en cuenta las guías y luego no la usa, así que una guía montada por encima de la cola del cohete recibe un recorrido guiado que no tiene, y los botones de riel no se consideran en absoluto.
 
@@ -165,12 +165,12 @@ Todo lo anterior decide cuándo *avisa* un vuelo. Esto cambia lo que hace el vue
 
   Es un ajuste y no una corrección porque el motor se comprueba contra OpenRocket de escritorio vuelo a vuelo. Desactivado, una ejecución coincide exactamente con OpenRocket.
 
-## General
+## General {#general}
 
 - **Tema**: Oscuro, Claro, Según el sistema (claro u oscuro según esté configurado tu dispositivo, y cambia cuando él cambia) o Luz de día (alto contraste), un tema claro con texto negro y colores más oscuros para leer la pantalla al sol en el campo. Oscuro por defecto. Las vistas 3D y el esquema siguen el tema; un esquema descargado o impreso conserva sus propios colores de impresión sea cual sea el tema. El botón ☀ de la cabecera cambia a Luz de día con un toque, y un segundo toque vuelve al tema que tenías.
 - **Guardar la información de diseño (estadísticas) en el archivo**: escribe las cifras derivadas del diseño (masa, CG, CP, estabilidad) en un `.ork` guardado, como puede hacerlo OpenRocket de escritorio. Desactivado por defecto.
 - **Preguntar dónde guardar cada archivo**: abre el diálogo de guardado del propio navegador en cada exportación, para que elijas el nombre y la carpeta. Activado por defecto, y solo aparece en los navegadores que tienen ese diálogo (Chrome y Edge). Desactivado, o en Firefox y Safari, los archivos van directamente a tu carpeta de descargas.
 
-## Restablecer
+## Restablecer {#reset}
 
 Abajo en el diálogo hay dos botones: **Restablecer ‹pestaña›** repone solo la pestaña en la que estás (así que **Restablecer Unidades** toca las unidades y nada más), y **Restablecer todo** devuelve cada ajuste de cada pestaña a su valor por defecto. Restablecer todo pregunta antes, porque no se puede deshacer.

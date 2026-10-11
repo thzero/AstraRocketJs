@@ -8,7 +8,7 @@ AstraRocketJs is a design and simulation tool. It is not a safety authority, and
 
 Every figure the app produces is **educational and speculative**. It answers "what would this model do under these assumptions". It is not a prediction, not a safety assessment, and not a flight-worthiness certification.
 
-Treat apogee, stability margin, deployment speed, descent rate and landing distance as estimates to design *against*, then verify them against the rocket you actually built and the field you are actually standing on. A margin computed from a drawing is a drawing's margin.
+Treat apogee, stability margin, deployment speed, descent rate and landing distance as estimates to design *against*, then verify them against the rocket you actually built and the field you are actually standing on.
 
 ## What the model does
 
@@ -20,7 +20,7 @@ The physics is OpenRocket's own core, compiled to run in your browser and valida
 - **Atmosphere** as the ISA standard model, or your own temperature and pressure, with a WGS or constant gravity model and a flat, spherical or WGS84 earth.
 - **Wind** as either a single average with a gust standard deviation, or a multi-level profile that changes with altitude, both carrying pink-noise turbulence.
 
-The app also raises the kernel's own flight warnings: high-speed deployment, a main that opens too fast or too slow, a drogue with no main, no recovery device at all, a deployment while still on the rod, a large angle of attack, and supersonic flight where the aerodynamic method becomes approximate. Read them. They are the model telling you it is uncomfortable.
+The app also raises the kernel's own flight warnings: high-speed deployment, a main that opens too fast or too slow, a drogue with no main, no recovery device at all, a deployment while still on the rod, a large angle of attack, and supersonic flight where the aerodynamic method becomes approximate. Read them.
 
 ## What the model does not know
 
@@ -37,7 +37,7 @@ Being explicit about the gaps is more useful than a blanket disclaimer:
 
 The results pane heads its numbers with a **Before you fly** card carrying the short version of this page. It folds: click its heading and the explanation collapses, though it asks you to acknowledge the notes first, because the fold is remembered and that click is the last time they get offered on this browser. The heading itself never folds, so the warning stays above the numbers whatever you choose.
 
-The single most valuable thing you can do is stop simulating a drawing and start simulating the rocket on the bench:
+The most useful step is to simulate the rocket as built rather than as drawn:
 
 1. **Weigh the finished rocket**, ready to fly but without the motor. Select its stage in the component editor (on a single-stage rocket that is the whole thing), enable the **mass override**, and enter the measured figure with "apply to all subcomponents" on.
 2. **Find the balance point.** Balance the rocket on a ruler edge, measure from the nose tip, and enter it as the **CG override**.
@@ -52,8 +52,10 @@ The override section carries mass, CG and drag coefficient, each with an "apply 
 
 Two launch conditions are checked against the **NAR** and **Tripoli** safety codes, and the app refuses to fly a simulation outside them rather than hand you a number it will not stand behind:
 
-- **Launch rod angle** within **20 degrees** of vertical.
+- **Launch rod angle** within **30 degrees** of vertical for a model rocket (the NAR Model Rocket Safety Code), and within **20 degrees** for a high power rocket (the NAR High Power Rocket Safety Code and Tripoli's).
 - **Surface wind** at or below **20 mph** (32 km/h).
+
+The app treats a simulation's flight configuration as high power when any motor in it has more than 160 N·s of total impulse (H and up) or more than 80 N of average thrust, when all its motors together hold more than 320 N·s or more than 125 g of propellant, or when the rocket weighs more than 1,500 g at liftoff. Anything else is a model rocket.
 
 Only the wind at the pad is judged, and gusts are deliberately not checked. The reasoning, and what happens to a `.ork` file that arrives outside the limits, is in [Running a Simulation](./running-a-simulation.md#safety-limits).
 

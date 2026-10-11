@@ -6,6 +6,7 @@ import { newFlightConfig, type FlightConfig } from '../../../src/services/flight
 import { assembleReport, configMotors, type ReportBuild } from '../../../src/services/report/reportModel';
 import { twRatio } from '../../../src/services/report/motorsSection';
 import { useWorkspaceStore } from '../../../src/state/store';
+import { resultKey, type Simulation } from '../../../src/services/flight/simulations';
 import { KERNEL_TEST_TIMEOUT_MS } from '../../testing/kernelTimeout';
 
 /**
@@ -132,5 +133,40 @@ describe('thrust-to-weight per configuration', () => {
     });
     expect(rows[0]!.loadedMass).toBeNaN();
     expect(twRatio(rows[0]!.avgThrust, rows[0]!.loadedMass)).not.toMatch(/:1$/);
+  });
+});
+
+describe('simulation results in the report', () => {
+  it('marks a result flown from an earlier state of the design as outdated', () => {
+    const light = newFlightConfig({ mount: { spec: C6 } }, 'Light', 'light');
+    const flown = buildConfiguredRocket(SINGLE, light);
+    const summary = { maxAltitude: 100 } as never;
+    const sim = (id: string): Simulation =>
+      ({
+        id,
+        name: id,
+        configId: 'light',
+        launch: {},
+        result: { summary },
+        resultKey: 'stale',
+      }) as unknown as Simulation;
+    const fresh = sim('fresh');
+    const stale = sim('stale');
+    const { simPrefs } = useWorkspaceStore.getState();
+    fresh.resultKey = resultKey(SINGLE, light, fresh, simPrefs);
+    useWorkspaceStore.setState({
+      tree: SINGLE,
+      configs: [light],
+      sims: [fresh, stale, { ...sim('none'), result: null }],
+      activeId: 'fresh',
+      info: flown.staticInfo(),
+      rocket: flown as never,
+    });
+    const model = assembleReport(() => {})!;
+    expect(model.configs.map((c) => [c.name, c.outdated])).toEqual([
+      ['fresh', false],
+      ['stale', true],
+      ['none', false],
+    ]);
   });
 });

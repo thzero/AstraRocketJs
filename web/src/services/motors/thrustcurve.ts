@@ -284,14 +284,24 @@ function metaKey(cat: CatalogMotor): string {
 const isSampleArray = isThrustSampleArray;
 
 /**
- * Exported for test: the cache-read validator for a stored MotorSpec. It is the
- * flight gate's own predicate, so a spec the cache serves is one the builder
- * accepts: every sample of all three arrays finite (a spec serialized with
- * nulls would reach the kernel as the BigInt crash the sample guard stops), the
- * arrays in lockstep, and at least MIN_CURVE_SAMPLES of them.
+ * Exported for test: the cache-read validator for a stored MotorSpec. A spec
+ * the cache serves must be one {@link samplesToMotorSpec} could have built, so a
+ * corrupted entry is refetched rather than failing the build with a raw kernel
+ * message: the flight gate's own curve check (every sample of all three arrays
+ * finite, in lockstep, at least MIN_CURVE_SAMPLES of them), no negative thrust,
+ * a positive diameter and length, a CG inside the motor, and a delay that is a
+ * number of seconds (PLUGGED_DELAY included).
  */
-export const isCachedMotorSpec = (v: unknown): boolean =>
-  !!v && typeof v === 'object' && hasUsableCurve(v as MotorSpec);
+export const isCachedMotorSpec = (v: unknown): boolean => {
+  if (!v || typeof v !== 'object') return false;
+  const m = v as MotorSpec;
+  if (!hasUsableCurve(m)) return false;
+  const positive = (n: unknown) => typeof n === 'number' && Number.isFinite(n) && n > 0;
+  if (!positive(m.diameter) || !positive(m.length)) return false;
+  if (typeof m.cgX !== 'number' || !Number.isFinite(m.cgX) || m.cgX < 0 || m.cgX > m.length) return false;
+  if (typeof m.ejectionDelay !== 'number' || !Number.isFinite(m.ejectionDelay) || m.ejectionDelay < 0) return false;
+  return m.thrusts.every((t) => t >= 0);
+};
 const isSpec = isCachedMotorSpec;
 
 /**

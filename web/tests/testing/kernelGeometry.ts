@@ -34,6 +34,12 @@ export interface KernelGeometry {
    */
   instanceRadius?: number;
   radius?: number;
+  /** A rail button's linked dimensions, after the kernel's setters have clamped them. */
+  outerDiameter?: number;
+  innerDiameter?: number;
+  totalHeight?: number;
+  baseHeight?: number;
+  flangeHeight?: number;
   /** The front of the part's first copy from the nose tip (`getComponentInfo`). */
   positionX?: number;
   /**

@@ -8,22 +8,7 @@ import { useUnits } from '../../prefs/useUnits';
 import { onSi } from '../../prefs/entryValue';
 import { unitScope } from '../../prefs/units';
 import { fmtUpTo, partLabel } from '../../i18n/format';
-
-/**
- * The kernel's SeparationEvent vocabulary, in the order the property panel
- * offers it (ejection first: the desktop default and the low-power norm).
- */
-const SEPARATION_EVENTS = [
-  'ejection',
-  'burnout',
-  'launch',
-  'ignition',
-  'upperignition',
-  'apogee',
-  'altitudeascending',
-  'altitudedescending',
-  'never',
-] as const;
+import { SEPARATION_EVENTS } from '../../services/design/componentFields';
 
 /**
  * Whether one stage flies under this configuration, and when it lets go.

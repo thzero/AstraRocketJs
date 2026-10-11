@@ -171,9 +171,6 @@ export function rocketSideView(tree: RocketTree): { w: number; h: number; body: 
     const profile: Pt[] = [];
     let x = xStart;
     let chainMaxR = 0.001;
-    // Assemblies are drawn after the chain is measured: a stage-level pod has
-    // no symmetric parent to hang off, so it needs the chain's final extent.
-    const deferred: ComponentNode[] = [];
 
     const revolve = (node: ComponentNode, foreR: number, aftR: number, len: number) => {
       const shape = nodeShape(node);
@@ -224,15 +221,11 @@ export function rocketSideView(tree: RocketTree): { w: number; h: number; body: 
         // would show a finless rocket in the side view, with no warning.
         emitChildren(n, len, radiusSampler(n));
         x += len;
-      } else if (isAssembly(n.type)) {
-        deferred.push(n);
       }
+      // A stage or a pod holds body components only (`AxialStage.isCompatible`,
+      // `PodSet.isCompatible`), so an assembly is never a chain member here: the
+      // kernel refuses to build such a tree.
     }
-
-    // A pod attached directly to the stage is placed from the axis: the
-    // kernel's relative radius adds the parent's radius only for a body tube
-    // parent (RadiusMethod.RELATIVE), and a stage is not one.
-    for (const pod of deferred) emitAssembly(pod, null, xStart, x - xStart, cy);
 
     maxUp = Math.max(maxUp, Math.abs(cy) + chainMaxR);
     maxX = Math.max(maxX, x);
@@ -247,16 +240,10 @@ export function rocketSideView(tree: RocketTree): { w: number; h: number; body: 
    * Without this the PDF's whole-rocket figure would show a strap-on booster
    * cluster as a single plain tube, silently disagreeing with the screen.
    *
-   * `host` is the part the pod is attached to, or `null` for a stage: the
-   * kernel adds a host's radius only for a body tube (`assemblyParentRadius`).
+   * `host` is the part the pod is attached to: the kernel adds a host's radius
+   * only for a body tube (`assemblyParentRadius`).
    */
-  function emitAssembly(
-    pod: ComponentNode,
-    host: ComponentNode | null,
-    hostStart: number,
-    hostLen: number,
-    cy: number,
-  ) {
+  function emitAssembly(pod: ComponentNode, host: ComponentNode, hostStart: number, hostLen: number, cy: number) {
     const podLen = assemblyChainLength(pod);
     const podStart = axialStart(pod, podLen, hostStart, hostLen);
     const podRadius = resolveAssemblyRadius(pod, assemblyParentRadius(host));

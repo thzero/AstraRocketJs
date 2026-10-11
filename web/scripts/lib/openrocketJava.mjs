@@ -13,7 +13,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { delimiter, join } from 'node:path';
-import { checkJar } from './openrocketRelease.mjs';
+import { checkJar, checkSourceTree } from './openrocketRelease.mjs';
 
 /** The Gradle-cached jars a `--or` checkout needs, by artifact name. */
 const JARS = [
@@ -113,6 +113,7 @@ function classpath(orDir, jar) {
     checkJar(jar);
     return jar;
   }
+  checkSourceTree(orDir);
   const main = join(orDir, 'core/build/classes/java/main');
   const test = join(orDir, 'core/build/classes/java/test');
   for (const d of [main, test]) {
@@ -136,7 +137,7 @@ export function chooseBuild() {
     console.error(
       'No installed OpenRocket found. Pass one:\n' +
         '  --jar <OpenRocket-NN.NN.jar>   a release\n' +
-        '  --or  <openrocket checkout>    a built source tree',
+        '  --or  <openrocket checkout>    a built source tree (needs OPENROCKET_UNPINNED=1)',
     );
     process.exit(2);
   }

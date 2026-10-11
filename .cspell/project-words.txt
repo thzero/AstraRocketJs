@@ -1,7 +1,7 @@
-# genuinely ours, never to silence a real misspelling.
-# names, library and vendor names, and code abbreviations. Generated from the
 # Project vocabulary: rocketry and aerodynamics terms, .ork XML element
-# tree once it was clean, then maintained by hand. Add a word only when it is
+# names, library and vendor names, and code abbreviations. Add a word only
+# when it is genuinely ours, never to silence a real misspelling. Keep these
+# comment lines first and sort only the words below them.
 AABB
 aabbggrr
 absarc
@@ -9,6 +9,7 @@ ACADVER
 ADOPTIUM
 Aero's
 aeroelastic
+Aeroscience
 AEROTECH
 aftradius
 aftshouldercapped
@@ -37,6 +38,7 @@ apikey
 ARCAS
 arcgisonline
 astrarocketjs
+astrarrocketjs
 atmo
 authorable
 axialoffset
@@ -50,6 +52,7 @@ basetemperature
 bbody
 bfins
 blindnesses
+blobless
 boattail
 boattails
 bodytube
@@ -63,6 +66,7 @@ caffeine
 cands
 caseairframe
 catchable
+ccna
 centeringring
 Cesaroni
 checkcast
@@ -91,10 +95,12 @@ crossflow
 crosshairs
 crossrange
 crosssection
+Cside
 currentconditions
 curveless
 customexpression
 customreference
+Cyaw
 daddr
 databind
 databranch
@@ -119,6 +125,7 @@ designtype
 desync
 desynced
 Deutsch
+devirtualizer
 dflt
 directiondeg
 displaycolor
@@ -128,7 +135,9 @@ docblocks
 docmaterials
 docprefs
 domcontentloaded
+Dorg
 doublewedge
+dpath
 drei
 drei's
 DREV
@@ -168,6 +177,7 @@ finleradius
 Finner
 finpoints
 finset
+FINSETCALC
 finsets
 flabel
 flangeheight
@@ -181,9 +191,11 @@ foreshouldercapped
 foreshoulderlength
 foreshoulderradius
 foreshoulderthickness
+forgeable
 frameloop
 Français
 freeformfinset
+Fric
 fshape
 gainmap
 generationtime
@@ -247,6 +259,7 @@ JAXB
 jdkstub
 jdkstubs
 Jorgensen
+JPMS
 Kalman
 Karman
 Kármán
@@ -270,6 +283,7 @@ launchroddirection
 launchrodlength
 launchrodvelocity
 lerp
+letterlike
 Lexan
 linecount
 linelength
@@ -304,7 +318,9 @@ Meteo
 Metrum
 microballoons
 MicroMaxx
+mindia
 MINFEATURE
+mirrorxy
 miscompiles
 misordered
 misrender
@@ -339,6 +355,7 @@ notsimulated
 nozzleexitdiameter
 NSEW
 nudgeable
+offaxis
 opacityaffectstexture
 opencsv
 openmeteo
@@ -416,6 +433,8 @@ relativeto
 reloadable
 reloadables
 rels
+repointed
+reprojection
 requestfailed
 reselecting
 rocketcomponent
@@ -511,9 +530,11 @@ unawaited
 unbuildable
 unbuilt
 uncanted
+uncatchable
 unclickable
 unclipped
 unconfigured
+undercounted
 underpredicts
 undoable
 unfloored
@@ -538,6 +559,7 @@ unvalidated
 unwired
 uppercased
 upperignition
+Upstreamable
 upstreaming
 uptodate
 USGS

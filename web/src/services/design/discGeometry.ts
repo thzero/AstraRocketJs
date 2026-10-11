@@ -265,9 +265,12 @@ export function boreAt(node: ComponentNode, end: 'fore' | 'aft'): number | null 
         num(node, end === 'fore' ? 'foreRadius' : 'aftRadius', NaN),
         wall(COMPONENT_DEFAULTS.transition.thickness),
       );
-    case 'nosecone':
-      // Open at its base, closed at the tip.
-      return end === 'aft' ? bore(num(node, 'aftRadius', NaN), wall(COMPONENT_DEFAULTS.nosecone.thickness)) : null;
+    case 'nosecone': {
+      // Open at its base, closed at the tip. A flipped cone's base is its fore
+      // end (`NoseCone.getBaseRadius`).
+      const base = node['flipped'] === true ? 'fore' : 'aft';
+      return end === base ? bore(num(node, 'aftRadius', NaN), wall(COMPONENT_DEFAULTS.nosecone.thickness)) : null;
+    }
     default:
       return null;
   }

@@ -16,7 +16,7 @@ import { AxisCallout, markerTexture } from './rocketCallouts';
 import { StabilityCallout } from './StabilityCallout';
 import { RocketModel } from './RocketModel';
 import { useRocketExport, type R3fHandles } from './useRocketExport';
-import { CG_INK, CP_INK } from './stabilityGadget';
+import { CG_INK, CP_INK } from './stabilityInks';
 import { token } from '../common/colorTokens';
 import { useSceneColors } from './sceneColors';
 import { errorText } from '../../i18n/keyedError';
@@ -264,8 +264,14 @@ export function Rocket3D({
         {showMarkers && (
           <>
             {' · '}
-            <span style={{ color: token(CG_INK) }}>●</span> {t('schematic.cg')} ·{' '}
-            <span style={{ color: token(CP_INK) }}>●</span> {t('schematic.cp')}
+            <span aria-hidden="true" style={{ color: token(CG_INK) }}>
+              ●
+            </span>{' '}
+            {t('schematic.cg')} ·{' '}
+            <span aria-hidden="true" style={{ color: token(CP_INK) }}>
+              ●
+            </span>{' '}
+            {t('schematic.cp')}
           </>
         )}
       </p>

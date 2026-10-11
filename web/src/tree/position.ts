@@ -36,6 +36,9 @@ export function freeformRootChord(
   return root > 0 ? root : fallback;
 }
 
+/** `FreeformFinSet.SNAP_LARGER_THAN`: a point coordinate above it is set to it (m). */
+export const FREEFORM_SNAP_LARGER_THAN = 2.5;
+
 /**
  * A freeform fin's outline, translated so its first point is the origin.
  *
@@ -46,6 +49,9 @@ export function freeformRootChord(
  *     if (IGNORE_SMALLER_THAN < delta.length2()) newPoints = translatePoints(newPoints, delta);
  *
  * translating by -p0 in both axes, and it does not touch the axial offset.
+ * It then sets any x or y above {@link FREEFORM_SNAP_LARGER_THAN} to that
+ * value, after the translation, so a fin wider or taller than 2.5 m flies cut
+ * to it.
  * (`clampFirstPoint()`, which additionally folds xDelta into the offset, is the
  * desktop GUI's per-point edit path, not ours.)
  *
@@ -60,8 +66,11 @@ export function normalizeFreeformPoints(pts: [number, number][] | undefined): [n
   const p = pts ?? [];
   const p0 = p[0];
   if (!p0 || !Number.isFinite(p0[0]) || !Number.isFinite(p0[1])) return p;
-  if (p0[0] === 0 && p0[1] === 0) return p; // already the kernel's invariant
-  return p.map(([x, y]) => [x - p0[0], y - p0[1]]);
+  const snap = (v: number) => (v > FREEFORM_SNAP_LARGER_THAN ? FREEFORM_SNAP_LARGER_THAN : v);
+  const moved = p0[0] !== 0 || p0[1] !== 0;
+  const out = p.map(([x, y]): [number, number] => [snap(moved ? x - p0[0] : x), snap(moved ? y - p0[1] : y)]);
+  // Already the kernel's outline: the same array, so a caller comparing by reference sees no change.
+  return !moved && out.every(([x, y], i) => x === p[i]![0] && y === p[i]![1]) ? p : out;
 }
 
 /** A freeform node's outline in kernel coordinates. */
@@ -81,7 +90,7 @@ export function partLength(n: ComponentNode): number {
 /** A component's axial extent used for positioning (fins use root chord). */
 export function axialLength(n: ComponentNode): number {
   if (n.type === 'freeformfinset') {
-    return freeformRootChord(n['points'] as [number, number][] | undefined);
+    return freeformRootChord(freeformPoints(n));
   }
   if (n.type === 'trapezoidfinset' || n.type === 'ellipticalfinset') {
     return num(n, 'rootChord', FIN_DEFAULTS.rootChord);

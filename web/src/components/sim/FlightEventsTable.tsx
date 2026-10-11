@@ -102,14 +102,17 @@ export function FlightEventsTable({
           onClick={() =>
             download(
               exportFilename([designName, simName, 'flight-events'], 'csv'),
-              flightEventsCsv(rows, u.all, (r) => t(EVENT_NAME[r.type]!), stageName, simName),
+              flightEventsCsv(rows, u.all, t, (r) => t(EVENT_NAME[r.type]!), stageName, simName),
               CSV_MIME,
             )
           }
           title={t('flight.eventsCsv')}
           className="shrink-0 rounded-md bg-raised px-2 py-1 text-[11px] font-medium text-ink ring-1 ring-line/10 hover:bg-elevated"
         >
-          <span aria-hidden>⬇</span> CSV
+          {/* The visible short label stays out of the name, which is the full
+              one: the Results tab has another CSV button. */}
+          <span aria-hidden>⬇</span> <span aria-hidden>CSV</span>
+          <span className="sr-only">{t('flight.eventsCsv')}</span>
         </button>
       </div>
       <div className="overflow-x-auto">

@@ -44,7 +44,7 @@ const FAMILIES: Record<UnicodeScript, { family: string; regular: string; bold: s
   jp: { family: 'NotoSansJP', regular: 'NotoSansJP-Regular.ttf', bold: 'NotoSansJP-Bold.ttf' },
 };
 
-/** The Windows-1252 characters above Latin-1, by code point, as their WinAnsi byte. */
+/** The characters above Latin-1 that Helvetica writes, by code point, as their WinAnsi byte. */
 const WIN_ANSI = new Map<number, number>([
   [0x20ac, 0x80],
   [0x201a, 0x82],
@@ -73,6 +73,12 @@ const WIN_ANSI = new Map<number, number>([
   [0x0153, 0x9c],
   [0x017e, 0x9e],
   [0x0178, 0x9f],
+  // The narrow, thin and figure spaces that locales group thousands with
+  // (French writes 1 234 with U+202F): the no-break space, so a number never
+  // needs a Unicode font.
+  [0x202f, 0xa0],
+  [0x2009, 0xa0],
+  [0x2007, 0xa0],
 ]);
 
 /** Has a character Helvetica cannot write. */

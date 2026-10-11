@@ -190,7 +190,12 @@ export default defineConfig({
         // host - the copy the hash exists for - is a different origin and is
         // answered by its own StaleWhileRevalidate rule below, which this does
         // not touch.
-        ignoreURLParametersMatching: [/^utm_/, /^fbclid$/, /^v$/],
+        //
+        // `?retry=<n>` is the engine Retry (retryUrl in engine/openRocketEngine.ts).
+        // A retry needs a url the browser has not already got in flight, but the
+        // file it names is the precached one, and offline the precache is the
+        // only copy there is.
+        ignoreURLParametersMatching: [/^utm_/, /^fbclid$/, /^v$/, /^retry$/],
         cleanupOutdatedCaches: true,
         // No precache-first navigation route. With one, every page load would be
         // answered from the worker's precache, so a plain reload could never

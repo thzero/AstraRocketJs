@@ -1,6 +1,16 @@
 import { mathEquals } from './mathEquals';
 
 /**
+ * The most samples one imported motor curve may carry, in either file format.
+ *
+ * Every custom motor is stored in one blob that is parsed and validated on
+ * each picker open and `.ork` save, and a `.rse` member of an imported `.ork`
+ * is read with no file picker at all. The longest real curve is a few thousand
+ * samples.
+ */
+export const MAX_CURVE_SAMPLES = 20_000;
+
+/**
  * A thrust curve as the kernel will take it: starting at t = 0, with every time
  * after the one before it. `ThrustCurveMotor.Builder.build()` refuses anything
  * else ("Curve starts at time …", "Two thrust values for single time point"),

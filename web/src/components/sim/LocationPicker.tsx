@@ -174,11 +174,12 @@ export function LocationPicker({
           ⚙
         </button>
       </div>
-      {err && (
-        <p role="status" aria-live="polite" className="text-[11px] leading-snug text-warn-400">
-          {err}
-        </p>
-      )}
+      {/* Always mounted, empty until there is something to say: a live region
+          created together with its text is not announced by most screen
+          readers. */}
+      <p role="status" aria-live="polite" className="text-[11px] leading-snug text-warn-400">
+        {err}
+      </p>
 
       {naming && (
         <DesignPropertiesDialog

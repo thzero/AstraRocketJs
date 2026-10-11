@@ -821,7 +821,7 @@ const CHAIN_DESIGNS: Record<string, () => RocketTree> = (() => {
       { instanceCount },
     );
   return {
-    // The design that first showed it: an automatic nose cone base, two
+    // An automatic nose cone base, two
     // automatic tubes, the second holding an automatic coupler, then a fixed
     // 23.7 mm tube in the next stage. The kernel gives the first tube 25 mm.
     'generated airframe, two automatic tubes between an automatic base and the next stage': () =>

@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { describe, it, expect } from 'vitest';
 import type { ComponentNode } from '../../src/engine/openRocketEngine';
 import {
@@ -7,6 +9,12 @@ import {
   ringInstanceOffsets,
   isAssembly,
 } from '../../src/tree/assembly';
+
+const JAVA_ROOT = fileURLToPath(
+  new URL('../../../engine-java/src/java/info/openrocket/core/rocketcomponent/', import.meta.url),
+);
+/** Java source with runs of whitespace collapsed, so the guards survive reformatting. */
+const javaSource = (file: string): string => readFileSync(JAVA_ROOT + file, 'utf8').replace(/\s+/g, ' ');
 
 const pod = (children: ComponentNode[], props: Record<string, unknown> = {}): ComponentNode => ({
   type: 'podset',
@@ -52,22 +60,74 @@ describe('assemblyBoundingRadius', () => {
   });
 });
 
-describe('resolveAssemblyRadius', () => {
-  const p = pod([{ type: 'bodytube', outerRadius: 0.01 }], { radiusOffset: 0.005 });
+/**
+ * `resolveAssemblyRadius` against `RadiusMethod.getRadius` and
+ * `ComponentAssembly.getBoundingRadius`, transcribed below from the Java rather
+ * than summed by hand.
+ */
+describe('resolveAssemblyRadius vs RadiusMethod.java', () => {
+  const radiusMethod = javaSource('position/RadiusMethod.java');
+  const assembly = javaSource('ComponentAssembly.java');
 
-  it('relative (default): offset is a gap from the parent surface', () => {
-    // 0.005 gap + 0.03 parent radius + 0.01 pod bounding radius
-    expect(resolveAssemblyRadius(p, 0.03)).toBeCloseTo(0.045);
+  it('is generated from the rules the port was written against', () => {
+    // COAXIAL, FREE, RELATIVE and SURFACE, in that order.
+    expect(radiusMethod).toContain('final double requestedOffset) { return 0.0; }');
+    expect(radiusMethod).toContain('final double requestedOffset) { return requestedOffset; }');
+    expect(radiusMethod).toContain(
+      'double radius = requestedOffset; if (parentComponent instanceof BodyTube) { radius += ((BodyTube) parentComponent).getOuterRadius(); } if (thisComponent instanceof RadiusPositionable) { radius += ((RadiusPositionable) thisComponent).getBoundingRadius(); } return radius;',
+    );
+    expect(radiusMethod).toContain(
+      'double radius = 0.0; if (parentComponent instanceof BodyTube) { radius += ((BodyTube) parentComponent).getOuterRadius(); } if (thisComponent instanceof RadiusPositionable) { radius += ((RadiusPositionable) thisComponent).getBoundingRadius(); } return radius;',
+    );
+    expect(assembly).toContain(
+      'if (comp instanceof BodyTube) { thisRadius = ((BodyTube) comp).getOuterRadius(); } else if (comp instanceof Transition) { Transition trans = (Transition) comp; thisRadius = Math.max(trans.getForeRadius(), trans.getAftRadius()); }',
+    );
   });
 
-  it('relative offset 0 just touches the airframe', () => {
-    const touching = pod([{ type: 'bodytube', outerRadius: 0.01 }], { radiusOffset: 0 });
-    expect(resolveAssemblyRadius(touching, 0.03)).toBeCloseTo(0.04);
+  /** `ComponentAssembly.getBoundingRadius`: a nose cone is a `Transition` with a zero fore radius. */
+  const boundingRadius = (children: Record<string, number | string>[]): number => {
+    let outerRadius = 0;
+    for (const comp of children) {
+      let thisRadius = 0;
+      if (comp['type'] === 'bodytube') thisRadius = comp['outerRadius'] as number;
+      else if (comp['type'] === 'transition')
+        thisRadius = Math.max(comp['foreRadius'] as number, comp['aftRadius'] as number);
+      else if (comp['type'] === 'nosecone') thisRadius = Math.max(0, comp['aftRadius'] as number);
+      outerRadius = Math.max(outerRadius, thisRadius);
+    }
+    return outerRadius;
+  };
+
+  /** `RadiusMethod.getRadius` for a pod set (a `RadiusPositionable`) on a body tube. */
+  const getRadius = (method: string, parentOuterRadius: number, bounding: number, requestedOffset: number) => {
+    if (method === 'coaxial') return 0.0;
+    if (method === 'free') return requestedOffset;
+    if (method === 'surface') return 0.0 + parentOuterRadius + bounding;
+    return requestedOffset + parentOuterRadius + bounding;
+  };
+
+  const chain: Record<string, string | number>[] = [
+    { type: 'nosecone', aftRadius: 0.012 },
+    { type: 'bodytube', outerRadius: 0.01 },
+    { type: 'transition', foreRadius: 0.011, aftRadius: 0.009 },
+  ];
+
+  it('places a pod set by each method as the kernel does', () => {
+    for (const radiusMethod of ['relative', 'surface', 'free', 'coaxial']) {
+      for (const radiusOffset of [0, 0.005, 0.05]) {
+        const p = pod(chain as ComponentNode[], { radiusOffset, radiusMethod });
+        expect(resolveAssemblyRadius(p, 0.03), `${radiusMethod} @ ${radiusOffset}`).toBeCloseTo(
+          getRadius(radiusMethod, 0.03, boundingRadius(chain), radiusOffset),
+          12,
+        );
+      }
+    }
   });
 
-  it('free: offset is measured straight from the parent centerline', () => {
-    const free = pod([{ type: 'bodytube', outerRadius: 0.01 }], { radiusOffset: 0.05, radiusMethod: 'free' });
-    expect(resolveAssemblyRadius(free, 0.03)).toBeCloseTo(0.05);
+  it('reads an unset method as relative, the kernel default', () => {
+    expect(javaSource('PodSet.java')).toContain('protected RadiusMethod radiusMethod = RadiusMethod.RELATIVE;');
+    const p = pod(chain as ComponentNode[], { radiusOffset: 0.005 });
+    expect(resolveAssemblyRadius(p, 0.03)).toBeCloseTo(getRadius('relative', 0.03, boundingRadius(chain), 0.005), 12);
   });
 });
 

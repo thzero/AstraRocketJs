@@ -2,6 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { KERNEL_DEFAULTS, KERNEL_SHAPES, kernelLength } from '../../src/tree/kernelDefaults';
 import { defaultNode } from '../../src/services/design/treeEdit';
 import type { ComponentNode, ComponentType } from '../../src/engine/openRocketEngine';
+import { loadEngine } from '../testing/kernelGeometry';
+
+/** The TeaVM bundle, which is untyped. */
+type Engine = Awaited<ReturnType<typeof loadEngine>>;
 
 /**
  * Lock `KERNEL_DEFAULTS` to what the kernel actually does.
@@ -23,13 +27,6 @@ import type { ComponentNode, ComponentType } from '../../src/engine/openRocketEn
  * pod instance count in total mass.
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any -- the TeaVM bundle is untyped */
-const loadEngine = async (): Promise<any> => {
-  (globalThis as any).$rt_putStdoutCustom ??= () => {};
-  (globalThis as any).$rt_putStderrCustom ??= () => {};
-  return import('../../src/engine/vendor/openrocket-engine.mjs' as string);
-};
-
 const NOSE = {
   type: 'nosecone',
   id: 'n',
@@ -50,14 +47,14 @@ const TUBE = {
 /** Where the effect of the field shows up. */
 type Scope = 'component' | 'rocket';
 
-const build = (engine: any, node: ComponentNode, parent: ComponentNode | null): any => {
+const build = (engine: Engine, node: ComponentNode, parent: ComponentNode | null) => {
   engine.reset();
   const inner = { ...node, id: 'probe' };
   const components = parent ? [NOSE, { ...parent, children: [inner] }] : [NOSE, inner];
   return engine.buildRocket(JSON.stringify({ components }));
 };
 
-const observe = (engine: any, node: ComponentNode, parent: ComponentNode | null, scope: Scope): string => {
+const observe = (engine: Engine, node: ComponentNode, parent: ComponentNode | null, scope: Scope): string => {
   const handle = build(engine, node, parent);
   if (scope === 'component') {
     const i = JSON.parse(engine.getComponentInfo(handle, 'probe'));

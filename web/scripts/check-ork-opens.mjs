@@ -1,7 +1,8 @@
-// Open a `.ork` we wrote in a real OpenRocket, and report what it made of it.
+// Open a `.ork` or `.rkt` we wrote in a real OpenRocket, and report what it
+// made of it. The desktop's GeneralRocketLoader reads both formats.
 //
-//   npm run check:ork -- <file.ork> [...]
-//   npm run check:ork -- --jar <OpenRocket.jar> <file.ork>
+//   npm run check:ork -- <file.ork|file.rkt> [...]
+//   npm run check:ork -- --jar <OpenRocket.jar> <file.ork|file.rkt>
 //
 // The only check that asks the thing we are trying to satisfy. Our own tests can
 // prove the writer puts a part link or a motor digest into the file; they cannot
@@ -10,16 +11,18 @@
 // failures are invisible from this side of the boundary: they show up
 // as a warning dialog on somebody's screen.
 //
-// Prints every component that came back carrying a catalog part, every motor
-// that resolved, and the loader's own warnings. Exits non-zero if there are any.
+// Prints how many components came back, every component carrying a catalog
+// part, every motor that resolved, and the loader's own warnings. Exits non-zero
+// if there are any warnings or no components.
 //
 // Not part of the app build or `npm run verify`, because it needs a JDK and the
 // OpenRocket release jar (`--jar`, or an installed OpenRocket). Run it after
-// changing anything the `.ork` writer emits. To get the files the app saves,
-// run tests/services/files/orkDesktopSamples.test.ts with ORK_SAMPLES_DIR set:
+// changing anything the `.ork` or `.rkt` writer emits. To get the files the app
+// saves, run tests/services/files/orkDesktopSamples.test.ts with ORK_SAMPLES_DIR
+// set:
 //
 //   ORK_SAMPLES_DIR=<dir> npx vitest run tests/services/files/orkDesktopSamples.test.ts
-//   npm run check:ork -- <dir>/*.ork
+//   npm run check:ork -- <dir>/*.ork <dir>/*.rkt
 //
 // The gates workflow does both against the pinned release.
 import { existsSync } from 'node:fs';
@@ -36,7 +39,7 @@ const files = process.argv.slice(2).filter((a, i, all) => {
 });
 
 if (!files.length) {
-  console.error('usage: npm run check:ork -- <file.ork> [...]');
+  console.error('usage: npm run check:ork -- <file.ork|file.rkt> [...]');
   process.exit(2);
 }
 for (const f of files) {

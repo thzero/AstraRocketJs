@@ -207,6 +207,47 @@ describe('unload journal written before the first save', () => {
   });
 });
 
+/**
+ * New and import detach the store while the library still points at the design
+ * that was open. A reload inside the autosave debounce finds that design active,
+ * and the journal is the only copy of the new one.
+ */
+describe('unload journal of a design started while another was open', () => {
+  const start = async () => {
+    await store.save(ws('previous'));
+    await store.load();
+    const previous = kv.map.get(nsKey('designs:active'))!;
+    store.setActiveId(null);
+    store.setPendingName('Imported Name');
+    return previous;
+  };
+
+  it('replays it into a new design rather than reopening the previous one', async () => {
+    const previous = await start();
+    store.saveSync(ws('new-design'));
+
+    expect(nameOf(await new LibraryWorkspaceStore().load())).toBe('new-design');
+    const list = await lib.list();
+    expect(list).toHaveLength(2);
+    expect(list.find((m) => m.id !== previous)!.name).toBe('Imported Name');
+    expect(kv.map.get(nsKey('designs:active'))).not.toBe(previous);
+    expect(nameOf(await lib.read(previous))).toBe('previous');
+    expect(localStorage.getItem(UNLOAD_KEY)).toBeNull();
+  });
+
+  it('does not create it twice when the tab’s own create landed after the journal', async () => {
+    await start();
+    // `onHidden` writes the journal and starts the save that creates the entry.
+    const saving = store.save(ws('new-design'));
+    store.saveSync(ws('new-design-edited'));
+    await saving;
+
+    expect(nameOf(await new LibraryWorkspaceStore().load())).toBe('new-design-edited');
+    expect(await lib.list()).toHaveLength(2);
+    expect(localStorage.getItem(UNLOAD_KEY)).toBeNull();
+  });
+});
+
 describe('a journal older than the stored design', () => {
   // The unload write is a last resort and can lose the race: the debounced
   // async save in flight at pagehide commits after it, or another tab of the

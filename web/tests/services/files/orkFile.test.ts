@@ -858,11 +858,11 @@ describe('DocumentConfig fields round-trip and reach the kernel', () => {
   const out = importOrk(exportOrk({ name: 'Audit', tree }));
   const get = (type: string) => findByType(out.tree, type) as Record<string, unknown>;
 
-  it('keeps a part color, which the writer never wrote at all', () => {
+  it('keeps a part color', () => {
     expect(get('nosecone').color).toBe('#ff8800');
   });
 
-  it('keeps a flipped nose cone, which was hardcoded false on the way out', () => {
+  it('keeps a flipped nose cone', () => {
     expect(get('nosecone').flipped).toBe(true);
   });
 
@@ -901,7 +901,7 @@ describe('DocumentConfig fields round-trip and reach the kernel', () => {
     expect(get('trapezoidfinset').crossSection).toBe('airfoil');
   });
 
-  it('keeps a part comment, which was dropped on every save', () => {
+  it('keeps a part comment', () => {
     expect(get('nosecone').comment).toBe('Sanded to 400 grit & filled');
   });
 

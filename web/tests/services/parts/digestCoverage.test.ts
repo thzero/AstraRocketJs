@@ -1,8 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-// @ts-expect-error - a plain .mjs build script helper, no types
-import { motorProblems, partProblems, MIN_ROWS } from '../../../scripts/lib/digestCoverage.mjs';
+import {
+  digestChanges,
+  goneSection,
+  motorProblems,
+  partProblems,
+  MIN_ROWS,
+  // @ts-expect-error - a plain .mjs build script helper, no types
+} from '../../../scripts/lib/digestCoverage.mjs';
 
 /**
  * The floors a parts or motor catalog has to meet before the sync scripts write
@@ -41,5 +47,48 @@ describe('the digest floors', () => {
 
   it('do not hold a type with few rows to the per-type floor', () => {
     expect(partProblems([...parts('bodytube', 1000, 1000), ...parts('railbutton', MIN_ROWS - 1, 0)])).toEqual([]);
+  });
+});
+
+/**
+ * The run-to-run guard. The catalogs follow sources we do not control, so a row
+ * that went away upstream takes its digest with it and the run goes on; a row
+ * that is still there and lost its digest is a broken run and is refused.
+ */
+describe('the digest comparison with the previous catalog', () => {
+  const row = (key: string, digested = true) => ({ key, digested });
+
+  it('passes a digested row removed upstream, and reports it as gone', () => {
+    const previous = [row('Estes|C6'), row('Estes|D12'), row('AT|H128')];
+    const current = [row('Estes|C6'), row('Estes|D12')];
+    expect(digestChanges(previous, current)).toEqual({ lost: [], gone: ['AT|H128'] });
+  });
+
+  it('refuses a surviving row that lost its digest', () => {
+    const previous = [row('Estes|C6'), row('Estes|D12')];
+    const current = [row('Estes|C6'), row('Estes|D12', false)];
+    expect(digestChanges(previous, current)).toEqual({ lost: ['Estes|D12'], gone: [] });
+  });
+
+  it('passes new rows with or without a digest, and a row that gained one', () => {
+    const previous = [row('Estes|C6', false)];
+    const current = [row('Estes|C6'), row('Estes|E9', false), row('AT|H128')];
+    expect(digestChanges(previous, current)).toEqual({ lost: [], gone: [] });
+  });
+
+  it('counts rows per key, so one of two same-key rows going away is not a loss', () => {
+    const previous = [row('bodytube|LOC|BT-1'), row('bodytube|LOC|BT-1')];
+    expect(digestChanges(previous, [row('bodytube|LOC|BT-1')])).toEqual({ lost: [], gone: ['bodytube|LOC|BT-1'] });
+    expect(digestChanges(previous, [row('bodytube|LOC|BT-1'), row('bodytube|LOC|BT-1', false)])).toEqual({
+      lost: ['bodytube|LOC|BT-1'],
+      gone: [],
+    });
+  });
+
+  it('lists the gone rows for the job summary, and nothing when none went', () => {
+    expect(goneSection('Motors', [])).toBe('');
+    const text = goneSection('Motors', ['AT|H128']);
+    expect(text).toContain('### Motors no longer in the source');
+    expect(text).toContain('- `AT|H128`');
   });
 });

@@ -9,6 +9,7 @@ import { buildExportMotorMap, fillMotorDigests } from '../services/motors/export
 import { repairValues } from '../services/design/repairValues';
 import { computeStaticInfo } from '../services/design/buildRocket';
 import { wireLoadedOrk } from '../services/files/wireLoadedOrk';
+import { assertImportSize } from '../services/files/decodeText';
 // Static, not the lazy import the neighboring .ork paths use: this is a fetch
 // wrapper with no heavy dependencies, and the library dialog imports it
 // statically anyway, so a dynamic import here only produces rolldown's
@@ -17,6 +18,8 @@ import { fetchExample } from '../services/storage/exampleLibrary';
 import { isOutdated, newSimulation } from '../services/flight/simulations';
 import { loadSettings } from '../services/storage/settings';
 import { importNotes } from '../services/files/importBanner';
+import { configPowerClass } from '../services/flight/powerClass';
+import { configFor } from '../services/flight/flightConfigs';
 import { defaultDesignName, designNameOf } from '../services/app/appInfo';
 import { getDesignLibrary, type DesignMeta } from '../services/storage/designLibrary';
 import { getWorkspaceStore, lean, resultsOf } from '../services/storage/workspaceStore';
@@ -249,7 +252,9 @@ export const createFileSlice =
         let engineTouched = false;
         try {
           // The .ork parser (fflate + XML importer) is a lazily-imported chunk:
-          // it isn't part of first paint, only of opening a file.
+          // it isn't part of first paint, only of opening a file. The size is
+          // checked first: arrayBuffer() holds every byte of the file in memory.
+          assertImportSize(file.size);
           const bytes = await file.arrayBuffer();
           if (stale()) return;
           const { loadOrk } = await import('../services/files/loadOrk');
@@ -280,7 +285,11 @@ export const createFileSlice =
             i18n.t as unknown as (key: string, options?: Record<string, unknown>) => string,
             launcherKind(fixed.tree),
           );
-          const notes = importNotes(loadedMeta.notes, sims[0]!.launch, t, displayUnits());
+          // Before the engine has built the imported rocket, so the motors
+          // alone decide each configuration's class here; the run gate judges
+          // again with the rocket's mass.
+          const classes = sims.map((sim) => configPowerClass(fixed.tree, configFor(configs, sim.configId), null));
+          const notes = importNotes(loadedMeta.notes, sims[0]!.launch, classes, t, displayUnits());
           replaceWorkspace({
             repairNotes: repairNotes(fixed.repaired),
             tree: fixed.tree,
@@ -443,7 +452,7 @@ export const createFileSlice =
         claimWorkspace(); // New: any import or library open still in flight is void
         const tree = defaultRocketTree();
         const config = defaultConfig(tree);
-        const s0 = newSimulation('Simulation 1', config.id, loadSettings().launchDefaults);
+        const s0 = newSimulation(i18n.t('sims.untitled', { n: 1 }), config.id, loadSettings().launchDefaults);
         clearHistory(); // starting a new design drops the previous design's undo stack
         // Detach from the open library entry, or the first autosave would write
         // this blank design straight over the rocket the user just had open.

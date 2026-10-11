@@ -10,7 +10,8 @@ import { test, expect, openTab, ready, runButton, runFlight, importOrk, autosave
  * case they cannot cover.
  *
  * `out-of-limits.ork` is `two-stage.ork` with a 35° rod angle and 15 m/s of
- * wind. The messages quote the reader's units (metric by default), not the
+ * wind. It flies a C6, a model rocket, so the angle is held to the model
+ * code's 30°. The messages quote the reader's units (metric by default), not the
  * codes' own mph.
  */
 test('an imported .ork outside the limits is flagged and refused', async ({ page }) => {
@@ -35,7 +36,7 @@ test('an imported .ork outside the limits is flagged and refused', async ({ page
   // radius, say) never reaches the launch check at all, which masks the assertion.
   const notice = page.getByText(/was not run: its launch conditions are outside the safety codes/);
   await expect(notice).toBeVisible();
-  await expect(notice).toContainText('above the 20° the NAR and Tripoli safety codes allow');
+  await expect(notice).toContainText('above the 30° the NAR Model Rocket Safety Code allows');
   await expect(notice).toContainText('above the 8.9 m/s the NAR and Tripoli safety codes allow');
 
   // Bring both back inside and it flies. The fields clamp, so typing anything

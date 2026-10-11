@@ -52,6 +52,17 @@ describe('rebaseTabOffset', () => {
     const middle = rebaseTabOffset(fin({ tabOffsetMethod: 'bottom', tabOffset: -0.03 }), 'middle');
     expect(middle.tabOffset as number).toBeCloseTo(-0.01, 12);
   });
+
+  it('reads and writes an after or absolute tab as AxialMethod does', () => {
+    // AFTER: getAsPosition = outerLength + offset, getAsOffset = position - outerLength.
+    // ABSOLUTE: both are the identity. outerLength is the 60 mm root.
+    const fromAfter = rebaseTabOffset(fin({ tabOffsetMethod: 'after', tabOffset: 0.01 }), 'top');
+    expect(fromAfter.tabOffset as number).toBeCloseTo(0.06 + 0.01, 12);
+    const toAfter = rebaseTabOffset(fin({ tabOffsetMethod: 'top', tabOffset: 0.07 }), 'after');
+    expect(toAfter.tabOffset as number).toBeCloseTo(0.07 - 0.06, 12);
+    const toAbsolute = rebaseTabOffset(fin({ tabOffsetMethod: 'bottom', tabOffset: 0 }), 'absolute');
+    expect(toAbsolute.tabOffset as number).toBeCloseTo(0 + (0.06 - 0.02), 12);
+  });
 });
 
 describe('axialFrameOf', () => {

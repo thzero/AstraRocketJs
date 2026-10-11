@@ -51,8 +51,10 @@ export interface TileSource {
  *
  * Both paths are {z}/{y}/{x}, not the {z}/{x}/{y} most tile servers use.
  * Attribution strings are the `copyrightText` each service publishes in its own
- * `?f=json` metadata rather than something paraphrased.
+ * `?f=json` metadata, word for word, `(c)` included: the provider's terms ask
+ * for that credit, not a shortened one.
  */
+// cspell:ignore Intermap METI NGCC
 const ESRI = (service: string) => (z: number, x: number, y: number) =>
   `https://server.arcgisonline.com/ArcGIS/rest/services/${service}/MapServer/tile/${z}/${y}/${x}`;
 
@@ -65,14 +67,16 @@ export const TILE_SOURCES: Record<TileSourceId, TileSource> = {
     id: 'satellite',
     maxZoom: 19,
     url: ESRI('World_Imagery'),
-    attribution: 'Imagery: Esri, Vantor, Earthstar Geographics',
+    attribution: 'Source: Esri, Vantor, Earthstar Geographics, and the GIS User Community',
   },
   /** For reading the roads in and the town you are near, which imagery does not tell you. */
   street: {
     id: 'street',
     maxZoom: 19,
     url: ESRI('World_Street_Map'),
-    attribution: 'Esri, HERE, Garmin, USGS, NGA, © OpenStreetMap contributors',
+    attribution:
+      'Sources: Esri, HERE, Garmin, USGS, Intermap, INCREMENT P, NRCan, Esri Japan, METI, Esri China (Hong Kong), ' +
+      'Esri Korea, Esri (Thailand), NGCC, (c) OpenStreetMap contributors, and the GIS User Community',
   },
 };
 

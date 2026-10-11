@@ -41,6 +41,7 @@
       "archiveEmpty": "Het .ork-archief is leeg.",
       "tooManyComponents": "Dit {{format}}-bestand bevat te veel onderdelen om te openen (mogelijk beschadigd).",
       "tooManySimulations": "Dit .ork-bestand bevat te veel simulaties om te openen (mogelijk beschadigd).",
+      "tooManyUnknownElements": "Dit .ork-bestand bevat te veel onbekende elementen om te openen (mogelijk beschadigd).",
       "tooManyConfigs": "Dit .ork-bestand bevat te veel vluchtconfiguraties om te openen (mogelijk beschadigd).",
       "tooDeep": "Dit {{format}}-bestand is te diep genest om te openen (mogelijk beschadigd).",
       "tooLarge": "Het bestand is te groot om te openen (meer dan {{size}} MiB)."
@@ -72,6 +73,7 @@
       "engHeaderMass": "Ongeldige .eng-kopregel: de stuwstofmassa moet tussen 0 en de totale massa liggen.",
       "engDataLine": "Ongeldige .eng-gegevens op regel {{line}}: een tijd en een stuwkracht verwacht, maar \"{{text}}\" gevonden.",
       "engNoCurve": "Het .eng-bestand bevat geen meetpunten van de stuwkrachtcurve.",
+      "engTooManyPoints": "Motor {{motor}} in het .eng-bestand heeft meer dan {{max}} meetpunten.",
       "engNegativeThrust": "Motor {{motor}} in het .eng-bestand heeft een negatieve stuwkracht op regel {{line}}.",
       "engNegativeTime": "Motor {{motor}} in het .eng-bestand heeft een negatieve tijd op regel {{line}}.",
       "attrDiameter": "diameter",
@@ -128,7 +130,11 @@
       "materials": "Kon de materialencatalogus niet laden ({{reason}}).",
       "contributors": "Kon de lijst met bijdragers niet laden ({{reason}}).",
       "tooLarge": "antwoord te groot",
-      "badShape": "onverwachte opbouw van de catalogus"
+      "badShape": "onverwachte opbouw van de catalogus",
+      "http": "HTTP {{status}} van de server",
+      "timeout": "de server antwoordde niet op tijd",
+      "network": "de server is niet bereikbaar",
+      "noExamples": "de voorbeeldindex bevat geen voorbeelden"
     },
     "export": {
       "noPrintable": "Er zijn geen printbare onderdelen geselecteerd.",
@@ -175,6 +181,8 @@
     "noDesign": "Geen geldig ontwerp om te exporteren.",
     "stages": "Trappen",
     "length": "Lengte",
+    "dimLength": "lengte {{value}}",
+    "dimWall": "wand {{value}}",
     "maxDiameter": "Max. diameter",
     "massEmpty": "Massa (leeg)",
     "massLoaded": "Massa (geladen)",
@@ -219,6 +227,8 @@
     "transition": "Overgang",
     "tooLarge": "{{w}}×{{h}} mm, te groot om 1:1 op één pagina te printen.",
     "fontFallback": "Het lettertype van het rapport kon niet worden geladen, dus sommige tekens in deze pdf staan er als \"?\". Exporteer het opnieuw zodra je online bent.",
+    "scriptUncovered": "Sommige tekens in deze pdf horen bij een schrift dat de lettertypen van het rapport niet bevatten, dus ze staan er als \"?\".",
+    "outdatedFlight": "Verouderd: deze resultaten zijn gevlogen voordat het ontwerp of de simulatie-instellingen voor het laatst zijn gewijzigd. Voer de simulatie opnieuw uit voor actuele waarden.",
     "bodyTube": "Rompbuis",
     "markingGuide": "Aftekenhulp voor vinnen (1:1)",
     "markingGuideHint": "Print op 100% / ware grootte (zonder paginaschaling), controleer de lineaal, knip elke strook uit, wikkel die om de rompbuis met de uiteinden tegen elkaar (niet overlappend) en zet een streepje door de pijlen. Trek een lijn over de buis door elk paar streepjes: daar komt het onderdeel.",
@@ -297,7 +307,8 @@
     "jsTip": "Fysicamotor: JavaScript (terugvaloptie)",
     "slow": "De natuurkundemotor laadt langer dan gebruikelijk.",
     "needsIt": "De ontwerpgereedschappen werken zonder motor; de getallen en de simulaties hebben hem nodig.",
-    "retry": "Opnieuw proberen"
+    "retry": "Opnieuw proberen",
+    "reload": "Pagina opnieuw laden"
   },
   "about": {
     "open": "Over",
@@ -537,7 +548,8 @@
       "streamer_surface": "Wimpel",
       "shockcord_line": "Schokkoord"
     },
-    "materialNoDefault": "Geen standaard: het onderdeel leeg laten"
+    "materialNoDefault": "Geen standaard: het onderdeel leeg laten",
+    "timeStepScale": "Tijdstap, grof tot fijn"
   },
   "config": {
     "title": "Raketconfiguratie",
@@ -814,9 +826,15 @@
     "rodDirectionName_rail": "Richting van de lanceerrail",
     "rodDirectionName_rod": "Richting van de lanceerstang",
     "windDirectionName": "Windrichting",
-    "angleLimit": "De veiligheidsvoorschriften van NAR en Tripoli vragen om een lanceerinrichting binnen {{limit}} van verticaal.",
-    "angleLimit_rail": "De veiligheidsvoorschriften van NAR en Tripoli vragen om een lanceerrail binnen {{limit}} van verticaal.",
-    "angleLimit_rod": "De veiligheidsvoorschriften van NAR en Tripoli vragen om een lanceerstang binnen {{limit}} van verticaal.",
+    "angleLimitModel": "Als modelraket vliegt deze onder de NAR Model Rocket Safety Code, die om een lanceerinrichting binnen {{limit}} van verticaal vraagt.",
+    "angleLimitModel_rail": "Als modelraket vliegt deze onder de NAR Model Rocket Safety Code, die om een lanceerrail binnen {{limit}} van verticaal vraagt.",
+    "angleLimitModel_rod": "Als modelraket vliegt deze onder de NAR Model Rocket Safety Code, die om een lanceerstang binnen {{limit}} van verticaal vraagt.",
+    "angleLimitHighPower": "Als high-powerraket vliegt deze onder de high-powerveiligheidsvoorschriften van NAR en Tripoli, die om een lanceerinrichting binnen {{limit}} van verticaal vragen.",
+    "angleLimitHighPower_rail": "Als high-powerraket vliegt deze onder de high-powerveiligheidsvoorschriften van NAR en Tripoli, die om een lanceerrail binnen {{limit}} van verticaal vragen.",
+    "angleLimitHighPower_rod": "Als high-powerraket vliegt deze onder de high-powerveiligheidsvoorschriften van NAR en Tripoli, die om een lanceerstang binnen {{limit}} van verticaal vragen.",
+    "angleLimitEither": "De NAR Model Rocket Safety Code vraagt om een lanceerinrichting binnen {{model}} van verticaal, en de high-powervoorschriften van NAR en Tripoli binnen {{highPower}}.",
+    "angleLimitEither_rail": "De NAR Model Rocket Safety Code vraagt om een lanceerrail binnen {{model}} van verticaal, en de high-powervoorschriften van NAR en Tripoli binnen {{highPower}}.",
+    "angleLimitEither_rod": "De NAR Model Rocket Safety Code vraagt om een lanceerstang binnen {{model}} van verticaal, en de high-powervoorschriften van NAR en Tripoli binnen {{highPower}}.",
     "windLimit": "De veiligheidsvoorschriften van NAR en Tripoli vragen je niet te vliegen bij wind boven {{limit}}.",
     "field": {
       "launchRodLengthM": "lengte van de lanceerinrichting",
@@ -855,7 +873,40 @@
     "flightEvents": "Vluchtgebeurtenissen meenemen",
     "commentChar": "Commentaarteken",
     "stage": "Te exporteren trap",
-    "export": "Exporteren"
+    "export": "Exporteren",
+    "head": {
+      "simulationLine": "Simulatie: {{name}}",
+      "time": "Tijd",
+      "event": "Gebeurtenis",
+      "source": "Bron",
+      "stage": "Trap",
+      "altitude": "Hoogte",
+      "velocity": "Snelheid",
+      "stability": "Stabiliteit",
+      "thrustWeight": "Stuwkracht/gewicht",
+      "aoa": "Invalshoek",
+      "mach": "Mach",
+      "dynamicPressure": "Stuwdruk",
+      "simulation": "Simulatie",
+      "configuration": "Configuratie",
+      "motors": "Motoren",
+      "status": "Status",
+      "apogee": "Apogeum",
+      "maxVelocity": "Max. snelheid",
+      "maxAcceleration": "Max. versnelling",
+      "maxMach": "Max. mach",
+      "exitVelocity": "Snelheid bij verlaten lanceerinrichting",
+      "exitVelocity_rail": "Snelheid bij verlaten rail",
+      "exitVelocity_rod": "Snelheid bij verlaten stang",
+      "timeToApogee": "Tijd tot apogeum",
+      "flightTime": "Vluchtduur",
+      "deploymentVelocity": "Snelheid bij openen",
+      "landingVelocity": "Landingssnelheid",
+      "optimumDelay": "Optimale vertraging",
+      "maxQ": "Max. stuwdruk",
+      "maxQAlpha": "Max. q·alpha",
+      "maxRollRate": "Max. rolsnelheid"
+    }
   },
   "flightVar": {
     "ha": "Hoogte boven zeeniveau",
@@ -994,7 +1045,8 @@
     "events": "Vluchtgebeurtenissen",
     "event": "Gebeurtenis",
     "twr": "Stuwkracht/gewicht",
-    "eventsCsv": "Vluchtgebeurtenissen downloaden (.csv)"
+    "eventsCsv": "Vluchtgebeurtenissen downloaden (.csv)",
+    "peakTag": "piek"
   },
   "pathExport": {
     "open": "Vluchtbaan exporteren (KML / GPX / CSV)",
@@ -1095,7 +1147,8 @@
       "flightPath": "vluchtbaan",
       "groundTrack": "grondspoor",
       "distanceBearing": "{{distance}} {{unit}} op {{bearing}}",
-      "stageLanding": "Landing van {{stage}}"
+      "stageLanding": "Landing van {{stage}}",
+      "flight": "Vlucht"
     },
     "mission": "Missie",
     "missionPlaceholder": "bv. Sod Blaster L1",
@@ -1108,7 +1161,10 @@
     "cancel": "Annuleren",
     "colorRolePath": "Baan",
     "colorRoleGround": "Grond",
-    "colorRolePin": "Speld"
+    "colorRolePin": "Speld",
+    "importSaveError": "Kan die sjabloon niet opslaan in deze browser.",
+    "deleteError": "Kan die sjabloon niet verwijderen.",
+    "deleteConfirm": "De sjabloon ‘{{name}}’ uit deze browser verwijderen?"
   },
   "aero": {
     "unattributed": "Niet aan een onderdeel toegeschreven",
@@ -1178,7 +1234,6 @@
     "versionUnsupported": "Niet-ondersteunde documentversie {{version}}, het bestand wordt toch gelezen.",
     "versionMissingBy": "Niet-ondersteunde documentversie (geschreven met '{{creator}}'), het bestand wordt toch gelezen.",
     "versionMissing": "Niet-ondersteunde documentversie, het bestand wordt toch gelezen.",
-    "ignored": "Niet-ondersteunde onderdelen genegeerd: {{names}}.",
     "skippedUnsupported": "Niet ondersteund, overgeslagen: {{name}}",
     "instanced": "Onderdelen die zich als meerdere exemplaren herhalen: {{names}}. De simulatie rekent met elk exemplaar, maar de tekening toont er nu één.",
     "configsNoMotors": "Het bestand declareert {{total}} vluchtconfiguraties maar bevatte geen motoren om te importeren.",
@@ -1887,9 +1942,12 @@
     "tooFast": "Te snel",
     "tooSlow": "Te langzaam",
     "overRail": "Langer dan de rail",
-    "rodAngle": "De hoek van de lanceerinrichting is {{value}} van verticaal, boven de {{limit}} die de veiligheidsvoorschriften van NAR en Tripoli toestaan.",
-    "rodAngle_rail": "De hoek van de lanceerrail is {{value}} van verticaal, boven de {{limit}} die de veiligheidsvoorschriften van NAR en Tripoli toestaan.",
-    "rodAngle_rod": "De hoek van de lanceerstang is {{value}} van verticaal, boven de {{limit}} die de veiligheidsvoorschriften van NAR en Tripoli toestaan.",
+    "rodAngleModel": "De hoek van de lanceerinrichting is {{value}} van verticaal, boven de {{limit}} die de NAR Model Rocket Safety Code toestaat.",
+    "rodAngleModel_rail": "De hoek van de lanceerrail is {{value}} van verticaal, boven de {{limit}} die de NAR Model Rocket Safety Code toestaat.",
+    "rodAngleModel_rod": "De hoek van de lanceerstang is {{value}} van verticaal, boven de {{limit}} die de NAR Model Rocket Safety Code toestaat.",
+    "rodAngleHighPower": "De hoek van de lanceerinrichting is {{value}} van verticaal, boven de {{limit}} die de veiligheidsvoorschriften van NAR en Tripoli een high-powerraket toestaan.",
+    "rodAngleHighPower_rail": "De hoek van de lanceerrail is {{value}} van verticaal, boven de {{limit}} die de veiligheidsvoorschriften van NAR en Tripoli een high-powerraket toestaan.",
+    "rodAngleHighPower_rod": "De hoek van de lanceerstang is {{value}} van verticaal, boven de {{limit}} die de veiligheidsvoorschriften van NAR en Tripoli een high-powerraket toestaan.",
     "wind": "De windsnelheid is {{value}}, boven de {{limit}} die de veiligheidsvoorschriften van NAR en Tripoli toestaan.",
     "refused": "\"{{name}}\" is niet uitgevoerd: de lanceeromstandigheden vallen buiten de veiligheidsvoorschriften."
   },
@@ -1985,7 +2043,8 @@
     "landed": "{{flown}} van {{asked}} vluchten zijn geland.",
     "stale": "Het ontwerp is veranderd sinds deze reeks is gevlogen.",
     "noLandings": "De windreeks leverde geen landingen op.",
-    "spread": "{{from}}–{{to}}"
+    "spread": "{{from}}–{{to}}",
+    "flown": "reeks uitgevoerd"
   },
   "crossSection": {
     "square": "Recht",
@@ -2045,8 +2104,8 @@
       "badKey": "Open-Meteo accepteerde de API-sleutel uit Instellingen, Lancering niet. Je lanceeromstandigheden zijn niet gewijzigd.",
       "quota": "De gratis limiet van Open-Meteo is voorlopig op. Probeer het later opnieuw of voeg een API-sleutel toe in Instellingen, Lancering. Je lanceeromstandigheden zijn niet gewijzigd.",
       "http": "Open-Meteo antwoordde met een fout ({{detail}}). Je lanceeromstandigheden zijn niet gewijzigd.",
-      "shape": "Het antwoord van Open-Meteo kon niet worden gelezen ({{detail}}). Je lanceeromstandigheden zijn niet gewijzigd.",
-      "units": "Open-Meteo antwoordde in eenheden die de app niet leest ({{detail}}). Je lanceeromstandigheden zijn niet gewijzigd.",
+      "shape": "Het antwoord van Open-Meteo kon niet worden gelezen. Je lanceeromstandigheden zijn niet gewijzigd.",
+      "units": "Open-Meteo antwoordde in eenheden die de app niet leest. Je lanceeromstandigheden zijn niet gewijzigd.",
       "noData": "Open-Meteo heeft hier geen gegevens voor die datum. Je lanceeromstandigheden zijn niet gewijzigd."
     },
     "keyLabel": "Open-Meteo-API-sleutel",
@@ -2129,6 +2188,7 @@
     "estimateNote": "Een schatting uit ingevulde daalsnelheden. De zone omvat {{descents}} afdalingen: {{hours}} voorspellingsuren, windsnelheid 20% hoger en lager, richting 15° naar beide kanten en daalsnelheid 10% hoger en lager.",
     "flatGround": "De vorm van het terrein kon niet worden opgehaald, dus de landing is op vlakke grond op de hoogte van het platform.",
     "surfaceWindOnly": "Het archief van Open-Meteo voor deze datum heeft alleen de wind bij de grond, dus de hele afdaling drijft daarop.",
+    "outdated": "De lanceerplaats, datum, het uur, het apogeum of de daalsnelheden zijn gewijzigd sinds deze schatting. Druk op Landing schatten om die bij te werken.",
     "mapLabel": "Landingsschatting van bovenaf, landing op {{distance}} van het platform"
   },
   "tools": {

@@ -93,8 +93,6 @@ declare module '*openrocket-engine.mjs' {
     thrusts2: number[],
   ): number;
   export function getComponentMasses(rocket: number): string;
-  export function setRogersModifiedBarrowman(rocket: number, enabled: boolean): void;
-  export function setSupersonicAero(rocket: number, enabled: boolean): void;
   export function setStubbyNoseDrag(rocket: number, enabled: boolean): void;
   export function main(): void;
 }

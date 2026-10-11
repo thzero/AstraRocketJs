@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { LaunchConditions } from '../../services/design/orkTree';
 import { isFilled, missingRequired, type RequiredLaunchKey } from '../../services/flight/requiredLaunch';
@@ -9,6 +9,7 @@ import { onSi } from '../../prefs/entryValue';
 import { fmtUpTo, ladderDigits, withUnit } from '../../i18n/format';
 import { LAUNCH_SI, type LaunchUnitKind } from '../../prefs/launchUnits';
 import { MAX_ROD_ANGLE_RAD, MAX_TURBULENCE_PERCENT, MAX_WIND_SPEED_MS } from '../../services/flight/safetyLimits';
+import type { PowerClass } from '../../services/flight/powerClass';
 import { G0 } from '../../services/motors/motorMath';
 import {
   hasIntensity,
@@ -130,6 +131,7 @@ export function LaunchPanel({
   weather = false,
   weatherKey = false,
   launcher = null,
+  powerClass = null,
 }: {
   launch: LaunchConditions;
   onChange: (patch: Partial<LaunchConditions>) => void;
@@ -155,6 +157,13 @@ export function LaunchPanel({
   weatherKey?: boolean;
   /** What the design is launched from, which names the launcher fields; null for the neutral word. */
   launcher?: LauncherKind | null;
+  /**
+   * The class of rocket these conditions fly, which sets the launcher angle the
+   * codes allow. Null when there is no one answer: the Settings copy edits the
+   * defaults for every configuration, and a bulk edit can span both classes.
+   * The field then stops at the model rocket limit and the hint states both.
+   */
+  powerClass?: PowerClass | null;
 }) {
   const { t: plainT } = useTranslation();
   const t = withLauncher(plainT as unknown as (key: string, options?: Record<string, unknown>) => string, launcher);
@@ -212,6 +221,14 @@ export function LaunchPanel({
   const windAvg = isFilled(launch.windAverage) ? launch.windAverage : 0;
   const windSd = isFilled(launch.windStdDev) ? launch.windStdDev : 0;
   const intensity = turbulenceIntensity(windAvg, windSd);
+  // The wind as it stood before the speed box was edited. The box reports every
+  // keystroke, so retuning from the previous keystroke would pass through
+  // whatever the user typed on the way: "0" on the way to "0.5" sets the
+  // deviation to 0, and every later keystroke rescales that 0. Desktop's
+  // `PinkNoiseWindModel.setAverage` only ever sees the committed value, so the
+  // turbulence is carried from the value the edit started on. Cleared on blur,
+  // which ends the edit.
+  const speedEditBase = useRef<{ avg: number; sd: number } | null>(null);
 
   /**
    * Switch wind models. Multilevel is represented by having levels, so turning
@@ -240,7 +257,13 @@ export function LaunchPanel({
     // sim editor, the Settings dialog body), and a second p-3 would inset this
     // panel's cards relative to their siblings. The gap matches the sim editor's, so one
     // column of cards reads as one rhythm.
-    <div className="space-y-4" onBlur={onCommit}>
+    <div
+      className="space-y-4"
+      onBlur={() => {
+        speedEditBase.current = null;
+        onCommit?.();
+      }}
+    >
       <CardGroup title={t('launch.launchRod')}>
         <QNum
           label={t('launch.length')}
@@ -262,8 +285,17 @@ export function LaunchPanel({
           u={u}
           stepSi={Math.PI / 180}
           minSi={0}
-          maxSi={MAX_ROD_ANGLE_RAD}
-          hint={t('launch.angleLimit', { limit: capFor('deg', 'angle', MAX_ROD_ANGLE_RAD) })}
+          maxSi={MAX_ROD_ANGLE_RAD[powerClass ?? 'model']}
+          hint={
+            powerClass === null
+              ? t('launch.angleLimitEither', {
+                  model: capFor('deg', 'angle', MAX_ROD_ANGLE_RAD.model),
+                  highPower: capFor('deg', 'angle', MAX_ROD_ANGLE_RAD.highPower),
+                })
+              : t(powerClass === 'model' ? 'launch.angleLimitModel' : 'launch.angleLimitHighPower', {
+                  limit: capFor('deg', 'angle', MAX_ROD_ANGLE_RAD[powerClass]),
+                })
+          }
           mixed={mixed('launchRodAngleDeg')}
           {...req('launchRodAngleDeg')}
           value={launch.launchRodAngleDeg}
@@ -357,14 +389,14 @@ export function LaunchPanel({
             disabled={locating}
             className="w-full rounded-md bg-raised px-2 py-1.5 text-xs font-medium text-ink-soft ring-1 ring-line/10 hover:bg-elevated disabled:opacity-60"
           >
-            📍 {locating ? t('launch.locating') : t('launch.useLocation')}
+            <span aria-hidden="true">📍</span> {locating ? t('launch.locating') : t('launch.useLocation')}
           </button>
         )}
         <button
           onClick={() => setMapOpen(true)}
           className="w-full rounded-md bg-raised px-2 py-1.5 text-xs font-medium text-ink-soft ring-1 ring-line/10 hover:bg-elevated"
         >
-          🗺 {t('map.show')}
+          <span aria-hidden="true">🗺</span> {t('map.show')}
         </button>
         {/* Always mounted, empty until there is something to say: a live
             region created together with its text is not announced by most
@@ -527,6 +559,7 @@ export function LaunchPanel({
               {...req('windAverage')}
               value={launch.windAverage}
               onChange={(v) => {
+                const base = (speedEditBase.current ??= { avg: windAvg, sd: windSd });
                 // Cleared means unset, not 0: 0 is a real wind speed, so
                 // landing there makes emptying the field assert still air.
                 if (v == null) return onChange({ windAverage: null });
@@ -537,8 +570,8 @@ export function LaunchPanel({
                 // where the ratio is the 0-or-1 stand-in rather than a real
                 // fraction and rescaling would snap the scatter to the whole
                 // wind speed.
-                if (!hasIntensity(windAvg)) return onChange({ windAverage: v });
-                onChange({ windAverage: v, windStdDev: retuneStdDev(windAvg, windSd, v) });
+                if (!hasIntensity(base.avg)) return onChange({ windAverage: v });
+                onChange({ windAverage: v, windStdDev: retuneStdDev(base.avg, base.sd, v) });
               }}
             />
             <QNum
