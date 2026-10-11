@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 /**
@@ -70,21 +71,32 @@ const shallow = (dir: string, keep: (path: string) => boolean): string[] =>
     .map((entry) => `${dir}/${entry}`)
     .filter((full) => statSync(full).isFile() && keep(full));
 
+/**
+ * Every folder the scan starts from. A missing one scans as empty rather than
+ * throwing while this file loads, and the first test fails on it instead.
+ */
+const roots: string[] = [];
+const from = (dir: string, list: (dir: string) => string[]): string[] => {
+  roots.push(dir);
+  return existsSync(dir) ? list(dir) : [];
+};
+const tree = (dir: string, keep: (path: string) => boolean): string[] => from(dir, (d) => walk(d, keep));
+const top = (dir: string, keep: (path: string) => boolean): string[] => from(dir, (d) => shallow(d, keep));
+
 const files = [
-  ...walk(`${web}src`, anyFile),
-  ...walk(`${web}tests`, anyFile),
-  ...walk(`${web}e2e`, anyFile),
-  ...walk(`${web}scripts`, anyFile),
-  ...shallow(web.slice(0, -1), (f) => !f.endsWith('/package-lock.json')),
-  ...walk(`${repo}website`, anyFile),
-  ...walk(`${repo}.github`, anyFile),
-  ...walk(`${repo}engine-java/src/api`, anyFile),
-  ...shallow(`${repo}engine-java`, (f) => markdown(f) || /\/(build\.gradle|gradle\.properties)$/.test(f)),
-  ...shallow(`${repo}engine-java/patches`, markdown),
-  ...walk(`${repo}docs`, markdown),
-  ...shallow(repo.slice(0, -1), (f) => markdown(f) || /\/(\.[^/]+|cspell\.json)$/.test(f)),
-  ...walk(`${repo}.cspell`, anyFile),
-  ...walk(`${repo}.vscode`, anyFile),
+  ...tree(`${web}src`, anyFile),
+  ...tree(`${web}tests`, anyFile),
+  ...tree(`${web}e2e`, anyFile),
+  ...tree(`${web}scripts`, anyFile),
+  ...top(web.slice(0, -1), (f) => !f.endsWith('/package-lock.json')),
+  ...tree(`${repo}website`, anyFile),
+  ...tree(`${repo}.github`, anyFile),
+  ...tree(`${repo}engine-java/src/api`, anyFile),
+  ...top(`${repo}engine-java`, (f) => markdown(f) || /\/(build\.gradle|gradle\.properties)$/.test(f)),
+  ...top(`${repo}engine-java/patches`, markdown),
+  ...tree(`${repo}docs`, markdown),
+  ...top(repo.slice(0, -1), (f) => markdown(f) || /\/(\.[^/]+|cspell\.json)$/.test(f)),
+  ...tree(`${repo}.cspell`, anyFile),
 ];
 
 /** Every `file:line` holding the character; binary files (a NUL byte) are skipped. */
@@ -104,6 +116,15 @@ const hits = (paths: string[]): string[] => {
 };
 
 describe('the em dash', () => {
+  // A folder that is missing, or that git does not track, exists only in some
+  // checkouts: the scan would pass on one machine and fail to load on CI.
+  it('starts only from folders the repository tracks', () => {
+    const untracked = roots.filter(
+      (dir) => !existsSync(dir) || execFileSync('git', ['ls-files', '--', dir], { cwd: repo }).length === 0,
+    );
+    expect(untracked).toEqual([]);
+  });
+
   it('scans the trees it claims to', () => {
     expect(files.some((f) => f.endsWith('/src/i18n/locales/en.json'))).toBe(true);
     expect(files.some((f) => f.endsWith('/src/i18n/locales/es.json'))).toBe(false);
