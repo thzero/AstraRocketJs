@@ -159,6 +159,7 @@
       "cannotAdd": "Impossible d'ajouter « {{part}} » ici : ni la pièce sélectionnée ni l'étage ne peuvent le contenir."
     },
     "rktSkip": {
+      "airfoilMass": "masse des ailerons à profil d'aile ({{name}})",
       "cgOverride": "CG forcé ({{name}})",
       "extraStages": "étages {{from}} et suivants"
     },

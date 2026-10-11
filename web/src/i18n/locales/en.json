@@ -159,6 +159,7 @@
       "cannotAdd": "{{part}} cannot be added here: neither the selected part nor the stage can hold it."
     },
     "rktSkip": {
+      "airfoilMass": "Airfoil fin mass ({{name}})",
       "cgOverride": "CG override ({{name}})",
       "extraStages": "stage {{from}} and beyond"
     },

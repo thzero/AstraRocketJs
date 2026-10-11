@@ -159,6 +159,7 @@
       "cannotAdd": "No se puede añadir {{part}} aquí: ni la pieza seleccionada ni la etapa pueden contenerlo."
     },
     "rktSkip": {
+      "airfoilMass": "masa de las aletas con perfil alar ({{name}})",
       "cgOverride": "anulación del CG ({{name}})",
       "extraStages": "etapa {{from}} y siguientes"
     },

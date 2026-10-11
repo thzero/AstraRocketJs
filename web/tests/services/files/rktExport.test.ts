@@ -687,3 +687,215 @@ describe('stage mass and CG overrides', () => {
     expect(plain).not.toMatch(/Stage\dMass|Stage3CG|UseKnownMass/);
   });
 });
+
+/**
+ * Fields desktop OpenRocket reads differently from how the app's own reader
+ * does, each checked against the RockSim handler that reads it.
+ */
+describe('exportRkt, read by the desktop handlers', () => {
+  /** A one-stage design holding `parts`. */
+  const write = (parts: ComponentNode[], figures?: Parameters<typeof exportRkt>[2]) =>
+    exportRkt(
+      'x',
+      { name: 'x', components: [{ type: 'stage', id: 's', name: 'Sustainer', children: parts }] } as RocketTree,
+      figures,
+    );
+  const tube = (children: ComponentNode[]): ComponentNode => ({
+    type: 'bodytube',
+    id: 'b',
+    name: 'Airframe',
+    length: 0.3,
+    outerRadius: 0.025,
+    thickness: 0.0005,
+    children,
+  });
+  /** The text of `name` inside the first `<tag>` block. */
+  const field = (out: string, tag: string, name: string): string | undefined =>
+    new RegExp(`<${tag}>[\\s\\S]*?<${name}>([^<]*)</${name}>[\\s\\S]*?</${tag}>`).exec(out)?.[1];
+
+  /**
+   * `MassObjectHandler.mapMassObjectAsShockCord` drops `KnownMass` unless
+   * `UseKnownCG` is set and weighs the cord by the line material built from
+   * `Material` and `Density`, so the cord's own line material has to be there.
+   */
+  it('gives a shock cord its line material and density', () => {
+    const { xml: out } = write([
+      tube([
+        {
+          type: 'shockcord',
+          id: 'c',
+          name: 'Cord',
+          cordLength: 1.2,
+          lineDensity: 0.0042,
+          lineMaterialName: 'Kevlar',
+          position: { method: 'top', offset: 0.02 },
+        } as ComponentNode,
+      ]),
+    ]);
+    expect(field(out, 'MassObject', 'Material')).toBe('Kevlar');
+    expect(Number(field(out, 'MassObject', 'Density'))).toBeCloseTo(0.0042, 9);
+    expect(field(out, 'MassObject', 'DensityType')).toBe('2');
+  });
+
+  it('names a shock cord density that has no material name custom, as the .ork writer does', () => {
+    const { xml: out } = write([
+      tube([{ type: 'shockcord', id: 'c', name: 'Cord', cordLength: 1, lineDensity: 0.006 } as ComponentNode]),
+    ]);
+    expect(field(out, 'MassObject', 'Material')).toBe('custom');
+    expect(Number(field(out, 'MassObject', 'Density'))).toBeCloseTo(0.006, 9);
+  });
+
+  /**
+   * `BaseHandler.endHandler` builds a part's material from `Material` and
+   * `Density` alone, so a part written without either opens weighing nothing.
+   * The kernel takes a material only from a positive density
+   * (`ComponentFactory`), and a part without one flies the stock material
+   * `ApplicationPreferences.getDefaultComponentMaterial` gives it: cardboard at
+   * 680 kg/m3, ripstop nylon at 0.067 kg/m2, elastic cord at 0.0018 kg/m.
+   */
+  describe('a part with no material of its own', () => {
+    it('goes out as the stock bulk material the kernel weighs it with', () => {
+      const { xml: out } = write([tube([])]);
+      expect(field(out, 'BodyTube', 'Material')).toBe('Cardboard');
+      expect(Number(field(out, 'BodyTube', 'Density'))).toBeCloseTo(680, 9);
+      expect(field(out, 'BodyTube', 'DensityType')).toBe('0');
+    });
+
+    it('goes out as the stock material when it names one with no density, since the kernel ignores the name', () => {
+      const { xml: out } = write([{ ...tube([]), materialName: 'Kraft phenolic' }]);
+      expect(field(out, 'BodyTube', 'Material')).toBe('Cardboard');
+      expect(Number(field(out, 'BodyTube', 'Density'))).toBeCloseTo(680, 9);
+    });
+
+    it('keeps a material with a density as it is', () => {
+      const { xml: out } = write([{ ...tube([]), materialName: 'Kraft phenolic', density: 950 }]);
+      expect(field(out, 'BodyTube', 'Material')).toBe('Kraft phenolic');
+      expect(Number(field(out, 'BodyTube', 'Density'))).toBeCloseTo(950, 9);
+    });
+
+    it('goes out as the stock canopy for a parachute, in g/cm2', () => {
+      const { xml: out } = write([
+        tube([{ type: 'parachute', id: 'p', name: 'Chute', diameter: 0.4, lineCount: 6 } as ComponentNode]),
+      ]);
+      expect(field(out, 'Parachute', 'Material')).toBe('Ripstop nylon');
+      expect(Number(field(out, 'Parachute', 'Density'))).toBeCloseTo(0.0067, 9);
+      expect(field(out, 'Parachute', 'DensityType')).toBe('1');
+    });
+
+    it('goes out as the stock line material for a shock cord', () => {
+      const { xml: out } = write([
+        tube([{ type: 'shockcord', id: 'c', name: 'Cord', cordLength: 1 } as ComponentNode]),
+      ]);
+      expect(field(out, 'MassObject', 'Material')).toBe('Elastic cord (round 2 mm, 1/16 in)');
+      expect(Number(field(out, 'MassObject', 'Density'))).toBeCloseTo(0.0018, 9);
+      expect(field(out, 'MassObject', 'DensityType')).toBe('2');
+    });
+
+    it('writes none for a mass component, which states its mass', () => {
+      const { xml: out } = write([
+        tube([{ type: 'masscomponent', id: 'm', name: 'Altimeter', mass: 0.02, length: 0.03 } as ComponentNode]),
+      ]);
+      expect(field(out, 'MassObject', 'Material')).toBeUndefined();
+      expect(Number(field(out, 'MassObject', 'KnownMass'))).toBeCloseTo(20, 9);
+    });
+  });
+
+  /**
+   * `FinSetHandler.endHandler` overrides an airfoil fin set that has no
+   * override of its own with `CalcMass` and `CalcCG`, so both have to carry
+   * the kernel's figures or the set weighs 0 g.
+   */
+  describe('an airfoil fin set', () => {
+    const fins = (extra: Partial<ComponentNode> = {}): ComponentNode =>
+      ({
+        type: 'trapezoidfinset',
+        id: 'f',
+        name: 'Fins',
+        finCount: 3,
+        rootChord: 0.06,
+        tipChord: 0.03,
+        height: 0.045,
+        sweep: 0.025,
+        thickness: 0.003,
+        crossSection: 'airfoil',
+        ...extra,
+      }) as ComponentNode;
+    const figures = (id: string) => (id === 'f' ? { mass: 0.0125, cgX: 0.031 } : undefined);
+
+    it("writes the kernel's mass and CG as CalcMass and CalcCG", () => {
+      const { xml: out, skipped: s } = write([tube([fins()])], figures);
+      expect(Number(field(out, 'FinSet', 'CalcMass'))).toBeCloseTo(12.5, 9);
+      expect(Number(field(out, 'FinSet', 'CalcCG'))).toBeCloseTo(31, 9);
+      expect(s).toEqual([]);
+    });
+
+    it('names the fin set when there is no build to take the figures from', () => {
+      const { xml: out, skipped: s } = write([tube([fins()])]);
+      expect(field(out, 'FinSet', 'CalcMass')).toBeUndefined();
+      expect(s).toEqual([{ key: 'errors.rktSkip.airfoilMass', values: { name: 'Fins' } }]);
+    });
+
+    it('needs neither when the set overrides its own mass', () => {
+      const { xml: out, skipped: s } = write([tube([fins({ overrideMass: 0.02 })])]);
+      expect(field(out, 'FinSet', 'CalcMass')).toBeUndefined();
+      expect(s).toEqual([]);
+    });
+  });
+
+  /**
+   * `PodHandler` reads `RadialLoc` as `RadiusMethod.FREE`, a distance from the
+   * parent's centerline. `RadiusMethod.RELATIVE` places a pod at the body
+   * tube's radius plus the pod's bounding radius plus its offset: 25 mm, plus
+   * the 12 mm pod tube, plus 3 mm, is 40 mm.
+   */
+  describe('a pod', () => {
+    const pod = (radiusMethod: string): ComponentNode =>
+      ({
+        type: 'podset',
+        id: 'p',
+        name: 'Pod',
+        instanceCount: 1,
+        radiusMethod,
+        radiusOffset: 0.003,
+        position: { method: 'top', offset: 0.1 },
+        children: [{ type: 'bodytube', id: 'pt', name: 'Pod tube', length: 0.1, outerRadius: 0.012 }],
+      }) as ComponentNode;
+
+    it('placed against the surface goes out at its distance from the centerline', () => {
+      expect(Number(field(write([tube([pod('relative')])]).xml, 'ExternalPod', 'RadialLoc'))).toBeCloseTo(40, 9);
+    });
+
+    it('placed from the centerline goes out as it is', () => {
+      expect(Number(field(write([tube([pod('free')])]).xml, 'ExternalPod', 'RadialLoc'))).toBeCloseTo(3, 9);
+    });
+  });
+
+  /**
+   * RockSim has no flipped flag, and desktop's `StageDTO.toNoseConeDTO` writes a
+   * flipped nose cone as a transition: base at the front, a point at the rear.
+   */
+  it('writes a tail cone as a transition, base first', () => {
+    const { xml: out } = write([
+      tube([]),
+      {
+        type: 'nosecone',
+        id: 't',
+        name: 'Tail cone',
+        length: 0.08,
+        aftRadius: 0.025,
+        thickness: 0.002,
+        shape: 'ogive',
+        flipped: true,
+        shoulderRadius: 0.024,
+        shoulderLength: 0.02,
+      } as ComponentNode,
+    ]);
+    expect(out).not.toContain('<NoseCone>');
+    expect(field(out, 'Transition', 'Name')).toBe('Tail cone');
+    expect(Number(field(out, 'Transition', 'FrontDia'))).toBeCloseTo(50, 9);
+    expect(Number(field(out, 'Transition', 'RearDia'))).toBeCloseTo(0, 9);
+    expect(Number(field(out, 'Transition', 'FrontShoulderDia'))).toBeCloseTo(48, 9);
+    expect(Number(field(out, 'Transition', 'FrontShoulderLen'))).toBeCloseTo(20, 9);
+    expect(field(out, 'Transition', 'ShapeCode')).toBe('1');
+  });
+});

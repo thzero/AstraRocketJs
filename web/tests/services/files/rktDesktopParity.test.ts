@@ -505,6 +505,41 @@ describe('a fin set on a nose cone or transition', () => {
   });
 });
 
+/**
+ * `FinSetHandler.toCoordinates`: RockSim writes a custom fin from the trailing
+ * root point back to `0,0`. Desktop drops a `0,0` that repeats the one before
+ * it and reverses a list that ends at `0,0`, so the outline runs leading edge
+ * first; read in file order, the fin flies backward.
+ */
+describe('a RockSim point list', () => {
+  const points = (list: string): unknown =>
+    find(
+      parts(
+        `<BodyTube><Name>Air</Name><Len>300</Len><OD>24</OD><ID>23</ID><AttachedParts>
+        <CustomFinSet><Name>F</Name><ShapeCode>2</ShapeCode><FinCount>3</FinCount><Thickness>3</Thickness>
+        <PointList>${list}</PointList></CustomFinSet></AttachedParts></BodyTube>`,
+      ),
+      'F',
+    )['points'];
+  const LEADING_FIRST = [
+    [0, 0],
+    [0.02, 0.04],
+    [0.05, 0],
+  ];
+
+  it('is read leading edge first when RockSim wrote it trailing edge first', () => {
+    expect(points('50,0|20,40|0,0|')).toEqual(LEADING_FIRST);
+  });
+
+  it('drops a 0,0 that repeats the one before it', () => {
+    expect(points('50,0|20,40|0,0|0,0|0,0|')).toEqual(LEADING_FIRST);
+  });
+
+  it('keeps a list that already runs leading edge first', () => {
+    expect(points('0,0|20,40|50,0')).toEqual(LEADING_FIRST);
+  });
+});
+
 describe('a shoulder RockSim gives a length to', () => {
   /**
    * Neither RockSim nor its handlers have a cap flag: the kernel caps a shoulder

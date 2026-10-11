@@ -3,6 +3,7 @@ import { exportOrk, type OrkTreeExportInput } from './orkFile';
 import { saveBlob, exportFilename } from './saveFile';
 import type { RocketTree } from '../../engine/openRocketEngine';
 import type { Keyed } from '../../i18n/keyedError';
+import type { ComponentFigures } from './rktExport';
 import { loadSettings } from '../storage/settings';
 
 /** The bytes of a .ork: a zip holding rocket.ork and the curve of every motor outside the catalog. */
@@ -40,10 +41,11 @@ export function downloadOrk(input: OrkTreeExportInput): void {
  * Plain XML, not a zip: RockSim does not archive its files. The skipped list
  * comes back to the caller rather than being swallowed, so the user is told
  * what is missing from a file they are about to hand to somebody else.
+ * `componentInfo` is the kernel's figures for the design's parts (see exportRkt).
  */
-export async function downloadRkt(name: string, tree: RocketTree): Promise<Keyed[]> {
+export async function downloadRkt(name: string, tree: RocketTree, componentInfo?: ComponentFigures): Promise<Keyed[]> {
   const { exportRkt } = await import('./rktExport');
-  const { xml, skipped } = exportRkt(name, tree);
+  const { xml, skipped } = exportRkt(name, tree, componentInfo);
   await saveBlob(new Blob([xml], { type: 'application/xml' }), exportFilename([name, 'design'], 'rkt'));
   return skipped;
 }

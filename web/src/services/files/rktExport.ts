@@ -4,7 +4,9 @@ import { clusterCount, clusterPoints } from '../../tree/cluster';
 import { isChainType } from '../../tree/componentKinds';
 import { numOpt, positionOf } from '../../tree/nodeProps';
 import { axialLength, partLength, startFromPosition } from '../../tree/position';
-import { isAssembly } from '../../tree/assembly';
+import { assemblyParentRadius, isAssembly, resolveAssemblyRadius } from '../../tree/assembly';
+import { profileEnds } from '../../tree/shapeProfile';
+import { KERNEL_MATERIALS } from '../../tree/kernelDefaults';
 import { asStageNodes } from '../design/orkTree';
 import { escapeXml } from './xmlUtil';
 import { plainDecimal } from './numberText';
@@ -93,7 +95,19 @@ interface Writer {
   parentLength: number;
   /** Station (m from the nose tip) of the front of that part. */
   parentStart: number;
+  /** The part whose children are being written; null at the top of a stage. */
+  parent: ComponentNode | null;
+  /** The kernel's figures for a part, by node id, where the caller has a build. */
+  componentInfo?: ComponentFigures;
 }
+
+/**
+ * A part's own mass (kg) and its CG from its own front (m), as the kernel
+ * computes them: `RocketComponent.getComponentMass` and `getCG().getX()`,
+ * which desktop's `BasePartDTO` writes as `CalcMass` and `CalcCG`. Undefined
+ * when the build does not hold the part.
+ */
+export type ComponentFigures = (id: string) => { mass: number; cgX: number } | undefined;
 
 // --------------------------------------------------------------- helpers ---
 
@@ -108,6 +122,35 @@ const strOf = (n: ComponentNode, key: string): string | undefined => {
   const v = n[key];
   return typeof v === 'string' && v !== '' ? v : undefined;
 };
+
+type MaterialKind = 'bulk' | 'surface' | 'line' | 'none';
+
+/** `RockSimDensityType` ordinals, by material kind. */
+const DENSITY_TYPES = { bulk: 0, surface: 1, line: 2 } as const;
+
+/** The node keys each material kind is kept under. */
+const MATERIAL_KEYS = {
+  bulk: { name: 'materialName', density: 'density' },
+  surface: { name: 'surfaceMaterialName', density: 'surfaceDensity' },
+  line: { name: 'lineMaterialName', density: 'lineDensity' },
+} as const;
+
+/**
+ * The material a part is weighed with, as `Material` and `Density`.
+ *
+ * Desktop builds a part's material from those two elements alone, and a part
+ * with no `Material`, or with no `Density`, opens weighing nothing. The kernel
+ * and the `.ork` writer (`exportParts.material`) take a material only from a
+ * positive density, so a part without one flies the kernel's default
+ * (`KERNEL_MATERIALS`), and that is what goes out for it. A density with no
+ * name goes out as `custom`, as the `.ork` writer names it.
+ */
+function materialOf(n: ComponentNode, kind: Exclude<MaterialKind, 'none'>): { name: string; density: number } {
+  const keys = MATERIAL_KEYS[kind];
+  const density = numOpt(n, keys.density);
+  if (density === undefined || !(density > 0)) return KERNEL_MATERIALS[kind];
+  return { name: strOf(n, keys.name) ?? 'custom', density };
+}
 
 /** Write a length/diameter/mass element only when the node carries the field. */
 const put = (w: Writer, d: number, name: string, v: number | undefined, scale: (x: number) => number): void => {
@@ -127,27 +170,28 @@ const put = (w: Writer, d: number, name: string, v: number | undefined, scale: (
  * carries it in KnownMass). KnownMass is written once per part, as
  * BasePartDTO writes `getMass()`: the override when there is one, else the
  * part's own mass.
+ *
+ * `kind` is the part's material slot, or `none` for a part weighed by a mass
+ * it states (a mass component) or by its children (a pod).
  */
 function writeCommon(
   w: Writer,
   d: number,
   n: ComponentNode,
   withPosition: boolean,
-  densityType = 0,
+  kind: MaterialKind = 'bulk',
   ownMass?: number,
 ): void {
   el(w, d, 'Name', n.name ?? '');
-  const material = strOf(n, 'materialName') ?? strOf(n, 'surfaceMaterialName');
-  if (material) el(w, d, 'Material', material);
-
-  const density = numOpt(n, 'density') ?? numOpt(n, 'surfaceDensity');
-  if (density !== undefined) {
+  if (kind !== 'none') {
+    const material = materialOf(n, kind);
+    el(w, d, 'Material', material.name);
     // A surface density goes back out in g/cm2, which is a tenth of kg/m2.
     // `BasePartDTO` line 181 multiplies by the same constant the reader divides
     // by, so the two directions are one factor, not two; writing x10 here would
     // make an exported canopy a hundred times too heavy in RockSim.
-    el(w, d, 'Density', densityType === 1 ? density * SURFACE_DENSITY : density);
-    el(w, d, 'DensityType', densityType);
+    el(w, d, 'Density', kind === 'surface' ? material.density * SURFACE_DENSITY : material.density);
+    el(w, d, 'DensityType', DENSITY_TYPES[kind]);
   }
 
   const overrideMass = numOpt(n, 'overrideMass');
@@ -323,7 +367,20 @@ const writeFinSet: PartWriter = (w, d, n) => {
   writeRadialAngle(w, d, numOpt(n, 'angleOffset'));
   // The fin's cross section, which RockSim calls a tip shape
   // (`FinSetDTO` line 72). Without it RockSim reads every fin as square.
-  el(w, d, 'TipShapeCode', TIP_SHAPE_CODES[strOf(n, 'crossSection') ?? 'square'] ?? 0);
+  const crossSection = strOf(n, 'crossSection') ?? 'square';
+  el(w, d, 'TipShapeCode', TIP_SHAPE_CODES[crossSection] ?? 0);
+  // An airfoil fin set with no override of its own opens with `CalcMass` and
+  // `CalcCG` as its override (`FinSetHandler.endHandler`), so without them it
+  // weighs nothing in desktop OpenRocket. The figures are the kernel's.
+  if (crossSection === 'airfoil' && numOpt(n, 'overrideMass') === undefined) {
+    const figures = typeof n.id === 'string' ? w.componentInfo?.(n.id) : undefined;
+    if (figures) {
+      el(w, d, 'CalcMass', g(figures.mass));
+      el(w, d, 'CalcCG', mm(figures.cgX));
+    } else {
+      skip(w, { key: 'errors.rktSkip.airfoilMass', values: { name: n.name || { key: `part.${n.type}` } } });
+    }
+  }
 
   const tabLength = numOpt(n, 'tabLength');
   if (tabLength !== undefined && tabLength > 0) {
@@ -340,7 +397,7 @@ const writeTubeFinSet: PartWriter = (w, d, n) => {
 };
 
 const writeParachute: PartWriter = (w, d, n) => {
-  writeCommon(w, d, n, true, 1); // canopy fabric is a surface density
+  writeCommon(w, d, n, true, 'surface'); // canopy fabric is a surface density
   // `Dia` is a diameter on both sides, not halved, unlike every other
   // circular field in the format.
   put(w, d, 'Dia', numOpt(n, 'diameter'), mm);
@@ -358,7 +415,7 @@ const writeParachute: PartWriter = (w, d, n) => {
 };
 
 const writeStreamer: PartWriter = (w, d, n) => {
-  writeCommon(w, d, n, true, 1);
+  writeCommon(w, d, n, true, 'surface');
   put(w, d, 'Len', numOpt(n, 'stripLength'), mm);
   put(w, d, 'Width', numOpt(n, 'stripWidth'), mm);
   const cd = numOpt(n, 'cd');
@@ -371,7 +428,10 @@ const writeMassObject =
     const len = numOpt(n, 'cordLength') ?? 0;
     // RockSim states a shock cord's mass, not its line density.
     const ownMass = shockCord ? (numOpt(n, 'lineDensity') ?? 0) * len : (numOpt(n, 'mass') ?? 0);
-    writeCommon(w, d, n, true, 0, ownMass);
+    // Desktop weighs a cord by its line material alone
+    // (`mapMassObjectAsShockCord` drops `KnownMass` unless `UseKnownCG` is
+    // set), and a mass component by the `KnownMass` it states.
+    writeCommon(w, d, n, true, shockCord ? 'line' : 'none', ownMass);
     el(w, d, 'TypeCode', shockCord ? 1 : 0);
     if (shockCord) {
       el(w, d, 'Len', mm(len));
@@ -383,8 +443,11 @@ const writeMassObject =
   };
 
 const writePod: PartWriter = (w, d, n) => {
-  writeCommon(w, d, n, true);
-  put(w, d, 'RadialLoc', numOpt(n, 'radiusOffset'), mm);
+  writeCommon(w, d, n, true, 'none');
+  // `PodHandler` reads `RadialLoc` as a distance from the parent's centerline
+  // (`RadiusMethod.FREE`), and `PodSetDTO` writes the resolved distance, so a
+  // pod placed against the parent's surface goes out at its axis's distance.
+  el(w, d, 'RadialLoc', mm(resolveAssemblyRadius(n, assemblyParentRadius(w.parent))));
   writeRadialAngle(w, d, numOpt(n, 'angleOffset'));
   el(w, d, 'Detachable', 0);
   el(w, d, 'Removed', 0);
@@ -411,6 +474,27 @@ const PARTS: Record<string, { tag: string; write: PartWriter }> = {
   masscomponent: { tag: 'MassObject', write: writeMassObject(false) },
   podset: { tag: 'ExternalPod', write: writePod },
 };
+
+/**
+ * A flipped nose cone (a tail cone) as the transition RockSim can hold.
+ *
+ * RockSim has no flipped flag, so a `<NoseCone>` always points forward.
+ * Desktop's `StageDTO.toNoseConeDTO` and `PodSetDTO` write a flipped cone as a
+ * `TransitionDTO`: its base at the front, a point at the rear, and its base
+ * shoulder as the front shoulder.
+ */
+function asTailTransition(n: ComponentNode): ComponentNode {
+  const { fore, aft } = profileEnds(n);
+  const { shoulderRadius, shoulderLength, ...rest } = n;
+  return {
+    ...rest,
+    type: 'transition',
+    foreRadius: fore,
+    aftRadius: aft,
+    ...(shoulderRadius !== undefined ? { foreShoulderRadius: shoulderRadius } : {}),
+    ...(shoulderLength !== undefined ? { foreShoulderLength: shoulderLength } : {}),
+  };
+}
 
 /**
  * A clustered motor mount as the tubes RockSim can actually hold.
@@ -487,6 +571,10 @@ function writeCouplerParts(w: Writer, depth: number, coupler: ComponentNode): vo
  * station when its place comes from the body chain rather than its position.
  */
 function writePart(w: Writer, depth: number, n: ComponentNode, at?: number): void {
+  if (n.type === 'nosecone' && n['flipped'] === true) {
+    writePart(w, depth, asTailTransition(n), at);
+    return;
+  }
   const spec = PARTS[n.type];
   if (!spec) {
     skip(w, { key: `part.${n.type}` });
@@ -517,9 +605,10 @@ function writePart(w: Writer, depth: number, n: ComponentNode, at?: number): voi
  * lays them out.
  */
 function writeChildren(w: Writer, depth: number, parent: ComponentNode, start: number): void {
-  const outer = { length: w.parentLength, start: w.parentStart };
+  const outer = { length: w.parentLength, start: w.parentStart, parent: w.parent };
   w.parentStart = start;
   w.parentLength = axialLength(parent);
+  w.parent = parent;
   const chained = parent.type === 'stage' || isAssembly(parent.type);
   let x = start;
   for (const kid of parent.children ?? []) {
@@ -530,6 +619,7 @@ function writeChildren(w: Writer, depth: number, parent: ComponentNode, start: n
   }
   w.parentLength = outer.length;
   w.parentStart = outer.start;
+  w.parent = outer.parent;
 }
 
 // ----------------------------------------------------------------- entry ---
@@ -551,14 +641,20 @@ const STAGE_CG_ELEMENTS = ['Stage3CG', 'Stage2CGAlone', 'Stage1CGAlone'] as cons
  * Returns what was left out beside the text rather than throwing or silently
  * dropping them, so the caller can tell the user what did not make it into the
  * file they are about to hand to someone else.
+ *
+ * `componentInfo` gives the kernel's figures for a part, for the fields
+ * desktop writes from the kernel (`CalcMass`, `CalcCG`); without it a part that
+ * needs them is named in `skipped`.
  */
-export function exportRkt(name: string, tree: RocketTree): RktExportResult {
+export function exportRkt(name: string, tree: RocketTree, componentInfo?: ComponentFigures): RktExportResult {
   const lines: string[] = [];
   const w: Writer = {
     emit: (depth, s) => lines.push('  '.repeat(depth) + s),
     skipped: new Map(),
     parentLength: 0,
     parentStart: 0,
+    parent: null,
+    componentInfo,
   };
   // Station of the current stage's front: stages stack nose to tail.
   let stageStart = 0;

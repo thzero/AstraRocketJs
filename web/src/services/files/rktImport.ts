@@ -518,8 +518,12 @@ function readFinSet(ctx: RktContext, el: Element, parent?: ComponentNode): Compo
 
 /**
  * `<PointList>` is a `x,y|x,y|…` string in mm, measured from the fin's leading
- * root point. Capped like the `.ork` reader's `<finpoints>`: every renderer
- * walks the outline per fin, so an absurd list is a frozen tab.
+ * root point. RockSim writes it from the trailing root point back to `0,0`,
+ * sometimes with `0,0` repeated, and desktop's `FinSetHandler.toCoordinates`
+ * drops a `0,0` that follows another and reverses a list ending at `0,0`, so
+ * the outline runs leading edge first either way. Capped like the `.ork`
+ * reader's `<finpoints>`: every renderer walks the outline per fin, so an
+ * absurd list is a frozen tab.
  *
  * Scanned with `indexOf` rather than `raw.split('|')`, so the cap bounds the
  * work as well as the result, as the `.ork` reader's sibling walk does. `split`
@@ -542,11 +546,15 @@ function readPointList(ctx: RktContext, el: Element): [number, number][] {
     if (comma !== -1) {
       const x = finiteNum(pair.slice(0, comma));
       const y = finiteNum(pair.slice(comma + 1));
-      if (x !== undefined && y !== undefined) out.push([x / LENGTH, y / LENGTH]);
+      const last = out[out.length - 1];
+      const repeatedOrigin = x === 0 && y === 0 && last?.[0] === 0 && last[1] === 0;
+      if (x !== undefined && y !== undefined && !repeatedOrigin) out.push([x / LENGTH, y / LENGTH]);
     }
     if (bar === -1) break;
     at = bar + 1;
   }
+  const last = out[out.length - 1];
+  if (last?.[0] === 0 && last[1] === 0) out.reverse();
   return out;
 }
 

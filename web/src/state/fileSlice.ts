@@ -576,10 +576,21 @@ export const createFileSlice =
       },
       saveRkt: async () => {
         try {
-          const { tree, loadedMeta } = get();
+          const { tree, loadedMeta, rocket } = get();
           const { downloadRkt } = await import('../services/files/saveOrk');
           const name = designNameOf(tree, loadedMeta);
-          const skipped = await downloadRkt(name, tree);
+          // The current build's figures for a part; a part it does not hold (one
+          // added since the last rebuild) has none, and the export names it.
+          const figures = rocket
+            ? (id: string) => {
+                try {
+                  return rocket.componentInfo(id);
+                } catch {
+                  return undefined;
+                }
+              }
+            : undefined;
+          const skipped = await downloadRkt(name, tree, figures);
           // RockSim has no element for some of what this app can build (rail
           // buttons, parallel stages, the fairing extension). The file is still
           // worth having, but the user is about to hand it to somebody who will

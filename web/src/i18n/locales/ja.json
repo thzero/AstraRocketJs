@@ -159,6 +159,7 @@
       "cannotAdd": "{{part}}はここに追加できません。選択中の部品にもステージにも入れられません。"
     },
     "rktSkip": {
+      "airfoilMass": "翼型フィンの質量（{{name}}）",
       "cgOverride": "CG の上書き（{{name}}）",
       "extraStages": "{{from}} 段目以降"
     },

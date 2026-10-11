@@ -159,6 +159,7 @@
       "cannotAdd": "Nie można tu dodać elementu „{{part}}”: ani wybrana część, ani stopień nie może go zawierać."
     },
     "rktSkip": {
+      "airfoilMass": "masa stateczników o profilu lotniczym ({{name}})",
       "cgOverride": "nadpisanie SC ({{name}})",
       "extraStages": "stopień {{from}} i dalsze"
     },

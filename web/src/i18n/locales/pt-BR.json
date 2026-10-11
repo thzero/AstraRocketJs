@@ -159,6 +159,7 @@
       "cannotAdd": "Não é possível adicionar {{part}} aqui: nem a peça selecionada nem o estágio podem contê-lo."
     },
     "rktSkip": {
+      "airfoilMass": "massa das aletas com perfil de asa ({{name}})",
       "cgOverride": "substituição do CG ({{name}})",
       "extraStages": "estágio {{from}} em diante"
     },

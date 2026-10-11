@@ -159,6 +159,7 @@
       "cannotAdd": "{{part}} kann hier nicht hinzugefügt werden: Weder das ausgewählte Teil noch die Stufe kann es aufnehmen."
     },
     "rktSkip": {
+      "airfoilMass": "Masse der Profilfinnen ({{name}})",
       "cgOverride": "CG-Überschreibung ({{name}})",
       "extraStages": "Stufe {{from}} und folgende"
     },

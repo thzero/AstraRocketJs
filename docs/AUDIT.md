@@ -47,6 +47,30 @@ UTC (R1). Five HIGH findings are files desktop OpenRocket reads differently:
 one `.rkt` import (C1) and four `.rkt` export defects (C2 to C5). One finding
 is a MED security issue (S1).
 
+**Resolution, 2026-10-11.** These findings are FIXED, each with a test that
+fails without the fix:
+
+- **T1.** The em dash scan no longer walks `.vscode`, and a test fails if any
+  folder it starts from is missing or holds no tracked file.
+- **C1.** `readPointList` drops a repeated `0,0` and reverses a list that ends
+  at `0,0`, as `FinSetHandler.toCoordinates` does.
+- **C2 to C5.** A shock cord carries its line material and density; an
+  airfoil fin set carries the kernel's `componentInfo` mass and CG as
+  `CalcMass` and `CalcCG` (named in the skipped list when there is no build);
+  a pod's `RadialLoc` is `resolveAssemblyRadius` against its parent; a flipped
+  nose cone is written as a `<Transition>`. A sample written with the kernel's
+  figures and opened in desktop OpenRocket 24.12 reads the fin set at the
+  kernel's 10.53 g and CG, the cord at 5.04 g, the pod at 40 mm from the
+  centerline and the tail cone as a 25 mm to 0 transition, with no warnings.
+
+- **C57.** `writeCommon` writes each part's material from its own slot
+  (bulk, surface or line) and falls back to `KERNEL_MATERIALS` when the part
+  has no positive density, as the kernel and the `.ork` writer do; mass
+  components and pods write none. The same sample opened in desktop weighs
+  every part at the kernel's `componentInfo` mass, to the last digit.
+
+The desktop check found C57 while C2 to C5 were being confirmed.
+
 ## How to read the verification tags
 
 - **CONFIRMED BY REVIEWER** means that after the slice agent raised it, the
@@ -116,6 +140,8 @@ checkout has a `.vscode` folder; in CI it cannot load (T1).
 - **C3** (HIGH, CONFIRMED BY REVIEWER) [w] `web/src/services/files/rktExport.ts:326`; no `CalcMass` or `CalcCG` is written anywhere. `FinSetHandler.endHandler` (:299-309) overrides an airfoil fin set that has no override with `calcMass` and `calcCg`, which stay 0 when the file has neither element. Desktop's `BasePartDTO` always writes both. *Why it matters:* Every airfoil fin set imports into desktop with a 0 g mass override and CG 0. *Fix:* Write `CalcMass` (g) and `CalcCG` (mm) from the kernel's `componentMasses()`, at least for fin sets.
 - **C4** (HIGH, CONFIRMED BY REVIEWER) [w] `web/src/services/files/rktExport.ts:387` (`writePod`). `RadialLoc` is `radiusOffset` as stored, whatever `radiusMethod` says. `PodHandler` (:38-39, 65-66) reads it as `RadiusMethod.FREE`, a distance from the parent's centerline, and `PodSetDTO` (:105-107) writes `radiusMethod.getRadius(...)`. *Why it matters:* A pod on the desktop default 'relative' method, which `.ork` files carry, opens in desktop sunk into the body by the parent's radius. *Fix:* Resolve to the centerline distance first (`tree/assembly.resolveAssemblyRadius`).
 - **C5** (HIGH, CONFIRMED BY REVIEWER) [w] `web/src/services/files/rktExport.ts:207-215, 395`. A flipped nose cone is written as a `<NoseCone>` with `BaseDia` set. Desktop's `StageDTO` (:112) and `PodSetDTO` (:118) write a flipped cone as a transition. *Why it matters:* Desktop and RockSim open a tail cone as a nose cone pointing forward at the tail. *Fix:* When `flipped`, write a `<Transition>` with `FrontDia` the base and `RearDia` 0, as desktop does.
+
+- **C57** (HIGH, CONFIRMED BY REVIEWER; found while checking C2 to C5 in desktop OpenRocket 24.12) `web/src/services/files/rktExport.ts` (`writeCommon`). A part with no material of its own (an imported or older part; a new part is stamped with one when it is added), or with a material name and no density, is written with no `<Material>` and no `<Density>`, and desktop opens it at 0 g. The same airframe with `<Material>Cardboard</Material><Density>680</Density>` added by hand opens at 21.1 g. *Why it matters:* A design built in the app and exported to `.rkt` loses the mass of every part left on its default material. *Fix:* Write the kernel's default material and density for the part's material type (`KERNEL_MATERIALS`) when the node names none; check it in desktop.
 
 ### Medium
 

@@ -159,6 +159,7 @@
       "cannotAdd": "{{part}} kan hier niet worden toegevoegd: het geselecteerde onderdeel en de trap kunnen het geen van beide bevatten."
     },
     "rktSkip": {
+      "airfoilMass": "massa van de vinnen met vleugelprofiel ({{name}})",
       "cgOverride": "CG-overschrijving ({{name}})",
       "extraStages": "trap {{from}} en verder"
     },

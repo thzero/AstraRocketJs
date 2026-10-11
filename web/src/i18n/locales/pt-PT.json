@@ -159,6 +159,7 @@
       "cannotAdd": "Não é possível adicionar {{part}} aqui: nem a peça selecionada nem o andar o podem conter."
     },
     "rktSkip": {
+      "airfoilMass": "massa das aletas com perfil de asa ({{name}})",
       "cgOverride": "substituição do CG ({{name}})",
       "extraStages": "andar {{from}} e seguintes"
     },
