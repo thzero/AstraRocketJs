@@ -120,9 +120,15 @@ export const isThrustSampleArray = (v: unknown): boolean =>
   v.length >= MIN_CURVE_SAMPLES &&
   v.every((s) => {
     const p = s as { time?: unknown; thrust?: unknown } | null;
-    // A negative thrust is refused by ThrustCurveMotor, which builds every
-    // seated motor, so a stored curve carrying one could never fly.
-    return !!p && Number.isFinite(p.time) && Number.isFinite(p.thrust) && (p.thrust as number) >= 0;
+    // A negative thrust or time is refused by ThrustCurveMotor, which builds
+    // every seated motor, so a stored curve carrying one could never fly.
+    return (
+      !!p &&
+      Number.isFinite(p.time) &&
+      Number.isFinite(p.thrust) &&
+      (p.time as number) >= 0 &&
+      (p.thrust as number) >= 0
+    );
   });
 
 function isCustomMotor(v: unknown): v is CustomMotor {

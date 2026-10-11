@@ -5,6 +5,7 @@ import { M_TO_MM } from '../../prefs/units';
 import { plainDecimal } from '../files/numberText';
 import { hexOf, parseHexColor } from '../design/colorHex';
 import { UNKNOWN_PART_COLOR } from '../design/partColors';
+import { KeyedError } from '../../i18n/keyedError';
 
 /**
  * 3MF (3D Manufacturing Format) writer.
@@ -160,7 +161,7 @@ export function threeMfModelXml(parts: ThreeMfPart[], opts: ThreeMfOptions = {})
 
 /** A complete `.3mf` archive holding every part as its own named object. */
 export function buildThreeMf(parts: ThreeMfPart[], opts: ThreeMfOptions = {}): Uint8Array {
-  if (parts.length === 0) throw new Error('Nothing to export.');
+  if (parts.length === 0) throw new KeyedError('errors.export.nothing');
   return zipSync(
     {
       '[Content_Types].xml': strToU8(CONTENT_TYPES),

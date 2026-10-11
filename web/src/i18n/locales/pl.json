@@ -73,6 +73,7 @@
       "engDataLine": "Nieprawidłowe dane .eng w wierszu {{line}}: oczekiwano czasu i ciągu, a jest „{{text}}”.",
       "engNoCurve": "Plik .eng nie zawiera punktów krzywej ciągu.",
       "engNegativeThrust": "Silnik {{motor}} w pliku .eng ma ujemny ciąg w wierszu {{line}}.",
+      "engNegativeTime": "Silnik {{motor}} w pliku .eng ma ujemny czas w wierszu {{line}}.",
       "attrDiameter": "średnica",
       "attrLength": "długość",
       "attrInitialMass": "masa początkowa",
@@ -88,6 +89,7 @@
       "rseNoCurve": "Silnik {{motor}} w pliku .rse nie ma danych krzywej ciągu.",
       "rseNegativeMass": "Silnik {{motor}} w pliku .rse ma w danych ujemną masę.",
       "rseNegativeThrust": "Silnik {{motor}} w pliku .rse ma w danych ujemny ciąg.",
+      "rseNegativeTime": "Silnik {{motor}} w pliku .rse ma w danych ujemny czas.",
       "rseCgOutside": "Silnik {{motor}} w pliku .rse ma środek ciężkości poza silnikiem (od 0 do {{length}} mm).",
       "rseNoEngine": "To nie jest prawidłowy plik .rse (nie znaleziono <engine>).",
       "rseTooManyMotors": "Ten plik .rse deklaruje ponad {{max}} silników (możliwe uszkodzenie)."
@@ -107,6 +109,19 @@
       "badData": "Dane krzywej ciągu dla {{motor}} są nieprawidłowe.",
       "importGone": "Zaimportowany silnik {{motor}} nie jest już zapisany. Zaimportuj ponownie jego plik silnika."
     },
+    "motorCurve": {
+      "notFinite": "Silnik {{motor}}: wartość „{{what}}” nie jest liczbą skończoną (niepełne dane katalogowe).",
+      "whatDiameter": "średnica",
+      "whatLength": "długość",
+      "whatCg": "środek ciężkości",
+      "whatDelay": "opóźnienie wyrzutu",
+      "size": "Silnik {{motor}}: średnica i długość muszą być dodatnie (niepełne dane katalogowe).",
+      "nonFinite": "Silnik {{motor}}: krzywa ciągu zawiera wartości, które nie są liczbami skończonymi (brak opublikowanej masy lub nieprawidłowy plik .rse albo .eng).",
+      "lengths": "Silnik {{motor}}: listy krzywej ciągu mają różne długości (czasy {{times}}, ciągi {{thrusts}}, masy {{masses}}).",
+      "backwards": "Silnik {{motor}}: czasy krzywej ciągu cofają się w próbce {{sample}} ({{before}}, potem {{after}}).",
+      "negativeMass": "Silnik {{motor}}: krzywa ciągu kończy się ujemną masą (masa paliwa przekracza masę startową).",
+      "noMass": "Silnik {{motor}}: krzywa ciągu nie ma masy w żadnym punkcie (w pliku silnika brakuje mas dla poszczególnych próbek)."
+    },
     "remote": {
       "motors": "Nie udało się wczytać katalogu silników ({{reason}}).",
       "components": "Nie udało się wczytać katalogu komponentów ({{reason}}).",
@@ -120,11 +135,22 @@
       "openSolid": "Nie udało się zamknąć tej bryły: po domknięciu pozostało otwartych krawędzi: {{edges}}.",
       "imageEncode": "Przeglądarka nie mogła zakodować obrazu.",
       "imageTooLarge": "Obraz jest za duży dla tej przeglądarki. Wybierz mniejszą szerokość.",
-      "svgRasterize": "Przeglądarka nie mogła narysować SVG."
+      "svgRasterize": "Przeglądarka nie mogła narysować SVG.",
+      "nothing": "Nie ma nic do wyeksportowania."
     },
     "engine": {
       "notReady": "Silnik fizyczny OpenRocket nie skończył się jeszcze wczytywać. Poczekaj na jego wczytanie i spróbuj ponownie.",
       "staleDesign": "Ten projekt zbudowano przed ponownym uruchomieniem silnika fizycznego. Zbuduj go ponownie przed użyciem."
+    },
+    "sim": {
+      "engineLoad": "Nie udało się wczytać silnika symulacji ({{reason}}).",
+      "unknownMethod": "Proces symulacji otrzymał nieznane żądanie ({{method}}).",
+      "workerCrashed": "Proces symulacji nieoczekiwanie się zatrzymał.",
+      "workerCrashedReason": "Proces symulacji nieoczekiwanie się zatrzymał ({{reason}}).",
+      "replyUnreadable": "Nie udało się odczytać odpowiedzi procesu symulacji."
+    },
+    "design": {
+      "cannotAdd": "Nie można tu dodać elementu „{{part}}”: ani wybrana część, ani stopień nie może go zawierać."
     },
     "rktSkip": {
       "cgOverride": "nadpisanie SC ({{name}})",
@@ -1914,7 +1940,7 @@
     "shortLink": "To skrócony link, który ukrywa miejsce za przekierowaniem. Otwórz go i wklej pełny adres z przeglądarki albo współrzędne.",
     "coords": "Współrzędne",
     "elevationLooking": "sprawdzanie wysokości…",
-    "elevationUnknown": "nie znaleziono wysokości; wysokość miejsca startu pozostaje bez zmian",
+    "elevationUnknown": "nie znaleziono wysokości; wysokość miejsca startu pozostaje pusta",
     "credit": "Miejsca z GeoNames, przez Open-Meteo.com"
   },
   "location": {
@@ -2004,6 +2030,7 @@
     "fetching": "Pobieranie…",
     "apply": "Zastosuj",
     "needSite": "Najpierw podaj szerokość i długość geograficzną miejsca startu.",
+    "needElevation": "Najpierw podaj wysokość miejsca startu.",
     "siteLine": "Miejsce {{lat}}, {{lon}} na wysokości {{alt}}",
     "noHour": "Odpowiedź nie zawiera danych dla tej godziny.",
     "validForecast": "Prognoza na {{time}}",

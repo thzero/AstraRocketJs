@@ -9,7 +9,7 @@ import { clampEntry } from '../../prefs/entryValue';
 import { unitScope, type Quantity } from '../../prefs/units';
 import { MAX_CANT, MAX_FIN_COUNT, MAX_INSTANCE_COUNT, num, str } from '../../tree/nodeProps';
 import { clusterCount } from '../../tree/cluster';
-import { shapeIsClippable, shapeParamMax, shapeUsesParameter } from '../../tree/shapeProfile';
+import { shapeIsClippable, shapeParamMax, shapeSelect, shapeUsesParameter } from '../../tree/shapeProfile';
 import { FIELDS, type Field, type PanelSection } from '../../services/design/componentFields';
 import { DERIVED } from '../../services/design/derivedFields';
 import { PropSection } from './PropSection';
@@ -260,6 +260,17 @@ export function NumberField({
 }
 
 /**
+ * What picking `value` in a select field writes. A tab reference rebases the
+ * tab so it stays put, and a nose cone or transition shape brings the new
+ * shape's own parameter and clip.
+ */
+function selectPatch(node: ComponentNode, key: string, value: string): Partial<ComponentNode> {
+  if (key === 'tabOffsetMethod') return rebaseTabOffset(node, value);
+  if (key === 'shape' && (node.type === 'nosecone' || node.type === 'transition')) return shapeSelect(node, value);
+  return { [key]: value };
+}
+
+/**
  * One type-specific field of the selected part, by its declared kind. The kind
  * switch lives here, rather than as inline branches in the panel's render loop,
  * so the panel body reads as a list of rows.
@@ -359,12 +370,9 @@ export function FieldRow({
           <select
             value={cur}
             // A new tab reference keeps the tab where it is, as the kernel's
-            // FinSet.setTabOffsetMethod does.
-            onChange={(e) =>
-              commitChange(
-                f.key === 'tabOffsetMethod' ? rebaseTabOffset(node, e.target.value) : { [f.key]: e.target.value },
-              )
-            }
+            // FinSet.setTabOffsetMethod does, and a new shape takes its own
+            // parameter and clip, as Transition.setShapeType does.
+            onChange={(e) => commitChange(selectPatch(node, f.key, e.target.value))}
             className="w-32 rounded-md bg-raised px-2 py-1 text-sm text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500"
           >
             {f.options.map((o) => (

@@ -340,7 +340,7 @@ describe('the mass curve that reaches the kernel', () => {
 
 describe('.eng import still behaves', () => {
   it('reads a RASP file and marks its source', () => {
-    const eng = parseEng('; a comment\nC6 18 70 0-3-5-7 0.0108 0.0242 Estes\n0.0 0.0\n0.5 6.0\n1.0 0.0\n');
+    const eng = parseEng('; a comment\nC6 18 70 0-3-5-7 0.0108 0.0242 Estes\n0.0 0.0\n0.5 6.0\n1.0 0.0\n')[0]!;
     expect(eng).toMatchObject({ designation: 'C6', manufacturer: 'Estes', source: 'eng' });
     // The fields only `.rse` can fill stay empty rather than being invented.
     expect(eng.type).toBeUndefined();
@@ -391,6 +391,14 @@ describe('parseRse refuses what ThrustCurveMotor.Builder.build() refuses', () =>
   it('a negative thrust', () => {
     expect(() => parseRse(rse(ATTRS, DATA.replace('f="380"', 'f="-380"')))).toThrow(
       expect.objectContaining({ key: 'errors.motorFile.rseNegativeThrust', values: { motor: 'J350' } }),
+    );
+  });
+
+  it('a negative sample time', () => {
+    // A (0, 0) point goes ahead of a curve that does not start at zero, and the
+    // builder then refuses a time that runs backward.
+    expect(() => parseRse(rse(ATTRS, DATA.replace('t="0" f="0"', 't="-0.1" f="0"')))).toThrow(
+      expect.objectContaining({ key: 'errors.motorFile.rseNegativeTime', values: { motor: 'J350' } }),
     );
   });
 

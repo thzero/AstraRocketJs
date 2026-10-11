@@ -77,3 +77,18 @@ export function errorText(e: unknown, t: Translate): string {
 export function errorReason(e: unknown): string | Keyed {
   return e instanceof KeyedError ? (e.values ? { key: e.key, values: e.values } : { key: e.key }) : errorMessage(e);
 }
+
+/**
+ * A received value that has the shape of a {@link Keyed}: a non-empty key, and
+ * values that are strings, numbers or nested keyed texts. Used where a
+ * keyed text crosses a boundary the type system cannot see across, such as a
+ * worker reply.
+ */
+export function isKeyed(v: unknown): v is Keyed {
+  if (!v || typeof v !== 'object') return false;
+  const { key, values } = v as { key?: unknown; values?: unknown };
+  if (typeof key !== 'string' || key === '') return false;
+  if (values === undefined) return true;
+  if (!values || typeof values !== 'object' || Array.isArray(values)) return false;
+  return Object.values(values).every((x) => typeof x === 'string' || typeof x === 'number' || isKeyed(x));
+}

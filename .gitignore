@@ -14,24 +14,24 @@ web/dist/
 # reads none, and an editor that writes one would make it a diff on every run.
 *.tsbuildinfo
 
-# Docusaurus (website) — build output, caches and generated locale files
+# Docusaurus (website): build output, caches and generated locale files
 website/node_modules/
 website/build/
 website/.docusaurus/
 # Docs built into the app for precaching (see deploy.yml)
 web/public/docs/
 
-# Playwright (web e2e) — test output + downloaded browsers, never the specs/config
+# Playwright (web e2e): test output + downloaded browsers, never the specs/config
 web/test-results/
 web/playwright-report/
 web/blob-report/
 web/.playwright/
 
-# NOTE: web/src/engine/vendor/openrocket-engine.mjs IS committed — it's the built engine
+# NOTE: web/src/engine/vendor/openrocket-engine.mjs IS committed. It is the built engine
 # artifact so the web app builds without a JDK (regenerate via engine-java).
 
 # NOTE: web/public/engine/openrocket-engine.wasm (+ its .wasm-runtime.js) ARE
-# committed — the WASM-GC engine is the default backend (JS falls back), so a
+# committed. The WASM-GC engine is the default backend (JS falls back), so a
 # fresh checkout ships it without a JDK. Regenerate via
 # `node engine-java/build-engine.mjs --wasm`.
 

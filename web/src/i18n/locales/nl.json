@@ -73,6 +73,7 @@
       "engDataLine": "Ongeldige .eng-gegevens op regel {{line}}: een tijd en een stuwkracht verwacht, maar \"{{text}}\" gevonden.",
       "engNoCurve": "Het .eng-bestand bevat geen meetpunten van de stuwkrachtcurve.",
       "engNegativeThrust": "Motor {{motor}} in het .eng-bestand heeft een negatieve stuwkracht op regel {{line}}.",
+      "engNegativeTime": "Motor {{motor}} in het .eng-bestand heeft een negatieve tijd op regel {{line}}.",
       "attrDiameter": "diameter",
       "attrLength": "lengte",
       "attrInitialMass": "beginmassa",
@@ -88,6 +89,7 @@
       "rseNoCurve": "Motor {{motor}} in het .rse-bestand heeft geen stuwkrachtcurve.",
       "rseNegativeMass": "Motor {{motor}} in het .rse-bestand heeft een negatieve massa in zijn gegevens.",
       "rseNegativeThrust": "Motor {{motor}} in het .rse-bestand heeft een negatieve stuwkracht in zijn gegevens.",
+      "rseNegativeTime": "Motor {{motor}} in het .rse-bestand heeft een negatieve tijd in zijn gegevens.",
       "rseCgOutside": "Motor {{motor}} in het .rse-bestand legt zijn zwaartepunt buiten de motor (0 tot {{length}} mm).",
       "rseNoEngine": "Geen geldig .rse-bestand (geen <engine> gevonden).",
       "rseTooManyMotors": "Dit .rse-bestand vermeldt meer dan {{max}} motoren (mogelijk beschadigd)."
@@ -107,6 +109,19 @@
       "badData": "De stuwkrachtcurve van {{motor}} is ongeldig.",
       "importGone": "De geïmporteerde motor {{motor}} is niet meer opgeslagen. Importeer het motorbestand opnieuw."
     },
+    "motorCurve": {
+      "notFinite": "Motor {{motor}}: de waarde ‘{{what}}’ is geen eindig getal (onvolledige catalogusgegevens).",
+      "whatDiameter": "diameter",
+      "whatLength": "lengte",
+      "whatCg": "zwaartepunt",
+      "whatDelay": "uitstootvertraging",
+      "size": "Motor {{motor}}: diameter en lengte moeten positief zijn (onvolledige catalogusgegevens).",
+      "nonFinite": "Motor {{motor}}: de stuwkrachtcurve bevat waarden die geen eindige getallen zijn (een ontbrekend gepubliceerd gewicht of een ongeldig .rse- of .eng-bestand).",
+      "lengths": "Motor {{motor}}: de lijsten van de stuwkrachtcurve verschillen in lengte (tijden {{times}}, stuwkrachten {{thrusts}}, massa’s {{masses}}).",
+      "backwards": "Motor {{motor}}: de tijden van de stuwkrachtcurve lopen terug bij meetpunt {{sample}} ({{before}}, daarna {{after}}).",
+      "negativeMass": "Motor {{motor}}: de stuwkrachtcurve eindigt bij een negatieve massa (de stuwstofmassa is groter dan de geladen massa).",
+      "noMass": "Motor {{motor}}: de stuwkrachtcurve heeft op geen enkel punt massa (het motorbestand mist de massa per meetpunt)."
+    },
     "remote": {
       "motors": "Kon de motorcatalogus niet laden ({{reason}}).",
       "components": "Kon de onderdelencatalogus niet laden ({{reason}}).",
@@ -120,11 +135,22 @@
       "openSolid": "Kon dit lichaam niet sluiten: na het dichten blijven {{edges}} open randen over.",
       "imageEncode": "De browser kon de afbeelding niet coderen.",
       "imageTooLarge": "De afbeelding is te groot voor deze browser. Kies een kleinere breedte.",
-      "svgRasterize": "De browser kon de SVG niet tekenen."
+      "svgRasterize": "De browser kon de SVG niet tekenen.",
+      "nothing": "Niets om te exporteren."
     },
     "engine": {
       "notReady": "De OpenRocket-natuurkundemotor is nog niet klaar met laden. Wacht tot hij geladen is en probeer het dan opnieuw.",
       "staleDesign": "Dit ontwerp is opgebouwd voordat de natuurkundemotor opnieuw werd gestart. Bouw het opnieuw op voordat je het gebruikt."
+    },
+    "sim": {
+      "engineLoad": "De simulatie-engine kon niet worden geladen ({{reason}}).",
+      "unknownMethod": "Het simulatieproces kreeg een onbekend verzoek ({{method}}).",
+      "workerCrashed": "Het simulatieproces is onverwacht gestopt.",
+      "workerCrashedReason": "Het simulatieproces is onverwacht gestopt ({{reason}}).",
+      "replyUnreadable": "Het antwoord van het simulatieproces kon niet worden gelezen."
+    },
+    "design": {
+      "cannotAdd": "{{part}} kan hier niet worden toegevoegd: het geselecteerde onderdeel en de trap kunnen het geen van beide bevatten."
     },
     "rktSkip": {
       "cgOverride": "CG-overschrijving ({{name}})",
@@ -1896,7 +1922,7 @@
     "shortLink": "Dit is een verkorte link, die de plaats achter een doorverwijzing verbergt. Open hem en plak het volledige adres uit de browser, of de coördinaten.",
     "coords": "Coördinaten",
     "elevationLooking": "hoogte opzoeken…",
-    "elevationUnknown": "hoogte niet gevonden; de hoogte van de lanceerplek blijft ongewijzigd",
+    "elevationUnknown": "hoogte niet gevonden; de hoogte van de lanceerplek blijft leeg",
     "credit": "Plaatsen van GeoNames, via Open-Meteo.com"
   },
   "location": {
@@ -1984,6 +2010,7 @@
     "fetching": "Bezig met ophalen…",
     "apply": "Toepassen",
     "needSite": "Vul eerst de breedte- en lengtegraad van de lanceerplaats in.",
+    "needElevation": "Vul eerst de hoogte van de lanceerplaats in.",
     "siteLine": "Lanceerplaats {{lat}}, {{lon}} op {{alt}}",
     "noHour": "Het antwoord bevat geen gegevens voor dat uur.",
     "validForecast": "Voorspelling voor {{time}}",

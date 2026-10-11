@@ -522,7 +522,25 @@ describe('managing configurations', () => {
     s().renameConfig(config().id, 'Contest');
     expect(config().name).toBe('Contest');
     s().renameConfig(config().id, '   ');
+    s().commitConfigName(config().id);
     expect(config().name).toBeNull();
+  });
+
+  it('keeps a typed name as typed until the edit commits, then trims it', () => {
+    s().renameConfig(config().id, 'Two ');
+    expect(config().name).toBe('Two ');
+    s().renameConfig(config().id, '  Two stage ');
+    s().commitConfigName(config().id);
+    expect(config().name).toBe('Two stage');
+  });
+
+  it('records no undo step for a name keystroke that changes nothing', () => {
+    s().renameConfig(config().id, 'Contest');
+    s().commitConfigName(config().id);
+    const steps = s().past.length;
+    s().renameConfig(config().id, 'Contest');
+    s().commitConfigName(config().id);
+    expect(s().past.length).toBe(steps);
   });
 
   it('refuses to delete the only configuration', () => {

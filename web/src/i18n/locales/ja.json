@@ -73,6 +73,7 @@
       "engDataLine": ".eng の {{line}} 行目のデータが不正です：時間と推力が必要ですが、「{{text}}」でした。",
       "engNoCurve": ".eng ファイルに推力曲線のデータ点がありません。",
       "engNegativeThrust": ".eng ファイルのモーター {{motor}} は {{line}} 行目の推力が負です。",
+      "engNegativeTime": ".eng ファイルのモーター {{motor}} は {{line}} 行目の時間が負です。",
       "attrDiameter": "直径",
       "attrLength": "長さ",
       "attrInitialMass": "初期質量",
@@ -88,6 +89,7 @@
       "rseNoCurve": ".rse ファイルのモーター {{motor}} に推力曲線のデータがありません。",
       "rseNegativeMass": ".rse ファイルのモーター {{motor}} のデータに負の質量があります。",
       "rseNegativeThrust": ".rse ファイルのモーター {{motor}} のデータに負の推力があります。",
+      "rseNegativeTime": ".rse ファイルのモーター {{motor}} のデータに負の時間があります。",
       "rseCgOutside": ".rse ファイルのモーター {{motor}} の重心がモーターの外にあります（0〜{{length}} mm）。",
       "rseNoEngine": "有効な .rse ファイルではありません（<engine> がありません）。",
       "rseTooManyMotors": "この .rse は {{max}} 個を超えるモーターを宣言しています（壊れている可能性があります）。"
@@ -107,6 +109,19 @@
       "badData": "{{motor}} の推力曲線データが不正です。",
       "importGone": "インポートしたモーター {{motor}} はもう保存されていません。モーターファイルをもう一度インポートしてください。"
     },
+    "motorCurve": {
+      "notFinite": "モーター {{motor}}: {{what}}が有限の数値ではありません（カタログのデータが不完全です）。",
+      "whatDiameter": "直径",
+      "whatLength": "長さ",
+      "whatCg": "重心",
+      "whatDelay": "放出遅延",
+      "size": "モーター {{motor}}: 直径と長さは正の値でなければなりません（カタログのデータが不完全です）。",
+      "nonFinite": "モーター {{motor}}: 推力曲線に有限でない値が含まれています（公表重量の欠落、または不正な .rse / .eng ファイル）。",
+      "lengths": "モーター {{motor}}: 推力曲線の各リストの長さが一致しません（時間 {{times}}、推力 {{thrusts}}、質量 {{masses}}）。",
+      "backwards": "モーター {{motor}}: 推力曲線の時間がサンプル {{sample}} で逆行しています（{{before}} の次が {{after}}）。",
+      "negativeMass": "モーター {{motor}}: 推力曲線の終わりで質量が負になります（推進剤質量が装填質量を超えています）。",
+      "noMass": "モーター {{motor}}: 推力曲線のどの点にも質量がありません（モーターファイルにサンプルごとの質量がありません）。"
+    },
     "remote": {
       "motors": "モーターカタログを読み込めませんでした（{{reason}}）。",
       "components": "部品カタログを読み込めませんでした（{{reason}}）。",
@@ -120,11 +135,22 @@
       "openSolid": "この立体を閉じられませんでした：ふさいだ後も {{edges}} 本の開いた辺が残っています。",
       "imageEncode": "ブラウザーが画像をエンコードできませんでした。",
       "imageTooLarge": "画像がこのブラウザーには大きすぎます。より小さい幅を選んでください。",
-      "svgRasterize": "ブラウザーが SVG を描画できませんでした。"
+      "svgRasterize": "ブラウザーが SVG を描画できませんでした。",
+      "nothing": "エクスポートするものがありません。"
     },
     "engine": {
       "notReady": "OpenRocket の物理エンジンの読み込みがまだ終わっていません。読み込みが終わってから、もう一度お試しください。",
       "staleDesign": "この設計は物理エンジンのリセット前に構築されたものです。使う前に構築し直してください。"
+    },
+    "sim": {
+      "engineLoad": "シミュレーションエンジンを読み込めませんでした（{{reason}}）。",
+      "unknownMethod": "シミュレーションワーカーが不明な要求を受け取りました（{{method}}）。",
+      "workerCrashed": "シミュレーションワーカーが予期せず停止しました。",
+      "workerCrashedReason": "シミュレーションワーカーが予期せず停止しました（{{reason}}）。",
+      "replyUnreadable": "シミュレーションワーカーの応答を読み取れませんでした。"
+    },
+    "design": {
+      "cannotAdd": "{{part}}はここに追加できません。選択中の部品にもステージにも入れられません。"
     },
     "rktSkip": {
       "cgOverride": "CG の上書き（{{name}}）",
@@ -1887,7 +1913,7 @@
     "shortLink": "これは短縮リンクで、場所がリダイレクトの先に隠れています。リンクを開き、ブラウザの完全なアドレスか座標を貼り付けてください。",
     "coords": "座標",
     "elevationLooking": "標高を取得中…",
-    "elevationUnknown": "標高が見つかりません。発射場の標高はそのままです",
+    "elevationUnknown": "標高が見つかりません。発射場の標高は空欄になります",
     "credit": "GeoNames の地名（Open-Meteo.com 経由）"
   },
   "location": {
@@ -1974,6 +2000,7 @@
     "fetching": "取得中…",
     "apply": "適用",
     "needSite": "先に発射地点の緯度と経度を入力してください。",
+    "needElevation": "先に発射地点の標高を入力してください。",
     "siteLine": "地点 {{lat}}, {{lon}} 標高 {{alt}}",
     "noHour": "その時刻のデータがありません。",
     "validForecast": "{{time}} の予報",

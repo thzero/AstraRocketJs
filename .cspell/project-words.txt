@@ -1,7 +1,7 @@
 # genuinely ours, never to silence a real misspelling.
 # names, library and vendor names, and code abbreviations. Generated from the
 # Project vocabulary: rocketry and aerodynamics terms, .ork XML element
-# tree once it was clean, then maintained by hand — add a word only when it is
+# tree once it was clean, then maintained by hand. Add a word only when it is
 AABB
 aabbggrr
 absarc

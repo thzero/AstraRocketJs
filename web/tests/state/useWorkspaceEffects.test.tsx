@@ -161,6 +161,27 @@ describe('hydration', () => {
   });
 });
 
+describe('a build that fails', () => {
+  afterEach(async () => {
+    await i18n.changeLanguage('en');
+  });
+
+  it("shows a keyed failure in the app's language", async () => {
+    await i18n.changeLanguage('de');
+    computeStaticInfo.mockReturnValue({ error: { key: 'errors.motorCurve.noMass', values: { motor: 'F67' } } });
+    await mount();
+    expect(s().buildErr).toBe(i18n.t('errors.motorCurve.noMass', { motor: 'F67' }));
+    expect(s().buildErr).toContain('F67');
+    expect(s().buildErr).not.toContain('thrust curve');
+  });
+
+  it('shows a plain failure as its own text', async () => {
+    computeStaticInfo.mockReturnValue({ error: 'kernel blew up' });
+    await mount();
+    expect(s().buildErr).toBe('kernel blew up');
+  });
+});
+
 describe('autosave', () => {
   it('debounces to one write per 500 ms of quiet', async () => {
     await mount();

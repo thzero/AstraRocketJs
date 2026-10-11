@@ -16,6 +16,7 @@
  * than every call in flight (see {@link killWorker}).
  */
 import { backendPref, kernelLengthUnit } from './openRocketEngine';
+import { isKeyed, KeyedError } from '../i18n/keyedError';
 import type {
   SimPayload,
   WorkerCall,
@@ -172,29 +173,44 @@ function spawn(): Slot {
     // later one. Retire it (which rejects this call) rather than leave it in
     // the pool; the queue drains onto a fresh spawn.
     if (!msg.ok && msg.fatal) {
-      killWorker(slot, new Error(msg.error));
+      killWorker(slot, replyError(msg));
       return;
     }
     clearTimeout(p.timer);
     slot.busy = null;
     if (msg.ok) p.resolve(msg.result);
-    else p.reject(new Error(msg.error));
+    else p.reject(replyError(msg));
     // Settle first, then hand this worker its next task: a `.then` on the call
     // above must not observe an idle pool while work is still queued.
     release(slot);
   };
   worker.onerror = (e) => {
-    killWorker(slot, new Error(e.message || 'sim worker crashed'));
+    killWorker(
+      slot,
+      e.message
+        ? new KeyedError('errors.sim.workerCrashedReason', { reason: e.message })
+        : new KeyedError('errors.sim.workerCrashed'),
+    );
   };
   // A reply that could not be deserialized on this side (a structured-clone
   // failure) is a reply that will never settle its call: without this the slot
   // would stay `busy` until the sim timeout fired, and a call with no timeout
   // would hang forever.
   worker.onmessageerror = () => {
-    killWorker(slot, new Error('sim worker reply could not be deserialized'));
+    killWorker(slot, new KeyedError('errors.sim.replyUnreadable'));
   };
   pool.push(slot);
   return slot;
+}
+
+/**
+ * The error a failed reply stands for: the worker's `KeyedError` rebuilt from
+ * its key and values when the reply carries a well-formed one, otherwise the
+ * reply's English text. A reply with neither is unreadable.
+ */
+function replyError(msg: { error: unknown; keyed?: unknown }): Error {
+  if (isKeyed(msg.keyed)) return new KeyedError(msg.keyed.key, msg.keyed.values);
+  return typeof msg.error === 'string' ? new Error(msg.error) : new KeyedError('errors.sim.replyUnreadable');
 }
 
 /**

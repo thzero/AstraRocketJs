@@ -14,7 +14,7 @@ import './kernelLogSink.js';
 import { declaredLength, readStreamWithProgress } from '../services/app/fetchProgress';
 import { nsKey } from '../services/storage/storageKeys';
 import { errorMessage } from '../services/app/errorMessage';
-import { KeyedError } from '../i18n/keyedError';
+import { KeyedError, type Keyed } from '../i18n/keyedError';
 
 // The WASM-GC engine + its loader live in web/public/engine/ (served verbatim by
 // Vite; a .js in src/ would be run through import-analysis, which warns on the
@@ -1077,62 +1077,59 @@ function assertFiniteCurve(motor: MotorSpec): void {
   // cannot be converted to a BigInt" this guard exists to prevent. And
   // `toKernelDelay` passes NaN straight through, since `NaN >= PLUGGED_DELAY`
   // is false.
-  const scalars: [string, number][] = [
-    ['diameter', motor.diameter],
-    ['length', motor.length],
-    ['cgX', motor.cgX],
-    ['ejection delay', toKernelDelay(motor.ejectionDelay)],
+  const name = motor.designation;
+  const scalars: [Keyed, number][] = [
+    [{ key: 'errors.motorCurve.whatDiameter' }, motor.diameter],
+    [{ key: 'errors.motorCurve.whatLength' }, motor.length],
+    [{ key: 'errors.motorCurve.whatCg' }, motor.cgX],
+    [{ key: 'errors.motorCurve.whatDelay' }, toKernelDelay(motor.ejectionDelay)],
   ];
   for (const [what, v] of scalars) {
     // The delay may legitimately be Infinity (plugged); the dimensions may not.
-    if (Number.isNaN(v) || (what !== 'ejection delay' && !Number.isFinite(v))) {
-      throw new Error(`Motor ${motor.designation}: ${what} is not a finite number (incomplete catalog data).`);
+    if (Number.isNaN(v) || (what.key !== 'errors.motorCurve.whatDelay' && !Number.isFinite(v))) {
+      throw new KeyedError('errors.motorCurve.notFinite', { motor: name, what });
     }
   }
   if (motor.diameter <= 0 || motor.length <= 0) {
-    throw new Error(`Motor ${motor.designation}: diameter and length must be positive (incomplete catalog data).`);
+    throw new KeyedError('errors.motorCurve.size', { motor: name });
   }
 
   const bad = (xs: readonly number[]) => !xs.every((n) => Number.isFinite(n));
   if (bad(motor.times) || bad(motor.thrusts) || bad(motor.masses)) {
-    throw new Error(
-      `Motor ${motor.designation}: thrust curve contains non-finite values ` +
-        '(a missing published weight or a malformed .rse/.eng file).',
-    );
+    throw new KeyedError('errors.motorCurve.nonFinite', { motor: name });
   }
   // The three arrays are read in lockstep by the kernel (times[i], thrusts[i],
   // masses[i]), so a short one would index undefined off the end. The Java
   // rejects this at the boundary too; this is the JS half of the same guard,
   // and it names the motor before the kernel is ever entered.
   if (motor.times.length !== motor.thrusts.length || motor.times.length !== motor.masses.length) {
-    throw new Error(
-      `Motor ${motor.designation}: thrust curve arrays differ in length ` +
-        `(times ${motor.times.length}, thrusts ${motor.thrusts.length}, masses ${motor.masses.length}).`,
-    );
+    throw new KeyedError('errors.motorCurve.lengths', {
+      motor: name,
+      times: motor.times.length,
+      thrusts: motor.thrusts.length,
+      masses: motor.masses.length,
+    });
   }
   // Times must not run backwards: the kernel integrates between consecutive
   // samples, and a negative interval silently subtracts impulse.
   for (let i = 1; i < motor.times.length; i++) {
     if (motor.times[i]! < motor.times[i - 1]!) {
-      throw new Error(
-        `Motor ${motor.designation}: thrust curve times run backwards at sample ${i} ` +
-          `(${motor.times[i - 1]} then ${motor.times[i]}).`,
-      );
+      throw new KeyedError('errors.motorCurve.backwards', {
+        motor: name,
+        sample: i,
+        before: motor.times[i - 1]!,
+        after: motor.times[i]!,
+      });
     }
   }
   if (motor.masses.some((m) => m < 0)) {
-    throw new Error(
-      `Motor ${motor.designation}: thrust curve ends at a negative mass ` + '(propellant mass exceeds loaded mass).',
-    );
+    throw new KeyedError('errors.motorCurve.negativeMass', { motor: name });
   }
   // A motor that weighs nothing for the whole burn is not a motor. The kernel
   // simulates it happily and returns an optimistic flight, so catch it here:
   // the real-world source is an .rse whose samples carry no mass attribute.
   if (motor.masses.length > 0 && motor.masses.every((m) => m === 0)) {
-    throw new Error(
-      `Motor ${motor.designation}: thrust curve carries no mass at any point ` +
-        '(the motor file is missing its per-sample masses).',
-    );
+    throw new KeyedError('errors.motorCurve.noMass', { motor: name });
   }
 }
 

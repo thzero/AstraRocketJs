@@ -63,6 +63,43 @@ describe('WeatherDialog', () => {
     expect(screen.queryByRole('button', { name: 'Fetch' })).toBeNull();
   });
 
+  it('asks for the elevation first when it is blank, rather than fetching for sea level', () => {
+    renderWithProviders(
+      <WeatherDialog launch={{ ...SITE, launchAltitudeM: null }} onChange={() => {}} onClose={() => {}} />,
+    );
+    expect(screen.getByText('Set the launch site’s elevation first.')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Fetch' })).toBeNull();
+    // The site line is where a minted 0 m would show.
+    expect(document.body.textContent).not.toMatch(/(^|[^\d.,])0 m/);
+  });
+
+  it('does not fetch on Refresh while the elevation is blank', () => {
+    const stamp = {
+      provider: 'open-meteo' as const,
+      endpoint: 'forecast' as const,
+      date,
+      hour: 9,
+      timezone: 'America/Denver',
+      latitudeDeg: 40,
+      longitudeDeg: -105,
+      elevationM: 1500,
+      validAt: new Date().toISOString(),
+      fetchedAt: new Date().toISOString(),
+      groups: ['wind' as const],
+      elevationApplied: false,
+    };
+    renderWithProviders(
+      <WeatherDialog
+        launch={{ ...SITE, launchAltitudeM: null, weatherSource: stamp }}
+        onChange={() => {}}
+        onClose={() => {}}
+        refresh
+      />,
+    );
+    expect(urls).toEqual([]);
+    expect(screen.getByText('Set the launch site’s elevation first.')).toBeTruthy();
+  });
+
   it('fetches from the free service, shows each value with the credit, and changes nothing yet', async () => {
     const { onChange } = open();
     await fetchIt();

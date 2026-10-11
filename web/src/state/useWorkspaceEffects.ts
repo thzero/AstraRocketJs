@@ -11,6 +11,7 @@ import { onStorageDegraded } from '../services/storage/idbKeyValueStore';
 import { requestPersistentStorage } from '../services/storage/persistStorage';
 import { computeStaticInfo, buildKey } from '../services/design/buildRocket';
 import { designBlockerText } from '../services/flight/runnability';
+import { keyedText } from '../i18n/keyedError';
 import { useSettings } from './SettingsProvider';
 import { warmSimWorker } from '../engine/simClient';
 import { appName } from '../services/app/appInfo';
@@ -259,7 +260,9 @@ export function useWorkspaceEffects() {
         store.setBuildErr(
           res.bad?.length
             ? designBlockerText({ kind: 'badGeometry', bad: res.bad }, i18nGlobal.t.bind(i18nGlobal))
-            : res.error,
+            : typeof res.error === 'string'
+              ? res.error
+              : keyedText(res.error, i18nGlobal.t.bind(i18nGlobal)),
         );
       } else {
         store.applyBuild(res.info, res.rocket);

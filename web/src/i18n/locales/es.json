@@ -73,6 +73,7 @@
       "engDataLine": "Datos .eng mal formados en la línea {{line}}: se esperaba un tiempo y un empuje, pero hay «{{text}}».",
       "engNoCurve": "El archivo .eng no tiene puntos de datos de la curva de empuje.",
       "engNegativeThrust": "El motor {{motor}} del archivo .eng tiene un empuje negativo en la línea {{line}}.",
+      "engNegativeTime": "El motor {{motor}} del archivo .eng tiene un tiempo negativo en la línea {{line}}.",
       "attrDiameter": "diámetro",
       "attrLength": "longitud",
       "attrInitialMass": "masa inicial",
@@ -88,6 +89,7 @@
       "rseNoCurve": "El motor {{motor}} del archivo .rse no tiene datos de curva de empuje.",
       "rseNegativeMass": "El motor {{motor}} del archivo .rse tiene una masa negativa en sus datos.",
       "rseNegativeThrust": "El motor {{motor}} del archivo .rse tiene un empuje negativo en sus datos.",
+      "rseNegativeTime": "El motor {{motor}} del archivo .rse tiene un tiempo negativo en sus datos.",
       "rseCgOutside": "El motor {{motor}} del archivo .rse sitúa su centro de gravedad fuera del motor (0 a {{length}} mm).",
       "rseNoEngine": "No es un archivo .rse válido (no se encontró <engine>).",
       "rseTooManyMotors": "Este .rse declara más de {{max}} motores (posiblemente esté dañado)."
@@ -107,6 +109,19 @@
       "badData": "Los datos de curva de empuje de {{motor}} están mal formados.",
       "importGone": "El motor importado {{motor}} ya no está guardado. Vuelve a importar su archivo de motor."
     },
+    "motorCurve": {
+      "notFinite": "Motor {{motor}}: el valor de {{what}} no es un número finito (datos de catálogo incompletos).",
+      "whatDiameter": "diámetro",
+      "whatLength": "longitud",
+      "whatCg": "centro de gravedad",
+      "whatDelay": "retardo de eyección",
+      "size": "Motor {{motor}}: el diámetro y la longitud deben ser positivos (datos de catálogo incompletos).",
+      "nonFinite": "Motor {{motor}}: la curva de empuje contiene valores que no son números finitos (falta un peso publicado o el archivo .rse o .eng está mal formado).",
+      "lengths": "Motor {{motor}}: las listas de la curva de empuje tienen longitudes distintas (tiempos {{times}}, empujes {{thrusts}}, masas {{masses}}).",
+      "backwards": "Motor {{motor}}: los tiempos de la curva de empuje retroceden en la muestra {{sample}} ({{before}} y luego {{after}}).",
+      "negativeMass": "Motor {{motor}}: la curva de empuje termina con una masa negativa (la masa de propelente supera la masa cargada).",
+      "noMass": "Motor {{motor}}: la curva de empuje no tiene masa en ningún punto (al archivo del motor le faltan las masas de cada muestra)."
+    },
     "remote": {
       "motors": "No se pudo cargar el catálogo de motores ({{reason}}).",
       "components": "No se pudo cargar el catálogo de componentes ({{reason}}).",
@@ -120,11 +135,22 @@
       "openSolid": "No se pudo cerrar este sólido: quedan {{edges}} aristas abiertas tras taparlo.",
       "imageEncode": "El navegador no pudo codificar la imagen.",
       "imageTooLarge": "La imagen es demasiado grande para este navegador. Elija un ancho menor.",
-      "svgRasterize": "El navegador no pudo dibujar el SVG."
+      "svgRasterize": "El navegador no pudo dibujar el SVG.",
+      "nothing": "No hay nada que exportar."
     },
     "engine": {
       "notReady": "El motor de física de OpenRocket aún no ha terminado de cargarse. Espera a que termine y vuelve a intentarlo.",
       "staleDesign": "Este diseño se construyó antes de reiniciar el motor de física. Vuelve a construirlo antes de usarlo."
+    },
+    "sim": {
+      "engineLoad": "No se pudo cargar el motor de simulación ({{reason}}).",
+      "unknownMethod": "El proceso de simulación recibió una solicitud desconocida ({{method}}).",
+      "workerCrashed": "El proceso de simulación se detuvo de forma inesperada.",
+      "workerCrashedReason": "El proceso de simulación se detuvo de forma inesperada ({{reason}}).",
+      "replyUnreadable": "No se pudo leer la respuesta del proceso de simulación."
+    },
+    "design": {
+      "cannotAdd": "No se puede añadir {{part}} aquí: ni la pieza seleccionada ni la etapa pueden contenerlo."
     },
     "rktSkip": {
       "cgOverride": "anulación del CG ({{name}})",
@@ -1905,7 +1931,7 @@
     "shortLink": "Es un enlace acortado, que oculta el lugar tras una redirección. Ábrelo y pega la dirección completa del navegador, o las coordenadas.",
     "coords": "Coordenadas",
     "elevationLooking": "buscando la altitud…",
-    "elevationUnknown": "altitud no encontrada; la altitud del sitio no cambia",
+    "elevationUnknown": "altitud no encontrada; la altitud del sitio queda en blanco",
     "credit": "Lugares de GeoNames, a través de Open-Meteo.com"
   },
   "location": {
@@ -1994,6 +2020,7 @@
     "fetching": "Consultando…",
     "apply": "Aplicar",
     "needSite": "Indica primero la latitud y la longitud del sitio de lanzamiento.",
+    "needElevation": "Indica primero la altitud del sitio de lanzamiento.",
     "siteLine": "Sitio {{lat}}, {{lon}} a {{alt}}",
     "noHour": "La respuesta no tiene datos para esa hora.",
     "validForecast": "Pronóstico para {{time}}",

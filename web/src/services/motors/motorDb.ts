@@ -221,13 +221,13 @@ export async function importCustomMotors(
   // Several files at once, the way desktop loads a whole folder of thrust
   // curves. A file that cannot be read is named and skipped rather than
   // stopping the rest.
-  const motors: ReturnType<typeof parseEng>[] = [];
+  const motors: CustomMotor[] = [];
   const failed: string[] = [];
   let firstError: Error | null = null;
   for (const { name, text } of files) {
     try {
       assertImportSize(text.length);
-      motors.push(...(text.trimStart().startsWith('<') ? parseRse(text) : [parseEng(text)]));
+      motors.push(...(text.trimStart().startsWith('<') ? parseRse(text) : parseEng(text)));
     } catch (err) {
       failed.push(name);
       firstError ??= err instanceof Error ? err : new Error(errorMessage(err));

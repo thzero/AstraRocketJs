@@ -309,7 +309,7 @@ public final class OpenRocketEngine {
             for (Object o : topLevel) {
                 if (!(o instanceof Map) || !"stage".equals(((Map<?, ?>) o).get("type"))) {
                     throw new IllegalArgumentException(
-                            "Top level mixes stage and component nodes — with stages, EVERY top-level node must be a stage");
+                            "Top level mixes stage and component nodes: with stages, EVERY top-level node must be a stage");
                 }
                 @SuppressWarnings("unchecked")
                 Map<String, Object> stageNode = (Map<String, Object>) o;
@@ -616,7 +616,7 @@ public final class OpenRocketEngine {
         MotorConfiguration mc = ((MotorMount) comp).getMotorConfig(ctx.fcid);
         if (mc == null || mc.getMotor() == null) {
             throw new IllegalArgumentException(
-                    "No motor loaded on mount '" + componentId + "' — call setMotorById first");
+                    "No motor loaded on mount '" + componentId + "'; call setMotorById first");
         }
         // At the boundary, like the motor curve in applyMotor. This method is
         // void, so a bad delay cannot come back as an envelope; unchecked, it

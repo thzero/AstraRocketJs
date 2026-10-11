@@ -22,6 +22,12 @@ export interface KernelGeometry {
   radius?: number;
   /** The front of the part's first copy from the nose tip (`getComponentInfo`). */
   positionX?: number;
+  /**
+   * The part's length from `getComponentInfo`, read after every geometry read.
+   * A mass object with an automatic radius moves its length when the radius
+   * settles (`MassObject.getRadius`), and `length` above is read before that.
+   */
+  settledLength?: number;
 }
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- the TeaVM bundle is untyped */
@@ -67,9 +73,14 @@ export function kernelGeometry(engine: any, tree: RocketTree): Map<string, Kerne
   // tube, in tree order, and reading anything else between them would change
   // the order the kernel evaluates them in.
   for (const [id, geometry] of out) {
-    const info = JSON.parse(engine.getComponentInfo(handle, id) as string) as { positionX?: number; error?: string };
+    const info = JSON.parse(engine.getComponentInfo(handle, id) as string) as {
+      positionX?: number;
+      length?: number;
+      error?: string;
+    };
     if (info.error) throw new Error(`${id}: ${info.error}`);
     geometry.positionX = info.positionX;
+    geometry.settledLength = info.length;
   }
   return out;
 }

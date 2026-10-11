@@ -44,9 +44,9 @@ sourceSets {
     }
     // java.text.Collator stand-in for TeaVM (its class library lacks it). A SEPARATE source set
     // is required by javac, not the runtime: JPMS forbids declaring java.* in the unnamed module,
-    // so it compiles with --patch-module (below) — which can't be mixed with ordinary sources in
+    // so it compiles with --patch-module (below), which can't be mixed with ordinary sources in
     // one compilation. TeaVM links it; on the JVM parity run the real JDK Collator wins, so it
-    // only shapes the JS build. (The java.awt.geom stubs are gone — the kernel now uses Geo2D.)
+    // only shapes the JS build. (The java.awt.geom stubs are gone; the kernel now uses Geo2D.)
     jdkStubs {
         java {
             srcDir 'src/jdkstubs'
@@ -93,7 +93,7 @@ java {
     toolchain {
         // 21: the LTS this is built with. TeaVM compiles the bytecode rather
         // than running it, so the level only has to be one both TeaVM and the
-        // extracted OpenRocket sources accept — the parity harness
+        // extracted OpenRocket sources accept. The parity harness
         // (test/parity) is what proves a toolchain change did not move a number.
         languageVersion = JavaLanguageVersion.of(21)
         // Pin the VENDOR too, not just the language level.
@@ -115,9 +115,9 @@ teavm.js {
     mainClass = 'api.OpenRocketEngine'
     obfuscated = false
     // Native ES module: real named exports. UMD's dynamically-assigned exports are invisible
-    // to bundler static analysis — the whole engine got tree-shaken out of prod bundles.
+    // to bundler static analysis, so the whole engine got tree-shaken out of prod bundles.
     moduleType = org.teavm.gradle.api.JSModuleType.ES2015
-    // REQUIRED: TeaVM's devirtualizer miscompiles the kernel — at FlightConfiguration's tree
+    // REQUIRED: TeaVM's devirtualizer miscompiles the kernel: at FlightConfiguration's tree
     // walk it inlined RocketComponent.getInstanceCount()'s `return 1`, ignoring FinSet's
     // override (fin contexts collapsed 3->1, masses zeroed), and pruned virtual methods
     // reached only via map-key dispatch. Do not change without a full re-verification.
@@ -125,7 +125,7 @@ teavm.js {
     // REQUIRED: class-hierarchy analysis. TeaVM's precise flow analysis under-links
     // virtual-method impls reached via map-key / recursive-walk dispatch.
     fastGlobalAnalysis = true
-    // NOTE: strict = true is NOT usable — it breaks util.ArrayList.clone with a
+    // NOTE: strict = true is NOT usable: it breaks util.ArrayList.clone with a
     // ClassCastException. JS Math transcendentals differ from Java's by 1-2 ULPs.
 }
 

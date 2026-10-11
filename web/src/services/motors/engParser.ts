@@ -1,13 +1,14 @@
 // Parser for RASP `.eng` motor files (the common thrust-curve exchange format).
-// A .eng file is: comment lines starting with ';', then a header line, then
-// "time thrust" data pairs. Header fields (whitespace-separated):
+// A .eng file is one or more motors, each a header line followed by
+// "time thrust" data pairs, with comment lines starting with ';' anywhere.
+// Header fields (whitespace-separated):
 //
 //   designation  diameter(mm)  length(mm)  delays  propWeight(kg)  totalWeight(kg)  manufacturer
 //
 // e.g.  C6  18  70  0-3-5-7  0.0108  0.0242  Estes
 //
-// We parse the first motor definition in the file (single-motor imports are the
-// norm); data parsing stops at the first non-numeric line.
+// Every motor in the file is returned, as upstream's RASPMotorLoader returns
+// them; one bad motor refuses the whole file, as it does there.
 import type { CustomMotor } from './motorStore';
 // The one impulse classifier, shared with the Motor Dashboard, so a motor gets
 // the same class on every screen (a 0.75 N-s MicroMaxx is a 1/2A, not an A).
@@ -25,14 +26,38 @@ export function totalImpulse(samples: { time: number; thrust: number }[]): numbe
   );
 }
 
-export function parseEng(text: string): CustomMotor {
-  const lines = text
+/** One non-blank, non-comment line and its 1-based line number in the file. */
+interface Line {
+  text: string;
+  no: number;
+}
+
+/**
+ * Every motor in a `.eng` file.
+ *
+ * A list, as `parseRse` returns: a RASP file can carry a manufacturer's range,
+ * one header block per motor, and each header names its own motor.
+ */
+export function parseEng(text: string): CustomMotor[] {
+  const lines: Line[] = text
     .split(/\r?\n/)
-    .map((l) => l.trim())
-    .filter((l) => l && !l.startsWith(';'));
+    .map((l, i) => ({ text: l.trim(), no: i + 1 }))
+    .filter((l) => l.text && !l.text.startsWith(';'));
   if (lines.length < 2) throw new KeyedError('errors.motorFile.engNoData');
 
-  const header = lines[0]!.split(/\s+/);
+  const motors: CustomMotor[] = [];
+  let i = 0;
+  while (i < lines.length) {
+    const { motor, next } = parseMotor(lines, i);
+    motors.push(motor);
+    i = next;
+  }
+  return motors;
+}
+
+/** The motor whose header is `lines[at]`, and the index of the line after its data. */
+function parseMotor(lines: readonly Line[], at: number): { motor: CustomMotor; next: number } {
+  const header = lines[at]!.text.split(/\s+/);
   if (header.length < 7) {
     throw new KeyedError('errors.motorFile.engHeader');
   }
@@ -76,32 +101,40 @@ export function parseEng(text: string): CustomMotor {
   // which is why its 7 fields are the only non-data line that stops rather than
   // throws (comments and blanks are already gone).
   const samples: { time: number; thrust: number }[] = [];
-  for (let i = 1; i < lines.length; i++) {
-    const fields = lines[i]!.split(/\s+/);
-    if (fields.length >= 7) break; // the next motor in a multi-motor file
+  let i = at + 1;
+  for (; i < lines.length; i++) {
+    const line = lines[i]!;
+    const fields = line.text.split(/\s+/);
+    if (fields.length >= 7) break; // the next motor's header
     const [t, f] = fields.map(Number);
     if (fields.length !== 2 || !Number.isFinite(t) || !Number.isFinite(f)) {
-      throw new KeyedError('errors.motorFile.engDataLine', { line: i + 1, text: lines[i]! });
+      throw new KeyedError('errors.motorFile.engDataLine', { line: line.no, text: line.text });
     }
-    // ThrustCurveMotor refuses a negative thrust, and the bridge builds every
-    // seated motor through it, so the file is refused here as desktop drops it.
-    if (f! < 0) throw new KeyedError('errors.motorFile.engNegativeThrust', { motor: designation, line: i + 1 });
+    // ThrustCurveMotor refuses a negative thrust, and a negative time, which
+    // gets a zero point put ahead of it and so runs backward. The bridge
+    // builds every seated motor through it, so the file is refused here as
+    // desktop drops it.
+    if (f! < 0) throw new KeyedError('errors.motorFile.engNegativeThrust', { motor: designation, line: line.no });
+    if (t! < 0) throw new KeyedError('errors.motorFile.engNegativeTime', { motor: designation, line: line.no });
     samples.push({ time: t!, thrust: f! });
   }
   if (samples.length < 2) throw new KeyedError('errors.motorFile.engNoCurve');
 
   const manufacturer = mfr.join(' ') || 'Custom';
   return {
-    id: `custom:${manufacturer}:${designation}`,
-    designation,
-    manufacturer,
-    class: impulseClass(totalImpulse(samples)),
-    diameter,
-    length,
-    totalWeightG: totalKg * 1000,
-    propWeightG: propKg * 1000,
-    delayList: delays,
-    samples,
-    source: 'eng',
+    motor: {
+      id: `custom:${manufacturer}:${designation}`,
+      designation,
+      manufacturer,
+      class: impulseClass(totalImpulse(samples)),
+      diameter,
+      length,
+      totalWeightG: totalKg * 1000,
+      propWeightG: propKg * 1000,
+      delayList: delays,
+      samples,
+      source: 'eng',
+    },
+    next: i,
   };
 }

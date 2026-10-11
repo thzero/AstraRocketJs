@@ -22,6 +22,7 @@ import { KERNEL_DEFAULTS, KERNEL_MATERIALS } from '../../tree/kernelDefaults.js'
 import { COMPONENT_DEFAULTS } from './componentDefaults.js';
 import { isChainType } from '../../tree/componentKinds';
 import { uuid } from '../app/uuid';
+import { KeyedError } from '../../i18n/keyedError';
 // Every mutator here ends by resolving the radii and shoulders that follow a
 // neighbor (syncDerived): this is the one door the tree is edited through, so
 // nothing downstream has to know the feature exists.
@@ -29,6 +30,7 @@ import { syncAutoShoulders } from './autoShoulder';
 import { syncAutoRadii } from './autoRadius';
 import { FIELDS } from './componentFields';
 import { findNode as findNodeIn, findSiblings, findWithParent, walkNodes } from '../../tree/treeWalk';
+import { shapeChange } from '../../tree/shapeProfile';
 
 /**
  * A unique id for a new node.
@@ -477,7 +479,8 @@ const DEFAULT_LINE_COUNT = 6;
  * the replaced part's: the drag coefficient to automatic, six lines of 0.3 m,
  * the default canopy and line materials, and no mass override. The packed
  * length and diameter are set only where stated, and with both stated the
- * packed radius follows the parent's bore.
+ * packed radius follows the parent's bore. The stated pair is written as is:
+ * `syncAutoRadii` then resizes it to the bore at the volume the pair packs.
  */
 function parachutePatch(p: ParachuteComponent): Partial<ComponentNode> {
   const packedLength = p.packedLength ?? null;
@@ -526,7 +529,7 @@ function statedPatch(p: Component, node?: ComponentNode): Partial<ComponentNode>
             ? { thickness: KERNEL_DEFAULTS.nosecone.thickness }
             : hollowWall(node, radius);
       return {
-        shape: p.shape,
+        ...shapeChange('nosecone', p.shape),
         length: p.length,
         aftRadius: radius,
         // Said outright, both ways. The kernel reads solidness from this flag
@@ -570,7 +573,7 @@ function statedPatch(p: Component, node?: ComponentNode): Partial<ComponentNode>
       const shoulder = (side: 'fore' | 'aft', diameter: number | null, length: number | null) =>
         presetShoulder(side, diameter, length, p);
       return {
-        shape: p.shape,
+        ...shapeChange('transition', p.shape),
         length: p.length,
         foreRadius: p.foreOuterDiameter / 2,
         aftRadius: p.aftOuterDiameter / 2,
@@ -1031,7 +1034,7 @@ export function addPart(
     return { tree: syncDerived(next), id };
   }
   if (!allowedChildren('stage').includes(type)) {
-    throw new Error(`A ${type} cannot be added here: neither the selected part nor the stage may host it.`);
+    throw new KeyedError('errors.design.cannotAdd', { part: { key: `part.${type}` } });
   }
   return { tree: addChild(tree, stageId, node), id };
 }

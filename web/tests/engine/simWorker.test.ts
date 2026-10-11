@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WorkerReady, WorkerRequest, WorkerResponse } from '../../src/engine/simProtocol';
+import { englishText } from '../../src/i18n/keyedError';
 
 /**
  * The worker's message loop, driven directly: `self` is the module's
@@ -105,6 +106,42 @@ describe('simWorker', () => {
     });
     await send({ id: 3, method: 'simulate', args: {} as never });
     expect(posted).toEqual([{ id: 3, ok: false, error: 'bad geometry' }]);
+  });
+
+  it('sends a keyed error across with its key and values, and its English text for logs', async () => {
+    // The class the worker module sees: modules are reset before each test.
+    const { KeyedError } = await import('../../src/i18n/keyedError');
+    engine.initEngine.mockResolvedValue('js');
+    engine.resetEngine.mockImplementation(() => {
+      throw new KeyedError('errors.motorCurve.noMass', { motor: 'F67' });
+    });
+    await send({ id: 4, method: 'simulate', args: {} as never });
+    expect(posted).toEqual([
+      {
+        id: 4,
+        ok: false,
+        error: englishText('errors.motorCurve.noMass', { motor: 'F67' }),
+        keyed: { key: 'errors.motorCurve.noMass', values: { motor: 'F67' } },
+      },
+    ]);
+  });
+
+  it('keys its own engine-load failure, with the cause nested inside', async () => {
+    engine.initEngine.mockRejectedValue(new Error('no engine'));
+    await send({ id: 1, method: 'ping', args: null });
+    const m = posted[0]!;
+    expect(m.ok).toBe(false);
+    if (m.ok) return;
+    expect(m.keyed).toEqual({ key: 'errors.sim.engineLoad', values: { reason: 'no engine' } });
+  });
+
+  it('keys an unknown method', async () => {
+    engine.initEngine.mockResolvedValue('js');
+    await send({ id: 5, method: 'fly' as never, args: null });
+    const m = posted[0]!;
+    if (m.ok) throw new Error('expected a refusal');
+    expect(m.keyed).toEqual({ key: 'errors.sim.unknownMethod', values: { method: 'fly' } });
+    expect(m.fatal).toBeUndefined();
   });
 
   it('says once that its engine is ready, so the client can start the call timeout from there', async () => {

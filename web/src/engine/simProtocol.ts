@@ -1,5 +1,6 @@
 import type { BackendPref, FlightResult, RocketTree, SimulationOptions } from './openRocketEngine';
 import type { FlightConfig } from '../services/flight/flightConfigs';
+import type { Keyed } from '../i18n/keyedError';
 
 /**
  * Shared message contract between the main thread (engine/simClient.ts) and the
@@ -62,7 +63,14 @@ export type WorkerResponse<M extends WorkerMethod = WorkerMethod> =
   | {
       id: number;
       ok: false;
+      /** The failure in English, for logs and for a failure that carries no key. */
       error: string;
+      /**
+       * The failure's i18n key and values, when the worker threw a
+       * `KeyedError`. The client checks its shape on receipt and rebuilds the
+       * error from it, so the user reads it in the app's language.
+       */
+      keyed?: Keyed;
       /**
        * The worker cannot serve any request: its engine failed to load. The
        * client terminates and replaces it rather than leaving a dead worker in

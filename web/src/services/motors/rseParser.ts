@@ -184,6 +184,10 @@ function parseEngine(el: Element): CustomMotor {
     if (!Number.isFinite(r.time) || !Number.isFinite(r.thrust)) {
       throw new KeyedError('errors.motorFile.rseBadPoint', { motor: designation });
     }
+    // A curve that starts before t = 0 gets a zero point put ahead of it, and
+    // ThrustCurveMotor refuses a time that runs backward. The bridge builds
+    // every seated motor through it, so the file is refused here.
+    if (r.time < 0) throw new KeyedError('errors.motorFile.rseNegativeTime', { motor: designation });
   }
   const points = finalizeThrustCurve(sortByTime(rows));
   if (points.length < 2) throw new KeyedError('errors.motorFile.rseNoCurve', { motor: designation });
@@ -247,9 +251,8 @@ const isFalse = (v: string | null) => v === '0' || v?.toLowerCase() === 'false';
  * Every motor in a `.rse` file.
  *
  * A list, not one motor: `<engine-database>` files carry a manufacturer's whole
- * range, and upstream's loader returns a list for the same reason. `.eng`
- * import takes only the first because a RASP file's second motor is a separate
- * header block that the format gives no way to name.
+ * range, and upstream's loader returns a list for the same reason. `parseEng`
+ * returns a list too, one motor per RASP header block.
  */
 export function parseRse(text: string): CustomMotor[] {
   const doc = parseXmlText(text, '.rse');

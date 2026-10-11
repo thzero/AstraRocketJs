@@ -7,8 +7,8 @@ body:
     attributes:
       value: >
         Thanks for the idea! Keep in mind AstraRocketJs is intentionally a *focused*
-        interface over OpenRocket's engine, not a full re-creation of the desktop app —
-        features that fit that scope are the easiest to land.
+        interface over OpenRocket's engine, not a full re-creation of the desktop app.
+        Features that fit that scope are the easiest to land.
   - type: textarea
     id: behavior
     attributes:

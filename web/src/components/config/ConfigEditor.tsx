@@ -36,6 +36,7 @@ export function ConfigEditor() {
   const setMountMotor = useWorkspaceStore((s) => s.setMountMotor);
   const setMountIgnition = useWorkspaceStore((s) => s.setMountIgnition);
   const renameConfig = useWorkspaceStore((s) => s.renameConfig);
+  const commitConfigName = useWorkspaceStore((s) => s.commitConfigName);
   const onCommit = useWorkspaceStore((s) => s.commitEdit);
   const onError = useWorkspaceStore((s) => s.setErr);
   const flights = useWorkspaceStore((s) => s.sims.filter((x) => x.configId === config.id).length);
@@ -56,8 +57,11 @@ export function ConfigEditor() {
         <div className="mb-1 text-[10px] uppercase tracking-wide text-ink-muted">{t('configs.name')}</div>
         <input
           value={config.name ?? ''}
+          // Stored as typed and trimmed on commit, so a space survives until
+          // the next word follows it.
           onChange={(e) => renameConfig(config.id, e.target.value)}
-          onBlur={onCommit}
+          onBlur={() => commitConfigName(config.id)}
+          onKeyDown={(e) => e.key === 'Enter' && commitConfigName(config.id)}
           // Empty is not a blank name: the label falls back to the motor list,
           // which is what the desktop shows for a setup nobody titled.
           placeholder={t('configs.namePlaceholder')}

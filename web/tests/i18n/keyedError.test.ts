@@ -1,7 +1,15 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from 'vitest';
 import i18n from '../../src/i18n';
-import { KeyedError, englishText, errorReason, errorText, keyedText, type Translate } from '../../src/i18n/keyedError';
+import {
+  KeyedError,
+  englishText,
+  errorReason,
+  errorText,
+  isKeyed,
+  keyedText,
+  type Translate,
+} from '../../src/i18n/keyedError';
 import { importNoteText, keyedNote } from '../../src/services/files/importNote';
 import { addCustom } from '../../src/services/materials/materials';
 import { updateCustomPart } from '../../src/services/parts/customParts';
@@ -10,7 +18,14 @@ import { exportCdx1 } from '../../src/services/files/rasaeroExport';
 import { parseEng } from '../../src/services/motors/engParser';
 import { parseRse } from '../../src/services/motors/rseParser';
 import { samplesToMotorSpec } from '../../src/services/motors/thrustcurve';
-import { OpenRocketDesign, __setEngineForTests, type RocketTree } from '../../src/engine/openRocketEngine';
+import {
+  OpenRocketDesign,
+  __setEngineForTests,
+  type MotorSpec,
+  type RocketTree,
+} from '../../src/engine/openRocketEngine';
+import { addPart } from '../../src/services/design/treeEdit';
+import { buildThreeMf } from '../../src/services/exports/threeMf';
 import de from '../../src/i18n/locales/de.json';
 import fr from '../../src/i18n/locales/fr.json';
 import ja from '../../src/i18n/locales/ja.json';
@@ -86,6 +101,34 @@ describe('errorText', () => {
     expect(errorText(e, i18n.t)).toBe(de.errors.material.nameRequired);
     await i18n.changeLanguage('ja');
     expect(errorText(e, i18n.t)).toBe(ja.errors.material.nameRequired);
+  });
+});
+
+/** Enough of the kernel facade to build an empty design; a motor never reaches it. */
+const stubEngine = { buildRocket: () => 1, reset: () => undefined } as unknown as Parameters<
+  typeof __setEngineForTests
+>[0];
+
+describe('isKeyed', () => {
+  it('accepts a key, with values that are text, numbers or nested keyed texts', () => {
+    expect(isKeyed({ key: 'errors.export.noPrintable' })).toBe(true);
+    expect(isKeyed({ key: 'a.b', values: { n: 1, s: 'x', k: { key: 'c.d', values: { m: 2 } } } })).toBe(true);
+  });
+
+  it('refuses anything else', () => {
+    for (const v of [
+      null,
+      'errors.export.noPrintable',
+      {},
+      { key: '' },
+      { key: 3 },
+      { key: 'a.b', values: null },
+      { key: 'a.b', values: ['x'] },
+      { key: 'a.b', values: { v: true } },
+      { key: 'a.b', values: { v: { key: '' } } },
+    ]) {
+      expect(isKeyed(v), JSON.stringify(v)).toBe(false);
+    }
   });
 });
 
@@ -191,6 +234,42 @@ describe('each service family, rendered in another language', () => {
     expect(caught(() => samplesToMotorSpec(motor, samples, 0))).toBe(
       ja.errors.thrustcurve.noWeight.replace('{{motor}}', 'C6'),
     );
+  });
+
+  it('the motor curve guard, a nested field name included', async () => {
+    await i18n.changeLanguage('ru');
+    const motor: MotorSpec = {
+      designation: 'F67',
+      diameter: 0.029,
+      length: 0.124,
+      times: [0, 1],
+      thrusts: [0, 0],
+      masses: [0.1, 0.05],
+      cgX: NaN,
+      ejectionDelay: 6,
+    };
+    __setEngineForTests(stubEngine);
+    try {
+      const design = OpenRocketDesign.buildTree({ components: [] } as unknown as RocketTree);
+      expect(caught(() => design.setMotorById('m', motor))).toBe(
+        ru.errors.motorCurve.notFinite.replace('{{motor}}', 'F67').replace('{{what}}', ru.errors.motorCurve.whatCg),
+      );
+    } finally {
+      __setEngineForTests(null);
+    }
+  });
+
+  it('adding a part nothing can hold', async () => {
+    await i18n.changeLanguage('ja');
+    const tree = { name: 'x', components: [{ type: 'stage', id: 's', children: [] }] } as unknown as RocketTree;
+    expect(caught(() => addPart(tree, 'stage', null))).toBe(
+      ja.errors.design.cannotAdd.replace('{{part}}', ja.part.stage),
+    );
+  });
+
+  it('a 3MF with no parts', async () => {
+    await i18n.changeLanguage('de');
+    expect(caught(() => buildThreeMf([]))).toBe(de.errors.export.nothing);
   });
 
   it('the engine', async () => {

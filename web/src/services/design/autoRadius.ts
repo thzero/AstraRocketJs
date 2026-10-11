@@ -3,6 +3,7 @@ import { KERNEL_AUTO_RADIUS, kernelLength } from '../../tree/kernelDefaults';
 import { num, str } from '../../tree/nodeProps';
 import { tubeFinRadius } from '../../tree/tubefins';
 import { DISC_TYPES } from '../files/componentFormats';
+import { COMPONENT_DEFAULTS } from './componentDefaults';
 import { boreAround, ringBore, tubeRadii } from './discGeometry';
 import { mapTreePreserving, walkNodes, type MapContext } from '../../tree/treeWalk';
 import { axialFrames } from '../../tree/axialRebase';
@@ -731,6 +732,30 @@ function resolveAxial(components: ComponentNode[], out: Map<ComponentNode, Patch
 }
 
 /**
+ * A mass object's packed radius and length once its automatic radius is `r`.
+ *
+ * The kernel keeps the packed volume, not the length: `MassObject.setRadius`
+ * and `setLength` store `radius^2 * length`, and with the radius automatic
+ * `getRadius` takes the parent's room and sets `length = volume / radius^2`.
+ * So a chute packed 50.8 mm across and 178.6 mm long, set into a 96 mm bore,
+ * comes out about 50 mm long. The bridge rebuilds the volume from the radius
+ * and length it is sent, so both are written here as the kernel settles them.
+ *
+ * A node with no radius or length on record is read at the kernel's own
+ * defaults for the part, which is what the bridge builds it with.
+ */
+function packedAtRadius(node: ComponentNode, r: number): Patch {
+  const stored = num(
+    node,
+    'radius',
+    node.type === 'masscomponent' ? COMPONENT_DEFAULTS.masscomponent.radius : COMPONENT_DEFAULTS.recovery.packedRadius,
+  );
+  if (stored === r) return { radius: r };
+  const length = num(node, 'length', kernelLength(node.type) ?? 0);
+  return { radius: r, length: (stored * stored * length) / (r * r) };
+}
+
+/**
  * The rules that look at a part's parent rather than at its neighbors.
  *
  * A ring, coupler, bulkhead or engine block fills the bore of the part it sits
@@ -759,7 +784,7 @@ function parentDerived(node: ComponentNode, parent: ComponentNode | null, parent
         : parent.type === 'transition'
           ? Math.max(num(parent, 'foreRadius', 0), num(parent, 'aftRadius', 0))
           : (tubeRadii(parent)?.innerR ?? 0);
-    if (r > 0) node['radius'] = r;
+    if (r > 0) Object.assign(node, packedAtRadius(node, r));
   }
   if (!DISC_TYPES.has(node.type)) return;
   if (node['outerRadiusAuto'] === true) {

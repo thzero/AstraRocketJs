@@ -31,7 +31,7 @@ describe('totalImpulse', () => {
 
 describe('parseEng', () => {
   it('parses header + samples, converting kg→g', () => {
-    const m = parseEng(ENG);
+    const m = parseEng(ENG)[0]!;
     expect(m.designation).toBe('TC10');
     expect(m.diameter).toBe(24);
     expect(m.length).toBe(70);
@@ -50,33 +50,73 @@ describe('parseEng', () => {
   // matches startsWith(';'), the comment becomes the header, and the import
   // fails with a misleading "Malformed .eng header".
   it('parses a file that carries a UTF-8 BOM', () => {
-    const m = parseEng('﻿' + ENG);
+    const m = parseEng('﻿' + ENG)[0]!;
     expect(m.designation).toBe('TC10');
     expect(m.diameter).toBe(24);
     expect(m.samples).toHaveLength(3);
   });
 
   it('derives the NAR impulse class from total impulse (10 Ns → C)', () => {
-    expect(parseEng(ENG).class).toBe('C');
+    expect(parseEng(ENG)[0]!.class).toBe('C');
   });
 
   it('strips comment and blank lines', () => {
     // leading comments/blank lines above are ignored; still parses fine
-    expect(parseEng(ENG).samples[0]).toEqual({ time: 0, thrust: 0 });
+    expect(parseEng(ENG)[0]!.samples[0]).toEqual({ time: 0, thrust: 0 });
   });
 
-  it('stops reading data at the first non-numeric row (multi-motor file)', () => {
-    const twoMotors = `TC10 24 70 3-5 0.010 0.025 Test
+  it('returns every motor in a multi-motor file, each with its own curve', () => {
+    // Upstream's RASPMotorLoader returns one motor per header block. The
+    // second block follows a comment, as desktop's own files separate them,
+    // and the third follows the second's data directly.
+    const threeMotors = `; first
+TC10-3 24 70 3-5 0.010 0.025 Test
 0 0
 0.5 20
 1.0 0
-TD20 24 90 4-6 0.02 0.05 Test
+; second
+TD20 24 90 4-6 0.02 0.05 Other Maker
 0 0
 0.5 40
-1.0 0`;
-    const m = parseEng(twoMotors);
-    expect(m.designation).toBe('TC10');
-    expect(m.samples).toHaveLength(3); // second motor's header + data not included
+1.0 0
+TE30 29 100 P 0.03 0.07 Test
+0 0
+1.0 30
+2.0 0`;
+    const ms = parseEng(threeMotors);
+    expect(ms.map((m) => m.designation)).toEqual(['TC10', 'TD20', 'TE30']);
+    expect(ms.map((m) => m.id)).toEqual(['custom:Test:TC10', 'custom:Other Maker:TD20', 'custom:Test:TE30']);
+    expect(ms[0]!.samples).toEqual([
+      { time: 0, thrust: 0 },
+      { time: 0.5, thrust: 20 },
+      { time: 1, thrust: 0 },
+    ]);
+    expect(ms[1]!.samples).toEqual([
+      { time: 0, thrust: 0 },
+      { time: 0.5, thrust: 40 },
+      { time: 1, thrust: 0 },
+    ]);
+    expect(ms[2]!.samples).toEqual([
+      { time: 0, thrust: 0 },
+      { time: 1, thrust: 30 },
+      { time: 2, thrust: 0 },
+    ]);
+    // Triangles: 20 N * 1 s / 2 = 10 Ns (C), 40 * 1 / 2 = 20 Ns (D), 30 * 2 / 2 = 30 Ns (E).
+    expect(ms.map((m) => m.class)).toEqual(['C', 'D', 'E']);
+    expect(ms.map((m) => m.diameter)).toEqual([24, 24, 29]);
+    expect(ms.map((m) => m.delayList)).toEqual(['3,5', '4,6', 'P']);
+    expect(ms[1]!.totalWeightG).toBeCloseTo(50, 9);
+  });
+
+  it('refuses the whole file when a later motor is malformed', () => {
+    const bad = `TC10 24 70 3-5 0.010 0.025 Test
+0 0
+0.5 20
+1.0 0
+; second
+TD20 24 90 4-6 0.02 0.05 Test
+0 0`;
+    expect(() => parseEng(bad)).toThrow(expect.objectContaining({ key: 'errors.motorFile.engNoCurve' }));
   });
 
   it('keeps a plugged "P" delay field, which is a motor with no ejection charge', () => {
@@ -87,7 +127,7 @@ TD20 24 90 4-6 0.02 0.05 Test
 0 0
 0.5 20
 1.0 0`;
-    expect(parseEng(plugged).delayList).toBe('P');
+    expect(parseEng(plugged)[0]!.delayList).toBe('P');
   });
 
   it('drops a sentinel delay rather than flying it, or calling it plugged', () => {
@@ -100,7 +140,7 @@ TD20 24 90 4-6 0.02 0.05 Test
 0 0
 0.5 20
 1.0 0`;
-    expect(parseEng(sentinel).delayList).toBe('0');
+    expect(parseEng(sentinel)[0]!.delayList).toBe('0');
   });
 
   it('reads RASP’s own word for a motor that lists none', () => {
@@ -108,7 +148,7 @@ TD20 24 90 4-6 0.02 0.05 Test
 0 0
 0.5 20
 1.0 0`;
-    expect(parseEng(none).delayList).toBeUndefined();
+    expect(parseEng(none)[0]!.delayList).toBeUndefined();
   });
 
   it('offers plugged to the picker for such a motor', () => {
@@ -116,8 +156,8 @@ TD20 24 90 4-6 0.02 0.05 Test
 0 0
 0.5 20
 1.0 0`;
-    expect(offersPlugged({ delays: parseEng(plugged).delayList })).toBe(true);
-    expect(parseDelays(parseEng(plugged).delayList).delays).toEqual([3]);
+    expect(offersPlugged({ delays: parseEng(plugged)[0]!.delayList })).toBe(true);
+    expect(parseDelays(parseEng(plugged)[0]!.delayList).delays).toEqual([3]);
   });
 
   it('imports a two-pulse curve whole, coast and all', () => {
@@ -131,7 +171,7 @@ TD20 24 90 4-6 0.02 0.05 Test
 
 3.2 1000
 4.5 0`;
-    const m = parseEng(twoPulse);
+    const m = parseEng(twoPulse)[0]!;
     expect(m.samples).toHaveLength(5);
     expect(m.samples[m.samples.length - 1]).toEqual({ time: 4.5, thrust: 0 });
   });
@@ -200,20 +240,29 @@ describe('a .eng header that is finite but impossible', () => {
 });
 
 describe('parseEng refuses what ThrustCurveMotor.Builder.build() refuses', () => {
-  it('a negative thrust, naming the motor and the line', () => {
+  it('a negative thrust, naming the motor and its line in the file', () => {
+    // Line 6: two comments and a blank line come before the header.
     expect(() => parseEng(ENG.replace('0.5 20', '0.5 -20'))).toThrow(
-      expect.objectContaining({ key: 'errors.motorFile.engNegativeThrust', values: { motor: 'TC10', line: 3 } }),
+      expect.objectContaining({ key: 'errors.motorFile.engNegativeThrust', values: { motor: 'TC10', line: 6 } }),
+    );
+  });
+
+  it('a negative time, naming the motor and its line in the file', () => {
+    // Upstream puts a (0, 0) point ahead of a curve that does not start at
+    // zero, and the builder then refuses a time that runs backward.
+    expect(() => parseEng(ENG.replace('\n0 0\n', '\n-0.1 0\n'))).toThrow(
+      expect.objectContaining({ key: 'errors.motorFile.engNegativeTime', values: { motor: 'TC10', line: 5 } }),
     );
   });
 });
 
 describe('parseEng designation', () => {
   it('takes the delay off the name, as the .rse reader and upstream do', () => {
-    const m = parseEng(ENG.replace('TC10 24', 'C6-5 24'));
+    const m = parseEng(ENG.replace('TC10 24', 'C6-5 24'))[0]!;
     expect(m.designation).toBe('C6');
     expect(m.id).toBe('custom:Test Mfr:C6');
-    expect(parseEng(ENG.replace('TC10 24', 'C6-P 24')).designation).toBe('C6');
+    expect(parseEng(ENG.replace('TC10 24', 'C6-P 24'))[0]!.designation).toBe('C6');
     // A dash that is not a delay stays.
-    expect(parseEng(ENG.replace('TC10 24', 'G-WIZ 24')).designation).toBe('G-WIZ');
+    expect(parseEng(ENG.replace('TC10 24', 'G-WIZ 24'))[0]!.designation).toBe('G-WIZ');
   });
 });

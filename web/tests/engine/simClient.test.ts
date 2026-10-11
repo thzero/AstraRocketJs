@@ -333,10 +333,48 @@ describe('simClient worker retirement', () => {
   it('kills the slot on a reply that cannot be deserialized (onmessageerror)', async () => {
     const { simulateInWorker } = await import('../../src/engine/simClient');
     const p = simulateInWorker(payload); // never answered normally
-    const rejects = expect(p).rejects.toThrow(/deserialized/);
+    const rejects = expect(p).rejects.toMatchObject({ key: 'errors.sim.replyUnreadable' });
     created[0]!.onmessageerror?.({});
     await rejects;
     expect(created[0]!.terminate).toHaveBeenCalledOnce();
+  });
+
+  it('rebuilds a keyed error from the reply, so the main thread can translate it', async () => {
+    const keyed = { key: 'errors.motorCurve.noMass', values: { motor: 'F67' } };
+    FakeWorker.onPost = (self, msg) =>
+      self.onmessage?.({ data: { id: msg.id, ok: false, error: 'English for logs', keyed } } as MessageEvent);
+    const { simulateInWorker } = await import('../../src/engine/simClient');
+    const { KeyedError } = await import('../../src/i18n/keyedError');
+    const err = await simulateInWorker(payload).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(KeyedError);
+    expect(err).toMatchObject(keyed);
+    expect(created[0]!.terminate).not.toHaveBeenCalled();
+  });
+
+  it('rebuilds a keyed FATAL error too, and still retires the worker', async () => {
+    const keyed = { key: 'errors.sim.engineLoad', values: { reason: 'no WASM' } };
+    FakeWorker.onPost = (self, msg) =>
+      self.onmessage?.({
+        data: { id: msg.id, ok: false, error: 'English for logs', keyed, fatal: true },
+      } as MessageEvent);
+    const { simulateInWorker } = await import('../../src/engine/simClient');
+    await expect(simulateInWorker(payload)).rejects.toMatchObject(keyed);
+    expect(created[0]!.terminate).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    ['no key', { values: { motor: 'F67' } }],
+    ['an empty key', { key: '' }],
+    ['a value that is not text', { key: 'errors.motorCurve.noMass', values: { motor: { nested: true } } }],
+    ['values that are a list', { key: 'errors.motorCurve.noMass', values: ['F67'] }],
+  ])('falls back to the English text when the keyed part has %s', async (_what, keyed) => {
+    FakeWorker.onPost = (self, msg) =>
+      self.onmessage?.({ data: { id: msg.id, ok: false, error: 'English for logs', keyed } } as MessageEvent);
+    const { simulateInWorker } = await import('../../src/engine/simClient');
+    const { KeyedError } = await import('../../src/i18n/keyedError');
+    const err = await simulateInWorker(payload).catch((e: unknown) => e);
+    expect(err).not.toBeInstanceOf(KeyedError);
+    expect((err as Error).message).toBe('English for logs');
   });
 
   it('carries the backend preference on every request, since a worker cannot read it', async () => {

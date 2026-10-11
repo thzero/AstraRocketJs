@@ -14,11 +14,15 @@ import { readWeatherKey } from '../../services/weather/weatherKey';
 import { weatherErrorText } from '../../services/weather/weatherErrorText';
 import { useOnline } from '../common/useOnline';
 
-/** What choosing a place writes into the site: elevation only when one is known. */
+/**
+ * What choosing a place writes into the site. The elevation is always written,
+ * null when the lookup found none: keeping the previous site's elevation under
+ * new coordinates would fly the wrong air unannounced.
+ */
 export interface PlacePick {
   latitudeDeg: number;
   longitudeDeg: number;
-  launchAltitudeM?: number;
+  launchAltitudeM: number | null;
 }
 
 /** A row the dialog offers. Pasted coordinates are one row whose elevation is looked up. */
@@ -157,7 +161,7 @@ export function PlaceSearchDialog({ onPick, onClose }: { onPick: (pick: PlacePic
                     onPick({
                       latitudeDeg: r.latitudeDeg,
                       longitudeDeg: r.longitudeDeg,
-                      ...(r.elevationM != null ? { launchAltitudeM: r.elevationM } : {}),
+                      launchAltitudeM: r.elevationM ?? null,
                     })
                   }
                   // Not before the elevation lookup has answered: picking then

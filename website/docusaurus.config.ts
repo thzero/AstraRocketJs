@@ -60,7 +60,7 @@ const config: Config = {
   //
   // NOT derived from NODE_ENV: `docusaurus serve` re-evaluates this config with
   // NODE_ENV=development, so a dev/prod branch here would serve the built site
-  // at "/" while its HTML still pointed at the subpath — every link 404s.
+  // at "/" while its HTML still pointed at the subpath, and every link would 404.
   baseUrl: process.env.DOCS_BASE_URL || '/',
   organizationName: 'thzero',
   projectName: 'AstraRocketJs',

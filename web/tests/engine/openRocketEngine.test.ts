@@ -86,8 +86,14 @@ describe('assertFiniteCurve: the scalars', () => {
   // These cross into the kernel too. thrustcurve.ts computes
   // `length: motor.length / 1000` and `cgX: … ?? motor.length / 2000`, so a
   // catalog row missing `length` makes both NaN.
-  it.each([['diameter'], ['length'], ['cgX']] as const)('rejects a non-finite %s', (field) => {
-    expect(() => design().setMotorById('mount', motor({ [field]: NaN }))).toThrow(new RegExp(`C6.*${field}`));
+  it.each([
+    ['diameter', 'errors.motorCurve.whatDiameter'],
+    ['length', 'errors.motorCurve.whatLength'],
+    ['cgX', 'errors.motorCurve.whatCg'],
+  ] as const)('rejects a non-finite %s', (field, what) => {
+    expect(() => design().setMotorById('mount', motor({ [field]: NaN }))).toThrow(
+      expect.objectContaining({ key: 'errors.motorCurve.notFinite', values: { motor: 'C6', what: { key: what } } }),
+    );
   });
 
   it('rejects a non-positive diameter or length', () => {

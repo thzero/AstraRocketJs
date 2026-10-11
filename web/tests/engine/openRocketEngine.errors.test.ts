@@ -2,11 +2,14 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
   EngineCallError,
   OpenRocketDesign,
+  PLUGGED_DELAY,
   StaleDesignError,
   __setEngineForTests,
   resetEngine,
+  type MotorSpec,
   type RocketTree,
 } from '../../src/engine/openRocketEngine';
+import { KeyedError } from '../../src/i18n/keyedError';
 
 /**
  * The typed error the wrapper raises for kernel calls that cannot return an
@@ -211,5 +214,60 @@ describe('the envelope readers name their operation too', () => {
     );
     expect(() => resetEngine()).toThrow(EngineCallError);
     expect(() => resetEngine()).toThrow(/reset/);
+  });
+});
+
+describe('the motor curve guard throws keyed errors', () => {
+  const GOOD: MotorSpec = {
+    designation: 'F67',
+    diameter: 0.029,
+    length: 0.124,
+    times: [0, 0.5, 1],
+    thrusts: [0, 80, 0],
+    masses: [0.1, 0.08, 0.06],
+    cgX: 0.062,
+    ejectionDelay: 6,
+  };
+
+  /** What `setMotorById` throws for `motor`, or undefined if it seats. */
+  const refusal = (motor: MotorSpec): unknown => {
+    try {
+      OpenRocketDesign.buildTree(TREE).setMotorById('mount', motor);
+    } catch (e) {
+      return e;
+    }
+    return undefined;
+  };
+
+  it('seats a sound curve', () => {
+    expect(refusal(GOOD)).toBeUndefined();
+  });
+
+  it.each([
+    ['notFinite', { length: NaN }],
+    ['size', { diameter: 0 }],
+    ['nonFinite', { masses: [0.1, NaN, 0.06] }],
+    ['lengths', { masses: [0.1, 0.08] }],
+    ['backwards', { times: [0, 1, 0.5] }],
+    ['negativeMass', { masses: [0.1, 0.05, -0.01] }],
+    ['noMass', { masses: [0, 0, 0] }],
+  ] as [string, Partial<MotorSpec>][])('%s carries its key and the motor, not an English sentence', (name, patch) => {
+    const e = refusal({ ...GOOD, ...patch });
+    expect(e).toBeInstanceOf(KeyedError);
+    const k = e as KeyedError;
+    expect(k.key).toBe(`errors.motorCurve.${name}`);
+    expect(k.values?.motor).toBe('F67');
+    // The English text stays readable for a log.
+    expect(k.message).toContain('F67');
+  });
+
+  it('names the scalar that is not finite as a keyed value', () => {
+    const e = refusal({ ...GOOD, cgX: Infinity }) as KeyedError;
+    expect(e.values?.what).toEqual({ key: 'errors.motorCurve.whatCg' });
+    expect(e.message).toContain('center of gravity');
+  });
+
+  it('accepts a plugged motor, whose delay is infinite', () => {
+    expect(refusal({ ...GOOD, ejectionDelay: PLUGGED_DELAY })).toBeUndefined();
   });
 });

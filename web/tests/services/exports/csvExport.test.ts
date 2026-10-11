@@ -168,6 +168,27 @@ describe('flightDataCsv', () => {
     expect(rows[0]).toBe('East (ft),North (ft)');
     expect(rows[2]).toBe('98.43,-131.23');
   });
+
+  it('writes air temperature as a reading, with the unit offset applied', () => {
+    // 288.15 K is 15 °C and 59 °F (C = K - 273.15, F = C * 9/5 + 32). A column
+    // multiplier alone would write 288.15 and 518.67.
+    const r = { series: { time: [0], T: [288.15] }, events: [] } as unknown as FlightResult;
+    const write = (units: typeof METRIC_UNITS) =>
+      flightDataCsv(r, units, {
+        ...opts,
+        columns: ['time', 'T'],
+        decimals: 2,
+        simDescription: false,
+        fieldDescriptions: false,
+        flightEvents: false,
+      }).split('\r\n');
+    const metric = write(METRIC_UNITS);
+    expect(metric[0]).toBe('Time (s),T (°C)');
+    expect(metric[1]).toBe('0.00,15.00');
+    const imperial = write(IMPERIAL_UNITS);
+    expect(imperial[0]).toBe('Time (s),T (°F)');
+    expect(imperial[1]).toBe('0.00,59.00');
+  });
 });
 
 const sweep = {

@@ -41,12 +41,13 @@ npm run build        # typecheck (tsc) + lint + production build; must pass befo
 npm run preview      # serve the production build locally
 npm run test         # Vitest: unit tests (.test.ts) and component tests (.test.tsx)
 npm run test:watch   # Vitest in watch mode while developing
-npm run e2e          # Playwright end-to-end tests against a fresh production build on port 5180 (downloads Chromium the first time)
+npm run e2e          # Playwright end-to-end tests against a fresh production build on port 5180
+                     # (run `npx playwright install chromium` once first; nothing installs the browser for you)
 npm run verify       # the pre-push gate: format, spell, typecheck, lint, knip,
                      # the production build, and the unit suite. ~100 s.
 npm run verify:ci    # the same list, but the suite runs WITH coverage and fails if
                      # it drops below the minimum percentages in vitest.config.ts
-                     # (lines 70, statements 69, branches 62, functions 61).
+                     # (lines 82, statements 81, branches 74, functions 76).
                      # ~350 s, which is why CI runs this one and you run the other.
 ```
 

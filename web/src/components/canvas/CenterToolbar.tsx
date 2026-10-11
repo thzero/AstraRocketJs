@@ -1,5 +1,11 @@
 import { useTranslation } from 'react-i18next';
-import { useWorkspaceStore, selectActive, selectOutdated, type WorkspaceState } from '../../state/store';
+import {
+  useWorkspaceStore,
+  selectActive,
+  selectOutdated,
+  selectShownSim,
+  type WorkspaceState,
+} from '../../state/store';
 import { resultFlight } from '../../services/flight/simulations';
 import { ResultPicker } from '../sim/ResultPicker';
 import { ViewToggle } from './ViewToggle';
@@ -43,8 +49,10 @@ export function CenterToolbar({
   const twoD = useWorkspaceStore((s) => s.twoD);
   const onTwoD = useWorkspaceStore((s) => s.setTwoD);
   const onResetView = useWorkspaceStore((s) => s.resetView);
-  const result = useWorkspaceStore((s) => selectActive(s).result);
-  const outdated = useWorkspaceStore((s) => selectOutdated(s));
+  // The flight the heading names, not the active row: with the picker on
+  // another row, the chip has to describe the numbers on screen.
+  const result = useWorkspaceStore((s) => selectShownSim(s).result);
+  const outdated = useWorkspaceStore((s) => selectOutdated(s, selectShownSim(s)));
   const running = useWorkspaceStore(selectShownRunning);
   const { showMarkers, showInfoCard, rulers, toggleMarkers, toggleInfoCard, toggleRulerSide } = useViewPrefs();
 

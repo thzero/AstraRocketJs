@@ -63,6 +63,32 @@ export function shapeIsClippable(shape: string): boolean {
 }
 
 /**
+ * The keys a nose cone or transition takes with a new shape, as
+ * `Transition.setShapeType` and `loadFromPreset` leave them: the shape's
+ * default parameter, and on a transition the shape's clippable flag. A
+ * parameter or clip kept from the old shape would fly a different profile
+ * (an ogive's 1.0 makes a power series a straight cone).
+ *
+ * A shape that cannot clip leaves no `clipped` key, as a file read leaves
+ * none: `Transition.isClipped` ignores the flag for it, and the `.ork` writer
+ * omits the tag.
+ */
+export function shapeChange(type: string, shape: string): Partial<ComponentNode> {
+  const patch: Partial<ComponentNode> = { shape, shapeParameter: shapeParamDefault(shape) };
+  if (type === 'transition') patch['clipped'] = shapeIsClippable(shape) ? true : undefined;
+  return patch;
+}
+
+/**
+ * What choosing `shape` for a part in the panel writes. The parameter and clip
+ * reset only when the shape changes: `Transition.setShapeType` returns early on
+ * the shape the part already has, so re-choosing it keeps both.
+ */
+export function shapeSelect(node: ComponentNode, shape: string): Partial<ComponentNode> {
+  return shape === nodeShape(node) ? { shape } : shapeChange(node.type, shape);
+}
+
+/**
  * Shape.getRadius(x, radius, length, param): radius of the pure shape at
  * distance x from its (virtual) tip. Exact port, shape by shape.
  */

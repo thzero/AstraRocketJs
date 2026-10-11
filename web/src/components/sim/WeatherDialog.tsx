@@ -88,14 +88,16 @@ export function WeatherDialog({
 
   const lat = launch.latitudeDeg;
   const lon = launch.longitudeDeg;
-  const siteM = launch.launchAltitudeM ?? 0;
+  // A blank elevation is not sea level: the forecast is corrected to the
+  // site's height, so the dialog asks for one rather than assume 0 m.
+  const siteM = launch.launchAltitudeM ?? null;
   const hasSite = lat != null && lon != null;
 
   const errorText = (err: unknown): string => weatherErrorText(err, t);
 
   /** `force` asks Open-Meteo even when an answer under 30 minutes old is held. */
   const fetchNow = async (force = false) => {
-    if (!hasSite) return;
+    if (!hasSite || siteM === null) return;
     const signal = request.claimSignal();
     setState({ kind: 'loading' });
     try {
@@ -127,7 +129,8 @@ export function WeatherDialog({
     void fetchNow();
   });
 
-  const answer = state.kind === 'ready' ? state.answer : null;
+  // Held only while the elevation it was fetched for is still set.
+  const answer = state.kind === 'ready' && siteM !== null ? state.answer : null;
   const variantIndex = answer && useTerrain && answer.variants.length > 1 ? 1 : 0;
   const variant = answer?.variants[variantIndex];
   const sample = answer && variant ? sampleAt(variant, answer.timezone, answer.date, hour) : null;
@@ -234,6 +237,8 @@ export function WeatherDialog({
       <div className="space-y-3 p-3 text-sm">
         {!hasSite ? (
           <p className="text-warn-400">{t('weather.needSite')}</p>
+        ) : siteM === null ? (
+          <p className="text-warn-400">{t('weather.needElevation')}</p>
         ) : (
           <>
             <div className="flex flex-wrap items-end gap-3">
@@ -297,7 +302,7 @@ export function WeatherDialog({
                 {t('weather.fetchFresh')}
               </button>
             </div>
-            {answer.variants.length > 1 && answer.terrainM !== null && (
+            {answer.variants.length > 1 && answer.terrainM !== null && siteM !== null && (
               <Check
                 align="start"
                 className="text-xs text-ink-soft"

@@ -76,7 +76,7 @@ import type { MotorDims } from '../tree/schematicGeometry';
 import { type ConfigsTab } from './tabs';
 import { createViewSlice, type ViewSlice } from './viewSlice';
 import { createFileSlice, type FileSlice } from './fileSlice';
-import { errorMessage } from '../services/app/errorMessage';
+import { errorText } from '../i18n/keyedError';
 import { flightBranches } from '../services/flight/flightColumns';
 import {
   configOf,
@@ -441,8 +441,16 @@ export interface WorkspaceState extends ViewSlice, FileSlice {
   addConfig: () => void;
   /** Copy one configuration, placing the copy after it, and select it. */
   copyConfig: (id: string) => void;
-  /** Name a configuration; an empty name means unnamed (labeled by its motors). */
+  /**
+   * Write a configuration's name exactly as typed, spaces included, so a
+   * controlled input can be typed into. `commitConfigName` tidies it.
+   */
   renameConfig: (id: string, name: string) => void;
+  /**
+   * End a name edit: trim the stored name, store an empty one as unnamed
+   * (labeled by its motors), and finalize the edit into one undo step.
+   */
+  commitConfigName: (id: string) => void;
   /**
    * Delete a configuration. Refused for the last one, since every simulation
    * names the configuration it flies. Rows that flew it move to the first
@@ -1191,11 +1199,24 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
       set({ configs: next, selectedConfigId: copy.id });
     },
     renameConfig: (id, name) => {
+      // Untrimmed while typing: trimming here would eat the space before the
+      // next word reaches the box.
+      const next = name === '' ? null : name;
+      const current = get().configs.find((c) => c.id === id);
+      if (!current || current.name === next) return;
       beginEdit();
+      set((s) => ({ configs: s.configs.map((c) => (c.id === id ? { ...c, name: next } : c)) }));
+    },
+    commitConfigName: (id) => {
+      const current = get().configs.find((c) => c.id === id);
       // Empty means unnamed, not a blank name: the label falls back to the motor
       // list, which is what the desktop shows and what a blank row could not.
-      const trimmed = name.trim();
-      set((s) => ({ configs: s.configs.map((c) => (c.id === id ? { ...c, name: trimmed || null } : c)) }));
+      const tidy = current?.name?.trim() || null;
+      if (current && current.name !== tidy) {
+        beginEdit();
+        set((s) => ({ configs: s.configs.map((c) => (c.id === id ? { ...c, name: tidy } : c)) }));
+      }
+      commitEdit();
     },
     deleteConfig: (id) => {
       const s = get();
@@ -1452,7 +1473,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
               }
               // A timeout means the worker was killed mid-hang; show a friendly line
               // rather than the raw sentinel.
-              const msg = e instanceof SimTimeoutError ? i18n.t('sim.timeout') : errorMessage(e);
+              const msg = e instanceof SimTimeoutError ? i18n.t('sim.timeout') : errorText(e, i18n.t);
               setRun(sim.id, { phase: 'failed', tree: ranOn });
               failed.push({ name: sim.name, msg });
               outcomes[sim.id] = 'failed';

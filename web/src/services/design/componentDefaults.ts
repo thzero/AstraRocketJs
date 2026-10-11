@@ -81,7 +81,7 @@ export const COMPONENT_DEFAULTS = {
   },
   // A recovery device's packed size. The length is the kernel's; the radius
   // is MassObject()'s 0.0125 (rocketcomponent/MassObject.java:37), which the
-  // kernel never reads but the desktop draws.
+  // desktop draws and the kernel keeps the packed volume from.
   recovery: {
     packedLength: KERNEL_DEFAULTS.parachute.length,
     packedRadius: 0.0125,

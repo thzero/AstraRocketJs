@@ -89,7 +89,7 @@ export default defineConfig({
       // Branches and functions are enforced as well as lines. A number nothing enforces is
       // decoration, and these two are where coverage actually erodes: a new `if`
       // with no test for its other side moves branches and leaves lines alone.
-      thresholds: { lines: 80, branches: 71, functions: 74, statements: 79 },
+      thresholds: { lines: 82, branches: 74, functions: 76, statements: 81 },
     },
   },
 });

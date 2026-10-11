@@ -73,6 +73,7 @@
       "engDataLine": "Dados .eng mal formados na linha {{line}}: esperava-se um tempo e uma impulsão, mas há \"{{text}}\".",
       "engNoCurve": "O ficheiro .eng não tem pontos da curva de impulsão.",
       "engNegativeThrust": "O motor {{motor}} do ficheiro .eng tem uma impulsão negativa na linha {{line}}.",
+      "engNegativeTime": "O motor {{motor}} do ficheiro .eng tem um tempo negativo na linha {{line}}.",
       "attrDiameter": "diâmetro",
       "attrLength": "comprimento",
       "attrInitialMass": "massa inicial",
@@ -88,6 +89,7 @@
       "rseNoCurve": "O motor {{motor}} do ficheiro .rse não tem dados de curva de impulsão.",
       "rseNegativeMass": "O motor {{motor}} do ficheiro .rse tem uma massa negativa nos dados.",
       "rseNegativeThrust": "O motor {{motor}} do ficheiro .rse tem uma impulsão negativa nos dados.",
+      "rseNegativeTime": "O motor {{motor}} do ficheiro .rse tem um tempo negativo nos dados.",
       "rseCgOutside": "O motor {{motor}} do ficheiro .rse coloca o centro de gravidade fora do motor (0 a {{length}} mm).",
       "rseNoEngine": "Não é um ficheiro .rse válido (não foi encontrado <engine>).",
       "rseTooManyMotors": "Este .rse declara mais de {{max}} motores (pode estar danificado)."
@@ -107,6 +109,19 @@
       "badData": "Os dados de curva de impulsão de {{motor}} estão mal formados.",
       "importGone": "O motor importado {{motor}} já não está guardado. Importe novamente o respetivo ficheiro de motor."
     },
+    "motorCurve": {
+      "notFinite": "Motor {{motor}}: o valor de {{what}} não é um número finito (dados de catálogo incompletos).",
+      "whatDiameter": "diâmetro",
+      "whatLength": "comprimento",
+      "whatCg": "centro de gravidade",
+      "whatDelay": "atraso de ejeção",
+      "size": "Motor {{motor}}: o diâmetro e o comprimento têm de ser positivos (dados de catálogo incompletos).",
+      "nonFinite": "Motor {{motor}}: a curva de impulsão contém valores que não são números finitos (falta um peso publicado ou o ficheiro .rse ou .eng está mal formado).",
+      "lengths": "Motor {{motor}}: as listas da curva de impulsão têm comprimentos diferentes (tempos {{times}}, impulsões {{thrusts}}, massas {{masses}}).",
+      "backwards": "Motor {{motor}}: os tempos da curva de impulsão recuam na amostra {{sample}} ({{before}} e depois {{after}}).",
+      "negativeMass": "Motor {{motor}}: a curva de impulsão termina com massa negativa (a massa de propelente excede a massa carregada).",
+      "noMass": "Motor {{motor}}: a curva de impulsão não tem massa em nenhum ponto (o ficheiro do motor não inclui as massas de cada amostra)."
+    },
     "remote": {
       "motors": "Não foi possível carregar o catálogo de motores ({{reason}}).",
       "components": "Não foi possível carregar o catálogo de componentes ({{reason}}).",
@@ -120,11 +135,22 @@
       "openSolid": "Não foi possível fechar este sólido: ficam {{edges}} arestas abertas depois do fecho.",
       "imageEncode": "O navegador não conseguiu codificar a imagem.",
       "imageTooLarge": "A imagem é demasiado grande para este navegador. Escolha uma largura menor.",
-      "svgRasterize": "O navegador não conseguiu desenhar o SVG."
+      "svgRasterize": "O navegador não conseguiu desenhar o SVG.",
+      "nothing": "Nada para exportar."
     },
     "engine": {
       "notReady": "O motor de física do OpenRocket ainda não acabou de carregar. Aguarde que carregue e tente novamente.",
       "staleDesign": "Este projeto foi construído antes de o motor de física ser reiniciado. Construa-o novamente antes de o usar."
+    },
+    "sim": {
+      "engineLoad": "Não foi possível carregar o motor de simulação ({{reason}}).",
+      "unknownMethod": "O processo de simulação recebeu um pedido desconhecido ({{method}}).",
+      "workerCrashed": "O processo de simulação parou inesperadamente.",
+      "workerCrashedReason": "O processo de simulação parou inesperadamente ({{reason}}).",
+      "replyUnreadable": "Não foi possível ler a resposta do processo de simulação."
+    },
+    "design": {
+      "cannotAdd": "Não é possível adicionar {{part}} aqui: nem a peça selecionada nem o andar o podem conter."
     },
     "rktSkip": {
       "cgOverride": "substituição do CG ({{name}})",
@@ -1905,7 +1931,7 @@
     "shortLink": "Essa é uma ligação encurtada, que esconde o local atrás de um redirecionamento. Abra-a e cole o endereço completo do navegador, ou as coordenadas.",
     "coords": "Coordenadas",
     "elevationLooking": "a procurar a altitude…",
-    "elevationUnknown": "altitude não encontrada; a altitude do local mantém-se",
+    "elevationUnknown": "altitude não encontrada; a altitude do local fica em branco",
     "credit": "Locais do GeoNames, via Open-Meteo.com"
   },
   "location": {
@@ -1994,6 +2020,7 @@
     "fetching": "A obter…",
     "apply": "Aplicar",
     "needSite": "Indique primeiro a latitude e a longitude do local de lançamento.",
+    "needElevation": "Indique primeiro a altitude do local de lançamento.",
     "siteLine": "Local {{lat}}, {{lon}} a {{alt}}",
     "noHour": "A resposta não tem dados para essa hora.",
     "validForecast": "Previsão para {{time}}",

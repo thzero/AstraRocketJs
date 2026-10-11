@@ -73,6 +73,7 @@
       "engDataLine": "Fehlerhafte .eng-Daten in Zeile {{line}}: Erwartet wurden eine Zeit und ein Schub, gefunden wurde „{{text}}“.",
       "engNoCurve": "Die .eng-Datei enthält keine Datenpunkte für eine Schubkurve.",
       "engNegativeThrust": "Motor {{motor}} in der .eng-Datei hat in Zeile {{line}} einen negativen Schub.",
+      "engNegativeTime": "Motor {{motor}} in der .eng-Datei hat in Zeile {{line}} eine negative Zeit.",
       "attrDiameter": "Durchmesser",
       "attrLength": "Länge",
       "attrInitialMass": "Startmasse",
@@ -88,6 +89,7 @@
       "rseNoCurve": "Motor {{motor}} in der .rse-Datei hat keine Schubkurvendaten.",
       "rseNegativeMass": "Motor {{motor}} in der .rse-Datei hat eine negative Masse in seinen Daten.",
       "rseNegativeThrust": "Motor {{motor}} in der .rse-Datei hat einen negativen Schub in seinen Daten.",
+      "rseNegativeTime": "Motor {{motor}} in der .rse-Datei hat eine negative Zeit in seinen Daten.",
       "rseCgOutside": "Motor {{motor}} in der .rse-Datei legt seinen Schwerpunkt außerhalb des Motors (0 bis {{length}} mm).",
       "rseNoEngine": "Keine gültige .rse-Datei (kein <engine> gefunden).",
       "rseTooManyMotors": "Diese .rse-Datei gibt mehr als {{max}} Motoren an (möglicherweise fehlerhaft)."
@@ -107,6 +109,19 @@
       "badData": "Die Schubkurvendaten für {{motor}} sind fehlerhaft.",
       "importGone": "Der importierte Motor {{motor}} ist nicht mehr gespeichert. Importieren Sie seine Motordatei erneut."
     },
+    "motorCurve": {
+      "notFinite": "Motor {{motor}}: Der Wert „{{what}}“ ist keine endliche Zahl (unvollständige Katalogdaten).",
+      "whatDiameter": "Durchmesser",
+      "whatLength": "Länge",
+      "whatCg": "Schwerpunkt",
+      "whatDelay": "Ausstoßverzögerung",
+      "size": "Motor {{motor}}: Durchmesser und Länge müssen positiv sein (unvollständige Katalogdaten).",
+      "nonFinite": "Motor {{motor}}: Die Schubkurve enthält Werte, die keine endlichen Zahlen sind (ein fehlendes veröffentlichtes Gewicht oder eine fehlerhafte .rse- oder .eng-Datei).",
+      "lengths": "Motor {{motor}}: Die Listen der Schubkurve sind unterschiedlich lang (Zeiten {{times}}, Schubwerte {{thrusts}}, Massen {{masses}}).",
+      "backwards": "Motor {{motor}}: Die Zeiten der Schubkurve laufen bei Messpunkt {{sample}} rückwärts ({{before}}, dann {{after}}).",
+      "negativeMass": "Motor {{motor}}: Die Schubkurve endet bei einer negativen Masse (die Treibstoffmasse übersteigt die Startmasse).",
+      "noMass": "Motor {{motor}}: Die Schubkurve hat an keinem Punkt eine Masse (der Motordatei fehlen die Massen je Messpunkt)."
+    },
     "remote": {
       "motors": "Der Motorkatalog konnte nicht geladen werden ({{reason}}).",
       "components": "Der Bauteilkatalog konnte nicht geladen werden ({{reason}}).",
@@ -120,11 +135,22 @@
       "openSolid": "Dieser Körper ließ sich nicht schließen: Nach dem Verschließen bleiben {{edges}} offene Kanten.",
       "imageEncode": "Der Browser konnte das Bild nicht kodieren.",
       "imageTooLarge": "Das Bild ist für diesen Browser zu groß. Wählen Sie eine kleinere Breite.",
-      "svgRasterize": "Der Browser konnte das SVG nicht zeichnen."
+      "svgRasterize": "Der Browser konnte das SVG nicht zeichnen.",
+      "nothing": "Nichts zu exportieren."
     },
     "engine": {
       "notReady": "Die OpenRocket-Engine ist noch nicht fertig geladen. Warten Sie, bis sie geladen ist, und versuchen Sie es dann erneut.",
       "staleDesign": "Diese Konstruktion wurde vor dem Zurücksetzen der Engine aufgebaut. Bauen Sie sie vor der Verwendung neu auf."
+    },
+    "sim": {
+      "engineLoad": "Die Simulations-Engine konnte nicht geladen werden ({{reason}}).",
+      "unknownMethod": "Der Simulations-Worker hat eine unbekannte Anfrage erhalten ({{method}}).",
+      "workerCrashed": "Der Simulations-Worker wurde unerwartet beendet.",
+      "workerCrashedReason": "Der Simulations-Worker wurde unerwartet beendet ({{reason}}).",
+      "replyUnreadable": "Die Antwort des Simulations-Workers konnte nicht gelesen werden."
+    },
+    "design": {
+      "cannotAdd": "{{part}} kann hier nicht hinzugefügt werden: Weder das ausgewählte Teil noch die Stufe kann es aufnehmen."
     },
     "rktSkip": {
       "cgOverride": "CG-Überschreibung ({{name}})",
@@ -1896,7 +1922,7 @@
     "shortLink": "Das ist ein gekürzter Link, der den Ort hinter einer Weiterleitung verbirgt. Öffne ihn und füge dann die vollständige Adresse aus dem Browser oder die Koordinaten ein.",
     "coords": "Koordinaten",
     "elevationLooking": "Höhe wird ermittelt…",
-    "elevationUnknown": "Höhe nicht gefunden; die Höhe des Startplatzes bleibt unverändert",
+    "elevationUnknown": "Höhe nicht gefunden; die Höhe des Startplatzes bleibt leer",
     "credit": "Orte von GeoNames, über Open-Meteo.com"
   },
   "location": {
@@ -1984,6 +2010,7 @@
     "fetching": "Wird abgerufen…",
     "apply": "Übernehmen",
     "needSite": "Geben Sie zuerst Breite und Länge des Startplatzes ein.",
+    "needElevation": "Geben Sie zuerst die Höhe des Startplatzes ein.",
     "siteLine": "Startplatz {{lat}}, {{lon}} auf {{alt}}",
     "noHour": "Die Antwort enthält keine Daten für diese Stunde.",
     "validForecast": "Vorhersage für {{time}}",

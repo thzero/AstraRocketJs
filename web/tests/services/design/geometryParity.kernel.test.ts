@@ -1,6 +1,9 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import type { ComponentNode, RocketTree } from '../../../src/engine/openRocketEngine';
-import { syncDerived } from '../../../src/services/design/treeEdit';
+import { catalogPatch, defaultNode, findNode, syncDerived } from '../../../src/services/design/treeEdit';
+import { isComponentRow, type ParachuteComponent } from '../../../src/services/parts/componentDb';
 import { axialFrames, rebasePosition } from '../../../src/tree/axialRebase';
 import { axialChain, axialLength } from '../../../src/tree/position';
 import { positionOf } from '../../../src/tree/nodeProps';
@@ -1046,11 +1049,21 @@ function unresolvedIn(node: ComponentNode, k: KernelGeometry): boolean {
   return ends.some((v) => typeof v === 'number' && v <= 0);
 }
 
-/** Compare one resolved design with the kernel's geometry for it. */
+/**
+ * Compare one resolved design with the kernel's geometry for it.
+ *
+ * `stored` is the kernel's geometry for the design as generated, before the app
+ * resolved anything: the radii and lengths a user or a file left on the parts,
+ * which is what desktop holds. A mass object with an automatic radius keeps the
+ * packed volume of its stored radius and length, so its packed length is
+ * checked against that build. The resolved tree sends the kernel the volume
+ * the app worked out, and the kernel would echo any length back from it.
+ */
 function compare(
   design: string,
   tree: RocketTree,
   kernel: Map<string, KernelGeometry>,
+  stored?: Map<string, KernelGeometry>,
 ): { misses: Miss[]; unresolved: number; checked: Map<string, number> } {
   const misses: Miss[] = [];
   // A part whose own radius disagrees, or that the kernel left unresolved:
@@ -1152,6 +1165,12 @@ function compare(
         check(`mass component automatic packed radius${inside}`, node['radius'], k.radius);
         break;
     }
+    if ((node.type === 'parachute' || node.type === 'masscomponent') && auto('radiusAuto') && !skip.has(id)) {
+      const label = node.type === 'parachute' ? 'parachute' : 'mass component';
+      check(`${label} automatic packed length${inside}`, node['length'], k.settledLength);
+      const s = stored?.get(id);
+      if (s) check(`${label} automatic packed length from the stored size${inside}`, node['length'], s.settledLength);
+    }
     // Where the part starts, from the nose tip: what every drawing, export and
     // report places it by. Lengths alone decide it, so it is checked whatever
     // the part's size did.
@@ -1214,8 +1233,10 @@ describe('app geometry matches the kernel', () => {
     let unresolved = 0;
     const checked = new Map<string, number>();
     for (let seed = 1; seed <= DESIGNS; seed++) {
-      const tree = syncDerived(withAbsolutes(withExtras(generate(seed), seed), seed));
-      const r = compare(`seed ${seed}`, tree, kernelGeometry(engine, tree));
+      const generated = withAbsolutes(withExtras(generate(seed), seed), seed);
+      const stored = kernelGeometry(engine, generated);
+      const tree = syncDerived(generated);
+      const r = compare(`seed ${seed}`, tree, kernelGeometry(engine, tree), stored);
       misses.push(...r.misses);
       unresolved += r.unresolved;
       for (const [rule, count] of r.checked) checked.set(rule, (checked.get(rule) ?? 0) + count);
@@ -1234,6 +1255,10 @@ describe('app geometry matches the kernel', () => {
       'mass component automatic packed radius in a bodytube',
       'mass component automatic packed radius in a nosecone',
       'mass component automatic packed radius in a transition',
+      'parachute automatic packed length from the stored size in a bodytube',
+      'mass component automatic packed length from the stored size in a bodytube',
+      'mass component automatic packed length from the stored size in a nosecone',
+      'mass component automatic packed length from the stored size in a transition',
       'centeringring station, placed absolute in a transition',
       'freeformfinset station, placed absolute in a nosecone',
       'engineblock station, placed absolute in a innertube',
@@ -1352,5 +1377,69 @@ describe('keyless transition ends are drawn at the kernel radius', () => {
     }
     expect(misses).toEqual([]);
     expect(checked).toBeGreaterThan(30);
+  });
+});
+
+/**
+ * A catalog parachute that states both packed dimensions, picked into a tube
+ * wider than its pack.
+ *
+ * `Parachute.loadFromPreset` sets the packed length and radius and then turns
+ * the radius automatic. The kernel keeps the volume the stated pair packs
+ * (`MassObject.setRadius` stores `radius^2 * length`), so once the radius
+ * takes the tube's bore the length is `volume / bore^2`, and the chute's mass
+ * sits that much further forward. Rocketman PA-04 is 178.6 mm long and 50.8 mm
+ * across, and a 98 mm tube gives it a 48 mm packed radius.
+ */
+describe('a catalog parachute packed into a wider tube', () => {
+  it('keeps the packed volume it was picked with', async () => {
+    const engine = await loadEngine();
+    const row = (
+      JSON.parse(readFileSync(join(__dirname, '../../../public/data/components.generated.json'), 'utf8')) as {
+        components: unknown[];
+      }
+    ).components
+      .filter(isComponentRow)
+      .find((p): p is ParachuteComponent => p.type === 'parachute' && p.mfr === 'Rocketman' && p.partNo === 'PA-04');
+    expect(row?.packedLength).toBeGreaterThan(0);
+    expect(row?.packedDiameter).toBeGreaterThan(0);
+    const base = { ...defaultNode('parachute'), id: 'chute', position: { method: 'top', offset: 0 } } as ComponentNode;
+    const chute = { ...base, ...catalogPatch(row!, base) } as ComponentNode;
+    // As desktop holds the part after the pick: the stated pair, radius automatic.
+    const picked = {
+      name: '',
+      components: [
+        {
+          type: 'stage',
+          id: 'st',
+          children: [
+            { type: 'bodytube', id: 'tube', outerRadius: 0.049, thickness: 0.001, length: 0.6, children: [chute] },
+          ],
+        },
+      ],
+    } as unknown as RocketTree;
+    const desktop = kernelGeometry(engine, picked).get('chute')!;
+    // Read once the radius has settled, as desktop's own views settle it.
+    const settledCg = (t: RocketTree): number => {
+      engine.reset();
+      const handle: number = engine.buildRocket(JSON.stringify(t));
+      engine.getComponentGeometry(handle, 'chute');
+      return (JSON.parse(engine.getComponentInfo(handle, 'chute') as string) as { cgX: number }).cgX;
+    };
+    const desktopCg = settledCg(picked);
+
+    const app = findNode(syncDerived(picked), 'chute')!;
+    // MassObject.getRadius with the radius automatic: length = r^2 * L / bore^2.
+    const stated = row!.packedDiameter! / 2;
+    const closedForm = (stated * stated * row!.packedLength!) / (desktop.radius! * desktop.radius!);
+    expect(app['radius']).toBeCloseTo(desktop.radius!, 12);
+    expect(app['length']).toBeCloseTo(desktop.settledLength!, 12);
+    expect(app['length']).toBeCloseTo(closedForm, 12);
+
+    // What the app sends flies the same length and the same center of mass.
+    const tree = syncDerived(picked);
+    const flown = kernelGeometry(engine, tree).get('chute')!;
+    expect(flown.length).toBeCloseTo(desktop.settledLength!, 12);
+    expect(settledCg(tree)).toBeCloseTo(desktopCg, 12);
   });
 });

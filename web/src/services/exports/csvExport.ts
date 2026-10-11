@@ -8,7 +8,7 @@ import {
 } from '../flight/flightColumns';
 import { forwardFlightEnd, maxQ, maxQAlpha, maxRollRate, type EventRow } from '../flight/flightEvents';
 import type { LauncherKind } from '../design/launcher';
-import { siToUiDelta, type Quantity, type UnitSelection } from '../../prefs/units';
+import { siToUi, siToUiDelta, type Quantity, type UnitSelection } from '../../prefs/units';
 import { plainDecimal } from '../files/numberText';
 import { csvField, csvQuoted, neutralizeFormula } from './csvCell';
 
@@ -18,8 +18,10 @@ import { csvField, csvQuoted, neutralizeFormula } from './csvCell';
  * carries, so a file stays self-describing whatever the preference was when it
  * was written. Numbers use '.' as the decimal separator regardless of locale.
  *
- * `siToUiDelta`, not `siToUi`: a whole column is being scaled, and none of these
- * quantities carries a temperature-style offset.
+ * A unit with an offset (air temperature in the flight series) is converted
+ * value by value with `siToUi`, since a kelvin reading is not a multiple of its
+ * Celsius or Fahrenheit reading. Every other column is scaled by one
+ * `siToUiDelta` factor.
  */
 const EOL = '\r\n';
 
@@ -123,8 +125,19 @@ export function flightDataCsv(
   };
 
   const unitOf = (c: (typeof cols)[number]): string => (c.quantity ? units[c.quantity] : (c.unit ?? ''));
-  const factorOf = (c: (typeof cols)[number]): number =>
-    c.quantity ? siToUiDelta(c.quantity, units[c.quantity], 1) : (c.scale ?? 1);
+  // A column's SI to display conversion. A unit whose zero is not SI zero
+  // (°C, °F) goes through `siToUi` per value, because a multiplier drops the
+  // offset: 288.15 K is 15 °C, not 288.15. The rest keep one factor.
+  const convertOf = (c: (typeof cols)[number]): ((si: number) => number) => {
+    const q = c.quantity;
+    if (q && siToUi(q, units[q], 0) !== 0) {
+      const sym = units[q];
+      return (si) => siToUi(q, sym, si);
+    }
+    const f = q ? siToUiDelta(q, units[q], 1) : (c.scale ?? 1);
+    return (si) => si * f;
+  };
+  const converters = cols.map(convertOf);
 
   const lines: string[] = [];
   const comment = (text: string) => lines.push(`${o.commentChar} ${text}`);
@@ -156,9 +169,9 @@ export function flightDataCsv(
   for (let i = 0; i < n; i++) {
     lines.push(
       cols
-        .map((c) => {
+        .map((c, j) => {
           const raw = (series as Record<string, (number | null)[] | undefined>)[c.key]?.[i];
-          return value(raw == null ? null : raw * factorOf(c), o);
+          return value(raw == null ? null : converters[j]!(raw), o);
         })
         .join(sep),
     );
