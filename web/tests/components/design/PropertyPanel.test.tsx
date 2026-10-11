@@ -3,6 +3,7 @@ import { beforeAll, describe, it, expect, vi } from 'vitest';
 import { cleanup, fireEvent, screen, within } from '@testing-library/react';
 import { PropertyPanel } from '../../../src/components/design/PropertyPanel';
 import { renderWithProviders } from '../../testing/renderWithProviders';
+import { SettingsProvider } from '../../../src/state/SettingsProvider';
 import { serveData } from '../../testing/serveData';
 import type { ComponentNode } from '../../../src/engine/openRocketEngine';
 import { FIELDS } from '../../../src/services/design/componentFields';
@@ -489,6 +490,30 @@ describe('a kernel-resolved automatic length', () => {
       expect(cordBox().value).toBe(typed);
       fireEvent.click(screen.getByRole('checkbox', { name: 'Cord length: Auto' }));
       expect(onChange).toHaveBeenCalledWith({ cordLengthAuto: false, cordLength: RESOLVED });
+    } finally {
+      useWorkspaceStore.setState({ rocket: null });
+    }
+  });
+
+  it('reads the kernel once per build, not once per render', () => {
+    const componentInfo = vi.fn(() => ({ cordLength: RESOLVED }));
+    useWorkspaceStore.setState({ rocket: { componentInfo } as unknown as WorkspaceState['rocket'] });
+    try {
+      const node = { id: 'sc', type: 'shockcord', cordLength: 0.3, cordLengthAuto: true } as unknown as ComponentNode;
+      const { rerender } = renderWithProviders(
+        <PropertyPanel node={node} onChange={() => {}} onCommit={() => {}} onRemove={() => {}} />,
+      );
+      const calls = componentInfo.mock.calls.length;
+      expect(calls).toBeGreaterThan(0);
+      // An edit to another field re-renders the panel with a new node object.
+      for (const name of ['A', 'B', 'C']) {
+        rerender(
+          <SettingsProvider>
+            <PropertyPanel node={{ ...node, name }} onChange={() => {}} onCommit={() => {}} onRemove={() => {}} />
+          </SettingsProvider>,
+        );
+      }
+      expect(componentInfo.mock.calls.length).toBe(calls);
     } finally {
       useWorkspaceStore.setState({ rocket: null });
     }

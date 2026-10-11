@@ -342,15 +342,20 @@ export function computeSchematicLayout(
  * - which is every one the editor creates - at ~9 mm on a 13 mm tube while the
  * kernel flies it at 5 mm, and the drawing must agree with the simulation.
  *
- * Every other internal type keeps the fraction: the kernel does not read `radius`
- * for a parachute, streamer or shock cord (packed sizes are not wired through),
- * so there is no simulated size to agree with, and the 5 mm mass
- * default shrinks the default design's chute box until its glyph does not fit.
+ * A parachute, streamer or shock cord with no `radius` keeps the parent
+ * fraction. The bridge does pass a packed radius to the kernel when one is on
+ * record; without one the kernel keeps MassObject's own default, a size nobody
+ * chose that moves only the part's rotational inertia, and the 5 mm mass
+ * default would shrink the default design's chute box until its glyph does not
+ * fit.
+ *
+ * A part with no `length` is drawn at the length the bridge builds its type at
+ * (`partLength`): 20 mm for a mass component, 25 mm for recovery gear.
  */
 export function internalExtent(node: ComponentNode, parentRadius: number): { length: number; radius: number } {
   const dflt = node.type === 'masscomponent' ? KERNEL_MASSCOMPONENT_RADIUS : parentRadius * 0.7;
   return {
-    length: num(node, 'length', 0.025),
+    length: partLength(node),
     radius: Math.min(parentRadius * 0.85, num(node, 'outerRadius', num(node, 'radius', dflt))),
   };
 }

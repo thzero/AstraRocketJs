@@ -174,6 +174,26 @@ describe('unload journal written before the first save', () => {
     expect(localStorage.getItem(UNLOAD_KEY)).toBeNull();
   });
 
+  // The create fails on a full store, which is the failure the journal exists
+  // for. Cleared first, the only copy of the work would be gone and the app
+  // would open the default rocket.
+  it('keeps the journal and opens its work when the create is refused', async () => {
+    const kv = new FakeKv();
+    setDesignLibrary(new DesignLibrary(kv));
+    new LibraryWorkspaceStore().saveSync(ws('typed-before-first-autosave'));
+
+    kv.full = true;
+    const loaded = await new LibraryWorkspaceStore().load();
+    expect(nameOf(loaded)).toBe('typed-before-first-autosave');
+    expect(localStorage.getItem(UNLOAD_KEY)).not.toBeNull();
+
+    // Once storage has room, the next load stores it.
+    kv.full = false;
+    expect(nameOf(await new LibraryWorkspaceStore().load())).toBe('typed-before-first-autosave');
+    expect(await new DesignLibrary(kv).list()).toHaveLength(1);
+    expect(localStorage.getItem(UNLOAD_KEY)).toBeNull();
+  });
+
   it('clears the journal even when it cannot be replayed', async () => {
     const kv = new FakeKv();
     setDesignLibrary(new DesignLibrary(kv));
@@ -322,5 +342,52 @@ describe.each([
     tabA.saveSync(ws('unsaved-in-a'));
 
     expect(nameOf(await new LibraryWorkspaceStore().load())).toBe('unsaved-in-a');
+  });
+});
+
+/**
+ * A read that fails at boot is not an empty library. Read as one, the journal
+ * looks like it belongs to a design that no longer exists and is dropped: the
+ * user's last unsaved work, gone on a transient IndexedDB error.
+ */
+describe('a library that cannot be read at boot', () => {
+  /** `get` answers null on a failed read, as the IndexedDB store does; `getChecked` rejects. */
+  class FlakyKv extends FakeKv {
+    broken = false;
+    override async get(k: string) {
+      return this.broken ? null : await super.get(k);
+    }
+    async getChecked(k: string) {
+      if (this.broken) throw new Error('IndexedDB read failed');
+      return await super.get(k);
+    }
+  }
+
+  it('keeps the journal, opens its work, and does not let this session overwrite it', async () => {
+    const flaky = new FlakyKv();
+    const flakyLib = new DesignLibrary(flaky);
+    setDesignLibrary(flakyLib);
+    const a = await flakyLib.create('A', ws('saved'));
+    localStorage.setItem(UNLOAD_KEY, JSON.stringify({ id: a.id, w: ws('unsaved') }));
+
+    flaky.broken = true;
+    setDesignLibrary(new DesignLibrary(flaky));
+    const session = new LibraryWorkspaceStore();
+    expect(nameOf(await session.load())).toBe('unsaved');
+    expect(JSON.parse(localStorage.getItem(UNLOAD_KEY)!).id).toBe(a.id);
+    session.saveSync(ws('default-rocket'));
+    expect(nameOf(JSON.parse(localStorage.getItem(UNLOAD_KEY)!).w)).toBe('unsaved');
+
+    // Read again once storage answers: the journal replays into its design.
+    flaky.broken = false;
+    setDesignLibrary(new DesignLibrary(flaky));
+    expect(nameOf(await new LibraryWorkspaceStore().load())).toBe('unsaved');
+  });
+
+  it('opens empty, as before, when there is no journal to keep', async () => {
+    const flaky = new FlakyKv();
+    setDesignLibrary(new DesignLibrary(flaky));
+    flaky.broken = true;
+    await expect(new LibraryWorkspaceStore().load()).resolves.toBeNull();
   });
 });

@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { zipSync, strToU8 } from 'fflate';
 import { importOrk } from '../../../src/services/files/orkFile';
-import { MAX_NESTING_DEPTH, MAX_SIMULATIONS } from '../../../src/services/files/ork/importLimits';
+import { MAX_MOTOR_CONFIGS, MAX_NESTING_DEPTH, MAX_SIMULATIONS } from '../../../src/services/files/ork/importLimits';
 
 /**
  * The untrusted-input parser, exercised with untrusted input.
@@ -168,23 +168,30 @@ describe('the hostile-input caps actually fire', () => {
    * each re-scan a component's children once per config, so the import is
    * O(configs x components) on the main thread. A ~500 KB file declaring tens
    * of thousands of configurations against a few thousand components freezes
-   * the tab: no crash, no error, just a dead UI.
+   * the tab: no crash, no error, just a dead UI. A file past the cap is refused
+   * rather than cut short, since a save would write it back without the rest.
    */
-  it('caps declared motor configurations at MAX_MOTOR_CONFIGS', () => {
+  const withConfigs = (n: number) => {
     const configs = Array.from(
-      { length: 400 }, // over the cap of 256
+      { length: n },
       (_, i) => `<motorconfiguration configid="c${i}"><name>C${i}</name></motorconfiguration>`,
     ).join('');
-    const xml =
+    return ork(
       `<?xml version="1.0"?><openrocket version="1.8"><rocket><name>T</name>${configs}` +
-      `<subcomponents><stage><name>S</name><subcomponents>` +
-      `<bodytube><name>Body</name><length>0.3</length><radius>0.012</radius></bodytube>` +
-      `</subcomponents></stage></subcomponents></rocket></openrocket>`;
-    const res = importOrk(ork(xml));
-    expect(res.configs).toHaveLength(256);
-    // Capped from the front, in file order, so the chosen config is a real one.
+        `<subcomponents><stage><name>S</name><subcomponents>` +
+        `<bodytube><name>Body</name><length>0.3</length><radius>0.012</radius></bodytube>` +
+        `</subcomponents></stage></subcomponents></rocket></openrocket>`,
+    );
+  };
+
+  it('refuses more declared configurations than MAX_MOTOR_CONFIGS', () => {
+    expect(() => importOrk(withConfigs(MAX_MOTOR_CONFIGS + 1))).toThrow(/too many flight configurations/i);
+  });
+
+  it('opens a file with as many configurations as the cap allows, in file order', () => {
+    const res = importOrk(withConfigs(MAX_MOTOR_CONFIGS));
+    expect(res.configs).toHaveLength(MAX_MOTOR_CONFIGS);
     expect(res.configs[0]!.id).toBe('c0');
-    expect(res.configs.at(-1)!.id).toBe('c255');
     expect(res.configs.some((c) => c.id === res.chosenConfigId)).toBe(true);
   });
 

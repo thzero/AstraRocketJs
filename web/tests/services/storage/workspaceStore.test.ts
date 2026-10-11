@@ -214,6 +214,54 @@ describe('LibraryWorkspaceStore', () => {
       await expect(Promise.all([store.save(workspace()), store.save(workspace())])).resolves.toBeDefined();
     });
 
+    // A save made before a switch, still waiting its turn when the switch
+    // lands, runs under the claim it was made with. Read after the switch, the
+    // claim is gone and the save writes over the other tab's work.
+    it('keeps the claim of a save queued before a switch', async () => {
+      const other = await twoTabs();
+      await other.save({ ...workspace(), activeId: 'theirs' });
+      const queued = [
+        store.save({ ...workspace(), activeId: 'mine' }),
+        store.save({ ...workspace(), activeId: 'mine2' }),
+      ];
+      store.setActiveId(null);
+      await Promise.allSettled(queued);
+      expect((await new LibraryWorkspaceStore().load())!.activeId).toBe('theirs');
+    });
+
+    it('still writes a queued save to its own design after a switch', async () => {
+      await store.save(workspace());
+      await store.load();
+      const queued = [store.save({ ...workspace(), activeId: 'one' }), store.save({ ...workspace(), activeId: 'two' })];
+      store.setActiveId(null);
+      await Promise.all(queued);
+      expect((await new LibraryWorkspaceStore().load())!.activeId).toBe('two');
+    });
+
+    // The save claims the entry's stamp before it writes the blob. A tab that
+    // opens the design in between reads the old blob; the stamp moves again
+    // after the blob, so that tab's next save is refused instead of writing the
+    // old design back.
+    it('refuses a tab that read the old blob while a save was writing', async () => {
+      const other = await twoTabs();
+      const lib = new DesignLibrary(kv);
+      const id = (await lib.activeId())!;
+      const realSet = kv.set.bind(kv);
+      let reader: LibraryWorkspaceStore | null = null;
+      kv.set = async (k: string, v: string) => {
+        if (k.endsWith(id) && !reader) {
+          // Between the claim and the blob: another tab opens the design.
+          reader = new LibraryWorkspaceStore();
+          await reader.load();
+        }
+        return await realSet(k, v);
+      };
+      await other.save({ ...workspace(), activeId: 'theirs' });
+      kv.set = realSet;
+      await expect(reader!.save({ ...workspace(), activeId: 'stale' })).rejects.toThrow('conflict');
+      expect((await new LibraryWorkspaceStore().load())!.activeId).toBe('theirs');
+    });
+
     it('does not refuse after switching to a different design', async () => {
       // A switch drops the claim with everything else about the old entry.
       const other = await twoTabs();

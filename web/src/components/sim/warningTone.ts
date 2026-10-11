@@ -7,7 +7,8 @@
  * the amber in one place leaves the other row on the previous value.
  *
  * HIGH reads as a problem, the rest as a note. Never color alone: every row
- * that wears these also carries the ⚠ glyph and says in words what it is about.
+ * that wears these also carries the ⚠ glyph and says in words what it is about,
+ * and a HIGH row names its priority in words before the message.
  */
 export const WARNING_TONE: Record<string, string> = {
   HIGH: 'bg-danger-500/10 text-danger-300 ring-danger-400/30',

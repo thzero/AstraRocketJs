@@ -1,9 +1,12 @@
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
 
-// Unit tests run under Vitest (Vite-native, so it reuses vite.config's `define`
-// for __APP_VERSION__ / __HELP_URL__ and the same module resolution). Playwright
-// e2e stays in ./e2e and is not picked up here.
+// Unit tests run under Vitest. This file takes the place of vite.config.ts for
+// them: Vitest reads one config, so nothing in vite.config.ts (its `define`,
+// plugins or resolution) applies here. The build-time constants the app reads
+// are defined below with test stand-ins, and the one virtual module a test
+// imports is aliased to a stub. Playwright e2e stays in ./e2e and is not picked
+// up here.
 //
 // Default environment is 'node' (fast, for the pure services). Tests that need a
 // DOM opt in per-file with a
@@ -57,7 +60,8 @@ export default defineConfig({
     // started taking seconds is noticed where it is written. Files that fly the
     // kernel still set KERNEL_TEST_TIMEOUT_MS, which is longer.
     ...(process.env.CI ? { testTimeout: 60_000, hookTimeout: 60_000 } : {}),
-    // Reported and enforced. `npm run verify:ci` (what both workflows run) fails
+    // Reported and enforced. `npm run verify:ci` (what the gates workflow runs,
+    // for the PR, dev-push and deploy workflows that call it) fails
     // below these minimums; `npm run verify` and `npm test` do not collect coverage
     // at all and are unaffected, which is why instrumentation stays off the command
     // a developer types before pushing.

@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ComponentNode } from '../../engine/openRocketEngine';
 import { NumberInput } from '../common/NumberInput';
@@ -24,18 +24,28 @@ import { useWorkspaceStore } from '../../state/store';
  */
 const KERNEL_AUTO_KEYS: ReadonlySet<string> = new Set(['cordLength', 'lineLength']);
 
-/** The kernel's value for an automatic field it resolves itself, while the field is on Auto. */
+/**
+ * The kernel's value for an automatic field it resolves itself, while the field
+ * is on Auto.
+ *
+ * Memoized on the live build: the panel re-renders on every keystroke in any of
+ * its fields, and each read is a kernel call and an envelope parse. A new build
+ * is a new `rocket`, so an edit that moves the value is still picked up.
+ */
 function useKernelAutoValue(node: ComponentNode, f: Field): number | undefined {
   const rocket = useWorkspaceStore((s) => s.rocket);
-  if (!f.auto || node[f.auto.flag] !== true || !KERNEL_AUTO_KEYS.has(f.key)) return undefined;
-  if (!rocket || typeof node.id !== 'string') return undefined;
-  try {
-    const v = (rocket.componentInfo(node.id) as unknown as Record<string, unknown>)[f.key];
-    return typeof v === 'number' && Number.isFinite(v) ? v : undefined;
-  } catch {
-    // A part the live build does not hold yet (the rebuild trails the edit).
-    return undefined;
-  }
+  const autoOn = !!f.auto && node[f.auto.flag] === true && KERNEL_AUTO_KEYS.has(f.key);
+  const id = typeof node.id === 'string' ? node.id : null;
+  return useMemo(() => {
+    if (!autoOn || !rocket || id === null) return undefined;
+    try {
+      const v = (rocket.componentInfo(id) as unknown as Record<string, unknown>)[f.key];
+      return typeof v === 'number' && Number.isFinite(v) ? v : undefined;
+    } catch {
+      // A part the live build does not hold yet (the rebuild trails the edit).
+      return undefined;
+    }
+  }, [rocket, id, f.key, autoOn]);
 }
 
 /**
@@ -394,15 +404,18 @@ export function FieldRow({
     case 'count': {
       // Every fin type's count is `finCount`, and the kernel builds at most 8.
       const max = f.key === 'finCount' ? MAX_FIN_COUNT : MAX_INSTANCE_COUNT;
+      // A parachute may have no shroud lines (Parachute.setLineCount takes 0,
+      // and the desktop spinner starts there); every other count is at least one.
+      const min = f.key === 'lineCount' ? 0 : 1;
       return numeric({
         value: num(node, f.key),
         step: 1,
-        min: 1,
+        min,
         max,
         // Clamped here as well as in every consumer: without a ceiling at the
         // source, the count would reach the node and be persisted and exported
         // before any renderer saw it.
-        onChange: (v) => patchNumber({ [f.key]: Math.min(max, Math.max(1, Math.round(v))) }),
+        onChange: (v) => patchNumber({ [f.key]: Math.min(max, Math.max(min, Math.round(v))) }),
       });
     }
     case 'mass':

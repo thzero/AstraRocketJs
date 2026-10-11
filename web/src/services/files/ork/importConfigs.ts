@@ -5,6 +5,7 @@ import { nonNegTag, numTag, readDeploymentTags, readSeparationTags } from './imp
 import { MAX_MOTOR_CONFIGS } from './importLimits';
 import { finiteNum } from './numbers';
 import { keyedNote, type ImportNote } from '../importNote';
+import { KeyedError } from '../../../i18n/keyedError';
 
 /**
  * Flight configurations on the way in: the rocket-level declaration table,
@@ -36,14 +37,16 @@ export interface OrkImportContext {
  * both scan a component's children once per config, so a ~500 KB file
  * declaring 20 000 configurations against a few thousand components makes
  * the import O(configs x children) on the main thread and freezes the tab.
- * A real design has a handful.
+ * A real design has a handful. A file past the cap is refused rather than
+ * cut short, since a save would write it back without the rest.
  */
 export function readFlightConfigs(rocketEl: Element): {
   configEls: Element[];
   configs: OrkFlightConfig[];
   chosenConfigId: string | null;
 } {
-  const configEls = Array.from(rocketEl.querySelectorAll(':scope > motorconfiguration')).slice(0, MAX_MOTOR_CONFIGS);
+  const configEls = Array.from(rocketEl.querySelectorAll(':scope > motorconfiguration'));
+  if (configEls.length > MAX_MOTOR_CONFIGS) throw new KeyedError('errors.file.tooManyConfigs');
   // One configuration per id, as the desktop's createFlightConfiguration
   // returns the existing one for a repeated id: a later non-blank name
   // replaces the earlier one, and either block can mark it the default.

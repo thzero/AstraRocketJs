@@ -13,6 +13,7 @@ import { NumberInput } from '../common/NumberInput';
 import { useUnits } from '../../prefs/useUnits';
 import { unitScope, type Quantity } from '../../prefs/units';
 import { errorText } from '../../i18n/keyedError';
+import { listWriteErrorText } from '../../services/storage/jsonListStore';
 import { useAsyncLoad } from '../common/useAsyncLoad';
 import { useLatest } from '../common/useLatest';
 import { confirm } from '../../state/confirmStore';
@@ -186,7 +187,7 @@ export function MaterialPicker({
       setGroup(DEFAULT_CUSTOM_GROUP);
       setAddErr(null);
     } catch (e) {
-      setAddErr(errorText(e, t));
+      setAddErr(listWriteErrorText(e, t));
     }
   };
 
@@ -206,7 +207,7 @@ export function MaterialPicker({
       // The store's own message: a refused write is not always "storage
       // full", and saying so for every failure would send people deleting
       // designs to make room that is not short.
-      setDelErr(errorText(e, t));
+      setDelErr(listWriteErrorText(e, t));
       return; // the material is still there; do not tell the user otherwise
     }
     setDelErr(null);

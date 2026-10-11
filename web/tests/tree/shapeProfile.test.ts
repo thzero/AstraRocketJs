@@ -273,6 +273,16 @@ describe('a node with no shape key', () => {
   });
 });
 
+describe('stationRadius on a part with no length on record', () => {
+  it('reads the profile at the length the bridge builds it at', () => {
+    // ComponentFactory builds a keyless transition at `dbl(node, "length", 0.05)`.
+    // A conical transition is r1 + (r2 - r1) x / L.
+    const t = { type: 'transition', shape: 'conical', foreRadius: 0.02, aftRadius: 0.03 } as unknown as ComponentNode;
+    expect(stationRadius(t, 0)).toBeCloseTo(0.02, 12);
+    expect(stationRadius(t, 0.0125)).toBeCloseTo(0.02 + (0.01 * 0.0125) / 0.05, 12);
+  });
+});
+
 describe('profileEnds for a transition with no radius on record', () => {
   it('reads each missing end as SymmetricComponent.DEFAULT_RADIUS, 0.025 m', () => {
     expect(profileEnds({ type: 'transition' } as unknown as ComponentNode)).toEqual({ fore: 0.025, aft: 0.025 });

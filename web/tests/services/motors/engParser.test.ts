@@ -206,3 +206,14 @@ describe('parseEng refuses what ThrustCurveMotor.Builder.build() refuses', () =>
     );
   });
 });
+
+describe('parseEng designation', () => {
+  it('takes the delay off the name, as the .rse reader and upstream do', () => {
+    const m = parseEng(ENG.replace('TC10 24', 'C6-5 24'));
+    expect(m.designation).toBe('C6');
+    expect(m.id).toBe('custom:Test Mfr:C6');
+    expect(parseEng(ENG.replace('TC10 24', 'C6-P 24')).designation).toBe('C6');
+    // A dash that is not a delay stays.
+    expect(parseEng(ENG.replace('TC10 24', 'G-WIZ 24')).designation).toBe('G-WIZ');
+  });
+});

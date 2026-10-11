@@ -531,11 +531,48 @@ describe('catalogPatch for a rail button', () => {
     });
   });
 
-  it('clears the overrides for a part that states neither', () => {
+  it('leaves the overrides alone for a part that states neither', () => {
+    // RailButton.loadFromPreset sets the mass override only when the preset has
+    // a MASS, SCREW_MASS or NUT_MASS, and the drag override only for a CD > 0.
     const patch = catalogPatch({ ...row, mass: undefined } as never);
-    expect(patch.overrideMass).toBeUndefined();
-    expect(patch.overrideCD).toBeUndefined();
-    expect('overrideMass' in patch).toBe(true);
+    expect('overrideMass' in patch).toBe(false);
+    expect('overrideCD' in patch).toBe(false);
+  });
+
+  it('applies a stated drag coefficient as the drag override', () => {
+    expect(catalogPatch({ ...row, cd: 0.6 } as never).overrideCD).toBe(0.6);
+  });
+});
+
+/**
+ * A centering ring from the catalog, as RadiusRingComponent.loadFromPreset
+ * applies it: the inner radius only when the part states one, with the bore no
+ * longer automatic either way.
+ */
+describe('catalogPatch for a centering ring', () => {
+  const row = {
+    type: 'centeringring',
+    mfr: 'Estes',
+    partNo: 'CR-1',
+    desc: 'ring',
+    outerDiameter: 0.04,
+    innerDiameter: 0.019,
+    length: 0.003,
+    materialDensity: 0,
+  } as const;
+
+  it('takes a stated inner diameter', () => {
+    expect(catalogPatch(row as never)).toMatchObject({
+      outerRadius: 0.02,
+      innerRadius: 0.0095,
+      innerRadiusAuto: false,
+    });
+  });
+
+  it('keeps the bore the ring had when the part states none', () => {
+    const patch = catalogPatch({ ...row, innerDiameter: null } as never);
+    expect('innerRadius' in patch).toBe(false);
+    expect(patch['innerRadiusAuto']).toBe(false);
   });
 });
 

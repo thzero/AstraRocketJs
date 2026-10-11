@@ -3,6 +3,7 @@ import { exportOrk, type OrkTreeExportInput } from './orkFile';
 import { saveBlob, exportFilename } from './saveFile';
 import type { RocketTree } from '../../engine/openRocketEngine';
 import type { Keyed } from '../../i18n/keyedError';
+import { loadSettings } from '../storage/settings';
 
 /** The bytes of a .ork: a zip holding rocket.ork and the curve of every motor outside the catalog. */
 export function orkArchive(input: OrkTreeExportInput): Uint8Array {
@@ -23,9 +24,13 @@ function orkBlob(input: OrkTreeExportInput): Blob {
   return new Blob([orkArchive(input) as BlobPart], { type: 'application/vnd.openrocket.ork' });
 }
 
-/** Export a design as a .ork file the user downloads. */
+/**
+ * Export a design as a .ork file the user downloads. The simulation
+ * preferences default to the ones every run in this app flies under.
+ */
 export function downloadOrk(input: OrkTreeExportInput): void {
-  void saveBlob(orkBlob(input), exportFilename([input.name, 'design'], 'ork'));
+  const withPrefs = { ...input, simPrefs: input.simPrefs ?? loadSettings().simulation };
+  void saveBlob(orkBlob(withPrefs), exportFilename([input.name, 'design'], 'ork'));
 }
 
 /**

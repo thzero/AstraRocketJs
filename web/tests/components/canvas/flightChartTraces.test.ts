@@ -1,6 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { buildTraces, visibleSeries, type ChartFlight } from '../../../src/components/canvas/FlightChart';
-import { SERIES, traceScale, traceUnit } from '../../../src/components/canvas/flightChartTraces';
+import type { ChartFlight } from '../../../src/components/canvas/FlightChart';
+import {
+  SERIES,
+  buildTraces,
+  traceScale,
+  traceUnit,
+  visibleSeries,
+} from '../../../src/components/canvas/flightChartTraces';
 import type { FlightResult, FlightSeries } from '../../../src/engine/openRocketEngine';
 
 const series = (time: number[]) => ({ time, altitude: time.map((t) => t) }) as unknown as FlightSeries;

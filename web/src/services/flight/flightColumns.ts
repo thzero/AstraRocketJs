@@ -105,6 +105,7 @@ const KERNEL: FlightColumn[] = [
   { key: 'Cdb', labelKey: 'flightVar.Cdb', unit: '' },
   { key: 'Cda', labelKey: 'flightVar.Cda', unit: '' },
   { key: 'Cn', labelKey: 'flightVar.Cn', unit: '' },
+  { key: 'CNα', labelKey: 'flightVar.CNα', unit: '' },
   { key: 'Cθ', labelKey: 'flightVar.Cθ', unit: '' },
   { key: 'CτΨ', labelKey: 'flightVar.CτΨ', unit: '' },
   { key: 'Cτs', labelKey: 'flightVar.Cτs', unit: '' },

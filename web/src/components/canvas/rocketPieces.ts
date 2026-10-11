@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
 import { countOf, num, numOpt } from '../../tree/nodeProps';
 import { axialChain, motorSeatStart, partLength } from '../../tree/position';
-import { FIN_DEFAULTS, KERNEL_DEFAULTS } from '../../tree/kernelDefaults';
+import { FIN_DEFAULTS, KERNEL_DEFAULTS, KERNEL_RAILBUTTON_OUTER_DIAMETER } from '../../tree/kernelDefaults';
 import { FREEFORM_FALLBACK, finPlanformPoints, finRootChord, finSpan } from '../../tree/finPlanform';
 import {
   assemblyBoundingRadius,
@@ -19,7 +19,7 @@ import { COMPONENT_DEFAULTS } from '../../services/design/componentDefaults';
 import { DISC_TYPES } from '../../services/files/componentFormats';
 import { resolveDisc } from '../../services/design/discGeometry';
 import { axialStart, colorOf, innerTubeExtent, internalExtent, type MotorDims } from '../../tree/schematicGeometry';
-import { transitionEnds } from './transitionEnds';
+import { withKernelEnds } from '../../services/design/autoRadius';
 
 /**
  * Owns the 3D geometry of the rocket: the component tree to Piece list build
@@ -153,10 +153,12 @@ export interface Piece {
 
 /** The app's 3D geometry, shared by the 3D view and the flight path view. */
 export function buildPieces(
-  tree: RocketTree,
+  design: RocketTree,
   motors?: MotorDims,
   palette: PartPalette = DEFAULT_PART_COLORS,
 ): { pieces: Piece[]; totalLen: number; maxR: number } {
+  // A transition end with no radius on record is built as the kernel resolves it.
+  const tree = withKernelEnds(design);
   const pieces: Piece[] = [];
   let maxR = 0.005;
   let k = 0;
@@ -292,6 +294,23 @@ export function buildPieces(
           [0, 0, -Math.PI / 2],
           xform,
         );
+      } else if (child.type === 'railbutton') {
+        // The button the side and aft views draw: as wide and as tall as its
+        // outer diameter (RailButton's own default when absent), standing out
+        // from the surface at its radial mount angle (kernel default 180°).
+        const dia = num(child, 'outerDiameter', KERNEL_RAILBUTTON_OUTER_DIAMETER);
+        const ang = num(child, 'angleOffset', Math.PI);
+        const rad = pRadius + dia / 2;
+        const start = axialStart(child, dia, pStart, pLen);
+        maxR = Math.max(maxR, pRadius + dia);
+        place(
+          `button${k++}`,
+          new THREE.CylinderGeometry(dia / 2, dia / 2, dia, 16),
+          nodeColor(child, palette),
+          [start + dia / 2, rad * Math.cos(ang), rad * Math.sin(ang)],
+          [ang, 0, 0],
+          xform,
+        );
       } else if (child.type === 'innertube') {
         // Motor mount / inner tube, one per cluster position, visible through
         // the translucent shell. A loaded motor seats flush against the
@@ -365,12 +384,9 @@ export function buildPieces(
         }
       } else if (PACKED_TYPES.has(child.type)) {
         // Packed recovery gear and mass objects, at the same extent the 2D
-        // schematic dashes in (`internalExtent`). Their packed size only
-        // reaches the tree from an imported .ork (the editor has no field for
-        // it and the kernel never reads it), so for a design built here this
-        // is the schematic's fallback box, drawn as a volume. What matters is
-        // that it is never a different invented size from the one the 2D view
-        // shows.
+        // schematic dashes in (`internalExtent`). A packed size with no value
+        // on record is the schematic's fallback box, drawn as a volume; it is
+        // never a different size from the one the 2D view shows.
         const { length, radius } = internalExtent(child, pRadius);
         if (radius > 0 && length > 0) {
           const start = axialStart(child, length, pStart, pLen);
@@ -384,7 +400,6 @@ export function buildPieces(
           );
         }
       }
-      // Rail buttons and the rest stay out of the 3D build.
     }
   };
 
@@ -453,8 +468,7 @@ export function buildPieces(
         addChildren(n, x, len, R, xform);
         x += len;
       } else if (n.type === 'transition') {
-        const at = nodes.indexOf(n);
-        const { fore: rf, aft: ra } = transitionEnds(n, nodes[at - 1], nodes[at + 1]);
+        const { fore: rf, aft: ra } = profileEnds(n);
         const shapeName = nodeShape(n);
         // Same lathe pattern as the nose: profile y runs fore→aft, and after
         // rotation.z = -π/2 the lathe's +Y axis points along +X (aft).

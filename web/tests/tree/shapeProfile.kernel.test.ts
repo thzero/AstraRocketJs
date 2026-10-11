@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { shapeRadius, shapeParamDefault } from '../../src/tree/shapeProfile';
+import { outerProfile, shapeRadius, shapeParamDefault } from '../../src/tree/shapeProfile';
 
 /**
  * The six profile curves against the kernel's own arithmetic.
@@ -203,5 +203,95 @@ describe('the shape parameter is the one the kernel defaults to', () => {
     // These decide which member of each family is drawn, so a wrong default is a
     // wrong curve even with the formula right.
     expect(shapeParamDefault(shape)).toBeCloseTo(expected, 9);
+  });
+});
+
+/** The profile's radius at one interior station, sampled exactly there. */
+const profileAt = (
+  shape: string,
+  param: number,
+  length: number,
+  foreR: number,
+  aftR: number,
+  x: number,
+  clipped?: boolean,
+): number => {
+  const pts = outerProfile(shape, param, length, foreR, aftR, 4, [x], clipped);
+  return pts.find(([px]) => Math.abs(px - x) < 1e-12)![1];
+};
+
+describe('non-default shape parameters match the kernel at interior points', () => {
+  it.each([
+    ['power', 0.3, (x: number) => powerJava(x, R, L, 0.3)],
+    ['power', 0.8, (x: number) => powerJava(x, R, L, 0.8)],
+    ['parabolic', 0.5, (x: number) => parabolicJava(x, R, L, 0.5)],
+    ['parabolic', 0.75, (x: number) => parabolicJava(x, R, L, 0.75)],
+    ['haack', 1 / 3, (x: number) => haackJava(x, R, L, 1 / 3)],
+    ['haack', 0.15, (x: number) => haackJava(x, R, L, 0.15)],
+    ['ogive', 0.5, (x: number) => ogiveJava(x, R, L, 0.5)],
+    ['ogive', 0.2, (x: number) => ogiveJava(x, R, L, 0.2)],
+  ] as const)('%s at parameter %s', (shape, param, expected) => {
+    for (const t of STATIONS) {
+      expect(shapeRadius(shape, t * L, R, L, param), `${shape} at t=${t}`).toBeCloseTo(expected(t * L), 9);
+      // The nose cone profile carries the parameter through unchanged.
+      expect(profileAt(shape, param, L, 0, R, t * L), `${shape} profile at t=${t}`).toBeCloseTo(expected(t * L), 9);
+    }
+  });
+});
+
+/**
+ * `OGIVE.getRadius` for `length < radius`: "Impossible to calculate ogive for
+ * length < radius, scale instead": `x = x * radius / length; length = radius`,
+ * then the arc as usual.
+ */
+describe('a short ogive is rescaled as the kernel rescales it', () => {
+  const shortL = 0.03; // under R = 0.05
+  it.each([1.0, 0.5])('at parameter %s', (param) => {
+    for (const t of STATIONS) {
+      const x = t * shortL;
+      const want = ogiveJava((x * R) / shortL, R, R, param);
+      expect(shapeRadius('ogive', x, R, shortL, param), `t=${t}`).toBeCloseTo(want, 9);
+    }
+  });
+  it('is not the arc evaluated at the short length', () => {
+    // Guards the rescale itself: without it the midpoint would be the arc at
+    // (x, R, L), a different number.
+    const x = 0.5 * shortL;
+    expect(Math.abs(shapeRadius('ogive', x, R, shortL, 1) - ogiveJava(x, R, shortL, 1))).toBeGreaterThan(0.001);
+  });
+});
+
+/**
+ * `Transition.getRadius` with `isClipped()` false: `r1 + type.getRadius(x,
+ * r2 - r1, length, shapeParameter)`, with the ends swapped and x mirrored when
+ * the fore end is the larger.
+ */
+describe('an unclipped transition matches the kernel at interior points', () => {
+  const r1 = 0.02;
+  const r2 = 0.05;
+  it.each([
+    ['ellipsoid', 0, (x: number) => r1 + ellipsoidJava(x, r2 - r1, L)],
+    ['power', 0.5, (x: number) => r1 + powerJava(x, r2 - r1, L, 0.5)],
+    ['power', 0.3, (x: number) => r1 + powerJava(x, r2 - r1, L, 0.3)],
+    ['haack', 1 / 3, (x: number) => r1 + haackJava(x, r2 - r1, L, 1 / 3)],
+  ] as const)('%s at parameter %s, small end forward', (shape, param, expected) => {
+    for (const t of STATIONS) {
+      expect(profileAt(shape, param, L, r1, r2, t * L, false), `t=${t}`).toBeCloseTo(expected(t * L), 9);
+    }
+  });
+  it.each([
+    ['ellipsoid', 0, (x: number) => r1 + ellipsoidJava(x, r2 - r1, L)],
+    ['haack', 0.2, (x: number) => r1 + haackJava(x, r2 - r1, L, 0.2)],
+  ] as const)('%s at parameter %s, large end forward', (shape, param, expected) => {
+    for (const t of STATIONS) {
+      // x mirrored: the station t from the large end is (1 - t) from the small one.
+      expect(profileAt(shape, param, L, r2, r1, t * L, false), `t=${t}`).toBeCloseTo(expected((1 - t) * L), 9);
+    }
+  });
+  it('differs from the clipped profile, so the flag is read', () => {
+    const x = 0.25 * L;
+    expect(
+      Math.abs(profileAt('ellipsoid', 0, L, r1, r2, x, false) - profileAt('ellipsoid', 0, L, r1, r2, x)),
+    ).toBeGreaterThan(0.001);
   });
 });

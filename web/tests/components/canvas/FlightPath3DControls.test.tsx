@@ -52,4 +52,9 @@ describe('3D flight path controls', () => {
     expect(screen.getByRole('slider').getAttribute('aria-label')).toBeTruthy();
     expect(screen.getByRole('combobox', { name: 'Playback speed' })).toBeTruthy();
   });
+
+  it('speaks the playback position as a flight time, not a fraction', () => {
+    renderWithProviders(<FlightPath3D result={result} tree={tree} />);
+    expect(screen.getByRole('slider').getAttribute('aria-valuetext')).toBe('0.0 s');
+  });
 });

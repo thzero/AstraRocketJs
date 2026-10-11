@@ -47,6 +47,21 @@ export function finPlanformMm(node: ComponentNode, parentRadius: number | null =
   return { pts, count: countOf(node, 'finCount', 3) };
 }
 
+/**
+ * A fin root along its parent, from the trailing edge forward (m): the body
+ * radius at stations 2.5 mm apart, at most 100 intervals, as
+ * `FinSet.getMountPoints` steps a curved parent.
+ */
+function finRootCurve(start: number, root: number, radiusAt: (x: number) => number): Pt[] {
+  const divisions = Math.max(1, Math.min(100, Math.ceil(root / 0.0025)));
+  const pts: Pt[] = [];
+  for (let i = divisions; i >= 0; i--) {
+    const x = start + (root * i) / divisions;
+    pts.push([x, radiusAt(x)]);
+  }
+  return pts;
+}
+
 /** A revolved part's side outline (mm), centered on its own centerline. */
 export function profileMm(
   node: ComponentNode,
@@ -147,10 +162,16 @@ export function rocketSideView(tree: RocketTree): { w: number; h: number; body: 
     // One outline for every planar fin type, from tree/finPlanform.ts, which is
     // the only half-ellipse that matches the kernel's.
     const outline = finPlanformPoints(node) ?? FREEFORM_FALLBACK;
-    push(
-      outline.map(([px, py]) => [start + px, R + py] as Pt),
-      R + height,
-    );
+    // The kernel's planform is the fin points lifted by the radius under the fin
+    // front (`FinSet.getFinFront().getY()`) and closed along the parent's own
+    // profile (`FinSet.getRootPoints`), so on a taper the root follows the body.
+    const upper: Pt[] = outline.map(([px, py]) => [start + px, R + py]);
+    const rootCurve = finRootCurve(start, root, (x) => radiusAt(x - pStart));
+    // A freeform fin's last point sits on the body: `FreeformFinSet.clampLastPoint`
+    // snaps it to the parent's radius under the trailing edge.
+    const last = upper.length - 1;
+    if (node.type === 'freeformfinset' && last > 0) upper[last] = [start + root, radiusAt(start + root - pStart)];
+    push(rootCurve.some(([, r]) => Math.abs(r - R) > 1e-12) ? [...upper, ...rootCurve] : upper, R + height);
   };
 
   // `walkChain` and `emitAssembly` are mutually recursive (a pod has its own

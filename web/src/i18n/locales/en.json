@@ -41,6 +41,7 @@
       "archiveEmpty": "The .ork archive is empty.",
       "tooManyComponents": "This {{format}} declares too many components to open (possibly malformed).",
       "tooManySimulations": "This .ork declares too many simulations to open (possibly malformed).",
+      "tooManyConfigs": "This .ork declares too many flight configurations to open (possibly malformed).",
       "tooDeep": "This {{format}} is nested too deeply to open (possibly malformed).",
       "tooLarge": "The file is too large to open (over {{size}} MiB)."
     },
@@ -57,7 +58,11 @@
       "noseShape": "RASAero has no \"{{shape}}\" nose shape. Use conical, ogive, ellipsoid, Haack or power, or export as .ork.",
       "transitionShape": "RASAero transitions must be conical. Change the shape or export as .ork.",
       "noPods": "RASAero has no pods, so \"{{name}}\" can't be exported. Remove it or export as .ork.",
-      "noParallel": "RASAero has no parallel (strap-on) stages, so \"{{name}}\" can't be exported. Remove it or export as .ork."
+      "noParallel": "RASAero has no parallel (strap-on) stages, so \"{{name}}\" can't be exported. Remove it or export as .ork.",
+      "noseFirst": "RASAero designs start with a nose cone, but the first part of the sustainer is \"{{name}}\". Put the nose cone first or export as .ork.",
+      "secondPart": "RASAero needs a body tube right after the nose cone, or a boat tail as the last part, so \"{{name}}\" can't follow it. Change the order or export as .ork.",
+      "noseNotFirst": "RASAero allows a nose cone only as the first part, so \"{{name}}\" can't be exported. Use a transition or export as .ork.",
+      "noseFlipped": "RASAero has no flipped nose cones, so \"{{name}}\" can't be exported. Use a transition or export as .ork."
     },
     "motorFile": {
       "engNoData": "Not a valid .eng file (no motor data found).",
@@ -130,6 +135,7 @@
     "openOrk": "Could not open .ork: {{reason}}",
     "openExample": "Could not open that example: {{reason}}",
     "saveOrk": "Could not save .ork: {{reason}}",
+    "saveOrkNoDesignInfo": "Saved the .ork without design info: the design could not be built, so there were no statistics to include.",
     "exportRasaero": "Could not export RASAero: {{reason}}",
     "exportUnsupported": "This component can't be exported as {{format}}.",
     "exportFailed": "Could not export {{format}}: {{reason}}",
@@ -247,6 +253,7 @@
     "fitFrame": "Fit rocket to frame",
     "fitFrameHint": "Move the camera in so the rocket fills the exported image - your viewing angle is kept, only the framing changes",
     "simFailed": "Simulation failed, so no PDF was written: {{message}}",
+    "simDropped": "The design changed while the simulation was running, so no PDF was written. Save the PDF again to fly the current design.",
     "pdfFailed": "Could not export PDF: {{message}}",
     "csvFailed": "Could not export CSV: {{message}}",
     "reportFailed": "Could not assemble the design report: {{message}}",
@@ -256,7 +263,8 @@
     "headerSpan": "span {{value}}",
     "headerLaunchMass": "Launch mass {{mass}} (dry {{dry}})",
     "headerDryMass": "Dry mass {{dry}}, no motors loaded",
-    "headerBalance": "CG {{cg}}, CP {{cp}} from nose tip, margin {{margin}} cal"
+    "headerBalance": "CG {{cg}}, CP {{cp}} from nose tip, margin {{margin}} cal",
+    "headerCg": "CG {{cg}} from nose tip"
   },
   "engine": {
     "wasmTip": "Physics engine: WebAssembly (fast path)",
@@ -468,6 +476,7 @@
       "daylight": "Daylight (high contrast)"
     },
     "resetTab": "Reset {{name}}",
+    "resetTabConfirm": "Reset {{name}} to its defaults? What you entered there is replaced, and this cannot be undone.",
     "resetAll": "Reset all",
     "resetAllConfirm": "Reset every setting on every tab to its default? This includes launch defaults, unit choices and simulation settings, and cannot be undone.",
     "resetOneFor": "Reset {{name}} to default color",
@@ -663,6 +672,7 @@
     "timeout": "The simulation took too long and was stopped. Try again, or simplify the design.",
     "busy": "A run is already in progress. Wait for it to finish, or cancel it, and try again.",
     "warnings": "Flight warnings ({{count}})",
+    "warningHigh": "Serious:",
     "runMany": "Run {{count}} simulations",
     "safetyTitle": "Before you fly",
     "safetyLead": "These are modeled estimates, not a flight card.",
@@ -718,7 +728,6 @@
     "FILE_INVALID_PARAMETER": "Invalid parameter in the file",
     "LISTENERS_AFFECTED": "Simulation listeners changed the result",
     "OBJ_ZERO_THICKNESS": "Zero-thickness geometry in the export",
-    "LargeAOA": "Large angle of attack",
     "LargeAOA.str1": "Large angle of attack",
     "LargeAOA.str2": "Large angle of attack"
   },
@@ -859,6 +868,7 @@
     "Cdb": "Base drag coefficient (CD_base)",
     "Cda": "Axial drag coefficient (CA)",
     "Cn": "Normal force coefficient (CN)",
+    "CNα": "Normal force coefficient derivative (CNα)",
     "Cθ": "Pitch moment coefficient (Cm)",
     "CτΨ": "Yaw moment coefficient",
     "Cτs": "Side force coefficient",
@@ -1058,7 +1068,7 @@
       "device": "Device",
       "flightPath": "flight path",
       "groundTrack": "ground track",
-      "distanceBearing": "{{distance}} {{unit}} at {{bearing}}°",
+      "distanceBearing": "{{distance}} {{unit}} at {{bearing}}",
       "stageLanding": "{{stage}} landing"
     },
     "mission": "Mission",
@@ -1144,7 +1154,7 @@
     "versionMissing": "Unsupported document version, attempting to read file anyway.",
     "ignored": "Ignored unsupported components: {{names}}.",
     "skippedUnsupported": "Skipped unsupported: {{name}}",
-    "instanced": "Components that repeat as multiple instances: {{names}}. The file keeps every instance, but the drawing and the simulation currently show one.",
+    "instanced": "Components that repeat as multiple instances: {{names}}. The simulation counts every instance, but the drawing currently shows one.",
     "configsNoMotors": "The file declares {{total}} flight configurations but carried no motors to import.",
     "strayConfigs": "The file has {{total}} flight configurations. Only the first was imported.",
     "appearances": "Part appearance settings in the file: {{total}}. They are not used here (this app draws the part color only), but they are preserved, so a save keeps them.",
@@ -1230,8 +1240,6 @@
     "motorTag": "motor",
     "noComponents": "No components.",
     "add": "＋ Add",
-    "addTo": "＋ Add to {{parent}}…",
-    "nothingToAdd": "＋ Nothing to add here",
     "canHost": "Add a part under {{parent}}",
     "cantHost": "{{parent}} can't contain sub-parts",
     "fins": "{{count}} fins",
@@ -1466,6 +1474,7 @@
     "fit": "Fit to view",
     "aftAria": "Aft end view: looking at the rocket from behind; drag to rotate, wheel to zoom",
     "sideAria": "Rocket side view with CG and CP markers; wheel to zoom, drag background to pan",
+    "panHint": "Arrow keys pan the zoomed view, Shift for a larger step",
     "caliperH": "Horizontal caliper handle {{end}}",
     "caliperV": "Vertical caliper handle {{end}}"
   },
@@ -1520,6 +1529,8 @@
     "select": "Select {{name}}",
     "combine": "Combine ({{n}})",
     "compareN": "Compare ({{n}})",
+    "combineChartAria": "Combined thrust curve of {{names}}, with each motor's own curve",
+    "compareChartAria": "Thrust curves of {{names}}",
     "compareTitle": "Compare",
     "back": "Back to list",
     "clear": "Clear",
@@ -1528,7 +1539,6 @@
     "noCurveTip": "No thrust curve, so it can't be compared or combined.",
     "compareDesc": "Overlay their thrust curves and compare specs side by side.",
     "combineDesc": "Sum them into one cluster: a combined thrust curve + total impulse.",
-    "clearSel": "Clear selection",
     "combined": "Combined cluster",
     "cluster": "{{n}}-motor cluster",
     "total": "Combined total",
@@ -1657,6 +1667,7 @@
     "missingField": "This field is required and is empty. The simulation cannot run until it is filled.",
     "resetToDefault": "Reset to default",
     "saveAsDefault": "Save as default",
+    "saveAsDefaultMixed": "The ticked simulations run with different options, so there is no one set to save. Tick one to save its options as the default.",
     "optionsHint": "Empty follows the global setting (Settings › Simulation).",
     "selectAll": "Select all simulations",
     "selectOne": "Select {{name}}",
@@ -1673,7 +1684,6 @@
   },
   "motorDlg": {
     "title": "Select motor",
-    "manufacturer": "Manufacturer",
     "allManufacturers": "All manufacturers",
     "mfrCount": "{{n}} manufacturers",
     "diameter": "Diameter",
@@ -1725,6 +1735,7 @@
     "chartThrust": "thrust curve",
     "chartAvg": "avg thrust",
     "chartBurn": "burn time",
+    "chartAria": "Thrust against time. Peak {{peak}}, average {{avg}}, burn time {{burn}} s.",
     "calcNote": "* Initial thrust, Isp, and mass fraction are calculated from the thrust curve and weights."
   },
   "lang": {
@@ -1761,6 +1772,7 @@
   },
   "storage": {
     "full": "Could not save your work: browser storage is full. Export your design to keep it.",
+    "writeRefused": "Could not save it: the browser refused to store it. Its storage may be full or blocked.",
     "degraded": "Your browser is blocking its database, so the app has fallen back to a much smaller storage area (about 5 MB) and saving may fail as your design grows. Private browsing is the usual cause. Export anything you want to keep.",
     "loadFailed": "Your saved design could not be read. Starting fresh. New work will still be saved.",
     "conflict": "This design was changed in another tab, so your edits here are not being saved. Export them to keep them, or reopen the design from My Rockets to load the other tab's version."
@@ -1805,11 +1817,8 @@
     "RECOVERY_LAUNCH_ROD_rod": "A recovery device deployed while the rocket was still on the rod. Check the ejection delay and the deployment settings: as simulated, the flight ends at the pad.",
     "RECOVERY_DROGUE_NO_MAIN": "A drogue deploys but no main follows, so the rocket descends the whole way on the drogue alone. That is a fast landing unless the drogue is sized to take it.",
     "NO_RECOVERY_DEVICE": "Nothing deploys, so the rocket falls ballistic and the landing speed below is what it hits the ground at.",
-    "LargeAOA": "The rocket flew at an angle of attack outside the range the Barrowman method is valid for, so the aerodynamic numbers around that point are approximate. Common in strong wind or just after a slow exit from the launcher.",
     "LargeAOA.str1": "The rocket flew at an angle of attack outside the range the Barrowman method is valid for, so the aerodynamic numbers around that point are approximate. Common in strong wind or just after a slow exit from the launcher.",
     "LargeAOA.str2": "The rocket flew at an angle of attack outside the range the Barrowman method is valid for, so the aerodynamic numbers around that point are approximate. Common in strong wind or just after a slow exit from the launcher.",
-    "LargeAOA_rail": "The rocket flew at an angle of attack outside the range the Barrowman method is valid for, so the aerodynamic numbers around that point are approximate. Common in strong wind or just after a slow exit from the rail.",
-    "LargeAOA_rod": "The rocket flew at an angle of attack outside the range the Barrowman method is valid for, so the aerodynamic numbers around that point are approximate. Common in strong wind or just after a slow exit from the rod.",
     "LargeAOA.str1_rail": "The rocket flew at an angle of attack outside the range the Barrowman method is valid for, so the aerodynamic numbers around that point are approximate. Common in strong wind or just after a slow exit from the rail.",
     "LargeAOA.str1_rod": "The rocket flew at an angle of attack outside the range the Barrowman method is valid for, so the aerodynamic numbers around that point are approximate. Common in strong wind or just after a slow exit from the rod.",
     "LargeAOA.str2_rail": "The rocket flew at an angle of attack outside the range the Barrowman method is valid for, so the aerodynamic numbers around that point are approximate. Common in strong wind or just after a slow exit from the rail.",
@@ -1908,8 +1917,6 @@
     "discardConfirm": "Discard the changes to this location?",
     "back": "Back to the list",
     "use": "Use",
-    "useMany_one": "Use for {{count}} simulation",
-    "useMany_other": "Use for {{count}} simulations",
     "applyNeedsSave": "Save or discard your changes before using this location."
   },
   "map": {
@@ -1989,7 +1996,7 @@
     "visibility": "Visibility",
     "forecastNote": "A forecast is a model’s estimate, not a measurement.",
     "credit": "Weather data by Open-Meteo.com",
-    "windValue": "{{speed}} from {{from}}°, gusts {{gust}}, profile to {{top}}",
+    "windValue": "{{speed}} from {{from}}, gusts {{gust}}, profile to {{top}}",
     "atmosphereValue": "Profile to {{top}}",
     "group": {
       "temperature": "Temperature",
@@ -2057,6 +2064,7 @@
       "flyHoursNote": "Flies this design under the forecast for each hour from two before to two after, as the forecast stands now.",
       "outdated": "This result is outdated. Run the simulation again to fly the forecast hours for the rocket and site as they are now.",
       "hour": "Hour",
+      "flownHour": "(this flight)",
       "noForecast": "Fill the launch conditions with Get weather… to see how the landing moves over the hours around the forecast.",
       "overWind": "Not flown: wind over the safety limit",
       "overRodAngle": "Not flown: launch angle over the safety limit",
@@ -2144,10 +2152,10 @@
     "railNeeded": "Rail for {{speed}}",
     "weathercock": "Weathercock angle",
     "weathercockGust": "Weathercock angle in the gusts",
-    "maxWind": "Strongest wind under {{angle}}°",
+    "maxWind": "Strongest wind under {{angle}}",
     "maxDryMass": "Heaviest rocket without the motor",
     "none": "None",
-    "rules": "Amber marks an average thrust to weight under {{ratio}} : 1, a rail exit under {{speed}} (the minimum in Settings), or a weathercock angle over {{angle}}°. The heaviest rocket meets the first two.",
+    "rules": "Amber marks an average thrust to weight under {{ratio}} : 1, a rail exit under {{speed}} (the minimum in Settings), or a weathercock angle over {{angle}}. The heaviest rocket meets the first two.",
     "estimateNote": "An estimate: no drag, no rail friction, and the rail taken as vertical, so the real exit is a little slower."
   },
   "stageName": {

@@ -7,6 +7,7 @@ import { seriesColor } from '../common/chartPalette';
 import { ChartAxes, CHART_HEADROOM, chartScales, LegendSwatch, SeriesPath } from './chartAxes';
 import { hasCurve } from '../../services/motors/motorDb';
 import { token } from '../common/colorTokens';
+import { fmtList } from '../../i18n/format';
 
 /**
  * The motor dashboard's Compare tool: the checked motors' thrust curves
@@ -47,7 +48,13 @@ export function MotorComparePane({ motors, cols }: { motors: CatalogMotor[]; col
 
       {series.length >= 1 ? (
         <>
-          <svg viewBox={`0 0 ${W} ${H}`} width="100%" className="mt-2 block max-w-xl">
+          <svg
+            viewBox={`0 0 ${W} ${H}`}
+            width="100%"
+            className="mt-2 block max-w-xl"
+            role="img"
+            aria-label={t('dash.compareChartAria', { names: fmtList(series.map((s) => s.m.designation)) })}
+          >
             <ChartAxes dims={dims} tMax={tMax} fMax={fMax} X={X} Y={Y} fScale={u.factor('force')} />
             {series.map((s) => (
               <SeriesPath

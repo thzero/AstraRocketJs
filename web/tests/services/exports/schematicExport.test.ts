@@ -12,6 +12,7 @@ const info = {
   massEmpty: 0.09,
   cg: 0.35,
   cp: 0.42,
+  cna: 9.5,
   stabilityCalibers: 1.234,
 } as unknown as StaticInfo;
 
@@ -43,6 +44,13 @@ describe('dataHeaderLines', () => {
     expect(lines[0]).toBe('My Rocket');
     expect(lines.some((l) => l.includes('Length') && l.includes('max diameter'))).toBe(true);
     expect(lines.some((l) => l.includes('margin 1.23 cal'))).toBe(true); // toFixed(2)
+  });
+
+  it('states no CP or margin for a design with no normal force', () => {
+    const finless = { ...info, cna: 0, cp: 0, stabilityCalibers: Number.NaN } as StaticInfo;
+    const lines = dataHeaderLines(data({ info: finless }));
+    expect(lines.some((l) => l.includes('CG 0.35'))).toBe(true);
+    expect(lines.some((l) => l.includes('CP') || l.includes('margin'))).toBe(false);
   });
 
   it('switches mass wording on withMotors', () => {

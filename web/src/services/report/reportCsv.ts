@@ -3,7 +3,7 @@ import type { ReportModel } from './reportModel';
 import { exportFilename, saveText } from '../files/saveFile';
 import { fmtSi, type UnitSelection } from '../../prefs/units';
 import { plainDecimal } from '../files/numberText';
-import { staticInfoRows } from './designInfo';
+import { sig4, staticInfoRows } from './designInfo';
 import { type StatKey } from './designInfo';
 import { csvField } from '../exports/csvCell';
 import { CSV_MIME } from '../exports/csvExport';
@@ -59,7 +59,9 @@ function summaryRows(info: StaticInfo, units: UnitSelection): [string, string, s
         return [round(v, 2), '/rad'];
       case 'pitchInertia':
       case 'rollInertia':
-        return [round(v, 6), 'kg·m²'];
+        // Significant figures, not fixed decimals: a small rocket's roll inertia
+        // is around 1e-7 kg·m², which six decimals would write as 0.
+        return [sig4(v), 'kg·m²'];
       default:
         return len(v);
     }

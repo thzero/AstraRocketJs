@@ -26,10 +26,12 @@ import {
 import { readFileText } from '../../services/files/decodeText';
 import { loadDia, loadMfrs, saveDia, saveMfrs } from './motorPrefs';
 import { errorText } from '../../i18n/keyedError';
+import { listWriteErrorText } from '../../services/storage/jsonListStore';
 import { fmtList } from '../../i18n/format';
 import { useFilePick } from '../common/useFilePick';
 import { ToggleButton } from '../common/ToggleButton';
 import { confirm } from '../../state/confirmStore';
+import { ImportedStar } from './ImportedStar';
 
 /** The delay a motor with no delay data starts at (a common mid-range charge). */
 const DEFAULT_DELAY = 3;
@@ -234,7 +236,7 @@ export function MotorDialog({
       setNote(failed.length ? `${done} ${t('motor.importSkipped', { files: fmtList(failed) })}` : done);
     } catch (err) {
       if (!mine()) return;
-      onError(errorText(err, t));
+      onError(listWriteErrorText(err, t));
     }
   };
   const motorFile = useFilePick({ accept: '.eng,.ENG,.rse,.RSE', onFiles: (f) => void onImport(f) });
@@ -257,7 +259,7 @@ export function MotorDialog({
       setCatalog(catalog);
     } catch (err) {
       if (!mine()) return;
-      onError(errorText(err, t));
+      onError(listWriteErrorText(err, t));
     }
   };
 
@@ -359,11 +361,7 @@ export function MotorDialog({
                       }`}
                     >
                       <span className="min-w-0">
-                        {m.custom && (
-                          <span className="mr-1 text-warn-400" title={t('motor.importedTitle')}>
-                            ★
-                          </span>
-                        )}
+                        {m.custom && <ImportedStar />}
                         <span className="font-medium text-ink-strong">{m.code || m.designation}</span>
                         <span className="ml-2 text-xs text-ink-faint">{m.manufacturer}</span>
                         {!m.custom && !hasCurve(m) && (

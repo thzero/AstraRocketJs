@@ -43,8 +43,131 @@ re-read against the source (and the Java, for ports) before going in this
 report. Five MED findings are security (CSV formula injection three ways, an
 uncapped simulation count in `.ork` import, and the untested weather relay).
 
-**Resolution, 2026-10-10.** Every conventions finding (K1 to K21) is FIXED.
-The other findings are open. Decisions made with the conventions fixes:
+**Resolution, 2026-10-10.** Every conventions finding (K1 to K21) is FIXED,
+and so are four of the five HIGH findings, every MED finding but R3, every
+LOW finding, and the findings listed below, each with a test that fails without the fix:
+
+- **C1.** `altituderef` is written lower case; upper case still reads.
+  `orkDesktopFixture.test.ts`, `orkWindProfile.test.ts` and the golden export
+  now pin the spelling `OpenRocketSaver` writes.
+- **C2.** `finTabAuto` places parts with `axialLength` (a fin's root chord) and
+  sizes rings and tubes with `partLength`. `finTabAuto.test.ts` checks that
+  `bottom` and `middle` placements over a motor mount give the `top` answer.
+- **C3.** The Results tiles, warnings and events table read `selectShownSim`,
+  the flight the charts draw, on the desktop and phone layouts.
+  `selectShownSim.test.ts` and an e2e case in `simulations-tab.spec.ts` that
+  picks the non-active flight and reads its apogee.
+- **R2.** `sync-preset-digests` takes its baseline from `PREVIOUS_CATALOG`, and
+  `sync-motors` leaves the previous motor digest count for
+  `sync-motor-digests`. Both refuse to write below the floors in
+  `scripts/lib/digestCoverage.mjs`, and `sync-catalogs.yml` runs
+  `npm run check:digests` before it publishes, with the coverage per type in
+  the job summary. Run against the published catalogs of 2026-10-10, the check
+  refuses both.
+- **C4, C5, C14, C50, C52 and C54**, the regressions and unfinished fixes
+  from the 2026-10-09 audit. C4: `finTabLimit` in `tree/finPlanform.ts`
+  clamps a tab to the parent radius at the tab's own two stations
+  (`FinSet.getMaxTabHeight`), for the print solid, PDF templates, DXF and 2D
+  view; `geometryParity.kernel.test.ts` now builds tabbed freeform fins on
+  nose cones, flipped nose cones and transitions, and fails on the old clamp
+  for 176 of 200 designs. C5: the pod and booster seed tubes are not
+  automatic. C14: the unload journal records its base and its tab, saves record
+  their tab, and a journal replays only over a save of its own tab or one no
+  newer than its base. C50: `assemblyChainLength` counts a member with no
+  length at the bridge's default. C52: the mesh, the PDF side view and the
+  templates read transition ends through `profileEnds`, whose fallback is
+  `KERNEL_AUTO_RADIUS`, now in `tree/kernelDefaults.ts`. C54: the PDF parts
+  list shows no bore or wall on a filled part, a fin set's root chord and
+  span, and the bridge's default length. Fixing C4 turned up C84.
+- **C84.** `autoRadius.ts` resolves each axial chain the way the kernel does,
+  including the neighbor each tube remembers (`refComp`), which the kernel
+  sets as a side effect and never resets: the order the bridge evaluates
+  tubes while it builds and finishes the rocket decides which neighbor a tube
+  may follow. `geometryParity.kernel.test.ts` adds 15 hand-built chains, 7 of
+  which the old resolver got wrong, and `autoRadius.test.ts` pins the
+  kernel's answers. Over random designs without pods the app and kernel
+  agree on every automatic tube. The answer matches the kernel's first read
+  of a freshly built rocket; the kernel's own later passes can move a few such
+  tubes, because its rule depends on evaluation order. Pods and boosters are
+  C85.
+- **C85.** `autoRadius.ts` models the parts the kernel builds (parent, position,
+  pod radius method, remembered neighbor) and replays the bridge's build,
+  finishing passes and read-back, including the neighbor search across pod
+  sets and parallel stages (`SymmetricComponent.getPrevious/NextSymmetricComponent`,
+  the flush and in-line rules, `RadiusMethod`). `geometryParity.kernel.test.ts`
+  adds a pod and booster generator (200 designs, 44 of which the old resolver
+  got wrong) and 12 hand-built pod chains. Fuzzed over about 60,000 designs
+  from three generators, the app and kernel agree on every automatic tube,
+  transition end and nose base.
+- **S1 to S5 and S9**, the security findings at MED and one LOW.
+  S1 to S3: every CSV writer goes through one rule in `exports/csvCell.ts`. A
+  value that is wholly a number is written as is; any other value gets a `'`
+  before a formula trigger at its start or after an embedded `,`, `;` or
+  tab, and is quoted when it holds one. The flight data comment lines drop
+  every separator whatever the export uses, and the aero table no longer turns
+  commas into semicolons. `csvInjection.test.ts` reads each writer's output
+  split on every separator, as another locale's spreadsheet would. S4:
+  `MAX_SIMULATIONS` (1,000) in `ork/importLimits.ts`, checked before any
+  other pass walks the simulations. S5: the weather relay races the frame's
+  startup against the caller's signal, drops a frame that is not ready within
+  5 s, and caps an answer at 2 MiB in the frame and on the page;
+  `anonymousFetch.test.ts` runs the shipped frame script. S9:
+  `isWeatherSource` checks own properties.
+- **Every other MED finding** except R3: C6 to C13, C15 to C33, R4 to R7, A1
+  to A3 and T1 to T3, and C86, found while fixing C28. Each behavioral fix has
+  a test that fails without it. Decisions made with them:
+  - C12: the PDF report fetches subset Noto Sans (Latin, Greek, Cyrillic,
+    arrows and math) and Noto Sans JP (JIS level 1 kanji) from
+    `web/public/fonts` only when its text needs them; a font that cannot be
+    fetched offline falls back to Helvetica with ASCII stand-ins and a notice.
+    About 2.5 MiB on disk, none of it in the bundle or the precache.
+  - C25: "Use" in the Locations dialog still writes to every ticked
+    simulation, and the button now says how many.
+  - C86: an absolute position stays absolute in the tree, as on desktop, and
+    every reader resolves it against the parent's station;
+    `axialAbsolute.kernel.test.ts` compares stations with the kernel.
+  - R7: materials and contributors are read from the build, never from the
+    data branch, which now carries only the motor and parts catalogs.
+  - A3: `a11y.spec.ts` scans 45 views in each theme and `a11y-phone.spec.ts`
+    every phone tab; the views are keyed by the app's own types, so a new one
+    fails the typecheck until it is scanned. The CI e2e job builds the docs
+    the Help and Safety scans read. The scans found contrast and
+    link-distinction violations, all fixed in the components.
+  - T3: the coverage floors are five points under the measured coverage.
+  - Open question: `scalePart` scales a scaled part's absolute children with
+    it, which is right for a whole-rocket scale and unverified against
+    desktop's Scale dialog for one part.
+- **Every LOW finding**: S6 to S9, C34 to C83, R8 to R18, A4 to A15, T4 to
+  T13 and D1 to D4 (K8 to K21 were fixed with the conventions pass). Each
+  behavioral fix has a test that fails without it, except S7, covered by a
+  widened assertion, and C62, where the comment was wrong and the behavior
+  is kept: tracing a reduced photo at a finer tolerance keeps its pixel
+  staircase. Notes:
+  - C51: the three gaps were not covered by the C14 fix and are fixed on
+    their own (a queued save keeps the claim it was made under, the stamp is
+    written after the blob, and a failed boot read keeps the journal).
+  - C55: Scale now matches desktop's `ScaleDialog` for the fields the
+    finding names; scaling one part leaves its absolutely placed children
+    where they are, as desktop does.
+  - R9 and R10: the parts catalog holds what desktop's 24.12 library holds
+    (5,228 parts), with materials resolved the way desktop resolves them,
+    which changed 29 rows.
+  - R11 and R12: the OpenRocket release, jar SHA-256 and database ref are in
+    `web/scripts/data/openrocket-release.json`, and every jar is checked
+    against it.
+  - T10: `transitionEnds.ts` is gone; the drawings resolve keyless ends
+    through `autoRadius`, and the parity test builds such trees.
+  - T11: undo history keeps state by reference; on a large design 100 steps
+    of history went from about 112 MiB to nearly nothing.
+  - C25 follow-up: "Use" in the Locations dialog applies to the active
+    simulation only, as one undo step.
+- **R1 is open until the pipeline runs from master.** The published catalog
+  changes only when the scheduled workflow publishes it, and the schedule runs
+  master's workflow and scripts, which still lack the digest steps and pin the
+  older database (R3). Landing this branch on master and running Sync Catalogs
+  publishes the current catalogs and clears R1 and R3.
+
+Decisions made with the conventions fixes:
 
 - The "no value" placeholder is one constant, `NO_VALUE` in
   `web/src/i18n/noValue.ts`, an en dash, used by every site and its tests.
@@ -169,6 +292,12 @@ test that fails without it.
 - **C31** (MED, CONFIRMED BY REVIEWER) [4-S4-3] `web/src/services/exports/solidMesh.ts:485-514`. The `bodytube` case never reads `filled`; it builds a hollow tube from `thickness` (which survives the Filled checkbox) or the 0.3 mm default. The bridge calls `setFilled(true)`. *Why it matters:* A filled tube is exported to STL, OBJ and 3MF as a thin-walled tube, so the printed part is not the part that flew. *Fix:* Build `discSolid(R, 0, len)` for a filled tube; add a test with `filled` set and `thickness` still present. See T2.
 - **C32** (MED, CONFIRMED BY REVIEWER) [4-S4-5] `web/src/services/report/reportModel.ts:247-255`. Every motor configuration gets `loadedMass: info.mass`, the selected configuration's launch mass, and `motorsSection.ts:55` divides each motor's thrust by it. Desktop `DesignReport` computes launch mass per configuration and per stage. *Why it matters:* Thrust-to-weight, a safety figure in the PDF, is wrong for every configuration but the selected one and for upper-stage motors. *Fix:* Each simulation's configuration launch mass, built once per configuration, and the mass through the stage for upper-stage motors.
 - **C33** (MED, CONFIRMED BY REVIEWER) [4b-S4b-3] `web/src/services/flight/flightColumns.ts:88-90, 98`. `dΦ`, `dθ`, `dΨ` and `ωn` carry the unit `r/s` with no scale. The kernel stores them in rad/s; in OpenRocket's unit list `r/s` is revolutions per second (`UnitGroup.java:298`) and is the desktop default for that group. *Why it matters:* An exported roll or pitch rate is labeled revolutions per second while holding radians per second, 2π times the labeled quantity. *Fix:* Label them `rad/s`, or keep `r/s` with `scale: 1 / (2 * Math.PI)`.
+
+- **C84** (MED, CONFIRMED BY REVIEWER) `web/src/services/design/autoRadius.ts`. Found while fixing C4: an automatic body tube resolves through a chain of automatic neighbors where the kernel falls back. On one generated design (a nose cone with an automatic base, then two automatic tubes, then a fixed 23.7 mm tube in the next stage) the app gives a tube 23.7 mm and the kernel 25 mm. `BodyTube.getAutoOuterRadius` (`BodyTube.java:91-110`) skips a neighbor that is itself sized automatically toward this tube and takes `DEFAULT_RADIUS`; the app chains through it. *Why it matters:* The drawing, mesh and report show a tube the kernel does not fly. *Fix:* Port the skip rule term by term from `BodyTube.getFrontAutoRadius`/`getRearAutoRadius` and `usesPreviousCompAutomatic`/`usesNextCompAutomatic`, and add the design to `geometryParity.kernel.test.ts` (the generator's own seeds no longer build it, since the fin sets draw from their own random stream).
+
+- **C85** (MED, CONFIRMED BY REVIEWER) `web/src/services/design/autoRadius.ts` (module doc and the pod chain search). Found while fixing C84: the app keeps an automatic tube's neighbor search inside its pod set or parallel stage, but `SymmetricComponent.getPreviousSymmetricComponent` and `getNextSymmetricComponent` (`SymmetricComponent.java` around 611-870) treat a coaxial or zero-radius pod as in line with the airframe, let a pod's first part take the tube it hangs on as its neighbor, and let a flush assembly's last child become the next tube's neighbor; the in-line check also evaluates tubes partway through other evaluations. In fuzzed designs with pods or boosters about 190 of 5,711 automatic tubes still differ from the kernel. *Why it matters:* As C84, for designs with pods or boosters: the drawing, mesh and report show a tube the kernel does not fly. *Fix:* Port the neighbor search across assemblies from the Java and add pod and booster chains to `geometryParity.kernel.test.ts`, whose generator builds none.
+
+- **C86** (MED, VERIFIED) `web/src/tree/position.ts` `startFromPosition` and its callers. Found while fixing C28: the Position from list offers Absolute, which the kernel measures from the rocket's origin (`AxialMethod.ABSOLUTE`), while every reader took the offset from the parent's fore end, so a part set to Absolute in the editor was drawn, meshed, exported and reported away from where it flies. *Fix:* Resolve an absolute offset against the parent's station everywhere, keep the method as the user chose it, and compare stations with the kernel.
 
 ### Low
 

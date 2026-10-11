@@ -45,6 +45,10 @@ export function FlightCsvDialog({
 
   const branches = result.branches ?? [];
   const [branchIndex, setBranchIndex] = useState(0);
+  // The comment box while it is being typed in. An empty box is a step on the
+  // way to another character, not a choice, so the "#" fallback waits for the
+  // field to be left; written at once, Backspace then "%" would read "#%".
+  const [commentDraft, setCommentDraft] = useState<string | null>(null);
   const columns = useMemo(() => flightColumns(result, branchIndex), [result, branchIndex]);
 
   // Only keys this run can fill: a saved list may name a series an older or
@@ -200,8 +204,15 @@ export function FlightCsvDialog({
                 <input
                   className={`${field} w-16`}
                   aria-label={t('csv.commentChar')}
-                  value={saved.commentChar}
-                  onChange={(e) => patch({ commentChar: e.target.value || '#' })}
+                  value={commentDraft ?? saved.commentChar}
+                  onChange={(e) => {
+                    setCommentDraft(e.target.value);
+                    if (e.target.value) patch({ commentChar: e.target.value });
+                  }}
+                  onBlur={() => {
+                    if (commentDraft === '') patch({ commentChar: '#' });
+                    setCommentDraft(null);
+                  }}
                 />
               </div>
             </div>

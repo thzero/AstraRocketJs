@@ -41,6 +41,7 @@
       "archiveEmpty": "L'archive .ork est vide.",
       "tooManyComponents": "Ce {{format}} déclare trop de composants pour être ouvert (peut-être corrompu).",
       "tooManySimulations": "Ce .ork déclare trop de simulations pour être ouvert (peut-être corrompu).",
+      "tooManyConfigs": "Ce .ork déclare trop de configurations de vol pour être ouvert (peut-être corrompu).",
       "tooDeep": "Ce {{format}} est trop profondément imbriqué pour être ouvert (peut-être corrompu).",
       "tooLarge": "Le fichier est trop volumineux pour être ouvert (plus de {{size}} Mio)."
     },
@@ -57,7 +58,11 @@
       "noseShape": "RASAero n'a pas de forme d'ogive « {{shape}} ». Utilisez conique, ogivale, ellipsoïde, Haack ou puissance, ou exportez en .ork.",
       "transitionShape": "Les transitions RASAero doivent être coniques. Changez la forme ou exportez en .ork.",
       "noPods": "RASAero n'a pas de pods, donc « {{name}} » ne peut pas être exporté. Supprimez-le ou exportez en .ork.",
-      "noParallel": "RASAero n'a pas d'étages parallèles (latéraux), donc « {{name}} » ne peut pas être exporté. Supprimez-le ou exportez en .ork."
+      "noParallel": "RASAero n'a pas d'étages parallèles (latéraux), donc « {{name}} » ne peut pas être exporté. Supprimez-le ou exportez en .ork.",
+      "noseFirst": "Les conceptions RASAero commencent par une ogive, mais la première pièce de l'étage supérieur est « {{name}} ». Placez l'ogive en premier ou exportez en .ork.",
+      "secondPart": "RASAero exige un tube de corps juste après l'ogive, ou un rétreint arrière comme dernière pièce, donc « {{name}} » ne peut pas la suivre. Changez l'ordre ou exportez en .ork.",
+      "noseNotFirst": "RASAero n'accepte une ogive qu'en première pièce, donc « {{name}} » ne peut pas être exporté. Utilisez une transition ou exportez en .ork.",
+      "noseFlipped": "RASAero n'a pas d'ogives inversées, donc « {{name}} » ne peut pas être exporté. Utilisez une transition ou exportez en .ork."
     },
     "motorFile": {
       "engNoData": "Ce n'est pas un fichier .eng valide (aucune donnée de moteur trouvée).",
@@ -130,6 +135,7 @@
     "openOrk": "Impossible d'ouvrir le .ork : {{reason}}",
     "openExample": "Impossible d'ouvrir cet exemple : {{reason}}",
     "saveOrk": "Impossible d'enregistrer le .ork : {{reason}}",
+    "saveOrkNoDesignInfo": "Le .ork a été enregistré sans les infos de conception : la conception n'a pas pu être construite, il n'y avait donc aucune statistique à inclure.",
     "exportRasaero": "Impossible d'exporter vers RASAero : {{reason}}",
     "exportUnsupported": "Cette pièce ne peut pas être exportée en {{format}}.",
     "exportFailed": "Impossible d'exporter en {{format}} : {{reason}}",
@@ -247,6 +253,7 @@
     "fitFrame": "Ajuster la fusée au cadre",
     "fitFrameHint": "Rapproche la caméra pour que la fusée remplisse l'image exportée – votre angle de vue est conservé, seul le cadrage change",
     "simFailed": "La simulation a échoué, aucun PDF n'a donc été écrit : {{message}}",
+    "simDropped": "La conception a changé pendant la simulation, aucun PDF n'a donc été écrit. Enregistrez à nouveau le PDF pour simuler la conception actuelle.",
     "pdfFailed": "Impossible d'exporter le PDF : {{message}}",
     "csvFailed": "Impossible d'exporter le CSV : {{message}}",
     "reportFailed": "Impossible d'assembler le rapport de conception : {{message}}",
@@ -256,7 +263,8 @@
     "headerSpan": "envergure {{value}}",
     "headerLaunchMass": "Masse au décollage {{mass}} (à vide {{dry}})",
     "headerDryMass": "Masse à vide {{dry}}, aucun moteur chargé",
-    "headerBalance": "CG {{cg}}, CP {{cp}} depuis la pointe de l'ogive, marge {{margin}} cal"
+    "headerBalance": "CG {{cg}}, CP {{cp}} depuis la pointe de l'ogive, marge {{margin}} cal",
+    "headerCg": "CG {{cg}} depuis la pointe de l'ogive"
   },
   "engine": {
     "wasmTip": "Moteur physique : WebAssembly (voie rapide)",
@@ -469,6 +477,7 @@
       "daylight": "Plein jour (contraste élevé)"
     },
     "resetTab": "Réinitialiser {{name}}",
+    "resetTabConfirm": "Réinitialiser {{name}} à ses valeurs par défaut ? Ce que vous y avez saisi sera remplacé, et cette action est irréversible.",
     "resetAll": "Tout réinitialiser",
     "resetAllConfirm": "Réinitialiser tous les réglages de tous les onglets à leurs valeurs par défaut ? Cela inclut les valeurs de lancement, les unités et les réglages de simulation, et ne peut pas être annulé.",
     "resetOneFor": "Rétablir la couleur par défaut de {{name}}",
@@ -665,6 +674,7 @@
     "timeout": "La simulation a été trop longue et a été interrompue. Réessayez, ou simplifiez la conception.",
     "busy": "Une simulation est déjà en cours. Attendez qu’elle se termine, ou annulez-la, puis réessayez.",
     "warnings": "Avertissements de vol ({{count}})",
+    "warningHigh": "Grave :",
     "runMany": "Lancer {{count}} simulations",
     "safetyTitle": "Avant de voler",
     "safetyLead": "Ce sont des estimations issues d'un modèle, pas une fiche de vol.",
@@ -720,7 +730,6 @@
     "FILE_INVALID_PARAMETER": "Paramètre non valide dans le fichier",
     "LISTENERS_AFFECTED": "Des écouteurs de simulation ont modifié le résultat",
     "OBJ_ZERO_THICKNESS": "Géométrie d'épaisseur nulle dans l'export",
-    "LargeAOA": "Angle d'attaque élevé",
     "LargeAOA.str1": "Angle d'attaque élevé",
     "LargeAOA.str2": "Angle d'attaque élevé"
   },
@@ -862,6 +871,7 @@
     "Cdb": "Coefficient de traînée de culot (CD_base)",
     "Cda": "Coefficient de force axiale (CA)",
     "Cn": "Coefficient de force normale (CN)",
+    "CNα": "Dérivée du coefficient de force normale (CNα)",
     "Cθ": "Coefficient de moment de tangage (Cm)",
     "CτΨ": "Coefficient de moment de lacet",
     "Cτs": "Coefficient de force latérale",
@@ -1061,7 +1071,7 @@
       "device": "Appareil",
       "flightPath": "trajectoire",
       "groundTrack": "trace au sol",
-      "distanceBearing": "{{distance}} {{unit}} à {{bearing}}°",
+      "distanceBearing": "{{distance}} {{unit}} à {{bearing}}",
       "stageLanding": "Chute de {{stage}}"
     },
     "mission": "Mission",
@@ -1149,7 +1159,7 @@
     "versionMissing": "Version de document non prise en charge, tentative de lecture du fichier malgré tout.",
     "ignored": "Composants non pris en charge ignorés : {{names}}.",
     "skippedUnsupported": "Ignoré, non pris en charge : {{name}}",
-    "instanced": "Composants répétés en plusieurs instances : {{names}}. Le fichier garde chaque instance, mais le dessin et la simulation n'en montrent actuellement qu'une.",
+    "instanced": "Composants répétés en plusieurs instances : {{names}}. La simulation compte chaque instance, mais le dessin n'en montre actuellement qu'une.",
     "configsNoMotors": "Le fichier déclare {{total}} configurations de vol mais ne contenait aucun moteur à importer.",
     "strayConfigs": "Le fichier contient {{total}} configurations de vol. Seule la première a été importée.",
     "appearances": "Réglages d'apparence de pièces dans le fichier : {{total}}. Ils ne sont pas utilisés ici (cette application ne dessine que la couleur de la pièce), mais ils sont conservés, donc un enregistrement les garde.",
@@ -1235,8 +1245,6 @@
     "motorTag": "moteur",
     "noComponents": "Aucun composant.",
     "add": "＋ Ajouter",
-    "addTo": "＋ Ajouter à {{parent}}…",
-    "nothingToAdd": "＋ Rien à ajouter ici",
     "canHost": "Ajouter une pièce sous {{parent}}",
     "cantHost": "{{parent}} ne peut pas contenir de sous-pièces",
     "fins": "{{count}} ailerons",
@@ -1472,6 +1480,7 @@
     "fit": "Ajuster à la vue",
     "aftAria": "Vue arrière – la fusée vue de derrière ; glisser pour tourner, molette pour zoomer",
     "sideAria": "Vue de côté de la fusée avec les repères CG et CP ; molette pour zoomer, glisser le fond pour déplacer",
+    "panHint": "Les flèches déplacent la vue agrandie ; Maj pour un pas plus grand",
     "caliperH": "Poignée du pied à coulisse horizontal {{end}}",
     "caliperV": "Poignée du pied à coulisse vertical {{end}}"
   },
@@ -1527,6 +1536,8 @@
     "select": "Sélectionner {{name}}",
     "combine": "Combiner ({{n}})",
     "compareN": "Comparer ({{n}})",
+    "combineChartAria": "Courbe de poussée combinée de {{names}}, avec la courbe de chaque moteur",
+    "compareChartAria": "Courbes de poussée de {{names}}",
     "compareTitle": "Comparer",
     "back": "Retour à la liste",
     "clear": "Effacer",
@@ -1535,7 +1546,6 @@
     "noCurveTip": "Aucune courbe de poussée – comparaison ou combinaison impossible.",
     "compareDesc": "Superposer leurs courbes de poussée et comparer leurs caractéristiques côte à côte.",
     "combineDesc": "Les sommer en une grappe : courbe de poussée combinée + impulsion totale.",
-    "clearSel": "Effacer la sélection",
     "combined": "Grappe combinée",
     "cluster": "Grappe de {{n}} moteurs",
     "total": "Total combiné",
@@ -1665,6 +1675,7 @@
     "missingField": "Ce champ est obligatoire et vide. La simulation ne peut pas être lancée tant qu'il n'est pas renseigné.",
     "resetToDefault": "Rétablir la valeur par défaut",
     "saveAsDefault": "Enregistrer comme valeur par défaut",
+    "saveAsDefaultMixed": "Les simulations cochées utilisent des options différentes : il n'y a donc pas un seul jeu à enregistrer. Cochez-en une pour enregistrer ses options par défaut.",
     "optionsHint": "Vide suit le réglage global (Réglages › Simulation).",
     "selectAll": "Sélectionner toutes les simulations",
     "selectOne": "Sélectionner {{name}}",
@@ -1681,7 +1692,6 @@
   },
   "motorDlg": {
     "title": "Sélectionner un moteur",
-    "manufacturer": "Fabricant",
     "allManufacturers": "Tous les fabricants",
     "mfrCount": "{{n}} fabricants",
     "diameter": "Diamètre",
@@ -1733,6 +1743,7 @@
     "chartThrust": "courbe de poussée",
     "chartAvg": "poussée moy.",
     "chartBurn": "durée de combustion",
+    "chartAria": "Poussée en fonction du temps. Pic {{peak}}, moyenne {{avg}}, durée de combustion {{burn}} s.",
     "calcNote": "* La poussée initiale, l'Isp et la fraction massique sont calculées à partir de la courbe de poussée et des masses."
   },
   "lang": {
@@ -1769,6 +1780,7 @@
   },
   "storage": {
     "full": "Impossible d'enregistrer votre travail – le stockage du navigateur est plein. Exportez votre conception pour la conserver.",
+    "writeRefused": "Impossible de l'enregistrer : le navigateur a refusé de le stocker. Son stockage est peut-être plein ou bloqué.",
     "degraded": "Votre navigateur bloque sa base de données : l'application se rabat donc sur un espace de stockage bien plus petit (environ 5 Mo) et l'enregistrement peut échouer à mesure que votre conception grandit. La navigation privée en est la cause habituelle. Exportez tout ce que vous souhaitez conserver.",
     "loadFailed": "Votre conception enregistrée n'a pas pu être lue. Nouveau départ – le travail à venir sera toujours enregistré.",
     "conflict": "Cette conception a été modifiée dans un autre onglet, vos modifications ici ne sont donc pas enregistrées. Exportez-les pour les conserver, ou rouvrez la conception dans Mes fusées pour charger la version de l'autre onglet."
@@ -1813,11 +1825,8 @@
     "RECOVERY_LAUNCH_ROD_rod": "Un système de récupération s'est déployé alors que la fusée était encore sur la tige. Vérifiez le délai d'éjection et les réglages de déploiement : tel que simulé, le vol se termine sur l'aire de lancement.",
     "RECOVERY_DROGUE_NO_MAIN": "Un drogue se déploie mais aucun principal ne suit : la fusée descend donc tout le trajet sous le seul drogue. L'atterrissage est rapide, à moins que le drogue ne soit dimensionné pour cela.",
     "NO_RECOVERY_DEVICE": "Rien ne se déploie : la fusée retombe donc en balistique, et la vitesse d'atterrissage indiquée ci-dessous est celle à laquelle elle touche le sol.",
-    "LargeAOA": "La fusée a volé à un angle d'attaque hors du domaine de validité de la méthode de Barrowman : les valeurs aérodynamiques autour de ce point ne sont donc qu'approximatives. Fréquent par vent fort ou juste après une sortie de rampe lente.",
     "LargeAOA.str1": "La fusée a volé à un angle d'attaque hors du domaine de validité de la méthode de Barrowman : les valeurs aérodynamiques autour de ce point ne sont donc qu'approximatives. Fréquent par vent fort ou juste après une sortie de rampe lente.",
     "LargeAOA.str2": "La fusée a volé à un angle d'attaque hors du domaine de validité de la méthode de Barrowman : les valeurs aérodynamiques autour de ce point ne sont donc qu'approximatives. Fréquent par vent fort ou juste après une sortie de rampe lente.",
-    "LargeAOA_rail": "La fusée a volé à un angle d'attaque hors du domaine de validité de la méthode de Barrowman : les valeurs aérodynamiques autour de ce point ne sont donc qu'approximatives. Fréquent par vent fort ou juste après une sortie de rail lente.",
-    "LargeAOA_rod": "La fusée a volé à un angle d'attaque hors du domaine de validité de la méthode de Barrowman : les valeurs aérodynamiques autour de ce point ne sont donc qu'approximatives. Fréquent par vent fort ou juste après une sortie de tige lente.",
     "LargeAOA.str1_rail": "La fusée a volé à un angle d'attaque hors du domaine de validité de la méthode de Barrowman : les valeurs aérodynamiques autour de ce point ne sont donc qu'approximatives. Fréquent par vent fort ou juste après une sortie de rail lente.",
     "LargeAOA.str1_rod": "La fusée a volé à un angle d'attaque hors du domaine de validité de la méthode de Barrowman : les valeurs aérodynamiques autour de ce point ne sont donc qu'approximatives. Fréquent par vent fort ou juste après une sortie de tige lente.",
     "LargeAOA.str2_rail": "La fusée a volé à un angle d'attaque hors du domaine de validité de la méthode de Barrowman : les valeurs aérodynamiques autour de ce point ne sont donc qu'approximatives. Fréquent par vent fort ou juste après une sortie de rail lente.",
@@ -1917,9 +1926,6 @@
     "discardConfirm": "Abandonner les modifications de ce lieu ?",
     "back": "Retour à la liste",
     "use": "Utiliser",
-    "useMany_one": "Utiliser pour {{count}} simulation",
-    "useMany_many": "Utiliser pour {{count}} simulations",
-    "useMany_other": "Utiliser pour {{count}} simulations",
     "applyNeedsSave": "Enregistrez ou abandonnez vos modifications avant d’utiliser ce lieu."
   },
   "map": {
@@ -2000,7 +2006,7 @@
     "visibility": "Visibilité",
     "forecastNote": "Une prévision est une estimation d’un modèle, pas une mesure.",
     "credit": "Données météo par Open-Meteo.com",
-    "windValue": "{{speed}} du {{from}}°, rafales {{gust}}, profil jusqu’à {{top}}",
+    "windValue": "{{speed}} du {{from}}, rafales {{gust}}, profil jusqu’à {{top}}",
     "atmosphereValue": "Profil jusqu’à {{top}}",
     "group": {
       "temperature": "Température",
@@ -2068,6 +2074,7 @@
       "flyHoursNote": "Fait voler cette conception sous la prévision de chaque heure, de deux avant à deux après, telle que la prévision est maintenant.",
       "outdated": "Ce résultat est périmé. Relancez la simulation pour faire voler les heures de prévision avec la fusée et le site actuels.",
       "hour": "Heure",
+      "flownHour": "(ce vol)",
       "noForecast": "Remplissez les conditions de lancement avec Obtenir la météo… pour voir comment l’atterrissage se déplace au fil des heures autour de la prévision.",
       "overWind": "Non simulé : vent au-delà de la limite de sécurité",
       "overRodAngle": "Non simulé : angle de lancement au-delà de la limite de sécurité",
@@ -2155,10 +2162,10 @@
     "railNeeded": "Rail pour {{speed}}",
     "weathercock": "Angle de girouette",
     "weathercockGust": "Angle de girouette dans les rafales",
-    "maxWind": "Vent le plus fort sous {{angle}}°",
+    "maxWind": "Vent le plus fort sous {{angle}}",
     "maxDryMass": "Fusée la plus lourde sans le moteur",
     "none": "Aucune",
-    "rules": "En ambre : un rapport poussée/poids moyen sous {{ratio}} : 1, une sortie de rail sous {{speed}} (le minimum des Paramètres) ou un angle de girouette au-delà de {{angle}}°. La fusée la plus lourde respecte les deux premiers.",
+    "rules": "En ambre : un rapport poussée/poids moyen sous {{ratio}} : 1, une sortie de rail sous {{speed}} (le minimum des Paramètres) ou un angle de girouette au-delà de {{angle}}. La fusée la plus lourde respecte les deux premiers.",
     "estimateNote": "Une estimation : sans traînée, sans frottement sur le rail et avec un rail vertical, donc la sortie réelle est un peu plus lente."
   },
   "stageName": {

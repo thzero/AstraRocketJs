@@ -3,9 +3,10 @@
 // The hash fingerprints the data, so it's stable across a later prettier reformat
 // of the JSON and changes only when the catalog content changes.
 import { createHash } from 'node:crypto';
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { writeFileAtomic } from './catalogStaging.mjs';
 
 const FILES = {
   motors: 'motors.generated.json',
@@ -25,7 +26,7 @@ export function writeDataManifest(dir) {
     const data = JSON.parse(readFileSync(path, 'utf8'));
     manifest[key] = createHash('sha256').update(JSON.stringify(data)).digest('hex').slice(0, 12);
   }
-  writeFileSync(join(dir, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
+  writeFileAtomic(join(dir, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
   return manifest;
 }
 

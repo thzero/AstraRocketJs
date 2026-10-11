@@ -49,6 +49,14 @@ describe('design CSV', () => {
     expect(rows[0]).toEqual(['Scope', 'Field', 'Value', 'Unit']);
   });
 
+  it('writes a tiny inertia in significant figures rather than as zero', () => {
+    const small = { ...info, rollInertia: 4.2e-7, pitchInertia: 0.0001234 } as StaticInfo;
+    const out = buildDesignCsv({ ...model, whole: { label: 'Mini', info: small } }, METRIC_UNITS);
+    const r = out.split('\r\n').map((l) => l.split(','));
+    expect(r).toContainEqual(['Rocket', 'Roll Inertia (Loaded)', '0.00000042', 'kg·m²']);
+    expect(r).toContainEqual(['Rocket', 'Pitch Inertia (Loaded)', '0.0001234', 'kg·m²']);
+  });
+
   it('has the Design block', () => {
     expect(rows).toContainEqual(['Design', 'Name', 'Fireball', '']);
     expect(rows).toContainEqual(['Design', 'Design Type', 'Original Design/Other', '']);

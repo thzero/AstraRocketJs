@@ -61,3 +61,31 @@ describe('FlightCsvDialog separator', () => {
     for (const row of exportedRows()) expect(row.split('\t')).toHaveLength(2);
   });
 });
+
+/**
+ * Emptying the comment box is a step on the way to another character. The "#"
+ * fallback waits until the field is left, or Backspace then "%" reads "#%".
+ */
+describe('FlightCsvDialog comment character', () => {
+  afterEach(() => localStorage.clear());
+
+  const box = () => screen.getByRole('textbox', { name: 'Comment character' }) as HTMLInputElement;
+
+  it('takes a replacement typed into an emptied box as it is', () => {
+    renderWithProviders(<FlightCsvDialog result={flight} simName="Sim" onClose={() => {}} />);
+    fireEvent.focus(box());
+    fireEvent.change(box(), { target: { value: '' } });
+    expect(box().value).toBe('');
+    fireEvent.change(box(), { target: { value: '%' } });
+    fireEvent.blur(box());
+    expect(box().value).toBe('%');
+  });
+
+  it('falls back to "#" when the box is left empty', () => {
+    renderWithProviders(<FlightCsvDialog result={flight} simName="Sim" onClose={() => {}} />);
+    fireEvent.change(box(), { target: { value: ';' } });
+    fireEvent.change(box(), { target: { value: '' } });
+    fireEvent.blur(box());
+    expect(box().value).toBe('#');
+  });
+});

@@ -15,10 +15,21 @@ import {
   zoomStep,
   MAX_ZOOM,
   marginText,
+  internalExtent,
 } from '../../src/tree/schematicGeometry';
 import i18n from '../../src/i18n';
 
 const node = (o: object): ComponentNode => o as unknown as ComponentNode;
+
+describe('internalExtent with no length on record', () => {
+  it('draws the length the bridge builds each type at', () => {
+    // ComponentFactory: masscomponent `dbl(node, "length", 0.02)`, parachute 0.025.
+    const mass = { type: 'masscomponent', id: 'm' } as unknown as ComponentNode;
+    const chute = { type: 'parachute', id: 'p' } as unknown as ComponentNode;
+    expect(internalExtent(mass, 0.012).length).toBe(0.02);
+    expect(internalExtent(chute, 0.012).length).toBe(0.025);
+  });
+});
 
 describe('rulerGraduations', () => {
   // A 1000 px baseline at 1000 px/m with the datum at x=100: majors every

@@ -21,11 +21,6 @@ import { token } from '../common/colorTokens';
 import { useSceneColors } from './sceneColors';
 import { errorText } from '../../i18n/keyedError';
 
-// The geometry build and the export framing live in their own modules; the
-// flight path view and Rocket3D.test.ts import them through this one.
-export { buildPieces, piecesBounds, type Piece } from './rocketPieces';
-export { exportCamera, fitCameraToBox, isFittableBox } from './rocketExportCamera';
-
 /**
  * 3D rocket view (react-three-fiber). Geometry is generated from the
  * component tree: lathe profiles for nose cones and transitions (kernel-exact
@@ -140,7 +135,8 @@ export function Rocket3D({
       {exportData && (
         <div style={{ position: 'absolute', top: 6, right: 6, zIndex: 2 }}>
           <ImageExportMenu
-            label={`📷 ${t('export.image')}`}
+            icon="📷"
+            label={t('export.image')}
             fitOption
             title={t('export.imageTitle3d')}
             onPick={snapshot}

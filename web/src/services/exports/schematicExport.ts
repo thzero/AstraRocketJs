@@ -3,6 +3,7 @@ import { fmtSi, type UnitSelection } from '../../prefs/units.js';
 import { appName } from '../app/appInfo.js';
 import { escapeXml } from '../files/xmlUtil.js';
 import { KeyedError } from '../../i18n/keyedError';
+import { staticInfoRows } from '../report/designInfo';
 
 /**
  * 2D/3D image + model export with a data header, the drawings an L3 / Tripoli
@@ -42,8 +43,13 @@ export function dataHeaderLines(d: ExportData): string[] {
         ? t('export.headerLaunchMass', { mass: mass(i.mass), dry: mass(i.massEmpty) })
         : t('export.headerDryMass', { dry: mass(i.massEmpty) }),
     );
+    // CP and margin only when the design has them, by the same test as every
+    // other design-info table: with no normal force there is no CP to state.
+    const hasCp = staticInfoRows(i).some((r) => r.key === 'cp');
     lines.push(
-      t('export.headerBalance', { cg: length(i.cg), cp: length(i.cp), margin: i.stabilityCalibers.toFixed(2) }),
+      hasCp
+        ? t('export.headerBalance', { cg: length(i.cg), cp: length(i.cp), margin: i.stabilityCalibers.toFixed(2) })
+        : t('export.headerCg', { cg: length(i.cg) }),
     );
   }
   lines.push(`${appName()} v${d.appVersion}, ${new Date().toISOString().slice(0, 10)}`);

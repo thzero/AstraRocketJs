@@ -2,10 +2,11 @@ import { describe, expect, it, vi } from 'vitest';
 import type { ComponentNode, RocketTree } from '../../../src/engine/openRocketEngine';
 import { syncDerived } from '../../../src/services/design/treeEdit';
 import { axialFrames, rebasePosition } from '../../../src/tree/axialRebase';
-import { axialLength } from '../../../src/tree/position';
+import { axialChain, axialLength } from '../../../src/tree/position';
 import { positionOf } from '../../../src/tree/nodeProps';
 import { badDimensions } from '../../../src/services/design/requiredComponent';
-import { stationRadius } from '../../../src/tree/shapeProfile';
+import { profileEnds, stationRadius } from '../../../src/tree/shapeProfile';
+import { chainWithKernelEnds, withKernelEnds } from '../../../src/services/design/autoRadius';
 import { parentRadiusOf } from '../../../src/tree/finPlanform';
 import { KERNEL_TEST_TIMEOUT_MS } from '../../testing/kernelTimeout';
 import { kernelGeometry, loadEngine, walkTree, type KernelGeometry } from '../../testing/kernelGeometry';
@@ -1284,5 +1285,72 @@ describe('app geometry matches the kernel', () => {
     }
     expect(report(misses, Object.keys(CHAIN_DESIGNS).length)).toEqual([]);
     expect(tubes).toBeGreaterThan(30);
+  });
+});
+
+/**
+ * A transition end with no radius on record, and no automatic flag: the bridge
+ * builds it automatic (`ComponentFactory`, case "transition"). The drawings take
+ * such a tree as it is, so the 3D build (`withKernelEnds`) and the 2D schematic
+ * (`chainWithKernelEnds` over the flattened chain) must each draw every end at
+ * the kernel's radius. The generated designs are reused with every automatic
+ * transition end stripped to no key at all, which consumes nothing from the
+ * generator's random stream.
+ */
+describe('keyless transition ends are drawn at the kernel radius', () => {
+  const KEYLESS_DESIGNS = 60;
+
+  /** The design with every automatic transition end written as no key at all. */
+  const keyless = (tree: RocketTree): { tree: RocketTree; ends: number } => {
+    let ends = 0;
+    const strip = (n: ComponentNode): ComponentNode => {
+      const out: Record<string, unknown> = { ...n };
+      if (n.type === 'transition') {
+        for (const end of ['fore', 'aft'] as const) {
+          if (out[`${end}RadiusAuto`] === true) {
+            delete out[`${end}Radius`];
+            delete out[`${end}RadiusAuto`];
+            ends += 1;
+          }
+        }
+      }
+      if (n.children) out['children'] = n.children.map(strip);
+      return out as ComponentNode;
+    };
+    return { tree: { ...tree, components: tree.components.map(strip) }, ends };
+  };
+
+  it(`over ${KEYLESS_DESIGNS} generated designs`, async () => {
+    const engine = await loadEngine();
+    const misses: string[] = [];
+    let checked = 0;
+    for (let seed = 1; seed <= KEYLESS_DESIGNS; seed++) {
+      const { tree, ends } = keyless(syncDerived(withAbsolutes(withExtras(generate(seed), seed), seed)));
+      if (ends === 0) continue;
+      const kernel = kernelGeometry(engine, tree);
+      const views: [string, ComponentNode[]][] = [
+        ['3D', walkTree(withKernelEnds(tree)).map((v) => v.node)],
+        ['2D', walkTree({ components: chainWithKernelEnds(axialChain(tree)) } as RocketTree).map((v) => v.node)],
+      ];
+      for (const [view, nodes] of views) {
+        for (const node of nodes) {
+          if (node.type !== 'transition') continue;
+          const k = kernel.get(node.id ?? '');
+          if (!k) continue;
+          const drawn = profileEnds(node);
+          for (const end of ['fore', 'aft'] as const) {
+            const want = end === 'fore' ? k.foreRadius : k.aftRadius;
+            // -1 is two automatic ends following each other: no answer to draw.
+            if (typeof want !== 'number' || want < 0) continue;
+            checked += 1;
+            if (!close(drawn[end], want)) {
+              misses.push(`${view} seed ${seed} ${node.id} ${end}: drawn ${drawn[end]}, kernel ${want}`);
+            }
+          }
+        }
+      }
+    }
+    expect(misses).toEqual([]);
+    expect(checked).toBeGreaterThan(30);
   });
 });

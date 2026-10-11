@@ -109,7 +109,7 @@ export function FlightEventsTable({
           title={t('flight.eventsCsv')}
           className="shrink-0 rounded-md bg-raised px-2 py-1 text-[11px] font-medium text-ink ring-1 ring-line/10 hover:bg-elevated"
         >
-          ⬇ CSV
+          <span aria-hidden>⬇</span> CSV
         </button>
       </div>
       <div className="overflow-x-auto">

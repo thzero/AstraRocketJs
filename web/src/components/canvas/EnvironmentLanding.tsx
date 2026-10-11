@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { fmtGroundDistance, useUnits } from '../../prefs/useUnits';
+import { fmtDegrees, fmtGroundDistance, useUnits } from '../../prefs/useUnits';
 import { configOf, selectOutdated, useWorkspaceStore } from '../../state/store';
 import { effectivePrefs, type ResultFlight } from '../../services/flight/simulations';
 import {
@@ -77,7 +77,7 @@ export function EnvironmentLanding({ flight }: { flight: ResultFlight }) {
   if (!landing || lat == null || lon == null) return null;
 
   const fmtM = (m: number) => fmtGroundDistance(dist, m);
-  const bearing = (p: GroundPoint) => `${Math.round(bearingFromPad(p))}°`;
+  const bearing = (p: GroundPoint) => fmtDegrees(u, bearingFromPad(p));
   // The kernel's own landing coordinate when the result carries it; a result
   // without one (an older saved result) falls back to projecting the offset.
   const where = (series: FlightSeries | undefined, p: GroundPoint) => {
@@ -191,7 +191,11 @@ export function EnvironmentLanding({ flight }: { flight: ResultFlight }) {
                     const refused = refusalKeys(h).map((k) => t(k));
                     return (
                       <tr key={h.offset} className={h.offset === 0 ? 'text-accent-300' : ''}>
-                        <td>{hourLabel(h.validMs)}</td>
+                        <td>
+                          {hourLabel(h.validMs)}
+                          {/* The flown hour is marked in words as well as in color. */}
+                          {h.offset === 0 && <span className="ml-1 text-ink-muted">{t('env.landing.flownHour')}</span>}
+                        </td>
                         {refused.length ? (
                           <td colSpan={2} className="text-ink-muted">
                             {refused.join('; ')}

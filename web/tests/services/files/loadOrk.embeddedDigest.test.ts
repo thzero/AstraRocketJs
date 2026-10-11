@@ -42,13 +42,17 @@ const ref = {
   value: { designation: 'C6-5', manufacturer: 'Estes', delay: 5, diameter: 0.018, length: 0.07, digest: DIGEST },
 };
 
+const RSE_B = RSE.replace('f="14"', 'f="20"');
+const DIGEST_B = rseDigest(RSE_B)!;
+const twoCurves = { value: false };
+
 vi.mock('../../../src/services/files/designFile', () => ({
   parseDesignFile: () => ({
     tree: { name: 'Mine', components: [] },
-    motors: { mount1: ref.value },
+    motors: twoCurves.value ? { mount1: ref.value, mount2: { ...ref.value, digest: DIGEST_B } } : { mount1: ref.value },
     notes: [],
     ignored: [],
-    embeddedMotors: [RSE],
+    embeddedMotors: twoCurves.value ? [RSE, RSE_B] : [RSE],
   }),
 }));
 
@@ -79,6 +83,7 @@ const SPEC = {
 beforeEach(() => {
   vi.clearAllMocks();
   catalogDigests.value = [];
+  twoCurves.value = false;
   customMotorToSpec.mockReturnValue(SPEC);
   fetchMotorSpec.mockResolvedValue({ ...SPEC, designation: 'catalog C6' });
 });
@@ -96,5 +101,15 @@ describe('an embedded motor named by digest', () => {
     await loadOrk(new ArrayBuffer(0));
     expect(fetchMotorSpec).toHaveBeenCalledTimes(1);
     expect(customMotorToSpec).not.toHaveBeenCalled();
+  });
+
+  it('resolves two embedded curves that share a designation as two motors', async () => {
+    twoCurves.value = true;
+    customMotorToSpec.mockImplementation((m: { digest?: string }) => ({ ...SPEC, designation: String(m.digest) }));
+    const res = await loadOrk(new ArrayBuffer(0));
+    expect(DIGEST_B).not.toBe(DIGEST);
+    expect(customMotorToSpec).toHaveBeenCalledTimes(2);
+    const motors = res.configs[0]!.motors;
+    expect(motors['mount1']!.spec).not.toBe(motors['mount2']!.spec);
   });
 });

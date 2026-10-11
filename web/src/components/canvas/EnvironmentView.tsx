@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useUnits, type FieldUnit } from '../../prefs/useUnits';
+import { fmtDegrees, useUnits, type FieldUnit } from '../../prefs/useUnits';
 import type { Quantity } from '../../prefs/units';
 import type { ResultFlight } from '../../services/flight/simulations';
 import { WeatherSourceLine } from '../sim/WeatherSourceLine';
@@ -15,7 +15,7 @@ import {
 import { formatLat, formatLon } from '../../services/map/slippyMap';
 import { fmtSiteTime } from '../../i18n/format';
 import { NO_VALUE } from '../../i18n/noValue';
-import { radToDeg } from '../../prefs/units';
+import { degToRad, radToDeg } from '../../prefs/units';
 import { norm360 } from '../../services/flight/groundTrack';
 import { polylinePath } from '../common/svgPath';
 
@@ -64,7 +64,7 @@ export function EnvironmentView({ flight }: { flight: ResultFlight }) {
   const show = (q: EnvironmentQuantity, si: number) => {
     if (q !== 'windDirection') return sig4(unit(q), si);
     // Still air has no direction; the recorded angle of a zero vector is not one.
-    return env.pad.windSpeed < CALM_MS ? NO_VALUE : `${Math.round(compass(si))}°`;
+    return env.pad.windSpeed < CALM_MS ? NO_VALUE : fmtDegrees(u, compass(si));
   };
 
   return (
@@ -103,8 +103,8 @@ export function EnvironmentView({ flight }: { flight: ResultFlight }) {
             title={t(`env.q.${q}`)}
             legs={env.profiles[q]}
             apogee={env.apogee}
-            x={q === 'windDirection' ? DIRECTION_AXIS : unitAxis(unit(q))}
-            xSym={q === 'windDirection' ? '°' : unit(q).sym}
+            x={q === 'windDirection' ? directionAxis(unit(q)) : unitAxis(unit(q))}
+            xSym={unit(q).sym}
             y={dist}
             ascentLabel={t('env.ascent')}
             descentLabel={t('env.descent')}
@@ -133,12 +133,16 @@ interface XAxis {
   wrap?: number;
 }
 
-const DIRECTION_AXIS: XAxis = {
+/**
+ * Laid out as a compass, 0 to 360 degrees whatever the unit, so north sits at
+ * the same place on every chart; the ends are printed in the reader's angle unit.
+ */
+const directionAxis = (fu: FieldUnit): XAxis => ({
   coord: compass,
-  label: (c) => String(Math.round(c)),
+  label: (c) => fu.fmt(degToRad(c), fu.sym === '°' ? 0 : 2),
   range: [0, 360],
   wrap: 180,
-};
+});
 
 /**
  * Laid out in SI: every unit here is a scale or an offset of SI, so the line

@@ -109,3 +109,25 @@ describe('EnvironmentLanding forecast hours preferences', () => {
     expect(q.prefs.lengthUnit).toBe('in');
   });
 });
+
+/** The flown hour is marked in words in the hour table, not by its color alone. */
+describe('EnvironmentLanding flown hour', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('names the hour this flight used', async () => {
+    flyForecastHours.mockClear();
+    const hour = (offset: number) => ({ offset, validMs: Date.UTC(2026, 9, 10, 12 + offset), landings: [null] });
+    flyForecastHours.mockResolvedValueOnce([hour(-1), hour(0), hour(1)] as never);
+    const st = useWorkspaceStore.getState();
+    const weatherSource = { endpoint: 'forecast', timezone: 'UTC' };
+    const sim = { ...st.sims[0]!, id: 's1', launch: { ...st.sims[0]!.launch, weatherSource } } as never;
+    const key = resultKey(st.tree, configOf(st.configs, sim), sim, st.simPrefs);
+    useWorkspaceStore.setState({ sims: [{ ...(sim as object), result: {}, resultKey: key } as never] });
+    const forecast = { ...flight, launch: { ...flight.launch, weatherSource } } as unknown as ResultFlight;
+    renderWithProviders(<EnvironmentLanding flight={forecast} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Fly the hours around this forecast' }));
+    const marks = await screen.findAllByText('(this flight)');
+    expect(marks).toHaveLength(1);
+    expect(marks[0]!.closest('tr')!.className).toContain('text-accent-300');
+  });
+});

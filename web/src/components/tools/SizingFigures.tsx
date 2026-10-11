@@ -78,7 +78,7 @@ export function SizingFigures({
       <span className="text-xs text-ink-muted">{label}</span>
       <span className="flex items-baseline gap-2 text-sm tabular-nums text-ink">
         <span>
-          Ø {unit.fmt(d)} <UnitChip quantity="length" scope={unitScope('recovery', scope)} />
+          Ø {unit.fmt(d)} <UnitChip label={label} quantity="length" scope={unitScope('recovery', scope)} />
         </span>
         {onUse && Number.isFinite(d) && (
           <button type="button" className={useBtn} aria-label={useLabel} onClick={() => onUse(d)}>
@@ -96,7 +96,7 @@ export function SizingFigures({
           <span className="text-xs text-ink-muted">{t('recovery.thisChute')}</span>
           <span className="text-sm tabular-nums">
             <span className={VERDICT_TONE[verdict]}>{rateUnit.fmt(rate, 1)}</span>{' '}
-            <UnitChip quantity="velocity" scope={unitScope('recovery', 'rate')} />{' '}
+            <UnitChip label={t('recovery.thisChute')} quantity="velocity" scope={unitScope('recovery', 'rate')} />{' '}
             <span className="text-ink-faint">({t(`recovery.verdict.${verdict}`)})</span>
           </span>
         </div>

@@ -548,8 +548,17 @@ function statedPatch(p: Component, node?: ComponentNode): Partial<ComponentNode>
         ...(p.innerDiameter ? { thickness: Math.max(0.0001, (p.outerDiameter - p.innerDiameter) / 2) } : {}),
         ...mat,
       };
+    // RadiusRingComponent.loadFromPreset: the bore is pinned either way, and
+    // takes the part's inner diameter only when it states one, so a row with no
+    // inner diameter keeps the bore the ring had.
     case 'centeringring':
-      return { outerRadius: p.outerDiameter / 2, innerRadius: (p.innerDiameter ?? 0) / 2, length: p.length, ...mat };
+      return {
+        outerRadius: p.outerDiameter / 2,
+        ...(p.innerDiameter != null ? { innerRadius: p.innerDiameter / 2 } : {}),
+        innerRadiusAuto: false,
+        length: p.length,
+        ...mat,
+      };
     case 'bulkhead':
       return { outerRadius: p.outerDiameter / 2, length: p.length, ...mat };
     case 'parachute':
@@ -583,8 +592,9 @@ function statedPatch(p: Component, node?: ComponentNode): Partial<ComponentNode>
         ...mat,
       };
     // RailButton.loadFromPreset: the button's geometry; the button, screw and
-    // nut masses together as its mass override, and a stated drag coefficient
-    // as its drag override. A part that states neither clears them.
+    // nut masses together as its mass override, and a stated positive drag
+    // coefficient as its drag override. An override the part does not state is
+    // left as it was.
     case 'railbutton':
       return {
         outerDiameter: p.outerDiameter,
@@ -593,8 +603,8 @@ function statedPatch(p: Component, node?: ComponentNode): Partial<ComponentNode>
         ...(p.baseHeight != null ? { baseHeight: p.baseHeight } : {}),
         ...(p.flangeHeight != null ? { flangeHeight: p.flangeHeight } : {}),
         ...(p.screwHeight != null ? { screwHeight: p.screwHeight } : {}),
-        overrideMass: p.mass,
-        overrideCD: p.cd ?? undefined,
+        ...(p.mass != null ? { overrideMass: p.mass } : {}),
+        ...(p.cd != null && p.cd > 0 ? { overrideCD: p.cd } : {}),
         ...mat,
       };
     // Streamer.loadFromPreset: the strip, its surface material, and the drag

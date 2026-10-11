@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+// cspell:ignore randomseed recoveryspeedwarning droguelowspeedwarning Lowspeedwarning recoverydroguemainhighspeedwarning recoverydroguemainlowspeedwarning -- OpenRocket .ork element names
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -102,6 +103,15 @@ describe('reading them back', () => {
     expect(sims[0]!.summary).toEqual(summary);
     expect(sims[2]!.summary).toBeUndefined();
   });
+
+  it('reads an empty summary attribute as missing, not as zero', () => {
+    const xml = write([{ name: 'Calm day', configId: 'cfg-c6', launch, summary, status: 'uptodate' }]).replace(
+      'maxaltitude="333.5"',
+      'maxaltitude=""',
+    );
+    expect(xml).toContain('maxaltitude=""');
+    expect(importOrk(xml).simulations![0]!.summary!.maxAltitude).toBeNaN();
+  });
 });
 
 describe('opening a file with simulations', () => {
@@ -202,5 +212,86 @@ describe('desktop simulation extensions', () => {
     expect(at).toBeLessThan(xml.indexOf('<flightdata'));
     // And they read back the same, so a second round trip keeps them too.
     expect(importOrk(xml).simulations![0]!.xmlExtra).toEqual(carried);
+  });
+});
+
+/**
+ * The conditions a saved result was flown under. The desktop re-flies a
+ * simulation from its `<conditions>`, so a result written up to date has to
+ * carry the step, limit and warning thresholds the run used, and a desktop
+ * file's own conditions this app does not model have to survive a save.
+ */
+describe('simulation options in the conditions', () => {
+  const prefs = {
+    timeStep: 0.01,
+    maxTime: 600,
+    randomSeed: 42,
+    deploymentSpeedWarn: 18,
+    mainHighSpeedWarn: 25,
+    mainLowSpeedWarn: 12,
+    drogueLowSpeedWarn: 2.5,
+  };
+  const cond = (xml: string, tag: string) =>
+    new DOMParser().parseFromString(xml, 'application/xml').querySelector(`simulation > conditions > ${tag}`)
+      ?.textContent;
+
+  it('writes the preferences the run used', () => {
+    const xml = exportOrk({
+      name: 'Sims',
+      tree,
+      configs,
+      activeConfigId: 'cfg-c6',
+      launch,
+      simulations: [{ name: 'Calm day', configId: 'cfg-c6', launch, summary, status: 'uptodate' }],
+      simPrefs: prefs,
+    });
+    expect(cond(xml, 'timestep')).toBe('0.01');
+    expect(cond(xml, 'maxtime')).toBe('600');
+    expect(cond(xml, 'randomseed')).toBe('42');
+    expect(cond(xml, 'recoveryspeedwarning')).toBe('18');
+    expect(cond(xml, 'drogueLowspeedwarning')).toBe('2.5');
+    expect(cond(xml, 'recoverydroguemainhighspeedwarning')).toBe('25');
+    expect(cond(xml, 'recoverydroguemainlowspeedwarning')).toBe('12');
+  });
+
+  const desktopFile = write([{ name: 'Calm day', configId: 'cfg-c6', launch, summary, status: 'uptodate' }]).replace(
+    '<timestep>',
+    '<simulationsteppermethod>rk6</simulationsteppermethod><randomseed>1234</randomseed><timestep>',
+  );
+
+  it('carries the conditions children it does not model back inside the conditions', () => {
+    const sim = importOrk(desktopFile).simulations![0]!;
+    const xml = exportOrk({
+      name: 'Sims',
+      tree,
+      configs,
+      activeConfigId: 'cfg-c6',
+      launch,
+      simulations: [
+        { name: sim.name, configId: 'cfg-c6', launch, summary, status: 'uptodate', xmlExtra: sim.xmlExtra },
+      ],
+    });
+    expect(cond(xml, 'simulationsteppermethod')).toBe('rk6');
+    // No seed of its own, so the file's stands.
+    expect(cond(xml, 'randomseed')).toBe('1234');
+    expect(xml.match(/<timestep>/g)).toHaveLength(1);
+    expect(xml).not.toMatch(/<\/conditions>\s*<conditions>/);
+  });
+
+  it('writes a fixed seed of its own in place of the file one', () => {
+    const sim = importOrk(desktopFile).simulations![0]!;
+    const xml = exportOrk({
+      name: 'Sims',
+      tree,
+      configs,
+      activeConfigId: 'cfg-c6',
+      launch,
+      simulations: [
+        { name: sim.name, configId: 'cfg-c6', launch, summary, status: 'uptodate', xmlExtra: sim.xmlExtra },
+      ],
+      simPrefs: prefs,
+    });
+    expect(xml.match(/<randomseed>/g)).toHaveLength(1);
+    expect(cond(xml, 'randomseed')).toBe('42');
   });
 });

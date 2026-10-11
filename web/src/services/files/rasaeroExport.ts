@@ -13,10 +13,6 @@ import { writeLaunchSite } from './rasaero/launchSite';
 import { KeyedError } from '../../i18n/keyedError';
 import { writeMachAlt, writeSimulationList, type MachAltTable } from './rasaero/simulation';
 
-export { rasaeroSurface, RASAERO_SURFACE_DEFAULT } from './rasaero/surface';
-export type { Cdx1ExportEngine } from './rasaero/engines';
-export type { MachAltTable } from './rasaero/simulation';
-
 /**
  * RASAero II (.CDX1) design export. Format knowledge mirrors the desktop's
  * file/rasaero package:
@@ -77,7 +73,7 @@ export function exportCdx1({
   emit('<RASAeroDocument>');
   emit('<FileVersion>2</FileVersion>');
   emit('<RocketDesign>');
-  writeSustainerChain(w, stagesIn[0]!);
+  writeSustainerChain(w, stagesIn[0]!, stagesIn.length);
   writeBoosters(w, stagesIn);
   emit(`<Surface>${designSurface(stagesIn, warnings)}</Surface>`);
   emit('<CD>0</CD>');

@@ -18,6 +18,7 @@ import {
 } from '../../tree/schematicGeometry';
 import { buildSchematicShapes } from './schematicShapes';
 import { useWheelZoom } from './useWheelZoom';
+import { keyPan } from './keyPan';
 import { HorizontalCaliper, VerticalCaliper } from './SchematicCalipers';
 import { SchematicControls } from './SchematicControls';
 import { HoverOverlay, StabilityOverlay } from './SchematicOverlay';
@@ -410,7 +411,17 @@ export function TreeSchematic({
         // No role="img": it would tell assistive tech the whole SVG is a single
         // static image and hide every clickable component. (Keyboard selection
         // lives in the component tree, which is focusable.)
-        aria-label={t('schematic.sideAria')}
+        aria-label={zoom.k > 1 ? `${t('schematic.sideAria')}. ${t('schematic.panHint')}` : t('schematic.sideAria')}
+        // Zoomed in, the drawing takes focus so the arrows can pan it: a drag
+        // is otherwise the only way to bring the nose or the fins into view.
+        tabIndex={zoom.k > 1 ? 0 : undefined}
+        className="focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-500"
+        onKeyDown={(e) => {
+          const next = keyPan(zoom, e.key, e.shiftKey, w);
+          if (!next) return;
+          e.preventDefault();
+          setZoom(next);
+        }}
         onPointerDown={beginPan}
         onPointerMove={onMove}
         onPointerUp={endDrag}

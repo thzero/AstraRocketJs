@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { defaultDesignName } from '../../services/app/appInfo';
 import { useWorkspaceStore } from '../../state/store';
+import { fireAction } from '../../state/fireAction';
 import { LazyBoundary, lazyNamed } from '../common/ErrorBoundary';
 import { DesignLibraryDialog } from './DesignLibraryDialog';
 import { DesignPropertiesDialog } from './DesignPropertiesDialog';
@@ -104,7 +105,7 @@ function HeaderDialogs({ flags, onClose }: { flags: OpenFlags; onClose: (id: Hea
           onCancel={() => onClose('saveAs')}
           onConfirm={(name) => {
             onClose('saveAs');
-            void saveDesignAs(name);
+            fireAction(saveDesignAs(name));
           }}
         />
       )}

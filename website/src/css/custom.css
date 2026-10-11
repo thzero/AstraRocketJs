@@ -29,6 +29,12 @@
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
 }
 
+/* A link inside running text is underlined, so it is told from the words
+   around it by more than its color (WCAG 1.4.1). */
+.markdown a {
+  text-decoration: underline;
+}
+
 /**
  * Embedded mode.
  *

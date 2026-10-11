@@ -8,8 +8,8 @@ name: CI
 #
 # A `pull_request` run tests the MERGE of head into base, not the branch tip.
 #
-# WHAT runs is in gates.yml, shared with deploy.yml so master cannot drift from
-# what a PR was held to. Add a gate there, not here.
+# WHAT runs is in gates.yml, shared with dev.yml and deploy.yml so a branch push
+# and master cannot drift from what a PR was held to. Add a gate there, not here.
 
 on:
   pull_request:

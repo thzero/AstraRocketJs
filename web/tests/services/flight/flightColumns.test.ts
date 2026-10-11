@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import en from '../../../src/i18n/locales/en.json';
 import es from '../../../src/i18n/locales/es.json';
 import { DEFAULT_CSV_COLUMNS, flightBranches, flightColumns } from '../../../src/services/flight/flightColumns';
@@ -99,6 +101,54 @@ describe('flightColumns', () => {
     // missing quantity would render as the string "undefined".
     for (const c of flightColumns(withKeys(['time', 'Cd', 'M', 'Px', 'ρ']))) {
       expect(c.quantity ?? c.unit, `${c.key} has neither`).toBeDefined();
+    }
+  });
+});
+
+/**
+ * Every series the kernel can record has a column with a name and a unit, so
+ * none exports as a bare symbol. The symbols are read from `FlightDataType.java`
+ * itself; the app's dozen arrive under its own names, and the bridge never
+ * sends the computation time.
+ */
+describe('flightColumns against FlightDataType', () => {
+  const SENT_AS_APP_NAME: Record<string, string> = {
+    t: 'time',
+    h: 'altitude',
+    Vt: 'velocity',
+    At: 'acceleration',
+    m: 'mass',
+    Ft: 'thrust',
+    Fd: 'drag',
+    M: 'mach',
+    S: 'stability',
+    Cp: 'cpLocation',
+    Cg: 'cgLocation',
+    α: 'aoa',
+  };
+  const NOT_SENT = new Set(['tc']);
+  const java = readFileSync(
+    resolve(process.cwd(), '../engine-java/src/java/info/openrocket/core/simulation/FlightDataType.java'),
+    'utf8',
+  );
+  const unescape = (x: string) =>
+    x.replace(/\\u([0-9a-fA-F]{4})/g, (_, h: string) => String.fromCharCode(parseInt(h, 16)));
+  const symbols = [
+    ...java.matchAll(/newType\(\s*"[^"]*",\s*trans\.get\("[^"]*"\),\s*"([^"]*)"(\s*\+\s*Chars\.ALPHA)?/g),
+  ].map((m) => unescape(m[1]!) + (m[2] ? 'α' : ''));
+
+  it('finds the kernel table', () => {
+    expect(symbols.length).toBeGreaterThan(60);
+    expect(symbols).toContain('CNα');
+  });
+
+  it('labels every recorded series', () => {
+    const keys = symbols.filter((s) => !NOT_SENT.has(s)).map((s) => SENT_AS_APP_NAME[s] ?? s);
+    const cols = flightColumns(withKeys(keys));
+    for (const k of keys) {
+      const col = cols.find((c) => c.key === k);
+      expect(col?.labelKey, `${k} has no label`).toBeTruthy();
+      expect(col!.quantity ?? col!.unit, `${k} has no unit`).not.toBeUndefined();
     }
   });
 });

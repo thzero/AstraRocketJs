@@ -6,15 +6,17 @@ name: Gates
 # only way to avoid keeping copies of this in sync by hand.
 #
 # Order: the engine jobs (parity, reproducible, validate) and the web jobs
-# (build-and-test, e2e) run IN PARALLEL, and the PR is gated on all of them.
+# (build-and-test, e2e, update-flow) run IN PARALLEL, and the PR is gated on
+# all of them.
 #
 # The web jobs do not wait for parity. Every app test runs against the
 # COMMITTED engine binaries in web/src/engine/vendor/ and web/public/engine/,
 # so stale binaries make a green unit suite measure the wrong engine; parity's
 # second step catches that by rebuilding them and failing on a diff. Both
 # verdicts are required to merge, so a red parity beside a green
-# build-and-test is still "do not merge". The web jobs do wait on
-# `reproducible` and `validate`, which need no JDK and take seconds.
+# build-and-test is still "do not merge". build-and-test does wait on
+# `reproducible` and `validate`, and e2e and update-flow on `reproducible`;
+# neither needs a JDK.
 #
 # Callers decide WHEN this runs; this file only says WHAT runs. It has no
 # trigger of its own and cannot be run directly. A caller can turn parity off
@@ -159,6 +161,38 @@ jobs:
             exit 1
           }
 
+      # The Java helpers under web/scripts (the two catalog digest dumpers and
+      # the .ork check) are compiled only when their scripts run, and the
+      # dumpers run only in the scheduled catalog publish. Compiled here, against
+      # the OpenRocket release pinned in web/scripts/data/openrocket-release.json,
+      # a break shows on the pull request. This job already has the JDK.
+      - name: The catalog Java helpers compile against the pinned OpenRocket
+        timeout-minutes: 5
+        working-directory: web
+        run: |
+          set -euo pipefail
+          pin=scripts/data/openrocket-release.json
+          url=$(node -p "require('./$pin').jar.url")
+          sha=$(node -p "require('./$pin').jar.sha256")
+          jar="$RUNNER_TEMP/openrocket-release.jar"
+          curl -fsSL -o "$jar" "$url"
+          echo "$sha  $jar" | sha256sum -c -
+          find scripts -name '*.java' -print0 | xargs -0 javac -cp "$jar" -d "$RUNNER_TEMP/java-helpers"
+
+      # The .ork files the app saves (the default design and every bundled
+      # example, opened and saved through the store), opened in the pinned
+      # desktop release with the jar the step above downloaded and checked. The
+      # unit suite can see what the writer emits; only the desktop can say it
+      # accepts it, and check:ork fails on any warning its loader raises.
+      - name: Files the app saves open cleanly in the pinned OpenRocket
+        timeout-minutes: 10
+        working-directory: web
+        run: |
+          set -euo pipefail
+          npm ci
+          ORK_SAMPLES_DIR="$RUNNER_TEMP/ork-samples" npx vitest run tests/services/files/orkDesktopSamples.test.ts
+          npm run check:ork -- --jar "$RUNNER_TEMP/openrocket-release.jar" "$RUNNER_TEMP"/ork-samples/*.ork
+
   # Can src/java still be REGENERATED from its declared inputs? Parity above
   # cannot answer that: it builds from src/java and compares the two TeaVM
   # targets, so it is blind to src/java having drifted from upstream(+patches),
@@ -168,14 +202,11 @@ jobs:
   reproducible:
     runs-on: ubuntu-latest
     # 15 minutes, against the 360-minute default. The cap is for a HANG, not
-    # for slowness: a Playwright locator waiting on an element that never
-    # appears, a kernel build deadlocking, a fetch with no timeout of its own.
-    # Uncapped, those burn runner minutes for six hours with the PR showing
-    # "in progress".
-    #
-    # 15 and not 10 because `build-and-test` (npm ci plus `verify:ci`) runs close
-    # to 8 minutes. A cap sized just over the work fails on runner load, which a
-    # shared runner has.
+    # for slowness: here, a clone of the pinned OpenRocket source or an
+    # extraction check that stops making progress. Uncapped, that burns runner
+    # minutes for six hours with the PR showing "in progress". The work itself
+    # is a sparse checkout and a node script, a few minutes at most, and the
+    # cap leaves room for a slow shared runner.
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
@@ -261,7 +292,7 @@ jobs:
   # the whole job is a few seconds.
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 15 # see `reproducible` for why 15
+    timeout-minutes: 15 # a few seconds of work; the cap is for a hang
     steps:
       - uses: actions/checkout@v7
 
@@ -281,7 +312,9 @@ jobs:
   build-and-test:
     needs: [reproducible, validate]
     runs-on: ubuntu-latest
-    timeout-minutes: 15 # see `reproducible` for why 15
+    # npm ci plus `verify:ci` runs close to 8 minutes. A cap sized just over the
+    # work fails on runner load, which a shared runner has.
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: web
@@ -321,13 +354,13 @@ jobs:
       #                 reported early rather than after everything else passes.
       #   vitest        The unit suite. `verify:ci` runs it with coverage and
       #                 enforces the floors in vitest.config.ts; `verify` runs it
-      #                 without, because instrumentation is 65 s against 335 s and
+      #                 without, because instrumentation slows the suite and
       #                 that belongs on a runner rather than in the inner loop.
       #
       # `verify:ci`, which is `gates` plus the suite WITH coverage. `verify` is the
       # same `gates` plus the suite without it: ONE shared list, two endings, so the
-      # gate set still cannot drift between here and a developer's machine while the
-      # 270 s of coverage instrumentation stays off the command a human types.
+      # gate set still cannot drift between here and a developer's machine while
+      # coverage instrumentation stays off the command a human types.
       - run: npm run verify:ci
 
       # `text-summary` scrolls past in the log and `lcov` is written to a disk
@@ -356,7 +389,7 @@ jobs:
               }
             '
             echo ""
-            echo "Floor: lines >= 70% (vitest.config.ts). lcov.info is in the run artifacts."
+            echo "Floors: vitest.config.ts coverage.thresholds. lcov.info is in the run artifacts."
           } >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/upload-artifact@v7
@@ -373,14 +406,10 @@ jobs:
       # runs `vite build` directly rather than `npm run build`, because that
       # script is `typecheck && lint && vite build` and `gates` has just run both.
 
-  # NOTE: the Docusaurus site is NOT built here. It is gated in deploy.yml
-  # on merge to master, where it is built into web/public/docs anyway. The
-  # trade-off is deliberate and it is real: a broken docusaurus.config.ts,
-  # sidebars.ts or MDX page is not caught before merge, so it surfaces as
-  # a RED MASTER DEPLOY rather than a red PR check, and the fix goes forward on
-  # master. Accepted because docs breakage does not ship bad physics or a broken
-  # app, and a PR touching only web/ would pay a full `npm ci` + Docusaurus build for
-  # a risk it could not introduce.
+  # The Docusaurus site is built on every run of these gates: e2e and
+  # update-flow both run `npm run docs:build` for the Help checks, so a broken
+  # docusaurus.config.ts, sidebars.ts or MDX page fails the pull request there.
+  # The docs site's own `typecheck` runs only in deploy.yml, on merge to master.
 
   # The core end-to-end specs: the paths a broken build breaks first (the list is
   # CORE_SPECS in web/playwright.config.ts). Every pull request and master push
@@ -402,9 +431,23 @@ jobs:
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: web/package-lock.json
+          # The website lock too: this job builds the docs (below), which runs
+          # Docusaurus out of website/.
+          cache-dependency-path: |
+            web/package-lock.json
+            website/package-lock.json
 
       - run: npm ci
+
+      - name: Install the docs site's dependencies
+        working-directory: website
+        run: npm ci
+
+      # The accessibility scans of the Help and Safety dialogs read the docs
+      # from web/public/docs, which is gitignored; without a build the frame is
+      # empty and the scan checks nothing.
+      - name: Build the docs the Help and Safety scans read
+        run: npm run docs:build
 
       # Key the browser cache on the resolved Playwright version, not on the
       # lockfile hash: the browser build only changes when Playwright does.

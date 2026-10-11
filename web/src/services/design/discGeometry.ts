@@ -89,9 +89,15 @@ export function mountBore(siblings: ComponentNode[]): number | null {
  */
 function spanIn(child: ComponentNode, parent: ComponentNode, parentStart: number): [number, number] {
   const len = partLength(parent);
-  const start = startFromPosition(positionOf(child), partLength(child), len, parentStart);
+  const [start, end] = rawSpanIn(child, parent, parentStart);
   const clamp = (x: number) => Math.min(Math.max(x, 0), len);
-  return [clamp(start), clamp(start + partLength(child))];
+  return [clamp(start), clamp(end)];
+}
+
+/** Where a child sits along its parent, from the parent's front (m), overhang and all. */
+function rawSpanIn(child: ComponentNode, parent: ComponentNode, parentStart: number): [number, number] {
+  const start = startFromPosition(positionOf(child), partLength(child), partLength(parent), parentStart);
+  return [start, start + partLength(child)];
 }
 
 /**
@@ -124,14 +130,16 @@ export function boreAround(child: ComponentNode, parent: ComponentNode, parentSt
 /**
  * A centering ring's automatic bore: the widest inner tube beside it whose span
  * overlaps the ring's, 0 when none does, and never wider than the ring
- * (`CenteringRing.getInnerRadius`).
+ * (`CenteringRing.getInnerRadius`). The spans are compared as placed, not
+ * clipped to the parent: a mount that overhangs the tube's aft end still
+ * misses a ring placed past its own end.
  */
 export function ringBore(ring: ComponentNode, parent: ComponentNode, ringOuter: number, parentStart: number): number {
-  const [r0, r1] = spanIn(ring, parent, parentStart);
+  const [r0, r1] = rawSpanIn(ring, parent, parentStart);
   let bore = 0;
   for (const sib of parent.children ?? []) {
     if (sib.type !== 'innertube') continue;
-    const [t0, t1] = spanIn(sib, parent, parentStart);
+    const [t0, t1] = rawSpanIn(sib, parent, parentStart);
     if (r1 < t0 || r0 > t1) continue;
     bore = Math.max(bore, num(sib, 'outerRadius', 0));
   }
@@ -239,9 +247,12 @@ export function discDims(
  * tail's fore shoulder the aft radius.
  *
  * Returns null when the part has no bore to offer at that end: a nose cone is
- * closed at the tip, and anything that is not airframe has no end to plug.
+ * closed at the tip, a filled part is solid (`SymmetricComponent.getInnerRadius`
+ * is 0, as {@link tubeRadii} has it), and anything that is not airframe has no
+ * end to plug.
  */
 export function boreAt(node: ComponentNode, end: 'fore' | 'aft'): number | null {
+  if (node['filled'] === true) return null;
   const wall = (dflt: number) => num(node, 'thickness', dflt);
   const bore = (outer: number, w: number) => (outer > 0 && w < outer ? outer - w : null);
   switch (node.type) {

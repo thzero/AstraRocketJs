@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import { useGuardedSelection } from '../../../src/components/common/MasterDetail';
 import { useConfirmStore } from '../../../src/state/confirmStore';
@@ -56,6 +56,30 @@ describe('useGuardedSelection', () => {
     act(() => result.current.settle('saved'));
     expect(result.current.selectedId).toBe('saved');
     expect(result.current.dirty).toBe(false);
+    expect(useConfirmStore.getState().request).toBeNull();
+  });
+
+  it('asks before closing would throw away an edit, and stays open when told to', async () => {
+    const { result } = renderHook(() => useGuardedSelection('Discard?'));
+    act(() => result.current.onDirtyChange(true));
+    const onClose = vi.fn();
+    let pending!: Promise<void>;
+    act(() => {
+      pending = result.current.close(onClose);
+    });
+    expect(useConfirmStore.getState().request?.message).toBe('Discard?');
+    await act(async () => {
+      useConfirmStore.getState().settle(false);
+      await pending;
+    });
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('closes without asking while the editor is clean', async () => {
+    const { result } = renderHook(() => useGuardedSelection('Discard?'));
+    const onClose = vi.fn();
+    await act(async () => result.current.close(onClose));
+    expect(onClose).toHaveBeenCalledTimes(1);
     expect(useConfirmStore.getState().request).toBeNull();
   });
 });

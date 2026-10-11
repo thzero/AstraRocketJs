@@ -267,10 +267,12 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
 
   // One resolution per distinct motor, not per mount per configuration: three
   // configurations flying the same J350 are one catalog lookup and one fetch,
-  // and one note when it cannot be found rather than three identical ones.
+  // and one note when it cannot be found rather than three identical ones. The
+  // digest is part of the identity, since it picks the embedded curve: two
+  // custom curves sharing a designation are two motors.
   const resolved = new Map<string, MotorSpec>();
   const resolveMotor = async (ref: OrkMotorRef): Promise<MotorSpec> => {
-    const key = `${(ref.manufacturer ?? '').toLowerCase()}|${ref.designation.toLowerCase()}|${ref.delay}`;
+    const key = `${(ref.manufacturer ?? '').toLowerCase()}|${ref.designation.toLowerCase()}|${ref.delay}|${ref.digest ?? ''}`;
     const hit = resolved.get(key);
     if (hit) return hit;
     const spec = await resolveOnce(ref);

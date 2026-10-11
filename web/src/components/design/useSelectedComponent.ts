@@ -72,12 +72,14 @@ export function useSelectedComponent() {
     remove();
   };
   const onChange = async (p: Partial<ComponentNode>) => {
-    if (
-      p.motorMount === false &&
-      isOnlyMount &&
-      !(await confirm({ message: t('warn.lastMountDisable'), danger: true }))
-    )
+    if (p.motorMount === false && isOnlyMount) {
+      if (!(await confirm({ message: t('warn.lastMountDisable'), danger: true }))) return;
+      // The checkbox closes its undo entry as it fires, which is before the
+      // confirm resolves, so the confirmed edit closes its own.
+      patch(p);
+      onCommit();
       return;
+    }
     patch(p);
   };
 

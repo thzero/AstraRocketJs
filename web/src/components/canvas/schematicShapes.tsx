@@ -18,7 +18,7 @@ import { DISC_TYPES } from '../../services/files/componentFormats.js';
 import { discDims, tubeRadii } from '../../services/design/discGeometry.js';
 import { assemblyChainLength, isAssembly, resolveAssemblyRadius, ringInstanceOffsets } from '../../tree/assembly.js';
 import { token } from '../common/colorTokens';
-import { transitionEnds } from './transitionEnds';
+import { chainWithKernelEnds } from '../../services/design/autoRadius.js';
 import {
   axialStart,
   colorOf,
@@ -93,7 +93,9 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
   /** Every drawn component's extent and display name, for the hover overlay. */
   extents: HoverExtents;
 } {
-  const { chain, ctx, scale, roll, uid, motors, selectedId, onSelect, setHoverId } = cfg;
+  const { ctx, scale, roll, uid, motors, selectedId, onSelect, setHoverId } = cfg;
+  // A transition end with no radius on record is drawn as the kernel resolves it.
+  const chain = chainWithKernelEnds(cfg.chain);
   const nameOf = (n: ComponentNode): string => n.name ?? cfg.partName?.(n) ?? DISPLAY_NAME[n.type];
 
   // Selection sync: click any drawn component to select it in the tree; the
@@ -833,8 +835,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
         renderChildren(n, cx, len, r, baseY);
         cx += len;
       } else if (n.type === 'transition') {
-        const at = nodes.indexOf(n);
-        const { fore: rf, aft: ra } = transitionEnds(n, nodes[at - 1], nodes[at + 1]);
+        const { fore: rf, aft: ra } = profileEnds(n);
         noteHover(
           n,
           ctx.x0 + cx * scale,

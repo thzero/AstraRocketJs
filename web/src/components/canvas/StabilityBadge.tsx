@@ -7,6 +7,7 @@ import { Stat } from '../common/Stat';
 import { UnitChip } from '../common/UnitChip';
 import { useUnits } from '../../prefs/useUnits';
 import { unitScope } from '../../prefs/units';
+import { STABILITY_GLYPH } from '../../tree/schematicGeometry';
 
 /**
  * "All stats" strip under the canvas: length, max diameter,
@@ -73,8 +74,12 @@ export function StabilityBadge({
         {!expanded && (
           <span className="ml-auto truncate text-[11px] tabular-nums text-ink-muted">
             {lengthTile.fmt(info.length)} {lengthTile.sym} ·{' '}
+            {/* The band is in the glyph and, for a screen reader, in words, as
+                well as in the color. */}
             <span className={padTone}>
+              {padState && <span aria-hidden>{`${STABILITY_GLYPH[padState]} `}</span>}
               {fmtNum(cal, 2)} {t('stability.caliber')}
+              {padState && <span className="sr-only">{` (${t(stabilityVerdictKey(cal))})`}</span>}
             </span>
           </span>
         )}

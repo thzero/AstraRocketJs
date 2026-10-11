@@ -41,6 +41,7 @@
       "archiveEmpty": "Archiwum .ork jest puste.",
       "tooManyComponents": "Ten plik {{format}} deklaruje zbyt wiele komponentów, by go otworzyć (możliwe uszkodzenie).",
       "tooManySimulations": "Ten plik .ork deklaruje zbyt wiele symulacji, by go otworzyć (możliwe uszkodzenie).",
+      "tooManyConfigs": "Ten plik .ork deklaruje zbyt wiele konfiguracji lotu, by go otworzyć (możliwe uszkodzenie).",
       "tooDeep": "Ten plik {{format}} jest zbyt głęboko zagnieżdżony, by go otworzyć (możliwe uszkodzenie).",
       "tooLarge": "Plik jest zbyt duży, by go otworzyć (ponad {{size}} MiB)."
     },
@@ -57,7 +58,11 @@
       "noseShape": "RASAero nie ma kształtu stożka dziobowego „{{shape}}”. Użyj stożkowego, ostrołukowego, elipsoidalnego, Haacka lub potęgowego albo wyeksportuj jako .ork.",
       "transitionShape": "Przejścia w RASAero muszą być stożkowe. Zmień kształt albo wyeksportuj jako .ork.",
       "noPods": "RASAero nie ma gondoli, więc nie można wyeksportować „{{name}}”. Usuń ją albo wyeksportuj jako .ork.",
-      "noParallel": "RASAero nie ma stopni równoległych (bocznych), więc nie można wyeksportować „{{name}}”. Usuń go albo wyeksportuj jako .ork."
+      "noParallel": "RASAero nie ma stopni równoległych (bocznych), więc nie można wyeksportować „{{name}}”. Usuń go albo wyeksportuj jako .ork.",
+      "noseFirst": "Projekty RASAero zaczynają się od stożka dziobowego, a pierwszym elementem stopnia górnego jest „{{name}}”. Ustaw stożek dziobowy na początku albo wyeksportuj jako .ork.",
+      "secondPart": "RASAero wymaga rury korpusu zaraz po stożku dziobowym albo zwężenia ogonowego jako ostatniego elementu, więc „{{name}}” nie może być w tym miejscu. Zmień kolejność albo wyeksportuj jako .ork.",
+      "noseNotFirst": "RASAero dopuszcza stożek dziobowy tylko jako pierwszy element, więc nie można wyeksportować „{{name}}”. Użyj przejścia albo wyeksportuj jako .ork.",
+      "noseFlipped": "RASAero nie ma odwróconych stożków dziobowych, więc nie można wyeksportować „{{name}}”. Użyj przejścia albo wyeksportuj jako .ork."
     },
     "motorFile": {
       "engNoData": "To nie jest prawidłowy plik .eng (nie znaleziono danych silnika).",
@@ -130,6 +135,7 @@
     "openOrk": "Nie udało się otworzyć pliku .ork: {{reason}}",
     "openExample": "Nie udało się otworzyć tego przykładu: {{reason}}",
     "saveOrk": "Nie udało się zapisać pliku .ork: {{reason}}",
+    "saveOrkNoDesignInfo": "Zapisano plik .ork bez informacji o projekcie: nie udało się zbudować projektu, więc nie było statystyk do dołączenia.",
     "exportRasaero": "Nie udało się wyeksportować do RASAero: {{reason}}",
     "exportUnsupported": "Tej części nie można wyeksportować jako {{format}}.",
     "exportFailed": "Nie udało się wyeksportować do {{format}}: {{reason}}",
@@ -247,6 +253,7 @@
     "fitFrame": "Dopasuj rakietę do kadru",
     "fitFrameHint": "Przybliża kamerę tak, aby rakieta wypełniła eksportowany obraz: kąt patrzenia pozostaje, zmienia się tylko kadr",
     "simFailed": "Symulacja się nie udała, więc nie zapisano pliku PDF: {{message}}",
+    "simDropped": "Projekt zmienił się w trakcie symulacji, więc nie zapisano pliku PDF. Zapisz PDF ponownie, aby zasymulować bieżący projekt.",
     "pdfFailed": "Nie udało się wyeksportować pliku PDF: {{message}}",
     "csvFailed": "Nie udało się wyeksportować pliku CSV: {{message}}",
     "reportFailed": "Nie udało się złożyć raportu projektu: {{message}}",
@@ -256,7 +263,8 @@
     "headerSpan": "rozpiętość {{value}}",
     "headerLaunchMass": "Masa startowa {{mass}} (pusta {{dry}})",
     "headerDryMass": "Masa pusta {{dry}}, bez załadowanych silników",
-    "headerBalance": "SC {{cg}}, SP {{cp}} od czubka stożka, zapas {{margin}} kal"
+    "headerBalance": "SC {{cg}}, SP {{cp}} od czubka stożka, zapas {{margin}} kal",
+    "headerCg": "SC {{cg}} od czubka stożka"
   },
   "engine": {
     "wasmTip": "Silnik fizyki: WebAssembly (szybka ścieżka)",
@@ -470,6 +478,7 @@
       "daylight": "Światło dzienne (wysoki kontrast)"
     },
     "resetTab": "Przywróć „{{name}}”",
+    "resetTabConfirm": "Przywrócić domyślne ustawienia karty {{name}}? Wprowadzone tam dane zostaną zastąpione i nie można tego cofnąć.",
     "resetAll": "Przywróć wszystko",
     "resetAllConfirm": "Przywrócić domyślne wartości wszystkich ustawień na wszystkich kartach? Obejmuje to domyślne warunki startu, jednostki i ustawienia symulacji i nie można tego cofnąć.",
     "resetOneFor": "Przywróć domyślny kolor: {{name}}",
@@ -667,6 +676,7 @@
     "timeout": "Symulacja trwała zbyt długo i została zatrzymana. Spróbuj ponownie albo uprość projekt.",
     "busy": "Symulacja już trwa. Poczekaj, aż się zakończy, albo ją anuluj, i spróbuj ponownie.",
     "warnings": "Ostrzeżenia dotyczące lotu ({{count}})",
+    "warningHigh": "Poważne:",
     "runMany": "Wykonaj symulacje: {{count}}",
     "safetyTitle": "Przed startem",
     "safetyLead": "To szacunki z modelu, a nie karta lotu.",
@@ -722,7 +732,6 @@
     "FILE_INVALID_PARAMETER": "Niepoprawny parametr w pliku",
     "LISTENERS_AFFECTED": "Nasłuchy symulacji zmieniły wynik",
     "OBJ_ZERO_THICKNESS": "W eksporcie jest geometria o zerowej grubości",
-    "LargeAOA": "Duży kąt natarcia",
     "LargeAOA.str1": "Duży kąt natarcia",
     "LargeAOA.str2": "Duży kąt natarcia"
   },
@@ -865,6 +874,7 @@
     "Cdb": "Współczynnik oporu dennego (CD_base)",
     "Cda": "Współczynnik oporu osiowego (CA)",
     "Cn": "Współczynnik siły normalnej (CN)",
+    "CNα": "Pochodna współczynnika siły normalnej (CNα)",
     "Cθ": "Współczynnik momentu pochylającego (Cm)",
     "CτΨ": "Współczynnik momentu odchylającego",
     "Cτs": "Współczynnik siły bocznej",
@@ -1064,7 +1074,7 @@
       "device": "Układ ratunkowy",
       "flightPath": "tor lotu",
       "groundTrack": "ślad na ziemi",
-      "distanceBearing": "{{distance}} {{unit}} na azymucie {{bearing}}°",
+      "distanceBearing": "{{distance}} {{unit}} na azymucie {{bearing}}",
       "stageLanding": "Lądowanie: {{stage}}"
     },
     "mission": "Misja",
@@ -1154,7 +1164,7 @@
     "versionMissing": "Nieobsługiwana wersja dokumentu, próba odczytu pliku mimo to.",
     "ignored": "Pominięto nieobsługiwane elementy: {{names}}.",
     "skippedUnsupported": "Pominięto jako nieobsługiwane: {{name}}",
-    "instanced": "Elementy powtórzone w wielu egzemplarzach: {{names}}. Plik zachowuje każdy egzemplarz, ale rysunek i symulacja pokazują na razie jeden.",
+    "instanced": "Elementy powtórzone w wielu egzemplarzach: {{names}}. Symulacja uwzględnia każdy egzemplarz, ale rysunek pokazuje na razie jeden.",
     "configsNoMotors": "Liczba konfiguracji lotu zadeklarowanych w pliku: {{total}}, ale plik nie zawierał silników do zaimportowania.",
     "strayConfigs": "Liczba konfiguracji lotu w pliku: {{total}}. Zaimportowano tylko pierwszą.",
     "appearances": "Ustawienia wyglądu części w pliku: {{total}}. Nie są tu używane (ta aplikacja rysuje tylko kolor części), ale zostają zachowane, więc zapis je utrzyma.",
@@ -1240,8 +1250,6 @@
     "motorTag": "silnik",
     "noComponents": "Brak części.",
     "add": "＋ Dodaj",
-    "addTo": "＋ Dodaj do „{{parent}}”…",
-    "nothingToAdd": "＋ Tutaj nie ma czego dodać",
     "canHost": "Dodaj część wewnątrz „{{parent}}”",
     "cantHost": "„{{parent}}” nie może zawierać części podrzędnych",
     "fins": "Stateczników: {{count}}",
@@ -1478,6 +1486,7 @@
     "fit": "Dopasuj do widoku",
     "aftAria": "Widok z tyłu: rakieta widziana od tyłu; przeciągaj, aby obracać, kółko zmienia powiększenie",
     "sideAria": "Widok rakiety z boku ze znacznikami SC i SP; kółko zmienia powiększenie, przeciąganie tła przesuwa widok",
+    "panHint": "Strzałki przesuwają powiększony widok, z Shift o większy krok",
     "caliperH": "Uchwyt suwmiarki poziomej {{end}}",
     "caliperV": "Uchwyt suwmiarki pionowej {{end}}"
   },
@@ -1534,6 +1543,8 @@
     "select": "Wybierz {{name}}",
     "combine": "Połącz ({{n}})",
     "compareN": "Porównaj ({{n}})",
+    "combineChartAria": "Łączna krzywa ciągu: {{names}}, z krzywą każdego silnika",
+    "compareChartAria": "Krzywe ciągu: {{names}}",
     "compareTitle": "Porównanie",
     "back": "Wróć do listy",
     "clear": "Wyczyść",
@@ -1542,7 +1553,6 @@
     "noCurveTip": "Brak krzywej ciągu: nie da się porównać ani połączyć.",
     "compareDesc": "Nakłada ich krzywe ciągu na siebie i zestawia dane obok siebie.",
     "combineDesc": "Sumuje je w jedną wiązkę: wspólna krzywa ciągu i impuls całkowity.",
-    "clearSel": "Wyczyść zaznaczenie",
     "combined": "Połączona wiązka",
     "cluster": "Wiązka z {{n}} silników",
     "total": "Razem po połączeniu",
@@ -1673,6 +1683,7 @@
     "missingField": "To pole jest wymagane i jest puste. Dopóki go nie wypełnisz, symulacji nie da się wykonać.",
     "resetToDefault": "Przywróć wartość domyślną",
     "saveAsDefault": "Zapisz jako wartość domyślną",
+    "saveAsDefaultMixed": "Zaznaczone symulacje mają różne opcje, więc nie ma jednego zestawu do zapisania. Zaznacz jedną, aby zapisać jej opcje jako domyślne.",
     "optionsHint": "Puste pole podąża za ustawieniem ogólnym (Ustawienia › Symulacja).",
     "selectAll": "Zaznacz wszystkie symulacje",
     "selectOne": "Zaznacz {{name}}",
@@ -1689,7 +1700,6 @@
   },
   "motorDlg": {
     "title": "Wybór silnika",
-    "manufacturer": "Producent",
     "allManufacturers": "Wszyscy producenci",
     "mfrCount": "Producentów: {{n}}",
     "diameter": "Średnica",
@@ -1741,6 +1751,7 @@
     "chartThrust": "krzywa ciągu",
     "chartAvg": "średni ciąg",
     "chartBurn": "czas pracy",
+    "chartAria": "Ciąg w funkcji czasu. Szczyt {{peak}}, średnio {{avg}}, czas pracy {{burn}} s.",
     "calcNote": "* Ciąg początkowy, Isp i udział masowy są obliczone z krzywej ciągu oraz mas."
   },
   "lang": {
@@ -1777,6 +1788,7 @@
   },
   "storage": {
     "full": "Nie udało się zapisać pracy: pamięć przeglądarki jest pełna. Wyeksportuj projekt, aby go zachować.",
+    "writeRefused": "Nie udało się zapisać: przeglądarka odmówiła zapisu. Jej pamięć może być pełna lub zablokowana.",
     "degraded": "Przeglądarka blokuje swoją bazę danych, więc aplikacja przeszła na znacznie mniejszą pamięć (około 5 MB) i wraz z rozrostem projektu zapis może się nie udawać. Zwykle dzieje się tak w trybie prywatnym. Wyeksportuj wszystko, co chcesz zachować.",
     "loadFailed": "Nie udało się odczytać zapisanego projektu. Zaczynamy od nowa; dalsza praca będzie zapisywana.",
     "conflict": "Ten projekt został zmieniony w innej karcie, więc zmiany wprowadzone tutaj nie są zapisywane. Wyeksportuj je, aby je zachować, albo otwórz projekt ponownie w Moich rakietach, aby wczytać wersję z drugiej karty."
@@ -1821,11 +1833,8 @@
     "RECOVERY_LAUNCH_ROD_rod": "Układ ratunkowy otworzył się, gdy rakieta była jeszcze na pręcie. Sprawdź opóźnienie wyrzutu i ustawienia otwarcia: w tej postaci symulacja kończy lot na wyrzutni.",
     "RECOVERY_DROGUE_NO_MAIN": "Spadochron hamujący się otwiera, ale główny za nim nie idzie, więc rakieta opada do ziemi tylko na hamującym. To twarde lądowanie, chyba że hamujący jest na to dobrany.",
     "NO_RECOVERY_DEVICE": "Nic się nie otwiera, więc rakieta spada balistycznie, a prędkość lądowania poniżej jest tą prędkością, z jaką uderzy w ziemię.",
-    "LargeAOA": "Rakieta leciała pod kątem natarcia poza zakresem, w którym metoda Barrowmana obowiązuje, więc liczby aerodynamiczne w okolicy tego punktu są przybliżone. Zdarza się często przy silnym wietrze albo zaraz po powolnym zejściu z prowadnicy.",
     "LargeAOA.str1": "Rakieta leciała pod kątem natarcia poza zakresem, w którym metoda Barrowmana obowiązuje, więc liczby aerodynamiczne w okolicy tego punktu są przybliżone. Zdarza się często przy silnym wietrze albo zaraz po powolnym zejściu z prowadnicy.",
     "LargeAOA.str2": "Rakieta leciała pod kątem natarcia poza zakresem, w którym metoda Barrowmana obowiązuje, więc liczby aerodynamiczne w okolicy tego punktu są przybliżone. Zdarza się często przy silnym wietrze albo zaraz po powolnym zejściu z prowadnicy.",
-    "LargeAOA_rail": "Rakieta leciała pod kątem natarcia poza zakresem, w którym metoda Barrowmana obowiązuje, więc liczby aerodynamiczne w okolicy tego punktu są przybliżone. Zdarza się często przy silnym wietrze albo zaraz po powolnym zejściu z szyny startowej.",
-    "LargeAOA_rod": "Rakieta leciała pod kątem natarcia poza zakresem, w którym metoda Barrowmana obowiązuje, więc liczby aerodynamiczne w okolicy tego punktu są przybliżone. Zdarza się często przy silnym wietrze albo zaraz po powolnym zejściu z pręta startowego.",
     "LargeAOA.str1_rail": "Rakieta leciała pod kątem natarcia poza zakresem, w którym metoda Barrowmana obowiązuje, więc liczby aerodynamiczne w okolicy tego punktu są przybliżone. Zdarza się często przy silnym wietrze albo zaraz po powolnym zejściu z szyny startowej.",
     "LargeAOA.str1_rod": "Rakieta leciała pod kątem natarcia poza zakresem, w którym metoda Barrowmana obowiązuje, więc liczby aerodynamiczne w okolicy tego punktu są przybliżone. Zdarza się często przy silnym wietrze albo zaraz po powolnym zejściu z pręta startowego.",
     "LargeAOA.str2_rail": "Rakieta leciała pod kątem natarcia poza zakresem, w którym metoda Barrowmana obowiązuje, więc liczby aerodynamiczne w okolicy tego punktu są przybliżone. Zdarza się często przy silnym wietrze albo zaraz po powolnym zejściu z szyny startowej.",
@@ -1926,10 +1935,6 @@
     "discardConfirm": "Odrzucić zmiany w tym miejscu?",
     "back": "Powrót do listy",
     "use": "Użyj",
-    "useMany_one": "Użyj w {{count}} symulacji",
-    "useMany_few": "Użyj w {{count}} symulacjach",
-    "useMany_many": "Użyj w {{count}} symulacjach",
-    "useMany_other": "Użyj w {{count}} symulacji",
     "applyNeedsSave": "Zapisz lub odrzuć zmiany, zanim użyjesz tego miejsca."
   },
   "map": {
@@ -2011,7 +2016,7 @@
     "visibility": "Widzialność",
     "forecastNote": "Prognoza to oszacowanie modelu, a nie pomiar.",
     "credit": "Dane pogodowe: Open-Meteo.com",
-    "windValue": "{{speed}} z {{from}}°, porywy {{gust}}, profil do {{top}}",
+    "windValue": "{{speed}} z {{from}}, porywy {{gust}}, profil do {{top}}",
     "atmosphereValue": "Profil do {{top}}",
     "group": {
       "temperature": "Temperatura",
@@ -2079,6 +2084,7 @@
       "flyHoursNote": "Przelatuje ten projekt w prognozie dla każdej godziny, od dwóch przed do dwóch po, według obecnej prognozy.",
       "outdated": "Ten wynik jest nieaktualny. Uruchom symulację ponownie, aby przelecieć godziny prognozy dla obecnej rakiety i miejsca.",
       "hour": "Godzina",
+      "flownHour": "(ten lot)",
       "noForecast": "Wypełnij warunki startu przyciskiem Pobierz pogodę…, aby zobaczyć, jak lądowanie przesuwa się w godzinach wokół prognozy.",
       "overWind": "Nie wykonano lotu: wiatr powyżej limitu bezpieczeństwa",
       "overRodAngle": "Nie wykonano lotu: kąt startu powyżej limitu bezpieczeństwa",
@@ -2166,10 +2172,10 @@
     "railNeeded": "Prowadnica dla {{speed}}",
     "weathercock": "Kąt wiatrowskazowy",
     "weathercockGust": "Kąt wiatrowskazowy w porywach",
-    "maxWind": "Najsilniejszy wiatr poniżej {{angle}}°",
+    "maxWind": "Najsilniejszy wiatr poniżej {{angle}}",
     "maxDryMass": "Najcięższa rakieta bez silnika",
     "none": "Brak",
-    "rules": "Na bursztynowo: średni stosunek ciągu do ciężaru poniżej {{ratio}} : 1, zejście z prowadnicy wolniej niż {{speed}} (minimum z Ustawień) lub kąt wiatrowskazowy powyżej {{angle}}°. Najcięższa rakieta spełnia dwa pierwsze.",
+    "rules": "Na bursztynowo: średni stosunek ciągu do ciężaru poniżej {{ratio}} : 1, zejście z prowadnicy wolniej niż {{speed}} (minimum z Ustawień) lub kąt wiatrowskazowy powyżej {{angle}}. Najcięższa rakieta spełnia dwa pierwsze.",
     "estimateNote": "Szacunek: bez oporu powietrza, bez tarcia o prowadnicę i z pionową prowadnicą, więc rzeczywiste zejście jest nieco wolniejsze."
   },
   "stageName": {

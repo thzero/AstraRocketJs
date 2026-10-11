@@ -216,6 +216,8 @@ function RollSlider() {
         onChange={(e) => onRollValue(degToRad(parseFloat(e.target.value)))}
         title={t('view.roll', { deg: shown })}
         aria-label={t('view.rollAria')}
+        // The slider steps in degrees; it is heard in the unit it is shown in.
+        aria-valuetext={shown}
         className="accent-accent-500"
         style={{ writingMode: 'vertical-lr', width: '100%', flex: '1 1 0%', minHeight: 0 }}
       />

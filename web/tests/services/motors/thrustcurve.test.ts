@@ -314,6 +314,50 @@ describe('fetchMotorSpec - malformed thrustcurve.org response', () => {
   });
 });
 
+/** A download.json answer whose `results` is not an array reads as no data. */
+describe('fetchMotorSpec - download.json results not an array', () => {
+  const online = {
+    designation: 'J777',
+    manufacturer: 'Nobody',
+    class: 'J',
+    diameter: 38,
+    impulse: 900,
+    burn: 2,
+    mass: 600,
+    length: 300,
+    propWeightG: 400,
+  } as unknown as CatalogMotor;
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('throws the keyed no-data error instead of a TypeError', async () => {
+    const json = (body: unknown) =>
+      Promise.resolve({ ok: true, headers: { get: () => null }, json: () => Promise.resolve(body) });
+    vi.stubGlobal('fetch', (url: string) =>
+      String(url).includes('search.json')
+        ? json({
+            results: [
+              {
+                motorId: 'j777',
+                designation: 'J777',
+                commonName: 'J777',
+                manufacturerAbbrev: 'Nobody',
+                diameter: 38,
+                length: 300,
+                totalWeightG: 600,
+                propWeightG: 400,
+                availability: 'regular',
+              },
+            ],
+          })
+        : json({ results: { format: 'RASP' } }),
+    );
+    await expect(fetchMotorSpec(online, 0)).rejects.toThrow(/No thrust-curve data/);
+  });
+});
+
 /**
  * The search.json hit is validated before it is picked, cached or requested.
  *

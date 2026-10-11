@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Line, Html } from '@react-three/drei';
 import type { FlightResult, RocketTree } from '../../engine/openRocketEngine';
-import type { Piece } from './Rocket3D';
+import type { Piece } from './rocketPieces';
 import { usePieces } from './usePieces';
 import { mergePalette } from '../../services/design/partColors';
 import { useSettings } from '../../state/SettingsProvider';
@@ -391,6 +391,8 @@ export function FlightPath3D({
           step={0.001}
           value={progress}
           aria-label={t('flight.time')}
+          // The slider runs 0 to 1; what it stands for is the flight time.
+          aria-valuetext={`${fmtNum(nowT, 1)} s`}
           onChange={(e) => {
             setPlaying(false);
             seek(parseFloat(e.target.value));

@@ -132,6 +132,11 @@ function customToRow(cm: CustomMotor): CatalogMotor {
  * inside `allClasses`' `localeCompare`, and one missing `designation` throws in
  * `filterMotors`' `toLowerCase`, taking down the entire motor picker rather than
  * that one entry. `motorStore` guards custom motors the same way.
+ *
+ * The optional fields are checked when present, since consumers trust them as
+ * typed: `code` is lower-cased, curve and CG pairs go to the kernel as numbers,
+ * and digest delays are searched with `includes`. A row with any of them
+ * malformed is dropped rather than throwing inside an `.ork` import or save.
  */
 const isCatalogMotor = (v: unknown): v is CatalogMotor => {
   const m = v as CatalogMotor | null;
@@ -142,7 +147,32 @@ const isCatalogMotor = (v: unknown): v is CatalogMotor => {
     typeof m.manufacturer === 'string' &&
     typeof m.class === 'string' &&
     Number.isFinite(m.diameter) &&
-    Number.isFinite(m.impulse)
+    Number.isFinite(m.impulse) &&
+    optionalString(m.code) &&
+    optionalString(m.type) &&
+    optionalString(m.delays) &&
+    (m.curves === undefined ||
+      (Array.isArray(m.curves) && m.curves.every((c) => !!c && typeof c === 'object' && isPairList(c.samples)))) &&
+    (m.cg === undefined || isPairList(m.cg)) &&
+    (m.digests === undefined || (Array.isArray(m.digests) && m.digests.every(isDigestEntry)))
+  );
+};
+
+const optionalString = (v: unknown): boolean => v === undefined || typeof v === 'string';
+
+/** An array of `[finite, finite]` pairs. */
+const isPairList = (v: unknown): boolean =>
+  Array.isArray(v) &&
+  v.every((p) => Array.isArray(p) && p.length === 2 && Number.isFinite(p[0]) && Number.isFinite(p[1]));
+
+const isDigestEntry = (v: unknown): boolean => {
+  const e = v as { digest?: unknown; delays?: unknown } | null;
+  return (
+    !!e &&
+    typeof e === 'object' &&
+    typeof e.digest === 'string' &&
+    Array.isArray(e.delays) &&
+    e.delays.every((d) => d === 'P' || Number.isFinite(d))
   );
 };
 

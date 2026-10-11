@@ -26,6 +26,9 @@ export function useChartCrosshair(t0: number, t1: number) {
     else if (e.key === 'Home') next = t0;
     else if (e.key === 'End') next = t1;
     else if (e.key === 'Escape') {
+      // Spent only when there was a crosshair to drop; a second Escape is left
+      // for the window, where it leaves the maximized layout.
+      if (hoverT != null) e.preventDefault();
       setHoverT(null);
       setKeyT(null);
       return;

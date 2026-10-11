@@ -2,9 +2,10 @@ import type { FlightSummary } from '../../../engine/openRocketEngine';
 import type { LaunchConditions } from '../../design/orkTree';
 import { xmlText as text } from '../xmlUtil';
 import { readSimulationLaunch } from './importLaunch';
-import { KNOWN_SIMULATION_TAGS, readPassthrough } from './passthrough';
+import { KNOWN_CONDITIONS_TAGS, KNOWN_SIMULATION_TAGS, readPassthrough, wrapConditionsChild } from './passthrough';
 import { KeyedError } from '../../../i18n/keyedError';
 import { MAX_SIMULATIONS } from './importLimits';
+import { finiteNum } from './numbers';
 
 /**
  * One <simulation> as a file carries it: its name, the configuration it flies,
@@ -19,7 +20,11 @@ export interface OrkSimulation {
   summary?: FlightSummary;
   /** The file says the result was out of date when it was saved. */
   outdated: boolean;
-  /** Children this app does not model (desktop extensions and the like), as raw XML; see passthrough.ts. */
+  /**
+   * Children this app does not model (desktop extensions and the like), as raw
+   * XML, and the unread children of its `<conditions>`, each wrapped by
+   * `wrapConditionsChild`; see passthrough.ts.
+   */
   xmlExtra?: string[];
 }
 
@@ -41,7 +46,14 @@ export function readSimulations(doc: Document): OrkSimulation[] {
   return [...els].map((el, i) => {
     const flight = el.querySelector(':scope > flightdata');
     const launch = readSimulationLaunch(el);
-    const xmlExtra = readPassthrough(el, KNOWN_SIMULATION_TAGS);
+    // The simulation's own unread children, then the unread children of its
+    // conditions (see `wrapConditionsChild`).
+    const condEl = el.querySelector(':scope > conditions');
+    const carried = [
+      ...(readPassthrough(el, KNOWN_SIMULATION_TAGS) ?? []),
+      ...((condEl && readPassthrough(condEl, KNOWN_CONDITIONS_TAGS)) ?? []).map(wrapConditionsChild),
+    ];
+    const xmlExtra = carried.length ? carried : undefined;
     return {
       name: (text(el, ':scope > name') ?? '').trim() || `Simulation ${i + 1}`,
       configId: (text(el, ':scope > conditions > configid') ?? '').trim() || null,
@@ -55,11 +67,7 @@ export function readSimulations(doc: Document): OrkSimulation[] {
 
 /** The <flightdata> attributes as a summary; a figure the file left out reads as missing. */
 function summaryOf(el: Element): FlightSummary {
-  const num = (name: string): number => {
-    const raw = el.getAttribute(name);
-    const v = raw == null ? NaN : Number(raw);
-    return Number.isFinite(v) ? v : NaN;
-  };
+  const num = (name: string): number => finiteNum(el.getAttribute(name)) ?? NaN;
   const orNull = (name: string): number | null => {
     const v = num(name);
     return Number.isNaN(v) ? null : v;

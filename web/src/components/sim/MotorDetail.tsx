@@ -204,7 +204,17 @@ export function ThrustChart({ samples, avg, burn }: { samples: [number, number][
 
   return (
     <div className="mt-2">
-      <svg viewBox={`0 0 ${W} ${H}`} width="100%" className="block">
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        width="100%"
+        className="block"
+        role="img"
+        aria-label={t('motorDlg.chartAria', {
+          peak: u.fmtSym('force', peak[1], 1),
+          avg: u.fmtSym('force', avg, 1),
+          burn: fmtNum(burn, 2),
+        })}
+      >
         <defs>
           <linearGradient id={fillId} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={token('thrust')} stopOpacity="0.45" />

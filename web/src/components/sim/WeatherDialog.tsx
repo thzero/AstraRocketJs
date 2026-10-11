@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { LaunchConditions } from '../../services/design/orkTree';
 import { Dialog } from '../common/Dialog';
-import { useUnits } from '../../prefs/useUnits';
+import { fmtDegrees, useUnits } from '../../prefs/useUnits';
 import {
   fetchWeather,
   hourInZone,
@@ -195,7 +195,7 @@ export function WeatherDialog({
         const top = w.levels[w.levels.length - 1]!;
         return t('weather.windValue', {
           speed: wind(w.surfaceSpeed),
-          from: Math.round(w.surfaceFromDeg),
+          from: fmtDegrees(u, w.surfaceFromDeg),
           gust: w.gust === null ? NO_VALUE : wind(w.gust),
           top: alt(top.altitudeM),
         });

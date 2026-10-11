@@ -5,6 +5,7 @@ import { componentName, isDefaultComponentName } from '../app/warningText';
 import { hexOf, parseHexColor } from '../design/colorHex';
 import { neutralizeFormula } from './csvCell';
 import { siToUi } from '../../prefs/units';
+import { withUnit } from '../../i18n/format';
 import { CSV_MIME } from './csvExport';
 import { escapeXml } from '../files/xmlUtil';
 import { offsetToLatLon } from '../map/geodesy';
@@ -680,6 +681,15 @@ const UNIT_SYMBOL: Record<DistanceUnit, string> = { m: 'm', ft: 'ft', km: 'km', 
 /** Decimals shown per unit (larger units get more). */
 const UNIT_DECIMALS: Record<DistanceUnit, number> = { m: 1, ft: 1, km: 3, mi: 3 };
 
+/**
+ * A compass bearing in degrees, in `unit` with its symbol: whole degrees, or
+ * two more places in radians, the precision `fmtDegrees` gives the app.
+ */
+function fmtBearing(deg: number, unit: string): string {
+  const v = siToUi('angle', unit, (deg * Math.PI) / 180);
+  return withUnit(v.toFixed(unit === '°' ? 0 : 2), unit);
+}
+
 /** Render a meters value in the given unit, without the unit symbol. */
 function fmtLength(meters: number, unit: DistanceUnit): string {
   if (!Number.isFinite(meters)) return '';
@@ -765,6 +775,9 @@ export function exportBranchNames(result: FlightResult, meta: FlightPathMeta): s
  * @param t resolves the export's strings. Bind it to `options.language` and
  *          every string in the file follows; the app's own `t` writes the file
  *          in whatever the app is showing.
+ * @param angleUnit the reader's angle unit symbol (`°` or `rad`), which the
+ *          bearing in a distance-and-bearing line is written in. The numeric
+ *          `bearing` fields stay compass degrees for templates.
  */
 export function buildFlightPathModel(
   result: FlightResult,
@@ -772,6 +785,7 @@ export function buildFlightPathModel(
   meta: FlightPathMeta,
   options: FlightPathExportOptions,
   t: Translate,
+  angleUnit = '°',
 ): FlightPathModel {
   // A position left at (0, 0) was never filled in, and is exported from the
   // Kennedy Space Center rather than from Null Island. The design is untouched.
@@ -857,6 +871,7 @@ export function buildFlightPathModel(
       launchAlt,
       altUnit: options.altitudeUnit,
       distUnit: options.distanceUnit,
+      angleUnit,
       kmlAltitude,
       kmlWaypointAltitude,
       qualify,
@@ -917,6 +932,8 @@ interface BranchCtx {
   launchAlt: number;
   altUnit: DistanceUnit;
   distUnit: DistanceUnit;
+  /** The angle unit symbol a bearing is written in. */
+  angleUnit: string;
   /** Height above the ground → the altitude a KML coordinate should carry. */
   kmlAltitude: (altAgl: number) => number;
   kmlWaypointAltitude: (altAgl: number) => number;
@@ -995,12 +1012,12 @@ function buildBranch(
   const distanceAt = (i: number) => distanceFromPad({ east: eastAt(i), north: northAt(i) });
   const bearingAt = (i: number) => bearingFromPad({ east: eastAt(i), north: northAt(i) });
 
-  /** "223.6 m at 27°", in the export language. */
+  /** "223.6 m at 27°", in the export language and the reader's angle unit. */
   const distanceBearing = (i: number): string =>
     t('pathExport.doc.distanceBearing', {
       distance: fmtLength(distanceAt(i), ctx.distUnit),
       unit: UNIT_SYMBOL[ctx.distUnit],
-      bearing: bearingAt(i).toFixed(0),
+      bearing: fmtBearing(bearingAt(i), ctx.angleUnit),
     });
 
   const mkWaypoint = (i: number, type: WaypointKind, label: string, device: string | null): FlightPathWaypoint => {
@@ -1463,9 +1480,15 @@ export function hasLaunchPosition(launch: LaunchConditions): boolean {
 /** Choose the value escaper by output extension (mirrors the desktop exporter). */
 function escaperFor(extension: string): (raw: string) => string {
   switch (extension.toLowerCase()) {
+    // Markup formats take the XML escaper too, so a component name from a shared
+    // file cannot become a live element in the generated page.
     case 'kml':
     case 'gpx':
     case 'xml':
+    case 'html':
+    case 'htm':
+    case 'xhtml':
+    case 'svg':
       return (raw) => escapeXml(raw).replace(/'/g, '&apos;');
     case 'csv':
       // Neutralize spreadsheet formula injection: a file-sourced value (e.g. a

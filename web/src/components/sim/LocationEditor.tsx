@@ -41,7 +41,6 @@ export function LocationEditor({
   onSave,
   onDelete,
   onApply,
-  applyCount = 1,
   onBack,
 }: {
   /** The location to edit, or null to create one. */
@@ -55,11 +54,6 @@ export function LocationEditor({
   onDelete?: () => void;
   /** Absent while creating, and refused while edited: see the button. */
   onApply?: () => void;
-  /**
-   * How many simulations applying writes to: the ticked rows, else the active
-   * one. Named on the button when it is more than one.
-   */
-  applyCount?: number;
   /** Phone only: the two panes share the width, so the list needs a way back. */
   onBack: () => void;
 }) {
@@ -258,16 +252,10 @@ export function LocationEditor({
             // the sites you have saved, and sending the simulation a set of
             // coordinates that exist nowhere is not what "use this location"
             // offers.
-            title={
-              dirty
-                ? t('location.applyNeedsSave')
-                : applyCount > 1
-                  ? t('location.useMany', { count: applyCount })
-                  : t('location.apply')
-            }
+            title={dirty ? t('location.applyNeedsSave') : t('location.apply')}
             className="rounded-lg px-3 py-1.5 text-sm font-medium text-accent-300 hover:bg-accent-500/10 disabled:text-ink-faint disabled:hover:bg-transparent"
           >
-            {applyCount > 1 ? t('location.useMany', { count: applyCount }) : t('location.use')}
+            {t('location.use')}
           </button>
         )}
       </EditorFooter>

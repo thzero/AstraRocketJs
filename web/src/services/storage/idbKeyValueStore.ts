@@ -282,6 +282,19 @@ export class IndexedDbKeyValueStore implements KeyValueStore {
    * connection fails the delete as surely as the write).
    */
   async get(key: string): Promise<string | null> {
+    try {
+      return await this.getChecked(key);
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * As `get`, but a failed IndexedDB read rejects instead of reading as
+   * "nothing stored". A browser with no IndexedDB at all reads as empty, as
+   * `get` does: the fallback is the whole store there, not a read that failed.
+   */
+  async getChecked(key: string): Promise<string | null> {
     const newer = await this.fallback.get(key);
     if (newer != null) {
       // A key that fell back this session has just been refused by IndexedDB;
@@ -290,11 +303,15 @@ export class IndexedDbKeyValueStore implements KeyValueStore {
       return newer;
     }
     this.fellBack.delete(key);
-    try {
-      return (await tx<string | undefined>('readonly', (s) => s.get(key))) ?? null;
-    } catch {
+    if (typeof indexedDB === 'undefined') {
       markDegraded();
       return null;
+    }
+    try {
+      return (await tx<string | undefined>('readonly', (s) => s.get(key))) ?? null;
+    } catch (e) {
+      markDegraded();
+      throw e instanceof Error ? e : new Error(errorMessage(e));
     }
   }
 

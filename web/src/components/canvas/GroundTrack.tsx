@@ -1,8 +1,8 @@
 import { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { fmtGroundDistance, groundDistanceNumber, useUnits } from '../../prefs/useUnits';
+import { fmtDegrees, fmtGroundDistance, groundDistanceNumber, useUnits } from '../../prefs/useUnits';
 import { unitScope } from '../../prefs/units';
-import { fmtNum, stageLabel } from '../../i18n/format';
+import { stageLabel } from '../../i18n/format';
 import {
   groundTrackLine,
   trackExtent,
@@ -327,7 +327,7 @@ export function GroundTrack({
                 so it can be read (and matched) apart from the figures beside it. */}
               <span>{l.name}</span>
               <span className="tabular-nums text-ink-muted">
-                {fmtDist(l.distance)} · {fmtNum(l.bearing, 0)}°
+                {fmtDist(l.distance)} · {fmtDegrees(u, l.bearing)}
               </span>
               {/* The swept spread, when there is one: the walk to plan for is
                   the FURTHEST landing over the conditions asked about, not the

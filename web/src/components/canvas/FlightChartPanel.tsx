@@ -1,11 +1,10 @@
 import { useCallback, useId, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { fmtNum, ladderDigits } from '../../i18n/format';
+import { fmtNum } from '../../i18n/format';
 import { useUnits } from '../../prefs/useUnits';
-import { lerpAt } from '../../services/flight/interpolate';
 import { PAD_L, PAD_R, PANEL_H } from './flightChartAxis';
-import { traceScale, traceUnit, type Branch, type Meta } from './flightChartTraces';
-import { PanelHover } from './FlightChartHover';
+import { panelDigits, panelSeries, traceScale, traceUnit, type Branch, type Meta } from './flightChartTraces';
+import { PanelHover, hoverValue } from './FlightChartHover';
 import { polylinePath } from '../common/svgPath';
 import { PanelExpandButton } from './PanelExpandButton';
 import { token } from '../common/colorTokens';
@@ -66,54 +65,9 @@ export function FlightChartPanel({
   // One line per selected stage; the y-domain spans them all so they share a
   // scale and read against each other. Keyed on the (stable) branch list so a
   // hover doesn't rebuild every stage's path.
-  const { list, lo, hi } = useMemo(() => {
-    let dMin = Infinity;
-    let dMax = -Infinity;
-    // A plain loop: the domain scan writes dMin/dMax, and doing that from
-    // inside a `.map` callback hid a side effect in what reads as a pure
-    // transform.
-    const out: { color: string; name: string; pts: Pt[]; xs: number[]; ys: number[]; t0?: number; t1?: number }[] = [];
-    for (const b of branches) {
-      const time = b.series.time ?? [];
-      const raw = b.series[meta.key] ?? [];
-      const p: Pt[] = [];
-      const xa: number[] = [];
-      const ya: number[] = [];
-      for (let i = 0; i < time.length; i++) {
-        const ti = time[i];
-        const v = raw[i];
-        if (ti == null || v == null || !Number.isFinite(ti) || !Number.isFinite(v)) continue;
-        if (meta.aero && ti > clipT) continue;
-        const y = v * scale;
-        p.push([ti, y] as const);
-        xa.push(ti);
-        ya.push(y);
-        if (y < dMin) dMin = y;
-        if (y > dMax) dMax = y;
-      }
-      out.push({ color: b.color, name: b.name, pts: p, xs: xa, ys: ya, t0: xa[0], t1: xa[xa.length - 1] });
-    }
-    if (!(dMin < Infinity)) {
-      dMin = 0;
-      dMax = 1;
-    }
-    let l: number;
-    let h: number;
-    if (meta.level) {
-      const r = dMax - dMin || Math.abs(dMax) || 1;
-      l = dMin - r * 0.1;
-      h = dMax + r * 0.1;
-    } else {
-      l = Math.min(0, dMin);
-      h = dMax + (dMax - l || 1) * 0.08;
-    }
-    return { list: out, lo: l, hi: h === l ? l + 1 : h };
-  }, [branches, meta.key, meta.level, meta.aero, scale, clipT]);
-
-  // A fixed decimal count belongs to a fixed unit: "0 dp" is right for meters
-  // of altitude and wrong for kilometers. For a quantity-backed series the
-  // count comes from the span actually on screen instead.
-  const digits = meta.quantity ? ladderDigits(Math.abs(hi - lo)) : meta.digits;
+  // `meta` is an entry of the static SERIES table, so it is a stable key.
+  const { list, lo, hi } = useMemo(() => panelSeries(branches, meta, scale, clipT), [branches, meta, scale, clipT]);
+  const digits = panelDigits(meta, lo, hi);
 
   const Y = useCallback((v: number) => padT + (1 - (v - lo) / (hi - lo)) * ih, [lo, hi, ih]);
   const mkLine = useCallback(
@@ -167,7 +121,7 @@ export function FlightChartPanel({
   // Header: the hovered value of the primary (first / sustainer) stage, else the
   // peak-magnitude sample across every shown stage.
   const primary = list[0];
-  const hvPrimary = primary && hoverT != null ? lerpAt(primary.xs, primary.ys, hoverT) : null;
+  const hvPrimary = primary && hoverT != null ? hoverValue(primary, hoverT) : null;
   const shown = hvPrimary ?? peak;
 
   return (

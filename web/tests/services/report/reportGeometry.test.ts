@@ -297,10 +297,55 @@ describe('rocketSideView: fins on a transition', () => {
   it('seats the fin root on the body surface under the fin front, not the aft radius', () => {
     const view = rocketSideView(withBoatTailFins);
     const fin = view.fins[0]!;
-    const rootY = Math.min(...fin.map((p) => Math.abs(p[1]))); // the root line
+    const rootY = fin[0]![1]; // the leading root corner
     // Conical 12 → 8 mm: at the transition's front the body is 12 mm.
     expect(rootY).toBeCloseTo(12, 6);
     expect(rootY).not.toBeCloseTo(8, 3);
+  });
+
+  /**
+   * The root closes along the parent (`FinSet.getRootPoints`), so at the
+   * trailing edge it sits on the taper: 12 - 4 * 30 / 50 = 9.6 mm, not at the
+   * 12 mm under the fin front.
+   */
+  it('runs the root along the taper to the trailing edge', () => {
+    const fin = rocketSideView(withBoatTailFins).fins[0]!;
+    const atTrail = fin.filter(([x, y]) => Math.abs(x - 230) < 1e-6 && y < 11);
+    expect(atTrail.length).toBeGreaterThan(0);
+    expect(atTrail[0]![1]).toBeCloseTo(12 - (4 * 30) / 50, 6);
+    // Every root point between the corners lies on the cone.
+    const root = fin.filter(([x, y]) => x > 200 && x < 230 && y <= 12 - (4 * (x - 200)) / 50 + 1e-9);
+    for (const [x, y] of root) expect(y).toBeCloseTo(12 - (4 * (x - 200)) / 50, 6);
+    expect(root.length).toBeGreaterThan(0);
+  });
+
+  it("snaps a freeform fin's last point onto the taper, as FreeformFinSet.clampLastPoint does", () => {
+    const freeform = {
+      components: [
+        { type: 'bodytube', length: 0.2, outerRadius: 0.012 },
+        {
+          type: 'transition',
+          length: 0.05,
+          foreRadius: 0.012,
+          aftRadius: 0.008,
+          shape: 'conical',
+          children: [
+            {
+              type: 'freeformfinset',
+              points: [
+                [0, 0],
+                [0.01, 0.02],
+                [0.04, 0],
+              ],
+            },
+          ],
+        },
+      ],
+    } as unknown as RocketTree;
+    const fin = rocketSideView(freeform).fins[0]!;
+    // Third outline point: x = 240 mm, on the cone at 12 - 4 * 40 / 50.
+    expect(fin[2]![0]).toBeCloseTo(240, 6);
+    expect(fin[2]![1]).toBeCloseTo(12 - (4 * 40) / 50, 6);
   });
 
   it('follows the taper for a fin set further aft', () => {
@@ -327,7 +372,7 @@ describe('rocketSideView: fins on a transition', () => {
       ],
     } as unknown as RocketTree;
     const fin = rocketSideView(halfway).fins[0]!;
-    const rootY = Math.min(...fin.map((p) => Math.abs(p[1])));
+    const rootY = fin[0]![1];
     // Halfway down a linear 12 → 8 mm taper is 10 mm.
     expect(rootY).toBeCloseTo(10, 6);
   });

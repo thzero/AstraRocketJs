@@ -380,9 +380,9 @@ export const createFileSlice =
 
       saveDesignAs: async (name) => {
         const s = get();
-        // `create` throws when storage refuses the write. AppHeader fires this
-        // with `void`, so surface it here or it becomes an unhandled rejection
-        // and the user sees a Save As that appeared to work.
+        // `create` throws when storage refuses the write. Caught here so the
+        // refusal reads as storage being full rather than as a generic error,
+        // and so a Save As that failed does not look as though it worked.
         // `s` is snapshotted now; if the workspace is replaced while create() is
         // in flight, pointing the library at the new entry would leave the user
         // looking at one design with another one active.
@@ -514,6 +514,10 @@ export const createFileSlice =
             const report = assembleReport();
             if (report) designInfo = buildDesignInfo(report);
           }
+          // Asked for and still not there: the design does not build (or the
+          // engine has not arrived), so there are no statistics to write. The
+          // file is still worth having, but it lacks what the user asked for.
+          const infoLeftOut = reportMods !== null && !designInfo;
           const simulations = simSnapshot.map((sim) => {
             const summary = sim.result?.summary ?? sim.fileSummary?.summary;
             const stale = isOutdated(sim, tree, configOf(configSnapshot, sim), prefsSnapshot);
@@ -556,6 +560,7 @@ export const createFileSlice =
             simulations,
             designInfo,
           });
+          if (infoLeftOut) set({ err: i18n.t('errors.saveOrkNoDesignInfo') });
         } catch (e) {
           set({ err: i18n.t('errors.saveOrk', { reason: errorText(e, i18n.t) }) });
         }

@@ -98,7 +98,20 @@ for (const c of people) {
   });
 }
 
-writeFileSync(OUT, JSON.stringify({ generated: new Date().toISOString(), repo: REPO, contributors }, null, 2) + '\n');
+// The previous `generated` stamp is kept when the list is unchanged: the
+// manifest hashes the whole file, so a new stamp on the same people would make
+// every browser download it again after each deploy.
+let generated = new Date().toISOString();
+try {
+  const prev = JSON.parse(readFileSync(OUT, 'utf8'));
+  if (prev.repo === REPO && JSON.stringify(prev.contributors) === JSON.stringify(contributors)) {
+    generated = prev.generated;
+  }
+} catch {
+  // No readable previous list: stamp this one now.
+}
+// Compact, like the other catalogs: browsers download it.
+writeFileSync(OUT, JSON.stringify({ generated, repo: REPO, contributors }) + '\n');
 writeDataManifest(DATA_DIR);
 console.log(
   `Wrote ${contributors.length} contributors → public/data/contributors.generated.json`,

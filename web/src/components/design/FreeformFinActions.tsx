@@ -5,7 +5,7 @@ import { NumberInput } from '../common/NumberInput';
 import { useUnits } from '../../prefs/useUnits';
 import { unitScope } from '../../prefs/units';
 import { freeformPoints } from '../../tree/position';
-import { SCALE_MAX } from '../../tree/scaleRocket';
+import { SCALE_MAX, SCALE_MIN } from '../../tree/scaleRocket';
 import { scaleComponent } from '../../services/design/componentActions';
 import { FinImageError, finPointsCsv, finPointsFromImage, traceSize } from '../../services/design/finImage';
 import { download, exportFilename } from '../../services/files/saveFile';
@@ -109,7 +109,7 @@ export function FreeformFinActions({ node }: { node: ComponentNode }) {
             value={factor}
             onChange={(v) => setFactor(v ?? 1)}
             step={0.1}
-            min={0}
+            min={SCALE_MIN}
             max={SCALE_MAX}
             ariaLabel={t('freeform.scaleFactor')}
             className="w-16 rounded bg-raised px-1.5 py-0.5 text-right tabular-nums text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500"
@@ -117,7 +117,9 @@ export function FreeformFinActions({ node }: { node: ComponentNode }) {
         </label>
         <button
           onClick={() => apply((tree) => scaleComponent(tree, id, factor))}
-          disabled={!(factor > 0) || factor === 1}
+          // The bounds the Scale dialog applies: below SCALE_MIN a mistyped
+          // factor shrinks the fin to nothing.
+          disabled={!(factor >= SCALE_MIN && factor <= SCALE_MAX) || factor === 1}
           title={t('freeform.scaleFinTip')}
           className="rounded-md bg-raised px-2 py-1 text-xs text-ink-soft ring-1 ring-line/10 hover:bg-elevated disabled:cursor-not-allowed disabled:text-ink-dim disabled:hover:bg-raised"
         >

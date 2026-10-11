@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useId, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { CatalogMotor } from '../../services/motors/motorDb';
 import { combineCurves, impulseClass, type Sample } from '../../services/motors/motorCombine';
@@ -9,6 +9,7 @@ import { seriesColor } from '../common/chartPalette';
 import { inUserUnit, withFixedUnit } from './motorFormat';
 import { ChartAxes, CHART_HEADROOM, chartScales, linePath, baselineArea, LegendSwatch, SeriesPath } from './chartAxes';
 import { token } from '../common/colorTokens';
+import { fmtList } from '../../i18n/format';
 
 /**
  * The motor dashboard's Combine tool: the checked motors summed into one
@@ -28,6 +29,9 @@ function CombineChart({
 }) {
   const { t } = useTranslation();
   const u = useUnits();
+  // Per instance: `url(#id)` resolves to the first match in the document, so a
+  // fixed id would fill a second pane from the first one's gradient.
+  const fillId = `combFill${useId()}`;
   const usable = series.filter((s) => s.pts.length >= 2);
   const dims = { width: 560, height: 220, padL: 40, padR: 12, padT: 12, padB: 24 };
   const { width: W, height: H } = dims;
@@ -39,15 +43,21 @@ function CombineChart({
 
   return (
     <div>
-      <svg viewBox={`0 0 ${W} ${H}`} width="100%" className="mt-2 block max-w-2xl">
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        width="100%"
+        className="mt-2 block max-w-2xl"
+        role="img"
+        aria-label={t('dash.combineChartAria', { names: fmtList(usable.map((s) => s.m.designation)) })}
+      >
         <defs>
-          <linearGradient id="combFill" x1="0" y1="0" x2="0" y2="1">
+          <linearGradient id={fillId} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={token('thrust')} stopOpacity="0.28" />
             <stop offset="100%" stopColor={token('thrust')} stopOpacity="0.03" />
           </linearGradient>
         </defs>
         <ChartAxes dims={dims} tMax={tMax} fMax={fMax} X={X} Y={Y} fScale={u.factor('force')} />
-        <path d={area} fill="url(#combFill)" />
+        <path d={area} fill={`url(#${fillId})`} />
         {usable.map((s) => (
           <SeriesPath
             key={keyOf(s.m)}

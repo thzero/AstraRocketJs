@@ -328,3 +328,28 @@ describe('a .ork cannot state a negative separation altitude', () => {
     expect(booster['separationAltitude']).toBe(0);
   });
 });
+
+/**
+ * A `.ork` color reads as the desktop's ORColor.fromXMLAttributes reads it:
+ * all three channels present as integers in 0-255, or no color at all.
+ */
+describe('a .ork color needs every channel', () => {
+  const colorOf = (attrs: string): unknown =>
+    nodeOfType(
+      `<bodytube><name>Body</name><length>0.3</length><radius>0.012</radius><color ${attrs}/></bodytube>`,
+      'bodytube',
+    )['color'];
+
+  it('reads a complete color', () => {
+    expect(colorOf('red="255" green="16" blue="0"')).toBe('#ff1000');
+    expect(colorOf('red="1" green="2" blue="3" alpha="255"')).toBe('#010203');
+  });
+
+  it('reads no color when a channel is missing, fractional or out of range', () => {
+    expect(colorOf('red="255"')).toBeUndefined();
+    expect(colorOf('red="255" green="0"')).toBeUndefined();
+    expect(colorOf('red="2.5" green="0" blue="0"')).toBeUndefined();
+    expect(colorOf('red="300" green="0" blue="0"')).toBeUndefined();
+    expect(colorOf('red="1" green="2" blue="3" alpha="x"')).toBeUndefined();
+  });
+});

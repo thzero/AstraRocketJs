@@ -13,8 +13,15 @@
 // Prints every component that came back carrying a catalog part, every motor
 // that resolved, and the loader's own warnings. Exits non-zero if there are any.
 //
-// Not part of the app build or `npm run verify`, because it needs a JDK and an
-// installed OpenRocket. Run it after changing anything the `.ork` writer emits.
+// Not part of the app build or `npm run verify`, because it needs a JDK and the
+// OpenRocket release jar (`--jar`, or an installed OpenRocket). Run it after
+// changing anything the `.ork` writer emits. To get the files the app saves,
+// run tests/services/files/orkDesktopSamples.test.ts with ORK_SAMPLES_DIR set:
+//
+//   ORK_SAMPLES_DIR=<dir> npx vitest run tests/services/files/orkDesktopSamples.test.ts
+//   npm run check:ork -- <dir>/*.ork
+//
+// The gates workflow does both against the pinned release.
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';

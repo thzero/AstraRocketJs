@@ -77,7 +77,19 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
     if (ok) reset();
   };
 
-  const resetSection = () => {
+  const tabName = t(TABS.find((x) => x.key === tab)!.label);
+  const resetSection = async () => {
+    // The tabs that hold what the user entered rather than a preference picked
+    // from a list: the home launch site, and the material chosen for each part
+    // type. Neither has an undo, so a stray click is asked about first.
+    if (tab === 'launch' || tab === 'materials') {
+      const ok = await confirm({
+        message: t('settings.resetTabConfirm', { name: tabName }),
+        confirmLabel: t('settings.resetTab', { name: tabName }),
+        danger: true,
+      });
+      if (!ok) return;
+    }
     if (tab === 'general')
       update({
         saveDesignInfo: DEFAULT_SETTINGS.saveDesignInfo,
@@ -124,10 +136,10 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
         <div className="flex items-center justify-between gap-2 p-4">
           <div className="flex gap-2">
             <button
-              onClick={resetSection}
+              onClick={() => fireAction(resetSection())}
               className="rounded-lg bg-raised px-3 py-2 text-xs font-medium text-ink-soft ring-1 ring-line/10 hover:bg-elevated"
             >
-              {t('settings.resetTab', { name: t(TABS.find((x) => x.key === tab)!.label) })}
+              {t('settings.resetTab', { name: tabName })}
             </button>
             <button
               onClick={() => fireAction(resetAll())}

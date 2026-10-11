@@ -155,6 +155,15 @@ describe('isCustomMotor rejects what would reach the kernel broken', () => {
     expect(await survives(good())).toBe(1);
   });
 
+  it('drops a row whose delay list, type or source is malformed', async () => {
+    // `parseDelays` splits `delayList`; one bad row would take down the picker.
+    expect(await survives({ ...good(), delayList: 5 })).toBe(0);
+    expect(await survives({ ...good(), delayList: ['5'] })).toBe(0);
+    expect(await survives({ ...good(), type: 'solid' })).toBe(0);
+    expect(await survives({ ...good(), source: 7 })).toBe(0);
+    expect(await survives({ ...good(), delayList: '3,5,P', type: 'reload' })).toBe(1);
+  });
+
   it('drops a sample that is not a {time, thrust} pair', async () => {
     // `samples: [{}]` would become `times: [undefined]` and NaN masses in the kernel.
     expect(await survives({ ...good(), samples: [{}] })).toBe(0);

@@ -4,6 +4,7 @@ import type { Units } from '../../prefs/useUnits';
 import { flightBranches } from '../../services/flight/flightColumns';
 import { dynamicPressure, qAlpha, rollRate } from '../../services/flight/flightEvents';
 import { token } from '../common/colorTokens';
+import { ladderDigits } from '../../i18n/format';
 
 /**
  * Owns what the flight chart draws: the series catalog (one panel per
@@ -107,6 +108,80 @@ export const traceScale = (m: Meta, u: Pick<Units, 'factor'>): number =>
 /** The unit a series is labeled in: the reader's, or its fixed label. */
 export const traceUnit = (m: Meta, u: Pick<Units, 'sym'>): string =>
   m.quantity ? (m.times ? `${u.sym(m.quantity)}·${u.sym(m.times)}` : u.sym(m.quantity)) : m.unit;
+
+/** One stage's samples on a panel: the points drawn and the span it flew. */
+export interface PanelLine {
+  color: string;
+  name: string;
+  pts: (readonly [number, number])[];
+  xs: number[];
+  ys: number[];
+  t0?: number;
+  t1?: number;
+}
+
+/**
+ * A time panel's lines, one per shown stage, and the y-domain they share so
+ * they read against each other. Aero series stop at `clipT`, where the rocket
+ * stops flying forward.
+ */
+export function panelSeries(
+  branches: readonly Branch[],
+  meta: Meta,
+  scale: number,
+  clipT: number,
+): { list: PanelLine[]; lo: number; hi: number } {
+  let dMin = Infinity;
+  let dMax = -Infinity;
+  // A plain loop: the domain scan writes dMin/dMax, and doing that from
+  // inside a `.map` callback hid a side effect in what reads as a pure
+  // transform.
+  const out: PanelLine[] = [];
+  for (const b of branches) {
+    const time = b.series.time ?? [];
+    const raw = b.series[meta.key] ?? [];
+    const p: (readonly [number, number])[] = [];
+    const xa: number[] = [];
+    const ya: number[] = [];
+    for (let i = 0; i < time.length; i++) {
+      const ti = time[i];
+      const v = raw[i];
+      if (ti == null || v == null || !Number.isFinite(ti) || !Number.isFinite(v)) continue;
+      if (meta.aero && ti > clipT) continue;
+      const y = v * scale;
+      p.push([ti, y] as const);
+      xa.push(ti);
+      ya.push(y);
+      if (y < dMin) dMin = y;
+      if (y > dMax) dMax = y;
+    }
+    out.push({ color: b.color, name: b.name, pts: p, xs: xa, ys: ya, t0: xa[0], t1: xa[xa.length - 1] });
+  }
+  if (!(dMin < Infinity)) {
+    dMin = 0;
+    dMax = 1;
+  }
+  let l: number;
+  let h: number;
+  if (meta.level) {
+    const r = dMax - dMin || Math.abs(dMax) || 1;
+    l = dMin - r * 0.1;
+    h = dMax + r * 0.1;
+  } else {
+    l = Math.min(0, dMin);
+    h = dMax + (dMax - l || 1) * 0.08;
+  }
+  return { list: out, lo: l, hi: h === l ? l + 1 : h };
+}
+
+/**
+ * The decimals a panel's readouts carry. A fixed count belongs to a fixed
+ * unit: "0 dp" is right for meters of altitude and wrong for kilometers, so a
+ * quantity-backed series takes its count from the span on screen. The header
+ * and the live region both read it, so what is heard is what is shown.
+ */
+export const panelDigits = (meta: Meta, lo: number, hi: number): number =>
+  meta.quantity ? ladderDigits(Math.abs(hi - lo)) : meta.digits;
 
 /** Every key the chart can draw, for validating what comes back from settings. */
 const KEYS = new Set<string>(SERIES.map((m) => m.key));

@@ -31,6 +31,43 @@ describe('Settings reset all', () => {
   });
 });
 
+/**
+ * The Launch tab holds the home site the user typed, and Materials what they
+ * chose per part type. A tab reset there has no undo, so it asks; the tabs of
+ * picked preferences reset at once.
+ */
+describe('Settings tab reset', () => {
+  const openTab = (name: string) => fireEvent.click(screen.getByRole('tab', { name }));
+
+  it('asks before resetting the Launch tab, and keeps the site when declined', async () => {
+    seedSettings({ launchDefaults: { latitudeDeg: 39.05 } as never });
+    renderWithProviders(<SettingsDialog onClose={() => {}} />);
+    openTab('Launch');
+    fireEvent.click(screen.getByRole('button', { name: 'Reset Launch' }));
+    expect(useConfirmStore.getState().request?.danger).toBe(true);
+    await act(async () => useConfirmStore.getState().settle(false));
+    expect((readSettings()['launchDefaults'] as { latitudeDeg: number }).latitudeDeg).toBe(39.05);
+  });
+
+  it('resets the Launch tab once confirmed', async () => {
+    seedSettings({ launchDefaults: { latitudeDeg: 39.05 } as never });
+    renderWithProviders(<SettingsDialog onClose={() => {}} />);
+    openTab('Launch');
+    fireEvent.click(screen.getByRole('button', { name: 'Reset Launch' }));
+    await act(async () => useConfirmStore.getState().settle(true));
+    expect((readSettings()['launchDefaults'] as { latitudeDeg: number }).latitudeDeg).not.toBe(39.05);
+  });
+
+  it('resets a preference tab without asking', () => {
+    seedSettings({ playbackSpeed: 4 });
+    renderWithProviders(<SettingsDialog onClose={() => {}} />);
+    openTab('Playback');
+    fireEvent.click(screen.getByRole('button', { name: 'Reset Playback' }));
+    expect(useConfirmStore.getState().request).toBeNull();
+    expect(readSettings()['playbackSpeed']).not.toBe(4);
+  });
+});
+
 /** Each part color's reset button says which part it resets. */
 describe('Settings part color reset', () => {
   it('names the part on its reset button', () => {

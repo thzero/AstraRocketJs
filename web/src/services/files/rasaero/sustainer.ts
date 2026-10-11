@@ -117,6 +117,8 @@ export function finXml(w: Cdx1Writer, parent: ComponentNode, parentStart: number
 
 function noseXml(w: Cdx1Writer, node: ComponentNode): void {
   const { emit } = w;
+  // A flipped nose cone is a tail cone, which RASAero has no part for.
+  if (node['flipped'] === true) throw new KeyedError('errors.rasaero.noseFlipped', { name: partName(node) });
   const shape = nodeShape(node);
   const param = num(node, 'shapeParameter', NaN);
   let rasShape: string;
@@ -173,31 +175,42 @@ function tubeXml(w: Cdx1Writer, node: ComponentNode): void {
   w.locM += len;
 }
 
-function transitionXml(w: Cdx1Writer, node: ComponentNode): void {
+function transitionXml(w: Cdx1Writer, node: ComponentNode, boattail: boolean): void {
   const { emit } = w;
   if (nodeShape(node) !== 'conical') {
     throw new KeyedError('errors.rasaero.transitionShape');
   }
   const len = num(node, 'length', 0.04);
-  emit('<Transition>');
-  emit('<PartType>Transition</PartType>');
+  const tag = boattail ? 'BoatTail' : 'Transition';
+  emit(`<${tag}>`);
+  emit(`<PartType>${tag}</PartType>`);
   emit(`<Length>${fmt(len * IN)}</Length>`);
-  emit(`<Diameter>${fmt(num(node, 'foreRadius', 0.012) * 2 * IN)}</Diameter>`);
-  emit(`<RearDiameter>${fmt(num(node, 'aftRadius', 0.009) * 2 * IN)}</RearDiameter>`);
+  // Desktop's BasePartDTO writes a transition's <Diameter> from its aft radius,
+  // the same value as <RearDiameter>.
+  const rear = fmt(num(node, 'aftRadius', 0.009) * 2 * IN);
+  emit(`<Diameter>${rear}</Diameter>`);
+  emit(`<RearDiameter>${rear}</RearDiameter>`);
   emit(`<Location>${fmt(w.locM * IN)}</Location>`);
   emit('<Color>Black</Color>');
   finXml(w, node, w.locM); // RASAero transitions/boat tails carry fins too
-  emit('</Transition>');
+  emit(`</${tag}>`);
   w.locM += len;
 }
 
-/** Sustainer chain (flat): every external part in order, advancing the location. */
-export function writeSustainerChain(w: Cdx1Writer, sustainer: ComponentNode): void {
-  for (const node of sustainer.children ?? []) {
-    if (node.type === 'nosecone') noseXml(w, node);
-    else if (node.type === 'bodytube') tubeXml(w, node);
-    else if (node.type === 'transition') transitionXml(w, node);
-    else if (isAssembly(node.type)) {
+/**
+ * Sustainer chain (flat): every external part in order, advancing the location.
+ *
+ * The order rules are RASAero's, as the desktop's RocketDesignDTO enforces them:
+ * the chain starts with a nose cone and has no other; the second part is a body
+ * tube, or a transition that ends the chain. A transition ending the chain of a
+ * single-stage rocket is RASAero's boat tail.
+ */
+export function writeSustainerChain(w: Cdx1Writer, sustainer: ComponentNode, stageCount: number): void {
+  const chain = (sustainer.children ?? []).filter(
+    (c) => c.type === 'nosecone' || c.type === 'bodytube' || c.type === 'transition' || isAssembly(c.type),
+  );
+  chain.forEach((node, i) => {
+    if (isAssembly(node.type)) {
       // Never drop an assembly silently, like the fin cases: a pod or a
       // strap-on booster is external aerodynamics RASAero's flat part list
       // cannot hold, and a file that quietly omits it describes a different
@@ -206,6 +219,18 @@ export function writeSustainerChain(w: Cdx1Writer, sustainer: ComponentNode): vo
         name: partName(node),
       });
     }
-    // internals/others have no RASAero representation: silently external-only
-  }
+    const last = i === chain.length - 1;
+    if (i === 0 && node.type !== 'nosecone') {
+      throw new KeyedError('errors.rasaero.noseFirst', { name: partName(node) });
+    }
+    if (i === 1 && !(node.type === 'bodytube' || (node.type === 'transition' && last))) {
+      throw new KeyedError('errors.rasaero.secondPart', { name: partName(node) });
+    }
+    if (node.type === 'nosecone') {
+      if (i !== 0) throw new KeyedError('errors.rasaero.noseNotFirst', { name: partName(node) });
+      noseXml(w, node);
+    } else if (node.type === 'bodytube') tubeXml(w, node);
+    else transitionXml(w, node, stageCount === 1 && last);
+  });
+  // Internals and other parts have no RASAero representation and are left out.
 }

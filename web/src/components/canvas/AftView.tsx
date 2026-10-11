@@ -17,6 +17,7 @@ import {
   type MotorDims,
 } from '../../tree/schematicGeometry';
 import { useWheelZoom } from './useWheelZoom';
+import { keyPan } from './keyPan';
 import { discDims, tubeRadii } from '../../services/design/discGeometry';
 import { DISC_TYPES } from '../../services/files/componentFormats';
 import { partLabel } from '../../i18n/format';
@@ -416,7 +417,17 @@ export function AftView({
         // would hear only the one aria-label and none of the parts. "group"
         // keeps the overall name yet still exposes the named parts within.
         role="group"
-        aria-label={t('schematic.aftAria')}
+        aria-label={zoom.k > 1 ? `${t('schematic.aftAria')}. ${t('schematic.panHint')}` : t('schematic.aftAria')}
+        // Zoomed in, the view takes focus so the arrows can pan it, as the
+        // side view does.
+        tabIndex={zoom.k > 1 ? 0 : undefined}
+        className="focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-500"
+        onKeyDown={(e) => {
+          const next = keyPan(zoom, e.key, e.shiftKey, 2 * E);
+          if (!next) return;
+          e.preventDefault();
+          setZoom(next);
+        }}
         onPointerDown={(e) => {
           // At the fitted view a drag rotates the roll. Zoomed in, it pans: the
           // roll slider still turns the rocket, and a wheel zoom about the

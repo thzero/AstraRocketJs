@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { selectRunIds, useWorkspaceStore } from '../../state/store';
+import { useWorkspaceStore } from '../../state/store';
 import { confirm } from '../../state/confirmStore';
+import { fireAction } from '../../state/fireAction';
 import { MasterDetail, MasterRow, MasterStatus, useGuardedSelection } from '../common/MasterDetail';
 import { Dialog } from '../common/Dialog';
 import { useUnits } from '../../prefs/useUnits';
@@ -16,7 +17,7 @@ import { formatCoord } from '../../services/map/slippyMap';
  * The saved launch locations, listed on the left and edited on the right.
  *
  * Self-contained on purpose: it loads from the `LaunchLocationStore` itself and
- * applies a location through `patchLaunch`, so it works both from the launch
+ * applies a location to the active simulation itself, so it works both from the launch
  * panel's ⚙ (where the site fields are on screen) and from the menu (where they
  * are not). That is why it exists as its own component rather than living
  * inside `LocationPicker`: a manage view reachable only from the one panel
@@ -27,18 +28,14 @@ import { formatCoord } from '../../services/map/slippyMap';
  * modal per location makes each one a separate errand. It also gives the map
  * room to be useful.
  *
- * Applying from here goes through `patchLaunch`, the same single undoable edit
- * the dropdown makes, so it writes to every ticked simulation (the active one
- * when none is ticked). The dialog also opens from the menu, away from the
- * editor's "editing N simulations" banner, so the button names the count when
- * it is more than one.
+ * Applying from here writes to the active simulation only, as one undo step,
+ * even when rows are ticked. The dialog opens from the menu as well, away from
+ * the editor's "editing N simulations" banner, and a site written to rows
+ * nothing on screen names is a change nobody sees being made.
  */
 export function LocationsDialog({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
-  const patchLaunch = useWorkspaceStore((s) => s.patchLaunch);
-  const commitEdit = useWorkspaceStore((s) => s.commitEdit);
-  // A count, not the id list: `selectRunIds` builds a fresh array per call.
-  const applyCount = useWorkspaceStore((s) => selectRunIds(s).length);
+  const patchActiveLaunch = useWorkspaceStore((s) => s.patchActiveLaunch);
   // The launch panel's own altitude unit and scope, so this list reads in feet
   // for somebody who works in feet rather than always in meters.
   const altUnit = useUnits().at(unitScope('launch', 'altitude'), LAUNCH_SI.distance.q);
@@ -49,6 +46,7 @@ export function LocationsDialog({ onClose }: { onClose: () => void }) {
     selectedId,
     select: guardedSelect,
     settle,
+    close: guardedClose,
     onDirtyChange,
   } = useGuardedSelection(t('location.discardConfirm'));
   const [err, setErr] = useState<string | null>(null);
@@ -98,13 +96,11 @@ export function LocationsDialog({ onClose }: { onClose: () => void }) {
   };
 
   const apply = (location: LaunchLocation) => {
-    patchLaunch({
+    patchActiveLaunch({
       latitudeDeg: location.latitudeDeg,
       longitudeDeg: location.longitudeDeg,
       launchAltitudeM: location.launchAltitudeM,
     });
-    // One click, one undo step: closed here so the next edit starts its own.
-    commitEdit();
     onClose();
   };
 
@@ -112,7 +108,7 @@ export function LocationsDialog({ onClose }: { onClose: () => void }) {
     <Dialog
       id="locations"
       title={t('location.manage')}
-      onClose={onClose}
+      onClose={() => fireAction(guardedClose(onClose))}
       size="4xl"
       // List beside detail, each scrolling itself and reaching the panel's
       // edges: the body takes the height and does its own padding.
@@ -173,7 +169,6 @@ export function LocationsDialog({ onClose }: { onClose: () => void }) {
               onSave={(location) => void save(location)}
               onDelete={selected ? () => void remove(selected) : undefined}
               onApply={selected ? () => apply(selected) : undefined}
-              applyCount={applyCount}
               onBack={() => void select(null)}
             />
           }

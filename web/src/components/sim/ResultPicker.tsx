@@ -30,7 +30,7 @@ export function ResultPicker({ fallbackName }: { fallbackName: string }) {
   const chosen = useWorkspaceStore((s) => s.resultSimId);
   const lastRunIds = useWorkspaceStore((s) => s.lastRunIds);
   const setChosen = useWorkspaceStore((s) => s.setResultSimId);
-  const { open, toggle, closeAndRestore, wrapRef, triggerRef } = useMenuPopover();
+  const { open, toggle, closeAndRestore, wrapRef, triggerRef, menuRef, onMenuKeyDown } = useMenuPopover();
 
   // The simulations the last run flew, which is what there is to choose between.
   const ran = lastRunIds
@@ -66,8 +66,10 @@ export function ResultPicker({ fallbackName }: { fallbackName: string }) {
         </button>
       </h2>
       {open && (
-        <div
+        <div // eslint-disable-line jsx-a11y-x/interactive-supports-focus -- roving tabindex: focus moves to the items, as in the ARIA menu pattern, so the container is not
           role="menu"
+          ref={menuRef}
+          onKeyDown={onMenuKeyDown}
           className="absolute left-0 z-50 mt-1 min-w-48 rounded-lg bg-surface p-1.5 shadow-xl ring-1 ring-line/15"
         >
           {ran.map((s) => {
@@ -77,6 +79,7 @@ export function ResultPicker({ fallbackName }: { fallbackName: string }) {
                 key={s.id}
                 role="menuitemradio"
                 aria-checked={on}
+                tabIndex={-1}
                 onClick={() => {
                   setChosen(s.id);
                   closeAndRestore();

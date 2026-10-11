@@ -10,7 +10,10 @@
 // several parachute makers and the rail button database. The internal set is
 // read from the OpenRocket release jar (`--jar`, or an installed OpenRocket), the
 // same build the digests come from, or from a directory of those files
-// (`--internal`). Desktop keeps every part from both, duplicates included, and
+// (`--internal`). The jar has to be the pinned release
+// (lib/openrocketRelease.mjs), and the database has to match the copy that jar
+// ships, file for file, so the catalog is the library of the release desktop
+// users run. Desktop keeps every part from both, duplicates included, and
 // tells them apart by digest, so this keeps them all too.
 //
 // Brings in every kind desktop's parts library offers: body tubes, nose cones,
@@ -21,17 +24,17 @@
 //
 // Then run `npm run sync:preset-digests`. This script cannot produce the part
 // digest a `.ork` needs, because OpenRocket computes it at load time rather than
-// storing it in the `.orc` (see sync-preset-digests.mjs). A catalog refreshed
-// without that second step carries no digests, and every part link then stays
-// out of saved files, silently: `defaultRocketParts.test.ts` fails when that
-// happens, which is the alarm.
+// storing it in the `.orc` (see sync-preset-digests.mjs). So it writes the
+// catalog to a staging file (lib/catalogStaging.mjs), not to public/data: the
+// digest step reads it from there, and only a catalog with its digests reaches
+// public/data.
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { unzipSync } from 'fflate';
-import { writeDataManifest } from './lib/dataManifest.mjs';
+import { STAGED_COMPONENTS } from './lib/catalogStaging.mjs';
 import { installedJar } from './lib/openrocketJava.mjs';
-import { PREVIOUS_CATALOG } from './lib/catalogStamp.mjs';
+import { checkJar, RELEASE, UNPINNED } from './lib/openrocketRelease.mjs';
 
 // Source: the OpenRocket-Components DB (openrocket/openrocket-database), the
 // parts database OpenRocket builds its own library from,
@@ -70,54 +73,100 @@ const num = (block, name) => {
   return Number.isFinite(n) ? n : null;
 };
 const str = (block, name) => tag(block, name)?.value ?? null;
+/** A part's material: its name and the `Type` attribute desktop looks it up by. */
 const materialRef = (block) => {
-  let m = block.match(/<Material(\s+[^>]*)?>([^<]*)<\/Material>/)?.[2]?.trim() ?? null;
-  // Some parts reference a material by "[material:Name]"; unwrap to the name.
-  const ref = m?.match(/^\[material:(.+)\]$/);
-  return ref ? ref[1] : m;
+  const m = block.match(/<Material(\s+[^>]*)?>([^<]*)<\/Material>/);
+  const name = m?.[2]?.trim();
+  if (!name) return null;
+  const type = (m[1] || '').match(/Type="([^"]*)"/)?.[1] ?? 'BULK';
+  // Some parts reference a material by "[material:Name]". The catalog shows the
+  // name inside; the part's own file defines it under the whole string.
+  const ref = name.match(/^\[material:(.+)\]$/);
+  return { name: ref ? ref[1] : name, raw: name, type };
 };
 
 function blocks(text, name) {
   return text.match(new RegExp(`<${name}>[\\s\\S]*?</${name}>`, 'g')) ?? [];
 }
 
-/** The internal part files OpenRocket ships, as `{ name, text }`. */
-function internalFiles() {
+const orcFiles = (dir) =>
+  readdirSync(dir)
+    .filter((f) => f.toLowerCase().endsWith('.orc'))
+    .map((f) => ({ name: f, text: readFileSync(join(dir, f), 'utf8') }));
+
+/** The `.orc` files under one folder of the jar, as `{ name, text }`. */
+function jarFiles(entries, prefix) {
+  return Object.entries(entries)
+    .filter(([name]) => name.startsWith(prefix))
+    .map(([name, bytes]) => ({ name: name.slice(prefix.length), text: new TextDecoder().decode(bytes) }));
+}
+
+/**
+ * The part files OpenRocket ships, as `{ name, text }`: the internal set, and
+ * the jar's copy of the database (null when they come from `--internal`).
+ */
+function shippedFiles() {
   const dir = arg('internal') ?? process.env.OPENROCKET_INTERNAL_PRESETS;
-  if (dir) {
-    return readdirSync(dir)
-      .filter((f) => f.toLowerCase().endsWith('.orc'))
-      .map((f) => ({ name: f, text: readFileSync(join(dir, f), 'utf8') }));
-  }
+  if (dir) return { internal: orcFiles(dir), database: null };
   const jar = arg('jar') ?? process.env.OPENROCKET_JAR ?? installedJar();
   if (!jar) {
-    console.error('No OpenRocket jar for the internal part files. Pass --jar <OpenRocket.jar> or --internal <dir>.');
+    console.error(`No OpenRocket jar for the internal part files. Pass --jar <OpenRocket-${RELEASE}.jar>.`);
     process.exit(2);
   }
-  const PREFIX = 'datafiles/components/internal/';
+  checkJar(jar);
   const entries = unzipSync(readFileSync(jar), {
-    filter: (f) => f.name.startsWith(PREFIX) && f.name.toLowerCase().endsWith('.orc'),
+    filter: (f) => f.name.startsWith('datafiles/components/') && f.name.toLowerCase().endsWith('.orc'),
   });
-  return Object.entries(entries).map(([name, bytes]) => ({
-    name: name.slice(PREFIX.length),
-    text: new TextDecoder().decode(bytes),
-  }));
+  return {
+    internal: jarFiles(entries, 'datafiles/components/internal/'),
+    database: jarFiles(entries, 'datafiles/components/database/'),
+  };
+}
+
+const database = orcFiles(SRC);
+const shipped = shippedFiles();
+
+// The database has to be the one the release ships. Line endings differ between
+// the repository and the jar, and nothing else may.
+if (shipped.database) {
+  const lf = (s) => s.replace(/\r\n?/g, '\n');
+  const ours = new Map(database.map((f) => [f.name, lf(f.text)]));
+  const theirs = new Map(shipped.database.map((f) => [f.name, lf(f.text)]));
+  const differ = [...new Set([...ours.keys(), ...theirs.keys()])]
+    .filter((name) => ours.get(name) !== theirs.get(name))
+    .sort();
+  if (differ.length) {
+    const msg = `${SRC} is not the parts database OpenRocket ${RELEASE} ships; these files differ: ${differ.join(', ')}`;
+    if (!UNPINNED) {
+      console.error(`${msg}\nRun \`npm run sync:database\` for the pinned commit.`);
+      process.exit(1);
+    }
+    console.warn(`${msg}\nOPENROCKET_UNPINNED=1: using it anyway.`);
+  }
+} else {
+  console.warn('Read the internal files from --internal, so the database is not compared with the release.');
 }
 
 // The database first, then the internal files, the order desktop loads them.
-const sources = [
-  ...readdirSync(SRC)
-    .filter((f) => f.toLowerCase().endsWith('.orc'))
-    .map((f) => ({ name: f, text: readFileSync(join(SRC, f), 'utf8') })),
-  ...internalFiles(),
-];
+const sources = [...database, ...shipped.internal];
 
-// Pass 1: material name → bulk density (kg/m^3), per file and across all files.
-// A part looks its material up in its own file first: the legacy files define
-// materials under names the database also uses, at other densities. A name its
-// file does not define is looked up across all files (parts often reference
-// materials defined in generic_materials.orc).
-const materialDensity = new Map();
+/**
+ * Bulk, surface and line densities of desktop's built-in materials, which a
+ * part falls back to when its own file does not define its material. Read from
+ * the material catalog's upstream rows (sync-materials.mjs), which come from
+ * the same `Databases` class.
+ */
+const builtInDensity = new Map(
+  JSON.parse(readFileSync(resolve(DATA_DIR, 'materials.generated.json'), 'utf8'))
+    .filter((m) => m.kind === 'upstream')
+    .map((m) => [`${m.type.toUpperCase()}\u0000${m.name.toLowerCase()}`, m.density]),
+);
+
+// Pass 1: each file's own materials, by type and name. A part looks its
+// material up the way `BaseComponentDTO.find` does: in its own file first (the
+// legacy files define materials under names the database also uses, at other
+// densities), then among desktop's built-in materials, and with neither it
+// weighs nothing.
 const fileMaterials = new Map();
 for (const { name: file, text } of sources) {
   const own = new Map();
@@ -126,10 +175,12 @@ for (const { name: file, text } of sources) {
   if (!section) continue;
   for (const b of section[1].match(/<Material\b[^>]*>[\s\S]*?<\/Material>/g) ?? []) {
     const name = b.match(/<Name>([^<]*)<\/Name>/)?.[1]?.trim();
+    const type = b.match(/<Type>([^<]*)<\/Type>/)?.[1]?.trim();
     const density = Number(b.match(/<Density>([^<]*)<\/Density>/)?.[1]);
-    if (!name || !Number.isFinite(density)) continue;
-    own.set(name, density);
-    if (!materialDensity.has(name)) materialDensity.set(name, density);
+    if (!name || !type || !Number.isFinite(density)) continue;
+    // The first definition of a name, as the lookup walks the file's list.
+    const key = `${type}\u0000${name}`;
+    if (!own.has(key)) own.set(key, density);
   }
 }
 
@@ -154,11 +205,14 @@ const common = (b) => ({
 });
 let currentFile = '';
 const withMaterial = (b) => {
-  const material = materialRef(b);
-  const density = material
-    ? (fileMaterials.get(currentFile)?.get(material) ?? materialDensity.get(material))
-    : undefined;
-  return { material: material || undefined, materialDensity: density ?? 0 };
+  const ref = materialRef(b);
+  if (!ref) return { material: undefined, materialDensity: 0 };
+  // Its own file by exact name; the built-in materials ignoring case, as
+  // `Databases.findMaterial` compares them.
+  const density =
+    fileMaterials.get(currentFile)?.get(`${ref.type}\u0000${ref.raw}`) ??
+    builtInDensity.get(`${ref.type}\u0000${ref.name.toLowerCase()}`);
+  return { material: ref.name, materialDensity: density ?? 0 };
 };
 const massKg = (block, name) => {
   const t = tag(block, name);
@@ -244,12 +298,14 @@ for (const { name: f, text } of sources) {
   }
 
   // Transition: both ends and both shoulders, as Transition.loadFromPreset
-  // reads them. A stated wall is kept; most rows state Filled instead.
+  // reads them. A stated wall is kept; most rows state Filled instead. One end
+  // may be 0 (a reversed nose cone sold as a transition), as desktop allows.
   for (const b of blocks(text, 'Transition')) {
     const foreOuterDiameter = lenM(b, 'ForeOutsideDiameter');
     const aftOuterDiameter = lenM(b, 'AftOutsideDiameter');
     const length = lenM(b, 'Length');
-    if (!foreOuterDiameter || !aftOuterDiameter || !length) continue;
+    if (foreOuterDiameter == null || aftOuterDiameter == null || !(length > 0)) continue;
+    if (!(foreOuterDiameter > 0 || aftOuterDiameter > 0)) continue;
     push({
       type: 'transition',
       ...common(b),
@@ -336,12 +392,6 @@ for (const { name: f, text } of sources) {
 }
 
 const byType = components.reduce((m, p) => ((m[p.type] = (m[p.type] ?? 0) + 1), m), {});
-// Reuse the previous `generated` stamp when the parts themselves are unchanged.
-// Nothing reads the stamp, but rewriting it changes the file, which flips its
-// manifest hash (lib/dataManifest.mjs hashes the whole document), re-busting
-// every client's cached copy of a megabyte-scale catalog that did not change,
-// and making a no-op refresh show up as a repo diff.
-let generated = new Date().toISOString();
 if (components.length === 0) {
   // Same floor as sync-motors: this runs on a schedule with write access to
   // the branch the live app reads, and an empty source tree (a bad --src, a
@@ -350,23 +400,22 @@ if (components.length === 0) {
   process.exit(1);
 }
 if (existsSync(OUT)) {
+  let prev = null;
   try {
-    const prev = JSON.parse(readFileSync(OUT, 'utf8'));
-    // sync-preset-digests runs next and adds fields this script cannot know, so
-    // the catalog it finishes, not this one, is what gets compared with the
-    // previous one. It reads the previous stamp and parts from here.
-    writeFileSync(PREVIOUS_CATALOG, JSON.stringify({ generated: prev.generated, components: prev.components }));
-    if (JSON.stringify(prev.components) === JSON.stringify(components)) generated = prev.generated;
-    else if (Array.isArray(prev.components) && components.length < 0.9 * prev.components.length) {
-      console.error(
-        `Refusing to write components.generated.json: catalog shrank from ${prev.components.length} to ${components.length}`,
-      );
-      process.exit(1);
-    }
+    prev = JSON.parse(readFileSync(OUT, 'utf8'));
   } catch {
-    // Unreadable/corrupt previous catalog: fall through and stamp it now.
+    // Unreadable or corrupt previous catalog: nothing to hold this one to.
+  }
+  if (Array.isArray(prev?.components) && components.length < 0.9 * prev.components.length) {
+    console.error(
+      `Refusing to write components.generated.json: catalog shrank from ${prev.components.length} to ${components.length}`,
+    );
+    process.exit(1);
   }
 }
-writeFileSync(OUT, JSON.stringify({ generated, count: components.length, components }) + '\n');
-writeDataManifest(DATA_DIR); // refresh the cache-bust hashes
-console.log(`Wrote ${components.length} components → public/data/components.generated.json`, byType);
+// The stamp is provisional: sync-preset-digests keeps the previous one when the
+// finished parts are unchanged.
+const generated = new Date().toISOString();
+writeFileSync(STAGED_COMPONENTS, JSON.stringify({ generated, count: components.length, components }) + '\n');
+console.log(`Staged ${components.length} components in ${STAGED_COMPONENTS}`, byType);
+console.log('Run `npm run sync:preset-digests` to add their digests and write public/data/components.generated.json.');

@@ -126,7 +126,7 @@ export function SavedPartEditor({
           {hasMaterial(node.type) && <MaterialSection node={node} onCommitChange={change} />}
           {isRecoveryDevice(node.type) && <RecoveryMaterialSection node={node} onCommitChange={change} />}
           {node.type === 'shockcord' && <CordMaterialSection node={node} onCommitChange={change} />}
-          <AppearanceSection node={node} onChange={change} onCommitChange={change} />
+          <AppearanceSection node={node} onCommitChange={change} />
         </div>
       </div>
 

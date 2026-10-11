@@ -29,6 +29,76 @@ so most entries describe getting a computation to match OpenRocket exactly.
 - **Help follows the app's theme**, light, daylight or dark.
 - **Max q·α follows your units.** On the results card it reads in the Max q figure's pressure unit times your angle unit, and on the flight chart in your pressure and angle units, instead of always kPa·°.
 - **Import notes are in your language.** The notes shown after opening a `.ork` or `.rkt` file appear in the language the app is set to, and notes saved by earlier versions still show as they were.
+- **Wind profiles keep their altitude reference in desktop OpenRocket.** A `.ork` saved here writes the reference in the lower case desktop reads. Desktop read the upper case this app wrote as no reference at all, flew every profile, sea-level ones included, as above ground level, and failed when it saved the file again. Files written that way still open here as they were meant.
+- **The fin tab button finds the fin.** **Calculate automatically** for a fin tab measured a fin placed from the aft end or the middle as if it had no length, so on a new fin set, which sits flush with the aft end, it put the tab a root chord too far back and cut it through the motor tube to the centerline. It now gives the tab desktop OpenRocket gives.
+- **The numbers on the Results tab belong to the flight on screen.** After picking another flight in the Results picker, or running several rows, the summary tiles, the warnings and the events table (and its CSV) showed the active simulation while the charts beside them showed the picked one. They now all show the picked flight.
+- **Chains of automatic tubes are drawn the size they fly.** In a run of automatic body tubes that ends at a fixed one, a tube next to one holding a coupler, an engine block or an automatic tube fin set could be drawn at the fixed tube's size where OpenRocket gives it the 25 mm default. The same holds for tubes in and beside pods and boosters. The 2D and 3D views, the PDF, the DXF and the printable parts now show the size the engine builds.
+- **New pods and boosters start slim.** A new pod set or parallel stage starts with an 18 mm tube, as intended, instead of a 50 mm one.
+- **A tab left in the background no longer overwrites a newer save.** When the same design was open in two tabs and one saved, closing or hiding the other tab could leave behind recovery data that replaced the newer design on the next load. Recovery data now comes back only over a save that tab made itself, so unsaved edits after a crash or close still return.
+- **Fin tabs on nose cones and transitions are cut to the body where they sit.** A freeform fin set on a nose cone or transition has its tab depth limited by the body radius at the tab's front and back, as OpenRocket flies it, in the 2D view, the DXF, the printable part and the PDF templates. It used the narrow end of a transition, or a nose cone's base, so tabs came out too shallow on a boat tail and could cut past the center of a nose cone.
+- **The PDF parts list describes each part fully.** A filled tube lists no bore or wall, a fin set shows its root chord and span, and a part with no length set shows the length it is built with instead of 0.
+- **The PDF report prints every language.** Russian, Japanese, Polish and the other languages, names in any script, and symbols such as CNα and arrows now print in a font that has them, fetched the first time a report needs it and kept for offline use. Table headings that do not fit their column wrap or shrink instead of running into the next one. A missing value shows as a dash instead of a blank.
+- **Thrust-to-weight in the PDF uses each configuration's own mass**, per stage, as desktop's design report does, instead of the selected configuration's mass for every row.
+- **Tab-separated flight CSVs are tab-separated.** The Tab choice wrote a backslash and a t.
+- **Roll and pitch rates in the flight CSV are labeled and scaled in your unit.** They were labeled r/s (revolutions per second) while holding radians per second.
+- **Lower stage separation survives a trip through desktop OpenRocket**, written the way desktop reads it, and a configuration can now override deployment to it.
+- **RockSim files open the way desktop opens them.** Tubes are body or inner tubes by where they sit, and a part its parent cannot hold is left out with a note instead of failing the whole file. RockSim export keeps each stage's mass and CG override.
+- **A mass component's automatic packed size is kept** when a `.ork` is opened.
+- **Absolute positions are drawn where they fly.** A part placed from the nose tip is drawn, meshed, exported and reported at that station, stays there when its parent moves, and is saved as absolute in `.ork` and `.rkt` files.
+- **Changing "Position from" keeps the part where it is** and recalculates the number, as desktop does, and the same for a fin tab's reference. A fin tab can sit ahead of the fin's center.
+- **The freeform fin editor no longer offers a point on the closing root edge**, which desktop refuses because it shortens the root.
+- **Shock cords have a line material picker.**
+- **A filled body tube is solid** in the 3D view and in STL and 3MF exports.
+- **Motor files with negative thrust, or a center of gravity outside the motor, are refused** with a message naming the motor, as desktop refuses them, instead of importing and then failing every flight.
+- **Copy configuration copies everything desktop copies**: deployment, separation and grounded-stage settings as well as motors.
+- **Results go out of date when the length unit changes**, since the unit changes which airframe warnings a flight records. Results saved before this update read out of date once.
+- **A run that lands after the design changed no longer shows Running forever.**
+- **A failed or abandoned file open leaves the current design working.**
+- **The first flight on a slow device does not time out** while the flight engine is still loading.
+- **Cancel stops a PDF export.** Closing the dialog while the report flies or fetches a font no longer downloads it afterwards.
+- **The deployment speed tile agrees with the engine's warning**, using the simulation's own threshold and judging a dual-deploy main against its own limits.
+- **Max angle step is limited to 1 to 20 degrees**, the range OpenRocket allows.
+- **"Use" in the Locations dialog says how many simulations it changes.**
+- **A saved location with no elevation stays without one**, so the terrain model or the field fills it, instead of saving 0 and flying from sea level.
+- **Storage recovers when the browser drops its database connection**, and a later visit can no longer read an older copy of your work.
+- **A very large image export that the browser cannot draw says so** instead of doing nothing.
+- **The launch site map pans with one finger on a phone** instead of scrolling the page and moving the site.
+- **Keyboard focus returns to the button after choosing from the image export, part export or result menus.**
+- **Better contrast and clearer links.** Dialog subtitles, the aero table legend, motor type tags, the selected part's detail in the tree and the loaded-design notes are easier to read in every theme, and links inside text, in About and in Help, are underlined.
+- **More catalog parts link to desktop's library.** Parts from makers desktop names differently (LOC/Precision), parts whose numbers end in a space, and parts that share a number but differ in size now carry their own digest: 5,227 of 5,231 parts. Catalog parachutes bring their line count, line length, packed size and materials, so they weigh what desktop says.
+- **Materials and the contributor list come with each release** instead of from the weekly catalog refresh.
+- **CSV exports cannot carry a spreadsheet formula.** A part, stage or simulation name from a shared design that looks like a formula is written as text in every CSV the app exports and in CSV templates, including after a comma, semicolon or tab inside the name, so it stays text in a spreadsheet set up for any locale. Numbers, negative ones included, are still written as numbers; the design CSV used to write a negative figure as text.
+- **A `.ork` with an absurd number of simulations is refused** with a message, instead of freezing the tab. The limit is 1,000.
+- **Weather requests cannot hang.** If the private frame weather requests go through fails to start, a request now fails with the usual "could not reach Open-Meteo" message after a few seconds, and the next one tries again, instead of every weather, elevation and terrain request waiting for the rest of the session. Unusually large answers are refused.
+- **Undo is lighter.** Each undo step no longer copies the whole design, so a large design with many runs stays responsive and undo and redo are instant.
+- **OK in the Rocket configuration dialog with nothing changed adds no undo step**, and Ctrl+Z no longer reaches the design while a dialog is open.
+- **"Use" in the Locations dialog applies the site to the simulation you are editing**, as one undo step.
+- **Your angle unit is used everywhere**: angle of attack, wind direction, bearings, weathercock angles and the drift sweep, not only in the editor.
+- **The Aero tab shows the Mach number its tables were computed at.**
+- **Charts:** a booster that has landed no longer shows a value under the cursor, the zoom-in button stops at the closest zoom, and Escape clears a crosshair without leaving the maximized view.
+- **Rail buttons appear in the 3D view.**
+- **Keyboard and screen reader:** menus open on their first item and move with the arrow keys; a zoomed 2D or aft view pans with the arrow keys; sliders, motor charts, the imported-motor mark, unit chips and stability state are named; serious flight warnings say so in words; error lines are announced; and the engine download no longer announces every tenth of a megabyte.
+- **Saving a `.ork` keeps the simulation settings desktop reads**: time step, maximum time, recovery warning thresholds and a fixed random seed, and keeps the settings this app does not model.
+- **Opening files is stricter where desktop is.** A color with a missing channel is ignored, an empty flight figure reads as missing rather than 0, and a file with more than 256 flight configurations is refused instead of cut short. The note about repeated instances now says they are flown.
+- **RASAero export refuses what RASAero cannot take**: a nose cone that is not first, a flipped nose cone, and a second part that is not a body tube. A closing transition is written as a boat tail.
+- **CSV files open correctly in Excel**, accented headings and units included, and small inertias are no longer written as 0.
+- **The image export header no longer prints NaN** for a design without fins.
+- **`.eng` motors drop the delay from their name**, as `.rse` motors already did.
+- **A new design that fails its first save opens again**, instead of the default rocket.
+- **Storage between tabs is tighter**: a save queued as you switch designs, or made while another tab is saving, can no longer overwrite newer work, and a failed read at startup keeps your unsaved work.
+- **A corrupt saved motor or catalog row is skipped** instead of breaking the motor picker.
+- **Scale matches desktop's Scale dialog** for recovery gear, motor overhang, ring offsets and rail buttons.
+- **Catalog parts that fill a part keep what desktop keeps**: a centering ring with no stated bore keeps its bore, and a rail button keeps your mass and drag overrides when the catalog states none.
+- **The PDF side view draws a fin on a transition or nose cone along the body.**
+- **The flight CSV labels CNα**, with its unit.
+- **The parts catalog is exactly desktop's library** for OpenRocket 24.12: one reversed transition is back, four rail buttons desktop does not have are gone, and 29 parts take the material desktop gives them.
+- **Settings Reset and closing an editor with unsaved changes ask first.** Print settings Reset leaves the report units alone.
+- **The deployment speed tile, Save as default and Reset in the simulation editor** treat several ticked rows the way they say they do.
+- **Contrast:** the remaining low-contrast colors were removed from the theme, and unused colors with them.
+- **A design with an empty motor mount in a booster saves cleanly for desktop**, which warned about a motor with no name.
+- **RASAero export writes a transition's aft diameter**, as desktop does.
+- **Scale leaves a parachute's spill hole and ring and lug spacing alone, and scales every mass override by the cube of the factor**, as desktop's Scale dialog does.
+- **The flight path export's distance and bearing line uses your angle unit.**
 - **Error messages are in your language.** A file that cannot be opened, a motor file that cannot be read, a failed download from thrustcurve.org or the catalog, a RASAero or `.rkt` export that has to leave something out, and a material or saved part that cannot be stored now say why in the language the app is set to, not in English inside a translated sentence. Lists in those messages follow your language's punctuation. The text labels on a DXF cut sheet are translated too, as far as the DXF text format allows; Russian, Japanese and Polish labels fall back to English there.
 - **The image export header is translated.** The length, diameter, mass and balance lines above an exported 2D drawing follow the app's language.
 - **More of the app is translated.** The motor type in the motor list, the nose cone shape in the component tree, and the N, S, E and W letters of a latitude or longitude are in your language. Number placeholders in the simulation editor use your decimal separator. Spanish now translates the flight variables and the Environment labels it showed in English. The shape descriptions are fully translated in German and Russian, and garbled or cut-off ones in Dutch, Spanish, French, Japanese and Portuguese are fixed.

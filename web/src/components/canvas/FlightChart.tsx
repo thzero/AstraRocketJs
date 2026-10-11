@@ -1,15 +1,17 @@
 import { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { fmtNum, ladderDigits, stageLabel } from '../../i18n/format';
+import { fmtNum, stageLabel } from '../../i18n/format';
 import { useUnits } from '../../prefs/useUnits';
 import { lerpAt } from '../../services/flight/interpolate';
 import { EVENT_LABEL, clusterEventLabels } from '../../services/flight/simReport';
 import { FlightCsvDialog } from '../sim/FlightCsvDialog';
 import { useSettings } from '../../state/SettingsProvider';
-import { PAD_L, PAD_R, PANEL_H, maxFlightTime } from './flightChartAxis';
+import { PAD_L, PAD_R, PANEL_H, maxFlightTime, minWindow } from './flightChartAxis';
 import {
   SERIES,
   buildTraces,
+  panelDigits,
+  panelSeries,
   traceScale,
   traceUnit,
   visibleSeries,
@@ -24,10 +26,9 @@ import { crosshairReadout, eventsSummary } from './chartSummary';
 import { FlightXYPanel } from './FlightXYPanel';
 import { useElementResize } from '../common/useElementResize';
 
-// The series catalog and the axis math live in their own modules; GroundTrack
-// and the chart tests import them through this one.
-export { buildTraces, visibleSeries, type ChartFlight } from './flightChartTraces';
-export { maxFlightTime } from './flightChartAxis';
+// The series catalog lives in its own module; GroundTrack imports the trace
+// builder through this one.
+export { buildTraces, type ChartFlight } from './flightChartTraces';
 
 /**
  * Flight data as small MULTIPLES: time on a shared x, and one
@@ -152,6 +153,20 @@ export function FlightChart({ flight }: { flight: ChartFlight }) {
   // steps change it (see useChartCrosshair), so a mouse hover stays quiet.
   const { keyT } = crosshair;
   const primary = selectedBranches[0];
+  // Each panel's header decimals, from the same span the header uses. Built
+  // only once the keyboard has moved the crosshair, since a pointer never
+  // writes the live region.
+  const announcing = keyT != null;
+  const panelDigitsOf = useMemo(() => {
+    const out = new Map<Key, number>();
+    if (!announcing) return out;
+    for (const m of SERIES) {
+      if (m.xy || !on.includes(m.key)) continue;
+      const { lo, hi } = panelSeries(selectedBranches, m, traceScale(m, u), clipT);
+      out.set(m.key, panelDigits(m, lo, hi));
+    }
+    return out;
+  }, [announcing, on, selectedBranches, u, clipT]);
   const announcement =
     keyT == null || !primary
       ? ''
@@ -166,7 +181,7 @@ export function FlightChart({ flight }: { flight: ChartFlight }) {
               return {
                 label: t(m.label),
                 value,
-                digits: m.quantity ? ladderDigits(value ?? 0) : m.digits,
+                digits: panelDigitsOf.get(m.key) ?? m.digits,
                 unit: traceUnit(m, u),
               };
             }),
@@ -207,6 +222,8 @@ export function FlightChart({ flight }: { flight: ChartFlight }) {
             </button>
             <button
               onClick={() => zoomAt(0.6, centerT())}
+              // At the narrowest window a press would change nothing.
+              disabled={t1 - t0 <= minWindow(maxT) + 1e-9}
               title={t('flight.zoomIn')}
               aria-label={t('flight.zoomIn')}
               className={zBtn}

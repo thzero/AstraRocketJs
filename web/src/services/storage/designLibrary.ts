@@ -148,6 +148,23 @@ export class DesignLibrary {
     return (await this.readIndex()).some((m) => m.id === id) ? id : null;
   }
 
+  /**
+   * As `activeId`, but rejects when storage could not be read rather than
+   * answering "no active design". Boot uses it: "none" lets it drop an unload
+   * journal as stale, which on a read that merely failed is the user's last
+   * unsaved work.
+   */
+  async activeIdChecked(): Promise<string | null> {
+    await this.migrateLegacy();
+    const id = await this.getChecked(ACTIVE_KEY);
+    if (!id) return null;
+    return parseJsonList(await this.getChecked(INDEX_KEY), isMeta).some((m) => m.id === id) ? id : null;
+  }
+
+  private async getChecked(key: string): Promise<string | null> {
+    return this.kv.getChecked ? await this.kv.getChecked(key) : await this.kv.get(key);
+  }
+
   /** Point the library at a design. False if storage refused the write. */
   async setActive(id: string): Promise<boolean> {
     // The boolean is returned, not dropped. `KeyValueStore.set` reports refusal
@@ -203,9 +220,15 @@ export class DesignLibrary {
    * earlier read, with the write some round trips later, lets both through.
    * The stamp is claimed before the blob is written for the same reason.
    *
-   * `updatedAt` is the stamp this call put on the entry, whenever it put one,
-   * including when the blob write after it was refused: the entry has moved,
-   * and the caller is the one that moved it. `name` is used only when the entry
+   * Once the blob is down the stamp moves again. A reader that lands between
+   * the claim and the blob write (another tab opening the design) can pair the
+   * claimed stamp with the old blob; the second stamp is later than the one it
+   * holds, so its next save is refused rather than writing that old blob back.
+   * Readers take the stamp before the blob for the same reason.
+   *
+   * `updatedAt` is the last stamp this call put on the entry, whenever it put
+   * one, including when the blob write after the claim was refused: the entry
+   * has moved, and the caller is the one that moved it. `name` is used only when the entry
    * has none (it was removed meanwhile); a rename from the library dialog is
    * kept. `writer` names the tab making the save (see `DesignMeta.writer`).
    */
@@ -230,9 +253,19 @@ export class DesignLibrary {
       return [entry, ...list.filter((m) => m.id !== id)];
     });
     if (conflict) return { status: 'conflict' };
-    if (!claimed) return { status: 'refused' };
+    if (!claimed || updatedAt === undefined) return { status: 'refused' };
     if (!(await this.kv.set(designKey(id), JSON.stringify(w)))) return { status: 'refused', updatedAt };
-    return { status: 'ok', updatedAt };
+    // The second stamp, only over this call's own claim: an entry another
+    // writer has moved since is theirs, and the claim is what this call holds.
+    const claim = updatedAt;
+    let settled = claim;
+    const restamped = await this.mutateIndex((list) => {
+      const prev = list.find((m) => m.id === id);
+      if (!prev || prev.updatedAt !== claim) return list;
+      settled = Math.max(Date.now(), claim + 1);
+      return list.map((m) => (m.id === id ? { ...m, updatedAt: settled } : m));
+    });
+    return { status: 'ok', updatedAt: restamped ? settled : claim };
   }
 
   /**
@@ -350,7 +383,10 @@ export class DesignLibrary {
   private migrateLegacy(): Promise<void> {
     return (this.migrated ??= (async () => {
       try {
-        if (await this.kv.get(INDEX_KEY)) return; // library already exists
+        // A checked read: an index that failed to read is not an empty one, and
+        // marking the library initialized over it would leave every design
+        // unlisted.
+        if (await this.getChecked(INDEX_KEY)) return; // library already exists
         const raw = await this.kv.get(LEGACY_KEY);
         if (!raw) {
           await this.writeIndex([]); // mark the library as initialized

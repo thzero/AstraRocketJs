@@ -27,13 +27,22 @@ export function useGuardedSelection(discardMessage: string) {
     return true;
   };
 
+  /**
+   * Closes the dialog, asking first when the editor holds unsaved edits.
+   * Closing throws the draft away as surely as moving the selection does.
+   */
+  const close = async (onClose: () => void): Promise<void> => {
+    if (dirty && !(await confirm({ message: discardMessage, confirmLabel: t('common.discard'), danger: true }))) return;
+    onClose();
+  };
+
   /** Moves the selection after a save or a delete, which leaves nothing to discard. */
   const settle = (id: string | null) => {
     setDirty(false);
     setSelectedId(id);
   };
 
-  return { selectedId, dirty, select, settle, onDirtyChange };
+  return { selectedId, dirty, select, settle, close, onDirtyChange };
 }
 
 /**

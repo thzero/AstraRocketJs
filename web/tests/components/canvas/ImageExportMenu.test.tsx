@@ -108,3 +108,20 @@ describe('focus after a choice', () => {
     expect(document.activeElement).toBe(trigger);
   });
 });
+
+describe('the menu keyboard model', () => {
+  it('opens onto the first width and walks the rest with the arrows', () => {
+    open(vi.fn(), true);
+    const items = [...screen.getAllByRole('menuitem'), screen.getByRole('menuitemcheckbox')];
+    expect(document.activeElement).toBe(items[0]);
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(items[1]);
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'End' });
+    expect(document.activeElement).toBe(items[items.length - 1]);
+  });
+
+  it('keeps a decorative icon out of the trigger’s name', () => {
+    renderWithProviders(<ImageExportMenu icon="📷" label="Image" title="Export image" onPick={vi.fn()} />);
+    expect(screen.getByRole('button', { name: 'Image' }).textContent).toBe('📷 Image');
+  });
+});

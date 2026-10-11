@@ -13,17 +13,7 @@
 // with many rows above 92%, motors about 89%: thrustcurve.org lists motors that
 // desktop's library does not), and far above what a broken one gives (0%).
 // A type with fewer than MIN_ROWS rows is reported but not held to a floor:
-// rail buttons are a dozen rows, and one part more or less moves them by 8%.
-
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-
-/**
- * How many motors carried a digest before sync-motors rewrote the catalog
- * without any. sync-motor-digests compares against it; the parts catalog has
- * the same handoff in PREVIOUS_CATALOG (lib/catalogStamp.mjs).
- */
-export const PREVIOUS_MOTOR_DIGESTS = join(tmpdir(), 'astrarocketjs-motors.previous-digests.json');
+// rail buttons are eight rows, and one part more or less moves them by 12%.
 
 /** Share of all parts that must carry a digest. */
 const PART_FLOOR = 0.9;
@@ -51,7 +41,7 @@ function partCoverage(components) {
 }
 
 /** Motors and motors with at least one digest. */
-export function motorCoverage(motors) {
+function motorCoverage(motors) {
   return { rows: motors.length, digests: motors.filter((m) => m.digests?.length).length };
 }
 

@@ -118,7 +118,8 @@ for (const r of app) {
 }
 
 const byType = (t) => rows.filter((r) => r.type === t).length;
-writeFileSync(OUT, `${JSON.stringify(rows, null, 2)}\n`, 'utf8');
+// Compact, like the other catalogs: browsers download it.
+writeFileSync(OUT, `${JSON.stringify(rows)}\n`, 'utf8');
 const manifest = writeDataManifest(DATA_DIR);
 console.log(
   `sync-materials: wrote ${rows.length} materials (${byType('bulk')} bulk, ${byType('surface')} surface, ` +

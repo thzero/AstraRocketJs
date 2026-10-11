@@ -2,7 +2,7 @@ import { useId, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { fmtNum, ladderDigits } from '../../i18n/format';
 import { useUnits } from '../../prefs/useUnits';
-import { lerpAt } from '../../services/flight/interpolate';
+import { hoverValue } from './FlightChartHover';
 import { PAD_L, PAD_R } from './flightChartAxis';
 import type { Branch, Meta } from './flightChartTraces';
 import { polylinePath } from '../common/svgPath';
@@ -98,8 +98,14 @@ export function FlightXYPanel({
     };
   }, [lines, x0, x1, y0, y1, iw, ih]);
 
+  // Each line's own flight span bounds its dot, the rule the time panels use.
   const hovered =
-    hoverT == null ? [] : lines.map((l) => ({ l, a: lerpAt(l.time, l.alt, hoverT), v: lerpAt(l.time, l.vel, hoverT) }));
+    hoverT == null
+      ? []
+      : lines.map((l) => {
+          const span = { xs: l.time, t0: l.time[0], t1: l.time[l.time.length - 1] };
+          return { l, a: hoverValue({ ...span, ys: l.alt }, hoverT), v: hoverValue({ ...span, ys: l.vel }, hoverT) };
+        });
   const head = hovered[0];
   const xDigits = ladderDigits(x1 - x0);
   const yDigits = ladderDigits(y1 - y0);

@@ -4,9 +4,10 @@
 //
 //   npm run docs:build
 //
-// The deploy does this itself (.github/workflows/deploy.yml, before the app
-// build), so this script is for working on Help locally: public/docs is
-// gitignored, and without it the dialog can only offer the docs site.
+// The gates' e2e and update-flow jobs run it before their browser checks, and
+// it is how Help is worked on locally: public/docs is gitignored, and without it
+// the dialog can only offer the docs site. The deploy builds the same tree with
+// its own docusaurus command (.github/workflows/deploy.yml).
 //
 // It exists instead of a one-line npm script because of DOCS_BASE_URL. The
 // docs config defaults its baseUrl to "/" so `docusaurus start` and `serve`

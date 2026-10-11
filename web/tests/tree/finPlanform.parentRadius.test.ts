@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { ComponentNode, RocketTree } from '../../src/engine/openRocketEngine';
-import { KERNEL_BODYTUBE_OUTER_RADIUS, finTabSpan, parentRadiusOf } from '../../src/tree/finPlanform';
+import { finTabSpan, parentRadiusOf } from '../../src/tree/finPlanform';
+import { KERNEL_BODYTUBE_OUTER_RADIUS } from '../../src/tree/kernelDefaults';
 
 const treeWith = (tube: Record<string, unknown>): RocketTree =>
   ({

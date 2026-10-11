@@ -50,8 +50,14 @@
 // it), and the desktop tells them apart by digest, so the row takes the preset
 // whose sizes are its own, and two rows of one size take one preset each. A row
 // whose description does not match falls back to type, maker and part number
-// when only one part has those. A row that build does not contain has any
-// digest removed, and is otherwise left alone.
+// when only one part has those. A row whose type, maker and part number that
+// build does not hold at all is a part desktop's library does not offer (the
+// loader drops some `.orc` rows), and is removed from the catalog. A row the
+// build holds but no preset matches keeps no digest.
+//
+// It reads the catalog sync-components staged (lib/catalogStaging.mjs), or, with
+// none staged, the catalog in public/data, and writes the finished catalog to
+// public/data.
 //
 // It also carries a stated mass the way the desktop applies it, with the mass
 // read from the same loader. `ComponentPresetFactory` turns the mass of a tube,
@@ -68,10 +74,10 @@
 // its canopy: the line count and length, the packed length and diameter, and
 // the canopy and line materials as the desktop resolved them, so a part with
 // no stated mass weighs what the desktop gives it.
-import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { PREVIOUS_CATALOG } from './lib/catalogStamp.mjs';
+import { STAGED_COMPONENTS, writeFileAtomic } from './lib/catalogStaging.mjs';
 import { writeDataManifest } from './lib/dataManifest.mjs';
 import { partProblems } from './lib/digestCoverage.mjs';
 import { chooseBuild, runDumper } from './lib/openrocketJava.mjs';
@@ -227,8 +233,11 @@ function dump(cp) {
     }
   }
   const taken = new Set();
-  return (row) => {
-    const all = byPart.get(JSON.stringify([row.type, makerKey(row.mfr), row.partNo.trim()])) ?? [];
+  const keyOf = (row) => JSON.stringify([row.type, makerKey(row.mfr), row.partNo.trim()]);
+  /** Whether the build holds any part of the row's type, maker and part number. */
+  const holds = (row) => byPart.has(keyOf(row));
+  const presetFor = (row) => {
+    const all = byPart.get(keyOf(row)) ?? [];
     const described = all.filter((p) => p.desc === descKey(row.desc));
     const candidates = described.length ? described : all.length === 1 ? all : [];
     let best;
@@ -242,25 +251,36 @@ function dump(cp) {
     if (best) taken.add(best);
     return best;
   };
+  return { holds, presetFor };
 }
 
 async function main() {
   const { cp, label } = chooseBuild();
   console.log(`reading presets from ${label}`);
   console.log('dumping presets:');
-  const presetFor = dump(cp);
+  const { holds, presetFor } = dump(cp);
   const volumeOf = await presetVolumes();
 
-  const catalog = JSON.parse(readFileSync(CATALOG, 'utf8'));
-  // sync-components has just rewritten the catalog without digests, so the
-  // count to hold to is the previous catalog's, which it left in
-  // PREVIOUS_CATALOG; run on its own, this step compares against the catalog as
-  // it finds it.
-  const previous = existsSync(PREVIOUS_CATALOG) ? JSON.parse(readFileSync(PREVIOUS_CATALOG, 'utf8')) : null;
+  // The finished catalog now in public/data is the one this run is held to, and
+  // whose stamp it keeps when the parts come out the same.
+  const previous = existsSync(CATALOG) ? JSON.parse(readFileSync(CATALOG, 'utf8')) : null;
+  const staged = existsSync(STAGED_COMPONENTS);
+  const catalog = staged ? JSON.parse(readFileSync(STAGED_COMPONENTS, 'utf8')) : structuredClone(previous);
+  if (!catalog) throw new Error(`nothing to add digests to: no ${STAGED_COMPONENTS} and no ${CATALOG}`);
+  console.log(`catalog: ${staged ? `staged by sync-components (${catalog.generated})` : CATALOG}`);
   const before = Math.max(
     catalog.components.filter((c) => c.digest).length,
     (previous?.components ?? []).filter((c) => c.digest).length,
   );
+
+  const absent = catalog.components.filter((row) => !holds(row));
+  if (absent.length) {
+    console.log(
+      `not in this build's library, removed: ${absent.map((r) => `${r.type} ${r.mfr} ${r.partNo}`).join(', ')}`,
+    );
+    catalog.components = catalog.components.filter((row) => holds(row));
+    catalog.count = catalog.components.length;
+  }
   let hit = 0;
   let massed = 0;
   for (const row of catalog.components) {
@@ -297,16 +317,18 @@ async function main() {
   }
   const problems = partProblems(catalog.components);
   if (problems.length) throw new Error(`refusing to write: ${problems.join('; ')}. Nothing written.`);
-  // Unchanged parts keep the previous stamp (lib/catalogStamp.mjs).
+  // Unchanged parts keep the previous `generated` stamp. Nothing reads it, but
+  // the manifest hashes the whole file (lib/dataManifest.mjs), so a new stamp on
+  // the same parts would make every browser download the catalog again.
   if (previous && JSON.stringify(previous.components) === JSON.stringify(catalog.components)) {
     catalog.generated = previous.generated;
   }
-  rmSync(PREVIOUS_CATALOG, { force: true });
   // Compact, as sync-components writes it: browsers download this file and keep
   // it for offline use, and indentation would more than double its size.
-  writeFileSync(CATALOG, `${JSON.stringify(catalog)}\n`);
+  writeFileAtomic(CATALOG, `${JSON.stringify(catalog)}\n`);
   // The catalog changed, so its cache-bust hash has to as well.
   writeDataManifest(dirname(CATALOG));
+  rmSync(STAGED_COMPONENTS, { force: true });
   console.log(`digests: ${hit} of ${catalog.count} catalog rows (was ${before}); stated masses applied: ${massed}`);
 }
 

@@ -36,6 +36,19 @@ export function EngineNotice() {
     return status.loaded > 0 ? t('boot.downloaded', { done: fmtMb(status.loaded) }) : t('boot.downloading');
   };
 
+  const headline = phase === 'failed' ? t('boot.failed') : stuck ? t('engine.slow') : step();
+  // What a screen reader hears. The byte count changes every tenth of a
+  // megabyte, and a polite region repeats itself on every change, so the live
+  // text names the step alone and only changes when the step does.
+  const spoken =
+    phase === 'failed'
+      ? t('boot.failed')
+      : stuck
+        ? `${t('engine.slow')} ${t('engine.needsIt')}`
+        : status?.phase === 'starting'
+          ? t('boot.starting')
+          : t('boot.downloading');
+
   return (
     <div
       // Amber once it is stuck, because by then it is a warning rather than a
@@ -43,12 +56,22 @@ export function EngineNotice() {
       className={`flex flex-wrap items-center gap-x-3 gap-y-1 border-b px-4 py-2 text-sm ${
         stuck ? 'border-warn-500/30 bg-warn-950/40 text-warn-200' : 'border-line/10 bg-surface text-ink-soft'
       }`}
-      role="status"
     >
-      <span className="font-medium">{phase === 'failed' ? t('boot.failed') : stuck ? t('engine.slow') : step()}</span>
+      <span role="status" className="sr-only">
+        {spoken}
+      </span>
+      {/* The same words for the eye, with the byte count; hidden from a screen
+          reader, which has them from the status line above. */}
+      <span className="font-medium" aria-hidden="true">
+        {headline}
+      </span>
       {/* What still works, said only when the wait has become a problem: during
           an ordinary load it would be noise. */}
-      {stuck && <span className="text-xs opacity-90">{t('engine.needsIt')}</span>}
+      {stuck && (
+        <span className="text-xs opacity-90" aria-hidden="true">
+          {t('engine.needsIt')}
+        </span>
+      )}
       {stuck && (
         <button
           type="button"

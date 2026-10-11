@@ -90,19 +90,15 @@ import {
 
 // Defined in a leaf module so fileSlice, which this file builds while it loads,
 // can import them without importing this file at run time; re-exported here for
-// everything else.
+// the modules that import them from the store.
 export {
   configOf,
-  defaultConfig,
-  displayUnits,
-  repairNotes,
   saveFailure,
   selectActive,
   selectConfig,
   selectDesignName,
   selectShownSim,
   workspaceSnapshot,
-  type StorageWarningKind,
 } from './workspaceSelectors';
 
 type Rocket = ReturnType<typeof buildRocketTree>;
@@ -456,6 +452,14 @@ export interface WorkspaceState extends ViewSlice, FileSlice {
   /** Point one simulation at a configuration. */
   setSimConfig: (simId: string, configId: string) => void;
   patchLaunch: (p: Partial<LaunchConditions>) => void;
+  /**
+   * Patch the active simulation's launch conditions alone, as one undo step.
+   *
+   * For surfaces away from the simulation editor (Launch Locations, opened
+   * from the menu), where the "editing N simulations" banner is not on screen
+   * to say that the ticked rows would be written too.
+   */
+  patchActiveLaunch: (p: Partial<LaunchConditions>) => void;
   addSim: () => void;
   duplicateSim: (id: string) => void;
   deleteSim: (id: string) => void;
@@ -745,7 +749,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
     const s = get();
     // Drop cached flight results: large per-timestep arrays and a recomputable
     // output, not an edit. Undo/redo restores inputs and leaves sims to re-run.
-    return structuredClone({
+    //
+    // Everything else is held by reference. Workspace state is replaced on every
+    // edit and never mutated, so an entry shares whatever the steps around it
+    // did not change: a hundred steps of one field cost a hundred small paths,
+    // not a hundred copies of the design and its thrust curves. Sharing also
+    // keeps identity, so a restored tree is the very object a drift sweep or a
+    // run recorded, and reads as the design it flew.
+    return {
       tree: s.tree,
       selectedId: s.selectedId,
       sims: withoutResults(s.sims),
@@ -754,7 +765,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
       selectedSimIds: s.selectedSimIds,
       lastRunIds: s.lastRunIds,
       resultSimId: s.resultSimId,
-    });
+    };
   };
   /**
    * Put the recorded inputs back, and carry the live results across.
@@ -941,7 +952,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
       // resolves) must not stay undoable over it.
       clearHistory();
       replaceWorkspace((s) => ({
-        quietReplace: s.quietReplace + 1,
+        // Quiet unless a value was repaired. A repaired design differs from the
+        // stored one, and it is the autosave that keeps the repair, so the note
+        // is said once rather than on every load until the next edit.
+        quietReplace: fixed.repaired.length ? s.quietReplace : s.quietReplace + 1,
         repairNotes: repairNotes(fixed.repaired),
         tree: fixed.tree,
         sims,
@@ -1055,6 +1069,15 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
     },
     updateDesignMeta: (patch) => {
       // Applied in one shot from the Rocket-configuration dialog → one undo step.
+      // OK on an unedited dialog changes nothing, and must not record a step,
+      // clear redo or replace the tree. An absent design type reads as
+      // "original" everywhere (the exporter writes it so), so the dialog's
+      // default for it is not a change either.
+      const { tree } = get();
+      const differs = (Object.keys(patch) as (keyof typeof patch)[]).some((k) =>
+        k === 'designType' ? (patch[k] ?? 'original') !== (tree[k] ?? 'original') : patch[k] !== tree[k],
+      );
+      if (!differs) return;
       beginEdit();
       set((s) => ({ tree: { ...s.tree, ...patch } }));
       commitEdit();
@@ -1198,6 +1221,16 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
     patchLaunch: (p) => {
       beginEdit();
       patchTargets((sim) => ({ launch: { ...sim.launch, ...p } }));
+    },
+    patchActiveLaunch: (p) => {
+      const active = selectActive(get());
+      // Already so: no step, the way every other edit here treats a no-op.
+      const keys = Object.keys(p) as (keyof LaunchConditions)[];
+      if (keys.every((k) => p[k] === active.launch[k])) return;
+      recordStep();
+      set((s) => ({
+        sims: s.sims.map((x) => (x.id === active.id ? { ...x, launch: { ...x.launch, ...p } } : x)),
+      }));
     },
     addSim: () => {
       // A fresh simulation flies the app default loadout under the user's global

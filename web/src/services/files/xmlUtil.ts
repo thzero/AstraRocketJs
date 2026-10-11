@@ -6,8 +6,34 @@ import { KeyedError } from '../../i18n/keyedError';
  * like whether the quote is escaped.
  */
 
+/**
+ * Escape text for an XML attribute or element. The C0 controls other than tab,
+ * line feed and carriage return are dropped, because XML 1.0 forbids them even
+ * as character references and a parser (Google Earth, a slicer, the desktop)
+ * rejects the whole file over one. A name pasted from a word processor carries
+ * U+000B for its line breaks.
+ */
 export function escapeXml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return stripXmlForbidden(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/**
+ * Drop the characters XML 1.0 forbids: C0 controls other than tab, line feed and
+ * carriage return. Compared by code unit rather than with a control-character
+ * class, which `no-control-regex` rejects.
+ */
+function stripXmlForbidden(s: string): string {
+  let out = '';
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    if (c < 0x20 && c !== 0x09 && c !== 0x0a && c !== 0x0d) continue;
+    out += s[i];
+  }
+  return out;
 }
 
 /**

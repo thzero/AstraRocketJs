@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { xmlText } from '../../../src/services/files/xmlUtil';
+import { escapeXml, xmlText } from '../../../src/services/files/xmlUtil';
 
 const parse = (xml: string): Element => new DOMParser().parseFromString(xml, 'text/xml').documentElement;
 
@@ -18,5 +18,14 @@ describe('xmlText', () => {
 
   it('returns null when the selector matches nothing', () => {
     expect(xmlText(parse('<root/>'), 'missing')).toBeNull();
+  });
+});
+
+describe('escapeXml under a strict parser', () => {
+  it('produces a document a strict parser accepts for a pasted line break', () => {
+    const VT = String.fromCharCode(0x0b);
+    const doc = new DOMParser().parseFromString(`<r n="${escapeXml(`x${VT}y`)}"/>`, 'text/xml');
+    expect(doc.querySelector('parsererror')).toBeNull();
+    expect(doc.documentElement.getAttribute('n')).toBe('xy');
   });
 });

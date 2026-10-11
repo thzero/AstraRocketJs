@@ -22,6 +22,7 @@
 import type { ComponentNode } from '../engine/openRocketEngine';
 import { KERNEL_AUTO_RADIUS, KERNEL_DEFAULTS, KERNEL_SHAPES } from './kernelDefaults';
 import { num, numOpt } from './nodeProps';
+import { partLength } from './position';
 
 const MINFEATURE = 0.001;
 const CLIP_PRECISION = 0.0001;
@@ -267,8 +268,8 @@ export function nodeShape(node: ComponentNode): string {
  * `syncAutoRadii` writes the resolved radius onto it, so a missing one is a
  * tree that has not been through it. With no neighbors in hand this reads it as
  * the kernel does an automatic end with nothing to follow:
- * `SymmetricComponent.DEFAULT_RADIUS`. The drawings, which have the chain,
- * follow the neighbor first (`transitionEnds`).
+ * `SymmetricComponent.DEFAULT_RADIUS`. The drawings resolve such a tree first
+ * (`autoRadius.withKernelEnds`), so they follow the neighbor as the kernel does.
  */
 export function profileEnds(node: ComponentNode): { fore: number; aft: number } {
   if (node.type === 'nosecone') {
@@ -283,7 +284,8 @@ export function profileEnds(node: ComponentNode): { fore: number; aft: number } 
  *
  * `SymmetricComponent.getRadius(x)`: a tube is one radius end to end, a nose
  * cone runs from a point to its base and a transition between its two ends. The
- * station is clamped into the part, as the kernel's own getter does.
+ * station is clamped into the part, as the kernel's own getter does. A part
+ * with no `length` on record is the length the bridge builds it at.
  *
  * `extraX` gives the profile an exact sample at the station asked for, so this
  * reads the true curve rather than a chord between two even samples. Note
@@ -292,7 +294,7 @@ export function profileEnds(node: ComponentNode): { fore: number; aft: number } 
  * this.
  */
 export function stationRadius(node: ComponentNode, x: number): number {
-  const length = num(node, 'length');
+  const length = partLength(node);
   switch (node.type) {
     case 'nosecone':
     case 'transition': {

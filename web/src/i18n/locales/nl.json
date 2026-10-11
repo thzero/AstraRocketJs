@@ -41,6 +41,7 @@
       "archiveEmpty": "Het .ork-archief is leeg.",
       "tooManyComponents": "Dit {{format}}-bestand bevat te veel onderdelen om te openen (mogelijk beschadigd).",
       "tooManySimulations": "Dit .ork-bestand bevat te veel simulaties om te openen (mogelijk beschadigd).",
+      "tooManyConfigs": "Dit .ork-bestand bevat te veel vluchtconfiguraties om te openen (mogelijk beschadigd).",
       "tooDeep": "Dit {{format}}-bestand is te diep genest om te openen (mogelijk beschadigd).",
       "tooLarge": "Het bestand is te groot om te openen (meer dan {{size}} MiB)."
     },
@@ -57,7 +58,11 @@
       "noseShape": "RASAero kent de neuskegelvorm \"{{shape}}\" niet. Gebruik conisch, ogief, ellipsoïde, Haack of macht, of exporteer als .ork.",
       "transitionShape": "RASAero-overgangen moeten conisch zijn. Wijzig de vorm of exporteer als .ork.",
       "noPods": "RASAero kent geen pods, dus \"{{name}}\" kan niet worden geëxporteerd. Verwijder het of exporteer als .ork.",
-      "noParallel": "RASAero kent geen parallelle (zijdelings bevestigde) trappen, dus \"{{name}}\" kan niet worden geëxporteerd. Verwijder het of exporteer als .ork."
+      "noParallel": "RASAero kent geen parallelle (zijdelings bevestigde) trappen, dus \"{{name}}\" kan niet worden geëxporteerd. Verwijder het of exporteer als .ork.",
+      "noseFirst": "RASAero-ontwerpen beginnen met een neuskegel, maar het eerste onderdeel van de bovenste trap is \"{{name}}\". Zet de neuskegel vooraan of exporteer als .ork.",
+      "secondPart": "RASAero vereist direct na de neuskegel een rompbuis, of een staartkegel als laatste onderdeel, dus \"{{name}}\" kan daar niet volgen. Wijzig de volgorde of exporteer als .ork.",
+      "noseNotFirst": "RASAero staat een neuskegel alleen als eerste onderdeel toe, dus \"{{name}}\" kan niet worden geëxporteerd. Gebruik een overgang of exporteer als .ork.",
+      "noseFlipped": "RASAero kent geen omgekeerde neuskegels, dus \"{{name}}\" kan niet worden geëxporteerd. Gebruik een overgang of exporteer als .ork."
     },
     "motorFile": {
       "engNoData": "Geen geldig .eng-bestand (geen motorgegevens gevonden).",
@@ -130,6 +135,7 @@
     "openOrk": "Kon het .ork-bestand niet openen: {{reason}}",
     "openExample": "Kon dat voorbeeld niet openen: {{reason}}",
     "saveOrk": "Kon het .ork-bestand niet opslaan: {{reason}}",
+    "saveOrkNoDesignInfo": "Het .ork-bestand is opgeslagen zonder ontwerpinformatie: het ontwerp kon niet worden opgebouwd, dus er was geen statistiek om op te nemen.",
     "exportRasaero": "Kon RASAero niet exporteren: {{reason}}",
     "exportUnsupported": "Dit onderdeel kan niet als {{format}} worden geëxporteerd.",
     "exportFailed": "Kon {{format}} niet exporteren: {{reason}}",
@@ -247,6 +253,7 @@
     "fitFrame": "Raket in het kader passen",
     "fitFrameHint": "Schuift de camera dichterbij zodat de raket de geëxporteerde afbeelding vult: je kijkhoek blijft, alleen de kadrering verandert",
     "simFailed": "De simulatie is mislukt, dus er is geen PDF geschreven: {{message}}",
+    "simDropped": "Het ontwerp is gewijzigd terwijl de simulatie liep, dus er is geen PDF geschreven. Sla de PDF opnieuw op om het huidige ontwerp te laten vliegen.",
     "pdfFailed": "Kon de PDF niet exporteren: {{message}}",
     "csvFailed": "Kon de CSV niet exporteren: {{message}}",
     "reportFailed": "Kon het ontwerprapport niet samenstellen: {{message}}",
@@ -256,7 +263,8 @@
     "headerSpan": "spanwijdte {{value}}",
     "headerLaunchMass": "Startmassa {{mass}} (leeg {{dry}})",
     "headerDryMass": "Leegmassa {{dry}}, geen motoren geladen",
-    "headerBalance": "CG {{cg}}, CP {{cp}} vanaf de neuspunt, marge {{margin}} kal"
+    "headerBalance": "CG {{cg}}, CP {{cp}} vanaf de neuspunt, marge {{margin}} kal",
+    "headerCg": "CG {{cg}} vanaf de neuspunt"
   },
   "engine": {
     "wasmTip": "Fysicamotor: WebAssembly (snelle route)",
@@ -468,6 +476,7 @@
       "daylight": "Daglicht (hoog contrast)"
     },
     "resetTab": "{{name}} herstellen",
+    "resetTabConfirm": "{{name}} terugzetten naar de standaardwaarden? Wat je daar hebt ingevoerd wordt vervangen, en dit kan niet ongedaan worden gemaakt.",
     "resetAll": "Alles herstellen",
     "resetAllConfirm": "Alle instellingen op alle tabbladen terugzetten naar de standaardwaarden? Dit geldt ook voor lanceerstandaarden, eenheden en simulatie-instellingen en kan niet ongedaan worden gemaakt.",
     "resetOneFor": "{{name}} terug naar de standaardkleur",
@@ -663,6 +672,7 @@
     "timeout": "De simulatie duurde te lang en is gestopt. Probeer het opnieuw of vereenvoudig het ontwerp.",
     "busy": "Er loopt al een simulatie. Wacht tot die klaar is, of annuleer hem, en probeer het opnieuw.",
     "warnings": "Vluchtwaarschuwingen ({{count}})",
+    "warningHigh": "Ernstig:",
     "runMany": "{{count}} simulaties uitvoeren",
     "safetyTitle": "Voordat je vliegt",
     "safetyLead": "Dit zijn schattingen uit een model, geen vluchtkaart.",
@@ -718,7 +728,6 @@
     "FILE_INVALID_PARAMETER": "Ongeldige parameter in het bestand",
     "LISTENERS_AFFECTED": "Simulatielisteners hebben het resultaat veranderd",
     "OBJ_ZERO_THICKNESS": "Geometrie zonder dikte in de export",
-    "LargeAOA": "Grote invalshoek",
     "LargeAOA.str1": "Grote invalshoek",
     "LargeAOA.str2": "Grote invalshoek"
   },
@@ -859,6 +868,7 @@
     "Cdb": "Basisweerstandscoëfficiënt (CD_base)",
     "Cda": "Axiale weerstandscoëfficiënt (CA)",
     "Cn": "Normaalkrachtcoëfficiënt (CN)",
+    "CNα": "Afgeleide van de normaalkrachtcoëfficiënt (CNα)",
     "Cθ": "Stampmomentcoëfficiënt (Cm)",
     "CτΨ": "Giermomentcoëfficiënt",
     "Cτs": "Zijkrachtcoëfficiënt",
@@ -1058,7 +1068,7 @@
       "device": "Apparaat",
       "flightPath": "vluchtbaan",
       "groundTrack": "grondspoor",
-      "distanceBearing": "{{distance}} {{unit}} op {{bearing}}°",
+      "distanceBearing": "{{distance}} {{unit}} op {{bearing}}",
       "stageLanding": "Landing van {{stage}}"
     },
     "mission": "Missie",
@@ -1144,7 +1154,7 @@
     "versionMissing": "Niet-ondersteunde documentversie, het bestand wordt toch gelezen.",
     "ignored": "Niet-ondersteunde onderdelen genegeerd: {{names}}.",
     "skippedUnsupported": "Niet ondersteund, overgeslagen: {{name}}",
-    "instanced": "Onderdelen die zich als meerdere exemplaren herhalen: {{names}}. Het bestand bewaart elk exemplaar, maar de tekening en de simulatie tonen er nu één.",
+    "instanced": "Onderdelen die zich als meerdere exemplaren herhalen: {{names}}. De simulatie rekent met elk exemplaar, maar de tekening toont er nu één.",
     "configsNoMotors": "Het bestand declareert {{total}} vluchtconfiguraties maar bevatte geen motoren om te importeren.",
     "strayConfigs": "Het bestand heeft {{total}} vluchtconfiguraties. Alleen de eerste is geïmporteerd.",
     "appearances": "Uiterlijkinstellingen van onderdelen in het bestand: {{total}}. Ze worden hier niet gebruikt (deze app tekent alleen de kleur van het onderdeel), maar ze blijven bewaard, dus opslaan houdt ze.",
@@ -1230,8 +1240,6 @@
     "motorTag": "motor",
     "noComponents": "Geen onderdelen.",
     "add": "＋ Toevoegen",
-    "addTo": "＋ Toevoegen aan {{parent}}…",
-    "nothingToAdd": "＋ Hier is niets toe te voegen",
     "canHost": "Een onderdeel onder {{parent}} toevoegen",
     "cantHost": "{{parent}} kan geen subonderdelen bevatten",
     "fins": "{{count}} vinnen",
@@ -1466,6 +1474,7 @@
     "fit": "Passend maken",
     "aftAria": "Achteraanzicht: de raket van achteren gezien; sleep om te draaien, scrolwiel om te zoomen",
     "sideAria": "Zijaanzicht van de raket met de markers voor CG en CP; scrolwiel om te zoomen, sleep de achtergrond om te verschuiven",
+    "panHint": "Pijltoetsen verschuiven de ingezoomde weergave, met Shift in grotere stappen",
     "caliperH": "Horizontale greep van de schuifmaat {{end}}",
     "caliperV": "Verticale greep van de schuifmaat {{end}}"
   },
@@ -1520,6 +1529,8 @@
     "select": "{{name}} kiezen",
     "combine": "Combineren ({{n}})",
     "compareN": "Vergelijken ({{n}})",
+    "combineChartAria": "Gecombineerde stuwkrachtcurve van {{names}}, met de curve van elke motor",
+    "compareChartAria": "Stuwkrachtcurven van {{names}}",
     "compareTitle": "Vergelijken",
     "back": "Terug naar de lijst",
     "clear": "Wissen",
@@ -1528,7 +1539,6 @@
     "noCurveTip": "Geen stuwkrachtcurve: vergelijken of combineren kan niet.",
     "compareDesc": "Legt hun stuwkrachtcurven over elkaar en zet de specificaties naast elkaar.",
     "combineDesc": "Telt ze op tot één cluster: een gecombineerde stuwkrachtcurve en de totale impuls.",
-    "clearSel": "Selectie wissen",
     "combined": "Gecombineerd cluster",
     "cluster": "Cluster van {{n}} motoren",
     "total": "Gecombineerd totaal",
@@ -1657,6 +1667,7 @@
     "missingField": "Dit veld is verplicht en is leeg. De simulatie kan niet lopen tot het is gevuld.",
     "resetToDefault": "Terug naar de standaard",
     "saveAsDefault": "Als standaard opslaan",
+    "saveAsDefaultMixed": "De aangevinkte simulaties gebruiken verschillende opties, dus er is niet één set om op te slaan. Vink er één aan om de opties daarvan als standaard op te slaan.",
     "optionsHint": "Leeg volgt de algemene instelling (Instellingen › Simulatie).",
     "selectAll": "Alle simulaties selecteren",
     "selectOne": "{{name}} selecteren",
@@ -1673,7 +1684,6 @@
   },
   "motorDlg": {
     "title": "Motor kiezen",
-    "manufacturer": "Fabrikant",
     "allManufacturers": "Alle fabrikanten",
     "mfrCount": "{{n}} fabrikanten",
     "diameter": "Diameter",
@@ -1725,6 +1735,7 @@
     "chartThrust": "stuwkrachtcurve",
     "chartAvg": "gem. stuwkracht",
     "chartBurn": "brandtijd",
+    "chartAria": "Stuwkracht in de tijd. Piek {{peak}}, gemiddeld {{avg}}, brandtijd {{burn}} s.",
     "calcNote": "* Beginstuwkracht, Isp en massafractie zijn berekend uit de stuwkrachtcurve en de gewichten."
   },
   "lang": {
@@ -1761,6 +1772,7 @@
   },
   "storage": {
     "full": "Kon je werk niet opslaan: de browseropslag is vol. Exporteer je ontwerp om het te bewaren.",
+    "writeRefused": "Opslaan is niet gelukt: de browser weigerde het op te slaan. De opslag is mogelijk vol of geblokkeerd.",
     "degraded": "Je browser blokkeert zijn database, dus de app is teruggevallen op een veel kleinere opslagruimte (ongeveer 5 MB) en opslaan kan mislukken zodra je ontwerp groeit. Privé navigeren is de gebruikelijke oorzaak. Exporteer alles wat je wilt bewaren.",
     "loadFailed": "Je opgeslagen ontwerp kon niet worden gelezen. Er wordt blanco begonnen; nieuw werk wordt wel opgeslagen.",
     "conflict": "Dit ontwerp is in een ander tabblad gewijzigd, dus je wijzigingen hier worden niet opgeslagen. Exporteer ze om ze te bewaren, of open het ontwerp opnieuw via Mijn raketten om de versie van het andere tabblad te laden."
@@ -1805,11 +1817,8 @@
     "RECOVERY_LAUNCH_ROD_rod": "Een bergingsmiddel ging open terwijl de raket nog op de stang zat. Kijk de uitstootvertraging en de openingsinstellingen na: zoals gesimuleerd eindigt de vlucht op het platform.",
     "RECOVERY_DROGUE_NO_MAIN": "Er gaat een drogue open maar er volgt geen hoofdparachute, dus de raket daalt de hele weg alleen aan de drogue. Dat is een harde landing, tenzij de drogue daarop is gedimensioneerd.",
     "NO_RECOVERY_DEVICE": "Er gaat niets open, dus de raket valt ballistisch en de landingssnelheid hieronder is de snelheid waarmee hij de grond raakt.",
-    "LargeAOA": "De raket vloog met een invalshoek buiten het bereik waarvoor de methode van Barrowman geldt, dus de aerodynamische getallen rond dat punt zijn een benadering. Gebruikelijk bij harde wind of net na een langzaam verlaten van de lanceerinrichting.",
     "LargeAOA.str1": "De raket vloog met een invalshoek buiten het bereik waarvoor de methode van Barrowman geldt, dus de aerodynamische getallen rond dat punt zijn een benadering. Gebruikelijk bij harde wind of net na een langzaam verlaten van de lanceerinrichting.",
     "LargeAOA.str2": "De raket vloog met een invalshoek buiten het bereik waarvoor de methode van Barrowman geldt, dus de aerodynamische getallen rond dat punt zijn een benadering. Gebruikelijk bij harde wind of net na een langzaam verlaten van de lanceerinrichting.",
-    "LargeAOA_rail": "De raket vloog met een invalshoek buiten het bereik waarvoor de methode van Barrowman geldt, dus de aerodynamische getallen rond dat punt zijn een benadering. Gebruikelijk bij harde wind of net na een langzaam verlaten van de lanceerrail.",
-    "LargeAOA_rod": "De raket vloog met een invalshoek buiten het bereik waarvoor de methode van Barrowman geldt, dus de aerodynamische getallen rond dat punt zijn een benadering. Gebruikelijk bij harde wind of net na een langzaam verlaten van de lanceerstang.",
     "LargeAOA.str1_rail": "De raket vloog met een invalshoek buiten het bereik waarvoor de methode van Barrowman geldt, dus de aerodynamische getallen rond dat punt zijn een benadering. Gebruikelijk bij harde wind of net na een langzaam verlaten van de lanceerrail.",
     "LargeAOA.str1_rod": "De raket vloog met een invalshoek buiten het bereik waarvoor de methode van Barrowman geldt, dus de aerodynamische getallen rond dat punt zijn een benadering. Gebruikelijk bij harde wind of net na een langzaam verlaten van de lanceerstang.",
     "LargeAOA.str2_rail": "De raket vloog met een invalshoek buiten het bereik waarvoor de methode van Barrowman geldt, dus de aerodynamische getallen rond dat punt zijn een benadering. Gebruikelijk bij harde wind of net na een langzaam verlaten van de lanceerrail.",
@@ -1908,8 +1917,6 @@
     "discardConfirm": "De wijzigingen aan deze locatie verwerpen?",
     "back": "Terug naar de lijst",
     "use": "Gebruiken",
-    "useMany_one": "Gebruiken voor {{count}} simulatie",
-    "useMany_other": "Gebruiken voor {{count}} simulaties",
     "applyNeedsSave": "Sla je wijzigingen op of verwerp ze voordat je deze locatie gebruikt."
   },
   "map": {
@@ -1989,7 +1996,7 @@
     "visibility": "Zicht",
     "forecastNote": "Een voorspelling is een schatting van een model, geen meting.",
     "credit": "Weergegevens van Open-Meteo.com",
-    "windValue": "{{speed}} uit {{from}}°, windstoten {{gust}}, profiel tot {{top}}",
+    "windValue": "{{speed}} uit {{from}}, windstoten {{gust}}, profiel tot {{top}}",
     "atmosphereValue": "Profiel tot {{top}}",
     "group": {
       "temperature": "Temperatuur",
@@ -2057,6 +2064,7 @@
       "flyHoursNote": "Vliegt dit ontwerp onder de voorspelling voor elk uur van twee ervoor tot twee erna, zoals de voorspelling nu is.",
       "outdated": "Dit resultaat is verouderd. Voer de simulatie opnieuw uit om de voorspelde uren te vliegen met de huidige raket en locatie.",
       "hour": "Uur",
+      "flownHour": "(deze vlucht)",
       "noForecast": "Vul de lanceeromstandigheden met Weer ophalen… om te zien hoe de landing verschuift over de uren rond de voorspelling.",
       "overWind": "Niet gevlogen: wind boven de veiligheidsgrens",
       "overRodAngle": "Niet gevlogen: lanceerhoek boven de veiligheidsgrens",
@@ -2144,10 +2152,10 @@
     "railNeeded": "Rail voor {{speed}}",
     "weathercock": "Windvaanhoek",
     "weathercockGust": "Windvaanhoek in de vlagen",
-    "maxWind": "Sterkste wind onder {{angle}}°",
+    "maxWind": "Sterkste wind onder {{angle}}",
     "maxDryMass": "Zwaarste raket zonder motor",
     "none": "Geen",
-    "rules": "Oranje: een gemiddelde stuwkracht-gewichtsverhouding onder {{ratio}} : 1, een railsnelheid onder {{speed}} (het minimum uit Instellingen) of een windvaanhoek boven {{angle}}°. De zwaarste raket voldoet aan de eerste twee.",
+    "rules": "Oranje: een gemiddelde stuwkracht-gewichtsverhouding onder {{ratio}} : 1, een railsnelheid onder {{speed}} (het minimum uit Instellingen) of een windvaanhoek boven {{angle}}. De zwaarste raket voldoet aan de eerste twee.",
     "estimateNote": "Een schatting: zonder luchtweerstand, zonder wrijving op de rail en met een verticale rail, dus het echte vertrek is iets langzamer."
   },
   "stageName": {

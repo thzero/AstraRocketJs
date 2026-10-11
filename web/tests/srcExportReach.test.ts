@@ -49,25 +49,78 @@ const text = (f: string): string => {
   return t;
 };
 
+/** `export { a, b as c }` and `export { a } from './x'`, one statement per match. */
+const EXPORT_LIST = /^export\s+\{([^}]*)\}(?:\s*from\s*['"]([^'"]+)['"])?\s*;?/gm;
+
 /**
- * Exported value names declared in a file.
+ * An exported value name, and whether the module only forwards it.
+ *
+ * A forwarded name is one the module re-exports from another (`export { a } from`)
+ * or imports and lists (`import { a }` then `export { a }`). Its uses inside the
+ * module do not need the export, so only an importer of this module counts.
+ */
+type Exported = { name: string; forwarded: boolean };
+
+/**
+ * Exported value names in a file: declarations and export lists.
  *
  * Values only. A `type` or `interface` exported so a test can annotate a fixture
  * costs nothing at runtime, and knip reports unused ones separately and correctly.
  * `export default` and `export *` are skipped: neither is a name to track, and the
  * project has exactly two sanctioned default exports.
  */
-const exportedValues = (t: string): string[] => {
-  const names: string[] = [];
+const exportedValues = (t: string): Exported[] => {
+  const out: Exported[] = [];
   const decl = /^export\s+(?:async\s+)?(?:function|const|let|class)\s+([A-Za-z_$][\w$]*)/gm;
-  for (const m of t.matchAll(decl)) names.push(m[1]!);
-  return names;
+  for (const m of t.matchAll(decl)) out.push({ name: m[1]!, forwarded: false });
+  const imports = [...t.matchAll(/^import\s+(?!type\b)[^;]*?\{([^}]*)\}[^;]*?from/gm)]
+    .flatMap((m) => m[1]!.split(','))
+    .map((s) => s.trim())
+    .filter((s) => s && !s.startsWith('type '))
+    .map((s) => s.split(/\s+as\s+/).pop()!);
+  for (const m of t.matchAll(EXPORT_LIST)) {
+    for (const raw of m[1]!.split(',')) {
+      const item = raw.trim();
+      if (!item || item.startsWith('type ')) continue;
+      const [local, exported = local] = item.split(/\s+as\s+/);
+      out.push({ name: exported!, forwarded: m[2] !== undefined || imports.includes(local!) });
+    }
+  }
+  return out;
 };
 
 const occurrences = (t: string, name: string): number => (t.match(new RegExp(`\\b${name}\\b`, 'g')) ?? []).length;
 
 const mentionedElsewhere = (files: string[], name: string, self: string): boolean =>
   files.some((f) => f !== self && occurrences(text(f), name) > 0);
+
+/** `file` without its extension, with forward slashes, for comparing module paths. */
+const modulePath = (file: string): string =>
+  file
+    .replace(/\\/g, '/')
+    .replace(/\/+/g, '/')
+    .replace(/\.(ts|tsx)$/, '');
+
+/** Whether `from` imports or re-exports from the module `self` by a relative specifier. */
+const importsFrom = (from: string, self: string): boolean => {
+  const dir = modulePath(from).replace(/\/[^/]*$/, '');
+  const target = modulePath(self);
+  for (const m of text(from).matchAll(/\bfrom\s*['"](\.[^'"]*)['"]/g)) {
+    const parts = `${dir}/${m[1]!}`.split('/');
+    const resolved: string[] = [];
+    for (const p of parts) {
+      if (p === '..') resolved.pop();
+      else if (p !== '.') resolved.push(p);
+    }
+    const spec = resolved.join('/');
+    if (spec === target || `${spec}/index` === target) return true;
+  }
+  return false;
+};
+
+/** Whether a file other than `self` names `name` and imports it through `self`. */
+const reachedThrough = (files: string[], name: string, self: string): boolean =>
+  files.some((f) => f !== self && occurrences(text(f), name) > 0 && importsFrom(f, self));
 
 /**
  * Every src export that no src file uses, including its own, but a test does.
@@ -85,24 +138,30 @@ const testOnlyExports = (): string[] => {
   const found: string[] = [];
   for (const file of srcFiles) {
     const t = text(file);
-    for (const name of exportedValues(t)) {
-      if (occurrences(t, name) > 1) continue; // used inside its own module
+    for (const { name, forwarded } of exportedValues(t)) {
+      const where = `${file.slice(web.length).replace(/\\/g, '/')}#${name}`;
+      if (forwarded) {
+        if (reachedThrough(srcFiles, name, file)) continue; // a real src importer
+        if (reachedThrough(testFiles, name, file)) found.push(where);
+        continue;
+      }
+      if (occurrences(t.replace(EXPORT_LIST, ''), name) > 1) continue; // used inside its own module
       if (mentionedElsewhere(srcFiles, name, file)) continue; // a real src caller
       if (!mentionedElsewhere(testFiles, name, file)) continue; // reached by nothing: knip's job
-      found.push(`${file.slice(web.length).replace(/\\/g, '/')}#${name}`);
+      found.push(where);
     }
   }
   return found.sort();
 };
 
 /**
- * Exports a test reaches and nothing in the app does. Each is a deliberate test
- * seam over module state, and says so where it is declared.
+ * Exports a test reaches and nothing in the app does.
  *
  * Delete one, or give it a real caller, and the second test below fails until its
  * line goes too.
  */
 const BASELINE = [
+  // Test seams over module state, each saying so where it is declared.
   'src/engine/openRocketEngine.ts#__setEngineForTests',
   'src/components/tools/LandingEstimator.tsx#forgetLandingEstimator',
   'src/components/tools/OffTheRail.tsx#forgetOffTheRail',

@@ -23,6 +23,7 @@ export function exportOrk({
   tree,
   launch,
   simulations,
+  simPrefs,
   configs,
   activeConfigId,
   designInfo,
@@ -76,7 +77,7 @@ export function exportOrk({
   }
   emit(2, '</subcomponents>');
   emit(1, '</rocket>');
-  simulationsXml(w, 1, launch, simulations);
+  simulationsXml(w, 1, launch, simulations, simPrefs);
   designInfoXml(w, 1, designInfo);
   // Document-level blocks this app has no editor for: the Photo Studio setup,
   // the design's own preferences and materials, its custom expressions. Last,

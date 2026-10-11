@@ -4,7 +4,7 @@ import { num, str } from '../../tree/nodeProps';
 import { tubeFinRadius } from '../../tree/tubefins';
 import { DISC_TYPES } from '../files/componentFormats';
 import { boreAround, ringBore, tubeRadii } from './discGeometry';
-import { mapTreePreserving, type MapContext } from '../../tree/treeWalk';
+import { mapTreePreserving, walkNodes, type MapContext } from '../../tree/treeWalk';
 import { axialFrames } from '../../tree/axialRebase';
 import { isPlanarFinSet } from '../../tree/tubefins';
 
@@ -817,4 +817,35 @@ export function syncAutoRadii(tree: RocketTree): RocketTree {
   // coupler the Add menu makes is automatic.
   const components = mapTreePreserving(tree.components, resolve, 'pre');
   return components === tree.components ? tree : { ...tree, components };
+}
+
+/** Whether any transition here has an end with no radius on record. */
+function hasKeylessEnd(nodes: readonly ComponentNode[]): boolean {
+  for (const n of walkNodes(nodes)) {
+    if (n.type === 'transition' && !(hasRadius(n, 'foreRadius') && hasRadius(n, 'aftRadius'))) return true;
+  }
+  return false;
+}
+
+/**
+ * The design as the drawings read it: every transition end with no radius on
+ * record resolved by {@link syncAutoRadii}, as the bridge flies it (an absent
+ * end is automatic to `ComponentFactory`). A tree from an edit or an import has
+ * been through `syncAutoRadii` already and comes back as it is, so this costs a
+ * walk. The drawings then read each end with `profileEnds`, and the neighbor
+ * rule has one copy, here.
+ */
+export function withKernelEnds(tree: RocketTree): RocketTree {
+  return hasKeylessEnd(tree.components) ? syncAutoRadii(tree) : tree;
+}
+
+/**
+ * {@link withKernelEnds} for an axial chain already flattened out of its stages
+ * (`axialChain`). The kernel's neighbor search crosses stage boundaries, so one
+ * stage holding the whole chain resolves the same way the stages would.
+ */
+export function chainWithKernelEnds(chain: ComponentNode[]): ComponentNode[] {
+  if (!hasKeylessEnd(chain)) return chain;
+  const stage = { type: 'stage', id: 'chain', children: chain } as ComponentNode;
+  return syncAutoRadii({ name: '', components: [stage] }).components[0]?.children ?? chain;
 }

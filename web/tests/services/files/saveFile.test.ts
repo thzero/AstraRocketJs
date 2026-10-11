@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { download, exportFilename, saveBlob, safeFilename } from '../../../src/services/files/saveFile';
+import { download, exportFilename, saveBlob, saveText, safeFilename } from '../../../src/services/files/saveFile';
+import { parseWindProfileCsv } from '../../../src/services/flight/windProfileCsv';
 import { loadSettings, saveSettings } from '../../../src/services/storage/settings';
 
 // The share sheet is used only where `<a download>` is known to fail: iOS or
@@ -263,5 +264,54 @@ describe('saveBlob with the browser save dialog', () => {
     await saveBlob(blob(), 'rocket.ork');
     expect(fn).not.toHaveBeenCalled();
     expect(clicks).toHaveLength(1);
+  });
+});
+
+/**
+ * A CSV download starts with a UTF-8 byte-order mark, so Excel on Windows reads
+ * it as UTF-8. Other text is saved as given, and a CSV that already has the mark
+ * does not get a second.
+ */
+describe('CSV byte-order mark', () => {
+  const BOM = String.fromCharCode(0xfeff);
+  const capture = () => {
+    const written: Blob[] = [];
+    vi.stubGlobal('showSaveFilePicker', async () => ({
+      createWritable: async () => ({ write: async (b: Blob) => void written.push(b), close: async () => {} }),
+    }));
+    return written;
+  };
+  const bytesOf = (b: Blob) =>
+    new Promise<number[]>((resolve) => {
+      const r = new FileReader();
+      r.onload = () => resolve([...new Uint8Array(r.result as ArrayBuffer)]);
+      r.readAsArrayBuffer(b);
+    });
+  const firstCode = async (b: Blob) => (await bytesOf(b)).slice(0, 3);
+
+  beforeEach(() => pose({ apple: false, standalone: false }));
+  afterEach(() => saveSettings({ ...loadSettings(), askWhereToSave: true }));
+
+  it('prefixes a CSV saved as text, and leaves other text alone', async () => {
+    saveSettings({ ...loadSettings(), askWhereToSave: true });
+    const written = capture();
+    await saveText('# comment\nTime (s),Altitude (m)\n0,0\n', 'f.csv', 'text/csv;charset=utf-8');
+    await saveText('plain', 'f.txt');
+    expect(await firstCode(written[0]!)).toEqual([0xef, 0xbb, 0xbf]);
+    expect(await firstCode(written[1]!)).toEqual([0x70, 0x6c, 0x61]);
+  });
+
+  it('prefixes a CSV handed to download, once', async () => {
+    saveSettings({ ...loadSettings(), askWhereToSave: true });
+    const written = capture();
+    download('a.csv', 'a,b', 'text/csv;charset=utf-8');
+    download('b.csv', `${BOM}a,b`, 'text/csv;charset=utf-8');
+    await vi.waitFor(() => expect(written).toHaveLength(2));
+    for (const b of written) expect((await bytesOf(b)).slice(0, 4)).toEqual([0xef, 0xbb, 0xbf, 0x61]);
+  });
+
+  it('still reads back where the app imports a CSV', () => {
+    const csv = `${BOM}altitude,speed,direction\n0,2,90\n100,4,180\n`;
+    expect(parseWindProfileCsv(csv).map((l) => l.altitudeM)).toEqual([0, 100]);
   });
 });

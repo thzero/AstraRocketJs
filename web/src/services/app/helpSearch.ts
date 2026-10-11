@@ -73,6 +73,12 @@ const SNIPPET_CHARS = 170;
 export function fold(s: string): string {
   let out = '';
   for (const ch of s) {
+    // A character outside the Basic Multilingual Plane (any emoji) is two
+    // UTF-16 units; folding it to one would shift every later index.
+    if (ch.length !== 1) {
+      out += ch;
+      continue;
+    }
     const base = ch.normalize('NFD')[0] ?? ch;
     const low = base.toLowerCase();
     out += low.length === 1 ? low : ch;

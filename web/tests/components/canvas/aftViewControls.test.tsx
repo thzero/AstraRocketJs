@@ -174,3 +174,22 @@ describe('the aft view titles an empty-named part by its type', () => {
     expect(titles).not.toContain('');
   });
 });
+
+/** Zoomed in, the view pans from the keyboard, not only by dragging. */
+describe('the aft view pans from the keyboard', () => {
+  const svg = () => screen.getByRole('group', { name: /Aft view|aft/i });
+  const transform = () => svg().querySelector('g')!.getAttribute('transform');
+
+  it('takes focus and the arrows only once zoomed in', () => {
+    view();
+    expect(svg().getAttribute('tabindex')).toBeNull();
+    const fitted = transform();
+    fireEvent.keyDown(svg(), { key: 'ArrowLeft' });
+    expect(transform()).toBe(fitted);
+    fireEvent.click(btn(ZOOM_IN));
+    expect(svg().getAttribute('tabindex')).toBe('0');
+    const zoomed = transform();
+    expect(fireEvent.keyDown(svg(), { key: 'ArrowLeft' })).toBe(false);
+    expect(transform()).not.toBe(zoomed);
+  });
+});

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { NumberInput } from '../common/NumberInput';
-import { useUnits } from '../../prefs/useUnits';
+import { fmtDegrees, useUnits } from '../../prefs/useUnits';
 import { onSi } from '../../prefs/entryValue';
 import { unitScope } from '../../prefs/units';
 import { useWorkspaceStore, configOf, selectDriftSweepFor } from '../../state/store';
@@ -149,7 +149,7 @@ export function DriftSweepPanel({ simId, launch }: { simId: string; launch: Laun
           >
             {SPANS.map((d) => (
               <option key={d} value={d}>
-                {d === 360 ? t('sweep.spanAll') : `±${d / 2}°`}
+                {d === 360 ? t('sweep.spanAll') : `±${fmtDegrees(u, d / 2)}`}
               </option>
             ))}
           </select>

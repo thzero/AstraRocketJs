@@ -148,7 +148,10 @@ describe('each service family, rendered in another language', () => {
         {
           type: 'stage',
           id: 's',
-          children: [{ type: 'bodytube', id: 'b', children: [{ type: 'ellipticalfinset', id: 'f' }] }],
+          children: [
+            { type: 'nosecone', id: 'n', shape: 'ogive' },
+            { type: 'bodytube', id: 'b', children: [{ type: 'ellipticalfinset', id: 'f' }] },
+          ],
         },
       ],
     } as unknown as RocketTree;

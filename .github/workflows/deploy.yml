@@ -83,9 +83,10 @@ jobs:
         working-directory: website
         run: npm ci
 
-      # The docs gate lives HERE, not in gates.yml: the Docusaurus site is not
-      # built on a PR at all. This typecheck is part of that gate. Without
-      # it, website/'s `typecheck` script would be run by nothing again.
+      # The docs site's typecheck runs here and nowhere else: gates.yml builds the
+      # Docusaurus site on every pull request (e2e and update-flow) but does not
+      # typecheck it. Without this step, website/'s `typecheck` script would be
+      # run by nothing.
       - name: Typecheck docs
         working-directory: website
         run: npm run typecheck

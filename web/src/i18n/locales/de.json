@@ -41,6 +41,7 @@
       "archiveEmpty": "Das .ork-Archiv ist leer.",
       "tooManyComponents": "Diese {{format}}-Datei enthält zu viele Bauteile, um sie zu öffnen (möglicherweise fehlerhaft).",
       "tooManySimulations": "Diese .ork-Datei enthält zu viele Simulationen, um sie zu öffnen (möglicherweise fehlerhaft).",
+      "tooManyConfigs": "Diese .ork-Datei enthält zu viele Flugkonfigurationen, um sie zu öffnen (möglicherweise fehlerhaft).",
       "tooDeep": "Diese {{format}}-Datei ist zu tief verschachtelt, um sie zu öffnen (möglicherweise fehlerhaft).",
       "tooLarge": "Die Datei ist zu groß zum Öffnen (über {{size}} MiB)."
     },
@@ -57,7 +58,11 @@
       "noseShape": "RASAero kennt die Spitzenform „{{shape}}“ nicht. Verwenden Sie konisch, Ogive, Ellipsoid, Haack oder Potenz, oder exportieren Sie als .ork.",
       "transitionShape": "RASAero-Übergänge müssen konisch sein. Ändern Sie die Form oder exportieren Sie als .ork.",
       "noPods": "RASAero kennt keine Pods, daher kann „{{name}}“ nicht exportiert werden. Entfernen Sie ihn oder exportieren Sie als .ork.",
-      "noParallel": "RASAero kennt keine parallelen (seitlich angebrachten) Stufen, daher kann „{{name}}“ nicht exportiert werden. Entfernen Sie sie oder exportieren Sie als .ork."
+      "noParallel": "RASAero kennt keine parallelen (seitlich angebrachten) Stufen, daher kann „{{name}}“ nicht exportiert werden. Entfernen Sie sie oder exportieren Sie als .ork.",
+      "noseFirst": "RASAero-Entwürfe beginnen mit einer Spitze, aber das erste Bauteil der Oberstufe ist „{{name}}“. Setzen Sie die Spitze an den Anfang oder exportieren Sie als .ork.",
+      "secondPart": "RASAero braucht direkt nach der Spitze ein Rumpfrohr oder als letztes Bauteil einen Heckkonus, daher kann „{{name}}“ dort nicht folgen. Ändern Sie die Reihenfolge oder exportieren Sie als .ork.",
+      "noseNotFirst": "RASAero erlaubt eine Spitze nur als erstes Bauteil, daher kann „{{name}}“ nicht exportiert werden. Verwenden Sie einen Übergang oder exportieren Sie als .ork.",
+      "noseFlipped": "RASAero kennt keine umgedrehten Spitzen, daher kann „{{name}}“ nicht exportiert werden. Verwenden Sie einen Übergang oder exportieren Sie als .ork."
     },
     "motorFile": {
       "engNoData": "Keine gültige .eng-Datei (keine Motordaten gefunden).",
@@ -130,6 +135,7 @@
     "openOrk": ".ork konnte nicht geöffnet werden: {{reason}}",
     "openExample": "Dieses Beispiel konnte nicht geöffnet werden: {{reason}}",
     "saveOrk": ".ork konnte nicht gespeichert werden: {{reason}}",
+    "saveOrkNoDesignInfo": "Die .ork wurde ohne Entwurfsinfos gespeichert: Der Entwurf ließ sich nicht aufbauen, daher gab es keine Statistik zum Einfügen.",
     "exportRasaero": "RASAero-Export fehlgeschlagen: {{reason}}",
     "exportUnsupported": "Dieses Bauteil kann nicht als {{format}} exportiert werden.",
     "exportFailed": "{{format}} konnte nicht exportiert werden: {{reason}}",
@@ -247,6 +253,7 @@
     "fitFrame": "Rakete ins Bild einpassen",
     "fitFrameHint": "Fährt die Kamera heran, sodass die Rakete das exportierte Bild ausfüllt – Ihr Blickwinkel bleibt erhalten, nur der Bildausschnitt ändert sich",
     "simFailed": "Simulation fehlgeschlagen, daher wurde kein PDF geschrieben: {{message}}",
+    "simDropped": "Der Entwurf hat sich während der Simulation geändert, daher wurde kein PDF geschrieben. Speichere das PDF erneut, um den aktuellen Entwurf zu fliegen.",
     "pdfFailed": "PDF konnte nicht exportiert werden: {{message}}",
     "csvFailed": "CSV konnte nicht exportiert werden: {{message}}",
     "reportFailed": "Der Entwurfsbericht konnte nicht erstellt werden: {{message}}",
@@ -256,7 +263,8 @@
     "headerSpan": "Spannweite {{value}}",
     "headerLaunchMass": "Startmasse {{mass}} (leer {{dry}})",
     "headerDryMass": "Leermasse {{dry}}, keine Motoren geladen",
-    "headerBalance": "CG {{cg}}, CP {{cp}} ab Nasenspitze, Stabilitätsreserve {{margin}} Kal."
+    "headerBalance": "CG {{cg}}, CP {{cp}} ab Nasenspitze, Stabilitätsreserve {{margin}} Kal.",
+    "headerCg": "CG {{cg}} ab Nasenspitze"
   },
   "engine": {
     "wasmTip": "Physik-Engine: WebAssembly (schneller Pfad)",
@@ -468,6 +476,7 @@
       "daylight": "Tageslicht (hoher Kontrast)"
     },
     "resetTab": "{{name}} zurücksetzen",
+    "resetTabConfirm": "{{name}} auf die Standardwerte zurücksetzen? Deine Eingaben dort werden ersetzt, und das lässt sich nicht rückgängig machen.",
     "resetAll": "Alles zurücksetzen",
     "resetAllConfirm": "Alle Einstellungen auf allen Registerkarten auf die Standardwerte zurücksetzen? Das betrifft auch Startvorgaben, Einheiten und Simulationseinstellungen und kann nicht rückgängig gemacht werden.",
     "resetOneFor": "{{name}} auf Standardfarbe zurücksetzen",
@@ -663,6 +672,7 @@
     "timeout": "Die Simulation dauerte zu lange und wurde abgebrochen. Versuchen Sie es erneut oder vereinfachen Sie den Entwurf.",
     "busy": "Es läuft bereits eine Simulation. Warten Sie, bis sie fertig ist, oder brechen Sie sie ab, und versuchen Sie es erneut.",
     "warnings": "Flugwarnungen ({{count}})",
+    "warningHigh": "Schwerwiegend:",
     "runMany": "{{count}} Simulationen starten",
     "safetyTitle": "Bevor Sie fliegen",
     "safetyLead": "Dies sind berechnete Schätzwerte, keine Flugfreigabe.",
@@ -718,7 +728,6 @@
     "FILE_INVALID_PARAMETER": "Ungültiger Parameter in der Datei",
     "LISTENERS_AFFECTED": "Simulations-Listener haben das Ergebnis verändert",
     "OBJ_ZERO_THICKNESS": "Geometrie ohne Wandstärke im Export",
-    "LargeAOA": "Großer Anstellwinkel",
     "LargeAOA.str1": "Großer Anstellwinkel",
     "LargeAOA.str2": "Großer Anstellwinkel"
   },
@@ -859,6 +868,7 @@
     "Cdb": "Heckwiderstandsbeiwert (CD_base)",
     "Cda": "Axialkraftbeiwert (CA)",
     "Cn": "Normalkraftbeiwert (CN)",
+    "CNα": "Ableitung des Normalkraftbeiwerts (CNα)",
     "Cθ": "Nickmomentenbeiwert (Cm)",
     "CτΨ": "Giermomentenbeiwert",
     "Cτs": "Seitenkraftbeiwert",
@@ -1058,7 +1068,7 @@
       "device": "Gerät",
       "flightPath": "Flugbahn",
       "groundTrack": "Bodenspur",
-      "distanceBearing": "{{distance}} {{unit}} bei {{bearing}}°",
+      "distanceBearing": "{{distance}} {{unit}} bei {{bearing}}",
       "stageLanding": "Landung {{stage}}"
     },
     "mission": "Mission",
@@ -1144,7 +1154,7 @@
     "versionMissing": "Nicht unterstützte Dokumentversion, die Datei wird trotzdem gelesen.",
     "ignored": "Nicht unterstützte Bauteile ignoriert: {{names}}.",
     "skippedUnsupported": "Nicht unterstützt, übersprungen: {{name}}",
-    "instanced": "Bauteile, die sich als mehrere Exemplare wiederholen: {{names}}. Die Datei behält jedes Exemplar, aber Zeichnung und Simulation zeigen derzeit nur eines.",
+    "instanced": "Bauteile, die sich als mehrere Exemplare wiederholen: {{names}}. Die Simulation berücksichtigt jedes Exemplar, die Zeichnung zeigt derzeit aber nur eines.",
     "configsNoMotors": "Die Datei deklariert {{total}} Flugkonfigurationen, enthielt aber keine Motoren zum Importieren.",
     "strayConfigs": "Die Datei hat {{total}} Flugkonfigurationen. Nur die erste wurde importiert.",
     "appearances": "Einstellungen zum Erscheinungsbild von Bauteilen in der Datei: {{total}}. Sie werden hier nicht verwendet (diese App zeichnet nur die Bauteilfarbe), bleiben aber erhalten, sodass ein Speichern sie behält.",
@@ -1230,8 +1240,6 @@
     "motorTag": "Motor",
     "noComponents": "Keine Bauteile.",
     "add": "＋ Hinzufügen",
-    "addTo": "＋ Zu {{parent}} hinzufügen…",
-    "nothingToAdd": "＋ Hier gibt es nichts hinzuzufügen",
     "canHost": "Ein Bauteil unter {{parent}} hinzufügen",
     "cantHost": "{{parent}} kann keine Unterbauteile enthalten",
     "fins": "{{count}} Finnen",
@@ -1466,6 +1474,7 @@
     "fit": "An die Ansicht anpassen",
     "aftAria": "Heckansicht – Blick von hinten auf die Rakete; zum Drehen ziehen, zum Zoomen scrollen",
     "sideAria": "Seitenansicht der Rakete mit CG- und CP-Markern; zum Zoomen scrollen, zum Verschieben den Hintergrund ziehen",
+    "panHint": "Pfeiltasten verschieben die vergrößerte Ansicht, mit Umschalt in größeren Schritten",
     "caliperH": "Griff des waagerechten Messschiebers {{end}}",
     "caliperV": "Griff des senkrechten Messschiebers {{end}}"
   },
@@ -1520,6 +1529,8 @@
     "select": "{{name}} auswählen",
     "combine": "Zusammenfassen ({{n}})",
     "compareN": "Vergleichen ({{n}})",
+    "combineChartAria": "Gesamtschubkurve von {{names}}, mit der Kurve jedes Motors",
+    "compareChartAria": "Schubkurven von {{names}}",
     "compareTitle": "Vergleichen",
     "back": "Zurück zur Liste",
     "clear": "Leeren",
@@ -1528,7 +1539,6 @@
     "noCurveTip": "Keine Schubkurve – Vergleichen oder Zusammenfassen nicht möglich.",
     "compareDesc": "Ihre Schubkurven überlagern und die Daten nebeneinander vergleichen.",
     "combineDesc": "Zu einem Cluster summieren: gemeinsame Schubkurve + Gesamtimpuls.",
-    "clearSel": "Auswahl aufheben",
     "combined": "Zusammengefasstes Cluster",
     "cluster": "Cluster aus {{n}} Motoren",
     "total": "Summe",
@@ -1657,6 +1667,7 @@
     "missingField": "Dieses Feld ist erforderlich und leer. Die Simulation kann erst laufen, wenn es ausgefüllt ist.",
     "resetToDefault": "Auf Standard zurücksetzen",
     "saveAsDefault": "Als Standard speichern",
+    "saveAsDefaultMixed": "Die markierten Simulationen laufen mit unterschiedlichen Optionen, daher gibt es keinen einheitlichen Satz zum Speichern. Markiere eine, um ihre Optionen als Standard zu speichern.",
     "optionsHint": "Leer folgt der globalen Einstellung (Einstellungen › Simulation).",
     "selectAll": "Alle Simulationen auswählen",
     "selectOne": "{{name}} auswählen",
@@ -1673,7 +1684,6 @@
   },
   "motorDlg": {
     "title": "Motor auswählen",
-    "manufacturer": "Hersteller",
     "allManufacturers": "Alle Hersteller",
     "mfrCount": "{{n}} Hersteller",
     "diameter": "Durchmesser",
@@ -1725,6 +1735,7 @@
     "chartThrust": "Schubkurve",
     "chartAvg": "mittl. Schub",
     "chartBurn": "Brenndauer",
+    "chartAria": "Schub über der Zeit. Spitze {{peak}}, Mittelwert {{avg}}, Brenndauer {{burn}} s.",
     "calcNote": "* Anfangsschub, Isp und Massenanteil werden aus der Schubkurve und den Massen berechnet."
   },
   "lang": {
@@ -1761,6 +1772,7 @@
   },
   "storage": {
     "full": "Ihre Arbeit konnte nicht gespeichert werden – der Browserspeicher ist voll. Exportieren Sie Ihren Entwurf, um ihn zu behalten.",
+    "writeRefused": "Speichern nicht möglich: Der Browser hat das Ablegen verweigert. Sein Speicher ist möglicherweise voll oder gesperrt.",
     "degraded": "Ihr Browser blockiert seine Datenbank, daher weicht die App auf einen viel kleineren Speicherbereich (etwa 5 MB) aus, und das Speichern kann fehlschlagen, wenn Ihr Entwurf wächst. Meist liegt es am privaten Modus. Exportieren Sie alles, was Sie behalten möchten.",
     "loadFailed": "Ihr gespeicherter Entwurf konnte nicht gelesen werden. Es wird neu begonnen – neue Arbeit wird weiterhin gespeichert.",
     "conflict": "Dieses Design wurde in einem anderen Tab geändert, daher werden deine Änderungen hier nicht gespeichert. Exportiere sie, um sie zu behalten, oder öffne das Design erneut unter „Meine Raketen“, um die Version des anderen Tabs zu laden."
@@ -1805,11 +1817,8 @@
     "RECOVERY_LAUNCH_ROD_rod": "Ein Bergungssystem löste aus, während die Rakete noch auf dem Stab war. Prüfen Sie die Ausstoßverzögerung und die Auswurfeinstellungen: So simuliert endet der Flug am Startplatz.",
     "RECOVERY_DROGUE_NO_MAIN": "Ein Bremsschirm öffnet sich, aber es folgt kein Hauptschirm, die Rakete sinkt also den gesamten Weg allein am Bremsschirm. Das bedeutet eine harte Landung, sofern der Bremsschirm nicht dafür ausgelegt ist.",
     "NO_RECOVERY_DEVICE": "Es löst nichts aus, die Rakete fällt also ballistisch, und die unten angegebene Landegeschwindigkeit ist die, mit der sie aufschlägt.",
-    "LargeAOA": "Die Rakete flog mit einem Anstellwinkel außerhalb des Bereichs, für den das Barrowman-Verfahren gilt; die aerodynamischen Werte um diesen Punkt herum sind daher nur näherungsweise gültig. Häufig bei starkem Wind oder direkt nach einem langsamen Verlassen der Startvorrichtung.",
     "LargeAOA.str1": "Die Rakete flog mit einem Anstellwinkel außerhalb des Bereichs, für den das Barrowman-Verfahren gilt; die aerodynamischen Werte um diesen Punkt herum sind daher nur näherungsweise gültig. Häufig bei starkem Wind oder direkt nach einem langsamen Verlassen der Startvorrichtung.",
     "LargeAOA.str2": "Die Rakete flog mit einem Anstellwinkel außerhalb des Bereichs, für den das Barrowman-Verfahren gilt; die aerodynamischen Werte um diesen Punkt herum sind daher nur näherungsweise gültig. Häufig bei starkem Wind oder direkt nach einem langsamen Verlassen der Startvorrichtung.",
-    "LargeAOA_rail": "Die Rakete flog mit einem Anstellwinkel außerhalb des Bereichs, für den das Barrowman-Verfahren gilt; die aerodynamischen Werte um diesen Punkt herum sind daher nur näherungsweise gültig. Häufig bei starkem Wind oder direkt nach einem langsamen Verlassen der Startschiene.",
-    "LargeAOA_rod": "Die Rakete flog mit einem Anstellwinkel außerhalb des Bereichs, für den das Barrowman-Verfahren gilt; die aerodynamischen Werte um diesen Punkt herum sind daher nur näherungsweise gültig. Häufig bei starkem Wind oder direkt nach einem langsamen Verlassen des Startstabs.",
     "LargeAOA.str1_rail": "Die Rakete flog mit einem Anstellwinkel außerhalb des Bereichs, für den das Barrowman-Verfahren gilt; die aerodynamischen Werte um diesen Punkt herum sind daher nur näherungsweise gültig. Häufig bei starkem Wind oder direkt nach einem langsamen Verlassen der Startschiene.",
     "LargeAOA.str1_rod": "Die Rakete flog mit einem Anstellwinkel außerhalb des Bereichs, für den das Barrowman-Verfahren gilt; die aerodynamischen Werte um diesen Punkt herum sind daher nur näherungsweise gültig. Häufig bei starkem Wind oder direkt nach einem langsamen Verlassen des Startstabs.",
     "LargeAOA.str2_rail": "Die Rakete flog mit einem Anstellwinkel außerhalb des Bereichs, für den das Barrowman-Verfahren gilt; die aerodynamischen Werte um diesen Punkt herum sind daher nur näherungsweise gültig. Häufig bei starkem Wind oder direkt nach einem langsamen Verlassen der Startschiene.",
@@ -1908,8 +1917,6 @@
     "discardConfirm": "Die Änderungen an diesem Ort verwerfen?",
     "back": "Zurück zur Liste",
     "use": "Verwenden",
-    "useMany_one": "Für {{count}} Simulation verwenden",
-    "useMany_other": "Für {{count}} Simulationen verwenden",
     "applyNeedsSave": "Speichere oder verwirf die Änderungen, bevor du diesen Ort verwendest."
   },
   "map": {
@@ -1989,7 +1996,7 @@
     "visibility": "Sichtweite",
     "forecastNote": "Eine Vorhersage ist die Schätzung eines Modells, keine Messung.",
     "credit": "Wetterdaten von Open-Meteo.com",
-    "windValue": "{{speed}} aus {{from}}°, Böen {{gust}}, Profil bis {{top}}",
+    "windValue": "{{speed}} aus {{from}}, Böen {{gust}}, Profil bis {{top}}",
     "atmosphereValue": "Profil bis {{top}}",
     "group": {
       "temperature": "Temperatur",
@@ -2057,6 +2064,7 @@
       "flyHoursNote": "Fliegt diesen Entwurf unter der Vorhersage für jede Stunde von zwei davor bis zwei danach, nach dem aktuellen Stand der Vorhersage.",
       "outdated": "Dieses Ergebnis ist veraltet. Führen Sie die Simulation erneut aus, um die Vorhersagestunden für die aktuelle Rakete und den aktuellen Startplatz zu fliegen.",
       "hour": "Stunde",
+      "flownHour": "(dieser Flug)",
       "noForecast": "Füllen Sie die Startbedingungen mit Wetter abrufen…, um zu sehen, wie sich die Landung über die Stunden um die Vorhersage verschiebt.",
       "overWind": "Nicht geflogen: Wind über dem Sicherheitslimit",
       "overRodAngle": "Nicht geflogen: Startwinkel über dem Sicherheitslimit",
@@ -2144,10 +2152,10 @@
     "railNeeded": "Schiene für {{speed}}",
     "weathercock": "Windfahnenwinkel",
     "weathercockGust": "Windfahnenwinkel in Böen",
-    "maxWind": "Stärkster Wind unter {{angle}}°",
+    "maxWind": "Stärkster Wind unter {{angle}}",
     "maxDryMass": "Schwerste Rakete ohne Motor",
     "none": "Keine",
-    "rules": "Gelb markiert: ein mittleres Schub-Gewichts-Verhältnis unter {{ratio}} : 1, ein Schienenaustritt unter {{speed}} (das Minimum aus den Einstellungen) oder ein Windfahnenwinkel über {{angle}}°. Die schwerste Rakete erfüllt die ersten beiden.",
+    "rules": "Gelb markiert: ein mittleres Schub-Gewichts-Verhältnis unter {{ratio}} : 1, ein Schienenaustritt unter {{speed}} (das Minimum aus den Einstellungen) oder ein Windfahnenwinkel über {{angle}}. Die schwerste Rakete erfüllt die ersten beiden.",
     "estimateNote": "Eine Schätzung: ohne Luftwiderstand, ohne Reibung an der Schiene und mit senkrechter Schiene, daher ist der echte Austritt etwas langsamer."
   },
   "stageName": {

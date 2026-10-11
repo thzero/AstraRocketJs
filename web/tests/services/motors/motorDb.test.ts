@@ -409,6 +409,19 @@ describe('loadCatalog with a malformed row', () => {
     expect(rows.map((m) => m.designation)).toEqual(['C6', 'D12']);
   });
 
+  it('drops a row whose optional fields are malformed', async () => {
+    serve([
+      good('C6'),
+      { ...good('B4'), code: 4 },
+      { ...good('D12'), curves: [{ src: 'x', samples: [[0, null]] }] },
+      { ...good('E9'), cg: [[0, 'x']] },
+      { ...good('F15'), digests: [{ digest: 'd', delays: 'P' }] },
+      { ...good('G40'), digests: [{ digest: 'd', delays: [4, 'P'] }], cg: [[0, 0.1]], code: 'G40W' },
+    ]);
+    const rows = await loadCatalog();
+    expect(rows.map((m) => m.designation)).toEqual(['C6', 'G40']);
+  });
+
   it('still rejects a catalog that is not an array', async () => {
     serve({ error: 'rebuilding' });
     await expect(loadCatalog()).rejects.toThrow(/Could not load the motors catalog/);

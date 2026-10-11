@@ -163,13 +163,13 @@ export function readSoftMaterial(
 }
 
 /**
- * <instancecount>/<instanceseparation>, pass-through only.
+ * <instancecount>/<instanceseparation>.
  *
  * CenteringRing and Bulkhead are LineInstanceable and LaunchLug/RailButton are
  * Instanceable, so OpenRocket writes these for all four. Carrying them keeps a
  * motor mount declared as one CenteringRing with instancecount 3 from coming
- * back from a save as a single ring. The app simulates and draws one; the file
- * keeps all N, and the import note says so.
+ * back from a save as a single ring. The simulation counts all N; the drawing
+ * shows one, and the import note says so.
  */
 export function readInstances(el: Element, node: ComponentNode): void {
   const count = clampCount(numTag(el, 'instancecount', 1), 1, MAX_ASSEMBLY_INSTANCES);
@@ -385,15 +385,20 @@ export function readCommon(el: Element, node: ComponentNode, withPosition: boole
   const fin = text(el, ':scope > finish');
   if (fin && fin !== 'normal') node['finish'] = fin;
   // The part's own color: three 0-255 channels on one element in the file, a
-  // hex string in the tree, which is what the pickers and both views use.
+  // hex string in the tree, which is what the pickers and both views use. The
+  // desktop's ORColor.fromXMLAttributes reads no color at all unless all three
+  // channels (and the alpha, when present) are integers in 0-255.
   const col = el.querySelector(':scope > color');
   if (col) {
-    const ch = (name: string) => {
-      const v = Number(col.getAttribute(name));
-      return Number.isFinite(v) ? Math.min(255, Math.max(0, Math.round(v))) : null;
+    const ch = (name: string): number | null => {
+      const raw = col.getAttribute(name);
+      if (raw == null || !/^[+-]?\d+$/.test(raw)) return null;
+      const v = Number(raw);
+      return v >= 0 && v <= 255 ? v : null;
     };
     const [r, g, b] = [ch('red'), ch('green'), ch('blue')];
-    if (r !== null && g !== null && b !== null) {
+    const alphaOk = !col.hasAttribute('alpha') || ch('alpha') !== null;
+    if (r !== null && g !== null && b !== null && alphaOk) {
       node['color'] = hexOf((r << 16) | (g << 8) | b);
     }
   }

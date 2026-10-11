@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { defaultToolSite, rememberedSlot, useRemembered } from './remembered';
 import { useTranslation } from 'react-i18next';
-import { useUnits } from '../../prefs/useUnits';
+import { fmtDegrees, useUnits } from '../../prefs/useUnits';
 import { unitScope } from '../../prefs/units';
 import { useSettings } from '../../state/SettingsProvider';
 import type { MotorSpec } from '../../engine/openRocketEngine';
@@ -157,7 +157,11 @@ export function OffTheRail() {
               {motor ? t('sims.changeMotor') : t('rail.chooseMotor')}
             </button>
           </div>
-          {motorError && <p className="text-xs text-error-400">{motorError}</p>}
+          {motorError && (
+            <p role="alert" className="text-xs text-error-400">
+              {motorError}
+            </p>
+          )}
         </CardGroup>
 
         <CardGroup title={t('rail.rocket')}>
@@ -217,7 +221,11 @@ export function OffTheRail() {
               >
                 {fetched.kind === 'loading' ? t('rail.fetching') : t('rail.fetchWind')}
               </button>
-              {fetched.kind === 'error' && <p className="text-xs text-error-400">{fetched.message}</p>}
+              {fetched.kind === 'error' && (
+                <p role="alert" className="text-xs text-error-400">
+                  {fetched.message}
+                </p>
+              )}
               {fetched.kind === 'ready' && (
                 <>
                   <p className="text-xs text-ink-muted">
@@ -266,15 +274,15 @@ export function OffTheRail() {
               </Stat>
               {angle != null && (
                 <Stat label={t('rail.weathercock')}>
-                  {flagged(angle > WEATHERCOCK_LIMIT_DEG, `${fmtNum(angle, 1)}°`, t('limits.aboveMax'))}
+                  {flagged(angle > WEATHERCOCK_LIMIT_DEG, fmtDegrees(u, angle, 1), t('limits.aboveMax'))}
                 </Stat>
               )}
               {gustAngle != null && (
                 <Stat label={t('rail.weathercockGust')}>
-                  {flagged(gustAngle > WEATHERCOCK_LIMIT_DEG, `${fmtNum(gustAngle, 1)}°`, t('limits.aboveMax'))}
+                  {flagged(gustAngle > WEATHERCOCK_LIMIT_DEG, fmtDegrees(u, gustAngle, 1), t('limits.aboveMax'))}
                 </Stat>
               )}
-              <Stat label={t('rail.maxWind', { angle: WEATHERCOCK_LIMIT_DEG })}>
+              <Stat label={t('rail.maxWind', { angle: fmtDegrees(u, WEATHERCOCK_LIMIT_DEG) })}>
                 {fmtWind(maxWindMs(ok.exitSpeedMs))}
               </Stat>
               <Stat label={t('rail.maxDryMass')}>{heaviest != null ? fmtMass(heaviest) : t('rail.none')}</Stat>
@@ -283,7 +291,7 @@ export function OffTheRail() {
               {t('rail.rules', {
                 ratio: MIN_THRUST_TO_WEIGHT,
                 speed: fmtSpeed(minExit),
-                angle: WEATHERCOCK_LIMIT_DEG,
+                angle: fmtDegrees(u, WEATHERCOCK_LIMIT_DEG),
               })}
             </p>
             <p className="text-[11px] text-ink-faint">{t('rail.estimateNote')}</p>

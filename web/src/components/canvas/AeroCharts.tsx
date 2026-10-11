@@ -116,6 +116,9 @@ export function ChartCard({
     else if (e.key === 'Home') i = 0;
     else if (e.key === 'End') i = machs.length - 1;
     else if (e.key === 'Escape') {
+      // Spent only when there was a crosshair to drop; a second Escape is left
+      // for the window, where it leaves the maximized layout.
+      if (hoverM != null) e.preventDefault();
       setHoverM(null);
       setKeyM(null);
       return;

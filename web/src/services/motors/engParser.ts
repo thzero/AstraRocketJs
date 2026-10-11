@@ -13,6 +13,7 @@ import type { CustomMotor } from './motorStore';
 // the same class on every screen (a 0.75 N-s MicroMaxx is a 1/2A, not an A).
 import { impulseClass } from './motorCombine';
 import { trapezoidImpulse } from './motorMath';
+import { removeDelay } from './rseParser';
 import { delayList } from './motorPicker';
 import { KeyedError } from '../../i18n/keyedError';
 
@@ -35,7 +36,12 @@ export function parseEng(text: string): CustomMotor {
   if (header.length < 7) {
     throw new KeyedError('errors.motorFile.engHeader');
   }
-  const [designation, diaS, lenS, delaysS, propS, totalS, ...mfr] = header;
+  const [rawDesignation, diaS, lenS, delaysS, propS, totalS, ...mfr] = header;
+  // The delay comes off the name, as upstream's RASPMotorLoader and this app's
+  // .rse reader take it: `C6-5` is the C6, and the delay is carried in the
+  // delay field. Kept on, one motor would have two ids by file format and seat
+  // as `C6-5-5`.
+  const designation = removeDelay(rawDesignation!);
   const diameter = Number(diaS);
   const length = Number(lenS);
   const propKg = Number(propS);
@@ -79,7 +85,7 @@ export function parseEng(text: string): CustomMotor {
     }
     // ThrustCurveMotor refuses a negative thrust, and the bridge builds every
     // seated motor through it, so the file is refused here as desktop drops it.
-    if (f! < 0) throw new KeyedError('errors.motorFile.engNegativeThrust', { motor: designation!, line: i + 1 });
+    if (f! < 0) throw new KeyedError('errors.motorFile.engNegativeThrust', { motor: designation, line: i + 1 });
     samples.push({ time: t!, thrust: f! });
   }
   if (samples.length < 2) throw new KeyedError('errors.motorFile.engNoCurve');
@@ -87,7 +93,7 @@ export function parseEng(text: string): CustomMotor {
   const manufacturer = mfr.join(' ') || 'Custom';
   return {
     id: `custom:${manufacturer}:${designation}`,
-    designation: designation!,
+    designation,
     manufacturer,
     class: impulseClass(totalImpulse(samples)),
     diameter,

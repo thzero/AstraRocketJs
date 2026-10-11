@@ -17,7 +17,7 @@ describe('renderUserTemplate escapers', () => {
   const DEL = String.fromCharCode(127);
 
   it('escapes XML-family output', () => {
-    for (const ext of ['kml', 'gpx', 'xml']) {
+    for (const ext of ['kml', 'gpx', 'xml', 'html', 'htm', 'xhtml', 'svg', 'HTML']) {
       expect(render(ext, '<a & "b">'), ext).toBe('&lt;a &amp; &quot;b&quot;&gt;');
     }
   });

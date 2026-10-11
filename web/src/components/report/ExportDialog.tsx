@@ -198,9 +198,13 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
           // The run resolves rather than rejects on a failure, a refusal, a
           // timeout or a cancel, and leaves the previous numbers in place. Only a
           // landed run means the report has fresh data; anything else writes
-          // nothing, and the run has already said why in the error banner.
+          // nothing. A failure, a refusal and a busy pool say why in the error
+          // banner and a cancel is the user's own doing, but a flight dropped
+          // because the design changed under it says nothing, so it is said here.
           running.current = true;
-          if ((await runSim()) !== 'landed') return;
+          const outcome = await runSim();
+          if (outcome === 'dropped') useWorkspaceStore.getState().setErr(t('export.simDropped'));
+          if (outcome !== 'landed') return;
         } catch (e) {
           // Reported, not swallowed: swallowing writes the PDF with the
           // previous run's numbers, unmarked. The user asked for fresh data, so
@@ -513,7 +517,10 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
             </div>
             <div className="mt-4 flex justify-end gap-2">
               <button
-                onClick={() => update({ report: DEFAULT_REPORT })}
+                // Only what this popover shows. The report units are chosen in
+                // the dialog behind it, and a reset of the colors must not move
+                // them.
+                onClick={() => update({ report: { ...DEFAULT_REPORT, units: settings.report.units } })}
                 className="rounded-md bg-raised px-3 py-1.5 text-sm text-ink-soft ring-1 ring-line/10 hover:bg-elevated"
               >
                 {t('export.reset')}

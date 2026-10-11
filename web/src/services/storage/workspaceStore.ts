@@ -221,15 +221,42 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
    * only spends the localStorage budget. Cleared by `setActiveId`.
    */
   private conflicted = false;
+  /**
+   * The stamps this tab put on entries it has switched away from, by id, so a
+   * second queued save to one of them claims from the first one's write rather
+   * than reading that write as another tab's.
+   */
+  private detached = new Map<string, number>();
+  /**
+   * True while the unload journal found at boot is the only copy of its work:
+   * storage could not be read, so it was opened rather than replayed. This
+   * session's unload write would replace it, so it writes none until a save
+   * has stored the work as a design.
+   */
+  private journalHeld = false;
   /** This tab's name on the saves it makes (see `DesignMeta.writer`). */
   private readonly tab = freshTabId();
 
   async load(): Promise<Workspace | null> {
     const lib = getDesignLibrary();
-    this.activeId = await lib.activeId();
-
     // A journal is newer than anything stored, but only for its own design.
     const journal = readJournal();
+    try {
+      this.activeId = await lib.activeIdChecked();
+    } catch {
+      // Storage could not be read, which is not the same as nothing stored:
+      // every test below would read the journal as stale and drop the user's
+      // last unsaved work. Keep it, held against this session's unload write,
+      // and open its work detached so the next save stores it as a design.
+      // With no journal there is nothing to keep, and the session opens as it
+      // would on an empty library.
+      this.activeId = null;
+      const w = journal ? migrateWorkspace(journal.w) : null;
+      if (!w) return null;
+      this.journalHeld = true;
+      return this.trackResults(w);
+    }
+
     if (journal && journal.id && journal.id === this.activeId) {
       // A journal another tab's save has moved past (see `Journal`) is dropped
       // rather than replayed over the newer work.
@@ -270,16 +297,21 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
     // It belongs to "no design yet", so replay it by creating one.
     if (journal && journal.id === null && this.activeId === null) {
       const w = migrateWorkspace(journal.w);
-      clearJournal();
-      if (w) {
-        try {
-          const meta = await lib.create(nameFor(w), w, this.tab);
-          this.activeId = meta.id;
-          return this.trackResults(w);
-        } catch {
-          // Storage refused it; fall through to whatever is stored.
-        }
+      if (!w) {
+        clearJournal();
+        return await this.readActive(lib);
       }
+      try {
+        const meta = await lib.create(nameFor(w), w, this.tab);
+        clearJournal();
+        this.activeId = meta.id;
+        this.lastSeenAt = meta.updatedAt;
+      } catch {
+        // Storage refused it (full, the failure the journal exists for). The
+        // journal is the only copy, so it stays, and its work is what opens;
+        // the next save tries the create again.
+      }
+      return this.trackResults(w);
     }
     // A journal from a design that no longer exists is stale; drop it rather
     // than replaying it over whatever happens to be open now.
@@ -305,12 +337,16 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
    */
   private async readActive(lib: DesignLibrary): Promise<Workspace | null> {
     if (!this.activeId) return null;
+    // The stamp before the blob: a save in another tab claims the stamp before
+    // it writes the blob and stamps again after, so a stamp read first is never
+    // newer than the blob read after it (see `DesignLibrary.writeIfUnchanged`).
+    const seenAt = (await this.metaOf(this.activeId))?.updatedAt ?? null;
     const w = migrateWorkspace(await lib.read(this.activeId));
     if (!w) {
       this.activeId = null;
       throw new Error('unreadable-design');
     }
-    this.lastSeenAt = (await this.metaOf(this.activeId))?.updatedAt ?? null;
+    this.lastSeenAt = seenAt;
     return this.trackResults(withResults(w, await lib.readResults(this.activeId)));
   }
 
@@ -345,6 +381,7 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
 
   async save(w: Workspace): Promise<void> {
     const lib = getDesignLibrary();
+
     const gen = this.gen;
     const leanW = lean(w);
     // Wait out a create already in flight instead of starting a second one
@@ -366,18 +403,30 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
       this.pendingName = null;
       this.activeId = meta.id;
       this.lastSeenAt = meta.updatedAt;
+      this.journalHeld = false;
       await this.saveResults(lib, meta.id, w);
       return;
     }
     // The entry this workspace belongs to, as of the call: a switch while this
     // save waits its turn points the store at a design these bytes are not.
+    // The claim on it is taken now for the same reason: `setActiveId` clears
+    // `lastSeenAt` and `conflicted`, and read after a switch they would let a
+    // queued save write over the old entry unconditionally.
     const id = this.activeId;
-    const run = this.writing.then(() => this.writeEntry(lib, id, w, leanW, gen));
+    const claim = { seenAt: this.lastSeenAt, conflicted: this.conflicted };
+    const run = this.writing.then(() => this.writeEntry(lib, id, w, leanW, gen, claim));
     this.writing = run.catch(() => {});
     await run;
   }
 
-  private async writeEntry(lib: DesignLibrary, id: string, w: Workspace, leanW: Workspace, gen: number) {
+  private async writeEntry(
+    lib: DesignLibrary,
+    id: string,
+    w: Workspace,
+    leanW: Workspace,
+    gen: number,
+    claim: { seenAt: number | null; conflicted: boolean },
+  ) {
     // Another tab's work is not ours to throw away. Refuse rather than write
     // over an entry that has moved since this tab last saw it, and keep
     // refusing: this tab's design is still in front of the user, who can export
@@ -385,11 +434,23 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
     // the overwrite would name work that no longer exists to be rescued. The
     // compare is made inside the index write (`writeIfUnchanged`), so two tabs
     // cannot both pass it.
+    //
+    // A save queued before a switch runs against the claim it was made under,
+    // carried forward by any earlier queued save to the same entry (`detached`);
+    // a save the tab already knew was refused stays refused.
     const mine = gen === this.gen;
-    const res = await lib.writeIfUnchanged(id, nameFor(w), leanW, mine ? this.lastSeenAt : null, this.tab);
+    if (!mine && claim.conflicted) return;
+    const carried = this.detached.get(id);
+    const seenAt = mine
+      ? this.lastSeenAt
+      : carried != null && (claim.seenAt == null || carried > claim.seenAt)
+        ? carried
+        : claim.seenAt;
+    const res = await lib.writeIfUnchanged(id, nameFor(w), leanW, seenAt, this.tab);
     if (gen !== this.gen) {
       // The store has moved to another design, so nothing learned here is
       // about its entry. The flights still go with the design they belong to.
+      if (res.updatedAt != null) this.detached.set(id, res.updatedAt);
       if (res.status === 'ok') await lib.writeResults(id, resultsOf(w)).catch(() => false);
       return;
     }
@@ -438,6 +499,8 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
   saveSync(w: Workspace): void {
     // Another tab owns the newer copy (see `conflicted`).
     if (this.conflicted) return;
+    // The journal from boot is the only copy of earlier work (see `journalHeld`).
+    if (this.journalHeld) return;
     try {
       localStorage.setItem(
         UNLOAD_KEY,

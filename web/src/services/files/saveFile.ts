@@ -114,9 +114,24 @@ export async function saveBlob(blob: Blob, filename: string): Promise<void> {
   anchorDownload(blob, filename);
 }
 
+const BOM = String.fromCharCode(0xfeff);
+
+/**
+ * The text a file of type `mime` is saved with. A CSV starts with a UTF-8
+ * byte-order mark, because Excel on Windows opens a CSV without one in the
+ * ANSI code page and garbles every degree sign, superscript and accented name.
+ * The mark is added here, at the download, so every CSV builder's string (and
+ * anything that reads one back) stays free of it; the wind-profile reader
+ * strips one when a file brings it.
+ */
+function textForSave(text: string, mime: string): string {
+  const isCsv = mime.trim().toLowerCase().startsWith('text/csv');
+  return isCsv && !text.startsWith(BOM) ? BOM + text : text;
+}
+
 /** Save text as a file. */
 export async function saveText(text: string, filename: string, mime = 'text/plain;charset=utf-8'): Promise<void> {
-  await saveBlob(new Blob([text], { type: mime }), filename);
+  await saveBlob(new Blob([textForSave(text, mime)], { type: mime }), filename);
 }
 
 /**
@@ -128,7 +143,8 @@ export async function saveText(text: string, filename: string, mime = 'text/plai
  * caller from downloading a file named after its own contents.
  */
 export function download(filename: string, data: BlobPart, mime = 'text/plain;charset=utf-8'): void {
-  void saveBlob(data instanceof Blob ? data : new Blob([data], { type: mime }), filename);
+  const part = typeof data === 'string' ? textForSave(data, mime) : data;
+  void saveBlob(part instanceof Blob ? part : new Blob([part], { type: mime }), filename);
 }
 
 /**

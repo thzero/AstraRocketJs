@@ -69,10 +69,15 @@ export function FreeformFinEditor({
   // at the origin (setPoints translates the outline there) and snaps the last
   // onto the body (clampLastPoint), and removePoint refuses either one.
   const fixedEnd = (i: number) => i === 0 || i === last;
-  // Fin stays above the body (y ≥ 0) and forward of the origin (x ≥ 0).
+  // The fin stays above the body (y >= 0), and the root trailing edge stays on
+  // it at or aft of the origin. An interior point may sit forward of the origin:
+  // FreeformFinSet.setPoint does not bound x, and a swept-forward leading edge
+  // needs it.
   const setPoint = (i: number, x: number, y: number) => {
     if (i === 0) return;
-    onChange(pts.map((p, j) => (j === i ? ([Math.max(0, x), i === last ? 0 : Math.max(0, y)] as Pt) : p)));
+    onChange(
+      pts.map((p, j) => (j === i ? ([i === last ? Math.max(0, x) : x, i === last ? 0 : Math.max(0, y)] as Pt) : p)),
+    );
   };
 
   const onMove = (e: React.PointerEvent) => {

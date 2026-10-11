@@ -327,7 +327,9 @@ async function fetchSamplesCached(motor: TcMotor, cat: CatalogMotor): Promise<Tc
       motorIds: [motor.motorId],
       data: 'samples',
     });
-    const files = body.results ?? [];
+    // An answer whose `results` is not an array is treated as no data, the same
+    // as an empty one, rather than throwing on `find`.
+    const files = Array.isArray(body.results) ? body.results : [];
     // Prefer RASP data, fall back to any file with samples.
     const file = files.find((f) => f.format === 'RASP' && f.samples?.length) ?? files.find((f) => f.samples?.length);
     if (!file?.samples) {

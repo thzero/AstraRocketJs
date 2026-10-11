@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import { defaultToolSite, rememberedSlot, useRemembered } from './remembered';
 import { useTranslation } from 'react-i18next';
-import { fmtGroundDistance, useUnits } from '../../prefs/useUnits';
+import { fmtDegrees, fmtGroundDistance, useUnits } from '../../prefs/useUnits';
 import { useSettings } from '../../state/SettingsProvider';
 import { hourInZone, nextHourMs, todayYmd, ymdInZone } from '../../services/weather/openMeteo';
 import { readWeatherKey } from '../../services/weather/weatherKey';
@@ -257,7 +257,7 @@ export function LandingEstimator() {
                 {formatCoord(e.nominal.landingLatDeg, e.nominal.landingLonDeg, 5)}
               </TermRow>
               <TermRow label={t('landing.distance')}>{fmtM(e.nominal.distanceM)}</TermRow>
-              <TermRow label={t('landing.bearing')}>{`${Math.round(e.nominal.bearingDeg)}°`}</TermRow>
+              <TermRow label={t('landing.bearing')}>{fmtDegrees(u, e.nominal.bearingDeg)}</TermRow>
               <TermRow label={t('landing.descentTime')}>{minutesSeconds(e.nominal.timeS)}</TermRow>
               <TermRow label={t('landing.zone')}>
                 {e.ellipse

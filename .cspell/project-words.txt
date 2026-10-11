@@ -205,6 +205,7 @@ Guice
 haack
 haack's
 halfround
+halfwidth
 halvings
 haskids
 headingdeg
@@ -277,6 +278,7 @@ linestyle
 Lngs
 loadouts
 logback
+lowerstageseparation
 luma
 Maccoll
 macrotask
@@ -332,6 +334,7 @@ noninteractive
 nosetorootbottom
 nosetoroottop
 nosuchfinish
+Noto
 notsimulated
 nozzleexitdiameter
 NSEW
@@ -573,3 +576,4 @@ uncomputable
 octo
 Spherachutes
 Rocketman
+fullwidth

@@ -1,13 +1,7 @@
 import * as THREE from 'three';
 import { describe, it, expect } from 'vitest';
-import {
-  buildPieces,
-  exportCamera,
-  fitCameraToBox,
-  isFittableBox,
-  piecesBounds,
-  type Piece,
-} from '../../../src/components/canvas/Rocket3D';
+import { buildPieces, piecesBounds, type Piece } from '../../../src/components/canvas/rocketPieces';
+import { exportCamera, fitCameraToBox, isFittableBox } from '../../../src/components/canvas/rocketExportCamera';
 import { internalExtent } from '../../../src/tree/schematicGeometry';
 import { resolveDisc } from '../../../src/services/design/discGeometry';
 import { KERNEL_DEFAULTS } from '../../../src/tree/kernelDefaults';
@@ -433,6 +427,56 @@ describe('a chain part with no length key', () => {
  * frame, so the station of a part in its second tube still has to come out at
  * that offset (the kernel's station, pinned in axialAbsolute.kernel.test.ts).
  */
+describe('buildPieces rail buttons', () => {
+  const withButton = (angleOffset: number) =>
+    ({
+      name: 'Button',
+      components: [
+        {
+          type: 'stage',
+          name: 'S',
+          children: [
+            {
+              type: 'bodytube',
+              id: 'body',
+              length: 0.3,
+              outerRadius: 0.013,
+              children: [
+                {
+                  type: 'railbutton',
+                  id: 'rb',
+                  outerDiameter: 0.01,
+                  angleOffset,
+                  position: { method: 'top', offset: 0.1 },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    }) as unknown as RocketTree;
+
+  it('draws one, so selecting it highlights something', () => {
+    const [button] = byId(buildPieces(withButton(Math.PI)).pieces, 'rb');
+    expect(button).toBeDefined();
+    const e = extent(button!);
+    // Standing on the 13 mm surface, as wide and as tall as its 10 mm diameter.
+    expect(e.x0).toBeCloseTo(0.1, 6);
+    expect(e.x1).toBeCloseTo(0.11, 6);
+    expect(e.r1).toBeGreaterThan(0.013 + 0.01 - 1e-6);
+  });
+
+  it('stands at its radial mount angle', () => {
+    const center = (ang: number) => {
+      const [button] = byId(buildPieces(withButton(ang)).pieces, 'rb');
+      return button!.position!;
+    };
+    // y = R cos(angle), z = R sin(angle), with R the surface plus half the button.
+    expect(center(Math.PI)[1]).toBeCloseTo(-0.018, 6);
+    expect(center(Math.PI / 2)[2]).toBeCloseTo(0.018, 6);
+  });
+});
+
 describe('buildPieces absolute placement', () => {
   const podded = {
     name: 'Pod',

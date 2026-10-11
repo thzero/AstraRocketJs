@@ -77,13 +77,83 @@ describe('scaleRocket', () => {
     expect(nose['shapeParameter']).toBe(1); // dimensionless, unchanged
   });
 
-  it('scales a pinned mass by the cube for a solid part, the square for a canopy', () => {
+  it("scales a mass component's mass by the cube, and no other part's `mass`", () => {
     const out = scaleRocket(tree(), 2);
     const body = out.components[0]!.children![1]!;
     const massc = body.children!.find((c) => c.type === 'masscomponent')!;
     const chute = body.children!.find((c) => c.type === 'parachute')!;
-    expect(massc['mass']).toBeCloseTo(0.01 * 8); // k³
-    expect(chute['mass']).toBeCloseTo(0.008 * 4); // k² (fabric)
+    // MassComponentScaler: getComponentMass() * pow3(2).
+    expect(massc['mass']).toBeCloseTo(0.01 * 8, 15);
+    // A parachute has no component mass in desktop, so nothing scales the key.
+    expect(chute['mass']).toBe(0.008);
+  });
+
+  it("follows desktop's ScaleDialog where it leaves a value alone or cubes it", () => {
+    // ScaleDialog registers no scaler for a parachute's spill hole or for the
+    // instance separation of a ring or a lug (only RailButton's), skips a
+    // SymmetricComponent's Thickness while isFilled, and OverrideScaler sets
+    // getOverrideMass() * pow3(k) on every part, recovery gear included.
+    const k = 3;
+    const t: RocketTree = {
+      name: 'desktop rules',
+      components: [
+        {
+          type: 'stage',
+          id: 's',
+          children: [
+            { type: 'nosecone', id: 'n', length: 0.1, aftRadius: 0.012, thickness: 0.002, filled: true },
+            {
+              type: 'bodytube',
+              id: 'b',
+              length: 0.3,
+              outerRadius: 0.012,
+              thickness: 0.001,
+              children: [
+                {
+                  type: 'parachute',
+                  id: 'p',
+                  diameter: 0.4,
+                  spillHoleDiameter: 0.05,
+                  lineLength: 0.3,
+                  overrideMass: 0.02,
+                },
+                { type: 'streamer', id: 'st', stripLength: 0.4, stripWidth: 0.05, overrideMass: 0.01 },
+                { type: 'shockcord', id: 'sc', cordLength: 0.5, overrideMass: 0.004 },
+                { type: 'centeringring', id: 'c', length: 0.003, instanceCount: 2, instanceSeparation: 0.04 },
+                { type: 'bulkhead', id: 'bh', length: 0.005, instanceCount: 2, instanceSeparation: 0.03 },
+                {
+                  type: 'launchlug',
+                  id: 'l',
+                  length: 0.04,
+                  outerRadius: 0.0022,
+                  instanceCount: 2,
+                  instanceSeparation: 0.06,
+                },
+                { type: 'railbutton', id: 'r', outerDiameter: 0.01, instanceCount: 2, instanceSeparation: 0.1 },
+              ],
+            },
+          ],
+        },
+      ],
+    } as unknown as RocketTree;
+    const stage = scaleRocket(t, k).components[0]!;
+    const nose = stage.children![0]!;
+    const body = stage.children![1]!;
+    const byId = (id: string) => body.children!.find((c) => c.id === id)!;
+    expect(byId('p')['diameter']).toBeCloseTo(0.4 * k, 12);
+    expect(byId('p')['lineLength']).toBeCloseTo(0.3 * k, 12);
+    expect(byId('p')['spillHoleDiameter']).toBe(0.05);
+    expect(byId('p')['overrideMass']).toBeCloseTo(0.02 * k ** 3, 15);
+    expect(byId('st')['overrideMass']).toBeCloseTo(0.01 * k ** 3, 15);
+    expect(byId('sc')['overrideMass']).toBeCloseTo(0.004 * k ** 3, 15);
+    expect(byId('c')['instanceSeparation']).toBe(0.04);
+    expect(byId('bh')['instanceSeparation']).toBe(0.03);
+    expect(byId('l')['instanceSeparation']).toBe(0.06);
+    expect(byId('l')['length']).toBeCloseTo(0.04 * k, 12);
+    expect(byId('r')['instanceSeparation']).toBeCloseTo(0.1 * k, 12);
+    expect(nose['thickness']).toBe(0.002);
+    expect(nose['length']).toBeCloseTo(0.1 * k, 12);
+    expect(body['thickness']).toBeCloseTo(0.001 * k, 12);
   });
 
   it('scales a recovery device’s packed length, not just its canopy', () => {
@@ -157,6 +227,68 @@ describe('scaleRocket', () => {
     expect(lug['outerRadius']).toBeCloseTo(0.0044);
     expect(lug['thickness']).toBeCloseTo(0.0006);
     expect(lug['overrideMass']).toBeCloseTo(0.008);
+  });
+
+  it("scales the fields desktop's ScaleDialog scalers list: recovery radius, overhang, ring offsets, rail buttons", () => {
+    const t: RocketTree = {
+      name: 'scalers',
+      components: [
+        {
+          type: 'stage',
+          id: 's',
+          children: [
+            {
+              type: 'bodytube',
+              id: 'b',
+              length: 0.3,
+              outerRadius: 0.012,
+              motorOverhang: 0.01,
+              children: [
+                { type: 'parachute', id: 'p', radius: 0.008, radialPosition: 0.002 },
+                { type: 'streamer', id: 'st', radius: 0.006, radiusAuto: true },
+                { type: 'shockcord', id: 'sc', radius: 0.004 },
+                { type: 'innertube', id: 'i', outerRadius: 0.009, motorOverhang: 0.005 },
+                { type: 'centeringring', id: 'c', radialPosition: 0.001 },
+                { type: 'bulkhead', id: 'bh', radialPosition: 0.001 },
+                { type: 'tubecoupler', id: 'tc', radialPosition: 0.001 },
+                { type: 'engineblock', id: 'e', radialPosition: 0.001 },
+                {
+                  type: 'railbutton',
+                  id: 'r',
+                  outerDiameter: 0.01,
+                  innerDiameter: 0.006,
+                  height: 0.008,
+                  baseHeight: 0.002,
+                  flangeHeight: 0.0015,
+                  screwHeight: 0.003,
+                  overrideMass: 0.002,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    } as unknown as RocketTree;
+    const body = scaleRocket(t, 2).components[0]!.children![0]!;
+    const byId = (id: string) => body.children!.find((c) => c.id === id)!;
+    expect(body['motorOverhang']).toBeCloseTo(0.02, 12);
+    expect(byId('p')['radius']).toBeCloseTo(0.016, 12);
+    expect(byId('p')['radialPosition']).toBeCloseTo(0.004, 12);
+    // An automatic packed radius is the kernel's to resolve; desktop skips it.
+    expect(byId('st')['radius']).toBe(0.006);
+    expect(byId('sc')['radius']).toBeCloseTo(0.008, 12);
+    expect(byId('i')['motorOverhang']).toBeCloseTo(0.01, 12);
+    for (const id of ['c', 'bh', 'tc', 'e']) expect(byId(id)['radialPosition']).toBeCloseTo(0.002, 12);
+    const rb = byId('r');
+    expect(rb['outerDiameter']).toBeCloseTo(0.02, 12);
+    expect(rb['innerDiameter']).toBeCloseTo(0.012, 12);
+    expect(rb['height']).toBeCloseTo(0.016, 12);
+    expect(rb['baseHeight']).toBeCloseTo(0.004, 12);
+    expect(rb['flangeHeight']).toBeCloseTo(0.003, 12);
+    // RailButtonScaler leaves the screw out.
+    expect(rb['screwHeight']).toBe(0.003);
+    // OverrideScaler takes every override mass by the cube.
+    expect(rb['overrideMass']).toBeCloseTo(0.016, 12);
   });
 
   it('is a no-op at 1× and for invalid factors (same tree object)', () => {

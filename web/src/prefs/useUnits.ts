@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useSettings } from '../state/SettingsProvider';
 import { fmtNum, ladderDigits, withUnit } from '../i18n/format';
 import { NO_VALUE } from '../i18n/noValue';
-import { niceStep, siToUi, siToUiDelta, uiToSi, unitFor, type Quantity, type UnitSelection } from './units';
+import { degToRad, niceStep, siToUi, siToUiDelta, uiToSi, unitFor, type Quantity, type UnitSelection } from './units';
 import { siEntry } from './entryValue';
 
 /** Locale-aware formatting with a magnitude ladder when no precision is asked. */
@@ -103,6 +103,15 @@ export function groundDistanceNumber(fu: FieldUnit, m: number): string {
 /** {@link groundDistanceNumber} with the unit symbol. */
 export function fmtGroundDistance(fu: FieldUnit, m: number): string {
   return withUnit(groundDistanceNumber(fu, m), fu.sym);
+}
+
+/**
+ * An angle held in degrees (a bearing, a wind direction, a weathercock angle),
+ * in the reader's angle unit with its symbol. `degDigits` is the precision in
+ * degrees; radians take two more decimals, since a whole degree is 0.017 rad.
+ */
+export function fmtDegrees(u: Pick<Units, 'fmtSym' | 'sym'>, deg: number, degDigits = 0): string {
+  return u.fmtSym('angle', degToRad(deg), u.sym('angle') === '°' ? degDigits : degDigits + 2);
 }
 
 /**

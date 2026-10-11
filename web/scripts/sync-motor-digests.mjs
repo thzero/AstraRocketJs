@@ -39,11 +39,16 @@
 // Nothing here is part of the app build; this is a data step, run when the motor
 // catalog is refreshed. It never regenerates the catalog, only adds `digests` to
 // rows already in it.
-import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+//
+// It reads the catalog sync-motors staged (lib/catalogStaging.mjs), or, with
+// none staged, the catalog in public/data, and writes the finished catalog to
+// public/data.
+import { existsSync, readFileSync, rmSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { STAGED_MOTORS, writeFileAtomic } from './lib/catalogStaging.mjs';
 import { writeDataManifest } from './lib/dataManifest.mjs';
-import { motorProblems, PREVIOUS_MOTOR_DIGESTS } from './lib/digestCoverage.mjs';
+import { motorProblems } from './lib/digestCoverage.mjs';
 import { chooseBuild, runDumper } from './lib/openrocketJava.mjs';
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
@@ -153,18 +158,16 @@ function main() {
   console.log('dumping motors:');
   const index = dump(cp);
 
-  const catalog = JSON.parse(readFileSync(CATALOG, 'utf8'));
-  // sync-motors has just rewritten the catalog without digests, so the count to
-  // hold to is the one it left from the catalog before; run on its own, this
-  // step compares against the catalog as it finds it.
-  let before = catalog.filter((m) => m.digests).length;
-  if (existsSync(PREVIOUS_MOTOR_DIGESTS)) {
-    try {
-      before = Math.max(before, JSON.parse(readFileSync(PREVIOUS_MOTOR_DIGESTS, 'utf8')).digests ?? 0);
-    } finally {
-      rmSync(PREVIOUS_MOTOR_DIGESTS, { force: true });
-    }
-  }
+  // The finished catalog now in public/data is the one this run is held to.
+  const previous = existsSync(CATALOG) ? JSON.parse(readFileSync(CATALOG, 'utf8')) : null;
+  const staged = existsSync(STAGED_MOTORS);
+  const catalog = staged ? JSON.parse(readFileSync(STAGED_MOTORS, 'utf8')) : previous;
+  if (!catalog) throw new Error(`nothing to add digests to: no ${STAGED_MOTORS} and no ${CATALOG}`);
+  console.log(`catalog: ${staged ? 'staged by sync-motors' : CATALOG}`);
+  const before = Math.max(
+    catalog.filter((m) => m.digests).length,
+    Array.isArray(previous) ? previous.filter((m) => m.digests).length : 0,
+  );
   let hit = 0;
   let ambiguous = 0;
   for (const row of catalog) {
@@ -187,9 +190,10 @@ function main() {
   if (problems.length) throw new Error(`refusing to write: ${problems.join('; ')}. Nothing written.`);
   // Compact, as sync-motors writes it: browsers download this file and keep it
   // for offline use, and indentation would triple its size.
-  writeFileSync(CATALOG, `${JSON.stringify(catalog)}\n`);
+  writeFileAtomic(CATALOG, `${JSON.stringify(catalog)}\n`);
   // The catalog changed, so its cache-bust hash has to as well.
   writeDataManifest(dirname(CATALOG));
+  rmSync(STAGED_MOTORS, { force: true });
   console.log(
     `digests: ${hit} of ${catalog.length} catalog motors (was ${before}), ${ambiguous} needing the delay to choose`,
   );

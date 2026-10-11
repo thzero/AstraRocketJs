@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { confirm } from '../../state/confirmStore';
+import { fireAction } from '../../state/fireAction';
 import { MasterDetail, MasterRow, MasterStatus, useGuardedSelection } from '../common/MasterDetail';
 import { Dialog } from '../common/Dialog';
 import { fmtNum } from '../../i18n/format';
@@ -10,6 +11,7 @@ import { deleteCustomPart, type SavedPartEntry } from '../../services/parts/cust
 import type { Component } from '../../services/parts/componentDb';
 import { SavedPartEditor } from './SavedPartEditor';
 import { useSavedParts } from './useSavedParts';
+import { groupSavedParts } from './savedPartGroups';
 import { errorText } from '../../i18n/keyedError';
 
 /**
@@ -39,33 +41,12 @@ export function SavedPartsDialog({ onClose }: { onClose: () => void }) {
     selectedId,
     select: guardedSelect,
     settle,
+    close: guardedClose,
     onDirtyChange,
   } = useGuardedSelection(t('picker.savedDiscardConfirm'));
 
-  // Grouped by catalog type, each group's parts by name. The order of the
-  // groups is fixed rather than first-seen, so the list does not rearrange
-  // itself as parts are added and removed.
-  const groups = useMemo(() => {
-    if (!entries) return [];
-    const order = ['nosecone', 'bodytube', 'tubecoupler', 'centeringring', 'bulkhead', 'parachute'];
-    const by = new Map<string, SavedPartEntry[]>();
-    for (const e of entries) {
-      if (!by.has(e.part.type)) by.set(e.part.type, []);
-      by.get(e.part.type)!.push(e);
-    }
-    return [...by.entries()]
-      .sort((a, b) => {
-        const ai = order.indexOf(a[0]);
-        const bi = order.indexOf(b[0]);
-        // A type the app no longer knows sorts last rather than first, which
-        // is what indexOf's -1 would otherwise do.
-        return (ai < 0 ? order.length : ai) - (bi < 0 ? order.length : bi);
-      })
-      .map(([type, list]) => ({
-        type,
-        list: [...list].sort((a, b) => a.part.partNo.localeCompare(b.part.partNo)),
-      }));
-  }, [entries]);
+  // Grouped by catalog type in a fixed order (see savedPartGroups).
+  const groups = useMemo(() => (entries ? groupSavedParts(entries) : []), [entries]);
 
   // Resolved from the list rather than held as its own copy, so a save (which
   // refreshes the list under this pane) leaves the detail showing the stored
@@ -102,7 +83,7 @@ export function SavedPartsDialog({ onClose }: { onClose: () => void }) {
     <Dialog
       id="savedParts"
       title={t('picker.savedManage')}
-      onClose={onClose}
+      onClose={() => fireAction(guardedClose(onClose))}
       size="4xl"
       // List beside detail, each scrolling itself and reaching the panel's
       // edges: the body takes the height and does its own padding.

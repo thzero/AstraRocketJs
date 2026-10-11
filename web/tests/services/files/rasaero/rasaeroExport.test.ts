@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import type { RocketTree } from '../../../../src/engine/openRocketEngine';
-import { exportCdx1, rasaeroSurface, RASAERO_SURFACE_DEFAULT } from '../../../../src/services/files/rasaeroExport';
+import { exportCdx1 } from '../../../../src/services/files/rasaeroExport';
+import { rasaeroSurface, RASAERO_SURFACE_DEFAULT } from '../../../../src/services/files/rasaero/surface';
 
 // A 1-inch-diameter rocket with clean-inch geometry so the meter→inch (×39.37)
 // conversions land on round numbers the assertions can pin exactly.
@@ -248,5 +249,62 @@ describe('a trapezoid fin with no sweep key', () => {
     delete fin['sweep'];
     const out = exportCdx1({ tree: bare, name: 'bare', launchMassKg: 0.45, launchCgM: 0.127 });
     expect(out).toContain(`<SweepDistance>${(0.02 * 39.37).toFixed(4).replace(/0+$/, '')}</SweepDistance>`);
+  });
+});
+
+/**
+ * The sustainer order rules the desktop's RocketDesignDTO enforces: a nose cone
+ * first and nowhere else, never flipped, then a body tube or a closing
+ * transition; a single-stage rocket's closing transition is a boat tail.
+ */
+describe('sustainer part order', () => {
+  const nose = { type: 'nosecone', id: 'nc', name: 'Nose', length: 0.1, aftRadius: 0.0127, shape: 'ogive' };
+  const tube = { type: 'bodytube', id: 'bt', name: 'Body', length: 0.254, outerRadius: 0.0127 };
+  const tail = {
+    type: 'transition',
+    id: 'tr',
+    name: 'Tail',
+    length: 0.03,
+    foreRadius: 0.0127,
+    aftRadius: 0.009,
+    shape: 'conical',
+  };
+  const one = (children: Record<string, unknown>[]): RocketTree =>
+    ({ components: [{ type: 'stage', children }] }) as unknown as RocketTree;
+
+  it('refuses a chain that does not start with a nose cone', () => {
+    expect(() => exportCdx1({ tree: one([tube, nose]), name: 'x' })).toThrow(/start with a nose cone.*Body/);
+  });
+
+  it('refuses a second nose cone further down', () => {
+    const tailCone = { ...nose, id: 'nc2', name: 'Tail cone' };
+    expect(() => exportCdx1({ tree: one([nose, tube, tailCone]), name: 'x' })).toThrow(
+      /only as the first part.*Tail cone/,
+    );
+  });
+
+  it('refuses a flipped nose cone', () => {
+    expect(() => exportCdx1({ tree: one([{ ...nose, flipped: true }, tube]), name: 'x' })).toThrow(
+      /flipped nose cones.*Nose/,
+    );
+  });
+
+  it('refuses a transition second unless it closes the chain', () => {
+    expect(() => exportCdx1({ tree: one([nose, tail, tube]), name: 'x' })).toThrow(/right after the nose cone.*Tail/);
+    expect(() => exportCdx1({ tree: one([nose, tail]), name: 'x' })).not.toThrow();
+  });
+
+  it("writes a single-stage rocket's closing transition as a boat tail", () => {
+    const xml = exportCdx1({ tree: one([nose, tube, tail]), name: 'x' });
+    expect(xml).toContain('<BoatTail>\n<PartType>BoatTail</PartType>');
+    expect(xml).not.toContain('<Transition>');
+  });
+
+  it("writes a transition's <Diameter> from its aft radius, as desktop's BasePartDTO does", () => {
+    const xml = exportCdx1({ tree: one([nose, tube, tail]), name: 'x' });
+    const part = /<BoatTail>[\s\S]*?<\/BoatTail>/.exec(xml)![0];
+    // aftRadius 0.009 m: 0.018 m across, 0.708661 in; the fore radius would be 1 in.
+    expect(part).toContain('<Diameter>0.7087</Diameter>');
+    expect(part).toContain('<RearDiameter>0.7087</RearDiameter>');
   });
 });

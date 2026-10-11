@@ -6,7 +6,7 @@ import { unitScope } from '../../prefs/units';
 import type { FlightResult } from '../../engine/api';
 import { forwardFlightEnd, maxQ, maxQAlpha, maxRollRate, seriesAt } from '../../services/flight/flightEvents';
 import { distanceFromPad, landingPoint } from '../../services/flight/groundTrack';
-import { stabilityTone } from '../../services/flight/simReport';
+import { railVerdictKey, stabilityTone } from '../../services/flight/simReport';
 import { useSettings } from '../../state/SettingsProvider';
 import { confirm } from '../../state/confirmStore';
 import { useHelpStore } from '../../state/helpStore';
@@ -258,9 +258,7 @@ export function SimSummary({ sim }: { sim: FlightResult | null }) {
               )
             }
             tone={stabilityTone(railMargin)}
-            status={t(
-              railMargin >= 1 ? 'stability.stable' : railMargin >= 0 ? 'stability.marginal' : 'stability.unstable',
-            )}
+            status={t(railVerdictKey(railMargin))}
           />
         )}
         {s.optimumDelay != null && <Stat card label={t('sim.optDelay')} value={fmtNum(s.optimumDelay, 1)} sub="s" />}

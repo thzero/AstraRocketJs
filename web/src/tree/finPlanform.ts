@@ -8,17 +8,6 @@ import { isPlanarFinSet } from './tubefins';
 import { FIN_DEFAULTS, KERNEL_BODYTUBE_OUTER_RADIUS } from './kernelDefaults';
 
 /**
- * Re-exported for convenience. The value itself lives in `kernelDefaults.ts`,
- * the one table verified against the real engine.
- *
- * `FIN_DEFAULTS` is deliberately not re-exported. A consumer that wants fin
- * dimensions takes them from `kernelDefaults`; what it gets from here is a
- * planform, so it never assembles its own trapezoid or elliptical arc from
- * dimensions.
- */
-export { KERNEL_BODYTUBE_OUTER_RADIUS };
-
-/**
  * The fin planform. One source of truth for every consumer that draws, prints,
  * cuts or exports a fin: the 3D view, the 2D schematic, the PDF template and
  * side view, the DXF writer and the solid-mesh exporter.

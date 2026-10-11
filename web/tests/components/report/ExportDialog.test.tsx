@@ -15,7 +15,7 @@ const downloadReportPdf = vi.hoisted(() => vi.fn());
 vi.mock('../../../src/services/report/reportPdf', () => ({ downloadReportPdf }));
 
 import { ExportDialog } from '../../../src/components/report/ExportDialog';
-import { renderWithProviders } from '../../testing/renderWithProviders';
+import { readSettings, renderWithProviders, seedSettings } from '../../testing/renderWithProviders';
 import { useWorkspaceStore } from '../../../src/state/store';
 import type { ReportModel } from '../../../src/services/report/reportModel';
 
@@ -291,5 +291,41 @@ describe('ExportDialog print settings labels', () => {
     const fill = screen.getByRole('checkbox', { name: 'Template fill color' });
     expect(fill.closest('label')).toBeNull();
     expect(screen.getByLabelText('Choose the fill color').getAttribute('type')).toBe('color');
+  });
+});
+
+/**
+ * A flight dropped because the design changed under it writes nothing, and the
+ * run itself says nothing about it, so the dialog does.
+ */
+describe('ExportDialog dropped run', () => {
+  it('says why no PDF was written', async () => {
+    useWorkspaceStore.setState({ runSim: async () => 'dropped', err: null } as never);
+    open();
+    fireEvent.click(screen.getByRole('button', { name: 'Save as PDF' }));
+    await waitFor(() => expect(useWorkspaceStore.getState().err).toMatch(/design changed/));
+    expect(downloadReportPdf).not.toHaveBeenCalled();
+  });
+});
+
+/** The popover's Reset covers what the popover shows, and not the report units. */
+describe('ExportDialog print settings reset', () => {
+  it('leaves the report units alone', () => {
+    seedSettings({
+      report: {
+        units: 'metric',
+        templateFill: '#ff0000',
+        templateStroke: '#00ff00',
+        paper: 'a4',
+        orientation: 'landscape',
+      },
+    } as never);
+    open();
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Reset' }));
+    const report = readSettings()['report'] as Record<string, string>;
+    expect(report['units']).toBe('metric');
+    expect(report['paper']).toBe('letter');
+    expect(report['templateFill']).toBe('');
   });
 });

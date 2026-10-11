@@ -41,6 +41,7 @@
       "archiveEmpty": "El archivo comprimido .ork está vacío.",
       "tooManyComponents": "Este {{format}} declara demasiados componentes para abrirlo (posiblemente esté dañado).",
       "tooManySimulations": "Este .ork declara demasiadas simulaciones para abrirlo (posiblemente esté dañado).",
+      "tooManyConfigs": "Este .ork declara demasiadas configuraciones de vuelo para abrirlo (posiblemente esté dañado).",
       "tooDeep": "Este {{format}} tiene un anidamiento demasiado profundo para abrirlo (posiblemente esté dañado).",
       "tooLarge": "El archivo es demasiado grande para abrirlo (más de {{size}} MiB)."
     },
@@ -57,7 +58,11 @@
       "noseShape": "RASAero no tiene la forma de ojiva «{{shape}}». Usa cónica, ojival, elipsoide, Haack o potencia, o exporta como .ork.",
       "transitionShape": "Las transiciones de RASAero deben ser cónicas. Cambia la forma o exporta como .ork.",
       "noPods": "RASAero no tiene cápsulas, así que «{{name}}» no se puede exportar. Quítala o exporta como .ork.",
-      "noParallel": "RASAero no tiene etapas paralelas (laterales), así que «{{name}}» no se puede exportar. Quítala o exporta como .ork."
+      "noParallel": "RASAero no tiene etapas paralelas (laterales), así que «{{name}}» no se puede exportar. Quítala o exporta como .ork.",
+      "noseFirst": "Los diseños de RASAero empiezan con una ojiva, pero la primera pieza de la etapa superior es «{{name}}». Pon la ojiva primero o exporta como .ork.",
+      "secondPart": "RASAero necesita un tubo de cuerpo justo después de la ojiva, o una cola de bote como última pieza, así que «{{name}}» no puede ir ahí. Cambia el orden o exporta como .ork.",
+      "noseNotFirst": "RASAero solo admite una ojiva como primera pieza, así que «{{name}}» no se puede exportar. Usa una transición o exporta como .ork.",
+      "noseFlipped": "RASAero no tiene ojivas invertidas, así que «{{name}}» no se puede exportar. Usa una transición o exporta como .ork."
     },
     "motorFile": {
       "engNoData": "No es un archivo .eng válido (no se encontraron datos del motor).",
@@ -130,6 +135,7 @@
     "openOrk": "No se pudo abrir el .ork: {{reason}}",
     "openExample": "No se pudo abrir ese ejemplo: {{reason}}",
     "saveOrk": "No se pudo guardar el .ork: {{reason}}",
+    "saveOrkNoDesignInfo": "Se guardó el .ork sin la información de diseño: el diseño no se pudo construir, así que no había estadísticas que incluir.",
     "exportRasaero": "No se pudo exportar a RASAero: {{reason}}",
     "exportUnsupported": "Este componente no se puede exportar como {{format}}.",
     "exportFailed": "No se pudo exportar {{format}}: {{reason}}",
@@ -247,6 +253,7 @@
     "fitFrame": "Ajustar el cohete al encuadre",
     "fitFrameHint": "Acerca la cámara para que el cohete llene la imagen exportada: se mantiene el ángulo de visión, solo cambia el encuadre",
     "simFailed": "La simulación falló, así que no se generó el PDF: {{message}}",
+    "simDropped": "El diseño cambió mientras se ejecutaba la simulación, así que no se generó el PDF. Vuelve a guardar el PDF para simular el diseño actual.",
     "pdfFailed": "No se pudo exportar el PDF: {{message}}",
     "csvFailed": "No se pudo exportar el CSV: {{message}}",
     "reportFailed": "No se pudo generar el informe del diseño: {{message}}",
@@ -256,7 +263,8 @@
     "headerSpan": "envergadura {{value}}",
     "headerLaunchMass": "Masa al despegue {{mass}} (en vacío {{dry}})",
     "headerDryMass": "Masa en vacío {{dry}}, sin motores cargados",
-    "headerBalance": "CG {{cg}}, CP {{cp}} desde la punta de la ojiva, margen {{margin}} cal"
+    "headerBalance": "CG {{cg}}, CP {{cp}} desde la punta de la ojiva, margen {{margin}} cal",
+    "headerCg": "CG {{cg}} desde la punta de la ojiva"
   },
   "engine": {
     "wasmTip": "Motor de física: WebAssembly (ruta rápida)",
@@ -469,6 +477,7 @@
       "daylight": "Luz de día (alto contraste)"
     },
     "resetTab": "Restablecer {{name}}",
+    "resetTabConfirm": "¿Restablecer {{name}} a sus valores predeterminados? Lo que hayas introducido ahí se reemplazará y no se puede deshacer.",
     "resetAll": "Restablecer todo",
     "resetAllConfirm": "¿Restablecer todos los ajustes de todas las pestañas a sus valores predeterminados? Incluye los valores de lanzamiento, las unidades y los ajustes de simulación, y no se puede deshacer.",
     "resetOneFor": "Restablecer color predeterminado de {{name}}",
@@ -665,6 +674,7 @@
     "timeout": "La simulación tardó demasiado y se detuvo. Inténtalo de nuevo o simplifica el diseño.",
     "busy": "Ya hay una simulación en curso. Espera a que termine, o cancélala, e inténtalo de nuevo.",
     "warnings": "Advertencias de vuelo ({{count}})",
+    "warningHigh": "Grave:",
     "runMany": "Ejecutar {{count}} simulaciones",
     "safetyTitle": "Antes de volar",
     "safetyLead": "Son estimaciones del modelo, no una hoja de vuelo.",
@@ -720,7 +730,6 @@
     "FILE_INVALID_PARAMETER": "Parámetro no válido en el archivo",
     "LISTENERS_AFFECTED": "Los listeners de simulación alteraron el resultado",
     "OBJ_ZERO_THICKNESS": "Geometría de espesor cero en la exportación",
-    "LargeAOA": "Ángulo de ataque grande",
     "LargeAOA.str1": "Ángulo de ataque grande",
     "LargeAOA.str2": "Ángulo de ataque grande"
   },
@@ -862,6 +871,7 @@
     "Cdb": "Coeficiente de rozamiento base",
     "Cda": "Coeficiente de rozamiento axial",
     "Cn": "Coeficiente de rozamiento normal",
+    "CNα": "Derivada del coeficiente de fuerza normal (CNα)",
     "Cθ": "Coeficiente del momento del cabeceo",
     "CτΨ": "Coeficiente del momento de guiñada",
     "Cτs": "Coeficiente de la fuerza lateral",
@@ -1061,7 +1071,7 @@
       "device": "Dispositivo",
       "flightPath": "trayectoria de vuelo",
       "groundTrack": "traza en el suelo",
-      "distanceBearing": "{{distance}} {{unit}} a {{bearing}}°",
+      "distanceBearing": "{{distance}} {{unit}} a {{bearing}}",
       "stageLanding": "Aterrizaje de {{stage}}"
     },
     "mission": "Misión",
@@ -1149,7 +1159,7 @@
     "versionMissing": "Versión de documento no compatible, se intentará leer el archivo de todos modos.",
     "ignored": "Se ignoraron componentes no compatibles: {{names}}.",
     "skippedUnsupported": "Omitido por no ser compatible: {{name}}",
-    "instanced": "Componentes que se repiten en varias instancias: {{names}}. El archivo conserva todas las instancias, pero el dibujo y la simulación muestran por ahora solo una.",
+    "instanced": "Componentes que se repiten en varias instancias: {{names}}. La simulación cuenta todas las instancias, pero el dibujo muestra por ahora solo una.",
     "configsNoMotors": "El archivo declara {{total}} configuraciones de vuelo, pero no traía motores que importar.",
     "strayConfigs": "El archivo tiene {{total}} configuraciones de vuelo. Solo se importó la primera.",
     "appearances": "Ajustes de apariencia de piezas en el archivo: {{total}}. Aquí no se usan (esta aplicación solo dibuja el color de la pieza), pero se conservan, así que al guardar se mantienen.",
@@ -1235,8 +1245,6 @@
     "motorTag": "motor",
     "noComponents": "Sin componentes.",
     "add": "＋ Añadir",
-    "addTo": "＋ Añadir a {{parent}}…",
-    "nothingToAdd": "＋ Nada que añadir aquí",
     "canHost": "Añadir una pieza a {{parent}}",
     "cantHost": "{{parent}} no puede contener subpiezas",
     "fins": "{{count}} aletas",
@@ -1472,6 +1480,7 @@
     "fit": "Ajustar a la vista",
     "aftAria": "Vista trasera — el cohete visto desde atrás; arrastra para rotar, rueda para zoom",
     "sideAria": "Vista lateral del cohete con marcadores de CG y CP; rueda para zoom, arrastra el fondo para mover",
+    "panHint": "Las flechas desplazan la vista ampliada; con Mayús, en pasos más grandes",
     "caliperH": "Manija del calibrador horizontal {{end}}",
     "caliperV": "Manija del calibrador vertical {{end}}"
   },
@@ -1527,6 +1536,8 @@
     "select": "Seleccionar {{name}}",
     "combine": "Combinar ({{n}})",
     "compareN": "Comparar ({{n}})",
+    "combineChartAria": "Curva de empuje combinada de {{names}}, con la curva de cada motor",
+    "compareChartAria": "Curvas de empuje de {{names}}",
     "compareTitle": "Comparar",
     "back": "Volver a la lista",
     "clear": "Limpiar",
@@ -1535,7 +1546,6 @@
     "noCurveTip": "Sin curva de empuje — no se puede comparar ni combinar.",
     "compareDesc": "Superpone sus curvas de empuje y compara especificaciones lado a lado.",
     "combineDesc": "Súmalos en un clúster: una curva de empuje combinada + impulso total.",
-    "clearSel": "Limpiar selección",
     "combined": "Clúster combinado",
     "cluster": "Clúster de {{n}} motores",
     "total": "Total combinado",
@@ -1665,6 +1675,7 @@
     "missingField": "Este campo es obligatorio y está vacío. La simulación no puede ejecutarse hasta rellenarlo.",
     "resetToDefault": "Restablecer valores predeterminados",
     "saveAsDefault": "Guardar como predeterminado",
+    "saveAsDefaultMixed": "Las simulaciones marcadas usan opciones distintas, así que no hay un único conjunto que guardar. Marca una para guardar sus opciones como predeterminadas.",
     "optionsHint": "Vacío sigue el ajuste global (Ajustes › Simulación).",
     "selectAll": "Seleccionar todas las simulaciones",
     "selectOne": "Seleccionar {{name}}",
@@ -1681,7 +1692,6 @@
   },
   "motorDlg": {
     "title": "Seleccionar motor",
-    "manufacturer": "Fabricante",
     "allManufacturers": "Todos los fabricantes",
     "mfrCount": "{{n}} fabricantes",
     "diameter": "Diámetro",
@@ -1733,6 +1743,7 @@
     "chartThrust": "curva de empuje",
     "chartAvg": "empuje medio",
     "chartBurn": "tiempo de comb.",
+    "chartAria": "Empuje frente al tiempo. Pico {{peak}}, medio {{avg}}, tiempo de combustión {{burn}} s.",
     "calcNote": "* El empuje inicial, el Isp y la fracción de masa se calculan a partir de la curva de empuje y los pesos."
   },
   "lang": {
@@ -1769,6 +1780,7 @@
   },
   "storage": {
     "full": "No se pudo guardar tu trabajo: el almacenamiento del navegador está lleno. Exporta tu diseño para conservarlo.",
+    "writeRefused": "No se pudo guardar: el navegador rechazó almacenarlo. Su almacenamiento puede estar lleno o bloqueado.",
     "degraded": "Tu navegador está bloqueando su base de datos, así que la aplicación ha recurrido a un área de almacenamiento mucho más pequeña (unos 5 MB) y el guardado puede fallar a medida que crezca tu diseño. La navegación privada suele ser la causa. Exporta lo que quieras conservar.",
     "loadFailed": "No se pudo leer el diseño guardado. Se empieza de cero; el trabajo nuevo sí se guardará.",
     "conflict": "Este diseño se modificó en otra pestaña, por lo que tus cambios aquí no se están guardando. Expórtalos para conservarlos, o vuelve a abrir el diseño en Mis cohetes para cargar la versión de la otra pestaña."
@@ -1813,11 +1825,8 @@
     "RECOVERY_LAUNCH_ROD_rod": "Un sistema de recuperación se abrió con el cohete aún en la varilla. Revisa el retardo de eyección y los ajustes de despliegue: tal como se simula, el vuelo termina en la plataforma.",
     "RECOVERY_DROGUE_NO_MAIN": "Se abre un piloto pero no hay principal, así que el cohete desciende todo el camino solo con el piloto. Es un aterrizaje rápido salvo que el piloto esté dimensionado para ello.",
     "NO_RECOVERY_DEVICE": "No se despliega nada, así que el cohete cae balísticamente y la velocidad de aterrizaje de abajo es la del impacto.",
-    "LargeAOA": "El cohete voló con un ángulo de ataque fuera del rango válido del método Barrowman, así que los valores aerodinámicos en ese punto son aproximados. Habitual con viento fuerte o tras una salida lenta de la guía.",
     "LargeAOA.str1": "El cohete voló con un ángulo de ataque fuera del rango válido del método Barrowman, así que los valores aerodinámicos en ese punto son aproximados. Habitual con viento fuerte o tras una salida lenta de la guía.",
     "LargeAOA.str2": "El cohete voló con un ángulo de ataque fuera del rango válido del método Barrowman, así que los valores aerodinámicos en ese punto son aproximados. Habitual con viento fuerte o tras una salida lenta de la guía.",
-    "LargeAOA_rail": "El cohete voló con un ángulo de ataque fuera del rango válido del método Barrowman, así que los valores aerodinámicos en ese punto son aproximados. Habitual con viento fuerte o tras una salida lenta del raíl.",
-    "LargeAOA_rod": "El cohete voló con un ángulo de ataque fuera del rango válido del método Barrowman, así que los valores aerodinámicos en ese punto son aproximados. Habitual con viento fuerte o tras una salida lenta de la varilla.",
     "LargeAOA.str1_rail": "El cohete voló con un ángulo de ataque fuera del rango válido del método Barrowman, así que los valores aerodinámicos en ese punto son aproximados. Habitual con viento fuerte o tras una salida lenta del raíl.",
     "LargeAOA.str1_rod": "El cohete voló con un ángulo de ataque fuera del rango válido del método Barrowman, así que los valores aerodinámicos en ese punto son aproximados. Habitual con viento fuerte o tras una salida lenta de la varilla.",
     "LargeAOA.str2_rail": "El cohete voló con un ángulo de ataque fuera del rango válido del método Barrowman, así que los valores aerodinámicos en ese punto son aproximados. Habitual con viento fuerte o tras una salida lenta del raíl.",
@@ -1917,9 +1926,6 @@
     "discardConfirm": "¿Descartar los cambios de este lugar?",
     "back": "Volver a la lista",
     "use": "Usar",
-    "useMany_one": "Usar en {{count}} simulación",
-    "useMany_many": "Usar en {{count}} simulaciones",
-    "useMany_other": "Usar en {{count}} simulaciones",
     "applyNeedsSave": "Guarda o descarta los cambios antes de usar este lugar."
   },
   "map": {
@@ -2000,7 +2006,7 @@
     "visibility": "Visibilidad",
     "forecastNote": "Un pronóstico es una estimación de un modelo, no una medición.",
     "credit": "Datos meteorológicos de Open-Meteo.com",
-    "windValue": "{{speed}} desde {{from}}°, ráfagas {{gust}}, perfil hasta {{top}}",
+    "windValue": "{{speed}} desde {{from}}, ráfagas {{gust}}, perfil hasta {{top}}",
     "atmosphereValue": "Perfil hasta {{top}}",
     "group": {
       "temperature": "Temperatura",
@@ -2068,6 +2074,7 @@
       "flyHoursNote": "Vuela este diseño con el pronóstico de cada hora, desde dos antes hasta dos después, tal como está ahora el pronóstico.",
       "outdated": "Este resultado está desactualizado. Vuelve a ejecutar la simulación para volar las horas del pronóstico con el cohete y el sitio actuales.",
       "hour": "Hora",
+      "flownHour": "(este vuelo)",
       "noForecast": "Rellena las condiciones de lanzamiento con Obtener el tiempo… para ver cómo se mueve el aterrizaje en las horas alrededor del pronóstico.",
       "overWind": "No volado: viento por encima del límite de seguridad",
       "overRodAngle": "No volado: ángulo de lanzamiento por encima del límite de seguridad",
@@ -2155,10 +2162,10 @@
     "railNeeded": "Raíl para {{speed}}",
     "weathercock": "Ángulo de veleteo",
     "weathercockGust": "Ángulo de veleteo con las rachas",
-    "maxWind": "Viento máximo por debajo de {{angle}}°",
+    "maxWind": "Viento máximo por debajo de {{angle}}",
     "maxDryMass": "Cohete más pesado sin el motor",
     "none": "Ninguno",
-    "rules": "En ámbar: una relación empuje-peso media por debajo de {{ratio}} : 1, una salida del raíl por debajo de {{speed}} (el mínimo de Ajustes) o un ángulo de veleteo por encima de {{angle}}°. El cohete más pesado cumple los dos primeros.",
+    "rules": "En ámbar: una relación empuje-peso media por debajo de {{ratio}} : 1, una salida del raíl por debajo de {{speed}} (el mínimo de Ajustes) o un ángulo de veleteo por encima de {{angle}}. El cohete más pesado cumple los dos primeros.",
     "estimateNote": "Una estimación: sin arrastre, sin rozamiento en el raíl y con el raíl vertical, así que la salida real es algo más lenta."
   },
   "stageName": {

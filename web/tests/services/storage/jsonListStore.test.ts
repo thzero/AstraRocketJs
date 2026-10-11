@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { JsonListStore, parseJsonList } from '../../../src/services/storage/jsonListStore';
+import { JsonListStore, listWriteErrorText, parseJsonList } from '../../../src/services/storage/jsonListStore';
+import { KeyedError } from '../../../src/i18n/keyedError';
+import i18n from '../../../src/i18n';
 import type { KeyValueStore } from '../../../src/services/storage/keyValueStore';
 import { KeyValueTemplateStore } from '../../../src/services/exports/templateStore';
 import { KeyValuePresetStore } from '../../../src/services/parts/presetStore';
@@ -110,6 +112,20 @@ describe('JsonListStore', () => {
     const store = make(kv);
     await expect(store.upsert([{ id: 'a', n: 1 }])).rejects.toThrow('storage-full');
     await expect(store.remove('a')).rejects.toThrow('storage-full');
+  });
+
+  it('shows a refused write in words, never as its token', async () => {
+    const kv = new FakeKv();
+    kv.refuse = true;
+    const err = await make(kv)
+      .upsert([{ id: 'a', n: 1 }])
+      .catch((e: unknown) => e);
+    const t = (k: string, v?: Record<string, string | number>) => i18n.t(k, v);
+    expect(listWriteErrorText(err, t)).toBe(i18n.t('storage.writeRefused'));
+    expect(listWriteErrorText(err, t)).not.toContain('storage-full');
+    // Anything else reads as errorText gives it.
+    expect(listWriteErrorText(new KeyedError('storage.full'), t)).toBe(i18n.t('storage.full'));
+    expect(listWriteErrorText(new Error('other'), t)).toBe('other');
   });
 
   it('lists as empty when the storage layer rejects the read', async () => {

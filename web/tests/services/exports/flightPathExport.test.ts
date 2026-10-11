@@ -981,9 +981,24 @@ describe('export language', () => {
   });
 
   it('orders a distance and a bearing the way the language does', () => {
-    const expected = fill(esDoc.distanceBearing, { distance: '223.6', unit: 'm', bearing: '27' });
+    const expected = fill(esDoc.distanceBearing, { distance: '223.6', unit: 'm', bearing: '27°' });
     expect(spanish()).toContain(expected);
     expect(renderKml(model())).toContain('223.6 m at 27\u00b0');
+  });
+
+  it("writes the bearing in the reader's angle unit", () => {
+    const inRadians = buildFlightPathModel(
+      result,
+      launch,
+      { simName: 'Sim 1', rocketName: 'My <Rocket>', motorName: 'C6' },
+      defaultExportOptions(),
+      label,
+      'rad',
+    );
+    // atan2(100, 200) is 26.57 degrees, 0.4636 rad.
+    const kml = renderKml(inRadians);
+    expect(kml).toContain('223.6 m at 0.46 rad');
+    expect(kml).not.toContain('223.6 m at 27');
   });
 
   it('leaves the numbers and the geometry alone', () => {

@@ -83,10 +83,11 @@ export function SchematicControls({
               }
             }}
           >
-            ⬇ SVG
+            <span aria-hidden>⬇</span> SVG
           </button>
           <ImageExportMenu
-            label={`⬇ ${t('export.image')}`}
+            icon="⬇"
+            label={t('export.image')}
             title={t('export.imageTitle2d')}
             onPick={async (format, widthPx) => {
               if (!svgRef.current) return;
@@ -126,7 +127,7 @@ export function SchematicControls({
       </button>
       {(zoom.k > 1 || zoom.x !== 0 || zoom.y !== 0) && (
         <button className="file-btn" title={t('schematic.fit')} onClick={() => setZoom(ZOOM_IDENTITY)}>
-          ⤢ {t('schematic.fit')}
+          <span aria-hidden>⤢</span> {t('schematic.fit')}
         </button>
       )}
       <button

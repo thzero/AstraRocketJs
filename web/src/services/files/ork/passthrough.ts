@@ -1,3 +1,4 @@
+// cspell:ignore randomseed recoveryspeedwarning droguelowspeedwarning Lowspeedwarning recoverydroguemainhighspeedwarning recoverydroguemainlowspeedwarning -- OpenRocket .ork element names
 import type { ComponentNode, RocketTree } from '../../../engine/openRocketEngine';
 
 /**
@@ -198,6 +199,59 @@ export const KNOWN_SIMULATION_TAGS: ReadonlySet<string> = new Set([
   'conditions',
   'flightdata',
 ]);
+
+/**
+ * Children of a simulation's `<conditions>` that our own reader or writer
+ * handles, lower case. The writer states the run's time step, time limit and
+ * recovery warning thresholds from the simulation preferences, so a file's own
+ * are not carried beside them.
+ *
+ * The rest are carried: the stepper choice and the drag and stability lookup
+ * tables have no counterpart here, and `randomseed` is written back as the file
+ * had it unless the preferences fix a seed of their own.
+ */
+export const KNOWN_CONDITIONS_TAGS: ReadonlySet<string> = new Set([
+  'configid',
+  'launchrodlength',
+  'launchintowind',
+  'launchrodangle',
+  'launchroddirection',
+  'windaverage',
+  'windturbulence',
+  'winddirection',
+  'wind',
+  'windmodeltype',
+  'launchaltitude',
+  'launchlatitude',
+  'launchlongitude',
+  'geodeticmethod',
+  'atmosphere',
+  'launchrelativehumidity',
+  'gravity',
+  'gravitymodel',
+  'constantgravity',
+  'weathersource',
+  'timestep',
+  'maxtime',
+  'recoveryspeedwarning',
+  'droguelowspeedwarning',
+  'recoverydroguemainhighspeedwarning',
+  'recoverydroguemainlowspeedwarning',
+]);
+
+/**
+ * A carried `<conditions>` child rides in the simulation's passthrough list
+ * wrapped in its own `<conditions>` element, so the writer can put it back
+ * inside the conditions it writes rather than beside them.
+ */
+export const wrapConditionsChild = (raw: string): string => `<conditions>${raw}</conditions>`;
+
+/** The child a {@link wrapConditionsChild} entry carries, or null for any other entry. */
+export function unwrapConditionsChild(raw: string): string | null {
+  const open = '<conditions>';
+  const close = '</conditions>';
+  return raw.startsWith(open) && raw.endsWith(close) ? raw.slice(open.length, -close.length) : null;
+}
 
 /** The node key the raw XML rides on. Not a `FIELDS` entry, so never editable. */
 export const EXTRA_KEY = 'xmlExtra';

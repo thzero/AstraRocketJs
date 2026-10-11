@@ -11,9 +11,8 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { writeDataManifest } from './lib/dataManifest.mjs';
+import { STAGED_MOTORS } from './lib/catalogStaging.mjs';
 import { collidingRowKeys } from './lib/motorRowKey.mjs';
-import { motorCoverage, PREVIOUS_MOTOR_DIGESTS } from './lib/digestCoverage.mjs';
 
 const API = 'https://www.thrustcurve.org/api/v1';
 // public/data is served as-is (not bundled) so the catalog can be refreshed
@@ -31,6 +30,8 @@ async function post(path, body) {
   return res.json();
 }
 
+/** Code-unit order, which no locale changes. */
+const cmp = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
 const round = (n, d) => (Number.isFinite(n) ? Number(n.toFixed(d)) : 0);
 const chunk = (arr, size) =>
   Array.from({ length: Math.ceil(arr.length / size) }, (_, i) => arr.slice(i * size, i * size + size));
@@ -230,25 +231,29 @@ async function main() {
       }
       return row;
     })
-    .sort((a, b) => a.impulse - b.impulse || a.designation.localeCompare(b.designation));
+    // Ties broken down to the row key (lib/motorRowKey.mjs), which assertSane
+    // holds unique, so the order never depends on the order the API returned:
+    // a reordered response would otherwise change the file and its manifest hash
+    // with no motor changed.
+    .sort(
+      (a, b) =>
+        a.impulse - b.impulse ||
+        a.designation.localeCompare(b.designation) ||
+        cmp(a.manufacturer, b.manufacturer) ||
+        a.diameter - b.diameter ||
+        cmp(a.code ?? '', b.code ?? '') ||
+        cmp(a.designation, b.designation),
+    );
 
   const withCurves = catalog.filter((m) => m.curves).length;
   const noCurve = catalog.filter((m) => m.noCurve);
   await assertSane(catalog, withCurves);
-  // This rewrite drops every digest, which sync-motor-digests adds back. Leave
-  // it the count the previous catalog had, so its guard compares against that
-  // and not against the zero it finds here.
-  try {
-    const prev = JSON.parse(await readFile(OUT, 'utf8'));
-    if (Array.isArray(prev)) await writeFile(PREVIOUS_MOTOR_DIGESTS, JSON.stringify(motorCoverage(prev)));
-  } catch {
-    // No readable previous catalog: the digest step falls back to its floor.
-  }
-  await writeFile(OUT, JSON.stringify(catalog, null, 0) + '\n');
-  writeDataManifest(DATA_DIR); // refresh the cache-bust hashes
-  console.log(
-    `\nWrote ${catalog.length} motors (${withCurves} with bundled curves) → public/data/motors.generated.json`,
-  );
+  // Staged, not written to public/data: these rows have no digests yet, and
+  // sync-motor-digests adds them and writes the finished catalog
+  // (lib/catalogStaging.mjs).
+  await writeFile(STAGED_MOTORS, JSON.stringify(catalog) + '\n');
+  console.log(`\nStaged ${catalog.length} motors (${withCurves} with bundled curves) in ${STAGED_MOTORS}`);
+  console.log('Run `npm run sync:motor-digests` to add their digests and write public/data/motors.generated.json.');
   if (noCurve.length) {
     console.log(`  ${noCurve.length} have NO bundled thrust curve (flagged noCurve):`);
     console.log(`    ${noCurve.map((m) => `${m.manufacturer} ${m.designation}`).join(', ')}`);

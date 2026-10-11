@@ -846,12 +846,12 @@ final class ComponentFactory {
     }
 
     // The string-to-enum readers below take every name of the upstream enum,
-    // case- and underscore-insensitive (the desktop writes them lowercased, as
-    // `lower_stage_separation`), and refuse anything else. Defaulting an unknown
-    // name would silently change the rocket: `crossSection:"diamond"` would fly
-    // square fins, `shape:"bogus"` an ogive nose (moving CP), `method:"nonsense"`
-    // would put the part at the top. An absent key still takes its default, at
-    // the call site.
+    // case- and underscore-insensitive (the desktop writes them lowercased with
+    // the underscores dropped, as `lowerstageseparation`), and refuse anything
+    // else. Defaulting an unknown name would silently change the rocket:
+    // `crossSection:"diamond"` would fly square fins, `shape:"bogus"` an ogive
+    // nose (moving CP), `method:"nonsense"` would put the part at the top. An
+    // absent key still takes its default, at the call site.
     private static String enumKey(String name) {
         return name.toLowerCase().replace("_", "");
     }

@@ -13,6 +13,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { delimiter, join } from 'node:path';
+import { checkJar } from './openrocketRelease.mjs';
 
 /** The Gradle-cached jars a `--or` checkout needs, by artifact name. */
 const JARS = [
@@ -81,9 +82,10 @@ function cachedJars() {
 /**
  * The installed OpenRocket, when neither flag is given.
  *
- * The usual case is a release install, and its jar is the build whose digests a
- * reader's desktop will compare against. Checked rather than assumed: a path
- * that is not there is skipped, and finding none is reported by the caller.
+ * The usual case is a release install. The jar found is checked against the
+ * pinned release where it is used (lib/openrocketRelease.mjs), because an
+ * install of another release gives digests the desktop rejects. A path that is
+ * not there is skipped, and finding none is reported by the caller.
  */
 export function installedJar() {
   const roots = [
@@ -108,6 +110,7 @@ function classpath(orDir, jar) {
   // and the databases.
   if (jar) {
     if (!existsSync(jar)) throw new Error(`no such jar: ${jar}`);
+    checkJar(jar);
     return jar;
   }
   const main = join(orDir, 'core/build/classes/java/main');

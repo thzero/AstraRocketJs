@@ -183,9 +183,13 @@ function simplify(input: FinPoint[]): FinPoint[] {
  * `simplify` is a triply nested scan over whatever it is given, on the main
  * thread, with no progress and nothing to cancel.
  *
- * 1200 px is far finer than any fin outline carries: `FLATNESS` is 0.8 mm and one
- * pixel is one millimeter, so a fin traced at this size still resolves detail
- * below the tolerance the simplifier works to.
+ * The cost is detail. The trace and the simplifier work on the reduced image, so
+ * an image reduced by a factor `f` keeps no feature smaller than `f` pixels of the
+ * original, and `FLATNESS` holds to `0.8 f` mm once the points are scaled back: a
+ * 4000 px photo (f = 4) traces at about 3 mm, coarser than the desktop's full
+ * resolution trace. Scaling the tolerance down instead would keep the reduced
+ * image's pixel staircase on every slanted edge as hundreds of points. An image
+ * at or under 1200 px traces at full resolution, as on the desktop.
  */
 const MAX_TRACE_EDGE = 1200;
 

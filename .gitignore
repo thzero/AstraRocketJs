@@ -10,6 +10,9 @@ web/node_modules/
 web/openrocket-database/
 web/dist/
 *.local
+# TypeScript incremental build state: the typecheck runs `tsc --noEmit` and
+# reads none, and an editor that writes one would make it a diff on every run.
+*.tsbuildinfo
 
 # Docusaurus (website) — build output, caches and generated locale files
 website/node_modules/

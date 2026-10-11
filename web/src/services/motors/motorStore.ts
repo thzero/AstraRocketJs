@@ -142,9 +142,16 @@ function isCustomMotor(v: unknown): v is CustomMotor {
     isThrustSampleArray(m.samples) &&
     isMassArray(m.massesG, m.samples.length) &&
     // The launch CG lies within the motor, as ThrustCurveMotor requires.
-    (m.cgMm === undefined || (Number.isFinite(m.cgMm) && m.cgMm >= 0 && m.cgMm <= m.length))
+    (m.cgMm === undefined || (Number.isFinite(m.cgMm) && m.cgMm >= 0 && m.cgMm <= m.length)) &&
+    // `parseDelays` splits the delay list, and the picker reads the type as one
+    // of three; a stored row with either malformed would take the picker down.
+    (m.delayList === undefined || typeof m.delayList === 'string') &&
+    (m.type === undefined || MOTOR_TYPES.has(m.type)) &&
+    (m.source === undefined || m.source === 'eng' || m.source === 'rse')
   );
 }
+
+const MOTOR_TYPES: ReadonlySet<unknown> = new Set(['SU', 'reload', 'hybrid']);
 
 /**
  * The per-sample mass column of a `.rse` motor: absent, or one finite

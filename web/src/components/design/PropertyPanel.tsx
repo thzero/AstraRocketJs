@@ -400,9 +400,7 @@ export function PropertyPanel({
 
       {/* Appearance is second to last on every part, directly above Overrides.
           A stage has no color of its own, so it has no Appearance section. */}
-      {node.type !== 'stage' && (
-        <AppearanceSection node={node} onChange={onChange} onCommit={onCommit} onCommitChange={commitChange} />
-      )}
+      {node.type !== 'stage' && <AppearanceSection node={node} onCommitChange={commitChange} />}
 
       {/* The tree-shape actions: Convert to freeform, the three Splits and the
           cluster's Reset. Above Overrides, because they are still about the part

@@ -83,3 +83,57 @@ describe('the 3D legend matches its markers', () => {
     expect(text).not.toMatch(/#2b6cff|#aab2bd|#e34948/);
   });
 });
+
+describe('the 2D roll slider is heard in the unit it shows', () => {
+  it('carries the formatted angle as its value text', () => {
+    // The slider steps in whole degrees; without a value text a screen reader
+    // reads that raw number while the readout beside it is in radians.
+    const text = src('components/canvas/CenterCanvas.tsx');
+    expect(text).toContain('aria-valuetext={shown}');
+  });
+});
+
+/**
+ * A decorative glyph on a button stays out of its accessible name, or a screen
+ * reader says "downwards arrow SVG". Each one sits in an aria-hidden span, and
+ * the image menu takes its glyph as an icon rather than in the label.
+ */
+describe('button glyphs are not part of the name', () => {
+  it.each([
+    ['components/canvas/SchematicControls.tsx', ['⬇ SVG', '`⬇ ', '⤢ {']],
+    ['components/canvas/Rocket3D.tsx', ['`📷 ']],
+    ['components/canvas/FlightPathExport.tsx', ['⬇ {']],
+    ['components/sim/FlightEventsTable.tsx', ['⬇ CSV']],
+  ])('%s', (file, bare) => {
+    const text = src(file);
+    for (const b of bare) expect(text).not.toContain(b);
+    expect(text).toMatch(/<span aria-hidden>[⬇⤢]<\/span>|icon="📷"/);
+  });
+});
+
+/**
+ * An angle held in degrees (a bearing, a wind direction, a weathercock angle)
+ * prints in the reader's angle unit, the way the flight chart's angle of attack
+ * and the wind direction field do.
+ */
+describe('degree readouts follow the angle unit', () => {
+  it.each([
+    'components/sim/WeatherDialog.tsx',
+    'components/tools/LandingEstimator.tsx',
+    'components/tools/OffTheRail.tsx',
+    'components/canvas/EnvironmentLanding.tsx',
+    'components/canvas/EnvironmentView.tsx',
+    'components/canvas/GroundTrack.tsx',
+    'components/canvas/DriftSweepPanel.tsx',
+  ])('%s', (file) => {
+    const text = src(file);
+    expect(text).toContain('fmtDegrees(u, ');
+    expect(text).not.toMatch(/\)\}°`|\}°`|\)}°/);
+  });
+
+  it('leaves no degree sign in the strings those readouts fill', () => {
+    const en = src('i18n/locales/en.json');
+    expect(en).not.toContain('{{from}}°');
+    expect(en).not.toContain('{{angle}}°');
+  });
+});

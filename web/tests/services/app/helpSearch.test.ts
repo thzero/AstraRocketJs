@@ -226,6 +226,12 @@ describe('splitHighlight', () => {
   it('folds to the same length it was given', () => {
     // The one property everything above depends on.
     for (const s of ['Kármán', 'ANGSTROM', 'plain']) expect(fold(s)).toHaveLength(s.length);
+    // An astral character is two UTF-16 units and stays two, so the indexes
+    // after it still point at the same characters of the original.
+    const rocket = String.fromCodePoint(0x1f680);
+    const text = `Launch ${rocket} Kármán line`;
+    expect(fold(text)).toHaveLength(text.length);
+    expect(text.slice(fold(text).indexOf('karman'), fold(text).indexOf('karman') + 6)).toBe('Kármán');
   });
 });
 
