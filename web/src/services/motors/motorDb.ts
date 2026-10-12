@@ -11,7 +11,9 @@ import { getMotorStore, type CustomMotor } from './motorStore';
 import { MIN_CURVE_SAMPLES } from './motorCurve';
 import { parseEng, totalImpulse } from './engParser';
 import { parseRse } from './rseParser';
-import { motorFitsMount, offersPlugged, type MountFit } from './motorPicker';
+import { finalizeCurve } from './curveFinalize';
+import { impulseClass } from './motorCombine';
+import { motorFitsMount, offersPlugged, parseDelays, type MountFit } from './motorPicker';
 import { fetchCatalog } from '../app/remoteData';
 import { PLUGGED_DELAY } from '../../engine/openRocketEngine';
 import { keyOf } from './motorKey';
@@ -103,13 +105,18 @@ export function hasCurve(m: CatalogMotor): boolean {
 
 /** Project a stored custom motor down to a catalog row for the picker. */
 function customToRow(cm: CustomMotor): CatalogMotor {
-  const last = cm.samples[cm.samples.length - 1];
+  // The figures come off the finalized curve, which is what the kernel flies:
+  // a motor stored from its file's raw samples may lack the t = 0 point or
+  // list its times out of order.
+  const samples = finalizeCurve(cm.samples);
+  const last = samples[samples.length - 1];
+  const impulse = totalImpulse(samples);
   return {
     designation: cm.designation,
     manufacturer: cm.manufacturer,
-    class: cm.class,
+    class: impulseClass(impulse),
     diameter: cm.diameter,
-    impulse: totalImpulse(cm.samples),
+    impulse,
     burn: last ? last.time : 0,
     mass: cm.totalWeightG,
     custom: true,
@@ -188,7 +195,7 @@ const isDigestEntry = (v: unknown): boolean => {
 const isCatalog = (v: unknown): boolean => Array.isArray(v) && v.some(isCatalogMotor);
 
 export async function loadCatalog(): Promise<CatalogMotor[]> {
-  // The 700 kB+ catalog is a runtime file under public/data (see remoteData.ts),
+  // The ~1.4 MB catalog is a runtime file under public/data (see remoteData.ts),
   // fetched only when something first needs it (e.g. the motor picker opens)
   // rather than weighing down the initial app bundle, and refreshable without
   // rebuilding the app.
@@ -241,11 +248,38 @@ export async function importCustomMotors(
   }
   // Nothing read at all: the parser's own message says what is wrong with it.
   if (motors.length === 0 && firstError) throw firstError;
+  const merged = mergeByDelay(motors);
   // One write for every file. A `.rse` engine database is a manufacturer's
   // entire range, and a write per motor would re-parse the stored array every
   // time and could stop half way with no way to say where.
-  await getMotorStore().addCustomMotors(motors);
-  return { catalog: await loadCatalog(), imported: motors.length, failed };
+  await getMotorStore().addCustomMotors(merged);
+  return { catalog: await loadCatalog(), imported: merged.length, failed };
+}
+
+/**
+ * One motor per id, its delays the union of every block that shares it.
+ *
+ * The id drops the delay, so a file with C6-3, C6-5 and C6-7 blocks is one
+ * motor, as desktop's `ThrustCurveMotorSet` groups it, and that motor offers
+ * every delay the blocks list. The last block supplies everything else, as a
+ * repeated id does in the store. Order follows each id's first block.
+ */
+function mergeByDelay(motors: readonly CustomMotor[]): CustomMotor[] {
+  const byId = new Map<string, CustomMotor>();
+  for (const m of motors) {
+    const prev = byId.get(m.id);
+    byId.set(m.id, prev ? { ...m, delayList: unionDelays(prev.delayList, m.delayList) } : m);
+  }
+  return [...byId.values()];
+}
+
+/** Two stored delay lists as one: numbers ascending, then `P` when either is plugged. */
+function unionDelays(a: string | undefined, b: string | undefined): string | undefined {
+  const pa = parseDelays(a);
+  const pb = parseDelays(b);
+  const parts = [...new Set([...pa.delays, ...pb.delays])].sort((x, y) => x - y).map(String);
+  if (pa.plugged || pb.plugged) parts.push('P');
+  return parts.length ? parts.join(',') : undefined;
 }
 
 /** Remove an imported motor and return the refreshed catalog. */

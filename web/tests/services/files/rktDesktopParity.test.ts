@@ -645,3 +645,71 @@ describe('a part goes where its container puts it', () => {
     expect(noteTexts(res.notes).some((t) => t.includes('Parachute') && t.includes('Stage'))).toBe(true);
   });
 });
+
+/**
+ * `TransitionHandler` extends `BaseHandler`, not `PositionDependentHandler`, so
+ * desktop never reads a transition's `Xb` or `LocationMode`: the transition
+ * sits where the body chain puts it, whatever the file says.
+ */
+describe('a transition', () => {
+  it('takes no placement from the file', () => {
+    const t = find(
+      parts(
+        `<NoseCone><Name>N</Name><Len>100</Len><BaseDia>24</BaseDia></NoseCone>
+        <Transition><Name>T</Name><Len>40</Len><FrontDia>24</FrontDia><RearDia>18</RearDia>
+        <ShapeCode>0</ShapeCode><Xb>50</Xb><LocationMode>1</LocationMode></Transition>`,
+      ),
+      'T',
+    );
+    expect(t.position).toBeUndefined();
+  });
+
+  /** A new `Transition` is conical and a new `NoseCone` an ogive; neither handler sets a shape the file leaves out. */
+  it('with no ShapeCode is conical, where a nose cone with none is an ogive', () => {
+    const read2 = parts(
+      `<NoseCone><Name>N</Name><Len>100</Len><BaseDia>24</BaseDia></NoseCone>
+      <Transition><Name>T</Name><Len>40</Len><FrontDia>24</FrontDia><RearDia>18</RearDia></Transition>`,
+    );
+    expect(find(read2, 'T')['shape']).toBe('conical');
+    expect(find(read2, 'N')['shape']).toBe('ogive');
+  });
+});
+
+/** `RingHandler.endHandler` converts usage codes 1, 2 and 4 and leaves the rest, a sleeve (3) included, the centering ring it started as. */
+it('reads a sleeve ring as a centering ring', () => {
+  const ring = find(
+    parts(
+      `<BodyTube><Name>Air</Name><Len>300</Len><OD>24</OD><ID>23</ID><AttachedParts>
+      <Ring><Name>Sleeve</Name><UsageCode>3</UsageCode><Len>20</Len><OD>26</OD><ID>24</ID></Ring>
+      </AttachedParts></BodyTube>`,
+    ),
+    'Sleeve',
+  );
+  expect(ring.type).toBe('centeringring');
+});
+
+/** The same `else`: a usage code past the five RockSim defines is a centering ring too, not the last of them. */
+it('reads a ring with an unknown usage code as a centering ring', () => {
+  const ring = find(
+    parts(
+      `<BodyTube><Name>Air</Name><Len>300</Len><OD>24</OD><ID>23</ID><AttachedParts>
+      <Ring><Name>Odd</Name><UsageCode>7</UsageCode><Len>20</Len><OD>23</OD><ID>18</ID></Ring>
+      </AttachedParts></BodyTube>`,
+    ),
+    'Odd',
+  );
+  expect(ring.type).toBe('centeringring');
+});
+
+/** `ParachuteHandler` keeps a chute with no shroud lines (`Math.max(0, n)`). */
+it('reads a parachute with no shroud lines as none', () => {
+  const chute = find(
+    parts(
+      `<BodyTube><Name>Air</Name><Len>300</Len><OD>24</OD><ID>23</ID><AttachedParts>
+      <Parachute><Name>Chute</Name><Dia>300</Dia><ShroudLineCount>0</ShroudLineCount></Parachute>
+      </AttachedParts></BodyTube>`,
+    ),
+    'Chute',
+  );
+  expect(chute['lineCount']).toBe(0);
+});

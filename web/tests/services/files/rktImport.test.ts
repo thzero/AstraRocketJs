@@ -224,7 +224,7 @@ describe('importRkt', () => {
     expect(fins['sweep']).toBeCloseTo(0.025, 9);
     expect(fins['thickness']).toBeCloseTo(0.0032, 9);
     expect(fins['cant']).toBeCloseTo((1.5 * Math.PI) / 180, 12);
-    expect(fins['angleOffset']).toBeCloseTo(Math.PI / 6, 12);
+    expect(fins['rotation']).toBeCloseTo(Math.PI / 6, 12);
     expect(fins['tabLength']).toBeCloseTo(0.04, 9);
     expect(fins['tabHeight']).toBeCloseTo(0.005, 9);
     expect(fins['tabOffset']).toBeCloseTo(0.01, 9);

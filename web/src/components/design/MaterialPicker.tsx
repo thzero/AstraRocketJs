@@ -13,6 +13,7 @@ import { NumberInput } from '../common/NumberInput';
 import { useUnits } from '../../prefs/useUnits';
 import { unitScope, type Quantity } from '../../prefs/units';
 import { errorText } from '../../i18n/keyedError';
+import { withUnit } from '../../i18n/format';
 import { listWriteErrorText } from '../../services/storage/jsonListStore';
 import { useAsyncLoad } from '../common/useAsyncLoad';
 import { useLatest } from '../common/useLatest';
@@ -263,12 +264,12 @@ export function MaterialPicker({
           <optgroup label={t('material.thisPart')}>
             <option value={own.name}>
               {own.name}
-              {own.density ? ` · ${density(own.density)} ${fu.sym}` : ''}
+              {own.density ? ` · ${withUnit(density(own.density), fu.sym)}` : ''}
             </option>
           </optgroup>
         )}
         {groups.map(([g, list]) => (
-          <optgroup key={g} label={g}>
+          <optgroup key={g} label={groupLabel(t, g)}>
             {list.map((m) => (
               <option key={`${g}:${m.name}`} value={m.name}>
                 {m.custom ? '★ ' : ''}
@@ -304,7 +305,7 @@ export function MaterialPicker({
             >
               {groupsOf(mats).map((g) => (
                 <option key={g} value={g}>
-                  {g}
+                  {groupLabel(t, g)}
                 </option>
               ))}
             </select>
@@ -343,4 +344,13 @@ export function MaterialPicker({
       )}
     </div>
   );
+}
+
+/**
+ * A material group as the reader's language names it, as desktop translates
+ * `MaterialGroup`. The stored value stays the catalog's English name; a group
+ * the locale has no name for, such as one a user typed, shows as it is.
+ */
+function groupLabel(t: (key: string, opts?: Record<string, unknown>) => string, group: string): string {
+  return t(`material.groups.${group}`, { defaultValue: group });
 }

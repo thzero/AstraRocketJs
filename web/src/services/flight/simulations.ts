@@ -91,9 +91,10 @@ export interface Simulation {
    * Simulation). Unset keys fall through to the global value, so a workspace
    * that never sets one flies on the globals.
    *
-   * These ride on the workspace autosave, not the `.ork`: the `.ork` reader and
-   * writer (`ork/importSimulations.ts`, `ork/exportSimulation.ts`) do not carry
-   * them, so a round trip through `.ork` drops them.
+   * The `.ork` carries the ones desktop keeps per simulation (time step, maximum
+   * time and the four recovery warnings): the writer puts the simulation's own
+   * settings in its conditions, and the reader brings a file's back as overrides
+   * where they differ from the globals. The rest ride on the workspace autosave.
    */
   prefs?: Partial<SimPrefs>;
 }

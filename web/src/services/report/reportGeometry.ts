@@ -11,8 +11,8 @@ import {
   type FinParent,
 } from '../../tree/finPlanform';
 import { nodeShape, outerProfile, profileEnds } from '../../tree/shapeProfile';
-// From the tree module: a service must not reach into a canvas component for
-// half its geometry. `schematicGeometry.axialStart` is the same formula.
+// From `tree/position`, the one home of the axial placement formula;
+// `tree/schematicGeometry` re-exports the same `axialStart`.
 import { axialChain, axialStart, partLength } from '../../tree/position';
 import {
   assemblyChainLength,

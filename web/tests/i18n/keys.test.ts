@@ -275,6 +275,28 @@ const DYNAMIC_FAMILIES: { prefix: string; values: readonly string[] }[] = [
   // the key is read from the kernel's message ("[Warning.LargeAOA.str2] ...")
   { prefix: 'warn.', values: KERNEL_WARNINGS },
   { prefix: 'warnHelp.', values: KERNEL_WARNINGS },
+  // t(`material.groups.${group}`) - MaterialPicker group headings: desktop's
+  // MaterialGroup names, the catalog's Paper and Adhesives, and Custom.
+  {
+    prefix: 'material.groups.',
+    values: [
+      'Metals',
+      'Woods',
+      'Plastics',
+      'Fabrics',
+      'Paper',
+      'PaperProducts',
+      'Foams',
+      'Composites',
+      'Fibers',
+      'Elastics',
+      'Kevlars',
+      'Nylons',
+      'Other',
+      'Custom',
+      'Adhesives',
+    ],
+  },
 ];
 
 const DYNAMIC_KEYS = new Set(DYNAMIC_FAMILIES.flatMap((f) => f.values.map((v) => f.prefix + v)));

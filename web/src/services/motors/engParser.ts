@@ -15,7 +15,7 @@ import type { CustomMotor } from './motorStore';
 import { impulseClass } from './motorCombine';
 import { trapezoidImpulse } from './motorMath';
 import { removeDelay } from './rseParser';
-import { MAX_CURVE_SAMPLES } from './curveFinalize';
+import { MAX_CURVE_SAMPLES, finalizeCurve } from './curveFinalize';
 import { delayList } from './motorPicker';
 import { KeyedError } from '../../i18n/keyedError';
 
@@ -101,7 +101,7 @@ function parseMotor(lines: readonly Line[], at: number): { motor: CustomMotor; n
   // The one line that legitimately ends the block is the next motor's header,
   // which is why its 7 fields are the only non-data line that stops rather than
   // throws (comments and blanks are already gone).
-  const samples: { time: number; thrust: number }[] = [];
+  const raw: { time: number; thrust: number }[] = [];
   let i = at + 1;
   for (; i < lines.length; i++) {
     const line = lines[i]!;
@@ -119,11 +119,15 @@ function parseMotor(lines: readonly Line[], at: number): { motor: CustomMotor; n
     if (t! < 0) throw new KeyedError('errors.motorFile.engNegativeTime', { motor: designation, line: line.no });
     // The ceiling `.rse` is held to, counted as the lines are read so a huge
     // file is refused before its samples are all in memory.
-    if (samples.length >= MAX_CURVE_SAMPLES) {
+    if (raw.length >= MAX_CURVE_SAMPLES) {
       throw new KeyedError('errors.motorFile.engTooManyPoints', { motor: designation, max: MAX_CURVE_SAMPLES });
     }
-    samples.push({ time: t!, thrust: f! });
+    raw.push({ time: t!, thrust: f! });
   }
+  // Finalized before anything is read from it, as desktop's RASPMotorLoader
+  // and the .rse reader do: a curve that opens at (0.05 s, 40 N) gains its
+  // ramp from zero, and the impulse, class and burn time count it.
+  const samples = finalizeCurve(raw);
   if (samples.length < 2) throw new KeyedError('errors.motorFile.engNoCurve');
 
   const manufacturer = mfr.join(' ') || 'Custom';

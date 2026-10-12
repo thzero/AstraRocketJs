@@ -3,7 +3,7 @@ title: "Preguntas frecuentes"
 sidebar_position: 4
 ---
 ### ¿Esto es OpenRocket? {#is-this-openrocket}
-No: es una aplicación independiente que **ejecuta el motor de física de OpenRocket** en el navegador. Cubre lo esencial con una interfaz ligera y adaptada a móviles, y lee y escribe los mismos archivos `.ork`. No está afiliada al proyecto OpenRocket.
+No: es una aplicación independiente que **ejecuta el motor de física de OpenRocket** en el navegador. Cubre lo esencial, funciona en un teléfono igual que en un ordenador, y lee y escribe los mismos archivos `.ork`. No está afiliada al proyecto OpenRocket.
 
 ### ¿Necesito instalar algo? {#do-i-need-to-install-anything}
 No. Es una aplicación web: abre la URL en un navegador moderno. Sin JDK, sin descargas.
@@ -23,8 +23,8 @@ Sí. Cualquier pieza con un cuerpo sólido real lleva un botón **⬇** en el á
 ### ¿Mis unidades aparecen en OpenRocket de escritorio? {#do-my-unit-choices-show-up-in-desktop-openrocket}
 No. Las unidades viven en los ajustes de tu navegador, no en el `.ork`: el archivo no tiene dónde guardarlas, y OpenRocket de escritorio mantiene las suyas en sus preferencias. Tu archivo se abre allí con las unidades de OpenRocket y aquí con las tuyas; el cohete es el mismo en ambos casos. Por la misma razón, tus unidades no te siguen a otro ordenador ni a otro navegador. Consulta **[Ajustes](./settings.md#units)**.
 
-### ¿Por qué la estabilidad es distinta «en la rampa» y «al salir del raíl»? {#why-is-the-stability-different-on-the-pad-vs-at-rail-exit}
-Cuando el cohete abandona la varilla o el raíl ya pesa algo menos (ha quemado algo de propelente) y su CG se ha desplazado, así que su margen de estabilidad difiere del valor en la rampa con el cohete cargado. El valor de salida del raíl suele ser el más significativo.
+### ¿Por qué la estabilidad es distinta «en plataforma» y «al salir de la guía»? {#why-is-the-stability-different-on-the-pad-vs-at-launcher-exit}
+Cuando el cohete abandona el raíl o la varilla ya pesa algo menos (ha quemado algo de propelente) y su CG se ha desplazado, así que su margen de estabilidad difiere del valor en plataforma con el cohete cargado. El margen al salir de la guía suele ser el más significativo.
 
 ### ¿Puedo usar pulgadas o unidades imperiales? {#can-i-use-inches--imperial-units}
 Sí. **Ajustes ▸ Unidades** tiene un botón de **Valores imperiales**, y puedes configurar cada magnitud por separado (longitudes en pulgadas, altitud en pies, masa en onzas, viento en mph, etc.). La unidad impresa junto a cualquier valor también es un selector: haz clic para cambiar ese campo concreto, dejando todo lo demás en tus valores por defecto.

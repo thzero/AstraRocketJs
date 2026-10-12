@@ -14,7 +14,7 @@ const src = (rel: string) => readFileSync(fileURLToPath(new URL(`../../../src/${
 
 describe('the custom-motor import is one write', () => {
   it('hands the whole list to addCustomMotors', () => {
-    expect(src('services/motors/motorDb.ts')).toContain('addCustomMotors(motors)');
+    expect(src('services/motors/motorDb.ts')).toContain('addCustomMotors(merged)');
   });
 
   it('does not loop a single add per motor', () => {

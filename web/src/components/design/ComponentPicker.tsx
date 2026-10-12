@@ -43,7 +43,7 @@ import { UnitBound } from '../common/UnitBound';
 import { useAsyncLoad } from '../common/useAsyncLoad';
 
 /**
- * How many rows are rendered at once. There are 1088 body tubes and no
+ * How many rows are rendered at once. There are well over a thousand body tubes and no
  * virtualization in the tree, so the list is capped. The footer reports the match
  * count and how many rows are held back, rather than printing the cap as the
  * total and making the catalog read as small.
@@ -70,13 +70,6 @@ async function loadRows(type: PickerType): Promise<Component[]> {
   return [...saved, ...catalog];
 }
 
-/**
- * Picks a real cataloged part (from the bundled OpenRocket component DB) of a
- * given type and applies it via `onApply`. Opens a modal dialog with a sortable
- * table, free-text search, a manufacturer facet, an outer-diameter range and a
- * "fits here" filter; the caller maps the chosen Component onto its target node
- * (see catalogPatch).
- */
 /** A catalog link as `presetRef` records it on a node. */
 export interface CurrentPart {
   manufacturer?: string;
@@ -94,6 +87,13 @@ function isCurrent(part: Pick<Component, 'mfr' | 'partNo'>, current: CurrentPart
   return current != null && sameText(part.partNo, current.partNo) && sameText(part.mfr, current.manufacturer);
 }
 
+/**
+ * Picks a real cataloged part (from the bundled OpenRocket component DB) of a
+ * given type and applies it via `onApply`. Opens a modal dialog with a sortable
+ * table, free-text search, a manufacturer facet, an outer-diameter range and a
+ * "fits here" filter; the caller maps the chosen Component onto its target node
+ * (see catalogPatch).
+ */
 export function ComponentPicker({
   type,
   fit,
@@ -411,8 +411,8 @@ function PickerDialog({
   // wrong: no nose cone in the catalog is within 0.6 mm of a 54.66 mm airframe,
   // because manufacturers' nominal sizes cluster in families that do not line
   // up, so a picker that hid everything else would open empty on a perfectly
-  // ordinary design. Sorting by fit puts the five couplers that suit a
-  // 51.5 mm bore at the top of 237 and still lets an unusual build scroll past
+  // ordinary design. Sorting by fit puts the few couplers that suit a
+  // 51.5 mm bore at the top of several hundred and still lets an unusual build scroll past
   // them. The toggle is there for anyone who does want the hard filter.
   const [q, setQ] = useState<ComponentQuery>({ ...emptyQuery, sort: canFit ? 'fit' : 'mfr' });
   const set = (patch: Partial<ComponentQuery>) => setQ((prev) => ({ ...prev, ...patch }));

@@ -160,8 +160,10 @@
     },
     "rktSkip": {
       "airfoilMass": "massa das aletas com perfil de asa ({{name}})",
+      "cdOverride": "substituição do Cd ({{name}})",
       "cgOverride": "substituição do CG ({{name}})",
-      "extraStages": "andar {{from}} e seguintes"
+      "extraStages": "andar {{from}} e seguintes",
+      "subtreeOverride": "substituição dos subcomponentes ({{name}})"
     },
     "viewFailed": "Não foi possível carregar esta vista.",
     "staleBuild": "A aplicação foi atualizada enquanto este separador estava aberto, pelo que parte dela já não está no servidor. Recarregue para obter a nova versão.",
@@ -301,7 +303,8 @@
     "headerLaunchMass": "Massa de lançamento {{mass}} (vazia {{dry}})",
     "headerDryMass": "Massa vazia {{dry}}, sem motores carregados",
     "headerBalance": "CG {{cg}}, CP {{cp}} a partir da ponta da ogiva, margem {{margin}} cal",
-    "headerCg": "CG {{cg}} a partir da ponta da ogiva"
+    "headerCg": "CG {{cg}} a partir da ponta da ogiva",
+    "imageOption": "{{format}} {{size}}, {{width}} px de largura"
   },
   "engine": {
     "wasmTip": "Motor de física: WebAssembly (via rápida)",
@@ -605,7 +608,8 @@
     "grounded": "Em terra",
     "groundedHint": "Fica em terra: sem massa, sem arrasto, sem motor. O resto do foguetão voa sem ele.",
     "lastFlyingStage": "Pelo menos um andar tem de voar em cada configuração.",
-    "stageGrounded": "Fica em terra em:"
+    "stageGrounded": "Fica em terra em:",
+    "partNumbered": "{{part}} {{n}}"
   },
   "tabs": {
     "rocket": "Foguetão",
@@ -1168,7 +1172,8 @@
     "colorRolePin": "Marcador",
     "importSaveError": "Não foi possível guardar esse modelo neste navegador.",
     "deleteError": "Não foi possível eliminar esse modelo.",
-    "deleteConfirm": "Eliminar o modelo “{{name}}” deste navegador?"
+    "deleteConfirm": "Eliminar o modelo “{{name}}” deste navegador?",
+    "stageColorLabel": "{{role}} de {{stage}}"
   },
   "aero": {
     "unattributed": "Não atribuído a um componente",
@@ -1268,7 +1273,12 @@
     "motorFetchFailed": "O motor \"{{motor}}\" não pôde ser carregado ({{reason}}). Escolha um motor para esse suporte (não voará com um predefinido).",
     "motorTooWide": "O motor \"{{motor}}\" tem {{diameter}} mm e o suporte \"{{mount}}\" aceita {{bore}} mm, pelo que não cabe. Colocado tal como o ficheiro o indica: verifique-o antes de voar.",
     "motorTooLong": "O motor \"{{motor}}\" tem {{length}} mm de comprimento e o suporte \"{{mount}}\" comporta {{maxLength}} mm, pelo que não cabe. Colocado tal como o ficheiro o indica: verifique-o antes de voar.",
-    "mountsWithoutMotor": "Suportes de motor sem motor neste ficheiro: {{mounts}}. Escolha um motor antes de voar (não voará com um predefinido)."
+    "mountsWithoutMotor": "Suportes de motor sem motor neste ficheiro: {{mounts}}. Escolha um motor antes de voar (não voará com um predefinido).",
+    "extensionName": {
+      "airStart": "Partida no ar",
+      "javaCode": "Código Java",
+      "script": "Script {{language}}"
+    }
   },
   "part": {
     "stage": "Andar",
@@ -1511,7 +1521,7 @@
       "ellipsoid": "Uma elipsoide de transição tem um perfil que é uma meia elipse com o eixo maior de comprimento 2×<i>Comprimento</i> e <i>Diâmetro</i>. Se a transição não for recortada, o perfil da transição é estendido ao centro do raio correspondente.",
       "power": "Uma transição série de potências tem o perfil de <i>Raio</i> × (<i>x</i> / <i>Comprimento</i>)<sup><i>k</i></sup> onde <i>k</i> é o parâmetro de forma. Para <i>k</i>=0.5 a transição é de <b>potência ½</b> ou <b>parabólica</b>, para <i>k</i>=0.75 de <b>potência ¾</b>, e para <i>k</i>=1 <b>cônica</b>.",
       "parabolic": "Uma transição tipo parabólica tem o perfil de uma parábola. O parâmetro de forma define o segmento da parábola a ser utilizado. O parâmetro de forma 1.0 produz uma <b>parábola inteira</b> tangenciando o corpo do foguete, 0.75 produz <b>3/4 de parábola</b>, 0.5 produz <b>1/2 parábola</b> e 0 produz uma transição <b>cônica</b>.",
-      "haack": "As <i>ogivas</i> série de Haack são projetadas para diminuir o arrasto. Essas formas de transição são equivalentes, mas não necessáriamente produzem uma melhoria no arrasto. O parâmetro de forma 0.0 produz uma ogiva <b>LD-Haack</b> ou <b>Von Karman</b>, enquanto um valor de 0.333 produz uma ogiva <b>LV-Haack</b>."
+      "haack": "As <i>ogivas</i> série de Haack são projetadas para diminuir o arrasto. Essas formas de transição são equivalentes, mas não necessariamente produzem uma melhoria no arrasto. O parâmetro de forma 0.0 produz uma ogiva <b>LD-Haack</b> ou <b>Von Karman</b>, enquanto um valor de 0.333 produz uma ogiva <b>LV-Haack</b>."
     }
   },
   "tabOffsetMethod": {
@@ -1689,7 +1699,24 @@
     "cancel": "Cancelar",
     "deleteCustom": "Eliminar o material personalizado",
     "deleteConfirm": "Eliminar o material personalizado {{name}}? Deixará de ser oferecido em qualquer projeto.",
-    "fillet": "Material do filete"
+    "fillet": "Material do filete",
+    "groups": {
+      "Metals": "Metais",
+      "Woods": "Madeiras",
+      "Plastics": "Plásticos",
+      "Fabrics": "Tecidos",
+      "Paper": "Papel",
+      "PaperProducts": "Produtos de papel",
+      "Foams": "Espumas",
+      "Composites": "Compósitos",
+      "Fibers": "Fibras",
+      "Elastics": "Elásticos",
+      "Kevlars": "Kevlar",
+      "Nylons": "Nylon",
+      "Other": "Outros",
+      "Custom": "Personalizado",
+      "Adhesives": "Adesivos"
+    }
   },
   "recovery": {
     "title": "Dimensionamento da descida",
@@ -1826,7 +1853,9 @@
     "chartAvg": "impulsão média",
     "chartBurn": "tempo de queima",
     "chartAria": "Impulsão ao longo do tempo. Pico {{peak}}, média {{avg}}, tempo de queima {{burn}} s.",
-    "calcNote": "* A impulsão inicial, o Isp e a fração mássica são calculados a partir da curva de impulsão e dos pesos."
+    "calcNote": "* A impulsão inicial, o Isp e a fração mássica são calculados a partir da curva de impulsão e dos pesos.",
+    "rangeMin": "{{label}}: mínimo",
+    "rangeMax": "{{label}}: máximo"
   },
   "lang": {
     "label": "Idioma"
@@ -1942,7 +1971,9 @@
       "badNumber": "A linha {{line}} tem um valor que não é um número.",
       "noData": "Não foram encontrados níveis de vento nesse ficheiro.",
       "unreadable": "Não foi possível ler esse ficheiro."
-    }
+    },
+    "levelField": "{{field}}, nível {{n}}",
+    "removeLevelN": "Remover o nível {{n}}"
   },
   "limits": {
     "sentenceJoin": "{{first}} {{next}}",
@@ -1991,7 +2022,8 @@
     "coords": "Coordenadas",
     "elevationLooking": "a procurar a altitude…",
     "elevationUnknown": "altitude não encontrada; a altitude do local fica em branco",
-    "credit": "Locais do GeoNames, via Open-Meteo.com"
+    "credit": "Locais do GeoNames, via Open-Meteo.com",
+    "regionCountry": "{{region}}, {{country}}"
   },
   "location": {
     "label": "Local guardado",

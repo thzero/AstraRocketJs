@@ -160,8 +160,10 @@
     },
     "rktSkip": {
       "airfoilMass": "Airfoil fin mass ({{name}})",
+      "cdOverride": "Cd override ({{name}})",
       "cgOverride": "CG override ({{name}})",
-      "extraStages": "stage {{from}} and beyond"
+      "extraStages": "stage {{from}} and beyond",
+      "subtreeOverride": "Override of the parts inside ({{name}})"
     },
     "viewFailed": "This view could not be loaded.",
     "staleBuild": "The app was updated while this tab was open, so part of it is no longer on the server. Reload to get the new build.",
@@ -301,7 +303,8 @@
     "headerLaunchMass": "Launch mass {{mass}} (dry {{dry}})",
     "headerDryMass": "Dry mass {{dry}}, no motors loaded",
     "headerBalance": "CG {{cg}}, CP {{cp}} from nose tip, margin {{margin}} cal",
-    "headerCg": "CG {{cg}} from nose tip"
+    "headerCg": "CG {{cg}} from nose tip",
+    "imageOption": "{{format}} {{size}}, {{width}} px wide"
   },
   "engine": {
     "wasmTip": "Physics engine: WebAssembly (fast path)",
@@ -604,7 +607,8 @@
     "grounded": "Grounded",
     "groundedHint": "Left on the ground: no mass, no drag, no motor. The rest of the rocket flies without it.",
     "lastFlyingStage": "At least one stage has to fly on each configuration.",
-    "stageGrounded": "Left on the ground in:"
+    "stageGrounded": "Left on the ground in:",
+    "partNumbered": "{{part}} {{n}}"
   },
   "tabs": {
     "rocket": "Rocket",
@@ -1165,7 +1169,8 @@
     "colorRolePin": "Pin",
     "importSaveError": "Could not save that template in this browser.",
     "deleteError": "Could not delete that template.",
-    "deleteConfirm": "Delete the template “{{name}}” from this browser?"
+    "deleteConfirm": "Delete the template “{{name}}” from this browser?",
+    "stageColorLabel": "{{stage}} {{role}}"
   },
   "aero": {
     "unattributed": "Not attributed to a component",
@@ -1263,7 +1268,12 @@
     "motorFetchFailed": "Motor \"{{motor}}\" could not be loaded ({{reason}}). Pick a motor for that mount (it won't fly a default).",
     "motorTooWide": "Motor \"{{motor}}\" is {{diameter}} mm and mount \"{{mount}}\" takes {{bore}} mm, so it does not fit. Seated as the file names it: check it before flying.",
     "motorTooLong": "Motor \"{{motor}}\" is {{length}} mm long and mount \"{{mount}}\" holds {{maxLength}} mm, so it does not fit. Seated as the file names it: check it before flying.",
-    "mountsWithoutMotor": "Motor mounts with no motor in this file: {{mounts}}. Pick a motor before flying (it won't fly a default)."
+    "mountsWithoutMotor": "Motor mounts with no motor in this file: {{mounts}}. Pick a motor before flying (it won't fly a default).",
+    "extensionName": {
+      "airStart": "Air-start",
+      "javaCode": "Java code",
+      "script": "{{language}} script"
+    }
   },
   "part": {
     "stage": "Stage",
@@ -1659,7 +1669,7 @@
     "scaleFinTip": "Scale the outline, the wall, the tab and the fillet together",
     "importImage": "Import from image",
     "exportCsv": "Export CSV",
-    "importHint": "The image is read as black and white, so use a solid dark shape on a light background. The fin must touch the bottom edge, which becomes its root. One pixel is one millimeter, so scale the fin afterwards.",
+    "importHint": "The image is read as black and white, so use a solid dark shape on a light background. The fin must touch the bottom edge, which becomes its root. One pixel is one millimeter, so scale the fin afterward.",
     "badImage": "No fin found. The shape must be solid and dark, and it must touch the bottom edge of the image.",
     "imageUnreadable": "That file could not be read as an image."
   },
@@ -1682,7 +1692,24 @@
     "cancel": "Cancel",
     "deleteCustom": "Delete custom material",
     "deleteConfirm": "Delete the custom material {{name}}? It will no longer be offered on any design.",
-    "fillet": "Fillet material"
+    "fillet": "Fillet material",
+    "groups": {
+      "Metals": "Metals",
+      "Woods": "Woods",
+      "Plastics": "Plastics",
+      "Fabrics": "Fabrics",
+      "Paper": "Paper",
+      "PaperProducts": "Paper products",
+      "Foams": "Foams",
+      "Composites": "Composites",
+      "Fibers": "Fibers",
+      "Elastics": "Elastics",
+      "Kevlars": "Kevlars",
+      "Nylons": "Nylons",
+      "Other": "Other",
+      "Custom": "Custom",
+      "Adhesives": "Adhesives"
+    }
   },
   "recovery": {
     "title": "Descent sizing",
@@ -1818,7 +1845,9 @@
     "chartAvg": "avg thrust",
     "chartBurn": "burn time",
     "chartAria": "Thrust against time. Peak {{peak}}, average {{avg}}, burn time {{burn}} s.",
-    "calcNote": "* Initial thrust, Isp, and mass fraction are calculated from the thrust curve and weights."
+    "calcNote": "* Initial thrust, Isp, and mass fraction are calculated from the thrust curve and weights.",
+    "rangeMin": "{{label}} min",
+    "rangeMax": "{{label}} max"
   },
   "lang": {
     "label": "Language"
@@ -1934,7 +1963,9 @@
       "badNumber": "Line {{line}} has a value that is not a number.",
       "noData": "No wind levels found in that file.",
       "unreadable": "That file could not be read."
-    }
+    },
+    "levelField": "{{field}} {{n}}",
+    "removeLevelN": "Remove level {{n}}"
   },
   "limits": {
     "sentenceJoin": "{{first}} {{next}}",
@@ -1982,7 +2013,8 @@
     "coords": "Coordinates",
     "elevationLooking": "looking up the elevation…",
     "elevationUnknown": "elevation not found; the site's elevation is left blank",
-    "credit": "Places by GeoNames, via Open-Meteo.com"
+    "credit": "Places by GeoNames, via Open-Meteo.com",
+    "regionCountry": "{{region}}, {{country}}"
   },
   "location": {
     "label": "Saved location",

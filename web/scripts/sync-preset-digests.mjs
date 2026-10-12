@@ -35,9 +35,10 @@
 // catalog is refreshed.
 //
 // Which databases it covers is whatever that build of OpenRocket ships on its
-// classpath, because the dumper reads the application's own preset database
-// rather than `.orc` files: the file loader and the app disagree for some types
-// (Estes PK-12 came out cd19839d… from the files and e38b3873… from the app),
+// classpath: the dumper reads the release's own `.orc` files, as the desktop's
+// system preset pass does, under the application's module so they are built
+// against the materials the desktop boots with. A bare file load disagrees for
+// some types (Estes PK-12 came out cd19839d… that way and e38b3873… in the app),
 // and the app's value is the one the desktop compares against.
 //
 // It never regenerates the catalog, only adds `digest` to rows already in it,
@@ -67,9 +68,11 @@
 // catalog says. The volume is measured in the app's own engine
 // (lib/presetVolume.mjs), not taken from the desktop's density, because builds
 // disagree on it; the result replaces the row's `materialDensity`, and the mass
-// stays on the row as `mass`. `Parachute.loadPreset` instead takes the mass as
-// a mass override, which the app applies from `mass`. A streamer's mass is not
-// applied by the desktop and is not carried.
+// stays on the row as `mass` (lib/statedMass.mjs). A part the engine gives no
+// volume keeps its material's density and no `mass`, and the run lists it.
+// `Parachute.loadPreset` instead takes the mass as a mass override, which the
+// app applies from `mass`. A streamer's mass is not applied by the desktop and
+// is not carried.
 //
 // A parachute row also takes what `Parachute.loadFromPreset` applies besides
 // its canopy: the line count and length, the packed length and diameter, and
@@ -83,22 +86,11 @@ import { writeDataManifest } from './lib/dataManifest.mjs';
 import { digestChanges, goneSection, partProblems } from './lib/digestCoverage.mjs';
 import { chooseBuild, runDumper } from './lib/openrocketJava.mjs';
 import { presetVolumes } from './lib/presetVolume.mjs';
+import { applyStatedMass } from './lib/statedMass.mjs';
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
 const CATALOG = resolve(HERE, '../public/data/components.generated.json');
 const JAVA_SRC = resolve(HERE, 'preset-digests/PresetDump.java');
-
-/** Catalog types whose stated mass the desktop turns into a material density. */
-const DENSITY_FROM_MASS = new Set([
-  'bodytube',
-  'launchlug',
-  'tubecoupler',
-  'centeringring',
-  'engineblock',
-  'bulkhead',
-  'nosecone',
-  'transition',
-]);
 
 /** `ComponentPreset.Type` as the catalog spells it: `NOSE_CONE` → `nosecone`. */
 const appType = (kernelType) => kernelType.toLowerCase().replace(/_/g, '');
@@ -285,6 +277,11 @@ async function main() {
   }
   let hit = 0;
   let massed = 0;
+  // Parts that state a mass the engine gives no volume to spread it over (a
+  // degenerate upstream shape). They weigh what their material makes them,
+  // not what desktop says, so the run names them rather than dropping the mass
+  // without a word.
+  const noVolume = [];
   for (const row of catalog.components) {
     const p = presetFor(row);
     if (p?.digest) {
@@ -298,18 +295,16 @@ async function main() {
       for (const k of PARACHUTE_FIELDS) delete row[k];
       Object.assign(row, p?.chute ?? {});
     }
-    // A rail button's mass is the button, screw and nut, which sync-components
-    // reads from the part file itself; every other stated mass is set here.
-    if (row.type !== 'railbutton') delete row.mass;
-    const volume = p?.mass && DENSITY_FROM_MASS.has(row.type) ? volumeOf(row) : null;
-    if (p?.mass && volume) {
-      row.materialDensity = p.mass / volume;
-      row.mass = p.mass;
-      massed++;
-    } else if (p?.mass && row.type === 'parachute') {
-      row.mass = p.mass;
-      massed++;
+    const applied = applyStatedMass(row, p?.mass, volumeOf);
+    if (applied === 'applied') massed++;
+    else if (applied === 'no-volume') {
+      noVolume.push(`${row.type} ${row.mfr} ${row.partNo.trim()} (${Number((p.mass * 1000).toPrecision(4))} g)`);
     }
+  }
+  if (noVolume.length) {
+    const text = `stated mass not applied, the engine gives these parts no volume: ${noVolume.join(', ')}`;
+    console.warn(text);
+    if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${text}\n`);
   }
   // A part that kept its row and lost its digest is a broken classpath or a
   // changed matcher: refuse it, and a catalog under the floor however it got

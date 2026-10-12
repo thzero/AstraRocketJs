@@ -18,7 +18,7 @@ import {
 const VERDICT_TONE: Record<RateVerdict, string> = {
   slow: 'text-warn-400',
   main: 'text-ok-400',
-  between: 'text-ok-400',
+  between: 'text-warn-400',
   drogue: 'text-ok-400',
   fast: 'text-warn-400',
 };

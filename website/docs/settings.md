@@ -15,10 +15,10 @@ Every quantity has its own unit, set on the **Units** tab. **Metric defaults** a
 | Altitude / distance | apogee, downrange, deployment altitudes, launch-site altitude | m | ft |
 | Area | a streamer's strip area | cm² | in² |
 | Mass | component and rocket masses | g | oz |
-| Velocity | rail exit, max speed, deployment and landing speeds | m/s | ft/s |
+| Velocity | launcher exit, max speed, deployment and landing speeds | m/s | ft/s |
 | Wind speed | launch-condition wind and gusts | m/s | mph |
 | Acceleration | max acceleration | m/s² | ft/s² |
-| Angle | fin and launch-rod angles, wind direction | ° | ° |
+| Angle | fin and launcher angles, wind direction | ° | ° |
 | Density (bulk) | solid materials, by volume | g/cm³ | oz/in³ |
 | Density (fabric) | parachute and streamer material, by area | g/m² | oz/ft² |
 | Density (cord) | shock cord and shroud lines, by length | g/m | oz/ft |
@@ -115,9 +115,9 @@ The **Launch** tab holds the launch conditions a new simulation starts from, in 
 
 ### Required launch conditions
 
-Seven launch fields have no sensible default, so they cannot be left blank: **rod length**, **rod angle**, **wind speed**, **wind standard deviation**, **site altitude**, **latitude** and **longitude**. They are marked with a red **\*** wherever they appear, and behave exactly like a component's [required dimensions](./designing-a-rocket.md#required-dimensions): clearing one writes nothing, and a simulation missing one is named and skipped rather than flown.
+Seven launch fields have no sensible default, so they cannot be left blank: **launcher length**, **launcher angle**, **wind speed**, **wind standard deviation**, **site altitude**, **latitude** and **longitude**. They are marked with a red **\*** wherever they appear, and behave exactly like a component's [required dimensions](./designing-a-rocket.md#required-dimensions): clearing one writes nothing, and a simulation missing one is named and skipped rather than flown.
 
-Note these seven are *required*, not *non-zero*: still air, no gusts, sea level, the equator, the prime meridian and a rod straight up are all real settings, and all of them are zero. Only rod length has to be positive in practice.
+Note these seven are *required*, not *non-zero*: still air, no gusts, sea level, the equator, the prime meridian and a launcher straight up are all real settings, and all of them are zero. Only launcher length has to be positive in practice.
 
 In this dialog the same fields can never end up blank at all: they seed every new simulation, so clearing one here simply keeps the value it had.
 
@@ -138,9 +138,12 @@ Defaults for the 2D view. You can also toggle these on the view itself.
 
 ## Safety warnings
 
-Also on the **Simulation** tab: five thresholds, in the units you have chosen for velocity. They color the result tiles *and* reach the flight engine, so they decide which warnings a run reports rather than only how the numbers are painted.
+Also on the **Simulation** tab: five thresholds, in the units you have chosen for velocity.
 
-- **Min launcher-exit velocity**: below this the fins have too little airflow to steer, so the rocket can weathercock into the wind or go unstable as it leaves the launcher. The launcher-exit tile is green at or above this and warns below it.
+- **Min launcher-exit velocity**: below this the fins have too little airflow to steer, so the rocket can weathercock into the wind or go unstable as it leaves the launcher. The launcher-exit tile is green at or above this and warns below it. This one only colors the tile and the [Off the rail](./tools.md#off-the-rail) figures: it does not reach the flight engine, it has no per-simulation override, and changing it does not mark results outdated.
+
+The other four are deployment thresholds. They color the result tiles *and* reach the flight engine, so they decide which warnings a run reports rather than only how the numbers are painted.
+
 - **Deploy-speed warning above**: single deployment (no drogue): above this speed, opening the parachute risks zippering the airframe or tearing the canopy.
 
 The last three apply only to **dual deployment** (a stage carrying a drogue), where the main and the drogue are judged instead of the single threshold above:
@@ -151,9 +154,9 @@ The last three apply only to **dual deployment** (a stage carrying a drogue), wh
 
 All three depend on the rocket saying which chute is which. That is set on the stage: choose **Dual deployment** under **Recovery deployment type** and pick the parachute or streamer that opens at apogee as the **Drogue device**, and the flight is judged as dual deployment. With **Single deployment** the whole stage is judged against **Deploy-speed warning above** alone.
 
-Each of these can also be overridden per simulation, in the simulation's own options.
+Each of the four deployment thresholds can also be overridden per simulation, in the simulation's own options.
 
-Changing any of them marks every simulation that has already run as **outdated**, so a saved result never claims to describe settings it was not flown under. A simulation that pins the setting for itself is left alone, since its own value still applies. Run it again to bring the numbers up to date.
+Changing any of those four marks every simulation that has already run as **outdated**, so a saved result never claims to describe settings it was not flown under. A simulation that pins the setting for itself is left alone, since its own value still applies. Run it again to bring the numbers up to date.
 
 ## Flight model
 

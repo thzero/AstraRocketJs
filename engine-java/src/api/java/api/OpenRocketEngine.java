@@ -868,6 +868,12 @@ public final class OpenRocketEngine {
             sb.append(',');
             num(sb, "lineLength", ((Parachute) c).getLineLength());
         }
+        if (c instanceof info.openrocket.core.rocketcomponent.RecoveryDevice) {
+            // The drag coefficient it flies: the computed one while it is on
+            // automatic, which the panel shows in place of the stored number.
+            sb.append(',');
+            num(sb, "cd", ((info.openrocket.core.rocketcomponent.RecoveryDevice) c).getCD());
+        }
         return sb.append('}').toString();
     }
 

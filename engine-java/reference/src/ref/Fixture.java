@@ -163,7 +163,7 @@ final class Fixture {
      * {@code getRocket()} when the child is a stage, which throws
      * "getRocket() called with root component Body Tube" unless that tube is
      * already connected to the rocket. Building the subtree first and attaching it
-     * afterwards works for every other component and fails only on a strap-on
+     * afterward works for every other component and fails only on a strap-on
      * booster, which is a good reason not to rely on it anywhere.
      */
     private void component(RocketComponent parent, JsonObject node) {

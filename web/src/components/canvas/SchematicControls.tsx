@@ -9,13 +9,14 @@ import {
 } from '../../services/exports/schematicExport.js';
 import { download, exportFilename } from '../../services/files/saveFile.js';
 import { ImageExportMenu } from './ImageExportMenu.js';
-import { MAX_ZOOM, ZOOM_IDENTITY, type ZoomState } from '../../tree/schematicGeometry';
+import type { ZoomState } from '../../tree/schematicGeometry';
+import { ZoomButtons } from './ZoomButtons';
 import { errorText } from '../../i18n/keyedError';
 import { token } from '../common/colorTokens';
 
 /**
  * The TreeSchematic control strip: SVG / image export, the two caliper
- * toggles, fit-to-view and the zoom steps. The schematic decides where the
+ * toggles, and the shared zoom buttons (`ZoomButtons`). The schematic decides where the
  * strip renders (over the drawing or portaled into the pane header) and owns
  * the state the buttons change; this file is the buttons.
  */
@@ -125,29 +126,7 @@ export function SchematicControls({
       >
         ⇕
       </button>
-      {(zoom.k > 1 || zoom.x !== 0 || zoom.y !== 0) && (
-        <button className="file-btn" title={t('schematic.fit')} onClick={() => setZoom(ZOOM_IDENTITY)}>
-          <span aria-hidden>⤢</span> {t('schematic.fit')}
-        </button>
-      )}
-      <button
-        className="file-btn"
-        title={t('schematic.zoomIn')}
-        aria-label={t('schematic.zoomIn')}
-        onClick={() => zoomBy(1.5)}
-        disabled={zoom.k >= MAX_ZOOM}
-      >
-        +
-      </button>
-      <button
-        className="file-btn"
-        title={t('schematic.zoomOut')}
-        aria-label={t('schematic.zoomOut')}
-        onClick={() => zoomBy(1 / 1.5)}
-        disabled={zoom.k <= 1}
-      >
-        −
-      </button>
+      <ZoomButtons zoom={zoom} setZoom={setZoom} zoomBy={zoomBy} />
     </>
   );
 }

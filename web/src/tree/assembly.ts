@@ -1,7 +1,7 @@
 import type { ComponentNode } from '../engine/openRocketEngine';
 import { ASSEMBLY_TYPES, isChainType, type AssemblyType } from './componentKinds';
-import { KERNEL_BODYTUBE_OUTER_RADIUS, kernelLength } from './kernelDefaults';
-import { chainOuterRadius, num } from './nodeProps';
+import { kernelLength } from './kernelDefaults';
+import { bodyTubeRadius, chainOuterRadius, num } from './nodeProps';
 
 /**
  * Geometry helpers for off-axis assemblies (PodSet / ParallelStage), shared
@@ -61,7 +61,7 @@ export function resolveAssemblyRadius(pod: ComponentNode, parentOuterRadius: num
  * `RadiusMethod` does not add (it reads `BodyTube.getOuterRadius` only).
  */
 export function assemblyParentRadius(parent: ComponentNode | null | undefined): number {
-  return parent?.type === 'bodytube' ? num(parent, 'outerRadius', KERNEL_BODYTUBE_OUTER_RADIUS) : 0;
+  return parent?.type === 'bodytube' ? bodyTubeRadius(parent) : 0;
 }
 
 export interface RingInstance {

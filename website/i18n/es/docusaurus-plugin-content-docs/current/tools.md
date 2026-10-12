@@ -16,7 +16,7 @@ Dónde baja un cohete a partir de un sitio de lanzamiento, una hora del pronóst
 - **Cuándo.** La fecha y la hora, en la hora local del sitio. Las fechas desde unos tres meses atrás hasta 15 días adelante usan el pronóstico, que tiene el viento a varias alturas. Las fechas anteriores, hasta 1940, usan el registro histórico de Open-Meteo, que solo tiene el viento cerca del suelo, así que todo el descenso deriva con ese viento y el resultado lo indica.
 - **Vuelo.** El apogeo sobre la plataforma y luego la recuperación:
   - **Simple**: una sola velocidad de descenso desde el apogeo hasta el suelo.
-  - **Doble**: la velocidad del drogue desde el apogeo hasta la altura a la que se abre el principal, y luego la velocidad del principal hasta el suelo. El principal tiene que abrirse por debajo del apogeo, y **Estimar aterrizaje** sigue desactivado hasta que así sea.
+  - **Doble**: la velocidad del piloto desde el apogeo hasta la altura a la que se abre el principal, y luego la velocidad del principal hasta el suelo. El principal tiene que abrirse por debajo del apogeo, y **Estimar aterrizaje** sigue desactivado hasta que así sea.
 
 Pulsa **Estimar aterrizaje**. Los datos y el último resultado se mantienen al cambiar de pestaña, hasta que se recarga la página.
 
@@ -87,4 +87,4 @@ Si el empuje nunca supera el peso, o el cohete se frena hasta detenerse antes de
 
 El paracaídas que hace aterrizar un cohete a la velocidad de descenso elegida. Introduce lo que baja bajo el paracaídas (el cohete después de quemar el propulsante), el coeficiente de arrastre del paracaídas, y la altitud y la temperatura del sitio para la densidad del aire. Deja la temperatura en blanco para usar la atmósfera estándar a esa altitud. Añade un diámetro de paracaídas para ver a qué velocidad baja ese paracaídas.
 
-El resultado da el diámetro para la banda del **principal** (15 a 20 ft/s) y la del **drogue** (50 a 75 ft/s), y para **tu propia velocidad de descenso** si introduces una. Salen de la ecuación de descenso, la misma que usa el editor de paracaídas; consulta [dimensionar un paracaídas](./designing-a-rocket.md#sizing-a-parachute).
+El resultado da el diámetro para la banda del **principal** (15 a 20 ft/s) y la del **piloto** (50 a 75 ft/s), y para **tu propia velocidad de descenso** si introduces una. Salen de la ecuación de descenso, la misma que usa el editor de paracaídas; consulta [dimensionar un paracaídas](./designing-a-rocket.md#sizing-a-parachute).

@@ -257,9 +257,8 @@ info/openrocket/core/util/UnitValue.java
 info/openrocket/core/util/Utils.java
 info/openrocket/core/util/WorldCoordinate.java
 
-# Added 2026-09-16: extracted and compiled all along, but absent from this
-# manifest, so the extractor could neither refresh them from upstream nor
-# notice them drifting. Two of them (BarrowmanDragCalculator,
+# Extracted and compiled, and listed here so the extractor refreshes them from
+# upstream and notices them drifting. Two of them (BarrowmanDragCalculator,
 # BarrowmanStabilityCalculator) carry local overrides; the rest are verbatim.
 info/openrocket/core/aerodynamics/BarrowmanDragCalculator.java
 info/openrocket/core/aerodynamics/BarrowmanStabilityCalculator.java
@@ -275,9 +274,9 @@ info/openrocket/core/simulation/TumbleDetector.java
 info/openrocket/core/util/CoordinateIF.java
 info/openrocket/core/util/MutableCoordinate.java
 
-# Added 2026-09-16 with the FinSetCalc upgrade: upstream e6d54d8c9 replaced its
-# own scalar fin-body interference approximation (whose TODO asked for exactly
-# this) with the complete NACA Report 1307 model. Verbatim — it imports only
+# The fin-body interference FinSetCalc uses: upstream e6d54d8c9 replaced its
+# own scalar approximation (whose TODO asked for exactly this) with the complete
+# NACA Report 1307 model. Verbatim: it imports only
 # MathUtil, which is already extracted.
 info/openrocket/core/aerodynamics/barrowman/NACA1307FinBodyInterference.java
 

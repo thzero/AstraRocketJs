@@ -28,7 +28,7 @@ describe('discDims', () => {
     expect(d!.length).toBeCloseTo(0.05, 12);
   });
 
-  it('refuses a wall at or past the radius instead of reporting a solid rod', () => {
+  it('refuses a wall past the radius instead of reporting a solid rod', () => {
     // `discSolid` takes its no-bore branch on innerR === 0 and lathes a solid
     // cylinder, so a units slip (a 20 mm wall on a 12 mm radius) would print the
     // coupler as a plug with nothing saying so. `solidMesh`'s tube branch
@@ -37,11 +37,15 @@ describe('discDims', () => {
     expect(discDims(node({ type: 'engineblock', thickness: 0.05 }), tube, [])).toBeNull();
   });
 
-  it('refuses a wall exactly equal to the radius', () => {
-    // The boundary: a clamp like `Math.max(0, outerR - wall)` would turn it
-    // into a 0 bore rather than a refusal.
+  it('takes a wall exactly equal to the radius as a solid part', () => {
+    // A catalog part that states an inner diameter of 0 (a balsa nose block)
+    // is solid, and `ThicknessRingComponent.loadFromPreset` gives it a wall of
+    // its whole radius; the kernel flies it solid, so it is drawn, cut and
+    // printed solid. Only a wall past the radius is a slip.
     const r = plateOuter(node({ type: 'tubecoupler' }), tube);
-    expect(discDims(node({ type: 'tubecoupler', thickness: r }), tube, [])).toBeNull();
+    const d = discDims(node({ type: 'tubecoupler', thickness: r }), tube, []);
+    expect(d).not.toBeNull();
+    expect(d!.innerR).toBe(0);
   });
 
   it('still accepts a wall a real coupler uses', () => {

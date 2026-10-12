@@ -5,6 +5,7 @@ import { prompt } from './promptStore';
 import { defaultRocketTree } from '../services/design/defaultRocket';
 import { launcherKind, withLauncher } from '../services/design/launcher';
 import type { DesignInfo } from '../services/files/orkTypes';
+import { buildDesignInfo } from '../services/report/designInfo';
 import { buildExportMotorMap, fillMotorDigests } from '../services/motors/exportMotors';
 import { repairValues } from '../services/design/repairValues';
 import { computeStaticInfo } from '../services/design/buildRocket';
@@ -15,7 +16,7 @@ import { assertImportSize } from '../services/files/decodeText';
 // statically anyway, so a dynamic import here only produces rolldown's
 // ineffective-dynamic-import warning without moving a byte.
 import { fetchExample } from '../services/storage/exampleLibrary';
-import { isOutdated, newSimulation } from '../services/flight/simulations';
+import { effectivePrefs, isOutdated, newSimulation } from '../services/flight/simulations';
 import { loadSettings } from '../services/storage/settings';
 import { importNotes } from '../services/files/importBanner';
 import { configPowerClass } from '../services/flight/powerClass';
@@ -380,9 +381,26 @@ export const createFileSlice =
           return;
         }
         if (stale()) return;
-        getWorkspaceStore().setActiveId?.(id);
+        // Through the store's own read, as boot opens the active design: the
+        // flights stored beside the design come back with it, and the store
+        // holds the claim the next autosave is checked against.
+        const store = getWorkspaceStore();
+        let opened: typeof w | null = w;
+        if (store.openActive) {
+          try {
+            opened = await store.openActive(id);
+          } catch {
+            opened = null;
+          }
+        } else store.setActiveId?.(id);
+        if (stale()) return;
+        if (!opened) {
+          set({ err: i18n.t('library.missing') });
+          await get().refreshDesigns();
+          return;
+        }
         clearHistory(); // a different design is a different document
-        get().hydrate(w);
+        get().hydrate(opened);
         set((s) => ({ selectedId: null, ...showing(s, '2d') }));
         await get().refreshDesigns();
       },
@@ -485,14 +503,12 @@ export const createFileSlice =
           const replaced = observeWorkspace();
           // The derived-statistics block, only when the user opted in (off by
           // default, so a normal save stays byte-identical). Built from the same
-          // report model the PDF export uses; both are lazily imported (also
-          // avoids a static store → reportModel → store import cycle). Loaded
+          // report model the PDF export uses, which is imported lazily: a static
+          // edge would close a store → reportModel → store import cycle. Loaded
           // ahead of the snapshot below, so the report is assembled in the same
           // synchronous stretch as the snapshot: it reads the live store, and
           // read after an await it could describe a design edited since.
-          const reportMods = loadSettings().saveDesignInfo
-            ? await Promise.all([import('../services/report/reportModel'), import('../services/report/designInfo')])
-            : null;
+          const reportMods = loadSettings().saveDesignInfo ? await import('../services/report/reportModel') : null;
           // One vintage of the design, captured before the next await.
           //
           // Reading any part of it after the catalog fetch would mix vintages:
@@ -513,7 +529,7 @@ export const createFileSlice =
           const { sims: simSnapshot, simPrefs: prefsSnapshot } = get();
           let designInfo: DesignInfo | undefined;
           if (reportMods) {
-            const [{ assembleReport }, { buildDesignInfo }] = reportMods;
+            const { assembleReport } = reportMods;
             // Not built yet (a design just loaded, or the engine still arriving):
             // build it now rather than leave out a block the user asked for.
             if (!get().info) {
@@ -537,6 +553,9 @@ export const createFileSlice =
               ...(summary ? { summary } : {}),
               status: !summary ? ('notsimulated' as const) : stale ? ('outdated' as const) : ('uptodate' as const),
               ...(sim.xmlExtra?.length ? { xmlExtra: sim.xmlExtra } : {}),
+              // What it flies with: its own overrides over the globals, the
+              // same settings the run and its outdated check read.
+              ...(prefsSnapshot ? { prefs: effectivePrefs(prefsSnapshot, sim.prefs) } : {}),
             };
           });
           // Every configuration, each with its own motors: the file carries the
@@ -592,7 +611,7 @@ export const createFileSlice =
             : undefined;
           const skipped = await downloadRkt(name, tree, figures);
           // RockSim has no element for some of what this app can build (rail
-          // buttons, parallel stages, the fairing extension). The file is still
+          // buttons, the fairing extension). The file is still
           // worth having, but the user is about to hand it to somebody who will
           // not see those parts, so say so rather than let them find out.
           if (skipped.length) {

@@ -72,7 +72,9 @@ export function SiteFields({
         <SiteMapDialog
           latitudeDeg={site.latitudeDeg}
           longitudeDeg={site.longitudeDeg}
-          onPick={(la, lo) => onChange((s) => ({ ...s, latitudeDeg: la, longitudeDeg: lo }))}
+          // A point on the map has no elevation of its own, and the old
+          // site's is not this one's: blank, the tool takes the terrain's.
+          onPick={(la, lo) => onChange((s) => ({ ...s, latitudeDeg: la, longitudeDeg: lo, launchAltitudeM: null }))}
           onClose={() => setMapOpen(false)}
         />
       )}

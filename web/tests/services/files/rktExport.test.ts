@@ -62,7 +62,7 @@ const design: RocketTree = {
               sweep: 0.025,
               thickness: 0.0032,
               cant: (1.5 * Math.PI) / 180,
-              angleOffset: Math.PI / 6,
+              rotation: Math.PI / 6,
               tabLength: 0.04,
               tabHeight: 0.005,
               tabOffset: 0.01,
@@ -222,7 +222,7 @@ describe('exportRkt → importRkt round trip', () => {
   it.each([
     ['Nose', ['length', 'aftRadius', 'thickness', 'shapeParameter', 'overrideMass', 'overrideCGX']],
     ['Airframe', ['length', 'outerRadius', 'thickness']],
-    ['Fins', ['rootChord', 'tipChord', 'height', 'sweep', 'thickness', 'cant', 'angleOffset', 'tabLength']],
+    ['Fins', ['rootChord', 'tipChord', 'height', 'sweep', 'thickness', 'cant', 'rotation', 'tabLength']],
     ['Motor mount', ['length', 'outerRadius', 'thickness', 'motorOverhang']],
     ['Aft ring', ['length', 'outerRadius', 'innerRadius']],
     ['Chute', ['diameter', 'cd', 'lineLength', 'spillHoleDiameter', 'lineDensity', 'surfaceDensity']],
@@ -897,5 +897,262 @@ describe('exportRkt, read by the desktop handlers', () => {
     expect(Number(field(out, 'Transition', 'FrontShoulderDia'))).toBeCloseTo(48, 9);
     expect(Number(field(out, 'Transition', 'FrontShoulderLen'))).toBeCloseTo(20, 9);
     expect(field(out, 'Transition', 'ShapeCode')).toBe('1');
+  });
+});
+
+/** The rest of what desktop's RockSim handlers read differently. */
+describe('exportRkt, read by the desktop handlers: fins, pods and finishes', () => {
+  const write = (parts: ComponentNode[]) =>
+    exportRkt('x', {
+      name: 'x',
+      components: [{ type: 'stage', id: 's', name: 'Sustainer', children: parts }],
+    } as RocketTree);
+  const tube = (children: ComponentNode[]): ComponentNode => ({
+    type: 'bodytube',
+    id: 'b',
+    name: 'Airframe',
+    length: 0.3,
+    outerRadius: 0.025,
+    thickness: 0.0005,
+    children,
+  });
+  /** Every `<tag>` block in order, as its text. */
+  const blocks = (out: string, tag: string): string[] =>
+    [...out.matchAll(new RegExp(`<${tag}>[\\s\\S]*?</${tag}>`, 'g'))].map((m) => m[0]);
+  /** The text of `name` directly in a block, or undefined. */
+  const value = (block: string, name: string): string | undefined =>
+    new RegExp(`<${name}>([^<]*)</${name}>`).exec(block)?.[1];
+  const fins = (extra: Partial<ComponentNode> = {}): ComponentNode =>
+    ({
+      type: 'trapezoidfinset',
+      id: 'f',
+      name: 'Fins',
+      finCount: 3,
+      rootChord: 0.06,
+      tipChord: 0.03,
+      height: 0.045,
+      sweep: 0.025,
+      thickness: 0.003,
+      ...extra,
+    }) as ComponentNode;
+
+  /**
+   * `ParachuteHandler` builds the line material when `ShroudLineMaterial`
+   * closes, from the density read by then, so the density has to come first.
+   */
+  it("writes a parachute's line density before its line material", () => {
+    const { xml: out } = write([
+      tube([
+        {
+          type: 'parachute',
+          id: 'p',
+          name: 'Chute',
+          diameter: 0.4,
+          lineDensity: 0.0003,
+          lineMaterialName: 'Braided nylon',
+        } as ComponentNode,
+      ]),
+    ]);
+    const chute = blocks(out, 'Parachute')[0]!;
+    expect(chute.indexOf('<ShroudLineMassPerMM>')).toBeGreaterThan(-1);
+    expect(chute.indexOf('<ShroudLineMassPerMM>')).toBeLessThan(chute.indexOf('<ShroudLineMaterial>'));
+  });
+
+  /**
+   * `FinSetDTO` writes `getTabOffset(AxialMethod.TOP)` and `FinSetHandler` reads
+   * it as top: a 40 mm tab centered on a 60 mm root starts 10 mm back, and one
+   * against the trailing edge 20 mm back.
+   */
+  it.each([
+    ['middle', 10],
+    ['bottom', 20],
+    ['top', 0],
+  ])('writes a tab placed by %s as its offset from the root front', (method, expected) => {
+    const { xml: out } = write([
+      tube([fins({ tabLength: 0.04, tabHeight: 0.005, tabOffset: 0, tabOffsetMethod: method })]),
+    ]);
+    expect(Number(value(blocks(out, 'FinSet')[0]!, 'TabOffset'))).toBeCloseTo(expected, 9);
+  });
+
+  /** `RockSimFinishCode.toCode` writes every finish it has no code for as matt (2). */
+  it('writes a finish RockSim has no code for as matt', () => {
+    const { xml: out } = write([{ ...tube([]), finish: 'rough' }]);
+    expect(value(blocks(out, 'BodyTube')[0]!, 'FinishCode')).toBe('2');
+  });
+
+  /** A fin set's and a tube fin set's roll is their `rotation`, as the bridge reads it. */
+  it('writes a fin set and a tube fin set rotated by their rotation', () => {
+    const { xml: out } = write([
+      tube([
+        fins({ rotation: Math.PI / 4 }),
+        { type: 'tubefinset', id: 't', name: 'Tubes', rotation: Math.PI / 2, outerRadius: 0.01 } as ComponentNode,
+      ]),
+    ]);
+    expect(Number(value(blocks(out, 'FinSet')[0]!, 'RadialAngle'))).toBeCloseTo(45, 9);
+    expect(Number(value(blocks(out, 'TubeFinSet')[0]!, 'RadialAngle'))).toBeCloseTo(90, 9);
+    const back = find(importRkt(out).tree.components, 'Fins');
+    expect(back['rotation']).toBeCloseTo(Math.PI / 4, 9);
+  });
+
+  const pod = (extra: Partial<ComponentNode> = {}): ComponentNode =>
+    ({
+      type: 'podset',
+      id: 'p',
+      name: 'Pod',
+      instanceCount: 1,
+      radiusMethod: 'free',
+      radiusOffset: 0.05,
+      position: { method: 'top', offset: 0.1 },
+      children: [
+        {
+          type: 'bodytube',
+          id: 'pt',
+          name: 'Pod tube',
+          length: 0.1,
+          outerRadius: 0.012,
+          children: [fins({ id: 'pf', name: 'Pod fins', rotation: 0 })],
+        },
+      ],
+      ...extra,
+    }) as ComponentNode;
+
+  /**
+   * `PodSetDTO.generatePodSetDTOs` writes one pod per instance, as
+   * `RocketComponent.splitInstances` makes them: each turned by its share of
+   * the circle, named `<name> #<n>`, with the mass override shared.
+   */
+  it('writes a set of three pods as three pods', () => {
+    const { xml: out } = write([tube([pod({ instanceCount: 3, overrideMass: 0.03 })])]);
+    const pods = blocks(out, 'ExternalPod');
+    expect(pods).toHaveLength(3);
+    expect(pods.map((p) => value(p, 'Name'))).toEqual(['Pod #1', 'Pod #2', 'Pod #3']);
+    expect(pods.map((p) => Number(value(p, 'RadialAngle') ?? 0))).toEqual(
+      [0, 120, 240].map((a) => expect.closeTo(a, 9)),
+    );
+    for (const p of pods) expect(Number(value(p, 'KnownMass'))).toBeCloseTo(10, 9);
+  });
+
+  /**
+   * RockSim keeps a pod child's angle about the airframe: desktop adds the pod's
+   * angle on the way out (`PodSetDTO.addAngleOffsetToChildren`) and takes it off
+   * on the way in. A lug with no angle of its own flies at pi, the bridge's
+   * default, so it goes out at pi plus the pod's angle.
+   */
+  it("adds the pod's angle to the angles of the parts inside it, and reads them back", () => {
+    const lug = { type: 'launchlug', id: 'l', name: 'Pod lug', length: 0.03, outerRadius: 0.002 } as ComponentNode;
+    const turned = pod({ angleOffset: Math.PI / 2 });
+    turned.children![0]!.children!.push(lug);
+    const { xml: out } = write([tube([turned])]);
+    expect(Number(value(blocks(out, 'FinSet')[0]!, 'RadialAngle') ?? 0)).toBeCloseTo(90, 9);
+    expect(Number(value(blocks(out, 'LaunchLug')[0]!, 'RadialAngle'))).toBeCloseTo(270, 9);
+    const back = importRkt(out).tree.components;
+    expect(find(back, 'Pod fins')['rotation']).toBeCloseTo(0, 9);
+    expect(find(back, 'Pod lug')['angleOffset']).toBeCloseTo(Math.PI, 9);
+  });
+
+  /**
+   * `ParallelStageDTO` writes a strap-on booster as a pod that separates
+   * (`Detachable` 1), one per instance, and `PodHandler` reads it back as a
+   * parallel stage.
+   */
+  it('writes a strap-on booster as a pod that separates', () => {
+    const { xml: out, skipped: s } = write([tube([pod({ type: 'parallelstage', name: 'Booster' })])]);
+    expect(s).toEqual([]);
+    expect(value(blocks(out, 'ExternalPod')[0]!, 'Detachable')).toBe('1');
+    expect(find(importRkt(out).tree.components, 'Booster').type).toBe('parallelstage');
+  });
+});
+
+/** What RockSim has no element for, named in the result rather than lost quietly. */
+describe('exportRkt, overrides RockSim cannot hold', () => {
+  const only = (part: ComponentNode) =>
+    exportRkt('x', {
+      name: 'x',
+      components: [{ type: 'stage', id: 's', name: 'Sustainer', children: [part] }],
+    } as RocketTree);
+  const nose = (extra: Partial<ComponentNode>): ComponentNode =>
+    ({ type: 'nosecone', id: 'n', name: 'Nose', length: 0.1, aftRadius: 0.0124, ...extra }) as ComponentNode;
+
+  /**
+   * RockSim's one switch covers the part alone (`BaseHandler.setOverride` clears
+   * the flags for the parts inside), so an override of everything inside opens as an
+   * override of the part, with its children's mass added on top.
+   */
+  it('names an override that applies to the parts inside', () => {
+    const { skipped: s } = only(nose({ overrideMass: 0.05, overrideSubcomponentsMass: true }));
+    expect(s).toEqual([{ key: 'errors.rktSkip.subtreeOverride', values: { name: 'Nose' } }]);
+  });
+
+  it('names a drag coefficient override, which RockSim has no element for', () => {
+    const { skipped: s } = only(nose({ overrideCD: 0.4 }));
+    expect(s).toEqual([{ key: 'errors.rktSkip.cdOverride', values: { name: 'Nose' } }]);
+  });
+
+  it('names nothing for an override of the part alone', () => {
+    expect(only(nose({ overrideMass: 0.05 })).skipped).toEqual([]);
+  });
+});
+
+/**
+ * Desktop's `CustomFinSetDTO.convertFreeFormPoints` writes RockSim's order: the
+ * trailing root point first, back to `0,0`, each pair closed by `|`. Desktop's
+ * reader and the app's reverse a list that ends at `0,0`, so the outline comes
+ * back leading edge first.
+ */
+describe('exportRkt, a freeform fin outline', () => {
+  const freeform = (points: [number, number][]): RocketTree =>
+    ({
+      name: 'x',
+      components: [
+        {
+          type: 'stage',
+          id: 's',
+          name: 'Sustainer',
+          children: [
+            {
+              type: 'bodytube',
+              id: 'b',
+              name: 'Airframe',
+              length: 0.3,
+              outerRadius: 0.0124,
+              children: [{ type: 'freeformfinset', id: 'f', name: 'Fins', finCount: 3, points }],
+            },
+          ],
+        },
+      ],
+    }) as RocketTree;
+
+  it("is written in RockSim's order, trailing edge first", () => {
+    const { xml: out } = exportRkt(
+      'x',
+      freeform([
+        [0, 0],
+        [0.02, 0.04],
+        [0.05, 0],
+      ]),
+    );
+    expect(out).toContain('<PointList>50,0|20,40|0,0|</PointList>');
+  });
+
+  it('starts from the outline the kernel flies, its first point at 0,0', () => {
+    const { xml: out } = exportRkt(
+      'x',
+      freeform([
+        [0.01, 0],
+        [0.03, 0.04],
+        [0.06, 0],
+      ]),
+    );
+    expect(out).toContain('<PointList>50,0|20,40|0,0|</PointList>');
+  });
+
+  it('reads back leading edge first', () => {
+    const pts: [number, number][] = [
+      [0, 0],
+      [0.02, 0.04],
+      [0.05, 0],
+    ];
+    const back = find(importRkt(exportRkt('x', freeform(pts)).xml).tree.components, 'Fins');
+    expect(back['points']).toEqual(pts);
   });
 });

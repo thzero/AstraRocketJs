@@ -10,11 +10,22 @@ export interface SurfaceWind {
 }
 
 export async function fetchSurfaceWind(
-  q: { latitudeDeg: number; longitudeDeg: number; date: string; hour: number; today: string; apiKey?: string },
+  q: {
+    latitudeDeg: number;
+    longitudeDeg: number;
+    /** The site, meters above sea level; null to take the terrain model's height. */
+    siteM: number | null;
+    date: string;
+    hour: number;
+    today: string;
+    apiKey?: string;
+  },
   o: FetchOpts = {},
-): Promise<SurfaceWind | 'noHour'> {
-  // The site's own height, so the answer is the wind there rather than at sea level.
-  const siteM = (await fetchElevation(q.latitudeDeg, q.longitudeDeg, q.apiKey, o)) ?? 0;
+): Promise<SurfaceWind | 'noHour' | 'noElevation'> {
+  // The site's own height, so the answer is the wind there rather than at sea
+  // level. A blank height whose lookup fails is asked for, not taken as 0.
+  const siteM = q.siteM ?? (await fetchElevation(q.latitudeDeg, q.longitudeDeg, q.apiKey, o));
+  if (siteM == null) return 'noElevation';
   const answer = await fetchWeather({ ...q, siteM }, o);
   const sample = sampleAt(answer.variants[0]!, answer.timezone, q.date, q.hour);
   if (!sample || sample.windSpeed == null) return 'noHour';

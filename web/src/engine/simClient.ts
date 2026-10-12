@@ -153,8 +153,8 @@ function spawn(): Slot {
   worker.onmessage = (e: MessageEvent<WorkerResponse | WorkerReady>) => {
     const data = e.data;
     if ('ready' in data) {
-      // The load is over: the call being served now gets its own ceiling,
-      // from this moment rather than from dispatch.
+      // The load is over: from here the call being served gets its own
+      // ceiling, timed from this moment rather than from dispatch.
       slot.ready = true;
       const busy = slot.busy;
       if (busy) {

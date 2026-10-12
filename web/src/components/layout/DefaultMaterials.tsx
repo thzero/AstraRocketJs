@@ -27,12 +27,14 @@ export function DefaultMaterials({
 }) {
   const { t } = useTranslation();
 
-  const set = (key: string, name: string | undefined, density: number) => {
+  const set = (key: string, name: string | undefined, density: number, group?: string) => {
     const next = { ...defaults };
     // Choosing "Automatic" clears the preference rather than storing a blank
-    // one, so the setting only ever holds real choices.
+    // one, so the setting only ever holds real choices. The catalog group goes
+    // with it, as it does with a material picked in the property panel, so a
+    // new part's material is filed under its own category in the `.ork`.
     if (!name || !(density > 0)) delete next[key];
-    else next[key] = { name, density };
+    else next[key] = group ? { name, density, group } : { name, density };
     onChange(next);
   };
 
@@ -51,7 +53,7 @@ export function DefaultMaterials({
             unsetLabel={t('settings.materialNoDefault')}
             value={defaults[key]?.name}
             density={defaults[key]?.density}
-            onChange={(name, density) => set(key, name, density)}
+            onChange={(name, density, group) => set(key, name, density, group)}
           />
         );
       })}

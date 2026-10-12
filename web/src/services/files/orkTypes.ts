@@ -229,6 +229,8 @@ export interface OrkExportSimulation {
   status: 'uptodate' | 'outdated' | 'notsimulated';
   /** Simulation children carried from the file this design was opened from (desktop extensions and the like). */
   xmlExtra?: string[];
+  /** The run settings this simulation flies with, its own overrides over the globals. Absent, the export's own. */
+  prefs?: OrkSimPrefs;
 }
 
 export interface OrkTreeExportInput {

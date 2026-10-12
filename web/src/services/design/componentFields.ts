@@ -4,6 +4,7 @@ import { CLUSTER_OPTIONS, clusterCount } from '../../tree/cluster';
 import type { DerivedName } from './derivedFields';
 import { KERNEL_DEPLOYMENT } from '../../tree/kernelDefaults';
 import { RAIL_BUTTON_BOUNDS, RAIL_BUTTON_FALLBACK, RING_BOUNDS, type DimensionBounds } from './linkedDimensions';
+import { num } from '../../tree/nodeProps';
 
 /**
  * The component field table: which properties each component type exposes,
@@ -282,6 +283,22 @@ const railButtonLength = (key: keyof typeof RAIL_BUTTON_FALLBACK): Field => ({
 const LENGTH: Field = { key: 'length', label: 'length', kind: 'length' };
 const WALL: Field = { key: 'thickness', label: 'thickness', kind: 'length' };
 
+/**
+ * At most the larger of these radii, an absent one leaving the value unbounded.
+ * Every wall and shoulder setter below clamps against radii the node stores.
+ */
+const atMostRadius = (...keys: string[]): DimensionBounds => ({
+  max: (n) => Math.max(...keys.map((k) => num(n, k, Infinity))),
+});
+
+/**
+ * A tube's wall, at most its outer radius: `ThicknessRingComponent.setThickness`,
+ * `LaunchLug.setThickness` and `TubeFinSet.setThickness` clamp to it, and a body
+ * tube's `SymmetricComponent.setThickness` clamps to `getMaxRadius()`, which on
+ * a tube is the same radius.
+ */
+const TUBE_WALL_THICKNESS: Field = { ...WALL, bounds: atMostRadius('outerRadius') };
+
 // Solid all the way through, with no bore. The desktop's Filled checkbox, and
 // `<thickness>filled</thickness>` in the file. The wall row is dropped while it
 // is on, the way the desktop grays it out.
@@ -297,7 +314,7 @@ const OUTER_DIAMETER: Field = {
 };
 
 // A straight tube with a wall: length, outside, bore and wall, in that order.
-const TUBE_WALL: Field[] = [LENGTH, OUTER_DIAMETER, TUBE_BORE, WALL];
+const TUBE_WALL: Field[] = [LENGTH, OUTER_DIAMETER, TUBE_BORE, TUBE_WALL_THICKNESS];
 
 const MOTOR_MOUNT: Field[] = [
   { key: 'motorMount', label: 'motorMount', kind: 'bool', section: 'motor' },
@@ -401,7 +418,8 @@ const RAW_FIELDS: Record<string, Field[]> = {
       auto: { flag: 'aftRadiusAuto', tip: 'autoRadius' },
     },
     FILLED,
-    WALL,
+    // SymmetricComponent.setThickness: at most getMaxRadius(), the base.
+    { ...WALL, bounds: atMostRadius('aftRadius') },
     // A flipped nose cone is a tail cone: the same part turned round.
     { key: 'flipped', label: 'flipped', kind: 'bool' },
     { key: 'shoulderLength', label: 'shoulderLength', kind: 'length', section: 'shoulder' },
@@ -411,12 +429,14 @@ const RAW_FIELDS: Record<string, Field[]> = {
       kind: 'length',
       diameter: true,
       auto: { flag: 'shoulderAuto', tip: 'autoShoulder' },
+      // NoseCone.setShoulderRadius: at most the base it plugs in behind.
+      bounds: atMostRadius('aftRadius'),
       section: 'shoulder',
     },
     { key: 'shoulderThickness', label: 'shoulderThickness', kind: 'length', section: 'shoulder' },
     { key: 'shoulderCapped', label: 'shoulderCapped', kind: 'bool', section: 'shoulder' },
   ],
-  bodytube: [LENGTH, OUTER_DIAMETER, TUBE_BORE, FILLED, WALL, ...MOTOR_MOUNT],
+  bodytube: [LENGTH, OUTER_DIAMETER, TUBE_BORE, FILLED, TUBE_WALL_THICKNESS, ...MOTOR_MOUNT],
   transition: [
     {
       key: 'shape',
@@ -446,7 +466,8 @@ const RAW_FIELDS: Record<string, Field[]> = {
       auto: { flag: 'aftRadiusAuto', tip: 'autoRadius' },
     },
     FILLED,
-    WALL,
+    // SymmetricComponent.setThickness: at most getMaxRadius(), the wider end.
+    { ...WALL, bounds: atMostRadius('foreRadius', 'aftRadius') },
     // Clipped or full profile, for the shapes where it means anything
     // (ellipsoid, power, haack). The drawing, the mesh and the kernel all read
     // it.
@@ -458,6 +479,8 @@ const RAW_FIELDS: Record<string, Field[]> = {
       kind: 'length',
       diameter: true,
       auto: { flag: 'foreShoulderAuto', tip: 'autoShoulder' },
+      // Transition.setForeShoulderRadius: at most the fore radius.
+      bounds: atMostRadius('foreRadius'),
       section: 'foreShoulder',
     },
     // Each shoulder's own wall, and whether its far end is closed by a disc of
@@ -473,6 +496,8 @@ const RAW_FIELDS: Record<string, Field[]> = {
       kind: 'length',
       diameter: true,
       auto: { flag: 'aftShoulderAuto', tip: 'autoShoulder' },
+      // Transition.setAftShoulderRadius: at most the aft radius.
+      bounds: atMostRadius('aftRadius'),
       section: 'aftShoulder',
     },
     { key: 'aftShoulderThickness', label: 'aftShoulderThickness', kind: 'length', section: 'aftShoulder' },
@@ -507,14 +532,14 @@ const RAW_FIELDS: Record<string, Field[]> = {
       auto: { flag: 'outerRadiusAuto', tip: 'autoRadius' },
     },
     TUBE_BORE,
-    { key: 'thickness', label: 'thickness', kind: 'length' },
+    TUBE_WALL_THICKNESS,
     FIN_ROTATION,
   ],
   innertube: [
     LENGTH,
     { key: 'outerRadius', label: 'diameter', kind: 'length', diameter: true },
     TUBE_BORE,
-    WALL,
+    TUBE_WALL_THICKNESS,
     ...MOTOR_MOUNT,
     // `cluster` round-trips through .ork, and the 2D, aft and 3D views all draw
     // the tube at every cluster offset.
@@ -579,7 +604,7 @@ const RAW_FIELDS: Record<string, Field[]> = {
     // exportWriters.ts) and sizes its printed solid. With the diameter it sets
     // the bore, which is the one dimension of a lug that has to be right: the
     // rod has to fit through it.
-    { key: 'thickness', label: 'thickness', kind: 'length' },
+    TUBE_WALL_THICKNESS,
     { key: 'angleOffset', label: 'rotation', kind: 'angle', section: 'placement' },
     ...LINE_INSTANCES,
   ],

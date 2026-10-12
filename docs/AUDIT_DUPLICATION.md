@@ -300,7 +300,7 @@ The same flight's landing distance uses the apogee-scoped unit on Ground Track (
 
 ### D25. CG marker colors in 3D (HIGH, VERIFIED) - FIXED 2026-10-05
 
-`Rocket3D.tsx:90` marker `#2b6cff` (blue), `:238` leader `#dbe3ea` (near white), `:268` legend dot `#aab2bd` (gray). The legend matches neither drawn element. CP uses `#e34948` consistently. **Fix.** `CG_INK` / `CP_INK` constants in `stabilityGadget.ts`.
+`Rocket3D.tsx:90` marker `#2b6cff` (blue), `:238` leader `#dbe3ea` (near white), `:268` legend dot `#aab2bd` (gray). The legend matches neither drawn element. CP uses `#e34948` consistently. **Fix.** `CG_INK` / `CP_INK` constants in `stabilityInks.ts`.
 
 **Done, 2026-10-05.** The legend dot now uses the marker ink. The CG leader and label stay near-white for legibility on the dark background.
 

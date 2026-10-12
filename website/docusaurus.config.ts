@@ -9,13 +9,14 @@ const { version } = JSON.parse(readFileSync(new URL('../web/package.json', impor
 // names it: engine-java/extract/UPSTREAM. "The same physics core" is not a
 // checkable claim on its own - a reader comparing their numbers against the
 // desktop app's, or asking whether a feature from some release is in here,
-// needs the commit - so Overview states it, through <UpstreamPin /> (see
-// src/components/UpstreamPin.tsx), which reads what this puts in customFields.
+// needs the commit - so the comparison appendices state it, through
+// <UpstreamPin /> (see src/components/UpstreamPin.tsx), which reads what this
+// puts in customFields.
 //
 // Read at build time, in every locale, rather than written into the Markdown:
 // a version string typed into a page is a copy of a SHA, and a copy of a SHA is
 // the thing that goes stale without anyone noticing. Bumping UPSTREAM moves
-// this page, the Spanish one, and the app's About dialog together.
+// those pages in both locales and the app's About dialog together.
 //
 // `key = value` lines, below a header in which every line is a `#` comment.
 const pinFile = (path: string) => {
@@ -64,8 +65,8 @@ const config: Config = {
   organizationName: 'thzero',
   projectName: 'AstraRocketJs',
 
-  // Read by <UpstreamPin /> and <AppVersion />, which Overview and the
-  // comparison appendices render in both locales.
+  // Read by <UpstreamPin /> and <AppVersion />, which the comparison
+  // appendices render in both locales.
   customFields: { upstream, appVersion: version },
 
   // Emit /faq/ rather than /faq, so every page is a directory with its own
@@ -75,10 +76,9 @@ const config: Config = {
   // signal even if nobody read it first.
   //
   // NAVIGATING to /faq/ is a different request and does not hit the precache:
-  // `directoryIndex` is switched off in web/vite.config.ts (it was also
-  // answering the app's own root from the precache, which kept a reload from
-  // ever showing a new deploy), so Workbox never maps the trailing slash onto
-  // index.html. A runtimeCaching rule there covers that path for pages already
+  // `directoryIndex` is switched off in web/vite.config.ts (left on, it also
+  // answers the app's own root from the precache, so a reload never shows a new
+  // deploy), so Workbox never maps the trailing slash onto index.html. A runtimeCaching rule there covers that path for pages already
   // visited.
   trailingSlash: true,
   // A broken internal link fails the build rather than shipping a dead page
@@ -130,9 +130,9 @@ const config: Config = {
         /*
          * WHAT THE HASH IS TAKEN OVER, and the only thing `docsDir` is used for
          * in this plugin. It defaults to `docs`, which is the ENGLISH sources
-         * alone, so a Spanish-only change left the hash where it was and a reader
-         * holding a cached Spanish index kept it. Both locales' indexes are
-         * rebuilt on every deploy, so what the hash has to cover is every source
+         * alone: a Spanish-only change would leave the hash unchanged and a
+         * reader holding a cached Spanish index would keep it. Both locales'
+         * indexes are rebuilt on every deploy, so the hash covers every source
          * either of them is built from.
          */
         docsDir: ['docs', 'i18n'],

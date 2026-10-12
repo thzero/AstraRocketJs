@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+// cspell:ignore Metalle Kunststoffe
 import { StrictMode } from 'react';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
@@ -61,7 +62,7 @@ describe('MaterialPicker under StrictMode', () => {
 });
 
 /**
- * Deleting a custom material reloads the list afterwards. That reload can fail
+ * Deleting a custom material reloads the list afterward. That reload can fail
  * on its own (the catalog fetch offline), and the click must say so rather than
  * leave an unhandled rejection with nothing on screen.
  */
@@ -129,5 +130,29 @@ describe('MaterialPicker naming', () => {
   it('falls back to Material when the row has no label', () => {
     renderWithProviders(<MaterialPicker onChange={() => {}} />);
     expect(screen.getByRole('combobox', { name: 'Material' })).toBeTruthy();
+  });
+});
+
+/**
+ * Group headings in the reader's language, as desktop translates its material
+ * groups. The value stored with a material stays the catalog's English name.
+ */
+describe('MaterialPicker group headings', () => {
+  beforeAll(serveData);
+  beforeEach(() => setMaterialStore(memoryStore()));
+
+  it('names the groups in the UI language', async () => {
+    const i18n = (await import('../../../src/i18n')).default;
+    await i18n.changeLanguage('de');
+    try {
+      const { container } = renderWithProviders(<MaterialPicker onChange={() => {}} />);
+      await waitFor(() => expect(container.querySelectorAll('optgroup').length).toBeGreaterThan(1));
+      const labels = [...container.querySelectorAll('optgroup')].map((g) => g.getAttribute('label'));
+      expect(labels).toContain('Metalle');
+      expect(labels).toContain('Kunststoffe');
+      expect(labels).not.toContain('Metals');
+    } finally {
+      await i18n.changeLanguage('en');
+    }
   });
 });

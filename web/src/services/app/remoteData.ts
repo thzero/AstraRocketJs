@@ -8,7 +8,7 @@
  * overwriting the JSON on the host, no rebuild/redeploy of the app.
  *
  * Every dataset the app ships goes through here, whatever its size, not only the
- * 1.6 MB motor file: a table of materials under `src/` reads as source rather
+ * 1.4 MB motor file: a table of materials under `src/` reads as source rather
  * than as a copy of the database it comes from, and drifts from it.
  *
  * `VITE_DATA_BASE` takes that a step further. Point it at a separately deployed
@@ -51,7 +51,7 @@ const BASES = REMOTE_BASE && REMOTE_BASE !== LOCAL_BASE ? [REMOTE_BASE, LOCAL_BA
 /**
  * Budgets are split into "is the host alive?" and "is the transfer moving?",
  * because one combined timeout cannot serve both. motors.generated.json is
- * ~1.6 MB (roughly 3 s on typical 4G but ~18 s on 3G and ~34 s throttled), so
+ * ~1.4 MB (roughly 3 s on typical 4G but ~15 s on 3G and ~30 s throttled), so
  * any single budget generous enough to let a slow link finish is also a long
  * wait before a dead host gives up, and any budget short enough to fail fast
  * also severs downloads that were progressing perfectly well.

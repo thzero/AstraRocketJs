@@ -61,10 +61,10 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   // Under CI the `github` reporter annotates the PR, and the HTML report is
-  // written beside it (never auto-opened: there is no browser to open it in)
-  // so that a retry which passed on the second go is still visible as a flake
-  // in the uploaded report. The `github` reporter alone shows only the final
-  // verdict, which hides flaky specs.
+  // written beside it (never auto-opened: there is no browser to open it in),
+  // with the trace of any retried spec. The workflow uploads it only when the
+  // job fails (`if: failure()` in gates.yml), so a spec that passed on its
+  // retry leaves no uploaded report.
   reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : 'list',
   use: {
     baseURL: 'http://localhost:5180',

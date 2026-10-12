@@ -16,7 +16,7 @@ Written **2026-09-29**, comparing **AstraRocketJs <AppVersion />** (engine built
 
 [Overview](./overview.md) says AstraRocketJs covers "the essentials rather than every desktop feature".
 
-The aerodynamics, the mass and CG build-up, and the flight integration are **OpenRocket's own code**, extracted from the commit above and compiled to WebAssembly and JavaScript. They are not a reimplementation and not an approximation, and they are checked bit-identical against the same kernel running on a JVM. So there is no row below that reads "OpenRocket computes drag more accurately": for the same design, the same motor and the same conditions, the same numbers come out.
+The aerodynamics, the mass and CG build-up, and the flight integration are **OpenRocket's own code**, extracted from the commit above and compiled to WebAssembly and JavaScript. They are not a reimplementation. Their static figures are checked against the same kernel running on a JVM and match apart from rounding in the last digit, and their flights agree with that JVM run within a small tolerance. So there is no row below that reads "OpenRocket computes drag more accurately": for the same design, the same motor and the same conditions, the same code computes the numbers.
 
 Everything that follows is therefore about **the program around the engine**: what you can author, what you can look at, and what you can get out.
 
@@ -24,7 +24,7 @@ Everything that follows is therefore about **the program around the engine**: wh
 
 | Desktop feature | Where it stands here, and why |
 | --- | --- |
-| **Rocket optimization** (search a design parameter for the best apogee, altitude or velocity) | Not available. OpenRocket's `optimization` package is not part of the extraction (`engine-java/extract/manifest.txt`), so the search machinery is not even in the bundled core. It would have to be rebuilt on the JavaScript side. |
+| **Rocket optimization** (search a design parameter for the best apogee, altitude or velocity) | Not available. OpenRocket's `optimization` package is not part of the extraction (`engine-java/extract/manifest.txt`), so the search machinery is not in the bundled core. It would have to be rebuilt on the JavaScript side. |
 | **Custom expressions** (define your own flight variable from the simulated ones and plot it) | Not available, for the same reason: the `customexpression` package is not extracted. The flight CSV export hands you the raw series to compute from yourself. |
 | **Simulation extensions and scripting** (air-start, roll control, the JavaScript scripting extension) | Not available. The `simulation/extension` package is not extracted, so an extension cannot run. It shows in the bundled examples: the two "simulation extension" designs open and fly as ordinary airframes, which is exactly what their own descriptions say. A `.ork` simulation's air-start, roll control and scripting extensions, its plot settings and its landing-dispersion settings are kept and written back on save, so the file opens in desktop with them intact, and the import note names the extensions as desktop does. |
 | **Appearance, decals and Photo Studio** (textures on components, rendered photos) | Partly. Each part's **Appearance** section has a **Color** picker with a reset, and the views draw that color. A file's other appearance settings are preserved on save but not edited or drawn here, and decals are removed on import, because their images are stored separately in the file. There is no Photo Studio. |

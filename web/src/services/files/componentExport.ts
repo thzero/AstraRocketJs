@@ -10,6 +10,8 @@ import { componentToDxf, DXF_MIME } from '../exports/dxfExport';
 import type { ExportFormat } from './componentFormats';
 import { solidFor } from '../exports/rocketPrintExport';
 import type { Translate } from '../../i18n/keyedError';
+import { partLabel } from '../../i18n/format';
+import i18n from '../../i18n';
 
 /**
  * The heavy half of per-component export: the dispatch that builds + downloads
@@ -35,7 +37,10 @@ export async function exportComponent(
   if (!node) return false;
   // Rocket first, then the part: a downloads folder holds the nose cones of
   // every design at once, and "Nose cone.stl" does not say whose.
-  const name = (ext: string) => exportFilename([rocketName, node.name || node.type], ext, 'part');
+  // An unnamed part by its translated type, as every view names it, not by
+  // its type token.
+  const label = partLabel((key, opts) => (t ? t(key, opts as Record<string, string>) : i18n.t(key, opts)), node);
+  const name = (ext: string) => exportFilename([rocketName, label], ext, 'part');
 
   if (format === 'dxf') {
     const dxf = componentToDxf(tree, nodeId, t);
@@ -51,9 +56,7 @@ export async function exportComponent(
   else if (format === '3mf') {
     // The 3MF writer reads vertices and indices directly, so it needs the
     // welded/capped geometry the three.js exporters get from `meshGroup`.
-    const parts = [
-      { name: node.name || node.type, geometry: makeWatertight(geometry), color: colorForType(node.type) },
-    ];
+    const parts = [{ name: label, geometry: makeWatertight(geometry), color: colorForType(node.type) }];
     download(name('3mf'), buildThreeMf(parts) as BlobPart, THREE_MF_MIME);
   } else download(name('glb'), await solidToGlb(geometry), GLB_MIME);
   return true;

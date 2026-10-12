@@ -28,6 +28,39 @@ import { designDeployment, designSeparation } from '../../flight/flightConfigs';
  */
 const CARDBOARD = KERNEL_MATERIALS.bulk;
 
+/**
+ * The `group` attribute for a material's group, in desktop's vocabulary.
+ *
+ * The app keeps the group the material catalog files a material under, which
+ * is desktop's own group name except that desktop writes paper products as
+ * `PaperProducts` (`MaterialGroup.getDatabaseString`). A group desktop has no
+ * name for, such as the catalog's adhesives, is left off: desktop warns
+ * "Illegal material group specified, ignoring." on one it does not know, and
+ * files a material with no group under Other.
+ */
+const DESKTOP_GROUPS: Record<string, string> = {
+  Metals: 'Metals',
+  Woods: 'Woods',
+  Plastics: 'Plastics',
+  Fabrics: 'Fabrics',
+  Paper: 'PaperProducts',
+  PaperProducts: 'PaperProducts',
+  Foams: 'Foams',
+  Composites: 'Composites',
+  Fibers: 'Fibers',
+  Elastics: 'Elastics',
+  Kevlars: 'Kevlars',
+  Nylons: 'Nylons',
+  Other: 'Other',
+  Custom: 'Custom',
+};
+
+/** ` group="..."` for the group, or nothing when desktop has no such group. */
+function groupAttr(group: unknown): string {
+  const known = typeof group === 'string' ? DESKTOP_GROUPS[group] : undefined;
+  return known ? ` group="${escapeXml(known)}"` : '';
+}
+
 export function material(
   w: OrkWriter,
   depth: number,
@@ -41,7 +74,7 @@ export function material(
       const name = typeof node['materialName'] === 'string' ? node['materialName'] : 'custom';
       // The group rides along when the reader kept one (readMaterialGroup),
       // so a desktop material round-trips with its catalog category.
-      const group = typeof node['materialGroup'] === 'string' ? ` group="${escapeXml(node['materialGroup'])}"` : '';
+      const group = groupAttr(node['materialGroup']);
       emit(depth, `<material type="bulk" density="${node.density}"${group}>${escapeXml(name)}</material>`);
     } else {
       emit(
@@ -116,14 +149,15 @@ export function header(w: OrkWriter, depth: number, node: ComponentNode, fallbac
  * `clearPreset`, so a link can never claim a part number the geometry does not
  * match.
  *
- * Written only with a digest, which is why a link picked from our own catalog
- * does not reach the file. The desktop's reader treats a preset element without
+ * Written only with a digest. The desktop's reader treats a preset element without
  * one as invalid and says so in a dialog ("Invalid ComponentPreset for component
  * Nose Cone, no digest specified"), so half an element is worse than none: it
  * buys nothing and costs every reader a warning. The digest is an MD5 the
- * kernel computes over a preset's own properties (`ComponentPreset.computeDigest`)
- * and our catalog (`sync-components.mjs`) does not carry one yet, so the links
- * that survive a save are the ones an imported desktop file brought with it.
+ * kernel computes over a preset's own properties (`ComponentPreset.computeDigest`);
+ * the app's catalog carries it per row (`sync-preset-digests.mjs`) and a pick
+ * stamps it on the link (`treeEdit.presetLink`), so a picked part and one an
+ * imported desktop file brought both reach the file. A row the digest step has
+ * not covered goes out with no link.
  *
  * The type is the kernel's enum constant, not our row type: see presetTypes.
  */
@@ -193,26 +227,34 @@ export function airfoilXml(w: OrkWriter, depth: number, node: ComponentNode): vo
 export const deployEventXml = (ev: string): string => ev.replace(/_/g, '');
 
 /**
+ * Whether a configuration's override changes anything the design states.
+ *
+ * An imported configuration records every value it resolves to, its block's
+ * over the bare tags, so one with no block of its own carries the design's
+ * values and overrides nothing.
+ */
+function differs<T extends object>(o: Partial<T>, design: T): boolean {
+  return (Object.keys(o) as (keyof T)[]).some((k) => o[k] !== undefined && o[k] !== design[k]);
+}
+
+/**
  * Per-configuration recovery deployment: when this device opens under each
  * configuration.
  *
- * A configuration that overrides nothing takes the live tree's values, which are
- * already written as the bare defaults just above, so its block simply repeats
- * them. One that overrides writes what it overrides. Without this, saving after
- * opening one configuration would rewrite every configuration's recovery
- * settings to the opened one's: a chute set to open at apogee in config A could
- * come back deploying at 300 m.
+ * Only a configuration that overrides this device gets a block, as
+ * `RecoveryDeviceSaver` writes only configurations that are not the default.
+ * The rest take the bare tags just above. A block that repeats the defaults
+ * would read back in desktop as an override, so a later change to the device's
+ * deployment there would reach the default and not that configuration. Without
+ * the blocks that do override, saving after opening one configuration would
+ * rewrite every configuration's recovery settings to the opened one's: a chute
+ * set to open at apogee in config A could come back deploying at 300 m.
  */
 export function deploymentConfigs(w: OrkWriter, depth: number, node: ComponentNode): void {
-  // Nothing to say when there is one configuration and it recovers the way the
-  // design does: the bare tags above already say it. One configuration that
-  // does override still needs its block, or the override would be the one thing
-  // the file lost.
-  if (w.writeConfigs.length < 2 && !w.writeConfigs[0]?.deployments) return;
+  const design = designDeployment(node);
   for (const c of w.writeConfigs) {
-    const o: OrkDeployOverride =
-      c.deployments === null ? designDeployment(node) : node.id ? (c.deployments[node.id] ?? {}) : {};
-    if (Object.keys(o).length === 0) continue;
+    const o: OrkDeployOverride = (node.id && c.deployments?.[node.id]) || {};
+    if (!differs(o, design)) continue;
     w.emit(depth, `<deploymentconfiguration configid="${escapeXml(c.id)}">`);
     if (o.deployEvent !== undefined)
       w.emit(depth + 1, `<deployevent>${escapeXml(deployEventXml(o.deployEvent))}</deployevent>`);
@@ -248,8 +290,7 @@ export function filletXml(w: OrkWriter, depth: number, node: ComponentNode): voi
     return;
   }
   const matName = typeof node['filletMaterialName'] === 'string' ? node['filletMaterialName'] : 'custom';
-  const group =
-    typeof node['filletMaterialGroup'] === 'string' ? ` group="${escapeXml(node['filletMaterialGroup'])}"` : '';
+  const group = groupAttr(node['filletMaterialGroup']);
   w.emit(depth, `<filletmaterial type="bulk" density="${density}"${group}>` + `${escapeXml(matName)}</filletmaterial>`);
 }
 
@@ -347,12 +388,14 @@ export function autoRadius(w: OrkWriter, depth: number, node: ComponentNode, key
 
 /**
  * A stage's (or strap-on booster's) separation: the default params written
- * bare, then one <separationconfiguration> per config (AxialStageSaver writes
- * the same pair for a lower <stage>).
+ * bare, then a <separationconfiguration> for each configuration that stages
+ * differently (AxialStageSaver writes the same pair for a lower <stage>, and
+ * only for configurations its parameter set holds an override for).
  *
- * A configuration that stages differently writes its own values into its block;
- * the rest repeat the design's. Writing the design's for all of them would make
- * every other configuration lose its own separation settings on save.
+ * A configuration with an override writes it into its block, the design's
+ * values filling what it leaves out; the rest take the bare tags. Writing the
+ * design's for all of them would make every other configuration lose its own
+ * separation settings on save.
  */
 export function separationXml(w: OrkWriter, depth: number, node: ComponentNode): void {
   const { separationEvent: ev, separationDelay: delay, separationAltitude: alt } = designSeparation(node);
@@ -362,12 +405,12 @@ export function separationXml(w: OrkWriter, depth: number, node: ComponentNode):
     w.emit(d, `<separationdelay>${o.separationDelay ?? delay}</separationdelay>`);
   };
   sep(depth, {});
+  const design = designSeparation(node);
   for (const c of w.writeConfigs) {
+    const o = (node.id && c.separations?.[node.id]) || {};
+    if (!differs(o, design)) continue;
     w.emit(depth, `<separationconfiguration configid="${escapeXml(c.id)}">`);
-    // The configuration's own values where it has them, the design's where it
-    // does not. Every configuration gets a block, as the desktop's saver writes
-    // one per configuration whether or not it differs.
-    sep(depth + 1, (node.id && c.separations?.[node.id]) || {});
+    sep(depth + 1, o);
     w.emit(depth, '</separationconfiguration>');
   }
 }

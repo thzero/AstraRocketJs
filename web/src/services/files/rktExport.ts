@@ -1,12 +1,13 @@
 import i18n from '../../i18n';
 import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
 import { clusterCount, clusterPoints } from '../../tree/cluster';
-import { isChainType } from '../../tree/componentKinds';
+import { isChainType, rollAngleKey, rollAngleOf } from '../../tree/componentKinds';
 import { numOpt, positionOf } from '../../tree/nodeProps';
-import { axialLength, partLength, startFromPosition } from '../../tree/position';
+import { axialLength, freeformPoints, partLength, startFromPosition } from '../../tree/position';
 import { assemblyParentRadius, isAssembly, resolveAssemblyRadius } from '../../tree/assembly';
 import { profileEnds } from '../../tree/shapeProfile';
-import { KERNEL_MATERIALS } from '../../tree/kernelDefaults';
+import { finRootChord, tabPosition } from '../../tree/finPlanform';
+import { KERNEL_DEFAULTS, KERNEL_MATERIALS } from '../../tree/kernelDefaults';
 import { asStageNodes } from '../design/orkTree';
 import { escapeXml } from './xmlUtil';
 import { plainDecimal } from './numberText';
@@ -18,8 +19,9 @@ import type { Keyed } from '../../i18n/keyedError';
  *
  * The mirror of `rktImport.ts`, written against the same schema
  * (`RockSimCommonConstants.java` and `file/rocksim/export/*DTO.java`), so
- * everything the reader understands the writer produces and a round trip
- * through the pair is lossless for every type both support.
+ * everything the reader understands the writer produces. What RockSim cannot
+ * carry (a CG-only override, a drag override) is left out and named in the
+ * export's skipped list rather than written approximately.
  *
  * Scope: this writes a design, not a full RockSim document: no simulations,
  * no engine selections, no view state. RockSim keeps its motor choices and
@@ -28,10 +30,9 @@ import type { Keyed } from '../../i18n/keyedError';
  * at fields RockSim would then treat as authoritative. The file opens in
  * RockSim as a design with no motor loaded.
  *
- * Some of what we can build has no RockSim element at all (rail buttons,
- * parallel (strap-on) stages, the app's own fairing extension). Those are
- * skipped and named in the result, so the user is told which parts are
- * missing from the file.
+ * Some of what we can build has no RockSim element at all (rail buttons, the
+ * app's own fairing extension). Those are skipped and named in the result, so
+ * the user is told which parts are missing from the file.
  */
 
 /** m → mm. */
@@ -41,8 +42,13 @@ const dia = (v: number): number => v * 2000;
 /** kg → g. */
 const g = (v: number): number => v * 1000;
 
-/** `RockSimFinishCode` ordinals, by our finish token. */
+/**
+ * `RockSimFinishCode` ordinals, by our finish token. RockSim has four; every
+ * other finish goes out as matt (2), as `RockSimFinishCode.toCode` writes it,
+ * because a part with no `FinishCode` opens in desktop with no finish at all.
+ */
 const FINISH_CODES: Record<string, number> = { polished: 0, smooth: 1, normal: 2, unfinished: 3 };
+const MATT = 2;
 
 /** `RockSimNoseConeCode` ordinals, by our shape token. RockSim has no separate
  *  ellipsoid, so both of its rounded codes come back as ELLIPTICAL (3). */
@@ -75,7 +81,7 @@ const TIP_SHAPE_CODES: Record<string, number> = { square: 0, rounded: 1, airfoil
  *
  * `ROCKSIM_TO_OPENROCKET_SURFACE_DENSITY`, multiplied on the way out and divided
  * on the way in, which is the one direction the kernel uses it in each path
- * (`BasePartDTO` line 181 and `BaseHandler.computeDensity`).
+ * (the `BasePartDTO(RocketComponent)` constructor and `BaseHandler.computeDensity`).
  */
 const SURFACE_DENSITY = 1 / 10;
 
@@ -99,6 +105,8 @@ interface Writer {
   parent: ComponentNode | null;
   /** The kernel's figures for a part, by node id, where the caller has a build. */
   componentInfo?: ComponentFigures;
+  /** Single pods already split out of their set, written as they are. */
+  splitPods: WeakSet<ComponentNode>;
 }
 
 /**
@@ -187,7 +195,7 @@ function writeCommon(
     const material = materialOf(n, kind);
     el(w, d, 'Material', material.name);
     // A surface density goes back out in g/cm2, which is a tenth of kg/m2.
-    // `BasePartDTO` line 181 multiplies by the same constant the reader divides
+    // the `BasePartDTO(RocketComponent)` constructor multiplies by the same constant the reader divides
     // by, so the two directions are one factor, not two; writing x10 here would
     // make an exported canopy a hundred times too heavy in RockSim.
     el(w, d, 'Density', kind === 'surface' ? material.density * SURFACE_DENSITY : material.density);
@@ -203,15 +211,25 @@ function writeCommon(
   } else {
     if (ownMass !== undefined) el(w, d, 'KnownMass', g(ownMass));
     // The switch overrides mass and CG together, so a CG-only override needs
-    // the part's own mass in KnownMass, as BasePartDTO writes it. The app does
-    // not compute component mass, so the override is left out and named.
+    // the part's own mass in KnownMass, as BasePartDTO writes it. The writer
+    // works from the tree alone, with no built rocket to read a part's own mass
+    // from (`componentMasses` needs one), so the override is left out and named.
     if (overrideCg !== undefined) {
       skip(w, { key: 'errors.rktSkip.cgOverride', values: { name: n.name || { key: `part.${n.type}` } } });
     }
   }
+  // RockSim's switch covers the part alone (`BaseHandler.setOverride` clears
+  // the flags for the parts inside), and it has no drag override, so desktop opens the
+  // first as an override of the part only, with its children's mass added on
+  // top, and drops the second. Both are named rather than lost quietly.
+  const label = { name: n.name || { key: `part.${n.type}` } };
+  const subtree =
+    (n['overrideSubcomponentsMass'] === true && overrideMass !== undefined) ||
+    (n['overrideSubcomponentsCG'] === true && overrideCg !== undefined);
+  if (subtree) skip(w, { key: 'errors.rktSkip.subtreeOverride', values: label });
+  if (numOpt(n, 'overrideCD') !== undefined) skip(w, { key: 'errors.rktSkip.cdOverride', values: label });
 
-  const finish = strOf(n, 'finish') ?? 'normal';
-  if (FINISH_CODES[finish] !== undefined) el(w, d, 'FinishCode', FINISH_CODES[finish]);
+  el(w, d, 'FinishCode', FINISH_CODES[strOf(n, 'finish') ?? 'normal'] ?? MATT);
 
   if (withPosition) {
     const pos = n.position;
@@ -271,7 +289,14 @@ const writeTransition: PartWriter = (w, d, n) => {
   put(w, d, 'RearShoulderLen', numOpt(n, 'aftShoulderLength'), mm);
 };
 
-/** `RadialAngle` in degrees from radians; a zero angle is left out. */
+/**
+ * `RadialAngle` in degrees from radians; a zero angle is left out.
+ *
+ * A deliberate departure from desktop, which writes the radian value into this
+ * degree element (and reads it back the same way). RockSim reads degrees, so
+ * the conversion here and in `rktImport.readRadialAngle` is what makes the file
+ * open with its parts where they were.
+ */
 function writeRadialAngle(w: Writer, d: number, angle: number | undefined): void {
   if (angle) el(w, d, 'RadialAngle', radToDeg(angle));
 }
@@ -327,11 +352,11 @@ const writeRing: PartWriter = (w, d, n) => {
   writeRadial(w, d, n);
 };
 
-/** A tube on the outside of the airframe: its length, its wall, and where round the body it sits. */
+/** A tube on the outside of the airframe: its length, its wall, and where around the body it sits. */
 const writeSurfaceTube: PartWriter = (w, d, n) => {
   put(w, d, 'Len', numOpt(n, 'length'), mm);
   writeTubeWall(w, d, n);
-  writeRadialAngle(w, d, numOpt(n, 'angleOffset'));
+  writeRadialAngle(w, d, numOpt(n, rollAngleKey(n.type)!));
 };
 
 const writeLaunchLug: PartWriter = (w, d, n) => {
@@ -356,17 +381,30 @@ const writeFinSet: PartWriter = (w, d, n) => {
     put(w, d, 'RootChord', numOpt(n, 'rootChord'), mm);
     put(w, d, 'SemiSpan', numOpt(n, 'height'), mm);
   } else {
-    const pts = n['points'];
-    if (Array.isArray(pts) && pts.length >= 3) {
-      el(w, d, 'PointList', (pts as [number, number][]).map(([x, y]) => `${fmt(mm(x))},${fmt(mm(y))}`).join('|'));
+    // RockSim's order: trailing root point first, back to `0,0`, each pair
+    // closed by `|`, as desktop's `CustomFinSetDTO.convertFreeFormPoints`
+    // writes it. The outline is the kernel's (first point at `0,0`), so the
+    // reversed list ends there and every reader turns it back the right way.
+    const pts = freeformPoints(n);
+    if (pts.length >= 3) {
+      el(
+        w,
+        d,
+        'PointList',
+        [...pts]
+          .reverse()
+          .map(([x, y]) => `${fmt(mm(x))},${fmt(mm(y))}|`)
+          .join(''),
+      );
     }
   }
 
+  // Degrees, as RockSim reads them: the same deliberate departure as `writeRadialAngle`.
   const cant = numOpt(n, 'cant');
   if (cant) el(w, d, 'CantAngle', radToDeg(cant));
-  writeRadialAngle(w, d, numOpt(n, 'angleOffset'));
+  writeRadialAngle(w, d, numOpt(n, 'rotation'));
   // The fin's cross section, which RockSim calls a tip shape
-  // (`FinSetDTO` line 72). Without it RockSim reads every fin as square.
+  // (the `FinSetDTO(FinSet)` constructor). Without it RockSim reads every fin as square.
   const crossSection = strOf(n, 'crossSection') ?? 'square';
   el(w, d, 'TipShapeCode', TIP_SHAPE_CODES[crossSection] ?? 0);
   // An airfoil fin set with no override of its own opens with `CalcMass` and
@@ -386,7 +424,11 @@ const writeFinSet: PartWriter = (w, d, n) => {
   if (tabLength !== undefined && tabLength > 0) {
     el(w, d, 'TabLength', mm(tabLength));
     put(w, d, 'TabDepth', numOpt(n, 'tabHeight'), mm);
-    el(w, d, 'TabOffset', mm(numOpt(n, 'tabOffset') ?? 0));
+    // `FinSetDTO` writes `getTabOffset(AxialMethod.TOP)` and `FinSetHandler`
+    // reads it as top, so the offset goes out measured from the root's front
+    // whatever method the part keeps it in.
+    const method = strOf(n, 'tabOffsetMethod') ?? 'middle';
+    el(w, d, 'TabOffset', mm(tabPosition(numOpt(n, 'tabOffset') ?? 0, tabLength, finRootChord(n), method)));
   }
 };
 
@@ -406,12 +448,14 @@ const writeParachute: PartWriter = (w, d, n) => {
   el(w, d, 'ShroudLineCount', numOpt(n, 'lineCount') ?? 6);
   put(w, d, 'ShroudLineLen', numOpt(n, 'lineLength'), mm);
   put(w, d, 'SpillHoleDia', numOpt(n, 'spillHoleDiameter'), mm);
-  const lineMaterial = strOf(n, 'lineMaterialName');
-  if (lineMaterial) el(w, d, 'ShroudLineMaterial', lineMaterial);
-  // kg/m straight through, despite the element's name: see the note on the
-  // reader's side. `ROCKSIM_TO_OPENROCKET_LINE_DENSITY` is 1.
-  const lineDensity = numOpt(n, 'lineDensity');
-  if (lineDensity !== undefined) el(w, d, 'ShroudLineMassPerMM', lineDensity);
+  // The density first: `ParachuteHandler` builds the line material when
+  // `ShroudLineMaterial` closes, from the density it has read by then, so the
+  // other order gives the lines a density of 0. kg/m straight through, despite
+  // the element's name: see the note on the reader's side.
+  // `ROCKSIM_TO_OPENROCKET_LINE_DENSITY` is 1.
+  const lines = materialOf(n, 'line');
+  el(w, d, 'ShroudLineMassPerMM', lines.density);
+  el(w, d, 'ShroudLineMaterial', lines.name);
 };
 
 const writeStreamer: PartWriter = (w, d, n) => {
@@ -442,6 +486,11 @@ const writeMassObject =
     writeRadial(w, d, n);
   };
 
+/**
+ * One pod, or one strap-on booster, which RockSim writes as a pod that
+ * separates (`ParallelStageDTO`: `Detachable` 1). A set of several is split
+ * into single pods before it gets here (`podMembers`).
+ */
 const writePod: PartWriter = (w, d, n) => {
   writeCommon(w, d, n, true, 'none');
   // `PodHandler` reads `RadialLoc` as a distance from the parent's centerline
@@ -449,7 +498,7 @@ const writePod: PartWriter = (w, d, n) => {
   // pod placed against the parent's surface goes out at its axis's distance.
   el(w, d, 'RadialLoc', mm(resolveAssemblyRadius(n, assemblyParentRadius(w.parent))));
   writeRadialAngle(w, d, numOpt(n, 'angleOffset'));
-  el(w, d, 'Detachable', 0);
+  el(w, d, 'Detachable', n.type === 'parallelstage' ? 1 : 0);
   el(w, d, 'Removed', 0);
 };
 
@@ -473,6 +522,7 @@ const PARTS: Record<string, { tag: string; write: PartWriter }> = {
   shockcord: { tag: 'MassObject', write: writeMassObject(true) },
   masscomponent: { tag: 'MassObject', write: writeMassObject(false) },
   podset: { tag: 'ExternalPod', write: writePod },
+  parallelstage: { tag: 'ExternalPod', write: writePod },
 };
 
 /**
@@ -535,6 +585,52 @@ function clusterMembers(n: ComponentNode): ComponentNode[] {
   }));
 }
 
+/**
+ * Parts inside a pod with the pod's roll added to their own.
+ *
+ * RockSim keeps a pod child's angle about the airframe, and the app keeps it
+ * relative to the pod, so desktop's `PodSetDTO.addAngleOffsetToChildren` adds
+ * the pod's angle on the way out and `PodHandler.subtractAngleOffset` takes it
+ * off on the way in. Like desktop's, it stops at a nested pod: that pod's own
+ * angle takes the addition, and it adds its own to its children when written.
+ */
+function withPodAngle(children: ComponentNode[] | undefined, angle: number): ComponentNode[] | undefined {
+  if (!children || angle === 0) return children;
+  return children.map((child) => {
+    const key = rollAngleKey(child.type);
+    const turned: ComponentNode = key ? { ...child, [key]: rollAngleOf(child)! + angle } : { ...child };
+    if (!isAssembly(child.type)) turned.children = withPodAngle(child.children, angle);
+    return turned;
+  });
+}
+
+/**
+ * A pod set or a set of strap-on boosters as the single pods RockSim holds.
+ *
+ * RockSim has one pod per element, so desktop's `PodSetDTO.generatePodSetDTOs`
+ * splits a set the way `RocketComponent.splitInstances` does: one copy per
+ * instance, each turned by its share of the circle, named `<name> #<n>`, with
+ * the set's mass override shared between them. Each copy's parts carry its
+ * angle ({@link withPodAngle}).
+ */
+function podMembers(n: ComponentNode): ComponentNode[] {
+  const fallback = n.type === 'parallelstage' ? KERNEL_DEFAULTS.parallelstage : KERNEL_DEFAULTS.podset;
+  const count = Math.max(1, Math.round(numOpt(n, 'instanceCount') ?? fallback.instanceCount));
+  const base = numOpt(n, 'angleOffset') ?? 0;
+  const override = numOpt(n, 'overrideMass');
+  return Array.from({ length: count }, (_, i): ComponentNode => {
+    const angle = base + (2 * Math.PI * i) / count;
+    const member: ComponentNode = { ...n, angleOffset: angle, children: withPodAngle(n.children, angle) };
+    if (count === 1) return member;
+    return {
+      ...member,
+      name: `${n.name ?? i18n.t(`part.${n.type}`)} #${i + 1}`,
+      instanceCount: 1,
+      ...(override !== undefined ? { overrideMass: override / count } : {}),
+    };
+  });
+}
+
 /** Station (m from the nose tip) of a part's front, placed in the current parent. */
 function stationOf(w: Writer, n: ComponentNode): number {
   return w.parentStart + startFromPosition(positionOf(n), axialLength(n), w.parentLength, w.parentStart);
@@ -573,6 +669,13 @@ function writeCouplerParts(w: Writer, depth: number, coupler: ComponentNode): vo
 function writePart(w: Writer, depth: number, n: ComponentNode, at?: number): void {
   if (n.type === 'nosecone' && n['flipped'] === true) {
     writePart(w, depth, asTailTransition(n), at);
+    return;
+  }
+  if ((n.type === 'podset' || n.type === 'parallelstage') && !w.splitPods.has(n)) {
+    for (const member of podMembers(n)) {
+      w.splitPods.add(member);
+      writePart(w, depth, member, at);
+    }
     return;
   }
   const spec = PARTS[n.type];
@@ -655,13 +758,14 @@ export function exportRkt(name: string, tree: RocketTree, componentInfo?: Compon
     parentStart: 0,
     parent: null,
     componentInfo,
+    splitPods: new WeakSet(),
   };
   // Station of the current stage's front: stages stack nose to tail.
   let stageStart = 0;
 
   // RockSim reads at most three stages, nose-first. A design with more loses
-  // the extras; a `parallelstage` is not a RockSim concept at all and is
-  // reported by writePart like any other unrepresentable type.
+  // the extras. A strap-on booster is not one of them: it is written where it
+  // sits, as a pod that separates (writePod).
   const stages = asStageNodes(tree);
   const written = Math.min(stages.length, STAGE_ELEMENTS.length);
   if (stages.length > STAGE_ELEMENTS.length) {

@@ -15,7 +15,7 @@ import { KeyedError } from '../../i18n/keyedError';
 /**
  * The built-in table, fetched once per session.
  *
- * ~16 KB, so it is not deferred the way the 1.6 MB motor catalog is: the first
+ * ~10 KB, so it is not deferred the way the 1.4 MB motor catalog is: the first
  * thing that wants a material asks for it and everything after shares the one
  * promise.
  */

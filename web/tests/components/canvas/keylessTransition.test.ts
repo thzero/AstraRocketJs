@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import type { ComponentNode, RocketTree } from '../../../src/engine/openRocketEngine';
 import { buildSchematicShapes } from '../../../src/components/canvas/schematicShapes';
 import { buildPieces } from '../../../src/components/canvas/rocketPieces';
+import { buildAftScene } from '../../../src/components/canvas/AftView';
 
 /**
  * A transition end with no radius on record is drawn the way the kernel builds
@@ -40,6 +41,12 @@ describe('a bare transition in the drawings', () => {
     }
     // The lathe turns about its own axis; z is radial however the piece is oriented.
     expect(box.max.z).toBeCloseTo(0.03, 4);
+  });
+
+  it('is drawn in the aft view at its neighbors’ radii', () => {
+    const components = [{ type: 'stage', id: 's', children: [fore, bare, aft] }] as ComponentNode[];
+    const hull = buildAftScene(components, undefined, ((k: string) => k) as never).hulls.find((h) => h.key === 'tr:0');
+    expect(hull?.kind === 'circle' ? hull.r : undefined).toBeCloseTo(0.03, 12);
   });
 
   it('follows a flipped nose cone ahead of it by its tip, as the kernel does', () => {

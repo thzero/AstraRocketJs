@@ -194,3 +194,11 @@ describe('SimSummary max q·α', () => {
     expect(screen.getByText('psi·°')).toBeTruthy();
   });
 });
+
+describe('SimSummary safety link', () => {
+  it('is named by its words alone, the arrow hidden from screen readers', () => {
+    seedSettings({ showSafetyCard: true });
+    renderWithProviders(<SimSummary sim={sim([0, 1], [0, 1])} />);
+    expect(screen.getByRole('button', { name: 'Read the safety notes' })).toBeTruthy();
+  });
+});

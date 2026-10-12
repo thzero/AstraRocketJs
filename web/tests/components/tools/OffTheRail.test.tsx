@@ -46,6 +46,30 @@ describe('OffTheRail forecast line', () => {
   });
 });
 
+describe('OffTheRail site elevation', () => {
+  it('asks for the forecast at the typed site elevation', async () => {
+    fetchSurfaceWind.mockResolvedValue({
+      speedMs: 5,
+      gustMs: null,
+      validUnix: 1_700_000_000,
+      answer: { timezone: 'UTC' },
+    });
+    renderWithProviders(<OffTheRail />);
+    const site = screen.getByRole('spinbutton', { name: /Site elevation/ });
+    fireEvent.change(site, { target: { value: '1400' } });
+    fireEvent.blur(site);
+    fireEvent.click(screen.getByRole('button', { name: 'Get the forecast wind' }));
+    expect(fetchSurfaceWind.mock.calls[0]![0]).toMatchObject({ siteM: 1400 });
+  });
+
+  it('asks for the elevation when the terrain model has none', async () => {
+    fetchSurfaceWind.mockResolvedValue('noElevation');
+    renderWithProviders(<OffTheRail />);
+    fireEvent.click(screen.getByRole('button', { name: 'Get the forecast wind' }));
+    expect((await screen.findByRole('alert')).textContent).toMatch(/elevation/);
+  });
+});
+
 describe('OffTheRail site fields', () => {
   it('name the map button by its words, not its glyph', () => {
     renderWithProviders(<OffTheRail />);

@@ -1,7 +1,7 @@
 import { nsKey } from '../../../src/services/storage/storageKeys';
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest';
-import { LibraryWorkspaceStore, type Workspace } from '../../../src/services/storage/workspaceStore';
+import { LibraryWorkspaceStore, lean, resultsOf, type Workspace } from '../../../src/services/storage/workspaceStore';
 import { DesignLibrary, getDesignLibrary, setDesignLibrary } from '../../../src/services/storage/designLibrary';
 import type { KeyValueStore } from '../../../src/services/storage/keyValueStore';
 import { defaultDesignName } from '../../../src/services/app/appInfo';
@@ -441,5 +441,47 @@ describe('LibraryWorkspaceStore', () => {
     await store.save(workspace()); // establish the design first
     kv.full = true;
     await expect(store.save(workspace())).rejects.toThrow(/storage-full/);
+  });
+});
+
+/**
+ * Opening a design from the library reads it the way boot does. A design is
+ * stored lean, with its flights beside it; opened without them, every row reads
+ * not run and the first save writes an empty results map over the stored one.
+ * The claim is what the next save is checked against, so another tab's save in
+ * between is caught rather than overwritten.
+ */
+describe('openActive', () => {
+  const seed = async () => {
+    const lib = getDesignLibrary();
+    const flown = workspace();
+    const meta = await lib.create('B', lean(flown));
+    await lib.writeResults(meta.id, resultsOf(flown));
+    return meta.id;
+  };
+
+  it('puts the stored flights back on their simulations', async () => {
+    const id = await seed();
+    const w = await store.openActive(id);
+    expect(w?.sims[0]?.result).toEqual(flight());
+  });
+
+  it('keeps the stored flights through the first save after opening', async () => {
+    const id = await seed();
+    const w = (await store.openActive(id))!;
+    await store.save({ ...w, tree: { components: [] } as unknown as Workspace['tree'] });
+    expect((await getDesignLibrary().readResults(id))['s1']).toEqual(flight());
+  });
+
+  it("holds the claim, so another tab's save in between is not overwritten", async () => {
+    const id = await seed();
+    const w = (await store.openActive(id))!;
+    const other = { ...w, sims: [{ ...w.sims[0]!, name: 'From the other tab' }] } as Workspace;
+    await new Promise((r) => setTimeout(r, 5));
+    await getDesignLibrary().write(id, 'B', lean(other), 'other-tab');
+    await expect(store.save({ ...w, sims: [{ ...w.sims[0]!, name: 'From this tab' }] } as Workspace)).rejects.toThrow(
+      'conflict',
+    );
+    expect((await getDesignLibrary().read(id))?.sims[0]?.name).toBe('From the other tab');
   });
 });

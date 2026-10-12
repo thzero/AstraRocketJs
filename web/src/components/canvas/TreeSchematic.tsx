@@ -348,7 +348,7 @@ export function TreeSchematic({
   const frameTopY = rulers.top ? RULER_H - 4 + CORNER_GAP : 2;
   const frameBotY = rulers.bottom ? h - RULER_H + 4 - CORNER_GAP : h - 2;
   // Radial rulers span the drawing height between the top/bottom lanes, to the
-  // same scale, labeled in mm.
+  // same scale, labeled in the user's length unit.
   const vTop = rTop + 4;
   const vBot = h - rBot - 4;
   const vSpanM = (vBot - vTop) / scale;

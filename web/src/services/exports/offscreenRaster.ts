@@ -22,7 +22,7 @@ export interface ExportSize {
  * on-screen aspect or a future preset would not, and an oversized target
  * fails at framebuffer setup with nothing useful in the console. Both edges
  * scale down together so the export keeps the on-screen aspect; the header
- * band is laid on afterwards and scales with whatever width comes out.
+ * band is laid on afterward and scales with whatever width comes out.
  *
  * @param aspect width / height of the frame to export (the on-screen canvas).
  */

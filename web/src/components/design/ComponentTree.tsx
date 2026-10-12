@@ -22,7 +22,7 @@ const ADD_GROUPS: { group: string; items: ComponentType[] }[] = [
 ];
 
 /**
- * Read-only component tree for the left panel: an OpenRocket-style indented
+ * The component tree for the left panel: an OpenRocket-style indented
  * hierarchy of the rocket's parts (stage > components > sub-components). Renders
  * the same `RocketTree` the 2D/3D views draw, so it works for a loaded `.ork`
  * design as well as the built-in editor design. Each row shows a category dot,
@@ -30,7 +30,8 @@ const ADD_GROUPS: { group: string; items: ComponentType[] }[] = [
  *
  * Selection is two-way with the 2D schematic: clicking a row selects the part
  * (and the schematic outlines it); selecting in the schematic highlights the
- * row here and scrolls it into view.
+ * row here and scrolls it into view. The header adds parts and stages, opens
+ * Scale, and carries Cut, Copy, Paste and Duplicate when `edit` is given.
  *
  * A real `tree` of `treeitem`s, not `role="button"` rows: a button may not contain
  * interactive content, which the expand toggle and the export button are, and it

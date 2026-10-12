@@ -47,6 +47,12 @@ export interface WorkspaceStore {
    *  has nothing to switch. */
   setActiveId?(id: string | null): void;
   /**
+   * Point the store at a design and read it the way boot does: the stamp
+   * before the blob, the stored flights put back on their simulations, and the
+   * claim taken only once the whole read succeeds. Optional, like setActiveId.
+   */
+  openActive?(id: string): Promise<Workspace | null>;
+  /**
    * The name to create under while detached (`setActiveId(null)`), instead of
    * the one the workspace implies.
    *
@@ -525,6 +531,18 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
   private async saveResults(lib: DesignLibrary, id: string, w: Workspace): Promise<void> {
     if (!this.resultsChanged(w)) return;
     if (await lib.writeResults(id, resultsOf(w))) this.trackResults(w);
+  }
+
+  /**
+   * Switch to a library design and read it as boot reads the active one
+   * (`readActive`). Without the flights, a design that has flown would open
+   * with every row not run, and the first edit's autosave would write an empty
+   * results map over the stored ones; without the claim, that autosave would
+   * skip the two-tab check and could overwrite another tab's save.
+   */
+  async openActive(id: string): Promise<Workspace | null> {
+    this.setActiveId(id);
+    return await this.readActive(getDesignLibrary());
   }
 
   /** Point the store at a different design (the library owns the switch). */

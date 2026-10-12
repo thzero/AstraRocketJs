@@ -54,7 +54,7 @@ const hasType = (nodes: ComponentNode[], pred: (t: string) => boolean): boolean 
  *
  * Assembling a report builds rockets of its own (each stage of a multi-stage
  * design, each motor configuration other than the one flown), which resets the
- * shared engine, so the whole rocket is rebuilt afterwards. Installing that
+ * shared engine, so the whole rocket is rebuilt afterward. Installing that
  * rebuild is a store write, and this dialog cannot make it from the initializer
  * without updating every other store subscriber mid-render, so it takes the
  * build back from `assembleReport` and installs it in a layout effect instead.
@@ -527,7 +527,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
               </button>
               <button
                 onClick={() => setShowSettings(false)}
-                className="rounded-md bg-accent-600 px-4 py-1.5 text-sm font-medium text-on-accent hover:bg-accent-500"
+                className="rounded-md bg-accent-600 px-4 py-1.5 text-sm font-medium text-on-accent hover:bg-accent-700"
               >
                 {t('common.close')}
               </button>

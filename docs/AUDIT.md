@@ -68,6 +68,58 @@ fails without the fix:
   has no positive density, as the kernel and the `.ork` writer do; mass
   components and pods write none. The same sample opened in desktop weighs
   every part at the kernel's `componentInfo` mass, to the last digit.
+- **C21 to C25, C55 and C56.** The shroud line density is written before its
+  material; the tab offset goes out as `tabPosition(..., method)`, measured
+  from the root front; a finish with no RockSim code goes out as matt; a
+  set of pods or boosters is split one pod per copy (`podMembers`, after
+  `RocketComponent.splitInstances`), its parts carrying the pod's angle
+  (`withPodAngle`), and the importer takes it off under each part's own key;
+  fin and tube fin roll is `rotation` on both sides (`rollAngleKey`); a
+  parallel stage is an `<ExternalPod>` with `Detachable` 1. A sample opened in
+  desktop 24.12 splits into three pods and two boosters, places the centered
+  tab 10 mm back, keeps the line density, and reads each pod's fins at 0
+  relative to the pod, with no warnings.
+- **C45, C46 and C52 to C54.** A transition is read with no placement, and
+  conical when the file names no shape; usage code 3 is a centering ring; a
+  subtree or Cd override is named in the skipped list; the point list goes
+  out reversed from the kernel's outline (`freeformPoints`), each pair closed
+  by `|`, and desktop reads it back leading edge first; the RASAero booster
+  `Location` is the shoulder's start, as `BoosterDTO` writes it (the golden
+  `.CDX1` moved by that one value).
+- **C26.** `finXml` takes the length of booster body below the fins'
+  tube, and `writeBoosters` passes the tubes after it, as `BoosterDTO` adds
+  `finLocationOffset`.
+- **S1, C6, C11, C14 to C18.** The zip guard counts each member at the larger
+  of its stored and declared size; motor digests match bundled rows only; new
+  recovery devices start with automatic Cd and line length (a kernel test
+  checks the line length against `AUTO_LINE_LENGTH_RATIO`); a stated inner
+  diameter of 0 is a solid part, and `discDims` takes a wall equal to the
+  radius as solid (a kernel test checks the NB-50 at π r² L ρ); the run gate
+  judges the first motor with a usable curve; geolocation and map picks clear
+  the elevation; each launch panel has its own radio group; no `<type>` is
+  written for a motor. The app's saved samples, opened in desktop 24.12, load
+  with no warnings and resolve every motor.
+- **C7 to C10, C12, C13, C19, C20, C27, C28, A1, T2, T3.** A library
+  design opens through `openActive` (the boot read: stamp, blob, flights,
+  claim); line instances and radial placement are drawn from
+  `tree/placement.ts`; the bridge accepts 0 shroud lines and reports a
+  recovery device's Cd, which the panel shows on Auto (engine rebuilt, parity
+  run); material groups go out in desktop's vocabulary; per-simulation run
+  settings go out and come back; a gzipped `.ork` is inflated with a cap; the
+  roll rate and stability docs state the unit and the bands; axe scans every
+  `aria-expanded` surface (`e2e/popupSurfaces.ts`, held to `src`), the
+  location editor and both tool results, and found the hover contrast fixed
+  above; the lint guard checks severity; the em dash scan covers
+  `engine-java`.
+- **Every remaining finding**: S2, R3, R4, C29 to C44 and C47 to C51, A2, T4
+  to T8, and the upkeep in U1 to U5, each behavioral fix with a test that
+  fails without it. The new tests found two more defects, both fixed: the
+  bridge left a settled fin tab unclamped (engine rebuilt), and the side view
+  drew off-center internal parts mirrored. Left as known differences, each
+  pinned by a test: ten catalog parts whose stated material desktop cannot
+  find (desktop weighs them at 0; the app keeps a material), upstream rows
+  with an inner diameter above the outer, and canted freeform roots near a
+  nose cone tip, which the kernel returns as NaN.
 
 The desktop check found C57 while C2 to C5 were being confirmed.
 
@@ -317,8 +369,8 @@ Repo docs:
 
 ### U5. Spelling and locale text the gates miss
 
-- "afterwards": `web/src/i18n/locales/en.json:1661` (user-facing), `web/src/tree/shapeProfile.ts:251`, `web/src/state/store.ts:1516`, `web/src/state/promptStore.ts:21`, `web/src/services/report/reportModel.ts:220`, `web/src/services/exports/offscreenRaster.ts:25`, `web/src/services/design/finTabAuto.ts:161`, `web/src/services/motors/thrustcurve.ts:130`, `web/src/components/report/ExportDialog.tsx:57`, `web/src/components/common/useLatest.ts:13`, `web/tests/components/design/MaterialPicker.test.tsx:64`, `web/tests/state/store.test.ts:1222, 1281`, `web/tests/services/exports/flightPathExport.test.ts:319, 1243`, `CHANGELOG.md:61, 470, 571`, `TODO.md:35`. The idiom "followed round": `web/src/components/canvas/schematicShapes.tsx:143`.
-- **Gate gap:** cspell's `flagWords` holds the British form of "toward" but not "afterwards" (nor "backwards", "forwards", "upwards" or "downwards"), and accepts these British forms (none occur today): localising, catalogued, memoisation, channelled, fuelling, totalled, dialled, focussed, theatre, humour, labour, flavour, mould, tyre, cheque, kerb, storey, draught, enrol, fulfil, skilful, spelt, dreamt, sombre.
+- The British form of "afterward": `web/src/i18n/locales/en.json:1661` (user-facing), `web/src/tree/shapeProfile.ts:251`, `web/src/state/store.ts:1516`, `web/src/state/promptStore.ts:21`, `web/src/services/report/reportModel.ts:220`, `web/src/services/exports/offscreenRaster.ts:25`, `web/src/services/design/finTabAuto.ts:161`, `web/src/services/motors/thrustcurve.ts:130`, `web/src/components/report/ExportDialog.tsx:57`, `web/src/components/common/useLatest.ts:13`, `web/tests/components/design/MaterialPicker.test.tsx:64`, `web/tests/state/store.test.ts:1222, 1281`, `web/tests/services/exports/flightPathExport.test.ts:319, 1243`, `CHANGELOG.md:61, 470, 571`, `TODO.md:35`. The idiom "followed round": `web/src/components/canvas/schematicShapes.tsx:143`.
+- **Gate gap:** cspell's `flagWords` held the British form of "toward" but not the British form of "afterward" or about two dozen other British forms (the -ise, -our, -re and doubled-l families among them), none of which occur today.
 - `web/src/i18n/locales/pt-BR.json:1513` and `pt-PT.json:1513`: "necessáriamente" for "necessariamente".
 
 ## Recommended order of attack

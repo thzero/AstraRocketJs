@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { zipSync, strToU8 } from 'fflate';
+import { gzipSync, zipSync, strToU8 } from 'fflate';
 import { parseDesignFile, sniffDesignFormat } from '../../../src/services/files/designFile';
 import { MAX_IMPORT_FILE_BYTES } from '../../../src/services/files/decodeText';
 
@@ -140,5 +140,28 @@ describe('parseDesignFile', () => {
 
   it('refuses oversized design text', () => {
     expect(() => parseDesignFile('<openrocket>' + ' '.repeat(MAX_IMPORT_FILE_BYTES))).toThrow(/too large/);
+  });
+});
+
+/**
+ * Older OpenRocket builds saved a `.ork` as gzipped XML, and desktop
+ * (`GeneralRocketLoader.loadStep1`) checks the gzip signature first and reads
+ * what it inflates to. The inflation is capped like a zip member's: a few
+ * kilobytes of gzip can declare gigabytes.
+ */
+describe('a gzipped .ork', () => {
+  const gz = (data: Uint8Array): ArrayBuffer => {
+    const out = gzipSync(data);
+    return out.buffer.slice(out.byteOffset, out.byteOffset + out.byteLength) as ArrayBuffer;
+  };
+
+  it('is sniffed and read as a .ork', () => {
+    const file = gz(strToU8(ORK));
+    expect(sniffDesignFormat(file)).toBe('ork');
+    expect(parseDesignFile(file).name).toBe('Sniffed ork');
+  });
+
+  it('is refused once it inflates past the cap', () => {
+    expect(() => parseDesignFile(gz(new Uint8Array(65 * 1024 * 1024)))).toThrow(/too large/);
   });
 });

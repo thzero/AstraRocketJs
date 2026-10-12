@@ -95,6 +95,8 @@ export function ParachuteTool() {
             stepSi={10}
             minSi={LAUNCH_SITE_LIMITS.launchAltitudeM.min}
             maxSi={LAUNCH_SITE_LIMITS.launchAltitudeM.max}
+            required
+            missing={siteM == null}
             value={siteM}
             onChange={setSiteM}
           />

@@ -12,8 +12,9 @@ import {
 } from '../../tree/finPlanform';
 import { profileEnds } from '../../tree/shapeProfile';
 import { countOf, num, str } from '../../tree/nodeProps';
-import { KERNEL_DEFAULTS, KERNEL_RAILBUTTON_OUTER_DIAMETER } from '../../tree/kernelDefaults.js';
-import { clusterOffsets } from '../../tree/cluster.js';
+import { KERNEL_DEFAULTS } from '../../tree/kernelDefaults.js';
+import { railButtonSize } from './railButton';
+import { lineInstances, placementOffsets } from '../../tree/placement';
 import { tubeFinRadius } from '../../tree/tubefins.js';
 import { DISPLAY_NAME } from '../../tree/schema.js';
 import { motorSeatStart, partLength } from '../../tree/position.js';
@@ -140,7 +141,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
   // Wireframe fin outlines and their hit surfaces, painted after overlay: while
   // the view is rolled every fin becomes a plain outline over the body (desktop
   // OpenRocket's convention), so all N fins stay on screen and each can be
-  // followed round the airframe.
+  // followed around the airframe.
   const wires: React.ReactNode[] = [];
   let key = 0;
 
@@ -324,7 +325,8 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
   const renderChildren = (parent: ComponentNode, pStart: number, pLen: number, pRadius: number, baseY: number) => {
     /** The parent's outer radius under the rocket-frame station `x`. */
     const surfaceAt = (x: number): number => bodyRadiusAt(parent, x - pStart) ?? pRadius;
-    for (const child of parent.children ?? []) {
+    // A part the kernel repeats along the body is drawn once per copy.
+    for (const child of (parent.children ?? []).flatMap(lineInstances)) {
       const t = child.type;
       // Off-axis assembly: draw its whole chain once per ring instance at the
       // instance's projected baseline (side view projects y, ignores depth z).
@@ -578,25 +580,25 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
           ),
         );
       } else if (t === 'launchlug' || t === 'railbutton') {
-        // 0.0097 is RailButton's own default (its constructor), which is
-        // also what the .ork importer writes and what the kernel flies when the key is
-        // absent, so the drawn button is the size of the simulated one.
-        // Rail buttons are edited via 'outerDiameter' (their only size field)
-        // and have no axial 'length': a button is about as long as it is wide.
-        const btnDia = t === 'railbutton' ? num(child, 'outerDiameter', KERNEL_RAILBUTTON_OUTER_DIAMETER) : 0;
+        // A rail button has no axial 'length': it is as long as it is wide
+        // (its outer diameter) and stands out from the body by its height.
+        // Both are the kernel's own when absent, so the drawn button is the
+        // size of the simulated one.
+        const btn = t === 'railbutton' ? railButtonSize(child) : null;
         // A lug with no size keys is the kernel's own (ComponentFactory, case
         // "launchlug"), the size the 3D view and the exporters already use.
-        const len = t === 'railbutton' ? btnDia : num(child, 'length', KERNEL_DEFAULTS.launchlug.length);
-        const r = t === 'railbutton' ? btnDia / 2 : num(child, 'outerRadius', KERNEL_DEFAULTS.launchlug.outerRadius);
+        const len = btn ? btn.diameter : num(child, 'length', KERNEL_DEFAULTS.launchlug.length);
+        const reach = btn ? btn.reach : 2 * num(child, 'outerRadius', KERNEL_DEFAULTS.launchlug.outerRadius);
         const start = axialStart(child, len, pStart, pLen);
-        // Project the radial mount angle onto the side profile: 0° stands at full
-        // height above the tube, ±90° is edge-on (foreshortens away), 180° sits
-        // below. Vertical offset = radius·cos(angle) (kernel default 180°).
+        // Project the radial mount angle, turned by the view's roll as the fins
+        // are, onto the side profile: 0° stands at full height above the tube,
+        // ±90° is edge-on (foreshortens away), 180° sits below. Vertical
+        // offset = radius·cos(angle) (kernel default 180°).
         // It stands on the body radius at its own station.
-        const c = Math.cos(num(child, 'angleOffset', Math.PI));
+        const c = Math.cos(num(child, 'angleOffset', Math.PI) + roll);
         const R = surfaceAt(start);
         const yInner = baseY - R * c * ctx.scale;
-        const yOuter = baseY - (R + 2 * r) * c * ctx.scale;
+        const yOuter = baseY - (R + reach) * c * ctx.scale;
         const yTop = Math.min(yInner, yOuter);
         const h = Math.max(1, Math.abs(yOuter - yInner));
         noteHover(child, ctx.x0 + start * ctx.scale, yTop, ctx.x0 + (start + len) * ctx.scale, yTop + h);
@@ -649,15 +651,13 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
             ? innerTubeExtent(child)
             : internalExtent(child, pRadius);
         const start = axialStart(child, len, pStart, pLen);
-        const offsets =
-          child.type === 'innertube'
-            ? clusterOffsets(
-                child['cluster'] as string | undefined,
-                r,
-                num(child, 'clusterScale', 1),
-                num(child, 'clusterRotation', 0),
-              )
-            : [{ y: 0, z: 0 }];
+        // Off the axis where the kernel flies it: an inner tube at each cluster
+        // place, anything else at its own radial position, turned by the view's
+        // roll as the fins are.
+        const offsets = placementOffsets(child, r).map(({ y, z }) => ({
+          y: y * Math.cos(roll) - z * Math.sin(roll),
+          z: y * Math.sin(roll) + z * Math.cos(roll),
+        }));
         // Loaded motor: a brownish silhouette at the real case size, seated
         // flush against the mount's aft end (how motors actually load).
         const motor = child.type === 'innertube' && child.id ? motors?.[child.id] : undefined;
@@ -666,15 +666,15 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
           noteHover(
             child,
             ctx.x0 + start * ctx.scale,
-            baseY + (off.y - r) * ctx.scale,
+            baseY - (off.y + r) * ctx.scale,
             ctx.x0 + (start + len) * ctx.scale,
-            baseY + (off.y + r) * ctx.scale,
+            baseY - (off.y - r) * ctx.scale,
           );
           overlay.push(
             <rect
               key={key++}
               x={ctx.x0 + start * ctx.scale}
-              y={baseY + (off.y - r) * ctx.scale}
+              y={baseY - (off.y + r) * ctx.scale}
               width={Math.max(2, len * ctx.scale)}
               height={2 * r * ctx.scale}
               fill={child.type === 'bulkhead' ? 'url(#bulkhead-hatch)' : 'rgba(127,127,127,0.001)'}
@@ -692,7 +692,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
           const bw = len * ctx.scale;
           const bh = 2 * r * ctx.scale;
           const gcx = ctx.x0 + (start + len / 2) * ctx.scale;
-          const gcy = baseY + off.y * ctx.scale;
+          const gcy = baseY - off.y * ctx.scale;
           const gs = Math.min(bw * 0.8, bh * 0.7); // glyph box size
           if (gs >= 8) {
             const g = gs / 2;
@@ -764,7 +764,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
           const tagRoom = len * ctx.scale > 26 && 2 * r * ctx.scale > 11;
           if (style && !hasGlyph && tagRoom) {
             const tx = ctx.x0 + (start + len / 2) * ctx.scale;
-            const ty = baseY + off.y * ctx.scale;
+            const ty = baseY - off.y * ctx.scale;
             overlay.push(
               <text
                 key={key++}
@@ -782,7 +782,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
           }
           if (motor) {
             overlay.push(
-              ...motorShapes(motor, motorSeatStart(child, start, len, motor.length), baseY + off.y * ctx.scale),
+              ...motorShapes(motor, motorSeatStart(child, start, len, motor.length), baseY - off.y * ctx.scale),
             );
           }
         }

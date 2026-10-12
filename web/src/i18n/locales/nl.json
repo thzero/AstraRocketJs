@@ -160,8 +160,10 @@
     },
     "rktSkip": {
       "airfoilMass": "massa van de vinnen met vleugelprofiel ({{name}})",
+      "cdOverride": "Cd-overschrijving ({{name}})",
       "cgOverride": "CG-overschrijving ({{name}})",
-      "extraStages": "trap {{from}} en verder"
+      "extraStages": "trap {{from}} en verder",
+      "subtreeOverride": "overschrijving van de subonderdelen ({{name}})"
     },
     "viewFailed": "Deze weergave kon niet worden geladen.",
     "staleBuild": "De app is bijgewerkt terwijl dit tabblad open stond, dus een deel staat niet meer op de server. Herlaad om de nieuwe versie te krijgen.",
@@ -301,7 +303,8 @@
     "headerLaunchMass": "Startmassa {{mass}} (leeg {{dry}})",
     "headerDryMass": "Leegmassa {{dry}}, geen motoren geladen",
     "headerBalance": "CG {{cg}}, CP {{cp}} vanaf de neuspunt, marge {{margin}} kal",
-    "headerCg": "CG {{cg}} vanaf de neuspunt"
+    "headerCg": "CG {{cg}} vanaf de neuspunt",
+    "imageOption": "{{format}} {{size}}, {{width}} px breed"
   },
   "engine": {
     "wasmTip": "Fysicamotor: WebAssembly (snelle route)",
@@ -604,7 +607,8 @@
     "grounded": "Aan de grond",
     "groundedHint": "Blijft aan de grond: geen massa, geen weerstand, geen motor. De rest van de raket vliegt zonder.",
     "lastFlyingStage": "In elke configuratie moet minstens één trap vliegen.",
-    "stageGrounded": "Blijft aan de grond in:"
+    "stageGrounded": "Blijft aan de grond in:",
+    "partNumbered": "{{part}} {{n}}"
   },
   "tabs": {
     "rocket": "Raket",
@@ -1165,7 +1169,8 @@
     "colorRolePin": "Speld",
     "importSaveError": "Kan die sjabloon niet opslaan in deze browser.",
     "deleteError": "Kan die sjabloon niet verwijderen.",
-    "deleteConfirm": "De sjabloon ‘{{name}}’ uit deze browser verwijderen?"
+    "deleteConfirm": "De sjabloon ‘{{name}}’ uit deze browser verwijderen?",
+    "stageColorLabel": "{{role}} van {{stage}}"
   },
   "aero": {
     "unattributed": "Niet aan een onderdeel toegeschreven",
@@ -1263,7 +1268,12 @@
     "motorFetchFailed": "Motor \"{{motor}}\" kon niet worden geladen ({{reason}}). Kies een motor voor die houder (er wordt geen standaardmotor gevlogen).",
     "motorTooWide": "Motor \"{{motor}}\" is {{diameter}} mm en houder \"{{mount}}\" neemt {{bore}} mm, dus hij past niet. Geplaatst zoals het bestand hem noemt: controleer hem voor het vliegen.",
     "motorTooLong": "Motor \"{{motor}}\" is {{length}} mm lang en houder \"{{mount}}\" biedt {{maxLength}} mm, dus hij past niet. Geplaatst zoals het bestand hem noemt: controleer hem voor het vliegen.",
-    "mountsWithoutMotor": "Motorhouders zonder motor in dit bestand: {{mounts}}. Kies een motor voor het vliegen (er wordt geen standaardmotor gevlogen)."
+    "mountsWithoutMotor": "Motorhouders zonder motor in dit bestand: {{mounts}}. Kies een motor voor het vliegen (er wordt geen standaardmotor gevlogen).",
+    "extensionName": {
+      "airStart": "Luchtstart",
+      "javaCode": "Java-code",
+      "script": "{{language}}-script"
+    }
   },
   "part": {
     "stage": "Trap",
@@ -1682,7 +1692,24 @@
     "cancel": "Annuleren",
     "deleteCustom": "Eigen materiaal verwijderen",
     "deleteConfirm": "Het eigen materiaal {{name}} verwijderen? Het wordt in geen enkel ontwerp meer aangeboden.",
-    "fillet": "Materiaal van de afronding"
+    "fillet": "Materiaal van de afronding",
+    "groups": {
+      "Metals": "Metalen",
+      "Woods": "Houtsoorten",
+      "Plastics": "Kunststoffen",
+      "Fabrics": "Weefsels",
+      "Paper": "Papier",
+      "PaperProducts": "Papierproducten",
+      "Foams": "Schuimen",
+      "Composites": "Composieten",
+      "Fibers": "Vezels",
+      "Elastics": "Elastieken",
+      "Kevlars": "Kevlar",
+      "Nylons": "Nylon",
+      "Other": "Overig",
+      "Custom": "Aangepast",
+      "Adhesives": "Lijmen"
+    }
   },
   "recovery": {
     "title": "Daling dimensioneren",
@@ -1818,7 +1845,9 @@
     "chartAvg": "gem. stuwkracht",
     "chartBurn": "brandtijd",
     "chartAria": "Stuwkracht in de tijd. Piek {{peak}}, gemiddeld {{avg}}, brandtijd {{burn}} s.",
-    "calcNote": "* Beginstuwkracht, Isp en massafractie zijn berekend uit de stuwkrachtcurve en de gewichten."
+    "calcNote": "* Beginstuwkracht, Isp en massafractie zijn berekend uit de stuwkrachtcurve en de gewichten.",
+    "rangeMin": "{{label}}: minimum",
+    "rangeMax": "{{label}}: maximum"
   },
   "lang": {
     "label": "Taal"
@@ -1934,7 +1963,9 @@
       "badNumber": "Regel {{line}} heeft een waarde die geen getal is.",
       "noData": "Geen windlagen in dat bestand gevonden.",
       "unreadable": "Dat bestand kon niet worden gelezen."
-    }
+    },
+    "levelField": "{{field}}, laag {{n}}",
+    "removeLevelN": "Laag {{n}} verwijderen"
   },
   "limits": {
     "sentenceJoin": "{{first}} {{next}}",
@@ -1982,7 +2013,8 @@
     "coords": "Coördinaten",
     "elevationLooking": "hoogte opzoeken…",
     "elevationUnknown": "hoogte niet gevonden; de hoogte van de lanceerplek blijft leeg",
-    "credit": "Plaatsen van GeoNames, via Open-Meteo.com"
+    "credit": "Plaatsen van GeoNames, via Open-Meteo.com",
+    "regionCountry": "{{region}}, {{country}}"
   },
   "location": {
     "label": "Opgeslagen locatie",

@@ -3,7 +3,7 @@ title: 'Glossary'
 sidebar_position: 17
 ---
 
-Every term the app puts on screen, and the symbols in its plots and downloads. Each entry gives a plain definition, then where you meet it (*In the app*). A bold word after **See** is another entry here.
+The terms the app puts on screen, and the symbols in its plots and downloads. Each entry gives a plain definition, then where you meet it (*In the app*). A bold word after **See** is another entry here.
 
 Use the search box at the top of this site, or the search in the app's **Help** dialog, to jump to a term from anywhere.
 
@@ -111,7 +111,7 @@ Use the search box at the top of this site, or the search in the app's **Help** 
 
 **Drift ellipse**: The area repeated runs land in, drawn on the ground track. When the wind is random it shows the spread that a single landing point hides.
 
-**Drift sweep**: Flying the same design across a band of wind speeds to see how landing distance grows. *In the app:* the **Drift sweep** panel.
+**Drift sweep**: Flying the same simulation across a grid of wind speeds and headings to see where it could land. *In the app:* the **Drift** button on the ground track, which opens the **Drift sweep** panel.
 
 **Drogue**: A small chute deployed at apogee to bring the rocket down fast but stable, before the main opens lower. *In the app:* on the stage, choose **Dual deployment** under **Recovery deployment type** and pick the device that opens at apogee as the **Drogue device**. With **Single deployment** the stage has no drogue. See **Dual deployment**.
 
@@ -145,7 +145,7 @@ Use the search box at the top of this site, or the search in the app's **Help** 
 
 **Flight configuration**: One named combination of motors, ignition and deployment choices for the same design, so several setups can be kept side by side. *In the app:* the configuration selector.
 
-**Flight event**: Something the engine records at an instant: liftoff, rod clearance, burnout, apogee, deployment, separation, ground hit. *In the app:* the events table, and the markers on the plots.
+**Flight event**: Something the engine records at an instant: liftoff, launcher departure, burnout, apogee, deployment, separation, ground hit. *In the app:* the events table, and the markers on the plots.
 
 **Flight model**: Which physics option a run uses where the app offers a choice. *In the app:* Settings ▸ Simulation ▸ **Flight model**. See **Guide-aware launcher clearance**.
 
@@ -241,7 +241,7 @@ Use the search box at the top of this site, or the search in the app's **Help** 
 
 **Ogive**: A nose profile whose outline is an arc. A **tangent** ogive meets the body smoothly; a **secant** ogive meets it at an angle. *In the app:* a nose-cone **Shape**.
 
-**Offline install**: The app installs to your device and runs with no network, including this documentation and the bundled example designs. A launch site often has no signal. *In the app:* the install prompt in your browser, and **Help**, which reads offline from the first install onward.
+**Offline install**: The app installs to your device and runs with no network, including this documentation and the bundled example designs. A launch site often has no signal. *In the app:* the install prompt in your browser, and **Help**, which reads offline after the first visit, installed or not.
 
 **Offset**: How far a part sits from the reference its **Position from** names: the top or bottom of its parent, the middle, or an absolute distance from the nose.
 

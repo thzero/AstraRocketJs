@@ -152,6 +152,14 @@ describe('a product series', () => {
     const symbols: Record<string, string> = { pressure: 'psi', angle: '°' };
     const u = { factor: (q: string) => factors[q]!, sym: (q: string) => symbols[q]! };
     expect(traceScale(qa, u as never)).toBeCloseTo(180 / Math.PI / 6894.75729, 12);
-    expect(traceUnit(qa, u as never)).toBe('psi·°');
+    expect(traceUnit(qa, u as never, (k) => k)).toBe('psi·°');
+  });
+});
+
+describe('the stability panel', () => {
+  it('labels calibers with the translated word, as the rest of the app does', () => {
+    const stability = SERIES.find((m) => m.key === 'stability')!;
+    const u = { sym: () => '' };
+    expect(traceUnit(stability, u as never, (k) => (k === 'stability.caliber' ? 'kal' : k))).toBe('kal');
   });
 });

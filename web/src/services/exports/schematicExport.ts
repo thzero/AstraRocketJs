@@ -1,9 +1,9 @@
 import type { StaticInfo } from '../../engine/openRocketEngine';
-import { fmtSi, type UnitSelection } from '../../prefs/units.js';
+import { siToUi, type UnitSelection } from '../../prefs/units.js';
 import { appName } from '../app/appInfo.js';
 import { escapeXml } from '../files/xmlUtil.js';
 import { KeyedError } from '../../i18n/keyedError';
-import { fmtList, fmtNum } from '../../i18n/format';
+import { fmtList, fmtNum, fmtUpTo, ladderDigits, withUnit } from '../../i18n/format';
 import { staticInfoRows } from '../report/designInfo';
 
 /**
@@ -28,8 +28,12 @@ export interface ExportData {
 /** RockSim-style header block: the numbers a cert reviewer wants on the page. */
 export function dataHeaderLines(d: ExportData): string[] {
   const { t, units: u } = d;
-  const length = (si: number) => `${fmtSi('length', u.length, si, 3)} ${u.length}`;
-  const mass = (si: number) => `${fmtSi('mass', u.mass, si)} ${u.mass}`;
+  // In the UI language's number format, as the margin beside them is.
+  const length = (si: number) => withUnit(fmtUpTo(siToUi('length', u.length, si), 3), u.length);
+  const mass = (si: number) => {
+    const v = siToUi('mass', u.mass, si);
+    return withUnit(fmtNum(v, ladderDigits(v)), u.mass);
+  };
   const lines: string[] = [d.name];
   if (d.info) {
     const i = d.info;

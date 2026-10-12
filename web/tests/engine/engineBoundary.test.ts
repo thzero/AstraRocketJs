@@ -7,7 +7,7 @@ import {
   type RocketTree,
 } from '../../src/engine/openRocketEngine';
 import { KERNEL_TEST_TIMEOUT_MS } from '../testing/kernelTimeout';
-import { MAX_FIN_POINTS, MAX_NESTING_DEPTH } from '../../src/services/files/ork/importLimits';
+import { MAX_FIN_POINTS, MAX_LINE_COUNT, MAX_NESTING_DEPTH } from '../../src/services/files/ork/importLimits';
 
 /**
  * The real kernel, not a stub.
@@ -481,6 +481,19 @@ describe('the import ceilings match the kernel', () => {
     const points = Array.from({ length: MAX_FIN_POINTS + 1 }, (_, i) => [i * 1e-5, i === 0 ? 0 : 0.01]);
     tube['children'] = [{ id: 'ff', type: 'freeformfinset', finCount: 3, thickness: 0.002, points }];
     expect(() => OpenRocketDesign.buildTree(tree as unknown as RocketTree).staticInfo()).toThrow(/points/);
+  });
+
+  // The editor and both importers hold a shroud line count to this one ceiling,
+  // so a count any of them admits must build, and one more must not.
+  it('builds a parachute at the line count ceiling, and refuses one line more', () => {
+    const withLines = (lineCount: number) => {
+      const tree = structuredClone(TREE) as unknown as { components: Record<string, unknown>[] };
+      const tube = (tree.components[0]!['children'] as Record<string, unknown>[])[1]!;
+      tube['children'] = [{ id: 'p', type: 'parachute', diameter: 0.3, cd: 0.8, lineCount }];
+      return tree as unknown as RocketTree;
+    };
+    expect(() => OpenRocketDesign.buildTree(withLines(MAX_LINE_COUNT)).staticInfo()).not.toThrow();
+    expect(() => OpenRocketDesign.buildTree(withLines(MAX_LINE_COUNT + 1)).staticInfo()).toThrow(/lineCount/);
   });
 });
 

@@ -5,8 +5,9 @@ import type { OrkWriter } from './exportWriter';
 
 /**
  * Optional derived-statistics block (sibling of <rocket>), written only when the
- * caller opts in. OpenRocket recomputes this and skips it on load; older / other
- * software ignores it with a harmless "unknown element" warning.
+ * caller opts in. OpenRocket 24.12, the pinned upstream, does not know the
+ * element and opens the file with an "unknown element" warning; other software
+ * ignores it the same way. Nothing reads it back.
  */
 export function designInfoXml(w: OrkWriter, depth: number, designInfo: DesignInfo | undefined): void {
   if (!designInfo || (designInfo.groups.length === 0 && designInfo.finsets.length === 0)) return;

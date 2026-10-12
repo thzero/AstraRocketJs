@@ -75,7 +75,7 @@ export function RunButton({ className = '' }: { className?: string }) {
         onClick={() => (busy ? cancelRun() : runSims(runIds))}
         disabled={!busy && (!info || blocked)}
         className={`w-full rounded-lg px-4 py-2.5 text-sm font-semibold text-on-accent disabled:cursor-not-allowed disabled:opacity-50 ${
-          busy ? 'bg-prominent hover:bg-prominent-hover' : 'bg-accent-600 hover:bg-accent-500'
+          busy ? 'bg-prominent hover:bg-prominent-hover' : 'bg-accent-600 hover:bg-accent-700'
         }`}
       >
         {label}

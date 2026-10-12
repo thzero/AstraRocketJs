@@ -7,12 +7,13 @@ import { UnitChip } from '../common/UnitChip';
 import { useUnits, type FieldUnit } from '../../prefs/useUnits';
 import { clampEntry } from '../../prefs/entryValue';
 import { unitScope, type Quantity } from '../../prefs/units';
-import { MAX_CANT, MAX_FIN_COUNT, MAX_INSTANCE_COUNT, num, str } from '../../tree/nodeProps';
+import { MAX_CANT, MAX_FIN_COUNT, MAX_INSTANCE_COUNT, MAX_LINE_COUNT, num, str } from '../../tree/nodeProps';
 import { clusterCount } from '../../tree/cluster';
 import { shapeIsClippable, shapeParamMax, shapeSelect, shapeUsesParameter } from '../../tree/shapeProfile';
 import { FIELDS, type Field, type PanelSection } from '../../services/design/componentFields';
 import { DERIVED } from '../../services/design/derivedFields';
-import { clampToBounds } from '../../services/design/linkedDimensions';
+import { clampToBounds, type DimensionBounds } from '../../services/design/linkedDimensions';
+import { parentRadiusOf } from '../../tree/finPlanform';
 import { PropSection } from './PropSection';
 import { rebaseTabOffset } from '../../tree/axialRebase';
 import { axialLength } from '../../tree/position';
@@ -23,7 +24,7 @@ import { useWorkspaceStore } from '../../state/store';
  * rocket's length and a parachute's lines follow its canopy, and neither is
  * written back to the node. `componentInfo` reports each under the field's key.
  */
-const KERNEL_AUTO_KEYS: ReadonlySet<string> = new Set(['cordLength', 'lineLength']);
+const KERNEL_AUTO_KEYS: ReadonlySet<string> = new Set(['cordLength', 'lineLength', 'cd']);
 
 /**
  * The kernel's value for an automatic field it resolves itself, while the field
@@ -47,6 +48,16 @@ function useKernelAutoValue(node: ComponentNode, f: Field): number | undefined {
       return undefined;
     }
   }, [rocket, id, f.key, autoOn]);
+}
+
+/**
+ * A fin tab's depth limit, `FinSet.getMaxTabHeight()`: the parent's radius at
+ * the tab's two ends, which no field bound can read because it lives on the
+ * parent. Null for every other field, and for a fin with no symmetric parent.
+ */
+function useTabDepthLimit(node: ComponentNode, f: Field): number | null {
+  const id = f.key === 'tabHeight' && typeof node.id === 'string' ? node.id : null;
+  return useWorkspaceStore((s) => (id === null ? null : parentRadiusOf(s.tree, id)));
 }
 
 /**
@@ -320,6 +331,9 @@ export function FieldRow({ node, field: f, onChange, onCommit }: NodeEditProps &
   const { t } = useTranslation();
   const u = useUnits();
   const kernelAuto = useKernelAutoValue(node, f);
+  const tabDepth = useTabDepthLimit(node, f);
+  const bounds: DimensionBounds | undefined =
+    tabDepth != null && Number.isFinite(tabDepth) ? { ...f.bounds, max: () => tabDepth } : f.bounds;
   const label = t(`prop.${f.label}`);
   // One scope per field of this component type: every body tube is the
   // same Length field on the same card, so selecting another must not
@@ -442,7 +456,8 @@ export function FieldRow({ node, field: f, onChange, onCommit }: NodeEditProps &
       );
     case 'count': {
       // Every fin type's count is `finCount`, and the kernel builds at most 8.
-      const max = f.key === 'finCount' ? MAX_FIN_COUNT : MAX_INSTANCE_COUNT;
+      // Shroud lines take the bridge's own ceiling, which the importers share.
+      const max = f.key === 'finCount' ? MAX_FIN_COUNT : f.key === 'lineCount' ? MAX_LINE_COUNT : MAX_INSTANCE_COUNT;
       // A parachute may have no shroud lines (Parachute.setLineCount takes 0,
       // and the desktop spinner starts there); every other count is at least one.
       const min = f.key === 'lineCount' ? 0 : 1;
@@ -468,7 +483,9 @@ export function FieldRow({ node, field: f, onChange, onCommit }: NodeEditProps &
       const paramMax = f.key === 'shapeParameter' ? shapeParamMax(defaultShape(node)) : undefined;
       return numeric({
         unit: f.unit,
-        value: num(node, f.key),
+        // On Auto, the number the kernel works out (a recovery device's Cd),
+        // not the stored one it ignores.
+        value: kernelAuto ?? num(node, f.key),
         step: f.step ?? 0.1,
         max: paramMax,
         ...autoProp(),
@@ -560,14 +577,15 @@ export function FieldRow({ node, field: f, onChange, onCommit }: NodeEditProps &
       // `bounds`: the range the kernel's setter holds this value in, given the
       // rest of the part. The box stops there, and so does the stored value, so
       // the panel never shows a figure the kernel would fly as another.
-      const lo = f.bounds?.min?.(node);
-      const hi = f.bounds?.max?.(node);
+      // A bound on a radius the node does not store is no bound.
+      const lo = bounds?.min?.(node);
+      const hi = bounds?.max?.(node);
       const range =
         span !== undefined
           ? { min: -span, max: span }
           : {
-              ...(lo === undefined ? {} : { min: fu.toUi(k * lo) }),
-              ...(hi === undefined ? {} : { max: fu.toUi(k * hi) }),
+              ...(lo === undefined || !Number.isFinite(lo) ? {} : { min: fu.toUi(k * lo) }),
+              ...(hi === undefined || !Number.isFinite(hi) ? {} : { max: fu.toUi(k * hi) }),
             };
       // `auto`: the value follows something else (a shoulder follows the bore of
       // the tube it plugs into). Ticking it commits at once and the resolver
@@ -580,7 +598,7 @@ export function FieldRow({ node, field: f, onChange, onCommit }: NodeEditProps &
         ...autoProp(),
         onChange: (v) => {
           const si = fu.toSi(v, (s) => s / k);
-          patchNumber({ [f.key]: si === null ? si : clampToBounds(node, f.bounds, si) });
+          patchNumber({ [f.key]: si === null ? si : clampToBounds(node, bounds, si) });
         },
       });
     }

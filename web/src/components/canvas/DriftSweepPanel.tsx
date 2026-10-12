@@ -176,7 +176,7 @@ export function DriftSweepPanel({ simId, launch }: { simId: string; launch: Laun
           <>
             <button
               onClick={() => fireAction(runDriftSweep(simId, spec))}
-              className={`${btn} bg-accent-600 text-on-accent hover:bg-accent-500`}
+              className={`${btn} bg-accent-600 text-on-accent hover:bg-accent-700`}
             >
               {t('sweep.run')}
             </button>

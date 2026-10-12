@@ -1,6 +1,7 @@
-import { test, expect, defined, runFlight, ready, openTab, type Page, type WipState } from './base';
+import { test, expect, defined, runFlight, ready, openTab, importRkt, type Page, type WipState } from './base';
 import { AERO_PANE, axeViolations, CONFIGS, press, THEMES, TOOL, TWO_D, VIEW } from './axe';
 import { DIALOG_SURFACES, type DialogSurface } from './dialogSurfaces';
+import type { PopupSurface } from './popupSurfaces';
 import { eachEditor } from './editors';
 import { answer } from '../tests/testing/openMeteoFixture';
 import { DESIGN_VIEWS, RESULT_VIEWS, type ViewMode } from '../src/state/tabs';
@@ -163,14 +164,43 @@ const SCREENS: Scan[] = [
   })),
   ...keys(TOOL).map((tool): Scan => ({
     name: `Tools / ${TOOL[tool]}`,
-    open: async (page) => {
-      await openTab(page, 'Tools');
-      const tab = page.getByRole('tab', { name: TOOL[tool], exact: true });
-      await tab.click();
-      await expect(tab).toHaveAttribute('aria-selected', 'true');
-    },
+    open: (page) => openTool(page, TOOL[tool]),
   })),
+  // What each tool shows once it has an answer: the landing card and its map,
+  // and the flight figures, flagged ones included.
+  {
+    name: 'Tools / Landing estimator / estimate',
+    open: async (page) => {
+      await answerOpenMeteo(page);
+      await openTool(page, TOOL.landing);
+      await page.getByRole('button', { name: 'Estimate landing' }).click();
+      await expect(page.getByText('Lands at')).toBeVisible({ timeout: 20_000 });
+    },
+  },
+  {
+    name: 'Tools / Off the rail / result',
+    open: async (page) => {
+      await openTool(page, TOOL.rail);
+      await page.getByRole('button', { name: 'Choose…' }).click();
+      const dialog = page.getByRole('dialog');
+      await dialog.getByPlaceholder(/Search by code/i).fill('F50');
+      await dialog.locator('ul li button[aria-pressed]').first().click();
+      await dialog.getByRole('button', { name: 'Select', exact: true }).click();
+      await expect(dialog).toBeHidden();
+      await expect(
+        page.getByRole('region', { name: 'Off the rail result' }).getByText('Rail exit speed'),
+      ).toBeVisible();
+    },
+  },
 ];
+
+/** Open one tool on the Tools tab. */
+async function openTool(page: Page, name: string): Promise<void> {
+  await openTab(page, 'Tools');
+  const tab = page.getByRole('tab', { name, exact: true });
+  await tab.click();
+  await expect(tab).toHaveAttribute('aria-selected', 'true');
+}
 
 /** Open a tabbed dialog from the menu on one of its tabs. */
 async function dialogTab(page: Page, item: string, tab: string): Promise<void> {
@@ -253,7 +283,17 @@ const DIALOG_SCANS: Record<DialogSurface, Scan[]> = {
   UpdateCheckDialog: [header('updates')],
   ExamplesDialog: [header('examples')],
   PrintExportDialog: [header('print')],
-  LocationsDialog: [header('locations')],
+  LocationsDialog: [
+    header('locations'),
+    {
+      name: 'Launch Locations / editor',
+      open: async (page) => {
+        await HEADER_DIALOGS.locations(page);
+        await page.getByRole('button', { name: 'New location' }).click();
+        await expect(page.getByRole('dialog').getByRole('spinbutton').first()).toBeVisible();
+      },
+    },
+  ],
   SavedPartsDialog: [header('parts')],
   DesignPropertiesDialog: [header('saveAs')],
   MotorDashboard: [
@@ -484,6 +524,145 @@ const DIALOG_SCANS: Record<DialogSurface, Scan[]> = {
   ],
 };
 
+/** Open a popup by its trigger and wait for the menu it opens. */
+async function openMenu(page: Page, trigger: ReturnType<Page['getByRole']>): Promise<void> {
+  await trigger.click();
+  await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.getByRole('menu').first()).toBeVisible();
+}
+
+/** Turn a disclosure from the state the page opens it in to the other. */
+async function toggle(fold: ReturnType<Page['getByRole']>): Promise<void> {
+  const was = await fold.getAttribute('aria-expanded');
+  await fold.click();
+  await expect(fold).toHaveAttribute('aria-expanded', was === 'true' ? 'false' : 'true');
+}
+
+/**
+ * Every popup and disclosure, keyed by the component that renders it
+ * (popupSurfaces.ts, which a unit test holds to the source), each scanned in
+ * the state the page does not open in: a menu or a panel opened, a fold that
+ * starts open folded. A popup the app gains fails the typecheck until it is here.
+ */
+const POPUP_SCANS: Record<PopupSurface, Scan[]> = {
+  ComponentExportButton: [
+    {
+      name: 'Popup / part export menu',
+      open: async (page) => {
+        await openTab(page, 'Design');
+        const tree = page.getByRole('tree', { name: 'Components' });
+        await openMenu(page, tree.getByRole('button', { name: 'Export', exact: true }).first());
+      },
+    },
+  ],
+  ComponentTree: [
+    {
+      name: 'Popup / component list folded',
+      open: async (page) => {
+        await openTab(page, 'Design');
+        // Named by its heading; the title says which way it turns.
+        await toggle(page.getByTitle(/the component list/));
+      },
+    },
+  ],
+  FileMenu: [
+    {
+      name: 'Popup / menu',
+      open: async (page) => {
+        await openMenu(page, page.getByRole('button', { name: 'Menu' }));
+      },
+    },
+    {
+      name: 'Popup / menu / Import',
+      open: async (page) => {
+        await page.getByRole('button', { name: 'Menu' }).click();
+        await toggle(page.getByRole('menuitem', { name: 'Import', exact: true }));
+      },
+    },
+  ],
+  GroundTrack: [
+    {
+      name: 'Popup / drift sweep',
+      open: async (page) => {
+        await resultView(page, 'ground');
+        await toggle(page.getByRole('button', { name: /^Drift/ }));
+        await expect(page.getByRole('heading', { name: 'Drift sweep' })).toBeVisible();
+      },
+    },
+  ],
+  HelpDialog: [
+    {
+      name: 'Popup / help contents',
+      open: async (page) => {
+        await menu(page, 'Help');
+        const dialog = await dialogOpen(page);
+        const contents = dialog.getByRole('button', { name: 'Contents' });
+        await expect(contents).toBeVisible({ timeout: 20_000 });
+        await toggle(contents);
+      },
+    },
+  ],
+  ImageExportMenu: [
+    {
+      name: 'Popup / image export menu',
+      open: async (page) => {
+        await openTab(page, 'Design');
+        await openView(page, '2d');
+        await openMenu(page, page.getByRole('button', { name: 'Image', exact: true }).first());
+      },
+    },
+  ],
+  LoadedBanner: [
+    {
+      name: 'Popup / import notes',
+      open: async (page) => {
+        await importRkt(page, 'e2e/fixtures/rocksim.rkt', 'RockSim Bird');
+        const notes = page.getByRole('button', { name: /import note/ });
+        if ((await notes.getAttribute('aria-expanded')) !== 'true') await notes.click();
+        await expect(notes).toHaveAttribute('aria-expanded', 'true');
+      },
+    },
+  ],
+  ResultPicker: [
+    {
+      name: 'Popup / flight picker',
+      open: async (page) => {
+        // The picker is there once one run has flown two simulations.
+        await ready(page);
+        await openTab(page, 'Simulations');
+        await page.getByRole('button', { name: 'Duplicate simulation' }).click();
+        await page.getByRole('checkbox', { name: 'Select all simulations' }).check();
+        await page.getByRole('button', { name: 'Run 2 simulations' }).click();
+        await openMenu(page, page.getByRole('button', { name: /^Choose which flight to show/ }));
+      },
+    },
+  ],
+  SimSummary: [
+    {
+      name: 'Popup / safety card folded',
+      open: async (page) => {
+        await runFlight(page);
+        await openTab(page, 'Results');
+        // Folding it asks for an acknowledgment first.
+        const fold = page.getByRole('button', { name: 'Before you fly' }).first();
+        await fold.click();
+        await page.getByRole('alertdialog').getByRole('button', { name: 'I understand' }).click();
+        await expect(fold).toHaveAttribute('aria-expanded', 'false');
+      },
+    },
+  ],
+  StabilityBadge: [
+    {
+      name: 'Popup / statistics folded',
+      open: async (page) => {
+        await openTab(page, 'Design');
+        await toggle(page.getByRole('button', { name: /Static statistics/ }).first());
+      },
+    },
+  ],
+};
+const POPUPS: Scan[] = keys(POPUP_SCANS).flatMap((id) => POPUP_SCANS[id]);
+
 // A component with two dialogs needs two scans, and a menu dialog its own.
 for (const id of keys(DIALOG_SCANS)) {
   if (DIALOG_SCANS[id].length < DIALOG_SURFACES[id]) throw new Error(`${id} renders more dialogs than are scanned`);
@@ -507,7 +686,7 @@ for (const id of keys(HEADER_DIALOGS)) {
  */
 for (const theme of THEMES) {
   test.describe(`axe in the ${theme} theme`, () => {
-    for (const scan of [...SCREENS, ...DIALOGS]) {
+    for (const scan of [...SCREENS, ...DIALOGS, ...POPUPS]) {
       test.describe(() => {
         if (scan.wip) test.use({ wip: scan.wip });
 

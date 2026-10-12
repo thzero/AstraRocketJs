@@ -175,3 +175,17 @@ describe('flightBranches', () => {
     expect(flightBranches(r)).toBe(branches);
   });
 });
+
+describe('flightColumns units', () => {
+  it('names the stability unit in the UI language', async () => {
+    const i18n = (await import('../../../src/i18n')).default;
+    await i18n.changeLanguage('ru');
+    try {
+      const stability = flightColumns(withKeys(['stability'])).find((c) => c.key === 'stability')!;
+      expect(stability.unit).toBe(i18n.t('stability.caliber'));
+      expect(stability.unit).not.toBe('cal');
+    } finally {
+      await i18n.changeLanguage('en');
+    }
+  });
+});

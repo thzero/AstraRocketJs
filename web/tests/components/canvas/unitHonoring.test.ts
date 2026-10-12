@@ -18,7 +18,7 @@ describe('the map scale reads in the user unit', () => {
     // `distance` offers ft, yd and mi, and the scale is a length readout like
     // every other on the panel.
     expect(text()).toContain("u.sym('distance')");
-    expect(text()).toContain("u.fmt('distance'");
+    expect(text()).toContain("u.fmtSym('distance'");
   });
 
   it('states its promotion ladder rather than assuming metric', () => {
@@ -95,8 +95,9 @@ describe('the 2D roll slider is heard in the unit it shows', () => {
 
 /**
  * A decorative glyph on a button stays out of its accessible name, or a screen
- * reader says "downwards arrow SVG". Each one sits in an aria-hidden span, and
- * the image menu takes its glyph as an icon rather than in the label.
+ * reader reads out the glyph's Unicode name before "SVG". Each one sits in an
+ * aria-hidden span, and the image menu takes its glyph as an icon rather than in
+ * the label.
  */
 describe('button glyphs are not part of the name', () => {
   it.each([

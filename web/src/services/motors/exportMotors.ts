@@ -84,7 +84,13 @@ export async function fillMotorDigests(
 ): Promise<Record<string, OrkExportMotor>> {
   let catalog;
   try {
-    catalog = await loadCatalog();
+    // The bundled rows only. `loadCatalog` puts the user's imported motors
+    // first, and an imported motor matches its own row there, which has no
+    // digest: it would go out with neither a digest nor its curve, and desktop
+    // could not find it. Off that list it has no match, so its curve is
+    // embedded; one that shares a catalog motor's name takes that motor's
+    // digest, as the same motor picked from the catalog would.
+    catalog = (await loadCatalog()).filter((row) => row.custom !== true);
   } catch {
     return motors;
   }

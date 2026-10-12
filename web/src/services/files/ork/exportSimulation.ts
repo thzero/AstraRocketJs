@@ -71,7 +71,9 @@ function simulationXml(w: OrkWriter, depth: number, sim: OrkExportSimulation, pr
   emit(depth + 1, '<calculator>BarrowmanCalculator</calculator>');
   emit(depth + 1, '<conditions>');
   const configId = w.writeConfigs.some((c) => c.id === sim.configId) ? sim.configId : w.defaultId;
-  conditionsXml(w, depth + 2, sim.launch, prefs, carriedConditions, configId);
+  // Each simulation's own: desktop keeps a time step and warning thresholds per
+  // simulation and reads them into that simulation's options.
+  conditionsXml(w, depth + 2, sim.launch, sim.prefs ?? prefs, carriedConditions, configId);
   emit(depth + 1, '</conditions>');
   // What the file carried that this app does not model, where desktop writes it.
   for (const raw of carried) emit(depth + 1, raw);

@@ -55,11 +55,25 @@ const OUT = resolve(DATA_DIR, 'components.generated.json');
 const LEN = { in: 0.0254, mm: 0.001, cm: 0.01, m: 1, ft: 0.3048, '': 1 };
 const MASS = { g: 0.001, kg: 1, oz: 0.028349523125, lb: 0.45359237, '': 1 };
 
+/** Element text with its XML entity and character references resolved, as an XML parser reads it. */
+const XML_ENTITIES = { lt: '<', gt: '>', amp: '&', quot: '"', apos: "'" };
+const xmlText = (s) =>
+  s.replace(/&(#x[0-9a-f]+|#[0-9]+|[a-z]+);/gi, (whole, ref) => {
+    if (ref[0] !== '#') return XML_ENTITIES[ref] ?? whole;
+    const code = ref[1] === 'x' || ref[1] === 'X' ? parseInt(ref.slice(2), 16) : parseInt(ref.slice(1), 10);
+    return String.fromCodePoint(code);
+  });
+
+/**
+ * An element's text and unit. A part that repeats an element keeps the last
+ * one, as desktop's JAXB loader does: each occurrence sets the same field.
+ */
 function tag(block, name) {
-  const m = block.match(new RegExp(`<${name}(\\s+[^>]*)?>([^<]*)</${name}>`));
+  const all = [...block.matchAll(new RegExp(`<${name}(\\s+[^>]*)?>([^<]*)</${name}>`, 'g'))];
+  const m = all.at(-1);
   if (!m) return null;
   const unit = (m[1] || '').match(/Unit="([^"]*)"/)?.[1] ?? '';
-  return { value: m[2].trim(), unit };
+  return { value: xmlText(m[2]).trim(), unit };
 }
 const lenM = (block, name) => {
   const t = tag(block, name);
@@ -75,8 +89,8 @@ const num = (block, name) => {
 const str = (block, name) => tag(block, name)?.value ?? null;
 /** A part's material: its name and the `Type` attribute desktop looks it up by. */
 const materialRef = (block) => {
-  const m = block.match(/<Material(\s+[^>]*)?>([^<]*)<\/Material>/);
-  const name = m?.[2]?.trim();
+  const m = [...block.matchAll(/<Material(\s+[^>]*)?>([^<]*)<\/Material>/g)].at(-1);
+  const name = m && xmlText(m[2]).trim();
   if (!name) return null;
   const type = (m[1] || '').match(/Type="([^"]*)"/)?.[1] ?? 'BULK';
   // Some parts reference a material by "[material:Name]". The catalog shows the
@@ -192,7 +206,7 @@ for (const { name: file, text } of sources) {
   const section = text.match(/<Materials>([\s\S]*?)<\/Materials>/);
   if (!section) continue;
   for (const b of section[1].match(/<Material\b[^>]*>[\s\S]*?<\/Material>/g) ?? []) {
-    const name = b.match(/<Name>([^<]*)<\/Name>/)?.[1]?.trim();
+    const name = xmlText(b.match(/<Name>([^<]*)<\/Name>/)?.[1] ?? '').trim();
     const type = b.match(/<Type>([^<]*)<\/Type>/)?.[1]?.trim();
     const density = Number(b.match(/<Density>([^<]*)<\/Density>/)?.[1]);
     if (!name || !type || !Number.isFinite(density)) continue;

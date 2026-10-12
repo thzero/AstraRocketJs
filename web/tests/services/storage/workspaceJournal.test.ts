@@ -425,7 +425,7 @@ describe('a library that cannot be read at boot', () => {
     expect(nameOf(await new LibraryWorkspaceStore().load())).toBe('unsaved');
   });
 
-  it('opens empty, as before, when there is no journal to keep', async () => {
+  it('opens empty when there is no journal to keep', async () => {
     const flaky = new FlakyKv();
     setDesignLibrary(new DesignLibrary(flaky));
     flaky.broken = true;

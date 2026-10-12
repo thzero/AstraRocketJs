@@ -331,7 +331,7 @@ function resolveAxial(components: ComponentNode[], out: Map<ComponentNode, Patch
     return r;
   };
 
-  /** `SymmetricComponent.inline` (SymmetricComponent.java:855-885), called on `self`. */
+  /** `SymmetricComponent.inline`, called on `self`. */
   const inline = (self: Part, candidate: Part): boolean => {
     if (self.parent === candidate.parent) return true;
     const own = self.parent!;
@@ -358,7 +358,7 @@ function resolveAxial(components: ComponentNode[], out: Map<ComponentNode, Patch
     return { parent, grand, i: grand.kids.indexOf(parent), j: parent.kids.indexOf(self) + step };
   };
 
-  /** `getPreviousSymmetricComponent` (SymmetricComponent.java:611-668). */
+  /** `SymmetricComponent.getPreviousSymmetricComponent`. */
   const previous = (self: Part): Part | null => {
     const place = placeOf(self, -1);
     if (!place) return null;
@@ -384,8 +384,7 @@ function resolveAxial(components: ComponentNode[], out: Map<ComponentNode, Patch
   };
 
   /**
-   * `getPreviousSymmetricComponentFromComponentAssembly`
-   * (SymmetricComponent.java:681-726): an in-line assembly on `parent` whose
+   * `SymmetricComponent.getPreviousSymmetricComponentFromComponentAssembly`: an in-line assembly on `parent` whose
    * last part ends flush with it and is wider stands in for it.
    */
   const previousFromAssembly = (parent: Part | null, prev: Part | null, flush: number): Part | null => {
@@ -408,7 +407,7 @@ function resolveAxial(components: ComponentNode[], out: Map<ComponentNode, Patch
     return found;
   };
 
-  /** `getNextSymmetricComponent` (SymmetricComponent.java:736-790). */
+  /** `SymmetricComponent.getNextSymmetricComponent`. */
   const next = (self: Part): Part | null => {
     const place = placeOf(self, 1);
     if (!place) return null;
@@ -435,8 +434,7 @@ function resolveAxial(components: ComponentNode[], out: Map<ComponentNode, Patch
   };
 
   /**
-   * `getNextSymmetricComponentFromComponentAssembly`
-   * (SymmetricComponent.java:808-853): an in-line assembly on `parent` whose
+   * `SymmetricComponent.getNextSymmetricComponentFromComponentAssembly`: an in-line assembly on `parent` whose
    * first part starts flush with it and is wider stands in for it.
    */
   const nextFromAssembly = (parent: Part | null, nxt: Part | null, flush: number): Part | null => {

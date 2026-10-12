@@ -8,7 +8,7 @@ AstraRocketJs se ejecuta en tu navegador: **no hay nada que instalar**. Abre **[
 
 Tras esa primera visita sigue funcionando **sin conexión**, así que puedes diseñar y simular en el campo de vuelo aunque no haya cobertura, y tu navegador te ofrecerá **instalarla** junto a tus demás aplicaciones: consulta **[Sin conexión e instalación](./offline-and-installing.md)**.
 
-Al cargar verás una breve pantalla de inicio mientras se carga el motor de física, y después un cohete de ejemplo. La cabecera muestra una pequeña insignia **`WASM`** o **`JS`** que indica qué motor se ha cargado (WebAssembly es el rápido por defecto; JavaScript es la alternativa).
+Al cargar verás una breve pantalla de inicio mientras se carga el motor de física, y después un cohete de ejemplo. La cabecera muestra una pequeña insignia **`WASM`** o **`JS`** que indica qué versión del núcleo de simulación se ha cargado (WebAssembly es la rápida por defecto; JavaScript es la alternativa).
 
 ## La disposición {#the-layout}
 
@@ -26,7 +26,7 @@ La **vista del cohete** del centro tiene una barra para cambiar de vista (2D · 
 
 Las columnas laterales las dimensionas tú. Arrastra el divisor entre una columna y la vista del cohete, o dale el foco del teclado y usa las flechas (Mayús para pasos mayores, Inicio y Fin para los extremos). Haz doble clic en un divisor para devolverlo a su sitio. Las tres columnas de la derecha comparten una misma anchura, así que ajustarla en cualquier pestaña la ajusta en todas, y ambas anchuras se recuerdan de una visita a otra.
 
-El botón **⤢** del extremo derecho de la barra de la vista del cohete le da a la ventana entera al dibujo: las dos columnas laterales y la franja de estadísticas se apartan, lo que casi duplica el espacio disponible. Un fuselaje es de 15 a 25 veces más largo que ancho, así que ese espacio horizontal es el primero que se agota. Pulsa **Escape**, o el mismo botón, para recuperar los paneles.
+El botón **⤢** del extremo derecho de la barra de la vista del cohete le da la ventana entera al dibujo: las dos columnas laterales y la franja de estadísticas se apartan, lo que casi duplica el espacio disponible. Un fuselaje es de 15 a 25 veces más largo que ancho, así que ese espacio horizontal es el primero que se agota. Pulsa **Escape**, o el mismo botón, para recuperar los paneles.
 
 En un **teléfono** las mismas áreas pasan a ser pestañas en la parte inferior, porque no hay sitio para mostrarlas una al lado de otra:
 
@@ -49,12 +49,12 @@ La barra superior tiene **deshacer / rehacer**, un botón **☀** que cambia al 
 2. **Edita los componentes** en el panel izquierdo: selecciona una pieza y ajusta sus dimensiones; la vista 2D y las estadísticas de estabilidad se actualizan en vivo. Consulta [Diseñar un cohete](./designing-a-rocket.md).
 3. **Elige un motor** en la pestaña **Configuraciones**. Consulta [Motores](./motors.md).
 4. **Define las condiciones de lanzamiento** y pulsa **Simular vuelo**. Consulta [Ejecutar una simulación](./running-a-simulation.md).
-5. **Explora los resultados**: el apogeo y las demás fichas, además de las vistas de Vuelo y Trayectoria 3D. Consulta [Vistas y análisis](./views-and-analysis.md).
+5. **Explora los resultados**: el apogeo y las demás fichas, además de las vistas de Vuelo y Ruta 3D. Consulta [Vistas y análisis](./views-and-analysis.md).
 6. Tu cohete **se guarda solo mientras trabajas**, y menú → **Abrir…** cambia entre cohetes guardados. Para conservar una copia en tu disco o abrirlo en OpenRocket de escritorio, usa menú → **Exportar → OpenRocket**. Consulta [Archivos y exportaciones](./files-and-exports.md).
 
 ## Cohetes de ejemplo {#example-rockets}
 
-Menú → **Importar → Ejemplos** abre un selector con los dieciséis diseños de ejemplo que acompañan a OpenRocket de escritorio, traídos de la misma versión de OpenRocket con la que está construido el motor de esta aplicación. Entre todos cubren casi todo lo que la aplicación sabe hacer: clústeres de motores, pods y aletas auxiliares, aletas tubulares, etapas en paralelo y en serie, doble apertura, una sección de carga útil que se separa y baja con su propio paracaídas, y un par de piezas imprimibles en 3D.
+Menú → **Importar → Ejemplos** abre un selector con los dieciséis diseños de ejemplo que acompañan a OpenRocket de escritorio, traídos de la misma versión de OpenRocket con la que está construido el motor de esta aplicación. Entre todos cubren casi todo lo que la aplicación sabe hacer: clústeres de motores, cápsulas y aletas auxiliares, aletas tubulares, etapas en paralelo y en serie, doble apertura, una sección de carga útil que se separa y baja con su propio paracaídas, y un par de piezas imprimibles en 3D.
 
 La misma lista es también la segunda pestaña de menú → **Abrir…**, junto a **Mis cohetes**, para cuando estás echando un vistazo en lugar de empezar algo.
 

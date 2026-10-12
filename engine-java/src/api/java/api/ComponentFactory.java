@@ -95,10 +95,19 @@ final class ComponentFactory {
      * boundary exists to prevent.
      */
     private static int count(Map<String, Object> node, String key, int fallback, int max) {
+        return count(node, key, fallback, 1, max);
+    }
+
+    /**
+     * {@link #count} with its own floor, for a count where none is a real
+     * answer: a parachute may have no shroud lines ({@code Parachute.setLineCount}
+     * takes 0, and the desktop spinner starts there).
+     */
+    private static int count(Map<String, Object> node, String key, int fallback, int min, int max) {
         double v = dbl(node, key, fallback);
-        if (Double.isNaN(v) || v != Math.floor(v) || v < 1 || v > max) {
+        if (Double.isNaN(v) || v != Math.floor(v) || v < min || v > max) {
             throw new IllegalArgumentException(
-                    "'" + key + "' must be a whole number in 1.." + max + " (got " + v + ")");
+                    "'" + key + "' must be a whole number in " + min + ".." + max + " (got " + v + ")");
         }
         return (int) v;
     }
@@ -526,7 +535,7 @@ final class ComponentFactory {
                 if (!Double.isNaN(cd)) {
                     p.setCD(cd);
                 }
-                p.setLineCount(count(node, "lineCount", 6, MAX_LINE_COUNT));
+                p.setLineCount(count(node, "lineCount", 6, 0, MAX_LINE_COUNT));
                 p.setLineLength(dbl(node, "lineLength", 0.3));
                 double chuteSurf = dbl(node, "surfaceDensity", Double.NaN);
                 if (!Double.isNaN(chuteSurf)) {
@@ -969,8 +978,12 @@ final class ComponentFactory {
             String id = str(kid, "id", null);
             RocketComponent c = id == null ? null : idIndex.get(id);
             // Keyed on the depth asked for: a clamp during the build can have
-            // zeroed a tab that the settled radius has room for.
+            // zeroed a tab that the settled radius has room for. Zeroed first,
+            // unvalidated: FinSet.setTabHeight returns early on a depth equal
+            // to the stored one, so a tab the build let through whole would
+            // otherwise never meet the settled getMaxTabHeight.
             if (c instanceof FinSet && dbl(kid, "tabHeight", 0) > 0 && dbl(kid, "tabLength", 0) > 0) {
+                ((FinSet) c).setTabHeight(0, false);
                 ((FinSet) c).setTabHeight(dbl(kid, "tabHeight", 0));
             }
             settleFinTabs(kid, idIndex);

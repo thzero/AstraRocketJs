@@ -35,13 +35,12 @@ export interface WiredOrk {
  * tested directly against odd files.
  */
 export function wireLoadedOrk(res: LoadedOrk, launchDefaults: LaunchConditions, simPrefs?: SimPrefs): WiredOrk {
-  // `.ork` can position a component with method="absolute", which is a
-  // rocket-origin offset. The editor works entirely in the parent frame, so
-  // leaving it means the schematic, 3D view, drag handles and PDF all draw the
-  // part at parent-start + offset while the engine flies it at offset, and the
-  // drawing disagrees with the simulation. Resolve it to the equivalent
-  // parent-relative offset; the original is preserved on the position so
-  // `orkExport` still round-trips the file byte-for-byte.
+  // `.ork` can position a component with method="after", which is measured from
+  // the previous sibling, and no reader of a single part is given its sibling.
+  // Resolve each to the equivalent parent-relative 'top' offset so the drawings
+  // agree with the flight; the original is preserved on the position so
+  // `orkExport` still writes it back as the file had it. 'absolute' is kept as
+  // written: every reader resolves it against the parent's start.
   const tree = resolveFilePositions(res.tree);
   const launch = { ...launchDefaults, ...res.launch };
 
@@ -70,9 +69,13 @@ export function wireLoadedOrk(res: LoadedOrk, launchDefaults: LaunchConditions, 
   const sims = res.simulations?.length
     ? res.simulations.map((fs) => {
         const config = configs.find((c) => c.id === fs.configId) ?? configs[0]!;
+        // The file's own run settings, kept where they differ from this app's:
+        // desktop keeps them per simulation, and its summary was flown with them.
+        const own = fs.prefs ? ownPrefs(fs.prefs, simPrefs) : undefined;
         const sim = {
           ...newSimulation(fs.name, config.id, { ...launchDefaults, ...fs.launch }),
           ...(fs.xmlExtra ? { xmlExtra: fs.xmlExtra } : {}),
+          ...(own ? { prefs: own } : {}),
         };
         if (!fs.summary) return sim;
         // Current as loaded, unless the file said otherwise or there is nothing
@@ -92,6 +95,14 @@ export function wireLoadedOrk(res: LoadedOrk, launchDefaults: LaunchConditions, 
     activeId: sims.find((s) => s.configId === res.chosenConfigId)?.id ?? sims[0]!.id,
     loadedMeta: { name: res.name, notes: res.notes, exportMotors: res.motors },
   };
+}
+
+/** The settings in `file` that differ from `globals`, or undefined when none do. */
+function ownPrefs(file: Partial<SimPrefs>, globals: SimPrefs | undefined): Partial<SimPrefs> | undefined {
+  const own = Object.fromEntries(
+    Object.entries(file).filter(([k, v]) => !globals || globals[k as keyof SimPrefs] !== v),
+  ) as Partial<SimPrefs>;
+  return Object.keys(own).length ? own : undefined;
 }
 
 /**

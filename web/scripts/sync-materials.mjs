@@ -13,8 +13,10 @@
 //
 // It has two inputs, and only one of them is a file a person edits:
 //
-//   upstream   every material desktop OpenRocket ships, read straight out of
-//              its `database/Databases.java`. Never typed by hand.
+//   upstream   every material in `database/Databases.java` at the kernel's
+//              pinned upstream ref, read straight out of the source. That ref is
+//              newer than the 24.12 release, so it can list a material the
+//              24.12 desktop lacks. Never typed by hand.
 //   app        scripts/data/materials.app.json, hand-maintained: the adhesives
 //              (upstream has none at all, and a fin fillet is made of nothing
 //              else) and corrections to upstream values that are wrong. Each

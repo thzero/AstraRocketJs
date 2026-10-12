@@ -160,8 +160,10 @@
     },
     "rktSkip": {
       "airfoilMass": "masa stateczników o profilu lotniczym ({{name}})",
+      "cdOverride": "nadpisanie Cd ({{name}})",
       "cgOverride": "nadpisanie SC ({{name}})",
-      "extraStages": "stopień {{from}} i dalsze"
+      "extraStages": "stopień {{from}} i dalsze",
+      "subtreeOverride": "nadpisanie podrzędnych części ({{name}})"
     },
     "viewFailed": "Nie udało się załadować tego widoku.",
     "staleBuild": "Aplikacja została zaktualizowana, gdy ta karta była otwarta, więc jej część nie znajduje się już na serwerze. Odśwież, aby pobrać nową wersję.",
@@ -301,7 +303,8 @@
     "headerLaunchMass": "Masa startowa {{mass}} (pusta {{dry}})",
     "headerDryMass": "Masa pusta {{dry}}, bez załadowanych silników",
     "headerBalance": "SC {{cg}}, SP {{cp}} od czubka stożka, zapas {{margin}} kal",
-    "headerCg": "SC {{cg}} od czubka stożka"
+    "headerCg": "SC {{cg}} od czubka stożka",
+    "imageOption": "{{format}} {{size}}, szerokość {{width}} px"
   },
   "engine": {
     "wasmTip": "Silnik fizyki: WebAssembly (szybka ścieżka)",
@@ -606,7 +609,8 @@
     "grounded": "Na ziemi",
     "groundedHint": "Zostaje na ziemi: bez masy, bez oporu, bez silnika. Reszta rakiety leci bez niego.",
     "lastFlyingStage": "W każdej konfiguracji musi lecieć co najmniej jeden stopień.",
-    "stageGrounded": "Zostaje na ziemi w:"
+    "stageGrounded": "Zostaje na ziemi w:",
+    "partNumbered": "{{part}} {{n}}"
   },
   "tabs": {
     "rocket": "Rakieta",
@@ -1171,7 +1175,8 @@
     "colorRolePin": "Pinezka",
     "importSaveError": "Nie można zapisać tego szablonu w tej przeglądarce.",
     "deleteError": "Nie można usunąć tego szablonu.",
-    "deleteConfirm": "Usunąć szablon „{{name}}” z tej przeglądarki?"
+    "deleteConfirm": "Usunąć szablon „{{name}}” z tej przeglądarki?",
+    "stageColorLabel": "{{role}}: {{stage}}"
   },
   "aero": {
     "unattributed": "Nieprzypisane do pojedynczej części",
@@ -1273,7 +1278,12 @@
     "motorFetchFailed": "Nie udało się wczytać silnika „{{motor}}” ({{reason}}). Wybierz silnik dla tego gniazda (nie poleci z domyślnym).",
     "motorTooWide": "Silnik „{{motor}}” ma {{diameter}} mm, a gniazdo „{{mount}}” przyjmuje {{bore}} mm, więc się nie mieści. Osadzono go tak, jak podaje plik: sprawdź go przed lotem.",
     "motorTooLong": "Silnik „{{motor}}” ma {{length}} mm długości, a gniazdo „{{mount}}” mieści {{maxLength}} mm, więc się nie mieści. Osadzono go tak, jak podaje plik: sprawdź go przed lotem.",
-    "mountsWithoutMotor": "Gniazda silnika bez silnika w tym pliku: {{mounts}}. Wybierz silnik przed lotem (nie poleci z domyślnym)."
+    "mountsWithoutMotor": "Gniazda silnika bez silnika w tym pliku: {{mounts}}. Wybierz silnik przed lotem (nie poleci z domyślnym).",
+    "extensionName": {
+      "airStart": "Start w powietrzu",
+      "javaCode": "Kod Java",
+      "script": "Skrypt {{language}}"
+    }
   },
   "part": {
     "stage": "Stopień",
@@ -1696,7 +1706,24 @@
     "cancel": "Anuluj",
     "deleteCustom": "Usuń własny materiał",
     "deleteConfirm": "Usunąć własny materiał {{name}}? Nie będzie już dostępny w żadnym projekcie.",
-    "fillet": "Materiał zaokrąglenia"
+    "fillet": "Materiał zaokrąglenia",
+    "groups": {
+      "Metals": "Metale",
+      "Woods": "Drewno",
+      "Plastics": "Tworzywa sztuczne",
+      "Fabrics": "Tkaniny",
+      "Paper": "Papier",
+      "PaperProducts": "Wyroby papierowe",
+      "Foams": "Pianki",
+      "Composites": "Kompozyty",
+      "Fibers": "Włókna",
+      "Elastics": "Elastomery",
+      "Kevlars": "Kevlar",
+      "Nylons": "Nylon",
+      "Other": "Inne",
+      "Custom": "Własne",
+      "Adhesives": "Kleje"
+    }
   },
   "recovery": {
     "title": "Dobór opadania",
@@ -1834,7 +1861,9 @@
     "chartAvg": "średni ciąg",
     "chartBurn": "czas pracy",
     "chartAria": "Ciąg w funkcji czasu. Szczyt {{peak}}, średnio {{avg}}, czas pracy {{burn}} s.",
-    "calcNote": "* Ciąg początkowy, Isp i udział masowy są obliczone z krzywej ciągu oraz mas."
+    "calcNote": "* Ciąg początkowy, Isp i udział masowy są obliczone z krzywej ciągu oraz mas.",
+    "rangeMin": "{{label}}: minimum",
+    "rangeMax": "{{label}}: maksimum"
   },
   "lang": {
     "label": "Język"
@@ -1950,7 +1979,9 @@
       "badNumber": "Wiersz {{line}} ma wartość, która nie jest liczbą.",
       "noData": "W tym pliku nie znaleziono poziomów wiatru.",
       "unreadable": "Nie udało się odczytać tego pliku."
-    }
+    },
+    "levelField": "{{field}}, poziom {{n}}",
+    "removeLevelN": "Usuń poziom {{n}}"
   },
   "limits": {
     "sentenceJoin": "{{first}} {{next}}",
@@ -2000,7 +2031,8 @@
     "coords": "Współrzędne",
     "elevationLooking": "sprawdzanie wysokości…",
     "elevationUnknown": "nie znaleziono wysokości; wysokość miejsca startu pozostaje pusta",
-    "credit": "Miejsca z GeoNames, przez Open-Meteo.com"
+    "credit": "Miejsca z GeoNames, przez Open-Meteo.com",
+    "regionCountry": "{{region}}, {{country}}"
   },
   "location": {
     "label": "Zapisane miejsce",

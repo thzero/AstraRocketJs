@@ -225,7 +225,7 @@ export function WeatherDialog({
             {t('common.cancel')}
           </button>
           <button
-            className="rounded-md bg-accent-600 px-3 py-1.5 text-xs font-semibold text-on-accent hover:bg-accent-500 disabled:opacity-50"
+            className="rounded-md bg-accent-600 px-3 py-1.5 text-xs font-semibold text-on-accent hover:bg-accent-700 disabled:opacity-50"
             disabled={!proposal || chosen.size === 0}
             onClick={apply}
           >

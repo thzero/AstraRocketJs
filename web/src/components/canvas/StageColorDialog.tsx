@@ -108,7 +108,7 @@ export function StageColorDialog({
                   <input
                     key={role}
                     type="color"
-                    aria-label={`${stage} ${t(ROLE_LABEL[role])}`}
+                    aria-label={t('pathExport.stageColorLabel', { stage, role: t(ROLE_LABEL[role]) })}
                     value={rgbToHex(drafts[role].get(i) ?? ROLE_DEFAULT[role](i))}
                     onChange={(e) => setColor(role, i, hexToRgbInt(e.target.value))}
                     className="h-7 w-12 shrink-0 cursor-pointer rounded-md bg-raised ring-1 ring-line/10"

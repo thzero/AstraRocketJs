@@ -282,3 +282,19 @@ describe('the sample ceiling', () => {
     expect(parseEng(eng(MAX_CURVE_SAMPLES))[0]!.samples).toHaveLength(MAX_CURVE_SAMPLES);
   });
 });
+
+describe('parseEng finalizes the curve before its totals', () => {
+  it('adds the opening ramp from t = 0, as RASPMotorLoader does', () => {
+    // Finalized: (0, 0), (1, 36), (1.5, 0). Impulse 0.5*1*36 + 0.5*0.5*36 =
+    // 27 Ns, an E; the raw samples alone give 9 Ns, a C.
+    const m = parseEng('X1 18 70 0 0.010 0.030 T\n1.0 36\n1.5 0\n')[0]!;
+    expect(m.samples[0]).toEqual({ time: 0, thrust: 0 });
+    expect(totalImpulse(m.samples)).toBeCloseTo(27, 9);
+    expect(m.class).toBe('E');
+  });
+
+  it('sorts samples listed out of order', () => {
+    const m = parseEng('X1 18 70 0 0.010 0.030 T\n0 0\n1.5 0\n1.0 36\n')[0]!;
+    expect(m.samples.map((p) => p.time)).toEqual([0, 1, 1.5]);
+  });
+});

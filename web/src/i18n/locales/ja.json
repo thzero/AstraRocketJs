@@ -160,8 +160,10 @@
     },
     "rktSkip": {
       "airfoilMass": "翼型フィンの質量（{{name}}）",
+      "cdOverride": "Cd の上書き（{{name}}）",
       "cgOverride": "CG の上書き（{{name}}）",
-      "extraStages": "{{from}} 段目以降"
+      "extraStages": "{{from}} 段目以降",
+      "subtreeOverride": "下位部品の上書き（{{name}}）"
     },
     "viewFailed": "このビューを読み込めませんでした。",
     "staleBuild": "このタブを開いている間にアプリが更新されたため、一部がサーバー上にありません。再読み込みして新しいビルドを取得してください。",
@@ -301,7 +303,8 @@
     "headerLaunchMass": "発射時質量 {{mass}}（空 {{dry}}）",
     "headerDryMass": "空質量 {{dry}}、モーター未搭載",
     "headerBalance": "CG {{cg}}、CP {{cp}}（ノーズ先端から）、安定余裕 {{margin}} cal",
-    "headerCg": "CG {{cg}}（ノーズ先端から）"
+    "headerCg": "CG {{cg}}（ノーズ先端から）",
+    "imageOption": "{{format}} {{size}}、幅 {{width}} px"
   },
   "engine": {
     "wasmTip": "物理エンジン：WebAssembly（高速版）",
@@ -603,7 +606,8 @@
     "grounded": "地上に残す",
     "groundedHint": "地上に残します。質量も抗力もモーターもありません。ロケットの残りはこの段なしで飛びます。",
     "lastFlyingStage": "各構成で少なくとも1つの段が飛行する必要があります。",
-    "stageGrounded": "地上に残す構成:"
+    "stageGrounded": "地上に残す構成:",
+    "partNumbered": "{{part}} {{n}}"
   },
   "tabs": {
     "rocket": "ロケット",
@@ -1162,7 +1166,8 @@
     "colorRolePin": "ピン",
     "importSaveError": "このブラウザーにテンプレートを保存できませんでした。",
     "deleteError": "テンプレートを削除できませんでした。",
-    "deleteConfirm": "このブラウザーからテンプレート「{{name}}」を削除しますか？"
+    "deleteConfirm": "このブラウザーからテンプレート「{{name}}」を削除しますか？",
+    "stageColorLabel": "{{stage}}の{{role}}"
   },
   "aero": {
     "unattributed": "特定の部品に割り当てられないもの",
@@ -1258,7 +1263,12 @@
     "motorFetchFailed": "モーター「{{motor}}」を読み込めませんでした（{{reason}}）。そのマウントのモーターを選んでください（既定のモーターでは飛ばしません）。",
     "motorTooWide": "モーター「{{motor}}」は {{diameter}} mm ですが、マウント「{{mount}}」は {{bore}} mm までなので収まりません。ファイルの指定どおりに取り付けました。飛行前に確認してください。",
     "motorTooLong": "モーター「{{motor}}」は長さ {{length}} mm ですが、マウント「{{mount}}」は {{maxLength}} mm までなので収まりません。ファイルの指定どおりに取り付けました。飛行前に確認してください。",
-    "mountsWithoutMotor": "このファイルにモーターがないモーターマウント：{{mounts}}。飛行前にモーターを選んでください（既定のモーターでは飛ばしません）。"
+    "mountsWithoutMotor": "このファイルにモーターがないモーターマウント：{{mounts}}。飛行前にモーターを選んでください（既定のモーターでは飛ばしません）。",
+    "extensionName": {
+      "airStart": "空中スタート",
+      "javaCode": "Java コード",
+      "script": "{{language}} スクリプト"
+    }
   },
   "part": {
     "stage": "段",
@@ -1675,7 +1685,24 @@
     "cancel": "キャンセル",
     "deleteCustom": "追加した材料を削除",
     "deleteConfirm": "カスタム材料 {{name}} を削除しますか？どの設計でも選べなくなります。",
-    "fillet": "フィレットの材料"
+    "fillet": "フィレットの材料",
+    "groups": {
+      "Metals": "金属",
+      "Woods": "木材",
+      "Plastics": "プラスチック",
+      "Fabrics": "布",
+      "Paper": "紙",
+      "PaperProducts": "紙製品",
+      "Foams": "発泡材",
+      "Composites": "複合材",
+      "Fibers": "繊維",
+      "Elastics": "弾性材",
+      "Kevlars": "ケブラー",
+      "Nylons": "ナイロン",
+      "Other": "その他",
+      "Custom": "カスタム",
+      "Adhesives": "接着剤"
+    }
   },
   "recovery": {
     "title": "降下速度の設計",
@@ -1810,7 +1837,9 @@
     "chartAvg": "平均推力",
     "chartBurn": "燃焼時間",
     "chartAria": "時間に対する推力。最大 {{peak}}、平均 {{avg}}、燃焼時間 {{burn}} 秒。",
-    "calcNote": "* 初期推力、Isp、質量比は推力曲線と重量から計算した値です。"
+    "calcNote": "* 初期推力、Isp、質量比は推力曲線と重量から計算した値です。",
+    "rangeMin": "{{label}}（最小）",
+    "rangeMax": "{{label}}（最大）"
   },
   "lang": {
     "label": "言語"
@@ -1926,7 +1955,9 @@
       "badNumber": "{{line}} 行目に数値でない値があります。",
       "noData": "そのファイルに風の層が見つかりませんでした。",
       "unreadable": "そのファイルを読み込めませんでした。"
-    }
+    },
+    "levelField": "{{field}}（層 {{n}}）",
+    "removeLevelN": "層 {{n}} を削除"
   },
   "limits": {
     "sentenceJoin": "{{first}}{{next}}",
@@ -1973,7 +2004,8 @@
     "coords": "座標",
     "elevationLooking": "標高を取得中…",
     "elevationUnknown": "標高が見つかりません。発射場の標高は空欄になります",
-    "credit": "GeoNames の地名（Open-Meteo.com 経由）"
+    "credit": "GeoNames の地名（Open-Meteo.com 経由）",
+    "regionCountry": "{{country}} {{region}}"
   },
   "location": {
     "label": "保存した場所",

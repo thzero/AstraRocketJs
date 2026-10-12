@@ -102,3 +102,31 @@ export const FIN_SET_TYPES: ReadonlySet<FinSetType> = typesOfKind('planarfin', '
  * holding a `ComponentType` gets the narrowed type back through the predicate.
  */
 export const isChainType = (type: string): type is ChainType => (CHAIN_TYPES as ReadonlySet<string>).has(type);
+
+/**
+ * The node key a part keeps its roll about its parent's axis in (radians), for
+ * the parts OpenRocket treats as `AnglePositionable`: fin sets and tube fin sets
+ * keep it as `rotation`, lugs, rail buttons and assemblies as `angleOffset`.
+ * Undefined for a part with no roll of its own.
+ */
+export function rollAngleKey(type: string): 'rotation' | 'angleOffset' | undefined {
+  if ((FIN_SET_TYPES as ReadonlySet<string>).has(type)) return 'rotation';
+  if (type === 'launchlug' || type === 'railbutton' || (ASSEMBLY_TYPES as ReadonlySet<string>).has(type)) {
+    return 'angleOffset';
+  }
+  return undefined;
+}
+
+/**
+ * A part's roll angle as the kernel flies it: the node's own, or the bridge's
+ * default when the node has none. `ComponentFactory` reads a lug's and a rail
+ * button's `angleOffset` with a default of pi, and every other roll with 0.
+ * Undefined for a part with no roll of its own.
+ */
+export function rollAngleOf(node: { type: string; [key: string]: unknown }): number | undefined {
+  const key = rollAngleKey(node.type);
+  if (!key) return undefined;
+  const v = node[key];
+  if (typeof v === 'number') return v;
+  return node.type === 'launchlug' || node.type === 'railbutton' ? Math.PI : 0;
+}

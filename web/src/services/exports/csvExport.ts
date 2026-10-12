@@ -303,7 +303,7 @@ export function flightEventsCsv(
       titled(t('csv.head.stage')),
       titled(t('csv.head.altitude'), dist.sym),
       titled(t('csv.head.velocity'), vel.sym),
-      titled(t('csv.head.stability'), 'cal'),
+      titled(t('csv.head.stability'), t('stability.caliber')),
       titled(t('csv.head.thrustWeight')),
       titled(t('csv.head.aoa'), ang.sym),
       titled(t('csv.head.mach')),

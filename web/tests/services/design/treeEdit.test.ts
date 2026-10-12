@@ -382,7 +382,7 @@ describe('recovery-device defaults', () => {
     expect(pts.length).toBeGreaterThanOrEqual(3);
   });
 
-  it('streamer defaults use stripLength/stripWidth (not length/width) + Cd + apogee', () => {
+  it('streamer defaults use stripLength/stripWidth (not length/width) + automatic Cd + apogee', () => {
     const s = defaultNode('streamer') as Record<string, unknown>;
     // The editor, engine and .ork all key on stripLength/stripWidth; a default
     // under length/width would silently drop streamer sizing.
@@ -390,7 +390,9 @@ describe('recovery-device defaults', () => {
     expect(s.stripWidth).toBeGreaterThan(0);
     expect(s.length).toBeUndefined();
     expect(s.width).toBeUndefined();
-    expect(s.cd).toBeGreaterThan(0);
+    // Streamer() starts with cdAutomatic set; a stated cd would fly as the user's own.
+    expect(s.cdAuto).toBe(true);
+    expect(s.cd).toBeUndefined();
     expect(s.deployEvent).toBe('apogee');
   });
 });
@@ -594,6 +596,21 @@ describe('catalogPatch for a centering ring', () => {
     expect('innerRadius' in patch).toBe(false);
     expect(patch['innerRadiusAuto']).toBe(false);
   });
+
+  // RadiusRingComponent.setInnerRadius never leaves the bore past the outer
+  // radius, and the panel holds a typed bore inside it the same way. Quest
+  // CR2924 states a 28.8 mm bore in a 25.25 mm ring.
+  it('holds a stated bore inside the outer radius', () => {
+    const patch = catalogPatch({ ...row, outerDiameter: 0.02525, innerDiameter: 0.0288 } as never);
+    expect(patch['outerRadius']).toBe(0.02525 / 2);
+    expect(patch['innerRadius']).toBe(0.02525 / 2);
+  });
+
+  it('holds the bore the ring had inside a smaller new part', () => {
+    const node = { type: 'centeringring', id: 'r', outerRadius: 0.03, innerRadius: 0.025 } as unknown as ComponentNode;
+    const patch = catalogPatch({ ...row, innerDiameter: null } as never, node);
+    expect(patch['innerRadius']).toBe(0.02);
+  });
 });
 
 describe('a new pod set or parallel stage', () => {
@@ -609,4 +626,55 @@ describe('a new pod set or parallel stage', () => {
       expect(tube['outerRadius']).toBe(0.009);
     });
   }
+});
+
+/**
+ * The catalog link follows the kernel's `clearPreset()` callers: an edit through
+ * a setter that calls it drops the `<preset>`, any other edit keeps it.
+ */
+describe('updateNode and the catalog link', () => {
+  const LINK = { type: 'x', manufacturer: 'Estes', partNo: 'P1' };
+  const kept = (node: Record<string, unknown>, patch: Record<string, unknown>) => {
+    const tree = { components: [{ id: 'p', preset: LINK, ...node }] } as unknown as RocketTree;
+    const out = updateNode(tree, 'p', patch as Partial<ComponentNode>);
+    return findNode(out, 'p')!['preset'] !== undefined;
+  };
+
+  it.each([
+    // Transition.setForeShoulderRadius / setAftShoulderRadius
+    [{ type: 'transition' }, { foreShoulderRadius: 0.01 }],
+    [{ type: 'transition' }, { aftShoulderRadius: 0.01 }],
+    // NoseCone.setShoulderRadius
+    [{ type: 'nosecone' }, { shoulderRadius: 0.01 }],
+    // RingComponent.setLength
+    [{ type: 'tubecoupler' }, { length: 0.05 }],
+    // Parachute.setLineLength with lines
+    [{ type: 'parachute', lineCount: 6 }, { lineLength: 0.5 }],
+    // Streamer.setStripWidth
+    [{ type: 'streamer' }, { stripWidth: 0.06 }],
+  ])('drops it on %o edited with %o', (node, patch) => {
+    expect(kept(node, patch)).toBe(false);
+  });
+
+  it.each([
+    // RecoveryDevice deployment and MassObject packed size
+    [{ type: 'parachute' }, { deployEvent: 'altitude' }],
+    [{ type: 'parachute' }, { deployAltitude: 150 }],
+    [{ type: 'parachute' }, { deployDelay: 1 }],
+    [{ type: 'parachute' }, { length: 0.05 }],
+    [{ type: 'parachute' }, { radius: 0.01 }],
+    // Parachute.setLineLength on a chute with no lines
+    [{ type: 'parachute', lineCount: 0 }, { lineLength: 0.5 }],
+    // NoseCone.setFlipped, Transition.setClipped, the shoulder lengths
+    [{ type: 'nosecone' }, { flipped: true }],
+    [{ type: 'transition' }, { clipped: false }],
+    [{ type: 'transition' }, { foreShoulderLength: 0.02 }],
+    // BodyComponent.setLength, LaunchLug.setLength
+    [{ type: 'bodytube' }, { length: 0.3 }],
+    [{ type: 'launchlug' }, { length: 0.03 }],
+    // Streamer.setStripLength
+    [{ type: 'streamer' }, { stripLength: 0.5 }],
+  ])('keeps it on %o edited with %o', (node, patch) => {
+    expect(kept(node, patch)).toBe(true);
+  });
 });

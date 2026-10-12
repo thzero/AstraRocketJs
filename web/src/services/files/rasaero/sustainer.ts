@@ -62,7 +62,12 @@ function finPlanform(fin: ComponentNode): { root: number; tip: number; sweep: nu
  * `parentStart` is where the parent starts from the nose tip, which an
  * `absolute` fin set is measured from.
  */
-export function finXml(w: Cdx1Writer, parent: ComponentNode, parentStart: number): void {
+/**
+ * `below` is the length of body that continues past the parent's bottom
+ * within the same RASAero part, which the fin's Location is measured from the
+ * bottom of: a booster made of several tubes (see writeBoosters).
+ */
+export function finXml(w: Cdx1Writer, parent: ComponentNode, parentStart: number, below = 0): void {
   const { emit } = w;
   const finSets = (parent.children ?? []).filter((c) => isFinSet(c.type));
   if (finSets.length === 0) return;
@@ -92,8 +97,8 @@ export function finXml(w: Cdx1Writer, parent: ComponentNode, parentStart: number
   // from the tube's top, less the gap the root leaves to the tube's bottom.
   const tubeLen = num(parent, 'length', 0);
   const bottomOffset = startFromPosition(pos, plan.root, tubeLen, parentStart) + plan.root - tubeLen;
-  // Fin Location = front edge from the tube bottom (inches).
-  const locIn = (plan.root - bottomOffset) * IN;
+  // Fin Location = front edge from the part's bottom (inches).
+  const locIn = (plan.root - bottomOffset + below) * IN;
   const cs = str(fin, 'crossSection', 'square');
   // A supersonic airfoil section beats the plain cross section.
   const section = SECTION_TO_AIRFOIL[str(fin, 'airfoilSection', '')];

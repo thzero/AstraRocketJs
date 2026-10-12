@@ -355,6 +355,7 @@ const multiConfigInput = (): OrkTreeExportInput => ({
         drogue: { deployEvent: 'ejection', deployAltitude: 200, deployDelay: 0 },
         main: { deployAltitude: 120 },
       },
+      separations: { st1: { separationDelay: 3 } },
     },
     { id: 'cfg-c', name: 'Empty', motors: {}, deployments: {} },
   ],
@@ -377,7 +378,7 @@ const multiConfigInput = (): OrkTreeExportInput => ({
 });
 
 describe('golden .ork export', () => {
-  it('writes every configuration, block and component type exactly as before', () => {
+  it('pins every configuration, block and component type the writer emits', () => {
     nextUuid = 0;
     expect(exportOrk(multiConfigInput())).toMatchSnapshot();
   });
@@ -414,7 +415,7 @@ describe('golden .ork export', () => {
 });
 
 describe('golden .ork import', () => {
-  it('reads the kitchen-sink export back into the same result as before', () => {
+  it('pins what the kitchen-sink export reads back as', () => {
     nextUuid = 0;
     const xml = exportOrk(multiConfigInput());
     expect(importOrk(xml)).toMatchSnapshot();

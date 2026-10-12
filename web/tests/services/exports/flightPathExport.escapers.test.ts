@@ -31,6 +31,18 @@ describe('renderUserTemplate escapers', () => {
     expect(JSON.parse(`"${render('json', 'a"b')}"`)).toBe('a"b');
   });
 
+  it('neutralizes spreadsheet formulas in TSV output', () => {
+    // A TSV opens straight into a spreadsheet, so a file-sourced name must not
+    // become a live formula there.
+    expect(render('tsv', '=HYPERLINK("http://x")')).toBe(`'=HYPERLINK("http://x")`);
+    expect(render('TSV', '@SUM(A1)')).toBe("'@SUM(A1)");
+    expect(render('tsv', '-80.6')).toBe('-80.6');
+    // TSV has no quoting, so a tab or line break cannot stay in a value, and the
+    // trigger behind it is neutralized before it becomes a space.
+    expect(render('tsv', 'a\t=1+1')).toBe("a '=1+1");
+    expect(render('tsv', 'row\n+forged')).toBe("row '+forged");
+  });
+
   it('strips control characters for an unknown extension', () => {
     // It cannot know the format's quoting rules, but a C0 control is what a
     // crafted name would use to forge a record boundary in any text format.

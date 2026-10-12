@@ -148,10 +148,15 @@ export function LandingEstimator() {
       const run = await runLandingEstimate({ ...asked, today: todayYmd(), apiKey: readWeatherKey() }, { signal });
       if (signal.aborted) return;
       setState(
-        run === 'noHour' ? { kind: 'error', message: t('weather.noHour') } : { kind: 'ready', run, inputs: asked },
+        run === 'noHour'
+          ? { kind: 'error', message: t('weather.noHour') }
+          : run === 'noElevation'
+            ? { kind: 'error', message: t('weather.needElevation') }
+            : { kind: 'ready', run, inputs: asked },
       );
       // On a phone the result is below the form, out of sight of the button.
-      if (run !== 'noHour') requestAnimationFrame(() => resultRef.current?.scrollIntoView?.({ block: 'nearest' }));
+      if (typeof run !== 'string')
+        requestAnimationFrame(() => resultRef.current?.scrollIntoView?.({ block: 'nearest' }));
     } catch (err) {
       if (signal.aborted) return;
       setState({ kind: 'error', message: errorText(err) });
@@ -262,7 +267,7 @@ export function LandingEstimator() {
         </CardGroup>
 
         <button
-          className="w-full rounded-md bg-accent-600 px-3 py-2 text-sm font-semibold text-on-accent hover:bg-accent-500 disabled:opacity-50"
+          className="w-full rounded-md bg-accent-600 px-3 py-2 text-sm font-semibold text-on-accent hover:bg-accent-700 disabled:opacity-50"
           disabled={!ready || state.kind === 'loading' || !online}
           title={online ? undefined : t('common.needsConnection')}
           onClick={() => void estimate()}

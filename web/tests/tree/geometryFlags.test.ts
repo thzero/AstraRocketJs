@@ -96,6 +96,10 @@ function recordingPage(): { page: PdfPage; calls: unknown[] } {
   return { page, calls };
 }
 
+/** Every id in a design, depth first. */
+const walkIds = (nodes: ComponentNode[]): string[] =>
+  nodes.flatMap((n) => [String(n.id), ...walkIds(n.children ?? [])]);
+
 const READERS: Record<string, Reader> = {
   'station radius': (_tree, node) =>
     [0, 0.25, 0.5, 0.75, 1].map((f) => round(stationRadius(node, f * (node['length'] as number)))),
@@ -133,6 +137,9 @@ const READERS: Record<string, Reader> = {
   'disc geometry': (_tree, node) => round([tubeRadii(node), boreAt(node, 'fore'), boreAt(node, 'aft')]),
   'PDF parts table': (tree, node) =>
     round(stageParts(tree.components[0]!, { componentInfo: () => ({ mass: 0 }) }).filter((r) => r.type === node.type)),
+  'aft view': (tree) => round(buildAftScene(tree.components, undefined, ((k: string) => k) as unknown as TFunction)),
+  // Every part of the design, so a ring cut to fit inside the flagged part is read too.
+  DXF: (tree) => walkIds(tree.components).map((id) => componentToDxf(tree, id)),
 };
 
 /**
@@ -171,6 +178,16 @@ const TUBE: ComponentNode = {
   thickness: 0.001,
 } as unknown as ComponentNode;
 
+const RING: ComponentNode = {
+  type: 'centeringring',
+  id: 'ring',
+  length: 0.003,
+  outerRadiusAuto: true,
+  innerRadius: 0.009,
+  innerRadiusAuto: false,
+  position: { method: 'top', offset: 0.1 },
+} as unknown as ComponentNode;
+
 // The Filled checkbox leaves the wall thickness on the part, so each `filled`
 // toggle keeps it: a reader that reads the thickness and ignores the flag must
 // show up here as not reacting.
@@ -180,6 +197,13 @@ const FLAGS: Flag[] = [
   { name: 'filled transition', part: TRANSITION, on: { filled: true } },
   { name: 'filled body tube', part: TUBE, on: { filled: true } },
   { name: 'unclipped transition', part: TRANSITION, on: { clipped: false } },
+  // A centering ring sized to the bore (`RadiusRingComponent.getOuterRadius`
+  // reads the parent's inner radius), which a filled tube does not have.
+  {
+    name: 'filled body tube holding a ring',
+    part: { ...TUBE, children: [RING] } as ComponentNode,
+    on: { filled: true },
+  },
   // One flag toggled with another already set: a reader that handles each
   // alone can still let one mask the other.
   {
@@ -225,6 +249,9 @@ const UNAFFECTED: Record<string, string> = {
   'filled body tube / report side view': 'outline only',
   'filled body tube / report template': 'the template section draws no body tubes',
   'filled body tube / schematic': 'side outline only; walls are not drawn',
+  'filled body tube holding a ring / station radius': 'outer radius only',
+  'filled body tube holding a ring / report side view': 'outline only',
+  'filled body tube holding a ring / report template': 'the template section draws no body tubes',
   'filled nose cone / printable solid': 'printed as a solid of revolution, wall or not',
   'flipped nose cone / printable solid': 'the same part turned round; the printed file is the part itself',
   'flipped nose cone / report template': 'the same part turned round; its wrap template does not change',
@@ -235,6 +262,14 @@ const UNAFFECTED: Record<string, string> = {
   'unclipped transition / disc geometry': 'the ends and the wall, which clipping does not change',
   'unclipped transition / PDF parts table': 'lists the ends and the length, which clipping does not change',
   'flipped filled nose cone / disc geometry': 'a filled part has no bore at either end',
+  ...Object.fromEntries(
+    ['flipped nose cone', 'filled nose cone', 'filled transition', 'filled body tube', 'unclipped transition'].flatMap(
+      (flag) => [
+        [`${flag} / aft view`, 'drawn end on as an opaque disc at its largest radius, which the flag does not change'],
+        [`${flag} / DXF`, 'a DXF cuts flat plate parts only (fins, rings, bulkheads), and this part is not one'],
+      ],
+    ),
+  ),
 };
 
 /**
@@ -372,10 +407,53 @@ const FIN_FLAGS: Flag[] = [
     part: { ...TRANSITION, children: [FIN] } as ComponentNode,
     on: { clipped: false },
   },
+  { name: 'fins on a filled nose cone', part: { ...NOSE, children: [FIN] } as ComponentNode, on: { filled: true } },
+  {
+    name: 'fins on a filled transition',
+    part: { ...TRANSITION, children: [FIN] } as ComponentNode,
+    on: { filled: true },
+  },
+  { name: 'fins on a filled body tube', part: { ...TUBE, children: [FIN] } as ComponentNode, on: { filled: true } },
+  // One flag toggled with another already set on the parent.
+  {
+    name: 'fins on a flipped filled nose cone',
+    part: { ...NOSE, filled: true, children: [FIN] } as ComponentNode,
+    on: { flipped: true },
+    like: 'fins on a flipped nose cone',
+  },
+  {
+    name: 'fins on a filled flipped nose cone',
+    part: { ...NOSE, flipped: true, children: [FIN] } as ComponentNode,
+    on: { filled: true },
+    like: 'fins on a filled nose cone',
+  },
+  {
+    name: 'fins on an unclipped filled transition',
+    part: { ...TRANSITION, filled: true, children: [FIN] } as ComponentNode,
+    on: { clipped: false },
+    like: 'fins on an unclipped transition',
+  },
+  {
+    name: 'fins on a filled unclipped transition',
+    part: { ...TRANSITION, clipped: false, children: [FIN] } as ComponentNode,
+    on: { filled: true },
+    like: 'fins on a filled transition',
+  },
 ];
 
+/**
+ * A fin stands on its parent's outer surface (`FinSet.getRootPoints` reads
+ * `SymmetricComponent.getRadius`), and its tab is cut at most as deep as the
+ * outer radius (`getMaxTabHeight`), so filling the parent changes no fin.
+ */
+const FILL_REASON = 'a fin stands on the outer surface, which filling does not move';
+
 /** Fin pairs where the reader cannot see the flag, with why. */
-const FIN_UNAFFECTED: Record<string, string> = {};
+const FIN_UNAFFECTED: Record<string, string> = Object.fromEntries(
+  ['fins on a filled nose cone', 'fins on a filled transition', 'fins on a filled body tube'].flatMap((flag) =>
+    Object.keys(FIN_READERS).map((reader) => [`${flag} / ${reader}`, FILL_REASON]),
+  ),
+);
 
 describe('every shape flag on the part a fin set stands on reaches every fin reader', () => {
   for (const flag of FIN_FLAGS) {
@@ -383,8 +461,9 @@ describe('every shape flag on the part a fin set stands on reaches every fin rea
     const on = { ...flag.part, ...flag.on } as ComponentNode;
     for (const [reader, read] of Object.entries(FIN_READERS)) {
       const pair = `${flag.name} / ${reader}`;
-      const expected = !(pair in FIN_UNAFFECTED);
-      it(`${pair}: ${expected ? 'reacts' : FIN_UNAFFECTED[pair]}`, () => {
+      const reason = FIN_UNAFFECTED[pair] ?? (flag.like ? FIN_UNAFFECTED[`${flag.like} / ${reader}`] : undefined);
+      const expected = reason === undefined;
+      it(`${pair}: ${expected ? 'reacts' : reason}`, () => {
         const before = read(design(off), off);
         expect(before).not.toBeNull();
         const changed = JSON.stringify(before) !== JSON.stringify(read(design(on), on));

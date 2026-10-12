@@ -70,6 +70,45 @@ describe('the geolocation status region', () => {
 });
 
 /**
+ * A new place takes its own elevation or none, never the last site's: a 1,600 m
+ * field picked with the old sea-level elevation would fly sea-level air with no
+ * marker. The browser's altitude is above the ellipsoid, not sea level, so a
+ * located site's elevation is blank, and the simulation asks for it.
+ */
+describe('a site found by "Use my location"', () => {
+  it('clears the previous elevation', () => {
+    const getCurrentPosition = vi.fn((ok: PositionCallback) => {
+      ok({ coords: { latitude: 39.5, longitude: -105.1, altitude: 1650 } } as GeolocationPosition);
+    });
+    Object.defineProperty(navigator, 'geolocation', { value: { getCurrentPosition }, configurable: true });
+    const onChange = vi.fn();
+    renderWithProviders(<LaunchPanel launch={LAUNCH} onChange={onChange} />);
+    fireEvent.click(screen.getByRole('button', { name: /use my location/i }));
+    expect(onChange).toHaveBeenCalledWith({ latitudeDeg: 39.5, longitudeDeg: -105.1, launchAltitudeM: null });
+  });
+});
+
+/**
+ * Settings opens its own launch panel over the simulation editor's. Radios that
+ * share a name are one group to the browser, so an arrow key in one panel's
+ * wind model would check the other's and change the flight behind the dialog.
+ */
+it('gives each panel its own wind model group', () => {
+  renderWithProviders(
+    <>
+      <LaunchPanel launch={LAUNCH} onChange={() => {}} />
+      <LaunchPanel launch={LAUNCH} onChange={() => {}} />
+    </>,
+  );
+  const names = new Set(
+    [...document.querySelectorAll<HTMLInputElement>('input[type="radio"]')]
+      .filter((r) => r.closest('fieldset')?.querySelector('legend')?.textContent === 'Wind model to use')
+      .map((r) => r.name),
+  );
+  expect(names.size).toBe(2);
+});
+
+/**
  * Site altitude, pressure and temperature are all bounded, because they go
  * straight to the kernel's atmosphere model. Bounds are given in SI and shown in the
  * field's unit; the app default is metric, so meters and hPa here.

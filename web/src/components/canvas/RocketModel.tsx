@@ -76,7 +76,8 @@ export function RocketModel({
                   both see-through tiers (with them on, a translucent shell reads
                   as opaque) so each layer shows through
                   the ones over it; DoubleSide draws far walls for depth. A
-                  selected part glows sky-blue and turns opaque so it reads. */}
+                  selected part takes the theme's scene-selected color and glow and
+                  turns opaque so it reads. */}
             <meshStandardMaterial
               color={selected ? scene['scene-selected'] : p.color}
               roughness={0.6}

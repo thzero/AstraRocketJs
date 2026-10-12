@@ -17,7 +17,8 @@ export interface ConfigColumn {
  * Reading across a row tells you what that setup does everywhere; reading down a
  * column tells you what the same mount or chute does under each setup, which is
  * the comparison a staged rocket is designed around and the one a list of names
- * cannot show. The sub-tab decides what the columns are (motors, recovery).
+ * cannot show. The sub-tab decides what the columns are (motors, recovery,
+ * separation).
  *
  * Selecting a row is all this does. Values are changed in the editor beside it,
  * so there is one place a configuration is written and the table stays a view.
@@ -97,6 +98,12 @@ export function ConfigsTable({
 }
 
 /** A part's own name, else its type and its place in tree order ("Inner tube 2"). */
-export function partName(node: ComponentNode, i: number, t: (k: string) => string): string {
-  return typeof node.name === 'string' && node.name ? node.name : `${t(`part.${node.type}`)} ${i + 1}`;
+export function partName(
+  node: ComponentNode,
+  i: number,
+  t: (k: string, opts?: Record<string, unknown>) => string,
+): string {
+  return typeof node.name === 'string' && node.name
+    ? node.name
+    : t('configs.partNumbered', { part: t(`part.${node.type}`), n: i + 1 });
 }

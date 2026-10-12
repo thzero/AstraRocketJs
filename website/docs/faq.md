@@ -3,13 +3,13 @@ title: "FAQ"
 sidebar_position: 4
 ---
 ### Is this OpenRocket?
-No: it's an independent app that **runs OpenRocket's physics engine** in the browser. It covers the essentials with a lightweight, mobile-friendly UI, and reads/writes the same `.ork` files. It is not affiliated with the OpenRocket project.
+No: it's an independent app that **runs OpenRocket's physics engine** in the browser. It covers the essentials, works on a phone as well as a desktop, and reads/writes the same `.ork` files. It is not affiliated with the OpenRocket project.
 
 ### Do I need to install anything?
 No. It's a web app: open the URL in a modern browser. No JDK, no download.
 
 ### Are my designs uploaded anywhere?
-No. Everything runs on your device. Your design is a `.ork` file on your disk; the app keeps a working copy plus your custom motors, saved parts, materials, saved launch locations and settings in your browser's own storage (IndexedDB, with localStorage as the fallback). Nothing is sent to a server.
+No. Everything runs on your device. Your rockets, custom motors, saved parts, materials, saved launch locations and settings are kept in your browser's own storage (IndexedDB, with localStorage as the fallback), and you can export a `.ork` to your disk. Nothing is sent to a server.
 
 ### Will my `.ork` files work in desktop OpenRocket?
 Yes: open and save are full-fidelity round-trips, and a saved file re-opens in desktop OpenRocket.
@@ -23,8 +23,8 @@ Yes. Any part with a real solid body carries a **⬇** button in the component t
 ### Do my unit choices show up in desktop OpenRocket?
 No. Units live in your browser's settings, not in the `.ork`: the file has nowhere to record them, and desktop OpenRocket keeps its own in its preferences. Your file opens there in OpenRocket's units and back here in yours; the rocket is the same either way. For the same reason your units don't follow you to another computer or browser. See **[Settings](./settings.md#units)**.
 
-### Why is the stability different "on the pad" vs "at rail exit"?
-By the time the rocket leaves the launch rod/rail it's a little lighter (some propellant burned) and its CG has shifted, so its stability margin differs from the fully-loaded on-pad value. Rail-exit is usually the more meaningful number.
+### Why is the stability different "on the pad" vs "at launcher exit"?
+By the time the rocket leaves the rail or rod it's a little lighter (some propellant burned) and its CG has shifted, so its stability margin differs from the fully-loaded on-pad value. The launcher-exit margin is usually the more meaningful number.
 
 ### Can I use inches / imperial units?
 Yes. **Settings ▸ Units** has an **Imperial defaults** button, and you can set each quantity separately (lengths in inches, altitude in feet, mass in ounces, wind in mph, and so on). The unit printed next to any value is also a picker: click it to change that one field, leaving everything else on your defaults.

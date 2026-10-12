@@ -4,6 +4,7 @@ import { hasUsableCurve } from './motorCurve';
 import { cumulativeImpulse } from './motorMath';
 import { getMotorStore, isThrustSampleArray, type CustomMotor } from './motorStore';
 import { declaredLength, readStreamWithProgress } from '../app/fetchProgress';
+import { fetchFailure } from '../app/remoteData';
 import { nsKey } from '../storage/storageKeys';
 import { finalizeCurve } from './curveFinalize';
 import { KeyedError } from '../../i18n/keyedError';
@@ -98,7 +99,12 @@ async function post<T>(path: string, body: unknown): Promise<T> {
     // page or an oversized response would otherwise keep streaming until the
     // body timer fired.
     ctl.abort();
-    throw e;
+    // Keyed, as the catalog fetch reports it: the browser's own text for a
+    // refused connection or a body that is not JSON is English whatever the
+    // app shows. The original stays as the cause.
+    const err = fetchFailure(e, false);
+    if (err !== e) (err as { cause?: unknown }).cause = e;
+    throw err;
   } finally {
     clearTimeout(timer);
   }
@@ -127,7 +133,7 @@ export function samplesToMotorSpec(
   massSamples?: number[],
 ): MotorSpec {
   // Normalize, as desktop's motor loader does. A supplied mass column rides
-  // along through every step rather than being indexed separately afterwards,
+  // along through every step rather than being indexed separately afterward,
   // so a file whose samples are not in time order cannot end up with its masses
   // against the wrong times, and an added t=0 point takes the first mass (the
   // loaded mass) rather than shifting the whole column by one.

@@ -125,10 +125,16 @@ const MAX_TERRAIN_HALF_WIDTH_M = 30_000;
  * A whole estimate: the pad's height if not given, the forecast, the landings
  * on flat ground to learn how far they reach, the terrain over that reach, and
  * the landings again on it. Throws `WeatherError` from the forecast; a failed
- * terrain lookup falls back to flat ground and says so.
+ * terrain lookup falls back to flat ground and says so. A blank pad height whose
+ * lookup fails is `noElevation`: sea level would put the descent on the wrong
+ * ground and the forecast at the wrong height.
  */
-export async function runLandingEstimate(q: LandingQuery, o: FetchOpts = {}): Promise<LandingRun | 'noHour'> {
-  const padElevationM = q.padElevationM ?? (await fetchElevation(q.latitudeDeg, q.longitudeDeg, q.apiKey, o)) ?? 0;
+export async function runLandingEstimate(
+  q: LandingQuery,
+  o: FetchOpts = {},
+): Promise<LandingRun | 'noHour' | 'noElevation'> {
+  const padElevationM = q.padElevationM ?? (await fetchElevation(q.latitudeDeg, q.longitudeDeg, q.apiKey, o));
+  if (padElevationM == null) return 'noElevation';
   const answer = await fetchWeather(
     {
       latitudeDeg: q.latitudeDeg,

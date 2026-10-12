@@ -18,7 +18,7 @@ Se ha verificado que un viaje de ida y vuelta por exportación e importación co
 
 Los diseños de RockSim también se abren y se guardan, desde **menú → Importar → RockSim** y **menú → Exportar → RockSim**. El lector se guía por el contenido del archivo y no por su nombre, así que un `.rkt` elegido en el diálogo de OpenRocket también se abre.
 
-Lo que sí viaja: ojivas, tubos y transiciones; tubos interiores y soportes de motor; anillos de centrado, mamparos, topes de motor y acopladores; juegos de aletas trapezoidales, elípticas y de forma libre con su inclinación, su giro y sus lengüetas pasantes; aletas tubulares; guías de lanzamiento; paracaídas y cintas; objetos de masa y cuerdas de choque; pods externos (un pod desmontable entra como etapa en paralelo, que vuela su propia rama); y hasta tres etapas. Con ellos van las dimensiones, los materiales, los acabados, la colocación y la masa y el CG medidos.
+Lo que sí viaja: ojivas, tubos y transiciones; tubos interiores y soportes de motor; anillos de centrado, mamparos, topes de motor y acopladores; juegos de aletas trapezoidales, elípticas y de forma libre con su inclinación, su giro y sus lengüetas pasantes; aletas tubulares; guías de lanzamiento; paracaídas y cintas; objetos de masa y cuerdas de choque; cápsulas externas (una cápsula desmontable entra como etapa en paralelo, que vuela su propia rama); y hasta tres etapas. Con ellos van las dimensiones, los materiales, los acabados, la colocación y la masa y el CG medidos.
 
 Lo que no:
 
@@ -26,7 +26,7 @@ Lo que no:
 - **Las colas anulares (ring tails)**, que aquí no tienen equivalente.
 - **Los subconjuntos**, cuyo contenido se fusiona en el diseño en lugar de mantenerse como grupo.
 
-En el otro sentido, RockSim no tiene elemento para los **botones de raíl** ni para las **etapas en paralelo**. Esas piezas se quedan fuera del archivo, y la aplicación te dice cuáles se han omitido en lugar de dejar que lo descubra quien lo abra.
+En el otro sentido, RockSim no tiene elemento para los **botones de riel**. Se quedan fuera del archivo, y la aplicación te dice cuáles se han omitido en lugar de dejar que lo descubra quien lo abra. Una etapa en paralelo sale como una cápsula desmontable, que es como la escriben RockSim y OpenRocket de escritorio, y un conjunto de cápsulas o de etapas en paralelo sale como una cápsula por cada copia.
 
 > **Menú → Abrir y Guardar como trabajan sobre los diseños guardados dentro de la aplicación** (consulta [Diseños guardados](#saved-designs) más abajo); los archivos `.ork` van y vienen de tu disco mediante **Importar** y **Exportar**.
 
@@ -61,11 +61,11 @@ Como RASAero no puede representar todas las formas, la exportación **se detiene
 
 ## Exportar el cohete entero para impresión 3D (`.3mf`) {#exporting-the-whole-rocket-for-3d-printing-3mf}
 
-**Menú → Exportar → Impresión 3D (.3mf)** escribe de una vez todas las piezas imprimibles del diseño. El diálogo lista lo que el diseño realmente puede imprimir, todo marcado; desmarca lo que no quieras. Los paracaídas, los cordones de choque, los componentes de masa y los botones de raíl ni siquiera aparecen, porque no tienen un cuerpo sólido que imprimir.
+**Menú → Exportar → Impresión 3D (.3mf)** escribe de una vez todas las piezas imprimibles del diseño. El diálogo lista lo que el diseño realmente puede imprimir, todo marcado; desmarca lo que no quieras. Los paracaídas, los cordones de choque, los componentes de masa y los botones de riel ni siquiera aparecen, porque no tienen un cuerpo sólido que imprimir.
 
 Dos opciones:
 
-- **Un archivo por pieza (un .zip)**: desactivado por defecto. Desactivado obtienes un único `.3mf` con **un objeto con nombre por pieza**, que es la gracia del formato: la lista de objetos del laminador dice *Ojiva*, *Tubo*, *Anillo de centrado*, y no `part1`, `part2`, `part3`. Activado obtienes un zip con un archivo por pieza, para un flujo de trabajo que las quiera separadas.
+- **Un archivo por pieza (un .zip)**: desactivado por defecto. Desactivado obtienes un único `.3mf` con **un objeto con nombre por pieza**, que es la gracia del formato: la lista de objetos del laminador dice *Ojiva*, *Tubo de cuerpo*, *Anillo de centrado*, y no `part1`, `part2`, `part3`. Activado obtienes un zip con un archivo por pieza, para un flujo de trabajo que las quiera separadas.
 - **Colocar cada pieza sobre la base de impresión**: activado por defecto; cada pieza se mueve para quedar centrada y apoyada en Z = 0 en lugar de donde estaba dentro del cohete.
 
 Las piezas conservan la **orientación que tienen en el diseño**: el eje del cohete va a lo largo de X, así que los cuerpos llegan tumbados. Es deliberado: ponerlos de pie sería correcto para los tubos y equivocado para cada aleta y cada anillo, y haría que el 3MF difiriera del STL de la misma pieza. La función de apoyar o rotar de tu laminador está a un clic.
@@ -76,7 +76,7 @@ El 3MF también se ofrece por componente, junto a STL/OBJ/GLB, en el botón **�
 
 ## Exportar un componente como modelo 3D o archivo de corte {#exporting-a-component-as-a-3d-model-or-cut-file}
 
-La exportación es **por componente**, no del cohete entero: en el árbol de **Componentes**, cada pieza con una forma real lleva un pequeño botón **⬇** que ofrece los formatos adecuados a *esa* pieza. Las piezas sin objeto imprimible (paracaídas, cintas, cordones de choque, componentes de masa, botones de raíl) no llevan botón.
+La exportación es **por componente**, no del cohete entero: en el árbol de **Componentes**, cada pieza con una forma real lleva un pequeño botón **⬇** que ofrece los formatos adecuados a *esa* pieza. Las piezas sin objeto imprimible (paracaídas, cintas, cordones de choque, componentes de masa, botones de riel) no llevan botón.
 
 - **Modelos 3D: STL, OBJ, GLB, 3MF.** Un **sólido estanco** único de la pieza, pensado para impresión 3D y CAD (STL/OBJ se importan en cualquier laminador o modelador; GLB además lleva color para los visores; el **3MF** lleva el nombre de la pieza, su color y la unidad, y es el que conviene elegir si tu laminador lo admite). Disponible para ojivas, transiciones, tubos, tubos interiores, guías de lanzamiento, aletas tubulares, juegos de aletas, anillos de centrado, mamparos, acopladores y topes de motor. Para obtener el cohete entero de una vez, consulta [imprimir el cohete entero en 3D](#exporting-the-whole-rocket-for-3d-printing-3mf) más arriba.
 - **DXF: hoja de corte 2D.** El contorno plano de una pieza **cortada en plancha**, para cortadora láser o fresadora CNC (AutoCAD R12, en milímetros, capas CUT / REFERENCE). Disponible solo para las piezas que realmente se cortan de plancha: **aletas, anillos de centrado y mamparos**. Los contornos de aleta incluyen cualquier pestaña pasante; los discos llevan el taladro y una cruz de centrado.
@@ -101,7 +101,7 @@ Marca los elementos que quieras incluir:
 
 Además de algunas opciones:
 
-- **Resumen de motores**: por simulación, un resumen del vuelo (apogeo, tiempos y velocidades de salida de la varilla, máxima, de apertura y de aterrizaje) y una tabla de motores (empuje medio y máximo, tiempo de combustión, impulso total, relación empuje-peso, peso y tamaño).
+- **Resumen de motores**: por simulación, un resumen del vuelo (apogeo, tiempos y velocidades de salida de la guía, máxima, de apertura y de aterrizaje) y una tabla de motores (empuje medio y máximo, tiempo de combustión, impulso total, relación empuje-peso, peso y tamaño).
 - **Actualizar datos de simulación**: vuelve a ejecutar la simulación antes para que los números del vuelo estén al día (no cambia lo que ves en pantalla).
 - **Mostrar por etapa**: agrupa el resumen y las piezas por etapa.
 
@@ -117,9 +117,9 @@ El botón de **Ajustes** (que se recuerda) controla los **colores de relleno y b
 
 ### Guía de marcado de aletas {#fin-marking-guide}
 
-Las plantillas de corte dan la forma de una aleta. Esto da su **posición**: una tira de papel que se enrolla alrededor del tubo del cuerpo para marcar dónde va cada aleta, tubo, guía de lanzamiento y botón de riel. Es la única ayuda impresa que reciben los **tubos como aletas**, ya que un tubo no tiene contorno del que cortar una plantilla.
+Las plantillas de corte dan la forma de una aleta. Esto da su **posición**: una tira de papel que se enrolla alrededor del tubo del cuerpo para marcar dónde va cada aleta, tubo, tubo guía y botón de riel. Es la única ayuda impresa que reciben los **tubos como aletas**, ya que un tubo no tiene contorno del que cortar una plantilla.
 
-Una tira por cada tubo del cuerpo que lleve un juego de aletas, impresa a escala 1:1. Todo lo que va a un ángulo en ese tubo comparte la tira, cada cosa como una flecha que la cruza bajo su propio nombre, así que la guía responde a *dónde va la guía de lanzamiento respecto a las aletas*.
+Una tira por cada tubo del cuerpo que lleve un juego de aletas, impresa a escala 1:1. Todo lo que va a un ángulo en ese tubo comparte la tira, cada cosa como una flecha que la cruza bajo su propio nombre, así que la guía responde a *dónde va el tubo guía respecto a las aletas*.
 
 Para usarla: imprime al **100 % / tamaño real**, verifica la regla, recorta la tira, enróllala alrededor del tubo con la flecha **Proa** apuntando a la ojiva y los dos extremos **a tope, sin superponer**, y marca a través de cada flecha. Traza una línea a lo largo del tubo por cada par de marcas; esa línea es donde va la pieza.
 
@@ -129,9 +129,9 @@ Algunos detalles que conviene saber:
 - La **costura** se sitúa en el hueco más ancho entre marcas, para que nada de lo que hay que marcar acabe debajo de la cinta.
 - Las **aletas inclinadas** se marcan en diagonal, con líneas discontinuas en los extremos de proa y popa de la raíz y una cruz en su centro.
 - Una tira demasiado larga para la página se **corta en piezas** que se unen a tope y se pegan en orden, con las uniones apartadas de las marcas. Nada se reduce de escala nunca: una guía de marcado encogida es peor que ninguna. Un tubo de 4 pulgadas da una vuelta de 320 mm, así que siempre lleva dos piezas.
-- Una pieza que ninguna tira puede llevar se **nombra en una nota al pie** en vez de desaparecer sin más: una guía de lanzamiento en una ojiva o transición, cuya circunferencia cambia a lo largo, o una guía en un tubo sin juego de aletas.
+- Una pieza que ninguna tira puede llevar se **nombra en una nota al pie** en vez de desaparecer sin más: un tubo guía en una ojiva o transición, cuya circunferencia cambia a lo largo, o un tubo guía en un tubo sin juego de aletas.
 
-Dónde se sitúa la primera aleta alrededor del cuerpo es el campo **Rotación** del juego de aletas, en la sección **Colocación** del panel de componentes. La guía de lanzamiento y el botón de riel llevan el mismo campo: es una sola propiedad, así que tiene un solo nombre.
+Dónde se sitúa la primera aleta alrededor del cuerpo es el campo **Rotación** del juego de aletas, en la sección **Colocación** del panel de componentes. El tubo guía y el botón de riel llevan el mismo campo: es una sola propiedad, así que tiene un solo nombre.
 
 ### Cómo se llama una descarga {#what-a-download-is-called}
 
@@ -153,7 +153,7 @@ Los **datos de vuelo y de resistencia** se pueden exportar como **CSV** para usa
 
 - **Datos de vuelo**: el historial temporal simulado (desde la vista de Vuelo).
 - **Tabla de resistencia**: los datos de Cd, desglose y CP frente a Mach (desde la vista Aero).
-- **Eventos de vuelo**: la tabla de eventos, una fila por evento, desde el botón **CSV** de la tabla [Eventos de vuelo](./running-a-simulation.md#flight-events). Donde la tabla en pantalla guarda los extras de cada evento en una línea debajo, el archivo da a cada uno su propia columna: estabilidad, relación empuje-peso, ángulo de ataque, Mach y presión dinámica, más el componente de origen y la etapa. La mayoría de las filas deja la mayoría de esas columnas en blanco: solo la fila de salida de rampa tiene relación empuje-peso, y una celda vacía dice que no la tiene, no que valga cero. Es distinto de los datos de vuelo de arriba, que ya pueden llevar los eventos como líneas de comentario: un comentario es para quien lee, y esto son los eventos como datos.
+- **Eventos de vuelo**: la tabla de eventos, una fila por evento, desde el botón **CSV** de la tabla [Eventos de vuelo](./running-a-simulation.md#flight-events). Donde la tabla en pantalla guarda los extras de cada evento en una línea debajo, el archivo da a cada uno su propia columna: estabilidad, relación empuje-peso, ángulo de ataque, Mach y presión dinámica, más el componente de origen y la etapa. La mayoría de las filas deja la mayoría de esas columnas en blanco: solo la fila de salida de la guía tiene relación empuje-peso, y una celda vacía dice que no la tiene, no que valga cero. Es distinto de los datos de vuelo de arriba, que ya pueden llevar los eventos como líneas de comentario: un comentario es para quien lee, y esto son los eventos como datos.
 
 ### Elegir qué va en el CSV de vuelo {#choosing-what-goes-in-the-flight-csv}
 
@@ -168,22 +168,22 @@ Tus elecciones se recuerdan para la siguiente exportación.
 
 ## Exportar la trayectoria de vuelo (KML / GPX / CSV) {#exporting-the-flight-path-kml--gpx--csv}
 
-Tras una simulación, la vista de **Trayectoria 3D** tiene un botón **⬇ Exportar** que guarda la trayectoria del vuelo y su traza sobre el terreno para herramientas cartográficas:
+Tras una simulación, la vista de **Ruta 3D** tiene un botón **⬇ Exportar** que guarda la trayectoria del vuelo y su traza sobre el terreno para herramientas cartográficas:
 
 - **KML**: se abre en **Google Earth**: la línea de la trayectoria, la traza sobre el terreno y puntos de paso etiquetados.
 - **GPX**: una traza GPS estándar (puntos de paso + traza) para herramientas GPS y aplicaciones de mapas.
-- **CSV de puntos de paso**: una fila por punto de interés (rampa, apogeo, aterrizaje, …) con latitud y longitud.
+- **CSV de puntos**: una fila por punto de interés (rampa, apogeo, aterrizaje, …) con latitud y longitud.
 
 En el diálogo de exportación eliges qué **puntos de paso** incluir (rampa, despegue, fin de combustión, apogeo, apertura de la recuperación, aterrizaje, velocidad máxima, aceleración máxima), si incluir la **línea de la trayectoria** y la **traza sobre el terreno**, cuánto adelgazar la trayectoria (**conservar uno de cada N puntos**) y las **unidades de altitud y distancia**.
 
-Los **ajustes rápidos** (*Deriva*, *Trayectoria* y *Aterrizajes*) configuran las tres cosas a la vez, porque los puntos de paso, las líneas y la colocación tienen que concordar para que un archivo responda bien a una pregunta. Solo mueven los controles, así que lo que contendrá el archivo es siempre lo que muestra el diálogo, y cualquiera de ellos es un punto de partida que puedes ajustar. Cada uno declara su selección completa, puntos de paso incluidos, de modo que ninguno es un camino sin retorno: *Aterrizajes* reduce los puntos de paso al aterrizaje, y volver a *Deriva* los restituye todos.
+Los **ajustes rápidos** (*Deriva*, *Trayectoria* y *Aterrizajes*) configuran las tres cosas a la vez. Solo mueven los controles, así que el archivo contiene lo que muestra el diálogo, y después puedes ajustar cualquier control. Cada ajuste rápido fija su selección completa, puntos de paso incluidos: *Aterrizajes* reduce los puntos de paso al aterrizaje, y *Deriva* los restituye todos.
 
-El que coincide con los controles aparece resaltado, y un diálogo recién abierto parte de *Trayectoria*. Como un ajuste rápido solo mueve los controles, el resaltado se borra en cuanto cambias algo que ese ajuste abarca, y vuelve cuando los controles lo declaran de nuevo: nunca afirma una forma de la que el diálogo ya se ha apartado.
+El que coincide con los controles aparece resaltado, y un diálogo recién abierto parte de *Trayectoria*. Como un ajuste rápido solo mueve los controles, el resaltado se borra en cuanto cambias algo que ese ajuste abarca, y vuelve cuando los controles coinciden de nuevo con ese ajuste.
 
 **Colocación** controla cómo se sitúa la traza en el mapa:
 
-- **Altitud de la traza desde** y **Altitud de los puntos desde**: dos elecciones separadas, porque la línea y los marcadores quieren cosas distintas. *Automático* usa el nivel del mar cuando el campo de vuelo tiene una altitud real definida, y el suelo cuando sigue en 0. Ese valor por defecto importa: un vuelo medido desde la rampa pero colocado contra el nivel del mar queda enterrado bajo el terreno, que es lo que daría un campo a 1200 m. *Pegado al suelo* apoya la traza sobre el terreno: la opción adecuada cuando lo que importa es por encima de **qué** deriva el cohete y no a qué altura llegó. Una combinación habitual es la traza al nivel del mar con los marcadores pegados al suelo: el vuelo suspendido en el aire donde le corresponde, y sus etiquetas legibles sobre el terreno que sobrevuelan.
-- **Dibujar la sombra hasta el suelo**: una cortina bajo la traza y una plomada bajo cada marcador, para leer dónde se sitúa en el mapa un punto que está en el aire. Se desactiva solo cuando ambas mitades están pegadas al suelo, porque ya no hay nada desde donde dibujarla. Ningún ajuste rápido la activa: bajo un solo marcador se lee como una posición, pero bajo toda la longitud de una trayectoria en arco es un muro macizo que entierra el vuelo que pretende explicar. Actívala para aquello en lo que es buena: situar un punto concreto en el mapa.
+- **Altitud de la traza desde** y **Altitud de los puntos desde**: dos elecciones separadas, porque la línea y los marcadores quieren cosas distintas. *Automático* usa el nivel del mar cuando el campo de vuelo tiene una altitud real definida, y el suelo cuando sigue en 0. Ese valor por defecto importa: un vuelo medido desde la rampa pero colocado contra el nivel del mar queda enterrado bajo el terreno, que es lo que daría un campo a 1200 m. *Pegado al suelo* apoya la traza sobre el terreno: la opción adecuada cuando lo que importa es por encima de **qué** deriva el cohete y no a qué altura llegó. Una combinación habitual es la traza al nivel del mar con los marcadores pegados al suelo: el vuelo dibujado en el aire, y sus etiquetas sobre el terreno.
+- **Dibujar la sombra hasta el suelo**: una cortina bajo la traza y una plomada bajo cada marcador, para leer dónde se sitúa en el mapa un punto que está en el aire. Se desactiva solo cuando ambas mitades están pegadas al suelo, porque ya no hay nada desde donde dibujarla. Ningún ajuste rápido la activa: bajo un solo marcador marca una posición, pero bajo toda una trayectoria dibuja un muro macizo que tapa el vuelo. Es más útil para situar un punto concreto en el mapa.
 - **Dibujar los nombres de los puntos en el mapa**: un vuelo casi vertical amontona sus puntos en unos cientos de metros de pantalla; desactiva los nombres para dejar marcadores limpios en los que puedas hacer clic.
 - **Colorear los marcadores por etapa**: los marcadores de color cargan un icono desde los servidores de Google, así que desactívalos para un archivo que deba verse sin conexión.
 
@@ -224,7 +224,7 @@ Dónde se abre un globo depende del visor. Google Earth Pro abre el globo de un 
 
 ### Dar nombre a la exportación {#naming-the-export}
 
-Varias exportaciones abiertas a la vez en Google Earth son, si no, indistinguibles: cualquier diseño de dos etapas aporta una carpeta llamada *Sustentador* y una traza llamada *Sustentador trayectoria de vuelo*, y dos diseños pueden tener cada uno su *Simulación 1*. La casilla **Misión** da nombre a esta: el texto se antepone al nombre del documento, a cada carpeta y a cada traza, de modo que *Sod Blaster* te da *Sod Blaster Sustentador trayectoria de vuelo*. Un nombre que ya empieza por la misión se deja tal cual, sin repetirla.
+Varias exportaciones abiertas a la vez en Google Earth son, si no, indistinguibles: cualquier diseño de dos etapas aporta una carpeta llamada *Sostenedor* y una traza llamada *Sostenedor trayectoria de vuelo*, y dos diseños pueden tener cada uno su *Simulación 1*. La casilla **Misión** da nombre a esta: el texto se antepone al nombre del documento, a cada carpeta y a cada traza, de modo que *Sod Blaster* te da *Sod Blaster Sostenedor trayectoria de vuelo*. Un nombre que ya empieza por la misión se deja tal cual, sin repetirla.
 
 **Anteponerlo también a los nombres de los puntos** lo extiende a los marcadores, y está desactivado por defecto: un vuelo casi vertical amontona todos sus marcadores en unos pocos píxeles de pantalla, donde las etiquetas ya se solapan lo suficiente como para tener su propio interruptor (*Dibujar los nombres de los puntos en el mapa*, arriba), y unos nombres más largos solo lo empeoran. Actívalo cuando los marcadores de dos vuelos se superpongan de verdad.
 

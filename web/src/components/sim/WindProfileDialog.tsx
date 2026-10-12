@@ -301,7 +301,7 @@ export function WindProfileDialog({
                     <NumberInput
                       step={u.step('distance', 50)}
                       min={0}
-                      ariaLabel={`${t('windProfile.altitude')} ${i + 1}`}
+                      ariaLabel={t('windProfile.levelField', { field: t('windProfile.altitude'), n: i + 1 })}
                       value={u.toUi('distance', l.altitudeM)}
                       // No `?? 0`, unlike the direction and deviation columns: an altitude is
                       // the level's identity to the kernel, not a quantity with
@@ -319,7 +319,7 @@ export function WindProfileDialog({
                       step={u.step('windspeed', 0.5)}
                       min={0}
                       max={i === surfaceLevel ? u.toUi('windspeed', MAX_WIND_SPEED_MS) : undefined}
-                      ariaLabel={`${t('launch.speed')} ${i + 1}`}
+                      ariaLabel={t('windProfile.levelField', { field: t('launch.speed'), n: i + 1 })}
                       value={u.toUi('windspeed', l.speed)}
                       // A cleared box writes nothing, as the altitude column:
                       // the next keystroke sets the speed, and a 0 here would
@@ -329,7 +329,7 @@ export function WindProfileDialog({
                     />
                     <NumberInput
                       step={u.step('angle', (5 * Math.PI) / 180)}
-                      ariaLabel={`${t('launch.direction')} ${i + 1}`}
+                      ariaLabel={t('windProfile.levelField', { field: t('launch.direction'), n: i + 1 })}
                       value={u.toUi('angle', degToRad(l.directionDeg))}
                       onChange={onSi(
                         u.plain('angle'),
@@ -343,7 +343,7 @@ export function WindProfileDialog({
                       step={u.step('windspeed', 0.5)}
                       min={0}
                       max={u.toUi('windspeed', MAX_WIND_SPEED_MS)}
-                      ariaLabel={`${t('windProfile.deviation')} ${i + 1}`}
+                      ariaLabel={t('windProfile.levelField', { field: t('windProfile.deviation'), n: i + 1 })}
                       value={u.toUi('windspeed', l.stddev)}
                       onChange={onSi(u.plain('windspeed'), (si) => patchLevel(i, { stddev: si ?? 0 }))}
                       className={`${cell} w-16`}
@@ -352,7 +352,7 @@ export function WindProfileDialog({
                       step={1}
                       min={0}
                       max={MAX_TURBULENCE_PERCENT}
-                      ariaLabel={`${t('windProfile.turbulence')} ${i + 1}`}
+                      ariaLabel={t('windProfile.levelField', { field: t('windProfile.turbulence'), n: i + 1 })}
                       value={Math.round(intensity * 100)}
                       onChange={(v) => patchLevel(i, { stddev: stdDevForIntensity(l.speed, (v ?? 0) / 100) })}
                       className={`${cell} w-14`}
@@ -366,7 +366,7 @@ export function WindProfileDialog({
                         onCommit?.();
                       }}
                       title={t('launch.removeLevel')}
-                      aria-label={`${t('launch.removeLevel')} ${i + 1}`}
+                      aria-label={t('windProfile.removeLevelN', { n: i + 1 })}
                       className="w-6 rounded bg-danger-500/15 py-1 text-xs text-danger-300 ring-1 ring-danger-500/30"
                     >
                       ×
@@ -457,7 +457,7 @@ export function WindProfileDialog({
         <div className="mt-5 flex justify-end">
           <button
             onClick={onClose}
-            className="rounded-lg bg-accent-600 px-3 py-1.5 text-sm font-medium text-on-accent hover:bg-accent-500"
+            className="rounded-lg bg-accent-600 px-3 py-1.5 text-sm font-medium text-on-accent hover:bg-accent-700"
           >
             {t('common.close')}
           </button>

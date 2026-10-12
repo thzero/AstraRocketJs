@@ -1,6 +1,7 @@
 import { useId, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { fmtNum, ladderDigits } from '../../i18n/format';
+import { fmtNum, ladderDigits, withUnit } from '../../i18n/format';
+import { NO_VALUE } from '../../i18n/noValue';
 import { useUnits } from '../../prefs/useUnits';
 import { hoverValue } from './FlightChartHover';
 import { PAD_L, PAD_R } from './flightChartAxis';
@@ -119,8 +120,8 @@ export function FlightXYPanel({
         t(meta.label),
         lines.map((l, i) => ({ name: branches[i]?.name ?? '', alt: l.alt, vel: l.vel })),
         {
-          velocity: (v) => `${fmtNum(v, yDigits)} ${u.sym('velocity')}`,
-          altitude: (a) => `${fmtNum(a, xDigits)} ${u.sym('distance')}`,
+          velocity: (v) => withUnit(fmtNum(v, yDigits), u.sym('velocity')),
+          altitude: (a) => withUnit(fmtNum(a, xDigits), u.sym('distance')),
         },
       ),
     [t, meta.label, lines, branches, yDigits, xDigits, u],
@@ -130,14 +131,22 @@ export function FlightXYPanel({
     <ChartPanelFrame
       title={t(meta.label)}
       reading={
-        <span className="text-xs font-semibold tabular-nums text-ink-strong">
-          {head && head.v != null && head.a != null
-            ? t('flight.velocityAtAltitude', {
-                velocity: `${fmtNum(head.v, yDigits)} ${u.sym('velocity')}`,
-                altitude: `${fmtNum(head.a, xDigits)} ${u.sym('distance')}`,
-              })
-            : `${fmtNum(peak, yDigits)} ${u.sym('velocity')}`}
-        </span>
+        // With a crosshair, the primary stage's reading there, or no value
+        // outside its flight; with none, its top speed, tagged as the peak so
+        // it never reads as a value at a moment.
+        <>
+          {hoverT == null && <span className="text-[10px] text-ink-faint">{t('flight.peakTag')}</span>}
+          <span className="text-xs font-semibold tabular-nums text-ink-strong">
+            {hoverT == null
+              ? withUnit(fmtNum(peak, yDigits), u.sym('velocity'))
+              : head && head.v != null && head.a != null
+                ? t('flight.velocityAtAltitude', {
+                    velocity: withUnit(fmtNum(head.v, yDigits), u.sym('velocity')),
+                    altitude: withUnit(fmtNum(head.a, xDigits), u.sym('distance')),
+                  })
+                : NO_VALUE}
+          </span>
+        </>
       }
       expanded={expanded}
       onToggleExpand={onToggleExpand}
@@ -177,7 +186,7 @@ export function FlightXYPanel({
         {fmtNum(x0, xDigits)}
       </text>
       <text x={w - PAD_R} y={height - 3} textAnchor="end" className="fill-ink-faint text-[9px] tabular-nums">
-        {`${fmtNum(x1, xDigits)} ${u.sym('distance')}`}
+        {withUnit(fmtNum(x1, xDigits), u.sym('distance'))}
       </text>
     </ChartPanelFrame>
   );

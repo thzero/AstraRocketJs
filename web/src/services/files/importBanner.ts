@@ -10,11 +10,13 @@ import type { ImportNote } from './importNote';
  *
  * Launch conditions are simulation settings, so a file carrying them outside the
  * codes is flagged on the way in rather than silently flown; the run refuses too
- * (see runPlan). Every simulation an import makes shares the file's launch
- * conditions, but each flies a configuration whose class sets the launcher
- * angle allowed, so the conditions are judged once per class in `classes`
- * (the classes of the configurations the import's simulations fly), and a
- * sentence two classes share is said once.
+ * (see runPlan). `launch` is one set of conditions: the caller passes the first
+ * simulation's, which every simulation shares when the file has none of its
+ * own, while a file's own simulations each carry theirs and only the first is
+ * judged here (the run gate judges each). Each simulation flies a configuration
+ * whose class sets the launcher angle allowed, so the conditions are judged
+ * once per class in `classes` (the classes of the configurations the import's
+ * simulations fly), and a sentence two classes share is said once.
  *
  * The reader's own array comes back unchanged when there is nothing to add.
  */

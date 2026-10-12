@@ -66,6 +66,10 @@ describe('dataHeaderLines', () => {
       // German decimals take a comma, like the lengths beside the margin.
       expect(lines.some((l) => l.includes(' 1,23 '))).toBe(true);
       expect(lines.some((l) => l.includes('1.23'))).toBe(false);
+      // The lengths and masses too: 0.6 m long, 120 g at launch, 90 g dry.
+      expect(lines.some((l) => l.includes('0,6 m'))).toBe(true);
+      expect(lines.some((l) => l.includes('0,024 m'))).toBe(true);
+      expect(lines.some((l) => l.includes('0.6 m') || l.includes('0.024 m'))).toBe(false);
       // Three dimensions as one German list: "A, B und C".
       expect(lines.some((l) => / und /.test(l) && l.includes(i18n.t('export.headerSpan', { value: '' }).trim()))).toBe(
         true,

@@ -382,7 +382,7 @@ const markingModel = {
 } as unknown as ReportModel;
 
 describe('golden PDF report', () => {
-  it('draws every section, by stage, with filled templates exactly as before', async () => {
+  it('pins every section, by stage, with filled templates', async () => {
     calls.length = 0;
     await downloadReportPdf(model, tree, t, everything, units);
     expect(calls.join('\n')).toMatchSnapshot();

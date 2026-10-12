@@ -1219,7 +1219,7 @@ describe('openDesign is race-safe', () => {
     });
 
     // A is slow, B is instant - so B lands first and A's continuation arrives
-    // afterwards, which is the interleaving that has to lose.
+    // afterward, which is the interleaving that has to lose.
     let releaseA!: () => void;
     const slowA = new Promise<void>((r) => (releaseA = r));
     const active: string[] = [];
@@ -1231,6 +1231,7 @@ describe('openDesign is race-safe', () => {
         if (id === 'A') await slowA;
         return wsFor(id) as never;
       },
+      readResults: async () => ({}),
       write: async () => true,
       writeIfUnchanged: async () => ({ status: 'ok', updatedAt: 1 }),
       create: async () => ({ id: 'X', name: 'X', updatedAt: 0 }),
@@ -1278,7 +1279,7 @@ describe('replacing the workspace is race-safe across actions, not just openDesi
 
   it('a slow import does not overwrite the fast one the user opened after it', async () => {
     // Import a large .ork then a small one: the small one lands first, and the
-    // large one must not arrive afterwards and replace it.
+    // large one must not arrive afterward and replace it.
     let releaseSlow!: () => void;
     const slow = new Promise<void>((r) => (releaseSlow = r));
     vi.doMock('../../src/services/files/loadOrk', () => ({
@@ -1570,6 +1571,38 @@ describe('replacing the workspace resets the transient run state', () => {
     s().resetWorkspace();
     const sims = s().sims.map((x) => ({ ...x, result: { summary: {} } as never, outdated: false }));
     s().hydrate({ tree: s().tree, sims, configs: s().configs, activeId: s().activeId, loadedMeta: null } as never);
+    expect(isStale(active())).toBe(false);
+  });
+
+  /**
+   * A design stored by an older build can carry a transition end with no
+   * radius. The bridge flies it automatic, so the drawings that read the tree
+   * as given (the report side view, the templates, the printable solids) need
+   * it resolved; and since the flight is the same, a result current against the
+   * stored tree stays current.
+   */
+  it('hydrate resolves a transition end with no radius, and keeps a current result current', () => {
+    s().resetWorkspace();
+    const tree = {
+      name: 'Bare',
+      components: [
+        {
+          type: 'stage',
+          id: 'st',
+          name: 'S',
+          children: [
+            { type: 'bodytube', id: 'fore', length: 0.2, outerRadius: 0.03, thickness: 0.001 },
+            { type: 'transition', id: 'tr', length: 0.05, thickness: 0.001, shape: 'conical' },
+            { type: 'bodytube', id: 'aft', length: 0.2, outerRadius: 0.02, thickness: 0.001 },
+          ],
+        },
+      ],
+    };
+    const sims = s().sims.map((x) => ({ ...x, result: { summary: {} } as never, outdated: false }));
+    s().hydrate({ tree, sims, configs: s().configs, activeId: s().activeId, loadedMeta: null } as never);
+    const tr = s().tree.components[0]!.children!.find((c) => c.id === 'tr')!;
+    expect(tr['foreRadius']).toBeCloseTo(0.03, 12);
+    expect(tr['aftRadius']).toBeCloseTo(0.02, 12);
     expect(isStale(active())).toBe(false);
   });
 

@@ -7,9 +7,9 @@ import { KeyedError } from '../../i18n/keyedError';
  */
 
 /**
- * Escape text for an XML attribute or element. The C0 controls other than tab,
- * line feed and carriage return are dropped, because XML 1.0 forbids them even
- * as character references and a parser (Google Earth, a slicer, the desktop)
+ * Escape text for an XML attribute or element. The characters XML 1.0 forbids
+ * are dropped (see {@link stripXmlForbidden}), because it forbids them even as
+ * character references and a parser (Google Earth, a slicer, the desktop)
  * rejects the whole file over one. A name pasted from a word processor carries
  * U+000B for its line breaks.
  */
@@ -23,14 +23,26 @@ export function escapeXml(s: string): string {
 
 /**
  * Drop the characters XML 1.0 forbids: C0 controls other than tab, line feed and
- * carriage return. Compared by code unit rather than with a control-character
- * class, which `no-control-regex` rejects.
+ * carriage return, U+FFFE and U+FFFF, and a surrogate that is not half of a
+ * pair. A paired surrogate is kept with its partner, since the pair is one
+ * character outside the BMP that XML allows. Compared by code unit rather than
+ * with a control-character class, which `no-control-regex` rejects.
  */
 function stripXmlForbidden(s: string): string {
   let out = '';
   for (let i = 0; i < s.length; i++) {
     const c = s.charCodeAt(i);
     if (c < 0x20 && c !== 0x09 && c !== 0x0a && c !== 0x0d) continue;
+    if (c === 0xfffe || c === 0xffff) continue;
+    if (c >= 0xd800 && c <= 0xdbff) {
+      const next = s.charCodeAt(i + 1);
+      if (next >= 0xdc00 && next <= 0xdfff) {
+        out += s[i]! + s[i + 1]!;
+        i++;
+      }
+      continue;
+    }
+    if (c >= 0xdc00 && c <= 0xdfff) continue;
     out += s[i];
   }
   return out;

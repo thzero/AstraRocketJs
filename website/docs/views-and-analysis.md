@@ -44,7 +44,7 @@ A row of **flight conditions** sets what the whole sweep is flown at:
 
 - **AoA**: angle of attack in degrees. At 0 the rocket flies straight; raising it moves the CP.
 - **Wind dir**: the wind's direction about the roll axis. **Worst** sets it to the angle where this rocket's CP sits furthest forward, i.e. where it is *least* stable: the safety question "is it stable in any orientation". For a symmetric three-fin rocket the CP does not depend on this angle at all and Worst reports 0; on a two-fin or otherwise asymmetric design it matters a great deal.
-- **Roll rate**: in rad/s. Roll *damping* opposes an existing roll, so that column reads zero until you set one.
+- **Roll rate**: in your roll-rate unit, revolutions per second by default (set on **Settings ▸ Units**). Roll *damping* opposes an existing roll, so that column reads zero until you set one.
 - **Altitude**: the altitude the whole sweep is flown at, in your altitude unit. The air there sets the Reynolds number and so the skin friction; 0 is sea level.
 
 A **Charts / Per component** switch chooses what the panel shows: the three curves, or the tables below. The tables report at a single Mach: on the **Charts** pane the hover crosshair picks it, and on **Per component** a slider does, stepping only to Mach numbers the sweep actually computed. The two share one value, so switching panes lands on whatever you were just looking at.
@@ -81,9 +81,9 @@ It draws the same traces the flight charts do, so a staged flight shows each sta
 
 ### The ground under the track
 
-The track can be drawn over **aerial imagery of the field you flew from**, at the coordinates that simulation was flown at. That is the difference between reading "364 m on a bearing of 270" and seeing that the booster came down in the treeline.
+The track can be drawn over **aerial imagery of the field you flew from**, at the coordinates that simulation was flown at.
 
-**None · Satellite · Street** in the corner chooses the layer. It starts on **None**, and nothing is fetched until you ask for the ground: the rings and the numbers are the measurement and they do not depend on a picture, so opening Results is not a reason to go and get one. Which layer you pick is shared with the [launch-site map](./running-a-simulation.md#the-map), and turning the ground on or off carries between this view and the 3D path for the session, because it is one question about how you want to read the ground rather than a setting per view.
+**None · Satellite · Street** in the corner chooses the layer. It starts on **None**, and nothing is fetched until you ask for the ground: the rings and the numbers are the measurement and do not depend on the imagery. Which layer you pick is shared with the [launch-site map](./running-a-simulation.md#the-map), and turning the ground on or off carries between this view and the 3D path for the session.
 
 The zoom follows the flight: a 200 m drift draws closer in than a 5 km one. The view never zooms closer than about **100 m across**, however short the flight: still air lands a rocket a few centimeters from the pad, so a landing on the pad reads as a dot on the pad.
 
@@ -101,7 +101,7 @@ Read it as a planning aid: how big a field this wants, and roughly which way the
 
 :::
 
-The track above is where the rocket comes down under the **one** set of conditions you typed. Nobody knows the wind to a tenth of a meter per second on the morning of a launch, so the more useful question is which ground it could come down on across everything the day might do. **Drift**, at the top right, answers that by flying a **grid** of winds and keeping where each flight landed.
+The track above is where the rocket comes down under the **one** set of conditions you typed. The wind on the day is not known that closely, so **Drift**, at the top right, flies a **grid** of wind speeds and headings and keeps where each flight landed.
 
 You set the grid: a wind speed **from** and **to**, how many **speeds** to step through, how many **headings**, and how wide a **spread** of headings to cover (all round the compass, or an arc centered on the wind you typed). The two step counts multiply, so the panel says how many flights that is before you run it. They fly over the same worker pool a batch of simulations uses, several at once, and the count ticks down as they land; **Cancel** stops them.
 
@@ -113,7 +113,7 @@ The result draws three things on the plan view, in each stage's own color:
 
 The readout under the plot gains the **range band** for each stage (the nearest and furthest of its swept landings) beside the distance and bearing of the flight you were already reading.
 
-Everything but the wind is held exactly as the simulation has it: the same design, motor, ignition, rod, site and run settings, and one turbulence seed across the whole grid. That is what makes the spread attributable to the wind rather than to a dozen things moving at once, and it is why the same sweep run twice draws the same region. The speed band is capped by the same [safety-code limit](./safety.md) the Run button enforces, so a sweep never draws ground the app will not fly to.
+Everything but the wind is held exactly as the simulation has it: the same design, motor, ignition, launcher, site and run settings, and one turbulence seed across the whole grid. So the spread comes from the wind alone, and the same sweep run twice draws the same region. The speed band is capped by the same [safety-code limit](./safety.md) the Run button enforces, so a sweep never draws ground the app will not fly to.
 
 A sweep belongs to the flight it was built around, and only one is held at a time: pick a different flight and the region is not drawn. Edit the design, the motor or the launch conditions afterward and the region stays up with a note saying it is older than what is on screen: the landings still describe the rocket that flew them. **Clear** removes it. Nothing about a sweep is saved with the design.
 
@@ -157,13 +157,13 @@ Without a forecast, the section says how to get one. For a rocket not designed h
 
 The bottom strip summarizes the current design as a grid of tiles (collapse it with the chevron on its header):
 
-- **Length**, **max diameter**, **fineness ratio** (length / diameter).
+- **Length**, **Max diameter**, **Fineness** (length / diameter).
 - **Mass** and **CG**, each shown **empty / loaded** (dry, and with the motor) in one tile.
 - **CP** (center of pressure).
-- **Recovery weight**: the descent mass (loaded mass minus the propellant that burns off). Shown once a motor is loaded; this is the mass the parachute actually brings down. The tile reads **Mass (Recovery, est.)** while that figure is the app's own estimate from the design, and drops the marker once a simulation has deployed a recovery device and the engine's own mass has replaced it.
+- **Mass (Recovery)**: the descent mass (loaded mass minus the propellant that burns off). Shown once a motor is loaded; this is the mass the parachute actually brings down. The tile reads **Mass (Recovery, est.)** while that figure is the app's own estimate from the design, and drops the marker once a simulation has deployed a recovery device and the engine's own mass has replaced it.
 - **Stability**: in **calibers** (on the pad) and as **% of length**.
 - **Drag coeff.**: the coast (power-off) drag coefficient at Mach 0.3.
 - **Normal-force slope**: CNα (per radian), the Barrowman normal-force-coefficient slope at Mach 0.3.
-- **Pitch** and **roll moment of inertia** (loaded), in kg·m².
+- **Pitch inertia (loaded)** and **Roll inertia (loaded)**, the moments of inertia in kg·m².
 
-A stability of roughly **1–2 calibers** is the usual healthy range; the stability tile is color-coded to flag under- or over-stable designs.
+The stability tile is colored by band: under 1 caliber is under-stable, over 6 is over-stable, and anything between is shown as fine. Many flyers aim for 1 to 2 calibers.

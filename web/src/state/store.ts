@@ -41,6 +41,7 @@ import type { LaunchConditions } from '../services/design/orkTree';
 import type { OrkExportMotor } from '../services/files/orkFile';
 import type { ImportNote } from '../services/files/importNote';
 import { repairValues } from '../services/design/repairValues';
+import { withKernelEnds } from '../services/design/autoRadius';
 import {
   changedPrefKeys,
   effectivePrefs,
@@ -195,7 +196,7 @@ export interface WorkspaceState extends ViewSlice, FileSlice {
    */
   clipboard: ComponentNode | null;
   loadedMeta: LoadedMeta;
-  rocket: Rocket | null; // live engine handle (set by the rebuild effect; used by runSim)
+  rocket: Rocket | null; // live engine handle (set by the rebuild effect; read by the aero sweep and the dimension fields)
   // --- history (undo/redo of component edits) ---
   past: HistoryEntry[];
   future: HistoryEntry[];
@@ -367,9 +368,9 @@ export interface WorkspaceState extends ViewSlice, FileSlice {
    * Run one of the tree-shape actions from services/design/componentActions: convert a
    * fin set to freeform, split a fin set / pod / booster / cluster, reset a
    * cluster's spacing. One undo step, and nothing at all when the action says
-   * there was nothing to do.
+   * there was nothing to do. `origins` collects copied parts' ids (see `reid`),
+   * so their per-configuration settings follow them.
    */
-  /** `origins` collects copied parts' ids (see `reid`), so their per-configuration settings follow them. */
   applyTreeAction: (change: (tree: RocketTree, origins: Map<string, string>) => RocketTree) => void;
   /** Dual deployment for one stage: which of its recovery devices is the
    *  drogue, or `null` for single deployment. One undo step, because it clears
@@ -731,15 +732,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
   };
 
   /**
-   * Edit one flight configuration in place.
-   *
-   * Shared by design: a configuration is a setup several simulations can point
-   * at, so changing its motors changes what all of them fly. That is what the
-   * configurations tab is for, and it is why motors are edited there and nowhere
-   * else - two surfaces writing the same loadout under different rules is how
-   * they come to disagree.
-   */
-  /**
    * Whether two motor specs are the same motor: every field equal, the curve
    * arrays sample by sample. A catalog pick builds a new object each time, so
    * reference equality would call every reseat a change.
@@ -756,6 +748,15 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
     return true;
   };
 
+  /**
+   * Edit one flight configuration in place.
+   *
+   * Shared by design: a configuration is a setup several simulations can point
+   * at, so changing its motors changes what all of them fly. That is what the
+   * configurations tab is for, and it is why motors are edited there and nowhere
+   * else - two surfaces writing the same loadout under different rules is how
+   * they come to disagree.
+   */
   const patchConfig = (configId: string, mutate: (c: FlightConfig) => FlightConfig) => {
     set((s) => {
       const current = s.configs.find((c) => c.id === configId);
@@ -969,10 +970,24 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
       // And the values, which nothing clamped on the way in: a design autosaved
       // by a build without a given limit, or opened from a file by one, can
       // carry a density no material has. See `repairValues`.
-      const fixed = repairValues(w.tree);
-      const sims = sanitizeSims(w.sims, configs).map((x) =>
-        legacyResultKey(x, fixed.tree, configOf(configs, x), get().simPrefs),
-      );
+      const repaired = repairValues(w.tree);
+      // Transition ends with no radius on record, which a design stored by an
+      // older build can carry, resolved as the bridge flies them (automatic), so
+      // the report drawings, the templates and the printable solids, which read
+      // the tree as given, draw the radius that flies. The flight is the same
+      // either way, so a result current against the stored tree is current
+      // against the resolved one.
+      const fixed = { ...repaired, tree: withKernelEnds(repaired.tree) };
+      const prefs = get().simPrefs;
+      const sims = sanitizeSims(w.sims, configs)
+        .map((x) => legacyResultKey(x, repaired.tree, configOf(configs, x), prefs))
+        .map((x) =>
+          fixed.tree !== repaired.tree &&
+          x.resultKey !== undefined &&
+          x.resultKey === resultKey(repaired.tree, configOf(configs, x), x, prefs)
+            ? { ...x, resultKey: resultKey(fixed.tree, configOf(configs, x), x, prefs) }
+            : x,
+        );
       const activeId = sims.some((s) => s.id === w.activeId) ? w.activeId : sims[0]!.id;
       // A stored design is a fresh document. Edits made to whatever was on
       // screen before it arrived (the default rocket, before the boot load
@@ -1513,7 +1528,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
         const problems = runProblems(skipped, failed, launcherT(), displayUnits());
         if (problems.length) set({ err: problems.join(' ') });
         // Show the run. Every run, one or twelve: running is asking to see the
-        // answer, and having to click over to Results afterwards is a step with
+        // answer, and having to click over to Results afterward is a step with
         // nothing behind it.
         if (get().tree !== ranOn) return outcomes;
         const landed = flying.map((f) => f.sim.id).filter((id) => get().sims.find((x) => x.id === id)?.result);
@@ -1684,7 +1699,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
         );
         // A canceled sweep keeps nothing. Half a grid is not half a region: the
         // cells arrive in whatever order the pool frees up, so what survives is
-        // an arbitrary subset of the conditions, and a hull drawn round it
+        // an arbitrary subset of the conditions, and a hull drawn around it
         // would understate the drift by an amount nobody could estimate.
         if (abort.signal.aborted) return;
         if (get().tree !== ranOn) return;

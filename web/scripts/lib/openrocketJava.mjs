@@ -46,8 +46,8 @@ const JARS = [
 ];
 
 // Not exported: `chooseBuild` below is the only caller, and nothing outside this
-// module imports it. (`sync-examples.mjs` has its own `arg`, which is a separate
-// copy of the same four lines.)
+// module imports it. (`sync-examples.mjs` and `sync-components.mjs` each have
+// their own `arg`, separate copies of the same few lines.)
 const arg = (name, fallback = null) => {
   const i = process.argv.indexOf(`--${name}`);
   return i >= 0 ? process.argv[i + 1] : fallback;

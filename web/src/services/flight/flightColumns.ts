@@ -1,5 +1,6 @@
 import type { FlightBranch, FlightResult, FlightSeries } from '../../engine/openRocketEngine';
 import type { Quantity } from '../../prefs/units';
+import i18n from '../../i18n';
 
 /**
  * What a flight CSV can carry: one entry per series the run actually recorded.
@@ -24,6 +25,11 @@ export interface FlightColumn {
   quantity?: Quantity;
   /** Fixed unit symbol, for series with no user-selectable unit. */
   unit?: string;
+  /**
+   * i18n key for a fixed unit that is a word in the reader's language rather
+   * than a symbol (calibers). `flightColumns` fills `unit` from it.
+   */
+  unitKey?: string;
   /** SI → display multiplier for a fixed-unit series (kg→g, m→cm, rad→deg). */
   scale?: number;
 }
@@ -44,7 +50,7 @@ const KNOWN: FlightColumn[] = [
   { key: 'thrust', labelKey: 'flight.thrust', quantity: 'force' },
   { key: 'drag', labelKey: 'flight.drag', quantity: 'force' },
   { key: 'mach', labelKey: 'flight.mach', unit: '' },
-  { key: 'stability', labelKey: 'flight.stability', unit: 'cal' },
+  { key: 'stability', labelKey: 'flight.stability', unitKey: 'stability.caliber' },
   { key: 'cpLocation', labelKey: 'flight.cp', quantity: 'length' },
   { key: 'cgLocation', labelKey: 'flight.cg', quantity: 'length' },
   { key: 'aoa', labelKey: 'flight.aoa', quantity: 'angle' },
@@ -163,7 +169,7 @@ export function flightColumns(result: FlightResult, branchIndex = 0): FlightColu
   const series = branchSeries(result, branchIndex);
   if (!series) return [];
   const has = (k: string) => Array.isArray((series as Record<string, unknown>)[k]);
-  const out = ALL.filter((c) => has(c.key));
+  const out = ALL.filter((c) => has(c.key)).map((c) => (c.unitKey ? { ...c, unit: i18n.t(c.unitKey) } : c));
   for (const k of Object.keys(series)) {
     if (KNOWN_KEYS.has(k) || !has(k)) continue;
     out.push({ key: k, labelKey: null, unit: '' });

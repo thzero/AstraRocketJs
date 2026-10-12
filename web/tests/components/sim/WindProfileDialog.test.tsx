@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+// cspell:ignore Schicht entfernen
 import { describe, it, expect, vi } from 'vitest';
 import { useState } from 'react';
 import { fireEvent, screen } from '@testing-library/react';
@@ -217,5 +218,21 @@ describe('WindProfileDialog direction header', () => {
     expect(screen.getByText(/\(rad\)$/)).toBeTruthy();
     expect(screen.queryByText(/\(°\)$/)).toBeNull();
     localStorage.clear();
+  });
+});
+
+describe('WindProfileDialog row labels', () => {
+  /** A language that names the level after the field, not with a bare number. */
+  it('builds each row label from one key, so the order follows the language', async () => {
+    const i18n = (await import('../../../src/i18n')).default;
+    await i18n.changeLanguage('de');
+    try {
+      renderWithProviders(<Host />);
+      const field = i18n.t('windProfile.altitude');
+      expect(screen.getByLabelText(`${field}, Schicht 1`)).toBeTruthy();
+      expect(screen.getByLabelText('Schicht 2 entfernen')).toBeTruthy();
+    } finally {
+      await i18n.changeLanguage('en');
+    }
   });
 });

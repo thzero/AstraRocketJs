@@ -36,7 +36,7 @@ import { errorText } from '../../i18n/keyedError';
  * (rocketCallouts.tsx, StabilityCallout.tsx) each live in their own module.
  */
 
-/** Highlight the active view preset (sky-600) to match the 2D preset buttons. */
+/** Highlight the active view preset in the accent token, to match the 2D preset buttons. */
 const presetStyle = (active: boolean): import('react').CSSProperties =>
   active ? { background: token('accent-600'), borderColor: token('accent-600'), color: token('on-accent') } : {};
 

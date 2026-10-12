@@ -5,14 +5,14 @@ slug: /
 ---
 ## What is AstraRocketJs?
 
-**AstraRocketJs** is a browser-based app for designing model rockets and simulating their flights. It's a lightweight, mobile-friendly interface built on top of the **real OpenRocket physics engine**: the same simulation core used by the OpenRocket desktop program, compiled to run directly in your web browser.
+**AstraRocketJs** is a browser-based app for designing model rockets and simulating their flights. It works on a phone as well as a desktop, and is built on the **OpenRocket physics engine**: the same simulation core used by the OpenRocket desktop program, compiled to run directly in your web browser.
 
 There are two things you do with it:
 
 - **Design**: build a rocket from components (nose cone, body tubes, fins, motor mount, recovery, …) and watch its **center of gravity, center of pressure, and stability** update live as you edit.
 - **Simulate**: pick a motor, set your launch conditions, and run a full flight simulation. See apogee, max velocity/acceleration, and the whole flight profile as charts and a 3D trajectory.
 
-Everything runs **on your device**. There's no server, no account, and nothing is uploaded: your `.ork` designs are files on your own disk.
+Everything runs **on your device**. There's no server, no account, and nothing is uploaded: your designs are kept in your browser, and the `.ork` files you import and export stay on your own disk.
 
 ## How it relates to OpenRocket
 
@@ -26,10 +26,10 @@ For the underlying physics models, the [OpenRocket documentation](https://openro
 
 ## How this wiki is organized
 
-- **Introduction**: this page, [Features](./features.md), and the [FAQ](./faq.md).
-- **Getting Started**: [open the app and make your first rocket](./getting-started.md), and the [Settings](./settings.md).
-- **User Guide**: designing, motors, the views, simulating, files/exports, and [Safety](./safety.md).
-- **Appendix**: dated feature maps against [OpenRocket](./comparison-openrocket.md), [ZenRockets](./comparison-zenrockets.md) and [mmrocket-sim](./comparison-mmrocket-sim.md), including what each of them does that this does not.
+- **Introduction**: this page, [Features](./features.md), [Technical Documentation](./technical-documentation.md) and the [FAQ](./faq.md).
+- **Getting Started**: [open the app and make your first rocket](./getting-started.md), the [Settings](./settings.md), and [Offline use & installing](./offline-and-installing.md).
+- **User Guide**: [designing](./designing-a-rocket.md), [motors](./motors.md), [flight configurations](./flight-configurations.md), [the views](./views-and-analysis.md), [simulating](./running-a-simulation.md), [tools](./tools.md), [files and exports](./files-and-exports.md), and [Safety](./safety.md).
+- **Appendix**: the [Glossary](./glossary.md), and dated feature maps against [OpenRocket](./comparison-openrocket.md), [ZenRockets](./comparison-zenrockets.md) and [mmrocket-sim](./comparison-mmrocket-sim.md), including what each of them does that this does not.
 
 :::warning Before you fly
 

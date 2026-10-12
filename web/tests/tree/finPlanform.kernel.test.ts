@@ -250,12 +250,15 @@ describe('freeform outline vs FreeformFinSet.setPoints', () => {
   });
 
   it('translates to the first point, then snaps each coordinate past 2.5 m', () => {
-    // setPoints, transcribed: translate by -p0, then cap x and y at SNAP_LARGER_THAN.
+    // setPoints, transcribed: translate by -p0, then snap x and y at
+    // SNAP_LARGER_THAN. Both `set` calls start from the translated point `p`,
+    // so for a point past the cap both ways the y snap overwrites the x snap
+    // and the point keeps its x.
     const setPoints = (pts: [number, number][]): [number, number][] => {
       const [x0, y0] = pts[0]!;
       return pts
         .map(([x, y]): [number, number] => [x - x0, y - y0])
-        .map(([x, y]) => [Math.min(x, 2.5), Math.min(y, 2.5)]);
+        .map(([x, y]) => (y > 2.5 ? [x, 2.5] : x > 2.5 ? [2.5, y] : [x, y]));
     };
     expect(FREEFORM_SNAP_LARGER_THAN).toBe(2.5);
     const raw: [number, number][] = [
@@ -268,6 +271,14 @@ describe('freeform outline vs FreeformFinSet.setPoints', () => {
     // The span and the root chord the fin is placed by are the snapped ones.
     expect(finSpan(n)).toBe(2.5);
     expect(axialLength(n)).toBeCloseTo(2.5, 12);
+    // Past the cap both ways: the kernel keeps the x.
+    const both: [number, number][] = [
+      [0, 0],
+      [2.8, 3.1],
+      [3.4, 0],
+    ];
+    expect(freeformPoints(node({ type: 'freeformfinset', points: both }))).toEqual(setPoints(both));
+    expect(setPoints(both)[1]).toEqual([2.8, 2.5]);
   });
 });
 
@@ -488,19 +499,23 @@ describe('a fin on its parent vs FinSet.java and FreeformFinSet.java', () => {
     expect(yBottom).toBeCloseTo(-0.022, 12);
   });
 
+  /**
+   * The cut contour, from the stations above: the outline, then back along the
+   * root from the trailing edge: the tab's trailing side up from its bottom,
+   * along it, and up its front side to the body; the root's front point is the
+   * outline's first, so it is not repeated.
+   */
+  const expected = [
+    [0, 0],
+    [0.02, 0.03],
+    [0.04, -0.004],
+    [0.03, -0.003],
+    [0.03, -0.022],
+    [0.01, -0.022],
+    [0.01, -0.001],
+  ];
+
   it('cuts the outline, the root and the tab as one closed contour', () => {
-    // Outline, then back along the root from the trailing edge: the tab's
-    // trailing side up from its bottom, along it, and up its front side to the
-    // body; the root's front point is the outline's first, so it is not repeated.
-    const expected = [
-      [0, 0],
-      [0.02, 0.03],
-      [0.04, -0.004],
-      [0.03, -0.003],
-      [0.03, -0.022],
-      [0.01, -0.022],
-      [0.01, -0.001],
-    ];
     const contour = finCutContour(fin, mount)!;
     expect(contour).toHaveLength(expected.length);
     contour.forEach(([x, y], i) => {
@@ -519,13 +534,12 @@ describe('a fin on its parent vs FinSet.java and FreeformFinSet.java', () => {
   });
 
   it('prints the same part on the 1:1 template', () => {
-    const contour = finCutContour(fin, mount)!;
+    // The template is the contour in mm, y measured down from the 30 mm span.
     const template = finPlanformMm(fin, mount);
-    const height = finSpan(fin);
-    expect(template.pts).toHaveLength(contour.length);
+    expect(template.pts).toHaveLength(expected.length);
     template.pts.forEach(([x, y], i) => {
-      expect(x / 1000).toBeCloseTo(contour[i]![0], 9);
-      expect(height - y / 1000).toBeCloseTo(contour[i]![1], 9);
+      expect(x).toBeCloseTo(expected[i]![0]! * 1000, 9);
+      expect(y).toBeCloseTo((0.03 - expected[i]![1]!) * 1000, 9);
     });
   });
 
@@ -615,7 +629,10 @@ describe('no module grows its own fin sampler', () => {
     'components/canvas/schematicShapes.tsx',
     'components/canvas/rocketPieces.ts',
     'services/report/reportGeometry.ts',
+    'services/report/templatesSection.ts',
     'services/exports/solidMesh.ts',
+    'services/exports/dxfExport.ts',
+    'services/design/componentActions.ts',
   ];
 
   it('reads the source tree, not itself', () => {
@@ -631,6 +648,16 @@ describe('no module grows its own fin sampler', () => {
   });
 
   it('every fin-drawing module takes its outline from tree/finPlanform', () => {
+    const files = sourceFiles(SRC).map((f) => f.slice(SRC.length).split('\\').join('/'));
+    for (const rel of OUTLINE_CONSUMERS) expect(files, rel).toContain(rel);
+    // A module that calls an outline entry point draws or cuts a fin, so it
+    // belongs on the list: the list cannot fall behind the code it names.
+    const callers = files.filter(
+      (rel) =>
+        !rel.startsWith('tree/') &&
+        SHARED_OUTLINE.test(readFileSync(SRC + rel, 'utf8').replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '')),
+    );
+    expect(callers.filter((rel) => !OUTLINE_CONSUMERS.includes(rel))).toEqual([]);
     const missing = OUTLINE_CONSUMERS.filter((rel) => !SHARED_OUTLINE.test(readFileSync(SRC + rel, 'utf8')));
     expect(missing).toEqual([]);
   });
@@ -676,6 +703,60 @@ describe('the cut contour and the printed template are the same part', () => {
       ],
     },
   ];
+
+  /** `EllipticalFinSet`'s unit table, transcribed from its static block, scaled to the fin. */
+  const ellipse = (root: number, height: number): number[][] =>
+    Array.from({ length: KERNEL_ELLIPSE_POINTS }, (_, i) => {
+      if (i === 0) return [0, 0];
+      if (i === KERNEL_ELLIPSE_POINTS - 1) return [root, 0];
+      const a = (Math.PI * (KERNEL_ELLIPSE_POINTS - 1 - i)) / (KERNEL_ELLIPSE_POINTS - 1);
+      return [((Math.cos(a) + 1) / 2) * root, Math.sin(a) * height];
+    });
+
+  /**
+   * Each case's contour written out from the Java, with its span. On a tube the
+   * root is the line y = 0. `TrapezoidFinSet.getFinPoints` is the four corners;
+   * `FreeformFinSet.setPoints` moves the first point to the origin and the rest
+   * with it. A tab is centered on the root (`tabOffsetMethod = AxialMethod.MIDDLE`,
+   * offset 0), cut `min(tabHeight, getMaxTabHeight())` deep, and the maximum is
+   * the tube radius; the contour runs back along it from its trailing side.
+   */
+  const closedForms: ([number[][], number] | null)[] = [
+    [ellipse(0.05, 0.03), 0.03],
+    [[...ellipse(0.05, 0.03), [0.035, 0], [0.035, -R], [0.015, -R], [0.015, 0]], 0.03],
+    [
+      [
+        [0, 0],
+        [0.03, 0.05],
+        [0.06, 0.05],
+        [0.06, 0],
+      ],
+      0.05,
+    ],
+    null, // the fallback tip chord is an app default, not a kernel formula
+    [
+      [
+        [0, 0],
+        [0.02, 0.04],
+        [0.05, 0],
+      ],
+      0.04,
+    ],
+  ];
+
+  it.each(
+    cases.flatMap((c, i) => {
+      const form = closedForms[i];
+      return form ? [[String(c['type']) + JSON.stringify(c['tabHeight'] ?? ''), c, form] as const] : [];
+    }),
+  )('prints the closed form for %s', (_label, props, [outline, span]) => {
+    const template = finPlanformMm(node(props), R);
+    expect(template.pts).toHaveLength(outline.length);
+    template.pts.forEach(([x, y], j) => {
+      expect(x, `point ${j}`).toBeCloseTo(outline[j]![0]! * 1000, 9);
+      expect(y, `point ${j}`).toBeCloseTo((span - outline[j]![1]!) * 1000, 9);
+    });
+  });
 
   it.each(cases.map((c) => [String(c['type']) + JSON.stringify(c['tabHeight'] ?? ''), c] as const))(
     'agrees for %s',

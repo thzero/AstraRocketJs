@@ -357,6 +357,9 @@ describe('flightEventsCsv', () => {
     expect(title).toBe(`# ${de.csv.head.simulationLine.replace('{{name}}', 'C6')}`);
     expect(head!.startsWith(`${de.csv.head.time} (s),${de.csv.head.event},${de.csv.head.source},`)).toBe(true);
     expect(head).not.toMatch(/Event|Altitude|Velocity/);
+    // The caliber unit is a word, and German abbreviates it differently.
+    expect(head).toContain(`${de.csv.head.stability} (${de.stability.caliber})`);
+    expect(head).not.toContain('(cal)');
   });
 
   it('keeps a file-sourced simulation name in one cell of the title line', () => {

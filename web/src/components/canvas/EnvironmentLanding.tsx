@@ -201,8 +201,15 @@ export function EnvironmentLanding({ flight }: { flight: ResultFlight }) {
                           {h.offset === 0 && <span className="ml-1 text-ink-muted">{t('env.landing.flownHour')}</span>}
                         </td>
                         {refused.length ? (
+                          // One line per code broken: each reason is a whole
+                          // phrase of its own, so no locale's list separator
+                          // is spliced between them.
                           <td colSpan={2} className="text-ink-muted">
-                            {refused.join('; ')}
+                            {refused.map((r) => (
+                              <span key={r} className="block">
+                                {r}
+                              </span>
+                            ))}
                           </td>
                         ) : (
                           <>

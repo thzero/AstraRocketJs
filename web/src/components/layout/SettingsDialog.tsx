@@ -42,8 +42,9 @@ const TAB_BODY: Record<SettingsTab, ReactNode> = {
   launch: <LaunchTab />,
 };
 
-/** Settings panel, tabbed: 3D part colors, flight-path phase colors, and the
- *  default playback speed. Persisted via the SettingsProvider.
+/** Settings panel, one tab per entry in the list above (general, units,
+ *  colors, materials, playback, sketch, simulation and launch defaults).
+ *  Persisted via the SettingsProvider.
  *  Mounted only while open (`{open && <SettingsDialog />}`). */
 export function SettingsDialog({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();

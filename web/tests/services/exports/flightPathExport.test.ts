@@ -316,7 +316,7 @@ describe('stage track start', () => {
 
   it("scans a booster's peak speed from separation, not from the pad", () => {
     // The stack's 50 m/s peak happens at t=1. A booster released at t=1 should
-    // report the fastest thing it did afterwards, not the stack's maximum.
+    // report the fastest thing it did afterward, not the stack's maximum.
     const slowAfter = {
       ...result,
       series: { ...result.series, velocity: [0, 50, 10] },
@@ -1240,7 +1240,7 @@ describe('renderUserTemplate (Mustache)', () => {
     const m = model();
     m.title = '<x>';
     renderUserTemplate('{{title}}', 'kml', m); // XML escaper during this call
-    expect(renderUserTemplate('{{title}}', 'txt', m)).toBe('<x>'); // txt unaffected afterwards
+    expect(renderUserTemplate('{{title}}', 'txt', m)).toBe('<x>'); // txt unaffected afterward
   });
 });
 

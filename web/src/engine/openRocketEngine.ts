@@ -388,7 +388,7 @@ export const ENGINE_PREF_KEY = nsKey('engine');
  * by hand and should not have to do it twice. A design under the old prefix is
  * preview scratch and is not read back; an engine override is a live instruction.
  *
- * cspell:ignore astrarrocketjs -- the OLD prefix, and the only place left in `src`
+ * cspell:ignore astrarrocketjs -- the OLD prefix; this is the one place in `src`
  * that has to name it.
  */
 const LEGACY_ENGINE_PREF_KEYS = ['engine', 'astrarrocketjs:engine'] as const;
@@ -992,6 +992,8 @@ export interface ComponentInfo {
   cordLength?: number;
   /** A parachute's shroud line length as the kernel resolves it, automatic or not (m). */
   lineLength?: number;
+  /** A recovery device's drag coefficient as the kernel resolves it, automatic or not. */
+  cd?: number;
 }
 
 /** One row of the per-component mass breakdown, in SI. */

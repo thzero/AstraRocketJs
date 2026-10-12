@@ -495,6 +495,28 @@ describe('a kernel-resolved automatic length', () => {
     }
   });
 
+  /**
+   * A streamer on Auto flies the drag coefficient `Streamer.getComponentCD`
+   * works out, not the number the node stores, so the box shows the kernel's,
+   * and turning Auto off keeps it, as desktop does.
+   */
+  it("shows a streamer's computed drag coefficient while on Auto, and keeps it when Auto is turned off", () => {
+    useWorkspaceStore.setState({
+      rocket: { componentInfo: () => ({ cd: 0.104 }) } as unknown as WorkspaceState['rocket'],
+    });
+    try {
+      const onChange = show({ id: 'st', type: 'streamer', cdAuto: true } as unknown as ComponentNode);
+      expect(Number((screen.getByRole('spinbutton', { name: 'Drag coeff' }) as HTMLInputElement).value)).toBeCloseTo(
+        0.104,
+        9,
+      );
+      fireEvent.click(screen.getByRole('checkbox', { name: 'Drag coeff: Auto' }));
+      expect(onChange).toHaveBeenCalledWith({ cdAuto: false, cd: 0.104 });
+    } finally {
+      useWorkspaceStore.setState({ rocket: null });
+    }
+  });
+
   it('reads the kernel once per build, not once per render', () => {
     const componentInfo = vi.fn(() => ({ cordLength: RESOLVED }));
     useWorkspaceStore.setState({ rocket: { componentInfo } as unknown as WorkspaceState['rocket'] });

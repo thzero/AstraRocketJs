@@ -143,12 +143,13 @@ function SafetyCard() {
           of the card rather than a wall of legal text; the full version is on
           the Safety page the link below opens. */}
           <p className="mt-2 text-[11px] leading-snug">{t('sim.safetyDisclaimer')}</p>
-          {/* nowrap so the arrow cannot be orphaned onto a line of its own. */}
+          {/* nowrap so the arrow cannot be orphaned onto a line of its own. The
+          arrow is decoration, kept out of the button's name. */}
           <button
             onClick={() => openHelp('safety')}
             className="mt-2 inline-block whitespace-nowrap text-xs font-medium underline underline-offset-2 hover:no-underline"
           >
-            {t('sim.safetyLink')} →
+            {t('sim.safetyLink')} <span aria-hidden>→</span>
           </button>
         </>
       )}

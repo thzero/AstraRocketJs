@@ -72,12 +72,12 @@ describe('the export banner, in Japanese', () => {
       components: [
         stage('a', [
           { type: 'railbutton', id: 'rb' },
-          { type: 'parallelstage', id: 'side' },
+          { type: 'fairing', id: 'side' },
         ]),
       ],
     } as unknown as RocketTree;
     useWorkspaceStore.setState({ tree });
     await s().saveRkt();
-    expect(s().err).toContain(`${ja.part.railbutton}、${ja.part.parallelstage}`);
+    expect(s().err).toContain(`${ja.part.railbutton}、${ja.part.fairing}`);
   });
 });

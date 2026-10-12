@@ -9,8 +9,10 @@ import { errorReason, type Keyed } from '../../i18n/keyedError';
 /**
  * A key over every configuration input that can change the static info.
  *
- * `buildConfiguredRocket` reads three things off the configuration: the motors,
- * their ignition (both in `seatedMotorsKey`) and the grounded stages. Without
+ * `buildConfiguredRocket` reads three things off the configuration: the motors
+ * (in `seatedMotorsKey`), their ignition and the grounded stages. Ignition is
+ * left out on purpose, since it moves no static figure (see `seatedMotorsKey`).
+ * Without
  * `grounded` in the key, grounding a booster would leave `info` describing the
  * whole stack while the worker flies the sustainer alone, and the mass, CG, CP
  * and caliber readouts would describe a different rocket from the flight.

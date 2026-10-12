@@ -42,6 +42,7 @@ import { useOnline } from '../common/useOnline';
 interface FetchedFor {
   latitudeDeg: number;
   longitudeDeg: number;
+  launchAltitudeM: number | null;
   date: string;
   hour: number;
   windMs: number;
@@ -93,7 +94,7 @@ export function OffTheRail() {
   const request = useLatest();
 
   const getWind = async () => {
-    const { latitudeDeg, longitudeDeg } = site;
+    const { latitudeDeg, longitudeDeg, launchAltitudeM } = site;
     if (latitudeDeg == null || longitudeDeg == null) return;
     const signal = request.claimSignal();
     setFetched({ kind: 'loading' });
@@ -102,6 +103,7 @@ export function OffTheRail() {
         {
           latitudeDeg,
           longitudeDeg,
+          siteM: launchAltitudeM,
           date,
           hour,
           today: todayYmd(),
@@ -110,12 +112,16 @@ export function OffTheRail() {
         { signal },
       );
       if (signal.aborted) return;
-      if (wind === 'noHour') {
-        setFetched({ kind: 'error', message: t('weather.noHour') });
+      if (wind === 'noHour' || wind === 'noElevation') {
+        setFetched({ kind: 'error', message: t(wind === 'noHour' ? 'weather.noHour' : 'weather.needElevation') });
         return;
       }
       const speed = roundTo(wind.speedMs, 1);
-      setFetched({ kind: 'ready', wind, for: { latitudeDeg, longitudeDeg, date, hour, windMs: speed } });
+      setFetched({
+        kind: 'ready',
+        wind,
+        for: { latitudeDeg, longitudeDeg, launchAltitudeM, date, hour, windMs: speed },
+      });
       setWindMs(speed);
     } catch (err) {
       if (signal.aborted) return;
@@ -138,6 +144,7 @@ export function OffTheRail() {
     fetched.kind === 'ready' &&
     fetched.for?.latitudeDeg === site.latitudeDeg &&
     fetched.for.longitudeDeg === site.longitudeDeg &&
+    fetched.for.launchAltitudeM === site.launchAltitudeM &&
     fetched.for.date === date &&
     fetched.for.hour === hour &&
     fetched.for.windMs === windMs
@@ -229,7 +236,7 @@ export function OffTheRail() {
           <details className="rounded-md bg-canvas/40 p-2" open={fetched.kind !== 'idle' || undefined}>
             <summary className="cursor-pointer text-xs font-medium text-accent-300">{t('rail.fromForecast')}</summary>
             <div className="mt-2 space-y-2">
-              <SiteFields site={site} onChange={setSite} />
+              <SiteFields site={site} onChange={setSite} elevation />
               <WhenFields date={date} hour={hour} onDate={setDate} onHour={setHour} />
               <button
                 className={`${toolBtn} w-full`}

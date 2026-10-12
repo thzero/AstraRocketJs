@@ -84,7 +84,10 @@ export function motorMountXml(w: OrkWriter, depth: number, nodeId: string | unde
   for (const c of withMotor) {
     const m = c.motors[nodeId!]!;
     emit(depth + 1, `<motor configid="${escapeXml(c.id)}">`);
-    emit(depth + 2, '<type>single</type>');
+    // No <type>. MotorHandler filters the database by it, so a reload or
+    // hybrid motor written as 'single' is found under no type at all; left out,
+    // the type is null and filters nothing, as desktop leaves it for a motor
+    // whose type it does not know.
     emit(depth + 2, `<manufacturer>${escapeXml(m.manufacturer ?? 'custom')}</manufacturer>`);
     // Between manufacturer and designation, where the desktop writes it. Which
     // of its database entries this motor is: without it a name shared by

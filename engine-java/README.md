@@ -139,7 +139,7 @@ npm run extract:bless    # re-record extract/DIVERGENCE.txt + SHIMS.txt
 **You do not need to clone OpenRocket by hand.** With no `--src` and no
 `OPENROCKET_SRC`, the extractor clones the exact repo and ref from
 `extract/UPSTREAM` into `engine-java/.openrocket-src` (gitignored, sparse to
-`core/src/main/java`, blobless: about 2 s and 7 MB) and reuses it afterwards -
+`core/src/main/java`, blobless: about 2 s and 7 MB) and reuses it afterward -
 a warm `extract:check` is under half a second. The cache is keyed to the ref,
 so bumping the pin re-fetches instead of silently checking against the old
 commit. `--refresh` forces it; `--src <path>` still points at your own checkout,

@@ -47,6 +47,7 @@ export default defineConfig({
   test: {
     include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx'],
     environment: 'node',
+    setupFiles: ['tests/testing/allLocales.ts'],
     // Vitest isolates one worker per file, and this suite has hundreds of them.
     // Uncapped, a 32-core box starts one worker per file at ~9.5 s of startup
     // each, and under that load a file that drives the real TeaVM kernel can blow

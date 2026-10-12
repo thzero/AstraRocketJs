@@ -87,8 +87,8 @@ describe('the default rocket is built from catalog parts', () => {
     ['chute', 'parachute', DEFAULT_PRESETS.chute.partNo],
   ])('%s carries the preset link for %s', (id, type, partNo) => {
     // The link is what makes the panel say which part this is. `breaksPreset`
-    // drops it as soon as a dimension moves, so a link that survives is also
-    // proof the design states the row's own dimensions.
+    // drops it when a dimension the kernel ties to the preset moves, so a link
+    // that survives is also proof the design states the row's own dimensions.
     expect(part(id)['preset']).toMatchObject({ type, manufacturer: 'Estes', partNo });
   });
 

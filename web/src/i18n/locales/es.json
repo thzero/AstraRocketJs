@@ -160,8 +160,10 @@
     },
     "rktSkip": {
       "airfoilMass": "masa de las aletas con perfil alar ({{name}})",
+      "cdOverride": "anulación del Cd ({{name}})",
       "cgOverride": "anulación del CG ({{name}})",
-      "extraStages": "etapa {{from}} y siguientes"
+      "extraStages": "etapa {{from}} y siguientes",
+      "subtreeOverride": "anulación de los subcomponentes ({{name}})"
     },
     "viewFailed": "No se pudo cargar esta vista.",
     "staleBuild": "La aplicación se actualizó mientras esta pestaña estaba abierta, así que parte de ella ya no está en el servidor. Recarga para obtener la nueva versión.",
@@ -301,7 +303,8 @@
     "headerLaunchMass": "Masa al despegue {{mass}} (en vacío {{dry}})",
     "headerDryMass": "Masa en vacío {{dry}}, sin motores cargados",
     "headerBalance": "CG {{cg}}, CP {{cp}} desde la punta de la ojiva, margen {{margin}} cal",
-    "headerCg": "CG {{cg}} desde la punta de la ojiva"
+    "headerCg": "CG {{cg}} desde la punta de la ojiva",
+    "imageOption": "{{format}} {{size}}, {{width}} px de ancho"
   },
   "engine": {
     "wasmTip": "Motor de física: WebAssembly (ruta rápida)",
@@ -526,7 +529,7 @@
       "fins": "Aletas",
       "inner": "Tubos interiores y acopladores",
       "rings": "Anillos y mamparos",
-      "lugs": "Guías y botones de riel",
+      "lugs": "Tubos guía y botones de riel",
       "motor": "Motor",
       "parachute": "Paracaídas",
       "streamer": "Cinta y cordón de choque",
@@ -605,7 +608,8 @@
     "grounded": "En tierra",
     "groundedHint": "Se queda en tierra: sin masa, sin resistencia, sin motor. El resto del cohete vuela sin ella.",
     "lastFlyingStage": "En cada configuración tiene que volar al menos una etapa.",
-    "stageGrounded": "Se queda en tierra en:"
+    "stageGrounded": "Se queda en tierra en:",
+    "partNumbered": "{{part}} {{n}}"
   },
   "tabs": {
     "rocket": "Cohete",
@@ -717,9 +721,9 @@
     "runMany": "Ejecutar {{count}} simulaciones",
     "safetyTitle": "Antes de volar",
     "safetyLead": "Son estimaciones del modelo, no una hoja de vuelo.",
-    "safetyVerify": "Pesa y equilibra el cohete que realmente construiste, introduce esas medidas como invalidaciones y vuelve a leer el margen y la velocidad de salida de la guía.",
-    "safetyVerify_rail": "Pesa y equilibra el cohete que realmente construiste, introduce esas medidas como invalidaciones y vuelve a leer el margen y la velocidad de salida del raíl.",
-    "safetyVerify_rod": "Pesa y equilibra el cohete que realmente construiste, introduce esas medidas como invalidaciones y vuelve a leer el margen y la velocidad de salida de la varilla.",
+    "safetyVerify": "Pesa y equilibra el cohete que realmente construiste, introduce esas medidas como anulaciones y vuelve a leer el margen y la velocidad de salida de la guía.",
+    "safetyVerify_rail": "Pesa y equilibra el cohete que realmente construiste, introduce esas medidas como anulaciones y vuelve a leer el margen y la velocidad de salida del raíl.",
+    "safetyVerify_rod": "Pesa y equilibra el cohete que realmente construiste, introduce esas medidas como anulaciones y vuelve a leer el margen y la velocidad de salida de la varilla.",
     "safetyGaps": "No se modela en absoluto",
     "safetyGapsDetail": "El flutter de las aletas, las cargas estructurales, el inflado del paracaídas y su golpe de apertura, y cómo rinde tu motor ese día. Ningún número de esta pantalla puede avisarte de ninguno de ellos.",
     "safetyCode": "Vuela según tu código de seguridad, dentro de tu campo y su autorización. Lo que decida el RSO está por encima de cualquier cosa en esta pantalla.",
@@ -741,8 +745,8 @@
     "OPEN_AIRFRAME_FORWARD": "Fuselaje abierto por delante",
     "AIRFRAME_GAP": "Hueco entre componentes del fuselaje",
     "AIRFRAME_OVERLAP": "Los componentes del fuselaje se solapan",
-    "PODSET_FORWARD": "El pod sobresale por delante de su elemento padre",
-    "PODSET_OVERLAP": "El pod se solapa con su elemento padre",
+    "PODSET_FORWARD": "La cápsula sobresale por delante de su elemento padre",
+    "PODSET_OVERLAP": "La cápsula se solapa con su elemento padre",
     "THICK_FIN": "Aletas inusualmente gruesas",
     "JAGGED_EDGED_FIN": "Borde de aleta irregular",
     "ZERO_AREA_FIN": "La aleta tiene área cero",
@@ -1168,7 +1172,8 @@
     "colorRolePin": "Marcador",
     "importSaveError": "No se pudo guardar esa plantilla en este navegador.",
     "deleteError": "No se pudo eliminar esa plantilla.",
-    "deleteConfirm": "¿Eliminar la plantilla «{{name}}» de este navegador?"
+    "deleteConfirm": "¿Eliminar la plantilla «{{name}}» de este navegador?",
+    "stageColorLabel": "{{role}} de {{stage}}"
   },
   "aero": {
     "unattributed": "No atribuido a un componente",
@@ -1252,7 +1257,7 @@
     "motorPlugged": "Motor {{motor}}: taponado (sin carga de eyección). Asegúrate de que la recuperación se active en el apogeo o por altitud, no con la carga de eyección.",
     "motorPluggedNoDelay": "Motor {{motor}}: taponado (sin carga de eyección; el archivo no da un retardo legible). Asegúrate de que la recuperación se active en el apogeo o por altitud, no con la carga de eyección.",
     "finPointsCapped": "Una aleta libre tenía más de {{max}} puntos; el resto se descartó.",
-    "rktEjectedPod": "Este diseño contiene un pod ya expulsado en RockSim (importado como propulsor activo).",
+    "rktEjectedPod": "Este diseño contiene una cápsula ya expulsada en RockSim (importado como propulsor activo).",
     "rktSubassembly": "Este diseño contiene un subconjunto (sus piezas se integraron en el diseño).",
     "rktEllipticalOnBody": "Este diseño contiene un juego de aletas elípticas sobre una ojiva o transición, donde no se puede montar.",
     "rktIncompatible": "Se omitió una pieza que no se puede acoplar donde la coloca el archivo: {{part}} en {{parent}}.",
@@ -1268,7 +1273,12 @@
     "motorFetchFailed": "El motor «{{motor}}» no se pudo cargar ({{reason}}). Elige un motor para ese soporte (no volará uno predeterminado).",
     "motorTooWide": "El motor «{{motor}}» mide {{diameter}} mm y el soporte «{{mount}}» admite {{bore}} mm, así que no cabe. Se colocó tal como lo indica el archivo: revísalo antes de volar.",
     "motorTooLong": "El motor «{{motor}}» mide {{length}} mm de largo y el soporte «{{mount}}» admite {{maxLength}} mm, así que no cabe. Se colocó tal como lo indica el archivo: revísalo antes de volar.",
-    "mountsWithoutMotor": "Soportes de motor sin motor en este archivo: {{mounts}}. Elige un motor antes de volar (no volará uno predeterminado)."
+    "mountsWithoutMotor": "Soportes de motor sin motor en este archivo: {{mounts}}. Elige un motor antes de volar (no volará uno predeterminado).",
+    "extensionName": {
+      "airStart": "Arranque en aire",
+      "javaCode": "Código Java",
+      "script": "Script de {{language}}"
+    }
   },
   "part": {
     "stage": "Etapa",
@@ -1285,7 +1295,7 @@
     "centeringring": "Anillo de centrado",
     "bulkhead": "Mamparo",
     "engineblock": "Tope de motor",
-    "launchlug": "Guía de lanzamiento",
+    "launchlug": "Tubo guía",
     "railbutton": "Botón de riel",
     "masscomponent": "Componente de masa",
     "parachute": "Paracaídas",
@@ -1689,7 +1699,24 @@
     "cancel": "Cancelar",
     "deleteCustom": "Eliminar material personalizado",
     "deleteConfirm": "¿Eliminar el material personalizado {{name}}? Ya no se ofrecerá en ningún diseño.",
-    "fillet": "Material del filete"
+    "fillet": "Material del filete",
+    "groups": {
+      "Metals": "Metales",
+      "Woods": "Maderas",
+      "Plastics": "Plásticos",
+      "Fabrics": "Telas",
+      "Paper": "Papel",
+      "PaperProducts": "Productos de papel",
+      "Foams": "Espumas",
+      "Composites": "Compuestos",
+      "Fibers": "Fibras",
+      "Elastics": "Elásticos",
+      "Kevlars": "Kevlar",
+      "Nylons": "Nylon",
+      "Other": "Otros",
+      "Custom": "Personalizado",
+      "Adhesives": "Adhesivos"
+    }
   },
   "recovery": {
     "title": "Dimensionado de descenso",
@@ -1712,7 +1739,7 @@
     "open": "Dimensionado de descenso…",
     "use": "Usar",
     "useMain": "Usar el diámetro del principal",
-    "useDrogue": "Usar el diámetro del drogue",
+    "useDrogue": "Usar el diámetro del piloto",
     "useTarget": "Usar el diámetro para tu velocidad",
     "targetRate": "Tu propia velocidad de descenso",
     "atTarget": "A tu velocidad"
@@ -1826,7 +1853,9 @@
     "chartAvg": "empuje medio",
     "chartBurn": "tiempo de comb.",
     "chartAria": "Empuje frente al tiempo. Pico {{peak}}, medio {{avg}}, tiempo de combustión {{burn}} s.",
-    "calcNote": "* El empuje inicial, el Isp y la fracción de masa se calculan a partir de la curva de empuje y los pesos."
+    "calcNote": "* El empuje inicial, el Isp y la fracción de masa se calculan a partir de la curva de empuje y los pesos.",
+    "rangeMin": "{{label}}: mínimo",
+    "rangeMax": "{{label}}: máximo"
   },
   "lang": {
     "label": "Idioma"
@@ -1942,7 +1971,9 @@
       "badNumber": "La línea {{line}} tiene un valor que no es numérico.",
       "noData": "No se encontraron niveles de viento en ese archivo.",
       "unreadable": "No se pudo leer ese archivo."
-    }
+    },
+    "levelField": "{{field}}, nivel {{n}}",
+    "removeLevelN": "Eliminar nivel {{n}}"
   },
   "limits": {
     "sentenceJoin": "{{first}} {{next}}",
@@ -1991,7 +2022,8 @@
     "coords": "Coordenadas",
     "elevationLooking": "buscando la altitud…",
     "elevationUnknown": "altitud no encontrada; la altitud del sitio queda en blanco",
-    "credit": "Lugares de GeoNames, a través de Open-Meteo.com"
+    "credit": "Lugares de GeoNames, a través de Open-Meteo.com",
+    "regionCountry": "{{region}}, {{country}}"
   },
   "location": {
     "label": "Ubicación guardada",
@@ -2182,7 +2214,7 @@
     "recovery_single": "Simple",
     "recovery_dual": "Doble",
     "descentRate": "Velocidad de descenso",
-    "drogueRate": "Descenso con el drogue",
+    "drogueRate": "Descenso con el piloto",
     "mainRate": "Descenso con el principal",
     "mainAltitude": "El principal se abre sobre la plataforma a",
     "mainAboveApogee": "El principal tiene que abrirse por debajo del apogeo.",

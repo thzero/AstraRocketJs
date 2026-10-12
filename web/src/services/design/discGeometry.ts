@@ -223,13 +223,13 @@ export function discDims(
       'length',
       node.type === 'engineblock' ? COMPONENT_DEFAULTS.engineblock.length : COMPONENT_DEFAULTS.tubecoupler.length,
     );
-    // A wall at least as thick as the radius leaves no bore, and `discSolid`
-    // would then fall through to its no-bore branch and lathe a solid rod: a
-    // coupler printed as a plug, with nothing saying so. `discDims` also feeds
-    // the DXF sheet and the 3D internals, so refusing here keeps all three from
-    // agreeing on the wrong part. Reachable from a units slip in a hand-edited
-    // .ork (thickness 0.02 against radius 0.012).
-    if (!(wall < outerR)) return null;
+    // A wall exactly as thick as the radius is a solid part, which a catalog
+    // row with an inner diameter of 0 states (a balsa nose block), and the
+    // kernel flies it as one. A wall thicker than the radius is a units slip in
+    // a hand-edited .ork (thickness 0.02 against radius 0.012), and is refused
+    // here rather than lathed into a plug nobody asked for: `discDims` also
+    // feeds the DXF sheet and the 3D internals, so all three stay out of it.
+    if (!(wall <= outerR)) return null;
     return { outerR, innerR: outerR - wall, length };
   }
   return null;

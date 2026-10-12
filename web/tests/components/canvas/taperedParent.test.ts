@@ -210,7 +210,7 @@ describe('a fin on a flipped nose cone stands at its base end', () => {
 
 describe('lugs, rail buttons and tube fins on a conical transition', () => {
   const LUG = { type: 'launchlug', id: 'lug', length: 0.02, outerRadius: 0.003, angleOffset: 0 };
-  const BUTTON = { type: 'railbutton', id: 'button', outerDiameter: 0.008, angleOffset: 0 };
+  const BUTTON = { type: 'railbutton', id: 'button', outerDiameter: 0.008, height: 0.006, angleOffset: 0 };
   const TUBES = { type: 'tubefinset', id: 'tubes', finCount: 1, length: 0.03, outerRadius: 0.004 };
   const tree = rocket([
     { ...LUG, position: { method: 'top', offset: 0.01 } },
@@ -234,7 +234,7 @@ describe('lugs, rail buttons and tube fins on a conical transition', () => {
   it('stand on the radius at their own station in 3D', () => {
     const { pieces } = buildPieces(tree);
     expect(pieces.find((p) => p.id === 'lug')!.position![1]).toBeCloseTo(rLug + LUG.outerRadius, 12);
-    expect(pieces.find((p) => p.id === 'button')!.position![1]).toBeCloseTo(rButton + BUTTON.outerDiameter / 2, 12);
+    expect(pieces.find((p) => p.id === 'button')!.position![1]).toBeCloseTo(rButton + BUTTON.height / 2, 12);
     const tube = boxOf(pieces.find((p) => p.id === 'tubes')!.geometry);
     expect(tube.min.y).toBeCloseTo(rTubes, 6);
     expect(tube.max.y).toBeCloseTo(rTubes + 2 * TUBES.outerRadius, 6);
@@ -247,7 +247,12 @@ describe('lugs, rail buttons and tube fins on a conical transition', () => {
       return Math.hypot(s.y, s.z);
     };
     expect(dist('lug:0')).toBeCloseTo(rLug + LUG.outerRadius, 12);
-    expect(dist('button:0')).toBeCloseTo(rButton + BUTTON.outerDiameter / 2, 12);
+    // A button seen from behind reaches from the surface by its height.
+    const button = outer.find((o) => o.key === 'button:0')!;
+    expect(button.kind === 'fin' ? [button.from, button.to] : null).toEqual([
+      expect.closeTo(rButton, 12),
+      expect.closeTo(rButton + BUTTON.height, 12),
+    ]);
     expect(dist('tubes:0')).toBeCloseTo(rTubes + TUBES.outerRadius, 12);
   });
 });

@@ -12,7 +12,7 @@ Treat apogee, stability margin, deployment speed, descent rate and landing dista
 
 ## What the model does
 
-The physics is OpenRocket's own core, compiled to run in your browser and validated bit-identical against the desktop program. It computes:
+The physics is OpenRocket's own core, compiled to run in your browser. Its static figures are checked against the same core running on a JVM and match apart from rounding in the last digit; its flights agree with that JVM run within a small tolerance, and with unmodified upstream OpenRocket on every flight event. It computes:
 
 - **Aerodynamics** by the Extended Barrowman method, giving CP, drag and stability.
 - **Mass and CG** from each part's geometry times its material density, plus any [overrides](#before-you-fly) you enter.
@@ -20,7 +20,7 @@ The physics is OpenRocket's own core, compiled to run in your browser and valida
 - **Atmosphere** as the ISA standard model, or your own temperature and pressure, with a WGS or constant gravity model and a flat, spherical or WGS84 earth.
 - **Wind** as either a single average with a gust standard deviation, or a multi-level profile that changes with altitude, both carrying pink-noise turbulence.
 
-The app also raises the kernel's own flight warnings: high-speed deployment, a main that opens too fast or too slow, a drogue with no main, no recovery device at all, a deployment while still on the rod, a large angle of attack, and supersonic flight where the aerodynamic method becomes approximate. Read them.
+The app also raises the kernel's own flight warnings: high-speed deployment, a main that opens too fast or too slow, a drogue with no main, no recovery device at all, a deployment while still on the launcher, a large angle of attack, and supersonic flight where the aerodynamic method becomes approximate. Read them.
 
 ## What the model does not know
 
@@ -31,7 +31,7 @@ Being explicit about the gaps is more useful than a blanket disclaimer:
 - **Parachute inflation.** A recovery device's drag switches on at its deployment event, after the delay you set. The canopy's inflation transient and the opening shock load are not computed. The app warns you about a fast deployment instead of telling you what it does to the tube.
 - **Motor variation.** The thrust curve is one certification curve, not your motor on the day. Lot-to-lot spread, propellant temperature, age and storage all move the real number.
 - **The difference between the model and what you built.** Paint, a glue fillet you did not enter, a heavier nose cone than the material table assumes, a fin set two degrees out of true, a chute packed tighter than the bay allows. The simulation flies the drawing.
-- **The ground.** No terrain, no obstacles, no trees, no thermals, no ground effect, and no launcher friction or a rocket that hangs on the rod.
+- **The ground.** No terrain, no obstacles, no trees, no thermals, no ground effect, and no launcher friction or a rocket that hangs on the rail or rod.
 
 ## Before you fly
 
@@ -42,7 +42,7 @@ The most useful step is to simulate the rocket as built rather than as drawn:
 1. **Weigh the finished rocket**, ready to fly but without the motor. Select its stage in the component editor (on a single-stage rocket that is the whole thing), enable the **mass override**, and enter the measured figure with "apply to all subcomponents" on.
 2. **Find the balance point.** Balance the rocket on a ruler edge, measure from the nose tip, and enter it as the **CG override**.
 3. **Re-read the stability margin** with those numbers in place. This is the margin that matters. If it moved, your model was wrong about something, and it is worth finding out what.
-4. **Check the rail exit velocity** in the flight results. A rocket that leaves the rail slowly weathercocks into the wind, and the simulation is at its least trustworthy there.
+4. **Check the launcher exit velocity** in the flight results (**Rail exit velocity** or **Rod exit velocity**, after the design's guides). A rocket that leaves the launcher slowly weathercocks into the wind, and the simulation is at its least trustworthy there.
 5. **Check the descent rate and the landing speed**, and the ground track for how far downwind it puts you. Then look at the actual size of the field.
 6. **Re-run after any change**, including a motor swap. Results are only about the design and conditions they were run with.
 
@@ -52,7 +52,7 @@ The override section carries mass, CG and drag coefficient, each with an "apply 
 
 Two launch conditions are checked against the **NAR** and **Tripoli** safety codes, and the app refuses to fly a simulation outside them rather than hand you a number it will not stand behind:
 
-- **Launch rod angle** within **30 degrees** of vertical for a model rocket (the NAR Model Rocket Safety Code), and within **20 degrees** for a high power rocket (the NAR High Power Rocket Safety Code and Tripoli's).
+- **Launcher angle** (rail or rod) within **30 degrees** of vertical for a model rocket (the NAR Model Rocket Safety Code), and within **20 degrees** for a high power rocket (the NAR High Power Rocket Safety Code and Tripoli's).
 - **Surface wind** at or below **20 mph** (32 km/h).
 
 The app treats a simulation's flight configuration as high power when any motor in it has more than 160 N·s of total impulse (H and up) or more than 80 N of average thrust, when all its motors together hold more than 320 N·s or more than 125 g of propellant, or when the rocket weighs more than 1,500 g at liftoff. Anything else is a model rocket.

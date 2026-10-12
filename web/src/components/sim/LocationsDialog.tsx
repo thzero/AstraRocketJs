@@ -150,7 +150,7 @@ export function LocationsDialog({ onClose }: { onClose: () => void }) {
                           fields both called "the club field" apart. */}
                       <span className="block text-xs tabular-nums text-ink-faint">
                         {formatCoord(p.latitudeDeg, p.longitudeDeg)}
-                        {p.launchAltitudeM !== null && ` · ${altUnit.fmt(p.launchAltitudeM, 0)} ${altUnit.sym}`}
+                        {p.launchAltitudeM !== null && ` · ${altUnit.fmtSym(p.launchAltitudeM, 0)}`}
                       </span>
                     </MasterRow>
                   </li>

@@ -6,7 +6,8 @@ import { fileURLToPath } from 'node:url';
  * Code comments and test titles state the present constraint. A comment says
  * what holds and why; a test title says what it guards. Neither narrates how
  * the code got here: no change history, issue or PR tags, audit finding IDs,
- * dates or named people. The scan covers:
+ * dates or credit to named people ("reported by", "thanks to" and a name). The
+ * scan covers:
  * - comments (`//`, `/* *\/` and JSDoc) in the `.ts`, `.tsx`, `.js`, `.mjs` and
  *   `.css` files under `web/src`, `web/tests`, `web/e2e` and `web/scripts`, and
  *   in the Java under `engine-java/src/api`;
@@ -40,6 +41,19 @@ const PATTERNS: { name: string; re: RegExp }[] = [
     name: 'history',
     re: /\b(?:until now|previously|as of now|was (?:changed|fixed)|after the fix|regression from|before this change|we now|now fixed|used to be|(?:this|it|we|that) used to)\b/i,
   },
+  { name: 'history', re: /\bbeing fixed\b/i },
+  // A rename, or how things were, closing a clause. Followed by more
+  // words they are present tense: the rename prompt, the same station as
+  // before the switch.
+  { name: 'history', re: /\b(?:the rename|as before)(?=\s*(?:[.,;:)!?'"`]|$))/i },
+  // A feature arriving rather than a state. Two words, so a lone "now" in a
+  // sequence of steps does not trip it.
+  { name: 'history', re: /\bnow (?:gets|get|has|have)\b/i },
+  // A pronoun, a past action and nothing after "before" but the end of the
+  // clause. "is cleared before each run" goes on, and is left alone.
+  { name: 'history', re: /\b(?:it|they|we|this|that|which)\s+\w{2,}ed before(?=\s*(?:[.,;:)!?'"`]|$))/i },
+  // Credit or a ruling by a person, by name.
+  { name: 'named person', re: /\b(?:thanks to|(?:reported|requested|suggested|asked|ruled) by)\s+[A-Z][a-z]+\b/ },
 ];
 
 /**
@@ -240,6 +254,13 @@ describe('comments and test titles state the constraint', () => {
       'this used to throw',
       'until now it did not',
       'previously this read the cache',
+      'which is the whole point of the rename',
+      'the failure being fixed',
+      'opens empty, as before',
+      'every dialog now gets it for free',
+      'still clears everything it cleared before',
+      'reported by Alice',
+      'thanks to Bob',
     ]) {
       expect(firstMatch(text), text).toBeDefined();
     }
@@ -253,6 +274,12 @@ describe('comments and test titles state the constraint', () => {
       'an Estes C6 and a D12 on a K550',
       'the id it no longer has',
       'a stable id, used to remember the dialog',
+      'dismissing the rename prompt',
+      'the same station as before the switch',
+      'catalogs published before',
+      'the cache is cleared before each run',
+      'a part attached before',
+      'thanks to the kernel',
     ]) {
       expect(firstMatch(text), text).toBeUndefined();
     }

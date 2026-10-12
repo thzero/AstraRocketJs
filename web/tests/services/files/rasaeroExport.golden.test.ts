@@ -139,7 +139,7 @@ const threeStage = (): RocketTree =>
   }) as unknown as RocketTree;
 
 describe('golden .CDX1 export', () => {
-  it('writes the three-stage design with engines, recovery and launch site exactly as before', () => {
+  it('pins the three-stage design with engines, recovery and launch site', () => {
     const warnings: string[] = [];
     const xml = exportCdx1({
       name: 'Golden <Triple> & co',

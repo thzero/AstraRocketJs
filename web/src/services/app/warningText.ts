@@ -68,8 +68,9 @@ export function isDefaultComponentName(raw: string): boolean {
  *
  * Three of the kernel's names are deliberately absent, because nothing in this
  * app names those things: `Rocket.compname.Rocket` (the design root, which is
- * not a part), `Sleeve.Sleeve` and `RemovedComponent.COMPONENT_REMOVED`. They
- * fall back to the humanized key.
+ * not a part), `Sleeve.Sleeve` and `RemovedComponent.COMPONENT_REMOVED`. The
+ * last two fall back to the humanized key; the root's has two dots, so
+ * `SOURCE_KEY` does not match it and it passes through untouched.
  */
 export const COMPONENT_PART_KEYS: Record<string, string> = {
   'BodyTube.BodyTube': 'part.bodytube',

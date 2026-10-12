@@ -308,3 +308,51 @@ describe('sustainer part order', () => {
     expect(part).toContain('<RearDiameter>0.7087</RearDiameter>');
   });
 });
+
+/**
+ * A booster is one RASAero body as long as all its tubes, and its fin Location
+ * is measured from that body's bottom. Desktop's `BoosterDTO` adds the length of
+ * every tube after the one the fins are on (`finLocationOffset`): fins with a
+ * 2 in root flush with the bottom of the first of a 5 in and a 4 in tube sit
+ * 2 + 4 = 6 in from the booster's bottom.
+ */
+describe('a booster made of two tubes', () => {
+  const tube = (id: string, inches: number, children: unknown[] = []) => ({
+    type: 'bodytube',
+    id,
+    name: id,
+    length: inches * 0.0254,
+    outerRadius: 0.0127,
+    children,
+  });
+  const fins = {
+    type: 'trapezoidfinset',
+    id: 'bf',
+    name: 'Booster fins',
+    finCount: 3,
+    rootChord: 0.0508,
+    tipChord: 0.0254,
+    sweep: 0.0254,
+    height: 0.0254,
+    thickness: 0.003,
+    position: { method: 'bottom', offset: 0 },
+  };
+  const staged = (boosterTubes: unknown[]): RocketTree =>
+    ({
+      name: 'Two',
+      components: [tree.components[0]!, { type: 'stage', id: 'b', name: 'Booster', children: boosterTubes }],
+    }) as RocketTree;
+  const boosterFinLocation = (t: RocketTree): number => {
+    const out = exportCdx1({ tree: t, name: 'Two', launchMassKg: 0.5, launchCgM: 0.2 });
+    const doc = new DOMParser().parseFromString(out, 'text/xml');
+    return Number(doc.querySelector('Booster > Fin > Location')?.textContent);
+  };
+
+  it('measures the fin location from the bottom of the whole booster', () => {
+    expect(boosterFinLocation(staged([tube('A', 5, [fins]), tube('B', 4)]))).toBeCloseTo(6, 3);
+  });
+
+  it('adds nothing when the fins are on the last tube', () => {
+    expect(boosterFinLocation(staged([tube('A', 5), tube('B', 4, [fins])]))).toBeCloseTo(2, 3);
+  });
+});

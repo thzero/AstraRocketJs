@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// cspell:ignore randomseed recoveryspeedwarning droguelowspeedwarning Lowspeedwarning recoverydroguemainhighspeedwarning recoverydroguemainlowspeedwarning -- OpenRocket .ork element names
+// cspell:ignore randomseed recoveryspeedwarning droguelowspeedwarning Lowspeedwarning recoverydroguemainhighspeedwarning recoverydroguemainlowspeedwarning Allumage -- OpenRocket .ork element names, and a French extension name
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -13,6 +13,7 @@ import type { LaunchConditions } from '../../../src/services/design/orkTree';
 import type { LoadedOrk } from '../../../src/services/files/loadOrk';
 import type { OrkExportSimulation } from '../../../src/services/files/orkTypes';
 import { noteTexts } from '../../testing/importNotes';
+import i18n from '../../../src/i18n';
 
 /**
  * Every simulation, with its result summary, through a .ork and back.
@@ -191,6 +192,24 @@ describe('desktop simulation extensions', () => {
     expect(noteTexts(odd.notes).join(' ')).not.toContain('native code');
   });
 
+  it('translates the names desktop translates, and names a script by its language', async () => {
+    const xml = new TextDecoder()
+      .decode(Object.values(unzipSync(new Uint8Array(example)))[0])
+      .replace(
+        /<extension extensionid="[^"]*RollControl">[\s\S]*?<\/extension>/,
+        '<extension extensionid="info.openrocket.core.simulation.extension.impl.ScriptingExtension"><entry key="language" type="string">Python</entry></extension>',
+      );
+    await i18n.changeLanguage('fr');
+    try {
+      const note = noteTexts(importOrk(xml).notes).join(' ');
+      expect(note).toContain('Allumage en vol');
+      expect(note).toContain('Script Python');
+      expect(note).not.toContain('Air-start');
+    } finally {
+      await i18n.changeLanguage('en');
+    }
+  });
+
   it('keeps them on the simulations it opens, with or without a saved result', () => {
     const loaded = {
       ...res,
@@ -293,5 +312,56 @@ describe('simulation options in the conditions', () => {
     });
     expect(xml.match(/<randomseed>/g)).toHaveLength(1);
     expect(cond(xml, 'randomseed')).toBe('42');
+  });
+});
+
+/**
+ * Desktop keeps a time step, a maximum time and the recovery warnings per
+ * simulation (`SimulationConditionsHandler` reads them into that simulation's
+ * options), so each simulation's own go out in its conditions and come back as
+ * its own overrides, where they differ from the app's globals.
+ */
+describe("each simulation's own run settings", () => {
+  const globals = {
+    timeStep: 0.05,
+    maxTime: 1200,
+    deploymentSpeedWarn: 20,
+    mainHighSpeedWarn: 30.48,
+    mainLowSpeedWarn: 15.24,
+    drogueLowSpeedWarn: 3.048,
+  } as SimPrefs;
+  const fine = { ...globals, timeStep: 0.01 };
+  const xml = write([
+    { name: 'Fine', configId: 'cfg-c6', launch, status: 'notsimulated', prefs: fine },
+    { name: 'Plain', configId: 'cfg-d12', launch, status: 'notsimulated', prefs: globals },
+  ]);
+  const steps = [...new DOMParser().parseFromString(xml, 'application/xml').querySelectorAll('conditions > timestep')];
+
+  it('are written into that simulation', () => {
+    expect(steps.map((e) => e.textContent)).toEqual(['0.01', '0.05']);
+  });
+
+  it('come back as overrides where they differ from the globals', () => {
+    const fileSims = importOrk(xml).simulations;
+    const w = wireLoadedOrk(
+      {
+        name: 'Sims',
+        notes: [],
+        tree,
+        motors: {},
+        configs: configs.map((c) => ({ ...c, motors: {} })),
+        chosenConfigId: 'cfg-c6',
+        simulations: fileSims,
+      } as unknown as LoadedOrk,
+      launch,
+      globals,
+    );
+    expect(w.sims[0]!.prefs).toEqual({ timeStep: 0.01 });
+    expect(w.sims[1]!.prefs).toBeUndefined();
+  });
+
+  it('are refused outside the bounds Settings holds them to', () => {
+    const bad = xml.replace('<timestep>0.01</timestep>', '<timestep>1000000</timestep>');
+    expect(importOrk(bad).simulations?.[0]?.prefs?.timeStep).toBeUndefined();
   });
 });

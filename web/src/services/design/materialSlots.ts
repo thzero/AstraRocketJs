@@ -116,7 +116,7 @@ const KERNEL_PART_MATERIALS: Record<
  */
 export function defaultMaterialPatch(
   partType: string,
-  defaults: Record<string, { name: string; density: number }>,
+  defaults: Record<string, { name: string; density: number; group?: string }>,
 ): Record<string, string | number> {
   const patch: Record<string, string | number> = {};
   for (const { part, material } of MATERIAL_SLOTS) {
@@ -126,10 +126,11 @@ export function defaultMaterialPatch(
     const kernel = KERNEL_PART_MATERIALS[partType]?.[material] ?? KERNEL_MATERIALS[material];
     patch[keys.name] = chosen ? chosen.name : kernel.name;
     patch[keys.density] = chosen ? chosen.density : kernel.density;
-    // The group only rides along on the kernel's own material, whose `.ork`
-    // database string is known here. A material the user picked carries no
-    // group through the settings, the same as one picked in the panel.
-    if (keys.group && !chosen) patch[keys.group] = kernel.group;
+    // The group goes with the material: the kernel's own, or the catalog
+    // group stored with the user's choice, as a material picked in the panel
+    // carries one. A choice stored without a group sets none.
+    const group = chosen ? chosen.group : kernel.group;
+    if (keys.group && group) patch[keys.group] = group;
   }
   return patch;
 }

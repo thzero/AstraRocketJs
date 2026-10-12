@@ -160,8 +160,10 @@
     },
     "rktSkip": {
       "airfoilMass": "masse des ailerons à profil d'aile ({{name}})",
+      "cdOverride": "Cd forcé ({{name}})",
       "cgOverride": "CG forcé ({{name}})",
-      "extraStages": "étages {{from}} et suivants"
+      "extraStages": "étages {{from}} et suivants",
+      "subtreeOverride": "valeur forcée des sous-composants ({{name}})"
     },
     "viewFailed": "Cette vue n'a pas pu être chargée.",
     "staleBuild": "L'application a été mise à jour pendant que cet onglet était ouvert, donc une partie n'est plus sur le serveur. Rechargez pour obtenir la nouvelle version.",
@@ -301,7 +303,8 @@
     "headerLaunchMass": "Masse au décollage {{mass}} (à vide {{dry}})",
     "headerDryMass": "Masse à vide {{dry}}, aucun moteur chargé",
     "headerBalance": "CG {{cg}}, CP {{cp}} depuis la pointe de l'ogive, marge {{margin}} cal",
-    "headerCg": "CG {{cg}} depuis la pointe de l'ogive"
+    "headerCg": "CG {{cg}} depuis la pointe de l'ogive",
+    "imageOption": "{{format}} {{size}}, {{width}} px de large"
   },
   "engine": {
     "wasmTip": "Moteur physique : WebAssembly (voie rapide)",
@@ -605,7 +608,8 @@
     "grounded": "Au sol",
     "groundedHint": "Reste au sol : pas de masse, pas de traînée, pas de moteur. Le reste de la fusée vole sans lui.",
     "lastFlyingStage": "Au moins un étage doit voler dans chaque configuration.",
-    "stageGrounded": "Reste au sol dans :"
+    "stageGrounded": "Reste au sol dans :",
+    "partNumbered": "{{part}} {{n}}"
   },
   "tabs": {
     "rocket": "Fusée",
@@ -1168,7 +1172,8 @@
     "colorRolePin": "Repère",
     "importSaveError": "Impossible d’enregistrer ce modèle dans ce navigateur.",
     "deleteError": "Impossible de supprimer ce modèle.",
-    "deleteConfirm": "Supprimer le modèle « {{name}} » de ce navigateur ?"
+    "deleteConfirm": "Supprimer le modèle « {{name}} » de ce navigateur ?",
+    "stageColorLabel": "{{role}} de {{stage}}"
   },
   "aero": {
     "unattributed": "Non attribué à un composant",
@@ -1268,7 +1273,12 @@
     "motorFetchFailed": "Le moteur « {{motor}} » n'a pas pu être chargé ({{reason}}). Choisissez un moteur pour ce support (il ne volera pas avec un moteur par défaut).",
     "motorTooWide": "Le moteur « {{motor}} » fait {{diameter}} mm et le support « {{mount}} » accepte {{bore}} mm, il ne rentre donc pas. Placé comme le fichier le nomme : vérifiez-le avant de voler.",
     "motorTooLong": "Le moteur « {{motor}} » fait {{length}} mm de long et le support « {{mount}} » accepte {{maxLength}} mm, il ne rentre donc pas. Placé comme le fichier le nomme : vérifiez-le avant de voler.",
-    "mountsWithoutMotor": "Supports moteur sans moteur dans ce fichier : {{mounts}}. Choisissez un moteur avant de voler (aucun moteur par défaut ne sera utilisé)."
+    "mountsWithoutMotor": "Supports moteur sans moteur dans ce fichier : {{mounts}}. Choisissez un moteur avant de voler (aucun moteur par défaut ne sera utilisé).",
+    "extensionName": {
+      "airStart": "Allumage en vol",
+      "javaCode": "Code Java",
+      "script": "Script {{language}}"
+    }
   },
   "part": {
     "stage": "Étage",
@@ -1689,7 +1699,24 @@
     "cancel": "Annuler",
     "deleteCustom": "Supprimer le matériau personnalisé",
     "deleteConfirm": "Supprimer le matériau personnalisé {{name}} ? Il ne sera plus proposé dans aucune conception.",
-    "fillet": "Matériau du congé"
+    "fillet": "Matériau du congé",
+    "groups": {
+      "Metals": "Métaux",
+      "Woods": "Bois",
+      "Plastics": "Plastiques",
+      "Fabrics": "Tissus",
+      "Paper": "Papier",
+      "PaperProducts": "Produits en papier",
+      "Foams": "Mousses",
+      "Composites": "Composites",
+      "Fibers": "Fibres",
+      "Elastics": "Élastiques",
+      "Kevlars": "Kevlars",
+      "Nylons": "Nylon",
+      "Other": "Autres",
+      "Custom": "Personnalisé",
+      "Adhesives": "Adhésifs"
+    }
   },
   "recovery": {
     "title": "Dimensionnement de la descente",
@@ -1826,7 +1853,9 @@
     "chartAvg": "poussée moy.",
     "chartBurn": "durée de combustion",
     "chartAria": "Poussée en fonction du temps. Pic {{peak}}, moyenne {{avg}}, durée de combustion {{burn}} s.",
-    "calcNote": "* La poussée initiale, l'Isp et la fraction massique sont calculées à partir de la courbe de poussée et des masses."
+    "calcNote": "* La poussée initiale, l'Isp et la fraction massique sont calculées à partir de la courbe de poussée et des masses.",
+    "rangeMin": "{{label}} : minimum",
+    "rangeMax": "{{label}} : maximum"
   },
   "lang": {
     "label": "Langue"
@@ -1942,7 +1971,9 @@
       "badNumber": "La ligne {{line}} contient une valeur qui n'est pas un nombre.",
       "noData": "Aucune couche de vent trouvée dans ce fichier.",
       "unreadable": "Ce fichier n'a pas pu être lu."
-    }
+    },
+    "levelField": "{{field}}, couche {{n}}",
+    "removeLevelN": "Supprimer la couche {{n}}"
   },
   "limits": {
     "sentenceJoin": "{{first}} {{next}}",
@@ -1991,7 +2022,8 @@
     "coords": "Coordonnées",
     "elevationLooking": "recherche de l’altitude…",
     "elevationUnknown": "altitude introuvable ; l’altitude du site reste vide",
-    "credit": "Lieux de GeoNames, via Open-Meteo.com"
+    "credit": "Lieux de GeoNames, via Open-Meteo.com",
+    "regionCountry": "{{region}}, {{country}}"
   },
   "location": {
     "label": "Lieu enregistré",

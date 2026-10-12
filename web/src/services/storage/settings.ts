@@ -173,7 +173,7 @@ export interface Settings {
    * equivalent preference is, because that would make the same file weigh one
    * thing here and another on the machine you sent it to.
    */
-  defaultMaterials: Record<string, { name: string; density: number }>;
+  defaultMaterials: Record<string, { name: string; density: number; group?: string }>;
   /** Flight-path phase colors. */
   phaseColors: { boost: string; coast: string; descent: string };
   /**
@@ -607,20 +607,25 @@ export function loadSettings(): Settings {
       // Filtered the same way, and for a sharper reason: a density out of this
       // map is stamped onto a new part and flown. A stored string, NaN or a
       // negative would reach the kernel as the mass of somebody's airframe.
+      // The group, a picker category the .ork writer files the material under,
+      // rides along only as a string with text in it.
       defaultMaterials: Object.fromEntries(
-        Object.entries((s.defaultMaterials ?? {}) as Record<string, unknown>).filter(([key, v]) => {
-          if (!parseDefaultMaterialKey(key)) return false;
-          const m = v as { name?: unknown; density?: unknown } | null;
-          return (
-            !!m &&
-            typeof m.name === 'string' &&
-            m.name.trim() !== '' &&
-            typeof m.density === 'number' &&
-            Number.isFinite(m.density) &&
-            m.density > 0
-          );
+        Object.entries((s.defaultMaterials ?? {}) as Record<string, unknown>).flatMap(([key, v]) => {
+          if (!parseDefaultMaterialKey(key)) return [];
+          const m = v as { name?: unknown; density?: unknown; group?: unknown } | null;
+          if (
+            !m ||
+            typeof m.name !== 'string' ||
+            m.name.trim() === '' ||
+            typeof m.density !== 'number' ||
+            !Number.isFinite(m.density) ||
+            !(m.density > 0)
+          )
+            return [];
+          const group = typeof m.group === 'string' && m.group.trim() !== '' ? { group: m.group } : {};
+          return [[key, { name: m.name, density: m.density, ...group }]];
         }),
-      ) as Settings['defaultMaterials'],
+      ),
       // The same hex filter partColors gets: these reach a style attribute
       // and the KML/GPX exports, so a plain merge would let any value through.
       phaseColors: (() => {
@@ -799,6 +804,28 @@ export function loadSettings(): Settings {
   } catch {
     return structuredClone(DEFAULT_SETTINGS);
   }
+}
+
+/**
+ * The settings as stored right now, or null when nothing readable is stored.
+ *
+ * Another tab may have written since this one loaded, so a change is applied
+ * to this rather than to the tab's own copy. Null, not the defaults, when
+ * storage holds nothing or cannot be read: the caller's copy is then the best
+ * record of what the user chose.
+ */
+export function loadStoredSettings(): Settings | null {
+  try {
+    if (!localStorage.getItem(KEY)) return null;
+  } catch {
+    return null;
+  }
+  return loadSettings();
+}
+
+/** Whether a `storage` event touched the settings: their key, or a clear of the whole store. */
+export function isSettingsStorageKey(key: string | null): boolean {
+  return key === null || key === KEY;
 }
 
 /**

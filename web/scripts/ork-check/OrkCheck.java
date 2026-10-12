@@ -23,10 +23,10 @@ import java.io.File;
  *
  * The only check that asks the thing we are trying to satisfy. Our own tests can
  * prove the writer puts a part link or a motor digest in the file; they cannot
- * prove the desktop ACCEPTS it, and for a long time it did not: every `<preset>`
- * was rejected for having no digest, and every motor resolved to whichever entry
- * came first. Both failures were invisible from this side of the boundary and
- * showed up as a warning dialog on somebody's screen.
+ * prove the desktop ACCEPTS it. A `<preset>` without the digest the desktop
+ * computes is rejected, and a motor without one resolves to whichever entry
+ * comes first; both are invisible from this side of the boundary and show up
+ * only as a warning dialog on somebody's screen.
  *
  * Prints every component that came back carrying a catalog part, every motor
  * that resolved and the digest it resolved to, every simulation with the status

@@ -307,7 +307,7 @@ describe('rocketSideView: fins on a transition', () => {
   /**
    * A fin sits at the radius under its own front, not at the parent's aft end:
    * `FinSet.getBodyRadius()` is `getFinFront().getY()`, i.e.
-   * `symmetricParent.getRadius(xFinFront)` (FinSet.java:959-972).
+   * `symmetricParent.getRadius(xFinFront)` (`FinSet.getBodyRadius` and `getFinFront`).
    *
    * This boat tail runs 12 mm → 8 mm over 50 mm, and the fin starts at its
    * front. Handing `addFins` the aft radius would draw the root at +8 mm while

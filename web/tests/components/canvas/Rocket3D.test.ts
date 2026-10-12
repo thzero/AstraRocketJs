@@ -460,10 +460,11 @@ describe('buildPieces rail buttons', () => {
     const [button] = byId(buildPieces(withButton(Math.PI)).pieces, 'rb');
     expect(button).toBeDefined();
     const e = extent(button!);
-    // Standing on the 13 mm surface, as wide and as tall as its 10 mm diameter.
+    // Standing on the 13 mm surface, as wide as its 10 mm diameter and as tall
+    // as the kernel's default total height, 9.7 mm (RailButton.java:62).
     expect(e.x0).toBeCloseTo(0.1, 6);
     expect(e.x1).toBeCloseTo(0.11, 6);
-    expect(e.r1).toBeGreaterThan(0.013 + 0.01 - 1e-6);
+    expect(e.r1).toBeGreaterThan(0.013 + 0.0097 - 1e-6);
   });
 
   it('stands at its radial mount angle', () => {
@@ -471,9 +472,10 @@ describe('buildPieces rail buttons', () => {
       const [button] = byId(buildPieces(withButton(ang)).pieces, 'rb');
       return button!.position!;
     };
-    // y = R cos(angle), z = R sin(angle), with R the surface plus half the button.
-    expect(center(Math.PI)[1]).toBeCloseTo(-0.018, 6);
-    expect(center(Math.PI / 2)[2]).toBeCloseTo(0.018, 6);
+    // y = R cos(angle), z = R sin(angle), with R the surface plus half the
+    // button's 9.7 mm height.
+    expect(center(Math.PI)[1]).toBeCloseTo(-(0.013 + 0.0097 / 2), 6);
+    expect(center(Math.PI / 2)[2]).toBeCloseTo(0.013 + 0.0097 / 2, 6);
   });
 });
 

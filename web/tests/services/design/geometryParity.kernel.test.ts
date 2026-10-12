@@ -16,6 +16,7 @@ import {
   finOutlinePoints,
   finRootPoints,
   finTabPoints,
+  bodyRadiusAt,
   parentRadiusOf,
 } from '../../../src/tree/finPlanform';
 import { assemblyParentRadius, resolveAssemblyRadius } from '../../../src/tree/assembly';
@@ -1594,6 +1595,33 @@ describe('app geometry matches the kernel', () => {
  * transition end stripped to no key at all, which consumes nothing from the
  * generator's random stream.
  */
+/**
+ * A body tube with no `outerRadius` stands its children on the radius the
+ * kernel builds it at, through every reader: the station profile a fin tab is
+ * cut to (`stationRadius`, read by `finTabAuto`), the fin mount
+ * (`bodyRadiusAt`) and the assembly placement (`assemblyParentRadius`).
+ */
+describe('a keyless body tube is read at the kernel radius', () => {
+  it('in the station profile, the fin mount and the assembly placement', async () => {
+    const engine = await loadEngine();
+    const tube = { id: 'tube', type: 'bodytube', length: 0.3, thickness: 0.0005 } as ComponentNode;
+    const tree = {
+      components: [
+        {
+          id: 'stage',
+          type: 'stage',
+          children: [{ id: 'nose', type: 'nosecone', length: 0.1, aftRadius: 0.012, thickness: 0.001 }, tube],
+        },
+      ],
+    } as unknown as RocketTree;
+    const want = kernelGeometry(engine, tree).get('tube')!.outerRadius;
+    expect(typeof want).toBe('number');
+    expect(stationRadius(tube, 0.1)).toBeCloseTo(want!, 12);
+    expect(bodyRadiusAt(tube, 0.1)).toBeCloseTo(want!, 12);
+    expect(assemblyParentRadius(tube)).toBeCloseTo(want!, 12);
+  });
+});
+
 describe('keyless transition ends are drawn at the kernel radius', () => {
   const KEYLESS_DESIGNS = 60;
 

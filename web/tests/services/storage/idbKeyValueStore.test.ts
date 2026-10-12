@@ -444,7 +444,7 @@ describe('a QuotaExceededError is not a degraded IndexedDB', () => {
       throw new DOMException('quota', 'QuotaExceededError');
     });
     try {
-      // The fallback takes it (a real place the value now lives), as before.
+      // The fallback takes it, so the value has a real place to live.
       expect(await kv.set('k', 'v')).toBe(true);
       expect(local.map.get('k')).toBe('v');
       expect(await kv.update('k2', () => 'v2')).toBe(true);

@@ -3,11 +3,11 @@ title: 'Glosario'
 sidebar_position: 17
 ---
 
-Todos los términos que la aplicación muestra en pantalla, y los símbolos de sus gráficas y descargas. Cada entrada da una definición sencilla y después dónde te encuentras con el término (*En la aplicación*). Una palabra en negrita tras **Ver** es otra entrada de este glosario.
+Los términos que la aplicación muestra en pantalla, y los símbolos de sus gráficas y descargas. Cada entrada da una definición sencilla y después dónde te encuentras con el término (*En la aplicación*). Una palabra en negrita tras **Ver** es otra entrada de este glosario.
 
 Usa el buscador de la parte superior de este sitio, o el buscador del diálogo **Ayuda** de la aplicación, para llegar a un término desde cualquier parte.
 
-## A
+## A {#a}
 
 **Acabado de superficie**: Lo rugosa que es la superficie de una pieza, lo que cambia el arrastre por fricción. *En la aplicación:* no tiene campo; un acabado leído de un archivo `.ork` se usa en el vuelo y se vuelve a escribir al guardar el diseño.
 
@@ -31,11 +31,17 @@ Usa el buscador de la parte superior de este sitio, o el buscador del diálogo *
 
 **Ángulo del raíl o de la varilla**: Cuánto se inclina la guía de lanzamiento respecto a la vertical. *En la aplicación:* **Ángulo** en las condiciones de lanzamiento, con **Dirección** para hacia dónde se inclina, o **Lanzar siempre contra el viento** para orientarla automáticamente.
 
-**Anilla de centrado**: Un anillo que mantiene un tubo interior centrado dentro de otro mayor.
+**Anilla de lanzamiento**: Un tubito en el fuselaje que se desliza por la varilla de lanzamiento. *En la aplicación:* **Tubo guía** en el árbol de componentes.
 
-**Anilla de lanzamiento**: Un tubito en el fuselaje que se desliza por la varilla de lanzamiento. *En la aplicación:* **Guía de lanzamiento** en el árbol de componentes.
+**Anillo de centrado**: Un anillo que mantiene un tubo interior centrado dentro de otro mayor.
 
 **Anillo de empuje (tope de motor)**: Un anillo dentro del tubo motor que impide que el motor se deslice hacia delante con el empuje.
+
+**Anulación**: Sustituir algo que la aplicación calcularía por un valor que tú das: una masa, un CG, un coeficiente de arrastre. Se usa cuando has pesado la pieza real.
+
+**Anulación de Cd**: Sustituir el coeficiente de arrastre calculado de una pieza por uno que tú das. *En la aplicación:* la sección **Anulaciones**. Ver **Anulación**.
+
+**Anulación de masa y de CG**: Sustituir la masa o el CG calculados de una pieza por los medidos, opcionalmente para todo su subárbol. *En la aplicación:* la sección **Anulaciones**. Ver **Anulación**.
 
 **Apogeo**: El punto más alto de un vuelo. *En la aplicación:* el recuadro **Apogeo** y el evento de vuelo `APOGEE`.
 
@@ -47,19 +53,19 @@ Usa el buscador de la parte superior de este sitio, o el buscador del diálogo *
 
 **Azimut / cenit**: Rumbo de la brújula / ángulo respecto a la vertical. *En la aplicación:* las columnas `Φ` y `Θ`; la orientación de la guía de lanzamiento usa el mismo par.
 
-## B
+## B {#b}
 
 **Barrido**: Cuánto queda la punta de una aleta por detrás de su raíz. El **ángulo de barrido** es lo mismo expresado como ángulo. *En la aplicación:* **Flecha** y **Ángulo del borde de ataque** en un juego de aletas, que se siguen.
 
-**Barrido de deriva**: Volar el mismo diseño a lo largo de una banda de velocidades de viento para ver cómo crece la distancia de aterrizaje. *En la aplicación:* el panel **Barrido de deriva**.
+**Barrido de deriva**: Volar la misma simulación a lo largo de una cuadrícula de velocidades y rumbos de viento para ver dónde podría aterrizar. *En la aplicación:* el botón **Deriva** de la traza sobre el terreno, que abre el panel **Barrido de deriva**.
 
 **Barrowman (método)**: El método analítico original para hallar el centro de presión de un cohete a partir de las formas de sus componentes. El motor usa la forma extendida. Ver **Barrowman extendido**.
 
 **Barrowman extendido**: El método aerodinámico que el motor usa para el CP, la fuerza normal y la estabilidad. Es preciso en vuelo subsónico y transónico, y aproximado por encima de Mach 1,5 aproximadamente, donde la aplicación lo indica. Ver **Barrowman (método)**.
 
-**Botón de riel**: Un pequeño tetón en el fuselaje que corre por la ranura de un riel de lanzamiento; la alternativa habitual a las guías de lanzamiento en cohetes grandes.
+**Botón de riel**: Un pequeño tetón en el fuselaje que corre por la ranura de un raíl de lanzamiento; la alternativa habitual a las guías de lanzamiento en cohetes grandes.
 
-## C
+## C {#c}
 
 **Cabeceo / guiñada / balanceo**: La rotación sobre los tres ejes: morro arriba y abajo / morro a izquierda y derecha / giro sobre el eje longitudinal. *En la aplicación:* las columnas de tasa `dθ`, `dΨ` y `dΦ`.
 
@@ -99,7 +105,7 @@ Usa el buscador de la parte superior de este sitio, o el buscador del diálogo *
 
 **Curva de empuje**: El empuje frente al tiempo de un motor concreto, medido en banco. *En la aplicación:* la gráfica del explorador de motores, y lo que una simulación vuela realmente.
 
-## D
+## D {#d}
 
 **Delante / detrás**: Hacia el morro / hacia la cola, apunte el cohete a donde apunte. *En la aplicación:* etiquetas como **Diámetro delantero**, **Hombro trasero** y **Sobresaliente del motor**. Mover el CP hacia atrás sube el margen de estabilidad; mover el CG hacia atrás lo baja.
 
@@ -109,7 +115,7 @@ Usa el buscador de la parte superior de este sitio, o el buscador del diálogo *
 
 **Deriva**: Cuánto se aleja el cohete de la rampa a favor del viento al aterrizar. *En la aplicación:* la traza sobre el terreno, la lectura de deriva y el **Barrido de deriva**.
 
-**Descenso balístico**: Bajar sin ningún dispositivo de recuperación despliegado. *En la aplicación:* un vuelo sin dispositivo, o uno en el que el despliegue nunca se activó, aterriza a velocidad balística; la velocidad de impacto dice con cuánta fuerza.
+**Descenso balístico**: Bajar sin ningún dispositivo de recuperación desplegado. *En la aplicación:* un vuelo sin dispositivo, o uno en el que el despliegue nunca se activó, aterriza a velocidad balística; la velocidad de impacto dice con cuánta fuerza.
 
 **Designación del motor**: El nombre de un motor, como `C6-5`: clase de impulso, empuje medio, retardo de eyección. *En la aplicación:* el explorador de motores.
 
@@ -125,15 +131,15 @@ Usa el buscador de la parte superior de este sitio, o el buscador del diálogo *
 
 **Dimensionado del descenso**: Averiguar qué paracaídas necesita un cohete para una velocidad de descenso elegida. *En la aplicación:* el bloque de dimensionado del descenso bajo un paracaídas seleccionado, que es una estimación hasta que una ejecución lo ha volado. Ver **Estimación**.
 
-## E
+## E {#e}
 
 **Ejecución desactualizada**: Una simulación guardada cuyo resultado ya no describe las entradas actuales, porque han cambiado el diseño, los ajustes de la propia simulación, la configuración de vuelo o una preferencia de ejecución. *En la aplicación:* la fila se marca como desactualizada; vuelve a ejecutarla para poner al día los números.
 
 **Ejecución guardada**: Una simulación conservada en la lista con sus resultados, para poder comparar varias. Ver **Ejecución desactualizada**.
 
-**Empuje**: La fuerza que produce un motor. El **empuje medio** es su media durante la combustión (el número del nombre del motor) y el **empuje de pico** su máximo. *En la aplicación:* la columna `Ft` y la curva de empuje.
+**Elipse de deriva**: La zona en la que aterrizan varias ejecuciones, dibujada sobre la traza del terreno. Cuando el viento es aleatorio muestra la dispersión que un único punto de aterrizaje oculta.
 
-**Envolvente de deriva**: La zona en la que aterrizan varias ejecuciones, dibujada sobre la traza del terreno. Cuando el viento es aleatorio muestra la dispersión que un único punto de aterrizaje oculta.
+**Empuje**: La fuerza que produce un motor. El **empuje medio** es su media durante la combustión (el número del nombre del motor) y el **empuje de pico** su máximo. *En la aplicación:* la columna `Ft` y la curva de empuje.
 
 **Estimación**: Una cifra que la aplicación calcula a partir del diseño en lugar de leerla de un vuelo. La aplicación lo indica donde muestra una, y la sustituye por la cifra del propio motor en cuanto una simulación la tiene. *En la aplicación:* **Masa (Recuperación, est.)** y el bloque de dimensionado del descenso antes de una ejecución.
 
@@ -149,7 +155,7 @@ Usa el buscador de la parte superior de este sitio, o el buscador del diálogo *
 
 **Exportación del informe**: El resumen imprimible de un diseño y sus ejecuciones. *En la aplicación:* **Informe del cohete (PDF)** en el menú.
 
-## F
+## F {#f}
 
 **Factor de escala**: Multiplicar las dimensiones de todo un diseño para hacer una versión mayor o menor. *En la aplicación:* el diálogo **Escala**.
 
@@ -163,13 +169,13 @@ Usa el buscador de la parte superior de este sitio, o el buscador del diálogo *
 
 **Fuselaje**: El cuerpo exterior del cohete: los tubos, el morro y las transiciones sobre los que realmente fluye el aire, frente a lo que va dentro de ellos.
 
-## G
+## G {#g}
 
 **Guía de lanzamiento**: Lo que mantiene recto al cohete hasta que va lo bastante rápido para que sus aletas funcionen: una **varilla** que pasa por anillas de lanzamiento, o un **raíl** en el que encajan botones de riel. *En la aplicación:* **Longitud** y **Ángulo** en las condiciones de lanzamiento, bajo un encabezado con el nombre de las guías del diseño: **Raíl de lanzamiento** para botones de riel, **Varilla de lanzamiento** para anillas de lanzamiento, y **Guía de lanzamiento** para un diseño sin ninguna de las dos o con ambas.
 
 **Guía de marcado**: Una plantilla imprimible para envolver el tubo y marcar las posiciones de aletas y anillas. *En la aplicación:* una exportación.
 
-## H
+## H {#h}
 
 **Haack (Von Kármán)**: Un perfil de morro deducido para minimizar el arrastre con una longitud y un volumen dados; las formas LV-Haack y LD-Haack están en los extremos de un parámetro de forma. *En la aplicación:* una **Forma** de morro, con **Parámetro de forma**.
 
@@ -177,13 +183,13 @@ Usa el buscador de la parte superior de este sitio, o el buscador del diálogo *
 
 **Hombro tapado**: Un hombro cerrado por un disco, que añade masa. *En la aplicación:* la casilla **Hombro tapado**. Ver **Hombro**.
 
-## I
+## I {#i}
 
 **Impresión 3D, CAD y archivos de corte**: Geometría exportada para fabricar: malla para impresión, sólidos para CAD, y contornos planos para cortar aletas, anillos y mamparos. *En la aplicación:* las exportaciones de geometría.
 
 **Impulso**: El empuje multiplicado por el tiempo que dura, en newton-segundo: el empujón total que da un motor. Los motores se agrupan en **clases de impulso** (A, B, C y siguientes), cada una el doble de la anterior. *En la aplicación:* el explorador de motores y la fila **Impulso total** del informe.
 
-**Instalación sin conexión**: La aplicación se instala en tu dispositivo y funciona sin red, incluida esta documentación y los diseños de ejemplo que trae. Un campo de vuelo a menudo no tiene cobertura. *En la aplicación:* el aviso de instalación de tu navegador, y **Ayuda**, que se lee sin conexión desde la primera instalación.
+**Instalación sin conexión**: La aplicación se instala en tu dispositivo y funciona sin red, incluida esta documentación y los diseños de ejemplo que trae. Un campo de vuelo a menudo no tiene cobertura. *En la aplicación:* el aviso de instalación de tu navegador, y **Ayuda**, que se lee sin conexión tras la primera visita, instalada o no.
 
 **Instancia**: Una repetición de una pieza: un par de botones de riel, un anillo de cápsulas, un racimo de tubos. *En la aplicación:* el número de instancias y su separación en una pieza que se puede repetir.
 
@@ -193,13 +199,13 @@ Usa el buscador de la parte superior de este sitio, o el buscador del diálogo *
 
 **ISA**: La Atmósfera Estándar Internacional: un modelo acordado de cómo cambian la temperatura, la presión y la densidad con la altitud. *En la aplicación:* lo que vuela un vuelo cuando las condiciones de lanzamiento dejan la temperatura y la presión en blanco.
 
-## J
+## J {#j}
 
 **Juego de aletas**: Un grupo de aletas idénticas repartidas alrededor del cuerpo. *En la aplicación:* juegos de aletas trapezoidales, elípticas y libres, cada uno con un número de aletas.
 
 **Juego de cápsulas**: Un grupo de cápsulas externas llevadas junto al fuselaje, cada una capaz de contener sus propias piezas. *En la aplicación:* **Cápsula** en el árbol de componentes.
 
-## L
+## L {#l}
 
 **Lastre**: Masa añadida a propósito, normalmente en el morro, para mover el CG hacia delante y subir el margen de estabilidad. *En la aplicación:* un **Componente de masa**.
 
@@ -211,7 +217,7 @@ Usa el buscador de la parte superior de este sitio, o el buscador del diálogo *
 
 **Longitud aerodinámica**: La envergadura de morro a cola de las piezas *externas* del cohete. *En la aplicación:* es el denominador de la estabilidad expresada como porcentaje de la longitud, y de la lectura **% longitud** de CP frente a Mach y de la columna **CP (% longitud)** de la tabla de estabilidad. Difiere del recuadro **Longitud** siempre que una pieza interna, como un tubo motor, sobresale del fuselaje.
 
-## M
+## M {#m}
 
 **Mamparo**: Un disco macizo que cierra un tubo, usado para soportar una carga de eyección o sellar un compartimento.
 
@@ -237,7 +243,7 @@ Usa el buscador de la parte superior de este sitio, o el buscador del diálogo *
 
 **Motor taponado**: Un motor sin carga de eyección, para un cohete que despliega electrónicamente. *En la aplicación:* la opción de retardo **Taponado**.
 
-## N
+## N {#n}
 
 **Newton (N)**: La unidad de fuerza, y por tanto de empuje. Un **newton-segundo (N·s)** es la unidad de impulso.
 
@@ -247,7 +253,7 @@ Usa el buscador de la parte superior de este sitio, o el buscador del diálogo *
 
 **Número de Reynolds**: Una medida de cómo se comporta un flujo a un tamaño y una velocidad dados, que es lo que decide cuánta parte del arrastre es fricción superficial. *En la aplicación:* la columna `R` de una exportación de datos de vuelo.
 
-## O
+## O {#o}
 
 **Ojiva**: Un perfil de morro cuyo contorno es un arco. Una ojiva **tangente** se une al cuerpo de forma suave; una ojiva **secante** lo hace en ángulo. *En la aplicación:* una **Forma** de morro.
 
@@ -255,7 +261,7 @@ Usa el buscador de la parte superior de este sitio, o el buscador del diálogo *
 
 **Orientación al viento**: Un cohete estable que se gira hacia el viento al dejar la guía, lo que cuesta altitud y mueve el punto de aterrizaje contra el viento. Una velocidad de salida baja y un margen de estabilidad grande lo empeoran.
 
-## P
+## P {#p}
 
 **Paracaídas piloto**: Un paracaídas pequeño desplegado en el apogeo para bajar el cohete rápido pero estable, antes de que el principal se abra más abajo. *En la aplicación:* en la etapa, elige **Despliegue dual** en **Tipo de despliegue de recuperación** y escoge como **Dispositivo piloto** el dispositivo que se abre en el apogeo. Con **Despliegue único** la etapa no tiene piloto. Ver **Despliegue dual**.
 
@@ -275,7 +281,7 @@ Usa el buscador de la parte superior de este sitio, o el buscador del diálogo *
 
 **Propulsor / sostenedor**: En un cohete por etapas, la etapa que se enciende primero y se desprende / la etapa que sigue. *En la aplicación:* los nombres de las etapas, y la rama de vuelo propia de cada propulsor tras separarse. Ver **Rama de simulación**.
 
-## R
+## R {#r}
 
 **Racimo**: Más de un motor en una etapa, encendidos juntos. *En la aplicación:* un soporte de motor con un número de instancias mayor que uno.
 
@@ -301,7 +307,7 @@ Usa el buscador de la parte superior de este sitio, o el buscador del diálogo *
 
 **Rumbo del raíl o de la varilla**: Hacia qué dirección de la brújula se inclina la guía de lanzamiento. *En la aplicación:* **Dirección** en las condiciones de lanzamiento, o marca **Lanzar siempre contra el viento** y la guía sigue al viento en superficie, que es la práctica habitual y lo que suponen las cifras de orientación al viento. Ver **Orientación al viento**.
 
-## S
+## S {#s}
 
 **Salida según las guías**: Un modelo de vuelo opcional en el que el cohete se suelta de la guía de lanzamiento cuando sale de ella su anilla de lanzamiento más trasera, o su penúltimo botón de riel, en lugar de tras la longitud completa de la guía. Desactivado por defecto, lo que coincide con OpenRocket. Activado, la velocidad de salida suele leerse algo menor. *En la aplicación:* Ajustes ▸ Simulación ▸ Modelo de vuelo.
 
@@ -309,15 +315,9 @@ Usa el buscador de la parte superior de este sitio, o el buscador del diálogo *
 
 **Simulación y diseño**: El diseño es el cohete; una simulación es un conjunto de condiciones con las que volarlo. Un diseño puede llevar varias simulaciones, cada una con sus condiciones de lanzamiento y su resultado guardado, para comparar dos campos o dos velocidades de viento en paralelo. Ver **Ejecución desactualizada**.
 
-**Sobrescritura**: Sustituir algo que la aplicación calcularía por un valor que tú das: una masa, un CG, un coeficiente de arrastre. Se usa cuando has pesado la pieza real.
-
-**Sobrescritura de Cd**: Sustituir el coeficiente de arrastre calculado de una pieza por uno que tú das. *En la aplicación:* la sección **Anulaciones**. Ver **Sobrescritura**.
-
-**Sobrescritura de masa y de CG**: Sustituir la masa o el CG calculados de una pieza por los medidos, opcionalmente para todo su subárbol. *En la aplicación:* la sección **Anulaciones**. Ver **Sobrescritura**.
-
 **Sólido (macizo)**: Una pieza sin hueco interior, así que su masa es todo su volumen. *En la aplicación:* la casilla **Sólido**, que oculta los campos de pared e interior.
 
-## T
+## T {#t}
 
 **Talón de aleta**: La parte de una aleta que atraviesa la pared del fuselaje para anclarse dentro. *En la aplicación:* **Longitud de la lengüeta**, **Altura de la lengüeta** y **Desplazamiento de la lengüeta** en un juego de aletas.
 
@@ -341,21 +341,21 @@ Usa el buscador de la parte superior de este sitio, o el buscador del diálogo *
 
 **Transición**: Una pieza cuyo diámetro cambia de un extremo al otro, uniendo tubos de tamaños distintos. Una que se estrecha en la cola es una **cola de bote**.
 
-**Traza sobre el terreno**: El recorrido que el vuelo hizo sobre el suelo, dibujado en un mapa del campo de vuelo. Ver **Envolvente de deriva**.
+**Traza sobre el terreno**: El recorrido que el vuelo hizo sobre el suelo, dibujado en un mapa del campo de vuelo. Ver **Elipse de deriva**.
 
-**Tubo del cuerpo**: Un tubo recto de diámetro constante: la sección principal del fuselaje. *En la aplicación:* **Tubo del cuerpo** en el árbol de componentes.
+**Tubo de cuerpo**: Un tubo recto de diámetro constante: la sección principal del fuselaje. *En la aplicación:* **Tubo de cuerpo** en el árbol de componentes.
 
 **Tubo interior**: Un tubo dentro de otro, casi siempre el **soporte de motor** en el que va el motor. *En la aplicación:* **Tubo interior**, con **Soporte de motor** marcado para que lo sea.
 
 **Tubo-aleta**: Un tubo corto montado junto al fuselaje a modo de aleta. *En la aplicación:* **Juego de aletas tubulares**.
 
-## U
+## U {#u}
 
 **Unidades**: Las unidades que se muestran y se escriben. Una **preferencia** por magnitud fija la predeterminada; un **selector de unidad** junto a un campo la sobrescribe solo para ese campo. Todo lo guardado sigue siendo SI. *En la aplicación:* Ajustes ▸ Unidades, y el pequeño control de unidad junto a un valor. Ver **Unidades SI**.
 
 **Unidades SI**: Metros, kilogramos, segundos. Todo lo que la aplicación guarda, con lo que el motor calcula y lo que contiene cada archivo guardado es SI; las unidades que elijas cambian solo lo que se muestra y se escribe. Ver **Unidades**.
 
-## V
+## V {#v}
 
 **Velocidad**: La rapidez con una dirección. La **velocidad vertical** (`Vz`) es solo la componente de subida y bajada; la **velocidad lateral** (`Vl`) es la componente de costado.
 
@@ -383,7 +383,7 @@ Usa el buscador de la parte superior de este sitio, o el buscador del diálogo *
 
 **Vuelo inercial**: La parte no propulsada de la subida, desde el fin de combustión hasta el apogeo.
 
-## W
+## W {#w}
 
 **WASM-GC / respaldo en JS**: Las dos formas en que se distribuye el motor. WebAssembly es la vía rápida que toma prácticamente todo navegador actual; la compilación en JavaScript es el respaldo para el resto. *En la aplicación:* la cabecera dice cuál está en uso.
 

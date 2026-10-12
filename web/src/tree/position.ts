@@ -51,7 +51,8 @@ export const FREEFORM_SNAP_LARGER_THAN = 2.5;
  * translating by -p0 in both axes, and it does not touch the axial offset.
  * It then sets any x or y above {@link FREEFORM_SNAP_LARGER_THAN} to that
  * value, after the translation, so a fin wider or taller than 2.5 m flies cut
- * to it.
+ * to it. A point past it both ways keeps its x: the second `set` starts from
+ * the unsnapped point and overwrites the first.
  * (`clampFirstPoint()`, which additionally folds xDelta into the offset, is the
  * desktop GUI's per-point edit path, not ours.)
  *
@@ -66,9 +67,12 @@ export function normalizeFreeformPoints(pts: [number, number][] | undefined): [n
   const p = pts ?? [];
   const p0 = p[0];
   if (!p0 || !Number.isFinite(p0[0]) || !Number.isFinite(p0[1])) return p;
-  const snap = (v: number) => (v > FREEFORM_SNAP_LARGER_THAN ? FREEFORM_SNAP_LARGER_THAN : v);
+  const cap = FREEFORM_SNAP_LARGER_THAN;
+  // Both of the kernel's `set` calls start from the unsnapped point, so a point
+  // past the cap both ways takes the y snap alone and keeps its x.
+  const snap = (x: number, y: number): [number, number] => (y > cap ? [x, cap] : x > cap ? [cap, y] : [x, y]);
   const moved = p0[0] !== 0 || p0[1] !== 0;
-  const out = p.map(([x, y]): [number, number] => [snap(moved ? x - p0[0] : x), snap(moved ? y - p0[1] : y)]);
+  const out = p.map(([x, y]): [number, number] => (moved ? snap(x - p0[0], y - p0[1]) : snap(x, y)));
   // Already the kernel's outline: the same array, so a caller comparing by reference sees no change.
   return !moved && out.every(([x, y], i) => x === p[i]![0] && y === p[i]![1]) ? p : out;
 }
@@ -217,11 +221,12 @@ export function resolveFilePositions(tree: RocketTree): RocketTree {
   // Stages flatten into one nose-to-tail chain; chain members stack
   // sequentially (their own position field is not used for layout).
   //
-  // A stage child that is not a chain member (a podset, a parallel stage, a
-  // stage-level mass component) does not consume axial space in the chain, but
-  // it does have its own length and its own position against the stage. Each
-  // one is walked with its own extent, anchored where its position puts it in
-  // the stage. Walking it with a parent length of 0 would make
+  // The kernel's stage holds body components only (`AxialStage.isCompatible`),
+  // which are the chain members, so a stage child that is not one comes only
+  // from a tree the kernel would refuse. Such a child does not consume axial
+  // space in the chain; it is walked with its own extent, anchored where its
+  // position puts it in the stage, so the layout stays finite while the build
+  // reports the problem. Walking it with a parent length of 0 would make
   // `startFromPosition` resolve a `middle` child to -childLen/2, forward of the
   // assembly's own nose, so an `after` sibling would chain off a wrong station.
   let x = 0;

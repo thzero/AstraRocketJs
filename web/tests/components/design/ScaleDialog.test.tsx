@@ -37,8 +37,27 @@ describe('ScaleDialog from/to', () => {
     expect((screen.getByLabelText('Scale to') as HTMLInputElement).disabled).toBe(false);
   });
 
-  it('disables To while From has no size to divide by', () => {
+  it('starts From at the widest body when the selected part has no size', () => {
+    // A pod set at radius 0: the 40 mm body tube is the size there is.
     open({ id: 'p', type: 'podset', radiusOffset: 0 }, 'p');
+    expect((screen.getByLabelText('Scale from') as HTMLInputElement).value).toBe('4');
+    expect((screen.getByLabelText('Scale to') as HTMLInputElement).disabled).toBe(false);
+  });
+
+  it('starts From at the widest body when a stage is selected, since the scope is the whole design', () => {
+    open({ id: 'f', type: 'trapezoidfinset', rootChord: 0.08 }, 's');
+    expect((screen.getByLabelText('Scale from') as HTMLInputElement).value).toBe('4');
+    expect((screen.getByLabelText('Scale to') as HTMLInputElement).disabled).toBe(false);
+  });
+
+  it('disables To while From has no size to divide by', () => {
+    // No body at all, and a pod at radius 0.
+    const tree = {
+      name: 'T',
+      components: [{ id: 's', type: 'stage', children: [{ id: 'p', type: 'podset', radiusOffset: 0 }] }],
+    } as unknown as RocketTree;
+    useWorkspaceStore.setState({ tree, selectedId: 'p' });
+    renderWithProviders(<ScaleDialog onClose={() => {}} />);
     expect((screen.getByLabelText('Scale to') as HTMLInputElement).disabled).toBe(true);
   });
 });

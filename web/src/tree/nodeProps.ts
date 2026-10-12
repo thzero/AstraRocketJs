@@ -1,4 +1,5 @@
 import type { ComponentNode, ComponentPosition } from '../engine/openRocketEngine';
+import { KERNEL_BODYTUBE_OUTER_RADIUS } from './kernelDefaults';
 
 /**
  * Typed accessors for a ComponentNode's open-ended parameter bag
@@ -30,6 +31,15 @@ export const numOpt = (n: ComponentNode, key: string): number | undefined =>
  * anything that hurts.
  */
 export const MAX_INSTANCE_COUNT = 64;
+
+/**
+ * The most shroud lines a parachute can carry: the bridge's ceiling
+ * (`ComponentFactory.MAX_LINE_COUNT`), shared by the editor and both importers
+ * so a count any of them admits always builds. Nothing in the app loops on the
+ * count, so it does not need the instance ceiling; the bound is there because
+ * line mass scales with it, and an absurd count would fly an absurd mass.
+ */
+export const MAX_LINE_COUNT = 1024;
 
 /**
  * The most fins a fin set can carry: the kernel's own limit. `FinSet.setFinCount`
@@ -73,6 +83,14 @@ export const chainOuterRadius = (n: ComponentNode): number => {
   if (n.type === 'transition') return Math.max(num(n, 'foreRadius', 0), num(n, 'aftRadius', 0));
   return 0;
 };
+
+/**
+ * A body tube's radius, the same at every station (`BodyTube.getRadius(x)`).
+ * A tube with no `outerRadius` is the bridge's default (`ComponentFactory`,
+ * case "bodytube", 0.012 m), the radius it is flown at. Every reader that
+ * stands a part on a tube or places an assembly against one goes through here.
+ */
+export const bodyTubeRadius = (n: ComponentNode): number => num(n, 'outerRadius', KERNEL_BODYTUBE_OUTER_RADIUS);
 
 /**
  * The largest of a node's `outerRadius`, `aftRadius` and `foreRadius` (m),

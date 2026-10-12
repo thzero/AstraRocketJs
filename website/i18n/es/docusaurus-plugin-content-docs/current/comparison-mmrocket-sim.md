@@ -20,7 +20,7 @@ mmrocket-sim, de Mountain Man Rockets, es el pariente más cercano que tiene Ast
 
 El tema de mmrocket-sim es la **aerodinámica supersónica al estilo RASAero**: las correcciones que necesita el modelo de Barrowman extendido de OpenRocket por encima de Mach 1,5 aproximadamente, calibradas con datos publicados de túnel de viento y de vuelo libre.
 
-## Lo que sí se puede comparar con pruebas {#what-can-be-compared}
+## Lo que se puede comparar {#what-can-be-compared}
 
 | | AstraRocketJs | mmrocket-sim |
 | --- | --- | --- |

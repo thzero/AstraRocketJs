@@ -1,25 +1,24 @@
 // i18n setup (react-i18next). English is the source-of-truth locale; other
 // locales fall back to it for any missing key. Add a language by dropping a
 // JSON file under locales/ and adding one row to LOCALES below.
-import i18n from 'i18next';
+import i18n, { type BackendModule, type ResourceKey } from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 import en from './locales/en.json';
-import de from './locales/de.json';
-import es from './locales/es.json';
-import fr from './locales/fr.json';
-import ptBR from './locales/pt-BR.json';
-import ptPT from './locales/pt-PT.json';
-import nl from './locales/nl.json';
-import pl from './locales/pl.json';
-import ru from './locales/ru.json';
-import ja from './locales/ja.json';
 import { nsKey } from '../services/storage/storageKeys';
 
+/** A locale file's module, as a dynamic import returns it. */
+type LocaleModule = Promise<{ default: ResourceKey }>;
+
 /**
- * Every locale, once: its code, its native name for the switcher, and its bundle.
- * `LANGUAGES` and `resources` are both derived from this, so a bundle cannot be
- * registered without being selectable, or the reverse.
+ * Every locale, once: its code, its native name for the switcher, and how its
+ * bundle loads. `LANGUAGES` and the loader are both derived from this, so a
+ * bundle cannot be loadable without being selectable, or the reverse.
+ *
+ * English is bundled with the app: it is the fallback for every missing key, so
+ * it has to be there before anything renders. Every other locale is its own
+ * chunk, fetched only when it is the language in use; each is over 100 kB and a
+ * browser only ever needs one.
  *
  * A code carries a region only when the variants are genuinely different
  * translations rather than one with an accent moved. Brazilian and European
@@ -33,26 +32,50 @@ import { nsKey } from '../services/storage/storageKeys';
  * resolve.test.ts, which pins every case.
  */
 const LOCALES = [
-  { code: 'en', name: 'English', translation: en },
-  { code: 'de', name: 'Deutsch', translation: de },
-  { code: 'es', name: 'Español', translation: es },
-  { code: 'fr', name: 'Français', translation: fr },
-  { code: 'pt-BR', name: 'Português (Brasil)', translation: ptBR },
-  { code: 'pt-PT', name: 'Português (Portugal)', translation: ptPT },
-  { code: 'nl', name: 'Nederlands', translation: nl },
-  { code: 'pl', name: 'Polski', translation: pl },
-  { code: 'ru', name: 'Русский', translation: ru },
-  { code: 'ja', name: '日本語', translation: ja },
-] as const;
+  { code: 'en', name: 'English', load: () => Promise.resolve({ default: en }) },
+  { code: 'de', name: 'Deutsch', load: () => import('./locales/de.json') },
+  { code: 'es', name: 'Español', load: () => import('./locales/es.json') },
+  { code: 'fr', name: 'Français', load: () => import('./locales/fr.json') },
+  { code: 'pt-BR', name: 'Português (Brasil)', load: () => import('./locales/pt-BR.json') },
+  { code: 'pt-PT', name: 'Português (Portugal)', load: () => import('./locales/pt-PT.json') },
+  { code: 'nl', name: 'Nederlands', load: () => import('./locales/nl.json') },
+  { code: 'pl', name: 'Polski', load: () => import('./locales/pl.json') },
+  { code: 'ru', name: 'Русский', load: () => import('./locales/ru.json') },
+  { code: 'ja', name: '日本語', load: () => import('./locales/ja.json') },
+] as const satisfies readonly { code: string; name: string; load: () => LocaleModule }[];
 
 /** Selectable languages (code → native name), for the switcher. */
 export const LANGUAGES: { code: string; name: string }[] = LOCALES.map(({ code, name }) => ({ code, name }));
 
+/**
+ * Fetches a locale's bundle the first time i18next asks for it. A failed fetch
+ * (offline before the chunk was cached, or a deploy that removed it) is reported
+ * to i18next, which then shows the English fallback rather than raw keys.
+ */
+export const localeBackend: BackendModule = {
+  type: 'backend',
+  init: () => {},
+  read: (language, _namespace, done) => {
+    const row = LOCALES.find((l) => l.code === language);
+    if (!row) {
+      done(new Error(`no locale ${language}`), false);
+      return;
+    }
+    row.load().then(
+      (m) => done(null, m.default),
+      (e: unknown) => done(e instanceof Error ? e : new Error(String(e)), false),
+    );
+  },
+};
+
 i18n
   .use(LanguageDetector) // ?lng=, localStorage, then navigator
+  .use(localeBackend)
   .use(initReactI18next)
   .init({
-    resources: Object.fromEntries(LOCALES.map((l) => [l.code, { translation: l.translation }])),
+    // English up front; the backend fetches any other language when it is chosen.
+    resources: { en: { translation: en } },
+    partialBundledLanguages: true,
     fallbackLng: 'en',
     supportedLngs: LANGUAGES.map((l) => l.code),
     // No `load: 'languageOnly'`: it strips the region from every code,
@@ -70,10 +93,10 @@ i18n
       lookupLocalStorage: nsKey('i18nextLng'),
     },
   })
-  // Every translation is bundled, so there is no backend fetch here and nothing
-  // for the network to break: a rejection means the config above is wrong. It is
-  // still handled rather than dropped, because the failure mode is the app coming
-  // up showing raw translation keys, and without this nothing anywhere says why.
+  // A locale that fails to fetch does not reject this: i18next falls back to
+  // English. A rejection means the config above is wrong. It is still handled
+  // rather than dropped, because the failure mode is the app coming up showing
+  // raw translation keys, and without this nothing anywhere says why.
   //
   // `console.error` and not the store's error banner: this runs at module load,
   // before the store exists, and a broken i18n cannot translate its own message.

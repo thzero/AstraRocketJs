@@ -18,7 +18,7 @@ export interface PromptOptions {
  * The sibling of {@link useConfirmStore}, and for the same reason: the import path
  * needs a name before it hands a rocket to the library, and it lives in the store,
  * so naming cannot be reachable only through the header's dialog host. Letting the
- * import land first and naming it afterwards is the race that fills the library
+ * import land first and naming it afterward is the race that fills the library
  * with copies.
  */
 export const usePromptStore = createRequestStore<PromptOptions, string | null>(null);

@@ -53,7 +53,7 @@ export function FlightChartPanel({
   // rest keep their fixed unit. `factor`, not `toUi`, because this scales a
   // whole series; none of these carry a temperature-style offset.
   const scale = traceScale(meta, u);
-  const unit = traceUnit(meta, u);
+  const unit = traceUnit(meta, u, t);
   // Namespaced ids. With a fixed id, two charts in one document (a comparison
   // view, or the mobile and desktop copies during a breakpoint transition)
   // would make `url(#...)` resolve to whichever rendered first, clipping one

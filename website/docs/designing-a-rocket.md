@@ -59,7 +59,7 @@ Only the diameter follows. How far the shoulder reaches into the tube is yours, 
 
 The switch is on for parts you add here, and off for everything read from a file, because in a file an absent shoulder means the part has none. Nothing you import grows one. `.ork` has no way to record the switch, so a file written here carries the resolved number and a round trip through desktop OpenRocket freezes it at that value.
 
-**A shoulder has a wall, and can be capped.** Each one carries its own thickness, and a **Capped** switch that closes its far end with a disc of the part's own material. The disc is as thick as the shoulder's wall, so it is what turns a nose cone into a closed bay you can put nose weight or an altimeter behind. Both count toward mass, CG and the moments of inertia. A transition has a set per side, fore and aft, and they are independent.
+**A shoulder has a wall, and can be capped.** Each one carries its own thickness, and a **Shoulder capped** switch that closes its far end with a disc of the part's own material. The disc is as thick as the shoulder's wall, so it is what turns a nose cone into a closed bay you can put nose weight or an altimeter behind. Both count toward mass, CG and the moments of inertia. A transition has a set per side, fore and aft, and they are independent.
 
 Leave a shoulder's thickness blank and OpenRocket fills it from the part's own wall the moment the shoulder gets a length, so an absent value is not a zero one.
 
@@ -141,7 +141,7 @@ A rocket can have more than one stage. **＋ Stage** (in the row above the compo
 
 With a body tube selected, **＋ Add ▸ Assembly** adds a **Pod** or a **Booster** (a parallel, strap-on stage). Each starts with one body tube to build on, and a booster starts as two copies, as on desktop. After a staged flight, the **[Flight charts](./views-and-analysis.md#flight-after-a-simulation)** plot each stage's own trajectory.
 
-> Staged flights **simulate** as independent branches (each spent booster flies, deploys, and lands on its own) and static mass / CG / stability match desktop OpenRocket. The flown trajectory is checked against unmodified upstream OpenRocket as well: identical event sequences on every branch, and apogee agreeing to 1e-5 relative.
+> Staged flights **simulate** as independent branches (each spent booster flies, deploys, and lands on its own) and static mass / CG / stability come from the same OpenRocket code as desktop. The flown trajectory is checked against unmodified upstream OpenRocket as well: identical event sequences on every branch, and apogee agreeing to 1e-5 relative.
 
 ## Undo / redo
 
@@ -166,7 +166,7 @@ Solid parts keep their material, so their mass grows as the **cube** of the fact
 
 ## Selecting parts from a catalog
 
-Instead of dialing in dimensions by hand, use the contextual **"Select a part…"** pickers to drop in **real manufacturer parts** (Estes / Apogee / LOC / …):
+Instead of dialing in dimensions by hand, use the contextual **Select part…** pickers (the number in parentheses is how many catalog and saved parts of that kind there are) to drop in **real manufacturer parts** (Estes / Apogee / LOC / …):
 
 - **Nose cones, body tubes, inner tubes, transitions, tube couplers, centering rings, bulkheads, engine blocks and launch lugs** prefill their geometry and material. A transition brings both ends and both shoulders.
 - A **parachute** prefills its diameter and drag coefficient.

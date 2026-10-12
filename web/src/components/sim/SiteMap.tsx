@@ -414,7 +414,7 @@ function scaleLabel(u: Units, lat: number, zoom: number): string {
   const up = SCALE_PROMOTION[sym];
   const big = up ? siToUi('distance', up, meters) : 0;
   if (up && big >= 1) return withUnit(fmtNum(big, big >= 10 ? 0 : 1), up);
-  return `${u.fmt('distance', meters, 0)} ${sym}`;
+  return u.fmtSym('distance', meters, 0);
 }
 
 /**

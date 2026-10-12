@@ -51,9 +51,9 @@ describe('the catalog part a component came from', () => {
   });
 
   it('goes away when an edit breaks the link', () => {
-    // `breaksPreset` drops the link the moment a stated dimension moves, because
-    // the part is no longer the part. The row is driven by the link alone, so
-    // this is what a reader sees when they retype a length.
+    // `breaksPreset` drops the link on an edit whose kernel setter clears it, as
+    // a nose cone's length does. The row is driven by the link alone, so this
+    // is what a reader sees when they retype a length.
     const tree = { components: [nose({ preset: LINK })] } as unknown as RocketTree;
     const edited = updateNode(tree, 'nose', { length: 0.08 });
     const node = (edited as unknown as { components: ComponentNode[] }).components[0]!;

@@ -11,17 +11,6 @@ import { type HelpTarget, helpTarget, helpTargetFromUrl } from '../../services/a
  */
 const SPY_OFFSET_PX = 96;
 
-/**
- * The Help dialog's iframe: what happens on each load, the links clicked inside
- * it, and the heading it is scrolled to.
- *
- * `ready` is only the iframe reporting that it has finished loading `target`.
- * Like the page probe (useHelpPage) it is tagged with the src it describes, so
- * a page change makes it stop matching instead of having to be cleared.
- *
- * `navigate` is the one way to move: an anchor on the page already showing
- * scrolls the frame, anything else goes through `open` onto the back stack.
- */
 /** How long an anchor is held against the page settling under it. */
 const ANCHOR_HOLD_MS = 10_000;
 
@@ -82,6 +71,17 @@ function holdAnchor(doc: Document, win: Window, id: string): () => void {
   return release;
 }
 
+/**
+ * The Help dialog's iframe: what happens on each load, the links clicked inside
+ * it, and the heading it is scrolled to.
+ *
+ * `ready` is only the iframe reporting that it has finished loading `target`.
+ * Like the page probe (useHelpPage) it is tagged with the src it describes, so
+ * a page change makes it stop matching instead of having to be cleared.
+ *
+ * `navigate` is the one way to move: an anchor on the page already showing
+ * scrolls the frame, anything else goes through `open` onto the back stack.
+ */
 export function useHelpFrame(
   target: HelpTarget,
   language: string,

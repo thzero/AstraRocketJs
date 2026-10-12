@@ -1,11 +1,11 @@
 import type { ComponentNode, RocketTree } from '../engine/openRocketEngine';
-import { num, positionOf } from './nodeProps';
+import { bodyTubeRadius, num, positionOf } from './nodeProps';
 import { findWithParent } from './treeWalk';
 import { parentStartOf } from './axialRebase';
 import { axialLength, freeformPoints, freeformRootChord, partLength, startFromPosition } from './position';
 import { nodeShape, stationRadius } from './shapeProfile';
 import { isFinSet, isPlanarFinSet } from './tubefins';
-import { FIN_DEFAULTS, KERNEL_BODYTUBE_OUTER_RADIUS } from './kernelDefaults';
+import { FIN_DEFAULTS } from './kernelDefaults';
 
 /**
  * The fin planform. One source of truth for every consumer that draws, prints,
@@ -638,12 +638,4 @@ function mountTabLimit(fin: ComponentNode, mount: FinMount): number {
   const lead = finTabFrontEdge(fin, finRootChord(fin));
   const trail = lead + num(fin, 'tabLength', 0);
   return Math.min(mount.radiusAt(mount.front + lead), mount.radiusAt(mount.front + trail));
-}
-
-/** A body tube's radius, the same at every station (`BodyTube.getRadius(x)`). */
-function bodyTubeRadius(node: ComponentNode): number {
-  // 0.012 is the kernel's body-tube default (ComponentFactory bodytube
-  // outerRadius), so a radius-less tube clamps the tab the way it is flown. Note
-  // it is a radius: FIN_DEFAULTS.rootChord is a chord and does not belong here.
-  return num(node, 'outerRadius', KERNEL_BODYTUBE_OUTER_RADIUS);
 }

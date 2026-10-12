@@ -20,9 +20,9 @@ import { usableAtmosphereLevels } from './atmosphereLevels';
  * rho (the air density at the launch site, not sea level) and the canopy's
  * Cd.A. Each is handled below.
  *
- * Scope: this is the size answer only (the diameter and the rate), not a
- * catalog of real parachutes to buy. The app carries no chute
- * preset catalog, so matching named canopies is out of scope here.
+ * Scope: this is the size answer only (the diameter and the rate). Picking a
+ * named canopy from the component catalog's parachute presets is the part
+ * picker's job, not this module's.
  */
 
 /** Feet per second in m/s: the bands are quoted in ft/s, the code is SI. */

@@ -33,7 +33,7 @@ type MeshIssueKind =
 
 export interface MeshIssue {
   kind: MeshIssueKind;
-  /** Human-readable, safe to show in an export error. */
+  /** Human-readable, for tests and debugging; the export only checks whether any issue exists. */
   detail: string;
   /** How many times the problem occurs, where counting makes sense. */
   count?: number;

@@ -130,4 +130,27 @@ describe('EnvironmentLanding flown hour', () => {
     expect(marks).toHaveLength(1);
     expect(marks[0]!.closest('tr')!.className).toContain('text-accent-300');
   });
+
+  it('lists each safety code an hour breaks as a reason of its own', async () => {
+    flyForecastHours.mockClear();
+    const outsideLimits = [
+      { field: 'windSpeed', value: 12, limit: 9, powerClass: 'model' },
+      { field: 'rodAngle', value: 0.6, limit: 0.52, powerClass: 'model' },
+    ];
+    flyForecastHours.mockResolvedValueOnce([
+      { offset: 0, validMs: Date.UTC(2026, 9, 10, 12), landings: [], outsideLimits },
+    ] as never);
+    const st = useWorkspaceStore.getState();
+    const weatherSource = { endpoint: 'forecast', timezone: 'UTC' };
+    const sim = { ...st.sims[0]!, id: 's1', launch: { ...st.sims[0]!.launch, weatherSource } } as never;
+    const key = resultKey(st.tree, configOf(st.configs, sim), sim, st.simPrefs);
+    useWorkspaceStore.setState({ sims: [{ ...(sim as object), result: {}, resultKey: key } as never] });
+    const forecast = { ...flight, launch: { ...flight.launch, weatherSource } } as unknown as ResultFlight;
+    renderWithProviders(<EnvironmentLanding flight={forecast} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Fly the hours around this forecast' }));
+    const wind = await screen.findByText('Not flown: wind over the safety limit');
+    const angle = screen.getByText('Not flown: launch angle over the safety limit');
+    expect(wind).not.toBe(angle);
+    expect(wind.closest('td')!.textContent).not.toContain(';');
+  });
 });

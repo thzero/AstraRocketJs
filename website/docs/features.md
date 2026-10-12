@@ -3,7 +3,7 @@ title: "Features"
 sidebar_position: 2
 ---
 ## Physics
-- Runs OpenRocket's **real physics core**: Extended Barrowman aerodynamics, mass/CG, and RK4 flight.
+- Runs OpenRocket's **physics core**: Extended Barrowman aerodynamics, mass/CG, and RK4 flight.
 - Flight simulations run in a **Web Worker**, off the main thread, so the interface stays responsive during a run.
 
 ## Design & analysis
@@ -33,7 +33,7 @@ sidebar_position: 2
 ## Data & I/O
 - **Full `.ork` support**: open and save round-trip at full fidelity (files re-open in desktop OpenRocket).
 - **RockSim `.rkt` import and export**: designs move both ways with RockSim too: bodies, fins (including freeform and tube fins), inner structure, recovery, mass objects and pods, across up to three stages. Motors and launch conditions stay behind, because RockSim keeps those with its simulations rather than its designs. See **[Files & Exports](./files-and-exports.md#rocksim-rkt)**.
-- **Motor picker** with real **thrust curves** from [thrustcurve.org](https://www.thrustcurve.org) (~1,150 motors), downloaded once and cached for offline use. Filter by engine code, impulse class, manufacturer(s), and a **diameter range** that defaults to the motor-mount bore; selections are remembered.
+- **Motor picker** with real **thrust curves** from [thrustcurve.org](https://www.thrustcurve.org) (~1,150 motors), downloaded once and cached for offline use. Filter by engine code, impulse class, manufacturer(s), and a **diameter range**; manufacturer and diameter selections are remembered. **Fits the mount**, on by default for a design with a motor mount, shows only the motors that fit its bore and length.
 - Pick from a motor's **multiple thrust curves** (the chosen one is what the engine simulates), set the **ejection delay** from the motor's own charges or a manual value, or **plug** any motor. A per-motor card shows the curve and delay, with a **thrust-curve popup**; multi-mount rockets get **one card per motor tube**. Plus **`.eng` (RASP) and `.rse` (RockSim) import**: the latter for hybrids, and for the measured mass curve RASP cannot carry.
 - OpenRocket **materials** (built-in + your own) and a **component-preset** catalog (~5,200 real Estes / Apogee / LOC / … parts). **Save a part you built** and it joins that picker on every design, whole: geometry, material, finish and all.
 - **Exports**:
@@ -52,7 +52,7 @@ sidebar_position: 2
 - **Responsive**: a desktop workbench of five tabs (Design · Configurations · Simulations · Results · Tools), each laid out the way its own job needs, with draggable dividers, remembered pane widths and a button that gives the drawing the whole window. On a phone it becomes tabs along the bottom (Rocket · Sketch · Config · Simulate, plus **Results** once a run has produced one, and **Tools**), where the rocket views turn a quarter turn so the airframe runs down the long edge of the screen and dialogs fill it.
 - **Your choice of units**: metric or imperial presets, or a unit per quantity (component and motor dimensions, altitude, mass, velocity, wind, acceleration, angle, density, temperature, pressure, thrust, impulse). The unit beside any value is also a picker for that one field. Designs stay SI, so switching never edits a rocket. See **[Settings](./settings.md#units)**.
 - Launch conditions are held to the **NAR / Tripoli** flying limits (rail or rod within 30° of vertical for a model rocket and 20° for a high power rocket, surface wind at or below 20 mph) and a run outside them is refused rather than flown. See the **[Safety](./safety.md)** page.
-- **Keyboard navigation**: the component tree is fully arrow-key navigable (broader accessibility is an ongoing effort).
-- **Multilingual**: currently ten: English, German, Spanish, French, Portuguese (Brazil and Portugal), Dutch, Polish, Russian and Japanese.
+- **Keyboard navigation**: the component tree is fully arrow-key navigable.
+- **Multilingual**: ten languages: English, German, Spanish, French, Portuguese (Brazil and Portugal), Dutch, Polish, Russian and Japanese.
 
 See the [FAQ](./faq.md) for more on the current limits.

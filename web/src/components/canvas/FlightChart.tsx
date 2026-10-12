@@ -182,7 +182,7 @@ export function FlightChart({ flight }: { flight: ChartFlight }) {
                 label: t(m.label),
                 value: panel?.primary ? hoverValue(panel.primary, keyT) : null,
                 digits: panel?.digits ?? m.digits,
-                unit: traceUnit(m, u),
+                unit: traceUnit(m, u, t),
               };
             }),
         );

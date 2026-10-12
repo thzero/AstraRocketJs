@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
 import { countOf, num, numOpt } from '../../tree/nodeProps';
 import { axialChain, motorSeatStart, partLength } from '../../tree/position';
-import { FIN_DEFAULTS, KERNEL_DEFAULTS, KERNEL_RAILBUTTON_OUTER_DIAMETER } from '../../tree/kernelDefaults';
+import { FIN_DEFAULTS, KERNEL_DEFAULTS } from '../../tree/kernelDefaults';
 import {
   FREEFORM_FALLBACK,
   bodyRadiusAt,
@@ -21,7 +21,7 @@ import {
   resolveAssemblyRadius,
   ringInstanceOffsets,
 } from '../../tree/assembly.js';
-import { clusterOffsets } from '../../tree/cluster.js';
+import { lineInstances, placementOffsets } from '../../tree/placement';
 import { isPlanarFinSet, tubeFinRadius } from '../../tree/tubefins.js';
 import { nodeShape, outerProfile, profileEnds } from '../../tree/shapeProfile.js';
 import { colorForType, DEFAULT_PART_COLORS, type PartPalette } from '../../services/design/partColors';
@@ -30,6 +30,7 @@ import { DISC_TYPES } from '../../services/files/componentFormats';
 import { resolveDisc } from '../../services/design/discGeometry';
 import { axialStart, colorOf, innerTubeExtent, internalExtent, type MotorDims } from '../../tree/schematicGeometry';
 import { withKernelEnds } from '../../services/design/autoRadius';
+import { railButtonSize } from './railButton';
 
 /**
  * Owns the 3D geometry of the rocket: the component tree to Piece list build
@@ -263,7 +264,8 @@ export function buildPieces(
   const addChildren = (parent: ComponentNode, pStart: number, pLen: number, pRadius: number, xform?: THREE.Matrix4) => {
     /** The parent's outer radius under the rocket-frame station `x`. */
     const surfaceAt = (x: number): number => bodyRadiusAt(parent, x - pStart) ?? pRadius;
-    for (const child of parent.children ?? []) {
+    // A part the kernel repeats along the body is built once per copy.
+    for (const child of (parent.children ?? []).flatMap(lineInstances)) {
       curId = child.id;
       if (isPlanarFinSet(child.type)) {
         addFins(child, parent, pStart, pLen, pRadius, xform);
@@ -323,18 +325,18 @@ export function buildPieces(
           xform,
         );
       } else if (child.type === 'railbutton') {
-        // The button the side and aft views draw: as wide and as tall as its
-        // outer diameter (RailButton's own default when absent), standing out
-        // from the surface at its radial mount angle (kernel default 180°).
-        const dia = num(child, 'outerDiameter', KERNEL_RAILBUTTON_OUTER_DIAMETER);
+        // The button the side and aft views draw: as wide as its outer
+        // diameter and standing out from the surface by its height, at its
+        // radial mount angle (kernel default 180°).
+        const { diameter: dia, reach } = railButtonSize(child);
         const ang = num(child, 'angleOffset', Math.PI);
         const start = axialStart(child, dia, pStart, pLen);
         const R = surfaceAt(start);
-        const rad = R + dia / 2;
-        maxR = Math.max(maxR, R + dia);
+        const rad = R + reach / 2;
+        maxR = Math.max(maxR, R + reach);
         place(
           `button${k++}`,
-          new THREE.CylinderGeometry(dia / 2, dia / 2, dia, 16),
+          new THREE.CylinderGeometry(dia / 2, dia / 2, reach, 16),
           nodeColor(child, palette),
           [start + dia / 2, rad * Math.cos(ang), rad * Math.sin(ang)],
           [ang, 0, 0],
@@ -347,12 +349,7 @@ export function buildPieces(
         const { length: len, radius: r } = innerTubeExtent(child);
         const start = axialStart(child, len, pStart, pLen);
         const motor = child.id ? motors?.[child.id] : undefined;
-        for (const off of clusterOffsets(
-          child['cluster'] as string | undefined,
-          r,
-          num(child, 'clusterScale', 1),
-          num(child, 'clusterRotation', 0),
-        )) {
+        for (const off of placementOffsets(child, r)) {
           place(
             `inner${k++}`,
             annulusGeometry(r, r - num(child, 'thickness', COMPONENT_DEFAULTS.innertube.thickness), len),
@@ -402,11 +399,12 @@ export function buildPieces(
         const d = child.id ? resolveDisc(tree, child.id) : null;
         if (d && d.outerR > 0 && d.length > 0) {
           const start = axialStart(child, d.length, pStart, pLen);
+          const [off] = placementOffsets(child, d.outerR);
           place(
             `disc${k++}`,
             annulusGeometry(d.outerR, d.innerR, d.length),
             nodeColor(child, palette),
-            [start, 0, 0],
+            [start, off!.y, off!.z],
             undefined,
             xform,
           );
@@ -419,11 +417,12 @@ export function buildPieces(
         const { length, radius } = internalExtent(child, pRadius);
         if (radius > 0 && length > 0) {
           const start = axialStart(child, length, pStart, pLen);
+          const [off] = placementOffsets(child, radius);
           place(
             `packed${k++}`,
             new THREE.CylinderGeometry(radius, radius, length, 24),
             nodeColor(child, palette),
-            [start + length / 2, 0, 0],
+            [start + length / 2, off!.y, off!.z],
             [0, 0, -Math.PI / 2],
             xform,
           );

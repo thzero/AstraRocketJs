@@ -115,7 +115,7 @@ describe('thrustAt at the end of a curve', () => {
     expect(combineCurves([abrupt]).totalImpulse).toBeCloseTo(13.25, 4);
   });
 
-  it('agrees with the raw integral for a curve that ends at zero, as before', () => {
+  it('agrees with the raw integral for a curve that ends at zero', () => {
     const clean: Sample[] = [
       [0, 0],
       [0.1, 10],

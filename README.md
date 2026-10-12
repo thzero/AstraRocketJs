@@ -13,7 +13,7 @@ The UI is **responsive**: the workbench has five tabs (Design · Configurations 
 - Flight simulations run in a **Web Worker**, off the main thread, so the UI stays responsive during a run.
 
 **Design & analyze**
-- Component-tree editor with **live CG / CP / stability** as you edit - calibers, % of length, **on-pad *and* rail-exit** margins, and fineness ratio.
+- Component-tree editor with **live CG / CP / stability** as you edit - calibers, % of length, **on-pad *and* launcher-exit** margins, and fineness ratio.
 - **Undo / redo** across the whole workspace - component edits *and* simulation changes on one timeline (`Ctrl/⌘+Z`, `Ctrl+Shift+Z`).
 - **Multi-stage rockets** - add booster stages, pods, and parallel boosters, with configurable separation and upper-stage ignition (staged flights simulate as independent branches, checked against upstream OpenRocket).
 - **2D schematic** with drag-to-measure **calipers**, length + cross-section rulers, zoom/pan, spin (roll), and an aft (head-on) view.
@@ -30,13 +30,13 @@ The UI is **responsive**: the workbench has five tabs (Design · Configurations 
 - Real motor **thrust curves** from thrustcurve.org (~1,150 motors), plus **`.eng` and `.rse` import** and custom motors.
 - OpenRocket **materials** (built-in + your own) and a **component-preset** catalog (~5,200 real Estes/Apogee/LOC/… parts), plus **your own saved parts**: save a component you built and it joins that picker on every design.
 - **Exports**: a full **rocket design report** (summary, parts detail, motors, 1:1 fin/nose/transition templates and wrap-around fin marking guides) to **PDF**, or the design summary to **CSV**; the design to **RASAero II (`.CDX1`)**; the whole design's printable parts to **3MF** (one file, a named object per part) and individual components to **3D models (STL / OBJ / GLB / 3MF)** for printing/CAD, with flat parts to **DXF** cut sheets; flight data & aero tables to **CSV**; the **flight path** to **KML / GPX / waypoint CSV** (Google Earth / GPS, with a **Mission** name and per-stage track colors, and importable custom **templates**); and the 2D schematic to **SVG / PNG / JPG**.
-- Multiple named **simulations**, each with full launch setup (rod, site, atmosphere, multi-level wind, earth model).
+- Multiple named **simulations**, each with full launch setup (rail or rod, site, atmosphere, multi-level wind, earth model).
 
 **Yours, on your device**
-- No server, no accounts, nothing uploaded - the physics runs entirely on your device. Your `.ork` designs are **files on your disk** (open / save); the browser just keeps a working copy (so a refresh won't lose your rocket) plus your custom motors, materials, and settings.
+- No server, no accounts, nothing uploaded - the physics runs entirely on your device. Your designs, custom motors, materials and settings are kept in the browser (so a refresh won't lose your rocket), and `.ork` import / export moves designs to and from **files on your disk**.
 - **Units are yours to pick** - metric or imperial presets, or a unit per quantity (lengths, altitude, mass, velocity, wind, acceleration, angle, density, temperature, pressure, thrust, impulse), and the unit printed beside any value is a picker for that one field. Designs are always stored in SI, so switching units never edits a rocket or changes how a `.ork` is written - units live in your browser, not in the file, so a design opened in desktop OpenRocket shows in OpenRocket's units.
 - **Responsive** (the same tabs on desktop and phone, with Design split in two on a phone and the rocket views turned to the screen's long edge), in **ten languages**.
-- **Says what its numbers are worth** - launch conditions are held to the NAR / Tripoli flying limits (rod within 20° of vertical, surface wind at or below 20 mph) and a run outside them is refused. Every set of results carries a **Before you fly** card naming what the model does not have (fin flutter, structural loads, parachute inflation and opening shock, your motor on the day), linking to a **[Safety](https://thzero.github.io/AstraRocketJs/docs/safety)** page.
+- **Says what its numbers are worth** - launch conditions are held to the NAR / Tripoli flying limits (rail or rod within 30° of vertical for a model rocket and 20° for a high power rocket, surface wind at or below 20 mph) and a run outside them is refused. Every set of results carries a **Before you fly** card naming what the model does not have (fin flutter, structural loads, parachute inflation and opening shock, your motor on the day), linking to a **[Safety](https://thzero.github.io/AstraRocketJs/docs/safety)** page.
 
 ## Getting started
 

@@ -160,8 +160,10 @@
     },
     "rktSkip": {
       "airfoilMass": "Masse der Profilfinnen ({{name}})",
+      "cdOverride": "Cd-Überschreibung ({{name}})",
       "cgOverride": "CG-Überschreibung ({{name}})",
-      "extraStages": "Stufe {{from}} und folgende"
+      "extraStages": "Stufe {{from}} und folgende",
+      "subtreeOverride": "Überschreibung der Unterbauteile ({{name}})"
     },
     "viewFailed": "Diese Ansicht konnte nicht geladen werden.",
     "staleBuild": "Die App wurde aktualisiert, während dieser Tab offen war, daher liegt ein Teil davon nicht mehr auf dem Server. Laden Sie neu, um die neue Version zu erhalten.",
@@ -301,7 +303,8 @@
     "headerLaunchMass": "Startmasse {{mass}} (leer {{dry}})",
     "headerDryMass": "Leermasse {{dry}}, keine Motoren geladen",
     "headerBalance": "CG {{cg}}, CP {{cp}} ab Nasenspitze, Stabilitätsreserve {{margin}} Kal.",
-    "headerCg": "CG {{cg}} ab Nasenspitze"
+    "headerCg": "CG {{cg}} ab Nasenspitze",
+    "imageOption": "{{format}} {{size}}, {{width}} px breit"
   },
   "engine": {
     "wasmTip": "Physik-Engine: WebAssembly (schneller Pfad)",
@@ -604,7 +607,8 @@
     "grounded": "Am Boden",
     "groundedHint": "Bleibt am Boden: keine Masse, kein Widerstand, kein Motor. Der Rest der Rakete fliegt ohne sie.",
     "lastFlyingStage": "In jeder Konfiguration muss mindestens eine Stufe fliegen.",
-    "stageGrounded": "Bleibt am Boden in:"
+    "stageGrounded": "Bleibt am Boden in:",
+    "partNumbered": "{{part}} {{n}}"
   },
   "tabs": {
     "rocket": "Rakete",
@@ -1165,7 +1169,8 @@
     "colorRolePin": "Nadel",
     "importSaveError": "Diese Vorlage konnte in diesem Browser nicht gespeichert werden.",
     "deleteError": "Diese Vorlage konnte nicht gelöscht werden.",
-    "deleteConfirm": "Die Vorlage „{{name}}“ aus diesem Browser löschen?"
+    "deleteConfirm": "Die Vorlage „{{name}}“ aus diesem Browser löschen?",
+    "stageColorLabel": "{{role}} für {{stage}}"
   },
   "aero": {
     "unattributed": "Keinem Bauteil zugeordnet",
@@ -1263,7 +1268,12 @@
     "motorFetchFailed": "Motor „{{motor}}“ konnte nicht geladen werden ({{reason}}). Wählen Sie einen Motor für diese Halterung (sie fliegt keinen Standardmotor).",
     "motorTooWide": "Motor „{{motor}}“ hat {{diameter}} mm und Halterung „{{mount}}“ nimmt {{bore}} mm auf, er passt also nicht. So eingesetzt, wie die Datei ihn nennt: prüfen Sie ihn vor dem Flug.",
     "motorTooLong": "Motor „{{motor}}“ ist {{length}} mm lang und Halterung „{{mount}}“ fasst {{maxLength}} mm, er passt also nicht. So eingesetzt, wie die Datei ihn nennt: prüfen Sie ihn vor dem Flug.",
-    "mountsWithoutMotor": "Motorhalterungen ohne Motor in dieser Datei: {{mounts}}. Wählen Sie vor dem Flug einen Motor (es wird kein Standardmotor geflogen)."
+    "mountsWithoutMotor": "Motorhalterungen ohne Motor in dieser Datei: {{mounts}}. Wählen Sie vor dem Flug einen Motor (es wird kein Standardmotor geflogen).",
+    "extensionName": {
+      "airStart": "Luftstart",
+      "javaCode": "Java-Code",
+      "script": "{{language}}-Skript"
+    }
   },
   "part": {
     "stage": "Stufe",
@@ -1682,7 +1692,24 @@
     "cancel": "Abbrechen",
     "deleteCustom": "Eigenes Material löschen",
     "deleteConfirm": "Das eigene Material {{name}} löschen? Es wird in keinem Entwurf mehr angeboten.",
-    "fillet": "Material der Hohlkehle"
+    "fillet": "Material der Hohlkehle",
+    "groups": {
+      "Metals": "Metalle",
+      "Woods": "Hölzer",
+      "Plastics": "Kunststoffe",
+      "Fabrics": "Gewebe",
+      "Paper": "Papier",
+      "PaperProducts": "Papierprodukte",
+      "Foams": "Schaumstoffe",
+      "Composites": "Verbundwerkstoffe",
+      "Fibers": "Fasern",
+      "Elastics": "Elastomere",
+      "Kevlars": "Kevlar",
+      "Nylons": "Nylon",
+      "Other": "Sonstige",
+      "Custom": "Benutzerdefiniert",
+      "Adhesives": "Klebstoffe"
+    }
   },
   "recovery": {
     "title": "Auslegung des Abstiegs",
@@ -1818,7 +1845,9 @@
     "chartAvg": "mittl. Schub",
     "chartBurn": "Brenndauer",
     "chartAria": "Schub über der Zeit. Spitze {{peak}}, Mittelwert {{avg}}, Brenndauer {{burn}} s.",
-    "calcNote": "* Anfangsschub, Isp und Massenanteil werden aus der Schubkurve und den Massen berechnet."
+    "calcNote": "* Anfangsschub, Isp und Massenanteil werden aus der Schubkurve und den Massen berechnet.",
+    "rangeMin": "{{label}}: Minimum",
+    "rangeMax": "{{label}}: Maximum"
   },
   "lang": {
     "label": "Sprache"
@@ -1934,7 +1963,9 @@
       "badNumber": "Zeile {{line}} enthält einen Wert, der keine Zahl ist.",
       "noData": "In dieser Datei wurden keine Windschichten gefunden.",
       "unreadable": "Diese Datei konnte nicht gelesen werden."
-    }
+    },
+    "levelField": "{{field}}, Schicht {{n}}",
+    "removeLevelN": "Schicht {{n}} entfernen"
   },
   "limits": {
     "sentenceJoin": "{{first}} {{next}}",
@@ -1982,7 +2013,8 @@
     "coords": "Koordinaten",
     "elevationLooking": "Höhe wird ermittelt…",
     "elevationUnknown": "Höhe nicht gefunden; die Höhe des Startplatzes bleibt leer",
-    "credit": "Orte von GeoNames, über Open-Meteo.com"
+    "credit": "Orte von GeoNames, über Open-Meteo.com",
+    "regionCountry": "{{region}}, {{country}}"
   },
   "location": {
     "label": "Gespeicherter Ort",

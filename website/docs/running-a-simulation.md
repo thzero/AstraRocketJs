@@ -43,15 +43,15 @@ Elevation is shown and edited in whatever unit your launch site card uses, so a 
 
 ### The map
 
-Four digits of latitude and four of longitude are not something you can check by reading them. A dropped minus sign moves a Colorado field to western China and nothing on screen looks any different, so the site has a map: **🗺 Show on map** on the Launch site card opens it, and the location editor carries one beside its fields.
+A latitude and longitude are hard to check by reading them, and a dropped minus sign moves a field to the other side of the world, so the site has a map: **🗺 Show on map** on the Launch site card opens it, and the location editor carries one beside its fields.
 
-- **Satellite or street.** Imagery is the default and is usually the one that answers the question, because a club field is a mown strip in a hayfield: invisible on a street map, unmistakable from above. The street layer is for reading the roads in and the town you are near. Both come from Esri's map services; the street layer is built on OpenStreetMap data and credits it, but the app deliberately does not draw from OpenStreetMap's own tile servers, which are volunteer-funded and not there for applications to build on.
+- **Satellite or street.** Satellite imagery is the default, because a club field usually shows on imagery and not on a street map. The street layer shows the roads and the nearby town. Both come from Esri's map services; the street layer is built on OpenStreetMap data and credits it. The app does not use OpenStreetMap's own tile servers.
 - **Clicking the map sets the coordinates**, to four decimal places (about 10 m, the same precision 📍 Use my location writes). This is the only way to enter a field that has no published numbers, and it is one ordinary edit, so it undoes like any other. Drag to pan, scroll or use **+** / **−** to zoom; a drag never counts as a click.
-- **Typing moves the pin**, so the map and the fields are two views of one thing rather than two places to be wrong.
+- **Typing moves the pin**, so the map and the fields always show the same point.
 
 Tiles you have already looked at are stored by the app, so a location you checked at home still draws at the field with no signal. Somewhere you have never viewed cannot be drawn offline: the map says so and falls back to a coordinate grid, which still places the point by hemisphere. Tiles come from Esri, and only the ones for what you are looking at are ever requested: see **[Offline & Installing](./offline-and-installing.md)**.
 
-A location holds **only the site**. The rod, the wind and the atmosphere are conditions on the day, and a location that restored last month's wind would be worse than one that restored nothing: it would look authoritative. Locations live in this browser on this device, like your custom motors and materials; nothing is uploaded.
+A location holds **only the site**. The launcher, the wind and the atmosphere change from day to day, so a location does not store them. Locations live in this browser on this device, like your custom motors and materials; nothing is uploaded.
 
 ### Weather from Open-Meteo {#weather}
 
@@ -101,8 +101,8 @@ Two kinds of problem, which behave differently:
 **Faults in one simulation** only skip that row. Select six and run them: the good ones fly, and the button tells you which are being left out and why.
 
 - **No usable motor**: nothing loaded on the primary mount, or an imported `.ork` whose motor could not be matched to a thrust curve.
-- **A required launch field is blank**: rod length, rod angle, wind speed, wind standard deviation, site altitude, latitude or longitude. These have no sensible default, so a blank one is named rather than guessed at.
-- **Launch conditions outside the safety codes**: rod more than 30° from vertical for a model rocket or 20° for a high power one, or surface wind above 20 mph. See [Safety limits](#safety-limits) below.
+- **A required launch field is blank**: rail or rod length, rail or rod angle, wind speed, wind standard deviation, site altitude, latitude or longitude. These have no sensible default, so a blank one is named rather than guessed at.
+- **Launch conditions outside the safety codes**: a launcher more than 30° from vertical for a model rocket or 20° for a high power one, or surface wind above 20 mph. See [Safety limits](#safety-limits) below.
 
 The button only goes dead when *nothing* selected can fly. Otherwise it stays live, counts the rows that will actually run, and names the ones it is skipping. A row that cannot fly does not stop the others.
 
@@ -110,7 +110,7 @@ The button only goes dead when *nothing* selected can fly. Otherwise it stays li
 
 Launch conditions are checked against the **NAR** and **Tripoli** safety codes, which is why two fields refuse to go past them:
 
-- **Launch rod angle**: within **30°** of vertical for a model rocket, and within **20°** for a high power rocket.
+- **Launcher angle** (rail or rod): within **30°** of vertical for a model rocket, and within **20°** for a high power rocket.
 - **Wind speed**: at or below **20 mph** (32 km/h).
 
 Which angle applies depends on the flight configuration the simulation flies. It is high power when any motor has more than 160 N·s of total impulse or more than 80 N of average thrust, when the motors together hold more than 320 N·s or more than 125 g of propellant, or when the rocket weighs more than 1,500 g at liftoff; otherwise it is a model rocket. The hint under the angle field says which code applies. In Settings, where the defaults serve every configuration, the field stops at 30° and the hint states both limits.
@@ -135,12 +135,12 @@ Click its heading to fold the explanation away. Folding asks you to acknowledge 
 
 Under it, results are shown as tiles, in roughly chronological flight order, including:
 
-- **Rail-exit velocity** (flagged if below your safety minimum)
+- **Rail exit** (**Rod exit** or **Launcher exit**, after the design's guides): the speed as the rocket leaves the launcher, flagged if below your safety minimum
 - **Static margin @ rail exit** (**@ rod exit** or **@ launcher exit**, after the design's guides): the stability margin in calibers at the moment the rocket leaves the guide, with the CP at that moment, marked stable, marginal or unstable. The stats strip's stability figure is for the rocket on the pad; this one uses the real speed and the partly burned motor.
 - **Optimum delay** and **time to apogee**
 - **Apogee** (max altitude) and **max velocity / acceleration / Mach**
-- **Deployment speed** (flagged if above your warning threshold; green when safely low). On a [dual-deployment](./designing-a-rocket.md#dual-deployment) design the flight engine judges the main and the drogue against their own thresholds instead, and reports a warning for each.
-- **Landing speed**, **flight time**, and **downrange** distance
+- **Deploy speed** (flagged if above your warning threshold; green when safely low). On a [dual-deployment](./designing-a-rocket.md#dual-deployment) design the flight engine judges the main and the drogue against their own thresholds instead, and reports a warning for each.
+- **Landing** (the landing speed), **Flight time**, and **Downrange** distance
 - **Max-Q**, the peak dynamic pressure of the boost. The engine does not record it, so it is derived from the air density and speed of sound the run already carries; it is the peak load the airframe has to withstand. A result with no stored air density reports no Max-Q rather than a zero.
 - **Max q·α**, the largest dynamic pressure times angle of attack while the rocket still flies forward (up to deployment, else apogee), in the Max q pressure unit times your angle unit (kPa·° or psi·°, for example). The side load on fins and couplers follows it. Derived the same way as Max-Q.
 - **Max roll rate**, the fastest the rocket rolled during the flight, read from the engine's roll rate series.

@@ -24,7 +24,8 @@
 //   ORK_SAMPLES_DIR=<dir> npx vitest run tests/services/files/orkDesktopSamples.test.ts
 //   npm run check:ork -- <dir>/*.ork <dir>/*.rkt
 //
-// The gates workflow does both against the pinned release.
+// `npm run audit` (scripts/audit.mjs) does both against the pinned release; CI
+// does not run it.
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';

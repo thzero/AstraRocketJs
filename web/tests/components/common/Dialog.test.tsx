@@ -35,7 +35,7 @@ describe('Dialog', () => {
   beforeEach(() => localStorage.clear());
   afterEach(() => vi.clearAllMocks());
 
-  describe('the shape every dialog now gets for free', () => {
+  describe('the shape every dialog gets from the shared component', () => {
     it('names itself by its visible heading rather than a duplicate label', () => {
       const { dialog } = open();
       expect(dialog.getAttribute('aria-modal')).toBe('true');

@@ -158,7 +158,7 @@ export function canAutoFinTab(node: ComponentNode | null | undefined, parent: Co
  *
  * The offset method is forced to **top**, because both numbers it computes are
  * measured from the fin's leading edge. The desktop puts the user's own choice
- * back afterwards, which only matters there because its own spinner shows the
+ * back afterward, which only matters there because its own spinner shows the
  * offset in that frame; here the patch is the answer and the frame is part of it.
  */
 export function autoFinTab(tree: RocketTree, id: string): Partial<ComponentNode> | null {

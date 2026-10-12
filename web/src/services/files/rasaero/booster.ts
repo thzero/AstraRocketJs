@@ -53,8 +53,9 @@ export function writeBoosters(w: Cdx1Writer, stagesIn: ComponentNode[]): void {
     emit('<RailGuideDiameter>0</RailGuideDiameter>');
     emit('<RailGuideHeight>0</RailGuideHeight>');
     emit('<LaunchShoeArea>0</LaunchShoeArea>');
-    // The booster body starts after the shoulder (which slides into the stage above).
-    emit(`<Location>${fmt((w.locM + shoulderLen) * IN)}</Location>`);
+    // Where the booster's first part starts, its shoulder when it has one, as
+    // desktop's `BoosterDTO` writes `firstChild.getAxialOffset(ABSOLUTE)`.
+    emit(`<Location>${fmt(w.locM * IN)}</Location>`);
     emit('<Color>Black</Color>');
     emit(`<ShoulderLength>${fmt(shoulderLen * IN)}</ShoulderLength>`);
     emit('<NozzleExitDiameter>0</NozzleExitDiameter>');
@@ -64,7 +65,13 @@ export function writeBoosters(w: Cdx1Writer, stagesIn: ComponentNode[]): void {
     // Where the fin set's part starts from the nose tip: the stage's start plus
     // the parts ahead of it in the stage.
     const ahead = kids.slice(0, kids.indexOf(finParent)).filter((c) => isChainType(c.type));
-    finXml(w, finParent, w.locM + ahead.reduce((s, c) => s + partLength(c), 0));
+    // The booster is one body as long as all its tubes, and RASAero measures
+    // the fin's Location from that body's bottom, so the tubes after the one
+    // the fins are on lie between them, as desktop's `BoosterDTO` adds them
+    // (`finLocationOffset`).
+    const at = tubes.indexOf(finParent);
+    const behind = at < 0 ? 0 : tubes.slice(at + 1).reduce((s, t) => s + num(t, 'length', 0.1), 0);
+    finXml(w, finParent, w.locM + ahead.reduce((s, c) => s + partLength(c), 0), behind);
     emit('</Booster>');
     w.locM += shoulderLen + bodyLen + btLen;
   }

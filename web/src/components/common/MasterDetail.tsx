@@ -160,7 +160,7 @@ export function EditorFooter({
         onClick={onSave}
         disabled={!dirty || saveDisabled}
         title={saveTitle}
-        className="shrink-0 rounded-lg bg-accent-600 px-5 py-1.5 text-sm font-medium text-on-accent hover:bg-accent-500 disabled:cursor-not-allowed disabled:bg-raised disabled:text-ink-faint"
+        className="shrink-0 rounded-lg bg-accent-600 px-5 py-1.5 text-sm font-medium text-on-accent hover:bg-accent-700 disabled:cursor-not-allowed disabled:bg-raised disabled:text-ink-faint"
       >
         {t('common.save')}
       </button>

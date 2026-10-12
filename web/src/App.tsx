@@ -143,8 +143,9 @@ export default function App() {
       {/*
         One row of panes; the tab decides which of them are in it, so each tab
         gets the column layout it actually wants instead of all three sharing one
-        fixed grid. Design is tree · canvas · properties, Simulations is a single
-        full-width pane, Results is charts · summary.
+        fixed grid. Design is tree · canvas · properties, Configurations and
+        Simulations are a table with the selected row's editor beside it, Results
+        is charts · summary, and Tools is a single pane.
 
         On a phone exactly one pane is ever visible (the side columns are
         desktop-only), so source order is the phone's order and no reordering is
@@ -237,7 +238,7 @@ export default function App() {
 
         {/* right: the selected simulation's editor (Simulations tab; desktop
             only). On a phone it is inline under the table instead, so a phone
-            can still change a motor. */}
+            can still edit a simulation's launch conditions and options. */}
         {desktop && tab === 'sim' && (
           <RightColumn split={side} style={sideStyle}>
             <SimEditor />

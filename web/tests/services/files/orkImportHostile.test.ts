@@ -164,6 +164,31 @@ describe('the hostile-input caps actually fire', () => {
   });
 
   /**
+   * A stored member (method 0) is copied out at its compressed size, whatever
+   * its declared size says, and many central-directory entries can point at the
+   * same stored bytes. 130 entries over one 1 MiB member, each declaring 1 byte,
+   * would copy 130 MiB while declaring 130 bytes, past the 128 MiB total.
+   */
+  it('refuses stored entries that alias one member past the total cap', () => {
+    const zipped = zipSync({ 'rocket.ork': new Uint8Array(1024 * 1024).fill(0x20) }, { level: 0 });
+    const view = new DataView(zipped.buffer, zipped.byteOffset, zipped.byteLength);
+    const dirEnd = zipped.byteLength - 22;
+    const cdStart = view.getUint32(dirEnd + 16, true);
+    const record = zipped.slice(cdStart, dirEnd);
+    new DataView(record.buffer, record.byteOffset).setUint32(24, 1, true); // declared size: 1 byte
+    const copies = 130;
+    const out = new Uint8Array(cdStart + record.length * copies + 22);
+    out.set(zipped.subarray(0, cdStart));
+    for (let i = 0; i < copies; i++) out.set(record, cdStart + i * record.length);
+    out.set(zipped.subarray(dirEnd), cdStart + record.length * copies);
+    const end = new DataView(out.buffer, cdStart + record.length * copies);
+    end.setUint16(8, copies, true);
+    end.setUint16(10, copies, true);
+    end.setUint32(12, record.length * copies, true);
+    expect(() => importOrk(out.buffer)).toThrow('.ork archive is too large (possible zip bomb)');
+  });
+
+  /**
    * The declared-configuration cap. `captureDeployments` and `configScoped`
    * each re-scan a component's children once per config, so the import is
    * O(configs x components) on the main thread. A ~500 KB file declaring tens
@@ -248,7 +273,7 @@ describe('file-sourced counts are clamped to domain ceilings', () => {
     wrap(
       `<bodytube><name>Body</name><length>0.3</length><radius>0.012</radius><subcomponents>${inner}</subcomponents></bodytube>`,
     );
-  const first = (xml: string, type: string) => {
+  const findType = (components: unknown, type: string) => {
     const walk = (ns: { type: string; children?: unknown[] }[]): Record<string, unknown> | undefined => {
       for (const n of ns) {
         if (n.type === type) return n as Record<string, unknown>;
@@ -257,8 +282,9 @@ describe('file-sourced counts are clamped to domain ceilings', () => {
       }
       return undefined;
     };
-    return walk(importOrk(ork(xml)).tree.components as never)!;
+    return walk(components as never)!;
   };
+  const first = (xml: string, type: string) => findType(importOrk(ork(xml)).tree.components, type);
 
   // 8 is the kernel's limit, which desktop OpenRocket applies on load as well:
   // anything above it is a fin set the engine will not build.
@@ -307,13 +333,27 @@ describe('file-sourced counts are clamped to domain ceilings', () => {
       '',
     );
     const fin = `<freeformfinset><name>F</name><fincount>3</fincount><finpoints>${pts}</finpoints></freeformfinset>`;
-    expect((first(inTube(fin), 'freeformfinset').points as unknown[]).length).toBe(10_000);
+    const res = importOrk(ork(inTube(fin)));
+    expect(findType(res.tree.components, 'freeformfinset').points).toHaveLength(10_000);
+    // The dropped vertices are named, as the .rkt reader names them.
+    expect(res.notes).toContainEqual({ key: 'importNote.finPointsCapped', values: { max: 10_000 } });
   }, 60_000);
 
-  it('caps a parachute line count at 100', () => {
+  it('raises no cap note for an outline at the cap', () => {
+    const pts = Array.from({ length: 10_000 }, (_, i) => `<point x="${i * 1e-5}" y="${i % 2 ? 0.03 : 0}"/>`).join('');
+    const fin = `<freeformfinset><name>F</name><fincount>3</fincount><finpoints>${pts}</finpoints></freeformfinset>`;
+    const res = importOrk(ork(inTube(fin)));
+    expect(res.notes).not.toContainEqual(expect.objectContaining({ key: 'importNote.finPointsCapped' }));
+  }, 60_000);
+
+  // A chute with no lines is kept: `Parachute.setLineCount` takes 0, and the
+  // desktop reads a file's 0 through its IntSetter unchanged.
+  // The cap is the bridge's (ComponentFactory.MAX_LINE_COUNT), so a capped
+  // count still builds.
+  it('caps a parachute line count at 1024, and keeps a 0', () => {
     const chute = `<parachute><name>C</name><diameter>0.3</diameter><linecount>100000</linecount></parachute>`;
-    expect(first(inTube(chute), 'parachute').lineCount).toBe(100);
+    expect(first(inTube(chute), 'parachute').lineCount).toBe(1024);
     const none = `<parachute><name>C</name><diameter>0.3</diameter><linecount>0</linecount></parachute>`;
-    expect(first(inTube(none), 'parachute').lineCount).toBe(1);
+    expect(first(inTube(none), 'parachute').lineCount).toBe(0);
   });
 });

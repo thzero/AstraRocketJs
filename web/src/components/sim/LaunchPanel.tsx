@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { LaunchConditions } from '../../services/design/orkTree';
 import { isFilled, missingRequired, type RequiredLaunchKey } from '../../services/flight/requiredLaunch';
@@ -39,12 +39,13 @@ import { seaLevelExcessPa } from '../../services/flight/sitePressure';
  * Launch & atmosphere conditions for the flight simulation: wind (single average
  * or an altitude-layered multilevel profile), launch rod, launch site, base
  * atmosphere, and the Earth (geodetic) model. Emits a shallow patch on change;
- * App feeds these straight into simulate(). Populated from an imported .ork.
+ * the owner (the simulation editor or the launch defaults tab) merges it into
+ * the conditions it holds.
  */
 
 /**
  * A launch-condition field in the user's chosen unit. `value`/`onChange` speak
- * the stored convention (see SI above); `stepSi`/`minSi` are given in SI, so a
+ * the stored convention (see `LAUNCH_SI` in `launchUnits.ts`); `stepSi`/`minSi` are given in SI, so a
  * sensible 0.5 m/s or 10 m stays sensible once it is shown in ft/s or ft.
  */
 export function QNum({
@@ -157,6 +158,10 @@ export function LaunchPanel({
   const { t: plainT } = useTranslation();
   const t = withLauncher(plainT as unknown as (key: string, options?: Record<string, unknown>) => string, launcher);
   const u = useUnits();
+  // The wind model radios' group name, one per panel. Settings opens its own
+  // panel over the simulation editor's, and radios that share a name are one
+  // group to the browser: an arrow key in one would check the other's.
+  const windGroup = useId();
   /**
    * A safety-code cap in the unit its own field is shown in, resolved the way
    * QNum resolves it, chip override included. A hint that quotes the rule in a
@@ -358,9 +363,14 @@ export function LaunchPanel({
                   if (!mine()) return;
                   setLocating(false);
                   setLocateErr(null);
+                  // The elevation is cleared, as LocationPicker clears it for a
+                  // place with none known: the browser's altitude is height
+                  // above the ellipsoid, not above sea level, and keeping the
+                  // previous site's would fly the wrong air unannounced.
                   onChange({
                     latitudeDeg: +pos.coords.latitude.toFixed(4),
                     longitudeDeg: +pos.coords.longitude.toFixed(4),
+                    launchAltitudeM: null,
                   });
                   onCommit?.();
                 },
@@ -399,7 +409,8 @@ export function LaunchPanel({
             latitudeDeg={launch.latitudeDeg}
             longitudeDeg={launch.longitudeDeg}
             onPick={(la, lo) => {
-              onChange({ latitudeDeg: la, longitudeDeg: lo });
+              // A point on the map has no elevation of its own; see above.
+              onChange({ latitudeDeg: la, longitudeDeg: lo, launchAltitudeM: null });
               onCommit?.();
             }}
             onClose={() => setMapOpen(false)}
@@ -518,7 +529,7 @@ export function LaunchPanel({
                 <label key={m} className="flex items-center gap-1.5">
                   <input
                     type="radio"
-                    name="windModel"
+                    name={windGroup}
                     checked={multilevel === (m === 'multilevel')}
                     onChange={() => {
                       setWindModel(m);

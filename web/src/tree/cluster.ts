@@ -122,9 +122,8 @@ export function clusterCount(cluster: string | undefined): number {
  *
  * Two things InnerTube.getClusterPoints (InnerTube.java:263-273) also does and
  * this does not: it rotates by `clusterRotation − radialDirection`, and it adds
- * the `radialPosition` offset. Neither is drawn app-side, so a cluster that is
- * also radially offset still draws on the axis. Anything that places the tubes
- * for real (splitting a cluster, writing one tube per motor) uses
+ * the `radialPosition` offset. Anything that places the tubes for real (the
+ * views, splitting a cluster, writing one tube per motor) uses
  * {@link clusterPoints}, which does both.
  */
 export function clusterOffsets(

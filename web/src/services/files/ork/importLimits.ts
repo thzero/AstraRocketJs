@@ -1,5 +1,9 @@
 import { KeyedError } from '../../../i18n/keyedError';
-import { MAX_FIN_COUNT as KERNEL_MAX_FIN_COUNT, MAX_INSTANCE_COUNT } from '../../../tree/nodeProps';
+import {
+  MAX_FIN_COUNT as KERNEL_MAX_FIN_COUNT,
+  MAX_INSTANCE_COUNT,
+  MAX_LINE_COUNT as NODE_MAX_LINE_COUNT,
+} from '../../../tree/nodeProps';
 
 /**
  * Ceilings the .ork reader holds an untrusted file to. A real design is a few
@@ -47,7 +51,9 @@ export const MAX_FIN_POINTS = 10_000;
 // thread -- a hung tab rather than the clear error these limits promise.
 // The largest real designs are a few hundred parts.
 const MAX_COMPONENTS = 10_000;
-export const MAX_LINE_COUNT = 100;
+// Shroud lines take the bridge's ceiling (nodeProps.MAX_LINE_COUNT), the same
+// one the editor holds the field to.
+export const MAX_LINE_COUNT = NODE_MAX_LINE_COUNT;
 // Simulations in one .ork. The byte caps do not bound this either: a
 // `<simulation/>` is 13 bytes, and each one is read (its launch conditions and
 // passthrough XML) and becomes a row in the workspace, the table and storage.

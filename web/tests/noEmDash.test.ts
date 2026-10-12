@@ -8,18 +8,22 @@ import { fileURLToPath } from 'node:url';
  * period or parentheses, and an empty readout shows `NO_VALUE` from
  * `src/i18n/noValue`. The scan covers:
  * - `web/`: src, tests, e2e, scripts and the root config files;
- * - `website/`: the docs, the English translations, src and the config files;
+ * - `website/`: the docs, src and the config files, and an `i18n/en` tree if
+ *   one is added;
  * - `.github/`: the workflows and the issue forms;
- * - `engine-java/`: the facade under `src/api` (its exception text reaches the
- *   UI), the build files and the Markdown;
+ * - `engine-java/`: everything the project writes there: the facade under
+ *   `src/api` (its exception text reaches the UI), the build files, the extract
+ *   and build scripts, the manifest, the patches, the parity and validation
+ *   harnesses, and the Markdown;
  * - `docs/` Markdown, the root Markdown, the root dotfiles and `cspell.json`.
  *
  * Out of scope on purpose:
  * - the non-English locale files (`web/src/i18n/locales`, `website/i18n`), where
  *   the em dash (es, ru) is native punctuation;
  * - the vendored TeaVM bundle under `src/engine/vendor`, which is generated;
- * - the extracted OpenRocket sources under `engine-java/src/java`, which are
- *   upstream's text;
+ * - the extracted OpenRocket sources under `engine-java/src/java` and the
+ *   upstream checkout `engine-java/.openrocket-src`, which are upstream's text,
+ *   and the Gradle output under `build`, `reference/build` and `.gradle`;
  * - `docs/rasaero/diffs`, which quotes RASAero's own files;
  * - `web/package-lock.json`, and the `node_modules`, `build` and `.docusaurus`
  *   output trees.
@@ -49,7 +53,17 @@ const isForeignLocale = (path: string): boolean =>
   /\/i18n\/locales\/(?!en\.json$)[^/]+\.json$/.test(path) || /\/website\/i18n\/(?!en\/)/.test(path);
 
 /** Trees that are generated, vendored or quoted, never edited by hand. */
-const skipped = ['/src/engine/vendor', '/docs/rasaero/diffs', '/website/build', '/website/.docusaurus'];
+const skipped = [
+  '/src/engine/vendor',
+  '/docs/rasaero/diffs',
+  '/website/build',
+  '/website/.docusaurus',
+  '/engine-java/src/java',
+  '/engine-java/.openrocket-src',
+  '/engine-java/build',
+  '/engine-java/reference/build',
+  '/engine-java/.gradle',
+];
 
 const walk = (dir: string, keep: (path: string) => boolean, out: string[] = []): string[] => {
   for (const entry of readdirSync(dir)) {
@@ -91,9 +105,7 @@ const files = [
   ...top(web.slice(0, -1), (f) => !f.endsWith('/package-lock.json')),
   ...tree(`${repo}website`, anyFile),
   ...tree(`${repo}.github`, anyFile),
-  ...tree(`${repo}engine-java/src/api`, anyFile),
-  ...top(`${repo}engine-java`, (f) => markdown(f) || /\/(build\.gradle|gradle\.properties)$/.test(f)),
-  ...top(`${repo}engine-java/patches`, markdown),
+  ...tree(`${repo}engine-java`, anyFile),
   ...tree(`${repo}docs`, markdown),
   ...top(repo.slice(0, -1), (f) => markdown(f) || /\/(\.[^/]+|cspell\.json)$/.test(f)),
   ...tree(`${repo}.cspell`, anyFile),
@@ -137,6 +149,8 @@ describe('the em dash', () => {
     expect(files.some((f) => f.endsWith('/engine-java/src/api/java/api/OpenRocketEngine.java'))).toBe(true);
     expect(files.some((f) => f.includes('/engine-java/src/java/'))).toBe(false);
     expect(files.some((f) => f.endsWith('/engine-java/build.gradle'))).toBe(true);
+    expect(files.some((f) => f.endsWith('/engine-java/extract/manifest.txt'))).toBe(true);
+    expect(files.some((f) => f.includes('/engine-java/.openrocket-src/'))).toBe(false);
     expect(files.some((f) => f.endsWith('/web/vitest.config.ts'))).toBe(true);
     expect(files.some((f) => f.endsWith('/.gitattributes'))).toBe(true);
     expect(files.some((f) => f.endsWith('/CODE_OF_CONDUCT.md'))).toBe(true);

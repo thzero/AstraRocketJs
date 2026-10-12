@@ -98,7 +98,7 @@ export function ImageExportMenu({
                 tabIndex={-1}
                 className="file-btn"
                 title={t('export.pxWide', { width: w })}
-                aria-label={`${formatName(fmt)} ${widthLabel(w)}, ${w} px`}
+                aria-label={t('export.imageOption', { format: formatName(fmt), size: widthLabel(w), width: w })}
                 onClick={() => {
                   // Back to the trigger: the item holding focus unmounts.
                   closeAndRestore();

@@ -34,8 +34,10 @@ export type Key =
 export interface Meta {
   key: Key;
   label: string;
-  /** Fixed unit label, for series that have no user-selectable unit (Mach, cal). */
+  /** Fixed unit label, for series that have no user-selectable unit (Mach). */
   unit: string;
+  /** A fixed unit label that is a word, so it is translated (calibers). */
+  unitKey?: string;
   digits: number;
   /**
    * The preference group this series belongs to. When set it supplies both the
@@ -74,7 +76,15 @@ export const SERIES: Meta[] = [
   { key: 'thrust', label: 'flight.thrust', unit: 'N', digits: 1, quantity: 'force' },
   { key: 'drag', label: 'flight.drag', unit: 'N', digits: 2, quantity: 'force' },
   { key: 'mass', label: 'flight.mass', unit: 'g', digits: 0, scale: 1000, level: true, quantity: 'mass' },
-  { key: 'stability', label: 'flight.stability', unit: 'cal', digits: 2, level: true, aero: true },
+  {
+    key: 'stability',
+    label: 'flight.stability',
+    unit: '',
+    unitKey: 'stability.caliber',
+    digits: 2,
+    level: true,
+    aero: true,
+  },
   {
     key: 'cpLocation',
     label: 'flight.cp',
@@ -106,8 +116,14 @@ export const traceScale = (m: Meta, u: Pick<Units, 'factor'>): number =>
   m.quantity ? u.factor(m.quantity) * (m.times ? u.factor(m.times) : 1) : (m.scale ?? 1);
 
 /** The unit a series is labeled in: the reader's, or its fixed label. */
-export const traceUnit = (m: Meta, u: Pick<Units, 'sym'>): string =>
-  m.quantity ? (m.times ? `${u.sym(m.quantity)}·${u.sym(m.times)}` : u.sym(m.quantity)) : m.unit;
+export const traceUnit = (m: Meta, u: Pick<Units, 'sym'>, t: (key: string) => string): string =>
+  m.quantity
+    ? m.times
+      ? `${u.sym(m.quantity)}·${u.sym(m.times)}`
+      : u.sym(m.quantity)
+    : m.unitKey
+      ? t(m.unitKey)
+      : m.unit;
 
 /** One stage's samples on a panel: the points drawn and the span it flew. */
 export interface PanelLine {

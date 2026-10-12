@@ -36,12 +36,12 @@ La anulación es por campo, así que una configuración puede mover la altitud y
 
 Una pieza que alguna configuración abre de otra forma lo indica en el [panel de propiedades](./designing-a-rocket.md) del diseño, nombrando esas configuraciones, de modo que la altitud en pantalla nunca es un número que el vuelo ignoró en silencio.
 
-## Etapas {#staging}
+## Separación {#staging}
 
 Una tarjeta por etapa, se separe o no.
 
 - **Vuela en esta configuración** decide si la etapa va en el vuelo. Una etapa en tierra no aporta masa, ni resistencia, ni motor: el resto del cohete vuela sin ella, que es como se vuela un diseño de dos etapas como su propio sustentador sin borrar el propulsor. Algo tiene que volar, así que la última etapa que queda en el aire no se puede dejar en tierra.
-- **Separación de etapas**, **Retardo de separación** y **Altitud de separación** dicen cuándo se suelta un propulsor, con la misma vuelta al diseño que tienen los campos de recuperación. La etapa superior no tiene nada encima de lo que soltarse, así que solo muestra la casilla de vuela.
+- **Separación de etapa**, **Retardo de separación** y **Altitud de separación (AGL)** dicen cuándo se suelta un propulsor, con la misma vuelta al diseño que tienen los campos de recuperación. La etapa superior no tiene nada encima de lo que soltarse, así que solo muestra la casilla **Vuela en esta configuración**.
 
 ## Elegir una para una simulación {#choosing-one-for-a-simulation}
 

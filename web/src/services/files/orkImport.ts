@@ -158,25 +158,35 @@ function versionNotes(doc: Document): ImportNote[] {
 
 /**
  * Desktop's names for the simulation extensions it ships, by class name: each
- * class's `getName()` (core/simulation/extension/example and impl). CSVSave
- * has none of its own, so desktop shows its class name, as this does for any id
- * not listed here.
+ * class's `getName()` (core/simulation/extension/example and impl). Air-start,
+ * Java code and scripting names are translated there, so they are keys here;
+ * the rest are English in desktop whatever its language. CSVSave has none of its
+ * own, so desktop shows its class name, as this does for any id not listed here.
  */
-const EXTENSION_NAMES: Readonly<Record<string, string>> = {
-  AirStart: 'Air-start',
+const EXTENSION_NAMES: Readonly<Record<string, string | { key: string }>> = {
+  AirStart: { key: 'importNote.extensionName.airStart' },
   RollControl: 'Roll Control',
   StopSimulation: 'Stop Simulation',
   PrintSimulation: 'Print Simulation Values',
   DampingMoment: 'Damping moment coefficient (Cdm) (built-in)',
-  JavaCode: 'Java code',
-  ScriptingExtension: 'script',
+  JavaCode: { key: 'importNote.extensionName.javaCode' },
+  ScriptingExtension: { key: 'importNote.extensionName.script' },
 };
 
-/** An extension's name as desktop shows it, from its id's last segment. */
-function extensionName(id: string): string {
+/**
+ * An extension's name as desktop shows it, from its id's last segment. A
+ * script names its language, from the extension's `language` entry, with
+ * desktop's default when the file gives none.
+ */
+function extensionName(id: string, el: Element): string {
   const cls = id.trim().split('.').pop() || 'unnamed';
   // Own keys only: the id comes from the file, and "constructor" must not read Object.prototype.
-  return Object.hasOwn(EXTENSION_NAMES, cls) ? EXTENSION_NAMES[cls]! : cls;
+  const name = Object.hasOwn(EXTENSION_NAMES, cls) ? EXTENSION_NAMES[cls]! : cls;
+  if (typeof name === 'string') return name;
+  const language =
+    [...el.querySelectorAll(':scope > entry')].find((e) => e.getAttribute('key') === 'language')?.textContent?.trim() ||
+    'JavaScript';
+  return i18n.t(name.key, { language });
 }
 
 /**
@@ -206,7 +216,7 @@ function archiveNotes(doc: Document, dropped: string[]): ImportNote[] {
   ];
   if (extensions.length) {
     const names = [
-      ...new Set(extensions.map((e) => extensionName(e.getAttribute('extensionid') ?? e.textContent ?? ''))),
+      ...new Set(extensions.map((e) => extensionName(e.getAttribute('extensionid') ?? e.textContent ?? '', e))),
     ];
     out.push(keyedNote('importNote.extensions', { names: fmtList(names) }));
   }

@@ -221,7 +221,7 @@ export function MotorDashboard({ onClose }: { onClose: () => void }) {
                 <div className="space-y-2 text-left">
                   <button
                     onClick={() => setMode('compare')}
-                    className="w-full rounded-lg bg-accent-600 px-3 py-2 text-sm font-medium text-on-accent hover:bg-accent-500"
+                    className="w-full rounded-lg bg-accent-600 px-3 py-2 text-sm font-medium text-on-accent hover:bg-accent-700"
                   >
                     {t('dash.compareN', { n: checked.size })}
                   </button>

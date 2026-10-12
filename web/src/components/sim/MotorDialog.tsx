@@ -60,7 +60,7 @@ function findSeated(catalog: CatalogMotor[], cur: MotorSpec): CatalogMotor | und
 /**
  * Modal motor picker. Filters the catalog by engine code (text), manufacturer(s),
  * impulse class, total impulse, diameter, whether the motor comes plugged, and
- * (by default) whether it fits the mount; imports a custom .eng; resolves the
+ * (by default) whether it fits the mount; imports a custom .eng or .rse; resolves the
  * chosen motor's thrust curve via `onSelect`.
  *
  * Mounted only while open (`{open && <MotorDialog />}`), so every piece of
@@ -423,7 +423,7 @@ export function MotorDialog({
                 <button
                   onClick={() => pick(shown, curveIdx)}
                   disabled={loadingKey !== null}
-                  className="shrink-0 rounded-lg bg-accent-600 px-5 py-1.5 text-sm font-medium text-on-accent hover:bg-accent-500 disabled:cursor-not-allowed disabled:bg-raised disabled:text-ink-faint"
+                  className="shrink-0 rounded-lg bg-accent-600 px-5 py-1.5 text-sm font-medium text-on-accent hover:bg-accent-700 disabled:cursor-not-allowed disabled:bg-raised disabled:text-ink-faint"
                 >
                   {loadingKey !== null ? t('motorDlg.loading') : t('motorDlg.select')}
                 </button>

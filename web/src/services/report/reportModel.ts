@@ -217,7 +217,7 @@ export type MassBuild = Pick<OpenRocketDesign, 'setStageActiveById' | 'staticInf
  * with the stage it is attached to.
  *
  * `build` builds the configured rocket (a real build resets the shared engine,
- * so the caller restores the live handle afterwards). `whole`, when given, is the
+ * so the caller restores the live handle afterward). `whole`, when given, is the
  * launch mass of this exact configuration with every stage on, from a build
  * already in hand; with it, a configuration that grounds nothing needs no build
  * for a motor in the bottom stage.

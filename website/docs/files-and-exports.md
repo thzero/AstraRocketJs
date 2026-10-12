@@ -26,7 +26,7 @@ What does not:
 - **Ring tails**, which have no equivalent here.
 - **Subassemblies**, whose contents are merged into the design rather than kept as a group.
 
-Going the other way, RockSim has no element for **rail buttons** or **parallel (strap-on) stages**. Those are left out of the file, and the app tells you which parts were dropped rather than letting you find out when somebody else opens it.
+Going the other way, RockSim has no element for **rail buttons**. They are left out of the file, and the app tells you which parts were dropped rather than letting you find out when somebody else opens it. A strap-on booster goes out as a pod that separates, which is how RockSim and desktop OpenRocket write one, and a set of pods or boosters goes out as one pod per copy.
 
 > **Menu → Open and Save As work on designs saved inside the app** (see [Saved designs](#saved-designs) below); `.ork` files move to and from your disk through **Import** and **Export**.
 
@@ -101,7 +101,7 @@ Tick the elements to include:
 
 Plus a few options:
 
-- **Motors Summary**: per simulation, a flight summary (apogee, times, and off-rod / max / deployment / landing velocities) and a motor table (average and peak thrust, burn time, total impulse, thrust-to-weight, weight, size).
+- **Motors Summary**: per simulation, a flight summary (apogee, times, and launcher-exit / max / deployment / landing velocities) and a motor table (average and peak thrust, burn time, total impulse, thrust-to-weight, weight, size).
 - **Update simulation data**: re-runs the simulation first so the flight numbers are current (it doesn't change your on-screen view).
 - **Show by stage**: group the summary and parts by stage.
 
@@ -176,14 +176,14 @@ After a simulation, the **3D path** view has an **⬇ Export** button that saves
 
 In the export dialog you choose which **waypoints** to include (pad, liftoff, burnout, apogee, ejection, landing, max velocity, max acceleration), whether to include the **flight-path line** and the **ground track**, how much to thin the path (**keep every Nth point**), and the **altitude / distance units**.
 
-**Presets** (*Drift cast*, *Flight path* and *Landing plots*) set all three of those at once, because the waypoints, the lines and the placement have to agree for a file to answer one question well. They only move the controls, so what the file will contain is always what the dialog shows, and any one of them is a starting point you can adjust. Each states its selection in full, waypoints included, so no preset is a one-way door: *Landing plots* narrows the waypoints to the landing, and going back to *Drift cast* puts them all back.
+**Presets** (*Drift cast*, *Flight path* and *Landing plots*) set all three of those at once. They only move the controls, so the file contains what the dialog shows, and you can adjust any control afterward. Each preset sets its whole selection, waypoints included: *Landing plots* narrows the waypoints to the landing, and *Drift cast* puts them all back.
 
-The one that matches the controls is highlighted, and a fresh dialog opens on *Flight path*. Because a preset only moves the controls, the highlight clears the moment you change one of the things it covers, and comes back when the controls spell that preset out again; it never claims a shape the dialog has since been adjusted out of.
+The one that matches the controls is highlighted, and a fresh dialog opens on *Flight path*. Because a preset only moves the controls, the highlight clears the moment you change one of the things it covers, and comes back when the controls match that preset again.
 
 **Placement** controls how the track sits on the map:
 
-- **Track altitude from** and **Waypoint altitude from**: two separate choices, because the line and the pins want different things. *Automatic* uses sea level when the launch site has a real altitude set and the ground when it is still 0. That default matters: a flight measured from the pad but placed against sea level is buried under the terrain, which is what a launch site at 1200 m would otherwise give you. *Clamped to the ground* lays the track flat on the terrain, the one to pick when the question is what the rocket drifts **over** rather than how high it went. A common pairing is the track at sea level with the pins clamped: the flight suspended in the air where it belongs, and its labels readable against the ground they sit over.
-- **Draw shadow down to the ground**: a curtain under the track and a plumb line under each pin, so you can read where a point in the air sits on the map. It switches off on its own once both halves are clamped, since there is nothing left to draw from. No preset turns it on: under a single pin it reads as a position, but under the whole length of an arcing flight path it is a solid wall that buries the flight it is meant to explain. Turn it on for the case it is good at, which is placing one particular point on the map.
+- **Track altitude from** and **Waypoint altitude from**: two separate choices, because the line and the pins want different things. *Automatic* uses sea level when the launch site has a real altitude set and the ground when it is still 0. That default matters: a flight measured from the pad but placed against sea level is buried under the terrain, which is what a launch site at 1200 m would otherwise give you. *Clamped to the ground* lays the track flat on the terrain, the one to pick when the question is what the rocket drifts **over** rather than how high it went. A common pairing is the track at sea level with the pins clamped: the flight drawn in the air, and its labels on the ground.
+- **Draw shadow down to the ground**: a curtain under the track and a plumb line under each pin, so you can read where a point in the air sits on the map. It switches off on its own once both halves are clamped, since there is nothing left to draw from. No preset turns it on: under a single pin it marks a position, but under a whole flight path it draws a solid wall that hides the flight. It is most useful for placing one point on the map.
 - **Draw waypoint names on the map**: a near-vertical flight stacks its waypoints into a few hundred meters of screen; turn the names off for bare markers you can click.
 - **Color waypoint pins per stage**: colored pins load an icon from Google's servers, so turn them off for a file that has to render offline.
 

@@ -21,7 +21,7 @@
  */
 import type { ComponentNode } from '../engine/openRocketEngine';
 import { KERNEL_AUTO_RADIUS, KERNEL_DEFAULTS, KERNEL_SHAPES } from './kernelDefaults';
-import { num, numOpt } from './nodeProps';
+import { bodyTubeRadius, num, numOpt } from './nodeProps';
 import { partLength } from './position';
 
 const MINFEATURE = 0.001;
@@ -248,7 +248,7 @@ export function outerProfile(
   }
 
   // Transition.getRadius() normalizes to the small end first: r1 < r2,
-  // x measured from the small end, flipped back afterwards.
+  // x measured from the small end, flipped back afterward.
   const flipped = foreR > aftR;
   const r1 = flipped ? aftR : foreR;
   const r2 = flipped ? foreR : aftR;
@@ -328,6 +328,8 @@ export function stationRadius(node: ComponentNode, x: number): number {
       const pts = outerProfile(nodeShape(node), numOpt(node, 'shapeParameter'), length, foreR, aftR, 1, [at], clipped);
       return pts.find(([px]) => Math.abs(px - at) < 1e-9)?.[1] ?? aftR;
     }
+    case 'bodytube':
+      return bodyTubeRadius(node);
     default:
       return num(node, 'outerRadius');
   }

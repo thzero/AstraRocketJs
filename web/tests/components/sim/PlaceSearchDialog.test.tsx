@@ -111,3 +111,22 @@ describe('PlaceSearchDialog offline', () => {
     }
   });
 });
+
+describe('PlaceSearchDialog place detail', () => {
+  /** One key, so a language that names the country first can say it that way. */
+  it('orders region and country as the language does', async () => {
+    const i18n = (await import('../../../src/i18n')).default;
+    await i18n.changeLanguage('ja');
+    try {
+      serve(PUEBLO);
+      renderWithProviders(<PlaceSearchDialog onPick={() => {}} onClose={() => {}} />);
+      fireEvent.change(screen.getByLabelText(new RegExp(i18n.t('placeSearch.label').slice(0, 4))), {
+        target: { value: 'Pueblo' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: i18n.t('placeSearch.search') }));
+      expect(await screen.findByRole('button', { name: /Pueblo.*United States Colorado/ })).toBeTruthy();
+    } finally {
+      await i18n.changeLanguage('en');
+    }
+  });
+});

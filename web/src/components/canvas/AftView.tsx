@@ -3,9 +3,10 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
 import { anyOuterRadius, countOf, num } from '../../tree/nodeProps';
-import { FIN_DEFAULTS, KERNEL_DEFAULTS, KERNEL_RAILBUTTON_OUTER_DIAMETER } from '../../tree/kernelDefaults.js';
+import { FIN_DEFAULTS, KERNEL_DEFAULTS } from '../../tree/kernelDefaults.js';
+import { railButtonSize } from './railButton';
 import { bodyRadiusAt, finMount, finSpan, mountRadius } from '../../tree/finPlanform.js';
-import { clusterOffsets } from '../../tree/cluster.js';
+import { placementOffsets } from '../../tree/placement';
 import { isPlanarFinSet, tubeFinRadius } from '../../tree/tubefins.js';
 import {
   assemblyChainLength,
@@ -24,10 +25,12 @@ import {
   zoomStep,
   type MotorDims,
 } from '../../tree/schematicGeometry';
+import { ZoomButtons } from './ZoomButtons';
 import { useWheelZoom } from './useWheelZoom';
 import { keyPan } from './keyPan';
 import { discDims, tubeRadii } from '../../services/design/discGeometry';
 import { DISC_TYPES } from '../../services/files/componentFormats';
+import { withKernelEnds } from '../../services/design/autoRadius';
 import { partLabel } from '../../i18n/format';
 import { radToDeg } from '../../prefs/units';
 import { token } from '../common/colorTokens';
@@ -158,6 +161,27 @@ export function buildAftScene(
    * transition is not that radius. `pStart` and `pLen` place the parent in the
    * rocket frame.
    */
+  /**
+   * A place across the parent (`placementOffsets`, the kernel's frame) turned
+   * +π/2 into this view's "up = 0°" frame, the fins' reference, so a cluster or
+   * an off-center part clocks like the fins and the 3D view.
+   */
+  const toAftFrame = (raw: { y: number; z: number }) => ({ y: -raw.z, z: raw.y });
+
+  /** An internal part's outline in section: a dashed circle. */
+  const dashedCircle = (child: ComponentNode, i: number, y: number, z: number, r: number, dash: string) =>
+    inner.push({
+      kind: 'circle',
+      key: keyOf(child, i),
+      y,
+      z,
+      r,
+      fill: 'none',
+      stroke: colorOf(child, token('sch-ink')),
+      dash,
+      title: nameOf(child),
+    });
+
   function walkChildren(parent: ComponentNode, pRadius: number, cy: number, cz: number, pStart: number, pLen: number) {
     /** The body radius under a child of length `len` at its own station. */
     const surfaceUnder = (child: ComponentNode, len: number): number =>
@@ -238,22 +262,35 @@ export function buildAftScene(
           title: nameOf(child),
         });
         reach(cy, cz, R + hgt);
-      } else if (type === 'launchlug' || type === 'railbutton') {
-        // Kernel default (the RailButton constructor), so the aft view shows
-        // the button that is actually simulated.
-        const r =
-          type === 'railbutton'
-            ? num(child, 'outerDiameter', KERNEL_RAILBUTTON_OUTER_DIAMETER) / 2
-            : num(child, 'outerRadius', KERNEL_DEFAULTS.launchlug.outerRadius);
+      } else if (type === 'railbutton') {
+        // Seen from behind, a button is its outer diameter across and its
+        // height out from the body, the kernel's own when absent, standing at
+        // its radial mount angle (kernel default 180°) on the body radius at
+        // its own station. The +π/2 is the aft view's "up = 0°" convention.
+        const { diameter, reach: out } = railButtonSize(child);
+        const R = surfaceUnder(child, diameter);
+        outer.push({
+          kind: 'fin',
+          key: keyOf(child, 0),
+          y: cy,
+          z: cz,
+          angle: Math.PI / 2 + num(child, 'angleOffset', Math.PI),
+          from: R,
+          to: R + out,
+          thick: diameter,
+          fill: colorOf(child, token('sch-part-light')),
+          stroke: token('sch-line'),
+          title: nameOf(child),
+        });
+        reach(cy, cz, R + out);
+      } else if (type === 'launchlug') {
+        const r = num(child, 'outerRadius', KERNEL_DEFAULTS.launchlug.outerRadius);
         // Radial mount angle (kernel default 180°). The +π/2 is the aft view's
         // "up = 0°" convention (the same offset the fin sets carry here), so a
         // lug clocks consistently with the fins and with the 3D view.
         const ang = Math.PI / 2 + num(child, 'angleOffset', Math.PI);
         // It stands on the body radius at its own station.
-        const R = surfaceUnder(
-          child,
-          type === 'railbutton' ? 2 * r : num(child, 'length', KERNEL_DEFAULTS.launchlug.length),
-        );
+        const R = surfaceUnder(child, num(child, 'length', KERNEL_DEFAULTS.launchlug.length));
         const rad = R + r;
         outer.push({
           kind: 'circle',
@@ -268,28 +305,12 @@ export function buildAftScene(
         reach(cy, cz, R + 2 * r);
       } else if (type === 'innertube') {
         const { length: tubeLen, radius: r } = innerTubeExtent(child);
-        const offs = clusterOffsets(
-          child['cluster'] as string | undefined,
-          r,
-          num(child, 'clusterScale', 1),
-          num(child, 'clusterRotation', 0),
-        );
+        // Each cluster place, as the kernel puts it (placementOffsets).
+        const offs = placementOffsets(child, r);
         const motor = child.id ? motors?.[child.id] : undefined;
         offs.forEach((raw, i) => {
-          // Rotate the cluster +π/2 into the aft view's "up = 0°" frame (the fins'
-          // reference), so a split cluster clocks like the fins and the 3D view.
-          const off = { y: -raw.z, z: raw.y };
-          inner.push({
-            kind: 'circle',
-            key: keyOf(child, i),
-            y: cy + off.y,
-            z: cz + off.z,
-            r,
-            fill: 'none',
-            stroke: colorOf(child, token('sch-ink')),
-            dash: '3 2',
-            title: nameOf(child),
-          });
+          const off = toAftFrame(raw);
+          dashedCircle(child, i, cy + off.y, cz + off.z, r, '3 2');
           if (motor) inner.push(motorShape(child, i, cy + off.y, cz + off.z, motor.diameter));
           reach(cy + off.y, cz + off.z, r);
         });
@@ -301,25 +322,17 @@ export function buildAftScene(
         const disc = discDims(child, tubeRadii(parent), parent.children ?? []);
         if (!disc) continue;
         const rings = disc.innerR > 0 ? [disc.outerR, disc.innerR] : [disc.outerR];
-        rings.forEach((r, i) =>
-          inner.push({
-            kind: 'circle',
-            key: keyOf(child, i),
-            y: cy,
-            z: cz,
-            r,
-            fill: 'none',
-            stroke: colorOf(child, token('sch-ink')),
-            dash: '2 3',
-            title: nameOf(child),
-          }),
-        );
+        // Off the axis by its own radial position.
+        const off = toAftFrame(placementOffsets(child, disc.outerR)[0]!);
+        rings.forEach((r, i) => dashedCircle(child, i, cy + off.y, cz + off.z, r, '2 3'));
       }
       // parachute/streamer/shockcord/mass: no meaningful cross-section here.
     }
   }
 
-  walkChain(components, 0, 0, 0);
+  // A transition end with no radius on record is drawn as the kernel resolves
+  // it, as the side and 3D views draw it.
+  walkChain(withKernelEnds({ name: '', components }).components, 0, 0, 0);
 
   // Big circles first so nested ones stay visible.
   hulls.sort((a, b) => (b.kind === 'circle' ? b.r : 0) - (a.kind === 'circle' ? a.r : 0));
@@ -522,36 +535,8 @@ export function AftView({
           <line x1={0} y1={-E * 0.05} x2={0} y2={E * 0.05} stroke={token('sch-ink')} strokeWidth={E / 300} />
         </g>
       </svg>
-      {/* Gated the way `SchematicControls` gates the same three. At the default
-          view both zoom-out and fit are no-ops (`zoomBy` clamps the scale at 1
-          and the view already is `ZOOM_IDENTITY`), so they are disabled rather
-          than clickable and inert. Zoom-in disables at the shared ceiling for
-          the same reason. */}
       <div className="schematic-controls">
-        <button
-          title={t('schematic.zoomIn')}
-          aria-label={t('schematic.zoomIn')}
-          onClick={() => zoomBy(1.5)}
-          disabled={zoom.k >= WHEEL_ZOOM.max}
-        >
-          +
-        </button>
-        <button
-          title={t('schematic.zoomOut')}
-          aria-label={t('schematic.zoomOut')}
-          onClick={() => zoomBy(1 / 1.5)}
-          disabled={zoom.k <= 1}
-        >
-          −
-        </button>
-        <button
-          title={t('schematic.fit')}
-          aria-label={t('schematic.fit')}
-          onClick={() => setZoom(ZOOM_IDENTITY)}
-          disabled={zoom.k === 1 && zoom.x === 0 && zoom.y === 0}
-        >
-          ⤢
-        </button>
+        <ZoomButtons zoom={zoom} setZoom={setZoom} zoomBy={zoomBy} />
       </div>
     </div>
   );

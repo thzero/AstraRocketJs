@@ -34,10 +34,13 @@ import java.util.List;
  * wrong digest is WORSE than none, because the desktop then reports the part as
  * changed rather than missing.
  *
- * WHY IT READS THE DATABASE rather than `.orc` files. The file loader and the
- * running application disagree for some types: measured on Estes PK-12, loading
- * the file gave cd19839d… and the application's database gave e38b3873…, and the
- * application's is the one the desktop compares against.
+ * WHY IT RUNS UNDER THE APPLICATION'S MODULE. It reads the release's own `.orc`
+ * files, the system pass of `ComponentPresetDatabaseLoader`, but with the
+ * application's Guice module installed, so the presets are built against the
+ * material database and preferences the desktop boots with. A bare file load
+ * disagrees for some types: measured on Estes PK-12, it gave cd19839d… where the
+ * application's database gives e38b3873…, and the application's is the one the
+ * desktop compares against.
  *
  * WHY THE BUILD MATTERS. A part whose `.orc` row states a MASS has its material
  * replaced by one looked up by density, so its digest depends on the material

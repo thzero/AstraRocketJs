@@ -1509,6 +1509,12 @@ function escaperFor(extension: string): (raw: string) => string {
       // whole number alone, so `-80.600000` stays a number while
       // `-1+HYPERLINK(...)` is neutralized.
       return (raw) => neutralizeFormula(raw).replace(/"/g, '""');
+    case 'tsv':
+      // A TSV opens straight into a spreadsheet just as a CSV does, so the same
+      // formula rule applies. TSV has no quoting: a tab or line break inside a
+      // value would start a new cell or row, so C0 controls and DEL become a
+      // space after the triggers behind them are neutralized.
+      return (raw) => stripControls(neutralizeFormula(raw));
     case 'json':
       // JSON's own string escaping, via the one function guaranteed to agree
       // with every parser. `JSON.stringify` quotes what it returns, so the
@@ -1523,12 +1529,19 @@ function escaperFor(extension: string): (raw: string) => string {
       // format: C0 controls and DEL, which is what a crafted component name
       // would use to forge a record boundary. Printable punctuation is left
       // alone, because in an unknown format it is as likely to be content.
-      // Matched per character and compared by code point rather than with a
-      // control-character class, which `no-control-regex` rejects because a
-      // literal control in a pattern is usually a mistake. Keeping the test out
-      // of the pattern avoids switching the rule off.
-      return (raw) => raw.replace(/./gsu, (ch) => (ch < ' ' || ch === '' ? ' ' : ch));
+      return stripControls;
   }
+}
+
+/**
+ * The value with every C0 control and DEL replaced by a space. Matched per
+ * character and compared by code point rather than with a control-character
+ * class, which `no-control-regex` rejects because a literal control in a
+ * pattern is usually a mistake. Keeping the test out of the pattern avoids
+ * switching the rule off.
+ */
+function stripControls(raw: string): string {
+  return raw.replace(/./gsu, (ch) => (ch < ' ' || ch === '' ? ' ' : ch));
 }
 
 /** Best-effort MIME type for a downloaded export file, by extension. */

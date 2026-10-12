@@ -110,10 +110,6 @@ export function SimulationsPane() {
         >
           {t('sims.runOutdated', { count: staleCount })}
         </ToolBtn>
-        {/* At lg+ Run heads the right column, beside the simulation it flies.
-            A phone has no right column, so it keeps the button here where it is
-            reachable without scrolling past the table. One instance either way
-            (see useMediaQuery). */}
         <ToolBtn
           onClick={exportRunTable}
           disabled={!sims.some((s) => s.result || s.fileSummary)}
@@ -122,6 +118,10 @@ export function SimulationsPane() {
           <span aria-hidden>⬇ CSV</span>
           <span className="sr-only">{t('sims.exportRunTable')}</span>
         </ToolBtn>
+        {/* At lg+ Run heads the right column, beside the simulation it flies.
+            A phone has no right column, so it keeps the button here where it is
+            reachable without scrolling past the table. One instance either way
+            (see useMediaQuery). */}
         {!desktop && <RunButton className="w-full" />}
       </div>
 

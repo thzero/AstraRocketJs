@@ -2,6 +2,7 @@ import type { ComponentNode, ComponentType } from '../../../engine/openRocketEng
 import { defaultStageName, freshId } from '../../design/orkTree';
 import { shapeParamDefault } from '../../../tree/shapeProfile';
 import { xmlText as text } from '../xmlUtil';
+import { keyedNote } from '../importNote';
 import { COMPONENT_DEFAULTS } from '../../design/componentDefaults';
 import { RAIL_BUTTON_FALLBACK, settleRailButtonLoad, settleRingOuterLoad } from '../../design/linkedDimensions';
 import { clampCount, finiteNum } from './numbers';
@@ -179,7 +180,7 @@ const readTrapezoidFinset: NodeReader = (_ctx, el) => {
   return n;
 };
 
-const readFreeformFinset: NodeReader = (_ctx, el) => {
+const readFreeformFinset: NodeReader = (ctx, el) => {
   const n = base(el, 'freeformfinset', true);
   n['finCount'] = finCountTag(el);
   readPlanarFin(el, n);
@@ -195,12 +196,21 @@ const readFreeformFinset: NodeReader = (_ctx, el) => {
   const finpoints = el.querySelector(':scope > finpoints');
   if (finpoints) {
     let seen = 0;
-    for (let pt = finpoints.firstElementChild; pt && seen < MAX_FIN_POINTS; pt = pt.nextElementSibling) {
+    let pt = finpoints.firstElementChild;
+    for (; pt && seen < MAX_FIN_POINTS; pt = pt.nextElementSibling) {
       if (pt.tagName !== 'point') continue;
       seen++;
       const x = finiteNum(pt.getAttribute('x'));
       const y = finiteNum(pt.getAttribute('y'));
       if (x !== undefined && y !== undefined) pts.push([x, y]);
+    }
+    // A point past the cap is a dropped vertex, and the outline the user sees
+    // is not the file's, so the import says so.
+    for (; pt; pt = pt.nextElementSibling) {
+      if (pt.tagName === 'point') {
+        ctx.notes.push(keyedNote('importNote.finPointsCapped', { max: MAX_FIN_POINTS }));
+        break;
+      }
     }
   }
   if (pts.length >= 3) n['points'] = pts;
@@ -386,7 +396,8 @@ const readParachute: NodeReader = (ctx, el) => {
   n['diameter'] = nonNegTag(el, 'diameter', 0.3);
   readCd(el, n);
   // Bounded: the kernel sums line mass per line, and a file can say anything.
-  n['lineCount'] = clampCount(numTag(el, 'linecount', 6), 1, MAX_LINE_COUNT);
+  // From 0: a parachute may have no lines (`Parachute.setLineCount`).
+  n['lineCount'] = clampCount(numTag(el, 'linecount', 6), 0, MAX_LINE_COUNT);
   if (!readAutoValue(el, n, 'linelength', 'lineLengthAuto')) n['lineLength'] = nonNegTag(el, 'linelength', 0.3);
   readSoftMaterial(el, n, 'surface', 'surfaceDensity', 'surfaceMaterialName');
   readSoftMaterial(el, n, 'line', 'lineDensity', 'lineMaterialName', ':scope > linematerial');

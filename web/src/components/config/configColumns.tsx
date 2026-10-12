@@ -16,11 +16,11 @@ import { fmtUpTo } from '../../i18n/format';
 import { NO_VALUE } from '../../i18n/noValue';
 
 /**
- * What each sub-tab of the configurations table shows: one column per mount, or
- * one per recovery device.
+ * What each sub-tab of the configurations table shows: one column per mount,
+ * one per recovery device, or one per stage that separates.
  *
  * Built here rather than in the table so the table stays a grid renderer, and so
- * the two sub-tabs cannot drift apart on how a cell reads: both print the value
+ * the three sub-tabs cannot drift apart on how a cell reads: both print the value
  * the flight will use, and both mark it when it is this configuration's own
  * rather than the design's.
  */

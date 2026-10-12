@@ -116,6 +116,32 @@ describe('a stage reports only inside its own flight', () => {
     // Only the booster is still flying at t = 3.
     expect(container.querySelectorAll('circle')).toHaveLength(1);
   });
+
+  const xyPanel = (hoverT: number | null) =>
+    renderWithProviders(
+      <FlightXYPanel
+        meta={meta('velocityAltitude')}
+        branches={branches}
+        w={400}
+        height={200}
+        hoverT={hoverT}
+        expanded={false}
+        onToggleExpand={() => {}}
+      />,
+    ).container;
+
+  it('the velocity-altitude header names the peak when there is no crosshair', () => {
+    const head = xyPanel(null).querySelector('.text-ink-strong')!.textContent ?? '';
+    expect(head).toMatch(/^8/);
+    expect(screen.getByText('peak')).toBeTruthy();
+  });
+
+  it('the velocity-altitude header shows no value past the primary stage’s landing', () => {
+    const head = xyPanel(3).querySelector('.text-ink-strong')!.textContent ?? '';
+    // Not the primary stage's top speed (8).
+    expect(head).toBe(NO_VALUE);
+    expect(screen.queryByText('peak')).toBeNull();
+  });
 });
 
 describe('the zoom-in button', () => {

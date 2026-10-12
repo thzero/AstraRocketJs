@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+// cspell:ignore ширина
 import { describe, it, expect, vi } from 'vitest';
 import { screen, fireEvent } from '@testing-library/react';
 import { renderWithProviders } from '../../testing/renderWithProviders';
@@ -48,6 +49,18 @@ describe('the popover is a real menu', () => {
     expect(names.filter((n) => n?.startsWith('PNG '))).toHaveLength(IMAGE_WIDTHS.length);
     expect(names.filter((n) => n?.startsWith('JPG '))).toHaveLength(IMAGE_WIDTHS.length);
     expect(names[0]).toContain(`${IMAGE_WIDTHS[0]} px`);
+  });
+
+  it('builds each item name from one key, so the words follow the UI language', async () => {
+    const i18n = (await import('../../../src/i18n')).default;
+    await i18n.changeLanguage('ru');
+    try {
+      open();
+      const first = screen.getAllByRole('menuitem')[0]!.getAttribute('aria-label');
+      expect(first).toContain(`ширина ${IMAGE_WIDTHS[0]}`);
+    } finally {
+      await i18n.changeLanguage('en');
+    }
   });
 
   it('offers the fit setting as a checked menu item, a valid child of the menu', () => {

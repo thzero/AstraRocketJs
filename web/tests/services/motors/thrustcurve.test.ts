@@ -579,3 +579,37 @@ describe('post on an error reply', () => {
     expect(signal?.aborted).toBe(true);
   });
 });
+
+/**
+ * A failed request is reported in the app's language. The browser's own text
+ * for a refused connection ("Failed to fetch") or a reply that is not JSON is
+ * English whatever the app shows.
+ */
+describe('post on a network or parse failure', () => {
+  const online = {
+    designation: 'K185',
+    manufacturer: 'AeroTech',
+    class: 'K',
+    diameter: 54,
+    impulse: 1400,
+    burn: 7,
+    mass: 900,
+    length: 400,
+    propWeightG: 500,
+  } as unknown as CatalogMotor;
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('keys a refused connection as a network failure', async () => {
+    vi.stubGlobal('fetch', () => Promise.reject(new TypeError('Failed to fetch')));
+    const err = (await fetchMotorSpec(online, 0).catch((e: unknown) => e)) as Error & { key?: string; cause?: unknown };
+    expect(err.key).toBe('errors.remote.network');
+    expect(err.cause).toBeInstanceOf(TypeError);
+  });
+
+  it('keys a reply that is not JSON as a bad shape', async () => {
+    vi.stubGlobal('fetch', () => Promise.resolve(new Response('<html>not json</html>', { status: 200 })));
+    const err = (await fetchMotorSpec(online, 0).catch((e: unknown) => e)) as Error & { key?: string };
+    expect(err.key).toBe('errors.remote.badShape');
+  });
+});

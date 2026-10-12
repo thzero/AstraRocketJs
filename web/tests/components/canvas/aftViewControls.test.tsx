@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import { cleanup, fireEvent, screen } from '@testing-library/react';
 import { renderWithProviders } from '../../testing/renderWithProviders';
 import { AftView } from '../../../src/components/canvas/AftView';
+import { TreeSchematic } from '../../../src/components/canvas/TreeSchematic';
 import type { RocketTree } from '../../../src/engine/openRocketEngine';
 
 /**
@@ -10,13 +11,17 @@ import type { RocketTree } from '../../../src/engine/openRocketEngine';
  *
  * At the default view, zoom-out and fit are both no-ops: `zoomBy` clamps the
  * scale at 1, and fit sets the view to `ZOOM_IDENTITY`, which is what it already
- * is. Like `SchematicControls`, the aft view disables them there, so no button
- * looks clickable and does nothing.
+ * is. Both drawings use the shared `ZoomButtons`, which disables them there, so
+ * no button looks clickable and does nothing, and fit stays in place rather than
+ * appearing and shifting the strip.
  *
  * Driven through the real buttons rather than asserted against the component's
  * internals: `disabled` is what the user can see.
  */
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+});
 
 /** A one-tube rocket: enough for the view to draw something to zoom. */
 const tree = {
@@ -78,6 +83,40 @@ describe('the aft view gates its zoom controls', () => {
     // And the other two are still live there, because the view is zoomed.
     expect(btn(ZOOM_OUT).disabled).toBe(false);
     expect(btn(FIT).disabled).toBe(false);
+  });
+});
+
+describe('the side schematic gates the same three the same way', () => {
+  const schematic = () => {
+    // jsdom lays nothing out; the schematic sizes itself from the svg's box.
+    vi.spyOn(SVGElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      top: 0,
+      right: 400,
+      bottom: 400,
+      width: 400,
+      height: 400,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    } as DOMRect);
+    renderWithProviders(<TreeSchematic tree={tree} info={null} />);
+  };
+
+  it('shows fit at the default view, disabled, beside a disabled zoom-out', () => {
+    schematic();
+    expect(btn(FIT).disabled).toBe(true);
+    expect(btn(ZOOM_OUT).disabled).toBe(true);
+    expect(btn(ZOOM_IN).disabled).toBe(false);
+  });
+
+  it('enables fit and zoom-out once zoomed, and disables them again after fit', () => {
+    schematic();
+    fireEvent.click(btn(ZOOM_IN));
+    expect(btn(FIT).disabled).toBe(false);
+    expect(btn(ZOOM_OUT).disabled).toBe(false);
+    fireEvent.click(btn(FIT));
+    expect(btn(FIT).disabled).toBe(true);
   });
 });
 

@@ -41,7 +41,7 @@ A part that some configuration opens differently says so in the design [property
 One card per stage, whether or not it separates.
 
 - **Flies on this configuration** decides whether the stage is in the flight at all. A grounded stage contributes no mass, no drag and no motor: the rest of the rocket flies without it, which is how a two-stage design is flown as its own sustainer without deleting the booster. Something has to fly, so the last stage still in the air cannot be grounded.
-- **Stage separation**, **Separation delay** and **Separation altitude** say when a booster lets go, with the same fall-through to the design the recovery fields have. The top stage has nothing above it to let go of, so it shows the flies checkbox alone.
+- **Stage separation**, **Separation delay** and **Separation altitude (AGL)** say when a booster lets go, with the same fall-through to the design the recovery fields have. The top stage has nothing above it to let go of, so it shows the flies checkbox alone.
 
 ## Choosing one for a simulation
 
