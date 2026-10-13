@@ -7,24 +7,16 @@ import { UnitChip } from '../common/UnitChip';
 import { useUnits, type FieldUnit } from '../../prefs/useUnits';
 import { clampEntry } from '../../prefs/entryValue';
 import { unitScope, type Quantity } from '../../prefs/units';
-import { MAX_CANT, MAX_FIN_COUNT, MAX_INSTANCE_COUNT, MAX_LINE_COUNT, num, str } from '../../tree/nodeProps';
-import { clusterCount } from '../../tree/cluster';
-import { shapeIsClippable, shapeParamMax, shapeSelect, shapeUsesParameter } from '../../tree/shapeProfile';
+import { num } from '../../tree/nodeProps';
+import { shapeSelect } from '../../tree/shapeProfile';
 import { FIELDS, type Field, type PanelSection } from '../../services/design/componentFields';
 import { DERIVED } from '../../services/design/derivedFields';
 import { clampToBounds, type DimensionBounds } from '../../services/design/linkedDimensions';
+import { KERNEL_AUTO_KEYS, fieldApplies, fieldRange, fieldValue, liveBounds } from '../../services/design/fieldRange';
 import { parentRadiusOf } from '../../tree/finPlanform';
 import { PropSection } from './PropSection';
 import { rebaseTabOffset } from '../../tree/axialRebase';
-import { axialLength } from '../../tree/position';
 import { useWorkspaceStore } from '../../state/store';
-
-/**
- * Automatic lengths only the kernel knows: a shock cord's cord follows the
- * rocket's length and a parachute's lines follow its canopy, and neither is
- * written back to the node. `componentInfo` reports each under the field's key.
- */
-const KERNEL_AUTO_KEYS: ReadonlySet<string> = new Set(['cordLength', 'lineLength', 'cd']);
 
 /**
  * The kernel's value for an automatic field it resolves itself, while the field
@@ -67,54 +59,6 @@ function useTabDepthLimit(node: ComponentNode, f: Field): number | null {
  * part's declared fields to show (`visibleFields`).
  */
 
-/**
- * The shape a nose cone or transition falls back to when the node carries
- * none: what `shapeUsesParameter` and `shapeParamMax` are asked about, shared by
- * the field filter and the shape-parameter field so the two agree.
- */
-const defaultShape = (node: ComponentNode): string =>
-  str(node, 'shape', node.type === 'nosecone' ? 'ogive' : 'conical');
-
-/**
- * Whether a declared field applies to this particular node, as opposed to being
- * declared for its type. Every one of these would otherwise be a control that
- * sets a value nothing reads.
- *
- * Shared by `visibleFields` and `sectionFields`, which partition a type's
- * fields between them: a test in only one of the two would hide a row in the
- * dimension list and leave the same row on a section heading.
- */
-function applies(node: ComponentNode, f: Field): boolean {
-  /**
-   * Drop the shape parameter for shapes that do not use one. For a
-   * power/haack/ogive/parabolic shape it changes the whole profile, and the
-   * mesh, report, schematic, 3D view and both .ork paths all read it.
-   */
-  if (f.key === 'shapeParameter') return shapeUsesParameter(defaultShape(node));
-  /**
-   * Same for the clipped flag. `Transition.isClipped()` returns false outright
-   * for a shape that cannot be clipped (conical, ogive, parabolic), so on those
-   * the checkbox would set a value the kernel and both views ignore: a control
-   * that does nothing.
-   */
-  if (f.key === 'clipped') return shapeIsClippable(defaultShape(node));
-  /**
-   * A filled part is solid, so it has no wall and no bore. The desktop grays
-   * both out; a one-column panel drops them, which also stops the bore row
-   * offering to write a thickness the kernel is ignoring.
-   */
-  if (f.key === 'thickness' || f.key === 'innerDiameter') return node['filled'] !== true;
-  /**
-   * The cluster's spacing and roll, both ways of stating the spacing, and the
-   * angle the group sits at describe where the other tubes go. A single tube
-   * has no others: `clusterCount` is 1 and every consumer ignores all three.
-   */
-  if (f.key === 'clusterScale' || f.key === 'clusterSeparation' || f.key === 'clusterRotation') {
-    return clusterCount(str(node, 'cluster', 'single')) > 1;
-  }
-  return true;
-}
-
 /** The declared fields of this part that the panel shows in its dimension list. */
 export function visibleFields(node: ComponentNode, isFirstStage: boolean): Field[] {
   // The top stage separates from nothing above it, so hide its separation fields.
@@ -122,7 +66,7 @@ export function visibleFields(node: ComponentNode, isFirstStage: boolean): Field
   return allFields.filter(
     // Sectioned fields are rendered by their own section instead, so the
     // dimension list stays dimensions.
-    (f) => f.section === undefined && applies(node, f),
+    (f) => f.section === undefined && fieldApplies(node, f),
   );
 }
 
@@ -133,7 +77,7 @@ export function visibleFields(node: ComponentNode, isFirstStage: boolean): Field
  * and a field that fell out of both would simply stop being editable.
  */
 export function sectionFields(node: ComponentNode, section: PanelSection): Field[] {
-  return (FIELDS[node.type] ?? []).filter((f) => f.section === section && applies(node, f));
+  return (FIELDS[node.type] ?? []).filter((f) => f.section === section && fieldApplies(node, f));
 }
 
 /**
@@ -333,8 +277,7 @@ export function FieldRow({ node, field: f, onChange, onCommit }: NodeEditProps &
   const u = useUnits();
   const kernelAuto = useKernelAutoValue(node, f);
   const tabDepth = useTabDepthLimit(node, f);
-  const bounds: DimensionBounds | undefined =
-    tabDepth != null && Number.isFinite(tabDepth) ? { ...f.bounds, max: () => tabDepth } : f.bounds;
+  const bounds: DimensionBounds | undefined = liveBounds(f, tabDepth);
   const label = t(`prop.${f.label}`);
   // One scope per field of this component type: every body tube is the
   // same Length field on the same card, so selecting another must not
@@ -396,7 +339,7 @@ export function FieldRow({ node, field: f, onChange, onCommit }: NodeEditProps &
     const fu = u.at(scope, quantity);
     return numeric({
       unit: <UnitChip quantity={quantity} scope={scope} />,
-      value: fu.toUi(num(node, f.key)),
+      value: fu.toUi(Number(fieldValue(node, f))),
       step: fu.step(stepSi),
       min: min?.(fu),
       max: maxSi === undefined ? undefined : fu.toUi(maxSi),
@@ -409,7 +352,7 @@ export function FieldRow({ node, field: f, onChange, onCommit }: NodeEditProps &
 
   switch (f.kind) {
     case 'select': {
-      const cur = typeof node[f.key] === 'string' ? (node[f.key] as string) : (f.fallback ?? f.options[0]);
+      const cur = String(fieldValue(node, f));
       return (
         <label className="flex items-center justify-between gap-3">
           <span className="text-xs text-ink-muted">{label}</span>
@@ -449,21 +392,16 @@ export function FieldRow({ node, field: f, onChange, onCommit }: NodeEditProps &
           <span className="text-xs text-ink-muted">{label}</span>
           <input
             type="checkbox"
-            checked={node[f.key] === true}
+            checked={fieldValue(node, f) === true}
             onChange={(e) => commitChange({ [f.key]: e.target.checked })}
             className="accent-accent-500"
           />
         </label>
       );
     case 'count': {
-      // Every fin type's count is `finCount`, and the kernel builds at most 8.
-      // Shroud lines take the bridge's own ceiling, which the importers share.
-      const max = f.key === 'finCount' ? MAX_FIN_COUNT : f.key === 'lineCount' ? MAX_LINE_COUNT : MAX_INSTANCE_COUNT;
-      // A parachute may have no shroud lines (Parachute.setLineCount takes 0,
-      // and the desktop spinner starts there); every other count is at least one.
-      const min = f.key === 'lineCount' ? 0 : 1;
+      const { min = 1, max = 1 } = fieldRange(node, f);
       return numeric({
-        value: num(node, f.key),
+        value: Number(fieldValue(node, f)),
         step: 1,
         min,
         max,
@@ -478,30 +416,31 @@ export function FieldRow({ node, field: f, onChange, onCommit }: NodeEditProps &
     case 'distance':
       return inUnit('distance', f.step ?? 10);
     case 'number': {
-      // The shape parameter has a shape-dependent ceiling the kernel enforces
-      // (Shape.maxParameter: haack tops out at LV-Haack, 1/3). `shapeParamMax`
-      // is the tested port of it.
-      const paramMax = f.key === 'shapeParameter' ? shapeParamMax(defaultShape(node)) : undefined;
+      const { min, max } = fieldRange(node, f);
       return numeric({
         unit: f.unit,
         // On Auto, the number the kernel works out (a recovery device's Cd),
         // not the stored one it ignores.
-        value: kernelAuto ?? num(node, f.key),
+        value: kernelAuto ?? Number(fieldValue(node, f)),
         step: f.step ?? 0.1,
-        max: paramMax,
+        min,
+        max,
         ...autoProp(),
-        onChange: (v) => patchNumber({ [f.key]: paramMax === undefined ? v : Math.min(paramMax, Math.max(0, v)) }),
+        onChange: (v) => patchNumber({ [f.key]: Math.min(max ?? Infinity, Math.max(min ?? -Infinity, v)) }),
       });
     }
-    case 'angle':
+    case 'angle': {
       // Stored in radians (kernel/.ork convention), edited in the user's unit.
-      // Half a turn either way, in whatever unit is selected: a fixed -180
-      // would clamp a radian entry to well inside its legal range. Fin cant
-      // stops at the kernel's +/-15 deg, which is where the desktop spinner stops.
-      if (f.key === 'cant') {
-        return inUnit('angle', ((f.step ?? 5) * Math.PI) / 180, (fu) => -fu.toUi(MAX_CANT), MAX_CANT);
-      }
-      return inUnit('angle', ((f.step ?? 5) * Math.PI) / 180, (fu) => -fu.toUi(Math.PI));
+      // The range is converted, not fixed in degrees: a fixed -180 would clamp
+      // a radian entry to well inside its legal range.
+      const { min, max } = fieldRange(node, f);
+      return inUnit(
+        'angle',
+        ((f.step ?? 5) * Math.PI) / 180,
+        min === undefined ? undefined : (fu) => fu.toUi(min),
+        max,
+      );
+    }
     case 'bore': {
       // A tube's inner diameter, which is not stored: the node and the `.ork`
       // carry the outer radius and the wall, and the bore is the pair of them.
@@ -574,26 +513,20 @@ export function FieldRow({ node, field: f, onChange, onCommit }: NodeEditProps &
       // the doubling lives here, at the edit boundary, and nowhere else.
       const fu = u.at(scope, 'length');
       const k = f.diameter ? 2 : 1;
-      const span = f.signedWithinLength ? fu.toUi(axialLength(node)) : undefined;
       // `bounds`: the range the kernel's setter holds this value in, given the
       // rest of the part. The box stops there, and so does the stored value, so
       // the panel never shows a figure the kernel would fly as another.
-      // A bound on a radius the node does not store is no bound.
-      const lo = bounds?.min?.(node);
-      const hi = bounds?.max?.(node);
-      const range =
-        span !== undefined
-          ? { min: -span, max: span }
-          : {
-              ...(lo === undefined || !Number.isFinite(lo) ? {} : { min: fu.toUi(k * lo) }),
-              ...(hi === undefined || !Number.isFinite(hi) ? {} : { max: fu.toUi(k * hi) }),
-            };
+      const { min, max } = fieldRange(node, f, bounds);
+      const range = {
+        ...(min === undefined ? {} : { min: fu.toUi(k * min) }),
+        ...(max === undefined ? {} : { max: fu.toUi(k * max) }),
+      };
       // `auto`: the value follows something else (a shoulder follows the bore of
       // the tube it plugs into). Ticking it commits at once and the resolver
       // fills the number in the same edit; clearing it pins whatever it now is.
       return numeric({
         unit: <UnitChip quantity="length" scope={scope} />,
-        value: fu.toUi(k * (kernelAuto ?? num(node, f.key, f.whenAbsent))),
+        value: fu.toUi(k * (kernelAuto ?? Number(fieldValue(node, f)))),
         step: fu.step(0.0005),
         ...range,
         ...autoProp(),

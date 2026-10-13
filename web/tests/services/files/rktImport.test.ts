@@ -348,3 +348,41 @@ describe('importRkt, hostile input', () => {
     expect(res.tree.components[0]?.children?.length).toBe(200);
   });
 });
+
+/**
+ * Desktop's RockSim handlers set a shoulder through the clamping
+ * `setAftShoulderRadius` / `setForeShoulderRadius`, after the end's diameter
+ * (NoseConeHandler, TransitionHandler), so a shoulder wider than its end opens
+ * at the end's radius. The node has to hold what desktop holds.
+ */
+describe('a .rkt shoulder wider than its end', () => {
+  const doc = (part: string): string =>
+    `<RockSimDocument><DesignInformation><RocketDesign><Name>Wide</Name><StageCount>1</StageCount>` +
+    `<Stage3Parts>${part}</Stage3Parts></RocketDesign></DesignInformation></RockSimDocument>`;
+
+  it('opens a nose cone shoulder at the base radius', () => {
+    const res = importRkt(
+      doc(
+        '<NoseCone><Name>n</Name><Len>100</Len><BaseDia>25</BaseDia><WallThickness>1</WallThickness>' +
+          '<ShapeCode>1</ShapeCode><ShoulderOD>30</ShoulderOD><ShoulderLen>20</ShoulderLen></NoseCone>',
+      ),
+    );
+    const nose = res.tree.components[0]!.children![0]!;
+    expect(nose['aftRadius']).toBeCloseTo(0.0125, 9);
+    expect(nose['shoulderRadius']).toBeCloseTo(0.0125, 9);
+  });
+
+  it('opens each transition shoulder at its own end', () => {
+    const res = importRkt(
+      doc(
+        '<Transition><Name>t</Name><Len>50</Len><FrontDia>30</FrontDia><RearDia>20</RearDia>' +
+          '<WallThickness>1</WallThickness><ShapeCode>0</ShapeCode>' +
+          '<FrontShoulderDia>34</FrontShoulderDia><FrontShoulderLen>10</FrontShoulderLen>' +
+          '<RearShoulderDia>18</RearShoulderDia><RearShoulderLen>10</RearShoulderLen></Transition>',
+      ),
+    );
+    const t = res.tree.components[0]!.children![0]!;
+    expect(t['foreShoulderRadius']).toBeCloseTo(0.015, 9);
+    expect(t['aftShoulderRadius']).toBeCloseTo(0.009, 9);
+  });
+});

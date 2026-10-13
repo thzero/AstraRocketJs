@@ -40,6 +40,7 @@
     "sync:motor-digests": "node scripts/sync-motor-digests.mjs",
     "check:digests": "node scripts/check-catalog-digests.mjs",
     "audit": "node scripts/audit.mjs",
+    "check:fields": "node scripts/check-desktop-fields.mjs",
     "check:ork": "node scripts/check-ork-opens.mjs",
     "e2e": "playwright test",
     "e2e:core": "node scripts/e2e-core.mjs",

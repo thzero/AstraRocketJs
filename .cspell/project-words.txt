@@ -255,6 +255,7 @@ jakarta
 Jambol
 jank
 javac
+javap
 JAXB
 jdkstub
 jdkstubs

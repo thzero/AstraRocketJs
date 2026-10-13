@@ -554,7 +554,8 @@ const RAW_FIELDS: Record<string, Field[]> = {
     },
     // What the pattern is drawn at: the spacing between tubes, as a multiple of
     // the tube diameter, and the roll of the whole group.
-    { key: 'clusterScale', label: 'clusterScale', kind: 'number', step: 0.1, section: 'motor' },
+    // Absent, the bridge flies a scale of 1 (ComponentFactory, case "innertube").
+    { key: 'clusterScale', label: 'clusterScale', kind: 'number', step: 0.1, section: 'motor', whenAbsent: 1 },
     // The same spacing as a distance between tube walls. The desktop has one
     // spinner and a Relative/Absolute switch over it; both rows are live here.
     {

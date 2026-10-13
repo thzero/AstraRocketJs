@@ -145,24 +145,6 @@ export function chooseBuild() {
 }
 
 /**
- * Compile `javaSrc` against that build and run it with `args`, letting its
- * output through. Returns the exit status rather than throwing, so a caller
- * that is checking something can report it.
- */
-export function runJava({ cp, javaSrc, className, args = [] }) {
-  const work = mkdtempSync(join(tmpdir(), 'or-java-'));
-  try {
-    execFileSync('javac', ['-cp', cp, '-d', work, javaSrc], { stdio: 'inherit' });
-    execFileSync('java', ['-cp', `${cp}${delimiter}${work}`, className, ...args], { stdio: 'inherit' });
-    return 0;
-  } catch (e) {
-    return typeof e.status === 'number' ? e.status : 1;
-  } finally {
-    rmSync(work, { recursive: true, force: true });
-  }
-}
-
-/**
  * Compile `javaSrc` against that build, run `className <out.tsv>`, and return
  * the rows as arrays of fields.
  */

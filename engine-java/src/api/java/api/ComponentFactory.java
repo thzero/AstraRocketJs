@@ -170,25 +170,33 @@ final class ComponentFactory {
                     nose.setShapeParameter(shapeParam);
                 }
                 nose.setFilled(bool(node, "filled", false));
-                // Nose cones use the aft shoulder (into the tube behind them).
-                double shR = dbl(node, "shoulderRadius", Double.NaN);
-                if (!Double.isNaN(shR)) {
-                    nose.setAftShoulderRadius(shR);
-                }
-                double shL = dbl(node, "shoulderLength", Double.NaN);
-                if (!Double.isNaN(shL)) {
-                    nose.setAftShoulderLength(shL);
-                }
-                double shT = dbl(node, "shoulderThickness", Double.NaN);
-                if (!Double.isNaN(shT)) {
-                    nose.setAftShoulderThickness(shT);
-                }
-                nose.setAftShoulderCapped(bool(node, "shoulderCapped", false));
                 // A flipped nose cone is how a tail cone is modeled: the same
                 // part turned round, with the profile running the other way.
                 // The desktop writes it as <isflipped>; without it an imported
-                // tail cone flies nose-first.
+                // tail cone flies nose-first. Flipped before the shoulder is set:
+                // setFlipped carries a shoulder to the other end through the
+                // clamping setter, against a base that may not have resolved yet.
                 nose.setFlipped(bool(node, "flipped", false));
+                // The shoulder sits at the base, wherever the base is
+                // (NoseCone.setShoulder*). Its radius is set unclamped, as
+                // desktop's .ork loader sets it (DocumentConfig,
+                // "Transition:aftshoulderradius"): a clamp here would read an
+                // automatic base before it has anything to follow. A flipped
+                // cone is the exception desktop makes, and settleFlippedShoulders
+                // applies it once the base has resolved.
+                double shR = dbl(node, "shoulderRadius", Double.NaN);
+                if (!Double.isNaN(shR)) {
+                    nose.setShoulderRadius(shR, false);
+                }
+                double shL = dbl(node, "shoulderLength", Double.NaN);
+                if (!Double.isNaN(shL)) {
+                    nose.setShoulderLength(shL);
+                }
+                double shT = dbl(node, "shoulderThickness", Double.NaN);
+                if (!Double.isNaN(shT)) {
+                    nose.setShoulderThickness(shT);
+                }
+                nose.setShoulderCapped(bool(node, "shoulderCapped", false));
                 // Automatic base diameter. `aftRadiusAuto` is the base wherever it
                 // sits: the aft end, or the fore end of a flipped nose cone, which
                 // then follows the component ahead of it.
@@ -232,9 +240,14 @@ final class ComponentFactory {
                 }
                 t.setThickness(dbl(node, "thickness", 0.002));
                 t.setFilled(bool(node, "filled", false));
+                // Stated shoulders are set unclamped, as desktop's .ork loader
+                // sets them (DocumentConfig, "Transition:foreshoulderradius"):
+                // an automatic end has nothing to follow until the part and its
+                // neighbors are attached, so a clamp here would cut a shoulder to
+                // SymmetricComponent.DEFAULT_RADIUS.
                 double fShR = dbl(node, "foreShoulderRadius", Double.NaN);
                 if (!Double.isNaN(fShR)) {
-                    t.setForeShoulderRadius(fShR);
+                    t.setForeShoulderRadius(fShR, false);
                 }
                 double fShL = dbl(node, "foreShoulderLength", Double.NaN);
                 if (!Double.isNaN(fShL)) {
@@ -242,15 +255,13 @@ final class ComponentFactory {
                 }
                 double aShR = dbl(node, "aftShoulderRadius", Double.NaN);
                 if (!Double.isNaN(aShR)) {
-                    t.setAftShoulderRadius(aShR);
+                    t.setAftShoulderRadius(aShR, false);
                 }
                 double aShL = dbl(node, "aftShoulderLength", Double.NaN);
                 if (!Double.isNaN(aShL)) {
                     t.setAftShoulderLength(aShL);
                 }
-                // Shoulder wall, per side. Set after the radius, which clamps
-                // the thickness it already holds (Transition.setForeShoulderRadius).
-                // Without it a transition's shoulders fly with no wall and no
+                // Shoulder wall, per side. Without it a transition's shoulders fly with no wall and no
                 // mass, and since a capped shoulder is made out of this wall,
                 // the cap below would add nothing either.
                 double fShT = dbl(node, "foreShoulderThickness", Double.NaN);
@@ -792,7 +803,24 @@ final class ComponentFactory {
         if (c instanceof ShockCord && bool(node, "cordLengthAuto", false)) {
             ((ShockCord) c).setCordLengthAutomatic(true);
         }
-        // Mass / CG / CD overrides; an absent key means "not overridden".
+        applyOverrides(c, node);
+        Map<String, Object> position = obj(node, "position");
+        // Off-axis assemblies (PodSet/ParallelStage) have no parent here yet, and
+        // their setAxialMethod NPEs without one, so their position is applied
+        // post-attach in applyAssembly. Every other component positions here.
+        if (position != null && !(c instanceof ComponentAssembly)) {
+            c.setAxialMethod(axialMethodOf(str(position, "method", "top")));
+            c.setAxialOffset(dbl(position, "offset", 0));
+        }
+        return c;
+    }
+
+    /**
+     * Mass, CG and drag overrides, for a part and for a stage alike; an absent
+     * key means "not overridden". A stage is built by OpenRocketEngine rather
+     * than {@link #create}, so it calls this itself.
+     */
+    static void applyOverrides(RocketComponent c, Map<String, Object> node) {
         double overrideMass = dbl(node, "overrideMass", Double.NaN);
         if (!Double.isNaN(overrideMass)) {
             c.setOverrideMass(overrideMass);
@@ -820,15 +848,6 @@ final class ComponentFactory {
         if (bool(node, "overrideSubcomponentsCD", false)) {
             c.setSubcomponentsOverriddenCD(true);
         }
-        Map<String, Object> position = obj(node, "position");
-        // Off-axis assemblies (PodSet/ParallelStage) have no parent here yet, and
-        // their setAxialMethod NPEs without one, so their position is applied
-        // post-attach in applyAssembly. Every other component positions here.
-        if (position != null && !(c instanceof ComponentAssembly)) {
-            c.setAxialMethod(axialMethodOf(str(position, "method", "top")));
-            c.setAxialOffset(dbl(position, "offset", 0));
-        }
-        return c;
     }
 
     /**
@@ -961,6 +980,30 @@ final class ComponentFactory {
         fins.setTabLength(tabLength);
         fins.setTabOffset(dbl(node, "tabOffset", 0));
         fins.setTabHeight(tabHeight);
+    }
+
+    /**
+     * A flipped nose cone's shoulder against its settled base. Desktop's .ork
+     * loader reads `<isflipped>` last, and NoseCone.setFlipped carries the
+     * shoulder to the base through the clamping setter, against a base that
+     * has resolved because desktop attaches a part before reading it; the wall
+     * is carried after the radius, unclamped. So once the rocket is built, a
+     * flipped cone's stated shoulder radius is set again with the clamp on, and
+     * its stated wall after it.
+     */
+    static void settleFlippedShoulders(Map<String, Object> node, Map<String, RocketComponent> idIndex) {
+        for (Map<String, Object> kid : JsonLite.objList(node, "children")) {
+            String id = str(kid, "id", null);
+            RocketComponent c = id == null ? null : idIndex.get(id);
+            if (c instanceof NoseCone && ((NoseCone) c).isFlipped()) {
+                NoseCone nose = (NoseCone) c;
+                double r = dbl(kid, "shoulderRadius", Double.NaN);
+                if (!Double.isNaN(r)) nose.setShoulderRadius(r);
+                double t = dbl(kid, "shoulderThickness", Double.NaN);
+                if (!Double.isNaN(t)) nose.setShoulderThickness(t);
+            }
+            settleFlippedShoulders(kid, idIndex);
+        }
     }
 
     /**

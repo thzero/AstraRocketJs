@@ -328,6 +328,8 @@ public final class OpenRocketEngine {
                 }
                 applySeparationConfig(stage, stageNode, nozzleDia);
                 ComponentFactory.attachChildren(stage, stageNode, ids, nozzleDia);
+                // A stage's own mass, CG and drag overrides, as a part's.
+                ComponentFactory.applyOverrides(stage, stageNode);
             }
             if (firstStage == null) {
                 throw new IllegalArgumentException("Staged rocket has no stages");
@@ -359,11 +361,13 @@ public final class OpenRocketEngine {
             for (Object o : topLevel) {
                 @SuppressWarnings("unchecked")
                 Map<String, Object> stageNode = (Map<String, Object>) o;
+                ComponentFactory.settleFlippedShoulders(stageNode, ctx.ids);
                 ComponentFactory.settleFinTabs(stageNode, ctx.ids);
             }
         } else {
             Map<String, Object> rootNode = new java.util.LinkedHashMap<>();
             rootNode.put("children", tree.get("components"));
+            ComponentFactory.settleFlippedShoulders(rootNode, ctx.ids);
             ComponentFactory.settleFinTabs(rootNode, ctx.ids);
         }
         return register(ctx);
@@ -875,6 +879,25 @@ public final class OpenRocketEngine {
             num(sb, "cd", ((info.openrocket.core.rocketcomponent.RecoveryDevice) c).getCD());
         }
         return sb.append('}').toString();
+    }
+
+    /**
+     * Every field of a buildRocket() id as the kernel holds it after the build,
+     * under the app's node keys ({@link ComponentFields}): the value that flies,
+     * after clamps, automatic rules and constructor defaults.
+     */
+    @JSExport
+    public static String getComponentFields(int rocketHandle, String componentId) {
+        try {
+            RocketCtx ctx = get(rocketHandle, RocketCtx.class, "a rocket");
+            RocketComponent c = ctx.ids.get(componentId);
+            if (c == null) {
+                throw new IllegalArgumentException("Unknown component id: '" + componentId + "'");
+            }
+            return ComponentFields.of(c);
+        } catch (RuntimeException e) {
+            return errorJson(e);
+        }
     }
 
     /** Stations along a symmetric component at which its profile is sampled. */

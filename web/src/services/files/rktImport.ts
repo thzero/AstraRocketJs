@@ -329,6 +329,15 @@ const shoulderWall = (el: Element, n: ComponentNode, shoulderRadius: number | un
   n['filled'] === true ? shoulderRadius : mmPos(el, 'WallThickness');
 
 /**
+ * A shoulder's radius as desktop holds it after a `.rkt` load: at most its end's.
+ * `NoseConeHandler` and `TransitionHandler` set it through the clamping
+ * `setAftShoulderRadius` / `setForeShoulderRadius`, after the end's diameter,
+ * so a wider `ShoulderOD` opens cut to the end.
+ */
+const shoulderAtMost = (radius: number | undefined, end: unknown): number | undefined =>
+  radius !== undefined && typeof end === 'number' ? Math.min(radius, end) : radius;
+
+/**
  * A shoulder RockSim gives a length to is capped.
  *
  * Neither RockSim nor its handlers have a cap flag: the kernel's
@@ -347,7 +356,7 @@ const readNoseCone = (el: Element): ComponentNode => {
   put(n, 'aftRadius', dia(el, 'BaseDia'));
   readWall(el, n);
   readShape(el, n, 1);
-  const shR = dia(el, 'ShoulderOD');
+  const shR = shoulderAtMost(dia(el, 'ShoulderOD'), n['aftRadius']);
   const shL = mmPos(el, 'ShoulderLen');
   put(n, 'shoulderRadius', shR);
   put(n, 'shoulderLength', shL);
@@ -367,8 +376,8 @@ const readTransition = (el: Element): ComponentNode => {
   put(n, 'aftRadius', dia(el, 'RearDia'));
   readWall(el, n);
   readShape(el, n, 0);
-  const fShR = dia(el, 'FrontShoulderDia');
-  const aShR = dia(el, 'RearShoulderDia');
+  const fShR = shoulderAtMost(dia(el, 'FrontShoulderDia'), n['foreRadius']);
+  const aShR = shoulderAtMost(dia(el, 'RearShoulderDia'), n['aftRadius']);
   const fShL = mmPos(el, 'FrontShoulderLen');
   const aShL = mmPos(el, 'RearShoulderLen');
   put(n, 'foreShoulderRadius', fShR);

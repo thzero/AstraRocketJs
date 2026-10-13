@@ -4,17 +4,20 @@
 //   npm run audit -- --jar <OpenRocket.jar>
 //
 // Run it for every audit, and after changing what the .ork or .rkt writers
-// emit. The last two steps need a JDK and the pinned OpenRocket release
+// emit. The last three steps need a JDK and the pinned OpenRocket release
 // (scripts/data/openrocket-release.json). Stops at the first failing step and
 // names it.
 //
 //   coverage    The unit suite with coverage, against the floors in
 //               vitest.config.ts.
-//   samples     The default design and every bundled example, saved as .ork
-//               and .rkt the way the app saves them.
+//   samples     The default design, every bundled example and a design with
+//               every part type, saved as .ork and .rkt the way the app saves
+//               them, each beside what the app's kernel flies for its parts.
 //   desktop     Those files open in desktop OpenRocket with no loader warning.
+//   fields      Desktop reads every part of those files back with the values
+//               the app's kernel flies (scripts/check-desktop-fields.mjs).
 //   helpers     The Java helpers under scripts/ (the catalog dumpers and the
-//               .ork check) compile against the release.
+//               .ork checks) compile against the release.
 import { spawnSync } from 'node:child_process';
 import { mkdtempSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -62,10 +65,19 @@ const STEPS = [
         ...filesIn(samples, '.rkt'),
       ]),
   ],
+  ['fields', () => run(process.execPath, ['scripts/check-desktop-fields.mjs', ...passthrough, samples])],
   [
     'helpers',
     () =>
-      run('javac', ['-cp', chooseBuild().cp, '-d', join(work, 'classes'), ...filesIn(join(WEB, 'scripts'), '.java')]),
+      run('javac', [
+        '-cp',
+        chooseBuild().cp,
+        '-d',
+        join(work, 'classes'),
+        ...filesIn(join(WEB, 'scripts'), '.java'),
+        // OrkFields reads parts through the bridge's own field list.
+        join(WEB, '../engine-java/src/api/java/api/ComponentFields.java'),
+      ]),
   ],
 ];
 

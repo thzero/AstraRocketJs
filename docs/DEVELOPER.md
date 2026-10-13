@@ -51,11 +51,13 @@ npm run verify       # the pre-push gate: format, spell, typecheck, lint, knip,
 npm run verify:ci    # the same list, but the suite runs WITH coverage and fails if
                      # it drops below the minimum percentages in vitest.config.ts
                      # (lines 82, statements 81, branches 74, functions 76).
-                     # Not run by CI; `npm run audit` runs it.
+                     # Not run by CI; `npm run audit` runs its coverage half.
 npm run audit        # every web check CI does not run: coverage, then the files
-                     # the app saves opened in desktop OpenRocket, then the Java
-                     # helpers compiled (needs a JDK and the pinned OpenRocket;
-                     # pass --jar <OpenRocket.jar> if it is not installed).
+                     # the app saves opened in desktop OpenRocket, then every
+                     # part of them read back and compared with what the app's
+                     # kernel flies, then the Java helpers compiled (needs a JDK
+                     # and the pinned OpenRocket; pass --jar <OpenRocket.jar> if
+                     # it is not installed).
                      # ~350 s, which is why CI runs `verify` and you run this one by hand.
 ```
 
@@ -179,7 +181,9 @@ What CI gates on the PR itself (`.github/workflows/gates.yml`):
 
 The engine checks are not CI gates. After a change under `engine-java/` or to the vendored engine, run `npm run audit` in `engine-java/` (needs a JDK): parity, a rebuild that fails if the committed engine binaries differ, the extraction check, the pinned upstream date, and the aero scorecards. It stops at the first failure and names the step.
 
-The checks against desktop OpenRocket are not CI gates either, since they need a JDK and the pinned release jar. `npm run check:ork` in `web/` opens the `.ork` and `.rkt` files the app writes in desktop; `orkDesktopSamples.test.ts` writes them when `ORK_SAMPLES_DIR` is set (see `web/scripts/check-ork-opens.mjs`). Run it after changing anything either writer emits. The catalog Java helpers under `web/scripts/` (`MotorDump.java`, `PresetDump.java`, `MaterialDump.java`) compile when a sync step runs them, by hand or in the weekly catalog workflow, and in `npm run audit` (its `helpers` step).
+The checks against desktop OpenRocket are not CI gates either, since they need a JDK and the pinned release jar. `npm run check:ork` in `web/` opens the `.ork` and `.rkt` files the app writes in desktop; `orkDesktopSamples.test.ts` writes them when `ORK_SAMPLES_DIR` is set (see `web/scripts/check-ork-opens.mjs`). `npm run check:fields` reads every part of those files back in desktop and compares it with what the app's kernel flies, which the samples test writes beside each file (see `web/scripts/check-desktop-fields.mjs`). Run `npm run audit`, which does all three, after changing anything either writer emits or anything the bridge builds. The catalog Java helpers under `web/scripts/` (`MotorDump.java`, `PresetDump.java`, `MaterialDump.java`) compile when a sync step runs them, by hand or in the weekly catalog workflow, and in `npm run audit` (its `helpers` step).
+
+Every change goes through the change audit in [`docs/AUDIT_PROMPT_CHANGES.md`](./AUDIT_PROMPT_CHANGES.md) before it is called done, and every fix for an audit finding ships with a test whose expected value comes from the kernel, the Java or desktop and that fails without the fix ("Fixes" in [`docs/AUDIT_PROMPT.md`](./AUDIT_PROMPT.md)).
 
 The full Playwright suite is not a PR gate. It runs by hand from `.github/workflows/e2e-full.yml` (**Run workflow**), sharded two ways.
 
