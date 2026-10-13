@@ -39,6 +39,7 @@
       "archiveTooManyEntries": "El archivo comprimido .ork tiene demasiadas entradas.",
       "archiveTooLarge": "El archivo comprimido .ork es demasiado grande (posible bomba zip).",
       "archiveEmpty": "El archivo comprimido .ork está vacío.",
+      "archiveCorrupt": "El archivo comprimido .ork está dañado o no se puede leer.",
       "tooManyComponents": "Este {{format}} declara demasiados componentes para abrirlo (posiblemente esté dañado).",
       "tooManySimulations": "Este .ork declara demasiadas simulaciones para abrirlo (posiblemente esté dañado).",
       "tooManyUnknownElements": "Este .ork lleva demasiados elementos no reconocidos para abrirlo (posiblemente esté dañado).",

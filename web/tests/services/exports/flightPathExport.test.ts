@@ -1192,11 +1192,42 @@ describe('renderWaypointCsv', () => {
 });
 
 describe('escaping', () => {
-  it('XML-escapes text fields in KML/GPX', () => {
+  it('XML-escapes text fields in KML, and leaves angle brackets out of them', () => {
     const m = model(); // rocketName "My <Rocket>", but title is simName
     m.branches[0]!.name = 'A & B <c>';
     const kml = renderKml(m);
-    expect(kml).toContain('<name>A &amp; B &lt;c&gt;</name>');
+    expect(kml).toContain('<name>A &amp; B c</name>');
+  });
+
+  /**
+   * A KML viewer can set a feature's name into HTML (Google Earth's default
+   * balloon places `<name>` there), and markup needs a `<`. So no value the
+   * KML carries may decode to one outside the balloons' own escaped HTML.
+   */
+  it('gives no name in KML a way to become markup', () => {
+    const m = model();
+    const payload = '<img src=x onerror=alert(1)>';
+    m.title = payload;
+    m.rocketName = payload;
+    m.branches[0]!.name = payload;
+    // An element's text as a viewer reads it after decoding the file once.
+    // Escaped text holds no raw `<`, so it ends at the first one.
+    const decoded = (tag: string) =>
+      [...renderKml(m).matchAll(new RegExp(`<${tag}>([^<]*)</${tag}>`, 'g'))].map((x) =>
+        x[1]!
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&quot;/g, '"')
+          .replace(/&apos;/g, "'")
+          .replace(/&amp;/g, '&'),
+      );
+    const names = decoded('name');
+    expect(names.length).toBeGreaterThan(0);
+    for (const n of names) expect(n).not.toMatch(/[<>]/);
+    // In a balloon the same name is text: it decodes once to escaped HTML.
+    const descriptions = decoded('description');
+    expect(descriptions.length).toBeGreaterThan(0);
+    for (const d of descriptions) expect(d).not.toContain('<img');
   });
   it('CSV-escapes embedded quotes by doubling', () => {
     const m = model();
@@ -1231,7 +1262,7 @@ describe('renderUserTemplate (Mustache)', () => {
   it('escapes by extension: XML for kml, doubled quotes for csv, none for txt', () => {
     const m = model();
     m.title = 'A & B "<c>"';
-    expect(renderUserTemplate('{{title}}', 'kml', m)).toBe('A &amp; B &quot;&lt;c&gt;&quot;');
+    expect(renderUserTemplate('{{title}}', 'kml', m)).toBe('A &amp; B &quot;c&quot;');
     expect(renderUserTemplate('{{title}}', 'csv', m)).toBe('A & B ""<c>""');
     expect(renderUserTemplate('{{title}}', 'txt', m)).toBe('A & B "<c>"');
   });

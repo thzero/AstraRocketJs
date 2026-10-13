@@ -22,8 +22,8 @@ const ork = (xml: string): ArrayBuffer => {
 
 /**
  * The same archive, with its central-directory entry claiming to inflate to
- * `bytes`. That field (offset 24 of the `PK` record) is what fflate
- * reports as `originalSize` and what the zip-bomb guard checks.
+ * `bytes` (offset 24 of the central directory record). The reader does not
+ * consult it: its caps count what each member inflates to.
  */
 const declaringSize = (zip: ArrayBuffer, bytes: number): ArrayBuffer => {
   const out = new Uint8Array(zip.slice(0));
@@ -144,48 +144,13 @@ describe('the hostile-input caps actually fire', () => {
   });
 
   /**
-   * The zip-bomb cap. fflate has no built-in limit, so `orkImport` filters on
-   * the central directory's declared size before inflating. A lying declared
-   * size truncates to a clean parse error rather than exhausting memory.
+   * The sizes an archive declares are not trusted either way: the caps count
+   * what each member inflates to (archiveBombs.test.ts), so a member that
+   * declares more than the cap but holds a small document opens.
    */
-  it('refuses an entry that declares more than the cap', () => {
-    // Over MAX_ARCHIVE_ENTRY_BYTES (64 MiB). The guard reads the size the
-    // central directory declares, before inflating anything, so the test
-    // forges that field on a tiny archive rather than deflating 65 MiB of
-    // filler, which would take seconds on a CI runner. A bare `.toThrow()` could
-    // be satisfied by the parse failing for another reason, not by the guard.
-    // Naming the message is what makes this a test of the cap; forging the size
-    // is what makes it a test of this zip bomb, the one that lies about how big
-    // it will inflate to.
-    const small = ork('<openrocket><rocket/></openrocket>');
-    expect(() => importOrk(declaringSize(small, 65 * 1024 * 1024))).toThrow(
-      '.ork archive is too large (possible zip bomb)',
-    );
-  });
-
-  /**
-   * A stored member (method 0) is copied out at its compressed size, whatever
-   * its declared size says, and many central-directory entries can point at the
-   * same stored bytes. 130 entries over one 1 MiB member, each declaring 1 byte,
-   * would copy 130 MiB while declaring 130 bytes, past the 128 MiB total.
-   */
-  it('refuses stored entries that alias one member past the total cap', () => {
-    const zipped = zipSync({ 'rocket.ork': new Uint8Array(1024 * 1024).fill(0x20) }, { level: 0 });
-    const view = new DataView(zipped.buffer, zipped.byteOffset, zipped.byteLength);
-    const dirEnd = zipped.byteLength - 22;
-    const cdStart = view.getUint32(dirEnd + 16, true);
-    const record = zipped.slice(cdStart, dirEnd);
-    new DataView(record.buffer, record.byteOffset).setUint32(24, 1, true); // declared size: 1 byte
-    const copies = 130;
-    const out = new Uint8Array(cdStart + record.length * copies + 22);
-    out.set(zipped.subarray(0, cdStart));
-    for (let i = 0; i < copies; i++) out.set(record, cdStart + i * record.length);
-    out.set(zipped.subarray(dirEnd), cdStart + record.length * copies);
-    const end = new DataView(out.buffer, cdStart + record.length * copies);
-    end.setUint16(8, copies, true);
-    end.setUint16(10, copies, true);
-    end.setUint32(12, record.length * copies, true);
-    expect(() => importOrk(out.buffer)).toThrow('.ork archive is too large (possible zip bomb)');
+  it('opens a member whose declared size is larger than what it holds', () => {
+    const small = ork(wrap('<bodytube><name>b</name><length>0.1</length><radius>0.01</radius></bodytube>'));
+    expect(importOrk(declaringSize(small, 65 * 1024 * 1024)).tree.components[0]?.children).toHaveLength(1);
   });
 
   /**

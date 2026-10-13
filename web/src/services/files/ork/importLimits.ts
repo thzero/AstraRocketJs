@@ -14,6 +14,13 @@ import {
 // Decompression caps for the untrusted `.ork` zip (a real design is a few
 // hundred KB of XML; these are generous ceilings, not tuning knobs).
 export const MAX_ARCHIVE_ENTRIES = 256;
+/**
+ * Gzip members in a gzipped `.ork`. OpenRocket writes one; the format allows
+ * any number back to back, and each costs a fresh inflater whatever it holds,
+ * so a 64 MiB file of one-byte members (millions of them) takes minutes while
+ * every byte cap stays far off.
+ */
+export const MAX_GZIP_MEMBERS = 4;
 export const MAX_ARCHIVE_ENTRY_BYTES = 64 * 1024 * 1024; // 64 MiB uncompressed per member
 export const MAX_ARCHIVE_TOTAL_BYTES = 128 * 1024 * 1024; // 128 MiB uncompressed total
 // A real design nests ~4-5 levels; this bounds a crafted deeply-nested

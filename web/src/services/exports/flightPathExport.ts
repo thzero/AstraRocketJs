@@ -1489,7 +1489,13 @@ function escaperFor(extension: string): (raw: string) => string {
   switch (extension.toLowerCase()) {
     // Markup formats take the XML escaper too, so a component name from a shared
     // file cannot become a live element in the generated page.
+    // A KML viewer may set a value into HTML as well as show it as text:
+    // Google Earth's default balloon places a feature's `<name>` there. So a
+    // KML value carries no `<` or `>` at all, and cannot become markup. Text
+    // inside `{{#htmlBalloon}}` is HTML-escaped before it gets here, so it
+    // keeps every character.
     case 'kml':
+      return (raw) => escapeXml(raw.replace(/[<>]/g, '')).replace(/'/g, '&apos;');
     case 'gpx':
     case 'xml':
     case 'html':

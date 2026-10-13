@@ -1,6 +1,6 @@
 # AUDIT - `web/` engineering audit
 
-<!-- cspell:ignore retuned retunes SEMROC Rocketarium Maadcow basemap -->
+<!-- cspell:ignore retuned retunes SEMROC Rocketarium Maadcow basemap APPNOTE -->
 
 Date: 2026-10-13. Branch `dev` at e871ddb, clean working tree. Run per
 `docs/AUDIT_PROMPT.md` as a fresh audit: no finding was carried forward from
@@ -24,17 +24,16 @@ read but whose consequence depends on something outside the repo.
 
 ## Status
 
-**54 open defects: 1 HIGH, 27 MED, 26 LOW**, plus the upkeep section. C33 to
-C44 were found after the first pass, by the two checks added the same day and
-by the change audits of those checks and of the C1 and C43 fixes (see "Checks
-added after this report").
-Fixed and not counted: C40 and C41, in the change that added the checks, and
-the HIGH findings C1 (transition shoulders) and C43 (stage overrides), each
-with the test that pins it in its entry.
+**52 open defects: 1 HIGH, 25 MED, 26 LOW**, plus the upkeep section. C33 to
+C45 were found after the first pass, by the two checks added the same day and
+by the change audits of those checks and of the C1, C43 and security fixes
+(see "Checks added after this report").
+Fixed and not counted: C40 and C41, in the change that added the checks; the
+HIGH findings C1 (transition shoulders) and C43 (stage overrides); and the
+security findings S1, S2 and S3. Each entry names the test that pins it.
 
 - **HIGH R1:** the published parts catalog is built by an older pipeline than
   the one on this branch.
-- **Security:** two MED decompression bombs in the `.ork` reader (S1, S2).
 - **Files desktop reads differently:** lug and rail button spacing (C2),
   angles over 180 degrees (C3), auto values in `.rkt` (C8), two `.CDX1`
   mappings (C9, C10), shoulder walls (C33), `auto` line and cord lengths (C36),
@@ -99,7 +98,24 @@ The fix rule and the change audit that go with them are in
 
 ## 🔴 Security
 
-**S1. MED | `.ork` gzip inflates fully before the cap is checked** | `web/src/services/files/ork/importUnpack.ts:39-55` | VERIFIED
+**S1. MED, FIXED | `.ork` gzip inflates fully before the cap is checked** | `web/src/services/files/ork/importUnpack.ts:39-55` | VERIFIED
+Resolution: `importUnpack` feeds every inflater its input in 1 KiB slices and
+counts the output of each before the next. DEFLATE expands at most about
+1032:1, so the cap stops the work within about 1 MiB of its limit. Slicing
+alone made a stream that takes in input without producing output (a gzip
+file name that never ends, bytes after a member's data) cost time that grows
+with the square of its length, since fflate copies the input it holds back on
+every push: 16 s for a 4 MiB file. So a stream is also refused, with
+`errors.file.archiveCorrupt`, once it has taken in 128 KiB with no output;
+a valid stream never holds back more than a stored block's 64 KiB. Any error
+fflate raises becomes that keyed message rather than raw English. A gzipped
+file may hold at most four gzip members (`MAX_GZIP_MEMBERS`; OpenRocket writes
+one): each member costs a fresh inflater however little it holds, and 64 MiB
+of one-byte members took 384 s with every byte cap far off. Pinned by
+`tests/services/files/archiveBombs.test.ts`, which counts the bytes fflate's
+inflaters deliver: against the reader from before the fix a 16 MiB gzip
+delivered all 16 MiB before the refusal, where the bound is the cap plus 2 MiB.
+The finding as reported:
 `gunzipCapped` pushes the whole input to fflate's `Gunzip` in one call, and
 fflate inflates everything buffered before it calls `ondata`. Reproduced: a
 65 KB gzip of 64 MiB of zeros arrives as a single 67,108,864-byte chunk before
@@ -112,7 +128,22 @@ only that the call throws, after inflating 65 MiB.
 Fix: push the input in 64 KiB slices so each chunk is bounded and the throw
 lands early. Make the test assert the largest chunk delivered.
 
-**S2. MED | `.ork` zip cap trusts the declared size** | `web/src/services/files/ork/importUnpack.ts:71-91` | VERIFIED
+**S2. MED, FIXED | `.ork` zip cap trusts the declared size** | `web/src/services/files/ork/importUnpack.ts:71-91` | VERIFIED
+Resolution: a zip is read with fflate's streaming `Unzip`, member by member from
+the local headers as Java's `ZipInputStream` reads it, through a sliced
+inflater, and the per-member and total caps count what each member inflates
+to; the declared sizes are no longer consulted, so a member that declares more
+than it holds opens, and central directory entries cannot alias one member.
+Members whose sizes follow their data (a data descriptor, as desktop's
+`ZipOutputStream` writes them) open, checked on a `jar`-built `.ork` and in
+`archiveBombs.test.ts`. Pinned by `archiveBombs.test.ts`: a member declaring
+1000 bytes and inflating to 16 MiB is refused within the bound and past the
+cap, so the counted path is the one taken (the reader from before the fix
+returned it without an error); a gzip header that never ends, a member
+that runs on past its data and a gzip file of a thousand members are refused
+at once; and stored members and the
+total are counted by what they hold.
+The finding as reported:
 The `filter` charges each member `max(size, originalSize)` from the central
 directory. fflate's `unzipSync` allocates `originalSize` and keeps decoding
 the whole compressed stream past it, dropping the writes. Reproduced: a zip of
@@ -125,7 +156,15 @@ member through the same chunked stream as S1, counting real output against
 `min(originalSize, MAX_ARCHIVE_ENTRY_BYTES)`. Or refuse a deflated member whose
 compressed size exceeds its declared size plus a margin.
 
-**S3. LOW | KML names are escaped once** | `web/src/services/exports/flightPathExport.ts:1318, 1353, 1361, 1381, 1397` | REPORTED
+**S3. LOW, FIXED | KML names are escaped once** | `web/src/services/exports/flightPathExport.ts:1318, 1353, 1361, 1381, 1397` | REPORTED
+Resolution: the KML escaper (`escaperFor('kml')`, used by the built-in template
+and by user templates named `.kml`) leaves `<` and `>` out of every value
+before it escapes it, so no name can decode to markup in a viewer that sets it
+into HTML; text inside a balloon is HTML-escaped first and keeps every
+character. Pinned by `tests/services/exports/flightPathExport.test.ts` ("gives
+no name in KML a way to become markup") and the escaper tests, which fail
+against the writer from before the fix.
+The finding as reported:
 Descriptions go through `{{#htmlBalloon}}` and are escaped twice, but every
 `<name>` (rocket, simulation, stage, recovery device) is XML-escaped once.
 Google Earth's default balloon substitutes `$[name]` into HTML. Whether it
@@ -525,6 +564,16 @@ covered, that the app does not fly. Fix: apply the overrides to each stage and
 parallel stage after they are built, and add a stage override to the
 every-part design.
 
+**C45. LOW | A zip whose data descriptors carry no signature is refused** | `web/src/services/files/ork/importUnpack.ts` (`unzipCapped`) | VERIFIED (fflate; desktop REPORTED)
+APPNOTE 4.3.9.3 lets a data descriptor (sizes after the data) omit its
+signature. fflate's streaming `Unzip` then trims the wrong number of bytes
+when it finds the end of the member, and the file is refused with
+`errors.file.archiveCorrupt`. Java's `ZipInputStream` accepts both forms, so
+desktop opens such a file; the central-directory reader before S2 did too.
+Desktop and fflate write the signature, so only a `.ork` re-zipped by an
+uncommon streaming tool meets this. Fix: read such a member through the
+central directory, with the same caps.
+
 **C44. MED | Two automatic ends that follow each other keep their stored radius in the app** | `web/src/services/design/autoRadius.ts` (`syncAutoRadii`) | VERIFIED (kernel and desktop)
 In the bundled dual-parachute-deployment example the nose cone's base
 (`<aftradius>auto 0.028321`) and the body tube behind it (`<radius>auto
@@ -576,8 +625,11 @@ loaded. Fix: wait for the frame's ready state; fail under `CI` without
 Seen failing: in a full `npx playwright test` run on 2026-10-13 the dark theme
 "Popup / help contents" scan reported a link in the docs frame at 2.3:1
 (#817043 on #4d3800), colors of the frame partway through its fade; the same
-scan passed 8 of 8 runs alone and in two other full runs. A scan that reads a
-frame before it settles fails at random as well as passing on a placeholder.
+scan passed 8 of 8 runs alone and in two other full runs. The next full run
+failed the same way on the "Help" scan, same element and same colors, so the
+frame passes through one state that fails, and a scan that does not wait for
+it settled lands there under load. A scan that reads a frame before it
+settles fails at random as well as passing on a placeholder.
 
 **T4. MED | `scriptsReferenced` counts a script naming itself** | `web/tests/scriptsReferenced.test.ts:174-189` | VERIFIED
 The haystack includes each script's own file. `gen-icons.mjs:2`,
@@ -636,7 +688,7 @@ note, or move to a provider whose terms allow this.
 No severity; not counted with the defects.
 
 **U1. A comment states something untrue or out of date**
-- `web/src/services/files/ork/importUnpack.ts:37-38` ("Streamed, so the count stops the inflation"); `web/tests/services/files/designFile.test.ts:147-151` ("capped like a zip member's"). See S1.
+- Fixed with S1: `web/src/services/files/ork/importUnpack.ts` said "Streamed, so the count stops the inflation" of a reader that was not; the reader now is, and the comment describes the slices. `web/tests/services/files/designFile.test.ts:147-151` ("capped like a zip member's") is now true.
 - `web/src/services/motors/rseParser.ts:17-18`: "No `MotorDigest` ... nothing here does that". `ork/embeddedMotors.rseDigest` and `motorDigest.ts` do.
 - `web/src/services/files/ork/embeddedMotors.ts:74-78`: the `rseDigest` doc omits that desktop hashes MASS_SPECIFIC when `auto-calc-mass` is absent or true.
 - `web/src/services/files/rktImport.ts:527-529`: describes a tab depth rule desktop does not use (C13).
@@ -661,6 +713,8 @@ No severity; not counted with the defects.
 - `web/scripts/lib/digestCoverage.mjs:105-107`: "parts about 98%"; the pipeline gives 100%.
 - `.github/workflows/sync-catalogs.yml:12-13`: the local refresh recipe leaves out `npm run sync:database`.
 - `web/scripts/sync-examples.mjs:27-29`: only motors and components are served from the data branch.
+
+- `web/src/services/flight/flightConfigs.ts:430, 432`: the join separators are literal U+0001 and U+0002 characters in the source, invisible in an editor; write them as `'\u0001'` and `'\u0002'`. (A test comment in `orkImportHostile.test.ts` carried the same bytes and was rewritten with S2.)
 
 **U2. User and maintainer docs that state what the code does not do**
 - Fixed: `docs/DEVELOPER.md` said `npm run audit` runs `verify:ci`; it runs the coverage half, and now says so.
@@ -694,7 +748,7 @@ Each fix removes its `KNOWN` entries from `fieldReadback.kernel.test.ts` and `ch
 
 1. Done: **C43** and **C1**.
 2. **C33**: always set the shoulder wall in the bridge; six bundled examples fly a different nose cone from desktop until it lands.
-3. **S1** and **S2**: one chunked inflate helper serves both; replace the test with one that measures the largest chunk.
+3. Done: **S1**, **S2** and **S3**.
 4. Small, verified file fixes: **C3** (one argument), **C37** (write `ID` before `OD`), **C42** (the part's own CG for a mass-only override), **C10** (refuse the event, kernel Cd), **C9** (refuse the parameter), **C6** (GLB in meters).
 5. **C2** and **C34**: the missing rows in `KERNEL_DEFAULTS`, verified by `kernelDefaults.kernel.test.ts`, then the drawing, writer and importer reading them. With them, **C44**: resolve a mutual pair of automatic ends as the kernel does.
 6. **C12** and **C11**: the two lost-work paths in storage, each with a store test.
@@ -704,5 +758,5 @@ Each fix removes its `KNOWN` entries from `fieldReadback.kernel.test.ts` and `ch
 10. The gate gaps **T1** to **T4**, then the U4 test generator gaps, so the next audit has less to find by hand.
 11. **R1**, then **R2**: put the catalog pipeline on master and dispatch it; then make the app prefer a newer build copy.
 12. **P1** and **T5**: confirm the Esri terms and the required check.
-13. The LOW findings, grouped by file: storage C19 to C21, C31 and C32; state C22; tree C14 to C16; importers C13, C17, C18; design C34, C35 and C39; launch panel C23 and C24; canvas C25 and C26; report C27 and C28; writers C29, C30, C38; KML S3; catalog R3.
+13. The LOW findings, grouped by file: storage C19 to C21, C31 and C32; state C22; tree C14 to C16; importers C13, C17, C18; design C34, C35 and C39; launch panel C23 and C24; canvas C25 and C26; report C27 and C28; writers C29, C30, C38; reader C45; catalog R3.
 14. Upkeep, by rule: U2 first, since docs are what a reader acts on.

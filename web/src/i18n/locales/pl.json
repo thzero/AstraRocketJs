@@ -39,6 +39,7 @@
       "archiveTooManyEntries": "Archiwum .ork ma zbyt wiele pozycji.",
       "archiveTooLarge": "Archiwum .ork jest zbyt duże (możliwa bomba zip).",
       "archiveEmpty": "Archiwum .ork jest puste.",
+      "archiveCorrupt": "Archiwum .ork jest uszkodzone lub nie można go odczytać.",
       "tooManyComponents": "Ten plik {{format}} deklaruje zbyt wiele komponentów, by go otworzyć (możliwe uszkodzenie).",
       "tooManySimulations": "Ten plik .ork deklaruje zbyt wiele symulacji, by go otworzyć (możliwe uszkodzenie).",
       "tooManyUnknownElements": "Ten plik .ork zawiera zbyt wiele nierozpoznanych elementów, by go otworzyć (możliwe uszkodzenie).",

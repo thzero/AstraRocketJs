@@ -39,6 +39,7 @@
       "archiveTooManyEntries": "O arquivo compactado .ork tem entradas demais.",
       "archiveTooLarge": "O arquivo compactado .ork é grande demais (possível bomba zip).",
       "archiveEmpty": "O arquivo compactado .ork está vazio.",
+      "archiveCorrupt": "O arquivo compactado .ork está danificado ou não pode ser lido.",
       "tooManyComponents": "Este {{format}} declara componentes demais para ser aberto (talvez esteja corrompido).",
       "tooManySimulations": "Este .ork declara simulações demais para ser aberto (talvez esteja corrompido).",
       "tooManyUnknownElements": "Este .ork traz elementos não reconhecidos demais para ser aberto (talvez esteja corrompido).",

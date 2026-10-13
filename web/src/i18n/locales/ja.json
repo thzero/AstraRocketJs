@@ -39,6 +39,7 @@
       "archiveTooManyEntries": ".ork アーカイブの項目が多すぎます。",
       "archiveTooLarge": ".ork アーカイブが大きすぎます（zip 爆弾の可能性があります）。",
       "archiveEmpty": ".ork アーカイブが空です。",
+      "archiveCorrupt": ".ork アーカイブが破損しているか、読み取れません。",
       "tooManyComponents": "この {{format}} は部品数が多すぎるため開けません（壊れている可能性があります）。",
       "tooManySimulations": "この .ork はシミュレーション数が多すぎるため開けません（壊れている可能性があります）。",
       "tooManyUnknownElements": "この .ork は認識できない要素が多すぎるため開けません（壊れている可能性があります）。",

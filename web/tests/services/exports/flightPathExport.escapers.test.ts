@@ -17,9 +17,13 @@ describe('renderUserTemplate escapers', () => {
   const DEL = String.fromCharCode(127);
 
   it('escapes XML-family output', () => {
-    for (const ext of ['kml', 'gpx', 'xml', 'html', 'htm', 'xhtml', 'svg', 'HTML']) {
+    for (const ext of ['gpx', 'xml', 'html', 'htm', 'xhtml', 'svg', 'HTML']) {
       expect(render(ext, '<a & "b">'), ext).toBe('&lt;a &amp; &quot;b&quot;&gt;');
     }
+  });
+
+  it('leaves angle brackets out of KML values, which a viewer may set into HTML', () => {
+    for (const ext of ['kml', 'KML']) expect(render(ext, '<a & "b">'), ext).toBe('a &amp; &quot;b&quot;');
   });
 
   it("escapes JSON output with JSON's own rules", () => {

@@ -39,6 +39,7 @@
       "archiveTooManyEntries": "Het .ork-archief heeft te veel items.",
       "archiveTooLarge": "Het .ork-archief is te groot (mogelijk een zipbom).",
       "archiveEmpty": "Het .ork-archief is leeg.",
+      "archiveCorrupt": "Het .ork-archief is beschadigd of kan niet worden gelezen.",
       "tooManyComponents": "Dit {{format}}-bestand bevat te veel onderdelen om te openen (mogelijk beschadigd).",
       "tooManySimulations": "Dit .ork-bestand bevat te veel simulaties om te openen (mogelijk beschadigd).",
       "tooManyUnknownElements": "Dit .ork-bestand bevat te veel onbekende elementen om te openen (mogelijk beschadigd).",

@@ -39,6 +39,7 @@
       "archiveTooManyEntries": "Das .ork-Archiv hat zu viele Einträge.",
       "archiveTooLarge": "Das .ork-Archiv ist zu groß (möglicherweise eine Zip-Bombe).",
       "archiveEmpty": "Das .ork-Archiv ist leer.",
+      "archiveCorrupt": "Das .ork-Archiv ist beschädigt oder kann nicht gelesen werden.",
       "tooManyComponents": "Diese {{format}}-Datei enthält zu viele Bauteile, um sie zu öffnen (möglicherweise fehlerhaft).",
       "tooManySimulations": "Diese .ork-Datei enthält zu viele Simulationen, um sie zu öffnen (möglicherweise fehlerhaft).",
       "tooManyUnknownElements": "Diese .ork-Datei enthält zu viele unbekannte Elemente, um sie zu öffnen (möglicherweise fehlerhaft).",

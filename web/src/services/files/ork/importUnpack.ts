@@ -1,7 +1,12 @@
-import { Gunzip, unzipSync } from 'fflate';
+import { Gunzip, Inflate, Unzip, UnzipPassThrough, type UnzipDecoder } from 'fflate';
 import { decodeFileText } from '../decodeText';
 import { parseXmlText } from '../xmlUtil';
-import { MAX_ARCHIVE_ENTRIES, MAX_ARCHIVE_ENTRY_BYTES, MAX_ARCHIVE_TOTAL_BYTES } from './importLimits';
+import {
+  MAX_ARCHIVE_ENTRIES,
+  MAX_ARCHIVE_ENTRY_BYTES,
+  MAX_ARCHIVE_TOTAL_BYTES,
+  MAX_GZIP_MEMBERS,
+} from './importLimits';
 import { KeyedError } from '../../../i18n/keyedError';
 
 /**
@@ -32,27 +37,153 @@ export type OrkArchive = {
 export const isGzip = (bytes: Uint8Array): boolean => bytes[0] === 0x1f && bytes[1] === 0x8b;
 
 /**
- * A gzip stream, inflated with the same cap a zip member gets.
+ * Compressed bytes handed to an inflater at a time.
  *
- * Streamed, so the count stops the inflation as soon as it passes the cap:
- * `gunzipSync` has no limit, and a few kilobytes of gzip can declare gigabytes.
+ * fflate inflates everything it is given before it reports any output, so the
+ * input is fed in slices and each slice's output is counted before the next.
+ * DEFLATE expands at most about 1032:1, so one slice yields at most about
+ * 1 MiB: the cap stops the work within that much of its limit, whatever the
+ * file declares about its own size.
  */
-function gunzipCapped(bytes: Uint8Array): Uint8Array {
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  const stream = new Gunzip((chunk) => {
-    total += chunk.length;
-    if (total > MAX_ARCHIVE_ENTRY_BYTES) throw new KeyedError('errors.file.archiveTooLarge');
-    chunks.push(chunk);
-  });
-  stream.push(bytes, true);
-  const out = new Uint8Array(total);
+const INFLATE_SLICE = 1024;
+
+/** Push `bytes` to `push` in INFLATE_SLICE pieces, `final` on the last. */
+function feed(push: (chunk: Uint8Array, final: boolean) => void, bytes: Uint8Array): void {
+  if (bytes.length === 0) {
+    push(bytes, true);
+    return;
+  }
+  for (let at = 0; at < bytes.length; at += INFLATE_SLICE) {
+    const end = Math.min(at + INFLATE_SLICE, bytes.length);
+    push(bytes.subarray(at, end), end === bytes.length);
+  }
+}
+
+/** The chunks laid end to end. */
+function joined(chunks: readonly Uint8Array[]): Uint8Array {
+  const out = new Uint8Array(chunks.reduce((n, c) => n + c.length, 0));
   let at = 0;
   for (const c of chunks) {
     out.set(c, at);
     at += c.length;
   }
   return out;
+}
+
+/**
+ * Input an inflater may take in without producing output before the stream is
+ * refused.
+ *
+ * A valid DEFLATE stream never holds back more than a stored block (65,535
+ * bytes) and its framing. A gzip header may legally be longer, but the writers
+ * that make `.ork` files keep it to a few bytes and a file name, and a longer
+ * one is refused here. fflate keeps the input it has not turned into output
+ * and copies all of it again on every push, so a stream that never produces
+ * output (a header that never ends, bytes after the end of the data) would
+ * cost time that grows with the square of its length. Refusing it here bounds
+ * that.
+ */
+const MAX_INPUT_WITHOUT_OUTPUT = 128 * 1024;
+
+/**
+ * Pushes slices to `push` and refuses the stream once it has taken in more
+ * than MAX_INPUT_WITHOUT_OUTPUT since its last output; call `produced` on
+ * every non-empty output.
+ */
+function stallGuard(push: (chunk: Uint8Array, final: boolean) => void) {
+  let sinceOutput = 0;
+  return {
+    produced: () => {
+      sinceOutput = 0;
+    },
+    push: (chunk: Uint8Array, final: boolean) => {
+      sinceOutput += chunk.length;
+      if (sinceOutput > MAX_INPUT_WITHOUT_OUTPUT) throw new KeyedError('errors.file.archiveCorrupt');
+      push(chunk, final);
+    },
+  };
+}
+
+/** A gzip stream, inflated with the same cap a zip member gets. */
+function gunzipCapped(bytes: Uint8Array): Uint8Array {
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  const stream = new Gunzip((chunk) => {
+    if (chunk.length) guard.produced();
+    total += chunk.length;
+    if (total > MAX_ARCHIVE_ENTRY_BYTES) throw new KeyedError('errors.file.archiveTooLarge');
+    chunks.push(chunk);
+  });
+  let members = 1;
+  stream.onmember = () => {
+    if (++members > MAX_GZIP_MEMBERS) throw new KeyedError('errors.file.archiveTooManyEntries');
+  };
+  const guard = stallGuard((chunk, final) => stream.push(chunk, final));
+  feed(guard.push, bytes);
+  return joined(chunks);
+}
+
+/**
+ * A deflated zip member's inflater, refused once it stops producing output.
+ * `Unzip` hands it the member in the slices `unzipCapped` feeds the archive in,
+ * so the caller's count sees its output as it grows.
+ */
+class GuardedInflate implements UnzipDecoder {
+  static compression = 8;
+  ondata: UnzipDecoder['ondata'] = () => {};
+  private readonly inflate = new Inflate((data, final) => {
+    if (data.length) this.guard.produced();
+    this.ondata(null, data, final);
+  });
+  private readonly guard = stallGuard((chunk, final) => this.inflate.push(chunk, final));
+  push(chunk: Uint8Array, final: boolean): void {
+    this.guard.push(chunk, final);
+  }
+}
+
+/**
+ * Every member of a zip, inflated with a cap on each member and on the whole.
+ *
+ * The count is of the bytes each member actually inflates to, not the sizes the
+ * archive declares: a member can declare a few bytes and inflate to gigabytes.
+ * The members are read in the order the archive stores them, from their local
+ * headers, with the central directory unread. Anything the reader cannot make
+ * sense of (a member cut off partway through its data, a method it does not
+ * know, a data descriptor without its signature) is refused with a keyed
+ * message. An archive cut off inside a member's local header, or right at its
+ * end before any data, ends before that member, and the members before it are
+ * read, as `ZipInputStream` reads them when the cut
+ * falls in the header's fixed part.
+ */
+function unzipCapped(bytes: Uint8Array): Map<string, Uint8Array> {
+  const members = new Map<string, Uint8Array>();
+  let entryCount = 0;
+  let total = 0;
+  const unzip = new Unzip((file) => {
+    if (++entryCount > MAX_ARCHIVE_ENTRIES) throw new KeyedError('errors.file.archiveTooManyEntries');
+    const chunks: Uint8Array[] = [];
+    let size = 0;
+    file.ondata = (err, data, final) => {
+      if (err) throw err;
+      size += data.length;
+      total += data.length;
+      if (size > MAX_ARCHIVE_ENTRY_BYTES || total > MAX_ARCHIVE_TOTAL_BYTES) {
+        throw new KeyedError('errors.file.archiveTooLarge');
+      }
+      chunks.push(data);
+      if (final) members.set(file.name, joined(chunks));
+    };
+    file.start();
+  });
+  unzip.register(UnzipPassThrough);
+  unzip.register(GuardedInflate);
+  try {
+    feed((chunk, final) => unzip.push(chunk, final), bytes);
+  } catch (e) {
+    if (e instanceof KeyedError) throw e;
+    throw new KeyedError('errors.file.archiveCorrupt');
+  }
+  return members;
 }
 
 /**
@@ -65,31 +196,20 @@ export function unpackOrk(data: ArrayBuffer | string, gunzipped = false): OrkArc
   if (typeof data === 'string') return { xml: data, motorFiles: [], dropped: [] };
   const bytes = new Uint8Array(data);
   if (!gunzipped && isGzip(bytes)) {
-    const inner = gunzipCapped(bytes);
+    let inner: Uint8Array;
+    try {
+      inner = gunzipCapped(bytes);
+    } catch (e) {
+      if (e instanceof KeyedError) throw e;
+      throw new KeyedError('errors.file.archiveCorrupt');
+    }
     return unpackOrk(inner.buffer.slice(inner.byteOffset, inner.byteOffset + inner.byteLength) as ArrayBuffer, true);
   }
   if (bytes[0] === 0x50 && bytes[1] === 0x4b) {
-    // Zip-bomb guard: a `.ork` is a zip, and fflate's unzipSync has no built-in
-    // cap: a crafted archive (huge declared size, or millions of entries)
-    // would OOM the tab. The `filter` runs per member before it is read, so we
-    // reject there. A member costs the larger of its two sizes: a deflated one
-    // inflates to its declared `originalSize`, and a stored one (method 0) is
-    // copied out at its compressed `size`, whatever `originalSize` claims, and
-    // several entries can point at the same stored bytes.
-    let entryCount = 0;
-    let totalSize = 0;
-    const entries = unzipSync(bytes, {
-      filter: (file) => {
-        if (++entryCount > MAX_ARCHIVE_ENTRIES) throw new KeyedError('errors.file.archiveTooManyEntries');
-        const cost = Math.max(file.size, file.originalSize);
-        totalSize += cost;
-        if (cost > MAX_ARCHIVE_ENTRY_BYTES || totalSize > MAX_ARCHIVE_TOTAL_BYTES) {
-          throw new KeyedError('errors.file.archiveTooLarge');
-        }
-        return true;
-      },
-    });
-    const names = Object.keys(entries);
+    // A crafted archive (a member that inflates far past what it declares, or
+    // thousands of members) would otherwise freeze or exhaust the tab.
+    const entries = unzipCapped(bytes);
+    const names = [...entries.keys()];
     const entryName = names.find((n) => n.endsWith('.ork')) ?? names[0];
     if (!entryName) throw new KeyedError('errors.file.archiveEmpty');
     const motorFiles: string[] = [];
@@ -98,12 +218,12 @@ export function unpackOrk(data: ArrayBuffer | string, gunzipped = false): OrkArc
       if (name === entryName) continue;
       // Any `.rse` in the archive, not just `thrustcurves/` ones: the folder is
       // the desktop's convention, not something the loader depends on.
-      if (name.toLowerCase().endsWith('.rse')) motorFiles.push(decodeFileText(entries[name]!));
+      if (name.toLowerCase().endsWith('.rse')) motorFiles.push(decodeFileText(entries.get(name)!));
       // A thumbnail is regenerated on demand by whatever opens the file next, so
       // losing it is not a loss worth reporting.
       else if (name !== 'preview.png') dropped.push(name);
     }
-    return { xml: decodeFileText(entries[entryName]!), motorFiles, dropped };
+    return { xml: decodeFileText(entries.get(entryName)!), motorFiles, dropped };
   }
   return { xml: decodeFileText(bytes), motorFiles: [], dropped: [] };
 }
