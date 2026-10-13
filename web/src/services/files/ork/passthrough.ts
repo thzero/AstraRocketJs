@@ -144,8 +144,6 @@ export const KNOWN_COMPONENT_TAGS: ReadonlySet<string> = new Set([
   'finleradius',
   'caseairframe',
   'fairingshape',
-  // Legacy aliases the reader accepts.
-  'value',
 ]);
 
 /**

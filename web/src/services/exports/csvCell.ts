@@ -1,6 +1,6 @@
 /**
  * Spreadsheet formula injection, neutralized for a CSV value, and the one
- * quoting rule for a CSV field. Every CSV writer in the app goes through these.
+ * quoting rule for a CSV field. Every CSV writer that writes text goes through these.
  *
  * Quoting alone does not stop injection: Excel and Sheets strip the quoting
  * before evaluating, so a file-sourced name like

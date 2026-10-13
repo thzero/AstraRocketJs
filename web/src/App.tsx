@@ -249,8 +249,8 @@ export default function App() {
             tab; desktop only; the phone puts them above the charts instead).
             Same width as the other right columns, because they share the
             one setting: right columns of different widths read as an accident.
-            The tiles are a 3-up grid, which is what SIDE_PANE_MIN protects -
-            narrower and "Static margin @ rail exit" wraps onto three lines. */}
+            The tiles are a 2-up grid, which is what SIDE_PANE_MIN protects -
+            narrower and "Static margin @ rail exit" wraps onto several lines. */}
         {tab === 'results' && !maxed && <SideSplitter paneRef={summaryRef} {...side} />}
         <section
           ref={summaryRef}

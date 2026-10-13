@@ -7,7 +7,7 @@ import { fmtList, fmtNum, fmtUpTo, ladderDigits, withUnit } from '../../i18n/for
 import { staticInfoRows } from '../report/designInfo';
 
 /**
- * 2D/3D image + model export with a data header, the drawings an L3 / Tripoli
+ * 2D/3D image export with a data header, the drawings an L3 / Tripoli
  * Class 3 certification packet includes. The SVG is true scale (its
  * width/height are physical millimeters, so it prints 1:1 and still scales
  * freely on screen); raster output is PNG or JPEG.

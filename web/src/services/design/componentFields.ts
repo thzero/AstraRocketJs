@@ -13,7 +13,7 @@ import { num } from '../../tree/nodeProps';
  * This is domain data, not presentation. It encodes the OpenRocket component
  * vocabulary, the shape lists, the deploy and separation event vocabularies,
  * the unit kinds and the required-ness. It does not live in `PropertyPanel`:
- * services (`treeEdit`) and tests import it directly, and it takes its required
+ * services (`files/ork/importTags`) and tests import it directly, and it takes its required
  * list from `services/design/requiredComponent`, so a service would otherwise be
  * depending on a component module for the shape of its own domain.
  */
@@ -166,7 +166,7 @@ const MASS_COMPONENT_TYPES = [
   'battery',
 ];
 
-// Stage-separation triggers (SeparationEvent, ComponentFactory.separationEventOf)
+// Stage-separation triggers (SeparationEvent, OpenRocketEngine.separationEventOf)
 // (when a stage lets go of the one above it). Ejection first: the desktop default
 // and the low/mid-power norm (drop off on the upper stage's ejection charge).
 // The per-configuration separation override offers this same list.

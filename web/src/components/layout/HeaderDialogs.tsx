@@ -10,7 +10,7 @@ import { ExamplesDialog } from './ExamplesDialog';
 import { AboutDialog } from './AboutDialog';
 import { UpdateCheckDialog } from './UpdateCheckDialog';
 // Lazily loaded: it is the only eager holder of `services/report/reportModel`,
-// which `store.saveDesign` already imports dynamically to keep the report model
+// which `saveOrk` (fileSlice) already imports dynamically to keep the report model
 // out of the main bundle. One static import from a dialog this host mounts
 // eagerly pins the module and everything under it, and the build says so
 // (INEFFECTIVE_DYNAMIC_IMPORT). Nothing needs the report until it is opened.

@@ -106,7 +106,7 @@ export function PropertyPanel({
   /**
    * Drop the panel's own card, for a host that already is one. The right column
    * needs the card to read as a panel against the pane behind it; the component
-   * dialog is already a slate-900 surface with a ring, and a second one inside
+   * dialog is already a `bg-surface` panel with a ring, and a second one inside
    * it is a box drawn around the inside of a box.
    */
   flush?: boolean;
@@ -373,7 +373,8 @@ export function PropertyPanel({
         <PlacementSection node={node} onChange={onChange} onCommit={onCommit} />
       )}
 
-      {/* Appearance is second to last on every part, directly above Overrides.
+      {/* Appearance comes after the part's own sections, above the tree actions,
+          Overrides and Comment.
           A stage has no color of its own, so it has no Appearance section. */}
       {node.type !== 'stage' && <AppearanceSection node={node} onCommitChange={commitChange} />}
 

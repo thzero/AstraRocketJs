@@ -42,7 +42,7 @@ El paso más útil es simular el cohete tal como está construido y no tal como 
 1. **Pesa el cohete terminado**, listo para volar pero sin el motor. Selecciona su etapa en el editor de componentes (en un cohete de una sola etapa esa es la totalidad), activa la **anulación de masa** e introduce la cifra medida con "Aplicar a todos los subcomponentes" activado.
 2. **Encuentra el punto de equilibrio.** Equilibra el cohete sobre el canto de una regla, mide desde la punta de la ojiva e introdúcelo como **anulación del CG**.
 3. **Vuelve a leer el margen de estabilidad** con esos números puestos. Ese es el margen que importa. Si se movió, tu modelo estaba equivocado en algo, y vale la pena averiguar en qué.
-4. **Comprueba la velocidad de salida de la guía** en los resultados de vuelo (**Velocidad al salir del raíl** o **Velocidad al salir de la varilla**, según las guías del diseño). Un cohete que sale despacio se orienta hacia el viento, y ahí es donde la simulación es menos fiable.
+4. **Comprueba la velocidad de salida de la guía** en los resultados de vuelo (el dato **Salida del raíl** o **Salida de la varilla**, según las guías del diseño). Un cohete que sale despacio se orienta hacia el viento, y ahí es donde la simulación es menos fiable.
 5. **Comprueba la velocidad de descenso y la de aterrizaje**, y la traza sobre el suelo para ver cuánto te aleja a sotavento. Luego mira el tamaño real del campo.
 6. **Vuelve a ejecutar tras cualquier cambio**, incluido un cambio de motor. Los resultados solo valen para el diseño y las condiciones con los que se ejecutaron.
 

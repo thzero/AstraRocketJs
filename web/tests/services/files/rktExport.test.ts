@@ -563,6 +563,35 @@ describe('exportRkt: off-axis placement, as desktop writes it', () => {
   });
 });
 
+// The bridge takes a surface density as given, zero included, so the file
+// carries the canopy the app flies rather than the kernel's default fabric.
+describe('a canopy with no weight', () => {
+  it('goes out at the density the app flies', () => {
+    const { xml: out } = exportRkt('x', {
+      name: 'x',
+      components: [
+        {
+          type: 'stage',
+          id: 's',
+          name: 'Sustainer',
+          children: [
+            {
+              type: 'bodytube',
+              id: 'b',
+              name: 'Airframe',
+              length: 0.3,
+              outerRadius: 0.0124,
+              children: [{ type: 'parachute', id: 'p', name: 'Main', surfaceDensity: 0 }],
+            },
+          ],
+        },
+      ] as ComponentNode[],
+    });
+    const chute = new DOMParser().parseFromString(out, 'text/xml').querySelector('Parachute');
+    expect(Number(chute?.querySelector(':scope > Density')?.textContent)).toBe(0);
+  });
+});
+
 describe('mass and CG overrides through the one UseKnownCG switch', () => {
   /** A one-stage design holding just `part`. */
   const only = (part: ComponentNode) =>
@@ -585,6 +614,33 @@ describe('mass and CG overrides through the one UseKnownCG switch', () => {
     expect(importRkt(out).tree.components[0]!.children![0]!['overrideMass']).toBeUndefined();
     // The CG override is reported as not exported rather than lost quietly.
     expect(s).toEqual([{ key: 'errors.rktSkip.cgOverride', values: { name: 'Airframe' } }]);
+  });
+
+  // BasePartDTO writes getMass() beside the CG, and the kernel's figure for the
+  // part is that mass, so with figures in hand the override goes out whole.
+  it("pairs a CG-only override with the kernel's mass for the part", () => {
+    const { xml: out, skipped: s } = exportRkt(
+      'x',
+      {
+        name: 'x',
+        components: [
+          {
+            type: 'stage',
+            id: 's',
+            name: 'Sustainer',
+            children: [
+              { type: 'bodytube', id: 'b', name: 'Airframe', length: 0.3, outerRadius: 0.0124, overrideCGX: 0.1 },
+            ],
+          },
+        ] as ComponentNode[],
+      },
+      (id) => (id === 'b' ? { mass: 0.025, cgX: 0.15 } : undefined),
+    );
+    expect(out).toContain('<UseKnownCG>1</UseKnownCG>');
+    expect(s).toEqual([]);
+    const tube = importRkt(out).tree.components[0]!.children![0]!;
+    expect(tube['overrideMass']).toBeCloseTo(0.025, 9);
+    expect(tube['overrideCGX']).toBeCloseTo(0.1, 9);
   });
 
   it('writes KnownMass once on a mass component that also overrides its mass', () => {

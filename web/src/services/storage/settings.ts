@@ -32,8 +32,8 @@ export const TREE_PANE_DEFAULT = 360;
 /**
  * Bounds for the right-hand column (see `Settings.sidePaneWidth`).
  *
- * The minimum is where the Results tiles stop working: they are a 3-up grid, and
- * narrower than this "Static margin @ rail exit" wraps onto three lines.
+ * The minimum is where the Results tiles stop working: they are a 2-up grid, and
+ * narrower than this "Static margin @ rail exit" wraps onto several lines.
  */
 export const SIDE_PANE_MIN = 300;
 export const SIDE_PANE_MAX = 640;
@@ -125,7 +125,7 @@ export interface SimulationSettings {
    * high; rail buttons are not considered at all.
    *
    * True flies the guide-aware model: the guided phase ends when the aft-most
-   * guide, lug or button, leaves the rod, and the rocket is released there as
+   * lug, or a button line's second-to-last station, leaves the rod, and the rocket is released there as
    * well as reported there.
    *
    * A choice and not a fix, because the engine is validated bit-identical to
@@ -592,8 +592,8 @@ export function loadSettings(): Settings {
           ) as Partial<RulerSides>)
         : {};
     return {
-      // Unknown/absent symbols fall back per quantity, so an older store (which
-      // has no `units` at all) keeps exactly the units it was displaying.
+      // Unknown/absent symbols fall back per quantity, so a store with no
+      // `units` at all keeps exactly the units it was displaying.
       units: normalizeUnits(s.units),
       unitOverrides: normalizeUnitOverrides(s.unitOverrides),
       // Filtered, not spread. These values reach a style attribute (the same
@@ -636,7 +636,7 @@ export function loadSettings(): Settings {
         }
         return c;
       })(),
-      // An older store has no value here, and an unrecognized one falls back
+      // A store may have no value here, and an unrecognized one falls back
       // rather than leaving the tables with a style nothing renders.
       aeroHeat: s.aeroHeat === 'openrocket' ? 'openrocket' : DEFAULT_SETTINGS.aeroHeat,
       // Clamped like every adjacent field: a bare `typeof === 'number'` admits

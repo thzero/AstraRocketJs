@@ -183,7 +183,8 @@ export interface NodeEditProps {
  * part from the cone or taper above it, and under the same heading it would
  * read as four more dimensions of the same shape. A transition has two, kept
  * apart because each end is its own build and eight rows under one heading is
- * a wall. Only one of the three renders for a given part: FieldSection draws
+ * a wall. At most two render for a given part (a transition's fore and aft):
+ * FieldSection draws
  * nothing when the type has no field in it.
  */
 export function ShoulderSections({ node, onChange, onCommit }: NodeEditProps) {

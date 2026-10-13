@@ -35,6 +35,7 @@ import {
   type OrkImportContext,
 } from './importConfigs';
 import { degToRad } from '../../../prefs/units';
+import { KERNEL_DEFAULTS } from '../../../tree/kernelDefaults';
 
 /**
  * One reader per .ork element tag: the node the element becomes, before its
@@ -455,7 +456,8 @@ const readAssembly =
   (ctx, el) => {
     const n = base(el, asmType, true); // name + overrides + axialoffset/position
     n['instanceCount'] = clampCount(
-      numTag(el, 'instancecount', asmType === 'podset' ? 1 : 2),
+      // Absent, the count `new PodSet()` and `new ParallelStage()` start with.
+      numTag(el, 'instancecount', KERNEL_DEFAULTS[asmType].instanceCount),
       1,
       MAX_ASSEMBLY_INSTANCES,
     );
@@ -552,8 +554,8 @@ export function readStages(ctx: OrkImportContext, stages: Element[]): ComponentN
     if (!Number.isNaN(nozzle) && nozzle > 0) stage['nozzleExitDiameter'] = nozzle;
     if (i > 0) {
       // Like ignition: the chosen config's block overrides the bare defaults
-      // field by field (24.12 writes a <separationconfiguration> for every
-      // config id).
+      // field by field (24.12 writes a <separationconfiguration> for each
+      // configuration that overrides the default).
       readSeparation(stageEl, stage, configScoped(ctx, stageEl, 'separationconfiguration'));
       captureSeparations(ctx, stageEl, stage);
     }

@@ -1,6 +1,6 @@
 import type { ComponentNode } from '../engine/openRocketEngine';
 import { clusterPoints } from './cluster';
-import { num, positionOf } from './nodeProps';
+import { countOf, num, positionOf } from './nodeProps';
 
 /**
  * Where the copies of one part sit, as the kernel flies them, for the views to
@@ -23,7 +23,7 @@ const LINE_INSTANCE_TYPES: ReadonlySet<string> = new Set(['centeringring', 'bulk
  */
 export function lineInstances(node: ComponentNode): ComponentNode[] {
   if (!LINE_INSTANCE_TYPES.has(node.type)) return [node];
-  const count = Math.max(1, Math.round(num(node, 'instanceCount', 1)));
+  const count = countOf(node, 'instanceCount', 1);
   if (count === 1) return [node];
   const separation = num(node, 'instanceSeparation', 0);
   const pos = positionOf(node);

@@ -1,6 +1,6 @@
 import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
 import { KERNEL_AUTO_RADIUS, kernelLength } from '../../tree/kernelDefaults';
-import { num, str } from '../../tree/nodeProps';
+import { bodyTubeRadius, num, str } from '../../tree/nodeProps';
 import { tubeFinRadius } from '../../tree/tubefins';
 import { DISC_TYPES } from '../files/componentFormats';
 import { COMPONENT_DEFAULTS } from './componentDefaults';
@@ -187,7 +187,8 @@ function partOf(node: ComponentNode | null, type: string): Part {
   if (p.radiusMethod === 'relative' || p.radiusMethod === 'free') p.radiusOffset = num(n, 'radiusOffset', 0);
   if (type === 'bodytube') {
     const auto = n['outerRadiusAuto'] === true;
-    Object.assign(p, { foreAuto: auto, aftAuto: auto, fore: r('outerRadius'), aft: r('outerRadius') });
+    const radius = bodyTubeRadius(n);
+    Object.assign(p, { foreAuto: auto, aftAuto: auto, fore: radius, aft: radius });
   } else if (type === 'nosecone') {
     // `aftRadius` is the base wherever it sits; flipped, the base is in front.
     const auto = n['aftRadiusAuto'] === true;
@@ -764,6 +765,14 @@ function packedAtRadius(node: ComponentNode, r: number): Patch {
 }
 
 /**
+ * Whether a centering ring's bore follows the mount through it. A ring with no
+ * bore of its own is built by `new CenteringRing()`, whose inner radius is
+ * automatic, so the kernel resolves it as it does a ring marked automatic.
+ */
+const ringBoreAuto = (node: ComponentNode): boolean =>
+  node.type === 'centeringring' && (node['innerRadiusAuto'] === true || typeof node['innerRadius'] !== 'number');
+
+/**
  * The rules that look at a part's parent rather than at its neighbors.
  *
  * A ring, coupler, bulkhead or engine block fills the bore of the part it sits
@@ -801,7 +810,7 @@ function parentDerived(node: ComponentNode, parent: ComponentNode | null, parent
     // kernel's answer, which the pre-run check then reports.
     if (outer !== null) node['outerRadius'] = outer;
   }
-  if (node.type === 'centeringring' && node['innerRadiusAuto'] === true) {
+  if (ringBoreAuto(node)) {
     node['innerRadius'] = ringBore(node, parent, num(node, 'outerRadius', 0), parentStart);
   }
 }
@@ -826,7 +835,7 @@ export function syncAutoRadii(tree: RocketTree): RocketTree {
     // Rings, tube fins and packed devices take their size from what they are
     // inside, not from the part beside them, so they resolve against the
     // parent rather than through the neighbor rules.
-    if (node['outerRadiusAuto'] === true || node['innerRadiusAuto'] === true || node['radiusAuto'] === true) {
+    if (node['outerRadiusAuto'] === true || ringBoreAuto(node) || node['radiusAuto'] === true) {
       const before = { outer: node['outerRadius'], inner: node['innerRadius'], r: node['radius'] };
       const draft = { ...node };
       parentDerived(draft, parent, (parent?.id ? frames.get(parent.id)?.start : undefined) ?? 0);

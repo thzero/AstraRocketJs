@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import type { ComponentNode, RocketTree } from '../../../src/engine/openRocketEngine';
 import { syncAutoRadii } from '../../../src/services/design/autoRadius';
-import { KERNEL_AUTO_RADIUS } from '../../../src/tree/kernelDefaults';
+import { KERNEL_AUTO_RADIUS, KERNEL_BODYTUBE_OUTER_RADIUS } from '../../../src/tree/kernelDefaults';
 import { addPart, catalogPatch, defaultNode, updateNode } from '../../../src/services/design/treeEdit';
 import { importOrk, exportOrk } from '../../../src/services/files/orkFile';
 
@@ -447,6 +447,14 @@ describe('neighbors across pod sets and boosters', () => {
     expect(podTube('relative', -0.02, 'bottom')).toBe(0.02);
   });
 
+  // ComponentFactory builds a tube with no radius at 0.012 m, and the kernel
+  // places the pod against that.
+  it('places a pod against a tube with no radius at the bridge default', () => {
+    const inLine = pod('relative', -KERNEL_BODYTUBE_OUTER_RADIUS, 'bottom', [auto('p', [], 0.1)]);
+    const keyless = { ...fixed('a', 0, [inLine]), outerRadius: undefined };
+    expect(radii(syncAutoRadii(stages([nose(0.03), keyless])))['p']).toBe(KERNEL_BODYTUBE_OUTER_RADIUS);
+  });
+
   it('keeps an off-axis pod apart, with nothing for its tube to follow', () => {
     expect(podTube('relative', 0, 'bottom')).toBe(KERNEL_AUTO_RADIUS);
   });
@@ -818,6 +826,33 @@ describe('what a new part starts as', () => {
     const kids = chainOf(syncAutoRadii(stage([host])))[0]!.children as ComponentNode[];
     expect(kids.find((n) => n.id === 'stop')!['innerRadius']).toBe(0);
     expect(kids.find((n) => n.id === 'both')!['innerRadius']).toBeCloseTo(0.0095, 12);
+  });
+
+  // The bridge builds a ring with no bore through `new CenteringRing()`, whose
+  // inner radius is automatic, so the kernel flies it at the widest mount that
+  // overlaps it, not at the first inner tube in the parent.
+  it('resolves a ring with no bore of its own as an automatic one', () => {
+    const mount = (id: string, r: number, at: number) =>
+      ({
+        type: 'innertube',
+        id,
+        length: 0.07,
+        outerRadius: r,
+        position: { method: 'top', offset: at },
+      }) as ComponentNode;
+    const ring = {
+      type: 'centeringring',
+      id: 'r',
+      length: 0.005,
+      outerRadius: 0.025,
+      position: { method: 'top', offset: 0.05 },
+    };
+    const host = {
+      ...tube('b', 0.026),
+      children: [mount('small', 0.006, 0), mount('wide', 0.0095, 0.03), ring],
+    } as unknown as ComponentNode;
+    const kids = chainOf(syncAutoRadii(stage([host])))[0]!.children as ComponentNode[];
+    expect(kids.find((n) => n.id === 'r')!['innerRadius']).toBeCloseTo(0.0095, 12);
   });
 });
 

@@ -4,6 +4,8 @@ import { useUnits } from '../../prefs/useUnits';
 import type { LaunchConditions } from '../../services/design/orkTree';
 import { LAUNCH_SITE_LIMITS } from '../../services/storage/launchLocationStore';
 import { LocationPicker } from '../sim/LocationPicker';
+import { loadSettings } from '../../services/storage/settings';
+import { defaultToolSite } from './remembered';
 import { SiteMapDialog } from '../sim/SiteMapDialog';
 import { QNum } from '../sim/LaunchPanel';
 import { LatLonRows } from '../sim/LatLonRows';
@@ -37,6 +39,7 @@ export function SiteFields({
     <>
       <LocationPicker
         launch={site as unknown as LaunchConditions}
+        defaultSite={() => defaultToolSite(loadSettings().launchDefaults)}
         onChange={(p) =>
           onChange((s) => ({
             latitudeDeg: p.latitudeDeg !== undefined ? p.latitudeDeg : s.latitudeDeg,

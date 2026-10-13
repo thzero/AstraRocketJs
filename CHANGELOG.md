@@ -124,6 +124,24 @@ so most entries describe getting a computation to match OpenRocket exactly.
 - **Desktop's names for simulation extensions.** The note on opening a file that carries desktop simulation extensions names them as desktop does (Roll Control, Java code) instead of by their internal class names.
 
 ### Fixed
+- **Every catalog part has a weight.** 24 catalog parts (a balsa nose cone, an engine block, 8 streamers and 14 parachutes) name a material with no density, which desktop weighs at 0 g. The catalog now gives each the nearest built-in material: Balsa, Plywood (birch), Paper (office), Polyethylene (thin) or Ripstop nylon.
+- **The import banner judges every simulation.** A `.ork`'s own simulations are each checked on their own launch conditions when the file opens, as the run does, not only the first.
+- **The page states the language it shows.** The page's `lang` follows the language picked, so a screen reader reads Spanish text with Spanish pronunciation.
+- **Copies of one rule that had drifted apart now agree.**
+  - The Configurations tab names an unnamed part the same way on its cards as in its column headers.
+  - Saving a launch location under an existing name in another case updates it instead of adding a second entry.
+  - Custom location in a tool leaves the elevation to the terrain model.
+  - The velocity-altitude chart header shows the same top speed the screen reader reads.
+  - The side view holds an oversized shoulder to its part's radius, as the 3D view does.
+  - The power class weighs propellant as the kernel does, launch mass less burnout mass.
+  - Pods placed against a body tube with no stored radius, automatic fin tabs on a parent with no stored length, and a centering ring with no bore of its own resolve as the kernel builds them.
+  - A drawn or split instance count stops at the same ceiling as every other.
+  - Reset on the Settings Colors tab also resets the aero heat palette.
+- **Files.**
+  - A `.ork` pod set with no instance count reads as two, as desktop builds it.
+  - An unknown `<value>` element on a part is carried through instead of dropped.
+  - A `.rkt` export writes a CG-only override with the kernel's mass for the part, and a weightless canopy at the density the app flies.
+  - A RASAero export takes the kernel's defaults for a parachute or tube with no stored value.
 - **A fin tab never flies deeper than the body has room for.** A tab that fit at the part's build-time station kept its depth after the fin set settled at its own, where the body can be narrower (a fin on a nose cone placed by its bottom); the bridge now applies the settled limit, as the drawings and the cut sheet already did.
 - **Drawings follow the kernel more closely.** A rail button stands out by its height, as it flies; the side view turns lugs, rail buttons and motor clusters with the view's roll; an off-center internal part is drawn on the side it sits, not mirrored; and the aft view resolves a transition end with no radius on record. A design stored by an older build has such ends resolved when it opens, without making its results outdated.
 - **A site elevation is asked for, not assumed.** The Parachute sizing tool keeps its elevation when the box is cleared, and the Landing estimator and Off the rail ask for the pad elevation when it is blank and the terrain lookup has none, instead of using sea level.

@@ -82,8 +82,8 @@ jobs:
   # sidebars.ts or MDX page fails the pull request there.
 
   # The core end-to-end specs: the paths a broken build breaks first (the list is
-  # CORE_SPECS in web/playwright.config.ts). Every pull request and master push
-  # runs them. The full suite runs in e2e-full.yml, by hand.
+  # CORE_SPECS in web/playwright.config.ts). Every pull request and push to a
+  # branch other than master runs them. The full suite runs in e2e-full.yml, by hand.
   # Separate job so a Playwright failure is legible on its own and the browser
   # download does not slow the unit gate.
   e2e:

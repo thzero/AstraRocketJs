@@ -75,8 +75,9 @@ function HeatLegend({ max, unit, style }: { max: number; unit: string; style: He
 /**
  * The sampled Mach nearest the crosshair. The tables quote a real sample rather
  * than interpolating between two, so their numbers match the CSV exactly; with
- * no pointer on a chart they settle at the sample nearest Mach 0.3, the speed
- * the stats strip quotes its drag coefficient at.
+ * no pointer on a chart they show the sample nearest the Mach slider's value,
+ * which starts at 0.3 (the speed the stats strip quotes its drag coefficient
+ * at) and keeps the last Mach a chart was hovered at.
  */
 function useSampleAt(machs: number[], mach: number): number {
   return useMemo(() => nearestSampleIndex(machs, mach), [machs, mach]);
@@ -151,8 +152,8 @@ function WholeRocketRow({ children }: { children: React.ReactNode }) {
  * Where the desktop makes you type a Mach number into a spinner, this follows
  * the charts' hover crosshair: scrub along the Cd curve and the split updates
  * under it. Every Mach in the sweep is already in hand, so it costs nothing.
- * With no pointer on a chart it settles at the sample nearest Mach 0.3, the
- * speed the stats strip quotes its drag coefficient at.
+ * With no pointer on a chart it shows the Mach slider's sample (0.3 until
+ * moved or hovered).
  *
  * The friction / pressure / base columns appear only when the kernel supplies
  * them: they come from the same `getForceAnalysis` call as `cd`, and a kernel

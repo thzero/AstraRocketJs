@@ -6,7 +6,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 /**
  * The shipped target's boundary behavior.
  *
- * Every other test in this directory loads `vendor/openrocket-engine.mjs`, the
+ * Every other kernel test in the suite runs `vendor/openrocket-engine.mjs`, the
  * JavaScript build. The app loads WASM-GC when the browser supports it and only
  * falls back to JS, so **the build the other tests check is not the build most
  * users run**.

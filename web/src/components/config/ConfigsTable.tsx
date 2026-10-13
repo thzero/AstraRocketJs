@@ -97,13 +97,16 @@ export function ConfigsTable({
   );
 }
 
-/** A part's own name, else its type and its place in tree order ("Inner tube 2"). */
+/**
+ * A part's own name, trimmed, else its type and its place in tree order
+ * ("Inner tube 2"). The Configurations tab names a part this way everywhere,
+ * column headers and cards alike, so two unnamed chutes never read the same.
+ */
 export function partName(
   node: ComponentNode,
   i: number,
   t: (k: string, opts?: Record<string, unknown>) => string,
 ): string {
-  return typeof node.name === 'string' && node.name
-    ? node.name
-    : t('configs.partNumbered', { part: t(`part.${node.type}`), n: i + 1 });
+  const own = typeof node.name === 'string' ? node.name.trim() : '';
+  return own || t('configs.partNumbered', { part: t(`part.${node.type}`), n: i + 1 });
 }

@@ -77,7 +77,8 @@
 // A parachute row also takes what `Parachute.loadFromPreset` applies besides
 // its canopy: the line count and length, the packed length and diameter, and
 // the canopy and line materials as the desktop resolved them, so a part with
-// no stated mass weighs what the desktop gives it.
+// no stated mass weighs what the desktop gives it, except a canopy desktop
+// weighs at 0, which takes the nearest built-in material (lib/nearestMaterial).
 import { appendFileSync, existsSync, readFileSync, rmSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -87,9 +88,17 @@ import { digestChanges, goneSection, partProblems } from './lib/digestCoverage.m
 import { chooseBuild, runDumper } from './lib/openrocketJava.mjs';
 import { presetVolumes } from './lib/presetVolume.mjs';
 import { applyStatedMass } from './lib/statedMass.mjs';
+import { nearestMaterial } from './lib/nearestMaterial.mjs';
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
 const CATALOG = resolve(HERE, '../public/data/components.generated.json');
+/** Desktop's built-in materials, as the materials catalog carries them, for `nearestMaterial`. */
+const builtInDensity = new Map(
+  JSON.parse(readFileSync(resolve(HERE, '../public/data/materials.generated.json'), 'utf8'))
+    .filter((m) => m.kind === 'upstream')
+    .map((m) => [`${m.type.toUpperCase()}\u0000${m.name.toLowerCase()}`, m.density]),
+);
+const builtIn = (type, name) => builtInDensity.get(`${type}\u0000${name.toLowerCase()}`);
 const JAVA_SRC = resolve(HERE, 'preset-digests/PresetDump.java');
 
 /** `ComponentPreset.Type` as the catalog spells it: `NOSE_CONE` → `nosecone`. */
@@ -165,7 +174,8 @@ const PARACHUTE_FIELDS = [
  * What `Parachute.loadFromPreset` applies, as catalog fields: the line count
  * and length, the packed length and diameter where the preset states them, and
  * the canopy and line materials where the desktop takes them from the preset
- * (a part without one gets the default material).
+ * (a part without one gets the default material). A canopy desktop weighs at 0
+ * takes the nearest built-in material (lib/nearestMaterial).
  */
 function parachuteFields(field) {
   const f = pairs(field);
@@ -179,8 +189,10 @@ function parachuteFields(field) {
   if (packedLength != null) out.packedLength = packedLength;
   if (packedDiameter != null) out.packedDiameter = packedDiameter;
   if (f.Material && density(f.MaterialDensity) != null) {
-    out.material = f.Material;
-    out.materialDensity = Number(f.MaterialDensity);
+    // A canopy desktop could not weigh takes the nearest built-in material.
+    const nearest = Number(f.MaterialDensity) > 0 ? undefined : nearestMaterial('SURFACE', f.Material, builtIn);
+    out.material = nearest?.material ?? f.Material;
+    out.materialDensity = nearest?.materialDensity ?? Number(f.MaterialDensity);
   }
   if (f.LineMaterial && density(f.LineMaterialDensity) != null) {
     out.lineMaterial = f.LineMaterial;

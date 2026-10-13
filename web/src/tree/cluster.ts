@@ -2,9 +2,9 @@
  * Cluster layouts: an exact mirror of the kernel's ClusterConfiguration
  * (carved info.openrocket.core.rocketcomponent.ClusterConfiguration). Unit
  * points: closest tube centers are distance 1 apart; the physical separation
- * is 2 × tubeOuterRadius × clusterScale. Used for 2D/3D drawing and motor
- * counts; the physics reads the kernel's own copy, so these only need to
- * match visually.
+ * is 2 × tubeOuterRadius × clusterScale. Used for 2D/3D drawing, motor counts
+ * and splitting a cluster into single tubes, which writes these positions for
+ * the kernel to fly, so they have to match the kernel's exactly.
  */
 
 const SQRT2 = Math.SQRT2;

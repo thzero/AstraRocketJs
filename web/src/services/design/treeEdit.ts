@@ -905,9 +905,8 @@ export function defaultNode(type: ComponentType): ComponentNode {
         deployDelay: 0,
         position: { method: 'top', offset: 0.02 },
       };
-    // `radius` is set explicitly rather than left to each side's own default.
-    // Omitting it would let the kernel fly KERNEL_DEFAULTS.masscomponent.radius
-    // while the schematic draws 70% of the parent radius.
+    // `radius` is set explicitly rather than left to each side's own default,
+    // so the drawing, the export and the kernel read the one stored value.
     case 'masscomponent':
       return {
         type,

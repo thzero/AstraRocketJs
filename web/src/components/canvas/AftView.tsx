@@ -155,13 +155,6 @@ export function buildAftScene(
   }
 
   /**
-   * `parent`'s children. `pRadius` is the parent's largest radius, which sizes
-   * the internal parts inside it; a part on the outside stands on the body
-   * radius at its own station (`bodyRadiusAt`), which on a nose cone or
-   * transition is not that radius. `pStart` and `pLen` place the parent in the
-   * rocket frame.
-   */
-  /**
    * A place across the parent (`placementOffsets`, the kernel's frame) turned
    * +π/2 into this view's "up = 0°" frame, the fins' reference, so a cluster or
    * an off-center part clocks like the fins and the 3D view.
@@ -182,6 +175,13 @@ export function buildAftScene(
       title: nameOf(child),
     });
 
+  /**
+   * `parent`'s children. `pRadius` is the parent's largest radius, which sizes
+   * the internal parts inside it; a part on the outside stands on the body
+   * radius at its own station (`bodyRadiusAt`), which on a nose cone or
+   * transition is not that radius. `pStart` and `pLen` place the parent in the
+   * rocket frame.
+   */
   function walkChildren(parent: ComponentNode, pRadius: number, cy: number, cz: number, pStart: number, pLen: number) {
     /** The body radius under a child of length `len` at its own station. */
     const surfaceUnder = (child: ComponentNode, len: number): number =>

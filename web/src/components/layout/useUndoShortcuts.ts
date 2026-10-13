@@ -14,7 +14,7 @@ import { hasOpenSurface } from '../common/useFocusTrap';
  * material's name would otherwise discard the last rocket geometry edit instead
  * of the characters just typed, and preventDefault would stop the browser's own
  * field undo from running.
- * MotorDashboard's arrow-key handler makes exactly this check.
+ * MotorGrid's arrow-key handler makes exactly this check.
  *
  * Not while a modal surface is open either. The design sits behind it, so an
  * undo there would change what the user cannot see, under a dialog that says

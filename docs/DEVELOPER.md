@@ -56,7 +56,7 @@ npm run audit        # every web check CI does not run: coverage, then the files
                      # the app saves opened in desktop OpenRocket, then the Java
                      # helpers compiled (needs a JDK and the pinned OpenRocket;
                      # pass --jar <OpenRocket.jar> if it is not installed).
-                     # ~350 s, which is why CI runs this one and you run the other.
+                     # ~350 s, which is why CI runs `verify` and you run this one by hand.
 ```
 
 `npm run dupes` runs jscpd with `web/.jscpd.json`. It scans the TypeScript and TSX under `web/src` and fails on any repeated block of at least 45 tokens and 5 lines (the reported duplication threshold is 0%), so a copied helper, formula, parser step or option list fails the gate before the two copies can drift apart. Below that size, the repeats are JSX table and chart boilerplate. What it leaves out, and why:
@@ -179,7 +179,7 @@ What CI gates on the PR itself (`.github/workflows/gates.yml`):
 
 The engine checks are not CI gates. After a change under `engine-java/` or to the vendored engine, run `npm run audit` in `engine-java/` (needs a JDK): parity, a rebuild that fails if the committed engine binaries differ, the extraction check, the pinned upstream date, and the aero scorecards. It stops at the first failure and names the step.
 
-The checks against desktop OpenRocket are not CI gates either, since they need a JDK and the pinned release jar. `npm run check:ork` in `web/` opens the `.ork` and `.rkt` files the app writes in desktop; `orkDesktopSamples.test.ts` writes them when `ORK_SAMPLES_DIR` is set (see `web/scripts/check-ork-opens.mjs`). Run it after changing anything either writer emits. The catalog Java helpers under `web/scripts/` (`MotorDump.java`, `PresetDump.java`, `MaterialDump.java`) compile only when a sync step runs them, by hand or in the weekly catalog workflow.
+The checks against desktop OpenRocket are not CI gates either, since they need a JDK and the pinned release jar. `npm run check:ork` in `web/` opens the `.ork` and `.rkt` files the app writes in desktop; `orkDesktopSamples.test.ts` writes them when `ORK_SAMPLES_DIR` is set (see `web/scripts/check-ork-opens.mjs`). Run it after changing anything either writer emits. The catalog Java helpers under `web/scripts/` (`MotorDump.java`, `PresetDump.java`, `MaterialDump.java`) compile when a sync step runs them, by hand or in the weekly catalog workflow, and in `npm run audit` (its `helpers` step).
 
 The full Playwright suite is not a PR gate. It runs by hand from `.github/workflows/e2e-full.yml` (**Run workflow**), sharded two ways.
 

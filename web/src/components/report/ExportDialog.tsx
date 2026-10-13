@@ -48,9 +48,8 @@ const hasType = (nodes: ComponentNode[], pred: (t: string) => boolean): boolean 
  *
  * Mounted only while open (`{open && <ExportDialog />}`). The report model is
  * assembled once and the include/exclude selection is derived from it in the
- * same pass; both then hold still for the dialog's life. Rebuilding either from
- * a value that changes throws the selection away whenever `open` goes false,
- * which dismissing the print-settings popover does.
+ * same pass; both then hold still for the dialog's life, so a re-render (the
+ * print-settings popover opening or closing) never resets what was picked.
  *
  * Assembling a report builds rockets of its own (each stage of a multi-stage
  * design, each motor configuration other than the one flown), which resets the
@@ -63,8 +62,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
   const { settings, update } = useSettings();
   const units = useUnits();
-  // Declared up here because the focus traps below branch on it: the popover
-  // is a separate keyboard surface, not decoration.
+  // The print-settings popover: a second Dialog on its own layer, with its own focus trap.
   const [showSettings, setShowSettings] = useState(false);
   const [busy, setBusy] = useState(false);
   // One resolution for both outputs: the PDF and the CSV must never disagree

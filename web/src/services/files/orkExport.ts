@@ -55,7 +55,7 @@ export function exportOrk({
   // structural elements below it (ork/passthrough.ts).
   for (const raw of passthroughOf(tree, ROCKET_EXTRA_KEY)) emit(2, raw);
   // Stage nodes at the top level export as sibling <stage> blocks (the
-  // desktop model); legacy flat trees wrap into one implicit stage.
+  // desktop model); a flat tree wraps into one implicit stage.
   const stageNodes = asStageNodes(tree);
   // The ids, not just the count: a configuration grounds a stage by node id,
   // and their order here is the file's stage numbering.

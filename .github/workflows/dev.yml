@@ -15,7 +15,7 @@ name: Dev
 # Tag pushes do not trigger this: a branch filter of either kind confines the
 # `push` event to branches.
 #
-# The gate set from gates.yml, the same jobs a PR and master run, so a push
+# The gate set from gates.yml, the same jobs a PR runs, so a push
 # finds an e2e failure before the PR does.
 #
 # Cancels the previous run on the same ref: a second push while the first is

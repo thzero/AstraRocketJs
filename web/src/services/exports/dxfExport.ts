@@ -21,9 +21,8 @@ import { englishText, type Translate } from '../../i18n/keyedError';
  * LightBurn, Carbide Create, Easel and Fusion 360's DXF sketch import all read.
  * Units are millimeters (`$INSUNITS = 4`); the meters→mm conversion lives only
  * in the writer. Geometry sits on a CUT layer; center cross-hairs and root-chord
- * marks sit on a REFERENCE layer the operator does not cut. Parts are laid out
- * left-to-right so none overlap, and `$EXTMIN`/`$EXTMAX` are written so "zoom
- * extents" frames the sheet.
+ * marks sit on a REFERENCE layer the operator does not cut. `$EXTMIN`/`$EXTMAX`
+ * are written so "zoom extents" frames the sheet.
  *
  * DXF Y grows upward, so a fin's span points up and its root sits on y = 0.
  */
@@ -121,9 +120,8 @@ function finPart(node: ComponentNode, parent: FinParent, l: LabelText): Part | n
         ? 'export.dxf.ellipticalfinset'
         : 'export.dxf.freeformfinset',
   );
-  // `reduce`, not a spread: the .ork reader puts no cap on <finpoints><point>
-  // count, and spreading a >100k-point freeform fin into Math.max dies with an
-  // opaque "Maximum call stack size exceeded" instead of exporting.
+  // `reduce`, not a spread: a long freeform outline spread into Math.max can
+  // die with an opaque "Maximum call stack size exceeded" instead of exporting.
   const span = outline.reduce((m, p) => (p.y > m ? p.y : m), -Infinity);
   const count = Math.round(num(node, 'finCount', COMPONENT_DEFAULTS.finset.finCount));
   const thickness = num(node, 'thickness', COMPONENT_DEFAULTS.finset.thickness);
@@ -154,7 +152,7 @@ function discPart(node: ComponentNode, outerR: number, boreR: number | null, lab
 
 /**
  * The flat cut part for one cuttable node, given its enclosing-tube context and,
- * for a fin set, the tab depth limit.
+ * for a fin set, the part it is mounted on.
  */
 function partForNode(
   node: ComponentNode,

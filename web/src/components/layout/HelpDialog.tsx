@@ -17,7 +17,7 @@ import { useHelpSearch } from './useHelpSearch';
  * deploy builds that site into `web/public/docs` before the app build, so the
  * pages shown here are byte for byte the pages published at the docs URL; what
  * this adds is a frame around them. The docs stay one source, and the external
- * link stays in the menu too, because a docs site you can send someone is not
+ * link stays in the dialog header, because a docs site you can send someone is not
  * replaceable by a dialog.
  *
  * Why an iframe of the built HTML, rather than rendering the source markdown:

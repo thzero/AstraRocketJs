@@ -1301,6 +1301,29 @@ describe('replacing the workspace is race-safe across actions, not just openDesi
     expect((s().tree as unknown as { name: string }).name).toBe('SMALL');
   });
 
+  // The run gate judges every simulation on its own launch, so the banner on
+  // open has to warn about a later simulation too, not only the first.
+  it("warns on open about any of the file's simulations launched outside the codes", async () => {
+    vi.doMock('../../src/services/files/loadOrk', () => ({
+      loadOrk: async () => ({
+        name: 'TWO',
+        notes: [],
+        tree: { name: 'TWO', components: [] },
+        motors: {},
+        configs: [{ id: 'cfg-1', name: null, motors: {} }],
+        chosenConfigId: 'cfg-1',
+        simulations: [
+          { name: 'Calm', configId: 'cfg-1', launch: { launchRodAngleDeg: 5 } },
+          { name: 'Tilted', configId: 'cfg-1', launch: { launchRodAngleDeg: 45 } },
+        ],
+      }),
+    }));
+    await s().openOrkFile(orkFile('TWO'));
+    expect(s().sims.map((x) => x.name)).toEqual(['Calm', 'Tilted']);
+    const notes = s().loadedMeta?.notes ?? [];
+    expect(notes.some((n) => typeof n === 'string' && /45/.test(n))).toBe(true);
+  });
+
   it('a superseded import does not post its error over the design that replaced it', async () => {
     let releaseSlow!: () => void;
     const slow = new Promise<void>((r) => (releaseSlow = r));
@@ -1575,7 +1598,7 @@ describe('replacing the workspace resets the transient run state', () => {
   });
 
   /**
-   * A design stored by an older build can carry a transition end with no
+   * A stored design can carry a transition end with no
    * radius. The bridge flies it automatic, so the drawings that read the tree
    * as given (the report side view, the templates, the printable solids) need
    * it resolved; and since the flight is the same, a result current against the

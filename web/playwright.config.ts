@@ -24,7 +24,8 @@ const MOBILE_SPECS = [
   '**/a11y-phone.spec.ts',
 ];
 
-// The specs every pull request and master push runs (`npm run e2e:core`): the
+// The specs every pull request and push to a branch other than master runs
+// (`npm run e2e:core`): the
 // paths a broken build breaks first. The app boots with and without the engine,
 // a part is selected and edited, a motor is picked, a simulation runs, and the
 // shell holds together on a phone and from the keyboard. The rest of the suite

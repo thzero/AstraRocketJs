@@ -54,8 +54,8 @@ export default defineConfig({
     // the 5 s default timeout on a flight sim that takes about 1 s unloaded.
     // Capping the pool avoids that and is faster overall.
     maxWorkers: 4,
-    // CI runs the suite with coverage on a shared 4-vCPU runner, where tests
-    // run about ten times slower than on a developer machine: a 500 ms test
+    // CI runs the suite on a shared 4-vCPU runner, where tests run about ten
+    // times slower than on a developer machine: a 500 ms test
     // passes the 5 s default there. On CI the default is a minute, which still
     // catches a hang; off CI it stays at vitest's 5 s, so a test that has
     // started taking seconds is noticed where it is written. Files that fly the
@@ -73,9 +73,9 @@ export default defineConfig({
     // when a higher reading has stayed put.
     coverage: {
       provider: 'v8',
-      // `json-summary` is what gates.yml reads to put the totals in the job
-      // summary; `text-summary` is the same numbers in the log, `lcov` the
-      // per-line file it uploads.
+      // `text-summary` is the totals in the log of `npm run audit` and
+      // `test:coverage`; `json-summary` the same numbers as a file, `lcov` the
+      // per-line report for an editor or a coverage viewer.
       reporter: ['text-summary', 'json-summary', 'lcov'],
       include: ['src/**/*.{ts,tsx}'],
       // Generated (the 2.9 MB TeaVM bundle), or not code under test.

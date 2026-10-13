@@ -2,6 +2,7 @@ import type { ComponentNode, MotorSpec, RocketTree } from '../../engine/openRock
 import { clusterCount } from '../../tree/cluster';
 import { curveStats } from '../motors/motorMath';
 import type { FlightConfig } from './flightConfigs';
+import { propellantMass } from './recoverySizing';
 
 /**
  * Whether a configuration flies as a model rocket or a high power rocket, in
@@ -83,8 +84,8 @@ export function powerClass(motors: readonly SeatedMotor[], dryMassKg: number | n
     if (stats.impulse > HIGH_POWER.motorImpulseNs || stats.avg > HIGH_POWER.motorAvgThrustN) return 'highPower';
     installed += stats.impulse * count;
     loaded += (spec.masses[0] ?? 0) * count;
-    // The propellant is what the motor burns: its loaded mass less its lightest.
-    propellant += Math.max(0, (spec.masses[0] ?? 0) - Math.min(...spec.masses)) * count;
+    // The propellant is what the motor burns: the kernel's loaded less burnout mass.
+    propellant += propellantMass(spec) * count;
   }
   if (installed > HIGH_POWER.installedImpulseNs) return 'highPower';
   if (propellant > HIGH_POWER.installedPropellantKg) return 'highPower';

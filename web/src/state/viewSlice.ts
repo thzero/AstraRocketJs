@@ -33,7 +33,8 @@ export interface ViewSlice {
  * design views, Results the flight ones. Rocket and Simulate show no view at
  * all, so a caller sitting on either is left where it is.
  *
- * Every write of `view` goes through this. Writing the two apart lands you on a
+ * Every write of `view` that can change the tab goes through this, or sets
+ * both together. Writing the two apart lands you on a
  * Results tab with no result and an empty view switch.
  */
 export function showing(s: { tab: Tab; designPane: DesignPane }, view: ViewMode): Partial<WorkspaceState> {

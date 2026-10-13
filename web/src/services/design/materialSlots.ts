@@ -8,7 +8,8 @@ import { isMaterialType, type MaterialType } from '../materials/materialTypes';
  *
  * Its own module, and a leaf one. `services/materials/materials` reaches the material
  * catalog, which pulls in the remote-data fetch and the IndexedDB custom store,
- * and the default rocket is built in `engine/api`, where none of that belongs.
+ * and the default rocket is built in `services/design/defaultRocket`, where
+ * none of that belongs.
  * Nothing here needs a catalog: the three stock materials are the kernel's own
  * and are named in `tree/kernelDefaults`.
  */

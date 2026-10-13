@@ -16,7 +16,7 @@ export const KERNEL_AUTO_RADIUS = 0.025;
  *
  * Mostly the kernel's default is never reached, because `defaultNode` and
  * `orkImport` write every key explicitly. It matters exactly when a key is
- * absent: a node from an older persisted design, a `.ork` tag the desktop
+ * absent: a persisted node that lacks the key, a `.ork` tag the desktop
  * omits, or a `defaultNode` case that misses a field. If the fallbacks differ
  * then, the drawing and the simulation quietly describe different rockets, and
  * nothing anywhere reports a problem.

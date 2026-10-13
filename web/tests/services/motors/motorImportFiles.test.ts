@@ -87,9 +87,9 @@ describe('importCustomMotors with one motor under several delays', () => {
 
 describe('a stored custom motor in the catalog', () => {
   it('takes impulse, class and burn from the finalized curve', async () => {
-    // Raw samples as an older import stored them: no t = 0 point, and out of
-    // order. Finalized, the curve is (0, 0), (1, 36), (1.5, 0): impulse
-    // 0.5*1*36 + 0.5*0.5*36 = 27 Ns, an E. The raw tail alone is 9 Ns, a C.
+    // Raw samples with no t = 0 point, and out of order. Finalized, the curve
+    // is (0, 0), (1, 36), (1.5, 0): impulse 0.5*1*36 + 0.5*0.5*36 = 27 Ns, an
+    // E. The raw tail alone is 9 Ns, a C.
     stored = [
       {
         id: 'custom:T:X1',

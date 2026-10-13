@@ -33,6 +33,7 @@ import { resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { unzipSync } from 'fflate';
 import { STAGED_COMPONENTS } from './lib/catalogStaging.mjs';
+import { nearestMaterial } from './lib/nearestMaterial.mjs';
 import { installedJar, runDumper } from './lib/openrocketJava.mjs';
 import { checkJar, RELEASE, UNPINNED } from './lib/openrocketRelease.mjs';
 
@@ -197,8 +198,9 @@ const builtInDensity = new Map(builtInMaterials());
 // Pass 1: each file's own materials, by type and name. A part looks its
 // material up the way `BaseComponentDTO.find` does: in its own file first (the
 // legacy files define materials under names the database also uses, at other
-// densities), then among desktop's built-in materials, and with neither it
-// weighs nothing.
+// densities), then among desktop's built-in materials. With neither, desktop
+// weighs the part at nothing, and `withMaterial` gives it the nearest built-in
+// material instead.
 const fileMaterials = new Map();
 for (const { name: file, text } of sources) {
   const own = new Map();
@@ -240,11 +242,14 @@ const withMaterial = (b) => {
   const ref = materialRef(b);
   if (!ref) return { material: undefined, materialDensity: 0 };
   // Its own file by exact name; the built-in materials ignoring case, as
-  // `Databases.findMaterial` compares them.
+  // `Databases.findMaterial` compares them. A name with no density there, or
+  // defined at 0, takes the nearest built-in material (lib/nearestMaterial).
   const density =
     fileMaterials.get(currentFile)?.get(`${ref.type}\u0000${ref.raw}`) ??
     builtInDensity.get(`${ref.type}\u0000${ref.name.toLowerCase()}`);
-  return { material: ref.name, materialDensity: density ?? 0 };
+  if (density > 0) return { material: ref.name, materialDensity: density };
+  const builtIn = (type, name) => builtInDensity.get(`${type}\u0000${name.toLowerCase()}`);
+  return nearestMaterial(ref.type, ref.name, builtIn) ?? { material: ref.name, materialDensity: density ?? 0 };
 };
 const massKg = (block, name) => {
   const t = tag(block, name);

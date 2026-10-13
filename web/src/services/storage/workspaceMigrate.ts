@@ -62,7 +62,7 @@ export function migrateWorkspace(w: unknown): Workspace | null {
   }
   if (c.version === 2) {
     const v2 = c as Workspace;
-    // `configs` is what every simulation's motors now live in, so a v2 blob
+    // In v2 every simulation's motors live in `configs`, so a v2 blob
     // without one is not a v2 workspace.
     return Array.isArray(v2.configs) && v2.configs.length > 0 && v2.configs.every(hasStringId) ? settled(v2) : null;
   }

@@ -94,7 +94,7 @@ export function AppHeader() {
           canSave={canSave}
           actions={{
             // Through `fireAction`, not passed directly. `FileMenuButton` declares
-            // these `() => void` and these four store actions return promises, so a
+            // these `() => void` and these store actions return promises, so a
             // failure the action forgot to catch would have vanished.
             onNew: () => fireAction(onNew()),
             onOpenLibrary: () => open('library'),

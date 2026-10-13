@@ -174,9 +174,9 @@ Tras una simulación, la vista de **Ruta 3D** tiene un botón **⬇ Exportar** q
 - **GPX**: una traza GPS estándar (puntos de paso + traza) para herramientas GPS y aplicaciones de mapas.
 - **CSV de puntos**: una fila por punto de interés (rampa, apogeo, aterrizaje, …) con latitud y longitud.
 
-En el diálogo de exportación eliges qué **puntos de paso** incluir (rampa, despegue, fin de combustión, apogeo, apertura de la recuperación, aterrizaje, velocidad máxima, aceleración máxima), si incluir la **línea de la trayectoria** y la **traza sobre el terreno**, cuánto adelgazar la trayectoria (**conservar uno de cada N puntos**) y las **unidades de altitud y distancia**.
+En el diálogo de exportación eliges qué **puntos de referencia** incluir (rampa, despegue, fin de combustión, apogeo, apertura de la recuperación, aterrizaje, velocidad máxima, aceleración máxima), si incluir la **línea de la trayectoria** y la **traza sobre el terreno**, cuánto adelgazar la trayectoria (**Conservar cada N.º punto**) y las **unidades de altitud y distancia**.
 
-Los **ajustes rápidos** (*Deriva*, *Trayectoria* y *Aterrizajes*) configuran las tres cosas a la vez. Solo mueven los controles, así que el archivo contiene lo que muestra el diálogo, y después puedes ajustar cualquier control. Cada ajuste rápido fija su selección completa, puntos de paso incluidos: *Aterrizajes* reduce los puntos de paso al aterrizaje, y *Deriva* los restituye todos.
+Los **ajustes rápidos** (*Deriva*, *Trayectoria* y *Aterrizajes*) configuran a la vez los puntos de referencia, las líneas y las opciones de altitud de la colocación; no tocan el adelgazamiento ni las unidades. Solo mueven los controles, así que el archivo contiene lo que muestra el diálogo, y después puedes ajustar cualquier control. Cada ajuste rápido fija su selección completa, puntos de referencia incluidos: *Aterrizajes* reduce los puntos de referencia al aterrizaje, y *Deriva* los restituye todos.
 
 El que coincide con los controles aparece resaltado, y un diálogo recién abierto parte de *Trayectoria*. Como un ajuste rápido solo mueve los controles, el resaltado se borra en cuanto cambias algo que ese ajuste abarca, y vuelve cuando los controles coinciden de nuevo con ese ajuste.
 

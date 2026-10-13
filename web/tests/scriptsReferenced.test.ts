@@ -66,7 +66,8 @@ describe('no orphan build script', () => {
 
   it('scans a plausible number of scripts, so an empty glob cannot pass', () => {
     // At least 13 programs and 3 shared modules (`openrocketJava.mjs`, the library
-    // several programs import, lives in `scripts/lib` with the other two).
+    // several programs import, lives in `scripts/lib` with the other shared
+    // modules).
     expect(scripts.length).toBeGreaterThanOrEqual(13);
     expect(libs.length).toBeGreaterThanOrEqual(3);
   });

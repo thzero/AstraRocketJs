@@ -116,10 +116,10 @@ fails without the fix:
   fails without it. The new tests found two more defects, both fixed: the
   bridge left a settled fin tab unclamped (engine rebuilt), and the side view
   drew off-center internal parts mirrored. Left as known differences, each
-  pinned by a test: ten catalog parts whose stated material desktop cannot
-  find (desktop weighs them at 0; the app keeps a material), upstream rows
-  with an inner diameter above the outer, and canted freeform roots near a
-  nose cone tip, which the kernel returns as NaN.
+  pinned by a test: upstream rows with an inner diameter above the outer,
+  and canted freeform roots near a nose cone tip, which the kernel returns as
+  NaN. Catalog parts whose material has no density, which desktop weighs at 0,
+  now take the nearest built-in material.
 
 The desktop check found C57 while C2 to C5 were being confirmed.
 

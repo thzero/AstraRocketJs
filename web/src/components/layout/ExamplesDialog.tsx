@@ -12,7 +12,7 @@ import { CatalogError } from '../common/CatalogLoading';
  *
  * Menu → Import → Examples is the primary one, and the semantically exact one:
  * opening an example is an import. It goes through `openOrkFile`, it lands as
- * an unsaved copy with no library entry, and it raises the same notes banner a
+ * its own design, saved to the library by the next autosave, and it raises the same notes banner a
  * picked `.ork` would. Anything that behaves like an import belongs beside the
  * import that reads a file.
  *

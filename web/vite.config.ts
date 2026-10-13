@@ -132,7 +132,7 @@ export default defineConfig({
       workbox: {
         // .wasm and the public/data catalogs are not in the default glob.
         //
-        // The catalogs (public/data/*.generated.json, ~2.6 MB) are precached
+        // The catalogs (public/data/*.generated.json, ~3.2 MB) are precached
         // on purpose, and it is a real double: the deployed app reads them from
         // the CDN copy on the `data` branch first (VITE_DATA_BASE in deploy.yml)
         // and the runtimeCaching rule below stores that copy too. But the CDN
@@ -142,7 +142,7 @@ export default defineConfig({
         // installs the app online and first opens the motor picker at a launch
         // site with no signal gets an empty picker unless the in-build copy was
         // precached at install. Offline at first open is the stated goal of the
-        // PWA (the comment on VitePWA above), so the 2.6 MB stays in the
+        // PWA (the comment on VitePWA above), so the 3.2 MB stays in the
         // precache and the CDN copy is the one that refreshes.
         // `ork` is in here for the bundled OpenRocket examples
         // (public/examples/, see services/storage/exampleLibrary.ts). The set comes
@@ -151,16 +151,16 @@ export default defineConfig({
         // opens on a first offline load, not only if you happened to be online
         // when you went looking for one.
         globPatterns: ['**/*.{js,css,html,svg,png,wasm,json,ork}'],
-        // The JS engine is a ~970 kB fallback backend, emitted twice (main thread
+        // The JS engine is a ~1.1 MB fallback backend, emitted twice (main thread
         // + sim worker). WASM-GC is the path essentially every current browser
-        // takes, so precaching ~1.9 MB of unused fallback on every install is a
+        // takes, so precaching ~2.2 MB of unused fallback on every install is a
         // bad trade: the runtimeCaching rule below stores it on first use, which
         // is when we learn the browser actually needs it.
         //
-        // The docs site's own search index is the other one: 1.5 MB across the two
+        // The docs site's own search index is the other one: 2.2 MB across the two
         // locales, and the search box it feeds lives in the Docusaurus navbar,
         // which `website/src/css/custom.css` hides whenever a page is embedded in
-        // the Help dialog. So precaching it would cost every install 1.5 MB for a
+        // the Help dialog. So precaching it would cost every install 2.2 MB for a
         // control nobody in the app can reach. It stays available to anyone reading
         // the published site, which is who the plugin is for, and the Help dialog
         // searches the same pages its own way.

@@ -356,3 +356,31 @@ describe('a booster made of two tubes', () => {
     expect(boosterFinLocation(staged([tube('A', 5), tube('B', 4, [fins])]))).toBeCloseTo(2, 3);
   });
 });
+
+// A key the part does not carry is the kernel's default, as it flies: a new
+// parachute deploys on the ejection charge, which RecoveryDTO maps to no event,
+// and is 0.3 m across.
+describe('a parachute with no deployment or size of its own', () => {
+  const withChute: RocketTree = {
+    ...tree,
+    components: [
+      {
+        ...tree.components[0]!,
+        children: [
+          tree.components[0]!.children![0]!,
+          { ...tree.components[0]!.children![1]!, children: [{ type: 'parachute', id: 'p' }] },
+        ],
+      },
+    ],
+  };
+  const doc = new DOMParser().parseFromString(
+    exportCdx1({ tree: withChute, name: 'Chute', launchMassKg: 0.45, launchCgM: 0.12 }),
+    'text/xml',
+  );
+
+  it('goes out with no event, at the kernel diameter', () => {
+    expect(doc.querySelector('Recovery > EventType1')?.textContent).toBe('None');
+    expect(doc.querySelector('Recovery > Event1')?.textContent).toBe('False');
+    expect(Number(doc.querySelector('Recovery > Size1')?.textContent)).toBeCloseTo(0.3 / 0.0254, 3);
+  });
+});

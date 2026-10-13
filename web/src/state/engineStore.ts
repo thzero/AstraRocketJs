@@ -5,7 +5,7 @@ import { errorMessage } from '../services/app/errorMessage';
 /**
  * Where the physics kernel is, as UI state.
  *
- * The engine is a 2.3 MB WASM module (or a 1 MB JS chunk when that is not
+ * The engine is a 2.7 MB WASM module (or a 1.1 MB JS chunk when that is not
  * available). Loading it before React mounts would make every way the download
  * can go wrong a way the whole app fails to appear, and the worst of them is
  * silent: a stalled fetch neither resolves nor rejects, so a splash would stay up

@@ -8,8 +8,7 @@ import type { OrkExportMotor } from './orkFile';
 import type { ImportNote } from './importNote';
 
 /** The workspace slices a loaded .ork maps onto: the design tree, its flight
- *  configurations, one simulation per configuration, and the round-trip export
- *  metadata. */
+ *  configurations, its simulations, and the round-trip export metadata. */
 export interface WiredOrk {
   tree: RocketTree;
   configs: FlightConfig[];
@@ -21,7 +20,8 @@ export interface WiredOrk {
 
 /**
  * Map a freshly parsed .ork onto the workspace: every configuration it declared
- * becomes a flight configuration, and each gets a simulation that flies it.
+ * becomes a flight configuration. The file's own simulations come in as they
+ * are; a file with none gets one simulation per configuration.
  *
  * One simulation per configuration because that is what a configuration is on
  * the desktop: a way the rocket is set up to fly. Importing three and opening

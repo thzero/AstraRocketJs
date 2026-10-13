@@ -446,17 +446,13 @@ export function ComponentTree({
     }
   };
 
-  // Fold the whole list away (header stays) so the property editor gets the room
-  // once a part is picked. Collapsed, the header names the selected part.
+  // Fold the whole list away (header stays). Collapsed, the header names the
+  // selected part.
   const [listOpen, setListOpen] = useState(true);
   // One lookup serves both the collapsed header's name and the Add menu's parent
   // type.
   const selectedNode = selectedId ? findNode(tree, selectedId) : null;
-  const selectedName = selectedNode
-    ? typeof selectedNode.name === 'string' && selectedNode.name
-      ? selectedNode.name
-      : typeLabel(selectedNode.type, t)
-    : null;
+  const selectedName = selectedNode ? partLabel(t, selectedNode) : null;
 
   // The Add menu is contextual: it offers only the child types valid for the
   // selected part (the stage when nothing is selected). A leaf part: no menu.

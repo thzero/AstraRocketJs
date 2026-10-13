@@ -379,17 +379,16 @@ export type BackendPref = 'wasm' | 'js' | 'auto';
  */
 export const ENGINE_PREF_KEY = nsKey('engine');
 /**
- * Older keys for this override, still read so an override set by hand keeps
+ * Alternate keys for this override, still read so an override set by hand keeps
  * working: the un-namespaced `engine`, and the key under the misspelled
  * `astrarrocketjs:` prefix.
  *
  * This one key is worth a read chain where the stores are not, because it is a
  * debug switch quoted in the docs: someone following those instructions set it
- * by hand and should not have to do it twice. A design under the old prefix is
+ * by hand and should not have to do it twice. A design under the misspelled prefix is
  * preview scratch and is not read back; an engine override is a live instruction.
  *
- * cspell:ignore astrarrocketjs -- the OLD prefix; this is the one place in `src`
- * that has to name it.
+ * cspell:ignore astrarrocketjs -- the misspelled prefix (see storageKeys).
  */
 const LEGACY_ENGINE_PREF_KEYS = ['engine', 'astrarrocketjs:engine'] as const;
 
@@ -654,8 +653,8 @@ export interface SimulationOptions {
    * at all, and the lug search looks at one instance, which on a fore/aft pair
    * is the forward one.
    *
-   * Set true and the flight ends its guided phase when the aft-most guide, lug
-   * or button, leaves the rod. The rocket is released at that moment as well as
+   * Set true and the flight ends its guided phase when the aft-most lug, or a
+   * button line's second-to-last station, leaves the rod. The rocket is released at that moment as well as
    * reported there, since reporting a departure the rocket has not made would
    * leave it mechanically constrained past its own exit.
    *
@@ -724,7 +723,7 @@ export interface StaticInfo {
   warningTexts: string[];
   /**
    * Power-off (coast) total drag coefficient at Mach 0.3, not part of the
-   * engine's static JSON; the store fills it from a one-point {@link Rocket.aeroSweep}
+   * engine's static JSON; the store fills it from a one-point {@link OpenRocketDesign.aeroSweep}
    * so the "all stats" strip can show it. Undefined if the sweep failed.
    */
   cd?: number;

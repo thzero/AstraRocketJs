@@ -4,7 +4,7 @@ import { nodeShape } from '../../../tree/shapeProfile';
 import { IN, fmt, type Cdx1Writer } from './units';
 import { SECTION_TO_AIRFOIL } from './surface';
 import { num, positionOf, str } from '../../../tree/nodeProps';
-import { startFromPosition } from '../../../tree/position';
+import { partLength, startFromPosition } from '../../../tree/position';
 import { trapezoidDims } from '../../../tree/finPlanform';
 import { isFinSet } from '../../../tree/tubefins';
 import { isAssembly } from '../../../tree/assembly';
@@ -153,7 +153,7 @@ function noseXml(w: Cdx1Writer, node: ComponentNode): void {
 
 function tubeXml(w: Cdx1Writer, node: ComponentNode): void {
   const { emit } = w;
-  const len = num(node, 'length', 0.2);
+  const len = partLength(node);
   emit('<BodyTube>');
   emit('<PartType>BodyTube</PartType>');
   emit(`<Length>${fmt(len * IN)}</Length>`);
@@ -185,7 +185,7 @@ function transitionXml(w: Cdx1Writer, node: ComponentNode, boattail: boolean): v
   if (nodeShape(node) !== 'conical') {
     throw new KeyedError('errors.rasaero.transitionShape');
   }
-  const len = num(node, 'length', 0.04);
+  const len = partLength(node);
   const tag = boattail ? 'BoatTail' : 'Transition';
   emit(`<${tag}>`);
   emit(`<PartType>${tag}</PartType>`);

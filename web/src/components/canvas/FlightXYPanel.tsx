@@ -8,7 +8,7 @@ import { PAD_L, PAD_R } from './flightChartAxis';
 import type { Branch, Meta } from './flightChartTraces';
 import { polylinePath } from '../common/svgPath';
 import { ChartPanelFrame } from './ChartPanelFrame';
-import { velocityAltitudeSummary } from './chartSummary';
+import { peakOf, velocityAltitudeSummary } from './chartSummary';
 
 /**
  * Velocity against altitude, one line per shown stage.
@@ -50,7 +50,7 @@ export function FlightXYPanel({
     let xMax = -Infinity;
     let yMin = 0;
     let yMax = -Infinity;
-    // A plain loop, as in FlightChartPanel: the domain scan writes the bounds,
+    // A plain loop, as in flightChartTraces' panelSeries: the domain scan writes the bounds,
     // which a `.map` callback must not.
     const out: { color: string; pts: [number, number][]; time: number[]; alt: number[]; vel: number[] }[] = [];
     for (const b of branches) {
@@ -110,7 +110,8 @@ export function FlightXYPanel({
   const head = hovered[0];
   const xDigits = ladderDigits(x1 - x0);
   const yDigits = ladderDigits(y1 - y0);
-  const peak = lines[0]?.vel.reduce((m, v) => Math.max(m, v), 0) ?? 0;
+  // The largest magnitude, sign kept: the same top speed the summary below reads.
+  const peak = (lines[0] && peakOf(lines[0].alt, lines[0].vel)?.value) ?? 0;
   // What a screen reader hears for this panel: the top speed and the altitude
   // it was reached at, per shown stage (see chartSummary).
   const summary = useMemo(

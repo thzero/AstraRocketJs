@@ -8,8 +8,7 @@ import { keyedText, type Keyed, type KeyedValues, type Translate } from '../../i
  * keyed reason translated along with it), so it renders in whatever language
  * the app is showing when it is read, not the one it had when the file was
  * opened. A plain string is final text: a note the app translated when it made
- * it, or one a saved workspace already holds from a build that stored English
- * sentences.
+ * it, or plain text a saved workspace holds.
  */
 export type ImportNote = string | Keyed;
 

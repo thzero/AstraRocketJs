@@ -80,7 +80,8 @@ export interface PresetRow {
  * An 18 in BT-50 airframe on an 18 mm motor, which is the commonest sport-model
  * layout there is, and every part sized for it out of the same manufacturer's
  * range so the fits are real: the cone's shoulder and the rings' outer diameter
- * are the tube's inner diameter, and the rings' bore is the motor tube's outer.
+ * are sized to the tube's inner diameter, and the rings' bore to the motor
+ * tube's outer, each with the catalog's own fit clearance.
  */
 export const DEFAULT_PRESETS = {
   /**
@@ -166,7 +167,7 @@ export const DEFAULT_PRESETS = {
  *
  * The shape is the app's own, and it is the one part of the rocket that is a
  * look rather than a part number, because the catalog carries no fin presets at
- * all. Sweep longer than the span is what makes the silhouette.
+ * all. A sweep close to the span is what makes the silhouette.
  *
  * The size is that shape at 0.7, which is why the four dimensions are written as
  * the planform times one scale rather than as four numbers: a fin edited one
@@ -212,7 +213,7 @@ const PACK = { chute: 0.03, cord: 0.1, wadding: 0.155 };
  */
 const LUG = { length: 0.0349, outerRadius: 0.002, thickness: 0.00025, aftOffset: -0.02 };
 
-/** The geometry, material and preset link a catalog row gives a node, exactly as
+/** The material and preset link a catalog row gives a node, exactly as
  *  `catalogPatch` + `presetRef` write them when the part is picked by hand. */
 function fromPreset(row: PresetRow): Record<string, unknown> {
   const link = { preset: presetLink(row.type, 'Estes', row.partNo, row.digest) };

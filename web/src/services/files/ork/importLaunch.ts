@@ -169,8 +169,8 @@ function readWind(condEl: Element, launch: Partial<LaunchConditions>): void {
     // the <wind> element (OpenRocketSaver writes
     // <wind model="multilevel" altituderef="agl">, importt/WindHandler
     // reads attributes.get("altituderef")), so that is what is read here, or
-    // every AGL profile the desktop saves comes in as MSL. Upper case and the
-    // other spellings stay accepted for files older builds of this app wrote.
+    // every AGL profile the desktop saves comes in as MSL. Upper case,
+    // `altitudereference` and the child-element form are accepted too.
     const ref = (
       mlEl.getAttribute('altituderef') ??
       text(mlEl, ':scope > altitudereference') ??
@@ -197,8 +197,8 @@ function readAtmosphere(condEl: Element, launch: Partial<LaunchConditions>): voi
     if (!Number.isNaN(pPa)) launch.pressureHPa = pPa / 100;
   }
   // A fraction on disk, as the kernel holds it. <baserelativehumidity> is
-  // desktop's element and what this app writes; <relativehumidity> (an older
-  // spelling this app wrote) and <launchrelativehumidity> on <conditions> are
+  // desktop's element and what this app writes; <relativehumidity> (an alternate
+  // spelling) and <launchrelativehumidity> on <conditions> are
   // read too.
   const rh = numTag(
     atmEl,

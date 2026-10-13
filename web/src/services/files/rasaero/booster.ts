@@ -21,7 +21,7 @@ export function writeBoosters(w: Cdx1Writer, stagesIn: ComponentNode[]): void {
     if (tubes.length === 0) {
       throw new KeyedError('errors.rasaero.boosterNoTube', { stage: partName(st) });
     }
-    const bodyLen = tubes.reduce((s, t) => s + num(t, 'length', 0.1), 0);
+    const bodyLen = tubes.reduce((s, t) => s + partLength(t), 0);
     const externals = kids.filter((c) => c.type === 'bodytube' || c.type === 'transition');
     const first = externals[0];
     const shoulder =
@@ -70,7 +70,7 @@ export function writeBoosters(w: Cdx1Writer, stagesIn: ComponentNode[]): void {
     // the fins are on lie between them, as desktop's `BoosterDTO` adds them
     // (`finLocationOffset`).
     const at = tubes.indexOf(finParent);
-    const behind = at < 0 ? 0 : tubes.slice(at + 1).reduce((s, t) => s + num(t, 'length', 0.1), 0);
+    const behind = at < 0 ? 0 : tubes.slice(at + 1).reduce((s, t) => s + partLength(t), 0);
     finXml(w, finParent, w.locM + ahead.reduce((s, c) => s + partLength(c), 0), behind);
     emit('</Booster>');
     w.locM += shoulderLen + bodyLen + btLen;

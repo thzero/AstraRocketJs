@@ -394,11 +394,10 @@ public class MassCalculation {
 					// The override replaces the mass of this component AND all of its
 					// subcomponents.  Keep the geometric mass *distribution* but
 					// rescale it to the overridden total so the moment of inertia
-					// stays consistent with the mass.  Previously only the mass was
-					// zeroed while the inertia of the subcomponents (and of this
-					// component) was left at its geometric value, so overriding the
-					// mass silently left the rotational/longitudinal inertia
-					// unchanged.
+					// stays consistent with the mass. Zeroing the mass alone would
+					// leave the inertia of the subcomponents (and of this component)
+					// at its geometric value, so overriding the mass would leave the
+					// rotational/longitudinal inertia unchanged.
 					final double geometricMass = componentGeometricMass + children.getMass();
 					final double scale = geometricMass > MIN_MASS
 							? component.getOverrideMass() / geometricMass

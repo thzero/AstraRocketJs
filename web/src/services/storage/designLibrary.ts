@@ -31,7 +31,7 @@ const INDEX_KEY = nsKey('designs:index');
 const ACTIVE_KEY = nsKey('designs:active');
 const designKey = (id: string) => nsKey(`designs:${id}`);
 const resultsKey = (id: string) => nsKey(`designs:${id}:results`);
-/** The pre-library single-workspace key, migrated on first use. */
+/** The single-workspace key, folded into the library on first use. */
 const LEGACY_KEY = nsKey('workspace');
 
 export interface DesignMeta {
@@ -43,8 +43,8 @@ export interface DesignMeta {
    * The tab that made the last save, when the save named one.
    *
    * An unload journal is replayed over a moved entry only when its own tab is
-   * the one that moved it (see `workspaceStore`). Absent on entries written
-   * before it existed and on writes that name no tab (Save As, the legacy
+   * the one that moved it (see `workspaceStore`). Absent on writes that
+   * name no tab (Save As, the legacy
    * migration), which read as "some other tab".
    */
   writer?: string;
@@ -377,7 +377,7 @@ export class DesignLibrary {
   private migrated: Promise<void> | null = null;
 
   /**
-   * Fold a pre-library single workspace into the library as its first design.
+   * Fold a single workspace under the `workspace` key into the library as its first design.
    *
    * Runs at most once per session and only when there is no index yet, so an
    * empty library created by the user deleting everything is not re-seeded from

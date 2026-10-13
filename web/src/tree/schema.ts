@@ -12,7 +12,7 @@ import type { ComponentType } from '../engine/openRocketEngine';
  * fallback for hover titles, after the node's own name and `cfg.partName`.
  *
  * Containment rules live in `services/design/treeEdit` and the per-type
- * property fields in `components/design/PropertyPanel`, not here.
+ * property fields in `services/design/componentFields`, not here.
  */
 export const DISPLAY_NAME: Record<ComponentType, string> = {
   stage: 'Stage',

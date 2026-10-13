@@ -209,7 +209,7 @@ describe('a desktop-authored .ork', () => {
     expect(res.launch?.windLevels?.[1]?.directionDeg).toBeCloseTo(90, 10);
   });
 
-  it('still reads the upper-case reference older builds of this app wrote', () => {
+  it('reads an upper-case reference too', () => {
     const old = importOrk(DESKTOP_ORK.replace('altituderef="agl"', 'altituderef="AGL"'));
     expect(old.launch?.windAltitudeReference).toBe('agl');
   });

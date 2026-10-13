@@ -20,10 +20,10 @@ import { KeyedError } from '../../i18n/keyedError';
  * a named object per part (the thing 3MF is for) or as a zip of one file per
  * part, for a workflow that wants them separate.
  *
- * Parts with no solid are left out and named: a parachute, a shock cord, a mass
- * component and a rail button have no printable body, and a part whose geometry
- * fails `solidForNode`'s manifold check would produce a file no slicer accepts.
- * Both are the caller's to report.
+ * Only parts with a printable body are offered (a parachute, a shock cord, a
+ * mass component and a rail button have none). A printable part whose geometry
+ * fails `solidForNode`'s manifold check would produce a file no slicer accepts,
+ * so it is left out and named, for the caller to report.
  *
  * The heavy half: this pulls in the three.js meshers and the 3MF writer, so it
  * is reached only through the dynamic import in the store's `exportPrint`.

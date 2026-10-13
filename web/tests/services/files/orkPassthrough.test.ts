@@ -81,6 +81,12 @@ describe('appearance settings survive a round trip', () => {
     expect(out).toContain('<unknown-element>42</unknown-element>');
   });
 
+  // `<value>` is read only under `<conditions><gravity>`; no component reader
+  // takes it, so on a part it is one more unknown element to carry.
+  it('keeps a <value> child of a part', () => {
+    expect(roundTrip(orkWith('            <value>7</value>'))).toContain('<value>7</value>');
+  });
+
   it('is invisible to the app: nothing but the one raw key', () => {
     const t = tube(importOrk(orkWith(APPEARANCE)).tree);
     // No `paint`, no `shine`, no `appearance` object: the panel and the engine

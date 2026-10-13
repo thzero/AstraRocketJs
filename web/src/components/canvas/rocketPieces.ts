@@ -123,9 +123,10 @@ function lathePoints(
  */
 function annulusGeometry(outerR: number, innerR: number, length: number): THREE.BufferGeometry {
   // A wall at least as thick as the radius leaves no bore. `discSolid` returns
-  // null there and the part is dropped from a print, which is right for a file
-  // nobody can slice and wrong for a view: losing the tube is a worse answer
-  // than drawing it solid, so the bore is what gets dropped.
+  // null for a bore at or past the outer radius and the part is dropped from a
+  // print, which is right for a file nobody can slice and wrong for a view:
+  // losing the tube is a worse answer than drawing it solid, so the bore is
+  // what gets dropped.
   const bore = innerR > 1e-6 && innerR < outerR - 1e-6 ? innerR : 0;
   const pts = bore
     ? [

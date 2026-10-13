@@ -289,8 +289,9 @@ export async function deleteCustomPart(id: string): Promise<void> {
 /**
  * The user's saved parts of one catalog type, as picker rows.
  *
- * Row by row, like the catalog itself: a part that no longer projects (an
- * older shape, a hand-edited store) costs that part and not the list.
+ * Row by row, like the catalog itself: a stored part that does not project (a
+ * shape this build does not read, a hand-edited store) costs that part and not
+ * the list.
  */
 export async function customRowsForType(type: ComponentType): Promise<Component[]> {
   const saved = await getPresetStore().list();

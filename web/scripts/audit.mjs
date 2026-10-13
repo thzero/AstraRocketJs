@@ -4,7 +4,7 @@
 //   npm run audit -- --jar <OpenRocket.jar>
 //
 // Run it for every audit, and after changing what the .ork or .rkt writers
-// emit. The last three steps need a JDK and the pinned OpenRocket release
+// emit. The last two steps need a JDK and the pinned OpenRocket release
 // (scripts/data/openrocket-release.json). Stops at the first failing step and
 // names it.
 //

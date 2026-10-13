@@ -1,7 +1,7 @@
 /**
  * The timeout for a test file that flies the real kernel.
  *
- * Every test file that loads the engine imports it (`engineBoundary`,
+ * Every test file that flies the engine imports it (`engineBoundary`,
  * `rodClearanceModel`, `exampleLibrary` and the `*.kernel.test.ts` files among
  * them). Each loads the 2.9 MB TeaVM bundle and integrates real trajectories, so
  * each takes seconds where most files take milliseconds. This is the reason and

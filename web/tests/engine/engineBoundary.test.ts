@@ -617,7 +617,7 @@ describe('the aero sweep does not fabricate zeros', () => {
     }
   });
 
-  it('sums the component CDs back to the rocket total, the invariant a swallowed NaN broke', () => {
+  it('sums the component CDs back to the rocket total, with no NaN swallowed', () => {
     const sweep = build().aeroSweep({ machMin: 0.2, machMax: 0.2, machStep: 0.1 });
     const parts = sweep.components.reduce((a, c) => a + (c.cd[0] ?? 0), 0);
     expect(parts).toBeCloseTo(sweep.powerOff.total[0]!, 6);

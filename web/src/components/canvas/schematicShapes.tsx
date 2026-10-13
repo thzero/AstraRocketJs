@@ -58,7 +58,8 @@ interface FinInstance {
 
 /** Everything the airframe-shape render helpers close over: the memoized
  *  layout (chain/ctx/scale/w/h), the interaction state and callbacks, and the
- *  view state (roll, hover, motors) they read while drawing. */
+ *  view state (roll, motors) they read while drawing. Hover is not an input:
+ *  the cfg carries only its writer, `setHoverId`. */
 export interface SchematicShapesCfg {
   chain: ComponentNode[];
   ctx: Ctx;
@@ -91,7 +92,7 @@ export type HoverExtents = Map<string, { box: HoverBox; name: string }>;
  * Builds the airframe shapes for the 2D schematic: the axial nose→tail chain
  * plus every child (fins, tubes, protuberances, internal components), the loaded
  * motor cases, and the shoulder/inner-component overlay pass. Pure given `cfg`:
- * walks the tree and returns the SVG nodes plus the hovered component's box/tag.
+ * walks the tree and returns the SVG nodes plus every part's hover extent.
  */
 export function buildSchematicShapes(cfg: SchematicShapesCfg): {
   shapes: React.ReactNode[];
@@ -272,7 +273,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
     extents.set(n.id, { box: prev ? unionBox(prev.box, box) : box, name: nameOf(n) });
   };
 
-  // Loaded motor case: launch-orange tint at the real case size, with
+  // Loaded motor case: accent tint at the real case size, with
   // the designation printed in the case when it's long enough to carry it.
   const motorShapes = (
     motor: { length: number; diameter: number; label?: string },
@@ -658,7 +659,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
           y: y * Math.cos(roll) - z * Math.sin(roll),
           z: y * Math.sin(roll) + z * Math.cos(roll),
         }));
-        // Loaded motor: a brownish silhouette at the real case size, seated
+        // Loaded motor: an accent-tinted case at the real case size, seated
         // flush against the mount's aft end (how motors actually load).
         const motor = child.type === 'innertube' && child.id ? motors?.[child.id] : undefined;
         for (const off of offsets) {
@@ -806,8 +807,17 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
 
   // Dashed outline for a shoulder sliding inside the adjacent tube. Painted in
   // the overlay pass: an aft shoulder lives inside the next tube, which is
-  // drawn later and would otherwise cover it.
-  const shoulderRect = (owner: ComponentNode, startX: number, lenSi: number, rSi: number, baseY: number) => {
+  // drawn later and would otherwise cover it. Held to the radius of the end it
+  // stands on, as the 3D model holds it (rocketPieces).
+  const shoulderRect = (
+    owner: ComponentNode,
+    startX: number,
+    lenSi: number,
+    radiusSi: number,
+    endRadiusSi: number,
+    baseY: number,
+  ) => {
+    const rSi = Math.min(radiusSi, endRadiusSi);
     if (lenSi <= 0 || rSi <= 0) return;
     overlay.push(
       <rect
@@ -864,7 +874,8 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
         const ends = profileEnds(n);
         profileShape(n, cx, len, ends.fore, ends.aft, r, baseY);
         const shLen = num(n, 'shoulderLength', 0);
-        shoulderRect(n, flipped ? cx - shLen : cx + len, shLen, num(n, 'shoulderRadius', 0), baseY);
+        const baseR = flipped ? ends.fore : ends.aft;
+        shoulderRect(n, flipped ? cx - shLen : cx + len, shLen, num(n, 'shoulderRadius', 0), baseR, baseY);
         renderChildren(n, cx, len, r, baseY);
         cx += len;
       } else if (n.type === 'bodytube') {
@@ -902,8 +913,8 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
         const { fore: rf, aft: ra } = profileEnds(n);
         profileShape(n, cx, len, rf, ra, Math.max(rf, ra), baseY);
         const fsl = num(n, 'foreShoulderLength', 0);
-        shoulderRect(n, cx - fsl, fsl, num(n, 'foreShoulderRadius', 0), baseY);
-        shoulderRect(n, cx + len, num(n, 'aftShoulderLength', 0), num(n, 'aftShoulderRadius', 0), baseY);
+        shoulderRect(n, cx - fsl, fsl, num(n, 'foreShoulderRadius', 0), rf, baseY);
+        shoulderRect(n, cx + len, num(n, 'aftShoulderLength', 0), num(n, 'aftShoulderRadius', 0), ra, baseY);
         renderChildren(n, cx, len, Math.max(rf, ra), baseY);
         cx += len;
       }

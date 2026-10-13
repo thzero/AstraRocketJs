@@ -1,4 +1,4 @@
-// cspell:ignore astrarrocketjs -- the old misspelled prefix, named below where the
+// cspell:ignore astrarrocketjs -- the misspelled prefix, named below where the
 // kernel's patch marker is explained.
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
@@ -45,7 +45,7 @@ const ALLOWED = new Set([
 const walk = (dir: string, out: string[] = []): string[] => {
   for (const entry of readdirSync(dir)) {
     // `engine-java` is skipped deliberately: the kernel's patch marker tag is
-    // `PATCH(astrarrocketjs)`, the old misspelling, in the patched sources and in
+    // `PATCH(astrarrocketjs)`, the misspelling, in the patched sources and in
     // the extraction tooling that greps for it. It is not a storage key, and
     // renaming it would mean re-blessing every patched file.
     if (

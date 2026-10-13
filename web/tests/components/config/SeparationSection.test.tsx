@@ -21,7 +21,9 @@ describe('SeparationSection flies checkbox', () => {
 
   const render = (index: number) => {
     const stage = findStages(st().tree)[index]!;
-    renderWithProviders(<SeparationSection config={selectConfig(st())} stage={stage} separates={index > 0} />);
+    renderWithProviders(
+      <SeparationSection config={selectConfig(st())} stage={stage} index={index} separates={index > 0} />,
+    );
     return screen.getByRole('checkbox') as HTMLInputElement;
   };
 
@@ -50,7 +52,7 @@ describe('SeparationSection event override', () => {
 
   it('lists every separation event the property panel offers', () => {
     const stage = findStages(st().tree)[1]!;
-    renderWithProviders(<SeparationSection config={selectConfig(st())} stage={stage} separates />);
+    renderWithProviders(<SeparationSection config={selectConfig(st())} stage={stage} index={1} separates />);
     const select = screen
       .getAllByRole('combobox')
       .find((s) => [...(s as HTMLSelectElement).options].some((o) => o.value === 'ejection')) as HTMLSelectElement;

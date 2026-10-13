@@ -289,8 +289,11 @@ export const createFileSlice =
           // Before the engine has built the imported rocket, so the motors
           // alone decide each configuration's class here; the run gate judges
           // again with the rocket's mass.
-          const classes = sims.map((sim) => configPowerClass(fixed.tree, configFor(configs, sim.configId), null));
-          const notes = importNotes(loadedMeta.notes, sims[0]!.launch, classes, t, displayUnits());
+          const flights = sims.map((sim) => ({
+            launch: sim.launch,
+            powerClass: configPowerClass(fixed.tree, configFor(configs, sim.configId), null),
+          }));
+          const notes = importNotes(loadedMeta.notes, flights, t, displayUnits());
           replaceWorkspace({
             repairNotes: repairNotes(fixed.repaired),
             tree: fixed.tree,
@@ -322,7 +325,7 @@ export const createFileSlice =
       openExample: async (file) => {
         // Fetched, then handed to the ordinary import path: an example is an
         // import that happens to ship with the app, so it gets the same notes
-        // banner, the same safety-limit check and the same unsaved-copy
+        // banner, the same safety-limit check and the same library
         // semantics, with no second code path to keep in step.
         try {
           const bytes = await fetchExample(file);

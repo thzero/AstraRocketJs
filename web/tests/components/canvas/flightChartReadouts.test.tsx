@@ -136,6 +136,25 @@ describe('a stage reports only inside its own flight', () => {
     expect(screen.getByText('peak')).toBeTruthy();
   });
 
+  // The screen reader's summary of the panel takes the largest magnitude, so
+  // the header has to as well, or the two name different top speeds.
+  it('the velocity-altitude header names a descent faster than the climb', () => {
+    const descending = [branch('only', { time: [0, 1, 2, 3], altitude: [0, 10, 8, 2], velocity: [0, 5, -3, -12] })];
+    const { container } = renderWithProviders(
+      <FlightXYPanel
+        meta={meta('velocityAltitude')}
+        branches={descending}
+        w={400}
+        height={200}
+        hoverT={null}
+        expanded={false}
+        onToggleExpand={() => {}}
+      />,
+    );
+    const head = container.querySelector('.text-ink-strong')!.textContent ?? '';
+    expect(head).toMatch(/12/);
+  });
+
   it('the velocity-altitude header shows no value past the primary stage’s landing', () => {
     const head = xyPanel(3).querySelector('.text-ink-strong')!.textContent ?? '';
     // Not the primary stage's top speed (8).

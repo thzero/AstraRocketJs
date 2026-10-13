@@ -176,7 +176,7 @@ After a simulation, the **3D path** view has an **⬇ Export** button that saves
 
 In the export dialog you choose which **waypoints** to include (pad, liftoff, burnout, apogee, ejection, landing, max velocity, max acceleration), whether to include the **flight-path line** and the **ground track**, how much to thin the path (**keep every Nth point**), and the **altitude / distance units**.
 
-**Presets** (*Drift cast*, *Flight path* and *Landing plots*) set all three of those at once. They only move the controls, so the file contains what the dialog shows, and you can adjust any control afterward. Each preset sets its whole selection, waypoints included: *Landing plots* narrows the waypoints to the landing, and *Drift cast* puts them all back.
+**Presets** (*Drift cast*, *Flight path* and *Landing plots*) set the waypoints, the lines and the placement altitude choices at once; they leave the thinning and the units alone. They only move the controls, so the file contains what the dialog shows, and you can adjust any control afterward. Each preset sets its whole selection, waypoints included: *Landing plots* narrows the waypoints to the landing, and *Drift cast* puts them all back.
 
 The one that matches the controls is highlighted, and a fresh dialog opens on *Flight path*. Because a preset only moves the controls, the highlight clears the moment you change one of the things it covers, and comes back when the controls match that preset again.
 

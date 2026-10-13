@@ -199,6 +199,22 @@ describe('LocationPicker', () => {
     });
   });
 
+  it('updates a location when the name is reused in another case', async () => {
+    // The name dialog warns of a duplicate without regard to case, so the save
+    // has to treat it as the same location too.
+    render();
+    await waitFor(() => screen.getByRole('option', { name: 'Home field' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save this location' }));
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'home FIELD' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(async () => {
+      const list = await setPadThenList();
+      expect(list).toHaveLength(1);
+      expect(list[0]).toMatchObject({ id: 'home', latitudeDeg: 28.6 });
+    });
+  });
+
   it('says so when the store refuses the write', async () => {
     // The user holds the only copy of what they just typed; a clean resolve
     // over a refused write leaves a list that simply lacks it.

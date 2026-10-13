@@ -1571,8 +1571,8 @@ public final class OpenRocketEngine {
     // ---------- Simulation ----------
 
     /**
-     * Runs a full flight simulation. Returns JSON:
-     * { summary:{...}, events:[{type,time}...], series:{time[],altitude[],velocity[],acceleration[]} }
+     * Runs a full flight simulation with the seven basic options. Returns what
+     * {@link #simulateJson} returns.
      */
     @JSExport
     public static String simulate(int rocketHandle, double launchRodLength, double launchRodAngle,
@@ -1599,8 +1599,9 @@ public final class OpenRocketEngine {
      *   temperature (K, launch-site), pressure (Pa, launch-site),
      *   timeStep, maxTime, randomSeed,
      *   series: "summary" (default) | "full" (see appendBranchSeries) }
-     * Custom temperature/pressure switch the atmosphere to an ISA model based
-     * at the launch site; otherwise standard ISA is used.
+     * Forecast atmosphereLevels select a profile; otherwise any of temperature,
+     * pressure or relativeHumidity selects an ISA model based at the launch
+     * site; otherwise standard ISA is used.
      */
     @JSExport
     public static String simulateJson(int rocketHandle, String optionsJson) {

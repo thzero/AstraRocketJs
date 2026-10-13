@@ -12,10 +12,10 @@ import { token } from '../common/colorTokens';
 import { timeSeriesSummary } from './chartSummary';
 
 /**
- * Owns one small-multiple panel of the flight chart: the sample extraction
- * and y-domain for a series across the shown stages, the path strings, the
- * header value, and the SVG with its axis labels, event ticks, area fill and
- * lines. The hover readout inside it is FlightChartHover.
+ * Owns one small-multiple panel of the flight chart: it draws the lines that
+ * `panelSeries` (flightChartTraces) extracts and bounds, and owns the path
+ * strings, the header value, and the SVG with its axis labels, event ticks,
+ * area fill and lines. The hover readout inside it is FlightChartHover.
  */
 
 type Pt = readonly [number, number];

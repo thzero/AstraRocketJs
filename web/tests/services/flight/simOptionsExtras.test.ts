@@ -95,7 +95,7 @@ describe('the new launch fields round-trip through .ork', () => {
     expect(xml).toContain('<baserelativehumidity>0.9</baserelativehumidity>');
   });
 
-  it("reads desktop's humidity element, and the one this app wrote before", () => {
+  it("reads desktop's humidity element, and the alternate spelling", () => {
     const xml = exportOrk({
       name: 'Opts',
       tree,

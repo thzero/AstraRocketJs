@@ -112,7 +112,7 @@ export function FlightChart({ flight }: { flight: ChartFlight }) {
     [selectedBranches, maxT],
   );
 
-  // Boost→apogee window: aero series (CP / stability) are only meaningful until
+  // Boost→apogee window: aero series (CP / stability / q·α) are only meaningful until
   // the rocket stops flying forward (recovery deploy, else apogee).
   const clipT = useMemo(() => {
     const at = (type: string) => flight.result.events?.find((e) => e.type === type)?.time;

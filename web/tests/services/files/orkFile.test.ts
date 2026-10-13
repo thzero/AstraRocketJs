@@ -259,6 +259,16 @@ describe('launch-lug / rail-button radial angle round-trips', () => {
     expect(pod2!.angleOffset).toBeCloseTo(Math.PI / 2, 6);
   });
 
+  // Desktop builds the pod set with `new PodSet()`, which starts at two.
+  it('reads a pod set with no instance count at the kernel default', () => {
+    const noCount =
+      '<openrocket><rocket><name>P</name><subcomponents><stage><name>S</name><subcomponents>' +
+      '<bodytube><length>0.3</length><radius>0.013</radius><thickness>0.0005</thickness><subcomponents>' +
+      '<podset><name>Pod</name><subcomponents><bodytube><length>0.12</length></bodytube></subcomponents></podset>' +
+      '</subcomponents></bodytube></subcomponents></stage></subcomponents></rocket></openrocket>';
+    expect(findByType(importOrk(noCount).tree, 'podset')!.instanceCount).toBe(2);
+  });
+
   it('loads a multi-stage (axial) design: both stages present', () => {
     const tube = '<bodytube><length>0.2</length><radius>0.013</radius><thickness>0.0005</thickness></bodytube>';
     const twoStage =

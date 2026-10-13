@@ -4,8 +4,8 @@ import { NumberInput } from '../common/NumberInput';
 
 /**
  * The small controls on the AeroAnalysis header: the flight-condition number
- * boxes and the segmented toggles (pane, Max Mach, CP unit). Presentation
- * only; the values they edit live in the pane.
+ * boxes and the Worst button. Presentation only; the values they edit live in
+ * the pane.
  */
 
 /**

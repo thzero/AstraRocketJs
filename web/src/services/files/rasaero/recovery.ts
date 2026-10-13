@@ -2,6 +2,7 @@ import type { ComponentNode } from '../../../engine/openRocketEngine';
 import { FT, IN, fmt, type Cdx1Writer } from './units';
 import { num, str } from '../../../tree/nodeProps';
 import { walkNodes } from '../../../tree/treeWalk';
+import { KERNEL_DEFAULTS, KERNEL_DEPLOYMENT } from '../../../tree/kernelDefaults';
 
 /** Recovery: first two parachutes anywhere in the design, as RASAero's two slots. */
 export function writeRecovery(w: Cdx1Writer, stagesIn: ComponentNode[]): void {
@@ -9,13 +10,14 @@ export function writeRecovery(w: Cdx1Writer, stagesIn: ComponentNode[]): void {
   const chutes = [...walkNodes(stagesIn)].filter((n) => n.type === 'parachute').slice(0, 2);
   const slotVals = ([1, 2] as const).map((slot) => {
     const c = chutes[slot - 1];
-    const ev = c ? str(c, 'deployEvent', 'apogee') : 'none';
+    // A key the part does not carry is the kernel's default, as it flies.
+    const ev = c ? str(c, 'deployEvent', KERNEL_DEPLOYMENT.deployEvent) : 'none';
     const evType = ev === 'apogee' ? 'Apogee' : ev === 'altitude' ? 'Altitude' : 'None';
     return {
-      altitude: fmt(c && evType === 'Altitude' ? num(c, 'deployAltitude', 150) * FT : 0),
+      altitude: fmt(c && evType === 'Altitude' ? num(c, 'deployAltitude', KERNEL_DEPLOYMENT.deployAltitude) * FT : 0),
       deviceType: c ? 'Parachute' : 'None',
       event: c && evType !== 'None' ? 'True' : 'False',
-      size: fmt(c ? num(c, 'diameter', 0.9) * IN : 0),
+      size: fmt(c ? num(c, 'diameter', KERNEL_DEFAULTS.parachute.diameter) * IN : 0),
       eventType: c ? evType : 'None',
       cd: fmt(c ? num(c, 'cd', 0.75) : 0),
     };

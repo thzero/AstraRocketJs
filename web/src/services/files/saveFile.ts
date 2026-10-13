@@ -135,8 +135,8 @@ export async function saveText(text: string, filename: string, mime = 'text/plai
 }
 
 /**
- * Hand the user a file and don't wait for it: the one entry point every
- * export button uses.
+ * Hand the user a file and don't wait for it. One of the entry points; every
+ * export ends in `saveBlob`.
  *
  * Filename first, matching `safeFilename` beside it. A `string` payload
  * type-checks in either position, so one shared argument order is what keeps a

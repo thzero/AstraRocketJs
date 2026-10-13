@@ -86,7 +86,8 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
         themeBeforeDaylight: DEFAULT_SETTINGS.themeBeforeDaylight,
       });
     else if (tab === 'units') update({ units: DEFAULT_SETTINGS.units, unitOverrides: {} });
-    else if (tab === 'colors') update({ partColors: {}, phaseColors: DEFAULT_SETTINGS.phaseColors });
+    else if (tab === 'colors')
+      update({ partColors: {}, phaseColors: DEFAULT_SETTINGS.phaseColors, aeroHeat: DEFAULT_SETTINGS.aeroHeat });
     else if (tab === 'materials') update({ defaultMaterials: DEFAULT_SETTINGS.defaultMaterials });
     else if (tab === 'playback') update({ playbackSpeed: DEFAULT_SETTINGS.playbackSpeed });
     else if (tab === 'sketch') update({ showMarkers: DEFAULT_SETTINGS.showMarkers, rulers: DEFAULT_SETTINGS.rulers });

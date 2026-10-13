@@ -15,7 +15,7 @@ vi.setConfig({ testTimeout: KERNEL_TEST_TIMEOUT_MS, hookTimeout: KERNEL_TEST_TIM
  *
  * Each file is checked here for what this side can see. With ORK_SAMPLES_DIR
  * set, the files are also written there, so `npm run check:ork` can open them
- * in the pinned desktop OpenRocket: the gates workflow does that, because only
+ * in the pinned desktop OpenRocket: `npm run audit` in web does that, because only
  * the desktop can say whether it accepts what the writers emit. The desktop's
  * GeneralRocketLoader reads a RockSim file as well as its own.
  */

@@ -27,7 +27,8 @@ import { finPlanformMm } from '../../src/services/report/reportGeometry';
  *
  * `web/src/tree` and `web/src/services` re-implement kernel math in TypeScript
  * so the app can draw, print and cut a fin without a round trip through the
- * WASM engine. The `parity` CI job does not cover any of it: parity compares
+ * WASM engine. The engine parity check (`npm run audit` in engine-java) does
+ * not cover any of it: parity compares
  * the kernel to itself across JVM, TeaVM-JS and WASM-GC. Without this file the
  * hand-ports have no gate, and comparing copies of a sampler to each other
  * instead of to `EllipticalFinSet.java` cannot catch a wrong curve.

@@ -269,7 +269,7 @@ describe('the lower stage separation deploy event at the .ork boundary', () => {
     });
   });
 
-  it('still reads the underscored spelling older saves from this app wrote', () => {
+  it('reads the underscored spelling too', () => {
     const res = importOrk(respelled('lower_stage_separation'));
     expect(chuteNode(res.tree)['deployEvent']).toBe('lower_stage_separation');
   });

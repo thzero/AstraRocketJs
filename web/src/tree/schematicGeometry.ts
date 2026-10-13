@@ -192,7 +192,7 @@ export function computeSchematicLayout(
 } {
   const { chPx, cw, maxHeight, fillHeight } = dims;
   // Stages flatten into one nose-to-tail chain (sustainer first, boosters
-  // after: the desktop's stacking order); legacy flat trees pass through.
+  // after: the desktop's stacking order); a flat tree (no explicit stages) passes through.
   const chain = axialChain(tree);
   let totalLen = 0;
   let maxR = 0.001;
@@ -340,9 +340,9 @@ export function computeSchematicLayout(
  *
  * For a mass component the last-resort radius is the kernel's default
  * (ComponentFactory masscomponent radius = 0.005), not a fraction of the
- * parent. A `pRadius * 0.7` fraction draws a mass component with no `radius` key
- * - which is every one the editor creates - at ~9 mm on a 13 mm tube while the
- * kernel flies it at 5 mm, and the drawing must agree with the simulation.
+ * parent. A `pRadius * 0.7` fraction would draw a mass component with no
+ * `radius` key (a hand-edited or imported one) at ~9 mm on a 13 mm tube while
+ * the kernel flies it at 5 mm, and the drawing must agree with the simulation.
  *
  * A parachute, streamer or shock cord with no `radius` keeps the parent
  * fraction. The bridge does pass a packed radius to the kernel when one is on

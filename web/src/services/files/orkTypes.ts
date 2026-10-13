@@ -41,7 +41,7 @@ export interface OrkMotorRef {
 interface OrkTreeImportResult {
   name: string;
   tree: RocketTree;
-  /** First motor found (legacy callers). */
+  /** First motor found. */
   motor?: OrkMotorRef;
   /** Every mount's motor, keyed by the mount's editor node id. */
   motors: Record<string, OrkMotorRef>;

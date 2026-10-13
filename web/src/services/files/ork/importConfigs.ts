@@ -21,7 +21,7 @@ export interface OrkImportContext {
   ignored: Set<string>;
   /** Every mount's motor for the chosen configuration, keyed by node id. */
   motors: Record<string, OrkMotorRef>;
-  /** The first motor found (legacy callers). */
+  /** The first motor found. */
   motor: OrkMotorRef | undefined;
   /** Components read so far, against MAX_COMPONENTS. Mutable on purpose:
    *  the readers recurse, so the ceiling has to be one running total

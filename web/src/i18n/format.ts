@@ -133,8 +133,8 @@ export function fmtSiteTime(
 const MB = 1024 * 1024;
 
 /**
- * Bytes as megabytes, for the two download progress readouts (the boot splash
- * and the catalog loader), in the user's locale like every other displayed
+ * Bytes as megabytes, for the two download progress readouts (the engine-load
+ * banner and the catalog loader), in the user's locale like every other displayed
  * number.
  */
 export function fmtMb(bytes: number): string {

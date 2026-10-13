@@ -68,6 +68,13 @@ export const localeBackend: BackendModule = {
   },
 };
 
+// The page's language follows the UI's, so a screen reader reads Spanish text
+// with Spanish pronunciation; index.html can only say `en`. Bound before init,
+// so the first language set is caught too. No document in the sim worker.
+i18n.on('languageChanged', (lng) => {
+  if (typeof document !== 'undefined') document.documentElement.lang = lng;
+});
+
 i18n
   .use(LanguageDetector) // ?lng=, localStorage, then navigator
   .use(localeBackend)

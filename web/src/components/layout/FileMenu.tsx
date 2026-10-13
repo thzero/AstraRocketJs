@@ -187,7 +187,7 @@ function FileMenu({
         </MenuItem>
       )}
       {/* Under Import and not beside New, because that is what opening one is:
-          it reads a `.ork` and lands an unsaved copy, exactly as the entry above
+          it reads a `.ork` and lands it as its own design, exactly as the entry above
           does; the file just happens to ship with the app. */}
       {importOpen && (
         <MenuItem sub label={t('file.importExamplesLabel')} onClick={run(actions.onImportExamples)}>
@@ -230,7 +230,7 @@ function FileMenu({
           matching type is selected, so this is the only way to see a saved
           bulkhead on a design that has no bulkhead in it.
 
-          Gone where the component tree is (useCanBuildDesign). A saved part is
+          Gone where the component tree is not (useCanBuildDesign). A saved part is
           applied through a component, and it is adding the component it belongs
           on that such a window cannot do; the library would open onto a design
           it has no way to put anything into. The picker inside the property

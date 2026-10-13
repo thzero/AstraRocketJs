@@ -27,9 +27,9 @@ export function DesignLibraryDialog({ onClose }: { onClose: () => void }) {
   const openDesign = useWorkspaceStore((s) => s.openDesign);
   const renameDesign = useWorkspaceStore((s) => s.renameDesign);
   const deleteDesign = useWorkspaceStore((s) => s.deleteDesign);
-  // `onClose` is an inline arrow in AppHeader, so it gets a new identity on
-  // every AppHeader render, and `refresh()` writes a fresh `designs` array
-  // that AppHeader subscribes to. An effect keyed on onClose that refreshed
+  // `onClose` is an inline arrow in HeaderDialogs, so it gets a new identity on
+  // every HeaderDialogs render, and `refresh()` writes a fresh `designs` array
+  // that HeaderDialogs subscribes to. An effect keyed on onClose that refreshed
   // would loop: refresh -> re-render -> new onClose -> refresh. So the refresh
   // runs once on mount (below); the Escape listener is the focus trap's own
   // effect, which re-subscribes harmlessly.
@@ -48,7 +48,7 @@ export function DesignLibraryDialog({ onClose }: { onClose: () => void }) {
 
   // Deleting a saved design cannot be undone, and on a phone this button sits a
   // few millimeters from Rename in a full-screen dialog. Ask first: the same
-  // gate the far less destructive "close loaded design" already uses.
+  // gate File > New uses.
   const askDelete = async (id: string, name: string) => {
     const ok = await confirm({
       message: t('library.deleteConfirm', { name }),

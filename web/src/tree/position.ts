@@ -117,7 +117,7 @@ export function axialLength(n: ComponentNode): number {
 /**
  * The rocket's top-level components with every stage flattened into its
  * children, in nose-to-tail order (sustainer first, boosters after). A
- * top-level node that is not a stage (a legacy flat tree) passes through.
+ * top-level node that is not a stage (a flat tree) passes through.
  */
 export function axialChain(tree: RocketTree): ComponentNode[] {
   return tree.components.flatMap((n) => (n.type === 'stage' ? (n.children ?? []) : [n]));

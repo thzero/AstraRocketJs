@@ -58,6 +58,16 @@ describe('Settings tab reset', () => {
     expect((readSettings()['launchDefaults'] as { latitudeDeg: number }).latitudeDeg).not.toBe(39.05);
   });
 
+  // The Colors tab edits the aero heat palette too, so its reset has to cover it.
+  it('resets the aero heat palette with the Colors tab', async () => {
+    seedSettings({ aeroHeat: 'openrocket' });
+    renderWithProviders(<SettingsDialog onClose={() => {}} />);
+    openTab('Colors');
+    fireEvent.click(screen.getByRole('button', { name: 'Reset Colors' }));
+    if (useConfirmStore.getState().request) await act(async () => useConfirmStore.getState().settle(true));
+    expect(readSettings()['aeroHeat']).toBe('sky');
+  });
+
   it('resets a preference tab without asking', () => {
     seedSettings({ playbackSpeed: 4 });
     renderWithProviders(<SettingsDialog onClose={() => {}} />);

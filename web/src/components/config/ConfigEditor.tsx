@@ -76,18 +76,19 @@ export function ConfigEditor() {
 
       {sub === 'recovery' &&
         (devices.length ? (
-          devices.map((d) => <DeploymentSection key={d.id as string} config={config} device={d} />)
+          devices.map((d, i) => <DeploymentSection key={d.id as string} config={config} device={d} index={i} />)
         ) : (
           <p className="text-xs text-ink-faint">{t('configs.noRecovery')}</p>
         ))}
 
       {sub === 'separation' &&
         (stages.length ? (
-          stages.map((st) => (
+          stages.map((st, i) => (
             <SeparationSection
               key={st.id as string}
               config={config}
               stage={st}
+              index={i}
               separates={separates.has(st.id as string)}
             />
           ))

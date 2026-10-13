@@ -82,8 +82,8 @@ export interface Simulation {
    *
    * `launch` is the row's current conditions, which an edit moves while the
    * result stays readable. Whatever describes the flight (the launch site under
-   * the ground track, the air the flight met) reads this. Unset on a result
-   * stored before it existed, which falls back to `launch`.
+   * the ground track, the air the flight met) reads this. When unset, readers
+   * fall back to `launch`.
    */
   resultLaunch?: LaunchConditions;
   /**
@@ -475,7 +475,7 @@ export function simConditions(launch: CompleteLaunch, prefs?: SimPrefs) {
     geodetic: launch.geodetic,
     gravityModel: launch.gravityModel,
     constantGravity: launch.constantGravity,
-    // A stored override or an older save can hold a step the kernel never flies.
+    // A stored value can hold a step outside the range the kernel flies.
     maxAngleStep: prefs?.maxAngleStep == null ? undefined : clampMaxAngleStep(prefs.maxAngleStep),
     launchAltitude: launch.launchAltitudeM,
     launchLatitude: launch.latitudeDeg,

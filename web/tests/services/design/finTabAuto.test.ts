@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ComponentNode, RocketTree } from '../../../src/engine/openRocketEngine';
 import { autoFinTab, canAutoFinTab } from '../../../src/services/design/finTabAuto';
+import { kernelLength } from '../../../src/tree/kernelDefaults';
 
 /**
  * Calculate automatically, for a through-the-wall fin tab.
@@ -73,6 +74,24 @@ describe('when it is offered at all', () => {
     expect(canAutoFinTab(node({ type: 'tubefinset' }), tube)).toBe(false);
     expect(canAutoFinTab(fins(), null)).toBe(false);
     expect(canAutoFinTab(fins(), node({ type: 'podset' }))).toBe(false);
+  });
+});
+
+// The drawings and the tab clamp place a fin against its parent's length, the
+// kernel's default when the node carries none; the auto tab has to as well.
+describe('a parent with no length of its own', () => {
+  it('places the fin against the kernel default length', () => {
+    const bottomFin = fins({ position: { method: 'bottom', offset: 0 } });
+    // A 3 mm ring at 250 mm sits under the root of a fin flush with the aft
+    // end of a 300 mm tube, so the tab runs from the ring to the trailing edge;
+    // placed against no length at all, the root would sit ahead of the tube
+    // and miss the ring.
+    const inside = [mount(), ring('r1', 0.25)];
+    const keyless = body(inside, bottomFin, { length: undefined });
+    const explicit = body(inside, bottomFin, { length: kernelLength('bodytube') });
+    const t = autoFinTab(keyless, 'fins')!;
+    expect(t).toEqual(autoFinTab(explicit, 'fins'));
+    expect(t['tabLength']).toBeCloseTo(0.3 - 0.253, 12);
   });
 });
 

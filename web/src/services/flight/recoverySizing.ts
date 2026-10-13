@@ -66,7 +66,7 @@ export interface SizingLaunch {
  *
  * The rule is the flight's, not one chosen here, because a sizing panel that
  * sizes for air the rocket will not fly in is worse than one that says
- * nothing. The bridge (`api/OpenRocketEngine.simulate`) decides it in three
+ * nothing. The bridge (`api/OpenRocketEngine.simulateJson`) decides it in three
  * branches, and all three are mirrored below:
  *
  *   Forecast levels set, and the site temperature or pressure blank: the

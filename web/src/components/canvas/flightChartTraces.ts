@@ -10,8 +10,8 @@ import { ladderDigits } from '../../i18n/format';
  * Owns what the flight chart draws: the series catalog (one panel per
  * measure, with its unit group and y-domain rules), the saved-panel filter,
  * and the flight-to-branch build that turns one simulation into one colored
- * line per stage. Pure data and functions; FlightChart re-exports the public
- * ones for its callers and tests.
+ * line per stage. Pure data and functions; FlightChart re-exports
+ * `buildTraces` and `ChartFlight` for GroundTrack.
  */
 
 export type Key =
@@ -56,7 +56,7 @@ export interface Meta {
   /** Level bands (CG/CP/mass/stability) get a tight y-domain + no area fill;
    *  flow series (altitude/velocity/…) get a zero baseline + filled area. */
   level?: boolean;
-  /** Aero-derived (CP / stability): only meaningful while flying forward; after
+  /** Aero-derived (CP / stability / q·α): only meaningful while flying forward; after
    *  recovery deploys the rocket tumbles (AoA≈90°) and these collapse to junk, so
    *  the series is clipped to the boost→apogee window. */
   aero?: boolean;
@@ -216,7 +216,6 @@ export function visibleSeries(saved: readonly string[]): Key[] {
 }
 
 // One color per trace, in series-token order.
-// Matches the component-tree palette so a stage reads the same color everywhere.
 // Cycles if a design or a comparison somehow runs past six.
 const STAGE_COLORS = [
   token('series-1'),

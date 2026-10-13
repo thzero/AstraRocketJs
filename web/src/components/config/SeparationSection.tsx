@@ -7,7 +7,8 @@ import { OverrideCard, overrideFieldLabel, OverrideNumber, OverrideRow, Override
 import { useUnits } from '../../prefs/useUnits';
 import { onSi } from '../../prefs/entryValue';
 import { unitScope } from '../../prefs/units';
-import { fmtUpTo, partLabel } from '../../i18n/format';
+import { fmtUpTo } from '../../i18n/format';
+import { partName } from './ConfigsTable';
 import { SEPARATION_EVENTS } from '../../services/design/componentFields';
 
 /**
@@ -22,10 +23,13 @@ import { SEPARATION_EVENTS } from '../../services/design/componentFields';
 export function SeparationSection({
   config,
   stage,
+  index,
   separates,
 }: {
   config: FlightConfig;
   stage: ComponentNode;
+  /** The stage's place in the design, for an unnamed one's label. */
+  index: number;
   /** False for the top stage, which has nothing above it to let go of. */
   separates: boolean;
 }) {
@@ -46,7 +50,7 @@ export function SeparationSection({
   const baseEvent = design.separationEvent;
   const event = over?.separationEvent ?? baseEvent;
   const alt = u.at(unitScope('prop', stage.type, 'separationAltitude'), 'distance');
-  const name = partLabel(t, stage);
+  const name = partName(stage, index, t);
 
   return (
     <OverrideCard name={name} overridden={!!over}>

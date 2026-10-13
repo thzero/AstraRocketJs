@@ -42,7 +42,7 @@ The most useful step is to simulate the rocket as built rather than as drawn:
 1. **Weigh the finished rocket**, ready to fly but without the motor. Select its stage in the component editor (on a single-stage rocket that is the whole thing), enable the **mass override**, and enter the measured figure with "apply to all subcomponents" on.
 2. **Find the balance point.** Balance the rocket on a ruler edge, measure from the nose tip, and enter it as the **CG override**.
 3. **Re-read the stability margin** with those numbers in place. This is the margin that matters. If it moved, your model was wrong about something, and it is worth finding out what.
-4. **Check the launcher exit velocity** in the flight results (**Rail exit velocity** or **Rod exit velocity**, after the design's guides). A rocket that leaves the launcher slowly weathercocks into the wind, and the simulation is at its least trustworthy there.
+4. **Check the launcher exit velocity** in the flight results (the **Rail exit** or **Rod exit** tile, after the design's guides). A rocket that leaves the launcher slowly weathercocks into the wind, and the simulation is at its least trustworthy there.
 5. **Check the descent rate and the landing speed**, and the ground track for how far downwind it puts you. Then look at the actual size of the field.
 6. **Re-run after any change**, including a motor swap. Results are only about the design and conditions they were run with.
 

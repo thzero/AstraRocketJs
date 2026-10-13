@@ -70,7 +70,7 @@ describe('mergeCustom', () => {
     expect(merged[merged.length - 1]!.group).toBe(DEFAULT_CUSTOM_GROUP);
   });
 
-  it('re-homes a material saved under the old Custom group', () => {
+  it('re-homes a material stored under the Custom group', () => {
     // A material stored under the `Custom` group must not be stranded in a
     // group nothing else is in.
     const merged = mergeCustom(BUILTINS, [m('Old one', 'Custom', 800, true)]);

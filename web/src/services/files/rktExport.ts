@@ -147,16 +147,17 @@ const MATERIAL_KEYS = {
  * The material a part is weighed with, as `Material` and `Density`.
  *
  * Desktop builds a part's material from those two elements alone, and a part
- * with no `Material`, or with no `Density`, opens weighing nothing. The kernel
- * and the `.ork` writer (`exportParts.material`) take a material only from a
- * positive density, so a part without one flies the kernel's default
- * (`KERNEL_MATERIALS`), and that is what goes out for it. A density with no
+ * with no `Density` opens weighing nothing. The bridge (`ComponentFactory`)
+ * takes a bulk material only from a positive density and a surface or line one
+ * from any density, as the `.ork` writer (`exportParts.material`) does, so a
+ * part without one flies the kernel's default (`KERNEL_MATERIALS`), and that
+ * is what goes out for it. A density with no
  * name goes out as `custom`, as the `.ork` writer names it.
  */
 function materialOf(n: ComponentNode, kind: Exclude<MaterialKind, 'none'>): { name: string; density: number } {
   const keys = MATERIAL_KEYS[kind];
   const density = numOpt(n, keys.density);
-  if (density === undefined || !(density > 0)) return KERNEL_MATERIALS[kind];
+  if (density === undefined || (kind === 'bulk' && !(density > 0))) return KERNEL_MATERIALS[kind];
   return { name: strOf(n, keys.name) ?? 'custom', density };
 }
 
@@ -170,7 +171,8 @@ const put = (w: Writer, d: number, name: string, v: number | undefined, scale: (
  * measured mass/CG pair, finish, and the axial placement.
  *
  * `UseKnownCG` is the single switch RockSim has where we have three overrides.
- * It is written as 1 only when the node overrides mass, because setting
+ * It is written as 1 only when the node overrides mass, or overrides its CG
+ * with its own mass known (stated, or the kernel's figure), because setting
  * it makes RockSim stop computing both from the geometry: turning it on for a
  * part that only overrides drag would freeze its mass at whatever we wrote.
  *
@@ -204,16 +206,21 @@ function writeCommon(
 
   const overrideMass = numOpt(n, 'overrideMass');
   const overrideCg = numOpt(n, 'overrideCGX');
-  if (overrideMass !== undefined || (overrideCg !== undefined && ownMass !== undefined)) {
-    el(w, d, 'KnownMass', g(overrideMass ?? ownMass!));
+  // The switch overrides mass and CG together, so a CG-only override needs the
+  // part's own mass in KnownMass, as BasePartDTO writes it: the mass the writer
+  // states, else the kernel's figure for the part.
+  const cgOnlyMass =
+    overrideMass === undefined && overrideCg !== undefined
+      ? (ownMass ?? (typeof n.id === 'string' ? w.componentInfo?.(n.id)?.mass : undefined))
+      : undefined;
+  if (overrideMass !== undefined || cgOnlyMass !== undefined) {
+    el(w, d, 'KnownMass', g(overrideMass ?? cgOnlyMass!));
     el(w, d, 'KnownCG', mm(overrideCg ?? 0));
     el(w, d, 'UseKnownCG', 1);
   } else {
     if (ownMass !== undefined) el(w, d, 'KnownMass', g(ownMass));
-    // The switch overrides mass and CG together, so a CG-only override needs
-    // the part's own mass in KnownMass, as BasePartDTO writes it. The writer
-    // works from the tree alone, with no built rocket to read a part's own mass
-    // from (`componentMasses` needs one), so the override is left out and named.
+    // With no kernel figures there is no own mass to pair with the CG, so the
+    // override is left out and named.
     if (overrideCg !== undefined) {
       skip(w, { key: 'errors.rktSkip.cgOverride', values: { name: n.name || { key: `part.${n.type}` } } });
     }

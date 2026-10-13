@@ -3,6 +3,7 @@ import type { ComponentNode, RocketTree } from '../../../src/engine/openRocketEn
 import { buildPieces } from '../../../src/components/canvas/rocketPieces';
 import { buildSchematicShapes } from '../../../src/components/canvas/schematicShapes';
 import { lineInstances, placementOffsets } from '../../../src/tree/placement';
+import { MAX_INSTANCE_COUNT } from '../../../src/tree/nodeProps';
 
 /**
  * The drawings put every copy of a part where the kernel flies it.
@@ -42,6 +43,12 @@ describe('a part repeated along the body', () => {
     expect(xs).toHaveLength(3);
     expect(xs[1]! - xs[0]!).toBeCloseTo(0.05, 12);
     expect(xs[2]! - xs[1]!).toBeCloseTo(0.05, 12);
+  });
+
+  // Every view loops on this count, so it takes the same ceiling as every other
+  // instance count, or a hostile file locks the tab.
+  it('stops at the instance ceiling', () => {
+    expect(lineInstances({ ...rings, instanceCount: 100000 })).toHaveLength(MAX_INSTANCE_COUNT);
   });
 
   it('leaves a part the kernel does not repeat as it is', () => {

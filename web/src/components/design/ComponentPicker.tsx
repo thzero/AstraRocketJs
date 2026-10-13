@@ -88,7 +88,8 @@ function isCurrent(part: Pick<Component, 'mfr' | 'partNo'>, current: CurrentPart
 }
 
 /**
- * Picks a real cataloged part (from the bundled OpenRocket component DB) of a
+ * Picks a real cataloged part (from the OpenRocket component catalog, fetched
+ * at runtime) of a
  * given type and applies it via `onApply`. Opens a modal dialog with a sortable
  * table, free-text search, a manufacturer facet, an outer-diameter range and a
  * "fits here" filter; the caller maps the chosen Component onto its target node

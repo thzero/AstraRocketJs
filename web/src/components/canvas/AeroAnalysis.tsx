@@ -36,7 +36,7 @@ import type { AeroPane } from '../../state/tabs';
  * This file is the pane: the header controls, the shared Mach state and the
  * series the charts draw. The sweep itself is `useAeroSweep`, the chart cards
  * are `AeroCharts`, the tables are `AeroComponentTables`, and the number
- * boxes and segmented toggles are `AeroInputs`.
+ * boxes and the Worst button are `AeroInputs`.
  *
  * Colors use the dataviz skill's validated dark categorical order; every chart
  * ≥ 2 series carries a legend (identity is never color-alone).

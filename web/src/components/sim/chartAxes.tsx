@@ -5,7 +5,7 @@ import { polylinePath } from '../common/svgPath';
 // Shared scaffold for the thrust-vs-time charts (MotorDetail's ThrustChart plus
 // the motor dashboard's MotorCombinePane and MotorComparePane): one set of linear
 // scales, axis furniture and path builders, so the three cannot drift apart.
-// FlightChart's Panel is deliberately not built on this: it has a per-panel
+// FlightChartPanel is deliberately not built on this: it has a per-panel
 // y-domain, a hover crosshair, clipping, and event overlays that don't generalize.
 
 export type XY = readonly [number, number];

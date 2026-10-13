@@ -23,7 +23,7 @@
  * do. An hourly poll stacked on that would let a focused tab sit on a stale
  * build for over an hour with no toast, and the natural reaction is a hard
  * reload, which is the thing the toast exists to spare people. Each check is
- * one conditional GET of a 12 kB script; ten minutes is cheap.
+ * one conditional GET of a ~19 kB script; ten minutes is cheap.
  */
 export const UPDATE_POLL_MS = 10 * 60_000;
 
@@ -78,8 +78,8 @@ export const UPDATE_APPLY_HIDDEN_MS = 30_000;
  * `registerType: 'prompt'` means the new worker activates only when the running
  * page posts SKIP_WAITING, and `clientsClaim` is off, so it cannot take over by
  * itself. A worker nobody asks for therefore waits for the life of the tab.
- * That is a permanent stranding in three ordinary cases: a build old enough to
- * have no prompt, a second tab holding the old worker alive, and the prompt
+ * That is a permanent stranding in three ordinary cases: a waiting build with no
+ * prompt of its own, a second tab holding the old worker alive, and the prompt
  * simply being dismissed. The only escape is the hard reload this whole
  * mechanism exists to spare people, so an offer nobody answered is taken up on
  * their behalf, but only once doing it cannot interrupt anything.

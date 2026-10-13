@@ -38,9 +38,9 @@ const DEFAULT_DELAY = 3;
 /**
  * The catalog row a seated motor came from, for pre-selecting it.
  *
- * A MotorSpec carries no `code`, so a spec built from the bundled catalog says
- * "AeroTech F67" for both the F67W and the F67C, which are one common name
- * in one bore. Match on the common name OR the full code (a spec resolved from
+ * A MotorSpec's `code` is display-only and absent when it adds nothing, so a
+ * spec is matched by its designation, which says "AeroTech F67" for both the
+ * F67W and the F67C: one common name in one bore. Match on the common name OR the full code (a spec resolved from
  * thrustcurve.org carries the full designation), then narrow same-name pairs
  * by bore and by the curve source the spec was built from. Two motors sharing
  * all of manufacturer, name, bore and curve label remain indistinguishable

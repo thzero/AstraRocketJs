@@ -107,7 +107,7 @@ describe('multilevel wind profile round-trips through .ork', () => {
     expect(importOrk(desktop('agl')).launch?.windLevels).toHaveLength(2);
   });
 
-  it('still reads the child element this app wrote before it matched the desktop', () => {
+  it('reads the reference as a child element too', () => {
     const xml = exportOrk({ name: 'Wind', tree, launch: profile }).replace(
       ' altituderef="agl">',
       '><altitudereference>AGL</altitudereference>',

@@ -66,6 +66,13 @@ describe('powerClass', () => {
     expect(powerClass([{ spec: motor(10, 1, 0.14), count: 2 }], 0.1)).toBe('highPower');
   });
 
+  it('weighs the propellant as the kernel does: loaded less the last mass sample', () => {
+    // ThrustCurveMotor.getPropellantMass is launch less burnout mass, and the
+    // burnout mass is the last sample, not the lightest one.
+    const dips = { ...motor(10, 1, 0.2), times: [0, 0.5, 1], thrusts: [10, 10, 10], masses: [0.2, 0.05, 0.1] };
+    expect(powerClass([{ spec: dips, count: 1 }], 0.1)).toBe('model');
+  });
+
   it('lets the motors decide while the rocket mass is unknown', () => {
     expect(powerClass([{ spec: motor(10, 1), count: 1 }], null)).toBe('model');
   });

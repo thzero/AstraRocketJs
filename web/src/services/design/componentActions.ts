@@ -1,7 +1,7 @@
 import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
 import { clusterCount, clusterPoints, isClusterPattern } from '../../tree/cluster';
 import { finPlanformPoints } from '../../tree/finPlanform';
-import { num } from '../../tree/nodeProps';
+import { countOf, num } from '../../tree/nodeProps';
 import { findNode } from '../../tree/treeWalk';
 import { scaleNode } from '../../tree/scaleRocket';
 import { syncDerived } from './treeEdit';
@@ -122,7 +122,7 @@ export function convertToFreeform(tree: RocketTree, id: string): RocketTree {
 export const splitCount = (node: ComponentNode | null | undefined): number => {
   if (!node) return 1;
   const spec = SPLITTABLE[node.type];
-  return spec ? Math.max(1, Math.round(num(node, spec.count, 1))) : 1;
+  return spec ? countOf(node, spec.count, 1) : 1;
 };
 
 /** Whether this node is more than one instance of something. */

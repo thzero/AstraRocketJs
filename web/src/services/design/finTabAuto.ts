@@ -167,7 +167,7 @@ export function autoFinTab(tree: RocketTree, id: string): Partial<ComponentNode>
   const { node, parent } = found;
   if (!canAutoFinTab(node, parent) || !parent) return null;
 
-  const parentLength = num(parent, 'length');
+  const parentLength = partLength(parent);
   const parentStart = parentStartOf(tree, parent);
   const finLength = finRootChord(node);
   const finTop = offsetFromTop(node, parentLength, parentStart);

@@ -101,8 +101,6 @@ export function MaterialPicker({
   // swallowing it. `addErr` renders only inside the add form, so a delete needs
   // its own line or the failure is invisible.
   const [delErr, setDelErr] = useState<string | null>(null);
-  // Set when the catalog could not be fetched. Distinct from "no materials":
-  // the list is empty either way, and only one of them is the app's fault.
   // Both store round-trips below finish after an await, and selecting a
   // different component unmounts this picker in between. Observed, not claimed:
   // an add and a delete are separate attempts and neither cancels the other.
@@ -121,6 +119,8 @@ export function MaterialPicker({
   // there but wrong. Say so instead of rendering an empty list, which is
   // indistinguishable from "this app has no materials".
   const loaded = useAsyncLoad(() => materialsForType(type), type, { onLoaded: setMats });
+  // Set when the catalog could not be fetched. Distinct from "no materials":
+  // the list is empty either way, and only one of them is the app's fault.
   const loadErr = loaded.error !== null ? t('material.loadFailed') : null;
 
   // Resolved against the whole list, never the filtered one: a design can

@@ -1,7 +1,7 @@
 name: E2E (full)
 
-# The whole Playwright suite, run by hand from the Actions tab. Pull requests and master
-# pushes run only the core specs (the `e2e` job in gates.yml); this covers
+# The whole Playwright suite, run by hand from the Actions tab. Pull requests and pushes
+# to branches other than master run only the core specs (the `e2e` job in gates.yml); this covers
 # the rest: Help, the aero tables, maps, library, exports, motor import and
 # the other feature specs. Run it before a release or after a change to one of
 # those features.

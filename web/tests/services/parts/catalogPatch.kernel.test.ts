@@ -170,15 +170,6 @@ function buildable(p: Component): boolean {
   return true;
 }
 
-/**
- * A row that names a material desktop's library does not hold.
- * `BaseComponentDTO.find` gives it a material of density 0, and
- * `StructuralComponent`, `ExternalComponent` and `RecoveryDevice.loadFromPreset`
- * apply it, so on desktop the part weighs nothing.
- */
-const unresolvedMaterial = (p: Component): boolean =>
-  p.type !== 'parachute' && 'material' in p && p.material != null && p.materialDensity === 0;
-
 describe('catalogPatch through the kernel', () => {
   const types = [...new Set(catalog.map((p) => p.type))].sort();
 
@@ -201,7 +192,7 @@ describe('catalogPatch through the kernel', () => {
   for (const type of types)
     it(`builds every ${type} row at its stated length, radii and wall`, async () => {
       const engine = await loadEngine();
-      const rows = catalog.filter((p) => p.type === type && buildable(p) && !unresolvedMaterial(p));
+      const rows = catalog.filter((p) => p.type === type && buildable(p));
       const wrong: string[] = [];
       let compared = 0;
       for (const row of rows) {
@@ -223,15 +214,15 @@ describe('catalogPatch through the kernel', () => {
       if (type !== 'parachute') expect(compared).toBeGreaterThanOrEqual(rows.length - 2);
     });
 
-  it.fails('weighs nothing for a part whose stated material desktop cannot resolve', async () => {
-    const engine = await loadEngine();
-    const rows = catalog.filter(unresolvedMaterial);
-    expect(rows.length).toBeGreaterThan(0);
-    const wrong = rows
-      .map((row) => [row, build(engine, row).info['mass']] as const)
-      .filter(([, mass]) => mass !== 0)
-      .map(([row, mass]) => `${row.type} ${row.mfr} ${row.partNo}: desktop 0 kg, flies ${mass}`);
-    expect(wrong).toEqual([]);
+  // A row that names a material with no density (`BaseComponentDTO.find` gives
+  // it 0, and desktop weighs the part at nothing) takes the nearest built-in
+  // material in the sync (scripts/lib/nearestMaterial.mjs). A part that states
+  // its mass takes its density from that mass, so only the rest can be left at 0.
+  it('weighs every part that states no mass by a material with a density', () => {
+    const weightless = catalog
+      .filter((p) => 'material' in p && p.material != null && p.materialDensity === 0 && p.mass == null)
+      .map((p) => `${p.type} ${p.mfr} ${p.partNo}: ${p.material}`);
+    expect(weightless).toEqual([]);
   });
 });
 

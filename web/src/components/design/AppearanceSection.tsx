@@ -15,7 +15,8 @@ import { ColorInput } from '../common/ColorInput';
  * changes nothing about the rocket. A section of its own says so, and leaves room
  * for the other appearance settings (finish, texture) whenever they land.
  *
- * Second to last on every part, directly above Overrides, for the same reason
+ * Below the part's own sections, above the tree actions, Overrides and Comment,
+ * for the same reason
  * Overrides is last: it is read far less often than anything describing the
  * part, so it sits below all of it and above the one thing read less still.
  *
