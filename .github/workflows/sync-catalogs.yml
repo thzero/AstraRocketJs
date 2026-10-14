@@ -7,11 +7,12 @@ name: Sync Catalogs
 # The app fetches these at runtime (web/src/services/app/remoteData.ts), so a refresh
 # published here is live WITHOUT an app rebuild or a Pages deploy, once the
 # publish step has purged jsDelivr's copy (or the CDN edge expires, if the purge
-# fails). The copy committed under web/public/data stays in the build
-# as a fallback for when the data host is unreachable; refresh that one by hand
-# (`npm run sync:motors && npm run sync:motor-digests && npm run sync:components &&
-# npm run sync:preset-digests`, then commit) when you want the offline floor moved up; this workflow
-# deliberately does not touch it.
+# fails). The deployed app reads the motors and components from this branch and
+# nowhere else; offline it uses its cached download. The copy committed under
+# web/public/data is for dev builds and the tests, and the deployed build leaves
+# it out (vite.config.ts); refresh it by hand (`npm run sync:motors && npm run
+# sync:motor-digests && npm run sync:components && npm run sync:preset-digests`,
+# then commit). This workflow deliberately does not touch it.
 #
 # The materials and contributors files are NOT published here: materials is
 # held to the pinned OpenRocket source by the extraction gate, so it changes
@@ -19,9 +20,8 @@ name: Sync Catalogs
 # both from its own build (remoteData.ts), so a deploy's copy is the one users
 # get. The branch holds the two catalogs and a manifest that names only them.
 #
-# deploy.yml already points the built app at this branch via VITE_DATA_BASE,
-# so no setup is needed: until the first run creates it, the app falls back to the
-# catalogs inside the build.
+# deploy.yml points the built app at this branch via VITE_DATA_BASE. The branch
+# has to exist: the deployed app has no other copy of the two catalogs.
 
 on:
   schedule:

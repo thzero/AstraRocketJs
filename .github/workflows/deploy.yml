@@ -84,14 +84,10 @@ jobs:
         env:
           PAGES_BASE: /${{ github.event.repository.name }}/
           # Read the motor/component catalogs from the separately published `data`
-          # branch (see sync-catalogs.yml) instead of the copy inside this build, so
-          # a catalog refresh goes live without a deploy. The in-build copy stays as
-          # the fallback for when the CDN is unreachable.
-          #
-          # Safe before the `data` branch exists: jsDelivr 404s a missing branch in
-          # ~0.4s (measured: as fast as it serves a real file), and the catalogs are
-          # fetched when a picker first opens, not at page load. So until the first
-          # sync runs this costs ~0.4s on first open and then falls back.
+          # branch (see sync-catalogs.yml) and nowhere else, so a catalog refresh
+          # goes live without a deploy and the app never shows an older one. This
+          # build leaves its own copy of the two out (vite.config.ts); offline, the
+          # service worker answers from its cached download.
           VITE_DATA_BASE: https://cdn.jsdelivr.net/gh/${{ github.repository }}@data/
 
       - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0

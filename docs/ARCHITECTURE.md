@@ -128,7 +128,7 @@ Motors come from [thrustcurve.org](https://www.thrustcurve.org), in two tiers th
 1. **Catalog (generated, fetched at runtime).** `web/scripts/sync-motors.mjs` sweeps thrustcurve for every motor, in production or not (out-of-production ones marked `oop`), and writes the specs - and their bundled thrust curves - to `web/public/data/motors.generated.json` (~1,150 motors). `public/data` is copied verbatim into the build rather than compiled into the JS bundle, and `services/app/remoteData.ts` fetches it on first use. `.github/workflows/sync-catalogs.yml` runs the sweep weekly and publishes the result to the orphan `data` branch, which the deployed app reads over jsDelivr (`VITE_DATA_BASE`), so a refresh needs no rebuild; the committed copy is the fallback when that host is unreachable. To regenerate locally:
 
    ```bash
-   cd web && npm run sync:motors            # regenerate the committed fallback catalog
+   cd web && npm run sync:motors            # regenerate the committed catalog (dev builds and tests)
    ```
 
    The catalog is **not** mirrored to `localStorage` - it ships its thrust curves, which is far too large for that - but it is memoized for the session and cache-busted by the content hash in `public/data/manifest.json`. thrustcurve.org itself is never called for the catalog at runtime.

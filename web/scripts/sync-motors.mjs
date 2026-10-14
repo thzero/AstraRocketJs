@@ -13,6 +13,7 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { STAGED_MOTORS } from './lib/catalogStaging.mjs';
 import { collidingRowKeys } from './lib/motorRowKey.mjs';
+import { rankCurves } from './lib/rankCurves.mjs';
 
 const API = 'https://www.thrustcurve.org/api/v1';
 // public/data is served as-is (not bundled) so the catalog can be refreshed
@@ -37,8 +38,8 @@ const chunk = (arr, size) =>
   Array.from({ length: Math.ceil(arr.length / size) }, (_, i) => arr.slice(i * size, i * size + size));
 
 // A motor can have several data files (cert vs user submissions, RASP/RockSim
-// formats). Bundle them all, best-first, so the picker can offer a choice.
-const SRC_RANK = { cert: 0, mfr: 1, user: 2 };
+// formats). Bundle them all, best-first (lib/rankCurves.mjs), so the picker can
+// offer a choice.
 const sourceLabel = (s) => ({ cert: 'Certified', mfr: 'Manufacturer', user: 'User' })[s] || s || 'Unknown';
 
 /** Fetch thrust-curve files for a batch of motorIds → Map<motorId, file[]>.
@@ -49,8 +50,17 @@ async function fetchSamples(ids) {
   const { results: files = [] } = await post('download.json', { motorIds: ids, data: 'both', maxResults: 4000 });
   for (const f of files) {
     if (!f.samples || f.samples.length < 2) continue;
+    // The curves' final tie-break (lib/rankCurves.mjs). Without it the default
+    // curve would follow the order the API returned the files in.
+    if (!f.simfileId) throw new Error(`download.json: a file for motor ${f.motorId} has no simfileId`);
     if (!out.has(f.motorId)) out.set(f.motorId, []);
-    out.get(f.motorId).push({ source: f.source, format: f.format, samples: f.samples, data: f.data });
+    out.get(f.motorId).push({
+      simfileId: f.simfileId,
+      source: f.source,
+      format: f.format,
+      samples: f.samples,
+      data: f.data,
+    });
   }
   return out;
 }
@@ -173,14 +183,6 @@ async function main() {
   }
   console.log('');
 
-  const rankFiles = (files) =>
-    [...files].sort(
-      (a, b) =>
-        (SRC_RANK[a.source] ?? 9) - (SRC_RANK[b.source] ?? 9) || // cert first
-        (a.format === 'RASP' ? 0 : 1) - (b.format === 'RASP' ? 0 : 1) || // RASP first
-        b.samples.length - a.samples.length,
-    );
-
   const catalog = motors
     .filter((m) => m.totImpulseNs > 0 && m.burnTimeS > 0)
     .map((m) => {
@@ -210,7 +212,7 @@ async function main() {
       // Bundled thrust curves (best-first), so a picked motor resolves with no
       // fetch and the picker can offer a choice when there are several.
       if (curve && Number.isFinite(m.length) && Number.isFinite(m.propWeightG)) {
-        const ranked = rankFiles(curve);
+        const ranked = rankCurves(curve);
         row.curves = ranked.map((c) => ({
           src: `${sourceLabel(c.source)} · ${c.format}`,
           samples: c.samples.map((s) => [round(s.time, 4), round(s.thrust, 3)]),

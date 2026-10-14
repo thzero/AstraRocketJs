@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, rmSync } from 'node:fs';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
@@ -86,6 +86,18 @@ const upstream = {
   commitUrl: `${upstreamRepo}/commit/${upstreamRef}`,
 };
 
+/**
+ * The catalogs a data-host build reads from the host and nowhere else
+ * (services/app/remoteData.ts). Such a build leaves its own copy of them out of
+ * the output and the precache, so the app can never fall back to a catalog
+ * older than the published one. Offline, the service worker answers from its
+ * cached download (the `astra-catalogs` rule below). Dev, preview and a build
+ * with no data host keep reading public/data.
+ */
+const hostedCatalogs = process.env.VITE_DATA_BASE?.trim()
+  ? ['data/motors.generated.json', 'data/components.generated.json']
+  : [];
+
 export default defineConfig({
   // On GitHub Pages the app is served from https://<user>.github.io/<repo>/, so the
   // CI build sets PAGES_BASE=/<repo>/ and every asset + engine URL resolves under it.
@@ -100,6 +112,13 @@ export default defineConfig({
       apply: 'build',
       generateBundle() {
         this.emitFile({ type: 'asset', fileName: swBuildFile, source: swBuildSource });
+      },
+    },
+    {
+      name: 'drop-hosted-catalogs',
+      apply: 'build',
+      closeBundle() {
+        for (const file of hostedCatalogs) rmSync(new URL(`./dist/${file}`, import.meta.url), { force: true });
       },
     },
     // Offline support. Everything the app needs is static (the WASM kernel runs
@@ -132,18 +151,12 @@ export default defineConfig({
       workbox: {
         // .wasm and the public/data catalogs are not in the default glob.
         //
-        // The catalogs (public/data/*.generated.json, ~3.2 MB) are precached
-        // on purpose, and it is a real double: the deployed app reads them from
-        // the CDN copy on the `data` branch first (VITE_DATA_BASE in deploy.yml)
-        // and the runtimeCaching rule below stores that copy too. But the CDN
-        // is tried first and the in-build copy is the fallback
-        // (services/app/remoteData.ts), so a runtime rule for /data/ would only
-        // ever fill on a session where the CDN had already failed. Someone who
-        // installs the app online and first opens the motor picker at a launch
-        // site with no signal gets an empty picker unless the in-build copy was
-        // precached at install. Offline at first open is the stated goal of the
-        // PWA (the comment on VitePWA above), so the 3.2 MB stays in the
-        // precache and the CDN copy is the one that refreshes.
+        // The catalogs in the build (public/data/*.generated.json) are
+        // precached. In a data-host build that is the materials and the
+        // contributors only: the motors and components come from the host, are
+        // kept by the `astra-catalogs` rule below, and are fetched in the
+        // background on the first visit (services/app/warmCatalogs.ts), so an
+        // app installed online still has them at a launch site with no signal.
         // `ork` is in here for the bundled OpenRocket examples
         // (public/examples/, see services/storage/exampleLibrary.ts). The set comes
         // to ~340 kB with their stored flight data stripped, which is cheap
@@ -164,7 +177,12 @@ export default defineConfig({
         // control nobody in the app can reach. It stays available to anyone reading
         // the published site, which is who the plugin is for, and the Help dialog
         // searches the same pages its own way.
-        globIgnores: ['**/openrocket-engine-*.js', '**/search-index*.json', '**/sw-build-*.js'],
+        globIgnores: [
+          '**/openrocket-engine-*.js',
+          '**/search-index*.json',
+          '**/sw-build-*.js',
+          ...hostedCatalogs.map((file) => `**/${file}`),
+        ],
         // Loaded by sw.js itself, so it answers which build it is (see buildId).
         importScripts: [swBuildFile],
         // The WASM kernel alone is ~2.5 MB, over Workbox's 2 MiB default.
@@ -266,9 +284,11 @@ export default defineConfig({
             },
           },
           {
-            // Catalogs published to the `data` branch (see sync-catalogs.yml).
-            // Stale-while-revalidate: render instantly from cache, refresh in the
-            // background, so a weekly catalog refresh lands on the next open.
+            // Catalogs published to the `data` branch (see sync-catalogs.yml),
+            // and the only copy of the motors and components a data-host build
+            // has offline. Stale-while-revalidate: render instantly from cache,
+            // refresh in the background, so a weekly catalog refresh lands on the
+            // next open.
             urlPattern: /^https:\/\/cdn\.jsdelivr\.net\/gh\/.*@data\//,
             handler: 'StaleWhileRevalidate',
             options: {

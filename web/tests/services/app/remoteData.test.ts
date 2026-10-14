@@ -46,6 +46,11 @@ async function load() {
   return (await import('../../../src/services/app/remoteData')).fetchCatalog;
 }
 
+async function loadHasDataHost() {
+  vi.resetModules();
+  return (await import('../../../src/services/app/remoteData')).hasDataHost;
+}
+
 const REMOTE = 'https://cdn.test/gh/owner/repo@data/';
 
 beforeEach(() => vi.stubEnv('VITE_DATA_BASE', ''));
@@ -123,7 +128,13 @@ describe('fetchCatalog: separate data host configured', () => {
       expect(seen).toEqual(['/data/manifest.json', `/data/${name}.generated.json?v=new`]);
     });
 
-  it('falls back to the in-build copy when the host is unreachable', async () => {
+  /**
+   * The host is the only source of the motors and components: the build does not
+   * carry them (vite.config.ts), and an in-build copy could be older than the
+   * published one. Offline, the service worker answers this same request from
+   * its cached download.
+   */
+  it('never reads the in-build copy of a hosted catalog, even with the host down', async () => {
     vi.stubEnv('VITE_DATA_BASE', REMOTE);
     const seen = stubFetch({
       [`${REMOTE}manifest.json`]: { fail: true },
@@ -133,48 +144,36 @@ describe('fetchCatalog: separate data host configured', () => {
     });
     const fetchCatalog = await load();
 
-    await expect(fetchCatalog('motors')).resolves.toEqual(['local']);
-    // Pairs the local hash with the local file, never the remote manifest's.
-    expect(seen).toContain('/data/motors.generated.json?v=stale11');
+    await expect(fetchCatalog('motors')).rejects.toMatchObject({
+      key: 'errors.remote.motors',
+      values: { reason: { key: 'errors.remote.network' } },
+    });
+    expect(seen.some((u) => u.startsWith('/data/'))).toBe(false);
   });
 
-  it('falls back when the host 404s (data branch not created yet)', async () => {
+  it('refuses a host that 404s the catalog', async () => {
     vi.stubEnv('VITE_DATA_BASE', REMOTE);
     stubFetch({
       [`${REMOTE}manifest.json`]: { status: 404 },
-      [`${REMOTE}motors.generated.json`]: { status: 404 },
-      '/data/manifest.json': { body: {} },
-      '/data/motors.generated.json': { body: ['local'] },
+      [`${REMOTE}components.generated.json`]: { status: 404 },
+      '/data/components.generated.json': { body: { count: 0, components: [] } },
     });
     const fetchCatalog = await load();
 
-    await expect(fetchCatalog('motors')).resolves.toEqual(['local']);
-  });
-
-  it('falls back when the host is UP but serving the wrong shape', async () => {
-    // The hardest case for a fallback chain: `{"error":"rebuilding"}` with HTTP
-    // 200 parses fine, so unvalidated the loop would return it, never tries the
-    // in-build copy, and leaves the caller spreading a non-array into the motor
-    // picker.
-    vi.stubEnv('VITE_DATA_BASE', REMOTE);
-    stubFetch({
-      [`${REMOTE}manifest.json`]: { body: { motors: 'h1' } },
-      [`${REMOTE}motors.generated.json`]: { body: { error: 'rebuilding' } },
-      '/data/manifest.json': { body: { motors: 'local1' } },
-      '/data/motors.generated.json': { body: ['local'] },
+    await expect(fetchCatalog('components')).rejects.toMatchObject({
+      key: 'errors.remote.components',
+      values: { reason: { key: 'errors.remote.http', values: { status: 404 } } },
     });
-    const fetchCatalog = await load();
-
-    await expect(fetchCatalog('motors', Array.isArray)).resolves.toEqual(['local']);
   });
 
-  it('still rejects when EVERY base serves the wrong shape', async () => {
+  it('refuses a host that is up but serving the wrong shape', async () => {
+    // `{"error":"rebuilding"}` with HTTP 200 parses fine, and unvalidated would
+    // leave the caller spreading a non-array into the motor picker.
     vi.stubEnv('VITE_DATA_BASE', REMOTE);
     stubFetch({
       [`${REMOTE}manifest.json`]: { body: {} },
       [`${REMOTE}motors.generated.json`]: { body: { error: 'rebuilding' } },
-      '/data/manifest.json': { body: {} },
-      '/data/motors.generated.json': { body: { error: 'rebuilding' } },
+      '/data/motors.generated.json': { body: ['local'] },
     });
     const fetchCatalog = await load();
 
@@ -186,81 +185,37 @@ describe('fetchCatalog: separate data host configured', () => {
     });
   });
 
-  it('rejects with the last error only when every base fails', async () => {
-    vi.stubEnv('VITE_DATA_BASE', REMOTE);
-    stubFetch({});
-    const fetchCatalog = await load();
-
-    await expect(fetchCatalog('motors')).rejects.toThrow(/Could not load the motor catalog/);
-  });
-
-  it('does not cache a total failure: a later call retries', async () => {
+  it('does not cache a failure: a later call retries', async () => {
     vi.stubEnv('VITE_DATA_BASE', REMOTE);
     const routes: Record<string, Route> = {
       [`${REMOTE}manifest.json`]: { fail: true },
       [`${REMOTE}motors.generated.json`]: { fail: true },
-      '/data/manifest.json': { fail: true },
-      '/data/motors.generated.json': { fail: true },
     };
     stubFetch(routes);
     const fetchCatalog = await load();
 
     await expect(fetchCatalog('motors')).rejects.toThrow();
-    routes['/data/motors.generated.json'] = { body: ['recovered'] };
+    routes[`${REMOTE}motors.generated.json`] = { body: ['recovered'] };
     await expect(fetchCatalog('motors')).resolves.toEqual(['recovered']);
   });
 
-  it('gives up on a HUNG host after the short probe timeout, not the full one', async () => {
+  it('gives a hung host the full first-byte budget for the manifest and again for the catalog', async () => {
     vi.stubEnv('VITE_DATA_BASE', REMOTE);
     vi.useFakeTimers();
     try {
       stubFetch({
         [`${REMOTE}manifest.json`]: { hang: true },
         [`${REMOTE}motors.generated.json`]: { hang: true },
-        '/data/manifest.json': { body: { motors: 'stale11' } },
-        '/data/motors.generated.json': { body: ['local'] },
-      });
-      const fetchCatalog = await load();
-
-      const p = fetchCatalog('motors');
-      // Still pending just under the probe window...
-      await vi.advanceTimersByTimeAsync(3_900);
-      let settled = false;
-      void p.then(() => (settled = true));
-      await Promise.resolve();
-      expect(settled).toBe(false);
-
-      // ...and the manifest attempt aborts at 4s, then the catalog attempt at 8s,
-      // after which it drops to the in-build copy.
-      await vi.advanceTimersByTimeAsync(4_200);
-      await expect(p).resolves.toEqual(['local']);
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it('gives the in-build copy a longer first-byte budget than the probe base', async () => {
-    vi.stubEnv('VITE_DATA_BASE', REMOTE);
-    vi.useFakeTimers();
-    try {
-      stubFetch({
-        [`${REMOTE}manifest.json`]: { fail: true },
-        [`${REMOTE}motors.generated.json`]: { fail: true },
-        '/data/manifest.json': { body: {} },
-        '/data/motors.generated.json': { hang: true },
       });
       const fetchCatalog = await load();
 
       const caught = fetchCatalog('motors').catch((e: Error) => e.message);
-      // The 4s probe budget would already have killed it here.
-      await vi.advanceTimersByTimeAsync(5_000);
       let settled = false;
       void caught.then(() => (settled = true));
-      await Promise.resolve();
+      // 8 s on the manifest, then 8 s on the catalog.
+      await vi.advanceTimersByTimeAsync(15_900);
       expect(settled).toBe(false);
-
-      // ...but it does give up at 8s.
-      await vi.advanceTimersByTimeAsync(3_500);
+      await vi.advanceTimersByTimeAsync(300);
       await expect(caught).resolves.toMatch(/Could not load the motor catalog/);
     } finally {
       vi.useRealTimers();
@@ -326,6 +281,16 @@ describe('fetchCatalog: separate data host configured', () => {
  * content-length, so the declared-size check cannot fire, and an unmetered
  * `res.json()` would buffer it without bound.
  */
+describe('hasDataHost', () => {
+  it('is true only with a data host configured', async () => {
+    expect((await loadHasDataHost())()).toBe(false);
+    vi.stubEnv('VITE_DATA_BASE', '   ');
+    expect((await loadHasDataHost())()).toBe(false);
+    vi.stubEnv('VITE_DATA_BASE', REMOTE);
+    expect((await loadHasDataHost())()).toBe(true);
+  });
+});
+
 describe('the manifest body is metered, not just the catalog', () => {
   it('stops pulling an endless chunked manifest instead of buffering it whole', async () => {
     const CHUNK = 4 * 1024 * 1024; // 4 MiB
@@ -484,8 +449,6 @@ describe('a manifest of the wrong shape', () => {
     const seen = stubFetch({
       [`${REMOTE}manifest.json`]: { body: null },
       [`${REMOTE}motors.generated.json`]: { body: ['remote'] },
-      '/data/manifest.json': { body: {} },
-      '/data/motors.generated.json': { body: ['local'] },
     });
     const fetchCatalog = await load();
 

@@ -24,14 +24,14 @@ read but whose consequence depends on something outside the repo.
 
 ## Status
 
-**50 open defects: 1 HIGH, 24 MED, 25 LOW**, plus the upkeep section. C33 to
+**48 open defects: 1 HIGH, 23 MED, 24 LOW**, plus the upkeep section. C33 to
 C45 were found after the first pass, by the two checks added the same day and
 by the change audits of those checks and of the C1, C43 and security fixes
 (see "Checks added after this report").
 Fixed and not counted: C40 and C41, in the change that added the checks; the
 HIGH findings C1 (transition shoulders) and C43 (stage overrides); the
-security findings S1, S2 and S3; and C24 (the weather key), fixed by the
-shared key field the Esri map key added. Each entry names the test that pins it.
+security findings S1, S2 and S3; C24 (the weather key), fixed by the
+shared key field the Esri map key added; R2 (the catalog fallback); and R3 (the curve order). Each entry names the test that pins it.
 
 - **HIGH R1:** the published parts catalog is built by an older pipeline than
   the one on this branch.
@@ -666,14 +666,33 @@ per-type counts equal to `PresetDump` for 24.12, every digest 1:1.
 Fix: once this pipeline is on master, dispatch Sync Catalogs; add a `push`
 trigger on master for `web/scripts/**`, the pin file and the workflow.
 
-**R2. MED | The app prefers the data host's catalog even when it is older** | `web/src/services/app/remoteData.ts:49, 244-253` | VERIFIED
+**R2. MED, FIXED | The app prefers the data host's catalog even when it is older** | `web/src/services/app/remoteData.ts:49, 244-253` | VERIFIED
+Resolution: the data host is the only source of the motors and components in
+a build that has one, so there is no older copy to prefer or fall back to.
+`vite.config.ts` leaves the build's own copy of the two out of the output and
+the precache; offline, the service worker answers from its cached download
+(`astra-catalogs`), which `services/app/warmCatalogs.ts` fetches in the
+background on the first visit. Pinned by `tests/services/app/remoteData.test.ts`
+(a hosted catalog is never read from the build, even with the host down; these
+fail against the loader from before the change) and
+`tests/services/app/warmCatalogs.test.ts`.
+The finding as reported:
 The host copy wins whenever it parses. `isComponentRow`
 (`componentDb.ts:296-303`) accepts parachute rows without the new fields, and
 `parachutePatch` (`treeEdit.ts:543-551`) then falls back to 6 lines, default
 materials and no packed size. Fix: a schema version in the manifest; prefer the
 build's copy when the host's is older or different.
 
-**R3. LOW | The default thrust curve can depend on API order** | `web/scripts/sync-motors.mjs:176-182, 213-221` | VERIFIED code, REPORTED variability
+**R3. LOW, FIXED | The default thrust curve can depend on API order** | `web/scripts/sync-motors.mjs:176-182, 213-221` | VERIFIED code, REPORTED variability
+Resolution: the ranking is `scripts/lib/rankCurves.mjs`, which ends on the
+file's thrustcurve.org `simfileId`, so two files that tie on source, format and
+sample count always come out the same way round. The sync refuses a file with
+no id rather than fall back to API order. Desktop has no fixed final key either
+(`ThrustCurveMotorSet`: sample count, then comment length, then insertion
+order). Pinned by `tests/services/motors/rankCurves.test.ts` (every order of
+three tied files ranks the same; fails against the comparator from before the
+fix). The catalog changes at the next sync.
+The finding as reported:
 Ties on source, format and sample count keep the API's order, and `curves[0]`
 is the default flight curve and sets the loaded mass. Five motors tie at index
 0: AeroTech H242 (241 vs 250 Ns), I195 (420 vs 466), I435 (552 vs 587), I284
@@ -753,7 +772,7 @@ Each fix removes its `KNOWN` entries from `fieldReadback.kernel.test.ts` and `ch
 8. **C5**, **C8** and **C36**: all need kernel figures through the bridge (`componentInfo` and the motor estimates); do them in one bridge change.
 9. **C7**, **A1**, **A2**: report digits, the stage chip and the caliper colors.
 10. The gate gaps **T1** to **T4**, then the U4 test generator gaps, so the next audit has less to find by hand.
-11. **R1**, then **R2**: put the catalog pipeline on master and dispatch it; then make the app prefer a newer build copy.
+11. **R1**: put the catalog pipeline on master and dispatch it.
 12. **T5**: confirm the required check.
-13. The LOW findings, grouped by file: storage C19 to C21, C31 and C32; state C22; tree C14 to C16; importers C13, C17, C18; design C34, C35 and C39; launch panel C23; canvas C25 and C26; report C27 and C28; writers C29, C30, C38; reader C45; catalog R3.
+13. The LOW findings, grouped by file: storage C19 to C21, C31 and C32; state C22; tree C14 to C16; importers C13, C17, C18; design C34, C35 and C39; launch panel C23; canvas C25 and C26; report C27 and C28; writers C29, C30, C38; reader C45.
 14. Upkeep, by rule: U2 first, since docs are what a reader acts on.

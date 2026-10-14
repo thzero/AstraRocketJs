@@ -187,7 +187,7 @@ const isDigestEntry = (v: unknown): boolean => {
  * A usable catalog: an array with at least one usable row.
  *
  * `some`, not `every`: with `every`, one malformed row would reject the whole
- * catalog (and fall through to the in-build copy, or to an empty picker), which
+ * catalog and leave an empty picker, which
  * is the outcome row-by-row validation exists to avoid. The gate only decides
  * whether this host's copy is worth anything at all; the bad rows are dropped in
  * `loadCatalog` and the rest are kept.

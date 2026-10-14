@@ -337,8 +337,8 @@ export function isComponentRow(v: unknown): v is Component {
  * array. The data host can serve `{"error":"rebuilding"}` with HTTP 200; a
  * looser check would let that be memoized for the session, and `projectByType`
  * would then throw on `.filter` of undefined at every picker open until a
- * reload. A wrong shape is a failure of that base (remoteData falls through to
- * the in-build copy) and is never cached.
+ * reload. A wrong shape is a failed load (the picker says so and can retry)
+ * and is never cached.
  */
 export const isComponentCatalog = (v: unknown): v is { components: unknown[] } =>
   !!v && typeof v === 'object' && Array.isArray((v as { components?: unknown }).components);
@@ -346,7 +346,7 @@ export const isComponentCatalog = (v: unknown): v is { components: unknown[] } =
 // The catalog is a runtime file under public/data (see remoteData.ts), fetched
 // once and memoized, so it can be refreshed without rebuilding the app.
 let catalogP: Promise<ComponentCatalog> | null = null;
-function loadCatalog(): Promise<ComponentCatalog> {
+export function loadCatalog(): Promise<ComponentCatalog> {
   if (!catalogP) {
     // Row by row: keep every usable row, drop the rest (motorDb does the same
     // for motors). A single malformed part costs that part, not the picker.

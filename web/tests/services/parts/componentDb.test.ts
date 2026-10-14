@@ -36,7 +36,7 @@ const tube = (over: Record<string, unknown> = {}) => ({
 });
 
 describe('isComponentCatalog (the gate handed to fetchCatalog)', () => {
-  it('refuses a host that is up but wrong, so the in-build copy is tried', () => {
+  it('refuses a host that is up but serving the wrong shape', () => {
     // Served with HTTP 200 while the data branch rebuilds. Accepting any object
     // would memoize it, and the picker would throw on every open until reload.
     expect(isComponentCatalog({ error: 'rebuilding' })).toBe(false);
