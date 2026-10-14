@@ -241,7 +241,9 @@ export function useHelpFrame(
       // Once now, so a page opened on an anchor is highlighted before it is
       // touched.
       spy();
-      const wanted = pendingAnchor.current;
+      // A page opened on an anchor (openHelp('settings#esri-key')) is held on it
+      // too: the browser's own jump to the fragment is undone by hydration.
+      const wanted = pendingAnchor.current ?? (target.hash ? decodeURIComponent(target.hash.slice(1)) : null);
       pendingAnchor.current = null;
       if (wanted !== null) hold(doc, win, wanted);
     }
@@ -252,7 +254,7 @@ export function useHelpFrame(
     // this reports is that the page is on screen and can be revealed.
     loaded.current = target.src;
     setFrame(target.src);
-  }, [onFrameClick, target.src, hold]);
+  }, [onFrameClick, target.src, target.hash, hold]);
 
   return { frameRef, ready, activeHash, navigate, onFrameLoad };
 }

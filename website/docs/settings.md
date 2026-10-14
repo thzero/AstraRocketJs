@@ -125,6 +125,21 @@ In this dialog the same fields can never end up blank at all: they seed every ne
 
 At the bottom of the Atmosphere card on the Launch tab is a field for an Open-Meteo API key, used by [weather from Open-Meteo](./running-a-simulation.md#weather). Leave it empty to use Open-Meteo's free service, which is for non-commercial use. A key from a paid Open-Meteo plan sends requests to its paid service instead. The key is stored only in this browser, outside these settings, so **Reset** leaves it alone and no design or `.ork` you save carries it.
 
+### Esri map key {#esri-key}
+
+The **Map imagery** card at the bottom of the Launch tab has a field for an Esri map key. The maps (the launch site map, and the imagery under the flight views) come from Esri's map services, and they load without a key. A key from your own free ArcGIS Location Platform account is sent with every map request, so the maps you look at are used under your own account. Leave the field empty to use the maps as they are; while it is empty, every satellite and street map shows a note under its layer buttons saying a key can be added here. The key is stored only in this browser, outside these settings, so **Reset** leaves it alone and no design or `.ork` you save carries it.
+
+To get a key:
+
+1. Create a free account at [location.arcgis.com](https://location.arcgis.com/).
+2. In its dashboard, open **Developer credentials** and create **API key credentials**.
+3. Under privileges, choose **Basemaps** and nothing else.
+4. Under referrers, add the address you open this app at, so the key works only there.
+5. Choose an expiry date (a key lasts at most a year), create the key, and copy it right away: it is shown only once.
+6. Paste it into the field.
+
+When the key expires, create a new one and paste it in, or clear the field to go back to the maps without one.
+
 ## Playback {#playback}
 
 - **Default speed**: the speed the 3D flight path starts playing at, from 0.25× to 4×. It is a starting point, not a lock: the speed control in the view changes the current playback without touching this.

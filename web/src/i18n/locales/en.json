@@ -2038,6 +2038,7 @@
     "applyNeedsSave": "Save or discard your changes before using this location."
   },
   "map": {
+    "cardTitle": "Map imagery",
     "label": "Launch site map",
     "title": "Launch site",
     "show": "Show on map",
@@ -2056,7 +2057,13 @@
     "hemisphereN": "N",
     "hemisphereS": "S",
     "hemisphereE": "E",
-    "hemisphereW": "W"
+    "hemisphereW": "W",
+    "keyLabel": "Esri map key",
+    "keyPlaceholder": "None",
+    "keyNote": "Optional. An API key from your own free ArcGIS Location Platform account, sent with the map tiles. Without one, the maps still load. The key is kept only in this browser. Help, Settings, explains how to get one.",
+    "keyNotSaved": "The key could not be saved in this browser.",
+    "keyNag": "Add your own free Esri key in Settings, Launch.",
+    "keyHelp": "How to get one"
   },
   "sweep": {
     "button": "Drift",

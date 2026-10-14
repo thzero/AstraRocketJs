@@ -2038,6 +2038,7 @@
     "applyNeedsSave": "Sla je wijzigingen op of verwerp ze voordat je deze locatie gebruikt."
   },
   "map": {
+    "cardTitle": "Kaartbeelden",
     "label": "Kaart van de lanceerlocatie",
     "title": "Lanceerlocatie",
     "show": "Op de kaart weergeven",
@@ -2056,7 +2057,13 @@
     "hemisphereN": "N",
     "hemisphereS": "Z",
     "hemisphereE": "O",
-    "hemisphereW": "W"
+    "hemisphereW": "W",
+    "keyLabel": "Esri-kaartsleutel",
+    "keyPlaceholder": "Geen",
+    "keyNote": "Optioneel. Een API-sleutel van je eigen gratis ArcGIS Location Platform-account, die met de kaarttegels wordt meegestuurd. Zonder sleutel laden de kaarten ook. De sleutel wordt alleen in deze browser bewaard. De Help, Instellingen, legt uit hoe je er een krijgt.",
+    "keyNotSaved": "De sleutel kon niet in deze browser worden opgeslagen.",
+    "keyNag": "Voeg je eigen gratis Esri-sleutel toe in Instellingen, Lancering.",
+    "keyHelp": "Zo krijg je er een"
   },
   "sweep": {
     "button": "Drift",

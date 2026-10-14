@@ -8,6 +8,7 @@ import type { LaunchConditions } from '../../../src/services/design/orkTree';
 import { useWorkspaceStore } from '../../../src/state/store';
 import { defaultSweepSpec, type DriftSweep } from '../../../src/services/flight/windSweep';
 import { simInputs } from '../../../src/services/flight/simulations';
+import { TILE_SOURCES } from '../../../src/services/map/slippyMap';
 
 const st = () => useWorkspaceStore.getState();
 
@@ -128,7 +129,7 @@ describe('GroundTrack imagery', () => {
   it('carries the provider attribution the tiles require', () => {
     renderWithProviders(<GroundTrack flight={flight()} {...HOME} />);
     showImagery();
-    expect(screen.getByText(/Esri/)).toBeTruthy();
+    expect(screen.getByText(TILE_SOURCES.satellite.attribution)).toBeTruthy();
     hideImagery();
   });
 

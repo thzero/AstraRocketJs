@@ -2047,6 +2047,7 @@
     "applyNeedsSave": "Guarda o descarta los cambios antes de usar este lugar."
   },
   "map": {
+    "cardTitle": "Imágenes del mapa",
     "label": "Mapa del lugar de lanzamiento",
     "title": "Lugar de lanzamiento",
     "show": "Ver en el mapa",
@@ -2065,7 +2066,13 @@
     "hemisphereN": "N",
     "hemisphereS": "S",
     "hemisphereE": "E",
-    "hemisphereW": "O"
+    "hemisphereW": "O",
+    "keyLabel": "Clave de mapas de Esri",
+    "keyPlaceholder": "Ninguna",
+    "keyNote": "Opcional. Una clave de API de tu propia cuenta gratuita de ArcGIS Location Platform, que se envía con los mosaicos del mapa. Sin ella, los mapas se cargan igualmente. La clave solo se guarda en este navegador. En la Ayuda, Ajustes, se explica cómo conseguirla.",
+    "keyNotSaved": "No se pudo guardar la clave en este navegador.",
+    "keyNag": "Añade tu propia clave gratuita de Esri en Ajustes, Lanzamiento.",
+    "keyHelp": "Cómo conseguirla"
   },
   "sweep": {
     "button": "Deriva",

@@ -24,13 +24,14 @@ read but whose consequence depends on something outside the repo.
 
 ## Status
 
-**52 open defects: 1 HIGH, 25 MED, 26 LOW**, plus the upkeep section. C33 to
+**50 open defects: 1 HIGH, 24 MED, 25 LOW**, plus the upkeep section. C33 to
 C45 were found after the first pass, by the two checks added the same day and
 by the change audits of those checks and of the C1, C43 and security fixes
 (see "Checks added after this report").
 Fixed and not counted: C40 and C41, in the change that added the checks; the
-HIGH findings C1 (transition shoulders) and C43 (stage overrides); and the
-security findings S1, S2 and S3. Each entry names the test that pins it.
+HIGH findings C1 (transition shoulders) and C43 (stage overrides); the
+security findings S1, S2 and S3; and C24 (the weather key), fixed by the
+shared key field the Esri map key added. Each entry names the test that pins it.
 
 - **HIGH R1:** the published parts catalog is built by an older pipeline than
   the one on this branch.
@@ -415,9 +416,13 @@ the value is unchanged, as `patchSelected` does.
 them, and the only way back to them (the Average radio) deletes the profile.
 Fix: require them only when `windLevels` is empty.
 
-**C24. LOW | The weather key is saved only on blur** | `web/src/components/sim/WeatherKeyField.tsx:27` | REPORTED
-Closing Settings with Escape while focus is in the field may unmount it
-without a blur. Fix: also write on unmount.
+**C24. LOW, FIXED | The weather key is saved only on blur** | `web/src/components/sim/WeatherKeyField.tsx:27` | VERIFIED
+Resolution: the weather key and the Esri map key share
+`components/common/UserKeyField.tsx`, which also writes an edited key when
+the field unmounts, so closing Settings with Escape keeps it. A field that was
+not edited writes nothing, so a key saved in another tab survives. Pinned by
+`tests/components/sim/WeatherKeyField.test.tsx` (fails against the field from
+before the fix) and `tests/components/sim/EsriKeyField.test.tsx`.
 
 **C25. LOW | The aft view turns roll the opposite way from the side view** | `web/src/components/canvas/AftView.tsx:529` vs `schematicShapes.tsx:210, 342, 599, 658-661` | VERIFIED
 The side view draws theta + roll; the aft view's SVG `rotate(roll)` is
@@ -675,14 +680,6 @@ is the default flight curve and sets the loaded mass. Five motors tie at index
 (585 vs 591), Hypertek J250 (716 vs 644). Fix: a final tie-break on the
 samples or file id.
 
-## Third-party terms
-
-**P1. MED | Esri basemap tiles are fetched with no key and cached offline** | `web/src/services/map/slippyMap.ts:57-81` (1200-tile CacheFirst rule in the vite config) | REPORTED
-`ARCHITECTURE.md:300` records the basis for the OSM tiles; nothing records it
-for keyless use and offline caching of Esri World_Imagery and
-World_Street_Map. Fix: confirm Esri's terms and record them next to the OSM
-note, or move to a provider whose terms allow this.
-
 ## Upkeep
 
 No severity; not counted with the defects.
@@ -757,6 +754,6 @@ Each fix removes its `KNOWN` entries from `fieldReadback.kernel.test.ts` and `ch
 9. **C7**, **A1**, **A2**: report digits, the stage chip and the caliper colors.
 10. The gate gaps **T1** to **T4**, then the U4 test generator gaps, so the next audit has less to find by hand.
 11. **R1**, then **R2**: put the catalog pipeline on master and dispatch it; then make the app prefer a newer build copy.
-12. **P1** and **T5**: confirm the Esri terms and the required check.
-13. The LOW findings, grouped by file: storage C19 to C21, C31 and C32; state C22; tree C14 to C16; importers C13, C17, C18; design C34, C35 and C39; launch panel C23 and C24; canvas C25 and C26; report C27 and C28; writers C29, C30, C38; reader C45; catalog R3.
+12. **T5**: confirm the required check.
+13. The LOW findings, grouped by file: storage C19 to C21, C31 and C32; state C22; tree C14 to C16; importers C13, C17, C18; design C34, C35 and C39; launch panel C23; canvas C25 and C26; report C27 and C28; writers C29, C30, C38; reader C45; catalog R3.
 14. Upkeep, by rule: U2 first, since docs are what a reader acts on.

@@ -45,7 +45,7 @@ Elevation is shown and edited in whatever unit your launch site card uses, so a 
 
 A latitude and longitude are hard to check by reading them, and a dropped minus sign moves a field to the other side of the world, so the site has a map: **🗺 Show on map** on the Launch site card opens it, and the location editor carries one beside its fields.
 
-- **Satellite or street.** Satellite imagery is the default, because a club field usually shows on imagery and not on a street map. The street layer shows the roads and the nearby town. Both come from Esri's map services; the street layer is built on OpenStreetMap data and credits it. The app does not use OpenStreetMap's own tile servers.
+- **Satellite or street.** Satellite imagery is the default, because a club field usually shows on imagery and not on a street map. The street layer shows the roads and the nearby town. Both come from Esri's map services; the street layer is built on OpenStreetMap data and credits it. The app does not use OpenStreetMap's own tile servers. You can add your own free Esri key in **[Settings](./settings.md#esri-key)**; until you do, a note under the layer buttons says so.
 - **Clicking the map sets the coordinates**, to four decimal places (about 10 m, the same precision 📍 Use my location writes). This is the only way to enter a field that has no published numbers, and it is one ordinary edit, so it undoes like any other. Drag to pan, scroll or use **+** / **−** to zoom; a drag never counts as a click.
 - **Typing moves the pin**, so the map and the fields always show the same point.
 

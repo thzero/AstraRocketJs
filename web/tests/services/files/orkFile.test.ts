@@ -9,7 +9,7 @@ import {
   type RocketTree,
 } from '../../../src/engine/openRocketEngine';
 import type { DesignInfo } from '../../../src/services/files/orkTypes';
-import { writeWeatherKey } from '../../../src/services/weather/weatherKey';
+import { weatherKeyStore } from '../../../src/services/weather/weatherKey';
 import { sourceStatus } from '../../../src/services/weather/weatherSource';
 import { badDimensions } from '../../../src/services/design/requiredComponent';
 import { updateNode } from '../../../src/services/design/treeEdit';
@@ -1051,11 +1051,11 @@ describe('a forecast atmosphere round-trips', () => {
   });
 
   it('never carries the Open-Meteo API key', () => {
-    writeWeatherKey('sk-test-123');
+    weatherKeyStore.write('sk-test-123');
     try {
       expect(exportOrk({ name: 'F', tree, launch: base })).not.toContain('sk-test-123');
     } finally {
-      writeWeatherKey('');
+      weatherKeyStore.write('');
     }
   });
 });

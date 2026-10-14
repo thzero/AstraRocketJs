@@ -339,6 +339,19 @@ export default defineConfig({
               cacheName: 'astra-map-tiles-v2',
               expiration: { maxEntries: 1200, maxAgeSeconds: 60 * 60 * 24 * 180 },
               cacheableResponse: { statuses: [0, 200] },
+              // A tile is cached under its address without the user's Esri
+              // key (services/map/esriKey), so adding, renewing or clearing a
+              // key still finds every tile already stored, and the key itself
+              // is never written into the cache.
+              plugins: [
+                {
+                  cacheKeyWillBeUsed: ({ request }) => {
+                    const url = new URL(request.url);
+                    url.searchParams.delete('token');
+                    return Promise.resolve(url.href);
+                  },
+                },
+              ],
             },
           },
         ],

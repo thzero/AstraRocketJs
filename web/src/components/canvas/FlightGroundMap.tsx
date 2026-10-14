@@ -10,6 +10,7 @@ import {
   type TileSourceId,
 } from '../../services/map/slippyMap';
 import { sceneFromEnu } from './flightScene';
+import { useEsriKey } from '../../services/map/esriKey';
 
 /**
  * Aerial imagery laid on the 3D view's ground plane.
@@ -95,6 +96,7 @@ export function groundMapLayout(
   radiusM: number,
   unitsPerMeter: number,
   source: TileSourceId,
+  key?: string,
 ): { quad: number; refs: GroundQuad[] } {
   const tiles = TILE_SOURCES[source];
   const sideM = radiusM * 2;
@@ -106,7 +108,7 @@ export function groundMapLayout(
     quad: TILE_SIZE * mpp * unitsPerMeter,
     refs: visibleTiles(latitudeDeg, longitudeDeg, zoom, sidePx, sidePx).map((tile) => ({
       ...tile,
-      url: tiles.url(tile.z, tile.x, tile.y),
+      url: tiles.url(tile.z, tile.x, tile.y, key),
       east: (tile.left + TILE_SIZE / 2 - half) * mpp * unitsPerMeter,
       north: (half - (tile.top + TILE_SIZE / 2)) * mpp * unitsPerMeter,
     })),
@@ -138,9 +140,10 @@ export function FlightGroundMap({
   onTileLoad,
   onTileError,
 }: GroundMapProps) {
+  const key = useEsriKey();
   const layer = useMemo(
-    () => groundMapLayout(latitudeDeg, longitudeDeg, radiusM, unitsPerMeter, source),
-    [latitudeDeg, longitudeDeg, radiusM, unitsPerMeter, source],
+    () => groundMapLayout(latitudeDeg, longitudeDeg, radiusM, unitsPerMeter, source, key),
+    [latitudeDeg, longitudeDeg, radiusM, unitsPerMeter, source, key],
   );
 
   /**

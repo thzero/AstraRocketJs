@@ -36,6 +36,7 @@ angus
 aopalliance
 apikey
 ARCAS
+arcgis
 arcgisonline
 astrarocketjs
 astrarrocketjs
@@ -45,6 +46,7 @@ axialoffset
 barrowman
 Barrowman's
 baseheight
+basemaps
 basematerials
 basepressure
 baserelativehumidity

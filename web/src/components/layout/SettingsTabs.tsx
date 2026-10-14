@@ -14,6 +14,8 @@ import { Check } from '../common/Check';
 import { ColorInput } from '../common/ColorInput';
 import { canAskWhereToSave } from '../../services/files/saveFile';
 import { SPEED_WARNINGS } from '../sim/speedWarnings';
+import { EsriKeyField } from '../sim/EsriKeyField';
+import { CardGroup } from '../common/CardGroup';
 import { THEME_PREFS, type ThemePref } from '../../services/app/theme';
 import { seedFromInput } from '../../services/flight/simulations';
 
@@ -372,12 +374,19 @@ export function LaunchTab() {
   return (
     <>
       <p className="text-[11px] leading-snug text-ink-faint">{t('settings.launchNote')}</p>
-      {/* These are the values a new simulation is seeded from, so a
-          blank one would hand every future simulation a hole. Clearing
-          a required field here keeps what it had rather than storing
-          the blank, which is why no red marker ever shows up in this
-          copy of the panel. */}
-      <LaunchDefaults launch={settings.launchDefaults} onSave={(launchDefaults) => update({ launchDefaults })} />
+      {/* The launch panel's own gap between cards, so the map card below
+          it does not sit closer than they do to each other. */}
+      <div className="space-y-4">
+        {/* These are the values a new simulation is seeded from, so a
+            blank one would hand every future simulation a hole. Clearing
+            a required field here keeps what it had rather than storing
+            the blank, which is why no red marker ever shows up in this
+            copy of the panel. */}
+        <LaunchDefaults launch={settings.launchDefaults} onSave={(launchDefaults) => update({ launchDefaults })} />
+        <CardGroup title={t('map.cardTitle')}>
+          <EsriKeyField />
+        </CardGroup>
+      </div>
     </>
   );
 }

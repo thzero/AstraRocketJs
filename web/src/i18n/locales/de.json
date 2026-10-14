@@ -2038,6 +2038,7 @@
     "applyNeedsSave": "Speichere oder verwirf die Änderungen, bevor du diesen Ort verwendest."
   },
   "map": {
+    "cardTitle": "Kartenbilder",
     "label": "Karte des Startplatzes",
     "title": "Startplatz",
     "show": "Auf der Karte anzeigen",
@@ -2056,7 +2057,13 @@
     "hemisphereN": "N",
     "hemisphereS": "S",
     "hemisphereE": "O",
-    "hemisphereW": "W"
+    "hemisphereW": "W",
+    "keyLabel": "Esri-Kartenschlüssel",
+    "keyPlaceholder": "Keiner",
+    "keyNote": "Optional. Ein API-Schlüssel aus Ihrem eigenen kostenlosen ArcGIS-Location-Platform-Konto, der mit den Kartenkacheln gesendet wird. Ohne Schlüssel laden die Karten trotzdem. Der Schlüssel wird nur in diesem Browser gespeichert. Die Hilfe, Einstellungen, erklärt, wie Sie einen erhalten.",
+    "keyNotSaved": "Der Schlüssel konnte in diesem Browser nicht gespeichert werden.",
+    "keyNag": "Fügen Sie unter Einstellungen, Start, Ihren eigenen kostenlosen Esri-Schlüssel hinzu.",
+    "keyHelp": "So erhalten Sie einen"
   },
   "sweep": {
     "button": "Abdrift",

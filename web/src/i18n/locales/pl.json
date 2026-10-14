@@ -2056,6 +2056,7 @@
     "applyNeedsSave": "Zapisz lub odrzuć zmiany, zanim użyjesz tego miejsca."
   },
   "map": {
+    "cardTitle": "Obrazy map",
     "label": "Mapa miejsca startu",
     "title": "Miejsce startu",
     "show": "Pokaż na mapie",
@@ -2074,7 +2075,13 @@
     "hemisphereN": "N",
     "hemisphereS": "S",
     "hemisphereE": "E",
-    "hemisphereW": "W"
+    "hemisphereW": "W",
+    "keyLabel": "Klucz map Esri",
+    "keyPlaceholder": "Brak",
+    "keyNote": "Opcjonalnie. Klucz API z Twojego własnego darmowego konta ArcGIS Location Platform, wysyłany razem z kafelkami mapy. Bez klucza mapy też się wczytują. Klucz jest przechowywany tylko w tej przeglądarce. Pomoc, Ustawienia, wyjaśnia, jak go uzyskać.",
+    "keyNotSaved": "Nie udało się zapisać klucza w tej przeglądarce.",
+    "keyNag": "Dodaj własny darmowy klucz Esri w Ustawieniach, Start.",
+    "keyHelp": "Jak go uzyskać"
   },
   "sweep": {
     "button": "Dryf",

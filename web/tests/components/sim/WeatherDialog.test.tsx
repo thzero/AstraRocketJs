@@ -5,7 +5,7 @@ import { WeatherDialog } from '../../../src/components/sim/WeatherDialog';
 import { renderWithProviders, seedSettings } from '../../testing/renderWithProviders';
 import { answer } from '../../testing/openMeteoFixture';
 import { resetWeatherState, setWeatherTransport, ymdInZone } from '../../../src/services/weather/openMeteo';
-import { writeWeatherKey } from '../../../src/services/weather/weatherKey';
+import { weatherKeyStore } from '../../../src/services/weather/weatherKey';
 import type { LaunchConditions } from '../../../src/services/design/orkTree';
 
 const SITE = {
@@ -37,7 +37,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   setWeatherTransport(null);
-  writeWeatherKey('');
+  weatherKeyStore.write('');
 });
 
 const open = (launch: LaunchConditions = SITE) => {
@@ -219,7 +219,7 @@ describe('WeatherDialog', () => {
   }, 15_000);
 
   it('uses the paid service when a key is set', async () => {
-    writeWeatherKey('paid-key');
+    weatherKeyStore.write('paid-key');
     open();
     await fetchIt();
     expect(

@@ -2029,6 +2029,7 @@
     "applyNeedsSave": "この場所を使う前に、変更を保存するか破棄してください。"
   },
   "map": {
+    "cardTitle": "地図画像",
     "label": "打ち上げ場所の地図",
     "title": "打ち上げ場所",
     "show": "地図に表示",
@@ -2047,7 +2048,13 @@
     "hemisphereN": "北",
     "hemisphereS": "南",
     "hemisphereE": "東",
-    "hemisphereW": "西"
+    "hemisphereW": "西",
+    "keyLabel": "Esri 地図キー",
+    "keyPlaceholder": "なし",
+    "keyNote": "任意。ご自身の無料 ArcGIS Location Platform アカウントの API キーで、地図タイルと一緒に送信されます。キーがなくても地図は読み込まれます。キーはこのブラウザーにのみ保存されます。取得方法はヘルプの「設定」で説明しています。",
+    "keyNotSaved": "このブラウザーにキーを保存できませんでした。",
+    "keyNag": "「設定」の「打ち上げ」で、ご自身の無料の Esri キーを追加できます。",
+    "keyHelp": "取得方法"
   },
   "sweep": {
     "button": "ドリフト",

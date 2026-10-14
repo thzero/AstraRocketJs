@@ -2047,6 +2047,7 @@
     "applyNeedsSave": "Enregistrez ou abandonnez vos modifications avant d’utiliser ce lieu."
   },
   "map": {
+    "cardTitle": "Imagerie cartographique",
     "label": "Carte du site de lancement",
     "title": "Site de lancement",
     "show": "Afficher sur la carte",
@@ -2065,7 +2066,13 @@
     "hemisphereN": "N",
     "hemisphereS": "S",
     "hemisphereE": "E",
-    "hemisphereW": "O"
+    "hemisphereW": "O",
+    "keyLabel": "Clé de carte Esri",
+    "keyPlaceholder": "Aucune",
+    "keyNote": "Facultatif. Une clé d’API de votre propre compte gratuit ArcGIS Location Platform, envoyée avec les tuiles de la carte. Sans clé, les cartes se chargent quand même. La clé n’est conservée que dans ce navigateur. L’aide, Réglages, explique comment en obtenir une.",
+    "keyNotSaved": "La clé n’a pas pu être enregistrée dans ce navigateur.",
+    "keyNag": "Ajoutez votre propre clé Esri gratuite dans Réglages, Lancement.",
+    "keyHelp": "Comment en obtenir une"
   },
   "sweep": {
     "button": "Dérive",

@@ -125,6 +125,21 @@ En este diálogo esos campos nunca pueden acabar en blanco: inicializan cada nue
 
 Al final de la tarjeta Atmósfera de la pestaña Lanzamiento hay un campo para una clave de API de Open-Meteo, que usa [el tiempo de Open-Meteo](./running-a-simulation.md#weather). Déjalo vacío para usar el servicio gratuito de Open-Meteo, que es para uso no comercial. Una clave de un plan de pago de Open-Meteo envía las solicitudes a su servicio de pago. La clave se guarda solo en este navegador, fuera de estos ajustes, así que **Restablecer** no la toca y ningún diseño ni `.ork` que guardes la lleva.
 
+### Clave de mapas de Esri {#esri-key}
+
+La tarjeta **Imágenes del mapa**, al final de la pestaña Lanzamiento, tiene un campo para una clave de mapas de Esri. Los mapas (el mapa del sitio de lanzamiento y las imágenes bajo las vistas del vuelo) vienen de los servicios de mapas de Esri y se cargan sin clave. Una clave de tu propia cuenta gratuita de ArcGIS Location Platform se envía con cada solicitud de mapa, así que los mapas que miras se usan con tu propia cuenta. Deja el campo vacío para usar los mapas tal como están; mientras esté vacío, cada mapa de satélite y de calles muestra una nota bajo sus botones de capa que indica que aquí se puede añadir una clave. La clave se guarda solo en este navegador, fuera de estos ajustes, así que **Restablecer** no la toca y ningún diseño ni `.ork` que guardes la lleva.
+
+Para conseguir una clave:
+
+1. Crea una cuenta gratuita en [location.arcgis.com](https://location.arcgis.com/).
+2. En su panel, abre **Developer credentials** y crea **API key credentials**.
+3. En los privilegios, elige **Basemaps** y nada más.
+4. En los referentes, añade la dirección desde la que abres esta aplicación, para que la clave solo funcione ahí.
+5. Elige una fecha de caducidad (una clave dura como mucho un año), crea la clave y cópiala enseguida: solo se muestra una vez.
+6. Pégala en el campo.
+
+Cuando la clave caduque, crea una nueva y pégala, o vacía el campo para volver a los mapas sin clave.
+
 ## Reproducción {#playback}
 
 - **Velocidad predeterminada**: la velocidad a la que empieza a reproducirse la trayectoria de vuelo 3D, de 0,25× a 4×. Es un punto de partida, no un bloqueo: el control de velocidad de la vista cambia la reproducción actual sin tocar este ajuste.

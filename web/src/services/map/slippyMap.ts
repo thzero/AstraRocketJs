@@ -31,7 +31,8 @@ export interface TileSource {
   id: TileSourceId;
   /** Beyond this the server has no imagery and returns blank or 404 tiles. */
   maxZoom: number;
-  url(z: number, x: number, y: number): string;
+  /** A tile's address, carrying the user's own key when they have entered one. */
+  url(z: number, x: number, y: number, key?: string): string;
   /** Shown on the map, because both sources require it. */
   attribution: string;
 }
@@ -49,14 +50,19 @@ export interface TileSource {
  * the mapping still reaches the people who made it, over a commercial CDN that is
  * provisioned for being used.
  *
+ * A user who has entered their own Esri API key (services/map/esriKey) sends it
+ * on every tile as `?token=`, the way Esri's own Leaflet library requests these
+ * same services with a key; without one the request carries none.
+ *
  * Both paths are {z}/{y}/{x}, not the {z}/{x}/{y} most tile servers use.
  * Attribution strings are the `copyrightText` each service publishes in its own
  * `?f=json` metadata, word for word, `(c)` included: the provider's terms ask
  * for that credit, not a shortened one.
  */
 // cspell:ignore Intermap METI NGCC
-const ESRI = (service: string) => (z: number, x: number, y: number) =>
-  `https://server.arcgisonline.com/ArcGIS/rest/services/${service}/MapServer/tile/${z}/${y}/${x}`;
+const ESRI = (service: string) => (z: number, x: number, y: number, key?: string) =>
+  `https://server.arcgisonline.com/ArcGIS/rest/services/${service}/MapServer/tile/${z}/${y}/${x}` +
+  (key ? `?token=${encodeURIComponent(key)}` : '');
 
 export const TILE_SOURCES: Record<TileSourceId, TileSource> = {
   /**

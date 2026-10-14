@@ -70,8 +70,9 @@ export function HelpDialog({ page, onClose }: { page: string; onClose: () => voi
       // "Help", and an eyebrow saying so again just prints the word twice.
       eyebrow={probed?.page?.title ? t('help.title') : undefined}
       onClose={onClose}
-      // Reachable from a dialog's own help link, so it has to sit above one.
-      layer="over"
+      // Reachable from help links inside dialogs that are themselves on the
+      // over layer (the launch site map's key note), so it has to sit above them.
+      layer="top"
       size="4xl"
       // An iframe cannot usefully be scrolled by its container: it takes the
       // height and scrolls its own document.
