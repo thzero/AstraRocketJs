@@ -44,8 +44,12 @@ const TUBE = {
   thickness: 0.0005,
 } as unknown as ComponentNode;
 
-/** Where the effect of the field shows up. */
-type Scope = 'component' | 'rocket';
+/**
+ * Where the effect of the field shows up. `field` reads the key itself back
+ * from the kernel (getComponentFields), for a field that moves nothing in the
+ * part's or the rocket's figures (an angle, a spacing with one copy).
+ */
+type Scope = 'component' | 'rocket' | 'field';
 
 const build = (engine: Engine, node: ComponentNode, parent: ComponentNode | null) => {
   engine.reset();
@@ -54,8 +58,19 @@ const build = (engine: Engine, node: ComponentNode, parent: ComponentNode | null
   return engine.buildRocket(JSON.stringify({ components }));
 };
 
-const observe = (engine: Engine, node: ComponentNode, parent: ComponentNode | null, scope: Scope): string => {
+const observe = (
+  engine: Engine,
+  node: ComponentNode,
+  parent: ComponentNode | null,
+  scope: Scope,
+  field = '',
+): string => {
   const handle = build(engine, node, parent);
+  if (scope === 'field') {
+    const f = JSON.parse(engine.getComponentFields(handle, 'probe')) as Record<string, unknown>;
+    if (f['error']) throw new Error(`probe failed: ${JSON.stringify(f['error'])}`);
+    return String(f[field]);
+  }
   if (scope === 'component') {
     const i = JSON.parse(engine.getComponentInfo(handle, 'probe'));
     if (i.error) throw new Error(`probe failed: ${i.error}`);
@@ -539,6 +554,58 @@ const CASES: Case[] = [
     'component',
     0.04,
   ],
+  ...(['launchlug', 'railbutton'] as const).flatMap((type): Case[] => {
+    const base = n(type === 'launchlug' ? { type, length: 0.03, outerRadius: 0.004 } : { type, outerDiameter: 0.01 });
+    return [
+      [`${type}.instanceCount`, base, TUBE, 'instanceCount', KERNEL_DEFAULTS[type].instanceCount, 'field', 3],
+      [
+        `${type}.instanceSeparation`,
+        base,
+        TUBE,
+        'instanceSeparation',
+        KERNEL_DEFAULTS[type].instanceSeparation,
+        'field',
+        0.02,
+      ],
+      [`${type}.angleOffset`, base, TUBE, 'angleOffset', KERNEL_DEFAULTS[type].angleOffset, 'field', 1],
+    ];
+  }),
+  [
+    'centeringring.instanceCount',
+    n({ type: 'centeringring', length: 0.003 }),
+    TUBE,
+    'instanceCount',
+    KERNEL_DEFAULTS.centeringring.instanceCount,
+    'field',
+    2,
+  ],
+  [
+    'bulkhead.instanceCount',
+    n({ type: 'bulkhead', length: 0.003 }),
+    TUBE,
+    'instanceCount',
+    KERNEL_DEFAULTS.bulkhead.instanceCount,
+    'field',
+    2,
+  ],
+  [
+    'parachute.lineCount',
+    n({ type: 'parachute', length: 0.025 }),
+    TUBE,
+    'lineCount',
+    KERNEL_DEFAULTS.parachute.lineCount,
+    'field',
+    8,
+  ],
+  ...(['parachute', 'streamer', 'shockcord'] as const).map((type): Case => [
+    `${type}.radius`,
+    n({ type, length: 0.025 }),
+    TUBE,
+    'radius',
+    KERNEL_DEFAULTS[type].radius,
+    'field',
+    0.006,
+  ]),
   [
     'masscomponent.mass',
     n({ type: 'masscomponent', length: 0.02 }),
@@ -553,15 +620,15 @@ const CASES: Case[] = [
 describe('KERNEL_DEFAULTS matches the kernel', () => {
   it.each(CASES)('%s', async (_label, base, parent, field, expected, scope, probeOther) => {
     const engine = await loadEngine();
-    const absent = observe(engine, base, parent, scope);
+    const absent = observe(engine, base, parent, scope, field);
 
     // The observable must be able to see this field, or the assertion below is
     // vacuous. This is not ceremony: an observable that looks reasonable can be
     // blind to the field.
-    const other = observe(engine, n({ ...base, [field]: probeOther }), parent, scope);
+    const other = observe(engine, n({ ...base, [field]: probeOther }), parent, scope, field);
     expect(other, 'probe cannot observe this field, so the check below proves nothing').not.toBe(absent);
 
-    const declared = observe(engine, n({ ...base, [field]: expected }), parent, scope);
+    const declared = observe(engine, n({ ...base, [field]: expected }), parent, scope, field);
     expect(declared).toBe(absent);
   });
 });

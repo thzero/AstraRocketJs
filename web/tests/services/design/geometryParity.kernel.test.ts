@@ -822,9 +822,32 @@ const CHAIN_DESIGNS: Record<string, () => RocketTree> = (() => {
       { instanceCount },
     );
   return {
+    // The bundled dual-parachute-deployment airframe: an automatic nose cone
+    // base, an automatic tube stored at 25 mm, an automatic tube holding an
+    // automatic coupler (which reads it while it is built, before the tubes
+    // behind it are attached), a fixed 28.3 mm tube and an automatic one.
+    // Desktop flies every tube at 28.3 mm.
+    'dual-parachute-deployment airframe, an automatic base and a run of automatic tubes': () =>
+      stages([
+        nose('n', 0.028321, { aftRadiusAuto: true }),
+        { ...tube('t1', 0.025), outerRadiusAuto: true },
+        { ...tube('t2', 0.028321), outerRadiusAuto: true, children: [coupler('t2c')] },
+        tube('t3', 0.028321),
+        { ...tube('t4', 0.028321), outerRadiusAuto: true },
+      ]),
+    // Eight automatic tubes, each holding an automatic coupler, ahead of a
+    // fixed 23.7 mm tube: each tube remembers the one ahead from the build, and
+    // a front-to-back pass corrects one more of them, counted from the fixed
+    // end. Desktop flies every tube at 23.7 mm.
+    'a run of eight automatic tubes, each with an automatic coupler': () =>
+      stages([
+        nose('n', 0.02, { aftRadiusAuto: true }),
+        ...Array.from({ length: 8 }, (_, i) => auto(`r${i}`, [coupler(`rc${i}`)])),
+        tube('end', 0.0237),
+      ]),
     // An automatic nose cone base, two
     // automatic tubes, the second holding an automatic coupler, then a fixed
-    // 23.7 mm tube in the next stage. The kernel gives the first tube 25 mm.
+    // 23.7 mm tube in the next stage.
     'generated airframe, two automatic tubes between an automatic base and the next stage': () =>
       ({
         components: [

@@ -24,6 +24,7 @@ import {
   thicknessXml,
 } from './exportParts';
 import { stageFileName } from '../../design/orkTree';
+import { defaultSeparation } from '../../../tree/kernelDefaults';
 
 /**
  * One writer per component type: the element body the desktop's saver for
@@ -42,7 +43,11 @@ const finCountXml = (w: OrkWriter, d: number, node: ComponentNode, fb: number) =
 
 const instancesXml = (w: OrkWriter, d: number, node: ComponentNode, fb: number) => {
   w.emit(d, `<instancecount>${num(node, 'instanceCount', fb)}</instancecount>`);
-  w.emit(d, `<instanceseparation>${num(node, 'instanceSeparation', 0)}</instanceseparation>`);
+  // The spacing that flies: a node with none flies the kernel's.
+  w.emit(
+    d,
+    `<instanceseparation>${num(node, 'instanceSeparation', defaultSeparation(node.type))}</instanceseparation>`,
+  );
 };
 
 /** The part of a planar fin set (trapezoid, freeform, elliptical) before its planform. */

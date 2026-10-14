@@ -484,10 +484,9 @@ final class ComponentFactory {
                 // Angle around the body (rad); absent, the kernel default π
                 // (180°). It shifts lateral balance and the wind response, not drag.
                 lug.setAngleOffset(dbl(node, "angleOffset", Math.PI));
-                // A lug's default separation is derived from its length
-                // (LaunchLug's constructor), so instanceSeparation is set in the
-                // repeated-parts block below, after the length, or the kernel's
-                // derived value wins.
+                // instanceSeparation is set in the repeated-parts block below;
+                // absent, the lug keeps its constructor's spacing (its own 0.03 m
+                // length x 2), which setLength does not change.
                 c = lug;
                 break;
             }

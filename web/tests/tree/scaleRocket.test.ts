@@ -424,3 +424,41 @@ describe('rocketLength with a member that has no length', () => {
     expect(rocketLength(tree)).toBeCloseTo(0.4, 12);
   });
 });
+
+/**
+ * A key a part leaves to the kernel flies the kernel's default (each row read
+ * back from the kernel by kernelDefaults.kernel.test.ts), and desktop's scalers
+ * scale the value that flies: RailButtonScaler the spacing, the MassObject
+ * scalers a pack's radius and length.
+ */
+describe('scaling a key the part leaves to the kernel', () => {
+  it("scales the kernel's value, as desktop's scalers do", async () => {
+    const { KERNEL_DEFAULTS } = await import('../../src/tree/kernelDefaults');
+    const tree = {
+      name: 'K',
+      components: [
+        {
+          type: 'stage',
+          id: 's',
+          children: [
+            {
+              type: 'bodytube',
+              id: 'b',
+              length: 0.3,
+              outerRadius: 0.02,
+              thickness: 0.001,
+              children: [
+                { type: 'railbutton', id: 'rb', instanceCount: 2 },
+                { type: 'parachute', id: 'p' },
+              ],
+            },
+          ],
+        },
+      ],
+    } as unknown as RocketTree;
+    const kids = scaleRocket(tree, 2).components[0]!.children![0]!.children!;
+    expect(kids[0]!['instanceSeparation']).toBeCloseTo(2 * KERNEL_DEFAULTS.railbutton.instanceSeparation, 12);
+    expect(kids[1]!['radius']).toBeCloseTo(2 * KERNEL_DEFAULTS.parachute.radius, 12);
+    expect(kids[1]!['length']).toBeCloseTo(2 * KERNEL_DEFAULTS.parachute.length, 12);
+  });
+});

@@ -48,12 +48,6 @@ const SOURCES = [
 const KNOWN = [
   // Open findings in docs/AUDIT.md.
   {
-    rule: 'ork:launchlug.instanceSeparation',
-    why: 'C2: the kernel flies the constructor separation; the writer states 0',
-    when: (a, d) => a > 0 && d === 0,
-  },
-  { rule: 'ork:railbutton.instanceSeparation', why: 'C2', when: (a, d) => a > 0 && d === 0 },
-  {
     rule: 'ork:parachute.lineLength',
     why: 'C36: `auto` line length, which desktop 24.12 does not read',
     when: (a, d) => d === 0.3,
@@ -73,17 +67,12 @@ const KNOWN = [
     why: "C38: RockSim states no repeat count (desktop's own export drops it too), and the writer does not say so",
     when: (a, d) => a > 1 && d === 1,
   },
-  {
-    rule: 'rkt:bodytube.outerRadius',
-    why: 'C44: two automatic ends that follow each other keep their stored radius in the app, which the writer emits',
-    when: (a, d) => d < a,
-  },
-  {
-    rule: 'rkt:parachute.overrideCGX',
-    why: 'C44: the pack follows the bore of a tube in a mutual automatic pair, which the kernel resolves by read order; the writer took the CG of the pack at the other answer',
-    when: (a, d, af) => af.massOverridden === true && !af.cgOverridden && Math.abs(a - af.length / 2) < 1e-9 && d > a,
-  },
   // What RockSim cannot carry, or desktop's RockSim reader does not read.
+  {
+    rule: 'rkt:launchlug.instanceSeparation',
+    why: 'RockSim has no spacing element (LaunchLugDTO writes none), so LaunchLugHandler keeps the constructor spacing',
+    when: (a, d) => d === 0.06,
+  },
   {
     rule: 'rkt:*.massOverridden',
     why: 'RockSim has no airfoil section, so an airfoil fin set goes out as its kernel mass and CG (CalcMass, CalcCG)',

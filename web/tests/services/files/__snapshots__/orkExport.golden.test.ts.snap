@@ -358,7 +358,7 @@ exports[`golden .ork export > falls back to the FIRST configuration as default w
                 <name>Launch Lug</name>
                 <id>00000000-0000-4000-8000-000000000018</id>
                 <instancecount>2</instancecount>
-                <instanceseparation>0</instanceseparation>
+                <instanceseparation>0.06</instanceseparation>
                 <angleoffset method="relative">59.99999999999999</angleoffset>
                 <radialdirection>59.99999999999999</radialdirection>
                 <axialoffset method="middle">0</axialoffset>
@@ -373,7 +373,7 @@ exports[`golden .ork export > falls back to the FIRST configuration as default w
                 <name>Rail Button</name>
                 <id>00000000-0000-4000-8000-000000000019</id>
                 <instancecount>1</instancecount>
-                <instanceseparation>0</instanceseparation>
+                <instanceseparation>0.0582</instanceseparation>
                 <angleoffset method="relative">0</angleoffset>
                 <axialoffset method="middle">0</axialoffset>
                 <position type="middle">0</position>
@@ -974,7 +974,7 @@ exports[`golden .ork export > mints one configuration for a design that declares
                 <name>Launch Lug</name>
                 <id>00000000-0000-4000-8000-000000000019</id>
                 <instancecount>2</instancecount>
-                <instanceseparation>0</instanceseparation>
+                <instanceseparation>0.06</instanceseparation>
                 <angleoffset method="relative">59.99999999999999</angleoffset>
                 <radialdirection>59.99999999999999</radialdirection>
                 <axialoffset method="middle">0</axialoffset>
@@ -989,7 +989,7 @@ exports[`golden .ork export > mints one configuration for a design that declares
                 <name>Rail Button</name>
                 <id>00000000-0000-4000-8000-000000000020</id>
                 <instancecount>1</instancecount>
-                <instanceseparation>0</instanceseparation>
+                <instanceseparation>0.0582</instanceseparation>
                 <angleoffset method="relative">0</angleoffset>
                 <axialoffset method="middle">0</axialoffset>
                 <position type="middle">0</position>
@@ -1566,7 +1566,7 @@ exports[`golden .ork export > pins every configuration, block and component type
                 <name>Launch Lug</name>
                 <id>00000000-0000-4000-8000-000000000018</id>
                 <instancecount>2</instancecount>
-                <instanceseparation>0</instanceseparation>
+                <instanceseparation>0.06</instanceseparation>
                 <angleoffset method="relative">59.99999999999999</angleoffset>
                 <radialdirection>59.99999999999999</radialdirection>
                 <axialoffset method="middle">0</axialoffset>
@@ -1581,7 +1581,7 @@ exports[`golden .ork export > pins every configuration, block and component type
                 <name>Rail Button</name>
                 <id>00000000-0000-4000-8000-000000000019</id>
                 <instancecount>1</instancecount>
-                <instanceseparation>0</instanceseparation>
+                <instanceseparation>0.0582</instanceseparation>
                 <angleoffset method="relative">0</angleoffset>
                 <axialoffset method="middle">0</axialoffset>
                 <position type="middle">0</position>
@@ -2209,7 +2209,7 @@ exports[`golden .ork export > writes a lone configuration, and no launch block 1
                 <name>Launch Lug</name>
                 <id>00000000-0000-4000-8000-000000000018</id>
                 <instancecount>2</instancecount>
-                <instanceseparation>0</instanceseparation>
+                <instanceseparation>0.06</instanceseparation>
                 <angleoffset method="relative">59.99999999999999</angleoffset>
                 <radialdirection>59.99999999999999</radialdirection>
                 <axialoffset method="middle">0</axialoffset>
@@ -2224,7 +2224,7 @@ exports[`golden .ork export > writes a lone configuration, and no launch block 1
                 <name>Rail Button</name>
                 <id>00000000-0000-4000-8000-000000000019</id>
                 <instancecount>1</instancecount>
-                <instanceseparation>0</instanceseparation>
+                <instanceseparation>0.0582</instanceseparation>
                 <angleoffset method="relative">0</angleoffset>
                 <axialoffset method="middle">0</axialoffset>
                 <position type="middle">0</position>
@@ -2990,6 +2990,7 @@ exports[`golden .ork import > pins what the kitchen-sink export reads back as 1`
               {
                 "density": 680,
                 "id": "c16",
+                "instanceSeparation": 0,
                 "length": 0.004,
                 "materialName": "Cardboard",
                 "name": "Bulkhead",
@@ -3005,6 +3006,7 @@ exports[`golden .ork import > pins what the kitchen-sink export reads back as 1`
                 "density": 680,
                 "id": "c17",
                 "instanceCount": 2,
+                "instanceSeparation": 0.06,
                 "length": 0.04,
                 "materialName": "Cardboard",
                 "name": "Launch Lug",
@@ -3023,6 +3025,7 @@ exports[`golden .ork import > pins what the kitchen-sink export reads back as 1`
                 "height": 0.011,
                 "id": "c18",
                 "innerDiameter": 0.009,
+                "instanceSeparation": 0.0582,
                 "materialGroup": "Plastics",
                 "materialName": "Acetal",
                 "name": "Rail Button",

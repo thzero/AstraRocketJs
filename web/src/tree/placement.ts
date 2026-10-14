@@ -1,6 +1,7 @@
 import type { ComponentNode } from '../engine/openRocketEngine';
 import { clusterPoints } from './cluster';
 import { countOf, num, positionOf } from './nodeProps';
+import { defaultSeparation } from './kernelDefaults';
 
 /**
  * Where the copies of one part sit, as the kernel flies them, for the views to
@@ -16,8 +17,9 @@ const LINE_INSTANCE_TYPES: ReadonlySet<string> = new Set(['centeringring', 'bulk
 
 /**
  * One node per copy of a part repeated along the body: `getInstanceOffsets`
- * puts copy i at `i × instanceSeparation` behind the first (separation 0 by
- * default, so the copies coincide until one is set). Each copy is the part
+ * puts copy i at `i × instanceSeparation` behind the first. A node with no
+ * spacing of its own flies the kernel's (`defaultSeparation`): a lug's or rail
+ * button's constructor spacing, and 0 for a ring part, whose copies coincide. Each copy is the part
  * with its axial offset moved by that much, whatever method it is placed by,
  * so a view that draws one part draws them all. Any other part is itself.
  */
@@ -25,7 +27,7 @@ export function lineInstances(node: ComponentNode): ComponentNode[] {
   if (!LINE_INSTANCE_TYPES.has(node.type)) return [node];
   const count = countOf(node, 'instanceCount', 1);
   if (count === 1) return [node];
-  const separation = num(node, 'instanceSeparation', 0);
+  const separation = num(node, 'instanceSeparation', defaultSeparation(node.type));
   const pos = positionOf(node);
   return Array.from({ length: count }, (_, i) =>
     i === 0 ? node : { ...node, position: { ...pos, offset: pos.offset + i * separation } },

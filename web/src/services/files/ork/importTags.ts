@@ -174,8 +174,11 @@ export function readSoftMaterial(
 export function readInstances(el: Element, node: ComponentNode): void {
   const count = clampCount(numTag(el, 'instancecount', 1), 1, MAX_ASSEMBLY_INSTANCES);
   if (count > 1) node['instanceCount'] = count;
-  const sep = numTag(el, 'instanceseparation', 0);
-  if (sep !== 0) node['instanceSeparation'] = sep;
+  // A stated spacing is kept, 0 included: an absent one is the kernel's
+  // constructor spacing (60 mm for a lug), not 0, so dropping a stated 0 would
+  // pull a desktop file's stacked lugs apart.
+  const sep = numTag(el, 'instanceseparation', NaN);
+  if (Number.isFinite(sep)) node['instanceSeparation'] = sep;
 }
 
 /** Radial mounting angle (LaunchLug / RailButton) in radians. OpenRocket writes

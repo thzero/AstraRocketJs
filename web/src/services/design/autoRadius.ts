@@ -1,5 +1,5 @@
 import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
-import { KERNEL_AUTO_RADIUS, kernelLength } from '../../tree/kernelDefaults';
+import { KERNEL_AUTO_RADIUS, KERNEL_DEFAULTS, kernelLength } from '../../tree/kernelDefaults';
 import { bodyTubeRadius, num, str } from '../../tree/nodeProps';
 import { tubeFinRadius } from '../../tree/tubefins';
 import { DISC_TYPES } from '../files/componentFormats';
@@ -267,7 +267,10 @@ function rocketOf(components: readonly ComponentNode[]): { rocket: Part; staged:
  *    order, which moves it to its real position, and every launch lug and rail
  *    button reads its tube (`LaunchLug.componentChanged`,
  *    `RailButton.componentChanged`); then four more passes of the walk.
- * 3. Reading the geometry back part by part in tree order
+ * 3. Settling (the bridge's `settleAutoRadii`), every symmetric part's two
+ *    ends are read front to back, once per symmetric part and once more, so a
+ *    tube no longer remembers a neighbor from the build that it does not use.
+ * 4. Reading the geometry back part by part in tree order
  *    (`getComponentGeometry`) evaluates each automatic tube many times over,
  *    and the parts sized from a body read it again. The evaluation a tube's
  *    own read reports is the radius kept here.
@@ -666,7 +669,24 @@ function resolveAxial(components: ComponentNode[], out: Map<ComponentNode, Patch
     }
   };
 
-  // 3. The first read, part by part in tree order (getComponentGeometry).
+  /**
+   * One pass of the bridge's settleAutoRadii: every symmetric part's two ends
+   * read front to back (a tube's both through getOuterRadius). Each pass
+   * corrects one more tube of a run, counted from its fixed end, in what it
+   * remembers of the neighbor it sizes from.
+   */
+  const settleAutoRadii = (p: Part): void => {
+    if (p.tube) {
+      outerRadius(p);
+      outerRadius(p);
+    } else if (p.symmetric) {
+      foreRadius(p);
+      aftRadius(p);
+    }
+    for (const k of p.kids) settleAutoRadii(k);
+  };
+
+  // 4. The first read, part by part in tree order (getComponentGeometry).
   /** What each part's own read reports: a tube's radius, a cone's or transition's two ends. */
   const reads = new Map<Part, { radius: number; fore: number; aft: number }>();
   const read = (p: Part): void => {
@@ -713,6 +733,8 @@ function resolveAxial(components: ComponentNode[], out: Map<ComponentNode, Patch
     instancePasses(2);
     for (const k of rocket.kids) changed(k);
     instancePasses(4);
+    const symmetric = (q: Part): number => (q.symmetric ? 1 : 0) + q.kids.reduce((n, k) => n + symmetric(k), 0);
+    for (let pass = symmetric(rocket); pass >= 0; pass--) settleAutoRadii(rocket);
     read(rocket);
   } catch (e) {
     // Nested past the limit: the stored radii stay as they are.
@@ -784,12 +806,23 @@ const ringBoreAuto = (node: ComponentNode): boolean =>
  */
 function parentDerived(node: ComponentNode, parent: ComponentNode | null, parentStart: number): void {
   if (!parent) return;
-  if (node.type === 'tubefinset' && node['outerRadiusAuto'] === true) {
-    const body = num(parent, 'outerRadius', NaN);
-    // The stored radius is the last resolved one, not a size the user chose:
-    // `tubeFinRadius` returns any stored radius as is, so it is left out here.
-    if (Number.isFinite(body) && body > 0)
-      node['outerRadius'] = tubeFinRadius({ ...node, outerRadius: undefined }, body);
+  if (node.type === 'tubefinset') {
+    // A tube fin set with no wall of its own takes its parent's, once: the
+    // TubeFinSet constructor leaves the wall unset, and attached to a tube the
+    // part reports that tube's wall, which it then keeps when the tube's wall
+    // changes (desktop 24.12 and the kernel alike). Stored here, the panel, the
+    // drawing and the file state the wall that flies.
+    if (tubeFinWallFromParent(node)) {
+      const wall = num(parent, 'thickness', parentWallDefault(parent.type));
+      if (Number.isFinite(wall)) node['thickness'] = wall;
+    }
+    if (node['outerRadiusAuto'] === true) {
+      const body = num(parent, 'outerRadius', NaN);
+      // The stored radius is the last resolved one, not a size the user chose:
+      // `tubeFinRadius` returns any stored radius as is, so it is left out here.
+      if (Number.isFinite(body) && body > 0)
+        node['outerRadius'] = tubeFinRadius({ ...node, outerRadius: undefined }, body);
+    }
     return;
   }
   // A mass object's automatic packed radius is the room its parent gives it:
@@ -815,6 +848,14 @@ function parentDerived(node: ComponentNode, parent: ComponentNode | null, parent
   }
 }
 
+/** A tube fin set that states no wall, so takes its parent's. */
+const tubeFinWallFromParent = (node: ComponentNode): boolean =>
+  node.type === 'tubefinset' && !Number.isFinite(node['thickness']);
+
+/** A parent's wall when its node states none: the kernel's for its type. */
+const parentWallDefault = (type: string): number =>
+  (KERNEL_DEFAULTS as Record<string, { thickness?: number } | undefined>)[type]?.thickness ?? NaN;
+
 /**
  * Resolve every automatic diameter in the tree against its current neighbors.
  *
@@ -835,14 +876,25 @@ export function syncAutoRadii(tree: RocketTree): RocketTree {
     // Rings, tube fins and packed devices take their size from what they are
     // inside, not from the part beside them, so they resolve against the
     // parent rather than through the neighbor rules.
-    if (node['outerRadiusAuto'] === true || ringBoreAuto(node) || node['radiusAuto'] === true) {
-      const before = { outer: node['outerRadius'], inner: node['innerRadius'], r: node['radius'] };
+    if (
+      node['outerRadiusAuto'] === true ||
+      ringBoreAuto(node) ||
+      node['radiusAuto'] === true ||
+      tubeFinWallFromParent(node)
+    ) {
+      const before = {
+        outer: node['outerRadius'],
+        inner: node['innerRadius'],
+        r: node['radius'],
+        wall: node['thickness'],
+      };
       const draft = { ...node };
       parentDerived(draft, parent, (parent?.id ? frames.get(parent.id)?.start : undefined) ?? 0);
       if (
         draft['outerRadius'] !== before.outer ||
         draft['innerRadius'] !== before.inner ||
-        draft['radius'] !== before.r
+        draft['radius'] !== before.r ||
+        draft['thickness'] !== before.wall
       ) {
         node = draft;
       }

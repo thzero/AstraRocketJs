@@ -84,6 +84,6 @@ export const COMPONENT_DEFAULTS = {
   // desktop draws and the kernel keeps the packed volume from.
   recovery: {
     packedLength: KERNEL_DEFAULTS.parachute.length,
-    packedRadius: 0.0125,
+    packedRadius: KERNEL_DEFAULTS.parachute.radius,
   },
 } as const;

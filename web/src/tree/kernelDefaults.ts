@@ -64,33 +64,55 @@ export const KERNEL_DEFAULTS = {
   // ComponentFactory, case "tubecoupler"
   tubecoupler: { length: 0.05, thickness: 0.0005 },
   // ComponentFactory, case "centeringring"
-  centeringring: { length: 0.002 },
+  centeringring: { length: 0.002, instanceCount: 1 },
   // ComponentFactory, case "bulkhead"
-  bulkhead: { length: 0.002 },
+  bulkhead: { length: 0.002, instanceCount: 1 },
   // ComponentFactory, case "engineblock"
   engineblock: { length: 0.005, thickness: 0.00095 },
-  // ComponentFactory, case "launchlug"
-  launchlug: { length: 0.05, outerRadius: 0.0022, thickness: 0.0003 },
+  // ComponentFactory, case "launchlug". The separation is the constructor's
+  // (LaunchLug.java:38, its own 0.03 m length x 2), set before the node's
+  // length, so it does not follow the length the part is given; the angle is pi.
+  launchlug: {
+    length: 0.05,
+    outerRadius: 0.0022,
+    thickness: 0.0003,
+    instanceCount: 1,
+    instanceSeparation: 0.06,
+    angleOffset: Math.PI,
+  },
   // ComponentFactory, case "railbutton" reads the diameter only when present; the value
   // is the kernel's own (RailButton.java:61). A rail button never sets
   // RocketComponent.length, so its axial length is the field's initial 0
   // (RocketComponent.java:91): no `length` entry here on purpose.
-  railbutton: { outerDiameter: 0.0097 },
+  // The separation is the constructor's (RailButton.java:66, its own 9.7 mm
+  // diameter x 6), set before the node's diameter; the angle is pi.
+  railbutton: { outerDiameter: 0.0097, instanceCount: 1, instanceSeparation: 0.0582, angleOffset: Math.PI },
   // ComponentFactory, case "fairing" (modeled as a MassComponent whose radius is
   // max(width, height) / 2)
   fairing: { length: 0.08, mass: 0.03, width: 0.025, height: 0.02 },
   // ComponentFactory, case "parachute"; cd is Parachute.DEFAULT_CD
-  parachute: { length: 0.025, diameter: 0.3, lineLength: 0.3, cd: 0.8 },
+  // radius is MassObject's constructor packed radius.
+  parachute: { length: 0.025, diameter: 0.3, lineLength: 0.3, cd: 0.8, lineCount: 6, radius: 0.0125 },
   // ComponentFactory, case "streamer"
-  streamer: { length: 0.025, stripLength: 0.5, stripWidth: 0.05 },
+  streamer: { length: 0.025, stripLength: 0.5, stripWidth: 0.05, radius: 0.0125 },
   // ComponentFactory, case "shockcord"
-  shockcord: { length: 0.025, cordLength: 0.3 },
+  shockcord: { length: 0.025, cordLength: 0.3, radius: 0.0125 },
   // ComponentFactory, case "masscomponent"
   masscomponent: { mass: 0.01, length: 0.02, radius: 0.005 },
   // ComponentFactory.applyAssembly, shared by both assembly types.
   podset: { instanceCount: 2 },
   parallelstage: { instanceCount: 2 },
 } as const satisfies Record<ComponentType, Readonly<Record<string, number>>>;
+
+/**
+ * The spacing a part's copies fly at when the node states none: a lug's and a
+ * rail button's constructor value (see their rows above), and 0 for the ring
+ * parts, whose copies the kernel stacks until a spacing is set.
+ */
+export function defaultSeparation(type: string): number {
+  const row = (KERNEL_DEFAULTS as Record<string, { instanceSeparation?: number }>)[type];
+  return row?.instanceSeparation ?? 0;
+}
 
 /**
  * The profile shape the kernel builds when a node names none: ComponentFactory

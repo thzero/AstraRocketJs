@@ -24,7 +24,7 @@ read but whose consequence depends on something outside the repo.
 
 ## Status
 
-**39 open defects: 1 HIGH, 14 MED, 24 LOW**, plus the upkeep section. C33 to
+**36 open defects: 1 HIGH, 12 MED, 23 LOW**, plus the upkeep section. C33 to
 C45 were found after the first pass, by the two checks added the same day and
 by the change audits of those checks and of the C1, C43 and security fixes
 (see "Checks added after this report").
@@ -32,8 +32,8 @@ Fixed and not counted: C40 and C41, in the change that added the checks; the
 HIGH findings C1 (transition shoulders) and C43 (stage overrides); the
 security findings S1, S2 and S3; C24 (the weather key), fixed by the
 shared key field the Esri map key added; R2 (the catalog fallback); R3 (the curve order); A1 and A2
-(accessibility); and C33, C3, C37, C42, C10, C9 and C6 (steps 2 and 4 of
-the order of attack). Each entry names the test that pins it.
+(accessibility); C33, C3, C37, C42, C10, C9 and C6 (steps 2 and 4 of
+the order of attack); C2 and C44 (step 5); and C34. Each entry names the test that pins it.
 
 - **HIGH R1:** the published parts catalog is built by an older pipeline than
   the one on this branch.
@@ -79,7 +79,7 @@ is removed, and a new disagreement fails it at once.
   bridge call, `getComponentFields` (`engine-java/src/api/java/api/ComponentFields.java`),
   which reads each part back through its own getters. The panel's limits and
   shown values come from one module, `web/src/services/design/fieldRange.ts`,
-  which the panel and the test both use. It holds C2, C3, C33, C34 and C39, each entry matching only the disagreement its finding describes.
+  which the panel and the test both use. It holds C39, each entry matching only the disagreement its finding describes.
 - **The `fields` step of `npm run audit`** (`web/scripts/check-desktop-fields.mjs`,
   `npm run check:fields`). Opens every `.ork` and `.rkt` the samples step saves
   in desktop 24.12, now including a design with every part type (overrides,
@@ -88,7 +88,7 @@ is removed, and a new disagreement fails it at once.
   the tree, at the same depth, with what the app's kernel flies, through the
   same `ComponentFields` compiled against the release, which adds overrides,
   materials, the finish and fin planform area to the panel's fields. It holds
-  C2, C8, C33, C36 to C38, C42 and C44. Values a RockSim file restates
+  C8, C36 and C38, and lists what RockSim cannot carry. Values a RockSim file restates
   (angles in degrees, a pod by its distance from the axis, a tab from the
   root's front, a packed part by either end) are compared as desktop reads
   them; its other `.rkt` entries name what RockSim cannot carry and the desktop
@@ -227,7 +227,18 @@ wider than 25 mm with shoulders to `fieldCoverage.kernel.test.ts` (its BASE
 uses explicit 20 mm ends) and add shoulders to what
 `geometryParity.kernel.test.ts` compares.
 
-**C2. MED | Lug and rail button spacing: the app and the `.ork` say 0, the kernel flies 60 and 58 mm** | `web/src/tree/placement.ts:28`, `web/src/services/files/ork/exportWriters.ts:43-46`, `web/src/services/files/ork/importTags.ts:178` | VERIFIED
+**C2. MED, FIXED | Lug and rail button spacing: the app and the `.ork` say 0, the kernel flies 60 and 58 mm** | `web/src/tree/placement.ts:28`, `web/src/services/files/ork/exportWriters.ts:43-46`, `web/src/services/files/ork/importTags.ts:178` | VERIFIED
+Resolution: `KERNEL_DEFAULTS` carries the constructor spacing of a lug (0.06 m)
+and a rail button (0.0582 m), and the panel (`absentValue`), the drawing
+(`lineInstances`, through `defaultSeparation`) and the `.ork` writer read it
+for a node that states none; the importer keeps a stated spacing, 0 included.
+Pinned by `kernelDefaults.kernel.test.ts` (each row read back from the kernel),
+`tests/engine/lineInstances.kernel.test.ts` (copies are drawn the kernel's
+spacing apart; fails against the code from before), `orkFieldRoundTrip.test.ts`
+(stacked lugs stay stacked), the read-back test and the `fields` step, whose
+C2 entries are gone. RockSim has no spacing element, so a `.rkt` lug opens in
+desktop at the constructor spacing; the check lists that as a format limit.
+The finding as reported:
 The bridge sets `instanceSeparation` only when the key is present
 (`ComponentFactory.java:736-739`). Without it the kernel keeps the
 constructor's value: `length * 2` = 0.06 m for a lug (`LaunchLug.java:38`),
@@ -530,7 +541,19 @@ Fix: have the bridge always set the shoulder wall (0 when absent), or have the
 importers and `defaultNode` carry it, so the app, the file and both kernels
 agree. Pinned by `fieldReadback.kernel.test.ts` and the `fields` audit step.
 
-**C34. LOW | The panel shows 0 where the kernel flies its constructor default** | `web/src/tree/kernelDefaults.ts:45`; `web/src/services/design/treeEdit.ts` (`defaultNode`) | VERIFIED (kernel)
+**C34. LOW, FIXED | The panel shows 0 where the kernel flies its constructor default** | `web/src/tree/kernelDefaults.ts:45`; `web/src/services/design/treeEdit.ts` (`defaultNode`) | VERIFIED (kernel)
+Resolution: `KERNEL_DEFAULTS` now has the rows for the line instance count
+of lugs, rail buttons, centering rings and bulkheads (1), the lug and rail
+button angle (pi), the parachute line count (6) and Cd (0.8), and the packed
+radius of parachutes, streamers and shock cords (0.0125 m), each read back from
+the kernel by `kernelDefaults.kernel.test.ts`; the panel shows each, and a scale
+scales them. A tube fin set's wall is not a constant: the `TubeFinSet`
+constructor leaves it unset, and attached to a tube the part takes that tube's
+wall once and keeps it (desktop 24.12 and the kernel alike). `syncAutoRadii`
+now gives a tube fin set with no wall its parent's, so the node always states
+the wall that flies (`autoRadius.test.ts`, which fails against the code from
+before). The read-back test's C34 entries are all gone.
+The finding as reported:
 `KERNEL_DEFAULTS` has no row for: line instance count (1) on lugs, rail
 buttons, centering rings and bulkheads; lug and rail button `angleOffset`
 (pi); parachute `lineCount` (6) (its `cd` row is in, with C10); packed `radius` of parachutes,
@@ -652,7 +675,24 @@ Desktop and fflate write the signature, so only a `.ork` re-zipped by an
 uncommon streaming tool meets this. Fix: read such a member through the
 central directory, with the same caps.
 
-**C44. MED | Two automatic ends that follow each other keep their stored radius in the app** | `web/src/services/design/autoRadius.ts` (`syncAutoRadii`) | VERIFIED (kernel and desktop)
+**C44. MED, FIXED | Two automatic ends that follow each other keep their stored radius in the app** | `web/src/services/design/autoRadius.ts` (`syncAutoRadii`) | VERIFIED (kernel and desktop)
+Resolution: the bridge reads every automatic radius against the finished rocket
+once the build is done, front to back, once per symmetric part and once
+more (`settleAutoRadii` in
+`OpenRocketEngine.buildRocket`), and the app's resolver replays the same pass
+(`autoRadius.ts`). A tube evaluated during the build remembered a neighbor it
+no longer used, so the first read of the tube ahead of it fell back to
+`DEFAULT_RADIUS`; that was the 25 mm, and it is why the kernel's answer
+depended on read order. A pass corrects one more tube of such a run, counted
+from its fixed end, hence the count. The dual-parachute-deployment example now reads 28.3 mm
+for every tube in the app, the kernel and desktop, and its parachute's CG
+follows. Pinned by `geometryParity.kernel.test.ts` (the example's airframe,
+with the automatic coupler that triggers the fallback, and a run of eight
+automatic tubes each with a coupler, against the live kernel),
+`autoRadius.test.ts` (desktop's 28.3 mm and 23.7 mm; both fail against the
+code from before) and the
+`fields` step, whose C44 entries are gone.
+The finding as reported:
 In the bundled dual-parachute-deployment example the nose cone's base
 (`<aftradius>auto 0.028321`) and the body tube behind it (`<radius>auto
 0.025`) each follow the other. Desktop flies the tube at 28.3 mm, and so does
@@ -857,7 +897,7 @@ Each fix removes its `KNOWN` entries from `fieldReadback.kernel.test.ts` and `ch
 2. Done: **C33**.
 3. Done: **S1**, **S2** and **S3**.
 4. Done: **C3**, **C37**, **C42**, **C10**, **C9** and **C6**.
-5. **C2** and **C34**: the missing rows in `KERNEL_DEFAULTS`, verified by `kernelDefaults.kernel.test.ts`, then the drawing, writer and importer reading them. With them, **C44**: resolve a mutual pair of automatic ends as the kernel does.
+5. Done: **C2**, **C34** and **C44**.
 6. **C12** and **C11**: the two lost-work paths in storage, each with a store test.
 7. **C4**: per-target patches and mixed markers in the launch panel.
 8. **C5**, **C8** and **C36**: all need kernel figures through the bridge (`componentInfo` and the motor estimates); do them in one bridge change.
@@ -865,5 +905,5 @@ Each fix removes its `KNOWN` entries from `fieldReadback.kernel.test.ts` and `ch
 10. The gate gaps **T1** to **T4**, then the U4 test generator gaps, so the next audit has less to find by hand.
 11. **R1**: put the catalog pipeline on master and dispatch it.
 12. **T5**: confirm the required check.
-13. The LOW findings, grouped by file: storage C19 to C21, C31 and C32; state C22; tree C14 to C16; importers C13, C17, C18; design C34, C35 and C39; launch panel C23; canvas C25 and C26; report C27 and C28; writers C29, C30, C38; reader C45.
+13. The LOW findings, grouped by file: storage C19 to C21, C31 and C32; state C22; tree C14 to C16; importers C13, C17, C18; design C35 and C39; launch panel C23; canvas C25 and C26; report C27 and C28; writers C29, C30, C38; reader C45.
 14. Upkeep, by rule: U2 first, since docs are what a reader acts on.

@@ -5,6 +5,7 @@ import { chainOuterRadius, numOpt, positionOf } from './nodeProps';
 import { walkNodes } from './treeWalk';
 import { partLength } from './position';
 import { roundTo } from '../services/app/numbers';
+import { KERNEL_DEFAULTS } from './kernelDefaults';
 
 /**
  * Scale a whole rocket by one factor: the "upscale/downscale a plan" workflow.
@@ -181,6 +182,12 @@ export interface ScaleOptions {
   masses?: boolean;
 }
 
+/** The kernel's value for a key a node of `type` leaves out, where it has one. */
+const kernelDefault = (type: string, key: string): number | undefined => {
+  const row = (KERNEL_DEFAULTS as Record<string, Record<string, number> | undefined>)[type];
+  return typeof row?.[key] === 'number' ? row[key] : undefined;
+};
+
 /** Twelve places: past any real dimension, short of float noise. */
 const round = (x: number, places = 12): number => roundTo(x, places);
 
@@ -211,7 +218,10 @@ export function scaleNode(n: ComponentNode, k: number, options: ScaleOptions = {
     const flag = AUTO_FLAG[key];
     if (flag !== undefined && n[flag] === true) continue;
     if (key === 'thickness' && n['filled'] === true && FILLED_WALL.has(type)) continue;
-    const v = numOpt(n, key);
+    // A key the node leaves to the kernel flies the kernel's default, and that
+    // is the value desktop's scalers scale: a new rail button's spacing, a new
+    // chute's packed radius and length.
+    const v = numOpt(n, key) ?? kernelDefault(type, key);
     if (v !== undefined) out[key] = round(v * k);
   }
 

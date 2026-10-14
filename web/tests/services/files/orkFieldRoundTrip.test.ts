@@ -373,3 +373,20 @@ describe('a lug or rail button angle past 180 degrees in a .ork', () => {
     expect(tube.children![0]!['angleOffset']).toBeCloseTo(Math.PI, 9);
   });
 });
+
+/**
+ * A stated spacing is the spacing, 0 included: with none, the kernel flies a
+ * lug's copies at its constructor spacing (60 mm), so a desktop file's stacked
+ * lugs would come back apart if a 0 were dropped.
+ */
+describe('a lug spacing of 0 in a .ork', () => {
+  it('keeps stacked copies stacked', () => {
+    const xml =
+      `<openrocket><rocket><name>N</name><subcomponents><stage><name>S</name><subcomponents>` +
+      `<bodytube><name>B</name><length>0.3</length><radius>0.012</radius><subcomponents>` +
+      `<launchlug><name>L</name><instancecount>2</instancecount><instanceseparation>0</instanceseparation></launchlug>` +
+      `</subcomponents></bodytube></subcomponents></stage></subcomponents></rocket></openrocket>`;
+    const lug = importOrk(xml).tree.components[0]!.children![0]!.children![0]!;
+    expect(lug['instanceSeparation']).toBe(0);
+  });
+});

@@ -49,28 +49,6 @@ type Known = { why: string; when: (app: number, kernel: number) => boolean };
 
 const absentShowsZero = (app: number, kernel: number) => app === 0 && kernel > 0;
 const KNOWN: Record<string, Known> = {
-  'launchlug.instanceSeparation': {
-    why: 'C2: the constructor separation (length x 2) flies; the app reads 0',
-    when: absentShowsZero,
-  },
-  'railbutton.instanceSeparation': {
-    why: 'C2: the constructor separation (outer diameter x 6) flies; the app reads 0',
-    when: absentShowsZero,
-  },
-  'launchlug.angleOffset': {
-    why: 'C34: absent, the bridge flies pi',
-    when: (app, kernel) => kernel === Math.PI && app === 0,
-  },
-  'railbutton.angleOffset': { why: 'C34', when: (app, kernel) => kernel === Math.PI && app === 0 },
-  'bulkhead.instanceCount': { why: 'C34: no kernel default row, so a new part reads 0 copies', when: absentShowsZero },
-  'centeringring.instanceCount': { why: 'C34', when: absentShowsZero },
-  'launchlug.instanceCount': { why: 'C34', when: absentShowsZero },
-  'railbutton.instanceCount': { why: 'C34', when: absentShowsZero },
-  'parachute.lineCount': { why: 'C34: absent, the bridge flies 6', when: absentShowsZero },
-  'parachute.radius': { why: 'C34: a new part carries no packed radius', when: absentShowsZero },
-  'streamer.radius': { why: 'C34', when: absentShowsZero },
-  'shockcord.radius': { why: 'C34', when: absentShowsZero },
-  'tubefinset.thickness': { why: 'C34: absent, the TubeFinSet constructor wall flies', when: absentShowsZero },
   'bulkhead.outerRadius': {
     why: 'C39: an absent outer radius builds automatic; the panel shows 0',
     when: absentShowsZero,

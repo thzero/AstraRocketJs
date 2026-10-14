@@ -355,6 +355,7 @@ public final class OpenRocketEngine {
         }
 
         rocket.enableEvents();
+        settleAutoRadii(rocket);
         // After enableEvents, which places every part along its parent: a fin
         // set placed by its middle or bottom stands at its true station only
         // from then on, and the tab clamp reads the body radius there.
@@ -933,6 +934,35 @@ public final class OpenRocketEngine {
             return ComponentFields.of(c);
         } catch (RuntimeException e) {
             return errorJson(e);
+        }
+    }
+
+    /**
+     * Every automatic radius read against the finished rocket, front to back,
+     * once per symmetric part and once more. An automatic body tube remembers
+     * which neighbor it last sized from (BodyTube.refComp) and skips a neighbor
+     * that is sizing from it. The build attaches parts one at a time, so a tube
+     * evaluated before the parts behind it were attached remembers the part
+     * ahead, and the tube ahead of it then skips it and falls back to
+     * DEFAULT_RADIUS. A front-to-back pass corrects one more tube of such a run,
+     * counted from its fixed end, so a run as long as the airframe needs as many
+     * passes. Read through here first, every later read (the panel's, the
+     * drawing's, a flight's) gets the radius of the finished airframe.
+     */
+    private static void settleAutoRadii(Rocket rocket) {
+        int symmetric = 0;
+        for (RocketComponent c : rocket) {
+            if (c instanceof info.openrocket.core.rocketcomponent.SymmetricComponent) symmetric++;
+        }
+        for (int pass = 0; pass <= symmetric; pass++) {
+            for (RocketComponent c : rocket) {
+                if (c instanceof info.openrocket.core.rocketcomponent.SymmetricComponent) {
+                    info.openrocket.core.rocketcomponent.SymmetricComponent s =
+                            (info.openrocket.core.rocketcomponent.SymmetricComponent) c;
+                    s.getForeRadius();
+                    s.getAftRadius();
+                }
+            }
         }
     }
 

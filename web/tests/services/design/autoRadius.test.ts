@@ -3,7 +3,14 @@ import { describe, it, expect } from 'vitest';
 import type { ComponentNode, RocketTree } from '../../../src/engine/openRocketEngine';
 import { syncAutoRadii } from '../../../src/services/design/autoRadius';
 import { KERNEL_AUTO_RADIUS, KERNEL_BODYTUBE_OUTER_RADIUS } from '../../../src/tree/kernelDefaults';
-import { addPart, catalogPatch, defaultNode, updateNode } from '../../../src/services/design/treeEdit';
+import {
+  addChild,
+  addPart,
+  catalogPatch,
+  defaultNode,
+  findNode,
+  updateNode,
+} from '../../../src/services/design/treeEdit';
 import { importOrk, exportOrk } from '../../../src/services/files/orkFile';
 
 /**
@@ -208,11 +215,13 @@ describe('syncAutoRadii', () => {
  * `BodyTube.getAutoOuterRadius` stores the neighbor it took its radius from in
  * `refComp`, and `usesPreviousCompAutomatic` / `usesNextCompAutomatic` compare
  * a neighbor against it, so a tube skips a neighbor that last took its radius
- * from this tube. Nothing resets `refComp`. A tube evaluated while the bridge is
- * still attaching parts (an automatic coupler clamping its wall, a tabbed fin
- * set clamping its tab) remembers the part ahead of it, because nothing behind
- * it exists yet; the passes that finish the build (fin sets, launch lugs) and
- * the first read start from that.
+ * from this tube. A tube evaluated while the bridge is still attaching parts
+ * (an automatic coupler clamping its wall, a tabbed fin set clamping its tab)
+ * remembers the part ahead of it, because nothing behind it exists yet. The
+ * bridge then reads every automatic radius against the finished rocket, front
+ * to back and twice (`settleAutoRadii`), so that memory is the finished
+ * airframe's and no tube falls back to DEFAULT_RADIUS for a neighbor it no
+ * longer uses, as desktop flies them.
  *
  * Every expected radius here is the kernel's answer for the same design, built
  * through the bridge and read back with `getComponentGeometry` in tree order;
@@ -278,14 +287,42 @@ describe('the neighbor an automatic tube remembers', () => {
     return out;
   };
 
-  it('falls back on a tube whose neighbor remembers it from the build', () => {
-    // The coupler evaluates b while it is the last part attached: the nose
-    // cone's base is automatic, so b takes nothing from a and remembers it.
-    // Reading a, the kernel skips b (usesPreviousCompAutomatic) and the nose
-    // cone (usesNextCompAutomatic) and takes DEFAULT_RADIUS; b then reaches the
-    // 23.7 mm tube in the next stage.
+  it('takes the fixed tube even where a neighbor remembered the tube from the build', () => {
+    // The coupler evaluates b while it is the last part attached, so b
+    // remembers a. The settle pass reads b again with c attached, and a then
+    // reaches the 23.7 mm tube in the next stage through it.
     const t = syncAutoRadii(stages([autoNose, auto('a'), auto('b', [coupler('cp')])], [fixed('c', 0.0237)]));
-    expect(radii(t)).toEqual({ n: 0.0237, a: 0.025, b: 0.0237, c: 0.0237 });
+    expect(radii(t)).toEqual({ n: 0.0237, a: 0.0237, b: 0.0237, c: 0.0237 });
+  });
+
+  /**
+   * The bundled dual-parachute-deployment airframe, whose first tube's file
+   * radius is 25 mm and whose second holds an automatic coupler: desktop flies
+   * every tube at 28.3 mm (the fields step of npm run audit reads it back from
+   * desktop).
+   */
+  it('flies the dual-parachute-deployment airframe at the radius desktop flies', () => {
+    const t = syncAutoRadii(
+      stages([
+        { ...autoNose, aftRadius: 0.028321 },
+        { ...fixed('t1', 0.025), outerRadiusAuto: true },
+        { ...fixed('t2', 0.028321), outerRadiusAuto: true, children: [coupler('t2c')] },
+        fixed('t3', 0.028321),
+        { ...fixed('t4', 0.028321), outerRadiusAuto: true },
+      ]),
+    );
+    expect(radii(t)).toEqual({ n: 0.028321, t1: 0.028321, t2: 0.028321, t3: 0.028321, t4: 0.028321 });
+  });
+
+  /**
+   * A front-to-back pass corrects one more tube of such a run, counted from its
+   * fixed end, so the settle pass runs once per symmetric part and once more.
+   * Desktop flies every tube of this run at 23.7 mm.
+   */
+  it('settles a run of eight automatic tubes, each with an automatic coupler', () => {
+    const run = Array.from({ length: 8 }, (_, i) => auto(`r${i}`, [coupler(`rc${i}`)]));
+    const r = radii(syncAutoRadii(stages([autoNose, ...run, fixed('end', 0.0237)])));
+    expect(Array.from({ length: 8 }, (_, i) => r[`r${i}`])).toEqual(Array(8).fill(0.0237));
   });
 
   it('takes the fixed tube when nothing evaluates a tube during the build', () => {
@@ -307,7 +344,7 @@ describe('the neighbor an automatic tube remembers', () => {
     expect(radii(t)).toEqual({ n: 0.0237, a: 0.0237, b: 0.0237, c: 0.0237 });
   });
 
-  it('falls back on every tube ahead of the last in a run built with couplers', () => {
+  it('takes the fixed tube for every tube in a run built with couplers', () => {
     const t = syncAutoRadii(
       stages([
         autoNose,
@@ -317,24 +354,23 @@ describe('the neighbor an automatic tube remembers', () => {
         fixed('d', 0.0237),
       ]),
     );
-    expect(radii(t)).toEqual({ n: 0.0237, a: 0.025, b: 0.025, c: 0.0237, d: 0.0237 });
+    expect(radii(t)).toEqual({ n: 0.0237, a: 0.0237, b: 0.0237, c: 0.0237, d: 0.0237 });
   });
 
-  it('stops after the kernel passes, which settle a long run only from the back', () => {
-    // Each pass of the active-instance walk lets one more tube, counted from
-    // the fixed end, see its neighbor behind it. Nine passes run and then the
-    // front-to-back read, so the first two of twelve still fall back.
+  it('settles a long run of tubes with couplers and fin sets to its fixed end', () => {
+    // Each pass of the active-instance walk, and each settle pass, lets one more
+    // tube, counted from the fixed end, see its neighbor behind it.
     const run = Array.from({ length: 12 }, (_, i) => auto(`t${i}`, [coupler(`c${i}`), fins(`f${i}`, false)]));
     const r = radii(syncAutoRadii(stages([autoNose, ...run, fixed('end', 0.0237)])));
-    expect([r['t0'], r['t1'], r['t2'], r['t11']]).toEqual([0.025, 0.025, 0.0237, 0.0237]);
+    expect([r['t0'], r['t1'], r['t2'], r['t11']]).toEqual([0.0237, 0.0237, 0.0237, 0.0237]);
   });
 
-  it('falls back with nothing ahead at all', () => {
+  it('takes the fixed tube with nothing ahead at all', () => {
     const t = syncAutoRadii(stages([auto('a'), auto('b', [coupler('cp')])], [fixed('c', 0.0237)]));
-    expect(radii(t)).toEqual({ a: 0.025, b: 0.0237, c: 0.0237 });
+    expect(radii(t)).toEqual({ a: 0.0237, b: 0.0237, c: 0.0237 });
   });
 
-  it('falls back behind a transition whose aft end is automatic', () => {
+  it('takes the fixed tube behind a transition whose aft end is automatic', () => {
     const t = syncAutoRadii(
       stages([
         { type: 'nosecone', id: 'n', length: 0.1, aftRadius: 0.03, thickness: 0.002 },
@@ -352,10 +388,10 @@ describe('the neighbor an automatic tube remembers', () => {
         fixed('c', 0.0237),
       ]),
     );
-    expect(radii(t)).toEqual({ n: 0.03, tr: 0.0237, a: 0.025, b: 0.0237, c: 0.0237 });
+    expect(radii(t)).toEqual({ n: 0.03, tr: 0.0237, a: 0.0237, b: 0.0237, c: 0.0237 });
   });
 
-  it('falls back ahead of a flipped nose cone', () => {
+  it('takes the base of a flipped nose cone behind', () => {
     // The tail cone's base is its fore end, 15 mm and fixed.
     const t = syncAutoRadii(
       stages([
@@ -365,7 +401,7 @@ describe('the neighbor an automatic tube remembers', () => {
         { type: 'nosecone', id: 'tail', length: 0.1, aftRadius: 0.015, flipped: true, thickness: 0.002 },
       ]),
     );
-    expect(radii(t)).toEqual({ n: 0.015, a: 0.025, b: 0.015, tail: 0.015 });
+    expect(radii(t)).toEqual({ n: 0.015, a: 0.015, b: 0.015, tail: 0.015 });
   });
 });
 
@@ -486,12 +522,12 @@ describe('neighbors across pod sets and boosters', () => {
     expect(radii(syncAutoRadii(t))['b']).toBe(0.02);
   });
 
-  it('lets a pod placed against an automatic tube re-evaluate it on every pass', () => {
+  it('reaches the fixed tube past a pod set, wherever the pod is placed', () => {
     // The tube first remembers the tube ahead, from the build, when nothing
     // behind it is attached yet. A pod against its surface reads its radius on
-    // each pass of the active-instance walk, after which it remembers the
-    // fixed tube behind, and the tube ahead may follow it there. A pod placed
-    // free does not read it, and the tube ahead falls back.
+    // each pass of the active-instance walk; a pod placed free does not. The
+    // settle pass reads it again either way, and the tube ahead follows it to
+    // the fixed tube behind.
     const build = (method: string, offset: number) =>
       stages(
         [auto('a')],
@@ -499,13 +535,14 @@ describe('neighbors across pod sets and boosters', () => {
         [fixed('c', 0.0423)],
       );
     expect(radii(syncAutoRadii(build('surface', 0)))['a']).toBe(0.0423);
-    expect(radii(syncAutoRadii(build('free', 0.05)))['a']).toBe(KERNEL_AUTO_RADIUS);
+    expect(radii(syncAutoRadii(build('free', 0.05)))['a']).toBe(0.0423);
   });
 
-  it("visits a pod's parts once per copy on each pass", () => {
-    // Off the axis and free, so only the walk evaluates the pod's tubes: with
-    // one copy the run settles from the back as far as the third tube, as on
-    // the airframe; with three, every tube does.
+  it("settles a pod's run of tubes whatever its copy count", () => {
+    // Off the axis and free, so the walk evaluates the pod's tubes once per copy
+    // on each pass: with one copy it settles the run only as far as the third
+    // tube from the back. The settle pass reads the pod's parts too, so every
+    // tube reaches the fixed end with one copy or three.
     const coupler = (id: string): Part => ({
       type: 'tubecoupler',
       id,
@@ -549,7 +586,7 @@ describe('neighbors across pod sets and boosters', () => {
       );
     const one = run(1);
     const three = run(3);
-    expect([one['t0'], one['t1'], one['t2']]).toEqual([KERNEL_AUTO_RADIUS, KERNEL_AUTO_RADIUS, 0.0237]);
+    expect([one['t0'], one['t1'], one['t2']]).toEqual([0.0237, 0.0237, 0.0237]);
     expect([three['t0'], three['t1'], three['t2']]).toEqual([0.0237, 0.0237, 0.0237]);
   });
 });
@@ -885,5 +922,32 @@ describe('applying a catalog part', () => {
     const ring = (chainOf(syncAutoRadii(picked))[0]!.children as ComponentNode[])[0]!;
     expect(ring['outerRadius']).toBeCloseTo(0.02, 9); // the part, not the bore
     expect(ring['innerRadius']).toBeCloseTo(0.0145, 9);
+  });
+});
+
+/**
+ * A tube fin set states no wall until it is attached: the TubeFinSet
+ * constructor leaves it unset, and attached to a tube the part reports that
+ * tube's wall, which it keeps when the tube's wall changes later. Desktop 24.12
+ * does the same (a TubeFinSet added to a 0.5 mm tube reads 0.5 mm, and still
+ * 0.5 mm after the tube goes to 2 mm).
+ */
+describe("a tube fin set's wall", () => {
+  const tree = {
+    name: 'T',
+    components: [
+      {
+        type: 'stage',
+        id: 's',
+        children: [{ type: 'bodytube', id: 'b', length: 0.3, outerRadius: 0.02, thickness: 0.0005, children: [] }],
+      },
+    ],
+  } as unknown as RocketTree;
+  const fins = (t: RocketTree) => findNode(t, 'f')!;
+
+  it("takes the tube's wall when it is added, and keeps it when the tube changes", () => {
+    const added = addChild(tree, 'b', { type: 'tubefinset', id: 'f', length: 0.05 } as unknown as ComponentNode);
+    expect(fins(added)['thickness']).toBe(0.0005);
+    expect(fins(updateNode(added, 'b', { thickness: 0.002 }))['thickness']).toBe(0.0005);
   });
 });
