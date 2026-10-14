@@ -64,7 +64,10 @@
       "noseFirst": "Os projetos do RASAero começam com um cone de nariz, mas a primeira peça do estágio superior é \"{{name}}\". Coloque o cone de nariz primeiro ou exporte como .ork.",
       "secondPart": "O RASAero exige um tubo do corpo logo após o cone de nariz, ou uma cauda cônica como última peça, então \"{{name}}\" não pode vir ali. Mude a ordem ou exporte como .ork.",
       "noseNotFirst": "O RASAero só aceita um cone de nariz como primeira peça, então \"{{name}}\" não pode ser exportado. Use uma transição ou exporte como .ork.",
-      "noseFlipped": "O RASAero não tem cones de nariz invertidos, então \"{{name}}\" não pode ser exportado. Use uma transição ou exporte como .ork."
+      "noseFlipped": "O RASAero não tem cones de nariz invertidos, então \"{{name}}\" não pode ser exportado. Use uma transição ou exporte como .ork.",
+      "noseOgiveParameter": "O RASAero só aceita cones de nariz ogivais com parâmetro de forma 1, então \"{{name}}\" (parâmetro de forma {{value}}) não pode ser exportado. Altere o parâmetro de forma ou exporte como .ork.",
+      "noseHaackParameter": "O RASAero só aceita cones de nariz Haack com parâmetro de forma 0 (Von Kármán) ou 0,33 (LV-Haack), então \"{{name}}\" (parâmetro de forma {{value}}) não pode ser exportado. Altere o parâmetro de forma ou exporte como .ork.",
+      "chuteEvent": "O RASAero só abre um paraquedas no apogeu ou a uma altitude, então \"{{name}}\" ({{event}}) não pode ser exportado. Altere a abertura ou exporte como .ork."
     },
     "motorFile": {
       "engNoData": "Não é um arquivo .eng válido (nenhum dado de motor encontrado).",
@@ -164,6 +167,7 @@
       "cdOverride": "substituição do Cd ({{name}})",
       "cgOverride": "substituição do CG ({{name}})",
       "extraStages": "estágio {{from}} em diante",
+      "massOverride": "substituição da massa ({{name}})",
       "subtreeOverride": "substituição dos subcomponentes ({{name}})"
     },
     "viewFailed": "Não foi possível carregar esta visualização.",

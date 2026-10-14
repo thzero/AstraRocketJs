@@ -1,6 +1,6 @@
 import type { ComponentNode, ComponentPosition } from '../../../engine/openRocketEngine';
 import { COMPONENT_DEFAULTS } from '../../design/componentDefaults';
-import { nodeShape } from '../../../tree/shapeProfile';
+import { nodeShape, shapeParamDefault } from '../../../tree/shapeProfile';
 import { IN, fmt, type Cdx1Writer } from './units';
 import { SECTION_TO_AIRFOIL } from './surface';
 import { num, positionOf, str } from '../../../tree/nodeProps';
@@ -9,6 +9,7 @@ import { trapezoidDims } from '../../../tree/finPlanform';
 import { isFinSet } from '../../../tree/tubefins';
 import { isAssembly } from '../../../tree/assembly';
 import { KeyedError, type Keyed } from '../../../i18n/keyedError';
+import { mathEquals } from '../../motors/mathEquals';
 
 /** A part as an export refusal names it: its own name, else its translated type. */
 export const partName = (node: ComponentNode): string | Keyed => node.name || { key: `part.${node.type}` };
@@ -125,17 +126,29 @@ function noseXml(w: Cdx1Writer, node: ComponentNode): void {
   // A flipped nose cone is a tail cone, which RASAero has no part for.
   if (node['flipped'] === true) throw new KeyedError('errors.rasaero.noseFlipped', { name: partName(node) });
   const shape = nodeShape(node);
-  const param = num(node, 'shapeParameter', NaN);
+  // An absent parameter flies as the shape's default (ogive 1, Haack 0).
+  const param = num(node, 'shapeParameter', shapeParamDefault(shape));
   let rasShape: string;
   let powerLaw: number | null = null;
+  // RASAero has one ogive (tangent) and two Haack noses, so desktop
+  // (RASAeroCommonConstants.OPENROCKET_TO_RASAERO_SHAPE) takes an ogive only at
+  // parameter 1 and a Haack only at 0 or 0.33, and refuses the rest rather than
+  // export a different shape for RASAero to compute drag on.
+  const value = Number(param.toFixed(3));
   if (shape === 'conical') rasShape = 'Conical';
-  else if (shape === 'ogive') rasShape = 'Tangent Ogive';
-  else if (shape === 'ellipsoid') rasShape = 'Elliptical';
-  else if (shape === 'haack')
-    rasShape = !Number.isNaN(param) && Math.abs(param - 0.33) < 0.01 ? 'LV-Haack' : 'Von Karman Ogive';
-  else if (shape === 'power') {
+  else if (shape === 'ogive') {
+    if (!mathEquals(param, 1))
+      throw new KeyedError('errors.rasaero.noseOgiveParameter', { name: partName(node), value });
+    rasShape = 'Tangent Ogive';
+  } else if (shape === 'ellipsoid') rasShape = 'Elliptical';
+  else if (shape === 'haack') {
+    if (mathEquals(param, 0)) rasShape = 'Von Karman Ogive';
+    // Within 1% of 0.33, which leaves out 1/3 itself, as desktop does.
+    else if (mathEquals(param, 0.33, 0.01)) rasShape = 'LV-Haack';
+    else throw new KeyedError('errors.rasaero.noseHaackParameter', { name: partName(node), value });
+  } else if (shape === 'power') {
     rasShape = 'Power Law';
-    powerLaw = Number.isNaN(param) ? 0.5 : param;
+    powerLaw = param;
   } else throw new KeyedError('errors.rasaero.noseShape', { shape: { key: `noseShape.${shape}` } });
   const len = num(node, 'length', 0.07);
   emit('<NoseCone>');

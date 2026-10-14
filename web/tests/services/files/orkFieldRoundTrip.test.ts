@@ -355,3 +355,21 @@ describe('radial placement of a centered internal part', () => {
     }
   });
 });
+
+/**
+ * Desktop's loader hands a lug's or rail button's <angleoffset> to
+ * LaunchLug.setAngleOffset / RailButton.setAngleOffset, which clamp to
+ * [-180°, 180°]: a file that says 270 opens, and flies, at 180.
+ */
+describe('a lug or rail button angle past 180 degrees in a .ork', () => {
+  const ork = (part: string) =>
+    `<openrocket><rocket><name>N</name><subcomponents><stage><name>S</name><subcomponents>` +
+    `<bodytube><name>B</name><length>0.3</length><radius>0.012</radius><subcomponents>${part}</subcomponents></bodytube>` +
+    `</subcomponents></stage></subcomponents></rocket></openrocket>`;
+
+  it.each(['launchlug', 'railbutton'])('opens a %s at 270 as 180, as desktop does', (tag) => {
+    const tube = importOrk(ork(`<${tag}><name>M</name><angleoffset method="relative">270</angleoffset></${tag}>`)).tree
+      .components[0]!.children![0]!;
+    expect(tube.children![0]!['angleOffset']).toBeCloseTo(Math.PI, 9);
+  });
+});

@@ -24,15 +24,16 @@ read but whose consequence depends on something outside the repo.
 
 ## Status
 
-**46 open defects: 1 HIGH, 21 MED, 24 LOW**, plus the upkeep section. C33 to
+**39 open defects: 1 HIGH, 14 MED, 24 LOW**, plus the upkeep section. C33 to
 C45 were found after the first pass, by the two checks added the same day and
 by the change audits of those checks and of the C1, C43 and security fixes
 (see "Checks added after this report").
 Fixed and not counted: C40 and C41, in the change that added the checks; the
 HIGH findings C1 (transition shoulders) and C43 (stage overrides); the
 security findings S1, S2 and S3; C24 (the weather key), fixed by the
-shared key field the Esri map key added; R2 (the catalog fallback); R3 (the curve order); and A1 and A2
-(accessibility). Each entry names the test that pins it.
+shared key field the Esri map key added; R2 (the catalog fallback); R3 (the curve order); A1 and A2
+(accessibility); and C33, C3, C37, C42, C10, C9 and C6 (steps 2 and 4 of
+the order of attack). Each entry names the test that pins it.
 
 - **HIGH R1:** the published parts catalog is built by an older pipeline than
   the one on this branch.
@@ -245,7 +246,16 @@ Fix: add `instanceSeparation` to `KERNEL_DEFAULTS` for launchlug and railbutton
 `defaultNode`, read it in `lineInstances`, the panel and `instancesXml`, and
 keep a stated 0 on import.
 
-**C3. MED | Lug and rail button angle has no upper bound** | `web/src/components/design/DimensionFields.tsx:496-504` | VERIFIED
+**C3. MED, FIXED | Lug and rail button angle has no upper bound** | `web/src/components/design/DimensionFields.tsx:496-504` | VERIFIED
+Resolution: a lug's and a rail button's angle stops at 180 deg in the panel
+(`fieldRange`), as the desktop spinner does, because their kernel setters
+clamp instead of wrapping. The read-back test sends the panel's limits to the
+kernel, and its C3 entries are gone. On import, a `.ork` angle past 180 deg is
+clamped, as desktop's loader clamps it through the same setters
+(`readAngleAroundBody`), and a RockSim one is wrapped (`wrapMountAngles`),
+since that reader converts degrees on purpose to keep the part where RockSim
+drew it. Pinned by `orkFieldRoundTrip.test.ts` and `rktImport.test.ts`.
+The finding as reported:
 The `angle` case passes a lower bound of -180 degrees and no upper bound. A
 typed 270 degrees is stored as 4.712 rad, drawn at 270 (`rollAngleOf` in
 `tree/componentKinds.ts`), and written as `<angleoffset>270</angleoffset>`
@@ -284,7 +294,13 @@ Fix: expose `getBurnTimeEstimate`, `getAverageThrustEstimate`,
 `getMaxThrustEstimate` and `getTotalImpulseEstimate` through the bridge and
 print those.
 
-**C6. MED | `.glb` export is 1000 times too large** | `web/src/services/exports/meshExport.ts:27-33, 47-56` | VERIFIED
+**C6. MED, FIXED | `.glb` export is 1000 times too large** | `web/src/services/exports/meshExport.ts:27-33, 47-56` | VERIFIED
+Resolution: GLB is written in meters, glTF's unit; STL and OBJ stay in
+millimeters. Pinned by `meshExport.test.ts` ("GLB is in meters"), which reads
+the node scale or matrix and the position bounds of a 0.1 m nose cone, and
+fails against the writer from before the fix. The Files and
+Exports help page says so, in both languages.
+The finding as reported:
 `meshGroup` scales every export by 1000 for millimeters, and `GLTFExporter`
 writes the scale onto the node. glTF's unit is the meter, so a 70 mm nose cone
 opens as 70 m in Blender, three.js viewers and AR viewers. The test checks
@@ -311,7 +327,15 @@ Fix: when the flag is on, take the value from `rocket.componentInfo(id)`
 (widen `ComponentFigures`), and name the part in `skipped` when there are no
 figures.
 
-**C9. MED | `.CDX1` writes any ogive as Tangent Ogive and most Haack noses as Von Karman** | `web/src/services/files/rasaero/sustainer.ts:132-135` | VERIFIED
+**C9. MED, FIXED | `.CDX1` writes any ogive as Tangent Ogive and most Haack noses as Von Karman** | `web/src/services/files/rasaero/sustainer.ts:132-135` | VERIFIED
+Resolution: the nose writer takes an ogive only at parameter 1 and a Haack
+only at 0 or within 1% of 0.33, with desktop's own relative comparison
+(`MathUtil.equals`; the kernel's 1/3 is outside it, and refused as desktop
+refuses it), and refuses the rest with
+`errors.rasaero.noseOgiveParameter` or `noseHaackParameter`. An absent
+parameter is the shape's default. Pinned by `rasaeroExport.test.ts` ("the
+nose shape parameter").
+The finding as reported:
 Desktop maps only ogive parameter 1 to Tangent Ogive and Haack 0 to Von
 Karman, and refuses every other parameter (`RASAeroCommonConstants.java:256-276`).
 The app writes a secant ogive (0.5) or a Haack at 0.2 as a different nose, so
@@ -319,7 +343,20 @@ RASAero computes drag for a shape the design does not have.
 Fix: refuse with a keyed error, as `noseFlipped` does, outside desktop's
 tolerance of 0.01.
 
-**C10. MED | `.CDX1` exports the default parachute with no recovery** | `web/src/services/files/rasaero/recovery.ts:14-22` | VERIFIED
+**C10. MED, FIXED | `.CDX1` exports the default parachute with no recovery** | `web/src/services/files/rasaero/recovery.ts:14-22` | VERIFIED
+Resolution: a parachute on any event but apogee or altitude is refused,
+naming the part and the event (`errors.rasaero.chuteEvent`), where desktop
+raises `RASAeroExport.error21`; the Cd fallback is the kernel's
+(`KERNEL_DEFAULTS.parachute.cd`, 0.8, verified by
+`kernelDefaults.kernel.test.ts`); and the app exports the selected
+configuration's tree (`configuredTree`), so a configuration's deployment is
+the one written. The chutes are the ones desktop reads
+(`RecoveryDTO.getParachutesFromRocket`): the first two under a body tube that
+sits in one of the first three stages, the tube's whole subtree in order; one
+in a nose cone, a transition or a pod is not read, so its event does not stop
+the export. Pinned by `rasaeroExport.test.ts`, the golden test (the drogue's
+Cd is now 0.8), and `tests/state/saveRasaero.test.ts`.
+The finding as reported:
 `ev` defaults to `KERNEL_DEPLOYMENT.deployEvent`, which is `ejection`, and
 anything but apogee or altitude is written `Event False / EventType None`. So
 every chute on the default event, and most imported ones, exports as no
@@ -465,7 +502,24 @@ design or tab.
 A `null` body or element throws after `post()` returns, bypassing
 `fetchFailure`. Fix: guard the shape and map to `errors.thrustcurve.badData`.
 
-**C33. MED | A shoulder flies with the part's wall while the app and the `.ork` say 0** | `engine-java/src/api/java/api/ComponentFactory.java` (cases "nosecone" and "transition"); `engine-java/src/java/info/openrocket/core/rocketcomponent/Transition.java:492-520` | VERIFIED (kernel and desktop)
+**C33. MED, FIXED | A shoulder flies with the part's wall while the app and the `.ork` say 0** | `engine-java/src/api/java/api/ComponentFactory.java` (cases "nosecone" and "transition"); `engine-java/src/java/info/openrocket/core/rocketcomponent/Transition.java:492-520` | VERIFIED (kernel and desktop)
+Resolution: the bridge always sets a shoulder's wall, 0 when the node states
+none, and after the shoulder length (`ComponentFactory.create`, and the
+flipped nose cone's settle pass), so a length set from 0 no longer flies
+the part's wall while the panel and the `.ork` say 0. Pinned by
+`fieldReadback.kernel.test.ts` and the `fields` step of `npm run audit`
+(their C33 entries are gone), and by `engineBoundary.test.ts` (an absent
+wall weighs the same as a stated 0; fails against the engine from before the
+fix). And the app now does what desktop's setter does when a shoulder length
+goes from 0 (`Transition.setForeShoulderLength`, which desktop's dialog and
+`loadFromPreset` both go through): `updateNode` gives the shoulder the
+neighbor's wall, the neighbor's radius less that wall, and a cap, where each
+was 0, and clears all three when the length goes back to 0
+(`autoShoulder.ts`, `shoulderSeed`). Pinned by
+`tests/engine/shoulderSeed.kernel.test.ts` against the kernel's own setter on
+a placed part (the bridge's `setShoulderLength`; `buildRocket` sets a length
+before the part is attached, so it cannot show the seed).
+The finding as reported:
 When a node carries a shoulder length but no shoulder thickness, the bridge
 sets the length and nothing else, and `Transition.setForeShoulderLength` (and
 its aft and nose cone twins) seeds a shoulder going from length 0 to a length
@@ -479,7 +533,7 @@ agree. Pinned by `fieldReadback.kernel.test.ts` and the `fields` audit step.
 **C34. LOW | The panel shows 0 where the kernel flies its constructor default** | `web/src/tree/kernelDefaults.ts:45`; `web/src/services/design/treeEdit.ts` (`defaultNode`) | VERIFIED (kernel)
 `KERNEL_DEFAULTS` has no row for: line instance count (1) on lugs, rail
 buttons, centering rings and bulkheads; lug and rail button `angleOffset`
-(pi); parachute `cd` (0.8) and `lineCount` (6); packed `radius` of parachutes,
+(pi); parachute `lineCount` (6) (its `cd` row is in, with C10); packed `radius` of parachutes,
 streamers and shock cords; tube fin `thickness` (0.002). A new lug, button,
 ring or bulkhead therefore shows 0 copies, and a new parachute, streamer or
 shock cord shows a packed diameter of 0 (`defaultNode` writes neither key)
@@ -506,7 +560,12 @@ every-part sample flies 0.45 m lines and a 3.75 m cord in the app and 0.3 m
 and 0.4 m in desktop. Fix: write the resolved number (from `componentInfo`, as
 C8 needs for `.rkt`) where desktop cannot read `auto`.
 
-**C37. MED | `.rkt` lugs open in desktop with a larger outer diameter** | `web/src/services/files/rktExport.ts:312-317` (via `writeSurfaceTube`, 363-367) | VERIFIED (desktop probe)
+**C37. MED, FIXED | `.rkt` lugs open in desktop with a larger outer diameter** | `web/src/services/files/rktExport.ts:312-317` (via `writeSurfaceTube`, 363-367) | VERIFIED (desktop probe)
+Resolution: the writer puts `ID` before `OD` for a launch lug
+(`writeTubeWall(..., boreFirst)`). Pinned by `rktExport.test.ts` ("writes a
+launch lug bore before its outside") and the `fields` step, whose C37 entry
+is gone.
+The finding as reported:
 The writer emits `OD` before `ID`. Desktop's RockSim `LaunchLugHandler` (`engine-java/.openrocket-src/core/src/main/java/info/openrocket/core/file/rocksim/importt/LaunchLugHandler.java:61-68`, the same in the 24.12 jar) applies
 them in that order, and `LaunchLug.setInnerRadius` rebuilds the outer radius
 as the bore plus the current wall (the 1 mm default). The default design's lug
@@ -540,7 +599,20 @@ The kernel flies it clipped (`Transition.setShapeType` sets clipped to
 transition carries no flag. `fieldValue` now shows the shape's own. Pinned by
 `fieldReadback.kernel.test.ts` (its shape seeds).
 
-**C42. MED | `.rkt` writes a mass-only override with its CG at the part's front** | `web/src/services/files/rktExport.ts:216-219` | VERIFIED (desktop)
+**C42. MED, FIXED | `.rkt` writes a mass-only override with its CG at the part's front** | `web/src/services/files/rktExport.ts:216-219` | VERIFIED (desktop)
+Resolution: a mass-only override goes out with the part's own CG from the
+kernel (`componentInfo(id).cgX`), as desktop's `BasePartDTO` writes
+`getOverrideCGX()`; with no kernel figures the override is left out and named
+(`errors.rktSkip.massOverride`). Pinned by `rktExport.test.ts` ("writes the
+kernel CG of the part for a mass-only override", which fails against the
+writer from before the fix) and the `fields` step, whose C42 entries are
+gone. Desktop opens such a part with its CG overridden too, at that same
+value; that is RockSim's one switch, and the check lists it as a format limit.
+The bridge's `getComponentInfo` now settles an automatic-radius pack's radius
+before reading its length and CG, as `ComponentFields` does, so the CG written
+is the settled one (`tests/engine/componentInfoPack.kernel.test.ts`, which
+fails against the engine from before).
+The finding as reported:
 A part with a mass override and no CG override goes out as `KnownCG`
 `mm(overrideCg ?? 0)` with `UseKnownCG` 1, so `BaseHandler.setOverride`
 gives it a CG override of 0. Desktop's own `BasePartDTO` writes
@@ -591,6 +663,10 @@ follows), so a test of the fix takes its expected value from desktop
 and the drawing show 25 mm and the `.rkt` writer emits a 50 mm OD, which
 desktop then flies. Fix: resolve a mutual pair as the kernel does, and add the
 pair to `geometryParity.kernel.test.ts` and to the read-back test's seeds.
+The same example's 42-inch parachute has an automatic packed radius that
+follows that tube's bore, so its length and CG follow the same read order: the
+`.rkt` writer takes a mass-only override's CG at one answer and the check reads
+the other (the `rkt:parachute.overrideCGX` entry in `check-desktop-fields.mjs`).
 Pinned today only by the `fields` step of `npm run audit`.
 
 ## 🟡 Accessibility
@@ -778,9 +854,9 @@ No severity; not counted with the defects.
 Each fix removes its `KNOWN` entries from `fieldReadback.kernel.test.ts` and `check-desktop-fields.mjs`; those checks are its test, and a fix not pinned by them needs one whose expected value comes from the kernel, the Java or desktop. Run the change audit (`docs/AUDIT_PROMPT_CHANGES.md`) on each batch.
 
 1. Done: **C43** and **C1**.
-2. **C33**: always set the shoulder wall in the bridge; six bundled examples fly a different nose cone from desktop until it lands.
+2. Done: **C33**.
 3. Done: **S1**, **S2** and **S3**.
-4. Small, verified file fixes: **C3** (one argument), **C37** (write `ID` before `OD`), **C42** (the part's own CG for a mass-only override), **C10** (refuse the event, kernel Cd), **C9** (refuse the parameter), **C6** (GLB in meters).
+4. Done: **C3**, **C37**, **C42**, **C10**, **C9** and **C6**.
 5. **C2** and **C34**: the missing rows in `KERNEL_DEFAULTS`, verified by `kernelDefaults.kernel.test.ts`, then the drawing, writer and importer reading them. With them, **C44**: resolve a mutual pair of automatic ends as the kernel does.
 6. **C12** and **C11**: the two lost-work paths in storage, each with a store test.
 7. **C4**: per-target patches and mixed markers in the launch panel.

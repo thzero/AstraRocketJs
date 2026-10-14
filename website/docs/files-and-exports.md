@@ -55,9 +55,9 @@ The app keeps a library of your rockets in the browser, so you can work on sever
 
 **Menu → Export → RASAero II** writes the design as a RASAero II `.CDX1` file, so you can open it in **[RASAero II](https://www.rasaero.com/)** for its own aerodynamic and flight analysis.
 
-RASAero models only the **external aerodynamic shape**, so the export carries the airframe (nose cone, body tubes, transitions / boat tails, fins, and launch lugs) plus the loaded **weight and CG** (written into RASAero's simulation block). Internal parts with no aerodynamic effect (centering rings, bulkheads, shock cords, engine blocks) are dropped; parachutes become RASAero recovery entries. Dimensions are converted to RASAero's units (inches, pounds, feet, °F).
+RASAero models only the **external aerodynamic shape**, so the export carries the airframe (nose cone, body tubes, transitions / boat tails, fins, and launch lugs) plus the loaded **weight and CG** (written into RASAero's simulation block). Internal parts with no aerodynamic effect (centering rings, bulkheads, shock cords, engine blocks) are dropped; the first two parachutes inside the stages' body tubes become RASAero's two recovery entries, with the deployment of the flight configuration you have selected. A parachute in a nose cone, a transition or a pod is not exported, as in OpenRocket. Dimensions are converted to RASAero's units (inches, pounds, feet, °F).
 
-Because RASAero can't represent every shape, the export **stops with a clear message** rather than write a file RASAero would reject, for example tube or elliptical fins, a non-conical transition, more than one fin set on a tube, or a freeform fin that isn't a simple trapezoid. In those cases, use `.ork` instead.
+Because RASAero can't represent every shape, the export **stops with a clear message** rather than write a file RASAero would reject, for example tube or elliptical fins, a non-conical transition, more than one fin set on a tube, a freeform fin that isn't a simple trapezoid, an ogive nose cone with a shape parameter other than 1, a Haack nose cone other than Von Kármán (0) or LV-Haack (0.33), or a parachute that deploys on anything but apogee or an altitude (a new parachute deploys on the motor's ejection charge, so set its deployment first). In those cases, change the design or use `.ork` instead.
 
 ## Exporting the whole rocket for 3D printing (`.3mf`)
 
@@ -83,7 +83,7 @@ Export is **per component**, not whole-rocket: in the **Components** tree, every
 
 Notes on the 3D geometry:
 
-- Everything is scaled to **millimeters** (the unit slicers and CAD assume) and each part is a **watertight, manifold solid**: a slicer won't reject it.
+- STL, OBJ and 3MF are in **millimeters** (the unit slicers and CAD assume). GLB is in **meters**, the unit the glTF format defines, so viewers show the part at its real size. Each part is a **watertight, manifold solid**: a slicer won't reject it.
 - **Tubes are hollow** (real wall thickness), not solid rods; nose cones and transitions include their **shoulders**; a nose/transition/bulkhead is a solid body.
 - A **fin set** exports one fin; a **tube fin set** exports one tube; you print/cut as many as the design has.
 - Filenames are the rocket's name and then the component's (or its type), so the nose cones of two designs do not collide in your downloads folder. See [What a download is called](#what-a-download-is-called).

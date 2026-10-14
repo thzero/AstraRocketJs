@@ -64,7 +64,10 @@
       "noseFirst": "RASAero designs start with a nose cone, but the first part of the sustainer is \"{{name}}\". Put the nose cone first or export as .ork.",
       "secondPart": "RASAero needs a body tube right after the nose cone, or a boat tail as the last part, so \"{{name}}\" can't follow it. Change the order or export as .ork.",
       "noseNotFirst": "RASAero allows a nose cone only as the first part, so \"{{name}}\" can't be exported. Use a transition or export as .ork.",
-      "noseFlipped": "RASAero has no flipped nose cones, so \"{{name}}\" can't be exported. Use a transition or export as .ork."
+      "noseFlipped": "RASAero has no flipped nose cones, so \"{{name}}\" can't be exported. Use a transition or export as .ork.",
+      "noseOgiveParameter": "RASAero takes an ogive nose cone only with shape parameter 1, so \"{{name}}\" (shape parameter {{value}}) can't be exported. Change the shape parameter or export as .ork.",
+      "noseHaackParameter": "RASAero takes a Haack nose cone only with shape parameter 0 (Von Kármán) or 0.33 (LV-Haack), so \"{{name}}\" (shape parameter {{value}}) can't be exported. Change the shape parameter or export as .ork.",
+      "chuteEvent": "RASAero deploys a parachute only at apogee or at an altitude, so \"{{name}}\" ({{event}}) can't be exported. Change its deployment or export as .ork."
     },
     "motorFile": {
       "engNoData": "Not a valid .eng file (no motor data found).",
@@ -164,6 +167,7 @@
       "cdOverride": "Cd override ({{name}})",
       "cgOverride": "CG override ({{name}})",
       "extraStages": "stage {{from}} and beyond",
+      "massOverride": "Mass override ({{name}})",
       "subtreeOverride": "Override of the parts inside ({{name}})"
     },
     "viewFailed": "This view could not be loaded.",

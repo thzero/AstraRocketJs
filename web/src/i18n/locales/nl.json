@@ -64,7 +64,10 @@
       "noseFirst": "RASAero-ontwerpen beginnen met een neuskegel, maar het eerste onderdeel van de bovenste trap is \"{{name}}\". Zet de neuskegel vooraan of exporteer als .ork.",
       "secondPart": "RASAero vereist direct na de neuskegel een rompbuis, of een staartkegel als laatste onderdeel, dus \"{{name}}\" kan daar niet volgen. Wijzig de volgorde of exporteer als .ork.",
       "noseNotFirst": "RASAero staat een neuskegel alleen als eerste onderdeel toe, dus \"{{name}}\" kan niet worden geëxporteerd. Gebruik een overgang of exporteer als .ork.",
-      "noseFlipped": "RASAero kent geen omgekeerde neuskegels, dus \"{{name}}\" kan niet worden geëxporteerd. Gebruik een overgang of exporteer als .ork."
+      "noseFlipped": "RASAero kent geen omgekeerde neuskegels, dus \"{{name}}\" kan niet worden geëxporteerd. Gebruik een overgang of exporteer als .ork.",
+      "noseOgiveParameter": "RASAero kent ogief-neuskegels alleen met vormparameter 1, dus \"{{name}}\" (vormparameter {{value}}) kan niet worden geëxporteerd. Wijzig de vormparameter of exporteer als .ork.",
+      "noseHaackParameter": "RASAero kent Haack-neuskegels alleen met vormparameter 0 (Von Kármán) of 0,33 (LV-Haack), dus \"{{name}}\" (vormparameter {{value}}) kan niet worden geëxporteerd. Wijzig de vormparameter of exporteer als .ork.",
+      "chuteEvent": "RASAero opent een parachute alleen op het hoogste punt of op een hoogte, dus \"{{name}}\" ({{event}}) kan niet worden geëxporteerd. Wijzig de ontplooiing of exporteer als .ork."
     },
     "motorFile": {
       "engNoData": "Geen geldig .eng-bestand (geen motorgegevens gevonden).",
@@ -164,6 +167,7 @@
       "cdOverride": "Cd-overschrijving ({{name}})",
       "cgOverride": "CG-overschrijving ({{name}})",
       "extraStages": "trap {{from}} en verder",
+      "massOverride": "Massa-overschrijving ({{name}})",
       "subtreeOverride": "overschrijving van de subonderdelen ({{name}})"
     },
     "viewFailed": "Deze weergave kon niet worden geladen.",

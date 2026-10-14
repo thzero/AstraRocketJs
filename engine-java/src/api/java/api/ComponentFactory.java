@@ -192,10 +192,11 @@ final class ComponentFactory {
                 if (!Double.isNaN(shL)) {
                     nose.setShoulderLength(shL);
                 }
-                double shT = dbl(node, "shoulderThickness", Double.NaN);
-                if (!Double.isNaN(shT)) {
-                    nose.setShoulderThickness(shT);
-                }
+                // Always set, 0 when the node states none, and after the length:
+                // setShoulderLength seeds a shoulder that grows from length 0
+                // with the part's own wall, which the panel and the .ork would
+                // both show as 0.
+                nose.setShoulderThickness(dbl(node, "shoulderThickness", 0));
                 nose.setShoulderCapped(bool(node, "shoulderCapped", false));
                 // Automatic base diameter. `aftRadiusAuto` is the base wherever it
                 // sits: the aft end, or the fore end of a flipped nose cone, which
@@ -261,17 +262,14 @@ final class ComponentFactory {
                 if (!Double.isNaN(aShL)) {
                     t.setAftShoulderLength(aShL);
                 }
-                // Shoulder wall, per side. Without it a transition's shoulders fly with no wall and no
-                // mass, and since a capped shoulder is made out of this wall,
-                // the cap below would add nothing either.
-                double fShT = dbl(node, "foreShoulderThickness", Double.NaN);
-                if (!Double.isNaN(fShT)) {
-                    t.setForeShoulderThickness(fShT);
-                }
-                double aShT = dbl(node, "aftShoulderThickness", Double.NaN);
-                if (!Double.isNaN(aShT)) {
-                    t.setAftShoulderThickness(aShT);
-                }
+                // Shoulder wall, per side: the stated wall, 0 when the node states
+                // none. Always set, and after the lengths, which seed a shoulder
+                // that grows from length 0 with the part's own wall
+                // (Transition.setForeShoulderLength); the panel and the .ork would
+                // show 0 while the kernel flew that wall. A capped shoulder is made
+                // out of this wall, so with none the cap below adds nothing either.
+                t.setForeShoulderThickness(dbl(node, "foreShoulderThickness", 0));
+                t.setAftShoulderThickness(dbl(node, "aftShoulderThickness", 0));
                 // Capped shoulder = a closed disc of the part's own material, so
                 // it has mass. A transition has one per side, each with its own
                 // key. `shoulderCapped` (the nose cone's single key) is read as
@@ -999,8 +997,7 @@ final class ComponentFactory {
                 NoseCone nose = (NoseCone) c;
                 double r = dbl(kid, "shoulderRadius", Double.NaN);
                 if (!Double.isNaN(r)) nose.setShoulderRadius(r);
-                double t = dbl(kid, "shoulderThickness", Double.NaN);
-                if (!Double.isNaN(t)) nose.setShoulderThickness(t);
+                nose.setShoulderThickness(dbl(kid, "shoulderThickness", 0));
             }
             settleFlippedShoulders(kid, idIndex);
         }

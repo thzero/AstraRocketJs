@@ -157,8 +157,14 @@ export function fieldRange(node: ComponentNode, f: Field, bounds: DimensionBound
       return f.key === 'shapeParameter' ? { min: 0, max: shapeParamMax(defaultShape(node)) } : { min: 0 };
     case 'angle':
       // Fin cant stops at the kernel's +/-15 deg, which is where the desktop
-      // spinner stops.
-      return f.key === 'cant' ? { min: -MAX_CANT, max: MAX_CANT } : { min: -Math.PI };
+      // spinner stops. A lug's or rail button's angle stops at 180 deg:
+      // LaunchLug.setAngleOffset and RailButton.setAngleOffset clamp to
+      // [-pi, pi] rather than wrapping as the other angle setters do
+      // (reducePi), so 270 would show and save as 270 and fly as 180.
+      if (f.key === 'cant') return { min: -MAX_CANT, max: MAX_CANT };
+      if (f.key === 'angleOffset' && (node.type === 'launchlug' || node.type === 'railbutton'))
+        return { min: -Math.PI, max: Math.PI };
+      return { min: -Math.PI };
     case 'length': {
       if (f.signedWithinLength) {
         const span = axialLength(node);

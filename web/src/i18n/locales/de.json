@@ -64,7 +64,10 @@
       "noseFirst": "RASAero-Entwürfe beginnen mit einer Spitze, aber das erste Bauteil der Oberstufe ist „{{name}}“. Setzen Sie die Spitze an den Anfang oder exportieren Sie als .ork.",
       "secondPart": "RASAero braucht direkt nach der Spitze ein Rumpfrohr oder als letztes Bauteil einen Heckkonus, daher kann „{{name}}“ dort nicht folgen. Ändern Sie die Reihenfolge oder exportieren Sie als .ork.",
       "noseNotFirst": "RASAero erlaubt eine Spitze nur als erstes Bauteil, daher kann „{{name}}“ nicht exportiert werden. Verwenden Sie einen Übergang oder exportieren Sie als .ork.",
-      "noseFlipped": "RASAero kennt keine umgedrehten Spitzen, daher kann „{{name}}“ nicht exportiert werden. Verwenden Sie einen Übergang oder exportieren Sie als .ork."
+      "noseFlipped": "RASAero kennt keine umgedrehten Spitzen, daher kann „{{name}}“ nicht exportiert werden. Verwenden Sie einen Übergang oder exportieren Sie als .ork.",
+      "noseOgiveParameter": "RASAero kennt Ogiven-Spitzen nur mit Formparameter 1, daher kann „{{name}}“ (Formparameter {{value}}) nicht exportiert werden. Ändern Sie den Formparameter oder exportieren Sie als .ork.",
+      "noseHaackParameter": "RASAero kennt Haack-Spitzen nur mit Formparameter 0 (Von Kármán) oder 0,33 (LV-Haack), daher kann „{{name}}“ (Formparameter {{value}}) nicht exportiert werden. Ändern Sie den Formparameter oder exportieren Sie als .ork.",
+      "chuteEvent": "RASAero entfaltet einen Fallschirm nur im Gipfelpunkt oder in einer Höhe, daher kann „{{name}}“ ({{event}}) nicht exportiert werden. Ändern Sie die Auslösung oder exportieren Sie als .ork."
     },
     "motorFile": {
       "engNoData": "Keine gültige .eng-Datei (keine Motordaten gefunden).",
@@ -164,6 +167,7 @@
       "cdOverride": "Cd-Überschreibung ({{name}})",
       "cgOverride": "CG-Überschreibung ({{name}})",
       "extraStages": "Stufe {{from}} und folgende",
+      "massOverride": "Massen-Überschreibung ({{name}})",
       "subtreeOverride": "Überschreibung der Unterbauteile ({{name}})"
     },
     "viewFailed": "Diese Ansicht konnte nicht geladen werden.",

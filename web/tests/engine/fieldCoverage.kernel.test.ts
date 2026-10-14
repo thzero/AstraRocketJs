@@ -91,6 +91,10 @@ const shoulder = (side: string, r: number) => ({
 });
 const TAB = { tabLength: 0.02, tabHeight: 0.005, tabOffset: 0.001, tabOffsetMethod: 'top' };
 const PARTNER: Record<string, Record<string, unknown>> = {
+  // A shoulder with no wall has nothing to weigh, so its length needs one.
+  shoulderLength: shoulder('shoulder', 0.018),
+  foreShoulderLength: shoulder('foreShoulder', 0.018),
+  aftShoulderLength: shoulder('aftShoulder', 0.013),
   shoulderRadius: shoulder('shoulder', 0.018),
   shoulderThickness: shoulder('shoulder', 0.018),
   shoulderCapped: shoulder('shoulder', 0.018),

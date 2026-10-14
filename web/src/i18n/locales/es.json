@@ -64,7 +64,10 @@
       "noseFirst": "Los diseños de RASAero empiezan con una ojiva, pero la primera pieza de la etapa superior es «{{name}}». Pon la ojiva primero o exporta como .ork.",
       "secondPart": "RASAero necesita un tubo de cuerpo justo después de la ojiva, o una cola de bote como última pieza, así que «{{name}}» no puede ir ahí. Cambia el orden o exporta como .ork.",
       "noseNotFirst": "RASAero solo admite una ojiva como primera pieza, así que «{{name}}» no se puede exportar. Usa una transición o exporta como .ork.",
-      "noseFlipped": "RASAero no tiene ojivas invertidas, así que «{{name}}» no se puede exportar. Usa una transición o exporta como .ork."
+      "noseFlipped": "RASAero no tiene ojivas invertidas, así que «{{name}}» no se puede exportar. Usa una transición o exporta como .ork.",
+      "noseOgiveParameter": "RASAero solo admite ojivas con parámetro de forma 1, así que «{{name}}» (parámetro de forma {{value}}) no se puede exportar. Cambia el parámetro de forma o exporta como .ork.",
+      "noseHaackParameter": "RASAero solo admite ojivas Haack con parámetro de forma 0 (Von Kármán) o 0,33 (LV-Haack), así que «{{name}}» (parámetro de forma {{value}}) no se puede exportar. Cambia el parámetro de forma o exporta como .ork.",
+      "chuteEvent": "RASAero solo despliega un paracaídas en el apogeo o a una altitud, así que «{{name}}» ({{event}}) no se puede exportar. Cambia su despliegue o exporta como .ork."
     },
     "motorFile": {
       "engNoData": "No es un archivo .eng válido (no se encontraron datos del motor).",
@@ -164,6 +167,7 @@
       "cdOverride": "anulación del Cd ({{name}})",
       "cgOverride": "anulación del CG ({{name}})",
       "extraStages": "etapa {{from}} y siguientes",
+      "massOverride": "anulación de la masa ({{name}})",
       "subtreeOverride": "anulación de los subcomponentes ({{name}})"
     },
     "viewFailed": "No se pudo cargar esta vista.",

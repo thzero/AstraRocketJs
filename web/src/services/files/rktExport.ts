@@ -206,16 +206,22 @@ function writeCommon(
 
   const overrideMass = numOpt(n, 'overrideMass');
   const overrideCg = numOpt(n, 'overrideCGX');
-  // The switch overrides mass and CG together, so a CG-only override needs the
-  // part's own mass in KnownMass, as BasePartDTO writes it: the mass the writer
-  // states, else the kernel's figure for the part.
-  const cgOnlyMass =
-    overrideMass === undefined && overrideCg !== undefined
-      ? (ownMass ?? (typeof n.id === 'string' ? w.componentInfo?.(n.id)?.mass : undefined))
-      : undefined;
-  if (overrideMass !== undefined || cgOnlyMass !== undefined) {
+  const figures = typeof n.id === 'string' ? w.componentInfo?.(n.id) : undefined;
+  // The switch overrides mass and CG together, so each half the part does not
+  // override is written as the part's own, as BasePartDTO writes them: a
+  // CG-only override takes the mass the writer states, else the kernel's; a
+  // mass-only override takes the kernel's CG for the part (getOverrideCGX is
+  // the part's own CG while the CG is not overridden).
+  const cgOnlyMass = overrideMass === undefined && overrideCg !== undefined ? (ownMass ?? figures?.mass) : undefined;
+  const massOnlyCg = overrideMass !== undefined && overrideCg === undefined ? figures?.cgX : undefined;
+  if (overrideMass !== undefined && overrideCg === undefined && massOnlyCg === undefined) {
+    // No kernel figures, so no CG to pair with the mass: a CG of 0 would move the
+    // part's CG to its front. Left out and named, with the part's own mass.
+    if (ownMass !== undefined) el(w, d, 'KnownMass', g(ownMass));
+    skip(w, { key: 'errors.rktSkip.massOverride', values: { name: n.name || { key: `part.${n.type}` } } });
+  } else if (overrideMass !== undefined || cgOnlyMass !== undefined) {
     el(w, d, 'KnownMass', g(overrideMass ?? cgOnlyMass!));
-    el(w, d, 'KnownCG', mm(overrideCg ?? 0));
+    el(w, d, 'KnownCG', mm(overrideCg ?? massOnlyCg!));
     el(w, d, 'UseKnownCG', 1);
   } else {
     if (ownMass !== undefined) el(w, d, 'KnownMass', g(ownMass));
@@ -308,12 +314,22 @@ function writeRadialAngle(w: Writer, d: number, angle: number | undefined): void
   if (angle) el(w, d, 'RadialAngle', radToDeg(angle));
 }
 
-/** A tube's outer radius and wall as `OD` and `ID`; `ID` needs both. */
-function writeTubeWall(w: Writer, d: number, n: ComponentNode): void {
+/**
+ * A tube's outer radius and wall as `OD` and `ID`; `ID` needs both.
+ * `boreFirst` writes `ID` before `OD`, which a launch lug needs: desktop's
+ * LaunchLugHandler applies them in file order, and
+ * LaunchLug.setInnerRadius rebuilds the outer radius as the bore plus the
+ * current wall, so an `ID` read second would undo the `OD`.
+ */
+function writeTubeWall(w: Writer, d: number, n: ComponentNode, boreFirst = false): void {
   const or = numOpt(n, 'outerRadius');
   const th = numOpt(n, 'thickness');
+  const bore = () => {
+    if (or !== undefined && th !== undefined) el(w, d, 'ID', dia(or - th));
+  };
+  if (boreFirst) bore();
   put(w, d, 'OD', or, dia);
-  if (or !== undefined && th !== undefined) el(w, d, 'ID', dia(or - th));
+  if (!boreFirst) bore();
 }
 
 /**
@@ -360,15 +376,15 @@ const writeRing: PartWriter = (w, d, n) => {
 };
 
 /** A tube on the outside of the airframe: its length, its wall, and where around the body it sits. */
-const writeSurfaceTube: PartWriter = (w, d, n) => {
+const writeSurfaceTube = (w: Writer, d: number, n: ComponentNode, boreFirst = false): void => {
   put(w, d, 'Len', numOpt(n, 'length'), mm);
-  writeTubeWall(w, d, n);
+  writeTubeWall(w, d, n, boreFirst);
   writeRadialAngle(w, d, numOpt(n, rollAngleKey(n.type)!));
 };
 
 const writeLaunchLug: PartWriter = (w, d, n) => {
   writeCommon(w, d, n, true);
-  writeSurfaceTube(w, d, n);
+  writeSurfaceTube(w, d, n, true);
 };
 
 const FIN_SHAPE_CODES: Record<string, number> = { trapezoidfinset: 0, ellipticalfinset: 1, freeformfinset: 2 };

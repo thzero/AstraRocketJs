@@ -594,11 +594,49 @@ describe('a canopy with no weight', () => {
 
 describe('mass and CG overrides through the one UseKnownCG switch', () => {
   /** A one-stage design holding just `part`. */
-  const only = (part: ComponentNode) =>
-    exportRkt('x', {
-      name: 'x',
-      components: [{ type: 'stage', id: 's', name: 'Sustainer', children: [part] }] as ComponentNode[],
+  const only = (part: ComponentNode, figures?: Parameters<typeof exportRkt>[2]) =>
+    exportRkt(
+      'x',
+      {
+        name: 'x',
+        components: [{ type: 'stage', id: 's', name: 'Sustainer', children: [part] }] as ComponentNode[],
+      },
+      figures,
+    );
+
+  /**
+   * The switch overrides mass and CG together, so a mass-only override needs the
+   * part's own CG in KnownCG. Desktop's BasePartDTO writes getOverrideCGX(),
+   * which is the part's own CG while the CG is not overridden; a CG of 0 would
+   * open with the part's CG moved to its front.
+   */
+  it('writes the kernel CG of the part for a mass-only override', () => {
+    const figures = (id: string) => (id === 'b' ? { mass: 0.02, cgX: 0.15 } : undefined);
+    const { xml: out, skipped: s } = only(
+      { type: 'bodytube', id: 'b', name: 'Airframe', length: 0.3, outerRadius: 0.0124, overrideMass: 0.05 },
+      figures,
+    );
+    const block = out.slice(out.indexOf('<BodyTube>'), out.indexOf('</BodyTube>'));
+    expect(block).toContain('<KnownMass>50</KnownMass>');
+    expect(block).toContain('<KnownCG>150</KnownCG>');
+    expect(block).toContain('<UseKnownCG>1</UseKnownCG>');
+    expect(s).toEqual([]);
+  });
+
+  it('leaves out and names a mass-only override with no kernel figures for its CG', () => {
+    const { xml: out, skipped: s } = only({
+      type: 'bodytube',
+      id: 'b',
+      name: 'Airframe',
+      length: 0.3,
+      outerRadius: 0.0124,
+      overrideMass: 0.05,
     });
+    const block = out.slice(out.indexOf('<BodyTube>'), out.indexOf('</BodyTube>'));
+    expect(block).not.toContain('<UseKnownCG>1</UseKnownCG>');
+    expect(block).not.toContain('<KnownCG>');
+    expect(s).toEqual([{ key: 'errors.rktSkip.massOverride', values: { name: 'Airframe' } }]);
+  });
 
   it('does not write an override mass of 0 for a part that overrides only its CG', () => {
     const { xml: out, skipped: s } = only({
@@ -645,25 +683,29 @@ describe('mass and CG overrides through the one UseKnownCG switch', () => {
 
   it('writes KnownMass once on a mass component that also overrides its mass', () => {
     // Inside a body tube, the only place a stage holds a mass object.
-    const { xml: out } = only({
-      type: 'bodytube',
-      id: 'b',
-      name: 'Airframe',
-      length: 0.3,
-      outerRadius: 0.0124,
-      thickness: 0.0004,
-      children: [
-        {
-          type: 'masscomponent',
-          id: 'm',
-          name: 'Altimeter',
-          length: 0.03,
-          radius: 0.01,
-          mass: 0.02,
-          overrideMass: 0.05,
-        },
-      ],
-    } as unknown as ComponentNode);
+    const figures = (id: string) => (id === 'm' ? { mass: 0.02, cgX: 0.015 } : undefined);
+    const { xml: out } = only(
+      {
+        type: 'bodytube',
+        id: 'b',
+        name: 'Airframe',
+        length: 0.3,
+        outerRadius: 0.0124,
+        thickness: 0.0004,
+        children: [
+          {
+            type: 'masscomponent',
+            id: 'm',
+            name: 'Altimeter',
+            length: 0.03,
+            radius: 0.01,
+            mass: 0.02,
+            overrideMass: 0.05,
+          },
+        ],
+      } as unknown as ComponentNode,
+      figures,
+    );
     const block = out.slice(out.indexOf('<MassObject>'), out.indexOf('</MassObject>'));
     expect(block.match(/<KnownMass>/g)).toHaveLength(1);
     // BasePartDTO writes getMass(), which is the override when there is one.
@@ -892,7 +934,7 @@ describe('exportRkt, read by the desktop handlers', () => {
     });
 
     it('needs neither when the set overrides its own mass', () => {
-      const { xml: out, skipped: s } = write([tube([fins({ overrideMass: 0.02 })])]);
+      const { xml: out, skipped: s } = write([tube([fins({ overrideMass: 0.02 })])], figures);
       expect(field(out, 'FinSet', 'CalcMass')).toBeUndefined();
       expect(s).toEqual([]);
     });
@@ -958,11 +1000,12 @@ describe('exportRkt, read by the desktop handlers', () => {
 
 /** The rest of what desktop's RockSim handlers read differently. */
 describe('exportRkt, read by the desktop handlers: fins, pods and finishes', () => {
-  const write = (parts: ComponentNode[]) =>
-    exportRkt('x', {
-      name: 'x',
-      components: [{ type: 'stage', id: 's', name: 'Sustainer', children: parts }],
-    } as RocketTree);
+  const write = (parts: ComponentNode[], figures?: Parameters<typeof exportRkt>[2]) =>
+    exportRkt(
+      'x',
+      { name: 'x', components: [{ type: 'stage', id: 's', name: 'Sustainer', children: parts }] } as RocketTree,
+      figures,
+    );
   const tube = (children: ComponentNode[]): ComponentNode => ({
     type: 'bodytube',
     id: 'b',
@@ -1078,7 +1121,8 @@ describe('exportRkt, read by the desktop handlers: fins, pods and finishes', () 
    * the circle, named `<name> #<n>`, with the mass override shared.
    */
   it('writes a set of three pods as three pods', () => {
-    const { xml: out } = write([tube([pod({ instanceCount: 3, overrideMass: 0.03 })])]);
+    const podFigures = (id: string) => (id === 'p' ? { mass: 0.01, cgX: 0.05 } : undefined);
+    const { xml: out } = write([tube([pod({ instanceCount: 3, overrideMass: 0.03 })])], podFigures);
     const pods = blocks(out, 'ExternalPod');
     expect(pods).toHaveLength(3);
     expect(pods.map((p) => value(p, 'Name'))).toEqual(['Pod #1', 'Pod #2', 'Pod #3']);
@@ -1086,6 +1130,28 @@ describe('exportRkt, read by the desktop handlers: fins, pods and finishes', () 
       [0, 120, 240].map((a) => expect.closeTo(a, 9)),
     );
     for (const p of pods) expect(Number(value(p, 'KnownMass'))).toBeCloseTo(10, 9);
+  });
+
+  /**
+   * Desktop's LaunchLugHandler applies OD and ID in file order, and
+   * LaunchLug.setInnerRadius rebuilds the outer radius as the bore plus the
+   * current wall (1 mm on a new lug), so an ID read after the OD would give the
+   * lug the bore plus that wall as its outside rather than the stated OD.
+   */
+  it('writes a launch lug bore before its outside', () => {
+    const lug = {
+      type: 'launchlug',
+      id: 'l',
+      name: 'Lug',
+      length: 0.03,
+      outerRadius: 0.002,
+      thickness: 0.0003,
+    } as ComponentNode;
+    const block = blocks(write([tube([lug])]).xml, 'LaunchLug')[0]!;
+    expect(block.indexOf('<ID>')).toBeGreaterThan(-1);
+    expect(block.indexOf('<ID>')).toBeLessThan(block.indexOf('<OD>'));
+    expect(Number(value(block, 'OD'))).toBeCloseTo(4, 9);
+    expect(Number(value(block, 'ID'))).toBeCloseTo(3.4, 9);
   });
 
   /**
@@ -1121,11 +1187,13 @@ describe('exportRkt, read by the desktop handlers: fins, pods and finishes', () 
 
 /** What RockSim has no element for, named in the result rather than lost quietly. */
 describe('exportRkt, overrides RockSim cannot hold', () => {
+  // The kernel's figures, as the app passes them, so a mass-only override is written.
   const only = (part: ComponentNode) =>
-    exportRkt('x', {
-      name: 'x',
-      components: [{ type: 'stage', id: 's', name: 'Sustainer', children: [part] }],
-    } as RocketTree);
+    exportRkt(
+      'x',
+      { name: 'x', components: [{ type: 'stage', id: 's', name: 'Sustainer', children: [part] }] } as RocketTree,
+      (id) => (id === 'n' ? { mass: 0.03, cgX: 0.06 } : undefined),
+    );
   const nose = (extra: Partial<ComponentNode>): ComponentNode =>
     ({ type: 'nosecone', id: 'n', name: 'Nose', length: 0.1, aftRadius: 0.0124, ...extra }) as ComponentNode;
 

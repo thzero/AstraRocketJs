@@ -1095,18 +1095,18 @@ describe("a transition's shoulders weigh what they are built from", () => {
     expect(bothCapped).toBeGreaterThan(foreCapped);
   });
 
-  it('falls back to the part wall when the shoulder carries no thickness', () => {
-    // An absent shoulder thickness is not a zero one. OpenRocket fills the
-    // shoulder's wall (and radius) from the part when the shoulder length goes
-    // from zero to something (Transition.setForeShoulderLength), so a cap
-    // still has material to be made of. It is also why the panel showing 0 for
-    // that absent key states a number the kernel is not using.
-    const open = massOf(withTransition({}));
-    const capped = massOf(withTransition({ foreShoulderCapped: true, aftShoulderCapped: true }));
-    expect(capped).toBeGreaterThan(open);
+  it('flies an absent shoulder wall as the 0 the panel and the .ork state', () => {
+    // Transition.setForeShoulderLength seeds a shoulder that grows from length 0
+    // with the part's own wall. The panel shows an absent wall as 0 and the
+    // .ork writes 0, which desktop flies, so the bridge sets it after the
+    // length rather than leave the seeded wall in place.
+    const caps = { foreShoulderCapped: true, aftShoulderCapped: true };
+    const absent = massOf(withTransition(caps));
+    const stated = massOf(withTransition({ ...caps, foreShoulderThickness: 0, aftShoulderThickness: 0 }));
+    expect(absent).toBe(stated);
   });
 
-  it('lets an explicit wall override the one the kernel would fill in', () => {
+  it('flies a stated wall', () => {
     const auto = massOf(withTransition({ foreShoulderCapped: true, aftShoulderCapped: true }));
     const thick = massOf(
       withTransition({

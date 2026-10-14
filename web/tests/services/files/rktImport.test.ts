@@ -386,3 +386,31 @@ describe('a .rkt shoulder wider than its end', () => {
     expect(t['aftShoulderRadius']).toBeCloseTo(0.009, 9);
   });
 });
+
+/**
+ * LaunchLug.setAngleOffset and RailButton.setAngleOffset keep [-180°, 180°] and
+ * clamp past it. The RockSim reader converts degrees so a part lands where
+ * RockSim drew it, so a lug at 270° comes in at -90°, the same place, rather
+ * than showing 270 and flying at 180.
+ */
+describe('a .rkt lug or rail button past 180 degrees', () => {
+  const doc = (part: string): string =>
+    `<RockSimDocument><DesignInformation><RocketDesign><Name>Lug</Name><StageCount>1</StageCount>` +
+    `<Stage3Parts><BodyTube><Name>b</Name><Len>300</Len><OD>40</OD><ID>39</ID><AttachedParts>${part}` +
+    `</AttachedParts></BodyTube></Stage3Parts></RocketDesign></DesignInformation></RockSimDocument>`;
+
+  it('comes in at the same place, inside the range the kernel keeps', () => {
+    const res = importRkt(
+      doc('<LaunchLug><Name>Lug</Name><Len>35</Len><OD>4.8</OD><RadialAngle>270</RadialAngle></LaunchLug>'),
+    );
+    const lug = res.tree.components[0]!.children![0]!.children![0]!;
+    expect(lug['angleOffset']).toBeCloseTo(-Math.PI / 2, 9);
+  });
+
+  it('keeps 180 as 180', () => {
+    const res = importRkt(
+      doc('<LaunchLug><Name>Lug</Name><Len>35</Len><OD>4.8</OD><RadialAngle>180</RadialAngle></LaunchLug>'),
+    );
+    expect(res.tree.components[0]!.children![0]!.children![0]!['angleOffset']).toBeCloseTo(Math.PI, 9);
+  });
+});

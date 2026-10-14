@@ -17,7 +17,7 @@ import { KeyedError } from '../../i18n/keyedError';
 // Every mutator here ends by resolving the radii and shoulders that follow a
 // neighbor (syncDerived): this is the one door the tree is edited through, so
 // nothing downstream has to know the feature exists.
-import { syncAutoShoulders } from './autoShoulder';
+import { shoulderSeed, syncAutoShoulders } from './autoShoulder';
 import { syncAutoRadii } from './autoRadius';
 import { findNode as findNodeIn, findSiblings, findWithParent, walkNodes } from '../../tree/treeWalk';
 import { shapeChange } from '../../tree/shapeProfile';
@@ -166,7 +166,10 @@ export function updateNode(tree: RocketTree, id: string, patch: Partial<Componen
       if (n.id === id) {
         found = true;
         const out = nodes.slice();
-        const next = { ...n, ...patch };
+        const patched = { ...n, ...patch };
+        // A shoulder length set from or back to 0 brings its wall, radius and
+        // cap with it, as desktop's setter does.
+        const next = { ...patched, ...shoulderSeed(n, patched, patch, nodes, i) };
         if (n['preset'] && breaksPreset(n, patch)) delete next['preset'];
         out[i] = next;
         return out;

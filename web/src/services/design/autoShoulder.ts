@@ -1,5 +1,8 @@
 import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
-import { boreAt } from './discGeometry';
+import { boreAt, endAt } from './discGeometry';
+import { num } from '../../tree/nodeProps';
+import { KERNEL_AUTO_RADIUS } from '../../tree/kernelDefaults';
+import { COMPONENT_DEFAULTS } from './componentDefaults';
 import { mapTreePreserving, type MapContext } from '../../tree/treeWalk';
 
 /**
@@ -30,13 +33,91 @@ import { mapTreePreserving, type MapContext } from '../../tree/treeWalk';
  */
 
 /** Which shoulder follows which neighbor: -1 is the part above, +1 below. */
-const SHOULDERS: Record<string, readonly { auto: string; radius: string; side: -1 | 1 }[]> = {
-  nosecone: [{ auto: 'shoulderAuto', radius: 'shoulderRadius', side: 1 }],
+const SHOULDERS: Record<
+  string,
+  readonly { auto: string; length: string; radius: string; thickness: string; capped: string; side: -1 | 1 }[]
+> = {
+  nosecone: [
+    {
+      auto: 'shoulderAuto',
+      length: 'shoulderLength',
+      radius: 'shoulderRadius',
+      thickness: 'shoulderThickness',
+      capped: 'shoulderCapped',
+      side: 1,
+    },
+  ],
   transition: [
-    { auto: 'foreShoulderAuto', radius: 'foreShoulderRadius', side: -1 },
-    { auto: 'aftShoulderAuto', radius: 'aftShoulderRadius', side: 1 },
+    {
+      auto: 'foreShoulderAuto',
+      length: 'foreShoulderLength',
+      radius: 'foreShoulderRadius',
+      thickness: 'foreShoulderThickness',
+      capped: 'foreShoulderCapped',
+      side: -1,
+    },
+    {
+      auto: 'aftShoulderAuto',
+      length: 'aftShoulderLength',
+      radius: 'aftShoulderRadius',
+      thickness: 'aftShoulderThickness',
+      capped: 'aftShoulderCapped',
+      side: 1,
+    },
   ],
 };
+
+const isZero = (v: number): boolean => Math.abs(v) < 1e-8;
+
+/**
+ * What a shoulder length edit brings with it, as desktop's setter does it
+ * (`Transition.setForeShoulderLength`, `setAftShoulderLength`; a nose cone's
+ * shoulder is the one at its base). A shoulder that grows from length 0 takes
+ * the neighbor's wall and a radius of the neighbor's radius less that wall,
+ * each only where it was 0, and is capped. With no neighbor the wall is the
+ * part's own and the radius `SymmetricComponent.DEFAULT_RADIUS` less it. A
+ * shoulder set back to 0 loses its radius, wall and cap. Desktop applies a
+ * catalog part through the same setter (`Transition.loadFromPreset`).
+ *
+ * Without it the bridge, which flies the wall the node states, would fly a
+ * shoulder with no wall and no cap where desktop flies one with both.
+ *
+ * `before` is the node as it was, `after` with the edit applied, `siblings`
+ * and `index` where it sits. Keys the edit states itself are left alone.
+ */
+export function shoulderSeed(
+  before: ComponentNode,
+  after: ComponentNode,
+  edit: Partial<ComponentNode>,
+  siblings: readonly ComponentNode[],
+  index: number,
+): Partial<ComponentNode> {
+  const out: Record<string, unknown> = {};
+  const free = (k: string) => !(k in edit);
+  for (const s of SHOULDERS[after.type] ?? []) {
+    const was = num(before, s.length, 0);
+    const now = num(after, s.length, 0);
+    if (isZero(was) && !isZero(now)) {
+      const side = sideOf(after, s.side);
+      const neighbor = siblings[index + side];
+      const e = neighbor ? endAt(neighbor, side === -1 ? 'aft' : 'fore') : null;
+      // A neighbor that is solid, or a nose cone's tip, offers no wall to take.
+      if (!neighbor || e) {
+        const own = num(after, 'thickness', COMPONENT_DEFAULTS[after.type as 'nosecone' | 'transition'].thickness);
+        const wall = e ? e.wall : own;
+        const radius = (e ? e.outer : KERNEL_AUTO_RADIUS) - wall;
+        if (free(s.thickness) && isZero(num(after, s.thickness, 0))) out[s.thickness] = wall;
+        if (free(s.radius) && isZero(num(after, s.radius, 0))) out[s.radius] = Math.max(0, radius);
+      }
+      if (free(s.capped)) out[s.capped] = true;
+    } else if (!isZero(was) && isZero(now)) {
+      if (free(s.radius)) out[s.radius] = 0;
+      if (free(s.thickness)) out[s.thickness] = 0;
+      if (free(s.capped)) out[s.capped] = false;
+    }
+  }
+  return out;
+}
 
 /**
  * A flipped nose cone is a tail cone: its base, and the shoulder on it, face

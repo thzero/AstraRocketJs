@@ -64,7 +64,10 @@
       "noseFirst": "Projekty RASAero zaczynają się od stożka dziobowego, a pierwszym elementem stopnia górnego jest „{{name}}”. Ustaw stożek dziobowy na początku albo wyeksportuj jako .ork.",
       "secondPart": "RASAero wymaga rury korpusu zaraz po stożku dziobowym albo zwężenia ogonowego jako ostatniego elementu, więc „{{name}}” nie może być w tym miejscu. Zmień kolejność albo wyeksportuj jako .ork.",
       "noseNotFirst": "RASAero dopuszcza stożek dziobowy tylko jako pierwszy element, więc nie można wyeksportować „{{name}}”. Użyj przejścia albo wyeksportuj jako .ork.",
-      "noseFlipped": "RASAero nie ma odwróconych stożków dziobowych, więc nie można wyeksportować „{{name}}”. Użyj przejścia albo wyeksportuj jako .ork."
+      "noseFlipped": "RASAero nie ma odwróconych stożków dziobowych, więc nie można wyeksportować „{{name}}”. Użyj przejścia albo wyeksportuj jako .ork.",
+      "noseOgiveParameter": "RASAero przyjmuje stożek ostrołukowy tylko z parametrem kształtu 1, więc nie można wyeksportować „{{name}}” (parametr kształtu {{value}}). Zmień parametr kształtu albo wyeksportuj jako .ork.",
+      "noseHaackParameter": "RASAero przyjmuje stożek Haacka tylko z parametrem kształtu 0 (Von Kármán) lub 0,33 (LV-Haack), więc nie można wyeksportować „{{name}}” (parametr kształtu {{value}}). Zmień parametr kształtu albo wyeksportuj jako .ork.",
+      "chuteEvent": "RASAero otwiera spadochron tylko w apogeum lub na zadanej wysokości, więc nie można wyeksportować „{{name}}” ({{event}}). Zmień jego otwarcie albo wyeksportuj jako .ork."
     },
     "motorFile": {
       "engNoData": "To nie jest prawidłowy plik .eng (nie znaleziono danych silnika).",
@@ -164,6 +167,7 @@
       "cdOverride": "nadpisanie Cd ({{name}})",
       "cgOverride": "nadpisanie SC ({{name}})",
       "extraStages": "stopień {{from}} i dalsze",
+      "massOverride": "nadpisanie masy ({{name}})",
       "subtreeOverride": "nadpisanie podrzędnych części ({{name}})"
     },
     "viewFailed": "Nie udało się załadować tego widoku.",

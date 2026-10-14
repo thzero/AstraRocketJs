@@ -35,6 +35,7 @@ import info.openrocket.core.rocketcomponent.ComponentAssembly;
 import info.openrocket.core.rocketcomponent.FlightConfiguration;
 import info.openrocket.core.rocketcomponent.FlightConfigurationId;
 import info.openrocket.core.rocketcomponent.InnerTube;
+import info.openrocket.core.rocketcomponent.MassObject;
 import info.openrocket.core.rocketcomponent.MotorMount;
 import info.openrocket.core.rocketcomponent.NoseCone;
 import info.openrocket.core.rocketcomponent.Parachute;
@@ -857,6 +858,12 @@ public final class OpenRocketEngine {
         if (c == null) {
             throw new IllegalArgumentException("Unknown component id: '" + componentId + "'");
         }
+        // A mass object's length follows its radius when the radius is
+        // automatic, and only getRadius() settles the pair, as in ComponentFields:
+        // read before it, the length and CG are those of the stored radius.
+        if (c instanceof MassObject) {
+            ((MassObject) c).getRadius();
+        }
         CoordinateIF[] locations = c.getComponentLocations();
         double absX = locations.length > 0 ? locations[0].getX() : Double.NaN;
         StringBuilder sb = new StringBuilder("{");
@@ -893,6 +900,35 @@ public final class OpenRocketEngine {
             RocketComponent c = ctx.ids.get(componentId);
             if (c == null) {
                 throw new IllegalArgumentException("Unknown component id: '" + componentId + "'");
+            }
+            return ComponentFields.of(c);
+        } catch (RuntimeException e) {
+            return errorJson(e);
+        }
+    }
+
+    /**
+     * A shoulder length set on a part of a built rocket through the kernel's own
+     * setter, the way desktop's dialog sets it, and the part's fields after
+     * ({@link ComponentFields}). `side` is "" for a nose cone's shoulder, "fore"
+     * or "aft" for a transition's. The setter seeds a shoulder that grows from
+     * length 0 from the part next to it (Transition.setForeShoulderLength), which
+     * buildRocket cannot show: it sets the length before the part is attached.
+     * The rocket is changed in place.
+     */
+    @JSExport
+    public static String setShoulderLength(int rocketHandle, String componentId, String side, double length) {
+        try {
+            RocketCtx ctx = get(rocketHandle, RocketCtx.class, "a rocket");
+            RocketComponent c = ctx.ids.get(componentId);
+            if (c instanceof NoseCone && side.isEmpty()) {
+                ((NoseCone) c).setShoulderLength(length);
+            } else if (c instanceof Transition && !(c instanceof NoseCone) && "fore".equals(side)) {
+                ((Transition) c).setForeShoulderLength(length);
+            } else if (c instanceof Transition && !(c instanceof NoseCone) && "aft".equals(side)) {
+                ((Transition) c).setAftShoulderLength(length);
+            } else {
+                throw new IllegalArgumentException("No '" + side + "' shoulder on component id: '" + componentId + "'");
             }
             return ComponentFields.of(c);
         } catch (RuntimeException e) {

@@ -663,7 +663,7 @@ exports[`golden .CDX1 export > pins the three-stage design with engines, recover
 <EventType1>Altitude</EventType1>
 <EventType2>Apogee</EventType2>
 <CD1>0.8</CD1>
-<CD2>0.75</CD2>
+<CD2>0.8</CD2>
 </Recovery>
 <MachAlt>
 <Item>0.3, 0</Item>

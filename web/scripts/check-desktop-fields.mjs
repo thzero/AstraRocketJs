@@ -54,23 +54,6 @@ const KNOWN = [
   },
   { rule: 'ork:railbutton.instanceSeparation', why: 'C2', when: (a, d) => a > 0 && d === 0 },
   {
-    rule: 'rkt:*.cgOverridden',
-    why: 'C42: a mass-only override is written with the known CG switch on and a CG of 0',
-    when: (a, d, af) => a === false && d === true && af.massOverridden === true,
-  },
-  {
-    rule: 'rkt:*.overrideCGX',
-    why: 'C42',
-    when: (a, d, af, df) => af.massOverridden === true && !af.cgOverridden && df.cgOverridden && d === 0,
-  },
-  {
-    rule: 'ork:nosecone.shoulderThickness',
-    why: 'C33: the kernel gives a new shoulder the part wall; the file states 0',
-    when: (a, d) => a > 0 && d === 0,
-  },
-  { rule: 'ork:transition.foreShoulderThickness', why: 'C33', when: (a, d) => a > 0 && d === 0 },
-  { rule: 'ork:transition.aftShoulderThickness', why: 'C33', when: (a, d) => a > 0 && d === 0 },
-  {
     rule: 'ork:parachute.lineLength',
     why: 'C36: `auto` line length, which desktop 24.12 does not read',
     when: (a, d) => d === 0.3,
@@ -86,11 +69,6 @@ const KNOWN = [
     when: (a, d, af) => a !== d && af.cordLength === a,
   },
   {
-    rule: 'rkt:launchlug.outerRadius',
-    why: 'C37: OD is written before ID, and desktop rebuilds the outer radius from the bore plus its 1 mm wall',
-    when: (a, d) => d > a,
-  },
-  {
     rule: 'rkt:*.instanceCount',
     why: "C38: RockSim states no repeat count (desktop's own export drops it too), and the writer does not say so",
     when: (a, d) => a > 1 && d === 1,
@@ -99,6 +77,11 @@ const KNOWN = [
     rule: 'rkt:bodytube.outerRadius',
     why: 'C44: two automatic ends that follow each other keep their stored radius in the app, which the writer emits',
     when: (a, d) => d < a,
+  },
+  {
+    rule: 'rkt:parachute.overrideCGX',
+    why: 'C44: the pack follows the bore of a tube in a mutual automatic pair, which the kernel resolves by read order; the writer took the CG of the pack at the other answer',
+    when: (a, d, af) => af.massOverridden === true && !af.cgOverridden && Math.abs(a - af.length / 2) < 1e-9 && d > a,
   },
   // What RockSim cannot carry, or desktop's RockSim reader does not read.
   {
@@ -110,6 +93,11 @@ const KNOWN = [
     rule: 'rkt:*.cgOverridden',
     why: 'an airfoil fin set goes out as its kernel mass and CG',
     when: (a, d, af) => af.crossSection === 'airfoil' && d === true,
+  },
+  {
+    rule: 'rkt:*.cgOverridden',
+    why: "RockSim overrides mass and CG together, so a mass-only override goes out with the part's own CG, as desktop's own export writes it",
+    when: (a, d, af) => af.massOverridden === true && !af.cgOverridden && d === true,
   },
   {
     rule: 'rkt:masscomponent.massOverridden',
@@ -174,6 +162,11 @@ const KNOWN = [
     rule: 'rkt:transition.foreShoulderThickness',
     why: 'TransitionHandler takes the wall, or the shoulder radius when solid',
     when: (a, d, af, df) => d === df.thickness || d === df.foreShoulderRadius,
+  },
+  {
+    rule: 'rkt:transition.aftShoulderThickness',
+    why: 'TransitionHandler takes the wall, or the shoulder radius when solid',
+    when: (a, d, af, df) => d === df.thickness || d === df.aftShoulderRadius,
   },
   {
     rule: 'rkt:parachute.length',

@@ -55,9 +55,9 @@ La aplicación mantiene una biblioteca de tus cohetes en el navegador, así que 
 
 **Menú → Exportar → RASAero II** escribe el diseño como un archivo `.CDX1` de RASAero II, para que puedas abrirlo en **[RASAero II](https://www.rasaero.com/)** y hacer su propio análisis aerodinámico y de vuelo.
 
-RASAero modela únicamente la **forma aerodinámica exterior**, así que la exportación lleva el fuselaje (ojiva, tubos, transiciones y colas de bote, aletas y guías de lanzamiento) además del **peso y el CG** cargados (escritos en el bloque de simulación de RASAero). Las piezas internas sin efecto aerodinámico (anillos de centrado, mamparos, cordones de choque, topes de motor) se descartan; los paracaídas se convierten en entradas de recuperación de RASAero. Las dimensiones se convierten a las unidades de RASAero (pulgadas, libras, pies, °F).
+RASAero modela únicamente la **forma aerodinámica exterior**, así que la exportación lleva el fuselaje (ojiva, tubos, transiciones y colas de bote, aletas y guías de lanzamiento) además del **peso y el CG** cargados (escritos en el bloque de simulación de RASAero). Las piezas internas sin efecto aerodinámico (anillos de centrado, mamparos, cordones de choque, topes de motor) se descartan; los dos primeros paracaídas dentro de los tubos de las etapas se convierten en las dos entradas de recuperación de RASAero, con el despliegue de la configuración de vuelo que tengas seleccionada. Un paracaídas en una ojiva, una transición o un pod no se exporta, como en OpenRocket. Las dimensiones se convierten a las unidades de RASAero (pulgadas, libras, pies, °F).
 
-Como RASAero no puede representar todas las formas, la exportación **se detiene con un mensaje claro** en lugar de escribir un archivo que RASAero rechazaría: por ejemplo, aletas tubulares o elípticas, una transición no cónica, más de un juego de aletas en un tubo, o una aleta de forma libre que no sea un trapecio simple. En esos casos, usa `.ork`.
+Como RASAero no puede representar todas las formas, la exportación **se detiene con un mensaje claro** en lugar de escribir un archivo que RASAero rechazaría: por ejemplo, aletas tubulares o elípticas, una transición no cónica, más de un juego de aletas en un tubo, una aleta de forma libre que no sea un trapecio simple, una ojiva ojival con un parámetro de forma distinto de 1, una ojiva Haack que no sea Von Kármán (0) ni LV-Haack (0,33), o un paracaídas que se despliegue en algo que no sea el apogeo o una altitud (un paracaídas nuevo se despliega con la carga de eyección del motor, así que ajusta antes su despliegue). En esos casos, cambia el diseño o usa `.ork`.
 
 ## Exportar el cohete entero para impresión 3D (`.3mf`) {#exporting-the-whole-rocket-for-3d-printing-3mf}
 
@@ -83,7 +83,7 @@ La exportación es **por componente**, no del cohete entero: en el árbol de **C
 
 Notas sobre la geometría 3D:
 
-- Todo se escala a **milímetros** (la unidad que asumen los laminadores y el CAD) y cada pieza es un **sólido estanco y variedad cerrada**: un laminador no lo rechazará.
+- STL, OBJ y 3MF están en **milímetros** (la unidad que asumen los laminadores y el CAD). GLB está en **metros**, la unidad que define el formato glTF, así que los visores muestran la pieza a su tamaño real. Cada pieza es un **sólido estanco y variedad cerrada**: un laminador no lo rechazará.
 - Los **tubos son huecos** (con espesor de pared real), no varillas macizas; las ojivas y transiciones incluyen sus **hombros**; una ojiva, transición o mamparo es un cuerpo macizo.
 - Un **juego de aletas** exporta una aleta; un **juego de aletas tubulares** exporta un tubo: imprimes o cortas tantos como tenga el diseño.
 - Los nombres de archivo son el del cohete y luego el del componente (o su tipo), para que las ojivas de dos diseños no choquen en tu carpeta de descargas. Consulta [Cómo se llama una descarga](#what-a-download-is-called).

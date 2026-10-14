@@ -20,7 +20,7 @@ import { effectivePrefs, isOutdated, newSimulation } from '../services/flight/si
 import { loadSettings } from '../services/storage/settings';
 import { importNotes } from '../services/files/importBanner';
 import { configPowerClass } from '../services/flight/powerClass';
-import { configFor } from '../services/flight/flightConfigs';
+import { configFor, configuredTree } from '../services/flight/flightConfigs';
 import { defaultDesignName, designNameOf } from '../services/app/appInfo';
 import { getDesignLibrary, type DesignMeta } from '../services/storage/designLibrary';
 import { getWorkspaceStore, lean, resultsOf } from '../services/storage/workspaceStore';
@@ -651,7 +651,9 @@ export const createFileSlice =
           const { downloadCdx1 } = await import('../services/files/rasaeroExport');
           downloadCdx1({
             name: designNameOf(tree, loadedMeta),
-            tree,
+            // The selected configuration's deployments, as desktop's exporter
+            // reads them.
+            tree: configuredTree(tree, selectConfig(get())),
             motors,
             launch: active.launch,
             // Whole-rocket loaded mass/CG feed RASAero's mandatory simulation block.

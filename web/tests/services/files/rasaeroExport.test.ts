@@ -357,30 +357,125 @@ describe('a booster made of two tubes', () => {
   });
 });
 
-// A key the part does not carry is the kernel's default, as it flies: a new
-// parachute deploys on the ejection charge, which RecoveryDTO maps to no event,
-// and is 0.3 m across.
+/** The base design with one parachute in the body tube. */
+const withChute = (chute: Record<string, unknown>): RocketTree => ({
+  ...tree,
+  components: [
+    {
+      ...tree.components[0]!,
+      children: [
+        tree.components[0]!.children![0]!,
+        { ...tree.components[0]!.children![1]!, children: [{ type: 'parachute', id: 'p', name: 'Main', ...chute }] },
+      ],
+    },
+  ],
+});
+const exported = (t: RocketTree) =>
+  new DOMParser().parseFromString(
+    exportCdx1({ tree: t, name: 'Chute', launchMassKg: 0.45, launchCgM: 0.12 }),
+    'text/xml',
+  );
+
+/**
+ * RASAero deploys at apogee or at an altitude and nothing else. Desktop's
+ * RecoveryDTO raises RASAeroExport.error21 for any other event rather than write
+ * a chute that never opens. A key the part does not carry is the kernel's
+ * default: a new parachute deploys on the ejection charge, is 0.3 m across, and
+ * flies Parachute.DEFAULT_CD.
+ */
 describe('a parachute with no deployment or size of its own', () => {
-  const withChute: RocketTree = {
+  it('is refused on the ejection charge, naming the part and the event', () => {
+    expect(() => exported(withChute({}))).toThrow(
+      expect.objectContaining({
+        key: 'errors.rasaero.chuteEvent',
+        values: { name: 'Main', event: { key: 'deployEvent.ejection' } },
+      }),
+    );
+  });
+
+  it('goes out at the kernel diameter and drag coefficient once it deploys at apogee', () => {
+    const doc = exported(withChute({ deployEvent: 'apogee' }));
+    expect(doc.querySelector('Recovery > EventType1')?.textContent).toBe('Apogee');
+    expect(doc.querySelector('Recovery > Event1')?.textContent).toBe('True');
+    expect(Number(doc.querySelector('Recovery > Size1')?.textContent)).toBeCloseTo(0.3 / 0.0254, 3);
+    expect(Number(doc.querySelector('Recovery > CD1')?.textContent)).toBe(0.8);
+  });
+});
+
+/**
+ * Desktop's exporter reads the parachutes under each stage's own body tubes,
+ * a tube's whole subtree in order (RecoveryDTO.getParachutesFromRocket iterates
+ * the tube), and no other: one in a nose cone is not a recovery entry, and its
+ * event does not stop the export.
+ */
+describe('which parachutes are recovery', () => {
+  const design = (noseKids: object[], tubeKids: object[]): RocketTree => ({
     ...tree,
     components: [
       {
         ...tree.components[0]!,
         children: [
-          tree.components[0]!.children![0]!,
-          { ...tree.components[0]!.children![1]!, children: [{ type: 'parachute', id: 'p' }] },
+          { ...tree.components[0]!.children![0]!, children: noseKids },
+          { ...tree.components[0]!.children![1]!, children: tubeKids },
         ],
+      } as RocketTree['components'][number],
+    ],
+  });
+
+  it('reads one inside an inner tube in a body tube, and none in the nose cone', () => {
+    const doc = exported(
+      design(
+        [{ type: 'parachute', id: 'n', name: 'Nose chute' }],
+        [
+          {
+            type: 'innertube',
+            id: 'it',
+            length: 0.1,
+            children: [{ type: 'parachute', id: 'p', name: 'Main', diameter: 0.6, deployEvent: 'apogee' }],
+          },
+        ],
+      ),
+    );
+    expect(doc.querySelector('Recovery > Size1')?.textContent).toBe(String(Number((0.6 / 0.0254).toFixed(3))));
+    expect(doc.querySelector('Recovery > DeviceType2')?.textContent).toBe('None');
+  });
+});
+
+/**
+ * RASAero has one ogive (tangent) and two Haack noses. Desktop
+ * (RASAeroCommonConstants.OPENROCKET_TO_RASAERO_SHAPE) takes an ogive only at
+ * shape parameter 1 and a Haack only at 0 (Von Karman) or within 1% of 0.33
+ * (LV-Haack), and refuses the rest. An absent parameter is the shape's default.
+ */
+describe('the nose shape parameter', () => {
+  const withNose = (nose: Record<string, unknown>): RocketTree => ({
+    ...tree,
+    components: [
+      {
+        ...tree.components[0]!,
+        children: [{ ...tree.components[0]!.children![0]!, name: 'Nose', ...nose }, tree.components[0]!.children![1]!],
       },
     ],
-  };
-  const doc = new DOMParser().parseFromString(
-    exportCdx1({ tree: withChute, name: 'Chute', launchMassKg: 0.45, launchCgM: 0.12 }),
-    'text/xml',
-  );
+  });
+  const shapeOf = (nose: Record<string, unknown>) =>
+    exported(withNose(nose)).querySelector('NoseCone > Shape')?.textContent;
 
-  it('goes out with no event, at the kernel diameter', () => {
-    expect(doc.querySelector('Recovery > EventType1')?.textContent).toBe('None');
-    expect(doc.querySelector('Recovery > Event1')?.textContent).toBe('False');
-    expect(Number(doc.querySelector('Recovery > Size1')?.textContent)).toBeCloseTo(0.3 / 0.0254, 3);
+  it.each([
+    [{ shape: 'ogive' }, 'Tangent Ogive'],
+    [{ shape: 'ogive', shapeParameter: 1 }, 'Tangent Ogive'],
+    [{ shape: 'haack' }, 'Von Karman Ogive'],
+    [{ shape: 'haack', shapeParameter: 0 }, 'Von Karman Ogive'],
+    [{ shape: 'haack', shapeParameter: 0.333 }, 'LV-Haack'],
+  ])('writes %o as %s', (nose, expected) => {
+    expect(shapeOf(nose)).toBe(expected);
+  });
+
+  it.each([
+    [{ shape: 'ogive', shapeParameter: 0.5 }, 'errors.rasaero.noseOgiveParameter', 0.5],
+    [{ shape: 'haack', shapeParameter: 0.2 }, 'errors.rasaero.noseHaackParameter', 0.2],
+    // The kernel's LV-Haack, 1/3, is outside desktop's 1% of 0.33.
+    [{ shape: 'haack', shapeParameter: 1 / 3 }, 'errors.rasaero.noseHaackParameter', 0.333],
+  ])('refuses %o', (nose, key, value) => {
+    expect(() => shapeOf(nose)).toThrow(expect.objectContaining({ key, values: { name: 'Nose', value } }));
   });
 });

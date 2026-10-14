@@ -816,6 +816,26 @@ function subtractAngleOffset(children: ComponentNode[], angle: number): void {
   }
 }
 
+/**
+ * A lug's or rail button's angle brought into [-180°, 180°], which is all
+ * LaunchLug.setAngleOffset and RailButton.setAngleOffset keep: past it they
+ * clamp, so a lug read at 270° (or turned past 180° by its pod's angle) would
+ * show and save as 270 and fly at 180. Wrapped rather than clamped, because the
+ * angle is converted from RockSim's degrees to put the part where RockSim drew
+ * it (see readRadialAngle), and -90° is that same place.
+ */
+function wrapMountAngles(nodes: ComponentNode[]): ComponentNode[] {
+  for (const n of nodes) {
+    const a = n['angleOffset'];
+    const mount = n.type === 'launchlug' || n.type === 'railbutton';
+    if (mount && typeof a === 'number' && Number.isFinite(a) && Math.abs(a) > Math.PI) {
+      n['angleOffset'] = a - 2 * Math.PI * Math.round(a / (2 * Math.PI));
+    }
+    if (n.children) wrapMountAngles(n.children);
+  }
+  return nodes;
+}
+
 // ------------------------------------------------------------------ walk ---
 
 /**
@@ -1010,7 +1030,7 @@ export function importRkt(data: ArrayBuffer | string): OrkImportResult {
     name,
     // Automatic radii resolved on load, as importOrk does, so every reader
     // sees a number and the kernel and the drawing agree on it.
-    tree: syncAutoRadii({ name, components }),
+    tree: syncAutoRadii({ name, components: wrapMountAngles(components) }),
     motors: {},
     // A `.rkt` declares no flight configurations; RockSim's equivalent lives
     // with its simulations. Stated as an empty table rather than omitted so

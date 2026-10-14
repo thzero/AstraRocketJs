@@ -79,8 +79,8 @@ export const KERNEL_DEFAULTS = {
   // ComponentFactory, case "fairing" (modeled as a MassComponent whose radius is
   // max(width, height) / 2)
   fairing: { length: 0.08, mass: 0.03, width: 0.025, height: 0.02 },
-  // ComponentFactory, case "parachute"
-  parachute: { length: 0.025, diameter: 0.3, lineLength: 0.3 },
+  // ComponentFactory, case "parachute"; cd is Parachute.DEFAULT_CD
+  parachute: { length: 0.025, diameter: 0.3, lineLength: 0.3, cd: 0.8 },
   // ComponentFactory, case "streamer"
   streamer: { length: 0.025, stripLength: 0.5, stripWidth: 0.05 },
   // ComponentFactory, case "shockcord"

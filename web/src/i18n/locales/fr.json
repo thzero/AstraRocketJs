@@ -64,7 +64,10 @@
       "noseFirst": "Les conceptions RASAero commencent par une ogive, mais la première pièce de l'étage supérieur est « {{name}} ». Placez l'ogive en premier ou exportez en .ork.",
       "secondPart": "RASAero exige un tube de corps juste après l'ogive, ou un rétreint arrière comme dernière pièce, donc « {{name}} » ne peut pas la suivre. Changez l'ordre ou exportez en .ork.",
       "noseNotFirst": "RASAero n'accepte une ogive qu'en première pièce, donc « {{name}} » ne peut pas être exporté. Utilisez une transition ou exportez en .ork.",
-      "noseFlipped": "RASAero n'a pas d'ogives inversées, donc « {{name}} » ne peut pas être exporté. Utilisez une transition ou exportez en .ork."
+      "noseFlipped": "RASAero n'a pas d'ogives inversées, donc « {{name}} » ne peut pas être exporté. Utilisez une transition ou exportez en .ork.",
+      "noseOgiveParameter": "RASAero n'accepte une ogive qu'avec un paramètre de forme de 1, donc « {{name}} » (paramètre de forme {{value}}) ne peut pas être exporté. Modifiez le paramètre de forme ou exportez en .ork.",
+      "noseHaackParameter": "RASAero n'accepte une ogive Haack qu'avec un paramètre de forme de 0 (Von Kármán) ou 0,33 (LV-Haack), donc « {{name}} » (paramètre de forme {{value}}) ne peut pas être exporté. Modifiez le paramètre de forme ou exportez en .ork.",
+      "chuteEvent": "RASAero ne déploie un parachute qu'à l'apogée ou à une altitude, donc « {{name}} » ({{event}}) ne peut pas être exporté. Modifiez son déploiement ou exportez en .ork."
     },
     "motorFile": {
       "engNoData": "Ce n'est pas un fichier .eng valide (aucune donnée de moteur trouvée).",
@@ -164,6 +167,7 @@
       "cdOverride": "Cd forcé ({{name}})",
       "cgOverride": "CG forcé ({{name}})",
       "extraStages": "étages {{from}} et suivants",
+      "massOverride": "Masse forcée ({{name}})",
       "subtreeOverride": "valeur forcée des sous-composants ({{name}})"
     },
     "viewFailed": "Cette vue n'a pas pu être chargée.",

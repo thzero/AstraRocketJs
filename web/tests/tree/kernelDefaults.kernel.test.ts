@@ -59,7 +59,8 @@ const observe = (engine: Engine, node: ComponentNode, parent: ComponentNode | nu
   if (scope === 'component') {
     const i = JSON.parse(engine.getComponentInfo(handle, 'probe'));
     if (i.error) throw new Error(`probe failed: ${i.error}`);
-    return `${i.length}|${i.mass}|${i.sectionMass}`;
+    // cd, which componentInfo carries for a recovery device, is what flies.
+    return `${i.length}|${i.mass}|${i.sectionMass}|${i.cd ?? ''}`;
   }
   const s = JSON.parse(engine.getStaticInfo(handle));
   if (s.error) throw new Error(`probe failed: ${s.error}`);
@@ -491,6 +492,7 @@ const CASES: Case[] = [
     'component',
     0.5,
   ],
+  ['parachute.cd', n({ type: 'parachute', length: 0.025 }), TUBE, 'cd', KERNEL_DEFAULTS.parachute.cd, 'component', 1.2],
   [
     'parachute.lineLength',
     n({ type: 'parachute', length: 0.025 }),

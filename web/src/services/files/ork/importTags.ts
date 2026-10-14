@@ -180,11 +180,13 @@ export function readInstances(el: Element, node: ComponentNode): void {
 
 /** Radial mounting angle (LaunchLug / RailButton) in radians. OpenRocket writes
  *  it as <angleoffset> (degrees), older files as <radialdirection>; the kernel
- *  default is 180°. Stored in radians to match the tree/renderers. */
+ *  default is 180°. Stored in radians to match the tree/renderers, and clamped
+ *  to [-180°, 180°] as LaunchLug.setAngleOffset and RailButton.setAngleOffset
+ *  clamp it when desktop loads the file: 270 flies as 180 there. */
 export function readAngleAroundBody(el: Element): number {
   const a = numTag(el, 'angleoffset', NaN);
   const deg = Number.isFinite(a) ? a : numTag(el, 'radialdirection', 180);
-  return degToRad(deg);
+  return Math.min(Math.PI, Math.max(-Math.PI, degToRad(deg)));
 }
 
 /**

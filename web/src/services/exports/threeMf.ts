@@ -68,7 +68,7 @@ const fmt = (v: number): string => plainDecimal(v, 6, '0');
  *
  * Meters in, millimeters out: 3MF states its unit, and every slicer and CAD
  * tool assumes mm, so a meter-scale model would import a thousand times too
- * small. Same `M_TO_MM` the STL/OBJ/GLB path scales by.
+ * small. Same `M_TO_MM` the STL and OBJ path scales by.
  */
 function meshXml(part: ThreeMfPart, placeOnPlate: boolean): { xml: string; offset: [number, number, number] } {
   const pos = part.geometry.getAttribute('position');

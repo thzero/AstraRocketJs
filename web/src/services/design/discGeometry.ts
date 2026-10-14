@@ -252,24 +252,30 @@ export function discDims(
  * end to plug.
  */
 export function boreAt(node: ComponentNode, end: 'fore' | 'aft'): number | null {
+  const e = endAt(node, end);
+  return e && e.outer > 0 && e.wall < e.outer ? e.outer - e.wall : null;
+}
+
+/**
+ * A hollow airframe part's outer radius and wall at one end, the two numbers
+ * {@link boreAt} takes the bore from. Null where {@link boreAt} has no bore to
+ * offer: a filled part, a nose cone's tip, anything that is not airframe.
+ */
+export function endAt(node: ComponentNode, end: 'fore' | 'aft'): { outer: number; wall: number } | null {
   if (node['filled'] === true) return null;
-  const wall = (dflt: number) => num(node, 'thickness', dflt);
-  const bore = (outer: number, w: number) => (outer > 0 && w < outer ? outer - w : null);
+  const at = (outer: number, dflt: number) => ({ outer, wall: num(node, 'thickness', dflt) });
   switch (node.type) {
     case 'bodytube':
     case 'innertube':
     case 'tubecoupler':
-      return bore(num(node, 'outerRadius', NaN), wall(TUBE_WALL[node.type]));
+      return at(num(node, 'outerRadius', NaN), TUBE_WALL[node.type]);
     case 'transition':
-      return bore(
-        num(node, end === 'fore' ? 'foreRadius' : 'aftRadius', NaN),
-        wall(COMPONENT_DEFAULTS.transition.thickness),
-      );
+      return at(num(node, end === 'fore' ? 'foreRadius' : 'aftRadius', NaN), COMPONENT_DEFAULTS.transition.thickness);
     case 'nosecone': {
       // Open at its base, closed at the tip. A flipped cone's base is its fore
       // end (`NoseCone.getBaseRadius`).
       const base = node['flipped'] === true ? 'fore' : 'aft';
-      return end === base ? bore(num(node, 'aftRadius', NaN), wall(COMPONENT_DEFAULTS.nosecone.thickness)) : null;
+      return end === base ? at(num(node, 'aftRadius', NaN), COMPONENT_DEFAULTS.nosecone.thickness) : null;
     }
     default:
       return null;

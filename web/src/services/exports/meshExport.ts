@@ -8,9 +8,11 @@ import { makeWatertight } from './solidMesh';
  * 3D mesh export (STL / OBJ / glTF-binary) of a single component's solid.
  *
  * The geometry is a purpose-built watertight solid (see {@link makeWatertight}
- * and solidForNode), scaled from meters to millimeters, the unit every slicer
- * and CAD tool assumes (a meter-scale part would import 1000x too small). STL is
- * geometry only; OBJ and GLB also carry a neutral material.
+ * and solidForNode). STL and OBJ carry no unit, and are scaled from meters to
+ * millimeters, the unit every slicer and CAD tool assumes (a meter-scale part
+ * would import 1000x too small). glTF's unit is the meter, so GLB stays in
+ * meters: scaled, a 70 mm nose cone would open as 70 m in Blender, three.js and
+ * AR viewers. STL is geometry only; OBJ and GLB also carry a neutral material.
  */
 
 export const STL_MIME = 'model/stl';
@@ -23,11 +25,11 @@ import { M_TO_MM } from '../../prefs/units';
 import { UNKNOWN_PART_COLOR } from '../design/partColors';
 import { errorMessage } from '../app/errorMessage';
 
-/** A watertight, millimeter-scaled mesh of one solid, ready for an exporter. */
-function meshGroup(geometry: THREE.BufferGeometry): THREE.Group {
+/** A watertight mesh of one solid, ready for an exporter, at `scale` units per meter. */
+function meshGroup(geometry: THREE.BufferGeometry, scale = M_TO_MM): THREE.Group {
   const group = new THREE.Group();
   group.add(new THREE.Mesh(makeWatertight(geometry), new THREE.MeshStandardMaterial({ color: UNKNOWN_PART_COLOR })));
-  group.scale.setScalar(M_TO_MM);
+  group.scale.setScalar(scale);
   group.updateMatrixWorld(true); // exporters read matrixWorld
   return group;
 }
@@ -47,7 +49,8 @@ export function solidToObj(geometry: THREE.BufferGeometry): string {
 export function solidToGlb(geometry: THREE.BufferGeometry): Promise<ArrayBuffer> {
   return new Promise((resolve, reject) => {
     new GLTFExporter().parse(
-      meshGroup(geometry),
+      // Meters, glTF's own unit.
+      meshGroup(geometry, 1),
       (result) => resolve(result as ArrayBuffer),
       (err) => reject(err instanceof Error ? err : new Error(errorMessage(err))),
       { binary: true },
