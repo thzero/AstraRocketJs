@@ -1,6 +1,7 @@
 import type { ComponentNode, MotorSpec, RocketTree } from '../../engine/openRocketEngine';
 import { clusterCount } from '../../tree/cluster';
 import { curveStats } from '../motors/motorMath';
+import { motorStatistics } from '../../engine/openRocketEngine';
 import type { FlightConfig } from './flightConfigs';
 import { propellantMass } from './recoverySizing';
 
@@ -68,6 +69,16 @@ export function seatedMotors(tree: RocketTree, config: FlightConfig): SeatedMoto
   return out;
 }
 
+/** The kernel's average thrust per motor, kept: the class is asked on every render. */
+const averages = new WeakMap<MotorSpec, number>();
+function kernelAverage(spec: MotorSpec, curve: [number, number][]): number | null {
+  const kept = averages.get(spec);
+  if (kept !== undefined) return kept;
+  const avg = motorStatistics(curve)?.averageThrust ?? null;
+  if (avg !== null) averages.set(spec, avg);
+  return avg;
+}
+
 /**
  * The class those motors put a rocket in.
  *
@@ -80,8 +91,12 @@ export function powerClass(motors: readonly SeatedMotor[], dryMassKg: number | n
   let loaded = 0;
   let propellant = 0;
   for (const { spec, count } of motors) {
-    const stats = curveStats(spec.times.map((t, i) => [t, spec.thrusts[i] ?? 0]));
-    if (stats.impulse > HIGH_POWER.motorImpulseNs || stats.avg > HIGH_POWER.motorAvgThrustN) return 'highPower';
+    const curve = spec.times.map((t, i) => [t, spec.thrusts[i] ?? 0] as [number, number]);
+    const stats = curveStats(curve);
+    // The average thrust over the burn the kernel measures (between the
+    // crossings of 5% of peak), once it has loaded; the curve's own until then.
+    const avg = kernelAverage(spec, curve) ?? stats.avg;
+    if (stats.impulse > HIGH_POWER.motorImpulseNs || avg > HIGH_POWER.motorAvgThrustN) return 'highPower';
     installed += stats.impulse * count;
     loaded += (spec.masses[0] ?? 0) * count;
     // The propellant is what the motor burns: the kernel's loaded less burnout mass.

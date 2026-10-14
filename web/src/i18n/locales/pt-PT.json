@@ -164,6 +164,7 @@
     },
     "rktSkip": {
       "airfoilMass": "massa das aletas com perfil de asa ({{name}})",
+      "autoValue": "valor automático ({{name}})",
       "cdOverride": "substituição do Cd ({{name}})",
       "cgOverride": "substituição do CG ({{name}})",
       "extraStages": "andar {{from}} e seguintes",

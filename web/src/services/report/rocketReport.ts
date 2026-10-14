@@ -1,7 +1,7 @@
-import type { MotorSpec } from '../../engine/openRocketEngine';
+import { motorStatistics, type MotorSpec } from '../../engine/openRocketEngine';
 import { impulseClass } from '../motors/motorCombine';
-import { curveStats } from '../motors/motorMath';
 import { motorName } from '../motors/motorName';
+import { curveStats } from '../motors/motorMath';
 
 /**
  * Report computations: the numbers that back the print/export rocket report.
@@ -31,17 +31,23 @@ export interface MotorStats {
 
 /** Thrust-curve summary for one motor. */
 export function motorStats(spec: MotorSpec): MotorStats {
-  // A loop for the peak, not Math.max(...thrusts): spreading a very long curve
-  // into arguments overflows the stack.
-  const stats = curveStats(spec.times.map((t, i) => [t, spec.thrusts[i] ?? 0]));
+  // The kernel's figures (ThrustCurveMotor.computeStatistics), as desktop's
+  // motor table prints them: the burn between the crossings of 5% of peak,
+  // not to the last sample. A report is assembled with the engine running.
+  // A curve the kernel builds no motor from has no burn or average to state:
+  // those print as no value, and the impulse and peak are the curve's own.
+  const curve = spec.times.map((t, i) => [t, spec.thrusts[i] ?? 0] as [number, number]);
+  const kernel = motorStatistics(curve);
+  const own = curveStats(curve);
+  const impulse = kernel?.totalImpulse ?? own.impulse;
   return {
     designation: motorName(spec),
     manufacturer: spec.manufacturer,
-    avgThrust: stats.avg,
-    maxThrust: stats.max,
-    burnTime: stats.burn,
-    totalImpulse: stats.impulse,
-    impulseClass: impulseClass(stats.impulse),
+    avgThrust: kernel?.averageThrust ?? NaN,
+    maxThrust: kernel?.maxThrust ?? own.max,
+    burnTime: kernel?.burnTime ?? NaN,
+    totalImpulse: impulse,
+    impulseClass: impulseClass(impulse),
     weight: spec.masses?.length ? spec.masses[0]! : 0,
     diameter: spec.diameter,
     length: spec.length,

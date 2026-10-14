@@ -27,9 +27,10 @@ export function exportOrk({
   configs,
   activeConfigId,
   designInfo,
+  componentInfo,
 }: OrkTreeExportInput): string {
   const { writeConfigs, defaultId } = resolveWriteConfigs({ configs, activeConfigId });
-  const w = createOrkWriter(writeConfigs, defaultId);
+  const w = createOrkWriter(writeConfigs, defaultId, componentInfo);
   const { emit } = w;
 
   emit(0, "<?xml version='1.0' encoding='utf-8'?>");

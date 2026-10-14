@@ -164,6 +164,7 @@
     },
     "rktSkip": {
       "airfoilMass": "масса профильных стабилизаторов ({{name}})",
+      "autoValue": "автоматическое значение ({{name}})",
       "cdOverride": "переопределение Cd ({{name}})",
       "cgOverride": "переопределение ЦТ ({{name}})",
       "extraStages": "ступени с {{from}}-й и далее",

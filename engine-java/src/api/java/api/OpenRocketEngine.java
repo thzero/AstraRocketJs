@@ -1230,18 +1230,41 @@ public final class OpenRocketEngine {
         return MotorCorrelation.similarity(curveMotor("a", times1, thrusts1), curveMotor("b", times2, thrusts2));
     }
 
-    /** A thrust-curve motor carrying only the curve, for comparing curves. */
+    /**
+     * A thrust curve's statistics as the kernel states them for the motor built
+     * from it (ThrustCurveMotor.computeStatistics): the burn measured between
+     * the crossings of 5% of peak thrust (Motor.MARGINAL_THRUST), the average
+     * thrust over that burn, the peak, and the total impulse. These are the
+     * figures desktop's motor table shows. JSON:
+     * {burnTime, averageThrust, maxThrust, totalImpulse}.
+     */
+    @JSExport
+    public static String getMotorStatistics(double[] times, double[] thrusts) {
+        try {
+            ThrustCurveMotor m = curveMotor("statistics", times, thrusts);
+            StringBuilder sb = new StringBuilder("{");
+            num(sb, "burnTime", m.getBurnTimeEstimate()).append(',');
+            num(sb, "averageThrust", m.getAverageThrustEstimate()).append(',');
+            num(sb, "maxThrust", m.getMaxThrustEstimate()).append(',');
+            num(sb, "totalImpulse", m.getTotalImpulseEstimate());
+            return sb.append('}').toString();
+        } catch (RuntimeException e) {
+            return errorJson(e);
+        }
+    }
+
+    /** A thrust-curve motor carrying only the curve, for comparing curves and reading its statistics. */
     private static ThrustCurveMotor curveMotor(String name, double[] times, double[] thrusts) {
         if (times == null || thrusts == null || times.length < 2 || thrusts.length != times.length) {
-            throw new IllegalArgumentException("motor similarity " + name + ": times/thrusts must be the same length and at least 2");
+            throw new IllegalArgumentException("motor curve " + name + ": times/thrusts must be the same length and at least 2");
         }
         Coordinate[] cg = new Coordinate[times.length];
         for (int i = 0; i < times.length; i++) {
             if (!isFinite(times[i]) || !isFinite(thrusts[i]) || thrusts[i] < 0) {
-                throw new IllegalArgumentException("motor similarity " + name + ": non-finite or negative sample at " + i);
+                throw new IllegalArgumentException("motor curve " + name + ": non-finite or negative sample at " + i);
             }
             if (i > 0 && times[i] < times[i - 1]) {
-                throw new IllegalArgumentException("motor similarity " + name + ": times must be non-decreasing at " + i);
+                throw new IllegalArgumentException("motor curve " + name + ": times must be non-decreasing at " + i);
             }
             cg[i] = new Coordinate(0.05, 0, 0, 0.1);
         }

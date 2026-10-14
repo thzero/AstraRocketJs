@@ -48,21 +48,6 @@ const SOURCES = [
 const KNOWN = [
   // Open findings in docs/AUDIT.md.
   {
-    rule: 'ork:parachute.lineLength',
-    why: 'C36: `auto` line length, which desktop 24.12 does not read',
-    when: (a, d) => d === 0.3,
-  },
-  {
-    rule: 'ork:shockcord.cordLength',
-    why: 'C36: `auto` cord length, which desktop 24.12 does not read',
-    when: (a, d) => a !== d,
-  },
-  {
-    rule: 'rkt:shockcord.cordLength',
-    why: 'C8: an automatic cord length is written as the stale stored number',
-    when: (a, d, af) => a !== d && af.cordLength === a,
-  },
-  {
     rule: 'rkt:*.instanceCount',
     why: "C38: RockSim states no repeat count (desktop's own export drops it too), and the writer does not say so",
     when: (a, d) => a > 1 && d === 1,

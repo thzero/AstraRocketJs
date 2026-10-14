@@ -164,6 +164,7 @@
     },
     "rktSkip": {
       "airfoilMass": "massa van de vinnen met vleugelprofiel ({{name}})",
+      "autoValue": "Automatische waarde ({{name}})",
       "cdOverride": "Cd-overschrijving ({{name}})",
       "cgOverride": "CG-overschrijving ({{name}})",
       "extraStages": "trap {{from}} en verder",

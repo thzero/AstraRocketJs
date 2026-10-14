@@ -164,6 +164,7 @@
     },
     "rktSkip": {
       "airfoilMass": "masse des ailerons à profil d'aile ({{name}})",
+      "autoValue": "Valeur automatique ({{name}})",
       "cdOverride": "Cd forcé ({{name}})",
       "cgOverride": "CG forcé ({{name}})",
       "extraStages": "étages {{from}} et suivants",

@@ -331,6 +331,32 @@ const writeRailbutton: NodeWriter = (w, node, d) => {
   w.emit(d, `<screwheight>${num(node, 'screwHeight', rb.screwHeight)}</screwheight>`);
 };
 
+/**
+ * A line or cord length that may be automatic. Desktop 24.12 has no automatic
+ * line or cord length and reads `auto` in these tags as its default (a 0.3 m
+ * line, a 0.4 m cord), so the tag carries the length the kernel flies and an
+ * app-only `<…auto>true</…auto>` beside it (desktop warns and ignores it) keeps
+ * the setting for the app's own reader. With no kernel figures, the stored
+ * length.
+ */
+function autoLengthXml(
+  w: OrkWriter,
+  d: number,
+  node: ComponentNode,
+  key: 'lineLength' | 'cordLength',
+  flag: 'lineLengthAuto' | 'cordLengthAuto',
+  tag: string,
+  fallback: number,
+): void {
+  if (node[flag] !== true) {
+    w.emit(d, `<${tag}>${num(node, key, fallback)}</${tag}>`);
+    return;
+  }
+  const flown = typeof node.id === 'string' ? w.componentInfo?.(node.id)?.[key] : undefined;
+  w.emit(d, `<${tag}>${flown ?? num(node, key, fallback)}</${tag}>`);
+  w.emit(d, `<${tag}auto>true</${tag}auto>`);
+}
+
 const writeParachute: NodeWriter = (w, node, d) => {
   recoveryHead(w, node, d, 'Parachute');
   w.emit(d, `<diameter>${num(node, 'diameter', 0.3)}</diameter>`);
@@ -339,7 +365,7 @@ const writeParachute: NodeWriter = (w, node, d) => {
     w.emit(d, `<spillholediameter>${node['spillHoleDiameter']}</spillholediameter>`);
   }
   w.emit(d, `<linecount>${num(node, 'lineCount', 6)}</linecount>`);
-  w.emit(d, `<linelength>${node['lineLengthAuto'] === true ? 'auto' : num(node, 'lineLength', 0.3)}</linelength>`);
+  autoLengthXml(w, d, node, 'lineLength', 'lineLengthAuto', 'linelength', 0.3);
   if (typeof node['lineDensity'] === 'number') {
     const lname = typeof node['lineMaterialName'] === 'string' ? node['lineMaterialName'] : 'custom';
     w.emit(d, `<linematerial type="line" density="${node['lineDensity']}">${escapeXml(lname)}</linematerial>`);
@@ -362,7 +388,7 @@ const writeShockcord: NodeWriter = (w, node, d) => {
   position(w, d, node, 'top');
   packedXml(w, d, node);
   radialXml(w, d, node);
-  w.emit(d, `<cordlength>${node['cordLengthAuto'] === true ? 'auto' : num(node, 'cordLength', 0.3)}</cordlength>`);
+  autoLengthXml(w, d, node, 'cordLength', 'cordLengthAuto', 'cordlength', 0.3);
   material(w, d, node, 'line');
 };
 

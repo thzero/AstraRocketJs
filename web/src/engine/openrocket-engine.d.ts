@@ -92,6 +92,7 @@ declare module '*openrocket-engine.mjs' {
     times2: number[],
     thrusts2: number[],
   ): number;
+  export function getMotorStatistics(times: number[], thrusts: number[]): string;
   export function getComponentMasses(rocket: number): string;
   export function setStubbyNoseDrag(rocket: number, enabled: boolean): void;
   export function main(): void;

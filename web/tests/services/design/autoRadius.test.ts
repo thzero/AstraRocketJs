@@ -761,9 +761,22 @@ describe('the values the kernel works out, through a file', () => {
     expect(find(importOrk(xml).tree, 'parachute')['cdAuto']).toBe(true);
   });
 
-  it('keeps an automatic shroud-line length', () => {
-    const xml = exportOrk({ name: 'R', tree: chute({ lineLengthAuto: true }) });
-    expect(xml).toContain('<linelength>auto</linelength>');
+  /**
+   * Desktop 24.12 has no automatic line length and reads `auto` as its 0.3 m
+   * default, so the tag carries the length the kernel flies and an app-only
+   * `<linelengthauto>` keeps the setting for the app.
+   */
+  it('keeps an automatic shroud-line length, writing the length that flies', () => {
+    const tree = chute({ lineLengthAuto: true, lineLength: 0.3 });
+    const id = find(tree, 'parachute').id as string;
+    const xml = exportOrk({
+      name: 'R',
+      tree,
+      componentInfo: (i) => (i === id ? { mass: 0.01, cgX: 0, lineLength: 0.45 } : undefined),
+    });
+    expect(xml).toContain('<linelength>0.45</linelength>');
+    expect(xml).toContain('<linelengthauto>true</linelengthauto>');
+    expect(xml).not.toContain('<linelength>auto</linelength>');
     expect(find(importOrk(xml).tree, 'parachute')['lineLengthAuto']).toBe(true);
   });
 

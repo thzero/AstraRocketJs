@@ -164,6 +164,7 @@
     },
     "rktSkip": {
       "airfoilMass": "masa stateczników o profilu lotniczym ({{name}})",
+      "autoValue": "wartość automatyczna ({{name}})",
       "cdOverride": "nadpisanie Cd ({{name}})",
       "cgOverride": "nadpisanie SC ({{name}})",
       "extraStages": "stopień {{from}} i dalsze",

@@ -27,8 +27,9 @@
 // `npm run audit` (scripts/audit.mjs) does both against the pinned release; CI
 // does not run it.
 //
-// KNOWN lists loader warnings that are open findings in docs/AUDIT.md, by file
-// and warning text. Anything else fails, and so does a KNOWN entry that no file
+// KNOWN lists the loader warnings expected, by file and warning text, each
+// with its reason: an open finding in docs/AUDIT.md, or a tag the app writes
+// for itself that desktop ignores. Anything else fails, and so does a KNOWN entry that no file
 // it names produced, so a fix has to remove its entry.
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, rmSync } from 'node:fs';
@@ -54,13 +55,13 @@ const KNOWN = [
   },
   {
     file: 'every-part.ork',
-    warning: "data: 'auto' - Parachute",
-    reason: 'C36: desktop 24.12 has no automatic line length',
+    warning: "Unknown parameter type 'linelengthauto' for Parachute, ignoring.",
+    reason: 'the app keeps its automatic line length in its own tag; desktop flies the number written beside it',
   },
   {
     file: 'every-part.ork',
-    warning: "data: 'auto' - Shock Cord",
-    reason: 'C36: desktop 24.12 has no automatic cord length',
+    warning: "Unknown parameter type 'cordlengthauto' for Shock Cord, ignoring.",
+    reason: 'the app keeps its automatic cord length in its own tag; desktop flies the number written beside it',
   },
 ];
 

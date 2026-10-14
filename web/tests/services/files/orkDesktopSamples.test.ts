@@ -179,6 +179,9 @@ function everyPart(): RocketTree {
 /** Save the open design the way File > Save does, returning the archive. */
 async function save(): Promise<Uint8Array> {
   saved.archives.length = 0;
+  // The store's live build, which the app always has by the time a design can
+  // be saved: the writer takes an automatic line or cord length from it.
+  useWorkspaceStore.setState({ rocket: buildRocketTree(s().tree) });
   await s().saveOrk();
   expect(s().err).toBeNull();
   expect(saved.archives).toHaveLength(1);

@@ -164,6 +164,7 @@
     },
     "rktSkip": {
       "airfoilMass": "Airfoil fin mass ({{name}})",
+      "autoValue": "Automatic value ({{name}})",
       "cdOverride": "Cd override ({{name}})",
       "cgOverride": "CG override ({{name}})",
       "extraStages": "stage {{from}} and beyond",

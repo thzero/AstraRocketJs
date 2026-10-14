@@ -5,6 +5,7 @@ import { type LaunchConditions } from '../design/orkTree';
 import type { EmbeddedMotorFile } from './ork/embeddedMotors';
 import type { ImportNote } from './importNote';
 import type { SimPrefs } from '../flight/simulations';
+import type { ComponentFigures } from './rktExport';
 
 /**
  * The simulation preferences a `.ork` states in every simulation's
@@ -261,4 +262,10 @@ export interface OrkTreeExportInput {
   simPrefs?: OrkSimPrefs;
   /** Derived statistics block; emitted only when the caller opts in (preference). */
   designInfo?: DesignInfo;
+  /**
+   * The kernel's figures for a part, by node id, for the values it works out
+   * itself (an automatic line or cord length), which desktop cannot read as
+   * `auto`.
+   */
+  componentInfo?: ComponentFigures;
 }

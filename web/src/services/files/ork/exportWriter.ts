@@ -1,4 +1,5 @@
 import type { OrkExportMotor, OrkDeployOverride, OrkSepOverride } from '../orkTypes';
+import type { ComponentFigures } from '../rktExport';
 
 /**
  * The line sink every .ork writer function draws on, plus the flight
@@ -27,14 +28,21 @@ export interface OrkWriter {
   writeConfigs: OrkWriteConfig[];
   /** The config marked default="true" (also what <simulation> references). */
   defaultId: string;
+  /** The kernel's figures for a part, by node id, where the caller has a build. */
+  componentInfo?: ComponentFigures;
 }
 
-export function createOrkWriter(writeConfigs: OrkWriteConfig[], defaultId: string): OrkWriter & { lines: string[] } {
+export function createOrkWriter(
+  writeConfigs: OrkWriteConfig[],
+  defaultId: string,
+  componentInfo?: ComponentFigures,
+): OrkWriter & { lines: string[] } {
   const lines: string[] = [];
   return {
     lines,
     emit: (depth, s) => lines.push('  '.repeat(depth) + s),
     writeConfigs,
     defaultId,
+    componentInfo,
   };
 }

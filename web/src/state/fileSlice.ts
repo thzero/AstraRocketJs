@@ -5,6 +5,8 @@ import { prompt } from './promptStore';
 import { defaultRocketTree } from '../services/design/defaultRocket';
 import { launcherKind, withLauncher } from '../services/design/launcher';
 import type { DesignInfo } from '../services/files/orkTypes';
+import type { ComponentFigures } from '../services/files/rktExport';
+import type { buildRocketTree } from '../engine/api';
 import { buildDesignInfo } from '../services/report/designInfo';
 import { buildExportMotorMap, fillMotorDigests } from '../services/motors/exportMotors';
 import { repairValues } from '../services/design/repairValues';
@@ -136,6 +138,22 @@ const observeWorkspace = (): (() => boolean) => {
   const mine = workspaceGen;
   return () => mine !== workspaceGen;
 };
+
+/**
+ * The current build's figures for a part, for the writers' values the kernel
+ * works out itself; a part the build does not hold (one added since the last
+ * rebuild) has none, and the writers say what that leaves out.
+ */
+function figuresOf(rocket: ReturnType<typeof buildRocketTree> | null | undefined): ComponentFigures | undefined {
+  if (!rocket) return undefined;
+  return (id: string) => {
+    try {
+      return rocket.componentInfo(id);
+    } catch {
+      return undefined;
+    }
+  };
+}
 
 export const createFileSlice =
   ({ replaceWorkspace, clearHistory }: FileSliceShared): StateCreator<WorkspaceState, [], [], FileSlice> =>
@@ -585,6 +603,7 @@ export const createFileSlice =
           downloadOrk({
             name: designNameOf(tree, loadedMeta),
             tree,
+            componentInfo: figuresOf(get().rocket),
             configs,
             activeConfigId,
             launch,
@@ -601,17 +620,7 @@ export const createFileSlice =
           const { tree, loadedMeta, rocket } = get();
           const { downloadRkt } = await import('../services/files/saveOrk');
           const name = designNameOf(tree, loadedMeta);
-          // The current build's figures for a part; a part it does not hold (one
-          // added since the last rebuild) has none, and the export names it.
-          const figures = rocket
-            ? (id: string) => {
-                try {
-                  return rocket.componentInfo(id);
-                } catch {
-                  return undefined;
-                }
-              }
-            : undefined;
+          const figures = figuresOf(rocket);
           const skipped = await downloadRkt(name, tree, figures);
           // RockSim has no element for some of what this app can build (rail
           // buttons, the fairing extension). The file is still

@@ -85,7 +85,7 @@ function writeMotorTable(p: PdfPage, c: MotorConfig): void {
   const rows = c.motors.map((m) => [
     `${m.manufacturer ? m.manufacturer + ' ' : ''}${m.designation}`,
     q(p, 'force', m.avgThrust),
-    `${fmtNum(m.burnTime, 2)} s`,
+    Number.isFinite(m.burnTime) ? `${fmtNum(m.burnTime, 2)} s` : NO_VALUE,
     q(p, 'force', m.maxThrust, 0),
     q(p, 'impulse', m.totalImpulse, 0),
     twRatio(m.avgThrust, m.loadedMass),

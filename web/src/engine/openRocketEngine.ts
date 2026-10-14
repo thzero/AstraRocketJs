@@ -1497,6 +1497,42 @@ export function motorSimilarity(a: [number, number][], b: [number, number][]): n
   );
 }
 
+/** A thrust curve's statistics as the kernel states them (see {@link motorStatistics}). */
+export interface MotorStatistics {
+  /** Seconds between the crossings of 5% of peak thrust. */
+  burnTime: number;
+  /** Newtons, over that burn. */
+  averageThrust: number;
+  maxThrust: number;
+  /** Newton-seconds. */
+  totalImpulse: number;
+}
+
+/**
+ * A thrust curve's burn time, average and peak thrust and total impulse, as the
+ * kernel computes them for the motor built from it
+ * (`ThrustCurveMotor.computeStatistics`): the burn runs between the crossings
+ * of 5% of peak thrust, not to the last sample. Null while the engine is still
+ * loading, and for a curve the kernel cannot build a motor from (fewer than two
+ * samples, say): such a motor has no statistics to state, and a caller reading
+ * them for a table or a check must not fail the whole design over it. Curves
+ * are `[time s, thrust N]` samples.
+ */
+export function motorStatistics(curve: readonly (readonly [number, number])[]): MotorStatistics | null {
+  if (!active) return null;
+  try {
+    const raw = callEngine('motorStatistics', () =>
+      eng().getMotorStatistics(
+        curve.map((p) => p[0]),
+        curve.map((p) => p[1]),
+      ),
+    );
+    return parseEnvelope<MotorStatistics>('motorStatistics', raw);
+  } catch {
+    return null;
+  }
+}
+
 /** Frees all engine-side objects (all OpenRocketDesign handles become invalid). */
 export function resetEngine(): void {
   callEngine('reset', () => eng().reset());

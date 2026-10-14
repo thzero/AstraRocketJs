@@ -197,14 +197,26 @@ export function SpecItem({ label, value }: { label: string; value: string }) {
   );
 }
 
-/** Compact thrust-vs-time chart: filled curve, average-thrust line, burn marker. */
-export function ThrustChart({ samples, avg, burn }: { samples: [number, number][]; avg: number; burn: number }) {
+/**
+ * Compact thrust-vs-time chart: filled curve, average-thrust line, burn marker.
+ * `avg` and `burn` are null while they are not known (the kernel not loaded
+ * yet); their lines are left out.
+ */
+export function ThrustChart({
+  samples,
+  avg,
+  burn,
+}: {
+  samples: [number, number][];
+  avg: number | null;
+  burn: number | null;
+}) {
   const { t } = useTranslation();
   const u = useUnits();
   const dims = { width: 460, height: 150, padL: 34, padR: 10, padT: 10, padB: 22 };
   const { width: W, height: H, padL: PL, padR: PR, padT: PT, padB: PB } = dims;
   const tMax = samples[samples.length - 1]![0] || 1;
-  const fMax = Math.max(...samples.map((s) => s[1]), avg) * CHART_HEADROOM || 1;
+  const fMax = Math.max(...samples.map((s) => s[1]), avg ?? 0) * CHART_HEADROOM || 1;
   const { X, Y } = chartScales(dims, tMax, fMax);
   const line = linePath(samples, X, Y);
   const area = baselineArea(samples, X, Y, tMax);
@@ -222,8 +234,8 @@ export function ThrustChart({ samples, avg, burn }: { samples: [number, number][
         role="img"
         aria-label={t('motorDlg.chartAria', {
           peak: u.fmtSym('force', peak[1], 1),
-          avg: u.fmtSym('force', avg, 1),
-          burn: fmtNum(burn, 2),
+          avg: avg == null ? NO_VALUE : u.fmtSym('force', avg, 1),
+          burn: burn == null ? NO_VALUE : fmtNum(burn, 2),
         })}
       >
         <defs>
@@ -238,16 +250,18 @@ export function ThrustChart({ samples, avg, burn }: { samples: [number, number][
         )}
         <ChartAxes dims={dims} tMax={tMax} fMax={fMax} X={X} Y={Y} fScale={u.factor('force')} />
         <path d={area} fill={`url(#${fillId})`} />
-        <line
-          x1={PL}
-          y1={Y(avg)}
-          x2={W - PR}
-          y2={Y(avg)}
-          stroke={token('thrust-average')}
-          strokeWidth="1"
-          strokeDasharray="4 3"
-        />
-        {burn > 0 && burn <= tMax && (
+        {avg != null && (
+          <line
+            x1={PL}
+            y1={Y(avg)}
+            x2={W - PR}
+            y2={Y(avg)}
+            stroke={token('thrust-average')}
+            strokeWidth="1"
+            strokeDasharray="4 3"
+          />
+        )}
+        {burn != null && burn > 0 && burn <= tMax && (
           <line
             x1={X(burn)}
             y1={PT}

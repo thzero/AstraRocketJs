@@ -164,6 +164,7 @@
     },
     "rktSkip": {
       "airfoilMass": "Masse der Profilfinnen ({{name}})",
+      "autoValue": "Automatischer Wert ({{name}})",
       "cdOverride": "Cd-Überschreibung ({{name}})",
       "cgOverride": "CG-Überschreibung ({{name}})",
       "extraStages": "Stufe {{from}} und folgende",

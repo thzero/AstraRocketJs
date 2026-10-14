@@ -90,6 +90,7 @@ configid
 constantgravity
 constructability
 cordlength
+cordlengthauto
 cosθ
 Crêpe
 Croll
@@ -290,6 +291,7 @@ letterlike
 Lexan
 linecount
 linelength
+linelengthauto
 linematerial
 linestyle
 Lngs

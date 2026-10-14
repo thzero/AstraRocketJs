@@ -24,7 +24,7 @@ read but whose consequence depends on something outside the repo.
 
 ## Status
 
-**33 open defects: 1 HIGH, 9 MED, 23 LOW**, plus the upkeep section. C33 to
+**30 open defects: 1 HIGH, 6 MED, 23 LOW**, plus the upkeep section. C33 to
 C45 were found after the first pass, by the two checks added the same day and
 by the change audits of those checks and of the fixes since
 (see "Checks added after this report").
@@ -33,7 +33,7 @@ HIGH findings C1 (transition shoulders) and C43 (stage overrides); the
 security findings S1, S2 and S3; C24 (the weather key), fixed by the
 shared key field the Esri map key added; R2 (the catalog fallback); R3 (the curve order); A1 and A2
 (accessibility); C33, C3, C37, C42, C10, C9 and C6 (steps 2 and 4 of
-the order of attack); C2 and C44 (step 5); C34; C11 and C12 (step 6); and C4 (step 7). Each entry names the test that pins it.
+the order of attack); C2 and C44 (step 5); C34; C11 and C12 (step 6); C4 (step 7); and C5, C8 and C36 (step 8). Each entry names the test that pins it.
 
 - **HIGH R1:** the published parts catalog is built by an older pipeline than
   the one on this branch.
@@ -88,7 +88,7 @@ is removed, and a new disagreement fails it at once.
   the tree, at the same depth, with what the app's kernel flies, through the
   same `ComponentFields` compiled against the release, which adds overrides,
   materials, the finish and fin planform area to the panel's fields. It holds
-  C8, C36 and C38, and lists what RockSim cannot carry. Values a RockSim file restates
+  C38, and lists what RockSim cannot carry. Values a RockSim file restates
   (angles in degrees, a pod by its distance from the axis, a tab from the
   root's front, a packed part by either end) are compared as desktop reads
   them; its other `.rkt` entries name what RockSim cannot carry and the desktop
@@ -310,7 +310,20 @@ Fix: patch through a function of each simulation (each row retunes from its
 own average); mark those keys mixed; pass `diff` to the profile dialog; leave
 `launchAltitudeM` alone on rows at another site.
 
-**C5. MED | The PDF motor table computes its own burn time and average thrust** | `web/src/services/report/rocketReport.ts:33-45`, `web/src/services/motors/motorMath.ts:61-76` | VERIFIED against the Java
+**C5. MED, FIXED | The PDF motor table computes its own burn time and average thrust** | `web/src/services/report/rocketReport.ts:33-45`, `web/src/services/motors/motorMath.ts:61-76` | VERIFIED against the Java
+Resolution: the bridge's `getMotorStatistics` returns the kernel's burn time,
+average and peak thrust and total impulse for a curve
+(`ThrustCurveMotor.computeStatistics`), and the report's motor table prints
+them (`motorStats`). The motor spec dialog shows the kernel's burn and average
+too, and no value until the engine has loaded; a custom motor's picker row
+takes them as well; and the power class judges the average thrust limit by the
+kernel's figure once it has one. A curve the kernel builds no motor from (a
+curve-less placeholder, one sample) has no burn or average to state and fails
+nothing (`motorStatistics` returns null). Pinned by
+`rocketReport.test.ts`, which builds the bundled Apogee C6 as the app flies it
+and reads 1.2 s and 8.3 N from the kernel (the old figures were 1.32 s and
+7.5 N), and `customRowStatistics.kernel.test.ts`.
+The finding as reported:
 `curveStats` takes the last sample's time as the burn and impulse over that as
 the average. The kernel (`ThrustCurveMotor.computeStatistics`,
 `ThrustCurveMotor.java:707-794`) measures between the crossings of 5% of peak
@@ -343,7 +356,13 @@ In inches a BT-50 (0.976/0.950 in) prints "1.0/1.0 in" and walls read
 schematic export already picks digits per unit (`fmtUpTo`, `ladderDigits`).
 Fix: unit-aware digits in `q`/`qv`; significant figures in the CSV.
 
-**C8. MED | `.rkt` writes stale numbers for fields the kernel resolves itself** | `web/src/services/files/rktExport.ts:479-488` (shock cord), `:456` (parachute line length), `:472-473` (streamer Cd) | VERIFIED
+**C8. MED, FIXED | `.rkt` writes stale numbers for fields the kernel resolves itself** | `web/src/services/files/rktExport.ts:479-488` (shock cord), `:456` (parachute line length), `:472-473` (streamer Cd) | VERIFIED
+Resolution: an automatic cord length, line length or Cd goes into the `.rkt`
+as the number the kernel flies (`componentInfo`, through the widened
+`ComponentFigures`); with no figures the part is named
+(`errors.rktSkip.autoValue`). Pinned by `rktExport.test.ts` ("values the
+kernel works out") and the `fields` step, whose C8 entry is gone.
+The finding as reported:
 The writer ignores `cordLengthAuto`, `lineLengthAuto` and `cdAuto`. A new shock
 cord is `cordLength: 0.3, cordLengthAuto: true`; the kernel flies rocket
 length times 3 (`ShockCord.java:76-83`), but the `.rkt` writes `Len` 300 mm
@@ -612,7 +631,14 @@ cuts it to the base, as the kernel now does too (`NoseCone`'s shoulder setter
 caps it at the base). Fix: cap the automatic shoulder at the base radius, with
 a test that takes the cap from `NoseCone.setShoulderRadius`.
 
-**C36. MED | The `.ork` writes `auto` for line length and cord length, which desktop 24.12 does not read** | `web/src/services/files/ork/exportWriters.ts:337, 360` | VERIFIED (desktop)
+**C36. MED, FIXED | The `.ork` writes `auto` for line length and cord length, which desktop 24.12 does not read** | `web/src/services/files/ork/exportWriters.ts:337, 360` | VERIFIED (desktop)
+Resolution: the `.ork` writer takes the kernel's figures too, and writes an
+automatic line or cord length as the length that flies with an app-only
+`<linelengthauto>` or `<cordlengthauto>` beside it, which the app reads back
+and desktop ignores with a warning. Pinned by `autoRadius.test.ts` (the number,
+the flag and the round trip), the `fields` step, whose C36 entries are gone,
+and the `desktop` step, which lists the two warnings as expected.
+The finding as reported:
 Every new parachute and shock cord is automatic, so every saved design that
 has one writes `<linelength>auto</linelength>` or `<cordlength>auto</cordlength>`.
 Desktop 24.12 has no automatic line or cord length (`javap` of its `Parachute`
@@ -938,7 +964,7 @@ Each fix removes its `KNOWN` entries from `fieldReadback.kernel.test.ts` and `ch
 5. Done: **C2**, **C34** and **C44**.
 6. Done: **C12** and **C11**.
 7. Done: **C4**.
-8. **C5**, **C8** and **C36**: all need kernel figures through the bridge (`componentInfo` and the motor estimates); do them in one bridge change.
+8. Done: **C5**, **C8** and **C36**.
 9. **C7**: report digits.
 10. The gate gaps **T1** to **T4**, then the U4 test generator gaps, so the next audit has less to find by hand.
 11. **R1**: put the catalog pipeline on master and dispatch it.

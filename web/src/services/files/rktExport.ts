@@ -115,7 +115,18 @@ interface Writer {
  * which desktop's `BasePartDTO` writes as `CalcMass` and `CalcCG`. Undefined
  * when the build does not hold the part.
  */
-export type ComponentFigures = (id: string) => { mass: number; cgX: number } | undefined;
+export type ComponentFigures = (id: string) =>
+  | {
+      mass: number;
+      cgX: number;
+      /** A shock cord's cord length as it flies, automatic or not (m). */
+      cordLength?: number;
+      /** A parachute's shroud line length as it flies, automatic or not (m). */
+      lineLength?: number;
+      /** A recovery device's drag coefficient as it flies, automatic or not. */
+      cd?: number;
+    }
+  | undefined;
 
 // --------------------------------------------------------------- helpers ---
 
@@ -461,15 +472,36 @@ const writeTubeFinSet: PartWriter = (w, d, n) => {
   writeSurfaceTube(w, d, n);
 };
 
+/**
+ * A value the kernel works out while the part's flag for it is on (an
+ * automatic cord or line length, an automatic Cd). RockSim has no automatic
+ * value, so it is written as the number the kernel flies; the stored one is
+ * whatever it was when the flag went on. With no kernel figures the field is
+ * left out and the part named.
+ */
+function flown(
+  w: Writer,
+  n: ComponentNode,
+  key: 'cordLength' | 'lineLength' | 'cd',
+  flag: 'cordLengthAuto' | 'lineLengthAuto' | 'cdAuto',
+): number | undefined {
+  if (n[flag] !== true) return numOpt(n, key);
+  const figure = typeof n.id === 'string' ? w.componentInfo?.(n.id)?.[key] : undefined;
+  if (figure === undefined) {
+    skip(w, { key: 'errors.rktSkip.autoValue', values: { name: n.name || { key: `part.${n.type}` } } });
+  }
+  return figure;
+}
+
 const writeParachute: PartWriter = (w, d, n) => {
   writeCommon(w, d, n, true, 'surface'); // canopy fabric is a surface density
   // `Dia` is a diameter on both sides, not halved, unlike every other
   // circular field in the format.
   put(w, d, 'Dia', numOpt(n, 'diameter'), mm);
-  const cd = numOpt(n, 'cd');
+  const cd = flown(w, n, 'cd', 'cdAuto');
   if (cd !== undefined) el(w, d, 'DragCoefficient', cd);
   el(w, d, 'ShroudLineCount', numOpt(n, 'lineCount') ?? 6);
-  put(w, d, 'ShroudLineLen', numOpt(n, 'lineLength'), mm);
+  put(w, d, 'ShroudLineLen', flown(w, n, 'lineLength', 'lineLengthAuto'), mm);
   put(w, d, 'SpillHoleDia', numOpt(n, 'spillHoleDiameter'), mm);
   // The density first: `ParachuteHandler` builds the line material when
   // `ShroudLineMaterial` closes, from the density it has read by then, so the
@@ -485,14 +517,16 @@ const writeStreamer: PartWriter = (w, d, n) => {
   writeCommon(w, d, n, true, 'surface');
   put(w, d, 'Len', numOpt(n, 'stripLength'), mm);
   put(w, d, 'Width', numOpt(n, 'stripWidth'), mm);
-  const cd = numOpt(n, 'cd');
+  const cd = flown(w, n, 'cd', 'cdAuto');
   if (cd !== undefined) el(w, d, 'DragCoefficient', cd);
 };
 
 const writeMassObject =
   (shockCord: boolean): PartWriter =>
   (w, d, n) => {
-    const len = numOpt(n, 'cordLength') ?? 0;
+    // A cord always states a length: with no kernel figure for an automatic one,
+    // the stored length (the part is named as left unresolved).
+    const len = (shockCord ? flown(w, n, 'cordLength', 'cordLengthAuto') : undefined) ?? numOpt(n, 'cordLength') ?? 0;
     // RockSim states a shock cord's mass, not its line density.
     const ownMass = shockCord ? (numOpt(n, 'lineDensity') ?? 0) * len : (numOpt(n, 'mass') ?? 0);
     // Desktop weighs a cord by its line material alone

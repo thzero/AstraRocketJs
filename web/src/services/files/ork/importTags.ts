@@ -111,9 +111,14 @@ export function readPackedSize(el: Element, node: ComponentNode): void {
 }
 
 /** `<cd>auto</cd>`, `<linelength>auto</linelength>`, `<cordlength>auto</cordlength>`:
- *  a value the kernel works out, which the desktop shows as a checkbox. */
+ *  a value the kernel works out, which the desktop shows as a checkbox. A line
+ *  or cord length is written as its number with `<linelengthauto>true` or
+ *  `<cordlengthauto>true` beside it, since desktop cannot read `auto` there. */
 export function readAutoValue(el: Element, node: ComponentNode, tag: string, flag: string): boolean {
-  if ((text(el, `:scope > ${tag}`)?.trim().toLowerCase() ?? '') === 'auto') {
+  if (
+    (text(el, `:scope > ${tag}`)?.trim().toLowerCase() ?? '') === 'auto' ||
+    (text(el, `:scope > ${tag}auto`)?.trim().toLowerCase() ?? '') === 'true'
+  ) {
     node[flag] = true;
     return true;
   }

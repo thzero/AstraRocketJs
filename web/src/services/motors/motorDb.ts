@@ -12,6 +12,7 @@ import { MIN_CURVE_SAMPLES } from './motorCurve';
 import { parseEng, totalImpulse } from './engParser';
 import { parseRse } from './rseParser';
 import { finalizeCurve } from './curveFinalize';
+import { motorStatistics } from '../../engine/openRocketEngine';
 import { impulseClass } from './motorCombine';
 import { motorFitsMount, offersPlugged, parseDelays, type MountFit } from './motorPicker';
 import { fetchCatalog } from '../app/remoteData';
@@ -111,13 +112,19 @@ function customToRow(cm: CustomMotor): CatalogMotor {
   const samples = finalizeCurve(cm.samples);
   const last = samples[samples.length - 1];
   const impulse = totalImpulse(samples);
+  // The burn and average the kernel states for the motor
+  // (ThrustCurveMotor.computeStatistics: between the crossings of 5% of peak),
+  // as the spec dialog and the report do. The catalog is read again on each
+  // picker open, so a row read before the engine loaded takes them next time.
+  const kernel = motorStatistics(samples.map((p) => [p.time, p.thrust] as const));
   return {
     designation: cm.designation,
     manufacturer: cm.manufacturer,
     class: impulseClass(impulse),
     diameter: cm.diameter,
     impulse,
-    burn: last ? last.time : 0,
+    burn: kernel?.burnTime ?? (last ? last.time : 0),
+    ...(kernel ? { avgThrust: kernel.averageThrust } : {}),
     mass: cm.totalWeightG,
     custom: true,
     id: cm.id,

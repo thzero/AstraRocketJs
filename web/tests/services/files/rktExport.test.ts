@@ -1280,3 +1280,61 @@ describe('exportRkt, a freeform fin outline', () => {
     expect(back['points']).toEqual(pts);
   });
 });
+
+/**
+ * RockSim has no automatic values, so a cord length, line length or Cd the
+ * kernel works out is written as the number it flies (the kernel's figures, as
+ * the app passes them), not the stored one, which is whatever it was when the
+ * flag went on. A new shock cord stores 0.3 m and flies three rocket lengths.
+ */
+describe('exportRkt, values the kernel works out', () => {
+  const blocks = (out: string, tag: string): string[] =>
+    [...out.matchAll(new RegExp(`<${tag}>[\\s\\S]*?</${tag}>`, 'g'))].map((m) => m[0]);
+  const value = (block: string, name: string): string | undefined =>
+    new RegExp(`<${name}>([^<]*)</${name}>`).exec(block)?.[1];
+  const write = (parts: ComponentNode[], figures?: Parameters<typeof exportRkt>[2]) =>
+    exportRkt(
+      'x',
+      {
+        name: 'x',
+        components: [
+          {
+            type: 'stage',
+            id: 's',
+            name: 'Sustainer',
+            children: [{ type: 'bodytube', id: 'b', name: 'Tube', length: 0.5, outerRadius: 0.02, children: parts }],
+          },
+        ],
+      } as RocketTree,
+      figures,
+    );
+  const cord = { type: 'shockcord', id: 'c', name: 'Cord', cordLength: 0.3, cordLengthAuto: true } as ComponentNode;
+  const chute = {
+    type: 'parachute',
+    id: 'p',
+    name: 'Chute',
+    diameter: 0.6,
+    lineLength: 0.3,
+    lineLengthAuto: true,
+  } as ComponentNode;
+  const streamer = { type: 'streamer', id: 'st', name: 'Streamer', cd: 0.4, cdAuto: true } as ComponentNode;
+  const figures = (id: string) =>
+    ({
+      c: { mass: 0.01, cgX: 0, cordLength: 3.75 },
+      p: { mass: 0.02, cgX: 0, lineLength: 0.9, cd: 0.8 },
+      st: { mass: 0.01, cgX: 0, cd: 0.62 },
+    })[id];
+
+  it('writes the cord length, line length and Cd the kernel flies', () => {
+    const { xml: out, skipped: s } = write([cord, chute, streamer], figures);
+    expect(Number(value(blocks(out, 'MassObject')[0]!, 'Len'))).toBeCloseTo(3750, 9);
+    expect(Number(value(blocks(out, 'Parachute')[0]!, 'ShroudLineLen'))).toBeCloseTo(900, 9);
+    expect(Number(value(blocks(out, 'Streamer')[0]!, 'DragCoefficient'))).toBeCloseTo(0.62, 9);
+    expect(s).toEqual([]);
+  });
+
+  it('names a part whose automatic value it has no kernel figure for', () => {
+    const { skipped: s } = write([chute]);
+    expect(s).toEqual([{ key: 'errors.rktSkip.autoValue', values: { name: 'Chute' } }]);
+  });
+});
