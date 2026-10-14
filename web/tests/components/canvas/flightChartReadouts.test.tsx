@@ -212,3 +212,42 @@ describe('Escape on the aero crosshair', () => {
     expect(fireEvent.keyDown(host, { key: 'Escape' })).toBe(true);
   });
 });
+
+/**
+ * The chart keeps at least one stage on, so the last chip on cannot do what it
+ * looks like it does. It says so instead of taking the press in silence.
+ */
+describe('the stage chips', () => {
+  const series = { time: [0, 1, 2], altitude: [0, 10, 0], velocity: [0, 5, 0], acceleration: [9, 0, -9] };
+  const twoStage = {
+    id: 'sim-2',
+    name: 'Simulation 2',
+    result: {
+      summary: { flightTime: 2 },
+      events: [],
+      series,
+      branches: [
+        { name: 'Sustainer', events: [], series },
+        { name: 'Booster', events: [], series },
+      ],
+    },
+  } as unknown as ChartFlight;
+  const chip = (name: string) => screen.getByRole('button', { name });
+
+  it('marks the only stage still shown as unavailable, with the reason', () => {
+    renderWithProviders(<FlightChart flight={twoStage} />);
+    expect(chip('Sustainer').getAttribute('aria-disabled')).toBeNull();
+
+    fireEvent.click(chip('Booster'));
+    expect(chip('Booster').getAttribute('aria-pressed')).toBe('false');
+    const last = chip('Sustainer');
+    expect(last.getAttribute('aria-disabled')).toBe('true');
+    expect(last.getAttribute('title')).toBe('At least one stage stays on the chart.');
+
+    // Still shown after a press, and free again once another stage is back.
+    fireEvent.click(last);
+    expect(chip('Sustainer').getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(chip('Booster'));
+    expect(chip('Sustainer').getAttribute('aria-disabled')).toBeNull();
+  });
+});

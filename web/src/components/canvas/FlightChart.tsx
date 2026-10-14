@@ -257,12 +257,18 @@ export function FlightChart({ flight }: { flight: ChartFlight }) {
           </span>
           {branches.map((b) => {
             const active = isOn(b.key);
+            // The only stage shown cannot be turned off, so it says so rather
+            // than taking the press and doing nothing. aria-disabled, not
+            // disabled: it stays focusable, so the reason can be read.
+            const locked = active && selectedBranches.length === 1;
             return (
               <button
                 key={b.key}
                 onClick={() => toggleStage(b.key)}
                 aria-pressed={active}
-                className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 ${active ? 'bg-elevated text-ink-strong ring-line/20' : 'bg-raised text-ink-muted ring-line/10'}`}
+                aria-disabled={locked || undefined}
+                title={locked ? t('flight.lastStageShown') : undefined}
+                className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 aria-disabled:cursor-not-allowed ${active ? 'bg-elevated text-ink-strong ring-line/20' : 'bg-raised text-ink-muted ring-line/10'}`}
               >
                 <span
                   className="inline-block h-2 w-2 shrink-0 rounded-full"

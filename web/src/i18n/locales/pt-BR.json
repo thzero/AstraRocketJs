@@ -1049,6 +1049,7 @@
     "zoomOut": "Menos zoom",
     "zoomReset": "Redefinir o zoom",
     "stages": "Estágios",
+    "lastStageShown": "Pelo menos um estágio fica no gráfico.",
     "stageN": "Estágio {{n}}",
     "crosshairHint": "Gráficos de voo. Foque e use as setas para mover a mira; Shift para um passo maior, Home e End para as pontas, Esc para limpar.",
     "events": "Eventos de voo",

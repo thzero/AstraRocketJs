@@ -1043,6 +1043,7 @@
     "zoomOut": "縮小",
     "zoomReset": "拡大率をリセット",
     "stages": "段",
+    "lastStageShown": "少なくとも1つの段はグラフに残ります。",
     "stageN": "第 {{n}} 段",
     "crosshairHint": "飛行グラフ。フォーカスして矢印キーで十字線を動かします。Shift で大きく移動、Home と End で両端へ、Esc で解除します。",
     "events": "飛行イベント",

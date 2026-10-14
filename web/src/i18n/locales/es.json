@@ -1049,6 +1049,7 @@
     "zoomOut": "Alejar",
     "zoomReset": "Restablecer zoom",
     "stages": "Etapas",
+    "lastStageShown": "Al menos una etapa se queda en el gráfico.",
     "stageN": "Etapa {{n}}",
     "crosshairHint": "Gráficos de vuelo. Enfoca y usa las flechas para mover la cruz; Mayús para un paso mayor, Inicio y Fin para los extremos, Escape para quitarla.",
     "events": "Eventos de vuelo",

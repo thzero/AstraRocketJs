@@ -1046,6 +1046,7 @@
     "zoomOut": "Uitzoomen",
     "zoomReset": "Zoom herstellen",
     "stages": "Trappen",
+    "lastStageShown": "Er blijft altijd minstens één trap in de grafiek.",
     "stageN": "Trap {{n}}",
     "crosshairHint": "Vluchtgrafieken. Focus en gebruik de pijltjestoetsen om het kruispunt te verplaatsen; Shift voor een grotere stap, Home en End voor de uiteinden, Esc om te wissen.",
     "events": "Vluchtgebeurtenissen",

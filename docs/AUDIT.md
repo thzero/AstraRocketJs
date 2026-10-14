@@ -24,14 +24,15 @@ read but whose consequence depends on something outside the repo.
 
 ## Status
 
-**48 open defects: 1 HIGH, 23 MED, 24 LOW**, plus the upkeep section. C33 to
+**46 open defects: 1 HIGH, 21 MED, 24 LOW**, plus the upkeep section. C33 to
 C45 were found after the first pass, by the two checks added the same day and
 by the change audits of those checks and of the C1, C43 and security fixes
 (see "Checks added after this report").
 Fixed and not counted: C40 and C41, in the change that added the checks; the
 HIGH findings C1 (transition shoulders) and C43 (stage overrides); the
 security findings S1, S2 and S3; C24 (the weather key), fixed by the
-shared key field the Esri map key added; R2 (the catalog fallback); and R3 (the curve order). Each entry names the test that pins it.
+shared key field the Esri map key added; R2 (the catalog fallback); R3 (the curve order); and A1 and A2
+(accessibility). Each entry names the test that pins it.
 
 - **HIGH R1:** the published parts catalog is built by an older pipeline than
   the one on this branch.
@@ -594,12 +595,26 @@ Pinned today only by the `fields` step of `npm run audit`.
 
 ## 🟡 Accessibility
 
-**A1. MED | The last visible stage chip is an inert toggle** | `web/src/components/canvas/FlightChart.tsx:75-80, 258-273` | VERIFIED
+**A1. MED, FIXED | The last visible stage chip is an inert toggle** | `web/src/components/canvas/FlightChart.tsx:75-80, 258-273` | VERIFIED
+Resolution: the only stage still shown is `aria-disabled`, with the reason
+("At least one stage stays on the chart.") as its title in every locale. It
+stays focusable, so the reason can be read, and turns back on as soon as
+another stage is shown. Pinned by
+`tests/components/canvas/flightChartReadouts.test.tsx` ("the stage chips"),
+which fails against the chart from before the fix (it set no such state).
+The finding as reported:
 `toggleStage` refuses to hide the last stage, but the chip stays enabled with
 `aria-pressed=true` and gives no feedback. Fix: disable it (or
 `aria-disabled` with a reason) when it is the only one on.
 
-**A2. MED | The caliper readout fails contrast in light and daylight** | `web/src/components/canvas/SchematicCalipers.tsx:94-105, 183-194` | VERIFIED (code; contrast computed from `index.css` tokens by the agent)
+**A2. MED, FIXED | The caliper readout fails contrast in light and daylight** | `web/src/components/canvas/SchematicCalipers.tsx:94-105, 183-194` | VERIFIED (code; contrast computed from `index.css` tokens by the agent)
+Resolution: both caliper boxes are drawn in the theme's surface color
+(`token('surface')`) under the accent text. Pinned by
+`e2e/schematic-interaction.spec.ts` ("the caliper readouts hold 4.5:1"), one
+test per theme, which measures the rendered text against its box in the
+browser. With the old fixed box the same measurement is 3.81:1 in light and
+3.29:1 in daylight.
+The finding as reported:
 9 px bold `var(--accent)` text on a fixed `rgba(13,14,18,0.92)` box: about
 3.2:1 in light and 2.7:1 in daylight. No gate sees it: the calipers are off in
 every scanned state, and axe does not judge SVG text. Fix: draw the tag from
@@ -770,7 +785,7 @@ Each fix removes its `KNOWN` entries from `fieldReadback.kernel.test.ts` and `ch
 6. **C12** and **C11**: the two lost-work paths in storage, each with a store test.
 7. **C4**: per-target patches and mixed markers in the launch panel.
 8. **C5**, **C8** and **C36**: all need kernel figures through the bridge (`componentInfo` and the motor estimates); do them in one bridge change.
-9. **C7**, **A1**, **A2**: report digits, the stage chip and the caliper colors.
+9. **C7**: report digits.
 10. The gate gaps **T1** to **T4**, then the U4 test generator gaps, so the next audit has less to find by hand.
 11. **R1**: put the catalog pipeline on master and dispatch it.
 12. **T5**: confirm the required check.

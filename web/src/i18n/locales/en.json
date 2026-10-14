@@ -1046,6 +1046,7 @@
     "zoomOut": "Zoom out",
     "zoomReset": "Reset zoom",
     "stages": "Stages",
+    "lastStageShown": "At least one stage stays on the chart.",
     "stageN": "Stage {{n}}",
     "crosshairHint": "Flight charts. Focus and use the arrow keys to move the crosshair; Shift for a larger step, Home and End for the ends, Escape to clear.",
     "events": "Flight events",

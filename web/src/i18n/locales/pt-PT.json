@@ -1049,6 +1049,7 @@
     "zoomOut": "Reduzir",
     "zoomReset": "Restaurar o zoom",
     "stages": "Andares",
+    "lastStageShown": "Pelo menos um andar fica no gráfico.",
     "stageN": "Andar {{n}}",
     "crosshairHint": "Gráficos de voo. Foque e use as teclas de setas para mover a mira; Shift para um passo maior, Home e End para os extremos, Esc para limpar.",
     "events": "Eventos de voo",

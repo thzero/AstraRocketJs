@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { useUnits } from '../../prefs/useUnits';
 import type { Ctx } from '../../tree/schematicGeometry';
+import { token } from '../common/colorTokens';
 
 /**
  * The TreeSchematic measure tool: the two caliper overlays (length and
@@ -91,13 +92,16 @@ export function HorizontalCaliper({
           strokeWidth="1"
           vectorEffect="non-scaling-stroke"
         />
+        {/* The theme's surface under the accent text, not a fixed dark box: the
+            accent is dark in the light themes, and the readout must hold
+            4.5:1 in every theme (e2e/schematic-interaction.spec.ts). */}
         <rect
           x={mid - 28}
           y={dimY - 9}
           width={56}
           height={14}
           rx="3"
-          fill="rgba(13,14,18,0.92)"
+          fill={token('surface')}
           stroke="var(--accent)"
           strokeWidth="0.8"
         />
@@ -186,7 +190,7 @@ export function VerticalCaliper({
           width={60}
           height={14}
           rx="3"
-          fill="rgba(13,14,18,0.92)"
+          fill={token('surface')}
           stroke="var(--accent)"
           strokeWidth="0.8"
         />

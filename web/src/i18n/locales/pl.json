@@ -1052,6 +1052,7 @@
     "zoomOut": "Pomniejsz",
     "zoomReset": "Przywróć powiększenie",
     "stages": "Stopnie",
+    "lastStageShown": "Na wykresie zostaje co najmniej jeden stopień.",
     "stageN": "Stopień {{n}}",
     "crosshairHint": "Wykresy lotu. Ustaw fokus i przesuwaj celownik strzałkami; Shift dla większego kroku, Home i End na końce, Esc aby wyczyścić.",
     "events": "Zdarzenia lotu",
