@@ -105,6 +105,11 @@ interface Journal {
   /** When `saveSync` wrote it (epoch ms). */
   t?: number;
   /**
+   * The writing tab's mark when it wrote the journal (see `LibraryWorkspaceStore.mark`):
+   * ordered against that tab's saves, as a wall clock that can step backward is not.
+   */
+  mark?: number;
+  /**
    * With a null `id`: the entry the writing tab's first create makes. The
    * create can land after the journal or not at all, and only this tells the
    * two apart on the next load.
@@ -162,6 +167,21 @@ function readJournal(): Journal | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * Drop this tab's journal for `id` once a save that began after it was written
+ * has landed. Each hide writes the journal, and a same-tab journal is replayed
+ * whatever the entry's stamp says (a save in flight at pagehide can commit after
+ * it, holding older work), so one left behind would roll a later autosave back
+ * the next time the session ends without a final pagehide (a crash, a killed
+ * process, a journal too big for localStorage). A save that began after the
+ * journal holds newer work than it.
+ */
+function dropSupersededJournal(tab: string, id: string, startedAt: number): void {
+  const j = readJournal();
+  if (!j || j.tab !== tab || typeof j.mark !== 'number' || j.mark >= startedAt) return;
+  if (j.id === id || (j.id === null && j.createId === id)) clearJournal();
 }
 
 function clearJournal(): void {
@@ -256,6 +276,11 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
   private journalHeld = false;
   /** This tab's name on the saves it makes (see `DesignMeta.writer`). */
   private readonly tab = freshTabId();
+  /**
+   * Counts this tab's saves and journal writes, in the order they happen, so a
+   * journal can be told from a save that began after it (`dropSupersededJournal`).
+   */
+  private mark = 0;
 
   async load(): Promise<Workspace | null> {
     const lib = getDesignLibrary();
@@ -437,6 +462,8 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
 
   async save(w: Workspace): Promise<void> {
     const lib = getDesignLibrary();
+    // When the work this save holds was taken, against an unload journal's mark.
+    const startedAt = ++this.mark;
 
     const gen = this.gen;
     const leanW = lean(w);
@@ -461,6 +488,7 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
       this.activeId = meta.id;
       this.lastSeenAt = meta.updatedAt;
       this.journalHeld = false;
+      dropSupersededJournal(this.tab, meta.id, startedAt);
       await this.saveResults(lib, meta.id, w);
       return;
     }
@@ -471,7 +499,7 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
     // queued save write over the old entry unconditionally.
     const id = this.activeId;
     const claim = { seenAt: this.lastSeenAt, conflicted: this.conflicted };
-    const run = this.writing.then(() => this.writeEntry(lib, id, w, leanW, gen, claim));
+    const run = this.writing.then(() => this.writeEntry(lib, id, w, leanW, gen, claim, startedAt));
     this.writing = run.catch(() => {});
     await run;
   }
@@ -483,6 +511,7 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
     leanW: Workspace,
     gen: number,
     claim: { seenAt: number | null; conflicted: boolean },
+    startedAt: number,
   ) {
     // Another tab's work is not ours to throw away. Refuse rather than write
     // over an entry that has moved since this tab last saw it, and keep
@@ -519,6 +548,7 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
     // The design is the one thing here that cannot be recomputed, so surface a
     // failed write (storage full) instead of silently dropping the user's work.
     if (res.status === 'refused') throw new Error('storage-full');
+    dropSupersededJournal(this.tab, id, startedAt);
     await this.saveResults(lib, id, w);
   }
 
@@ -581,6 +611,7 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
           base: this.lastSeenAt,
           tab: this.tab,
           t: Date.now(),
+          mark: ++this.mark,
           ...(detached ? { createId: this.nextCreateId() } : {}),
           ...(detached && this.pendingName ? { name: this.pendingName } : {}),
         } satisfies Journal),

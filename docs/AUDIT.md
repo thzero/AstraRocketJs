@@ -24,16 +24,16 @@ read but whose consequence depends on something outside the repo.
 
 ## Status
 
-**36 open defects: 1 HIGH, 12 MED, 23 LOW**, plus the upkeep section. C33 to
-C45 were found after the first pass, by the two checks added the same day and
-by the change audits of those checks and of the C1, C43 and security fixes
+**35 open defects: 1 HIGH, 10 MED, 24 LOW**, plus the upkeep section. C33 to
+C46 were found after the first pass, by the two checks added the same day and
+by the change audits of those checks and of the fixes since
 (see "Checks added after this report").
 Fixed and not counted: C40 and C41, in the change that added the checks; the
 HIGH findings C1 (transition shoulders) and C43 (stage overrides); the
 security findings S1, S2 and S3; C24 (the weather key), fixed by the
 shared key field the Esri map key added; R2 (the catalog fallback); R3 (the curve order); A1 and A2
 (accessibility); C33, C3, C37, C42, C10, C9 and C6 (steps 2 and 4 of
-the order of attack); C2 and C44 (step 5); and C34. Each entry names the test that pins it.
+the order of attack); C2 and C44 (step 5); C34; and C11 and C12 (step 6). Each entry names the test that pins it.
 
 - **HIGH R1:** the published parts catalog is built by an older pipeline than
   the one on this branch.
@@ -378,7 +378,17 @@ configuration's override.
 Fix: refuse or name the part for an unsupported event; fall back to the kernel
 Cd; read the selected configuration's deployment.
 
-**C11. MED | An old unload journal is replayed over newer autosaves from the same tab** | `web/src/state/useWorkspaceEffects.ts:197-203`; `web/src/services/storage/workspaceStore.ts:118-125, 567-590` | VERIFIED (code path; the crash precondition is reasoned)
+**C11. MED, FIXED | An old unload journal is replayed over newer autosaves from the same tab** | `web/src/state/useWorkspaceEffects.ts:197-203`; `web/src/services/storage/workspaceStore.ts:118-125, 567-590` | VERIFIED (code path; the crash precondition is reasoned)
+Resolution: once a save lands, this tab's journal for that design is dropped
+when it was written before the save began (`dropSupersededJournal`, after
+`writeEntry` and after a first create): that save holds newer work. The order
+is a per-tab counter stored in the journal (`mark`), not the wall clock, which
+can step backward. A save in flight at pagehide began before the journal, so
+the journal still wins over it, as before. Pinned by `workspaceJournal.test.ts`
+("is dropped once a later save of the tab lands", "drops the journal once the
+first create lands with newer work"), both failing against the store from
+before the fix.
+The finding as reported:
 Every time the tab is hidden, `onHidden` calls `flush()`, which writes the
 unload journal. Nothing clears it after a later successful autosave
 (`clearJournal` runs only in `load()`), and `journalIsCurrent` returns true at
@@ -390,7 +400,18 @@ Fix: after each successful write for an id, drop a journal for that id older
 than the snapshot; or compare `j.t` with `meta.updatedAt` for a same-tab
 journal.
 
-**C12. MED | A failed IndexedDB read rebuilds a stored list from empty** | `web/src/services/storage/idbKeyValueStore.ts:362-374, 395-401` | VERIFIED
+**C12. MED, FIXED | A failed IndexedDB read rebuilds a stored list from empty** | `web/src/services/storage/idbKeyValueStore.ts:362-374, 395-401` | VERIFIED
+Resolution: `readIdb` tells a failed read (`UNREADABLE`) from nothing stored.
+When an update's IndexedDB write fails and the read fails too, and the
+fallback holds no copy of its own, the update is refused (resolves false, as a
+full store does) instead of seeding the reducer with null and demoting the full
+copy. Only after a connection has opened this session: IndexedDB that never
+opened (disabled, blocked, absent) holds nothing the session wrote, so there a
+refused read is nothing stored and the fallback is the whole store. Pinned by
+`idbKeyValueStore.test.ts` ("refuses the write when IndexedDB cannot be read",
+which fails against the store from before the fix, and "a session where
+IndexedDB never opens", which keeps the first write of a list or design).
+The finding as reported:
 When `txUpdate` fails with a non-quota error, `update()` seeds the reducer with
 `readIdb(key)`, and `readIdb` returns null both for "nothing stored" and for a
 failed read. With IndexedDB failing mid-session (for example WebKit's
@@ -675,6 +696,14 @@ Desktop and fflate write the signature, so only a `.ork` re-zipped by an
 uncommon streaming tool meets this. Fix: read such a member through the
 central directory, with the same caps.
 
+**C46. LOW | A failed IndexedDB read at boot reads as an empty library** | `web/src/services/storage/idbKeyValueStore.ts` (`get`); `web/src/services/storage/workspaceStore.ts` (`load`, `metaOf`) | REPORTED (found by the C11/C12 change audit)
+`get` turns a failed read into null, as `readIdb` did before C12. At boot,
+`metaOf` then returns null, so `journalIsCurrent` replays the journal over
+another tab's newer save, and a landed `createId` goes unrecognized, so the
+create is repeated. It needs the index read to fail just after
+`activeIdChecked` succeeded. Fix: use checked reads in `metaOf` during
+`load()`.
+
 **C44. MED, FIXED | Two automatic ends that follow each other keep their stored radius in the app** | `web/src/services/design/autoRadius.ts` (`syncAutoRadii`) | VERIFIED (kernel and desktop)
 Resolution: the bridge reads every automatic radius against the finished rocket
 once the build is done, front to back, once per symmetric part and once
@@ -898,12 +927,12 @@ Each fix removes its `KNOWN` entries from `fieldReadback.kernel.test.ts` and `ch
 3. Done: **S1**, **S2** and **S3**.
 4. Done: **C3**, **C37**, **C42**, **C10**, **C9** and **C6**.
 5. Done: **C2**, **C34** and **C44**.
-6. **C12** and **C11**: the two lost-work paths in storage, each with a store test.
+6. Done: **C12** and **C11**.
 7. **C4**: per-target patches and mixed markers in the launch panel.
 8. **C5**, **C8** and **C36**: all need kernel figures through the bridge (`componentInfo` and the motor estimates); do them in one bridge change.
 9. **C7**: report digits.
 10. The gate gaps **T1** to **T4**, then the U4 test generator gaps, so the next audit has less to find by hand.
 11. **R1**: put the catalog pipeline on master and dispatch it.
 12. **T5**: confirm the required check.
-13. The LOW findings, grouped by file: storage C19 to C21, C31 and C32; state C22; tree C14 to C16; importers C13, C17, C18; design C35 and C39; launch panel C23; canvas C25 and C26; report C27 and C28; writers C29, C30, C38; reader C45.
+13. The LOW findings, grouped by file: storage C19 to C21, C31 and C32; state C22; tree C14 to C16; importers C13, C17, C18; storage C46; design C35 and C39; launch panel C23; canvas C25 and C26; report C27 and C28; writers C29, C30, C38; reader C45.
 14. Upkeep, by rule: U2 first, since docs are what a reader acts on.

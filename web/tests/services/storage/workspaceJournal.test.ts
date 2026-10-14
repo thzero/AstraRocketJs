@@ -174,6 +174,25 @@ describe('unload journal written before the first save', () => {
     expect(localStorage.getItem(UNLOAD_KEY)).toBeNull();
   });
 
+  /**
+   * A tab with no design yet is hidden (the journal, with the id its first
+   * create will use), then comes back and its first save creates the design
+   * with newer work. That journal is dropped, so a session that ends with no
+   * pagehide reopens the saved work rather than the hide's.
+   */
+  it('drops the journal once the first create lands with newer work', async () => {
+    const kv = new FakeKv();
+    setDesignLibrary(new DesignLibrary(kv));
+    const store = new LibraryWorkspaceStore();
+
+    store.saveSync(ws('at-the-hide'));
+    await store.save(ws('typed-after-coming-back'));
+    // No pagehide: the session ends here.
+
+    expect(nameOf(await new LibraryWorkspaceStore().load())).toBe('typed-after-coming-back');
+    expect(await new DesignLibrary(kv).list()).toHaveLength(1);
+  });
+
   // The create fails on a full store, which is the failure the journal exists
   // for. Cleared first, the only copy of the work would be gone and the app
   // would open the default rocket.
@@ -372,6 +391,22 @@ describe.each([
     await saving;
 
     expect(nameOf(await new LibraryWorkspaceStore().load())).toBe('typed-after-the-debounce');
+  });
+
+  /**
+   * Each hide writes the journal. A save that began after it holds newer work,
+   * so once that save lands the journal is dropped; left behind, a session that
+   * ends with no final pagehide (a crash, a killed process) would reopen the
+   * design as it was at that hide.
+   */
+  it('is dropped once a later save of the tab lands, so a crash does not roll it back', async () => {
+    later();
+    tabA.saveSync(ws('at-the-hide'));
+    later();
+    await tabA.save(ws('typed-after-coming-back'));
+    // No pagehide: the session ends here.
+
+    expect(nameOf(await new LibraryWorkspaceStore().load())).toBe('typed-after-coming-back');
   });
 
   it('is replayed after the tab’s own earlier saves', async () => {

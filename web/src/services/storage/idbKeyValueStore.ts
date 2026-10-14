@@ -29,6 +29,13 @@ const STORE = 'kv';
 
 let dbPromise: Promise<IDBDatabase> | null = null;
 
+/**
+ * Whether a connection has opened in this session. Until one has, IndexedDB has
+ * held nothing this session could need: a read it refuses is nothing stored,
+ * and the fallback is the whole store (see `readIdb`).
+ */
+let everOpened = false;
+
 function openDb(): Promise<IDBDatabase> {
   if (dbPromise) return dbPromise;
   const p = new Promise<IDBDatabase>((resolve, reject) => {
@@ -42,6 +49,7 @@ function openDb(): Promise<IDBDatabase> {
     };
     req.onsuccess = () => {
       const db = req.result;
+      everOpened = true;
       // A newer build in another tab is asking to upgrade the schema. Yield:
       // close this connection and forget the cached promise, so this tab
       // reconnects (at the new version) on its next operation. Without this an
@@ -252,12 +260,16 @@ export async function __resetIdbForTests(): Promise<void> {
   const pending = dbPromise;
   dbPromise = null;
   degraded = false;
+  everOpened = false;
   try {
     (await pending)?.close();
   } catch {
     /* never opened */
   }
 }
+
+/** A read of IndexedDB that failed, which is not the same as nothing stored. */
+const UNREADABLE = Symbol('unreadable');
 
 export class IndexedDbKeyValueStore implements KeyValueStore {
   constructor(private readonly fallback: KeyValueStore = new LocalStorageKeyValueStore()) {}
@@ -365,9 +377,19 @@ export class IndexedDbKeyValueStore implements KeyValueStore {
       // reducer handed `null` would rebuild the design-library index from
       // nothing and drop every other entry, so seed it with the IndexedDB copy
       // whenever the fallback has none of its own (a fallback copy, if present,
-      // is the newer one: see `get`).
+      // is the newer one: see `get`), and refuse below when that copy cannot be
+      // read.
       const current = await this.readIdb(key);
-      const ok = await this.fallback.update(key, (raw) => fn(raw ?? current));
+      // IndexedDB failing mid-session (WebKit's "Connection to Indexed Database
+      // server lost") can refuse the read as well as the write. Then nothing
+      // says what is stored, and a reducer handed null would write a one-item
+      // list to the fallback, the demotion below would drop the full copy, and
+      // the next session would promote the short list over it: every other
+      // saved design unlisted. Unless the fallback has its own copy to seed
+      // from, the write is refused, as a full store refuses it.
+      if (current === UNREADABLE && (await this.fallback.get(key)) == null) return false;
+      const seed = current === UNREADABLE ? null : current;
+      const ok = await this.fallback.update(key, (raw) => fn(raw ?? seed));
       // The design library index is mutated only through `update`, so it is
       // the key the demotion matters most for.
       if (ok) await this.demote(key);
@@ -391,12 +413,18 @@ export class IndexedDbKeyValueStore implements KeyValueStore {
     }
   }
 
-  /** The IndexedDB copy of `key`, or null if there is none or it cannot be read. */
-  private async readIdb(key: string): Promise<string | null> {
+  /**
+   * The IndexedDB copy of `key`: null if there is none, {@link UNREADABLE} if it
+   * cannot be read. A read refused before any connection has opened this
+   * session is null: IndexedDB that never opened (disabled, blocked, absent)
+   * holds nothing the session wrote, and refusing on it would refuse the first
+   * write of every list and design for good.
+   */
+  private async readIdb(key: string): Promise<string | null | typeof UNREADABLE> {
     try {
       return (await tx<string | undefined>('readonly', (s) => s.get(key))) ?? null;
     } catch {
-      return null;
+      return everOpened ? UNREADABLE : null;
     }
   }
 
