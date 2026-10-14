@@ -24,8 +24,8 @@ read but whose consequence depends on something outside the repo.
 
 ## Status
 
-**35 open defects: 1 HIGH, 10 MED, 24 LOW**, plus the upkeep section. C33 to
-C46 were found after the first pass, by the two checks added the same day and
+**33 open defects: 1 HIGH, 9 MED, 23 LOW**, plus the upkeep section. C33 to
+C45 were found after the first pass, by the two checks added the same day and
 by the change audits of those checks and of the fixes since
 (see "Checks added after this report").
 Fixed and not counted: C40 and C41, in the change that added the checks; the
@@ -33,7 +33,7 @@ HIGH findings C1 (transition shoulders) and C43 (stage overrides); the
 security findings S1, S2 and S3; C24 (the weather key), fixed by the
 shared key field the Esri map key added; R2 (the catalog fallback); R3 (the curve order); A1 and A2
 (accessibility); C33, C3, C37, C42, C10, C9 and C6 (steps 2 and 4 of
-the order of attack); C2 and C44 (step 5); C34; and C11 and C12 (step 6). Each entry names the test that pins it.
+the order of attack); C2 and C44 (step 5); C34; C11 and C12 (step 6); and C4 (step 7). Each entry names the test that pins it.
 
 - **HIGH R1:** the published parts catalog is built by an older pipeline than
   the one on this branch.
@@ -276,7 +276,24 @@ instead of wrapping, so the kernel and desktop both fly 180. Other angle
 setters use `reducePi` and are unaffected.
 Fix: pass `Math.PI` as the upper bound, as the desktop spinner stops at 180.
 
-**C4. MED | A multi-row launch edit copies the active row's values onto every ticked row** | `web/src/components/sim/LaunchPanel.tsx:561-575, 596-605`; `web/src/components/sim/WindProfileDialog.tsx:169, 186-209`; `web/src/components/sim/WeatherDialog.tsx:146-166` | VERIFIED
+**C4. MED, FIXED | A multi-row launch edit copies the active row's values onto every ticked row** | `web/src/components/sim/LaunchPanel.tsx:561-575, 596-605`; `web/src/components/sim/WindProfileDialog.tsx:169, 186-209`; `web/src/components/sim/WeatherDialog.tsx:146-166` | VERIFIED
+Resolution: an edit can be a function of each row's conditions
+(`LaunchPatch`, applied per ticked row by `patchLaunch`). The speed box retunes
+each row's deviation from that row's own wind at the start of the edit, the
+turbulence box converts with each row's own average, the wind model radio
+seeds each row's profile from its own wind (a row that has one keeps it), and
+Weather Apply changes only the rows at the fetched site (the source line's
+same-site tolerance, `sameSite`) and elevation, since the forecast's pressure
+and wind levels are for that height; the others keep their conditions and the
+dialog says so. The wind model, launch-into-wind,
+geodetic and gravity labels are marked mixed, and the Wind Profile dialog takes
+`diff` and says so when the rows' profiles or altitude references differ (its
+edit sets every row's profile, as a mixed number box does). Pinned by
+`tests/components/sim/launchMultiEdit.test.tsx` (two ticked rows at 15% and
+30%: each keeps its own; all four fail against the panel from before) and
+`WeatherDialog.test.tsx` ("applies the forecast only to rows at the fetched
+site and elevation", and the note).
+The finding as reported:
 `patchLaunch` applies one fixed patch to every edit target
 (`state/store.ts` `patchLaunch` to `patchTargets`), and these handlers build
 that patch from the active row:
@@ -696,14 +713,6 @@ Desktop and fflate write the signature, so only a `.ork` re-zipped by an
 uncommon streaming tool meets this. Fix: read such a member through the
 central directory, with the same caps.
 
-**C46. LOW | A failed IndexedDB read at boot reads as an empty library** | `web/src/services/storage/idbKeyValueStore.ts` (`get`); `web/src/services/storage/workspaceStore.ts` (`load`, `metaOf`) | REPORTED (found by the C11/C12 change audit)
-`get` turns a failed read into null, as `readIdb` did before C12. At boot,
-`metaOf` then returns null, so `journalIsCurrent` replays the journal over
-another tab's newer save, and a landed `createId` goes unrecognized, so the
-create is repeated. It needs the index read to fail just after
-`activeIdChecked` succeeded. Fix: use checked reads in `metaOf` during
-`load()`.
-
 **C44. MED, FIXED | Two automatic ends that follow each other keep their stored radius in the app** | `web/src/services/design/autoRadius.ts` (`syncAutoRadii`) | VERIFIED (kernel and desktop)
 Resolution: the bridge reads every automatic radius against the finished rocket
 once the build is done, front to back, once per symmetric part and once
@@ -928,11 +937,11 @@ Each fix removes its `KNOWN` entries from `fieldReadback.kernel.test.ts` and `ch
 4. Done: **C3**, **C37**, **C42**, **C10**, **C9** and **C6**.
 5. Done: **C2**, **C34** and **C44**.
 6. Done: **C12** and **C11**.
-7. **C4**: per-target patches and mixed markers in the launch panel.
+7. Done: **C4**.
 8. **C5**, **C8** and **C36**: all need kernel figures through the bridge (`componentInfo` and the motor estimates); do them in one bridge change.
 9. **C7**: report digits.
 10. The gate gaps **T1** to **T4**, then the U4 test generator gaps, so the next audit has less to find by hand.
 11. **R1**: put the catalog pipeline on master and dispatch it.
 12. **T5**: confirm the required check.
-13. The LOW findings, grouped by file: storage C19 to C21, C31 and C32; state C22; tree C14 to C16; importers C13, C17, C18; storage C46; design C35 and C39; launch panel C23; canvas C25 and C26; report C27 and C28; writers C29, C30, C38; reader C45.
+13. The LOW findings, grouped by file: storage C19 to C21, C31 and C32; state C22; tree C14 to C16; importers C13, C17, C18; design C35 and C39; launch panel C23; canvas C25 and C26; report C27 and C28; writers C29, C30, C38; reader C45.
 14. Upkeep, by rule: U2 first, since docs are what a reader acts on.

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { screen, fireEvent } from '@testing-library/react';
 import { LaunchPanel } from '../../../src/components/sim/LaunchPanel';
 import { renderWithProviders } from '../../testing/renderWithProviders';
-import type { LaunchConditions } from '../../../src/services/design/orkTree';
+import { launchPatchFor, type LaunchConditions } from '../../../src/services/design/orkTree';
 import { __setEngineForTests } from '../../../src/engine/openRocketEngine';
 import { useEngineStore } from '../../../src/state/engineStore';
 
@@ -212,7 +212,7 @@ describe('wind speed edits keep the turbulence', () => {
         launch={launch}
         onChange={(p) =>
           setLaunch((l) => {
-            const next = { ...l, ...p };
+            const next = { ...l, ...launchPatchFor(p, l, 'row') };
             onLaunch(next);
             return next;
           })

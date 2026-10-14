@@ -37,7 +37,7 @@ import {
   ensureConfig,
   type FlightConfig,
 } from '../services/flight/flightConfigs';
-import type { LaunchConditions } from '../services/design/orkTree';
+import { launchPatchFor, type LaunchConditions, type LaunchPatch } from '../services/design/orkTree';
 import type { OrkExportMotor } from '../services/files/orkFile';
 import type { ImportNote } from '../services/files/importNote';
 import { repairValues } from '../services/design/repairValues';
@@ -461,7 +461,7 @@ export interface WorkspaceState extends ViewSlice, FileSlice {
   deleteConfig: (id: string) => void;
   /** Point one simulation at a configuration. */
   setSimConfig: (simId: string, configId: string) => void;
-  patchLaunch: (p: Partial<LaunchConditions>) => void;
+  patchLaunch: (p: LaunchPatch) => void;
   /**
    * Patch the active simulation's launch conditions alone, as one undo step.
    *
@@ -1283,7 +1283,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
     },
     patchLaunch: (p) => {
       beginEdit();
-      patchTargets((sim) => ({ launch: { ...sim.launch, ...p } }));
+      patchTargets((sim) => ({ launch: { ...sim.launch, ...launchPatchFor(p, sim.launch, sim.id) } }));
     },
     patchActiveLaunch: (p) => {
       const active = selectActive(get());

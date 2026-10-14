@@ -7,6 +7,7 @@ import { NumberInput } from '../common/NumberInput';
 import { DefaultMaterials } from './DefaultMaterials';
 import { LaunchPanel } from '../sim/LaunchPanel';
 import { withRequiredFrom, type CompleteLaunch } from '../../services/flight/requiredLaunch';
+import { launchPatchFor } from '../../services/design/orkTree';
 import { IMPERIAL_UNITS, METRIC_UNITS, QUANTITIES, UNITS, unitScope } from '../../prefs/units';
 import { useUnits } from '../../prefs/useUnits';
 import { onSi } from '../../prefs/entryValue';
@@ -425,7 +426,11 @@ function LaunchDefaults({ launch, onSave }: { launch: CompleteLaunch; onSave: (l
       onChange={(patch) => {
         // From the pending draft, not the rendered one: two patches can land
         // before the next render.
-        const next = withRequiredFrom({ ...(pending.current ?? shown), ...patch }, DEFAULT_SETTINGS.launchDefaults);
+        const from = pending.current ?? shown;
+        const next = withRequiredFrom(
+          { ...from, ...launchPatchFor(patch, from, 'defaults') },
+          DEFAULT_SETTINGS.launchDefaults,
+        );
         pending.current = next;
         setDraft(next);
       }}

@@ -62,6 +62,20 @@ export interface AtmosphereLevel {
   relativeHumidity: number;
 }
 
+/**
+ * An edit to launch conditions: a patch, or a function that makes one from a
+ * row's own conditions and its id. An edit of several simulations at once
+ * applies it to each, so a value worked out from the row (a deviation recomputed
+ * to keep its turbulence, a profile seeded from its wind) is worked out from
+ * that row rather than copied from the one on screen.
+ */
+export type LaunchPatch =
+  Partial<LaunchConditions> | ((launch: LaunchConditions, rowId: string) => Partial<LaunchConditions>);
+
+/** `p` as the patch it makes for one row. */
+export const launchPatchFor = (p: LaunchPatch, launch: LaunchConditions, rowId: string): Partial<LaunchConditions> =>
+  typeof p === 'function' ? p(launch, rowId) : p;
+
 /** Launch conditions, in the shape a .ork's `<simulation>` `<conditions>` is parsed into. */
 export interface LaunchConditions {
   launchRodLengthM: number | null;

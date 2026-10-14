@@ -2147,6 +2147,7 @@
     "cloudCoverLow": "Zachmurzenie niskie",
     "visibility": "Widzialność",
     "forecastNote": "Prognoza to oszacowanie modelu, a nie pomiar.",
+    "otherSitesNote": "Zmieniane są tylko wybrane symulacje w tym miejscu i na tej wysokości. Pozostałe zachowują swoje warunki.",
     "credit": "Dane pogodowe: Open-Meteo.com",
     "windValue": "{{speed}} z {{from}}, porywy {{gust}}, profil do {{top}}",
     "atmosphereValue": "Profil do {{top}}",

@@ -2127,6 +2127,7 @@
     "cloudCoverLow": "Tiefe Bewölkung",
     "visibility": "Sichtweite",
     "forecastNote": "Eine Vorhersage ist die Schätzung eines Modells, keine Messung.",
+    "otherSitesNote": "Nur die ausgewählten Simulationen an diesem Ort und in dieser Höhe werden geändert. Die anderen behalten ihre Bedingungen.",
     "credit": "Wetterdaten von Open-Meteo.com",
     "windValue": "{{speed}} aus {{from}}, Böen {{gust}}, Profil bis {{top}}",
     "atmosphereValue": "Profil bis {{top}}",

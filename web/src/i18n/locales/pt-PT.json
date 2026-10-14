@@ -2137,6 +2137,7 @@
     "cloudCoverLow": "Nuvens baixas",
     "visibility": "Visibilidade",
     "forecastNote": "Uma previsão é uma estimativa de um modelo, não uma medição.",
+    "otherSitesNote": "Só mudam as simulações selecionadas neste local e nesta altitude. As outras mantêm as suas condições.",
     "credit": "Dados meteorológicos por Open-Meteo.com",
     "windValue": "{{speed}} de {{from}}, rajadas {{gust}}, perfil até {{top}}",
     "atmosphereValue": "Perfil até {{top}}",

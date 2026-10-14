@@ -2127,6 +2127,7 @@
     "cloudCoverLow": "Lage bewolking",
     "visibility": "Zicht",
     "forecastNote": "Een voorspelling is een schatting van een model, geen meting.",
+    "otherSitesNote": "Alleen de geselecteerde simulaties op deze locatie en hoogte worden gewijzigd. De andere houden hun omstandigheden.",
     "credit": "Weergegevens van Open-Meteo.com",
     "windValue": "{{speed}} uit {{from}}, windstoten {{gust}}, profiel tot {{top}}",
     "atmosphereValue": "Profiel tot {{top}}",

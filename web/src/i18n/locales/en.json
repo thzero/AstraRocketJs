@@ -2127,6 +2127,7 @@
     "cloudCoverLow": "Low cloud cover",
     "visibility": "Visibility",
     "forecastNote": "A forecast is a model’s estimate, not a measurement.",
+    "otherSitesNote": "Only the selected simulations at this site and elevation are changed. The others keep their conditions.",
     "credit": "Weather data by Open-Meteo.com",
     "windValue": "{{speed}} from {{from}}, gusts {{gust}}, profile to {{top}}",
     "atmosphereValue": "Profile to {{top}}",

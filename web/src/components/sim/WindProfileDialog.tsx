@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { LaunchConditions, WindLevel } from '../../services/design/orkTree';
+import type { LaunchConditions, LaunchPatch, WindLevel } from '../../services/design/orkTree';
 import { NumberInput } from '../common/NumberInput';
 import { markRing } from '../common/FieldMark';
 import { Dialog } from '../common/Dialog';
@@ -122,12 +122,19 @@ function ProfileChart({ levels, u, showVectors }: { levels: WindLevel[]; u: Unit
 
 export function WindProfileDialog({
   launch,
+  diff,
   onChange,
   onCommit,
   onClose,
 }: {
   launch: LaunchConditions;
-  onChange: (patch: Partial<LaunchConditions>) => void;
+  /**
+   * Launch keys the simulations being edited together disagree on. The
+   * profile is edited as one, so an edit sets every simulation's to it; the
+   * dialog says so when they differ.
+   */
+  diff?: ReadonlySet<keyof LaunchConditions>;
+  onChange: (patch: LaunchPatch) => void;
   onCommit?: () => void;
   onClose: () => void;
 }) {
@@ -270,6 +277,14 @@ export function WindProfileDialog({
           onCommit?.();
         }}
       >
+        {(diff?.has('windLevels') || diff?.has('windAltitudeReference')) && (
+          <p
+            role="note"
+            className="mb-3 rounded-md bg-warn-500/15 px-3 py-2 text-xs text-warn-200 ring-1 ring-warn-500/40"
+          >
+            {t('sims.mixedField')}
+          </p>
+        )}
         <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_280px]">
           <div className="min-w-0">
             <div className="flex gap-1 px-1 pb-1 text-[10px] uppercase tracking-wide text-ink-faint">

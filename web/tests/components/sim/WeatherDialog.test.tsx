@@ -6,7 +6,7 @@ import { renderWithProviders, seedSettings } from '../../testing/renderWithProvi
 import { answer } from '../../testing/openMeteoFixture';
 import { resetWeatherState, setWeatherTransport, ymdInZone } from '../../../src/services/weather/openMeteo';
 import { weatherKeyStore } from '../../../src/services/weather/weatherKey';
-import type { LaunchConditions } from '../../../src/services/design/orkTree';
+import { launchPatchFor, type LaunchConditions, type LaunchPatch } from '../../../src/services/design/orkTree';
 
 const SITE = {
   launchRodLengthM: 1,
@@ -117,7 +117,7 @@ describe('WeatherDialog', () => {
     await fetchIt();
     fireEvent.click(screen.getByRole('checkbox', { name: 'Wind' }));
     fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
-    const patch = onChange.mock.calls[0]![0] as Partial<LaunchConditions>;
+    const patch = launchPatchFor(onChange.mock.calls[0]![0] as LaunchPatch, SITE, 'row');
     expect(patch).toMatchObject({ temperatureC: expect.any(Number), pressureHPa: 850, relativeHumidity: 0.4 });
     expect(patch.atmosphereLevels!.length).toBeGreaterThan(0);
     expect(patch.windLevels).toBeUndefined();
@@ -125,12 +125,51 @@ describe('WeatherDialog', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  /**
+   * A forecast is for one place and one height: its pressure is corrected to
+   * the site's elevation and its wind levels start above it. Applied to several
+   * simulations at once, only the rows at that site (within the source line's
+   * same-site tolerance) and elevation take it; the others keep their own.
+   */
+  it('applies the forecast only to rows at the fetched site and elevation', async () => {
+    // Asked for at the site's elevation and the terrain's, the service answers both.
+    setWeatherTransport(((url: string) => {
+      const body = url.includes('/v1/elevation')
+        ? { elevation: [1700] }
+        : [answer(1500, { start, hours: 96 }), answer(1700, { start, hours: 96 })];
+      return Promise.resolve(new Response(JSON.stringify(body), { status: 200 }));
+    }) as typeof fetch);
+    const { onChange } = open();
+    await fetchIt();
+    fireEvent.click(screen.getByRole('checkbox', { name: /Use the terrain elevation/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+    const made = onChange.mock.calls[0]![0] as LaunchPatch;
+    const here = launchPatchFor(made, SITE, 'here');
+    expect(here.launchAltitudeM).toBe(1700);
+    expect(here.weatherSource?.elevationApplied).toBe(true);
+    // A position picked again at the same field, a few meters off.
+    expect(launchPatchFor(made, { ...SITE, latitudeDeg: SITE.latitudeDeg! + 0.0003 }, 'near')).toEqual(here);
+    expect(launchPatchFor(made, { ...SITE, latitudeDeg: SITE.latitudeDeg! + 1 }, 'elsewhere')).toEqual({});
+    expect(launchPatchFor(made, { ...SITE, launchAltitudeM: 20 }, 'lower')).toEqual({});
+  });
+
+  it('says so when some of the simulations being edited are elsewhere', async () => {
+    const onChange = vi.fn();
+    renderWithProviders(
+      <WeatherDialog launch={SITE} diff={new Set(['latitudeDeg'] as const)} onChange={onChange} onClose={() => {}} />,
+    );
+    fireEvent.change(screen.getByLabelText('Date'), { target: { value: date } });
+    fireEvent.change(screen.getByLabelText('Hour (site time)'), { target: { value: '12' } });
+    await fetchIt();
+    expect(screen.getByText(/Only the selected simulations at this site and elevation are changed/)).toBeTruthy();
+  });
+
   it('stamps what it applied: the date, hour, place, groups and values', async () => {
     const { onChange } = open();
     await fetchIt();
     fireEvent.click(screen.getByRole('checkbox', { name: 'Humidity' }));
     fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
-    const patch = onChange.mock.calls[0]![0] as Partial<LaunchConditions>;
+    const patch = launchPatchFor(onChange.mock.calls[0]![0] as LaunchPatch, SITE, 'row');
     const { weatherSource, ...values } = patch;
     expect(weatherSource).toMatchObject({
       provider: 'open-meteo',

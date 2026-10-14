@@ -2117,6 +2117,7 @@
     "cloudCoverLow": "下層雲量",
     "visibility": "視程",
     "forecastNote": "予報はモデルによる推定であり、測定値ではありません。",
+    "otherSitesNote": "この場所と標高にある選択中のシミュレーションだけが変更されます。ほかのシミュレーションは条件をそのまま保ちます。",
     "credit": "気象データ:Open-Meteo.com",
     "windValue": "{{speed}}、{{from}} から、突風 {{gust}}、{{top}} までのプロファイル",
     "atmosphereValue": "{{top}} までのプロファイル",
