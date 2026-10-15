@@ -5,10 +5,10 @@ import type { ReportModel } from '../../../src/services/report/reportModel';
 import type { ReportOptions } from '../../../src/services/report/options';
 import { createPdfPage, type T } from '../../../src/services/report/pdfPage';
 import { writeMotorsSection } from '../../../src/services/report/motorsSection';
-import { METRIC_UNITS } from '../../../src/prefs/units';
+import { METRIC_UNITS, type UnitSelection } from '../../../src/prefs/units';
 
 /** The motors section's text, drawn into a real jsPDF document. */
-function drawnText(configs: ReportModel['configs']): string {
+function drawnText(configs: ReportModel['configs'], units: UnitSelection = METRIC_UNITS): string {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const runs: string[] = [];
   const text = doc.text.bind(doc);
@@ -21,7 +21,7 @@ function drawnText(configs: ReportModel['configs']): string {
     const raw = key.split('.').reduce<unknown>((n, k) => (n as Record<string, unknown> | undefined)?.[k], en);
     return typeof raw === 'string' ? raw : key;
   };
-  const page = createPdfPage(doc, t, {} as ReportOptions, METRIC_UNITS);
+  const page = createPdfPage(doc, t, {} as ReportOptions, units);
   writeMotorsSection(page, { configs } as unknown as ReportModel);
   return runs.join(' ').replace(/\s+/g, ' ');
 }
@@ -61,5 +61,18 @@ describe('the motors section', () => {
     const out = drawnText([{ name: 'New', motors: [motor], flight, outdated: false }]);
     expect(out).not.toContain(en.report.outdatedFlight);
     expect(out).toContain(en.report.altitude);
+  });
+
+  // An Estes C6 is 18 x 70 mm, 0.709 x 2.756 in; an AeroTech N2000 is 98 x 1,046 mm.
+  it('prints motor sizes whole in millimeters and to the ladder in inches', () => {
+    const big = { ...motor, designation: 'N2000W', manufacturer: 'AeroTech', diameter: 0.098, length: 1.046 };
+    const mm = drawnText([{ name: 'Big', motors: [motor, big], flight, outdated: false }]);
+    expect(mm).toContain('18/70 mm');
+    expect(mm).toContain('98/1,046 mm');
+    const inch = drawnText([{ name: 'C6', motors: [motor], flight, outdated: false }], {
+      ...METRIC_UNITS,
+      motorDimensions: 'in',
+    });
+    expect(inch).toContain('0.709/2.76 in');
   });
 });

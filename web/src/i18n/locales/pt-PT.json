@@ -168,7 +168,9 @@
       "cdOverride": "substituição do Cd ({{name}})",
       "cgOverride": "substituição do CG ({{name}})",
       "extraStages": "andar {{from}} e seguintes",
+      "instanceCount": "número de instâncias ({{name}})",
       "massOverride": "substituição da massa ({{name}})",
+      "stageOnlyOverride": "substituição apenas do andar ({{name}})",
       "subtreeOverride": "substituição dos subcomponentes ({{name}})"
     },
     "viewFailed": "Não foi possível carregar esta vista.",
@@ -178,6 +180,7 @@
     "saveOrk": "Não foi possível guardar o .ork: {{reason}}",
     "saveOrkNoDesignInfo": "O .ork foi guardado sem as informações do projeto: não foi possível construir o projeto, pelo que não havia estatísticas para incluir.",
     "exportRasaero": "Não foi possível exportar o RASAero: {{reason}}",
+    "exportRasaeroSurface": "O ficheiro do RASAero foi guardado, mas o RASAero não tem uma superfície correspondente ao acabamento deste projeto, por isso foi gravada como lisa (rugosidade zero).",
     "exportUnsupported": "Este componente não pode ser exportado como {{format}}.",
     "exportFailed": "Não foi possível exportar {{format}}: {{reason}}",
     "exportRkt": "Não foi possível escrever o .rkt: {{reason}}",
@@ -2098,7 +2101,7 @@
     "clear": "Limpar",
     "progress": "{{done}} / {{total}}",
     "landed": "Aterraram {{flown}} de {{asked}} voos.",
-    "stale": "O projeto mudou desde que este varrimento foi voado.",
+    "stale": "O projeto ou as suas definições de simulação mudaram desde que este varrimento foi voado.",
     "noLandings": "O varrimento de vento não produziu aterragens.",
     "spread": "{{from}}–{{to}}",
     "flown": "varrimento feito"

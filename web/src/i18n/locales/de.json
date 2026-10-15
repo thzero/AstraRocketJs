@@ -168,7 +168,9 @@
       "cdOverride": "Cd-Überschreibung ({{name}})",
       "cgOverride": "CG-Überschreibung ({{name}})",
       "extraStages": "Stufe {{from}} und folgende",
+      "instanceCount": "Anzahl der Instanzen ({{name}})",
       "massOverride": "Massen-Überschreibung ({{name}})",
+      "stageOnlyOverride": "Überschreibung nur der Stufe ({{name}})",
       "subtreeOverride": "Überschreibung der Unterbauteile ({{name}})"
     },
     "viewFailed": "Diese Ansicht konnte nicht geladen werden.",
@@ -178,6 +180,7 @@
     "saveOrk": ".ork konnte nicht gespeichert werden: {{reason}}",
     "saveOrkNoDesignInfo": "Die .ork wurde ohne Entwurfsinfos gespeichert: Der Entwurf ließ sich nicht aufbauen, daher gab es keine Statistik zum Einfügen.",
     "exportRasaero": "RASAero-Export fehlgeschlagen: {{reason}}",
+    "exportRasaeroSurface": "Die RASAero-Datei wurde gespeichert, aber RASAero kennt keine Oberfläche, die zur Oberflächengüte dieses Entwurfs passt, daher wurde sie als glatt (keine Rauheit) geschrieben.",
     "exportUnsupported": "Dieses Bauteil kann nicht als {{format}} exportiert werden.",
     "exportFailed": "{{format}} konnte nicht exportiert werden: {{reason}}",
     "exportRkt": "Die .rkt konnte nicht geschrieben werden: {{reason}}",
@@ -2088,7 +2091,7 @@
     "clear": "Leeren",
     "progress": "{{done}} / {{total}}",
     "landed": "{{flown}} von {{asked}} Flügen sind gelandet.",
-    "stale": "Der Entwurf hat sich geändert, seit diese Analyse geflogen wurde.",
+    "stale": "Der Entwurf oder seine Simulationseinstellungen haben sich geändert, seit diese Analyse geflogen wurde.",
     "noLandings": "Die Windanalyse ergab keine Landungen.",
     "spread": "{{from}}–{{to}}",
     "flown": "Analyse durchgeführt"

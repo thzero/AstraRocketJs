@@ -287,7 +287,16 @@ describe('rocketSideView: fins on a transition', () => {
         length: 0.05,
         foreRadius: 0.012,
         aftRadius: 0.008,
-        children: [{ type: 'trapezoidfinset', rootChord: 0.03, tipChord: 0.02, sweep: 0.01, height: 0.02 }],
+        children: [
+          {
+            type: 'trapezoidfinset',
+            rootChord: 0.03,
+            tipChord: 0.02,
+            sweep: 0.01,
+            height: 0.02,
+            position: { method: 'top', offset: 0 },
+          },
+        ],
       },
     ],
   } as unknown as RocketTree;
@@ -352,7 +361,16 @@ describe('rocketSideView: fins on a transition', () => {
           length: 0.05,
           foreRadius: 0.012,
           aftRadius: 0.008,
-          children: [{ type: 'trapezoidfinset', rootChord: 0.03, tipChord: 0.02, sweep: 0.01, height: 0.02 }],
+          children: [
+            {
+              type: 'trapezoidfinset',
+              rootChord: 0.03,
+              tipChord: 0.02,
+              sweep: 0.01,
+              height: 0.02,
+              position: { method: 'top', offset: 0 },
+            },
+          ],
         },
       ],
     } as unknown as RocketTree;
@@ -388,6 +406,7 @@ describe('rocketSideView: fins on a transition', () => {
                 [0.01, 0.02],
                 [0.04, 0],
               ],
+              position: { method: 'top', offset: 0 },
             },
           ],
         },

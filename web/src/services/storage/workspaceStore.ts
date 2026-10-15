@@ -73,8 +73,17 @@ export interface WorkspaceStore {
  * It records which design it belongs to: with a library the active design can
  * change between sessions, and replaying a journal into the wrong one would
  * overwrite an unrelated rocket.
+ *
+ * One journal per design, under `UNLOAD_KEY:<id>` (a detached design's is the
+ * id its create will use, so the journal keeps its key once the entry exists).
+ * Two tabs on different designs each keep theirs: one shared slot would let the
+ * second tab to unload overwrite the first one's, and a boot that opens one
+ * design would drop the other's. A journal for a design that is not the one
+ * opened waits until that design is opened. The bare `UNLOAD_KEY` is the single
+ * slot an older build wrote, still read.
  */
 const UNLOAD_KEY = nsKey('designs:unload');
+const journalKey = (id: string) => `${UNLOAD_KEY}:${id}`;
 
 /**
  * The journal is replayed only over the version its edits derive from.
@@ -158,15 +167,56 @@ export const resultsOf = (w: Workspace): StoredResults => {
   return out;
 };
 
-function readJournal(): Journal | null {
+/** A journal and the key it is stored under. */
+interface StoredJournal {
+  key: string;
+  j: Journal;
+}
+
+function readJournalAt(key: string): Journal | null {
   try {
-    const raw = localStorage.getItem(UNLOAD_KEY);
+    const raw = localStorage.getItem(key);
     if (!raw) return null;
     const j = JSON.parse(raw) as Journal;
     return j && j.w ? j : null;
   } catch {
     return null;
   }
+}
+
+/** Every journal in storage, the older build's single slot included. */
+function readJournals(): StoredJournal[] {
+  const keys: string[] = [];
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k === UNLOAD_KEY || k?.startsWith(`${UNLOAD_KEY}:`)) keys.push(k);
+    }
+  } catch {
+    return [];
+  }
+  const out: StoredJournal[] = [];
+  for (const key of keys) {
+    const j = readJournalAt(key);
+    if (j) out.push({ key, j });
+    else clearJournal(key);
+  }
+  return out;
+}
+
+/** The latest of `list` by write time; a journal without one counts as oldest. */
+const newest = (list: StoredJournal[]): StoredJournal | undefined =>
+  list.reduce<StoredJournal | undefined>((a, b) => (!a || (b.j.t ?? 0) > (a.j.t ?? 0) ? b : a), undefined);
+
+/**
+ * The journal for design `id`, if any. When an older build's slot and this
+ * build's key both hold one, the later replays and the other is dropped.
+ */
+function journalFor(list: StoredJournal[], id: string): StoredJournal | undefined {
+  const all = list.filter((e) => e.j.id === id);
+  const pick = newest(all);
+  for (const e of all) if (e !== pick) clearJournal(e.key);
+  return pick;
 }
 
 /**
@@ -179,14 +229,16 @@ function readJournal(): Journal | null {
  * journal holds newer work than it.
  */
 function dropSupersededJournal(tab: string, id: string, startedAt: number): void {
-  const j = readJournal();
-  if (!j || j.tab !== tab || typeof j.mark !== 'number' || j.mark >= startedAt) return;
-  if (j.id === id || (j.id === null && j.createId === id)) clearJournal();
+  for (const key of [journalKey(id), UNLOAD_KEY]) {
+    const j = readJournalAt(key);
+    if (!j || j.tab !== tab || typeof j.mark !== 'number' || j.mark >= startedAt) continue;
+    if (j.id === id || (j.id === null && j.createId === id)) clearJournal(key);
+  }
 }
 
-function clearJournal(): void {
+function clearJournal(key: string): void {
   try {
-    localStorage.removeItem(UNLOAD_KEY);
+    localStorage.removeItem(key);
   } catch {
     /* best-effort */
   }
@@ -285,7 +337,7 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
   async load(): Promise<Workspace | null> {
     const lib = getDesignLibrary();
     // A journal is newer than anything stored, but only for its own design.
-    let journal = readJournal();
+    const journals = readJournals();
     try {
       this.activeId = await lib.activeIdChecked();
     } catch {
@@ -294,75 +346,57 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
       // last unsaved work. Keep it, held against this session's unload write,
       // and open its work detached so the next save stores it as a design.
       // With no journal there is nothing to keep, and the session opens as it
-      // would on an empty library.
+      // would on an empty library. With several, the last one written is the
+      // work this browser was last showing.
       this.activeId = null;
-      const w = journal ? migrateWorkspace(journal.w) : null;
+      const latest = newest(journals);
+      const w = latest ? migrateWorkspace(latest.j.w) : null;
       if (!w) return null;
       this.journalHeld = true;
-      if (journal!.id === null) this.adoptCreate(journal!);
+      if (latest!.j.id === null) this.adoptCreate(latest!.j);
       return this.trackResults(w);
     }
 
-    // A detached tab's journal names the entry its first create makes. Once that
-    // create has landed, the journal belongs to the entry like any other and
-    // follows the same rules (another tab's later save still wins).
-    if (journal && journal.id === null && journal.createId && (await this.metaOf(journal.createId))) {
-      journal = { ...journal, id: journal.createId };
+    const ids = new Set((await lib.list()).map((m) => m.id));
+    for (const e of journals) {
+      // A detached tab's journal names the entry its first create makes. Once
+      // that create has landed, the journal belongs to the entry like any other
+      // and follows the same rules (another tab's later save still wins).
+      if (e.j.id === null && e.j.createId && ids.has(e.j.createId)) e.j = { ...e.j, id: e.j.createId };
+      // A journal from a design that no longer exists is stale; drop it rather
+      // than keep it in the localStorage budget for a design nobody can open.
+      else if (e.j.id !== null && !ids.has(e.j.id)) clearJournal(e.key);
     }
 
-    if (journal && journal.id && journal.id === this.activeId) {
-      // A journal another tab's save has moved past (see `Journal`) is dropped
-      // rather than replayed over the newer work.
-      if (!journalIsCurrent(journal, await this.metaOf(journal.id))) {
-        clearJournal();
-        return await this.readActive(lib);
-      }
-      // Validate before writing. `readJournal` only checks that the blob parses
-      // and has a `w`; a journal written by a different app build (this is an
-      // installed PWA, so an older cached build is a live possibility) can parse
-      // cleanly and still not be a workspace this build can open. Writing it
-      // first would overwrite the real stored design with it and clear the
-      // journal, losing the design permanently: every later load would re-read
-      // the same bad blob.
-      const w = migrateWorkspace(journal.w);
-      if (!w) {
-        clearJournal();
-        return await this.readActive(lib);
-      }
-      if (await lib.write(journal.id, (await this.nameOf(journal.id)) ?? nameFor(w), w, this.tab)) {
-        clearJournal();
-      }
-      // This tab has just written the entry, so the claim it holds on it is the
-      // one it leaves behind; without this the first autosave reads its own
-      // journal replay as another tab's work.
-      this.lastSeenAt = (await this.metaOf(journal.id))?.updatedAt ?? null;
-      // The journal carries no results (see `lean`), so they come from their own
-      // key, so a reload after a run still opens on the numbers it produced.
-      return this.trackResults(withResults(w, await lib.readResults(journal.id)));
-    }
+    const mine = this.activeId ? journalFor(journals, this.activeId) : undefined;
+    if (mine) return await this.replayJournal(lib, mine);
     // A journal written before the first save carries a null id, because that
-    // is what `saveSync` had to record. The replay test above requires a set id
-    // and the staleness test below sees `null === null` as a match, so neither
-    // handles it. Without this branch the work done before the first debounced
-    // autosave would be lost on reload, and the blob (a whole lean workspace)
-    // would stay in the ~5 MB localStorage budget forever.
+    // is what `saveSync` had to record. The replay test above requires a set id,
+    // so it does not handle it. Without this branch the work done before the
+    // first debounced autosave would be lost on reload, and the blob (a whole
+    // lean workspace) would stay in the ~5 MB localStorage budget forever.
     //
     // It belongs to "no design yet", so replay it by creating one, whatever the
     // library's active pointer says. New and import detach this store without
     // moving the pointer, so a reload inside the autosave debounce finds the
     // previous design still active, and the journal is the only copy of the new
     // one. A journal with no `createId` (an older build) cannot tell whether its
-    // create landed, so it replays only when nothing is active.
-    if (journal && journal.id === null && (journal.createId || this.activeId === null)) {
+    // create landed, so it replays only when nothing is active, and is
+    // otherwise dropped.
+    const detached = journals.filter((e) => e.j.id === null);
+    const fresh = newest(detached.filter((e) => e.j.createId || this.activeId === null));
+    for (const e of detached) if (!e.j.createId && e !== fresh) clearJournal(e.key);
+    if (fresh) {
+      const journal = fresh.j;
       const w = migrateWorkspace(journal.w);
       if (!w) {
-        clearJournal();
+        clearJournal(fresh.key);
         return await this.readActive(lib);
       }
       this.adoptCreate(journal);
       try {
         const meta = await lib.create(journal.name || nameFor(w), w, this.tab, this.nextCreateId());
-        clearJournal();
+        clearJournal(fresh.key);
         this.createId = null;
         this.pendingName = null;
         this.activeId = meta.id;
@@ -375,11 +409,54 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
       }
       return this.trackResults(w);
     }
-    // A journal from a design that no longer exists is stale; drop it rather
-    // than replaying it over whatever happens to be open now.
-    if (journal && journal.id !== this.activeId) clearJournal();
 
     return await this.readActive(lib);
+  }
+
+  /**
+   * Fold design `e.j.id`'s journal back into its entry and open the result.
+   *
+   * A journal another tab's save has moved past (see `Journal`) is dropped
+   * rather than replayed over the newer work.
+   */
+  private async replayJournal(lib: DesignLibrary, e: StoredJournal): Promise<Workspace | null> {
+    const journal = e.j;
+    const id = journal.id!;
+    if (!journalIsCurrent(journal, await this.metaOf(id))) {
+      clearJournal(e.key);
+      return await this.readActive(lib);
+    }
+    // Validate before writing. `readJournalAt` only checks that the blob parses
+    // and has a `w`; a journal written by a different app build (this is an
+    // installed PWA, so an older cached build is a live possibility) can parse
+    // cleanly and still not be a workspace this build can open. Writing it
+    // first would overwrite the real stored design with it and clear the
+    // journal, losing the design permanently: every later load would re-read
+    // the same bad blob.
+    const w = migrateWorkspace(journal.w);
+    if (!w) {
+      clearJournal(e.key);
+      return await this.readActive(lib);
+    }
+    // A journal of what the entry already holds (a hidden tab's save landed
+    // after it) is dropped unwritten: writing it would only re-stamp the design
+    // and move it up the library.
+    // Compared as stored, before migration, which can mint new ids.
+    const stored = await lib.read(id);
+    if (stored && JSON.stringify(stored) === JSON.stringify(journal.w)) {
+      clearJournal(e.key);
+      return await this.readActive(lib);
+    }
+    if (await lib.write(id, (await this.nameOf(id)) ?? nameFor(w), w, this.tab)) {
+      clearJournal(e.key);
+    }
+    // This tab has just written the entry, so the claim it holds on it is the
+    // one it leaves behind; without this the first autosave reads its own
+    // journal replay as another tab's work.
+    this.lastSeenAt = (await this.metaOf(id))?.updatedAt ?? null;
+    // The journal carries no results (see `lean`), so they come from their own
+    // key, so a reload after a run still opens on the numbers it produced.
+    return this.trackResults(withResults(w, await lib.readResults(id)));
   }
 
   /**
@@ -572,7 +649,12 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
    */
   async openActive(id: string): Promise<Workspace | null> {
     this.setActiveId(id);
-    return await this.readActive(getDesignLibrary());
+    const lib = getDesignLibrary();
+    // A journal another tab left for this design, which boot kept because a
+    // different design was opened then.
+    const mine = journalFor(readJournals(), id);
+    if (mine) return await this.replayJournal(lib, mine);
+    return await this.readActive(lib);
   }
 
   /** Point the store at a different design (the library owns the switch). */
@@ -604,7 +686,7 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
     const detached = this.activeId === null;
     try {
       localStorage.setItem(
-        UNLOAD_KEY,
+        journalKey(this.activeId ?? this.nextCreateId()),
         JSON.stringify({
           id: this.activeId,
           w: lean(w),

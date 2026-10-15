@@ -31,6 +31,15 @@ const QUANTITY: Record<MaterialType, Quantity> = {
 };
 
 /**
+ * What the material is for, which decides whether the adhesives belong in the
+ * list. Nothing else is filtered: every other bulk material in the table is
+ * something a part can legitimately be made of, and guessing which ones suit
+ * which component would block real builds (an aluminum fin, a printed nose
+ * cone) to save a little scrolling.
+ */
+export type MaterialUse = 'structure' | 'fillet';
+
+/**
  * Assigns a material (name + density) to a component, from the built-in
  * catalog plus the user's custom materials (swappable MaterialStore). `type`
  * picks the catalog (bulk / surface / line); `label` names the row. Emits
@@ -42,15 +51,6 @@ const QUANTITY: Record<MaterialType, Quantity> = {
  * its own handler, and a custom material is not in the catalog at all. The
  * `.ork` writer wants it, to file the material under its own category.
  */
-/**
- * What the material is for, which decides whether the adhesives belong in the
- * list. Nothing else is filtered: every other bulk material in the table is
- * something a part can legitimately be made of, and guessing which ones suit
- * which component would block real builds (an aluminum fin, a printed nose
- * cone) to save a little scrolling.
- */
-export type MaterialUse = 'structure' | 'fillet';
-
 export function MaterialPicker({
   value,
   density: ownDensity,

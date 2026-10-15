@@ -78,6 +78,7 @@ import type { MotorDims } from '../tree/schematicGeometry';
 import { type ConfigsTab } from './tabs';
 import { createViewSlice, type ViewSlice } from './viewSlice';
 import { createFileSlice, type FileSlice } from './fileSlice';
+import { markWritten } from './writtenWorkspace';
 import { errorText } from '../i18n/keyedError';
 import { flightBranches } from '../services/flight/flightColumns';
 import {
@@ -533,6 +534,21 @@ export const selectDriftSweepFor = (s: WorkspaceState, simId: string): DriftSwee
   s.driftSweep && s.driftSweep.simId === simId ? s.driftSweep : null;
 
 /**
+ * Whether a held sweep no longer describes its row: the airframe, the row's own
+ * motor, loadout, launch conditions and overrides, or the global run
+ * preferences have moved since it flew. A sweep for a row that has since been
+ * deleted is stale too, since there is nothing left to compare it against.
+ */
+export const isDriftSweepStale = (s: WorkspaceState, sweep: DriftSweep): boolean => {
+  const sim = s.sims.find((x) => x.id === sweep.simId);
+  if (!sim || sweep.tree !== s.tree) return true;
+  const config = configOf(s.configs, sim);
+  return (
+    !sameSimInputs(sweep.inputs, simInputs(sim, config)) || sweep.key !== resultKey(s.tree, config, sim, s.simPrefs)
+  );
+};
+
+/**
  * What the Run button will fly: the ticked rows, or the active simulation when
  * nothing is ticked. One place decides it, so the button's label, its enabled
  * state and the action itself can never disagree.
@@ -691,6 +707,14 @@ function withKey<T extends object, K extends keyof T>(obj: T | undefined, key: K
   if (value === null) delete (next as Record<PropertyKey, unknown>)[key];
   else next[key] = value;
   return next;
+}
+
+/**
+ * Whether `withKey(obj, key, value)` would leave `obj` saying what it already
+ * says: the value is already there, or a cleared key is already absent.
+ */
+function holdsKey<T extends object, K extends keyof T>(obj: T | undefined, key: K, value: T[K] | null): boolean {
+  return value === null ? obj?.[key] === undefined : obj?.[key] === value;
 }
 
 /** The map, or undefined when it holds nothing: an empty override map reads as "overridden with nothing". */
@@ -1005,6 +1029,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
         activeId,
         loadedMeta: w.loadedMeta ?? null,
       }));
+      // What storage holds, unless a repair changed it (see `writtenWorkspace`).
+      if (!fixed.repaired.length) markWritten(get());
     },
 
     // Each structural/field edit reconciles the flight configurations to the new
@@ -1168,6 +1194,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
       });
     },
     setDeployment: (configId, deviceId, key, value) => {
+      // Already so: no step. An empty one clears redo, and the new config
+      // object would read as a changed input and drop a run in flight.
+      const config = get().configs.find((c) => c.id === configId);
+      if (!config || holdsKey(config.deployments?.[deviceId], key, value)) return;
       beginEdit();
       patchConfig(configId, (c) => {
         // Removed, not stored as undefined: `applyDeployments` patches every key
@@ -1181,6 +1211,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
       });
     },
     setSeparation: (configId, stageId, key, value) => {
+      const config = get().configs.find((c) => c.id === configId);
+      if (!config || holdsKey(config.separations?.[stageId], key, value)) return;
       beginEdit();
       patchConfig(configId, (c) => {
         // Same shape as the deployment override above, field by field: an empty
@@ -1282,8 +1314,18 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
       set({ sims: s.sims.map((x) => (x.id === simId ? { ...x, configId } : x)) });
     },
     patchLaunch: (p) => {
+      // Each row's patch, made once: a row whose patch says what it already
+      // holds is not an edit, and when no row changes there is no step.
+      const ids = new Set(selectEditIds(get()));
+      const patches = new Map<string, Partial<LaunchConditions>>();
+      for (const sim of get().sims) if (ids.has(sim.id)) patches.set(sim.id, launchPatchFor(p, sim.launch, sim.id));
+      const changes = (sim: Simulation) => {
+        const patch = patches.get(sim.id) ?? {};
+        return (Object.keys(patch) as (keyof LaunchConditions)[]).some((k) => patch[k] !== sim.launch[k]);
+      };
+      if (!get().sims.some(changes)) return;
       beginEdit();
-      patchTargets((sim) => ({ launch: { ...sim.launch, ...launchPatchFor(p, sim.launch, sim.id) } }));
+      patchTargets((sim) => ({ launch: { ...sim.launch, ...patches.get(sim.id) } }));
     },
     patchActiveLaunch: (p) => {
       const active = selectActive(get());
@@ -1343,10 +1385,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
       });
     },
     renameSim: (id, name) => {
+      const sim = get().sims.find((x) => x.id === id);
+      if (!sim || sim.name === name) return;
       beginEdit();
       set((s) => ({ sims: s.sims.map((x) => (x.id === id ? { ...x, name } : x)) }));
     },
     setSimPref: (key, value) => {
+      const ids = new Set(selectEditIds(get()));
+      if (get().sims.every((x) => !ids.has(x.id) || holdsKey(x.prefs, key, value))) return;
       beginEdit();
       patchTargets((sim) => {
         // A cleared override is removed, not stored as undefined: `prefs` is
@@ -1636,6 +1682,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
       // changed is worse than no region.
       const ranOn = s.tree;
       const flownFrom = simInputs(sim, config);
+      const flownKey = resultKey(ranOn, config, sim, s.simPrefs);
       // The row's own overrides win over the globals, exactly as a normal run
       // resolves them; only then is a missing seed filled in.
       const runPrefs = effectivePrefs(s.simPrefs, sim.prefs);
@@ -1705,6 +1752,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
         if (get().tree !== ranOn) return;
         const now = get().sims.find((x) => x.id === simId);
         if (!now || !sameSimInputs(flownFrom, simInputs(now, configOf(get().configs, now)))) return;
+        if (resultKey(ranOn, configOf(get().configs, now), now, get().simPrefs) !== flownKey) return;
         if (!landings.length) {
           set({ err: i18n.t('sweep.noLandings') });
           return;
@@ -1714,6 +1762,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
             simId,
             tree: ranOn,
             inputs: flownFrom,
+            key: flownKey,
             spec: normalized,
             asked: points.length,
             flown,

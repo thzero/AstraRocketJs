@@ -2,9 +2,11 @@ name: Deploy
 
 # The master pipeline: build the docs and the app, then publish to Pages.
 #
-# No gates here: master is reached by merged pull requests, and ci.yml already
-# ran the gate set (gates.yml) on each one's merge result. A direct push to
-# master, or a PR merged after master moved, publishes without that check.
+# No gate set here: master is reached by merged pull requests, and ci.yml
+# already ran the gate set (gates.yml) on each one's merge result. The build
+# step (npm run build) still typechecks and lints, so a type or lint error stops
+# the publish. A direct push to master, or a PR merged after master moved,
+# publishes without the rest of the gates.
 #
 # Publishes web/dist to GitHub Pages.
 # ONE-TIME SETUP: repo Settings → Pages → Source = "GitHub Actions".

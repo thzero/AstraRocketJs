@@ -25,3 +25,21 @@ concurrency:
 jobs:
   gates:
     uses: ./.github/workflows/gates.yml
+
+  # `CI / verify`, the one check that stands for every gate on the merge
+  # result.
+  #
+  # `always()` and an explicit result check: a job skipped because a job it
+  # needs failed reports as skipped, and a skipped required check counts as
+  # passing.
+  verify:
+    needs: gates
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - if: needs.gates.result != 'success'
+        run: |
+          echo "::error::A gate did not pass: ${{ needs.gates.result }}"
+          exit 1
+      - run: echo "Every gate passed."

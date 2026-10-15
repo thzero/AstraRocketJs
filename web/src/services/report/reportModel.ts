@@ -6,7 +6,8 @@ import { liveMotors, type FlightConfig } from '../flight/flightConfigs';
 import { motorStats, type MotorStats } from './rocketReport';
 import { numOpt } from '../../tree/nodeProps';
 import { isFinSet, isPlanarFinSet } from '../../tree/tubefins';
-import { finSpan } from '../../tree/finPlanform';
+import { finMount, finSpan } from '../../tree/finPlanform';
+import { parentStartOf } from '../../tree/axialRebase';
 import { axialLength } from '../../tree/position';
 import { walkNodes } from '../../tree/treeWalk';
 import { designNameOf } from '../app/appInfo';
@@ -21,7 +22,10 @@ export interface PartRow {
   type: string;
   name: string;
   material?: string;
+  /** The material's density, in SI for `densityKind`. */
   density?: number;
+  /** Which density `density` is: bulk (kg/m³, also when absent), surface (kg/m²) or line (kg/m). */
+  densityKind?: MaterialDensity;
   length: number;
   outerR?: number;
   innerR?: number;
@@ -32,6 +36,29 @@ export interface PartRow {
   /** A planar fin set's span, root to tip. Its root chord is `length`. */
   span?: number;
   mass: number;
+}
+
+/** The quantity a part's material density is measured in. */
+export type MaterialDensity = 'density' | 'surfaceDensity' | 'lineDensity';
+
+/**
+ * The node keys of the material the kernel's `getMaterial()` returns for a part:
+ * a parachute's and a streamer's canopy (`RecoveryDevice`, a surface material),
+ * a shock cord's cord (`ShockCord`, a line material), and the bulk material of
+ * everything else. A parachute's shroud lines are a second material the kernel
+ * reads through `getLineMaterial()`.
+ */
+function rowMaterial(
+  node: ComponentNode,
+): Required<Pick<PartRow, 'densityKind'>> & Pick<PartRow, 'material' | 'density'> {
+  const [name, density, densityKind]: [string, string, MaterialDensity] =
+    node.type === 'parachute' || node.type === 'streamer'
+      ? ['surfaceMaterialName', 'surfaceDensity', 'surfaceDensity']
+      : node.type === 'shockcord'
+        ? ['lineMaterialName', 'lineDensity', 'lineDensity']
+        : ['materialName', 'density', 'density'];
+  const n = node[name];
+  return { material: typeof n === 'string' ? n : undefined, density: numOpt(node, density), densityKind };
 }
 
 /**
@@ -109,12 +136,18 @@ export interface ReportModel {
   finSetsByStage: { stage: string; sets: FinSetPosition[] }[];
 }
 
+/**
+ * The parts table of one stage. `tree` is the design the stage is in, which a
+ * freeform fin's span reads its parent's station from (`finMount`); a stage
+ * on its own stands for a one-stage design.
+ */
 export function stageParts(
   stage: ComponentNode,
   rocket: { componentInfo: (id: string) => { mass: number } },
+  tree: RocketTree = { components: [stage] },
 ): PartRow[] {
   const rows: PartRow[] = [];
-  const walk = (node: ComponentNode, depth: number) => {
+  const walk = (node: ComponentNode, depth: number, parent: ComponentNode | null) => {
     if (node.type !== 'stage') {
       const id = node.id;
       let mass = 0;
@@ -129,21 +162,22 @@ export function stageParts(
         depth,
         type: node.type,
         name: (node.name as string) || '',
-        material: node.materialName as string | undefined,
-        density: node.density,
+        ...rowMaterial(node),
         // A fin set's root chord, and the kernel's default for a part with no
         // length on record, rather than 0.
         length: axialLength(node),
         ...rowRadii(node),
         // A filled part is solid: the stored wall is not what flies.
         thickness: node['filled'] === true ? undefined : numOpt(node, 'thickness'),
-        ...(isPlanarFinSet(node.type) ? { span: finSpan(node) } : {}),
+        ...(isPlanarFinSet(node.type)
+          ? { span: finSpan(node, parent && finMount(node, parent, parentStartOf(tree, parent))) }
+          : {}),
         mass,
       });
     }
-    for (const c of node.children ?? []) walk(c, node.type === 'stage' ? depth : depth + 1);
+    for (const c of node.children ?? []) walk(c, node.type === 'stage' ? depth : depth + 1, node);
   };
-  for (const c of stage.children ?? []) walk(c, 0);
+  for (const c of stage.children ?? []) walk(c, 0, stage);
   return rows;
 }
 
@@ -299,7 +333,7 @@ export function assembleReport(install?: (built: ReportBuild) => void): ReportMo
   // Parts + fin-set positions need the live handle: gather before any rebuild.
   const partsByStage = stageList.map((st, i) => ({
     stage: stageName(st, i),
-    rows: stageParts(st, infoRocket),
+    rows: stageParts(st, infoRocket, tree),
   }));
   const finSetsByStage = stageList.map((st, i) => ({
     stage: stageName(st, i),

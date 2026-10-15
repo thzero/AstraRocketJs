@@ -11,8 +11,9 @@ name: Sync Catalogs
 # nowhere else; offline it uses its cached download. The copy committed under
 # web/public/data is for dev builds and the tests, and the deployed build leaves
 # it out (vite.config.ts); refresh it by hand (`npm run sync:motors && npm run
-# sync:motor-digests && npm run sync:components && npm run sync:preset-digests`,
-# then commit). This workflow deliberately does not touch it.
+# sync:motor-digests && npm run sync:database && npm run sync:components && npm
+# run sync:preset-digests`, then commit). This workflow deliberately does not
+# touch it.
 #
 # The materials and contributors files are NOT published here: materials is
 # held to the pinned OpenRocket source by the extraction gate, so it changes

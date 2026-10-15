@@ -784,6 +784,82 @@ describe('stage mass and CG overrides', () => {
     } as unknown as RocketTree).xml;
     expect(plain).not.toMatch(/Stage\dMass|Stage3CG|UseKnownMass/);
   });
+
+  /**
+   * `RockSimHandler` turns on `setSubcomponentsOverriddenMass` and
+   * `setSubcomponentsOverriddenCG` for every stage figure it reads, so an
+   * override of the stage alone opens in desktop as one of the whole stage.
+   */
+  it('names a stage override that leaves the parts inside out', () => {
+    const stage = (extra: Record<string, unknown>) =>
+      exportRkt('One', {
+        name: 'One',
+        components: [{ ...tree.components[0]!, ...extra }],
+      } as unknown as RocketTree).skipped;
+    const named = [{ key: 'errors.rktSkip.stageOnlyOverride', values: { name: 'Sustainer' } }];
+    expect(stage({ overrideSubcomponentsMass: false })).toEqual(named);
+    expect(stage({ overrideSubcomponentsCG: false })).toEqual(named);
+    expect(stage({ overrideMass: undefined, overrideSubcomponentsCG: undefined })).toEqual(named);
+    expect(stage({ name: undefined, overrideSubcomponentsMass: false })).toEqual([
+      { key: 'errors.rktSkip.stageOnlyOverride', values: { name: { key: 'part.stage' } } },
+    ]);
+  });
+});
+
+/**
+ * RockSim has no repeat count: `LaunchLugDTO` and `CenteringRingDTO` write one
+ * part, and `LaunchLugHandler` and `RingHandler` read one, so a line of copies
+ * opens in desktop as its first.
+ */
+describe('a part repeated along its parent', () => {
+  const write = (part: ComponentNode) =>
+    exportRkt('x', {
+      name: 'x',
+      components: [
+        {
+          type: 'stage',
+          id: 's',
+          children: [
+            {
+              type: 'bodytube',
+              id: 'b',
+              name: 'Airframe',
+              length: 0.3,
+              outerRadius: 0.025,
+              thickness: 0.0005,
+              children: [part],
+            },
+          ],
+        },
+      ],
+    } as unknown as RocketTree);
+
+  it('is named for a line of rings, lugs or bulkheads', () => {
+    const ring = {
+      type: 'centeringring',
+      id: 'r',
+      name: 'Ring',
+      length: 0.005,
+      instanceCount: 2,
+      instanceSeparation: 0.05,
+    };
+    expect(write(ring as ComponentNode).skipped).toEqual([
+      { key: 'errors.rktSkip.instanceCount', values: { name: 'Ring' } },
+    ]);
+    const lug = { type: 'launchlug', id: 'l', length: 0.03, outerRadius: 0.003, instanceCount: 3 };
+    expect(write(lug as ComponentNode).skipped).toEqual([
+      { key: 'errors.rktSkip.instanceCount', values: { name: { key: 'part.launchlug' } } },
+    ]);
+    const bulkhead = { type: 'bulkhead', id: 'h', name: 'Plate', length: 0.003, instanceCount: 2 };
+    expect(write(bulkhead as ComponentNode).skipped).toEqual([
+      { key: 'errors.rktSkip.instanceCount', values: { name: 'Plate' } },
+    ]);
+  });
+
+  it('is not named for a single copy', () => {
+    const ring = { type: 'centeringring', id: 'r', name: 'Ring', length: 0.005, instanceCount: 1 };
+    expect(write(ring as ComponentNode).skipped).toEqual([]);
+  });
 });
 
 /**
@@ -1336,5 +1412,50 @@ describe('exportRkt, values the kernel works out', () => {
   it('names a part whose automatic value it has no kernel figure for', () => {
     const { skipped: s } = write([chute]);
     expect(s).toEqual([{ key: 'errors.rktSkip.autoValue', values: { name: 'Chute' } }]);
+  });
+});
+
+/**
+ * A part with no position is written where it flies: a fin set's constructor
+ * places it at the bottom of its parent (`FinSet`, `AxialMethod.BOTTOM`), so
+ * the file says what an explicit bottom, 0 says.
+ */
+describe('a fin set with no position', () => {
+  const withFins = (position?: { method: string; offset: number }): string =>
+    exportRkt('Keyless', {
+      components: [
+        {
+          type: 'stage',
+          id: 's',
+          children: [
+            { type: 'nosecone', id: 'n', shape: 'ogive', length: 0.1, aftRadius: 0.02, thickness: 0.002 },
+            {
+              type: 'bodytube',
+              id: 'b',
+              length: 0.4,
+              outerRadius: 0.02,
+              thickness: 0.001,
+              children: [
+                {
+                  type: 'trapezoidfinset',
+                  id: 'f',
+                  finCount: 3,
+                  rootChord: 0.08,
+                  tipChord: 0.04,
+                  height: 0.05,
+                  sweep: 0.03,
+                  thickness: 0.003,
+                  ...(position ? { position } : {}),
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    } as unknown as RocketTree).xml;
+
+  it('goes out at the bottom of its parent, as the kernel places it', () => {
+    expect(withFins()).toBe(withFins({ method: 'bottom', offset: 0 }));
+    expect(withFins()).not.toBe(withFins({ method: 'top', offset: 0 }));
   });
 });

@@ -1,7 +1,8 @@
+import { existsSync } from 'node:fs';
 import { test, expect, defined, runFlight, ready, openTab, importRkt, type Page, type WipState } from './base';
-import { AERO_PANE, axeViolations, CONFIGS, press, THEMES, TOOL, TWO_D, VIEW } from './axe';
+import { AERO_PANE, aeroChartsDrawn, axeViolations, CONFIGS, press, THEMES, TOOL, TWO_D, VIEW } from './axe';
 import { DIALOG_SURFACES, type DialogSurface } from './dialogSurfaces';
-import type { PopupSurface } from './popupSurfaces';
+import { POPUP_SURFACES, type PopupSurface } from './popupSurfaces';
 import { eachEditor } from './editors';
 import { answer } from '../tests/testing/openMeteoFixture';
 import { DESIGN_VIEWS, RESULT_VIEWS, type ViewMode } from '../src/state/tabs';
@@ -32,6 +33,11 @@ interface Scan {
   open: (page: Page) => Promise<void>;
   /** The work-in-progress notice, for the one scan that is of the notice. */
   wip?: WipState;
+  /**
+   * A state of the app before or without the engine: `open` loads the page
+   * itself, and the scan does not wait for the engine first.
+   */
+  boot?: true;
 }
 
 /**
@@ -48,7 +54,7 @@ async function openView(page: Page, view: ViewMode): Promise<void> {
 async function openAero(page: Page): Promise<void> {
   await openTab(page, 'Design');
   await openView(page, 'drag');
-  await expect(page.getByRole('img', { name: /peak .* at Mach/ }).first()).toBeVisible({ timeout: 20_000 });
+  await aeroChartsDrawn(page);
 }
 
 /** Choose a menu entry, expanding its submenu first when it has one. */
@@ -72,6 +78,42 @@ const fromMenu =
     await menu(page, item, parent);
     await dialogOpen(page);
   };
+
+// Playwright's cwd is web/, as in help-dialog.spec.ts.
+const docsBuilt = existsSync('public/docs/index.html');
+
+/**
+ * The Help dialog opened from the menu on `item`, with its page shown and
+ * settled. The docs frame stays transparent until it is ready, and the docs
+ * site animates its colors as it takes the theme, so a scan that does not wait
+ * reads either the loading line or colors partway through a transition. In CI
+ * the docs are built before the scans; missing there, the scan fails rather
+ * than passing on the "not part of this copy" note.
+ */
+async function helpOpen(page: Page, item: 'Help' | 'Safety') {
+  await menu(page, item);
+  const dialog = await dialogOpen(page);
+  if (!docsBuilt) {
+    if (process.env.CI) throw new Error('web/public/docs is not built; run `npm run docs:build` before the scans');
+    await expect(dialog.getByText(/The documentation is not part of this copy/)).toBeVisible();
+    return dialog;
+  }
+  const frame = dialog.locator('iframe');
+  await expect(frame).toBeVisible();
+  await expect(frame).not.toHaveClass(/opacity-0/, { timeout: 20_000 });
+  const doc = await (await frame.elementHandle())?.contentFrame();
+  if (!doc) throw new Error('the Help frame has no document');
+  await doc.evaluate(async () => {
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    await Promise.all(
+      document
+        .getAnimations()
+        .filter((a) => a.effect?.getTiming().iterations !== Infinity)
+        .map((a) => a.finished.catch(() => undefined)),
+    );
+  });
+  return dialog;
+}
 
 /** The motor dashboard with two motors checked, which is what Compare and Combine work on. */
 async function dashboardWithTwo(page: Page) {
@@ -99,6 +141,93 @@ async function answerOpenMeteo(page: Page): Promise<void> {
     });
   });
 }
+
+/** Open the app with the engine download held open, never answered, as a stalled network does. */
+async function engineStalled(page: Page): Promise<void> {
+  await page.route(/openrocket-engine|\.wasm/, () => undefined);
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
+}
+
+/** Open the app with the engine download refused. */
+async function engineFailed(page: Page): Promise<void> {
+  await page.route(/openrocket-engine|\.wasm/, (route) => route.abort());
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
+  await expect(page.getByText('The physics engine could not be loaded.').first()).toBeVisible({ timeout: 20_000 });
+}
+
+/**
+ * A deploy, played locally. Once the first worker is active, the page's
+ * registration is given sw.js again under a query, served naming a build
+ * script with a higher id, and that script is the shipped one answering with
+ * the higher id. The browser installs it beside the running worker and leaves
+ * it waiting, a newer build, which raises the update banner.
+ *
+ * A new script URL rather than `update()`: the browser's update check of the
+ * same URL does not pass through the context's routes, so it would fetch the
+ * shipped sw.js and find nothing new.
+ */
+async function updateWaiting(page: Page): Promise<void> {
+  let shipped = '';
+  await page.context().route(/\/sw\.js(\?.*)?$/, async (route) => {
+    const url = route.request().url();
+    const res = await route.fetch({ url: url.replace(/\?.*$/, '') });
+    const body = await res.text();
+    shipped = /sw-build-(\d+)\.js/.exec(body)?.[1] ?? '';
+    const next = url.includes('?') ? String(Number(shipped) + 1) : shipped;
+    await route.fulfill({ response: res, body: body.replace(`sw-build-${shipped}.js`, `sw-build-${next}.js`) });
+  });
+  await page.context().route(/\/sw-build-\d+\.js$/, async (route) => {
+    const url = route.request().url();
+    const res = await route.fetch({ url: url.replace(/sw-build-\d+/, `sw-build-${shipped}`) });
+    const body = await res.text();
+    const id = /sw-build-(\d+)/.exec(url)?.[1] ?? shipped;
+    await route.fulfill({ response: res, body: body.replace(/build: \d+/, `build: ${id}`) });
+  });
+  await ready(page);
+  await page.evaluate(async () => {
+    const reg = await navigator.serviceWorker.ready;
+    await navigator.serviceWorker.register(`${reg.active?.scriptURL ?? '/sw.js'}?next`, { scope: reg.scope });
+  });
+  await expect(page.getByText('A new version is available.')).toBeVisible({ timeout: 30_000 });
+}
+
+/** The 3D view with its code missing, as on a stale deploy: the view's fallback in its place. */
+async function viewFallback(page: Page): Promise<void> {
+  await page.route(/\/assets\/Rocket3D-[^/]*\.js$/, (route) => route.abort());
+  await ready(page);
+  await openTab(page, 'Design');
+  await page.getByRole('button', { name: '3D', exact: true }).first().click();
+  await expect(page.getByRole('alert').filter({ hasText: /Reload/ })).toBeVisible({ timeout: 20_000 });
+}
+
+/**
+ * The screens that come up only when something goes wrong or changes under the
+ * app: the engine banner while it loads, once it is stuck and when it failed;
+ * the update banner; and the fallback a view shows when its code cannot load.
+ * Every other scan waits for the engine first, so none of these is on screen in
+ * any of them.
+ */
+const BOOT: Scan[] = [
+  {
+    name: 'Engine banner / loading',
+    boot: true,
+    open: async (page) => {
+      await engineStalled(page);
+      await expect(page.getByText('Downloading engine…').first()).toBeVisible({ timeout: 20_000 });
+    },
+  },
+  {
+    name: 'Engine banner / slow',
+    boot: true,
+    open: async (page) => {
+      await engineStalled(page);
+      await expect(page.getByRole('button', { name: 'Retry', exact: true })).toBeVisible({ timeout: 40_000 });
+    },
+  },
+  { name: 'Engine banner / failed', boot: true, open: engineFailed },
+  { name: 'Update banner', boot: true, open: updateWaiting },
+  { name: 'View fallback', boot: true, open: viewFallback },
+];
 
 /** Every workbench screen: each tab, each view of its view switch, and each sub-tab or pane inside one. */
 const SCREENS: Scan[] = [
@@ -156,11 +285,7 @@ const SCREENS: Scan[] = [
   },
   ...RESULT_VIEWS.map((view): Scan => ({
     name: `Results / ${VIEW[view]}`,
-    open: async (page) => {
-      await runFlight(page);
-      await openTab(page, 'Results');
-      await openView(page, view);
-    },
+    open: (page) => resultView(page, view),
   })),
   ...keys(TOOL).map((tool): Scan => ({
     name: `Tools / ${TOOL[tool]}`,
@@ -329,8 +454,18 @@ const DIALOG_SCANS: Record<DialogSurface, Scan[]> = {
     },
   ],
   HelpDialog: [
-    { name: 'Help', open: fromMenu('Help') },
-    { name: 'Safety', open: fromMenu('Safety') },
+    {
+      name: 'Help',
+      open: async (page) => {
+        await helpOpen(page, 'Help');
+      },
+    },
+    {
+      name: 'Safety',
+      open: async (page) => {
+        await helpOpen(page, 'Safety');
+      },
+    },
   ],
   MotorDialog: [
     {
@@ -538,13 +673,39 @@ async function toggle(fold: ReturnType<Page['getByRole']>): Promise<void> {
   await expect(fold).toHaveAttribute('aria-expanded', was === 'true' ? 'false' : 'true');
 }
 
+/** Open a native `<details>` by its summary and wait for it to be open. */
+async function openDetails(summary: ReturnType<Page['locator']>): Promise<void> {
+  await summary.click();
+  await expect(summary.locator('xpath=..')).toHaveAttribute('open', '');
+}
+
 /**
  * Every popup and disclosure, keyed by the component that renders it
  * (popupSurfaces.ts, which a unit test holds to the source), each scanned in
- * the state the page does not open in: a menu or a panel opened, a fold that
- * starts open folded. A popup the app gains fails the typecheck until it is here.
+ * a state the page does not open in: a menu or a panel opened, a fold that
+ * starts open folded. The import notes are the exception: they open by default
+ * and are scanned open. A popup the app gains fails the typecheck until it is here.
  */
 const POPUP_SCANS: Record<PopupSurface, Scan[]> = {
+  CheckMenu: [
+    {
+      name: 'Popup / dashboard columns',
+      open: async (page) => {
+        await menu(page, 'Motor Dashboard');
+        const dialog = await dialogOpen(page);
+        await openDetails(dialog.locator('summary', { hasText: 'Columns' }));
+      },
+    },
+    {
+      name: 'Popup / motor manufacturers',
+      open: async (page) => {
+        await openTool(page, TOOL.rail);
+        await page.getByRole('button', { name: 'Choose…' }).click();
+        const dialog = await dialogOpen(page);
+        await openDetails(dialog.locator('summary', { hasText: 'All manufacturers' }).first());
+      },
+    },
+  ],
   ComponentExportButton: [
     {
       name: 'Popup / part export menu',
@@ -562,6 +723,16 @@ const POPUP_SCANS: Record<PopupSurface, Scan[]> = {
         await openTab(page, 'Design');
         // Named by its heading; the title says which way it turns.
         await toggle(page.getByTitle(/the component list/));
+      },
+    },
+    {
+      name: 'Popup / component row folded',
+      open: async (page) => {
+        await openTab(page, 'Design');
+        const tree = page.getByRole('tree', { name: 'Components' });
+        const row = tree.locator('[role="treeitem"][aria-expanded="true"]').first();
+        await row.getByRole('button', { name: 'Collapse' }).click();
+        await expect(tree.locator('[role="treeitem"][aria-expanded="false"]').first()).toBeVisible();
       },
     },
   ],
@@ -594,8 +765,7 @@ const POPUP_SCANS: Record<PopupSurface, Scan[]> = {
     {
       name: 'Popup / help contents',
       open: async (page) => {
-        await menu(page, 'Help');
-        const dialog = await dialogOpen(page);
+        const dialog = await helpOpen(page, 'Help');
         const contents = dialog.getByRole('button', { name: 'Contents' });
         await expect(contents).toBeVisible({ timeout: 20_000 });
         await toggle(contents);
@@ -620,6 +790,15 @@ const POPUP_SCANS: Record<PopupSurface, Scan[]> = {
         const notes = page.getByRole('button', { name: /import note/ });
         if ((await notes.getAttribute('aria-expanded')) !== 'true') await notes.click();
         await expect(notes).toHaveAttribute('aria-expanded', 'true');
+      },
+    },
+  ],
+  OffTheRail: [
+    {
+      name: 'Popup / Off the rail forecast',
+      open: async (page) => {
+        await openTool(page, TOOL.rail);
+        await openDetails(page.locator('summary', { hasText: 'Wind from a forecast' }));
       },
     },
   ],
@@ -663,6 +842,11 @@ const POPUP_SCANS: Record<PopupSurface, Scan[]> = {
 };
 const POPUPS: Scan[] = keys(POPUP_SCANS).flatMap((id) => POPUP_SCANS[id]);
 
+// A component with two popups needs two scans.
+for (const id of keys(POPUP_SCANS)) {
+  if (POPUP_SCANS[id].length < POPUP_SURFACES[id]) throw new Error(`${id} renders more popups than are scanned`);
+}
+
 // A component with two dialogs needs two scans, and a menu dialog its own.
 for (const id of keys(DIALOG_SCANS)) {
   if (DIALOG_SCANS[id].length < DIALOG_SURFACES[id]) throw new Error(`${id} renders more dialogs than are scanned`);
@@ -686,15 +870,27 @@ for (const id of keys(HEADER_DIALOGS)) {
  */
 for (const theme of THEMES) {
   test.describe(`axe in the ${theme} theme`, () => {
-    for (const scan of [...SCREENS, ...DIALOGS, ...POPUPS]) {
+    for (const scan of [...SCREENS, ...DIALOGS, ...POPUPS, ...BOOT]) {
       test.describe(() => {
         if (scan.wip) test.use({ wip: scan.wip });
+        const themed = (page: Page) =>
+          page.evaluate((t) => document.documentElement.setAttribute('data-theme', t), theme);
+        // A boot scan loads the page itself; every other one opens on the app
+        // with the engine up.
+        const start = scan.boot
+          ? async (page: Page) => {
+              await scan.open(page);
+              await themed(page);
+            }
+          : async (page: Page) => {
+              await ready(page);
+              await themed(page);
+              await scan.open(page);
+            };
 
         test(`finds nothing on ${scan.name}`, async ({ page }) => {
           test.setTimeout(90_000);
-          await ready(page);
-          await page.evaluate((t) => document.documentElement.setAttribute('data-theme', t), theme);
-          await scan.open(page);
+          await start(page);
           const found = await axeViolations(page, scan.name);
           expect(found, found.join('\n')).toEqual([]);
         });

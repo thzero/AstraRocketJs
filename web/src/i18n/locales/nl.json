@@ -168,7 +168,9 @@
       "cdOverride": "Cd-overschrijving ({{name}})",
       "cgOverride": "CG-overschrijving ({{name}})",
       "extraStages": "trap {{from}} en verder",
+      "instanceCount": "Aantal exemplaren ({{name}})",
       "massOverride": "Massa-overschrijving ({{name}})",
+      "stageOnlyOverride": "overschrijving van alleen de trap ({{name}})",
       "subtreeOverride": "overschrijving van de subonderdelen ({{name}})"
     },
     "viewFailed": "Deze weergave kon niet worden geladen.",
@@ -178,6 +180,7 @@
     "saveOrk": "Kon het .ork-bestand niet opslaan: {{reason}}",
     "saveOrkNoDesignInfo": "Het .ork-bestand is opgeslagen zonder ontwerpinformatie: het ontwerp kon niet worden opgebouwd, dus er was geen statistiek om op te nemen.",
     "exportRasaero": "Kon RASAero niet exporteren: {{reason}}",
+    "exportRasaeroSurface": "Het RASAero-bestand is opgeslagen, maar RASAero heeft geen oppervlak dat past bij de afwerking van dit ontwerp, dus het is als glad (ruwheid nul) geschreven.",
     "exportUnsupported": "Dit onderdeel kan niet als {{format}} worden geëxporteerd.",
     "exportFailed": "Kon {{format}} niet exporteren: {{reason}}",
     "exportRkt": "Kon het .rkt-bestand niet schrijven: {{reason}}",
@@ -2088,7 +2091,7 @@
     "clear": "Wissen",
     "progress": "{{done}} / {{total}}",
     "landed": "{{flown}} van {{asked}} vluchten zijn geland.",
-    "stale": "Het ontwerp is veranderd sinds deze reeks is gevlogen.",
+    "stale": "Het ontwerp of de simulatie-instellingen zijn veranderd sinds deze reeks is gevlogen.",
     "noLandings": "De windreeks leverde geen landingen op.",
     "spread": "{{from}}–{{to}}",
     "flown": "reeks uitgevoerd"

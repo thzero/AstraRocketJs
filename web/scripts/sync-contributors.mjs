@@ -26,6 +26,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { arg } from './lib/args.mjs';
 import { writeDataManifest } from './lib/dataManifest.mjs';
 
 const DATA_DIR = fileURLToPath(new URL('../public/data', import.meta.url));
@@ -34,8 +35,8 @@ const PKG = JSON.parse(readFileSync(new URL('../package.json', import.meta.url),
 
 /** owner/name from --repo, else parsed out of package.json's repository URL. */
 function resolveRepo() {
-  const i = process.argv.indexOf('--repo');
-  if (i >= 0 && process.argv[i + 1]) return process.argv[i + 1];
+  const repo = arg('repo');
+  if (repo) return repo;
   const url = PKG.repository?.url ?? '';
   const m = url.match(/github\.com[/:]([^/]+\/[^/]+?)(?:\.git)?$/);
   if (!m) throw new Error(`Cannot derive owner/repo from package.json repository.url ("${url}"); pass --repo`);

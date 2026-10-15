@@ -39,3 +39,36 @@ describe('Save As', () => {
     await waitFor(() => expect(useWorkspaceStore.getState().err).toContain('library refused'));
   });
 });
+
+/**
+ * A rocket renamed in Rocket configuration is offered under that name, the
+ * one its exports carry, not the name of the file it was imported from.
+ */
+describe('Save As name', () => {
+  const before = useWorkspaceStore.getState();
+  afterEach(() => act(() => useWorkspaceStore.setState({ tree: before.tree, loadedMeta: before.loadedMeta })));
+
+  it("offers the rocket's own name over the imported file's", async () => {
+    act(() =>
+      useWorkspaceStore.setState({
+        tree: { ...before.tree, name: 'Renamed' },
+        loadedMeta: { name: 'imported', notes: [], exportMotors: {} },
+      }),
+    );
+    renderWithProviders(<Harness />);
+    fireEvent.click(screen.getByRole('button', { name: 'open save as' }));
+    expect(await screen.findByDisplayValue('Renamed')).toBeTruthy();
+  });
+
+  it("falls back to the imported file's name when the rocket has none", async () => {
+    act(() =>
+      useWorkspaceStore.setState({
+        tree: { ...before.tree, name: '' },
+        loadedMeta: { name: 'imported', notes: [], exportMotors: {} },
+      }),
+    );
+    renderWithProviders(<Harness />);
+    fireEvent.click(screen.getByRole('button', { name: 'open save as' }));
+    expect(await screen.findByDisplayValue('imported')).toBeTruthy();
+  });
+});

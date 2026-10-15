@@ -323,6 +323,7 @@ describe('autosave', () => {
 describe('the unload journal', () => {
   it('flushes synchronously on pagehide', async () => {
     await mount();
+    act(() => s().addPartToTree('bodytube'));
     act(() => {
       window.dispatchEvent(new Event('pagehide'));
     });
@@ -630,6 +631,29 @@ describe('a hydrate does not re-stamp the design', () => {
     expect(save).not.toHaveBeenCalled();
   });
 
+  // The flush ahead of the switch has nothing to store for an untouched New.
+  it('does not store an untouched New when a library design is opened', async () => {
+    await mount();
+    act(() => s().resetWorkspace());
+    save.mockClear();
+    const original = getDesignLibrary();
+    setDesignLibrary({
+      read: async () => saved(),
+      setActive: async () => true,
+      list: async () => [],
+      activeId: async () => 'lib-1',
+    } as unknown as DesignLibrary);
+    try {
+      await act(async () => {
+        await s().openDesign('lib-1');
+      });
+    } finally {
+      setDesignLibrary(original);
+    }
+    expect(s().tree.name).toBe('Restored');
+    expect(save).not.toHaveBeenCalled();
+  });
+
   // An untouched blank design is not worth a library entry; the first edit is.
   it('writes nothing after New until the first edit', async () => {
     load.mockResolvedValue(saved());
@@ -648,6 +672,70 @@ describe('a hydrate does not re-stamp the design', () => {
       await Promise.resolve();
     });
     expect(save).toHaveBeenCalledTimes(1);
+  });
+
+  /** Hide the tab, as switching to another one does, and let any write settle. */
+  const hideTab = async () => {
+    const vis = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
+    try {
+      await act(async () => {
+        document.dispatchEvent(new Event('visibilitychange'));
+        await Promise.resolve();
+      });
+    } finally {
+      vis.mockRestore();
+    }
+  };
+
+  // A tab switch is not an edit: after New it would create a library entry
+  // for a design nobody touched, and after a load it would re-stamp one only
+  // opened. Neither the async save nor the journal runs.
+  it('writes nothing when the tab is hidden after New', async () => {
+    load.mockResolvedValue(saved());
+    await mount();
+    act(() => s().resetWorkspace());
+    save.mockClear();
+    await hideTab();
+    act(() => void window.dispatchEvent(new Event('pagehide')));
+    expect(save).not.toHaveBeenCalled();
+    expect(saveSync).not.toHaveBeenCalled();
+  });
+
+  // A first visit has nothing stored: the default rocket on screen is as
+  // untouched as after New, and storing it would put a library entry ahead of
+  // the first import.
+  it('writes nothing when the tab is hidden on a first visit', async () => {
+    // The page's own starting state, which no New or load has marked.
+    useWorkspaceStore.setState({ tree: { ...s().tree } });
+    load.mockResolvedValue(null);
+    await mount();
+    save.mockClear();
+    await hideTab();
+    act(() => void window.dispatchEvent(new Event('pagehide')));
+    expect(save).not.toHaveBeenCalled();
+    expect(saveSync).not.toHaveBeenCalled();
+  });
+
+  it('writes nothing when the tab is hidden after a load', async () => {
+    load.mockResolvedValue(saved());
+    await mount();
+    save.mockClear();
+    await hideTab();
+    expect(save).not.toHaveBeenCalled();
+    expect(saveSync).not.toHaveBeenCalled();
+  });
+
+  it('writes an edit when the tab is hidden, and nothing on the next hide once it is stored', async () => {
+    load.mockResolvedValue(saved());
+    await mount();
+    act(() => s().addPartToTree('bodytube'));
+    save.mockClear();
+    await hideTab();
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(saveSync).toHaveBeenCalledTimes(1);
+    await hideTab();
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(saveSync).toHaveBeenCalledTimes(1);
   });
 
   it('saves normally when there was no saved workspace to hydrate from', async () => {

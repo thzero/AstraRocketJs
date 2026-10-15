@@ -503,6 +503,10 @@ function hollowWall(node: ComponentNode | undefined, radius: number): Partial<Co
  * its radius and length, replacing the one that follows the neighboring tube;
  * solid on a filled part; and with a stated wall, that wall. `side` is '' for a
  * nose cone's one shoulder, 'fore' or 'aft' for a transition's.
+ *
+ * Only a stated shoulder diameter applies anything here. Desktop also gives
+ * both shoulders a stated wall when the row states no shoulder diameter; no
+ * shipped row is hollow with a wall and without a shoulder diameter.
  */
 function presetShoulder(
   side: '' | 'fore' | 'aft',

@@ -285,7 +285,7 @@ function UpdateToastBody({
         {/* Which build you are on. The waiting worker does not tell us its own
             version, so this names the one being replaced rather than inventing
             the one replacing it. */}
-        <p className="text-xs text-accent-200/80">{t('update.running', { version: APP_VERSION })}</p>
+        <p className="text-xs text-accent-200">{t('update.running', { version: APP_VERSION })}</p>
       </div>
       <button
         onClick={() => {
@@ -294,7 +294,7 @@ function UpdateToastBody({
         }}
         disabled={applying}
         aria-busy={applying}
-        className="flex shrink-0 items-center gap-2 rounded-lg bg-accent-500 px-3 py-1.5 font-semibold text-on-accent transition-transform hover:bg-accent-400 active:scale-95 active:bg-accent-600 disabled:cursor-wait disabled:bg-accent-700 disabled:active:scale-100"
+        className="flex shrink-0 items-center gap-2 rounded-lg bg-accent-600 px-3 py-1.5 font-semibold text-on-accent transition-transform hover:bg-accent-700 active:scale-95 active:bg-accent-700 disabled:cursor-wait disabled:bg-accent-700 disabled:active:scale-100"
       >
         {applying && (
           <span aria-hidden className="size-3.5 animate-spin rounded-full border-2 border-line/40 border-t-white" />

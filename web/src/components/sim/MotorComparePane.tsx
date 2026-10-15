@@ -11,13 +11,10 @@ import { fmtList } from '../../i18n/format';
 
 /**
  * The motor dashboard's Compare tool: the checked motors' thrust curves
- * overlaid on one chart, with a legend, and a side-by-side spec table using
- * the grid's chosen columns.
+ * overlaid on one chart, with a legend and direct labels as the required
+ * secondary encoding, and a side-by-side spec table using the grid's chosen
+ * columns.
  */
-
-/** Compare pane: overlaid thrust curves (legend + direct labels are the required
- *  secondary encoding) and a side-by-side spec table using the grid's chosen
- *  columns. */
 export function MotorComparePane({ motors, cols }: { motors: CatalogMotor[]; cols: Col[] }) {
   const { t } = useTranslation();
   const u = useUnits();

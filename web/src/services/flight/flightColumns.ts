@@ -7,8 +7,8 @@ import i18n from '../../i18n';
  *
  * The list is built from the result rather than hard-coded, because which series
  * are present depends on how the simulation was run (`SimulationOptions.series`:
- * the default `summary` set, or `full`). A column the file cannot fill is not
- * offered.
+ * `full` for a simulation row, the smaller `summary` set for a wind sweep's or
+ * forecast hour's flights). A column the file cannot fill is not offered.
  *
  * The friendly dozen come first and in a fixed order, because that is the order
  * anyone reading a flight expects; the rest follow in the kernel table's order,

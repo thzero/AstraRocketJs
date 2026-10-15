@@ -47,17 +47,7 @@ vi.setConfig({ testTimeout: KERNEL_TEST_TIMEOUT_MS, hookTimeout: KERNEL_TEST_TIM
 type Miss = { rule: string; label: string; app: unknown; kernel: unknown };
 type Known = { why: string; when: (app: number, kernel: number) => boolean };
 
-const absentShowsZero = (app: number, kernel: number) => app === 0 && kernel > 0;
-const KNOWN: Record<string, Known> = {
-  'bulkhead.outerRadius': {
-    why: 'C39: an absent outer radius builds automatic; the panel shows 0',
-    when: absentShowsZero,
-  },
-  'centeringring.outerRadius': { why: 'C39', when: absentShowsZero },
-  'engineblock.outerRadius': { why: 'C39', when: absentShowsZero },
-  'tubecoupler.outerRadius': { why: 'C39', when: absentShowsZero },
-  'tubefinset.outerRadius': { why: 'C39', when: absentShowsZero },
-};
+const KNOWN: Record<string, Known> = {};
 
 /**
  * Fields the kernel reads only in some states of the part, by the condition. The

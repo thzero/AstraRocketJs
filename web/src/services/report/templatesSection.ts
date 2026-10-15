@@ -98,14 +98,17 @@ function outlineBox(pts: Pt[]): TemplateBox {
 function template(p: PdfPage, label: string, pts: Pt[], box: TemplateBox): void {
   const { t, M } = p;
   const { minX, minY, w, h } = box;
+  const fits = templateFits(w, h, pageFrame(p.PW, p.PH));
+  // The label (6 mm) and what it names break to a new page together, so a
+  // label never sits at the foot of a page with its outline on the next.
+  ensure(p, 6 + (fits ? h + 6 : 6));
   sub(p, label, 9);
-  if (!templateFits(w, h, pageFrame(p.PW, p.PH))) {
+  if (!fits) {
     setStyle(p, 'italic').setFontSize(8).setTextColor(120);
     drawText(p, t('report.tooLarge', { w: fmtNum(w, 0), h: fmtNum(h, 0) }), M, p.y + 3);
     p.y += 6;
     return;
   }
-  ensure(p, h + 6);
   // The drawing's left and top edges land on the margin and the cursor.
   fillPolygon(p, pts, M - minX, p.y - minY);
   p.y += h + 6;

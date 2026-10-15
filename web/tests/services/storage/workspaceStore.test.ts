@@ -203,7 +203,11 @@ describe('LibraryWorkspaceStore', () => {
       await other.save({ ...workspace(), activeId: 'theirs' });
       await store.save({ ...workspace(), activeId: 'mine' }).catch(() => {});
       store.saveSync({ ...workspace(), activeId: 'mine' });
-      expect(localStorage.getItem(nsKey('designs:unload'))).toBeNull();
+      const unload = nsKey('designs:unload');
+      const journals = Array.from({ length: localStorage.length }, (_, i) => localStorage.key(i)!).filter(
+        (k) => k === unload || k.startsWith(`${unload}:`),
+      );
+      expect(journals).toEqual([]);
       expect((await new LibraryWorkspaceStore().load())!.activeId).toBe('theirs');
     });
 

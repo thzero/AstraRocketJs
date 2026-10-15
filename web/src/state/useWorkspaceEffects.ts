@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import i18nGlobal from '../i18n';
 import { useWorkspaceStore, selectConfig, saveFailure, workspaceSnapshot } from './store';
 import { simPrefsOf } from './workspaceSelectors';
+import { markWritten, unchangedSinceWrite } from './writtenWorkspace';
 import { setKernelLengthUnit, type RocketTree } from '../engine/openRocketEngine';
 
 import { useEngineStore } from './engineStore';
@@ -80,6 +81,9 @@ export function useWorkspaceEffects() {
         // exists to prevent.
         if (!live) return;
         if (w) useWorkspaceStore.getState().hydrate(w);
+        // Nothing stored: the default rocket is not worth storing until it is
+        // edited, as after New (see `writtenWorkspace`).
+        else markWritten(useWorkspaceStore.getState());
         hydrated.current = true;
         setReady(true);
       })
@@ -143,14 +147,16 @@ export function useWorkspaceEffects() {
     }
     if (!hydrated.current) return;
     const id = setTimeout(() => {
+      const fields = { tree, sims, configs, activeId, loadedMeta };
       getWorkspaceStore()
-        .save(workspaceSnapshot({ tree, sims, configs, activeId, loadedMeta }))
+        .save(workspaceSnapshot(fields))
         // There is now a design worth keeping, so ask the browser not to evict
         // this origin under disk pressure. Once per session, best-effort.
         // A successful save retires a "storage full" warning and nothing else:
         // the IndexedDB-degraded and load-failed messages are facts about this
         // session that a later write does not undo (see clearSaveWarning).
         .then(() => {
+          markWritten(fields);
           useWorkspaceStore.getState().clearSaveWarning();
           // The header's save status reads this. It is the only thing that
           // reports a save, since the File menu has no Save item, so it is
@@ -186,18 +192,23 @@ export function useWorkspaceEffects() {
   // journal the next load folds back in). `visibilitychange` gets the ordinary
   // async save too: on mobile, hidden is often the last event before the tab is
   // discarded outright, and there it still has time to complete.
+  //
+  // Neither writes a workspace storage already holds (`unchangedSinceWrite`).
   useEffect(() => {
     const snapshot = () => workspaceSnapshot(useWorkspaceStore.getState());
     const flush = () => {
-      if (!hydrated.current) return;
+      if (!hydrated.current || unchangedSinceWrite(useWorkspaceStore.getState())) return;
       const store = getWorkspaceStore();
       if (store.saveSync) store.saveSync(snapshot());
       else store.save(snapshot()).catch(() => {}); // unloading; nothing to surface
     };
     const onHidden = () => {
       if (!hydrated.current || document.visibilityState !== 'hidden') return;
+      const fields = useWorkspaceStore.getState();
+      if (unchangedSinceWrite(fields)) return;
       getWorkspaceStore()
-        .save(snapshot())
+        .save(workspaceSnapshot(fields))
+        .then(() => markWritten(fields))
         .catch(() => {});
       flush();
     };

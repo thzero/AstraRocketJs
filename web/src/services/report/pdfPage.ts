@@ -2,7 +2,7 @@
 import type { jsPDF } from 'jspdf';
 import type { StaticInfo } from '../../engine/openRocketEngine';
 import type { Pt } from './reportGeometry';
-import { fmtNum, fmtSig } from '../../i18n/format';
+import { fmtNum, fmtSig, ladderDigits } from '../../i18n/format';
 import { NO_VALUE } from '../../i18n/noValue';
 import { siToUi, type Quantity, type UnitSelection } from '../../prefs/units';
 import { hexToRgbTuple, pageFrame } from './layout';
@@ -389,13 +389,30 @@ export function table(p: PdfPage, cols: Col[], rows: string[][], boldLast = fals
   p.y += 3;
 }
 
+/**
+ * Quantities whose decimals follow the size of the number in the unit shown,
+ * the ladder the app's own fields use (`ladderDigits`): one decimal is right
+ * for a tube in millimeters and wrong in inches, where a BT-50 is 0.976 in and
+ * would print as 1.0.
+ */
+const LADDERED: ReadonlySet<Quantity> = new Set<Quantity>(['length', 'motorDimensions']);
+
+/** `digits` when the caller states it; else the ladder for a length, one decimal for the rest. */
+const digitsFor = (quantity: Quantity, ui: number, digits?: number): number =>
+  digits ?? (LADDERED.has(quantity) ? ladderDigits(ui) : 1);
+
 /** An SI value in the user's unit, with its symbol. */
-export const q = (p: PdfPage, quantity: Quantity, si: number, digits = 1): string =>
-  Number.isFinite(si) ? `${fmtNum(siToUi(quantity, p.units[quantity], si), digits)} ${p.units[quantity]}` : NO_VALUE;
+export const q = (p: PdfPage, quantity: Quantity, si: number, digits?: number): string => {
+  if (!Number.isFinite(si)) return NO_VALUE;
+  const ui = siToUi(quantity, p.units[quantity], si);
+  return `${fmtNum(ui, digitsFor(quantity, ui, digits))} ${p.units[quantity]}`;
+};
 
 /** The number only, for a cell that already carries the unit once. */
-export const qv = (p: PdfPage, quantity: Quantity, si: number, digits = 1): string =>
-  fmtNum(siToUi(quantity, p.units[quantity], si), digits);
+export const qv = (p: PdfPage, quantity: Quantity, si: number, digits?: number): string => {
+  const ui = siToUi(quantity, p.units[quantity], si);
+  return fmtNum(ui, digitsFor(quantity, ui, digits));
+};
 
 export const len = (p: PdfPage, m: number): string => q(p, 'length', m);
 

@@ -46,13 +46,12 @@ const SOURCES = [
  * whether this difference is the one the entry names; one that is not fails.
  */
 const KNOWN = [
-  // Open findings in docs/AUDIT.md.
+  // What RockSim cannot carry, or desktop's RockSim reader does not read.
   {
     rule: 'rkt:*.instanceCount',
-    why: "C38: RockSim states no repeat count (desktop's own export drops it too), and the writer does not say so",
+    why: "RockSim has no repeat count (desktop's own export drops it too), so the writer names the part in its skipped list",
     when: (a, d) => a > 1 && d === 1,
   },
-  // What RockSim cannot carry, or desktop's RockSim reader does not read.
   {
     rule: 'rkt:launchlug.instanceSeparation',
     why: 'RockSim has no spacing element (LaunchLugDTO writes none), so LaunchLugHandler keeps the constructor spacing',

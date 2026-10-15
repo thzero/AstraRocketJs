@@ -8,7 +8,7 @@ import { useUnits, type Units } from '../../prefs/useUnits';
 import { partLabel } from '../../i18n/format';
 import { isFinSet } from '../../tree/tubefins';
 import { token } from '../common/colorTokens';
-import type { TreeCommand } from './useTreeEdit';
+import type { TreeCommands } from './useTreeEdit';
 
 // Parts offered in the "Add part" menu, grouped like OpenRocket's palette.
 // Labels come from the `part.*` / `tree.*` i18n keys at render time.
@@ -297,8 +297,11 @@ export function ComponentTree({
   onAdd?: (type: ComponentType) => void;
   onScale?: () => void; // open the whole-rocket scale dialog
   onAddStage?: () => void; // append a new (booster) stage at the bottom
-  /** Cut, Copy, Paste and Duplicate (useTreeEdit): buttons in the header, and their shortcuts on the rows. */
-  edit?: { cut: TreeCommand; copy: TreeCommand; paste: TreeCommand; duplicate: TreeCommand };
+  /**
+   * Cut, Copy, Paste and Duplicate (useTreeEdit): buttons in the header on the
+   * selected part, and their shortcuts on the focused row (`at`).
+   */
+  edit?: TreeCommands & { at?: (id: string) => TreeCommands };
 }) {
   const { t } = useTranslation();
   // Ids of collapsed (folded) branches: ephemeral view state per node id.
@@ -392,11 +395,15 @@ export function ComponentTree({
     // Only the row itself navigates: arrows pressed inside a row's export menu
     // belong to that menu.
     if (e.target !== rowEl) return;
-    // Desktop's Edit shortcuts, on the selected part, while a row has focus.
-    // Scoped to the tree so text fields keep their own copy and paste, and
-    // Ctrl+D here duplicates rather than bookmarking the page.
+    // Desktop's Edit shortcuts, on the focused row. The arrow keys move focus
+    // without selecting, and desktop's selection follows them, so the command
+    // acts on the row the keys reached, not on an earlier selection. Scoped to
+    // the tree so text fields keep their own copy and paste, and Ctrl+D here
+    // duplicates rather than bookmarking the page.
     if (edit && (e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey) {
-      const command = { x: edit.cut, c: edit.copy, v: edit.paste, d: edit.duplicate }[e.key.toLowerCase()];
+      const focusedId = rowEl.getAttribute('data-id');
+      const on = (focusedId && edit.at?.(focusedId)) || edit;
+      const command = { x: on.cut, c: on.copy, v: on.paste, d: on.duplicate }[e.key.toLowerCase()];
       if (command) {
         e.preventDefault();
         if (command.enabled) command.run();

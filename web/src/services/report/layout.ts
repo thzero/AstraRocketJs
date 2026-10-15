@@ -10,7 +10,7 @@ import { parseHexColor } from '../design/colorHex';
 
 /**
  * `#rrggbb` to an [r,g,b] triple for jsPDF; a malformed color becomes near-black.
- * Exported for test. See `flightPathExport.hexToRgbInt`.
+ * See `flightPathExport.hexToRgbInt`.
  */
 export const hexToRgbTuple = (hex: string): [number, number, number] => {
   const n = parseHexColor(hex);
@@ -19,7 +19,7 @@ export const hexToRgbTuple = (hex: string): [number, number, number] => {
 };
 
 /**
- * Exported for test: this decides which fin templates get printed at all.
+ * The fin sets of one stage that get a printed template.
  *
  * `isPlanarFinSet`, not `endsWith('finset')`: a tube fin has no planform to
  * cut, and OpenRocket's FinSetPrintStrategy cannot reach one either

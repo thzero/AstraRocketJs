@@ -76,6 +76,34 @@ describe('a zero ID is solid, not missing', () => {
   });
 });
 
+describe('a ring with a bore and no outer diameter', () => {
+  /**
+   * `RingHandler` builds every ring as a detached CenteringRing, whose
+   * `setInnerRadius` raises a stored outer radius of 0 to the bore and turns
+   * Automatic off; `copyValues` hands that radius on. Desktop 24.12 opens both
+   * of these at a 30 mm outer radius in a 39 mm bore.
+   */
+  const ring = (usage: number): ComponentNode =>
+    find(
+      parts(
+        `<BodyTube><Name>B</Name><Len>300</Len><OD>80</OD><ID>78</ID><AttachedParts>
+        <Ring><Name>R</Name><UsageCode>${usage}</UsageCode><Len>5</Len><ID>60</ID></Ring>
+        </AttachedParts></BodyTube>`,
+      ),
+      'R',
+    );
+
+  it('is a centering ring with no wall', () => {
+    const r = ring(0);
+    expect(r['outerRadius']).toBeCloseTo(0.03, 12);
+    expect(r['innerRadius']).toBeCloseTo(0.03, 12);
+  });
+
+  it('is a bulkhead the size of the bore', () => {
+    expect(ring(1)['outerRadius']).toBeCloseTo(0.03, 12);
+  });
+});
+
 describe('a recovery device fabric', () => {
   const chute = (density: string, type: string, thickness = '<Thickness>0.05</Thickness>'): ComponentNode =>
     find(
@@ -210,18 +238,32 @@ describe('a fin set', () => {
 
   /**
    * A tab is measured from the front of the fin root, so on a tapering body its
-   * stated depth already contains the drop from the fore radius to the aft one:
-   * `setTabHeight(tabDepth - max(front - trailing, 0))`.
+   * stated depth already contains the radius drop along the tab:
+   * `setTabHeight(tabDepth - max(front - trailing, 0))`, where `front` and
+   * `trailing` are `getParentFrontRadius` / `getParentTrailingRadius`, read
+   * before the fin is attached, so at the tab's own offset and end from the
+   * parent's fore end.
    */
   it('gives back the taper a tab depth already contains', () => {
     const onTube = fin('<TabLength>40</TabLength><TabDepth>5</TabDepth>');
     expect(onTube['tabHeight']).toBeCloseTo(0.005, 12);
-    const onTransition = fin(
-      '<TabLength>40</TabLength><TabDepth>5</TabDepth>',
-      '<Transition><Name>T</Name><Len>60</Len><FrontDia>24</FrontDia><RearDia>18</RearDia>',
+    // A 30 mm freeform fin standing 40 mm down a 60 mm conical transition,
+    // 24 mm to 18 mm, with a 30 mm tab from the root's front. Desktop 24.12
+    // opens this with a tab height of 3.5 mm: the radius drops from 12 mm at
+    // 0 mm to 10.5 mm at 30 mm. Neither the whole taper (3 mm) nor the drop
+    // under where the fin stands (1 mm) is what it reads.
+    const onTransition = find(
+      parts(
+        `<NoseCone><Name>N</Name><Len>100</Len><BaseDia>24</BaseDia></NoseCone>
+        <Transition><Name>T</Name><Len>60</Len><FrontDia>24</FrontDia><RearDia>18</RearDia><ShapeCode>0</ShapeCode><AttachedParts>
+        <FinSet><Name>F</Name><ShapeCode>2</ShapeCode><FinCount>3</FinCount><Xb>40</Xb><LocationMode>0</LocationMode>
+        <PointList>30,0|20,30|0,30|0,0</PointList><Thickness>3</Thickness>
+        <TabLength>30</TabLength><TabDepth>5</TabDepth><TabOffset>0</TabOffset></FinSet>
+        </AttachedParts></Transition>`,
+      ),
+      'F',
     );
-    // 24 mm down to 18 mm is 3 mm of radius, so 5 mm of depth is 2 mm of tab.
-    expect(onTransition['tabHeight']).toBeCloseTo(0.002, 12);
+    expect(onTransition['tabHeight']).toBeCloseTo(0.0035, 12);
   });
 });
 

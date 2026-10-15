@@ -154,9 +154,9 @@ const finCountDefault = (type: string): number => {
  * (`getBaseRotation() + fin * TWO_PI / finCount`); a lug or rail button is a
  * single mark at its `getAngleOffset()`. The property names and their
  * fallbacks are the ones the 3D view places the same parts at
- * (`rocketPieces.ts`) and the ones the `.ork` writer saves
- * (`exportWriters.ts`), so the guide cannot mark a fin somewhere
- * the app does not draw it.
+ * (`rocketPieces.ts`) and the ones the `.ork` writer saves (`finAngleXml` in
+ * `exportParts.ts` for a fin set, `exportWriters.ts` for a lug or rail
+ * button), so the guide cannot mark a fin somewhere the app does not draw it.
  */
 export function mountAngles(node: ComponentNode): number[] {
   const type = String(node.type);

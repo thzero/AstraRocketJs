@@ -3,7 +3,7 @@ import type { StaticInfo } from '../../../src/engine/openRocketEngine';
 import type { ReportModel } from '../../../src/services/report/reportModel';
 import { buildComponentCsv, buildDesignCsv } from '../../../src/services/report/reportCsv';
 import { METRIC_UNITS, IMPERIAL_UNITS } from '../../../src/prefs/units';
-import { summaryRows, type PdfPage } from '../../../src/services/report/pdfPage';
+import { qv, summaryRows, type PdfPage } from '../../../src/services/report/pdfPage';
 import i18n from '../../../src/i18n';
 import es from '../../../src/i18n/locales/es.json';
 import { NO_VALUE } from '../../../src/i18n/noValue';
@@ -95,8 +95,8 @@ describe('design CSV', () => {
       .trimEnd()
       .split('\r\n')
       .map((l) => l.split(','));
-    // 0.9 m = 35.433 in; 4.25 kg = 149.914 oz.
-    expect(imp).toContainEqual(['Rocket', 'Length', '35.433', 'in']);
+    // 0.9 m = 35.4331 in to six significant figures; 4.25 kg = 149.914 oz.
+    expect(imp).toContainEqual(['Rocket', 'Length', '35.4331', 'in']);
     expect(imp).toContainEqual(['Rocket', 'Mass (Loaded)', '149.914', 'oz']);
   });
 
@@ -220,14 +220,14 @@ describe('buildComponentCsv', () => {
   it('writes one row per part, in the chosen units, the header naming them', () => {
     const [head, nose] = csv();
     expect(head).toBe(
-      'Stage,Depth,Type,Name,Material,Density (g/cm³),Length (cm),Outer diameter (cm),Inner diameter (cm),Fore diameter (cm),Aft diameter (cm),Thickness (cm),Mass (g)',
+      'Stage,Depth,Type,Name,Material,Density (g/cm³),Surface density (g/m²),Line density (g/m),Length (cm),Outer diameter (cm),Inner diameter (cm),Fore diameter (cm),Aft diameter (cm),Thickness (cm),Mass (g)',
     );
     const cells = nose!.split(',');
     expect(cells.slice(0, 5)).toEqual(['Sustainer', '0', 'Nose cone', 'Nose', 'Polystyrene']);
     // A radius in the model is a diameter in the file: 12.5 mm is 2.5 cm across.
-    expect(Number(cells[7])).toBeCloseTo(2.5, 6);
+    expect(Number(cells[9])).toBeCloseTo(2.5, 6);
     // A figure the part does not have is blank.
-    expect(cells[8]).toBe('');
+    expect(cells[10]).toBe('');
   });
 
   it("writes a transition's two ends in their own columns", () => {
@@ -244,8 +244,77 @@ describe('buildComponentCsv', () => {
       .trimEnd()
       .split('\r\n');
     const cells = row!.split(',');
-    expect(Number(cells[9])).toBeCloseTo(4, 6);
-    expect(Number(cells[10])).toBeCloseTo(2.5, 6);
+    expect(Number(cells[11])).toBeCloseTo(4, 6);
+    expect(Number(cells[12])).toBeCloseTo(2.5, 6);
+  });
+
+  /**
+   * Six significant figures, not a fixed count of decimals, which is wrong in
+   * one unit or another: three decimals write a 0.5 mm wall in meters as 0.001.
+   */
+  it('keeps a thin wall in a large unit', () => {
+    const cells = csv({ ...METRIC_UNITS, length: 'm' })[2]!.split(',');
+    expect(cells[13]).toBe('0.0005');
+  });
+
+  // A spreadsheet can read an exponent as text; `String` writes one below 1e-6.
+  it('writes a very small figure as a plain decimal', () => {
+    const tiny: ReportModel = {
+      ...parts,
+      partsByStage: parts.partsByStage.map((st) => ({
+        ...st,
+        rows: st.rows.map((r) => ({ ...r, mass: 4e-7 })),
+      })),
+    };
+    const [, row] = buildComponentCsv(tiny, { ...METRIC_UNITS, mass: 'kg' }, (type) => type)
+      .trimEnd()
+      .split('\r\n');
+    expect(row!.split(',').at(-1)).toBe('0.0000004');
+  });
+
+  /**
+   * A chute's canopy and a shock cord's cord are a surface and a line material
+   * (the kernel's RecoveryDevice.getMaterial and ShockCord.getMaterial), so each
+   * density goes in the column of its own unit.
+   */
+  it('writes a soft part density in the column of its kind', () => {
+    const soft: ReportModel = {
+      ...parts,
+      partsByStage: [
+        {
+          stage: 'S',
+          rows: [
+            {
+              depth: 0,
+              type: 'parachute',
+              name: 'P',
+              material: 'Ripstop nylon',
+              density: 0.067,
+              densityKind: 'surfaceDensity',
+              length: 0.04,
+              mass: 0.01,
+            },
+            {
+              depth: 0,
+              type: 'shockcord',
+              name: 'C',
+              material: 'Elastic cord',
+              density: 0.0018,
+              densityKind: 'lineDensity',
+              length: 0.04,
+              mass: 0.01,
+            },
+          ],
+        },
+      ],
+    };
+    const [, chute, cord] = buildComponentCsv(soft, METRIC_UNITS, (type) => type)
+      .trimEnd()
+      .split('\r\n')
+      .map((r) => r.split(','));
+    // 0.067 kg/m² is 67 g/m²; 0.0018 kg/m is 1.8 g/m.
+    expect(chute!.slice(4, 8)).toEqual(['Ripstop nylon', '', '67', '']);
+    expect(cord!.slice(4, 8)).toEqual(['Elastic cord', '', '', '1.8']);
   });
 
   it('keeps a part name from becoming a spreadsheet formula', () => {
@@ -264,7 +333,7 @@ describe('buildComponentCsv', () => {
       .trimEnd()
       .split('\r\n');
     const cells = row!.split(',');
-    expect([cells[5], cells[6], cells[12]]).toEqual(['', '', '']);
+    expect([cells[5], cells[8], cells[14]]).toEqual(['', '', '']);
   });
 });
 
@@ -312,5 +381,20 @@ describe('design CSV fin-set fields for unnamed fin sets', () => {
     } finally {
       await i18n.changeLanguage('en');
     }
+  });
+});
+
+/**
+ * A length in the report takes its decimals from its size in the unit shown,
+ * as the app's own fields do: a BT-50 is 0.976 in across, which one decimal
+ * would print as 1.0, and 24.8 mm needs no more than one.
+ */
+describe('report lengths', () => {
+  const page = (length: string) =>
+    ({ t: i18n.getFixedT('en'), units: { ...METRIC_UNITS, length } }) as unknown as PdfPage;
+
+  it('prints a BT-50 to the thousandth of an inch, and to the tenth of a millimeter', () => {
+    expect(qv(page('in'), 'length', 0.02479)).toBe('0.976');
+    expect(qv(page('mm'), 'length', 0.02479)).toBe('24.8');
   });
 });

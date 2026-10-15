@@ -1,4 +1,5 @@
 import type { ComponentNode } from '../../../engine/openRocketEngine';
+import type { Keyed } from '../../../i18n/keyedError';
 
 /**
  * Surface and airfoil mapping: our finish ids and airfoil-section ids to the
@@ -33,14 +34,14 @@ const FINISH_TO_SURFACE: Readonly<Record<string, string>> = {
 };
 export const RASAERO_SURFACE_DEFAULT = 'Smooth (Zero Roughness)';
 
+/** The warning the desktop raises when a finish has no RASAero row. */
+export const RASAERO_SURFACE_WARNING: Keyed = { key: 'errors.exportRasaeroSurface' };
+
 /** The RASAero surface for a finish id, with the desktop's warning when it has no row. */
-export function rasaeroSurface(finish: string): { surface: string; warning?: string } {
+export function rasaeroSurface(finish: string): { surface: string; warning?: Keyed } {
   const surface = FINISH_TO_SURFACE[finish];
   if (surface) return { surface };
-  return {
-    surface: RASAERO_SURFACE_DEFAULT,
-    warning: `Unknown surface finish: ${finish}, defaulting to Smooth.`,
-  };
+  return { surface: RASAERO_SURFACE_DEFAULT, warning: RASAERO_SURFACE_WARNING };
 }
 
 /**
@@ -48,7 +49,7 @@ export function rasaeroSurface(finish: string): { surface: string; warning?: str
  * (RocketDesignDTO); with none, the first part carrying a finish.
  * A part with no finish key has the kernel's default, NORMAL.
  */
-export function designSurface(stagesIn: ComponentNode[], warnings: string[] | undefined): string {
+export function designSurface(stagesIn: ComponentNode[], warnings: Keyed[] | undefined): string {
   const finishOf = (n: ComponentNode | undefined) =>
     n ? (typeof n['finish'] === 'string' ? n['finish'] : 'normal') : undefined;
   const walk = (nodes: ComponentNode[]): string | undefined => {

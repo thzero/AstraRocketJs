@@ -21,3 +21,24 @@ describe('a Settings tab alone', () => {
     expect(screen.getByLabelText('Max angle step')).toBeTruthy();
   });
 });
+
+/**
+ * A numeric setting is written when the field is left, not per keystroke:
+ * every caller substitutes its default for an empty box, so a write mid-edit
+ * would refill the box under the cursor.
+ */
+describe('a numeric setting', () => {
+  const timeStep = () => (readSettings()['simulation'] as Record<string, number> | undefined)?.['timeStep'];
+
+  it('is written on blur, not on each key', () => {
+    renderWithProviders(<SimTab />);
+    const box = screen.getByRole('spinbutton', { name: 'Time step' });
+    const before = timeStep();
+    fireEvent.focus(box);
+    fireEvent.change(box, { target: { value: '0.0' } });
+    fireEvent.change(box, { target: { value: '0.02' } });
+    expect(timeStep()).toBe(before);
+    fireEvent.blur(box);
+    expect(timeStep()).toBe(0.02);
+  });
+});

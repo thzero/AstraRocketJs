@@ -1,9 +1,9 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState, type ComponentProps } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSettings } from '../../state/SettingsProvider';
 import { DEFAULT_SETTINGS, SIM_BOUNDS, type SimulationSettings } from '../../services/storage/settings';
 import { PART_KEYS, mergePalette } from '../../services/design/partColors';
-import { NumberInput } from '../common/NumberInput';
+import { NumberRow } from '../common/NumberRow';
 import { DefaultMaterials } from './DefaultMaterials';
 import { LaunchPanel } from '../sim/LaunchPanel';
 import { withRequiredFrom, type CompleteLaunch } from '../../services/flight/requiredLaunch';
@@ -448,59 +448,15 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-interface NumRowProps {
-  label: string;
-  unit?: string;
-  value: number | null;
-  step: number;
-  min?: number;
-  max?: number;
-  placeholder?: string;
-  /** What the number is for. A threshold with no explanation is only usable by
-   *  someone who already knows what it does. */
-  hint?: string;
-  /** Fires on blur with the typed value, or null for an emptied field. */
-  onChange: (v: number | null) => void;
-}
-
-/** The field with its hint underneath, when it has one. */
-function NumRow(props: NumRowProps) {
-  if (!props.hint) return <NumField {...props} />;
-  return (
-    <div>
-      <NumField {...props} />
-      <p className="mt-0.5 pr-28 text-[11px] leading-snug text-ink-faint">{props.hint}</p>
-    </div>
-  );
-}
-
 /**
- * One numeric setting. The value is held as a draft while the field has focus and
- * written on blur. Persisted per keystroke it would write the caller's default
- * mid-edit, since every caller substitutes one for an empty field, so backspacing
- * "0.01" to retype it refills the box under the cursor.
+ * One numeric setting, written on blur. Persisted per keystroke it would write
+ * the caller's default mid-edit, since every caller substitutes one for an
+ * empty field, so backspacing "0.01" to retype it refills the box under the
+ * cursor. A hint says what the number is for: a threshold with no explanation
+ * is only usable by someone who already knows what it does.
  */
-function NumField({ label, unit, value, step, min, max, placeholder, onChange }: NumRowProps) {
-  return (
-    <label className="flex items-center justify-between gap-3">
-      <span className="text-sm text-ink-soft">{label}</span>
-      <span className="flex items-center gap-1">
-        <NumberInput
-          value={value}
-          onChange={onChange}
-          // Written once, on blur: a settings write hits storage.
-          commitOnBlur
-          step={step}
-          min={min}
-          max={max}
-          placeholder={placeholder}
-          ariaLabel={label}
-          className="w-24 rounded-md bg-raised px-2 py-1 text-right text-sm text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500"
-        />
-        {unit && <span className="min-w-8 text-xs text-ink-faint">{unit}</span>}
-      </span>
-    </label>
-  );
+function NumRow(props: Omit<ComponentProps<typeof NumberRow>, 'commitOnBlur' | 'labelClassName'>) {
+  return <NumberRow {...props} commitOnBlur labelClassName="text-sm text-ink-soft" />;
 }
 
 function ColorRow({

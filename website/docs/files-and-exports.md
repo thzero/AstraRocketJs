@@ -109,7 +109,7 @@ Then choose an output:
 
 - **Save as PDF**: a real PDF file (vector text, tables and 1:1 templates; the schematic is drawn to scale).
 - **Save as CSV**: the design summary as a tidy `Scope, Field, Value, Unit` table (Design / Rocket / per-stage blocks, plus each fin set's root position), for a spreadsheet.
-- **Save parts as CSV**: the component table, one row per part in stage order, with its type, name, material, density, length, outer and inner diameters, thickness and mass, in the report's units.
+- **Save parts as CSV**: the component table, one row per part in stage order, with its type, name, material, density, length, outer and inner diameters, thickness and mass, in the report's units. A parachute's or streamer's canopy and a shock cord's cord are sheet and line materials, so their density goes in the **Surface density** or **Line density** column instead.
 
 **Units** (persisted, next to the other options) picks what the PDF and the CSV are written in: **My default units** follows [Settings ▸ Units](./settings.md#units), or pin the document to **Metric** or **Imperial** so it reads the same whatever you happen to be working in, useful when the report is for someone else. Note that "my default units" means the tab defaults, *not* a unit you have set on an individual field: a report written half in inches and half in centimeters because of where you happened to click is not one anyone wants. The 1:1 templates and the printed scale bar always stay in mm/cm, because they measure the page.
 

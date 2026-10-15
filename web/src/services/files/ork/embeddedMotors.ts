@@ -1,6 +1,6 @@
 import type { MotorSpec } from '../../../engine/openRocketEngine';
 import { motorDigest } from '../../motors/motorDigest';
-import { mathEquals } from '../../motors/mathEquals';
+import { finalizeThrustCurve, sortLists } from '../../motors/curveFinalize';
 import { escapeXml } from '../xmlUtil';
 
 /**
@@ -10,7 +10,8 @@ import { escapeXml } from '../xmlUtil';
  * matches one, and otherwise reads this file and accepts it only if the curve
  * it parses hashes to the name (`MotorHandler.loadMotorFromZip`). So the digest
  * here is computed from the numbers exactly as written, after the same cleanup
- * the desktop's loader applies before it hashes (`finalizeThrustCurve`).
+ * the desktop's loader applies before it hashes (`sortLists`, then
+ * `finalizeThrustCurve`).
  */
 export interface EmbeddedMotorFile {
   digest: string;
@@ -27,42 +28,15 @@ interface Row {
   cg: number;
 }
 
-/** `MathUtil.equals` with its default epsilon. */
-const same = mathEquals;
-
-/**
- * The cleanup `AbstractMotorLoader.finalizeThrustCurve` applies to a loaded
- * curve, step for step: a point at t=0 when there is none (carrying the first
- * mass and CG), the zero-thrust half of a double point at t=0 dropped, exact
- * repeats dropped, and the zero half of a double final point dropped.
- */
-function finalizeLikeLoader(input: readonly Row[]): Row[] {
-  const rows = input.map((r) => ({ ...r }));
-  if (!rows.length) return rows;
-  if (!same(rows[0]!.t, 0)) rows.unshift({ ...rows[0]!, t: 0, f: 0 });
-  if (rows.length > 1 && same(rows[0]!.t, 0) && same(rows[1]!.t, 0)) rows.splice(0, 1);
-  for (let i = 0; i < rows.length - 1; i++) {
-    while (i < rows.length - 1 && same(rows[i]!.t, rows[i + 1]!.t) && same(rows[i]!.f, rows[i + 1]!.f)) {
-      rows.splice(i, 1);
-    }
-  }
-  const n = rows.length - 1;
-  if (n >= 1 && same(rows[n - 1]!.t, rows[n]!.t)) {
-    if (same(rows[n - 1]!.f, 0)) rows.splice(n - 1, 1);
-    else if (same(rows[n]!.f, 0)) rows.splice(n, 1);
-  }
-  return rows;
-}
-
 /** The digest the desktop computes for these rows once loaded. */
 export function rowsDigest(rows: readonly Row[]): string {
-  const fin = finalizeLikeLoader(rows);
-  return motorDigest({
-    times: fin.map((r) => r.t),
-    masses: fin.map((r) => r.m),
-    cgs: fin.map((r) => r.cg),
-    thrusts: fin.map((r) => r.f),
-  });
+  const times = rows.map((r) => r.t);
+  const thrusts = rows.map((r) => r.f);
+  const masses = rows.map((r) => r.m);
+  const cgs = rows.map((r) => r.cg);
+  sortLists(times, thrusts, masses, cgs);
+  finalizeThrustCurve(times, thrusts, [masses, cgs]);
+  return motorDigest({ times, masses, cgs, thrusts });
 }
 
 const attrOf = (attrs: string, key: string): number | null => {
@@ -73,8 +47,10 @@ const attrOf = (attrs: string, key: string): number | null => {
 
 /**
  * The digest the desktop computes when it loads this `.rse` text, or null when
- * the file does not state mass and CG on every row (the loader then hashes
- * other data, and no file this app writes is like that).
+ * the file does not state mass and CG on every row. Desktop also hashes other
+ * data when `auto-calc-mass` or `auto-calc-cg` is absent or true
+ * (`RockSimMotorLoader.getMotor`): the mass from the initial and propellant
+ * weights, and no CG. The files this app writes set both to 0.
  */
 export function rseDigest(text: string): string | null {
   const rows: Row[] = [];

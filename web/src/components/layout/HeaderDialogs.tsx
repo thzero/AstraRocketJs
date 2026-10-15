@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { defaultDesignName } from '../../services/app/appInfo';
 import { useWorkspaceStore } from '../../state/store';
+import { selectDesignName } from '../../state/workspaceSelectors';
 import { fireAction } from '../../state/fireAction';
 import { LazyBoundary, lazyNamed } from '../common/ErrorBoundary';
 import { DesignLibraryDialog } from './DesignLibraryDialog';
@@ -69,8 +69,9 @@ function HeaderDialogs({ flags, onClose }: { flags: OpenFlags; onClose: (id: Hea
   const closeHelp = useHelpStore((s) => s.closeHelp);
   const saveDesignAs = useWorkspaceStore((s) => s.saveDesignAs);
   const designs = useWorkspaceStore((s) => s.designs);
-  // Pre-fill Save As with the imported .ork's name when there is one.
-  const loadedName = useWorkspaceStore((s) => s.loadedMeta?.name);
+  // Save As offers the name every export carries: the rocket's own, else the
+  // imported file's, else the default.
+  const designName = useWorkspaceStore(selectDesignName);
 
   return (
     <>
@@ -100,7 +101,7 @@ function HeaderDialogs({ flags, onClose }: { flags: OpenFlags; onClose: (id: Hea
         <DesignPropertiesDialog
           title={t('file.saveAs')}
           confirmLabel={t('common.save')}
-          initialName={loadedName ?? defaultDesignName()}
+          initialName={designName}
           takenNames={designs.map((d) => d.name)}
           onCancel={() => onClose('saveAs')}
           onConfirm={(name) => {

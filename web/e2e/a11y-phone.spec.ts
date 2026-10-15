@@ -1,5 +1,5 @@
 import { test, expect, defined, ready, type Page } from './base';
-import { AERO_PANE, axeViolations, CONFIGS, press, THEMES, TOOL, TWO_D, VIEW } from './axe';
+import { AERO_PANE, aeroChartsDrawn, axeViolations, CONFIGS, press, THEMES, TOOL, TWO_D, VIEW } from './axe';
 import { eachEditor } from './editors';
 import { DESIGN_VIEWS, RESULT_VIEWS, TOOLS, type ConfigsTab, type Tab, type ViewMode } from '../src/state/tabs';
 import { taskTabs } from '../src/components/layout/tabTable';
@@ -42,7 +42,7 @@ async function scanViews(page: Page, where: string, views: readonly ViewMode[]):
   for (const view of views) {
     await press(page, VIEW[view]);
     await expect(page.getByText('Loading 3D…')).toHaveCount(0);
-    if (view === 'drag') await expect(page.getByRole('img', { name: /peak .* at Mach/ }).first()).toBeVisible();
+    if (view === 'drag') await aeroChartsDrawn(page);
     const panes = PANES[view];
     if (!panes) {
       found.push(...(await axeViolations(page, `${where} / ${VIEW[view]}`)));

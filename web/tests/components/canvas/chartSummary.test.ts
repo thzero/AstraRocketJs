@@ -1,6 +1,7 @@
 // cspell:ignore Höhe Spitze -- German, from the de locale the test reads in
 import { describe, it, expect } from 'vitest';
 import {
+  crosshairReadout,
   eventsSummary,
   machSeriesSummary,
   peakOf,
@@ -57,6 +58,17 @@ describe('timeSeriesSummary', () => {
 
   it('says so when a stage has no samples', () => {
     expect(timeSeriesSummary(t, 'Mach', '', 2, false, [{ name: 'S', xs: [], ys: [] }])).toBe('Mach: no data');
+  });
+
+  it('closes a degree up against its number, as every other view does', () => {
+    const tilt = { name: 'S', xs: [0, 1, 2], ys: [2, 12.3, 5] };
+    expect(timeSeriesSummary(t, 'Angle of attack', '°', 1, false, [tilt])).toBe('Angle of attack: peak 12.3° at 1.0 s');
+    expect(
+      crosshairReadout('1.0 s', [
+        { label: 'Angle of attack', value: 12.3, digits: 1, unit: '°' },
+        { label: 'Mach', value: 0.42, digits: 2, unit: '' },
+      ]),
+    ).toBe('1.0 s: Angle of attack 12.3° and Mach 0.42');
   });
 
   it('reads in the locale', () => {

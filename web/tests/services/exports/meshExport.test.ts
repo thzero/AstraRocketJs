@@ -21,6 +21,12 @@ describe('component mesh export', () => {
     expect(obj).toMatch(/^f /m);
   });
 
+  it('OBJ is scaled to millimeters, as the STL is', () => {
+    const xs = [...solidToObj(nose).matchAll(/^v (\S+)/gm)].map((m) => Number(m[1]));
+    // A 0.1 m nose lies along the X axis: 100 mm in the file.
+    expect(Math.max(...xs) - Math.min(...xs)).toBeCloseTo(100, 1);
+  });
+
   it('STL is a valid binary blob with a matching triangle count', () => {
     const buf = solidToStl(nose);
     const count = new DataView(buf).getUint32(80, true);

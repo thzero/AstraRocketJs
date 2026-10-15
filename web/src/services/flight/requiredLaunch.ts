@@ -26,15 +26,31 @@ export const REQUIRED_LAUNCH_KEYS = [
 
 export type RequiredLaunchKey = (typeof REQUIRED_LAUNCH_KEYS)[number];
 
-/** A launch block with every required field actually present. */
+/**
+ * A launch block with every required field actually present.
+ *
+ * With a multilevel profile the single wind is not flown and may be blank (see
+ * {@link missingRequired}); the engine options treat an absent average as unused.
+ */
 export type CompleteLaunch = LaunchConditions & { [K in RequiredLaunchKey]: number };
 
 /** True when this one field is filled in. Zero counts; blank and NaN do not. */
 export const isFilled = (v: number | null | undefined): v is number => v != null && Number.isFinite(v);
 
-/** The required keys this launch block is still missing, in panel order. */
+/** The single-wind keys a multilevel profile replaces. */
+const SINGLE_WIND_KEYS: ReadonlySet<RequiredLaunchKey> = new Set(['windAverage', 'windStdDev']);
+
+/**
+ * The required keys this launch block is still missing, in panel order.
+ *
+ * A multilevel profile flies the kernel's `MultiLevelPinkNoiseWindModel` and
+ * never reads the single average and deviation (`SimulationOptions.getWindModel`),
+ * and the panel hides those two fields while a profile is set, so they are not
+ * required then.
+ */
 export function missingRequired(launch: LaunchConditions): RequiredLaunchKey[] {
-  return REQUIRED_LAUNCH_KEYS.filter((k) => !isFilled(launch[k]));
+  const multilevel = (launch.windLevels?.length ?? 0) > 0;
+  return REQUIRED_LAUNCH_KEYS.filter((k) => !(multilevel && SINGLE_WIND_KEYS.has(k)) && !isFilled(launch[k]));
 }
 
 /** Narrowing guard: every required field is present, so a run can use them. */

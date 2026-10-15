@@ -10,7 +10,7 @@ import { writeSustainerChain } from './rasaero/sustainer';
 import { writeBoosters } from './rasaero/booster';
 import { writeRecovery } from './rasaero/recovery';
 import { writeLaunchSite } from './rasaero/launchSite';
-import { KeyedError } from '../../i18n/keyedError';
+import { KeyedError, type Keyed } from '../../i18n/keyedError';
 import { writeMachAlt, writeSimulationList, type MachAltTable } from './rasaero/simulation';
 
 /**
@@ -46,10 +46,10 @@ export interface Cdx1ExportInput {
   engineExport?: boolean;
   /**
    * Collects the non-fatal notes the desktop exporter would raise as warnings
-   * (a finish with no RASAero surface, say). Optional; without it the notes
-   * are not kept.
+   * (a finish with no RASAero surface, say), keyed for the banner. Optional;
+   * without it the notes are not kept.
    */
-  warnings?: string[];
+  warnings?: Keyed[];
 }
 
 export function exportCdx1({

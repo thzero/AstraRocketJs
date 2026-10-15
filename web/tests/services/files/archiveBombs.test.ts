@@ -189,6 +189,99 @@ describe('.ork archive caps', () => {
     expect(unpackOrk(bytes.buffer).xml).toBe(xml);
   });
 
+  /**
+   * A data descriptor may leave out its signature (APPNOTE 4.3.9.3).
+   * `ZipInputStream.readEnd` reads a first word that is not the signature as
+   * the CRC, so desktop 24.12 opens such a `.ork`; fflate's streaming reader
+   * loses its place at the member's end, and the archive is read through its
+   * central directory instead.
+   */
+  /** The CRC-32 a zip states for a member's uncompressed bytes. */
+  const crc32 = (data: Uint8Array): number => {
+    let c = ~0;
+    for (const byte of data) {
+      c ^= byte;
+      for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    }
+    return ~c >>> 0;
+  };
+  const unsigned = (members: Record<string, Uint8Array>): Uint8Array => {
+    const parts: Uint8Array[] = [];
+    const directory: Uint8Array[] = [];
+    let offset = 0;
+    for (const [name, raw] of Object.entries(members)) {
+      const n = strToU8(name);
+      const data = deflateSync(raw);
+      const crc = crc32(raw);
+      const local = new Uint8Array(30 + n.length);
+      const lv = new DataView(local.buffer);
+      lv.setUint32(0, 0x04034b50, true);
+      lv.setUint16(4, 20, true);
+      lv.setUint16(6, 8, true); // sizes in a data descriptor
+      lv.setUint16(8, 8, true); // deflate
+      lv.setUint16(26, n.length, true);
+      local.set(n, 30);
+      const descriptor = new Uint8Array(12); // CRC and sizes, no signature
+      const dv = new DataView(descriptor.buffer);
+      dv.setUint32(0, crc, true);
+      dv.setUint32(4, data.length, true);
+      dv.setUint32(8, raw.length, true);
+      const central = new Uint8Array(46 + n.length);
+      const cv = new DataView(central.buffer);
+      cv.setUint32(0, 0x02014b50, true);
+      cv.setUint16(4, 20, true);
+      cv.setUint16(6, 20, true);
+      cv.setUint16(8, 8, true);
+      cv.setUint16(10, 8, true);
+      cv.setUint32(16, crc, true);
+      cv.setUint32(20, data.length, true);
+      cv.setUint32(24, raw.length, true);
+      cv.setUint16(28, n.length, true);
+      cv.setUint32(42, offset, true);
+      central.set(n, 46);
+      parts.push(local, data, descriptor);
+      directory.push(central);
+      offset += local.length + data.length + descriptor.length;
+    }
+    const size = directory.reduce((t, c) => t + c.length, 0);
+    const end = new Uint8Array(22);
+    const ev = new DataView(end.buffer);
+    ev.setUint32(0, 0x06054b50, true);
+    ev.setUint16(8, directory.length, true);
+    ev.setUint16(10, directory.length, true);
+    ev.setUint32(12, size, true);
+    ev.setUint32(16, offset, true);
+    const all = [...parts, ...directory, end];
+    const out = new Uint8Array(all.reduce((t, p) => t + p.length, 0));
+    let at = 0;
+    for (const p of all) {
+      out.set(p, at);
+      at += p.length;
+    }
+    return out;
+  };
+
+  it('opens members whose data descriptors leave out the signature, as ZipInputStream does', () => {
+    const xml = '<openrocket><rocket><name>Streamed</name></rocket></openrocket>';
+    const curve = '<engine-database></engine-database>';
+    const archive = unpackOrk(
+      unsigned({ 'rocket.ork': strToU8(xml), 'thrustcurves/x.rse': strToU8(curve) }).buffer as ArrayBuffer,
+    );
+    expect(archive.xml).toBe(xml);
+    expect(archive.motorFiles).toEqual([curve]);
+  });
+
+  it('holds such an archive to the same caps', () => {
+    expect(refusal(unsigned({ 'rocket.ork': zeros(16 * CAP) }))).toBe('errors.file.archiveTooLarge');
+    expect(delivered.bytes).toBeLessThanOrEqual(CAP + OVERSHOOT);
+    // Each member under the member cap, so the streaming read loses its place
+    // at the first one's end and the directory read meets the total cap.
+    const third = Math.floor(0.9 * CAP);
+    expect(refusal(unsigned({ 'rocket.ork': zeros(third), 'a.rse': zeros(third), 'b.rse': zeros(third) }))).toBe(
+      'errors.file.archiveTooLarge',
+    );
+  });
+
   it('opens an archive inside the caps, every member whole', () => {
     const xml = '<openrocket><rocket/></openrocket>';
     const curve = '<engine-database></engine-database>';

@@ -10,7 +10,8 @@
 // several parachute makers and the rail button database. The internal set is
 // read from the OpenRocket release jar (`--jar`, or an installed OpenRocket), the
 // same build the digests come from, or from a directory of those files
-// (`--internal`). The jar has to be the pinned release
+// (`--internal`). Desktop's built-in materials are read from the jar either
+// way (lib/builtInMaterials.mjs). The jar has to be the pinned release
 // (lib/openrocketRelease.mjs), and the database has to match the copy that jar
 // ships, file for file, so the catalog is the library of the release desktop
 // users run. Desktop keeps every part from both, duplicates included, and
@@ -34,7 +35,9 @@ import { fileURLToPath } from 'node:url';
 import { unzipSync } from 'fflate';
 import { STAGED_COMPONENTS } from './lib/catalogStaging.mjs';
 import { nearestMaterial } from './lib/nearestMaterial.mjs';
-import { installedJar, runDumper } from './lib/openrocketJava.mjs';
+import { arg } from './lib/args.mjs';
+import { builtInMaterials } from './lib/builtInMaterials.mjs';
+import { installedJar } from './lib/openrocketJava.mjs';
 import { checkJar, RELEASE, UNPINNED } from './lib/openrocketRelease.mjs';
 
 // Source: the OpenRocket-Components DB (openrocket/openrocket-database), the
@@ -42,10 +45,6 @@ import { checkJar, RELEASE, UNPINNED } from './lib/openrocketRelease.mjs';
 // cloned into web/openrocket-database by `npm run sync:database`. Override with
 // --src / OPENROCKET_PRESETS to point at another `.orc` tree.
 const DEFAULT_SRC = fileURLToPath(new URL('../openrocket-database/orc', import.meta.url));
-const arg = (name) => {
-  const i = process.argv.indexOf(`--${name}`);
-  return i >= 0 ? process.argv[i + 1] : undefined;
-};
 const SRC = arg('src') ?? (process.env.OPENROCKET_PRESETS || DEFAULT_SRC);
 // public/data is served as-is (not bundled) so the catalog can be refreshed
 // without rebuilding the app; see src/services/app/remoteData.ts.
@@ -116,6 +115,17 @@ function jarFiles(entries, prefix) {
     .map(([name, bytes]) => ({ name: name.slice(prefix.length), text: new TextDecoder().decode(bytes) }));
 }
 
+/** The pinned release's jar: `--jar`, `OPENROCKET_JAR`, or the installed OpenRocket. */
+function releaseJar() {
+  const jar = arg('jar') ?? process.env.OPENROCKET_JAR ?? installedJar();
+  if (!jar) {
+    console.error(`No OpenRocket jar. Pass --jar <OpenRocket-${RELEASE}.jar>.`);
+    process.exit(2);
+  }
+  checkJar(jar);
+  return jar;
+}
+
 /**
  * The part files OpenRocket ships, as `{ name, text }`: the internal set, and
  * the jar's copy of the database (null when they come from `--internal`).
@@ -123,12 +133,7 @@ function jarFiles(entries, prefix) {
 function shippedFiles() {
   const dir = arg('internal') ?? process.env.OPENROCKET_INTERNAL_PRESETS;
   if (dir) return { internal: orcFiles(dir), database: null, jar: null };
-  const jar = arg('jar') ?? process.env.OPENROCKET_JAR ?? installedJar();
-  if (!jar) {
-    console.error(`No OpenRocket jar for the internal part files. Pass --jar <OpenRocket-${RELEASE}.jar>.`);
-    process.exit(2);
-  }
-  checkJar(jar);
+  const jar = releaseJar();
   const entries = unzipSync(readFileSync(jar), {
     filter: (f) => f.name.startsWith('datafiles/components/') && f.name.toLowerCase().endsWith('.orc'),
   });
@@ -166,34 +171,9 @@ if (shipped.database) {
 // The database first, then the internal files, the order desktop loads them.
 const sources = [...database, ...shipped.internal];
 
-/**
- * Bulk, surface and line densities of desktop's built-in materials, which a
- * part falls back to when its own file does not define its material. Read from
- * the release jar's own `Databases` (preset-digests/MaterialDump.java), not
- * from the material catalog: that catalog comes from the source tree the engine
- * is extracted from, which has materials the release does not, and a part
- * naming one of those weighs nothing on desktop.
- *
- * With `--internal` there is no jar, so the material catalog's upstream rows
- * stand in, with a warning.
- */
-function builtInMaterials() {
-  if (shipped.jar) {
-    const rows = runDumper({
-      cp: shipped.jar,
-      javaSrc: fileURLToPath(new URL('./preset-digests/MaterialDump.java', import.meta.url)),
-      className: 'MaterialDump',
-    });
-    return rows.map(([type, name, density]) => [`${type}\u0000${name.toLowerCase()}`, Number(density)]);
-  }
-  console.warn(
-    `No OpenRocket jar, so built-in materials come from materials.generated.json, not the ${RELEASE} release.`,
-  );
-  return JSON.parse(readFileSync(resolve(DATA_DIR, 'materials.generated.json'), 'utf8'))
-    .filter((m) => m.kind === 'upstream')
-    .map((m) => [`${m.type.toUpperCase()}\u0000${m.name.toLowerCase()}`, m.density]);
-}
-const builtInDensity = new Map(builtInMaterials());
+// Desktop's built-in materials come from the release jar even when the part
+// files come from `--internal`.
+const builtIn = builtInMaterials(shipped.jar ?? releaseJar());
 
 // Pass 1: each file's own materials, by type and name. A part looks its
 // material up the way `BaseComponentDTO.find` does: in its own file first (the
@@ -244,11 +224,8 @@ const withMaterial = (b) => {
   // Its own file by exact name; the built-in materials ignoring case, as
   // `Databases.findMaterial` compares them. A name with no density there, or
   // defined at 0, takes the nearest built-in material (lib/nearestMaterial).
-  const density =
-    fileMaterials.get(currentFile)?.get(`${ref.type}\u0000${ref.raw}`) ??
-    builtInDensity.get(`${ref.type}\u0000${ref.name.toLowerCase()}`);
+  const density = fileMaterials.get(currentFile)?.get(`${ref.type}\u0000${ref.raw}`) ?? builtIn(ref.type, ref.name);
   if (density > 0) return { material: ref.name, materialDensity: density };
-  const builtIn = (type, name) => builtInDensity.get(`${type}\u0000${name.toLowerCase()}`);
   return nearestMaterial(ref.type, ref.name, builtIn) ?? { material: ref.name, materialDensity: density ?? 0 };
 };
 const massKg = (block, name) => {

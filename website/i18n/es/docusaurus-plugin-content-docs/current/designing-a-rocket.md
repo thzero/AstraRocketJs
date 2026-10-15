@@ -14,7 +14,7 @@ Las ramas con hijos se **pliegan** con sus galones **▾ / ▸** (o pliega y des
 
 ### Cortar, copiar, pegar y duplicar {#cut-copy-paste-and-duplicate}
 
-Los botones ✂ ⧉ ⎘ ❐ a la derecha de la cabecera del árbol cortan, copian, pegan y duplican la pieza seleccionada, con todo lo que contiene. Con una fila enfocada, **Ctrl+X**, **Ctrl+C**, **Ctrl+V** y **Ctrl+D** hacen lo mismo (**⌘** en un Mac). Funcionan como el menú Editar de OpenRocket de escritorio:
+Los botones ✂ ⧉ ⎘ ❐ a la derecha de la cabecera del árbol cortan, copian, pegan y duplican la pieza seleccionada, con todo lo que contiene. Con una fila enfocada, **Ctrl+X**, **Ctrl+C**, **Ctrl+V** y **Ctrl+D** hacen lo mismo con esa fila, que seleccionan (**⌘** en un Mac). Funcionan como el menú Editar de OpenRocket de escritorio:
 
 - **Pegar** coloca la copia dentro de la pieza seleccionada cuando puede contenerla, como su último hijo, y si no, justo después de la pieza seleccionada. Cuando ninguna de las dos opciones vale, Pegar queda desactivado y su información emergente dice por qué: las aletas, por ejemplo, no pueden ir dentro de una ojiva ni a su lado. Una etapa se pega después de la etapa seleccionada.
 - **Duplicar** coloca la copia al final de los hijos de la pieza padre.

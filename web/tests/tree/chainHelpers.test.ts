@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { ComponentNode, RocketTree } from '../../src/engine/openRocketEngine';
-import { anyOuterRadius, chainOuterRadius } from '../../src/tree/nodeProps';
+import { anyOuterRadius, bodyTubeRadius, chainOuterRadius } from '../../src/tree/nodeProps';
 import { axialChain, motorSeatStart } from '../../src/tree/position';
 
 const n = (type: string, extra: Record<string, unknown> = {}): ComponentNode => ({ type, ...extra }) as ComponentNode;
@@ -15,8 +15,12 @@ describe('chainOuterRadius', () => {
 
   it('is 0 for other types and for missing or non-finite values', () => {
     expect(chainOuterRadius(n('innertube', { outerRadius: 0.01 }))).toBe(0);
-    expect(chainOuterRadius(n('bodytube'))).toBe(0);
     expect(chainOuterRadius(n('nosecone', { aftRadius: Number.NaN }))).toBe(0);
+  });
+
+  // keylessParts.kernel.test.ts holds this to the radius the kernel builds.
+  it('reads a body tube with no radius as the one it flies at', () => {
+    expect(chainOuterRadius(n('bodytube'))).toBe(bodyTubeRadius(n('bodytube')));
   });
 });
 

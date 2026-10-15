@@ -2,12 +2,12 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { fireEvent, screen } from '@testing-library/react';
 import { GroundTrack } from '../../../src/components/canvas/GroundTrack';
-import { renderWithProviders } from '../../testing/renderWithProviders';
+import { renderWithProviders, seedSettings } from '../../testing/renderWithProviders';
 import type { ChartFlight } from '../../../src/components/canvas/FlightChart';
 import type { LaunchConditions } from '../../../src/services/design/orkTree';
 import { useWorkspaceStore } from '../../../src/state/store';
 import { defaultSweepSpec, type DriftSweep } from '../../../src/services/flight/windSweep';
-import { simInputs } from '../../../src/services/flight/simulations';
+import { resultKey, simInputs } from '../../../src/services/flight/simulations';
 import { TILE_SOURCES } from '../../../src/services/map/slippyMap';
 
 const st = () => useWorkspaceStore.getState();
@@ -232,6 +232,7 @@ describe('GroundTrack drift region', () => {
     simId,
     tree,
     inputs: simInputs(st().sims[0]!, st().configs[0]!),
+    key: resultKey(st().tree, st().configs[0]!, st().sims[0]!, st().simPrefs),
     spec: defaultSweepSpec(4),
     asked: 4,
     flown: 4,
@@ -335,6 +336,22 @@ describe('GroundTrack drift region', () => {
   });
 
   /**
+   * Landing distances read in the Downrange tile's unit, so one landing reads
+   * the same here, on the summary and in the hourly landings.
+   */
+  it('reads landing distances in the Downrange unit', () => {
+    seedSettings({ unitOverrides: { 'sim.downrange': 'ft' } });
+    useWorkspaceStore.setState({ driftSweep: sweep('sim-1') });
+    renderWithProviders(<GroundTrack flight={flight()} {...HOME} />);
+    try {
+      // 400√2 m is 1,855.9 ft, at 0 decimals past 100.
+      expect(screen.getByText('(1,856–1,856 ft)')).toBeTruthy();
+    } finally {
+      localStorage.clear();
+    }
+  });
+
+  /**
    * The design or the row's own motor and conditions can move after a sweep
    * flew. The region is still the honest answer for the rocket that flew it, so
    * it stays up and says so rather than vanishing or redrawing as current.
@@ -345,7 +362,7 @@ describe('GroundTrack drift region', () => {
     useWorkspaceStore.setState({ driftSweep: sweep('sim-1') });
     const { unmount } = renderWithProviders(<GroundTrack flight={flight()} {...HOME} />);
     fireEvent.click(screen.getByRole('button', { name: /^Drift/ }));
-    expect(screen.queryByText(/design has changed/i)).toBeNull();
+    expect(screen.queryByText(/design or its simulation settings have changed/i)).toBeNull();
     unmount();
 
     useWorkspaceStore.setState({ driftSweep: { ...sweep('sim-1'), tree: { ...st().tree } } });
@@ -355,7 +372,7 @@ describe('GroundTrack drift region', () => {
     // price to pay for a fin tweak.
     expect(shapes()).toHaveLength(2);
     fireEvent.click(screen.getByRole('button', { name: /^Drift/ }));
-    expect(screen.getByText(/design has changed/i)).toBeTruthy();
+    expect(screen.getByText(/design or its simulation settings have changed/i)).toBeTruthy();
   });
 
   /**

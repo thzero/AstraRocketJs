@@ -168,7 +168,9 @@
       "cdOverride": "nadpisanie Cd ({{name}})",
       "cgOverride": "nadpisanie SC ({{name}})",
       "extraStages": "stopień {{from}} i dalsze",
+      "instanceCount": "liczba egzemplarzy ({{name}})",
       "massOverride": "nadpisanie masy ({{name}})",
+      "stageOnlyOverride": "nadpisanie samego stopnia ({{name}})",
       "subtreeOverride": "nadpisanie podrzędnych części ({{name}})"
     },
     "viewFailed": "Nie udało się załadować tego widoku.",
@@ -178,6 +180,7 @@
     "saveOrk": "Nie udało się zapisać pliku .ork: {{reason}}",
     "saveOrkNoDesignInfo": "Zapisano plik .ork bez informacji o projekcie: nie udało się zbudować projektu, więc nie było statystyk do dołączenia.",
     "exportRasaero": "Nie udało się wyeksportować do RASAero: {{reason}}",
+    "exportRasaeroSurface": "Plik RASAero został zapisany, ale RASAero nie ma powierzchni odpowiadającej wykończeniu tego projektu, więc zapisano ją jako gładką (zerowa chropowatość).",
     "exportUnsupported": "Tej części nie można wyeksportować jako {{format}}.",
     "exportFailed": "Nie udało się wyeksportować do {{format}}: {{reason}}",
     "exportRkt": "Nie udało się zapisać pliku .rkt: {{reason}}",
@@ -2108,7 +2111,7 @@
     "clear": "Wyczyść",
     "progress": "{{done}} / {{total}}",
     "landed": "Wylądowało {{flown}} z {{asked}} lotów.",
-    "stale": "Od tej analizy projekt się zmienił.",
+    "stale": "Od tej analizy zmienił się projekt lub jego ustawienia symulacji.",
     "noLandings": "Analiza wiatru nie dała ani jednego lądowania.",
     "spread": "{{from}}–{{to}}",
     "flown": "analiza wykonana"

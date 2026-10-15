@@ -82,6 +82,10 @@ export function motorColumns(t: T, w: number): Col[] {
 function writeMotorTable(p: PdfPage, c: MotorConfig): void {
   const { t, units } = p;
   const cols = motorColumns(t, p.CW);
+  // Motor sizes are whole millimeters; in centimeters or inches they follow
+  // the ladder, so a 24 mm motor is 0.945 in, not 1. A decimal in millimeters
+  // would also overrun the column for a 98 mm motor a meter long.
+  const sizeDigits = units.motorDimensions === 'mm' ? 0 : undefined;
   const rows = c.motors.map((m) => [
     `${m.manufacturer ? m.manufacturer + ' ' : ''}${m.designation}`,
     q(p, 'force', m.avgThrust),
@@ -90,7 +94,7 @@ function writeMotorTable(p: PdfPage, c: MotorConfig): void {
     q(p, 'impulse', m.totalImpulse, 0),
     twRatio(m.avgThrust, m.loadedMass),
     g(p, m.weight),
-    `${qv(p, 'motorDimensions', m.diameter, 0)}/${qv(p, 'motorDimensions', m.length, 0)} ${units.motorDimensions}`,
+    `${qv(p, 'motorDimensions', m.diameter, sizeDigits)}/${qv(p, 'motorDimensions', m.length, sizeDigits)} ${units.motorDimensions}`,
   ]);
   rows.push([
     t('report.total'),

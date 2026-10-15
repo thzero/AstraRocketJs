@@ -85,6 +85,20 @@ const FILLED_TYPES: ReadonlySet<string> = new Set(['nosecone', 'bodytube', 'tran
 const isFilledWall = (n: { type: string; filled?: unknown }, field: string): boolean =>
   field === 'thickness' && n.filled === true && FILLED_TYPES.has(n.type);
 
+/**
+ * A transition may close to a point at one end (a tail cone ending in a tip, a
+ * reducer started from nothing): the kernel builds and flies it, and the parts
+ * catalog carries such rows. Its two radii are one requirement, at least one
+ * end greater than 0, so a typed 0 at one end passes while the other is a real
+ * dimension.
+ */
+const TRANSITION_ENDS: readonly string[] = ['foreRadius', 'aftRadius'];
+export const isClosedEnd = (n: Record<string, unknown>, field: string): boolean =>
+  n['type'] === 'transition' &&
+  TRANSITION_ENDS.includes(field) &&
+  n[field] === 0 &&
+  TRANSITION_ENDS.some((other) => other !== field && isDimension(n[other]));
+
 /** True when this field may legitimately be absent because the kernel derives it. */
 const isAuto = (type: string, field: string, value: unknown): boolean =>
   value == null && (AUTO_COMPONENT_FIELDS[type]?.includes(field) ?? false);
@@ -110,7 +124,7 @@ export function badDimensions(tree: RocketTree): BadDimension[] {
   const out: BadDimension[] = [];
   for (const n of walkNodes(tree.components ?? [])) {
     for (const field of REQUIRED_COMPONENT_FIELDS[n.type] ?? []) {
-      if (isAuto(n.type, field, n[field]) || isFilledWall(n, field)) continue;
+      if (isAuto(n.type, field, n[field]) || isFilledWall(n, field) || isClosedEnd(n, field)) continue;
       if (!isDimension(n[field])) {
         out.push({ id: n.id, type: n.type, name: typeof n.name === 'string' ? n.name : '', field });
       }

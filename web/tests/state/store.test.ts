@@ -22,7 +22,7 @@ import { C6 } from '../../src/engine/api';
 import { setDesignLibrary } from '../../src/services/storage/designLibrary';
 import { useConfirmStore } from '../../src/state/confirmStore';
 import { usePromptStore } from '../../src/state/promptStore';
-import { getWorkspaceStore } from '../../src/services/storage/workspaceStore';
+import { getWorkspaceStore, type Workspace } from '../../src/services/storage/workspaceStore';
 import {
   findMounts,
   findNode,
@@ -1784,6 +1784,41 @@ describe('importing a rocket whose name is already saved', () => {
     await autosave();
 
     expect(calls.created).toEqual(['Big Bertha (3)']);
+  });
+
+  // The import replaces the workspace, which cancels the debounced autosave of
+  // the design being left, so the edit inside that window is written first,
+  // as openDesign writes it.
+  it('writes the outgoing design before the import replaces it', async () => {
+    const calls = { active: [] as string[], created: [] as string[] };
+    const written: Workspace[] = [];
+    const lib = Object.assign(libWith(['Something else'], calls) as object, {
+      create: async (name: string, w: Workspace) => {
+        calls.created.push(name);
+        written.push(w);
+        return { id: 'fresh', name, updatedAt: 0 };
+      },
+    });
+    setDesignLibrary(lib as never);
+    stop.push(autoConfirm(true));
+    s().addPartToTree('bodytube');
+    const edited = s().tree;
+
+    await s().openOrkFile(orkFile('Big Bertha'));
+
+    expect(written).toHaveLength(1);
+    expect(written[0]!.tree).toBe(edited);
+    expect(s().tree.name).toBe('Big Bertha');
+  });
+
+  it('writes nothing for an untouched New before the import', async () => {
+    const calls = { active: [] as string[], created: [] as string[] };
+    setDesignLibrary(libWith(['Something else'], calls));
+    stop.push(autoConfirm(true));
+
+    await s().openOrkFile(orkFile('Big Bertha'));
+
+    expect(calls.created).toEqual([]);
   });
 
   it('abandons the import rather than switching on a refused active-pointer write', async () => {

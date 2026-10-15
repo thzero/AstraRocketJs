@@ -168,7 +168,9 @@
       "cdOverride": "Cd の上書き（{{name}}）",
       "cgOverride": "CG の上書き（{{name}}）",
       "extraStages": "{{from}} 段目以降",
+      "instanceCount": "配置数（{{name}}）",
       "massOverride": "質量の上書き（{{name}}）",
+      "stageOnlyOverride": "段のみの上書き（{{name}}）",
       "subtreeOverride": "下位部品の上書き（{{name}}）"
     },
     "viewFailed": "このビューを読み込めませんでした。",
@@ -178,6 +180,7 @@
     "saveOrk": ".ork を保存できませんでした：{{reason}}",
     "saveOrkNoDesignInfo": ".ork は設計情報なしで保存されました。設計を構築できなかったため、含める統計がありませんでした。",
     "exportRasaero": "RASAero をエクスポートできませんでした：{{reason}}",
+    "exportRasaeroSurface": "RASAero ファイルは保存されましたが、RASAero にはこの設計の表面仕上げに対応する表面がないため、平滑（粗さゼロ）として書き出しました。",
     "exportUnsupported": "この部品は {{format}} としてエクスポートできません。",
     "exportFailed": "{{format}} をエクスポートできませんでした：{{reason}}",
     "exportRkt": ".rkt を書き出せませんでした：{{reason}}",
@@ -2078,7 +2081,7 @@
     "clear": "クリア",
     "progress": "{{done}} / {{total}}",
     "landed": "{{asked}} 回のうち {{flown}} 回が着地しました。",
-    "stale": "このスイープを実行したあとで設計が変わっています。",
+    "stale": "このスイープを実行したあとで設計またはシミュレーション設定が変わっています。",
     "noLandings": "この風のスイープでは着地が発生しませんでした。",
     "spread": "{{from}}–{{to}}",
     "flown": "スイープ実行済み"

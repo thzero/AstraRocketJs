@@ -75,11 +75,12 @@ export const bool = (n: ComponentNode, key: string, fb = false): boolean => (typ
 /**
  * A chain member's outer radius (m), read from the key its type sizes by: a
  * nose cone's `aftRadius`, a body tube's `outerRadius`, a transition's larger
- * end. 0 for any other type or a missing value.
+ * end. A body tube with no radius is the one it flies at ({@link bodyTubeRadius});
+ * 0 for any other type or another missing value.
  */
 export const chainOuterRadius = (n: ComponentNode): number => {
   if (n.type === 'nosecone') return num(n, 'aftRadius', 0);
-  if (n.type === 'bodytube') return num(n, 'outerRadius', 0);
+  if (n.type === 'bodytube') return bodyTubeRadius(n);
   if (n.type === 'transition') return Math.max(num(n, 'foreRadius', 0), num(n, 'aftRadius', 0));
   return 0;
 };
@@ -110,10 +111,46 @@ const AXIAL_METHODS: ReadonlySet<string> = new Set<ComponentPosition['method']>(
 ]);
 
 /**
+ * The axial method a part keeps when its node has no `position`: the bridge
+ * sets one only from that key (`ComponentFactory.create`, `applyAssembly`), so
+ * the constructor's stands, at offset 0. `FinSet`, `TubeFinSet`,
+ * `InternalComponent` (inner tubes, couplers, rings, bulkheads, engine blocks),
+ * `PodSet` and `ParallelStage` set `BOTTOM`; `LaunchLug` and `RailButton` set
+ * `MIDDLE`. `MassObject` (recovery devices, mass components and the fairing,
+ * which the bridge builds as one) sets `TOP`, the reader's default. A chain
+ * member stacks behind the part ahead whatever it states.
+ */
+const CONSTRUCTOR_METHOD: Readonly<Record<string, ComponentPosition['method']>> = {
+  trapezoidfinset: 'bottom',
+  ellipticalfinset: 'bottom',
+  freeformfinset: 'bottom',
+  tubefinset: 'bottom',
+  innertube: 'bottom',
+  tubecoupler: 'bottom',
+  centeringring: 'bottom',
+  bulkhead: 'bottom',
+  engineblock: 'bottom',
+  podset: 'bottom',
+  parallelstage: 'bottom',
+  launchlug: 'middle',
+  railbutton: 'middle',
+};
+
+/**
+ * The method a `position` with no valid method falls back to: `bottom` for a
+ * pod set or booster (`applyAssembly` reads `str(position, "method",
+ * "bottom")`), `top` for any other part (`create` reads `"top"`).
+ */
+const statedMethodDefault = (type: string): ComponentPosition['method'] =>
+  type === 'podset' || type === 'parallelstage' ? 'bottom' : 'top';
+
+/**
  * A node's axial position, validated: the method is one the union names and
  * the offset is a finite number, each falling back to the kernel's own
- * default (`top`, 0: ComponentFactory's `str(position, "method", "top")` and
- * `dbl(position, "offset", 0)`) otherwise.
+ * default otherwise. A node with no `position` reads as its constructor
+ * places it (`CONSTRUCTOR_METHOD`, offset 0); one with a `position` reads the
+ * bridge's defaults for a missing method (`statedMethodDefault`) and offset
+ * (`dbl(position, "offset", 0)`).
  *
  * One reader, applying the same guard as the numeric accessors above, rather than
  * an `as ComponentPosition` cast at each call site: a hand-edited design or a
@@ -125,7 +162,8 @@ const AXIAL_METHODS: ReadonlySet<string> = new Set<ComponentPosition['method']>(
  */
 export const positionOf = (n: ComponentNode): ComponentPosition => {
   const raw = n.position as Partial<ComponentPosition> | null | undefined;
-  const method = raw && typeof raw.method === 'string' && AXIAL_METHODS.has(raw.method) ? raw.method : 'top';
+  const fallback = raw ? statedMethodDefault(n.type) : (CONSTRUCTOR_METHOD[n.type] ?? 'top');
+  const method = raw && typeof raw.method === 'string' && AXIAL_METHODS.has(raw.method) ? raw.method : fallback;
   const offset = raw && typeof raw.offset === 'number' && Number.isFinite(raw.offset) ? raw.offset : 0;
   return raw?.ork ? { method, offset, ork: raw.ork } : { method, offset };
 };

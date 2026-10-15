@@ -360,6 +360,60 @@ describe('fetchMotorSpec - download.json results not an array', () => {
 });
 
 /**
+ * A reply that parses but is not the documented shape is reported with the
+ * keyed bad-data message, the same as a malformed curve, rather than as the
+ * browser's English TypeError from reading a property off null.
+ */
+describe('fetchMotorSpec - null thrustcurve.org reply', () => {
+  const online = {
+    designation: 'J350',
+    manufacturer: 'Nobody',
+    class: 'J',
+    diameter: 38,
+    impulse: 700,
+    burn: 2,
+    mass: 600,
+    length: 300,
+    propWeightG: 400,
+  } as unknown as CatalogMotor;
+  const hit = {
+    motorId: 'j350',
+    designation: 'J350',
+    commonName: 'J350',
+    manufacturerAbbrev: 'Nobody',
+    diameter: 38,
+    length: 300,
+    totalWeightG: 600,
+    propWeightG: 400,
+    availability: 'regular',
+  };
+  const stub = (search: unknown, download: unknown) => {
+    const json = (body: unknown) =>
+      Promise.resolve({ ok: true, headers: { get: () => null }, json: () => Promise.resolve(body) });
+    vi.stubGlobal('fetch', (url: string) => json(String(url).includes('search.json') ? search : download));
+  };
+  const keyOf = async () =>
+    ((await fetchMotorSpec(online, 0).catch((e: unknown) => e)) as Error & { key?: string }).key;
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('a null search.json body', async () => {
+    stub(null, null);
+    expect(await keyOf()).toBe('errors.thrustcurve.badData');
+  });
+
+  it('a null download.json body', async () => {
+    stub({ results: [hit] }, null);
+    expect(await keyOf()).toBe('errors.thrustcurve.badData');
+  });
+
+  it('a null element in download.json results is skipped', async () => {
+    stub({ results: [hit] }, { results: [null] });
+    expect(await keyOf()).toBe('errors.thrustcurve.noData');
+  });
+});
+
+/**
  * The search.json hit is validated before it is picked, cached or requested.
  *
  * Without a shape check on the network `TcMotor[]`, a hit with no `.motorId`

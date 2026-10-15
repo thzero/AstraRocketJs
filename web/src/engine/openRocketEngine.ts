@@ -24,9 +24,8 @@ const WASM_RUNTIME_URL = `${import.meta.env.BASE_URL}engine/openrocket-engine.wa
 
 // --- Engine backend ---------------------------------------------------------
 // Both engines are dynamically loaded; neither is in the initial bundle.
-// initEngine() loads the TeaVM WASM-GC build when the browser supports it
-// (faster, smaller), otherwise the JS build as a fallback. Only one engine is
-// ever fetched. EngineApi is a type-only import (erased at build), so it pulls
+// initEngine() loads the TeaVM WASM-GC build when the browser supports it,
+// otherwise the JS build as a fallback. Only one engine is ever fetched. EngineApi is a type-only import (erased at build), so it pulls
 // nothing into the bundle.
 type EngineApi = typeof import('./vendor/openrocket-engine.mjs');
 let active: EngineApi | null = null;
@@ -490,51 +489,6 @@ export function resetEngineInit(): void {
 
 export type NoseShape = 'ogive' | 'conical' | 'ellipsoid' | 'power' | 'parabolic' | 'haack';
 
-export interface RocketSpec {
-  noseCone: {
-    length: number;
-    aftRadius: number;
-    thickness: number;
-    shape?: NoseShape;
-    /** Bulk density kg/m^3; omit for OpenRocket's default material. */
-    materialDensity?: number;
-    /** Selected material name (display / .ork round-trip only; density drives physics). */
-    material?: string;
-    /** The material's `.ork` group, as `MaterialGroup.getDatabaseString()` spells
-     *  it. Written to the file beside the name, so a design saved here files the
-     *  material under the same category the desktop would. */
-    materialGroup?: string;
-  };
-  bodyTube: {
-    length: number;
-    outerRadius: number;
-    thickness: number;
-    materialDensity?: number;
-    material?: string;
-    materialGroup?: string;
-  };
-  fins: {
-    count: number;
-    rootChord: number;
-    tipChord: number;
-    sweep: number;
-    height: number;
-    thickness: number;
-    materialDensity?: number;
-    material?: string;
-    materialGroup?: string;
-  };
-  motorMount: {
-    length: number;
-    outerRadius: number;
-    thickness: number;
-  };
-  parachute?: {
-    diameter: number;
-    dragCoefficient?: number;
-  };
-}
-
 export interface MotorSpec {
   /**
    * The name the kernel and a `.ork` match on: the catalog's common name
@@ -723,8 +677,9 @@ export interface StaticInfo {
   warningTexts: string[];
   /**
    * Power-off (coast) total drag coefficient at Mach 0.3, not part of the
-   * engine's static JSON; the store fills it from a one-point {@link OpenRocketDesign.aeroSweep}
-   * so the "all stats" strip can show it. Undefined if the sweep failed.
+   * engine's static JSON; `computeStaticInfo` (services/design/buildRocket.ts)
+   * fills it from a one-point {@link OpenRocketDesign.aeroSweep} so the "all
+   * stats" strip can show it. Undefined if the sweep failed.
    */
   cd?: number;
 }

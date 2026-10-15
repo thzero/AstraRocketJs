@@ -35,6 +35,22 @@ class FakeKv implements KeyValueStore {
 
 const UNLOAD_KEY = nsKey('designs:unload');
 
+/** Every journal key in storage: one per design, and the single slot an older build wrote. */
+const journalKeys = (): string[] => {
+  const out: string[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i)!;
+    if (k === UNLOAD_KEY || k.startsWith(`${UNLOAD_KEY}:`)) out.push(k);
+  }
+  return out;
+};
+/** The one journal in storage, raw, or null when there is none. */
+const anyJournal = (): string | null => {
+  const keys = journalKeys();
+  expect(keys.length).toBeLessThanOrEqual(1);
+  return keys.length ? localStorage.getItem(keys[0]!) : null;
+};
+
 const ws = (name: string): Workspace =>
   ({
     version: 1,
@@ -80,7 +96,7 @@ describe('unload journal', () => {
     // The stored design is untouched and still opens.
     expect(nameOf(again)).toBe('precious');
     // And the unusable journal is dropped rather than retried forever.
-    expect(localStorage.getItem(UNLOAD_KEY)).toBeNull();
+    expect(anyJournal()).toBeNull();
   });
 
   it('survives an unload the debounced save never reached', async () => {
@@ -100,7 +116,7 @@ describe('unload journal', () => {
     store.saveSync(ws('pending'));
 
     await new LibraryWorkspaceStore().load();
-    expect(localStorage.getItem(UNLOAD_KEY)).toBeNull();
+    expect(anyJournal()).toBeNull();
     // The library now holds it, so the next load needs no journal.
     expect(nameOf(await new LibraryWorkspaceStore().load())).toBe('pending');
   });
@@ -112,7 +128,7 @@ describe('unload journal', () => {
 
     kv.full = true;
     expect(nameOf(await new LibraryWorkspaceStore().load())).toBe('precious');
-    expect(localStorage.getItem(UNLOAD_KEY)).not.toBeNull();
+    expect(anyJournal()).not.toBeNull();
   });
 
   it('does NOT replay a journal belonging to a different design', async () => {
@@ -125,7 +141,20 @@ describe('unload journal', () => {
     // Replaying it would overwrite an unrelated rocket.
     expect(nameOf(await new LibraryWorkspaceStore().load())).toBe('b');
     expect(nameOf(await lib.read(b.id))).toBe('b');
-    expect(localStorage.getItem(UNLOAD_KEY)).toBeNull(); // stale → dropped
+    // Kept for A, which opens with it.
+    expect(anyJournal()).not.toBeNull();
+    expect(nameOf(await new LibraryWorkspaceStore().openActive(a.id))).toBe('a-unsaved');
+    expect(anyJournal()).toBeNull();
+  });
+
+  it('drops a journal whose design is gone', async () => {
+    const a = await lib.create('A', ws('a'));
+    await lib.create('B', ws('b'));
+    localStorage.setItem(UNLOAD_KEY, JSON.stringify({ id: a.id, w: ws('a-unsaved') }));
+    await lib.remove(a.id);
+
+    expect(nameOf(await new LibraryWorkspaceStore().load())).toBe('b');
+    expect(anyJournal()).toBeNull();
   });
 
   it('uses the stored design when there is no journal', async () => {
@@ -140,7 +169,7 @@ describe('unload journal', () => {
     (heavy.sims[0] as unknown as { result: unknown }).result = { series: new Array(1000).fill(0) };
 
     store.saveSync(heavy);
-    const journal = JSON.parse(localStorage.getItem(UNLOAD_KEY)!) as { w: Workspace };
+    const journal = JSON.parse(anyJournal()!) as { w: Workspace };
     expect(journal.w.sims[0]!.result).toBeNull();
   });
 });
@@ -163,7 +192,7 @@ describe('unload journal written before the first save', () => {
 
     // Nothing saved yet: the page is torn down mid-edit.
     store.saveSync(ws('typed-before-first-autosave'));
-    expect(localStorage.getItem(UNLOAD_KEY)).not.toBeNull();
+    expect(anyJournal()).not.toBeNull();
 
     const loaded = await new LibraryWorkspaceStore().load();
     expect(loaded).not.toBeNull();
@@ -171,7 +200,7 @@ describe('unload journal written before the first save', () => {
 
     // It is now a real design, and the journal is spent.
     expect(await new DesignLibrary(kv).list()).toHaveLength(1);
-    expect(localStorage.getItem(UNLOAD_KEY)).toBeNull();
+    expect(anyJournal()).toBeNull();
   });
 
   /**
@@ -204,13 +233,13 @@ describe('unload journal written before the first save', () => {
     kv.full = true;
     const loaded = await new LibraryWorkspaceStore().load();
     expect(nameOf(loaded)).toBe('typed-before-first-autosave');
-    expect(localStorage.getItem(UNLOAD_KEY)).not.toBeNull();
+    expect(anyJournal()).not.toBeNull();
 
     // Once storage has room, the next load stores it.
     kv.full = false;
     expect(nameOf(await new LibraryWorkspaceStore().load())).toBe('typed-before-first-autosave');
     expect(await new DesignLibrary(kv).list()).toHaveLength(1);
-    expect(localStorage.getItem(UNLOAD_KEY)).toBeNull();
+    expect(anyJournal()).toBeNull();
   });
 
   it('clears the journal even when it cannot be replayed', async () => {
@@ -222,7 +251,7 @@ describe('unload journal written before the first save', () => {
     await new LibraryWorkspaceStore().load();
 
     // Left in place it would sit there forever, holding a slice of a 5 MB budget.
-    expect(localStorage.getItem(UNLOAD_KEY)).toBeNull();
+    expect(anyJournal()).toBeNull();
   });
 });
 
@@ -251,7 +280,7 @@ describe('unload journal of a design started while another was open', () => {
     expect(list.find((m) => m.id !== previous)!.name).toBe('Imported Name');
     expect(kv.map.get(nsKey('designs:active'))).not.toBe(previous);
     expect(nameOf(await lib.read(previous))).toBe('previous');
-    expect(localStorage.getItem(UNLOAD_KEY)).toBeNull();
+    expect(anyJournal()).toBeNull();
   });
 
   it('does not create it twice when the tab’s own create landed after the journal', async () => {
@@ -263,7 +292,7 @@ describe('unload journal of a design started while another was open', () => {
 
     expect(nameOf(await new LibraryWorkspaceStore().load())).toBe('new-design-edited');
     expect(await lib.list()).toHaveLength(2);
-    expect(localStorage.getItem(UNLOAD_KEY)).toBeNull();
+    expect(anyJournal()).toBeNull();
   });
 });
 
@@ -283,7 +312,7 @@ describe('a journal older than the stored design', () => {
 
     expect(nameOf(await new LibraryWorkspaceStore().load())).toBe('newer');
     expect(nameOf(await lib.read(activeId!))).toBe('newer');
-    expect(localStorage.getItem(UNLOAD_KEY)).toBeNull();
+    expect(anyJournal()).toBeNull();
   });
 
   it('is replayed when it is newer, and when it carries no stamp (older build)', async () => {
@@ -301,7 +330,7 @@ describe('a journal older than the stored design', () => {
   it('saveSync stamps the journal', () => {
     const before = Date.now();
     store.saveSync(ws('x'));
-    const j = JSON.parse(localStorage.getItem(UNLOAD_KEY)!) as { t?: number };
+    const j = JSON.parse(anyJournal()!) as { t?: number };
     expect(j.t).toBeGreaterThanOrEqual(before);
   });
 });
@@ -349,7 +378,7 @@ describe.each([
 
     expect(nameOf(await new LibraryWorkspaceStore().load())).toBe('newer-from-b');
     expect(nameOf(await lib.read(id))).toBe('newer-from-b');
-    expect(localStorage.getItem(UNLOAD_KEY)).toBeNull();
+    expect(anyJournal()).toBeNull();
   });
 
   it('is not replayed over it when the tab is hidden (save and journal together)', async () => {
@@ -450,9 +479,9 @@ describe('a library that cannot be read at boot', () => {
     setDesignLibrary(new DesignLibrary(flaky));
     const session = new LibraryWorkspaceStore();
     expect(nameOf(await session.load())).toBe('unsaved');
-    expect(JSON.parse(localStorage.getItem(UNLOAD_KEY)!).id).toBe(a.id);
+    expect(JSON.parse(anyJournal()!).id).toBe(a.id);
     session.saveSync(ws('default-rocket'));
-    expect(nameOf(JSON.parse(localStorage.getItem(UNLOAD_KEY)!).w)).toBe('unsaved');
+    expect(nameOf(JSON.parse(anyJournal()!).w)).toBe('unsaved');
 
     // Read again once storage answers: the journal replays into its design.
     flaky.broken = false;
@@ -465,5 +494,59 @@ describe('a library that cannot be read at boot', () => {
     setDesignLibrary(new DesignLibrary(flaky));
     flaky.broken = true;
     await expect(new LibraryWorkspaceStore().load()).resolves.toBeNull();
+  });
+});
+
+/**
+ * Two tabs on different designs each write their journal at unload. Each is
+ * the only copy of its tab's last edits, so neither may overwrite the other,
+ * and a boot that opens one design keeps the other's until it is opened.
+ */
+describe('unload journals of two tabs on different designs', () => {
+  it('keeps both, replaying each into its own design', async () => {
+    const tabA = new LibraryWorkspaceStore();
+    await tabA.save(ws('a'));
+    await tabA.load();
+    const a = kv.map.get(nsKey('designs:active'))!;
+    const tabB = new LibraryWorkspaceStore();
+    tabB.setActiveId(null);
+    await tabB.save(ws('b'));
+    const b = (await lib.list()).find((m) => m.id !== a)!.id;
+
+    // Both tabs close inside their autosave debounce.
+    tabA.saveSync(ws('a-unsaved'));
+    tabB.saveSync(ws('b-unsaved'));
+
+    await lib.setActive(a);
+    expect(nameOf(await new LibraryWorkspaceStore().load())).toBe('a-unsaved');
+    expect(nameOf(await new LibraryWorkspaceStore().openActive(b))).toBe('b-unsaved');
+    expect(nameOf(await lib.read(a))).toBe('a-unsaved');
+    expect(nameOf(await lib.read(b))).toBe('b-unsaved');
+    expect(journalKeys()).toEqual([]);
+  });
+});
+
+/**
+ * A hidden tab saves and journals the same workspace. When the save lands the
+ * journal holds nothing the entry does not, so opening the design must not
+ * write it again: a write stamps `updatedAt`, and the library lists the most
+ * recently updated first.
+ */
+describe('a journal of what the design already holds', () => {
+  it('is dropped without re-stamping the design', async () => {
+    const tab = new LibraryWorkspaceStore();
+    await tab.save(ws('x'));
+    await tab.load();
+    const id = kv.map.get(nsKey('designs:active'))!;
+    // The hide: the save starts, then the journal, then the save lands.
+    const saving = tab.save(ws('edited'));
+    tab.saveSync(ws('edited'));
+    await saving;
+    const stamped = (await lib.list()).find((m) => m.id === id)!.updatedAt;
+
+    await new Promise((r) => setTimeout(r, 5));
+    expect(nameOf(await new LibraryWorkspaceStore().load())).toBe('edited');
+    expect((await lib.list()).find((m) => m.id === id)!.updatedAt).toBe(stamped);
+    expect(journalKeys()).toEqual([]);
   });
 });

@@ -85,6 +85,7 @@ import { fileURLToPath } from 'node:url';
 import { STAGED_COMPONENTS, writeFileAtomic } from './lib/catalogStaging.mjs';
 import { writeDataManifest } from './lib/dataManifest.mjs';
 import { digestChanges, goneSection, partProblems } from './lib/digestCoverage.mjs';
+import { builtInMaterials } from './lib/builtInMaterials.mjs';
 import { chooseBuild, runDumper } from './lib/openrocketJava.mjs';
 import { presetVolumes } from './lib/presetVolume.mjs';
 import { applyStatedMass } from './lib/statedMass.mjs';
@@ -92,13 +93,6 @@ import { nearestMaterial } from './lib/nearestMaterial.mjs';
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
 const CATALOG = resolve(HERE, '../public/data/components.generated.json');
-/** Desktop's built-in materials, as the materials catalog carries them, for `nearestMaterial`. */
-const builtInDensity = new Map(
-  JSON.parse(readFileSync(resolve(HERE, '../public/data/materials.generated.json'), 'utf8'))
-    .filter((m) => m.kind === 'upstream')
-    .map((m) => [`${m.type.toUpperCase()}\u0000${m.name.toLowerCase()}`, m.density]),
-);
-const builtIn = (type, name) => builtInDensity.get(`${type}\u0000${name.toLowerCase()}`);
 const JAVA_SRC = resolve(HERE, 'preset-digests/PresetDump.java');
 
 /** `ComponentPreset.Type` as the catalog spells it: `NOSE_CONE` → `nosecone`. */
@@ -175,9 +169,10 @@ const PARACHUTE_FIELDS = [
  * and length, the packed length and diameter where the preset states them, and
  * the canopy and line materials where the desktop takes them from the preset
  * (a part without one gets the default material). A canopy desktop weighs at 0
- * takes the nearest built-in material (lib/nearestMaterial).
+ * takes the nearest built-in material (lib/nearestMaterial), looked up with
+ * `builtIn(type, name)` (lib/builtInMaterials).
  */
-function parachuteFields(field) {
+function parachuteFields(field, builtIn) {
   const f = pairs(field);
   const out = {};
   const lineCount = positive(f.LineCount);
@@ -217,6 +212,7 @@ function parachuteFields(field) {
  * description and differ in size each get their own digest.
  */
 function dump(cp) {
+  const builtIn = builtInMaterials(cp);
   const byPart = new Map();
   for (const [type, names, partNo, digest, mass, geometry, chute, desc = ''] of runDumper({
     cp,
@@ -229,7 +225,7 @@ function dump(cp) {
       mass: positive(mass),
       desc: descKey(desc),
       geometry: pairs(geometry),
-      chute: chute ? parachuteFields(chute) : null,
+      chute: chute ? parachuteFields(chute, builtIn) : null,
     };
     for (const maker of new Set(names.split('|').map(makerKey))) {
       const key = JSON.stringify([appType(type), maker, partNo.trim()]);

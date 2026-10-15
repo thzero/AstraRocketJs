@@ -14,8 +14,10 @@
 // Deliberate differences from upstream, each because the thing it needs does
 // not exist on this side:
 //
-//   - No `MotorDigest`. It exists to recognize the same motor arriving from two
-//     files; nothing here does that.
+//   - No `MotorDigest`. A parsed motor carries none. The one caller that needs
+//     it, matching a `.ork`'s embedded `.rse` to the motor the design names,
+//     hashes the file text itself (`ork/embeddedMotors.rseDigest`, through
+//     `motorDigest.ts`).
 //   - No manufacturer-based type inference. Upstream falls back to
 //     `Manufacturer.getMotorType()` for a file with no `Type`, from a table of
 //     known manufacturers we do not carry. An unrecognized type stays absent

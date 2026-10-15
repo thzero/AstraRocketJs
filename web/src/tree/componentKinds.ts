@@ -118,10 +118,14 @@ export function rollAngleKey(type: string): 'rotation' | 'angleOffset' | undefin
 }
 
 /**
- * A part's roll angle as the kernel flies it: the node's own, or the bridge's
- * default when the node has none. `ComponentFactory` reads a lug's and a rail
- * button's `angleOffset` with a default of pi, and every other roll with 0.
- * Undefined for a part with no roll of its own.
+ * A part's roll angle: the node's own, or the bridge's default when the node
+ * has none. `ComponentFactory` reads a lug's and a rail button's `angleOffset`
+ * with a default of pi, and every other roll with 0. Undefined for a part with
+ * no roll of its own.
+ *
+ * The stored value is returned as is. The kernel clamps a lug's and a rail
+ * button's angle to [-180, 180] degrees, so this is the angle it flies only
+ * within that range, which the panel and both importers keep.
  */
 export function rollAngleOf(node: { type: string; [key: string]: unknown }): number | undefined {
   const key = rollAngleKey(node.type);

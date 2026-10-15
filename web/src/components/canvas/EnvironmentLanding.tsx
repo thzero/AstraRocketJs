@@ -49,8 +49,8 @@ export function EnvironmentLanding({ flight }: { flight: ResultFlight }) {
   const { t } = useTranslation();
   const online = useOnline();
   const u = useUnits();
-  // The flight's distance unit, as Ground Track reads this same landing.
-  const dist = u.at(unitScope('sim', 'apogee'), 'distance');
+  // The Downrange tile's unit scope, as Ground Track reads this same landing.
+  const dist = u.at(unitScope('sim', 'downrange'), 'distance');
   const simPrefs = useWorkspaceStore((s) => s.simPrefs);
   const tree = useWorkspaceStore((s) => s.tree);
   const configs = useWorkspaceStore((s) => s.configs);

@@ -256,9 +256,8 @@ function writeCommon(
   el(w, d, 'FinishCode', FINISH_CODES[strOf(n, 'finish') ?? 'normal'] ?? MATT);
 
   if (withPosition) {
-    const pos = n.position;
-    const method = pos?.method ?? 'top';
-    const offset = pos?.offset ?? 0;
+    // A part with no position stands where its constructor puts it, as it flies.
+    const { method, offset } = positionOf(n);
     // Bottom flips sign, as the reader does. Middle becomes a top offset, as
     // desktop's BasePartDTO writes it: the gap from the parent's top to this
     // part's top when centered, plus the offset.
@@ -745,6 +744,12 @@ function writePart(w: Writer, depth: number, n: ComponentNode, at?: number): voi
     for (const member of members) writePart(w, depth, member, at);
     return;
   }
+  // RockSim has no repeat count, so a line of lugs or rings goes out as its
+  // first copy; desktop's own export drops the count the same way. Named
+  // rather than lost quietly.
+  if (!isAssembly(n.type) && Math.round(numOpt(n, 'instanceCount') ?? 1) > 1) {
+    skip(w, { key: 'errors.rktSkip.instanceCount', values: { name: n.name || { key: `part.${n.type}` } } });
+  }
   w.emit(depth, `<${spec.tag}>`);
   spec.write(w, depth + 1, n);
   const kids = n.children ?? [];
@@ -858,6 +863,17 @@ export function exportRkt(name: string, tree: RocketTree, componentInfo?: Compon
     if (cg !== undefined) el(w, 3, STAGE_CG_ELEMENTS[i]!, mm(cg));
   });
   if (knownMass) el(w, 3, 'UseKnownMass', 1);
+  // `RockSimHandler` reads each stage figure back as an override of the whole
+  // stage, its parts included, so an override of the stage alone does not
+  // survive the trip and is named.
+  stages.slice(0, written).forEach((stage) => {
+    const alone =
+      (numOpt(stage, 'overrideMass') !== undefined && stage['overrideSubcomponentsMass'] !== true) ||
+      (numOpt(stage, 'overrideCGX') !== undefined && stage['overrideSubcomponentsCG'] !== true);
+    if (alone) {
+      skip(w, { key: 'errors.rktSkip.stageOnlyOverride', values: { name: stage.name || { key: 'part.stage' } } });
+    }
+  });
 
   STAGE_ELEMENTS.forEach((elName, i) => {
     const stage = i < written ? stages[i] : undefined;

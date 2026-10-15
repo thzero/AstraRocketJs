@@ -14,7 +14,7 @@ Branches with children **fold** at their **▾ / ▸** chevrons (or fold/unfold 
 
 ### Cut, copy, paste and duplicate
 
-The ✂ ⧉ ⎘ ❐ buttons at the right of the tree's header cut, copy, paste and duplicate the selected part, with everything inside it. With a row focused, **Ctrl+X**, **Ctrl+C**, **Ctrl+V** and **Ctrl+D** do the same (**⌘** on a Mac). They work as desktop OpenRocket's Edit menu does:
+The ✂ ⧉ ⎘ ❐ buttons at the right of the tree's header cut, copy, paste and duplicate the selected part, with everything inside it. With a row focused, **Ctrl+X**, **Ctrl+C**, **Ctrl+V** and **Ctrl+D** do the same to that row, which they select (**⌘** on a Mac). They work as desktop OpenRocket's Edit menu does:
 
 - **Paste** puts the copy inside the selected part when it can hold it, as its last child, and otherwise right after the selected part. When neither works, Paste is off and its tooltip says why: fins, for example, cannot go in a nose cone or beside one. A stage pastes after the selected stage.
 - **Duplicate** puts the copy at the end of the part's parent.

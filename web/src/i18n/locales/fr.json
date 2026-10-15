@@ -168,7 +168,9 @@
       "cdOverride": "Cd forcé ({{name}})",
       "cgOverride": "CG forcé ({{name}})",
       "extraStages": "étages {{from}} et suivants",
+      "instanceCount": "Nombre d'instances ({{name}})",
       "massOverride": "Masse forcée ({{name}})",
+      "stageOnlyOverride": "valeur forcée de l'étage seul ({{name}})",
       "subtreeOverride": "valeur forcée des sous-composants ({{name}})"
     },
     "viewFailed": "Cette vue n'a pas pu être chargée.",
@@ -178,6 +180,7 @@
     "saveOrk": "Impossible d'enregistrer le .ork : {{reason}}",
     "saveOrkNoDesignInfo": "Le .ork a été enregistré sans les infos de conception : la conception n'a pas pu être construite, il n'y avait donc aucune statistique à inclure.",
     "exportRasaero": "Impossible d'exporter vers RASAero : {{reason}}",
+    "exportRasaeroSurface": "Le fichier RASAero a été enregistré, mais RASAero n'a aucune surface correspondant à la finition de cette conception ; elle a donc été écrite comme lisse (rugosité nulle).",
     "exportUnsupported": "Cette pièce ne peut pas être exportée en {{format}}.",
     "exportFailed": "Impossible d'exporter en {{format}} : {{reason}}",
     "exportRkt": "Impossible d'écrire le .rkt : {{reason}}",
@@ -2098,7 +2101,7 @@
     "clear": "Effacer",
     "progress": "{{done}} / {{total}}",
     "landed": "{{flown}} vols sur {{asked}} ont atterri.",
-    "stale": "La conception a changé depuis que ce balayage a été effectué.",
+    "stale": "La conception ou ses réglages de simulation ont changé depuis que ce balayage a été effectué.",
     "noLandings": "Le balayage de vent n'a produit aucun atterrissage.",
     "spread": "{{from}}–{{to}}",
     "flown": "balayage effectué"

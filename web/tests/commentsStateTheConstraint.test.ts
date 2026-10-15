@@ -9,8 +9,11 @@ import { fileURLToPath } from 'node:url';
  * dates or credit to named people ("reported by", "thanks to" and a name). The
  * scan covers:
  * - comments (`//`, `/* *\/` and JSDoc) in the `.ts`, `.tsx`, `.js`, `.mjs` and
- *   `.css` files under `web/src`, `web/tests`, `web/e2e` and `web/scripts`, and
- *   in the Java under `engine-java/src/api`;
+ *   `.css` files under `web/src`, `web/tests`, `web/e2e`, `web/scripts` and
+ *   `website/src`, in the config files at the root of `web`, and in the Java
+ *   under `engine-java/src/api`;
+ * - `#` comments in the workflow YAML, and `<!-- -->` comments, inline
+ *   scripts and inline styles in `web/index.html`;
  * - the first string argument of `describe`, `it` and `test` (and their chained
  *   forms such as `test.describe` or `it.skip`) in the same files.
  *
@@ -84,12 +87,23 @@ const walk = (dir: string, out: string[] = []): string[] => {
   return out;
 };
 
+const workflows = `${repo}.github/workflows`;
+
 const files = [
   ...walk(`${web}src`),
   ...walk(`${web}tests`),
   ...walk(`${web}e2e`),
   ...walk(`${web}scripts`),
+  ...walk(`${repo}website/src`),
   ...walk(`${repo}engine-java/src/api`),
+  // The config files at the root of web, not the folders beside them.
+  ...readdirSync(web)
+    .filter((f) => isCode(f) && statSync(`${web}${f}`).isFile())
+    .map((f) => `${web}${f}`),
+  `${web}index.html`,
+  ...readdirSync(workflows)
+    .filter((f) => /\.ya?ml$/.test(f))
+    .map((f) => `${workflows}/${f}`),
 ];
 
 interface Line {
@@ -110,6 +124,8 @@ const TITLE_BEFORE = /\b(?:describe|it|test)(?:\.\w+)*\(\s*$/;
  * line break, so a stray apostrophe costs at most the rest of its line.
  */
 const scan = (src: string, path: string): Line[] => {
+  if (/\.ya?ml$/.test(path)) return yamlComments(src);
+  if (path.endsWith('.html')) return htmlComments(src);
   const out: Line[] = [];
   const java = path.endsWith('.java');
   const css = path.endsWith('.css');
@@ -194,6 +210,50 @@ const scan = (src: string, path: string): Line[] => {
   return out;
 };
 
+/**
+ * The `#` comments of a YAML file: a `#` that starts the line or follows a
+ * space, outside quotes. `${{ }}` and a `#` inside a word are values.
+ */
+const yamlComments = (src: string): Line[] => {
+  const out: Line[] = [];
+  src.split('\n').forEach((text, k) => {
+    let quote = '';
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      if (quote) {
+        if (c === quote) quote = '';
+      } else if (c === '"' || c === "'") {
+        quote = c;
+      } else if (c === '#' && (i === 0 || /\s/.test(text[i - 1] ?? ''))) {
+        out.push({ kind: 'comment', line: k + 1, text: text.slice(i + 1) });
+        return;
+      }
+    }
+  });
+  return out;
+};
+
+/** The `<!-- -->` comments of an HTML file, and the comments of its inline scripts and styles. */
+const htmlComments = (src: string): Line[] => {
+  const out: Line[] = [];
+  const lineAt = (i: number) => (src.slice(0, i).match(/\n/g) ?? []).length + 1;
+  for (const m of src.matchAll(/<!--([\s\S]*?)-->/g)) {
+    const from = lineAt(m.index + 4);
+    (m[1] ?? '').split('\n').forEach((t, k) => out.push({ kind: 'comment', line: from + k, text: t }));
+  }
+  for (const m of src.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)) {
+    const body = m[1] ?? '';
+    const from = lineAt(m.index + m[0].indexOf(body)) - 1;
+    for (const l of scan(body, '/inline.js')) out.push({ ...l, line: from + l.line });
+  }
+  for (const m of src.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/g)) {
+    const body = m[1] ?? '';
+    const from = lineAt(m.index + m[0].indexOf(body)) - 1;
+    for (const l of scan(body, '/inline.css')) out.push({ ...l, line: from + l.line });
+  }
+  return out;
+};
+
 const firstMatch = (text: string): string | undefined => PATTERNS.find((p) => p.re.test(text))?.name;
 
 /** Every `file:line [kind] pattern: text` that narrates instead of stating. */
@@ -218,6 +278,10 @@ describe('comments and test titles state the constraint', () => {
     expect(files.some((f) => f.includes('/web/e2e/'))).toBe(true);
     expect(files.some((f) => f.includes('/web/scripts/'))).toBe(true);
     expect(files.some((f) => f.endsWith('/engine-java/src/api/java/api/OpenRocketEngine.java'))).toBe(true);
+    expect(files.some((f) => f.endsWith('/web/vite.config.ts'))).toBe(true);
+    expect(files.some((f) => f.endsWith('/web/index.html'))).toBe(true);
+    expect(files.some((f) => f.endsWith('/.github/workflows/gates.yml'))).toBe(true);
+    expect(files.some((f) => f.includes('/website/src/'))).toBe(true);
     expect(files.some((f) => f.includes('/src/engine/vendor/'))).toBe(false);
     expect(files.some((f) => f.endsWith('.md'))).toBe(false);
   });
@@ -238,6 +302,31 @@ describe('comments and test titles state the constraint', () => {
       { kind: 'title', line: 4, text: 'another ${1} title' },
       { kind: 'comment', line: 6, text: '* a' },
       { kind: 'comment', line: 7, text: ' * block ' },
+    ]);
+  });
+
+  it('reads YAML and HTML comments, and not their values', () => {
+    const yml = ['# a note', 'run: echo "# not a note" # a tail', "if: ${{ github.ref == 'a#b' }}"].join('\n');
+    expect(scan(yml, '/a.yml')).toEqual([
+      { kind: 'comment', line: 1, text: ' a note' },
+      { kind: 'comment', line: 2, text: ' a tail' },
+    ]);
+    const html = [
+      '<p>#1</p>',
+      '<!-- a',
+      'note -->',
+      '<script>',
+      "const a = '//x'; // inline",
+      '</script>',
+      '<style>',
+      'a { color: red; } /* styled */',
+      '</style>',
+    ].join('\n');
+    expect(scan(html, '/a.html')).toEqual([
+      { kind: 'comment', line: 2, text: ' a' },
+      { kind: 'comment', line: 3, text: 'note ' },
+      { kind: 'comment', line: 5, text: ' inline' },
+      { kind: 'comment', line: 8, text: ' styled ' },
     ]);
   });
 

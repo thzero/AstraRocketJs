@@ -11,6 +11,7 @@ import { useWorkspaceStore } from '../../state/store';
 import { findParent } from '../../services/design/treeEdit';
 import { axialFrameOf, rebasePosition } from '../../tree/axialRebase';
 import { axialLength } from '../../tree/position';
+import { positionOf } from '../../tree/nodeProps';
 
 /**
  * The property panel's placement section: where a nested part sits, as
@@ -32,7 +33,8 @@ export function PlacementSection({ node, onChange, onCommit }: NodeEditProps) {
   // The placement offset carries its own unit, like the override rows.
   const offsetScope = unitScope('prop', node.type, PANEL_SCOPE_KEYS[2]);
   const offsetUnit = u.at(offsetScope, 'length');
-  const pos = node.position ?? { method: 'top', offset: 0 };
+  // As the kernel places it: a part with no position keeps its constructor's.
+  const pos = positionOf(node);
   // Discrete controls (select / checkbox / pickers) finish the moment they
   // change, so patch and close the undo entry in one shot.
   const commitChange = (patch: Partial<ComponentNode>) => {

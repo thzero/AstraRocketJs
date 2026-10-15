@@ -13,6 +13,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { delimiter, join } from 'node:path';
+import { arg } from './args.mjs';
 import { checkJar, checkSourceTree } from './openrocketRelease.mjs';
 
 /** The Gradle-cached jars a `--or` checkout needs, by artifact name. */
@@ -44,14 +45,6 @@ const JARS = [
   'slf4j-api',
   'txw2',
 ];
-
-// Not exported: `chooseBuild` below is the only caller, and nothing outside this
-// module imports it. (`sync-examples.mjs` and `sync-components.mjs` each have
-// their own `arg`, separate copies of the same few lines.)
-const arg = (name, fallback = null) => {
-  const i = process.argv.indexOf(`--${name}`);
-  return i >= 0 ? process.argv[i + 1] : fallback;
-};
 
 /** Every jar under the Gradle cache whose file name starts with a wanted artifact. */
 function cachedJars() {

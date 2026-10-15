@@ -427,9 +427,9 @@ export function loadoutSignature(motors: Record<string, MountMotor>): string {
         s.length,
         m.ignitionEvent ?? '',
         m.ignitionDelay ?? 0,
-      ].join('');
+      ].join('\u0001');
     })
-    .join('');
+    .join('\u0002');
 }
 
 /** Whether a configuration overrides any deployment, separation or stage on the design. */

@@ -21,16 +21,15 @@ const flight = {
 } as unknown as ResultFlight;
 
 /**
- * The landing distance reads in the flight's distance unit, the one Ground Track
- * shows the same landing in (the 'sim.apogee' scope). Reading the plain distance
- * unit instead would make the two views of one flight disagree once that chip is
- * set to feet.
+ * The landing distance reads in the Downrange tile's unit (the 'sim.downrange'
+ * scope), the one Ground Track shows the same landing in. Any other scope would
+ * make two views of one flight disagree once that chip is set to feet.
  */
 describe('EnvironmentLanding', () => {
   beforeEach(() => localStorage.clear());
 
-  it('reads the landing distance in the unit Ground Track uses', () => {
-    seedSettings({ unitOverrides: { 'sim.apogee': 'ft' } });
+  it('reads the landing distance in the Downrange unit', () => {
+    seedSettings({ unitOverrides: { 'sim.downrange': 'ft' } });
     renderWithProviders(<EnvironmentLanding flight={flight} />);
     // 500 m from the pad is 1,640 ft, at 0 decimals past 100.
     expect(screen.getByText(/^1,640 ft, /)).toBeTruthy();

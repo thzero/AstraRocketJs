@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { specToTree } from '../testing/specTree';
-import type { RocketSpec, ComponentNode, RocketTree } from '../../src/engine/openRocketEngine';
+import { specToTree, type RocketSpec } from '../testing/specTree';
+import type { ComponentNode, RocketTree } from '../../src/engine/openRocketEngine';
 import { KERNEL_MATERIALS } from '../../src/tree/kernelDefaults';
 
 const baseSpec = {

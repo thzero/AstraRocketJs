@@ -1,7 +1,7 @@
 import type { StaticInfo } from '../../engine/openRocketEngine';
-import type { ReportModel } from './reportModel';
+import type { MaterialDensity, ReportModel } from './reportModel';
 import { exportFilename, saveText } from '../files/saveFile';
-import { fmtSi, type Quantity, type UnitSelection } from '../../prefs/units';
+import { siToUi, type Quantity, type UnitSelection } from '../../prefs/units';
 import { plainDecimal } from '../files/numberText';
 import { sig4, staticInfoRows } from './designInfo';
 import { type StatKey } from './designInfo';
@@ -23,11 +23,19 @@ import { partLabel } from '../../i18n/format';
 const round = (v: number, d: number): string => plainDecimal(v, d);
 
 /**
- * An SI figure in the chosen unit, to three decimals. A figure the kernel could
- * not give is a blank cell, as in every CSV the app writes, never the UI's
- * no-value glyph in a numeric column.
+ * An SI figure in the chosen unit, to six significant figures. A fixed count of
+ * decimals is wrong in one unit or another: three decimals write a 0.5 mm wall
+ * in meters as 0.001. A figure the kernel could not give is a blank cell, as in
+ * every CSV the app writes, never the UI's no-value glyph in a numeric column.
  */
-const fig = (q: Quantity, symbol: string, si: number): string => (Number.isFinite(si) ? fmtSi(q, symbol, si, 3) : '');
+const fig = (q: Quantity, symbol: string, si: number): string => {
+  if (!Number.isFinite(si)) return '';
+  const v = Number(siToUi(q, symbol, si).toPrecision(6));
+  // Plain decimal, never an exponent, which a spreadsheet may read as text:
+  // `String` writes one below 1e-6.
+  const s = v.toFixed(12).replace(/\.?0+$/, '');
+  return s === '-0' ? '0' : s;
+};
 
 /**
  * RFC-4180 cell, with spreadsheet formula injection neutralized by the rule
@@ -126,6 +134,9 @@ export function buildDesignCsv(model: ReportModel, units: UnitSelection): string
   return lines.join('\r\n') + '\r\n';
 }
 
+/** The component table's density columns, in order: bulk, surface, line. */
+const DENSITY_KINDS: readonly MaterialDensity[] = ['density', 'surfaceDensity', 'lineDensity'];
+
 /**
  * The component table: one row per part, stage by stage in tree order, with the
  * figures the PDF's parts list shows. Diameters rather than radii, the way the
@@ -148,6 +159,8 @@ export function buildComponentCsv(
       'Name',
       'Material',
       `Density (${units.density})`,
+      `Surface density (${units.surfaceDensity})`,
+      `Line density (${units.lineDensity})`,
       `Length (${units.length})`,
       `Outer diameter (${units.length})`,
       `Inner diameter (${units.length})`,
@@ -168,7 +181,10 @@ export function buildComponentCsv(
           cell(partName(p.type)),
           cell(p.name),
           cell(p.material ?? ''),
-          p.density == null ? '' : fig('density', units.density, p.density),
+          // One column per kind of density, so each column has one unit.
+          ...DENSITY_KINDS.map((k) =>
+            p.density == null || (p.densityKind ?? 'density') !== k ? '' : fig(k, units[k], p.density),
+          ),
           len(p.length),
           dia(p.outerR),
           dia(p.innerR),

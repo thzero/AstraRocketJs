@@ -817,7 +817,7 @@ function parentDerived(node: ComponentNode, parent: ComponentNode | null, parent
       if (Number.isFinite(wall)) node['thickness'] = wall;
     }
     if (node['outerRadiusAuto'] === true) {
-      const body = num(parent, 'outerRadius', NaN);
+      const body = parent.type === 'bodytube' ? bodyTubeRadius(parent) : num(parent, 'outerRadius', NaN);
       // The stored radius is the last resolved one, not a size the user chose:
       // `tubeFinRadius` returns any stored radius as is, so it is left out here.
       if (Number.isFinite(body) && body > 0)
@@ -848,6 +848,9 @@ function parentDerived(node: ComponentNode, parent: ComponentNode | null, parent
   }
 }
 
+/** The parts whose outer radius is automatic when the node states none. */
+const KEYLESS_AUTO_OUTER: ReadonlySet<string> = new Set([...DISC_TYPES, 'tubefinset']);
+
 /** A tube fin set that states no wall, so takes its parent's. */
 const tubeFinWallFromParent = (node: ComponentNode): boolean =>
   node.type === 'tubefinset' && !Number.isFinite(node['thickness']);
@@ -873,6 +876,13 @@ export function syncAutoRadii(tree: RocketTree): RocketTree {
   const frames = axialFrames(tree);
   const resolve = (n: ComponentNode, { parent }: MapContext): ComponentNode => {
     let node = n;
+    // A ring part or tube fin set with no outer radius is built automatic
+    // (`ComponentFactory` sets no radius, or `setOuterRadiusAutomatic` on a
+    // coupler), so it is marked so here and sized below, and the panel, the
+    // drawings and the file state the radius it flies with.
+    if (KEYLESS_AUTO_OUTER.has(node.type) && !hasRadius(node, 'outerRadius') && node['outerRadiusAuto'] !== true) {
+      node = { ...node, outerRadiusAuto: true };
+    }
     // Rings, tube fins and packed devices take their size from what they are
     // inside, not from the part beside them, so they resolve against the
     // parent rather than through the neighbor rules.

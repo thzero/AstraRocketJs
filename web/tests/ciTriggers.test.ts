@@ -43,6 +43,28 @@ describe('CI trigger coverage', () => {
 });
 
 /**
+ * The one check for every gate: `Dev / verify` on a branch push, which branch
+ * protection requires, and `CI / verify` on a pull request. Each has to run
+ * when a gate fails and fail with it: a job skipped because a job it needs
+ * failed reports as skipped, and a skipped required check counts as passing.
+ */
+describe('the verify checks', () => {
+  for (const [file, name] of [
+    ['dev.yml', 'Dev'],
+    ['ci.yml', 'CI'],
+  ] as const) {
+    it(`${name} / verify runs after every gate and fails when one does`, () => {
+      const text = wf(file);
+      expect(text).toMatch(new RegExp(`^name: ${name}$`, 'm'));
+      const job = text.split(/^ {2}verify:\s*$/m)[1]?.split(/^ {2}\S/m)[0] ?? '';
+      expect(job).toMatch(/needs: gates/);
+      expect(job).toMatch(/if: always\(\)/);
+      expect(job).toMatch(/if: needs\.gates\.result != 'success'[\s\S]*exit 1/);
+    });
+  }
+});
+
+/**
  * Every job that runs steps has a wall-clock cap.
  *
  * A job without one inherits GitHub's 360-minute default: per shard for a

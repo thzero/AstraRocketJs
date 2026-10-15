@@ -1,4 +1,4 @@
-import { Gunzip, Inflate, Unzip, UnzipPassThrough, type UnzipDecoder } from 'fflate';
+import { Gunzip, Inflate, Unzip, UnzipPassThrough, strFromU8, type UnzipDecoder } from 'fflate';
 import { decodeFileText } from '../decodeText';
 import { parseXmlText } from '../xmlUtil';
 import {
@@ -147,29 +147,60 @@ class GuardedInflate implements UnzipDecoder {
  * The count is of the bytes each member actually inflates to, not the sizes the
  * archive declares: a member can declare a few bytes and inflate to gigabytes.
  * The members are read in the order the archive stores them, from their local
- * headers, with the central directory unread. Anything the reader cannot make
- * sense of (a member cut off partway through its data, a method it does not
- * know, a data descriptor without its signature) is refused with a keyed
- * message. An archive cut off inside a member's local header, or right at its
- * end before any data, ends before that member, and the members before it are
- * read, as `ZipInputStream` reads them when the cut
- * falls in the header's fixed part.
+ * headers. A member whose data descriptor leaves out its signature (APPNOTE
+ * 4.3.9.3 allows it, and `ZipInputStream` reads it) throws fflate's streaming
+ * reader off at the member's end, so an archive the stream cannot read is read
+ * again through its central directory ({@link unzipFromDirectory}), with the
+ * same caps. Anything neither reader can make sense of (a member cut off
+ * partway through its data, a method it does not know) is refused with a
+ * keyed message. An archive cut off inside a member's local header, or right
+ * at its end before any data, ends before that member, and the members before
+ * it are read, as `ZipInputStream` reads them when the cut falls in the
+ * header's fixed part.
  */
 function unzipCapped(bytes: Uint8Array): Map<string, Uint8Array> {
-  const members = new Map<string, Uint8Array>();
+  try {
+    return unzipStreaming(bytes);
+  } catch (e) {
+    if (e instanceof KeyedError && e.key !== 'errors.file.archiveCorrupt') throw e;
+  }
+  try {
+    return unzipFromDirectory(bytes);
+  } catch (e) {
+    if (e instanceof KeyedError) throw e;
+    throw new KeyedError('errors.file.archiveCorrupt');
+  }
+}
+
+/** Counts every member's inflated bytes against the per-member and whole-archive caps. */
+function memberCounter() {
   let entryCount = 0;
   let total = 0;
+  return {
+    entry: () => {
+      if (++entryCount > MAX_ARCHIVE_ENTRIES) throw new KeyedError('errors.file.archiveTooManyEntries');
+      let size = 0;
+      return (data: Uint8Array) => {
+        size += data.length;
+        total += data.length;
+        if (size > MAX_ARCHIVE_ENTRY_BYTES || total > MAX_ARCHIVE_TOTAL_BYTES) {
+          throw new KeyedError('errors.file.archiveTooLarge');
+        }
+      };
+    },
+  };
+}
+
+/** The members read from their local headers, in the order the archive stores them. */
+function unzipStreaming(bytes: Uint8Array): Map<string, Uint8Array> {
+  const members = new Map<string, Uint8Array>();
+  const counter = memberCounter();
   const unzip = new Unzip((file) => {
-    if (++entryCount > MAX_ARCHIVE_ENTRIES) throw new KeyedError('errors.file.archiveTooManyEntries');
+    const count = counter.entry();
     const chunks: Uint8Array[] = [];
-    let size = 0;
     file.ondata = (err, data, final) => {
       if (err) throw err;
-      size += data.length;
-      total += data.length;
-      if (size > MAX_ARCHIVE_ENTRY_BYTES || total > MAX_ARCHIVE_TOTAL_BYTES) {
-        throw new KeyedError('errors.file.archiveTooLarge');
-      }
+      count(data);
       chunks.push(data);
       if (final) members.set(file.name, joined(chunks));
     };
@@ -182,6 +213,72 @@ function unzipCapped(bytes: Uint8Array): Map<string, Uint8Array> {
   } catch (e) {
     if (e instanceof KeyedError) throw e;
     throw new KeyedError('errors.file.archiveCorrupt');
+  }
+  return members;
+}
+
+/** The end-of-central-directory record's signature, and its fixed size. */
+const EOCD_SIG = 0x06054b50;
+const EOCD_SIZE = 22;
+/** The longest archive comment, which is all that may follow the record. */
+const MAX_COMMENT = 0xffff;
+
+/**
+ * The members read through the central directory, which states each one's
+ * compressed size, so a member's end does not depend on its data descriptor.
+ * Stored and deflated members only, each inflated in slices under the same
+ * caps as the streaming read.
+ */
+function unzipFromDirectory(bytes: Uint8Array): Map<string, Uint8Array> {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const corrupt = () => new KeyedError('errors.file.archiveCorrupt');
+  let eocd = -1;
+  for (let at = bytes.length - EOCD_SIZE; at >= Math.max(0, bytes.length - EOCD_SIZE - MAX_COMMENT); at--) {
+    if (view.getUint32(at, true) === EOCD_SIG) {
+      eocd = at;
+      break;
+    }
+  }
+  if (eocd < 0) throw corrupt();
+  const count = view.getUint16(eocd + 10, true);
+  if (count > MAX_ARCHIVE_ENTRIES) throw new KeyedError('errors.file.archiveTooManyEntries');
+  const members = new Map<string, Uint8Array>();
+  const counter = memberCounter();
+  let at = view.getUint32(eocd + 16, true);
+  for (let i = 0; i < count; i++) {
+    if (at + 46 > bytes.length || view.getUint32(at, true) !== 0x02014b50) throw corrupt();
+    const flags = view.getUint16(at + 8, true);
+    const method = view.getUint16(at + 10, true);
+    const csize = view.getUint32(at + 20, true);
+    const nameLen = view.getUint16(at + 28, true);
+    const next = at + 46 + nameLen + view.getUint16(at + 30, true) + view.getUint16(at + 32, true);
+    const local = view.getUint32(at + 42, true);
+    if (next > bytes.length || local + 30 > bytes.length || view.getUint32(local, true) !== 0x04034b50) {
+      throw corrupt();
+    }
+    const name = strFromU8(bytes.subarray(at + 46, at + 46 + nameLen), (flags & 0x800) === 0);
+    const start = local + 30 + view.getUint16(local + 26, true) + view.getUint16(local + 28, true);
+    if (start + csize > bytes.length) throw corrupt();
+    const data = bytes.subarray(start, start + csize);
+    const tally = counter.entry();
+    const chunks: Uint8Array[] = [];
+    if (method === 0) {
+      tally(data);
+      chunks.push(data);
+    } else if (method === 8) {
+      let ended = false;
+      const inflate = new GuardedInflate();
+      inflate.ondata = (err, out, final) => {
+        if (err) throw err;
+        tally(out);
+        chunks.push(out);
+        if (final) ended = true;
+      };
+      feed((chunk, final) => inflate.push(chunk, final), data);
+      if (!ended) throw corrupt();
+    } else throw corrupt();
+    members.set(name, joined(chunks));
+    at = next;
   }
   return members;
 }

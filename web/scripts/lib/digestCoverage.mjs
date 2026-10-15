@@ -9,9 +9,9 @@
 // publish one with a green run. A relative check alone is not enough: its
 // baseline is the copy on the data branch, which can itself have none.
 //
-// The floors sit under what a healthy refresh gives (parts about 98%, every type
-// with many rows above 92%, motors about 89%: thrustcurve.org lists motors that
-// desktop's library does not), and far above what a broken one gives (0%).
+// The floors sit under what a healthy refresh gives (every part, motors about
+// 89%: thrustcurve.org lists motors that desktop's library does not), and far
+// above what a broken one gives (0%).
 // A type with fewer than MIN_ROWS rows is reported but not held to a floor:
 // rail buttons are eight rows, and one part more or less moves them by 12%.
 

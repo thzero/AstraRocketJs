@@ -27,7 +27,7 @@ import { defaultDesignName, designNameOf } from '../services/app/appInfo';
 import { getDesignLibrary, type DesignMeta } from '../services/storage/designLibrary';
 import { getWorkspaceStore, lean, resultsOf } from '../services/storage/workspaceStore';
 import { migrateWorkspace } from '../services/storage/workspaceMigrate';
-import { errorText, keyedText } from '../i18n/keyedError';
+import { errorText, keyedText, type Keyed } from '../i18n/keyedError';
 import { fmtList } from '../i18n/format';
 import {
   configOf,
@@ -42,6 +42,7 @@ import {
 } from './workspaceSelectors';
 import type { WorkspaceState } from './store';
 import { showing } from './viewSlice';
+import { markWritten, unchangedSinceWrite } from './writtenWorkspace';
 
 /**
  * Opening, saving and exporting designs, and the design library.
@@ -169,14 +170,31 @@ export const createFileSlice =
      * means for them (a switch still proceeds; a Save must say it failed).
      */
     const flushActive = async (): Promise<boolean> => {
+      // Storage already holds it: a write would only re-stamp the design, or
+      // after New create an entry for one nobody touched.
+      const fields = get();
+      if (unchangedSinceWrite(fields)) return true;
       try {
-        await getWorkspaceStore().save(workspaceSnapshot(get()));
+        await getWorkspaceStore().save(workspaceSnapshot(fields));
+        markWritten(fields);
         return true;
       } catch (e) {
         // Recorded rather than returned, so a caller that only cares whether the
         // write landed still reports the right reason it did not.
         lastFlushFailure = e;
         return false;
+      }
+    };
+
+    /**
+     * Write the open design before something replaces it. A refused write does
+     * not block the replace (the user asked for the other design), but it is
+     * not silent either.
+     */
+    const flushOutgoing = async (stale: () => boolean): Promise<void> => {
+      if (!(await flushActive()) && !stale()) {
+        const { msg, kind } = saveFailure(lastFlushFailure);
+        get().setStorageWarning(msg, kind);
       }
     };
     /** Why the last `flushActive` returned false, for the caller that reports it. */
@@ -289,6 +307,11 @@ export const createFileSlice =
           // is still the open one (see homeForImport).
           const home = await homeForImport(loadedMeta.name, stale);
           if (!home || stale()) return;
+          // Persist whatever is open before the import replaces it, as
+          // openDesign does: the replace cancels the pending debounced
+          // autosave, so an edit inside its window would be lost.
+          await flushOutgoing(stale);
+          if (stale()) return;
           clearHistory(); // a loaded design is a fresh document; nothing to undo across the load
           // An imported rocket becomes its own library entry rather than
           // replacing whatever was open, unless the user chose to overwrite a
@@ -386,13 +409,8 @@ export const createFileSlice =
           return;
         }
         // Persist whatever is open before switching, or the edits since the last
-        // debounced autosave would be lost to the swap. A refused write does not
-        // block the switch (the user asked to open something else), but it is
-        // not silent either.
-        if (!(await flushActive()) && !stale()) {
-          const { msg, kind } = saveFailure(lastFlushFailure);
-          get().setStorageWarning(msg, kind);
-        }
+        // debounced autosave would be lost to the swap.
+        await flushOutgoing(stale);
         if (stale()) return;
         // A refused pointer write means this session would edit B while the
         // library still names A, and the next launch reopens A. Stop before the
@@ -507,6 +525,8 @@ export const createFileSlice =
           selectedId: null,
           ...showing(s, '2d'),
         }));
+        // Not worth storing until it is edited (see `writtenWorkspace`).
+        markWritten(get());
       },
       newWorkspace: async () => {
         const ok = await confirm({
@@ -658,6 +678,9 @@ export const createFileSlice =
           const motors = buildExportMotorMap(tree, selectConfig(get()), loadedMeta?.exportMotors ?? {});
           // The RASAero writer is a lazily-imported chunk, only needed on export.
           const { downloadCdx1 } = await import('../services/files/rasaeroExport');
+          // A finish RASAero has no surface for is written as smooth, as on
+          // desktop, which warns about it; the user is told the same here.
+          const warnings: Keyed[] = [];
           downloadCdx1({
             name: designNameOf(tree, loadedMeta),
             // The selected configuration's deployments, as desktop's exporter
@@ -668,7 +691,9 @@ export const createFileSlice =
             // Whole-rocket loaded mass/CG feed RASAero's mandatory simulation block.
             launchMassKg: info?.mass,
             launchCgM: info?.cg,
+            warnings,
           });
+          if (warnings.length) set({ err: warnings.map((k) => keyedText(k, i18n.t)).join(' ') });
         } catch (e) {
           set({ err: i18n.t('errors.exportRasaero', { reason: errorText(e, i18n.t) }) });
         }

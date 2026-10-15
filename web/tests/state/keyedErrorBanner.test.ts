@@ -45,6 +45,27 @@ describe('the export banner, in German', () => {
     );
   });
 
+  // RASAeroCommonConstants.OPENROCKET_TO_RASAERO_SURFACE writes ROUGH and
+  // POLISHED as Smooth and adds a warning; the file is still saved.
+  it('warns, in German, that a finish with no RASAero surface was written as smooth', async () => {
+    await i18n.changeLanguage('de');
+    const tree = {
+      name: 'x',
+      components: [
+        {
+          ...stage('a'),
+          children: [
+            { type: 'nosecone', id: 'nc', length: 0.1, aftRadius: 0.0124, shape: 'ogive', finish: 'rough' },
+            ...stage('a').children,
+          ],
+        },
+      ],
+    } as unknown as RocketTree;
+    useWorkspaceStore.setState({ tree });
+    await s().saveRasaero();
+    expect(s().err).toBe(de.errors.exportRasaeroSurface);
+  });
+
   it('names what the .rkt left out with the tree type labels, as a German list', async () => {
     await i18n.changeLanguage('de');
     const tree = {

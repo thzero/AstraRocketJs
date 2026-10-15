@@ -168,7 +168,9 @@
       "cdOverride": "anulación del Cd ({{name}})",
       "cgOverride": "anulación del CG ({{name}})",
       "extraStages": "etapa {{from}} y siguientes",
+      "instanceCount": "número de instancias ({{name}})",
       "massOverride": "anulación de la masa ({{name}})",
+      "stageOnlyOverride": "anulación solo de la etapa ({{name}})",
       "subtreeOverride": "anulación de los subcomponentes ({{name}})"
     },
     "viewFailed": "No se pudo cargar esta vista.",
@@ -178,6 +180,7 @@
     "saveOrk": "No se pudo guardar el .ork: {{reason}}",
     "saveOrkNoDesignInfo": "Se guardó el .ork sin la información de diseño: el diseño no se pudo construir, así que no había estadísticas que incluir.",
     "exportRasaero": "No se pudo exportar a RASAero: {{reason}}",
+    "exportRasaeroSurface": "El archivo de RASAero se guardó, pero RASAero no tiene una superficie que coincida con el acabado de este diseño, así que se escribió como lisa (rugosidad cero).",
     "exportUnsupported": "Este componente no se puede exportar como {{format}}.",
     "exportFailed": "No se pudo exportar {{format}}: {{reason}}",
     "exportRkt": "No se pudo escribir el .rkt: {{reason}}",
@@ -2098,7 +2101,7 @@
     "clear": "Borrar",
     "progress": "{{done}} / {{total}}",
     "landed": "Aterrizaron {{flown}} de {{asked}} vuelos.",
-    "stale": "El diseño ha cambiado desde que se ejecutó este barrido.",
+    "stale": "El diseño o sus ajustes de simulación han cambiado desde que se ejecutó este barrido.",
     "noLandings": "El barrido de viento no produjo ningún aterrizaje.",
     "spread": "{{from}}–{{to}}",
     "flown": "barrido realizado"

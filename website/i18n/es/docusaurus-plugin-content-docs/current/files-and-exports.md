@@ -109,7 +109,7 @@ Después elige una salida:
 
 - **Guardar como PDF**: un archivo PDF de verdad (texto vectorial, tablas y plantillas 1:1; el esquema se dibuja a escala).
 - **Guardar como CSV**: el resumen del diseño como una tabla ordenada `Ámbito, Campo, Valor, Unidad` (bloques de Diseño / Cohete / por etapa, más la posición de raíz de cada juego de aletas), para una hoja de cálculo.
-- **Guardar piezas como CSV**: la tabla de componentes, una fila por pieza en el orden de las etapas, con su tipo, nombre, material, densidad, longitud, diámetros exterior e interior, espesor y masa, en las unidades del informe.
+- **Guardar piezas como CSV**: la tabla de componentes, una fila por pieza en el orden de las etapas, con su tipo, nombre, material, densidad, longitud, diámetros exterior e interior, espesor y masa, en las unidades del informe. La tela de un paracaídas o de una serpentina y el cordón de un cordón de choque son materiales de lámina y de línea, así que su densidad va en la columna **Surface density** o **Line density**.
 
 **Unidades** (se recuerda, junto a las demás opciones) elige en qué se escriben el PDF y el CSV: **Mis unidades por defecto** sigue a [Ajustes ▸ Unidades](./settings.md#units), o fija el documento en **Métricas** o **Imperiales** para que se lea igual sea cual sea la unidad en la que estés trabajando, útil cuando el informe es para otra persona. Ten en cuenta que «mis unidades por defecto» se refiere a los valores de esa pestaña y *no* a la unidad que hayas puesto en un campo concreto: un informe mitad en pulgadas y mitad en centímetros según dónde hayas hecho clic no le sirve a nadie. Las plantillas 1:1 y la regla impresa siguen siempre en mm/cm, porque miden la página.
 

@@ -296,6 +296,11 @@ export class IndexedDbKeyValueStore implements KeyValueStore {
    * lets a later session, where `fellBack` is empty, read the right tier even
    * when `demote` could not delete the stale IndexedDB entry (a closed
    * connection fails the delete as surely as the write).
+   *
+   * Newer is not the same as complete. An `update` in a session where
+   * IndexedDB never opened seeds its reducer with null (see `readIdb`), so the
+   * fallback copy it writes is built without whatever an earlier session left
+   * in IndexedDB, and still wins here.
    */
   async get(key: string): Promise<string | null> {
     try {

@@ -29,8 +29,12 @@ describe('axialStart', () => {
     const child: ComponentNode = { type: 'innertube', position: { method: 'top', offset: 0.02 } };
     expect(axialStart(child, 0.05, 0.1, 0.2)).toBeCloseTo(0.12);
   });
-  it('defaults an absent position to top offset 0', () => {
-    expect(axialStart({ type: 'innertube' }, 0.05, 0.1, 0.2)).toBeCloseTo(0.1);
+  // keylessParts.kernel.test.ts holds each type's constructor method to the kernel.
+  it('places a part with no position where its constructor does, at offset 0', () => {
+    // InternalComponent: bottom, so pStart 0.1 + pLen 0.2 - childLen 0.05.
+    expect(axialStart({ type: 'innertube' }, 0.05, 0.1, 0.2)).toBeCloseTo(0.25);
+    // MassObject: top.
+    expect(axialStart({ type: 'masscomponent' }, 0.05, 0.1, 0.2)).toBeCloseTo(0.1);
   });
   it('centers a middle-positioned child', () => {
     const child: ComponentNode = { type: 'centeringring', position: { method: 'middle', offset: 0 } };

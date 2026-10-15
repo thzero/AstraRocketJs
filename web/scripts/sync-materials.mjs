@@ -34,6 +34,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import process from 'node:process';
+import { arg } from './lib/args.mjs';
 import { writeDataManifest } from './lib/dataManifest.mjs';
 
 const DATA_DIR = fileURLToPath(new URL('../public/data', import.meta.url));
@@ -47,8 +48,7 @@ const die = (msg) => {
   process.exit(1);
 };
 
-const argSrc = process.argv.indexOf('--src');
-const src = argSrc >= 0 ? process.argv[argSrc + 1] : join(ENGINE, '.openrocket-src');
+const src = arg('src') ?? join(ENGINE, '.openrocket-src');
 const javaPath = [join(src, REL_JAVA), join(src, 'info', 'openrocket', 'core', 'database', 'Databases.java')].find(
   existsSync,
 );

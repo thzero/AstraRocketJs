@@ -2,7 +2,12 @@
 import { describe, it, expect } from 'vitest';
 import type { RocketTree } from '../../../src/engine/openRocketEngine';
 import { exportCdx1 } from '../../../src/services/files/rasaeroExport';
-import { rasaeroSurface, RASAERO_SURFACE_DEFAULT } from '../../../src/services/files/rasaero/surface';
+import {
+  rasaeroSurface,
+  RASAERO_SURFACE_DEFAULT,
+  RASAERO_SURFACE_WARNING,
+} from '../../../src/services/files/rasaero/surface';
+import type { Keyed } from '../../../src/i18n/keyedError';
 
 // A 1-inch-diameter rocket with clean-inch geometry so the meter→inch (×39.37)
 // conversions land on round numbers the assertions can pin exactly.
@@ -126,7 +131,7 @@ describe('finish to RASAero surface (desktop table)', () => {
   it.each(['rough', 'polished', 'nosuchfinish'])('%s falls to Smooth with the desktop warning', (finish) => {
     const r = rasaeroSurface(finish);
     expect(r.surface).toBe(RASAERO_SURFACE_DEFAULT);
-    expect(r.warning).toBe(`Unknown surface finish: ${finish}, defaulting to Smooth.`);
+    expect(r.warning).toEqual(RASAERO_SURFACE_WARNING);
   });
 
   const withFinish = (finish: string | undefined): RocketTree => ({
@@ -150,10 +155,10 @@ describe('finish to RASAero surface (desktop table)', () => {
   });
 
   it('collects the warning for a finish with no row', () => {
-    const warnings: string[] = [];
+    const warnings: Keyed[] = [];
     const xml = exportCdx1({ tree: withFinish('rough'), name: 'x', warnings });
     expect(xml).toContain('<Surface>Smooth (Zero Roughness)</Surface>');
-    expect(warnings).toEqual(['Unknown surface finish: rough, defaulting to Smooth.']);
+    expect(warnings).toEqual([RASAERO_SURFACE_WARNING]);
   });
 });
 

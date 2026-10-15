@@ -17,6 +17,8 @@ import { autoFinTab } from '../../src/services/design/finTabAuto';
 import { stageParts } from '../../src/services/report/reportModel';
 import { solidFor } from '../../src/services/exports/rocketPrintExport';
 import { componentToDxf } from '../../src/services/exports/dxfExport';
+import { exportRkt } from '../../src/services/files/rktExport';
+import { syncDerived } from '../../src/services/design/treeEdit';
 
 /**
  * Every flag that changes a part's shape, against every reader that draws,
@@ -117,7 +119,10 @@ const READERS: Record<string, Reader> = {
     });
     return round(svgProps([...shapes, ...overlay]));
   },
-  'report side view': (tree) => round(rocketSideView(tree).body),
+  'report side view': (tree) => {
+    const { body, pods } = rocketSideView(tree);
+    return round([body, pods]);
+  },
   'report template': (tree, node) => {
     const { page, calls } = recordingPage();
     writeTemplatesSection(
@@ -130,6 +135,9 @@ const READERS: Record<string, Reader> = {
     return calls;
   },
   'printable solid': (_tree, node) => positions(solidForNode(node)),
+  // The print export's own entry point, which sizes a ring or bulkhead from the
+  // part it sits in.
+  'print export solid': (tree, node) => positions(solidFor(tree, node)),
   '3D view': (tree, node) =>
     buildPieces(tree)
       .pieces.filter((p) => p.id === node.id)
@@ -140,17 +148,22 @@ const READERS: Record<string, Reader> = {
   'aft view': (tree) => round(buildAftScene(tree.components, undefined, ((k: string) => k) as unknown as TFunction)),
   // Every part of the design, so a ring cut to fit inside the flagged part is read too.
   DXF: (tree) => walkIds(tree.components).map((id) => componentToDxf(tree, id)),
+  'RockSim export': (tree) => exportRkt('t', tree).xml,
 };
 
 /**
  * A flag, the part it is toggled on, and the value it is toggled to. `like`
  * names the single flag whose `UNAFFECTED` reasons hold for a combination too.
+ * `reads` is the id of the part the readers measure, when the flag is set on
+ * one part to change another; `inPod` puts the part in a pod set.
  */
 interface Flag {
   name: string;
   part: ComponentNode;
   on: Record<string, unknown>;
   like?: string;
+  reads?: string;
+  inPod?: true;
 }
 
 const NOSE: ComponentNode = {
@@ -203,7 +216,30 @@ const FLAGS: Flag[] = [
     name: 'filled body tube holding a ring',
     part: { ...TUBE, children: [RING] } as ComponentNode,
     on: { filled: true },
+    reads: 'ring',
   },
+  // A shape parameter, on the one shape of each part that takes one here.
+  { name: 'shape parameter on a nose cone', part: NOSE, on: { shapeParameter: 0.5 } },
+  {
+    name: 'shape parameter on a transition',
+    part: { ...TRANSITION, shape: 'power', shapeParameter: 0.5 } as ComponentNode,
+    on: { shapeParameter: 0.25 },
+  },
+  // The same flags on other shapes, so a reader that handles one shape only shows.
+  {
+    name: 'flipped conical nose cone',
+    part: { ...NOSE, shape: 'conical' } as ComponentNode,
+    on: { flipped: true },
+    like: 'flipped nose cone',
+  },
+  {
+    name: 'unclipped haack transition',
+    part: { ...TRANSITION, shape: 'haack' } as ComponentNode,
+    on: { clipped: false },
+    like: 'unclipped transition',
+  },
+  // A flag on a part inside a pod set, which readers reach through the assembly.
+  { name: 'flipped nose cone in a pod', part: NOSE, on: { flipped: true }, like: 'flipped nose cone', inPod: true },
   // One flag toggled with another already set: a reader that handles each
   // alone can still let one mask the other.
   {
@@ -249,10 +285,31 @@ const UNAFFECTED: Record<string, string> = {
   'filled body tube / report side view': 'outline only',
   'filled body tube / report template': 'the template section draws no body tubes',
   'filled body tube / schematic': 'side outline only; walls are not drawn',
-  'filled body tube holding a ring / station radius': 'outer radius only',
+  // The ring's own readers: its outline and its mesh, through the parts that
+  // take a ring.
+  'filled body tube holding a ring / printable solid': 'the per-part mesh lathes airframe parts and fins, not rings',
+  'filled body tube holding a ring / disc geometry': "reads a tube's radii and bore, and a ring is not a tube",
   'filled body tube holding a ring / report side view': 'outline only',
-  'filled body tube holding a ring / report template': 'the template section draws no body tubes',
+  'filled body tube holding a ring / report template': 'the template section draws no rings',
   'filled nose cone / printable solid': 'printed as a solid of revolution, wall or not',
+  'filled nose cone / print export solid': 'printed as a solid of revolution, wall or not',
+  'flipped nose cone / print export solid': 'the same part turned round; the printed file is the part itself',
+  'filled transition / print export solid': 'printed as a solid of revolution, wall or not',
+  // Desktop's RockSim reader (BodyTubeHandler, TransitionHandler) has no
+  // filled body tube and no clip flag, so the format carries neither.
+  'filled body tube / RockSim export': 'RockSim has no filled body tube',
+  'unclipped transition / RockSim export': 'RockSim has no clip flag',
+  ...Object.fromEntries(
+    ['shape parameter on a nose cone', 'shape parameter on a transition'].flatMap((flag) => [
+      [`${flag} / disc geometry`, 'the ends and the wall, which the shape parameter does not change'],
+      [`${flag} / PDF parts table`, 'lists the ends and the length, which the shape parameter does not change'],
+      [
+        `${flag} / aft view`,
+        'drawn end on as an opaque disc at its largest radius, which the parameter does not change',
+      ],
+      [`${flag} / DXF`, 'a DXF cuts flat plate parts only (fins, rings, bulkheads), and this part is not one'],
+    ]),
+  ),
   'flipped nose cone / printable solid': 'the same part turned round; the printed file is the part itself',
   'flipped nose cone / report template': 'the same part turned round; its wrap template does not change',
   'filled nose cone / 3D view': 'drawn as its outer surface',
@@ -279,17 +336,61 @@ const UNAFFECTED: Record<string, string> = {
  */
 const KNOWN: Record<string, string> = {};
 
-/** A design holding the part where it sits in a real rocket. */
-function design(part: ComponentNode): RocketTree {
-  const nose = part.type === 'nosecone' ? part : { ...NOSE, id: 'nose' };
-  const chain =
-    part.type === 'nosecone'
-      ? [nose, { ...TUBE, id: 'tube' }]
-      : part.type === 'transition'
-        ? [nose, { ...TUBE, id: 'tube', outerRadius: 0.015 }, part, { ...TUBE, id: 'tail' }]
-        : [nose, part];
-  return { components: [{ type: 'stage', id: 'stage', children: chain }] } as unknown as RocketTree;
+/** The part where it sits in a real rocket: its chain, nose first. */
+function chainFor(part: ComponentNode, tag = ''): ComponentNode[] {
+  const nose = part.type === 'nosecone' ? part : ({ ...NOSE, id: `nose${tag}` } as ComponentNode);
+  return part.type === 'nosecone'
+    ? [nose, { ...TUBE, id: `tube${tag}` } as ComponentNode]
+    : part.type === 'transition'
+      ? [
+          nose,
+          { ...TUBE, id: `tube${tag}`, outerRadius: 0.015 } as ComponentNode,
+          part,
+          { ...TUBE, id: `tail${tag}` } as ComponentNode,
+        ]
+      : [nose, part];
 }
+
+/**
+ * A design holding the part where it sits in a real rocket, or, `inPod`, in
+ * the chain of a pod set beside the main body tube.
+ */
+function design(part: ComponentNode, inPod = false): RocketTree {
+  const chain = inPod
+    ? [
+        { ...NOSE, id: 'nose' },
+        {
+          ...TUBE,
+          id: 'tube',
+          children: [
+            {
+              type: 'podset',
+              id: 'pod',
+              instanceCount: 2,
+              radialOffset: 0.06,
+              position: { method: 'top', offset: 0.05 },
+              children: chainFor(part, '-pod'),
+            },
+          ],
+        },
+      ]
+    : chainFor(part);
+  // Synced as the app holds every design, so automatic radii follow the flag.
+  return syncDerived({ components: [{ type: 'stage', id: 'stage', children: chain }] } as unknown as RocketTree);
+}
+
+/** The node a reader measures in a design: the flagged part, or the one `reads` names. */
+const measured = (tree: RocketTree, flag: Flag, part: ComponentNode): ComponentNode =>
+  flag.reads ? findIn(tree.components, flag.reads)! : part;
+
+const findIn = (nodes: ComponentNode[], id: string): ComponentNode | undefined => {
+  for (const n of nodes) {
+    if (n.id === id) return n;
+    const hit = findIn(n.children ?? [], id);
+    if (hit) return hit;
+  }
+  return undefined;
+};
 
 describe('every shape flag reaches every reader', () => {
   for (const flag of FLAGS) {
@@ -303,8 +404,11 @@ describe('every shape flag reaches every reader', () => {
       // removes the line. Otherwise the reader has to react.
       const expected = reason === undefined && !(pair in KNOWN);
       it(`${pair}: ${expected ? 'reacts' : (reason ?? `ignored, ${KNOWN[pair]}`)}`, () => {
-        const changed = JSON.stringify(read(design(off), off)) !== JSON.stringify(read(design(on), on));
-        expect(changed).toBe(expected);
+        const read2 = (part: ComponentNode) => {
+          const tree = design(part, flag.inPod);
+          return JSON.stringify(read(tree, measured(tree, flag, part)));
+        };
+        expect(read2(off) !== read2(on)).toBe(expected);
       });
     }
   }
@@ -398,6 +502,8 @@ const FIN_READERS: Record<string, Reader> = {
   'report side view fins': (tree) => round(rocketSideView(tree).fins),
   'fin tab limit': (tree) => round(parentRadiusOf(tree, String(FIN.id))),
   'fin tab auto': (tree) => round(autoFinTab(tree, String(FIN.id))),
+  'fin parts table': (tree) =>
+    round(stageParts(tree.components[0]!, { componentInfo: () => ({ mass: 0 }) }).filter((r) => r.type === FIN.type)),
 };
 
 const FIN_FLAGS: Flag[] = [
@@ -449,11 +555,24 @@ const FIN_FLAGS: Flag[] = [
 const FILL_REASON = 'a fin stands on the outer surface, which filling does not move';
 
 /** Fin pairs where the reader cannot see the flag, with why. */
-const FIN_UNAFFECTED: Record<string, string> = Object.fromEntries(
-  ['fins on a filled nose cone', 'fins on a filled transition', 'fins on a filled body tube'].flatMap((flag) =>
-    Object.keys(FIN_READERS).map((reader) => [`${flag} / ${reader}`, FILL_REASON]),
+const FIN_UNAFFECTED: Record<string, string> = {
+  ...Object.fromEntries(
+    ['fins on a filled nose cone', 'fins on a filled transition', 'fins on a filled body tube'].flatMap((flag) =>
+      Object.keys(FIN_READERS).map((reader) => [`${flag} / ${reader}`, FILL_REASON]),
+    ),
   ),
-);
+  // `FreeformFinSet.getSpan` is the outline's height less a trailing point
+  // below the root. This transition widens aft, clipped or not, so the trailing
+  // point moved onto it stays above the root and under the outline's peak.
+  'fins on an unclipped transition / fin parts table':
+    'the trailing point stays above the root on a widening transition',
+};
+
+/**
+ * Fin pairs known to ignore a flag they should honor. Each entry states its
+ * reason in words; the fix removes the line.
+ */
+const FIN_KNOWN: Record<string, string> = {};
 
 describe('every shape flag on the part a fin set stands on reaches every fin reader', () => {
   for (const flag of FIN_FLAGS) {
@@ -462,10 +581,12 @@ describe('every shape flag on the part a fin set stands on reaches every fin rea
     for (const [reader, read] of Object.entries(FIN_READERS)) {
       const pair = `${flag.name} / ${reader}`;
       const reason = FIN_UNAFFECTED[pair] ?? (flag.like ? FIN_UNAFFECTED[`${flag.like} / ${reader}`] : undefined);
-      const expected = reason === undefined;
-      it(`${pair}: ${expected ? 'reacts' : reason}`, () => {
+      const known = FIN_KNOWN[pair] ?? (flag.like ? FIN_KNOWN[`${flag.like} / ${reader}`] : undefined);
+      const expected = reason === undefined && known === undefined;
+      it(`${pair}: ${expected ? 'reacts' : (reason ?? `ignored, ${known}`)}`, () => {
         const before = read(design(off), off);
         expect(before).not.toBeNull();
+        expect(before).not.toEqual([]);
         const changed = JSON.stringify(before) !== JSON.stringify(read(design(on), on));
         expect(changed).toBe(expected);
       });

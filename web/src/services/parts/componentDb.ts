@@ -14,10 +14,12 @@ interface ComponentBase {
   partNo: string;
   desc: string;
   /**
-   * The mass the catalog states (kg), when it states one. A parachute takes it
-   * as its mass override (`Parachute.loadPreset`); every other part already
-   * has it folded into `materialDensity` (`ComponentPresetFactory`), and this
-   * is the figure the part weighs.
+   * The mass the catalog states (kg), when it states one. A parachute takes a
+   * positive one as its mass override (`Parachute.loadFromPreset`), and a rail
+   * button its total with screw and nut (`RailButton.loadFromPreset`, see
+   * `RailButtonComponent`). Every other part already has it folded into
+   * `materialDensity` (`ComponentPresetFactory`), and this is the figure the
+   * part weighs.
    */
   mass?: number;
   /**

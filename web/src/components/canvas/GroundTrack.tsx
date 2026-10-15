@@ -64,9 +64,9 @@ export function GroundTrack({
   const site = latitudeDeg != null && longitudeDeg != null ? { lat: latitudeDeg, lon: longitudeDeg } : null;
   const ground = useGroundLayer(site !== null);
 
-  // Share the chart's unit scope, so a drift read in feet on one view reads in
-  // feet on the other.
-  const dist = u.at(unitScope('sim', 'apogee'), 'distance');
+  // The Downrange tile's unit scope, so the landing distance reads in the same
+  // unit on the summary, here and in the hourly landings.
+  const dist = u.at(unitScope('sim', 'downrange'), 'distance');
 
   const lines = useMemo<GroundTrackLine[]>(
     () =>

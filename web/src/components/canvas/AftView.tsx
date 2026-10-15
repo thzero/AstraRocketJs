@@ -499,7 +499,9 @@ export function AftView({
         onPointerMove={(e) => {
           if (rollDrag.current !== null && onRoll) {
             const width = svgRef.current?.getBoundingClientRect().width || 300;
-            onRoll(((e.clientX - rollDrag.current) / width) * 2 * Math.PI);
+            // Negated with the drawing's rotation below, so the cross-section
+            // still follows the pointer: a drag right turns it clockwise.
+            onRoll((-(e.clientX - rollDrag.current) / width) * 2 * Math.PI);
             rollDrag.current = e.clientX;
             return;
           }
@@ -526,7 +528,12 @@ export function AftView({
           rollDrag.current = null;
         }}
       >
-        <g transform={`translate(${zoom.x} ${zoom.y}) scale(${zoom.k}) rotate(${radToDeg(roll)})`}>
+        {/* The kernel turns the rocket by the roll the same way in every view
+            (desktop RocketFigure applies one rotate_x to the side and back
+            views), so a part's height off the axis matches the side view's
+            cos(angle + roll). With this view's angles running counterclockwise
+            on screen, that is a counterclockwise turn: SVG rotate() is clockwise. */}
+        <g transform={`translate(${zoom.x} ${zoom.y}) scale(${zoom.k}) rotate(${-radToDeg(roll)})`}>
           {hulls.map(drawShape)}
           {inner.map(drawShape)}
           {outer.map(drawShape)}

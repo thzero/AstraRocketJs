@@ -48,6 +48,12 @@ export interface KernelGeometry {
    * settles (`MassObject.getRadius`), and `length` above is read before that.
    */
   settledLength?: number;
+  /**
+   * Every field the kernel holds for the part (`getComponentFields`), read last
+   * and only when asked for: the angles, counts and spacings a part flies with
+   * after the setters have clamped or wrapped them.
+   */
+  fields?: Record<string, number | string | boolean>;
 }
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- the TeaVM bundle is untyped */
@@ -77,7 +83,11 @@ export function walkTree(tree: RocketTree): Visit[] {
 }
 
 /** Build the design in the kernel and read back each part's geometry, keyed by id. */
-export function kernelGeometry(engine: any, tree: RocketTree): Map<string, KernelGeometry> {
+export function kernelGeometry(
+  engine: any,
+  tree: RocketTree,
+  options: { fields?: boolean } = {},
+): Map<string, KernelGeometry> {
   engine.reset();
   const handle: number = engine.buildRocket(JSON.stringify(tree));
   const out = new Map<string, KernelGeometry>();
@@ -101,6 +111,16 @@ export function kernelGeometry(engine: any, tree: RocketTree): Map<string, Kerne
     if (info.error) throw new Error(`${id}: ${info.error}`);
     geometry.positionX = info.positionX;
     geometry.settledLength = info.length;
+  }
+  if (options.fields) {
+    for (const [id, geometry] of out) {
+      const fields = JSON.parse(engine.getComponentFields(handle, id) as string) as Record<
+        string,
+        number | string | boolean
+      >;
+      if (fields['error']) throw new Error(`${id}: ${String(fields['error'])}`);
+      geometry.fields = fields;
+    }
   }
   return out;
 }

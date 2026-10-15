@@ -35,6 +35,7 @@ angleoffset
 angus
 aopalliance
 apikey
+APPNOTE
 ARCAS
 arcgis
 arcgisonline
@@ -99,6 +100,7 @@ crosshairs
 crossrange
 crosssection
 Cside
+csize
 currentconditions
 curveless
 customexpression
@@ -155,6 +157,7 @@ ENDSEC
 ENDTAB
 engineblock
 ents
+EOCD
 ERESOLVE
 Español
 evts
@@ -457,6 +460,7 @@ screwheight
 sealevel
 Segoe
 Semispan
+SEMROC
 separationaltitude
 separationconfiguration
 separationdelay

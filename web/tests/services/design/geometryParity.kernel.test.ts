@@ -6,7 +6,11 @@ import { catalogPatch, defaultNode, findNode, syncDerived } from '../../../src/s
 import { isComponentRow, type ParachuteComponent } from '../../../src/services/parts/componentDb';
 import { axialFrames, rebasePosition } from '../../../src/tree/axialRebase';
 import { axialChain, axialLength } from '../../../src/tree/position';
-import { positionOf } from '../../../src/tree/nodeProps';
+import { countOf, num, positionOf } from '../../../src/tree/nodeProps';
+import { lineInstances } from '../../../src/tree/placement';
+import { clusterCount } from '../../../src/tree/cluster';
+import { KERNEL_DEFAULTS } from '../../../src/tree/kernelDefaults';
+import { profileMm, rocketSideView } from '../../../src/services/report/reportGeometry';
 import { badDimensions } from '../../../src/services/design/requiredComponent';
 import { profileEnds, shapeParamMax, shapeUsesParameter, stationRadius } from '../../../src/tree/shapeProfile';
 import { chainWithKernelEnds, withKernelEnds } from '../../../src/services/design/autoRadius';
@@ -16,6 +20,7 @@ import {
   finOutlinePoints,
   finRootPoints,
   finTabPoints,
+  finSpan,
   bodyRadiusAt,
   parentRadiusOf,
 } from '../../../src/tree/finPlanform';
@@ -50,7 +55,12 @@ vi.setConfig({ testTimeout: KERNEL_TEST_TIMEOUT_MS, hookTimeout: KERNEL_TEST_TIM
  * ({@link withExtras}), some parts are placed `absolute`
  * ({@link withAbsolutes}), so each part's station from the nose tip is
  * compared as well as its size, and each pod set's or booster's distance from
- * its parent's axis is compared too.
+ * its parent's axis is compared too. Placement keys ride on top of those
+ * ({@link withPlacements}): repeated lugs, turned pods, boosters, inner tubes
+ * and tube fins, outlines off the origin, tabs placed `absolute` or `after`,
+ * and parts with no `position` key, each read back from the kernel's own
+ * fields. The shoulders, each fin's span, and the profiles the PDF's side view
+ * and templates draw are compared as well.
  */
 
 const DESIGNS = 200;
@@ -533,6 +543,109 @@ function withAbsolutes(tree: RocketTree, seed: number): RocketTree {
     };
   };
   return { ...tree, components: tree.components.map((c) => visit(c, null)) };
+}
+
+/** The parts of an airframe chain, which stand where the chain puts them and carry no `position`. */
+const CHAIN_TYPES: ReadonlySet<string> = new Set(['stage', 'nosecone', 'bodytube', 'transition']);
+
+/** The parts on a body tube whose station no other part's number reads. */
+const UNREAD_STATIONS: ReadonlySet<string> = new Set([
+  'launchlug',
+  'railbutton',
+  'trapezoidfinset',
+  'ellipticalfinset',
+  'freeformfinset',
+  'tubefinset',
+  'tubecoupler',
+  'bulkhead',
+  'parachute',
+  'streamer',
+  'shockcord',
+  'masscomponent',
+]);
+
+/**
+ * Placement and orientation keys the generators above never write, added from
+ * a stream of their own, so each seed's airframe stays the same design.
+ *
+ * A launch lug repeated along its tube, with a spacing of its own or none (the
+ * kernel then spaces the copies by its constructor's value), and a rail button
+ * with no spacing stated; a pod set or booster turned about its parent's axis;
+ * an inner tube moved off the axis, with its cluster turned; a tube fin set
+ * turned; a freeform outline drawn away from the origin, which the kernel moves
+ * there (`FreeformFinSet.setPoints`); a fin tab placed `absolute` or `after`,
+ * at the station its old method put it; and parts on a body tube with no
+ * `position` key at all, which the kernel places by its constructor's method.
+ * Only parts whose station nothing else reads lose the key: on a body tube the
+ * radius is the same at every station, while a centering ring's automatic bore
+ * reads the inner tube beside it and an assembly can stand in for the tube it
+ * hangs on, so moving either would move a number checked under another rule.
+ */
+function withPlacements(tree: RocketTree, seed: number): RocketTree {
+  const r = rng(seed + 0x3c6ef372);
+  const chance = (p: number) => r() < p;
+  const between = (lo: number, hi: number) => lo + r() * (hi - lo);
+  const pick = <T>(xs: readonly T[]): T => xs[Math.floor(r() * xs.length)]!;
+  const round = (v: number) => Math.round(v * 1e4) / 1e4;
+  // Past a half turn either way, so a setter that wraps or clamps the angle shows.
+  const angle = () => round(between(-2 * Math.PI, 2 * Math.PI));
+  const visit = (node: ComponentNode): ComponentNode => {
+    const out: Record<string, unknown> = { ...node };
+    if (node.children) out['children'] = node.children.map(visit);
+    switch (node.type) {
+      case 'launchlug':
+        if (chance(0.6)) out['instanceCount'] = pick([2, 3]);
+        if (chance(0.5)) out['instanceSeparation'] = round(between(0, 0.08));
+        break;
+      case 'railbutton':
+        if (chance(0.4)) delete out['instanceSeparation'];
+        break;
+      case 'podset':
+      case 'parallelstage':
+        if (chance(0.6)) out['angleOffset'] = angle();
+        break;
+      case 'innertube':
+        if (chance(0.4)) {
+          out['radialPosition'] = round(between(0, 0.01));
+          out['radialDirection'] = angle();
+        }
+        if (node['cluster'] !== undefined && chance(0.6)) out['clusterRotation'] = angle();
+        break;
+      case 'tubefinset':
+        if (chance(0.5)) out['rotation'] = angle();
+        break;
+      case 'freeformfinset':
+        if (chance(0.4)) {
+          const dx = round(between(-0.05, 0.05));
+          const dy = round(between(-0.03, 0.03));
+          out['points'] = (node['points'] as Pt[]).map(([x, y]) => [x + dx, y + dy]);
+        }
+        break;
+    }
+    const tabbed = Number(node['tabHeight']) > 0 && Number(node['tabLength']) > 0;
+    if (tabbed && chance(0.4)) {
+      // The tab's front from the fin's front, as `AxialMethod.getAsPosition` reads its old method.
+      const pts = node['points'] as Pt[] | undefined;
+      const chord = pts ? pts[pts.length - 1]![0] - pts[0]![0] : Number(node['rootChord']);
+      const len = Number(node['tabLength']);
+      const offset = Number(node['tabOffset'] ?? 0);
+      const old = typeof node['tabOffsetMethod'] === 'string' ? node['tabOffsetMethod'] : 'middle';
+      const front = old === 'top' ? offset : old === 'bottom' ? offset + (chord - len) : offset + (chord - len) / 2;
+      const method = pick(['absolute', 'after']);
+      out['tabOffsetMethod'] = method;
+      out['tabOffset'] = method === 'after' ? front - chord : front;
+    }
+    if (node.type === 'bodytube' && out['children']) {
+      out['children'] = (out['children'] as ComponentNode[]).map((kid) => {
+        if (!kid.position || !UNREAD_STATIONS.has(kid.type) || !chance(0.2)) return kid;
+        const bare: Record<string, unknown> = { ...kid };
+        delete bare['position'];
+        return bare as unknown as ComponentNode;
+      });
+    }
+    return out as unknown as ComponentNode;
+  };
+  return { ...tree, components: tree.components.map(visit) };
 }
 
 const ASSEMBLY_DESIGNS = 200;
@@ -1229,8 +1342,62 @@ interface Miss {
   kernel: number | string;
 }
 
+/** The radius the kernel gives an automatic end with nothing to follow (`Transition.DEFAULT_RADIUS`). */
+const KERNEL_AUTO_END = 0.025;
+
 const close = (a: number | undefined, b: number | undefined) =>
   typeof a === 'number' && typeof b === 'number' && Math.abs(a - b) <= TOL;
+
+const TAU = 2 * Math.PI;
+
+/**
+ * True when two angles (rad) point the same way. A setter can wrap an angle
+ * into a half turn either side of zero (`MathUtil.reducePi`), which turns
+ * nothing, so the angles are compared a whole turn apart.
+ */
+const sameAngle = (a: number | undefined, b: number | undefined): boolean => {
+  if (typeof a !== 'number' || typeof b !== 'number') return false;
+  const d = (((a - b) % TAU) + TAU) % TAU;
+  return Math.min(d, TAU - d) <= TOL;
+};
+
+/**
+ * A fin's span as `FinSet.getSpan` gives it: the height a trapezoidal or
+ * elliptical fin holds, and for a freeform fin the outline's highest point
+ * less the trailing point's depth below the root's front
+ * (`FreeformFinSet.getSpan`). The bridge reports the stored outline only
+ * through `getFinPoints`, which moves its first and last points onto the root;
+ * those are the stored points unless the fin is canted, so a canted freeform
+ * fin has no span here.
+ */
+function kernelSpan(node: ComponentNode, k: KernelGeometry): number | undefined {
+  if (node.type !== 'freeformfinset') {
+    const h = k.fields?.['height'];
+    return typeof h === 'number' ? h : undefined;
+  }
+  if (typeof node['cant'] === 'number' && node['cant'] !== 0) return undefined;
+  const pts = k.finPoints;
+  if (!pts?.length || pts.some(([, y]) => typeof y !== 'number')) return undefined;
+  let max = 0;
+  for (const [, y] of pts) if (y! > max) max = y!;
+  return max - Math.min(pts[pts.length - 1]![1]!, 0);
+}
+
+/**
+ * The radii a drawn top edge, `(x, r)` in meters, gives at station `x`: the
+ * point drawn there, or the edge between the two points either side of it.
+ * Where two parts meet, both ends are drawn at the same station.
+ */
+function radiiAt(edge: Pt[], x: number): number[] {
+  const out: number[] = [];
+  for (let i = 0; i < edge.length; i++) {
+    const [x0, r0] = edge[i]!;
+    if (Math.abs(x0 - x) <= TOL) out.push(r0);
+    const next = edge[i + 1];
+    if (next && x0 < x - TOL && next[0] > x + TOL) out.push(r0 + ((next[1] - r0) * (x - x0)) / (next[0] - x0));
+  }
+  return out;
+}
 
 /**
  * True when the kernel gives this part no usable size: -1 for two automatic
@@ -1280,19 +1447,32 @@ function compare(
   let id = '';
   const checked = new Map<string, number>();
   const frames = axialFrames(tree);
-  const check = (rule: string, app: unknown, k: number | undefined) => {
+  const note = (rule: string, app: unknown, k: unknown, same = close): boolean => {
     checked.set(rule, (checked.get(rule) ?? 0) + 1);
     const a = typeof app === 'number' ? app : NaN;
-    if (!close(a, k)) {
-      misses.push({ rule, design, part: id, app: a, kernel: k ?? 'none' });
-      skip.add(id);
-    }
+    const kn = typeof k === 'number' ? k : undefined;
+    if (same(a, kn)) return true;
+    misses.push({ rule, design, part: id, app: a, kernel: kn ?? 'none' });
+    return false;
   };
+  // A size the parts inside are measured from: a miss leaves them unchecked.
+  const check = (rule: string, app: unknown, k: unknown) => {
+    if (!note(rule, app, k)) skip.add(id);
+  };
+  // A part with no `position` key, and whatever it holds, is checked under
+  // rules of its own: the kernel places it by its constructor's method.
+  const unplaced = new Set<string>();
+  // The airframe as the PDF's side view draws it: the top edge, in meters.
+  const view = rocketSideView(tree).body;
+  const edge = view.slice(0, view.length / 2).map(([x, r]): Pt => [x / 1000, r / 1000]);
+  const chainIds = new Set(axialChain(tree).map((n) => n.id));
   for (const visit of walkTree(tree)) {
     const { node, parent, parentId } = visit;
     id = visit.id;
+    if ((!('position' in node) && !CHAIN_TYPES.has(node.type)) || unplaced.has(parentId)) unplaced.add(id);
     const k = kernel.get(id);
     if (!k) continue;
+    const f = k.fields;
     if (parent && skip.has(parentId)) {
       skip.add(id);
       if (noSize.has(parentId)) noSize.add(id);
@@ -1309,7 +1489,8 @@ function compare(
     const auto = (flag: string) => node[flag] === true;
     // Parts sized from their parent are reported per parent type, because a
     // tube, a nose cone and a transition each offer their bore differently.
-    const inside = parent ? ` in a ${parent.type}` : '';
+    const keyless = unplaced.has(id) ? ', no position key' : '';
+    const inside = `${keyless}${parent ? ` in a ${parent.type}` : ''}`;
     switch (node.type) {
       case 'nosecone': {
         // The base is the aft end, or the fore end when the cone is turned round.
@@ -1319,6 +1500,12 @@ function compare(
           node['aftRadius'],
           base,
         );
+        // A stated shoulder is set unclamped, except on a flipped cone, which
+        // desktop holds to its resolved base (`settleFlippedShoulders`).
+        if (f && Number(node['shoulderLength']) > 0) {
+          const turned = node['flipped'] === true ? 'flipped ' : '';
+          note(`${turned}nose cone shoulder radius`, node['shoulderRadius'], f['shoulderRadius']);
+        }
         break;
       }
       case 'transition':
@@ -1332,6 +1519,17 @@ function compare(
           node['aftRadius'],
           k.aftRadius,
         );
+        // A stated shoulder is set unclamped, so an automatic end has nothing
+        // to hold it to: one wider than the kernel's 25 mm default end is where
+        // a clamped shoulder would show.
+        for (const end of ['fore', 'aft'] as const) {
+          if (!f || !(Number(node[`${end}ShoulderLength`]) > 0)) continue;
+          const wide =
+            auto(`${end}RadiusAuto`) && Number(k[`${end}Radius`]) > KERNEL_AUTO_END
+              ? ', automatic end wider than 25 mm'
+              : '';
+          note(`transition ${end} shoulder radius${wide}`, node[`${end}ShoulderRadius`], f[`${end}ShoulderRadius`]);
+        }
         break;
       case 'bodytube':
         check(
@@ -1361,22 +1559,54 @@ function compare(
           node['outerRadius'],
           k.outerRadius,
         );
+        if (f) note(`tube fin rotation${inside}`, num(node, 'rotation', 0), f['rotation'], sameAngle);
+        break;
+      }
+      case 'innertube':
+        // What the views place each tube of a cluster by (`placementOffsets`).
+        // The bridge reports no cluster point, so these are compared as the
+        // kernel holds them: its offset clamped at zero, its angles wrapped.
+        if (!f) break;
+        note(`innertube radial position${inside}`, num(node, 'radialPosition', 0), f['radialPosition']);
+        note(`innertube radial direction${inside}`, num(node, 'radialDirection', 0), f['radialDirection'], sameAngle);
+        if (clusterCount(node['cluster'] as string | undefined) > 1) {
+          note(`innertube cluster rotation${inside}`, num(node, 'clusterRotation', 0), f['clusterRotation'], sameAngle);
+        }
+        break;
+      case 'launchlug':
+      case 'railbutton': {
+        // The copies every view draws (`lineInstances`) against the ones the kernel flies.
+        if (!f) break;
+        const copies = lineInstances(node);
+        note(`${node.type} copies${inside}`, copies.length, f['instanceCount']);
+        if (copies.length > 1) {
+          const stated = node['instanceSeparation'] === undefined ? ', no spacing key' : '';
+          const spacing = positionOf(copies[1]!).offset - positionOf(copies[0]!).offset;
+          note(`${node.type} copy spacing${stated}${inside}`, spacing, f['instanceSeparation']);
+        }
         break;
       }
       case 'trapezoidfinset':
       case 'ellipticalfinset':
       case 'freeformfinset': {
-        const where = parent?.['flipped'] === true ? ' in a flipped nosecone' : inside;
+        const where = parent?.['flipped'] === true ? `${keyless} in a flipped nosecone` : inside;
         check(`fin tab depth limit${where}`, parentRadiusOf(tree, id), k.maxTabHeight);
+        // How far the fin stands off the body: the report's templates and side view read it.
+        const mount = finMountOf(tree, id);
+        const span = kernelSpan(node, k);
+        if (span !== undefined) note(`${node.type} span${where}`, finSpan(node, mount), span);
+        const method = node['tabOffsetMethod'];
+        const tabBy = method === 'absolute' || method === 'after' ? `, offset ${method}` : '';
+        const p0 = (node['points'] as Pt[] | undefined)?.[0];
+        const moved = p0 && (p0[0] !== 0 || p0[1] !== 0) ? ', outline off the origin' : '';
         // Each piece the kernel builds a fin from, then the outline the STL, the
         // DXF and the 1:1 template cut, against the one the kernel flies.
         const tol = clippedProfile(parent) ? PROFILE_TOL : TOL;
-        const mount = finMountOf(tree, id);
         const canted = typeof node['cant'] === 'number' && node['cant'] !== 0 ? ', canted' : '';
         const pieces: [string, Pt[] | null, KernelGeometry['finPoints']][] = [
           [`${node.type} root points${canted}${where}`, finRootPoints(node, mount), k.rootPoints],
-          [`${node.type} outline points${canted}${where}`, finOutlinePoints(node, mount), k.finPoints],
-          [`${node.type} tab points${where}`, finTabPoints(node, mount), k.tabPoints],
+          [`${node.type} outline points${moved}${canted}${where}`, finOutlinePoints(node, mount), k.finPoints],
+          [`${node.type} tab points${tabBy}${where}`, finTabPoints(node, mount), k.tabPoints],
         ];
         for (const [rule, app, kernelPts] of pieces) {
           if (!app && !kernelPts) continue;
@@ -1393,6 +1623,11 @@ function compare(
       }
       case 'podset':
       case 'parallelstage': {
+        // Each copy's turn about the parent's axis, which every view places it by.
+        if (f) {
+          note(`${node.type} copies${inside}`, countOf(node, 'instanceCount', 2), f['instanceCount']);
+          note(`${node.type} angle${inside}`, num(node, 'angleOffset', 0), f['angleOffset'], sameAngle);
+        }
         // A pod's distance takes in its widest part, so one the kernel leaves
         // unresolved gives it no usable answer.
         const held = (node.children ?? []).some((c) => {
@@ -1443,7 +1678,9 @@ function compare(
     const canted = typeof node['cant'] === 'number' && node['cant'] !== 0;
     if (k.positionX !== undefined && !canted) {
       const absolute = positionOf(node).method === 'absolute' && node.position !== undefined;
-      const rule = `${node.type} station${absolute ? ', placed absolute' : ''}${inside}`;
+      const rule = keyless
+        ? `station of a part with no position key${parent ? ` in a ${parent.type}` : ''}`
+        : `${node.type} station${absolute ? ', placed absolute' : ''}${inside}`;
       checked.set(rule, (checked.get(rule) ?? 0) + 1);
       const start = frames.get(id)?.start;
       if (!close(start, k.positionX)) misses.push({ rule, design, part: id, app: start ?? NaN, kernel: k.positionX });
@@ -1458,6 +1695,53 @@ function compare(
         const ar = stationRadius(node, x);
         if (!(typeof kr === 'number' && Math.abs(ar - kr) <= PROFILE_TOL)) {
           misses.push({ rule, design, part: `${id} at x=${x.toFixed(4)}`, app: ar, kernel: kr ?? 'none' });
+          break;
+        }
+      }
+      // The PDF's template of the part, drawn tip first whichever way it flies.
+      const ends =
+        node.type === 'nosecone'
+          ? { fore: 0, aft: num(node, 'aftRadius', KERNEL_DEFAULTS.nosecone.aftRadius) }
+          : profileEnds(node);
+      const template = profileMm(node, ends.fore, ends.aft);
+      const templateRule = `${node['flipped'] === true ? 'flipped ' : ''}${node.type} template profile`;
+      checked.set(templateRule, (checked.get(templateRule) ?? 0) + 1);
+      const top = template
+        ? template.pts.slice(0, template.pts.length / 2).map(([x, y]): Pt => [x / 1000, (template.h / 2 - y) / 1000])
+        : [];
+      const want = node['flipped'] === true ? [...k.profile].reverse() : k.profile;
+      for (let i = 0; i < want.length; i++) {
+        const x = (len * i) / (want.length - 1);
+        const kr = want[i] ?? undefined;
+        const got = radiiAt(top, x);
+        if (!(typeof kr === 'number' && got.some((r) => Math.abs(r - kr) <= PROFILE_TOL))) {
+          misses.push({
+            rule: templateRule,
+            design,
+            part: `${id} at x=${x.toFixed(4)}`,
+            app: got.join(' or ') || 'none',
+            kernel: kr ?? 'none',
+          });
+          break;
+        }
+      }
+    }
+    // The airframe's top edge in the PDF's side view, at the kernel's stations.
+    if (chainIds.has(id) && k.profile && k.positionX !== undefined && !skip.has(id)) {
+      const rule = `side view ${node['flipped'] === true ? 'flipped ' : ''}${node.type} profile`;
+      checked.set(rule, (checked.get(rule) ?? 0) + 1);
+      for (let i = 0; i < k.profile.length; i++) {
+        const x = k.positionX + (k.length * i) / (k.profile.length - 1);
+        const kr = k.profile[i] ?? undefined;
+        const got = radiiAt(edge, x);
+        if (!(typeof kr === 'number' && got.some((r) => Math.abs(r - kr) <= PROFILE_TOL))) {
+          misses.push({
+            rule,
+            design,
+            part: `${id} at x=${x.toFixed(4)}`,
+            app: got.join(' or ') || 'none',
+            kernel: kr ?? 'none',
+          });
           break;
         }
       }
@@ -1500,10 +1784,10 @@ describe('app geometry matches the kernel', () => {
     let unresolved = 0;
     const checked = new Map<string, number>();
     for (let seed = 1; seed <= DESIGNS; seed++) {
-      const generated = withAbsolutes(withExtras(generate(seed), seed), seed);
+      const generated = withPlacements(withAbsolutes(withExtras(generate(seed), seed), seed), seed);
       const stored = kernelGeometry(engine, generated);
       const tree = syncDerived(generated);
-      const r = compare(`seed ${seed}`, tree, kernelGeometry(engine, tree), stored);
+      const r = compare(`seed ${seed}`, tree, kernelGeometry(engine, tree, { fields: true }), stored);
       misses.push(...r.misses);
       unresolved += r.unresolved;
       for (const [rule, count] of r.checked) checked.set(rule, (checked.get(rule) ?? 0) + count);
@@ -1552,6 +1836,32 @@ describe('app geometry matches the kernel', () => {
       'streamer automatic packed length from the stored size in a bodytube',
       'shock cord automatic packed radius in a bodytube',
       'shock cord automatic packed length from the stored size in a bodytube',
+      'transition fore shoulder radius, automatic end wider than 25 mm',
+      'transition aft shoulder radius, automatic end wider than 25 mm',
+      'launchlug copy spacing in a bodytube',
+      'launchlug copy spacing, no spacing key in a bodytube',
+      'railbutton copy spacing, no spacing key in a bodytube',
+      'innertube radial direction in a bodytube',
+      'innertube cluster rotation in a bodytube',
+      'tube fin rotation in a bodytube',
+      'freeformfinset outline points, outline off the origin in a bodytube',
+      'freeformfinset outline points, outline off the origin in a nosecone',
+      'freeformfinset outline points, outline off the origin in a transition',
+      'trapezoidfinset tab points, offset absolute in a bodytube',
+      'trapezoidfinset tab points, offset after in a bodytube',
+      'freeformfinset tab points, offset absolute in a nosecone',
+      'freeformfinset tab points, offset after in a transition',
+      'station of a part with no position key in a bodytube',
+      'trapezoidfinset span in a bodytube',
+      'ellipticalfinset span in a bodytube',
+      'freeformfinset span in a bodytube',
+      'side view nosecone profile',
+      'side view flipped nosecone profile',
+      'side view transition profile',
+      'side view bodytube profile',
+      'nosecone template profile',
+      'flipped nosecone template profile',
+      'transition template profile',
     ]) {
       expect(checked.get(rule) ?? 0, rule).toBeGreaterThan(5);
     }
@@ -1569,8 +1879,8 @@ describe('app geometry matches the kernel', () => {
     let unresolved = 0;
     const checked = new Map<string, number>();
     for (let seed = 1; seed <= ASSEMBLY_DESIGNS; seed++) {
-      const tree = syncDerived(withAbsolutes(withExtras(generateAssemblies(seed), seed), seed));
-      const r = compare(`assembly seed ${seed}`, tree, kernelGeometry(engine, tree));
+      const tree = syncDerived(withPlacements(withAbsolutes(withExtras(generateAssemblies(seed), seed), seed), seed));
+      const r = compare(`assembly seed ${seed}`, tree, kernelGeometry(engine, tree, { fields: true }));
       misses.push(...r.misses);
       unresolved += r.unresolved;
       for (const [rule, count] of r.checked) checked.set(rule, (checked.get(rule) ?? 0) + count);
@@ -1587,6 +1897,8 @@ describe('app geometry matches the kernel', () => {
       'podset radial distance, coaxial in a bodytube',
       'parallelstage radial distance, relative in a bodytube',
       'parallelstage radial distance, free in a bodytube',
+      'podset angle in a bodytube',
+      'parallelstage angle in a bodytube',
     ]) {
       expect(checked.get(rule) ?? 0, rule).toBeGreaterThan(5);
     }
@@ -1599,7 +1911,7 @@ describe('app geometry matches the kernel', () => {
     let tubes = 0;
     for (const [name, build] of Object.entries(CHAIN_DESIGNS)) {
       const tree = syncDerived(build());
-      const r = compare(name, tree, kernelGeometry(engine, tree));
+      const r = compare(name, tree, kernelGeometry(engine, tree, { fields: true }));
       misses.push(...r.misses);
       expect(r.unresolved, name).toBe(0);
       tubes += r.checked.get('body tube automatic radius') ?? 0;

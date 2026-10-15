@@ -168,7 +168,9 @@
       "cdOverride": "Cd override ({{name}})",
       "cgOverride": "CG override ({{name}})",
       "extraStages": "stage {{from}} and beyond",
+      "instanceCount": "Instance count ({{name}})",
       "massOverride": "Mass override ({{name}})",
+      "stageOnlyOverride": "Override of the stage alone ({{name}})",
       "subtreeOverride": "Override of the parts inside ({{name}})"
     },
     "viewFailed": "This view could not be loaded.",
@@ -178,6 +180,7 @@
     "saveOrk": "Could not save .ork: {{reason}}",
     "saveOrkNoDesignInfo": "Saved the .ork without design info: the design could not be built, so there were no statistics to include.",
     "exportRasaero": "Could not export RASAero: {{reason}}",
+    "exportRasaeroSurface": "The RASAero file was saved, but RASAero has no surface matching this design's finish, so it was written as smooth (zero roughness).",
     "exportUnsupported": "This component can't be exported as {{format}}.",
     "exportFailed": "Could not export {{format}}: {{reason}}",
     "exportRkt": "Could not write the .rkt: {{reason}}",
@@ -2088,7 +2091,7 @@
     "clear": "Clear",
     "progress": "{{done}} / {{total}}",
     "landed": "{{flown}} of {{asked}} flights landed.",
-    "stale": "The design has changed since this sweep was flown.",
+    "stale": "The design or its simulation settings have changed since this sweep was flown.",
     "noLandings": "The wind sweep produced no landings.",
     "spread": "{{from}}–{{to}}",
     "flown": "sweep flown"

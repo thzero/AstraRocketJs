@@ -1,4 +1,4 @@
-import type { ReportModel } from './reportModel';
+import type { MaterialDensity, ReportModel } from './reportModel';
 import { fmtNum, partLabel } from '../../i18n/format';
 import { NO_VALUE } from '../../i18n/noValue';
 import { siToUi } from '../../prefs/units';
@@ -33,6 +33,12 @@ export function partColumns(t: T, w: number): Col[] {
   ];
 }
 
+/** A material density in the unit of its own kind: bulk, surface or line. */
+function density(p: PdfPage, kind: MaterialDensity, si: number): string {
+  const unit = p.units[kind];
+  return `${fmtNum(siToUi(kind, unit, si), 3)} ${unit}`;
+}
+
 function partRow(p: PdfPage, r: PartRow): string[] {
   const { t, units } = p;
   const dims = [
@@ -45,13 +51,13 @@ function partRow(p: PdfPage, r: PartRow): string[] {
       : '',
     r.length > 0 ? t('report.dimLength', { value: len(p, r.length) }) : '',
     r.span != null && r.span > 0 ? t('export.headerSpan', { value: len(p, r.span) }) : '',
-    r.thickness != null ? t('report.dimWall', { value: `${qv(p, 'length', r.thickness, 2)} ${units.length}` }) : '',
+    r.thickness != null ? t('report.dimWall', { value: `${qv(p, 'length', r.thickness)} ${units.length}` }) : '',
   ]
     .filter(Boolean)
     .join(' · ');
   return [
     `${'  '.repeat(r.depth)}${partLabel(t, r)}`,
-    `${r.material ?? NO_VALUE}${r.density ? ` (${fmtNum(siToUi('density', units.density, r.density), 3)} ${units.density})` : ''}`,
+    `${r.material ?? NO_VALUE}${r.density ? ` (${density(p, r.densityKind ?? 'density', r.density)})` : ''}`,
     dims,
     q(p, 'mass', r.mass, 2),
   ];

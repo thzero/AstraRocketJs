@@ -24,7 +24,8 @@ import { errorText } from '../../i18n/keyedError';
 /**
  * 3D rocket view (react-three-fiber). Geometry is generated from the
  * component tree: lathe profiles for nose cones and transitions (kernel-exact
- * shape math), cylinders for tubes, extruded shapes for fins placed at their
+ * shape math), annulus lathes for tubes (wall and bore, solid when filled),
+ * extruded shapes for fins placed at their
  * instance angles. The external shell is slightly translucent so motor mounts
  * and loaded motors read inside, and a floating CG/CP callout hangs
  * beside the hull.

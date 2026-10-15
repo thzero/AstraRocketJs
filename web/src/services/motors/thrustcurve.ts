@@ -11,9 +11,10 @@ import { KeyedError } from '../../i18n/keyedError';
 
 /**
  * thrustcurve.org API v1 client (CORS-enabled; verified reflective
- * Access-Control-Allow-Origin). A catalog row without a bundled curve may also
- * lack motorId, length or propellant weight, so at pick time we resolve the full
- * motor via search.json, then pull its thrust curve via download.json. API
+ * Access-Control-Allow-Origin). A catalog row carries no thrustcurve motorId,
+ * and one without a bundled curve may also lack length or propellant weight, so
+ * at pick time we resolve the full motor via search.json, then pull its thrust
+ * curve via download.json. API
  * units are mm / grams; converted to the engine's SI at the boundary here.
  *
  * The resolved MotorSpec (metadata + curve) is cached through the MotorStore,
@@ -213,6 +214,9 @@ export function samplesToMotorSpec(
   };
 }
 
+/** A JSON value that is an object, so reading a property off it cannot throw. */
+const isObject = (v: unknown): v is object => !!v && typeof v === 'object';
+
 /**
  * A search.json hit this module can act on: a string `motorId` (the key the
  * curve is fetched and cached by) and a finite `diameter` (what `pick` sorts
@@ -250,11 +254,13 @@ async function resolveTcMotor(cat: CatalogMotor): Promise<TcMotor> {
   };
 
   for (const query of [{ commonName: cat.designation }, { designation: cat.designation }]) {
-    const { results } = await post<{ results?: unknown }>('search.json', {
+    const body = await post<unknown>('search.json', {
       manufacturer: cat.manufacturer,
       ...query,
       maxResults: 25,
     });
+    if (!isObject(body)) throw new KeyedError('errors.thrustcurve.badData', { motor: cat.designation });
+    const { results } = body as { results?: unknown };
     const hit = pick(Array.isArray(results) ? results.filter(isTcMotor) : []);
     if (hit) return hit;
   }
@@ -339,13 +345,19 @@ async function fetchSamplesCached(motor: TcMotor, cat: CatalogMotor): Promise<Tc
   const cached = await getMotorStore().readEntry<TcSample[]>(key, isSampleArray);
   if (cached && !cached.stale) return cached.value;
   try {
-    const body = await post<{ results?: { format: string; samples?: TcSample[] }[] }>('download.json', {
+    const body = await post<unknown>('download.json', {
       motorIds: [motor.motorId],
       data: 'samples',
     });
+    if (!isObject(body)) throw new KeyedError('errors.thrustcurve.badData', { motor: cat.designation });
     // An answer whose `results` is not an array is treated as no data, the same
-    // as an empty one, rather than throwing on `find`.
-    const files = Array.isArray(body.results) ? body.results : [];
+    // as an empty one, rather than throwing on `find`. An element that is not
+    // an object is skipped.
+    const results = (body as { results?: unknown }).results;
+    const files = (Array.isArray(results) ? results : []).filter(isObject) as {
+      format?: unknown;
+      samples?: TcSample[];
+    }[];
     // Prefer RASP data, fall back to any file with samples.
     const file = files.find((f) => f.format === 'RASP' && f.samples?.length) ?? files.find((f) => f.samples?.length);
     if (!file?.samples) {

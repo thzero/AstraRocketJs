@@ -52,3 +52,12 @@ export async function press(page: Page, name: string): Promise<void> {
   await toggle.click();
   await expect(toggle).toHaveAttribute('aria-pressed', 'true');
 }
+
+/**
+ * Wait for the Aero view's sweep to draw its charts, so axe reads them rather
+ * than "Computing…". The sweep runs in the engine and can outlast the default
+ * expect timeout on a busy worker.
+ */
+export async function aeroChartsDrawn(page: Page): Promise<void> {
+  await expect(page.getByRole('img', { name: /peak .* at Mach/ }).first()).toBeVisible({ timeout: 20_000 });
+}

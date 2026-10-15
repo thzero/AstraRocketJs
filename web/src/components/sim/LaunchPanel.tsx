@@ -206,7 +206,7 @@ export function LaunchPanel({
   // this panel never has any: it fills blanks from the previous default,
   // because a blank default would hand every future simulation a hole.
   const blank = useMemo(() => new Set<RequiredLaunchKey>(missingRequired(launch)), [launch]);
-  /** The seven are always required; `missing` is the ones currently empty. */
+  /** The fields shown are required; `missing` is the ones currently empty. */
   const req = (k: RequiredLaunchKey) => ({ required: true, missing: blank.has(k) });
   const levels = launch.windLevels ?? [];
   const multilevel = levels.length > 0;

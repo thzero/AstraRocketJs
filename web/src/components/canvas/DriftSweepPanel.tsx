@@ -4,9 +4,8 @@ import { NumberInput } from '../common/NumberInput';
 import { fmtDegrees, useUnits } from '../../prefs/useUnits';
 import { onSi } from '../../prefs/entryValue';
 import { unitScope } from '../../prefs/units';
-import { useWorkspaceStore, configOf, selectDriftSweepFor } from '../../state/store';
+import { useWorkspaceStore, selectDriftSweepFor, isDriftSweepStale } from '../../state/store';
 import { fireAction } from '../../state/fireAction';
-import { sameSimInputs, simInputs } from '../../services/flight/simulations';
 import { MAX_WIND_SPEED_MS } from '../../services/flight/safetyLimits';
 import {
   defaultSweepSpec,
@@ -48,9 +47,6 @@ export function DriftSweepPanel({ simId, launch }: { simId: string; launch: Laun
 
   const mine = useWorkspaceStore((s) => selectDriftSweepFor(s, simId));
   const run = useWorkspaceStore((s) => s.driftSweepRun);
-  const tree = useWorkspaceStore((s) => s.tree);
-  const sim = useWorkspaceStore((s) => s.sims.find((x) => x.id === simId));
-  const configs = useWorkspaceStore((s) => s.configs);
   const runDriftSweep = useWorkspaceStore((s) => s.runDriftSweep);
   const cancelDriftSweep = useWorkspaceStore((s) => s.cancelDriftSweep);
   const clearDriftSweep = useWorkspaceStore((s) => s.clearDriftSweep);
@@ -62,12 +58,8 @@ export function DriftSweepPanel({ simId, launch }: { simId: string; launch: Laun
   const flights = useMemo(() => sweepFlightCount(spec), [spec]);
 
   const busy = run !== null;
-  // Either half can age it: the airframe, or the row's own motor, loadout and
-  // launch conditions. A sweep for a row that has since been deleted is stale
-  // too, since there is nothing left to compare it against.
-  const stale =
-    mine !== null &&
-    (mine.tree !== tree || !sim || !sameSimInputs(mine.inputs, simInputs(sim, configOf(configs, sim))));
+  // Ages on what a result ages on (`isDriftSweepStale`).
+  const stale = useWorkspaceStore((s) => mine !== null && isDriftSweepStale(s, mine));
 
   const patch = (p: Partial<WindSweepSpec>) => setSpec((cur) => ({ ...cur, ...p }));
   /** Blur or a discrete change: the field stops mid-edit and is pulled into range. */

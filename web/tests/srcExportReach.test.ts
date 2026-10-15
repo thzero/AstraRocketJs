@@ -64,8 +64,9 @@ type Exported = { name: string; forwarded: boolean };
 /**
  * Exported value names in a file: declarations and export lists.
  *
- * Values only. A `type` or `interface` exported so a test can annotate a fixture
- * costs nothing at runtime, and knip reports unused ones separately and correctly.
+ * Values only. A `type` or `interface` costs nothing at runtime. knip reports
+ * one nothing imports, but counts a test's import as a use, so a type only tests
+ * import is not reported; such a type belongs in `tests/testing`.
  * `export default` and `export *` are skipped: neither is a name to track, and the
  * project has exactly two sanctioned default exports.
  */

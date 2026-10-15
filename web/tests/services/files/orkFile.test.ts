@@ -1,13 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { exportOrk, importOrk, type OrkExportMotor } from '../../../src/services/files/orkFile';
-import { specToTree } from '../../testing/specTree';
-import {
-  PLUGGED_DELAY,
-  type RocketSpec,
-  type ComponentNode,
-  type RocketTree,
-} from '../../../src/engine/openRocketEngine';
+import { specToTree, type RocketSpec } from '../../testing/specTree';
+import { PLUGGED_DELAY, type ComponentNode, type RocketTree } from '../../../src/engine/openRocketEngine';
 import type { DesignInfo } from '../../../src/services/files/orkTypes';
 import { weatherKeyStore } from '../../../src/services/weather/weatherKey';
 import { sourceStatus } from '../../../src/services/weather/weatherSource';

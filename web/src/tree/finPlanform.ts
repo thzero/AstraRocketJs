@@ -190,16 +190,29 @@ export function finRootChord(node: ComponentNode, fallback: number = FIN_DEFAULT
 /**
  * A fin's span (m): how far it reaches above the body surface.
  *
- * A freeform fin carries no `height` key, so its span is its outline's y-max,
- * measured from the kernel-normalized points (translated by -p0 in both axes).
- * Floored at 0 so a degenerate outline reads as "no span" rather than a
- * negative one that would invert a silhouette or a lathe.
+ * A freeform fin carries no `height` key. Given its parent, its span is
+ * `FreeformFinSet.getSpan`: the highest point of the outline as the kernel
+ * stores it, with the trailing point moved onto the parent's surface
+ * (`clampLastPoint`) and interior points raised out of it
+ * (`clampInteriorPoint`), less the trailing point's depth below the root's
+ * front. Those stored points are the outline {@link finOutlinePoints} gives
+ * for the fin uncanted, since the stored points do not turn with the cant.
+ * Without a parent it is the y-max of the kernel-normalized points (translated
+ * by -p0 in both axes). Floored at 0 so a degenerate outline reads as "no
+ * span" rather than a negative one that would invert a silhouette or a lathe.
  *
  * Tube fins are not planar and have no span in this sense; they reach one tube
  * diameter and need the body radius to say so (see `tubeFinRadius`).
  */
-export function finSpan(node: ComponentNode): number {
+export function finSpan(node: ComponentNode, parent: FinParent = null): number {
   if (node.type === 'freeformfinset') {
+    const stored = parent === null ? null : finOutlinePoints({ ...node, cant: 0 }, parent);
+    if (stored) {
+      let max = 0;
+      for (const p of stored) if (Number.isFinite(p[1]) && p[1] > max) max = p[1];
+      const last = stored[stored.length - 1]![1];
+      return max - Math.min(Number.isFinite(last) ? last : 0, 0);
+    }
     const ff = freeformPoints(node);
     if (ff.length) {
       // A loop, not `Math.max(...ff.map())`: spreading a hostile 200k-point

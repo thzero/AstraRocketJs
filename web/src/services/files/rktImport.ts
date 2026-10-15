@@ -12,7 +12,7 @@ import { keyedNote, type ImportNote } from './importNote';
 import { KeyedError } from '../../i18n/keyedError';
 import type { OrkImportResult } from './orkTypes';
 import { numOpt } from '../../tree/nodeProps';
-import { trapezoidPoints } from '../../tree/finPlanform';
+import { bodyRadiusAt, trapezoidPoints } from '../../tree/finPlanform';
 import { isAssembly } from '../../tree/assembly';
 import { rollAngleKey, rollAngleOf } from '../../tree/componentKinds';
 import { canHost } from '../design/treeEdit';
@@ -429,8 +429,14 @@ const RING_TYPES: Record<number, ComponentType> = {
 const readRing = (el: Element): ComponentNode => {
   const n = base(el, RING_TYPES[num(el, 'UsageCode') ?? 0] ?? 'centeringring', true);
   put(n, 'length', mmPos(el, 'Len'));
-  const od = dia(el, 'OD');
   const id = dia(el, 'ID');
+  // `RingHandler` builds every ring as a detached CenteringRing, so with no
+  // `OD` its `setInnerRadius` finds a stored outer radius of 0 below the bore,
+  // raises it to the bore and turns Automatic off. Desktop opens such a
+  // centering ring with no wall and a bulkhead at the bore's size. The kernel
+  // builds a ring node with only `innerRadius` the same way while the app
+  // draws it automatic, so the outer radius is stated.
+  const od = dia(el, 'OD') ?? ((n.type === 'centeringring' || n.type === 'bulkhead') && id ? id : undefined);
   put(n, 'outerRadius', od);
   // A bulkhead is solid and carries no inner radius in our tree (the kernel's
   // `Bulkhead.getInnerRadius` answers 0 whatever is set); the others do.
@@ -531,16 +537,22 @@ function readFinSet(ctx: RktContext, el: Element, parent?: ComponentNode): Compo
   const tabLength = mmPos(el, 'TabLength');
   if (tabLength !== undefined && tabLength > 0) {
     n['tabLength'] = tabLength;
+    const tabOffset = mm(el, 'TabOffset') ?? 0;
     const tabDepth = mmPos(el, 'TabDepth');
     if (tabDepth !== undefined) {
       // A tab is measured from the front of the fin root, so on a body that
-      // tapers the depth already contains the drop from the fore radius to the
-      // aft one and has to give it back. Zero on a tube, where the two are equal.
-      const foreR = typeof parent?.['foreRadius'] === 'number' ? parent['foreRadius'] : 0;
-      const aftR = typeof parent?.['aftRadius'] === 'number' ? parent['aftRadius'] : 0;
-      n['tabHeight'] = Math.max(0, tabDepth - Math.max(foreR - aftR, 0));
+      // tapers the depth already contains the radius drop from the tab's front
+      // to its back and has to give it back. Zero on a tube.
+      //
+      // `FinSetHandler.asOpenRocket` reads the parent's radius before the fin
+      // is attached, when `getFinFront()` is 0, so the two stations are the
+      // tab's own offset and end measured from the parent's fore end, not from
+      // where the fin stands. Matched as desktop opens the file.
+      const front = parent ? (bodyRadiusAt(parent, tabOffset) ?? 0) : 0;
+      const back = parent ? (bodyRadiusAt(parent, tabOffset + tabLength) ?? 0) : 0;
+      n['tabHeight'] = Math.max(0, tabDepth - Math.max(front - back, 0));
     }
-    n['tabOffset'] = mm(el, 'TabOffset') ?? 0;
+    n['tabOffset'] = tabOffset;
     n['tabOffsetMethod'] = 'top';
   }
   return n;
