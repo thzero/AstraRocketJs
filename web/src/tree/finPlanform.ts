@@ -1,11 +1,12 @@
 import type { ComponentNode, RocketTree } from '../engine/openRocketEngine';
-import { bodyTubeRadius, num, positionOf } from './nodeProps';
+import { bodyTubeRadius, finCant, num, positionOf } from './nodeProps';
 import { findWithParent } from './treeWalk';
 import { parentStartOf } from './axialRebase';
 import { axialLength, freeformPoints, freeformRootChord, partLength, startFromPosition } from './position';
 import { nodeShape, stationRadius } from './shapeProfile';
 import { isFinSet, isPlanarFinSet } from './tubefins';
 import { FIN_DEFAULTS } from './kernelDefaults';
+import { isZero } from '../services/motors/mathEquals';
 
 /**
  * The fin planform. One source of truth for every consumer that draws, prints,
@@ -407,14 +408,14 @@ export function mountRadius(parent: FinParent): number | null {
   return typeof parent === 'number' ? parent : parent.radiusAt(parent.front);
 }
 
-/** `MathUtil.equals(a, 0)`. */
-const isZero = (a: number): boolean => Math.abs(a) < EPSILON / 2;
-
 /**
  * `FinSet.getFinCantYOffset`: how far a canted fin's root drops at the station
  * `xCurr` to stay on the body, with the fin turned about its root's midpoint.
- * Where the turned root reaches past the radius the kernel leaves the root
- * where it is, and that holds on both sides of the midpoint here.
+ * Where the turned root reaches the radius aft of the midpoint the kernel
+ * leaves the root where it is. Ahead of the midpoint its guard never trips and
+ * it takes the square root of a negative number, so the kernel's points are
+ * NaN there; this leaves the root in place on that side too, so the drawing
+ * stays finite, and `overturnedFins` keeps such a fin set from flying.
  */
 function cantYOffset(mount: FinMount, cant: number, xStart: number, xEnd: number, xCurr: number): number {
   const L = mount.length;
@@ -440,7 +441,8 @@ export function finRootPoints(fin: ComponentNode, parent: FinParent): Pt[] {
   const xStart = mount.front;
   const len = finRootChord(fin);
   const xEnd = xStart + len;
-  const cant = num(fin, 'cant', 0);
+  // Clamped as `FinSet.setCantAngle` clamps it: a file's cant past the limit flies at the limit.
+  const cant = finCant(fin);
   // The interval as the kernel takes it, end less start: a root of 40 mm at a
   // 40.05 mm station spans 40.000000000000004 mm there, which is 17 steps of
   // 2.5 mm, not 16.
@@ -554,6 +556,47 @@ export function finPointsWithRoot(fin: ComponentNode, parent: FinParent): Pt[] |
   const out = [...outline];
   appendRoot(out, [...finRootPoints(fin, parent)].reverse());
   return out;
+}
+
+/**
+ * Where one fin of a planar fin set stands: what {@link finBodyPoint} turns a
+ * point of its outline by. `front` is the fin front's station along the rocket
+ * axis, `radius` the body radius under it, `chord` the set's root chord (the
+ * kernel's `FinSet.length`, which the cant turns about the middle of), `cant`
+ * the cant as the kernel flies it ({@link finCant}), and `angle` the fin's
+ * whole turn about its parent's axis: its own instance angle
+ * (`FinSet.getInstanceAngles`) plus every enclosing pod or booster instance's
+ * (`RocketComponent.getComponentAngles`), and a view's roll.
+ */
+export interface FinPose {
+  front: number;
+  radius: number;
+  chord: number;
+  cant: number;
+  angle: number;
+}
+
+/**
+ * A point of a fin's outline, in its own frame (`x` from the fin front, `y`
+ * from the body surface there, `z` across its thickness), carried into the
+ * rocket frame of its parent's axis: `[x, y, z]`, x aft along the axis.
+ *
+ * The kernel's own placement, `FinSet.getInstanceOffsets`
+ * (FinSet.java:1783-1791): the fin is turned by `getCantRotation()`, a
+ * `rotate_y(cant)` (FinSet.java:252-260, Transformation.java:279-287) about
+ * the middle of its root chord, then by `rotate_x(angle)`
+ * (Transformation.java:263-271), which is also the axial rotation an
+ * enclosing pod or booster instance adds (FlightConfiguration.java:456-462).
+ */
+export function finBodyPoint(x: number, y: number, z: number, pose: FinPose): [number, number, number] {
+  const mid = pose.chord / 2;
+  const cc = Math.cos(pose.cant);
+  const sc = Math.sin(pose.cant);
+  const ca = Math.cos(pose.angle);
+  const sa = Math.sin(pose.angle);
+  const r = pose.radius + y;
+  const across = -(x - mid) * sc + z * cc;
+  return [pose.front + mid + (x - mid) * cc + z * sc, r * ca - across * sa, r * sa + across * ca];
 }
 
 /**

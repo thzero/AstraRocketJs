@@ -14,7 +14,7 @@ import { CheckMenu } from '../common/CheckMenu';
  * The filter controls the motor picker and the motor dashboard share: the same
  * manufacturer dropdown, class chips, impulse bounds, diameter range and
  * plugged box, over the same filter state. Each dialog lays them out differently (the picker
- * stacks them, the dashboard puts them on one row), so this is a set of pieces
+ * stacks them, the dashboard puts them on two rows), so this is a set of pieces
  * rather than one bar. Kept as two copies they would drift, for example a
  * diameter readout in raw millimeters on one side and the user's unit on the other.
  *
@@ -64,14 +64,18 @@ export function useMotorFilter(
   // diameter slider, so a narrowed list has something on screen saying why.
   const [fits, setFits] = useState(mount !== null);
   /**
-   * The ceiling the user last asked for, which the mount's cap never overwrites.
+   * The floor and ceiling the user last asked for, which the mount's cap never
+   * overwrites; only a drag sets them.
    *
-   * Two states rather than one, because the slider is showing two different
-   * things at different times: what the mount allows while the box is ticked,
-   * and what the user chose while it is not. Holding only the displayed value
-   * would save the mount's cap as though it were a preference, and the range
-   * picked for an 18 mm mount would then follow the user to every other mount.
+   * Kept apart from the displayed range, because the slider is showing two
+   * different things at different times: what the mount allows while the box
+   * is ticked, and what the user chose while it is not. Holding only the
+   * displayed value would save the mount's cap as though it were a preference,
+   * and the range picked for an 18 mm mount would then follow the user to every
+   * other mount. The cap moves both ends (a floor above the mount's stop comes
+   * down to it), so both are kept.
    */
+  const [freeLow, setFreeLow] = useState(() => (init.dia ?? [0, MAX_IDX])[0]);
   const [freeHigh, setFreeHigh] = useState(() => (init.dia ?? [0, MAX_IDX])[1]);
   const [dia, setDiaRaw] = useState<[number, number]>(() => {
     const d = init.dia ?? [0, MAX_IDX];
@@ -81,7 +85,7 @@ export function useMotorFilter(
 
   /**
    * Ticking pulls the diameter ceiling down to what the mount takes; clearing it
-   * gives back whatever ceiling the user had, so the restriction is visible.
+   * gives back whatever range the user had, so the restriction is visible.
    *
    * It never widens a narrower choice: someone who asked for 13 mm and up did
    * not ask for 18 mm just by ticking a box.
@@ -89,7 +93,7 @@ export function useMotorFilter(
   const setFitsAndCeiling = (on: boolean) => {
     setFits(on);
     if (!mount) return;
-    setDiaRaw(([low]) => [on ? Math.min(low, mountIdx) : low, on ? Math.min(freeHigh, mountIdx) : freeHigh]);
+    setDiaRaw(([low]) => [on ? Math.min(low, mountIdx) : freeLow, on ? Math.min(freeHigh, mountIdx) : freeHigh]);
   };
 
   /**
@@ -101,6 +105,7 @@ export function useMotorFilter(
    */
   const setDia = (next: [number, number]) => {
     setDiaRaw(next);
+    setFreeLow(next[0]);
     setFreeHigh(next[1]);
     if (fits && mount && next[1] > mountIdx) setFits(false);
   };
@@ -109,8 +114,8 @@ export function useMotorFilter(
   const manufacturers = useMemo(() => allManufacturers(catalog), [catalog]);
   const fit = fits && mount ? mount : undefined;
   const [lowIdx, highIdx] = dia;
-  /** What to remember: the user's own ceiling, never the mount's cap. */
-  const diaSaved = useMemo(() => [lowIdx, freeHigh] as [number, number], [lowIdx, freeHigh]);
+  /** What to remember: the user's own range, never the mount's cap. */
+  const diaSaved = useMemo(() => [freeLow, freeHigh] as [number, number], [freeLow, freeHigh]);
   const [impMin, impMax] = imp;
   const matches = useMemo(
     () =>

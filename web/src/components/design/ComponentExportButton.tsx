@@ -15,10 +15,11 @@ const LABEL: Record<ExportFormat, string> = {
 
 /**
  * Per-component export affordance for a tree row: a small ⬇ button that drops
- * the formats this component supports (a nose offers mesh; a fin offers mesh +
- * DXF; a bulkhead offers DXF). Renders nothing for parts with no exportable
- * object (parachute, mass, lug…), so export sits only with the parts that can
- * produce one.
+ * the formats this component supports (`componentFormats`: a nose cone or a
+ * launch lug offers the mesh formats; a fin set, a centering ring or a bulkhead
+ * offers the mesh formats and DXF). Renders nothing for parts with no
+ * exportable object (parachute, streamer, shock cord, mass component, rail
+ * button), so export sits only with the parts that can produce one.
  */
 export function ComponentExportButton({ node, tabIndex }: { node: ComponentNode; tabIndex?: number }) {
   const { t } = useTranslation();

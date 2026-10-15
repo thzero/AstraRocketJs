@@ -225,10 +225,7 @@ test('starting a new design does not strand you on an empty Results tab', async 
   // family -- which must not leave the switch completely empty.
   await page.getByRole('button', { name: 'Menu' }).click();
   await page.getByRole('menuitem', { name: 'New' }).click();
-  await page
-    .getByRole('button', { name: /Discard/ })
-    .click()
-    .catch(() => {});
+  await page.getByRole('alertdialog').getByRole('button', { name: 'New', exact: true }).click();
 
   await expect(resultsTab).toHaveCount(0);
   await expect(page.getByRole('button', { name: '2D', exact: true })).toBeVisible();

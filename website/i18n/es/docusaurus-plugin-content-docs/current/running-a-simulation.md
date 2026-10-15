@@ -10,7 +10,7 @@ Una fila que tiene resultado termina en un botón 📊, **Ver resultados**, que 
 
 Las casillas eligen qué filas vuela **Simular**, y también qué filas cambia el editor. Con más de una marcada, el editor indica *Editando N simulaciones seleccionadas*, y el campo que cambies se aplica a todas. Los nombres y los motores son de cada simulación. Un campo en el que las simulaciones marcadas difieren lo indica, y cambiarlo les da a todas el valor nuevo.
 
-**⬇ CSV**, en la barra de herramientas, descarga la **tabla de simulaciones**: cada simulación en una fila, con su configuración, motores, estado y resultados (apogeo, velocidades, tiempos, Max-Q, q·α máx. y alabeo máx.) en tus unidades. Una simulación que no ha volado aparece con las cifras en blanco, y una desactualizada aparece marcada como tal, porque sus cifras describen el diseño anterior a tus últimos cambios.
+**⬇ CSV**, en la barra de herramientas, descarga la **tabla de simulaciones**: cada simulación en una fila, con su configuración, motores, estado y resultados (apogeo, velocidades, tiempos, Max-Q, q·α máx. y alabeo máx.) en tus unidades, salvo la q·α máx., que va siempre en kPa·deg. Una simulación que no ha volado aparece con las cifras en blanco, y una desactualizada aparece marcada como tal, porque sus cifras describen el diseño anterior a tus últimos cambios.
 
 ## Elige qué vuela {#pick-what-it-flies}
 
@@ -39,7 +39,7 @@ El lugar de lanzamiento es una propiedad del **campo**, no de un vuelo, así que
 - El **desplegable** aplica la latitud, la longitud y la altitud de una ubicación guardada. Es una edición normal, así que se deshace como cualquier otra. Muestra **Ubicación personalizada** siempre que los campos no coincidan con ninguna ubicación guardada, reconocido a partir de los propios números, así que sigue siendo correcto tanto si los escribiste, como si los importaste de un `.ork` o usaste 📍 **Usar mi ubicación**. Si eliges tú **Ubicación personalizada**, los tres campos del lugar vuelven a los valores por defecto de lanzamiento de tus [Ajustes](./settings.md): el **Centro Espacial Kennedy**, salvo que los hayas cambiado. Sirve para cuando estás en un sitio nuevo y prefieres partir de un lugar conocido a ir corrigiendo los números de una ubicación guardada uno a uno: el mapa tiene dónde abrirse y los tres campos siguen rellenos, así que la ejecución nunca se rechaza por un hueco. También es una edición normal, así que deshacer recupera el lugar anterior.
 - **⚙ Gestionar ubicaciones guardadas** es una biblioteca de dos paneles: las ubicaciones a la izquierda con sus coordenadas, para poder distinguir dos campos de nombre parecido, y la seleccionada abierta a la derecha. El editor es la ubicación entera (nombre, latitud, longitud, altitud y el mapa), porque una coordenada mal escrita es lo que más veces hay que corregir. **Guardar** la escribe y la deja seleccionada, **Descartar** la devuelve a como estaba almacenada, y pasar a otra ubicación con cambios sin guardar pregunta antes. **Usar** aplica la ubicación seleccionada a la simulación que tengas abierta, y se rechaza mientras haya cambios sin guardar, porque lo que ofrece es uno de los lugares que has *guardado*. **Nueva ubicación** crea una escribiendo los números. La misma biblioteca está en **menú → Ubicaciones de lanzamiento**, junto al panel de motores, así que puedes consultar tus ubicaciones sin abrir antes una simulación, y **Nueva ubicación** es la forma de añadir una desde ahí, donde no hay campos de lanzamiento en pantalla que capturar.
 
-La altitud se muestra y se edita en la unidad que uses en la tarjeta de lugar de lanzamiento, así que un campo a 6.004 ft se lee igual en los dos sitios. La latitud y la longitud van siempre en grados, y las dos son obligatorias: 0°, 0° es un punto del golfo de Guinea, no «sin definir». Junto a cada una, la unidad indica el hemisferio en el que el signo pone el sitio (**° N** o **° S**, **° E** o **° W**) mientras escribes, así que un signo menos olvidado se ve al momento.
+La altitud se muestra y se edita en la unidad que uses en la tarjeta **Sitio de lanzamiento**, así que un campo a 6.004 ft se lee igual en los dos sitios. La latitud y la longitud van siempre en grados, y las dos son obligatorias: 0°, 0° es un punto del golfo de Guinea, no «sin definir». Junto a cada una, la unidad indica el hemisferio en el que el signo pone el sitio (**° N** o **° S**, **° E** o **° O**) mientras escribes, así que un signo menos olvidado se ve al momento.
 
 ### El mapa {#the-map}
 
@@ -85,7 +85,7 @@ La atmósfera pronosticada es un añadido de esta aplicación. OpenRocket de esc
 
 ## Ejecútala {#run-it}
 
-Pulsa **Simular vuelo**. El vuelo se calcula en un **Web Worker** en segundo plano, así que la interfaz sigue respondiendo: se muestra un indicador mientras calcula (normalmente bastante menos de un segundo). Al terminar, se abre la pestaña **Resultados** con sus vistas de **Vuelo**, **Ruta 3D**, **Traza en tierra** y **Entorno** (consulta [Vistas y análisis](./views-and-analysis.md)).
+Pulsa **Simular vuelo**. El vuelo se calcula en un **Web Worker** en segundo plano, así que la interfaz sigue respondiendo. Mientras calcula (normalmente bastante menos de un segundo), el botón dice **Cancelar ejecución** y la fila de la simulación muestra **Ejecutando**. Al terminar, se abre la pestaña **Resultados** con sus vistas de **Vuelo**, **Ruta 3D**, **Traza en tierra** y **Entorno** (consulta [Vistas y análisis](./views-and-analysis.md)).
 
 ### Cuándo se rechaza una ejecución {#when-a-run-is-refused}
 
@@ -97,11 +97,13 @@ Hay dos tipos de problema, y se comportan de forma distinta:
 
 - **Sin soporte de motor**: no hay dónde alojar un motor. Añade uno (consulta [Diseñar un cohete](./designing-a-rocket.md#motor-mount)).
 - **Una dimensión obligatoria vale cero**: se nombra la pieza y cuál de sus dimensiones falla. Consulta [Dimensiones obligatorias](./designing-a-rocket.md#required-dimensions).
+- **La inclinación de la aleta mete la raíz dentro del cuerpo**: el **Ángulo de inclinación** de un juego de aletas mete la parte delantera de su cuerda raíz dentro del tubo del cuerpo. Se nombra el juego de aletas. Reduce el **Ángulo de inclinación** o acorta la **Cuerda de raíz**.
 
 **Los fallos de una simulación** solo descartan esa fila. Selecciona seis y ejecútalas: las buenas vuelan, y el botón te dice cuáles se quedan fuera y por qué.
 
 - **Sin motor utilizable**: no hay nada cargado en el soporte principal, o un `.ork` importado cuyo motor no se pudo emparejar con una curva de empuje.
-- **Un campo de lanzamiento obligatorio está en blanco**: longitud del raíl o de la varilla, ángulo del raíl o de la varilla, velocidad del viento, desviación estándar del viento, altitud del sitio, latitud o longitud. No tienen un valor por defecto razonable, así que se nombran en lugar de adivinarse.
+- **Un campo de lanzamiento obligatorio está en blanco**: longitud del raíl o de la varilla, ángulo del raíl o de la varilla, altitud del sitio, latitud o longitud y, con viento de un solo nivel, velocidad del viento y desviación estándar del viento (un perfil de viento sustituye a esos dos). No tienen un valor por defecto razonable, así que se nombran en lugar de adivinarse.
+- **Dos niveles de viento a la misma altitud**: el perfil de viento multinivel tiene dos filas a la misma altitud. Cambia o quita una en el **Editor de perfil de viento**.
 - **Condiciones de lanzamiento fuera de los códigos de seguridad**: guía a más de 30° de la vertical en un cohete modelo o a más de 20° en uno de alta potencia, o viento en superficie por encima de 20 mph. Consulta [Límites de seguridad](#safety-limits) más abajo.
 
 El botón solo se desactiva cuando *nada* de lo seleccionado puede volar. Si no, sigue activo, cuenta las filas que realmente se van a ejecutar y nombra las que omite. Una fila que no puede volar no detiene a las demás.
@@ -139,7 +141,7 @@ Debajo, los resultados se muestran como fichas, en orden aproximadamente cronol�
 - **Apogeo** (altitud máxima) y **velocidad / aceleración / Mach máximos**
 - **Vel. despliegue** (marcada si supera tu umbral de aviso; en verde cuando es suficientemente baja). En un diseño de [despliegue dual](./designing-a-rocket.md#dual-deployment) el motor de vuelo juzga el principal y el piloto contra sus propios umbrales, y devuelve un aviso por cada uno.
 - **Aterrizaje** (la velocidad de aterrizaje), **Tiempo de vuelo** y **Distancia** recorrida
-- **Max-Q**, el pico de presión dinámica del impulso. El motor no lo registra, así que se deriva de la densidad del aire y la velocidad del sonido que la simulación ya lleva; es la carga máxima que tiene que soportar el fuselaje. Un resultado sin densidad del aire almacenada no informa Max-Q en vez de dar un cero.
+- **Max-Q**, el pico de presión dinámica de todo el vuelo. El motor no lo registra, así que se deriva de la densidad del aire y la velocidad del sonido que la simulación ya lleva; es la carga máxima que tiene que soportar el fuselaje. Un resultado sin densidad del aire almacenada no informa Max-Q en vez de dar un cero.
 - **q·α máx.**, el mayor producto de presión dinámica por ángulo de ataque mientras el cohete aún vuela hacia delante (hasta la apertura, si no hasta el apogeo), en la unidad de presión de la q máx. por tu unidad de ángulo (por ejemplo kPa·° o psi·°). La carga lateral sobre aletas y acopladores lo sigue. Se deriva igual que Max-Q.
 - **Alabeo máx.**, lo más rápido que giró el cohete durante el vuelo, leído de la serie de velocidad de alabeo del motor de simulación.
 

@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import i18nGlobal from '../i18n';
-import { useWorkspaceStore, selectConfig, saveFailure, workspaceSnapshot } from './store';
+import i18nGlobal, { isLanguageReady, languageReady } from '../i18n';
+import { useWorkspaceStore, selectConfig, saveFailure, workspaceSnapshot, type WorkspaceState } from './store';
 import { simPrefsOf } from './workspaceSelectors';
-import { markWritten, unchangedSinceWrite } from './writtenWorkspace';
+import { currentAutosaveToken, markWritten, savesHeld, unchangedSinceWrite } from './writtenWorkspace';
 import { setKernelLengthUnit, type RocketTree } from '../engine/openRocketEngine';
 
 import { useEngineStore } from './engineStore';
@@ -11,11 +11,11 @@ import { getWorkspaceStore } from '../services/storage/workspaceStore';
 import { onStorageDegraded } from '../services/storage/idbKeyValueStore';
 import { requestPersistentStorage } from '../services/storage/persistStorage';
 import { computeStaticInfo, buildKey } from '../services/design/buildRocket';
-import { designBlockerText } from '../services/flight/runnability';
-import { keyedText } from '../i18n/keyedError';
+import { buildFailureText } from '../services/flight/runnability';
 import { useSettings } from './SettingsProvider';
 import { warmSimWorker } from '../engine/simClient';
-import { appName } from '../services/app/appInfo';
+import { appName, defaultDesignName } from '../services/app/appInfo';
+import { defaultStageName } from '../services/design/orkTree';
 
 /**
  * How long the design must sit still before the engine rebuilds it. Long enough
@@ -23,6 +23,34 @@ import { appName } from '../services/app/appInfo';
  * figures follow a pause without a visible wait.
  */
 export const REBUILD_DEBOUNCE_MS = 150;
+
+type Boot = Pick<WorkspaceState, 'tree' | 'sims' | 'configs'>;
+
+/**
+ * The default design named in the language now loaded, while it is still
+ * untouched since boot.
+ *
+ * The store builds it as the app mounts, before the language's bundle has
+ * landed, so a first run in another language gets the English fallback for
+ * the design, its stage and its simulation, and the first edit saves them.
+ * Bumps `quietReplace`, as New does, so the renaming alone is not saved.
+ */
+function nameDefaultDesign(boot: Boot): void {
+  const s = useWorkspaceStore.getState();
+  if (s.tree !== boot.tree || s.sims !== boot.sims || s.configs !== boot.configs) return;
+  const [stage, ...rest] = s.tree.components;
+  const [sim, ...others] = s.sims;
+  if (!stage || !sim) return;
+  const name = defaultDesignName();
+  const stageName = defaultStageName(0);
+  const simName = i18nGlobal.t('sims.untitled', { n: 1 });
+  if (s.tree.name === name && stage.name === stageName && sim.name === simName) return;
+  useWorkspaceStore.setState({
+    tree: { ...s.tree, name, components: [{ ...stage, name: stageName }, ...rest] },
+    sims: [{ ...sim, name: simName }, ...others],
+    quietReplace: s.quietReplace + 1,
+  });
+}
 
 /**
  * The React-side effects for the workspace store: keep the browser title in sync,
@@ -71,9 +99,15 @@ export function useWorkspaceEffects() {
   const [ready, setReady] = useState(false);
   useEffect(() => {
     let live = true;
+    // Hydrate keeps text as strings (the repair notes, the load-failed warning),
+    // so it waits for the language's bundle, up to a ceiling. The read starts
+    // now; only what is kept from it waits.
+    const language = languageReady();
+    const boot: Boot = useWorkspaceStore.getState();
     getWorkspaceStore()
       .load()
-      .then((w) => {
+      .then(async (w) => {
+        await language;
         // Both writes belong inside the guard. Outside it, StrictMode's
         // canceled first load would flip `ready` while the tree was still
         // the default, so the rebuild effect would build the default rocket and
@@ -81,9 +115,12 @@ export function useWorkspaceEffects() {
         // exists to prevent.
         if (!live) return;
         if (w) useWorkspaceStore.getState().hydrate(w);
-        // Nothing stored: the default rocket is not worth storing until it is
-        // edited, as after New (see `writtenWorkspace`).
-        else markWritten(useWorkspaceStore.getState());
+        else {
+          nameDefaultDesign(boot);
+          // Nothing stored: the default rocket is not worth storing until it is
+          // edited, as after New (see `writtenWorkspace`).
+          markWritten(useWorkspaceStore.getState());
+        }
         hydrated.current = true;
         setReady(true);
       })
@@ -94,15 +131,20 @@ export function useWorkspaceEffects() {
       // that still saves, and tell the user their previous work could not be read.
       //
       // The storage warning slot, not `setErr`: an action error is cleared by
-      // the first edit, and this message stays true until a save succeeds,
-      // which is when the warning banner retires.
+      // the first edit, and this message is a fact about the session that a
+      // later save does not undo (see clearSaveWarning).
       // Detached first: the store can still hold the design that failed to
       // open (the read succeeded and `hydrate` threw), and the first edit would
       // autosave the default rocket over it. Detached, that edit creates a new
       // design and the unreadable one stays in the library.
-      .catch(() => {
+      .catch(async () => {
+        await language;
         if (!live) return;
         getWorkspaceStore().setActiveId?.(null);
+        nameDefaultDesign(boot);
+        // The default rocket on screen is no more worth storing than after an
+        // empty load: hiding the tab must not save it as a library entry.
+        markWritten(useWorkspaceStore.getState());
         hydrated.current = true;
         setReady(true);
         useWorkspaceStore.getState().setStorageWarning(i18nGlobal.t('storage.loadFailed'), 'loadFailed');
@@ -146,15 +188,20 @@ export function useWorkspaceEffects() {
       return;
     }
     if (!hydrated.current) return;
+    // A switch, a delete or a swap that starts before this fires voids it (see
+    // `voidPendingAutosave`): by then the store may point at another design.
+    const token = currentAutosaveToken();
     const id = setTimeout(() => {
+      if (token !== currentAutosaveToken() || savesHeld()) return;
       const fields = { tree, sims, configs, activeId, loadedMeta };
       getWorkspaceStore()
         .save(workspaceSnapshot(fields))
         // There is now a design worth keeping, so ask the browser not to evict
         // this origin under disk pressure. Once per session, best-effort.
-        // A successful save retires a "storage full" warning and nothing else:
-        // the IndexedDB-degraded and load-failed messages are facts about this
-        // session that a later write does not undo (see clearSaveWarning).
+        // A successful save retires a "storage full" or conflict warning and
+        // nothing else: the IndexedDB-degraded and load-failed messages are
+        // facts about this session that a later write does not undo (see
+        // clearSaveWarning).
         .then(() => {
           markWritten(fields);
           useWorkspaceStore.getState().clearSaveWarning();
@@ -176,11 +223,14 @@ export function useWorkspaceEffects() {
   // IndexedDB blocked (policy, some private modes) means we are back on the 5 MB
   // localStorage cap. Say so now rather than letting
   // the user meet it later as an unexplained failed save mid-design.
+  // Kept as a string, so worded once the language's bundle is in.
   useEffect(
     () =>
-      onStorageDegraded(() =>
-        useWorkspaceStore.getState().setStorageWarning(i18nGlobal.t('storage.degraded'), 'degraded'),
-      ),
+      onStorageDegraded(() => {
+        const warn = () => useWorkspaceStore.getState().setStorageWarning(i18nGlobal.t('storage.degraded'), 'degraded');
+        if (isLanguageReady()) warn();
+        else void languageReady().then(warn);
+      }),
     [],
   );
 
@@ -197,18 +247,21 @@ export function useWorkspaceEffects() {
   useEffect(() => {
     const snapshot = () => workspaceSnapshot(useWorkspaceStore.getState());
     const flush = () => {
-      if (!hydrated.current || unchangedSinceWrite(useWorkspaceStore.getState())) return;
+      if (!hydrated.current || savesHeld() || unchangedSinceWrite(useWorkspaceStore.getState())) return;
       const store = getWorkspaceStore();
       if (store.saveSync) store.saveSync(snapshot());
       else store.save(snapshot()).catch(() => {}); // unloading; nothing to surface
     };
     const onHidden = () => {
-      if (!hydrated.current || document.visibilityState !== 'hidden') return;
+      if (!hydrated.current || savesHeld() || document.visibilityState !== 'hidden') return;
       const fields = useWorkspaceStore.getState();
       if (unchangedSinceWrite(fields)) return;
       getWorkspaceStore()
         .save(workspaceSnapshot(fields))
-        .then(() => markWritten(fields))
+        .then(() => {
+          markWritten(fields);
+          useWorkspaceStore.getState().clearSaveWarning();
+        })
         .catch(() => {});
       flush();
     };
@@ -270,17 +323,10 @@ export function useWorkspaceEffects() {
       const res = computeStaticInfo(store.tree, selectConfig(store));
       if ('error' in res) {
         store.applyBuild(null, null);
-        // The design's own explanation when it has one. The engine's message for
-        // a zero dimension names no part ("The number NaN cannot be converted to
-        // a BigInt" for a tube fin set with no length), and the Run button
-        // already says which part and which field, in those words.
-        store.setBuildErr(
-          res.bad?.length
-            ? designBlockerText({ kind: 'badGeometry', bad: res.bad }, i18nGlobal.t.bind(i18nGlobal))
-            : typeof res.error === 'string'
-              ? res.error
-              : keyedText(res.error, i18nGlobal.t.bind(i18nGlobal)),
-        );
+        // The design's own explanation when it has one, in the Run button's
+        // words: the engine's message for a zero dimension or an overturned fin
+        // set names no part.
+        store.setBuildErr(buildFailureText(res, i18nGlobal.t.bind(i18nGlobal)));
       } else {
         store.applyBuild(res.info, res.rocket);
         store.setBuildErr(null);

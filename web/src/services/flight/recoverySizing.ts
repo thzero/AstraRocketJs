@@ -50,7 +50,8 @@ export interface SizingLaunch {
    *
    * Read only to decide which air the flight is flying (see `airDensity`); the
    * density below is dry-air. The kernel's own humidity term raises the gas
-   * constant by about a percent at 30 degrees C and saturation
+   * constant at 30 degrees C and saturation by 1.65% at sea-level pressure and
+   * by more as the pressure falls, 2.4% at 700 hPa
    * (`AtmosphericConditions.getGasConstant`), which is inside this block's
    * stated accuracy and not worth a second copy of that formula.
    */

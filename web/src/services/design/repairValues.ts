@@ -9,24 +9,49 @@ export interface RepairedValue {
   type: string;
   /** The part's own name, empty when it has none (the reader labels it). */
   name: string;
-  /** The node key, which is also the `prop.*` label the panel shows. */
+  /** The node key. */
   field: string;
   was: number;
   now: number;
 }
 
 /**
- * Node keys holding a quantity with a physical ceiling, by that quantity.
+ * Node keys holding a quantity with a physical ceiling, by that quantity, with
+ * the label the banner names the value by.
  *
- * Only bulk density, because `SI_LIMITS` is deliberately short. A surface
- * or line density is a different quantity with no real ceiling, so neither is
+ * Only bulk densities, because `SI_LIMITS` is deliberately short: a part's own
+ * and a fin set's fillet, which the material picker clamps alike. A surface or
+ * line density is a different quantity with no real ceiling, so neither is
  * here; adding one is a row in this table and a row in that one.
  */
-const LIMITED: Record<string, Quantity> = { density: 'density' };
+const LIMITED: Record<string, { quantity: Quantity; label: string }> = {
+  density: { quantity: 'density', label: 'units.q.density' },
+  filletDensity: { quantity: 'density', label: 'prop.filletDensity' },
+};
 
 /** One repaired value as the banner's line, the part named by {@link partLabel}. */
 export function repairedText(r: RepairedValue, t: (key: string, opts?: Record<string, unknown>) => string): string {
-  return t('banner.repaired', { part: partLabel(t, r), field: t(`prop.${r.field}`), was: r.was, now: r.now });
+  const field = LIMITED[r.field]?.label ?? `prop.${r.field}`;
+  return t('banner.repaired', { part: partLabel(t, r), field: t(field), was: r.was, now: r.now });
+}
+
+/**
+ * One node with its impossible values pulled back inside the editor's limits,
+ * and the values that moved. The node itself when none did.
+ */
+export function repairNode(node: ComponentNode): { node: ComponentNode; repaired: RepairedValue[] } {
+  const repaired: RepairedValue[] = [];
+  let out = node;
+  for (const [key, { quantity }] of Object.entries(LIMITED)) {
+    const limit = SI_LIMITS[quantity];
+    const v = (node as unknown as Record<string, unknown>)[key];
+    if (!limit || typeof v !== 'number' || !Number.isFinite(v)) continue;
+    const now = clampEntry(v, limit.min, limit.max)!;
+    if (now === v) continue;
+    repaired.push({ type: node.type, name: typeof node.name === 'string' ? node.name : '', field: key, was: v, now });
+    out = { ...out, [key]: now };
+  }
+  return { node: out, repaired };
 }
 
 /**
@@ -51,17 +76,9 @@ export function repairValues(tree: RocketTree): { tree: RocketTree; repaired: Re
   const repaired: RepairedValue[] = [];
 
   const fixNode = (node: ComponentNode): ComponentNode => {
-    let out = node;
-    for (const [key, quantity] of Object.entries(LIMITED)) {
-      const limit = SI_LIMITS[quantity];
-      const v = (node as unknown as Record<string, unknown>)[key];
-      if (!limit || typeof v !== 'number' || !Number.isFinite(v)) continue;
-      const now = clampEntry(v, limit.min, limit.max)!;
-      if (now === v) continue;
-      repaired.push({ type: node.type, name: typeof node.name === 'string' ? node.name : '', field: key, was: v, now });
-      out = { ...out, [key]: now };
-    }
-    return out;
+    const fixed = repairNode(node);
+    repaired.push(...fixed.repaired);
+    return fixed.node;
   };
 
   const components = mapTreePreserving(tree.components, fixNode, 'pre');

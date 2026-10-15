@@ -6,6 +6,7 @@ import { POPUP_SURFACES, type PopupSurface } from './popupSurfaces';
 import { eachEditor } from './editors';
 import { answer } from '../tests/testing/openMeteoFixture';
 import { DESIGN_VIEWS, RESULT_VIEWS, type ViewMode } from '../src/state/tabs';
+import { STORAGE_PREFIX, nsKey } from '../src/services/storage/storageKeys';
 import type { HeaderDialog, LibraryTab, SettingsTab } from '../src/components/layout/dialogKeys';
 
 /*
@@ -294,6 +295,25 @@ const SCREENS: Scan[] = [
       await openTab(page, 'Simulations');
     },
   },
+  // Two ticked and not flown: running them switches to Results, so the
+  // editor's multi-edit banner is on screen only before a run.
+  {
+    name: 'Simulations / two ticked',
+    open: ticked,
+  },
+  // A design edit after a flight: the header carries the Outdated marker and
+  // the table rows say Outdated.
+  {
+    name: 'Results / outdated',
+    open: async (page) => {
+      await runFlight(page);
+      await openTab(page, 'Design');
+      await page.locator('div[title="Body tube"]').first().click();
+      await page.getByLabel('Length', { exact: true }).first().fill('45');
+      await openTab(page, 'Results');
+      await expect(page.getByText('Outdated', { exact: true }).first()).toBeVisible();
+    },
+  },
   ...RESULT_VIEWS.map((view): Scan => ({
     name: `Results / ${VIEW[view]}`,
     open: (page) => resultView(page, view),
@@ -329,6 +349,14 @@ const SCREENS: Scan[] = [
     },
   },
 ];
+
+/** Two simulations, both ticked and neither flown, with the editor's multi-edit banner showing. */
+async function ticked(page: Page): Promise<void> {
+  await openTab(page, 'Simulations');
+  await page.getByRole('button', { name: 'Duplicate simulation' }).click();
+  await page.getByRole('checkbox', { name: 'Select all simulations' }).check();
+  await expect(page.getByRole('status').filter({ hasText: 'Editing 2 selected simulations.' })).toBeVisible();
+}
 
 /** Open one tool on the Tools tab. */
 async function openTool(page: Page, name: string): Promise<void> {
@@ -387,6 +415,95 @@ async function pathExport(page: Page) {
   return dialogOpen(page, 'Export flight path');
 }
 
+/*
+ * The saved-item lists. On a fresh profile each shows only its empty-state
+ * message, so the rows, the editors beside them and the warnings on them are
+ * scanned only with something saved first. Each is saved the way a user saves
+ * it.
+ */
+
+const SAVED_PART = 'Bench tube';
+const BROKEN_PART = 'Bench tube with no sizes';
+const SAVED_DESIGN = 'Bench rocket';
+const SAVED_LOCATION = 'Bench field';
+
+/** Save the default rocket's body tube as a reusable part. */
+async function savePart(page: Page): Promise<void> {
+  await selectPart(page, 'Body tube');
+  await page.getByRole('button', { name: 'Save as part' }).click();
+  const dialog = await dialogOpen(page, 'Save as a reusable part');
+  await dialog.getByLabel('Part name').fill(SAVED_PART);
+  await dialog.getByLabel('Maker').fill('Bench');
+  await dialog.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(dialog).toBeHidden();
+}
+
+/**
+ * Store a copy of the saved part with no dimensions, as a store written by
+ * another build or by hand can hold. No control in the app saves one: the
+ * save refuses a part it could not list.
+ */
+async function storeBrokenPart(page: Page): Promise<void> {
+  await savePart(page);
+  await page.evaluate(
+    // The names are passed in: this function body is serialized and run in
+    // the page, where a module import does not reach.
+    ([db, key, partNo]) =>
+      new Promise<void>((resolve, reject) => {
+        const req = indexedDB.open(db);
+        req.onerror = () => reject(new Error(String(req.error)));
+        req.onsuccess = () => {
+          const tx = req.result.transaction('kv', 'readwrite');
+          const store = tx.objectStore('kv');
+          const get = store.get(key);
+          get.onsuccess = () => {
+            const list = JSON.parse(String(get.result)) as Record<string, unknown>[];
+            store.put(JSON.stringify([{ ...list[0], id: 'no-sizes', partNo, node: {} }, ...list]), key);
+          };
+          tx.oncomplete = () => {
+            req.result.close();
+            resolve();
+          };
+          tx.onerror = () => reject(new Error(String(tx.error)));
+        };
+      }),
+    [STORAGE_PREFIX, nsKey('parts:custom'), BROKEN_PART] as const,
+  );
+}
+
+/** Open My Parts and select one saved part, so its editor is open beside the list. */
+async function myPartsOn(page: Page, partNo: string) {
+  await HEADER_DIALOGS.parts(page);
+  const dialog = await dialogOpen(page, 'My Parts');
+  await dialog.getByRole('button', { name: new RegExp(partNo) }).click();
+  await expect(dialog.getByLabel('Part name')).toHaveValue(partNo);
+  return dialog;
+}
+
+/** Save the open design under a name of its own, so My rockets lists it. */
+async function saveDesign(page: Page): Promise<void> {
+  await HEADER_DIALOGS.saveAs(page);
+  const dialog = page.getByRole('dialog');
+  await dialog.getByRole('textbox', { name: 'Name', exact: true }).fill(SAVED_DESIGN);
+  await dialog.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(dialog).toBeHidden();
+}
+
+/** Save a launch location from the menu's manager, and close it. */
+async function saveLocation(page: Page): Promise<void> {
+  await HEADER_DIALOGS.locations(page);
+  const dialog = page.getByRole('dialog', { name: 'Manage saved locations' });
+  await dialog.getByRole('button', { name: 'New location' }).click();
+  await dialog.getByRole('textbox').fill(SAVED_LOCATION);
+  await dialog.getByLabel('Latitude', { exact: true }).fill('42.66');
+  await dialog.getByLabel('Longitude', { exact: true }).fill('-88.14');
+  await dialog.getByLabel('Altitude', { exact: true }).fill('238');
+  await dialog.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(dialog.getByRole('button', { name: new RegExp(SAVED_LOCATION) })).toBeVisible();
+  await dialog.getByRole('button', { name: 'Close' }).click();
+  await expect(dialog).toBeHidden();
+}
+
 /**
  * Every dialog, keyed by the component that renders it (dialogSurfaces.ts,
  * which a unit test holds to the source), so a dialog the app gains fails the
@@ -399,10 +516,21 @@ const DIALOG_SCANS: Record<DialogSurface, Scan[]> = {
     name: `Settings / ${SETTINGS[tab]}`,
     open: (page) => dialogTab(page, 'Settings', SETTINGS[tab]),
   })),
-  DesignLibraryDialog: keys(LIBRARY).map((tab): Scan => ({
-    name: `Open / ${LIBRARY[tab]}`,
-    open: (page) => dialogTab(page, 'Open…', LIBRARY[tab]),
-  })),
+  DesignLibraryDialog: [
+    ...keys(LIBRARY).map((tab): Scan => ({
+      name: `Open / ${LIBRARY[tab]}`,
+      open: (page) => dialogTab(page, 'Open…', LIBRARY[tab]),
+    })),
+    {
+      name: 'Open / My rockets / saved design',
+      open: async (page) => {
+        await saveDesign(page);
+        await dialogTab(page, 'Open…', LIBRARY.mine);
+        const dialog = page.getByRole('dialog', { name: 'My Rockets' });
+        await expect(dialog.getByRole('button', { name: new RegExp(`^${SAVED_DESIGN}`) })).toBeVisible();
+      },
+    },
+  ],
   ExportDialog: [
     header('report'),
     {
@@ -429,8 +557,35 @@ const DIALOG_SCANS: Record<DialogSurface, Scan[]> = {
         await expect(page.getByRole('dialog').getByRole('spinbutton').first()).toBeVisible();
       },
     },
+    {
+      name: 'Launch Locations / saved location',
+      open: async (page) => {
+        await saveLocation(page);
+        await HEADER_DIALOGS.locations(page);
+        const dialog = page.getByRole('dialog', { name: 'Manage saved locations' });
+        await dialog.getByRole('button', { name: new RegExp(SAVED_LOCATION) }).click();
+        await expect(dialog.getByLabel('Latitude', { exact: true })).toHaveValue(/^42\.66/);
+      },
+    },
   ],
-  SavedPartsDialog: [header('parts')],
+  SavedPartsDialog: [
+    header('parts'),
+    {
+      name: 'My Parts / saved part',
+      open: async (page) => {
+        await savePart(page);
+        await myPartsOn(page, SAVED_PART);
+      },
+    },
+    {
+      name: 'My Parts / part with no sizes',
+      open: async (page) => {
+        await storeBrokenPart(page);
+        const dialog = await myPartsOn(page, BROKEN_PART);
+        await expect(dialog.getByText('This part is missing the dimensions')).toBeVisible();
+      },
+    },
+  ],
   DesignPropertiesDialog: [header('saveAs')],
   MotorDashboard: [
     {
@@ -512,6 +667,16 @@ const DIALOG_SCANS: Record<DialogSurface, Scan[]> = {
         await pick.click();
         const dialog = await dialogOpen(page, 'Select a part');
         await expect(dialog.locator('tbody tr').first()).toBeVisible();
+      },
+    },
+    {
+      name: 'Component picker / saved part',
+      open: async (page) => {
+        await savePart(page);
+        await page.getByRole('button', { name: /^Select part…/ }).click();
+        const dialog = await dialogOpen(page, 'Select a part');
+        const row = dialog.locator('tbody tr').filter({ hasText: SAVED_PART });
+        await expect(row.getByRole('button', { name: `Delete saved part ${SAVED_PART}` })).toBeVisible();
       },
     },
   ],

@@ -44,7 +44,9 @@ beforeEach(() => {
   s().resetWorkspace();
   digests.release = null;
   downloadOrk.mockReset();
-  computeStaticInfo.mockReset();
+  // The stand-in build below was not made from the open tree, so a save builds
+  // it again for the file's kernel figures.
+  computeStaticInfo.mockReset().mockReturnValue({ info: {}, rocket: {} });
   assembleReport.mockReset().mockImplementation(() => ({ tree: useWorkspaceStore.getState().tree }));
   useWorkspaceStore.setState({ info: {} as never, rocket: {} as never });
 });

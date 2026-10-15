@@ -17,12 +17,9 @@ import { findNode, patchChangesNode } from '../../src/services/design/treeEdit';
 const s = () => useWorkspaceStore.getState();
 
 /**
- * The tree with the nose cone's catalog link already gone.
- *
- * The default design's nose carries a `preset`, and patching any dimension of a
- * preset part drops that link - which is itself a change, so `patchChangesNode`
- * reports one however equal the values are. The no-op case this guard exists for
- * is the second and later keystroke, by which point the link is long gone.
+ * The tree with the nose cone's catalog link already gone, as it is after the
+ * first keystroke of a real edit: the default design's nose carries a
+ * `preset`, and changing one of its dimensions drops the link.
  */
 const unlinked = () => {
   const current = findNode(s().tree, 'nose')!.length as number;
@@ -56,13 +53,16 @@ describe('patchChangesNode', () => {
     expect(patchChangesNode(s().tree, 'no-such-id', { length: 1 })).toBe(false);
   });
 
-  it('is true when the only change is dropping the preset link', () => {
-    // Dropping the link is the change, even with every value already equal: the
-    // panel's Parts Library row stops claiming this is a catalog part. The
-    // default nose carries a preset, so this is the plain tree.
+  it('is false for a repeated value on a catalog part, which keeps its link', () => {
+    // A kernel setter given the value it holds returns before clearPreset()
+    // (Transition.setLength, as every setter in PRESET_SETTERS), so the link
+    // stays and nothing changes. The default nose carries a preset.
     const nose = findNode(s().tree, 'nose')!;
     expect(nose['preset']).toBeTruthy();
-    expect(patchChangesNode(s().tree, 'nose', { length: nose.length as number })).toBe(true);
+    expect(patchChangesNode(s().tree, 'nose', { length: nose.length as number })).toBe(false);
+    s().setSelectedId('nose');
+    s().patchSelected({ length: nose.length as number });
+    expect(findNode(s().tree, 'nose')!['preset']).toEqual(nose['preset']);
   });
 });
 

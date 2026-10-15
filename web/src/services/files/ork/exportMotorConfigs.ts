@@ -88,7 +88,9 @@ export function motorMountXml(w: OrkWriter, depth: number, nodeId: string | unde
     // hybrid motor written as 'single' is found under no type at all; left out,
     // the type is null and filters nothing, as desktop leaves it for a motor
     // whose type it does not know.
-    emit(depth + 2, `<manufacturer>${escapeXml(m.manufacturer ?? 'custom')}</manufacturer>`);
+    // None when the motor names no maker: desktop's findMotors filters on a
+    // maker only when the file gives one, and a made-up one matches nothing.
+    if (m.manufacturer) emit(depth + 2, `<manufacturer>${escapeXml(m.manufacturer)}</manufacturer>`);
     // Between manufacturer and designation, where the desktop writes it. Which
     // of its database entries this motor is: without it a name shared by
     // several resolves to whichever comes first, with a warning saying so.

@@ -7,10 +7,12 @@ import { launcherKind, withLauncher } from '../services/design/launcher';
 import type { DesignInfo } from '../services/files/orkTypes';
 import type { ComponentFigures } from '../services/files/rktExport';
 import type { buildRocketTree } from '../engine/api';
+import type { RocketTree } from '../engine/openRocketEngine';
 import { buildDesignInfo } from '../services/report/designInfo';
 import { buildExportMotorMap, fillMotorDigests } from '../services/motors/exportMotors';
 import { repairValues } from '../services/design/repairValues';
-import { computeStaticInfo } from '../services/design/buildRocket';
+import { builtFrom, computeStaticInfo } from '../services/design/buildRocket';
+import { walkNodes } from '../tree/treeWalk';
 import { wireLoadedOrk } from '../services/files/wireLoadedOrk';
 import { assertImportSize } from '../services/files/decodeText';
 // Static, not the lazy import the neighboring .ork paths use: this is a fetch
@@ -42,7 +44,7 @@ import {
 } from './workspaceSelectors';
 import type { WorkspaceState } from './store';
 import { showing } from './viewSlice';
-import { markWritten, unchangedSinceWrite } from './writtenWorkspace';
+import { holdSaves, markWritten, savesHeld, unchangedSinceWrite, voidPendingAutosave } from './writtenWorkspace';
 
 /**
  * Opening, saving and exporting designs, and the design library.
@@ -85,6 +87,12 @@ export interface FileSlice {
   // and tests can await them. AppHeader calls them through `fireAction`, which
   // reports a rejection rather than dropping it.
   newWorkspace: () => Promise<void>;
+  /**
+   * Store the open design's last edits, then start a fresh one. No prompt: the
+   * caller has asked. `resetWorkspace` alone voids the pending autosave, so an
+   * edit inside its debounce would be lost.
+   */
+  leaveForNew: () => Promise<void>;
   saveOrk: () => Promise<void>;
   /** Write the design as a RockSim `.rkt`. */
   saveRkt: () => Promise<void>;
@@ -141,19 +149,24 @@ const observeWorkspace = (): (() => boolean) => {
 };
 
 /**
- * The current build's figures for a part, for the writers' values the kernel
- * works out itself; a part the build does not hold (one added since the last
- * rebuild) has none, and the writers say what that leaves out.
+ * A build's figures for every part of `tree`, for the writers' values the
+ * kernel works out itself; a part the build does not hold has none, and the
+ * writers say what that leaves out.
+ *
+ * Read now rather than on demand: the next build frees this handle
+ * (`buildRocketTree`), and a save awaits before it writes.
  */
-function figuresOf(rocket: ReturnType<typeof buildRocketTree> | null | undefined): ComponentFigures | undefined {
-  if (!rocket) return undefined;
-  return (id: string) => {
+function figuresOf(rocket: ReturnType<typeof buildRocketTree>, tree: RocketTree): ComponentFigures {
+  const figures = new Map<string, ReturnType<ComponentFigures>>();
+  for (const node of walkNodes(tree.components)) {
+    if (typeof node.id !== 'string') continue;
     try {
-      return rocket.componentInfo(id);
+      figures.set(node.id, rocket.componentInfo(node.id));
     } catch {
-      return undefined;
+      // not in this build
     }
-  };
+  }
+  return (id: string) => figures.get(id);
 }
 
 export const createFileSlice =
@@ -164,19 +177,23 @@ export const createFileSlice =
      * storage refused the write.
      *
      * The refusal is reported rather than swallowed: only the debounced
-     * autosave's catch raises the storage banner, and File > Save calls this
-     * directly, so a Save within the 500 ms debounce on a full store would
-     * otherwise report success with nothing written. Callers decide what a refusal
-     * means for them (a switch still proceeds; a Save must say it failed).
+     * autosave's catch raises the storage banner, and a switch or a delete
+     * calls this directly, inside the 500 ms debounce, so on a full store the
+     * edits since the last autosave would be lost with nothing said. Callers
+     * decide what a refusal means for them (a switch still proceeds).
      */
     const flushActive = async (): Promise<boolean> => {
       // Storage already holds it: a write would only re-stamp the design, or
       // after New create an entry for one nobody touched.
       const fields = get();
       if (unchangedSinceWrite(fields)) return true;
+      // The open design is being deleted (see `holdSaves`).
+      if (savesHeld()) return true;
       try {
         await getWorkspaceStore().save(workspaceSnapshot(fields));
         markWritten(fields);
+        // A landed write disproves a standing "full" or conflict warning.
+        get().clearSaveWarning();
         return true;
       } catch (e) {
         // Recorded rather than returned, so a caller that only cares whether the
@@ -192,6 +209,9 @@ export const createFileSlice =
      * not silent either.
      */
     const flushOutgoing = async (stale: () => boolean): Promise<void> => {
+      // The flush writes what the pending autosave would have, and that timer
+      // can fire after the workspace store has moved to the incoming design.
+      voidPendingAutosave();
       if (!(await flushActive()) && !stale()) {
         const { msg, kind } = saveFailure(lastFlushFailure);
         get().setStorageWarning(msg, kind);
@@ -199,6 +219,40 @@ export const createFileSlice =
     };
     /** Why the last `flushActive` returned false, for the caller that reports it. */
     let lastFlushFailure: unknown = null;
+
+    /**
+     * Point the library back at the design on screen, for an open or import
+     * that ends without replacing it.
+     *
+     * An open names its design active before it reads it, and an open it
+     * superseded may have done the same, so a failed one can leave the
+     * library naming a design nobody is looking at. The next boot would open
+     * that design, and the edits made meanwhile live in the other one. Called
+     * only by the action that holds the workspace (not stale), so it never
+     * moves a pointer a later action set.
+     */
+    const pointAtShown = async (): Promise<void> => {
+      const shown = get().activeDesignId;
+      if (!shown) return;
+      const lib = getDesignLibrary();
+      if ((await lib.activeId()) !== shown) await lib.setActive(shown);
+    };
+
+    /**
+     * The kernel's figures for `tree`, the open design, for a file about to be
+     * written. The store's build counts only when it was made from this tree: one
+     * still inside the rebuild debounce describes an earlier design, so the
+     * design is built now instead. Undefined when it does not build.
+     */
+    const figuresFor = (tree: RocketTree): ComponentFigures | undefined => {
+      const { rocket } = get();
+      if (rocket && builtFrom(rocket) === tree.components) return figuresOf(rocket, tree);
+      const built = computeStaticInfo(tree, selectConfig(get()));
+      if ('error' in built) return undefined;
+      // The new build freed the store's handle, so it takes this one.
+      get().applyBuild(built.info, built.rocket);
+      return figuresOf(built.rocket, tree);
+    };
 
     /** "Rocket" → "Rocket (2)", "Rocket (3)", … against the names already taken. */
     const uniqueName = (base: string, taken: string[]): string => {
@@ -306,7 +360,11 @@ export const createFileSlice =
           // Where this rocket is going to live, settled while the previous design
           // is still the open one (see homeForImport).
           const home = await homeForImport(loadedMeta.name, stale);
-          if (!home || stale()) return;
+          if (stale()) return;
+          if (!home) {
+            await pointAtShown();
+            return;
+          }
           // Persist whatever is open before the import replaces it, as
           // openDesign does: the replace cancels the pending debounced
           // autosave, so an edit inside its window would be lost.
@@ -357,6 +415,7 @@ export const createFileSlice =
         } catch (e) {
           if (stale()) return; // a superseded import must not post its error either
           set({ err: i18n.t('errors.openOrk', { reason: errorText(e, i18n.t) }) });
+          await pointAtShown().catch(() => {});
         } finally {
           // Failed or abandoned after the engine may have been reset: the design
           // still on screen holds a voided handle until it is built again.
@@ -405,6 +464,7 @@ export const createFileSlice =
         if (stale()) return;
         if (!w) {
           set({ err: i18n.t('library.missing') });
+          await pointAtShown();
           await get().refreshDesigns();
           return;
         }
@@ -427,7 +487,7 @@ export const createFileSlice =
         let opened: typeof w | null = w;
         if (store.openActive) {
           try {
-            opened = await store.openActive(id);
+            opened = await store.openActive(id, stale);
           } catch {
             opened = null;
           }
@@ -435,6 +495,7 @@ export const createFileSlice =
         if (stale()) return;
         if (!opened) {
           set({ err: i18n.t('library.missing') });
+          await pointAtShown();
           await get().refreshDesigns();
           return;
         }
@@ -449,9 +510,10 @@ export const createFileSlice =
         // `create` throws when storage refuses the write. Caught here so the
         // refusal reads as storage being full rather than as a generic error,
         // and so a Save As that failed does not look as though it worked.
-        // `s` is snapshotted now; if the workspace is replaced while create() is
-        // in flight, pointing the library at the new entry would leave the user
-        // looking at one design with another one active.
+        // `s` is snapshotted now. `create` names the new entry active in the
+        // library; if the workspace is replaced while it is in flight, the
+        // workspace store is left on the design now open, or its autosaves
+        // would write that design into the entry just made.
         const stale = observeWorkspace();
         const lib = getDesignLibrary();
         const snapshot = workspaceSnapshot(s);
@@ -486,9 +548,24 @@ export const createFileSlice =
       deleteDesign: async (id) => {
         const lib = getDesignLibrary();
         const wasActive = get().activeDesignId === id;
+        // An autosave of the open design that lands during the remove writes the
+        // entry back, because a write that cannot find its entry adds one. That
+        // covers the one already pending and any an edit arms meanwhile.
+        if (wasActive) voidPendingAutosave();
+        const release = wasActive ? holdSaves() : () => {};
+        let removed: boolean;
+        try {
+          removed = await lib.remove(id);
+        } catch (e) {
+          release();
+          throw e;
+        }
         // A refused index write means the design is still in the library; resetting
         // the open workspace anyway would leave it listed and unopenable-looking.
-        if (!(await lib.remove(id))) {
+        if (!removed) {
+          release();
+          // It is still the open design, and its saves were held.
+          if (wasActive && get().activeDesignId === id) await flushActive();
           get().warnStorageFull();
           await get().refreshDesigns();
           return;
@@ -502,6 +579,7 @@ export const createFileSlice =
           getWorkspaceStore().setActiveId?.(null);
           get().resetWorkspace();
         }
+        release();
         await get().refreshDesigns();
       },
 
@@ -532,10 +610,17 @@ export const createFileSlice =
         const ok = await confirm({
           title: i18n.t('file.new'),
           message: i18n.t('file.newConfirm'),
-          confirmLabel: i18n.t('common.discard'),
-          danger: true,
+          confirmLabel: i18n.t('file.new'),
         });
-        if (ok) get().resetWorkspace();
+        if (!ok) return;
+        await get().leaveForNew();
+      },
+      leaveForNew: async () => {
+        // The design being left keeps its last edits: the reset voids its
+        // pending autosave.
+        const stale = observeWorkspace();
+        await flushOutgoing(stale);
+        if (!stale()) get().resetWorkspace();
       },
       saveOrk: async () => {
         try {
@@ -563,6 +648,8 @@ export const createFileSlice =
           const activeConfigId = selectConfig(get()).id;
           const launch = selectActive(get()).launch;
           const configSnapshot = get().configs;
+          // Ahead of the design-info build below, which this can make for it.
+          const componentInfo = figuresFor(tree);
           // Every simulation, each with its result summary and the status the
           // desktop reads: a result (or a file's summary) that is current is
           // uptodate, one the design has moved past is outdated, and a simulation
@@ -623,7 +710,7 @@ export const createFileSlice =
           downloadOrk({
             name: designNameOf(tree, loadedMeta),
             tree,
-            componentInfo: figuresOf(get().rocket),
+            componentInfo,
             configs,
             activeConfigId,
             launch,
@@ -637,10 +724,10 @@ export const createFileSlice =
       },
       saveRkt: async () => {
         try {
-          const { tree, loadedMeta, rocket } = get();
+          const { tree, loadedMeta } = get();
+          const figures = figuresFor(tree);
           const { downloadRkt } = await import('../services/files/saveOrk');
           const name = designNameOf(tree, loadedMeta);
-          const figures = figuresOf(rocket);
           const skipped = await downloadRkt(name, tree, figures);
           // RockSim has no element for some of what this app can build (rail
           // buttons, the fairing extension). The file is still

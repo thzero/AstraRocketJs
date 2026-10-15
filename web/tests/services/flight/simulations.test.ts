@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { simConditions, DEFAULT_HEADING_DEG, type SimPrefs } from '../../../src/services/flight/simulations';
+import {
+  simConditions,
+  newSimulation,
+  resultKey,
+  DEFAULT_HEADING_DEG,
+  type SimPrefs,
+} from '../../../src/services/flight/simulations';
+import { newFlightConfig } from '../../../src/services/flight/flightConfigs';
 import type { CompleteLaunch } from '../../../src/services/flight/requiredLaunch';
 
 const base: CompleteLaunch = {
@@ -174,5 +181,32 @@ describe('simConditions max angle step', () => {
     expect(simConditions(base, { ...PREFS, maxAngleStep: deg2rad(0.05) }).maxAngleStep).toBeCloseTo(deg2rad(1));
     expect(simConditions(base, { ...PREFS, maxAngleStep: deg2rad(30) }).maxAngleStep).toBeCloseTo(deg2rad(20));
     expect(simConditions(base, PREFS).maxAngleStep).toBeCloseTo(deg2rad(3));
+  });
+});
+
+/**
+ * The desktop flies only the selected wind model (SimulationOptions.getWindModel,
+ * SimulationOptions.java:220-228, cloned into the conditions at :924-926), so a
+ * profile held under Average changes neither the flight nor whether a result is
+ * current.
+ */
+describe('a profile kept under the Average model', () => {
+  const kept = [
+    { altitudeM: 0, speed: 3, directionDeg: 90, stddev: 0.3 },
+    { altitudeM: 500, speed: 6, directionDeg: 120, stddev: 1.2 },
+  ];
+  const seeded = { ...PREFS, randomSeed: 7 };
+
+  it('is not flown', () => {
+    expect(simConditions({ ...base, keptWindLevels: kept }, seeded)).toEqual(simConditions(base, seeded));
+  });
+
+  it('does not age a result', () => {
+    const tree = { components: [{ type: 'nosecone', id: 'n', length: 0.1 }] } as never;
+    const config = newFlightConfig();
+    const sim = (launch: CompleteLaunch) => newSimulation('A', config.id, launch);
+    expect(resultKey(tree, config, sim({ ...base, keptWindLevels: kept }), PREFS)).toBe(
+      resultKey(tree, config, sim(base), PREFS),
+    );
   });
 });

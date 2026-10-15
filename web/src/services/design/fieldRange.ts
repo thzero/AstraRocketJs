@@ -114,8 +114,15 @@ export function fieldValue(node: ComponentNode, f: Field): number | boolean | st
       // sets clipped to isClippable().
       if (f.key === 'clipped' && typeof node[f.key] !== 'boolean') return shapeIsClippable(defaultShape(node));
       return node[f.key] === true;
-    case 'length':
-      return num(node, f.key, absentValue(node, f));
+    case 'length': {
+      // A wall the part's radius has since shrunk below flies at that radius:
+      // the kernel's setters clamp to the bound the field carries. A body tube
+      // is the exception, built through the BodyTube(length, radius,
+      // thickness) constructor (ComponentFactory), which takes the wall as given.
+      const v = num(node, f.key, absentValue(node, f));
+      const hi = node.type === 'bodytube' ? undefined : f.bounds?.max?.(node);
+      return hi !== undefined && Number.isFinite(hi) && v > hi ? hi : v;
+    }
     case 'count':
     case 'number':
     case 'angle':

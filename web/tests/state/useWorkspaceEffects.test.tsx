@@ -71,6 +71,8 @@ const saved = () => ({
 beforeEach(() => {
   vi.useFakeTimers();
   s().resetWorkspace();
+  // A standing notice outlives a design swap, so one test's would reach the next.
+  s().setStorageWarning(null);
   load.mockReset().mockResolvedValue(null);
   save.mockReset().mockResolvedValue(undefined);
   saveSync.mockReset();

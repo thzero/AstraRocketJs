@@ -9,10 +9,10 @@ No: es una aplicación independiente que **ejecuta el motor de física de OpenRo
 No. Es una aplicación web: abre la URL en un navegador moderno. Sin JDK, sin descargas.
 
 ### ¿Se suben mis diseños a algún sitio? {#are-my-designs-uploaded-anywhere}
-No. Todo se ejecuta en tu dispositivo. Tus cohetes, tus motores personalizados, tus piezas guardadas, tus materiales, tus lugares de lanzamiento guardados y tus ajustes se guardan en el almacenamiento propio de tu navegador (IndexedDB, con localStorage como alternativa), y puedes exportar un `.ork` a tu disco. No se envía nada a ningún servidor.
+No. Todo se ejecuta en tu dispositivo. Tus cohetes, tus motores personalizados, tus piezas guardadas, tus materiales y tus lugares de lanzamiento guardados se guardan en el IndexedDB de tu navegador (con localStorage como alternativa), y tus ajustes en su localStorage. Puedes exportar un `.ork` a tu disco. No se envía nada a ningún servidor.
 
 ### ¿Mis archivos `.ork` funcionarán en OpenRocket de escritorio? {#will-my-ork-files-work-in-desktop-openrocket}
-Sí: la importación y la exportación son de ida y vuelta con total fidelidad, y un archivo exportado se vuelve a abrir en OpenRocket de escritorio.
+Sí: la importación y la exportación son de ida y vuelta con total fidelidad, y un archivo exportado se vuelve a abrir en OpenRocket de escritorio. Hay dos cosas que no pasan: las calcomanías se eliminan al importar, porque sus imágenes se guardan aparte dentro del archivo, y un componente que esta aplicación no admite se omite. El aviso de importación nombra ambas.
 
 ### ¿Puedo abrir un archivo de RockSim? {#can-i-open-a-rocksim-file}
 Sí: **menú → Importar → RockSim** lee un `.rkt`, y **Exportar → RockSim** escribe uno. El diseño viaja; los **motores y las condiciones de lanzamiento no**, porque RockSim los guarda con sus simulaciones y no con sus diseños, así que elige un motor después de importar. En [Archivos y exportaciones](./files-and-exports.md#rocksim-rkt) está exactamente qué lleva cada sentido y qué deja atrás.
@@ -35,7 +35,7 @@ Las unidades solo afectan a lo que se muestra y se escribe: tu diseño se guarda
 Sí. Tras la primera visita, la aplicación conserva en tu dispositivo tanto la propia aplicación como el motor de física y los dos catálogos, así que se abre y ejecuta una simulación completa sin conexión: útil en un campo de vuelo sin cobertura. Tu navegador también te ofrecerá **instalarla**. Consulta **[Sin conexión e instalación](./offline-and-installing.md)**.
 
 ### ¿Qué es la insignia `WASM` / `JS` de la cabecera? {#whats-the-wasm--js-badge-in-the-header}
-Indica qué motor se ha cargado: **WASM** (WebAssembly, el rápido por defecto) o **JS** (JavaScript, la alternativa para navegadores sin soporte de WASM). Ambos producen resultados idénticos.
+Indica qué motor se ha cargado: **WASM** (WebAssembly, el rápido por defecto) o **JS** (JavaScript, la alternativa para navegadores sin soporte de WASM GC). Ambos producen resultados idénticos.
 
 ### ¿Sobrevive un material personalizado al guardar en `.ork`? {#does-a-custom-material-survive-saving-to-a-ork}
 Sí, el nombre y la densidad, para todos los materiales que el editor ofrece: el material de volumen de una pieza estructural, el material del filete de una aleta y los materiales de tela y de cuerda de un dispositivo de recuperación. Eso importa sobre todo para los materiales que esta aplicación tiene y OpenRocket de escritorio no, los [adhesivos y los cordones elásticos corregidos](./designing-a-rocket.md#adhesives): el nombre se escribe en el elemento `<material>` del archivo tal y como lo elegiste.

@@ -1,5 +1,5 @@
 import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
-import { countOf, num, numOpt } from '../../tree/nodeProps';
+import { bodyTubeRadius, countOf, num, numOpt } from '../../tree/nodeProps';
 import { isFinSet, tubeFinRadius } from '../../tree/tubefins';
 import {
   FREEFORM_FALLBACK,
@@ -211,7 +211,7 @@ export function rocketSideView(tree: RocketTree): { w: number; h: number; body: 
         emitChildren(n, len, radiusSampler(n));
         x += len;
       } else if (n.type === 'bodytube') {
-        const R = num(n, 'outerRadius', KERNEL_DEFAULTS.bodytube.outerRadius);
+        const R = bodyTubeRadius(n);
         profile.push([x, R], [x + len, R]);
         chainMaxR = Math.max(chainMaxR, R);
         emitChildren(n, len, radiusSampler(n));

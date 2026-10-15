@@ -65,8 +65,10 @@ export function nonNegTag(el: Element, tag: string, fallback: number): number {
 export function autoRadiusTag(el: Element, tag: string): number | undefined {
   const t = text(el, `:scope > ${tag}`)?.trim();
   if (!t || t.toLowerCase().startsWith('auto')) return undefined;
+  // A stated 0 is a radius of 0, as DocumentConfig's setter sets it: desktop's
+  // phantom tubes carry fins on a pod at the pod's own axis.
   const v = Number(t);
-  return Number.isFinite(v) && v > 0 ? v : undefined;
+  return Number.isFinite(v) && v >= 0 ? v : undefined;
 }
 
 /** `<isdrogue>` as OpenRocket writes it: present and "true" or absent altogether. */
@@ -173,8 +175,8 @@ export function readSoftMaterial(
  * CenteringRing and Bulkhead are LineInstanceable and LaunchLug/RailButton are
  * Instanceable, so OpenRocket writes these for all four. Carrying them keeps a
  * motor mount declared as one CenteringRing with instancecount 3 from coming
- * back from a save as a single ring. The simulation counts all N; the drawing
- * shows one, and the import note says so.
+ * back from a save as a single ring. The simulation counts all N, and the side
+ * and 3D views draw all N.
  */
 export function readInstances(el: Element, node: ComponentNode): void {
   const count = clampCount(numTag(el, 'instancecount', 1), 1, MAX_ASSEMBLY_INSTANCES);
@@ -267,13 +269,12 @@ export function readFinTabs(el: Element, node: ComponentNode): void {
 }
 
 /**
- * Recovery-device deployment: the bare tags are the defaults; the chosen
- * config's <deploymentconfiguration> block (same child tag names) overrides
- * them per field: the desktop handler clones the default and applies only
- * the fields the block carries.
+ * Recovery-device deployment as the design states it: the bare tags, which are
+ * desktop's default. A configuration's <deploymentconfiguration> block is that
+ * configuration's override (captureDeployments), never the design's value.
  */
-export function readDeployment(el: Element, node: ComponentNode, configEl: Element | null = null): void {
-  for (const src of configEl ? [el, configEl] : [el]) Object.assign(node, readDeploymentTags(src));
+export function readDeployment(el: Element, node: ComponentNode): void {
+  Object.assign(node, readDeploymentTags(el));
 }
 
 /**
@@ -321,12 +322,11 @@ export function readSeparationTags(src: Element): OrkSepOverride {
 }
 
 /**
- * Stage separation (a lower <stage> or a strap-on <parallelstage>): the bare
- * tags on `el` are the defaults, and the chosen config's
- * <separationconfiguration> overrides them per field, as the desktop handler
- * clones the default and applies only the fields the block carries. Only values
- * that differ from the desktop defaults are kept, so an untouched stage stays
- * clean.
+ * Stage separation (a lower <stage> or a strap-on <parallelstage>) as the design
+ * states it: the bare tags on `el`, with `configEl`'s fields over them when the
+ * caller passes one, as the desktop handler clones the default and applies only
+ * the fields a block carries. Only values that differ from the desktop defaults
+ * are kept, so an untouched stage stays clean.
  */
 export function readSeparation(el: Element, node: ComponentNode, configEl: Element | null = null): void {
   const o = { ...readSeparationTags(el), ...(configEl ? readSeparationTags(configEl) : {}) };

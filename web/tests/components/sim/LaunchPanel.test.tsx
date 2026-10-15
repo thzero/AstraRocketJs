@@ -363,3 +363,57 @@ describe('the site buttons', () => {
     expect(screen.getByRole('button', { name: 'Show on map' })).toBeTruthy();
   });
 });
+
+/**
+ * The desktop's model switch changes only which model flies
+ * (SimulationOptions.setWindModelType, SimulationOptions.java:191-196); the
+ * multilevel model keeps its levels while Average is selected, so switching
+ * back shows the same profile.
+ */
+describe('switching wind models keeps the profile', () => {
+  const profile = [
+    { altitudeM: 0, speed: 3, directionDeg: 90, stddev: 0.3 },
+    { altitudeM: 500, speed: 6, directionDeg: 120, stddev: 1.2 },
+  ];
+
+  function Host({ start, onLaunch }: { start: LaunchConditions; onLaunch: (l: LaunchConditions) => void }) {
+    const [launch, setLaunch] = useState<LaunchConditions>(start);
+    return (
+      <LaunchPanel
+        launch={launch}
+        onChange={(p) =>
+          setLaunch((l) => {
+            const next = { ...l, ...launchPatchFor(p, l, 'row') };
+            onLaunch(next);
+            return next;
+          })
+        }
+      />
+    );
+  }
+
+  it('restores a kept profile on Multilevel, and keeps it again on Average', () => {
+    let last: LaunchConditions = LAUNCH;
+    renderWithProviders(<Host start={{ ...LAUNCH, keptWindLevels: profile }} onLaunch={(l) => (last = l)} />);
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Multi-level' }));
+    expect(last.windLevels).toEqual(profile);
+    expect(last.keptWindLevels).toBeUndefined();
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Average' }));
+    expect(last.windLevels).toBeUndefined();
+    expect(last.keptWindLevels).toEqual(profile);
+  });
+
+  it('seeds one level from the single wind when there is nothing to restore', () => {
+    let last: LaunchConditions = LAUNCH;
+    renderWithProviders(
+      <Host
+        start={{ ...LAUNCH, windAverage: 4, windStdDev: 0.4, windDirectionDeg: 200 }}
+        onLaunch={(l) => (last = l)}
+      />,
+    );
+    fireEvent.click(screen.getByRole('radio', { name: 'Multi-level' }));
+    expect(last.windLevels).toEqual([{ altitudeM: 0, speed: 4, directionDeg: 200, stddev: 0.4 }]);
+  });
+});

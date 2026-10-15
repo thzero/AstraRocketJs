@@ -8,6 +8,7 @@ import { boreAround, ringBore, tubeRadii } from './discGeometry';
 import { mapTreePreserving, walkNodes, type MapContext } from '../../tree/treeWalk';
 import { axialFrames } from '../../tree/axialRebase';
 import { isPlanarFinSet } from '../../tree/tubefins';
+import { isZero } from '../motors/mathEquals';
 
 /**
  * Diameters that follow the part next door: OpenRocket's **Automatic**
@@ -127,9 +128,6 @@ function asPosition(method: Axial, offset: number, inner: number, outer: number,
 
 /** `RocketComponent.setAxialOffset` snaps a position within a micrometer to zero. */
 const snap = (x: number): number => (Math.abs(x) < 1e-6 ? 0 : x);
-
-/** `MathUtil.equals(v, 0)`, with `MathUtil.EPSILON` 1e-8. */
-const isZero = (v: number): boolean => Math.abs(v) < 0.5e-8;
 
 /**
  * How deeply tube evaluations may nest. Each level is a pod's in-line check
@@ -278,7 +276,11 @@ function rocketOf(components: readonly ComponentNode[]): { rocket: Part; staged:
  * Where a part's position along a transition matters to which end it reads,
  * both ends are read.
  */
-function resolveAxial(components: ComponentNode[], out: Map<ComponentNode, Patch>): void {
+function resolveAxial(
+  components: readonly ComponentNode[],
+  out: Map<ComponentNode, Patch>,
+  neighbors?: Map<ComponentNode, Neighbors>,
+): void {
   const { rocket, staged } = rocketOf(components);
   /** Changes to any `refComp`, so a repeated read can stop once the state settles. */
   let changes = 0;
@@ -736,6 +738,22 @@ function resolveAxial(components: ComponentNode[], out: Map<ComponentNode, Patch
     const symmetric = (q: Part): number => (q.symmetric ? 1 : 0) + q.kids.reduce((n, k) => n + symmetric(k), 0);
     for (let pass = symmetric(rocket); pass >= 0; pass--) settleAutoRadii(rocket);
     read(rocket);
+    if (neighbors) {
+      const record = (p: Part): void => {
+        if (p.symmetric && p.node) {
+          const before = previous(p);
+          const after = next(p);
+          neighbors.set(p.node, {
+            previous: before?.node ?? null,
+            next: after?.node ?? null,
+            previousOffers: before ? frontAuto(before) : -1,
+            nextOffers: after ? rearAuto(after) : -1,
+          });
+        }
+        for (const k of p.kids) record(k);
+      };
+      record(rocket);
+    }
   } catch (e) {
     // Nested past the limit: the stored radii stay as they are.
     if (e instanceof TooDeep) return;
@@ -760,6 +778,34 @@ function resolveAxial(components: ComponentNode[], out: Map<ComponentNode, Patch
     }
     if (Object.keys(patch).length) out.set(node, patch);
   }
+}
+
+/** The symmetric parts ahead of and behind one, as the kernel finds them. */
+export interface Neighbors {
+  previous: ComponentNode | null;
+  next: ComponentNode | null;
+  /**
+   * The radius the part ahead offers at its aft end (`getFrontAutoRadius`) and
+   * the part behind at its fore end (`getRearAutoRadius`): an automatic tube
+   * passes the question on to the part beyond it. -1 where there is no part or
+   * no fixed radius to offer.
+   */
+  previousOffers: number;
+  nextOffers: number;
+}
+
+/**
+ * Every airframe part's neighbors once the bridge has built the design
+ * (`SymmetricComponent.getPreviousSymmetricComponent` and
+ * `getNextSymmetricComponent`), keyed by the nodes of `components`: across
+ * stages, through pod sets and boosters in line with the airframe, and through
+ * an assembly flush with a tube's end, by the same walk the automatic radii
+ * use. A part missing from the map has no neighbor the walk could settle.
+ */
+export function symmetricNeighbors(components: readonly ComponentNode[]): Map<ComponentNode, Neighbors> {
+  const neighbors = new Map<ComponentNode, Neighbors>();
+  resolveAxial(components, new Map(), neighbors);
+  return neighbors;
 }
 
 /**

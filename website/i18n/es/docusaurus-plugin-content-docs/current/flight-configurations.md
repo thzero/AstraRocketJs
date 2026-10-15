@@ -21,7 +21,7 @@ Por debajo del punto de ruptura de escritorio las columnas de piezas desaparecen
 
 ## Motores {#motors}
 
-Una tarjeta por soporte de motor, de cola a punta. **Cambiar…** abre el [selector de motores](./motors.md), 📈 muestra la curva de empuje del motor colocado y **Encendido** indica cuándo se enciende ese motor:
+Una tarjeta por soporte de motor, de punta a cola. **Cambiar…** abre el [selector de motores](./motors.md), 📈 muestra la curva de empuje del motor colocado y **Encendido** indica cuándo se enciende ese motor:
 
 - **Automático** es el patrón de baja y media potencia: la etapa de lanzamiento enciende al despegar y una etapa superior con la carga de eyección de la etapa inferior.
 - **Lanzamiento**, **Eyección de la etapa inferior**, **Fin de combustión de la etapa inferior** y **Nunca**, cada uno con un retardo en segundos (salvo **Nunca**), son lo que necesita un sustentador con electrónica o un encendido en vuelo. **Lanzamiento** se ofrece en todos los soportes. **Eyección de la etapa inferior**, **Fin de combustión de la etapa inferior** y **Nunca** solo aparecen en un soporte que tenga una etapa por debajo, porque ninguna otra cosa puede activarlos.
@@ -49,4 +49,4 @@ Cada fila de la tabla de [Simulaciones](./running-a-simulation.md) tiene un sele
 
 ## En el archivo {#in-the-file}
 
-Un `.ork` lleva sus configuraciones, y esta aplicación también: entran todas las que declara el archivo con sus motores, su recuperación, sus etapas y las que deja en tierra, y cada una llega como una simulación propia para que haya una ejecución a la que asociar números. Cada una conserva el identificador de configuración del archivo, así que un diseño abierto aquí y guardado de vuelta es el mismo conjunto de configuraciones y no una reescritura. Consulta [Archivos y exportaciones](./files-and-exports.md).
+Un `.ork` lleva sus configuraciones, y esta aplicación también: entran todas las que declara el archivo con sus motores, su recuperación, sus etapas y las que deja en tierra. Las simulaciones del propio archivo entran tal como están, cada una con la configuración que nombra; un archivo sin simulaciones recibe una por configuración, para que haya una ejecución a la que asociar números. Cada una conserva el identificador de configuración del archivo, así que un diseño abierto aquí y guardado de vuelta es el mismo conjunto de configuraciones y no una reescritura. Consulta [Archivos y exportaciones](./files-and-exports.md).

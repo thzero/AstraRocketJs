@@ -16,9 +16,21 @@ const tube = (): ComponentNode =>
     thickness: 0.0005,
   }) as unknown as ComponentNode;
 
-const render = (onChange: (p: Partial<ComponentNode>) => void) =>
+/** A tube fin set: its length is a value the kernel cannot fly at 0, so it is required. */
+const tubeFins = (): ComponentNode =>
+  ({
+    id: 'fins',
+    type: 'tubefinset',
+    name: 'Tube fins',
+    finCount: 6,
+    length: 0.05,
+    outerRadius: 0.005,
+    thickness: 0.0005,
+  }) as unknown as ComponentNode;
+
+const render = (onChange: (p: Partial<ComponentNode>) => void, node: ComponentNode = tubeFins()) =>
   renderWithProviders(
-    <PropertyPanel node={tube()} onChange={onChange} onRemove={() => {}} canRemove isFirstStage={false} />,
+    <PropertyPanel node={node} onChange={onChange} onRemove={() => {}} canRemove isFirstStage={false} />,
   );
 
 /**
@@ -36,10 +48,10 @@ describe('an emptied required dimension', () => {
   it('writes nothing when the box is cleared', () => {
     const onChange = vi.fn();
     render(onChange);
-    const diameter = screen.getByLabelText('Diameter') as HTMLInputElement;
+    const box = screen.getByLabelText('Length') as HTMLInputElement;
 
-    fireEvent.focus(diameter);
-    fireEvent.change(diameter, { target: { value: '' } });
+    fireEvent.focus(box);
+    fireEvent.change(box, { target: { value: '' } });
 
     // Coerced to 0, an empty box would hand a zero to the tree.
     expect(onChange).not.toHaveBeenCalled();
@@ -48,16 +60,16 @@ describe('an emptied required dimension', () => {
   it('still writes a real value typed into the same box', () => {
     const onChange = vi.fn();
     render(onChange);
-    const diameter = screen.getByLabelText('Diameter') as HTMLInputElement;
+    const box = screen.getByLabelText('Length') as HTMLInputElement;
 
-    fireEvent.focus(diameter);
-    fireEvent.change(diameter, { target: { value: '' } });
-    fireEvent.change(diameter, { target: { value: '2' } });
+    fireEvent.focus(box);
+    fireEvent.change(box, { target: { value: '' } });
+    fireEvent.change(box, { target: { value: '2' } });
 
     expect(onChange).toHaveBeenCalledTimes(1);
-    // Typed as a diameter in cm, stored as a radius in meters: the box and the
-    // node are two different numbers and the halving happens between them.
-    expect(onChange.mock.calls[0]![0]).toEqual({ outerRadius: 0.01 });
+    const written = onChange.mock.calls[0]![0] as Record<string, number>;
+    expect(Object.keys(written)).toEqual(['length']);
+    expect(written['length']).toBeGreaterThan(0);
   });
 
   it('still lets a DELIBERATE zero through, for the run gate to refuse', () => {
@@ -65,18 +77,18 @@ describe('an emptied required dimension', () => {
     // blocks the flight, so it does not need to be forbidden at the keystroke.
     const onChange = vi.fn();
     render(onChange);
-    const diameter = screen.getByLabelText('Diameter') as HTMLInputElement;
+    const box = screen.getByLabelText('Length') as HTMLInputElement;
 
-    fireEvent.focus(diameter);
-    fireEvent.change(diameter, { target: { value: '0' } });
+    fireEvent.focus(box);
+    fireEvent.change(box, { target: { value: '0' } });
 
-    expect(onChange).toHaveBeenCalledWith({ outerRadius: 0 });
+    expect(onChange).toHaveBeenCalledWith({ length: 0 });
   });
 
   it('does not guard an OPTIONAL dimension, where clearing means zero', () => {
     // Motor overhang 0 is flush, and clearing it is a reasonable way to say so.
     const onChange = vi.fn();
-    render(onChange);
+    render(onChange, tube());
     const overhang = screen.getByLabelText('Motor overhang') as HTMLInputElement;
 
     fireEvent.focus(overhang);

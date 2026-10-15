@@ -107,10 +107,9 @@ function rowGeometry(node: Partial<ComponentNode>, type: string): Record<string,
         material,
         materialDensity,
         shape: node.shape,
-        // Mirrors what catalogPatch writes for a filled cone (thickness = the
-        // radius), so a catalog cone that was picked, saved and listed again
-        // reads the same both times.
-        filled: wall !== null && wall >= od / 2 - 1e-9,
+        // The flag the kernel reads solidness from (`ComponentFactory` calls
+        // `setFilled`), as catalogPatch writes it.
+        filled: node.filled === true,
         outerDiameter: od,
         length,
       };
@@ -151,6 +150,24 @@ function rowGeometry(node: Partial<ComponentNode>, type: string): Record<string,
         materialDensity: n(node, 'surfaceDensity') ?? 0,
         stripLength,
         stripWidth,
+      };
+    }
+    case 'railbutton': {
+      // Read under the node's own keys, which are the row's (`RailButton.loadFromPreset`).
+      const od = n(node, 'outerDiameter');
+      const height = n(node, 'height');
+      if (od === null || height === null) return null;
+      return {
+        type,
+        material,
+        materialDensity,
+        outerDiameter: od,
+        innerDiameter: n(node, 'innerDiameter'),
+        height,
+        baseHeight: n(node, 'baseHeight'),
+        flangeHeight: n(node, 'flangeHeight'),
+        screwHeight: n(node, 'screwHeight'),
+        cd: null,
       };
     }
     default:

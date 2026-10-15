@@ -37,9 +37,15 @@ import {
   ensureConfig,
   type FlightConfig,
 } from '../services/flight/flightConfigs';
-import { launchPatchFor, type LaunchConditions, type LaunchPatch } from '../services/design/orkTree';
+import {
+  launchPatchFor,
+  overLaunchDefaults,
+  type LaunchConditions,
+  type LaunchPatch,
+} from '../services/design/orkTree';
 import type { OrkExportMotor } from '../services/files/orkFile';
 import type { ImportNote } from '../services/files/importNote';
+import type { DesignFormat } from '../services/files/designFile';
 import { repairValues } from '../services/design/repairValues';
 import { withKernelEnds } from '../services/design/autoRadius';
 import {
@@ -78,7 +84,7 @@ import type { MotorDims } from '../tree/schematicGeometry';
 import { type ConfigsTab } from './tabs';
 import { createViewSlice, type ViewSlice } from './viewSlice';
 import { createFileSlice, type FileSlice } from './fileSlice';
-import { markWritten } from './writtenWorkspace';
+import { markWritten, voidPendingAutosave } from './writtenWorkspace';
 import { errorText } from '../i18n/keyedError';
 import { flightBranches } from '../services/flight/flightColumns';
 import {
@@ -105,7 +111,13 @@ export {
 } from './workspaceSelectors';
 
 type Rocket = ReturnType<typeof buildRocketTree>;
-type LoadedMeta = { name: string; notes: ImportNote[]; exportMotors: Record<string, OrkExportMotor> } | null;
+type LoadedMeta = {
+  name: string;
+  notes: ImportNote[];
+  exportMotors: Record<string, OrkExportMotor>;
+  /** The file's format, which the loaded-design card names. */
+  format?: DesignFormat;
+} | null;
 
 /** One undo/redo checkpoint: the whole editable workspace: the design tree (and
  *  which part was selected, so undo re-focuses what changed) plus the simulations,
@@ -170,13 +182,18 @@ export interface WorkspaceState extends ViewSlice, FileSlice {
    * while the tree is still the one it was raised on), and this warning has to
    * outlive both.
    *
-   * A successful save clears only the transient "full" case. `degraded` and
-   * `loadFailed` are facts about this session that a later save does not undo,
-   * and `idbKeyValueStore.markDegraded()` is one-way and never notifies twice,
-   * so a message cleared here would never be raised again. Hence the `kind`.
+   * Two slots behind it (`storageNotices`), shown together. A save's own
+   * failure (`full`, `conflict`) is retired by the next save that lands, and a
+   * conflict also by a workspace swap, which points saving at a design this
+   * tab can write. `degraded` and `loadFailed` are facts about this session
+   * that a later save does not undo, and `idbKeyValueStore.markDegraded()` is
+   * one-way and never notifies twice, so a message cleared or overwritten
+   * there would never be raised again.
    */
   storageWarning: string | null;
+  /** The save failure's kind when one stands, else the standing notice's. */
   storageWarningKind: StorageWarningKind | null;
+  storageNotices: { standing: StorageNotice | null; save: StorageNotice | null };
   selectedId: string | null;
   /**
    * Bumped by every selection gesture, including one that picks the part that
@@ -315,7 +332,7 @@ export interface WorkspaceState extends ViewSlice, FileSlice {
   setStorageWarning: (msg: string | null, kind?: StorageWarningKind) => void;
   /** Storage refused a write: raise the clearable "storage full" warning. */
   warnStorageFull: () => void;
-  /** A save succeeded: retire a "storage full" warning, leave the standing ones. */
+  /** A save landed: retire a "storage full" or conflict warning, leave the standing ones. */
   clearSaveWarning: () => void;
   /**
    * When the autosave last landed (epoch ms), or null before the first one.
@@ -627,12 +644,27 @@ function sanitizeSims(sims: Simulation[], configs: FlightConfig[]): Simulation[]
   if (!safe.length) return [newSimulation(i18n.t('sims.untitled', { n: 1 }), fallback, launchDefaults)];
   return safe.map((s) => ({
     ...s,
-    launch: { ...launchDefaults, ...(s.launch ?? {}) },
+    launch: overLaunchDefaults(launchDefaults, s.launch),
     configId: known.has(s.configId) ? s.configId : fallback,
     // Kept, not dropped: flights persist under their own key and are re-attached
     // by the workspace store before this sees them (workspaceStore.withResults).
     result: s.result ?? null,
   }));
+}
+
+/** One storage warning and the condition that raised it. */
+type StorageNotice = { msg: string; kind: StorageWarningKind | null };
+
+/** The shown storage warning for these slots: the standing notice, then the save failure. */
+function storageWarningOf(
+  notices: WorkspaceState['storageNotices'],
+): Pick<WorkspaceState, 'storageWarning' | 'storageWarningKind' | 'storageNotices'> {
+  const shown = [notices.standing, notices.save].filter((n): n is StorageNotice => n !== null);
+  return {
+    storageNotices: notices,
+    storageWarning: shown.length ? shown.map((n) => n.msg).join(' ') : null,
+    storageWarningKind: notices.save?.kind ?? notices.standing?.kind ?? null,
+  };
 }
 
 /**
@@ -898,9 +930,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
    * `set` keeps a subscriber from seeing either half alone.
    *
    * A batch still running belongs to the old design, so it is canceled here
-   * (its answers would be dropped by the `ranOn` guard anyway).
+   * (its answers would be dropped by the `ranOn` guard anyway). So is an
+   * autosave still pending for it: the timer is cleared only once the effect
+   * re-runs, and firing before that it would write the old design under the
+   * new one's entry.
    */
   const replaceWorkspace = (patch: Partial<WorkspaceState> | ((s: WorkspaceState) => Partial<WorkspaceState>)) => {
+    voidPendingAutosave();
     batchAbort?.abort();
     batchAbort = null;
     // A sweep belongs to a simulation of the design being replaced, so it goes
@@ -932,6 +968,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
       // pending rather than as someone else's numbers.
       info: null,
       rocket: null,
+      // A conflict is about the outgoing design's entry, which another tab
+      // moved on; the incoming design saves on its own claim.
+      ...(s.storageNotices.save?.kind === 'conflict' ? storageWarningOf({ ...s.storageNotices, save: null }) : {}),
       ...(typeof patch === 'function' ? patch(s) : patch),
     }));
   };
@@ -950,6 +989,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
     buildErr: null,
     storageWarning: null,
     storageWarningKind: null,
+    storageNotices: { standing: null, save: null },
     lastSavedAt: null,
     quietReplace: 0,
     simRuns: {},
@@ -978,11 +1018,23 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
 
     setErr: (err) => set({ err }),
     setBuildErr: (buildErr) => set({ buildErr }),
-    setStorageWarning: (storageWarning, kind) =>
-      set({ storageWarning, storageWarningKind: storageWarning ? (kind ?? null) : null }),
+    setStorageWarning: (msg, kind) =>
+      set((s) => {
+        const notice = msg ? { msg, kind: kind ?? null } : null;
+        // A clear that names no kind clears both slots.
+        if (!notice && !kind) return storageWarningOf({ standing: null, save: null });
+        return storageWarningOf(
+          kind === 'degraded' || kind === 'loadFailed'
+            ? { ...s.storageNotices, standing: notice }
+            : { ...s.storageNotices, save: notice },
+        );
+      }),
     warnStorageFull: () => get().setStorageWarning(i18n.t('storage.full'), 'full'),
     clearSaveWarning: () =>
-      set((s) => (s.storageWarningKind === 'full' ? { storageWarning: null, storageWarningKind: null } : {})),
+      set((s) => {
+        const kind = s.storageNotices.save?.kind;
+        return kind === 'full' || kind === 'conflict' ? storageWarningOf({ ...s.storageNotices, save: null }) : {};
+      }),
     markSaved: () => set({ lastSavedAt: Date.now() }),
     applyBuild: (info, rocket) => set({ info, rocket }),
     setSimPrefs: (prefs) => set((s) => (changedPrefKeys(s.simPrefs, prefs).length ? { simPrefs: prefs } : {})),
@@ -1003,8 +1055,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
       // against the resolved one.
       const fixed = { ...repaired, tree: withKernelEnds(repaired.tree) };
       const prefs = get().simPrefs;
+      // A row from before result keys is keyed against the stored tree, the one
+      // it flew on, so a value the load repaired leaves it reading outdated.
       const sims = sanitizeSims(w.sims, configs)
-        .map((x) => legacyResultKey(x, repaired.tree, configOf(configs, x), prefs))
+        .map((x) => legacyResultKey(x, w.tree, configOf(configs, x), prefs))
         .map((x) =>
           fixed.tree !== repaired.tree &&
           x.resultKey !== undefined &&

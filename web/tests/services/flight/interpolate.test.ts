@@ -45,7 +45,7 @@ describe('lerpAt', () => {
     expect(lerpAt([0, 1], [null, 10], -1)).toBeNull();
   });
 
-  it('extrapolates off the END OF THE X-DOMAIN when ys is longer than xs', () => {
+  it('clamps to the END OF THE X-DOMAIN when ys is longer than xs', () => {
     // The case the other tests cannot see: every one of them passes an
     // equal-length pair, where `ys[ys.length-1]` and `ys[xs.length-1]` are the
     // same element. Clamped off `ys`, a longer `ys` returns a value from outside

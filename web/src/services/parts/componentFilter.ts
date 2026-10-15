@@ -16,12 +16,12 @@ const FIT_SLACK = 0.002;
  *  differently per manufacturer, so a few hundredths is noise, not interference. */
 const FIT_OVERSIZE = 0.0005;
 /**
- * How far apart two outer diameters may be and still continue one airframe, in
- * meters. Much tighter than FIT_SLACK: a coupler may be 2 mm under its tube, but
- * two tubes 2 mm apart in outer diameter are not the same tube, they are a
- * visible step in the airframe.
+ * How far a part's end may be from the diameter it has to meet and still match,
+ * in meters: desktop's `ComponentPresetRowFilter`, which takes
+ * `max(0.05 * d, 0.001)` around the diameter `d` and keeps a row strictly
+ * inside it.
  */
-const MATCH_TOL = 0.0006;
+const matchTolerance = (d: number): number => Math.max(0.05 * d, 0.001);
 
 /**
  * The geometry around the node being filled, in meters. Any field may be absent:
@@ -36,23 +36,25 @@ const MATCH_TOL = 0.0006;
 export interface FitContext {
   /** Bore of the enclosing body: what a coupler, ring or bulkhead fits inside. */
   parentInner?: number;
-  /** Outer diameter of the enclosing body. */
-  parentOuter?: number;
   /** Outer diameter of the inner tube this part has to clear: a centering
    *  ring's bore is sized to the motor mount it holds, which sits beside it in
    *  the same body tube rather than inside it. */
   mountOuter?: number;
-  /** Outer diameters of the airframe already in this design, for the parts whose
-   *  job is to continue the stack rather than fit inside it. */
-  airframeOuter?: number[];
+  /** The diameter this part's fore end has to meet: the aft end of the part
+   *  ahead of it (`getPreviousSymmetricComponent().getAftRadius()`). */
+  foreMatch?: number;
+  /** The diameter this part's aft end has to meet: the fore end of the part
+   *  behind it (`getNextSymmetricComponent().getForeRadius()`), or of the part
+   *  ahead of a flipped nose cone, as desktop's chooser reads it. */
+  aftMatch?: number;
 }
 
 /** Which dimension of a candidate has to line up with what, per part type. */
 type FitRule =
   /** Candidate OD slides inside a bore. */
   | { kind: 'inside'; target: number }
-  /** Candidate OD continues an airframe: same size, either way off. */
-  | { kind: 'match'; targets: number[] };
+  /** Candidate ends meet the parts beside it: each stated end, either way off. */
+  | { kind: 'ends'; fore: number | null; aft: number | null };
 
 /**
  * What "fits" means for each catalog type, given the surrounding geometry.
@@ -70,16 +72,17 @@ export function fitRuleFor(type: PickerType, fit: FitContext | undefined): FitRu
     case 'bulkhead':
     case 'engineblock':
       return fit.parentInner != null && fit.parentInner > 0 ? { kind: 'inside', target: fit.parentInner } : null;
-    // These are the airframe, so they continue it. The enclosing body's OD comes
-    // first (a tube inside a pod matches that pod), else any airframe OD already
-    // in the design.
+    // These are the airframe, so their ends meet the parts beside them: desktop's
+    // "Match fore diameter" and "Match aft diameter" (`ComponentPresetChooserDialog`),
+    // each offered when there is a part on that side and the type's rows state
+    // that end. A nose cone's rows state only the aft end; a body tube's one
+    // diameter is both ends; a transition states each.
     case 'bodytube':
-    case 'nosecone': {
-      const targets =
-        fit.parentOuter != null && fit.parentOuter > 0
-          ? [fit.parentOuter]
-          : (fit.airframeOuter ?? []).filter((d) => d > 0);
-      return targets.length > 0 ? { kind: 'match', targets } : null;
+    case 'nosecone':
+    case 'transition': {
+      const fore = type !== 'nosecone' && fit.foreMatch != null ? fit.foreMatch : null;
+      const aft = fit.aftMatch != null ? fit.aftMatch : null;
+      return fore != null || aft != null ? { kind: 'ends', fore, aft } : null;
     }
     // A parachute's fit is about packed volume, not canopy diameter. Ranking it
     // by canopy diameter against a bore would be confidently wrong, so it
@@ -94,9 +97,8 @@ export function fitRuleFor(type: PickerType, fit: FitContext | undefined): FitRu
     // answers the physical question instead.
     case 'innertube':
       return null;
-    // A transition joins two diameters and a lug or a streamer joins none, so
-    // a single outer diameter says nothing about whether they fit.
-    case 'transition':
+    // A lug or a streamer joins nothing, so a diameter says nothing about
+    // whether they fit.
     case 'launchlug':
     case 'streamer':
       return null;
@@ -110,6 +112,20 @@ export function fitRuleFor(type: PickerType, fit: FitContext | undefined): FitRu
 /** The outer diameter a fit rule measures, or null for a part that has none. */
 function outerOf(p: Component): number | null {
   return p.type === 'parachute' ? null : outerDiameterOf(p);
+}
+
+/** A row's diameter at one end, as desktop's chooser columns state it, or null. */
+function endOf(p: Component, end: 'fore' | 'aft'): number | null {
+  switch (p.type) {
+    case 'bodytube':
+      return p.outerDiameter;
+    case 'nosecone':
+      return end === 'aft' ? p.outerDiameter : null;
+    case 'transition':
+      return end === 'fore' ? p.foreOuterDiameter : p.aftOuterDiameter;
+    default:
+      return null;
+  }
 }
 
 /**
@@ -129,15 +145,31 @@ export function fitScore(p: Component, rule: FitRule | null): number | null {
     const gap = rule.target - od;
     return gap >= -FIT_OVERSIZE && gap <= FIT_SLACK ? Math.abs(gap) : null;
   }
-  const best = Math.min(...rule.targets.map((tgt) => Math.abs(tgt - od)));
-  return best <= MATCH_TOL ? best : null;
+  // Each end the rule states has to match; the score is how far off they are together.
+  let gap = 0;
+  for (const end of ['fore', 'aft'] as const) {
+    const target = rule[end];
+    if (target == null) continue;
+    const v = endOf(p, end);
+    if (v == null) continue;
+    const off = Math.abs(target - v);
+    if (!(off < matchTolerance(target))) return null;
+    gap += off;
+  }
+  return gap;
 }
 
-/** A centering ring also has to clear what it centers, not just fit the bore. */
+/**
+ * A centering ring also has to go over what it centers, not just fit the bore:
+ * its bore no smaller than the mount, past the same nominal rounding a coupler
+ * is allowed over its bore, and no more than the same glue gap larger.
+ */
 export function boreClears(p: Component, fit: FitContext | undefined): boolean {
   if (p.type !== 'centeringring' || !fit?.mountOuter) return true;
   const id = p.innerDiameter;
-  return id == null || id + FIT_SLACK >= fit.mountOuter;
+  if (id == null) return true;
+  const gap = id - fit.mountOuter;
+  return gap >= -FIT_OVERSIZE && gap <= FIT_SLACK;
 }
 
 /**
@@ -210,6 +242,12 @@ export interface ComponentQuery {
   odMax: number | null;
   /** Keep only parts that fit the surrounding geometry. */
   fitsOnly: boolean;
+  /**
+   * List the parts the desktop library marks legacy (the jar's `*-legacy.orc`
+   * files), which desktop's chooser hides until "Show Legacy Database" is
+   * checked.
+   */
+  showLegacy: boolean;
   sort: SortKey;
   dir: 1 | -1;
 }
@@ -222,6 +260,7 @@ export const emptyQuery: ComponentQuery = {
   odMin: null,
   odMax: null,
   fitsOnly: false,
+  showLegacy: false,
   sort: 'fit',
   dir: 1,
 };
@@ -290,6 +329,7 @@ export function queryComponents<C extends Component>(
 
   const rows: Ranked<C>[] = [];
   for (const part of list) {
+    if (part.legacy && !q.showLegacy) continue;
     if (!textMatches(part, terms)) continue;
     if (q.mfr && part.mfr !== q.mfr) continue;
     if (q.material && materialFamily(part) !== q.material) continue;

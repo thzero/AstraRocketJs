@@ -1,8 +1,8 @@
 // Build-time extractor for OpenRocket components (what OpenRocket calls
 // "component presets"). Reads OpenRocket's own `.orc` files (XML) of real
-// manufacturer parts, and writes an SI-normalized JSON catalog the app loads at
-// run time from public/data (like sync-motors.mjs, but from local OpenRocket data instead of the
-// thrustcurve API; no network).
+// manufacturer parts, and writes an SI-normalized JSON catalog to a staging file;
+// `sync-preset-digests.mjs` adds the digests and stated masses and writes the
+// catalog the app loads from public/data. Local OpenRocket data only, no network.
 //
 // Desktop's parts library is two sets of files, and this reads both: the
 // community database (`--src`, below) and the files OpenRocket ships inside its

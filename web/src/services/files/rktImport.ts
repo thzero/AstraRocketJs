@@ -3,6 +3,7 @@ import { decodeFileText } from './decodeText';
 import type { ComponentNode, ComponentType } from '../../engine/openRocketEngine';
 import { syncAutoRadii } from '../design/autoRadius';
 import { defaultStageName, freshId } from '../design/orkTree';
+import { uuid } from '../app/uuid';
 import { xmlText as text } from './xmlUtil';
 import { parseOrkXml } from './ork/importUnpack';
 import { clampCount, finiteNum } from './ork/numbers';
@@ -10,8 +11,8 @@ import { MAX_FIN_COUNT, MAX_FIN_POINTS, MAX_LINE_COUNT, checkDepth, countCompone
 import { ignoredNotes } from './ork/importNotes';
 import { keyedNote, type ImportNote } from './importNote';
 import { KeyedError } from '../../i18n/keyedError';
-import type { OrkImportResult } from './orkTypes';
-import { numOpt } from '../../tree/nodeProps';
+import type { OrkFlightConfig, OrkImportResult } from './orkTypes';
+import { finCant, numOpt } from '../../tree/nodeProps';
 import { bodyRadiusAt, trapezoidPoints } from '../../tree/finPlanform';
 import { isAssembly } from '../../tree/assembly';
 import { rollAngleKey, rollAngleOf } from '../../tree/componentKinds';
@@ -82,6 +83,8 @@ interface RktContext {
   dropped: Set<string>;
   /** Part and parent type pairs already named in a note, so each is said once. */
   incompatible: Set<string>;
+  /** Pods RockSim marks already ejected, by node id: grounded in the configuration the import opens on. */
+  removed: string[];
   /** Components read so far, against MAX_COMPONENTS. Mutable on purpose:
    *  the readers recurse, so the ceiling has to be one running total
    *  rather than a per-level one. */
@@ -507,8 +510,9 @@ function readFinSet(ctx: RktContext, el: Element, parent?: ComponentNode): Compo
   }
 
   // Degrees, converted: the same deliberate departure as `readRadialAngle`.
-  const cant = num(el, 'CantAngle');
-  if (cant) n['cant'] = degToRad(cant);
+  // Clamped as FinSet.setCantAngle clamps it, so the panel shows the cant that flies.
+  const cant = finCant({ type: n.type, cant: degToRad(num(el, 'CantAngle') ?? 0) });
+  if (cant !== 0) n['cant'] = cant;
   readRadialAngle(el, n, 'rotation');
 
   // The fin's cross section, which is what RockSim calls a tip shape. Without
@@ -797,11 +801,10 @@ const readPod = (ctx: RktContext, el: Element): ComponentNode => {
   n['radiusMethod'] = 'free';
   readRadialAngle(el, n, 'angleOffset');
   n['instanceCount'] = 1;
-  if (tag(el, 'Removed') === '1') {
-    // Upstream marks the stage inactive in the selected configuration. A `.rkt`
-    // declares no configurations for us to deactivate, so it is said instead.
-    ctx.dropped.add('importNote.rktEjectedPod');
-  }
+  // An ejected pod stays in the design and sits out the flight:
+  // `PodHandler.endHandler` marks its stage inactive in the selected
+  // configuration (`_setStageActive(stageNumber, false)`).
+  if (tag(el, 'Removed') === '1' && n.id) ctx.removed.push(n.id);
   return n;
 };
 
@@ -982,7 +985,14 @@ export function importRkt(data: ArrayBuffer | string): OrkImportResult {
   if (!design) throw new KeyedError('errors.file.notRkt');
 
   const name = tag(design, 'Name') ?? i18n.t('library.untitled');
-  const ctx: RktContext = { notes: [], ignored: new Set(), dropped: new Set(), incompatible: new Set(), nodeCount: 0 };
+  const ctx: RktContext = {
+    notes: [],
+    ignored: new Set(),
+    dropped: new Set(),
+    incompatible: new Set(),
+    removed: [],
+    nodeCount: 0,
+  };
 
   // `StageCount` decides how many of the three blocks are real: RockSim leaves
   // the unused ones in the file, empty, and reading them anyway would add empty
@@ -1037,6 +1047,19 @@ export function importRkt(data: ArrayBuffer | string): OrkImportResult {
   // and it is not a fault in the file: RockSim keeps its motor selections and
   // launch setup with its simulations, which are not a design.
   notes.push(keyedNote('importNote.rocksimNoMotors'));
+  // An ejected pod is grounded in the configuration desktop opens on, so there
+  // is one configuration to ground it in.
+  const grounding: OrkFlightConfig | null = ctx.removed.length
+    ? {
+        id: uuid(),
+        name: null,
+        isDefault: true,
+        motors: {},
+        deployments: {},
+        separations: {},
+        grounded: [...ctx.removed],
+      }
+    : null;
 
   return {
     name,
@@ -1047,8 +1070,8 @@ export function importRkt(data: ArrayBuffer | string): OrkImportResult {
     // A `.rkt` declares no flight configurations; RockSim's equivalent lives
     // with its simulations. Stated as an empty table rather than omitted so
     // this result is interchangeable with `importOrk`'s everywhere downstream.
-    configs: [],
-    chosenConfigId: null,
+    configs: grounding ? [grounding] : [],
+    chosenConfigId: grounding?.id ?? null,
     ignored: [...ctx.ignored],
     notes,
   };

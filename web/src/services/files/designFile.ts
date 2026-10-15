@@ -57,7 +57,7 @@ export function parseDesignFile(data: ArrayBuffer | string): OrkImportResult {
   // Bytes are held to the cap as they are decoded; text arrives already decoded.
   if (typeof data === 'string') assertImportSize(data.length);
   const format = sniffDesignFormat(data);
-  if (format === 'rkt') return importRkt(data);
-  if (format === 'ork') return importOrk(data);
+  if (format === 'rkt') return { ...importRkt(data), format };
+  if (format === 'ork') return { ...importOrk(data), format };
   throw new KeyedError('errors.file.notDesign');
 }

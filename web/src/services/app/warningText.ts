@@ -97,6 +97,20 @@ export const COMPONENT_PART_KEYS: Record<string, string> = {
 };
 
 /**
+ * The name the kernel flies a part under: the user's, or for a part with no
+ * name (or a blank one), the default `RocketComponent.setName` falls back to,
+ * which is the bundle key of {@link COMPONENT_PART_KEYS} for the part's type.
+ * It is the name a flight event's `source` carries. Empty for a type the table
+ * does not cover.
+ */
+export function kernelComponentName(node: { type: string; name?: unknown }): string {
+  if (typeof node.name === 'string' && node.name.trim() !== '') return node.name;
+  const part = `part.${node.type}`;
+  const key = Object.keys(COMPONENT_PART_KEYS).find((k) => COMPONENT_PART_KEYS[k] === part);
+  return key ? `[${key}]` : '';
+}
+
+/**
  * A kernel-supplied component name, in the reader's language.
  *
  * A part the user renamed arrives as the name they typed and is returned

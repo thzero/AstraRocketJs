@@ -5,6 +5,7 @@
  */
 
 import { NO_VALUE } from '../../i18n/noValue';
+import { finalizeSamples } from './curveFinalize';
 import { trapezoidImpulse } from './motorMath';
 
 export type Sample = [number, number]; // [time s, thrust N]
@@ -58,8 +59,6 @@ export interface Combined {
   samples: Sample[];
   totalImpulse: number; // N·s
   peakThrust: number; // N
-  avgThrust: number; // N (over the longest burn)
-  burnTime: number; // s (the longest-burning motor)
   motorCount: number;
 }
 
@@ -67,11 +66,21 @@ export interface Combined {
  * Combine N thrust curves as a simultaneously-ignited cluster: sum thrust at
  * the union of every curve's time breakpoints. Empty/degenerate curves are
  * skipped. Returns a zeroed result when nothing usable is given.
+ *
+ * Each curve is first put in the form the kernel flies (`finalizeSamples`: a
+ * point at t = 0, no repeated points). Most catalog curves start after t = 0,
+ * and `ThrustCurveMotor.Builder.build` refuses a curve that does, so a sum of
+ * the raw samples has no kernel statistics, and its impulse misses the ramp
+ * from (0, 0) to the first sample that the kernel flies.
+ *
+ * No burn time or average thrust: those are the kernel's, measured between the
+ * crossings of 5% of peak (`motorStatistics` on `samples`), so the cluster reads
+ * by the rule a single motor does.
  */
 export function combineCurves(curves: Sample[][]): Combined {
-  const usable = curves.filter((c) => c.length >= 2);
+  const usable = curves.filter((c) => c.length >= 2).map((c) => finalizeSamples(c));
   if (usable.length === 0) {
-    return { samples: [], totalImpulse: 0, peakThrust: 0, avgThrust: 0, burnTime: 0, motorCount: 0 };
+    return { samples: [], totalImpulse: 0, peakThrust: 0, motorCount: 0 };
   }
   // Union of all time points (each curve starts at 0), sorted + de-duped.
   //
@@ -89,15 +98,13 @@ export function combineCurves(curves: Sample[][]): Combined {
   }
   const sorted = [...times].sort((a, b) => a - b);
   const samples: Sample[] = sorted.map((t) => [t, usable.reduce((sum, c) => sum + thrustAt(c, t), 0)]);
-  const burnTime = Math.max(...usable.map((c) => c[c.length - 1]![0]));
   // Summed from the curves, not integrated from the resampled points above.
   // Simultaneous ignition means the cluster's impulse is the sum of the
   // motors' impulses, exactly, by linearity of the integral: no resampling,
   // no de-duplication, nothing to lose at a step or a breakpoint.
   const totalImpulse = usable.reduce((sum, c) => sum + impulse(c), 0);
   const peakThrust = samples.reduce((m, s) => Math.max(m, s[1]), 0);
-  const avgThrust = burnTime > 0 ? totalImpulse / burnTime : 0;
-  return { samples, totalImpulse, peakThrust, avgThrust, burnTime, motorCount: usable.length };
+  return { samples, totalImpulse, peakThrust, motorCount: usable.length };
 }
 
 /**

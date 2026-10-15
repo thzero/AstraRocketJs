@@ -1,5 +1,5 @@
 import type { TFunction } from 'i18next';
-import { AUTO_COMPONENT_FIELDS, REQUIRED_COMPONENT_FIELDS } from './requiredComponent';
+import { REQUIRED_COMPONENT_FIELDS } from './requiredComponent';
 import { CLUSTER_OPTIONS, clusterCount } from '../../tree/cluster';
 import type { DerivedName } from './derivedFields';
 import { KERNEL_DEPLOYMENT } from '../../tree/kernelDefaults';
@@ -44,18 +44,13 @@ export type PanelSection =
 
 type FieldFlags = {
   /**
-   * A zero here is degenerate; it does not mean the box can be empty.
+   * A zero here is a value the kernel cannot fly (`REQUIRED_COMPONENT_FIELDS`);
+   * it does not mean the box can be empty.
    *
    * Unlike the launch conditions (where a cleared field has to be told apart
-   * from a typed zero, because still air and sea level are real values), a part
-   * has no meaningful "blank length". Zero is the invalid state, so there is no
+   * from a typed zero, because still air and sea level are real values), such a
+   * field has no meaningful blank. Zero is the invalid state, so there is no
    * second state to model and the field keeps storing a number.
-   *
-   * Marked conservatively: only where a zero makes the part stop being that part.
-   * Plenty of dimensions here are legitimately zero and are not marked: a
-   * tipChord of 0 is a delta fin, a sweep or cant of 0 is a straight one, a
-   * shoulder or fin tab of 0 is simply absent, and every delay and angle offset
-   * starts at 0.
    */
   required?: true;
   section?: PanelSection;
@@ -678,21 +673,12 @@ const RAW_FIELDS: Record<string, Field[]> = {
  * The same table with `required` filled in from `services/design/requiredComponent`,
  * which is also what the Run button and the run loop check. One list, so the
  * editor cannot mark a field the run path ignores, or the other way round.
- *
- * A field the kernel derives is never marked, even though it is required in the
- * sense that the part cannot work without one: leaving a centering ring's outer
- * radius blank means "the tube I sit in", which is a real answer and the one
- * OpenRocket writes as `auto`. A red asterisk there would demand a number the
- * design does not need, and the run path agrees: `badDimensions` skips the same
- * pairs.
  */
 export const FIELDS: Record<string, Field[]> = Object.fromEntries(
   Object.entries(RAW_FIELDS).map(([type, fields]) => [
     type,
     [...fields, COMMENT].map((f) =>
-      (REQUIRED_COMPONENT_FIELDS[type] ?? []).includes(f.key) && !(AUTO_COMPONENT_FIELDS[type] ?? []).includes(f.key)
-        ? { ...f, required: true }
-        : f,
+      (REQUIRED_COMPONENT_FIELDS[type] ?? []).includes(f.key) ? { ...f, required: true } : f,
     ),
   ]),
 );

@@ -6,8 +6,8 @@ import { fitRuleFor } from '../../../src/services/parts/componentFilter';
 /**
  * A two-stage rocket with a real 54 mm airframe: a 1.6 mm-walled body tube
  * (54.6 mm OD, so a 51.4 mm bore) holding a 29 mm motor mount, a centering ring
- * and a coupler, plus a 66 mm booster below so there is a second airframe
- * diameter in the design.
+ * and a coupler, plus a 66 mm booster below, the next airframe part across the
+ * stage boundary.
  *
  * Radii, because that is what the tree stores: the picker's problem is
  * that the number a coupler has to match (the bore) is not a field at all, it is
@@ -54,42 +54,34 @@ describe('fitContextFor', () => {
     expect(fitContextFor(tree, 'ring')!.parentInner).toBeCloseTo(0.0514, 6);
   });
 
-  it('reports the enclosing outer diameter too', () => {
-    expect(fitContextFor(tree, 'coupler')!.parentOuter).toBeCloseTo(0.0546, 6);
-  });
-
   it('finds the mount a centering ring has to clear beside it, not under it', () => {
     // The motor mount is the ring's sibling. Looking for it among the ring's
     // children would find nothing and silently drop the constraint.
     expect(fitContextFor(tree, 'ring')!.mountOuter).toBeCloseTo(0.029, 6);
   });
 
-  it('collects every airframe diameter in the design, largest first', () => {
-    // The nose cone's aft, the 54 mm tube and the 66 mm booster; the inner tube
-    // and the coupler threaded through the airframe are not part of it.
-    const ds = fitContextFor(tree, 'tube')!.airframeOuter!;
-    expect(ds.map((d) => Math.round(d * 10000) / 10)).toEqual([66.4, 54.6]);
+  it('matches each airframe end against the part beside it, across stages', () => {
+    // The tube's fore end meets the nose cone's base and its aft end the
+    // booster's fore end, in the next stage.
+    const tube = fitContextFor(tree, 'tube')!;
+    expect(tube.foreMatch).toBeCloseTo(0.0546, 9);
+    expect(tube.aftMatch).toBeCloseTo(0.0664, 9);
+    expect(fitContextFor(tree, 'nose')!.aftMatch).toBeCloseTo(0.0546, 9);
+    expect(fitContextFor(tree, 'nose')!.foreMatch).toBeUndefined();
   });
 
   it('gives a part on a bare stage no enclosing geometry, and says so', () => {
-    // A stage has no radius, so there is nothing to fit inside or match against
-    // except the rest of the design.
+    // A stage has no radius, so there is nothing to fit inside; the booster
+    // still meets the tube ahead of it, and nothing behind it.
     const ctx = fitContextFor(tree, 'booster')!;
     expect(ctx.parentInner).toBeUndefined();
-    expect(ctx.parentOuter).toBeUndefined();
-    expect(ctx.airframeOuter!.length).toBeGreaterThan(0);
+    expect(ctx.foreMatch).toBeCloseTo(0.0546, 9);
+    expect(ctx.aftMatch).toBeUndefined();
   });
 
   it('returns nothing for an id that is not in the tree', () => {
     expect(fitContextFor(tree, 'nope')).toBeUndefined();
     expect(fitContextFor(tree, null)).toBeUndefined();
-  });
-
-  it('keeps the part its own size, because that is what you are replacing', () => {
-    // Picking a catalog part for a tube already sized to 54.6 mm means you want
-    // real 54.6 mm parts, so the design's own diameter belongs in the targets.
-    const ds = fitContextFor(tree, 'tube')!.airframeOuter!;
-    expect(ds.some((d) => Math.abs(d - 0.0546) < 1e-6)).toBe(true);
   });
 
   describe('feeding the filter', () => {
@@ -102,7 +94,7 @@ describe('fitContextFor', () => {
 
     it('lets a body tube be ranked against the airframe it continues', () => {
       const rule = fitRuleFor('bodytube', fitContextFor(tree, 'booster'));
-      expect(rule?.kind).toBe('match');
+      expect(rule).toEqual({ kind: 'ends', fore: expect.closeTo(0.0546, 9) as unknown as number, aft: null });
     });
 
     it('still abstains where the geometry cannot answer', () => {

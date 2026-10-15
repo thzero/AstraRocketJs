@@ -1,4 +1,5 @@
 import { NO_VALUE } from '../i18n/noValue';
+import { G0 } from '../services/motors/motorMath';
 
 /** Meters to millimeters. The unit constant for every dimensional export. */
 export const M_TO_MM = 1000;
@@ -96,7 +97,7 @@ export const UNITS: Record<Quantity, UnitDef[]> = {
   acceleration: [
     { symbol: 'm/s²', toSI: 1 },
     { symbol: 'ft/s²', toSI: 0.3048 },
-    { symbol: 'G', toSI: 9.80665 },
+    { symbol: 'G', toSI: G0 },
   ],
   angle: [
     { symbol: '°', toSI: Math.PI / 180 },

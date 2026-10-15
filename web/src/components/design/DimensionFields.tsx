@@ -15,7 +15,6 @@ import { clampToBounds, type DimensionBounds } from '../../services/design/linke
 import { KERNEL_AUTO_KEYS, fieldApplies, fieldRange, fieldValue, liveBounds } from '../../services/design/fieldRange';
 import { parentRadiusOf } from '../../tree/finPlanform';
 import { PropSection } from './PropSection';
-import { isClosedEnd } from '../../services/design/requiredComponent';
 import { rebaseTabOffset } from '../../tree/axialRebase';
 import { useWorkspaceStore } from '../../state/store';
 
@@ -164,7 +163,6 @@ export function NumberField({
   min = 0,
   max,
   required,
-  zeroAllowed,
   auto,
   onChange,
   onCommit,
@@ -176,13 +174,8 @@ export function NumberField({
   min?: number;
   /** Upper bound, forwarded to the input so the spinner respects it too. */
   max?: number;
-  /** A zero here is degenerate geometry; see the `Field` type. */
+  /** A zero here is a value the kernel cannot fly; see the `Field` type. */
   required?: boolean;
-  /**
-   * A typed 0 the run accepts here, such as the closed end of a transition
-   * whose other end has a radius: the box is still required, not missing.
-   */
-  zeroAllowed?: boolean;
   /**
    * A "follows something else" switch. While it is on the number is derived
    * and the box is read-only, so the checkbox is the control and the box is
@@ -196,7 +189,7 @@ export function NumberField({
   const { t } = useTranslation();
   // No separate "blank" state to check for: 0 is exactly what is wrong here, so
   // an emptied box and a typed zero collapse into one condition.
-  const missing = required && !(Number.isFinite(value) && (value > 0 || (zeroAllowed && value === 0)));
+  const missing = required && !(Number.isFinite(value) && value > 0);
   /**
    * An empty required box writes nothing at all.
    *
@@ -340,15 +333,7 @@ export function FieldRow({ node, field: f, onChange, onCommit }: NodeEditProps &
     max?: number;
     auto?: { on: boolean; label: string; title: string; onToggle: (on: boolean) => void };
     onChange: (v: number) => void;
-  }) => (
-    <NumberField
-      label={label}
-      required={f.required}
-      zeroAllowed={isClosedEnd(node, f.key)}
-      onCommit={onCommit}
-      {...props}
-    />
-  );
+  }) => <NumberField label={label} required={f.required} onCommit={onCommit} {...props} />;
   /** The field's own stored SI number, edited in its unit with a unit chip. */
   const inUnit = (quantity: Quantity, stepSi: number, min?: (fu: FieldUnit) => number, maxSi?: number) => {
     const fu = u.at(scope, quantity);

@@ -16,11 +16,12 @@ import type { FlightConfig } from '../flight/flightConfigs';
 import { migrateWorkspace } from './workspaceMigrate';
 import type { OrkExportMotor } from '../files/orkFile';
 import type { ImportNote } from '../files/importNote';
+import type { DesignFormat } from '../files/designFile';
 import { nsKey } from './storageKeys';
 import { designNameOf } from '../app/appInfo';
 
 export interface Workspace {
-  version: 2;
+  version: 3;
   tree: RocketTree;
   sims: Simulation[];
   /**
@@ -34,7 +35,19 @@ export interface Workspace {
   configs: FlightConfig[];
   activeId: string;
   /** Imported-.ork source metadata (banner + round-trip export), or null. */
-  loadedMeta: { name: string; notes: ImportNote[]; exportMotors: Record<string, OrkExportMotor> } | null;
+  loadedMeta: {
+    name: string;
+    notes: ImportNote[];
+    exportMotors: Record<string, OrkExportMotor>;
+    /** The file's format, which the loaded-design card names. */
+    format?: DesignFormat;
+  } | null;
+}
+
+/** A design as read, with the stamp the store claims it by once it is the open one. */
+interface Opened {
+  w: Workspace;
+  seenAt: number | null;
 }
 
 export interface WorkspaceStore {
@@ -47,11 +60,20 @@ export interface WorkspaceStore {
    *  has nothing to switch. */
   setActiveId?(id: string | null): void;
   /**
-   * Point the store at a design and read it the way boot does: the stamp
-   * before the blob, the stored flights put back on their simulations, and the
-   * claim taken only once the whole read succeeds. Optional, like setActiveId.
+   * Read a design the way boot does (the stamp before the blob, the stored
+   * flights put back on their simulations) and point the store at it once the
+   * whole read succeeds. Until then the store stays on the design being left,
+   * so a save made meanwhile writes into that design's entry.
+   *
+   * Null, with the store left where it was, when a later switch superseded
+   * this one: another `openActive` or `setActiveId`, or `stale` returning true.
+   * `stale` is the caller's own check, for a replacement the store cannot see
+   * (an import still parsing, a library open still reading); without it a read
+   * that finishes first would point the store at a design the screen never
+   * shows, and the next autosave would write the open design into it.
+   * Optional, like setActiveId.
    */
-  openActive?(id: string): Promise<Workspace | null>;
+  openActive?(id: string, stale?: () => boolean): Promise<Workspace | null>;
   /**
    * The name to create under while detached (`setActiveId(null)`), instead of
    * the one the workspace implies.
@@ -414,17 +436,30 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
   }
 
   /**
-   * Fold design `e.j.id`'s journal back into its entry and open the result.
+   * Boot's replay of the active design's journal (`replayEntry`), taking the
+   * claim it leaves behind. Detaches on a failed read, as `readActive` does.
+   */
+  private async replayJournal(lib: DesignLibrary, e: StoredJournal): Promise<Workspace | null> {
+    try {
+      return this.hold(await this.replayEntry(lib, e));
+    } catch (err) {
+      this.activeId = null;
+      throw err;
+    }
+  }
+
+  /**
+   * Fold design `e.j.id`'s journal back into its entry and read the result.
    *
    * A journal another tab's save has moved past (see `Journal`) is dropped
    * rather than replayed over the newer work.
    */
-  private async replayJournal(lib: DesignLibrary, e: StoredJournal): Promise<Workspace | null> {
+  private async replayEntry(lib: DesignLibrary, e: StoredJournal): Promise<Opened> {
     const journal = e.j;
     const id = journal.id!;
     if (!journalIsCurrent(journal, await this.metaOf(id))) {
       clearJournal(e.key);
-      return await this.readActive(lib);
+      return await this.readEntry(lib, id);
     }
     // Validate before writing. `readJournalAt` only checks that the blob parses
     // and has a `w`; a journal written by a different app build (this is an
@@ -436,7 +471,7 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
     const w = migrateWorkspace(journal.w);
     if (!w) {
       clearJournal(e.key);
-      return await this.readActive(lib);
+      return await this.readEntry(lib, id);
     }
     // A journal of what the entry already holds (a hidden tab's save landed
     // after it) is dropped unwritten: writing it would only re-stamp the design
@@ -445,7 +480,7 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
     const stored = await lib.read(id);
     if (stored && JSON.stringify(stored) === JSON.stringify(journal.w)) {
       clearJournal(e.key);
-      return await this.readActive(lib);
+      return await this.readEntry(lib, id);
     }
     if (await lib.write(id, (await this.nameOf(id)) ?? nameFor(w), w, this.tab)) {
       clearJournal(e.key);
@@ -453,10 +488,10 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
     // This tab has just written the entry, so the claim it holds on it is the
     // one it leaves behind; without this the first autosave reads its own
     // journal replay as another tab's work.
-    this.lastSeenAt = (await this.metaOf(id))?.updatedAt ?? null;
+    const seenAt = (await this.metaOf(id))?.updatedAt ?? null;
     // The journal carries no results (see `lean`), so they come from their own
     // key, so a reload after a run still opens on the numbers it produced.
-    return this.trackResults(withResults(w, await lib.readResults(id)));
+    return { w: withResults(w, await lib.readResults(id)), seenAt };
   }
 
   /**
@@ -483,20 +518,32 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
     const id = this.activeId;
     if (!id) return null;
     try {
-      // The stamp before the blob: a save in another tab claims the stamp before
-      // it writes the blob and stamps again after, so a stamp read first is never
-      // newer than the blob read after it (see `DesignLibrary.writeIfUnchanged`).
-      const seenAt = (await this.metaOf(id))?.updatedAt ?? null;
-      const w = migrateWorkspace(await lib.read(id));
-      if (!w) throw new Error('unreadable-design');
-      const full = withResults(w, await lib.readResults(id));
-      this.lastSeenAt = seenAt;
-      return this.trackResults(full);
+      return this.hold(await this.readEntry(lib, id));
     } catch (e) {
       this.activeId = null;
       throw e;
     }
   }
+
+  /** Design `id` with its flights, and the stamp to claim it by. Throws when it cannot be read. */
+  private async readEntry(lib: DesignLibrary, id: string): Promise<Opened> {
+    // The stamp before the blob: a save in another tab claims the stamp before
+    // it writes the blob and stamps again after, so a stamp read first is never
+    // newer than the blob read after it (see `DesignLibrary.writeIfUnchanged`).
+    const seenAt = (await this.metaOf(id))?.updatedAt ?? null;
+    const w = migrateWorkspace(await lib.read(id));
+    if (!w) throw new Error('unreadable-design');
+    return { w: withResults(w, await lib.readResults(id)), seenAt };
+  }
+
+  /** Take the claim on a design just read as the active entry. */
+  private hold(o: Opened): Workspace {
+    this.lastSeenAt = o.seenAt;
+    return this.trackResults(o.w);
+  }
+
+  /** Counts `openActive` calls, so only the latest one switches the store. */
+  private opening = 0;
 
   /** Take over a detached journal's pending create, so a retry makes the same entry. */
   private adoptCreate(j: Journal): void {
@@ -647,14 +694,23 @@ export class LibraryWorkspaceStore implements WorkspaceStore {
    * results map over the stored ones; without the claim, that autosave would
    * skip the two-tab check and could overwrite another tab's save.
    */
-  async openActive(id: string): Promise<Workspace | null> {
-    this.setActiveId(id);
+  async openActive(id: string, stale?: () => boolean): Promise<Workspace | null> {
     const lib = getDesignLibrary();
+    // The store stays on the design being left until the read is done. A save
+    // or unload journal made during the read holds that design's work, and
+    // with the incoming id and no claim yet it would overwrite the incoming
+    // entry unconditionally.
+    const seq = ++this.opening;
+    const gen = this.gen;
     // A journal another tab left for this design, which boot kept because a
     // different design was opened then.
     const mine = journalFor(readJournals(), id);
-    if (mine) return await this.replayJournal(lib, mine);
-    return await this.readActive(lib);
+    const opened = mine ? await this.replayEntry(lib, mine) : await this.readEntry(lib, id);
+    // A later open, or any other switch, has taken the store meanwhile, or
+    // the caller's workspace has been claimed by something else.
+    if (seq !== this.opening || gen !== this.gen || stale?.()) return null;
+    this.setActiveId(id);
+    return this.hold(opened);
   }
 
   /** Point the store at a different design (the library owns the switch). */

@@ -8,7 +8,7 @@ import { ALIGN, COLUMNS, heading, type Col } from './motorColumns';
 import type { MotorSort } from './useMotorSort';
 import { SortHeader } from '../common/SortHeader';
 import { CheckMenu } from '../common/CheckMenu';
-import { isTextEntry } from '../common/isTextEntry';
+import { takesArrowKeys } from '../common/isTextEntry';
 import { ImportedStar } from './ImportedStar';
 
 /**
@@ -80,7 +80,7 @@ export function MotorGrid({
     if (!active) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
-      if (isTextEntry(e.target as Element) || !shown.length) return;
+      if (takesArrowKeys(e.target as Element) || !shown.length) return;
       e.preventDefault();
       const i = selected ? shown.findIndex((m) => keyOf(m) === keyOf(selected)) : -1;
       onSelect(shown[e.key === 'ArrowDown' ? Math.min(shown.length - 1, i + 1) : Math.max(0, i - 1)] ?? null);

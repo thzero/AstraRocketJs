@@ -652,6 +652,14 @@ describe('updateNode and the catalog link', () => {
     [{ type: 'parachute', lineCount: 6 }, { lineLength: 0.5 }],
     // Streamer.setStripWidth
     [{ type: 'streamer' }, { stripWidth: 0.06 }],
+    // A shoulder grown from 0 seeds its radius through setForeShoulderRadius
+    // (Transition.java:514-515), which clears the link (:459)
+    [{ type: 'transition' }, { foreShoulderLength: 0.02 }],
+    // A shoulder set back to 0 zeroes its radius the same way (Transition.java:502-504)
+    [{ type: 'nosecone', shoulderLength: 0.02, shoulderRadius: 0.01 }, { shoulderLength: 0 }],
+    // NoseCone.setFlipped moves the base through setForeRadius and setAftRadius
+    [{ type: 'nosecone', aftRadius: 0.02 }, { flipped: true }],
+    [{ type: 'nosecone', aftRadius: 0.02, flipped: true }, { flipped: false }],
   ])('drops it on %o edited with %o', (node, patch) => {
     expect(kept(node, patch)).toBe(false);
   });
@@ -665,10 +673,20 @@ describe('updateNode and the catalog link', () => {
     [{ type: 'parachute' }, { radius: 0.01 }],
     // Parachute.setLineLength on a chute with no lines
     [{ type: 'parachute', lineCount: 0 }, { lineLength: 0.5 }],
-    // NoseCone.setFlipped, Transition.setClipped, the shoulder lengths
-    [{ type: 'nosecone' }, { flipped: true }],
+    // Transition.setClipped, the shoulder lengths
     [{ type: 'transition' }, { clipped: false }],
-    [{ type: 'transition' }, { foreShoulderLength: 0.02 }],
+    // A shoulder length that does not cross 0, or grows from 0 onto a radius
+    // already set, leaves the radius alone (Transition.java:514, :524-525)
+    [{ type: 'transition', foreShoulderLength: 0.01, foreShoulderRadius: 0.01 }, { foreShoulderLength: 0.02 }],
+    [{ type: 'transition', foreShoulderRadius: 0.01 }, { foreShoulderLength: 0.02 }],
+    // A setter given the value it already holds returns before clearPreset():
+    // BodyTube.setOuterRadius, RingComponent.setLength, ExternalComponent.setMaterial
+    [{ type: 'bodytube', outerRadius: 0.02 }, { outerRadius: 0.02 }],
+    [{ type: 'tubecoupler', length: 0.05 }, { length: 0.05 }],
+    [
+      { type: 'nosecone', materialName: 'Balsa', density: 170 },
+      { materialName: 'Balsa', density: 170 },
+    ],
     // BodyComponent.setLength, LaunchLug.setLength
     [{ type: 'bodytube' }, { length: 0.3 }],
     [{ type: 'launchlug' }, { length: 0.03 }],
@@ -676,5 +694,78 @@ describe('updateNode and the catalog link', () => {
     [{ type: 'streamer' }, { stripLength: 0.5 }],
   ])('keeps it on %o edited with %o', (node, patch) => {
     expect(kept(node, patch)).toBe(true);
+  });
+
+  it('follows the setters these cases are written from', () => {
+    const java = (file: string) =>
+      readFileSync(
+        resolve(process.cwd(), '../engine-java/src/java/info/openrocket/core/rocketcomponent', file),
+        'utf8',
+      ).replace(/\s+/g, ' ');
+    expect(java('BodyTube.java')).toContain('if ((this.outerRadius == radius) && (autoRadius == false)) return;');
+    expect(java('RingComponent.java')).toContain('if (this.length == l) return; this.length = l; clearPreset();');
+    expect(java('ExternalComponent.java')).toContain('if (material.equals(mat)) return;');
+    const transition = java('Transition.java');
+    expect(transition).toContain(
+      'if (MathUtil.equals(foreShoulderLength,0)){ this.foreShoulderLength = 0; this.setForeShoulderRadius(0);',
+    );
+    expect(transition).toContain(
+      'if (MathUtil.equals(this.getForeShoulderRadius(),0)) { this.setForeShoulderRadius(radius - wallThickness); }',
+    );
+    expect(transition).toContain(
+      'if (MathUtil.equals(this.foreShoulderRadius, foreShoulderRadius)) return; this.foreShoulderRadius = foreShoulderRadius;',
+    );
+    // A flip moves the base through the radius setters, which clear the link
+    // unless the value is unchanged (the 24.12 release's bytecode is the same).
+    expect(java('NoseCone.java')).toContain(
+      'if (flipped) { setForeRadius(getAftRadius()); setForeRadiusAutomatic(isAftRadiusAutomatic(), sanityCheck);',
+    );
+    expect(transition).toContain(
+      'if ((this.foreRadius == radius) && (autoForeRadius == false)) return; this.autoForeRadius = false;',
+    );
+  });
+
+  /**
+   * An automatic shoulder takes the bore of the tube it plugs. On the desktop
+   * that diameter is typed into the shoulder, and `setShoulderRadius` clears
+   * the link when the value changes, so turning the flag on is the same edit.
+   */
+  describe('an automatic shoulder turned on', () => {
+    const design = (shoulderRadius: number) =>
+      ({
+        components: [
+          {
+            id: 's',
+            type: 'stage',
+            children: [
+              {
+                id: 'p',
+                type: 'nosecone',
+                preset: LINK,
+                aftRadius: 0.0125,
+                length: 0.1,
+                shoulderLength: 0.02,
+                shoulderRadius,
+                shoulderThickness: 0.001,
+                shoulderAuto: false,
+              },
+              { id: 't', type: 'bodytube', outerRadius: 0.0125, thickness: 0.0005, length: 0.3 },
+            ],
+          },
+        ],
+      }) as unknown as RocketTree;
+
+    it('drops the link when the shoulder moves to the bore', () => {
+      const out = updateNode(design(0.01), 'p', { shoulderAuto: true });
+      const p = findNode(out, 'p')!;
+      // The bore it follows: the tube's radius less its wall.
+      expect(p['shoulderRadius']).toBeCloseTo(0.0125 - 0.0005, 12);
+      expect(p['preset']).toBeUndefined();
+    });
+
+    it('keeps the link when the shoulder already sits at the bore', () => {
+      const out = updateNode(design(0.012), 'p', { shoulderAuto: true });
+      expect(findNode(out, 'p')!['preset']).toEqual(LINK);
+    });
   });
 });

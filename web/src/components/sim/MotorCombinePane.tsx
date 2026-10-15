@@ -10,6 +10,8 @@ import { inUserUnit, withFixedUnit } from './motorFormat';
 import { ChartAxes, CHART_HEADROOM, chartScales, linePath, baselineArea, LegendSwatch, SeriesPath } from './chartAxes';
 import { token } from '../common/colorTokens';
 import { fmtList } from '../../i18n/format';
+import { motorStatistics } from '../../engine/openRocketEngine';
+import { useEngineStore } from '../../state/engineStore';
 
 /**
  * The motor dashboard's Combine tool: the checked motors summed into one
@@ -98,6 +100,15 @@ export function MotorCombinePane({ motors }: { motors: CatalogMotor[] }) {
     () => combineCurves(motors.map((m) => (m.curves?.[0]?.samples ?? []) as Sample[])),
     [motors],
   );
+  // Burn time and average thrust are the kernel's (ThrustCurveMotor.computeStatistics:
+  // between the crossings of 5% of peak), as a single motor's are. They read as
+  // a dash, rather than being worked out another way, while the engine is not
+  // loaded or when the kernel refuses the summed curve.
+  const engineReady = useEngineStore((s) => s.phase) === 'ready';
+  const kernel = useMemo(
+    () => (engineReady && combined.samples.length >= 2 ? motorStatistics(combined.samples) : null),
+    [engineReady, combined.samples],
+  );
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-3">
@@ -125,8 +136,8 @@ export function MotorCombinePane({ motors }: { motors: CatalogMotor[] }) {
             stays in seconds. */}
         <SpecItem label={t('motorDlg.totalImpulse')} value={inUserUnit(u, 'impulse', combined.totalImpulse, 1, 1)} />
         <SpecItem label={t('motorDlg.maxThrust')} value={inUserUnit(u, 'force', combined.peakThrust, 1, 1)} />
-        <SpecItem label={t('motorDlg.avgThrust')} value={inUserUnit(u, 'force', combined.avgThrust, 1, 1)} />
-        <SpecItem label={t('motorDlg.burnTime')} value={withFixedUnit(combined.burnTime, 's', 2)} />
+        <SpecItem label={t('motorDlg.avgThrust')} value={inUserUnit(u, 'force', kernel?.averageThrust ?? null, 1, 1)} />
+        <SpecItem label={t('motorDlg.burnTime')} value={withFixedUnit(kernel?.burnTime ?? null, 's', 2)} />
       </dl>
       <p className="mt-2 text-[11px] leading-snug text-ink-faint">{t('dash.combineNote')}</p>
     </div>

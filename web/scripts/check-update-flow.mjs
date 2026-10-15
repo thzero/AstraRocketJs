@@ -112,22 +112,26 @@ async function main() {
     const reloaded = (p) =>
       p.waitForFunction(() => window.__stillTheSameDocument === undefined, null, { timeout: 60_000 });
 
-    // On failure, say what each layer thinks the page is: the server's copy,
-    // the copy the worker hands the page, the worker in control, and what
-    // rendered. A bare timeout names none of them.
-    const diagnose = async () => {
-      const info = await page.evaluate(async () => {
-        const viaWorker = await fetch(location.href, { cache: 'no-store' }).then((r) => r.text());
-        const reg = await navigator.serviceWorker.getRegistration();
-        return {
-          renderedVersion: document.body.textContent?.match(/v0\.0\.0-update-[ab]/)?.[0] ?? null,
-          pageHtml: document.documentElement.outerHTML,
-          viaWorkerHtml: viaWorker,
-          controller: navigator.serviceWorker.controller?.scriptURL ?? null,
-          active: reg?.active?.scriptURL ?? null,
-          waiting: reg?.waiting?.scriptURL ?? null,
-        };
-      });
+    // On failure, say what each layer thinks the page the step drives is: the
+    // server's copy, the copy the worker hands the page, the worker in control,
+    // and what rendered. A bare timeout names none of them.
+    const diagnose = async (p) => {
+      const info = await p.evaluate(
+        async (versions) => {
+          const viaWorker = await fetch(location.href, { cache: 'no-store' }).then((r) => r.text());
+          const reg = await navigator.serviceWorker.getRegistration();
+          const text = document.body.textContent ?? '';
+          return {
+            renderedVersion: versions.find((v) => text.includes(`v${v}`)) ?? null,
+            pageHtml: document.documentElement.outerHTML,
+            viaWorkerHtml: viaWorker,
+            controller: navigator.serviceWorker.controller?.scriptURL ?? null,
+            active: reg?.active?.scriptURL ?? null,
+            waiting: reg?.waiting?.scriptURL ?? null,
+          };
+        },
+        [VERSION_A, VERSION_B, VERSION_C],
+      );
       const serverHtml = await (await fetch(URL_, { cache: 'no-store' })).text();
       log(
         'diagnostics',
@@ -146,12 +150,13 @@ async function main() {
         ),
       );
     };
-    const step = async (name, fn) => {
+    /** Run one step; `on` is the page it drives, which a failure diagnoses. */
+    const step = async (name, fn, on = page) => {
       log(name);
       try {
         await fn();
       } catch (e) {
-        await diagnose().catch((d) => log('diagnostics unavailable:', d instanceof Error ? d.message : d));
+        await diagnose(on).catch((d) => log('diagnostics unavailable:', d instanceof Error ? d.message : d));
         throw new Error(`FAILED at "${name}": ${e instanceof Error ? e.message : String(e)}`, { cause: e });
       }
     };
@@ -166,31 +171,41 @@ async function main() {
       await page.getByText(`v${VERSION_A}`, { exact: true }).waitFor({ timeout: 60_000 });
     });
 
-    await step('open a first-visit tab on version A, which its worker does not control', async () => {
-      await firstVisit.goto(URL_);
-      await firstVisit.waitForFunction(() => navigator.serviceWorker.ready.then(() => true), null, { timeout: 60_000 });
-      await firstVisit.getByText(`v${VERSION_A}`, { exact: true }).waitFor({ timeout: 60_000 });
-      if (await firstVisit.evaluate(() => !!navigator.serviceWorker.controller)) {
-        throw new Error('the first visit is already controlled, so this step would prove nothing');
-      }
-    });
+    await step(
+      'open a first-visit tab on version A, which its worker does not control',
+      async () => {
+        await firstVisit.goto(URL_);
+        await firstVisit.waitForFunction(() => navigator.serviceWorker.ready.then(() => true), null, {
+          timeout: 60_000,
+        });
+        await firstVisit.getByText(`v${VERSION_A}`, { exact: true }).waitFor({ timeout: 60_000 });
+        if (await firstVisit.evaluate(() => !!navigator.serviceWorker.controller)) {
+          throw new Error('the first visit is already controlled, so this step would prove nothing');
+        }
+      },
+      firstVisit,
+    );
 
     build(VERSION_B);
     cpSync(resolve(WEB, OUT), resolve(WEB, OUT_B), { recursive: true });
 
-    await step('the toast Reload takes a first-visit tab to version B', async () => {
-      await firstVisit.evaluate(async () => {
-        const reg = await navigator.serviceWorker.getRegistration();
-        if (!reg) throw new Error('no registration');
-        await reg.update();
-      });
-      await firstVisit.getByText('A new version is available.').waitFor({ timeout: 60_000 });
-      await markDocument(firstVisit);
-      await firstVisit.getByRole('button', { name: 'Reload', exact: true }).click();
-      await reloaded(firstVisit);
-      await firstVisit.getByText(`v${VERSION_B}`, { exact: true }).waitFor({ timeout: 60_000 });
-      await firstVisit.context().close();
-    });
+    await step(
+      'the toast Reload takes a first-visit tab to version B',
+      async () => {
+        await firstVisit.evaluate(async () => {
+          const reg = await navigator.serviceWorker.getRegistration();
+          if (!reg) throw new Error('no registration');
+          await reg.update();
+        });
+        await firstVisit.getByText('A new version is available.').waitFor({ timeout: 60_000 });
+        await markDocument(firstVisit);
+        await firstVisit.getByRole('button', { name: 'Reload', exact: true }).click();
+        await reloaded(firstVisit);
+        await firstVisit.getByText(`v${VERSION_B}`, { exact: true }).waitFor({ timeout: 60_000 });
+      },
+      firstVisit,
+    );
+    await firstVisit.context().close();
 
     // Page loads are network-first, so an ordinary reload after a deploy lands
     // on the new build with no toast involved. Answered from the precache, a

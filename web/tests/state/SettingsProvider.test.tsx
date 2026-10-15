@@ -131,4 +131,27 @@ describe('SettingsProvider with another tab writing', () => {
     expect(written.units.length).toBe('in');
     expect(written.theme).toBe('light');
   });
+
+  /**
+   * An older build of this PWA can run beside a newer one. Its change must not
+   * destroy the preferences the newer build stored under keys it does not know.
+   */
+  it("writes a newer build's keys back as stored", () => {
+    loadSettings.mockReturnValue({ ...DEFAULT_SETTINGS });
+    let update!: SettingsUpdate;
+    render(
+      <SettingsProvider>
+        <Probe onRender={(c) => (update = c.update)} />
+      </SettingsProvider>,
+    );
+    const newer = { panelLayout: { rows: 3, pinned: ['stats'] }, beta: true };
+    localStorage.setItem(KEY, JSON.stringify({ ...DEFAULT_SETTINGS, ...newer }));
+    const stored = JSON.parse(localStorage.getItem(KEY)!) as Record<string, unknown>;
+
+    act(() => update({ theme: 'light' }));
+    const written = saveSettings.mock.calls[0]![0] as Record<string, unknown>;
+    expect(written['panelLayout']).toEqual(stored['panelLayout']);
+    expect(written['beta']).toEqual(stored['beta']);
+    expect(written['theme']).toBe('light');
+  });
 });

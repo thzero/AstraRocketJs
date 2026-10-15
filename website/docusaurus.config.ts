@@ -5,6 +5,34 @@ import { readFileSync } from 'node:fs';
 // Reads the app version from web/package.json.
 const { version } = JSON.parse(readFileSync(new URL('../web/package.json', import.meta.url), 'utf-8'));
 
+// The footer line, per locale. It is written here and not in
+// i18n/<locale>/docusaurus-theme-classic/footer.json because it carries the
+// version, which a translation file cannot; a `copyright` entry in that file
+// would replace this one and drop the version. Docusaurus loads this config
+// once per locale and names it in DOCUSAURUS_CURRENT_LOCALE. `docusaurus start`
+// with no --locale assigns undefined to it, which Node stores as the string
+// "undefined", and serves the default locale.
+const FOOTER: Record<string, string> = {
+  en:
+    `Documentation for AstraRocketJs v${version}. ` +
+    'AstraRocketJs runs OpenRocket’s own engine. Not affiliated with the OpenRocket project. ' +
+    'See the <a href="https://openrocket.readthedocs.io">OpenRocket documentation</a> for the underlying physics.',
+  // The Spanish line is outside the English spell check.
+  // cspell:disable
+  es:
+    `Documentación de AstraRocketJs v${version}. ` +
+    'AstraRocketJs ejecuta el propio motor de OpenRocket. No está afiliado al proyecto OpenRocket. ' +
+    'Consulta la <a href="https://openrocket.readthedocs.io">documentación de OpenRocket</a> para la física subyacente.',
+  // cspell:enable
+};
+const footerCopyright = (): string => {
+  const current = process.env.DOCUSAURUS_CURRENT_LOCALE;
+  const locale = !current || current === 'undefined' ? 'en' : current;
+  const line = FOOTER[locale];
+  if (!line) throw new Error(`docusaurus.config.ts has no footer line for the ${locale} locale`);
+  return line;
+};
+
 // WHICH OpenRocket the engine is, read the same way from the one file that
 // names it: engine-java/extract/UPSTREAM. "The same physics core" is not a
 // checkable claim on its own - a reader comparing their numbers against the
@@ -175,10 +203,7 @@ const config: Config = {
     },
     footer: {
       style: 'dark',
-      copyright:
-        `Documentation for AstraRocketJs v${version}. ` +
-        'AstraRocketJs runs OpenRocket’s own engine. Not affiliated with the OpenRocket project. ' +
-        'See the <a href="https://openrocket.readthedocs.io">OpenRocket documentation</a> for the underlying physics.',
+      copyright: footerCopyright(),
     },
   } satisfies Preset.ThemeConfig,
 };

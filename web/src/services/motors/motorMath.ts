@@ -5,8 +5,9 @@ import type { CatalogMotor } from './motorDb';
  * which is also what OpenRocket's kernel and thrustcurve.org use when they turn
  * total impulse and propellant weight into a specific impulse.
  *
- * Defined once here and imported wherever the app needs g, including the ISA
- * pressure formula in recoverySizing.ts.
+ * Defined once here and imported wherever the app needs g: the ISA pressure
+ * formula, the constant-gravity default, the report's thrust-to-weight ratio
+ * and the G acceleration unit.
  */
 export const G0 = 9.80665;
 

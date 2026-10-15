@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { FIELDS } from '../../../src/services/design/componentFields';
+import { REQUIRED_COMPONENT_FIELDS } from '../../../src/services/design/requiredComponent';
 
 const req = (type: string) =>
   (FIELDS[type] ?? [])
@@ -10,54 +11,23 @@ const req = (type: string) =>
 const keys = (type: string) => (FIELDS[type] ?? []).map((f) => f.key);
 
 /**
- * Which component dimensions a zero makes nonsense of.
- *
- * Marked conservatively on purpose: a wrong mark is a red box on a design that
- * is actually fine, which is worse than no mark at all. This test pins the
- * judgment so a later edit to the field table has to be deliberate about it.
+ * Which component values the panel marks required: exactly the ones the run
+ * refuses, which are the ones the kernel cannot fly
+ * (requiredComponent.kernel.test.ts flies each one at 0).
  */
 describe('required component fields', () => {
-  it('marks the dimensions that define each airframe part', () => {
-    expect(req('nosecone')).toEqual(['aftRadius', 'length', 'thickness']);
-    expect(req('bodytube')).toEqual(['length', 'outerRadius', 'thickness']);
-    expect(req('transition')).toEqual(['aftRadius', 'foreRadius', 'length', 'thickness']);
-    // An inner tube is the one piece of inner structure with no automatic
-    // radius: it is the motor mount, so its size is the thing being stated.
-    expect(req('innertube')).toEqual(['length', 'outerRadius', 'thickness']);
-    // The rest take their outer radius from whatever they sit in, so a blank is
-    // "the tube I am in" rather than a hole in the design. See below.
-    expect(req('tubecoupler')).toEqual(['length', 'thickness']);
-    expect(req('engineblock')).toEqual(['length', 'thickness']);
-    expect(req('bulkhead')).toEqual(['length']);
+  it('marks each field the run refuses, and no other', () => {
+    for (const type of Object.keys(FIELDS)) {
+      expect(req(type), type).toEqual([...(REQUIRED_COMPONENT_FIELDS[type] ?? [])].sort());
+    }
   });
 
-  it('marks fin sets by what gives a fin its area', () => {
-    expect(req('trapezoidfinset')).toEqual(['finCount', 'height', 'rootChord', 'thickness']);
-    expect(req('ellipticalfinset')).toEqual(['finCount', 'height', 'rootChord', 'thickness']);
-    // A freeform fin's outline comes from its points, not from chord/height.
-    expect(req('freeformfinset')).toEqual(['finCount', 'thickness']);
-    // A tube fin's radius is not required: left blank, the kernel auto-sizes
-    // the tubes to touch around the body (TubeFinSet.getOuterRadius), which is
-    // what desktop OpenRocket writes for an auto set. Marking it required would
-    // make the Run button refuse a valid imported design.
-    expect(req('tubefinset')).toEqual(['finCount', 'length', 'thickness']);
-  });
-
-  it('marks recovery devices by what makes them slow the rocket', () => {
-    // The drag coefficient is not required: left blank, the kernel works it out
-    // (`RecoveryDevice.cdAutomatic`), which is what an .ork's `<cd>auto</cd>`
-    // reads as. Marking it required would refuse a valid imported design.
-    expect(req('parachute')).toEqual(['diameter']);
-    expect(req('streamer')).toEqual(['stripLength', 'stripWidth']);
-  });
-
-  it('marks the rest', () => {
-    expect(req('launchlug')).toEqual(['length', 'outerRadius']);
-    expect(req('railbutton')).toEqual(['outerDiameter']);
-    expect(req('masscomponent')).toEqual(['mass']);
-    expect(req('centeringring')).toEqual(['length']);
-    expect(req('podset')).toEqual(['instanceCount']);
-    expect(req('parallelstage')).toEqual(['instanceCount']);
+  it('leaves the airframe dimensions the kernel flies at 0 unmarked', () => {
+    // A nose cone, body tube or transition of no length, radius or wall builds
+    // and flies; the bundled pods example carries a body tube with all three at 0.
+    expect(req('nosecone')).toEqual([]);
+    expect(req('bodytube')).toEqual([]);
+    expect(req('transition')).toEqual([]);
   });
 
   /**
@@ -82,6 +52,7 @@ describe('required component fields', () => {
       ['innertube', 'motorOverhang'],
       ['centeringring', 'innerRadius'], // 0 is a solid disc, which is valid geometry
       ['masscomponent', 'length'], // 0 is a point mass
+      ['masscomponent', 'mass'], // 0 g is desktop's new part, which it flies
       ['parachute', 'lineCount'], // 0 declines to model the shroud lines
       ['parachute', 'lineLength'],
       ['parachute', 'deployAltitude'], // 0 unless the trigger is an altitude one

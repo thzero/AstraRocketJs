@@ -88,7 +88,7 @@ export function DeploymentSection({
         placeholder={fmtUpTo(design.deployDelay, 2)}
         step={0.5}
         min={0}
-        unit="s"
+        unit={t('units.second')}
         onChange={(v) => setDeployment(config.id, id, 'deployDelay', v)}
         onCommit={onCommit}
       />

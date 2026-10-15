@@ -6,23 +6,23 @@
 // only looks, and it is where every "what is this part actually up against"
 // question is answered once.
 import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
-import { numOpt } from '../../tree/nodeProps';
-import { tubeWall } from '../design/discGeometry';
+import { num, numOpt } from '../../tree/nodeProps';
+import { ringBore, tubeWall } from '../design/discGeometry';
 import { findNode, findParent } from '../design/treeEdit';
-import { walkNodes } from '../../tree/treeWalk';
+import { symmetricNeighbors } from '../design/autoRadius';
+import { profileEnds } from '../../tree/shapeProfile';
+import { axialFrameOf } from '../../tree/axialRebase';
+import { KERNEL_AUTO_RADIUS } from '../../tree/kernelDefaults';
 import type { FitContext } from './componentFilter';
-import { roundTo } from '../app/numbers';
 
-/** Outer diameter of a body component, or undefined if it is not one. */
-function outerDiameter(n: ComponentNode): number | undefined {
-  if (n.type === 'nosecone' || n.type === 'transition') {
-    const r = numOpt(n, 'aftRadius');
-    return r == null ? undefined : r * 2;
-  }
-  if (n.type === 'bodytube' || n.type === 'tubecoupler' || n.type === 'innertube') {
-    const r = numOpt(n, 'outerRadius');
-    return r == null ? undefined : r * 2;
-  }
+/**
+ * An airframe part's diameter at one end (`SymmetricComponent.getForeRadius`
+ * and `getAftRadius`): a tube's one radius, a cone's profile end, which knows a
+ * flipped nose cone's base is its fore end.
+ */
+function endDiameter(n: ComponentNode, end: 'fore' | 'aft'): number | undefined {
+  if (n.type === 'bodytube') return num(n, 'outerRadius', KERNEL_AUTO_RADIUS) * 2;
+  if (n.type === 'nosecone' || n.type === 'transition') return profileEnds(n)[end] * 2;
   return undefined;
 }
 
@@ -42,18 +42,36 @@ function innerDiameter(n: ComponentNode): number | undefined {
   return (or - th) * 2;
 }
 
-/** Every distinct airframe outer diameter in the design, largest first. */
-function airframeDiameters(tree: RocketTree): number[] {
-  const seen = new Set<number>();
-  for (const n of walkNodes(tree.components)) {
-    // Only what a body tube would have to line up with: the airframe itself,
-    // not the inner tubes threaded through it.
-    if (n.type === 'bodytube' || n.type === 'nosecone' || n.type === 'transition') {
-      const d = outerDiameter(n);
-      if (d != null && d > 0) seen.add(roundTo(d, 6));
-    }
-  }
-  return [...seen].sort((a, b) => b - a);
+/**
+ * The diameters an airframe part's two ends have to meet, as desktop's chooser
+ * reads them (`ComponentPresetChooserDialog`): the fore end the aft end of the
+ * part ahead, the aft end the fore end of the part behind. A flipped nose cone
+ * is matched at its aft column against the fore end of the part ahead, as that
+ * dialog does. The neighbors are the kernel's (`symmetricNeighbors`), across
+ * stages and through in-line pods.
+ */
+function neighborMatches(tree: RocketTree, node: ComponentNode): Pick<FitContext, 'foreMatch' | 'aftMatch'> {
+  if (node.type !== 'bodytube' && node.type !== 'nosecone' && node.type !== 'transition') return {};
+  const around = symmetricNeighbors(tree.components).get(node);
+  if (!around) return {};
+  const flipped = node.type === 'nosecone' && node['flipped'] === true;
+  const aftSide = flipped ? around.previous : around.next;
+  return {
+    foreMatch: around.previous ? endDiameter(around.previous, 'aft') : undefined,
+    aftMatch: aftSide ? endDiameter(aftSide, 'fore') : undefined,
+  };
+}
+
+/**
+ * The motor mount a centering ring centers: the widest inner tube beside it
+ * whose span overlaps the ring's (`CenteringRing.getInnerRadius`, through
+ * `discGeometry.ringBore`), or undefined when none does.
+ */
+function mountDiameter(tree: RocketTree, node: ComponentNode, parent: ComponentNode | null): number | undefined {
+  if (node.type !== 'centeringring' || !parent) return undefined;
+  const start = parent.id ? (axialFrameOf(tree, parent.id)?.start ?? 0) : 0;
+  const bore = ringBore(node, parent, Infinity, start);
+  return bore > 0 ? bore * 2 : undefined;
 }
 
 /**
@@ -70,28 +88,13 @@ export function fitContextFor(tree: RocketTree, nodeId: string | null): FitConte
   const node = findNode(tree, nodeId);
   if (!node) return undefined;
   const parent = findParent(tree, nodeId);
-
-  // What this part has to clear: the widest inner tube sharing its parent. A
-  // centering ring's bore is sized to the motor mount it holds, and that mount
-  // is the ring's sibling, not its child.
-  //
-  // Inner tubes only. A coupler in the same bay is also a sibling and also has
-  // an outer diameter, but nothing centers on it: counting it would make the
-  // widest part in the bay the constraint rather than the mount, so a 29 mm mount
-  // with a 51 mm coupler beside it would reject every ring that actually fits.
-  const siblings = (parent?.children ?? []).filter((n) => n.id !== nodeId);
-  const mounts = siblings
-    .filter((n) => n.type === 'innertube')
-    .map(outerDiameter)
-    .filter((d): d is number => d != null && d > 0);
-
-  // The node's own diameter stays in the airframe list on purpose. Picking a
-  // catalog part for a tube you have already sized means you want real parts at
-  // that size, so matching yourself is the answer rather than a degenerate case.
   return {
     parentInner: parent ? innerDiameter(parent) : undefined,
-    parentOuter: parent ? outerDiameter(parent) : undefined,
-    mountOuter: mounts.length > 0 ? Math.max(...mounts) : undefined,
-    airframeOuter: airframeDiameters(tree),
+    // What a centering ring has to go over: the mount it holds is its sibling,
+    // not its child. Inner tubes only, and only the ones the ring overlaps: a
+    // coupler in the same bay centers nothing, and a 54 mm mount further aft
+    // says nothing about a ring around the 29 mm one.
+    mountOuter: mountDiameter(tree, node, parent),
+    ...neighborMatches(tree, node),
   };
 }

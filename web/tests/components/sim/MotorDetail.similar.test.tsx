@@ -15,6 +15,7 @@ vi.mock('../../../src/engine/openRocketEngine', async (orig) => ({
   motorSimilarity: (_a: unknown, b: [number, number][]) => (b[1]![1] === 11 ? 0.99 : 0.5),
 }));
 const { MotorDetail } = await import('../../../src/components/sim/MotorDetail');
+const { useEngineStore } = await import('../../../src/state/engineStore');
 
 const curve = (src: string, peak: number) => ({
   src,
@@ -38,7 +39,11 @@ const motor = {
 const options = () => [...(screen.getByRole('combobox') as HTMLSelectElement).options].map((o) => o.textContent);
 
 describe('the curve choice', () => {
-  beforeEach(() => localStorage.clear());
+  beforeEach(() => {
+    localStorage.clear();
+    // The similarity is asked of a ready engine only.
+    useEngineStore.setState({ phase: 'ready' });
+  });
 
   it('hides near-duplicate curves by default, and shows them all when the box is cleared', () => {
     renderWithProviders(<MotorDetail motor={motor} curveIndex={0} onCurveChange={vi.fn()} />);

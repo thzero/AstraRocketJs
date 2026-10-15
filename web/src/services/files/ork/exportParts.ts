@@ -10,7 +10,7 @@ import type { OrkDeployOverride, OrkSepOverride } from '../orkTypes';
 import type { OrkWriter } from './exportWriter';
 import { passthroughOf } from './passthrough';
 import { parseHexColor } from '../../design/colorHex';
-import { designDeployment, designSeparation } from '../../flight/flightConfigs';
+import { designSeparation } from '../../flight/flightConfigs';
 
 /**
  * The element groups more than one .ork component writer shares: material,
@@ -226,35 +226,27 @@ export function airfoilXml(w: OrkWriter, depth: number, node: ComponentNode): vo
  */
 export const deployEventXml = (ev: string): string => ev.replace(/_/g, '');
 
-/**
- * Whether a configuration's override changes anything the design states.
- *
- * An imported configuration records every value it resolves to, its block's
- * over the bare tags, so one with no block of its own carries the design's
- * values and overrides nothing.
- */
-function differs<T extends object>(o: Partial<T>, design: T): boolean {
-  return (Object.keys(o) as (keyof T)[]).some((k) => o[k] !== undefined && o[k] !== design[k]);
-}
+/** An override that sets at least one field, as a configuration's own parameter does. */
+const holdsOverride = <T extends object>(o: T | null | undefined): o is T =>
+  !!o && Object.values(o).some((v) => v !== undefined);
 
 /**
  * Per-configuration recovery deployment: when this device opens under each
  * configuration.
  *
- * Only a configuration that overrides this device gets a block, as
- * `RecoveryDeviceSaver` writes only configurations that are not the default.
- * The rest take the bare tags just above. A block that repeats the defaults
- * would read back in desktop as an override, so a later change to the device's
- * deployment there would reach the default and not that configuration. Without
- * the blocks that do override, saving after opening one configuration would
- * rewrite every configuration's recovery settings to the opened one's: a chute
- * set to open at apogee in config A could come back deploying at 300 m.
+ * Every configuration that holds an override for this device gets a block,
+ * as `RecoveryDeviceSaver` writes one for each configuration its parameter set
+ * holds (`!isDefault(fcid)`), and the rest take the bare tags just above.
+ * `isDefault` compares identity, not value, so an override whose values equal
+ * the device's own is still the configuration's: dropped, a later change to
+ * the device's deployment would move that configuration with it. Without the
+ * blocks, saving after opening one configuration would rewrite every
+ * configuration's recovery settings to the opened one's.
  */
 export function deploymentConfigs(w: OrkWriter, depth: number, node: ComponentNode): void {
-  const design = designDeployment(node);
   for (const c of w.writeConfigs) {
-    const o: OrkDeployOverride = (node.id && c.deployments?.[node.id]) || {};
-    if (!differs(o, design)) continue;
+    const o: OrkDeployOverride | undefined = node.id ? c.deployments?.[node.id] : undefined;
+    if (!holdsOverride(o)) continue;
     w.emit(depth, `<deploymentconfiguration configid="${escapeXml(c.id)}">`);
     if (o.deployEvent !== undefined)
       w.emit(depth + 1, `<deployevent>${escapeXml(deployEventXml(o.deployEvent))}</deployevent>`);
@@ -393,9 +385,10 @@ export function autoRadius(w: OrkWriter, depth: number, node: ComponentNode, key
  * only for configurations its parameter set holds an override for).
  *
  * A configuration with an override writes it into its block, the design's
- * values filling what it leaves out; the rest take the bare tags. Writing the
- * design's for all of them would make every other configuration lose its own
- * separation settings on save.
+ * values filling what it leaves out, whether or not they differ from the
+ * design's (`isDefault` compares identity); the rest take the bare tags.
+ * Writing the design's for all of them would make every other configuration
+ * lose its own separation settings on save.
  */
 export function separationXml(w: OrkWriter, depth: number, node: ComponentNode): void {
   const { separationEvent: ev, separationDelay: delay, separationAltitude: alt } = designSeparation(node);
@@ -405,10 +398,9 @@ export function separationXml(w: OrkWriter, depth: number, node: ComponentNode):
     w.emit(d, `<separationdelay>${o.separationDelay ?? delay}</separationdelay>`);
   };
   sep(depth, {});
-  const design = designSeparation(node);
   for (const c of w.writeConfigs) {
-    const o = (node.id && c.separations?.[node.id]) || {};
-    if (!differs(o, design)) continue;
+    const o: OrkSepOverride | undefined = node.id ? c.separations?.[node.id] : undefined;
+    if (!holdsOverride(o)) continue;
     w.emit(depth, `<separationconfiguration configid="${escapeXml(c.id)}">`);
     sep(depth + 1, o);
     w.emit(depth, '</separationconfiguration>');

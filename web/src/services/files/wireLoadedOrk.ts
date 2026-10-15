@@ -3,9 +3,10 @@ import { resolveFilePositions } from '../../tree/position';
 import { loadoutLabel, newFlightConfig, reconcileConfig, type FlightConfig } from '../flight/flightConfigs';
 import { newSimulation, resultKey, type Simulation, type SimPrefs } from '../flight/simulations';
 import type { LoadedOrk } from './loadOrk';
-import type { LaunchConditions } from '../design/orkTree';
+import { overLaunchDefaults, type LaunchConditions } from '../design/orkTree';
 import type { OrkExportMotor } from './orkFile';
 import type { ImportNote } from './importNote';
+import type { DesignFormat } from './designFile';
 
 /** The workspace slices a loaded .ork maps onto: the design tree, its flight
  *  configurations, its simulations, and the round-trip export metadata. */
@@ -15,7 +16,13 @@ export interface WiredOrk {
   sims: Simulation[];
   /** The simulation flying the configuration the file marks default. */
   activeId: string;
-  loadedMeta: { name: string; notes: ImportNote[]; exportMotors: Record<string, OrkExportMotor> };
+  loadedMeta: {
+    name: string;
+    notes: ImportNote[];
+    exportMotors: Record<string, OrkExportMotor>;
+    /** The file's format, which the loaded-design card names. */
+    format?: DesignFormat;
+  };
 }
 
 /**
@@ -42,7 +49,7 @@ export function wireLoadedOrk(res: LoadedOrk, launchDefaults: LaunchConditions, 
   // `orkExport` still writes it back as the file had it. 'absolute' is kept as
   // written: every reader resolves it against the parent's start.
   const tree = resolveFilePositions(res.tree);
-  const launch = { ...launchDefaults, ...res.launch };
+  const launch = overLaunchDefaults(launchDefaults, res.launch);
 
   const configs = res.configs.map((c) => {
     const config = newFlightConfig(c.motors, c.name, c.id);
@@ -73,7 +80,7 @@ export function wireLoadedOrk(res: LoadedOrk, launchDefaults: LaunchConditions, 
         // desktop keeps them per simulation, and its summary was flown with them.
         const own = fs.prefs ? ownPrefs(fs.prefs, simPrefs) : undefined;
         const sim = {
-          ...newSimulation(fs.name, config.id, { ...launchDefaults, ...fs.launch }),
+          ...newSimulation(fs.name, config.id, overLaunchDefaults(launchDefaults, fs.launch)),
           ...(fs.xmlExtra ? { xmlExtra: fs.xmlExtra } : {}),
           ...(own ? { prefs: own } : {}),
         };
@@ -93,7 +100,12 @@ export function wireLoadedOrk(res: LoadedOrk, launchDefaults: LaunchConditions, 
     configs,
     sims,
     activeId: sims.find((s) => s.configId === res.chosenConfigId)?.id ?? sims[0]!.id,
-    loadedMeta: { name: res.name, notes: res.notes, exportMotors: res.motors },
+    loadedMeta: {
+      name: res.name,
+      notes: res.notes,
+      exportMotors: res.motors,
+      ...(res.format ? { format: res.format } : {}),
+    },
   };
 }
 

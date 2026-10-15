@@ -9,13 +9,13 @@ Use the search box at the top of this site, or the search in the app's **Help** 
 
 ## A
 
-**Acceleration**: How quickly velocity is changing. *In the app:* the **Max accel** tile, the acceleration plot, and the `Az`, `Al`, `Ax`, `Ay`, `Abx`, `Aby` columns of a flight-data export. An onboard accelerometer reads about 1 G on the pad where this reads zero, because this is acceleration relative to the ground with gravity already accounted for.
+**Acceleration**: How quickly velocity is changing. *In the app:* the **Max accel** tile, the acceleration plot, and the `Az`, `Al`, `Ax`, `Ay`, `Abx`, `Aby`, `Abz` columns of a flight-data export. An onboard accelerometer reads about 1 G on the pad where this reads zero, because this is acceleration relative to the ground with gravity already accounted for.
 
 **Aerodynamic length**: The nose-to-tail span of the rocket's *external* parts. *In the app:* it is the denominator behind stability shown as a percentage of length, and behind the **% length** reading of CP vs Mach and the **CP (% length)** column of the stability table. It differs from the **Length** tile whenever an internal part, such as a motor tube, reaches past the airframe.
 
 **Aft / fore**: Toward the tail / toward the nose, whichever way the rocket points. *In the app:* field labels such as **Fore diameter**, **Aft shoulder** and **Motor overhang**. Moving the CP aft raises the stability margin; moving the CG aft lowers it.
 
-**Aft view**: The rocket seen end-on from behind, so a fin count, a clock angle or a motor cluster shows as it really sits. *In the app:* the **Aft** button beside **2D** and **3D**.
+**Aft view**: The rocket seen end-on from behind, so a fin count, a clock angle or a motor cluster shows as it really sits. *In the app:* the **Aft** button beside **Side**, in both the 2D and 3D views.
 
 **Air density**: The mass of air per cubic meter. It falls as air warms or pressure drops, and it scales every aerodynamic force and every descent rate, so the same rocket flies differently at two sites. *In the app:* set by **Temperature** and **Pressure** in the launch conditions; the `ρ` column follows it through a flight. See **ISA**.
 
@@ -27,11 +27,11 @@ Use the search box at the top of this site, or the search in the app's **Help** 
 
 **Airfoil**: A fin cross-section rounded at the leading edge and tapered at the trailing edge, cheaper in drag than a square edge. *In the app:* **Cross-section** on a fin set, alongside square and rounded. See **Cross-section**.
 
-**Angle of attack (AoA, α)**: The angle between where the rocket points and where it is going. *In the app:* the `α` column, and the large-angle-of-attack warning, which fires when a flight leaves the range the aerodynamics are valid over.
+**Angle of attack (AoA, α)**: The angle between where the rocket points and where it is going. *In the app:* the **Angle of attack** column, and the large-angle-of-attack warning, which fires when a flight leaves the range the aerodynamics are valid over.
 
 **Apogee**: The highest point of a flight. *In the app:* the **Apogee** tile and the `APOGEE` flight event.
 
-**Aspect ratio**: A fin's span against its chord: high is long and narrow, low is short and stubby. *In the app:* a derived field on a fin set.
+**Aspect ratio**: A streamer's length against its width: high is long and narrow, low is short and wide. *In the app:* **Aspect ratio** on a streamer, a derived field: typing one keeps the strip area and changes the length and width.
 
 **Axial / radial**: Along the rocket's axis / out from it. *In the app:* axial placement is **Position from** and **Offset**; radial placement is **Radial offset** and **Radial direction**.
 
@@ -42,6 +42,8 @@ Use the search box at the top of this site, or the search in the app's **Help** 
 **Ballast**: Mass added on purpose, usually in the nose, to move the CG forward and raise the stability margin. *In the app:* a **Mass component**.
 
 **Ballistic descent**: Coming down with no recovery device deployed. *In the app:* a flight with no device, or one where deployment never fired, lands at a ballistic speed; the ground-hit velocity says how hard.
+
+**Barrowman method**: The original analytical method for finding a rocket's center of pressure from its component shapes. The engine uses the extended form. See **Extended Barrowman**.
 
 **Boattail**: A transition at the tail that narrows toward the rear, reducing base drag. *In the app:* a **Transition** whose **Aft diameter** is smaller than its **Fore diameter**.
 
@@ -75,13 +77,13 @@ Use the search box at the top of this site, or the search in the app's **Help** 
 
 **Centering ring**: A ring that holds an inner tube centered inside a larger tube.
 
-**Center of gravity (CG)**: Where the rocket balances. *In the app:* the CG marker on the views, the CG tile, and the `cgLocation` series. It moves forward as propellant burns.
+**Center of gravity (CG)**: Where the rocket balances. *In the app:* the CG marker on the views, the CG tile, and the **CG** plot and column. It moves forward as propellant burns.
 
-**Center of pressure (CP)**: Where the aerodynamic forces act. *In the app:* the CP marker, the CP tile, and the `cpLocation` series. It moves with angle of attack and Mach number. On the Aero view it can be read as a length or as a percentage of either the overall or the **Aerodynamic length**.
+**Center of pressure (CP)**: Where the aerodynamic forces act. *In the app:* the CP marker, the CP tile, and the **CP** plot and column. It moves with angle of attack and Mach number. On the Aero view it can be read as a length or as a percentage of either the overall or the **Aerodynamic length**.
 
 **Chord / root chord / tip chord**: A fin's width along the airflow / at the body / at its tip. *In the app:* fields on a trapezoidal fin set.
 
-**Cluster**: More than one motor in one stage, firing together. *In the app:* a motor mount with an instance count above one.
+**Cluster**: More than one motor in one stage, firing together. *In the app:* the **Cluster** pattern on an inner tube.
 
 **Coast**: The unpowered part of the climb, from burnout to apogee.
 
@@ -109,7 +111,7 @@ Use the search box at the top of this site, or the search in the app's **Help** 
 
 **Drift**: How far downwind the rocket lands from the pad. *In the app:* the ground track, the drift readout, and the **Drift sweep**.
 
-**Drift ellipse**: The area repeated runs land in, drawn on the ground track. When the wind is random it shows the spread that a single landing point hides.
+**Drift ellipse**: The ellipse at two standard deviations around the landings of a **Drift sweep**, drawn on the ground track. It shows the spread that a single landing point hides.
 
 **Drift sweep**: Flying the same simulation across a grid of wind speeds and headings to see where it could land. *In the app:* the **Drift** button on the ground track, which opens the **Drift sweep** panel.
 
@@ -132,8 +134,6 @@ Use the search box at the top of this site, or the search in the app's **Help** 
 **Estimate**: A figure the app works out from the design rather than reading from a flight. The app says so where it shows one, and replaces it with the engine's own figure once a simulation has one. *In the app:* **Mass (Recovery, est.)** and the descent-sizing block before a run.
 
 **Extended Barrowman**: The aerodynamic method the engine uses for CP, normal force and stability. It is accurate through subsonic and transonic flight and approximate above about Mach 1.5, where the app says so. See **Barrowman method**.
-
-**Barrowman method**: The original analytical method for finding a rocket's center of pressure from its component shapes. The engine uses the extended form. See **Extended Barrowman**.
 
 ## F
 
@@ -169,13 +169,13 @@ Use the search box at the top of this site, or the search in the app's **Help** 
 
 ## I
 
-**Ignition event**: What lights a motor: the launch, a stage separation, or another motor's burnout. With an **ignition delay** it waits that long afterward. *In the app:* the motor's ignition settings.
+**Ignition event**: What lights a motor: **Launch**, **Ejection of stage below** or **Burnout of stage below**. **Automatic** is Launch for the stage that lifts off and the ejection of the stage below for the others; **Never** leaves the motor unlit. With an **ignition delay** it waits that long afterward. *In the app:* the motor's **Ignition** and **Ignition delay** settings.
 
 **Impulse**: Thrust multiplied by the time it lasts, in newton-seconds: the total push a motor gives. Motors are grouped into **impulse classes** (A, B, C and up), each twice the one below. *In the app:* the motor browser and the **Total impulse** report row.
 
 **Inner tube**: A tube inside another, most often the **motor mount** the motor sits in. *In the app:* **Inner tube**, with **Motor mount** ticked to make it one.
 
-**Instance**: A repeat of a part: a pair of rail buttons, a ring of pods, a cluster of tubes. *In the app:* the instance count and separation on a part that can repeat.
+**Instance**: A repeat of a part: a pair of rail buttons, a ring of pods, a cluster of tubes. *In the app:* **Instance count** and **Instance spacing** on a part that can repeat.
 
 **Integration**: Stepping the flight forward in small slices of time, which is how the whole trajectory is computed. The engine uses **RK4**, a fourth-order Runge-Kutta integrator, with an adaptive step. See **Time step**.
 
@@ -195,17 +195,19 @@ Use the search box at the top of this site, or the search in the app's **Help** 
 
 **Launch guide**: Whatever holds the rocket straight until it is fast enough for its fins to work: a **rod** through launch lugs, or a **rail** engaging rail buttons. *In the app:* **Length** and **Angle** in the launch conditions, under a heading named after the design's guides: **Launch rail** for rail buttons, **Launch rod** for launch lugs, and **Launcher** for a design with neither or both.
 
-**Launch lug**: A small tube on the airframe that slides over a launch rod.
+**Launch lug**: A small tube on the airframe that slides over a launch rod. *In the app:* **Launch lug** in the component tree.
 
 **Launch site altitude**: The launch site's height above sea level, which sets the standard air you fly in when temperature and pressure are left blank. *In the app:* **Altitude** in the launch conditions. See **ISA**.
 
 **Length**: The nose-to-tail span of every active part, including internal ones. Compare **Aerodynamic length**.
 
+**Lift / normal force**: The aerodynamic force across the rocket's axis, which is what makes it weathercock or correct. Its coefficient is `Cn`, and the slope of that against angle of attack is CNα.
+
 **Loaded mass (pad mass)**: The rocket ready to fly, motor and all. *In the app:* the second figure of the **Mass** tile (*empty / loaded*), and **Mass (loaded)** in the design report.
 
 ## M
 
-**Mach number**: Speed as a fraction of the speed of sound. **Subsonic** is below Mach 1, **transonic** around it, **supersonic** above. *In the app:* the **Max Mach** tile and the `M` column.
+**Mach number**: Speed as a fraction of the speed of sound. **Subsonic** is below Mach 1, **transonic** around it, **supersonic** above. *In the app:* the **Max Mach** tile and the **Mach** column.
 
 **Main parachute**: The chute that brings the rocket down to a safe landing speed, whether or not a drogue opened first.
 
@@ -234,8 +236,6 @@ Use the search box at the top of this site, or the search in the app's **Help** 
 **Nose cone**: The rocket's front, shaped to cut drag. Its **profile** is the curve of its outline. See **Ogive**, **Haack**, **Shape parameter**.
 
 **Nozzle**: The motor's throat and bell, which accelerate the exhaust. *In the app:* a stage's nozzle exit diameter, when a `.ork` file sets one, lowers the base drag while the motor burns, and the Aero view then shows a power-on drag curve.
-
-**Lift / normal force**: The aerodynamic force across the rocket's axis, which is what makes it weathercock or correct. Its coefficient is `Cn`, and the slope of that against angle of attack is CNα.
 
 ## O
 
@@ -303,7 +303,7 @@ Use the search box at the top of this site, or the search in the app's **Help** 
 
 **Saved run**: A simulation kept in the list with its results, so several can be compared. See **Outdated run**.
 
-**Scale factor**: Multiplying a whole design's dimensions to make a larger or smaller version of it. *In the app:* the **Scale** dialog.
+**Scale factor**: Multiplying a whole design's dimensions to make a larger or smaller version of it. *In the app:* the **Scale rocket** dialog.
 
 **Schematic (2D) and 3D view**: The two ways the design is drawn: a flat side view with optional rulers, and a rotatable solid model. Both can show the CG and CP markers and the info card. See **Aft view**.
 
@@ -337,7 +337,7 @@ Use the search box at the top of this site, or the search in the app's **Help** 
 
 **Standard deviation (σ)**: How much a random quantity varies about its average. *In the app:* the wind's gust σ, which sets how much the wind fluctuates around the average you gave.
 
-**Stats strip**: The row of tiles under the design views: length, diameter, fineness ratio, empty and loaded mass, CG, CP, recovery weight, stability, drag coefficient and the moments of inertia. Every figure in it comes from the engine as you edit, except the ones marked an estimate. See **Estimate**.
+**Stats strip**: The row of tiles under the design views: length, diameter, fineness ratio, empty and loaded mass, CG, CP, recovery weight, stability, drag coefficient, normal-force slope and the moments of inertia. Every figure in it comes from the engine as you edit, except the ones marked an estimate. See **Estimate**.
 
 **Streamer**: A ribbon used instead of a chute for a fast, drifting descent on small rockets. *In the app:* **Streamer**, sized by strip length and width.
 
@@ -349,7 +349,7 @@ Use the search box at the top of this site, or the search in the app's **Help** 
 
 **Terminal velocity**: The steady speed a falling object settles at once drag balances weight; under a canopy it is the descent rate. *In the app:* the descent figures, measured from the flight where one exists.
 
-**Thrust**: The force a motor produces. **Average thrust** is its mean over the burn (the number in a motor's name), **peak thrust** its maximum. *In the app:* the `Ft` column and the thrust curve.
+**Thrust**: The force a motor produces. **Average thrust** is its mean over the burn (the number in a motor's name), **peak thrust** its maximum. *In the app:* the **Thrust** column and the thrust curve.
 
 **Thrust curve**: Thrust against time for a particular motor, measured on a test stand. *In the app:* the motor browser's plot, and what a simulation actually flies.
 
@@ -367,7 +367,7 @@ Use the search box at the top of this site, or the search in the app's **Help** 
 
 **Tumbling**: Coming down end over end rather than under a device. It is slower than a ballistic descent and is what a rocket with no recovery device does. *In the app:* the `TUMBLE` flight event.
 
-**Turbulence intensity**: Gust σ expressed as a percentage of the average wind, which is often the easier way to think about it. *In the app:* the wind-profile editor, where the two follow each other.
+**Turbulence intensity**: Gust σ expressed as a percentage of the average wind, which is often the easier way to think about it. *In the app:* **Turbulence intensity** in the launch conditions and in the wind-profile editor, where it and the standard deviation follow each other.
 
 ## U
 
@@ -402,62 +402,60 @@ Use the search box at the top of this site, or the search in the app's **Help** 
 | `.zip` | The whole rocket's printable parts, one file per part, when the 3MF export is set to do so. |
 | `.dxf` | 2D cut sheets for fins, centering rings and bulkheads. |
 | `.pdf` | The design report, with its 1:1 templates and the fin marking guide. |
-| `.svg`, `.png`, `.jpg` | The 2D schematic as a drawing or an image. |
+| `.svg`, `.png`, `.jpg` | The 2D schematic as a drawing or an image. PNG and JPG also snapshot the 3D view. |
 | `.kml`, `.gpx` | The flight path, for Google Earth and GPS tools. Waypoints also go to `.csv`. |
 | `.mustache` | A flight-path export template, imported or downloaded. |
 
 ## Symbols in plots and downloads
 
-Every column a flight-data export can carry. The engine records these; the app only labels them.
+A flight-data export writes each column under its name, with its unit: **Time**, **Altitude**, **Velocity**, **Acceleration**, **Mass**, **Thrust**, **Drag**, **Mach**, **Stability margin**, **CP**, **CG** and **Angle of attack**, then the names below. The symbols are OpenRocket's short forms for those names, which the entries above use. The engine records every column; the app only labels them.
 
-| Symbol | Name |
+| Symbol | Name in the export |
 | --- | --- |
 | `ha` | Altitude above sea level |
 | `Vz` | Vertical velocity |
 | `Vl` | Lateral velocity |
 | `Az` | Vertical acceleration |
 | `Al` | Lateral acceleration |
-| `Ax`, `Ay` | Acceleration to the East, to the North |
-| `Abx`, `Aby` | Acceleration along the rocket's own body axes |
+| `Ax`, `Ay` | Acceleration to the East, Acceleration to the North |
+| `Abx`, `Aby`, `Abz` | X body acceleration, Y body acceleration, Z body acceleration |
 | `Ac` | Coriolis acceleration |
-| `g` | Gravitational acceleration at the rocket's position |
-| `Px`, `Py` | Position East of, and North of, the launch point |
-| `Pl` | Lateral distance from the launch point |
+| `g` | Gravitational acceleration |
+| `Px`, `Py` | Position East of launch, Position North of launch |
+| `Pl` | Lateral distance |
 | `θl` | Lateral direction |
 | `Φ` | Lateral orientation (azimuth) |
 | `Θ` | Vertical orientation (zenith) |
-| `dθ`, `dΨ`, `dΦ` | Pitch, yaw and roll rate |
-| `α` | Angle of attack |
-| `M` | Mach number |
+| `dθ`, `dΨ`, `dΦ` | Pitch rate (Y), Yaw rate (X), Roll rate (Z) |
 | `Vs` | Speed of sound |
 | `ρ` | Air density |
 | `P` | Air pressure |
 | `T` | Air temperature |
-| `Vw`, `θw` | Wind velocity and direction |
-| `φ`, `λ` | Latitude and longitude |
-| `Ft` | Thrust |
+| `Vw`, `θw` | Wind velocity, Wind direction |
+| `φ`, `λ` | Latitude, Longitude |
+| `Fta` | Thrust pressure correction |
 | `Twr` | Thrust-to-weight ratio |
 | `mp` | Motor mass |
-| `Cd` | Drag coefficient |
-| `Cda` | Axial drag coefficient |
-| `Cdf` | Friction drag coefficient |
-| `Cdp` | Pressure drag coefficient |
-| `Cdb` | Base drag coefficient |
-| `Cn` | Normal force coefficient |
-| `Cθ` | Pitch moment coefficient |
-| `CτΦ`, `CτΨ` | Roll and yaw moment coefficient |
+| `Cd` | Drag coefficient (CD) |
+| `Cda` | Axial drag coefficient (CA) |
+| `Cdf` | Friction drag coefficient (CD_friction) |
+| `Cdp` | Pressure drag coefficient (CD_pressure) |
+| `Cdb` | Base drag coefficient (CD_base) |
+| `Cn` | Normal force coefficient (CN) |
+| `CNα` | Normal force coefficient derivative (CNα) |
+| `Cθ` | Pitch moment coefficient (Cm) |
+| `CτΦ`, `CτΨ` | Roll moment coefficient, Yaw moment coefficient |
 | `Cτs` | Side force coefficient |
 | `Ccm` | Corrective moment coefficient |
 | `Cdm` | Damping moment coefficient |
-| `Cdm_aero`, `Cdm_prop` | Damping moment, aerodynamic and propulsive parts |
-| `Cζθ`, `CζΦ`, `CζΨ` | Pitch, roll and yaw damping coefficient |
+| `Cdm_aero`, `Cdm_prop` | Damping moment coefficient (aerodynamic), Damping moment coefficient (propulsive) |
+| `Cζθ`, `CζΦ`, `CζΨ` | Pitch damping coefficient, Roll damping coefficient, Yaw damping coefficient |
 | `CfΦ` | Roll forcing coefficient |
 | `ζ` | Damping ratio |
 | `ωn` | Natural frequency |
-| `Il` | Longitudinal (pitch) moment of inertia |
-| `Ir` | Rotational (roll) moment of inertia |
+| `Il` | Longitudinal moment of inertia |
+| `Ir` | Rotational moment of inertia |
 | `Ar` | Reference area |
 | `Lr` | Reference length |
 | `R` | Reynolds number |
 | `dt` | Simulation time step |
-| `tc` | Computation time |

@@ -1,5 +1,3 @@
-import { fmtList, partLabel } from '../../i18n/format';
-import i18n from '../../i18n';
 import type { OrkSimulation } from './ork/importSimulations';
 import {
   OpenRocketDesign,
@@ -10,7 +8,7 @@ import {
   type MotorSpec,
   type ComponentNode,
 } from '../../engine/openRocketEngine';
-import { parseDesignFile } from './designFile';
+import { parseDesignFile, type DesignFormat } from './designFile';
 import type { OrkExportMotor } from './orkFile';
 import type { LaunchConditions } from '../design/orkTree';
 import { loadCatalog, matchCatalogMotor, type CatalogMotor, type MotorMatchDoubt } from '../motors/motorDb';
@@ -26,7 +24,7 @@ import { type FlightConfig, type MountMotor } from '../flight/flightConfigs';
 import { errorReason } from '../../i18n/keyedError';
 import { roundTo } from '../app/numbers';
 import { rseDigest } from './ork/embeddedMotors';
-import { keyedNote, type ImportNote } from './importNote';
+import { keyedNote, noteList, notePartName, type ImportNote } from './importNote';
 
 /**
  * One of the file's flight configurations, with its motors resolved: the same
@@ -37,6 +35,8 @@ type LoadedConfig = FlightConfig;
 
 export interface LoadedOrk {
   name: string;
+  /** The file's format, which the loaded-design card names. */
+  format?: DesignFormat;
   design: OpenRocketDesign;
   info: StaticInfo;
   /** Notes for the banner: unsupported components, unresolved motors, etc. */
@@ -315,7 +315,7 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
         otherMaker
           ? keyedNote('importNote.motorOtherMaker', {
               motor: ref.designation,
-              maker: ref.manufacturer,
+              maker: ref.manufacturer ?? '',
               catalogMaker: match.motor.manufacturer,
             })
           : keyedNote('importNote.motorNotInCatalog', { motor: ref.designation }),
@@ -336,7 +336,7 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
       // Leaving the mount empty is not neutral: a mount without an entry is
       // seeded with a default C6 (flightConfigs.reconcileConfig), so a single
       // transient thrustcurve.org failure while opening an L-motor design would
-      // produce a runnable simulation flying a 10 N-s C6, with the only warning
+      // produce a runnable simulation flying a C6, with the only warning
       // buried in the import notes that settings.showImportNotes can hide.
       notes.push(keyedNote('importNote.motorFetchFailed', { motor: ref.designation, reason: errorReason(e) }));
       return unresolvedMotor(ref);
@@ -386,7 +386,7 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
     const key = `${mountId}|${spec.designation}`;
     if (misfits.has(key)) return;
     misfits.add(key);
-    const mount = (node!.name as string) || node!.type;
+    const mount = notePartName(node!);
     const tooWide = motor.diameter > fit.bore;
     notes.push(
       tooWide
@@ -433,7 +433,7 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
   if (emptyMounts.length) {
     const named = emptyMounts.filter((m) => !chosen.motors[m.id as string]?.spec.designation);
     if (named.length) {
-      const names = fmtList(named.map((m) => `"${partLabel(i18n.t, m)}"`));
+      const names = noteList(named.map(notePartName), { quote: true });
       notes.push(keyedNote('importNote.mountsWithoutMotor', { mounts: names }));
     }
   }
@@ -450,6 +450,7 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
   const info = design.staticInfo();
   return {
     name: res.name,
+    ...(res.format ? { format: res.format } : {}),
     design,
     info,
     notes,

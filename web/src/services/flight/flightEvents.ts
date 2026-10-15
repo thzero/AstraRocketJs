@@ -13,7 +13,10 @@ import { flightBranches } from './flightColumns';
  * list, not just the five the chart labels, and every series needed to sample at
  * an event time is on the same branch, so this file is a join, not physics.
  *
- * The one exception is {@link maxQ}, which the kernel does not record.
+ * The exceptions are the figures the kernel does not record: the dynamic
+ * pressure ({@link dynamicPressure}) and its peak ({@link maxQ}), q·α
+ * ({@link qAlpha}) and its peak ({@link maxQAlpha}), and the peak roll rate
+ * ({@link maxRollRate}), each derived from series the kernel does record.
  *
  * Pure and component-free, like aeroTables.ts beside AeroComponentTables, so the
  * join and the peak are testable without mounting a table.

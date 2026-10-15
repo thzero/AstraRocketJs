@@ -23,7 +23,7 @@ const flight = (id: string, name: string, stages?: string[]): ChartFlight => ({
   } as unknown as FlightResult,
 });
 
-const stageLabel = (i: number) => `Stage ${i + 1}`;
+const stageLabel = (i: number, name?: string) => name || `Stage ${i + 1}`;
 
 /**
  * The lines drawn for one flight: one per branch.

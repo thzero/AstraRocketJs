@@ -59,3 +59,16 @@ export function placementOffsets(node: ComponentNode, tubeOuterRadius: number): 
   }
   return [{ y: radialPosition * Math.cos(radialDirection), z: radialPosition * Math.sin(radialDirection) }];
 }
+
+/**
+ * A place across the parent, `{ y, z }` in the kernel's frame, turned about the
+ * axis by `angle` (rad): `Transformation.rotate_x` (Transformation.java:263-271).
+ * Every part inside a pod or booster instance is turned by that instance's
+ * angle (FlightConfiguration.java:456-462), and a view's roll turns the rest.
+ */
+export function turnedOffset(off: { y: number; z: number }, angle: number): { y: number; z: number } {
+  if (angle === 0) return { y: off.y, z: off.z };
+  const c = Math.cos(angle);
+  const s = Math.sin(angle);
+  return { y: off.y * c - off.z * s, z: off.y * s + off.z * c };
+}

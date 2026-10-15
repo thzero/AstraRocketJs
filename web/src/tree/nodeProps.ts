@@ -56,6 +56,9 @@ export const MAX_FIN_COUNT = 8;
  */
 export const MAX_CANT = (15 * Math.PI) / 180;
 
+/** A fin set's cant as the kernel flies it: the stored one, clamped to {@link MAX_CANT}. */
+export const finCant = (node: ComponentNode): number => Math.max(-MAX_CANT, Math.min(MAX_CANT, num(node, 'cant', 0)));
+
 /**
  * An instance count (fins, tubes, pod instances): a whole number in
  * [1, {@link MAX_INSTANCE_COUNT}].

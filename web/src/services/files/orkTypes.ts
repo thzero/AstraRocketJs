@@ -25,7 +25,8 @@ export type OrkSimPrefs = Pick<
 
 export interface OrkMotorRef {
   designation: string;
-  manufacturer: string;
+  /** Absent when the file names no `<manufacturer>`. */
+  manufacturer?: string;
   /** The file's own `<digest>`, carried through so a re-export still names the
    *  desktop database entry the file named. */
   digest?: string;
@@ -83,17 +84,18 @@ export interface OrkFlightConfig {
   motors: Record<string, OrkMotorRef>;
   /**
    * This configuration's <deploymentconfiguration> overrides, keyed by the
-   * recovery device's editor node id. Carried so a save can write every
-   * configuration's recovery settings back; without it, the configuration the
-   * user opened would become the file's default for all of them, which could
-   * leave another configuration's chute set to deploy at the wrong time.
+   * recovery device's editor node id: the device's bare tags with the block's
+   * fields over them. Only a device with a block for this configuration has an
+   * entry; the rest fly the device's own values, which are the bare tags.
+   * Carried so a save writes each configuration's block back and another
+   * configuration's chute keeps the deployment the file gave it.
    */
   deployments: Record<string, OrkDeployOverride>;
   /**
    * This configuration's <separationconfiguration> overrides, keyed by the
-   * booster's editor node id. Carried for the same reason the deployments are:
-   * a save that wrote one configuration's staging over every other one would
-   * change when a booster lets go on flights nobody opened.
+   * booster's editor node id, read the way the deployments are: only a
+   * booster with a block for this configuration has an entry. Carried so a
+   * save keeps when a booster lets go on flights nobody opened.
    */
   separations: Record<string, OrkSepOverride>;
   /**
@@ -125,11 +127,16 @@ export interface OrkImportResult extends OrkTreeImportResult {
   /** Declared flight configurations in file order (empty when none). */
   configs: OrkFlightConfig[];
   /**
-   * The configuration whose motors/ignition/deployment/separation were
-   * applied: the default="true" one, else the first declared; null when the
-   * file declares none (per-component reads then take the first element).
+   * The configuration whose motors and ignition were seated: the
+   * default="true" one, else the first declared; null when the file declares
+   * none (per-component reads then take the first element, a separation
+   * block included). Deployment and separation are the design's bare tags
+   * whichever configuration this is; each configuration's blocks are its
+   * overrides.
    */
   chosenConfigId: string | null;
+  /** Which format the file was, when the caller sniffed it (designFile.parseDesignFile). */
+  format?: 'ork' | 'rkt';
 }
 
 export interface OrkExportMotor {

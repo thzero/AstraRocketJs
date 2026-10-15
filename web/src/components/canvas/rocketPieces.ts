@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
-import { countOf, num, numOpt } from '../../tree/nodeProps';
+import { bodyTubeRadius, countOf, finCant, num, numOpt } from '../../tree/nodeProps';
 import { axialChain, motorSeatStart, partLength } from '../../tree/position';
 import { FIN_DEFAULTS, KERNEL_DEFAULTS } from '../../tree/kernelDefaults';
 import {
@@ -216,14 +216,29 @@ export function buildPieces(
     xform?: THREE.Matrix4,
   ) => {
     const count = countOf(child, 'finCount', 3);
-    const height = finSpan(child);
     const thickness = num(child, 'thickness', FIN_DEFAULTS.thickness);
     // The fin stands on the body radius under its own front
     // (`FinSet.getFinFront`), not on the parent's widest radius.
     const fp: FinParent = finMount(child, parent, pStart) ?? pRadius;
     const R = mountRadius(fp) ?? pRadius;
-    const start = typeof fp === 'number' ? axialStart(child, finRootChord(child), pStart, pLen) : pStart + fp.front;
+    // A freeform fin's span reads its parent (`FreeformFinSet.getSpan`).
+    const height = finSpan(child, fp);
+    const chord = finRootChord(child);
+    const start = typeof fp === 'number' ? axialStart(child, chord, pStart, pLen) : pStart + fp.front;
     maxR = Math.max(maxR, R + height);
+    // The cant turns each fin about the radial line through the middle of its
+    // root (`FinSet.getCantRotation`, a rotate_y, FinSet.java:1783-1791), before
+    // the fin's own turn about the axis. three.js's Y rotation is the kernel's
+    // rotate_y matrix.
+    const cant = finCant(child);
+    const mid = start + chord / 2;
+    const canted =
+      cant === 0
+        ? null
+        : new THREE.Matrix4()
+            .makeTranslation(mid, 0, 0)
+            .multiply(new THREE.Matrix4().makeRotationY(cant))
+            .multiply(new THREE.Matrix4().makeTranslation(-mid, 0, 0));
 
     // The outline comes from the one fin-geometry module (tree/finPlanform.ts),
     // so the ellipse is the kernel's half-ellipse, root/height are measured
@@ -249,11 +264,23 @@ export function buildPieces(
       // Fin lies in the XY plane, root on the surface (+Y), then rotate about X.
       const g = geo.clone();
       g.translate(start, R, 0);
+      if (canted) g.applyMatrix4(canted);
       g.applyMatrix4(new THREE.Matrix4().makeRotationX(angle));
       if (xform) g.applyMatrix4(xform); // off-axis pod instance
       pieces.push({ key: `fin${k++}`, id: child.id, geometry: g, color: nodeColor(child, palette) });
     }
     geo.dispose();
+  };
+
+  /**
+   * `xform` followed by a shift across the rocket axis to `off`: the frame a
+   * part's own children are built in, so a child placed against its parent's
+   * axis lands on the copy of the parent it belongs to.
+   */
+  const offsetXform = (off: { y: number; z: number }, xform?: THREE.Matrix4): THREE.Matrix4 | undefined => {
+    if (off.y === 0 && off.z === 0) return xform;
+    const m = new THREE.Matrix4().makeTranslation(0, off.y, off.z);
+    return xform ? new THREE.Matrix4().copy(xform).multiply(m) : m;
   };
 
   /**
@@ -373,6 +400,9 @@ export function buildPieces(
             );
           }
         }
+        // Its own internal parts (an engine block, a ring) sit in every tube of
+        // the cluster, as the kernel places a child once per parent instance.
+        for (const off of placementOffsets(child, r)) addChildren(child, start, len, r, offsetXform(off, xform));
       } else if (isAssembly(child.type)) {
         // Off-axis pod / booster: place its whole sub-chain at the instance's
         // radius + angle (the addFins rotate-about-X primitive, lifted from one
@@ -398,9 +428,11 @@ export function buildPieces(
         // and it is imported rather than recreated so the part you see and the
         // part you cut cannot drift apart.
         const d = child.id ? resolveDisc(tree, child.id) : null;
+        const length = d?.length ?? partLength(child);
+        const outerR = d?.outerR ?? 0;
+        const start = axialStart(child, length, pStart, pLen);
+        const [off] = placementOffsets(child, outerR);
         if (d && d.outerR > 0 && d.length > 0) {
-          const start = axialStart(child, d.length, pStart, pLen);
-          const [off] = placementOffsets(child, d.outerR);
           place(
             `disc${k++}`,
             annulusGeometry(d.outerR, d.innerR, d.length),
@@ -410,15 +442,17 @@ export function buildPieces(
             xform,
           );
         }
+        // A coupler holds internal parts of its own (a bulkhead in an avionics bay).
+        addChildren(child, start, length, outerR, offsetXform(off!, xform));
       } else if (PACKED_TYPES.has(child.type)) {
         // Packed recovery gear and mass objects, at the same extent the 2D
         // schematic dashes in (`internalExtent`). A packed size with no value
         // on record is the schematic's fallback box, drawn as a volume; it is
         // never a different size from the one the 2D view shows.
         const { length, radius } = internalExtent(child, pRadius);
+        const start = axialStart(child, length, pStart, pLen);
+        const [off] = placementOffsets(child, radius);
         if (radius > 0 && length > 0) {
-          const start = axialStart(child, length, pStart, pLen);
-          const [off] = placementOffsets(child, radius);
           place(
             `packed${k++}`,
             new THREE.CylinderGeometry(radius, radius, length, 24),
@@ -428,6 +462,8 @@ export function buildPieces(
             xform,
           );
         }
+        // A mass component holds internal parts of its own.
+        addChildren(child, start, length, radius, offsetXform(off!, xform));
       }
     }
   };
@@ -477,7 +513,7 @@ export function buildPieces(
         addChildren(n, x, len, R, xform);
         x += len;
       } else if (n.type === 'bodytube') {
-        const R = num(n, 'outerRadius', KERNEL_DEFAULTS.bodytube.outerRadius);
+        const R = bodyTubeRadius(n);
         // Hollow: the wall the part list already carries, revolved, so a
         // cutaway shows a wall and a bore instead of a solid rod. A filled tube
         // is the solid rod the kernel flies (BodyTube.setFilled), whatever wall

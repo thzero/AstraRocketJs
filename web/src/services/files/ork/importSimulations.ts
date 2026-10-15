@@ -28,9 +28,10 @@ export interface OrkSimulation {
   /** The file says the result was out of date when it was saved. */
   outdated: boolean;
   /**
-   * The run settings desktop keeps per simulation (`SimulationConditionsHandler`
-   * reads them into that simulation's options): time step, maximum time and the
-   * four recovery warnings. Only what the file states, inside the app's bounds.
+   * The run settings a file keeps per simulation (`SimulationConditionsHandler`
+   * reads them into that simulation's options): time step and maximum time,
+   * which desktop 24.12 reads too, and the four recovery warnings, which only
+   * upstream OpenRocket reads. Only what the file states, inside the app's bounds.
    */
   prefs?: Partial<SimPrefs>;
   /**

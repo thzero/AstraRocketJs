@@ -13,15 +13,24 @@ import { KERNEL_DEFAULTS, KERNEL_MATERIALS } from '../../tree/kernelDefaults.js'
 import { COMPONENT_DEFAULTS } from './componentDefaults.js';
 import { isChainType } from '../../tree/componentKinds';
 import { uuid } from '../app/uuid';
+import { isZero, mathEquals } from '../motors/mathEquals';
 import { KeyedError } from '../../i18n/keyedError';
 // Every mutator here ends by resolving the radii and shoulders that follow a
 // neighbor (syncDerived): this is the one door the tree is edited through, so
 // nothing downstream has to know the feature exists.
 import { shoulderSeed, syncAutoShoulders } from './autoShoulder';
 import { syncAutoRadii } from './autoRadius';
-import { findNode as findNodeIn, findSiblings, findWithParent, walkNodes } from '../../tree/treeWalk';
+import {
+  findNode as findNodeIn,
+  findSiblings,
+  findWithParent,
+  mapTreePreserving,
+  walkNodes,
+} from '../../tree/treeWalk';
 import { shapeChange } from '../../tree/shapeProfile';
+import { num } from '../../tree/nodeProps';
 import { clampToBounds, RING_BOUNDS } from './linkedDimensions';
+import { repairNode } from './repairValues';
 
 /**
  * Both derived-value passes, in the order they depend on each other: an
@@ -61,14 +70,18 @@ const TAPER = ['length', 'shape', 'shapeParameter', 'aftRadius', 'aftRadiusAuto'
 const THICKNESS_RING = ['length', 'outerRadius', 'thickness', ...BULK_MATERIAL];
 
 /**
- * The node keys whose kernel setter calls `clearPreset()`, per part type that
- * can come from the catalog. Placement, deployment, packed size, a nose cone's
- * `flipped`, a transition's `clipped`, the shoulder lengths, walls and caps, a
- * body tube's or launch lug's length and a streamer's strip length all have
- * setters that leave the preset in place, so the link survives them.
+ * The node keys whose setter calls `clearPreset()`, per part type that can come
+ * from the catalog, as the 24.12 release has them (`javap -c` on its
+ * `rocketcomponent` classes); the kernel's setters agree on every key here.
+ * Placement, deployment, packed size, a transition's `clipped`, the shoulder
+ * lengths, walls and caps, a body tube's or launch lug's length and a
+ * streamer's strip length all have setters that leave the preset in place, so
+ * the link survives them. A nose cone's `flipped` does not:
+ * `NoseCone.setFlipped` moves the base through `setForeRadius` and
+ * `setAftRadius`, which clear it.
  */
 const PRESET_SETTERS: Record<string, ReadonlySet<string>> = {
-  nosecone: new Set([...TAPER, 'shoulderRadius', ...BULK_MATERIAL]),
+  nosecone: new Set([...TAPER, 'flipped', 'shoulderRadius', ...BULK_MATERIAL]),
   transition: new Set([
     ...TAPER,
     'foreRadius',
@@ -107,21 +120,30 @@ const PRESET_SETTERS: Record<string, ReadonlySet<string>> = {
 /** `Parachute.setLineLength` and `setLineMaterial` clear the link only on a chute that has lines. */
 const PARACHUTE_LINE_KEYS = ['lineLength', 'lineMaterialName', 'lineDensity'];
 
+/** Whether a setter would see a new value: `MathUtil.equals` for a number, as the kernel's setters compare. */
+const differs = (a: unknown, b: unknown): boolean =>
+  typeof a === 'number' && typeof b === 'number' ? !mathEquals(a, b) : a !== b;
+
 /**
  * Does this edit make the part stop being the catalog part it came from?
  *
  * The kernel answers this by calling `clearPreset()` from some of its setters,
  * and {@link PRESET_SETTERS} is that list keyed by node key, so a design keeps
- * or drops its `<preset>` exactly where the desktop would.
+ * or drops its `<preset>` exactly where the desktop would. A setter returns
+ * before `clearPreset()` when the value is unchanged, so only a key whose value
+ * changes counts. `before` is the node as it was and `after` the node with
+ * the edit and everything it brings: a shoulder length grown from or set back
+ * to 0 sets the shoulder radius through its own setter, which clears the link
+ * when that radius changes.
  */
-function breaksPreset(node: ComponentNode, patch: Partial<ComponentNode>): boolean {
+function breaksPreset(before: ComponentNode, after: ComponentNode, patch: Partial<ComponentNode>): boolean {
   if ('preset' in patch) return false; // the picker sets the link and the dimensions together
-  const keys = Object.keys(patch);
-  const setters = PRESET_SETTERS[node.type];
-  if (setters && keys.some((k) => setters.has(k))) return true;
-  if (node.type !== 'parachute') return false;
-  const lines = (patch['lineCount'] ?? node['lineCount']) as number | undefined;
-  return lines !== 0 && keys.some((k) => PARACHUTE_LINE_KEYS.includes(k));
+  const changed = (k: string) => differs(before[k], after[k]);
+  const setters = PRESET_SETTERS[before.type];
+  if (setters && [...setters].some(changed)) return true;
+  if (before.type !== 'parachute') return false;
+  const lines = after['lineCount'] as number | undefined;
+  return lines !== 0 && PARACHUTE_LINE_KEYS.some(changed);
 }
 
 /**
@@ -135,8 +157,8 @@ function breaksPreset(node: ComponentNode, patch: Partial<ComponentNode>): boole
  * step that changes nothing.
  *
  * Shallow `!==` per key, which is the comparison `updateNode` itself makes when it
- * spreads the patch. A patch that would drop the preset link counts as a change
- * even when every value matches, because dropping it is the change.
+ * spreads the patch. A patch whose every value matches cannot drop the preset
+ * link either, since only a changed value clears it.
  */
 export function patchChangesNode(tree: RocketTree, id: string, patch: Partial<ComponentNode>): boolean {
   const node = findNode(tree, id);
@@ -146,7 +168,7 @@ export function patchChangesNode(tree: RocketTree, id: string, patch: Partial<Co
   for (const key of Object.keys(incoming)) {
     if (current[key] !== incoming[key]) return true;
   }
-  return node['preset'] !== undefined && breaksPreset(node, patch);
+  return false;
 }
 
 /**
@@ -160,17 +182,19 @@ export function patchChangesNode(tree: RocketTree, id: string, patch: Partial<Co
  */
 export function updateNode(tree: RocketTree, id: string, patch: Partial<ComponentNode>): RocketTree {
   let found = false;
+  let before = undefined as ComponentNode | undefined;
   const rec = (nodes: ComponentNode[]): ComponentNode[] => {
     for (let i = 0; i < nodes.length; i++) {
       const n = nodes[i]!;
       if (n.id === id) {
         found = true;
+        before = n;
         const out = nodes.slice();
         const patched = { ...n, ...patch };
         // A shoulder length set from or back to 0 brings its wall, radius and
         // cap with it, as desktop's setter does.
-        const next = { ...patched, ...shoulderSeed(n, patched, patch, nodes, i) };
-        if (n['preset'] && breaksPreset(n, patch)) delete next['preset'];
+        const next = { ...patched, ...shoulderSeed(n, patched, patch, tree.components) };
+        if (n['preset'] && breaksPreset(n, next, patch)) delete next['preset'];
         out[i] = next;
         return out;
       }
@@ -186,7 +210,33 @@ export function updateNode(tree: RocketTree, id: string, patch: Partial<Componen
     return nodes;
   };
   const components = rec(tree.components);
-  return syncDerived({ ...tree, components });
+  const synced = syncDerived({ ...tree, components });
+  return before?.['preset'] && !('preset' in patch) ? unlinkMovedShoulder(synced, id, before) : synced;
+}
+
+/** Every shoulder radius a nose cone or transition has. */
+const SHOULDER_RADII = ['shoulderRadius', 'foreShoulderRadius', 'aftShoulderRadius'];
+
+/**
+ * Drop the catalog link of the part `id` when the edit moved a shoulder's
+ * radius by way of the radii that follow a neighbor: an automatic shoulder
+ * turned on takes the neighbor's bore, and on the desktop that radius arrives
+ * through `setShoulderRadius`, which clears the preset when it changes.
+ */
+function unlinkMovedShoulder(tree: RocketTree, id: string, before: ComponentNode): RocketTree {
+  const after = findNode(tree, id);
+  if (!after?.['preset'] || !SHOULDER_RADII.some((k) => differs(before[k], after[k]))) return tree;
+  const components = mapTreePreserving(
+    tree.components,
+    (n) => {
+      if (n.id !== id) return n;
+      const out = { ...n };
+      delete out['preset'];
+      return out;
+    },
+    'pre',
+  );
+  return { ...tree, components };
 }
 
 export function removeNode(tree: RocketTree, id: string): RocketTree {
@@ -500,11 +550,27 @@ function hollowWall(node: ComponentNode | undefined, radius: number): Partial<Co
 
 /**
  * A shoulder a catalog part states, as `Transition.loadFromPreset` applies it:
- * its radius and length, replacing the one that follows the neighboring tube;
- * solid on a filled part; and with a stated wall, that wall. `side` is '' for a
- * nose cone's one shoulder, 'fore' or 'aft' for a transition's.
+ * its radius and length, replacing the one that follows the neighboring tube,
+ * and solid on a filled part. `side` is '' for a nose cone's one shoulder,
+ * 'fore' or 'aft' for a transition's, and `end` the radius of the end it plugs.
  *
- * Only a stated shoulder diameter applies anything here. Desktop also gives
+ * The radius is held to that end, as the 24.12 release's
+ * `setAftShoulderRadius(double)` and `setForeShoulderRadius(double)` clamp it
+ * to `getAftRadius()` and `getForeRadius()` (a nose cone's to its base, which
+ * `NoseCone.loadFromPreset` loads unflipped). A filled part's shoulder wall is
+ * half the stated diameter, unclamped, as that release sets it.
+ *
+ * A hollow part's stated wall is the kernel's rule: its `loadFromPreset` gives
+ * both shoulders the part's wall, where 24.12 leaves the shoulder walls alone.
+ *
+ * The cap is left as the part had it: the 24.12 release's `loadFromPreset` and
+ * shoulder length setters never touch it. A part with no shoulder before the
+ * pick is stated uncapped, as a new part is, because the length edit's own
+ * seeding (`shoulderSeed`) would otherwise cap it, and `ComponentPresetFactory`
+ * measures the volume a stated mass is spread over on that uncapped part, so a
+ * capped pick would fly heavier than the catalog states.
+ *
+ * Only a stated shoulder diameter applies anything here. The kernel also gives
  * both shoulders a stated wall when the row states no shoulder diameter; no
  * shipped row is hollow with a wall and without a shoulder diameter.
  */
@@ -512,15 +578,19 @@ function presetShoulder(
   side: '' | 'fore' | 'aft',
   diameter: number | null,
   length: number | null,
+  end: number,
   p: { filled?: boolean; thickness?: number | null },
+  node: ComponentNode | undefined,
 ): Partial<ComponentNode> {
   if (diameter == null) return {};
   const key = (k: string) => (side ? `${side}${k}` : k.charAt(0).toLowerCase() + k.slice(1));
-  const radius = diameter / 2;
-  const wall = p.filled ? radius : p.thickness;
+  const radius = Math.min(diameter / 2, end);
+  const wall = p.filled ? diameter / 2 : p.thickness;
+  const hadShoulder = node !== undefined && !isZero(num(node, key('ShoulderLength'), 0));
   return {
     [key('ShoulderAuto')]: false,
     [key('ShoulderRadius')]: radius,
+    ...(hadShoulder ? {} : { [key('ShoulderCapped')]: false }),
     ...(length == null ? {} : { [key('ShoulderLength')]: length }),
     ...(wall == null ? {} : { [key('ShoulderThickness')]: wall }),
   };
@@ -570,7 +640,9 @@ function statedPatch(p: Component, node?: ComponentNode): Partial<ComponentNode>
   // without the keys a saved part never keeps: a stored entry is read back
   // from the browser's storage, and an id, type or children in it would
   // duplicate an id or turn the node into another part.
-  if (p.custom && p.patch) return presetNode(p.patch);
+  // Repaired as a design loaded from storage is: the stored entry has not been
+  // through the editor's limits since it was written.
+  if (p.custom && p.patch) return presetNode(repairNode(p.patch as ComponentNode).node);
   const mat =
     'materialDensity' in p && p.materialDensity
       ? { density: p.materialDensity, materialName: (p as { material?: string }).material }
@@ -600,7 +672,7 @@ function statedPatch(p: Component, node?: ComponentNode): Partial<ComponentNode>
         // one's dimensions, and the `.ork` would go on saying `<thickness>filled`.
         filled: !!p.filled,
         ...wall,
-        ...presetShoulder('', p.shoulderDiameter ?? null, p.shoulderLength ?? null, p),
+        ...presetShoulder('', p.shoulderDiameter ?? null, p.shoulderLength ?? null, radius, p, node),
         ...mat,
       };
     }
@@ -646,7 +718,14 @@ function statedPatch(p: Component, node?: ComponentNode): Partial<ComponentNode>
     // that follows the neighboring tube.
     case 'transition': {
       const shoulder = (side: 'fore' | 'aft', diameter: number | null, length: number | null) =>
-        presetShoulder(side, diameter, length, p);
+        presetShoulder(
+          side,
+          diameter,
+          length,
+          (side === 'fore' ? p.foreOuterDiameter : p.aftOuterDiameter) / 2,
+          p,
+          node,
+        );
       return {
         ...shapeChange('transition', p.shape),
         length: p.length,

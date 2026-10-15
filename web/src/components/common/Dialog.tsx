@@ -141,6 +141,9 @@ export function Dialog({
     >
       <div // eslint-disable-line jsx-a11y-x/click-events-have-key-events, jsx-a11y-x/no-noninteractive-element-interactions -- a backdrop click is the mouse twin of Escape, which the focus trap handles; the panel only stops that click
         ref={panelRef}
+        // Which dialog this is, for a window key handler that treats one
+        // surface differently (useUndoShortcuts).
+        data-dialog={id}
         role="dialog"
         aria-modal="true"
         aria-labelledby={name === undefined ? headingId : undefined}

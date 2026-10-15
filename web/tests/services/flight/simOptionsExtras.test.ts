@@ -115,10 +115,14 @@ describe('the new launch fields round-trip through .ork', () => {
     expect(exportOrk({ name: 'Opts', tree, launch: base })).not.toContain('<gravity');
   });
 
-  it('writes constant gravity in the desktop element (OpenRocketSaver)', () => {
+  // 24.12 has no gravity setting: upstream's <gravity model="constant"><value>
+  // makes it warn on <value> and misread the rest of the simulations block,
+  // while a <conditions> child it does not know is skipped without a warning
+  // (SimulationConditionsHandler). `npm run audit` opens such a file in 24.12.
+  it('writes constant gravity as the bare pair desktop skips', () => {
     const xml = exportOrk({ name: 'Opts', tree, launch: { ...base, gravityModel: 'constant', constantGravity: 9.81 } });
-    expect(xml).toMatch(/<gravity model="constant">\s*<value>9\.81<\/value>\s*<\/gravity>/);
-    expect(xml).not.toContain('<gravitymodel>');
+    expect(xml).toMatch(/<gravitymodel>constant<\/gravitymodel>\s*<constantgravity>9\.81<\/constantgravity>/);
+    expect(xml).not.toContain('<gravity ');
   });
 
   it("reads a desktop file's gravity element (GravityHandler)", () => {

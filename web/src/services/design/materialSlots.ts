@@ -98,11 +98,12 @@ const KERNEL_PART_MATERIALS: Record<
  * material the kernel would weigh the part with anyway
  * ({@link KERNEL_MATERIALS}, or the part's own in {@link KERNEL_PART_MATERIALS}).
  *
- * The preference is spent here, at creation, rather than resolved later: the
- * part ends up carrying a real material that shows in the panel and is written
- * to the `.ork`. Desktop OpenRocket keeps the part unset and applies its
- * equivalent preference at runtime, which means the same file weighs one thing
- * on the machine that made it and another on the machine it was sent to.
+ * The preference is spent here, at creation, as desktop OpenRocket spends its
+ * own: each component's constructor sets the material from the default the
+ * preferences hold for that part type (`getDefaultComponentMaterial` in
+ * ExternalComponent, StructuralComponent, FinSet, RecoveryDevice, Parachute and
+ * ShockCord), so the part carries a real material that shows in the panel and
+ * is written to the `.ork`.
  *
  * The kernel fallback is why a new part does not read "Not specified". An unset
  * material is not a lighter part: the kernel flies it as cardboard (a rail button

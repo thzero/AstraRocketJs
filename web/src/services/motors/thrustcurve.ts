@@ -455,7 +455,7 @@ async function buildMotorSpec(cat: CatalogMotor, ejectionDelay: number, curveInd
  * the curve belongs to the design that carried it, not to the user's catalog.
  */
 export function customMotorToSpec(cm: CustomMotor, ejectionDelay: number): MotorSpec {
-  return samplesToMotorSpec(
+  const spec = samplesToMotorSpec(
     {
       motorId: cm.id,
       designation: cm.designation,
@@ -475,4 +475,5 @@ export function customMotorToSpec(cm: CustomMotor, ejectionDelay: number): Motor
     cm.cgMm === undefined ? undefined : [[0, cm.cgMm / 1000]],
     cm.massesG?.map((g) => g / 1000),
   );
+  return { ...spec, imported: true };
 }

@@ -87,7 +87,7 @@ export function SimEditor() {
       className="rounded-lg border border-accent-500/30 bg-accent-950/40 px-2 py-1.5 text-xs leading-snug text-accent-200"
     >
       {t('sims.editingMany', { count: targets.length })}{' '}
-      <span className="text-accent-300/80">{t('sims.editingManyHint')}</span>
+      <span className="text-accent-300">{t('sims.editingManyHint')}</span>
     </p>
   ) : null;
 
@@ -267,7 +267,7 @@ function SimOptions({ diff, targets }: { diff?: ReadonlySet<keyof SimPrefs>; tar
       <div className="space-y-2">
         <NumberRow
           label={t('settings.timeStep')}
-          unit="s"
+          unit={t('units.second')}
           mixed={mixed('timeStep')}
           value={prefs?.timeStep ?? null}
           placeholder={fmtUpTo(g.timeStep, 4)}
@@ -279,7 +279,7 @@ function SimOptions({ diff, targets }: { diff?: ReadonlySet<keyof SimPrefs>; tar
         />
         <NumberRow
           label={t('settings.maxTime')}
-          unit="s"
+          unit={t('units.second')}
           mixed={mixed('maxTime')}
           value={prefs?.maxTime ?? null}
           placeholder={fmtUpTo(g.maxTime, 1)}
@@ -316,6 +316,8 @@ function SimOptions({ diff, targets }: { diff?: ReadonlySet<keyof SimPrefs>; tar
           step={1}
           aria-label={t('settings.timeStepScale')}
           value={nearestStepIndex(eff.timeStep)}
+          // The step the thumb stands for, not its index among the stops.
+          aria-valuetext={`${fmtUpTo(TIME_STEPS[nearestStepIndex(eff.timeStep)]!, 4)} s`}
           onChange={(e) => setSimPref('timeStep', TIME_STEPS[Number(e.target.value)]!)}
           // Pointer, not mouse: a touch drag sends no mouseup, and an undo entry
           // left open would merge the next unrelated edit into this one.

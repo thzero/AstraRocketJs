@@ -1,4 +1,5 @@
 import { readFileSync, rmSync } from 'node:fs';
+import { resolve as resolvePath } from 'node:path';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
@@ -114,13 +115,21 @@ export default defineConfig({
         this.emitFile({ type: 'asset', fileName: swBuildFile, source: swBuildSource });
       },
     },
-    {
-      name: 'drop-hosted-catalogs',
-      apply: 'build',
-      closeBundle() {
-        for (const file of hostedCatalogs) rmSync(new URL(`./dist/${file}`, import.meta.url), { force: true });
-      },
-    },
+    (() => {
+      // The folder the build wrote, not `./dist`: a build given `--outDir`
+      // would otherwise keep the hosted catalogs and delete them from dist.
+      let outDir = '';
+      return {
+        name: 'drop-hosted-catalogs',
+        apply: 'build' as const,
+        configResolved(config: { root: string; build: { outDir: string } }) {
+          outDir = resolvePath(config.root, config.build.outDir);
+        },
+        closeBundle() {
+          for (const file of hostedCatalogs) rmSync(resolvePath(outDir, file), { force: true });
+        },
+      };
+    })(),
     // Offline support. Everything the app needs is static (the WASM kernel runs
     // the physics in-browser; there is no backend), so it can work fully offline
     // once cached, which matters at a launch site with no signal.
@@ -155,8 +164,10 @@ export default defineConfig({
         // precached. In a data-host build that is the materials and the
         // contributors only: the motors and components come from the host, are
         // kept by the `astra-catalogs` rule below, and are fetched in the
-        // background on the first visit (services/app/warmCatalogs.ts), so an
-        // app installed online still has them at a launch site with no signal.
+        // background on every visit (services/app/warmCatalogs.ts), so an app
+        // opened once online still has them at a launch site with no signal.
+        // The rule sees only a page the worker controls, and the first visit is
+        // not one, so there warmCatalogs.ts writes them to that cache itself.
         // `ork` is in here for the bundled OpenRocket examples
         // (public/examples/, see services/storage/exampleLibrary.ts). The set comes
         // to ~340 kB with their stored flight data stripped, which is cheap
@@ -196,8 +207,9 @@ export default defineConfig({
         // still asks for `data/motors.generated.json?v=429fee4cf0b3` - and
         // Workbox keys the precache on `data/motors.generated.json`, so the
         // query would make every one of those a miss. Offline, the request would
-        // fall through every runtime rule (they cover page loads, the jsDelivr
-        // host and the engine fallback) and fail at the network: no motors,
+        // fall through every runtime rule (they cover page loads, docs pages,
+        // the jsDelivr host, the engine fallback, the report fonts and map
+        // tiles) and fail at the network: no motors,
         // no components, no materials, on the one device that is at a launch
         // site with no signal. Workbox's default ignores only `utm_*` and
         // `fbclid`.
@@ -289,11 +301,18 @@ export default defineConfig({
             // has offline. Stale-while-revalidate: render instantly from cache,
             // refresh in the background, so a weekly catalog refresh lands on the
             // next open.
+            //
+            // No maxAgeSeconds: Workbox refuses a cached response older than
+            // that, and this is the only offline copy, so a user who has not
+            // opened the app online for that long would have no motors and no
+            // parts at the field. The `?v=<hash>` keys and the revalidation
+            // keep it current, and maxEntries caps how many it holds
+            // (scripts/check-offline-data.mjs checks both).
             urlPattern: /^https:\/\/cdn\.jsdelivr\.net\/gh\/.*@data\//,
             handler: 'StaleWhileRevalidate',
             options: {
               cacheName: 'astra-catalogs',
-              expiration: { maxEntries: 16, maxAgeSeconds: 60 * 60 * 24 * 90 },
+              expiration: { maxEntries: 16 },
               cacheableResponse: { statuses: [200] },
             },
           },
@@ -340,6 +359,11 @@ export default defineConfig({
             // a handful of pads, so browsing the world does not grow without
             // limit; Workbox evicts the least recently used past that.
             //
+            // No maxAgeSeconds: Workbox refuses a cached response older than
+            // that, so a site checked at home longer ago than the limit would
+            // draw blank at the field (scripts/check-offline-data.mjs checks
+            // the built rule).
+            //
             // The ground track pulls tiles around the same pads as the site map,
             // so most of what it asks for is already here, but it sizes its zoom to the
             // flight rather than to SITE_ZOOM and so fills a second zoom level
@@ -357,7 +381,7 @@ export default defineConfig({
               // texture and the plain `<img>` maps that ask the same way. The
               // versioned cache name keeps such entries out.
               cacheName: 'astra-map-tiles-v2',
-              expiration: { maxEntries: 1200, maxAgeSeconds: 60 * 60 * 24 * 180 },
+              expiration: { maxEntries: 1200 },
               cacheableResponse: { statuses: [0, 200] },
               // A tile is cached under its address without the user's Esri
               // key (services/map/esriKey), so adding, renewing or clearing a

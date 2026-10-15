@@ -1,11 +1,11 @@
 // Run a small Java program against an installed OpenRocket, and read its output.
 //
-// Two sync steps need OpenRocket's own checksums (`sync-preset-digests.mjs` for
-// catalog parts, `sync-motor-digests.mjs` for motors), and both get them the
-// same way: compile a dumper against the release jar, run it, read a TSV. The
-// classpath hunting and the release discovery live here so the two cannot drift
-// into pointing at different builds, which is the one thing that would make
-// their digests disagree with each other.
+// Every step that reads desktop OpenRocket goes through here: the sync steps
+// that copy its checksums and materials, and the checks that hold the app to
+// it. A dumper is compiled against the release jar, run, and its TSV read. The
+// classpath hunting and the release discovery live here so the steps cannot
+// drift into pointing at different builds, which would make the digests and
+// the checks disagree with each other.
 //
 // Nothing here is part of the app build. These are data steps, run when a
 // catalog is refreshed.

@@ -282,6 +282,46 @@ export function carryToCopies(configs: FlightConfig[], origins: ReadonlyMap<stri
   });
 }
 
+/**
+ * Whether an override changes anything the part states now: some field it
+ * sets has a value other than the part's own.
+ */
+function overridesDesign<T extends object>(o: Partial<T>, design: T): boolean {
+  return (Object.keys(o) as (keyof T)[]).some((k) => o[k] !== undefined && o[k] !== design[k]);
+}
+
+/**
+ * The configurations without the deployment and separation overrides that
+ * only repeat their part's own values, preserving identity.
+ *
+ * For the one-time migration of a version 2 workspace only
+ * (storage/workspaceMigrate), which can carry one for every configuration and
+ * every part from an earlier import. Anywhere else an override equal to its
+ * part's value is the configuration's own, as desktop keeps it, and holds its
+ * value when the part's changes.
+ */
+export function withoutRepeatedOverrides(tree: RocketTree, configs: FlightConfig[]): FlightConfig[] {
+  const devices = new Map(findRecoveryDevices(tree).map((d) => [d.id as string, designDeployment(d)]));
+  const stages = new Map(findSeparators(tree).map((n) => [n.id as string, designSeparation(n)]));
+  const trim = <T extends object>(table: Record<string, Partial<T>> | undefined, parts: Map<string, T>) => {
+    if (!table) return table;
+    const kept = Object.entries(table).filter(([id, o]) => {
+      const design = parts.get(id);
+      return !design || !o || overridesDesign(o, design);
+    });
+    return kept.length === Object.keys(table).length ? table : Object.fromEntries(kept);
+  };
+  let changed = false;
+  const next = configs.map((c) => {
+    const deployments = trim(c.deployments, devices);
+    const separations = trim(c.separations, stages);
+    if (deployments === c.deployments && separations === c.separations) return c;
+    changed = true;
+    return { ...c, ...(deployments ? { deployments } : {}), ...(separations ? { separations } : {}) };
+  });
+  return changed ? next : configs;
+}
+
 /** {@link reconcileConfig} over every configuration, preserving identity. */
 export function reconcileConfigs(tree: RocketTree, configs: FlightConfig[]): FlightConfig[] {
   let changed = false;

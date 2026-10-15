@@ -11,6 +11,7 @@ import { withLauncher, type LauncherKind } from '../design/launcher';
 import { siToUi, siToUiDelta, type Quantity, type UnitSelection } from '../../prefs/units';
 import { plainDecimal } from '../files/numberText';
 import { csvField, csvQuoted, neutralizeFormula } from './csvCell';
+import { componentName, isDefaultComponentName } from '../app/warningText';
 
 /**
  * CSV exporters for the flight time-series and the drag sweep. Columns are
@@ -158,7 +159,10 @@ export function flightDataCsv(
   const n = series?.['time']?.length ?? 0;
 
   if (o.simDescription && name) comment(`Simulation: ${clean(name)}`);
-  if (o.simDescription && branch?.name) comment(`Stage: ${clean(branch.name)}`);
+  // The kernel's default name for a stage nobody named is a lookup key, not a
+  // name; the comment lines are English, so it reads as the stage's number.
+  if (o.simDescription && branch?.name)
+    comment(`Stage: ${isDefaultComponentName(branch.name.trim()) ? `Stage ${o.branchIndex + 1}` : clean(branch.name)}`);
   if (o.simDescription) comment(`${n} data points written for ${cols.length} variables.`);
   // The field names are the one header the file has, and only on request: a
   // commented line, so a reader that skips comments reads data from the top.
@@ -315,7 +319,9 @@ export function flightEventsCsv(
       row([
         cell(r.time, 3),
         text(eventName(r)),
-        text(r.source),
+        // A part the user never named arrives under the kernel's default name,
+        // an untranslated bundle key, which reads as the part's type.
+        text(r.source && componentName(r.source, t)),
         text(stageName(r)),
         cell(mul(r.altitude, dist.f)),
         cell(mul(r.velocity, vel.f)),
@@ -365,6 +371,8 @@ export function runTableCsv(
   const vel = col(units, 'velocity');
   const acc = col(units, 'acceleration');
   const pres = col(units, 'pressure');
+  // q·α is Pa·rad in SI, written in the pressure unit times the angle unit.
+  const ang = col(units, 'angle');
   const roll = col(units, 'rollRate');
   // Every text cell is the user's own words or a translation: quoted, and
   // neutralized by the shared rule, as the events export does.
@@ -386,7 +394,7 @@ export function runTableCsv(
       titled(t('csv.head.landingVelocity'), vel.sym),
       titled(t('csv.head.optimumDelay'), 's'),
       titled(t('csv.head.maxQ'), pres.sym),
-      titled(t('csv.head.maxQAlpha'), 'kPa·deg'),
+      titled(t('csv.head.maxQAlpha'), `${pres.sym}·${ang.sym}`),
       titled(t('csv.head.maxRollRate'), roll.sym),
     ]),
   ];
@@ -411,7 +419,7 @@ export function runTableCsv(
         cell(mul(s?.groundHitVelocity, vel.f)),
         cell(s?.optimumDelay),
         cell(mul(maxQ(series)?.q, pres.f)),
-        cell(mul(qa?.value, 180 / Math.PI / 1000)),
+        cell(mul(qa?.value, pres.f * ang.f)),
         cell(mul(maxRollRate(series), roll.f)),
       ]),
     );

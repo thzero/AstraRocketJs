@@ -130,7 +130,9 @@ describe('SimSummary verdicts', () => {
  */
 describe('SimSummary deployment threshold', () => {
   const before = useWorkspaceStore.getState();
-  afterEach(() => act(() => useWorkspaceStore.setState({ sims: before.sims, activeId: before.activeId })));
+  afterEach(() =>
+    act(() => useWorkspaceStore.setState({ sims: before.sims, activeId: before.activeId, tree: before.tree })),
+  );
   const subOf = (label: RegExp) => screen.getByText(label).nextElementSibling?.nextElementSibling?.textContent;
 
   const show = (flown: FlightResult, prefs?: Record<string, number>) =>
@@ -163,11 +165,44 @@ describe('SimSummary deployment threshold', () => {
 
   it('says a dual-deployment main opened too slow', () => {
     const slow = sim([0, 0, 0], [0, 0, 0]);
-    Object.assign(slow, { warnings: [{ key: 'RECOVERY_MAIN_LOW_SPEED', message: '' }] });
+    // The message names its device the way `Message.addSourcesToMessageText` writes it.
+    Object.assign(slow, {
+      events: [{ type: 'RECOVERY_DEVICE_DEPLOYMENT', time: 10, source: 'Main' }],
+      warnings: [{ key: 'RECOVERY_MAIN_LOW_SPEED', message: '[Warning.RECOVERY_MAIN_LOW_SPEED] (5 m/s):  "Main"' }],
+    });
     Object.assign(slow.summary, { deploymentVelocity: 5 });
     show(slow);
     renderWithProviders(<SimSummary sim={slow} />);
     expect(subOf(/^Deploy speed$/)).toContain('Too slow');
+  });
+  /**
+   * A result stored before the engine sent node ids keeps its warnings, which
+   * name their chute only by the name the kernel flew it under. Two unnamed
+   * chutes, one per stage, share the kernel's default name, so a fast-opening
+   * warning that names it could be the booster's: it must not mark the
+   * sustainer's tile.
+   */
+  it('does not take a warning by a name two recovery devices share', () => {
+    const chute = '[Parachute.Parachute]';
+    act(() =>
+      useWorkspaceStore.setState({
+        tree: {
+          components: [
+            { id: 's', type: 'stage', children: [{ id: 'sc', type: 'parachute' }] },
+            { id: 'b', type: 'stage', children: [{ id: 'bc', type: 'parachute' }] },
+          ],
+        } as unknown as RocketTree,
+      }),
+    );
+    const stored = sim([0, 0, 0], [0, 0, 0]);
+    Object.assign(stored, {
+      events: [{ type: 'RECOVERY_DEVICE_DEPLOYMENT', time: 10, source: chute }],
+      warnings: [{ key: 'HighSpeedDeployment', message: `[Warning.HighSpeedDeployment] (40 m/s):  "${chute}"` }],
+    });
+    Object.assign(stored.summary, { deploymentVelocity: 5 });
+    show(stored);
+    renderWithProviders(<SimSummary sim={stored} />);
+    expect(subOf(/^Deploy speed$/)).not.toContain('Too fast');
   });
 });
 

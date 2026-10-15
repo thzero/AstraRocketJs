@@ -51,7 +51,7 @@ import java.util.List;
  *
  * Output: one TAB-separated row per preset,
  *
- *   TYPE  names  partNo  digest  mass  geometry  parachute  description
+ *   TYPE  names  partNo  digest  mass  geometry  parachute  legacy  massDensity  description
  *
  * - names: every name the maker goes by (`Manufacturer.getAllNames()`), joined
  *   by `|`. The desktop folds aliases into one maker ("LOC Precision" and "LOC"
@@ -64,6 +64,14 @@ import java.util.List;
  * - parachute: empty for any other type; otherwise what `Parachute.loadFromPreset`
  *   leaves on a new parachute, as `Key=value` pairs joined by `;` (see
  *   {@link #parachute}).
+ * - legacy: `true` for a preset from one of the library's legacy files
+ *   (`ComponentPreset.LEGACY`, set from the file's `<Legacy/>`), which the
+ *   desktop's chooser hides until "Show Legacy Database" is checked; `false`
+ *   otherwise.
+ * - massDensity: for a preset that states a mass, the density
+ *   `ComponentPresetFactory` gave its material (the mass over the part's
+ *   volume), `Infinity` when that build gives the part no volume; empty when
+ *   the preset states no mass.
  * - description: last because it is free text; tabs and line breaks in it are
  *   flattened to spaces.
  */
@@ -123,6 +131,10 @@ public class PresetDump {
                         p.has(ComponentPreset.MASS) ? Double.toString(p.get(ComponentPreset.MASS)) : "",
                         geometry(p),
                         p.getType() == ComponentPreset.Type.PARACHUTE ? parachute(p) : "",
+                        Boolean.toString(p.has(ComponentPreset.LEGACY) && p.get(ComponentPreset.LEGACY)),
+                        p.has(ComponentPreset.MASS) && p.has(ComponentPreset.MATERIAL)
+                                ? Double.toString(p.get(ComponentPreset.MATERIAL).getDensity())
+                                : "",
                         p.has(ComponentPreset.DESCRIPTION)
                                 ? flat(p.get(ComponentPreset.DESCRIPTION))
                                 : ""));

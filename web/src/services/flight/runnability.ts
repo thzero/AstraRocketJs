@@ -4,12 +4,13 @@ import { launchLimitViolations, limitText, type LimitViolation } from './safetyL
 import type { PowerClass } from './powerClass';
 import type { UnitSymbols } from '../../prefs/units';
 import { missingRequired, type RequiredLaunchKey } from './requiredLaunch';
-import { badDimensions, type BadDimension } from '../design/requiredComponent';
+import { badDimensions, overturnedFins, type BadDimension, type NamedPart } from '../design/requiredComponent';
 import { findMounts } from '../design/treeEdit';
 import { duplicateAltitudeRows } from './windLevels';
 import { hasUsableCurve } from '../motors/motorCurve';
 import type { RocketTree } from '../../engine/openRocketEngine';
 import { fmtList, partLabel } from '../../i18n/format';
+import { keyedText, type Keyed } from '../../i18n/keyedError';
 
 /**
  * Why a given simulation cannot be flown, asked in one place so the Run button
@@ -58,9 +59,10 @@ export function unflyable(sim: Simulation, motor: MotorSpec | undefined, cls: Po
   if (missing.length) return { kind: 'incomplete', missing };
   // Before the limits for the same reason: the codes are judged on the surface
   // level, and a profile with two levels at one altitude is not a profile the
-  // kernel will accept at all. Left to `simulate()` it comes back as `engine
-  // simulate failed: Wind level already exists for altitude: 0.0`, which names
-  // the kernel's internals for something the profile editor let the user type.
+  // bridge will fly at all. Left to `simulate()` the bridge refuses it before
+  // the kernel sees it, with its own `wind levels repeat the altitude 0.0 m
+  // (level 2)`, an engine error for something the profile editor let the user
+  // type, where this names the profile.
   if (duplicateAltitudeRows(sim.launch.windLevels ?? []).length) return { kind: 'windProfile' };
   const violations = launchLimitViolations(sim.launch, cls);
   return violations.length ? { kind: 'limits', violations } : null;
@@ -120,14 +122,20 @@ export function unflyableText(
  * one and fly the rest" here. A design with a zero-radius body tube simulates
  * happily and hands back an apogee, which is a worse answer than none.
  */
-export type DesignBlocker = { kind: 'noMount' } | { kind: 'badGeometry'; bad: BadDimension[] };
+export type DesignBlocker =
+  | { kind: 'noMount' }
+  | { kind: 'badGeometry'; bad: BadDimension[] }
+  /** Fin sets the kernel would fly with NaN root points (`overturnedFins`). */
+  | { kind: 'finCant'; fins: NamedPart[] };
 
 export function designBlocker(tree: RocketTree): DesignBlocker | null {
   // No mount first: with nowhere to seat a motor there is no flight to discuss,
   // whatever else the geometry says.
   if (findMounts(tree).length === 0) return { kind: 'noMount' };
   const bad = badDimensions(tree);
-  return bad.length ? { kind: 'badGeometry', bad } : null;
+  if (bad.length) return { kind: 'badGeometry', bad };
+  const fins = overturnedFins(tree);
+  return fins.length ? { kind: 'finCant', fins } : null;
 }
 
 /**
@@ -141,6 +149,10 @@ export function designBlockerText(
   t: (key: string, vars?: Record<string, unknown>) => string,
 ): string {
   if (b.kind === 'noMount') return t('sim.noMount');
+  if (b.kind === 'finCant') {
+    const parts = b.fins.map((f) => t('sim.finCantPart', { name: partLabel(t, f) })).join(t('sim.badGeometryPartSep'));
+    return t('sim.finCant', { parts });
+  }
   const byPart = new Map<string, string[]>();
   for (const d of b.bad) {
     const name = partLabel(t, d);
@@ -152,4 +164,19 @@ export function designBlockerText(
     .map(([name, fields]) => t('sim.badGeometryPart', { name, fields: fields.join(t('sim.badGeometryFieldSep')) }))
     .join(t('sim.badGeometryPartSep'));
   return t('sim.badGeometry', { parts });
+}
+
+/**
+ * Why the design did not build, as a sentence: the design's own explanation
+ * when it has one (the zero dimensions first, then the overturned fin sets),
+ * since the engine's message for either names no part ("The number NaN cannot
+ * be converted to a BigInt", a NaN mass), and otherwise the engine's message.
+ */
+export function buildFailureText(
+  res: { error: string | Keyed; bad?: BadDimension[]; fins?: NamedPart[] },
+  t: (key: string, vars?: Record<string, unknown>) => string,
+): string {
+  if (res.bad?.length) return designBlockerText({ kind: 'badGeometry', bad: res.bad }, t);
+  if (res.fins?.length) return designBlockerText({ kind: 'finCant', fins: res.fins }, t);
+  return typeof res.error === 'string' ? res.error : keyedText(res.error, t);
 }

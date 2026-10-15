@@ -62,11 +62,12 @@ export function MotorSpecDialog({ motor, onClose }: { motor: MotorSpec; onClose:
         <SpecItem label={t('sims.delay')} value={delay} />
         <SpecItem label={t('motorDlg.avgThrust')} value={q('force', avg, 1)} />
         <SpecItem label={t('motorDlg.maxThrust')} value={q('force', max, 1)} />
-        <SpecItem label={t('motorDlg.initialThrust')} value={q('force', init, 1)} />
+        <SpecItem label={t('motorDlg.initialThrust') + '*'} value={q('force', init, 1)} />
         <SpecItem label={t('motorDlg.totalImpulse')} value={q('impulse', impulse, 1)} />
         <SpecItem label={t('motorDlg.burnTime')} value={g(burn, 's', 2)} />
         {motor.curveSrc && <SpecItem label={t('motorDlg.curve')} value={motor.curveSrc} />}
       </dl>
+      <p className="mt-2 text-[11px] leading-snug text-ink-faint">{t('motorDlg.initialNote')}</p>
     </Dialog>
   );
 }

@@ -45,13 +45,13 @@ describe('buildExportMotorMap', () => {
     expect(Object.keys(m)).toEqual(['primary']);
   });
 
-  it('carries through base fields the app never edits (e.g. manufacturer)', () => {
+  it('carries through base fields the app never edits (e.g. manufacturer) for the motor the file named', () => {
     const base: Record<string, OrkExportMotor> = {
-      primary: { designation: 'old', manufacturer: 'Estes', diameter: 0, length: 0, delay: 0 },
+      primary: { designation: 'D12', manufacturer: 'Estes', diameter: 0, length: 0, delay: 5 },
     };
     const m = buildExportMotorMap(tree, newFlightConfig({ primary: mount('D12') }), base);
     expect(m.primary!.manufacturer).toBe('Estes'); // preserved from import
-    expect(m.primary!.designation).toBe('D12'); // overwritten with the live value
+    expect(m.primary!.diameter).toBe(0.024); // overwritten with the live value
   });
 
   it('leaves out a mount a loaded file left empty, so the desktop is not sent a motor named ""', () => {

@@ -21,7 +21,7 @@ Below the desktop breakpoint the part columns drop away and the editor moves und
 
 ## Motors
 
-One card per motor mount, aft to nose. **Change…** opens the [motor picker](./motors.md), 📈 shows the seated motor's thrust curve, and **Ignition** sets when that motor lights:
+One card per motor mount, nose to aft. **Change…** opens the [motor picker](./motors.md), 📈 shows the seated motor's thrust curve, and **Ignition** sets when that motor lights:
 
 - **Automatic** is the low and mid-power pattern: the launch stage lights at launch, an upper stage on the ejection charge of the stage below.
 - **Launch**, **Ejection of stage below**, **Burnout of stage below** and **Never**, each with a delay in seconds (except **Never**), are what an electronically-timed sustainer or an air-start needs. **Launch** is offered on every mount. **Ejection of stage below**, **Burnout of stage below** and **Never** only appear on a mount that has a stage below it, since nothing else can fire them.
@@ -49,4 +49,4 @@ Each row of the [Simulations](./running-a-simulation.md) table has a **Configura
 
 ## In the file
 
-A `.ork` carries its configurations, and so does this app: every one the file declares comes in with its motors, its recovery, its staging and its grounded stages, and each arrives as a simulation of its own so there is a run to put numbers against. Each keeps the file's own configuration id, so a design opened here and saved back is the same set of configurations rather than a rewrite of them. See [Files & Exports](./files-and-exports.md).
+A `.ork` carries its configurations, and so does this app: every one the file declares comes in with its motors, its recovery, its staging and its grounded stages. The file's own simulations come in as they are, each flying the configuration it named; a file with no simulations gets one per configuration, so there is a run to put numbers against. Each keeps the file's own configuration id, so a design opened here and saved back is the same set of configurations rather than a rewrite of them. See [Files & Exports](./files-and-exports.md).

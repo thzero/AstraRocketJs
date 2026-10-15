@@ -21,7 +21,7 @@ import { LandingMap } from '../tools/LandingMap';
 import { formatCoord } from '../../services/map/slippyMap';
 import { unitScope } from '../../prefs/units';
 import { weatherErrorText } from '../../services/weather/weatherErrorText';
-import { fmtSiteTime } from '../../i18n/format';
+import { fmtSiteTime, stageLabel } from '../../i18n/format';
 import { NO_VALUE } from '../../i18n/noValue';
 import { type FlightSeries } from '../../engine/openRocketEngine';
 import { useLatest } from '../common/useLatest';
@@ -140,7 +140,11 @@ export function EnvironmentLanding({ flight }: { flight: ResultFlight }) {
           return (
             <TermRow
               key={i}
-              label={branches.length > 1 ? t('env.landing.stage', { stage: i + 1 }) : t('landing.lands')}
+              label={
+                branches.length > 1
+                  ? t('env.landing.stageLands', { stage: stageLabel(t, i, b.name) })
+                  : t('landing.lands')
+              }
               detail={`${fmtM(distanceFromPad(p))}, ${bearing(p)}`}
             >
               {where(b.series, p)}

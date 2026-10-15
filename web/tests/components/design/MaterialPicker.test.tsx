@@ -9,6 +9,9 @@ import { renderWithProviders } from '../../testing/renderWithProviders';
 import { setMaterialStore, type MaterialStore } from '../../../src/services/materials/materialStore';
 import { serveData } from '../../testing/serveData';
 import type { Material } from '../../../src/services/materials/materialTypes';
+import { DefaultMaterials } from '../../../src/components/layout/DefaultMaterials';
+import { defaultMaterialKey } from '../../../src/services/design/materialSlots';
+import catalog from '../../../public/data/materials.generated.json';
 
 /**
  * The picker's two store round-trips finish after an await and are guarded by
@@ -62,14 +65,37 @@ describe('MaterialPicker under StrictMode', () => {
 });
 
 /**
- * Deleting a custom material reloads the list afterward. That reload can fail
- * on its own (the catalog fetch offline), and the click must say so rather than
- * leave an unhandled rejection with nothing on screen.
+ * Deleting a custom material takes it out of the list and nothing else. Desktop's
+ * material database delete (`MaterialEditPanel.removeMaterial`,
+ * MaterialEditPanel.java:357-375 in 24.12) removes the entry and leaves every
+ * component that uses it alone, so the part keeps the name and density it was
+ * given, and the picker shows them under "From this part".
  */
 describe('MaterialPicker deleting a custom material', () => {
   beforeAll(serveData);
 
-  it('shows the reload failure and still clears the part', async () => {
+  /** A store holding `items`, whose delete takes the named entry out. */
+  const storeOf = (items: Material[]) => {
+    setMaterialStore({
+      list: async () => items,
+      add: async () => {},
+      remove: async (name, type) => {
+        items = items.filter((x) => !(x.name === name && x.type === type));
+      },
+    });
+  };
+
+  const deleteIt = async () => {
+    fireEvent.click(await screen.findByRole('button', { name: /Delete/ }));
+    await waitFor(() => expect(useConfirmStore.getState().request).not.toBeNull());
+    act(() => useConfirmStore.getState().settle(true));
+    await waitFor(() => expect(screen.queryByRole('button', { name: /Delete/ })).toBeNull());
+  };
+
+  const selectOf = () =>
+    [...document.querySelectorAll('select')].find((s) => s.querySelector('optgroup')) as HTMLSelectElement;
+
+  it('shows the reload failure and leaves the part as it was', async () => {
     let items: Material[] = [{ name: 'Moon Cheese', density: 1234, type: 'bulk', group: 'Other', custom: true }];
     let removed = false;
     let listsAfterRemove = 0;
@@ -86,13 +112,66 @@ describe('MaterialPicker deleting a custom material', () => {
       },
     });
     const onChange = vi.fn();
-    renderWithProviders(<MaterialPicker value="Moon Cheese" onChange={onChange} />);
+    renderWithProviders(<MaterialPicker value="Moon Cheese" density={1234} onChange={onChange} />);
     const del = await screen.findByRole('button', { name: /Delete/ });
     fireEvent.click(del);
     await waitFor(() => expect(useConfirmStore.getState().request).not.toBeNull());
     act(() => useConfirmStore.getState().settle(true));
     await waitFor(() => expect(screen.getByText('list unavailable')).toBeTruthy());
-    expect(onChange).toHaveBeenCalledWith(undefined, 0);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  // Every material type, since each one has its own catalog and its own slot on
+  // the part.
+  it.each(['bulk', 'surface', 'line'] as const)(
+    'keeps a %s part on the deleted material, shown as the part’s own',
+    async (type) => {
+      storeOf([{ name: 'Moon Cheese', density: 1.234, type, group: 'Other', custom: true }]);
+      const onChange = vi.fn();
+      renderWithProviders(<MaterialPicker type={type} value="Moon Cheese" density={1.234} onChange={onChange} />);
+      await deleteIt();
+      expect(onChange).not.toHaveBeenCalled();
+      const select = selectOf();
+      expect(select.value).toBe('Moon Cheese');
+      const own = select.querySelector('optgroup[label="From this part"] option');
+      expect(own?.textContent).toMatch(/^Moon Cheese · /);
+      // No list entry of that name remains: the material left the list.
+      expect(
+        [...select.querySelectorAll('optgroup:not([label="From this part"]) option')].map(
+          (o) => (o as HTMLOptionElement).value,
+        ),
+      ).not.toContain('Moon Cheese');
+    },
+  );
+
+  it('keeps the part’s own density when the deleted entry shadowed a built-in of the same name', async () => {
+    // The built-in Balsa is in the served catalog at its own density; the custom
+    // entry of the same name is the part's, at another.
+    const builtIn = (catalog as Material[]).find((m) => m.type === 'bulk' && m.name === 'Balsa')!;
+    expect(builtIn).toBeTruthy();
+    const own = builtIn.density * 2;
+    storeOf([{ name: 'Balsa', density: own, type: 'bulk', group: 'Custom', custom: true }]);
+    const onChange = vi.fn();
+    renderWithProviders(<MaterialPicker value="Balsa" density={own} onChange={onChange} />);
+    await deleteIt();
+    expect(onChange).not.toHaveBeenCalled();
+    const select = selectOf();
+    // The part's own entry, ahead of the built-in of the same name.
+    expect(select.querySelector('optgroup[label="From this part"] option')?.textContent).toMatch(/^Balsa · /);
+    expect(select.value).toBe('Balsa');
+  });
+
+  it('leaves a Settings default on the deleted material', async () => {
+    storeOf([{ name: 'Moon Cheese', density: 1234, type: 'bulk', group: 'Other', custom: true }]);
+    const onChange = vi.fn();
+    renderWithProviders(
+      <DefaultMaterials
+        defaults={{ [defaultMaterialKey('nosecone', 'bulk')]: { name: 'Moon Cheese', density: 1234 } }}
+        onChange={onChange}
+      />,
+    );
+    await deleteIt();
+    expect(onChange).not.toHaveBeenCalled();
   });
 });
 
@@ -154,5 +233,54 @@ describe('MaterialPicker group headings', () => {
     } finally {
       await i18n.changeLanguage('en');
     }
+  });
+});
+
+/**
+ * The add form's density box names its material type's quantity and the unit
+ * the box reads, once. The quantity names are desktop's own for the three kinds
+ * (`pref.dlg.lbl.Bulkdensity`, `Surfacedensity`, `Linedensity` in 24.12's
+ * l10n/messages.properties:388-392); the unit is the one the list beside the box
+ * prints each entry's density in, which is the unit the typed figure is read in.
+ */
+describe('MaterialPicker add form density box', () => {
+  beforeAll(serveData);
+  beforeEach(() => setMaterialStore(memoryStore()));
+
+  it.each([
+    ['bulk', 'Bulk density'],
+    ['surface', 'Surface density'],
+    ['line', 'Line density'],
+  ] as const)('names a %s material’s box by its quantity and its own unit', async (type, quantity) => {
+    const { container } = renderWithProviders(<MaterialPicker type={type} onChange={() => {}} />);
+    const select = [...container.querySelectorAll('select')].at(-1) as HTMLSelectElement;
+    await waitFor(() => expect(select.querySelectorAll('optgroup option').length).toBeGreaterThan(0));
+    // "Name · 170 kg/m³": the list's unit is what follows the number.
+    const listed = (select.querySelector('optgroup option')!.textContent ?? '').split(' · ')[1]!;
+    const unit = listed.slice(listed.indexOf(' ') + 1);
+    fireEvent.change(select, { target: { value: '__add__' } });
+    const box = screen.getByRole('spinbutton');
+    expect(box.getAttribute('aria-label')).toBe(`${quantity} (${unit})`);
+    expect(box.getAttribute('placeholder')).toBe(`${quantity} (${unit})`);
+  });
+});
+
+/**
+ * A fin fillet is offered every bulk material, adhesives included, as desktop's
+ * fin fillet material box is: FinSetConfig.java:632 in 24.12 builds its
+ * `MaterialModel` over `Material.Type.BULK`, the whole bulk database. The
+ * expected list is the served catalog file itself.
+ */
+describe('MaterialPicker on a fillet', () => {
+  beforeAll(serveData);
+  beforeEach(() => setMaterialStore(memoryStore()));
+
+  it('offers every bulk material in the catalog', async () => {
+    const { container } = renderWithProviders(<MaterialPicker use="fillet" onChange={() => {}} />);
+    const bulk = (catalog as Material[]).filter((m) => m.type === 'bulk').map((m) => m.name);
+    const select = container.querySelector('select') as HTMLSelectElement;
+    await waitFor(() => expect(select.querySelectorAll('optgroup option').length).toBe(bulk.length));
+    const offered = [...select.querySelectorAll('optgroup option')].map((o) => o.getAttribute('value'));
+    expect(offered.sort()).toEqual([...bulk].sort());
   });
 });

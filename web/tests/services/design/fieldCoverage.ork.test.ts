@@ -31,10 +31,14 @@ const PARTNER: Record<string, Record<string, unknown>> = {
  * Probe values for fields the generic ones cannot reach. A rail button's height
  * loads before its base and flange, so the setter clamps it against the
  * constructor's 2 mm each (as the desktop loader does): a height under 4 mm
- * does not survive a reopen on either side.
+ * does not survive a reopen on either side. A fin cant reads back clamped to
+ * the kernel's 15 degrees (FinSet.setCantAngle), so its probe stays inside them.
  */
 const VALUES: Record<string, unknown[]> = {
   'railbutton.height': [0.0131],
+  'trapezoidfinset.cant': [0.21],
+  'ellipticalfinset.cant': [0.22],
+  'freeformfinset.cant': [0.23],
 };
 
 /** Two values per field, so a field stuck at either default still fails. */

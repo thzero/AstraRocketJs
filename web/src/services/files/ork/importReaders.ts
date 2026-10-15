@@ -36,6 +36,7 @@ import {
 } from './importConfigs';
 import { degToRad } from '../../../prefs/units';
 import { KERNEL_DEFAULTS } from '../../../tree/kernelDefaults';
+import { finCant } from '../../../tree/nodeProps';
 
 /**
  * One reader per .ork element tag: the node the element becomes, before its
@@ -62,8 +63,9 @@ const readThicknessOrFilled = (el: Element, n: ComponentNode, fallback: number) 
 };
 
 const readCant = (el: Element, n: ComponentNode) => {
-  const cantDeg = numTag(el, 'cant', 0);
-  if (cantDeg !== 0) n['cant'] = degToRad(cantDeg);
+  // Clamped as FinSet.setCantAngle clamps it, so the panel shows the cant that flies.
+  const cant = finCant({ type: n.type, cant: degToRad(numTag(el, 'cant', 0)) });
+  if (cant !== 0) n['cant'] = cant;
   const cs = text(el, ':scope > crosssection');
   if (cs && cs !== 'square') n['crossSection'] = cs;
 };
@@ -383,11 +385,21 @@ function readRecoveryDeployment(ctx: OrkImportContext, el: Element, n: Component
   // the kernel needs it to tell dual deployment from single: without it every
   // flight takes the single-deployment branch.
   if (isDrogueTag(el)) n['drogue'] = true;
-  // <deploymentconfiguration> only overrides when a config was chosen:
-  // with no declarations the bare tags are the whole story, and a stray
-  // block in an undeclared file is not read.
-  readDeployment(el, n, ctx.chosenConfigId === null ? null : configScoped(ctx, el, 'deploymentconfiguration'));
+  // The design's value is the bare tags. A configuration's
+  // <deploymentconfiguration> is that configuration's override, recorded on
+  // it by captureDeployments; with no declarations a stray block is not read.
+  readDeployment(el, n);
   captureDeployments(ctx, el, n);
+}
+
+/**
+ * The separation block that sets the design's own value: none when the file
+ * declares configurations, since each block is then its configuration's
+ * override (captureSeparations), and the first block when it declares none,
+ * because there is no configuration to hold it.
+ */
+function undeclaredSeparation(ctx: OrkImportContext, el: Element): Element | null {
+  return ctx.chosenConfigId === null ? configScoped(ctx, el, 'separationconfiguration') : null;
 }
 
 const readParachute: NodeReader = (ctx, el) => {
@@ -475,9 +487,8 @@ const readAssembly =
       }
     }
     if (asmType === 'parallelstage') {
-      // Same separation read as a booster <stage>: the chosen config's
-      // block overrides the bare defaults field by field.
-      readSeparation(el, n, configScoped(ctx, el, 'separationconfiguration'));
+      // Same separation read as a booster <stage>.
+      readSeparation(el, n, undeclaredSeparation(ctx, el));
       captureSeparations(ctx, el, n);
     }
     return n;
@@ -553,10 +564,10 @@ export function readStages(ctx: OrkImportContext, stages: Element[]): ComponentN
     const nozzle = numTag(stageEl, 'nozzleexitdiameter', NaN);
     if (!Number.isNaN(nozzle) && nozzle > 0) stage['nozzleExitDiameter'] = nozzle;
     if (i > 0) {
-      // Like ignition: the chosen config's block overrides the bare defaults
-      // field by field (24.12 writes a <separationconfiguration> for each
-      // configuration that overrides the default).
-      readSeparation(stageEl, stage, configScoped(ctx, stageEl, 'separationconfiguration'));
+      // The design's value is the bare tags. 24.12 writes a
+      // <separationconfiguration> for each configuration that overrides the
+      // default, and captureSeparations records it on that configuration.
+      readSeparation(stageEl, stage, undeclaredSeparation(ctx, stageEl));
       captureSeparations(ctx, stageEl, stage);
     }
     const kids = convertChildren(ctx, stageEl);

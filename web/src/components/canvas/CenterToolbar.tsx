@@ -92,7 +92,7 @@ export function CenterToolbar({
             ) : (
               outdated &&
               result && (
-                <span className="rounded-md bg-warn-500/15 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-warn-300 ring-1 ring-warn-400/30">
+                <span className="rounded-md bg-warn-500/15 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-warn-200 ring-1 ring-warn-400/30">
                   {t('sims.statusOutdated')}
                 </span>
               )

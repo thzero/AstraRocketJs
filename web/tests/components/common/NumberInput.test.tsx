@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
-import { cleanup, fireEvent, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { NumberInput, parseFieldValue } from '../../../src/components/common/NumberInput';
 import { renderWithProviders } from '../../testing/renderWithProviders';
 
@@ -114,5 +114,83 @@ describe('NumberInput commitOnBlur', () => {
     fireEvent.focus(el);
     fireEvent.blur(el);
     expect(onChange).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * A field unmounted mid-edit, as a dialog closed on Escape unmounts it. React
+ * fires no blur for a removed node, so the typed value is reported by the
+ * unmount, through the same rules a blur applies.
+ */
+describe('NumberInput commitOnBlur, unmounted mid-edit', () => {
+  const typeThenUnmount = (value: string, props: { min?: number; max?: number } = {}) => {
+    const onChange = vi.fn();
+    const onCommit = vi.fn();
+    const { unmount } = renderWithProviders(
+      <NumberInput value={1} onChange={onChange} onCommit={onCommit} commitOnBlur ariaLabel="step" {...props} />,
+    );
+    const el = screen.getByLabelText('step');
+    fireEvent.focus(el);
+    fireEvent.change(el, { target: { value } });
+    expect(onChange).not.toHaveBeenCalled();
+    unmount();
+    return { onChange, onCommit };
+  };
+
+  it('reports the typed value, clamped, and closes the edit', () => {
+    for (const [typed, want, bounds] of [
+      ['0.005', 0.005, {}],
+      ['12', 12, { min: 0 }],
+      ['-3', 0, { min: 0 }],
+      ['500', 10, { min: 0, max: 10 }],
+    ] as const) {
+      const { onChange, onCommit } = typeThenUnmount(typed, bounds);
+      expect(onChange).toHaveBeenCalledTimes(1);
+      expect(onChange).toHaveBeenCalledWith(want);
+      expect(onCommit).toHaveBeenCalledTimes(1);
+    }
+  });
+
+  it('reports a cleared box as cleared', () => {
+    expect(typeThenUnmount('').onChange).toHaveBeenCalledWith(null);
+  });
+
+  it('reports nothing for a visit that typed nothing', () => {
+    const onChange = vi.fn();
+    const onCommit = vi.fn();
+    const { unmount } = renderWithProviders(
+      <NumberInput value={1} onChange={onChange} onCommit={onCommit} commitOnBlur ariaLabel="step" />,
+    );
+    fireEvent.focus(screen.getByLabelText('step'));
+    unmount();
+    expect(onChange).not.toHaveBeenCalled();
+    expect(onCommit).not.toHaveBeenCalled();
+  });
+
+  it('does not report again an edit a blur already reported', () => {
+    const onChange = vi.fn();
+    const { unmount } = renderWithProviders(
+      <NumberInput value={1} onChange={onChange} commitOnBlur ariaLabel="step" />,
+    );
+    const el = screen.getByLabelText('step');
+    fireEvent.focus(el);
+    fireEvent.change(el, { target: { value: '4' } });
+    fireEvent.blur(el);
+    unmount();
+    expect(onChange).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports to the latest handler, not the one from the first render', () => {
+    const first = vi.fn();
+    const second = vi.fn();
+    // A bare render, so the rerender updates this input rather than replacing it.
+    const { rerender, unmount } = render(<NumberInput value={1} onChange={first} commitOnBlur ariaLabel="step" />);
+    const el = screen.getByLabelText('step');
+    fireEvent.focus(el);
+    fireEvent.change(el, { target: { value: '6' } });
+    rerender(<NumberInput value={1} onChange={second} commitOnBlur ariaLabel="step" />);
+    unmount();
+    expect(first).not.toHaveBeenCalled();
+    expect(second).toHaveBeenCalledWith(6);
   });
 });

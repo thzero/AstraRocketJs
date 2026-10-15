@@ -40,14 +40,16 @@ import java.util.List;
  *
  * Output: one TAB-separated row per motor,
  * `manufacturer  allNames  designation  commonName  diameter(m)  length(m)
- *  delays  impulse(Ns)  burn(s)  maxThrust(N)  digest`, where `delays` is
- * comma-separated seconds with `P` for a plugged motor.
+ *  delays  impulse(Ns)  burn(s)  maxThrust(N)  launchMass(kg)  digest`, where
+ * `delays` is comma-separated seconds with `P` for a plugged motor.
  *
- * THE THREE NUMBERS are there to tell two entries of the same name apart. Where
- * a name resolves to several, the delay usually decides; where it does not, the
- * sync picks the entry whose curve is closest to the one our own catalog holds,
- * so the desktop flies the motor the design was built with rather than a
- * namesake.
+ * THE LAST FOUR NUMBERS are there to tell two entries of the same name apart.
+ * Where a name resolves to several, the delay usually decides; where it does
+ * not, the sync picks the entry whose launch mass is closest to the loaded mass
+ * the app flies, then the one whose curve is closest to the curve the app
+ * flies, so the desktop flies the motor the design was built with rather than
+ * a namesake. Entries of one name can differ in mass by a kilogram with near
+ * equal curves, so the mass goes first.
  *
  * BOTH NAMES, because they differ and our catalog holds either: the desktop's
  * designation is the maker's full code ("D24T"), its common name the impulse
@@ -94,6 +96,7 @@ public class MotorDump {
                         Double.toString(m.getTotalImpulseEstimate()),
                         Double.toString(m.getBurnTimeEstimate()),
                         Double.toString(m.getMaxThrustEstimate()),
+                        Double.toString(m.getLaunchMass()),
                         m.getDigest()));
                 rows++;
             }

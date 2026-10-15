@@ -25,7 +25,9 @@ const WASM_RUNTIME_URL = `${import.meta.env.BASE_URL}engine/openrocket-engine.wa
 // --- Engine backend ---------------------------------------------------------
 // Both engines are dynamically loaded; neither is in the initial bundle.
 // initEngine() loads the TeaVM WASM-GC build when the browser supports it,
-// otherwise the JS build as a fallback. Only one engine is ever fetched. EngineApi is a type-only import (erased at build), so it pulls
+// otherwise the JS build as a fallback. A WASM load that fails or stalls past
+// its ceiling is abandoned and the JS build fetched as well, so a session can
+// download both. EngineApi is a type-only import (erased at build), so it pulls
 // nothing into the bundle.
 type EngineApi = typeof import('./vendor/openrocket-engine.mjs');
 let active: EngineApi | null = null;
@@ -516,6 +518,13 @@ export interface MotorSpec {
   ejectionDelay: number;
   /** Which bundled thrust curve this was built from (e.g. "Certified · RASP"); display only. */
   curveSrc?: string;
+  /**
+   * Set when the curve is the user's own: an imported `.eng` / `.rse` motor, or
+   * the curve a `.ork` carried. Such a curve is not the catalog's even under a
+   * catalog motor's maker and name, so a save embeds it rather than naming the
+   * catalog motor.
+   */
+  imported?: true;
 }
 
 /**
@@ -622,9 +631,10 @@ export interface SimulationOptions {
    * arrays plus only the symbol series the app's flight report reads every run
    * (Pl, θl, Px, Py, dΦ). 'full' additionally returns every series the branch
    * carries, except tc (wall-clock noise, nondeterministic) and the symbols
-   * duplicating the friendly dozen. Full costs ~45% extra single-sim wall
-   * clock in serialization, so request it only when the extra series are
-   * actually consumed (plot pickers, CSV export).
+   * duplicating the friendly dozen. Full costs serialization time and
+   * payload: on a C6 flight at a 0.01 s step, about 17% more wall clock and
+   * about 3.6 times the bytes (the measurement is with `series` in
+   * services/flight/simulations.ts).
    */
   series?: 'summary' | 'full';
 }
@@ -849,6 +859,13 @@ export interface FlightEvent {
    * which is how dual-deployment drogue and main are told apart).
    */
   source?: string;
+  /**
+   * The app node id of that component, present when the design gave it one.
+   * Unlike `source` it is unique to one part: every unnamed part of a type
+   * flies under the same kernel default name. Absent from a result read from a
+   * file.
+   */
+  sourceId?: string;
 }
 
 export interface FlightSeries {
@@ -909,6 +926,12 @@ export interface EngineWarning {
   message: string;
   /** MessagePriority export label. */
   priority?: 'LOW' | 'NORMAL' | 'HIGH';
+  /**
+   * The app node ids of the warning's source components, for those the design
+   * gave an id; absent when none has one, and from a result read from a file.
+   * The message names its sources, but two unnamed parts share a name.
+   */
+  sourceIds?: string[];
 }
 
 export interface FlightResult {

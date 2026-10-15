@@ -21,6 +21,7 @@ const MOBILE_SPECS = [
   '**/layout-overflow.spec.ts',
   '**/sketch-rotation.spec.ts',
   '**/mobile-layout.spec.ts',
+  '**/file-menu-focus.spec.ts',
   '**/a11y-phone.spec.ts',
 ];
 
@@ -38,6 +39,9 @@ const CORE_SPECS = [
   '**/schematic-interaction.spec.ts',
   '**/component-editor.spec.ts',
   '**/component-dialog.spec.ts',
+  '**/component-dialog-undo.spec.ts',
+  '**/help-over-dialog.spec.ts',
+  '**/settings-escape.spec.ts',
   '**/motor-picker.spec.ts',
   '**/simulations-tab.spec.ts',
   '**/auto-run.spec.ts',
@@ -46,6 +50,8 @@ const CORE_SPECS = [
   '**/a11y-phone.spec.ts',
   '**/layout-overflow.spec.ts',
   '**/mobile-layout.spec.ts',
+  '**/number-entry.spec.ts',
+  '**/file-menu-focus.spec.ts',
 ];
 const core = process.env.E2E_SCOPE === 'core';
 

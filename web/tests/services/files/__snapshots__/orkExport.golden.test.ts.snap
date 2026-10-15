@@ -1856,9 +1856,8 @@ exports[`golden .ork export > pins every configuration, block and component type
           <basepressure>101325</basepressure>
           <baserelativehumidity>0.4</baserelativehumidity>
         </atmosphere>
-        <gravity model="constant">
-          <value>9.8</value>
-        </gravity>
+        <gravitymodel>constant</gravitymodel>
+        <constantgravity>9.8</constantgravity>
         <timestep>0.05</timestep>
         <maxtime>1200</maxtime>
         <recoveryspeedwarning>20</recoveryspeedwarning>
@@ -2448,23 +2447,7 @@ exports[`golden .ork import > pins what the kitchen-sink export reads back as 1`
   "chosenConfigId": "cfg-a",
   "configs": [
     {
-      "deployments": {
-        "c19": {
-          "deployAltitude": 250,
-          "deployDelay": 1.5,
-          "deployEvent": "apogee",
-        },
-        "c20": {
-          "deployAltitude": 150,
-          "deployDelay": 0,
-          "deployEvent": "altitude",
-        },
-        "c21": {
-          "deployAltitude": 200,
-          "deployDelay": 0,
-          "deployEvent": "ejection",
-        },
-      },
+      "deployments": {},
       "grounded": [],
       "id": "cfg-a",
       "isDefault": true,
@@ -2491,18 +2474,7 @@ exports[`golden .ork import > pins what the kitchen-sink export reads back as 1`
         },
       },
       "name": "Two stage",
-      "separations": {
-        "c27": {
-          "separationAltitude": 300,
-          "separationDelay": 0.5,
-          "separationEvent": "burnout",
-        },
-        "c30": {
-          "separationAltitude": 100,
-          "separationDelay": 2,
-          "separationEvent": "launch",
-        },
-      },
+      "separations": {},
     },
     {
       "deployments": {
@@ -2515,11 +2487,6 @@ exports[`golden .ork import > pins what the kitchen-sink export reads back as 1`
           "deployAltitude": 120,
           "deployDelay": 0,
           "deployEvent": "altitude",
-        },
-        "c21": {
-          "deployAltitude": 200,
-          "deployDelay": 0,
-          "deployEvent": "ejection",
         },
       },
       "grounded": [],
@@ -2549,11 +2516,6 @@ exports[`golden .ork import > pins what the kitchen-sink export reads back as 1`
       },
       "name": null,
       "separations": {
-        "c27": {
-          "separationAltitude": 300,
-          "separationDelay": 0.5,
-          "separationEvent": "burnout",
-        },
         "c30": {
           "separationAltitude": 100,
           "separationDelay": 3,
@@ -2562,40 +2524,13 @@ exports[`golden .ork import > pins what the kitchen-sink export reads back as 1`
       },
     },
     {
-      "deployments": {
-        "c19": {
-          "deployAltitude": 250,
-          "deployDelay": 1.5,
-          "deployEvent": "apogee",
-        },
-        "c20": {
-          "deployAltitude": 150,
-          "deployDelay": 0,
-          "deployEvent": "altitude",
-        },
-        "c21": {
-          "deployAltitude": 200,
-          "deployDelay": 0,
-          "deployEvent": "ejection",
-        },
-      },
+      "deployments": {},
       "grounded": [],
       "id": "cfg-c",
       "isDefault": false,
       "motors": {},
       "name": "Empty",
-      "separations": {
-        "c27": {
-          "separationAltitude": 300,
-          "separationDelay": 0.5,
-          "separationEvent": "burnout",
-        },
-        "c30": {
-          "separationAltitude": 100,
-          "separationDelay": 2,
-          "separationEvent": "launch",
-        },
-      },
+      "separations": {},
     },
   ],
   "ignored": [],
@@ -2670,12 +2605,6 @@ exports[`golden .ork import > pins what the kitchen-sink export reads back as 1`
       "key": "importNote.motorPlugged",
       "values": {
         "motor": "G80",
-      },
-    },
-    {
-      "key": "importNote.instanced",
-      "values": {
-        "names": "Centering Ring and Launch Lug",
       },
     },
   ],

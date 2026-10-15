@@ -233,6 +233,7 @@ export const KNOWN_CONDITIONS_TAGS: ReadonlySet<string> = new Set([
   'gravitymodel',
   'constantgravity',
   'weathersource',
+  'forecastlevel',
   'timestep',
   'maxtime',
   'recoveryspeedwarning',

@@ -83,21 +83,26 @@ describe('a batch with an unflyable row', () => {
     expect(err).toContain('TooWindy');
   });
 
-  it('refuses the whole batch when the DESIGN has a zeroed dimension', async () => {
-    // Every row shares the tree, so there is no good row to let through: flown, a
-    // zero-volume body tube hands back an apogee.
+  it('refuses the whole batch when the DESIGN has a value the kernel cannot fly', async () => {
+    // Every row shares the tree, so there is no good row to let through: a fin
+    // set of no fins is one the bridge refuses to build.
     const tree = st().tree;
     const zeroed = structuredClone(tree);
-    const walk = (n: { type?: string; outerRadius?: number; children?: unknown[] }) => {
-      if (n.type === 'bodytube') n.outerRadius = 0;
+    let fins = 0;
+    const walk = (n: { type?: string; finCount?: number; children?: unknown[] }) => {
+      if (n.type?.endsWith('finset')) {
+        n.finCount = 0;
+        fins++;
+      }
       for (const c of (n.children ?? []) as (typeof n)[]) walk(c);
     };
     for (const c of zeroed.components as unknown as Parameters<typeof walk>[0][]) walk(c);
+    expect(fins).toBeGreaterThan(0);
     useWorkspaceStore.setState({ tree: zeroed, err: null });
 
     await st().runSims(st().sims.map((x) => x.id));
     expect(simulateMock).not.toHaveBeenCalled();
-    expect(st().err ?? '').toMatch(/radius|dimension|zero/i);
+    expect(st().err ?? '').toMatch(/dimension|zero/i);
 
     useWorkspaceStore.setState({ tree });
   });

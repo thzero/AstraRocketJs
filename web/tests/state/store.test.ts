@@ -1708,7 +1708,7 @@ describe('importing a rocket whose name is already saved', () => {
   /** What the debounced autosave would write, once the import has landed. */
   const autosave = () =>
     getWorkspaceStore().save({
-      version: 2,
+      version: 3,
       tree: s().tree,
       sims: s().sims,
       configs: s().configs,

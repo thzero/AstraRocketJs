@@ -352,7 +352,10 @@ export function discSolid(outerR: number, innerR: number, length: number): THREE
 /** One fin as a flat, watertight extruded solid at the origin (planform in XY,
  *  thickness centered on Z), ready to lay on a print bed. */
 function oneFinSolid(child: ComponentNode, parent: FinParent): THREE.BufferGeometry | null {
-  const root = finRootChord(child, 0);
+  // The root chord the kernel flies: a trapezoidal or elliptical set with no
+  // key flies the bridge's default, and a freeform outline with no root has
+  // none.
+  const root = child.type === 'freeformfinset' ? finRootChord(child, 0) : finRootChord(child);
   const height = finSpan(child);
   const thickness = num(child, 'thickness', FIN_DEFAULTS.thickness);
 

@@ -1,11 +1,21 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, screen, within } from '@testing-library/react';
 import { forgetToolsPane, ToolsPane } from '../../../src/components/tools/ToolsPane';
 import { forgetOffTheRail } from '../../../src/components/tools/OffTheRail';
 import { forgetParachuteTool } from '../../../src/components/tools/ParachuteTool';
 import { forgetLandingEstimator } from '../../../src/components/tools/LandingEstimator';
 import { renderWithProviders } from '../../testing/renderWithProviders';
+import { __setEngineForTests } from '../../../src/engine/openRocketEngine';
+import { loadEngine } from '../../testing/kernelGeometry';
+import { KERNEL_TEST_TIMEOUT_MS } from '../../testing/kernelTimeout';
+
+vi.setConfig({ testTimeout: KERNEL_TEST_TIMEOUT_MS, hookTimeout: KERNEL_TEST_TIMEOUT_MS });
+
+// The rail tool's average thrust-to-weight is the kernel's average thrust.
+beforeAll(async () => {
+  __setEngineForTests(await loadEngine());
+});
 
 // The real picker loads the catalog; this one hands back a motor at once.
 vi.mock('../../../src/components/sim/MotorDialog', () => ({

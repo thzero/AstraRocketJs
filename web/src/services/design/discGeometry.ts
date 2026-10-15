@@ -247,9 +247,12 @@ export function discDims(
  * tail's fore shoulder the aft radius.
  *
  * Returns null when the part has no bore to offer at that end: a nose cone is
- * closed at the tip, a filled part is solid (`SymmetricComponent.getInnerRadius`
- * is 0, as {@link tubeRadii} has it), and anything that is not airframe has no
- * end to plug.
+ * closed at the tip, a filled part is solid, and anything that is not airframe
+ * has no end to plug. Only a filled body tube has no bore in the kernel too
+ * (`BodyTube.getInnerRadius` is 0, as {@link tubeRadii} has it); a filled nose
+ * cone's or transition's `Transition.getInnerRadius` still reads its stored
+ * wall, so a shoulder plugging one is refused here though the kernel would
+ * find a bore.
  */
 export function boreAt(node: ComponentNode, end: 'fore' | 'aft'): number | null {
   const e = endAt(node, end);

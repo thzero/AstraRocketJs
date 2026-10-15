@@ -4,6 +4,8 @@ import { num } from '../../tree/nodeProps';
 import { KERNEL_AUTO_RADIUS, KERNEL_DEFAULTS } from '../../tree/kernelDefaults';
 import { COMPONENT_DEFAULTS } from './componentDefaults';
 import { mapTreePreserving, type MapContext } from '../../tree/treeWalk';
+import { isZero } from '../motors/mathEquals';
+import { symmetricNeighbors, type Neighbors } from './autoRadius';
 
 /**
  * Shoulders that follow the tube they plug into.
@@ -14,7 +16,7 @@ import { mapTreePreserving, type MapContext } from '../../tree/treeWalk';
  * size and nothing says so.
  *
  * It is an explicit flag rather than "absent means derive it", which is how
- * OpenRocket spells auto for a ring's radius (see AUTO_COMPONENT_FIELDS). For
+ * OpenRocket spells auto for a ring's radius (`RadiusRingComponent`). For
  * a ring, absent means "fill the tube". For a shoulder, absent already means
  * "this part has no shoulder" (the starting design and most imported files
  * are exactly that), so deriving from absence would grow a shoulder on every
@@ -67,47 +69,84 @@ const SHOULDERS: Record<
   ],
 };
 
-const isZero = (v: number): boolean => Math.abs(v) < 1e-8;
+/**
+ * The part a shoulder plugs into: the airframe part on `side` of `node` as the
+ * kernel finds it ({@link symmetricNeighbors}), across stages, through pod sets
+ * and boosters in line with the airframe, and through an assembly flush with a
+ * tube's end, with the radius it offers there. `neighbors` is that map for
+ * the tree `node` sits in.
+ */
+const neighborOf = (
+  neighbors: Map<ComponentNode, Neighbors>,
+  node: ComponentNode,
+  side: -1 | 1,
+): { node: ComponentNode; offers: number } | null => {
+  const n = neighbors.get(node);
+  const found = n ? (side === -1 ? n.previous : n.next) : null;
+  return found && n ? { node: found, offers: side === -1 ? n.previousOffers : n.nextOffers } : null;
+};
 
 /**
- * What a shoulder length edit brings with it, as desktop's setter does it
+ * What a shoulder length edit brings with it, as the kernel's setter does it
  * (`Transition.setForeShoulderLength`, `setAftShoulderLength`; a nose cone's
  * shoulder is the one at its base). A shoulder that grows from length 0 takes
- * the neighbor's wall and a radius of the neighbor's radius less that wall,
- * each only where it was 0, and is capped. With no neighbor the wall is the
- * part's own and the radius `SymmetricComponent.DEFAULT_RADIUS` less it. A
- * shoulder set back to 0 loses its radius, wall and cap. Desktop applies a
- * catalog part through the same setter (`Transition.loadFromPreset`).
+ * the neighbor's wall and a radius of the radius the neighbor offers at that
+ * end less that wall, each only where it was 0, and is capped. With no
+ * neighbor the wall is the part's own and the radius
+ * `SymmetricComponent.DEFAULT_RADIUS` less it. A
+ * shoulder set back to 0 loses its radius, wall and cap. A catalog pick states
+ * its shoulder's radius and cap itself (`presetShoulder` in treeEdit). The
+ * neighbor is the one the kernel finds ({@link neighborOf}), and the seeded
+ * radius stops at the part's own end (`setForeShoulderRadius` and
+ * `setAftShoulderRadius` clamp it).
  *
  * Without it the bridge, which flies the wall the node states, would fly a
- * shoulder with no wall and no cap where desktop flies one with both.
+ * shoulder with no wall and no cap where the kernel's edit gives it both.
  *
- * `before` is the node as it was, `after` with the edit applied, `siblings`
- * and `index` where it sits. Keys the edit states itself are left alone.
+ * `before` is the node as it was, `after` with the edit applied, `components`
+ * the top level of the tree `before` sits in. Keys the edit states itself are
+ * left alone.
  */
 export function shoulderSeed(
   before: ComponentNode,
   after: ComponentNode,
   edit: Partial<ComponentNode>,
-  siblings: readonly ComponentNode[],
-  index: number,
+  components: readonly ComponentNode[],
 ): Partial<ComponentNode> {
   const out: Record<string, unknown> = {};
   const free = (k: string) => !(k in edit);
+  let neighbors: Map<ComponentNode, Neighbors> | null = null;
   for (const s of SHOULDERS[after.type] ?? []) {
     const was = num(before, s.length, 0);
     const now = num(after, s.length, 0);
     if (isZero(was) && !isZero(now)) {
       const side = sideOf(after, s.side);
-      const neighbor = siblings[index + side];
-      const e = neighbor ? endAt(neighbor, side === -1 ? 'aft' : 'fore') : null;
-      // A neighbor that is solid, or a nose cone's tip, offers no wall to take.
-      if (!neighbor || e) {
-        const own = num(after, 'thickness', COMPONENT_DEFAULTS[after.type as 'nosecone' | 'transition'].thickness);
-        const wall = e ? e.wall : own;
-        const radius = (e ? e.outer : KERNEL_AUTO_RADIUS) - wall;
+      neighbors ??= symmetricNeighbors(components);
+      const found = neighborOf(neighbors, before, side);
+      const neighbor = found?.node ?? null;
+      const solid = neighbor?.['filled'] === true;
+      const open = neighbor
+        ? endAt(solid ? { ...neighbor, filled: false } : neighbor, side === -1 ? 'aft' : 'fore')
+        : null;
+      // A nose cone's tip offers no end to plug.
+      if (!neighbor || open) {
+        // `SymmetricComponent.getThickness`, the neighbor's or with none the
+        // part's own: a solid part's wall is its widest radius.
+        const own =
+          after['filled'] === true
+            ? solidWall(after)
+            : num(after, 'thickness', COMPONENT_DEFAULTS[after.type as 'nosecone' | 'transition'].thickness);
+        const wall = !neighbor ? own : solid ? solidWall(neighbor) : open!.wall;
+        // The radius the neighbor offers (`getFrontAutoRadius`, `getRearAutoRadius`),
+        // read through an automatic tube to the part beyond it. Where nothing
+        // fixed lies beyond, the kernel's -1 would seed a negative shoulder, so
+        // the tube's resolved radius is taken instead.
+        const outer = !neighbor ? KERNEL_AUTO_RADIUS : found!.offers >= 0 ? found!.offers : open!.outer;
+        const end = shoulderEnd(after, s.side);
+        const radius = Math.max(0, outer - wall);
         if (free(s.thickness) && isZero(num(after, s.thickness, 0))) out[s.thickness] = wall;
-        if (free(s.radius) && isZero(num(after, s.radius, 0))) out[s.radius] = Math.max(0, radius);
+        if (free(s.radius) && isZero(num(after, s.radius, 0)))
+          out[s.radius] = end === null ? radius : Math.min(radius, end);
       }
       if (free(s.capped)) out[s.capped] = true;
     } else if (!isZero(was) && isZero(now)) {
@@ -118,6 +157,12 @@ export function shoulderSeed(
   }
   return out;
 }
+
+/** A solid part's widest radius, which `SymmetricComponent.getThickness` reports as its wall. */
+const solidWall = (node: ComponentNode): number => {
+  const open = { ...node, filled: false };
+  return Math.max(endAt(open, 'fore')?.outer ?? 0, endAt(open, 'aft')?.outer ?? 0);
+};
 
 /**
  * A flipped nose cone is a tail cone: its base, and the shoulder on it, face
@@ -154,13 +199,15 @@ const shoulderEnd = (node: ComponentNode, side: -1 | 1): number | null => {
  * invalidate memos that depend on the parts it did not touch.
  */
 export function syncAutoShoulders(tree: RocketTree): RocketTree {
+  let neighbors: Map<ComponentNode, Neighbors> | null = null;
   const resolve = (n: ComponentNode, { index, siblings }: MapContext): ComponentNode => {
     let node = n;
     for (const s of SHOULDERS[node.type] ?? []) {
       if (node[s.auto] !== true) continue;
-      // The neighbor is read from the original row: a shoulder never changes
+      // The neighbor is read from the original tree: a shoulder never changes
       // the bore it is measured against, so there is no ordering to get wrong.
-      const neighbor = siblings[index + sideOf(node, s.side)];
+      neighbors ??= symmetricNeighbors(tree.components);
+      const neighbor = neighborOf(neighbors, siblings[index]!, sideOf(node, s.side))?.node ?? null;
       const bore = neighbor ? boreAt(neighbor, sideOf(node, s.side) === -1 ? 'aft' : 'fore') : null;
       // No neighbor yet, or one with no bore to plug: leave the stored value
       // alone rather than zeroing a shoulder somebody typed. Adding the tube

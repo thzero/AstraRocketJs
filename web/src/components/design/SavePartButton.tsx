@@ -40,10 +40,15 @@ function SavePartDialog({ node, type, onClose }: { node: ComponentNode; type: Pi
   // Seeded from what the part is already called, which is the name the user
   // will look for in the picker. A part they never renamed falls back to its
   // type, which at least reads as something rather than as an empty box.
-  const [partNo, setPartNo] = useState(
-    typeof node.name === 'string' && node.name.trim() ? node.name.trim() : t(`part.${node.type}`, { defaultValue: '' }),
-  );
-  const [mfr, setMfr] = useState(t('picker.saveDefaultMfr', { defaultValue: DEFAULT_CUSTOM_MFR }));
+  //
+  // The translated seeds are worded at render until the user types (null
+  // means untouched): worded once in the initializer, a dialog opened before
+  // the locale's bundle lands would keep the English fallback and save it.
+  const named = typeof node.name === 'string' && node.name.trim() ? node.name.trim() : null;
+  const [typedPartNo, setPartNo] = useState<string | null>(named);
+  const [typedMfr, setMfr] = useState<string | null>(null);
+  const partNo = typedPartNo ?? t(`part.${node.type}`, { defaultValue: '' });
+  const mfr = typedMfr ?? t('picker.saveDefaultMfr', { defaultValue: DEFAULT_CUSTOM_MFR });
   const [desc, setDesc] = useState('');
   const onMeta = (patch: Partial<PartMeta>) => {
     if (patch.partNo !== undefined) setPartNo(patch.partNo);

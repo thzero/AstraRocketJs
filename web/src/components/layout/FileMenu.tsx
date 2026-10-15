@@ -139,7 +139,11 @@ function FileMenu({
   actions,
 }: {
   canSave: boolean;
-  /** Close the menu (an item was chosen). */
+  /**
+   * Close the menu and put focus back on its button (an item was chosen). The
+   * chosen item unmounts, and a dialog the action opens returns focus to
+   * whatever held it when it opened.
+   */
   onClose: () => void;
   menuRef: RefObject<HTMLDivElement | null>;
   onMenuKeyDown: (e: ReactKeyboardEvent<HTMLElement>) => void;
@@ -270,7 +274,7 @@ export function FileMenuButton({ canSave, actions }: { canSave: boolean; actions
   const {
     open: menuOpen,
     toggle,
-    close,
+    closeAndRestore,
     wrapRef,
     triggerRef,
     menuRef,
@@ -294,7 +298,13 @@ export function FileMenuButton({ canSave, actions }: { canSave: boolean; actions
         <span aria-hidden>☰</span> <span className="hidden 2xl:inline">{t('menu.open')}</span>
       </button>
       {menuOpen && (
-        <FileMenu canSave={canSave} onClose={close} menuRef={menuRef} onMenuKeyDown={onMenuKeyDown} actions={actions} />
+        <FileMenu
+          canSave={canSave}
+          onClose={closeAndRestore}
+          menuRef={menuRef}
+          onMenuKeyDown={onMenuKeyDown}
+          actions={actions}
+        />
       )}
     </div>
   );

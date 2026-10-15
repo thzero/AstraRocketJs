@@ -1,6 +1,6 @@
 import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
 import { KERNEL_DEFAULTS } from '../../tree/kernelDefaults';
-import { MAX_CANT, countOf, num } from '../../tree/nodeProps';
+import { bodyTubeRadius, countOf, finCant, num } from '../../tree/nodeProps';
 import { finRootChord } from '../../tree/finPlanform';
 import { isFinSet, isPlanarFinSet } from '../../tree/tubefins';
 
@@ -220,7 +220,7 @@ export function cutPoints(markPositions: number[], circumferenceMm: number, maxL
 }
 
 function buildGuide(tube: ComponentNode, angular: ComponentNode[]): MarkingGuide {
-  const circumferenceMm = guideCircumferenceMm(num(tube, 'outerRadius', KERNEL_DEFAULTS.bodytube.outerRadius));
+  const circumferenceMm = guideCircumferenceMm(bodyTubeRadius(tube));
   const raw = angular.flatMap((c) => mountAngles(c).map((angle) => ({ angle, node: c })));
   const origin = radialOrigin(raw.map((r) => r.angle));
   const marks = raw
@@ -231,7 +231,7 @@ function buildGuide(tube: ComponentNode, angular: ComponentNode[]): MarkingGuide
       const planar = isPlanarFinSet(String(node.type));
       // Clamped as the kernel clamps it: an imported cant past the limit is
       // flown at the limit, so the guide marks that angle.
-      const cant = planar ? Math.max(-MAX_CANT, Math.min(MAX_CANT, num(node, 'cant', 0))) : 0;
+      const cant = planar ? finCant(node) : 0;
       return {
         posMm,
         name: String(node.name ?? ''),

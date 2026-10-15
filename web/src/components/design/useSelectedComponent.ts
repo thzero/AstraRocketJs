@@ -5,7 +5,7 @@ import { findMounts, findNode, findParent, hasCatalog, siblingIndex, stageNodes 
 import { fitContextFor } from '../../services/parts/componentFit';
 import { useWorkspaceStore } from '../../state/store';
 import { confirm } from '../../state/confirmStore';
-import { num } from '../../tree/nodeProps';
+import { bodyTubeRadius, num } from '../../tree/nodeProps';
 import { partLabel } from '../../i18n/format';
 import { overriddenBy, type OverrideKind } from '../../services/design/overriddenBy';
 
@@ -29,11 +29,13 @@ export function useSelectedComponent() {
 
   const node = useMemo(() => (selectedId ? findNode(tree, selectedId) : null), [tree, selectedId]);
   // Tube fins ring a body, and whether their tubes collide depends on that
-  // radius, which is not on the fin set itself.
+  // radius, which is not on the fin set itself. A body tube with no stored
+  // radius flies at the bridge's default, which `bodyTubeRadius` reads.
   const parentRadius = useMemo(() => {
     if (node?.type !== 'tubefinset' || !selectedId) return 0;
     const parent = findParent(tree, selectedId);
-    return parent ? num(parent, 'outerRadius') : 0;
+    if (!parent) return 0;
+    return parent.type === 'bodytube' ? bodyTubeRadius(parent) : num(parent, 'outerRadius');
   }, [tree, selectedId, node]);
   const sib = useMemo(() => (selectedId ? siblingIndex(tree, selectedId) : null), [tree, selectedId]);
   // What the part being edited has to fit, for the catalog picker's ranking.

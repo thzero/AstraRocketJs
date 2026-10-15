@@ -81,25 +81,28 @@ export function configScoped(ctx: OrkImportContext, el: Element, tag: string): E
 }
 
 /**
- * Record every configuration's <deploymentconfiguration> for this recovery
+ * Record each configuration's <deploymentconfiguration> for this recovery
  * device, not just the chosen one. Export replays them so opening config A
  * and saving cannot rewrite config B's recovery settings (see
  * OrkFlightConfig.deployments).
+ *
+ * Only a configuration with a block of its own overrides anything. Desktop
+ * writes the default bare and a block only for a configuration that differs
+ * from it (RecoveryDeviceSaver.addParams), so a configuration with no block
+ * recovers the way the design does and follows an edit to the design's value.
+ * A block's value is the bare defaults with the block's fields over them, as
+ * DeploymentConfigurationHandler clones the default before applying the block.
+ * The same reader as the design's own, floors included.
  */
 export function captureDeployments(ctx: OrkImportContext, el: Element, node: ComponentNode): void {
+  if (!node.id) return;
   for (const c of ctx.configs) {
     const block = Array.from(el.children).find(
       (x) => x.tagName === 'deploymentconfiguration' && x.getAttribute('configid') === c.id,
     );
-    // Fall back to the bare tags for a configuration that declares no block
-    // of its own. Recording the resolved value (not "nothing") is what makes
-    // the round-trip safe: on save the bare defaults are rewritten from the
-    // configuration the user opened, so a config that recorded nothing would
-    // inherit the opened configuration's values instead.
-    // The same reader as the design's own, floors included, and the same
-    // merge: the block's fields over the bare defaults.
-    const o = { ...readDeploymentTags(el), ...(block ? readDeploymentTags(block) : {}) };
-    if (Object.keys(o).length > 0 && node.id) c.deployments[node.id] = o;
+    if (!block) continue;
+    const o = { ...readDeploymentTags(el), ...readDeploymentTags(block) };
+    if (Object.keys(o).length > 0) c.deployments[node.id] = o;
   }
 }
 
@@ -131,20 +134,21 @@ export function readStageActiveness(configEls: Element[], configs: OrkFlightConf
 }
 
 /**
- * Record every configuration's <separationconfiguration> for this booster, the
- * way {@link captureDeployments} records its recovery.
- *
- * Same fallback for the same reason: a configuration that declares no block of
- * its own stages the way the bare tags say, and recording the resolved value is
- * what keeps a save from handing it the opened configuration's staging instead.
+ * Record each configuration's <separationconfiguration> for this booster, the
+ * way {@link captureDeployments} records its recovery: only a configuration
+ * with a block of its own overrides the design's staging, and its value is the
+ * bare defaults with the block's fields over them, as
+ * StageSeparationConfigurationHandler clones the default before applying it.
  */
 export function captureSeparations(ctx: OrkImportContext, el: Element, node: ComponentNode): void {
+  if (!node.id) return;
   for (const c of ctx.configs) {
     const block = Array.from(el.children).find(
       (x) => x.tagName === 'separationconfiguration' && x.getAttribute('configid') === c.id,
     );
-    const o = { ...readSeparationTags(el), ...(block ? readSeparationTags(block) : {}) };
-    if (Object.keys(o).length > 0 && node.id) c.separations[node.id] = o;
+    if (!block) continue;
+    const o = { ...readSeparationTags(el), ...readSeparationTags(block) };
+    if (Object.keys(o).length > 0) c.separations[node.id] = o;
   }
 }
 
@@ -187,10 +191,13 @@ export function readMotor(ctx: OrkImportContext, el: Element, node: ComponentNod
     // file named, including for a motor we could not resolve. Absent stays
     // absent, so a file with no digest round-trips to one with no digest.
     const digest = text(motorEl, ':scope > digest');
+    const maker = text(motorEl, ':scope > manufacturer')?.trim();
     return {
       designation: text(motorEl, ':scope > designation') ?? 'unknown',
       ...(digest ? { digest } : {}),
-      manufacturer: text(motorEl, ':scope > manufacturer') ?? 'unknown',
+      // Absent stays absent: desktop's MotorHandler leaves the maker null, and
+      // findMotors filters on a maker only when one is given.
+      ...(maker ? { manufacturer: maker } : {}),
       diameter: nonNegTag(motorEl, 'diameter', 0.018),
       length: nonNegTag(motorEl, 'length', 0.07),
       delay: readDelay(motorEl),

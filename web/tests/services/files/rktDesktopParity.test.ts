@@ -3,6 +3,9 @@ import { describe, it, expect } from 'vitest';
 import { importRkt } from '../../../src/services/files/rktImport';
 import type { ComponentNode } from '../../../src/engine/openRocketEngine';
 import { noteTexts } from '../../testing/importNotes';
+import { wireLoadedOrk } from '../../../src/services/files/wireLoadedOrk';
+import type { LoadedOrk } from '../../../src/services/files/loadOrk';
+import type { LaunchConditions } from '../../../src/services/design/orkTree';
 
 /**
  * Where our `.rkt` reader has to agree with OpenRocket's own, field by field.
@@ -392,6 +395,48 @@ describe('a pod', () => {
 
   it('that does not separate stays a pod', () => {
     expect(find(pod('<Detachable>0</Detachable>'), 'P').type).toBe('podset');
+  });
+
+  /**
+   * `PodHandler.endHandler` marks an ejected pod's stage inactive in the
+   * configuration desktop opens on (`getSelectedConfiguration()
+   * ._setStageActive(stage.getStageNumber(), false)`): the pod stays in the
+   * design and sits out the flight. A detachable pod that has not been ejected
+   * flies.
+   */
+  it('that RockSim marks ejected is grounded in the configuration the file opens on', () => {
+    const ejected = (pods: string) =>
+      doc(
+        `<BodyTube><Name>Air</Name><Len>300</Len><OD>24</OD><ID>23</ID><AttachedParts>${pods}</AttachedParts></BodyTube>`,
+      );
+    const podXml = (name: string, extra: string) =>
+      `<ExternalPod><Name>${name}</Name><RadialLoc>30</RadialLoc>${extra}<AttachedParts><BodyTube><Name>${name} tube</Name><Len>100</Len><OD>18</OD><ID>17</ID></BodyTube></AttachedParts></ExternalPod>`;
+    const res = importRkt(
+      ejected(
+        podXml('Gone', '<Detachable>1</Detachable><Removed>1</Removed>') +
+          podXml('Kept', '<Detachable>1</Detachable>') +
+          podXml('Also gone', '<Removed>1</Removed>'),
+      ),
+    );
+    const id = (name: string) => find(res.tree.components, name).id;
+    expect(res.configs).toHaveLength(1);
+    expect(res.chosenConfigId).toBe(res.configs[0]!.id);
+    expect(res.configs[0]!.grounded).toEqual([id('Gone'), id('Also gone')]);
+    expect(res.configs[0]!.grounded).not.toContain(id('Kept'));
+    // What the opened simulation flies.
+    const wired = wireLoadedOrk(res as unknown as LoadedOrk, {} as LaunchConditions);
+    const config = wired.configs.find((c) => c.id === wired.sims.find((s) => s.id === wired.activeId)!.configId)!;
+    expect(config.grounded).toEqual([id('Gone'), id('Also gone')]);
+  });
+
+  it('that no pod was ejected from declares no configuration', () => {
+    const res = importRkt(
+      doc(
+        `<BodyTube><Name>Air</Name><Len>300</Len><OD>24</OD><ID>23</ID><AttachedParts><ExternalPod><Name>P</Name><Detachable>1</Detachable><AttachedParts><BodyTube><Name>T</Name><Len>100</Len><OD>18</OD><ID>17</ID></BodyTube></AttachedParts></ExternalPod></AttachedParts></BodyTube>`,
+      ),
+    );
+    expect(res.configs).toEqual([]);
+    expect(res.chosenConfigId).toBeNull();
   });
 
   /**

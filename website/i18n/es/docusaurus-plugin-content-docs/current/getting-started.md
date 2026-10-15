@@ -20,7 +20,7 @@ En un ordenador el banco de trabajo son cinco **pestañas**, en la barra superio
 - **Resultados.** Las gráficas de vuelo, la traza en tierra y la trayectoria 3D en el centro, y los números de la ejecución a la derecha. Aparece en cuanto una simulación ha producido un resultado, y al terminar una ejecución te lleva directamente allí.
 - **Herramientas.** [Respuestas rápidas que no necesitan un diseño](./tools.md): una estimación del aterrizaje, una comprobación de la salida del raíl y el dimensionado de paracaídas.
 
-La **vista del cohete** del centro tiene una barra para cambiar de vista (2D · 3D · Aero en la pestaña Diseño; Vuelo · Ruta 3D · Traza en tierra · Entorno en la pestaña Resultados), interruptores para los marcadores **CG / CP** y la tarjeta de **información** rápida, y, en 2D, preajustes, calibres y zoom. Una franja de **estadísticas estáticas** en la parte inferior muestra longitud, masa, CG, CP, estabilidad y más.
+La **vista del cohete** del centro tiene una barra para cambiar de vista (2D · 3D · Aero en la pestaña Diseño; Vuelo · Ruta 3D · Traza en tierra · Entorno en la pestaña Resultados), interruptores para los marcadores **CG / CP** y la tarjeta rápida de **Datos**, y, en 2D, preajustes, calibres y zoom. Una franja de **estadísticas estáticas** en la parte inferior muestra longitud, masa, CG, CP, estabilidad y más.
 
 ### Ajustar el tamaño de los paneles {#sizing-the-panes}
 

@@ -280,7 +280,7 @@ export function SimTab() {
       <InfoRow label={t('settings.simMethod')} value={t('settings.simMethodValue')} />
       <NumRow
         label={t('settings.timeStep')}
-        unit="s"
+        unit={t('units.second')}
         step={0.01}
         min={SIM_BOUNDS.timeStep.min}
         // maxTime / timeStep is the solver's iteration count, so both
@@ -293,7 +293,7 @@ export function SimTab() {
       />
       <NumRow
         label={t('settings.maxTime')}
-        unit="s"
+        unit={t('units.second')}
         step={60}
         min={SIM_BOUNDS.maxTime.min}
         max={SIM_BOUNDS.maxTime.max}

@@ -9,6 +9,7 @@ import { download, exportFilename } from '../../services/files/saveFile';
 import { unitScope } from '../../prefs/units';
 import { useUnits } from '../../prefs/useUnits';
 import { UnitChip } from '../common/UnitChip';
+import { componentName } from '../../services/app/warningText';
 
 /**
  * The flight as a list you can read down: every event, when it happened, and
@@ -162,7 +163,7 @@ export function FlightEventsTable({
                       The {' '} is a real space rather than only the margin,
                       so a row selected and copied out of the table reads
                       "Recovery deployment Drogue" and not one run-on word. */}
-                  {r.source && <span className="ml-1 font-normal text-ink-faint">{r.source}</span>}{' '}
+                  {r.source && <span className="ml-1 font-normal text-ink-faint">{componentName(r.source, t)}</span>}{' '}
                   {staged && (
                     <span className="ml-1 whitespace-nowrap rounded bg-raised px-1 text-[10px] font-normal text-ink-muted">
                       {stageName(r)}

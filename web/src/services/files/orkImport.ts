@@ -1,4 +1,3 @@
-import { fmtList } from '../../i18n/format';
 import i18n from '../../i18n';
 import { xmlText as text } from './xmlUtil';
 import { syncAutoRadii } from '../design/autoRadius';
@@ -10,9 +9,9 @@ import { readStages } from './ork/importReaders';
 import { KNOWN_DOCUMENT_TAGS, KNOWN_ROCKET_TAGS, readPassthrough } from './ork/passthrough';
 import { readLaunchConditions } from './ork/importLaunch';
 import { readSimulations } from './ork/importSimulations';
-import { configNotes, ignoredNotes, modelingNotes } from './ork/importNotes';
-import { keyedNote, type ImportNote } from './importNote';
-import { KeyedError } from '../../i18n/keyedError';
+import { configNotes, ignoredNotes } from './ork/importNotes';
+import { keyedNote, noteList, type ImportNote } from './importNote';
+import { KeyedError, type Keyed } from '../../i18n/keyedError';
 
 /**
  * .ork import: unpack and parse the file, pick the flight configuration to
@@ -89,7 +88,6 @@ export function importOrk(data: ArrayBuffer | string): OrkImportResult {
   const { notes, ignored } = ctx;
   notes.push(...versionNotes(doc));
   notes.push(...ignoredNotes(ignored));
-  notes.push(...modelingNotes(components));
   notes.push(...configNotes(rocketEl, configs));
   notes.push(...archiveNotes(doc, archive.dropped));
 
@@ -122,9 +120,11 @@ export function importOrk(data: ArrayBuffer | string): OrkImportResult {
 }
 
 /**
- * The `.ork` format versions desktop OpenRocket reads without a warning
- * (DocumentConfig.SUPPORTED_VERSIONS). A file outside them, such as one saved
- * by a newer OpenRocket, may carry things this reader does not know.
+ * The `.ork` format versions this reader takes without a note: 1.0 to 1.10,
+ * which desktop 24.12 reads without a warning (DocumentConfig.SUPPORTED_VERSIONS),
+ * and 1.11, which upstream OpenRocket's reader (the kernel's) adds. A file
+ * outside them, such as one saved by a newer OpenRocket, may carry things this
+ * reader does not know.
  */
 const SUPPORTED_ORK_VERSIONS: ReadonlySet<string> = new Set([
   '1.0',
@@ -178,7 +178,7 @@ const EXTENSION_NAMES: Readonly<Record<string, string | { key: string }>> = {
  * script names its language, from the extension's `language` entry, with
  * desktop's default when the file gives none.
  */
-function extensionName(id: string, el: Element): string {
+function extensionName(id: string, el: Element): string | Keyed {
   const cls = id.trim().split('.').pop() || 'unnamed';
   // Own keys only: the id comes from the file, and "constructor" must not read Object.prototype.
   const name = Object.hasOwn(EXTENSION_NAMES, cls) ? EXTENSION_NAMES[cls]! : cls;
@@ -186,7 +186,7 @@ function extensionName(id: string, el: Element): string {
   const language =
     [...el.querySelectorAll(':scope > entry')].find((e) => e.getAttribute('key') === 'language')?.textContent?.trim() ||
     'JavaScript';
-  return i18n.t(name.key, { language });
+  return { key: name.key, values: { language } };
 }
 
 /**
@@ -215,22 +215,27 @@ function archiveNotes(doc: Document, dropped: string[]): ImportNote[] {
     ),
   ];
   if (extensions.length) {
-    const names = [
-      ...new Set(extensions.map((e) => extensionName(e.getAttribute('extensionid') ?? e.textContent ?? '', e))),
-    ];
-    out.push(keyedNote('importNote.extensions', { names: fmtList(names) }));
+    // Once each: the same extension on several simulations is one name.
+    const seen = new Set<string>();
+    const names = extensions
+      .map((e) => extensionName(e.getAttribute('extensionid') ?? e.textContent ?? '', e))
+      .filter((n) => {
+        const id = JSON.stringify(n);
+        if (seen.has(id)) return false;
+        seen.add(id);
+        return true;
+      });
+    out.push(keyedNote('importNote.extensions', { names: noteList(names) }));
   }
   if (dropped.length) {
-    out.push(
-      keyedNote('importNote.notRead', { items: `${fmtList(dropped.slice(0, 6))}${dropped.length > 6 ? ' …' : ''}` }),
-    );
+    out.push(keyedNote('importNote.notRead', { items: noteList(dropped.slice(0, 6), { more: dropped.length > 6 }) }));
   }
   // Whole features rather than fields, so they are named: someone who set a
   // Photo Studio shot in the desktop should know this app does not show it and
   // does not discard it either.
   const docLevel = ['photostudio', 'docprefs', 'datatypes'].filter((t) => doc.querySelector(`openrocket > ${t}`));
   if (docLevel.length) {
-    out.push(keyedNote('importNote.noEditor', { items: fmtList(docLevel) }));
+    out.push(keyedNote('importNote.noEditor', { items: noteList(docLevel) }));
   }
   return out;
 }

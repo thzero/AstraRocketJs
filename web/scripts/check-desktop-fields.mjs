@@ -6,12 +6,17 @@
 //
 // The samples come from tests/services/files/orkDesktopSamples.test.ts with
 // ORK_SAMPLES_DIR set: each `.ork` and `.rkt` there has a `<file>.kernel.json`
-// beside it, listing every part as the app's kernel built it. This opens each
+// beside it, listing every part as the app's kernel built it, and each `.ork`
+// a `<file>.app.json`, listing its flight configurations and simulations as the
+// app wrote them. Under `source/` are the bundled examples as they ship, beside
+// the same two files for what the app made of them on import. This opens each
 // file in the pinned desktop release, reads every part back through the same
 // getters (engine-java/src/api/java/api/ComponentFields.java, compiled against
 // that release), and compares the two part by part in tree order, depth
 // included. The getters cover the panel's fields plus what a file also
-// carries: overrides, materials, the finish and a fin's planform area.
+// carries: overrides, materials, the finish and a fin's planform area. Then it
+// compares each configuration's motors, recovery, staging and grounded stages,
+// and each simulation's launch conditions, with what desktop read.
 //
 // `check:ork` asks whether desktop accepts a file. This asks whether desktop
 // reads the same rocket from it: a writer that emits a default the kernel does
@@ -21,8 +26,9 @@
 // A RockSim file restates some values (angles in degrees, a pod by its distance
 // from the axis, a fin tab from the root's front, a packed part by either end);
 // those are compared in the form desktop reads them. KNOWN lists the rest of the
-// accepted differences, each with the finding it is or what RockSim cannot carry,
-// and each matches only the difference it names. The list is checked both ways:
+// accepted differences, each with what 24.12 or RockSim cannot carry, or what a
+// bundled example names as it ships, and each matches only the difference it
+// names. The list is checked both ways:
 // a new difference fails, and so does an entry that no longer occurs.
 //
 // `npm run audit` runs it after the `desktop` step. Needs a JDK and the pinned
@@ -30,7 +36,7 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { basename, delimiter, join, resolve } from 'node:path';
+import { basename, delimiter, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chooseBuild } from './lib/openrocketJava.mjs';
 
@@ -41,8 +47,11 @@ const SOURCES = [
 ];
 
 /**
- * Accepted differences. `rule` is `format:type.key`, with `*` for any type.
- * `when` gets the app's value, desktop's, and both parts' fields, and says
+ * Accepted differences. `rule` is `format:type.key`, with `*` for any type, or
+ * `ork:config.<what>` and `ork:sim.<key>` for a configuration or a simulation.
+ * `files`, when given, names the only files it applies to (a bundled example
+ * as it ships is `source/<file>`). `when` gets the app's value, desktop's, and
+ * both parts' fields (a configuration's motor: the app's motor), and says
  * whether this difference is the one the entry names; one that is not fails.
  */
 const KNOWN = [
@@ -125,6 +134,25 @@ const KNOWN = [
     why: 'StreamerHandler reads no packed size; desktop keeps its default',
     when: (a, d) => d === 0.0125,
   },
+  // What 24.12 cannot carry in a .ork.
+  {
+    rule: 'ork:config.motor',
+    why: '24.12 looks motors up in its own database only and does not read the curve the app embeds under thrustcurves/ (upstream OpenRocket does)',
+    when: (a, d, am) => am.embedded === true && d === null,
+  },
+  // The bundled examples as they ship, written by an OpenRocket 26 build.
+  {
+    rule: 'ork:config.motor.digest',
+    files: ['source/pods-powered-with-recovery-deployment.ork', 'source/two-stage-high-power-rocket.ork'],
+    why: "the source file names motors by the OpenRocket 26 database's digests, which 24.12 does not hold, so it takes its own curve by name",
+  },
+  // The same examples saved again: the app keeps the curve each source file
+  // carries and names it by that curve's digest, which 24.12 does not hold.
+  {
+    rule: 'ork:config.motor.digest',
+    files: ['pods-powered-with-recovery-deployment.ork', 'two-stage-high-power-rocket.ork'],
+    why: "the file carries the source file's OpenRocket 26 curve under its own digest, which 24.12 does not hold, so it takes its own curve by name",
+  },
   // What desktop's RockSim reader works out for itself.
   {
     rule: 'rkt:nosecone.shoulderThickness',
@@ -171,9 +199,14 @@ if (!dir || !existsSync(dir)) {
   console.error('usage: npm run check:fields -- <samples dir>');
   process.exit(2);
 }
-const files = readdirSync(dir)
-  .filter((f) => /\.(ork|rkt)$/.test(f) && existsSync(join(dir, `${f}.kernel.json`)))
-  .map((f) => join(dir, f));
+// The saved files, and under `source/` the bundled examples as they ship.
+const samplesIn = (d) =>
+  existsSync(d)
+    ? readdirSync(d)
+        .filter((f) => /\.(ork|rkt)$/.test(f) && existsSync(join(d, `${f}.kernel.json`)))
+        .map((f) => join(d, f))
+    : [];
+const files = [...samplesIn(dir), ...samplesIn(join(dir, 'source'))];
 if (!files.length) {
   console.error(`no saved files with a .kernel.json beside them in ${dir}`);
   process.exit(2);
@@ -317,13 +350,115 @@ function rktRestatement(key, k, d) {
   return false;
 }
 
+/**
+ * Configurations and simulations: what the app wrote (`<file>.app.json`, from
+ * tests/services/files/orkDesktopSamples.test.ts) against what desktop read
+ * (`OrkFields`). Per configuration, by id: the motor in each mount (designation,
+ * digest, ejection delay, ignition), each recovery device's deployment, each
+ * lower stage's or booster's separation, and which stages fly. Per simulation,
+ * in file order: its name, its configuration and every condition 24.12 keeps.
+ * A key the app leaves out is not compared. A difference is reported under the
+ * rule `ork:config.<what>` or `ork:sim.<key>`, with the KNOWN list the parts use.
+ */
+function compareFlights(name, app, read) {
+  const miss = (rule, text, a, d, af) =>
+    misses.push({ rule: `ork:${rule}`, file: name, app: a, desktop: d, appFields: af, text: `${name} ${text}` });
+  const differ = (rule, where, a, d, key = '') => {
+    if (a === undefined) return;
+    if (a === null ? d === null || d === undefined : d !== undefined && d !== null && same(key, a, d, TOLERANCE.ork)) {
+      return;
+    }
+    miss(rule, `${where}: app ${a}, desktop ${d}`, a, d);
+  };
+  const byPart = (list) => new Map(list.map((x) => [x.part, x]));
+  for (const ac of app.configs) {
+    const dc = read.configs.find((c) => c.id === ac.id);
+    if (!dc) {
+      miss('config', `configuration ${ac.id}: not read`);
+      continue;
+    }
+    differ('config.default', ac.id, ac.default, dc.default);
+    const dm = byPart(dc.motors);
+    for (const m of ac.motors) {
+      const d = dm.get(m.part);
+      if (!d) {
+        miss(
+          'config.motor',
+          `${ac.id} part #${m.part}: app ${m.designation}, desktop no motor`,
+          m.designation,
+          null,
+          m,
+        );
+        continue;
+      }
+      // The app names a motor by its common name (F67), desktop's designation
+      // is the full code (F67W): either is the same motor.
+      if (!same('', m.designation, d.commonName, 0)) {
+        differ('config.motor.designation', `${ac.id} part #${m.part}`, m.designation, d.designation);
+      }
+      for (const k of ['digest', 'delay', 'ignitionEvent', 'ignitionDelay']) {
+        differ(`config.motor.${k}`, `${ac.id} part #${m.part}`, m[k], d[k]);
+      }
+    }
+    for (const part of dm.keys()) {
+      if (!ac.motors.some((m) => m.part === part)) {
+        miss('config.motor', `${ac.id} part #${part}: app no motor, desktop ${dm.get(part).designation}`);
+      }
+    }
+    for (const [list, what] of [
+      ['deployments', 'deployment'],
+      ['separations', 'separation'],
+    ]) {
+      const dd = byPart(dc[list]);
+      for (const x of ac[list]) {
+        const d = dd.get(x.part);
+        if (!d) {
+          miss(`config.${what}`, `${ac.id} part #${x.part}: not read`);
+          continue;
+        }
+        for (const k of ['event', 'altitude', 'delay'])
+          differ(`config.${what}.${k}`, `${ac.id} part #${x.part}`, x[k], d[k]);
+      }
+    }
+    differ('config.stages', ac.id, JSON.stringify(ac.stages), JSON.stringify(dc.stages));
+  }
+  if (app.sims.length !== read.sims.length) {
+    miss('sims', `app ${app.sims.length} simulations, desktop ${read.sims.length}`);
+    return;
+  }
+  app.sims.forEach((as, i) => {
+    const ds = read.sims[i];
+    differ('sim.name', `simulation #${i}`, as.name, ds.name);
+    differ('sim.configId', as.name, as.configId, ds.configId);
+    for (const [key, a] of Object.entries(as.conditions)) {
+      const d = ds.conditions[key];
+      if (a === undefined) continue;
+      if (key === 'windLevels') {
+        differ('sim.windLevels', `${as.name} wind levels`, a.length, d.length);
+        a.forEach((l, j) => {
+          for (const k of Object.keys(l)) differ(`sim.windLevels.${k}`, `${as.name} wind level #${j}`, l[k], d[j]?.[k]);
+        });
+      } else {
+        differ(`sim.${key}`, as.name, a, d, ANGLE_CONDITIONS.has(key) ? 'rotation' : key);
+      }
+    }
+  });
+}
+
+/** Launch conditions that are angles, compared modulo a turn like the part angles. */
+const ANGLE_CONDITIONS = new Set(['launchRodDirection', 'windDirection']);
+
 const misses = [];
 for (const file of files) {
-  const name = basename(file);
+  const name = basename(dirname(file)) === 'source' ? `source/${basename(file)}` : basename(file);
   const format = file.endsWith('.rkt') ? 'rkt' : 'ork';
   const saved = JSON.parse(readFileSync(`${file}.kernel.json`, 'utf8'));
   const kernel = format === 'rkt' ? asRockSim(saved) : saved;
-  const loaded = desktop[file] ?? [];
+  const read = desktop[file] ?? { parts: [], configs: [], sims: [] };
+  if (existsSync(`${file}.app.json`)) {
+    compareFlights(name, JSON.parse(readFileSync(`${file}.app.json`, 'utf8')), read);
+  }
+  const loaded = read.parts;
   // Parts are matched by their place in the tree, so once desktop has built a
   // different tree there is nothing to compare them with: report the structure
   // and stop.
@@ -367,7 +502,8 @@ for (const m of misses) {
   const entry = KNOWN.find(
     (e) =>
       (e.rule === m.rule || e.rule === m.anyType) &&
-      (!e.when || (m.appFields && e.when(m.app, m.desktop, m.appFields, m.desktopFields))),
+      (!e.files || e.files.includes(m.file)) &&
+      (!e.when || e.when(m.app, m.desktop, m.appFields ?? {}, m.desktopFields ?? {})),
   );
   if (entry) matched.add(entry);
   else unknown.set(m.rule, [...(unknown.get(m.rule) ?? []), m.text]);

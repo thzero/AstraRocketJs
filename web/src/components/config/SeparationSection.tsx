@@ -93,7 +93,7 @@ export function SeparationSection({
             placeholder={fmtUpTo(design.separationDelay, 2)}
             step={0.5}
             min={0}
-            unit="s"
+            unit={t('units.second')}
             onChange={(v) => setSeparation(config.id, id, 'separationDelay', v)}
             onCommit={onCommit}
           />
