@@ -8,7 +8,10 @@ so most entries describe getting a computation to match OpenRocket exactly.
 
 ## [Unreleased]
 
+## [0.3.0]
+
 ### Changed
+- **The catalog sync also runs when its scripts change on master**, so a pipeline change republishes the catalogs when it lands instead of waiting for the weekly run.
 - **The accessibility scans open what the page keeps closed.** Every disclosure and popup (menus, the drift sweep, import notes, the flight picker, the folds) is listed and held to the source like the dialogs, and each is scanned open in all three themes, as are the location editor and the Landing estimator and Off the rail results.
 - **Two gate fixes.** The lint guard checks that the promise and hook rules are errors rather than merely present, and the em dash scan covers everything the project writes under `engine-java`.
 - **The catalog reads part descriptions as desktop does**, with XML entities decoded and the last of a repeated field kept, and the refresh names a part whose stated mass it cannot apply.
@@ -124,6 +127,17 @@ so most entries describe getting a computation to match OpenRocket exactly.
 - **Desktop's names for simulation extensions.** The note on opening a file that carries desktop simulation extensions names them as desktop does (Roll Control, Java code) instead of by their internal class names.
 
 ### Fixed
+- **Files open before the engine has loaded.** Opening a `.ork` or `.rkt` file, or a bundled example, in the first seconds after start installs the design and builds it when the engine arrives, instead of refusing with "the engine has not finished loading".
+- **An unknown deploy or separation event no longer refuses the file.** A `.ork` from a newer OpenRocket, or a hand-edited one, that names an event this app does not have opens with an import note and flies the default event, as desktop does.
+- **A part missing a size in a file is read and written at the size that flies.** A body tube, fin set, tube fin set, coupler, launch lug, shock cord or mass component with a field missing was written to `.ork` at one size and flown at another. Both now use the engine's own default, and a tube fin set with no wall of its own is saved without one, so desktop gives it the body's wall as the engine does.
+- **Mass, deploy altitude and separation altitude stop at zero** in the property panel, as every other size box does. A negative mass or deploy altitude stopped the design from building, and a negative separation altitude never separated the stage.
+- **Tube fins on a filled body tube are solid** when the fin set states no wall of its own, as the engine flies them.
+- **A fin with a negative root chord draws as a zero-length fin** instead of blanking the drawings.
+- **An edit made while the app was still loading is kept.** On a first visit, an edit made during the load could be treated as already stored and lost on close.
+- **Import notes about launch limits follow the app's language.** They stayed in the language the file was opened in.
+- **Embedded motors keep their type.** A reload or hybrid motor saved into a `.ork` reopens in desktop as that type, not as single-use.
+- **Failed saves in the library and material dialogs are announced** to screen readers.
+- **Two parachute presets that differ only in their lines or materials are both offered** in the parts catalog.
 - **Every catalog part has a weight.** 24 catalog parts (a balsa nose cone, an engine block, 8 streamers and 14 parachutes) name a material with no density, which desktop weighs at 0 g. The catalog now gives each the nearest built-in material: Balsa, Plywood (birch), Paper (office), Polyethylene (thin) or Ripstop nylon.
 - **The import banner judges every simulation.** A `.ork`'s own simulations are each checked on their own launch conditions when the file opens, as the run does, not only the first.
 - **The page states the language it shows.** The page's `lang` follows the language picked, so a screen reader reads Spanish text with Spanish pronunciation.
