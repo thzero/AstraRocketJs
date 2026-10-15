@@ -7,7 +7,8 @@ import { isComponentRow, type ParachuteComponent } from '../../../src/services/p
 import { axialFrames, rebasePosition } from '../../../src/tree/axialRebase';
 import { axialChain, axialLength } from '../../../src/tree/position';
 import { countOf, num, positionOf } from '../../../src/tree/nodeProps';
-import { lineInstances } from '../../../src/tree/placement';
+import { lineInstances, placementOffsets } from '../../../src/tree/placement';
+import { innerTubeExtent } from '../../../src/tree/schematicGeometry';
 import { clusterCount } from '../../../src/tree/cluster';
 import { KERNEL_DEFAULTS } from '../../../src/tree/kernelDefaults';
 import { profileMm, rocketSideView } from '../../../src/services/report/reportGeometry';
@@ -1562,10 +1563,25 @@ function compare(
         if (f) note(`tube fin rotation${inside}`, num(node, 'rotation', 0), f['rotation'], sameAngle);
         break;
       }
-      case 'innertube':
-        // What the views place each tube of a cluster by (`placementOffsets`).
-        // The bridge reports no cluster point, so these are compared as the
-        // kernel holds them: its offset clamped at zero, its angles wrapped.
+      case 'innertube': {
+        // Each tube where the views draw it (`placementOffsets`, with the radius
+        // the 2D, 3D and aft views pass) against where the kernel flies it.
+        const app = placementOffsets(node, innerTubeExtent(node).radius);
+        const kernel = k.clusterPoints ?? [];
+        note(`innertube cluster tube count${inside}`, app.length, kernel.length);
+        // A cluster turned and moved off the axis is the case the signs and the
+        // rotation order decide, so it is counted under a rule of its own.
+        const turnedOff =
+          clusterCount(node['cluster'] as string | undefined) > 1 &&
+          num(node, 'radialPosition', 0) > 0 &&
+          num(node, 'clusterRotation', 0) !== 0;
+        const rule = `innertube cluster tube position${turnedOff ? ', cluster turned off the axis' : ''}${inside}`;
+        app.forEach((p, i) => {
+          check(rule, p.y, kernel[i]?.[0]);
+          check(rule, p.z, kernel[i]?.[1]);
+        });
+        // The fields those positions come from, as the kernel holds them: its
+        // offset clamped at zero, its angles wrapped.
         if (!f) break;
         note(`innertube radial position${inside}`, num(node, 'radialPosition', 0), f['radialPosition']);
         note(`innertube radial direction${inside}`, num(node, 'radialDirection', 0), f['radialDirection'], sameAngle);
@@ -1573,6 +1589,7 @@ function compare(
           note(`innertube cluster rotation${inside}`, num(node, 'clusterRotation', 0), f['clusterRotation'], sameAngle);
         }
         break;
+      }
       case 'launchlug':
       case 'railbutton': {
         // The copies every view draws (`lineInstances`) against the ones the kernel flies.
@@ -1843,6 +1860,8 @@ describe('app geometry matches the kernel', () => {
       'railbutton copy spacing, no spacing key in a bodytube',
       'innertube radial direction in a bodytube',
       'innertube cluster rotation in a bodytube',
+      'innertube cluster tube position in a bodytube',
+      'innertube cluster tube position, cluster turned off the axis in a bodytube',
       'tube fin rotation in a bodytube',
       'freeformfinset outline points, outline off the origin in a bodytube',
       'freeformfinset outline points, outline off the origin in a nosecone',

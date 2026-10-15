@@ -1153,9 +1153,11 @@ the report side view and the template profile against the kernel. It found C14
 on every tapered parent, C15, and C47. `geometryFlags.test.ts` adds the print
 export and the RockSim writer as readers, shape parameters, other shapes, a
 flag inside a pod, the ring measured itself in a synced design, and the fin
-parts table. The OBJ export is checked to be in millimeters. Parked: placed
-cluster tube positions and `getSpan` itself, which need a read-only bridge call
-each; the span is compared through the `getSpan` formula on the kernel's points.
+parts table. The OBJ export is checked to be in millimeters. Each tube of a
+cluster is compared with where the kernel flies it (`getComponentGeometry`
+reports `clusterPoints` from `InnerTube.getInstanceOffsets`). The fin span is
+compared through the `getSpan` formula on the kernel's points, not `getSpan`
+itself, which the bridge does not report.
 The gaps as reported:
 - `commentsStateTheConstraint.test.ts` does not scan the web root configs, the workflow YAML, `website/src` or `index.html`. Scanned by hand with its patterns: no history comments found.
 - `geometryParity.kernel.test.ts` never builds: automatic transition ends wider than 25 mm with shoulders (C1); a lug with `instanceCount` above 1 or a keyless separation (C2); pod or booster `angleOffset` other than 0, or compares their angles; inner tube `clusterRotation`, `radialPosition` or `radialDirection`; a freeform outline not starting at [0, 0]; tab offset methods `absolute` or `after`; tube fin `rotation`; a keyless `position` (C15). It never compares `finSpan` with `getSpan`, and checks profiles only through `stationRadius`, not `rocketSideView` or `profileMm`.

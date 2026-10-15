@@ -1045,6 +1045,17 @@ public final class OpenRocketEngine {
                 points(sb, f.getTabPoints());
             }
         }
+        if (c instanceof info.openrocket.core.rocketcomponent.InnerTube) {
+            // Where each tube of the cluster sits across its parent, as
+            // InnerTube.getInstanceOffsets places it: [y, z] per tube.
+            sb.append(",\"clusterPoints\":[");
+            CoordinateIF[] offsets = c.getInstanceOffsets();
+            for (int i = 0; i < offsets.length; i++) {
+                if (i > 0) sb.append(',');
+                nums(sb, new double[] { offsets[i].getY(), offsets[i].getZ() });
+            }
+            sb.append(']');
+        }
         if (c instanceof info.openrocket.core.rocketcomponent.MassObject) {
             sb.append(',');
             num(sb, "radius", ((info.openrocket.core.rocketcomponent.MassObject) c).getRadius());

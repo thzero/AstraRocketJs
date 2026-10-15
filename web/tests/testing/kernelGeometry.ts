@@ -33,6 +33,8 @@ export interface KernelGeometry {
    * (`RadiusMethod.getRadius`), read in tree order right after its parent.
    */
   instanceRadius?: number;
+  /** Where each tube of an inner tube's cluster sits across its parent, [y, z] (`getInstanceOffsets`). */
+  clusterPoints?: [number, number][];
   radius?: number;
   /** A rail button's linked dimensions, after the kernel's setters have clamped them. */
   outerDiameter?: number;
