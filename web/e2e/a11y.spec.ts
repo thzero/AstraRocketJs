@@ -156,11 +156,16 @@ async function engineFailed(page: Page): Promise<void> {
 }
 
 /**
- * A deploy, played locally. Once the first worker is active, the page's
- * registration is given sw.js again under a query, served naming a build
- * script with a higher id, and that script is the shipped one answering with
- * the higher id. The browser installs it beside the running worker and leaves
- * it waiting, a newer build, which raises the update banner.
+ * A deploy, played locally. Once the first worker is active, the page is
+ * reloaded so that worker controls it, as it does for anyone who has visited
+ * before. The registration is then given sw.js again under a query, served
+ * naming a build script with a higher id, and that script is the shipped one
+ * answering with the higher id. The browser installs it beside the running
+ * worker and leaves it waiting, a newer build, which raises the update banner.
+ *
+ * Controlled first: on a page no worker controls (a first visit) the browser
+ * activates the new worker almost at once, and the app's question to the
+ * waiting worker can go unanswered in the switch.
  *
  * A new script URL rather than `update()`: the browser's update check of the
  * same URL does not pass through the context's routes, so it would fetch the
@@ -184,6 +189,12 @@ async function updateWaiting(page: Page): Promise<void> {
     await route.fulfill({ response: res, body: body.replace(/build: \d+/, `build: ${id}`) });
   });
   await ready(page);
+  await page.evaluate(async () => {
+    await navigator.serviceWorker.ready;
+  });
+  await page.reload();
+  await expect(page.getByText('L/D', { exact: true })).toBeVisible({ timeout: 20_000 });
+  await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
   await page.evaluate(async () => {
     const reg = await navigator.serviceWorker.ready;
     await navigator.serviceWorker.register(`${reg.active?.scriptURL ?? '/sw.js'}?next`, { scope: reg.scope });
