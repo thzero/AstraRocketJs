@@ -1320,8 +1320,9 @@ describe('replacing the workspace is race-safe across actions, not just openDesi
     }));
     await s().openOrkFile(orkFile('TWO'));
     expect(s().sims.map((x) => x.name)).toEqual(['Calm', 'Tilted']);
+    // The note is keyed and carries the figure in its values (importBanner).
     const notes = s().loadedMeta?.notes ?? [];
-    expect(notes.some((n) => typeof n === 'string' && /45/.test(n))).toBe(true);
+    expect(notes.some((n) => typeof n !== 'string' && /45/.test(JSON.stringify(n.values)))).toBe(true);
   });
 
   it('a superseded import does not post its error over the design that replaced it', async () => {

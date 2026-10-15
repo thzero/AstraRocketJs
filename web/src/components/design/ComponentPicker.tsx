@@ -618,8 +618,12 @@ function PickerDialog({
             : t('picker.results', { count: ranked.length })}
           {/* A delete that the storage layer refused. It belongs here rather
               than beside the row, which is gone from view the moment the list
-              is scrolled or filtered. */}
-          {delErr && <div className="mt-1 normal-case tracking-normal text-danger-400">{delErr}</div>}
+              is scrolled or filtered. Always mounted, empty until there is
+              something to say: a live region created together with its text
+              is not announced (see UpdateToast). */}
+          <div role="status" aria-live="polite" className="mt-1 normal-case tracking-normal text-danger-400">
+            {delErr}
+          </div>
         </div>
       }
     >

@@ -1289,6 +1289,8 @@
     "finishUnknown": "{{part}}: Die Datei nennt eine Oberfläche „{{value}}“, die diese App nicht kennt; das Teil gilt als normal lackiert.",
     "shapeUnknown": "{{part}}: Die Datei nennt eine Form „{{value}}“, die diese App nicht kennt; die Standardform wird verwendet.",
     "crossSectionUnknown": "{{part}}: Die Datei nennt einen Finnenquerschnitt „{{value}}“, den diese App nicht kennt; die Finnen gelten als rechteckig.",
+    "deployEventUnknown": "{{part}}: Die Datei nennt ein Auswurfereignis „{{value}}“, das diese App nicht kennt; das Standardereignis wird verwendet.",
+    "separationEventUnknown": "{{part}}: Die Datei nennt ein Trennereignis „{{value}}“, das diese App nicht kennt; das Standardereignis wird verwendet.",
     "finPointsUnreadable": "{{part}}: {{count}} Umrisspunkte in der Datei konnten nicht gelesen werden und wurden ignoriert.",
     "finPointsTooFew": "{{part}}: Die Datei enthält weniger als drei brauchbare Umrisspunkte; der Standard-Freiformumriss wird verwendet.",
     "motorNoDesignation": "Motorhalterung „{{mount}}“: Der Motor in der Datei hat keine Bezeichnung und konnte nicht nachgeschlagen werden.",

@@ -9,7 +9,7 @@ import type { OrkDeployOverride, OrkSepOverride } from '../orkTypes';
 import { hexOf } from '../../design/colorHex';
 import { degToRad } from '../../../prefs/units';
 import { KERNEL_DEPLOYMENT, KERNEL_SEPARATION } from '../../../tree/kernelDefaults';
-import { DEPLOY_EVENTS } from '../../design/componentFields';
+import { DEPLOY_EVENTS, SEPARATION_EVENTS } from '../../design/componentFields';
 import { keyedNote, notePartName, type ImportNote } from '../importNote';
 
 /**
@@ -292,76 +292,6 @@ export function readFinTabs(el: Element, node: ComponentNode): void {
   }
 }
 
-/**
- * Recovery-device deployment as the design states it: the bare tags, which are
- * desktop's default. A configuration's <deploymentconfiguration> block is that
- * configuration's override (captureDeployments), never the design's value.
- */
-export function readDeployment(el: Element, node: ComponentNode): void {
-  Object.assign(node, readDeploymentTags(el));
-}
-
-/**
- * A file's deploy event in the app's vocabulary. The desktop writes the enum
- * name lower-cased with the underscores removed and matches it the same way on
- * read (DocumentConfig.findEnum), so `lowerstageseparation` and the underscored
- * spelling name the one event. A token no event matches stays as written.
- */
-function deployEventOfXml(token: string): string {
-  const key = token.trim().toLowerCase().replace(/_/g, '');
-  return DEPLOY_EVENTS.find((ev) => ev.replace(/_/g, '') === key) ?? token;
-}
-
-/**
- * The deployment tags one element states, and only those, the same way for the
- * design and for each configuration's override. Altitude and delay are floored:
- * a negative deploy altitude never fires the kernel's altitude trigger, and the
- * input field holds the same minimum.
- */
-export function readDeploymentTags(src: Element): OrkDeployOverride {
-  const o: OrkDeployOverride = {};
-  const event = text(src, ':scope > deployevent');
-  if (event) o.deployEvent = deployEventOfXml(event);
-  if (text(src, ':scope > deployaltitude') !== null)
-    o.deployAltitude = nonNegTag(src, 'deployaltitude', KERNEL_DEPLOYMENT.deployAltitude);
-  if (text(src, ':scope > deploydelay') !== null)
-    o.deployDelay = nonNegTag(src, 'deploydelay', KERNEL_DEPLOYMENT.deployDelay);
-  return o;
-}
-
-/**
- * The separation tags one element states, and only those, floored the way
- * {@link readDeploymentTags} floors deployment, for the design and for each
- * configuration's override alike.
- */
-export function readSeparationTags(src: Element): OrkSepOverride {
-  const o: OrkSepOverride = {};
-  const event = text(src, ':scope > separationevent');
-  if (event) o.separationEvent = event;
-  if (text(src, ':scope > separationdelay') !== null)
-    o.separationDelay = nonNegTag(src, 'separationdelay', KERNEL_SEPARATION.separationDelay);
-  if (text(src, ':scope > separationaltitude') !== null)
-    o.separationAltitude = nonNegTag(src, 'separationaltitude', KERNEL_SEPARATION.separationAltitude);
-  return o;
-}
-
-/**
- * Stage separation (a lower <stage> or a strap-on <parallelstage>) as the design
- * states it: the bare tags on `el`, with `configEl`'s fields over them when the
- * caller passes one, as the desktop handler clones the default and applies only
- * the fields a block carries. Only values that differ from the desktop defaults
- * are kept, so an untouched stage stays clean.
- */
-export function readSeparation(el: Element, node: ComponentNode, configEl: Element | null = null): void {
-  const o = { ...readSeparationTags(el), ...(configEl ? readSeparationTags(configEl) : {}) };
-  if (o.separationEvent && o.separationEvent !== KERNEL_SEPARATION.separationEvent)
-    node['separationEvent'] = o.separationEvent;
-  if (o.separationDelay !== undefined && o.separationDelay !== KERNEL_SEPARATION.separationDelay)
-    node['separationDelay'] = o.separationDelay;
-  if (o.separationAltitude !== undefined && o.separationAltitude !== KERNEL_SEPARATION.separationAltitude)
-    node['separationAltitude'] = o.separationAltitude;
-}
-
 function readPosition(el: Element): ComponentPosition | undefined {
   // Modern files write <axialoffset method="...">; OpenRocket ≤ 15.03 wrote
   // only <position type="...">; fall back to it or old files lose every
@@ -446,6 +376,97 @@ export function shapeTag(el: Element, node: ComponentNode, notes: ImportNote[] |
 /** A fin set's `<crosssection>`, or nothing when absent or not a section the kernel has. */
 export function crossSectionTag(el: Element, node: ComponentNode, notes: ImportNote[] | undefined): string | undefined {
   return enumTag(el, 'crosssection', CROSS_SECTIONS, 'importNote.crossSectionUnknown', node, notes);
+}
+
+/**
+ * The deploy events the bridge builds (`ComponentFactory.deployEventOf`), each
+ * under the token desktop writes and matches (the enum name lower-cased with
+ * the underscores removed, `DocumentConfig.findEnum`) and mapped to the name
+ * the app keeps, so `lowerstageseparation` and the underscored spelling name
+ * the one event.
+ */
+const DEPLOY_EVENT_NAMES: ReadonlyMap<string, string> = new Map(DEPLOY_EVENTS.map((ev) => [enumToken(ev), ev]));
+
+/** The separation events the bridge builds (`OpenRocketEngine.separationEventOf`), the same way. */
+const SEPARATION_EVENT_NAMES: ReadonlyMap<string, string> = new Map(SEPARATION_EVENTS.map((ev) => [enumToken(ev), ev]));
+
+/**
+ * Recovery-device deployment as the design states it: the bare tags, which are
+ * desktop's default. A configuration's <deploymentconfiguration> block is that
+ * configuration's override (captureDeployments), never the design's value.
+ */
+export function readDeployment(el: Element, node: ComponentNode, notes: ImportNote[] | undefined): void {
+  Object.assign(node, readDeploymentTags(el, node, notes));
+}
+
+/**
+ * The deployment tags one element states, and only those, the same way for the
+ * design and for each configuration's override. An event the bridge has no
+ * constant for is dropped with a note, as `enumTag` drops a shape: the bridge
+ * throws on it, which would refuse the whole file, where desktop warns and
+ * keeps the default event. Altitude and delay are floored: a negative deploy
+ * altitude never fires the kernel's altitude trigger, and the input field
+ * holds the same minimum.
+ */
+export function readDeploymentTags(
+  src: Element,
+  node: ComponentNode,
+  notes: ImportNote[] | undefined,
+): OrkDeployOverride {
+  const o: OrkDeployOverride = {};
+  const event = enumTag(src, 'deployevent', DEPLOY_EVENT_NAMES, 'importNote.deployEventUnknown', node, notes);
+  if (event) o.deployEvent = event;
+  if (text(src, ':scope > deployaltitude') !== null)
+    o.deployAltitude = nonNegTag(src, 'deployaltitude', KERNEL_DEPLOYMENT.deployAltitude);
+  if (text(src, ':scope > deploydelay') !== null)
+    o.deployDelay = nonNegTag(src, 'deploydelay', KERNEL_DEPLOYMENT.deployDelay);
+  return o;
+}
+
+/**
+ * The separation tags one element states, and only those, read the way
+ * {@link readDeploymentTags} reads deployment (the event checked against the
+ * bridge's names, the numbers floored), for the design and for each
+ * configuration's override alike.
+ */
+export function readSeparationTags(src: Element, node: ComponentNode, notes: ImportNote[] | undefined): OrkSepOverride {
+  const o: OrkSepOverride = {};
+  const event = enumTag(
+    src,
+    'separationevent',
+    SEPARATION_EVENT_NAMES,
+    'importNote.separationEventUnknown',
+    node,
+    notes,
+  );
+  if (event) o.separationEvent = event;
+  if (text(src, ':scope > separationdelay') !== null)
+    o.separationDelay = nonNegTag(src, 'separationdelay', KERNEL_SEPARATION.separationDelay);
+  if (text(src, ':scope > separationaltitude') !== null)
+    o.separationAltitude = nonNegTag(src, 'separationaltitude', KERNEL_SEPARATION.separationAltitude);
+  return o;
+}
+
+/**
+ * Stage separation (a lower <stage> or a strap-on <parallelstage>) as the design
+ * states it: the bare tags on `el`, with `configEl`'s fields over them when the
+ * caller passes one, as the desktop handler clones the default and applies only
+ * the fields a block carries. Only values that differ from the desktop defaults
+ * are kept, so an untouched stage stays clean.
+ */
+export function readSeparation(
+  el: Element,
+  node: ComponentNode,
+  configEl: Element | null,
+  notes: ImportNote[] | undefined,
+): void {
+  const o = { ...readSeparationTags(el, node, notes), ...(configEl ? readSeparationTags(configEl, node, notes) : {}) };
+  if (o.separationEvent && o.separationEvent !== KERNEL_SEPARATION.separationEvent)
+    node['separationEvent'] = o.separationEvent;
+  if (o.separationDelay !== undefined && o.separationDelay !== KERNEL_SEPARATION.separationDelay)
+    node['separationDelay'] = o.separationDelay;
+  if (o.separationAltitude !== undefined && o.separationAltitude !== KERNEL_SEPARATION.separationAltitude)
+    node['separationAltitude'] = o.separationAltitude;
 }
 
 /**

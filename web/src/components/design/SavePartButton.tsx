@@ -90,7 +90,11 @@ function SavePartDialog({ node, type, onClose }: { node: ComponentNode; type: Pi
       {node.children && node.children.length > 0 && (
         <p className="mt-2 text-xs leading-snug text-warn-300">{t('picker.saveNoChildren')}</p>
       )}
-      {err && <p className="mt-2 text-xs text-danger-400">{err}</p>}
+      {/* Always mounted, empty until there is something to say: a live region
+          created together with its text is not announced (see UpdateToast). */}
+      <p role="status" aria-live="polite" className="mt-2 text-xs text-danger-400">
+        {err}
+      </p>
 
       <div className="mt-6 flex justify-end gap-2">
         <DialogButton onClick={onClose} variant="secondary">

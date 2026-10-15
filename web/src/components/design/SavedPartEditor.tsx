@@ -145,7 +145,11 @@ export function SavedPartEditor({
         onSave={() => void submit()}
         saveDisabled={!meta.partNo.trim() || saving}
       >
-        {err && <p className="min-w-0 flex-1 truncate text-xs text-danger-400">{err}</p>}
+        {/* Always mounted, empty until there is something to say: a live region
+            created together with its text is not announced (see UpdateToast). */}
+        <p role="status" aria-live="polite" className="min-w-0 flex-1 truncate text-xs text-danger-400">
+          {err}
+        </p>
       </EditorFooter>
     </>
   );

@@ -47,6 +47,15 @@ function eng(): EngineApi {
 }
 
 /**
+ * Whether a kernel is loaded. The app mounts before one is (main.tsx), and
+ * work that can finish without the kernel, such as opening a file, asks this
+ * instead of calling in and catching the refusal.
+ */
+export function engineActive(): boolean {
+  return active !== null;
+}
+
+/**
  * Swap in a stub engine (tests only).
  *
  * This module is the one boundary where JS numbers become physics inputs, and
@@ -525,7 +534,17 @@ export interface MotorSpec {
    * catalog motor.
    */
   imported?: true;
+  /**
+   * What the motor is, in the catalog's words: single-use, reloadable or
+   * hybrid. Written into an embedded `.rse` as its `Type`; desktop infers the
+   * type from the manufacturer when the attribute is absent. Absent when the
+   * source did not say, and in a workspace saved before it was carried.
+   */
+  type?: MotorType;
 }
+
+/** A motor's type as the catalog, `CustomMotor` and `MotorSpec` spell it. */
+export type MotorType = 'SU' | 'reload' | 'hybrid';
 
 /**
  * JSON-safe sentinel for a plugged motor (no ejection charge). OpenRocket's

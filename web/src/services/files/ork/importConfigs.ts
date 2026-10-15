@@ -92,7 +92,9 @@ export function configScoped(ctx: OrkImportContext, el: Element, tag: string): E
  * recovers the way the design does and follows an edit to the design's value.
  * A block's value is the bare defaults with the block's fields over them, as
  * DeploymentConfigurationHandler clones the default before applying the block.
- * The same reader as the design's own, floors included.
+ * The same reader as the design's own, floors and event check included; the
+ * bare tags are read without notes here, since the design's own read has
+ * already noted anything wrong with them.
  */
 export function captureDeployments(ctx: OrkImportContext, el: Element, node: ComponentNode): void {
   if (!node.id) return;
@@ -101,7 +103,7 @@ export function captureDeployments(ctx: OrkImportContext, el: Element, node: Com
       (x) => x.tagName === 'deploymentconfiguration' && x.getAttribute('configid') === c.id,
     );
     if (!block) continue;
-    const o = { ...readDeploymentTags(el), ...readDeploymentTags(block) };
+    const o = { ...readDeploymentTags(el, node, undefined), ...readDeploymentTags(block, node, ctx.notes) };
     if (Object.keys(o).length > 0) c.deployments[node.id] = o;
   }
 }
@@ -147,7 +149,7 @@ export function captureSeparations(ctx: OrkImportContext, el: Element, node: Com
       (x) => x.tagName === 'separationconfiguration' && x.getAttribute('configid') === c.id,
     );
     if (!block) continue;
-    const o = { ...readSeparationTags(el), ...readSeparationTags(block) };
+    const o = { ...readSeparationTags(el, node, undefined), ...readSeparationTags(block, node, ctx.notes) };
     if (Object.keys(o).length > 0) c.separations[node.id] = o;
   }
 }

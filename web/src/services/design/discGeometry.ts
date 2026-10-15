@@ -25,7 +25,7 @@ const FALLBACK_RADIUS = 0.012;
 
 /**
  * Each tube type's own wall when the node states none: the kernel gives an inner
- * tube and a coupler 0.5 mm and a body tube 0.3 mm. Read per type, so a part's
+ * tube 0.5 mm, and a coupler and a body tube 2 mm. Read per type, so a part's
  * bore is the same whether it is asked for as the part or as the tube around
  * something else.
  */

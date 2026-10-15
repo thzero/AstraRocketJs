@@ -326,9 +326,11 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
 
   /**
    * Draws `parent`'s children. `pRadius` is the parent's largest radius, which
-   * sizes the internal parts inside it; a part on the outside stands on the
-   * body radius at its own station (`bodyRadiusAt`), which on a nose cone or
-   * transition is not that radius. `turn` is the angle the parent's frame is
+   * sizes the internal parts inside it; `surfaceAt` is the body radius under a
+   * station (`bodyRadiusAt`). Lugs, rail buttons, tube fins and fairings can
+   * only sit on a body tube (Transition.isCompatible, treeEdit.canHost), where
+   * that is the tube's radius; only a freeform fin sits on a cone or
+   * transition, where it is the station's. `turn` is the angle the parent's frame is
    * turned by about the axis: the view's roll plus the angle of every pod or
    * booster instance it sits in, which the kernel turns each child by
    * (FlightConfiguration.java:456-462).
@@ -628,7 +630,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
         // are, onto the side profile: 0° stands at full height above the tube,
         // ±90° is edge-on (foreshortens away), 180° sits below. Vertical
         // offset = radius·cos(angle) (kernel default 180°).
-        // It stands on the body radius at its own station.
+        // It stands on the tube's radius: its parent is always a body tube.
         const c = Math.cos(num(child, 'angleOffset', Math.PI) + turn);
         const R = surfaceAt(station);
         const yInner = baseY - R * c * ctx.scale;

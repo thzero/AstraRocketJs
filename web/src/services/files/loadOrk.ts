@@ -1,6 +1,7 @@
 import type { OrkSimulation } from './ork/importSimulations';
 import {
   OpenRocketDesign,
+  engineActive,
   resetEngine,
   type StaticInfo,
   type IgnitionEvent,
@@ -37,8 +38,14 @@ export interface LoadedOrk {
   name: string;
   /** The file's format, which the loaded-design card names. */
   format?: DesignFormat;
-  design: OpenRocketDesign;
-  info: StaticInfo;
+  /**
+   * The throwaway handle the file was built in to seat its motors, and that
+   * handle's static figures. Null when the file was opened before the engine
+   * had loaded: nothing downstream reads either (the app rebuilds from `tree`),
+   * and the rebuild effect builds the design when the engine arrives.
+   */
+  design: OpenRocketDesign | null;
+  info: StaticInfo | null;
   /** Notes for the banner: unsupported components, unresolved motors, etc. */
   notes: ImportNote[];
   /** The parsed tree + motors, kept so the design can be re-exported (round-trip). */
@@ -233,16 +240,25 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
   // format-agnostic: it works off the import result, and a `.rkt` simply
   // arrives with no motors and no flight configurations to resolve.
   const res = parseDesignFile(buffer);
-  // Free the previous design's handles, only once the file has parsed: a reset
-  // voids the open design's live handle, and a file that will not parse leaves
-  // that design on screen. A failure from here on is rebuilt by the caller.
-  resetEngine();
-  const built = buildForImport(res.tree);
-  const design = built.design;
+  // The kernel's share of an open is a throwaway handle: the reset frees the
+  // previous design's handles and the build probes whether the kernel accepts
+  // the tree (`importNote.unbuildable`). Opening needs neither, and before the
+  // engine has loaded both throw: the tree, the drawing and the exports read
+  // no kernel, and the rebuild effect builds the design when the engine
+  // arrives (useWorkspaceEffects), meeting the same refusal in the same place.
+  // With an engine, the reset waits for the parse: a reset voids the open
+  // design's live handle, and a file that will not parse leaves that design on
+  // screen. A failure from here on is rebuilt by the caller.
+  let built: ReturnType<typeof buildForImport> | null = null;
+  if (engineActive()) {
+    resetEngine();
+    built = buildForImport(res.tree);
+  }
+  const design = built?.design ?? null;
 
   // The readers already name every tag they skipped (`res.ignored`) in `res.notes`.
   const notes: ImportNote[] = [...(res.notes ?? [])];
-  if (built.unbuildable) notes.push(built.unbuildable);
+  if (built?.unbuildable) notes.push(built.unbuildable);
 
   const catalog = await loadCatalog();
   // Thrust curves the file brought with it, by designation. A `.ork` from the
@@ -448,13 +464,15 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
   // Seat the opened configuration into the throwaway handle, which is what the
   // static info below is read from. The other configurations are data at this
   // point; each is built in turn by whichever simulation flies it.
-  for (const [mountId, m] of Object.entries(chosen.motors)) {
-    if (!hasUsableCurve(m.spec)) continue;
-    design.setMotorById(mountId, m.spec);
-    if (m.ignitionEvent) design.setMotorIgnitionById(mountId, m.ignitionEvent, m.ignitionDelay ?? 0);
+  if (design) {
+    for (const [mountId, m] of Object.entries(chosen.motors)) {
+      if (!hasUsableCurve(m.spec)) continue;
+      design.setMotorById(mountId, m.spec);
+      if (m.ignitionEvent) design.setMotorIgnitionById(mountId, m.ignitionEvent, m.ignitionDelay ?? 0);
+    }
   }
 
-  const info = design.staticInfo();
+  const info = design?.staticInfo() ?? null;
   return {
     name: res.name,
     ...(res.format ? { format: res.format } : {}),
@@ -467,6 +485,6 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
     chosenConfigId,
     launch: res.launch,
     ...(res.simulations ? { simulations: res.simulations } : {}),
-    unbuildable: built.unbuildable,
+    unbuildable: built?.unbuildable,
   };
 }

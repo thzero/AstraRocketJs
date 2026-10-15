@@ -151,11 +151,12 @@ const readTransition: NodeReader = (ctx, el) => {
 
 const readBodytube: NodeReader = (ctx, el) => {
   const n = base(ctx, el, 'bodytube', false);
-  n['length'] = nonNegTag(el, 'length', 0.3);
+  const bt = COMPONENT_DEFAULTS.bodytube;
+  n['length'] = nonNegTag(el, 'length', bt.length);
   const btR = autoRadiusTag(el, 'radius');
   if (btR === undefined) n['outerRadiusAuto'] = true;
-  n['outerRadius'] = btR ?? 0.012;
-  readThicknessOrFilled(el, n, COMPONENT_DEFAULTS.bodytube.thickness);
+  n['outerRadius'] = btR ?? bt.outerRadius;
+  readThicknessOrFilled(el, n, bt.thickness);
   readMotor(ctx, el, n);
   // Extension tag: sub-minimum flag (motor case is the airframe).
   if (text(el, ':scope > caseairframe') === 'true') n['caseAirframe'] = true;
@@ -174,12 +175,13 @@ function readPlanarFin(ctx: OrkImportContext, el: Element, n: ComponentNode): vo
 const readTrapezoidFinset: NodeReader = (ctx, el) => {
   const n = base(ctx, el, 'trapezoidfinset', true);
   n['finCount'] = finCountTag(el);
-  n['rootChord'] = nonNegTag(el, 'rootchord', 0.05);
-  n['tipChord'] = nonNegTag(el, 'tipchord', 0.03);
+  const fin = COMPONENT_DEFAULTS.trapezoidfinset;
+  n['rootChord'] = nonNegTag(el, 'rootchord', fin.rootChord);
+  n['tipChord'] = nonNegTag(el, 'tipchord', fin.tipChord);
   // Signed, and the only fin dimension that is: a negative sweep is a
   // forward-swept fin, which is a real shape the desktop draws.
-  n['sweep'] = numTag(el, 'sweeplength', 0.02);
-  n['height'] = nonNegTag(el, 'height', 0.03);
+  n['sweep'] = numTag(el, 'sweeplength', fin.sweep);
+  n['height'] = nonNegTag(el, 'height', fin.height);
   readPlanarFin(ctx, el, n);
   return n;
 };
@@ -233,16 +235,17 @@ const readFreeformFinset: NodeReader = (ctx, el) => {
 const readEllipticalFinset: NodeReader = (ctx, el) => {
   const n = base(ctx, el, 'ellipticalfinset', true);
   n['finCount'] = finCountTag(el);
-  n['rootChord'] = nonNegTag(el, 'rootchord', 0.05);
-  n['height'] = nonNegTag(el, 'height', 0.03);
+  const fin = COMPONENT_DEFAULTS.ellipticalfinset;
+  n['rootChord'] = nonNegTag(el, 'rootchord', fin.rootChord);
+  n['height'] = nonNegTag(el, 'height', fin.height);
   readPlanarFin(ctx, el, n);
   return n;
 };
 
 const readTubeFinset: NodeReader = (ctx, el) => {
   const n = base(ctx, el, 'tubefinset', true);
-  n['finCount'] = finCountTag(el, 6);
-  n['length'] = nonNegTag(el, 'length', 0.1);
+  n['finCount'] = finCountTag(el, COMPONENT_DEFAULTS.tubefinset.finCount);
+  n['length'] = nonNegTag(el, 'length', COMPONENT_DEFAULTS.tubefinset.length);
   const r = autoRadiusTag(el, 'radius');
   if (r === undefined) n['outerRadiusAuto'] = true;
   else n['outerRadius'] = r;
@@ -254,9 +257,10 @@ const readTubeFinset: NodeReader = (ctx, el) => {
 
 const readInnertube: NodeReader = (ctx, el) => {
   const n = base(ctx, el, 'innertube', true);
-  n['length'] = nonNegTag(el, 'length', 0.07);
-  n['outerRadius'] = nonNegTag(el, 'outerradius', 0.0095);
-  n['thickness'] = nonNegTag(el, 'thickness', COMPONENT_DEFAULTS.innertube.thickness);
+  const it = COMPONENT_DEFAULTS.innertube;
+  n['length'] = nonNegTag(el, 'length', it.length);
+  n['outerRadius'] = nonNegTag(el, 'outerradius', it.outerRadius);
+  n['thickness'] = nonNegTag(el, 'thickness', it.thickness);
   // Cluster (desktop stores rotation in degrees; we keep radians).
   const cluster = text(el, ':scope > clusterconfiguration');
   if (cluster && cluster !== 'single') {
@@ -280,7 +284,7 @@ const readInnertube: NodeReader = (ctx, el) => {
 
 const readTubecoupler: NodeReader = (ctx, el) => {
   const n = base(ctx, el, 'tubecoupler', true);
-  n['length'] = nonNegTag(el, 'length', 0.05);
+  n['length'] = nonNegTag(el, 'length', COMPONENT_DEFAULTS.tubecoupler.length);
   n['thickness'] = nonNegTag(el, 'thickness', COMPONENT_DEFAULTS.tubecoupler.thickness);
   readRadial(el, n);
   const or = autoRadiusTag(el, 'outerradius');
@@ -331,9 +335,10 @@ const readEngineblock: NodeReader = (ctx, el) => {
 
 const readLaunchlug: NodeReader = (ctx, el) => {
   const n = base(ctx, el, 'launchlug', true);
-  n['length'] = nonNegTag(el, 'length', 0.05);
-  n['outerRadius'] = nonNegTag(el, 'radius', 0.0022);
-  n['thickness'] = nonNegTag(el, 'thickness', 0.0003);
+  const lug = COMPONENT_DEFAULTS.launchlug;
+  n['length'] = nonNegTag(el, 'length', lug.length);
+  n['outerRadius'] = nonNegTag(el, 'radius', lug.outerRadius);
+  n['thickness'] = nonNegTag(el, 'thickness', lug.thickness);
   n['angleOffset'] = readAngleAroundBody(el);
   readInstances(el, n);
   return n;
@@ -379,12 +384,13 @@ const readRailbutton: NodeReader = (ctx, el) => {
 // of a file this app wrote. See openRocketEngine.ts ComponentType.
 const readFairing: NodeReader = (ctx, el) => {
   const n = base(ctx, el, 'fairing', true);
-  n['length'] = nonNegTag(el, 'length', 0.08);
-  n['width'] = nonNegTag(el, 'width', 0.025);
-  n['height'] = nonNegTag(el, 'height', 0.02);
+  const fr = COMPONENT_DEFAULTS.fairing;
+  n['length'] = nonNegTag(el, 'length', fr.length);
+  n['width'] = nonNegTag(el, 'width', fr.width);
+  n['height'] = nonNegTag(el, 'height', fr.height);
   const fs = text(el, ':scope > fairingshape');
   if (fs) n['fairingShape'] = fs;
-  n['mass'] = nonNegTag(el, 'mass', 0.03);
+  n['mass'] = nonNegTag(el, 'mass', fr.mass);
   return n;
 };
 
@@ -397,7 +403,7 @@ function readRecoveryDeployment(ctx: OrkImportContext, el: Element, n: Component
   // The design's value is the bare tags. A configuration's
   // <deploymentconfiguration> is that configuration's override, recorded on
   // it by captureDeployments; with no declarations a stray block is not read.
-  readDeployment(el, n);
+  readDeployment(el, n, ctx.notes);
   captureDeployments(ctx, el, n);
 }
 
@@ -415,12 +421,14 @@ const readParachute: NodeReader = (ctx, el) => {
   const n = base(ctx, el, 'parachute', true);
   readPackedSize(el, n);
   readRadial(el, n);
-  n['diameter'] = nonNegTag(el, 'diameter', 0.3);
+  const chute = COMPONENT_DEFAULTS.parachute;
+  n['diameter'] = nonNegTag(el, 'diameter', chute.diameter);
   readCd(el, n);
   // Bounded: the kernel sums line mass per line, and a file can say anything.
   // From 0: a parachute may have no lines (`Parachute.setLineCount`).
-  n['lineCount'] = clampCount(numTag(el, 'linecount', 6), 0, MAX_LINE_COUNT);
-  if (!readAutoValue(el, n, 'linelength', 'lineLengthAuto')) n['lineLength'] = nonNegTag(el, 'linelength', 0.3);
+  n['lineCount'] = clampCount(numTag(el, 'linecount', chute.lineCount), 0, MAX_LINE_COUNT);
+  if (!readAutoValue(el, n, 'linelength', 'lineLengthAuto'))
+    n['lineLength'] = nonNegTag(el, 'linelength', chute.lineLength);
   readSoftMaterial(el, n, 'surface', 'surfaceDensity', 'surfaceMaterialName');
   readSoftMaterial(el, n, 'line', 'lineDensity', 'lineMaterialName', ':scope > linematerial');
   readRecoveryDeployment(ctx, el, n);
@@ -434,8 +442,8 @@ const readStreamer: NodeReader = (ctx, el) => {
   const n = base(ctx, el, 'streamer', true);
   readPackedSize(el, n);
   readRadial(el, n);
-  n['stripLength'] = nonNegTag(el, 'striplength', 0.5);
-  n['stripWidth'] = nonNegTag(el, 'stripwidth', 0.05);
+  n['stripLength'] = nonNegTag(el, 'striplength', COMPONENT_DEFAULTS.streamer.stripLength);
+  n['stripWidth'] = nonNegTag(el, 'stripwidth', COMPONENT_DEFAULTS.streamer.stripWidth);
   readCd(el, n);
   readSoftMaterial(el, n, 'surface', 'surfaceDensity', 'surfaceMaterialName');
   readRecoveryDeployment(ctx, el, n);
@@ -446,18 +454,19 @@ const readShockcord: NodeReader = (ctx, el) => {
   const n = base(ctx, el, 'shockcord', true);
   readPackedSize(el, n);
   readRadial(el, n);
-  if (!readAutoValue(el, n, 'cordlength', 'cordLengthAuto')) n['cordLength'] = nonNegTag(el, 'cordlength', 0.3);
+  if (!readAutoValue(el, n, 'cordlength', 'cordLengthAuto'))
+    n['cordLength'] = nonNegTag(el, 'cordlength', COMPONENT_DEFAULTS.shockcord.cordLength);
   readSoftMaterial(el, n, 'line', 'lineDensity', 'lineMaterialName');
   return n;
 };
 
 const readMasscomponent: NodeReader = (ctx, el) => {
   const n = base(ctx, el, 'masscomponent', true);
-  n['mass'] = nonNegTag(el, 'mass', 0.01);
-  n['length'] = nonNegTag(el, 'packedlength', 0.02);
-  n['radius'] = COMPONENT_DEFAULTS.masscomponent.radius;
-  if (!readAutoPackedRadius(el, n))
-    n['radius'] = nonNegTag(el, 'packedradius', COMPONENT_DEFAULTS.masscomponent.radius);
+  const mc = COMPONENT_DEFAULTS.masscomponent;
+  n['mass'] = nonNegTag(el, 'mass', mc.mass);
+  n['length'] = nonNegTag(el, 'packedlength', mc.length);
+  n['radius'] = mc.radius;
+  if (!readAutoPackedRadius(el, n)) n['radius'] = nonNegTag(el, 'packedradius', mc.radius);
   // Preserve-through: what kind of mass this is (altimeter, payload…).
   // No mass/CG effect, but the desktop shows it and users set it there.
   const mct = text(el, ':scope > masscomponenttype');
@@ -497,7 +506,7 @@ const readAssembly =
     }
     if (asmType === 'parallelstage') {
       // Same separation read as a booster <stage>.
-      readSeparation(el, n, undeclaredSeparation(ctx, el));
+      readSeparation(el, n, undeclaredSeparation(ctx, el), ctx.notes);
       captureSeparations(ctx, el, n);
     }
     return n;
@@ -576,7 +585,7 @@ export function readStages(ctx: OrkImportContext, stages: Element[]): ComponentN
       // The design's value is the bare tags. 24.12 writes a
       // <separationconfiguration> for each configuration that overrides the
       // default, and captureSeparations records it on that configuration.
-      readSeparation(stageEl, stage, undeclaredSeparation(ctx, stageEl));
+      readSeparation(stageEl, stage, undeclaredSeparation(ctx, stageEl), ctx.notes);
       captureSeparations(ctx, stageEl, stage);
     }
     const kids = convertChildren(ctx, stageEl);

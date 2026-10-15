@@ -9,8 +9,9 @@ import { fmtList } from '../../i18n/format';
  * keyed text translated along with it), so it renders in whatever language the
  * app is showing when it is read, not the one it had when the file was opened.
  * A list of names is kept as a list and joined in that language at render
- * (see {@link NoteList}). A plain string is final text: a note the app
- * translated when it made it, or plain text a saved workspace holds.
+ * (see {@link NoteList}). A plain string is final text, kept only for a note a
+ * workspace saved before notes were keyed; nothing makes a new one, since it
+ * would stay in the language the file was opened in.
  */
 export type ImportNote = string | KeyedNote;
 

@@ -1299,6 +1299,8 @@
     "finishUnknown": "{{part}}: plik podaje wykończenie powierzchni „{{value}}”, którego ta aplikacja nie zna, więc część czytana jest jako zwykły lakier.",
     "shapeUnknown": "{{part}}: plik podaje kształt „{{value}}”, którego ta aplikacja nie zna, więc użyto kształtu domyślnego.",
     "crossSectionUnknown": "{{part}}: plik podaje przekrój statecznika „{{value}}”, którego ta aplikacja nie zna, więc stateczniki czytane są jako prostokątne.",
+    "deployEventUnknown": "{{part}}: plik podaje zdarzenie otwarcia „{{value}}”, którego ta aplikacja nie zna, więc używane jest zdarzenie domyślne.",
+    "separationEventUnknown": "{{part}}: plik podaje zdarzenie rozdzielenia „{{value}}”, którego ta aplikacja nie zna, więc używane jest zdarzenie domyślne.",
     "finPointsUnreadable": "{{part}}: {{count}} punktów obrysu w pliku nie dało się odczytać i zostały pominięte.",
     "finPointsTooFew": "{{part}}: plik podaje mniej niż trzy użyteczne punkty obrysu, więc użyto domyślnego obrysu dowolnego.",
     "motorNoDesignation": "Gniazdo silnika „{{mount}}”: silnik w pliku nie ma oznaczenia, więc nie dało się go wyszukać.",

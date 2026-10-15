@@ -851,7 +851,7 @@ export function defaultNode(type: ComponentType): ComponentNode {
         aftShoulderAuto: true,
       };
     // `TrapezoidFinSet()` (TrapezoidFinSet.java:43): 3 fins, root 0.05, tip
-    // 0.05, sweep 0.025, height 0.03; the wall is FinSet's 0.003 (FinSet.java:107).
+    // 0.05, sweep 0.025, height 0.03; the wall is FinSet's 0.003 (FinSet.java:111).
     case 'trapezoidfinset':
       return {
         type,

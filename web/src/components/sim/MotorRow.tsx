@@ -93,7 +93,9 @@ export function MotorRow({
               {hasCurve ? (
                 <div className="mt-0.5 text-xs text-ink-faint">
                   {t('sims.delay')}{' '}
-                  {motor.ejectionDelay >= PLUGGED_DELAY ? t('motor.plugged') : `${fmtNum(motor.ejectionDelay, 1)} s`}
+                  {motor.ejectionDelay >= PLUGGED_DELAY
+                    ? t('motor.plugged')
+                    : `${fmtNum(motor.ejectionDelay, 1)} ${t('units.second')}`}
                   {motor.curveSrc ? <span className="text-ink-muted"> · {motor.curveSrc}</span> : null}
                 </div>
               ) : (
@@ -203,7 +205,7 @@ function IgnitionControl({
             onCommit={onCommit}
             className="w-14 rounded bg-canvas px-1.5 py-0.5 text-right tabular-nums text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500"
           />
-          s
+          {t('units.second')}
         </label>
       )}
     </div>

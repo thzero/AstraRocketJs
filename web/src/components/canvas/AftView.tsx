@@ -32,6 +32,7 @@ import {
   innerTubeExtent,
   internalExtent,
   MAX_ZOOM,
+  WHEEL_ZOOM_FACTOR,
   ZOOM_IDENTITY,
   zoomStep,
   type MotorDims,
@@ -51,15 +52,16 @@ import { token } from '../common/colorTokens';
  * only place cluster layouts, pod rings and fin counts are visible as they
  * really are: the side views project everything onto one plane. It edits
  * nothing in the design: the wheel zooms, a drag at the fitted view rolls it,
- * and zoomed in a drag or the arrow keys pan it (edit cluster layout/rotation/spacing in the motor
- * dialog and watch this update).
+ * and zoomed in a drag or the arrow keys pan it (cluster layout, rotation and
+ * spacing are fields of the inner tube's property panel; edit them there and
+ * watch this update).
  *
  * Convention: +y right, +z up, matching the kernel's cross-section frame
  * (cluster offsets and pod ring offsets are already {y,z} in that frame).
  */
 
 /** Wheel step and zoom ceiling; hoisted so the hook's options keep one identity. */
-const WHEEL_ZOOM = { factor: 1.15, max: MAX_ZOOM };
+const WHEEL_ZOOM = { factor: WHEEL_ZOOM_FACTOR, max: MAX_ZOOM };
 
 type Shape =
   | {
@@ -211,9 +213,11 @@ export function buildAftScene(
 
   /**
    * `parent`'s children. `pRadius` is the parent's largest radius, which sizes
-   * the internal parts inside it; a part on the outside stands on the body
-   * radius at its own station (`bodyRadiusAt`), which on a nose cone or
-   * transition is not that radius. `pStart` and `pLen` place the parent in the
+   * the internal parts inside it; `surfaceUnder` is the body radius under a
+   * part's station (`bodyRadiusAt`). Lugs, rail buttons, tube fins and fairings
+   * can only sit on a body tube (Transition.isCompatible, treeEdit.canHost),
+   * where that is the tube's radius; only a freeform fin sits on a cone or
+   * transition, where it is the station's. `pStart` and `pLen` place the parent in the
    * rocket frame, and `turn` is the angle its frame is turned by (see
    * `walkChain`).
    */
@@ -391,7 +395,7 @@ export function buildAftScene(
         // lug clocks consistently with the fins and with the 3D view. It turns
         // with the parent's frame.
         const ang = Math.PI / 2 + num(child, 'angleOffset', Math.PI) + turn;
-        // It stands on the body radius at its own station.
+        // It stands on the tube's radius: a lug's parent is always a body tube.
         const R = surfaceUnder(child, num(child, 'length', KERNEL_DEFAULTS.launchlug.length));
         const rad = R + r;
         outer.push({

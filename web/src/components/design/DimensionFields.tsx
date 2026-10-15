@@ -427,9 +427,16 @@ export function FieldRow({ node, field: f, onChange, onCommit, stageBelow }: Nod
       });
     }
     case 'mass':
-      return inUnit('mass', 0.0005);
-    case 'distance':
-      return inUnit('distance', f.step ?? 10);
+    case 'distance': {
+      // The floor goes into the box, converted like the value: `fieldRange`
+      // declares both kinds non-negative, and the bridge refuses a negative mass
+      // or deploy altitude (ComponentFactory NON_NEGATIVE) while the kernel keeps
+      // a negative separation altitude and never fires the trigger. Without the
+      // floor here, `parseFieldValue` clamps nothing and a typed -150 lands.
+      const { min } = fieldRange(node, f);
+      const floor = min === undefined ? undefined : (fu: FieldUnit) => fu.toUi(min);
+      return f.kind === 'mass' ? inUnit('mass', 0.0005, floor) : inUnit('distance', f.step ?? 10, floor);
+    }
     case 'number': {
       const { min, max } = fieldRange(node, f);
       return numeric({

@@ -1284,6 +1284,8 @@
     "finishUnknown": "{{part}}：ファイルが指定する表面仕上げ「{{value}}」はこのアプリにないため、部品は通常塗装として読み込みました。",
     "shapeUnknown": "{{part}}：ファイルが指定する形状「{{value}}」はこのアプリにないため、既定の形状を使用します。",
     "crossSectionUnknown": "{{part}}：ファイルが指定するフィン断面「{{value}}」はこのアプリにないため、フィンは角断面として読み込みました。",
+    "deployEventUnknown": "{{part}}：ファイルが指定する展開イベント「{{value}}」はこのアプリにないため、既定のイベントを使用します。",
+    "separationEventUnknown": "{{part}}：ファイルが指定する分離イベント「{{value}}」はこのアプリにないため、既定のイベントを使用します。",
     "finPointsUnreadable": "{{part}}：ファイル内の輪郭点 {{count}} 個を読み取れなかったため無視しました。",
     "finPointsTooFew": "{{part}}：ファイルの使用できる輪郭点が 3 個未満のため、既定の自由形状輪郭を使用します。",
     "motorNoDesignation": "モーターマウント「{{mount}}」：ファイルのモーターに型番がないため、検索できませんでした。",

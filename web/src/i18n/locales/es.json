@@ -1294,6 +1294,8 @@
     "finishUnknown": "{{part}}: el archivo indica un acabado de superficie «{{value}}» que esta app no tiene, así que la pieza se lee como pintura normal.",
     "shapeUnknown": "{{part}}: el archivo indica una forma «{{value}}» que esta app no tiene, así que se usa la forma predeterminada.",
     "crossSectionUnknown": "{{part}}: el archivo indica una sección de aleta «{{value}}» que esta app no tiene, así que las aletas se leen como cuadradas.",
+    "deployEventUnknown": "{{part}}: el archivo indica un evento de despliegue «{{value}}» que esta app no tiene, así que se usa el evento predeterminado.",
+    "separationEventUnknown": "{{part}}: el archivo indica un evento de separación «{{value}}» que esta app no tiene, así que se usa el evento predeterminado.",
     "finPointsUnreadable": "{{part}}: {{count}} puntos del contorno en el archivo no se pudieron leer y se ignoraron.",
     "finPointsTooFew": "{{part}}: el archivo da menos de tres puntos de contorno utilizables, así que se usa el contorno libre predeterminado.",
     "motorNoDesignation": "Soporte de motor «{{mount}}»: el motor del archivo no tiene designación, así que no se pudo buscar.",

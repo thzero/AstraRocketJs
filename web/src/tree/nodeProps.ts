@@ -92,14 +92,14 @@ export const chainOuterRadius = (n: ComponentNode): number => {
 /**
  * A body tube's radius, the same at every station (`BodyTube.getRadius(x)`).
  * A tube with no `outerRadius` is the bridge's default (`ComponentFactory`,
- * case "bodytube", 0.012 m), the radius it is flown at. Every reader that
+ * case "bodytube", 0.025 m), the radius it is flown at. Every reader that
  * stands a part on a tube or places an assembly against one goes through here.
  */
 export const bodyTubeRadius = (n: ComponentNode): number => num(n, 'outerRadius', KERNEL_BODYTUBE_OUTER_RADIUS);
 
 /**
  * A nose cone's base radius. A cone with no `aftRadius` is the bridge's
- * default (`ComponentFactory`, case "nosecone", 0.012 m), the radius it is
+ * default (`ComponentFactory`, case "nosecone", 0.025 m), the radius it is
  * flown at, so every reader sizes a keyless cone as the kernel does.
  */
 export const noseConeAftRadius = (n: ComponentNode): number => num(n, 'aftRadius', KERNEL_DEFAULTS.nosecone.aftRadius);

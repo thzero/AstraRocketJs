@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, screen } from '@testing-library/react';
 import { RecoverySizingReadout } from '../../../src/components/design/RecoverySizingReadout';
 import { renderWithProviders } from '../../testing/renderWithProviders';
@@ -9,7 +9,16 @@ import { kernelComponentName } from '../../../src/services/app/warningText';
 import { loadEngine } from '../../testing/kernelGeometry';
 import { seriesAt } from '../../../src/services/flight/flightEvents';
 import { KERNEL_TEST_TIMEOUT_MS } from '../../testing/kernelTimeout';
-import type { ComponentNode, FlightResult, RocketTree } from '../../../src/engine/openRocketEngine';
+import {
+  __setEngineForTests,
+  type ComponentNode,
+  type FlightResult,
+  type RocketTree,
+} from '../../../src/engine/openRocketEngine';
+import { buildRocketTree } from '../../../src/engine/api';
+import { airDensity, canopyDiameter, descentMass, MAIN_BAND } from '../../../src/services/flight/recoverySizing';
+import { motorSpecs } from '../../../src/services/flight/flightConfigs';
+import { fmtNum } from '../../../src/i18n/format';
 
 vi.setConfig({ testTimeout: KERNEL_TEST_TIMEOUT_MS, hookTimeout: KERNEL_TEST_TIMEOUT_MS });
 
@@ -23,40 +32,44 @@ vi.setConfig({ testTimeout: KERNEL_TEST_TIMEOUT_MS, hookTimeout: KERNEL_TEST_TIM
 
 const CHUTE = { id: 'chute', type: 'parachute', diameter: 0.4, cd: 0.8 } as unknown as ComponentNode;
 
-const TREE = {
-  name: 'R',
-  components: [
-    {
-      id: 'st',
-      type: 'stage',
-      name: 'Sustainer',
-      children: [
-        { id: 'n', type: 'nosecone', shape: 'ogive', length: 0.07, aftRadius: 0.013, thickness: 0.001 },
-        {
-          id: 'm',
-          type: 'bodytube',
-          length: 0.3,
-          outerRadius: 0.013,
-          thickness: 0.0005,
-          motorMount: true,
-          children: [
-            {
-              id: 'f',
-              type: 'trapezoidfinset',
-              finCount: 3,
-              rootChord: 0.06,
-              tipChord: 0.03,
-              sweep: 0.03,
-              height: 0.05,
-              thickness: 0.003,
-            },
-            CHUTE,
-          ],
-        },
-      ],
-    },
-  ],
-} as unknown as RocketTree;
+/** A single-stage design with one motor mount, carrying `chute` as its recovery device. */
+const treeWith = (chute: ComponentNode): RocketTree =>
+  ({
+    name: 'R',
+    components: [
+      {
+        id: 'st',
+        type: 'stage',
+        name: 'Sustainer',
+        children: [
+          { id: 'n', type: 'nosecone', shape: 'ogive', length: 0.07, aftRadius: 0.013, thickness: 0.001 },
+          {
+            id: 'm',
+            type: 'bodytube',
+            length: 0.3,
+            outerRadius: 0.013,
+            thickness: 0.0005,
+            motorMount: true,
+            children: [
+              {
+                id: 'f',
+                type: 'trapezoidfinset',
+                finCount: 3,
+                rootChord: 0.06,
+                tipChord: 0.03,
+                sweep: 0.03,
+                height: 0.05,
+                thickness: 0.003,
+              },
+              chute,
+            ],
+          },
+        ],
+      },
+    ],
+  }) as unknown as RocketTree;
+
+const TREE = treeWith(CHUTE);
 
 describe('the descent-sizing block on an unnamed chute', () => {
   it('reports the run figures the kernel recorded for it', async () => {
@@ -191,3 +204,54 @@ const DUAL_TREE = {
     },
   ],
 } as unknown as RocketTree;
+
+/**
+ * The dialog sizes the canopy for the Cd the kernel flies.
+ *
+ * The dialog reads the node's stored Cd, Auto or not, and that is the kernel's
+ * figure for a parachute: `RecoveryDevice.getCD` takes `getComponentCD` on
+ * Auto, and `Parachute.getComponentCD` returns the stored `cd`, while a chute
+ * with no `cd` flies `Parachute.DEFAULT_CD`. Both are read here from the
+ * bridge, not restated, so a kernel that starts to estimate a parachute's Cd
+ * fails this test and the dialog then has to read the kernel's figure.
+ */
+describe('the descent-sizing dialog on a chute whose Cd is on Auto', () => {
+  afterEach(() => __setEngineForTests(null));
+
+  it.each([
+    ['a stored Cd', { ...CHUTE, cd: 1.5, cdAuto: true }],
+    ['no stored Cd', { id: 'chute', type: 'parachute', diameter: 0.4, cdAuto: true }],
+  ])('solves the diameters for the Cd the kernel flies (%s)', async (_label, chute) => {
+    const node = chute as unknown as ComponentNode;
+    const tree = treeWith(node);
+    const engine = await loadEngine();
+    __setEngineForTests(engine);
+    const kernelCd = buildRocketTree(tree).componentInfo('chute').cd!;
+    expect(Number.isFinite(kernelCd)).toBe(true);
+
+    const config = {
+      id: 'c1',
+      name: 'C6',
+      motors: { m: { spec: { designation: 'C6', masses: [0.024, 0.012] } } },
+    } as never;
+    const [first] = useWorkspaceStore.getState().sims;
+    useWorkspaceStore.setState({
+      tree,
+      info: { mass: 0.1, cg: 0.2, cp: 0.3, length: 0.37 } as never,
+      configs: [config],
+      sims: [{ ...first!, configId: 'c1', result: null, resultKey: undefined }],
+    });
+    useWorkspaceStore.setState({ activeId: selectActive(useWorkspaceStore.getState()).id });
+
+    const patches: Partial<ComponentNode>[] = [];
+    renderWithProviders(<RecoverySizingReadout node={node} onChange={(p) => patches.push(p)} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Descent sizing…' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Use the main diameter' }));
+
+    const mass = descentMass(0.1, motorSpecs(tree, config))!;
+    const rho = airDensity(selectActive(useWorkspaceStore.getState()).launch);
+    const diameter = (patches[0] as { diameter: number }).diameter;
+    expect(diameter).toBeCloseTo(canopyDiameter(mass, MAIN_BAND.target, kernelCd, rho), 9);
+    expect(document.body.textContent).toContain(`Cd ${fmtNum(kernelCd, 2)}`);
+  });
+});

@@ -43,6 +43,36 @@ describe('CI trigger coverage', () => {
 });
 
 /**
+ * The catalog sync runs when the pipeline changes. Its header states the
+ * policy: the Monday schedule, a manual run, and a push to master that changes
+ * `web/scripts/**` or the workflow itself, so a pipeline change republishes the
+ * catalogs when it lands instead of waiting up to a week. Master only, and
+ * those paths only, because the run publishes to the branch the live app
+ * reads; a push run carries no `inputs.target`, so the target has to default.
+ */
+describe('the catalog sync trigger', () => {
+  const sync = wf('sync-catalogs.yml');
+
+  it('runs on a push to master that changes the scripts or the workflow', () => {
+    expect(sync).toMatch(
+      /^on:\s*\n\s*push:\s*\n\s*branches:\s*\[master\]\s*\n\s*paths:\s*\n\s*- 'web\/scripts\/\*\*'\s*\n\s*- '\.github\/workflows\/sync-catalogs\.yml'\s*\n/m,
+    );
+  });
+
+  it('keeps the schedule, the manual run and the no-cancel concurrency group', () => {
+    expect(sync).toMatch(/^\s*schedule:\s*\n(?:\s*#.*\n)*\s*- cron:/m);
+    expect(sync).toMatch(/^\s*workflow_dispatch:\s*\n\s*inputs:\s*\n\s*target:/m);
+    expect(sync).toMatch(/concurrency:\s*\n\s*group: sync-catalogs\s*\n\s*cancel-in-progress: false/);
+  });
+
+  it('regenerates both catalogs when no target is given', () => {
+    // The one place the input is read; a push run has none.
+    expect(sync.match(/inputs\.target/g)).toHaveLength(1);
+    expect(sync).toContain("TARGET: ${{ inputs.target || 'both' }}");
+  });
+});
+
+/**
  * The one check for every gate: `Dev / verify` on a branch push, which branch
  * protection requires, and `CI / verify` on a pull request. Each has to run
  * when a gate fails and fail with it: a job skipped because a job it needs

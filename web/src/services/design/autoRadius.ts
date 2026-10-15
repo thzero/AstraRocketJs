@@ -853,21 +853,26 @@ const ringBoreAuto = (node: ComponentNode): boolean =>
 function parentDerived(node: ComponentNode, parent: ComponentNode | null, parentStart: number): void {
   if (!parent) return;
   if (node.type === 'tubefinset') {
-    // A tube fin set with no wall of its own takes its parent's, once: the
-    // TubeFinSet constructor leaves the wall unset, and attached to a tube the
-    // part reports that tube's wall, which it then keeps when the tube's wall
-    // changes (desktop 24.12 and the kernel alike). Stored here, the panel, the
-    // drawing and the file state the wall that flies.
-    if (tubeFinWallFromParent(node)) {
-      const wall = num(parent, 'thickness', parentWallDefault(parent.type));
-      if (Number.isFinite(wall)) node['thickness'] = wall;
-    }
+    const body = parent.type === 'bodytube' ? bodyTubeRadius(parent) : num(parent, 'outerRadius', NaN);
     if (node['outerRadiusAuto'] === true) {
-      const body = parent.type === 'bodytube' ? bodyTubeRadius(parent) : num(parent, 'outerRadius', NaN);
       // The stored radius is the last resolved one, not a size the user chose:
       // `tubeFinRadius` returns any stored radius as is, so it is left out here.
       if (Number.isFinite(body) && body > 0)
         node['outerRadius'] = tubeFinRadius({ ...node, outerRadius: undefined }, body);
+    }
+    // A tube fin set with no wall of its own takes its parent's, once: the
+    // TubeFinSet constructor leaves the wall unset, and attached to a tube the
+    // part reports that tube's wall, which it then keeps when the tube's wall
+    // changes (desktop 24.12 and the kernel alike). A filled tube reports its
+    // radius as its wall (`SymmetricComponent.getThickness`, the rule
+    // `autoShoulder` reads a solid part by), and `TubeFinSet.setThickness`
+    // clamps whatever it is handed to the fin tube's own radius, resolved
+    // above. Stored here, the panel, the drawing and the file state the wall
+    // that flies.
+    if (tubeFinWallFromParent(node)) {
+      const wall = parent['filled'] === true ? body : num(parent, 'thickness', parentWallDefault(parent.type));
+      const outer = num(node, 'outerRadius', NaN);
+      if (Number.isFinite(wall)) node['thickness'] = Number.isFinite(outer) ? Math.min(wall, outer) : wall;
     }
     return;
   }

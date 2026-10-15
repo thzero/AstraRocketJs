@@ -34,7 +34,7 @@ vi.setConfig({ testTimeout: KERNEL_TEST_TIMEOUT_MS, hookTimeout: KERNEL_TEST_TIM
  * for one made while the save waited.
  */
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- the TeaVM bundle is untyped
 let engine: any;
 beforeAll(async () => {
   engine = await loadEngine();

@@ -2,8 +2,9 @@
 // to find the same part or motor (lib/digestCoverage.mjs has the floors and why).
 //
 // The sync workflow runs this before it publishes, so a run that skipped or
-// broke a digest step fails instead of publishing. It checks every catalog in
-// public/data, refreshed this run or not: the publish step copies them all.
+// broke a digest step fails instead of publishing. It checks the motor and the
+// parts catalog in public/data, refreshed this run or seeded from the data
+// branch: those two are what the publish step copies.
 //
 //   npm run check:digests
 //

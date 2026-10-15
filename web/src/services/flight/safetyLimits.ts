@@ -3,6 +3,8 @@ import { padLevelWind } from './windLevels';
 import { fmtUpTo, ladderDigits, withUnit } from '../../i18n/format';
 import { degToRad, type Quantity, siToUi, uiToSi, type UnitSymbols } from '../../prefs/units';
 import type { PowerClass } from './powerClass';
+import type { LauncherKind } from '../design/launcher';
+import { keyedText, type Keyed } from '../../i18n/keyedError';
 
 /**
  * Flying limits from the NAR and Tripoli safety codes, in SI.
@@ -101,7 +103,8 @@ export function launchLimitViolations(launch: LaunchConditions, cls: PowerClass)
 }
 
 /**
- * One violation as a sentence, in the units the reader has selected.
+ * One violation as a keyed text: the sentence's key and its two figures, in the
+ * units the reader has selected.
  *
  * The codes state their numbers in imperial. Quoted that way the figure matches
  * the source but puts "20 mph" in front of a reader whose every other readout is
@@ -109,13 +112,12 @@ export function launchLimitViolations(launch: LaunchConditions, cls: PowerClass)
  * offending value and the cap are converted, and the symbol travels with each
  * number rather than sitting in the translated sentence.
  *
- * `u` is passed in rather than read here: see {@link UnitSymbols}.
+ * `launcher` picks the rod angle sentence worded for the design's launcher (its
+ * `_rail` or `_rod` form), for a site that renders the key later with a plain
+ * `t`; a caller whose `t` already carries the launcher as i18next context
+ * passes none. `u` is passed in rather than read here: see {@link UnitSymbols}.
  */
-export function limitText(
-  v: LimitViolation,
-  t: (key: string, vars: Record<string, unknown>) => string,
-  u: UnitSymbols,
-): string {
+export function limitNote(v: LimitViolation, u: UnitSymbols, launcher: LauncherKind | null = null): Keyed {
   const quantity: Quantity = v.field === 'rodAngle' ? 'angle' : 'windspeed';
   const sym = u.sym(quantity);
   const ui = (si: number) => siToUi(quantity, sym, si);
@@ -130,8 +132,17 @@ export function limitText(
       : v.powerClass === 'model'
         ? 'limits.rodAngleModel'
         : 'limits.rodAngleHighPower';
-  return t(key, {
-    value: show(v.value),
-    limit: show(v.limit),
-  });
+  return {
+    key: launcher && v.field === 'rodAngle' ? `${key}_${launcher}` : key,
+    values: { value: show(v.value), limit: show(v.limit) },
+  };
+}
+
+/** One violation as a sentence in the language `t` speaks: {@link limitNote}, rendered. */
+export function limitText(
+  v: LimitViolation,
+  t: (key: string, vars: Record<string, unknown>) => string,
+  u: UnitSymbols,
+): string {
+  return keyedText(limitNote(v, u), (key, values) => t(key, values ?? {}));
 }

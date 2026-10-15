@@ -1289,6 +1289,8 @@
     "finishUnknown": "{{part}}: het bestand noemt een oppervlakafwerking \"{{value}}\" die deze app niet heeft, dus het onderdeel wordt gelezen als gewone verf.",
     "shapeUnknown": "{{part}}: het bestand noemt een vorm \"{{value}}\" die deze app niet heeft, dus de standaardvorm wordt gebruikt.",
     "crossSectionUnknown": "{{part}}: het bestand noemt een vindoorsnede \"{{value}}\" die deze app niet heeft, dus de vinnen worden gelezen als vierkant.",
+    "deployEventUnknown": "{{part}}: het bestand noemt een openingsgebeurtenis \"{{value}}\" die deze app niet heeft, dus de standaardgebeurtenis wordt gebruikt.",
+    "separationEventUnknown": "{{part}}: het bestand noemt een scheidingsgebeurtenis \"{{value}}\" die deze app niet heeft, dus de standaardgebeurtenis wordt gebruikt.",
     "finPointsUnreadable": "{{part}}: {{count}} omtrekpunten in het bestand konden niet worden gelezen en zijn genegeerd.",
     "finPointsTooFew": "{{part}}: het bestand geeft minder dan drie bruikbare omtrekpunten, dus de standaard vrije-vormomtrek wordt gebruikt.",
     "motorNoDesignation": "Motorhouder \"{{mount}}\": de motor in het bestand heeft geen aanduiding, dus kon niet worden opgezocht.",

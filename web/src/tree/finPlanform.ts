@@ -446,7 +446,13 @@ function cantYOffset(mount: FinMount, cant: number, xStart: number, xEnd: number
 export function finRootPoints(fin: ComponentNode, parent: FinParent): Pt[] {
   const { mount } = resolveMount(parent);
   const xStart = mount.front;
-  const len = finRootChord(fin);
+  // A chord below zero is sampled as zero. `TrapezoidFinSet.setLength` floors
+  // it there (TrapezoidFinSet.java:90); `EllipticalFinSet.setLength` keeps it
+  // (EllipticalFinSet.java:93) but the bridge refuses a negative `rootChord`
+  // before the kernel sees one, so zero is the nearest chord it flies; a
+  // freeform chord is its outline's own span (`freeformRootChord`). Sampled as
+  // stored, a negative interval on a canted fin yields no root point at all.
+  const len = Math.max(finRootChord(fin), 0);
   const xEnd = xStart + len;
   // Clamped as `FinSet.setCantAngle` clamps it: a file's cant past the limit flies at the limit.
   const cant = finCant(fin);

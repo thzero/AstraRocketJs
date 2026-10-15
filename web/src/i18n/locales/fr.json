@@ -1294,6 +1294,8 @@
     "finishUnknown": "{{part}} : le fichier indique une finition de surface « {{value}} » que cette application ne connaît pas ; la pièce est lue comme peinture ordinaire.",
     "shapeUnknown": "{{part}} : le fichier indique une forme « {{value}} » que cette application ne connaît pas ; la forme par défaut est utilisée.",
     "crossSectionUnknown": "{{part}} : le fichier indique une section d'aileron « {{value}} » que cette application ne connaît pas ; les ailerons sont lus comme carrés.",
+    "deployEventUnknown": "{{part}} : le fichier indique un événement de déploiement « {{value}} » que cette application ne connaît pas ; l'événement par défaut est utilisé.",
+    "separationEventUnknown": "{{part}} : le fichier indique un événement de séparation « {{value}} » que cette application ne connaît pas ; l'événement par défaut est utilisé.",
     "finPointsUnreadable": "{{part}} : {{count}} points du contour dans le fichier n'ont pas pu être lus et ont été ignorés.",
     "finPointsTooFew": "{{part}} : le fichier donne moins de trois points de contour utilisables ; le contour libre par défaut est utilisé.",
     "motorNoDesignation": "Support moteur « {{mount}} » : le moteur du fichier n'a pas de désignation, il n'a donc pas pu être recherché.",

@@ -285,9 +285,11 @@ export function buildPieces(
 
   /**
    * Builds `parent`'s children. `pRadius` is the parent's largest radius, which
-   * sizes packed parts inside it; a part on the outside stands on the body
-   * radius at its own station (`bodyRadiusAt`), which on a nose cone or
-   * transition is not that radius.
+   * sizes packed parts inside it; `surfaceAt` is the body radius under a
+   * station (`bodyRadiusAt`). Lugs, rail buttons, tube fins and fairings can
+   * only sit on a body tube (Transition.isCompatible, treeEdit.canHost), where
+   * that is the tube's radius; only a freeform fin sits on a cone or
+   * transition, where it is the station's.
    */
   const addChildren = (parent: ComponentNode, pStart: number, pLen: number, pRadius: number, xform?: THREE.Matrix4) => {
     /** The parent's outer radius under the rocket-frame station `x`. */
@@ -306,6 +308,9 @@ export function buildPieces(
         const start = axialStart(child, len, pStart, pLen);
         const R = surfaceAt(start);
         const rt = tubeFinRadius(child, R);
+        // A synced tree carries the parent's wall on a tube fin set that states
+        // none (autoRadius `parentDerived`), so the literal is the last resort
+        // for an unsynced node; the kernel has no wall of its own for the part.
         const wall = Math.min(num(child, 'thickness', 0.0005), rt * 0.45);
         maxR = Math.max(maxR, R + 2 * rt);
         for (const { angle } of ringInstanceOffsets(count, 0, num(child, 'rotation', 0))) {
@@ -339,7 +344,7 @@ export function buildPieces(
         const r = num(child, 'outerRadius', KERNEL_DEFAULTS.launchlug.outerRadius);
         // Ride around the body at the radial mount angle (kernel default 180°),
         // staying axial. y = R·cosθ, z = R·sinθ, the pod/cluster convention.
-        // It stands on the body radius at its own station.
+        // It stands on the tube's radius: a lug's parent is always a body tube.
         const ang = num(child, 'angleOffset', Math.PI);
         const start = axialStart(child, len, pStart, pLen);
         const rad = surfaceAt(start) + r;

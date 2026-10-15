@@ -81,8 +81,9 @@ export function DeploymentSection({
           value={over?.deployAltitude == null ? null : alt.toUi(over.deployAltitude)}
           placeholder={alt.fmt(design.deployAltitude)}
           step={alt.step(10)}
-          // Floored at zero, as the design-side field is by `NumberField`'s own
-          // `min = 0` default. `onSi` rejects only a null or a failed conversion,
+          // Floored at zero, as the design-side box is by `fieldRange` (a
+          // `distance` field is non-negative; the bridge refuses a negative
+          // deploy altitude). `onSi` rejects only a null or a failed conversion,
           // not a negative, so a typed or pasted -150 would commit into the flight
           // configuration: the kernel's altitude trigger then never fires and the
           // design flies ballistic under that one configuration, with nothing on

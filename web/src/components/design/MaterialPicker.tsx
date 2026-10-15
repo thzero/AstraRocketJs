@@ -304,8 +304,14 @@ export function MaterialPicker({
       {!current && !own && !loadErr && (
         <p className="mt-1 text-[11px] leading-snug text-ink-faint">{t('material.defaultHint')}</p>
       )}
-      {loadErr && <p className="mt-1 text-xs text-danger-400">{loadErr}</p>}
-      {delErr && <p className="mt-1 text-xs text-danger-400">{delErr}</p>}
+      {/* Always mounted, empty until there is something to say: a live region
+          created together with its text is not announced (see UpdateToast). */}
+      <p role="status" aria-live="polite" className="mt-1 text-xs text-danger-400">
+        {loadErr}
+      </p>
+      <p role="status" aria-live="polite" className="mt-1 text-xs text-danger-400">
+        {delErr}
+      </p>
 
       {adding && (
         <div className="mt-2 space-y-2 rounded-lg bg-canvas p-2 ring-1 ring-line/10">
@@ -342,7 +348,10 @@ export function MaterialPicker({
             ariaLabel={`${t(DENSITY_LABEL[type])} (${fu.sym})`}
             className="w-full rounded bg-surface px-2 py-1.5 text-sm tabular-nums ring-1 ring-line/10 placeholder:text-ink-faint"
           />
-          {addErr && <p className="text-xs text-danger-400">{addErr}</p>}
+          {/* Always mounted, as the two lines above the form are. */}
+          <p role="status" aria-live="polite" className="text-xs text-danger-400">
+            {addErr}
+          </p>
           <div className="flex gap-2">
             <button
               onClick={submitCustom}

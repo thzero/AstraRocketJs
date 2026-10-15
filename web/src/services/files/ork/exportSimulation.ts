@@ -10,6 +10,7 @@ import { unwrapConditionsChild } from './passthrough';
 import { degToRad } from '../../../prefs/units';
 import { DEFAULT_HEADING_DEG } from '../../flight/simulations';
 import { G0 } from '../../motors/motorMath';
+import { DEFAULT_SETTINGS } from '../../storage/settings';
 
 /**
  * The <simulations> block: every simulation, each with its own conditions and
@@ -104,17 +105,11 @@ function flightDataTag(s: FlightSummary): string {
 
 /**
  * The desktop's own defaults for what `OrkSimPrefs` covers (SimulationOptions
- * and the RK4 stepper's recommended step), for a caller that passes none.
+ * and the RK4 stepper's recommended step), for a caller that passes none. The
+ * app's default settings are those numbers, so they are read from there rather
+ * than held a second time.
  */
-const DESKTOP_SIM_PREFS: OrkSimPrefs = {
-  timeStep: 0.05,
-  maxTime: 1200,
-  randomSeed: null,
-  deploymentSpeedWarn: 20,
-  mainHighSpeedWarn: 30.48,
-  mainLowSpeedWarn: 15.24,
-  drogueLowSpeedWarn: 3.048,
-};
+const DESKTOP_SIM_PREFS: OrkSimPrefs = DEFAULT_SETTINGS.simulation;
 
 function conditionsXml(
   w: OrkWriter,

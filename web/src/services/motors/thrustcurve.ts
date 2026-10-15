@@ -2,7 +2,7 @@ import type { MotorSpec } from '../../engine/openRocketEngine';
 import type { CatalogMotor } from './motorDb';
 import { hasUsableCurve } from './motorCurve';
 import { cumulativeImpulse } from './motorMath';
-import { getMotorStore, isThrustSampleArray, type CustomMotor } from './motorStore';
+import { getMotorStore, isMotorType, isThrustSampleArray, type CustomMotor } from './motorStore';
 import { declaredLength, readStreamWithProgress } from '../app/fetchProgress';
 import { fetchFailure } from '../app/remoteData';
 import { nsKey } from '../storage/storageKeys';
@@ -437,7 +437,7 @@ async function buildMotorSpec(cat: CatalogMotor, ejectionDelay: number, curveInd
       ejectionDelay,
       cat.cg,
     );
-    return { ...spec, curveSrc: curve.src };
+    return { ...spec, curveSrc: curve.src, ...(isMotorType(cat.type) ? { type: cat.type } : {}) };
   }
 
   const key = specKey(cat, ejectionDelay);
@@ -485,5 +485,6 @@ export function customMotorToSpec(cm: CustomMotor, ejectionDelay: number): Motor
     cm.cgMm === undefined ? undefined : [[0, cm.cgMm / 1000]],
     cm.massesG?.map((g) => g / 1000),
   );
-  return { ...spec, imported: true };
+  // The type rides along so a save writes the curve back under it.
+  return { ...spec, imported: true, ...(cm.type ? { type: cm.type } : {}) };
 }

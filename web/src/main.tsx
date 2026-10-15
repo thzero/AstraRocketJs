@@ -19,10 +19,11 @@ import { warmCatalogs } from './services/app/warmCatalogs';
 // connection.
 //
 // Nothing below the kernel is needed to draw a rocket. The component tree, the
-// schematic, the design library and the .ork/.rkt paths are all plain TypeScript;
-// only the static numbers and the simulations need the engine, and they wait for
-// it on their own (state/engineStore.ts, and the rebuild effect in
-// useWorkspaceEffects).
+// schematic, the design library and the .ork/.rkt readers and writers are all
+// plain TypeScript, and a file opened before the engine has loaded skips the
+// kernel (loadOrk) and is built when it arrives. Only the static numbers and the
+// simulations need the engine, and they wait for it on their own
+// (state/engineStore.ts, and the rebuild effect in useWorkspaceEffects).
 useEngineStore.getState().start();
 
 // The saved theme, before anything paints: applied from the provider's effect

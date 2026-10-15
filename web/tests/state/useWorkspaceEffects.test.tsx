@@ -39,6 +39,11 @@ vi.mock('../../src/engine/openRocketEngine', async (orig) => ({
   ...(await orig<typeof import('../../src/engine/openRocketEngine')>()),
   initEngine: () => new Promise<never>(() => {}),
 }));
+// The file opened below names no motor, so the catalog is never consulted.
+vi.mock('../../src/services/motors/motorDb', async (orig) => ({
+  ...(await orig<typeof import('../../src/services/motors/motorDb')>()),
+  loadCatalog: async () => [],
+}));
 
 const degraded = vi.hoisted(() => ({ fire: null as null | (() => void) }));
 vi.mock('../../src/services/storage/idbKeyValueStore', async (orig) => ({
@@ -65,6 +70,30 @@ function Host() {
   useWorkspaceEffects();
   return null;
 }
+
+/** A desktop file holding one tube and no motor, as `openOrkFile` receives it. */
+const orkFile = (name: string): Blob => {
+  const bytes = new TextEncoder().encode(`<?xml version='1.0' encoding='utf-8'?>
+<openrocket version="1.10" creator="OpenRocket 24.12">
+  <rocket>
+    <name>${name}</name>
+    <subcomponents>
+      <stage>
+        <name>Sustainer</name>
+        <subcomponents>
+          <bodytube>
+            <name>Body</name>
+            <length>0.3</length>
+            <thickness>0.0005</thickness>
+            <radius>0.0125</radius>
+          </bodytube>
+        </subcomponents>
+      </stage>
+    </subcomponents>
+  </rocket>
+</openrocket>`);
+  return { size: bytes.byteLength, arrayBuffer: async () => bytes.buffer as ArrayBuffer } as unknown as Blob;
+};
 
 const s = () => useWorkspaceStore.getState();
 /** A saved workspace distinguishable from the default design. */
@@ -236,6 +265,33 @@ describe('hydration', () => {
     expect(setActiveId).toHaveBeenCalledWith(null);
     expect(unchangedSinceWrite(s())).toBe(false);
     // So the unload flush writes it, where an untouched default is skipped.
+    act(() => {
+      window.dispatchEvent(new Event('pagehide'));
+    });
+    expect(saveSync).toHaveBeenCalledTimes(1);
+    expect((saveSync.mock.calls[0]![0] as { tree: unknown }).tree).toBe(edited);
+  });
+
+  /**
+   * The same window on a first visit, with nothing stored: the edit is the
+   * user's and stays unwritten, so the unload flush and the hidden-tab save
+   * store it. Only an untouched default is marked written.
+   */
+  it('keeps an edit made before an empty load resolved, unwritten', async () => {
+    let resolve!: (w: null) => void;
+    load.mockReturnValue(new Promise((r) => (resolve = r)));
+    renderWithProviders(<Host />);
+
+    act(() => s().addPartToTree('bodytube'));
+    const edited = s().tree;
+
+    await act(async () => {
+      resolve(null);
+      for (let i = 0; i < 6; i++) await Promise.resolve();
+    });
+
+    expect(s().tree).toBe(edited);
+    expect(unchangedSinceWrite(s())).toBe(false);
     act(() => {
       window.dispatchEvent(new Event('pagehide'));
     });
@@ -606,6 +662,40 @@ describe('what triggers a rebuild', () => {
 
     expect(computeStaticInfo).toHaveBeenCalledTimes(1);
     expect(s().info).not.toBeNull();
+  });
+
+  /**
+   * A file opened in that same first second. The import needs no kernel (the
+   * engine module here is the real one with no engine loaded, so every kernel
+   * call refuses), the design lands on screen with no error, and the engine's
+   * arrival builds it.
+   */
+  it('opens a file before the kernel has loaded, and builds it when the kernel arrives', async () => {
+    useEngineStore.setState({ phase: 'loading', backend: null });
+    await mount();
+    const original = getDesignLibrary();
+    setDesignLibrary({
+      list: async () => [],
+      setActive: async () => true,
+      activeId: async () => null,
+    } as unknown as DesignLibrary);
+    try {
+      await act(async () => {
+        await s().openOrkFile(orkFile('Early'));
+      });
+    } finally {
+      setDesignLibrary(original);
+    }
+    expect(s().err).toBeNull();
+    expect(s().tree.name).toBe('Early');
+    expect(computeStaticInfo).not.toHaveBeenCalled();
+
+    await act(async () => {
+      useEngineStore.setState({ phase: 'ready', backend: 'wasm' });
+      await Promise.resolve();
+    });
+    expect(computeStaticInfo).toHaveBeenCalledTimes(1);
+    expect((computeStaticInfo.mock.calls[0]![0] as { name: string }).name).toBe('Early');
   });
 
   // The engine can arrive after an import has already failed. Building the

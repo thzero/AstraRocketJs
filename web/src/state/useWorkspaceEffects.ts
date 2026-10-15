@@ -163,10 +163,14 @@ export function useWorkspaceEffects() {
           // its own and the stored design keeps its own, unchanged.
           getWorkspaceStore().setActiveId?.(null);
           persist(useWorkspaceStore.getState());
-        } else {
+        } else if (untouchedSinceBoot(boot)) {
           nameDefaultDesign(boot);
           // Nothing stored: the default rocket is not worth storing until it is
-          // edited, as after New (see `writtenWorkspace`).
+          // edited, as after New (see `writtenWorkspace`). Edited while the read
+          // and the language wait ran, the design on screen is the user's and
+          // stays unwritten, as after a rejected load: marked written, the
+          // autosave (which does not run before this resolves), the unload
+          // flush and the hidden-tab save would all skip it.
           markWritten(useWorkspaceStore.getState());
         }
         hydrated.current = true;

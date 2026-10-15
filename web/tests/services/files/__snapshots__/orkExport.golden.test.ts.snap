@@ -64,7 +64,7 @@ exports[`golden .ork export > falls back to the FIRST configuration as default w
                 <id>00000000-0000-4000-8000-000000000004</id>
                 <axialoffset method="top">0</axialoffset>
                 <position type="top">0</position>
-                <packedlength>0.02</packedlength>
+                <packedlength>0.025</packedlength>
                 <packedradius>0.0125</packedradius>
                 <radialposition>0.0</radialposition>
                 <radialdirection>0.0</radialdirection>
@@ -236,7 +236,6 @@ exports[`golden .ork export > falls back to the FIRST configuration as default w
                 <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
                 <radius>0.012</radius>
                 <length>0.08</length>
-                <thickness>0.0005</thickness>
               </tubefinset>
               <innertube>
                 <name>Motor mount</name>
@@ -367,7 +366,7 @@ exports[`golden .ork export > falls back to the FIRST configuration as default w
                 <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
                 <radius>0.0025</radius>
                 <length>0.04</length>
-                <thickness>0.0003</thickness>
+                <thickness>0.001</thickness>
               </launchlug>
               <railbutton>
                 <name>Rail Button</name>
@@ -718,7 +717,7 @@ exports[`golden .ork export > mints one configuration for a design that declares
                 <id>00000000-0000-4000-8000-000000000005</id>
                 <axialoffset method="top">0</axialoffset>
                 <position type="top">0</position>
-                <packedlength>0.02</packedlength>
+                <packedlength>0.025</packedlength>
                 <packedradius>0.0125</packedradius>
                 <radialposition>0.0</radialposition>
                 <radialdirection>0.0</radialdirection>
@@ -879,7 +878,6 @@ exports[`golden .ork export > mints one configuration for a design that declares
                 <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
                 <radius>0.012</radius>
                 <length>0.08</length>
-                <thickness>0.0005</thickness>
               </tubefinset>
               <innertube>
                 <name>Motor mount</name>
@@ -983,7 +981,7 @@ exports[`golden .ork export > mints one configuration for a design that declares
                 <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
                 <radius>0.0025</radius>
                 <length>0.04</length>
-                <thickness>0.0003</thickness>
+                <thickness>0.001</thickness>
               </launchlug>
               <railbutton>
                 <name>Rail Button</name>
@@ -1272,7 +1270,7 @@ exports[`golden .ork export > pins every configuration, block and component type
                 <id>00000000-0000-4000-8000-000000000004</id>
                 <axialoffset method="top">0</axialoffset>
                 <position type="top">0</position>
-                <packedlength>0.02</packedlength>
+                <packedlength>0.025</packedlength>
                 <packedradius>0.0125</packedradius>
                 <radialposition>0.0</radialposition>
                 <radialdirection>0.0</radialdirection>
@@ -1444,7 +1442,6 @@ exports[`golden .ork export > pins every configuration, block and component type
                 <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
                 <radius>0.012</radius>
                 <length>0.08</length>
-                <thickness>0.0005</thickness>
               </tubefinset>
               <innertube>
                 <name>Motor mount</name>
@@ -1575,7 +1572,7 @@ exports[`golden .ork export > pins every configuration, block and component type
                 <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
                 <radius>0.0025</radius>
                 <length>0.04</length>
-                <thickness>0.0003</thickness>
+                <thickness>0.001</thickness>
               </launchlug>
               <railbutton>
                 <name>Rail Button</name>
@@ -1936,7 +1933,7 @@ exports[`golden .ork export > writes a lone configuration, and no launch block 1
                 <id>00000000-0000-4000-8000-000000000004</id>
                 <axialoffset method="top">0</axialoffset>
                 <position type="top">0</position>
-                <packedlength>0.02</packedlength>
+                <packedlength>0.025</packedlength>
                 <packedradius>0.0125</packedradius>
                 <radialposition>0.0</radialposition>
                 <radialdirection>0.0</radialdirection>
@@ -2097,7 +2094,6 @@ exports[`golden .ork export > writes a lone configuration, and no launch block 1
                 <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
                 <radius>0.012</radius>
                 <length>0.08</length>
-                <thickness>0.0005</thickness>
               </tubefinset>
               <innertube>
                 <name>Motor mount</name>
@@ -2217,7 +2213,7 @@ exports[`golden .ork export > writes a lone configuration, and no launch block 1
                 <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
                 <radius>0.0025</radius>
                 <length>0.04</length>
-                <thickness>0.0003</thickness>
+                <thickness>0.001</thickness>
               </launchlug>
               <railbutton>
                 <name>Rail Button</name>
@@ -2666,7 +2662,7 @@ exports[`golden .ork import > pins what the kitchen-sink export reads back as 1`
             "children": [
               {
                 "id": "c3",
-                "length": 0.02,
+                "length": 0.025,
                 "mass": 0.02,
                 "massComponentType": "tracker",
                 "name": "Tracker",
@@ -2843,7 +2839,7 @@ exports[`golden .ork import > pins what the kitchen-sink export reads back as 1`
                   "offset": 0,
                 },
                 "rotation": 0.1,
-                "thickness": 0.0005,
+                "thickness": 0.001,
                 "type": "tubefinset",
               },
               {
@@ -2964,7 +2960,7 @@ exports[`golden .ork import > pins what the kitchen-sink export reads back as 1`
                   "method": "middle",
                   "offset": 0,
                 },
-                "thickness": 0.0003,
+                "thickness": 0.001,
                 "type": "launchlug",
               },
               {

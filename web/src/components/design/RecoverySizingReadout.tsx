@@ -81,6 +81,11 @@ function SizingBody({ node, onUse }: { node: ComponentNode; onUse: (diameterM: n
   // figures are not this device's any more; the estimate is the honest fallback.
   const result = useWorkspaceStore((s) => (selectOutdated(s) ? null : selectActive(s).result));
 
+  // The stored Cd is the one the kernel flies, Auto or not: a parachute's
+  // `getComponentCD` returns its stored `cd` (Parachute.java), so `cdAuto` on
+  // this part changes nothing, and the kernel's default for a chute with no
+  // `cd` is the same 0.8 (RecoverySizingReadout.kernel.test pins both).
+  //
   // `num(..., 0.8)`, not `|| 0.8`: `nodeProps.num` already returns 0 for an
   // absent or non-finite value, so the truthiness fallback would also swallow a
   // deliberately stored `cd: 0` and report a finite descent rate for a canopy

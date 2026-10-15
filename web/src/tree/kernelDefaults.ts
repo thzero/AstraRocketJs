@@ -156,9 +156,6 @@ export const KERNEL_MATERIALS = {
   line: { name: 'Elastic cord (round 2 mm, 1/16 in)', density: 0.0018, group: 'ThreadsLines' },
 } as const satisfies Record<string, { name: string; density: number; group: string }>;
 
-/** One row of the table, as the union of every row's shape. */
-type KernelRow = (typeof KERNEL_DEFAULTS)[ComponentType];
-
 /**
  * The kernel's axial `length` default for a type, or `undefined` when the
  * factory reads none (stage, rail button, the assemblies, freeform fins).
@@ -169,8 +166,18 @@ type KernelRow = (typeof KERNEL_DEFAULTS)[ComponentType];
  * tube or tube fin set shorter.
  */
 export function kernelLength(type: ComponentType): number | undefined {
-  const row: KernelRow & { length?: number } = KERNEL_DEFAULTS[type];
-  return row.length;
+  return kernelDefault(type, 'length');
+}
+
+/**
+ * The kernel's value for one field of a node of `type` that leaves the key
+ * out, or `undefined` where the factory reads none. `type` is any string: a
+ * persisted node can carry a type outside the union, and such a node has no
+ * row and no defaults.
+ */
+export function kernelDefault(type: string, key: string): number | undefined {
+  const row = (KERNEL_DEFAULTS as Record<string, Readonly<Record<string, number>> | undefined>)[type];
+  return row?.[key];
 }
 
 /** Mass-component radius the kernel uses when the `radius` key is absent (m). */

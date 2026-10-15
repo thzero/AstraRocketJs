@@ -37,7 +37,10 @@ export function MotorSpecDialog({ motor, onClose }: { motor: MotorSpec; onClose:
   const g = withFixedUnit;
   // MotorSpec is SI; `q` converts to the user's unit and appends its symbol.
   const q = (quantity: Parameters<typeof u.fmt>[0], si: number | null, d?: number) => inUserUnit(u, quantity, si, 1, d);
-  const delay = motor.ejectionDelay >= PLUGGED_DELAY ? t('motor.plugged') : `${fmtNum(motor.ejectionDelay, 1)} s`;
+  const delay =
+    motor.ejectionDelay >= PLUGGED_DELAY
+      ? t('motor.plugged')
+      : `${fmtNum(motor.ejectionDelay, 1)} ${t('units.second')}`;
 
   return (
     <Dialog

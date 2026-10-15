@@ -3,7 +3,7 @@ import i18n from '../i18n';
 import { confirm } from './confirmStore';
 import { prompt } from './promptStore';
 import { defaultRocketTree } from '../services/design/defaultRocket';
-import { launcherKind, withLauncher } from '../services/design/launcher';
+import { launcherKind } from '../services/design/launcher';
 import type { DesignInfo } from '../services/files/orkTypes';
 import type { ComponentFigures } from '../services/files/rktExport';
 import type { buildRocketTree } from '../engine/api';
@@ -382,10 +382,7 @@ export const createFileSlice =
           const fixed = repairValues(tree);
           // Worded for the imported design's launcher, not the one still open:
           // the store's tree is the previous design until replaceWorkspace below.
-          const t = withLauncher(
-            i18n.t as unknown as (key: string, options?: Record<string, unknown>) => string,
-            launcherKind(fixed.tree),
-          );
+          const launcher = launcherKind(fixed.tree);
           // Before the engine has built the imported rocket, so the motors
           // alone decide each configuration's class here; the run gate judges
           // again with the rocket's mass.
@@ -393,7 +390,7 @@ export const createFileSlice =
             launch: sim.launch,
             powerClass: configPowerClass(fixed.tree, configFor(configs, sim.configId), null),
           }));
-          const notes = importNotes(loadedMeta.notes, flights, t, displayUnits());
+          const notes = importNotes(loadedMeta.notes, flights, launcher, displayUnits());
           replaceWorkspace({
             repairNotes: repairNotes(fixed.repaired),
             tree: fixed.tree,
